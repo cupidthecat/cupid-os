@@ -246,7 +246,7 @@ class KernelProcessImageContractTests(KernelContractCase):
 class KernelSmpRescheduleSourceContractTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.source = (REPO_ROOT / "kernel/smp/smp.c").read_text()
+        cls.source = (REPO_ROOT / "kernel/smp/smp.cc").read_text()
 
     def function_body(self, name):
         match = re.search(
@@ -287,7 +287,7 @@ class KernelSmpRescheduleSourceContractTests(unittest.TestCase):
 class KernelFpuInitializationSourceContractTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.source = (REPO_ROOT / "kernel/cpu/fpu.c").read_text()
+        cls.source = (REPO_ROOT / "kernel/cpu/fpu.cc").read_text()
 
     def function_body(self, name):
         match = re.search(

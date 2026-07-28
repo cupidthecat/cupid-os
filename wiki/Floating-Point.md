@@ -61,9 +61,13 @@ load and `F3 0F 11 00` for the store through EAX. It also accepts the exact
 volatile x87 block in `stress_sin()`. The statement has one `double` output,
 one `double` input, and no clobbers. It emits `FLD`, `FSIN`, and `FSTP`
 through the shared encoder, with balanced x87 depth and no frame temporary.
-Unchanged `kernel/cpu/fpu.c` now produces a deterministic checked-seed
-object. Its production recipe remains host-owned until the separate
-ownership and runtime transfer passes.
+The earlier compiler proof used `kernel/cpu/fpu.c`. The unchanged
+implementation is now `kernel/cpu/fpu.cc`, a checked CupidC production root.
+Two checked compiles produce the same validated 6,620-byte object with
+SHA-256
+`14c3ea232b7d4455ceabd561c69293cc5849abae24d9f210aa69d64ed8c8a5cb`.
+Four-vCPU e1000 and RTL8139 boots print both FPU boot markers and finish
+`feature16_asm_fpu.cc` successfully.
 
 The checked seed also represents the exact x87 round-down statement in
 `str_floor()`. It takes one `double` memory output and one `double`
@@ -149,9 +153,10 @@ Interactive: boot QEMU graphical, type the command in the shell.
 
 ## Stress test
 
-`fpu_context_stress()` in `kernel/cpu/fpu.c` spawns 8 threads each running 100k
-sin() loops, compares against a serial reference. Gated by `-DFPU_STRESS`.
-To run: add `-DFPU_STRESS` to `CFLAGS`, rebuild, boot. Panics on corruption.
+`fpu_context_stress()` is defined in `kernel/cpu/fpu.cc`, but the normal boot
+does not call it. The checked CupidC production recipe does not consume host
+`CFLAGS`, so the old `-DFPU_STRESS` instruction is no longer a valid
+activation path.
 
 ## Exception drill
 

@@ -1,3 +1,4 @@
+import hashlib
 import os
 import re
 import shlex
@@ -6,8 +7,13 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from tools import cupidc_kernel_compile as kernel_compile
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+CHECKED_CUPIDDIS = (
+    REPO_ROOT / "bootstrap" / "seeds" / "i386-linux" / "cupiddis.elf"
+)
 
 
 def _make_compile_command(make_root, target, source):
@@ -48,54 +54,82 @@ def _make_compile_command(make_root, target, source):
 
 class KernelFpuCodeGenerationContractTests(unittest.TestCase):
     def test_cpu_enable_helper_compiles_without_live_fp_registers(self):
-        with tempfile.TemporaryDirectory(prefix="cupid-fpu-codegen-") as directory:
-            assembly = Path(directory) / "fpu.s"
-            command = _make_compile_command(
+        with tempfile.TemporaryDirectory(
+            prefix=".cupid-fpu-codegen-",
+            dir=REPO_ROOT,
+        ) as directory:
+            object_path = Path(directory) / "fpu.o"
+            kernel_compile.compile_kernel_source(
                 REPO_ROOT,
-                "kernel/cpu/fpu.o",
-                "kernel/cpu/fpu.c",
+                REPO_ROOT / "kernel" / "cpu" / "fpu.cc",
+                object_path,
             )
-            command[command.index("-c")] = "-S"
-            command[command.index("-o") + 1] = str(assembly)
+            object_image = object_path.read_bytes()
+            self.assertEqual(len(object_image), 6620)
+            self.assertEqual(
+                hashlib.sha256(object_image).hexdigest(),
+                "14c3ea232b7d4455ceabd561c69293cc5"
+                "849abae24d9f210aa69d64ed8c8a5cb",
+            )
 
-            result = subprocess.run(
-                command,
-                cwd=REPO_ROOT,
-                text=True,
-                capture_output=True,
+            executor = kernel_compile.SeedExecutor(REPO_ROOT)
+            result = executor.run(
+                CHECKED_CUPIDDIS,
+                (
+                    "--disassemble",
+                    executor.compiler_root_for(object_path),
+                ),
+                kernel_compile.DEFAULT_TIMEOUT_SECONDS,
             )
             self.assertEqual(
                 result.returncode,
                 0,
-                "supported-host FPU code-generation contract failed\n"
+                "checked CupidDis could not decode the CupidC FPU object\n"
                 + result.stdout
                 + result.stderr,
             )
-            generated = assembly.read_text(encoding="utf-8")
-            start = re.search(r"(?m)^fpu_init_cpu:.*$", generated)
-            self.assertIsNotNone(start, "missing fpu_init_cpu assembly label")
-            tail = generated[start.end() :]
-            end = re.search(r"(?m)^\s*\.size\s+fpu_init_cpu\b", tail)
-            self.assertIsNotNone(end, "missing fpu_init_cpu assembly extent")
+            self.assertEqual(result.stderr, "")
+            start = re.search(
+                r"(?m)^[0-9A-F]{8} <fpu_init_cpu>:$",
+                result.stdout,
+            )
+            self.assertIsNotNone(start, "missing decoded fpu_init_cpu symbol")
+            tail = result.stdout[start.end() :]
+            end = re.search(r"(?m)^[0-9A-F]{8} <[^>]+>:$", tail)
+            self.assertIsNotNone(end, "missing decoded fpu_init_cpu extent")
             body = tail[: end.start()]
+            instructions = [
+                line.split("  ", 2)[-1]
+                for line in body.splitlines()
+                if re.match(r"^[0-9A-F]{8}:", line)
+            ]
+            decoded_instructions = "\n".join(instructions)
             self.assertNotRegex(
-                body,
-                r"%(?:xmm|ymm|zmm|mm)[0-9]+\b|%st(?:\([0-7]\))?",
+                decoded_instructions,
+                r"(?i)\b(?:xmm|ymm|zmm|mm)[0-9]+\b"
+                r"|\bst(?:\([0-7]\)|[0-7])\b",
                 "compiler introduced an FP/SIMD register before per-CPU enablement",
             )
-            enable = body.rfind("%cr4")
-            initialize = body.find("fninit")
-            load_control = body.find("ldmxcsr")
+            enable = instructions.index("mov cr4, eax")
+            initialize = instructions.index("fninit")
+            load_control = next(
+                index
+                for index, instruction in enumerate(instructions)
+                if instruction.startswith("ldmxcsr ")
+            )
             self.assertGreaterEqual(enable, 0)
-            self.assertNotRegex(
-                body,
-                r"(?mi)^[ \t]+call[a-z]*\b",
+            self.assertFalse(
+                any(
+                    re.match(r"^call\b", instruction)
+                    for instruction in instructions
+                ),
                 "compiler introduced a runtime helper in the CPU enable helper",
             )
-            pre_enable = body[:enable]
-            self.assertNotRegex(
-                pre_enable,
-                r"(?mi)^[ \t]+f[a-z0-9]+\b",
+            self.assertFalse(
+                any(
+                    re.match(r"^f[a-z0-9]+\b", instruction)
+                    for instruction in instructions[:enable]
+                ),
                 "compiler introduced an implicit-stack x87 instruction before enablement",
             )
             self.assertGreater(initialize, enable)

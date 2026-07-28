@@ -816,7 +816,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertFalse(profile["compatibility_pointer_conversions"])
         self.assertEqual(profile["forced_includes"], [])
 
-        source_path = REPO_ROOT / "kernel/smp/percpu.c"
+        source_path = REPO_ROOT / "kernel/smp/percpu.cc"
         source_image = source_path.read_bytes()
         source_digest = hashlib.sha256(source_image).hexdigest()
         self.assertEqual(
@@ -868,7 +868,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                         str(self.hosted_cupidc_path),
                         *arguments,
                         "-c",
-                        "/kernel/smp/percpu.c",
+                        "/kernel/smp/percpu.cc",
                         "-o",
                         logical_output,
                     ],
@@ -950,7 +950,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                         str(self.hosted_cupidc_path),
                         *arguments,
                         "-c",
-                        "/kernel/cpu/fpu.c",
+                        "/kernel/cpu/fpu.cc",
                         "-o",
                         logical_output,
                     ],
@@ -1323,7 +1323,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                         str(self.hosted_cupidc_path),
                         *arguments,
                         "-c",
-                        "/kernel/smp/smp.c",
+                        "/kernel/smp/smp.cc",
                         "-o",
                         logical_output,
                     ],
@@ -1347,8 +1347,8 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                 (len(objects[0]), digest),
                 (
                     8444,
-                    "806509a6dd1ac7eb34b7ffcb67a1f885"
-                    "2950663a274145584d0260da76dcba54",
+                    "bd3189b2a1a6d15728c559172f5d6acc"
+                    "a0889103428085cec8cc1024742a22d1",
                 ),
                 f"SMP object lock changed: {len(objects[0])} {digest}",
             )

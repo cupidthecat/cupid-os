@@ -57,7 +57,7 @@ executables are not available yet.
 
 This seed makes the hosted static toolchain reproducible from a clean checkout.
 It does not complete the normal OS build migration. Native contract runners,
-hosted development commands, and 90 normal C root objects still use a host C
+hosted development commands, and 87 normal C root objects still use a host C
 compiler.
 
 The production boot source assembles to an exact 2,560-byte image with SHA-256
@@ -144,10 +144,10 @@ and emits `F3 0F 10 00` or `F3 0F 11 00` through EAX. The unchanged
 `stress_sin()` x87 statement is also represented. It evaluates one `double`
 output address before one `double` input address, permits no clobbers, and
 emits balanced `FLD`, `FSIN`, and `FSTP` instructions with no frame
-temporary. Two complete builds of unchanged
-`kernel/cpu/fpu.c` produce the same validated 6,620-byte object. The checked
-seed carries the path; the normal ownership graph stays unchanged until the
-separate production transfer passes.
+temporary. Two complete builds of `kernel/cpu/fpu.cc` produce the same
+validated 6,620-byte object with SHA-256
+`14c3ea232b7d4455ceabd561c69293cc5849abae24d9f210aa69d64ed8c8a5cb`.
+The normal build owns the root through the checked wrapper.
 
 The next compiler-head slice represents the complete x87 round-down statement
 in unchanged `str_floor()`. It requires one modifiable `double` output, one
@@ -166,24 +166,28 @@ round-down increment, but the root remains host-owned and keeps its `.c`
 name.
 
 The checked seed retains GNU `naked` and `__naked__` for the exact IPI
-entries in unchanged `kernel/smp/smp.c`. A naked definition must be
+entries. A naked definition must be
 `void (void)` and contain one complete wrapper or panic-loop assembly
 statement. The emitter adds no C frame or return instruction. Its direct call
 uses one typed `R_386_PC32` relocation, and the panic loop uses a local
 relative jump. Two exact-profile compiles reproduce an 8,444-byte object with
 SHA-256
 `806509a6dd1ac7eb34b7ffcb67a1f8852950663a274145584d0260da76dcba54`.
-The checked seed carries these entries. The normal ownership graph remains
-unchanged until the wrapper, rename, image, and runtime transfer passes.
+The earlier `smp.c` proof produced an 8,444-byte object with SHA-256
+`806509a6dd1ac7eb34b7ffcb67a1f8852950663a274145584d0260da76dcba54`.
+The production `kernel/smp/smp.cc` object remains 8,444 bytes and has SHA-256
+`bd3189b2a1a6d15728c559172f5d6acca0889103428085cec8cc1024742a22d1`.
+The existing `__FILE__` diagnostic accounts for the difference.
 
-The normal image has 149 checked CupidC C transforms: 148 checked-in sources
-and the generated `kernel/cpu/ksyms_data.cc` source. All 149 sources use
+The normal image has 152 checked CupidC C transforms: 151 checked-in sources
+and the generated `kernel/cpu/ksyms_data.cc` source. All 152 sources use
 `.cc`. The five shared Toolchain roots also belong to the 19-source i386
 Linux fixed point. Native GCC and Clang rules select C with `-x c`. ADR 0124
 records the first 111-root transfer, ADR 0126 records the complete
 fixed-point rename and old-seed proof, ADR 0129 records the lexer transfer,
-ADR 0135 records the Nuked OPL3 transfer, and ADR 0139 records the JPEG and
-glyph-raster transfer. Seven strict checked-in roots remain host-owned.
+ADR 0135 records the Nuked OPL3 transfer, ADR 0139 records the JPEG and
+glyph-raster transfer, and ADR 0160 records the FPU and SMP transfer. Four
+strict checked-in roots remain host-owned.
 
 The checked seed accepts ordered `-include` inputs through both the native
 and Cupid-built driver. That command can reproduce the complete audited
@@ -217,7 +221,7 @@ dual-NIC runtime gates pass. The wrapper compiles from a private copy of the
 source and its three headers, then rejects live input drift before it replaces
 the object.
 
-The strict frontier must compile each of its 148 approved sources twice.
+The strict frontier must compile each of its 151 approved sources twice.
 Forced Make runs with the host compiler command poisoned cover every
 production wrapper recipe, and each recipe lists its exact recursive header
 closure. A valid data-only object can omit `.text` when its other sections
@@ -226,8 +230,9 @@ permission-style directory locks with five bounded delays. A persistent lock
 or any other filesystem error publishes nothing. Input discovery skips hidden
 paths under active include roots, so private compiler staging headers from a
 concurrent build do not enter the repository snapshot. The complete frontier
-compiles all 148 roots twice against a 436-file snapshot. Both object sets are
-byte-identical and total 3,621,852 bytes. The combined graph passes the
+compiles all 151 roots twice against a 439-file snapshot with SHA-256
+`dd61ee8ece6a26282f7ae2d5f252f53c109827bf3e7a3365a00cc5a6e8d59a8a`.
+Both object sets are byte-identical and total 3,643,676 bytes. The combined graph passes the
 two-link symbol and memory checks, clean normal and partitioned image builds,
 and strong four-vCPU runtime gates with both NICs.
 
@@ -262,13 +267,13 @@ expressions in source order. It also keeps all target bits through represented
 function-pointer casts and supports bounded output-only register and EFLAGS
 snapshots. The checked production wrapper now compiles the generated
 `kernel/cpu/ksyms_data.cc` root. The generator writes little-endian
-`unsigned int` words and records the logical 105,242-byte blob length
+`unsigned int` words and records the logical 105,505-byte blob length
 separately. It runs private snapshots of the pass-one kernel and CupidDis,
 rejects malformed symbol rows, an empty text-symbol set, and live input
 drift, then replaces the `.cc` source atomically. The checked compiler
 wrapper freezes that source and its header closure before it publishes the
-object. The word array ends with two zero pad bytes. The final kernel
-consumes 4,384 text symbols and shows no address drift from the pass-one
+object. The word array ends with three zero pad bytes. The final kernel
+consumes 4,392 text symbols and shows no address drift from the pass-one
 kernel.
 
 The checked seed emits the exact volatile
@@ -316,23 +321,25 @@ is the next largest measured decoder gap. Source head has 587 catalogue rows
 and fingerprint `68E281CB`; the private exception does not change either
 value. The checked seed carries the same 587-row catalogue.
 
-The four-vCPU GUI runtime starts every discovered CPU, reaches e1000 traffic,
+The four-vCPU GUI runtime starts every discovered CPU, reaches e1000 or
+RTL8139 traffic,
 passes all 62 crypto checks, opens the desktop and terminal, and completes
 embedded CupidC execution at `0x01100000`. The established e1000 and RTL8139
 gates continue to cover audio, input reattachment, and six EHCI storage
-lifetimes. A private-image smoke loads the same external ELF program twice at
+lifetimes. Both NIC runs print `[fpu] boot smoke ok` and
+`FPU boot smoke passed`, then finish `feature16_asm_fpu.cc`. A private-image smoke loads the same external ELF program twice at
 `0x00F00000`; cleanup releases the first arena lease before the second load.
 The gate rejects SMP, storage, crypto, exception, panic, corruption, and
 illegal-instruction failure markers. The X.509 checks exercise parser,
 hostname, chain state, and embedded-root lookup paths. They are not a full
 trust-validation claim.
 
-Across the root and supplemental builds, the current audit assigns 155
-transforms to CupidC, 142 to the host C compiler, 170 to host Python, and five
+Across the root and supplemental builds, the current audit assigns 158
+transforms to CupidC, 139 to the host C compiler, 173 to host Python, and five
 to Make.
-CupidC's total is the 149 normal transforms plus three generated installation
+CupidC's total is the 152 normal transforms plus three generated installation
 tables and the `hello.cc`, `ls.cc`, and `cat.cc` programs. The host compiler
-still produces 90 root objects and still builds the native user drivers.
+still produces 87 root objects and still builds the native user drivers.
 The fifth Make transform prepares those drivers. Two Python transforms keep
 the ISO runtime fixture in the normal image dependency graph.
 The checked audit uses the canonical Windows Make branch and C locale on

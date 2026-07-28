@@ -22,10 +22,10 @@ CupidOS P5 Tier 2 SMP supports up to 32 logical CPUs with:
   - All external IRQs routed through BSP (keyboard, mouse, disk)
   - IPI vectors: 0xF0 reschedule, 0xF1 cross-CPU call, 0xFE panic
 Core files:
-  kernel/smp/percpu.h + percpu.c per-CPU data, GS-base init
+  kernel/smp/percpu.h + percpu.cc per-CPU data, GS-base init
   kernel/smp/lapic.h  + lapic.cc Local APIC driver
   kernel/smp/ioapic.h + ioapic.cc IOAPIC driver
-  kernel/smp/smp.h    + smp.c    AP trampoline, bringup, IPI wrappers
+  kernel/smp/smp.h    + smp.cc   AP trampoline, bringup, IPI wrappers
   kernel/smp/bkl.h    + bkl.cc   big kernel lock (ticket spinlock)
   kernel/smp/mp_tables.h + mp_tables.cc MP table discovery
   kernel/smp/acpi.h   + acpi.cc   ACPI MADT fallback
@@ -131,10 +131,10 @@ points to the per_cpu_t for that CPU; limit = 127; DPL = 0; type = data.
 Compiler-head CupidC represents the unchanged GDT setup directly. It keeps
 the packed six-byte GDTR, exact ax and memory clobbers, and 16-bit GS
 selector. CS reload uses a relative CALL and RETF trampoline, so the object
-needs no local-label relocation. Two full percpu.c compiles produce the same
-6,760-byte object. The checked seed carries this capability, but the normal
-recipe remains host-owned until its wrapper, rename, image, and runtime
-transfer passes.
+needs no local-label relocation. Two full percpu.cc compiles produce the same
+6,760-byte object with SHA-256
+3c2c6f0e00e5edec1ca16cba91e9fc593d1c42e24f4ebd3591e5f574fb0dd772.
+The normal build owns it through the checked wrapper.
 >endtree
 
 >h2 CPU Discovery
@@ -493,7 +493,8 @@ Example output:
   make run-smp
 
 Boots with 4 CPUs in QEMU (-smp cpus=4 -serial stdio).
-All 4 APs should appear in smp output within a few hundred milliseconds.
+All four CPUs, including the BSP and three APs, should appear in smp output
+within a few hundred milliseconds.
 
 >h3 feature20_smp atomic stress test
 
@@ -530,34 +531,35 @@ Checked-seed CupidC emits the integer atomic load, store, exchange, and
 fetch-add operations used by ACPI and MP discovery. The normal two-pass
 kernel now builds acpi.cc and mp_tables.cc through that path. A forced build
 with an invalid host compiler proves that neither recipe falls back to Clang
-or GCC. The four-vCPU gate discovers every virtual CPU through ACPI, brings
-all four online, initializes e1000, passes all 62 crypto checks, and reaches
-the desktop, terminal, and CupidC command without a panic. It also rejects
-known SMP, storage, crypto, exception, corruption, and illegal-instruction
-failures.
+or GCC. Sequential e1000 and RTL8139 gates discover every virtual CPU through
+ACPI, bring the BSP and all three APs online, initialize the selected NIC,
+print [fpu] boot smoke ok and FPU boot smoke passed, and finish
+feature16_asm_fpu.cc with its PASS marker and CupidC JIT completion. The same
+logs pass all 62 crypto checks and reach the desktop and terminal. The gate
+rejects known SMP, storage, crypto, exception, corruption, and
+illegal-instruction failures.
 
 The normal LAPIC recipe compiles kernel/smp/lapic.cc with the checked CupidC
 seed. Its checked wrapper validates the ELF32 object and blocks host compiler
 fallback.
 
-The checked seed compiles unchanged kernel/smp/smp.c, including all three
-naked IPI entries. Two exact kernel-profile compiles produce the same
-validated 8,444-byte object with SHA-256
+The earlier smp.c compiler proof produced an 8,444-byte object with SHA-256
 806509a6dd1ac7eb34b7ffcb67a1f8852950663a274145584d0260da76dcba54.
-The checked seed carries that support, but the normal smp.c object remains
-host-built until its wrapper, rename, image, and runtime transfer passes.
+The checked production root is kernel/smp/smp.cc. Its current hash is
+bd3189b2a1a6d15728c559172f5d6acca0889103428085cec8cc1024742a22d1.
+The existing __FILE__ diagnostic accounts for the change.
 >endtree
 
 >h2 Source File Index
 >tree open Source File Index
   kernel/smp/percpu.h   per_cpu_t struct, this_cpu() macro
-  kernel/smp/percpu.c   BSP + AP per-CPU init, GDT slot allocation
+  kernel/smp/percpu.cc  BSP + AP per-CPU init, GDT slot allocation
   kernel/smp/lapic.h    LAPIC register offsets, API declarations
   kernel/smp/lapic.cc   MMIO map, software enable, PIT calibration, IPI send
   kernel/smp/ioapic.h   IOAPIC register layout, API
   kernel/smp/ioapic.cc   Redirection table init, GSI routing, ISA remap
   kernel/smp/smp.h      cpu_table_t, AP trampoline API
-  kernel/smp/smp.c      Trampoline placement, INIT/SIPI, idle loop, IPI entries
+  kernel/smp/smp.cc     Trampoline placement, INIT/SIPI, idle loop, IPI entries
   kernel/smp/bkl.h      bkl_lock / bkl_unlock and switch handoff declarations
   kernel/smp/bkl.cc     Ticket spinlock implementation
   kernel/smp/mp_tables.h MP table parser API

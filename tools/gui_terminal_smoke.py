@@ -41,6 +41,8 @@ SMP_RUNTIME_REQUIRED_MARKERS = (
     "cpu3: online",
     "smp: 4 CPUs online (of 4 discovered)",
     "Scheduler started",
+    "[fpu] boot smoke ok",
+    "FPU boot smoke passed",
     "Entering desktop environment",
     "Terminal launched",
     "[cupidc] JIT execution complete",

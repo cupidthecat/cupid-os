@@ -159,6 +159,7 @@ SOURCE_DRIVEN_SOURCES = [
     "kernel/core/app_launch.cc",
     "kernel/core/panic.cc",
     "kernel/core/process.cc",
+    "kernel/cpu/fpu.cc",
     "kernel/cpu/idt.cc",
     "kernel/cpu/irq.cc",
     "kernel/cpu/ksyms.cc",
@@ -184,6 +185,8 @@ SOURCE_DRIVEN_SOURCES = [
     "kernel/network/udp.cc",
     "kernel/smp/bkl.cc",
     "kernel/smp/lapic.cc",
+    "kernel/smp/percpu.cc",
+    "kernel/smp/smp.cc",
     "kernel/tls/tls_ca_bundle.cc",
 ]
 KERNEL_SOURCES = sorted(
@@ -1864,7 +1867,7 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
             self.assertEqual(manifest["boundaries"], [])
             self.assertEqual(
                 sum(entry["size"] for entry in manifest["sources"]),
-                3621852,
+                3643676,
             )
             object_records = {
                 entry["source"]: (entry["size"], entry["object_sha256"])
@@ -2034,6 +2037,11 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                     "819e6e712cdb08d3b1b112fcc42122a1"
                     "aa5802b19c0cac8c1a3edbc0bca620d4",
                 ),
+                "kernel/cpu/fpu.cc": (
+                    6620,
+                    "14c3ea232b7d4455ceabd561c69293cc5"
+                    "849abae24d9f210aa69d64ed8c8a5cb",
+                ),
                 "kernel/cpu/idt.cc": (
                     8756,
                     "0ad16fd3250bc09ced7c928cb287123db"
@@ -2159,6 +2167,16 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                     "6ce344d265ad3fb6b221a9159d860954"
                     "c5f5512a7eac526838e69bc181a4c045",
                 ),
+                "kernel/smp/percpu.cc": (
+                    6760,
+                    "3c2c6f0e00e5edec1ca16cba91e9fc5"
+                    "93d1c42e24f4ebd3591e5f574fb0dd772",
+                ),
+                "kernel/smp/smp.cc": (
+                    8444,
+                    "bd3189b2a1a6d15728c559172f5d6acc"
+                    "a0889103428085cec8cc1024742a22d1",
+                ),
                 "kernel/tls/tls_ca_bundle.cc": (
                     388,
                     "f94fe7c44ba8fbb94df7ef97f8e37c6d"
@@ -2172,11 +2190,11 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                 },
                 source_driven_object_records,
             )
-            self.assertEqual(manifest["input_snapshot"]["count"], 436)
+            self.assertEqual(manifest["input_snapshot"]["count"], 439)
             self.assertEqual(
                 manifest["input_snapshot"]["sha256"],
-                "333b915fb5bf42f7ed11456a1e09b354"
-                "4dff74ece4c4d72fdecbabdf5e4cbfa7",
+                "dd61ee8ece6a26282f7ae2d5f252f53c"
+                "109827bf3e7a3365a00cc5a6e8d59a8a",
             )
             self.assertEqual(
                 manifest["provenance"]["compiler"],

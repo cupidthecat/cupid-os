@@ -159,6 +159,7 @@ SOURCE_DRIVEN_SOURCES = (
     "kernel/core/app_launch.cc",
     "kernel/core/panic.cc",
     "kernel/core/process.cc",
+    "kernel/cpu/fpu.cc",
     "kernel/cpu/idt.cc",
     "kernel/cpu/irq.cc",
     "kernel/cpu/ksyms.cc",
@@ -184,6 +185,8 @@ SOURCE_DRIVEN_SOURCES = (
     "kernel/network/udp.cc",
     "kernel/smp/bkl.cc",
     "kernel/smp/lapic.cc",
+    "kernel/smp/percpu.cc",
+    "kernel/smp/smp.cc",
     "kernel/tls/tls_ca_bundle.cc",
 )
 GENERATED_KERNEL_SOURCES = (
@@ -194,6 +197,15 @@ FROZEN_KERNEL_INPUT_CLOSURES = {
         "kernel/audio/nuked_opl3.h",
         "kernel/core/string.h",
         "kernel/core/types.h",
+    ),
+    "kernel/cpu/fpu.cc": (
+        "drivers/serial.h",
+        "kernel/core/panic.h",
+        "kernel/core/process.h",
+        "kernel/core/types.h",
+        "kernel/cpu/fpu.h",
+        "kernel/cpu/isr.h",
+        "kernel/cpu/libm.h",
     ),
     "kernel/gfx/glyph_raster.cc": (
         "kernel/core/string.h",
@@ -206,6 +218,28 @@ FROZEN_KERNEL_INPUT_CLOSURES = {
         "kernel/cpu/libm.h",
         "kernel/gfx/jpeg.h",
         "kernel/mm/memory.h",
+    ),
+    "kernel/smp/percpu.cc": (
+        "drivers/serial.h",
+        "kernel/core/process.h",
+        "kernel/core/types.h",
+        "kernel/smp/percpu.h",
+    ),
+    "kernel/smp/smp.cc": (
+        "drivers/serial.h",
+        "kernel/core/process.h",
+        "kernel/core/types.h",
+        "kernel/cpu/fpu.h",
+        "kernel/cpu/idt.h",
+        "kernel/cpu/isr.h",
+        "kernel/mm/memory.h",
+        "kernel/smp/acpi.h",
+        "kernel/smp/bkl.h",
+        "kernel/smp/ioapic.h",
+        "kernel/smp/lapic.h",
+        "kernel/smp/mp_tables.h",
+        "kernel/smp/percpu.h",
+        "kernel/smp/smp.h",
     ),
     "kernel/cpu/ksyms_data.cc": (
         "kernel/cpu/ksyms.h",
@@ -804,8 +838,8 @@ class KernelCompileCommandTests(unittest.TestCase):
             kernel_compile.APPROVED_KERNEL_COMPILE_SOURCES,
             tuple(sorted(KERNEL_SOURCES + GENERATED_KERNEL_SOURCES)),
         )
-        self.assertEqual(len(KERNEL_SOURCES), 148)
-        self.assertEqual(len(set(KERNEL_SOURCES)), 148)
+        self.assertEqual(len(KERNEL_SOURCES), 151)
+        self.assertEqual(len(set(KERNEL_SOURCES)), 151)
         self.assertEqual(kernel_compile.KERNEL_I386_ARGUMENTS, KERNEL_I386_ARGUMENTS)
 
         command = kernel_compile.build_compile_arguments(
@@ -846,7 +880,7 @@ class KernelCompileCommandTests(unittest.TestCase):
         )
         self.assertEqual(
             sum(Path(source).suffix == ".cc" for source in KERNEL_SOURCES),
-            148,
+            151,
         )
 
         for source in renamed_sources:
@@ -921,6 +955,15 @@ class KernelCompileMakefileTests(unittest.TestCase):
                 "kernel/core/string.h",
                 "kernel/core/types.h",
             ),
+            "kernel/cpu/fpu.cc": (
+                "drivers/serial.h",
+                "kernel/core/panic.h",
+                "kernel/core/process.h",
+                "kernel/core/types.h",
+                "kernel/cpu/fpu.h",
+                "kernel/cpu/isr.h",
+                "kernel/cpu/libm.h",
+            ),
             "kernel/gfx/glyph_raster.cc": (
                 "kernel/core/string.h",
                 "kernel/core/types.h",
@@ -932,6 +975,28 @@ class KernelCompileMakefileTests(unittest.TestCase):
                 "kernel/cpu/libm.h",
                 "kernel/gfx/jpeg.h",
                 "kernel/mm/memory.h",
+            ),
+            "kernel/smp/percpu.cc": (
+                "drivers/serial.h",
+                "kernel/core/process.h",
+                "kernel/core/types.h",
+                "kernel/smp/percpu.h",
+            ),
+            "kernel/smp/smp.cc": (
+                "drivers/serial.h",
+                "kernel/core/process.h",
+                "kernel/core/types.h",
+                "kernel/cpu/fpu.h",
+                "kernel/cpu/idt.h",
+                "kernel/cpu/isr.h",
+                "kernel/mm/memory.h",
+                "kernel/smp/acpi.h",
+                "kernel/smp/bkl.h",
+                "kernel/smp/ioapic.h",
+                "kernel/smp/lapic.h",
+                "kernel/smp/mp_tables.h",
+                "kernel/smp/percpu.h",
+                "kernel/smp/smp.h",
             ),
         }
 
@@ -1411,7 +1476,9 @@ class KernelCompileOperationTests(unittest.TestCase):
             "kernel/gui/terminal_ansi.c",
             "kernel/lang/as.c",
             "kernel/mm/paging.c",
+            "kernel/cpu/fpu.c",
             "kernel/smp/percpu.c",
+            "kernel/smp/smp.c",
         ):
             source = root / relative
             source.parent.mkdir(parents=True, exist_ok=True)

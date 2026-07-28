@@ -4344,7 +4344,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "toolchain/elf32.cc",
                 "toolchain/x86.cc",
             }
-            self.assertEqual(len(checked_cupidc_roots), 152)
+            self.assertEqual(len(checked_cupidc_roots), 155)
             self.assertEqual(
                 {
                     path
@@ -4361,7 +4361,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     Path(path).suffix == ".cc"
                     for path in checked_cupidc_roots
                 ),
-                152,
+                155,
             )
             symbol_transform = root_transform_by_output[
                 "kernel/cpu/ksyms_data.cc"
@@ -4637,6 +4637,39 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "kernel/mm/memory.h",
                 ),
             }
+            fpu_smp_header_closures = {
+                "kernel/cpu/fpu.cc": (
+                    "drivers/serial.h",
+                    "kernel/core/panic.h",
+                    "kernel/core/process.h",
+                    "kernel/core/types.h",
+                    "kernel/cpu/fpu.h",
+                    "kernel/cpu/isr.h",
+                    "kernel/cpu/libm.h",
+                ),
+                "kernel/smp/percpu.cc": (
+                    "drivers/serial.h",
+                    "kernel/core/process.h",
+                    "kernel/core/types.h",
+                    "kernel/smp/percpu.h",
+                ),
+                "kernel/smp/smp.cc": (
+                    "drivers/serial.h",
+                    "kernel/core/process.h",
+                    "kernel/core/types.h",
+                    "kernel/cpu/fpu.h",
+                    "kernel/cpu/idt.h",
+                    "kernel/cpu/isr.h",
+                    "kernel/mm/memory.h",
+                    "kernel/smp/acpi.h",
+                    "kernel/smp/bkl.h",
+                    "kernel/smp/ioapic.h",
+                    "kernel/smp/lapic.h",
+                    "kernel/smp/mp_tables.h",
+                    "kernel/smp/percpu.h",
+                    "kernel/smp/smp.h",
+                ),
+            }
             cupidc_control_inputs = (
                 "Makefile",
                 "tools/cupidc_kernel_compile.py",
@@ -4652,6 +4685,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             closed_header_closures = {
                 **port_io_header_closures,
                 **floating_gfx_header_closures,
+                **fpu_smp_header_closures,
             }
             for source_path, headers in closed_header_closures.items():
                 output_path = Path(source_path).with_suffix(".o").as_posix()
@@ -4665,6 +4699,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 *established_cupidc_kernel_sources,
                 *port_io_header_closures,
                 *floating_gfx_header_closures,
+                *fpu_smp_header_closures,
             )
             for source_path in cupidc_kernel_sources:
                 output_path = Path(source_path).with_suffix(".o").as_posix()
@@ -4701,9 +4736,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     )
                 },
                 {
-                    "cupid_c_compiler": 155,
-                    "host_c_compiler": 142,
-                    "host_python": 170,
+                    "cupid_c_compiler": 158,
+                    "host_c_compiler": 139,
+                    "host_python": 173,
                 },
             )
 

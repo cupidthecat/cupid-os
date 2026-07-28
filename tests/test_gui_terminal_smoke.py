@@ -24,6 +24,8 @@ def _smp_runtime_log():
         "smp: 4 CPUs online (of 4 discovered)",
         "e1000: init OK",
         "Scheduler started",
+        "[fpu] boot smoke ok",
+        "FPU boot smoke passed",
         "Entering desktop environment",
         "Terminal launched",
         "[cupidc] JIT execution complete",
@@ -741,6 +743,30 @@ class SmpRuntimeContractTests(unittest.TestCase):
         with self.assertRaisesRegex(
             gui_terminal_smoke.SmpRuntimeContractError,
             "missing required marker.*cpu3: online",
+        ):
+            gui_terminal_smoke.validate_smp_runtime_log(data)
+
+    def test_missing_fpu_boot_smoke_marker_is_rejected(self):
+        data = _smp_runtime_log().replace(
+            "[fpu] boot smoke ok\n",
+            "",
+        )
+
+        with self.assertRaisesRegex(
+            gui_terminal_smoke.SmpRuntimeContractError,
+            r"missing required marker: \[fpu\] boot smoke ok",
+        ):
+            gui_terminal_smoke.validate_smp_runtime_log(data)
+
+    def test_missing_fpu_boot_summary_marker_is_rejected(self):
+        data = _smp_runtime_log().replace(
+            "FPU boot smoke passed\n",
+            "",
+        )
+
+        with self.assertRaisesRegex(
+            gui_terminal_smoke.SmpRuntimeContractError,
+            "missing required marker: FPU boot smoke passed",
         ):
             gui_terminal_smoke.validate_smp_runtime_log(data)
 

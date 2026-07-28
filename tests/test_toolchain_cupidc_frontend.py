@@ -279,7 +279,7 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
                 "kernel/core/kernel.c",
                 "kernel/core/ports.h",
                 "kernel/cpu/cpu.h",
-                "kernel/cpu/fpu.c",
+                "kernel/cpu/fpu.cc",
                 "kernel/cpu/irq.cc",
                 "kernel/cpu/pic.cc",
                 "kernel/doom/doomgeneric_cupidos.c",

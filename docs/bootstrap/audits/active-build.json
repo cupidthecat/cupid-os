@@ -3493,18 +3493,33 @@
       },
       {
         "inputs": [
-          "kernel/cpu/fpu.c",
-          "kernel/cpu/fpu.h",
+          "kernel/cpu/fpu.cc",
+          "drivers/serial.h",
           "kernel/core/panic.h",
-          "drivers/serial.h"
+          "kernel/core/process.h",
+          "kernel/core/types.h",
+          "kernel/cpu/fpu.h",
+          "kernel/cpu/isr.h",
+          "kernel/cpu/libm.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/cpu/fpu.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/cpu/fpu.c -o kernel/cpu/fpu.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/fpu.cc --output kernel/cpu/fpu.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
@@ -9062,38 +9077,68 @@
       },
       {
         "inputs": [
-          "kernel/smp/percpu.c",
+          "kernel/smp/percpu.cc",
+          "drivers/serial.h",
+          "kernel/core/process.h",
+          "kernel/core/types.h",
           "kernel/smp/percpu.h",
-          "kernel/core/process.h"
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/smp/percpu.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/smp/percpu.c -o kernel/smp/percpu.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/smp/percpu.cc --output kernel/smp/percpu.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
         "inputs": [
-          "kernel/smp/smp.c",
-          "kernel/smp/smp.h",
-          "kernel/smp/mp_tables.h",
+          "kernel/smp/smp.cc",
+          "drivers/serial.h",
+          "kernel/core/process.h",
+          "kernel/core/types.h",
+          "kernel/cpu/fpu.h",
+          "kernel/cpu/idt.h",
+          "kernel/cpu/isr.h",
+          "kernel/mm/memory.h",
           "kernel/smp/acpi.h",
-          "kernel/smp/lapic.h",
-          "kernel/smp/ioapic.h",
           "kernel/smp/bkl.h",
+          "kernel/smp/ioapic.h",
+          "kernel/smp/lapic.h",
+          "kernel/smp/mp_tables.h",
           "kernel/smp/percpu.h",
-          "kernel/mm/memory.h"
+          "kernel/smp/smp.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/smp/smp.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/smp/smp.c -o kernel/smp/smp.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/smp/smp.cc --output kernel/smp/smp.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
@@ -15663,7 +15708,7 @@
         "kernel/audio/mus2midi.cc",
         "kernel/audio/nuked_opl3.cc",
         "kernel/core/process.cc",
-        "kernel/cpu/fpu.c",
+        "kernel/cpu/fpu.cc",
         "kernel/cpu/irq.cc",
         "kernel/cpu/ksyms.cc",
         "kernel/cpu/simd.c",
@@ -15764,7 +15809,7 @@
         "kernel/network/sshd.cc",
         "kernel/network/tcp.cc",
         "kernel/smp/acpi.cc",
-        "kernel/smp/smp.c",
+        "kernel/smp/smp.cc",
         "kernel/tls/tls_ctx.cc",
         "kernel/usb/ehci.cc",
         "kernel/usb/uhci.cc",
@@ -16019,7 +16064,7 @@
         "kernel/network/socket.cc",
         "kernel/network/sshd.cc",
         "kernel/network/tcp.cc",
-        "kernel/smp/smp.c",
+        "kernel/smp/smp.cc",
         "kernel/tls/tls_handshake.cc",
         "kernel/usb/ehci.cc",
         "kernel/usb/uhci.cc",
@@ -16556,7 +16601,7 @@
         "kernel/core/process.cc",
         "kernel/core/string.c",
         "kernel/core/syscall.cc",
-        "kernel/cpu/fpu.c",
+        "kernel/cpu/fpu.cc",
         "kernel/cpu/idt.cc",
         "kernel/cpu/irq.cc",
         "kernel/cpu/ksyms.cc",
@@ -16714,8 +16759,8 @@
         "kernel/smp/acpi.cc",
         "kernel/smp/ioapic.cc",
         "kernel/smp/mp_tables.cc",
-        "kernel/smp/percpu.c",
-        "kernel/smp/smp.c",
+        "kernel/smp/percpu.cc",
+        "kernel/smp/smp.cc",
         "kernel/tls/tls12_handshake.cc",
         "kernel/tls/tls_ctx.cc",
         "kernel/tls/tls_handshake.cc",
@@ -16968,7 +17013,7 @@
         "kernel/core/string.c",
         "kernel/core/syscall.cc",
         "kernel/core/types.h",
-        "kernel/cpu/fpu.c",
+        "kernel/cpu/fpu.cc",
         "kernel/cpu/idt.cc",
         "kernel/cpu/irq.cc",
         "kernel/cpu/ksyms.cc",
@@ -17149,8 +17194,8 @@
         "kernel/smp/ioapic.cc",
         "kernel/smp/lapic.cc",
         "kernel/smp/mp_tables.cc",
-        "kernel/smp/percpu.c",
-        "kernel/smp/smp.c",
+        "kernel/smp/percpu.cc",
+        "kernel/smp/smp.cc",
         "kernel/tls/tls12_handshake.cc",
         "kernel/tls/tls_ctx.cc",
         "kernel/tls/tls_handshake.cc",
@@ -17336,7 +17381,7 @@
         "kernel/core/string.c",
         "kernel/core/syscall.cc",
         "kernel/cpu/cpu.h",
-        "kernel/cpu/fpu.c",
+        "kernel/cpu/fpu.cc",
         "kernel/cpu/irq.cc",
         "kernel/cpu/ksyms.cc",
         "kernel/cpu/libm.c",
@@ -17510,9 +17555,9 @@
         "kernel/smp/ioapic.cc",
         "kernel/smp/lapic.cc",
         "kernel/smp/mp_tables.cc",
-        "kernel/smp/percpu.c",
+        "kernel/smp/percpu.cc",
         "kernel/smp/percpu.h",
-        "kernel/smp/smp.c",
+        "kernel/smp/smp.cc",
         "kernel/tls/tls12_handshake.cc",
         "kernel/tls/tls_ctx.cc",
         "kernel/tls/tls_handshake.cc",
@@ -17773,7 +17818,7 @@
         "kernel/core/process.cc",
         "kernel/core/string.c",
         "kernel/core/syscall.cc",
-        "kernel/cpu/fpu.c",
+        "kernel/cpu/fpu.cc",
         "kernel/cpu/ksyms.cc",
         "kernel/cpu/math.cc",
         "kernel/cpu/simd.c",
@@ -17898,7 +17943,7 @@
         "kernel/smp/acpi.cc",
         "kernel/smp/bkl.cc",
         "kernel/smp/lapic.cc",
-        "kernel/smp/smp.c",
+        "kernel/smp/smp.cc",
         "kernel/tls/tls12_handshake.cc",
         "kernel/tls/tls_ctx.cc",
         "kernel/tls/tls_handshake.cc",
@@ -18085,7 +18130,7 @@
         "kernel/mm/memory.h",
         "kernel/network/net_if.h",
         "kernel/smp/percpu.h",
-        "kernel/smp/smp.c",
+        "kernel/smp/smp.cc",
         "kernel/smp/smp.h",
         "kernel/tls/tls_record.h",
         "kernel/usb/usb.h",
@@ -18172,7 +18217,7 @@
         "kernel/lang/godspeak.cc",
         "kernel/lang/shell.cc",
         "kernel/network/sshd.cc",
-        "kernel/smp/smp.c",
+        "kernel/smp/smp.cc",
         "kernel/tls/tls_ca_bundle_data.cc",
         "kernel/tls/tls_handshake.cc",
         "kernel/tls/tls_selftest.cc",
@@ -18419,7 +18464,7 @@
         "kernel/network/tcp.cc",
         "kernel/smp/acpi.cc",
         "kernel/smp/mp_tables.cc",
-        "kernel/smp/percpu.c",
+        "kernel/smp/percpu.cc",
         "kernel/smp/percpu.h",
         "kernel/tls/tls12_handshake.cc",
         "kernel/tls/tls_ca_bundle_data.cc",
@@ -18497,7 +18542,7 @@
         "kernel/core/process.h",
         "kernel/cpu/ksyms.cc",
         "kernel/network/net_if.cc",
-        "kernel/smp/percpu.c",
+        "kernel/smp/percpu.cc",
         "kernel/smp/percpu.h",
         "kernel/usb/ehci.cc",
         "kernel/usb/uhci.cc"
@@ -18510,22 +18555,22 @@
       "examples": [
         {
           "line": 134,
-          "path": "kernel/smp/smp.c",
+          "path": "kernel/smp/smp.cc",
           "text": "__attribute__((naked))"
         },
         {
           "line": 144,
-          "path": "kernel/smp/smp.c",
+          "path": "kernel/smp/smp.cc",
           "text": "__attribute__((naked))"
         },
         {
           "line": 154,
-          "path": "kernel/smp/smp.c",
+          "path": "kernel/smp/smp.cc",
           "text": "__attribute__((naked))"
         }
       ],
       "files": [
-        "kernel/smp/smp.c"
+        "kernel/smp/smp.cc"
       ],
       "id": "c.extension.attribute.naked",
       "occurrences": 3
@@ -18612,7 +18657,7 @@
         "kernel/network/udp.cc",
         "kernel/smp/acpi.cc",
         "kernel/smp/mp_tables.cc",
-        "kernel/smp/percpu.c",
+        "kernel/smp/percpu.cc",
         "kernel/usb/ehci.cc",
         "kernel/usb/uhci.cc",
         "kernel/usb/usb.cc",
@@ -18647,12 +18692,12 @@
       "examples": [
         {
           "line": 7,
-          "path": "kernel/cpu/fpu.c",
+          "path": "kernel/cpu/fpu.cc",
           "text": "__attribute__((target(\"general-regs-only\")))"
         }
       ],
       "files": [
-        "kernel/cpu/fpu.c"
+        "kernel/cpu/fpu.cc"
       ],
       "id": "c.extension.attribute.target",
       "occurrences": 1
@@ -18957,7 +19002,7 @@
         "kernel/core/process.cc",
         "kernel/core/string.c",
         "kernel/cpu/cpu.h",
-        "kernel/cpu/fpu.c",
+        "kernel/cpu/fpu.cc",
         "kernel/cpu/idt.cc",
         "kernel/cpu/libm.c",
         "kernel/cpu/pic.cc",
@@ -18975,9 +19020,9 @@
         "kernel/network/tcp.cc",
         "kernel/smp/bkl.cc",
         "kernel/smp/lapic.cc",
-        "kernel/smp/percpu.c",
+        "kernel/smp/percpu.cc",
         "kernel/smp/percpu.h",
-        "kernel/smp/smp.c",
+        "kernel/smp/smp.cc",
         "kernel/usb/ehci.cc",
         "kernel/usb/uhci.cc",
         "kernel/usb/usb_msc.cc"
@@ -19043,14 +19088,13 @@
         },
         {
           "line": 1,
-          "path": "kernel/cpu/fpu.c",
-          "text": "compile_c_to_elf32_object -> kernel/cpu/fpu.o"
+          "path": "kernel/cpu/libm.c",
+          "text": "compile_c_to_elf32_object -> kernel/cpu/libm.o"
         }
       ],
       "files": [
         "kernel/core/kernel.c",
         "kernel/core/string.c",
-        "kernel/cpu/fpu.c",
         "kernel/cpu/libm.c",
         "kernel/cpu/simd.c",
         "kernel/doom/dglibc.c",
@@ -19135,12 +19179,10 @@
         "kernel/doom/src/w_main.c",
         "kernel/doom/src/w_wad.c",
         "kernel/doom/src/wi_stuff.c",
-        "kernel/doom/src/z_zone.c",
-        "kernel/smp/percpu.c",
-        "kernel/smp/smp.c"
+        "kernel/doom/src/z_zone.c"
       ],
       "id": "c.output.elf32_relocatable",
-      "occurrences": 90
+      "occurrences": 87
     },
     {
       "category": "preprocessor",
@@ -19216,7 +19258,7 @@
         "kernel/core/syscall.h",
         "kernel/core/types.h",
         "kernel/cpu/cpu.h",
-        "kernel/cpu/fpu.c",
+        "kernel/cpu/fpu.cc",
         "kernel/cpu/fpu.h",
         "kernel/cpu/idt.h",
         "kernel/cpu/irq.cc",
@@ -19503,9 +19545,9 @@
         "kernel/smp/ioapic.h",
         "kernel/smp/lapic.h",
         "kernel/smp/mp_tables.h",
-        "kernel/smp/percpu.c",
+        "kernel/smp/percpu.cc",
         "kernel/smp/percpu.h",
-        "kernel/smp/smp.c",
+        "kernel/smp/smp.cc",
         "kernel/smp/smp.h",
         "kernel/tls/tls12_handshake.cc",
         "kernel/tls/tls12_handshake.h",
@@ -20030,7 +20072,7 @@
         "kernel/core/assert.h",
         "kernel/core/panic.h",
         "kernel/core/syscall.cc",
-        "kernel/cpu/fpu.c",
+        "kernel/cpu/fpu.cc",
         "kernel/crypto/chacha20.cc",
         "kernel/crypto/sha256.cc",
         "kernel/crypto/sha512.cc",
@@ -20578,7 +20620,7 @@
         "kernel/core/syscall.cc",
         "kernel/core/syscall.h",
         "kernel/cpu/cpu.h",
-        "kernel/cpu/fpu.c",
+        "kernel/cpu/fpu.cc",
         "kernel/cpu/fpu.h",
         "kernel/cpu/idt.cc",
         "kernel/cpu/idt.h",
@@ -20934,9 +20976,9 @@
         "kernel/smp/lapic.h",
         "kernel/smp/mp_tables.cc",
         "kernel/smp/mp_tables.h",
-        "kernel/smp/percpu.c",
+        "kernel/smp/percpu.cc",
         "kernel/smp/percpu.h",
-        "kernel/smp/smp.c",
+        "kernel/smp/smp.cc",
         "kernel/smp/smp.h",
         "kernel/tls/tls12_handshake.cc",
         "kernel/tls/tls12_handshake.h",
@@ -21139,7 +21181,7 @@
         "kernel/audio/nuked_opl3.cc",
         "kernel/core/assert.h",
         "kernel/core/panic.h",
-        "kernel/cpu/fpu.c",
+        "kernel/cpu/fpu.cc",
         "kernel/doom/src/sha1.c"
       ],
       "id": "c.preprocessor.token_paste",
@@ -21281,7 +21323,7 @@
         "kernel/core/string.h",
         "kernel/core/syscall.cc",
         "kernel/core/syscall.h",
-        "kernel/cpu/fpu.c",
+        "kernel/cpu/fpu.cc",
         "kernel/cpu/idt.cc",
         "kernel/cpu/isr.h",
         "kernel/cpu/ksyms.cc",
@@ -21598,7 +21640,7 @@
         "kernel/core/process.cc",
         "kernel/core/string.c",
         "kernel/cpu/cpu.h",
-        "kernel/cpu/fpu.c",
+        "kernel/cpu/fpu.cc",
         "kernel/cpu/idt.cc",
         "kernel/cpu/irq.cc",
         "kernel/cpu/pic.cc",
@@ -21626,9 +21668,9 @@
         "kernel/smp/ioapic.cc",
         "kernel/smp/lapic.cc",
         "kernel/smp/mp_tables.cc",
-        "kernel/smp/percpu.c",
+        "kernel/smp/percpu.cc",
         "kernel/smp/percpu.h",
-        "kernel/smp/smp.c",
+        "kernel/smp/smp.cc",
         "kernel/usb/ehci.cc",
         "kernel/usb/uhci.cc",
         "kernel/usb/usb.cc",
@@ -21754,7 +21796,7 @@
         "kernel/smp/ioapic.h",
         "kernel/smp/mp_tables.h",
         "kernel/smp/percpu.h",
-        "kernel/smp/smp.c",
+        "kernel/smp/smp.cc",
         "kernel/usb/usb.cc",
         "toolchain/hosted/i386-linux/include/stdio.h"
       ],
@@ -21789,7 +21831,7 @@
         "kernel/core/kernel.c",
         "kernel/core/ports.h",
         "kernel/cpu/cpu.h",
-        "kernel/cpu/fpu.c",
+        "kernel/cpu/fpu.cc",
         "kernel/cpu/irq.cc",
         "kernel/cpu/pic.cc",
         "kernel/doom/doomgeneric_cupidos.c",
@@ -21879,7 +21921,7 @@
         "kernel/core/string.c",
         "kernel/core/syscall.cc",
         "kernel/cpu/cpu.h",
-        "kernel/cpu/fpu.c",
+        "kernel/cpu/fpu.cc",
         "kernel/cpu/irq.cc",
         "kernel/cpu/ksyms.cc",
         "kernel/cpu/libm.c",
@@ -22025,9 +22067,9 @@
         "kernel/smp/ioapic.cc",
         "kernel/smp/lapic.cc",
         "kernel/smp/mp_tables.cc",
-        "kernel/smp/percpu.c",
+        "kernel/smp/percpu.cc",
         "kernel/smp/percpu.h",
-        "kernel/smp/smp.c",
+        "kernel/smp/smp.cc",
         "kernel/tls/tls12_handshake.cc",
         "kernel/tls/tls_ctx.cc",
         "kernel/tls/tls_handshake.cc",
@@ -22511,7 +22553,7 @@
         "drivers/serial.cc",
         "kernel/core/string.c",
         "kernel/core/string.h",
-        "kernel/cpu/fpu.c",
+        "kernel/cpu/fpu.cc",
         "kernel/cpu/libm.c",
         "kernel/cpu/libm.h",
         "kernel/doom/dglibc_compat.h",
@@ -22664,7 +22706,7 @@
         "bin/feature16_asm_fpu.cc",
         "bin/fp_drill.cc",
         "bin/test_fpaug.cc",
-        "kernel/cpu/fpu.c",
+        "kernel/cpu/fpu.cc",
         "kernel/cpu/libm.c",
         "kernel/cpu/libm.h",
         "kernel/doom/doom_libc_stubs.c",
@@ -22834,7 +22876,7 @@
         "kernel/core/syscall.cc",
         "kernel/core/syscall.h",
         "kernel/core/types.h",
-        "kernel/cpu/fpu.c",
+        "kernel/cpu/fpu.cc",
         "kernel/cpu/idt.cc",
         "kernel/cpu/irq.cc",
         "kernel/cpu/irq.h",
@@ -23145,9 +23187,9 @@
         "kernel/smp/ioapic.h",
         "kernel/smp/mp_tables.cc",
         "kernel/smp/mp_tables.h",
-        "kernel/smp/percpu.c",
+        "kernel/smp/percpu.cc",
         "kernel/smp/percpu.h",
-        "kernel/smp/smp.c",
+        "kernel/smp/smp.cc",
         "kernel/smp/smp.h",
         "kernel/tls/tls12_handshake.cc",
         "kernel/tls/tls12_handshake.h",
@@ -23563,7 +23605,7 @@
         "kernel/smp/ioapic.h",
         "kernel/smp/mp_tables.cc",
         "kernel/smp/mp_tables.h",
-        "kernel/smp/percpu.c",
+        "kernel/smp/percpu.cc",
         "kernel/smp/percpu.h",
         "kernel/tls/tls12_handshake.cc",
         "kernel/tls/tls_ctx.h",
@@ -24038,8 +24080,8 @@
         "kernel/lang/shell.cc",
         "kernel/lang/ssh_io.cc",
         "kernel/network/dns.cc",
-        "kernel/smp/percpu.c",
-        "kernel/smp/smp.c",
+        "kernel/smp/percpu.cc",
+        "kernel/smp/smp.cc",
         "kernel/tls/tls12_handshake.cc",
         "kernel/tls/tls_ca_bundle_data.cc",
         "kernel/tls/tls_handshake.cc",
@@ -24254,7 +24296,7 @@
         "kernel/core/syscall.h",
         "kernel/core/types.h",
         "kernel/cpu/cpu.h",
-        "kernel/cpu/fpu.c",
+        "kernel/cpu/fpu.cc",
         "kernel/cpu/fpu.h",
         "kernel/cpu/idt.cc",
         "kernel/cpu/idt.h",
@@ -24579,9 +24621,9 @@
         "kernel/smp/lapic.h",
         "kernel/smp/mp_tables.cc",
         "kernel/smp/mp_tables.h",
-        "kernel/smp/percpu.c",
+        "kernel/smp/percpu.cc",
         "kernel/smp/percpu.h",
-        "kernel/smp/smp.c",
+        "kernel/smp/smp.cc",
         "kernel/smp/smp.h",
         "kernel/tls/tls12_handshake.cc",
         "kernel/tls/tls_ctx.cc",
@@ -24969,6 +25011,7 @@
         "kernel/core/panic.cc",
         "kernel/core/process.cc",
         "kernel/core/syscall.cc",
+        "kernel/cpu/fpu.cc",
         "kernel/cpu/idt.cc",
         "kernel/cpu/irq.cc",
         "kernel/cpu/ksyms.cc",
@@ -25075,6 +25118,8 @@
         "kernel/smp/ioapic.cc",
         "kernel/smp/lapic.cc",
         "kernel/smp/mp_tables.cc",
+        "kernel/smp/percpu.cc",
+        "kernel/smp/smp.cc",
         "kernel/tls/tls12_handshake.cc",
         "kernel/tls/tls_ca_bundle.cc",
         "kernel/tls/tls_ca_bundle_data.cc",
@@ -25103,7 +25148,7 @@
         "user/examples/ls.cc"
       ],
       "id": "cupid_c.output.elf32_relocatable",
-      "occurrences": 155
+      "occurrences": 158
     },
     {
       "category": "storage",
@@ -25459,11 +25504,11 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "b2acb9632dbe604b720dab6642b17948dae0ace794125a136c2d9270ff08842f",
+    "active_source_digest": "1e7b7a4d4e1027e8827427b857f052132b62c4fe17792ff8dc0e325d29d3edcc",
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "c6103b7896c89eed7ea3ef3c6e824cea22d09d11104cde790bffa9483b8045e7"
+        "sha256": "8723db5528da6d7a434b57a4673c6cc6fe29beed70a1cd5365dae4a75e61c18f"
       },
       {
         "path": "user/Makefile",
@@ -25475,7 +25520,7 @@
       },
       {
         "path": "tools/cupidc_kernel_compile.py",
-        "sha256": "5cb8670b3f85e13089ed57db1abe0755705ffe8e512fb215ee556873d96f53a3"
+        "sha256": "bea39ccb66bfc419015f69cb92b09cba1ec3ca63d1690374f39e9e0eb9b44ab4"
       },
       {
         "path": "tools/kernel_cupidc_frontier.py",
@@ -26049,7 +26094,7 @@
           "bin/browser/input.cc",
           "bin/browser/js_dom.cc"
         ],
-        "source_count": 285,
+        "source_count": 288,
         "title": "Scale Cupid mode across embedded programs and browser fragments"
       }
     ],
@@ -32526,7 +32571,6 @@
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -32660,7 +32704,6 @@
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -32936,7 +32979,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -32950,7 +32994,6 @@
         "c.control.while",
         "c.extension.attribute.target",
         "c.extension.inline_assembly",
-        "c.output.elf32_relocatable",
         "c.preprocessor.define",
         "c.preprocessor.function_macro",
         "c.preprocessor.include",
@@ -32962,7 +33005,8 @@
         "c.type.double",
         "c.type.float",
         "c.type.int",
-        "c.type.void"
+        "c.type.void",
+        "cupid_c.output.elf32_relocatable"
       ],
       "includes": [
         "drivers/serial.h",
@@ -32971,18 +33015,17 @@
         "kernel/cpu/fpu.h",
         "kernel/cpu/libm.h"
       ],
-      "language": "c",
+      "language": "cupid_c",
       "lines": 195,
       "origin": "tracked",
-      "path": "kernel/cpu/fpu.c",
+      "path": "kernel/cpu/fpu.cc",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "f940cbbbaf164000857c2e55f5b3eebc8a1398083aa365fb1fba12d7c1350941"
     },
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -47057,7 +47100,6 @@
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -47120,7 +47162,6 @@
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -47183,7 +47224,6 @@
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -47249,7 +47289,6 @@
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -47317,7 +47356,6 @@
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -47350,7 +47388,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -47364,7 +47403,6 @@
         "c.extension.attribute.aligned",
         "c.extension.attribute.packed",
         "c.extension.inline_assembly",
-        "c.output.elf32_relocatable",
         "c.preprocessor.define",
         "c.preprocessor.include",
         "c.qualifier.volatile",
@@ -47372,24 +47410,24 @@
         "c.type.int",
         "c.type.struct",
         "c.type.unsigned",
-        "c.type.void"
+        "c.type.void",
+        "cupid_c.output.elf32_relocatable"
       ],
       "includes": [
         "drivers/serial.h",
         "kernel/smp/percpu.h"
       ],
-      "language": "c",
+      "language": "cupid_c",
       "lines": 153,
       "origin": "tracked",
-      "path": "kernel/smp/percpu.c",
+      "path": "kernel/smp/percpu.cc",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "d4b1a87ee6b8efab71a40263e3ed29104855326b35a15de2c253920e35010da7"
     },
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -47431,7 +47469,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -47448,7 +47487,6 @@
         "c.declarator.unsized_array",
         "c.extension.attribute.naked",
         "c.extension.inline_assembly",
-        "c.output.elf32_relocatable",
         "c.preprocessor.define",
         "c.preprocessor.include",
         "c.qualifier.volatile",
@@ -47456,7 +47494,8 @@
         "c.storage.static",
         "c.type.int",
         "c.type.unsigned",
-        "c.type.void"
+        "c.type.void",
+        "cupid_c.output.elf32_relocatable"
       ],
       "includes": [
         "drivers/serial.h",
@@ -47473,18 +47512,17 @@
         "kernel/smp/percpu.h",
         "kernel/smp/smp.h"
       ],
-      "language": "c",
+      "language": "cupid_c",
       "lines": 253,
       "origin": "tracked",
-      "path": "kernel/smp/smp.c",
+      "path": "kernel/smp/smp.cc",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "ee7cee36bf5e8fbbc8f4504ae39546f917b03fea17961cf167c53189ef32a5ed"
     },
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [

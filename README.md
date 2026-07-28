@@ -282,12 +282,12 @@ teardown exchanges without `pexpect` or Scapy.
 
 ### Self-hosting compiler status
 
-The normal image build uses the checked CupidC seed for 148 checked-in
-objects and the generated kernel symbol object. All 149 sources use `.cc`.
+The normal image build uses the checked CupidC seed for 151 checked-in
+objects and the generated kernel symbol object. All 152 sources use `.cc`.
 The five shared Toolchain roots also belong to the 19-source i386 Linux
 fixed-point plan. Their native GCC and Clang rules select C explicitly with
-`-x c`. The completed naming transfer changes neither ownership nor output
-counts.
+`-x c`. A source moves to `.cc` only when its checked recipe, object, image,
+and runtime path pass together.
 
 Typed null conversion, external-array address decay, GNU assembly operands,
 the per-CPU GS load, port I/O, integer atomics, and the wider shared C path
@@ -300,16 +300,16 @@ The CSPRNG emits RDTSC, CPUID, RDRAND, and SETC through Cupid's x86 model
 while preserving EBX. Every object is validated as an i386 ELF32 relocatable
 before publication. A valid data-only object may omit `.text`; its remaining
 sections and symbols still receive the full bounds checks. The strict kernel
-frontier compiles all 148 checked-in sources twice. The complete two-pass
-frontier passes against a 436-file snapshot with SHA-256
-`333b915fb5bf42f7ed11456a1e09b3544dff74ece4c4d72fdecbabdf5e4cbfa7`.
-Both 148-object passes are byte-identical and total 3,621,852 bytes. The
+frontier compiles all 151 checked-in sources twice. The complete two-pass
+frontier passes against a 439-file snapshot with SHA-256
+`dd61ee8ece6a26282f7ae2d5f252f53c109827bf3e7a3365a00cc5a6e8d59a8a`.
+Both 151-object passes are byte-identical and total 3,643,676 bytes. The
 frontier publisher retries a short permission-style directory lock with five
 bounded delays. A persistent lock or any other filesystem error leaves the
 frontier unpublished. Input discovery also skips hidden paths under the active
 include roots. Private compiler staging headers therefore cannot appear as
 repository drift when a checked build runs at the same time. The combined
-148-root graph carries a byte-fixed baseline JPEG in its ISO runtime fixture.
+151-root graph carries a byte-fixed baseline JPEG in its ISO runtime fixture.
 Strong four-vCPU runs pass with e1000 and RTL8139 networking. They start CPUs
 1 through 3, report four of four, seed from RDRAND, pass all 62 crypto,
 ASN.1, and X.509 checks, exercise USB storage and audio output, reach the
@@ -358,18 +358,20 @@ rename and proves the updated plan from the old seed. ADR 0129 moves the
 lexer. ADR 0135 moves Nuked OPL3 after the checked seed gains C11
 external-inline finalization. ADR 0139 moves JPEG decoding and glyph
 rasterization after the floating data and comparison paths reach the checked
-seed, leaving seven strict checked-in roots on the host compiler.
+seed. ADR 0160 moves the FPU, per-CPU, and SMP roots after their checked
+objects and four-vCPU runtime paths pass, leaving four strict checked-in roots
+on the host compiler.
 
-The checked seed represents the three naked IPI entries in unchanged
-`kernel/smp/smp.c`. The reschedule and call entries emit exact
+The checked seed represents the three naked IPI entries in
+`kernel/smp/smp.cc`. The reschedule and call entries emit exact
 `PUSHAL`, direct-call, `POPAL`, and `IRET` sequences with no C frame. The panic
 entry emits `CLI`, `HLT`, and a relative jump back to the halt instruction.
 Two complete kernel-profile compiles produce the same validated 8,444-byte
 ELF32 object with SHA-256
-`806509a6dd1ac7eb34b7ffcb67a1f8852950663a274145584d0260da76dcba54`.
-The checked seed now carries this support. The normal SMP recipe remains
-host-owned until its wrapper, rename, image, and runtime transfer lands, so
-the count of seven roots does not move in the seed-refresh commit.
+`bd3189b2a1a6d15728c559172f5d6acca0889103428085cec8cc1024742a22d1`.
+The production wrapper now owns this root. Its hash differs from the earlier
+`.c` proof only because the existing `__FILE__` diagnostic records the new
+source name.
 
 The checked seed now finalizes C11 inline meaning across the complete
 file-scope declaration set. The ordinary header declaration followed by the
@@ -389,10 +391,10 @@ receive a focused unsupported diagnostic from lowering.
 CupidC accepts GNU `used` and `__used__` on file-scope objects and functions.
 Redeclarations merge the flag into one canonical entity, and the Linear IR
 and object boundaries validate it before use. The generated
-`kernel/cpu/ksyms_data.cc` source is now part of the normal checked CupidC
-graph. Its i386-word initializer preserves the 105,242-byte symbol blob. Two
-compiles produce the same 105,656-byte object with SHA-256
-`af3ef76b05fb0eacea8925177671e8fe06e1424887fced598d2876d187cd8ed2`.
+`kernel/cpu/ksyms_data.cc` source is part of the normal checked CupidC graph.
+Its i386-word initializer preserves the current 105,505-byte symbol blob. The
+checked wrapper produces a 105,920-byte object with SHA-256
+`4a343b54571ed94324ce09e3ba48859ecdb36497e4e284b5f7996c81ed260131`.
 
 The checked seed retains GNU `noinline` and
 `target("general-regs-only")` on canonical file-scope functions.
@@ -412,21 +414,20 @@ The exact volatile x87 block in `stress_sin()` is also represented. It keeps
 one `double` `=m` output and one `double` `m` input, evaluates their addresses
 once in output-then-input order, and permits no clobbers. The shared x86 model
 emits `FLD`, `FSIN`, and `FSTP` through EAX with balanced x87 depth and no
-frame temporary. Two complete builds of unchanged
-`kernel/cpu/fpu.c` produce the same validated 6,620-byte object with SHA-256
+frame temporary. Two complete builds of
+`kernel/cpu/fpu.cc` produce the same validated 6,620-byte object with SHA-256
 `14c3ea232b7d4455ceabd561c69293cc5849abae24d9f210aa69d64ed8c8a5cb`.
-The checked seed carries these increments, but the source remains host-built
-and keeps its `.c` name until the separate production handoff passes.
+The normal Make graph now compiles this root through the checked wrapper, and
+the four-vCPU runtime gate requires both FPU boot markers.
 
 The checked seed emits the four exact descriptor-table and segment-register
-statements in unchanged `kernel/smp/percpu.c`. The LGDT forms keep their
+statements in `kernel/smp/percpu.cc`. The LGDT forms keep their
 packed six-byte memory operand and exact AX and memory clobbers. The GS form
 keeps its represented 16-bit selector. Cupid's shared x86 model reloads the
 data segments directly and uses a relative call-and-RETF trampoline for CS,
 so no compiler-local label relocation is needed. Two complete compiles
-produce the same 6,760-byte object. The checked seed carries this capability,
-but the source remains host-built and keeps its `.c` suffix until the
-separate production handoff passes.
+produce the same 6,760-byte object. The checked production wrapper owns the
+root and its frozen recursive header closure.
 
 File-scope GNU basic assembly has a separate CupidC representation.
 The frontend owns immutable templates outside function bodies, and Linear IR
@@ -526,21 +527,22 @@ wrapper also compiles the port-I/O users and EHCI's atomic fetch-or
 ownership path. Each transferred Make recipe carries its exact recursive
 header closure.
 
-Poisoned-host checks cover all 149 normal CupidC recipes and fail if a
+Poisoned-host checks cover all 152 normal CupidC recipes and fail if a
 CupidC-owned object reaches Clang or GCC. They pass against the renamed
 graph. Across the three supported build roots, ownership
-is 155 transforms for CupidC, 142 C transforms for the host compiler,
-170 transforms for host Python, and five transforms for Make recursion. One
+is 158 transforms for CupidC, 139 C transforms for the host compiler,
+173 transforms for host Python, and five transforms for Make recursion. One
 Python transform checks the external program syscall ABI and produces no OS
 code. The fifth Make transform prepares native CupidC and CupidLD for the
 Windows user build. Two Python transforms now generate the ISO fixture inputs
 that the system image declares explicitly.
-The CupidC transforms are 148 checked-in normal roots, the generated kernel
+The CupidC transforms are 151 checked-in normal roots, the generated kernel
 symbol table, three generated installation tables, and three example
-programs. The host compiler still produces 90 root objects. The renamed graph
+programs. The host compiler still produces 87 root objects. The renamed graph
 passes both CupidLD links and CupidObj flattening. The latest clean image
-includes the transferred lexer, Nuked OPL3, and the complete 148-root checked
-frontier. Four-vCPU GUI runs pass with both supported NICs and reach SMP
+includes the transferred lexer, Nuked OPL3, FPU, per-CPU, and SMP roots in the
+complete 151-root checked frontier. Four-vCPU GUI runs pass with both supported
+NICs and reach SMP
 startup, RDRAND, all 62 crypto checks, USB storage, the desktop, terminal,
 audio playback, the glyph path, a checked 8-by-8 JPEG decode, and in-OS CupidC
 execution at `0x01100000`. A separate smoke
@@ -600,7 +602,7 @@ The five static i386 Linux tools now have a checked bootstrap seed. Its manifest
 
 The harness pins the build plan independently and freezes the verified manifest and binaries. It also copies the exact bytes of all 40 source inputs, including `link.ld`, into a private compiler root. Seed CupidC, CupidASM, and CupidLD build stage two below that root, then the stage-two producer trio repeats the work for stage three. The harness rehashes both the private closure and the live closure before the first stage, after each stage, and after the behavior suite. A live edit that is made and restored during a compile cannot change the bytes consumed by either stage.
 
-The comparison covers all 19 C objects, independently assembled startup objects, and the linked CupidC, CupidASM, CupidDis, CupidLD, and CupidObj images. Every artifact matches byte for byte with host code-generator commands poisoned, including all five checked seed images against stage two. Both stages also agree on each tool's help path, ten successful operations, and six useful failures. The requested output stays empty while those checks run. Both stages, the behavior evidence, and `bootstrap-report.json` appear together only after complete success. Run `make verify-bootstrap-seed` for validation or `make bootstrap-from-seed` for the complete rebuild. A host C compiler still builds the native contract executables, hosted development commands, and 90 normal Cupid OS root objects. Native Windows tooling and the remaining production handoff stay open.
+The comparison covers all 19 C objects, independently assembled startup objects, and the linked CupidC, CupidASM, CupidDis, CupidLD, and CupidObj images. Every artifact matches byte for byte with host code-generator commands poisoned, including all five checked seed images against stage two. Both stages also agree on each tool's help path, ten successful operations, and six useful failures. The requested output stays empty while those checks run. Both stages, the behavior evidence, and `bootstrap-report.json` appear together only after complete success. Run `make verify-bootstrap-seed` for validation or `make bootstrap-from-seed` for the complete rebuild. A host C compiler still builds the native contract executables, hosted development commands, and 87 normal Cupid OS root objects. Native Windows tooling and the remaining production handoff stay open.
 
 Hosted i386 object emission places ESP on a sixteen-byte boundary immediately before every `CALL`. The emitter derives padding from the function frame, the live Linear IR stack depth, and any outgoing target-sized argument area. Direct and indirect calls use the same rule for prototyped, variadic, unprototyped, nested, structure, and wide cases, with zero, four, eight, or twelve bytes of padding as needed.
 
@@ -623,7 +625,7 @@ Block-scope compound literals use the shared initializer walker and one persiste
 Runtime narrow string expressions now receive deterministic local `.rodata` symbols and `R_386_32` relocations, so pointer initialization, arguments, indexing, and returns use normal array decay. File-scope and other static-duration compound literals, variable-length literals, and the named-aggregate backward-jump alias case remain open under issue #25. Top-level union and Cupid class values, aggregate members selected from structure rvalues, explicit bit-field initializer leaves, volatile or atomic aggregate access, over-aligned structures, Boolean mutation, and broader floating computation or conversion remain open. Block-static addresses in other block-static initializers, arithmetic or explicit casts on static string addresses, wide strings, literal pooling, atomic and aggregate variadic values, and production integration also remain open. A copied structure may contain union, wide, or floating members because this path moves its complete target representation. The private in-kernel CupidC compiler continues to handle embedded runtime JIT and AOT compilation. See [the bootstrap record](docs/bootstrap/README.md), [ADR 0049](docs/adr/0049-cupidc-structure-values-and-cdecl-abi.md), [ADR 0050](docs/adr/0050-cupidc-sixteen-byte-call-alignment.md), [ADR 0051](docs/adr/0051-cupidc-block-scope-static-object-emission.md), [ADR 0052](docs/adr/0052-cupidc-block-scope-compound-literals.md), [ADR 0053](docs/adr/0053-cupidc-runtime-narrow-strings.md), [ADR 0054](docs/adr/0054-cupidc-scalar-variadic-calls.md), [ADR 0055](docs/adr/0055-cupidc-scalar-variadic-callees.md), [ADR 0056](docs/adr/0056-cupidc-empty-identifier-list-functions.md), [ADR 0057](docs/adr/0057-cupidc-block-scope-record-tags.md), [ADR 0058](docs/adr/0058-cupidc-block-scope-extern-objects.md), [ADR 0059](docs/adr/0059-cupidc-block-scope-typedefs.md), [ADR 0060](docs/adr/0060-cupidc-block-scope-function-declarations.md), [ADR 0061](docs/adr/0061-cupidc-block-scope-enums.md), [ADR 0062](docs/adr/0062-cupidc-nested-block-enum-definitions.md), [ADR 0063](docs/adr/0063-cupidc-bit-field-assignments.md), [ADR 0064](docs/adr/0064-cupidc-bit-field-mutation.md), [ADR 0065](docs/adr/0065-cupidc-wide-integer-returns.md), [ADR 0066](docs/adr/0066-cupidc-wide-integer-object-values.md), [ADR 0067](docs/adr/0067-cupidc-wide-integer-parameters-and-arguments.md), [ADR 0068](docs/adr/0068-cupidc-wide-integer-shifts-and-conversions.md), [ADR 0069](docs/adr/0069-cupidc-wide-integer-comparisons-and-conditions.md), [ADR 0070](docs/adr/0070-cupidc-wide-integer-addition-subtraction-and-unary.md), [ADR 0071](docs/adr/0071-cupidc-wide-integer-switch-dispatch.md), [ADR 0072](docs/adr/0072-cupidc-wide-integer-multiplication.md), [ADR 0073](docs/adr/0073-cupidc-wide-integer-division-and-remainder.md), [ADR 0074](docs/adr/0074-cupidc-wide-integer-mutation.md), [ADR 0075](docs/adr/0075-cupidc-wide-integer-variadics.md), [ADR 0076](docs/adr/0076-cupidc-floating-scalar-transport.md), [ADR 0077](docs/adr/0077-cupidc-float-default-argument-promotion.md), and [ADR 0078](docs/adr/0078-private-cupidc-tagged-control-frames.md).
 
 Here, production integration means the remaining host-owned graph. The
-checked-seed path already owns the 148-source checked-in production cohort
+checked-seed path already owns the 151-source checked-in production cohort
 and the generated kernel symbol translation described above.
 
 [ADR 0079](docs/adr/0079-cupidc-same-kind-floating-arithmetic.md) records the first hosted floating arithmetic boundary. [ADR 0091](docs/adr/0091-cupidc-floating-width-conversions.md) records conversion between `float` and `double`, mixed-width arithmetic and conditional arms, and floating compound assignment.
@@ -657,6 +659,8 @@ and the generated kernel symbol translation described above.
 [ADR 0139](docs/adr/0139-transfer-jpeg-and-glyph-rasterization-to-cupidc.md) records the JPEG and glyph-raster production transfer, closed inputs, deterministic objects, and guest decode proof.
 
 [ADR 0140](docs/adr/0140-expose-ordered-forced-includes.md) records the ordered forced-input driver seam and exact Doom-tree frontier. [ADR 0145](docs/adr/0145-retain-empty-memory-assembly-barriers.md) records the empty compiler memory barrier and the resulting sound-driver object. [ADR 0146](docs/adr/0146-represent-ldmxcsr-memory-inputs.md) records the exact LDMXCSR memory-input boundary. [ADR 0147](docs/adr/0147-evaluate-static-floating-arithmetic.md) records deterministic static floating arithmetic and the resulting automap object. [ADR 0148](docs/adr/0148-represent-movss-float-memory-assembly.md) records the exact MOVSS float-memory boundary. [ADR 0149](docs/adr/0149-gate-doom-implicit-function-declarations.md) records the explicit Doom implicit-call profile. [ADR 0150](docs/adr/0150-represent-x87-sine-memory-assembly.md) records the exact x87 sine memory boundary and completed compiler-head FPU root. [ADR 0151](docs/adr/0151-gate-doom-function-data-pointer-conversions.md) records the profile's function/data pointer rule. [ADR 0152](docs/adr/0152-retain-narrow-bit-field-promotion-provenance.md) records ordinary narrow bit-field promotion. [ADR 0153](docs/adr/0153-represent-union-initializer-lists.md) records one-active-member union initialization. [ADR 0154](docs/adr/0154-represent-x87-round-down-memory-assembly.md) records the exact x87 round-down and control-word boundary. [ADR 0155](docs/adr/0155-represent-task23-file-scope-assembly.md) records the file-scope GNU basic assembly boundary and the Task 23 wrapper proof. [ADR 0156](docs/adr/0156-represent-naked-ipi-wrappers.md) records the exact naked IPI wrapper boundary. [ADR 0157](docs/adr/0157-represent-descriptor-table-segment-assembly.md) records the descriptor-table and segment-register boundary. [ADR 0158](docs/adr/0158-promote-current-toolchain-seed.md) records the clean fixed-point promotion and its post-promotion reproof. [ADR 0159](docs/adr/0159-normalize-gnu-named-assembly-operands.md) records parser-private GNU operand labels and the resulting `libm.c` frontier.
+
+[ADR 0160](docs/adr/0160-transfer-fpu-and-smp-roots-to-cupidc.md) records the checked FPU and SMP production handoff, `.cc` rename, image proof, and dual-NIC runtime gate.
 
 [ADR 0143](docs/adr/0143-share-ordinary-padding-nops.md) records the shared ordinary compiler padding family and its measured disassembly improvement.
 

@@ -393,8 +393,9 @@ kernel/smp/smp_trampoline.o: kernel/smp_trampoline.bin $(CUPIDOBJ)
 	$(CUPIDOBJ) wrap $< --stem smp_trampoline --section .rodata --readonly -o $@
 
 # Per-CPU data infrastructure (P5 SMP)
-kernel/smp/percpu.o: kernel/smp/percpu.c kernel/smp/percpu.h kernel/core/process.h
-	$(CC) $(CFLAGS) kernel/smp/percpu.c -o kernel/smp/percpu.o
+kernel/smp/percpu.o: kernel/smp/percpu.cc drivers/serial.h kernel/core/process.h \
+	kernel/core/types.h kernel/smp/percpu.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/smp/percpu.cc --output kernel/smp/percpu.o
 
 # Local APIC BSP init + timer calibration (P5 SMP)
 kernel/smp/lapic.o: kernel/smp/lapic.cc drivers/serial.h kernel/core/ports.h \
@@ -419,9 +420,12 @@ kernel/smp/acpi.o: kernel/smp/acpi.cc kernel/smp/acpi.h kernel/smp/mp_tables.h k
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/smp/acpi.cc --output kernel/smp/acpi.o
 
 # SMP discovery orchestration + AP bringup (P5 T9)
-kernel/smp/smp.o: kernel/smp/smp.c kernel/smp/smp.h kernel/smp/mp_tables.h kernel/smp/acpi.h \
-              kernel/smp/lapic.h kernel/smp/ioapic.h kernel/smp/bkl.h kernel/smp/percpu.h kernel/mm/memory.h
-	$(CC) $(CFLAGS) kernel/smp/smp.c -o kernel/smp/smp.o
+kernel/smp/smp.o: kernel/smp/smp.cc drivers/serial.h kernel/core/process.h \
+	kernel/core/types.h kernel/cpu/fpu.h kernel/cpu/idt.h kernel/cpu/isr.h \
+	kernel/mm/memory.h kernel/smp/acpi.h kernel/smp/bkl.h kernel/smp/ioapic.h \
+	kernel/smp/lapic.h kernel/smp/mp_tables.h kernel/smp/percpu.h kernel/smp/smp.h \
+	$(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/smp/smp.cc --output kernel/smp/smp.o
 
 # NIC interface scaffold + 64-slot lockless RX ring (P6 T1)
 kernel/network/net_if.o: kernel/network/net_if.cc drivers/serial.h kernel/core/types.h kernel/network/arp.h kernel/network/dhcp.h kernel/network/ip.h kernel/network/net_if.h kernel/network/tcp.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
@@ -810,8 +814,10 @@ kernel/gui/ui.o: kernel/gui/ui.cc drivers/vga.h kernel/core/string.h kernel/core
 kernel/lang/godspeak.o: kernel/lang/godspeak.cc drivers/timer.h kernel/core/kernel.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/lang/godspeak.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/godspeak.cc --output kernel/lang/godspeak.o
 
-kernel/cpu/fpu.o: kernel/cpu/fpu.c kernel/cpu/fpu.h kernel/core/panic.h drivers/serial.h
-	$(CC) $(CFLAGS) kernel/cpu/fpu.c -o kernel/cpu/fpu.o
+kernel/cpu/fpu.o: kernel/cpu/fpu.cc drivers/serial.h kernel/core/panic.h \
+	kernel/core/process.h kernel/core/types.h kernel/cpu/fpu.h kernel/cpu/isr.h \
+	kernel/cpu/libm.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/fpu.cc --output kernel/cpu/fpu.o
 
 kernel/cpu/libm.o: kernel/cpu/libm.c kernel/cpu/libm.h
 	$(CC) $(CFLAGS) $(OPT) kernel/cpu/libm.c -o kernel/cpu/libm.o

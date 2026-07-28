@@ -14145,3 +14145,87 @@ revision `c00b3494014ca0a5f41143caa7e713e46b2ad3ec`, and the normal
 `kernel/cpu/libm.c` transform still belongs to the host compiler. No
 production object, suffix, ABI, image, runtime path, or host-dependency count
 moves in this increment. `TempleOS/` remains untouched reference material.
+
+## 2026-07-28: transfer the FPU and SMP roots to checked CupidC
+
+The normal image now builds `kernel/cpu/fpu.cc`,
+`kernel/smp/percpu.cc`, and `kernel/smp/smp.cc` with the checked CupidC
+seed. Each Make recipe uses the kernel wrapper and its frozen recursive input
+closure. None of the three source bodies needed a compatibility rewrite.
+
+The files moved from `.c` to `.cc` with their production recipes. The FPU and
+per-CPU object bytes match the earlier compiler-boundary proofs. The SMP
+object has a different hash because its existing `__FILE__` diagnostic now
+contains the truthful `smp.cc` path.
+
+| Production object | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/cpu/fpu.o` | 6,620 | `14c3ea232b7d4455ceabd561c69293cc5849abae24d9f210aa69d64ed8c8a5cb` |
+| `kernel/smp/percpu.o` | 6,760 | `3c2c6f0e00e5edec1ca16cba91e9fc593d1c42e24f4ebd3591e5f574fb0dd772` |
+| `kernel/smp/smp.o` | 8,444 | `bd3189b2a1a6d15728c559172f5d6acca0889103428085cec8cc1024742a22d1` |
+
+The complete checked-in normal frontier now covers 151 roots. Two passes
+against the frozen 439-input snapshot are byte-identical and total 3,643,676
+bytes. The snapshot has SHA-256
+`dd61ee8ece6a26282f7ae2d5f252f53c109827bf3e7a3365a00cc5a6e8d59a8a`,
+and no compiler boundary remains inside that cohort.
+
+The production recipes also pass with `CC`, `CXX`, `CPP`, `HOSTCC`,
+`HOSTCXX`, `ASM`, `LD`, `AR`, `NM`, and `OBJCOPY` replaced by invalid
+commands. All three objects rebuild through the checked wrapper in about 7.3
+seconds. The wrapper retains its drift, invalid-object, atomic-publication,
+and previous-output preservation checks.
+
+### Evidence
+
+| Gate | Result |
+| --- | --- |
+| Kernel-wrapper module | 29 tests passed in 108.295 seconds |
+| GUI and runtime-contract module | 73 tests passed in 0.475 seconds |
+| Focused build, object, and source-order checks | 18 tests passed in 28.634 seconds |
+| Poisoned-host production rebuild | Three exact objects passed in about 7.3 seconds |
+| Checked-seed verifier | All five tools passed |
+| Bootstrap audit regeneration and drift check | Passed |
+| Clean image build | `make -j2 all WAD_SRCS=` passed in 523 seconds |
+| Final build after manual updates | `make -j2 all WAD_SRCS=` passed in 501.9 seconds |
+| Four-vCPU e1000 runtime | Passed |
+| Four-vCPU RTL8139 runtime | Passed |
+
+The final linker and image artifacts are:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.elf.pass1` | 8,049,800 | `a617da173e8fdaff777221adf1e042d03628108b00a380ba3a6575169c49848a` |
+| `kernel/kernel.elf` | 8,156,296 | `cc8b8ea2dfc767d585f490245ce9d416e085e1bf94d5381efe752667f9802efa` |
+| `kernel/kernel.bin` | 7,959,532 | `e83dd816ef250f57aab384faafe5fa71e65fcbb91b6cda1e6ddd54d482577b68` |
+| `cupidos.img` | 209,715,200 | `f4545e3ff1d6209dd097c548461b235fb8ae95ae3241bceea24034c359e37e2d` |
+
+All 7,959,532 flat-kernel bytes match the image at LBA 5. CupidDis accepts
+5,722 symbol rows from each kernel pass, including 4,392 text symbols from
+each. The generated symbol blob has 105,505 meaningful bytes and three zero
+padding bytes. Its 105,920-byte object has SHA-256
+`4a343b54571ed94324ce09e3ba48859ecdb36497e4e284b5f7996c81ed260131`.
+
+Both private-image QEMU runs bring all four discovered CPUs online, select the
+requested NIC, print `[fpu] boot smoke ok` and `FPU boot smoke passed`, report
+all 62 TLS successes, and finish `feature16_asm_fpu.cc` with its PASS and JIT
+completion markers. The 54,869-byte e1000 log has SHA-256
+`65fc984950e3813e387d41a2f480d3f3e59dd38b6a2478abb2df73a6854c11e2`.
+The 53,419-byte RTL8139 log has SHA-256
+`7bd6fdb1829c8b71194b6a6024e1ba61528122a345baae4078a127bd8394e989`.
+
+The audit still records 698 active sources, 253 feature IDs, 504 transforms,
+and 42 accounted unreachable files. Its active-source digest is
+`1e7b7a4d4e1027e8827427b857f052132b62c4fe17792ff8dc0e325d29d3edcc`.
+The 1,526,996-byte JSON has SHA-256
+`5dd9bcec380edea9298a6d6965377a7531c1837fe6efd5c4112d3df48932a790`.
+
+CupidC now owns 158 transforms, including 152 normal transforms. The host
+compiler owns 139 transforms and still produces 87 normal root objects.
+Python owns 173 transforms, and Make owns five. Four strict checked-in roots
+remain outside production CupidC ownership.
+
+No compiler or checked-seed byte changed in this transfer, so a new fixed
+point was not needed. The promoted seed had already proved all three language
+boundaries. ADR 0160 records the production decision. `TempleOS/` remains
+untouched reference material.

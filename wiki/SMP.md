@@ -23,12 +23,12 @@ Related pages: [USB](USB.md), [Swap](Swap.md)
 Core files:
 
 ```
-kernel/smp/percpu.h / percpu.c       per-CPU data, GS-base init
+kernel/smp/percpu.h / percpu.cc      per-CPU data, GS-base init
 kernel/smp/lapic.h  / lapic.cc       Local APIC driver
 kernel/smp/ioapic.h / ioapic.cc       IOAPIC driver
-kernel/smp/smp.h    / smp.c          AP trampoline, bringup, IPI wrappers
+kernel/smp/smp.h    / smp.cc         AP trampoline, bringup, IPI wrappers
 kernel/smp/bkl.h    / bkl.cc         big kernel lock (ticket spinlock)
-kernel/smp/mp_tables.h / .c      MP table discovery
+kernel/smp/mp_tables.h / mp_tables.cc MP table discovery
 kernel/smp/acpi.h / acpi.cc       ACPI MADT fallback
 kernel/lang/shell.cc              `smp` shell command
 ```
@@ -114,10 +114,10 @@ Compiler-head CupidC represents the unchanged GDT setup directly. Its typed
 GNU assembly boundary accepts the packed six-byte GDTR, the exact AX and
 memory clobbers, and a 16-bit GS selector. CS reload uses a relative
 call-and-RETF trampoline, so the emitted object needs no local-label
-relocation. Two full compiles of `kernel/smp/percpu.c` produce the same
-6,760-byte object. The checked seed carries this capability, but the normal
-recipe remains host-owned until its wrapper, rename, image, and runtime
-transfer passes.
+relocation. Two full compiles of `kernel/smp/percpu.cc` produce the same
+6,760-byte object with SHA-256
+`3c2c6f0e00e5edec1ca16cba91e9fc593d1c42e24f4ebd3591e5f574fb0dd772`.
+The normal build owns it through the checked wrapper.
 
 ---
 
@@ -512,25 +512,26 @@ me: 0
 ### Checked-seed ownership and smoke
 
 The normal build compiles `kernel/smp/acpi.cc`,
-`kernel/smp/mp_tables.cc`, and `kernel/smp/lapic.cc` with checked-seed
-CupidC. The wrapper freezes and verifies the seed, uses the fixed kernel
-profile, validates each i386 ELF32 object, and only then replaces the
-production output. A forced build with an invalid host compiler proves that
-none of these recipes falls back to Clang or GCC.
+`kernel/smp/mp_tables.cc`, `kernel/smp/lapic.cc`,
+`kernel/smp/percpu.cc`, and `kernel/smp/smp.cc` with checked-seed CupidC. The
+wrapper freezes and verifies the seed, uses the fixed kernel profile,
+validates each i386 ELF32 object, and only then replaces the production
+output. A forced build with an invalid host compiler proves that none of
+these recipes falls back to Clang or GCC.
 
-The checked seed also compiles unchanged `kernel/smp/smp.c`, including all
-three naked IPI entries. Two exact kernel-profile compiles produce the same
-validated 8,444-byte object with SHA-256
+The earlier `smp.c` compiler proof produced an 8,444-byte object with SHA-256
 `806509a6dd1ac7eb34b7ffcb67a1f8852950663a274145584d0260da76dcba54`.
-The checked seed carries that support, but the normal `smp.c` object remains
-host-built until its wrapper, rename, image, and runtime transfer passes.
+The checked production root is now `kernel/smp/smp.cc`. Its current hash is
+`bd3189b2a1a6d15728c559172f5d6acca0889103428085cec8cc1024742a22d1`;
+the existing `__FILE__` diagnostic accounts for the change.
 
-The strong QEMU gate uses four vCPUs, the `max` CPU, and e1000. It requires
-MP fallback discovery, a four-CPU ACPI MADT, CPUs 1 through 3 online, and the
-final four-of-four SMP summary. The same log must show RDRAND seeding,
-exactly 62 successful crypto checks, e1000, the scheduler, desktop and
-terminal startup, and CupidC JIT completion. It rejects known SMP, storage,
-crypto, exception, panic, corruption, and illegal-instruction failures.
+Sequential e1000 and RTL8139 gates use four `max` vCPUs. Each run brings the
+BSP and all three APs online, initializes the selected NIC, prints
+`[fpu] boot smoke ok` and `FPU boot smoke passed`, and finishes
+`feature16_asm_fpu.cc` with its PASS marker and CupidC JIT completion. The
+same logs show RDRAND seeding, exactly 62 successful crypto checks, scheduler,
+desktop, and terminal startup. The gate rejects known SMP, storage, crypto,
+exception, panic, corruption, and illegal-instruction failures.
 
 ### `make run-smp`
 
@@ -546,8 +547,8 @@ Equivalent to:
 qemu-system-i386 <common-flags> -smp cpus=4 -serial stdio
 ```
 
-All 4 APs should appear in `smp` output within a few hundred milliseconds
-of boot.
+All four CPUs, including the BSP and three APs, should appear in `smp` output
+within a few hundred milliseconds of boot.
 
 ### `feature20_smp`
 
@@ -586,13 +587,13 @@ Fine-grained locking would be required to remove this serialization.
 | File | Purpose |
 |---|---|
 | `kernel/smp/percpu.h` | `per_cpu_t` struct definition, `this_cpu()` macro |
-| `kernel/smp/percpu.c` | BSP + AP per-CPU init, GDT slot allocation |
+| `kernel/smp/percpu.cc` | BSP + AP per-CPU init, GDT slot allocation |
 | `kernel/smp/lapic.h` | LAPIC register offsets, API declarations |
 | `kernel/smp/lapic.cc` | MMIO map, software enable, PIT calibration, IPI send |
 | `kernel/smp/ioapic.h` | IOAPIC register layout, API |
 | `kernel/smp/ioapic.cc` | Redirection table init, GSI routing, ISA remap |
 | `kernel/smp/smp.h` | `cpu_table_t`, AP trampoline API |
-| `kernel/smp/smp.c` | Trampoline placement, INIT/SIPI sequence, idle loop, and naked IPI entries |
+| `kernel/smp/smp.cc` | Trampoline placement, INIT/SIPI sequence, idle loop, and naked IPI entries |
 | `kernel/smp/bkl.h` | `bkl_lock` / `bkl_unlock` and target-stack handoff declarations |
 | `kernel/smp/bkl.cc` | Ticket spinlock implementation |
 | `kernel/smp/mp_tables.h` | MP table parser API |
