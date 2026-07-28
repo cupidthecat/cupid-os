@@ -26771,20 +26771,20 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.cc",           "/toolchain/x86.cc",
       "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
-      65u, 68u, 66u, 14u, 31u, 143u, 215u, 231u, 361u, 81u, 37u, 60u,
+      65u, 68u, 66u, 14u, 31u, 143u, 218u, 236u, 364u, 81u, 37u, 60u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 76860u, 85252u, 16872u, 42212u,
-      190304u, 418728u, 388555u, 753751u, 139646u, 70368u, 80478u,
+      190304u, 423479u, 393470u, 760691u, 139646u, 70368u, 80478u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 89320u, 99772u, 20180u, 49484u,
-      226668u, 447480u, 418724u, 888692u, 157828u, 79348u, 134656u,
+      226668u, 452812u, 424364u, 897124u, 157828u, 79348u, 134656u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x5fbbfaf2u, 0x4ca44a27u,
       0x7238e153u, 0x999f97b7u, 0xb49d8eb9u,
-      0x55cacfc2u, 0x7fbe98b9u, 0x18bf8d8du, 0x239f52c7u,
+      0xe123f292u, 0x28005b0cu, 0xc43a4119u, 0x239f52c7u,
       0x34558a49u, 0x7c198364u, 0x8774de7du};
   ctool_u32 index;
   int all_matched = 1;
@@ -31370,6 +31370,384 @@ cleanup:
   return 1;
 }
 
+static int validate_movss_memory_operand(
+    const ctool_x86_operand_t *operand, ctool_bool memory) {
+  if (operand == NULL) {
+    return 0;
+  }
+  if (memory == CTOOL_FALSE) {
+    return operand->kind == CTOOL_X86_OPERAND_REGISTER &&
+                   operand->width_bits == 0u &&
+                   operand->as.reg.class_id == CTOOL_X86_REG_XMM &&
+                   operand->as.reg.index == 0u
+               ? 1
+               : 0;
+  }
+  if (operand->kind != CTOOL_X86_OPERAND_MEMORY ||
+      operand->width_bits != 32u ||
+      operand->as.memory.address_bits != 32u ||
+      operand->as.memory.segment.class_id != CTOOL_X86_REG_NONE ||
+      operand->as.memory.base.class_id != CTOOL_X86_REG_GPR32 ||
+      operand->as.memory.base.index != 0u ||
+      operand->as.memory.index.class_id != CTOOL_X86_REG_NONE ||
+      operand->as.memory.scale != 1u ||
+      operand->as.memory.displacement.kind != CTOOL_X86_VALUE_CONSTANT ||
+      operand->as.memory.displacement.bits != 0u) {
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_movss_memory_function(
+    ctool_job_t *job, const ctool_elf32_section_t *text,
+    const ctool_elf32_symbol_t *symbol,
+    const ctool_u8 *expected, ctool_u32 expected_size,
+    ctool_u32 expected_loads, ctool_u32 expected_stores) {
+  static const ctool_u8 load_bytes[] = {0xf3u, 0x0fu, 0x10u, 0x00u};
+  static const ctool_u8 store_bytes[] = {0xf3u, 0x0fu, 0x11u, 0x00u};
+  ctool_u32 cursor = 0u;
+  ctool_u32 loads = 0u;
+  ctool_u32 stores = 0u;
+  if (job == NULL || text == NULL || symbol == NULL || expected == NULL ||
+      symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      symbol->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
+      symbol->value > text->contents.size ||
+      symbol->size > text->contents.size - symbol->value ||
+      symbol->size != expected_size ||
+      memcmp(text->contents.data + symbol->value, expected,
+             (size_t)expected_size) != 0) {
+    return 0;
+  }
+  while (cursor < symbol->size) {
+    ctool_x86_decoded_t decoded;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + symbol->value + cursor,
+        symbol->size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(
+        job, CTOOL_X86_MODE_32, remaining, 0u, &decoded);
+    if (status != CTOOL_OK ||
+        decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      return 0;
+    }
+    if (decoded.instruction.mnemonic == CTOOL_X86_MN_MOVSS) {
+      if (decoded.instruction.operand_count != 2u) {
+        return 0;
+      }
+      if (validate_movss_memory_operand(
+              &decoded.instruction.operands[0], CTOOL_FALSE) &&
+          validate_movss_memory_operand(
+              &decoded.instruction.operands[1], CTOOL_TRUE)) {
+        if (decoded.consumed != (ctool_u32)sizeof(load_bytes) ||
+            memcmp(remaining.data, load_bytes, sizeof(load_bytes)) != 0) {
+          return 0;
+        }
+        loads++;
+      } else if (validate_movss_memory_operand(
+                     &decoded.instruction.operands[0], CTOOL_TRUE) &&
+                 validate_movss_memory_operand(
+                     &decoded.instruction.operands[1], CTOOL_FALSE)) {
+        if (decoded.consumed != (ctool_u32)sizeof(store_bytes) ||
+            memcmp(remaining.data, store_bytes, sizeof(store_bytes)) != 0) {
+          return 0;
+        }
+        stores++;
+      } else {
+        return 0;
+      }
+    }
+    cursor += decoded.consumed;
+  }
+  return cursor == symbol->size &&
+                 loads == expected_loads &&
+                 stores == expected_stores
+             ? 1
+             : 0;
+}
+
+static int validate_movss_memory_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const ctool_u8 round_trip[] = {
+      0x55u, 0x89u, 0xe5u,
+      0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u,
+      0x58u, 0x8bu, 0x00u, 0x50u,
+      0x8du, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u, 0x50u,
+      0x58u, 0x8bu, 0x00u, 0x50u,
+      0x58u, 0xf3u, 0x0fu, 0x10u, 0x00u,
+      0x58u, 0xf3u, 0x0fu, 0x11u, 0x00u,
+      0xc9u, 0xc3u};
+  static const ctool_u8 load_xmm0[] = {
+      0x55u, 0x89u, 0xe5u,
+      0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u,
+      0x58u, 0x8bu, 0x00u, 0x50u,
+      0x58u, 0xf3u, 0x0fu, 0x10u, 0x00u,
+      0xc9u, 0xc3u};
+  static const ctool_u8 store_xmm0[] = {
+      0x55u, 0x89u, 0xe5u,
+      0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u,
+      0x58u, 0x8bu, 0x00u, 0x50u,
+      0x58u, 0xf3u, 0x0fu, 0x11u, 0x00u,
+      0xc9u, 0xc3u};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  if (text == NULL || text->contents.data == NULL ||
+      object->relocation_count != 0u ||
+      !validate_movss_memory_function(
+          job, text, find_symbol(object, "round_trip"),
+          round_trip, (ctool_u32)sizeof(round_trip), 1u, 1u) ||
+      !validate_movss_memory_function(
+          job, text, find_symbol(object, "load_xmm0"),
+          load_xmm0, (ctool_u32)sizeof(load_xmm0), 1u, 0u) ||
+      !validate_movss_memory_function(
+          job, text, find_symbol(object, "store_xmm0"),
+          store_xmm0, (ctool_u32)sizeof(store_xmm0), 0u, 1u)) {
+    (void)fprintf(stderr, "MOVSS memory assembly object differs\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int run_movss_memory_assembly_object(const char *host_root) {
+  static const char source[] =
+      "void round_trip(float *out, const float *in) {\n"
+      "  __asm__ volatile(\"movss %1, %%xmm0\\n\\t\" "
+      "\"movss %%xmm0, %0\\n\\t\" : \"=m\"(*out) : \"m\"(*in) : "
+      "\"xmm0\");\n"
+      "}\n"
+      "void load_xmm0(const volatile float *in) {\n"
+      "  __asm__ volatile(\"movss %0, %%xmm0\" : : \"m\"(*in) : "
+      "\"xmm0\");\n"
+      "}\n"
+      "void store_xmm0(volatile float *out) {\n"
+      "  __asm__ volatile(\"movss %%xmm0, %0\" : \"=m\"(*out) : : "
+      "\"xmm0\");\n"
+      "}\n";
+  static const char invalid_message[] =
+      "CupidC IR lowering received an invalid translation unit";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_buffer_t *first = NULL;
+  ctool_buffer_t *second = NULL;
+  ctool_buffer_t *failure = NULL;
+  ctool_buffer_t *limited = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t mutant;
+  ctool_c_assembly_t mutant_assemblies[3];
+  ctool_c_assembly_operand_t mutant_operands[4];
+  ctool_c_type_layout_t *mutant_layouts = NULL;
+  unit_snapshot_t snapshot;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t first_bytes;
+  ctool_bytes_t second_bytes;
+  ctool_bytes_t recovered_bytes;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&snapshot, 0, sizeof(snapshot));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(
+          job, "/movss-memory-assembly-object.c", source,
+          CTOOL_TRUE, &unit) ||
+      unit.function_definition_count != 3u ||
+      unit.assembly_count != 3u ||
+      unit.assembly_operand_count != 4u ||
+      !take_unit_snapshot(&unit, &snapshot)) {
+    (void)fprintf(stderr, "MOVSS memory assembly object setup failed\n");
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(
+      job, 1024u, config.limits.output_bytes, &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &second);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &failure);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 16u, 64u, &limited);
+  }
+  if (!check_status(status, CTOOL_OK, "MOVSS memory assembly buffers") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, first, "first MOVSS memory assembly object") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second, "repeat MOVSS memory assembly object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(
+        stderr, "MOVSS memory assembly object is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text =
+      ctool_string("/movss-memory-assembly-object.o");
+  object_source.contents = second_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read MOVSS memory assembly object") ||
+      !validate_movss_memory_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (second_bytes.size != 464u ||
+      find_section(&object, ".text")->contents.size != 79u ||
+      object.section_count != 5u || object.symbol_count != 4u ||
+      object.relocation_count != 0u) {
+    (void)fprintf(
+        stderr,
+        "movss-memory-assembly: object metrics differ: object=%u text=%u "
+        "sections=%u symbols=%u relocations=%u\n",
+        (unsigned int)second_bytes.size,
+        (unsigned int)find_section(&object, ".text")->contents.size,
+        (unsigned int)object.section_count,
+        (unsigned int)object.symbol_count,
+        (unsigned int)object.relocation_count);
+    goto cleanup;
+  }
+
+  (void)memcpy(
+      mutant_assemblies, unit.assemblies, sizeof(mutant_assemblies));
+  (void)memcpy(
+      mutant_operands, unit.assembly_operands, sizeof(mutant_operands));
+  mutant = unit;
+  mutant.assemblies = mutant_assemblies;
+  mutant.assembly_operands = mutant_operands;
+
+  mutant_assemblies[0].template_text =
+      ctool_string("movss 4(%1), %%xmm0\n\tmovss %%xmm0, %0\n\t");
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged MOVSS displacement") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_assemblies[0] = unit.assemblies[0];
+
+  mutant_assemblies[0].flags &= ~CTOOL_C_ASSEMBLY_XMM0_CLOBBER;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged MOVSS clobber") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_assemblies[0] = unit.assemblies[0];
+
+  mutant_assemblies[0].flags &= ~CTOOL_C_ASSEMBLY_VOLATILE;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged MOVSS volatile flag") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_assemblies[0] = unit.assemblies[0];
+
+  mutant_operands[0].constraint = ctool_string("=r");
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged MOVSS register output") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_operands[0] = unit.assembly_operands[0];
+
+  mutant_operands[1].constraint = ctool_string("r");
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged MOVSS register input") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_operands[1] = unit.assembly_operands[1];
+
+  mutant_layouts = (ctool_c_type_layout_t *)malloc(
+      (size_t)unit.layout.type_count * sizeof(*mutant_layouts));
+  if (mutant_layouts == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(
+      mutant_layouts, unit.layout.types,
+      (size_t)unit.layout.type_count * sizeof(*mutant_layouts));
+  mutant_layouts[unit.assembly_operands[0].type].size = 8u;
+  mutant.layout.types = mutant_layouts;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged MOVSS operand layout") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant.layout.types = unit.layout.types;
+
+  if (!expect_object_failure(
+          job, &unit, limited, CTOOL_ERR_LIMIT,
+          CTOOL_C_EMIT_DIAG_LIMIT, NULL,
+          "limited MOVSS memory assembly object") ||
+      ctool_buffer_rewind(limited, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+
+  if (!expect_object_success_preserves_unit(
+          job, &unit, failure, "MOVSS memory assembly recovery")) {
+    goto cleanup;
+  }
+  recovered_bytes = ctool_buffer_view(failure);
+  if (recovered_bytes.size != first_bytes.size ||
+      memcmp(recovered_bytes.data, first_bytes.data,
+             (size_t)first_bytes.size) != 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(
+        stderr, "MOVSS memory assembly recovery object differs\n");
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(mutant_layouts);
+  dispose_unit_snapshot(&snapshot);
+  if (limited != NULL) {
+    ctool_buffer_close(limited);
+  }
+  if (failure != NULL) {
+    ctool_buffer_close(failure);
+  }
+  if (second != NULL) {
+    ctool_buffer_close(second);
+  }
+  if (first != NULL) {
+    ctool_buffer_close(first);
+  }
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("movss-memory-assembly: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_state_memory_assembly_function(
     ctool_job_t *job, const ctool_elf32_section_t *text,
     const ctool_elf32_symbol_t *symbol,
@@ -34825,6 +35203,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "ldmxcsr-memory-input") == 0) {
     return run_ldmxcsr_memory_input_object(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "movss-memory-assembly") == 0) {
+    return run_movss_memory_assembly_object(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "legacy-port-assembly") == 0) {
     return run_legacy_port_assembly_object(argv[2]);
   }
@@ -34940,6 +35321,7 @@ int main(int argc, char **argv) {
                 "void-casts|inline-assembly|port-io-assembly|"
                 "privileged-register-assembly|fxsave-assembly|"
                 "ldmxcsr-memory-input|"
+                "movss-memory-assembly|"
                 "legacy-port-assembly|state-memory-assembly|"
                 "atomic-builtins|"
                 "register-snapshot-assembly|"

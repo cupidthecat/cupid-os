@@ -487,6 +487,127 @@ static ctool_bool cir_fxsave_assembly_metadata_is_valid(
              : CTOOL_FALSE;
 }
 
+typedef enum {
+  CIR_MOVSS_MEMORY_NONE = 0,
+  CIR_MOVSS_MEMORY_ROUND_TRIP,
+  CIR_MOVSS_MEMORY_LOAD,
+  CIR_MOVSS_MEMORY_STORE
+} cir_movss_memory_kind_t;
+
+static cir_movss_memory_kind_t cir_movss_memory_template_kind(
+    ctool_string_t template_text) {
+  if (cir_string_equal(
+          template_text,
+          ctool_string(
+              "movss %1, %%xmm0\n\tmovss %%xmm0, %0\n\t")) ==
+      CTOOL_TRUE) {
+    return CIR_MOVSS_MEMORY_ROUND_TRIP;
+  }
+  if (cir_string_equal(
+          template_text, ctool_string("movss %0, %%xmm0")) == CTOOL_TRUE) {
+    return CIR_MOVSS_MEMORY_LOAD;
+  }
+  return cir_string_equal(
+             template_text, ctool_string("movss %%xmm0, %0")) == CTOOL_TRUE
+             ? CIR_MOVSS_MEMORY_STORE
+             : CIR_MOVSS_MEMORY_NONE;
+}
+
+static ctool_bool cir_movss_memory_operand_is_float(
+    const cir_context_t *context,
+    const ctool_c_assembly_operand_t *operand, ctool_bool output) {
+  const ctool_c_type_node_t *node;
+  const ctool_c_type_layout_t *layout;
+  ctool_u32 type;
+  ctool_u32 qualifiers = 0u;
+  ctool_u32 traversed = 0u;
+  if (operand == (const ctool_c_assembly_operand_t *)0 ||
+      operand->type >= context->unit->graph.type_count ||
+      operand->type >= context->unit->layout.type_count ||
+      operand->expression >= context->unit->expression_count ||
+      operand->matching_output != CTOOL_C_AST_NONE ||
+      context->unit->expressions == (const ctool_c_expression_t *)0 ||
+      context->unit->expressions[operand->expression].type != operand->type) {
+    return CTOOL_FALSE;
+  }
+  type = operand->type;
+  for (;;) {
+    if (type >= context->unit->graph.type_count) {
+      return CTOOL_FALSE;
+    }
+    node = &context->unit->graph.types[type];
+    qualifiers |= node->qualifiers;
+    if (node->kind != CTOOL_C_TYPE_ALIGNED &&
+        node->kind != CTOOL_C_TYPE_QUALIFIED) {
+      break;
+    }
+    type = node->referenced_type;
+    if (traversed++ >= context->unit->graph.type_count) {
+      return CTOOL_FALSE;
+    }
+  }
+  layout = &context->unit->layout.types[operand->type];
+  return node->kind == CTOOL_C_TYPE_FLOAT &&
+                 layout->is_object == CTOOL_TRUE &&
+                 layout->is_complete_object == CTOOL_TRUE &&
+                 layout->size == 4u &&
+                 (qualifiers & CTOOL_C_QUAL_ATOMIC) == 0u &&
+                 (output == CTOOL_FALSE ||
+                  (qualifiers & CTOOL_C_QUAL_CONST) == 0u)
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cir_movss_memory_assembly_metadata_is_valid(
+    const cir_context_t *context,
+    const ctool_c_assembly_t *assembly) {
+  cir_movss_memory_kind_t kind =
+      cir_movss_memory_template_kind(assembly->template_text);
+  const ctool_c_assembly_operand_t *output;
+  const ctool_c_assembly_operand_t *input;
+  ctool_u32 expected_outputs;
+  ctool_u32 expected_inputs;
+  if (kind == CIR_MOVSS_MEMORY_NONE) {
+    return (assembly->flags & CTOOL_C_ASSEMBLY_XMM0_CLOBBER) == 0u
+               ? CTOOL_TRUE
+               : CTOOL_FALSE;
+  }
+  expected_outputs = kind == CIR_MOVSS_MEMORY_LOAD ? 0u : 1u;
+  expected_inputs = kind == CIR_MOVSS_MEMORY_STORE ? 0u : 1u;
+  if (assembly->flags !=
+          (CTOOL_C_ASSEMBLY_VOLATILE |
+           CTOOL_C_ASSEMBLY_XMM0_CLOBBER) ||
+      assembly->output_count != expected_outputs ||
+      assembly->input_count != expected_inputs ||
+      assembly->first_operand > context->unit->assembly_operand_count ||
+      expected_outputs + expected_inputs >
+          context->unit->assembly_operand_count - assembly->first_operand ||
+      context->unit->assembly_operands ==
+          (const ctool_c_assembly_operand_t *)0) {
+    return CTOOL_FALSE;
+  }
+  output = expected_outputs == 0u
+               ? (const ctool_c_assembly_operand_t *)0
+               : &context->unit
+                      ->assembly_operands[assembly->first_operand];
+  input = expected_inputs == 0u
+              ? (const ctool_c_assembly_operand_t *)0
+              : &context->unit->assembly_operands[
+                    assembly->first_operand + expected_outputs];
+  return (output == (const ctool_c_assembly_operand_t *)0 ||
+          (cir_string_equal(
+               output->constraint, ctool_string("=m")) == CTOOL_TRUE &&
+           cir_movss_memory_operand_is_float(
+               context, output, CTOOL_TRUE) == CTOOL_TRUE)) &&
+                 (input == (const ctool_c_assembly_operand_t *)0 ||
+                  (cir_string_equal(
+                       input->constraint, ctool_string("m")) == CTOOL_TRUE &&
+                   cir_movss_memory_operand_is_float(
+                       context, input, CTOOL_FALSE) == CTOOL_TRUE))
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
 static ctool_bool cir_ldmxcsr_assembly_metadata_is_valid(
     const cir_context_t *context,
     const ctool_c_assembly_t *assembly) {
@@ -499,6 +620,10 @@ static ctool_bool cir_ldmxcsr_assembly_metadata_is_valid(
     return CTOOL_FALSE;
   }
   if (exact_template == CTOOL_FALSE) {
+    if (cir_movss_memory_template_kind(
+            assembly->template_text) != CIR_MOVSS_MEMORY_NONE) {
+      return CTOOL_TRUE;
+    }
     if (context->unit->assembly_operands ==
             (const ctool_c_assembly_operand_t *)0 &&
         assembly->input_count != 0u) {
@@ -571,6 +696,10 @@ static ctool_bool cir_state_memory_assembly_metadata_is_valid(
       cir_state_memory_assembly_width(assembly->template_text);
   ctool_u32 output;
   ctool_bool has_memory_output = CTOOL_FALSE;
+  if (cir_movss_memory_template_kind(
+          assembly->template_text) != CIR_MOVSS_MEMORY_NONE) {
+    return CTOOL_TRUE;
+  }
   if (assembly->first_operand >
           context->unit->assembly_operand_count) {
     return CTOOL_FALSE;
@@ -634,7 +763,8 @@ static ctool_status_t cir_validate_assembly_slices(
     if (assembly->template_text.data == (const char *)0 ||
         (assembly->flags &
          ~(CTOOL_C_ASSEMBLY_BASIC | CTOOL_C_ASSEMBLY_VOLATILE |
-           CTOOL_C_ASSEMBLY_MEMORY_CLOBBER)) != 0u ||
+           CTOOL_C_ASSEMBLY_MEMORY_CLOBBER |
+           CTOOL_C_ASSEMBLY_XMM0_CLOBBER)) != 0u ||
         assembly->output_count > 4u ||
         assembly->first_operand != operand_cursor ||
         cir_add_overflows(assembly->output_count,
@@ -650,8 +780,9 @@ static ctool_status_t cir_validate_assembly_slices(
         (assembly->output_count == 0u &&
          (assembly->flags & CTOOL_C_ASSEMBLY_VOLATILE) == 0u) ||
         ((assembly->flags & CTOOL_C_ASSEMBLY_BASIC) != 0u &&
-         (((assembly->flags & CTOOL_C_ASSEMBLY_VOLATILE) == 0u) ||
-          (assembly->flags & CTOOL_C_ASSEMBLY_MEMORY_CLOBBER) != 0u ||
+         (assembly->flags !=
+              (CTOOL_C_ASSEMBLY_BASIC |
+               CTOOL_C_ASSEMBLY_VOLATILE) ||
           operand_count != 0u))) {
       return cir_invalid_unit(context, &assembly->location);
     }
@@ -726,6 +857,10 @@ static ctool_status_t cir_validate_assembly_slices(
       return cir_invalid_unit(context, &assembly->location);
     }
     if (cir_ldmxcsr_assembly_metadata_is_valid(
+            context, assembly) == CTOOL_FALSE) {
+      return cir_invalid_unit(context, &assembly->location);
+    }
+    if (cir_movss_memory_assembly_metadata_is_valid(
             context, assembly) == CTOOL_FALSE) {
       return cir_invalid_unit(context, &assembly->location);
     }
@@ -8259,6 +8394,11 @@ static ctool_bool cir_assembly_output_type_is_valid(
                ? CTOOL_TRUE
                : CTOOL_FALSE;
   }
+  if (cir_string_equal(
+          operand->constraint, ctool_string("=m")) == CTOOL_TRUE &&
+      node->kind == CTOOL_C_TYPE_FLOAT) {
+    return size == 4u ? CTOOL_TRUE : CTOOL_FALSE;
+  }
   if (is_integer == CTOOL_FALSE) {
     return CTOOL_FALSE;
   }
@@ -8348,6 +8488,11 @@ static ctool_status_t cir_lower_assembly_statement(
               operand->constraint, &fixed_input_register);
       ctool_bool memory_input = cir_string_equal(
           operand->constraint, ctool_string("m"));
+      ctool_bool movss_memory =
+          cir_movss_memory_template_kind(assembly->template_text) !=
+                  CIR_MOVSS_MEMORY_NONE
+              ? CTOOL_TRUE
+              : CTOOL_FALSE;
       ctool_u32 input_size;
       if ((memory_input == CTOOL_TRUE &&
            entry->kind != CIR_STACK_ADDRESS) ||
@@ -8361,8 +8506,12 @@ static ctool_status_t cir_lower_assembly_statement(
         if (operand->matching_output != CTOOL_C_AST_NONE ||
             (memory_input == CTOOL_TRUE &&
              (input_size != 4u ||
-              cir_type_is_represented_integer(
-                  context, operand->type) == CTOOL_FALSE ||
+              ((movss_memory == CTOOL_TRUE &&
+                cir_movss_memory_operand_is_float(
+                    context, operand, CTOOL_FALSE) == CTOOL_FALSE) ||
+               (movss_memory == CTOOL_FALSE &&
+                cir_type_is_represented_integer(
+                    context, operand->type) == CTOOL_FALSE)) ||
               cir_type_has_atomic_qualification(
                   context, operand->type) == CTOOL_TRUE)) ||
             (memory_input == CTOOL_FALSE &&

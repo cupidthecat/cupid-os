@@ -12774,3 +12774,137 @@ checked seed still predates both compiler features, the normal image still
 uses its recorded host and Cupid ownership mix, and no `.c` file is renamed.
 The image and boot checks prove that the integrated branch remains healthy;
 they do not claim runtime use of either new compiler-head capability.
+
+## 2026-07-28: represent MOVSS float memory assembly
+
+The next unchanged statements in `kernel/cpu/fpu.c` were the SSE scheduler
+check in `fpu_boot_smoke()`:
+
+```c
+__asm__ volatile(
+    "movss %1, %%xmm0\n\t"
+    "movss %%xmm0, %0\n\t"
+    : "=m"(readback)
+    : "m"(probe)
+    : "xmm0");
+```
+
+The same function later uses the one-way `movss %0, %%xmm0` load and
+`movss %%xmm0, %0` store. All three forms name `float` objects through
+memory constraints. The prior frontend rejected the output as a non-integer
+lvalue and did not represent the XMM0 clobber.
+
+Compiler head now accepts those three exact volatile templates. A `=m`
+output must be a modifiable, non-atomic `float` lvalue. An `m` input must be
+an addressable, non-atomic `float` lvalue and may retain `const` or `volatile`
+qualification. Each form requires one `xmm0` clobber and rejects an added
+`memory` clobber. Other templates, constraints, scalar widths, rvalues, bit
+fields, register objects, and atomic operands remain outside the slice.
+
+The frontend publishes `CTOOL_C_ASSEMBLY_XMM0_CLOBBER` and freezes each typed
+operand. Linear IR checks the complete operand slice before it lowers any
+function. It evaluates output addresses before input addresses, once each and
+in source order, including unreachable statements. For the round trip, the
+emitter pops the input address into EAX and emits `MOVSS XMM0, [EAX]`, then
+pops the output address and emits `MOVSS [EAX], XMM0`. The one-way forms use
+the same paths without a frame temporary.
+
+The object contract fixes these function images:
+
+| Function | Bytes | Target instructions |
+| --- | ---: | --- |
+| `round_trip` | 37 | `F3 0F 10 00`, then `F3 0F 11 00` |
+| `load_xmm0` | 21 | `F3 0F 10 00` |
+| `store_xmm0` | 21 | `F3 0F 11 00` |
+
+The complete ELF32 object is 464 bytes with 79 bytes of text, five sections,
+four symbols, and no relocations. Shared decoding checks XMM0 and a 32-bit
+memory operand based at EAX with no index, segment override, or displacement.
+Repeated emission and same-job recovery reproduce every byte.
+
+The frontend, IR, and object tests began red at their separate trust
+boundaries. The frontend lacked a public XMM0 flag, the IR validator rejected
+the new operand slice, and object emission reached the generic unsupported
+template path. The first decoder assertion also treated the XMM register
+operand as 32 bits. Cupid's shared model leaves the XMM register width
+unspecified and places the 32-bit scalar width on the memory operand. The
+assertion was corrected without changing the expected instruction bytes.
+
+Negative source cases cover `double`, a `const` output, rvalues, atomic
+objects, missing and duplicate clobbers, the wrong constraint, and an
+unrelated template. Frozen-unit mutations cover an altered displacement,
+missing or extra flags, register constraints, an unreachable type mismatch,
+and a forged two-byte layout. Limited output fails without publishing a
+partial object, and the same job then emits the original bytes.
+
+### Self-host locks
+
+The hosted source gate now reports:
+
+| Source | Definitions | Statements | Expressions | Block bindings | Initializers |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `toolchain/cupidc_frontend.cc` | 364 | 14,939 | 97,882 | 2,241 | 1,399 |
+| `toolchain/cupidc_ir.cc` | 218 | 6,549 | 59,825 | 842 | 308 |
+| `toolchain/cupidc_emit.cc` | 236 | 6,140 | 53,141 | 754 | 375 |
+
+Their deterministic self-host objects now have these locks:
+
+| Source | Functions | Text bytes | Object bytes | Text fingerprint |
+| --- | ---: | ---: | ---: | --- |
+| `toolchain/cupidc_frontend.cc` | 364 | 760,691 | 897,124 | `C43A4119` |
+| `toolchain/cupidc_ir.cc` | 218 | 423,479 | 452,812 | `E123F292` |
+| `toolchain/cupidc_emit.cc` | 236 | 393,470 | 424,364 | `28005B0C` |
+
+The complete fixed-point check rebuilds all 19 C objects and links CupidC,
+CupidASM, CupidDis, CupidLD, and CupidObj. Stage-two CupidC then rebuilds the
+same closure. Every stage-two and stage-three object and executable matches.
+
+### Active-source frontier
+
+Two exact `KERNEL_I386` commands compile the unchanged
+`kernel/cpu/fpu.c` source. Both pass the MOVSS round trip and both one-way
+forms, publish no object, and stop with the same next diagnostic:
+
+```text
+/kernel/cpu/fpu.c:113:5: error CTB00000F: GNU inline assembly m input template is outside this slice
+```
+
+The next requirement is therefore the `fldl`, `fsin`, and `fstpl` block in
+`stress_sin()`. Its `m` input and `=m` output name `double` objects. The
+compiler must grow to represent that source directly; `kernel/cpu/fpu.c`
+remains unchanged.
+
+### Verification
+
+The focused MOVSS object contract and unchanged FPU frontier pass together:
+2 tests in 16.017 seconds. The complete frontend and Linear IR modules pass
+all 138 tests in 21.155 seconds. The complete object module passes all 79
+tests in 749.240 seconds. Its fixed-point member also passed independently in
+568.590 seconds, rebuilding all 19 objects and the five linked tools.
+
+The strict native Toolchain build completes with `-Werror`.
+`make bootstrap-audit` and `make check-bootstrap-audit` both pass, followed
+by all 62 mutation-based audit tests in 487.324 seconds.
+
+The regenerated graph contains 698 active sources, 253 feature IDs, 504
+transforms, and 42 accounted unreachable files. Its active-source digest is
+`e71f5c73a310c2c3bf10dfe621aa4d8965aba63cba0517e99ed2167381d4b8b1`.
+The 1,524,052-byte audit JSON has SHA-256
+`180fb714b13378a5996b86436dea9fa4399b6aaaefbe596b2cbdd3999e96a7ce`.
+
+The normal `make -j2 all WAD_SRCS=` image build also passes in 442 seconds.
+It includes the updated CTXT pages and produces:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.elf` | 8,135,532 | `33774973ef618e08db56cff7eb7494c5adf55f7010a32a1afca98380855682d2` |
+| `kernel/kernel.bin` | 7,941,312 | `ce3419a78f14e6e86f09724c890b6c712fc58d3055c923af17430c9db0487b15` |
+| `cupidos.img` | 209,715,200 | `6466d806e9eb3d57c828076c282f1c6ca20f37414aea028ac04b4aedea00cc59` |
+
+This is a compiler-head change. The checked seed was not refreshed, the
+normal FPU object remains host-built, and `kernel/cpu/fpu.c` keeps its `.c`
+name. No production code owner, ABI, runtime code path, or host dependency
+changes. The updated CTXT pages do change the delivered help text. The normal
+image still uses the older checked compiler, so an image build proves the
+asset integration but does not claim runtime use of this compiler-head
+capability. ADR 0148 records the language, encoding, and ownership boundary.

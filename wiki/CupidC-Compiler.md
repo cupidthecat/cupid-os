@@ -325,9 +325,12 @@ its own typed contract.
 Compiler head also accepts the exact volatile `ldmxcsr %0` form with one
 addressable, non-atomic 32-bit integer `m` input. Linear IR evaluates its
 address once, and the shared x86 model emits `0F AE 10` at `[EAX]`.
-Unchanged `kernel/cpu/fpu.c` passes line 28 and now stops at the floating
-`=m` output in the multiline MOVSS round trip on line 63. The checked seed
-does not carry either compiler-head increment.
+It also accepts the exact MOVSS float-memory round trip in
+`fpu_boot_smoke()` and the matching one-way load and store. Each form
+requires the `xmm0` clobber, evaluates each object address once, and emits
+`F3 0F 10 00` or `F3 0F 11 00` through EAX. Unchanged
+`kernel/cpu/fpu.c` now reaches the x87 memory assembly in `stress_sin()` at
+line 113. The checked seed does not carry these compiler-head increments.
 
 Static-duration and variable-length compound literals, the named-aggregate backward-jump alias case, explicit bit-field initializer leaves, Boolean mutation, atomic variadic access, aggregate arguments without declared parameter types, aggregate variadic reads, wide strings, literal pooling, and block-static addresses in other block-static initializers also remain unfinished in the shared path.
 

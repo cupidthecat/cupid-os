@@ -12594,18 +12594,46 @@ static ctool_status_t cfront_decode_assembly_string(
   return CTOOL_OK;
 }
 
+typedef enum {
+  CFRONT_MOVSS_MEMORY_NONE = 0,
+  CFRONT_MOVSS_MEMORY_ROUND_TRIP,
+  CFRONT_MOVSS_MEMORY_LOAD,
+  CFRONT_MOVSS_MEMORY_STORE
+} cfront_movss_memory_kind_t;
+
+static cfront_movss_memory_kind_t cfront_movss_memory_template_kind(
+    ctool_string_t template_text) {
+  if (cfront_string_literal(
+          template_text,
+          "movss %1, %%xmm0\n\tmovss %%xmm0, %0\n\t") == CTOOL_TRUE) {
+    return CFRONT_MOVSS_MEMORY_ROUND_TRIP;
+  }
+  if (cfront_string_literal(
+          template_text, "movss %0, %%xmm0") == CTOOL_TRUE) {
+    return CFRONT_MOVSS_MEMORY_LOAD;
+  }
+  return cfront_string_literal(
+             template_text, "movss %%xmm0, %0") == CTOOL_TRUE
+             ? CFRONT_MOVSS_MEMORY_STORE
+             : CFRONT_MOVSS_MEMORY_NONE;
+}
+
 static ctool_status_t cfront_validate_assembly_output(
     cfront_context_t *context, const ctool_c_pp_token_t *constraint_token,
-    ctool_string_t constraint, cfront_expression_value_t *value,
+    ctool_string_t template_text, ctool_string_t constraint,
+    cfront_expression_value_t *value,
     ctool_u32 *fixed_registers_io) {
   cfront_integer_type_t integer;
   ctool_c_type_node_t node;
   ctool_c_type_node_t referent;
   ctool_bool is_integer = CTOOL_FALSE;
+  ctool_bool is_floating = CTOOL_FALSE;
   ctool_bool is_pointer = CTOOL_FALSE;
   ctool_bool is_supported_pointer = CTOOL_FALSE;
   ctool_bool modifiable = CTOOL_FALSE;
   ctool_bool memory_output = CTOOL_FALSE;
+  cfront_movss_memory_kind_t movss_kind =
+      cfront_movss_memory_template_kind(template_text);
   ctool_bool pointer_only = CTOOL_FALSE;
   ctool_u32 expected_width = 32u;
   ctool_bool any_integer_width = CTOOL_FALSE;
@@ -12672,6 +12700,10 @@ static ctool_status_t cfront_validate_assembly_output(
   }
   if (status == CTOOL_OK) {
     status =
+        cfront_floating_type(context, value->type, &is_floating);
+  }
+  if (status == CTOOL_OK) {
+    status =
         cfront_type_is_modifiable_object(context, value->type, &modifiable);
   }
   (void)base;
@@ -12691,7 +12723,12 @@ static ctool_status_t cfront_validate_assembly_output(
     return cfront_emit_failure(
         context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
         constraint_token,
-        is_pointer == CTOOL_TRUE
+        memory_output == CTOOL_TRUE &&
+                (movss_kind == CFRONT_MOVSS_MEMORY_ROUND_TRIP ||
+                 movss_kind == CFRONT_MOVSS_MEMORY_STORE)
+            ? "GNU MOVSS assembly =m output requires a modifiable "
+              "non-atomic float lvalue"
+        : is_pointer == CTOOL_TRUE
             ? "GNU inline assembly pointer output requires a modifiable "
               "pointer lvalue"
             : "GNU inline assembly output requires a modifiable integer "
@@ -12715,6 +12752,28 @@ static ctool_status_t cfront_validate_assembly_output(
     }
     *fixed_registers_io |= fixed_register;
     return CTOOL_OK;
+  }
+  if (memory_output == CTOOL_TRUE &&
+      is_floating == CTOOL_TRUE) {
+    if ((movss_kind == CFRONT_MOVSS_MEMORY_ROUND_TRIP ||
+         movss_kind == CFRONT_MOVSS_MEMORY_STORE) &&
+        node.kind != CTOOL_C_TYPE_FLOAT) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
+          constraint_token,
+          "GNU MOVSS assembly =m output requires a modifiable non-atomic "
+          "float lvalue");
+    }
+    return CTOOL_OK;
+  }
+  if (memory_output == CTOOL_TRUE &&
+      (movss_kind == CFRONT_MOVSS_MEMORY_ROUND_TRIP ||
+       movss_kind == CFRONT_MOVSS_MEMORY_STORE)) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
+        constraint_token,
+        "GNU MOVSS assembly =m output requires a modifiable non-atomic "
+        "float lvalue");
   }
   if (is_integer == CTOOL_FALSE) {
     return cfront_emit_failure(
@@ -12775,7 +12834,8 @@ static ctool_status_t cfront_parse_assembly_operand_expression(
 }
 
 static ctool_status_t cfront_parse_assembly_output(
-    cfront_context_t *context, ctool_u32 *fixed_registers_io) {
+    cfront_context_t *context, ctool_string_t template_text,
+    ctool_u32 *fixed_registers_io) {
   const ctool_c_pp_token_t *constraint_token = cfront_peek(context);
   ctool_c_assembly_operand_t operand;
   cfront_expression_value_t value;
@@ -12804,7 +12864,7 @@ static ctool_status_t cfront_parse_assembly_output(
   }
   if (status == CTOOL_OK) {
     status = cfront_validate_assembly_output(
-        context, constraint_token, operand.constraint, &value,
+        context, constraint_token, template_text, operand.constraint, &value,
         fixed_registers_io);
   }
   if (status == CTOOL_OK) {
@@ -12884,12 +12944,15 @@ static ctool_status_t cfront_parse_assembly_input(
   ctool_c_type_node_t input_referent;
   ctool_c_type_node_t output_node;
   ctool_bool input_is_integer = CTOOL_FALSE;
+  ctool_bool input_is_floating = CTOOL_FALSE;
   ctool_bool input_is_pointer = CTOOL_FALSE;
   ctool_bool input_is_data_pointer = CTOOL_FALSE;
   ctool_bool output_is_integer = CTOOL_FALSE;
   ctool_bool independent = CTOOL_FALSE;
   ctool_bool matching = CTOOL_FALSE;
   ctool_bool memory_input = CTOOL_FALSE;
+  cfront_movss_memory_kind_t movss_kind =
+      cfront_movss_memory_template_kind(template_text);
   ctool_u32 fixed_register = 0u;
   ctool_u32 input_base;
   ctool_u32 input_qualifiers;
@@ -12993,6 +13056,10 @@ static ctool_status_t cfront_parse_assembly_input(
     status = cfront_integer_type(context, value.type, &input_integer,
                                  &input_is_integer);
   }
+  if (status == CTOOL_OK) {
+    status = cfront_floating_type(
+        context, value.type, &input_is_floating);
+  }
   if (status == CTOOL_OK && matching == CTOOL_TRUE) {
     status = cfront_integer_type(context, output.type, &output_integer,
                                  &output_is_integer);
@@ -13006,15 +13073,23 @@ static ctool_status_t cfront_parse_assembly_input(
       (value.is_lvalue == CTOOL_FALSE ||
        value.is_bit_field == CTOOL_TRUE ||
        value.address_forbidden == CTOOL_TRUE ||
-       input_is_integer == CTOOL_FALSE ||
-       input_integer.width != 32u ||
+       ((movss_kind == CFRONT_MOVSS_MEMORY_ROUND_TRIP ||
+         movss_kind == CFRONT_MOVSS_MEMORY_LOAD)
+            ? input_node.kind != CTOOL_C_TYPE_FLOAT
+            : input_is_floating == CTOOL_FALSE &&
+                  (input_is_integer == CTOOL_FALSE ||
+                   input_integer.width != 32u)) ||
        ((input_qualifiers | input_node.qualifiers) &
         CTOOL_C_QUAL_ATOMIC) != 0u)) {
     return cfront_emit_failure(
         context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
         constraint_token,
-        "GNU inline assembly m input requires an addressable non-atomic "
-        "32-bit integer lvalue");
+        movss_kind == CFRONT_MOVSS_MEMORY_ROUND_TRIP ||
+                movss_kind == CFRONT_MOVSS_MEMORY_LOAD
+            ? "GNU MOVSS assembly m input requires an addressable "
+              "non-atomic float lvalue"
+            : "GNU inline assembly m input requires an addressable "
+              "non-atomic 32-bit integer lvalue");
   }
   if (independent == CTOOL_TRUE &&
       cfront_string_literal(operand.constraint, "r") == CTOOL_TRUE &&
@@ -13046,6 +13121,8 @@ static ctool_status_t cfront_parse_assembly_input(
         "GNU inline assembly c input requires a represented 32-bit integer");
   }
   if ((input_is_integer == CTOOL_FALSE &&
+       !(memory_input == CTOOL_TRUE &&
+         input_is_floating == CTOOL_TRUE) &&
        !(independent == CTOOL_TRUE &&
          cfront_string_literal(operand.constraint, "r") == CTOOL_TRUE &&
          input_is_data_pointer == CTOOL_TRUE)) ||
@@ -13179,6 +13256,10 @@ static ctool_status_t cfront_validate_ldmxcsr_assembly(
     return cfront_storage_failure(context, CTOOL_ERR_INTERNAL);
   }
   if (exact_template == CTOOL_FALSE) {
+    if (cfront_movss_memory_template_kind(
+            assembly->template_text) != CFRONT_MOVSS_MEMORY_NONE) {
+      return CTOOL_OK;
+    }
     for (input = 0u; input < assembly->input_count; input++) {
       status = cfront_vector_get(
           &context->assembly_operands,
@@ -13227,6 +13308,99 @@ static ctool_status_t cfront_validate_ldmxcsr_assembly(
         "GNU LDMXCSR assembly requires one volatile m 32-bit integer input");
   }
   return CTOOL_OK;
+}
+
+static ctool_bool cfront_movss_memory_operand_is_float(
+    cfront_context_t *context,
+    const ctool_c_assembly_operand_t *operand, ctool_bool output) {
+  ctool_c_type_node_t node;
+  ctool_u32 base;
+  ctool_u32 qualifiers;
+  ctool_status_t status;
+  if (operand == (const ctool_c_assembly_operand_t *)0 ||
+      operand->matching_output != CTOOL_C_AST_NONE ||
+      operand->expression >= context->expressions.count) {
+    return CTOOL_FALSE;
+  }
+  status = cfront_underlying_type(
+      context, operand->type, &base, &qualifiers, &node);
+  (void)base;
+  if (status != CTOOL_OK ||
+      node.kind != CTOOL_C_TYPE_FLOAT ||
+      ((qualifiers | node.qualifiers) & CTOOL_C_QUAL_ATOMIC) != 0u ||
+      (output == CTOOL_TRUE &&
+       ((qualifiers | node.qualifiers) & CTOOL_C_QUAL_CONST) != 0u)) {
+    return CTOOL_FALSE;
+  }
+  return CTOOL_TRUE;
+}
+
+static ctool_status_t cfront_validate_movss_memory_assembly(
+    cfront_context_t *context, const ctool_c_pp_token_t *keyword,
+    const ctool_c_assembly_t *assembly) {
+  cfront_movss_memory_kind_t kind =
+      cfront_movss_memory_template_kind(assembly->template_text);
+  ctool_c_assembly_operand_t output;
+  ctool_c_assembly_operand_t input;
+  ctool_u32 expected_outputs;
+  ctool_u32 expected_inputs;
+  ctool_status_t status = CTOOL_OK;
+  if (kind == CFRONT_MOVSS_MEMORY_NONE) {
+    if ((assembly->flags & CTOOL_C_ASSEMBLY_XMM0_CLOBBER) != 0u) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+          keyword,
+          "GNU inline assembly xmm0 clobber template is outside this slice");
+    }
+    return CTOOL_OK;
+  }
+  expected_outputs =
+      kind == CFRONT_MOVSS_MEMORY_LOAD ? 0u : 1u;
+  expected_inputs =
+      kind == CFRONT_MOVSS_MEMORY_STORE ? 0u : 1u;
+  if (assembly->flags !=
+          (CTOOL_C_ASSEMBLY_VOLATILE |
+           CTOOL_C_ASSEMBLY_XMM0_CLOBBER) ||
+      assembly->output_count != expected_outputs ||
+      assembly->input_count != expected_inputs ||
+      assembly->first_operand > context->assembly_operands.count ||
+      expected_outputs + expected_inputs >
+          context->assembly_operands.count - assembly->first_operand) {
+    status = CTOOL_ERR_UNSUPPORTED;
+  }
+  if (status == CTOOL_OK && expected_outputs != 0u) {
+    status = cfront_vector_get(
+        &context->assembly_operands, assembly->first_operand, &output);
+    if (status == CTOOL_OK &&
+        (cfront_string_literal(output.constraint, "=m") == CTOOL_FALSE ||
+         cfront_movss_memory_operand_is_float(
+             context, &output, CTOOL_TRUE) == CTOOL_FALSE)) {
+      status = CTOOL_ERR_UNSUPPORTED;
+    }
+  }
+  if (status == CTOOL_OK && expected_inputs != 0u) {
+    status = cfront_vector_get(
+        &context->assembly_operands,
+        assembly->first_operand + expected_outputs, &input);
+    if (status == CTOOL_OK &&
+        (cfront_string_literal(input.constraint, "m") == CTOOL_FALSE ||
+         cfront_movss_memory_operand_is_float(
+             context, &input, CTOOL_FALSE) == CTOOL_FALSE)) {
+      status = CTOOL_ERR_UNSUPPORTED;
+    }
+  }
+  if (status == CTOOL_OK) {
+    return CTOOL_OK;
+  }
+  if (ctool_job_diagnostic_count(context->job) == 0u &&
+      status != CTOOL_ERR_UNSUPPORTED) {
+    return cfront_storage_failure(context, status);
+  }
+  return cfront_emit_failure(
+      context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+      keyword,
+      "GNU MOVSS assembly requires the exact float memory operands and "
+      "xmm0 clobber");
 }
 
 static ctool_status_t cfront_validate_call_next_assembly(
@@ -13302,6 +13476,10 @@ static ctool_status_t cfront_validate_state_memory_assembly(
       cfront_state_memory_assembly_width(assembly->template_text);
   ctool_u32 index;
   ctool_status_t status;
+  if (cfront_movss_memory_template_kind(
+          assembly->template_text) != CFRONT_MOVSS_MEMORY_NONE) {
+    return CTOOL_OK;
+  }
   if (expected_width == 0u) {
     for (index = 0u; index < assembly->output_count; index++) {
       status = cfront_vector_get(
@@ -13453,7 +13631,8 @@ static ctool_status_t cfront_parse_gnu_assembly_statement(
   while (status == CTOOL_OK && basic_assembly == CTOOL_FALSE &&
          cfront_peek_is(context, ":") == CTOOL_FALSE &&
          cfront_peek_is(context, ")") == CTOOL_FALSE) {
-    status = cfront_parse_assembly_output(context, &fixed_registers);
+    status = cfront_parse_assembly_output(
+        context, assembly.template_text, &fixed_registers);
     if (status == CTOOL_OK) {
       if (assembly.output_count == 4u) {
         status = cfront_emit_failure(
@@ -13498,6 +13677,7 @@ static ctool_status_t cfront_parse_gnu_assembly_statement(
   if (status == CTOOL_OK && basic_assembly == CTOOL_FALSE &&
       cfront_peek_is(context, ":") == CTOOL_TRUE) {
     ctool_bool saw_memory = CTOOL_FALSE;
+    ctool_bool saw_xmm0 = CTOOL_FALSE;
     (void)cfront_advance(context);
     while (status == CTOOL_OK &&
            cfront_peek_is(context, ")") == CTOOL_FALSE) {
@@ -13508,21 +13688,36 @@ static ctool_status_t cfront_parse_gnu_assembly_statement(
           "GNU inline assembly clobber requires a string name",
           &clobber);
       if (status == CTOOL_OK &&
-          cfront_string_literal(clobber, "memory") == CTOOL_FALSE) {
+          cfront_string_literal(clobber, "memory") == CTOOL_FALSE &&
+          cfront_string_literal(clobber, "xmm0") == CTOOL_FALSE) {
         status = cfront_emit_failure(
             context, CTOOL_ERR_UNSUPPORTED,
             CTOOL_C_PARSE_DIAG_STATEMENT, clobber_token,
             "GNU inline assembly clobber is outside this slice");
       }
-      if (status == CTOOL_OK && saw_memory == CTOOL_TRUE) {
+      if (status == CTOOL_OK &&
+          cfront_string_literal(clobber, "memory") == CTOOL_TRUE &&
+          saw_memory == CTOOL_TRUE) {
         status = cfront_emit_failure(
             context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
             clobber_token,
             "GNU inline assembly memory clobber is listed twice");
       }
-      if (status == CTOOL_OK) {
+      if (status == CTOOL_OK &&
+          cfront_string_literal(clobber, "xmm0") == CTOOL_TRUE &&
+          saw_xmm0 == CTOOL_TRUE) {
+        status = cfront_emit_failure(
+            context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
+            clobber_token,
+            "GNU inline assembly xmm0 clobber is listed twice");
+      }
+      if (status == CTOOL_OK &&
+          cfront_string_literal(clobber, "memory") == CTOOL_TRUE) {
         saw_memory = CTOOL_TRUE;
         assembly.flags |= CTOOL_C_ASSEMBLY_MEMORY_CLOBBER;
+      } else if (status == CTOOL_OK) {
+        saw_xmm0 = CTOOL_TRUE;
+        assembly.flags |= CTOOL_C_ASSEMBLY_XMM0_CLOBBER;
       }
       if (status == CTOOL_OK &&
           cfront_peek_is(context, ",") == CTOOL_TRUE) {
@@ -13548,6 +13743,10 @@ static ctool_status_t cfront_parse_gnu_assembly_statement(
   }
   if (status == CTOOL_OK) {
     status = cfront_validate_ldmxcsr_assembly(
+        context, keyword, &assembly);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_validate_movss_memory_assembly(
         context, keyword, &assembly);
   }
   if (status == CTOOL_OK) {
@@ -20120,15 +20319,17 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
       ctool_u32 operand_offset;
       if ((assembly->flags &
            ~(CTOOL_C_ASSEMBLY_VOLATILE | CTOOL_C_ASSEMBLY_BASIC |
-             CTOOL_C_ASSEMBLY_MEMORY_CLOBBER)) != 0u ||
+             CTOOL_C_ASSEMBLY_MEMORY_CLOBBER |
+             CTOOL_C_ASSEMBLY_XMM0_CLOBBER)) != 0u ||
           (assembly->template_text.data == (const char *)0 &&
            assembly->template_text.size != 0u) ||
           assembly->first_operand != operand_cursor ||
           (assembly->output_count == 0u &&
            (assembly->flags & CTOOL_C_ASSEMBLY_VOLATILE) == 0u) ||
           (((assembly->flags & CTOOL_C_ASSEMBLY_BASIC) != 0u) &&
-           (((assembly->flags & CTOOL_C_ASSEMBLY_VOLATILE) == 0u) ||
-            (assembly->flags & CTOOL_C_ASSEMBLY_MEMORY_CLOBBER) != 0u ||
+           (assembly->flags !=
+                (CTOOL_C_ASSEMBLY_BASIC |
+                 CTOOL_C_ASSEMBLY_VOLATILE) ||
             assembly->output_count != 0u ||
             assembly->input_count != 0u)) ||
           assembly->first_operand > context->assembly_operands.count ||

@@ -139,9 +139,13 @@ general-register-only function, and the emitter repeats the mask and
 frozen-metadata checks. Explicit source assembly remains under its own
 contract. Compiler head also keeps the exact volatile `ldmxcsr %0` memory
 input as one address-valued 32-bit integer lvalue and emits `0F AE 10`
-through the shared x86 model. The unchanged `kernel/cpu/fpu.c` root passes
-line 28 and stops at the floating `=m` output in its multiline MOVSS round
-trip on line 63. The checked seed and normal ownership graph are unchanged.
+through the shared x86 model. It also keeps the exact MOVSS float-memory
+round trip in `fpu_boot_smoke()` and the matching one-way load and store.
+Each form requires the `xmm0` clobber, evaluates each object address once,
+and emits `F3 0F 10 00` or `F3 0F 11 00` through EAX. The unchanged
+`kernel/cpu/fpu.c` root now reaches the x87 memory assembly in
+`stress_sin()` at line 113. The checked seed and normal ownership graph are
+unchanged.
 
 The normal image has 149 checked CupidC C transforms: 148 checked-in sources
 and the generated `kernel/cpu/ksyms_data.cc` source. All 149 sources use

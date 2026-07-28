@@ -393,10 +393,14 @@ through its separate contracts.
 Compiler head also accepts the exact volatile `ldmxcsr %0` form with one
 addressable, non-atomic 32-bit integer `m` input. Linear IR evaluates the
 object address once, and the shared x86 model emits `0F AE 10` at `[EAX]`.
-Unchanged `kernel/cpu/fpu.c` now passes that statement and stops at line 63
-on the floating `=m` output in its later MOVSS round trip. The checked seed
-does not carry either compiler-head increment, so the source remains
-host-built and keeps its `.c` name.
+It also accepts the exact volatile MOVSS round trip in `fpu_boot_smoke()` and
+the matching one-way load and store forms. Each form keeps a typed `float`
+memory address and requires the `xmm0` clobber. The shared x86 model emits
+`F3 0F 10 00` for the load and `F3 0F 11 00` for the store through EAX.
+Unchanged `kernel/cpu/fpu.c` now reaches the x87 `fldl`, `fsin`, and `fstpl`
+block in `stress_sin()` at line 113. The checked seed does not carry these
+compiler-head increments, so the source remains host-built and keeps its
+`.c` name.
 
 The checked seed emits the exact volatile
 `call 1f\n1: popl %0` state read used by the stack-trace helpers in
@@ -612,7 +616,7 @@ and the generated kernel symbol translation described above.
 
 [ADR 0139](docs/adr/0139-transfer-jpeg-and-glyph-rasterization-to-cupidc.md) records the JPEG and glyph-raster production transfer, closed inputs, deterministic objects, and guest decode proof.
 
-[ADR 0140](docs/adr/0140-expose-ordered-forced-includes.md) records the ordered forced-input driver seam and exact Doom-tree frontier. [ADR 0145](docs/adr/0145-retain-empty-memory-assembly-barriers.md) records the empty compiler memory barrier and the resulting sound-driver object. [ADR 0146](docs/adr/0146-represent-ldmxcsr-memory-inputs.md) records the exact LDMXCSR memory-input boundary. [ADR 0147](docs/adr/0147-evaluate-static-floating-arithmetic.md) records deterministic static floating arithmetic and the resulting automap object.
+[ADR 0140](docs/adr/0140-expose-ordered-forced-includes.md) records the ordered forced-input driver seam and exact Doom-tree frontier. [ADR 0145](docs/adr/0145-retain-empty-memory-assembly-barriers.md) records the empty compiler memory barrier and the resulting sound-driver object. [ADR 0146](docs/adr/0146-represent-ldmxcsr-memory-inputs.md) records the exact LDMXCSR memory-input boundary. [ADR 0147](docs/adr/0147-evaluate-static-floating-arithmetic.md) records deterministic static floating arithmetic and the resulting automap object. [ADR 0148](docs/adr/0148-represent-movss-float-memory-assembly.md) records the exact MOVSS float-memory boundary.
 
 [ADR 0143](docs/adr/0143-share-ordinary-padding-nops.md) records the shared ordinary compiler padding family and its measured disassembly improvement.
 

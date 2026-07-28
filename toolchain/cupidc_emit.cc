@@ -6385,6 +6385,157 @@ static ctool_status_t cemit_emit_ldmxcsr_assembly(
   return status;
 }
 
+typedef enum {
+  CEMIT_MOVSS_MEMORY_NONE = 0,
+  CEMIT_MOVSS_MEMORY_ROUND_TRIP,
+  CEMIT_MOVSS_MEMORY_LOAD,
+  CEMIT_MOVSS_MEMORY_STORE
+} cemit_movss_memory_kind_t;
+
+static cemit_movss_memory_kind_t cemit_movss_memory_template_kind(
+    ctool_string_t template_text) {
+  if (cemit_string_equals_literal(
+          template_text,
+          "movss %1, %%xmm0\n\tmovss %%xmm0, %0\n\t") == CTOOL_TRUE) {
+    return CEMIT_MOVSS_MEMORY_ROUND_TRIP;
+  }
+  if (cemit_string_equals_literal(
+          template_text, "movss %0, %%xmm0") == CTOOL_TRUE) {
+    return CEMIT_MOVSS_MEMORY_LOAD;
+  }
+  return cemit_string_equals_literal(
+             template_text, "movss %%xmm0, %0") == CTOOL_TRUE
+             ? CEMIT_MOVSS_MEMORY_STORE
+             : CEMIT_MOVSS_MEMORY_NONE;
+}
+
+static ctool_bool cemit_assembly_uses_movss_memory_path(
+    const ctool_c_assembly_t *assembly) {
+  return assembly != (const ctool_c_assembly_t *)0 &&
+                 cemit_movss_memory_template_kind(
+                     assembly->template_text) != CEMIT_MOVSS_MEMORY_NONE
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cemit_movss_memory_operand_is_valid(
+    const cemit_context_t *context,
+    const ctool_c_assembly_operand_t *operand,
+    const char *constraint, ctool_bool output) {
+  const ctool_c_type_node_t *node;
+  const ctool_c_type_layout_t *layout;
+  ctool_u32 qualifiers;
+  if (operand == (const ctool_c_assembly_operand_t *)0 ||
+      operand->type >= context->unit->layout.type_count ||
+      operand->expression >= context->unit->expression_count ||
+      operand->matching_output != CTOOL_C_AST_NONE ||
+      context->unit->expressions == (const ctool_c_expression_t *)0 ||
+      context->unit->expressions[operand->expression].type != operand->type ||
+      cemit_string_equals_literal(
+          operand->constraint, constraint) == CTOOL_FALSE ||
+      cemit_underlying_type(
+          context, operand->type, &qualifiers, &node) == CTOOL_FALSE) {
+    return CTOOL_FALSE;
+  }
+  layout = &context->unit->layout.types[operand->type];
+  return node->kind == CTOOL_C_TYPE_FLOAT &&
+                 layout->is_object == CTOOL_TRUE &&
+                 layout->is_complete_object == CTOOL_TRUE &&
+                 layout->size == 4u &&
+                 (qualifiers & CTOOL_C_QUAL_ATOMIC) == 0u &&
+                 (output == CTOOL_FALSE ||
+                  (qualifiers & CTOOL_C_QUAL_CONST) == 0u)
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cemit_movss_memory_metadata_is_valid(
+    const cemit_context_t *context,
+    const ctool_c_assembly_t *assembly,
+    cemit_movss_memory_kind_t kind) {
+  const ctool_c_assembly_operand_t *output;
+  const ctool_c_assembly_operand_t *input;
+  ctool_u32 expected_outputs;
+  ctool_u32 expected_inputs;
+  if (context == (const cemit_context_t *)0 ||
+      assembly == (const ctool_c_assembly_t *)0 ||
+      kind == CEMIT_MOVSS_MEMORY_NONE) {
+    return CTOOL_FALSE;
+  }
+  expected_outputs =
+      kind == CEMIT_MOVSS_MEMORY_LOAD ? 0u : 1u;
+  expected_inputs =
+      kind == CEMIT_MOVSS_MEMORY_STORE ? 0u : 1u;
+  if (assembly->flags !=
+          (CTOOL_C_ASSEMBLY_VOLATILE |
+           CTOOL_C_ASSEMBLY_XMM0_CLOBBER) ||
+      assembly->output_count != expected_outputs ||
+      assembly->input_count != expected_inputs ||
+      assembly->first_operand > context->unit->assembly_operand_count ||
+      expected_outputs + expected_inputs >
+          context->unit->assembly_operand_count - assembly->first_operand ||
+      context->unit->assembly_operands ==
+          (const ctool_c_assembly_operand_t *)0) {
+    return CTOOL_FALSE;
+  }
+  output = expected_outputs == 0u
+               ? (const ctool_c_assembly_operand_t *)0
+               : &context->unit
+                      ->assembly_operands[assembly->first_operand];
+  input = expected_inputs == 0u
+              ? (const ctool_c_assembly_operand_t *)0
+              : &context->unit->assembly_operands[
+                    assembly->first_operand + expected_outputs];
+  return (output == (const ctool_c_assembly_operand_t *)0 ||
+          cemit_movss_memory_operand_is_valid(
+              context, output, "=m", CTOOL_TRUE) == CTOOL_TRUE) &&
+                 (input == (const ctool_c_assembly_operand_t *)0 ||
+                  cemit_movss_memory_operand_is_valid(
+                      context, input, "m", CTOOL_FALSE) == CTOOL_TRUE)
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_status_t cemit_emit_movss_memory_assembly(
+    cemit_context_t *context,
+    const ctool_c_assembly_t *assembly,
+    ctool_u32 temporary_offset) {
+  cemit_movss_memory_kind_t kind =
+      cemit_movss_memory_template_kind(assembly->template_text);
+  ctool_bool has_input =
+      kind != CEMIT_MOVSS_MEMORY_STORE ? CTOOL_TRUE : CTOOL_FALSE;
+  ctool_bool has_output =
+      kind != CEMIT_MOVSS_MEMORY_LOAD ? CTOOL_TRUE : CTOOL_FALSE;
+  ctool_status_t status = CTOOL_OK;
+  if (temporary_offset != 0u ||
+      cemit_movss_memory_metadata_is_valid(
+          context, assembly, kind) == CTOOL_FALSE) {
+    return cemit_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_EMIT_DIAG_UNSUPPORTED,
+        &assembly->location,
+        "GNU inline assembly template is outside this i386 emission slice");
+  }
+  if (has_input == CTOOL_TRUE) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
+    if (status == CTOOL_OK) {
+      status = cemit_x86_sse_memory(
+          context, CTOOL_X86_MN_MOVSS, CTOOL_TRUE,
+          0u, 0u, 0, 32u);
+    }
+  }
+  if (status == CTOOL_OK && has_output == CTOOL_TRUE) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
+    if (status == CTOOL_OK) {
+      status = cemit_x86_sse_memory(
+          context, CTOOL_X86_MN_MOVSS, CTOOL_FALSE,
+          0u, 0u, 0, 32u);
+    }
+  }
+  return status;
+}
+
 static ctool_bool cemit_port_io_operand_matches(
     const cemit_context_t *context,
     const ctool_c_assembly_operand_t *operand,
@@ -7322,7 +7473,8 @@ static ctool_status_t cemit_emit_assembly(
   assembly = &context->unit->assemblies[ir_instruction->reference];
   if ((assembly->flags &
        ~(CTOOL_C_ASSEMBLY_BASIC | CTOOL_C_ASSEMBLY_VOLATILE |
-         CTOOL_C_ASSEMBLY_MEMORY_CLOBBER)) != 0u ||
+         CTOOL_C_ASSEMBLY_MEMORY_CLOBBER |
+         CTOOL_C_ASSEMBLY_XMM0_CLOBBER)) != 0u ||
       assembly->template_text.data == (const char *)0 ||
       assembly->first_operand > context->unit->assembly_operand_count ||
       cemit_add_overflows(
@@ -7359,6 +7511,11 @@ static ctool_status_t cemit_emit_assembly(
     return cemit_emit_ldmxcsr_assembly(
         context, assembly, temporary_offset);
   }
+  if (cemit_assembly_uses_movss_memory_path(
+          assembly) == CTOOL_TRUE) {
+    return cemit_emit_movss_memory_assembly(
+        context, assembly, temporary_offset);
+  }
   if (cemit_assembly_uses_state_memory_path(
           assembly) == CTOOL_TRUE) {
     return cemit_emit_state_memory_assembly(
@@ -7370,8 +7527,9 @@ static ctool_status_t cemit_emit_assembly(
         context, assembly, temporary_offset);
   }
   if (((assembly->flags & CTOOL_C_ASSEMBLY_BASIC) != 0u &&
-      (((assembly->flags & CTOOL_C_ASSEMBLY_VOLATILE) == 0u) ||
-        (assembly->flags & CTOOL_C_ASSEMBLY_MEMORY_CLOBBER) != 0u ||
+      (assembly->flags !=
+           (CTOOL_C_ASSEMBLY_BASIC |
+            CTOOL_C_ASSEMBLY_VOLATILE) ||
         operand_count != 0u)) ||
       (operand_count == 0u &&
        (((assembly->flags & CTOOL_C_ASSEMBLY_VOLATILE) == 0u) ||
@@ -10128,6 +10286,10 @@ static ctool_status_t cemit_prepare_local_offsets(
           continue;
         }
         if (cemit_assembly_uses_ldmxcsr_path(
+                assembly) == CTOOL_TRUE) {
+          continue;
+        }
+        if (cemit_assembly_uses_movss_memory_path(
                 assembly) == CTOOL_TRUE) {
           continue;
         }

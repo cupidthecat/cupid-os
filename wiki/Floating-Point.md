@@ -54,9 +54,12 @@ file-scope functions. It rejects compiler-generated floating instructions,
 values, and call arguments while permitting explicit source assembly through
 its separate contract. Compiler head now also accepts the exact LDMXCSR
 memory input used by `fpu_init_cpu()` and emits `0F AE 10` through the shared
-x86 model. The complete function passes unchanged. The next source frontier
-is the floating `=m` output in `fpu_boot_smoke()` at line 63. The checked
-seed does not carry either compiler-head increment.
+x86 model. It accepts the exact MOVSS float-memory round trip in
+`fpu_boot_smoke()` and the matching one-way load and store forms. Each form
+requires the `xmm0` clobber. The shared encoder emits `F3 0F 10 00` for the
+load and `F3 0F 11 00` for the store through EAX. The unchanged FPU source
+now reaches the x87 `fldl`, `fsin`, and `fstpl` block in `stress_sin()` at
+line 113. The checked seed does not carry these compiler-head increments.
 
 The normal build now compiles `kernel/gfx/jpeg.cc` and
 `kernel/gfx/glyph_raster.cc` with that seed. JPEG exercises exact static

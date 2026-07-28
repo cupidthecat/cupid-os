@@ -698,9 +698,12 @@ option rejects compiler-generated floating work while explicit source
 assembly stays under its own typed contract. Compiler head also accepts the
 exact volatile ldmxcsr %0 form with one addressable, non-atomic 32-bit
 integer m input. Linear IR evaluates the address once, and the shared x86
-model emits 0F AE 10 at [EAX]. Unchanged kernel/cpu/fpu.c now passes that
-statement and stops at the floating =m output in the later MOVSS round trip.
-The checked seed carries neither compiler-head increment.
+model emits 0F AE 10 at [EAX]. Compiler head also accepts the exact MOVSS
+float-memory round trip in fpu_boot_smoke and its one-way load and store
+forms. Each form requires the xmm0 clobber. The shared model emits
+F3 0F 10 00 for the load and F3 0F 11 00 for the store through EAX.
+Unchanged kernel/cpu/fpu.c now reaches the x87 memory assembly in stress_sin
+at line 113. The checked seed does not carry these compiler-head increments.
 
 The checked seed also accepts the exact volatile
 call 1f\n1: popl %0 form in the stack-trace helpers from kernel/lang/as.cc

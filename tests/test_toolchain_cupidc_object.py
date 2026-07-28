@@ -718,7 +718,21 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "ldmxcsr-memory-input: ok\n")
 
-    def test_unchanged_fpu_source_advances_past_ldmxcsr_memory_input(self):
+    def test_movss_memory_assembly_emits_exact_i386_instructions(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "movss-memory-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "movss-memory-assembly: ok\n")
+
+    def test_unchanged_fpu_source_advances_to_x87_memory_assembly(self):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
         audit = json.loads(audit_path.read_text(encoding="utf-8"))
         contract = audit["contracts"]["c_preprocessor_translation_units"]
@@ -753,9 +767,8 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             )
 
         expected = (
-            "/kernel/cpu/fpu.c:63:15: error CTB00000F: "
-            "GNU inline assembly output requires a modifiable integer "
-            "lvalue\n"
+            "/kernel/cpu/fpu.c:113:5: error CTB00000F: "
+            "GNU inline assembly m input template is outside this slice\n"
         )
         with tempfile.TemporaryDirectory(
             prefix=".cupidc-fpu-frontier-", dir=REPO_ROOT
