@@ -12913,6 +12913,42 @@ static ctool_bool cfront_x87_atan2_memory_template(
              : CTOOL_FALSE;
 }
 
+static ctool_bool cfront_x87_exp_memory_template(
+    ctool_string_t template_text) {
+  return cfront_string_literal(
+             template_text,
+             "fldl   %1\n\t"
+             "fldl   %2\n\t"
+             "fmulp\n\t"
+             "fld    %%st(0)\n\t"
+             "frndint\n\t"
+             "fsub   %%st, %%st(1)\n\t"
+             "fxch\n\t"
+             "f2xm1\n\t"
+             "fld1\n\t"
+             "faddp\n\t"
+             "fscale\n\t"
+             "fstp   %%st(1)\n\t"
+             "fstpl  %0\n\t") == CTOOL_TRUE ||
+                 cfront_string_literal(
+                     template_text,
+                     "fldl   %[x]\n\t"
+                     "fldl   %[log2e]\n\t"
+                     "fmulp\n\t"
+                     "fld    %%st(0)\n\t"
+                     "frndint\n\t"
+                     "fsub   %%st, %%st(1)\n\t"
+                     "fxch\n\t"
+                     "f2xm1\n\t"
+                     "fld1\n\t"
+                     "faddp\n\t"
+                     "fscale\n\t"
+                     "fstp   %%st(1)\n\t"
+                     "fstpl  %[out]\n\t") == CTOOL_TRUE
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
 static ctool_bool cfront_x87_sine_memory_template(
     ctool_string_t template_text) {
   return cfront_string_literal(
@@ -13083,6 +13119,8 @@ static ctool_bool cfront_x87_double_memory_template(
                  cfront_x87_pow_memory_template(
                      template_text) == CTOOL_TRUE ||
                  cfront_x87_atan2_memory_template(
+                     template_text) == CTOOL_TRUE ||
+                 cfront_x87_exp_memory_template(
                      template_text) == CTOOL_TRUE
              ? CTOOL_TRUE
              : CTOOL_FALSE;
@@ -13115,6 +13153,8 @@ static ctool_status_t cfront_validate_assembly_output(
       cfront_sqrtsd_register_template(template_text);
   ctool_bool x87_atan2_memory =
       cfront_x87_atan2_memory_template(template_text);
+  ctool_bool x87_exp_memory =
+      cfront_x87_exp_memory_template(template_text);
   cfront_movss_memory_kind_t movss_kind =
       cfront_movss_memory_template_kind(template_text);
   ctool_bool x87_sine_memory =
@@ -13149,6 +13189,13 @@ static ctool_status_t cfront_validate_assembly_output(
         context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
         constraint_token,
         "GNU x87 atan2 assembly output requires the =m constraint");
+  }
+  if (x87_exp_memory == CTOOL_TRUE &&
+      cfront_string_literal(constraint, "=m") == CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+        constraint_token,
+        "GNU x87 exp assembly output requires the =m constraint");
   }
   if (sqrtsd_register == CTOOL_TRUE) {
     fixed_register = 0u;
@@ -13261,10 +13308,13 @@ static ctool_status_t cfront_validate_assembly_output(
               : x87_powf_memory == CTOOL_TRUE
                   ? "GNU x87 powf assembly =m output requires a modifiable "
                     "non-atomic float lvalue"
-              : x87_atan2_memory == CTOOL_TRUE
-                  ? "GNU x87 atan2 assembly =m output requires a modifiable "
-                    "non-atomic double lvalue"
-                  : "GNU x87 round-down assembly =m output requires a "
+               : x87_atan2_memory == CTOOL_TRUE
+                   ? "GNU x87 atan2 assembly =m output requires a modifiable "
+                     "non-atomic double lvalue"
+               : x87_exp_memory == CTOOL_TRUE
+                   ? "GNU x87 exp assembly =m output requires a modifiable "
+                     "non-atomic double lvalue"
+                   : "GNU x87 round-down assembly =m output requires a "
                     "modifiable non-atomic double lvalue"
         : memory_output == CTOOL_TRUE &&
                 (movss_kind == CFRONT_MOVSS_MEMORY_ROUND_TRIP ||
@@ -13322,10 +13372,13 @@ static ctool_status_t cfront_validate_assembly_output(
           : x87_pow_memory == CTOOL_TRUE
               ? "GNU x87 pow assembly =m output requires a modifiable "
                 "non-atomic double lvalue"
-          : x87_atan2_memory == CTOOL_TRUE
-              ? "GNU x87 atan2 assembly =m output requires a modifiable "
-                "non-atomic double lvalue"
-              : "GNU x87 round-down assembly =m output requires a "
+           : x87_atan2_memory == CTOOL_TRUE
+               ? "GNU x87 atan2 assembly =m output requires a modifiable "
+                 "non-atomic double lvalue"
+           : x87_exp_memory == CTOOL_TRUE
+               ? "GNU x87 exp assembly =m output requires a modifiable "
+                 "non-atomic double lvalue"
+               : "GNU x87 round-down assembly =m output requires a "
                 "modifiable non-atomic double lvalue");
     }
     if (x87_powf_memory == CTOOL_TRUE &&
@@ -13361,6 +13414,9 @@ static ctool_status_t cfront_validate_assembly_output(
               "non-atomic double lvalue"
         : x87_atan2_memory == CTOOL_TRUE
             ? "GNU x87 atan2 assembly =m output requires a modifiable "
+              "non-atomic double lvalue"
+        : x87_exp_memory == CTOOL_TRUE
+            ? "GNU x87 exp assembly =m output requires a modifiable "
               "non-atomic double lvalue"
         : x87_round_down_memory == CTOOL_TRUE
             ? "GNU x87 round-down assembly =m output requires a modifiable "
@@ -13731,6 +13787,8 @@ static ctool_status_t cfront_parse_assembly_input(
   ctool_bool sqrtsd_input_atomic = CTOOL_FALSE;
   ctool_bool x87_atan2_memory =
       cfront_x87_atan2_memory_template(template_text);
+  ctool_bool x87_exp_memory =
+      cfront_x87_exp_memory_template(template_text);
   cfront_movss_memory_kind_t movss_kind =
       cfront_movss_memory_template_kind(template_text);
   ctool_bool x87_round_down_memory =
@@ -13802,6 +13860,14 @@ static ctool_status_t cfront_parse_assembly_input(
         context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
         constraint_token,
         "GNU x87 atan2 assembly inputs require the m constraint");
+  }
+  if (status == CTOOL_OK &&
+      x87_exp_memory == CTOOL_TRUE &&
+      cfront_string_literal(operand.constraint, "m") == CTOOL_FALSE) {
+    status = cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+        constraint_token,
+        "GNU x87 exp assembly inputs require the m constraint");
   }
   if (status == CTOOL_OK &&
       sqrtsd_register == CTOOL_TRUE) {
@@ -13966,10 +14032,13 @@ static ctool_status_t cfront_parse_assembly_input(
               : x87_round_down_memory == CTOOL_TRUE
                   ? "GNU x87 round-down assembly m input requires an "
                     "addressable non-atomic double lvalue"
-              : x87_atan2_memory == CTOOL_TRUE
-                  ? "GNU x87 atan2 assembly y and x m inputs require "
-                    "addressable non-atomic double lvalues"
-                  : "GNU x87 sine assembly m input requires an addressable "
+               : x87_atan2_memory == CTOOL_TRUE
+                   ? "GNU x87 atan2 assembly y and x m inputs require "
+                     "addressable non-atomic double lvalues"
+               : x87_exp_memory == CTOOL_TRUE
+                   ? "GNU x87 exp assembly x and log2e m inputs require "
+                     "addressable non-atomic double lvalues"
+                   : "GNU x87 sine assembly m input requires an addressable "
                     "non-atomic double lvalue"
         : x87_powf_memory == CTOOL_TRUE
             ? (assembly_operand_offset == 1u ||
@@ -14516,6 +14585,8 @@ static ctool_status_t cfront_validate_x87_round_down_memory_assembly(
             assembly->template_text) == CTOOL_FALSE &&
         cfront_x87_atan2_memory_template(
             assembly->template_text) == CTOOL_FALSE &&
+        cfront_x87_exp_memory_template(
+            assembly->template_text) == CTOOL_FALSE &&
         cfront_descriptor_table_assembly_kind(
             assembly->template_text) ==
             CFRONT_DESCRIPTOR_TABLE_ASSEMBLY_NONE) {
@@ -14763,6 +14834,53 @@ static ctool_status_t cfront_validate_x87_atan2_memory_assembly(
       context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
       keyword,
       "GNU x87 atan2 assembly requires one volatile double =m output, "
+      "two double m inputs, a memory clobber, and no other clobbers");
+}
+
+static ctool_status_t cfront_validate_x87_exp_memory_assembly(
+    cfront_context_t *context, const ctool_c_pp_token_t *keyword,
+    const ctool_c_assembly_t *assembly) {
+  ctool_c_assembly_operand_t operand;
+  ctool_u32 index;
+  ctool_status_t status = CTOOL_OK;
+  if (cfront_x87_exp_memory_template(
+          assembly->template_text) == CTOOL_FALSE) {
+    return CTOOL_OK;
+  }
+  if (assembly->flags !=
+          (CTOOL_C_ASSEMBLY_VOLATILE |
+           CTOOL_C_ASSEMBLY_MEMORY_CLOBBER) ||
+      assembly->output_count != 1u ||
+      assembly->input_count != 2u ||
+      assembly->first_operand > context->assembly_operands.count ||
+      3u > context->assembly_operands.count - assembly->first_operand) {
+    status = CTOOL_ERR_UNSUPPORTED;
+  }
+  for (index = 0u; status == CTOOL_OK && index < 3u; index++) {
+    status = cfront_vector_get(
+        &context->assembly_operands,
+        assembly->first_operand + index, &operand);
+    if (status == CTOOL_OK &&
+        (cfront_string_literal(
+             operand.constraint, index == 0u ? "=m" : "m") ==
+             CTOOL_FALSE ||
+         cfront_x87_double_memory_operand_is_valid(
+             context, &operand,
+             index == 0u ? CTOOL_TRUE : CTOOL_FALSE) == CTOOL_FALSE)) {
+      status = CTOOL_ERR_UNSUPPORTED;
+    }
+  }
+  if (status == CTOOL_OK) {
+    return CTOOL_OK;
+  }
+  if (ctool_job_diagnostic_count(context->job) == 0u &&
+      status != CTOOL_ERR_UNSUPPORTED) {
+    return cfront_storage_failure(context, status);
+  }
+  return cfront_emit_failure(
+      context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+      keyword,
+      "GNU x87 exp assembly requires one volatile double =m output, "
       "two double m inputs, a memory clobber, and no other clobbers");
 }
 
@@ -15233,6 +15351,10 @@ static ctool_status_t cfront_parse_gnu_assembly_statement(
   }
   if (status == CTOOL_OK) {
     status = cfront_validate_x87_atan2_memory_assembly(
+        context, keyword, &assembly);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_validate_x87_exp_memory_assembly(
         context, keyword, &assembly);
   }
   if (status == CTOOL_OK) {

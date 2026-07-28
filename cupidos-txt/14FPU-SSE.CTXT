@@ -117,9 +117,16 @@ libm_atan2_impl. It accepts one modifiable, non-atomic double =m output, two
 addressable, non-atomic double m inputs in y, x order, and one memory
 clobber. Linear IR evaluates all three addresses once in source order. The
 53-byte focused function uses the shared model for both loads, FPATAN, and
-the final store, with no relocations. The unchanged source now stops at the
-x87 exponent statement in libm_exp_impl on line 940. The checked seed does
-not yet carry these compiler-head capabilities, so
+the final store, with no relocations.
+
+Compiler head also represents the exact volatile x87 statement in
+libm_exp_impl. It accepts one modifiable, non-atomic double =m output, two
+addressable, non-atomic double m inputs in x, log2e order, and one memory
+clobber. Linear IR evaluates all three addresses once in source order. The
+71-byte focused function has no relocations, reaches x87 depth three, and
+returns to its incoming depth. The unchanged source now stops at the aligned
+file-scope fabs mask block on line 242. The checked seed does not yet carry
+these compiler-head capabilities, so
 kernel/cpu/libm.c remains host-owned.
 
 Direct floating truth, a floating controlling expression, increment and

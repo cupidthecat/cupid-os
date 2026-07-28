@@ -6935,6 +6935,28 @@ static ctool_bool cemit_assembly_uses_x87_atan2_memory_path(
              : CTOOL_FALSE;
 }
 
+static ctool_bool cemit_assembly_uses_x87_exp_memory_path(
+    const ctool_c_assembly_t *assembly) {
+  return assembly != (const ctool_c_assembly_t *)0 &&
+                 cemit_string_equals_literal(
+                     assembly->template_text,
+                     "fldl   %1\n\t"
+                     "fldl   %2\n\t"
+                     "fmulp\n\t"
+                     "fld    %%st(0)\n\t"
+                     "frndint\n\t"
+                     "fsub   %%st, %%st(1)\n\t"
+                     "fxch\n\t"
+                     "f2xm1\n\t"
+                     "fld1\n\t"
+                     "faddp\n\t"
+                     "fscale\n\t"
+                     "fstp   %%st(1)\n\t"
+                     "fstpl  %0\n\t") == CTOOL_TRUE
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
 static ctool_bool cemit_movss_memory_operand_is_valid(
     const cemit_context_t *context,
     const ctool_c_assembly_operand_t *operand,
@@ -7292,6 +7314,117 @@ static ctool_status_t cemit_emit_x87_atan2_memory_assembly(
   }
   if (status == CTOOL_OK) {
     status = cemit_x86_no_operand(context, CTOOL_X86_MN_FPATAN);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_x87_memory(
+        context, CTOOL_X86_MN_FSTP, 0u, 0, 64u);
+  }
+  return status;
+}
+
+static ctool_bool cemit_x87_exp_memory_metadata_is_valid(
+    const cemit_context_t *context,
+    const ctool_c_assembly_t *assembly) {
+  const ctool_c_assembly_operand_t *operand;
+  ctool_u32 index;
+  if (context == (const cemit_context_t *)0 ||
+      assembly == (const ctool_c_assembly_t *)0 ||
+      cemit_assembly_uses_x87_exp_memory_path(
+          assembly) == CTOOL_FALSE ||
+      assembly->flags !=
+          (CTOOL_C_ASSEMBLY_VOLATILE |
+           CTOOL_C_ASSEMBLY_MEMORY_CLOBBER) ||
+      assembly->output_count != 1u ||
+      assembly->input_count != 2u ||
+      assembly->first_operand > context->unit->assembly_operand_count ||
+      3u > context->unit->assembly_operand_count -
+               assembly->first_operand ||
+      context->unit->assembly_operands ==
+          (const ctool_c_assembly_operand_t *)0) {
+    return CTOOL_FALSE;
+  }
+  for (index = 0u; index < 3u; index++) {
+    operand = &context->unit
+                   ->assembly_operands[assembly->first_operand + index];
+    if (cemit_x87_double_memory_operand_is_valid(
+            context, operand, index == 0u ? "=m" : "m",
+            index == 0u ? CTOOL_TRUE : CTOOL_FALSE) == CTOOL_FALSE) {
+      return CTOOL_FALSE;
+    }
+  }
+  return CTOOL_TRUE;
+}
+
+static ctool_status_t cemit_emit_x87_exp_memory_assembly(
+    cemit_context_t *context,
+    const ctool_c_assembly_t *assembly,
+    ctool_u32 temporary_offset) {
+  ctool_status_t status;
+  if (temporary_offset != 0u ||
+      cemit_x87_exp_memory_metadata_is_valid(
+          context, assembly) == CTOOL_FALSE) {
+    return cemit_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_EMIT_DIAG_UNSUPPORTED,
+        &assembly->location,
+        "GNU inline assembly template is outside this i386 emission slice");
+  }
+  status = cemit_x86_load_stack(context, 0u, 4u);
+  if (status == CTOOL_OK) {
+    status = cemit_x86_x87_memory(
+        context, CTOOL_X86_MN_FLD, 0u, 0, 64u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_x87_memory(
+        context, CTOOL_X86_MN_FLD, 0u, 0, 64u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_FMULP, CTOOL_X86_REG_X87, 1u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_FLD, CTOOL_X86_REG_X87, 0u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_no_operand(context, CTOOL_X86_MN_FRNDINT);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_FSUBR,
+        CTOOL_X86_REG_X87, 1u, CTOOL_X86_REG_X87, 0u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_FXCH, CTOOL_X86_REG_X87, 1u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_no_operand(context, CTOOL_X86_MN_F2XM1);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_no_operand(context, CTOOL_X86_MN_FLD1);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_FADDP, CTOOL_X86_REG_X87, 1u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_no_operand(context, CTOOL_X86_MN_FSCALE);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_FSTP, CTOOL_X86_REG_X87, 1u, 32u);
   }
   if (status == CTOOL_OK) {
     status = cemit_x86_one_register(
@@ -8928,6 +9061,11 @@ static ctool_status_t cemit_emit_assembly(
   if (cemit_assembly_uses_x87_atan2_memory_path(
           assembly) == CTOOL_TRUE) {
     return cemit_emit_x87_atan2_memory_assembly(
+        context, assembly, temporary_offset);
+  }
+  if (cemit_assembly_uses_x87_exp_memory_path(
+          assembly) == CTOOL_TRUE) {
+    return cemit_emit_x87_exp_memory_assembly(
         context, assembly, temporary_offset);
   }
   if (cemit_assembly_uses_x87_sine_memory_path(
@@ -11741,6 +11879,10 @@ static ctool_status_t cemit_prepare_local_offsets(
           continue;
         }
         if (cemit_assembly_uses_x87_atan2_memory_path(
+                assembly) == CTOOL_TRUE) {
+          continue;
+        }
+        if (cemit_assembly_uses_x87_exp_memory_path(
                 assembly) == CTOOL_TRUE) {
           continue;
         }

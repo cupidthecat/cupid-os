@@ -14557,3 +14557,91 @@ suffix. No production object, ABI, image, runtime path, or ownership count
 changes in this increment. ADR 0164 records the decision. `TempleOS/` remains
 untouched reference material. Issue #26 stays open for the exponent statement
 and later GNU assembly forms.
+
+## 2026-07-28: emit the libm exponent statement
+
+Compiler-head CupidC now represents the unchanged volatile x87 statement in
+`libm_exp_impl()`. The frontend requires one modifiable, non-atomic
+`double` `=m` output, two addressable, non-atomic `double` `m` inputs in
+`x`, `log2e` order, and one `memory` clobber. The named source spelling and
+its normalized numeric form use the same checks.
+
+Linear IR evaluates the output, `x`, and `log2e` addresses once in source
+order. It checks types, layouts, constraints, counts, flags, the clobber set,
+and matching metadata in reachable and unreachable code. The i386 emitter
+computes `exp2(x * log2(e))`, reaches x87 depth three, returns to the incoming
+depth, and stores through the saved output address. Every instruction comes
+from Cupid's shared x86 model.
+
+The focused function contains 71 text bytes and no relocations. Its direct
+33-byte statement sequence is:
+
+```text
+8B 44 24 04 DD 00 58 DD 00 DE C9 D9 C0 D9 FC DC E1 D9 C9 D9 F0 D9 E8 DE C1 D9 FD DD D9 58 58 DD 18
+```
+
+Positive contracts cover both operand spellings, source-order address
+evaluation, shared decoding, balanced x87 depth, deterministic output,
+unreachable validation, rollback, and same-job recovery. Negative contracts
+reject wrong types, rvalues, constants, register objects, atomic operands,
+constraints, counts, templates, flags, clobbers, matching metadata, and
+forged layouts.
+
+The first combined run exposed a difference in named operand normalization
+order. The new statement path expected the normalized numeric template before
+operand validation, while the current parser performs that normalization
+afterward. The exact recognizer now accepts the named and numeric spellings,
+matching the existing power and `atan2` paths. The focused constant-output
+negative therefore receives the exponent-specific diagnostic.
+
+The unchanged `kernel/cpu/libm.c` probe now stops at:
+
+```text
+/kernel/cpu/libm.c:242:1: error CTC000003: GNU file-scope assembly template is outside this i386 emission slice
+```
+
+This is the aligned read-only mask block that defines `fabs_mask_d` and
+`fabs_mask_s` for the following `fabs` wrappers.
+
+### Evidence
+
+| Gate | Result |
+| --- | --- |
+| Focused frontend, IR, object, and unchanged-source loop | 4 tests passed in 58.044 seconds |
+| Complete frontend and Linear IR modules | 166 tests passed in 40.675 seconds |
+| Object assembly regressions | 19 tests passed in 31.129 seconds |
+| Refreshed self-host frontier object lock | 1 test passed in 29.668 seconds |
+| Cupid-built compiler self-object | 1 test passed in 322.953 seconds |
+| Strict hosted Toolchain build | All native contracts passed in 76.156 seconds; six static i386 artifacts linked |
+| Five-tool static fixed point | 1 test passed in 879.076 seconds |
+| Checked-seed verifier | All five tools passed |
+| Bootstrap audit regeneration and drift check | Passed |
+
+The refreshed frontend source records are:
+
+| Compiler source | Definitions | Statements | Expressions | Block bindings | Initializers |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `toolchain/cupidc_ir.cc` | 251 | 7,051 | 65,279 | 925 | 338 |
+| `toolchain/cupidc_emit.cc` | 288 | 7,080 | 60,689 | 860 | 451 |
+| `toolchain/cupidc_frontend.cc` | 400 | 15,889 | 105,265 | 2,382 | 1,464 |
+
+The refreshed object records are:
+
+| Compiler source | Functions | Text bytes | Object bytes | Text fingerprint |
+| --- | ---: | ---: | ---: | --- |
+| `toolchain/cupidc_ir.cc` | 251 | 465,697 | 500,760 | `2de5cd05` |
+| `toolchain/cupidc_emit.cc` | 288 | 450,041 | 492,328 | `15744a10` |
+| `toolchain/cupidc_frontend.cc` | 400 | 813,122 | 965,760 | `e905a804` |
+
+The generated graph still has 698 active sources, 253 feature IDs, 504
+transforms, and 42 accounted unreachable files. Its active-source digest is
+`7cf09f56df0c88db4a6cfb79b212119b14ecced0f124c0b7ccecf4bacaea1106`.
+The 1,526,996-byte JSON has SHA-256
+`2f0e67a7553a6eea52499fea58a271b7c7fdc241528cd8a2482fb75a150a9b87`.
+
+This remains a compiler-head capability. The checked seed has not moved, and
+the normal `kernel/cpu/libm.c` transform remains host-owned with its `.c`
+suffix. No production object, ABI, image, runtime path, or ownership count
+changes in this increment. ADR 0165 records the decision. `TempleOS/` remains
+untouched reference material. Issue #26 stays open for the mask block and
+later GNU assembly forms.

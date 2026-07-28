@@ -445,11 +445,14 @@ three, and balanced depth on return. Compiler head also emits the exact
 input. Its focused function has 65 text bytes and no relocations. The exact
 `libm_atan2_impl()` statement is also represented with one `double` `=m`
 output, two `double` `m` inputs, and one `memory` clobber. Its focused
-function has 53 text bytes and no relocations. The complete source now
-reaches the x87 exponent statement in `libm_exp_impl()` at line 940. The
-checked seed carries the file-scope wrappers but predates named operands and
-these four statement blocks, so `libm.c` stays on its host-owned recipe and
-keeps its `.c` name.
+function has 53 text bytes and no relocations. The exact
+`libm_exp_impl()` statement is represented with the same three operand
+types in output, `x`, `log2e` order. Its 71-byte focused function has no
+relocations, reaches x87 depth three, and returns to its incoming depth. The
+complete source now reaches the file-scope `fabs` mask block at line 242.
+The checked seed carries the opening wrappers but predates named operands
+and these five statement blocks, so `libm.c` stays on its host-owned recipe
+and keeps its `.c` name.
 
 The checked seed emits the exact volatile
 `call 1f\n1: popl %0` state read used by the stack-trace helpers in
@@ -679,6 +682,8 @@ and the generated kernel symbol translation described above.
 [ADR 0163](docs/adr/0163-represent-sqrtsd-register-assembly.md) records the exact `sqrtsd` statement and the following `atan2` frontier.
 
 [ADR 0164](docs/adr/0164-represent-x87-atan2-memory-assembly.md) records the exact x87 `atan2` statement and the following `exp` frontier.
+
+[ADR 0165](docs/adr/0165-represent-x87-exp-memory-assembly.md) records the exact x87 exponent statement and the following file-scope mask frontier.
 
 [ADR 0143](docs/adr/0143-share-ordinary-padding-nops.md) records the shared ordinary compiler padding family and its measured disassembly improvement.
 

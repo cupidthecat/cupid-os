@@ -107,9 +107,17 @@ non-atomic `double` `m` inputs in `y`, `x` order, and one `memory` clobber.
 Linear IR evaluates the three addresses once in source order. The focused
 function contains 53 text bytes and no relocations. Its direct 15-byte path
 loads both operands, applies `FPATAN`, and stores the result through Cupid's
-shared x86 model. The unchanged file now stops at the x87 exponent statement
-in `libm_exp_impl()` on line 940. The checked seed does not yet carry these
-compiler-head capabilities, so
+shared x86 model.
+
+The exact volatile x87 statement in `libm_exp_impl()` is represented too.
+It takes one modifiable, non-atomic `double` `=m` output, two addressable,
+non-atomic `double` `m` inputs in `x`, `log2e` order, and one `memory`
+clobber. Linear IR evaluates all three addresses once in source order. The
+focused function contains 71 text bytes and no relocations. Its direct
+33-byte path computes `exp2(x * log2(e))`, reaches x87 depth three, and
+returns to its incoming depth through Cupid's shared x86 model. The unchanged
+file now stops at the aligned file-scope `fabs` mask block on line 242. The
+checked seed does not yet carry these compiler-head capabilities, so
 `kernel/cpu/libm.c` remains host-owned.
 
 The normal build now compiles `kernel/gfx/jpeg.cc` and

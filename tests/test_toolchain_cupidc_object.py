@@ -843,6 +843,20 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "x87-atan2-memory-assembly: ok\n")
 
+    def test_x87_exp_assembly_emits_exact_shared_model_sequence(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "x87-exp-memory-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "x87-exp-memory-assembly: ok\n")
+
     def test_descriptor_table_assembly_emits_exact_segment_transitions(self):
         result = subprocess.run(
             [
@@ -1178,7 +1192,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                 self.assertEqual(result.stderr, expected)
                 self.assertFalse(output.exists())
 
-    def test_unchanged_libm_source_advances_past_x87_atan2_assembly(
+    def test_unchanged_libm_source_advances_past_x87_exp_assembly(
         self,
     ):
         source = REPO_ROOT / "kernel/cpu/libm.c"
@@ -1219,8 +1233,9 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             )
 
         expected = (
-            "/kernel/cpu/libm.c:940:5: error CTB00000F: "
-            "GNU inline assembly m input template is outside this slice\n"
+            "/kernel/cpu/libm.c:242:1: error CTC000003: "
+            "GNU file-scope assembly template is outside this "
+            "i386 emission slice\n"
         )
         with tempfile.TemporaryDirectory(
             prefix=".cupidc-libm-frontier-", dir=REPO_ROOT

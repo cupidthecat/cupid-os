@@ -396,9 +396,24 @@ The 53-byte focused function has no relocations. The direct 15-byte sequence
 loads `y`, loads `x`, applies `FPATAN`, and stores through the saved output
 address with balanced x87 depth. Contracts cover shared decoding, forged
 metadata, operand diagnostics, deterministic output, unreachable validation,
-rollback, and same-job recovery. The unchanged source now reaches the x87
-exponent statement in `libm_exp_impl()` at line 940.
+rollback, and same-job recovery.
 
-Named matching constraints, operand modifiers, the `exp` block, and general
+### x87 exponent memory statement
+
+Compiler head accepts the exact volatile statement in `libm_exp_impl()`. It
+requires one modifiable, non-atomic `double` `=m` output, two addressable,
+non-atomic `double` `m` inputs in `x`, `log2e` order, and one `memory`
+clobber. The named spelling and normalized numeric form use the same
+validation. Linear IR evaluates all three addresses once in source order.
+
+The 71-byte focused function has no relocations. Its direct 33-byte sequence
+computes `exp2(x * log2(e))`, reaches x87 depth three, and returns to the
+incoming depth before storing through the saved output address. Contracts
+cover shared decoding, forged metadata, operand diagnostics, deterministic
+output, unreachable validation, rollback, and same-job recovery. The
+unchanged source now reaches the aligned file-scope `fabs` mask block at line
+242.
+
+Named matching constraints, operand modifiers, the mask block, and general
 XMM or x87 constraints remain separate work. The checked seed and normal
 host-owned `libm.c` recipe do not change in this increment.

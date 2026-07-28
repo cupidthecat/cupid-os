@@ -7654,12 +7654,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.cc", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
        25287u, 479u, 286u, 0u, 0u},
-      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 249u, 7029u,
-       65087u, 923u, 338u, 0u, 0u},
-      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 285u, 7003u,
-       60139u, 857u, 451u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 398u,
-       15852u, 104895u, 2377u, 1461u, 0u, 0u},
+      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 251u, 7051u,
+       65279u, 925u, 338u, 0u, 0u},
+      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 288u, 7080u,
+       60689u, 860u, 451u, 0u, 0u},
+      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 400u,
+       15889u, 105265u, 2382u, 1464u, 0u, 0u},
       {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 81u, 2935u,
        19252u, 326u, 186u, 0u, 0u},
       {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
@@ -29399,6 +29399,295 @@ cleanup:
 
 #undef X87_ATAN2_NAMED_ASM_SOURCE
 
+#define X87_EXP_NAMED_ASM_SOURCE                                    \
+  "\"fldl   %[x]\\n\\t\""                                           \
+  "\"fldl   %[log2e]\\n\\t\""                                       \
+  "\"fmulp\\n\\t\""                                                  \
+  "\"fld    %%st(0)\\n\\t\""                                        \
+  "\"frndint\\n\\t\""                                                \
+  "\"fsub   %%st, %%st(1)\\n\\t\""                                  \
+  "\"fxch\\n\\t\""                                                   \
+  "\"f2xm1\\n\\t\""                                                  \
+  "\"fld1\\n\\t\""                                                   \
+  "\"faddp\\n\\t\""                                                  \
+  "\"fscale\\n\\t\""                                                 \
+  "\"fstp   %%st(1)\\n\\t\""                                        \
+  "\"fstpl  %[out]\\n\\t\""
+
+static const char x87_exp_memory_normalized_template[] =
+    "fldl   %1\n\t"
+    "fldl   %2\n\t"
+    "fmulp\n\t"
+    "fld    %%st(0)\n\t"
+    "frndint\n\t"
+    "fsub   %%st, %%st(1)\n\t"
+    "fxch\n\t"
+    "f2xm1\n\t"
+    "fld1\n\t"
+    "faddp\n\t"
+    "fscale\n\t"
+    "fstp   %%st(1)\n\t"
+    "fstpl  %0\n\t";
+
+static int validate_x87_exp_memory_assembly_unit(
+    const ctool_c_translation_unit_t *unit) {
+  static const ctool_u32 lines[] = {4u, 8u};
+  static const char *const constraints[] = {
+      "=m", "m", "m", "=m", "m", "m"};
+  ctool_u32 assembly_statement_count = 0u;
+  ctool_u32 index;
+  if (unit->function_definition_count != ARRAY_COUNT(lines) ||
+      unit->assembly_count != ARRAY_COUNT(lines) ||
+      unit->assembly_operand_count != ARRAY_COUNT(constraints) ||
+      unit->assemblies == NULL || unit->assembly_operands == NULL ||
+      unit->expressions == NULL || unit->layout.types == NULL) {
+    return 1;
+  }
+  for (index = 0u; index < ARRAY_COUNT(lines); index++) {
+    const ctool_c_assembly_t *assembly = &unit->assemblies[index];
+    if (string_equal(
+            assembly->template_text,
+            x87_exp_memory_normalized_template) == 0 ||
+        assembly->flags !=
+            (CTOOL_C_ASSEMBLY_VOLATILE |
+             CTOOL_C_ASSEMBLY_MEMORY_CLOBBER) ||
+        assembly->first_operand != index * 3u ||
+        assembly->output_count != 1u ||
+        assembly->input_count != 2u ||
+        dual_location_matches(
+            &assembly->location, &assembly->physical_location,
+            "/x87-exp-memory-assembly.c", lines[index]) == 0) {
+      return 1;
+    }
+  }
+  for (index = 0u; index < ARRAY_COUNT(constraints); index++) {
+    const ctool_c_assembly_operand_t *operand =
+        &unit->assembly_operands[index];
+    if (operand->type >= unit->layout.type_count ||
+        operand->expression >= unit->expression_count ||
+        string_equal(operand->constraint, constraints[index]) == 0 ||
+        operand->matching_output != CTOOL_C_AST_NONE ||
+        unit->expressions[operand->expression].type != operand->type ||
+        underlying_type_kind(unit, operand->type, NULL) !=
+            CTOOL_C_TYPE_DOUBLE ||
+        unit->layout.types[operand->type].is_object != CTOOL_TRUE ||
+        unit->layout.types[operand->type].is_complete_object != CTOOL_TRUE ||
+        unit->layout.types[operand->type].size != 8u) {
+      return 1;
+    }
+  }
+  for (index = 0u; index < unit->statement_count; index++) {
+    const ctool_c_statement_t *statement = &unit->statements[index];
+    if (statement->kind == CTOOL_C_STATEMENT_ASSEMBLY) {
+      if (statement->assembly != assembly_statement_count ||
+          statement->expression != CTOOL_C_AST_NONE) {
+        return 1;
+      }
+      assembly_statement_count++;
+    } else if (statement->assembly != CTOOL_C_AST_NONE) {
+      return 1;
+    }
+  }
+  return assembly_statement_count == ARRAY_COUNT(lines) ? 0 : 1;
+}
+
+static int run_x87_exp_memory_assembly(const char *host_root) {
+  static const char source[] =
+      "static const double log2e = 1.4426950408889634;\n"
+      "double exp_local(double x) {\n"
+      "  double result;\n"
+      "  __asm__ __volatile__(" X87_EXP_NAMED_ASM_SOURCE
+      " : [out] \"=m\" (result)"
+      " : [x] \"m\" (x), [log2e] \"m\" (log2e) : \"memory\");\n"
+      "  return result;\n"
+      "}\n"
+      "void exp_indirect(volatile double *out,"
+      " const volatile double *x, const double *log2e) {\n"
+      "  __asm__ __volatile__(" X87_EXP_NAMED_ASM_SOURCE
+      " : [out] \"=m\" (*out)"
+      " : [x] \"m\" (*x), [log2e] \"m\" (*log2e) : \"memory\");\n"
+      "}\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"constant x87 exp output",
+        "void bad(const double *out, double x, double log2e) {"
+        " __asm__ __volatile__(" X87_EXP_NAMED_ASM_SOURCE
+        " : [out] \"=m\" (*out)"
+        " : [x] \"m\" (x), [log2e] \"m\" (log2e) : \"memory\"); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU x87 exp assembly =m output requires a modifiable non-atomic "
+       "double lvalue"},
+      {{"float x87 exp output",
+        "void bad(float *out, double x, double log2e) {"
+        " __asm__ __volatile__(" X87_EXP_NAMED_ASM_SOURCE
+        " : [out] \"=m\" (*out)"
+        " : [x] \"m\" (x), [log2e] \"m\" (log2e) : \"memory\"); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU x87 exp assembly =m output requires a modifiable non-atomic "
+       "double lvalue"},
+      {{"register x87 exp output",
+        "void bad(double x, double log2e) { register double out;"
+        " __asm__ __volatile__(" X87_EXP_NAMED_ASM_SOURCE
+        " : [out] \"=m\" (out)"
+        " : [x] \"m\" (x), [log2e] \"m\" (log2e) : \"memory\"); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly =m output cannot name a register object"},
+      {{"atomic x87 exp output",
+        "void bad(_Atomic double *out, double x, double log2e) {"
+        " __asm__ __volatile__(" X87_EXP_NAMED_ASM_SOURCE
+        " : [out] \"=m\" (*out)"
+        " : [x] \"m\" (x), [log2e] \"m\" (log2e) : \"memory\"); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u, "atomic GNU inline assembly outputs are outside this slice"},
+      {{"float x87 exp x input",
+        "void bad(double *out, float x, double log2e) {"
+        " __asm__ __volatile__(" X87_EXP_NAMED_ASM_SOURCE
+        " : [out] \"=m\" (*out)"
+        " : [x] \"m\" (x), [log2e] \"m\" (log2e) : \"memory\"); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU x87 exp assembly x and log2e m inputs require addressable "
+       "non-atomic double lvalues"},
+      {{"rvalue x87 exp log2e input",
+        "void bad(double *out, double x, double log2e) {"
+        " __asm__ __volatile__(" X87_EXP_NAMED_ASM_SOURCE
+        " : [out] \"=m\" (*out)"
+        " : [x] \"m\" (x), [log2e] \"m\" (log2e + 1.0) : \"memory\"); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU x87 exp assembly x and log2e m inputs require addressable "
+       "non-atomic double lvalues"},
+      {{"register x87 exp input",
+        "void bad(double *out, double log2e) { register double x = 1.0;"
+        " __asm__ __volatile__(" X87_EXP_NAMED_ASM_SOURCE
+        " : [out] \"=m\" (*out)"
+        " : [x] \"m\" (x), [log2e] \"m\" (log2e) : \"memory\"); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU x87 exp assembly x and log2e m inputs require addressable "
+       "non-atomic double lvalues"},
+      {{"atomic x87 exp input",
+        "void bad(double *out, _Atomic double *x, double log2e) {"
+        " __asm__ __volatile__(" X87_EXP_NAMED_ASM_SOURCE
+        " : [out] \"=m\" (*out)"
+        " : [x] \"m\" (*x), [log2e] \"m\" (log2e) : \"memory\"); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU x87 exp assembly x and log2e m inputs require addressable "
+       "non-atomic double lvalues"},
+      {{"wrong x87 exp output constraint",
+        "void bad(double *out, double x, double log2e) {"
+        " __asm__ __volatile__(" X87_EXP_NAMED_ASM_SOURCE
+        " : [out] \"=r\" (*out)"
+        " : [x] \"m\" (x), [log2e] \"m\" (log2e) : \"memory\"); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU x87 exp assembly output requires the =m constraint"},
+      {{"wrong x87 exp input constraint",
+        "void bad(double *out, double x, double log2e) {"
+        " __asm__ __volatile__(" X87_EXP_NAMED_ASM_SOURCE
+        " : [out] \"=m\" (*out)"
+        " : [x] \"r\" (x), [log2e] \"m\" (log2e) : \"memory\"); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU x87 exp assembly inputs require the m constraint"},
+      {{"altered x87 exp template",
+        "void bad(double *out, double x, double log2e) {"
+        " __asm__ __volatile__(\"fldl %[x]\\n\\t\""
+        " \"fldl   %[log2e]\\n\\t\" \"fmulp\\n\\t\""
+        " \"fld %%st(0)\\n\\t\" \"frndint\\n\\t\""
+        " \"fsub %%st, %%st(1)\\n\\t\" \"fxch\\n\\t\""
+        " \"f2xm1\\n\\t\" \"fld1\\n\\t\" \"faddp\\n\\t\""
+        " \"fscale\\n\\t\" \"fstp %%st(1)\\n\\t\""
+        " \"fstpl %[out]\\n\\t\""
+        " : [out] \"=m\" (*out)"
+        " : [x] \"m\" (x), [log2e] \"m\" (log2e) : \"memory\"); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly m input template is outside this slice"},
+      {{"nonvolatile x87 exp assembly",
+        "void bad(double *out, double x, double log2e) {"
+        " __asm__(" X87_EXP_NAMED_ASM_SOURCE
+        " : [out] \"=m\" (*out)"
+        " : [x] \"m\" (x), [log2e] \"m\" (log2e) : \"memory\"); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU x87 exp assembly requires one volatile double =m output, "
+       "two double m inputs, a memory clobber, and no other clobbers"},
+      {{"missing x87 exp memory clobber",
+        "void bad(double *out, double x, double log2e) {"
+        " __asm__ __volatile__(" X87_EXP_NAMED_ASM_SOURCE
+        " : [out] \"=m\" (*out)"
+        " : [x] \"m\" (x), [log2e] \"m\" (log2e)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU x87 exp assembly requires one volatile double =m output, "
+       "two double m inputs, a memory clobber, and no other clobbers"},
+      {{"extra x87 exp ax clobber",
+        "void bad(double *out, double x, double log2e) {"
+        " __asm__ __volatile__(" X87_EXP_NAMED_ASM_SOURCE
+        " : [out] \"=m\" (*out)"
+        " : [x] \"m\" (x), [log2e] \"m\" (log2e)"
+        " : \"memory\", \"ax\"); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU x87 exp assembly requires one volatile double =m output, "
+       "two double m inputs, a memory clobber, and no other clobbers"},
+      {{"extra x87 exp input",
+        "void bad(double *out, double x, double log2e, double extra) {"
+        " __asm__ __volatile__(" X87_EXP_NAMED_ASM_SOURCE
+        " : [out] \"=m\" (*out)"
+        " : [x] \"m\" (x), [log2e] \"m\" (log2e), \"m\" (extra)"
+        " : \"memory\"); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU x87 exp assembly requires one volatile double =m output, "
+       "two double m inputs, a memory clobber, and no other clobbers"}};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_u32 index;
+  int failed = 1;
+  if (begin_frontend_fixture(
+          &fixture, "x87-exp-memory-assembly", host_root,
+          8u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  if (parse_valid_fixture(
+          &fixture, "/x87-exp-memory-assembly.c", source, &unit) != 0 ||
+      validate_x87_exp_memory_assembly_unit(&unit) != 0) {
+    (void)fprintf(
+        stderr, "x87-exp-memory-assembly: public graph differs\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case =
+        &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure,
+            "/x87-exp-memory-assembly-failure.c", test_case->line,
+            test_case->column, test_case->message) != 0 ||
+        validate_x87_exp_memory_assembly_unit(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)puts("x87-exp-memory-assembly: ok");
+  }
+  return failed;
+}
+
+#undef X87_EXP_NAMED_ASM_SOURCE
+
 static int validate_descriptor_table_assembly_unit(
     const ctool_c_translation_unit_t *unit) {
   static const char *const templates[] = {
@@ -31047,6 +31336,7 @@ int main(int argc, char **argv) {
                    "x87-powf-memory-assembly|"
                    "sqrtsd-register-assembly|"
                    "x87-atan2-memory-assembly|"
+                   "x87-exp-memory-assembly|"
                    "descriptor-table-assembly|"
                    "legacy-port-assembly|"
                    "register-snapshot-assembly|call-next-assembly|"
@@ -31178,6 +31468,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "x87-atan2-memory-assembly") == 0) {
     return run_x87_atan2_memory_assembly(argv[2]);
+  }
+  if (strcmp(argv[1], "x87-exp-memory-assembly") == 0) {
+    return run_x87_exp_memory_assembly(argv[2]);
   }
   if (strcmp(argv[1], "descriptor-table-assembly") == 0) {
     return run_descriptor_table_assembly(argv[2]);

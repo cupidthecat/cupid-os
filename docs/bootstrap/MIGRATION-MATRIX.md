@@ -28,13 +28,16 @@ exact `sqrtsd %1, %0` statement with a `double` `=x` output and a `double`
 `x` input. Its 65-byte focused function has no relocations. Compiler head
 also emits the exact x87 `libm_atan2_impl()` statement with one `double` `=m`
 output, two `double` `m` inputs, and a `memory` clobber. Its 53-byte focused
-function has no relocations. The complete source proceeds to the x87 exponent
-statement in `libm_exp_impl()` at line 940. That statement and broader
-arbitrary assembly remain open, so this does not transfer a recipe. `libm.c`
-remains host-owned with its `.c` name, and the host C transform count is
-unchanged. ADR 0155 records the file-scope boundary, ADR 0159 records named
-operand normalization, and ADRs 0161 through 0164 record the four represented
-statements.
+function has no relocations. It also emits the exact x87
+`libm_exp_impl()` statement with one `double` `=m` output, two `double` `m`
+inputs in `x`, `log2e` order, and a `memory` clobber. Its 71-byte focused
+function has no relocations and balanced x87 depth. The complete source now
+proceeds to the aligned file-scope `fabs` mask block at line 242. That block
+and broader arbitrary assembly remain open, so this does not transfer a
+recipe. `libm.c` remains host-owned with its `.c` name, and the host C
+transform count is unchanged. ADR 0155 records the file-scope boundary, ADR
+0159 records named operand normalization, and ADRs 0161 through 0165 record
+the five represented statements.
 
 Checked-seed CupidC represents the two exact volatile FXSAVE statements in
 `kernel/core/process.cc`. One independent four-byte object or

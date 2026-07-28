@@ -218,6 +218,10 @@ _Avoid_: general `x` constraints, arbitrary XMM register allocation, host-assemb
 The exact volatile statement in `libm_atan2_impl()` with one modifiable, non-atomic `double` `=m` output, two addressable, non-atomic `double` `m` inputs in `y`, `x` order, and one `memory` clobber. Named operands normalize before Linear IR freezes the statement. Linear IR evaluates the output, `y`, and `x` addresses once in source order. The i386 emitter uses Cupid's shared x86 model for both loads, `FPATAN`, and the final store. The focused function has 53 text bytes and no relocations.
 _Avoid_: general x87 programs, reordered address evaluation, host-assembler escape
 
+**Represented GNU x87 exponent memory assembly**:
+The exact volatile statement in `libm_exp_impl()` with one modifiable, non-atomic `double` `=m` output, two addressable, non-atomic `double` `m` inputs in `x`, `log2e` order, and one `memory` clobber. Linear IR evaluates all three addresses once in source order. The i386 emitter runs the complete `exp2(x * log2(e))` pipeline through Cupid's shared x86 model. The focused function has 71 text bytes, no relocations, maximum x87 depth three, and balanced depth on return.
+_Avoid_: general x87 programs, host-assembler escape, changing the active libm algorithm
+
 **Represented GNU x87 round-down memory assembly**:
 The exact volatile statement in `str_floor()` that loads one `double`, saves the x87 control word below ESP, selects round toward negative infinity, executes `frndint`, restores the saved word, and stores the result. It requires one modifiable `double` `=m` output, one addressable `double` `m` input, and the exact `ax` plus `memory` clobber set. Linear IR evaluates the output address before the input address. The emitter reuses the consumed input-address slot for the two control-word values without touching the pending output address. The checked seed emits the complete helper deterministically, but unchanged `kernel/core/string.c` still stops at its separate double-to-`uint64_t` cast.
 _Avoid_: general AX clobber, arbitrary x87 control-word template, frame scratch that changes the active offsets

@@ -33856,6 +33856,378 @@ cleanup:
   return 1;
 }
 
+static const char x87_exp_memory_assembly_source[] =
+    "double *next_exp_out(void);\n"
+    "const double *next_exp_x(void);\n"
+    "const double *next_exp_log2e(void);\n"
+    "void exp_calls(void) {\n"
+    "  __asm__ __volatile__(\"fldl   %[x]\\n\\t\""
+    " \"fldl   %[log2e]\\n\\t\" \"fmulp\\n\\t\""
+    " \"fld    %%st(0)\\n\\t\" \"frndint\\n\\t\""
+    " \"fsub   %%st, %%st(1)\\n\\t\" \"fxch\\n\\t\""
+    " \"f2xm1\\n\\t\" \"fld1\\n\\t\" \"faddp\\n\\t\""
+    " \"fscale\\n\\t\" \"fstp   %%st(1)\\n\\t\""
+    " \"fstpl  %[out]\\n\\t\""
+    " : [out] \"=m\" (*next_exp_out())"
+    " : [x] \"m\" (*next_exp_x()),"
+    " [log2e] \"m\" (*next_exp_log2e()) : \"memory\");\n"
+    "}\n"
+    "void exp_parameters(volatile double *out,"
+    " const volatile double *x, const double *log2e) {\n"
+    "  __asm__ __volatile__(\"fldl   %[x]\\n\\t\""
+    " \"fldl   %[log2e]\\n\\t\" \"fmulp\\n\\t\""
+    " \"fld    %%st(0)\\n\\t\" \"frndint\\n\\t\""
+    " \"fsub   %%st, %%st(1)\\n\\t\" \"fxch\\n\\t\""
+    " \"f2xm1\\n\\t\" \"fld1\\n\\t\" \"faddp\\n\\t\""
+    " \"fscale\\n\\t\" \"fstp   %%st(1)\\n\\t\""
+    " \"fstpl  %[out]\\n\\t\""
+    " : [out] \"=m\" (*out)"
+    " : [x] \"m\" (*x), [log2e] \"m\" (*log2e) : \"memory\");\n"
+    "}\n"
+    "void dead_exp(double *out, const double *x,"
+    " const double *log2e) {\n"
+    "  return;\n"
+    "  __asm__ __volatile__(\"fldl   %[x]\\n\\t\""
+    " \"fldl   %[log2e]\\n\\t\" \"fmulp\\n\\t\""
+    " \"fld    %%st(0)\\n\\t\" \"frndint\\n\\t\""
+    " \"fsub   %%st, %%st(1)\\n\\t\" \"fxch\\n\\t\""
+    " \"f2xm1\\n\\t\" \"fld1\\n\\t\" \"faddp\\n\\t\""
+    " \"fscale\\n\\t\" \"fstp   %%st(1)\\n\\t\""
+    " \"fstpl  %[out]\\n\\t\""
+    " : [out] \"=m\" (*out)"
+    " : [x] \"m\" (*x), [log2e] \"m\" (*log2e) : \"memory\");\n"
+    "}\n";
+
+static int x87_exp_memory_assembly_ir_matches(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir) {
+  static const char normalized_template[] =
+      "fldl   %1\n\t"
+      "fldl   %2\n\t"
+      "fmulp\n\t"
+      "fld    %%st(0)\n\t"
+      "frndint\n\t"
+      "fsub   %%st, %%st(1)\n\t"
+      "fxch\n\t"
+      "f2xm1\n\t"
+      "fld1\n\t"
+      "faddp\n\t"
+      "fscale\n\t"
+      "fstp   %%st(1)\n\t"
+      "fstpl  %0\n\t";
+  static const char *const provider_names[] = {
+      "next_exp_out", "next_exp_x", "next_exp_log2e"};
+  static const ctool_u32 expected_depths[] = {3u, 3u, 0u};
+  ctool_u32 providers[3];
+  ctool_u32 function_index;
+  ctool_u32 index;
+  if (unit == NULL || ir == NULL ||
+      unit->assembly_count != 3u ||
+      unit->assembly_operand_count != 9u ||
+      unit->assemblies == NULL || unit->assembly_operands == NULL ||
+      unit->expressions == NULL || unit->layout.types == NULL ||
+      ir->function_count != 3u ||
+      ir->functions == NULL || ir->instructions == NULL) {
+    return 0;
+  }
+  for (index = 0u; index < 9u; index++) {
+    const ctool_c_assembly_operand_t *operand =
+        &unit->assembly_operands[index];
+    if (operand->type >= unit->layout.type_count ||
+        operand->expression >= unit->expression_count ||
+        unit->expressions[operand->expression].type != operand->type ||
+        string_equal(
+            operand->constraint, index % 3u == 0u ? "=m" : "m") == 0 ||
+        operand->matching_output != CTOOL_C_AST_NONE ||
+        unit->layout.types[operand->type].is_object != CTOOL_TRUE ||
+        unit->layout.types[operand->type].is_complete_object != CTOOL_TRUE ||
+        unit->layout.types[operand->type].size != 8u) {
+      return 0;
+    }
+  }
+  for (index = 0u; index < 3u; index++) {
+    providers[index] = find_binding(unit, provider_names[index]);
+    if (providers[index] == CTOOL_C_AST_NONE) {
+      return 0;
+    }
+  }
+  for (function_index = 0u; function_index < 3u; function_index++) {
+    const ctool_c_assembly_t *assembly =
+        &unit->assemblies[function_index];
+    const ctool_c_ir_function_t *function =
+        &ir->functions[function_index];
+    ctool_u32 assembly_instruction = CTOOL_C_AST_NONE;
+    ctool_u32 assembly_count = 0u;
+    ctool_u32 call_count = 0u;
+    ctool_u32 offset;
+    if (string_equal(
+            assembly->template_text, normalized_template) == 0 ||
+        assembly->flags !=
+            (CTOOL_C_ASSEMBLY_VOLATILE |
+             CTOOL_C_ASSEMBLY_MEMORY_CLOBBER) ||
+        assembly->first_operand != function_index * 3u ||
+        assembly->output_count != 1u ||
+        assembly->input_count != 2u ||
+        function->first_instruction > ir->instruction_count ||
+        function->instruction_count >
+            ir->instruction_count - function->first_instruction ||
+        function->maximum_stack_depth !=
+            expected_depths[function_index]) {
+      return 0;
+    }
+    for (offset = 0u; offset < function->instruction_count; offset++) {
+      ctool_u32 instruction_index =
+          function->first_instruction + offset;
+      const ctool_c_ir_instruction_t *instruction =
+          &ir->instructions[instruction_index];
+      if (instruction->kind == CTOOL_C_IR_INSTRUCTION_CALL_DIRECT) {
+        call_count++;
+      }
+      if (instruction->kind == CTOOL_C_IR_INSTRUCTION_ASSEMBLY) {
+        if (!inline_assembly_instruction_matches(
+                instruction, function_index,
+                "/x87-exp-memory-assembly.c")) {
+          return 0;
+        }
+        assembly_instruction = instruction_index;
+        assembly_count++;
+      }
+    }
+    if (function_index == 0u) {
+      if (assembly_count != 1u || call_count != 3u ||
+          assembly_instruction < function->first_instruction + 6u) {
+        return 0;
+      }
+      for (index = 0u; index < 3u; index++) {
+        const ctool_c_ir_instruction_t *call =
+            &ir->instructions[
+                assembly_instruction - 6u + index * 2u];
+        const ctool_c_ir_instruction_t *dereference =
+            &ir->instructions[
+                assembly_instruction - 5u + index * 2u];
+        if (call->kind != CTOOL_C_IR_INSTRUCTION_CALL_DIRECT ||
+            call->reference != providers[index] ||
+            dereference->kind !=
+                CTOOL_C_IR_INSTRUCTION_DEREFERENCE) {
+          return 0;
+        }
+      }
+    } else if (function_index == 1u) {
+      static const ctool_c_ir_instruction_kind_t expected[] = {
+          CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+          CTOOL_C_IR_INSTRUCTION_LOAD,
+          CTOOL_C_IR_INSTRUCTION_DEREFERENCE,
+          CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+          CTOOL_C_IR_INSTRUCTION_LOAD,
+          CTOOL_C_IR_INSTRUCTION_DEREFERENCE,
+          CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+          CTOOL_C_IR_INSTRUCTION_LOAD,
+          CTOOL_C_IR_INSTRUCTION_DEREFERENCE};
+      ctool_u32 expected_count =
+          (ctool_u32)(sizeof(expected) / sizeof(expected[0]));
+      if (assembly_count != 1u || call_count != 0u ||
+          assembly_instruction < function->first_instruction +
+                                     expected_count) {
+        return 0;
+      }
+      for (index = 0u; index < expected_count; index++) {
+        if (ir->instructions[
+                assembly_instruction - expected_count + index]
+                .kind != expected[index]) {
+          return 0;
+        }
+      }
+    } else if (assembly_count != 0u || call_count != 0u) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int run_x87_exp_memory_assembly(const char *host_root) {
+  static const char invalid_message[] =
+      "CupidC IR lowering received an invalid translation unit";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_ir_unit_t first_ir;
+  ctool_c_ir_unit_t repeat_ir;
+  ctool_c_ir_unit_t recovered_ir;
+  ctool_c_assembly_t assemblies[3];
+  ctool_c_assembly_operand_t operands[9];
+  ctool_c_type_layout_t *layouts = NULL;
+  ctool_u32 diagnostic_count;
+  uint64_t unit_hash;
+  uint64_t ir_hash;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&first_ir, 0xa5, sizeof(first_ir));
+  (void)memset(&repeat_ir, 0xa5, sizeof(repeat_ir));
+  (void)memset(&recovered_ir, 0xa5, sizeof(recovered_ir));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(
+          job, "/x87-exp-memory-assembly.c",
+          x87_exp_memory_assembly_source, CTOOL_TRUE, &unit)) {
+    goto cleanup;
+  }
+  unit_hash = unit_fingerprint(&unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &unit, &first_ir);
+  if (!check_status(status, CTOOL_OK, "x87 exp assembly lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash ||
+      !x87_exp_memory_assembly_ir_matches(&unit, &first_ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  ir_hash = inline_assembly_ir_fingerprint(&first_ir);
+  status = ctool_c_lower_ir(job, &unit, &repeat_ir);
+  if (!check_status(
+          status, CTOOL_OK, "repeat x87 exp assembly lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash || ir_hash == 0u ||
+      inline_assembly_ir_fingerprint(&repeat_ir) != ir_hash ||
+      !x87_exp_memory_assembly_ir_matches(&unit, &repeat_ir)) {
+    (void)fprintf(
+        stderr, "x87-exp-memory-assembly: repeated lowering differs\n");
+    goto cleanup;
+  }
+  if (unit.assembly_count != 3u ||
+      unit.assembly_operand_count != 9u ||
+      unit.layout.types == NULL ||
+      sizeof(*layouts) > SIZE_MAX / (size_t)unit.layout.type_count) {
+    goto cleanup;
+  }
+  (void)memcpy(assemblies, unit.assemblies, sizeof(assemblies));
+  (void)memcpy(operands, unit.assembly_operands, sizeof(operands));
+  invalid_unit = unit;
+  invalid_unit.assemblies = assemblies;
+  invalid_unit.assembly_operands = operands;
+
+  assemblies[0].flags &= ~CTOOL_C_ASSEMBLY_MEMORY_CLOBBER;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "x87 exp missing memory clobber")) {
+    goto cleanup;
+  }
+  assemblies[0] = unit.assemblies[0];
+
+  assemblies[0].template_text = ctool_string(
+      "fldl %1\n\tfldl   %2\n\tfmulp\n\t"
+      "fld    %%st(0)\n\tfrndint\n\t"
+      "fsub   %%st, %%st(1)\n\tfxch\n\tf2xm1\n\t"
+      "fld1\n\tfaddp\n\tfscale\n\tfstp   %%st(1)\n\t"
+      "fstpl  %0\n\t");
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "x87 exp forged template")) {
+    goto cleanup;
+  }
+  assemblies[0] = unit.assemblies[0];
+
+  assemblies[0].output_count = 0u;
+  assemblies[0].input_count = 3u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "x87 exp forged operand counts")) {
+    goto cleanup;
+  }
+  assemblies[0] = unit.assemblies[0];
+
+  operands[0].constraint = ctool_string("=r");
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "x87 exp forged output constraint")) {
+    goto cleanup;
+  }
+  operands[0] = unit.assembly_operands[0];
+
+  operands[1].constraint = ctool_string("r");
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "x87 exp forged input constraint")) {
+    goto cleanup;
+  }
+  operands[1] = unit.assembly_operands[1];
+
+  operands[2].matching_output = 0u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "x87 exp forged matching input")) {
+    goto cleanup;
+  }
+  operands[2] = unit.assembly_operands[2];
+
+  operands[0].type = CTOOL_C_TYPE_NONE;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "x87 exp forged output type")) {
+    goto cleanup;
+  }
+  operands[0] = unit.assembly_operands[0];
+
+  operands[8].type = CTOOL_C_TYPE_NONE;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "unreachable x87 exp input type mismatch")) {
+    goto cleanup;
+  }
+  operands[8] = unit.assembly_operands[8];
+
+  layouts = (ctool_c_type_layout_t *)malloc(
+      (size_t)unit.layout.type_count * sizeof(*layouts));
+  if (layouts == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(layouts, unit.layout.types,
+               (size_t)unit.layout.type_count * sizeof(*layouts));
+  layouts[unit.assembly_operands[0].type].size = 4u;
+  invalid_unit.layout.types = layouts;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "x87 exp forged double layout")) {
+    goto cleanup;
+  }
+  invalid_unit.layout.types = unit.layout.types;
+
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &unit, &recovered_ir);
+  if (!check_status(status, CTOOL_OK, "x87 exp assembly recovery") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash ||
+      inline_assembly_ir_fingerprint(&recovered_ir) != ir_hash ||
+      !x87_exp_memory_assembly_ir_matches(&unit, &recovered_ir)) {
+    (void)fprintf(
+        stderr, "x87-exp-memory-assembly: lowering did not recover\n");
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(layouts);
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("x87-exp-memory-assembly: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static const char x87_round_down_memory_assembly_source[] =
     "double *next_round_down_out(void);\n"
     "const double *next_round_down_in(void);\n"
@@ -37724,6 +38096,10 @@ int main(int argc, char **argv) {
     return run_x87_atan2_memory_assembly(argv[2]);
   }
   if (argc == 3 &&
+      strcmp(argv[1], "x87-exp-memory-assembly") == 0) {
+    return run_x87_exp_memory_assembly(argv[2]);
+  }
+  if (argc == 3 &&
       strcmp(argv[1], "descriptor-table-assembly") == 0) {
     return run_descriptor_table_assembly(argv[2]);
   }
@@ -37786,6 +38162,7 @@ int main(int argc, char **argv) {
                 "x87-powf-memory-assembly|"
                 "sqrtsd-register-assembly|"
                 "x87-atan2-memory-assembly|"
+                "x87-exp-memory-assembly|"
                 "descriptor-table-assembly|"
                 "register-snapshot-assembly|"
                 "call-next-assembly|"

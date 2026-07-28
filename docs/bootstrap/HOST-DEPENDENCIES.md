@@ -80,11 +80,14 @@ statement with a `double` `=x` output and a `double` `x` input. The focused
 function has 65 text bytes and no relocations. It also emits the exact x87
 statement in `libm_atan2_impl()` with one `double` `=m` output, two `double`
 `m` inputs, and one `memory` clobber. That focused function has 53 text bytes
-and no relocations. The complete unchanged source reaches the x87 exponent
-statement in `libm_exp_impl()` at line 940. The checked seed predates named
-operands and all four statement forms, so GCC or Clang continues to own the
-normal `libm.c` transform. No dependency or production ownership count
-changes.
+and no relocations. It also emits the exact x87 statement in
+`libm_exp_impl()` with one `double` `=m` output, two `double` `m` inputs,
+and one `memory` clobber. That focused function has 71 text bytes, no
+relocations, and balanced x87 depth. The complete unchanged source now
+reaches the aligned file-scope `fabs` mask block at line 242. The checked
+seed predates named operands and all five statement forms, so GCC or Clang
+continues to own the normal `libm.c` transform. No dependency or production
+ownership count changes.
 
 The USB lifetime work retires no additional compiler transform, but it
 supplies the runtime contract for EHCI and UHCI ownership. Reconciliation

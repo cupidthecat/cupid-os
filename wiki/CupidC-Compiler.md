@@ -474,10 +474,18 @@ output, two addressable, non-atomic `double` `m` inputs in `y`, `x` order,
 and one `memory` clobber. Linear IR evaluates all three addresses once in
 source order. The 53-byte focused function uses the shared model for both
 loads, `FPATAN`, and the final store, with no relocations. The full source now
-proceeds to the x87 exponent statement in `libm_exp_impl()` at line 940.
+proceeds to the x87 exponent statement in `libm_exp_impl()`.
+
+Compiler head also emits that exact volatile x87 exponent statement. It
+accepts one modifiable, non-atomic `double` `=m` output, two addressable,
+non-atomic `double` `m` inputs in `x`, `log2e` order, and one `memory`
+clobber. Linear IR evaluates all three addresses once in source order. The
+71-byte focused function has no relocations, reaches x87 depth three, and
+returns to its incoming depth. The full source now proceeds to the aligned
+file-scope `fabs` mask block at line 242.
 
 General GAS syntax and other file-scope templates remain unsupported. The
-checked seed predates named operands and these four statement blocks, and the
+checked seed predates named operands and these five statement blocks, and the
 normal `libm.c` recipe still uses the host compiler.
 
 The same checked seed accepts a modifiable four-byte object or `void` pointer
