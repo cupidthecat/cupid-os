@@ -466,11 +466,18 @@ Compiler head also emits the exact volatile `sqrtsd %1, %0` statement. It
 accepts one modifiable, non-atomic `double` `=x` output, one non-atomic
 `double` `x` input, and no clobbers. Linear IR evaluates the output address
 before the input value. The 65-byte focused function uses Cupid's shared
-`MOVSD` and `SQRTSD` encodings and has no relocations. The full source now
-proceeds to the x87 memory statement in `libm_atan2_impl()` at line 922.
+`MOVSD` and `SQRTSD` encodings and has no relocations.
+
+Compiler head also emits the exact volatile x87 statement in
+`libm_atan2_impl()`. It accepts one modifiable, non-atomic `double` `=m`
+output, two addressable, non-atomic `double` `m` inputs in `y`, `x` order,
+and one `memory` clobber. Linear IR evaluates all three addresses once in
+source order. The 53-byte focused function uses the shared model for both
+loads, `FPATAN`, and the final store, with no relocations. The full source now
+proceeds to the x87 exponent statement in `libm_exp_impl()` at line 940.
 
 General GAS syntax and other file-scope templates remain unsupported. The
-checked seed predates named operands and these three statement blocks, and the
+checked seed predates named operands and these four statement blocks, and the
 normal `libm.c` recipe still uses the host compiler.
 
 The same checked seed accepts a modifiable four-byte object or `void` pointer

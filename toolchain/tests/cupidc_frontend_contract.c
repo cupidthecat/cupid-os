@@ -7654,12 +7654,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.cc", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
        25287u, 479u, 286u, 0u, 0u},
-      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 247u, 7007u,
-       64895u, 921u, 338u, 0u, 0u},
-      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 282u, 6953u,
-       59764u, 854u, 451u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 396u,
-       15815u, 104525u, 2372u, 1458u, 0u, 0u},
+      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 249u, 7029u,
+       65087u, 923u, 338u, 0u, 0u},
+      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 285u, 7003u,
+       60139u, 857u, 451u, 0u, 0u},
+      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 398u,
+       15852u, 104895u, 2377u, 1461u, 0u, 0u},
       {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 81u, 2935u,
        19252u, 326u, 186u, 0u, 0u},
       {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
@@ -29134,6 +29134,271 @@ cleanup:
 
 #undef SQRTSD_REGISTER_ASM_SOURCE
 
+#define X87_ATAN2_NAMED_ASM_SOURCE                                  \
+  "\"fldl  %[y]\\n\\t\""                                            \
+  "\"fldl  %[x]\\n\\t\""                                            \
+  "\"fpatan\\n\\t\""                                                 \
+  "\"fstpl %[out]\\n\\t\""
+
+static const char x87_atan2_memory_normalized_template[] =
+    "fldl  %1\n\t"
+    "fldl  %2\n\t"
+    "fpatan\n\t"
+    "fstpl %0\n\t";
+
+static int validate_x87_atan2_memory_assembly_unit(
+    const ctool_c_translation_unit_t *unit) {
+  static const ctool_u32 lines[] = {3u, 7u};
+  static const char *const constraints[] = {
+      "=m", "m", "m", "=m", "m", "m"};
+  ctool_u32 assembly_statement_count = 0u;
+  ctool_u32 index;
+  if (unit->function_definition_count != ARRAY_COUNT(lines) ||
+      unit->assembly_count != ARRAY_COUNT(lines) ||
+      unit->assembly_operand_count != ARRAY_COUNT(constraints) ||
+      unit->assemblies == NULL || unit->assembly_operands == NULL ||
+      unit->expressions == NULL || unit->layout.types == NULL) {
+    return 1;
+  }
+  for (index = 0u; index < ARRAY_COUNT(lines); index++) {
+    const ctool_c_assembly_t *assembly = &unit->assemblies[index];
+    if (string_equal(
+            assembly->template_text,
+            x87_atan2_memory_normalized_template) == 0 ||
+        assembly->flags !=
+            (CTOOL_C_ASSEMBLY_VOLATILE |
+             CTOOL_C_ASSEMBLY_MEMORY_CLOBBER) ||
+        assembly->first_operand != index * 3u ||
+        assembly->output_count != 1u ||
+        assembly->input_count != 2u ||
+        dual_location_matches(
+            &assembly->location, &assembly->physical_location,
+            "/x87-atan2-memory-assembly.c", lines[index]) == 0) {
+      return 1;
+    }
+  }
+  for (index = 0u; index < ARRAY_COUNT(constraints); index++) {
+    const ctool_c_assembly_operand_t *operand =
+        &unit->assembly_operands[index];
+    if (operand->type >= unit->layout.type_count ||
+        operand->expression >= unit->expression_count ||
+        string_equal(operand->constraint, constraints[index]) == 0 ||
+        operand->matching_output != CTOOL_C_AST_NONE ||
+        unit->expressions[operand->expression].type != operand->type ||
+        underlying_type_kind(unit, operand->type, NULL) !=
+            CTOOL_C_TYPE_DOUBLE ||
+        unit->layout.types[operand->type].is_object != CTOOL_TRUE ||
+        unit->layout.types[operand->type].is_complete_object != CTOOL_TRUE ||
+        unit->layout.types[operand->type].size != 8u) {
+      return 1;
+    }
+  }
+  for (index = 0u; index < unit->statement_count; index++) {
+    const ctool_c_statement_t *statement = &unit->statements[index];
+    if (statement->kind == CTOOL_C_STATEMENT_ASSEMBLY) {
+      if (statement->assembly != assembly_statement_count ||
+          statement->expression != CTOOL_C_AST_NONE) {
+        return 1;
+      }
+      assembly_statement_count++;
+    } else if (statement->assembly != CTOOL_C_AST_NONE) {
+      return 1;
+    }
+  }
+  return assembly_statement_count == ARRAY_COUNT(lines) ? 0 : 1;
+}
+
+static int run_x87_atan2_memory_assembly(const char *host_root) {
+  static const char source[] =
+      "double atan2_local(double y, double x) {\n"
+      "  double result;\n"
+      "  __asm__ __volatile__(" X87_ATAN2_NAMED_ASM_SOURCE
+      " : [out] \"=m\" (result)"
+      " : [y] \"m\" (y), [x] \"m\" (x) : \"memory\");\n"
+      "  return result;\n"
+      "}\n"
+      "void atan2_indirect(volatile double *out,"
+      " const volatile double *y, const double *x) {\n"
+      "  __asm__ __volatile__(" X87_ATAN2_NAMED_ASM_SOURCE
+      " : [out] \"=m\" (*out)"
+      " : [y] \"m\" (*y), [x] \"m\" (*x) : \"memory\");\n"
+      "}\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"constant x87 atan2 output",
+        "void bad(const double *out, double y, double x) {"
+        " __asm__ __volatile__(" X87_ATAN2_NAMED_ASM_SOURCE
+        " : [out] \"=m\" (*out)"
+        " : [y] \"m\" (y), [x] \"m\" (x) : \"memory\"); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU x87 atan2 assembly =m output requires a modifiable non-atomic "
+       "double lvalue"},
+      {{"float x87 atan2 output",
+        "void bad(float *out, double y, double x) {"
+        " __asm__ __volatile__(" X87_ATAN2_NAMED_ASM_SOURCE
+        " : [out] \"=m\" (*out)"
+        " : [y] \"m\" (y), [x] \"m\" (x) : \"memory\"); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU x87 atan2 assembly =m output requires a modifiable non-atomic "
+       "double lvalue"},
+      {{"register x87 atan2 output",
+        "void bad(double y, double x) { register double out;"
+        " __asm__ __volatile__(" X87_ATAN2_NAMED_ASM_SOURCE
+        " : [out] \"=m\" (out)"
+        " : [y] \"m\" (y), [x] \"m\" (x) : \"memory\"); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly =m output cannot name a register object"},
+      {{"atomic x87 atan2 output",
+        "void bad(_Atomic double *out, double y, double x) {"
+        " __asm__ __volatile__(" X87_ATAN2_NAMED_ASM_SOURCE
+        " : [out] \"=m\" (*out)"
+        " : [y] \"m\" (y), [x] \"m\" (x) : \"memory\"); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u, "atomic GNU inline assembly outputs are outside this slice"},
+      {{"float x87 atan2 y input",
+        "void bad(double *out, float y, double x) {"
+        " __asm__ __volatile__(" X87_ATAN2_NAMED_ASM_SOURCE
+        " : [out] \"=m\" (*out)"
+        " : [y] \"m\" (y), [x] \"m\" (x) : \"memory\"); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU x87 atan2 assembly y and x m inputs require addressable "
+       "non-atomic double lvalues"},
+      {{"rvalue x87 atan2 x input",
+        "void bad(double *out, double y, double x) {"
+        " __asm__ __volatile__(" X87_ATAN2_NAMED_ASM_SOURCE
+        " : [out] \"=m\" (*out)"
+        " : [y] \"m\" (y), [x] \"m\" (x + 1.0) : \"memory\"); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU x87 atan2 assembly y and x m inputs require addressable "
+       "non-atomic double lvalues"},
+      {{"register x87 atan2 input",
+        "void bad(double *out, double x) { register double y = 1.0;"
+        " __asm__ __volatile__(" X87_ATAN2_NAMED_ASM_SOURCE
+        " : [out] \"=m\" (*out)"
+        " : [y] \"m\" (y), [x] \"m\" (x) : \"memory\"); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU x87 atan2 assembly y and x m inputs require addressable "
+       "non-atomic double lvalues"},
+      {{"atomic x87 atan2 input",
+        "void bad(double *out, _Atomic double *y, double x) {"
+        " __asm__ __volatile__(" X87_ATAN2_NAMED_ASM_SOURCE
+        " : [out] \"=m\" (*out)"
+        " : [y] \"m\" (*y), [x] \"m\" (x) : \"memory\"); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU x87 atan2 assembly y and x m inputs require addressable "
+       "non-atomic double lvalues"},
+      {{"wrong x87 atan2 output constraint",
+        "void bad(double *out, double y, double x) {"
+        " __asm__ __volatile__(" X87_ATAN2_NAMED_ASM_SOURCE
+        " : [out] \"=r\" (*out)"
+        " : [y] \"m\" (y), [x] \"m\" (x) : \"memory\"); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU x87 atan2 assembly output requires the =m constraint"},
+      {{"wrong x87 atan2 input constraint",
+        "void bad(double *out, double y, double x) {"
+        " __asm__ __volatile__(" X87_ATAN2_NAMED_ASM_SOURCE
+        " : [out] \"=m\" (*out)"
+        " : [y] \"r\" (y), [x] \"m\" (x) : \"memory\"); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU x87 atan2 assembly inputs require the m constraint"},
+      {{"altered x87 atan2 template",
+        "void bad(double *out, double y, double x) {"
+        " __asm__ __volatile__(\"fldl %[y]\\n\\t\""
+        " \"fldl  %[x]\\n\\t\" \"fpatan\\n\\t\" \"fstpl %[out]\\n\\t\""
+        " : [out] \"=m\" (*out)"
+        " : [y] \"m\" (y), [x] \"m\" (x) : \"memory\"); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly m input template is outside this slice"},
+      {{"nonvolatile x87 atan2 assembly",
+        "void bad(double *out, double y, double x) {"
+        " __asm__(" X87_ATAN2_NAMED_ASM_SOURCE
+        " : [out] \"=m\" (*out)"
+        " : [y] \"m\" (y), [x] \"m\" (x) : \"memory\"); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU x87 atan2 assembly requires one volatile double =m output, "
+       "two double m inputs, a memory clobber, and no other clobbers"},
+      {{"missing x87 atan2 memory clobber",
+        "void bad(double *out, double y, double x) {"
+        " __asm__ __volatile__(" X87_ATAN2_NAMED_ASM_SOURCE
+        " : [out] \"=m\" (*out)"
+        " : [y] \"m\" (y), [x] \"m\" (x)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU x87 atan2 assembly requires one volatile double =m output, "
+       "two double m inputs, a memory clobber, and no other clobbers"},
+      {{"extra x87 atan2 ax clobber",
+        "void bad(double *out, double y, double x) {"
+        " __asm__ __volatile__(" X87_ATAN2_NAMED_ASM_SOURCE
+        " : [out] \"=m\" (*out)"
+        " : [y] \"m\" (y), [x] \"m\" (x)"
+        " : \"memory\", \"ax\"); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU x87 atan2 assembly requires one volatile double =m output, "
+       "two double m inputs, a memory clobber, and no other clobbers"},
+      {{"extra x87 atan2 input",
+        "void bad(double *out, double y, double x, double z) {"
+        " __asm__ __volatile__(" X87_ATAN2_NAMED_ASM_SOURCE
+        " : [out] \"=m\" (*out)"
+        " : [y] \"m\" (y), [x] \"m\" (x), \"m\" (z)"
+        " : \"memory\"); }\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU x87 atan2 assembly requires one volatile double =m output, "
+       "two double m inputs, a memory clobber, and no other clobbers"}};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_u32 index;
+  int failed = 1;
+  if (begin_frontend_fixture(
+          &fixture, "x87-atan2-memory-assembly", host_root,
+          8u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  if (parse_valid_fixture(
+          &fixture, "/x87-atan2-memory-assembly.c", source, &unit) != 0 ||
+      validate_x87_atan2_memory_assembly_unit(&unit) != 0) {
+    (void)fprintf(
+        stderr, "x87-atan2-memory-assembly: public graph differs\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case =
+        &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure,
+            "/x87-atan2-memory-assembly-failure.c", test_case->line,
+            test_case->column, test_case->message) != 0 ||
+        validate_x87_atan2_memory_assembly_unit(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)puts("x87-atan2-memory-assembly: ok");
+  }
+  return failed;
+}
+
+#undef X87_ATAN2_NAMED_ASM_SOURCE
+
 static int validate_descriptor_table_assembly_unit(
     const ctool_c_translation_unit_t *unit) {
   static const char *const templates[] = {
@@ -30781,6 +31046,7 @@ int main(int argc, char **argv) {
                    "x87-pow-memory-assembly|"
                    "x87-powf-memory-assembly|"
                    "sqrtsd-register-assembly|"
+                   "x87-atan2-memory-assembly|"
                    "descriptor-table-assembly|"
                    "legacy-port-assembly|"
                    "register-snapshot-assembly|call-next-assembly|"
@@ -30909,6 +31175,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "sqrtsd-register-assembly") == 0) {
     return run_sqrtsd_register_assembly(argv[2]);
+  }
+  if (strcmp(argv[1], "x87-atan2-memory-assembly") == 0) {
+    return run_x87_atan2_memory_assembly(argv[2]);
   }
   if (strcmp(argv[1], "descriptor-table-assembly") == 0) {
     return run_descriptor_table_assembly(argv[2]);

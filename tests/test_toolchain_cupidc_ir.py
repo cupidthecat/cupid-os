@@ -372,6 +372,22 @@ class ToolchainCupidCIRContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "sqrtsd-register-assembly: ok\n")
 
+    def test_x87_atan2_assembly_lowers_output_y_and_x_addresses_in_order(
+        self,
+    ):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "x87-atan2-memory-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "x87-atan2-memory-assembly: ok\n")
+
     def test_descriptor_table_assembly_lowers_address_and_selector_values(self):
         result = subprocess.run(
             [

@@ -214,6 +214,10 @@ _Avoid_: treating every operand as `double`, arbitrary x87 stack programs, host-
 The exact volatile `sqrtsd %1, %0` statement in `libm_sqrt_impl()` with one modifiable, non-atomic `double` `=x` output, one non-atomic `double` `x` input, and no clobbers. Linear IR evaluates the output address before the input value. The i386 emitter loads the value into XMM0, applies `SQRTSD XMM0, XMM0`, and stores through the saved output address. The focused function has 65 text bytes and no relocations.
 _Avoid_: general `x` constraints, arbitrary XMM register allocation, host-assembler escape
 
+**Represented GNU x87 atan2 memory assembly**:
+The exact volatile statement in `libm_atan2_impl()` with one modifiable, non-atomic `double` `=m` output, two addressable, non-atomic `double` `m` inputs in `y`, `x` order, and one `memory` clobber. Named operands normalize before Linear IR freezes the statement. Linear IR evaluates the output, `y`, and `x` addresses once in source order. The i386 emitter uses Cupid's shared x86 model for both loads, `FPATAN`, and the final store. The focused function has 53 text bytes and no relocations.
+_Avoid_: general x87 programs, reordered address evaluation, host-assembler escape
+
 **Represented GNU x87 round-down memory assembly**:
 The exact volatile statement in `str_floor()` that loads one `double`, saves the x87 control word below ESP, selects round toward negative infinity, executes `frndint`, restores the saved word, and stores the result. It requires one modifiable `double` `=m` output, one addressable `double` `m` input, and the exact `ax` plus `memory` clobber set. Linear IR evaluates the output address before the input address. The emitter reuses the consumed input-address slot for the two control-word values without touching the pending output address. The checked seed emits the complete helper deterministically, but unchanged `kernel/core/string.c` still stops at its separate double-to-`uint64_t` cast.
 _Avoid_: general AX clobber, arbitrary x87 control-word template, frame scratch that changes the active offsets

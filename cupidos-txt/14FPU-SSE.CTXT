@@ -110,9 +110,16 @@ Compiler head also represents the exact volatile sqrtsd %1, %0 statement in
 libm_sqrt_impl. It accepts one modifiable, non-atomic double =x output, one
 non-atomic double x input, and no clobbers. Linear IR evaluates the output
 address before the input value. The 65-byte focused function uses the shared
-MOVSD and SQRTSD encodings and has no relocations. The unchanged source now
-stops at the x87 memory statement in libm_atan2_impl on line 922. The checked
-seed does not yet carry these compiler-head capabilities, so
+MOVSD and SQRTSD encodings and has no relocations.
+
+Compiler head also represents the exact volatile x87 statement in
+libm_atan2_impl. It accepts one modifiable, non-atomic double =m output, two
+addressable, non-atomic double m inputs in y, x order, and one memory
+clobber. Linear IR evaluates all three addresses once in source order. The
+53-byte focused function uses the shared model for both loads, FPATAN, and
+the final store, with no relocations. The unchanged source now stops at the
+x87 exponent statement in libm_exp_impl on line 940. The checked seed does
+not yet carry these compiler-head capabilities, so
 kernel/cpu/libm.c remains host-owned.
 
 Direct floating truth, a floating controlling expression, increment and

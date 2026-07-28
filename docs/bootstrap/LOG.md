@@ -14471,3 +14471,89 @@ the normal `kernel/cpu/libm.c` transform remains host-owned with its `.c`
 suffix. No production object, ABI, image, runtime path, or ownership count
 changes in this increment. ADR 0163 records the decision. `TempleOS/` remains
 untouched reference material.
+
+## 2026-07-28: emit the libm atan2 statement
+
+Compiler-head CupidC now represents the unchanged volatile x87 statement in
+`libm_atan2_impl()`. The frontend requires one modifiable, non-atomic
+`double` `=m` output, two addressable, non-atomic `double` `m` inputs in
+`y`, `x` order, and one `memory` clobber. The named source spelling and its
+normalized numeric form use the same checks.
+
+Linear IR evaluates the output, `y`, and `x` addresses once in source order.
+It checks types, layouts, constraints, counts, flags, the clobber set, and
+matching metadata in reachable and unreachable code. The i386 emitter loads
+both inputs, applies `FPATAN`, and stores through the saved output address.
+Every instruction comes from Cupid's shared x86 model.
+
+The focused function contains 53 text bytes and no relocations. Its direct
+15-byte statement sequence is:
+
+```text
+8B 44 24 04 DD 00 58 DD 00 D9 F3 58 58 DD 18
+```
+
+Positive contracts cover both operand spellings, source-order address
+evaluation, shared decoding, balanced x87 depth, deterministic output,
+unreachable validation, rollback, and same-job recovery. Negative contracts
+reject wrong types, rvalues, constants, register objects, atomic operands,
+constraints, counts, templates, flags, clobbers, matching metadata, and
+forged layouts.
+
+The first integration run found a difference in named operand normalization
+order. The incoming implementation normalized the template before operand
+validation, while the current parser normalizes it afterward. The exact
+template recognizer now accepts both named and numeric spellings, just like
+the existing power-statement recognizers. The previously failing
+constant-output negative now receives the `atan2`-specific diagnostic.
+
+The unchanged `kernel/cpu/libm.c` probe now stops at:
+
+```text
+/kernel/cpu/libm.c:940:5: error CTB00000F: GNU inline assembly m input template is outside this slice
+```
+
+This is the x87 exponent program in `libm_exp_impl()`.
+
+### Evidence
+
+| Gate | Result |
+| --- | --- |
+| Focused frontend, IR, object, and unchanged-source loop | 4 tests passed in 56.383 seconds |
+| Complete frontend and Linear IR modules | 164 tests passed in 32.187 seconds |
+| Object assembly regressions | 18 tests passed in 26.545 seconds |
+| Refreshed self-host frontier object lock | 1 test passed in 26.569 seconds |
+| Cupid-built compiler self-object | 1 test passed in 262.174 seconds |
+| Strict hosted Toolchain build | All native contracts passed in 54.8 seconds; six static i386 artifacts linked |
+| Five-tool static fixed point | 1 test passed in 804.489 seconds |
+| Checked-seed verifier | All five tools passed |
+| Bootstrap audit regeneration and drift check | Passed |
+
+The refreshed frontend source records are:
+
+| Compiler source | Definitions | Statements | Expressions | Block bindings | Initializers |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `toolchain/cupidc_ir.cc` | 249 | 7,029 | 65,087 | 923 | 338 |
+| `toolchain/cupidc_emit.cc` | 285 | 7,003 | 60,139 | 857 | 451 |
+| `toolchain/cupidc_frontend.cc` | 398 | 15,852 | 104,895 | 2,377 | 1,461 |
+
+The refreshed object records are:
+
+| Compiler source | Functions | Text bytes | Object bytes | Text fingerprint |
+| --- | ---: | ---: | ---: | --- |
+| `toolchain/cupidc_ir.cc` | 249 | 464,003 | 498,648 | `6732d2a6` |
+| `toolchain/cupidc_emit.cc` | 285 | 445,734 | 487,324 | `cc166d06` |
+| `toolchain/cupidc_frontend.cc` | 398 | 810,529 | 961,656 | `25cc67cb` |
+
+The generated graph still has 698 active sources, 253 feature IDs, 504
+transforms, and 42 accounted unreachable files. Its active-source digest is
+`4a05f884a06e6fab940d49a3cfd9e6a1163399ab6dd8038dab1d660f174dcaed`.
+The 1,526,996-byte JSON has SHA-256
+`8818ad64e0bef336ad7dfc6b6d7390a6784d0cd048ef1a3b7499178901d97963`.
+
+This remains a compiler-head capability. The checked seed has not moved, and
+the normal `kernel/cpu/libm.c` transform remains host-owned with its `.c`
+suffix. No production object, ABI, image, runtime path, or ownership count
+changes in this increment. ADR 0164 records the decision. `TempleOS/` remains
+untouched reference material. Issue #26 stays open for the exponent statement
+and later GNU assembly forms.

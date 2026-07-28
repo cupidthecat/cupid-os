@@ -99,9 +99,17 @@ in `libm_sqrt_impl()`. It takes one modifiable, non-atomic `double` `=x`
 output and one non-atomic `double` `x` input, with no clobbers. Linear IR
 evaluates the output address before the input value. The focused function
 contains 65 text bytes, no relocations, and a direct `MOVSD`, `SQRTSD`,
-`MOVSD` path through Cupid's shared x86 model. The unchanged file now stops
-at the x87 memory statement in `libm_atan2_impl()` on line 922. The checked
-seed does not yet carry these compiler-head capabilities, so
+`MOVSD` path through Cupid's shared x86 model.
+
+The exact volatile x87 statement in `libm_atan2_impl()` is represented too.
+It takes one modifiable, non-atomic `double` `=m` output, two addressable,
+non-atomic `double` `m` inputs in `y`, `x` order, and one `memory` clobber.
+Linear IR evaluates the three addresses once in source order. The focused
+function contains 53 text bytes and no relocations. Its direct 15-byte path
+loads both operands, applies `FPATAN`, and stores the result through Cupid's
+shared x86 model. The unchanged file now stops at the x87 exponent statement
+in `libm_exp_impl()` on line 940. The checked seed does not yet carry these
+compiler-head capabilities, so
 `kernel/cpu/libm.c` remains host-owned.
 
 The normal build now compiles `kernel/gfx/jpeg.cc` and

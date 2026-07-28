@@ -382,10 +382,23 @@ The emitter loads the input into XMM0 with `MOVSD`, applies
 `SQRTSD XMM0, XMM0`, and stores the result through the saved output address.
 The focused function has 65 text bytes and no relocations. Contracts cover
 the exact bytes, forged metadata, useful operand diagnostics, deterministic
-output, unreachable validation, rollback, and same-job recovery. The
-unchanged source now reaches the x87 memory statement in
-`libm_atan2_impl()` at line 922.
+output, unreachable validation, rollback, and same-job recovery.
 
-Named matching constraints, operand modifiers, the `atan2` block, and general
-XMM constraints remain separate work. The checked seed and normal host-owned
-`libm.c` recipe do not change in this increment.
+### x87 atan2 memory statement
+
+Compiler head accepts the exact volatile statement in `libm_atan2_impl()`.
+It requires one modifiable, non-atomic `double` `=m` output, two addressable,
+non-atomic `double` `m` inputs in `y`, `x` order, and one `memory` clobber.
+The named spelling normalizes to the same frozen metadata as the numeric
+form. Linear IR evaluates all three addresses once in source order.
+
+The 53-byte focused function has no relocations. The direct 15-byte sequence
+loads `y`, loads `x`, applies `FPATAN`, and stores through the saved output
+address with balanced x87 depth. Contracts cover shared decoding, forged
+metadata, operand diagnostics, deterministic output, unreachable validation,
+rollback, and same-job recovery. The unchanged source now reaches the x87
+exponent statement in `libm_exp_impl()` at line 940.
+
+Named matching constraints, operand modifiers, the `exp` block, and general
+XMM or x87 constraints remain separate work. The checked seed and normal
+host-owned `libm.c` recipe do not change in this increment.
