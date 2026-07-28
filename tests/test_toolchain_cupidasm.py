@@ -104,6 +104,44 @@ class CupidAsmCliTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(output.read_bytes(), bytes.fromhex("b8 34 12 c3"))
 
+    def test_cli_assembles_padding_nops_in_both_modes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "padding.asm"
+            output = root / "padding.bin"
+            source.write_text(
+                "BITS 32\n"
+                "    nop\n"
+                "    nop eax\n"
+                "    nop [eax]\n"
+                "    nop word [eax]\n"
+                "BITS 16\n"
+                "    nop ax\n"
+                "    nop dword [bx + si]\n",
+                encoding="utf-8",
+            )
+            result = subprocess.run(
+                [
+                    str(self.cli_path),
+                    "-f",
+                    "bin",
+                    str(source),
+                    "-o",
+                    str(output),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(
+                output.read_bytes(),
+                bytes.fromhex(
+                    "90 0f 1f c0 0f 1f 00 66 0f 1f 00 "
+                    "0f 1f c0 66 0f 1f 00"
+                ),
+            )
+
     def test_cli_assembles_nasm_style_elf32_command_with_symbols_and_relocation(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

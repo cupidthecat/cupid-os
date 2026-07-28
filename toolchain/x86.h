@@ -228,7 +228,7 @@ typedef struct {
 } ctool_x86_encoding_t;
 
 typedef enum {
-  /* Fully represented by the current catalogue. */
+  /* Represented by the catalogue or a documented exact decode-only form. */
   CTOOL_X86_DECODE_KNOWN = 0,
   /* Outside the catalogue; consumes one byte to guarantee inspector progress. */
   CTOOL_X86_DECODE_UNKNOWN,
@@ -286,6 +286,8 @@ ctool_status_t ctool_x86_decode(ctool_job_t *job, ctool_x86_mode_t mode,
  * ownership.  A nonzero form identity is meaningful only together with the
  * model fingerprint that produced it; zero requests the shortest deterministic
  * canonical encoding.  Repeated prefixes from one legacy prefix group are
- * classified as invalid in this model. */
+ * classified as invalid, except for documented exact decode-only compiler
+ * padding forms.  Those private forms report CTOOL_X86_FORM_AUTO and cannot
+ * be requested from the encoder. */
 
 #endif

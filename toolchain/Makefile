@@ -608,6 +608,8 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(X86_CONTRACT) integer
 	$(X86_CONTRACT) conditional-moves
 	$(X86_CONTRACT) immediate-imul
+	$(X86_CONTRACT) padding-nops
+	$(X86_CONTRACT) clang-padding-nops
 	$(X86_CONTRACT) addressing
 	$(X86_CONTRACT) relocations
 	$(X86_CONTRACT) system-simd

@@ -7373,12 +7373,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        51766u, 734u, 367u, 0u, 0u},
       {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 338u,
        13813u, 90858u, 2049u, 1345u, 0u, 0u},
-      {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 81u, 2934u,
-       19251u, 326u, 186u, 0u, 0u},
+      {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 81u, 2935u,
+       19252u, 326u, 186u, 0u, 0u},
       {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
        9457u, 143u, 70u, 0u, 1u},
-      {"/toolchain/x86.cc", CTOOL_OK, 0u, 0u, 0u, "", 59u, 1683u,
-       11376u, 173u, 16541u, 3u, 0u}};
+      {"/toolchain/x86.cc", CTOOL_OK, 0u, 0u, 0u, "", 60u, 1756u,
+       11850u, 180u, 16652u, 3u, 0u}};
   ctool_u32 index;
   for (index = 0u; index < ARRAY_COUNT(cases); index++) {
     const toolchain_frontier_case_t *test_case = &cases[index];

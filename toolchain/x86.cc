@@ -27,6 +27,7 @@
 #define X86_FORM_MOFFS 0x00020000u
 #define X86_FORM_FIXED_CL1 0x00040000u
 #define X86_FORM_INVALID_ENCODING 0x00080000u
+#define X86_FORM_DEFAULT_OPERAND_ONLY 0x00100000u
 
 typedef enum {
   X86_ISA_8086 = 0,
@@ -700,7 +701,27 @@ static const x86_form_row_t x86_forms[] = {
            X86_NO_DIGIT, X86_NO_OPERAND, 0u, CTOOL_X86_FIELD_IMMEDIATE,
            X86_FORM_DECODE_ALIAS),
   X86_FIXED(CTOOL_X86_MN_LEAVE, X86_ISA_386, 1u, 0xc9u, 0u, 0u),
-  X86_FIXED(CTOOL_X86_MN_NOP, X86_ISA_8086, 1u, 0x90u, 0u, 0u),
+  X86_FORM(CTOOL_X86_MN_NOP, X86_MODE_BOTH, X86_ISA_8086, 0u, 0u, 1u,
+           0x90u, 0u, 0u, 0xffu, 0u, X86_OC_NONE, X86_OC_NONE,
+           X86_OC_NONE, X86_NO_OPERAND, X86_NO_OPERAND, X86_NO_OPERAND,
+           X86_NO_DIGIT, X86_NO_OPERAND, 0u, CTOOL_X86_FIELD_IMMEDIATE,
+           X86_FORM_DEFAULT_OPERAND_ONLY),
+  X86_FORM(CTOOL_X86_MN_NOP, X86_MODE32_MASK, X86_ISA_386, 16u, 0u, 1u,
+           0x90u, 0u, 0u, 0xffu, 0u, X86_OC_NONE, X86_OC_NONE,
+           X86_OC_NONE, X86_NO_OPERAND, X86_NO_OPERAND, X86_NO_OPERAND,
+           X86_NO_DIGIT, X86_NO_OPERAND, 0u, CTOOL_X86_FIELD_IMMEDIATE, 0u),
+  X86_FORM(CTOOL_X86_MN_NOP, X86_MODE16_MASK, X86_ISA_386, 32u, 0u, 1u,
+           0x90u, 0u, 0u, 0xffu, 0u, X86_OC_NONE, X86_OC_NONE,
+           X86_OC_NONE, X86_NO_OPERAND, X86_NO_OPERAND, X86_NO_OPERAND,
+           X86_NO_DIGIT, X86_NO_OPERAND, 0u, CTOOL_X86_FIELD_IMMEDIATE, 0u),
+  X86_FORM(CTOOL_X86_MN_NOP, X86_MODE_BOTH, X86_ISA_I686, 16u, 0u, 2u,
+           0x0fu, 0x1fu, 0u, 0xffu, 1u, X86_OC_RM16, X86_OC_NONE,
+           X86_OC_NONE, X86_NO_OPERAND, X86_NO_OPERAND, 0, 0u,
+           X86_NO_OPERAND, 0u, CTOOL_X86_FIELD_IMMEDIATE, 0u),
+  X86_FORM(CTOOL_X86_MN_NOP, X86_MODE_BOTH, X86_ISA_I686, 32u, 0u, 2u,
+           0x0fu, 0x1fu, 0u, 0xffu, 1u, X86_OC_RM32, X86_OC_NONE,
+           X86_OC_NONE, X86_NO_OPERAND, X86_NO_OPERAND, 0, 0u,
+           X86_NO_OPERAND, 0u, CTOOL_X86_FIELD_IMMEDIATE, 0u),
   X86_FIXED(CTOOL_X86_MN_POPA, X86_ISA_8086, 1u, 0x61u, 0u, 0u),
   X86_FORM(CTOOL_X86_MN_POPAD, X86_MODE_BOTH, X86_ISA_386, 32u, 0u, 1u,
            0x61u, 0u, 0u, 0xffu, 0u, X86_OC_NONE, X86_OC_NONE,
@@ -1847,7 +1868,7 @@ ctool_status_t ctool_x86_validate_model(ctool_job_t *job) {
       X86_FORM_FIXED_SEG_FS | X86_FORM_FIXED_SEG_GS |
       X86_FORM_REGISTER_ONLY | X86_FORM_SEGMENT_DEST |
       X86_FORM_DECODE_ALIAS | X86_FORM_MOFFS | X86_FORM_FIXED_CL1 |
-      X86_FORM_INVALID_ENCODING;
+      X86_FORM_INVALID_ENCODING | X86_FORM_DEFAULT_OPERAND_ONLY;
   if (job == (ctool_job_t *)0) {
     return CTOOL_ERR_INVALID_ARGUMENT;
   }
@@ -2205,6 +2226,11 @@ static ctool_bool x86_form_matches(ctool_x86_mode_t mode,
   }
   if (row->operand_bits != 0u && instruction->operand_bits != 0u &&
       row->operand_bits != instruction->operand_bits) {
+    return CTOOL_FALSE;
+  }
+  if ((row->flags & X86_FORM_DEFAULT_OPERAND_ONLY) != 0u &&
+      instruction->operand_bits != 0u &&
+      instruction->operand_bits != (ctool_u16)mode) {
     return CTOOL_FALSE;
   }
   for (index = 0u; index < (ctool_u32)row->operand_count; index++) {
@@ -3792,6 +3818,80 @@ static void x86_copy_available(ctool_bytes_t bytes, ctool_u32 start,
   }
 }
 
+static ctool_bool x86_decode_clang_padding_nop(
+    ctool_x86_mode_t mode, ctool_bytes_t bytes, ctool_u32 start,
+    ctool_x86_decoded_t *decoded) {
+  static const ctool_u8 tail[] = {
+      0x2eu, 0x0fu, 0x1fu, 0x84u, 0x00u,
+      0x00u, 0x00u, 0x00u, 0x00u};
+  ctool_u32 available;
+  ctool_u32 prefix_count = 0u;
+  ctool_u32 size;
+  ctool_u32 index;
+  ctool_x86_operand_t *operand;
+  ctool_x86_field_t *field;
+  if (mode != CTOOL_X86_MODE_32) {
+    return CTOOL_FALSE;
+  }
+  available = bytes.size - start;
+  while (prefix_count < available && prefix_count <= 6u &&
+         bytes.data[start + prefix_count] == 0x66u) {
+    prefix_count++;
+  }
+  if (prefix_count < 2u || prefix_count > 6u) {
+    return CTOOL_FALSE;
+  }
+  size = prefix_count + (ctool_u32)sizeof(tail);
+  if (available < size) {
+    return CTOOL_FALSE;
+  }
+  for (index = 0u; index < (ctool_u32)sizeof(tail); index++) {
+    if (bytes.data[start + prefix_count + index] != tail[index]) {
+      return CTOOL_FALSE;
+    }
+  }
+
+  decoded->kind = CTOOL_X86_DECODE_KNOWN;
+  decoded->instruction.mnemonic = CTOOL_X86_MN_NOP;
+  decoded->instruction.operand_bits = 16u;
+  decoded->instruction.address_bits = 32u;
+  decoded->instruction.operand_count = 1u;
+  operand = &decoded->instruction.operands[0];
+  operand->kind = CTOOL_X86_OPERAND_MEMORY;
+  operand->width_bits = 16u;
+  operand->as.memory.address_bits = 32u;
+  operand->as.memory.segment.class_id = CTOOL_X86_REG_SEGMENT;
+  operand->as.memory.segment.index = 1u;
+  operand->as.memory.base.class_id = CTOOL_X86_REG_GPR32;
+  operand->as.memory.base.index = 0u;
+  operand->as.memory.index.class_id = CTOOL_X86_REG_GPR32;
+  operand->as.memory.index.index = 0u;
+  operand->as.memory.scale = 1u;
+  operand->as.memory.displacement.kind = CTOOL_X86_VALUE_CONSTANT;
+  operand->as.memory.displacement.bits = 0u;
+  operand->as.memory.displacement.addend = 0;
+  operand->as.memory.displacement.reference = 0u;
+  operand->as.memory.displacement_bits = 32u;
+
+  decoded->encoding.size = (ctool_u8)size;
+  decoded->encoding.form = CTOOL_X86_FORM_AUTO;
+  decoded->encoding.field_count = 1u;
+  for (index = 0u; index < size; index++) {
+    decoded->encoding.bytes[index] = bytes.data[start + index];
+  }
+  field = &decoded->encoding.fields[0];
+  field->kind = CTOOL_X86_FIELD_DISPLACEMENT;
+  field->relocation = CTOOL_X86_RELOC_NONE;
+  field->operand_index = 0u;
+  field->byte_offset = (ctool_u8)(prefix_count + 5u);
+  field->byte_width = 4u;
+  field->pc_bias = 0u;
+  field->reference = 0u;
+  field->encoded_addend = 0;
+  decoded->consumed = (ctool_u8)size;
+  return CTOOL_TRUE;
+}
+
 ctool_status_t ctool_x86_decode(ctool_job_t *job, ctool_x86_mode_t mode,
                                  ctool_bytes_t bytes, ctool_u32 address,
                                  ctool_x86_decoded_t *decoded_out) {
@@ -3810,6 +3910,10 @@ ctool_status_t ctool_x86_decode(ctool_job_t *job, ctool_x86_mode_t mode,
       (bytes.data == (const ctool_u8 *)0 && bytes.size != 0u) ||
       address >= bytes.size) {
     return CTOOL_ERR_INVALID_ARGUMENT;
+  }
+  if (x86_decode_clang_padding_nop(mode, bytes, address, decoded_out) ==
+      CTOOL_TRUE) {
+    return CTOOL_OK;
   }
   prefixes = x86_decode_prefixes(bytes, address);
   if (prefixes.invalid == CTOOL_TRUE) {

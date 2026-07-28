@@ -26493,21 +26493,21 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.cc",           "/toolchain/x86.cc",
       "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
-      65u, 68u, 66u, 14u, 31u, 143u, 213u, 226u, 338u, 81u, 37u, 59u,
+      65u, 68u, 66u, 14u, 31u, 143u, 213u, 226u, 338u, 81u, 37u, 60u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 76860u, 85252u, 16872u, 42212u,
-      190304u, 412533u, 383044u, 695974u, 139612u, 70368u, 77981u,
+      190304u, 412533u, 383044u, 695974u, 139646u, 70368u, 80478u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 89320u, 99772u, 20180u, 49484u,
-      226668u, 440636u, 412428u, 823736u, 157796u, 79348u, 131848u,
+      226668u, 440636u, 412428u, 823736u, 157828u, 79348u, 134656u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x5fbbfaf2u, 0x4ca44a27u,
       0x7238e153u, 0x999f97b7u, 0xb49d8eb9u,
-      0x49f91ee0u, 0x9cb9c08au, 0xc3637ff9u, 0x3f69aac3u,
-      0x34558a49u, 0x20934327u, 0x8774de7du};
+      0x49f91ee0u, 0x9cb9c08au, 0xc3637ff9u, 0x239f52c7u,
+      0x34558a49u, 0x7c198364u, 0x8774de7du};
   ctool_u32 index;
   int all_matched = 1;
   for (index = 0u; index <

@@ -233,9 +233,9 @@ static int run_model(void) {
     return 1;
   }
   info = ctool_x86_model_info();
-  if (!check_true(info.form_count == 583u && info.mnemonic_count == 242u &&
+  if (!check_true(info.form_count == 587u && info.mnemonic_count == 242u &&
                       info.register_count == 64u &&
-                      info.fingerprint == 0xee543ca5u,
+                      info.fingerprint == 0x68e281cbu,
                   "model inventory")) {
     ctool_job_close(job);
     return 1;
@@ -840,6 +840,649 @@ static int run_immediate_imul(void) {
 
   ctool_job_close(job);
   (void)puts("immediate-imul: ok");
+  return 0;
+}
+
+static int run_padding_nops(void) {
+  static const ctool_u8 nop_default[] = {0x90u};
+  static const ctool_u8 nop_override[] = {0x66u, 0x90u};
+  static const ctool_u8 nop_register32[] = {0x0fu, 0x1fu, 0xc0u};
+  static const ctool_u8 nop_register16[] = {0x66u, 0x0fu, 0x1fu, 0xc0u};
+  static const ctool_u8 nop_memory32[] = {0x0fu, 0x1fu, 0x00u};
+  static const ctool_u8 nop_memory16_canonical[] = {
+      0x2eu, 0x66u, 0x0fu, 0x1fu, 0x84u,
+      0x00u, 0x00u, 0x00u, 0x00u, 0x00u};
+  static const ctool_u8 nop_address16[] = {
+      0x67u, 0x0fu, 0x1fu, 0x40u, 0x7fu};
+  static const ctool_u8 nop_mode16_wide[] = {
+      0x66u, 0x67u, 0x0fu, 0x1fu, 0x84u,
+      0x8bu, 0x78u, 0x56u, 0x34u, 0x12u};
+  static const ctool_u8 compiler3[] = {0x0fu, 0x1fu, 0x00u};
+  static const ctool_u8 compiler4[] = {0x0fu, 0x1fu, 0x40u, 0x00u};
+  static const ctool_u8 compiler5[] = {
+      0x0fu, 0x1fu, 0x44u, 0x00u, 0x00u};
+  static const ctool_u8 compiler6[] = {
+      0x66u, 0x0fu, 0x1fu, 0x44u, 0x00u, 0x00u};
+  static const ctool_u8 compiler7[] = {
+      0x0fu, 0x1fu, 0x80u, 0x00u, 0x00u, 0x00u, 0x00u};
+  static const ctool_u8 compiler8[] = {
+      0x0fu, 0x1fu, 0x84u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u};
+  static const ctool_u8 compiler9[] = {
+      0x66u, 0x0fu, 0x1fu, 0x84u, 0x00u,
+      0x00u, 0x00u, 0x00u, 0x00u};
+  static const ctool_u8 compiler10[] = {
+      0x66u, 0x2eu, 0x0fu, 0x1fu, 0x84u,
+      0x00u, 0x00u, 0x00u, 0x00u, 0x00u};
+  static const ctool_u8 lock_recovery[] = {
+      0xf0u, 0x0fu, 0x1fu, 0x00u, 0xc3u};
+  static const ctool_u8 repeat_nop[] = {
+      0xf2u, 0x0fu, 0x1fu, 0x00u};
+  static const ctool_u8 wrong_digit[] = {0x0fu, 0x1fu, 0x08u};
+  static const ctool_u8 pause_bytes[] = {0xf3u, 0x90u};
+  static const struct {
+    const ctool_u8 *bytes;
+    ctool_u32 size;
+    const char *name;
+  } compiler_forms[] = {
+      {compiler3, (ctool_u32)sizeof(compiler3),
+       "three-byte compiler NOP"},
+      {compiler4, (ctool_u32)sizeof(compiler4),
+       "four-byte compiler NOP"},
+      {compiler5, (ctool_u32)sizeof(compiler5),
+       "five-byte compiler NOP"},
+      {compiler6, (ctool_u32)sizeof(compiler6),
+       "six-byte compiler NOP"},
+      {compiler7, (ctool_u32)sizeof(compiler7),
+       "seven-byte compiler NOP"},
+      {compiler8, (ctool_u32)sizeof(compiler8),
+       "eight-byte compiler NOP"},
+      {compiler9, (ctool_u32)sizeof(compiler9),
+       "nine-byte compiler NOP"},
+      {compiler10, (ctool_u32)sizeof(compiler10),
+       "ten-byte compiler NOP"},
+      {nop_override, (ctool_u32)sizeof(nop_override),
+       "operand-size compiler NOP"}};
+  ctool_host_adapter_t adapter;
+  ctool_job_t *job;
+  ctool_x86_instruction_t insn;
+  ctool_x86_encoding_t encoding;
+  ctool_x86_encoding_t replay;
+  ctool_x86_decoded_t decoded;
+  ctool_status_t status;
+  ctool_u32 index;
+  ctool_u32 cut;
+  if (!open_job(&adapter, &job)) {
+    return 1;
+  }
+
+  insn = instruction(CTOOL_X86_MN_NOP, 0u, 32u, 0u);
+  if (!encode(job, CTOOL_X86_MODE_32, &insn, &encoding,
+              "default NOP encode") ||
+      !bytes_equal(&encoding, nop_default, (ctool_u8)sizeof(nop_default),
+                   "default NOP bytes")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  insn = instruction(CTOOL_X86_MN_NOP, 16u, 32u, 0u);
+  if (!encode(job, CTOOL_X86_MODE_32, &insn, &encoding,
+              "32-bit mode operand-size NOP encode") ||
+      !bytes_equal(&encoding, nop_override,
+                   (ctool_u8)sizeof(nop_override),
+                   "32-bit mode operand-size NOP bytes")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  insn = instruction(CTOOL_X86_MN_NOP, 32u, 16u, 0u);
+  if (!encode(job, CTOOL_X86_MODE_16, &insn, &encoding,
+              "16-bit mode operand-size NOP encode") ||
+      !bytes_equal(&encoding, nop_override,
+                   (ctool_u8)sizeof(nop_override),
+                   "16-bit mode operand-size NOP bytes")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  insn = instruction(CTOOL_X86_MN_NOP, 32u, 32u, 0u);
+  insn.operand_count = 1u;
+  insn.operands[0] = register_operand(CTOOL_X86_REG_GPR32, 0u);
+  if (!encode(job, CTOOL_X86_MODE_32, &insn, &encoding,
+              "register NOP encode") ||
+      !bytes_equal(&encoding, nop_register32,
+                   (ctool_u8)sizeof(nop_register32),
+                   "register NOP bytes")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  insn = instruction(CTOOL_X86_MN_NOP, 16u, 32u, 0u);
+  insn.operand_count = 1u;
+  insn.operands[0] = register_operand(CTOOL_X86_REG_GPR16, 0u);
+  if (!encode(job, CTOOL_X86_MODE_32, &insn, &encoding,
+              "word register NOP encode") ||
+      !bytes_equal(&encoding, nop_register16,
+                   (ctool_u8)sizeof(nop_register16),
+                   "word register NOP bytes")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  insn = instruction(CTOOL_X86_MN_NOP, 32u, 32u, 0u);
+  insn.operand_count = 1u;
+  insn.operands[0] = memory_operand(
+      32u, 32u, reg(CTOOL_X86_REG_NONE, 0u),
+      reg(CTOOL_X86_REG_GPR32, 0u), reg(CTOOL_X86_REG_NONE, 0u),
+      1u, 0, 0u);
+  if (!encode(job, CTOOL_X86_MODE_32, &insn, &encoding,
+              "memory NOP encode") ||
+      !bytes_equal(&encoding, nop_memory32,
+                   (ctool_u8)sizeof(nop_memory32),
+                   "memory NOP bytes")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  insn = instruction(CTOOL_X86_MN_NOP, 16u, 32u, 0u);
+  insn.operand_count = 1u;
+  insn.operands[0] = memory_operand(
+      16u, 32u, reg(CTOOL_X86_REG_SEGMENT, 1u),
+      reg(CTOOL_X86_REG_GPR32, 0u), reg(CTOOL_X86_REG_GPR32, 0u),
+      1u, 0, 32u);
+  if (!encode(job, CTOOL_X86_MODE_32, &insn, &encoding,
+              "word compiler-shaped NOP encode") ||
+      !bytes_equal(&encoding, nop_memory16_canonical,
+                   (ctool_u8)sizeof(nop_memory16_canonical),
+                   "word compiler-shaped NOP bytes")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  insn = instruction(CTOOL_X86_MN_NOP, 32u, 16u, 0u);
+  insn.operand_count = 1u;
+  insn.operands[0] = memory_operand(
+      32u, 16u, reg(CTOOL_X86_REG_NONE, 0u),
+      reg(CTOOL_X86_REG_GPR16, 3u), reg(CTOOL_X86_REG_GPR16, 6u),
+      1u, 0x7f, 8u);
+  if (!encode(job, CTOOL_X86_MODE_32, &insn, &encoding,
+              "address-size NOP encode") ||
+      !bytes_equal(&encoding, nop_address16,
+                   (ctool_u8)sizeof(nop_address16),
+                   "address-size NOP bytes")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  insn = instruction(CTOOL_X86_MN_NOP, 32u, 32u, 0u);
+  insn.operand_count = 1u;
+  insn.operands[0] = memory_operand(
+      32u, 32u, reg(CTOOL_X86_REG_NONE, 0u),
+      reg(CTOOL_X86_REG_GPR32, 3u), reg(CTOOL_X86_REG_GPR32, 1u),
+      4u, 0x12345678, 32u);
+  if (!encode(job, CTOOL_X86_MODE_16, &insn, &encoding,
+              "16-bit mode wide NOP encode") ||
+      !bytes_equal(&encoding, nop_mode16_wide,
+                   (ctool_u8)sizeof(nop_mode16_wide),
+                   "16-bit mode wide NOP bytes")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  for (index = 0u;
+       index <
+       (ctool_u32)(sizeof(compiler_forms) / sizeof(compiler_forms[0]));
+       index++) {
+    status = ctool_x86_decode(
+        job, CTOOL_X86_MODE_32,
+        ctool_bytes(compiler_forms[index].bytes, compiler_forms[index].size),
+        0u, &decoded);
+    if (!check_status(status, CTOOL_OK, compiler_forms[index].name) ||
+        !check_true(decoded.kind == CTOOL_X86_DECODE_KNOWN &&
+                        decoded.instruction.mnemonic == CTOOL_X86_MN_NOP &&
+                        decoded.consumed == compiler_forms[index].size &&
+                        decoded.encoding.size == compiler_forms[index].size &&
+                        decoded.encoding.form != CTOOL_X86_FORM_AUTO &&
+                        memcmp(decoded.encoding.bytes,
+                               compiler_forms[index].bytes,
+                               compiler_forms[index].size) == 0,
+                    compiler_forms[index].name)) {
+      ctool_job_close(job);
+      return 1;
+    }
+  }
+
+  status = ctool_x86_decode(
+      job, CTOOL_X86_MODE_32,
+      ctool_bytes(nop_memory16_canonical,
+                  (ctool_u32)sizeof(nop_memory16_canonical)),
+      0u, &decoded);
+  if (!check_status(status, CTOOL_OK,
+                    "compiler-shaped NOP semantic decode") ||
+      !check_true(decoded.kind == CTOOL_X86_DECODE_KNOWN &&
+                      decoded.instruction.operand_bits == 16u &&
+                      decoded.instruction.address_bits == 32u &&
+                      decoded.instruction.operand_count == 1u &&
+                      decoded.instruction.operands[0].kind ==
+                          CTOOL_X86_OPERAND_MEMORY &&
+                      decoded.instruction.operands[0].width_bits == 16u &&
+                      decoded.instruction.operands[0]
+                              .as.memory.segment.class_id ==
+                          CTOOL_X86_REG_SEGMENT &&
+                      decoded.instruction.operands[0]
+                              .as.memory.segment.index == 1u &&
+                      decoded.instruction.operands[0]
+                              .as.memory.base.index == 0u &&
+                      decoded.instruction.operands[0]
+                              .as.memory.index.index == 0u &&
+                      decoded.instruction.operands[0]
+                              .as.memory.displacement.bits == 0u &&
+                      decoded.instruction.operands[0]
+                              .as.memory.displacement_bits == 32u &&
+                      decoded.encoding.field_count == 1u &&
+                      decoded.encoding.fields[0].kind ==
+                          CTOOL_X86_FIELD_DISPLACEMENT &&
+                      decoded.encoding.fields[0].byte_offset == 6u &&
+                      decoded.encoding.fields[0].byte_width == 4u,
+                  "compiler-shaped NOP semantics")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  status = ctool_x86_encode(job, CTOOL_X86_MODE_32,
+                            &decoded.instruction, decoded.encoding.form,
+                            &replay);
+  if (!check_status(status, CTOOL_OK,
+                    "compiler-shaped NOP requested-form replay") ||
+      !bytes_equal(&replay, nop_memory16_canonical,
+                   (ctool_u8)sizeof(nop_memory16_canonical),
+                   "compiler-shaped NOP requested-form bytes")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  status = ctool_x86_decode(
+      job, CTOOL_X86_MODE_16,
+      ctool_bytes(nop_override, (ctool_u32)sizeof(nop_override)),
+      0u, &decoded);
+  if (!check_status(status, CTOOL_OK,
+                    "16-bit mode operand-size NOP decode") ||
+      !check_true(decoded.kind == CTOOL_X86_DECODE_KNOWN &&
+                      decoded.instruction.operand_bits == 32u &&
+                      decoded.instruction.operand_count == 0u,
+                  "16-bit mode operand-size NOP semantics")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  status = ctool_x86_encode(job, CTOOL_X86_MODE_16,
+                            &decoded.instruction, decoded.encoding.form,
+                            &replay);
+  if (!check_status(status, CTOOL_OK,
+                    "operand-size NOP requested-form replay") ||
+      !bytes_equal(&replay, nop_override,
+                   (ctool_u8)sizeof(nop_override),
+                   "operand-size NOP requested-form bytes")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  for (cut = 1u; cut < (ctool_u32)sizeof(compiler10); cut++) {
+    status = ctool_x86_decode(
+        job, CTOOL_X86_MODE_32, ctool_bytes(compiler10, cut), 0u,
+        &decoded);
+    if (!check_status(status, CTOOL_OK,
+                      "padding NOP every-byte truncation") ||
+        !check_true(decoded.kind == CTOOL_X86_DECODE_TRUNCATED &&
+                        decoded.consumed == 0u &&
+                        decoded.encoding.size == cut &&
+                        memcmp(decoded.encoding.bytes, compiler10,
+                               (size_t)cut) == 0,
+                    "padding NOP truncation retention")) {
+      ctool_job_close(job);
+      return 1;
+    }
+  }
+
+  insn = instruction(CTOOL_X86_MN_NOP, 32u, 32u,
+                     CTOOL_X86_PREFIX_LOCK);
+  insn.operand_count = 1u;
+  insn.operands[0] = memory_operand(
+      32u, 32u, reg(CTOOL_X86_REG_NONE, 0u),
+      reg(CTOOL_X86_REG_GPR32, 0u), reg(CTOOL_X86_REG_NONE, 0u),
+      1u, 0, 0u);
+  (void)memset(&encoding, 0xa5, sizeof(encoding));
+  status = ctool_x86_encode(job, CTOOL_X86_MODE_32, &insn,
+                            CTOOL_X86_FORM_AUTO, &encoding);
+  if (!check_status(status, CTOOL_ERR_INPUT, "locked padding NOP") ||
+      !check_true(encoding_is_zero(&encoding),
+                  "locked padding NOP rollback")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  insn.prefixes = CTOOL_X86_PREFIX_REPNE;
+  (void)memset(&encoding, 0xa5, sizeof(encoding));
+  status = ctool_x86_encode(job, CTOOL_X86_MODE_32, &insn,
+                            CTOOL_X86_FORM_AUTO, &encoding);
+  if (!check_status(status, CTOOL_ERR_INPUT, "repeat padding NOP") ||
+      !check_true(encoding_is_zero(&encoding),
+                  "repeat padding NOP rollback")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  insn = instruction(CTOOL_X86_MN_NOP, 16u, 32u, 0u);
+  insn.operand_count = 1u;
+  insn.operands[0] = memory_operand(
+      32u, 32u, reg(CTOOL_X86_REG_NONE, 0u),
+      reg(CTOOL_X86_REG_GPR32, 0u), reg(CTOOL_X86_REG_NONE, 0u),
+      1u, 0, 0u);
+  (void)memset(&encoding, 0xa5, sizeof(encoding));
+  status = ctool_x86_encode(job, CTOOL_X86_MODE_32, &insn,
+                            CTOOL_X86_FORM_AUTO, &encoding);
+  if (!check_status(status, CTOOL_ERR_INPUT,
+                    "padding NOP width mismatch") ||
+      !check_true(encoding_is_zero(&encoding),
+                  "padding NOP width mismatch rollback")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  insn = instruction(CTOOL_X86_MN_NOP, 8u, 32u, 0u);
+  insn.operand_count = 1u;
+  insn.operands[0] = memory_operand(
+      8u, 32u, reg(CTOOL_X86_REG_NONE, 0u),
+      reg(CTOOL_X86_REG_GPR32, 0u), reg(CTOOL_X86_REG_NONE, 0u),
+      1u, 0, 0u);
+  (void)memset(&encoding, 0xa5, sizeof(encoding));
+  status = ctool_x86_encode(job, CTOOL_X86_MODE_32, &insn,
+                            CTOOL_X86_FORM_AUTO, &encoding);
+  if (!check_status(status, CTOOL_ERR_INPUT, "byte padding NOP") ||
+      !check_true(encoding_is_zero(&encoding),
+                  "byte padding NOP rollback")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  status = ctool_x86_decode(
+      job, CTOOL_X86_MODE_32,
+      ctool_bytes(wrong_digit, (ctool_u32)sizeof(wrong_digit)), 0u,
+      &decoded);
+  if (!check_status(status, CTOOL_OK, "padding NOP wrong ModRM digit") ||
+      !check_true(decoded.kind == CTOOL_X86_DECODE_UNKNOWN &&
+                      decoded.consumed == 1u,
+                  "padding NOP wrong ModRM digit classification")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  status = ctool_x86_decode(
+      job, CTOOL_X86_MODE_32,
+      ctool_bytes(repeat_nop, (ctool_u32)sizeof(repeat_nop)), 0u,
+      &decoded);
+  if (!check_status(status, CTOOL_OK, "padding NOP repeat prefix") ||
+      !check_true(decoded.kind == CTOOL_X86_DECODE_UNKNOWN &&
+                      decoded.consumed == 1u,
+                  "padding NOP repeat prefix classification")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  status = ctool_x86_decode(
+      job, CTOOL_X86_MODE_32,
+      ctool_bytes(pause_bytes, (ctool_u32)sizeof(pause_bytes)), 0u,
+      &decoded);
+  if (!check_status(status, CTOOL_OK, "PAUSE remains distinct") ||
+      !check_true(decoded.kind == CTOOL_X86_DECODE_KNOWN &&
+                      decoded.instruction.mnemonic == CTOOL_X86_MN_PAUSE &&
+                      decoded.consumed == sizeof(pause_bytes),
+                  "PAUSE remains distinct from NOP")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  status = ctool_x86_decode(
+      job, CTOOL_X86_MODE_32,
+      ctool_bytes(lock_recovery, (ctool_u32)sizeof(lock_recovery)), 0u,
+      &decoded);
+  if (!check_status(status, CTOOL_OK, "locked padding NOP decode") ||
+      !check_true(decoded.kind == CTOOL_X86_DECODE_INVALID &&
+                      decoded.consumed == 1u,
+                  "locked padding NOP classification")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  status = ctool_x86_decode(
+      job, CTOOL_X86_MODE_32,
+      ctool_bytes(lock_recovery, (ctool_u32)sizeof(lock_recovery)), 1u,
+      &decoded);
+  if (!check_status(status, CTOOL_OK, "padding NOP recovery decode") ||
+      !check_true(decoded.kind == CTOOL_X86_DECODE_KNOWN &&
+                      decoded.instruction.mnemonic == CTOOL_X86_MN_NOP &&
+                      decoded.consumed == 3u,
+                  "padding NOP recovery semantics")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  status = ctool_x86_decode(
+      job, CTOOL_X86_MODE_32,
+      ctool_bytes(lock_recovery, (ctool_u32)sizeof(lock_recovery)), 4u,
+      &decoded);
+  if (!check_status(status, CTOOL_OK, "padding NOP following return") ||
+      !check_true(decoded.kind == CTOOL_X86_DECODE_KNOWN &&
+                      decoded.instruction.mnemonic == CTOOL_X86_MN_RET &&
+                      decoded.consumed == 1u,
+                  "padding NOP following return semantics")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  ctool_job_close(job);
+  (void)puts("padding-nops: ok");
+  return 0;
+}
+
+static int run_clang_padding_nops(void) {
+  static const ctool_u8 longest[] = {
+      0x66u, 0x66u, 0x66u, 0x66u, 0x66u, 0x66u,
+      0x2eu, 0x0fu, 0x1fu, 0x84u, 0x00u,
+      0x00u, 0x00u, 0x00u, 0x00u};
+  static const ctool_u8 canonical[] = {
+      0x2eu, 0x66u, 0x0fu, 0x1fu, 0x84u,
+      0x00u, 0x00u, 0x00u, 0x00u, 0x00u};
+  static const ctool_u8 wrong_segment[] = {
+      0x66u, 0x66u, 0x3eu, 0x0fu, 0x1fu, 0x84u,
+      0x00u, 0x00u, 0x00u, 0x00u, 0x00u};
+  static const ctool_u8 wrong_opcode[] = {
+      0x66u, 0x66u, 0x2eu, 0x0fu, 0x1eu, 0x84u,
+      0x00u, 0x00u, 0x00u, 0x00u, 0x00u};
+  static const ctool_u8 wrong_modrm[] = {
+      0x66u, 0x66u, 0x2eu, 0x0fu, 0x1fu, 0x8cu,
+      0x00u, 0x00u, 0x00u, 0x00u, 0x00u};
+  static const ctool_u8 wrong_sib[] = {
+      0x66u, 0x66u, 0x2eu, 0x0fu, 0x1fu, 0x84u,
+      0x01u, 0x00u, 0x00u, 0x00u, 0x00u};
+  static const ctool_u8 nonzero_displacement[] = {
+      0x66u, 0x66u, 0x2eu, 0x0fu, 0x1fu, 0x84u,
+      0x00u, 0x01u, 0x00u, 0x00u, 0x00u};
+  static const ctool_u8 missing_segment[] = {
+      0x66u, 0x66u, 0x0fu, 0x1fu, 0x84u,
+      0x00u, 0x00u, 0x00u, 0x00u, 0x00u};
+  static const ctool_u8 seven_prefixes[] = {
+      0x66u, 0x66u, 0x66u, 0x66u, 0x66u, 0x66u, 0x66u,
+      0x2eu, 0x0fu, 0x1fu, 0x84u, 0x00u,
+      0x00u, 0x00u, 0x00u, 0x00u};
+  static const ctool_u8 duplicate_short_nop[] = {
+      0x66u, 0x66u, 0x90u};
+  static const struct {
+    const ctool_u8 *bytes;
+    ctool_u32 size;
+    const char *name;
+  } near_misses[] = {
+      {wrong_segment, (ctool_u32)sizeof(wrong_segment),
+       "Clang padding wrong segment"},
+      {wrong_opcode, (ctool_u32)sizeof(wrong_opcode),
+       "Clang padding wrong opcode"},
+      {wrong_modrm, (ctool_u32)sizeof(wrong_modrm),
+       "Clang padding wrong ModRM"},
+      {wrong_sib, (ctool_u32)sizeof(wrong_sib),
+       "Clang padding wrong SIB"},
+      {nonzero_displacement, (ctool_u32)sizeof(nonzero_displacement),
+       "Clang padding nonzero displacement"},
+      {missing_segment, (ctool_u32)sizeof(missing_segment),
+       "Clang padding missing segment"},
+      {seven_prefixes, (ctool_u32)sizeof(seven_prefixes),
+       "Clang padding seven prefixes"},
+      {duplicate_short_nop, (ctool_u32)sizeof(duplicate_short_nop),
+       "ordinary duplicate-prefix NOP"}};
+  ctool_host_adapter_t adapter;
+  ctool_job_t *job;
+  ctool_x86_decoded_t decoded;
+  ctool_x86_encoding_t encoding;
+  ctool_status_t status;
+  ctool_u8 with_return[CTOOL_X86_MAX_INSTRUCTION_BYTES + 1u];
+  ctool_u32 prefix_count;
+  ctool_u32 cut;
+  ctool_u32 index;
+  if (!open_job(&adapter, &job)) {
+    return 1;
+  }
+
+  for (prefix_count = 2u; prefix_count <= 6u; prefix_count++) {
+    const ctool_u8 *pattern = longest + (6u - prefix_count);
+    ctool_u32 pattern_size = prefix_count + 9u;
+    status = ctool_x86_decode(
+        job, CTOOL_X86_MODE_32, ctool_bytes(pattern, pattern_size), 0u,
+        &decoded);
+    if (!check_status(status, CTOOL_OK, "exact Clang padding decode") ||
+        !check_true(
+            decoded.kind == CTOOL_X86_DECODE_KNOWN &&
+                decoded.instruction.mnemonic == CTOOL_X86_MN_NOP &&
+                decoded.instruction.operand_bits == 16u &&
+                decoded.instruction.address_bits == 32u &&
+                decoded.instruction.prefixes == 0u &&
+                decoded.instruction.operand_count == 1u &&
+                decoded.instruction.operands[0].kind ==
+                    CTOOL_X86_OPERAND_MEMORY &&
+                decoded.instruction.operands[0].width_bits == 16u &&
+                decoded.instruction.operands[0].as.memory.address_bits ==
+                    32u &&
+                decoded.instruction.operands[0]
+                        .as.memory.segment.class_id ==
+                    CTOOL_X86_REG_SEGMENT &&
+                decoded.instruction.operands[0].as.memory.segment.index ==
+                    1u &&
+                decoded.instruction.operands[0].as.memory.base.class_id ==
+                    CTOOL_X86_REG_GPR32 &&
+                decoded.instruction.operands[0].as.memory.base.index == 0u &&
+                decoded.instruction.operands[0].as.memory.index.class_id ==
+                    CTOOL_X86_REG_GPR32 &&
+                decoded.instruction.operands[0].as.memory.index.index == 0u &&
+                decoded.instruction.operands[0].as.memory.scale == 1u &&
+                decoded.instruction.operands[0]
+                        .as.memory.displacement.kind ==
+                    CTOOL_X86_VALUE_CONSTANT &&
+                decoded.instruction.operands[0]
+                        .as.memory.displacement.bits == 0u &&
+                decoded.instruction.operands[0]
+                        .as.memory.displacement_bits == 32u &&
+                decoded.encoding.form == CTOOL_X86_FORM_AUTO &&
+                decoded.encoding.size == pattern_size &&
+                decoded.encoding.field_count == 1u &&
+                decoded.encoding.fields[0].kind ==
+                    CTOOL_X86_FIELD_DISPLACEMENT &&
+                decoded.encoding.fields[0].relocation ==
+                    CTOOL_X86_RELOC_NONE &&
+                decoded.encoding.fields[0].operand_index == 0u &&
+                decoded.encoding.fields[0].byte_offset ==
+                    prefix_count + 5u &&
+                decoded.encoding.fields[0].byte_width == 4u &&
+                decoded.consumed == pattern_size &&
+                memcmp(decoded.encoding.bytes, pattern,
+                       (size_t)pattern_size) == 0,
+            "exact Clang padding semantics")) {
+      ctool_job_close(job);
+      return 1;
+    }
+
+    status = ctool_x86_encode(job, CTOOL_X86_MODE_32,
+                              &decoded.instruction, decoded.encoding.form,
+                              &encoding);
+    if (!check_status(status, CTOOL_OK,
+                      "Clang padding canonical re-encode") ||
+        !bytes_equal(&encoding, canonical, (ctool_u8)sizeof(canonical),
+                     "Clang padding canonical bytes") ||
+        !check_true(encoding.size != pattern_size,
+                    "Clang padding is decode-only")) {
+      ctool_job_close(job);
+      return 1;
+    }
+
+    (void)memcpy(with_return, pattern, (size_t)pattern_size);
+    with_return[pattern_size] = 0xc3u;
+    status = ctool_x86_decode(
+        job, CTOOL_X86_MODE_32,
+        ctool_bytes(with_return, pattern_size + 1u), pattern_size,
+        &decoded);
+    if (!check_status(status, CTOOL_OK,
+                      "Clang padding following return decode") ||
+        !check_true(decoded.kind == CTOOL_X86_DECODE_KNOWN &&
+                        decoded.instruction.mnemonic == CTOOL_X86_MN_RET &&
+                        decoded.consumed == 1u,
+                    "Clang padding following return boundary")) {
+      ctool_job_close(job);
+      return 1;
+    }
+
+    status = ctool_x86_decode(
+        job, CTOOL_X86_MODE_16, ctool_bytes(pattern, pattern_size), 0u,
+        &decoded);
+    if (!check_status(status, CTOOL_OK,
+                      "Clang padding 16-bit mode rejection") ||
+        !check_true(decoded.kind == CTOOL_X86_DECODE_INVALID &&
+                        decoded.consumed == 1u &&
+                        decoded.encoding.size == 1u &&
+                        decoded.encoding.bytes[0] == 0x66u,
+                    "Clang padding remains mode-specific")) {
+      ctool_job_close(job);
+      return 1;
+    }
+
+    for (cut = 1u; cut < pattern_size; cut++) {
+      status = ctool_x86_decode(
+          job, CTOOL_X86_MODE_32, ctool_bytes(pattern, cut), 0u,
+          &decoded);
+      if (!check_status(status, CTOOL_OK,
+                        "Clang padding every-byte cut") ||
+          !check_true(
+              cut == 1u
+                  ? decoded.kind == CTOOL_X86_DECODE_TRUNCATED &&
+                        decoded.consumed == 0u &&
+                        decoded.encoding.size == 1u &&
+                        decoded.encoding.bytes[0] == 0x66u
+                  : decoded.kind == CTOOL_X86_DECODE_INVALID &&
+                        decoded.consumed == 1u &&
+                        decoded.encoding.size == 1u &&
+                        decoded.encoding.bytes[0] == 0x66u,
+              "Clang padding cut classification")) {
+        ctool_job_close(job);
+        return 1;
+      }
+    }
+  }
+
+  for (index = 0u;
+       index <
+       (ctool_u32)(sizeof(near_misses) / sizeof(near_misses[0]));
+       index++) {
+    status = ctool_x86_decode(
+        job, CTOOL_X86_MODE_32,
+        ctool_bytes(near_misses[index].bytes, near_misses[index].size),
+        0u, &decoded);
+    if (!check_status(status, CTOOL_OK, near_misses[index].name) ||
+        !check_true(decoded.kind == CTOOL_X86_DECODE_INVALID &&
+                        decoded.consumed == 1u &&
+                        decoded.encoding.size == 1u &&
+                        decoded.encoding.bytes[0] == 0x66u,
+                    near_misses[index].name)) {
+      ctool_job_close(job);
+      return 1;
+    }
+  }
+
+  ctool_job_close(job);
+  (void)puts("clang-padding-nops: ok");
   return 0;
 }
 
@@ -2349,7 +2992,7 @@ static int run_errors(void) {
 int main(int argc, char **argv) {
   if (argc != 2) {
     (void)fprintf(stderr,
-                  "usage: x86-contract inventory|model|integer|conditional-moves|immediate-imul|addressing|relocations|system-simd|active-surface|errors\n");
+                  "usage: x86-contract inventory|model|integer|conditional-moves|immediate-imul|padding-nops|clang-padding-nops|addressing|relocations|system-simd|active-surface|errors\n");
     return 2;
   }
   if (strcmp(argv[1], "model") == 0) {
@@ -2366,6 +3009,12 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "immediate-imul") == 0) {
     return run_immediate_imul();
+  }
+  if (strcmp(argv[1], "padding-nops") == 0) {
+    return run_padding_nops();
+  }
+  if (strcmp(argv[1], "clang-padding-nops") == 0) {
+    return run_clang_padding_nops();
   }
   if (strcmp(argv[1], "addressing") == 0) {
     return run_addressing();

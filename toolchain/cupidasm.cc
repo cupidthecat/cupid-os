@@ -2278,6 +2278,7 @@ static ctool_u16 asm_default_memory_width(ctool_x86_mnemonic_t mnemonic,
     case CTOOL_X86_MN_INC:
     case CTOOL_X86_MN_MOV:
     case CTOOL_X86_MN_NEG:
+    case CTOOL_X86_MN_NOP:
     case CTOOL_X86_MN_NOT:
     case CTOOL_X86_MN_OR:
     case CTOOL_X86_MN_POP:

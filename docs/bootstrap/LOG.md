@@ -12211,3 +12211,121 @@ fixed point, which proves that consecutive tool generations agree. ADR 0145
 records the language and claim boundary. Issue #29 remains open for the other
 eight compiler gaps, the three separate compatibility roots, production
 ownership, and runtime proof.
+
+## 2026-07-27: share ordinary compiler padding NOPs
+
+The shared x86 source catalogue now represents the ordinary NOP encodings
+used by current host compiler output. Plain `nop` keeps its one-byte `90`
+encoding. An explicit opposite operand width produces `66 90`, and word or
+doubleword register and memory operands use `0F 1F /0`. Normal operand-size,
+address-size, segment, ModRM, SIB, and displacement rules apply. CupidASM uses
+the current mode's width for an unsized memory NOP. `F3 90` remains PAUSE.
+
+The catalogue grew from 583 to 587 rows. It still has 242 canonical mnemonics
+and 64 registers, and its fingerprint is now `68E281CB`. Shared x86 tests
+cover all nine measured compiler patterns, both modes, register and memory
+forms, exact replay, semantic fields, every-byte truncation, invalid group
+digits, illegal prefixes, width failures, PAUSE separation, and same-buffer
+recovery. CupidASM source-to-byte tests cover both mode defaults, explicit
+widths, SIB and displacement addressing, segment and address overrides, and
+useful failures. CupidDis tests cover canonical rendering, exact instruction
+boundaries, a truncated tail, and recovery after an illegal prefix.
+
+The hosted source gate now records CupidASM at
+81/2,935/19,252/326/186 and x86 at 59/1,686/11,410/173/16,641. CupidC emits
+the changed CupidASM source as a deterministic 157,828-byte object with
+139,646 text bytes and text fingerprint `239F52C7`. It emits x86 as a
+deterministic 132,280-byte object with 78,205 text bytes and text fingerprint
+`C5FC45F8`. The strict normal frontier grows by 464 bytes to 3,619,476 bytes.
+Its 436-file input snapshot has SHA-256
+`4f8db650e65bca1662068bb092e5f81ca7dfc7aa11ad2bd55dac15db77ca89bd`.
+
+An independent compiler-boundary census found 1,100 ordinary multibyte NOP
+sites in 74 host-built kernel and Doom objects. They occupy 6,610 bytes and
+cover every measured length from two through ten bytes. A complete scan of
+the 228 i386 kernel objects available to this worktree reduced CupidDis
+fallback rows from 6,952 in 77 objects to 3,597 in 68 objects. The new scan
+renders 1,781 NOP rows.
+
+The complete Toolchain contract target passes after updating those
+source-driven locks. The focused x86, CupidASM, and CupidDis Python suites
+also pass 31 tests in 79.299 seconds with one optional oracle skip.
+
+ADR 0143 records the instruction boundary and the rejected broader prefix
+interpretations. This step changes no production source owner and retires no
+host dependency. The checked seed was not refreshed and still carries the
+583-row model. A separate integration step must rebuild and verify the seed
+before fixed-point or production documentation can claim the new support.
+Repeated-prefix Clang padding and packed-integer SSE2 remain open.
+
+## 2026-07-27: recognize exact Clang repeated-prefix padding
+
+The remaining NOP census identified one narrow compiler spelling that should
+not become a general prefix rule. Clang emits five 32-bit alignment forms
+with two through six leading `66` bytes followed by the exact
+`2E 0F 1F 84 00 00 00 00 00` tail. The independent boundary census found 568
+sites and 7,380 bytes in 67 host-built kernel and Doom objects. Prefix counts
+of two, three, four, five, and six occur 109, 130, 92, 130, and 107 times.
+
+The decoder now checks those complete byte strings before general legacy
+prefix parsing. Each result is a word NOP over `cs:[eax+eax+0x0]`, preserves
+the displacement field and all source bytes, and reports the automatic form
+identity. Canonical re-encoding therefore produces the ordinary ten-byte NOP
+instead of the redundant input. CupidASM has no way to request the private
+forms.
+
+The public catalogue remains at 587 rows, 242 canonical mnemonics, 64
+registers, and fingerprint `68E281CB`. General duplicate-prefix handling is
+unchanged. The x86 contract checks all five lengths, a following return,
+16-bit mode rejection, every byte cut, canonical re-encoding, and near misses
+that change the segment, opcode, ModRM, SIB, or displacement, omit the segment,
+use seven prefixes, or spell `66 66 90`. A single `66` remains truncated.
+Every cut with at least two prefixes and every near miss remains invalid and
+consumes one byte. CupidDis renders five adjacent exact forms as five NOP rows
+and recovers from the short near miss.
+
+Across all 228 available i386 kernel objects, fallback rows fall from the
+ordinary-slice result of 3,597 in 68 objects to 1,901 in 36 objects. The
+combined NOP work reduces the original 6,952 fallback rows in 77 objects by
+5,051 rows and 41 objects. The final scan renders 1,781 NOP rows. Recognizing
+an exact instruction also repairs later instruction boundaries, so the
+fallback reduction is larger than the 568 independently counted sites.
+
+The hosted source gate now records x86 at
+60/1,756/11,850/180/16,652. CupidC emits a deterministic 134,656-byte x86
+object with 80,478 text bytes and text fingerprint `7C198364`. The strict
+normal frontier totals 3,621,852 bytes. Its 436-file input snapshot has
+SHA-256
+`333b915fb5bf42f7ed11456a1e09b3544dff74ece4c4d72fdecbabdf5e4cbfa7`.
+
+The complete Toolchain contract target passes. The focused x86, CupidASM, and
+CupidDis Python suites pass 32 tests in 75.271 seconds with one optional
+oracle skip. The checked-seed normal frontier compiles all 148 sources twice
+and passes its exact object, hash, total-size, and snapshot assertions in
+1,584.134 seconds.
+
+The normal `make -j2 all WAD_SRCS=` image build also passes with an empty
+standard-error log. It completes both CupidLD kernel links, regenerates the
+kernel symbol source, flattens the final kernel, and creates the 200 MB FAT16
+image.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.elf.pass1` | 8,029,036 | `c3916f6de7bad4532bda63e828e10a1373e2a930389938c1f0e12d13a35f33f5` |
+| `kernel/cpu/ksyms_data.o` | 105,692 | `642f1758b5434367fdb0981eb7cde325d602b80a1739b50bef7f351cc46bf956` |
+| `kernel/kernel.elf` | 8,131,436 | `61ecdff6348fa4ebba6cf7c528b72aabdd3d2ac669fd7853e917c83fd9d1dcd5` |
+| `kernel/kernel.bin` | 7,937,736 | `87451035045f48b9d5390e49c024ce106f957f0bf0115204f72319f24706667d` |
+| `cupidos.img` | 209,715,200 | `ae6415db1e4ddcb0a9fa1c747345ce1b219f5776bb2ad917e01b093513b0a296` |
+
+A private-image QEMU GUI smoke passes in 60.4 seconds. The 35,031-byte serial
+log has SHA-256
+`f8a0a530b659d5f09e51b40975b914ade4aaf2150e66db2ddc13f420c4ee6640`.
+It records the shared x86, CupidDis, and CupidASM kernel self-tests, desktop
+startup, and a successful CupidC JIT run of `/bin/ls.cc`.
+
+ADR 0144 records the exact exception and the rejected broader prefix rules.
+This step changes no source owner and retires no host dependency. The checked
+seed was not refreshed and still carries the earlier 583-row decoder. A
+separate integration step must rebuild and verify all five seed tools before
+fixed-point or production use can claim either padding slice. Packed-integer
+SSE2 remains the largest measured decoder gap.

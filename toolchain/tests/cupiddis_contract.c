@@ -116,6 +116,19 @@ static int contains(const capture_t *capture, const char *needle,
   return 1;
 }
 
+static ctool_u32 count_occurrences(const capture_t *capture,
+                                   const char *needle) {
+  const char *cursor = capture->bytes;
+  size_t needle_size = strlen(needle);
+  ctool_u32 count = 0u;
+  while (needle_size != 0u &&
+         (cursor = strstr(cursor, needle)) != (char *)0) {
+    count++;
+    cursor += needle_size;
+  }
+  return count;
+}
+
 static int is_zeroed(const void *value, size_t size) {
   const unsigned char *bytes = (const unsigned char *)value;
   size_t index;
@@ -297,6 +310,28 @@ static int run_raw(void) {
       0x66u, 0x69u, 0x40u, 0x7fu, 0x78u, 0x56u, 0x34u, 0x12u};
   static const ctool_u8 immediate_imul_recovery[] = {
       0xf0u, 0x6bu, 0xc1u, 0x02u, 0x69u, 0xc1u, 0x34u};
+  static const ctool_u8 padding_nops32[] = {
+      0x66u, 0x90u,
+      0x0fu, 0x1fu, 0x00u,
+      0x66u, 0x2eu, 0x0fu, 0x1fu, 0x84u,
+      0x00u, 0x00u, 0x00u, 0x00u, 0x00u,
+      0xc3u};
+  static const ctool_u8 padding_nop_recovery[] = {
+      0xf0u, 0x0fu, 0x1fu, 0x00u, 0x0fu, 0x1fu};
+  static const ctool_u8 clang_padding_nops[] = {
+      0x66u, 0x66u, 0x2eu, 0x0fu, 0x1fu, 0x84u,
+      0x00u, 0x00u, 0x00u, 0x00u, 0x00u,
+      0x66u, 0x66u, 0x66u, 0x2eu, 0x0fu, 0x1fu, 0x84u,
+      0x00u, 0x00u, 0x00u, 0x00u, 0x00u,
+      0x66u, 0x66u, 0x66u, 0x66u, 0x2eu, 0x0fu, 0x1fu, 0x84u,
+      0x00u, 0x00u, 0x00u, 0x00u, 0x00u,
+      0x66u, 0x66u, 0x66u, 0x66u, 0x66u, 0x2eu, 0x0fu, 0x1fu,
+      0x84u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u,
+      0x66u, 0x66u, 0x66u, 0x66u, 0x66u, 0x66u, 0x2eu, 0x0fu,
+      0x1fu, 0x84u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u,
+      0xc3u};
+  static const ctool_u8 clang_padding_near_miss[] = {
+      0x66u, 0x66u, 0x90u, 0xc3u};
   static const ctool_u8 mixed_mode[] = {
       0xb8u, 0x34u, 0x12u,
       0xb8u, 0x78u, 0x56u, 0x34u, 0x12u,
@@ -486,6 +521,98 @@ static int run_raw(void) {
                 "immediate IMUL recovery rendering") ||
       !contains(&capture, "db 0x69, 0xC1, 0x34",
                 "immediate IMUL truncated tail rendering")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  (void)memset(&capture, 0, sizeof(capture));
+  source.path.text = ctool_string("/padding-nops32.bin");
+  source.contents =
+      ctool_bytes(padding_nops32, (ctool_u32)sizeof(padding_nops32));
+  request = raw_request(CTOOL_X86_MODE_32, 0x00404000u);
+  status = ctool_dis_inspect(job, &source, &request, &report);
+  if (status == CTOOL_OK) {
+    status = ctool_dis_render(job, &report, CTOOL_DIS_TEXT_CUPID,
+                              capture_sink(&capture));
+  }
+  if (!check_status(status, CTOOL_OK, "padding NOP raw inspection") ||
+      !contains(&capture, "00404000", "operand-size NOP address") ||
+      !contains(&capture, "00404002", "memory NOP address") ||
+      !contains(&capture, "nop dword [eax]",
+                "memory NOP rendering") ||
+      !contains(&capture, "00404005", "compiler NOP address") ||
+      !contains(&capture, "nop word [cs:eax+eax+0x0]",
+                "compiler NOP rendering") ||
+      !contains(&capture, "0040400F", "padding NOP following return") ||
+      strstr(capture.bytes, "db 0x66") != (char *)0) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  (void)memset(&capture, 0, sizeof(capture));
+  source.path.text = ctool_string("/padding-nop-recovery.bin");
+  source.contents = ctool_bytes(
+      padding_nop_recovery, (ctool_u32)sizeof(padding_nop_recovery));
+  request = raw_request(CTOOL_X86_MODE_32, 0x00405000u);
+  status = ctool_dis_inspect(job, &source, &request, &report);
+  if (status == CTOOL_OK) {
+    status = ctool_dis_render(job, &report, CTOOL_DIS_TEXT_CUPID,
+                              capture_sink(&capture));
+  }
+  if (!check_status(status, CTOOL_OK,
+                    "padding NOP recovery inspection") ||
+      !contains(&capture, "db 0xF0",
+                "padding NOP illegal prefix rendering") ||
+      !contains(&capture, "nop dword [eax]",
+                "padding NOP recovery rendering") ||
+      !contains(&capture, "db 0x0F, 0x1F",
+                "padding NOP truncated tail rendering")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  (void)memset(&capture, 0, sizeof(capture));
+  source.path.text = ctool_string("/clang-padding-nops.bin");
+  source.contents =
+      ctool_bytes(clang_padding_nops,
+                  (ctool_u32)sizeof(clang_padding_nops));
+  request = raw_request(CTOOL_X86_MODE_32, 0x00406000u);
+  status = ctool_dis_inspect(job, &source, &request, &report);
+  if (status == CTOOL_OK) {
+    status = ctool_dis_render(job, &report, CTOOL_DIS_TEXT_CUPID,
+                              capture_sink(&capture));
+  }
+  if (!check_status(status, CTOOL_OK,
+                    "Clang padding raw inspection") ||
+      !contains(&capture, "00406000", "two-prefix padding address") ||
+      !contains(&capture, "0040600B", "three-prefix padding address") ||
+      !contains(&capture, "00406017", "four-prefix padding address") ||
+      !contains(&capture, "00406024", "five-prefix padding address") ||
+      !contains(&capture, "00406032", "six-prefix padding address") ||
+      !contains(&capture, "00406041", "Clang padding following return") ||
+      count_occurrences(&capture, "nop word [cs:eax+eax+0x0]") != 5u ||
+      strstr(capture.bytes, "db 0x66") != (char *)0) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  (void)memset(&capture, 0, sizeof(capture));
+  source.path.text = ctool_string("/clang-padding-near-miss.bin");
+  source.contents =
+      ctool_bytes(clang_padding_near_miss,
+                  (ctool_u32)sizeof(clang_padding_near_miss));
+  request = raw_request(CTOOL_X86_MODE_32, 0x00406100u);
+  status = ctool_dis_inspect(job, &source, &request, &report);
+  if (status == CTOOL_OK) {
+    status = ctool_dis_render(job, &report, CTOOL_DIS_TEXT_CUPID,
+                              capture_sink(&capture));
+  }
+  if (!check_status(status, CTOOL_OK,
+                    "Clang padding near-miss inspection") ||
+      !contains(&capture, "00406100", "near-miss invalid address") ||
+      !contains(&capture, "db 0x66", "near-miss invalid byte") ||
+      !contains(&capture, "00406101", "near-miss recovery address") ||
+      !contains(&capture, "00406103", "near-miss following return")) {
     ctool_job_close(job);
     return 1;
   }

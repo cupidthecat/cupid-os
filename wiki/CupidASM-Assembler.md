@@ -275,14 +275,39 @@ section .data
 
 ## Instruction Reference
 
-CupidASM uses the shared Cupid Toolchain x86 catalogue. It contains 583 forms,
-242 canonical mnemonics, and 64 register names. The same catalogue drives
+CupidASM uses the shared Cupid Toolchain x86 catalogue. Source head contains
+587 forms, 242 canonical mnemonics, and 64 register names. The same catalogue drives
 instruction encoding and decoding. All sixteen i686 conditional moves accept
 16-bit or 32-bit same-width register and memory sources in either mode. Common
 alias spellings assemble to the same bytes, while CupidDis prints canonical
 names. Three-operand `IMUL` accepts a 16-bit or 32-bit register destination,
 a same-width register or memory source, and an immediate. CupidASM uses
 `6B /r` when the value fits a signed byte and `69 /r` otherwise.
+
+Ordinary padding NOPs use the same model. `nop` emits `90`. A word or
+doubleword register or memory operand emits `0F 1F /0`, with normal
+operand-size, address-size, and segment overrides. An unsized memory operand
+uses the current mode's default width:
+
+```asm
+bits 32
+nop [eax]          ; 0F 1F 00
+nop word [eax]     ; 66 0F 1F 00
+
+bits 16
+nop [bx + si]      ; 0F 1F 00
+nop dword [bx+si]  ; 66 0F 1F 00
+```
+
+The checked i386 Linux seed retains the earlier 583-form model. A later seed
+refresh must carry the source-head catalogue before fixed-point builds can use
+these NOP forms.
+
+CupidDis also recognizes five exact 32-bit Clang alignment strings with two
+through six leading `66` bytes followed by
+`2E 0F 1F 84 00 00 00 00 00`. This is a private decode-only exception.
+CupidASM cannot request redundant prefixes, and every other repeated-prefix
+spelling remains invalid.
 
 ### Data Movement
 

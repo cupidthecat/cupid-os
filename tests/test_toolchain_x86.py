@@ -66,8 +66,8 @@ class ToolchainX86ContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(
             result.stdout,
-            "inventory: forms=583 mnemonics=242 registers=64 "
-            "fingerprint=EE543CA5\n",
+            "inventory: forms=587 mnemonics=242 registers=64 "
+            "fingerprint=68E281CB\n",
         )
 
     def test_integer_encoding_decoding_and_relocation_fields(self):
@@ -78,6 +78,12 @@ class ToolchainX86ContractTests(unittest.TestCase):
 
     def test_immediate_imul_selects_canonical_full_and_short_forms(self):
         self.run_contract("immediate-imul")
+
+    def test_padding_nops_cover_compiler_forms_and_recovery(self):
+        self.run_contract("padding-nops")
+
+    def test_exact_clang_padding_nops_do_not_relax_prefix_rules(self):
+        self.run_contract("clang-padding-nops")
 
     def test_mixed_16_32_bit_modrm_and_sib_addressing(self):
         self.run_contract("addressing")

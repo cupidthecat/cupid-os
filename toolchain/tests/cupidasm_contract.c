@@ -213,7 +213,21 @@ static int run_raw_basic(void) {
       "BITS 32\n"
       "    imul eax, ecx, 0x228\n"
       "    imul esi, [ebx + ecx * 4 + 0x12345678], -7\n"
-      "    imul dx, [ebx + 0x7f], -2\n";
+      "    imul dx, [ebx + 0x7f], -2\n"
+      "    nop\n"
+      "    nop eax\n"
+      "    nop ax\n"
+      "    nop [eax]\n"
+      "    nop word [eax]\n"
+      "    nop dword [eax + eax * 1 + 0x12345678]\n"
+      "    a16 nop [bx + si + 0x7f]\n"
+      "    nop word [cs:eax + eax]\n"
+      "BITS 16\n"
+      "    nop eax\n"
+      "    nop ax\n"
+      "    nop [bx + si]\n"
+      "    nop dword [bx + si]\n"
+      "    a32 nop dword [ebx + ecx * 4 + 0x12345678]\n";
   static const ctool_u8 expected[] = {
       0xebu, 0x03u, 0xb8u, 0x34u, 0x12u, 0x88u,
       0x16u, 0x09u, 0x7cu, 0x00u, 0x55u, 0xaau,
@@ -231,7 +245,21 @@ static int run_raw_basic(void) {
       0x66u, 0x69u, 0x40u, 0x7fu, 0x78u, 0x56u, 0x34u, 0x12u,
       0x69u, 0xc1u, 0x28u, 0x02u, 0x00u, 0x00u,
       0x6bu, 0xb4u, 0x8bu, 0x78u, 0x56u, 0x34u, 0x12u, 0xf9u,
-      0x66u, 0x6bu, 0x53u, 0x7fu, 0xfeu};
+      0x66u, 0x6bu, 0x53u, 0x7fu, 0xfeu,
+      0x90u,
+      0x0fu, 0x1fu, 0xc0u,
+      0x66u, 0x0fu, 0x1fu, 0xc0u,
+      0x0fu, 0x1fu, 0x00u,
+      0x66u, 0x0fu, 0x1fu, 0x00u,
+      0x0fu, 0x1fu, 0x84u, 0x00u, 0x78u, 0x56u, 0x34u, 0x12u,
+      0x67u, 0x0fu, 0x1fu, 0x40u, 0x7fu,
+      0x2eu, 0x66u, 0x0fu, 0x1fu, 0x04u, 0x00u,
+      0x66u, 0x0fu, 0x1fu, 0xc0u,
+      0x0fu, 0x1fu, 0xc0u,
+      0x0fu, 0x1fu, 0x00u,
+      0x66u, 0x0fu, 0x1fu, 0x00u,
+      0x66u, 0x67u, 0x0fu, 0x1fu, 0x84u, 0x8bu,
+      0x78u, 0x56u, 0x34u, 0x12u};
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
   ctool_job_t *job;
@@ -1237,6 +1265,30 @@ static int run_error_contracts(void) {
           "/imul-repne.asm", "BITS 32\nrepne imul eax, ecx, 2\n", &raw,
           CTOOL_ERR_INPUT, CTOOL_ASM_DIAG_ENCODING,
           "/imul-repne.asm") ||
+      !expect_assembly_failure(
+          "padding NOP byte memory", config, "/nop-byte.asm",
+          "BITS 32\nnop byte [eax]\n", &raw, CTOOL_ERR_INPUT,
+          CTOOL_ASM_DIAG_ENCODING, "/nop-byte.asm") ||
+      !expect_assembly_failure(
+          "padding NOP qword memory", config, "/nop-qword.asm",
+          "BITS 32\nnop qword [eax]\n", &raw, CTOOL_ERR_INPUT,
+          CTOOL_ASM_DIAG_ENCODING, "/nop-qword.asm") ||
+      !expect_assembly_failure(
+          "padding NOP byte register", config, "/nop-register.asm",
+          "BITS 32\nnop al\n", &raw, CTOOL_ERR_INPUT,
+          CTOOL_ASM_DIAG_ENCODING, "/nop-register.asm") ||
+      !expect_assembly_failure(
+          "padding NOP lock prefix", config, "/nop-lock.asm",
+          "BITS 32\nlock nop [eax]\n", &raw, CTOOL_ERR_INPUT,
+          CTOOL_ASM_DIAG_ENCODING, "/nop-lock.asm") ||
+      !expect_assembly_failure(
+          "padding NOP repeat prefix", config, "/nop-rep.asm",
+          "BITS 32\nrep nop [eax]\n", &raw, CTOOL_ERR_INPUT,
+          CTOOL_ASM_DIAG_ENCODING, "/nop-rep.asm") ||
+      !expect_assembly_failure(
+          "padding NOP extra operand", config, "/nop-extra.asm",
+          "BITS 32\nnop eax, ecx\n", &raw, CTOOL_ERR_INPUT,
+          CTOOL_ASM_DIAG_ENCODING, "/nop-extra.asm") ||
       !expect_assembly_failure(
           "instruction in bss", config, "/bss-instruction.asm",
           "BITS 32\nsection .bss\nmain: ret\n", &fixed,

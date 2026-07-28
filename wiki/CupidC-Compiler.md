@@ -330,8 +330,8 @@ the object, so a concurrent edit cannot publish a mixed result.
 
 The strict kernel frontier must compile all 148 approved checked-in sources
 twice. The full frontier passes against a 436-file snapshot with SHA-256
-`5e0a69e1ac12e6acec0edf9c21fe09ce1b0e3ca399a545614f58dfa9e0b3fec7`.
-Both 148-object sets are byte-identical and total 3,619,012 bytes. The
+`333b915fb5bf42f7ed11456a1e09b3544dff74ece4c4d72fdecbabdf5e4cbfa7`.
+Both 148-object sets are byte-identical and total 3,621,852 bytes. The
 combined graph keeps the ISO fixture as an explicit image input. Strong
 four-vCPU runtime gates pass with e1000 and RTL8139 networking through SMP,
 RDRAND, all 62 crypto checks, USB storage, audio, TrueType glyphs, a baseline

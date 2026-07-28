@@ -165,7 +165,7 @@ or any other filesystem error publishes nothing. Input discovery skips hidden
 paths under active include roots, so private compiler staging headers from a
 concurrent build do not enter the repository snapshot. The complete frontier
 compiles all 148 roots twice against a 436-file snapshot. Both object sets are
-byte-identical and total 3,619,012 bytes. The combined graph passes the
+byte-identical and total 3,621,852 bytes. The combined graph passes the
 two-link symbol and memory checks, clean normal and partitioned image builds,
 and strong four-vCPU runtime gates with both NICs.
 
@@ -240,9 +240,19 @@ current symbols and relocations. Cupid-built objects, checked tool images, and
 user executables have no unsupported instruction fallback. The remaining gap
 is concentrated in host-built kernel and Doom objects. The shared catalogue
 now covers 16-bit and 32-bit three-operand `IMUL` through both `69 /r` and
-`6B /r`. A focused LLVM census found 27 real instances in four host-built
-objects, while CupidDis fallback rows in that sample fell from 540 to 495.
-Padding NOPs and packed-integer SSE2 remain the largest measured decoder gaps.
+`6B /r`. It also covers ordinary compiler padding from `66 90` through the
+ten-byte `66 2E 0F 1F 84 00 00 00 00 00` form. An independent census found
+1,100 such multibyte NOPs and 6,610 padding bytes in 74 host-built objects.
+Across the 228 i386 kernel objects available to the current audit, CupidDis
+fallback rows first fall from 6,952 in 77 objects to 3,597 in 68 objects.
+A private decoder exception then recognizes 568 exact Clang forms with two
+through six leading `66` bytes and the fixed
+`2E 0F 1F 84 00 00 00 00 00` tail. The final scan has 1,901 fallback rows
+in 36 objects and renders 1,781 NOP rows. Other repeated prefixes remain
+invalid, and CupidASM cannot emit the redundant forms. Packed-integer SSE2
+is the next largest measured decoder gap. Source head has 587 catalogue rows
+and fingerprint `68E281CB`; the private exception does not change either
+value. The checked seed still carries the earlier 583-row model.
 
 The four-vCPU GUI runtime starts every discovered CPU, reaches e1000 traffic,
 passes all 62 crypto checks, opens the desktop and terminal, and completes

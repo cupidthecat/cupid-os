@@ -173,9 +173,9 @@ repository paths without making the assembler depend on ambient host paths.
 CupidASM implements the cleanly expressible NASM-compatible surface required
 by active CupidOS sources; it does not claim unrestricted NASM compatibility.
 
-The shared x86 catalogue has 583 rows, 242 canonical mnemonics, and 64
-register names. The active-source contracts cover every instruction in all 22
-demos and the four boot/kernel assembly sources. Common families include:
+The source-head shared x86 catalogue has 587 rows, 242 canonical mnemonics,
+and 64 register names. The active-source contracts cover every instruction in all
+22 demos and the four boot/kernel assembly sources. Common families include:
 - mov, lea, xchg
 - push, pop, call, ret, and ret imm16 such as RET 4
 - jmp and common conditional jumps
@@ -183,7 +183,10 @@ demos and the four boot/kernel assembly sources. Common families include:
 - and, or, xor, not, neg
 - mul, imul, div, idiv
 - shifts and rotates
-- nop, hlt, cli, sti, iret, leave
+- nop, including ordinary 66 90 and 0F 1F /0 compiler padding
+- five exact decode-only Clang padding NOPs with two through six leading 66
+  bytes; CupidASM cannot emit their redundant prefixes
+- hlt, cli, sti, iret, leave
 - jcc aliases including parity aliases: jp/jpe and jnp/jpo
 - all sixteen i686 conditional moves with 16-bit or 32-bit register and memory
   sources, plus conventional aliases
@@ -196,8 +199,9 @@ demos and the four boot/kernel assembly sources. Common families include:
 - atomic helpers: bswap, xadd, cmpxchg, lock-prefixed memory operations
 - sized memory inc/dec and reserve directives
 
-The checked i386 Linux seed carries this shared IMUL model in both CupidASM
-and CupidDis. Its stage-two and stage-three images match byte for byte.
+The checked i386 Linux seed carries the shared IMUL model in both CupidASM and
+CupidDis. It still has the earlier 583-row catalogue, so both padding NOP
+slices need a separate seed refresh before the fixed-point build can use them.
 
 Floating-point and SIMD coverage includes:
 - FPU state: FXSAVE, FXRSTOR, FINIT, FNINIT, FWAIT, LDMXCSR, STMXCSR
