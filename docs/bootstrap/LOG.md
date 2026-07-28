@@ -12075,3 +12075,67 @@ still produces 90 root objects. Seven strict roots remain:
 `kernel/core/kernel.c`, `kernel/core/string.c`, `kernel/cpu/fpu.c`,
 `kernel/cpu/libm.c`, `kernel/cpu/simd.c`, `kernel/smp/percpu.c`, and
 `kernel/smp/smp.c`. ADR 0139 records the transfer and its limits.
+
+## 2026-07-27: expose ordered forced inputs in the CupidC driver
+
+The preprocessing request already carried ordered forced inputs, but neither
+the native nor static CupidC command could supply them. The first driver test
+failed on `-include` with the usage exit code, which confirmed the missing
+public seam.
+
+CupidC now accepts repeatable `-include FILE` options. Command-line macro
+actions still run first. Forced files then run in caller order before the
+primary source. Native paths use the existing logical-path conversion. A
+rooted command requires absolute logical forced-input paths, just as it does
+for the input, output, and include roots.
+
+The hosted and Cupid-built commands compile an order-sensitive two-header
+fixture to byte-identical ELF32 objects. Missing and empty option values fail
+as usage errors. A relative forced path under `--root` fails before the job
+starts. A missing forced file leaves both sentinel outputs unchanged. The
+build audit pins the usage, parser, preprocessing request, and rooted-path
+diagnostic, then rejects a mutation that drops the forced-input count.
+
+The new command also makes a whole Doom-tree object frontier practical. The
+test reads the exact roots, macros, forced header, and source transforms from
+the checked active-build audit instead of maintaining another source list.
+Four bounded workers compile all 80 roots. Seventy-one produce valid ELF32
+objects. Nine stop at these checked first failures:
+
+| Source | Current boundary |
+| --- | --- |
+| `kernel/doom/i_sound_cupidos.c` | Empty volatile assembly compiler barrier |
+| `kernel/doom/src/am_map.c` | Floating arithmetic in static initialization |
+| `kernel/doom/src/i_system.c` | Implicit `putchar` declaration |
+| `kernel/doom/src/i_video.c` | Invalid IR translation unit at the first color shift |
+| `kernel/doom/src/info.c` | Positional union active-member initialization |
+| `kernel/doom/src/m_menu.c` | Legacy callback argument conversion |
+| `kernel/doom/src/p_ceilng.c` | Null conversion for a union callback member |
+| `kernel/doom/src/p_plats.c` | Null conversion for a union callback member |
+| `kernel/doom/src/p_saveg.c` | Object-pointer to callback assignment |
+
+Each frontier failure includes its logical path, source location, diagnostic
+code, and complete message. The focused driver and audit set passes five
+tests. The whole-profile case accounts for exactly 71 successes and nine
+failures.
+
+The complete CupidC object module passes 74 tests in 751.970 seconds. It
+includes hosted and Cupid-built command parity, static tool behavior, and the
+whole five-tool fixed point. The explicit
+`make test-toolchain-fixed-point` replay passes in 630.631 seconds.
+
+The first complete build-audit module run found one stale inventory value.
+The driver allocations added four active `sizeof` occurrences. Regenerating
+the audit moved that count from 4,619 to 4,623 and updated the other
+source-derived control-flow totals. The corrected drift case and five related
+inventory checks pass in 203.188 seconds. `make check-bootstrap-audit` also
+passes. The new active-source digest is
+`f57ee60c236e80c4089a4c5dc26ff1235ce607e8b087012fa65e7f31c5284323`.
+The 1,523,897-byte JSON report has SHA-256
+`97cdac1f140f3614fc22c54c65762e5ad1f4b4636fb6f8a2b2738f6172146c6f`.
+
+This work does not change an OS object or the checked seed. Doom source keeps
+its `.c` names and host recipes. A later five-tool seed promotion must carry
+the option before a production wrapper can use it. The remaining Doom
+language boundaries, all 83 source transfers, object validation, and runtime
+proof remain under issue #29. ADR 0140 records the command and claim boundary.

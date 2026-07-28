@@ -475,11 +475,19 @@ boundary, and CupidLD links five deterministic static Linux i386 executables
 without unresolved symbols. A sixth executable checks allocation, tail
 release, files, seeks, errors, arguments, memory comparison, and strings.
 
-The cupidc driver accepts one C11 input, definitions, undefinitions, GNU or
-freestanding mode, ordered include roots, and an ELF32 object output. -I enables
-quoted and angle lookup. --include-angle enables angle lookup only. Both forms
-accept native paths or absolute logical paths under --root. Failed compilation
-preserves an existing output.
+The cupidc driver accepts one C11 input, definitions, undefinitions, forced
+inputs, GNU or freestanding mode, ordered include roots, and an ELF32 object
+output. -I enables quoted and angle lookup. --include-angle enables angle
+lookup only. Repeatable -include options run before the primary source in
+caller order. These path options accept native paths or absolute logical paths
+under --root. Failed compilation preserves an existing output.
+
+Compiler head can reproduce the exact audited Doom-tree profile without
+editing its source. It emits 71 of the 80 Doom-tree objects. A checked frontier
+pins the other nine failures at assembly, static initialization, IR, union
+initialization, an implicit call, and callback or pointer conversions. The
+checked seed does not carry this driver option yet, so Doom build ownership is
+unchanged.
 
 The five static i386 Linux tools reach a stage-two to stage-three fixed point
 under WSL. Generation-one CupidC, CupidASM, and CupidLD build all 19 C objects,

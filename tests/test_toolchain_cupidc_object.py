@@ -1,3 +1,4 @@
+import json
 import os
 import shutil
 import subprocess
@@ -132,6 +133,45 @@ CUPID_TOOLCHAIN_FIXED_POINT_LINKS = (
         ),
     ),
 )
+DOOM_TREE_FRONTIER_FAILURES = {
+    "/kernel/doom/i_sound_cupidos.c": (
+        "/kernel/doom/i_sound_cupidos.c:584:9: error CTB00000F: "
+        "GNU inline assembly template requires an instruction\n"
+    ),
+    "/kernel/doom/src/am_map.c": (
+        "/kernel/doom/src/am_map.c:178:20: error CTB000007: "
+        "floating arithmetic static initialization is outside this "
+        "constant-data slice\n"
+    ),
+    "/kernel/doom/src/i_system.c": (
+        "/kernel/doom/src/i_system.c:172:9: error CTB000010: "
+        "expression identifier is not declared\n"
+    ),
+    "/kernel/doom/src/i_video.c": (
+        "/kernel/doom/src/i_video.c:144:27: error CTD000002: "
+        "CupidC IR lowering received an invalid translation unit\n"
+    ),
+    "/kernel/doom/src/info.c": (
+        "/kernel/doom/src/info.c:128:20: error CTB000007: "
+        "union and class initializer lists await active-member semantics\n"
+    ),
+    "/kernel/doom/src/m_menu.c": (
+        "/kernel/doom/src/m_menu.c:701:31: error CTB000010: "
+        "function call argument is not convertible to parameter type\n"
+    ),
+    "/kernel/doom/src/p_ceilng.c": (
+        "/kernel/doom/src/p_ceilng.c:316:48: error CTD000006: "
+        "CupidC IR lowering does not yet support this conversion\n"
+    ),
+    "/kernel/doom/src/p_plats.c": (
+        "/kernel/doom/src/p_plats.c:274:47: error CTD000006: "
+        "CupidC IR lowering does not yet support this conversion\n"
+    ),
+    "/kernel/doom/src/p_saveg.c": (
+        "/kernel/doom/src/p_saveg.c:251:17: error CTB000010: "
+        "assignment right operand is not convertible to left operand type\n"
+    ),
+}
 
 
 class ToolchainCupidCObjectContractTests(unittest.TestCase):
@@ -1852,13 +1892,362 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                     b"\x7fELF\x01\x01\x01",
                 )
 
+    def test_cupidc_forced_includes_run_in_command_order(self):
+        linked = self.build_cupid_tools()
+        self.assertEqual(linked.returncode, 0, linked.stderr)
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidc-forced-includes-", dir=REPO_ROOT
+        ) as temp:
+            root = Path(temp)
+            (root / "first.h").write_text(
+                "#define FORCED_VALUE 40\n", encoding="utf-8"
+            )
+            (root / "second.h").write_text(
+                "#if FORCED_VALUE != 40\n"
+                '#error "forced include order changed"\n'
+                "#endif\n"
+                "#undef FORCED_VALUE\n"
+                "#define FORCED_VALUE 42\n",
+                encoding="utf-8",
+            )
+            (root / "source.c").write_text(
+                "int forced_include_value(void) { return FORCED_VALUE; }\n",
+                encoding="utf-8",
+            )
+            hosted_output = root / "hosted.o"
+            cupid_output = root / "cupid.o"
+            hosted = subprocess.run(
+                [
+                    str(self.hosted_cupidc_path),
+                    "--root",
+                    str(root),
+                    "-c",
+                    "/source.c",
+                    "-include",
+                    "/first.h",
+                    "-include",
+                    "/second.h",
+                    "-o",
+                    "/hosted.o",
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+                timeout=60,
+            )
+            cupid = self.run_cupid_linux_tool(
+                self.cupid_cupidc_path,
+                [
+                    "--root",
+                    root,
+                    "-c",
+                    "/source.c",
+                    "-include",
+                    "/first.h",
+                    "-include",
+                    "/second.h",
+                    "-o",
+                    "/cupid.o",
+                ],
+                timeout=60,
+            )
+            self.assertEqual(hosted.returncode, 0, hosted.stderr)
+            self.assertEqual(cupid.returncode, 0, cupid.stderr)
+            self.assertEqual(hosted.stdout, "")
+            self.assertEqual(cupid.stdout, "")
+            self.assertEqual(hosted.stderr, "")
+            self.assertEqual(cupid.stderr, "")
+            self.assertEqual(
+                cupid_output.read_bytes(), hosted_output.read_bytes()
+            )
+            self.assertEqual(
+                hosted_output.read_bytes()[:7], b"\x7fELF\x01\x01\x01"
+            )
+
+    def test_cupidc_exact_doom_tree_profile_has_a_frozen_object_frontier(
+        self,
+    ):
+        audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
+        audit = json.loads(audit_path.read_text(encoding="utf-8"))
+        contract = audit["contracts"]["c_preprocessor_translation_units"]
+        profile = next(
+            item
+            for item in contract["profiles"]
+            if item["name"] == "DOOM_TREE_I386"
+        )
+        sources = sorted(
+            "/" + transform["inputs"][0]
+            for transform in audit["build"]["transforms"]
+            if transform["recipe"]
+            == ["$(CC) $(CFLAGS_DOOM_TREE) -o $@ $<"]
+        )
+        self.assertEqual(len(sources), 80)
+        self.assertEqual(profile["tracked_translation_units"], 80)
+        self.assertTrue(profile["gnu_extensions"])
+        self.assertFalse(profile["hosted_environment"])
+        self.assertEqual(
+            profile["forced_includes"],
+            ["/kernel/doom/dglibc_compat.h"],
+        )
+
+        arguments = [
+            "--root",
+            str(REPO_ROOT),
+            "--gnu",
+            "--freestanding",
+        ]
+        both_forms = (
+            "(CTOOL_C_PP_INCLUDE_QUOTED | "
+            "CTOOL_C_PP_INCLUDE_ANGLE)"
+        )
+        for include_root in profile["include_roots"]:
+            self.assertEqual(include_root["forms"], both_forms)
+            arguments.extend(["-I", include_root["path"]])
+        for action in profile["macro_actions"]:
+            if action["name"] == "__SIZEOF_POINTER__":
+                self.assertEqual(action["replacement"], "4")
+                continue
+            arguments.append(
+                "-D" + action["name"] + "=" + action["replacement"]
+            )
+        for forced_include in profile["forced_includes"]:
+            arguments.extend(["-include", forced_include])
+
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidc-doom-frontier-", dir=REPO_ROOT
+        ) as temp:
+            output_root = Path(temp)
+
+            def compile_source(index_and_source):
+                index, source = index_and_source
+                output = output_root / f"{index:02d}.o"
+                logical_output = "/" + output.relative_to(REPO_ROOT).as_posix()
+                result = subprocess.run(
+                    [
+                        str(self.hosted_cupidc_path),
+                        *arguments,
+                        "-c",
+                        source,
+                        "-o",
+                        logical_output,
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                    timeout=180,
+                )
+                return source, output, result
+
+            with ThreadPoolExecutor(max_workers=4) as executor:
+                results = list(
+                    executor.map(compile_source, enumerate(sources))
+                )
+
+            failures = {}
+            for source, output, result in results:
+                expected = DOOM_TREE_FRONTIER_FAILURES.get(source)
+                with self.subTest(source=source):
+                    self.assertEqual(result.stdout, "")
+                    if expected is None:
+                        self.assertEqual(
+                            result.returncode, 0, result.stderr
+                        )
+                        self.assertEqual(result.stderr, "")
+                        self.assertEqual(
+                            output.read_bytes()[:7],
+                            b"\x7fELF\x01\x01\x01",
+                        )
+                        continue
+                    failures[source] = result.stderr
+                    self.assertEqual(result.returncode, 1, result.stderr)
+                    self.assertEqual(result.stderr, expected)
+                    self.assertFalse(output.exists())
+            self.assertEqual(failures, DOOM_TREE_FRONTIER_FAILURES)
+            self.assertEqual(len(results) - len(failures), 71)
+
+    def test_cupidc_forced_include_rejects_bad_values_and_root_paths(self):
+        linked = self.build_cupid_tools()
+        self.assertEqual(linked.returncode, 0, linked.stderr)
+        usage = (
+            "usage: cupidc -c INPUT -o OUTPUT [-I PATH] "
+            "[--include-angle PATH] [-include FILE] [-D NAME[=VALUE]] "
+            "[-U NAME] [--gnu] [--freestanding] [--root NATIVE_ROOT]\n"
+        )
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidc-forced-include-errors-", dir=REPO_ROOT
+        ) as temp:
+            root = Path(temp)
+            (root / "source.c").write_text(
+                "int forced_include_error_source(void) { return 0; }\n",
+                encoding="utf-8",
+            )
+            cases = (
+                (
+                    "missing",
+                    [
+                        "--root",
+                        root,
+                        "-c",
+                        "/source.c",
+                        "-o",
+                        "/hosted-missing.o",
+                        "-include",
+                    ],
+                    [
+                        "--root",
+                        root,
+                        "-c",
+                        "/source.c",
+                        "-o",
+                        "/cupid-missing.o",
+                        "-include",
+                    ],
+                    2,
+                    usage,
+                    root / "hosted-missing.o",
+                    root / "cupid-missing.o",
+                ),
+                (
+                    "empty",
+                    [
+                        "--root",
+                        root,
+                        "-c",
+                        "/source.c",
+                        "-include",
+                        "",
+                        "-o",
+                        "/hosted-empty.o",
+                    ],
+                    [
+                        "--root",
+                        root,
+                        "-c",
+                        "/source.c",
+                        "-include",
+                        "",
+                        "-o",
+                        "/cupid-empty.o",
+                    ],
+                    2,
+                    usage,
+                    root / "hosted-empty.o",
+                    root / "cupid-empty.o",
+                ),
+                (
+                    "relative",
+                    [
+                        "--root",
+                        root,
+                        "-c",
+                        "/source.c",
+                        "-include",
+                        "forced.h",
+                        "-o",
+                        "/hosted-relative.o",
+                    ],
+                    [
+                        "--root",
+                        root,
+                        "-c",
+                        "/source.c",
+                        "-include",
+                        "forced.h",
+                        "-o",
+                        "/cupid-relative.o",
+                    ],
+                    1,
+                    "cupidc: --root requires logical forced include paths\n",
+                    root / "hosted-relative.o",
+                    root / "cupid-relative.o",
+                ),
+            )
+            for (
+                name,
+                hosted_arguments,
+                cupid_arguments,
+                returncode,
+                stderr,
+                hosted_output,
+                cupid_output,
+            ) in cases:
+                with self.subTest(name=name):
+                    hosted = subprocess.run(
+                        [
+                            str(self.hosted_cupidc_path),
+                            *[str(argument) for argument in hosted_arguments],
+                        ],
+                        cwd=REPO_ROOT,
+                        text=True,
+                        capture_output=True,
+                        timeout=60,
+                    )
+                    cupid = self.run_cupid_linux_tool(
+                        self.cupid_cupidc_path,
+                        cupid_arguments,
+                        timeout=60,
+                    )
+                    self.assertEqual(
+                        hosted.returncode, returncode, hosted.stderr
+                    )
+                    self.assertEqual(
+                        cupid.returncode, returncode, cupid.stderr
+                    )
+                    self.assertEqual(hosted.stdout, "")
+                    self.assertEqual(cupid.stdout, "")
+                    self.assertEqual(hosted.stderr, stderr)
+                    self.assertEqual(cupid.stderr, stderr)
+                    self.assertFalse(hosted_output.exists())
+                    self.assertFalse(cupid_output.exists())
+
+            hosted_output = root / "hosted-sentinel.o"
+            cupid_output = root / "cupid-sentinel.o"
+            hosted_output.write_bytes(b"hosted-sentinel")
+            cupid_output.write_bytes(b"cupid-sentinel")
+            arguments = [
+                "--root",
+                root,
+                "-c",
+                "/source.c",
+                "-include",
+                "/missing.h",
+            ]
+            hosted = subprocess.run(
+                [
+                    str(self.hosted_cupidc_path),
+                    *[str(argument) for argument in arguments],
+                    "-o",
+                    "/hosted-sentinel.o",
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+                timeout=60,
+            )
+            cupid = self.run_cupid_linux_tool(
+                self.cupid_cupidc_path,
+                [*arguments, "-o", "/cupid-sentinel.o"],
+                timeout=60,
+            )
+            self.assertEqual(hosted.returncode, 1, hosted.stderr)
+            self.assertEqual(cupid.returncode, hosted.returncode, cupid.stderr)
+            self.assertEqual(cupid.stdout, hosted.stdout)
+            self.assertEqual(cupid.stderr, hosted.stderr)
+            self.assertEqual(
+                hosted.stderr,
+                "/missing.h:0:0: error CT9000009: "
+                "CupidC forced include file was not found\n",
+            )
+            self.assertEqual(hosted_output.read_bytes(), b"hosted-sentinel")
+            self.assertEqual(cupid_output.read_bytes(), b"cupid-sentinel")
+
     def test_cupidc_angle_only_root_rejects_bad_values_and_root_paths(self):
         linked = self.build_cupid_tools()
         self.assertEqual(linked.returncode, 0, linked.stderr)
         usage = (
             "usage: cupidc -c INPUT -o OUTPUT [-I PATH] "
-            "[--include-angle PATH] [-D NAME[=VALUE]] [-U NAME] [--gnu] "
-            "[--freestanding] [--root NATIVE_ROOT]\n"
+            "[--include-angle PATH] [-include FILE] [-D NAME[=VALUE]] "
+            "[-U NAME] [--gnu] [--freestanding] [--root NATIVE_ROOT]\n"
         )
         with tempfile.TemporaryDirectory(
             prefix=".cupidc-include-errors-", dir=REPO_ROOT
@@ -1992,8 +2381,8 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(linked.returncode, 0, linked.stderr)
         usage = (
             "usage: cupidc -c INPUT -o OUTPUT [-I PATH] "
-            "[--include-angle PATH] [-D NAME[=VALUE]] [-U NAME] [--gnu] "
-            "[--freestanding] [--root NATIVE_ROOT]\n"
+            "[--include-angle PATH] [-include FILE] [-D NAME[=VALUE]] "
+            "[-U NAME] [--gnu] [--freestanding] [--root NATIVE_ROOT]\n"
         )
         hosted_help = subprocess.run(
             [str(self.hosted_cupidc_path), "--help"],
@@ -2202,8 +2591,8 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         )
         usage = (
             "usage: cupidc -c INPUT -o OUTPUT [-I PATH] "
-            "[--include-angle PATH] [-D NAME[=VALUE]] [-U NAME] [--gnu] "
-            "[--freestanding] [--root NATIVE_ROOT]\n"
+            "[--include-angle PATH] [-include FILE] [-D NAME[=VALUE]] "
+            "[-U NAME] [--gnu] [--freestanding] [--root NATIVE_ROOT]\n"
         )
         generation_one_tools = {
             "cupidasm": self.cupid_cupidasm_path,

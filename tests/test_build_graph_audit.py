@@ -3301,7 +3301,14 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "CTOOL_C_PP_INCLUDE_ANGLE;",
                 "cli->include_forms[cli->include_count] = "
                 "CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE;",
-                r"does not retain exact include forms",
+                r"does not retain its exact include contract",
+            ),
+            "forced include count disappears": (
+                "driver",
+                "pp_request.forced_include_count = "
+                "context->forced_include_count;",
+                "pp_request.forced_include_count = 0u;",
+                r"does not retain its exact include contract",
             ),
             "runtime loses GNU mode": (
                 "test",
@@ -4098,7 +4105,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (4619, 168),
+                "c.expression.sizeof": (4623, 168),
                 "c.extension.builtin.offsetof": (12, 6),
                 "c.extension.gnu_alignof": (1, 1),
             }

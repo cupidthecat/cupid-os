@@ -4652,12 +4652,17 @@ def _cupid_toolchain_fixed_point_contract(
 
     required_driver_fragments = (
         "[--include-angle PATH]",
+        "[-include FILE]",
         'if (strcmp(argument, "--include-angle") == 0)',
         "cli->include_forms[cli->include_count] = "
         "CTOOL_C_PP_INCLUDE_ANGLE;",
+        '"-include", &value);',
         "context->include_roots[index].forms = "
         "context->include_forms[index];",
+        "pp_request.forced_includes = context->forced_includes;",
+        "pp_request.forced_include_count = context->forced_include_count;",
         "cupidc: --root requires logical include paths",
+        "cupidc: --root requires logical forced include paths",
     )
     missing_driver_fragments = [
         fragment
@@ -4666,8 +4671,8 @@ def _cupid_toolchain_fixed_point_contract(
     ]
     if missing_driver_fragments:
         raise AuditError(
-            "Cupid Toolchain fixed-point driver does not retain exact "
-            f"include forms: {missing_driver_fragments!r}"
+            "Cupid Toolchain fixed-point driver does not retain its exact "
+            f"include contract: {missing_driver_fragments!r}"
         )
     if (
         driver_source.count(

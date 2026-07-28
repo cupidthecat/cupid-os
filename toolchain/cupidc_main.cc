@@ -24,6 +24,8 @@ typedef struct {
   const char **include_arguments;
   ctool_u32 *include_forms;
   ctool_u32 include_count;
+  const char **forced_include_arguments;
+  ctool_u32 forced_include_count;
   ctool_c_pp_macro_action_t *macro_actions;
   ctool_u32 macro_action_count;
   ctool_bool hosted_environment;
@@ -35,6 +37,9 @@ typedef struct {
   const ctool_u32 *include_forms;
   ctool_c_pp_include_root_t *include_roots;
   ctool_u32 include_count;
+  const ctool_string_t *forced_include_paths;
+  ctool_path_t *forced_includes;
+  ctool_u32 forced_include_count;
   const ctool_c_pp_macro_action_t *macro_actions;
   ctool_u32 macro_action_count;
   ctool_bool hosted_environment;
@@ -45,8 +50,8 @@ static void cupidc_usage(FILE *stream) {
   (void)fprintf(
       stream,
       "usage: cupidc -c INPUT -o OUTPUT [-I PATH] "
-      "[--include-angle PATH] [-D NAME[=VALUE]] [-U NAME] [--gnu] "
-      "[--freestanding] [--root NATIVE_ROOT]\n");
+      "[--include-angle PATH] [-include FILE] [-D NAME[=VALUE]] "
+      "[-U NAME] [--gnu] [--freestanding] [--root NATIVE_ROOT]\n");
 }
 
 static ctool_bool cupidc_string_equal_literal(ctool_string_t value,
@@ -127,10 +132,13 @@ static int cupidc_parse_cli(int argc, char **argv, cupidc_cli_t *cli) {
       (const char **)calloc(slot_count, sizeof(*cli->include_arguments));
   cli->include_forms =
       (ctool_u32 *)calloc(slot_count, sizeof(*cli->include_forms));
+  cli->forced_include_arguments = (const char **)calloc(
+      slot_count, sizeof(*cli->forced_include_arguments));
   cli->macro_actions = (ctool_c_pp_macro_action_t *)calloc(
       slot_count, sizeof(*cli->macro_actions));
   if (cli->include_arguments == (const char **)0 ||
       cli->include_forms == (ctool_u32 *)0 ||
+      cli->forced_include_arguments == (const char **)0 ||
       cli->macro_actions == (ctool_c_pp_macro_action_t *)0) {
     return 0;
   }
@@ -202,6 +210,16 @@ static int cupidc_parse_cli(int argc, char **argv, cupidc_cli_t *cli) {
       cli->include_arguments[cli->include_count] = value;
       cli->include_forms[cli->include_count] = CTOOL_C_PP_INCLUDE_ANGLE;
       cli->include_count++;
+      continue;
+    }
+    taken = cupidc_take_option_value(argc, argv, &index, argument,
+                                     "-include", &value);
+    if (taken != 0) {
+      if (taken < 0 || value[0] == '\0') {
+        return 0;
+      }
+      cli->forced_include_arguments[cli->forced_include_count] = value;
+      cli->forced_include_count++;
       continue;
     }
     taken = cupidc_take_option_value(argc, argv, &index, argument, "-D",
@@ -405,12 +423,21 @@ static ctool_status_t cupidc_compile_body(ctool_invocation_t *invocation,
         &context->include_roots[index].directory);
     context->include_roots[index].forms = context->include_forms[index];
   }
+  for (index = 0u;
+       status == CTOOL_OK && index < context->forced_include_count; index++) {
+    status = ctool_path_resolve(
+        ctool_job_arena(invocation->job), &root,
+        context->forced_include_paths[index], limits->path_bytes,
+        &context->forced_includes[index]);
+  }
   (void)memset(&pp_request, 0, sizeof(pp_request));
   pp_request.mode = CTOOL_C_PP_MODE_C11;
   pp_request.hosted_environment = context->hosted_environment;
   pp_request.gnu_extensions = context->gnu_extensions;
   pp_request.include_roots = context->include_roots;
   pp_request.include_root_count = context->include_count;
+  pp_request.forced_includes = context->forced_includes;
+  pp_request.forced_include_count = context->forced_include_count;
   pp_request.macro_actions = context->macro_actions;
   pp_request.macro_action_count = context->macro_action_count;
   (void)memset(&tape, 0, sizeof(tape));
@@ -444,6 +471,9 @@ int main(int argc, char **argv) {
   ctool_c_pp_include_root_t *include_roots =
       (ctool_c_pp_include_root_t *)0;
   char **owned_include_paths = (char **)0;
+  ctool_string_t *forced_include_paths = (ctool_string_t *)0;
+  ctool_path_t *forced_includes = (ctool_path_t *)0;
+  char **owned_forced_include_paths = (char **)0;
   char *owned_input = (char *)0;
   char *owned_output = (char *)0;
   const char *logical_input;
@@ -478,6 +508,21 @@ int main(int argc, char **argv) {
       goto done;
     }
   }
+  if (cli.forced_include_count != 0u) {
+    forced_include_paths = (ctool_string_t *)calloc(
+        (size_t)cli.forced_include_count, sizeof(*forced_include_paths));
+    forced_includes = (ctool_path_t *)calloc(
+        (size_t)cli.forced_include_count, sizeof(*forced_includes));
+    owned_forced_include_paths = (char **)calloc(
+        (size_t)cli.forced_include_count,
+        sizeof(*owned_forced_include_paths));
+    if (forced_include_paths == (ctool_string_t *)0 ||
+        forced_includes == (ctool_path_t *)0 ||
+        owned_forced_include_paths == (char **)0) {
+      (void)fprintf(stderr, "cupidc: path allocation failed\n");
+      goto done;
+    }
+  }
   if (cli.native_root != (const char *)0) {
     if (cli.input[0] != '/' || cli.output[0] != '/') {
       (void)fprintf(
@@ -496,6 +541,16 @@ int main(int argc, char **argv) {
         goto done;
       }
       include_paths[index] = ctool_string(cli.include_arguments[index]);
+    }
+    for (index = 0u; index < cli.forced_include_count; index++) {
+      if (cli.forced_include_arguments[index][0] != '/') {
+        (void)fprintf(
+            stderr,
+            "cupidc: --root requires logical forced include paths\n");
+        goto done;
+      }
+      forced_include_paths[index] =
+          ctool_string(cli.forced_include_arguments[index]);
     }
   } else {
     owned_input = cupidc_logical_path(cli.input);
@@ -520,6 +575,16 @@ int main(int argc, char **argv) {
       }
       include_paths[index] = ctool_string(owned_include_paths[index]);
     }
+    for (index = 0u; index < cli.forced_include_count; index++) {
+      owned_forced_include_paths[index] =
+          cupidc_logical_path(cli.forced_include_arguments[index]);
+      if (owned_forced_include_paths[index] == (char *)0) {
+        (void)fprintf(stderr, "cupidc: invalid forced include path\n");
+        goto done;
+      }
+      forced_include_paths[index] =
+          ctool_string(owned_forced_include_paths[index]);
+    }
   }
   status = ctool_host_adapter_init(&adapter, native_root);
   if (status != CTOOL_OK) {
@@ -536,6 +601,9 @@ int main(int argc, char **argv) {
   context.include_forms = cli.include_forms;
   context.include_roots = include_roots;
   context.include_count = cli.include_count;
+  context.forced_include_paths = forced_include_paths;
+  context.forced_includes = forced_includes;
+  context.forced_include_count = cli.forced_include_count;
   context.macro_actions = cli.macro_actions;
   context.macro_action_count = cli.macro_action_count;
   context.hosted_environment = cli.hosted_environment;
@@ -569,12 +637,21 @@ done:
       free(owned_include_paths[index]);
     }
   }
+  if (owned_forced_include_paths != (char **)0) {
+    for (index = 0u; index < cli.forced_include_count; index++) {
+      free(owned_forced_include_paths[index]);
+    }
+  }
   free(owned_output);
   free(owned_input);
+  free(owned_forced_include_paths);
+  free(forced_includes);
+  free(forced_include_paths);
   free(owned_include_paths);
   free(include_roots);
   free(include_paths);
   free(cli.macro_actions);
+  free(cli.forced_include_arguments);
   free(cli.include_forms);
   free(cli.include_arguments);
   return exit_code;

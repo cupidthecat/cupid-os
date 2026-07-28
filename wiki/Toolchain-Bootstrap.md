@@ -133,6 +133,14 @@ fixed-point rename and old-seed proof, ADR 0129 records the lexer transfer,
 ADR 0135 records the Nuked OPL3 transfer, and ADR 0139 records the JPEG and
 glyph-raster transfer. Seven strict checked-in roots remain host-owned.
 
+Compiler head now accepts ordered `-include` inputs through both the native
+and Cupid-built driver. That command can reproduce the complete audited
+Doom-tree preprocessing profile without editing vendored source. It emits 71
+of the 80 Doom-tree objects, while a checked frontier pins the nine remaining
+failures. The current checked seed predates this driver option, so no Doom
+recipe moves until a later five-tool promotion and the remaining language
+work are complete.
+
 The checked seed resolves the C11 inline declaration set in
 `kernel/audio/nuked_opl3.cc`. The ordinary declaration in its header means
 the later inline body provides a global `OPL3_Generate4Ch` definition. Two
