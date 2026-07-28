@@ -202,6 +202,10 @@ _Avoid_: general GNU assembly support, host-assembler escape
 A parser-private `[identifier]` attached to a GNU statement-assembly input or output. Compiler-head CupidC resolves `%[identifier]` to the existing numeric operand index before it publishes the statement. The public frontend record, Linear IR, and i386 emitter do not retain the label. A doubled percent sign remains escaped text, and named operands receive the same semantic checks as numeric operands.
 _Avoid_: public operand-name metadata, named matching constraint, general GNU template substitution
 
+**Represented GNU x87 double-power memory assembly**:
+The exact volatile statement in `libm_pow_impl()` that consumes one modifiable `double` `=m` output, four addressable `double` `m` inputs, and one `memory` clobber. Compiler-head CupidC resolves its named operands to numeric indexes, evaluates all five addresses once in source order, and emits the complete `FYL2X`, `FRNDINT`, `F2XM1`, and `FSCALE` sequence with balanced x87 depth. The reverse subtraction uses the shared model's canonical `DC E1` encoding for `FSUBR ST(1), ST(0)`.
+_Avoid_: the separate mixed-width `libm_powf_impl()` form, arbitrary x87 stack programs, host-assembler escape
+
 **Represented GNU x87 round-down memory assembly**:
 The exact volatile statement in `str_floor()` that loads one `double`, saves the x87 control word below ESP, selects round toward negative infinity, executes `frndint`, restores the saved word, and stores the result. It requires one modifiable `double` `=m` output, one addressable `double` `m` input, and the exact `ax` plus `memory` clobber set. Linear IR evaluates the output address before the input address. The emitter reuses the consumed input-address slot for the two control-word values without touching the pending output address. The checked seed emits the complete helper deterministically, but unchanged `kernel/core/string.c` still stops at its separate double-to-`uint64_t` cast.
 _Avoid_: general AX clobber, arbitrary x87 control-word template, frame scratch that changes the active offsets

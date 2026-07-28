@@ -451,11 +451,19 @@ symbols through Cupid's shared x86 encoder. The fixture has 248 exact text
 bytes and no relocations. Compiler head accepts `[identifier]` labels before
 GNU statement inputs and outputs, then resolves `%[identifier]` to the
 existing numeric operand index before IR. Named and numeric operands share
-the same semantic checks, and `%%` stays escaped text. The full source now
-proceeds to the wider `libm_pow_impl` memory-input template at line 764.
+the same semantic checks, and `%%` stays escaped text.
+
+Compiler head also emits the exact double-precision x87 program in
+`libm_pow_impl()`. The statement has one `double` output, four `double`
+inputs, and a memory clobber. Linear IR evaluates all five addresses once in
+source order. The emitter produces 116 exact text bytes with no relocations,
+uses `DC E1` for `FSUBR ST(1), ST(0)`, reaches a maximum x87 depth of three,
+and returns to the incoming depth. The full source now proceeds to the
+mixed-width `libm_powf_impl()` statement at line 807.
+
 General GAS syntax and other file-scope templates remain unsupported. The
-checked seed predates named operands, and the normal `libm.c` recipe still
-uses the host compiler.
+checked seed predates named operands and the double-power statement, and the
+normal `libm.c` recipe still uses the host compiler.
 
 The same checked seed accepts a modifiable four-byte object or `void` pointer
 as the single `=r` output of `mov %%gs:0, %0`. It retains the pointer type,

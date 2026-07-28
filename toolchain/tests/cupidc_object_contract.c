@@ -27652,20 +27652,20 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.cc",           "/toolchain/x86.cc",
       "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
-      65u, 68u, 66u, 14u, 31u, 143u, 240u, 272u, 385u, 81u, 37u, 60u,
+      65u, 68u, 66u, 14u, 31u, 143u, 242u, 275u, 391u, 81u, 37u, 60u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 76860u, 85252u, 16872u, 42212u,
-      190304u, 454453u, 432955u, 790654u, 139646u, 70368u, 80478u,
+      190304u, 456111u, 437947u, 798809u, 139646u, 70368u, 80478u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 89320u, 99772u, 20180u, 49484u,
-      226668u, 487272u, 472060u, 935340u, 157828u, 79348u, 134656u,
+      226668u, 489376u, 477832u, 945792u, 157828u, 79348u, 134656u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x5fbbfaf2u, 0x4ca44a27u,
       0x7238e153u, 0x999f97b7u, 0xb49d8eb9u,
-      0xd96ad67eu, 0xfb6e6dfeu, 0x54751273u, 0x239f52c7u,
+      0xe6203069u, 0x196b355au, 0x61b5fbe0u, 0x239f52c7u,
       0x34558a49u, 0x7c198364u, 0x8774de7du};
   ctool_u32 index;
   int all_matched = 1;
@@ -33301,6 +33301,567 @@ cleanup:
   return 1;
 }
 
+static int validate_x87_pow_register_operand(
+    const ctool_x86_operand_t *operand,
+    ctool_x86_reg_class_t class_id, ctool_u8 index) {
+  return operand != NULL &&
+                 operand->kind == CTOOL_X86_OPERAND_REGISTER &&
+                 operand->as.reg.class_id == class_id &&
+                 operand->as.reg.index == index
+             ? 1
+             : 0;
+}
+
+static int validate_x87_pow_memory_operand(
+    const ctool_x86_operand_t *operand, ctool_u16 width_bits,
+    ctool_u8 base_register, ctool_i32 displacement) {
+  return operand != NULL &&
+                 operand->kind == CTOOL_X86_OPERAND_MEMORY &&
+                 operand->width_bits == width_bits &&
+                 operand->as.memory.address_bits == 32u &&
+                 operand->as.memory.segment.class_id == CTOOL_X86_REG_NONE &&
+                 operand->as.memory.base.class_id == CTOOL_X86_REG_GPR32 &&
+                 operand->as.memory.base.index == base_register &&
+                 operand->as.memory.index.class_id == CTOOL_X86_REG_NONE &&
+                 operand->as.memory.scale == 1u &&
+                 operand->as.memory.displacement.kind ==
+                     CTOOL_X86_VALUE_CONSTANT &&
+                 operand->as.memory.displacement.bits ==
+                     (ctool_u32)displacement &&
+                 operand->as.memory.displacement.addend == 0
+             ? 1
+             : 0;
+}
+
+static int x87_pow_instruction_is_x87(
+    ctool_x86_mnemonic_t mnemonic) {
+  return mnemonic == CTOOL_X86_MN_FLD ||
+                 mnemonic == CTOOL_X86_MN_FYL2X ||
+                 mnemonic == CTOOL_X86_MN_FMULP ||
+                 mnemonic == CTOOL_X86_MN_FRNDINT ||
+                 mnemonic == CTOOL_X86_MN_FSUBR ||
+                 mnemonic == CTOOL_X86_MN_FXCH ||
+                 mnemonic == CTOOL_X86_MN_F2XM1 ||
+                 mnemonic == CTOOL_X86_MN_FLD1 ||
+                 mnemonic == CTOOL_X86_MN_FADDP ||
+                 mnemonic == CTOOL_X86_MN_FSCALE ||
+                 mnemonic == CTOOL_X86_MN_FSTP
+             ? 1
+             : 0;
+}
+
+static int validate_x87_pow_decoded_instruction(
+    const ctool_x86_instruction_t *instruction, ctool_u32 index) {
+  static const ctool_x86_mnemonic_t expected[] = {
+      CTOOL_X86_MN_FLD,     CTOOL_X86_MN_FLD,
+      CTOOL_X86_MN_FYL2X,   CTOOL_X86_MN_FLD,
+      CTOOL_X86_MN_FMULP,   CTOOL_X86_MN_FLD,
+      CTOOL_X86_MN_FMULP,   CTOOL_X86_MN_FLD,
+      CTOOL_X86_MN_FRNDINT, CTOOL_X86_MN_FSUBR,
+      CTOOL_X86_MN_FXCH,    CTOOL_X86_MN_F2XM1,
+      CTOOL_X86_MN_FLD1,    CTOOL_X86_MN_FADDP,
+      CTOOL_X86_MN_FSCALE,  CTOOL_X86_MN_FSTP,
+      CTOOL_X86_MN_FSTP};
+  if (instruction == NULL ||
+      index >= (ctool_u32)(sizeof(expected) / sizeof(expected[0])) ||
+      instruction->mnemonic != expected[index]) {
+    return 0;
+  }
+  if (index == 0u || index == 1u || index == 3u || index == 5u) {
+    return instruction->operand_count == 1u &&
+                   validate_x87_pow_memory_operand(
+                       &instruction->operands[0], 64u,
+                       NARROW_ORACLE_EAX, 0)
+               ? 1
+               : 0;
+  }
+  if (index == 7u) {
+    return instruction->operand_count == 1u &&
+                   validate_x87_pow_register_operand(
+                       &instruction->operands[0],
+                       CTOOL_X86_REG_X87, 0u)
+               ? 1
+               : 0;
+  }
+  if (index == 4u || index == 6u || index == 10u ||
+      index == 13u || index == 15u) {
+    return instruction->operand_count == 1u &&
+                   validate_x87_pow_register_operand(
+                       &instruction->operands[0],
+                       CTOOL_X86_REG_X87, 1u)
+               ? 1
+               : 0;
+  }
+  if (index == 9u) {
+    return instruction->operand_count == 2u &&
+                   validate_x87_pow_register_operand(
+                       &instruction->operands[0],
+                       CTOOL_X86_REG_X87, 1u) &&
+                   validate_x87_pow_register_operand(
+                       &instruction->operands[1],
+                       CTOOL_X86_REG_X87, 0u)
+               ? 1
+               : 0;
+  }
+  if (index == 16u) {
+    return instruction->operand_count == 1u &&
+                   validate_x87_pow_memory_operand(
+                       &instruction->operands[0], 64u,
+                       NARROW_ORACLE_EAX, 0)
+               ? 1
+               : 0;
+  }
+  return instruction->operand_count == 0u ? 1 : 0;
+}
+
+static int x87_pow_depth_step(
+    ctool_u32 instruction_index, ctool_u32 *depth_io) {
+  ctool_i32 change = 0;
+  if (depth_io == NULL) {
+    return 0;
+  }
+  if (instruction_index == 0u || instruction_index == 1u ||
+      instruction_index == 3u || instruction_index == 5u ||
+      instruction_index == 7u || instruction_index == 12u) {
+    change = 1;
+  } else if (instruction_index == 2u ||
+             instruction_index == 4u ||
+             instruction_index == 6u ||
+             instruction_index == 13u ||
+             instruction_index == 15u ||
+             instruction_index == 16u) {
+    change = -1;
+  }
+  if ((change < 0 && *depth_io < (ctool_u32)(-change)) ||
+      (change > 0 && *depth_io > 8u - (ctool_u32)change)) {
+    return 0;
+  }
+  if (change < 0) {
+    *depth_io -= (ctool_u32)(-change);
+  } else {
+    *depth_io += (ctool_u32)change;
+  }
+  return 1;
+}
+
+static int validate_x87_pow_memory_function(
+    ctool_job_t *job, const ctool_elf32_section_t *text,
+    const ctool_elf32_symbol_t *symbol) {
+  static const ctool_u8 expected[] = {
+      0x55u, 0x89u, 0xe5u,
+      0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u,
+      0x58u, 0x8bu, 0x00u, 0x50u,
+      0x8du, 0x85u, 0x0cu, 0x00u, 0x00u, 0x00u, 0x50u,
+      0x58u, 0x8bu, 0x00u, 0x50u,
+      0x8du, 0x85u, 0x10u, 0x00u, 0x00u, 0x00u, 0x50u,
+      0x58u, 0x8bu, 0x00u, 0x50u,
+      0x8du, 0x85u, 0x14u, 0x00u, 0x00u, 0x00u, 0x50u,
+      0x58u, 0x8bu, 0x00u, 0x50u,
+      0x8du, 0x85u, 0x18u, 0x00u, 0x00u, 0x00u, 0x50u,
+      0x58u, 0x8bu, 0x00u, 0x50u,
+      0x8bu, 0x44u, 0x24u, 0x04u, 0xddu, 0x00u,
+      0x8bu, 0x44u, 0x24u, 0x0cu, 0xddu, 0x00u,
+      0xd9u, 0xf1u,
+      0x8bu, 0x44u, 0x24u, 0x08u, 0xddu, 0x00u,
+      0xdeu, 0xc9u,
+      0x8bu, 0x04u, 0x24u, 0xddu, 0x00u,
+      0xdeu, 0xc9u,
+      0xd9u, 0xc0u,
+      0xd9u, 0xfcu,
+      0xdcu, 0xe1u,
+      0xd9u, 0xc9u,
+      0xd9u, 0xf0u,
+      0xd9u, 0xe8u,
+      0xdeu, 0xc1u,
+      0xd9u, 0xfdu,
+      0xddu, 0xd9u,
+      0x8bu, 0x44u, 0x24u, 0x10u, 0xddu, 0x18u,
+      0x83u, 0xc4u, 0x14u,
+      0xc9u, 0xc3u};
+  static const ctool_u32 stack_offsets[] = {4u, 12u, 8u, 0u, 16u};
+  ctool_u32 cursor = 0u;
+  ctool_u32 stack_load_count = 0u;
+  ctool_u32 x87_count = 0u;
+  ctool_u32 x87_depth = 0u;
+  ctool_u32 maximum_x87_depth = 0u;
+  ctool_u32 stack_discard_count = 0u;
+  if (job == NULL || text == NULL || symbol == NULL ||
+      text->contents.data == NULL ||
+      symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      symbol->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
+      symbol->value > text->contents.size ||
+      symbol->size > text->contents.size - symbol->value ||
+      symbol->size != (ctool_u32)sizeof(expected) ||
+      memcmp(text->contents.data + symbol->value, expected,
+             sizeof(expected)) != 0) {
+    return 0;
+  }
+  while (cursor < symbol->size) {
+    ctool_x86_decoded_t decoded;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + symbol->value + cursor,
+        symbol->size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(
+        job, CTOOL_X86_MODE_32, remaining, 0u, &decoded);
+    if (status != CTOOL_OK ||
+        decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      return 0;
+    }
+    if (decoded.instruction.mnemonic == CTOOL_X86_MN_MOV &&
+        decoded.instruction.operand_count == 2u &&
+        validate_x87_pow_register_operand(
+            &decoded.instruction.operands[0],
+            CTOOL_X86_REG_GPR32, NARROW_ORACLE_EAX) &&
+        decoded.instruction.operands[1].kind ==
+            CTOOL_X86_OPERAND_MEMORY &&
+        decoded.instruction.operands[1].as.memory.base.class_id ==
+            CTOOL_X86_REG_GPR32 &&
+        decoded.instruction.operands[1].as.memory.base.index ==
+            NARROW_ORACLE_ESP) {
+      if (stack_load_count >= 5u ||
+          !validate_x87_pow_memory_operand(
+              &decoded.instruction.operands[1], 32u,
+              NARROW_ORACLE_ESP,
+              (ctool_i32)stack_offsets[stack_load_count])) {
+        return 0;
+      }
+      stack_load_count++;
+    }
+    if (x87_pow_instruction_is_x87(
+            decoded.instruction.mnemonic)) {
+      if (!validate_x87_pow_decoded_instruction(
+              &decoded.instruction, x87_count) ||
+          !x87_pow_depth_step(x87_count, &x87_depth)) {
+        return 0;
+      }
+      if (x87_depth > maximum_x87_depth) {
+        maximum_x87_depth = x87_depth;
+      }
+      if (x87_count == 9u &&
+          (decoded.consumed != 2u ||
+           remaining.data[0] != 0xdcu ||
+           remaining.data[1] != 0xe1u)) {
+        return 0;
+      }
+      x87_count++;
+    }
+    if (decoded.instruction.mnemonic == CTOOL_X86_MN_ADD &&
+        decoded.instruction.operand_count == 2u &&
+        validate_x87_pow_register_operand(
+            &decoded.instruction.operands[0],
+            CTOOL_X86_REG_GPR32, NARROW_ORACLE_ESP)) {
+      const ctool_x86_operand_t *immediate =
+          &decoded.instruction.operands[1];
+      if (immediate->kind != CTOOL_X86_OPERAND_IMMEDIATE ||
+          immediate->as.value.kind != CTOOL_X86_VALUE_CONSTANT ||
+          immediate->as.value.bits != 20u ||
+          decoded.consumed != 3u ||
+          memcmp(remaining.data, "\x83\xc4\x14", 3u) != 0) {
+        return 0;
+      }
+      stack_discard_count++;
+    }
+    cursor += decoded.consumed;
+  }
+  return cursor == symbol->size &&
+                 stack_load_count == 5u &&
+                 x87_count == 17u &&
+                 x87_depth == 0u &&
+                 maximum_x87_depth == 3u &&
+                 stack_discard_count == 1u
+             ? 1
+             : 0;
+}
+
+static int validate_x87_pow_memory_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_symbol_t *symbol =
+      find_symbol(object, "pow_store");
+  if (object == NULL || text == NULL || text->contents.data == NULL ||
+      symbol == NULL || object->relocation_count != 0u ||
+      text->contents.size != 116u ||
+      !validate_x87_pow_memory_function(job, text, symbol)) {
+    (void)fprintf(stderr, "x87 pow memory assembly object differs\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int run_x87_pow_memory_assembly_object(const char *host_root) {
+  static const char source[] =
+      "void pow_store(volatile double *out, const volatile double *x,\n"
+      "               const double *y, const double *ln2,\n"
+      "               const double *log2e) {\n"
+      "  __asm__ __volatile__("
+      "\"fldl   %[ln2]\\n\\t\""
+      "\"fldl   %[x]\\n\\t\""
+      "\"fyl2x\\n\\t\""
+      "\"fldl   %[y]\\n\\t\""
+      "\"fmulp\\n\\t\""
+      "\"fldl   %[log2e]\\n\\t\""
+      "\"fmulp\\n\\t\""
+      "\"fld    %%st(0)\\n\\t\""
+      "\"frndint\\n\\t\""
+      "\"fsub   %%st, %%st(1)\\n\\t\""
+      "\"fxch\\n\\t\""
+      "\"f2xm1\\n\\t\""
+      "\"fld1\\n\\t\""
+      "\"faddp\\n\\t\""
+      "\"fscale\\n\\t\""
+      "\"fstp   %%st(1)\\n\\t\""
+      "\"fstpl  %[out]\\n\\t\""
+      " : [out] \"=m\" (*out)"
+      " : [x] \"m\" (*x), [y] \"m\" (*y), [ln2] \"m\" (*ln2),"
+      " [log2e] \"m\" (*log2e) : \"memory\");\n"
+      "}\n";
+  static const char invalid_message[] =
+      "CupidC IR lowering received an invalid translation unit";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_buffer_t *first = NULL;
+  ctool_buffer_t *second = NULL;
+  ctool_buffer_t *failure = NULL;
+  ctool_buffer_t *limited = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t mutant;
+  ctool_c_assembly_t mutant_assemblies[1];
+  ctool_c_assembly_operand_t mutant_operands[5];
+  ctool_c_type_layout_t *mutant_layouts = NULL;
+  unit_snapshot_t snapshot;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t first_bytes;
+  ctool_bytes_t second_bytes;
+  ctool_bytes_t recovered_bytes;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&snapshot, 0, sizeof(snapshot));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(
+          job, "/x87-pow-memory-assembly-object.c", source,
+          CTOOL_TRUE, &unit) ||
+      unit.function_definition_count != 1u ||
+      unit.assembly_count != 1u ||
+      unit.assembly_operand_count != 5u ||
+      !take_unit_snapshot(&unit, &snapshot)) {
+    (void)fprintf(stderr, "x87 pow memory assembly object setup failed\n");
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(
+      job, 1024u, config.limits.output_bytes, &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &second);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &failure);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 16u, 64u, &limited);
+  }
+  if (!check_status(status, CTOOL_OK, "x87 pow memory assembly buffers") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, first, "first x87 pow memory assembly object") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second, "repeat x87 pow memory assembly object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(
+        stderr, "x87 pow memory assembly object is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text =
+      ctool_string("/x87-pow-memory-assembly-object.o");
+  object_source.contents = second_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read x87 pow memory assembly object") ||
+      !validate_x87_pow_memory_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+
+  (void)memcpy(
+      mutant_assemblies, unit.assemblies, sizeof(mutant_assemblies));
+  (void)memcpy(
+      mutant_operands, unit.assembly_operands, sizeof(mutant_operands));
+  mutant = unit;
+  mutant.assemblies = mutant_assemblies;
+  mutant.assembly_operands = mutant_operands;
+
+  mutant_assemblies[0].template_text =
+      ctool_string("fldl %3\n\tfyl2x\n\tfstpl %0\n\t");
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged x87 pow template") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_assemblies[0] = unit.assemblies[0];
+
+  mutant_assemblies[0].flags &= ~CTOOL_C_ASSEMBLY_MEMORY_CLOBBER;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged x87 pow memory clobber") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_assemblies[0] = unit.assemblies[0];
+
+  mutant_assemblies[0].flags |= CTOOL_C_ASSEMBLY_AX_CLOBBER;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged x87 pow extra clobber") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_assemblies[0] = unit.assemblies[0];
+
+  mutant_assemblies[0].output_count = 0u;
+  mutant_assemblies[0].input_count = 5u;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged x87 pow operand counts") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_assemblies[0] = unit.assemblies[0];
+
+  mutant_operands[0].constraint = ctool_string("=r");
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged x87 pow register output") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_operands[0] = unit.assembly_operands[0];
+
+  mutant_operands[4].constraint = ctool_string("r");
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged x87 pow register input") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_operands[4] = unit.assembly_operands[4];
+
+  mutant_operands[4].matching_output = 0u;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged x87 pow matching input") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_operands[4] = unit.assembly_operands[4];
+
+  mutant_operands[4].type = CTOOL_C_TYPE_NONE;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged x87 pow input type") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_operands[4] = unit.assembly_operands[4];
+
+  mutant_layouts = (ctool_c_type_layout_t *)malloc(
+      (size_t)unit.layout.type_count * sizeof(*mutant_layouts));
+  if (mutant_layouts == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(
+      mutant_layouts, unit.layout.types,
+      (size_t)unit.layout.type_count * sizeof(*mutant_layouts));
+  mutant_layouts[unit.assembly_operands[0].type].size = 4u;
+  mutant.layout.types = mutant_layouts;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged x87 pow operand layout") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant.layout.types = unit.layout.types;
+
+  if (!expect_object_failure(
+          job, &unit, limited, CTOOL_ERR_LIMIT,
+          CTOOL_C_EMIT_DIAG_LIMIT, NULL,
+          "limited x87 pow memory assembly object") ||
+      ctool_buffer_rewind(limited, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+
+  if (!expect_object_success_preserves_unit(
+          job, &unit, failure, "x87 pow memory assembly recovery")) {
+    goto cleanup;
+  }
+  recovered_bytes = ctool_buffer_view(failure);
+  if (recovered_bytes.size != first_bytes.size ||
+      memcmp(recovered_bytes.data, first_bytes.data,
+             (size_t)first_bytes.size) != 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(
+        stderr, "x87 pow memory assembly recovery object differs\n");
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(mutant_layouts);
+  dispose_unit_snapshot(&snapshot);
+  if (limited != NULL) {
+    ctool_buffer_close(limited);
+  }
+  if (failure != NULL) {
+    ctool_buffer_close(failure);
+  }
+  if (second != NULL) {
+    ctool_buffer_close(second);
+  }
+  if (first != NULL) {
+    ctool_buffer_close(first);
+  }
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("x87-pow-memory-assembly: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_x87_round_down_memory_operand(
     const ctool_x86_operand_t *operand, ctool_u16 width_bits,
     ctool_u8 base_register, ctool_i32 displacement) {
@@ -38625,6 +39186,9 @@ int main(int argc, char **argv) {
       strcmp(argv[1], "x87-round-down-memory-assembly") == 0) {
     return run_x87_round_down_memory_assembly_object(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "x87-pow-memory-assembly") == 0) {
+    return run_x87_pow_memory_assembly_object(argv[2]);
+  }
   if (argc == 3 &&
       strcmp(argv[1], "descriptor-table-assembly") == 0) {
     return run_descriptor_table_assembly_object(argv[2]);
@@ -38758,6 +39322,7 @@ int main(int argc, char **argv) {
                 "movss-memory-assembly|"
                 "x87-sine-memory-assembly|"
                 "x87-round-down-memory-assembly|"
+                "x87-pow-memory-assembly|"
                 "descriptor-table-assembly|"
                 "legacy-port-assembly|state-memory-assembly|"
                 "atomic-builtins|"

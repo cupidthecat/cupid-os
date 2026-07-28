@@ -14229,3 +14229,82 @@ No compiler or checked-seed byte changed in this transfer, so a new fixed
 point was not needed. The promoted seed had already proved all three language
 boundaries. ADR 0160 records the production decision. `TempleOS/` remains
 untouched reference material.
+
+## 2026-07-28: emit the double-precision libm power statement
+
+Compiler-head CupidC now represents the unchanged volatile x87 statement in
+`libm_pow_impl()`. The frontend accepts one modifiable, non-atomic `double`
+`=m` output, four addressable, non-atomic `double` `m` inputs, one `memory`
+clobber, and no other clobber. The active named spelling resolves to the
+numeric template before the public translation unit freezes.
+
+Linear IR evaluates the output and four input addresses once each, in source
+order. The i386 emitter consumes those five addresses through EAX and emits
+all seventeen x87 instructions through Cupid's shared model. The focused
+function has 116 text bytes, no relocations, maximum x87 depth three, and
+balanced depth on return. `FSUBR ST(1), ST(0)` uses the canonical `DC E1`
+encoding.
+
+Positive contracts cover direct and indirect objects, named normalization,
+source-order evaluation, unreachable validation, exact decoding, and repeat
+output. Negative contracts cover constant, register, atomic, wrong-width,
+and rvalue operands; incorrect volatility, clobbers, constraints, counts,
+matching metadata, layouts, and templates; constrained output; rollback; and
+same-job recovery.
+
+The first integration run exposed a diagnostic-order bug. Operand semantics
+are checked before named operands are normalized, so an exact negative case
+received the older generic floating-memory diagnostic. Parsing the complete
+operand list a second time would have created competing syntax views.
+Instead, the exact statement classifier recognizes both the active named
+spelling and its normalized numeric spelling. Public metadata still retains
+only numeric indexes. The focused regression passes with the intended
+source-specific diagnostic.
+
+The unchanged `kernel/cpu/libm.c` probe now passes this statement and stops at
+the separate mixed-width statement:
+
+```text
+/kernel/cpu/libm.c:807:5: error CTB00000F: GNU inline assembly m input template is outside this slice
+```
+
+### Evidence
+
+| Gate | Result |
+| --- | --- |
+| Focused frontend, IR, object, and unchanged-source loop | 4 tests passed in 39.565 seconds |
+| Final complete frontend and Linear IR modules | 158 tests passed in 32.443 seconds |
+| Refreshed self-host object lock | 1 test passed in 22.473 seconds |
+| Complete object module | 95 tests passed in 1,018.213 seconds |
+| Five-tool static fixed point | Passed inside the complete object module |
+| Checked-seed verifier | All five tools passed |
+| Bootstrap audit regeneration and drift check | Passed |
+
+One earlier object-module invocation reached its 904-second caller timeout
+without returning a verdict, so it is not counted. The first monitored run
+completed 95 tests in 917.133 seconds. Ninety-four passed, including the
+complete static fixed point, while the self-host object contract reported
+three stale expected records. Each new object had already repeated byte for
+byte. The refreshed records are:
+
+| Compiler source | Functions | Text bytes | Object bytes | Text fingerprint |
+| --- | ---: | ---: | ---: | --- |
+| `toolchain/cupidc_ir.cc` | 242 | 456,111 | 489,376 | `e6203069` |
+| `toolchain/cupidc_emit.cc` | 275 | 437,947 | 477,832 | `196b355a` |
+| `toolchain/cupidc_frontend.cc` | 391 | 798,809 | 945,792 | `61b5fbe0` |
+
+The focused lock rerun and the final 95-test module both pass with those
+records. No source timeout, compiler diagnostic, stage mismatch, or tool
+behavior mismatch remains.
+
+The generated graph still has 698 active sources, 253 feature IDs, 504
+transforms, and 42 accounted unreachable files. Its active-source digest is
+`37b302b56b2ca28b9fe10b7b23fbaa76921ec4f238a26cca01a74041c205439b`.
+The 1,526,996-byte JSON has SHA-256
+`d44b4a3f633938c1beecd3703e5d448f65526ba1fcc280192663eca2be1e5927`.
+
+This is a compiler-head capability only. The checked seed still predates
+named operands and the new x87 statement. The normal `kernel/cpu/libm.c`
+transform stays with the host compiler and keeps its `.c` suffix. No normal
+object, ABI, image, runtime path, or ownership count changes. ADR 0161 records
+the decision, and `TempleOS/` remains untouched reference material.

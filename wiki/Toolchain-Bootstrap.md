@@ -356,8 +356,19 @@ lvalue. Both forms keep the numeric path's type, qualifier, and constraint
 checks. Doubled percent signs remain escaped text. Malformed, duplicate,
 unterminated, and unresolved labels fail during parsing.
 
-This advances the unchanged `kernel/cpu/libm.c` probe to the wider
-`libm_pow_impl` memory-input template at line 764. That statement, named
-matching constraints, and operand modifiers remain separate work. The
-checked seed and normal host-owned `libm.c` recipe do not change in this
-increment.
+### Double-precision x87 power statement
+
+Compiler head now accepts the complete volatile assembly statement in
+`libm_pow_impl()`. It requires one modifiable `double` output, four
+addressable `double` inputs, one memory clobber, and no other clobber. Linear
+IR evaluates all five addresses once in source order.
+
+The focused function has 116 exact text bytes and no relocations. Shared
+decoding checks all seventeen x87 instructions, the canonical `DC E1`
+reverse-subtract bytes, maximum stack depth three, balanced depth on return,
+deterministic output, rollback, and same-job recovery. The unchanged source
+now reaches the mixed-width `libm_powf_impl()` statement at line 807.
+
+Named matching constraints, operand modifiers, and the float-power form
+remain separate work. The checked seed and normal host-owned `libm.c` recipe
+do not change in this increment.

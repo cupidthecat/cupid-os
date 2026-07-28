@@ -434,11 +434,14 @@ The frontend owns immutable templates outside function bodies, and Linear IR
 keeps their source order. The i386 emitter handles the twelve exact x87/SSE
 floating wrappers at the start of unchanged `kernel/cpu/libm.c`. Cupid's
 shared x86 encoder produces 248 text bytes, twelve global function symbols,
-and no relocations. Compiler head now accepts named operands on function-body
-GNU assembly and resolves `%[name]` to the existing numeric operand before
-Linear IR. The complete source reaches the wider `libm_pow_impl` memory-input
-template at line 764, which remains outside the represented x87 subset. The
-checked seed carries the file-scope wrappers but predates named operands, so
+and no relocations. Compiler head accepts named operands on function-body GNU
+assembly and resolves `%[name]` to the existing numeric operand before Linear
+IR. It now emits the complete double-precision `libm_pow_impl` statement with
+one output, four inputs, and a memory clobber. The focused function has 116
+exact text bytes, no relocations, a maximum x87 depth of three, and balanced
+depth on return. The complete source reaches the separate mixed-width
+`libm_powf_impl` statement at line 807. The checked seed carries the
+file-scope wrappers but predates named operands and the new `pow` block, so
 `libm.c` stays on its host-owned recipe and keeps its `.c` name.
 
 The checked seed emits the exact volatile
@@ -661,6 +664,8 @@ and the generated kernel symbol translation described above.
 [ADR 0140](docs/adr/0140-expose-ordered-forced-includes.md) records the ordered forced-input driver seam and exact Doom-tree frontier. [ADR 0145](docs/adr/0145-retain-empty-memory-assembly-barriers.md) records the empty compiler memory barrier and the resulting sound-driver object. [ADR 0146](docs/adr/0146-represent-ldmxcsr-memory-inputs.md) records the exact LDMXCSR memory-input boundary. [ADR 0147](docs/adr/0147-evaluate-static-floating-arithmetic.md) records deterministic static floating arithmetic and the resulting automap object. [ADR 0148](docs/adr/0148-represent-movss-float-memory-assembly.md) records the exact MOVSS float-memory boundary. [ADR 0149](docs/adr/0149-gate-doom-implicit-function-declarations.md) records the explicit Doom implicit-call profile. [ADR 0150](docs/adr/0150-represent-x87-sine-memory-assembly.md) records the exact x87 sine memory boundary and completed compiler-head FPU root. [ADR 0151](docs/adr/0151-gate-doom-function-data-pointer-conversions.md) records the profile's function/data pointer rule. [ADR 0152](docs/adr/0152-retain-narrow-bit-field-promotion-provenance.md) records ordinary narrow bit-field promotion. [ADR 0153](docs/adr/0153-represent-union-initializer-lists.md) records one-active-member union initialization. [ADR 0154](docs/adr/0154-represent-x87-round-down-memory-assembly.md) records the exact x87 round-down and control-word boundary. [ADR 0155](docs/adr/0155-represent-task23-file-scope-assembly.md) records the file-scope GNU basic assembly boundary and the Task 23 wrapper proof. [ADR 0156](docs/adr/0156-represent-naked-ipi-wrappers.md) records the exact naked IPI wrapper boundary. [ADR 0157](docs/adr/0157-represent-descriptor-table-segment-assembly.md) records the descriptor-table and segment-register boundary. [ADR 0158](docs/adr/0158-promote-current-toolchain-seed.md) records the clean fixed-point promotion and its post-promotion reproof. [ADR 0159](docs/adr/0159-normalize-gnu-named-assembly-operands.md) records parser-private GNU operand labels and the resulting `libm.c` frontier.
 
 [ADR 0160](docs/adr/0160-transfer-fpu-and-smp-roots-to-cupidc.md) records the checked FPU and SMP production handoff, `.cc` rename, image proof, and dual-NIC runtime gate.
+
+[ADR 0161](docs/adr/0161-represent-x87-double-pow-memory-assembly.md) records the exact double-precision `pow` assembly boundary and the resulting `libm.c` frontier.
 
 [ADR 0143](docs/adr/0143-share-ordinary-padding-nops.md) records the shared ordinary compiler padding family and its measured disassembly improvement.
 

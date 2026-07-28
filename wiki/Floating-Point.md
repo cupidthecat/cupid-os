@@ -86,6 +86,16 @@ unchanged helper produce the same 420-byte object. The complete
 double-to-`uint64_t` cast on line 190, so this compiler-head increment does
 not move production ownership.
 
+Compiler head also represents the double-precision x87 power statement in
+`libm_pow_impl()`. It requires one `double` memory output, four `double`
+memory inputs, and one memory clobber. Linear IR evaluates all five addresses
+once in source order. The 116-byte focused function contains seventeen x87
+instructions, uses `DC E1` for `FSUBR ST(1), ST(0)`, reaches stack depth
+three, and returns to its incoming depth without a relocation. The unchanged
+file now stops at the mixed-width `libm_powf_impl()` statement on line 807.
+The checked seed does not yet carry this compiler-head capability, so
+`kernel/cpu/libm.c` remains host-owned.
+
 The normal build now compiles `kernel/gfx/jpeg.cc` and
 `kernel/gfx/glyph_raster.cc` with that seed. JPEG exercises exact static
 floating data, while glyph rasterization exercises the comparison path. The

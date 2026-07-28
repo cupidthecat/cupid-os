@@ -238,11 +238,19 @@ twelve exact x87/SSE floating wrapper definitions at the start of unchanged
 kernel/cpu/libm.c and writes prologue-free global functions through Cupid's
 shared x86 encoder. The fixture has 248 text bytes and no relocations. The
 compiler head accepts named operands on function-body GNU assembly and
-resolves %[name] to the existing numeric operand before IR. The full source
-now stops at the wider libm_pow_impl memory-input template on line 764.
+resolves %[name] to the existing numeric operand before IR.
+
+Compiler head emits the complete double-precision x87 statement in
+libm_pow_impl. It accepts one double output, four double inputs, and a memory
+clobber. Linear IR evaluates the five addresses once in source order. The
+focused function has 116 exact text bytes, no relocations, a maximum x87
+depth of three, and balanced depth on return. FSUBR ST(1), ST(0) uses the
+canonical DC E1 encoding. The full source now stops at the mixed-width
+libm_powf_impl statement on line 807.
+
 General GAS input and other file-scope templates remain unsupported. The
-checked seed predates named operands, and the normal libm.c recipe still uses
-the host compiler.
+checked seed predates named operands and the double-power statement, and the
+normal libm.c recipe still uses the host compiler.
 
 The checked seed represents the exact per-CPU pointer output
 mov %%gs:0, %0 with one four-byte =r object or void pointer. It keeps the
