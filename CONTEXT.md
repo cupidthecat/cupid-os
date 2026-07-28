@@ -208,7 +208,11 @@ _Avoid_: treating the mixed-width `libm_powf_impl()` form as all-double operands
 
 **Represented GNU x87 mixed-width float-power memory assembly**:
 The exact volatile statement in `libm_powf_impl()` that consumes one modifiable `float` `=m` output, two addressable `float` `m` inputs, two addressable `double` `m` inputs, and one `memory` clobber. Compiler-head CupidC resolves its named operands to numeric indexes and evaluates all five addresses once in source order. The emitter shares the power sequence while selecting 32-bit loads and store for the float values and 64-bit loads for the constants.
-_Avoid_: treating every operand as `double`, the separate `sqrtsd` register form, arbitrary x87 stack programs, host-assembler escape
+_Avoid_: treating every operand as `double`, arbitrary x87 stack programs, host-assembler escape
+
+**Represented GNU SSE2 square-root register assembly**:
+The exact volatile `sqrtsd %1, %0` statement in `libm_sqrt_impl()` with one modifiable, non-atomic `double` `=x` output, one non-atomic `double` `x` input, and no clobbers. Linear IR evaluates the output address before the input value. The i386 emitter loads the value into XMM0, applies `SQRTSD XMM0, XMM0`, and stores through the saved output address. The focused function has 65 text bytes and no relocations.
+_Avoid_: general `x` constraints, arbitrary XMM register allocation, host-assembler escape
 
 **Represented GNU x87 round-down memory assembly**:
 The exact volatile statement in `str_floor()` that loads one `double`, saves the x87 control word below ESP, selects round toward negative infinity, executes `frndint`, restores the saved word, and stores the result. It requires one modifiable `double` `=m` output, one addressable `double` `m` input, and the exact `ax` plus `memory` clobber set. Linear IR evaluates the output address before the input address. The emitter reuses the consumed input-address slot for the two control-word values without touching the pending output address. The checked seed emits the complete helper deterministically, but unchanged `kernel/core/string.c` still stops at its separate double-to-`uint64_t` cast.

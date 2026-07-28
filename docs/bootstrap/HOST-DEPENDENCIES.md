@@ -75,11 +75,13 @@ It now emits the exact x87 statements in `libm_pow_impl()` and
 `libm_powf_impl()`. The double form has five `double` memory operands. The
 mixed form has a `float` output, two `float` inputs, and two `double` inputs.
 Each 116-byte focused function uses no relocations and returns the x87 stack
-to its incoming depth. The complete unchanged source reaches the `=x` output
-of `sqrtsd %1, %0` in `libm_sqrt_impl()` at line 914. The checked seed
-predates named operands and both power forms, so GCC or Clang continues to
-own the normal `libm.c` transform. No dependency or production ownership
-count changes.
+to its incoming depth. Compiler head also emits the exact `sqrtsd %1, %0`
+statement with a `double` `=x` output and a `double` `x` input. The focused
+function has 65 text bytes and no relocations. The complete unchanged source
+reaches the x87 memory statement in `libm_atan2_impl()` at line 922. The
+checked seed predates named operands and all three statement forms, so GCC or
+Clang continues to own the normal `libm.c` transform. No dependency or
+production ownership count changes.
 
 The USB lifetime work retires no additional compiler transform, but it
 supplies the runtime contract for EHCI and UHCI ownership. Reconciliation

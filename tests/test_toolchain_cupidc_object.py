@@ -815,6 +815,20 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "x87-powf-memory-assembly: ok\n")
 
+    def test_sqrtsd_assembly_emits_exact_shared_model_sequence(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "sqrtsd-register-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "sqrtsd-register-assembly: ok\n")
+
     def test_descriptor_table_assembly_emits_exact_segment_transitions(self):
         result = subprocess.run(
             [
@@ -1150,7 +1164,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                 self.assertEqual(result.stderr, expected)
                 self.assertFalse(output.exists())
 
-    def test_unchanged_libm_source_advances_past_mixed_width_powf_assembly(
+    def test_unchanged_libm_source_advances_past_sqrtsd_register_assembly(
         self,
     ):
         source = REPO_ROOT / "kernel/cpu/libm.c"
@@ -1191,8 +1205,8 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             )
 
         expected = (
-            "/kernel/cpu/libm.c:914:44: error CTB00000F: "
-            "GNU inline assembly output constraint is outside this slice\n"
+            "/kernel/cpu/libm.c:922:5: error CTB00000F: "
+            "GNU inline assembly m input template is outside this slice\n"
         )
         with tempfile.TemporaryDirectory(
             prefix=".cupidc-libm-frontier-", dir=REPO_ROOT

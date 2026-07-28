@@ -7654,12 +7654,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.cc", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
        25287u, 479u, 286u, 0u, 0u},
-      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 245u, 6985u,
-       64532u, 917u, 334u, 0u, 0u},
-      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 279u, 6918u,
-       59426u, 850u, 451u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 394u,
-       15749u, 103981u, 2362u, 1453u, 0u, 0u},
+      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 247u, 7007u,
+       64895u, 921u, 338u, 0u, 0u},
+      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 282u, 6953u,
+       59764u, 854u, 451u, 0u, 0u},
+      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 396u,
+       15815u, 104525u, 2372u, 1458u, 0u, 0u},
       {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 81u, 2935u,
        19252u, 326u, 186u, 0u, 0u},
       {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
@@ -28904,6 +28904,236 @@ cleanup:
 
 #undef X87_POWF_NAMED_ASM_SOURCE
 
+#define SQRTSD_REGISTER_ASM_SOURCE "\"sqrtsd %1, %0\""
+
+static int validate_sqrtsd_register_assembly_unit(
+    const ctool_c_translation_unit_t *unit) {
+  static const ctool_u32 lines[] = {3u, 7u};
+  static const char *const constraints[] = {"=x", "x", "=x", "x"};
+  ctool_u32 assembly_statement_count = 0u;
+  ctool_u32 index;
+  if (unit->function_definition_count != ARRAY_COUNT(lines) ||
+      unit->assembly_count != ARRAY_COUNT(lines) ||
+      unit->assembly_operand_count != ARRAY_COUNT(constraints) ||
+      unit->assemblies == NULL || unit->assembly_operands == NULL ||
+      unit->expressions == NULL || unit->layout.types == NULL) {
+    return 1;
+  }
+  for (index = 0u; index < ARRAY_COUNT(lines); index++) {
+    const ctool_c_assembly_t *assembly = &unit->assemblies[index];
+    if (string_equal(
+            assembly->template_text, "sqrtsd %1, %0") == 0 ||
+        assembly->flags != CTOOL_C_ASSEMBLY_VOLATILE ||
+        assembly->first_operand != index * 2u ||
+        assembly->output_count != 1u ||
+        assembly->input_count != 1u ||
+        dual_location_matches(
+            &assembly->location, &assembly->physical_location,
+            "/sqrtsd-register-assembly.c", lines[index]) == 0) {
+      return 1;
+    }
+  }
+  for (index = 0u; index < ARRAY_COUNT(constraints); index++) {
+    const ctool_c_assembly_operand_t *operand =
+        &unit->assembly_operands[index];
+    if (operand->type >= unit->layout.type_count ||
+        operand->expression >= unit->expression_count ||
+        string_equal(operand->constraint, constraints[index]) == 0 ||
+        operand->matching_output != CTOOL_C_AST_NONE ||
+        unit->expressions[operand->expression].type != operand->type ||
+        underlying_type_kind(unit, operand->type, NULL) !=
+            CTOOL_C_TYPE_DOUBLE ||
+        unit->layout.types[operand->type].is_object != CTOOL_TRUE ||
+        unit->layout.types[operand->type].is_complete_object != CTOOL_TRUE ||
+        unit->layout.types[operand->type].size != 8u) {
+      return 1;
+    }
+  }
+  for (index = 0u; index < unit->statement_count; index++) {
+    const ctool_c_statement_t *statement = &unit->statements[index];
+    if (statement->kind == CTOOL_C_STATEMENT_ASSEMBLY) {
+      if (statement->assembly != assembly_statement_count ||
+          statement->expression != CTOOL_C_AST_NONE) {
+        return 1;
+      }
+      assembly_statement_count++;
+    } else if (statement->assembly != CTOOL_C_AST_NONE) {
+      return 1;
+    }
+  }
+  return assembly_statement_count == ARRAY_COUNT(lines) ? 0 : 1;
+}
+
+static int run_sqrtsd_register_assembly(const char *host_root) {
+  static const char source[] =
+      "double sqrt_local(double x) {\n"
+      "  double result;\n"
+      "  __asm__ __volatile__(" SQRTSD_REGISTER_ASM_SOURCE
+      " : \"=x\" (result) : \"x\" (x));\n"
+      "  return result;\n"
+      "}\n"
+      "void sqrt_indirect(volatile double *out, const volatile double *in) {\n"
+      "  __asm__ __volatile__(" SQRTSD_REGISTER_ASM_SOURCE
+      " : \"=x\" (*out) : \"x\" (*in));\n"
+      "}\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"constant SQRTSD output",
+        "void bad(const double *out, double x) {"
+        " __asm__ __volatile__(" SQRTSD_REGISTER_ASM_SOURCE
+        " : \"=x\" (*out) : \"x\" (x)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU SQRTSD assembly =x output requires a modifiable non-atomic "
+       "double lvalue"},
+      {{"float SQRTSD output",
+        "void bad(float *out, double x) {"
+        " __asm__ __volatile__(" SQRTSD_REGISTER_ASM_SOURCE
+        " : \"=x\" (*out) : \"x\" (x)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU SQRTSD assembly =x output requires a modifiable non-atomic "
+       "double lvalue"},
+      {{"atomic SQRTSD output",
+        "void bad(_Atomic double *out, double x) {"
+        " __asm__ __volatile__(" SQRTSD_REGISTER_ASM_SOURCE
+        " : \"=x\" (*out) : \"x\" (x)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU SQRTSD assembly =x output requires a modifiable non-atomic "
+       "double lvalue"},
+      {{"rvalue SQRTSD output",
+        "void bad(double x) { __asm__ __volatile__("
+        SQRTSD_REGISTER_ASM_SOURCE
+        " : \"=x\" (x + 1.0) : \"x\" (x)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU SQRTSD assembly =x output requires a modifiable non-atomic "
+       "double lvalue"},
+      {{"register-object SQRTSD output",
+        "void bad(double x) { register double out;"
+        " __asm__ __volatile__(" SQRTSD_REGISTER_ASM_SOURCE
+        " : \"=x\" (out) : \"x\" (x)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU SQRTSD assembly =x output requires a modifiable non-atomic "
+       "double lvalue"},
+      {{"float SQRTSD input",
+        "void bad(double *out, float x) {"
+        " __asm__ __volatile__(" SQRTSD_REGISTER_ASM_SOURCE
+        " : \"=x\" (*out) : \"x\" (x)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU SQRTSD assembly x input requires a non-atomic double value"},
+      {{"atomic SQRTSD input",
+        "void bad(double *out, _Atomic double *x) {"
+        " __asm__ __volatile__(" SQRTSD_REGISTER_ASM_SOURCE
+        " : \"=x\" (*out) : \"x\" (*x)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU SQRTSD assembly x input requires a non-atomic double value"},
+      {{"integer SQRTSD input",
+        "void bad(double *out, unsigned long long x) {"
+        " __asm__ __volatile__(" SQRTSD_REGISTER_ASM_SOURCE
+        " : \"=x\" (*out) : \"x\" (x)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU SQRTSD assembly x input requires a non-atomic double value"},
+      {{"wrong SQRTSD output constraint",
+        "void bad(double *out, double x) {"
+        " __asm__ __volatile__(" SQRTSD_REGISTER_ASM_SOURCE
+        " : \"=r\" (*out) : \"x\" (x)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU SQRTSD assembly output requires the =x constraint"},
+      {{"wrong SQRTSD input constraint",
+        "void bad(double *out, double x) {"
+        " __asm__ __volatile__(" SQRTSD_REGISTER_ASM_SOURCE
+        " : \"=x\" (*out) : \"r\" (x)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU SQRTSD assembly input requires the x constraint"},
+      {{"altered SQRTSD template",
+        "void bad(double *out, double x) {"
+        " __asm__ __volatile__(\"sqrtsd %1,%0\""
+        " : \"=x\" (*out) : \"x\" (x)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly output constraint is outside this slice"},
+      {{"nonvolatile SQRTSD assembly",
+        "void bad(double *out, double x) {"
+        " __asm__(" SQRTSD_REGISTER_ASM_SOURCE
+        " : \"=x\" (*out) : \"x\" (x)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU SQRTSD assembly requires one volatile double =x output, "
+       "one double x input, and no clobbers"},
+      {{"SQRTSD memory clobber",
+        "void bad(double *out, double x) {"
+        " __asm__ __volatile__(" SQRTSD_REGISTER_ASM_SOURCE
+        " : \"=x\" (*out) : \"x\" (x) : \"memory\"); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU SQRTSD assembly requires one volatile double =x output, "
+       "one double x input, and no clobbers"},
+      {{"SQRTSD xmm0 clobber",
+        "void bad(double *out, double x) {"
+        " __asm__ __volatile__(" SQRTSD_REGISTER_ASM_SOURCE
+        " : \"=x\" (*out) : \"x\" (x) : \"xmm0\"); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU SQRTSD assembly requires one volatile double =x output, "
+       "one double x input, and no clobbers"},
+      {{"extra SQRTSD output",
+        "void bad(double *out, double *other, double x) {"
+        " __asm__ __volatile__(" SQRTSD_REGISTER_ASM_SOURCE
+        " : \"=x\" (*out), \"=x\" (*other) : \"x\" (x)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU SQRTSD assembly requires one volatile double =x output, "
+       "one double x input, and no clobbers"}};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_u32 index;
+  int failed = 1;
+  if (begin_frontend_fixture(
+          &fixture, "sqrtsd-register-assembly", host_root,
+          8u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  if (parse_valid_fixture(
+          &fixture, "/sqrtsd-register-assembly.c", source, &unit) != 0 ||
+      validate_sqrtsd_register_assembly_unit(&unit) != 0) {
+    (void)fprintf(
+        stderr, "sqrtsd-register-assembly: public graph differs\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case =
+        &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure,
+            "/sqrtsd-register-assembly-failure.c", test_case->line,
+            test_case->column, test_case->message) != 0 ||
+        validate_sqrtsd_register_assembly_unit(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)puts("sqrtsd-register-assembly: ok");
+  }
+  return failed;
+}
+
+#undef SQRTSD_REGISTER_ASM_SOURCE
+
 static int validate_descriptor_table_assembly_unit(
     const ctool_c_translation_unit_t *unit) {
   static const char *const templates[] = {
@@ -30550,6 +30780,7 @@ int main(int argc, char **argv) {
                    "x87-round-down-memory-assembly|"
                    "x87-pow-memory-assembly|"
                    "x87-powf-memory-assembly|"
+                   "sqrtsd-register-assembly|"
                    "descriptor-table-assembly|"
                    "legacy-port-assembly|"
                    "register-snapshot-assembly|call-next-assembly|"
@@ -30675,6 +30906,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "x87-powf-memory-assembly") == 0) {
     return run_x87_powf_memory_assembly(argv[2]);
+  }
+  if (strcmp(argv[1], "sqrtsd-register-assembly") == 0) {
+    return run_sqrtsd_register_assembly(argv[2]);
   }
   if (strcmp(argv[1], "descriptor-table-assembly") == 0) {
     return run_descriptor_table_assembly(argv[2]);

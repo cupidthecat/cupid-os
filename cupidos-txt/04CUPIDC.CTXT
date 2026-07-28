@@ -246,13 +246,18 @@ inputs. The mixed form accepts one float output, two float inputs, and two
 double inputs. Both use a memory clobber. Linear IR evaluates each set of
 five addresses once in source order. Each focused function has 116 exact
 text bytes, no relocations, a maximum x87 depth of three, and balanced depth
-on return. FSUBR ST(1), ST(0) uses the canonical DC E1 encoding. The full
-source now stops at the =x output of sqrtsd %1, %0 in libm_sqrt_impl on line
-914.
+on return. FSUBR ST(1), ST(0) uses the canonical DC E1 encoding.
+
+Compiler head also emits the exact volatile sqrtsd %1, %0 statement. It
+accepts one modifiable, non-atomic double =x output, one non-atomic double x
+input, and no clobbers. Linear IR evaluates the output address before the
+input value. The 65-byte focused function uses the shared MOVSD and SQRTSD
+encodings and has no relocations. The full source now stops at the x87 memory
+statement in libm_atan2_impl on line 922.
 
 General GAS input and other file-scope templates remain unsupported. The
-checked seed predates named operands and both power statements, and the normal
-libm.c recipe still uses the host compiler.
+checked seed predates named operands and these three statement blocks, and the
+normal libm.c recipe still uses the host compiler.
 
 The checked seed represents the exact per-CPU pointer output
 mov %%gs:0, %0 with one four-byte =r object or void pointer. It keeps the

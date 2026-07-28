@@ -369,10 +369,23 @@ source order.
 Each focused function has 116 exact text bytes and no relocations. Shared
 decoding checks all seventeen x87 instructions, the canonical `DC E1`
 reverse-subtract bytes, maximum stack depth three, balanced depth on return,
-deterministic output, rollback, and same-job recovery. The unchanged source
-now reaches the `=x` output of `sqrtsd %1, %0` in `libm_sqrt_impl()` at line
-914.
+deterministic output, rollback, and same-job recovery.
 
-Named matching constraints, operand modifiers, and the `sqrtsd` register form
-remain separate work. The checked seed and normal host-owned `libm.c` recipe
-do not change in this increment.
+### SSE2 square-root statement
+
+Compiler head accepts the exact volatile `sqrtsd %1, %0` statement in
+`libm_sqrt_impl()`. It requires one modifiable, non-atomic `double` `=x`
+output, one non-atomic `double` `x` input, and no clobbers. Linear IR
+evaluates the output address before the input value.
+
+The emitter loads the input into XMM0 with `MOVSD`, applies
+`SQRTSD XMM0, XMM0`, and stores the result through the saved output address.
+The focused function has 65 text bytes and no relocations. Contracts cover
+the exact bytes, forged metadata, useful operand diagnostics, deterministic
+output, unreachable validation, rollback, and same-job recovery. The
+unchanged source now reaches the x87 memory statement in
+`libm_atan2_impl()` at line 922.
+
+Named matching constraints, operand modifiers, the `atan2` block, and general
+XMM constraints remain separate work. The checked seed and normal host-owned
+`libm.c` recipe do not change in this increment.

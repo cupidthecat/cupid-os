@@ -14381,3 +14381,93 @@ the normal `kernel/cpu/libm.c` transform remains host-owned with its `.c`
 suffix. No production object, ABI, image, runtime path, or ownership count
 changes in this increment. ADR 0162 records the decision. `TempleOS/` remains
 untouched reference material.
+
+## 2026-07-28: emit the libm sqrtsd statement
+
+Compiler-head CupidC now represents the unchanged volatile
+`sqrtsd %1, %0` statement in `libm_sqrt_impl()`. The frontend requires one
+modifiable, non-atomic `double` `=x` output, one non-atomic `double` `x`
+input, and no clobbers. Other templates that use the XMM register class
+remain outside this exact source-driven path.
+
+Linear IR evaluates the result lvalue address before the converted input
+value. It applies the same constraint, type, layout, count, flag, and
+qualifier checks in reachable and unreachable code. The i386 emitter uses
+XMM0 privately, loads the input with `MOVSD`, applies
+`SQRTSD XMM0, XMM0`, and stores the result through the saved output address.
+All five decoded instructions come from Cupid's shared x86 model.
+
+The focused function contains 65 text bytes and no relocations. Its direct
+14-byte statement sequence is:
+
+```text
+58 F2 0F 10 00 F2 0F 51 C0 58 F2 0F 11 00
+```
+
+Positive contracts cover the exact source, output-before-input evaluation,
+shared decoding, deterministic output, unreachable validation, rollback,
+and same-job recovery. Negative contracts reject wrong widths, atomic
+operands, rvalues, constants, register objects, constraints, counts,
+templates, flags, clobbers, matching metadata, and forged layouts.
+
+The final review found that default conversion removed an input lvalue's
+atomic qualifier before the SQRTSD-specific frontend check. Linear IR still
+rejected the conversion, but the frontend did not own the diagnostic promised
+by this boundary. The parser now records the original input type before
+conversion, checks its qualifiers, and has a dedicated atomic-input negative.
+
+The unchanged `kernel/cpu/libm.c` probe now stops at the following independent
+statement:
+
+```text
+/kernel/cpu/libm.c:922:5: error CTB00000F: GNU inline assembly m input template is outside this slice
+```
+
+This is the x87 memory program in `libm_atan2_impl()`.
+
+### Evidence
+
+| Gate | Result |
+| --- | --- |
+| Focused frontend, IR, object, and unchanged-source loop | 4 tests passed in 53.126 seconds |
+| Final complete frontend and Linear IR modules | 162 tests passed in 30.043 seconds |
+| Refreshed self-host frontier object lock | 1 test passed in 31.154 seconds |
+| Cupid-built compiler self-object | 1 test passed in 238.931 seconds |
+| Strict hosted Toolchain build | All native contracts passed in 41.7 seconds; six static i386 artifacts linked |
+| Five-tool static fixed point | 1 test passed in 689.472 seconds |
+| Checked-seed verifier | All five tools passed |
+| Bootstrap audit regeneration and drift check | Passed |
+
+The refreshed frontend source records are:
+
+| Compiler source | Definitions | Statements | Expressions | Block bindings | Initializers |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `toolchain/cupidc_ir.cc` | 247 | 7,007 | 64,895 | 921 | 338 |
+| `toolchain/cupidc_emit.cc` | 282 | 6,953 | 59,764 | 854 | 451 |
+| `toolchain/cupidc_frontend.cc` | 396 | 15,815 | 104,525 | 2,372 | 1,458 |
+
+The refreshed object records are:
+
+| Compiler source | Functions | Text bytes | Object bytes | Text fingerprint |
+| --- | ---: | ---: | ---: | --- |
+| `toolchain/cupidc_ir.cc` | 247 | 462,309 | 496,640 | `46ac166e` |
+| `toolchain/cupidc_emit.cc` | 282 | 442,764 | 483,824 | `22ed20ea` |
+| `toolchain/cupidc_frontend.cc` | 396 | 807,078 | 956,880 | `a2b6ccf4` |
+
+A first integration self-object run exceeded its 184-second caller timeout
+while other frontier jobs were active. Two WSL children continued compiling
+after the caller ended, so they were stopped and that run is not evidence.
+The final run followed the atomic-input review correction and completed in
+238.931 seconds with matching hosted and Cupid-built objects.
+
+The generated graph still has 698 active sources, 253 feature IDs, 504
+transforms, and 42 accounted unreachable files. Its active-source digest is
+`86f632d48cb83a2b64ce300a1f10b0377f53011961ec1cb7648e610b53ba0127`.
+The 1,526,996-byte JSON has SHA-256
+`3902e40a09f805886a7c28263bb3bed2db7f943e2435143a765ec80801c15f3d`.
+
+This remains a compiler-head capability. The checked seed has not moved, and
+the normal `kernel/cpu/libm.c` transform remains host-owned with its `.c`
+suffix. No production object, ABI, image, runtime path, or ownership count
+changes in this increment. ADR 0163 records the decision. `TempleOS/` remains
+untouched reference material.

@@ -618,6 +618,12 @@ static cir_movss_memory_kind_t cir_movss_memory_template_kind(
              : CIR_MOVSS_MEMORY_NONE;
 }
 
+static ctool_bool cir_sqrtsd_register_template(
+    ctool_string_t template_text) {
+  return cir_string_equal(
+      template_text, ctool_string("sqrtsd %1, %0"));
+}
+
 static ctool_bool cir_x87_sine_memory_template(
     ctool_string_t template_text) {
   return cir_string_equal(
@@ -1056,6 +1062,41 @@ static ctool_bool cir_x87_powf_memory_assembly_metadata_is_valid(
   return CTOOL_TRUE;
 }
 
+static ctool_bool cir_sqrtsd_register_assembly_metadata_is_valid(
+    const cir_context_t *context,
+    const ctool_c_assembly_t *assembly) {
+  const ctool_c_assembly_operand_t *output;
+  const ctool_c_assembly_operand_t *input;
+  if (cir_sqrtsd_register_template(
+          assembly->template_text) == CTOOL_FALSE) {
+    return CTOOL_TRUE;
+  }
+  if (assembly->flags != CTOOL_C_ASSEMBLY_VOLATILE ||
+      assembly->output_count != 1u ||
+      assembly->input_count != 1u ||
+      assembly->first_operand > context->unit->assembly_operand_count ||
+      2u > context->unit->assembly_operand_count -
+               assembly->first_operand ||
+      context->unit->assembly_operands ==
+          (const ctool_c_assembly_operand_t *)0) {
+    return CTOOL_FALSE;
+  }
+  output =
+      &context->unit->assembly_operands[assembly->first_operand];
+  input = &context->unit
+               ->assembly_operands[assembly->first_operand + 1u];
+  return cir_string_equal(
+             output->constraint, ctool_string("=x")) == CTOOL_TRUE &&
+                 cir_x87_double_memory_operand_is_valid(
+                     context, output, CTOOL_TRUE) == CTOOL_TRUE &&
+                 cir_string_equal(
+                     input->constraint, ctool_string("x")) == CTOOL_TRUE &&
+                 cir_x87_double_memory_operand_is_valid(
+                     context, input, CTOOL_FALSE) == CTOOL_TRUE
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
 static ctool_bool cir_descriptor_table_memory_operand_is_valid(
     const cir_context_t *context,
     const ctool_c_assembly_operand_t *operand) {
@@ -1303,6 +1344,8 @@ static ctool_status_t cir_validate_assembly_slices(
        assembly_index++) {
     const ctool_c_assembly_t *assembly =
         &context->unit->assemblies[assembly_index];
+    ctool_bool sqrtsd_register =
+        cir_sqrtsd_register_template(assembly->template_text);
     ctool_u32 fixed_registers = 0u;
     ctool_u32 matched_outputs = 0u;
     ctool_u32 operand_count;
@@ -1350,8 +1393,11 @@ static ctool_status_t cir_validate_assembly_slices(
       if (operand->expression >= context->unit->expression_count ||
           operand->type >= context->unit->graph.type_count ||
           operand->matching_output != CTOOL_C_AST_NONE ||
-          cir_output_assembly_constraint_is_valid(
-              operand->constraint) == CTOOL_FALSE ||
+          (cir_output_assembly_constraint_is_valid(
+               operand->constraint) == CTOOL_FALSE &&
+           !(sqrtsd_register == CTOOL_TRUE &&
+             cir_string_equal(
+                 operand->constraint, ctool_string("=x")) == CTOOL_TRUE)) ||
           (fixed_registers & fixed_output_register) != 0u) {
         return cir_invalid_unit(context, &operand->location);
       }
@@ -1363,10 +1409,14 @@ static ctool_status_t cir_validate_assembly_slices(
           &context->unit
                ->assembly_operands[operand_cursor + operand_offset];
       ctool_u32 matching_output;
-      ctool_u32 fixed_input_register;
+      ctool_u32 fixed_input_register = 0u;
       ctool_bool independent =
-          cir_independent_assembly_constraint(
-              operand->constraint, &fixed_input_register);
+          sqrtsd_register == CTOOL_TRUE &&
+                  cir_string_equal(
+                      operand->constraint, ctool_string("x")) == CTOOL_TRUE
+              ? CTOOL_TRUE
+              : cir_independent_assembly_constraint(
+                    operand->constraint, &fixed_input_register);
       ctool_bool matching = cir_matching_assembly_constraint(
           operand->constraint, &matching_output);
       if (operand->expression >= context->unit->expression_count ||
@@ -1425,6 +1475,10 @@ static ctool_status_t cir_validate_assembly_slices(
       return cir_invalid_unit(context, &assembly->location);
     }
     if (cir_x87_powf_memory_assembly_metadata_is_valid(
+            context, assembly) == CTOOL_FALSE) {
+      return cir_invalid_unit(context, &assembly->location);
+    }
+    if (cir_sqrtsd_register_assembly_metadata_is_valid(
             context, assembly) == CTOOL_FALSE) {
       return cir_invalid_unit(context, &assembly->location);
     }
@@ -9252,6 +9306,14 @@ static ctool_bool cir_assembly_output_type_is_valid(
                ? CTOOL_TRUE
                : CTOOL_FALSE;
   }
+  if (cir_sqrtsd_register_template(
+          assembly->template_text) == CTOOL_TRUE &&
+      cir_string_equal(
+          operand->constraint, ctool_string("=x")) == CTOOL_TRUE) {
+    return node->kind == CTOOL_C_TYPE_DOUBLE && size == 8u
+               ? CTOOL_TRUE
+               : CTOOL_FALSE;
+  }
   if (is_integer == CTOOL_FALSE) {
     return CTOOL_FALSE;
   }
@@ -9336,10 +9398,19 @@ static ctool_status_t cir_lower_assembly_statement(
       }
     } else {
       const ctool_c_assembly_operand_t *output;
-      ctool_u32 fixed_input_register;
+      ctool_bool sqrtsd_input =
+          cir_sqrtsd_register_template(
+              assembly->template_text) == CTOOL_TRUE &&
+                  cir_string_equal(
+                      operand->constraint, ctool_string("x")) == CTOOL_TRUE
+              ? CTOOL_TRUE
+              : CTOOL_FALSE;
+      ctool_u32 fixed_input_register = 0u;
       ctool_bool independent =
-          cir_independent_assembly_constraint(
-              operand->constraint, &fixed_input_register);
+          sqrtsd_input == CTOOL_TRUE
+              ? CTOOL_TRUE
+              : cir_independent_assembly_constraint(
+                    operand->constraint, &fixed_input_register);
       ctool_bool memory_input = cir_string_equal(
           operand->constraint, ctool_string("m"));
       ctool_bool movss_memory =
@@ -9402,9 +9473,13 @@ static ctool_status_t cir_lower_assembly_statement(
               cir_type_has_atomic_qualification(
                   context, operand->type) == CTOOL_TRUE)) ||
             (memory_input == CTOOL_FALSE &&
-             (operand->constraint.data[0] == 'r'
-                 ? (descriptor_selector == CTOOL_TRUE
-                        ? input_size != 2u ||
+             (sqrtsd_input == CTOOL_TRUE
+                  ? input_size != 8u ||
+                        cir_x87_double_memory_operand_is_valid(
+                            context, operand, CTOOL_FALSE) == CTOOL_FALSE
+                  : operand->constraint.data[0] == 'r'
+                  ? (descriptor_selector == CTOOL_TRUE
+                         ? input_size != 2u ||
                               cir_type_is_represented_integer(
                                   context, operand->type) == CTOOL_FALSE
                         : input_size != 4u ||

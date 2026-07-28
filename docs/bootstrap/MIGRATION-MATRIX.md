@@ -23,13 +23,16 @@ it publishes the statement. It also emits the exact `libm_pow_impl` and
 `libm_powf_impl` programs. The double form uses five `double` operands. The
 mixed form uses a `float` output, two `float` inputs, and two `double`
 inputs. Both have one memory clobber and balanced x87 depth. Each focused
-function has 116 text bytes and no relocations. The complete source proceeds
-to the `=x` output of `sqrtsd %1, %0` at line 914. That register form and
-broader arbitrary assembly remain open, so this does not transfer a recipe.
-`libm.c` remains host-owned with its `.c` name, and the host C transform
-count is unchanged. ADR 0155 records the file-scope boundary, ADR 0159
-records named operand normalization, ADR 0161 records the double-power
-statement, and ADR 0162 records the mixed-width float-power statement.
+function has 116 text bytes and no relocations. Compiler head also emits the
+exact `sqrtsd %1, %0` statement with a `double` `=x` output and a `double`
+`x` input. Its 65-byte focused function has no relocations. The complete
+source proceeds to the x87 memory statement in `libm_atan2_impl()` at line
+922. That statement and broader arbitrary assembly remain open, so this does
+not transfer a recipe. `libm.c` remains host-owned with its `.c` name, and
+the host C transform count is unchanged. ADR 0155 records the file-scope
+boundary, ADR 0159 records named operand normalization, ADR 0161 records the
+double-power statement, ADR 0162 records the mixed-width float-power
+statement, and ADR 0163 records the square-root statement.
 
 Checked-seed CupidC represents the two exact volatile FXSAVE statements in
 `kernel/core/process.cc`. One independent four-byte object or

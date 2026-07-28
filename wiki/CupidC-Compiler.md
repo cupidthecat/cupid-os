@@ -460,11 +460,17 @@ inputs. The mixed form has one `float` output, two `float` inputs, and two
 five addresses once in source order. Each emitter proof produces 116 exact
 text bytes with no relocations, uses `DC E1` for
 `FSUBR ST(1), ST(0)`, reaches a maximum x87 depth of three, and returns to the
-incoming depth. The full source now proceeds to the `=x` output of
-`sqrtsd %1, %0` in `libm_sqrt_impl()` at line 914.
+incoming depth.
+
+Compiler head also emits the exact volatile `sqrtsd %1, %0` statement. It
+accepts one modifiable, non-atomic `double` `=x` output, one non-atomic
+`double` `x` input, and no clobbers. Linear IR evaluates the output address
+before the input value. The 65-byte focused function uses Cupid's shared
+`MOVSD` and `SQRTSD` encodings and has no relocations. The full source now
+proceeds to the x87 memory statement in `libm_atan2_impl()` at line 922.
 
 General GAS syntax and other file-scope templates remain unsupported. The
-checked seed predates named operands and both power statements, and the
+checked seed predates named operands and these three statement blocks, and the
 normal `libm.c` recipe still uses the host compiler.
 
 The same checked seed accepts a modifiable four-byte object or `void` pointer

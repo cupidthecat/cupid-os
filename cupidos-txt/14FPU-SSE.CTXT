@@ -104,10 +104,16 @@ form has a float output, two float inputs, and two double inputs. Both require
 one memory clobber. Linear IR evaluates each set of five addresses once in
 source order. Each 116-byte focused function contains seventeen x87
 instructions, uses DC E1 for FSUBR ST(1), ST(0), reaches stack depth three,
-and returns to its incoming depth without a relocation. The unchanged source
-now stops at the =x output of sqrtsd %1, %0 on line 914. The checked seed does
-not yet carry these compiler-head capabilities, so kernel/cpu/libm.c remains
-host-owned.
+and returns to its incoming depth without a relocation.
+
+Compiler head also represents the exact volatile sqrtsd %1, %0 statement in
+libm_sqrt_impl. It accepts one modifiable, non-atomic double =x output, one
+non-atomic double x input, and no clobbers. Linear IR evaluates the output
+address before the input value. The 65-byte focused function uses the shared
+MOVSD and SQRTSD encodings and has no relocations. The unchanged source now
+stops at the x87 memory statement in libm_atan2_impl on line 922. The checked
+seed does not yet carry these compiler-head capabilities, so
+kernel/cpu/libm.c remains host-owned.
 
 Direct floating truth, a floating controlling expression, increment and
 decrement, hexadecimal or subnormal constants, long double, SIMD, and atomic

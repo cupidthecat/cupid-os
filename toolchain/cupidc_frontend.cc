@@ -12890,6 +12890,11 @@ static cfront_movss_memory_kind_t cfront_movss_memory_template_kind(
              : CFRONT_MOVSS_MEMORY_NONE;
 }
 
+static ctool_bool cfront_sqrtsd_register_template(
+    ctool_string_t template_text) {
+  return cfront_string_literal(template_text, "sqrtsd %1, %0");
+}
+
 static ctool_bool cfront_x87_sine_memory_template(
     ctool_string_t template_text) {
   return cfront_string_literal(
@@ -13086,6 +13091,8 @@ static ctool_status_t cfront_validate_assembly_output(
   ctool_bool is_supported_pointer = CTOOL_FALSE;
   ctool_bool modifiable = CTOOL_FALSE;
   ctool_bool memory_output = CTOOL_FALSE;
+  ctool_bool sqrtsd_register =
+      cfront_sqrtsd_register_template(template_text);
   cfront_movss_memory_kind_t movss_kind =
       cfront_movss_memory_template_kind(template_text);
   ctool_bool x87_sine_memory =
@@ -13107,7 +13114,16 @@ static ctool_status_t cfront_validate_assembly_output(
   ctool_u32 referent_base = 0u;
   ctool_u32 referent_qualifiers = 0u;
   ctool_status_t status;
-  if (cfront_string_literal(constraint, "=a") == CTOOL_TRUE) {
+  if (sqrtsd_register == CTOOL_TRUE &&
+      cfront_string_literal(constraint, "=x") == CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+        constraint_token,
+        "GNU SQRTSD assembly output requires the =x constraint");
+  }
+  if (sqrtsd_register == CTOOL_TRUE) {
+    fixed_register = 0u;
+  } else if (cfront_string_literal(constraint, "=a") == CTOOL_TRUE) {
     fixed_register = CTOOL_C_ASSEMBLY_FIXED_A;
     any_integer_width = CTOOL_TRUE;
   } else if (cfront_string_literal(constraint, "=b") == CTOOL_TRUE) {
@@ -13179,14 +13195,21 @@ static ctool_status_t cfront_validate_assembly_output(
     return cfront_emit_failure(
         context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
         constraint_token,
-        "atomic GNU inline assembly outputs are outside this slice");
+        sqrtsd_register == CTOOL_TRUE
+            ? "GNU SQRTSD assembly =x output requires a modifiable "
+              "non-atomic double lvalue"
+            : "atomic GNU inline assembly outputs are outside this slice");
   }
-  if (memory_output == CTOOL_TRUE &&
+  if ((memory_output == CTOOL_TRUE ||
+       sqrtsd_register == CTOOL_TRUE) &&
       value->address_forbidden == CTOOL_TRUE) {
     return cfront_emit_failure(
         context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
         constraint_token,
-        "GNU inline assembly =m output cannot name a register object");
+        sqrtsd_register == CTOOL_TRUE
+            ? "GNU SQRTSD assembly =x output requires a modifiable "
+              "non-atomic double lvalue"
+            : "GNU inline assembly =m output cannot name a register object");
   }
   if (value->is_lvalue == CTOOL_FALSE ||
       value->is_bit_field == CTOOL_TRUE ||
@@ -13194,7 +13217,10 @@ static ctool_status_t cfront_validate_assembly_output(
     return cfront_emit_failure(
         context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
         constraint_token,
-        memory_output == CTOOL_TRUE &&
+        sqrtsd_register == CTOOL_TRUE
+            ? "GNU SQRTSD assembly =x output requires a modifiable "
+              "non-atomic double lvalue"
+            : memory_output == CTOOL_TRUE &&
                 (x87_double_memory == CTOOL_TRUE ||
                  x87_powf_memory == CTOOL_TRUE)
             ? x87_sine_memory == CTOOL_TRUE
@@ -13221,6 +13247,16 @@ static ctool_status_t cfront_validate_assembly_output(
               "pointer lvalue"
             : "GNU inline assembly output requires a modifiable integer "
               "lvalue");
+  }
+  if (sqrtsd_register == CTOOL_TRUE) {
+    return is_floating == CTOOL_TRUE &&
+                   node.kind == CTOOL_C_TYPE_DOUBLE
+               ? CTOOL_OK
+               : cfront_emit_failure(
+                     context, CTOOL_ERR_INPUT,
+                     CTOOL_C_PARSE_DIAG_STATEMENT, constraint_token,
+                     "GNU SQRTSD assembly =x output requires a modifiable "
+                     "non-atomic double lvalue");
   }
   if (is_pointer == CTOOL_TRUE) {
     if (is_supported_pointer == CTOOL_FALSE) {
@@ -13640,6 +13676,7 @@ static ctool_status_t cfront_parse_assembly_input(
   cfront_integer_type_t input_integer;
   cfront_integer_type_t output_integer;
   ctool_c_type_node_t input_node;
+  ctool_c_type_node_t original_input_node;
   ctool_c_type_node_t input_referent;
   ctool_c_type_node_t output_node;
   ctool_bool input_is_integer = CTOOL_FALSE;
@@ -13650,6 +13687,10 @@ static ctool_status_t cfront_parse_assembly_input(
   ctool_bool independent = CTOOL_FALSE;
   ctool_bool matching = CTOOL_FALSE;
   ctool_bool memory_input = CTOOL_FALSE;
+  ctool_bool sqrtsd_register =
+      cfront_sqrtsd_register_template(template_text);
+  ctool_bool sqrtsd_input = CTOOL_FALSE;
+  ctool_bool sqrtsd_input_atomic = CTOOL_FALSE;
   cfront_movss_memory_kind_t movss_kind =
       cfront_movss_memory_template_kind(template_text);
   ctool_bool x87_round_down_memory =
@@ -13672,6 +13713,8 @@ static ctool_status_t cfront_parse_assembly_input(
   ctool_u32 fixed_register = 0u;
   ctool_u32 input_base;
   ctool_u32 input_qualifiers;
+  ctool_u32 original_input_base;
+  ctool_u32 original_input_qualifiers;
   ctool_u32 referent_base;
   ctool_u32 referent_qualifiers;
   ctool_u32 output_base;
@@ -13705,6 +13748,18 @@ static ctool_status_t cfront_parse_assembly_input(
     memory_input = CTOOL_TRUE;
   }
   if (status == CTOOL_OK &&
+      sqrtsd_register == CTOOL_TRUE &&
+      cfront_string_literal(operand.constraint, "x") == CTOOL_FALSE) {
+    status = cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+        constraint_token,
+        "GNU SQRTSD assembly input requires the x constraint");
+  }
+  if (status == CTOOL_OK &&
+      sqrtsd_register == CTOOL_TRUE) {
+    independent = CTOOL_TRUE;
+    sqrtsd_input = CTOOL_TRUE;
+  } else if (status == CTOOL_OK &&
       cfront_independent_assembly_input(
           operand.constraint, &fixed_register) == CTOOL_TRUE) {
     independent = CTOOL_TRUE;
@@ -13735,6 +13790,16 @@ static ctool_status_t cfront_parse_assembly_input(
   }
   if (status == CTOOL_OK) {
     status = cfront_parse_assembly_operand_expression(context, &value);
+  }
+  if (status == CTOOL_OK && sqrtsd_input == CTOOL_TRUE) {
+    status = cfront_underlying_type(
+        context, value.type, &original_input_base,
+        &original_input_qualifiers, &original_input_node);
+    if (status == CTOOL_OK &&
+        ((original_input_qualifiers | original_input_node.qualifiers) &
+         CTOOL_C_QUAL_ATOMIC) != 0u) {
+      sqrtsd_input_atomic = CTOOL_TRUE;
+    }
   }
   if (status == CTOOL_OK && memory_input == CTOOL_FALSE) {
     status = cfront_apply_default_conversion(context, &value);
@@ -13804,6 +13869,17 @@ static ctool_status_t cfront_parse_assembly_input(
     return ctool_job_diagnostic_count(context->job) == 0u
                ? cfront_storage_failure(context, status)
                : status;
+  }
+  if (sqrtsd_input == CTOOL_TRUE &&
+      (input_is_floating == CTOOL_FALSE ||
+       input_node.kind != CTOOL_C_TYPE_DOUBLE ||
+       sqrtsd_input_atomic == CTOOL_TRUE ||
+       ((input_qualifiers | input_node.qualifiers) &
+        CTOOL_C_QUAL_ATOMIC) != 0u)) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
+        constraint_token,
+        "GNU SQRTSD assembly x input requires a non-atomic double value");
   }
   if (memory_input == CTOOL_TRUE &&
       (value.is_lvalue == CTOOL_FALSE ||
@@ -13897,6 +13973,8 @@ static ctool_status_t cfront_parse_assembly_input(
         "GNU inline assembly c input requires a represented 32-bit integer");
   }
   if ((input_is_integer == CTOOL_FALSE &&
+       !(sqrtsd_input == CTOOL_TRUE &&
+         input_is_floating == CTOOL_TRUE) &&
        !(memory_input == CTOOL_TRUE &&
          input_is_floating == CTOOL_TRUE) &&
        !(memory_input == CTOOL_TRUE &&
@@ -14237,7 +14315,9 @@ static ctool_status_t cfront_validate_movss_memory_assembly(
   ctool_u32 expected_inputs;
   ctool_status_t status = CTOOL_OK;
   if (kind == CFRONT_MOVSS_MEMORY_NONE) {
-    if ((assembly->flags & CTOOL_C_ASSEMBLY_XMM0_CLOBBER) != 0u) {
+    if ((assembly->flags & CTOOL_C_ASSEMBLY_XMM0_CLOBBER) != 0u &&
+        cfront_sqrtsd_register_template(
+            assembly->template_text) == CTOOL_FALSE) {
       return cfront_emit_failure(
           context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
           keyword,
@@ -14533,6 +14613,57 @@ static ctool_status_t cfront_validate_x87_powf_memory_assembly(
       "GNU x87 powf assembly requires one volatile float =m output, "
       "two float m inputs, two double m inputs, a memory clobber, and no "
       "other clobbers");
+}
+
+static ctool_status_t cfront_validate_sqrtsd_register_assembly(
+    cfront_context_t *context, const ctool_c_pp_token_t *keyword,
+    const ctool_c_assembly_t *assembly) {
+  ctool_c_assembly_operand_t output;
+  ctool_c_assembly_operand_t input;
+  ctool_status_t status = CTOOL_OK;
+  if (cfront_sqrtsd_register_template(
+          assembly->template_text) == CTOOL_FALSE) {
+    return CTOOL_OK;
+  }
+  if (assembly->flags != CTOOL_C_ASSEMBLY_VOLATILE ||
+      assembly->output_count != 1u ||
+      assembly->input_count != 1u ||
+      assembly->first_operand > context->assembly_operands.count ||
+      2u > context->assembly_operands.count - assembly->first_operand) {
+    status = CTOOL_ERR_UNSUPPORTED;
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_vector_get(
+        &context->assembly_operands, assembly->first_operand, &output);
+    if (status == CTOOL_OK &&
+        (cfront_string_literal(output.constraint, "=x") == CTOOL_FALSE ||
+         cfront_x87_double_memory_operand_is_valid(
+             context, &output, CTOOL_TRUE) == CTOOL_FALSE)) {
+      status = CTOOL_ERR_UNSUPPORTED;
+    }
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_vector_get(
+        &context->assembly_operands, assembly->first_operand + 1u, &input);
+    if (status == CTOOL_OK &&
+        (cfront_string_literal(input.constraint, "x") == CTOOL_FALSE ||
+         cfront_x87_double_memory_operand_is_valid(
+             context, &input, CTOOL_FALSE) == CTOOL_FALSE)) {
+      status = CTOOL_ERR_UNSUPPORTED;
+    }
+  }
+  if (status == CTOOL_OK) {
+    return CTOOL_OK;
+  }
+  if (ctool_job_diagnostic_count(context->job) == 0u &&
+      status != CTOOL_ERR_UNSUPPORTED) {
+    return cfront_storage_failure(context, status);
+  }
+  return cfront_emit_failure(
+      context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+      keyword,
+      "GNU SQRTSD assembly requires one volatile double =x output, "
+      "one double x input, and no clobbers");
 }
 
 static ctool_status_t cfront_validate_descriptor_table_assembly(
@@ -14994,6 +15125,10 @@ static ctool_status_t cfront_parse_gnu_assembly_statement(
   }
   if (status == CTOOL_OK) {
     status = cfront_validate_x87_powf_memory_assembly(
+        context, keyword, &assembly);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_validate_sqrtsd_register_assembly(
         context, keyword, &assembly);
   }
   if (status == CTOOL_OK) {

@@ -440,11 +440,13 @@ IR. It emits the complete `libm_pow_impl` and `libm_powf_impl` statements.
 The double form has five `double` memory operands. The mixed form has a
 `float` output, two `float` inputs, and two `double` inputs. Each focused
 function has 116 exact text bytes, no relocations, a maximum x87 depth of
-three, and balanced depth on return. The complete source now reaches the
-`=x` output of `sqrtsd %1, %0` in `libm_sqrt_impl()` at line 914. The checked
-seed carries the file-scope wrappers but predates named operands and both
-power blocks, so `libm.c` stays on its host-owned recipe and keeps its `.c`
-name.
+three, and balanced depth on return. Compiler head also emits the exact
+`sqrtsd %1, %0` statement with one `double` `=x` output and one `double` `x`
+input. Its focused function has 65 text bytes and no relocations. The
+complete source now reaches the x87 memory statement in `libm_atan2_impl()`
+at line 922. The checked seed carries the file-scope wrappers but predates
+named operands and these three statement blocks, so `libm.c` stays on its
+host-owned recipe and keeps its `.c` name.
 
 The checked seed emits the exact volatile
 `call 1f\n1: popl %0` state read used by the stack-trace helpers in
@@ -670,6 +672,8 @@ and the generated kernel symbol translation described above.
 [ADR 0161](docs/adr/0161-represent-x87-double-pow-memory-assembly.md) records the exact double-precision `pow` assembly boundary and the resulting `libm.c` frontier.
 
 [ADR 0162](docs/adr/0162-represent-x87-mixed-width-powf-memory-assembly.md) records the mixed-width `powf` assembly boundary and the following `sqrtsd` frontier.
+
+[ADR 0163](docs/adr/0163-represent-sqrtsd-register-assembly.md) records the exact `sqrtsd` statement and the following `atan2` frontier.
 
 [ADR 0143](docs/adr/0143-share-ordinary-padding-nops.md) records the shared ordinary compiler padding family and its measured disassembly improvement.
 

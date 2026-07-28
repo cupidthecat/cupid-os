@@ -93,8 +93,15 @@ Each requires one memory clobber. Linear IR evaluates each set of five
 addresses once in source order. Both 116-byte focused functions contain
 seventeen x87 instructions, use `DC E1` for `FSUBR ST(1), ST(0)`, reach
 stack depth three, and return to their incoming depth without a relocation.
-The unchanged file now stops at the `=x` output of `sqrtsd %1, %0` on line
-914. The checked seed does not yet carry these compiler-head capabilities, so
+
+Compiler head also represents the exact volatile `sqrtsd %1, %0` statement
+in `libm_sqrt_impl()`. It takes one modifiable, non-atomic `double` `=x`
+output and one non-atomic `double` `x` input, with no clobbers. Linear IR
+evaluates the output address before the input value. The focused function
+contains 65 text bytes, no relocations, and a direct `MOVSD`, `SQRTSD`,
+`MOVSD` path through Cupid's shared x86 model. The unchanged file now stops
+at the x87 memory statement in `libm_atan2_impl()` on line 922. The checked
+seed does not yet carry these compiler-head capabilities, so
 `kernel/cpu/libm.c` remains host-owned.
 
 The normal build now compiles `kernel/gfx/jpeg.cc` and
