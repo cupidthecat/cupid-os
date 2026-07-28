@@ -1311,6 +1311,7 @@ static int open_job(const char *host_root, ctool_host_adapter_t *adapter,
 static int parse_source_features(
     ctool_job_t *job, const char *path, const char *text,
     ctool_bool gnu_extensions, ctool_bool implicit_function_declarations,
+    ctool_bool compatibility_pointer_conversions,
     ctool_c_translation_unit_t *unit_out) {
   ctool_source_t source;
   ctool_c_pp_request_t pp_request;
@@ -1346,6 +1347,8 @@ static int parse_source_features(
   parse_request.gnu_extensions = gnu_extensions;
   parse_request.implicit_function_declarations =
       implicit_function_declarations;
+  parse_request.compatibility_pointer_conversions =
+      compatibility_pointer_conversions;
   (void)memset(unit_out, 0xa5, sizeof(*unit_out));
   status = ctool_c_parse(job, &tape, &parse_request, unit_out);
   if (status != CTOOL_OK ||
@@ -1362,8 +1365,8 @@ static int parse_source_mode(ctool_job_t *job, const char *path,
                              const char *text,
                              ctool_bool gnu_extensions,
                              ctool_c_translation_unit_t *unit_out) {
-  return parse_source_features(job, path, text, gnu_extensions, CTOOL_FALSE,
-                               unit_out);
+  return parse_source_features(
+      job, path, text, gnu_extensions, CTOOL_FALSE, CTOOL_FALSE, unit_out);
 }
 
 static int parse_source(ctool_job_t *job, const char *path, const char *text,
@@ -13017,6 +13020,259 @@ static int narrow_oracle_execute(ctool_job_t *job,
   return 1;
 }
 
+static int compatibility_pointer_oracle_execute(
+    ctool_job_t *job, const ctool_elf32_section_t *text,
+    const ctool_elf32_symbol_t *symbol) {
+  static const ctool_u32 entry_esp = NARROW_ORACLE_INITIAL_ESP - 4u;
+  static const ctool_u32 return_address = 0x13579bdfu;
+  static const ctool_u32 callback_bits = 0x2468ace0u;
+  static const ctool_u32 argument = 0x11223344u;
+  static const ctool_u32 callback_result = 0xb791f3d5u;
+  static const ctool_u32 saved_ebp = 0x31415926u;
+  static const ctool_u32 saved_ebx = 0x27182818u;
+  static const ctool_u32 saved_esi = 0x16180339u;
+  static const ctool_u32 saved_edi = 0x57721566u;
+  narrow_oracle_machine_t machine;
+  ctool_u32 cursor = 0u;
+  ctool_u32 call_count = 0u;
+  ctool_u32 preserved;
+  ctool_bool returned = CTOOL_FALSE;
+  if (job == NULL || text == NULL || symbol == NULL ||
+      symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      symbol->section_file_index != text->file_index ||
+      symbol->value > text->contents.size ||
+      symbol->size > text->contents.size - symbol->value) {
+    return 0;
+  }
+  (void)memset(&machine, 0, sizeof(machine));
+  machine.registers[NARROW_ORACLE_ESP] = entry_esp;
+  machine.registers[NARROW_ORACLE_EBP] = saved_ebp;
+  machine.registers[NARROW_ORACLE_EBX] = saved_ebx;
+  machine.registers[NARROW_ORACLE_ESI] = saved_esi;
+  machine.registers[NARROW_ORACLE_EDI] = saved_edi;
+  if (!narrow_oracle_write_memory(
+          &machine, entry_esp, 32u, return_address) ||
+      !narrow_oracle_write_memory(
+          &machine, entry_esp + 4u, 32u, callback_bits) ||
+      !narrow_oracle_write_memory(
+          &machine, entry_esp + 8u, 32u, argument)) {
+    return 0;
+  }
+  while (cursor < symbol->size && returned == CTOOL_FALSE) {
+    ctool_x86_decoded_t decoded;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + symbol->value + cursor,
+        symbol->size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(
+        job, CTOOL_X86_MODE_32, remaining, 0u, &decoded);
+    if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      return 0;
+    }
+    if (decoded.instruction.mnemonic == CTOOL_X86_MN_CALL) {
+      ctool_u32 callee;
+      ctool_u32 outgoing_argument;
+      ctool_u32 stack_pointer =
+          machine.registers[NARROW_ORACLE_ESP];
+      if (decoded.instruction.operand_count != 1u ||
+          decoded.instruction.operands[0].kind !=
+              CTOOL_X86_OPERAND_REGISTER ||
+          decoded.instruction.operands[0].as.reg.class_id !=
+              CTOOL_X86_REG_GPR32 ||
+          decoded.instruction.operands[0].as.reg.index !=
+              NARROW_ORACLE_EAX ||
+          !narrow_oracle_read_operand(
+              &machine, &decoded.instruction.operands[0], &callee) ||
+          callee != callback_bits || (stack_pointer & 15u) != 0u ||
+          !narrow_oracle_read_memory(
+              &machine, stack_pointer, 32u, &outgoing_argument) ||
+          outgoing_argument != argument) {
+        (void)fprintf(stderr,
+                      "compatibility pointer indirect call differs\n");
+        return 0;
+      }
+      machine.registers[NARROW_ORACLE_EAX] = callback_result;
+      call_count++;
+    } else if (!narrow_oracle_step(
+                   &machine, &decoded.instruction, &returned)) {
+      (void)fprintf(
+          stderr, "compatibility pointer oracle stopped at %u on %s\n",
+          (unsigned int)cursor,
+          ctool_x86_mnemonic_name(
+              decoded.instruction.mnemonic).data);
+      return 0;
+    }
+    cursor += decoded.consumed;
+  }
+  if (returned == CTOOL_FALSE || cursor != symbol->size ||
+      call_count != 1u ||
+      machine.registers[NARROW_ORACLE_EAX] != callback_result ||
+      machine.registers[NARROW_ORACLE_ESP] != entry_esp ||
+      machine.registers[NARROW_ORACLE_EBP] != saved_ebp ||
+      machine.registers[NARROW_ORACLE_EBX] != saved_ebx ||
+      machine.registers[NARROW_ORACLE_ESI] != saved_esi ||
+      machine.registers[NARROW_ORACLE_EDI] != saved_edi ||
+      !narrow_oracle_read_memory(
+          &machine, entry_esp, 32u, &preserved) ||
+      preserved != return_address ||
+      !narrow_oracle_read_memory(
+          &machine, entry_esp + 4u, 32u, &preserved) ||
+      preserved != callback_bits ||
+      !narrow_oracle_read_memory(
+          &machine, entry_esp + 8u, 32u, &preserved) ||
+      preserved != argument) {
+    return 0;
+  }
+  return 1;
+}
+
+static int run_doom_compatibility_pointer_object(const char *host_root) {
+  static const char source_text[] =
+      "typedef unsigned int (*callback)(unsigned int);\n"
+      "unsigned int invoke(callback value, unsigned int argument) {\n"
+      "  void *bits = value;\n"
+      "  callback restored = bits;\n"
+      "  return restored(argument);\n"
+      "}\n"
+      "callback cast_restore(void *bits) { return (callback)bits; }\n"
+      "void *cast_store(callback value) { return (void *)value; }\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_buffer_t *first = NULL;
+  ctool_buffer_t *second = NULL;
+  ctool_buffer_t *failure = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t mutant;
+  ctool_c_expression_t *expressions = NULL;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t first_bytes;
+  ctool_bytes_t second_bytes;
+  const ctool_elf32_section_t *text;
+  const ctool_elf32_symbol_t *invoke;
+  const ctool_elf32_symbol_t *restore;
+  const ctool_elf32_symbol_t *store;
+  ctool_u32 conversion_expression = CTOOL_C_AST_NONE;
+  ctool_u32 index;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_features(
+          job, "/doom-compatibility-pointer-object.c", source_text,
+          CTOOL_FALSE, CTOOL_FALSE, CTOOL_TRUE, &unit)) {
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(
+      job, 256u, config.limits.output_bytes, &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 256u, config.limits.output_bytes, &second);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 256u, config.limits.output_bytes, &failure);
+  }
+  if (!check_status(status, CTOOL_OK,
+                    "compatibility pointer object buffers") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, first, "compatibility pointer object") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second, "repeat compatibility pointer object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0) {
+    goto cleanup;
+  }
+  object_source.path.text =
+      ctool_string("/doom-compatibility-pointer-object.o");
+  object_source.contents = first_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  text = status == CTOOL_OK ? find_section(&object, ".text") : NULL;
+  invoke = status == CTOOL_OK ? find_symbol(&object, "invoke") : NULL;
+  restore =
+      status == CTOOL_OK ? find_symbol(&object, "cast_restore") : NULL;
+  store = status == CTOOL_OK ? find_symbol(&object, "cast_store") : NULL;
+  if (!check_status(status, CTOOL_OK,
+                    "read compatibility pointer object") ||
+      text == NULL || invoke == NULL || restore == NULL || store == NULL ||
+      find_section(&object, ".rel.text") != NULL ||
+      object.relocation_count != 0u || text->relocation_count != 0u ||
+      invoke->size == 0u || restore->size == 0u || store->size == 0u ||
+      !compatibility_pointer_oracle_execute(job, text, invoke)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  for (index = 0u; index < unit.expression_count; index++) {
+    if (unit.expressions[index].kind ==
+            CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+        unit.expressions[index].conversion ==
+            CTOOL_C_CONVERSION_COMPATIBILITY_POINTER) {
+      conversion_expression = index;
+      break;
+    }
+  }
+  expressions = (ctool_c_expression_t *)malloc(
+      (size_t)unit.expression_count * sizeof(*expressions));
+  if (expressions == NULL ||
+      conversion_expression == CTOOL_C_AST_NONE) {
+    goto cleanup;
+  }
+  (void)memcpy(expressions, unit.expressions,
+               (size_t)unit.expression_count * sizeof(*expressions));
+  expressions[conversion_expression].conversion =
+      CTOOL_C_CONVERSION_POINTER;
+  mutant = unit;
+  mutant.expressions = expressions;
+  if (!expect_object_failure_preserves_unit(
+          job, &mutant, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION,
+          "CupidC IR lowering does not yet support this conversion",
+          "compatibility pointer object rollback") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, failure, "compatibility pointer object recovery")) {
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  second_bytes = ctool_buffer_view(failure);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(expressions);
+  if (failure != NULL) {
+    ctool_buffer_close(failure);
+  }
+  if (second != NULL) {
+    ctool_buffer_close(second);
+  }
+  if (first != NULL) {
+    ctool_buffer_close(first);
+  }
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("doom-compatibility-pointers: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_narrow_mutation_results(
     ctool_job_t *job, const ctool_elf32_object_t *object,
     const ctool_elf32_section_t *text) {
@@ -16537,7 +16793,7 @@ static int run_doom_implicit_function_object(const char *host_root) {
   (void)memset(&unit, 0, sizeof(unit));
   if (!open_job(host_root, &adapter, &config, &job) ||
       !parse_source_features(job, "/doom-implicit-object.c", source,
-                             CTOOL_FALSE, CTOOL_TRUE, &unit) ||
+                             CTOOL_FALSE, CTOOL_TRUE, CTOOL_FALSE, &unit) ||
       unit.function_definition_count != 2u ||
       unit.block_binding_count != 1u ||
       unit.block_bindings[0].implicit_function_declaration != CTOOL_TRUE) {
@@ -27372,20 +27628,20 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.cc",           "/toolchain/x86.cc",
       "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
-      65u, 68u, 66u, 14u, 31u, 143u, 220u, 236u, 368u, 81u, 37u, 60u,
+      65u, 68u, 66u, 14u, 31u, 143u, 220u, 236u, 370u, 81u, 37u, 60u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 76860u, 85252u, 16872u, 42212u,
-      190304u, 430758u, 393864u, 768000u, 139646u, 70368u, 80478u,
+      190304u, 434061u, 394002u, 771172u, 139646u, 70368u, 80478u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 89320u, 99772u, 20180u, 49484u,
-      226668u, 460388u, 424764u, 905548u, 157828u, 79348u, 134656u,
+      226668u, 463740u, 424904u, 909332u, 157828u, 79348u, 134656u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x5fbbfaf2u, 0x4ca44a27u,
       0x7238e153u, 0x999f97b7u, 0xb49d8eb9u,
-      0x288bfa53u, 0xdc95e874u, 0x8b9d7621u, 0x239f52c7u,
+      0x6666238au, 0x94f18b76u, 0xdd7a96aeu, 0x239f52c7u,
       0x34558a49u, 0x7c198364u, 0x8774de7du};
   ctool_u32 index;
   int all_matched = 1;
@@ -35942,6 +36198,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "function-pointer-casts") == 0) {
     return run_function_pointer_cast_object(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "doom-compatibility-pointers") == 0) {
+    return run_doom_compatibility_pointer_object(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "automatic-objects") == 0) {
     return run_automatic_object(argv[2]);
   }
@@ -36109,7 +36368,8 @@ int main(int argc, char **argv) {
                 "direct-goto|switch-object|"
                 "pointer-values|pointer-comparisons|pointer-conditions|"
                 "pointer-arithmetic|function-pointers|"
-                "function-pointer-casts|automatic-objects|"
+                "function-pointer-casts|doom-compatibility-pointers|"
+                "automatic-objects|"
                 "block-externs|block-functions|block-typedefs|block-enums|"
                 "bit-field-stores|bit-field-promotions|"
                 "bit-field-mutations|"

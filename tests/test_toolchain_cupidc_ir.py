@@ -522,6 +522,20 @@ class ToolchainCupidCIRContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "function-pointer-casts: ok\n")
 
+    def test_doom_pointer_compatibility_lowers_as_typed_no_op_conversions(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "doom-compatibility-pointers",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "doom-compatibility-pointers: ok\n")
+
     def test_fixed_automatic_objects_use_target_sized_local_storage(self):
         result = subprocess.run(
             [str(self.contract_path), "automatic-objects", str(REPO_ROOT)],

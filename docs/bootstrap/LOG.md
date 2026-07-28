@@ -13283,3 +13283,133 @@ the 1,524,509-byte JSON has SHA-256
 This integration changes no checked seed, Make owner, ABI, runtime path, or
 host dependency. Doom remains host-built, no `.c` source is renamed, and
 `TempleOS/` remains untouched.
+## 2026-07-28: gate Doom's function and data pointer conversions
+
+After the implicit-call work, four of the six remaining Doom failures came
+from eleven conversions between function pointers and `void *`:
+
+- `m_menu.c` passes five callbacks through `M_StartMessage` at lines 701, 733,
+  948, 1060, and 1173, then restores the callback pointer at line 1297.
+- `p_saveg.c` reads and writes an `actionf_p1` through `void *` at lines 251
+  and 257, then casts the `void *` null macro to `actionf_v` at line 1712.
+- `p_ceilng.c:316` and `p_plats.c:274` use the same null cast.
+
+The first frontend contract did not compile because the parse request and
+conversion enum had no way to name this rule. Once that interface existed,
+the IR contract stopped at `CTD000006`, the object contract stopped at
+`CTC000008`, and the audit contract could not find a profile field for the
+mode. Those failures pinned the required boundary before the implementation
+was added.
+
+CupidC now has a `compatibility_pointer_conversions` request flag and a
+`CTOOL_C_CONVERSION_COMPATIBILITY_POINTER` semantic marker. The
+`--doom-compat` driver option enables the flag. The generated profile table
+sets it only for `DOOM_COMPAT_I386` and `DOOM_TREE_I386`; the other seven
+profiles pin it false.
+
+The frontend accepts the conversion only when one side is an unqualified
+function pointer and the other is an unqualified data or `void` pointer. It
+marks assignments, automatic initializers, fixed call arguments, returns, and
+explicit casts, then checks the mode, child ownership, postorder, and exact
+type pair during freeze. Linear IR checks the types again and requires both
+pointer values to have complete four-byte i386 representations. The emitter
+uses that same validator and keeps the target bits unchanged.
+
+Focused negatives cover strict C, plain GNU mode, qualified and atomic
+referents, nonpointer operands, an incompatible function-to-function pair, a
+forged standard pointer marker, and an eight-byte pointer layout. A malformed
+unit fails
+transactionally, and the original unit emits the same bytes afterward.
+
+The object oracle stores a callback in `void *`, restores it, and calls it
+indirectly. It checks the callback bits, argument word, sixteen-byte call
+alignment, callback result, caller stack, return address, and callee-saved
+registers. Native and Cupid-built drivers produce the same object under
+`--doom-compat`; strict and plain GNU commands produce the same exact
+diagnostic and no output.
+
+The frozen source gates report:
+
+| Source | Definitions | Statements | Expressions | Block bindings | Initializers |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `toolchain/cupidc_ir.cc` | 216 | 6,548 | 60,182 | 849 | 304 |
+| `toolchain/cupidc_emit.cc` | 231 | 6,078 | 52,535 | 743 | 371 |
+| `toolchain/cupidc_frontend.cc` | 363 | 14,970 | 98,168 | 2,246 | 1,397 |
+
+The deterministic self-host objects have these locks:
+
+| Source | Functions | Text bytes | Object bytes | Text fingerprint |
+| --- | ---: | ---: | ---: | --- |
+| `toolchain/cupidc_ir.cc` | 216 | 425,772 | 454,696 | `D295467D` |
+| `toolchain/cupidc_emit.cc` | 231 | 388,693 | 418,860 | `BBAF5737` |
+| `toolchain/cupidc_frontend.cc` | 363 | 760,527 | 896,536 | `E01C40A9` |
+
+The complete frontend suite passes 76 tests in 12.247 seconds. The complete
+Linear IR suite passes 64 tests in 11.731 seconds, and the preprocessor suite
+passes 39 tests in 6.226 seconds. The complete object suite passes 81 tests in
+841.638 seconds, including the 19-object closure and all five tools at the
+stage-two to stage-three fixed point.
+
+Final audit regeneration records 698 active sources, 253 feature requirements,
+504 transforms, and 42 accounted unreachable files. Its active-source digest
+is `7bba3bd4817c7ebdc1e7cdb64c89c35fa500786d3756a8768c5840c7b09856f9`.
+The 1,524,993-byte JSON has SHA-256
+`e6630cf88c2b25ea1bb9579c039c4e19245847adc3065dfd4aa58fe91e49104b`.
+All 62 audit and mutation tests pass in 501.819 seconds.
+
+The exact Doom-tree profile now emits 78 of 80 objects. The four new successes
+are the unchanged `m_menu.c`, `p_saveg.c`, `p_ceilng.c`, and `p_plats.c`.
+Two failures remain:
+
+- `kernel/doom/src/i_video.c:144` reaches an invalid Linear IR unit.
+- `kernel/doom/src/info.c:128` needs positional union active-member
+  initialization.
+
+This compiler-head change does not refresh the checked seed, move a production
+source to Cupid ownership, rename a `.c` file, retire a host dependency, or
+change the OS image. No image or boot result is attributed to it. Issue 29
+remains open, and ADR 0151 records the compatibility and ownership boundary.
+
+## 2026-07-28: complete the Doom compiler-head source frontier
+
+The pointer-conversion slice now coexists with the union initializer,
+implicit-call, static floating-expression, empty memory-barrier, and bit-field
+promotion work. The exact profile emits deterministic ELF32 objects from all
+80 Doom-tree sources without changing vendored source.
+
+The combined source gates report:
+
+| Source | Definitions | Statements | Expressions | Block bindings | Initializers |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `toolchain/cupidc_frontend.cc` | 370 | 15,142 | 99,553 | 2,277 | 1,407 |
+| `toolchain/cupidc_ir.cc` | 220 | 6,665 | 61,382 | 872 | 310 |
+| `toolchain/cupidc_emit.cc` | 236 | 6,143 | 53,218 | 754 | 375 |
+
+The combined deterministic self-host objects report:
+
+| Source | Functions | Text bytes | Object bytes | Text fingerprint |
+| --- | ---: | ---: | ---: | --- |
+| `toolchain/cupidc_frontend.cc` | 370 | 771,172 | 909,332 | `DD7A96AE` |
+| `toolchain/cupidc_ir.cc` | 220 | 434,061 | 463,740 | `6666238A` |
+| `toolchain/cupidc_emit.cc` | 236 | 394,002 | 424,904 | `94F18B76` |
+
+The combined source gate and self-host object gate pass. Five focused tests
+cover frontend policy, Linear IR validation, decoded i386 execution,
+native/Cupid-built driver parity, and the exact 80-source frontier; they pass
+in 47.935 seconds. The complete frontend and Linear IR suites pass 145 tests
+in 24.130 seconds, and all 39 preprocessor tests pass in 6.428 seconds. The
+complete object suite passes 84 tests in 859.253 seconds, including the
+19-object closure and five-tool fixed point.
+
+Audit regeneration records 698 active sources, 253 feature requirements, 504
+transforms, and 42 accounted unreachable files. Deterministic audit checking
+passes in 54.7 seconds. The active-source digest is
+`1a83cdf1a4933ff11797c45c37ed327510c6f8cf01789260a9f91b15f681a12b`.
+The 1,524,993-byte JSON has SHA-256
+`be9019a4d7066774dba06bfdc5599e45c5c70d674d3e4f431469687acb43b134`.
+
+This closes only the compiler-head source frontier. The checked seed still
+lacks the combined capabilities, so Doom remains host-built. A checked
+five-tool promotion, object comparison, and runtime proof must pass before
+ownership moves. No `.c` file is renamed, no host dependency is retired, and
+`TempleOS/` remains untouched.

@@ -495,14 +495,17 @@ editing its source. It keeps the sound driver's empty volatile memory barrier
 as a compiler ordering point and emits no instruction for it. Its static
 scalar evaluator folds the unchanged fixed-point table in
 kernel/doom/src/am_map.c. The explicit --doom-compat profile represents the
-five old-style calls in i_system.c without changing strict C or plain GNU
-mode. A one-active-member union initializer emits unchanged
-kernel/doom/src/info.c. Narrow unsigned int color fields keep their member
-identity when they promote to signed int in ordinary expressions, which
-compiles all nine guarded reads in unchanged kernel/doom/src/i_video.c.
-Compiler head emits 76 of the 80 Doom-tree objects. A checked frontier pins
-the other four failures at callback or pointer conversions. The checked seed
-does not carry these capabilities yet, so Doom build ownership is unchanged.
+five old-style calls in i_system.c. It also permits the eleven audited,
+bit-preserving conversions between unqualified function pointers and
+unqualified four-byte data or void pointers in m_menu.c, p_saveg.c,
+p_ceilng.c, and p_plats.c. Strict C and plain GNU mode still reject those
+implicit conversions, and explicit function/data casts remain outside Linear
+IR. A one-active-member union initializer emits unchanged info.c. Narrow
+unsigned int color fields keep their member identity when they promote to
+signed int in ordinary expressions, which compiles unchanged i_video.c.
+Compiler head now emits all 80 Doom-tree objects. The checked seed does not
+carry the complete frontier yet, so Doom stays host-owned until the five-tool
+promotion, object comparison, and runtime proof are complete.
 
 The five static i386 Linux tools reach a stage-two to stage-three fixed point
 under WSL. Generation-one CupidC, CupidASM, and CupidLD build all 19 C objects,

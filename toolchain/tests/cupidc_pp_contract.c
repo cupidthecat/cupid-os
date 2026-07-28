@@ -83,6 +83,7 @@ typedef struct {
   ctool_bool flag;
   ctool_bool hosted_environment;
   ctool_bool implicit_function_declarations;
+  ctool_bool compatibility_pointer_conversions;
 } active_row_t;
 
 typedef struct {
@@ -91,6 +92,7 @@ typedef struct {
   ctool_bool gnu_extensions;
   ctool_bool hosted_environment;
   ctool_bool implicit_function_declarations;
+  ctool_bool compatibility_pointer_conversions;
   ctool_u32 tracked_case_count;
   ctool_u32 include_root_count;
   ctool_u32 macro_count;
@@ -98,33 +100,34 @@ typedef struct {
 } active_expected_profile_t;
 
 static const active_row_t active_rows[] = {
-#define CUPIDC_PP_PROFILE(NAME, MODE, GNU_BOOL, HOSTED_BOOL, IMPLICIT_BOOL)  \
+#define CUPIDC_PP_PROFILE(NAME, MODE, GNU_BOOL, HOSTED_BOOL, IMPLICIT_BOOL,  \
+                          COMPAT_POINTER_BOOL)                               \
   {ACTIVE_ROW_PROFILE, #NAME, NULL, NULL, (ctool_u32)(MODE), (GNU_BOOL),     \
-   (HOSTED_BOOL), (IMPLICIT_BOOL)},
+   (HOSTED_BOOL), (IMPLICIT_BOOL), (COMPAT_POINTER_BOOL)},
 #define CUPIDC_PP_INCLUDE_ROOT(NAME, PATH, FORMS)                            \
   {ACTIVE_ROW_INCLUDE_ROOT, #NAME, (PATH), NULL, (FORMS), CTOOL_FALSE,       \
-   CTOOL_FALSE, CTOOL_FALSE},
+   CTOOL_FALSE, CTOOL_FALSE, CTOOL_FALSE},
 #define CUPIDC_PP_MACRO(NAME, MACRO_NAME, REPLACEMENT)                      \
   {ACTIVE_ROW_MACRO, #NAME, (MACRO_NAME), (REPLACEMENT), 0u, CTOOL_FALSE,    \
-   CTOOL_FALSE, CTOOL_FALSE},
+   CTOOL_FALSE, CTOOL_FALSE, CTOOL_FALSE},
 #define CUPIDC_PP_FORCED_INCLUDE(NAME, PATH)                                \
   {ACTIVE_ROW_FORCED_INCLUDE, #NAME, (PATH), NULL, 0u, CTOOL_FALSE,          \
-   CTOOL_FALSE, CTOOL_FALSE},
+   CTOOL_FALSE, CTOOL_FALSE, CTOOL_FALSE},
 #define CUPIDC_PP_ACTIVE_CASE(NAME, PATH)                                   \
   {ACTIVE_ROW_CASE, #NAME, (PATH), NULL, 0u, CTOOL_FALSE, CTOOL_FALSE,       \
-   CTOOL_FALSE},
+   CTOOL_FALSE, CTOOL_FALSE},
 #define CUPIDC_PP_GENERATED_CASE(NAME, PATH)                                \
   {ACTIVE_ROW_GENERATED_CASE, #NAME, (PATH), NULL, 0u, CTOOL_FALSE,          \
-   CTOOL_FALSE, CTOOL_FALSE},
+   CTOOL_FALSE, CTOOL_FALSE, CTOOL_FALSE},
 #define CUPIDC_PP_INCLUDE_ONLY(PATH, OWNER)                                 \
   {ACTIVE_ROW_INCLUDE_ONLY, NULL, (PATH), (OWNER), 0u, CTOOL_FALSE,          \
-   CTOOL_FALSE, CTOOL_FALSE},
+   CTOOL_FALSE, CTOOL_FALSE, CTOOL_FALSE},
 #define CUPIDC_PP_NON_ROOT(PATH, REASON)                                    \
   {ACTIVE_ROW_NON_ROOT, NULL, (PATH), (REASON), 0u, CTOOL_FALSE,             \
-   CTOOL_FALSE, CTOOL_FALSE},
+   CTOOL_FALSE, CTOOL_FALSE, CTOOL_FALSE},
 #define CUPIDC_PP_DEFERRED_HOSTED(PATH, REASON)                             \
   {ACTIVE_ROW_DEFERRED_HOSTED, NULL, (PATH), (REASON), 0u, CTOOL_FALSE,      \
-   CTOOL_FALSE, CTOOL_FALSE},
+   CTOOL_FALSE, CTOOL_FALSE, CTOOL_FALSE},
 #include "cupidc_pp_active_cases.inc"
 #undef CUPIDC_PP_PROFILE
 #undef CUPIDC_PP_INCLUDE_ROOT
@@ -139,26 +142,26 @@ static const active_row_t active_rows[] = {
 
 static const active_expected_profile_t active_expected_profiles[] = {
     {"KERNEL_I386", CTOOL_C_PP_MODE_C11, CTOOL_TRUE, CTOOL_FALSE,
-     CTOOL_FALSE, 155u,
+     CTOOL_FALSE, CTOOL_FALSE, 155u,
      18u, 8u, 0u},
     {"DOOM_COMPAT_I386", CTOOL_C_PP_MODE_C11, CTOOL_TRUE, CTOOL_FALSE,
-     CTOOL_TRUE, 3u,
+     CTOOL_TRUE, CTOOL_TRUE, 3u,
      20u, 7u, 0u},
     {"DOOM_TREE_I386", CTOOL_C_PP_MODE_C11, CTOOL_TRUE, CTOOL_FALSE,
-     CTOOL_TRUE, 80u,
+     CTOOL_TRUE, CTOOL_TRUE, 80u,
      20u, 9u, 1u},
     {"USER_I386", CTOOL_C_PP_MODE_C11, CTOOL_TRUE, CTOOL_FALSE, CTOOL_FALSE,
-     3u, 1u, 6u, 0u},
+     CTOOL_FALSE, 3u, 1u, 6u, 0u},
     {"CUPID_RUNTIME", CTOOL_C_PP_MODE_CUPID, CTOOL_FALSE, CTOOL_FALSE,
-     CTOOL_FALSE, 105u, 0u, 0u, 0u},
+     CTOOL_FALSE, CTOOL_FALSE, 105u, 0u, 0u, 0u},
     {"HOSTED_TOOLCHAIN_64", CTOOL_C_PP_MODE_C11, CTOOL_FALSE, CTOOL_TRUE,
-     CTOOL_FALSE, 12u, 1u, 1u, 0u},
+     CTOOL_FALSE, CTOOL_FALSE, 12u, 1u, 1u, 0u},
     {"HOSTED_KERNEL_BRIDGE_64", CTOOL_C_PP_MODE_C11, CTOOL_FALSE, CTOOL_TRUE,
-     CTOOL_FALSE, 1u, 2u, 1u, 0u},
+     CTOOL_FALSE, CTOOL_FALSE, 1u, 2u, 1u, 0u},
     {"HOSTED_I386_LINUX", CTOOL_C_PP_MODE_C11, CTOOL_FALSE, CTOOL_TRUE,
-     CTOOL_FALSE, 19u, 2u, 1u, 0u},
+     CTOOL_FALSE, CTOOL_FALSE, 19u, 2u, 1u, 0u},
     {"HOSTED_I386_LINUX_GNU", CTOOL_C_PP_MODE_C11, CTOOL_TRUE, CTOOL_TRUE,
-     CTOOL_FALSE, 1u, 2u, 1u, 0u}};
+     CTOOL_FALSE, CTOOL_FALSE, 1u, 2u, 1u, 0u}};
 
 static int open_job_at_root(const char *mode, const char *host_root,
                             ctool_host_adapter_t *adapter,
@@ -5492,7 +5495,9 @@ static int validate_active_manifest(const char *mode) {
           row->flag != expected->gnu_extensions ||
           row->hosted_environment != expected->hosted_environment ||
           row->implicit_function_declarations !=
-              expected->implicit_function_declarations) {
+              expected->implicit_function_declarations ||
+          row->compatibility_pointer_conversions !=
+              expected->compatibility_pointer_conversions) {
         (void)fprintf(stderr,
                       "%s: manifest profile %u metadata differs\n", mode,
                       profile_count);
@@ -5504,6 +5509,7 @@ static int validate_active_manifest(const char *mode) {
           row->flag != CTOOL_FALSE ||
           row->hosted_environment != CTOOL_FALSE ||
           row->implicit_function_declarations != CTOOL_FALSE ||
+          row->compatibility_pointer_conversions != CTOOL_FALSE ||
           row->value == 0u ||
           (row->value & ~(CTOOL_C_PP_INCLUDE_QUOTED |
                           CTOOL_C_PP_INCLUDE_ANGLE)) != 0u) {
@@ -5516,7 +5522,8 @@ static int validate_active_manifest(const char *mode) {
       if (row->first == NULL || row->first[0] == '\0' || row->second == NULL ||
           row->value != 0u || row->flag != CTOOL_FALSE ||
           row->hosted_environment != CTOOL_FALSE ||
-          row->implicit_function_declarations != CTOOL_FALSE) {
+          row->implicit_function_declarations != CTOOL_FALSE ||
+          row->compatibility_pointer_conversions != CTOOL_FALSE) {
         (void)fprintf(stderr, "%s: invalid macro row %u\n", mode, row_index);
         return 1;
       }
@@ -5526,7 +5533,8 @@ static int validate_active_manifest(const char *mode) {
       if (active_path_is_canonical(row->first) == 0 || row->second != NULL ||
           row->value != 0u || row->flag != CTOOL_FALSE ||
           row->hosted_environment != CTOOL_FALSE ||
-          row->implicit_function_declarations != CTOOL_FALSE) {
+          row->implicit_function_declarations != CTOOL_FALSE ||
+          row->compatibility_pointer_conversions != CTOOL_FALSE) {
         (void)fprintf(stderr, "%s: invalid source row %u\n", mode, row_index);
         return 1;
       }
@@ -5539,7 +5547,8 @@ static int validate_active_manifest(const char *mode) {
       if (active_path_is_canonical(row->first) == 0 || row->value != 0u ||
           row->flag != CTOOL_FALSE ||
           row->hosted_environment != CTOOL_FALSE ||
-          row->implicit_function_declarations != CTOOL_FALSE) {
+          row->implicit_function_declarations != CTOOL_FALSE ||
+          row->compatibility_pointer_conversions != CTOOL_FALSE) {
         (void)fprintf(stderr, "%s: invalid classification row %u\n", mode,
                       row_index);
         return 1;

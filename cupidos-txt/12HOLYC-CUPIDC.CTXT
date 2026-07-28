@@ -105,11 +105,18 @@ Demo: bin/feature4_forward_calls.cc
 The hosted bootstrap compiler has an explicit --doom-compat profile for the
 vendored Doom source. It represents a bare call made before any declaration
 as an old-style external int() function. Calls parsed before a later prototype
-keep the usual default argument promotions.
+keep the usual default argument promotions. The profile also marks the eleven
+audited conversions between unqualified function pointers and unqualified
+four-byte data or void pointers. The i386 emitter keeps those pointer bits
+unchanged.
 
-Strict C and plain GNU mode still reject undeclared calls. Compiler head emits
-74 of the 80 audited Doom-tree objects. The checked seed does not carry this
-profile yet, so the normal Doom build still uses its host recipe.
+Strict C and plain GNU mode still reject the implicit conversions, and
+explicit function/data casts remain outside Linear IR. One-active-member
+union initialization and ordinary narrow bit-field promotion close the other
+two audited source boundaries. Compiler head now emits all 80 Doom-tree
+objects. The checked seed does not carry this complete frontier yet, so the
+normal Doom build stays on its host recipe until promotion, object comparison,
+and runtime proof are complete.
 >endtree
 
 >h2 Feature 5: Print Builtin

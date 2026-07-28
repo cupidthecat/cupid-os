@@ -31,36 +31,38 @@ typedef struct {
   ctool_bool flag;
   ctool_bool hosted_environment;
   ctool_bool implicit_function_declarations;
+  ctool_bool compatibility_pointer_conversions;
 } active_row_t;
 
 static const active_row_t active_rows[] = {
-#define CUPIDC_PP_PROFILE(NAME, MODE, GNU_BOOL, HOSTED_BOOL, IMPLICIT_BOOL)    \
+#define CUPIDC_PP_PROFILE(NAME, MODE, GNU_BOOL, HOSTED_BOOL, IMPLICIT_BOOL,    \
+                          COMPAT_POINTER_BOOL)                                 \
   {ACTIVE_PROFILE, #NAME, NULL, NULL, (ctool_u32)(MODE), (GNU_BOOL),           \
-   (HOSTED_BOOL), (IMPLICIT_BOOL)},
+   (HOSTED_BOOL), (IMPLICIT_BOOL), (COMPAT_POINTER_BOOL)},
 #define CUPIDC_PP_INCLUDE_ROOT(NAME, PATH, FORMS)                              \
   {ACTIVE_INCLUDE_ROOT, #NAME, (PATH), NULL, (FORMS), CTOOL_FALSE,             \
-   CTOOL_FALSE, CTOOL_FALSE},
+   CTOOL_FALSE, CTOOL_FALSE, CTOOL_FALSE},
 #define CUPIDC_PP_MACRO(NAME, MACRO_NAME, REPLACEMENT)                        \
   {ACTIVE_MACRO, #NAME, (MACRO_NAME), (REPLACEMENT), 0u, CTOOL_FALSE,          \
-   CTOOL_FALSE, CTOOL_FALSE},
+   CTOOL_FALSE, CTOOL_FALSE, CTOOL_FALSE},
 #define CUPIDC_PP_FORCED_INCLUDE(NAME, PATH)                                  \
   {ACTIVE_FORCED_INCLUDE, #NAME, (PATH), NULL, 0u, CTOOL_FALSE, CTOOL_FALSE,   \
-   CTOOL_FALSE},
+   CTOOL_FALSE, CTOOL_FALSE},
 #define CUPIDC_PP_ACTIVE_CASE(NAME, PATH)                                     \
   {ACTIVE_CASE, #NAME, (PATH), NULL, 0u, CTOOL_FALSE, CTOOL_FALSE,             \
-   CTOOL_FALSE},
+   CTOOL_FALSE, CTOOL_FALSE},
 #define CUPIDC_PP_GENERATED_CASE(NAME, PATH)                                  \
   {ACTIVE_GENERATED_CASE, #NAME, (PATH), NULL, 0u, CTOOL_FALSE, CTOOL_FALSE,   \
-   CTOOL_FALSE},
+   CTOOL_FALSE, CTOOL_FALSE},
 #define CUPIDC_PP_INCLUDE_ONLY(PATH, OWNER)                                   \
   {ACTIVE_INCLUDE_ONLY, NULL, (PATH), (OWNER), 0u, CTOOL_FALSE, CTOOL_FALSE,   \
-   CTOOL_FALSE},
+   CTOOL_FALSE, CTOOL_FALSE},
 #define CUPIDC_PP_NON_ROOT(PATH, REASON)                                      \
   {ACTIVE_NON_ROOT, NULL, (PATH), (REASON), 0u, CTOOL_FALSE, CTOOL_FALSE,      \
-   CTOOL_FALSE},
+   CTOOL_FALSE, CTOOL_FALSE},
 #define CUPIDC_PP_DEFERRED_HOSTED(PATH, REASON)                               \
   {ACTIVE_DEFERRED_HOSTED, NULL, (PATH), (REASON), 0u, CTOOL_FALSE,            \
-   CTOOL_FALSE, CTOOL_FALSE},
+   CTOOL_FALSE, CTOOL_FALSE, CTOOL_FALSE},
 #include "cupidc_pp_active_cases.inc"
 #undef CUPIDC_PP_PROFILE
 #undef CUPIDC_PP_INCLUDE_ROOT
@@ -294,12 +296,14 @@ static int build_active_profile(
     const char *profile, ctool_u32 expected_include_roots,
     ctool_u32 expected_macro_actions, ctool_u32 expected_forced_includes,
     ctool_bool expected_implicit_function_declarations,
+    ctool_bool expected_compatibility_pointer_conversions,
     ctool_c_pp_request_t *request, ctool_c_pp_include_root_t *include_roots,
     ctool_c_pp_macro_action_t *macro_actions,
     ctool_path_t *forced_includes) {
   ctool_u32 row_index;
   ctool_u32 profile_count = 0u;
   ctool_bool implicit_function_declarations = CTOOL_FALSE;
+  ctool_bool compatibility_pointer_conversions = CTOOL_FALSE;
 
   if (profile == NULL) {
     return 1;
@@ -316,6 +320,8 @@ static int build_active_profile(
       request->hosted_environment = row->hosted_environment;
       implicit_function_declarations =
           row->implicit_function_declarations;
+      compatibility_pointer_conversions =
+          row->compatibility_pointer_conversions;
       profile_count++;
     } else if (row->kind == ACTIVE_INCLUDE_ROOT) {
       include_roots[request->include_root_count].directory.text =
@@ -344,6 +350,8 @@ static int build_active_profile(
       request->hosted_environment != CTOOL_FALSE ||
       implicit_function_declarations !=
           expected_implicit_function_declarations ||
+      compatibility_pointer_conversions !=
+          expected_compatibility_pointer_conversions ||
       request->include_root_count != expected_include_roots ||
       request->macro_action_count != expected_macro_actions ||
       request->forced_include_count != expected_forced_includes) {
@@ -358,7 +366,7 @@ static int build_kernel_profile(
     ctool_c_pp_macro_action_t *macro_actions,
     ctool_path_t *forced_includes) {
   return build_active_profile("KERNEL_I386", 18u, 8u, 0u, CTOOL_FALSE,
-                              request,
+                              CTOOL_FALSE, request,
                               include_roots, macro_actions, forced_includes);
 }
 
@@ -367,7 +375,7 @@ static int build_doom_tree_profile(
     ctool_c_pp_macro_action_t *macro_actions,
     ctool_path_t *forced_includes) {
   return build_active_profile("DOOM_TREE_I386", 20u, 9u, 1u, CTOOL_TRUE,
-                              request,
+                              CTOOL_TRUE, request,
                               include_roots, macro_actions, forced_includes);
 }
 
@@ -7522,12 +7530,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.cc", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
        25287u, 479u, 286u, 0u, 0u},
-      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 220u, 6635u,
-       60903u, 862u, 310u, 0u, 0u},
+      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 220u, 6665u,
+       61382u, 872u, 310u, 0u, 0u},
       {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 236u, 6143u,
-       53198u, 754u, 375u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 368u,
-       15065u, 98985u, 2261u, 1403u, 0u, 0u},
+       53218u, 754u, 375u, 0u, 0u},
+      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 370u,
+       15142u, 99553u, 2277u, 1407u, 0u, 0u},
       {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 81u, 2935u,
        19252u, 326u, 186u, 0u, 0u},
       {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
@@ -16629,6 +16637,277 @@ cleanup:
   return failed;
 }
 
+static int compatibility_pointer_expression_is_typed(
+    const ctool_c_translation_unit_t *unit, ctool_u32 expression_index,
+    ctool_c_expression_kind_t expected_kind,
+    ctool_c_conversion_kind_t expected_conversion) {
+  const ctool_c_expression_t *expression =
+      expression_index < unit->expression_count
+          ? &unit->expressions[expression_index]
+          : NULL;
+  ctool_u32 child =
+      expression == NULL ? CTOOL_C_AST_NONE
+                         : expression_child(unit, expression, 0u);
+  const ctool_c_expression_t *source =
+      child < unit->expression_count ? &unit->expressions[child] : NULL;
+  const ctool_c_type_node_t *source_pointer =
+      source == NULL ? NULL : unwrapped_type_node(unit, source->type);
+  const ctool_c_type_node_t *target_pointer =
+      expression == NULL ? NULL : unwrapped_type_node(unit, expression->type);
+  const ctool_c_type_layout_t *source_layout =
+      source == NULL ? NULL : type_layout(unit, source->type);
+  const ctool_c_type_layout_t *target_layout =
+      expression == NULL ? NULL : type_layout(unit, expression->type);
+  int source_function =
+      source == NULL ? 0 : function_from_pointer(unit, source->type) != NULL;
+  int target_function =
+      expression == NULL
+          ? 0
+          : function_from_pointer(unit, expression->type) != NULL;
+  int source_data =
+      source_pointer != NULL && source_pointer->kind == CTOOL_C_TYPE_POINTER &&
+      !source_function;
+  int target_data =
+      target_pointer != NULL && target_pointer->kind == CTOOL_C_TYPE_POINTER &&
+      !target_function;
+  return expression != NULL && expression->kind == expected_kind &&
+                 expression->conversion == expected_conversion &&
+                 expression->child_count == 1u &&
+                 expression->operation == CTOOL_C_EXPRESSION_OPERATOR_NONE &&
+                 expression->reference == CTOOL_C_AST_NONE &&
+                 expression->computation_type == CTOOL_C_TYPE_NONE &&
+                 source != NULL && child < expression_index &&
+                 source_layout != NULL && source_layout->size == 4u &&
+                 target_layout != NULL && target_layout->size == 4u &&
+                 ((source_function && target_data) ||
+                  (source_data && target_function))
+             ? 1
+             : 0;
+}
+
+static int validate_compatibility_pointer_frontend(
+    const ctool_c_translation_unit_t *unit, ctool_u32 implicit_count,
+    ctool_u32 cast_count, ctool_c_conversion_kind_t conversion) {
+  ctool_u32 found_implicit = 0u;
+  ctool_u32 found_cast = 0u;
+  ctool_u32 index;
+  for (index = 0u; index < unit->expression_count; index++) {
+    const ctool_c_expression_t *expression = &unit->expressions[index];
+    if (expression->conversion != conversion) {
+      continue;
+    }
+    if (conversion == CTOOL_C_CONVERSION_NONE &&
+        expression->kind != CTOOL_C_EXPRESSION_CAST) {
+      continue;
+    }
+    if (expression->kind == CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION) {
+      if (!compatibility_pointer_expression_is_typed(
+              unit, index, CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION,
+              conversion)) {
+        return 1;
+      }
+      found_implicit++;
+    } else if (expression->kind == CTOOL_C_EXPRESSION_CAST) {
+      if (!compatibility_pointer_expression_is_typed(
+              unit, index, CTOOL_C_EXPRESSION_CAST, conversion)) {
+        return 1;
+      }
+      found_cast++;
+    } else {
+      return 1;
+    }
+  }
+  return found_implicit == implicit_count && found_cast == cast_count ? 0 : 1;
+}
+
+static int validate_doom_compatibility_pointer_sites(
+    const ctool_c_translation_unit_t *unit, const ctool_u32 *lines,
+    ctool_u32 line_count) {
+  ctool_u32 line_hits[16];
+  ctool_u32 found = 0u;
+  ctool_u32 index;
+  if (line_count > ARRAY_COUNT(line_hits)) {
+    return 1;
+  }
+  (void)memset(line_hits, 0, sizeof(line_hits));
+  for (index = 0u; index < unit->expression_count; index++) {
+    const ctool_c_expression_t *expression = &unit->expressions[index];
+    ctool_u32 line_index;
+    if (expression->conversion !=
+        CTOOL_C_CONVERSION_COMPATIBILITY_POINTER) {
+      continue;
+    }
+    if ((expression->kind != CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+         expression->kind != CTOOL_C_EXPRESSION_CAST) ||
+        !compatibility_pointer_expression_is_typed(
+            unit, index, expression->kind,
+            CTOOL_C_CONVERSION_COMPATIBILITY_POINTER)) {
+      return 1;
+    }
+    for (line_index = 0u; line_index < line_count; line_index++) {
+      if (expression->location.line == lines[line_index]) {
+        break;
+      }
+    }
+    if (line_index == line_count) {
+      return 1;
+    }
+    line_hits[line_index]++;
+    found++;
+  }
+  if (found != line_count) {
+    return 1;
+  }
+  for (index = 0u; index < line_count; index++) {
+    if (line_hits[index] != 1u) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static int run_doom_compatibility_pointers(const char *host_root) {
+  static const char source[] =
+      "typedef unsigned int (*callback)(unsigned int);\n"
+      "extern void take_bits(void *);\n"
+      "void *store_result(callback value) { return value; }\n"
+      "callback restore_result(void *bits) { return bits; }\n"
+      "void assign_both(callback value, void *bits) { bits = value; value = bits; }\n"
+      "void pass_value(callback value) { take_bits(value); }\n"
+      "callback initialize(void *bits) { callback value = bits; return value; }\n"
+      "callback cast_restore(void *bits) { return (callback)bits; }\n"
+      "void *cast_store(callback value) { return (void *)value; }\n";
+  static const char explicit_source[] =
+      "typedef unsigned int (*callback)(unsigned int);\n"
+      "callback cast_restore(void *bits) { return (callback)bits; }\n"
+      "void *cast_store(callback value) { return (void *)value; }\n";
+  static const frontend_exact_failure_case_t implicit_failure = {
+      {"ordinary C rejects implicit function/data pointer conversion",
+       "typedef void (*callback)(void); void *bad(callback value) { return value; }\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+      0u, 0u, "return expression is not convertible to function result type"};
+  static const frontend_exact_failure_case_t rejection_cases[] = {
+      {{"qualified data pointer",
+        "typedef void (*callback)(void); callback bad(const void *bits) { return bits; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "return expression is not convertible to function result type"},
+      {{"atomic data referent",
+        "typedef void (*callback)(void); callback bad(void * _Atomic *bits) { return bits; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "return expression is not convertible to function result type"},
+      {{"nonpointer source",
+        "typedef void (*callback)(void); callback bad(unsigned bits) { return bits; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "return expression is not convertible to function result type"},
+      {{"incompatible function pointer",
+        "typedef void (*first)(void); typedef int (*second)(int); first bad(second value) { return value; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "return expression is not convertible to function result type"}};
+  static const char *const doom_paths[] = {
+      "/kernel/doom/src/m_menu.c",
+      "/kernel/doom/src/p_saveg.c",
+      "/kernel/doom/src/p_ceilng.c",
+      "/kernel/doom/src/p_plats.c"};
+  static const ctool_u32 m_menu_lines[] = {701u, 733u, 948u, 1060u, 1173u,
+                                           1297u};
+  static const ctool_u32 p_saveg_lines[] = {251u, 257u, 1712u};
+  static const ctool_u32 p_ceilng_lines[] = {316u};
+  static const ctool_u32 p_plats_lines[] = {274u};
+  static const ctool_u32 *const doom_lines[] = {
+      m_menu_lines, p_saveg_lines, p_ceilng_lines, p_plats_lines};
+  static const ctool_u32 doom_line_counts[] = {
+      ARRAY_COUNT(m_menu_lines), ARRAY_COUNT(p_saveg_lines),
+      ARRAY_COUNT(p_ceilng_lines), ARRAY_COUNT(p_plats_lines)};
+  ctool_c_pp_include_root_t include_roots[ARRAY_COUNT(active_rows)];
+  ctool_c_pp_macro_action_t macro_actions[ARRAY_COUNT(active_rows)];
+  ctool_path_t forced_includes[ARRAY_COUNT(active_rows)];
+  ctool_c_pp_request_t doom_request;
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t strict_explicit_unit;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "doom-compatibility-pointers",
+                             host_root, 256u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_FALSE;
+  fixture.parse_request.gnu_extensions = CTOOL_FALSE;
+  fixture.parse_request.compatibility_pointer_conversions = CTOOL_FALSE;
+  if (expect_frontend_failure_at_message(
+          &fixture, &implicit_failure.failure,
+          "/strict-compatibility-pointer.c", implicit_failure.line,
+          implicit_failure.column, implicit_failure.message) != 0 ||
+      parse_valid_fixture(&fixture, "/strict-explicit-pointer.c",
+                          explicit_source, &strict_explicit_unit) != 0 ||
+      validate_compatibility_pointer_frontend(
+          &strict_explicit_unit, 0u, 2u, CTOOL_C_CONVERSION_NONE) != 0) {
+    goto cleanup;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  if (expect_frontend_failure_at_message(
+          &fixture, &implicit_failure.failure,
+          "/gnu-compatibility-pointer.c", implicit_failure.line,
+          implicit_failure.column, implicit_failure.message) != 0) {
+    goto cleanup;
+  }
+  fixture.parse_request.compatibility_pointer_conversions = CTOOL_TRUE;
+  if (parse_valid_fixture(&fixture, "/doom-compatibility-pointer.c", source,
+                          &unit) != 0 ||
+      validate_compatibility_pointer_frontend(
+          &unit, 6u, 2u,
+          CTOOL_C_CONVERSION_COMPATIBILITY_POINTER) != 0) {
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(rejection_cases); index++) {
+    const frontend_exact_failure_case_t *test_case =
+        &rejection_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure,
+            "/doom-compatibility-pointer-rejection.c", test_case->line,
+            test_case->column, test_case->message) != 0 ||
+        validate_compatibility_pointer_frontend(
+            &unit, 6u, 2u,
+            CTOOL_C_CONVERSION_COMPATIBILITY_POINTER) != 0) {
+      goto cleanup;
+    }
+  }
+  if (build_doom_tree_profile(&doom_request, include_roots, macro_actions,
+                              forced_includes) != 0) {
+    goto cleanup;
+  }
+  fixture.pp_request = doom_request;
+  fixture.parse_request.implicit_function_declarations = CTOOL_TRUE;
+  fixture.parse_request.compatibility_pointer_conversions = CTOOL_TRUE;
+  for (index = 0u; index < ARRAY_COUNT(doom_paths); index++) {
+    ctool_c_translation_unit_t doom_unit;
+    if (parse_loaded_fixture(&fixture, doom_paths[index], NULL, 0u,
+                             &doom_unit) != 0 ||
+        validate_doom_compatibility_pointer_sites(
+            &doom_unit, doom_lines[index], doom_line_counts[index]) != 0) {
+      (void)fprintf(stderr,
+                    "doom-compatibility-pointers: %s sites differ\n",
+                    doom_paths[index]);
+      goto cleanup;
+    }
+  }
+  failed = 0;
+
+cleanup:
+  (void)memset(&fixture.pp_request, 0, sizeof(fixture.pp_request));
+  fixture.pp_request.mode = CTOOL_C_PP_MODE_C11;
+  fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("doom-compatibility-pointers: ok\n");
+  }
+  return failed;
+}
+
 static int validate_pointer_arithmetic_unit(
     const ctool_c_translation_unit_t *unit) {
   static const char *const subscript_names[] = {
@@ -19395,6 +19674,15 @@ static int run_boundaries(const char *host_root) {
   invalid_request.implicit_function_declarations = 2;
   if (expect_direct_parse_failure(
           &fixture, "invalid implicit-function boolean", &request_tape,
+          &invalid_request, CTOOL_ERR_INVALID_ARGUMENT,
+          CTOOL_C_PARSE_DIAG_INVALID_REQUEST, "/invalid-request.c", 1u,
+          1u) != 0) {
+    failed = 1;
+  }
+  invalid_request = fixture.parse_request;
+  invalid_request.compatibility_pointer_conversions = 2;
+  if (expect_direct_parse_failure(
+          &fixture, "invalid compatibility-pointer boolean", &request_tape,
           &invalid_request, CTOOL_ERR_INVALID_ARGUMENT,
           CTOOL_C_PARSE_DIAG_INVALID_REQUEST, "/invalid-request.c", 1u,
           1u) != 0) {
@@ -28617,6 +28905,7 @@ int main(int argc, char **argv) {
                    "if-statements|while-statements|do-statements|"
                    "switch-statements|labels-and-goto|"
                    "pointer-expressions|function-pointer-casts|"
+                   "doom-compatibility-pointers|"
                    "pointer-arithmetic|pointer-comparisons|"
                    "scalar-updates|"
                    "function-specifiers|errors|scale|semantics|constants|"
@@ -28800,6 +29089,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "function-pointer-casts") == 0) {
     return run_function_pointer_cast_frontend(argv[2]);
+  }
+  if (strcmp(argv[1], "doom-compatibility-pointers") == 0) {
+    return run_doom_compatibility_pointers(argv[2]);
   }
   if (strcmp(argv[1], "pointer-arithmetic") == 0) {
     return run_pointer_arithmetic(argv[2]);

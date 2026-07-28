@@ -1864,6 +1864,7 @@ static int open_limited_job(const char *host_root,
 static int parse_source_features(
     ctool_job_t *job, const char *path, const char *text,
     ctool_bool gnu_extensions, ctool_bool implicit_function_declarations,
+    ctool_bool compatibility_pointer_conversions,
     ctool_c_translation_unit_t *unit_out) {
   ctool_source_t source;
   ctool_c_pp_request_t pp_request;
@@ -1898,6 +1899,8 @@ static int parse_source_features(
   parse_request.gnu_extensions = gnu_extensions;
   parse_request.implicit_function_declarations =
       implicit_function_declarations;
+  parse_request.compatibility_pointer_conversions =
+      compatibility_pointer_conversions;
   (void)memset(unit_out, 0xa5, sizeof(*unit_out));
   status = ctool_c_parse(job, &tape, &parse_request, unit_out);
   if (status != CTOOL_OK ||
@@ -1914,8 +1917,8 @@ static int parse_source_mode(ctool_job_t *job, const char *path,
                              const char *text,
                              ctool_bool gnu_extensions,
                              ctool_c_translation_unit_t *unit_out) {
-  return parse_source_features(job, path, text, gnu_extensions, CTOOL_FALSE,
-                               unit_out);
+  return parse_source_features(
+      job, path, text, gnu_extensions, CTOOL_FALSE, CTOOL_FALSE, unit_out);
 }
 
 static int parse_source(ctool_job_t *job, const char *path, const char *text,
@@ -17020,6 +17023,359 @@ cleanup:
   return 1;
 }
 
+static const ctool_c_type_node_t *compatibility_unwrapped_type(
+    const ctool_c_translation_unit_t *unit, ctool_u32 type,
+    ctool_u32 *base_out) {
+  const ctool_c_type_node_t *node;
+  ctool_u32 traversed = 0u;
+  while (type < unit->graph.type_count) {
+    node = &unit->graph.types[type];
+    if (node->kind != CTOOL_C_TYPE_QUALIFIED &&
+        node->kind != CTOOL_C_TYPE_ALIGNED) {
+      if (base_out != NULL) {
+        *base_out = type;
+      }
+      return node;
+    }
+    type = node->referenced_type;
+    if (traversed++ >= unit->graph.type_count) {
+      break;
+    }
+  }
+  return NULL;
+}
+
+static int compatibility_type_is_function_pointer(
+    const ctool_c_translation_unit_t *unit, ctool_u32 type) {
+  const ctool_c_type_node_t *pointer =
+      compatibility_unwrapped_type(unit, type, NULL);
+  const ctool_c_type_node_t *referent =
+      pointer != NULL && pointer->kind == CTOOL_C_TYPE_POINTER
+          ? compatibility_unwrapped_type(unit, pointer->referenced_type, NULL)
+          : NULL;
+  return pointer != NULL && referent != NULL &&
+                 referent->kind == CTOOL_C_TYPE_FUNCTION
+             ? 1
+             : 0;
+}
+
+static int compatibility_type_is_data_pointer(
+    const ctool_c_translation_unit_t *unit, ctool_u32 type) {
+  const ctool_c_type_node_t *pointer =
+      compatibility_unwrapped_type(unit, type, NULL);
+  const ctool_c_type_node_t *referent =
+      pointer != NULL && pointer->kind == CTOOL_C_TYPE_POINTER
+          ? compatibility_unwrapped_type(unit, pointer->referenced_type, NULL)
+          : NULL;
+  return pointer != NULL && referent != NULL &&
+                 referent->kind != CTOOL_C_TYPE_FUNCTION
+             ? 1
+             : 0;
+}
+
+static int validate_compatibility_pointer_ir(
+    const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir,
+    ctool_u32 *function_pointer_out, ctool_u32 *data_pointer_out,
+    ctool_u32 *implicit_expression_out) {
+  ctool_u32 ast_conversions = 0u;
+  ctool_u32 implicit_conversions = 0u;
+  ctool_u32 cast_conversions = 0u;
+  ctool_u32 ir_conversions = 0u;
+  ctool_u32 indirect_calls = 0u;
+  ctool_u32 index;
+  *function_pointer_out = CTOOL_C_TYPE_NONE;
+  *data_pointer_out = CTOOL_C_TYPE_NONE;
+  *implicit_expression_out = CTOOL_C_AST_NONE;
+  for (index = 0u; index < unit->expression_count; index++) {
+    const ctool_c_expression_t *expression = &unit->expressions[index];
+    ctool_u32 child;
+    ctool_u32 source_type;
+    int source_function;
+    int target_function;
+    int source_data;
+    int target_data;
+    if (expression->conversion !=
+        CTOOL_C_CONVERSION_COMPATIBILITY_POINTER) {
+      continue;
+    }
+    if (expression->child_count != 1u ||
+        expression->first_child >= unit->expression_child_count) {
+      return 0;
+    }
+    child = unit->expression_children[expression->first_child];
+    if (child >= index) {
+      return 0;
+    }
+    source_type = unit->expressions[child].type;
+    source_function =
+        compatibility_type_is_function_pointer(unit, source_type);
+    target_function =
+        compatibility_type_is_function_pointer(unit, expression->type);
+    source_data = compatibility_type_is_data_pointer(unit, source_type);
+    target_data = compatibility_type_is_data_pointer(unit, expression->type);
+    if (!((source_function && target_data) ||
+          (source_data && target_function)) ||
+        source_type >= unit->layout.type_count ||
+        expression->type >= unit->layout.type_count ||
+        unit->layout.types[source_type].size != 4u ||
+        unit->layout.types[expression->type].size != 4u ||
+        !string_equal(expression->location.path,
+                      "/doom-compatibility-pointer-ir.c") ||
+        !string_equal(expression->physical_location.path,
+                      "/doom-compatibility-pointer-ir.c")) {
+      return 0;
+    }
+    if (source_function) {
+      *function_pointer_out = source_type;
+      *data_pointer_out = expression->type;
+    } else {
+      *function_pointer_out = expression->type;
+      *data_pointer_out = source_type;
+    }
+    if (expression->kind == CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION) {
+      if (*implicit_expression_out == CTOOL_C_AST_NONE) {
+        *implicit_expression_out = index;
+      }
+      implicit_conversions++;
+    } else if (expression->kind == CTOOL_C_EXPRESSION_CAST) {
+      cast_conversions++;
+    } else {
+      return 0;
+    }
+    ast_conversions++;
+  }
+  for (index = 0u; index < ir->instruction_count; index++) {
+    const ctool_c_ir_instruction_t *instruction = &ir->instructions[index];
+    if (instruction->kind == CTOOL_C_IR_INSTRUCTION_CONVERT &&
+        instruction->conversion ==
+            CTOOL_C_CONVERSION_COMPATIBILITY_POINTER) {
+      int source_function = compatibility_type_is_function_pointer(
+          unit, instruction->input_type);
+      int target_function =
+          compatibility_type_is_function_pointer(unit, instruction->type);
+      int source_data =
+          compatibility_type_is_data_pointer(unit, instruction->input_type);
+      int target_data =
+          compatibility_type_is_data_pointer(unit, instruction->type);
+      if (!((source_function && target_data) ||
+            (source_data && target_function))) {
+        return 0;
+      }
+      ir_conversions++;
+    } else if (instruction->kind ==
+               CTOOL_C_IR_INSTRUCTION_CALL_INDIRECT) {
+      indirect_calls++;
+    }
+  }
+  return unit->function_definition_count == 3u &&
+                 ir->function_count == 3u && ast_conversions == 4u &&
+                 implicit_conversions == 2u && cast_conversions == 2u &&
+                 ir_conversions == 4u && indirect_calls == 1u &&
+                 *function_pointer_out != CTOOL_C_TYPE_NONE &&
+                 *data_pointer_out != CTOOL_C_TYPE_NONE &&
+                 *implicit_expression_out != CTOOL_C_AST_NONE
+             ? 1
+             : 0;
+}
+
+static int run_doom_compatibility_pointers(const char *host_root) {
+  static const char source[] =
+      "typedef unsigned int (*callback)(unsigned int);\n"
+      "unsigned int invoke(callback value, unsigned int argument) {\n"
+      "  void *bits = value;\n"
+      "  callback restored = bits;\n"
+      "  return restored(argument);\n"
+      "}\n"
+      "callback cast_restore(void *bits) { return (callback)bits; }\n"
+      "void *cast_store(callback value) { return (void *)value; }\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t mutant;
+  ctool_c_expression_t *expressions = NULL;
+  ctool_c_type_node_t *types = NULL;
+  ctool_c_type_layout_t *layouts = NULL;
+  ctool_c_ir_unit_t first;
+  ctool_c_ir_unit_t second;
+  ctool_c_ir_unit_t recovered;
+  ctool_u64 frontend_fingerprint;
+  ctool_u64 ir_fingerprint;
+  ctool_u32 function_pointer;
+  ctool_u32 data_pointer;
+  ctool_u32 implicit_expression;
+  ctool_u32 data_pointer_base;
+  const ctool_c_type_node_t *data_pointer_node;
+  ctool_u32 data_referent_base;
+  ctool_bool valid = CTOOL_FALSE;
+  ctool_u32 diagnostic_count;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&first, 0xa5, sizeof(first));
+  (void)memset(&second, 0xa5, sizeof(second));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_features(
+          job, "/doom-compatibility-pointer-ir.c", source, CTOOL_FALSE,
+          CTOOL_FALSE, CTOOL_TRUE, &unit)) {
+    goto cleanup;
+  }
+  frontend_fingerprint = unit_fingerprint(&unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &unit, &first);
+  if (!check_status(status, CTOOL_OK,
+                    "Doom compatibility pointer lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != frontend_fingerprint ||
+      !validate_compatibility_pointer_ir(
+          &unit, &first, &function_pointer, &data_pointer,
+          &implicit_expression)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  ir_fingerprint = ir_instruction_fingerprint(&first);
+  status = ctool_c_lower_ir(job, &unit, &second);
+  if (!check_status(status, CTOOL_OK,
+                    "repeat Doom compatibility pointer lowering") ||
+      unit_fingerprint(&unit) != frontend_fingerprint ||
+      ir_instruction_fingerprint(&second) != ir_fingerprint) {
+    goto cleanup;
+  }
+  status = ctool_c_ir_pointer_conversion_is_valid(
+      job, &unit, function_pointer, data_pointer,
+      CTOOL_C_CONVERSION_COMPATIBILITY_POINTER, &valid);
+  if (!check_status(status, CTOOL_OK,
+                    "function to data compatibility query") ||
+      valid != CTOOL_TRUE) {
+    goto cleanup;
+  }
+  valid = CTOOL_FALSE;
+  status = ctool_c_ir_pointer_conversion_is_valid(
+      job, &unit, data_pointer, function_pointer,
+      CTOOL_C_CONVERSION_COMPATIBILITY_POINTER, &valid);
+  if (!check_status(status, CTOOL_OK,
+                    "data to function compatibility query") ||
+      valid != CTOOL_TRUE) {
+    goto cleanup;
+  }
+  valid = CTOOL_TRUE;
+  status = ctool_c_ir_pointer_conversion_is_valid(
+      job, &unit, function_pointer, function_pointer,
+      CTOOL_C_CONVERSION_COMPATIBILITY_POINTER, &valid);
+  if (!check_status(status, CTOOL_OK,
+                    "function signature compatibility rejection") ||
+      valid != CTOOL_FALSE) {
+    goto cleanup;
+  }
+  valid = CTOOL_TRUE;
+  status = ctool_c_ir_pointer_conversion_is_valid(
+      job, &unit, data_pointer, data_pointer,
+      CTOOL_C_CONVERSION_COMPATIBILITY_POINTER, &valid);
+  if (!check_status(status, CTOOL_OK,
+                    "data pointer compatibility rejection") ||
+      valid != CTOOL_FALSE) {
+    goto cleanup;
+  }
+  expressions = (ctool_c_expression_t *)malloc(
+      (size_t)unit.expression_count * sizeof(*expressions));
+  layouts = (ctool_c_type_layout_t *)malloc(
+      (size_t)unit.layout.type_count * sizeof(*layouts));
+  types = (ctool_c_type_node_t *)malloc(
+      (size_t)unit.graph.type_count * sizeof(*types));
+  if (expressions == NULL || layouts == NULL || types == NULL) {
+    goto cleanup;
+  }
+  mutant = unit;
+  mutant.expressions = expressions;
+  (void)memcpy(expressions, unit.expressions,
+               (size_t)unit.expression_count * sizeof(*expressions));
+  expressions[implicit_expression].conversion = CTOOL_C_CONVERSION_POINTER;
+  if (!expect_ir_failure_preserves_unit(
+          job, &mutant, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION,
+          "CupidC IR lowering does not yet support this conversion",
+          "compatibility conversion kind mutation")) {
+    goto cleanup;
+  }
+  mutant = unit;
+  mutant.layout.types = layouts;
+  (void)memcpy(layouts, unit.layout.types,
+               (size_t)unit.layout.type_count * sizeof(*layouts));
+  layouts[data_pointer].size = 8u;
+  valid = CTOOL_TRUE;
+  status = ctool_c_ir_pointer_conversion_is_valid(
+      job, &mutant, function_pointer, data_pointer,
+      CTOOL_C_CONVERSION_COMPATIBILITY_POINTER, &valid);
+  if (!check_status(status, CTOOL_OK,
+                    "wide data pointer compatibility rejection") ||
+      valid != CTOOL_FALSE) {
+    goto cleanup;
+  }
+  data_pointer_node = compatibility_unwrapped_type(
+      &unit, data_pointer, &data_pointer_base);
+  if (data_pointer_node == NULL ||
+      data_pointer_node->kind != CTOOL_C_TYPE_POINTER) {
+    goto cleanup;
+  }
+  (void)data_pointer_base;
+  (void)compatibility_unwrapped_type(
+      &unit, data_pointer_node->referenced_type, &data_referent_base);
+  if (data_referent_base >= unit.graph.type_count) {
+    goto cleanup;
+  }
+  mutant = unit;
+  mutant.graph.types = types;
+  (void)memcpy(types, unit.graph.types,
+               (size_t)unit.graph.type_count * sizeof(*types));
+  types[data_referent_base].qualifiers |= CTOOL_C_QUAL_CONST;
+  valid = CTOOL_TRUE;
+  status = ctool_c_ir_pointer_conversion_is_valid(
+      job, &mutant, function_pointer, data_pointer,
+      CTOOL_C_CONVERSION_COMPATIBILITY_POINTER, &valid);
+  if (!check_status(status, CTOOL_OK,
+                    "qualified data pointer compatibility rejection") ||
+      valid != CTOOL_FALSE) {
+    goto cleanup;
+  }
+  (void)memcpy(types, unit.graph.types,
+               (size_t)unit.graph.type_count * sizeof(*types));
+  types[data_referent_base].qualifiers |= CTOOL_C_QUAL_ATOMIC;
+  valid = CTOOL_TRUE;
+  status = ctool_c_ir_pointer_conversion_is_valid(
+      job, &mutant, function_pointer, data_pointer,
+      CTOOL_C_CONVERSION_COMPATIBILITY_POINTER, &valid);
+  if (!check_status(status, CTOOL_OK,
+                    "atomic data pointer compatibility rejection") ||
+      valid != CTOOL_FALSE) {
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&recovered, 0xa5, sizeof(recovered));
+  status = ctool_c_lower_ir(job, &unit, &recovered);
+  if (!check_status(status, CTOOL_OK,
+                    "Doom compatibility pointer recovery") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != frontend_fingerprint ||
+      ir_instruction_fingerprint(&recovered) != ir_fingerprint) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(types);
+  free(layouts);
+  free(expressions);
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("doom-compatibility-pointers: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_pointer_comparison_ir(
     const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir) {
   static const char *const function_names[] = {
@@ -22887,7 +23243,7 @@ static int run_doom_implicit_functions(const char *host_root) {
   (void)memset(&second, 0xa5, sizeof(second));
   if (!open_job(host_root, &adapter, &config, &job) ||
       !parse_source_features(job, "/doom-implicit-ir.c", source,
-                             CTOOL_FALSE, CTOOL_TRUE, &unit)) {
+                             CTOOL_FALSE, CTOOL_TRUE, CTOOL_FALSE, &unit)) {
     goto cleanup;
   }
   legacy = find_binding(&unit, "legacy");
@@ -34334,6 +34690,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "function-pointer-casts") == 0) {
     return run_function_pointer_casts(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "doom-compatibility-pointers") == 0) {
+    return run_doom_compatibility_pointers(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "automatic-objects") == 0) {
     return run_automatic_objects(argv[2]);
   }
@@ -34476,7 +34835,8 @@ int main(int argc, char **argv) {
                 "integer-mutation-rejections|pointer-member-loads|"
                 "pointer-values|pointer-comparisons|pointer-conditions|"
                 "pointer-arithmetic|function-pointers|"
-                "function-pointer-casts|automatic-objects|"
+                "function-pointer-casts|doom-compatibility-pointers|"
+                "automatic-objects|"
                 "block-externs|block-functions|block-typedefs|"
                 "aggregate-initializers|union-initializers|"
                 "compound-literals|"

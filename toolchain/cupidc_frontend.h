@@ -15,6 +15,10 @@ typedef struct {
    * direct call. The frontend publishes an external int-returning
    * no-prototype function declaration in the call's block. */
   ctool_bool implicit_function_declarations;
+  /* Deliberate Doom compatibility gate for bit-preserving conversions
+   * between one function pointer and one unqualified i386 data pointer.
+   * Strict C and the general GNU-extension switch leave this disabled. */
+  ctool_bool compatibility_pointer_conversions;
 } ctool_c_parse_request_t;
 
 typedef enum {
@@ -417,7 +421,10 @@ typedef enum {
   /* C11 null pointer constant converted to its destination pointer type. */
   CTOOL_C_CONVERSION_NULL_POINTER,
   /* `float` converted to `double` by the default argument promotions. */
-  CTOOL_C_CONVERSION_FLOAT_PROMOTION
+  CTOOL_C_CONVERSION_FLOAT_PROMOTION,
+  /* Doom-only bit-preserving conversion between one function pointer and
+   * one unqualified i386 data pointer. */
+  CTOOL_C_CONVERSION_COMPATIBILITY_POINTER
 } ctool_c_conversion_kind_t;
 
 #define CTOOL_C_EXPRESSION_SEMANTIC_NULL_POINTER_CONSTANT 0x00000001u
@@ -666,7 +673,11 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * increment/decrement, right-associative C11 conditional values including
  * same-record results, fixed-argument prototyped calls; and explicit lvalue,
  * array, function, qualification, integer promotion, usual-arithmetic, and
- * assignment and null-pointer conversions. Block bindings use lexical scope,
+ * assignment and null-pointer conversions. The explicit Doom compatibility
+ * request also marks bit-preserving conversions between one unqualified i386
+ * function pointer and one unqualified i386 data pointer in assignments,
+ * initializers, arguments, returns, and casts. Ordinary C and general GNU
+ * mode do not enable that rule. Block bindings use lexical scope,
  * share the outer function-body scope with definition parameters, and retain
  * stable public indices after their scopes close. Declaration-position enums
  * retain each enumerator's value and type in that same binding stream. Enum

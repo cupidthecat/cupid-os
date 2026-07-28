@@ -100,6 +100,10 @@ _Avoid_: nested function, automatic local
 A block function alias introduced only by the explicit Doom compatibility profile when a bare undeclared identifier is called. It owns the identifier expression that triggered the old-style `extern int name()` declaration and keeps one canonical external function identity across blocks. Calls parsed before a later prototype retain default argument promotions.
 _Avoid_: general undeclared identifier support, forward declaration
 
+**Doom compatibility pointer conversion**:
+A conversion enabled only by the explicit Doom compatibility profile between one unqualified i386 function pointer and one unqualified i386 data or `void` pointer. CupidC marks the conversion in assignments, automatic initializers, fixed call arguments, returns, and explicit casts. Linear IR verifies both four-byte representations, and i386 emission keeps the bits unchanged.
+_Avoid_: general function-pointer compatibility, GNU pointer conversion
+
 **External inline definition**:
 A file-scope function definition whose external declaration set contains `inline` but does not consist entirely of `inline` declarations without `extern`. A prior or later ordinary declaration and an `extern inline` definition with effective external linkage both provide the external definition. An earlier `static` declaration keeps the function internal, even when its definition is spelled `extern inline`. CupidC records the translation-unit result on the canonical binding while the definition keeps its exact source spelling. Any external-linkage function declared `inline` must have a definition in the same translation unit.
 _Avoid_: pure external inline definition, static inline function
@@ -223,7 +227,7 @@ The CupidC language mode for freestanding C source.
 _Avoid_: Cupid mode
 
 **Doom compatibility profile**:
-The explicit compiler profile for source requirements audited in the vendored Doom cohort. It currently adds old-style implicit function declarations to the exact Doom preprocessing and GNU-extension profile. It does not change ordinary C or plain GNU mode.
+The explicit compiler profile for source requirements audited in the vendored Doom cohort. It currently adds old-style implicit function declarations and marked i386 function/data pointer conversions to the exact Doom preprocessing and GNU-extension profile. It does not change ordinary C or plain GNU mode.
 _Avoid_: GNU mode, ordinary C mode
 
 **Cupid mode**:

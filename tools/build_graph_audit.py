@@ -147,6 +147,7 @@ class CPreprocessorProfile:
     gnu_extensions: str
     hosted_environment: str
     implicit_function_declarations: str
+    compatibility_pointer_conversions: str
 
 
 @dataclass(frozen=True)
@@ -174,6 +175,7 @@ _C_PP_PROFILE_ROWS = (
         gnu_extensions="CTOOL_TRUE",
         hosted_environment="CTOOL_FALSE",
         implicit_function_declarations="CTOOL_FALSE",
+        compatibility_pointer_conversions="CTOOL_FALSE",
     ),
     CPreprocessorProfile(
         name="DOOM_COMPAT_I386",
@@ -181,6 +183,7 @@ _C_PP_PROFILE_ROWS = (
         gnu_extensions="CTOOL_TRUE",
         hosted_environment="CTOOL_FALSE",
         implicit_function_declarations="CTOOL_TRUE",
+        compatibility_pointer_conversions="CTOOL_TRUE",
     ),
     CPreprocessorProfile(
         name="DOOM_TREE_I386",
@@ -188,6 +191,7 @@ _C_PP_PROFILE_ROWS = (
         gnu_extensions="CTOOL_TRUE",
         hosted_environment="CTOOL_FALSE",
         implicit_function_declarations="CTOOL_TRUE",
+        compatibility_pointer_conversions="CTOOL_TRUE",
     ),
     CPreprocessorProfile(
         name="USER_I386",
@@ -195,6 +199,7 @@ _C_PP_PROFILE_ROWS = (
         gnu_extensions="CTOOL_TRUE",
         hosted_environment="CTOOL_FALSE",
         implicit_function_declarations="CTOOL_FALSE",
+        compatibility_pointer_conversions="CTOOL_FALSE",
     ),
     CPreprocessorProfile(
         name="CUPID_RUNTIME",
@@ -202,6 +207,7 @@ _C_PP_PROFILE_ROWS = (
         gnu_extensions="CTOOL_FALSE",
         hosted_environment="CTOOL_FALSE",
         implicit_function_declarations="CTOOL_FALSE",
+        compatibility_pointer_conversions="CTOOL_FALSE",
     ),
     CPreprocessorProfile(
         name="HOSTED_TOOLCHAIN_64",
@@ -209,6 +215,7 @@ _C_PP_PROFILE_ROWS = (
         gnu_extensions="CTOOL_FALSE",
         hosted_environment="CTOOL_TRUE",
         implicit_function_declarations="CTOOL_FALSE",
+        compatibility_pointer_conversions="CTOOL_FALSE",
     ),
     CPreprocessorProfile(
         name="HOSTED_KERNEL_BRIDGE_64",
@@ -216,6 +223,7 @@ _C_PP_PROFILE_ROWS = (
         gnu_extensions="CTOOL_FALSE",
         hosted_environment="CTOOL_TRUE",
         implicit_function_declarations="CTOOL_FALSE",
+        compatibility_pointer_conversions="CTOOL_FALSE",
     ),
     CPreprocessorProfile(
         name="HOSTED_I386_LINUX",
@@ -223,6 +231,7 @@ _C_PP_PROFILE_ROWS = (
         gnu_extensions="CTOOL_FALSE",
         hosted_environment="CTOOL_TRUE",
         implicit_function_declarations="CTOOL_FALSE",
+        compatibility_pointer_conversions="CTOOL_FALSE",
     ),
     CPreprocessorProfile(
         name="HOSTED_I386_LINUX_GNU",
@@ -230,6 +239,7 @@ _C_PP_PROFILE_ROWS = (
         gnu_extensions="CTOOL_TRUE",
         hosted_environment="CTOOL_TRUE",
         implicit_function_declarations="CTOOL_FALSE",
+        compatibility_pointer_conversions="CTOOL_FALSE",
     ),
 )
 _C_PP_HOSTED_PROFILES = frozenset(
@@ -5577,6 +5587,10 @@ def _c_preprocessor_translation_unit_contract(
                     profile_policy.implicit_function_declarations
                     == "CTOOL_TRUE"
                 ),
+                "compatibility_pointer_conversions": (
+                    profile_policy.compatibility_pointer_conversions
+                    == "CTOOL_TRUE"
+                ),
                 "tracked_translation_units": sum(
                     profile == name
                     for profile, _ in manifest.active_cases
@@ -5638,7 +5652,8 @@ def _render_c_preprocessor_active_cases(
         [
             f"CUPIDC_PP_PROFILE({profile.name}, {profile.mode}, "
             f"{profile.gnu_extensions}, {profile.hosted_environment}, "
-            f"{profile.implicit_function_declarations})"
+            f"{profile.implicit_function_declarations}, "
+            f"{profile.compatibility_pointer_conversions})"
             for profile in manifest.profiles
         ],
         [

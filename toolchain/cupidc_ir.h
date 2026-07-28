@@ -204,8 +204,8 @@ ctool_status_t ctool_c_ir_pointer_comparison_types_compatible(
     ctool_u32 left, ctool_u32 right, ctool_bool require_object_referents,
     ctool_bool *compatible_out);
 
-/* Checks one implicit pointer conversion against the IR lowerer's
- * qualification and object-to-void rules. */
+/* Checks one pointer conversion against the IR lowerer's qualification,
+ * object-to-void, and explicit i386 function/data compatibility rules. */
 ctool_status_t ctool_c_ir_pointer_conversion_is_valid(
     ctool_job_t *job, const ctool_c_translation_unit_t *unit,
     ctool_u32 source_type, ctool_u32 target_type,

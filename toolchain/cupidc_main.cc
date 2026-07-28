@@ -463,6 +463,8 @@ static ctool_status_t cupidc_compile_body(ctool_invocation_t *invocation,
   parse_request.gnu_extensions = context->gnu_extensions;
   parse_request.implicit_function_declarations =
       context->doom_compatibility;
+  parse_request.compatibility_pointer_conversions =
+      context->doom_compatibility;
   (void)memset(&unit, 0, sizeof(unit));
   if (status == CTOOL_OK) {
     status = ctool_c_parse(invocation->job, &tape, &parse_request, &unit);

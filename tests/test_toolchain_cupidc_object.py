@@ -134,24 +134,7 @@ CUPID_TOOLCHAIN_FIXED_POINT_LINKS = (
         ),
     ),
 )
-DOOM_TREE_FRONTIER_FAILURES = {
-    "/kernel/doom/src/m_menu.c": (
-        "/kernel/doom/src/m_menu.c:701:31: error CTB000010: "
-        "function call argument is not convertible to parameter type\n"
-    ),
-    "/kernel/doom/src/p_ceilng.c": (
-        "/kernel/doom/src/p_ceilng.c:316:48: error CTD000006: "
-        "CupidC IR lowering does not yet support this conversion\n"
-    ),
-    "/kernel/doom/src/p_plats.c": (
-        "/kernel/doom/src/p_plats.c:274:47: error CTD000006: "
-        "CupidC IR lowering does not yet support this conversion\n"
-    ),
-    "/kernel/doom/src/p_saveg.c": (
-        "/kernel/doom/src/p_saveg.c:251:17: error CTB000010: "
-        "assignment right operand is not convertible to left operand type\n"
-    ),
-}
+DOOM_TREE_FRONTIER_FAILURES = {}
 DOOM_I_VIDEO_OBJECT_SIZE = 9312
 DOOM_I_VIDEO_OBJECT_SHA256 = (
     "8e9fcb59120cac9e8237a8243003fe169"
@@ -480,6 +463,20 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "function-pointer-casts: ok\n")
 
+    def test_doom_pointer_compatibility_preserves_bits_through_indirect_calls(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "doom-compatibility-pointers",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "doom-compatibility-pointers: ok\n")
+
     def test_fixed_automatic_objects_use_target_sized_i386_frames(self):
         result = subprocess.run(
             [str(self.contract_path), "automatic-objects", str(REPO_ROOT)],
@@ -767,6 +764,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertTrue(profile["gnu_extensions"])
         self.assertFalse(profile["hosted_environment"])
         self.assertFalse(profile["implicit_function_declarations"])
+        self.assertFalse(profile["compatibility_pointer_conversions"])
         self.assertEqual(profile["forced_includes"], [])
 
         arguments = [
@@ -1930,6 +1928,12 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                 "int invoke(void) { return missing(3); }\n",
                 encoding="utf-8",
             )
+            pointer_source = root / "pointer.c"
+            pointer_source.write_text(
+                "typedef unsigned int (*callback)(unsigned int);\n"
+                "void *store(callback value) { return value; }\n",
+                encoding="utf-8",
+            )
             expected = (
                 "/implicit.c:1:27: error CTB000010: "
                 "expression identifier is not declared\n"
@@ -1957,6 +1961,35 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                     self.assertEqual(result.stdout, "")
                     self.assertEqual(result.stderr, expected)
                     self.assertFalse(output.exists())
+                pointer_output = root / f"{name}-pointer.o"
+                pointer_result = subprocess.run(
+                    [
+                        str(self.hosted_cupidc_path),
+                        "--root",
+                        str(root),
+                        *extra,
+                        "-c",
+                        "/pointer.c",
+                        "-o",
+                        f"/{name}-pointer.o",
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                    timeout=60,
+                )
+                pointer_expected = (
+                    "/pointer.c:2:38: error CTB000010: "
+                    "return expression is not convertible to function "
+                    "result type\n"
+                )
+                with self.subTest(profile=name, feature="pointer"):
+                    self.assertEqual(
+                        pointer_result.returncode, 1, pointer_result.stderr
+                    )
+                    self.assertEqual(pointer_result.stdout, "")
+                    self.assertEqual(pointer_result.stderr, pointer_expected)
+                    self.assertFalse(pointer_output.exists())
 
             hosted = subprocess.run(
                 [
@@ -1998,6 +2031,49 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             self.assertEqual(
                 (root / "hosted.o").read_bytes()[:7],
                 b"\x7fELF\x01\x01\x01",
+            )
+            hosted_pointer = subprocess.run(
+                [
+                    str(self.hosted_cupidc_path),
+                    "--root",
+                    str(root),
+                    "--doom-compat",
+                    "-c",
+                    "/pointer.c",
+                    "-o",
+                    "/hosted-pointer.o",
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+                timeout=60,
+            )
+            cupid_pointer = self.run_cupid_linux_tool(
+                self.cupid_cupidc_path,
+                [
+                    "--root",
+                    root,
+                    "--doom-compat",
+                    "-c",
+                    "/pointer.c",
+                    "-o",
+                    "/cupid-pointer.o",
+                ],
+                timeout=60,
+            )
+            self.assertEqual(
+                hosted_pointer.returncode, 0, hosted_pointer.stderr
+            )
+            self.assertEqual(
+                cupid_pointer.returncode,
+                hosted_pointer.returncode,
+                cupid_pointer.stderr,
+            )
+            self.assertEqual(cupid_pointer.stdout, hosted_pointer.stdout)
+            self.assertEqual(cupid_pointer.stderr, hosted_pointer.stderr)
+            self.assertEqual(
+                (root / "cupid-pointer.o").read_bytes(),
+                (root / "hosted-pointer.o").read_bytes(),
             )
 
     def test_cupidc_angle_only_roots_do_not_change_quoted_lookup(self):
@@ -2220,6 +2296,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertTrue(profile["gnu_extensions"])
         self.assertFalse(profile["hosted_environment"])
         self.assertTrue(profile["implicit_function_declarations"])
+        self.assertTrue(profile["compatibility_pointer_conversions"])
         self.assertEqual(
             profile["forced_includes"],
             ["/kernel/doom/dglibc_compat.h"],
@@ -2345,7 +2422,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                     self.assertEqual(result.stderr, expected)
                     self.assertFalse(output.exists())
             self.assertEqual(failures, DOOM_TREE_FRONTIER_FAILURES)
-            self.assertEqual(len(results) - len(failures), 76)
+            self.assertEqual(len(results) - len(failures), 80)
 
     def test_cupidc_forced_include_rejects_bad_values_and_root_paths(self):
         linked = self.build_cupid_tools()

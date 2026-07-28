@@ -8898,11 +8898,15 @@ static ctool_status_t cemit_emit_ir_instruction(
          ir_instruction->conversion != CTOOL_C_CONVERSION_POINTER &&
          ir_instruction->conversion != CTOOL_C_CONVERSION_NULL_POINTER &&
          ir_instruction->conversion !=
-             CTOOL_C_CONVERSION_FLOAT_PROMOTION) ||
+             CTOOL_C_CONVERSION_FLOAT_PROMOTION &&
+         ir_instruction->conversion !=
+             CTOOL_C_CONVERSION_COMPATIBILITY_POINTER) ||
         (pointer_conversion == CTOOL_TRUE &&
          explicit_scalar_conversion == CTOOL_FALSE &&
          ir_instruction->conversion != CTOOL_C_CONVERSION_QUALIFICATION &&
-         ir_instruction->conversion != CTOOL_C_CONVERSION_POINTER) ||
+         ir_instruction->conversion != CTOOL_C_CONVERSION_POINTER &&
+         ir_instruction->conversion !=
+             CTOOL_C_CONVERSION_COMPATIBILITY_POINTER) ||
         (null_conversion == CTOOL_TRUE &&
          ir_instruction->conversion != CTOOL_C_CONVERSION_NULL_POINTER) ||
         (bit_field_promotion == CTOOL_FALSE &&

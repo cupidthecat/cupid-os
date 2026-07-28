@@ -2922,7 +2922,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         profile_pattern = re.compile(
             r"^CUPIDC_PP_PROFILE\(([A-Z0-9_]+), ([A-Z0-9_]+), "
             r"(CTOOL_(?:TRUE|FALSE)), (CTOOL_(?:TRUE|FALSE)), "
-            r"(CTOOL_(?:TRUE|FALSE))\)$"
+            r"(CTOOL_(?:TRUE|FALSE)), (CTOOL_(?:TRUE|FALSE))\)$"
         )
         active_pattern = re.compile(
             r'^CUPIDC_PP_ACTIVE_CASE\(([A-Z0-9_]+), "([^"]+)"\)$'
@@ -2955,12 +2955,14 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "CTOOL_TRUE",
                     "CTOOL_FALSE",
                     "CTOOL_FALSE",
+                    "CTOOL_FALSE",
                 ),
                 (
                     "DOOM_COMPAT_I386",
                     "CTOOL_C_PP_MODE_C11",
                     "CTOOL_TRUE",
                     "CTOOL_FALSE",
+                    "CTOOL_TRUE",
                     "CTOOL_TRUE",
                 ),
                 (
@@ -2969,6 +2971,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "CTOOL_TRUE",
                     "CTOOL_FALSE",
                     "CTOOL_TRUE",
+                    "CTOOL_TRUE",
                 ),
                 (
                     "USER_I386",
@@ -2976,10 +2979,12 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "CTOOL_TRUE",
                     "CTOOL_FALSE",
                     "CTOOL_FALSE",
+                    "CTOOL_FALSE",
                 ),
                 (
                     "CUPID_RUNTIME",
                     "CTOOL_C_PP_MODE_CUPID",
+                    "CTOOL_FALSE",
                     "CTOOL_FALSE",
                     "CTOOL_FALSE",
                     "CTOOL_FALSE",
@@ -2990,12 +2995,14 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "CTOOL_FALSE",
                     "CTOOL_TRUE",
                     "CTOOL_FALSE",
+                    "CTOOL_FALSE",
                 ),
                 (
                     "HOSTED_KERNEL_BRIDGE_64",
                     "CTOOL_C_PP_MODE_C11",
                     "CTOOL_FALSE",
                     "CTOOL_TRUE",
+                    "CTOOL_FALSE",
                     "CTOOL_FALSE",
                 ),
                 (
@@ -3004,6 +3011,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "CTOOL_FALSE",
                     "CTOOL_TRUE",
                     "CTOOL_FALSE",
+                    "CTOOL_FALSE",
                 ),
                 (
                     "HOSTED_I386_LINUX_GNU",
@@ -3011,12 +3019,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "CTOOL_TRUE",
                     "CTOOL_TRUE",
                     "CTOOL_FALSE",
+                    "CTOOL_FALSE",
                 ),
             ],
         )
         self.assertEqual(
             {name: sum(case_name == name for case_name, _ in active)
-            for name, _, _, _, _ in profiles},
+            for name, _, _, _, _, _ in profiles},
             {
                 "KERNEL_I386": 155,
                 "DOOM_COMPAT_I386": 3,
@@ -4056,6 +4065,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     gnu_extensions="CTOOL_TRUE",
                     hosted_environment="CTOOL_FALSE",
                     implicit_function_declarations="CTOOL_FALSE",
+                    compatibility_pointer_conversions="CTOOL_FALSE",
                 ),
             ),
             include_roots=(
@@ -4079,7 +4089,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         self.assertEqual(first, second)
         self.assertIn(
             "CUPIDC_PP_PROFILE(SYNTH, CTOOL_C_PP_MODE_C11, CTOOL_TRUE, "
-            "CTOOL_FALSE, CTOOL_FALSE)",
+            "CTOOL_FALSE, CTOOL_FALSE, CTOOL_FALSE)",
             first,
         )
         self.assertIn(
@@ -4224,6 +4234,24 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 },
             )
             self.assertEqual(
+                {
+                    profile["name"]:
+                        profile["compatibility_pointer_conversions"]
+                    for profile in contract["profiles"]
+                },
+                {
+                    "KERNEL_I386": False,
+                    "DOOM_COMPAT_I386": True,
+                    "DOOM_TREE_I386": True,
+                    "USER_I386": False,
+                    "CUPID_RUNTIME": False,
+                    "HOSTED_TOOLCHAIN_64": False,
+                    "HOSTED_KERNEL_BRIDGE_64": False,
+                    "HOSTED_I386_LINUX": False,
+                    "HOSTED_I386_LINUX_GNU": False,
+                },
+            )
+            self.assertEqual(
                 audit_payload["summary"],
                 {
                     "active_sources": 698,
@@ -4237,7 +4265,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (4816, 168),
+                "c.expression.sizeof": (4835, 168),
                 "c.extension.builtin.offsetof": (12, 6),
                 "c.extension.gnu_alignof": (1, 1),
             }

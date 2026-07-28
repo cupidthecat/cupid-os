@@ -1956,6 +1956,57 @@ static ctool_bool cfront_pointer_assignment_qualifiers_allowed(
              : CTOOL_FALSE;
 }
 
+static ctool_status_t
+cfront_compatibility_pointer_conversion_is_valid(
+    cfront_context_t *context, ctool_u32 left_type, ctool_u32 right_type,
+    ctool_bool *valid_out) {
+  ctool_c_type_node_t left_pointer;
+  ctool_c_type_node_t right_pointer;
+  cfront_pointer_pair_t pair;
+  ctool_u32 left_base;
+  ctool_u32 right_base;
+  ctool_u32 left_qualifiers;
+  ctool_u32 right_qualifiers;
+  ctool_bool left_function;
+  ctool_bool right_function;
+  ctool_status_t status;
+  *valid_out = CTOOL_FALSE;
+  status = cfront_underlying_type(
+      context, left_type, &left_base, &left_qualifiers, &left_pointer);
+  if (status == CTOOL_OK) {
+    status = cfront_underlying_type(
+        context, right_type, &right_base, &right_qualifiers, &right_pointer);
+  }
+  (void)left_base;
+  (void)right_base;
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if (left_pointer.kind != CTOOL_C_TYPE_POINTER ||
+      right_pointer.kind != CTOOL_C_TYPE_POINTER) {
+    return CTOOL_OK;
+  }
+  status = cfront_classify_pointer_pair(
+      context, left_pointer.referenced_type, right_pointer.referenced_type,
+      &pair);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  left_function =
+      pair.left.kind == CTOOL_C_TYPE_FUNCTION ? CTOOL_TRUE : CTOOL_FALSE;
+  right_function =
+      pair.right.kind == CTOOL_C_TYPE_FUNCTION ? CTOOL_TRUE : CTOOL_FALSE;
+  if ((left_qualifiers | left_pointer.qualifiers | right_qualifiers |
+       right_pointer.qualifiers | pair.left_qualifiers |
+       pair.right_qualifiers) == 0u &&
+      left_function != right_function &&
+      ((left_function == CTOOL_TRUE && pair.right_object == CTOOL_TRUE) ||
+       (right_function == CTOOL_TRUE && pair.left_object == CTOOL_TRUE))) {
+    *valid_out = CTOOL_TRUE;
+  }
+  return CTOOL_OK;
+}
+
 typedef struct {
   cfront_type_pair_t pair;
   ctool_bool expanded;
@@ -8619,6 +8670,27 @@ static ctool_status_t cfront_append_one_child_expression(
   return status;
 }
 
+static ctool_status_t cfront_set_expression_conversion(
+    cfront_context_t *context, ctool_u32 expression_index,
+    ctool_c_conversion_kind_t conversion,
+    const ctool_c_pp_token_t *token) {
+  ctool_c_expression_t expression;
+  ctool_status_t status;
+  if (expression_index >= context->expressions.count ||
+      cfront_vector_get(&context->expressions, expression_index,
+                        &expression) != CTOOL_OK ||
+      expression.conversion != CTOOL_C_CONVERSION_NONE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL, token,
+        "expression conversion cannot be published");
+  }
+  expression.conversion = conversion;
+  status = cfront_vector_replace(
+      context, &context->expressions, expression_index, &expression);
+  return status == CTOOL_OK ? CTOOL_OK
+                            : cfront_storage_failure(context, status);
+}
+
 static ctool_status_t cfront_pointer_type_at(
     cfront_context_t *context, ctool_u32 referenced,
     const ctool_c_pp_token_t *token, ctool_u32 *type_out) {
@@ -10082,6 +10154,20 @@ static ctool_status_t cfront_apply_assignment_conversion(
         return cfront_append_conversion(
             context, pointer_conversion, target_type, value);
       }
+      if (context->request->compatibility_pointer_conversions ==
+          CTOOL_TRUE) {
+        ctool_bool compatibility_pointer = CTOOL_FALSE;
+        status = cfront_compatibility_pointer_conversion_is_valid(
+            context, target_type, value->type, &compatibility_pointer);
+        if (status != CTOOL_OK) {
+          return cfront_storage_failure(context, status);
+        }
+        if (compatibility_pointer == CTOOL_TRUE) {
+          return cfront_append_conversion(
+              context, CTOOL_C_CONVERSION_COMPATIBILITY_POINTER,
+              target_type, value);
+        }
+      }
     }
   }
   return cfront_emit_failure(
@@ -10779,6 +10865,7 @@ static ctool_status_t cfront_apply_cast(
   ctool_bool target_integer = CTOOL_FALSE;
   ctool_bool source_integer = CTOOL_FALSE;
   ctool_bool exact_void_pointer = CTOOL_FALSE;
+  ctool_bool compatibility_pointer = CTOOL_FALSE;
   cfront_expression_value_t constant_operand;
   ctool_c_type_node_t original_source;
   ctool_u32 original_source_base;
@@ -10901,10 +10988,22 @@ static ctool_status_t cfront_apply_cast(
         context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION, cast_token,
         "cast operand must have scalar type");
   }
+  if (context->request->compatibility_pointer_conversions == CTOOL_TRUE) {
+    status = cfront_compatibility_pointer_conversion_is_valid(
+        context, target_type, operand->type, &compatibility_pointer);
+    if (status != CTOOL_OK) {
+      return cfront_storage_failure(context, status);
+    }
+  }
   status = cfront_append_one_child_expression(
       context, CTOOL_C_EXPRESSION_CAST, CTOOL_C_EXPRESSION_OPERATOR_NONE,
       cast_token, target_type, CTOOL_C_AST_NONE, CTOOL_FALSE, CTOOL_FALSE,
       0u, CTOOL_FALSE, operand);
+  if (status == CTOOL_OK && compatibility_pointer == CTOOL_TRUE) {
+    status = cfront_set_expression_conversion(
+        context, operand->expression,
+        CTOOL_C_CONVERSION_COMPATIBILITY_POINTER, cast_token);
+  }
   if (status == CTOOL_OK && target_integer == CTOOL_TRUE &&
       source_integer == CTOOL_TRUE &&
       ((target_qualifiers | target.qualifiers) & CTOOL_C_QUAL_ATOMIC) == 0u &&
@@ -21763,6 +21862,33 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
         }
       }
     }
+    if (expression->conversion ==
+        CTOOL_C_CONVERSION_COMPATIBILITY_POINTER) {
+      ctool_bool compatibility_pointer = CTOOL_FALSE;
+      ctool_u32 child =
+          expression->child_count == 1u
+              ? expression_children[expression->first_child]
+              : CTOOL_C_AST_NONE;
+      if (context->request->compatibility_pointer_conversions ==
+              CTOOL_FALSE ||
+          child >= index ||
+          (expression->kind != CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+           expression->kind != CTOOL_C_EXPRESSION_CAST)) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            cfront_peek(context),
+            "frozen compatibility pointer conversion is invalid");
+      }
+      status = cfront_compatibility_pointer_conversion_is_valid(
+          context, expressions[child].type, expression->type,
+          &compatibility_pointer);
+      if (status != CTOOL_OK || compatibility_pointer == CTOOL_FALSE) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            cfront_peek(context),
+            "frozen compatibility pointer types are invalid");
+      }
+    }
     switch (expression->kind) {
     case CTOOL_C_EXPRESSION_IDENTIFIER:
     case CTOOL_C_EXPRESSION_PARAMETER:
@@ -21989,7 +22115,8 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
               context, index, expression, expressions,
               expression_children, members) == CTOOL_FALSE ||
           expression->conversion == CTOOL_C_CONVERSION_NONE ||
-          expression->conversion > CTOOL_C_CONVERSION_FLOAT_PROMOTION ||
+          expression->conversion >
+              CTOOL_C_CONVERSION_COMPATIBILITY_POINTER ||
           expression->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
           expression->computation_type != CTOOL_C_TYPE_NONE) {
         return cfront_emit_failure(
@@ -22015,7 +22142,9 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
       if (expression->child_count != 1u ||
           expression->reference != CTOOL_C_AST_NONE ||
           expression->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
-          expression->conversion != CTOOL_C_CONVERSION_NONE ||
+          (expression->conversion != CTOOL_C_CONVERSION_NONE &&
+           expression->conversion !=
+               CTOOL_C_CONVERSION_COMPATIBILITY_POINTER) ||
           expression->computation_type != CTOOL_C_TYPE_NONE) {
         return cfront_emit_failure(
             context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
@@ -22212,6 +22341,14 @@ static ctool_status_t cfront_validate_input(cfront_context_t *context) {
         context, CTOOL_ERR_INVALID_ARGUMENT,
         CTOOL_C_PARSE_DIAG_INVALID_REQUEST, cfront_peek(context),
         "declaration frontend implicit-function flag is invalid");
+  }
+  if (cfront_bool_valid(
+          context->request->compatibility_pointer_conversions) ==
+      CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INVALID_ARGUMENT,
+        CTOOL_C_PARSE_DIAG_INVALID_REQUEST, cfront_peek(context),
+        "declaration frontend compatibility-pointer flag is invalid");
   }
   if (context->tape->tokens == (const ctool_c_pp_token_t *)0 &&
       context->tape->token_count != 0u) {
