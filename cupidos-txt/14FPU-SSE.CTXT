@@ -67,9 +67,11 @@ JPEG and glyph paths pass. ADR 0139 records the production transfer.
 Compiler head understands the general-regs-only target on canonical
 file-scope functions. It rejects compiler-generated floating instructions,
 values, and call arguments while explicit source assembly keeps its separate
-contract. Unchanged fpu_init_cpu now passes the attribute and stops at the
-independent "m"(mxcsr) input to ldmxcsr. The checked seed does not carry this
-increment yet.
+contract. Compiler head also accepts the exact ldmxcsr %0 memory input and
+emits 0F AE 10 through the shared x86 model. The complete fpu_init_cpu body
+passes unchanged. The next source frontier is the floating =m output in
+fpu_boot_smoke at line 63. The checked seed carries neither compiler-head
+increment.
 
 Direct floating truth, a floating controlling expression, increment and
 decrement, hexadecimal or subnormal constants, long double, SIMD, and atomic

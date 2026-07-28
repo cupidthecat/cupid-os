@@ -319,9 +319,12 @@ current object bytes. Each IR function carries the canonical code generation
 mask, and emission rejects a mismatch. The target option rejects
 compiler-generated floating work while explicit source assembly stays under
 its own typed contract.
-Unchanged `kernel/cpu/fpu.c` now passes the attribute and reaches its next
-independent compiler frontier, the `"m"(mxcsr)` input to `ldmxcsr` on line
-28. The checked seed does not carry this increment yet.
+Compiler head also accepts the exact volatile `ldmxcsr %0` form with one
+addressable, non-atomic 32-bit integer `m` input. Linear IR evaluates its
+address once, and the shared x86 model emits `0F AE 10` at `[EAX]`.
+Unchanged `kernel/cpu/fpu.c` passes line 28 and now stops at the floating
+`=m` output in the multiline MOVSS round trip on line 63. The checked seed
+does not carry either compiler-head increment.
 
 Static-duration and variable-length compound literals, the named-aggregate backward-jump alias case, explicit bit-field initializer leaves, Boolean mutation, atomic variadic access, aggregate arguments without declared parameter types, aggregate variadic reads, wide strings, literal pooling, and block-static addresses in other block-static initializers also remain unfinished in the shared path.
 

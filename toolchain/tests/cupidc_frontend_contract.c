@@ -7505,12 +7505,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.cc", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
        25287u, 479u, 286u, 0u, 0u},
-      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 214u, 6456u,
-       58671u, 827u, 302u, 0u, 0u},
-      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 227u, 6042u,
-       52116u, 739u, 370u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 339u,
-       13906u, 91474u, 2054u, 1347u, 0u, 0u},
+      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 215u, 6485u,
+       59168u, 831u, 304u, 0u, 0u},
+      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 231u, 6078u,
+       52515u, 743u, 371u, 0u, 0u},
+      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 340u,
+       13956u, 91872u, 2061u, 1350u, 0u, 0u},
       {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 81u, 2935u,
        19252u, 326u, 186u, 0u, 0u},
       {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
@@ -26005,6 +26005,172 @@ cleanup:
   return failed;
 }
 
+static int validate_ldmxcsr_memory_input_unit(
+    const ctool_c_translation_unit_t *unit) {
+  static const ctool_u32 lines[] = {3u, 5u};
+  ctool_u32 assembly_statement_count = 0u;
+  ctool_u32 index;
+
+  if (unit->function_definition_count != ARRAY_COUNT(lines) ||
+      unit->assembly_count != ARRAY_COUNT(lines) ||
+      unit->assembly_operand_count != ARRAY_COUNT(lines) ||
+      unit->assemblies == NULL || unit->assembly_operands == NULL ||
+      unit->expressions == NULL || unit->layout.types == NULL) {
+    return 1;
+  }
+  for (index = 0u; index < ARRAY_COUNT(lines); index++) {
+    const ctool_c_assembly_t *assembly = &unit->assemblies[index];
+    const ctool_c_assembly_operand_t *operand =
+        &unit->assembly_operands[index];
+    if (operand->type >= unit->layout.type_count ||
+        string_equal(assembly->template_text, "ldmxcsr %0") == 0 ||
+        assembly->flags != CTOOL_C_ASSEMBLY_VOLATILE ||
+        assembly->first_operand != index ||
+        assembly->output_count != 0u ||
+        assembly->input_count != 1u ||
+        string_equal(operand->constraint, "m") == 0 ||
+        operand->expression >= unit->expression_count ||
+        unit->expressions[operand->expression].type != operand->type ||
+        operand->matching_output != CTOOL_C_AST_NONE ||
+        unit->layout.types[operand->type].is_integer != CTOOL_TRUE ||
+        unit->layout.types[operand->type].is_complete_object != CTOOL_TRUE ||
+        unit->layout.types[operand->type].size != 4u ||
+        dual_location_matches(
+            &assembly->location, &assembly->physical_location,
+            "/ldmxcsr-memory-input.c", lines[index]) == 0 ||
+        dual_location_matches(
+            &operand->location, &operand->physical_location,
+            "/ldmxcsr-memory-input.c", lines[index]) == 0) {
+      return 1;
+    }
+  }
+  for (index = 0u; index < unit->statement_count; index++) {
+    const ctool_c_statement_t *statement = &unit->statements[index];
+    if (statement->kind == CTOOL_C_STATEMENT_ASSEMBLY) {
+      if (statement->assembly != assembly_statement_count ||
+          statement->expression != CTOOL_C_AST_NONE) {
+        return 1;
+      }
+      assembly_statement_count++;
+    } else if (statement->assembly != CTOOL_C_AST_NONE) {
+      return 1;
+    }
+  }
+  return assembly_statement_count == ARRAY_COUNT(lines) ? 0 : 1;
+}
+
+static int run_ldmxcsr_memory_input(const char *host_root) {
+  static const char source[] =
+      "typedef unsigned int u32;\n"
+      "void load_local(void) { u32 mxcsr = 0x1f80u;\n"
+      "  __asm__ volatile(\"ldmxcsr %0\" : : \"m\"(mxcsr)); }\n"
+      "void load_indirect(const volatile u32 *mxcsr) {\n"
+      "  __asm__ volatile(\"ldmxcsr %0\" : : \"m\"(*mxcsr)); }\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"byte LDMXCSR input",
+        "void bad(unsigned char value) { "
+        "__asm__ volatile(\"ldmxcsr %0\" : : \"m\"(value)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly m input requires an addressable non-atomic "
+       "32-bit integer lvalue"},
+      {{"wide LDMXCSR input",
+        "void bad(unsigned long long value) { "
+        "__asm__ volatile(\"ldmxcsr %0\" : : \"m\"(value)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly m input requires an addressable non-atomic "
+       "32-bit integer lvalue"},
+      {{"rvalue LDMXCSR input",
+        "void bad(unsigned value) { "
+        "__asm__ volatile(\"ldmxcsr %0\" : : \"m\"(value + 1u)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly m input requires an addressable non-atomic "
+       "32-bit integer lvalue"},
+      {{"bit-field LDMXCSR input",
+        "struct bits { unsigned value : 16; }; "
+        "void bad(struct bits *bits) { "
+        "__asm__ volatile(\"ldmxcsr %0\" : : \"m\"(bits->value)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly m input requires an addressable non-atomic "
+       "32-bit integer lvalue"},
+      {{"register LDMXCSR input",
+        "void bad(void) { register unsigned value = 0u; "
+        "__asm__ volatile(\"ldmxcsr %0\" : : \"m\"(value)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly m input requires an addressable non-atomic "
+       "32-bit integer lvalue"},
+      {{"atomic LDMXCSR input",
+        "void bad(_Atomic unsigned *value) { "
+        "__asm__ volatile(\"ldmxcsr %0\" : : \"m\"(*value)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly m input requires an addressable non-atomic "
+       "32-bit integer lvalue"},
+      {{"unsupported memory-input template",
+        "void bad(unsigned value) { "
+        "__asm__ volatile(\"nop\" : : \"m\"(value)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly m input template is outside this slice"},
+      {{"register input on LDMXCSR",
+        "void bad(unsigned value) { "
+        "__asm__ volatile(\"ldmxcsr %0\" : : \"r\"(value)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU LDMXCSR assembly requires one volatile m 32-bit integer input"},
+      {{"clobbered LDMXCSR input",
+        "void bad(unsigned value) { "
+        "__asm__ volatile(\"ldmxcsr %0\" : : \"m\"(value) : "
+        "\"memory\"); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU LDMXCSR assembly requires one volatile m 32-bit integer input"}};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(
+          &fixture, "ldmxcsr-memory-input", host_root,
+          8u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  if (parse_valid_fixture(
+          &fixture, "/ldmxcsr-memory-input.c", source, &unit) != 0 ||
+      validate_ldmxcsr_memory_input_unit(&unit) != 0) {
+    (void)fprintf(
+        stderr, "ldmxcsr-memory-input: public graph differs\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case =
+        &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure,
+            "/ldmxcsr-memory-input-failure.c", test_case->line,
+            test_case->column, test_case->message) != 0 ||
+        validate_ldmxcsr_memory_input_unit(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)puts("ldmxcsr-memory-input: ok");
+  }
+  return failed;
+}
+
 static int run_port_io_assembly(const char *host_root) {
   static const frontend_exact_failure_case_t failure_cases[] = {
       {{"narrow read-write counter",
@@ -27263,6 +27429,7 @@ int main(int argc, char **argv) {
                    "atomic-builtins|"
                    "inline-assembly|port-io-assembly|"
                    "privileged-register-assembly|fxsave-assembly|"
+                   "ldmxcsr-memory-input|"
                    "legacy-port-assembly|"
                    "register-snapshot-assembly|call-next-assembly|"
                    "pointer-output-assembly|"
@@ -27360,6 +27527,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "fxsave-assembly") == 0) {
     return run_fxsave_assembly(argv[2]);
+  }
+  if (strcmp(argv[1], "ldmxcsr-memory-input") == 0) {
+    return run_ldmxcsr_memory_input(argv[2]);
   }
   if (strcmp(argv[1], "legacy-port-assembly") == 0) {
     return run_legacy_port_assembly(argv[2]);

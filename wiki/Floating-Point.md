@@ -52,9 +52,11 @@ and this complete comparison path.
 Compiler head understands the `general-regs-only` target on canonical
 file-scope functions. It rejects compiler-generated floating instructions,
 values, and call arguments while permitting explicit source assembly through
-its separate contract. The unchanged `fpu_init_cpu()` body now gets past the
-attribute and stops at the independent `"m"(mxcsr)` input used by `ldmxcsr`.
-The checked seed does not carry this compiler increment yet.
+its separate contract. Compiler head now also accepts the exact LDMXCSR
+memory input used by `fpu_init_cpu()` and emits `0F AE 10` through the shared
+x86 model. The complete function passes unchanged. The next source frontier
+is the floating `=m` output in `fpu_boot_smoke()` at line 63. The checked
+seed does not carry either compiler-head increment.
 
 The normal build now compiles `kernel/gfx/jpeg.cc` and
 `kernel/gfx/glyph_raster.cc` with that seed. JPEG exercises exact static

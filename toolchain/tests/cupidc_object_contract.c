@@ -26493,20 +26493,20 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.cc",           "/toolchain/x86.cc",
       "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
-      65u, 68u, 66u, 14u, 31u, 143u, 214u, 227u, 339u, 81u, 37u, 60u,
+      65u, 68u, 66u, 14u, 31u, 143u, 215u, 231u, 340u, 81u, 37u, 60u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 76860u, 85252u, 16872u, 42212u,
-      190304u, 414732u, 385459u, 700406u, 139646u, 70368u, 80478u,
+      190304u, 418728u, 388555u, 703331u, 139646u, 70368u, 80478u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 89320u, 99772u, 20180u, 49484u,
-      226668u, 443136u, 415160u, 829920u, 157828u, 79348u, 134656u,
+      226668u, 447480u, 418724u, 833612u, 157828u, 79348u, 134656u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x5fbbfaf2u, 0x4ca44a27u,
       0x7238e153u, 0x999f97b7u, 0xb49d8eb9u,
-      0x654f122cu, 0x5a109833u, 0x26edd37fu, 0x239f52c7u,
+      0x55cacfc2u, 0x7fbe98b9u, 0x84aa1422u, 0x239f52c7u,
       0x34558a49u, 0x7c198364u, 0x8774de7du};
   ctool_u32 index;
   int all_matched = 1;
@@ -30806,6 +30806,292 @@ cleanup:
   return 1;
 }
 
+static int validate_ldmxcsr_memory_input_function(
+    ctool_job_t *job, const ctool_elf32_section_t *text,
+    const ctool_elf32_symbol_t *symbol) {
+  static const ctool_u8 function_bytes[] = {
+      0x55u, 0x89u, 0xe5u,
+      0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u,
+      0x58u, 0x8bu, 0x00u, 0x50u,
+      0x58u, 0x0fu, 0xaeu, 0x10u,
+      0xc9u, 0xc3u};
+  static const ctool_u8 ldmxcsr_bytes[] = {
+      0x0fu, 0xaeu, 0x10u};
+  ctool_u32 cursor = 0u;
+  ctool_u32 ldmxcsr_count = 0u;
+  if (job == NULL || text == NULL || symbol == NULL ||
+      symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      symbol->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
+      symbol->value > text->contents.size ||
+      symbol->size > text->contents.size - symbol->value ||
+      symbol->size != (ctool_u32)sizeof(function_bytes) ||
+      memcmp(text->contents.data + symbol->value, function_bytes,
+             sizeof(function_bytes)) != 0) {
+    return 0;
+  }
+  while (cursor < symbol->size) {
+    ctool_x86_decoded_t decoded;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + symbol->value + cursor,
+        symbol->size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(
+        job, CTOOL_X86_MODE_32, remaining, 0u, &decoded);
+    if (status != CTOOL_OK ||
+        decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      return 0;
+    }
+    if (decoded.instruction.mnemonic == CTOOL_X86_MN_LDMXCSR) {
+      const ctool_x86_operand_t *operand;
+      const ctool_x86_memory_t *memory;
+      if (decoded.instruction.operand_count != 1u ||
+          decoded.instruction.operands[0].kind !=
+              CTOOL_X86_OPERAND_MEMORY ||
+          decoded.instruction.operands[0].width_bits != 32u ||
+          decoded.consumed != (ctool_u32)sizeof(ldmxcsr_bytes) ||
+          memcmp(remaining.data, ldmxcsr_bytes,
+                 sizeof(ldmxcsr_bytes)) != 0) {
+        return 0;
+      }
+      operand = &decoded.instruction.operands[0];
+      memory = &operand->as.memory;
+      if (memory->address_bits != 32u ||
+          memory->segment.class_id != CTOOL_X86_REG_NONE ||
+          memory->base.class_id != CTOOL_X86_REG_GPR32 ||
+          memory->base.index != 0u ||
+          memory->index.class_id != CTOOL_X86_REG_NONE ||
+          memory->scale != 1u ||
+          memory->displacement.kind != CTOOL_X86_VALUE_CONSTANT ||
+          memory->displacement.bits != 0u) {
+        return 0;
+      }
+      ldmxcsr_count++;
+    }
+    cursor += decoded.consumed;
+  }
+  return cursor == symbol->size && ldmxcsr_count == 1u ? 1 : 0;
+}
+
+static int validate_ldmxcsr_memory_input_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  if (text == NULL || text->contents.data == NULL ||
+      object->relocation_count != 0u ||
+      !validate_ldmxcsr_memory_input_function(
+          job, text, find_symbol(object, "load_const")) ||
+      !validate_ldmxcsr_memory_input_function(
+          job, text, find_symbol(object, "load_volatile"))) {
+    (void)fprintf(stderr, "LDMXCSR memory-input object differs\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int run_ldmxcsr_memory_input_object(const char *host_root) {
+  static const char source[] =
+      "typedef unsigned int u32;\n"
+      "void load_const(const u32 *state) {\n"
+      "  __asm__ volatile(\"ldmxcsr %0\" : : \"m\"(*state));\n"
+      "}\n"
+      "void load_volatile(volatile u32 *state) {\n"
+      "  __asm__ volatile(\"ldmxcsr %0\" : : \"m\"(*state));\n"
+      "}\n";
+  static const char invalid_message[] =
+      "CupidC IR lowering received an invalid translation unit";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_buffer_t *first = NULL;
+  ctool_buffer_t *second = NULL;
+  ctool_buffer_t *failure = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t mutant;
+  ctool_c_assembly_t mutant_assemblies[2];
+  ctool_c_assembly_operand_t mutant_operands[2];
+  ctool_c_type_layout_t *mutant_layouts = NULL;
+  unit_snapshot_t snapshot;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t first_bytes;
+  ctool_bytes_t second_bytes;
+  ctool_bytes_t recovered_bytes;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&snapshot, 0, sizeof(snapshot));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(
+          job, "/ldmxcsr-memory-input-object.c", source,
+          CTOOL_TRUE, &unit) ||
+      unit.function_definition_count != 2u ||
+      unit.assembly_count != 2u ||
+      unit.assembly_operand_count != 2u ||
+      !take_unit_snapshot(&unit, &snapshot)) {
+    (void)fprintf(stderr, "LDMXCSR memory-input object setup failed\n");
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(
+      job, 1024u, config.limits.output_bytes, &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &second);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &failure);
+  }
+  if (!check_status(
+          status, CTOOL_OK, "LDMXCSR memory-input buffers") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, first, "first LDMXCSR memory-input object") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second, "repeat LDMXCSR memory-input object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(
+        stderr, "LDMXCSR memory-input object is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text =
+      ctool_string("/ldmxcsr-memory-input-object.o");
+  object_source.contents = second_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(
+          status, CTOOL_OK, "read LDMXCSR memory-input object") ||
+      !validate_ldmxcsr_memory_input_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (second_bytes.size != 400u ||
+      find_section(&object, ".text")->contents.size != 40u ||
+      object.section_count != 5u || object.symbol_count != 3u ||
+      object.relocation_count != 0u) {
+    (void)fprintf(
+        stderr,
+        "ldmxcsr-memory-input: object metrics differ: object=%u text=%u "
+        "sections=%u symbols=%u relocations=%u\n",
+        (unsigned int)second_bytes.size,
+        (unsigned int)find_section(&object, ".text")->contents.size,
+        (unsigned int)object.section_count,
+        (unsigned int)object.symbol_count,
+        (unsigned int)object.relocation_count);
+    goto cleanup;
+  }
+
+  (void)memcpy(
+      mutant_assemblies, unit.assemblies, sizeof(mutant_assemblies));
+  (void)memcpy(
+      mutant_operands, unit.assembly_operands, sizeof(mutant_operands));
+  mutant = unit;
+  mutant.assemblies = mutant_assemblies;
+  mutant.assembly_operands = mutant_operands;
+
+  mutant_assemblies[0].template_text = ctool_string("ldmxcsr 4(%0)");
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged LDMXCSR displacement") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_assemblies[0] = unit.assemblies[0];
+
+  mutant_assemblies[0].flags |= CTOOL_C_ASSEMBLY_MEMORY_CLOBBER;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged LDMXCSR clobber") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_assemblies[0] = unit.assemblies[0];
+
+  mutant_operands[0].constraint = ctool_string("r");
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged LDMXCSR register input") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_operands[0] = unit.assembly_operands[0];
+
+  if (unit.layout.type_count != 0u &&
+      sizeof(*mutant_layouts) >
+          SIZE_MAX / (size_t)unit.layout.type_count) {
+    goto cleanup;
+  }
+  mutant_layouts = (ctool_c_type_layout_t *)malloc(
+      (size_t)unit.layout.type_count * sizeof(*mutant_layouts));
+  if (mutant_layouts == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(
+      mutant_layouts, unit.layout.types,
+      (size_t)unit.layout.type_count * sizeof(*mutant_layouts));
+  mutant_layouts[unit.assembly_operands[0].type].size = 2u;
+  mutant.layout.types = mutant_layouts;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged LDMXCSR input layout") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant.layout.types = unit.layout.types;
+
+  if (!expect_object_success_preserves_unit(
+          job, &unit, failure, "LDMXCSR memory-input recovery")) {
+    goto cleanup;
+  }
+  recovered_bytes = ctool_buffer_view(failure);
+  if (recovered_bytes.size != first_bytes.size ||
+      memcmp(recovered_bytes.data, first_bytes.data,
+             (size_t)first_bytes.size) != 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(
+        stderr, "LDMXCSR memory-input recovery object differs\n");
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(mutant_layouts);
+  dispose_unit_snapshot(&snapshot);
+  if (failure != NULL) {
+    ctool_buffer_close(failure);
+  }
+  if (second != NULL) {
+    ctool_buffer_close(second);
+  }
+  if (first != NULL) {
+    ctool_buffer_close(first);
+  }
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("ldmxcsr-memory-input: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_state_memory_assembly_function(
     ctool_job_t *job, const ctool_elf32_section_t *text,
     const ctool_elf32_symbol_t *symbol,
@@ -34258,6 +34544,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "fxsave-assembly") == 0) {
     return run_fxsave_assembly_object(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "ldmxcsr-memory-input") == 0) {
+    return run_ldmxcsr_memory_input_object(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "legacy-port-assembly") == 0) {
     return run_legacy_port_assembly_object(argv[2]);
   }
@@ -34372,6 +34661,7 @@ int main(int argc, char **argv) {
                 "narrow-values|"
                 "void-casts|inline-assembly|port-io-assembly|"
                 "privileged-register-assembly|fxsave-assembly|"
+                "ldmxcsr-memory-input|"
                 "legacy-port-assembly|state-memory-assembly|"
                 "atomic-builtins|"
                 "register-snapshot-assembly|"

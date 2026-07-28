@@ -137,10 +137,11 @@ declarations. Each IR function carries the canonical code generation mask.
 Linear IR rejects compiler-generated floating work in a
 general-register-only function, and the emitter repeats the mask and
 frozen-metadata checks. Explicit source assembly remains under its own
-contract. The unchanged `kernel/cpu/fpu.c` root now passes its target
-attribute and stops at the
-independent `"m"(mxcsr)` input to `ldmxcsr` on line 28. The checked seed and
-normal ownership graph are unchanged.
+contract. Compiler head also keeps the exact volatile `ldmxcsr %0` memory
+input as one address-valued 32-bit integer lvalue and emits `0F AE 10`
+through the shared x86 model. The unchanged `kernel/cpu/fpu.c` root passes
+line 28 and stops at the floating `=m` output in its multiline MOVSS round
+trip on line 63. The checked seed and normal ownership graph are unchanged.
 
 The normal image has 149 checked CupidC C transforms: 148 checked-in sources
 and the generated `kernel/cpu/ksyms_data.cc` source. All 149 sources use

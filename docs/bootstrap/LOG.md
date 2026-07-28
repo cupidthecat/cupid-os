@@ -12495,3 +12495,116 @@ path. The boot does not exercise the Python bootstrap transaction or a changed
 executable path, so the complete two-stage rebuild and behavior suite remain
 the runtime gate for that change. ADR 0142 records the decision. Issue #32
 remains open for its remaining fixed-point work.
+## 2026-07-28: emit LDMXCSR memory inputs at compiler head
+
+The next unchanged statement in `kernel/cpu/fpu.c` was:
+
+```c
+__asm__ volatile("ldmxcsr %0" : : "m"(mxcsr));
+```
+
+CupidC now retains that operand as an addressable memory input instead of
+applying the ordinary lvalue conversion. The accepted `m` input is deliberately
+narrow: it belongs to the exact volatile `ldmxcsr %0` template, has no output
+or clobber, and names a non-atomic 32-bit integer lvalue. Qualified objects are
+valid. Rvalues, bit fields, register objects, atomics, other widths, other
+constraints, and unrelated templates still fail at the frontend.
+
+Linear IR evaluates one address for each input. The contract covers an
+indirect parameter, a call-returned pointer that must run once, and an
+unreachable statement. It expects entry depths of one, one, and zero. The
+validator checks the exact template, flags, packed operand slice, expression
+type, integer layout, object completeness, and atomic qualification before it
+lowers any function. Frozen matching metadata, a register constraint, an
+unrelated template, an added memory clobber, an unreachable type mismatch, and
+a forged two-byte layout all fail transactionally. The same job then lowers
+the original unit to the same fingerprint.
+
+The emitter pops the evaluated address into EAX and asks the shared x86 model
+to encode LDMXCSR at `[EAX]`. Each focused function has these exact 20 bytes:
+
+```text
+55 89 E5 8D 85 08 00 00 00 50 58 8B 00 50 58 0F AE 10 C9 C3
+```
+
+The shared decoder identifies `0F AE 10` as one 32-bit LDMXCSR memory operand
+with EAX as its base, no index, no segment override, and zero displacement.
+The complete two-function ELF32 object is 400 bytes. It has 40 bytes of text,
+five sections, three symbols, and no relocations. A second emission matches it
+byte for byte. The hosted contract decodes the instruction instead of
+executing it, which avoids changing the test process's floating-point control
+state.
+
+The first frontend test stopped at the old independent-input diagnostic. The
+first IR test rejected the published unit, and the first object test reached
+the generic unsupported-template path. Those red results fixed the three
+implementation seams before code was added. An early object expectation also
+copied the 396-byte FXSAVE fixture size. It failed against the measured
+400-byte LDMXCSR object and was corrected without weakening the byte checks.
+
+Rewriting the FPU source to pass a pointer was rejected because LDMXCSR already
+has a clear and valid memory-operand form. A private instruction encoder was
+also rejected because Cupid's shared x86 model owns this opcode. General `m`
+substitution remains open until the emitter can replace operands safely for
+more templates.
+
+### Self-host locks
+
+The hosted source gate now reports:
+
+| Source | Definitions | Statements | Expressions | Block bindings | Initializers |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `toolchain/cupidc_frontend.cc` | 340 | 13,956 | 91,872 | 2,061 | 1,350 |
+| `toolchain/cupidc_ir.cc` | 215 | 6,485 | 59,168 | 831 | 304 |
+| `toolchain/cupidc_emit.cc` | 231 | 6,078 | 52,515 | 743 | 371 |
+
+Their deterministic self-host objects now have these locks:
+
+| Source | Functions | Text bytes | Object bytes | Text fingerprint |
+| --- | ---: | ---: | ---: | --- |
+| `toolchain/cupidc_frontend.cc` | 340 | 703,331 | 833,612 | `84AA1422` |
+| `toolchain/cupidc_ir.cc` | 215 | 418,728 | 447,480 | `55CACFC2` |
+| `toolchain/cupidc_emit.cc` | 231 | 388,555 | 418,724 | `7FBE98B9` |
+
+The complete static fixed point rebuilds all 19 C objects and all five tools
+at stage two, repeats them with stage-two CupidC for stage three, and compares
+every object and linked image. It passes with the new compiler sources.
+
+### Active-source frontier
+
+Two exact `KERNEL_I386` commands compile the unchanged
+`kernel/cpu/fpu.c` source. Both pass the line 28 LDMXCSR statement, publish no
+object, and stop with the same next diagnostic:
+
+```text
+/kernel/cpu/fpu.c:63:15: error CTB00000F: GNU inline assembly output requires a modifiable integer lvalue
+```
+
+The next requirement is therefore the floating `=m` output in the multiline
+MOVSS round trip, followed by its floating `m` input and XMM0 clobber. The
+compiler must grow to support those source requirements; the FPU code remains
+unchanged.
+
+The regenerated graph contains 698 active sources, 253 feature IDs, 504
+transforms, and 42 accounted unreachable files. Its active-source digest is
+`eb0242b974c8d9c6dc18fe873b6ce358b282c9d54c1f74821eaa11431e2fb1e5`,
+and the complete audit JSON has SHA-256
+`3c3eb7627260488134c966390145bdc50f34d6a7f6fae9dfc33b67b9293dcdc1`.
+
+### Verification
+
+| Check | Result |
+| --- | --- |
+| Four focused LDMXCSR and unchanged-source tests | PASS, 4 tests in 34.004 seconds |
+| Complete frontend and Linear IR modules | PASS, 134 tests in 20.019 seconds |
+| Active self-host object frontier | PASS in 18.843 seconds |
+| Complete object module, including compiler reproduction and the five-tool fixed point | PASS, 77 tests in 750.376 seconds |
+| Regenerated active build audit | PASS |
+| Complete build-graph audit module | PASS, 62 tests in 491.251 seconds |
+
+This is a compiler-head change only. The checked seed was not refreshed, the
+normal FPU object remains host-built, and `kernel/cpu/fpu.c` keeps its `.c`
+name. No production object, image, ABI, runtime path, source owner, or host
+dependency changes here. An OS image rebuild would still exercise the older
+checked compiler, so no image or boot result is attributed to this step.
+ADR 0146 records the language, encoding, and ownership boundary.

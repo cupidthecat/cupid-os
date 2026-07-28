@@ -689,9 +689,12 @@ canonical file-scope functions. noinline records the request for a future
 inliner and does not change current bytes. Each IR function carries the
 canonical code generation mask, and emission rejects a mismatch. The target
 option rejects compiler-generated floating work while explicit source
-assembly stays under its own typed contract. Unchanged kernel/cpu/fpu.c now
-passes the attribute and reaches its independent "m"(mxcsr) input to
-ldmxcsr. The checked seed does not carry this increment yet.
+assembly stays under its own typed contract. Compiler head also accepts the
+exact volatile ldmxcsr %0 form with one addressable, non-atomic 32-bit
+integer m input. Linear IR evaluates the address once, and the shared x86
+model emits 0F AE 10 at [EAX]. Unchanged kernel/cpu/fpu.c now passes that
+statement and stops at the floating =m output in the later MOVSS round trip.
+The checked seed carries neither compiler-head increment.
 
 The checked seed also accepts the exact volatile
 call 1f\n1: popl %0 form in the stack-trace helpers from kernel/lang/as.cc

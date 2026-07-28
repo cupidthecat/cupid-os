@@ -709,6 +709,90 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "fxsave-assembly: ok\n")
 
+    def test_ldmxcsr_memory_input_emits_exact_i386_instruction(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "ldmxcsr-memory-input",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "ldmxcsr-memory-input: ok\n")
+
+    def test_unchanged_fpu_source_advances_past_ldmxcsr_memory_input(self):
+        audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
+        audit = json.loads(audit_path.read_text(encoding="utf-8"))
+        contract = audit["contracts"]["c_preprocessor_translation_units"]
+        profile = next(
+            item
+            for item in contract["profiles"]
+            if item["name"] == "KERNEL_I386"
+        )
+        self.assertTrue(profile["gnu_extensions"])
+        self.assertFalse(profile["hosted_environment"])
+        self.assertEqual(profile["forced_includes"], [])
+
+        arguments = [
+            "--root",
+            str(REPO_ROOT),
+            "--gnu",
+            "--freestanding",
+        ]
+        both_forms = (
+            "(CTOOL_C_PP_INCLUDE_QUOTED | "
+            "CTOOL_C_PP_INCLUDE_ANGLE)"
+        )
+        for include_root in profile["include_roots"]:
+            self.assertEqual(include_root["forms"], both_forms)
+            arguments.extend(["-I", include_root["path"]])
+        for action in profile["macro_actions"]:
+            if action["name"] == "__SIZEOF_POINTER__":
+                self.assertEqual(action["replacement"], "4")
+                continue
+            arguments.append(
+                "-D" + action["name"] + "=" + action["replacement"]
+            )
+
+        expected = (
+            "/kernel/cpu/fpu.c:63:15: error CTB00000F: "
+            "GNU inline assembly output requires a modifiable integer "
+            "lvalue\n"
+        )
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidc-fpu-frontier-", dir=REPO_ROOT
+        ) as temp:
+            output_root = Path(temp)
+            failures = []
+            for index in range(2):
+                output = output_root / f"fpu-{index}.o"
+                logical_output = "/" + output.relative_to(
+                    REPO_ROOT
+                ).as_posix()
+                result = subprocess.run(
+                    [
+                        str(self.hosted_cupidc_path),
+                        *arguments,
+                        "-c",
+                        "/kernel/cpu/fpu.c",
+                        "-o",
+                        logical_output,
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                    timeout=180,
+                )
+                self.assertEqual(result.returncode, 1, result.stderr)
+                self.assertEqual(result.stdout, "")
+                self.assertEqual(result.stderr, expected)
+                self.assertFalse(output.exists())
+                failures.append(result.stderr)
+            self.assertEqual(failures[0], failures[1])
+
     def test_legacy_port_constraints_emit_through_dx(self):
         result = subprocess.run(
             [

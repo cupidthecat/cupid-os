@@ -1914,6 +1914,20 @@ static ctool_status_t cemit_x86_fxsave_memory(
                           (ctool_u32 *)0);
 }
 
+static ctool_status_t cemit_x86_ldmxcsr_memory(
+    cemit_context_t *context, ctool_u8 base_register) {
+  ctool_x86_instruction_t instruction =
+      cemit_x86_instruction(CTOOL_X86_MN_LDMXCSR, 32u);
+  instruction.operand_count = 1u;
+  instruction.operands[0] = cemit_x86_memory_operand(
+      cemit_x86_register(CTOOL_X86_REG_GPR32, base_register),
+      0, 0u);
+  instruction.operands[0].width_bits = 32u;
+  return cemit_x86_encode(context, &instruction,
+                          (ctool_x86_encoding_t *)0,
+                          (ctool_u32 *)0);
+}
+
 static ctool_status_t cemit_x86_state_memory(
     cemit_context_t *context, ctool_x86_mnemonic_t mnemonic,
     ctool_u8 base_register, ctool_u16 width_bits) {
@@ -6300,6 +6314,77 @@ static ctool_status_t cemit_emit_fxsave_assembly(
   return status;
 }
 
+static ctool_bool cemit_assembly_uses_ldmxcsr_path(
+    const ctool_c_assembly_t *assembly) {
+  return assembly != (const ctool_c_assembly_t *)0 &&
+                 cemit_string_equals_literal(
+                     assembly->template_text, "ldmxcsr %0") ==
+                     CTOOL_TRUE
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cemit_ldmxcsr_metadata_is_valid(
+    const cemit_context_t *context,
+    const ctool_c_assembly_t *assembly) {
+  const ctool_c_assembly_operand_t *operand;
+  const ctool_c_type_layout_t *layout;
+  if (context == (const cemit_context_t *)0 ||
+      assembly == (const ctool_c_assembly_t *)0 ||
+      assembly->flags != CTOOL_C_ASSEMBLY_VOLATILE ||
+      assembly->output_count != 0u ||
+      assembly->input_count != 1u ||
+      assembly->first_operand >=
+          context->unit->assembly_operand_count ||
+      context->unit->assembly_operands ==
+          (const ctool_c_assembly_operand_t *)0 ||
+      context->unit->expressions ==
+          (const ctool_c_expression_t *)0) {
+    return CTOOL_FALSE;
+  }
+  operand =
+      &context->unit->assembly_operands[assembly->first_operand];
+  if (operand->expression >= context->unit->expression_count ||
+      operand->type >= context->unit->layout.type_count ||
+      operand->matching_output != CTOOL_C_AST_NONE ||
+      cemit_string_equals_literal(
+          operand->constraint, "m") == CTOOL_FALSE ||
+      context->unit->expressions[operand->expression].type !=
+          operand->type ||
+      cemit_type_has_atomic_qualification(
+          context, operand->type) == CTOOL_TRUE) {
+    return CTOOL_FALSE;
+  }
+  layout = &context->unit->layout.types[operand->type];
+  return layout->is_integer == CTOOL_TRUE &&
+                 layout->is_object == CTOOL_TRUE &&
+                 layout->is_complete_object == CTOOL_TRUE &&
+                 layout->size == 4u
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_status_t cemit_emit_ldmxcsr_assembly(
+    cemit_context_t *context,
+    const ctool_c_assembly_t *assembly,
+    ctool_u32 temporary_offset) {
+  ctool_status_t status;
+  if (temporary_offset != 0u ||
+      cemit_ldmxcsr_metadata_is_valid(
+          context, assembly) == CTOOL_FALSE) {
+    return cemit_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_EMIT_DIAG_UNSUPPORTED,
+        &assembly->location,
+        "GNU inline assembly template is outside this i386 emission slice");
+  }
+  status = cemit_x86_one_register(
+      context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
+  if (status == CTOOL_OK) {
+    status = cemit_x86_ldmxcsr_memory(context, 0u);
+  }
+  return status;
+}
+
 static ctool_bool cemit_port_io_operand_matches(
     const cemit_context_t *context,
     const ctool_c_assembly_operand_t *operand,
@@ -7267,6 +7352,11 @@ static ctool_status_t cemit_emit_assembly(
   }
   if (cemit_assembly_uses_fxsave_path(assembly) == CTOOL_TRUE) {
     return cemit_emit_fxsave_assembly(
+        context, assembly, temporary_offset);
+  }
+  if (cemit_assembly_uses_ldmxcsr_path(
+          assembly) == CTOOL_TRUE) {
+    return cemit_emit_ldmxcsr_assembly(
         context, assembly, temporary_offset);
   }
   if (cemit_assembly_uses_state_memory_path(
@@ -10034,6 +10124,10 @@ static ctool_status_t cemit_prepare_local_offsets(
           continue;
         }
         if (cemit_assembly_uses_fxsave_path(
+                assembly) == CTOOL_TRUE) {
+          continue;
+        }
+        if (cemit_assembly_uses_ldmxcsr_path(
                 assembly) == CTOOL_TRUE) {
           continue;
         }

@@ -390,9 +390,12 @@ current bytes. Each IR function carries the canonical code generation mask,
 and emission rejects a mismatch. The target attribute rejects
 compiler-generated floating work while allowing explicit source assembly
 through its separate contracts.
-Unchanged `kernel/cpu/fpu.c` now passes that attribute and reaches its next
-independent frontier: the `"m"(mxcsr)` input to `ldmxcsr` on line 28. The
-checked seed does not carry this increment yet, so the source remains
+Compiler head also accepts the exact volatile `ldmxcsr %0` form with one
+addressable, non-atomic 32-bit integer `m` input. Linear IR evaluates the
+object address once, and the shared x86 model emits `0F AE 10` at `[EAX]`.
+Unchanged `kernel/cpu/fpu.c` now passes that statement and stops at line 63
+on the floating `=m` output in its later MOVSS round trip. The checked seed
+does not carry either compiler-head increment, so the source remains
 host-built and keeps its `.c` name.
 
 The checked seed emits the exact volatile
@@ -609,7 +612,7 @@ and the generated kernel symbol translation described above.
 
 [ADR 0139](docs/adr/0139-transfer-jpeg-and-glyph-rasterization-to-cupidc.md) records the JPEG and glyph-raster production transfer, closed inputs, deterministic objects, and guest decode proof.
 
-[ADR 0140](docs/adr/0140-expose-ordered-forced-includes.md) records the ordered forced-input driver seam and exact Doom-tree frontier. [ADR 0145](docs/adr/0145-retain-empty-memory-assembly-barriers.md) records the empty compiler memory barrier and the resulting sound-driver object.
+[ADR 0140](docs/adr/0140-expose-ordered-forced-includes.md) records the ordered forced-input driver seam and exact Doom-tree frontier. [ADR 0145](docs/adr/0145-retain-empty-memory-assembly-barriers.md) records the empty compiler memory barrier and the resulting sound-driver object. [ADR 0146](docs/adr/0146-represent-ldmxcsr-memory-inputs.md) records the exact LDMXCSR memory-input boundary.
 
 [ADR 0143](docs/adr/0143-share-ordinary-padding-nops.md) records the shared ordinary compiler padding family and its measured disassembly improvement.
 

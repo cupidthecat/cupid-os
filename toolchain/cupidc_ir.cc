@@ -263,6 +263,8 @@ static ctool_status_t cir_invalid_unit(
 
 static ctool_bool cir_type_is_i32_pointer(
     const cir_context_t *context, ctool_u32 type);
+static ctool_bool cir_type_has_atomic_qualification(
+    const cir_context_t *context, ctool_u32 type);
 
 static ctool_bool cir_output_assembly_constraint_is_valid(
     ctool_string_t constraint) {
@@ -339,8 +341,9 @@ static ctool_bool cir_independent_assembly_constraint(
       cir_fixed_input_assembly_register(constraint);
   return *fixed_register_out != 0u ||
                  (constraint.size == 1u &&
-                  constraint.data != (const char *)0 &&
-                  constraint.data[0] == 'r')
+                   constraint.data != (const char *)0 &&
+                   (constraint.data[0] == 'r' ||
+                    constraint.data[0] == 'm'))
              ? CTOOL_TRUE
              : CTOOL_FALSE;
 }
@@ -480,6 +483,67 @@ static ctool_bool cir_fxsave_assembly_metadata_is_valid(
                      operand->type &&
                  cir_type_is_i32_pointer(
                      context, operand->type) == CTOOL_TRUE
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cir_ldmxcsr_assembly_metadata_is_valid(
+    const cir_context_t *context,
+    const ctool_c_assembly_t *assembly) {
+  const ctool_c_assembly_operand_t *operand;
+  ctool_bool exact_template = cir_string_equal(
+      assembly->template_text, ctool_string("ldmxcsr %0"));
+  ctool_u32 input;
+  if (assembly->first_operand >
+      context->unit->assembly_operand_count) {
+    return CTOOL_FALSE;
+  }
+  if (exact_template == CTOOL_FALSE) {
+    if (context->unit->assembly_operands ==
+            (const ctool_c_assembly_operand_t *)0 &&
+        assembly->input_count != 0u) {
+      return CTOOL_FALSE;
+    }
+    for (input = 0u; input < assembly->input_count; input++) {
+      operand = &context->unit->assembly_operands[
+          assembly->first_operand + assembly->output_count + input];
+      if (cir_string_equal(
+              operand->constraint, ctool_string("m")) == CTOOL_TRUE) {
+        return CTOOL_FALSE;
+      }
+    }
+    return CTOOL_TRUE;
+  }
+  if (assembly->flags != CTOOL_C_ASSEMBLY_VOLATILE ||
+      assembly->output_count != 0u ||
+      assembly->input_count != 1u ||
+      assembly->first_operand >=
+          context->unit->assembly_operand_count ||
+      context->unit->assembly_operands ==
+          (const ctool_c_assembly_operand_t *)0 ||
+      context->unit->expressions ==
+          (const ctool_c_expression_t *)0) {
+    return CTOOL_FALSE;
+  }
+  operand =
+      &context->unit->assembly_operands[assembly->first_operand];
+  return cir_string_equal(
+             operand->constraint, ctool_string("m")) == CTOOL_TRUE &&
+                 operand->matching_output == CTOOL_C_AST_NONE &&
+                 operand->expression <
+                     context->unit->expression_count &&
+                 operand->type < context->unit->layout.type_count &&
+                 context->unit->expressions[operand->expression].type ==
+                     operand->type &&
+                 context->unit->layout.types[operand->type].is_integer ==
+                     CTOOL_TRUE &&
+                 context->unit->layout.types[operand->type].is_object ==
+                     CTOOL_TRUE &&
+                 context->unit->layout.types[operand->type]
+                         .is_complete_object == CTOOL_TRUE &&
+                 context->unit->layout.types[operand->type].size == 4u &&
+                 cir_type_has_atomic_qualification(
+                     context, operand->type) == CTOOL_FALSE
              ? CTOOL_TRUE
              : CTOOL_FALSE;
 }
@@ -658,6 +722,10 @@ static ctool_status_t cir_validate_assembly_slices(
             assembly->template_text,
             ctool_string("fxsave (%0)")) == CTOOL_TRUE &&
         cir_fxsave_assembly_metadata_is_valid(
+            context, assembly) == CTOOL_FALSE) {
+      return cir_invalid_unit(context, &assembly->location);
+    }
+    if (cir_ldmxcsr_assembly_metadata_is_valid(
             context, assembly) == CTOOL_FALSE) {
       return cir_invalid_unit(context, &assembly->location);
     }
@@ -8278,15 +8346,27 @@ static ctool_status_t cir_lower_assembly_statement(
       ctool_bool independent =
           cir_independent_assembly_constraint(
               operand->constraint, &fixed_input_register);
+      ctool_bool memory_input = cir_string_equal(
+          operand->constraint, ctool_string("m"));
       ctool_u32 input_size;
-      if (entry->kind != CIR_STACK_VALUE ||
+      if ((memory_input == CTOOL_TRUE &&
+           entry->kind != CIR_STACK_ADDRESS) ||
+          (memory_input == CTOOL_FALSE &&
+           entry->kind != CIR_STACK_VALUE) ||
           operand->type >= context->unit->layout.type_count) {
         return cir_invalid_unit(context, &operand->location);
       }
       input_size = context->unit->layout.types[operand->type].size;
       if (independent == CTOOL_TRUE) {
         if (operand->matching_output != CTOOL_C_AST_NONE ||
-            (operand->constraint.data[0] == 'r'
+            (memory_input == CTOOL_TRUE &&
+             (input_size != 4u ||
+              cir_type_is_represented_integer(
+                  context, operand->type) == CTOOL_FALSE ||
+              cir_type_has_atomic_qualification(
+                  context, operand->type) == CTOOL_TRUE)) ||
+            (memory_input == CTOOL_FALSE &&
+             (operand->constraint.data[0] == 'r'
                  ? input_size != 4u ||
                        (cir_type_is_represented_integer(
                             context, operand->type) == CTOOL_FALSE &&
@@ -8296,10 +8376,10 @@ static ctool_status_t cir_lower_assembly_statement(
                        ? input_size != 4u ||
                              cir_type_is_represented_integer(
                                  context, operand->type) == CTOOL_FALSE
-                       : (input_size != 1u && input_size != 2u &&
-                          input_size != 4u) ||
-                             cir_type_is_represented_integer(
-                                 context, operand->type) == CTOOL_FALSE)) {
+                        : (input_size != 1u && input_size != 2u &&
+                           input_size != 4u) ||
+                              cir_type_is_represented_integer(
+                                  context, operand->type) == CTOOL_FALSE))) {
           return cir_invalid_unit(context, &operand->location);
         }
         continue;
@@ -8325,7 +8405,11 @@ static ctool_status_t cir_lower_assembly_statement(
         [assembly->first_operand + operand_offset];
     expected_kind = operand_offset < assembly->output_count
                         ? CIR_STACK_ADDRESS
-                        : CIR_STACK_VALUE;
+                        : cir_string_equal(
+                              operand->constraint, ctool_string("m")) ==
+                                  CTOOL_TRUE
+                              ? CIR_STACK_ADDRESS
+                              : CIR_STACK_VALUE;
     status = cir_pop(context, &entry);
     if (status != CTOOL_OK || entry.kind != expected_kind ||
         entry.type != operand->type) {

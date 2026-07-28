@@ -12842,6 +12842,8 @@ static ctool_bool cfront_independent_assembly_input(
     *fixed_register_out = CTOOL_C_ASSEMBLY_FIXED_D;
   } else if (cfront_string_literal(constraint, "r") == CTOOL_TRUE) {
     *fixed_register_out = 0u;
+  } else if (cfront_string_literal(constraint, "m") == CTOOL_TRUE) {
+    *fixed_register_out = 0u;
   } else {
     *fixed_register_out = 0u;
     return CTOOL_FALSE;
@@ -12869,6 +12871,7 @@ static ctool_status_t cfront_parse_assembly_input(
   ctool_bool output_is_integer = CTOOL_FALSE;
   ctool_bool independent = CTOOL_FALSE;
   ctool_bool matching = CTOOL_FALSE;
+  ctool_bool memory_input = CTOOL_FALSE;
   ctool_u32 fixed_register = 0u;
   ctool_u32 input_base;
   ctool_u32 input_qualifiers;
@@ -12896,6 +12899,10 @@ static ctool_status_t cfront_parse_assembly_input(
       context, constraint_token,
       "GNU inline assembly input requires a string constraint",
       &operand.constraint);
+  if (status == CTOOL_OK &&
+      cfront_string_literal(operand.constraint, "m") == CTOOL_TRUE) {
+    memory_input = CTOOL_TRUE;
+  }
   if (status == CTOOL_OK &&
       cfront_independent_assembly_input(
           operand.constraint, &fixed_register) == CTOOL_TRUE) {
@@ -12928,7 +12935,7 @@ static ctool_status_t cfront_parse_assembly_input(
   if (status == CTOOL_OK) {
     status = cfront_parse_assembly_operand_expression(context, &value);
   }
-  if (status == CTOOL_OK) {
+  if (status == CTOOL_OK && memory_input == CTOOL_FALSE) {
     status = cfront_apply_default_conversion(context, &value);
   }
   if (status == CTOOL_OK && independent == CTOOL_TRUE) {
@@ -12976,6 +12983,20 @@ static ctool_status_t cfront_parse_assembly_input(
     return ctool_job_diagnostic_count(context->job) == 0u
                ? cfront_storage_failure(context, status)
                : status;
+  }
+  if (memory_input == CTOOL_TRUE &&
+      (value.is_lvalue == CTOOL_FALSE ||
+       value.is_bit_field == CTOOL_TRUE ||
+       value.address_forbidden == CTOOL_TRUE ||
+       input_is_integer == CTOOL_FALSE ||
+       input_integer.width != 32u ||
+       ((input_qualifiers | input_node.qualifiers) &
+        CTOOL_C_QUAL_ATOMIC) != 0u)) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
+        constraint_token,
+        "GNU inline assembly m input requires an addressable non-atomic "
+        "32-bit integer lvalue");
   }
   if (independent == CTOOL_TRUE &&
       cfront_string_literal(operand.constraint, "r") == CTOOL_TRUE &&
@@ -13121,6 +13142,71 @@ static ctool_status_t cfront_validate_fxsave_assembly(
         context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
         keyword,
         "GNU inline assembly r input requires an object or void pointer");
+  }
+  return CTOOL_OK;
+}
+
+static ctool_status_t cfront_validate_ldmxcsr_assembly(
+    cfront_context_t *context, const ctool_c_pp_token_t *keyword,
+    const ctool_c_assembly_t *assembly) {
+  ctool_c_assembly_operand_t operand;
+  cfront_integer_type_t integer;
+  ctool_bool is_integer = CTOOL_FALSE;
+  ctool_bool exact_template = cfront_string_literal(
+      assembly->template_text, "ldmxcsr %0");
+  ctool_u32 input;
+  ctool_status_t status;
+  if (assembly->first_operand >
+      context->assembly_operands.count) {
+    return cfront_storage_failure(context, CTOOL_ERR_INTERNAL);
+  }
+  if (exact_template == CTOOL_FALSE) {
+    for (input = 0u; input < assembly->input_count; input++) {
+      status = cfront_vector_get(
+          &context->assembly_operands,
+          assembly->first_operand + assembly->output_count + input,
+          &operand);
+      if (status != CTOOL_OK) {
+        return cfront_storage_failure(context, status);
+      }
+      if (cfront_string_literal(
+              operand.constraint, "m") == CTOOL_TRUE) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_UNSUPPORTED,
+            CTOOL_C_PARSE_DIAG_STATEMENT, keyword,
+            "GNU inline assembly m input template is outside this slice");
+      }
+    }
+    return CTOOL_OK;
+  }
+  if (assembly->flags != CTOOL_C_ASSEMBLY_VOLATILE ||
+      assembly->output_count != 0u ||
+      assembly->input_count != 1u ||
+      assembly->first_operand >= context->assembly_operands.count) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED,
+        CTOOL_C_PARSE_DIAG_STATEMENT, keyword,
+        "GNU LDMXCSR assembly requires one volatile m 32-bit integer input");
+  }
+  status = cfront_vector_get(
+      &context->assembly_operands, assembly->first_operand, &operand);
+  if (status == CTOOL_OK) {
+    status = cfront_integer_type(
+        context, operand.type, &integer, &is_integer);
+  }
+  if (status != CTOOL_OK) {
+    return ctool_job_diagnostic_count(context->job) == 0u
+               ? cfront_storage_failure(context, status)
+               : status;
+  }
+  if (cfront_string_literal(
+          operand.constraint, "m") == CTOOL_FALSE ||
+      operand.matching_output != CTOOL_C_AST_NONE ||
+      is_integer == CTOOL_FALSE || integer.width != 32u) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED,
+        CTOOL_C_PARSE_DIAG_STATEMENT, keyword,
+        "GNU LDMXCSR assembly requires one volatile m 32-bit integer input");
   }
   return CTOOL_OK;
 }
@@ -13440,6 +13526,10 @@ static ctool_status_t cfront_parse_gnu_assembly_statement(
   }
   if (status == CTOOL_OK) {
     status = cfront_validate_fxsave_assembly(
+        context, keyword, &assembly);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_validate_ldmxcsr_assembly(
         context, keyword, &assembly);
   }
   if (status == CTOOL_OK) {
