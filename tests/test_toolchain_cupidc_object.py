@@ -142,10 +142,6 @@ DOOM_TREE_FRONTIER_FAILURES = {
         "/kernel/doom/src/i_video.c:144:27: error CTD000002: "
         "CupidC IR lowering received an invalid translation unit\n"
     ),
-    "/kernel/doom/src/info.c": (
-        "/kernel/doom/src/info.c:128:20: error CTB000007: "
-        "union and class initializer lists await active-member semantics\n"
-    ),
     "/kernel/doom/src/m_menu.c": (
         "/kernel/doom/src/m_menu.c:701:31: error CTB000010: "
         "function call argument is not convertible to parameter type\n"
@@ -569,6 +565,20 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "aggregate-initializers: ok\n")
+
+    def test_union_initializers_emit_one_exact_active_member(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "union-initializers",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "union-initializers: ok\n")
 
     def test_narrow_integer_mutation_emits_exact_width_i386_stores(self):
         result = subprocess.run(
@@ -2171,13 +2181,15 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                             output.read_bytes()[:7],
                             b"\x7fELF\x01\x01\x01",
                         )
+                        if source == "/kernel/doom/src/info.c":
+                            self.assertEqual(output.stat().st_size, 51268)
                         continue
                     failures[source] = result.stderr
                     self.assertEqual(result.returncode, 1, result.stderr)
                     self.assertEqual(result.stderr, expected)
                     self.assertFalse(output.exists())
             self.assertEqual(failures, DOOM_TREE_FRONTIER_FAILURES)
-            self.assertEqual(len(results) - len(failures), 73)
+            self.assertEqual(len(results) - len(failures), 74)
 
     def test_cupidc_forced_include_rejects_bad_values_and_root_paths(self):
         linked = self.build_cupid_tools()

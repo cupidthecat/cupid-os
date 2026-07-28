@@ -7549,11 +7549,14 @@ static ctool_status_t cir_lower_aggregate_initializer_list(
        (parent->array_bound_kind != CTOOL_C_ARRAY_FIXED ||
         parent->referenced_type >= context->unit->graph.type_count)) ||
       (parent->kind == CTOOL_C_TYPE_RECORD &&
-       (parent->record_kind != CTOOL_C_RECORD_STRUCT ||
+       ((parent->record_kind != CTOOL_C_RECORD_STRUCT &&
+         parent->record_kind != CTOOL_C_RECORD_UNION) ||
         parent->record_complete == CTOOL_FALSE ||
         parent->first_member > context->unit->graph.member_count ||
         parent->member_count >
-            context->unit->graph.member_count - parent->first_member)) ||
+            context->unit->graph.member_count - parent->first_member ||
+        (parent->record_kind == CTOOL_C_RECORD_UNION &&
+         initializer->element_count != 1u))) ||
       (parent->kind != CTOOL_C_TYPE_ARRAY &&
        parent->kind != CTOOL_C_TYPE_RECORD)) {
     return cir_invalid_unit(context, &initializer->location);

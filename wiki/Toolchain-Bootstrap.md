@@ -162,8 +162,9 @@ Doom-tree preprocessing profile without editing vendored source. It also
 retains the sound driver's empty volatile memory barrier without emitting an
 instruction. An integer-only IEEE evaluator folds the unchanged static
 fixed-point table in `kernel/doom/src/am_map.c` without a host floating
-operation. Compiler head emits 73 of the 80 Doom-tree objects, while a
-checked frontier pins the seven remaining failures. The current checked seed
+operation. A one-active-member union initializer also emits unchanged
+`kernel/doom/src/info.c`. Compiler head emits 74 of the 80 Doom-tree objects,
+while a checked frontier pins the six remaining failures. The current checked seed
 predates these capabilities, so no Doom recipe moves until a later five-tool
 promotion and the remaining language work are complete.
 

@@ -112,6 +112,10 @@ _Avoid_: runtime evaluation point, local-object lifetime
 A `struct` or `union` name whose identity lives in one C block scope. A declaration may leave the type incomplete, a later definition in the same scope may complete it, and a nested tag may hide it until that nested block ends. A tag declared in a function definition's parameter list shares the outer body scope and expires when the definition ends.
 _Avoid_: file tag, block object
 
+**Union initializer selection**:
+The single direct member chosen by a represented C union initializer list. A positional clause selects the first eligible named member, while a direct member designator selects that member. The initializer forest keeps one edge for the choice. Runtime lowering zeros the complete union before storing the selected member, and static emission writes the member over zero-filled target storage.
+_Avoid_: structure member sequence, multiple active members
+
 **Compound-literal object**:
 An unnamed object created by a C compound literal. At block scope, one absolute expression identity names the source site's persistent automatic frame slot. Its initializer runs whenever execution reaches the expression, and the expression is an lvalue naming that object. Aggregate list initialization uses a separate emitter-private staging slot, then replaces the persistent object after every initializer read has finished. A narrow string initializer copies immutable literal bytes directly after zeroing the persistent array.
 _Avoid_: temporary structure value, hidden block binding

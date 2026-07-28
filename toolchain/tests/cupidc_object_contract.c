@@ -26775,16 +26775,16 @@ static int validate_active_self_host_frontier_objects(
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 76860u, 85252u, 16872u, 42212u,
-      190304u, 423479u, 393470u, 760691u, 139646u, 70368u, 80478u,
+      190304u, 423687u, 393864u, 761399u, 139646u, 70368u, 80478u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 89320u, 99772u, 20180u, 49484u,
-      226668u, 452812u, 424364u, 897124u, 157828u, 79348u, 134656u,
+      226668u, 453020u, 424764u, 897996u, 157828u, 79348u, 134656u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x5fbbfaf2u, 0x4ca44a27u,
       0x7238e153u, 0x999f97b7u, 0xb49d8eb9u,
-      0xe123f292u, 0x28005b0cu, 0xc43a4119u, 0x239f52c7u,
+      0xedf302cau, 0xcc867238u, 0x43485bfeu, 0x239f52c7u,
       0x34558a49u, 0x7c198364u, 0x8774de7du};
   ctool_u32 index;
   int all_matched = 1;
@@ -31748,6 +31748,193 @@ cleanup:
   return 1;
 }
 
+static int validate_union_initializer_object(
+    const ctool_elf32_object_t *object) {
+  static const ctool_u8 expected_data[] = {
+      0x12u, 0x34u, 0x56u, 0x78u,
+      0x11u, 0x22u, 0x33u, 0x44u};
+  static const ctool_u8 expected_rodata[] = {
+      0x01u, 0x00u, 0x00u, 0x00u,
+      0x00u, 0x00u, 0x00u, 0x00u,
+      0x02u, 0x00u, 0x00u, 0x00u,
+      0xefu, 0xbeu, 0xadu, 0xdeu};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *data = find_section(object, ".data");
+  const ctool_elf32_section_t *rodata = find_section(object, ".rodata");
+  const ctool_elf32_section_t *rel_text =
+      find_section(object, ".rel.text");
+  const ctool_elf32_symbol_t *first = find_symbol(object, "first");
+  const ctool_elf32_symbol_t *named = find_symbol(object, "named");
+  const ctool_elf32_symbol_t *states = find_symbol(object, "states");
+  const ctool_elf32_symbol_t *local =
+      find_symbol(object, "local_choice");
+  const ctool_elf32_symbol_t *literal =
+      find_symbol(object, "literal_choice");
+  if (object == NULL || text == NULL || data == NULL || rodata == NULL ||
+      rel_text != NULL || first == NULL || named == NULL ||
+      states == NULL || local == NULL || literal == NULL ||
+      object->relocation_count != 0u || text->relocation_count != 0u ||
+      data->contents.size != (ctool_u32)sizeof(expected_data) ||
+      data->contents.data == NULL ||
+      memcmp(data->contents.data, expected_data,
+             sizeof(expected_data)) != 0 ||
+      rodata->contents.size != (ctool_u32)sizeof(expected_rodata) ||
+      rodata->contents.data == NULL ||
+      memcmp(rodata->contents.data, expected_rodata,
+             sizeof(expected_rodata)) != 0 ||
+      first->binding != CTOOL_ELF32_BIND_LOCAL ||
+      first->type != CTOOL_ELF32_SYMBOL_OBJECT ||
+      first->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      first->section_file_index != data->file_index ||
+      first->value != 0u || first->size != 4u ||
+      named->binding != CTOOL_ELF32_BIND_LOCAL ||
+      named->type != CTOOL_ELF32_SYMBOL_OBJECT ||
+      named->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      named->section_file_index != data->file_index ||
+      named->value != 4u || named->size != 4u ||
+      states->binding != CTOOL_ELF32_BIND_LOCAL ||
+      states->type != CTOOL_ELF32_SYMBOL_OBJECT ||
+      states->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      states->section_file_index != rodata->file_index ||
+      states->value != 0u || states->size != 16u ||
+      local->binding != CTOOL_ELF32_BIND_GLOBAL ||
+      local->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
+      local->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      local->section_file_index != text->file_index ||
+      local->value != 0u || local->size == 0u ||
+      literal->binding != CTOOL_ELF32_BIND_GLOBAL ||
+      literal->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
+      literal->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      literal->section_file_index != text->file_index ||
+      literal->value != local->size || literal->size == 0u ||
+      text->contents.size != local->size + literal->size) {
+    (void)fprintf(stderr,
+                  "union-initializers: ELF object differs\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int run_union_initializer_object(const char *host_root) {
+  static const char source[] =
+      "typedef union choice {\n"
+      "  unsigned int word;\n"
+      "  unsigned char bytes[4];\n"
+      "} choice_t;\n"
+      "struct state { unsigned int tag; choice_t action; };\n"
+      "static choice_t first = {0x78563412u};\n"
+      "static choice_t named = {.bytes = {0x11u, 0x22u, 0x33u, 0x44u}};\n"
+      "static const struct state states[2] = {\n"
+      "  {1u, {0u}},\n"
+      "  {2u, {.word = 0xdeadbeefu}},\n"
+      "};\n"
+      "unsigned int local_choice(unsigned int value) {\n"
+      "  choice_t local = {.word = value};\n"
+      "  return local.word;\n"
+      "}\n"
+      "unsigned int literal_choice(unsigned int value) {\n"
+      "  return ((choice_t){.word = value}).word;\n"
+      "}\n";
+  static const char volatile_source[] =
+      "typedef union choice {\n"
+      "  volatile unsigned int observed;\n"
+      "  unsigned int word;\n"
+      "} choice_t;\n"
+      "unsigned int rejected(unsigned int value) {\n"
+      "  choice_t local = {.word = value};\n"
+      "  return local.word;\n"
+      "}\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_buffer_t *output = (ctool_buffer_t *)0;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t volatile_unit;
+  unit_snapshot_t snapshot;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t bytes;
+  ctool_u8 *first_bytes = NULL;
+  ctool_u32 first_size = 0u;
+  ctool_u32 diagnostics;
+  ctool_status_t status;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&volatile_unit, 0, sizeof(volatile_unit));
+  (void)memset(&snapshot, 0, sizeof(snapshot));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source(job, "/union-initializers.c", source, &unit) ||
+      !take_unit_snapshot(&unit, &snapshot)) {
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(
+      job, 1024u, config.limits.output_bytes, &output);
+  if (!check_status(status, CTOOL_OK,
+                    "union initializer object buffer") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, output, "union initializer object emission")) {
+    goto cleanup;
+  }
+  bytes = ctool_buffer_view(output);
+  first_size = bytes.size;
+  first_bytes = (ctool_u8 *)malloc((size_t)first_size);
+  if (first_bytes == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(first_bytes, bytes.data, (size_t)first_size);
+  object_source.path.text = ctool_string("/union-initializers.o");
+  object_source.contents = bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK,
+                    "read union initializer object") ||
+      !validate_union_initializer_object(&object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  diagnostics = ctool_job_diagnostic_count(job);
+  if (ctool_buffer_rewind(output, 0u) != CTOOL_OK ||
+      !expect_object_success_preserves_unit(
+          job, &unit, output, "repeat union initializer object")) {
+    goto cleanup;
+  }
+  bytes = ctool_buffer_view(output);
+  if (ctool_job_diagnostic_count(job) != diagnostics ||
+      bytes.size != first_size ||
+      memcmp(bytes.data, first_bytes, (size_t)first_size) != 0) {
+    (void)fprintf(
+        stderr,
+        "union-initializers: repeated object is not byte-identical\n");
+    goto cleanup;
+  }
+  if (ctool_buffer_rewind(output, 0u) != CTOOL_OK ||
+      !parse_source(job, "/volatile-union-initializer.c",
+                    volatile_source, &volatile_unit) ||
+      !expect_object_failure_preserves_unit(
+          job, &volatile_unit, output, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "volatile union initializer object")) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(first_bytes);
+  dispose_unit_snapshot(&snapshot);
+  if (output != (ctool_buffer_t *)0) {
+    ctool_buffer_close(output);
+  }
+  if (job != (ctool_job_t *)0) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("union-initializers: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_state_memory_assembly_function(
     ctool_job_t *job, const ctool_elf32_section_t *text,
     const ctool_elf32_symbol_t *symbol,
@@ -35178,6 +35365,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "aggregate-initializers") == 0) {
     return run_aggregate_initializer_object(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "union-initializers") == 0) {
+    return run_union_initializer_object(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "narrow-mutations") == 0) {
     return run_narrow_mutation_object(argv[2]);
   }
@@ -35315,7 +35505,7 @@ int main(int argc, char **argv) {
                 "function-pointer-casts|automatic-objects|"
                 "block-externs|block-functions|block-typedefs|block-enums|"
                 "bit-field-stores|bit-field-mutations|"
-                "aggregate-initializers|"
+                "aggregate-initializers|union-initializers|"
                 "narrow-mutations|"
                 "narrow-values|"
                 "void-casts|inline-assembly|port-io-assembly|"

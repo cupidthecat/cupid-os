@@ -494,9 +494,10 @@ Compiler head can reproduce the exact audited Doom-tree profile without
 editing its source. It keeps the sound driver's empty volatile memory barrier
 as a compiler ordering point and emits no instruction for it. Its static
 scalar evaluator folds the unchanged fixed-point table in
-kernel/doom/src/am_map.c. Compiler head emits 73 of the 80 Doom-tree objects.
-A checked frontier pins the other seven failures at IR, union initialization,
-an implicit call, and callback or pointer conversions. The checked seed does
+kernel/doom/src/am_map.c. A one-active-member union initializer emits unchanged
+kernel/doom/src/info.c. Compiler head emits 74 of the 80 Doom-tree objects.
+A checked frontier pins the other six failures at IR, an implicit call, and
+callback or pointer conversions. The checked seed does
 not carry these capabilities yet, so Doom build ownership is unchanged.
 
 The five static i386 Linux tools reach a stage-two to stage-three fixed point
@@ -652,6 +653,13 @@ invocation reuses the same object. Recursive calls receive a fresh object in
 their own frame. Aggregate lists are built in separate staging storage and
 committed after every initializer read has finished. A narrow string root
 zeros and copies directly into its persistent character array.
+
+One-active-member union initializer lists use the same aggregate paths. A
+positional clause selects the first eligible named member. A direct member
+designator selects that member instead. Runtime lowering zeros the complete
+union before storing the selected value, and static emission writes that
+member over zero-filled storage. Multiple clauses and override semantics
+remain unfinished.
 
 Runtime narrow string expressions receive local .rodata symbols and R_386_32
 relocations. They can decay into pointers for initialization, arguments,

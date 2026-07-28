@@ -7506,11 +7506,11 @@ static int validate_toolchain_frontier(const char *host_root) {
       {"/toolchain/cupidc_pp.cc", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
        25287u, 479u, 286u, 0u, 0u},
       {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 218u, 6549u,
-       59825u, 842u, 308u, 0u, 0u},
-      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 236u, 6140u,
-       53141u, 754u, 375u, 0u, 0u},
+       59853u, 842u, 308u, 0u, 0u},
+      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 236u, 6143u,
+       53198u, 754u, 375u, 0u, 0u},
       {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 364u,
-       14939u, 97882u, 2241u, 1399u, 0u, 0u},
+       14946u, 97977u, 2241u, 1399u, 0u, 0u},
       {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 81u, 2935u,
        19252u, 326u, 186u, 0u, 0u},
       {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
@@ -9382,7 +9382,8 @@ static int run_designated_initializers(const char *host_root) {
         "  int values[2] = {.member = 1};\n"
         "}\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
-       2u, 20u, "member designator requires a structure initializer target"},
+       2u, 20u,
+       "member designator requires a structure or union initializer target"},
       {{"array designator on structure",
         "typedef struct { int member; } item_t;\n"
         "void bad(void) {\n"
@@ -9485,7 +9486,8 @@ static int run_designated_initializers(const char *host_root) {
         "  static int values[2] = {.member = 1};\n"
         "}\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
-       2u, 27u, "member designator requires a structure initializer target"}};
+       2u, 27u,
+       "member designator requires a structure or union initializer target"}};
   frontend_fixture_t fixture;
   ctool_c_translation_unit_t unit;
   ctool_u32 index;
@@ -11383,14 +11385,6 @@ static int run_automatic_aggregate_initializers(const char *host_root) {
       "  return calls;\n"
       "}\n";
   static const frontend_exact_failure_case_t failure_cases[] = {
-      {{"union list boundary",
-        "typedef union { int integer; unsigned bits; } choice_t;\n"
-        "void bad(void) {\n"
-        "  choice_t value = {1};\n"
-        "}\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
-       3u, 20u,
-       "union and class initializer lists await active-member semantics"},
       {{"empty automatic list",
         "void bad(void) {\n"
         "  int values[1] = {};\n"
@@ -11494,6 +11488,169 @@ cleanup:
   }
   if (failed == 0) {
     (void)printf("automatic-aggregate-initializers: ok\n");
+  }
+  return failed;
+}
+
+static int validate_union_initializer_unit(
+    const ctool_c_translation_unit_t *unit) {
+  const ctool_c_tag_t *choice_tag = find_tag(unit, "choice");
+  const ctool_c_tag_t *state_tag = find_tag(unit, "state");
+  const ctool_c_type_node_t *choice =
+      choice_tag == NULL ? NULL : unwrapped_type_node(unit, choice_tag->type);
+  const ctool_c_type_node_t *state =
+      state_tag == NULL ? NULL : unwrapped_type_node(unit, state_tag->type);
+  const ctool_c_object_definition_t *first =
+      find_object_definition(unit, "first");
+  const ctool_c_object_definition_t *named =
+      find_object_definition(unit, "named");
+  const ctool_c_object_definition_t *states =
+      find_object_definition(unit, "states");
+  const ctool_c_block_binding_t *local =
+      find_block_binding(unit, "local");
+  const ctool_c_initializer_t *first_root =
+      first == NULL ? NULL : initializer_node(unit, first->initializer);
+  const ctool_c_initializer_t *named_root =
+      named == NULL ? NULL : initializer_node(unit, named->initializer);
+  const ctool_c_initializer_t *states_root =
+      states == NULL ? NULL : initializer_node(unit, states->initializer);
+  const ctool_c_initializer_t *local_root =
+      local == NULL ? NULL : initializer_node(unit, local->initializer);
+  const ctool_c_initializer_t *first_child;
+  const ctool_c_initializer_t *named_child;
+  const ctool_c_initializer_t *first_state;
+  const ctool_c_initializer_t *first_state_choice;
+  const ctool_c_initializer_t *first_state_value;
+  const ctool_c_initializer_t *second_state;
+  const ctool_c_initializer_t *second_state_choice;
+  const ctool_c_initializer_t *second_state_value;
+  const ctool_c_initializer_t *local_child;
+  ctool_u32 first_member;
+  ctool_u32 second_member;
+  ctool_u32 state_choice_member;
+  if (choice == NULL || state == NULL ||
+      choice->kind != CTOOL_C_TYPE_RECORD ||
+      choice->record_kind != CTOOL_C_RECORD_UNION ||
+      choice->record_complete != CTOOL_TRUE ||
+      choice->member_count != 2u ||
+      state->kind != CTOOL_C_TYPE_RECORD ||
+      state->record_kind != CTOOL_C_RECORD_STRUCT ||
+      state->record_complete != CTOOL_TRUE ||
+      state->member_count != 2u ||
+      first == NULL || named == NULL || states == NULL || local == NULL) {
+    return 1;
+  }
+  first_member = choice->first_member;
+  second_member = first_member + 1u;
+  state_choice_member = state->first_member + 1u;
+  first_child =
+      initializer_list_child(unit, first_root, 0u, first_member);
+  named_child =
+      initializer_list_child(unit, named_root, 0u, second_member);
+  first_state = initializer_list_child(unit, states_root, 0u, 0u);
+  second_state = initializer_list_child(unit, states_root, 1u, 1u);
+  first_state_choice = initializer_list_child(
+      unit, first_state, 1u, state_choice_member);
+  second_state_choice = initializer_list_child(
+      unit, second_state, 1u, state_choice_member);
+  first_state_value = initializer_list_child(
+      unit, first_state_choice, 0u, first_member);
+  second_state_value = initializer_list_child(
+      unit, second_state_choice, 0u, second_member);
+  local_child =
+      initializer_list_child(unit, local_root, 0u, second_member);
+  return first_root == NULL || first_root->element_count != 1u ||
+                 first_child == NULL ||
+                 first_child->kind != CTOOL_C_INITIALIZER_ZERO ||
+                 named_root == NULL || named_root->element_count != 1u ||
+                 named_child == NULL ||
+                 named_child->kind != CTOOL_C_INITIALIZER_INTEGER ||
+                 named_child->integer_bits != 0x78563412ull ||
+                 states_root == NULL || states_root->element_count != 2u ||
+                 first_state == NULL || first_state->element_count != 2u ||
+                 first_state_choice == NULL ||
+                 first_state_choice->element_count != 1u ||
+                 first_state_value == NULL ||
+                 first_state_value->kind != CTOOL_C_INITIALIZER_ZERO ||
+                 second_state == NULL || second_state->element_count != 2u ||
+                 second_state_choice == NULL ||
+                 second_state_choice->element_count != 1u ||
+                 second_state_value == NULL ||
+                 second_state_value->kind != CTOOL_C_INITIALIZER_INTEGER ||
+                 second_state_value->integer_bits != 3ull ||
+                 local_root == NULL || local_root->element_count != 1u ||
+                 local_child == NULL ||
+                 local_child->kind != CTOOL_C_INITIALIZER_EXPRESSION
+             ? 1
+             : 0;
+}
+
+static int run_union_initializers(const char *host_root) {
+  static const char source[] =
+      "typedef void (*actionf_v)(void);\n"
+      "typedef union choice {\n"
+      "  actionf_v acv;\n"
+      "  unsigned int raw;\n"
+      "} choice_t;\n"
+      "struct state { unsigned int tag; choice_t action; };\n"
+      "static choice_t first = {0};\n"
+      "static choice_t named = {.raw = 0x78563412u};\n"
+      "static struct state states[2] = {\n"
+      "  {1u, {0}},\n"
+      "  {.tag = 2u, .action = {.raw = 3u}},\n"
+      "};\n"
+      "unsigned int select_union(unsigned int value) {\n"
+      "  choice_t local = {.raw = value};\n"
+      "  return local.raw + ((choice_t){.raw = value}).raw;\n"
+      "}\n";
+  static const frontend_failure_case_t failure_cases[] = {
+      {"two active positional members",
+       "union item { unsigned int first; unsigned int second; };\n"
+       "static union item value = {1u, 2u};\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+      {"two active designated members",
+       "union item { unsigned int first; unsigned int second; };\n"
+       "void bad(void) {\n"
+       "  union item value = {.second = 2u, .first = 1u};\n"
+       "}\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+      {"missing active member",
+       "union item { unsigned int first; unsigned int second; };\n"
+       "static union item value = {.missing = 1u};\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION}};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_u32 index;
+  int failed = 1;
+  if (begin_frontend_fixture(&fixture, "union-initializers", host_root,
+                             8u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_FALSE;
+  fixture.parse_request.gnu_extensions = CTOOL_FALSE;
+  if (parse_valid_fixture(
+          &fixture, "/union-initializers.c", source, &unit) != 0 ||
+      validate_union_initializer_unit(&unit) != 0) {
+    (void)fprintf(stderr,
+                  "union-initializers: public graph differs\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    if (expect_frontend_failure(
+            &fixture, &failure_cases[index],
+            "/union-initializer-failure.c") != 0 ||
+        validate_union_initializer_unit(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)puts("union-initializers: ok");
   }
   return failed;
 }
@@ -22438,12 +22595,6 @@ static int run_compound_literals(const char *host_root) {
          "void bad(void) {\n  (const item_t){1}.value = 2;\n}\n",
          CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
        3u, 27u, "assignment requires a modifiable lvalue"},
-      {{"union compound literal boundary",
-         "union item { int value; };\n"
-         "void bad(void) {\n  (union item){1};\n}\n",
-         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
-       3u, 15u,
-       "union and class initializer lists await active-member semantics"},
       {{"fixed array compound literal excess element",
          "void bad(void) {\n  (int[1]){1, 2};\n}\n", CTOOL_ERR_INPUT,
          CTOOL_C_PARSE_DIAG_STATEMENT},
@@ -28059,6 +28210,7 @@ int main(int argc, char **argv) {
                    "scalar-initializers|"
                    "static-initializers|aggregate-initializers|"
                    "automatic-aggregate-initializers|"
+                   "union-initializers|"
                    "designated-initializers|file-scope-initializers|"
                    "scalar-returns|conditional-expressions|aggregate-values|"
                    "compound-literals|"
@@ -28198,6 +28350,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "automatic-aggregate-initializers") == 0) {
     return run_automatic_aggregate_initializers(argv[2]);
+  }
+  if (strcmp(argv[1], "union-initializers") == 0) {
+    return run_union_initializers(argv[2]);
   }
   if (strcmp(argv[1], "designated-initializers") == 0) {
     return run_designated_initializers(argv[2]);

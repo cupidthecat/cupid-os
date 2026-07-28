@@ -586,6 +586,20 @@ class ToolchainCupidCIRContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "aggregate-initializers: ok\n")
 
+    def test_union_initializers_zero_and_store_one_active_member(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "union-initializers",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "union-initializers: ok\n")
+
     def test_structure_values_cross_storage_conditionals_and_cdecl_calls(self):
         result = subprocess.run(
             [str(self.contract_path), "structure-values", str(REPO_ROOT)],

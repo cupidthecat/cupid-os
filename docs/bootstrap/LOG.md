@@ -12908,3 +12908,106 @@ changes. The updated CTXT pages do change the delivered help text. The normal
 image still uses the older checked compiler, so an image build proves the
 asset integration but does not claim runtime use of this compiler-head
 capability. ADR 0148 records the language, encoding, and ownership boundary.
+
+## 2026-07-28: represent one active union initializer
+
+The unchanged state table in `kernel/doom/src/info.c` initializes its
+`actionf_t` function-pointer union with ordinary lists such as `{NULL}`.
+CupidC already laid out unions and copied their bytes when nested in a
+supported structure, but the initializer parser rejected every union list.
+The exact Doom profile therefore stopped at line 128 before it could emit the
+table.
+
+Compiler head now accepts one positional or direct designated member in a
+complete C union initializer list. A positional clause selects the first
+eligible named member. A `.member` designator selects that direct member
+instead. The selection works inside arrays, structures, automatic objects,
+static objects, and block-scope compound literals.
+
+The public initializer forest owns exactly one edge for a union list. Linear
+IR zeros the complete destination, computes the selected member address, and
+stores that member. Static emission writes the same member at its target
+layout offset over zero-filled storage. Frontend freezing, IR validation, and
+object emission independently reject a forged union list with zero or
+multiple edges. The runtime aggregate-safety walk still considers every union
+member, so a stored volatile or atomic member keeps the complete union outside
+the bulk-zero path.
+
+The first parser version stopped only after its loop had tried to publish a
+second union edge. The frontend freeze then turned an ordinary excess
+initializer into an internal-unit failure. The loop now stops after the first
+selected member and reports the second positional or designated clause as an
+input error. A follow-up diagnostic review found that this path still said
+“structure initializer.” Union excess cases now say “union initializer,”
+while existing structure diagnostics remain unchanged.
+
+### Exact contracts
+
+The frontend selector covers a positional function-pointer member, a named
+integer member, a nested two-element state array, an automatic union, and a
+compound literal. It also checks excess positional and designated clauses, a
+missing direct member, rollback, and same-job recovery.
+
+The Linear IR selector fixes two full-object zero operations, four member
+addresses, two stores, three compound staging addresses, two compound-object
+addresses, and one complete-object copy. Repeated lowering has the same
+instruction fingerprint. A union whose graph contains a volatile member fails
+transactionally before any IR is published.
+
+The static object proof fixes these bytes:
+
+| Section | Bytes |
+| --- | --- |
+| `.data` | `12 34 56 78 11 22 33 44` |
+| `.rodata` | `01 00 00 00 00 00 00 00 02 00 00 00 EF BE AD DE` |
+
+It checks exact symbol placement, no relocations, two contiguous nonempty
+runtime functions, and byte-identical repeat emission. The exact
+`DOOM_TREE_I386` command now emits unchanged `info.c` as a 51,268-byte ELF32
+object. The checked whole-tree frontier advances from 73 to 74 successful
+objects.
+
+### Self-host locks
+
+The hosted source gate now reports:
+
+| Source | Definitions | Statements | Expressions | Block bindings | Initializers |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `toolchain/cupidc_frontend.cc` | 364 | 14,946 | 97,977 | 2,241 | 1,399 |
+| `toolchain/cupidc_ir.cc` | 218 | 6,549 | 59,853 | 842 | 308 |
+| `toolchain/cupidc_emit.cc` | 236 | 6,143 | 53,198 | 754 | 375 |
+
+Their deterministic self-host objects have these locks:
+
+| Source | Functions | Text bytes | Object bytes | Text fingerprint |
+| --- | ---: | ---: | ---: | --- |
+| `toolchain/cupidc_frontend.cc` | 364 | 761,399 | 897,996 | `43485BFE` |
+| `toolchain/cupidc_ir.cc` | 218 | 423,687 | 453,020 | `EDF302CA` |
+| `toolchain/cupidc_emit.cc` | 236 | 393,864 | 424,764 | `CC867238` |
+
+### Verification
+
+The complete frontend module passes all 76 tests in 13.108 seconds. The
+complete Linear IR module passes all 64 tests in 14.210 seconds. The focused
+union-object, self-host-object, and 80-source Doom-frontier checks pass
+together in 29.917 seconds. The strict native Toolchain build also completes
+with its full warning set and `-Werror`. The complete object module passes all
+80 tests in 865.660 seconds. That run rebuilds every object in the 19-source
+closure and all five static tools, then reproduces the complete stage-two and
+stage-three fixed point byte for byte.
+
+Audit regeneration and deterministic checking pass. The graph contains 698
+active sources, 253 feature IDs, 504 transforms, and 42 accounted unreachable
+files. Its active-source digest is
+`588558f836eea8ceeb37fca8f6ee010d958fa18f16abfeab9c7cc0ef6722ac7a`.
+The 1,524,052-byte audit JSON has SHA-256
+`4683f2c6e79a6cd0be3f8a35ec7c1b097eaa0f93d56e2f958590afec99b78de4`.
+The exact lexical lock moves from 4,750 to 4,762 `sizeof` occurrences, and its
+temporary-tree drift and recovery test passes. The complete build-graph audit
+module passes all 62 mutation and recovery tests in 517.315 seconds.
+
+This remains a compiler-head capability. The checked seed is unchanged, Doom
+remains host-owned, and the normal image does not consume the new emitter.
+No `.c` file is renamed, no production recipe changes owner, and no host
+dependency is retired. `TempleOS/` remains untouched. ADR 0153 records the
+language and ownership boundary.

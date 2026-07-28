@@ -797,7 +797,8 @@ static ctool_status_t cemit_index_initializers(cemit_context_t *context) {
           return cemit_invalid_unit(context, &initializer->location);
         }
       } else if (parent_type->kind == CTOOL_C_TYPE_RECORD) {
-        if (parent_type->record_kind != CTOOL_C_RECORD_STRUCT) {
+        if (parent_type->record_kind != CTOOL_C_RECORD_STRUCT &&
+            parent_type->record_kind != CTOOL_C_RECORD_UNION) {
           return cemit_emit_failure(
               context, CTOOL_ERR_UNSUPPORTED,
               CTOOL_C_EMIT_DIAG_INITIALIZER, &initializer->location,
@@ -809,6 +810,10 @@ static ctool_status_t cemit_index_initializers(cemit_context_t *context) {
             parent_type->member_count >
                 context->unit->graph.member_count -
                     parent_type->first_member) {
+          return cemit_invalid_unit(context, &initializer->location);
+        }
+        if (parent_type->record_kind == CTOOL_C_RECORD_UNION &&
+            initializer->element_count != 1u) {
           return cemit_invalid_unit(context, &initializer->location);
         }
       } else {
@@ -1494,7 +1499,8 @@ static ctool_status_t cemit_encode_list(
       }
       child_offset = offset + edge->subobject * element_layout->size;
     } else if (type->kind == CTOOL_C_TYPE_RECORD &&
-               type->record_kind == CTOOL_C_RECORD_STRUCT) {
+               (type->record_kind == CTOOL_C_RECORD_STRUCT ||
+                type->record_kind == CTOOL_C_RECORD_UNION)) {
       const ctool_c_record_member_t *member;
       const ctool_c_member_layout_t *member_layout;
       if (type->first_member > context->unit->graph.member_count ||
@@ -5158,7 +5164,8 @@ static ctool_bool cemit_ir_type_is_initializable_aggregate_object(
                  ((node->kind == CTOOL_C_TYPE_ARRAY &&
                    node->array_bound_kind == CTOOL_C_ARRAY_FIXED) ||
                   (node->kind == CTOOL_C_TYPE_RECORD &&
-                   node->record_kind == CTOOL_C_RECORD_STRUCT &&
+                   (node->record_kind == CTOOL_C_RECORD_STRUCT ||
+                    node->record_kind == CTOOL_C_RECORD_UNION) &&
                    node->record_complete == CTOOL_TRUE))
              ? CTOOL_TRUE
              : CTOOL_FALSE;

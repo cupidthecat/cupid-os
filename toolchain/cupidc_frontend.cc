@@ -14450,7 +14450,7 @@ static ctool_status_t cfront_parse_aggregate_initializer(
       static_storage == CTOOL_TRUE
           ? "static array initializer list has excess elements"
           : "automatic array initializer list has excess elements";
-  const char *structure_excess_message =
+  const char *record_excess_message =
       static_storage == CTOOL_TRUE
           ? "static structure initializer list has excess elements"
           : "automatic structure initializer list has excess elements";
@@ -14485,10 +14485,17 @@ static ctool_status_t cfront_parse_aggregate_initializer(
               ? "static initializer requires a complete record type"
               : "automatic initializer requires a complete record type");
     }
-    if (aggregate.record_kind != CTOOL_C_RECORD_STRUCT) {
+    if (aggregate.record_kind != CTOOL_C_RECORD_STRUCT &&
+        aggregate.record_kind != CTOOL_C_RECORD_UNION) {
       return cfront_emit_failure(
           context, CTOOL_ERR_UNSUPPORTED, initializer_diagnostic, origin,
-          "union and class initializer lists await active-member semantics");
+          "class initializer lists await active-member semantics");
+    }
+    if (aggregate.record_kind == CTOOL_C_RECORD_UNION) {
+      record_excess_message =
+          static_storage == CTOOL_TRUE
+              ? "static union initializer list has excess elements"
+              : "automatic union initializer list has excess elements";
     }
   } else {
     return cfront_emit_failure(
@@ -14513,6 +14520,9 @@ static ctool_status_t cfront_parse_aggregate_initializer(
          (prepared_available == CTOOL_TRUE ||
           cfront_peek_is(context, "}") == CTOOL_FALSE) &&
          (explicit_braces == CTOOL_TRUE ||
+          aggregate_full == CTOOL_FALSE) &&
+         (aggregate.kind != CTOOL_C_TYPE_RECORD ||
+          aggregate.record_kind != CTOOL_C_RECORD_UNION ||
           aggregate_full == CTOOL_FALSE)) {
     ctool_c_initializer_element_t edge;
     ctool_u32 child_type;
@@ -14533,10 +14543,12 @@ static ctool_status_t cfront_parse_aggregate_initializer(
       ctool_u32 member_offset;
       ctool_bool found = CTOOL_FALSE;
       if (aggregate.kind != CTOOL_C_TYPE_RECORD ||
-          aggregate.record_kind != CTOOL_C_RECORD_STRUCT) {
+          (aggregate.record_kind != CTOOL_C_RECORD_STRUCT &&
+           aggregate.record_kind != CTOOL_C_RECORD_UNION)) {
         status = cfront_emit_failure(
             context, CTOOL_ERR_INPUT, initializer_diagnostic, designator,
-            "member designator requires a structure initializer target");
+            "member designator requires a structure or union initializer "
+            "target");
         break;
       }
       if (member_token == (const ctool_c_pp_token_t *)0 ||
@@ -14848,7 +14860,11 @@ static ctool_status_t cfront_parse_aggregate_initializer(
         aggregate_full = CTOOL_TRUE;
       }
     }
-    if (aggregate.kind == CTOOL_C_TYPE_RECORD) {
+    if (aggregate.kind == CTOOL_C_TYPE_RECORD &&
+        aggregate.record_kind == CTOOL_C_RECORD_UNION) {
+      record_member_cursor = aggregate.member_count;
+      aggregate_full = CTOOL_TRUE;
+    } else if (aggregate.kind == CTOOL_C_TYPE_RECORD) {
       ctool_u32 probe = record_member_cursor;
       ctool_u32 next_member_index;
       ctool_c_record_member_t next_member;
@@ -14898,7 +14914,7 @@ static ctool_status_t cfront_parse_aggregate_initializer(
           cfront_peek(context),
           aggregate.kind == CTOOL_C_TYPE_ARRAY
               ? array_excess_message
-              : structure_excess_message);
+              : record_excess_message);
     }
     if (status == CTOOL_OK && cfront_peek_is(context, ",") == CTOOL_TRUE) {
       (void)cfront_advance(context);
@@ -14908,7 +14924,7 @@ static ctool_status_t cfront_parse_aggregate_initializer(
             cfront_peek(context),
             aggregate.kind == CTOOL_C_TYPE_ARRAY
                 ? array_excess_message
-                : structure_excess_message);
+                : record_excess_message);
       }
     }
     if (status == CTOOL_OK) {
@@ -20668,8 +20684,11 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
                             aggregate.element_count) ||
                        (aggregate.kind == CTOOL_C_TYPE_RECORD &&
                         aggregate.record_complete == CTOOL_TRUE &&
-                        aggregate.record_kind == CTOOL_C_RECORD_STRUCT &&
-                        initializer->element_count <= aggregate.member_count))
+                        ((aggregate.record_kind == CTOOL_C_RECORD_STRUCT &&
+                          initializer->element_count <=
+                              aggregate.member_count) ||
+                         (aggregate.record_kind == CTOOL_C_RECORD_UNION &&
+                          initializer->element_count == 1u))))
                   ? CTOOL_TRUE
                   : CTOOL_FALSE;
       for (child_offset = 0u;

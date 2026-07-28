@@ -33528,6 +33528,175 @@ cleanup:
   return 1;
 }
 
+static int union_initializer_ir_matches(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir) {
+  ctool_u32 zero_objects = 0u;
+  ctool_u32 member_addresses = 0u;
+  ctool_u32 stores = 0u;
+  ctool_u32 staging_addresses = 0u;
+  ctool_u32 object_addresses = 0u;
+  ctool_u32 object_copies = 0u;
+  ctool_u32 index;
+  if (unit == NULL || ir == NULL || ir->function_count != 2u ||
+      ir->functions == NULL || ir->instructions == NULL) {
+    return 0;
+  }
+  for (index = 0u; index < ir->instruction_count; index++) {
+    const ctool_c_ir_instruction_t *instruction =
+        &ir->instructions[index];
+    if (instruction->kind == CTOOL_C_IR_INSTRUCTION_ZERO_OBJECT) {
+      const ctool_c_type_node_t *type =
+          instruction->type < unit->graph.type_count
+              ? &unit->graph.types[instruction->type]
+              : NULL;
+      while (type != NULL &&
+             (type->kind == CTOOL_C_TYPE_ALIGNED ||
+              type->kind == CTOOL_C_TYPE_QUALIFIED)) {
+        type = type->referenced_type < unit->graph.type_count
+                   ? &unit->graph.types[type->referenced_type]
+                   : NULL;
+      }
+      if (type == NULL || type->kind != CTOOL_C_TYPE_RECORD ||
+          type->record_kind != CTOOL_C_RECORD_UNION ||
+          instruction->input_type != instruction->type) {
+        return 0;
+      }
+      zero_objects++;
+    } else if (instruction->kind ==
+               CTOOL_C_IR_INSTRUCTION_MEMBER_ADDRESS) {
+      const ctool_c_type_node_t *parent =
+          instruction->input_type < unit->graph.type_count
+              ? &unit->graph.types[instruction->input_type]
+              : NULL;
+      while (parent != NULL &&
+             (parent->kind == CTOOL_C_TYPE_ALIGNED ||
+              parent->kind == CTOOL_C_TYPE_QUALIFIED)) {
+        parent = parent->referenced_type < unit->graph.type_count
+                     ? &unit->graph.types[parent->referenced_type]
+                     : NULL;
+      }
+      if (parent == NULL || parent->kind != CTOOL_C_TYPE_RECORD ||
+          parent->record_kind != CTOOL_C_RECORD_UNION ||
+          instruction->reference < parent->first_member ||
+          instruction->reference - parent->first_member >=
+              parent->member_count) {
+        return 0;
+      }
+      member_addresses++;
+    } else if (instruction->kind == CTOOL_C_IR_INSTRUCTION_STORE) {
+      stores++;
+    } else if (instruction->kind ==
+               CTOOL_C_IR_INSTRUCTION_COMPOUND_LITERAL_STAGING_ADDRESS) {
+      staging_addresses++;
+    } else if (instruction->kind ==
+               CTOOL_C_IR_INSTRUCTION_COMPOUND_LITERAL_ADDRESS) {
+      object_addresses++;
+    } else if (instruction->kind ==
+               CTOOL_C_IR_INSTRUCTION_COPY_OBJECT) {
+      object_copies++;
+    }
+  }
+  if (zero_objects != 2u || member_addresses != 4u ||
+      stores != 2u || staging_addresses != 3u ||
+      object_addresses != 2u || object_copies != 1u) {
+    (void)fprintf(
+        stderr,
+        "union-initializers: IR counts differ: zero=%u member=%u "
+        "store=%u staging=%u object=%u copy=%u\n",
+        (unsigned int)zero_objects, (unsigned int)member_addresses,
+        (unsigned int)stores, (unsigned int)staging_addresses,
+        (unsigned int)object_addresses, (unsigned int)object_copies);
+    return 0;
+  }
+  return 1;
+}
+
+static int run_union_initializers(const char *host_root) {
+  static const char source[] =
+      "typedef union choice {\n"
+      "  unsigned int word;\n"
+      "  unsigned char byte;\n"
+      "} choice_t;\n"
+      "unsigned int local_choice(unsigned int value) {\n"
+      "  choice_t local = {.word = value};\n"
+      "  return local.word;\n"
+      "}\n"
+      "unsigned int literal_choice(unsigned int value) {\n"
+      "  return ((choice_t){.word = value}).word;\n"
+      "}\n";
+  static const char volatile_source[] =
+      "typedef union choice {\n"
+      "  volatile unsigned int observed;\n"
+      "  unsigned int word;\n"
+      "} choice_t;\n"
+      "unsigned int rejected(unsigned int value) {\n"
+      "  choice_t local = {.word = value};\n"
+      "  return local.word;\n"
+      "}\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t volatile_unit;
+  ctool_c_ir_unit_t first;
+  ctool_c_ir_unit_t repeated;
+  ctool_u32 diagnostics;
+  uint64_t unit_hash;
+  uint64_t ir_hash;
+  ctool_status_t status;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&volatile_unit, 0, sizeof(volatile_unit));
+  (void)memset(&first, 0xa5, sizeof(first));
+  (void)memset(&repeated, 0xa5, sizeof(repeated));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source(job, "/union-initializers.c", source, &unit)) {
+    goto cleanup;
+  }
+  unit_hash = unit_fingerprint(&unit);
+  diagnostics = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &unit, &first);
+  if (!check_status(status, CTOOL_OK, "union initializer lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostics ||
+      unit_fingerprint(&unit) != unit_hash ||
+      !union_initializer_ir_matches(&unit, &first)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  ir_hash = ir_instruction_fingerprint(&first);
+  status = ctool_c_lower_ir(job, &unit, &repeated);
+  if (!check_status(status, CTOOL_OK,
+                    "repeated union initializer lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostics ||
+      unit_fingerprint(&unit) != unit_hash ||
+      ir_instruction_fingerprint(&repeated) != ir_hash ||
+      !union_initializer_ir_matches(&unit, &repeated)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (!parse_source(job, "/volatile-union-initializer.c",
+                    volatile_source, &volatile_unit) ||
+      !expect_ir_failure_preserves_unit(
+          job, &volatile_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "volatile union initializer")) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("union-initializers: ok");
+    return 0;
+  }
+  return 1;
+}
+
 int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "active-leaf") == 0) {
     return run_active_leaf(argv[2]);
@@ -33624,6 +33793,9 @@ int main(int argc, char **argv) {
   }
   if (argc == 3 && strcmp(argv[1], "aggregate-initializers") == 0) {
     return run_aggregate_initializers(argv[2]);
+  }
+  if (argc == 3 && strcmp(argv[1], "union-initializers") == 0) {
+    return run_union_initializers(argv[2]);
   }
   if (argc == 3 && strcmp(argv[1], "structure-values") == 0) {
     return run_structure_values(argv[2]);
@@ -33745,7 +33917,7 @@ int main(int argc, char **argv) {
                 "pointer-arithmetic|function-pointers|"
                 "function-pointer-casts|automatic-objects|"
                 "block-externs|block-functions|block-typedefs|"
-                "aggregate-initializers|"
+                "aggregate-initializers|union-initializers|"
                 "compound-literals|"
                 "old-style-empty-functions|variadic-callees|wide-variadics|"
                 "floating-transport|floating-arithmetic|"
