@@ -123,14 +123,16 @@ root. All 152 sources use `.cc`. Five shared Toolchain roots also belong to
 the 19-source i386 Linux fixed point, and their native GCC or Clang rules
 select C with `-x c`. ADRs 0124 and 0126 record the first two naming steps,
 ADR 0129 records the lexer transfer, ADR 0135 records the Nuked OPL3 transfer,
-ADR 0139 records the JPEG and glyph-raster transfer, and ADR 0160 records the
+ADR 0139 records the JPEG and glyph-raster transfer, and ADR 0167 records the
 FPU and SMP transfer. The complete 151-root frontier passes twice against a
 frozen 439-file snapshot; both object sets are byte-identical and total
 3,643,676 bytes. The combined graph keeps the ISO runtime fixture as an
 explicit image input.
 Strong four-vCPU runtime checks pass with both NICs through SMP, RDRAND, all
 62 crypto checks, USB storage, audio, TrueType glyphs, a baseline JPEG decode,
-the desktop, terminal, and in-OS CupidC.
+the desktop, terminal, and in-OS CupidC. They require `[fpu] SSE2 enabled`,
+`[fpu] boot smoke ok`, and `FPU boot smoke passed`. A typed production-object
+policy independently checks CR4, `FNINIT`, and `LDMXCSR` ordering.
 
 The module dependencies run from top to bottom and contain no cycles:
 

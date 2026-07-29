@@ -338,6 +338,29 @@ no frame temporary. The normal build now compiles `kernel/cpu/fpu.cc` through
 the checked wrapper. Two checked compiles produce the same validated
 6,620-byte object with SHA-256
 `14c3ea232b7d4455ceabd561c69293cc5849abae24d9f210aa69d64ed8c8a5cb`.
+The production object policy decodes `fpu_init_cpu()` and rejects helper calls
+or floating work before the CR4 write. It requires one `FNINIT` followed by
+one 32-bit memory `LDMXCSR`. Replacing the CR4 write with NOPs is a required
+negative failure.
+
+Compiler-head CupidC also accepts the two exact EFLAGS restore statements in
+`simd_cpu_has_cpuid()`. Each statement is volatile, takes one non-atomic
+32-bit integer through `r`, has no output, and requires one `cc` clobber.
+Linear IR retains that effect. The shared x86 emitter consumes the value
+through EAX, pushes it back, and emits POPF with balanced ESP.
+
+Compiler head also accepts a fixed-register input when one compatible
+write-only output already owns that register. The unchanged CPUID statement
+keeps its `a` input and `=a` output. CupidC records output zero as their
+match, checks the relationship again in Linear IR, and loads the leaf into
+EAX immediately before CPUID. Linear IR and emission both require represented
+integer operands of equal width, so a forged same-width float or pointer
+fails instead of becoming register bits. Existing numeric ties are unchanged,
+and a second input cannot claim the same output. Read/write outputs cannot
+receive another fixed input. A complete unchanged `simd.c` probe now reaches the
+unsupported `xmm1` clobber on line 134. The checked seed and normal recipe
+still predate these capabilities, so the source remains host-owned with its
+`.c` suffix.
 
 The checked seed accepts the exact volatile x87 round-down block in
 `str_floor()`. It requires one modifiable, non-atomic `double` `=m` output,
@@ -395,7 +418,7 @@ The five shared Toolchain roots also belong to the 19-source i386 Linux
 fixed-point plan, and native GCC or Clang rules select C with `-x c`. ADRs
 0124 and 0126 record the first two naming steps, ADR 0129 records the lexer
 transfer, ADR 0135 records the Nuked OPL3 transfer, ADR 0139 records the JPEG
-and glyph-raster transfer, and ADR 0160 records the FPU and SMP transfer. Four
+and glyph-raster transfer, and ADR 0167 records the FPU and SMP transfer. Four
 strict checked-in roots remain host-owned.
 Three generated installation tables and the `hello.cc`, `ls.cc`, and
 `cat.cc` programs account for the other six CupidC transforms.
@@ -412,7 +435,8 @@ combined graph keeps the ISO fixture as an explicit image input. Strong
 four-vCPU runtime gates pass with e1000 and RTL8139 networking through SMP,
 RDRAND, all 62 crypto checks, USB storage, audio, TrueType glyphs, a baseline
 JPEG decode, the desktop, terminal, and in-OS CupidC execution. Both runs
-print `[fpu] boot smoke ok` and `FPU boot smoke passed`, then finish
+print `[fpu] SSE2 enabled`, `[fpu] boot smoke ok`, and
+`FPU boot smoke passed`, then finish
 `feature16_asm_fpu.cc`. The generated symbol source stores a logical
 105,505-byte blob as little-endian `unsigned int` words with three trailing
 pad bytes.

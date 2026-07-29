@@ -12955,6 +12955,12 @@ static ctool_bool cfront_x87_sine_memory_template(
       template_text, "fldl %1\n\tfsin\n\tfstpl %0\n\t");
 }
 
+static ctool_bool cfront_flags_restore_assembly_template(
+    ctool_string_t template_text) {
+  return cfront_string_literal(
+      template_text, "pushl %0\n\tpopfl\n\t");
+}
+
 static ctool_bool cfront_x87_round_down_memory_template(
     ctool_string_t template_text) {
   return cfront_string_literal(
@@ -13135,6 +13141,29 @@ static ctool_bool cfront_x87_memory_template(
              : CTOOL_FALSE;
 }
 
+static ctool_u32 cfront_fixed_assembly_output_register(
+    ctool_string_t constraint) {
+  if (cfront_string_literal(constraint, "=a") == CTOOL_TRUE) {
+    return CTOOL_C_ASSEMBLY_FIXED_A;
+  }
+  if (cfront_string_literal(constraint, "=b") == CTOOL_TRUE) {
+    return CTOOL_C_ASSEMBLY_FIXED_B;
+  }
+  if (cfront_string_literal(constraint, "=c") == CTOOL_TRUE ||
+      cfront_string_literal(constraint, "+c") == CTOOL_TRUE) {
+    return CTOOL_C_ASSEMBLY_FIXED_C;
+  }
+  if (cfront_string_literal(constraint, "=d") == CTOOL_TRUE) {
+    return CTOOL_C_ASSEMBLY_FIXED_D;
+  }
+  if (cfront_string_literal(constraint, "+S") == CTOOL_TRUE) {
+    return CTOOL_C_ASSEMBLY_FIXED_SI;
+  }
+  return cfront_string_literal(constraint, "+D") == CTOOL_TRUE
+             ? CTOOL_C_ASSEMBLY_FIXED_DI
+             : 0u;
+}
+
 static ctool_status_t cfront_validate_assembly_output(
     cfront_context_t *context, const ctool_c_pp_token_t *constraint_token,
     ctool_string_t template_text, ctool_string_t constraint,
@@ -13170,7 +13199,7 @@ static ctool_status_t cfront_validate_assembly_output(
   ctool_bool pointer_only = CTOOL_FALSE;
   ctool_u32 expected_width = 32u;
   ctool_bool any_integer_width = CTOOL_FALSE;
-  ctool_u32 fixed_register = 0u;
+  ctool_u32 fixed_register;
   ctool_u32 base;
   ctool_u32 qualifiers;
   ctool_u32 referent_base = 0u;
@@ -13197,31 +13226,21 @@ static ctool_status_t cfront_validate_assembly_output(
         constraint_token,
         "GNU x87 exp assembly output requires the =m constraint");
   }
-  if (sqrtsd_register == CTOOL_TRUE) {
-    fixed_register = 0u;
-  } else if (cfront_string_literal(constraint, "=a") == CTOOL_TRUE) {
-    fixed_register = CTOOL_C_ASSEMBLY_FIXED_A;
-    any_integer_width = CTOOL_TRUE;
-  } else if (cfront_string_literal(constraint, "=b") == CTOOL_TRUE) {
-    fixed_register = CTOOL_C_ASSEMBLY_FIXED_B;
-  } else if (cfront_string_literal(constraint, "=c") == CTOOL_TRUE) {
-    fixed_register = CTOOL_C_ASSEMBLY_FIXED_C;
-  } else if (cfront_string_literal(constraint, "=d") == CTOOL_TRUE) {
-    fixed_register = CTOOL_C_ASSEMBLY_FIXED_D;
+  fixed_register =
+      cfront_fixed_assembly_output_register(constraint);
+  if (fixed_register != 0u) {
+    if (cfront_string_literal(constraint, "=a") == CTOOL_TRUE) {
+      any_integer_width = CTOOL_TRUE;
+    } else if (cfront_string_literal(constraint, "+S") == CTOOL_TRUE ||
+               cfront_string_literal(constraint, "+D") == CTOOL_TRUE) {
+      pointer_only = CTOOL_TRUE;
+    }
+  } else if (sqrtsd_register == CTOOL_TRUE) {
   } else if (cfront_string_literal(constraint, "=r") == CTOOL_TRUE) {
-    fixed_register = 0u;
   } else if (cfront_string_literal(constraint, "=m") == CTOOL_TRUE) {
     memory_output = CTOOL_TRUE;
   } else if (cfront_string_literal(constraint, "=qm") == CTOOL_TRUE) {
     expected_width = 8u;
-  } else if (cfront_string_literal(constraint, "+c") == CTOOL_TRUE) {
-    fixed_register = CTOOL_C_ASSEMBLY_FIXED_C;
-  } else if (cfront_string_literal(constraint, "+S") == CTOOL_TRUE) {
-    fixed_register = CTOOL_C_ASSEMBLY_FIXED_SI;
-    pointer_only = CTOOL_TRUE;
-  } else if (cfront_string_literal(constraint, "+D") == CTOOL_TRUE) {
-    fixed_register = CTOOL_C_ASSEMBLY_FIXED_DI;
-    pointer_only = CTOOL_TRUE;
   } else {
     return cfront_emit_failure(
         context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
@@ -13321,9 +13340,6 @@ static ctool_status_t cfront_validate_assembly_output(
                  movss_kind == CFRONT_MOVSS_MEMORY_STORE)
             ? "GNU MOVSS assembly =m output requires a modifiable "
               "non-atomic float lvalue"
-        : memory_output == CTOOL_TRUE && is_floating == CTOOL_TRUE
-            ? "GNU inline assembly =m output requires a modifiable "
-              "non-atomic floating lvalue"
         : is_pointer == CTOOL_TRUE
             ? "GNU inline assembly pointer output requires a modifiable "
               "pointer lvalue"
@@ -13492,26 +13508,44 @@ static ctool_status_t cfront_parse_assembly_operand_expression(
 }
 
 static ctool_status_t cfront_parse_assembly_operand_name(
-    cfront_context_t *context, ctool_string_t *name_out) {
+    cfront_context_t *context, ctool_u32 *position_io,
+    ctool_string_t *name_out,
+    const ctool_c_pp_token_t **label_token_out) {
+  const ctool_c_pp_token_t *token =
+      cfront_token(context, *position_io);
   const ctool_c_pp_token_t *name;
-  ctool_status_t status;
   name_out->data = (const char *)0;
   name_out->size = 0u;
-  if (cfront_peek_is(context, "[") == CTOOL_FALSE) {
+  if (label_token_out != (const ctool_c_pp_token_t **)0) {
+    *label_token_out = token;
+  }
+  if (token == (const ctool_c_pp_token_t *)0 ||
+      cfront_token_is(token, "[") == CTOOL_FALSE) {
     return CTOOL_OK;
   }
-  (void)cfront_advance(context);
-  name = cfront_peek(context);
+  (*position_io)++;
+  name = cfront_token(context, *position_io);
+  if (label_token_out != (const ctool_c_pp_token_t **)0) {
+    *label_token_out = name;
+  }
   if (name == (const ctool_c_pp_token_t *)0 ||
       name->kind != CTOOL_C_PP_TOKEN_IDENTIFIER) {
     return cfront_emit_failure(
         context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT, name,
-        "GNU inline assembly operand label requires an identifier");
+        "GNU inline assembly operand label requires a C identifier");
   }
   *name_out = name->spelling;
-  (void)cfront_advance(context);
-  status = cfront_expected(context, "]");
-  return status;
+  (*position_io)++;
+  token = cfront_token(context, *position_io);
+  if (token == (const ctool_c_pp_token_t *)0 ||
+      cfront_token_is(token, "]") == CTOOL_FALSE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
+        token,
+        "GNU inline assembly operand label requires a closing bracket");
+  }
+  (*position_io)++;
+  return CTOOL_OK;
 }
 
 static ctool_status_t cfront_append_assembly_operand_name(
@@ -13533,6 +13567,86 @@ static ctool_status_t cfront_append_assembly_operand_name(
   }
   status = cfront_vector_append(names, &name, (ctool_u32 *)0);
   return status == CTOOL_OK ? CTOOL_OK : cfront_storage_failure(context, status);
+}
+
+static ctool_status_t cfront_collect_assembly_operand_names(
+    cfront_context_t *context, ctool_u32 first_position,
+    cfront_vector_t *names) {
+  ctool_u32 position = first_position;
+  ctool_u32 clause = 0u;
+  ctool_status_t status = CTOOL_OK;
+  while (status == CTOOL_OK && clause < 2u) {
+    const ctool_c_pp_token_t *token = cfront_token(context, position);
+    ctool_string_t name = {0};
+    ctool_u32 parenthesis_depth = 0u;
+    if (token == (const ctool_c_pp_token_t *)0 ||
+        cfront_token_is(token, ")") == CTOOL_TRUE) {
+      break;
+    }
+    if (cfront_token_is(token, ":") == CTOOL_TRUE) {
+      clause++;
+      position++;
+      continue;
+    }
+    if (cfront_token_is(token, ",") == CTOOL_TRUE) {
+      position++;
+      continue;
+    }
+    status = cfront_parse_assembly_operand_name(
+        context, &position, &name, &token);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    status = cfront_append_assembly_operand_name(
+        context, names, name, token);
+    while (status == CTOOL_OK) {
+      token = cfront_token(context, position);
+      if (token == (const ctool_c_pp_token_t *)0) {
+        break;
+      }
+      if (cfront_token_is(token, "(") == CTOOL_TRUE) {
+        parenthesis_depth++;
+        position++;
+      } else if (cfront_token_is(token, ")") == CTOOL_TRUE) {
+        if (parenthesis_depth == 0u) {
+          break;
+        }
+        parenthesis_depth--;
+        position++;
+      } else if (parenthesis_depth == 0u &&
+                 (cfront_token_is(token, ",") == CTOOL_TRUE ||
+                  cfront_token_is(token, ":") == CTOOL_TRUE)) {
+        break;
+      } else {
+        position++;
+      }
+    }
+    if (status != CTOOL_OK || token == (const ctool_c_pp_token_t *)0 ||
+        cfront_token_is(token, ")") == CTOOL_TRUE) {
+      break;
+    }
+    if (cfront_token_is(token, ",") == CTOOL_TRUE) {
+      position++;
+    }
+  }
+  return status;
+}
+
+static ctool_bool cfront_identifier_first_character(char character);
+static ctool_bool cfront_identifier_character(char character);
+
+static ctool_bool cfront_assembly_identifier(ctool_string_t name) {
+  ctool_u32 index;
+  if (name.data == (const char *)0 || name.size == 0u ||
+      cfront_identifier_first_character(name.data[0]) == CTOOL_FALSE) {
+    return CTOOL_FALSE;
+  }
+  for (index = 1u; index < name.size; index++) {
+    if (cfront_identifier_character(name.data[index]) == CTOOL_FALSE) {
+      return CTOOL_FALSE;
+    }
+  }
+  return CTOOL_TRUE;
 }
 
 static ctool_bool cfront_assembly_template_has_named_operand(
@@ -13591,15 +13705,15 @@ static ctool_status_t cfront_normalize_assembly_operand_names(
             "bracket");
         break;
       }
-      if (name_start == name_end) {
+      placeholder.data = template_io->data + name_start;
+      placeholder.size = name_end - name_start;
+      if (cfront_assembly_identifier(placeholder) == CTOOL_FALSE) {
         status = cfront_emit_failure(
             context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT, keyword,
-            "GNU inline assembly named operand reference requires an "
+            "GNU inline assembly named operand reference requires a C "
             "identifier");
         break;
       }
-      placeholder.data = template_io->data + name_start;
-      placeholder.size = name_end - name_start;
       for (operand = 0u; operand < names->count; operand++) {
         ctool_string_t candidate;
         status = cfront_vector_get(names, operand, &candidate);
@@ -13661,7 +13775,7 @@ static ctool_status_t cfront_normalize_assembly_operand_names(
 
 static ctool_status_t cfront_parse_assembly_output(
     cfront_context_t *context, ctool_string_t template_text,
-    ctool_u32 *fixed_registers_io, cfront_vector_t *names) {
+    ctool_u32 *fixed_registers_io) {
   const ctool_c_pp_token_t *constraint_token;
   ctool_c_assembly_operand_t operand;
   cfront_expression_value_t value;
@@ -13669,7 +13783,9 @@ static ctool_status_t cfront_parse_assembly_output(
   ctool_status_t status;
   cfront_zero(&operand, (ctool_u32)sizeof(operand));
   operand.matching_output = CTOOL_C_AST_NONE;
-  status = cfront_parse_assembly_operand_name(context, &name);
+  status = cfront_parse_assembly_operand_name(
+      context, &context->position, &name,
+      (const ctool_c_pp_token_t **)0);
   constraint_token = cfront_peek(context);
   if (constraint_token == (const ctool_c_pp_token_t *)0) {
     return cfront_emit_failure(
@@ -13695,10 +13811,6 @@ static ctool_status_t cfront_parse_assembly_output(
   if (status == CTOOL_OK) {
     operand.expression = value.expression;
     operand.type = value.type;
-    status = cfront_append_assembly_operand_name(
-        context, names, name, constraint_token);
-  }
-  if (status == CTOOL_OK) {
     status =
         cfront_vector_append(&context->assembly_operands, &operand,
                              (ctool_u32 *)0);
@@ -13738,6 +13850,19 @@ static ctool_status_t cfront_matching_assembly_output(
   return CTOOL_OK;
 }
 
+static ctool_bool cfront_named_matching_assembly_constraint(
+    ctool_string_t constraint) {
+  ctool_string_t name;
+  if (constraint.data == (const char *)0 || constraint.size < 3u ||
+      constraint.data[0] != '[' ||
+      constraint.data[constraint.size - 1u] != ']') {
+    return CTOOL_FALSE;
+  }
+  name.data = constraint.data + 1u;
+  name.size = constraint.size - 2u;
+  return cfront_assembly_identifier(name);
+}
+
 static ctool_bool cfront_independent_assembly_input(
     ctool_string_t constraint, ctool_u32 *fixed_register_out) {
   if (cfront_string_literal(constraint, "a") == CTOOL_TRUE) {
@@ -13758,17 +13883,46 @@ static ctool_bool cfront_independent_assembly_input(
   return CTOOL_TRUE;
 }
 
+static ctool_status_t cfront_find_fixed_assembly_output(
+    cfront_context_t *context, ctool_u32 first_operand,
+    ctool_u32 output_count, ctool_u32 fixed_register,
+    ctool_u32 *matching_output_out, ctool_bool *found_out) {
+  ctool_u32 output_index;
+  *matching_output_out = CTOOL_C_AST_NONE;
+  *found_out = CTOOL_FALSE;
+  for (output_index = 0u; output_index < output_count; output_index++) {
+    ctool_c_assembly_operand_t output;
+    ctool_status_t status = cfront_vector_get(
+        &context->assembly_operands, first_operand + output_index,
+        &output);
+    if (status != CTOOL_OK) {
+      return cfront_storage_failure(context, status);
+    }
+    if (output.constraint.data != (const char *)0 &&
+        output.constraint.size == 2u &&
+        output.constraint.data[0] == '=' &&
+        cfront_fixed_assembly_output_register(output.constraint) ==
+            fixed_register) {
+      *matching_output_out = output_index;
+      *found_out = CTOOL_TRUE;
+      return CTOOL_OK;
+    }
+  }
+  return CTOOL_OK;
+}
+
 static ctool_status_t cfront_parse_assembly_input(
     cfront_context_t *context, ctool_string_t template_text,
     ctool_u32 first_operand,
     ctool_u32 output_count, ctool_u32 *matched_outputs_io,
-    ctool_u32 *fixed_registers_io, cfront_vector_t *names) {
+    ctool_u32 *fixed_registers_io) {
   const ctool_c_pp_token_t *constraint_token;
   ctool_c_assembly_operand_t operand;
   ctool_c_assembly_operand_t output;
   cfront_expression_value_t value;
   cfront_integer_type_t input_integer;
   cfront_integer_type_t output_integer;
+  ctool_c_type_node_t source_input_node;
   ctool_c_type_node_t input_node;
   ctool_c_type_node_t original_input_node;
   ctool_c_type_node_t input_referent;
@@ -13780,11 +13934,14 @@ static ctool_status_t cfront_parse_assembly_input(
   ctool_bool output_is_integer = CTOOL_FALSE;
   ctool_bool independent = CTOOL_FALSE;
   ctool_bool matching = CTOOL_FALSE;
+  ctool_bool fixed_output_found = CTOOL_FALSE;
   ctool_bool memory_input = CTOOL_FALSE;
   ctool_bool sqrtsd_register =
       cfront_sqrtsd_register_template(template_text);
   ctool_bool sqrtsd_input = CTOOL_FALSE;
   ctool_bool sqrtsd_input_atomic = CTOOL_FALSE;
+  ctool_bool flags_restore =
+      cfront_flags_restore_assembly_template(template_text);
   ctool_bool x87_atan2_memory =
       cfront_x87_atan2_memory_template(template_text);
   ctool_bool x87_exp_memory =
@@ -13809,6 +13966,8 @@ static ctool_status_t cfront_parse_assembly_input(
           : CTOOL_FALSE;
   ctool_c_type_layout_t input_layout;
   ctool_u32 fixed_register = 0u;
+  ctool_u32 source_input_base;
+  ctool_u32 source_input_qualifiers;
   ctool_u32 input_base;
   ctool_u32 input_qualifiers;
   ctool_u32 original_input_base;
@@ -13826,7 +13985,9 @@ static ctool_status_t cfront_parse_assembly_input(
           ? context->assembly_operands.count - first_operand
           : 0u;
   operand.matching_output = CTOOL_C_AST_NONE;
-  status = cfront_parse_assembly_operand_name(context, &name);
+  status = cfront_parse_assembly_operand_name(
+      context, &context->position, &name,
+      (const ctool_c_pp_token_t **)0);
   constraint_token = cfront_peek(context);
   if (constraint_token == (const ctool_c_pp_token_t *)0) {
     return cfront_emit_failure(
@@ -13844,6 +14005,15 @@ static ctool_status_t cfront_parse_assembly_input(
   if (status == CTOOL_OK &&
       cfront_string_literal(operand.constraint, "m") == CTOOL_TRUE) {
     memory_input = CTOOL_TRUE;
+  }
+  if (status == CTOOL_OK &&
+      cfront_named_matching_assembly_constraint(
+          operand.constraint) == CTOOL_TRUE) {
+    status = cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+        constraint_token,
+        "GNU inline assembly named matching constraints are outside this "
+        "slice");
   }
   if (status == CTOOL_OK &&
       sqrtsd_register == CTOOL_TRUE &&
@@ -13879,10 +14049,18 @@ static ctool_status_t cfront_parse_assembly_input(
     independent = CTOOL_TRUE;
     if (fixed_register != 0u &&
         (*fixed_registers_io & fixed_register) != 0u) {
-      status = cfront_emit_failure(
-          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
-          constraint_token,
-          "GNU inline assembly cannot assign one fixed register twice");
+      status = cfront_find_fixed_assembly_output(
+          context, first_operand, output_count, fixed_register,
+          &operand.matching_output, &fixed_output_found);
+      if (status == CTOOL_OK && fixed_output_found == CTOOL_TRUE) {
+        independent = CTOOL_FALSE;
+        matching = CTOOL_TRUE;
+      } else if (status == CTOOL_OK) {
+        status = cfront_emit_failure(
+            context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
+            constraint_token,
+            "GNU inline assembly cannot assign one fixed register twice");
+      }
     } else if (fixed_register != 0u) {
       *fixed_registers_io |= fixed_register;
     }
@@ -13904,6 +14082,21 @@ static ctool_status_t cfront_parse_assembly_input(
   }
   if (status == CTOOL_OK) {
     status = cfront_parse_assembly_operand_expression(context, &value);
+  }
+  if (status == CTOOL_OK && flags_restore == CTOOL_TRUE) {
+    status = cfront_underlying_type(
+        context, value.type, &source_input_base,
+        &source_input_qualifiers, &source_input_node);
+  }
+  if (status == CTOOL_OK && flags_restore == CTOOL_TRUE &&
+      ((source_input_qualifiers | source_input_node.qualifiers) &
+       CTOOL_C_QUAL_ATOMIC) != 0u) {
+    (void)source_input_base;
+    status = cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED,
+        CTOOL_C_PARSE_DIAG_STATEMENT, constraint_token,
+        "GNU flags-restore assembly requires one volatile non-atomic "
+        "32-bit r input and one cc clobber");
   }
   if (status == CTOOL_OK && sqrtsd_input == CTOOL_TRUE) {
     status = cfront_underlying_type(
@@ -14051,9 +14244,6 @@ static ctool_status_t cfront_parse_assembly_input(
                 movss_kind == CFRONT_MOVSS_MEMORY_LOAD
             ? "GNU MOVSS assembly m input requires an addressable "
               "non-atomic float lvalue"
-        : input_is_floating == CTOOL_TRUE
-            ? "GNU inline assembly m input requires an addressable "
-              "non-atomic floating lvalue"
             : "GNU inline assembly m input requires an addressable "
               "non-atomic 32-bit integer lvalue");
   }
@@ -14123,14 +14313,8 @@ static ctool_status_t cfront_parse_assembly_input(
   }
   operand.expression = value.expression;
   operand.type = value.type;
-  if (status == CTOOL_OK) {
-    status = cfront_append_assembly_operand_name(
-        context, names, name, constraint_token);
-  }
-  if (status == CTOOL_OK) {
-    status = cfront_vector_append(&context->assembly_operands, &operand,
-                                  (ctool_u32 *)0);
-  }
+  status = cfront_vector_append(&context->assembly_operands, &operand,
+                                (ctool_u32 *)0);
   return status == CTOOL_OK ? CTOOL_OK
                             : ctool_job_diagnostic_count(context->job) == 0u
                                   ? cfront_storage_failure(context, status)
@@ -15018,6 +15202,68 @@ static ctool_status_t cfront_validate_call_next_assembly(
   return CTOOL_OK;
 }
 
+static ctool_status_t cfront_validate_flags_restore_assembly(
+    cfront_context_t *context, const ctool_c_pp_token_t *keyword,
+    const ctool_c_assembly_t *assembly) {
+  ctool_c_assembly_operand_t operand;
+  ctool_c_type_node_t input_node;
+  cfront_integer_type_t integer;
+  ctool_bool is_integer = CTOOL_FALSE;
+  ctool_bool exact_template =
+      cfront_flags_restore_assembly_template(assembly->template_text);
+  ctool_u32 input_base = CTOOL_C_TYPE_NONE;
+  ctool_u32 input_qualifiers = 0u;
+  ctool_status_t status;
+  if (exact_template == CTOOL_FALSE) {
+    return (assembly->flags & CTOOL_C_ASSEMBLY_CC_CLOBBER) == 0u
+               ? CTOOL_OK
+               : cfront_emit_failure(
+                     context, CTOOL_ERR_UNSUPPORTED,
+                     CTOOL_C_PARSE_DIAG_STATEMENT, keyword,
+                     "GNU inline assembly clobber is outside this slice");
+  }
+  if (assembly->flags !=
+          (CTOOL_C_ASSEMBLY_VOLATILE |
+           CTOOL_C_ASSEMBLY_CC_CLOBBER) ||
+      assembly->output_count != 0u || assembly->input_count != 1u ||
+      assembly->first_operand >= context->assembly_operands.count) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+        keyword,
+        "GNU flags-restore assembly requires one volatile non-atomic "
+        "32-bit r input and one cc clobber");
+  }
+  status = cfront_vector_get(
+      &context->assembly_operands, assembly->first_operand, &operand);
+  if (status == CTOOL_OK) {
+    status = cfront_integer_type(
+        context, operand.type, &integer, &is_integer);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_underlying_type(
+        context, operand.type, &input_base, &input_qualifiers,
+        &input_node);
+  }
+  if (status != CTOOL_OK) {
+    return ctool_job_diagnostic_count(context->job) == 0u
+               ? cfront_storage_failure(context, status)
+               : status;
+  }
+  (void)input_base;
+  if (cfront_string_literal(operand.constraint, "r") == CTOOL_FALSE ||
+      operand.matching_output != CTOOL_C_AST_NONE ||
+      is_integer == CTOOL_FALSE || integer.width != 32u ||
+      ((input_qualifiers | input_node.qualifiers) &
+       CTOOL_C_QUAL_ATOMIC) != 0u) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+        keyword,
+        "GNU flags-restore assembly requires one volatile non-atomic "
+        "32-bit r input and one cc clobber");
+  }
+  return CTOOL_OK;
+}
+
 static ctool_u32 cfront_state_memory_assembly_width(
     ctool_string_t template_text) {
   if (cfront_string_literal(template_text, "fnstsw %0") == CTOOL_TRUE ||
@@ -15201,12 +15447,19 @@ static ctool_status_t cfront_parse_gnu_assembly_statement(
     status = cfront_vector_open(
         context, &assembly_operand_names, (ctool_u32)sizeof(ctool_string_t));
   }
+  if (status == CTOOL_OK && basic_assembly == CTOOL_FALSE) {
+    status = cfront_collect_assembly_operand_names(
+        context, context->position, &assembly_operand_names);
+  }
+  if (status == CTOOL_OK && basic_assembly == CTOOL_FALSE) {
+    status = cfront_normalize_assembly_operand_names(
+        context, keyword, &assembly_operand_names, &assembly.template_text);
+  }
   while (status == CTOOL_OK && basic_assembly == CTOOL_FALSE &&
          cfront_peek_is(context, ":") == CTOOL_FALSE &&
          cfront_peek_is(context, ")") == CTOOL_FALSE) {
     status = cfront_parse_assembly_output(
-        context, assembly.template_text, &fixed_registers,
-        &assembly_operand_names);
+        context, assembly.template_text, &fixed_registers);
     if (status == CTOOL_OK) {
       if (assembly.output_count == 4u) {
         status = cfront_emit_failure(
@@ -15232,7 +15485,7 @@ static ctool_status_t cfront_parse_gnu_assembly_statement(
       status = cfront_parse_assembly_input(
           context, assembly.template_text, assembly.first_operand,
           assembly.output_count,
-          &matched_outputs, &fixed_registers, &assembly_operand_names);
+          &matched_outputs, &fixed_registers);
       if (status == CTOOL_OK) {
         assembly.input_count++;
       }
@@ -15253,6 +15506,7 @@ static ctool_status_t cfront_parse_gnu_assembly_statement(
     ctool_bool saw_memory = CTOOL_FALSE;
     ctool_bool saw_xmm0 = CTOOL_FALSE;
     ctool_bool saw_ax = CTOOL_FALSE;
+    ctool_bool saw_cc = CTOOL_FALSE;
     (void)cfront_advance(context);
     while (status == CTOOL_OK &&
            cfront_peek_is(context, ")") == CTOOL_FALSE) {
@@ -15265,7 +15519,8 @@ static ctool_status_t cfront_parse_gnu_assembly_statement(
       if (status == CTOOL_OK &&
           cfront_string_literal(clobber, "memory") == CTOOL_FALSE &&
           cfront_string_literal(clobber, "xmm0") == CTOOL_FALSE &&
-          cfront_string_literal(clobber, "ax") == CTOOL_FALSE) {
+          cfront_string_literal(clobber, "ax") == CTOOL_FALSE &&
+          cfront_string_literal(clobber, "cc") == CTOOL_FALSE) {
         status = cfront_emit_failure(
             context, CTOOL_ERR_UNSUPPORTED,
             CTOOL_C_PARSE_DIAG_STATEMENT, clobber_token,
@@ -15296,6 +15551,14 @@ static ctool_status_t cfront_parse_gnu_assembly_statement(
             "GNU inline assembly ax clobber is listed twice");
       }
       if (status == CTOOL_OK &&
+          cfront_string_literal(clobber, "cc") == CTOOL_TRUE &&
+          saw_cc == CTOOL_TRUE) {
+        status = cfront_emit_failure(
+            context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
+            clobber_token,
+            "GNU inline assembly cc clobber is listed twice");
+      }
+      if (status == CTOOL_OK &&
           cfront_string_literal(clobber, "memory") == CTOOL_TRUE) {
         saw_memory = CTOOL_TRUE;
         assembly.flags |= CTOOL_C_ASSEMBLY_MEMORY_CLOBBER;
@@ -15303,9 +15566,13 @@ static ctool_status_t cfront_parse_gnu_assembly_statement(
                  cfront_string_literal(clobber, "xmm0") == CTOOL_TRUE) {
         saw_xmm0 = CTOOL_TRUE;
         assembly.flags |= CTOOL_C_ASSEMBLY_XMM0_CLOBBER;
-      } else if (status == CTOOL_OK) {
+      } else if (status == CTOOL_OK &&
+                 cfront_string_literal(clobber, "ax") == CTOOL_TRUE) {
         saw_ax = CTOOL_TRUE;
         assembly.flags |= CTOOL_C_ASSEMBLY_AX_CLOBBER;
+      } else if (status == CTOOL_OK) {
+        saw_cc = CTOOL_TRUE;
+        assembly.flags |= CTOOL_C_ASSEMBLY_CC_CLOBBER;
       }
       if (status == CTOOL_OK &&
           cfront_peek_is(context, ",") == CTOOL_TRUE) {
@@ -15321,9 +15588,9 @@ static ctool_status_t cfront_parse_gnu_assembly_statement(
   if (status == CTOOL_OK) {
     status = cfront_expected(context, ";");
   }
-  if (status == CTOOL_OK && basic_assembly == CTOOL_FALSE) {
-    status = cfront_normalize_assembly_operand_names(
-        context, keyword, &assembly_operand_names, &assembly.template_text);
+  if (status == CTOOL_OK) {
+    status = cfront_validate_flags_restore_assembly(
+        context, keyword, &assembly);
   }
   if (status == CTOOL_OK) {
     status = cfront_validate_empty_assembly_barrier(
@@ -22163,7 +22430,8 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
            ~(CTOOL_C_ASSEMBLY_VOLATILE | CTOOL_C_ASSEMBLY_BASIC |
              CTOOL_C_ASSEMBLY_MEMORY_CLOBBER |
              CTOOL_C_ASSEMBLY_XMM0_CLOBBER |
-             CTOOL_C_ASSEMBLY_AX_CLOBBER)) != 0u ||
+             CTOOL_C_ASSEMBLY_AX_CLOBBER |
+             CTOOL_C_ASSEMBLY_CC_CLOBBER)) != 0u ||
           direct_binding_valid == CTOOL_FALSE ||
           (assembly->template_text.data == (const char *)0 &&
            assembly->template_text.size != 0u) ||

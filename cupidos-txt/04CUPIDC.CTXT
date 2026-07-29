@@ -146,7 +146,7 @@ implementations complete the established 116-source group. ADRs 0115 and 0123
 transferred the first 28 source-driven roots. ADR 0124 renames another 111
 roots used only by production CupidC. ADR 0126 completes the fixed-point
 naming work, ADR 0129 transfers the lexer, ADR 0135 transfers Nuked OPL3,
-ADR 0139 transfers JPEG decoding and glyph rasterization, and ADR 0160
+ADR 0139 transfers JPEG decoding and glyph rasterization, and ADR 0167
 transfers the FPU and SMP roots.
 
 Each result is checked as an i386 ELF32 relocatable object before it replaces
@@ -776,6 +776,25 @@ x87 depth and no frame temporary. The normal build compiles
 kernel/cpu/fpu.cc through the checked wrapper. Two checked compiles produce
 the same validated 6,620-byte object with SHA-256
 14c3ea232b7d4455ceabd561c69293cc5849abae24d9f210aa69d64ed8c8a5cb.
+The production object policy decodes fpu_init_cpu and rejects helper calls or
+floating work before the CR4 write. It requires FNINIT before one 32-bit
+memory LDMXCSR. The four-vCPU gate requires [fpu] SSE2 enabled,
+[fpu] boot smoke ok, and FPU boot smoke passed.
+
+Compiler-head CupidC accepts the exact volatile flags restore used twice by
+simd_cpu_has_cpuid. It takes one non-atomic 32-bit integer r input, has no
+outputs, and requires one cc clobber. Linear IR keeps the effect as public
+metadata. The shared x86 path consumes the value through EAX, pushes it back,
+and emits POPF with balanced ESP.
+
+Compiler head also accepts the unchanged CPUID input that shares EAX with
+its compatible write-only output. The input keeps its a constraint and
+names the =a output as its match. Linear IR and emission require both sides
+to be represented integers of equal width before loading EAX immediately
+before CPUID. Frozen pointer, floating, and aggregate substitutes fail.
+Read/write outputs cannot receive a second fixed input. Full unchanged simd.c
+now reaches the unsupported xmm1 clobber on line 134. The checked seed and
+production recipe do not yet carry these increments.
 
 The checked seed accepts the exact volatile x87 round-down block in
 str_floor. It keeps one modifiable, non-atomic double =m output, one

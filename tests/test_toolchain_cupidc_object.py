@@ -657,7 +657,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "pointer-output-assembly: ok\n")
 
-    def test_register_snapshot_assembly_emits_exact_i386_state_reads(self):
+    def test_register_snapshot_and_flags_restore_emit_exact_i386_state(self):
         result = subprocess.run(
             [
                 str(self.contract_path),
@@ -1048,6 +1048,52 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                     "aa69d64ed8c8a5cb",
                 ),
                 f"FPU object lock changed: {len(objects[0])} {digest}",
+            )
+            policy = subprocess.run(
+                [
+                    str(self.contract_path),
+                    "fpu-init-codegen-policy",
+                    str(REPO_ROOT),
+                    logical_output,
+                ],
+                cwd=TOOLCHAIN_ROOT,
+                text=True,
+                capture_output=True,
+                timeout=30,
+            )
+            self.assertEqual(policy.returncode, 0, policy.stderr)
+            self.assertEqual(
+                policy.stdout,
+                "fpu-init-codegen-policy: ok\n",
+            )
+            invalid_image = bytearray(objects[0])
+            cr4_write = b"\x0f\x22\xe0"
+            self.assertEqual(invalid_image.count(cr4_write), 1)
+            cr4_offset = invalid_image.index(cr4_write)
+            invalid_image[cr4_offset : cr4_offset + len(cr4_write)] = (
+                b"\x90\x90\x90"
+            )
+            invalid_output = output_root / "fpu-without-cr4-enable.o"
+            invalid_output.write_bytes(invalid_image)
+            invalid_logical_output = "/" + invalid_output.relative_to(
+                REPO_ROOT
+            ).as_posix()
+            rejected = subprocess.run(
+                [
+                    str(self.contract_path),
+                    "fpu-init-codegen-policy",
+                    str(REPO_ROOT),
+                    invalid_logical_output,
+                ],
+                cwd=TOOLCHAIN_ROOT,
+                text=True,
+                capture_output=True,
+                timeout=30,
+            )
+            self.assertNotEqual(rejected.returncode, 0)
+            self.assertIn(
+                "FPU work appears before the CR4 enable",
+                rejected.stderr,
             )
 
     def test_active_str_floor_block_emits_a_deterministic_object(self):

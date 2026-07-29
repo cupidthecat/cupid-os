@@ -14070,6 +14070,10 @@ GNU statement-assembly constraint. Once the whole operand list is known, the
 parser rewrites `%[identifier]` to the operand's numeric index. The label does
 not enter the public frontend graph, Linear IR, or object emitter.
 
+One cursor-based routine reads labels for both the collection pass and the
+consuming parser. This keeps bracket, identifier, and diagnostic behavior in
+one place.
+
 This deliberately reuses the representation the rest of CupidC already
 checks. A named output still needs a modifiable, non-atomic lvalue. A named
 memory input still needs an addressable, non-atomic lvalue. Register objects,
@@ -14112,33 +14116,35 @@ sequence remains separate work.
 
 | Gate | Result |
 | --- | --- |
-| Complete frontend module | 84 tests passed in 17.050 seconds |
-| Complete Linear IR module | 72 tests passed in 21.921 seconds |
-| Named IR, object, and unchanged-source frontier selector | 3 tests passed in 35.358 seconds |
-| Cupid-built compiler self-object | 1 test passed in 239.945 seconds |
-| Strict hosted Toolchain build | All native contracts passed; six static i386 artifacts linked |
-| Five-tool static fixed point | 1 test passed in 696.498 seconds |
+| Complete frontend module | 84 tests passed in 18.008 seconds |
+| Complete Linear IR module | 72 tests passed in 18.641 seconds |
+| Named object, unchanged-source, and active self-host selectors | 3 tests passed in 33.716 seconds |
+| Strict hosted Toolchain build | Passed with `self-host-link-tools: ok` |
+| Pre-review five-tool static fixed point | 1 test passed in 609.183 seconds; final shared-cursor refactor not repeated |
 | Checked-seed verifier | All five tools passed |
 | Bootstrap audit regeneration and check | Passed |
 
-The hosted frontend lock now counts 389 definitions, 15,680 statements,
-103,272 expressions, 2,351 block bindings, and 1,447 initializers. Active
-source inventories remain at 20,265 returns, 3,763 `for` statements, 2,660
-`while` statements, 65 `do` statements, 33,499 `if` statements, and 4,323
-`else` branches.
+The hosted frontend lock now counts 392 definitions, 15,763 statements,
+103,683 expressions, 2,359 block bindings, and 1,455 initializers. Its
+deterministic self-host object lock is 392 functions, 800,159 text bytes,
+946,436 object bytes, and text fingerprint `B36A23AC`. Active source
+inventories remain at 20,273 returns, 3,764 `for` statements, 2,662 `while`
+statements, 65 `do` statements, 33,515 `if` statements, and 4,326 `else`
+branches.
 
-The first native five-tool fixed-point run reached stage three, but the
-`cupidc_frontend.cc` compile exceeded its 300-second per-file timeout while
-several independent frontier suites were sharing the machine. The run ended
-after 917.059 seconds without a compiler diagnostic or byte mismatch. It is
-not counted as a proof. A fresh run on the quiet machine completed in 696.498
-seconds and matched every stage-two and stage-three object and tool.
+Before the review refactor, an isolated full static fixed point passed in
+609.183 seconds. It compared 19 C objects, the startup object, and five tool
+images between stages two and three. The shared cursor routine changes the
+exact compiler object after that run. The final source passes the active
+self-host frontier and strict self-host link gates, but the complete fixed
+point was not repeated for that code-only cleanup. Earlier invocations that
+ended without a unit-test summary were not counted as evidence.
 
 The generated graph still has 698 active sources, 253 feature IDs, 504
 transforms, and 42 accounted unreachable files. Its active-source digest is
-`b2acb9632dbe604b720dab6642b17948dae0ace794125a136c2d9270ff08842f`.
-The 1,525,139-byte JSON has SHA-256
-`2867ec1a7ea8f9a8ec3dfac9f39a2857faa56ca10cabc281c4fbaf062b377320`.
+`9380c351fe18d3a7aaa09b857efb0ad92565c8a395d60a12aeb679327ca2c5af`.
+The 1,526,996-byte JSON has SHA-256
+`8e0ff3bae274cdcc46d486e68dbcf71802607163f933dabb91b1b83b964484f8`.
 
 This remains a compiler-head capability. The checked seed still identifies
 revision `c00b3494014ca0a5f41143caa7e713e46b2ad3ec`, and the normal
@@ -14153,6 +14159,14 @@ The normal image now builds `kernel/cpu/fpu.cc`,
 seed. Each Make recipe uses the kernel wrapper and its frozen recursive input
 closure. None of the three source bodies needed a compatibility rewrite.
 
+The frozen closures are exact:
+
+| Source | Recursive headers |
+| --- | --- |
+| `kernel/cpu/fpu.cc` | `drivers/serial.h`, `kernel/core/panic.h`, `kernel/core/process.h`, `kernel/core/types.h`, `kernel/cpu/fpu.h`, `kernel/cpu/isr.h`, `kernel/cpu/libm.h` |
+| `kernel/smp/percpu.cc` | `drivers/serial.h`, `kernel/core/process.h`, `kernel/core/types.h`, `kernel/smp/percpu.h` |
+| `kernel/smp/smp.cc` | `drivers/serial.h`, `kernel/core/process.h`, `kernel/core/types.h`, `kernel/cpu/fpu.h`, `kernel/cpu/idt.h`, `kernel/cpu/isr.h`, `kernel/mm/memory.h`, `kernel/smp/acpi.h`, `kernel/smp/bkl.h`, `kernel/smp/ioapic.h`, `kernel/smp/lapic.h`, `kernel/smp/mp_tables.h`, `kernel/smp/percpu.h`, `kernel/smp/smp.h` |
+
 The files moved from `.c` to `.cc` with their production recipes. The FPU and
 per-CPU object bytes match the earlier compiler-boundary proofs. The SMP
 object has a different hash because its existing `__FILE__` diagnostic now
@@ -14164,6 +14178,13 @@ contains the truthful `smp.cc` path.
 | `kernel/smp/percpu.o` | 6,760 | `3c2c6f0e00e5edec1ca16cba91e9fc593d1c42e24f4ebd3591e5f574fb0dd772` |
 | `kernel/smp/smp.o` | 8,444 | `bd3189b2a1a6d15728c559172f5d6acca0889103428085cec8cc1024742a22d1` |
 
+The FPU object now has a typed production policy. Cupid's ELF reader locates
+`fpu_init_cpu()`, and the x86 decoder walks its exact symbol range. The policy
+rejects helper calls and floating work before the CR4 write, requires one
+`FNINIT` followed by one 32-bit memory `LDMXCSR`, and rejects other floating
+work. A negative fixture replaces the sole `MOV CR4,EAX` encoding with three
+NOP instructions and must fail before `FNINIT`.
+
 The complete checked-in normal frontier now covers 151 roots. Two passes
 against the frozen 439-input snapshot are byte-identical and total 3,643,676
 bytes. The snapshot has SHA-256
@@ -14171,10 +14192,11 @@ bytes. The snapshot has SHA-256
 and no compiler boundary remains inside that cohort.
 
 The production recipes also pass with `CC`, `CXX`, `CPP`, `HOSTCC`,
-`HOSTCXX`, `ASM`, `LD`, `AR`, `NM`, and `OBJCOPY` replaced by invalid
+`HOSTCXX`, `ASM`, `AS`, `LD`, `AR`, `NM`, and `OBJCOPY` replaced by invalid
 commands. All three objects rebuild through the checked wrapper in about 7.3
 seconds. The wrapper retains its drift, invalid-object, atomic-publication,
-and previous-output preservation checks.
+and previous-output preservation checks. Dry-run tests poison the same tool
+set across all four SMP ownership roots and the complete source-driven group.
 
 ### Evidence
 
@@ -14207,12 +14229,26 @@ padding bytes. Its 105,920-byte object has SHA-256
 `4a343b54571ed94324ce09e3ba48859ecdb36497e4e284b5f7996c81ed260131`.
 
 Both private-image QEMU runs bring all four discovered CPUs online, select the
-requested NIC, print `[fpu] boot smoke ok` and `FPU boot smoke passed`, report
-all 62 TLS successes, and finish `feature16_asm_fpu.cc` with its PASS and JIT
-completion markers. The 54,869-byte e1000 log has SHA-256
+requested NIC, print `[fpu] SSE2 enabled`, `[fpu] boot smoke ok`, and
+`FPU boot smoke passed`, report all 62 TLS successes, and finish
+`feature16_asm_fpu.cc` with its PASS and JIT completion markers. The
+54,869-byte e1000 log has SHA-256
 `65fc984950e3813e387d41a2f480d3f3e59dd38b6a2478abb2df73a6854c11e2`.
 The 53,419-byte RTL8139 log has SHA-256
 `7bd6fdb1829c8b71194b6a6024e1ba61528122a345baae4078a127bd8394e989`.
+
+The additional E1000 SMP smoke reports four CPUs, performs one 100,000-step
+atomic increment loop in `feature20_smp.cc`, prints the expected counter, and
+reaches CupidC JIT completion.
+
+The first FPU-ordering prototype inspected CupidDis text with a regular
+expression. It could backtrack into an opcode byte ending in `FC` and mistake
+that byte for an x87 mnemonic. The final contract uses typed ELF symbol ranges
+and decoded instructions instead. A separate probe compiled
+`kernel/gui/terminal_ansi.c` into a valid 5,676-byte object with SHA-256
+`6af75de27b194e2c229a37ce5f12af1272a8e3bec7edea1ba023a35b0dfc33f1`.
+The file remains superseded by `kernel/gui/ansi.cc`; linking both would
+duplicate the `ansi_*` symbols and restore less complete behavior.
 
 The audit still records 698 active sources, 253 feature IDs, 504 transforms,
 and 42 accounted unreachable files. Its active-source digest is
@@ -14227,7 +14263,7 @@ remain outside production CupidC ownership.
 
 No compiler or checked-seed byte changed in this transfer, so a new fixed
 point was not needed. The promoted seed had already proved all three language
-boundaries. ADR 0160 records the production decision. `TempleOS/` remains
+boundaries. ADR 0167 records the production decision. `TempleOS/` remains
 untouched reference material.
 
 ## 2026-07-28: emit the double-precision libm power statement
@@ -14646,109 +14682,111 @@ changes in this increment. ADR 0165 records the decision. `TempleOS/` remains
 untouched reference material. Issue #26 stays open for the mask block and
 later GNU assembly forms.
 
-## 2026-07-28: emit the libm fabs file-scope effects
+## 2026-07-28: integrate reviewed assembly and emit `fabs`
 
-Compiler-head CupidC now represents the exact aligned mask block and the
-following `fabs` and `fabsf` wrappers in unchanged `kernel/cpu/libm.c`. The
-frontend and Linear IR retain the three effects in source order and keep the
-two wrapper prototypes attached to their global function definitions.
+This checkpoint brings four reviewed compiler-head assembly changes together:
+named GNU operands, EFLAGS restores, fixed-register input and output overlap,
+and the `fabs` file-scope block. It also moves the verified FPU, per-CPU, and
+SMP production roots to the checked CupidC path.
 
-The mask effect reserves the first 32 bytes of `.rodata` at alignment 16. It
-defines local `STT_NOTYPE` symbols `fabs_mask_d` and `fabs_mask_s` at offsets
-0 and 16. The exact bytes are:
+The parser now keeps named and numeric assembly templates on one validation
+path. The exact `pushl` and `popfl` restore preserves its `cc` clobber and the
+saved flags value. A fixed input such as the CPUID leaf in EAX may share a
+compatible write-only output register, while independent collisions and
+read/write output collisions still fail. Frontend, Linear IR, and emission
+each recheck the relationship from public metadata.
 
-```text
-FF FF FF FF FF FF FF 7F FF FF FF FF FF FF FF 7F
-FF FF FF 7F FF FF FF 7F FF FF FF 7F FF FF FF 7F
-```
+The unchanged `kernel/cpu/libm.c` path now emits its aligned 32-byte absolute
+value masks and the `fabs` and `fabsf` wrappers. The masks are local
+`STT_NOTYPE` symbols at offsets 0 and 16 in `.rodata`. The two wrappers have
+one `R_386_32` relocation apiece and retain their source prototypes. This moves
+the local compiler-head boundary to the `floor` wrapper on line 281.
 
-The i386 emitter uses Cupid's shared x86 model for both wrappers. `fabs`
-contains 15 text bytes:
+The production transfer renames three active roots:
 
-```text
-F2 0F 10 44 24 04 66 0F 54 05 00 00 00 00 C3
-```
+- `kernel/cpu/fpu.cc`
+- `kernel/smp/percpu.cc`
+- `kernel/smp/smp.cc`
 
-It has one `R_386_32` relocation at function offset 10 to `fabs_mask_d`.
-`fabsf` contains 14 text bytes:
+Their object names and link positions stay fixed. The normal recipes now use
+the checked CupidC wrapper, which freezes the seed and recursive header
+closure before publishing a validated i386 object. The production FPU policy
+decodes `fpu_init_cpu()` and requires a CR4 write before `FNINIT`, followed by
+one 32-bit `LDMXCSR`. Four-vCPU boots cover both supported NICs, all 62 TLS
+self-tests, the floating assembly program, and the FPU boot markers. A
+separate SMP program checks the four-CPU atomic counter path.
 
-```text
-F3 0F 10 44 24 04 0F 54 05 00 00 00 00 C3
-```
+### Integration findings
 
-Its `R_386_32` relocation sits at function offset 9 and targets
-`fabs_mask_s`. Both addends are zero.
+The first combined compiler lost the fixed-output classifier while merging
+the exponent changes. That left a register selector uninitialized. The final
+frontend computes the selector for each output before applying the exact
+assembly rules.
 
-The first object layout appended the mask bytes to the current `.rodata`
-buffer. That passed the isolated fixture but would have moved both labels
-behind `k_log2e`, `k_ln2`, or any other earlier C constant in the complete
-source. A mixed-data regression exposed the error by adding a later
-read-only sentinel. The final emitter preplaces the mask effect before
-ordinary and block-static objects, skips it in the later source-order
-assembly pass, and locks the sentinel at offset 32.
+Two pre-conversion checks were also missing from the first EFLAGS merge, and
+the first Linear IR merge dropped the `fixed_overlap` relationship. Their
+negative fixtures reproduced both problems. The checks and relationship now
+survive parsing, lowering, frozen-unit validation, and emission.
 
-Contracts cover exact bytes, symbols, relocations, prototypes, source order,
-duplicate or missing mask effects, C label conflicts, forged metadata,
-deterministic output, rollback, and same-job recovery. The unchanged source
-now stops at:
+Named operands are normalized after operand validation in the current parser.
+The exact exponent recognizer initially assumed the reverse order. It now
+accepts the source spelling and its normalized numeric spelling, as do the
+power and `atan2` paths. The SQRTSD path retains its original atomic-operand
+rejection after the merge.
 
-```text
-/kernel/cpu/libm.c:281:1: error CTC000003: GNU file-scope assembly template is outside this i386 emission slice
-```
+The first `fabs` layout appended the masks after ordinary read-only constants.
+A mixed-data fixture showed that this made the assembly label offsets depend
+on unrelated C declarations. The masks now reserve the first 32 read-only
+bytes before ordinary constants are placed.
 
-This is the `floor` wrapper. The following `floorf` wrapper begins at line
-304.
+### Frozen compiler records
+
+The final hosted source records are:
+
+| Compiler source | Definitions | Statements | Expressions | Block bindings | Initializers |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `toolchain/cupidc_frontend.cc` | 407 | 16,052 | 106,261 | 2,407 | 1,479 |
+| `toolchain/cupidc_ir.cc` | 254 | 7,084 | 65,836 | 930 | 340 |
+| `toolchain/cupidc_emit.cc` | 296 | 7,327 | 62,643 | 892 | 501 |
+
+The self-host frontier objects are:
+
+| Compiler source | Functions | Text bytes | Object bytes | Text fingerprint |
+| --- | ---: | ---: | ---: | --- |
+| `toolchain/cupidc_frontend.cc` | 407 | 822,022 | 976,512 | `503C286F` |
+| `toolchain/cupidc_ir.cc` | 254 | 469,147 | 504,556 | `67557415` |
+| `toolchain/cupidc_emit.cc` | 296 | 464,088 | 508,748 | `4CBCB346` |
 
 ### Evidence
 
 | Gate | Result |
 | --- | --- |
-| Focused file-scope frontend, IR, object, and source-frontier seams | 7 tests passed in 51.887 seconds |
-| Complete frontend and Linear IR modules | 168 tests passed in 31.884 seconds |
-| Object assembly regressions | 19 tests passed in 20.491 seconds |
-| Refreshed self-host frontier object lock | 1 test passed in 30.255 seconds |
-| Cupid-built compiler self-object | 1 test passed in 235.398 seconds |
-| Strict hosted Toolchain build | All native contracts passed in 50.154 seconds; six static i386 artifacts linked |
-| Five-tool static fixed point | 1 test passed in 741.880 seconds |
-| Checked-seed verifier | All five tools passed |
-| Normal OS image build | `make all` passed in 895.977 seconds |
-| Private-image boot and in-OS CupidC smoke | `ls` compiled and reached JIT completion in 62.424 seconds |
-| Bootstrap audit regeneration and drift check | Passed |
+| Complete frontend and Linear IR modules | 171 tests passed in 35.101 seconds |
+| Focused decoded-object and unchanged-source loop | 7 tests passed in 22.033 seconds |
+| Hosted source frontier lock | 1 test passed in 12.612 seconds |
+| Self-host frontier object lock | 1 test passed in 30.529 seconds |
+| Cupid-built compiler self-object | 1 test passed in 292.943 seconds |
+| Strict hosted Toolchain build | All native contracts passed in 26.1 seconds; six static i386 artifacts linked |
+| Kernel-wrapper, GUI/runtime, and freestanding modules | 106 tests passed in 137.822 seconds |
+| Affected frontier-publication checkpoint | 3 tests passed in 87.957 seconds |
+| Typed production FPU object proof | 1 test passed in 26.899 seconds |
+| Complete build-graph audit module | 62 tests passed in 760.474 seconds |
+| Bootstrap audit regeneration | Passed in 64.5 seconds |
+| Bootstrap audit drift check | Passed in 69.2 seconds |
+| Five-tool static fixed point | 1 test passed in 943.926 seconds |
 
-The refreshed frontend source records are:
-
-| Compiler source | Definitions | Statements | Expressions | Block bindings | Initializers |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| `toolchain/cupidc_ir.cc` | 251 | 7,051 | 65,279 | 925 | 338 |
-| `toolchain/cupidc_emit.cc` | 292 | 7,275 | 62,115 | 885 | 499 |
-| `toolchain/cupidc_frontend.cc` | 400 | 15,889 | 105,265 | 2,382 | 1,464 |
-
-The refreshed object records are:
-
-| Compiler source | Functions | Text bytes | Object bytes | Text fingerprint |
-| --- | ---: | ---: | ---: | --- |
-| `toolchain/cupidc_ir.cc` | 251 | 465,697 | 500,760 | `2de5cd05` |
-| `toolchain/cupidc_emit.cc` | 292 | 460,094 | 504,072 | `b1bdb127` |
-| `toolchain/cupidc_frontend.cc` | 400 | 813,122 | 965,760 | `e905a804` |
-
-The generated graph still has 698 active sources, 253 feature IDs, 504
+The generated graph contains 698 active sources, 253 feature IDs, 504
 transforms, and 42 accounted unreachable files. Its active-source digest is
-`d641c3e30732097ac873d5f36e577b5ce09db6f5fff57e84988090faea16ec19`.
+`8266d73b94adc85dad423397ca19db467a2f37b3af2d6d38e1eb60ac9bba43d3`.
 The 1,526,996-byte JSON has SHA-256
-`e5010a54d8b291aca73a4d3dab98c613f7f9de5831c139160458e1b05c53494f`.
+`a395404b91995c35cdbe6ac69decdcdcbd0ba3f8a44b2f5f75f69a1e40f0f775`.
+The 15,060-byte Markdown report has SHA-256
+`becf50fa418c30b246fca795c0e4a6bec4f12182cdd462972d8f8c610d39ad01`.
 
-One combined fixed-point, seed, and image invocation reached its 15-minute
-outer guard while the image job was writing a large asset object. Closing
-the shared output stream interrupted the batch, so that run is excluded.
-Separate runs then passed the seed verifier, the complete fixed point, and
-the normal image build. A later `test-user-cupidc-runtime` attempt spent its
-outer window rebuilding and staging user programs and never started QEMU.
-It produced no guest log and is excluded. The direct private-image boot
-supplies the runtime evidence above.
-
-This remains a compiler-head capability. The checked seed has not moved, and
-the normal `kernel/cpu/libm.c` transform remains host-owned with its `.c`
-suffix. No production object, ABI, runtime path, or ownership count changes
-in this increment. ADR 0166 records the decision. `TempleOS/` remains
-untouched reference material. Issue #26 stays open for `floor`, `floorf`,
-and later GNU assembly forms.
+The checked seed has not moved. `kernel/cpu/libm.c` and
+`kernel/cpu/simd.c` remain host-owned and keep their `.c` suffixes; the next
+SIMD blocker is the `xmm1` clobber on line 134. `kernel/core/kernel.c` and
+`kernel/core/string.c` are the other two strict host-owned roots. Issue #26
+therefore remains open for later GNU assembly forms, and issue #28 remains
+open for the remaining production transfers. `TempleOS/` remains untouched
+reference material and is absent from the ownership totals.

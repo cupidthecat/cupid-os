@@ -527,7 +527,8 @@ the existing `__FILE__` diagnostic accounts for the change.
 
 Sequential e1000 and RTL8139 gates use four `max` vCPUs. Each run brings the
 BSP and all three APs online, initializes the selected NIC, prints
-`[fpu] boot smoke ok` and `FPU boot smoke passed`, and finishes
+`[fpu] SSE2 enabled`, `[fpu] boot smoke ok`, and
+`FPU boot smoke passed`, then finishes
 `feature16_asm_fpu.cc` with its PASS marker and CupidC JIT completion. The
 same logs show RDRAND seeding, exactly 62 successful crypto checks, scheduler,
 desktop, and terminal startup. The gate rejects known SMP, storage, crypto,
@@ -555,12 +556,12 @@ within a few hundred milliseconds of boot.
 An atomic increment stress test:
 
 ```c
-// 4 threads each increment a shared counter 10000 times
-// under the BKL. Expected final value: 40000.
+// One thread performs 100000 atomic increments.
+// Expected final value: 100000.
 feature20_smp
 ```
 
-Run it and verify the final counter value matches 40000.
+Run it and verify the final counter value matches 100000.
 
 ## Known Limits
 

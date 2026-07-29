@@ -2,17 +2,23 @@ import hashlib
 import os
 import re
 import shlex
+import shutil
 import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 
 from tools import cupidc_kernel_compile as kernel_compile
+from tools.bootstrap_toolchain import freeze_seed_inputs
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-CHECKED_CUPIDDIS = (
-    REPO_ROOT / "bootstrap" / "seeds" / "i386-linux" / "cupiddis.elf"
+SEED_MANIFEST = (
+    REPO_ROOT
+    / "bootstrap"
+    / "seeds"
+    / "i386-linux"
+    / "manifest.json"
 )
 
 
@@ -54,6 +60,11 @@ def _make_compile_command(make_root, target, source):
 
 class KernelFpuCodeGenerationContractTests(unittest.TestCase):
     def test_cpu_enable_helper_compiles_without_live_fp_registers(self):
+        if not SEED_MANIFEST.is_file():
+            self.skipTest("checked seed manifest is not present")
+        if os.name == "nt" and not shutil.which("wsl"):
+            self.skipTest("WSL is not available")
+
         with tempfile.TemporaryDirectory(
             prefix=".cupid-fpu-codegen-",
             dir=REPO_ROOT,
@@ -73,14 +84,21 @@ class KernelFpuCodeGenerationContractTests(unittest.TestCase):
             )
 
             executor = kernel_compile.SeedExecutor(REPO_ROOT)
-            result = executor.run(
-                CHECKED_CUPIDDIS,
-                (
-                    "--disassemble",
-                    executor.compiler_root_for(object_path),
-                ),
-                kernel_compile.DEFAULT_TIMEOUT_SECONDS,
-            )
+            with tempfile.TemporaryDirectory(
+                prefix="cupid-fpu-disassembler-"
+            ) as seed_directory:
+                seed = freeze_seed_inputs(
+                    SEED_MANIFEST,
+                    Path(seed_directory),
+                )
+                result = executor.run(
+                    seed.tools["cupiddis"],
+                    (
+                        "--disassemble",
+                        executor.compiler_root_for(object_path),
+                    ),
+                    kernel_compile.DEFAULT_TIMEOUT_SECONDS,
+                )
             self.assertEqual(
                 result.returncode,
                 0,

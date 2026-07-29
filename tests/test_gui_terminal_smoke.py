@@ -18,6 +18,7 @@ def _smp_runtime_log():
         "[csprng] seeded from RDRAND",
         "mp: discovered 1 CPUs, 1 IOAPIC(s)",
         "acpi: MADT: 4 CPUs, 1 IOAPIC(s)",
+        "[fpu] SSE2 enabled",
         "cpu1: online apic=1",
         "cpu2: online apic=2",
         "cpu3: online apic=3",
@@ -755,6 +756,18 @@ class SmpRuntimeContractTests(unittest.TestCase):
         with self.assertRaisesRegex(
             gui_terminal_smoke.SmpRuntimeContractError,
             r"missing required marker: \[fpu\] boot smoke ok",
+        ):
+            gui_terminal_smoke.validate_smp_runtime_log(data)
+
+    def test_missing_fpu_enable_marker_is_rejected(self):
+        data = _smp_runtime_log().replace(
+            "[fpu] SSE2 enabled\n",
+            "",
+        )
+
+        with self.assertRaisesRegex(
+            gui_terminal_smoke.SmpRuntimeContractError,
+            r"missing required marker: \[fpu\] SSE2 enabled",
         ):
             gui_terminal_smoke.validate_smp_runtime_log(data)
 

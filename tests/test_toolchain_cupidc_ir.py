@@ -148,6 +148,30 @@ class ToolchainCupidCIRContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "register-snapshot-assembly: ok\n")
 
+    def test_flags_restore_assembly_preserves_cc_metadata(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "flags-restore-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "flags-restore-assembly: ok\n")
+
+    def test_fixed_register_inputs_can_share_their_output_register(self):
+        result = subprocess.run(
+            [str(self.contract_path), "inline-assembly", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "inline-assembly: ok\n")
+
     def test_call_next_assembly_preserves_output_order(self):
         result = subprocess.run(
             [

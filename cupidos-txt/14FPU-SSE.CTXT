@@ -80,8 +80,24 @@ unchanged implementation is now kernel/cpu/fpu.cc, a checked CupidC production
 root. Two checked compiles produce the same validated 6,620-byte object with
 SHA-256
 14c3ea232b7d4455ceabd561c69293cc5849abae24d9f210aa69d64ed8c8a5cb.
-Four-vCPU e1000 and RTL8139 boots print both FPU boot markers and finish
+The production object policy decodes fpu_init_cpu. It rejects helper calls
+and floating work before the CR4 write, requires FNINIT before one 32-bit
+memory LDMXCSR, and rejects any other floating work in the function.
+Four-vCPU e1000 and RTL8139 boots print [fpu] SSE2 enabled,
+[fpu] boot smoke ok, and FPU boot smoke passed before they finish
 feature16_asm_fpu.cc successfully.
+
+Compiler-head CupidC also accepts the exact volatile EFLAGS restore in
+simd_cpu_has_cpuid. One non-atomic 32-bit integer r input and one cc clobber
+produce a checked POP EAX, PUSH EAX, POPF sequence. ESP remains balanced and
+the object needs no relocation for this statement. Both unchanged restore
+sites pass.
+
+Compiler head also accepts the CPUID leaf input sharing EAX with the
+compatible write-only output. It keeps the a and =a constraints, records
+their match, and loads EAX immediately before CPUID. The full source now
+stops at the unsupported xmm1 clobber on line 134. The checked seed and
+normal SIMD recipe still predate these capabilities.
 
 The checked seed represents the exact x87 round-down statement in
 str_floor. It takes one double memory output and one double memory input with

@@ -269,6 +269,7 @@ typedef enum {
 #define CTOOL_C_ASSEMBLY_MEMORY_CLOBBER 0x00000004u
 #define CTOOL_C_ASSEMBLY_XMM0_CLOBBER 0x00000008u
 #define CTOOL_C_ASSEMBLY_AX_CLOBBER 0x00000010u
+#define CTOOL_C_ASSEMBLY_CC_CLOBBER 0x00000020u
 
 #define CTOOL_C_ASSEMBLY_FIXED_A 0x00000001u
 #define CTOOL_C_ASSEMBLY_FIXED_B 0x00000002u
@@ -281,8 +282,10 @@ typedef struct {
   ctool_string_t constraint;
   ctool_u32 expression;
   ctool_u32 type;
-  /* A matching input names its output operand by zero-based position.
-   * Outputs and independent fixed-register inputs use CTOOL_C_AST_NONE. */
+  /* An input that shares an output register names that output by zero-based
+   * position. Numeric matching constraints and compatible write-only
+   * fixed-register overlaps use this field. Other inputs and all outputs use
+   * CTOOL_C_AST_NONE. */
   ctool_u32 matching_output;
   ctool_c_pp_location_t location;
   ctool_c_pp_location_t physical_location;

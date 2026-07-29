@@ -49,6 +49,8 @@ CRYPTO_SOURCES = (
 SMP_SOURCES = (
     "kernel/smp/acpi.cc",
     "kernel/smp/mp_tables.cc",
+    "kernel/smp/percpu.cc",
+    "kernel/smp/smp.cc",
 )
 OPERAND_FREE_SOURCES = (
     "drivers/e1000.cc",
@@ -185,8 +187,6 @@ SOURCE_DRIVEN_SOURCES = (
     "kernel/network/udp.cc",
     "kernel/smp/bkl.cc",
     "kernel/smp/lapic.cc",
-    "kernel/smp/percpu.cc",
-    "kernel/smp/smp.cc",
     "kernel/tls/tls_ca_bundle.cc",
 )
 GENERATED_KERNEL_SOURCES = (
@@ -861,15 +861,9 @@ class KernelCompileCommandTests(unittest.TestCase):
         )
 
     def test_production_owned_roots_use_the_cupidc_extension(self):
-        renamed_sources = (
-            CRYPTO_SOURCES
-            + SMP_SOURCES
-            + OPERAND_FREE_SOURCES
-            + PORT_IO_SOURCES
-            + COMPILER_READY_SOURCES
-        )
-        self.assertEqual(len(renamed_sources), 111)
-        self.assertEqual(len(set(renamed_sources)), 111)
+        renamed_sources = KERNEL_SOURCES
+        self.assertEqual(len(renamed_sources), 151)
+        self.assertEqual(len(set(renamed_sources)), 151)
         self.assertEqual(
             tuple(
                 source
@@ -1004,10 +998,17 @@ class KernelCompileMakefileTests(unittest.TestCase):
         logical_makefile = makefile.replace("\\\n", " ")
         for source, headers in expected_closures.items():
             with self.subTest(source=source):
-                self.assertIn(
-                    source,
-                    kernel_compile.APPROVED_SOURCE_DRIVEN_SOURCES,
-                )
+                self.assertIn(source, kernel_compile.APPROVED_KERNEL_SOURCES)
+                if source.startswith("kernel/smp/"):
+                    self.assertIn(
+                        source,
+                        kernel_compile.APPROVED_SMP_SOURCES,
+                    )
+                else:
+                    self.assertIn(
+                        source,
+                        kernel_compile.APPROVED_SOURCE_DRIVEN_SOURCES,
+                    )
                 self.assertTrue((REPO_ROOT / source).is_file())
                 self.assertFalse(
                     (REPO_ROOT / Path(source).with_suffix(".c")).exists()
@@ -1271,6 +1272,7 @@ class KernelCompileMakefileTests(unittest.TestCase):
                         "HOSTCC",
                         "HOSTCXX",
                         "ASM",
+                        "AS",
                         "LD",
                         "AR",
                         "NM",
@@ -1300,14 +1302,33 @@ class KernelCompileMakefileTests(unittest.TestCase):
         self.assertNotIn(poison, result.stdout + result.stderr)
 
     def test_smp_targets_do_not_expand_to_the_host_compiler(self):
+        poison = "__host_tool_must_not_run__"
+        targets = [
+            Path(source).with_suffix(".o").as_posix()
+            for source in SMP_SOURCES
+        ]
         result = subprocess.run(
             [
                 "make",
                 "-B",
                 "-n",
-                "CC=__host_c_compiler_must_not_run__",
-                "kernel/smp/acpi.o",
-                "kernel/smp/mp_tables.o",
+                *[
+                    f"{variable}={poison}"
+                    for variable in (
+                        "CC",
+                        "CXX",
+                        "CPP",
+                        "HOSTCC",
+                        "HOSTCXX",
+                        "ASM",
+                        "AS",
+                        "LD",
+                        "AR",
+                        "NM",
+                        "OBJCOPY",
+                    )
+                ],
+                *targets,
             ],
             cwd=REPO_ROOT,
             text=True,
@@ -1320,13 +1341,14 @@ class KernelCompileMakefileTests(unittest.TestCase):
             for line in result.stdout.splitlines()
             if "tools/cupidc_kernel_compile.py" in line
         ]
-        self.assertEqual(len(commands), 2)
-        self.assertIn("--source kernel/smp/acpi.cc", commands[0])
-        self.assertIn("--source kernel/smp/mp_tables.cc", commands[1])
-        self.assertNotIn(
-            "__host_c_compiler_must_not_run__",
-            result.stdout + result.stderr,
-        )
+        self.assertEqual(len(commands), len(SMP_SOURCES))
+        for source in SMP_SOURCES:
+            self.assertEqual(
+                sum(f"--source {source}" in command for command in commands),
+                1,
+                source,
+            )
+        self.assertNotIn(poison, result.stdout + result.stderr)
 
     def test_operand_free_targets_do_not_expand_to_the_host_compiler(self):
         targets = [

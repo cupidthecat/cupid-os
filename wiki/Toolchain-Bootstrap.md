@@ -147,7 +147,24 @@ emits balanced `FLD`, `FSIN`, and `FSTP` instructions with no frame
 temporary. Two complete builds of `kernel/cpu/fpu.cc` produce the same
 validated 6,620-byte object with SHA-256
 `14c3ea232b7d4455ceabd561c69293cc5849abae24d9f210aa69d64ed8c8a5cb`.
-The normal build owns the root through the checked wrapper.
+The normal build owns the root through the checked wrapper. A typed policy
+decodes `fpu_init_cpu()`, rejects helper calls and floating work before the
+CR4 write, and requires `FNINIT` before one 32-bit memory `LDMXCSR`.
+
+Compiler head now represents the exact volatile EFLAGS restore in
+`simd_cpu_has_cpuid()`. One 32-bit `r` input and one `cc` clobber reach
+Linear IR as checked public metadata. The emitter produces `POP EAX`,
+`PUSH EAX`, and `POPF` through the shared x86 model, leaving ESP balanced.
+Both unchanged restore statements pass.
+
+Compiler head accepts the CPUID statement's fixed EAX input/output overlap.
+The `a` input keeps its original spelling and points to the compatible
+write-only `=a` output in the public operand record. Linear IR checks that
+tie, including represented integer types and equal widths. Emission repeats
+the check and loads EAX immediately before CPUID. A frozen same-width
+non-integer substitute fails transactionally. The complete source
+now stops at the `xmm1` clobber on line 134. Neither compiler-head capability
+has reached the checked seed or normal SIMD recipe.
 
 The next compiler-head slice represents the complete x87 round-down statement
 in unchanged `str_floor()`. It requires one modifiable `double` output, one
@@ -186,7 +203,7 @@ Linux fixed point. Native GCC and Clang rules select C with `-x c`. ADR 0124
 records the first 111-root transfer, ADR 0126 records the complete
 fixed-point rename and old-seed proof, ADR 0129 records the lexer transfer,
 ADR 0135 records the Nuked OPL3 transfer, ADR 0139 records the JPEG and
-glyph-raster transfer, and ADR 0160 records the FPU and SMP transfer. Four
+glyph-raster transfer, and ADR 0167 records the FPU and SMP transfer. Four
 strict checked-in roots remain host-owned.
 
 The checked seed accepts ordered `-include` inputs through both the native
@@ -326,9 +343,11 @@ RTL8139 traffic,
 passes all 62 crypto checks, opens the desktop and terminal, and completes
 embedded CupidC execution at `0x01100000`. The established e1000 and RTL8139
 gates continue to cover audio, input reattachment, and six EHCI storage
-lifetimes. Both NIC runs print `[fpu] boot smoke ok` and
-`FPU boot smoke passed`, then finish `feature16_asm_fpu.cc`. A private-image smoke loads the same external ELF program twice at
-`0x00F00000`; cleanup releases the first arena lease before the second load.
+lifetimes. Both NIC runs print `[fpu] SSE2 enabled`,
+`[fpu] boot smoke ok`, and `FPU boot smoke passed`, then finish
+`feature16_asm_fpu.cc`. A private-image smoke loads the same external ELF
+program twice at `0x00F00000`; cleanup releases the first arena lease before
+the second load.
 The gate rejects SMP, storage, crypto, exception, panic, corruption, and
 illegal-instruction failure markers. The X.509 checks exercise parser,
 hostname, chain state, and embedded-root lookup paths. They are not a full
@@ -347,14 +366,12 @@ every host. Direct Linux builds test the separate Linux execution branch.
 
 ### GNU named assembly operands
 
-Compiler-head CupidC accepts `[identifier]` labels on GNU statement-assembly
-inputs and outputs. It resolves `%[identifier]` to the existing numeric
-operand index before the frontend publishes the statement, which leaves the
-Linear IR and i386 emitter contracts unchanged. A named output must still be
-a modifiable lvalue, and a named memory input must still be an addressable
-lvalue. Both forms keep the numeric path's type, qualifier, and constraint
-checks. Doubled percent signs remain escaped text. Malformed, duplicate,
-unterminated, and unresolved labels fail during parsing.
+Compiler-head CupidC accepts optional `[identifier]` labels on GNU extended
+assembly outputs and inputs. It collects the complete operand namespace and
+normalizes each unescaped `%[identifier]` reference to the existing numeric
+operand index before public frontend metadata freezes. Escaped `%%` pairs
+remain literal. Linear IR and the i386 emitter therefore keep their numeric
+contracts and apply the same validation to named and numeric source.
 
 ### x87 power statements
 

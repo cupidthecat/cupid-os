@@ -500,8 +500,8 @@ within a few hundred milliseconds.
 
   [Run feature20_smp](shell:feature20_smp)
 
-4 threads each increment a shared counter 10000 times under the BKL.
-Expected final value: 40000.
+One thread performs 100000 atomic increments.
+Expected final value: 100000.
 
 >endtree
 
@@ -533,8 +533,9 @@ kernel now builds acpi.cc and mp_tables.cc through that path. A forced build
 with an invalid host compiler proves that neither recipe falls back to Clang
 or GCC. Sequential e1000 and RTL8139 gates discover every virtual CPU through
 ACPI, bring the BSP and all three APs online, initialize the selected NIC,
-print [fpu] boot smoke ok and FPU boot smoke passed, and finish
-feature16_asm_fpu.cc with its PASS marker and CupidC JIT completion. The same
+print [fpu] SSE2 enabled, [fpu] boot smoke ok, and FPU boot smoke passed,
+then finish feature16_asm_fpu.cc with its PASS marker and CupidC JIT
+completion. The same
 logs pass all 62 crypto checks and reach the desktop and terminal. The gate
 rejects known SMP, storage, crypto, exception, corruption, and
 illegal-instruction failures.

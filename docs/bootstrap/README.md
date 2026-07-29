@@ -58,7 +58,7 @@ point, and native GCC or Clang rules select C with `-x c`. ADR 0124 records
 the first 111-root transfer, and ADR 0126 records the complete fixed-point
 rename and old-seed proof. ADR 0129 records the seed promotion and lexer
 transfer. ADR 0135 records the Nuked OPL3 transfer, ADR 0139 records the
-JPEG and glyph-raster transfer, and ADR 0160 records the FPU, per-CPU, and
+JPEG and glyph-raster transfer, and ADR 0167 records the FPU, per-CPU, and
 SMP transfer.
 
 The checked seed now finalizes C11 inline meaning from the complete file-scope
@@ -451,10 +451,10 @@ The hosted `ctool_c_parse` operation consumes the ADR 0012 tape directly and pub
 
 The unchanged `/kernel/fs/fat16.h` closure still reproduces every FAT layout oracle. Exact additional contracts parse unchanged `kernel.h`, `irq.h`, `cupidscript.h`, and `shell.h` and merge representative duplicate prototypes and typedefs once at the first declaration. GNU `packed`, `aligned`, and `noreturn` lists retain their semantic destinations, and compatibility keeps stronger alignment and `noreturn`. File- and record-scope `_Static_assert` use target integer evaluation, including conditional selection and fault suppression in unevaluated arms. Active-source fragments prove all 26 tracked assertions across `memory.h`, `percpu.h`, `exec.cc`, `process.cc`, and `syscall.cc`.
 
-The [audit-derived active-source gate](./ACTIVE-SOURCE-AUDIT.md) is 155/155 general non-Doom headers at compiler head. The six i386 Linux adapter headers have their own exact profiles and object contracts, and the strict-C11 hosted profile keeps all twelve hermetic Toolchain implementation gates complete. The checked source inventory records 646 direct designated initializers across 19 files, 51 variadic declarations across 22 files, 2,657 lexical `goto` occurrences in 26 files, 65 `do`, 221 `switch`, 1,639 `case`, 152 `default`, 2,665 `while`, 1,820 `break`, 1,106 `continue`, 34,184 `if`, 4,355 `else`, 20,635 `return`, 3,832 `for`, and 5,134 `sizeof` occurrences. The graph contains 698 active sources, 253 feature IDs, 504 transforms, and 42 accounted unreachable files. CupidC owns 158 transforms, the host C compiler owns 139, Python owns 173, and Make owns five. The audit evaluates Make conditionals with the canonical Windows branch and C locale on every host; direct Linux builds cover the Linux execution branch. One Python transform checks the external-program syscall ABI and produces no OS artifact. Two more keep the ISO runtime fixture in the normal image dependency graph. The fifth Make transform prepares the native Windows user drivers. The host compiler still produces 87 root objects.
+The [audit-derived active-source gate](./ACTIVE-SOURCE-AUDIT.md) is 155/155 general non-Doom headers at compiler head. The six i386 Linux adapter headers have their own exact profiles and object contracts, and the strict-C11 hosted profile keeps all twelve hermetic Toolchain implementation gates complete. The checked source inventory records 646 direct designated initializers across 19 files, 51 variadic declarations across 22 files, 2,682 lexical `goto` occurrences in 26 files, 65 `do`, 221 `switch`, 1,639 `case`, 152 `default`, 2,669 `while`, 1,826 `break`, 1,109 `continue`, 34,282 `if`, 4,362 `else`, 20,697 `return`, 3,837 `for`, and 5,143 `sizeof` occurrences. The graph contains 698 active sources, 253 feature IDs, 504 transforms, and 42 accounted unreachable files. CupidC owns 158 transforms, the host C compiler owns 139, Python owns 173, and Make owns five. The audit evaluates Make conditionals with the canonical Windows branch and C locale on every host; direct Linux builds cover the Linux execution branch. One Python transform checks the external-program syscall ABI and produces no OS artifact. Two more keep the ISO runtime fixture in the normal image dependency graph. The fifth Make transform prepares the native Windows user drivers. The host compiler still produces 87 root objects.
 
 The canonical active-source digest for this graph is
-`d641c3e30732097ac873d5f36e577b5ce09db6f5fff57e84988090faea16ec19`.
+`8266d73b94adc85dad423397ca19db467a2f37b3af2d6d38e1eb60ac9bba43d3`.
 
 External-inline policy now follows translation-unit finalization described by [ADR 0131](../adr/0131-finalize-c11-external-inline-definitions.md). The frontend recognizes external definitions across compatible declaration sets, preserves inherited internal linkage, and rejects an external-linkage inline declaration without a definition. Iterative memoized type relations normalize C qualifier spellings while retaining atomic parameter identity, distinguish strict typedef identity from compatibility, apply old-style/default-promotion rules, accept a 512-level derived pointer graph, and construct symbol-local immutable array/function composite types without corrupting shared typedefs. Transactional tests cover precise conflicts, lexical-scope duplicates and expiry, automatic and static initializer forests, explicit and tentative file definitions, binding addresses, scalar and aggregate return or assignment legality, recursive aggregate modifiability, pointer arithmetic and comparison constraints, conditional association and conversions, loop and switch constraints, direct jumps and label scope, compound/update constraints, malformed literals, unsupported local storage forms, ownership, deep syntax, constrained output, rollback, and recovery. Runtime expression values carry private integer-constant-expression form and value metadata. A represented zero expression, or that expression cast to non-atomic `void *`, becomes a null pointer constant. Comparisons, conditionals, returns, calls, assignments, and automatic initializers publish a destination-typed `CTOOL_C_CONVERSION_NULL_POINTER`; static explicit nulls publish `ZERO` records and discard their temporary expression AST. Comma expressions now evaluate left to right and retain the last operand, and known-true loops preserve non-fallthrough reachability. GNU `weak`, `section`, and `unused` attributes publish canonical entity metadata; exact output-only assembly can snapshot represented i386 register and EFLAGS state. The constant and body expression grammars remain intentionally partial, and namespace and member lookup remain linear. Chained designated paths, promoted anonymous members, duplicate overrides, positional union or Cupid class lists, static member-address constants, explicit address casts, automatic or block-static bases, runtime offsets and subscripts, block declaration attributes, nested function definitions, computed goto and GNU label addresses, broader GNU assembly forms, hexadecimal and subnormal floating constants, `long double`, remaining integer and floating conversions, floating comparison and truth, nonempty identifier-list definitions, non-scalar arguments without declared parameter types, aggregate variadic reads, block assertions, variable-length arrays and runtime `sizeof`, the remaining GNU attributes, complete Cupid extensions, complete AST and IR coverage, broader function code generation, full translation-unit emission, and production integration remain later work. The shared hosted path owns the 151-source checked-in production kernel cohort, the generated kernel symbol translation, and the six checked generated-install or user translations; the private kernel compiler remains the embedded runtime JIT and AOT path.
 
@@ -499,6 +499,34 @@ builds of unchanged `kernel/cpu/fpu.c` produce the same validated 6,620-byte
 object. At the ADR 0150 boundary, production ownership had not moved. The
 later transfer renamed the source to `kernel/cpu/fpu.cc` and placed its
 unchanged 6,620-byte object under the checked normal wrapper.
+The production contract also decodes the exact `fpu_init_cpu()` symbol. It
+rejects helper calls and floating work before the CR4 write, requires one
+`FNINIT` followed by one 32-bit memory `LDMXCSR`, and rejects any other
+floating work in the function. Its negative object replaces the CR4 write
+with three NOP instructions and fails before `FNINIT`.
+
+ADR 0160 adds the exact volatile flags-restore form used twice by
+`simd_cpu_has_cpuid()`. It takes one non-atomic 32-bit integer through `r`,
+has no outputs, and requires exactly one `cc` clobber. The frontend and
+Linear IR keep that clobber as public metadata. The emitter consumes the
+evaluated value through EAX, pushes it back, and emits POPF through Cupid's
+shared x86 model. ESP remains balanced, and the path needs no temporary or
+relocation.
+
+ADR 0168 adds compatible fixed-register input sharing with a write-only
+output. The unchanged CPUID statement keeps `=a` for its EAX output and `a`
+for its leaf input. CupidC records output zero in the input's
+`matching_output` field without
+replacing the source constraint. Frontend and Linear IR require the same
+fixed register, represented integer types, and equal widths. Frozen
+same-width pointer, floating, and aggregate inputs fail without publishing
+IR or an object. The emitter repeats those checks, loads the evaluated leaf
+into EAX immediately before CPUID, then snapshots all four outputs through
+the existing EBX-preserving path. Numeric ties keep their existing behavior.
+Compiler head now carries unchanged
+`kernel/cpu/simd.c` through line 52 and stops at the first unsupported
+`xmm1` clobber on line 134. The checked seed and normal source ownership
+remain unchanged.
 
 ADR 0154 represents the complete unchanged x87 round-down statement in
 `str_floor()`. It requires one modifiable `double` `=m` output, one

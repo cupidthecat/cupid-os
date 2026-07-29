@@ -49,6 +49,8 @@ CRYPTO_SOURCES = [
 SMP_SOURCES = [
     "kernel/smp/acpi.cc",
     "kernel/smp/mp_tables.cc",
+    "kernel/smp/percpu.cc",
+    "kernel/smp/smp.cc",
 ]
 OPERAND_FREE_SOURCES = [
     "drivers/e1000.cc",
@@ -185,8 +187,6 @@ SOURCE_DRIVEN_SOURCES = [
     "kernel/network/udp.cc",
     "kernel/smp/bkl.cc",
     "kernel/smp/lapic.cc",
-    "kernel/smp/percpu.cc",
-    "kernel/smp/smp.cc",
     "kernel/tls/tls_ca_bundle.cc",
 ]
 KERNEL_SOURCES = sorted(
@@ -1888,6 +1888,22 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                 ),
             )
             self.assertEqual(
+                object_records["kernel/smp/percpu.cc"],
+                (
+                    6760,
+                    "3c2c6f0e00e5edec1ca16cba91e9fc5"
+                    "93d1c42e24f4ebd3591e5f574fb0dd772",
+                ),
+            )
+            self.assertEqual(
+                object_records["kernel/smp/smp.cc"],
+                (
+                    8444,
+                    "bd3189b2a1a6d15728c559172f5d6acc"
+                    "a0889103428085cec8cc1024742a22d1",
+                ),
+            )
+            self.assertEqual(
                 object_records["drivers/e1000.cc"],
                 (
                     8784,
@@ -2166,16 +2182,6 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                     4184,
                     "6ce344d265ad3fb6b221a9159d860954"
                     "c5f5512a7eac526838e69bc181a4c045",
-                ),
-                "kernel/smp/percpu.cc": (
-                    6760,
-                    "3c2c6f0e00e5edec1ca16cba91e9fc5"
-                    "93d1c42e24f4ebd3591e5f574fb0dd772",
-                ),
-                "kernel/smp/smp.cc": (
-                    8444,
-                    "bd3189b2a1a6d15728c559172f5d6acc"
-                    "a0889103428085cec8cc1024742a22d1",
                 ),
                 "kernel/tls/tls_ca_bundle.cc": (
                     388,

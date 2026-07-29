@@ -2152,6 +2152,175 @@ static int decode_function(
   return 1;
 }
 
+static int instruction_uses_floating_register(
+    const ctool_x86_instruction_t *instruction) {
+  ctool_u32 index;
+  if (instruction == NULL) {
+    return 0;
+  }
+  for (index = 0u; index < instruction->operand_count; index++) {
+    const ctool_x86_operand_t *operand = &instruction->operands[index];
+    if (operand->kind == CTOOL_X86_OPERAND_REGISTER &&
+        (operand->as.reg.class_id == CTOOL_X86_REG_X87 ||
+         operand->as.reg.class_id == CTOOL_X86_REG_MMX ||
+         operand->as.reg.class_id == CTOOL_X86_REG_XMM)) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static int instruction_is_floating_work(
+    const ctool_x86_instruction_t *instruction) {
+  ctool_x86_mnemonic_t mnemonic;
+  if (instruction == NULL) {
+    return 0;
+  }
+  mnemonic = instruction->mnemonic;
+  return instruction_uses_floating_register(instruction) != 0 ||
+                 (mnemonic >= CTOOL_X86_MN_F2XM1 &&
+                  mnemonic <= CTOOL_X86_MN_FYL2X) ||
+                 mnemonic == CTOOL_X86_MN_LDMXCSR ||
+                 mnemonic == CTOOL_X86_MN_STMXCSR ||
+                 mnemonic == CTOOL_X86_MN_SFENCE
+             ? 1
+             : 0;
+}
+
+static int run_fpu_init_codegen_policy(const char *host_root,
+                                       const char *object_path) {
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_path_t path;
+  ctool_source_t source;
+  ctool_elf32_object_t object;
+  const ctool_elf32_section_t *text;
+  const ctool_elf32_symbol_t *symbol;
+  ctool_u32 cursor = 0u;
+  ctool_u32 cr4_writes = 0u;
+  ctool_u32 fninit_count = 0u;
+  ctool_u32 ldmxcsr_count = 0u;
+  ctool_status_t status;
+  int passed = 0;
+
+  if (!open_job(host_root, &adapter, &config, &job)) {
+    goto cleanup;
+  }
+  path.text = ctool_string(object_path);
+  (void)memset(&source, 0xa5, sizeof(source));
+  status = ctool_job_load_source(job, &path, &source);
+  (void)memset(&object, 0xa5, sizeof(object));
+  if (status == CTOOL_OK) {
+    status = ctool_elf32_read(job, &source, &object);
+  }
+  text = status == CTOOL_OK ? find_section(&object, ".text")
+                            : (const ctool_elf32_section_t *)0;
+  symbol = status == CTOOL_OK ? find_symbol(&object, "fpu_init_cpu")
+                              : (const ctool_elf32_symbol_t *)0;
+  if (!check_status(status, CTOOL_OK, "read FPU production object") ||
+      text == NULL || symbol == NULL ||
+      symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      symbol->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
+      symbol->section_file_index != text->file_index ||
+      symbol->value > text->contents.size ||
+      symbol->size > text->contents.size - symbol->value ||
+      symbol->size == 0u) {
+    (void)fprintf(stderr, "FPU initialization function range differs\n");
+    goto cleanup;
+  }
+
+  while (cursor < symbol->size) {
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + symbol->value + cursor,
+        symbol->size - cursor);
+    ctool_x86_decoded_t decoded;
+    const ctool_x86_instruction_t *instruction;
+    int writes_cr4;
+    int floating_work;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(job, CTOOL_X86_MODE_32, remaining, 0u,
+                              &decoded);
+    if (status != CTOOL_OK ||
+        decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      (void)fprintf(stderr, "FPU initialization decode failed at %u\n",
+                    (unsigned int)cursor);
+      goto cleanup;
+    }
+    instruction = &decoded.instruction;
+    writes_cr4 =
+        instruction->mnemonic == CTOOL_X86_MN_MOV &&
+                instruction->operand_count == 2u &&
+                instruction->operands[0].kind ==
+                    CTOOL_X86_OPERAND_REGISTER &&
+                instruction->operands[0].as.reg.class_id ==
+                    CTOOL_X86_REG_CONTROL &&
+                instruction->operands[0].as.reg.index == 4u
+            ? 1
+            : 0;
+    floating_work = instruction_is_floating_work(instruction);
+
+    if (instruction->mnemonic == CTOOL_X86_MN_CALL) {
+      (void)fprintf(stderr,
+                    "FPU initialization contains a runtime helper call\n");
+      goto cleanup;
+    }
+    if (writes_cr4 != 0) {
+      if (cr4_writes != 0u || fninit_count != 0u ||
+          ldmxcsr_count != 0u) {
+        (void)fprintf(stderr, "FPU CR4 enable ordering differs\n");
+        goto cleanup;
+      }
+      cr4_writes++;
+    } else if (floating_work != 0) {
+      if (cr4_writes != 1u) {
+        (void)fprintf(stderr,
+                      "FPU work appears before the CR4 enable\n");
+        goto cleanup;
+      }
+      if (instruction->mnemonic == CTOOL_X86_MN_FNINIT) {
+        if (fninit_count != 0u || ldmxcsr_count != 0u) {
+          (void)fprintf(stderr, "FNINIT ordering differs\n");
+          goto cleanup;
+        }
+        fninit_count++;
+      } else if (instruction->mnemonic == CTOOL_X86_MN_LDMXCSR) {
+        if (fninit_count != 1u || ldmxcsr_count != 0u ||
+            instruction->operand_count != 1u ||
+            instruction->operands[0].kind !=
+                CTOOL_X86_OPERAND_MEMORY ||
+            instruction->operands[0].width_bits != 32u) {
+          (void)fprintf(stderr, "LDMXCSR ordering or width differs\n");
+          goto cleanup;
+        }
+        ldmxcsr_count++;
+      } else {
+        (void)fprintf(stderr,
+                      "unexpected FPU, MMX, or SSE work in fpu_init_cpu\n");
+        goto cleanup;
+      }
+    }
+    cursor += decoded.consumed;
+  }
+  if (cursor != symbol->size || cr4_writes != 1u ||
+      fninit_count != 1u || ldmxcsr_count != 1u) {
+    (void)fprintf(stderr, "FPU initialization policy counts differ\n");
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  if (job != (ctool_job_t *)0) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("fpu-init-codegen-policy: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_direct_goto_object(
     ctool_job_t *job, const ctool_elf32_object_t *object) {
   static const ctool_u8 forward_bytes[] = {
@@ -27652,20 +27821,20 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.cc",           "/toolchain/x86.cc",
       "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
-      65u, 68u, 66u, 14u, 31u, 143u, 251u, 292u, 400u, 81u, 37u, 60u,
+      65u, 68u, 66u, 14u, 31u, 143u, 254u, 296u, 407u, 81u, 37u, 60u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 76860u, 85252u, 16872u, 42212u,
-      190304u, 465697u, 460094u, 813122u, 139646u, 70368u, 80478u,
+      190304u, 469147u, 464088u, 822022u, 139646u, 70368u, 80478u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 89320u, 99772u, 20180u, 49484u,
-      226668u, 500760u, 504072u, 965760u, 157828u, 79348u, 134656u,
+      226668u, 504556u, 508748u, 976512u, 157828u, 79348u, 134656u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x5fbbfaf2u, 0x4ca44a27u,
       0x7238e153u, 0x999f97b7u, 0xb49d8eb9u,
-      0x2de5cd05u, 0xb1bdb127u, 0xe905a804u, 0x239f52c7u,
+      0x67557415u, 0x4cbcb346u, 0x503c286fu, 0x239f52c7u,
       0x34558a49u, 0x7c198364u, 0x8774de7du};
   ctool_u32 index;
   int all_matched = 1;
@@ -29323,7 +29492,8 @@ static int validate_inline_assembly_function(
     const ctool_elf32_symbol_t *symbol,
     ctool_x86_mnemonic_t first_expected,
     ctool_x86_mnemonic_t second_expected,
-    ctool_bool expect_ebx_output) {
+    ctool_bool expect_ebx_output,
+    ctool_bool expect_eax_input) {
   ctool_u32 cursor = 0u;
   ctool_u32 first_count = 0u;
   ctool_u32 second_count = 0u;
@@ -29332,6 +29502,7 @@ static int validate_inline_assembly_function(
   ctool_bool saved_ebx = CTOOL_FALSE;
   ctool_bool snapped_ebx_output = CTOOL_FALSE;
   ctool_bool restored_ebx = CTOOL_FALSE;
+  ctool_bool prior_was_pop_eax = CTOOL_FALSE;
   if (job == NULL || text == NULL || symbol == NULL ||
       symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
       symbol->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
@@ -29378,6 +29549,10 @@ static int validate_inline_assembly_function(
       }
     }
     if (instruction->mnemonic == first_expected) {
+      if (expect_eax_input == CTOOL_TRUE &&
+          prior_was_pop_eax == CTOOL_FALSE) {
+        return 0;
+      }
       first_count++;
       if (first_expected == CTOOL_X86_MN_RDRAND &&
           (instruction->operand_count != 1u ||
@@ -29423,6 +29598,16 @@ static int validate_inline_assembly_function(
       }
       restored_ebx = CTOOL_TRUE;
     }
+    prior_was_pop_eax =
+        instruction->mnemonic == CTOOL_X86_MN_POP &&
+                instruction->operand_count == 1u &&
+                instruction->operands[0].kind ==
+                    CTOOL_X86_OPERAND_REGISTER &&
+                instruction->operands[0].as.reg.class_id ==
+                    CTOOL_X86_REG_GPR32 &&
+                instruction->operands[0].as.reg.index == 0u
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
     cursor += decoded.consumed;
   }
   return cursor == symbol->size && first_count == 1u &&
@@ -29456,16 +29641,16 @@ static int validate_inline_assembly_object(
       object->relocation_count != 0u ||
       !validate_inline_assembly_function(
           job, text, rdtsc, CTOOL_X86_MN_RDTSC,
-          CTOOL_X86_MN_INVALID, CTOOL_FALSE) ||
+          CTOOL_X86_MN_INVALID, CTOOL_FALSE, CTOOL_FALSE) ||
       !validate_inline_assembly_function(
           job, text, cpuid, CTOOL_X86_MN_CPUID,
-          CTOOL_X86_MN_INVALID, CTOOL_TRUE) ||
+          CTOOL_X86_MN_INVALID, CTOOL_TRUE, CTOOL_TRUE) ||
       !validate_inline_assembly_function(
           job, text, rdrand, CTOOL_X86_MN_RDRAND,
-          CTOOL_X86_MN_SETB, CTOOL_FALSE) ||
+          CTOOL_X86_MN_SETB, CTOOL_FALSE, CTOOL_FALSE) ||
       !validate_inline_assembly_function(
           job, text, tied, CTOOL_X86_MN_NOP,
-          CTOOL_X86_MN_INVALID, CTOOL_TRUE)) {
+          CTOOL_X86_MN_INVALID, CTOOL_TRUE, CTOOL_FALSE)) {
     (void)fprintf(stderr, "inline-assembly object differs\n");
     return 0;
   }
@@ -29497,7 +29682,7 @@ static int run_inline_assembly_object(const char *host_root) {
       "  u32 eax = 1, ebx = 0, ecx = 0, edx = 0;\n"
       "  __asm__ __volatile__(\"cpuid\"\n"
       "      : \"=a\"(eax), \"=b\"(ebx), \"=c\"(ecx), \"=d\"(edx)\n"
-      "      : \"0\"(eax));\n"
+      "      : \"a\"(eax));\n"
       "  return eax ^ ebx ^ ecx ^ edx;\n"
       "}\n"
       "u32 inline_rdrand(u8 *ok_out) {\n"
@@ -29535,6 +29720,9 @@ static int run_inline_assembly_object(const char *host_root) {
                          CTOOL_TRUE, &unit) ||
       unit.function_definition_count != 4u || unit.assembly_count != 4u ||
       unit.assembly_operand_count != 11u ||
+      unit.assembly_operands == NULL ||
+      !string_equal(unit.assembly_operands[6].constraint, "a") ||
+      unit.assembly_operands[6].matching_output != 0u ||
       !take_unit_snapshot(&unit, &snapshot)) {
     (void)fprintf(stderr, "inline-assembly object setup failed\n");
     goto cleanup;
@@ -32897,12 +33085,40 @@ static int validate_x87_sine_signed_zero_oracle(ctool_job_t *job) {
 static int validate_x87_sine_memory_object(
     ctool_job_t *job, const ctool_elf32_object_t *object) {
   const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_symbol_t *numeric =
+      find_symbol(object, "sine_store");
+  const ctool_elf32_symbol_t *numeric_qualified =
+      find_symbol(object, "sine_store_qualified");
+  const ctool_elf32_symbol_t *named =
+      find_symbol(object, "sine_store_named");
+  const ctool_elf32_symbol_t *named_qualified =
+      find_symbol(object, "sine_store_named_qualified");
   if (text == NULL || text->contents.data == NULL ||
       object->relocation_count != 0u ||
-      !validate_x87_sine_memory_function(
-          job, text, find_symbol(object, "sine_store")) ||
-      !validate_x87_sine_memory_function(
-          job, text, find_symbol(object, "sine_store_qualified")) ||
+      !validate_x87_sine_memory_function(job, text, numeric) ||
+      !validate_x87_sine_memory_function(job, text, numeric_qualified) ||
+      !validate_x87_sine_memory_function(job, text, named) ||
+      !validate_x87_sine_memory_function(job, text, named_qualified) ||
+      numeric == NULL || numeric_qualified == NULL ||
+      named == NULL || named_qualified == NULL ||
+      numeric->size != named->size ||
+      numeric_qualified->size != named_qualified->size ||
+      numeric->value > text->contents.size ||
+      numeric->size > text->contents.size - numeric->value ||
+      named->value > text->contents.size ||
+      named->size > text->contents.size - named->value ||
+      numeric_qualified->value > text->contents.size ||
+      numeric_qualified->size >
+          text->contents.size - numeric_qualified->value ||
+      named_qualified->value > text->contents.size ||
+      named_qualified->size >
+          text->contents.size - named_qualified->value ||
+      memcmp(text->contents.data + numeric->value,
+             text->contents.data + named->value,
+             (size_t)numeric->size) != 0 ||
+      memcmp(text->contents.data + numeric_qualified->value,
+             text->contents.data + named_qualified->value,
+             (size_t)numeric_qualified->size) != 0 ||
       !validate_x87_sine_signed_zero_oracle(job)) {
     (void)fprintf(stderr, "x87 sine memory assembly object differs\n");
     return 0;
@@ -33034,11 +33250,20 @@ cleanup:
 static int run_x87_sine_memory_assembly_object(const char *host_root) {
   static const char source[] =
       "void sine_store(double *out, const double *in) {\n"
-      "  __asm__ volatile(\"fldl %[in]\\n\\tfsin\\n\\tfstpl %[out]\\n\\t\" : "
-      "[out] \"=m\"(*out) : [in] \"m\"(*in));\n"
+      "  __asm__ volatile(\"fldl %1\\n\\tfsin\\n\\tfstpl %0\\n\\t\" : "
+      "\"=m\"(*out) : \"m\"(*in));\n"
       "}\n"
       "void sine_store_qualified(volatile double *out,\n"
       "                          const volatile double *in) {\n"
+      "  __asm__ volatile(\"fldl %1\\n\\tfsin\\n\\tfstpl %0\\n\\t\" : "
+      "\"=m\"(*out) : \"m\"(*in));\n"
+      "}\n"
+      "void sine_store_named(double *out, const double *in) {\n"
+      "  __asm__ volatile(\"fldl %[in]\\n\\tfsin\\n\\tfstpl %[out]\\n\\t\" : "
+      "[out] \"=m\"(*out) : [in] \"m\"(*in));\n"
+      "}\n"
+      "void sine_store_named_qualified(volatile double *out,\n"
+      "                                const volatile double *in) {\n"
       "  __asm__ volatile(\"fldl %[in]\\n\\tfsin\\n\\tfstpl %[out]\\n\\t\" : "
       "[out] \"=m\"(*out) : [in] \"m\"(*in));\n"
       "}\n";
@@ -33053,8 +33278,8 @@ static int run_x87_sine_memory_assembly_object(const char *host_root) {
   ctool_buffer_t *limited = NULL;
   ctool_c_translation_unit_t unit;
   ctool_c_translation_unit_t mutant;
-  ctool_c_assembly_t mutant_assemblies[2];
-  ctool_c_assembly_operand_t mutant_operands[4];
+  ctool_c_assembly_t mutant_assemblies[4];
+  ctool_c_assembly_operand_t mutant_operands[8];
   ctool_c_type_layout_t *mutant_layouts = NULL;
   unit_snapshot_t snapshot;
   ctool_source_t object_source;
@@ -33071,9 +33296,9 @@ static int run_x87_sine_memory_assembly_object(const char *host_root) {
       !parse_source_mode(
           job, "/x87-sine-memory-assembly-object.c", source,
           CTOOL_TRUE, &unit) ||
-      unit.function_definition_count != 2u ||
-      unit.assembly_count != 2u ||
-      unit.assembly_operand_count != 4u ||
+      unit.function_definition_count != 4u ||
+      unit.assembly_count != 4u ||
+      unit.assembly_operand_count != 8u ||
       !take_unit_snapshot(&unit, &snapshot)) {
     (void)fprintf(stderr, "x87 sine memory assembly object setup failed\n");
     goto cleanup;
@@ -33119,9 +33344,9 @@ static int run_x87_sine_memory_assembly_object(const char *host_root) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
-  if (second_bytes.size != 440u ||
-      find_section(&object, ".text")->contents.size != 70u ||
-      object.section_count != 5u || object.symbol_count != 3u ||
+  if (second_bytes.size != 584u ||
+      find_section(&object, ".text")->contents.size != 140u ||
+      object.section_count != 5u || object.symbol_count != 5u ||
       object.relocation_count != 0u) {
     (void)fprintf(
         stderr,
@@ -38014,6 +38239,59 @@ static int validate_flags_snapshot_function(
   return 1;
 }
 
+static int validate_flags_restore_function(
+    ctool_job_t *job, const ctool_elf32_section_t *text,
+    const ctool_elf32_symbol_t *symbol) {
+  ctool_u32 cursor = 0u;
+  ctool_u32 restore_count = 0u;
+  if (job == NULL || text == NULL || symbol == NULL ||
+      symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      symbol->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
+      symbol->value > text->contents.size ||
+      symbol->size > text->contents.size - symbol->value) {
+    (void)fprintf(stderr, "flags restore function range differs\n");
+    return 0;
+  }
+  while (cursor < symbol->size) {
+    ctool_x86_decoded_t decoded;
+    ctool_bytes_t remaining =
+        ctool_bytes(text->contents.data + symbol->value + cursor,
+                    symbol->size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(
+        job, CTOOL_X86_MODE_32, remaining, 0u, &decoded);
+    if (status != CTOOL_OK ||
+        decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      return 0;
+    }
+    if (decoded.instruction.mnemonic == CTOOL_X86_MN_POPF) {
+      const ctool_u8 *function_bytes =
+          text->contents.data + symbol->value;
+      static const ctool_u8 expected_restore[] = {
+          0x58u, 0x50u, 0x9du};
+      if (decoded.instruction.operand_count != 0u ||
+          decoded.consumed != 1u ||
+          cursor < 2u ||
+          memcmp(function_bytes + cursor - 2u, expected_restore,
+                 sizeof(expected_restore)) != 0) {
+        (void)fprintf(stderr, "flags restore instruction bytes differ\n");
+        return 0;
+      }
+      restore_count++;
+    }
+    cursor += decoded.consumed;
+  }
+  if (cursor != symbol->size || restore_count != 1u) {
+    (void)fprintf(
+        stderr, "flags restore instruction count differs: %u\n",
+        (unsigned int)restore_count);
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_register_snapshot_assembly_object(
     ctool_job_t *job, const ctool_elf32_object_t *object) {
   static const char *const names[] = {
@@ -38193,7 +38471,9 @@ static int validate_register_snapshot_assembly_object(
   if (!validate_flags_snapshot_function(
           job, text, find_symbol(object, "snapshot_flags"), 0) ||
       !validate_flags_snapshot_function(
-          job, text, find_symbol(object, "snapshot_flags_cli"), 1)) {
+          job, text, find_symbol(object, "snapshot_flags_cli"), 1) ||
+      !validate_flags_restore_function(
+          job, text, find_symbol(object, "restore_flags"))) {
     return 0;
   }
   {
@@ -38292,6 +38572,10 @@ static int run_register_snapshot_assembly_object(
       "  unsigned value;\n"
       "  __asm__ volatile(\"pushf; pop %0; cli\" : \"=r\"(value));\n"
       "  return value;\n"
+      "}\n"
+      "void restore_flags(unsigned value) {\n"
+      "  __asm__ volatile(\"pushl %0\\n\\tpopfl\\n\\t\" : : "
+      "\"r\"(value) : \"cc\");\n"
       "}\n";
   static const ctool_u32 invalid_template_assemblies[] = {
       0u, 0u, 0u, 0u, 0u, 0u, 9u, 10u, 10u, 11u, 11u};
@@ -38350,8 +38634,8 @@ static int run_register_snapshot_assembly_object(
   ctool_c_translation_unit_t extra_output_unit;
   ctool_c_translation_unit_t matching_input_unit;
   ctool_c_translation_unit_t pointer_output_unit;
-  ctool_c_assembly_t mutant_assemblies[12];
-  ctool_c_assembly_operand_t mutant_operands[12];
+  ctool_c_assembly_t mutant_assemblies[13];
+  ctool_c_assembly_operand_t mutant_operands[13];
   unit_snapshot_t snapshot;
   ctool_source_t object_source;
   ctool_elf32_object_t object;
@@ -38370,9 +38654,9 @@ static int run_register_snapshot_assembly_object(
       !parse_source_mode(
           job, "/register-snapshot-assembly-object.c",
           source, CTOOL_TRUE, &unit) ||
-      unit.function_definition_count != 12u ||
-      unit.assembly_count != 12u ||
-      unit.assembly_operand_count != 12u ||
+      unit.function_definition_count != 13u ||
+      unit.assembly_count != 13u ||
+      unit.assembly_operand_count != 13u ||
       !parse_source_mode(
           job, "/register-snapshot-extra-output.c",
           extra_output_source, CTOOL_TRUE, &extra_output_unit) ||
@@ -38536,6 +38820,39 @@ static int run_register_snapshot_assembly_object(
     goto cleanup;
   }
   mutant_operands[0] = unit.assembly_operands[0];
+
+  mutant_assemblies[12].flags &= ~CTOOL_C_ASSEMBLY_CC_CLOBBER;
+  if (!expect_object_failure_preserves_unit(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "flags restore without cc clobber") ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_assemblies[12] = unit.assemblies[12];
+
+  mutant_assemblies[12].template_text = ctool_string("nop");
+  if (!expect_object_failure_preserves_unit(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "unrelated object cc clobber template") ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_assemblies[12] = unit.assemblies[12];
+
+  mutant_operands[12].constraint = ctool_string("a");
+  if (!expect_object_failure_preserves_unit(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "flags restore fixed-register object input") ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_operands[12] = unit.assembly_operands[12];
 
   if (!expect_object_failure_preserves_unit(
           job, &extra_output_unit, failure, CTOOL_ERR_UNSUPPORTED,
@@ -41517,6 +41834,10 @@ cleanup:
 }
 
 int main(int argc, char **argv) {
+  if (argc == 4 &&
+      strcmp(argv[1], "fpu-init-codegen-policy") == 0) {
+    return run_fpu_init_codegen_policy(argv[2], argv[3]);
+  }
   if (argc == 3 && strcmp(argv[1], "weak-symbols") == 0) {
     return run_weak_symbols(argv[2]);
   }
@@ -41771,6 +42092,7 @@ int main(int argc, char **argv) {
                 "static-data|static-typed-null|section-attributes|"
                 "unused-attributes|used-attributes|"
                 "function-codegen-attributes|"
+                "fpu-init-codegen-policy HOST_ROOT OBJECT|"
                 "direct-goto|switch-object|"
                 "pointer-values|pointer-comparisons|pointer-conditions|"
                 "pointer-arithmetic|function-pointers|"

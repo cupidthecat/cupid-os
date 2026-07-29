@@ -29900,7 +29900,7 @@ static const char inline_assembly_source[] =
     "  asm_u32 eax = 1, ebx = 0, ecx = 0, edx = 0;\n"
     "  __asm__ __volatile__(\"cpuid\"\n"
     "      : \"=a\"(eax), \"=b\"(ebx), \"=c\"(ecx), \"=d\"(edx)\n"
-    "      : \"0\"(eax));\n"
+    "      : \"a\"(eax));\n"
     "}\n"
     "void random_word(void) {\n"
     "  asm_u32 value = 0;\n"
@@ -29911,6 +29911,7 @@ static const char inline_assembly_source[] =
     "void dead_output(void) {\n"
     "  unsigned long value;\n"
     "  return;\n"
+    "  float forged = 1.0f;\n"
     "  __asm__ __volatile__(\"nop\" : \"=a\"(value));\n"
     "}\n";
 
@@ -29963,7 +29964,7 @@ static int inline_assembly_ir_matches(
   ctool_u32 function_index;
   if (unit == NULL || ir == NULL || unit->assembly_count != 4u ||
       unit->assembly_operand_count != 10u ||
-      unit->block_binding_count != 9u || ir->function_count != 4u ||
+      unit->block_binding_count != 10u || ir->function_count != 4u ||
       ir->functions == NULL || ir->instructions == NULL ||
       unit->assemblies == NULL || unit->assembly_operands == NULL ||
       unit->assemblies[0].first_operand != 0u ||
@@ -29983,6 +29984,7 @@ static int inline_assembly_ir_matches(
       string_equal(unit->assemblies[2].template_text,
                    "rdrand %0; setc %1") == 0 ||
       string_equal(unit->assemblies[3].template_text, "nop") == 0 ||
+      string_equal(unit->assembly_operands[6].constraint, "a") == 0 ||
       unit->assembly_operands[6].matching_output != 0u) {
     (void)fprintf(stderr,
                   "inline-assembly: frontend or top-level IR shape differs\n");
@@ -30096,6 +30098,7 @@ static int run_inline_assembly(const char *host_root) {
       CTOOL_C_AST_NONE, CTOOL_C_AST_NONE, CTOOL_C_AST_NONE,
       CTOOL_C_AST_NONE};
   ctool_u32 diagnostic_count;
+  ctool_u32 floating_constant = CTOOL_C_AST_NONE;
   ctool_u32 index;
   ctool_u32 found = 0u;
   uint64_t unit_hash;
@@ -30176,6 +30179,16 @@ static int run_inline_assembly(const char *host_root) {
     }
   }
   if (found != 4u) {
+    goto cleanup;
+  }
+  for (index = 0u; index < unit.expression_count; index++) {
+    if (unit.expressions[index].kind ==
+        CTOOL_C_EXPRESSION_FLOATING_CONSTANT) {
+      floating_constant = index;
+      break;
+    }
+  }
+  if (floating_constant == CTOOL_C_AST_NONE) {
     goto cleanup;
   }
 
@@ -30311,6 +30324,31 @@ static int run_inline_assembly(const char *host_root) {
           "assembly matching constraint mismatch")) {
     goto cleanup;
   }
+  operands[6] = unit.assembly_operands[6];
+
+  operands[6].expression = floating_constant;
+  operands[6].type = unit.expressions[floating_constant].type;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "non-integer fixed assembly overlap")) {
+    goto cleanup;
+  }
+  operands[6] = unit.assembly_operands[6];
+
+  operands[2].constraint = ctool_string("+c");
+  operands[4].constraint = ctool_string("=a");
+  operands[6].constraint = ctool_string("c");
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "read-write fixed assembly output overlap")) {
+    goto cleanup;
+  }
+  operands[2] = unit.assembly_operands[2];
+  operands[4] = unit.assembly_operands[4];
   operands[6] = unit.assembly_operands[6];
 
   (void)memcpy(duplicate_assemblies, unit.assemblies,
@@ -32105,11 +32143,20 @@ static const char x87_sine_memory_assembly_source[] =
     "double *next_sine_out(void);\n"
     "const double *next_sine_in(void);\n"
     "void sine_calls(void) {\n"
-    "  __asm__ volatile(\"fldl %[in]\\n\\tfsin\\n\\tfstpl %[out]\\n\\t\" : "
-    "[out] \"=m\"(*next_sine_out()) : [in] \"m\"(*next_sine_in()));\n"
+    "  __asm__ volatile(\"fldl %1\\n\\tfsin\\n\\tfstpl %0\\n\\t\" : "
+    "\"=m\"(*next_sine_out()) : \"m\"(*next_sine_in()));\n"
     "}\n"
     "void sine_parameters(volatile double *out,\n"
     "                     const volatile double *in) {\n"
+    "  __asm__ volatile(\"fldl %1\\n\\tfsin\\n\\tfstpl %0\\n\\t\" : "
+    "\"=m\"(*out) : \"m\"(*in));\n"
+    "}\n"
+    "void sine_named_calls(void) {\n"
+    "  __asm__ volatile(\"fldl %[in]\\n\\tfsin\\n\\tfstpl %[out]\\n\\t\" : "
+    "[out] \"=m\"(*next_sine_out()) : [in] \"m\"(*next_sine_in()));\n"
+    "}\n"
+    "void sine_named_parameters(volatile double *out,\n"
+    "                           const volatile double *in) {\n"
     "  __asm__ volatile(\"fldl %[in]\\n\\tfsin\\n\\tfstpl %[out]\\n\\t\" : "
     "[out] \"=m\"(*out) : [in] \"m\"(*in));\n"
     "}\n"
@@ -32122,7 +32169,7 @@ static const char x87_sine_memory_assembly_source[] =
 static int x87_sine_memory_assembly_ir_matches(
     const ctool_c_translation_unit_t *unit,
     const ctool_c_ir_unit_t *ir) {
-  static const ctool_u32 expected_depths[] = {2u, 2u, 0u};
+  static const ctool_u32 expected_depths[] = {2u, 2u, 2u, 2u, 0u};
   ctool_u32 next_out;
   ctool_u32 next_in;
   ctool_u32 function_index;
@@ -32132,15 +32179,15 @@ static int x87_sine_memory_assembly_ir_matches(
   next_out = find_binding(unit, "next_sine_out");
   next_in = find_binding(unit, "next_sine_in");
   if (next_out == CTOOL_C_AST_NONE || next_in == CTOOL_C_AST_NONE ||
-      unit->assembly_count != 3u ||
-      unit->assembly_operand_count != 6u ||
+      unit->assembly_count != 5u ||
+      unit->assembly_operand_count != 10u ||
       unit->assemblies == NULL || unit->assembly_operands == NULL ||
       unit->layout.types == NULL ||
-      ir->function_count != 3u ||
+      ir->function_count != 5u ||
       ir->functions == NULL || ir->instructions == NULL) {
     return 0;
   }
-  for (function_index = 0u; function_index < 3u; function_index++) {
+  for (function_index = 0u; function_index < 5u; function_index++) {
     const ctool_c_assembly_t *assembly =
         &unit->assemblies[function_index];
     const ctool_c_ir_function_t *function =
@@ -32181,7 +32228,7 @@ static int x87_sine_memory_assembly_ir_matches(
         assembly_count++;
       }
     }
-    if ((function_index == 0u &&
+    if (((function_index == 0u || function_index == 2u) &&
          (assembly_count != 1u || call_count != 2u ||
           assembly_instruction < function->first_instruction + 4u ||
           ir->instructions[assembly_instruction - 4u].kind !=
@@ -32196,7 +32243,7 @@ static int x87_sine_memory_assembly_ir_matches(
               next_in ||
           ir->instructions[assembly_instruction - 1u].kind !=
               CTOOL_C_IR_INSTRUCTION_DEREFERENCE)) ||
-        (function_index == 1u &&
+        ((function_index == 1u || function_index == 3u) &&
          (assembly_count != 1u || call_count != 0u ||
           assembly_instruction < function->first_instruction + 6u ||
           ir->instructions[assembly_instruction - 6u].kind !=
@@ -32211,8 +32258,8 @@ static int x87_sine_memory_assembly_ir_matches(
               CTOOL_C_IR_INSTRUCTION_LOAD ||
           ir->instructions[assembly_instruction - 1u].kind !=
               CTOOL_C_IR_INSTRUCTION_DEREFERENCE)) ||
-        (function_index == 2u &&
-         (assembly_count != 0u || call_count != 0u))) {
+        (function_index == 4u &&
+          (assembly_count != 0u || call_count != 0u))) {
       return 0;
     }
   }
@@ -32230,8 +32277,8 @@ static int run_x87_sine_memory_assembly(const char *host_root) {
   ctool_c_ir_unit_t first_ir;
   ctool_c_ir_unit_t repeat_ir;
   ctool_c_ir_unit_t recovered_ir;
-  ctool_c_assembly_t assemblies[3];
-  ctool_c_assembly_operand_t operands[6];
+  ctool_c_assembly_t assemblies[5];
+  ctool_c_assembly_operand_t operands[10];
   ctool_c_type_layout_t *layouts = NULL;
   ctool_u32 diagnostic_count;
   uint64_t unit_hash;
@@ -32271,8 +32318,8 @@ static int run_x87_sine_memory_assembly(const char *host_root) {
         stderr, "x87-sine-memory-assembly: repeated lowering differs\n");
     goto cleanup;
   }
-  if (unit.assembly_count != 3u ||
-      unit.assembly_operand_count != 6u ||
+  if (unit.assembly_count != 5u ||
+      unit.assembly_operand_count != 10u ||
       unit.layout.types == NULL ||
       sizeof(*layouts) > SIZE_MAX / (size_t)unit.layout.type_count) {
     goto cleanup;
@@ -32348,14 +32395,14 @@ static int run_x87_sine_memory_assembly(const char *host_root) {
   }
   operands[1] = unit.assembly_operands[1];
 
-  operands[5].type = CTOOL_C_TYPE_NONE;
+  operands[9].type = CTOOL_C_TYPE_NONE;
   if (!expect_ir_failure_preserves_unit(
           job, &invalid_unit, CTOOL_ERR_INPUT,
           CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
           "unreachable x87 sine input type mismatch")) {
     goto cleanup;
   }
-  operands[5] = unit.assembly_operands[5];
+  operands[9] = unit.assembly_operands[9];
 
   layouts = (ctool_c_type_layout_t *)malloc(
       (size_t)unit.layout.type_count * sizeof(*layouts));
@@ -35190,6 +35237,216 @@ cleanup:
   }
   if (passed != 0) {
     (void)puts("legacy-port-assembly: ok");
+    return 0;
+  }
+  return 1;
+}
+
+static const char flags_restore_assembly_source[] =
+    "typedef unsigned u32;\n"
+    "void restore_flags(u32 value) {\n"
+    "  __asm__ volatile(\"pushl %0\\n\\tpopfl\\n\\t\" : : "
+    "\"r\"(value) : \"cc\");\n"
+    "}\n";
+
+static int flags_restore_assembly_ir_matches(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir) {
+  const ctool_c_assembly_t *assembly;
+  const ctool_c_assembly_operand_t *operand;
+  const ctool_c_ir_function_t *function;
+  ctool_u32 assembly_instructions = 0u;
+  ctool_u32 index;
+
+  if (unit == NULL || ir == NULL ||
+      unit->assembly_count != 1u ||
+      unit->assembly_operand_count != 1u ||
+      unit->assemblies == NULL ||
+      unit->assembly_operands == NULL ||
+      unit->expressions == NULL ||
+      unit->layout.types == NULL ||
+      ir->function_count != 1u ||
+      ir->functions == NULL ||
+      ir->instructions == NULL) {
+    (void)fprintf(
+        stderr, "flags-restore-assembly: top-level IR shape differs\n");
+    return 0;
+  }
+  assembly = &unit->assemblies[0];
+  operand = &unit->assembly_operands[0];
+  function = &ir->functions[0];
+  if (assembly->flags !=
+          (CTOOL_C_ASSEMBLY_VOLATILE |
+           CTOOL_C_ASSEMBLY_CC_CLOBBER) ||
+      assembly->output_count != 0u ||
+      assembly->input_count != 1u ||
+      assembly->first_operand != 0u ||
+      !string_equal(
+          assembly->template_text, "pushl %0\n\tpopfl\n\t") ||
+      !string_equal(operand->constraint, "r") ||
+      operand->matching_output != CTOOL_C_AST_NONE ||
+      operand->expression >= unit->expression_count ||
+      operand->type >= unit->layout.type_count ||
+      unit->layout.types[operand->type].is_integer != CTOOL_TRUE ||
+      unit->layout.types[operand->type].size != 4u ||
+      unit->expressions[operand->expression].type != operand->type ||
+      function->first_instruction > ir->instruction_count ||
+      function->instruction_count >
+          ir->instruction_count - function->first_instruction ||
+      function->maximum_stack_depth != 1u) {
+    (void)fprintf(
+        stderr, "flags-restore-assembly: metadata differs\n");
+    return 0;
+  }
+  for (index = 0u; index < function->instruction_count; index++) {
+    const ctool_c_ir_instruction_t *instruction =
+        &ir->instructions[function->first_instruction + index];
+    if (instruction->kind == CTOOL_C_IR_INSTRUCTION_ASSEMBLY) {
+      if (!inline_assembly_instruction_matches(
+              instruction, 0u, "/flags-restore-assembly.c") ||
+          index == 0u) {
+        (void)fprintf(
+            stderr, "flags-restore-assembly: instruction order differs\n");
+        return 0;
+      }
+      assembly_instructions++;
+    }
+  }
+  if (assembly_instructions != 1u) {
+    (void)fprintf(
+        stderr, "flags-restore-assembly: instruction count differs\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int run_flags_restore_assembly(const char *host_root) {
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_ir_unit_t first_ir;
+  ctool_c_ir_unit_t repeat_ir;
+  ctool_c_ir_unit_t recovered_ir;
+  ctool_c_assembly_t assembly;
+  ctool_c_assembly_operand_t operand;
+  ctool_u32 diagnostic_count;
+  uint64_t unit_hash;
+  uint64_t ir_hash;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&first_ir, 0xa5, sizeof(first_ir));
+  (void)memset(&repeat_ir, 0xa5, sizeof(repeat_ir));
+  (void)memset(&recovered_ir, 0xa5, sizeof(recovered_ir));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(
+          job, "/flags-restore-assembly.c",
+          flags_restore_assembly_source, CTOOL_TRUE, &unit)) {
+    goto cleanup;
+  }
+  unit_hash = unit_fingerprint(&unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &unit, &first_ir);
+  if (!check_status(
+          status, CTOOL_OK, "flags restore assembly lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash ||
+      !flags_restore_assembly_ir_matches(&unit, &first_ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  ir_hash = inline_assembly_ir_fingerprint(&first_ir);
+  status = ctool_c_lower_ir(job, &unit, &repeat_ir);
+  if (!check_status(
+          status, CTOOL_OK, "repeat flags restore assembly lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash ||
+      ir_hash == 0u ||
+      inline_assembly_ir_fingerprint(&repeat_ir) != ir_hash ||
+      !flags_restore_assembly_ir_matches(&unit, &repeat_ir)) {
+    (void)fprintf(
+        stderr, "flags-restore-assembly: repeated lowering differs\n");
+    goto cleanup;
+  }
+
+  assembly = unit.assemblies[0];
+  operand = unit.assembly_operands[0];
+  invalid_unit = unit;
+  invalid_unit.assemblies = &assembly;
+  invalid_unit.assembly_operands = &operand;
+
+  assembly.flags &= ~CTOOL_C_ASSEMBLY_CC_CLOBBER;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "flags restore without cc clobber")) {
+    goto cleanup;
+  }
+  assembly = unit.assemblies[0];
+
+  assembly.flags |= CTOOL_C_ASSEMBLY_MEMORY_CLOBBER;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "flags restore with extra clobber")) {
+    goto cleanup;
+  }
+  assembly = unit.assemblies[0];
+
+  assembly.template_text = ctool_string("nop");
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "unrelated cc clobber template")) {
+    goto cleanup;
+  }
+  assembly = unit.assemblies[0];
+
+  operand.constraint = ctool_string("a");
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "flags restore fixed-register input")) {
+    goto cleanup;
+  }
+  operand = unit.assembly_operands[0];
+
+  operand.matching_output = 0u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "flags restore matching input")) {
+    goto cleanup;
+  }
+  operand = unit.assembly_operands[0];
+
+  status = ctool_c_lower_ir(job, &unit, &recovered_ir);
+  if (!check_status(
+          status, CTOOL_OK, "flags restore assembly recovery") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count + 5u ||
+      unit_fingerprint(&unit) != unit_hash ||
+      inline_assembly_ir_fingerprint(&recovered_ir) != ir_hash ||
+      !flags_restore_assembly_ir_matches(&unit, &recovered_ir)) {
+    (void)fprintf(
+        stderr, "flags-restore-assembly: lowering did not recover\n");
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("flags-restore-assembly: ok");
     return 0;
   }
   return 1;
@@ -38328,6 +38585,10 @@ int main(int argc, char **argv) {
       strcmp(argv[1], "register-snapshot-assembly") == 0) {
     return run_register_snapshot_assembly(argv[2]);
   }
+  if (argc == 3 &&
+      strcmp(argv[1], "flags-restore-assembly") == 0) {
+    return run_flags_restore_assembly(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "call-next-assembly") == 0) {
     return run_call_next_assembly(argv[2]);
   }
@@ -38390,6 +38651,7 @@ int main(int argc, char **argv) {
                 "x87-exp-memory-assembly|"
                 "descriptor-table-assembly|"
                 "register-snapshot-assembly|"
+                "flags-restore-assembly|"
                 "call-next-assembly|"
                 "pointer-output-assembly|"
                 "operand-free-assembly|file-scope-assembly|"

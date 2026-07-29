@@ -36,6 +36,7 @@ SMP_RUNTIME_REQUIRED_MARKERS = (
     "[csprng] seeded from RDRAND",
     "mp: discovered 1 CPUs, 1 IOAPIC(s)",
     "acpi: MADT: 4 CPUs, 1 IOAPIC(s)",
+    "[fpu] SSE2 enabled",
     "cpu1: online",
     "cpu2: online",
     "cpu3: online",

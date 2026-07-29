@@ -45,7 +45,7 @@ the first source-driven ownership, ADR 0123 records the latest production
 transfer, ADR 0124 records the 111-root naming transfer, ADR 0126 records
 the fixed-point rename and old-seed proof, ADR 0129 records the lexer
 handoff, ADR 0135 records the Nuked OPL3 transfer, ADR 0139 records the
-JPEG and glyph-raster transfer, and ADR 0160 records the FPU and SMP transfer.
+JPEG and glyph-raster transfer, and ADR 0167 records the FPU and SMP transfer.
 
 The combined cohort's four-vCPU GUI proof starts every CPU, forces the CSPRNG
 through RDRAND, passes all 62 crypto, ASN.1, and X.509 checks, reaches e1000
@@ -367,7 +367,7 @@ Eight-byte integer and exact floating object access use those existing storage i
 
 File definitions and block-static bindings now share one object encoder. It places file objects first, then every block static in absolute binding order, before it emits functions. The same initializer forms, section rules, target bytes, symbol construction, and direct-symbol relocations apply to both storage domains. Static initializer addresses based on another block static remain a frontend boundary.
 
-The unchanged FAT16 and active-header contracts still pin layout, redeclaration, attribute, assertion, and lexical ownership. The checked seed passes the active 155/155 non-Doom header sweep. `cpu.h` passes through the represented RDTSC form, the three roots that include `percpu.h` parse through all active integer atomics, and `ports.h` parses through all eight width-aware helpers. All twelve Toolchain source gates parse completely. Each five-number tuple reports definitions, statements, expressions, block bindings, and initializers. `cupidc_pp.cc` publishes 143/3,932/25,287/479/286. `cupidc_ir.cc` publishes 240/6,938/64,075/912/333. `cupidc_emit.cc` publishes 272/6,794/58,493/845/451, while `cupidc_frontend.cc` publishes 385/15,526/102,378/2,328/1,440. The generated audit records the current active-source totals and source graph.
+The unchanged FAT16 and active-header contracts still pin layout, redeclaration, attribute, assertion, and lexical ownership. The checked seed passes the active 155/155 non-Doom header sweep. `cpu.h` passes through the represented RDTSC form, the three roots that include `percpu.h` parse through all active integer atomics, and `ports.h` parses through all eight width-aware helpers. All twelve Toolchain source gates parse completely. Each five-number tuple reports definitions, statements, expressions, block bindings, and initializers. `cupidc_pp.cc` publishes 143/3,932/25,287/479/286. `cupidc_ir.cc` publishes 248/7,018/65,089/922/336. `cupidc_emit.cc` publishes 283/6,970/59,954/857/453, while `cupidc_frontend.cc` publishes 401/15,913/104,980/2,387/1,468. The generated audit records the current active-source totals and source graph.
 
 These hosted semantics do not retire a host dependency. GCC or Clang still builds the shared frontend, emitter, and contracts, the host linker still links the hosted tools, and the host C compiler still owns 87 normal OS root objects and 139 active transforms, while the private kernel compiler owns embedded runtime JIT and AOT compilation. The open host-bound work includes chained and overriding designators, promoted anonymous-member designators, repeated union-member overrides, Cupid class lists, static member-address constants, explicit address casts, broader runtime values and addresses, deferred automatic initializer forms, aggregate categories outside the supported structure slice, Boolean mutation, character-sized bit-field storage, non-four-byte storage units, partial volatile bit-field mutation, pointer and eight-byte atomics, computed `goto`, GNU label addresses, the remaining GNU surface, hexadecimal floating literals, `long double`, unrepresented runtime floating and integer conversions, runtime floating truth and controlling expressions, runtime mixed wide and floating arithmetic or conditional arms, floating increment and decrement, broader local and function code generation, whole-unit emission, and production integration. The private compiler's tagged loop and switch frames change production JIT output and pass the expanded in-OS `feature25` smoke. It transfers no build ownership.
 
@@ -379,6 +379,11 @@ float-memory forms in `fpu_boot_smoke()`, and the exact balanced x87
 builds of `kernel/cpu/fpu.cc` produce the same validated 6,620-byte object
 with SHA-256
 `14c3ea232b7d4455ceabd561c69293cc5849abae24d9f210aa69d64ed8c8a5cb`.
+The production object contract decodes `fpu_init_cpu()` with Cupid's ELF and
+x86 readers. It rejects helper calls and floating work before the CR4 write,
+requires one `FNINIT` followed by one 32-bit memory `LDMXCSR`, and rejects
+other floating work in that function. A negative fixture replaces the CR4
+write with NOPs and must fail before `FNINIT`.
 
 The checked seed also accepts the complete unchanged x87 control-word block in
 `str_floor()`, including its exact AX and memory clobbers. The emitter reuses
@@ -395,6 +400,18 @@ double-to-`uint64_t` cast on line 190.
 unit and production gate pass. ADRs 0141, 0146, 0148, 0150, and 0154 record
 the boundaries.
 
+Compiler head now accepts the exact volatile EFLAGS restore used twice by
+`simd_cpu_has_cpuid()`: one 32-bit `r` input, no outputs, and one `cc`
+clobber. The shared x86 path emits `POP EAX`, `PUSH EAX`, and `POPF` without
+a temporary or relocation. Compiler head also accepts the valid fixed EAX
+overlap in the following CPUID statement. Its `a` input keeps the original
+constraint and names the compatible `=a` output; the emitter consumes the
+leaf through EAX immediately before CPUID. A complete unchanged-source probe
+now advances to the unsupported `xmm1` clobber on line 134. The checked seed
+and normal `kernel/cpu/simd.c` recipe still predate both capabilities, so
+this work retires no host dependency and the source keeps its `.c` suffix.
+ADRs 0160 and 0162 record the boundaries.
+
 The checked seed also emits `kernel/smp/percpu.cc` completely. Its
 exact GNU assembly forms load a packed six-byte GDTR, reload the code and
 data segments, and write a represented 16-bit selector to GS. Two validated
@@ -402,7 +419,7 @@ compiles produce the same 6,760-byte object with SHA-256
 `3c2c6f0e00e5edec1ca16cba91e9fc593d1c42e24f4ebd3591e5f574fb0dd772`.
 The checked normal wrapper owns the 6,760-byte object and its frozen recursive
 closure. The image and four-vCPU dual-NIC runtime gates pass. ADR 0157 records
-the language boundary, and ADR 0160 records the production transfer.
+the language boundary, and ADR 0167 records the production transfer.
 
 The checked seed also represents the three exact naked IPI entries. The two
 call wrappers emit without a C frame and retain a
@@ -413,7 +430,7 @@ The checked production root is `kernel/smp/smp.cc`; its 8,444-byte object has
 SHA-256
 `bd3189b2a1a6d15728c559172f5d6acca0889103428085cec8cc1024742a22d1`.
 The existing `__FILE__` diagnostic accounts for the new hash. ADR 0156 records
-the language boundary, and ADR 0160 records the production transfer.
+the language boundary, and ADR 0167 records the production transfer.
 
 The private compiler now bounds the parser work behind that smoke. It accepts
 128 active loop-or-switch controls and 1,024 active statement calls, rejects

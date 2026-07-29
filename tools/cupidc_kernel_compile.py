@@ -56,6 +56,8 @@ KERNEL_CRYPTO_SOURCES = tuple(
 APPROVED_SMP_SOURCES = (
     "kernel/smp/acpi.cc",
     "kernel/smp/mp_tables.cc",
+    "kernel/smp/percpu.cc",
+    "kernel/smp/smp.cc",
 )
 APPROVED_OPERAND_FREE_SOURCES = (
     "drivers/e1000.cc",
@@ -192,8 +194,6 @@ APPROVED_SOURCE_DRIVEN_SOURCES = (
     "kernel/network/udp.cc",
     "kernel/smp/bkl.cc",
     "kernel/smp/lapic.cc",
-    "kernel/smp/percpu.cc",
-    "kernel/smp/smp.cc",
     "kernel/tls/tls_ca_bundle.cc",
 )
 APPROVED_GENERATED_KERNEL_SOURCES = (

@@ -362,6 +362,37 @@ static ctool_bool cir_matching_assembly_constraint(
   return CTOOL_TRUE;
 }
 
+static ctool_bool cir_fixed_input_overlaps_output(
+    const cir_context_t *context, const ctool_c_assembly_t *assembly,
+    const ctool_c_assembly_operand_t *operand,
+    ctool_u32 fixed_input_register) {
+  const ctool_c_assembly_operand_t *output;
+  if (context == (const cir_context_t *)0 ||
+      context->unit == (const ctool_c_translation_unit_t *)0 ||
+      assembly == (const ctool_c_assembly_t *)0 ||
+      operand == (const ctool_c_assembly_operand_t *)0 ||
+      fixed_input_register == 0u ||
+      operand->matching_output >= assembly->output_count ||
+      context->unit->assembly_operands ==
+          (const ctool_c_assembly_operand_t *)0 ||
+      assembly->first_operand >
+          context->unit->assembly_operand_count ||
+      operand->matching_output >=
+          context->unit->assembly_operand_count -
+              assembly->first_operand) {
+    return CTOOL_FALSE;
+  }
+  output = &context->unit->assembly_operands[
+      assembly->first_operand + operand->matching_output];
+  return output->constraint.data != (const char *)0 &&
+                 output->constraint.size == 2u &&
+                 output->constraint.data[0] == '=' &&
+                 cir_fixed_output_assembly_register(output->constraint) ==
+                     fixed_input_register
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
 static ctool_bool cir_assembly_template_starts_call(
     ctool_string_t template_text) {
   ctool_u32 cursor = 0u;
@@ -558,6 +589,58 @@ static ctool_bool cir_call_next_assembly_metadata_is_valid(
   expression = &context->unit->expressions[operand->expression];
   return expression->type == operand->type ? CTOOL_TRUE
                                             : CTOOL_FALSE;
+}
+
+static ctool_bool cir_flags_restore_assembly_template(
+    ctool_string_t template_text) {
+  return cir_string_equal(
+      template_text, ctool_string("pushl %0\n\tpopfl\n\t"));
+}
+
+static ctool_bool cir_flags_restore_assembly_metadata_is_valid(
+    const cir_context_t *context,
+    const ctool_c_assembly_t *assembly) {
+  const ctool_c_assembly_operand_t *operand;
+  const ctool_c_type_layout_t *layout;
+  if (cir_flags_restore_assembly_template(
+          assembly->template_text) == CTOOL_FALSE) {
+    return (assembly->flags & CTOOL_C_ASSEMBLY_CC_CLOBBER) == 0u
+               ? CTOOL_TRUE
+               : CTOOL_FALSE;
+  }
+  if (assembly->flags !=
+          (CTOOL_C_ASSEMBLY_VOLATILE |
+           CTOOL_C_ASSEMBLY_CC_CLOBBER) ||
+      assembly->output_count != 0u ||
+      assembly->input_count != 1u ||
+      assembly->first_operand >=
+          context->unit->assembly_operand_count ||
+      context->unit->assembly_operands ==
+          (const ctool_c_assembly_operand_t *)0 ||
+      context->unit->expressions ==
+          (const ctool_c_expression_t *)0) {
+    return CTOOL_FALSE;
+  }
+  operand =
+      &context->unit->assembly_operands[assembly->first_operand];
+  if (operand->expression >= context->unit->expression_count ||
+      operand->type >= context->unit->layout.type_count ||
+      operand->matching_output != CTOOL_C_AST_NONE ||
+      cir_string_equal(
+          operand->constraint, ctool_string("r")) == CTOOL_FALSE ||
+      context->unit->expressions[operand->expression].type !=
+          operand->type ||
+      cir_type_has_atomic_qualification(
+          context, operand->type) == CTOOL_TRUE) {
+    return CTOOL_FALSE;
+  }
+  layout = &context->unit->layout.types[operand->type];
+  return layout->is_integer == CTOOL_TRUE &&
+                 layout->is_object == CTOOL_TRUE &&
+                 layout->is_complete_object == CTOOL_TRUE &&
+                 layout->size == 4u
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
 }
 
 static ctool_bool cir_fxsave_assembly_metadata_is_valid(
@@ -1462,7 +1545,8 @@ static ctool_status_t cir_validate_assembly_slices(
          ~(CTOOL_C_ASSEMBLY_BASIC | CTOOL_C_ASSEMBLY_VOLATILE |
            CTOOL_C_ASSEMBLY_MEMORY_CLOBBER |
            CTOOL_C_ASSEMBLY_XMM0_CLOBBER |
-           CTOOL_C_ASSEMBLY_AX_CLOBBER)) != 0u ||
+           CTOOL_C_ASSEMBLY_AX_CLOBBER |
+           CTOOL_C_ASSEMBLY_CC_CLOBBER)) != 0u ||
         assembly->output_count > 4u ||
         assembly->first_operand != operand_cursor ||
         cir_add_overflows(assembly->output_count,
@@ -1526,13 +1610,22 @@ static ctool_status_t cir_validate_assembly_slices(
                     operand->constraint, &fixed_input_register);
       ctool_bool matching = cir_matching_assembly_constraint(
           operand->constraint, &matching_output);
+      ctool_bool fixed_overlap =
+          independent == CTOOL_TRUE
+              ? cir_fixed_input_overlaps_output(
+                    context, assembly, operand, fixed_input_register)
+              : CTOOL_FALSE;
       if (operand->expression >= context->unit->expression_count ||
           operand->type >= context->unit->graph.type_count ||
           (independent == CTOOL_FALSE && matching == CTOOL_FALSE) ||
           (independent == CTOOL_TRUE &&
-           (operand->matching_output != CTOOL_C_AST_NONE ||
-            (fixed_input_register != 0u &&
-             (fixed_registers & fixed_input_register) != 0u))) ||
+           ((fixed_overlap == CTOOL_FALSE &&
+             (operand->matching_output != CTOOL_C_AST_NONE ||
+              (fixed_input_register != 0u &&
+               (fixed_registers & fixed_input_register) != 0u))) ||
+            (fixed_overlap == CTOOL_TRUE &&
+             (matched_outputs &
+              (1u << operand->matching_output)) != 0u))) ||
           (matching == CTOOL_TRUE &&
            (operand->matching_output != matching_output ||
             matching_output >= assembly->output_count ||
@@ -1540,7 +1633,11 @@ static ctool_status_t cir_validate_assembly_slices(
         return cir_invalid_unit(context, &operand->location);
       }
       if (independent == CTOOL_TRUE) {
-        fixed_registers |= fixed_input_register;
+        if (fixed_overlap == CTOOL_TRUE) {
+          matched_outputs |= 1u << operand->matching_output;
+        } else {
+          fixed_registers |= fixed_input_register;
+        }
       } else if (matching == CTOOL_TRUE) {
         matched_outputs |= 1u << matching_output;
       }
@@ -1558,6 +1655,10 @@ static ctool_status_t cir_validate_assembly_slices(
             assembly->template_text,
             ctool_string("fxsave (%0)")) == CTOOL_TRUE &&
         cir_fxsave_assembly_metadata_is_valid(
+            context, assembly) == CTOOL_FALSE) {
+      return cir_invalid_unit(context, &assembly->location);
+    }
+    if (cir_flags_restore_assembly_metadata_is_valid(
             context, assembly) == CTOOL_FALSE) {
       return cir_invalid_unit(context, &assembly->location);
     }
@@ -9526,6 +9627,11 @@ static ctool_status_t cir_lower_assembly_statement(
               ? CTOOL_TRUE
               : cir_independent_assembly_constraint(
                     operand->constraint, &fixed_input_register);
+      ctool_bool fixed_overlap =
+          independent == CTOOL_TRUE
+              ? cir_fixed_input_overlaps_output(
+                    context, assembly, operand, fixed_input_register)
+              : CTOOL_FALSE;
       ctool_bool memory_input = cir_string_equal(
           operand->constraint, ctool_string("m"));
       ctool_bool movss_memory =
@@ -9581,7 +9687,8 @@ static ctool_status_t cir_lower_assembly_statement(
                             cir_type_is_represented_integer(
                                 context, operand->type) == CTOOL_TRUE;
       }
-      if (independent == CTOOL_TRUE) {
+      if (independent == CTOOL_TRUE &&
+          fixed_overlap == CTOOL_FALSE) {
         if (operand->matching_output != CTOOL_C_AST_NONE ||
             (memory_input == CTOOL_TRUE &&
              (valid_memory_input == CTOOL_FALSE ||
@@ -9620,6 +9727,11 @@ static ctool_status_t cir_lower_assembly_statement(
       output = &context->unit->assembly_operands[
           assembly->first_operand + operand->matching_output];
       if (output->type >= context->unit->layout.type_count ||
+          (fixed_overlap == CTOOL_TRUE &&
+           (cir_type_is_represented_integer(
+                context, operand->type) == CTOOL_FALSE ||
+            cir_type_is_represented_integer(
+                context, output->type) == CTOOL_FALSE)) ||
           input_size !=
               context->unit->layout.types[output->type].size) {
         return cir_invalid_unit(context, &operand->location);

@@ -7654,12 +7654,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.cc", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
        25287u, 479u, 286u, 0u, 0u},
-      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 251u, 7051u,
-       65279u, 925u, 338u, 0u, 0u},
-      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 292u, 7275u,
-       62115u, 885u, 499u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 400u,
-       15889u, 105265u, 2382u, 1464u, 0u, 0u},
+      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 254u, 7084u,
+       65836u, 930u, 340u, 0u, 0u},
+      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 296u, 7327u,
+       62643u, 892u, 501u, 0u, 0u},
+      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 407u,
+       16052u, 106261u, 2407u, 1479u, 0u, 0u},
       {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 81u, 2935u,
        19252u, 326u, 186u, 0u, 0u},
       {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
@@ -26454,15 +26454,34 @@ cleanup:
 }
 
 static int validate_inline_assembly_unit(
-    const ctool_c_translation_unit_t *unit) {
+  const ctool_c_translation_unit_t *unit) {
   static const char *const templates[] = {
-      "rdtsc", "cpuid", "rdrand %0; setc %1"};
-  static const ctool_u32 first_operands[] = {0u, 2u, 7u};
-  static const ctool_u32 output_counts[] = {2u, 4u, 2u};
-  static const ctool_u32 input_counts[] = {0u, 1u, 0u};
-  static const ctool_u32 lines[] = {5u, 12u, 17u};
+      "rdtsc", "cpuid", "cpuid", "rdrand %0; setc %1", "rdtsc",
+      "rdrand %0; setc %1", "pushl %0\n\tpopfl\n\t"};
+  static const ctool_u32 first_operands[] = {
+      0u, 2u, 7u, 12u, 14u, 16u, 18u};
+  static const ctool_u32 output_counts[] = {
+      2u, 4u, 4u, 2u, 2u, 2u, 0u};
+  static const ctool_u32 input_counts[] = {
+      0u, 1u, 1u, 0u, 0u, 0u, 1u};
+  static const ctool_u32 flags[] = {
+      CTOOL_C_ASSEMBLY_VOLATILE,
+      CTOOL_C_ASSEMBLY_VOLATILE,
+      CTOOL_C_ASSEMBLY_VOLATILE,
+      CTOOL_C_ASSEMBLY_VOLATILE,
+      CTOOL_C_ASSEMBLY_VOLATILE,
+      CTOOL_C_ASSEMBLY_VOLATILE,
+      CTOOL_C_ASSEMBLY_VOLATILE | CTOOL_C_ASSEMBLY_CC_CLOBBER};
+  static const ctool_u32 lines[] = {
+      5u, 12u, 19u, 24u, 29u, 34u, 37u};
   static const char *const constraints[] = {
-      "=a", "=d", "=a", "=b", "=c", "=d", "0", "=r", "=qm"};
+      "=a", "=d", "=a", "=b", "=c", "=d", "0",
+      "=a", "=b", "=c", "=d", "a", "=r", "=qm",
+      "=a", "=d", "=r", "=qm", "r"};
+  static const ctool_u32 operand_lines[] = {
+      5u, 5u, 12u, 12u, 12u, 12u, 12u,
+      19u, 19u, 19u, 19u, 19u, 24u, 24u,
+      29u, 29u, 34u, 34u, 37u};
   ctool_u32 assembly_statement_count = 0u;
   ctool_u32 index;
 
@@ -26474,7 +26493,7 @@ static int validate_inline_assembly_unit(
   for (index = 0u; index < unit->assembly_count; index++) {
     const ctool_c_assembly_t *assembly = &unit->assemblies[index];
     if (string_equal(assembly->template_text, templates[index]) == 0 ||
-        assembly->flags != CTOOL_C_ASSEMBLY_VOLATILE ||
+        assembly->flags != flags[index] ||
         assembly->first_operand != first_operands[index] ||
         assembly->output_count != output_counts[index] ||
         assembly->input_count != input_counts[index] ||
@@ -26494,10 +26513,9 @@ static int validate_inline_assembly_unit(
         dual_location_matches(&operand->location,
                               &operand->physical_location,
                               "/inline-assembly.c",
-                              index < 2u ? 5u
-                              : index < 7u ? 12u
-                                           : 17u) == 0 ||
-        (index == 6u ? operand->matching_output != 0u
+                              operand_lines[index]) == 0 ||
+        (index == 6u || index == 11u
+             ? operand->matching_output != 0u
                      : operand->matching_output != CTOOL_C_AST_NONE)) {
       return 1;
     }
@@ -26567,11 +26585,11 @@ static int pointer_output_assembly_type_matches(
 
 static int validate_pointer_output_assembly_unit(
     const ctool_c_translation_unit_t *unit) {
-  static const ctool_u32 lines[] = {4u, 8u, 12u, 17u};
+  static const ctool_u32 lines[] = {4u, 8u, 12u, 16u, 21u};
   ctool_u32 assembly_statement_count = 0u;
   ctool_u32 index;
 
-  if (unit->function_definition_count != 4u ||
+  if (unit->function_definition_count != 5u ||
       unit->assembly_count != ARRAY_COUNT(lines) ||
       unit->assembly_operand_count != ARRAY_COUNT(lines) ||
       unit->assemblies == NULL || unit->assembly_operands == NULL ||
@@ -27751,8 +27769,9 @@ cleanup:
 
 static int validate_x87_sine_memory_assembly_unit(
     const ctool_c_translation_unit_t *unit) {
-  static const ctool_u32 lines[] = {2u, 6u};
-  static const char *const constraints[] = {"=m", "m", "=m", "m"};
+  static const ctool_u32 lines[] = {2u, 6u, 9u, 13u};
+  static const char *const constraints[] = {
+      "=m", "m", "=m", "m", "=m", "m", "=m", "m"};
   ctool_u32 assembly_statement_count = 0u;
   ctool_u32 index;
 
@@ -27812,11 +27831,20 @@ static int validate_x87_sine_memory_assembly_unit(
 static int run_x87_sine_memory_assembly(const char *host_root) {
   static const char source[] =
       "void sine_local(double in) { double out;\n"
-      "  __asm__ volatile(\"fldl %[in]\\n\\t\" \"fsin\\n\\t\" "
-      "\"fstpl %[out]\\n\\t\" : [out] \"=m\"(out) : [in] \"m\"(in));\n"
+      "  __asm__ volatile(\"fldl %1\\n\\t\" \"fsin\\n\\t\" "
+      "\"fstpl %0\\n\\t\" : \"=m\"(out) : \"m\"(in));\n"
       "}\n"
       "void sine_indirect(volatile double *out,\n"
       "                   const volatile double *in) {\n"
+      "  __asm__ volatile(\"fldl %1\\n\\t\" \"fsin\\n\\t\" "
+      "\"fstpl %0\\n\\t\" : \"=m\"(*out) : \"m\"(*in));\n"
+      "}\n"
+      "void sine_named_local(double in) { double out;\n"
+      "  __asm__ volatile(\"fldl %[in]\\n\\t\" \"fsin\\n\\t\" "
+      "\"fstpl %[out]\\n\\t\" : [out] \"=m\"(out) : [in] \"m\"(in));\n"
+      "}\n"
+      "void sine_named_indirect(volatile double *out,\n"
+      "                         const volatile double *in) {\n"
       "  __asm__ volatile(\"fldl %[in]\\n\\t\" \"fsin\\n\\t\" "
       "\"fstpl %[out]\\n\\t\" : [out] \"=m\"(*out) : [in] \"m\"(*in));\n"
       "}\n";
@@ -27908,10 +27936,10 @@ static int run_x87_sine_memory_assembly(const char *host_root) {
         "void bad(const double *out, double in) { __asm__ volatile("
         "\"fldl %[in]\\n\\tfsin\\n\\tfstpl %[out]\\n\\t\" : "
         "[out] \"=m\"(*out) : [in] \"m\"(in)); }\n",
-        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
        0u, 0u,
-       "GNU inline assembly =m output requires a modifiable non-atomic "
-       "floating lvalue"},
+       "GNU x87 sine assembly =m output requires a modifiable non-atomic "
+       "double lvalue"},
       {{"register named x87 sine output",
         "void bad(double in) { register double out; __asm__ volatile("
         "\"fldl %[in]\\n\\tfsin\\n\\tfstpl %[out]\\n\\t\" : "
@@ -27925,47 +27953,31 @@ static int run_x87_sine_memory_assembly(const char *host_root) {
         "[out] \"=m\"(*out) : [in] \"m\"(in)); }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
        0u, 0u, "atomic GNU inline assembly outputs are outside this slice"},
-      {{"float named x87 sine output",
-        "void bad(float *out, double in) { __asm__ volatile("
-        "\"fldl %[in]\\n\\tfsin\\n\\tfstpl %[out]\\n\\t\" : "
-        "[out] \"=m\"(*out) : [in] \"m\"(in)); }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
-       0u, 0u,
-       "GNU x87 sine assembly requires one volatile double =m output, "
-       "one double m input, and no clobbers"},
       {{"rvalue named x87 sine input",
         "void bad(double *out, double in) { __asm__ volatile("
         "\"fldl %[in]\\n\\tfsin\\n\\tfstpl %[out]\\n\\t\" : "
         "[out] \"=m\"(*out) : [in] \"m\"(in + 1.0)); }\n",
-        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
        0u, 0u,
-       "GNU inline assembly m input requires an addressable non-atomic "
-       "floating lvalue"},
-      {{"float named x87 sine input",
-        "void bad(double *out, float in) { __asm__ volatile("
-        "\"fldl %[in]\\n\\tfsin\\n\\tfstpl %[out]\\n\\t\" : "
-        "[out] \"=m\"(*out) : [in] \"m\"(in)); }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
-       0u, 0u,
-       "GNU x87 sine assembly requires one volatile double =m output, "
-       "one double m input, and no clobbers"},
+       "GNU x87 sine assembly m input requires an addressable non-atomic "
+       "double lvalue"},
       {{"register named x87 sine input",
         "void bad(double *out) { register double in = 0.0; "
         "__asm__ volatile("
         "\"fldl %[in]\\n\\tfsin\\n\\tfstpl %[out]\\n\\t\" : "
         "[out] \"=m\"(*out) : [in] \"m\"(in)); }\n",
-        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
        0u, 0u,
-       "GNU inline assembly m input requires an addressable non-atomic "
-       "floating lvalue"},
+       "GNU x87 sine assembly m input requires an addressable non-atomic "
+       "double lvalue"},
       {{"atomic named x87 sine input",
         "void bad(double *out, _Atomic double *in) { __asm__ volatile("
         "\"fldl %[in]\\n\\tfsin\\n\\tfstpl %[out]\\n\\t\" : "
         "[out] \"=m\"(*out) : [in] \"m\"(*in)); }\n",
-        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
        0u, 0u,
-       "GNU inline assembly m input requires an addressable non-atomic "
-       "floating lvalue"},
+       "GNU x87 sine assembly m input requires an addressable non-atomic "
+       "double lvalue"},
       {{"duplicate named operand",
         "void bad(double out, double in) { __asm__ volatile("
         "\"fldl %[slot]\\n\\tfsin\\n\\tfstpl %[slot]\\n\\t\" : "
@@ -27976,9 +27988,9 @@ static int run_x87_sine_memory_assembly(const char *host_root) {
         "void bad(double out, double in) { __asm__ volatile("
         "\"fldl %[in]\\n\\tfsin\\n\\tfstpl %[out]\\n\\t\" : "
         "[] \"=m\"(out) : [in] \"m\"(in)); }\n",
-        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
        0u, 0u,
-       "GNU inline assembly operand label requires an identifier"},
+       "GNU inline assembly operand label requires a C identifier"},
       {{"unknown named operand reference",
         "void bad(double out, double in) { __asm__ volatile("
         "\"fldl %[missing]\\n\\tfsin\\n\\tfstpl %[out]\\n\\t\" : "
@@ -28001,15 +28013,7 @@ static int run_x87_sine_memory_assembly(const char *host_root) {
         "\"fstpl %%[missing]\" : \"=m\"(out)); }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
        0u, 0u,
-       "GNU inline assembly =m output template is outside this slice"},
-      {{"escaped percent survives named normalization",
-        "void bad(double out, double in) { __asm__ volatile("
-        "\"nop %%[literal]\\n\\tfldl %[in]\\n\\tfsin\\n\\t"
-        "fstpl %[out]\\n\\t\" : [out] \"=m\"(out) : "
-        "[in] \"m\"(in)); }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
-       0u, 0u,
-       "GNU inline assembly m input template is outside this slice"}};
+       "GNU inline assembly =m output template is outside this slice"}};
   frontend_fixture_t fixture;
   ctool_c_translation_unit_t unit;
   ctool_u32 index;
@@ -29962,6 +29966,25 @@ static int run_port_io_assembly(const char *host_root) {
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
        0u, 0u,
        "GNU inline assembly cannot assign one fixed register twice"},
+      {{"duplicate fixed output overlap",
+        "void bad(unsigned first, unsigned second) { unsigned result; "
+        "asm volatile(\"cpuid\" : \"=a\"(result) "
+        ": \"a\"(first), \"a\"(second)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly cannot tie two inputs to one output"},
+      {{"read-write fixed output overlap",
+        "void bad(unsigned input) { unsigned count = 1; "
+        "asm volatile(\"nop\" : \"+c\"(count) : \"c\"(input)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly cannot assign one fixed register twice"},
+      {{"narrow fixed output overlap",
+        "void bad(unsigned short leaf) { unsigned result; "
+        "asm volatile(\"cpuid\" : \"=a\"(result) : \"a\"(leaf)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly matching input has the wrong integer width"},
       {{"pointer fixed input",
         "void bad(void *value) { "
         "asm volatile(\"nop\" : : \"d\"(value)); }\n",
@@ -30502,12 +30525,15 @@ static int run_pointer_output_assembly(const char *host_root) {
       "}\n"
       "void read_local(void) {\n"
       "  const struct cpu_state *value;\n"
-      "  asm volatile(\"mov %%gs:0, %[value]\" : "
-      "[value] \"=r\"(value));\n"
+      "  asm volatile(\"mov %%gs:0, %0\" : \"=r\"(value));\n"
       "}\n"
       "void read_void(void) {\n"
       "  void *value;\n"
       "  asm volatile(\"mov %%gs:0, %0\" : \"=r\"(value));\n"
+      "}\n"
+      "void read_named(void) {\n"
+      "  struct cpu_state *value;\n"
+      "  asm volatile(\"mov %%gs:0, %[value]\" : [value] \"=r\"(value));\n"
       "}\n"
       "void dead_pointer_output(void) {\n"
       "  struct cpu_state *value;\n"
@@ -31183,11 +31209,35 @@ static int run_inline_assembly(const char *host_root) {
       "  asm __volatile (\"cpuid\" : \"=a\"(eax), \"=b\"(ebx), "
       "\"=c\"(ecx), \"=d\"(edx) : \"0\"(eax));\n"
       "}\n"
+      "void read_fixed_leaf(u32 leaf) {\n"
+      "  u32 eax;\n"
+      "  u32 ebx;\n"
+      "  u32 ecx;\n"
+      "  u32 edx;\n"
+      "  asm __volatile (\"cpuid\" : \"=a\"(eax), \"=b\"(ebx), "
+      "\"=c\"(ecx), \"=d\"(edx) : \"a\"(leaf));\n"
+      "}\n"
       "void read_random(void) {\n"
       "  u32 value;\n"
       "  unsigned char ok;\n"
-      "  __asm __volatile__(\"rdrand %[value]; \" \"setc %[ok]\" : "
+      "  __asm __volatile__(\"rdrand %0; \" \"setc %1\" : "
+      "\"=r\"(value), \"=qm\"(ok));\n"
+      "}\n"
+      "void read_clock_named(void) {\n"
+      "  u32 lo;\n"
+      "  u32 hi;\n"
+      "  __asm__ volatile (\"rdtsc\" : [low] \"=a\"(lo), "
+      "[high] \"=d\"(hi));\n"
+      "}\n"
+      "void read_random_named(void) {\n"
+      "  u32 value;\n"
+      "  unsigned char ok;\n"
+      "  __asm __volatile__(\"rdrand %[value]; setc %[ok]\" : "
       "[value] \"=r\"(value), [ok] \"=qm\"(ok));\n"
+      "}\n"
+      "void restore_flags(u32 value) {\n"
+      "  __asm__ volatile(\"pushl %0\\n\\tpopfl\\n\\t\" : : "
+      "\"r\"(value) : \"cc\");\n"
       "}\n";
   static const frontend_exact_failure_case_t failure_cases[] = {
       {{"asm goto",
@@ -31217,17 +31267,110 @@ static int run_inline_assembly(const char *host_root) {
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
        0u, 0u,
        "GNU inline assembly output constraint is outside this slice"},
-      {{"named matching input",
-        "void bad(void) { unsigned x; asm (\"nop %[value]\" : "
-        "[value] \"=r\"(x) : \"[value]\"(x)); }\n",
+      {{"duplicate named operand label",
+        "void bad(void) { unsigned x; unsigned y; "
+        "asm (\"nop\" : [value] \"=r\"(x), [value] \"=r\"(y)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u, "GNU inline assembly operand label is listed twice"},
+      {{"empty named operand label",
+        "void bad(void) { unsigned x; asm (\"nop\" : [] \"=r\"(x)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly operand label requires a C identifier"},
+      {{"numeric named operand label",
+        "void bad(void) { unsigned x; asm (\"nop\" : [7] \"=r\"(x)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly operand label requires a C identifier"},
+      {{"unterminated named operand label",
+        "void bad(void) { unsigned x; asm (\"nop\" : [value \"=r\"(x)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly operand label requires a closing bracket"},
+      {{"unknown named operand reference",
+        "void bad(void) { unsigned x; "
+        "asm (\"rdrand %[missing]\" : [value] \"=r\"(x)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u, "GNU inline assembly template names an unknown operand"},
+      {{"empty named operand reference",
+        "void bad(void) { unsigned x; "
+        "asm (\"rdrand %[]\" : [value] \"=r\"(x)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly named operand reference requires a C identifier"},
+      {{"malformed named operand reference",
+        "void bad(void) { unsigned x; "
+        "asm (\"rdrand %[not-an-id]\" : [value] \"=r\"(x)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly named operand reference requires a C identifier"},
+      {{"unterminated named operand reference",
+        "void bad(void) { unsigned x; "
+        "asm (\"rdrand %[value\" : [value] \"=r\"(x)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly named operand reference requires a closing "
+       "bracket"},
+      {{"named matching input constraint",
+        "void bad(unsigned x) { "
+        "asm (\"nop\" : [value] \"=a\"(x) : \"[value]\"(x)); }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
        0u, 0u,
-       "GNU inline assembly input requires one matching output digit"},
-      {{"unterminated named output label",
-        "void bad(void) { unsigned x; asm (\"nop %[value]\" : "
-        "[value \"=r\"(x)); }\n",
-        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPECTED_TOKEN},
-       0u, 0u, "expected source token is missing"},
+       "GNU inline assembly named matching constraints are outside this "
+       "slice"},
+      {{"named unsupported output constraint",
+        "void bad(void) { unsigned x; "
+        "asm (\"nop\" : [value] \"+r\"(x)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly output constraint is outside this slice"},
+      {{"named fixed-register collision",
+        "void bad(void) { unsigned x; unsigned y; "
+        "asm (\"nop\" : [left] \"=a\"(x), [right] \"=a\"(y)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly cannot use one fixed output register twice"},
+      {{"named unsupported input constraint",
+        "void bad(unsigned x) { unsigned y; "
+        "asm (\"nop\" : [out] \"=r\"(y) : [in] \"q\"(x)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly input constraint is outside this slice"},
+      {{"named duplicate fixed-register input tie",
+        "void bad(unsigned x, unsigned z) { unsigned y; "
+        "asm (\"nop\" : [out] \"=a\"(y) : "
+        "[first] \"a\"(x), [second] \"a\"(z)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly cannot tie two inputs to one output"},
+      {{"named non-lvalue output",
+        "void bad(void) { asm (\"nop\" : [value] \"=a\"(1)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly output requires a modifiable integer lvalue"},
+      {{"named atomic output",
+        "void bad(void) { _Atomic unsigned x; "
+        "asm (\"nop\" : [value] \"=a\"(x)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u, "atomic GNU inline assembly outputs are outside this slice"},
+      {{"named bit-field output",
+        "struct Bits { unsigned value : 8; }; "
+        "void bad(void) { struct Bits bits; "
+        "asm (\"nop\" : [value] \"=qm\"(bits.value)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly output requires a modifiable integer lvalue"},
+      {{"named wrong-width output",
+        "void bad(void) { unsigned char x; "
+        "asm (\"nop\" : [value] \"=r\"(x)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u, "GNU inline assembly output requires a 32-bit integer"},
+      {{"escaped percent before brackets",
+        "void bad(void) { double out; "
+        "asm (\"fstpl %%[missing]\" : [value] \"=m\"(out)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly =m output template is outside this slice"},
       {{"duplicate fixed output",
         "void bad(void) { unsigned x; unsigned y; "
         "asm (\"nop\" : \"=a\"(x), \"=a\"(y)); }\n",
@@ -31302,11 +31445,68 @@ static int run_inline_assembly(const char *host_root) {
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
        0u, 0u,
        "GNU inline assembly matching input has the wrong integer width"},
-      {{"clobber list",
+      {{"unrelated cc clobber",
         "void bad(void) { unsigned x; asm (\"nop\" : \"=a\"(x) : : "
         "\"cc\"); }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
-       0u, 0u, "GNU inline assembly clobber is outside this slice"}};
+       0u, 0u,
+       "GNU inline assembly clobber is outside this slice"},
+      {{"duplicate cc clobber",
+        "void bad(unsigned x) { asm volatile("
+        "\"pushl %0\\n\\tpopfl\\n\\t\" : : \"r\"(x) : \"cc\", \"cc\"); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u, "GNU inline assembly cc clobber is listed twice"},
+      {{"missing cc clobber",
+        "void bad(unsigned x) { asm volatile("
+        "\"pushl %0\\n\\tpopfl\\n\\t\" : : \"r\"(x)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU flags-restore assembly requires one volatile non-atomic 32-bit "
+       "r input and one cc clobber"},
+      {{"flags restore fixed input",
+        "void bad(unsigned x) { asm volatile("
+        "\"pushl %0\\n\\tpopfl\\n\\t\" : : \"a\"(x) : \"cc\"); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU flags-restore assembly requires one volatile non-atomic 32-bit "
+       "r input and one cc clobber"},
+      {{"flags restore narrow input",
+        "void bad(unsigned short x) { asm volatile("
+        "\"pushl %0\\n\\tpopfl\\n\\t\" : : \"r\"(x) : \"cc\"); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly r input requires a represented 32-bit integer "
+       "or data pointer"},
+      {{"flags restore pointer input",
+        "void bad(void *x) { asm volatile("
+        "\"pushl %0\\n\\tpopfl\\n\\t\" : : \"r\"(x) : \"cc\"); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU flags-restore assembly requires one volatile non-atomic 32-bit "
+       "r input and one cc clobber"},
+      {{"flags restore atomic input",
+        "void bad(_Atomic unsigned x) { asm volatile("
+        "\"pushl %0\\n\\tpopfl\\n\\t\" : : \"r\"(x) : \"cc\"); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU flags-restore assembly requires one volatile non-atomic 32-bit "
+       "r input and one cc clobber"},
+      {{"flags restore extra clobber",
+        "void bad(unsigned x) { asm volatile("
+        "\"pushl %0\\n\\tpopfl\\n\\t\" : : \"r\"(x) : "
+        "\"cc\", \"memory\"); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU flags-restore assembly requires one volatile non-atomic 32-bit "
+       "r input and one cc clobber"},
+      {{"flags restore output",
+        "void bad(unsigned x) { unsigned y; asm volatile("
+        "\"pushl %0\\n\\tpopfl\\n\\t\" : \"=r\"(y) : "
+        "\"r\"(x) : \"cc\"); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU flags-restore assembly requires one volatile non-atomic 32-bit "
+       "r input and one cc clobber"}};
   static const frontend_exact_failure_case_t disabled_gnu_case = {
       {"inline assembly without GNU extensions",
        "void bad(void) { unsigned x; __asm__(\"nop\" : \"=a\"(x)); }\n",

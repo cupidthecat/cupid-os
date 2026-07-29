@@ -358,7 +358,7 @@ rename and proves the updated plan from the old seed. ADR 0129 moves the
 lexer. ADR 0135 moves Nuked OPL3 after the checked seed gains C11
 external-inline finalization. ADR 0139 moves JPEG decoding and glyph
 rasterization after the floating data and comparison paths reach the checked
-seed. ADR 0160 moves the FPU, per-CPU, and SMP roots after their checked
+seed. ADR 0167 moves the FPU, per-CPU, and SMP roots after their checked
 objects and four-vCPU runtime paths pass, leaving four strict checked-in roots
 on the host compiler.
 
@@ -417,8 +417,27 @@ emits `FLD`, `FSIN`, and `FSTP` through EAX with balanced x87 depth and no
 frame temporary. Two complete builds of
 `kernel/cpu/fpu.cc` produce the same validated 6,620-byte object with SHA-256
 `14c3ea232b7d4455ceabd561c69293cc5849abae24d9f210aa69d64ed8c8a5cb`.
-The normal Make graph now compiles this root through the checked wrapper, and
-the four-vCPU runtime gate requires both FPU boot markers.
+The normal Make graph now compiles this root through the checked wrapper.
+A typed object policy rejects helper calls or floating work before the CR4
+write. It requires one `FNINIT` followed by one 32-bit memory `LDMXCSR`.
+The four-vCPU runtime gate requires `[fpu] SSE2 enabled`,
+`[fpu] boot smoke ok`, and `FPU boot smoke passed`.
+
+Compiler-head CupidC also represents the two exact EFLAGS restore statements
+in `simd_cpu_has_cpuid()`. Each volatile statement takes one 32-bit integer
+through `r`, has no output, and requires the `cc` clobber. Linear IR keeps the
+input value and clobber metadata, while the shared x86 path emits
+`POP EAX`, `PUSH EAX`, and `POPF` with balanced ESP. Compiler head now also
+accepts the unchanged CPUID statement where the `a` input shares EAX with
+the `=a` output. The public operand keeps its fixed-register spelling and
+names output zero as its match; Linear IR and object emission verify that
+relationship, including represented integer types and equal widths, before
+loading EAX. A frozen same-width float cannot bypass those checks. A complete
+unchanged `kernel/cpu/simd.c`
+probe now reaches line 134, where the four-register SSE block first names the
+unsupported `xmm1` clobber. The checked seed does not carry these
+compiler-head increments, so the normal SIMD recipe remains host-owned and
+the source keeps its `.c` suffix.
 
 The checked seed emits the four exact descriptor-table and segment-register
 statements in `kernel/smp/percpu.cc`. The LGDT forms keep their
@@ -675,9 +694,9 @@ and the generated kernel symbol translation described above.
 
 [ADR 0139](docs/adr/0139-transfer-jpeg-and-glyph-rasterization-to-cupidc.md) records the JPEG and glyph-raster production transfer, closed inputs, deterministic objects, and guest decode proof.
 
-[ADR 0140](docs/adr/0140-expose-ordered-forced-includes.md) records the ordered forced-input driver seam and exact Doom-tree frontier. [ADR 0145](docs/adr/0145-retain-empty-memory-assembly-barriers.md) records the empty compiler memory barrier and the resulting sound-driver object. [ADR 0146](docs/adr/0146-represent-ldmxcsr-memory-inputs.md) records the exact LDMXCSR memory-input boundary. [ADR 0147](docs/adr/0147-evaluate-static-floating-arithmetic.md) records deterministic static floating arithmetic and the resulting automap object. [ADR 0148](docs/adr/0148-represent-movss-float-memory-assembly.md) records the exact MOVSS float-memory boundary. [ADR 0149](docs/adr/0149-gate-doom-implicit-function-declarations.md) records the explicit Doom implicit-call profile. [ADR 0150](docs/adr/0150-represent-x87-sine-memory-assembly.md) records the exact x87 sine memory boundary and completed compiler-head FPU root. [ADR 0151](docs/adr/0151-gate-doom-function-data-pointer-conversions.md) records the profile's function/data pointer rule. [ADR 0152](docs/adr/0152-retain-narrow-bit-field-promotion-provenance.md) records ordinary narrow bit-field promotion. [ADR 0153](docs/adr/0153-represent-union-initializer-lists.md) records one-active-member union initialization. [ADR 0154](docs/adr/0154-represent-x87-round-down-memory-assembly.md) records the exact x87 round-down and control-word boundary. [ADR 0155](docs/adr/0155-represent-task23-file-scope-assembly.md) records the file-scope GNU basic assembly boundary and the Task 23 wrapper proof. [ADR 0156](docs/adr/0156-represent-naked-ipi-wrappers.md) records the exact naked IPI wrapper boundary. [ADR 0157](docs/adr/0157-represent-descriptor-table-segment-assembly.md) records the descriptor-table and segment-register boundary. [ADR 0158](docs/adr/0158-promote-current-toolchain-seed.md) records the clean fixed-point promotion and its post-promotion reproof. [ADR 0159](docs/adr/0159-normalize-gnu-named-assembly-operands.md) records parser-private GNU operand labels and the resulting `libm.c` frontier.
+[ADR 0140](docs/adr/0140-expose-ordered-forced-includes.md) records the ordered forced-input driver seam and exact Doom-tree frontier. [ADR 0145](docs/adr/0145-retain-empty-memory-assembly-barriers.md) records the empty compiler memory barrier and the resulting sound-driver object. [ADR 0146](docs/adr/0146-represent-ldmxcsr-memory-inputs.md) records the exact LDMXCSR memory-input boundary. [ADR 0147](docs/adr/0147-evaluate-static-floating-arithmetic.md) records deterministic static floating arithmetic and the resulting automap object. [ADR 0148](docs/adr/0148-represent-movss-float-memory-assembly.md) records the exact MOVSS float-memory boundary. [ADR 0149](docs/adr/0149-gate-doom-implicit-function-declarations.md) records the explicit Doom implicit-call profile. [ADR 0150](docs/adr/0150-represent-x87-sine-memory-assembly.md) records the exact x87 sine memory boundary and completed compiler-head FPU root. [ADR 0151](docs/adr/0151-gate-doom-function-data-pointer-conversions.md) records the profile's function/data pointer rule. [ADR 0152](docs/adr/0152-retain-narrow-bit-field-promotion-provenance.md) records ordinary narrow bit-field promotion. [ADR 0153](docs/adr/0153-represent-union-initializer-lists.md) records one-active-member union initialization. [ADR 0154](docs/adr/0154-represent-x87-round-down-memory-assembly.md) records the exact x87 round-down and control-word boundary. [ADR 0155](docs/adr/0155-represent-task23-file-scope-assembly.md) records the file-scope GNU basic assembly boundary and the Task 23 wrapper proof. [ADR 0156](docs/adr/0156-represent-naked-ipi-wrappers.md) records the exact naked IPI wrapper boundary. [ADR 0157](docs/adr/0157-represent-descriptor-table-segment-assembly.md) records the descriptor-table and segment-register boundary. [ADR 0158](docs/adr/0158-promote-current-toolchain-seed.md) records the clean fixed-point promotion and its post-promotion reproof. [ADR 0160](docs/adr/0160-represent-flags-restore-assembly.md) records the exact EFLAGS restore and `cc` clobber boundary.
 
-[ADR 0160](docs/adr/0160-transfer-fpu-and-smp-roots-to-cupidc.md) records the checked FPU and SMP production handoff, `.cc` rename, image proof, and dual-NIC runtime gate.
+[ADR 0159](docs/adr/0159-normalize-gnu-named-assembly-operands.md) records parser-private named GNU assembly operands and canonical numeric validation.
 
 [ADR 0161](docs/adr/0161-represent-x87-double-pow-memory-assembly.md) records the exact double-precision `pow` assembly boundary and the resulting `libm.c` frontier.
 
@@ -690,6 +709,10 @@ and the generated kernel symbol translation described above.
 [ADR 0165](docs/adr/0165-represent-x87-exp-memory-assembly.md) records the exact x87 exponent statement and the following file-scope mask frontier.
 
 [ADR 0166](docs/adr/0166-represent-fabs-file-scope-assembly.md) records the exact `fabs` mask and wrapper effects and the following `floor` frontier.
+
+[ADR 0167](docs/adr/0167-transfer-fpu-percpu-smp-to-cupidc.md) records the production transfer of the FPU, per-CPU, and SMP roots.
+
+[ADR 0168](docs/adr/0168-represent-fixed-register-input-overlap.md) records compatible fixed-register input and output sharing.
 
 [ADR 0143](docs/adr/0143-share-ordinary-padding-nops.md) records the shared ordinary compiler padding family and its measured disassembly improvement.
 
