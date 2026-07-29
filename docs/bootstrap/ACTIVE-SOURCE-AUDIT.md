@@ -21,9 +21,9 @@ Generated C translation units are recorded as reachable build inputs but have no
 | Language | Files |
 | --- | ---: |
 | `assembly` | 27 |
-| `c` | 102 |
+| `c` | 101 |
 | `c_header` | 270 |
-| `cupid_c` | 299 |
+| `cupid_c` | 300 |
 
 ## Source cohorts
 
@@ -77,12 +77,12 @@ Generated C translation units are recorded as reachable build inputs but have no
 | Tool interface | Reachable transforms |
 | --- | ---: |
 | `cupid_assembler` | 4 |
-| `cupid_c_compiler` | 158 |
+| `cupid_c_compiler` | 159 |
 | `cupid_disassembler` | 1 |
 | `cupid_linker` | 5 |
 | `cupid_object` | 182 |
-| `host_c_compiler` | 139 |
-| `host_python` | 173 |
+| `host_c_compiler` | 138 |
+| `host_python` | 174 |
 | `make` | 5 |
 
 ## Feature inventory
@@ -106,7 +106,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `c.expression` | 2 | 5302 |
 | `c.extension` | 18 | 387 |
 | `c.initializer` | 1 | 646 |
-| `c.output` | 1 | 87 |
+| `c.output` | 1 | 86 |
 | `c.preprocessor` | 18 | 6689 |
 | `c.qualifier` | 2 | 14157 |
 | `c.storage` | 4 | 9090 |
@@ -116,7 +116,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `cupid_c.directive` | 1 | 1 |
 | `cupid_c.expression` | 2 | 4 |
 | `cupid_c.extension` | 1 | 9 |
-| `cupid_c.output` | 1 | 158 |
+| `cupid_c.output` | 1 | 159 |
 | `cupid_c.storage` | 2 | 129 |
 | `cupid_c.type` | 12 | 152 |
 
@@ -152,7 +152,7 @@ It is also a declared Make prerequisite.
 | 9 | `cupidc_c11_types_initializers_and_abi` - Implement freestanding C11 type, initializer, and cdecl semantics | 640 |
 | 10 | `cupidc_platform_extensions` - Implement required GNU attributes and extended inline assembly | 55 |
 | 11 | `cupidc_doom_compatibility` - Compile the complete Doom and compatibility cohort | 190 |
-| 12 | `cupid_mode_production_and_extensions` - Scale Cupid mode across embedded programs and browser fragments | 288 |
+| 12 | `cupid_mode_production_and_extensions` - Scale Cupid mode across embedded programs and browser fragments | 289 |
 
 ## Source-cohort migration order
 

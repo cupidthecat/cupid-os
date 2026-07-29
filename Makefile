@@ -819,8 +819,9 @@ kernel/cpu/fpu.o: kernel/cpu/fpu.cc drivers/serial.h kernel/core/panic.h \
 	kernel/cpu/libm.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/fpu.cc --output kernel/cpu/fpu.o
 
-kernel/cpu/libm.o: kernel/cpu/libm.c kernel/cpu/libm.h
-	$(CC) $(CFLAGS) $(OPT) kernel/cpu/libm.c -o kernel/cpu/libm.o
+kernel/cpu/libm.o: kernel/cpu/libm.cc kernel/core/types.h kernel/cpu/libm.h \
+	$(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/libm.cc --output kernel/cpu/libm.o
 
 kernel/lang/cupidscript_lex.o: kernel/lang/cupidscript_lex.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/gui/ansi.h kernel/lang/cupidscript.h kernel/lang/cupidscript_arrays.h kernel/lang/cupidscript_jobs.h kernel/lang/cupidscript_streams.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/cupidscript_lex.cc --output kernel/lang/cupidscript_lex.o

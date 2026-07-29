@@ -2249,7 +2249,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
 
   /* libm hardware fast-paths (sqrt/sin/cos/tan/atan/atan2, plus
    * f-suffixed float variants).  These functions follow the CupidC
-   * kernel-binding ABI (stack args, XMM0 return) - see libm.c.*/
+   * kernel-binding ABI (stack args, XMM0 return) - see libm.cc.*/
   double (*p_sqrt)(double)  = sqrt;
   BIND_T("sqrt",    p_sqrt,   1, TYPE_DOUBLE);
   float  (*p_sqrtf)(float)  = sqrtf;

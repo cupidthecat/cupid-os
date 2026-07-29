@@ -104,6 +104,12 @@ def _frontier_command_outputs():
             "[asm] JIT execution complete\n"
         ),
         (
+            "[cupidc] JIT compile: /bin/feature15_libm.cc\n"
+            "[feature15] 22 checks total, 0 failed\n"
+            "PASS feature15_libm\n"
+            "[cupidc] JIT execution complete\n"
+        ),
+        (
             "[cupidc] JIT compile: /bin/feature17_iso.cc\n"
             "PASS jpeg_decode_mem baseline 8x8 gray128\n"
             "PASS glyph_rasterize Liberation Mono Q size37 "
@@ -1064,6 +1070,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
                 "/bin/kbdsub_test.cc",
                 "/bin/date.cc +epoch",
                 "as /demos/syscall_vfs_extended_demo.asm",
+                "/bin/feature15_libm.cc",
                 "/bin/feature17_iso.cc",
                 "/bin/feature18_swap.cc",
                 "audiotest all",
@@ -1086,6 +1093,48 @@ class FrontierRuntimeContractTests(unittest.TestCase):
                 self.assertIsNotNone(
                     re.search(command.expected_pattern, sample, re.S | re.M)
                 )
+
+    def test_libm_command_requires_total_and_pass_markers(self):
+        expected = gui_terminal_smoke.FRONTIER_RUNTIME_COMMANDS[
+            4
+        ].expected_pattern
+        for marker in (
+            "[feature15] 22 checks total, 0 failed\n",
+            "PASS feature15_libm\n",
+        ):
+            with self.subTest(marker=marker):
+                output = _frontier_command_outputs()[4].replace(marker, "")
+                self.assertIsNone(
+                    re.search(expected, output, re.S | re.M)
+                )
+        self.assertIn(
+            "FAIL feature15_libm",
+            gui_terminal_smoke.FRONTIER_RUNTIME_REJECTED_MARKERS,
+        )
+
+    def test_libm_guest_source_calls_the_production_math_path(self):
+        source = (
+            REPO_ROOT / "bin" / "feature15_libm.cc"
+        ).read_text(encoding="utf-8")
+
+        for function in (
+            "sin(",
+            "cos(",
+            "tan(",
+            "atan(",
+            "sqrt(",
+            "exp(",
+            "log(",
+            "pow(",
+            "fabs(",
+        ):
+            with self.subTest(function=function):
+                self.assertIn(function, source)
+        self.assertIn(
+            '"[feature15] %d checks total, %d failed\\n"',
+            source,
+        )
+        self.assertIn('"PASS feature15_libm\\n"', source)
 
     def test_iso_jpeg_fixture_is_a_byte_fixed_baseline_image(self):
         data = JPEG_FIXTURE.read_bytes()
@@ -1114,7 +1163,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
 
     def test_iso_command_requires_the_jpeg_and_glyph_markers(self):
         expected = gui_terminal_smoke.FRONTIER_RUNTIME_COMMANDS[
-            4
+            5
         ].expected_pattern
         for marker in (
             "PASS jpeg_decode_mem baseline 8x8 gray128\n",
@@ -1124,11 +1173,11 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             ),
         ):
             with self.subTest(marker=marker):
-                output = _frontier_command_outputs()[4].replace(marker, "")
+                output = _frontier_command_outputs()[5].replace(marker, "")
                 self.assertIsNone(
                     re.search(expected, output, re.S | re.M)
                 )
-        mismatched_cache = _frontier_command_outputs()[4].replace(
+        mismatched_cache = _frontier_command_outputs()[5].replace(
             "width=22 cache=22",
             "width=22 cache=23",
         )
@@ -1185,11 +1234,11 @@ class FrontierRuntimeContractTests(unittest.TestCase):
                     key_pause=0.01,
                 )
 
-        self.assertEqual(monitor.completed, 8)
+        self.assertEqual(monitor.completed, 9)
         self.assertIn("[cupidc] JIT compile: /bin/godsong.cc", data)
         self.assertEqual(
             sleep.call_args_list.count(mock.call(1.0)),
-            7,
+            8,
         )
         sent = b"".join(monitor.sent)
         self.assertIn(b"sendkey shift-minus 300\n", sent)

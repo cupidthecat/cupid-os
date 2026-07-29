@@ -57,7 +57,7 @@ executables are not available yet.
 
 This seed makes the hosted static toolchain reproducible from a clean checkout.
 It does not complete the normal OS build migration. Native contract runners,
-hosted development commands, and 87 normal C root objects still use a host C
+hosted development commands, and 86 normal C root objects still use a host C
 compiler.
 
 The production boot source assembles to an exact 2,560-byte image with SHA-256
@@ -67,7 +67,8 @@ CupidASM and the optional NASM oracle produce the same bytes for the current
 
 The checked seed includes the complete audited Doom compiler frontier,
 current GNU entity metadata, the active x87 and SSE memory forms, descriptor
-and segment assembly, every unchanged `libm.c` assembly effect, explicit
+and segment assembly, every unchanged assembly effect in the then-named
+`libm.c`, explicit
 `double` to `unsigned long long` conversion, and exact naked IPI entries. Its
 stage-three CupidC image is 2,447,776 bytes with SHA-256
 `afc8003e5e047c721fa085c793f2c4fe7e0b5c8e29d4f0bebac5282eb10cace9`.
@@ -222,8 +223,8 @@ The production `kernel/smp/smp.cc` object remains 8,444 bytes and has SHA-256
 `bd3189b2a1a6d15728c559172f5d6acca0889103428085cec8cc1024742a22d1`.
 The existing `__FILE__` diagnostic accounts for the difference.
 
-The normal image has 152 checked CupidC C transforms: 151 checked-in sources
-and the generated `kernel/cpu/ksyms_data.cc` source. All 152 sources use
+The normal image has 153 checked CupidC C transforms: 152 checked-in sources
+and the generated `kernel/cpu/ksyms_data.cc` source. All 153 sources use
 `.cc`. The five shared Toolchain roots also belong to the 19-source i386
 Linux fixed point. Native GCC and Clang rules select C with `-x c`. ADR 0124
 records the first 111-root transfer, ADR 0126 records the complete
@@ -264,7 +265,7 @@ dual-NIC runtime gates pass. The wrapper compiles from a private copy of the
 source and its three headers, then rejects live input drift before it replaces
 the object.
 
-The strict frontier must compile each of its 151 approved sources twice.
+The strict frontier must compile each of its 152 approved sources twice.
 Forced Make runs with the host compiler command poisoned cover every
 production wrapper recipe, and each recipe lists its exact recursive header
 closure. A valid data-only object can omit `.text` when its other sections
@@ -273,9 +274,9 @@ permission-style directory locks with five bounded delays. A persistent lock
 or any other filesystem error publishes nothing. Input discovery skips hidden
 paths under active include roots, so private compiler staging headers from a
 concurrent build do not enter the repository snapshot. The complete frontier
-compiles all 151 roots twice against a 439-file snapshot with SHA-256
-`dd61ee8ece6a26282f7ae2d5f252f53c109827bf3e7a3365a00cc5a6e8d59a8a`.
-Both object sets are byte-identical and total 3,643,676 bytes. The combined graph passes the
+compiles all 152 roots twice against a 440-file snapshot with SHA-256
+`2143222ba61544b44655f882bc06e55ef0ff195033c907f5ae512801251e9cc1`.
+Both object sets are byte-identical and total 3,659,840 bytes. The combined graph passes the
 two-link symbol and memory checks, clean normal and partitioned image builds,
 and strong four-vCPU runtime gates with both NICs.
 
@@ -310,13 +311,13 @@ expressions in source order. It also keeps all target bits through represented
 function-pointer casts and supports bounded output-only register and EFLAGS
 snapshots. The checked production wrapper now compiles the generated
 `kernel/cpu/ksyms_data.cc` root. The generator writes little-endian
-`unsigned int` words and records the logical 105,505-byte blob length
+`unsigned int` words and records the logical 105,574-byte blob length
 separately. It runs private snapshots of the pass-one kernel and CupidDis,
 rejects malformed symbol rows, an empty text-symbol set, and live input
 drift, then replaces the `.cc` source atomically. The checked compiler
 wrapper freezes that source and its header closure before it publishes the
-object. The word array ends with three zero pad bytes. The final kernel
-consumes 4,392 text symbols and shows no address drift from the pass-one
+object. The word array ends with two zero pad bytes. The final kernel
+consumes 4,395 text symbols and shows no address drift from the pass-one
 kernel.
 
 The checked seed emits the exact volatile
@@ -379,12 +380,12 @@ illegal-instruction failure markers. The X.509 checks exercise parser,
 hostname, chain state, and embedded-root lookup paths. They are not a full
 trust-validation claim.
 
-Across the root and supplemental builds, the current audit assigns 158
-transforms to CupidC, 139 to the host C compiler, 173 to host Python, and five
+Across the root and supplemental builds, the current audit assigns 159
+transforms to CupidC, 138 to the host C compiler, 174 to host Python, and five
 to Make.
-CupidC's total is the 152 normal transforms plus three generated installation
+CupidC's total is the 153 normal transforms plus three generated installation
 tables and the `hello.cc`, `ls.cc`, and `cat.cc` programs. The host compiler
-still produces 87 root objects and still builds the native user drivers.
+still produces 86 root objects and still builds the native user drivers.
 The fifth Make transform prepares those drivers. Two Python transforms keep
 the ISO runtime fixture in the normal image dependency graph.
 The checked audit uses the canonical Windows Make branch and C locale on
@@ -489,8 +490,8 @@ prototype, then check output rollback and same-job recovery.
 
 At this boundary the unchanged source reaches `fmod` at line 465. Named
 matching constraints, operand modifiers, and general XMM or x87 constraints
-remain separate work. The normal host-owned `libm.c` recipe remains
-unchanged.
+remain separate work. The then-host-owned `libm.c` recipe remained unchanged
+at that compiler boundary.
 
 ### libm file-scope remainder wrappers
 
@@ -558,10 +559,13 @@ Negative contracts change a template, remove a callee, change a wrapper or
 callee prototype, forge metadata, and exhaust the output limit. Each failure
 rolls back, and the same job can emit the valid object afterward.
 
-Two exact kernel-profile compiles of unchanged `kernel/cpu/libm.c` now
+Two exact kernel-profile compiles of byte-unchanged `kernel/cpu/libm.cc` now
 produce the same valid 16,164-byte ELF32 relocatable object with SHA-256
 `ccfb59839b058020a3cdc30c8e6db7ebac8845215a38ff974b3cbca876574eac`.
 General GAS remains unsupported.
 
-The checked seed carries this whole boundary. The normal host-owned
-`libm.c` recipe remains until production ownership transfers.
+The checked seed carries this whole boundary. The normal `libm.cc` recipe now
+uses the checked production wrapper with `kernel/core/types.h` and
+`kernel/cpu/libm.h` frozen beside the source. The guest gate runs
+`/bin/feature15_libm.cc` and requires all 22 checks plus
+`PASS feature15_libm`. ADR 0176 records production ownership.

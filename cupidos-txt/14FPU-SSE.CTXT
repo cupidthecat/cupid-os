@@ -182,10 +182,11 @@ The pow, hypot, and nextafter pairs take two arguments. The asin, acos, sinh,
 cosh, tanh, and cbrt pairs take one. Each wrapper copies its original cdecl
 words, calls a matching external implementation, reclaims the copied words,
 and moves the ST(0) result into XMM0 at float or double width. The family
-adds 558 text bytes and 18 PC-relative call relocations. Unchanged
-kernel/cpu/libm.c now emits a deterministic 16,164-byte ELF32 object.
-
-Kernel/cpu/libm.c remains host-owned pending production transfer.
+adds 558 text bytes and 18 PC-relative call relocations. Byte-unchanged
+kernel/cpu/libm.cc now emits a deterministic 16,164-byte ELF32 object through
+the checked production wrapper. The wrapper freezes kernel/core/types.h and
+kernel/cpu/libm.h with the source. The guest smoke runs
+/bin/feature15_libm.cc and requires all 22 checks plus PASS feature15_libm.
 
 Direct floating truth, a floating controlling expression, increment and
 decrement, hexadecimal or subnormal constants, long double, SIMD, and atomic

@@ -172,6 +172,7 @@ APPROVED_SOURCE_DRIVEN_SOURCES = (
     "kernel/cpu/idt.cc",
     "kernel/cpu/irq.cc",
     "kernel/cpu/ksyms.cc",
+    "kernel/cpu/libm.cc",
     "kernel/cpu/pic.cc",
     "kernel/fs/fat16.cc",
     "kernel/fs/iso9660.cc",
@@ -212,6 +213,10 @@ FROZEN_KERNEL_INPUT_CLOSURES = {
         "kernel/core/types.h",
         "kernel/cpu/fpu.h",
         "kernel/cpu/isr.h",
+        "kernel/cpu/libm.h",
+    ),
+    "kernel/cpu/libm.cc": (
+        "kernel/core/types.h",
         "kernel/cpu/libm.h",
     ),
     "kernel/gfx/glyph_raster.cc": (

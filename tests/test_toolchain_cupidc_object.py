@@ -1353,7 +1353,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             )
 
     def test_unchanged_libm_source_emits_a_deterministic_object(self):
-        source = REPO_ROOT / "kernel/cpu/libm.c"
+        source = REPO_ROOT / "kernel/cpu/libm.cc"
         source_bytes = source.read_bytes()
         self.assertEqual(len(source_bytes), LIBM_SOURCE_SIZE)
         self.assertEqual(source_bytes.count(b"\n"), 1500)
@@ -1405,7 +1405,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                         str(self.hosted_cupidc_path),
                         *arguments,
                         "-c",
-                        "/kernel/cpu/libm.c",
+                        "/kernel/cpu/libm.cc",
                         "-o",
                         logical_output,
                     ],

@@ -102,7 +102,7 @@ void fpu_boot_smoke(void) {
  * result if ANY FP register were not saved/restored.  Eight concurrent
  * loops give the PIT a few dozen opportunities per second to catch it.
  *
- * Note on sin() ABI: the libm.c `sin` is exported with the CupidC-tailored
+ * Note on sin() ABI: the libm.cc `sin` is exported with the CupidC-tailored
  * kernel-internal ABI (result in XMM0, not ST(0) - see libm.h).  Calling
  * it from plain C here would not interoperate with the System-V i386
  * return convention GCC expects, so we inline the FSIN via `fldl/fsin/fstpl`.

@@ -165,6 +165,7 @@ SOURCE_DRIVEN_SOURCES = (
     "kernel/cpu/idt.cc",
     "kernel/cpu/irq.cc",
     "kernel/cpu/ksyms.cc",
+    "kernel/cpu/libm.cc",
     "kernel/cpu/pic.cc",
     "kernel/fs/fat16.cc",
     "kernel/fs/iso9660.cc",
@@ -205,6 +206,10 @@ FROZEN_KERNEL_INPUT_CLOSURES = {
         "kernel/core/types.h",
         "kernel/cpu/fpu.h",
         "kernel/cpu/isr.h",
+        "kernel/cpu/libm.h",
+    ),
+    "kernel/cpu/libm.cc": (
+        "kernel/core/types.h",
         "kernel/cpu/libm.h",
     ),
     "kernel/gfx/glyph_raster.cc": (
@@ -838,8 +843,8 @@ class KernelCompileCommandTests(unittest.TestCase):
             kernel_compile.APPROVED_KERNEL_COMPILE_SOURCES,
             tuple(sorted(KERNEL_SOURCES + GENERATED_KERNEL_SOURCES)),
         )
-        self.assertEqual(len(KERNEL_SOURCES), 151)
-        self.assertEqual(len(set(KERNEL_SOURCES)), 151)
+        self.assertEqual(len(KERNEL_SOURCES), 152)
+        self.assertEqual(len(set(KERNEL_SOURCES)), 152)
         self.assertEqual(kernel_compile.KERNEL_I386_ARGUMENTS, KERNEL_I386_ARGUMENTS)
 
         command = kernel_compile.build_compile_arguments(
@@ -862,8 +867,8 @@ class KernelCompileCommandTests(unittest.TestCase):
 
     def test_production_owned_roots_use_the_cupidc_extension(self):
         renamed_sources = KERNEL_SOURCES
-        self.assertEqual(len(renamed_sources), 151)
-        self.assertEqual(len(set(renamed_sources)), 151)
+        self.assertEqual(len(renamed_sources), 152)
+        self.assertEqual(len(set(renamed_sources)), 152)
         self.assertEqual(
             tuple(
                 source
@@ -874,7 +879,7 @@ class KernelCompileCommandTests(unittest.TestCase):
         )
         self.assertEqual(
             sum(Path(source).suffix == ".cc" for source in KERNEL_SOURCES),
-            151,
+            152,
         )
 
         for source in renamed_sources:
@@ -956,6 +961,10 @@ class KernelCompileMakefileTests(unittest.TestCase):
                 "kernel/core/types.h",
                 "kernel/cpu/fpu.h",
                 "kernel/cpu/isr.h",
+                "kernel/cpu/libm.h",
+            ),
+            "kernel/cpu/libm.cc": (
+                "kernel/core/types.h",
                 "kernel/cpu/libm.h",
             ),
             "kernel/gfx/glyph_raster.cc": (
@@ -1499,6 +1508,7 @@ class KernelCompileOperationTests(unittest.TestCase):
             "kernel/lang/as.c",
             "kernel/mm/paging.c",
             "kernel/cpu/fpu.c",
+            "kernel/cpu/libm.c",
             "kernel/smp/percpu.c",
             "kernel/smp/smp.c",
         ):

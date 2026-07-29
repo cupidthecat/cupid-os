@@ -173,10 +173,13 @@ The `pow`, `hypot`, and `nextafter` pairs take two arguments. The `asin`,
 original cdecl argument words, calls the matching external implementation,
 reclaims the copy, and moves the ST(0) result into XMM0 at float or double
 width. The family has 558 text bytes and 18 PC-relative call relocations.
-Two complete compiles of unchanged `kernel/cpu/libm.c` produce the same
+Two complete compiles of byte-unchanged `kernel/cpu/libm.cc` produce the same
 16,164-byte ELF32 relocatable object.
 
-`kernel/cpu/libm.c` remains host-owned pending production transfer.
+The normal `kernel/cpu/libm.cc` recipe now uses the checked CupidC wrapper.
+Its frozen closure contains `kernel/core/types.h` and `kernel/cpu/libm.h`.
+The guest smoke runs `/bin/feature15_libm.cc` and requires 22 checks with no
+failure plus `PASS feature15_libm`. ADR 0176 records the production transfer.
 
 The normal build now compiles `kernel/gfx/jpeg.cc` and
 `kernel/gfx/glyph_raster.cc` with that seed. JPEG exercises exact static

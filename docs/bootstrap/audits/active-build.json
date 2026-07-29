@@ -3669,16 +3669,28 @@
       },
       {
         "inputs": [
-          "kernel/cpu/libm.c",
-          "kernel/cpu/libm.h"
+          "kernel/cpu/libm.cc",
+          "kernel/core/types.h",
+          "kernel/cpu/libm.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/cpu/libm.o",
         "recipe": [
-          "$(CC) $(CFLAGS) $(OPT) kernel/cpu/libm.c -o kernel/cpu/libm.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/libm.cc --output kernel/cpu/libm.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
@@ -16360,7 +16372,7 @@
         "kernel/core/string.c",
         "kernel/cpu/idt.cc",
         "kernel/cpu/ksyms.cc",
-        "kernel/cpu/libm.c",
+        "kernel/cpu/libm.cc",
         "kernel/cpu/pic.cc",
         "kernel/crypto/asn1.cc",
         "kernel/crypto/bigint.cc",
@@ -16605,7 +16617,7 @@
         "kernel/cpu/idt.cc",
         "kernel/cpu/irq.cc",
         "kernel/cpu/ksyms.cc",
-        "kernel/cpu/libm.c",
+        "kernel/cpu/libm.cc",
         "kernel/cpu/math.cc",
         "kernel/cpu/simd.c",
         "kernel/crypto/aes.cc",
@@ -17017,7 +17029,7 @@
         "kernel/cpu/idt.cc",
         "kernel/cpu/irq.cc",
         "kernel/cpu/ksyms.cc",
-        "kernel/cpu/libm.c",
+        "kernel/cpu/libm.cc",
         "kernel/cpu/math.cc",
         "kernel/cpu/pic.cc",
         "kernel/cpu/simd.c",
@@ -17384,7 +17396,7 @@
         "kernel/cpu/fpu.cc",
         "kernel/cpu/irq.cc",
         "kernel/cpu/ksyms.cc",
-        "kernel/cpu/libm.c",
+        "kernel/cpu/libm.cc",
         "kernel/cpu/math.cc",
         "kernel/cpu/pic.cc",
         "kernel/cpu/simd.c",
@@ -18580,22 +18592,22 @@
       "examples": [
         {
           "line": 736,
-          "path": "kernel/cpu/libm.c",
+          "path": "kernel/cpu/libm.cc",
           "text": "__attribute__((used, noinline));"
         },
         {
           "line": 738,
-          "path": "kernel/cpu/libm.c",
+          "path": "kernel/cpu/libm.cc",
           "text": "__attribute__((used, noinline));"
         },
         {
           "line": 963,
-          "path": "kernel/cpu/libm.c",
+          "path": "kernel/cpu/libm.cc",
           "text": "double libm_asin_impl(double x)  __attribute__((used, noinline));"
         }
       ],
       "files": [
-        "kernel/cpu/libm.c"
+        "kernel/cpu/libm.cc"
       ],
       "id": "c.extension.attribute.noinline",
       "occurrences": 18
@@ -18733,22 +18745,22 @@
       "examples": [
         {
           "line": 736,
-          "path": "kernel/cpu/libm.c",
+          "path": "kernel/cpu/libm.cc",
           "text": "__attribute__((used, noinline));"
         },
         {
           "line": 738,
-          "path": "kernel/cpu/libm.c",
+          "path": "kernel/cpu/libm.cc",
           "text": "__attribute__((used, noinline));"
         },
         {
           "line": 963,
-          "path": "kernel/cpu/libm.c",
+          "path": "kernel/cpu/libm.cc",
           "text": "double libm_asin_impl(double x)  __attribute__((used, noinline));"
         }
       ],
       "files": [
-        "kernel/cpu/libm.c"
+        "kernel/cpu/libm.cc"
       ],
       "id": "c.extension.attribute.used",
       "occurrences": 18
@@ -19004,7 +19016,7 @@
         "kernel/cpu/cpu.h",
         "kernel/cpu/fpu.cc",
         "kernel/cpu/idt.cc",
-        "kernel/cpu/libm.c",
+        "kernel/cpu/libm.cc",
         "kernel/cpu/pic.cc",
         "kernel/cpu/simd.c",
         "kernel/crypto/csprng.cc",
@@ -19088,14 +19100,13 @@
         },
         {
           "line": 1,
-          "path": "kernel/cpu/libm.c",
-          "text": "compile_c_to_elf32_object -> kernel/cpu/libm.o"
+          "path": "kernel/cpu/simd.c",
+          "text": "compile_c_to_elf32_object -> kernel/cpu/simd.o"
         }
       ],
       "files": [
         "kernel/core/kernel.c",
         "kernel/core/string.c",
-        "kernel/cpu/libm.c",
         "kernel/cpu/simd.c",
         "kernel/doom/dglibc.c",
         "kernel/doom/doom_libc_stubs.c",
@@ -19182,7 +19193,7 @@
         "kernel/doom/src/z_zone.c"
       ],
       "id": "c.output.elf32_relocatable",
-      "occurrences": 87
+      "occurrences": 86
     },
     {
       "category": "preprocessor",
@@ -20629,7 +20640,7 @@
         "kernel/cpu/isr.h",
         "kernel/cpu/ksyms.cc",
         "kernel/cpu/ksyms.h",
-        "kernel/cpu/libm.c",
+        "kernel/cpu/libm.cc",
         "kernel/cpu/libm.h",
         "kernel/cpu/math.cc",
         "kernel/cpu/math.h",
@@ -21328,7 +21339,7 @@
         "kernel/cpu/isr.h",
         "kernel/cpu/ksyms.cc",
         "kernel/cpu/ksyms.h",
-        "kernel/cpu/libm.c",
+        "kernel/cpu/libm.cc",
         "kernel/cpu/simd.c",
         "kernel/cpu/simd.h",
         "kernel/crypto/aes.cc",
@@ -21924,7 +21935,7 @@
         "kernel/cpu/fpu.cc",
         "kernel/cpu/irq.cc",
         "kernel/cpu/ksyms.cc",
-        "kernel/cpu/libm.c",
+        "kernel/cpu/libm.cc",
         "kernel/cpu/pic.cc",
         "kernel/cpu/simd.c",
         "kernel/crypto/aes.cc",
@@ -22554,7 +22565,7 @@
         "kernel/core/string.c",
         "kernel/core/string.h",
         "kernel/cpu/fpu.cc",
-        "kernel/cpu/libm.c",
+        "kernel/cpu/libm.cc",
         "kernel/cpu/libm.h",
         "kernel/doom/dglibc_compat.h",
         "kernel/doom/doom_libc_stubs.c",
@@ -22707,7 +22718,7 @@
         "bin/fp_drill.cc",
         "bin/test_fpaug.cc",
         "kernel/cpu/fpu.cc",
-        "kernel/cpu/libm.c",
+        "kernel/cpu/libm.cc",
         "kernel/cpu/libm.h",
         "kernel/doom/doom_libc_stubs.c",
         "kernel/doom/src/g_game.c",
@@ -22883,7 +22894,7 @@
         "kernel/cpu/isr.h",
         "kernel/cpu/ksyms.cc",
         "kernel/cpu/ksyms.h",
-        "kernel/cpu/libm.c",
+        "kernel/cpu/libm.cc",
         "kernel/cpu/libm.h",
         "kernel/cpu/math.cc",
         "kernel/cpu/math.h",
@@ -23715,7 +23726,7 @@
         "kernel/cpu/irq.h",
         "kernel/cpu/isr.h",
         "kernel/cpu/ksyms.cc",
-        "kernel/cpu/libm.c",
+        "kernel/cpu/libm.cc",
         "kernel/crypto/aes.h",
         "kernel/crypto/asn1.h",
         "kernel/crypto/bigint.h",
@@ -23928,12 +23939,12 @@
       "examples": [
         {
           "line": 1276,
-          "path": "kernel/cpu/libm.c",
+          "path": "kernel/cpu/libm.cc",
           "text": "typedef union { double d; uint64_t u; } libm_bits64_t;"
         },
         {
           "line": 1277,
-          "path": "kernel/cpu/libm.c",
+          "path": "kernel/cpu/libm.cc",
           "text": "typedef union { float  f; uint32_t u; } libm_bits32_t;"
         },
         {
@@ -23943,7 +23954,7 @@
         }
       ],
       "files": [
-        "kernel/cpu/libm.c",
+        "kernel/cpu/libm.cc",
         "kernel/doom/src/d_think.h",
         "kernel/doom/src/p_local.h",
         "kernel/lang/cupidscript.h",
@@ -25016,6 +25027,7 @@
         "kernel/cpu/irq.cc",
         "kernel/cpu/ksyms.cc",
         "kernel/cpu/ksyms_data.cc",
+        "kernel/cpu/libm.cc",
         "kernel/cpu/math.cc",
         "kernel/cpu/pic.cc",
         "kernel/crypto/aes.cc",
@@ -25148,7 +25160,7 @@
         "user/examples/ls.cc"
       ],
       "id": "cupid_c.output.elf32_relocatable",
-      "occurrences": 158
+      "occurrences": 159
     },
     {
       "category": "storage",
@@ -25504,11 +25516,11 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "0a4e4dca7ecd8cdd2731ba3b8933efd0d2146c22839f19c0c2349e7f2d105556",
+    "active_source_digest": "83c5645147c7708c8d93b3215ea778246b2cef9fb4c261c0728340cdc0cfea61",
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "8723db5528da6d7a434b57a4673c6cc6fe29beed70a1cd5365dae4a75e61c18f"
+        "sha256": "d5d3c3e0c4de53e7746859c3e2a119be8984210c57a8c6c03bf75fa1e0470113"
       },
       {
         "path": "user/Makefile",
@@ -25520,7 +25532,7 @@
       },
       {
         "path": "tools/cupidc_kernel_compile.py",
-        "sha256": "e6b196769151d5106d8f305cfa7839f676bcccd2940b4caedf59b26a09a4ca1b"
+        "sha256": "4b455fb6316c508094975a7d77a5b02187d920544480a19c6065745113e30394"
       },
       {
         "path": "tools/kernel_cupidc_frontier.py",
@@ -26094,7 +26106,7 @@
           "bin/browser/input.cc",
           "bin/browser/js_dom.cc"
         ],
-        "source_count": 288,
+        "source_count": 289,
         "title": "Scale Cupid mode across embedded programs and browser fragments"
       }
     ],
@@ -33021,7 +33033,7 @@
       "path": "kernel/cpu/fpu.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "f940cbbbaf164000857c2e55f5b3eebc8a1398083aa365fb1fba12d7c1350941"
+      "sha256": "7caa3054541ff7684915047913d89a421cddfa081cdf5c9fd4ef31b8d5065c1d"
     },
     {
       "build_owners": [
@@ -33373,7 +33385,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -33387,7 +33400,6 @@
         "c.extension.attribute.noinline",
         "c.extension.attribute.used",
         "c.extension.inline_assembly",
-        "c.output.elf32_relocatable",
         "c.preprocessor.include",
         "c.qualifier.const",
         "c.storage.static",
@@ -33395,23 +33407,23 @@
         "c.type.float",
         "c.type.int",
         "c.type.typedef",
-        "c.type.union"
+        "c.type.union",
+        "cupid_c.output.elf32_relocatable"
       ],
       "includes": [
         "kernel/cpu/libm.h"
       ],
-      "language": "c",
+      "language": "cupid_c",
       "lines": 1500,
       "origin": "tracked",
-      "path": "kernel/cpu/libm.c",
+      "path": "kernel/cpu/libm.cc",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "f1c13c83b758394189cc74ed6addfd9dfa99d42064c349c548476686b26cabce"
     },
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -33437,7 +33449,7 @@
       "path": "kernel/cpu/libm.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "2ad7681675ab89f74f57226ba39022038a549a60d050ceff0f3e2b99d636bc99"
+      "sha256": "5a15e24473856f3ea3b6ff3ad936f2d1ee830ac6a835e146676ff1033a99caad"
     },
     {
       "build_owners": [
@@ -44883,7 +44895,7 @@
       "path": "kernel/lang/cupidc.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "72f40cc09a92a91f411ca86d63d082bbd2aa048262492e9859642547b0445944"
+      "sha256": "4a8f2583e79a901e8e0db83ca76768b98c7e0c278cb8a9f2816989dbfd3f782f"
     },
     {
       "build_owners": [
@@ -50270,7 +50282,7 @@
       "path": "toolchain/tests/cupidc_ir_contract.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "400aa12c4eff431039fdd0d43bec305a02b1cd99e83de02a56cc977bac451acc"
+      "sha256": "5b602842f22c9925c7c02de64a2f506503e546ae0a40f96ab694769a08abf0f1"
     },
     {
       "build_owners": [
@@ -50335,7 +50347,7 @@
       "path": "toolchain/tests/cupidc_object_contract.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "330bcb68002312c8fe5e82cc10a0f0924a52461251444609e52972dcb4d4738e"
+      "sha256": "e5cde96c28e356145f9f2b38100d71a17450c1b006ffc990a0ee13aee3930d21"
     },
     {
       "build_owners": [

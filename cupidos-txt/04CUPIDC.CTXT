@@ -120,9 +120,9 @@ Current toolchain gaps:
 
 >h2 Normal Build Ownership
 >tree open Normal Build Ownership
-The checked CupidC seed compiles 151 checked-in sources in the normal image
+The checked CupidC seed compiles 152 checked-in sources in the normal image
 build. The generated kernel symbol source adds one checked transform, bringing
-the normal total to 152 CupidC transforms. All 152 sources use .cc. The
+the normal total to 153 CupidC transforms. All 153 sources use .cc. The
 19-source i386 Linux fixed point uses the same names, including its five roots
 shared with the normal image. Native GCC or Clang rules select C explicitly
 with -x c, while the checked seed compiles those paths under its fixed target
@@ -152,10 +152,10 @@ transfers the FPU and SMP roots.
 Each result is checked as an i386 ELF32 relocatable object before it replaces
 the build output. A valid data-only object may omit .text, but its other
 sections and symbols must still pass validation. The strict frontier must
-compile all 151 checked-in roots twice. The full frontier now passes with a
-439-input path snapshot whose SHA-256 is
-dd61ee8ece6a26282f7ae2d5f252f53c109827bf3e7a3365a00cc5a6e8d59a8a.
-Both 151-object sets are byte-identical and total 3,643,676 bytes. The combined
+compile all 152 checked-in roots twice. The full frontier now passes with a
+440-input path snapshot whose SHA-256 is
+2143222ba61544b44655f882bc06e55ef0ff195033c907f5ae512801251e9cc1.
+Both 152-object sets are byte-identical and total 3,659,840 bytes. The combined
 graph passes clean normal and partitioned image builds. Final frontier
 publication retries a short permission-style directory lock with five bounded
 delays. A persistent lock leaves the frontier unpublished. The input scan
@@ -169,17 +169,18 @@ feature16_asm_fpu.cc.
 
 The production path generates kernel/cpu/ksyms_data.cc after the pass-one
 link. Its normal recipe uses the checked CupidC wrapper. The source stores the
-packed symbol blob as little-endian unsigned int words and records a logical
-size of 105,505 bytes. The last word supplies 3 zero padding bytes outside that
-size. Generation runs private snapshots of the pass-one kernel and CupidDis.
-It rejects malformed symbol rows, missing text symbols, or live input drift
-before it replaces the source. The compiler wrapper freezes the source and
-its two-header closure before object validation and publication.
-The pass-one and final kernels each project 4,392 symbols, with no pass drift.
+packed symbol blob as little-endian unsigned int words and records its
+meaningful byte length separately. Zero padding completes the last word but
+is not part of that length. Generation runs private snapshots of the pass-one
+kernel and CupidDis. It rejects malformed symbol rows, missing text symbols,
+or live input drift before it replaces the source. The compiler wrapper
+freezes the source and its two-header closure before object validation and
+publication. The pass-one and final kernels project the same text symbols at
+the same addresses.
 
-Across root and supplemental builds, the ownership audit reports 158 CupidC
-transforms, 139 host C transforms, and 173 host Python transforms. Host C
-still creates 87 root objects. Four strict checked-in roots remain outside
+Across root and supplemental builds, the ownership audit reports 159 CupidC
+transforms, 138 host C transforms, and 174 host Python transforms. Host C
+still creates 86 root objects. Three strict checked-in roots remain outside
 production CupidC ownership.
 
 The normal build compiles kernel/gfx/jpeg.cc and
@@ -234,8 +235,8 @@ recipe remains host-owned until its production ownership transfer.
 The checked seed keeps file-scope GNU basic assembly in a separate
 translation-unit table. Linear IR preserves each template in source order
 without treating it as a function statement. The i386 emitter recognizes the
-twelve exact x87/SSE floating wrapper definitions at the start of unchanged
-kernel/cpu/libm.c and writes prologue-free global functions through Cupid's
+twelve exact x87/SSE floating wrapper definitions at the start of the
+then-named kernel/cpu/libm.c and writes prologue-free global functions through Cupid's
 shared x86 encoder. The fixture has 248 text bytes and no relocations. The
 checked seed accepts named operands on function-body GNU assembly and
 resolves %[name] to the existing numeric operand before IR.
@@ -300,12 +301,15 @@ nextafterf. These wrappers copy their original cdecl argument words, call the
 matching external libm implementation, reclaim the copies, and move the
 ST(0) result into XMM0. Four shared unary or binary float or double shapes
 add 558 text bytes and 18 R_386_PC32 relocations with addend -4. Two complete
-kernel-profile compiles of unchanged kernel/cpu/libm.c produce the same
+kernel-profile compiles of byte-unchanged kernel/cpu/libm.cc produce the same
 16,164-byte ELF32 relocatable object.
 
 General GAS input and other file-scope templates remain unsupported. The
-normal libm.c recipe still uses the host compiler pending production
-transfer.
+normal libm.cc recipe uses the checked CupidC wrapper with a frozen closure of
+kernel/core/types.h and kernel/cpu/libm.h. The source keeps all 43,736 bytes,
+and the object bytes remain unchanged. The guest gate runs
+/bin/feature15_libm.cc and requires 22 checks with no failure plus
+PASS feature15_libm.
 
 The checked seed represents the exact per-CPU pointer output
 mov %%gs:0, %0 with one four-byte =r object or void pointer. It keeps the
@@ -367,7 +371,7 @@ FC F3 66 6D and FC F3 66 6F through the shared x86 model. The non-Doom
 header gate is 155/155 in the checked seed.
 
 The checked seed carries this port-I/O capability. The normal build uses it in
-the 151-source checked-in CupidC cohort. It emits unchanged kernel/smp/acpi.cc
+the 152-source checked-in CupidC cohort. It emits unchanged kernel/smp/acpi.cc
 and kernel/smp/mp_tables.cc with the checked seed. Their 5,708-byte and
 4,156-byte objects are deterministic and validated. Exact recursive header
 closures and poisoned host recipes protect each transferred build rule.
@@ -765,9 +769,9 @@ aggregate variadic reads, wide strings, literal pooling, and block-static
 addresses in other
 block-static initializers remain unfinished in the shared path.
 
-The shared path builds 151 checked-in normal kernel and toolchain objects. It
-also owns the generated kernel symbol source as the 152nd normal CupidC
-transform. All 152 normal sources use .cc. The checked seed also
+The shared path builds 152 checked-in normal kernel and toolchain objects. It
+also owns the generated kernel symbol source as the 153rd normal CupidC
+transform. All 153 normal sources use .cc. The checked seed also
 compiles the three generated installation tables and the three example ELF
 programs. Checked CupidLD links those example programs. The host compiler
 still owns the remaining C transforms, while the private in-kernel CupidC

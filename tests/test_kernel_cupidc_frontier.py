@@ -165,6 +165,7 @@ SOURCE_DRIVEN_SOURCES = [
     "kernel/cpu/idt.cc",
     "kernel/cpu/irq.cc",
     "kernel/cpu/ksyms.cc",
+    "kernel/cpu/libm.cc",
     "kernel/cpu/pic.cc",
     "kernel/fs/fat16.cc",
     "kernel/fs/iso9660.cc",
@@ -1867,7 +1868,7 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
             self.assertEqual(manifest["boundaries"], [])
             self.assertEqual(
                 sum(entry["size"] for entry in manifest["sources"]),
-                3643676,
+                3659840,
             )
             object_records = {
                 entry["source"]: (entry["size"], entry["object_sha256"])
@@ -2073,6 +2074,11 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                     "5d64f392df38b6730ff30c3099c3bdfd"
                     "96bcc84d90740e20fd263c1ad7c94389",
                 ),
+                "kernel/cpu/libm.cc": (
+                    16164,
+                    "ccfb59839b058020a3cdc30c8e6db7eb"
+                    "ac8845215a38ff974b3cbca876574eac",
+                ),
                 "kernel/cpu/pic.cc": (
                     2408,
                     "c1855a19e0cd285953996344493dcefe9"
@@ -2196,11 +2202,11 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                 },
                 source_driven_object_records,
             )
-            self.assertEqual(manifest["input_snapshot"]["count"], 439)
+            self.assertEqual(manifest["input_snapshot"]["count"], 440)
             self.assertEqual(
                 manifest["input_snapshot"]["sha256"],
-                "dd61ee8ece6a26282f7ae2d5f252f53c"
-                "109827bf3e7a3365a00cc5a6e8d59a8a",
+                "2143222ba61544b44655f882bc06e55e"
+                "f0ff195033c907f5ae512801251e9cc1",
             )
             self.assertEqual(
                 manifest["provenance"]["compiler"],

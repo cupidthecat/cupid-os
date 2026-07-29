@@ -1421,7 +1421,7 @@ static int floating_arithmetic_active_source_is_unchanged(
   ctool_path_t path;
   ctool_source_t source;
   ctool_status_t status;
-  path.text = ctool_string("/kernel/cpu/libm.c");
+  path.text = ctool_string("/kernel/cpu/libm.cc");
   (void)memset(&source, 0xa5, sizeof(source));
   status = ctool_job_load_source(job, &path, &source);
   if (!check_status(status, CTOOL_OK,
@@ -1441,7 +1441,7 @@ static int floating_conversion_active_source_is_unchanged(
   ctool_path_t path;
   ctool_source_t source;
   ctool_status_t status;
-  path.text = ctool_string("/kernel/cpu/libm.c");
+  path.text = ctool_string("/kernel/cpu/libm.cc");
   (void)memset(&source, 0xa5, sizeof(source));
   status = ctool_job_load_source(job, &path, &source);
   if (!check_status(status, CTOOL_OK,

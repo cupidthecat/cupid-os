@@ -620,7 +620,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
     def test_checked_seed_emits_complete_unchanged_libm_object(self):
         if os.name == "nt" and shutil.which("wsl") is None:
             self.skipTest("WSL is not available")
-        source = REPO_ROOT / "kernel" / "cpu" / "libm.c"
+        source = REPO_ROOT / "kernel" / "cpu" / "libm.cc"
         source_bytes = source.read_bytes()
         self.assertEqual(len(source_bytes), 43736)
         self.assertEqual(source_bytes.count(b"\n"), 1500)
@@ -684,7 +684,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     [
                         *arguments,
                         "-c",
-                        "/kernel/cpu/libm.c",
+                        "/kernel/cpu/libm.cc",
                         "-o",
                         logical_output,
                     ],

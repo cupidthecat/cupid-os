@@ -4344,7 +4344,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "toolchain/elf32.cc",
                 "toolchain/x86.cc",
             }
-            self.assertEqual(len(checked_cupidc_roots), 155)
+            self.assertEqual(len(checked_cupidc_roots), 156)
             self.assertEqual(
                 {
                     path
@@ -4361,7 +4361,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     Path(path).suffix == ".cc"
                     for path in checked_cupidc_roots
                 ),
-                155,
+                156,
             )
             symbol_transform = root_transform_by_output[
                 "kernel/cpu/ksyms_data.cc"
@@ -4637,6 +4637,12 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "kernel/mm/memory.h",
                 ),
             }
+            libm_header_closures = {
+                "kernel/cpu/libm.cc": (
+                    "kernel/core/types.h",
+                    "kernel/cpu/libm.h",
+                ),
+            }
             fpu_smp_header_closures = {
                 "kernel/cpu/fpu.cc": (
                     "drivers/serial.h",
@@ -4685,6 +4691,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             closed_header_closures = {
                 **port_io_header_closures,
                 **floating_gfx_header_closures,
+                **libm_header_closures,
                 **fpu_smp_header_closures,
             }
             for source_path, headers in closed_header_closures.items():
@@ -4699,6 +4706,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 *established_cupidc_kernel_sources,
                 *port_io_header_closures,
                 *floating_gfx_header_closures,
+                *libm_header_closures,
                 *fpu_smp_header_closures,
             )
             for source_path in cupidc_kernel_sources:
@@ -4736,9 +4744,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     )
                 },
                 {
-                    "cupid_c_compiler": 158,
-                    "host_c_compiler": 139,
-                    "host_python": 173,
+                    "cupid_c_compiler": 159,
+                    "host_c_compiler": 138,
+                    "host_python": 174,
                 },
             )
 

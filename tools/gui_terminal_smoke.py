@@ -149,6 +149,14 @@ FRONTIER_RUNTIME_COMMANDS = (
         ),
     ),
     TerminalCommand(
+        "/bin/feature15_libm.cc",
+        (
+            r"\[cupidc\] JIT compile: /bin/feature15_libm\.cc"
+            r".*?\[feature15\] 22 checks total, 0 failed"
+            rf".*?PASS feature15_libm.*?{CUPIDC_COMPLETION_PATTERN}"
+        ),
+    ),
+    TerminalCommand(
         "/bin/feature17_iso.cc",
         (
             r"\[cupidc\] JIT compile: /bin/feature17_iso\.cc"
@@ -297,6 +305,7 @@ FRONTIER_RUNTIME_REJECTED_MARKERS = (
     "[asm] error",
     "FAIL jpeg_decode_mem",
     "FAIL glyph_rasterize",
+    "FAIL feature15_libm",
     "FAIL feature17_iso",
     "FAIL feature18_swap",
     "extended SYS VFS calls: FAIL",
