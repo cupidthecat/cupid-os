@@ -177,10 +177,15 @@ then restores the incoming x87 control word before storing the result.
 Two exact compiles of the extracted active helper produce the same 420-byte
 ELF32 object with SHA-256
 `448012fe57ec625c6075e97cf91163b994a0443238c5d6bdf25e4b839763f14e`.
-Full unchanged `kernel/core/string.c` now reaches the separate
-double-to-`uint64_t` cast on line 190. The checked seed carries the
-round-down increment, but the root remains host-owned and keeps its `.c`
-name.
+Compiler head also emits the later explicit double-to-`uint64_t` casts. It
+splits the result around 2^32 and uses a 2^31-safe truncation for each word.
+The decoder-driven oracle covers positive and negative fractions and the
+active range through the largest binary64 value below 2^64. Full unchanged
+`kernel/core/string.c` compiles
+twice to the same 14,460-byte object with SHA-256
+`d48bb6ea18b7124fbefeaca0d5d5ee8a517db950f21ea88e30ededd6c5c2a577`.
+The checked seed carries the round-down increment but not this conversion,
+so the root remains host-owned and keeps its `.c` name.
 
 The checked seed retains GNU `naked` and `__naked__` for the exact IPI
 entries. A naked definition must be

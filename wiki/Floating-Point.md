@@ -94,10 +94,19 @@ temporary is needed.
 A bounded shared-decoder oracle checks eight binary64 values under all four
 incoming rounding modes. It verifies exact results and control-word
 restoration without executing native x87 code. Two exact compiles of the
-unchanged helper produce the same 420-byte object. The complete
-`kernel/core/string.c` file still stops at its independent
-double-to-`uint64_t` cast on line 190, so this compiler-head increment does
-not move production ownership.
+unchanged helper produce the same 420-byte object.
+
+Compiler head also emits the later explicit non-atomic `double` to
+`uint64_t` casts. It obtains the high word from `value / 2^32`, reconstructs
+and subtracts that exact multiple, then obtains the low word from the
+remainder. Each unsigned-word step splits at 2^31 before the signed SSE
+truncation. The decoder-driven oracle covers positive and negative fractions
+and the active range through the largest binary64 value below 2^64. Two
+complete compiles of unchanged
+`kernel/core/string.c` produce the same 14,460-byte object with SHA-256
+`d48bb6ea18b7124fbefeaca0d5d5ee8a517db950f21ea88e30ededd6c5c2a577`.
+The checked seed does not carry the conversion yet, so production ownership
+does not move and the source keeps its `.c` name.
 
 Compiler head represents the x87 power statements in `libm_pow_impl()` and
 `libm_powf_impl()`. The double form has five `double` memory operands. The

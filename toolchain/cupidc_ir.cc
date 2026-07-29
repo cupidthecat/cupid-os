@@ -3490,14 +3490,27 @@ static ctool_bool cir_floating_conversion_is_valid(
         target_type < context->unit->layout.type_count
             ? &context->unit->layout.types[target_type]
             : (const ctool_c_type_layout_t *)0;
-    return layout != (const ctool_c_type_layout_t *)0 &&
-                   cir_type_is_represented_integer(
-                       context, target_type) == CTOOL_TRUE &&
-                   target->kind != CTOOL_C_TYPE_BOOL &&
-                   (layout->is_signed == CTOOL_TRUE ||
-                    layout->size < 4u) &&
-                   (conversion == CTOOL_C_CONVERSION_NONE ||
-                    conversion == CTOOL_C_CONVERSION_ASSIGNMENT)
+    ctool_bool represented_conversion =
+        layout != (const ctool_c_type_layout_t *)0 &&
+                cir_type_is_represented_integer(
+                    context, target_type) == CTOOL_TRUE &&
+                target->kind != CTOOL_C_TYPE_BOOL &&
+                (layout->is_signed == CTOOL_TRUE || layout->size < 4u) &&
+                (conversion == CTOOL_C_CONVERSION_NONE ||
+                 conversion == CTOOL_C_CONVERSION_ASSIGNMENT)
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
+    ctool_bool unsigned_wide_conversion =
+        layout != (const ctool_c_type_layout_t *)0 &&
+                source->kind == CTOOL_C_TYPE_DOUBLE &&
+                target->kind == CTOOL_C_TYPE_UNSIGNED_LONG_LONG &&
+                cir_type_is_wide_integer(context, target_type) == CTOOL_TRUE &&
+                layout->is_signed == CTOOL_FALSE &&
+                conversion == CTOOL_C_CONVERSION_NONE
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
+    return represented_conversion == CTOOL_TRUE ||
+                   unsigned_wide_conversion == CTOOL_TRUE
                ? CTOOL_TRUE
                : CTOOL_FALSE;
   }

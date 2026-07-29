@@ -14898,3 +14898,133 @@ keeps its `.c` suffix. No production object, ABI, image, runtime path,
 ownership count, or host-dependency count changes in this increment. Issue
 #26 remains open for `fmod` and later GNU assembly forms. `TempleOS/` remains
 untouched reference material.
+
+## 2026-07-28: convert double to unsigned wide values
+
+Compiler-head CupidC now accepts an explicit non-atomic cast from `double` to
+the exact `unsigned long long` type. The frontend retains that cast while
+rejecting `float` input, atomic source or target types, implicit conversion,
+signed-wide or enum output, and other floating-to-wide combinations. Linear
+IR validates the same source type, destination type, layout, and explicit
+conversion metadata before it publishes an eight-byte result.
+
+The i386 emitter keeps the original value in XMM2 and divides a copy by
+2^32. The truncated quotient becomes the high word. Emission reconstructs
+that quotient as an exact `double`, multiplies it by 2^32, subtracts it from
+the original value, and truncates the remainder into the low word. Each
+unsigned 32-bit truncation compares against 2^31. Values below the boundary
+use `CVTTSD2SI` directly. Values at or above it subtract 2^31, truncate, and
+restore the high bit. The result enters the established wide snapshot path
+with EDX as the high word and EAX as the low word.
+
+The decoder-driven state oracle covers zero, positive and negative fractions,
+the values directly below and above 2^32, 2^53 minus one, 2^63, the active
+`1.8e19` guard, and the largest binary64 value below 2^64. Its expected words
+are fixed test data rather than values computed with the new conversion.
+Inputs for which C leaves floating-to-integer conversion undefined have no
+promised result.
+
+The unchanged 8,751-byte `kernel/core/string.c` source still has SHA-256
+`d376b489757cc7835b1e249310dd3c9c26bc920b4799d61ae619613e0765d17f`.
+Two compiler-head runs emit the complete translation unit as the same
+14,460-byte ELF32 object with SHA-256
+`d48bb6ea18b7124fbefeaca0d5d5ee8a517db950f21ea88e30ededd6c5c2a577`.
+
+### Corrections and integration
+
+The unsigned-word helper initially accepted XMM7 even though it reserves
+that register for its 2^31 constant. Its boundary now rejects XMM7. The
+frontend also requires the destination node itself to be
+`unsigned long long`; following an enum to a compatible 64-bit unsigned type
+is not enough. Direct frontend failures pin the implicit, enum, signed-wide,
+atomic-source, and atomic-target forms. Linear IR and the object boundary
+both reject forged assignment metadata before proving same-job recovery.
+
+The runtime oracle originally covered only nonnegative input. C also defines
+conversion for finite values between negative one and zero because their
+truncated integral value is zero. A negative fractional case now pins that
+part of the `(-1, 2^64)` defined interval.
+
+The shared integration head first advanced with the FPU, per-CPU, and SMP
+transfer while this increment was in progress. It advanced again with all
+eight libm rounding wrappers during final review. The compiler changes
+combined without weakening either path. Frozen inventories, generated audit
+files, and adjacent documentation were regenerated from the combined source.
+The rounding decision keeps ADR 0169, so the conversion decision is ADR 0170.
+
+One complete-object run started before the exact enum-target correction was
+frozen. Its final self-host check compared the corrected compiler with the
+older expected fingerprint, so that moving-tree run is discarded and is not
+evidence. The first combined self-host lock intentionally retained the
+rounding-only emitter record; it reported the new deterministic object
+values below, and the corrected lock passed on the next run.
+
+### Frozen compiler records
+
+The final hosted source records are:
+
+| Compiler source | Definitions | Statements | Expressions | Block bindings | Initializers |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `toolchain/cupidc_ir.cc` | 254 | 7,086 | 65,901 | 932 | 342 |
+| `toolchain/cupidc_emit.cc` | 303 | 7,523 | 63,971 | 910 | 530 |
+| `toolchain/cupidc_frontend.cc` | 407 | 16,052 | 106,289 | 2,407 | 1,479 |
+
+The self-host frontier objects are:
+
+| Compiler source | Functions | Text bytes | Object bytes | Text fingerprint |
+| --- | ---: | ---: | ---: | --- |
+| `toolchain/cupidc_ir.cc` | 254 | 469,582 | 505,000 | `360B9EEC` |
+| `toolchain/cupidc_emit.cc` | 303 | 474,541 | 523,080 | `43A6CEAC` |
+| `toolchain/cupidc_frontend.cc` | 407 | 822,280 | 976,768 | `9B9037F6` |
+
+### Evidence
+
+| Gate | Result |
+| --- | --- |
+| Initial frontend, Linear IR, decoded-object, and unchanged-source loop | 4 tests passed in 62.323 seconds |
+| Review boundary correction loop | Frontend and decoded-object contracts passed in 35.368 seconds |
+| Combined rounding and unsigned-wide focused loop | 8 tests passed in 55.974 seconds |
+| Combined frontend and Linear IR modules | 171 tests passed in 35.272 seconds |
+| Combined hosted source frontier lock | 1 test passed in 15.414 seconds |
+| Combined self-host frontier object lock | 1 test passed in 27.451 seconds |
+| Fixed-seed arithmetic model | 500,000 C-defined binary64 inputs matched the emitted decomposition |
+| Pre-rebase complete object module | 100 tests passed in 1,161.885 seconds, including the compiler self-object and five-tool fixed point |
+| Strict hosted Toolchain build before final replay | Six static i386 artifacts linked in 58.1 seconds |
+| Hosted Toolchain native contracts before final replay | All contracts passed in 29.9 seconds |
+| Checked bootstrap seed before final replay | All five checked tools passed |
+| Combined bootstrap audit regeneration | Passed |
+| Combined bootstrap audit drift check | Passed |
+| Final complete object module | 100 tests passed in 1,130.501 seconds |
+| Final complete build-graph audit module | 62 tests passed in 708.533 seconds |
+| Final strict hosted Toolchain build | Six static i386 artifacts linked in 40 seconds |
+| Final hosted Toolchain native contracts | All contracts passed in 33 seconds |
+| Final checked bootstrap seed | All five checked tools passed |
+| Normal OS image build before final replay | A 209,715,200-byte `cupidos.img` completed in 17 minutes 57 seconds |
+| Private-image boot before final replay | The GUI booted and `/bin/ls.cc` compiled and ran in 69 seconds |
+| Final normal OS image build | A 209,715,200-byte `cupidos.img` completed with an empty error log |
+| Final private-image boot | The GUI booted and `/bin/ls.cc` compiled and ran in 65.4 seconds |
+
+The first private-image run used the harness default deadline. It reached VFS
+initialization but did not reach the desktop before that deadline. A clean
+rerun allowed 120 seconds, reached the desktop, launched the terminal, and
+completed `/bin/ls.cc` without error.
+
+After the completed final image run, a redundant incremental `make` probe
+reached its 64-second command limit before producing a result. No process
+from that probe remained, and it is not counted as evidence. The completed
+image log and the fresh private-image smoke above are the release gates.
+
+The combined graph contains 698 active sources, 253 feature IDs, 504
+transforms, and 42 accounted unreachable files. Its active-source digest is
+`904128fb9116332b4f03abd310f37197f6b726807f67e2df6459a1588a661798`.
+The 1,526,996-byte JSON has SHA-256
+`d8e1a97c2fb88929c5b3b317575730a7d7f3bac67209c15afd4de2c7448fb7bc`.
+The 15,060-byte Markdown report has SHA-256
+`81dd89fb14f9027681fe79684c23202961c2ffaca30d99cceb933c0468f66675`.
+
+This remains a compiler-head capability. The checked seed is unchanged, and
+`kernel/core/string.c` remains a host-owned `.c` source. No production
+ownership, ABI, image layout, runtime path, or host-dependency count moves in
+this increment. ADR 0170 records the boundary. Issue #25 remains open for the
+rest of the freestanding C11 and i386 cdecl work. `TempleOS/` remains
+untouched reference material.

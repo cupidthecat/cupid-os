@@ -7654,12 +7654,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.cc", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
        25287u, 479u, 286u, 0u, 0u},
-      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 254u, 7084u,
-       65836u, 930u, 340u, 0u, 0u},
-      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 300u, 7405u,
-       63099u, 898u, 522u, 0u, 0u},
+      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 254u, 7086u,
+       65901u, 932u, 342u, 0u, 0u},
+      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 303u, 7523u,
+       63971u, 910u, 530u, 0u, 0u},
       {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 407u,
-       16052u, 106261u, 2407u, 1479u, 0u, 0u},
+       16052u, 106289u, 2407u, 1479u, 0u, 0u},
       {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 81u, 2935u,
        19252u, 326u, 186u, 0u, 0u},
       {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
@@ -25399,9 +25399,10 @@ static int validate_floating_scalars(
   ctool_u32 floating_constants[5] = {0u, 0u, 0u, 0u, 0u};
   ctool_u32 assignment_conversions[2] = {0u, 0u};
   ctool_u32 casts[2] = {0u, 0u};
+  ctool_u32 unsigned_wide_casts = 0u;
   ctool_u32 usual_integer_to_double = 0u;
   ctool_u32 index;
-  if (unit == NULL || unit->function_definition_count != 14u ||
+  if (unit == NULL || unit->function_definition_count != 15u ||
       validate_static_floating_initializers(unit) != 0) {
     return 1;
   }
@@ -25457,8 +25458,10 @@ static int validate_floating_scalars(
               ? CTOOL_TRUE
               : CTOOL_FALSE;
       ctool_bool target_integer =
-          target_kind == CTOOL_C_TYPE_SIGNED_INT ? CTOOL_TRUE
-                                                 : CTOOL_FALSE;
+          target_kind == CTOOL_C_TYPE_SIGNED_INT ||
+                  target_kind == CTOOL_C_TYPE_UNSIGNED_LONG_LONG
+              ? CTOOL_TRUE
+              : CTOOL_FALSE;
       ctool_bool source_floating =
           source_kind == CTOOL_C_TYPE_FLOAT ||
                   source_kind == CTOOL_C_TYPE_DOUBLE
@@ -25491,7 +25494,12 @@ static int validate_floating_scalars(
                  expression->conversion == CTOOL_C_CONVERSION_NONE &&
                  source_floating == CTOOL_TRUE &&
                  target_integer == CTOOL_TRUE) {
-        casts[1]++;
+        if (target_kind == CTOOL_C_TYPE_UNSIGNED_LONG_LONG &&
+            source_kind == CTOOL_C_TYPE_DOUBLE) {
+          unsigned_wide_casts++;
+        } else {
+          casts[1]++;
+        }
       } else if (expression->kind ==
                      CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
                  expression->conversion ==
@@ -25510,6 +25518,7 @@ static int validate_floating_scalars(
                  assignment_conversions[0] == 2u &&
                  assignment_conversions[1] == 1u &&
                  casts[0] == 2u && casts[1] == 1u &&
+                 unsigned_wide_casts == 1u &&
                  usual_integer_to_double == 1u
              ? 0
              : 1;
@@ -25640,6 +25649,8 @@ static int run_floating_scalars(const char *host_root) {
       "float cast_from_uint(unsigned int value) { return (float)value; }\n"
       "int assign_from_float(float value) { return value; }\n"
       "int cast_from_double(double value) { return (int)value; }\n"
+      "unsigned long long cast_double_to_unsigned_wide(double value) { "
+      "return (unsigned long long)value; }\n"
       "double mixed_add(int left, double right) { return left + right; }\n"
       "float read_local_scalar(void) {\n"
       "  enum { LOCAL_E = 2 };\n"
@@ -25664,6 +25675,29 @@ static int run_floating_scalars(const char *host_root) {
        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
       {"floating to unsigned int conversion",
        "unsigned int bad(double value) { return value; }\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+      {"implicit double to unsigned wide conversion",
+       "unsigned long long bad(double value) { return value; }\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+      {"double to unsigned wide enum cast",
+       "enum wide_value { WIDE_VALUE = 0x100000000ull }; "
+       "enum wide_value bad(double value) { "
+       "return (enum wide_value)value; }\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+      {"float to unsigned wide cast",
+       "unsigned long long bad(float value) { "
+       "return (unsigned long long)value; }\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+      {"double to signed wide cast",
+       "long long bad(double value) { return (long long)value; }\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+      {"atomic double to unsigned wide cast",
+       "unsigned long long bad(_Atomic double value) { "
+       "return (unsigned long long)value; }\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+      {"double to atomic unsigned wide cast",
+       "unsigned long long bad(double value) { "
+       "return (_Atomic unsigned long long)value; }\n",
        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
       {"wide integer to floating conversion",
        "double bad(long long value) { return value; }\n",

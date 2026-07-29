@@ -124,9 +124,12 @@ exact IEEE bits without calling a host floating library. The IR and SSE
 emitter cover represented integer-to-floating conversions,
 floating-to-signed conversions, floating-to-unsigned byte or word
 conversions, and mixed represented integer and floating arithmetic.
-Unsigned four-byte input uses an exact split across the sign boundary. The
-refreshed seed carries that path, and `kernel/lang/cupidc_lex.cc` now builds
-through the checked wrapper.
+Compiler head also covers an explicit non-atomic `double` to
+`unsigned long long` cast. Unsigned four-byte input uses an exact split
+across the sign boundary, while unsigned-wide output is decomposed around
+2^32. The refreshed seed carries the older conversion path, and
+`kernel/lang/cupidc_lex.cc` now builds through the checked wrapper. It does
+not yet carry the unsigned-wide cast.
 CupidC writes target-width static floating constant data for
 scalar and aggregate leaves. Parentheses, unary signs, direct conversion
 between `float` and `double`, and signed zero are represented without a host
@@ -396,13 +399,16 @@ incoming x87 control word, and leaves the pending output address intact. Two
 compiles of the extracted active helper produce the same 420-byte object with
 SHA-256
 `448012fe57ec625c6075e97cf91163b994a0443238c5d6bdf25e4b839763f14e`.
-The full unchanged `kernel/core/string.c` source now stops at its independent
-double-to-`uint64_t` cast on line 190.
+Compiler head now emits the later explicit double-to-`uint64_t` casts. Two
+complete compiles of unchanged `kernel/core/string.c` produce the same
+14,460-byte object with SHA-256
+`d48bb6ea18b7124fbefeaca0d5d5ee8a517db950f21ea88e30ededd6c5c2a577`.
 
 `kernel/cpu/fpu.cc` has transferred to checked CupidC.
-`kernel/core/string.c` keeps its `.c` name until the complete translation
-unit and production gate pass. ADRs 0141, 0146, 0148, 0150, and 0154 record
-the boundaries.
+`kernel/core/string.c` keeps its `.c` name because the checked seed and
+production recipe do not carry the new conversion yet. ADRs 0141, 0146,
+0148, 0150, and 0154 record the assembly boundaries. ADR 0170 records the
+conversion.
 
 Compiler head now accepts the exact volatile EFLAGS restore used twice by
 `simd_cpu_has_cpuid()`: one 32-bit `r` input, no outputs, and one `cc`

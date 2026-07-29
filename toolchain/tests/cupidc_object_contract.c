@@ -20266,7 +20266,10 @@ static int floating_sse_oracle_step(
     return 1;
   }
   if ((instruction->mnemonic == CTOOL_X86_MN_ADDSS ||
-       instruction->mnemonic == CTOOL_X86_MN_ADDSD) &&
+       instruction->mnemonic == CTOOL_X86_MN_ADDSD ||
+       instruction->mnemonic == CTOOL_X86_MN_SUBSD ||
+       instruction->mnemonic == CTOOL_X86_MN_MULSD ||
+       instruction->mnemonic == CTOOL_X86_MN_DIVSD) &&
       instruction->operand_count == 2u) {
     float left_narrow;
     float right_narrow;
@@ -20300,7 +20303,15 @@ static int floating_sse_oracle_step(
       }
       (void)memcpy(&left_wide, &left_bits, sizeof(left_wide));
       (void)memcpy(&right_wide, &right_bits, sizeof(right_wide));
-      left_wide += right_wide;
+      if (instruction->mnemonic == CTOOL_X86_MN_ADDSD) {
+        left_wide += right_wide;
+      } else if (instruction->mnemonic == CTOOL_X86_MN_SUBSD) {
+        left_wide -= right_wide;
+      } else if (instruction->mnemonic == CTOOL_X86_MN_MULSD) {
+        left_wide *= right_wide;
+      } else {
+        left_wide /= right_wide;
+      }
       (void)memcpy(&result_bits, &left_wide, sizeof(result_bits));
       if (!floating_sse_write_bits(machine, left, 64u, result_bits)) {
         return 0;
@@ -26337,6 +26348,10 @@ static int validate_block_static_floating_object(
 static int validate_floating_scalar_object(
     ctool_job_t *job, const ctool_elf32_object_t *object) {
   const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_symbol_t *wide_low_symbol =
+      find_symbol(object, "truncate_double_to_unsigned_wide_low");
+  const ctool_elf32_symbol_t *wide_high_symbol =
+      find_symbol(object, "truncate_double_to_unsigned_wide_high");
   const ctool_u32 signed_negative[] = {0xffffffffu};
   const ctool_u32 signed_char_minimum[] = {0xffffff80u};
   const ctool_u32 signed_short_near_minimum[] = {0xffff8001u};
@@ -26352,12 +26367,45 @@ static int validate_floating_scalar_object(
       0x00000000u, 0x40456000u};
   const ctool_u32 negative_double[] = {
       0x00000000u, 0xc0456000u};
+  const ctool_u32 wide_zero[] = {
+      0x00000000u, 0x00000000u};
+  const ctool_u32 wide_fraction[] = {
+      0x00000000u, 0x40456000u};
+  const ctool_u32 wide_negative_fraction[] = {
+      0x00000000u, 0xbfe80000u};
+  const ctool_u32 wide_low_boundary[] = {
+      0xfff80000u, 0x41efffffu};
+  const ctool_u32 wide_high_boundary[] = {
+      0x00080000u, 0x41f00000u};
+  const ctool_u32 wide_exact_limit[] = {
+      0xffffffffu, 0x433fffffu};
+  const ctool_u32 wide_signed_boundary[] = {
+      0x00000000u, 0x43e00000u};
+  const ctool_u32 wide_active_limit[] = {
+      0x1438a100u, 0x43ef399bu};
+  const ctool_u32 wide_maximum_defined[] = {
+      0xffffffffu, 0x43efffffu};
   const ctool_u32 lexer_digit[] = {7u};
   ctool_u32 mnemonic_counts[CTOOL_X86_MN_COUNT];
   ctool_u32 cursor = 0u;
   if (job == NULL || object == NULL || text == NULL ||
       text->contents.data == NULL || text->contents.size == 0u ||
       !validate_static_floating_object_data(object)) {
+    return 0;
+  }
+  if (!wide_function_symbol_is_valid(
+          object, text, wide_low_symbol) ||
+      !wide_function_symbol_is_valid(
+          object, text, wide_high_symbol) ||
+      wide_low_symbol->size != 253u ||
+      structure_text_fingerprint(
+          ctool_bytes(text->contents.data + wide_low_symbol->value,
+                      wide_low_symbol->size)) != 0xf7cbb220u ||
+      wide_high_symbol->size != 330u ||
+      structure_text_fingerprint(
+          ctool_bytes(text->contents.data + wide_high_symbol->value,
+                      wide_high_symbol->size)) != 0x848707fcu) {
+    (void)fprintf(stderr, "double to uint64 i386 shape differs\n");
     return 0;
   }
   (void)memset(mnemonic_counts, 0, sizeof(mnemonic_counts));
@@ -26385,7 +26433,11 @@ static int validate_floating_scalar_object(
       mnemonic_counts[CTOOL_X86_MN_CVTTSS2SI] == 0u ||
       mnemonic_counts[CTOOL_X86_MN_CVTTSD2SI] == 0u ||
       mnemonic_counts[CTOOL_X86_MN_ADDSD] == 0u ||
-      mnemonic_counts[CTOOL_X86_MN_CVTSD2SS] == 0u) {
+      mnemonic_counts[CTOOL_X86_MN_CVTSD2SS] == 0u ||
+      mnemonic_counts[CTOOL_X86_MN_DIVSD] == 0u ||
+      mnemonic_counts[CTOOL_X86_MN_MULSD] == 0u ||
+      mnemonic_counts[CTOOL_X86_MN_SUBSD] == 0u ||
+      mnemonic_counts[CTOOL_X86_MN_UCOMISD] == 0u) {
     (void)fprintf(
         stderr,
         "floating scalar SSE inventory differs: ss=%u sd=%u "
@@ -26486,6 +26538,74 @@ static int validate_floating_scalar_object(
              unsigned_short_double, 2u, 65535u,
              "double to unsigned short") &&
          expect_wide_oracle_low_result(
+             job, object, text, "truncate_double_to_unsigned_wide_low",
+             wide_zero, 2u, 0u, "double zero to uint64 low") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "truncate_double_to_unsigned_wide_high",
+             wide_zero, 2u, 0u, "double zero to uint64 high") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "truncate_double_to_unsigned_wide_low",
+             wide_fraction, 2u, 42u, "double fraction to uint64 low") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "truncate_double_to_unsigned_wide_high",
+             wide_fraction, 2u, 0u, "double fraction to uint64 high") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "truncate_double_to_unsigned_wide_low",
+             wide_negative_fraction, 2u, 0u,
+             "negative double fraction to uint64 low") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "truncate_double_to_unsigned_wide_high",
+             wide_negative_fraction, 2u, 0u,
+             "negative double fraction to uint64 high") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "truncate_double_to_unsigned_wide_low",
+             wide_low_boundary, 2u, 0xffffffffu,
+             "double below 2^32 to uint64 low") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "truncate_double_to_unsigned_wide_high",
+             wide_low_boundary, 2u, 0u,
+             "double below 2^32 to uint64 high") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "truncate_double_to_unsigned_wide_low",
+             wide_high_boundary, 2u, 0u,
+             "double above 2^32 to uint64 low") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "truncate_double_to_unsigned_wide_high",
+             wide_high_boundary, 2u, 1u,
+             "double above 2^32 to uint64 high") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "truncate_double_to_unsigned_wide_low",
+             wide_exact_limit, 2u, 0xffffffffu,
+             "double 2^53 minus one to uint64 low") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "truncate_double_to_unsigned_wide_high",
+             wide_exact_limit, 2u, 0x001fffffu,
+             "double 2^53 minus one to uint64 high") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "truncate_double_to_unsigned_wide_low",
+             wide_signed_boundary, 2u, 0u,
+             "double 2^63 to uint64 low") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "truncate_double_to_unsigned_wide_high",
+             wide_signed_boundary, 2u, 0x80000000u,
+             "double 2^63 to uint64 high") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "truncate_double_to_unsigned_wide_low",
+             wide_active_limit, 2u, 0xc5080000u,
+             "active double limit to uint64 low") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "truncate_double_to_unsigned_wide_high",
+             wide_active_limit, 2u, 0xf9ccd8a1u,
+             "active double limit to uint64 high") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "truncate_double_to_unsigned_wide_low",
+             wide_maximum_defined, 2u, 0xfffff800u,
+             "largest defined double to uint64 low") &&
+         expect_wide_oracle_low_result(
+             job, object, text, "truncate_double_to_unsigned_wide_high",
+             wide_maximum_defined, 2u, 0xffffffffu,
+             "largest defined double to uint64 high") &&
+         expect_wide_oracle_low_result(
              job, object, text, "lexer_number_low",
              lexer_digit, 1u, 0x66666666u,
              "production lexer scalar shape");
@@ -26494,6 +26614,7 @@ static int validate_floating_scalar_object(
 static int run_floating_scalar_object(const char *host_root) {
   static const char source_prefix[] =
       "typedef unsigned int u32;\n"
+      "typedef unsigned long long u64;\n"
       "typedef long double unsupported_long_double;\n"
       "typedef union { float value; u32 bits; } float_box;\n"
       "typedef union { double value; struct { u32 low; u32 high; } words; } double_box;\n"
@@ -26600,6 +26721,8 @@ static int run_floating_scalar_object(const char *host_root) {
       "int truncate_double(u32 low, u32 high) { return double_from_words(low, high); }\n"
       "unsigned char truncate_unsigned_char(u32 bits) { return float_from_bits(bits); }\n"
       "unsigned short truncate_unsigned_short(u32 low, u32 high) { return double_from_words(low, high); }\n"
+      "u32 truncate_double_to_unsigned_wide_low(u32 low, u32 high) { return (u32)(u64)double_from_words(low, high); }\n"
+      "u32 truncate_double_to_unsigned_wide_high(u32 low, u32 high) { return (u32)((u64)double_from_words(low, high) >> 32); }\n"
       "u32 lexer_number_low(int digit) { double value = 0.0; value = value * 10.0 + (double)digit; value += 0.1; value *= 1.0; return double_low(value); }\n";
   static const char block_static_source[] =
       "typedef unsigned int u32;\n"
@@ -26635,11 +26758,14 @@ static int run_floating_scalar_object(const char *host_root) {
   ctool_bytes_t block_second_bytes;
   ctool_u32 unsigned_int = CTOOL_C_TYPE_NONE;
   ctool_u32 signed_int = CTOOL_C_TYPE_NONE;
+  ctool_u32 signed_wide = CTOOL_C_TYPE_NONE;
+  ctool_u32 unsigned_wide = CTOOL_C_TYPE_NONE;
   ctool_u32 double_type = CTOOL_C_TYPE_NONE;
   ctool_u32 long_double_type = CTOOL_C_TYPE_NONE;
   ctool_u32 floating_constant = CTOOL_C_AST_NONE;
   ctool_u32 static_floating = CTOOL_C_AST_NONE;
   ctool_u32 integer_to_floating = CTOOL_C_AST_NONE;
+  ctool_u32 floating_to_unsigned_wide = CTOOL_C_AST_NONE;
   ctool_u32 index;
   ctool_status_t status;
   char source[sizeof(source_prefix) + sizeof(source_suffix) - 1u];
@@ -26683,6 +26809,14 @@ static int run_floating_scalar_object(const char *host_root) {
                unit.graph.types[index].qualifiers == 0u) {
       signed_int = index;
     } else if (unit.graph.types[index].kind ==
+                   CTOOL_C_TYPE_SIGNED_LONG_LONG &&
+               unit.graph.types[index].qualifiers == 0u) {
+      signed_wide = index;
+    } else if (unit.graph.types[index].kind ==
+                   CTOOL_C_TYPE_UNSIGNED_LONG_LONG &&
+               unit.graph.types[index].qualifiers == 0u) {
+      unsigned_wide = index;
+    } else if (unit.graph.types[index].kind ==
                    CTOOL_C_TYPE_DOUBLE &&
                unit.graph.types[index].qualifiers == 0u) {
       double_type = index;
@@ -26713,14 +26847,24 @@ static int run_floating_scalar_object(const char *host_root) {
         unit.expressions[child].type == signed_int) {
       integer_to_floating = index;
     }
+    if (expression->kind == CTOOL_C_EXPRESSION_CAST &&
+        expression->conversion == CTOOL_C_CONVERSION_NONE &&
+        expression->type == unsigned_wide &&
+        child < unit.expression_count &&
+        unit.expressions[child].type == double_type) {
+      floating_to_unsigned_wide = index;
+    }
   }
   if (unsigned_int == CTOOL_C_TYPE_NONE ||
       signed_int == CTOOL_C_TYPE_NONE ||
+      signed_wide == CTOOL_C_TYPE_NONE ||
+      unsigned_wide == CTOOL_C_TYPE_NONE ||
       double_type == CTOOL_C_TYPE_NONE ||
       long_double_type == CTOOL_C_TYPE_NONE ||
       floating_constant == CTOOL_C_AST_NONE ||
       static_floating == CTOOL_C_AST_NONE ||
-      integer_to_floating == CTOOL_C_AST_NONE) {
+      integer_to_floating == CTOOL_C_AST_NONE ||
+      floating_to_unsigned_wide == CTOOL_C_AST_NONE) {
     goto cleanup;
   }
   invalid_expressions = (ctool_c_expression_t *)malloc(
@@ -26805,6 +26949,36 @@ static int run_floating_scalar_object(const char *host_root) {
           CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION,
           "CupidC IR lowering does not yet support this conversion",
           "integer to long double conversion at object boundary")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count *
+                   sizeof(*invalid_expressions));
+  invalid_expressions[floating_to_unsigned_wide].type =
+      signed_wide;
+  if (ctool_buffer_rewind(failure, 0u) != CTOOL_OK ||
+      !expect_object_failure_preserves_unit(
+          job, &invalid_unit, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "double to signed wide conversion at object boundary")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count *
+                   sizeof(*invalid_expressions));
+  invalid_expressions[floating_to_unsigned_wide].conversion =
+      CTOOL_C_CONVERSION_ASSIGNMENT;
+  if (ctool_buffer_rewind(failure, 0u) != CTOOL_OK ||
+      !expect_object_failure_preserves_unit(
+          job, &invalid_unit, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "implicit double to unsigned wide conversion at object boundary") ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK ||
+      !expect_object_success_preserves_unit(
+          job, &unit, failure,
+          "double to unsigned wide conversion recovery")) {
     goto cleanup;
   }
   (void)memcpy(invalid_initializers, unit.initializers,
@@ -27821,20 +27995,20 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.cc",           "/toolchain/x86.cc",
       "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
-      65u, 68u, 66u, 14u, 31u, 143u, 254u, 300u, 407u, 81u, 37u, 60u,
+      65u, 68u, 66u, 14u, 31u, 143u, 254u, 303u, 407u, 81u, 37u, 60u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 76860u, 85252u, 16872u, 42212u,
-      190304u, 469147u, 467561u, 822022u, 139646u, 70368u, 80478u,
+      190304u, 469582u, 474541u, 822280u, 139646u, 70368u, 80478u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 89320u, 99772u, 20180u, 49484u,
-      226668u, 504556u, 515632u, 976512u, 157828u, 79348u, 134656u,
+      226668u, 505000u, 523080u, 976768u, 157828u, 79348u, 134656u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x5fbbfaf2u, 0x4ca44a27u,
       0x7238e153u, 0x999f97b7u, 0xb49d8eb9u,
-      0x67557415u, 0xf49ab960u, 0x503c286fu, 0x239f52c7u,
+      0x360b9eecu, 0x43a6ceacu, 0x9b9037f6u, 0x239f52c7u,
       0x34558a49u, 0x7c198364u, 0x8774de7du};
   ctool_u32 index;
   int all_matched = 1;

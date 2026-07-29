@@ -449,16 +449,19 @@ logic, and conditional selection. Represented file and block enumerators and
 signed or unsigned integers through 64 bits can feed that evaluator. It rounds
 after each operation at the expression width, preserves signed zero, and
 writes the final bits to read-only, writable, or zero-filled storage. The IR
-and SSE path cover represented runtime
-integer-to-floating conversions, floating-to-signed conversions,
-floating-to-unsigned byte or word conversions, and mixed represented integer
-and floating arithmetic. Unsigned four-byte input uses an exact split across
-the sign boundary. Hexadecimal floating literals, long double, runtime
-conversion to unsigned four-byte integers or _Bool, runtime floating truth,
-runtime mixed wide and floating arithmetic or conditional arms, increment and
-decrement, SIMD, floating atomic access, and over-aligned object emission
-remain unfinished. Matching or mixed-width floating conditional arms and the
-four arithmetic compound assignments keep their established x87 path.
+and SSE path cover represented runtime integer-to-floating conversions,
+floating-to-signed conversions, floating-to-unsigned byte or word
+conversions, an explicit non-atomic double to unsigned long long cast, and
+mixed represented integer and floating arithmetic. Unsigned four-byte input
+uses an exact split across the sign boundary. Unsigned-wide output splits
+around 2^32 and derives both words through 2^31-safe truncations. Hexadecimal
+floating literals, long double, runtime conversion to unsigned four-byte
+integers or _Bool, other floating-to-wide conversions, runtime floating
+truth, runtime mixed wide and floating arithmetic or conditional arms,
+increment and decrement, SIMD, floating atomic access, and over-aligned
+object emission remain unfinished. Matching or mixed-width floating
+conditional arms and the four arithmetic compound assignments keep their
+established x87 path.
 
 Plain assignment, all ten compound assignments, and prefix and postfix update
 work for non-atomic integer bit fields whose declared storage unit is four
@@ -816,10 +819,15 @@ depth. A bounded shared-decoder oracle checks eight binary64 inputs under all
 four incoming rounding modes without executing native x87 code.
 
 Two exact compiles of the unchanged str_floor helper produce the same
-420-byte object. Full unchanged kernel/core/string.c now reaches the separate
-double-to-uint64_t cast on line 190. The checked seed carries the round-down
-statement, but the production owner is unchanged and the source keeps its .c
-name.
+420-byte object. Compiler head also emits the later explicit
+double-to-uint64_t casts. The decoder-driven oracle covers zero, positive and
+negative fractions, both sides of 2^32, 2^53 minus one, 2^63, the active
+1.8e19 guard, and the largest binary64 value below 2^64. Full unchanged
+kernel/core/string.c
+compiles twice to the same 14,460-byte object with SHA-256
+d48bb6ea18b7124fbefeaca0d5d5ee8a517db950f21ea88e30ededd6c5c2a577.
+The checked seed carries the round-down statement but not the cast, so the
+production owner is unchanged and the source keeps its .c name.
 
 The checked seed accepts the four exact descriptor-table and
 segment-register statements in kernel/smp/percpu.cc. A packed

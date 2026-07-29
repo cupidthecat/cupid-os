@@ -10996,7 +10996,11 @@ static ctool_status_t cfront_apply_cast(
            (target_integer_info.width <= 32u &&
             target_integer_info.kind != CTOOL_C_TYPE_BOOL &&
             (target_integer_info.is_unsigned == CTOOL_FALSE ||
-             target_integer_info.width < 32u))))) &&
+             target_integer_info.width < 32u)) ||
+           (source.kind == CTOOL_C_TYPE_DOUBLE &&
+            target.kind == CTOOL_C_TYPE_UNSIGNED_LONG_LONG &&
+            target_integer_info.width == 64u &&
+            target_integer_info.is_unsigned == CTOOL_TRUE)))) &&
         ((target_qualifiers | target.qualifiers |
           original_source_qualifiers | original_source.qualifiers) &
          CTOOL_C_QUAL_ATOMIC) == 0u) {

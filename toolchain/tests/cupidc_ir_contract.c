@@ -27756,6 +27756,8 @@ static int validate_floating_scalar_ir(
       find_plain_type_kind(unit, CTOOL_C_TYPE_SIGNED_INT);
   ctool_u32 unsigned_int =
       find_plain_type_kind(unit, CTOOL_C_TYPE_UNSIGNED_INT);
+  ctool_u32 unsigned_wide =
+      find_plain_type_kind(unit, CTOOL_C_TYPE_UNSIGNED_LONG_LONG);
   ctool_u32 float_type =
       find_plain_type_kind(unit, CTOOL_C_TYPE_FLOAT);
   ctool_u32 double_type =
@@ -27773,12 +27775,14 @@ static int validate_floating_scalar_ir(
       0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u};
   ctool_u32 integer_to_floating[3] = {0u, 0u, 0u};
   ctool_u32 floating_to_integer[2] = {0u, 0u};
+  ctool_u32 floating_to_unsigned_wide = 0u;
   ctool_u32 index;
   if (unit == NULL || ir == NULL ||
-      unit->function_definition_count != 14u ||
-      ir->function_count != 14u ||
+      unit->function_definition_count != 15u ||
+      ir->function_count != 15u ||
       signed_int == CTOOL_C_TYPE_NONE ||
       unsigned_int == CTOOL_C_TYPE_NONE ||
+      unsigned_wide == CTOOL_C_TYPE_NONE ||
       float_type == CTOOL_C_TYPE_NONE ||
       double_type == CTOOL_C_TYPE_NONE ||
       local_scalar_binding == CTOOL_C_AST_NONE ||
@@ -28037,6 +28041,10 @@ static int validate_floating_scalar_ir(
                  CTOOL_C_CONVERSION_NONE) {
         floating_to_integer[1]++;
       }
+    } else if (instruction->input_type == double_type &&
+               instruction->type == unsigned_wide &&
+               instruction->conversion == CTOOL_C_CONVERSION_NONE) {
+      floating_to_unsigned_wide++;
     }
   }
   return static_values[0] == 2u && static_values[1] == 2u &&
@@ -28074,7 +28082,8 @@ static int validate_floating_scalar_ir(
                  integer_to_floating[1] == 2u &&
                  integer_to_floating[2] == 1u &&
                  floating_to_integer[0] == 1u &&
-                 floating_to_integer[1] == 1u
+                 floating_to_integer[1] == 1u &&
+                 floating_to_unsigned_wide == 1u
              ? 1
              : 0;
 }
@@ -28176,6 +28185,8 @@ static int run_floating_scalars(const char *host_root) {
       "float cast_from_uint(unsigned int value) { return (float)value; }\n"
       "int assign_from_float(float value) { return value; }\n"
       "int cast_from_double(double value) { return (int)value; }\n"
+      "unsigned long long cast_double_to_unsigned_wide(double value) { "
+      "return (unsigned long long)value; }\n"
       "double mixed_add(int left, double right) { return left + right; }\n"
       "float read_local_scalar(void) {\n"
       "  enum { LOCAL_E = 2 };\n"
@@ -28201,8 +28212,11 @@ static int run_floating_scalars(const char *host_root) {
   ctool_u32 float_constant = CTOOL_C_AST_NONE;
   ctool_u32 integer_to_floating = CTOOL_C_AST_NONE;
   ctool_u32 floating_to_integer = CTOOL_C_AST_NONE;
+  ctool_u32 floating_to_unsigned_wide = CTOOL_C_AST_NONE;
   ctool_u32 signed_int;
+  ctool_u32 signed_wide;
   ctool_u32 unsigned_int;
+  ctool_u32 unsigned_wide;
   ctool_u32 float_type;
   ctool_u32 double_type;
   ctool_u32 long_double_type;
@@ -28231,8 +28245,12 @@ static int run_floating_scalars(const char *host_root) {
   }
   unsigned_int =
       find_plain_type_kind(&unit, CTOOL_C_TYPE_UNSIGNED_INT);
+  unsigned_wide =
+      find_plain_type_kind(&unit, CTOOL_C_TYPE_UNSIGNED_LONG_LONG);
   signed_int =
       find_plain_type_kind(&unit, CTOOL_C_TYPE_SIGNED_INT);
+  signed_wide =
+      find_plain_type_kind(&unit, CTOOL_C_TYPE_SIGNED_LONG_LONG);
   float_type =
       find_plain_type_kind(&unit, CTOOL_C_TYPE_FLOAT);
   double_type =
@@ -28315,7 +28333,9 @@ static int run_floating_scalars(const char *host_root) {
     }
   }
   if (unsigned_int == CTOOL_C_TYPE_NONE ||
+      unsigned_wide == CTOOL_C_TYPE_NONE ||
       signed_int == CTOOL_C_TYPE_NONE ||
+      signed_wide == CTOOL_C_TYPE_NONE ||
       float_type == CTOOL_C_TYPE_NONE ||
       double_type == CTOOL_C_TYPE_NONE ||
       long_double_type == CTOOL_C_TYPE_NONE ||
@@ -28401,10 +28421,18 @@ static int run_floating_scalars(const char *host_root) {
         expression->type == signed_int) {
       floating_to_integer = index;
     }
+    if (expression->kind == CTOOL_C_EXPRESSION_CAST &&
+        expression->conversion == CTOOL_C_CONVERSION_NONE &&
+        child < unit.expression_count &&
+        unit.expressions[child].type == double_type &&
+        expression->type == unsigned_wide) {
+      floating_to_unsigned_wide = index;
+    }
   }
   if (float_constant == CTOOL_C_AST_NONE ||
       integer_to_floating == CTOOL_C_AST_NONE ||
-      floating_to_integer == CTOOL_C_AST_NONE) {
+      floating_to_integer == CTOOL_C_AST_NONE ||
+      floating_to_unsigned_wide == CTOOL_C_AST_NONE) {
     goto cleanup;
   }
   invalid_unit = unit;
@@ -28453,6 +28481,30 @@ static int run_floating_scalars(const char *host_root) {
           CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION,
           "CupidC IR lowering does not yet support this conversion",
           "floating to unsigned 32-bit conversion")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count *
+                   sizeof(*invalid_expressions));
+  invalid_expressions[floating_to_unsigned_wide].type =
+      signed_wide;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "floating to signed wide conversion")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count *
+                   sizeof(*invalid_expressions));
+  invalid_expressions[floating_to_unsigned_wide].conversion =
+      CTOOL_C_CONVERSION_ASSIGNMENT;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "implicit floating to unsigned wide conversion metadata")) {
     goto cleanup;
   }
   invalid_unit = unit;

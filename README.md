@@ -603,6 +603,18 @@ evaluates its operand once and discards any represented result.
 
 The hosted path also carries signed and unsigned eight-byte integers through constants, matching conditional arms, fixed direct and indirect call results, object access, declared parameters, and named direct or indirect call arguments. File objects, block statics, fixed automatic objects, pointer dereferences, ordinary members, and indexed elements can be loaded, initialized, assigned, mutated, chained, discarded, and returned. One Linear IR entry names an emitter-owned eight-byte snapshot, so a load is a stable C value rather than a borrowed object address. A declared wide argument occupies eight cdecl stack bytes, and later parameter addresses include its full width. On return, EAX carries the low word and EDX carries the high word. Wide values support addition, subtraction, multiplication, division, remainder, unary plus, unary minus, bitwise complement, left shift, signed or unsigned right shift, AND, OR, XOR, all six signed or unsigned comparisons, logical not, short-circuit logical operators, conditional selection, structured scalar conditions, signed or unsigned switch dispatch, all ten compound assignments, prefix and postfix update, explicit casts to or from represented byte, word, and doubleword integers, and the usual arithmetic conversion from `signed long long` to `unsigned long long`. A wide switch evaluates its condition once, duplicates the private snapshot handle, and compares both words of each case value. Wide mutation evaluates the destination once and performs one semantic load and store. Wide multiplication combines one full low-word product with both cross-word products. Division and remainder run a fixed 64-step restoring loop over unsigned magnitudes, then apply the quotient or dividend sign. Each multiplication, division, or remainder result receives a fresh snapshot. GNU wide enums promote to their compatible signed or unsigned wide type. The complete unchanged `ctool_buffer_put_le64`, `ctool_buffer_patch_le64`, `pp_if_value_truth`, `pp_if_is_negative`, `pp_if_signed_less`, `pp_if_signed_magnitude`, `cfront_constant_apply_binary`, and X25519 `fe_carry` bodies guard those operations. CupidASM's unchanged number parser and unary expression branch guard the arithmetic, while X25519's unchanged `fe_mul_u32` helper guards wide-by-narrow multiplication. Runtime cases that C leaves undefined promise neither a trap nor a result. Signed and unsigned wide integers can also pass through an ellipsis or a call without a prototype.
 
+Compiler head also accepts an explicit non-atomic `double` to
+`unsigned long long` cast. The i386 emitter derives an unsigned high word
+from `value / 2^32`, subtracts that exact multiple from the original value,
+and derives the low word from the remainder. Each 32-bit step splits at
+2^31 so the signed SSE truncation instruction stays in range. Decoder-driven
+cases cover zero, positive and negative fractions, both sides of 2^32, 2^53
+minus one, 2^63, the active `1.8e19` guard, and the largest binary64 value
+below 2^64. This lets compiler head emit complete unchanged
+`kernel/core/string.c` as a deterministic 14,460-byte object. The checked
+seed does not carry the conversion yet, so the normal recipe remains
+host-owned and the source keeps its `.c` suffix.
+
 The hosted path carries `float` and `double` values through objects,
 initialization, assignment, discard, calls, parameters, results, and returns.
 It supports conversion between the two widths, arithmetic at matching or
@@ -616,8 +628,9 @@ between `float` and `double` is rounded with integer-only target arithmetic,
 and exact binary32 or binary64 bytes reach `.rodata`, `.data`, or `.bss`.
 Represented integer-to-floating conversions,
 floating-to-signed conversions, floating-to-unsigned byte or word
-conversions, and mixed integer and floating arithmetic use the SSE object
-path. Unsigned four-byte input uses an exact split across the sign boundary.
+conversions, the explicit `double` to unsigned-wide cast, and mixed integer
+and floating arithmetic use the SSE object path. Unsigned four-byte input
+uses an exact split across the sign boundary.
 The x87 transport model, SSE conversion oracle, and `UCOMISS` or `UCOMISD`
 comparison oracle check rounding, operand order, ordered values, signed zero,
 infinities, quiet and signaling NaNs, call alignment, and frame state. Direct
@@ -720,6 +733,8 @@ and the generated kernel symbol translation described above.
 [ADR 0168](docs/adr/0168-represent-fixed-register-input-overlap.md) records compatible fixed-register input and output sharing.
 
 [ADR 0169](docs/adr/0169-represent-libm-rounding-file-scope-assembly.md) records the exact eight-wrapper libm rounding family and the following `fmod` frontier.
+
+[ADR 0170](docs/adr/0170-represent-double-to-unsigned-wide-conversion.md) records the explicit `double` to `unsigned long long` conversion and the resulting complete compiler-head `string.c` object.
 
 [ADR 0143](docs/adr/0143-share-ordinary-padding-nops.md) records the shared ordinary compiler padding family and its measured disassembly improvement.
 

@@ -1183,7 +1183,16 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                 ),
             )
 
-    def test_unchanged_string_source_reaches_the_next_frontier(self):
+    def test_unchanged_string_source_emits_a_deterministic_object(self):
+        source = REPO_ROOT / "kernel/core/string.c"
+        source_bytes = source.read_bytes()
+        self.assertEqual(len(source_bytes), 8751)
+        self.assertEqual(source_bytes.count(b"\n"), 333)
+        self.assertEqual(
+            hashlib.sha256(source_bytes).hexdigest(),
+            "d376b489757cc7835b1e249310dd3c9c26bc920b4799d61ae"
+            "619613e0765d17f",
+        )
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
         audit = json.loads(audit_path.read_text(encoding="utf-8"))
         contract = audit["contracts"]["c_preprocessor_translation_units"]
@@ -1206,14 +1215,11 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             arguments.append(
                 "-D" + action["name"] + "=" + action["replacement"]
             )
-        expected = (
-            "/kernel/core/string.c:190:25: error CTB000010: "
-            "floating cast is outside this expression slice\n"
-        )
         with tempfile.TemporaryDirectory(
             prefix=".cupidc-string-frontier-", dir=REPO_ROOT
         ) as temp:
             output_root = Path(temp)
+            objects = []
             for index in range(2):
                 output = output_root / f"string-{index}.o"
                 logical_output = "/" + output.relative_to(
@@ -1233,10 +1239,29 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                     capture_output=True,
                     timeout=180,
                 )
-                self.assertEqual(result.returncode, 1)
+                self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(result.stdout, "")
-                self.assertEqual(result.stderr, expected)
-                self.assertFalse(output.exists())
+                self.assertEqual(result.stderr, "")
+                self.assertTrue(output.is_file())
+                image = output.read_bytes()
+                self.assertEqual(image[:7], b"\x7fELF\x01\x01\x01")
+                self.assertEqual(int.from_bytes(image[16:18], "little"), 1)
+                self.assertEqual(int.from_bytes(image[18:20], "little"), 3)
+                objects.append(image)
+            self.assertEqual(objects[0], objects[1])
+            digest = hashlib.sha256(objects[0]).hexdigest()
+            self.assertEqual(
+                (len(objects[0]), digest),
+                (
+                    14460,
+                    "d48bb6ea18b7124fbefeaca0d5d5ee8a517db950f21ea88e"
+                    "30ededd6c5c2a577",
+                ),
+                (
+                    "unchanged string object lock changed: "
+                    f"{len(objects[0])} {digest}"
+                ),
+            )
 
     def test_unchanged_libm_source_advances_past_rounding_assembly(
         self,

@@ -315,7 +315,7 @@ One-active-member union initializer lists use the same aggregate paths. A positi
 
 Runtime narrow string expressions receive local `.rodata` symbols and `R_386_32` relocations. They can decay into pointers for initialization, arguments, indexing, and returns. Supported structure graphs have alignment no greater than four bytes and contain no stored `volatile` or `_Atomic` subobjects. A graph may contain a nested union, but top-level union and class values remain unsupported.
 
-The shared frontend publishes decimal `float` and `double` constants as exact IEEE bits. It uses bounded integer arithmetic and rounds once to nearest with ties to even, so self-hosted compilation does not depend on a host floating library. A second integer-only evaluator handles static-duration arithmetic, comparisons, casts, scalar truth, short-circuit logic, conditional selection, enumerators, and represented signed or unsigned integer conversion through 64 bits. It rounds after each operation at the expression's binary32 or binary64 width and places the final bits, including signed zero, through the ordinary read-only, writable, or zero-filled policy. The IR and SSE object path cover represented runtime integer-to-floating conversions, floating-to-signed conversions, floating-to-unsigned byte or word conversions, mixed integer and floating addition, subtraction, multiplication, and division, and all six matching or mixed-width comparisons. Unsigned four-byte input uses an exact split conversion across the sign boundary. Hexadecimal floating literals, `long double`, runtime conversion to unsigned four-byte integers or `_Bool`, runtime floating truth, runtime mixed wide and floating arithmetic or conditional arms, and floating increment and decrement remain unsupported. Matching or mixed-width floating conditional arms and the four arithmetic compound assignments keep their established x87 path.
+The shared frontend publishes decimal `float` and `double` constants as exact IEEE bits. It uses bounded integer arithmetic and rounds once to nearest with ties to even, so self-hosted compilation does not depend on a host floating library. A second integer-only evaluator handles static-duration arithmetic, comparisons, casts, scalar truth, short-circuit logic, conditional selection, enumerators, and represented signed or unsigned integer conversion through 64 bits. It rounds after each operation at the expression's binary32 or binary64 width and places the final bits, including signed zero, through the ordinary read-only, writable, or zero-filled policy. The IR and SSE object path cover represented runtime integer-to-floating conversions, floating-to-signed conversions, floating-to-unsigned byte or word conversions, an explicit non-atomic `double` to `unsigned long long` cast, mixed integer and floating addition, subtraction, multiplication, and division, and all six matching or mixed-width comparisons. Unsigned four-byte input uses an exact split conversion across the sign boundary. Unsigned-wide output splits around 2^32 and derives each word through a 2^31-safe truncation. Hexadecimal floating literals, `long double`, runtime conversion to unsigned four-byte integers or `_Bool`, other floating-to-wide conversions, runtime floating truth, runtime mixed wide and floating arithmetic or conditional arms, and floating increment and decrement remain unsupported. Matching or mixed-width floating conditional arms and the four arithmetic compound assignments keep their established x87 path.
 
 The checked seed retains GNU `noinline` and
 `target("general-regs-only")` on canonical file-scope functions.
@@ -376,10 +376,15 @@ The shared decoder checks the exact 44-byte direct sequence. A bounded state
 oracle runs eight binary64 inputs under all four incoming rounding modes and
 checks the rounded bits, scratch memory, register state, and restored control
 word without executing native x87 code. The exact unchanged helper compiles
-twice to the same 420-byte object. Full unchanged `kernel/core/string.c`
-continues to line 190, where its separate double-to-`uint64_t` cast remains
-unsupported. The checked seed carries the round-down statement; production
-ownership remains unchanged.
+twice to the same 420-byte object. Compiler head also emits the later
+explicit double-to-`uint64_t` casts. The shared-decoder oracle covers zero,
+positive and negative fractions, both sides of 2^32, 2^53 minus one, 2^63,
+the active `1.8e19` guard, and the largest binary64 value below 2^64. Full
+unchanged `kernel/core/string.c` compiles twice to the same 14,460-byte object
+with SHA-256
+`d48bb6ea18b7124fbefeaca0d5d5ee8a517db950f21ea88e30ededd6c5c2a577`.
+The checked seed carries the round-down statement but not the cast, so
+production ownership remains unchanged and the source keeps its `.c` name.
 
 The checked seed accepts the four exact descriptor-table and
 segment-register statements in `kernel/smp/percpu.cc`. A packed
