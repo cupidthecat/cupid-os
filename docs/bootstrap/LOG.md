@@ -16297,3 +16297,118 @@ met a temporary Windows executable lock. The two focused records passed with
 The clean `make test` rerun passed 875 tests in 4,820.861 seconds, with one
 platform-conditioned skip. It also completed the GUI terminal smoke and
 confirmed that the checked build graph had not drifted.
+
+## 2026-07-29: complete the Doom compatibility object frontier
+
+Compiler head now emits all three `DOOM_COMPAT_I386` roots. Together with the
+existing 80-root Doom-tree gate, the current compiler frontier is 83/83.
+
+### Source requirements
+
+Two unchanged source forms closed the remaining gap.
+
+`kernel/doom/doom_libc_stubs.c` initializes `snd_musiccmd` with
+`(char *)""`. The frontend now looks through an explicit cast between two
+non-atomic pointer types when it extracts a static string or linked binding
+address. The initializer still owns the original string bytes, binding, and
+target-byte addend. A cast routed through an integer remains unsupported.
+
+`kernel/doom/dglibc.c` defines `dg_setjmp` and `dg_longjmp` in one file-scope
+GNU assembly block. The emitter recognizes that exact block, checks both
+external prototypes, and rejects missing declarations, wrong types,
+attributes, competing C definitions, duplicate definitions, or changed
+assembly text.
+
+Cupid's x86 encoder emits both prologue-free functions. `dg_setjmp` saves EBX,
+ESI, EDI, EBP, ESP, and the return address before returning zero.
+`dg_longjmp` changes a zero result to one, restores the saved state, places
+the result in EAX, and jumps through the saved return address.
+
+| Function | Text offset | Text bytes |
+| --- | ---: | ---: |
+| `dg_setjmp` | 0 | 27 |
+| `dg_longjmp` | 27 | 38 |
+
+Both symbols are global `STT_FUNC` definitions, and the 65-byte text section
+has no relocation. CupidDis decodes every instruction and checks the compact
+memory displacements, conditional branch target, and register-indirect jump.
+
+### Failed approaches and corrections
+
+The first jump emitter reused a load helper that forces a 32-bit displacement.
+The instructions were correct, but `dg_longjmp` grew to 57 bytes and did not
+match the source-driven encoding contract. A separate compact load path now
+lets the shared encoder choose zero- or eight-bit displacements. Established C
+emission still uses its existing forced-displacement path.
+
+The first self-hosted compatibility run passed the Windows repository path as
+plain text. The Linux compiler reported the source as missing because the WSL
+adapter only translates path objects. Passing the repository root as a path
+uses the existing translation path, and the repeated run passes.
+
+### Object evidence
+
+The host-built current compiler and a Cupid-built current compiler produce the
+same bytes for every compatibility root:
+
+| Source | Object bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/doom/dglibc.c` | 27,992 | `88e3a66488e09ee15769e666971dd34ed0fe0707a54f9962f5f7dadbe4fd4224` |
+| `kernel/doom/doom_libc_stubs.c` | 14,352 | `8f667113c54fa0b0d27ce83d134242065ba5b9258324a809e11e72229752ff3b` |
+| `kernel/doom/doomgeneric_cupidos.c` | 10,232 | `5274b91dfa7bac56cd83ff0f8096eb5a06fef5e61f91ebb3b80efacc8ad2a9cb` |
+
+The same focused gate recompiles all 80 Doom-tree roots. All 83 objects are
+valid i386 `ET_REL` files.
+
+### Contract and audit evidence
+
+The static-initializer contract covers `(char *)""` and `(int *)&target`. Its
+negative case rejects `(int *)(unsigned int)&target`. The assembly contract
+covers exact bytes and symbols, full shared-decoder coverage, an altered
+template, missing and wrong declarations, constrained output, rollback,
+deterministic repeat emission, and recovery in the same job.
+
+The focused four-test compiler gate passed in 63.172 seconds. It covered the
+frontend initializer contract, the exact dglibc object, all 80 Doom-tree
+roots, and host/self-host equality for all three compatibility roots. A
+separate compatibility self-host run passed in 47.044 seconds.
+
+The first combined frontend and object run executed 200 tests in 1,152.083
+seconds. It found two stale self-host source locks after all new semantic and
+object cases had passed. The corrected source gate records
+352/8,481/71,733/1,031/702 for `cupidc_emit.cc` and
+419/16,332/108,107/2,450/1,492 for `cupidc_frontend.cc`. The corrected
+self-host object gate records 535,119 and 836,265 text bytes, 602,080 and
+995,868 object bytes, and fingerprints `6044EC6E` and `0EC0B332`. Its focused
+replay passed in 29.610 seconds. The complete 93-test frontend module then
+passed in 17.432 seconds.
+
+The final object module passed all 107 tests in 1,114.868 seconds. That run
+included the complete five-tool fixed point, host and Cupid-built compiler
+parity, the 80-root Doom-tree frontier, and the three compatibility objects
+above. A clean `make -C toolchain all` also rebuilt every native contract,
+driver, and static i386 tool without an error.
+
+The regenerated graph contains 699 active sources, 253 feature IDs, 504
+transforms, and 42 accounted unreachable files. Its active-source digest is
+`c6a189d1d287bef25448c5233ea77d93a62a589cad9c48dca86ee34bfe6ad4bf`.
+
+| Audit record | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `docs/bootstrap/ACTIVE-SOURCE-AUDIT.md` | 15,060 | `11e0149035539dfbfe44511772b202fceddd18d70f71611158cb093d8a0428ef` |
+| `docs/bootstrap/audits/active-build.json` | 1,532,457 | `f4147439538ae75cc880f6202cb3f5b19ec04d3c96648ce556814ba70e5078bd` |
+| `toolchain/tests/cupidc_pp_active_cases.inc` | 39,041 | `73658dee198a5b7f4a437c27fa9ef53a16c3e50ebc1292af4b95ccae9265b5ad` |
+
+Audit regeneration and the deterministic drift check pass. The focused
+mutation test repeated the audit and its checked replay in 229.049 seconds.
+
+### Remaining ownership
+
+This increment changes compiler capability, not the normal build. The checked
+seed still predates these two forms, the 83 Doom and port objects remain
+host-owned, and their active sources keep the `.c` suffix.
+
+The next handoff promotes the seed, proves the host and Cupid link boundaries,
+transfers the normal recipes, renames each owned root to `.cc`, and runs the
+image and Doom runtime gates. `TempleOS/` remains untouched reference
+material.

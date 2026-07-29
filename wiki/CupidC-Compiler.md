@@ -277,7 +277,23 @@ Structure arguments occupy inline cdecl stack storage in parameter order, and ea
 
 Structure snapshots can contain nested unions because a copy preserves every target byte. A scalar member can also be loaded directly from a returned structure value. A union used directly as a parameter or result and an aggregate member selected from a structure rvalue remain unfinished.
 
-The hosted cast path accepts a direct four-byte integer literal zero as a represented function-pointer null. It also preserves an object-pointer null written as `((void *)0)` when the frontend converts it to the destination pointer type. Represented function pointers may cast between signatures or to and from a represented 32-bit integer. Object pointers can convert to signed or unsigned eight-byte integers with a zero high word, and conversion back keeps the low word. Object-pointer and function-pointer interchange, narrow integer forms, and conversions between function pointers and wide integers remain unsupported. Static compatible character and void pointers accept an ordinary string literal through parentheses or a macro, but arithmetic and explicit casts on that static address remain outside the boundary. Pointer qualification accepts the safe `char **` to `char *const *` conversion. It rejects `char **` to `const char **`, which would add a qualifier at an unsafe nested level, and rejects removing the nested `const`.
+The hosted cast path accepts a direct four-byte integer literal zero as a
+represented function-pointer null. It also preserves an object-pointer null
+written as `((void *)0)` when the frontend converts it to the destination
+pointer type. Represented function pointers may cast between signatures or to
+and from a represented 32-bit integer. Object pointers can convert to signed
+or unsigned eight-byte integers with a zero high word, and conversion back
+keeps the low word. Object-pointer and function-pointer interchange, narrow
+integer forms, and conversions between function pointers and wide integers
+remain unsupported.
+
+Static compatible character and void pointers accept an ordinary string
+literal through parentheses or a macro. Compiler head also preserves a static
+string or linked binding address through an explicit cast between non-atomic
+pointer types. A cast through an integer remains unsupported. Pointer
+qualification accepts the safe `char **` to `char *const *` conversion. It
+rejects `char **` to `const char **`, which would add a qualifier at an unsafe
+nested level, and rejects removing the nested `const`.
 
 An external array may omit its bound when its element type is complete. The shared IR can take that linked object's address, decay it to the compatible element pointer, apply the element scale, and continue through member access. The array remains incomplete, so it cannot be loaded as a value or used as if its storage size were known.
 
@@ -285,7 +301,32 @@ The exact hosted gate covers the hermetic Toolchain sources, `kernel/lang/as_elf
 
 The repository runtime supplies the checked file, heap, memory, string, `errno`, `getcwd`, and formatted-output interfaces required by the five commands. CupidC emits the runtime, CupidASM assembles `_start` and the system-call boundary, and CupidLD links five deterministic static Linux i386 executables without unresolved symbols. A sixth executable checks allocation, tail release, files, seeks, errors, arguments, memory comparison, and strings. The runtime has unbuffered streams and single-threaded heap, stream, and `errno` state.
 
-The `cupidc` driver compiles one C11 input to an ELF32 object. It accepts definitions, undefinitions, forced inputs, GNU or freestanding mode, and ordered include roots. `-I` enables quoted and angle lookup; `--include-angle` enables angle lookup only. Repeatable `-include` options run before the primary source in caller order. These path options accept native paths or absolute logical paths under `--root`. A compile failure preserves the previous output. Empty volatile extended assembly with one `memory` clobber remains an IR ordering point and emits no instruction bytes. The explicit `--doom-compat` switch gives the five audited calls in `i_system.c` old-style `extern int name()` declarations and permits eleven audited, bit-preserving conversions between unqualified function pointers and unqualified four-byte data or `void` pointers. Strict C and plain GNU mode still reject those implicit conversions, and explicit function/data casts remain outside Linear IR. One-active-member union initialization compiles unchanged `info.c`, while ordinary narrow bit-field promotion compiles unchanged `i_video.c`. The checked seed emits all 80 audited Doom-tree objects. Doom remains host-owned until object comparison, the three separate compatibility roots, and runtime proof pass.
+The `cupidc` driver compiles one C11 input to an ELF32 object. It accepts
+definitions, undefinitions, forced inputs, GNU or freestanding mode, and
+ordered include roots. `-I` enables quoted and angle lookup;
+`--include-angle` enables angle lookup only. Repeatable `-include` options run
+before the primary source in caller order. These path options accept native
+paths or absolute logical paths under `--root`. A compile failure preserves
+the previous output.
+
+Empty volatile extended assembly with one `memory` clobber remains an IR
+ordering point and emits no instruction bytes. The explicit `--doom-compat`
+switch gives the five audited calls in `i_system.c` old-style
+`extern int name()` declarations and permits eleven audited, bit-preserving
+conversions between unqualified function pointers and unqualified four-byte
+data or `void` pointers. Strict C and plain GNU mode still reject those
+implicit conversions, and explicit function/data casts remain outside Linear
+IR. One-active-member union initialization compiles unchanged `info.c`, while
+ordinary narrow bit-field promotion compiles unchanged `i_video.c`. The
+checked seed emits all 80 audited Doom-tree objects.
+
+Compiler head completes the three-root compatibility frontier. It retains the
+explicit static string cast in `doom_libc_stubs.c` and emits the exact
+`dg_setjmp` and `dg_longjmp` block through Cupid's x86 model. Host-built and
+Cupid-built current compilers produce byte-identical objects for all three
+roots. Doom remains host-owned until these changes reach the checked seed,
+the host and Cupid link boundaries compare, the sources move to `.cc`, and
+the runtime proof passes.
 
 The five static i386 Linux tools have a checked seed. The manifest binds their hashes, sizes, target ABI, source revision, producer lineage, 19-source plan, and five link orders. The current CupidC image is the 2,511,176-byte stage-three output from revision `8d5ef4564f753d528630c0f0a78db0f535d56b60`, with SHA-256 `4b24bf45726e4ab43fe7830f992120f11de34236daef9ef8753303ab4513934c`. It carries the complete audited Doom frontier, current GNU entity metadata, x87 and SSE forms, descriptor and segment assembly, every unchanged assembly effect in the then-named `libm.c`, exact naked IPI entries, the kernel-entry BSS clear, and the active packed SSE2 statements. Its plan uses `.cc` for all 19 C roots and has SHA-256 `59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`.
 

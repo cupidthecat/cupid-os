@@ -7656,10 +7656,10 @@ static int validate_toolchain_frontier(const char *host_root) {
        25287u, 479u, 286u, 0u, 0u},
       {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 261u, 7199u,
        67130u, 944u, 348u, 0u, 0u},
-      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 341u, 8319u,
-       70291u, 1003u, 669u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 418u,
-       16284u, 107814u, 2440u, 1490u, 0u, 0u},
+      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 352u, 8481u,
+       71733u, 1031u, 702u, 0u, 0u},
+      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 419u,
+       16332u, 108107u, 2450u, 1492u, 0u, 0u},
       {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 81u, 2935u,
        19252u, 326u, 186u, 0u, 0u},
       {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
@@ -9880,6 +9880,7 @@ static int run_file_scope_initializers(const char *host_root) {
       "const pair_t theme = {.second = 2, .first = 1};\n"
       "static char label[] = \"ok\";\n"
       "static const char *caption = \"Cupid\";\n"
+      "char *doom_musiccmd = (char *)\"\";\n"
       "int external_pending[];\n"
       "extern int composed[];\n"
       "int composed[3];\n"
@@ -9914,7 +9915,8 @@ static int run_file_scope_initializers(const char *host_root) {
       "static int *negative_pointer = &numbers[1] + -1;\n"
       "static int *reordered_pointer = 1 + numbers;\n"
       "static int *sizeof_pointer = numbers + "
-      "(sizeof(numbers + 1073741824) / sizeof(int));\n";
+      "(sizeof(numbers + 1073741824) / sizeof(int));\n"
+      "static int *cast_pointer = (int *)&target;\n";
   static const char completed_internal_source[] =
       "static int values[2];\n"
       "static int values[];\n";
@@ -10004,9 +10006,9 @@ static int run_file_scope_initializers(const char *host_root) {
         "static int *pointer = values + 536870912;\n",
         CTOOL_ERR_OVERFLOW, CTOOL_C_PARSE_DIAG_OVERFLOW},
        2u, 30u, "static address addend exceeds the i386 relocation range"},
-      {{"cast address",
+      {{"pointer address routed through an integer cast",
         "static int target;\n"
-        "static int *pointer = (int *)&target;\n",
+        "static int *pointer = (int *)(unsigned int)&target;\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
        2u, 23u,
        "static pointer initialization requires a supported address constant"},
@@ -10047,6 +10049,7 @@ static int run_file_scope_initializers(const char *host_root) {
   const ctool_c_object_definition_t *theme_definition;
   const ctool_c_object_definition_t *label_definition;
   const ctool_c_object_definition_t *caption_definition;
+  const ctool_c_object_definition_t *doom_musiccmd_definition;
   const ctool_c_object_definition_t *external_pending_definition;
   const ctool_c_object_definition_t *composed_definition;
   const ctool_c_object_definition_t *external_value_definition;
@@ -10060,6 +10063,7 @@ static int run_file_scope_initializers(const char *host_root) {
   const ctool_c_object_definition_t *negative_pointer_definition;
   const ctool_c_object_definition_t *reordered_pointer_definition;
   const ctool_c_object_definition_t *sizeof_pointer_definition;
+  const ctool_c_object_definition_t *cast_pointer_definition;
   const ctool_c_object_definition_t *qualified_pointer_definition;
   const ctool_c_object_definition_t *void_pointer_definition;
   const ctool_c_object_definition_t *callback_pointer_definition;
@@ -10144,6 +10148,8 @@ static int run_file_scope_initializers(const char *host_root) {
   theme_definition = find_object_definition(&unit, "theme");
   label_definition = find_object_definition(&unit, "label");
   caption_definition = find_object_definition(&unit, "caption");
+  doom_musiccmd_definition =
+      find_object_definition(&unit, "doom_musiccmd");
   external_pending_definition =
       find_object_definition(&unit, "external_pending");
   composed_definition = find_object_definition(&unit, "composed");
@@ -10167,6 +10173,8 @@ static int run_file_scope_initializers(const char *host_root) {
       find_object_definition(&unit, "reordered_pointer");
   sizeof_pointer_definition =
       find_object_definition(&unit, "sizeof_pointer");
+  cast_pointer_definition =
+      find_object_definition(&unit, "cast_pointer");
   qualified_pointer_definition =
       find_object_definition(&unit, "qualified_pointer");
   void_pointer_definition =
@@ -10187,13 +10195,14 @@ static int run_file_scope_initializers(const char *host_root) {
   completed_tentative_definition =
       find_object_definition(&unit, "completed_tentative");
   local_pointer_binding = find_block_binding(&unit, "local_pointer");
-  if (unit.object_definition_count != 29u ||
-      unit.initializer_count != 39u ||
+  if (unit.object_definition_count != 31u ||
+      unit.initializer_count != 41u ||
       unit.initializer_element_count != 9u ||
       find_object_definition(&unit, "declared_only") != NULL ||
       counter_definition == NULL || pending_definition == NULL ||
       sparse_definition == NULL || theme_definition == NULL ||
       label_definition == NULL || caption_definition == NULL ||
+      doom_musiccmd_definition == NULL ||
       external_pending_definition == NULL || composed_definition == NULL ||
       external_value_definition == NULL || target_definition == NULL ||
       numbers_definition == NULL || target_pointer_definition == NULL ||
@@ -10204,6 +10213,7 @@ static int run_file_scope_initializers(const char *host_root) {
       negative_pointer_definition == NULL ||
       reordered_pointer_definition == NULL ||
       sizeof_pointer_definition == NULL ||
+      cast_pointer_definition == NULL ||
       qualified_pointer_definition == NULL ||
       void_pointer_definition == NULL ||
       callback_pointer_definition == NULL || ops_definition == NULL ||
@@ -10297,6 +10307,16 @@ static int run_file_scope_initializers(const char *host_root) {
       memcmp(root->string_bytes.data, "Cupid", 6u) != 0) {
     (void)fprintf(stderr,
                   "file-scope-initializers: string address differs\n");
+    goto cleanup;
+  }
+  root = initializer_node(&unit, doom_musiccmd_definition->initializer);
+  if (root == NULL || root->kind != CTOOL_C_INITIALIZER_ADDRESS ||
+      root->address_kind != CTOOL_C_INITIALIZER_ADDRESS_STRING ||
+      root->address_reference != CTOOL_C_AST_NONE ||
+      root->address_addend != 0 || root->string_bytes.size != 1u ||
+      root->string_bytes.data == NULL || root->string_bytes.data[0] != 0u) {
+    (void)fprintf(stderr,
+                  "file-scope-initializers: explicit string cast differs\n");
     goto cleanup;
   }
   type = unwrapped_type_node(
@@ -10400,6 +10420,10 @@ static int run_file_scope_initializers(const char *host_root) {
           &unit,
           initializer_node(&unit, sizeof_pointer_definition->initializer),
           "numbers", 4) == 0 ||
+      initializer_is_binding_address(
+          &unit,
+          initializer_node(&unit, cast_pointer_definition->initializer),
+          "target") == 0 ||
       initializer_is_binding_address_addend(
           &unit,
           initializer_node(&unit,

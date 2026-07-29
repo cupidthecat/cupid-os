@@ -27995,20 +27995,20 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.cc",           "/toolchain/x86.cc",
       "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
-      65u, 68u, 66u, 14u, 31u, 143u, 261u, 341u, 418u, 81u, 37u, 60u,
+      65u, 68u, 66u, 14u, 31u, 143u, 261u, 352u, 419u, 81u, 37u, 60u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 76860u, 85252u, 16872u, 42212u,
-      190304u, 479330u, 524975u, 834511u, 139646u, 70368u, 80478u,
+      190304u, 479330u, 535119u, 836265u, 139646u, 70368u, 80478u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 89320u, 99772u, 20180u, 49484u,
-      226668u, 517076u, 589832u, 993920u, 157828u, 79348u, 134656u,
+      226668u, 517076u, 602080u, 995868u, 157828u, 79348u, 134656u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x5fbbfaf2u, 0x4ca44a27u,
       0x7238e153u, 0x999f97b7u, 0xb49d8eb9u,
-      0x9f6f6a8au, 0xc681e8bcu, 0x9b498557u, 0x239f52c7u,
+      0x9f6f6a8au, 0x6044ec6eu, 0x0ec0b332u, 0x239f52c7u,
       0x34558a49u, 0x7c198364u, 0x8774de7du};
   ctool_u32 index;
   int all_matched = 1;
@@ -44231,6 +44231,406 @@ cleanup:
   return 1;
 }
 
+static int validate_dglibc_jump_symbol_decode(
+    ctool_job_t *job, const ctool_elf32_section_t *text,
+    const ctool_elf32_symbol_t *symbol, const ctool_u8 *expected,
+    ctool_u32 expected_size, const ctool_u32 *instruction_sizes,
+    const ctool_x86_mnemonic_t *mnemonics, ctool_u32 instruction_count) {
+  ctool_u32 cursor = 0u;
+  ctool_u32 index;
+  if (job == NULL || text == NULL || symbol == NULL || expected == NULL ||
+      instruction_sizes == NULL || mnemonics == NULL ||
+      symbol->value > text->contents.size ||
+      symbol->size > text->contents.size - symbol->value ||
+      symbol->size != expected_size ||
+      memcmp(text->contents.data + symbol->value, expected,
+             (size_t)expected_size) != 0) {
+    (void)fprintf(
+        stderr,
+        "dglibc jump function bytes differ: value=%u size=%u expected=%u\n",
+        symbol != NULL ? (unsigned int)symbol->value : 0u,
+        symbol != NULL ? (unsigned int)symbol->size : 0u,
+        (unsigned int)expected_size);
+    return 0;
+  }
+  for (index = 0u; index < instruction_count; index++) {
+    ctool_x86_decoded_t decoded;
+    ctool_bytes_t remaining;
+    ctool_status_t status;
+    if (cursor >= expected_size ||
+        instruction_sizes[index] > expected_size - cursor) {
+      return 0;
+    }
+    remaining = ctool_bytes(
+        text->contents.data + symbol->value + cursor,
+        symbol->size - cursor);
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(
+        job, CTOOL_X86_MODE_32, remaining, 0u, &decoded);
+    if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed != instruction_sizes[index] ||
+        decoded.encoding.size != instruction_sizes[index] ||
+        decoded.instruction.mnemonic != mnemonics[index] ||
+        memcmp(decoded.encoding.bytes, expected + cursor,
+               (size_t)instruction_sizes[index]) != 0) {
+      (void)fprintf(
+          stderr,
+          "dglibc jump decode differs at instruction %u and byte %u\n",
+          (unsigned int)index, (unsigned int)cursor);
+      return 0;
+    }
+    cursor += decoded.consumed;
+  }
+  return cursor == expected_size ? 1 : 0;
+}
+
+static int validate_dglibc_jump_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const ctool_u8 setjmp_bytes[] = {
+      0x8bu, 0x44u, 0x24u, 0x04u, 0x89u, 0x18u, 0x89u,
+      0x70u, 0x04u, 0x89u, 0x78u, 0x08u, 0x89u, 0x68u,
+      0x0cu, 0x89u, 0x60u, 0x10u, 0x8bu, 0x0cu, 0x24u,
+      0x89u, 0x48u, 0x14u, 0x31u, 0xc0u, 0xc3u};
+  static const ctool_u8 longjmp_bytes[] = {
+      0x8bu, 0x44u, 0x24u, 0x04u, 0x8bu, 0x4cu, 0x24u, 0x08u,
+      0x85u, 0xc9u, 0x75u, 0x05u, 0xb9u, 0x01u, 0x00u, 0x00u,
+      0x00u, 0x8bu, 0x18u, 0x8bu, 0x70u, 0x04u, 0x8bu, 0x78u,
+      0x08u, 0x8bu, 0x68u, 0x0cu, 0x8bu, 0x60u, 0x10u, 0x8bu,
+      0x50u, 0x14u, 0x89u, 0xc8u, 0xffu, 0xe2u};
+  static const ctool_u32 setjmp_sizes[] = {
+      4u, 2u, 3u, 3u, 3u, 3u, 3u, 3u, 2u, 1u};
+  static const ctool_u32 longjmp_sizes[] = {
+      4u, 4u, 2u, 2u, 5u, 2u, 3u, 3u, 3u, 3u, 3u, 2u, 2u};
+  static const ctool_x86_mnemonic_t setjmp_mnemonics[] = {
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_XOR,
+      CTOOL_X86_MN_RET};
+  static const ctool_x86_mnemonic_t longjmp_mnemonics[] = {
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_TEST,
+      CTOOL_X86_MN_JNE, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_JMP};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_symbol_t *setjmp_symbol =
+      find_symbol(object, "dg_setjmp");
+  const ctool_elf32_symbol_t *longjmp_symbol =
+      find_symbol(object, "dg_longjmp");
+  if (text == NULL || text->contents.data == NULL ||
+      text->contents.size !=
+          (ctool_u32)(sizeof(setjmp_bytes) + sizeof(longjmp_bytes)) ||
+      object->relocation_count != 0u || setjmp_symbol == NULL ||
+      longjmp_symbol == NULL || setjmp_symbol->binding != CTOOL_ELF32_BIND_GLOBAL ||
+      longjmp_symbol->binding != CTOOL_ELF32_BIND_GLOBAL ||
+      setjmp_symbol->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
+      longjmp_symbol->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
+      setjmp_symbol->visibility != CTOOL_ELF32_VIS_DEFAULT ||
+      longjmp_symbol->visibility != CTOOL_ELF32_VIS_DEFAULT ||
+      setjmp_symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      longjmp_symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      setjmp_symbol->section_file_index != text->file_index ||
+      longjmp_symbol->section_file_index != text->file_index ||
+      setjmp_symbol->value != 0u ||
+      setjmp_symbol->size != (ctool_u32)sizeof(setjmp_bytes) ||
+      longjmp_symbol->value != (ctool_u32)sizeof(setjmp_bytes) ||
+      longjmp_symbol->size != (ctool_u32)sizeof(longjmp_bytes)) {
+    (void)fprintf(
+        stderr,
+        "dglibc jump object metadata differs: text=%u relocations=%u "
+        "setjmp=%u longjmp=%u\n",
+        text != NULL ? (unsigned int)text->contents.size : 0u,
+        (unsigned int)object->relocation_count,
+        setjmp_symbol != NULL ? 1u : 0u,
+        longjmp_symbol != NULL ? 1u : 0u);
+    if (setjmp_symbol != NULL) {
+      (void)fprintf(
+          stderr,
+          "dg_setjmp metadata: binding=%u type=%u visibility=%u "
+          "placement=%u section=%u value=%u size=%u\n",
+          (unsigned int)setjmp_symbol->binding,
+          (unsigned int)setjmp_symbol->type,
+          (unsigned int)setjmp_symbol->visibility,
+          (unsigned int)setjmp_symbol->placement,
+          (unsigned int)setjmp_symbol->section_file_index,
+          (unsigned int)setjmp_symbol->value,
+          (unsigned int)setjmp_symbol->size);
+    }
+    if (longjmp_symbol != NULL) {
+      (void)fprintf(
+          stderr,
+          "dg_longjmp metadata: binding=%u type=%u visibility=%u "
+          "placement=%u section=%u value=%u size=%u\n",
+          (unsigned int)longjmp_symbol->binding,
+          (unsigned int)longjmp_symbol->type,
+          (unsigned int)longjmp_symbol->visibility,
+          (unsigned int)longjmp_symbol->placement,
+          (unsigned int)longjmp_symbol->section_file_index,
+          (unsigned int)longjmp_symbol->value,
+          (unsigned int)longjmp_symbol->size);
+    }
+    if (text != NULL && text->contents.data != NULL) {
+      ctool_u32 byte_index;
+      (void)fputs("dglibc jump text:", stderr);
+      for (byte_index = 0u; byte_index < text->contents.size; byte_index++) {
+        (void)fprintf(
+            stderr, " %02x",
+            (unsigned int)text->contents.data[byte_index]);
+      }
+      (void)fputc('\n', stderr);
+    }
+    return 0;
+  }
+  return validate_dglibc_jump_symbol_decode(
+             job, text, setjmp_symbol, setjmp_bytes,
+             (ctool_u32)sizeof(setjmp_bytes), setjmp_sizes,
+             setjmp_mnemonics,
+             (ctool_u32)(sizeof(setjmp_sizes) /
+                         sizeof(setjmp_sizes[0]))) &&
+                 validate_dglibc_jump_symbol_decode(
+                     job, text, longjmp_symbol, longjmp_bytes,
+                     (ctool_u32)sizeof(longjmp_bytes), longjmp_sizes,
+                     longjmp_mnemonics,
+                     (ctool_u32)(sizeof(longjmp_sizes) /
+                                 sizeof(longjmp_sizes[0])))
+             ? 1
+             : 0;
+}
+
+static int run_dglibc_jump_assembly_object(const char *host_root) {
+  static const char source[] =
+      "int dg_setjmp(unsigned int env[6]);\n"
+      "void dg_longjmp(unsigned int env[6], int value);\n"
+      "__asm__(\n"
+      "  \".global dg_setjmp\\n\"\n"
+      "  \"dg_setjmp:\\n\"\n"
+      "  \"    movl  4(%esp), %eax\\n\"\n"
+      "  \"    movl  %ebx,  0(%eax)\\n\"\n"
+      "  \"    movl  %esi,  4(%eax)\\n\"\n"
+      "  \"    movl  %edi,  8(%eax)\\n\"\n"
+      "  \"    movl  %ebp, 12(%eax)\\n\"\n"
+      "  \"    movl  %esp, 16(%eax)\\n\"\n"
+      "  \"    movl  (%esp), %ecx\\n\"\n"
+      "  \"    movl  %ecx, 20(%eax)\\n\"\n"
+      "  \"    xorl  %eax, %eax\\n\"\n"
+      "  \"    ret\\n\"\n"
+      "  \".global dg_longjmp\\n\"\n"
+      "  \"dg_longjmp:\\n\"\n"
+      "  \"    movl  4(%esp), %eax\\n\"\n"
+      "  \"    movl  8(%esp), %ecx\\n\"\n"
+      "  \"    testl %ecx, %ecx\\n\"\n"
+      "  \"    jnz   1f\\n\"\n"
+      "  \"    movl  $1, %ecx\\n\"\n"
+      "  \"1:\\n\"\n"
+      "  \"    movl  0(%eax), %ebx\\n\"\n"
+      "  \"    movl  4(%eax), %esi\\n\"\n"
+      "  \"    movl  8(%eax), %edi\\n\"\n"
+      "  \"    movl 12(%eax), %ebp\\n\"\n"
+      "  \"    movl 16(%eax), %esp\\n\"\n"
+      "  \"    movl 20(%eax), %edx\\n\"\n"
+      "  \"    movl  %ecx,  %eax\\n\"\n"
+      "  \"    jmp  *%edx\\n\"\n"
+      ");\n";
+  static const char altered_template[] =
+      ".global dg_setjmp\n"
+      "dg_setjmp:\n"
+      "    movl  4(%esp), %eax\n"
+      "    movl  %ebx,  0(%eax)\n"
+      "    movl  %esi,  4(%eax)\n"
+      "    movl  %edi,  8(%eax)\n"
+      "    movl  %ebp, 12(%eax)\n"
+      "    movl  %esp, 16(%eax)\n"
+      "    movl  (%esp), %ecx\n"
+      "    movl  %ecx, 20(%eax)\n"
+      "    xorl  %eax, %eax\n"
+      "    ret\n"
+      ".global dg_longjmp\n"
+      "dg_longjmp:\n"
+      "    movl  4(%esp), %eax\n"
+      "    movl  8(%esp), %ecx\n"
+      "    testl %ecx, %ecx\n"
+      "    jnz   1f\n"
+      "    movl  $2, %ecx\n"
+      "1:\n"
+      "    movl  0(%eax), %ebx\n"
+      "    movl  4(%eax), %esi\n"
+      "    movl  8(%eax), %edi\n"
+      "    movl 12(%eax), %ebp\n"
+      "    movl 16(%eax), %esp\n"
+      "    movl 20(%eax), %edx\n"
+      "    movl  %ecx,  %eax\n"
+      "    jmp  *%edx\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_buffer_t *first = NULL;
+  ctool_buffer_t *second = NULL;
+  ctool_buffer_t *failure = NULL;
+  ctool_buffer_t *limited = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t mutant;
+  ctool_c_assembly_t mutant_assembly;
+  ctool_c_binding_t mutant_bindings[2];
+  unit_snapshot_t snapshot;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t first_bytes;
+  ctool_bytes_t second_bytes;
+  ctool_u32 setjmp_binding = CTOOL_C_AST_NONE;
+  ctool_u32 longjmp_binding = CTOOL_C_AST_NONE;
+  ctool_u32 index;
+  ctool_status_t status;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&snapshot, 0, sizeof(snapshot));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(job, "/dglibc-jump-assembly-object.c", source,
+                         CTOOL_TRUE, &unit) ||
+      unit.binding_count !=
+          (ctool_u32)(sizeof(mutant_bindings) /
+                      sizeof(mutant_bindings[0])) ||
+      unit.file_assembly_count != 1u || unit.function_definition_count != 0u ||
+      !take_unit_snapshot(&unit, &snapshot)) {
+    (void)fprintf(stderr, "dglibc jump assembly setup failed\n");
+    if (job != NULL) {
+      (void)ctool_job_render_diagnostics(job);
+    }
+    goto cleanup;
+  }
+  for (index = 0u; index < unit.binding_count; index++) {
+    if (string_equal(unit.bindings[index].name, "dg_setjmp") != 0) {
+      setjmp_binding = index;
+    } else if (string_equal(
+                   unit.bindings[index].name, "dg_longjmp") != 0) {
+      longjmp_binding = index;
+    }
+  }
+  if (setjmp_binding == CTOOL_C_AST_NONE ||
+      longjmp_binding == CTOOL_C_AST_NONE) {
+    (void)fprintf(stderr, "dglibc jump bindings differ\n");
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(
+      job, 1024u, config.limits.output_bytes, &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &second);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &failure);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 16u, 64u, &limited);
+  }
+  if (!check_status(status, CTOOL_OK, "dglibc jump buffers") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, first, "first dglibc jump object") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second, "repeat dglibc jump object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(stderr, "dglibc jump object is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/dglibc-jump-assembly-object.o");
+  object_source.contents = second_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read dglibc jump object") ||
+      !validate_dglibc_jump_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+
+  mutant_assembly = unit.file_assemblies[0];
+  mutant_assembly.template_text = ctool_string(altered_template);
+  mutant = unit;
+  mutant.file_assemblies = &mutant_assembly;
+  if (!expect_object_failure_preserves_unit(
+          job, &mutant, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_EMIT_DIAG_UNSUPPORTED,
+          "GNU file-scope assembly template is outside this i386 "
+          "emission slice",
+          "dglibc jump with changed zero-value rule") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    goto cleanup;
+  }
+
+  (void)memcpy(mutant_bindings, unit.bindings, sizeof(mutant_bindings));
+  mutant_bindings[longjmp_binding].name =
+      ctool_string("missing_dg_longjmp");
+  mutant = unit;
+  mutant.bindings = mutant_bindings;
+  if (!expect_object_failure_preserves_unit(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_EMIT_DIAG_SYMBOL,
+          "GNU dglibc jump assembly requires matching external "
+          "declarations",
+          "dglibc jump without longjmp declaration") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    goto cleanup;
+  }
+
+  (void)memcpy(mutant_bindings, unit.bindings, sizeof(mutant_bindings));
+  mutant_bindings[setjmp_binding].type =
+      unit.bindings[longjmp_binding].type;
+  mutant = unit;
+  mutant.bindings = mutant_bindings;
+  if (!expect_object_failure_preserves_unit(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_EMIT_DIAG_SYMBOL,
+          "GNU dglibc jump assembly does not match its external "
+          "function declarations",
+          "dglibc jump with wrong setjmp prototype") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    goto cleanup;
+  }
+
+  if (!expect_object_failure_preserves_unit(
+          job, &unit, limited, CTOOL_ERR_LIMIT,
+          CTOOL_C_EMIT_DIAG_LIMIT, NULL, "limited dglibc jump object") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, failure, "dglibc jump recovery") ||
+      ctool_buffer_view(failure).size != first_bytes.size ||
+      memcmp(ctool_buffer_view(failure).data, first_bytes.data,
+             (size_t)first_bytes.size) != 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  dispose_unit_snapshot(&snapshot);
+  if (limited != NULL) {
+    ctool_buffer_close(limited);
+  }
+  if (failure != NULL) {
+    ctool_buffer_close(failure);
+  }
+  if (second != NULL) {
+    ctool_buffer_close(second);
+  }
+  if (first != NULL) {
+    ctool_buffer_close(first);
+  }
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("dglibc-jump-assembly: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int run_section_attributes_object(const char *host_root) {
   static const char source[] =
       "extern int imported_value;\n"
@@ -45559,6 +45959,10 @@ int main(int argc, char **argv) {
   if (argc == 3 &&
       strcmp(argv[1], "file-scope-cdecl-bridges") == 0) {
     return run_file_scope_cdecl_bridge_assembly_object(argv[2]);
+  }
+  if (argc == 3 &&
+      strcmp(argv[1], "dglibc-jump-assembly") == 0) {
+    return run_dglibc_jump_assembly_object(argv[2]);
   }
   if (argc == 3 && strcmp(argv[1], "structure-values") == 0) {
     return run_structure_value_object(argv[2]);

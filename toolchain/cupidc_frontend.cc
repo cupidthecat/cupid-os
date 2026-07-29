@@ -10217,6 +10217,54 @@ static ctool_status_t cfront_apply_assignment_conversion(
       source_token, failure_message);
 }
 
+static ctool_status_t cfront_static_pointer_cast_child(
+    cfront_context_t *context, const ctool_c_expression_t *cast,
+    ctool_u32 *child_out, ctool_bool *preserves_out) {
+  ctool_c_expression_t child;
+  ctool_c_type_node_t target;
+  ctool_c_type_node_t source;
+  ctool_u32 target_base;
+  ctool_u32 source_base;
+  ctool_u32 target_qualifiers;
+  ctool_u32 source_qualifiers;
+  ctool_status_t status;
+  *child_out = CTOOL_C_AST_NONE;
+  *preserves_out = CTOOL_FALSE;
+  if (cast->kind != CTOOL_C_EXPRESSION_CAST) {
+    return CTOOL_OK;
+  }
+  if (cast->child_count != 1u ||
+      cast->first_child >= context->expression_children.count ||
+      cfront_vector_get(&context->expression_children, cast->first_child,
+                        child_out) != CTOOL_OK ||
+      *child_out >= context->expressions.count ||
+      cfront_vector_get(&context->expressions, *child_out, &child) !=
+          CTOOL_OK) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+        cfront_peek(context), "static address cast child is unavailable");
+  }
+  status = cfront_underlying_type(
+      context, cast->type, &target_base, &target_qualifiers, &target);
+  if (status == CTOOL_OK) {
+    status = cfront_underlying_type(
+        context, child.type, &source_base, &source_qualifiers, &source);
+  }
+  (void)target_base;
+  (void)source_base;
+  if (status != CTOOL_OK) {
+    return cfront_storage_failure(context, status);
+  }
+  if (target.kind == CTOOL_C_TYPE_POINTER &&
+      source.kind == CTOOL_C_TYPE_POINTER &&
+      ((target_qualifiers | target.qualifiers | source_qualifiers |
+        source.qualifiers) &
+       CTOOL_C_QUAL_ATOMIC) == 0u) {
+    *preserves_out = CTOOL_TRUE;
+  }
+  return CTOOL_OK;
+}
+
 static ctool_status_t cfront_extract_static_binding_address(
     cfront_context_t *context, const cfront_expression_value_t *value,
     ctool_u32 *binding_out, ctool_i32 *addend_out,
@@ -10254,6 +10302,16 @@ static ctool_status_t cfront_extract_static_binding_address(
       return cfront_emit_failure(
           context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
           cfront_peek(context), "static address expression graph is cyclic");
+    }
+    if (expression.kind == CTOOL_C_EXPRESSION_CAST) {
+      ctool_bool preserves = CTOOL_FALSE;
+      status = cfront_static_pointer_cast_child(
+          context, &expression, &child, &preserves);
+      if (status != CTOOL_OK || preserves == CTOOL_FALSE) {
+        return status;
+      }
+      expression_index = child;
+      continue;
     }
     if (expression.kind == CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION) {
       if (expression.conversion == CTOOL_C_CONVERSION_ARRAY_TO_POINTER ||
@@ -10352,6 +10410,16 @@ static ctool_status_t cfront_extract_static_string_address(
           context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
           cfront_peek(context),
           "static string address expression graph is cyclic");
+    }
+    if (expression.kind == CTOOL_C_EXPRESSION_CAST) {
+      ctool_bool preserves = CTOOL_FALSE;
+      status = cfront_static_pointer_cast_child(
+          context, &expression, &child, &preserves);
+      if (status != CTOOL_OK || preserves == CTOOL_FALSE) {
+        return status;
+      }
+      expression_index = child;
+      continue;
     }
     if (expression.kind == CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION) {
       if (expression.conversion == CTOOL_C_CONVERSION_ARRAY_TO_POINTER) {

@@ -114,9 +114,15 @@ Strict C and plain GNU mode still reject the implicit conversions, and
 explicit function/data casts remain outside Linear IR. One-active-member
 union initialization and ordinary narrow bit-field promotion close the other
 two audited source boundaries. The checked seed now emits all 80 Doom-tree
-objects. The normal Doom build stays on its host recipe until object
-comparison, the three separate compatibility roots, and runtime proof are
-complete.
+objects.
+
+Compiler head also emits the three compatibility roots. It preserves the
+explicit static string cast in doom_libc_stubs.c and emits the exact
+dg_setjmp and dg_longjmp block through Cupid's x86 model. Host-built and
+Cupid-built current compilers agree on those three objects. The normal Doom
+build stays on its host recipe until these changes reach the checked seed,
+the host and Cupid link boundaries compare, the sources move to .cc, and
+runtime proof is complete.
 >endtree
 
 >h2 Feature 5: Print Builtin
