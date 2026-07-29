@@ -1238,7 +1238,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                 self.assertEqual(result.stderr, expected)
                 self.assertFalse(output.exists())
 
-    def test_unchanged_libm_source_advances_past_fabs_assembly(
+    def test_unchanged_libm_source_advances_past_rounding_assembly(
         self,
     ):
         source = REPO_ROOT / "kernel/cpu/libm.c"
@@ -1279,7 +1279,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             )
 
         expected = (
-            "/kernel/cpu/libm.c:281:1: error CTC000003: "
+            "/kernel/cpu/libm.c:465:1: error CTC000003: "
             "GNU file-scope assembly template is outside this "
             "i386 emission slice\n"
         )
@@ -1367,7 +1367,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "operand-free-assembly: ok\n")
 
-    def test_file_scope_math_assembly_emits_exact_relocatable_i386(self):
+    def test_file_scope_math_and_rounding_assembly_emits_exact_i386(self):
         result = subprocess.run(
             [
                 str(self.contract_path),

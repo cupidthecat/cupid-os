@@ -271,12 +271,20 @@ incoming depth.
 Compiler head also emits the exact aligned fabs mask block and the following
 fabs and fabsf wrappers. The masks occupy the first 32 bytes of .rodata, with
 local NOTYPE labels at offsets 0 and 16. The wrappers contain 15 and 14 text
-bytes and carry one R_386_32 relocation each to the matching label. The full
-source now stops at the floor wrapper on line 281.
+bytes and carry one R_386_32 relocation each to the matching label.
+
+Compiler head also emits the following floor, floorf, ceil, ceilf, round,
+roundf, trunc, and truncf wrappers. Each saves the incoming x87 control word,
+selects the source rounding mode, runs FRNDINT, restores the original word,
+and returns through XMM0. The four pairs select down, up, nearest-even, and
+toward-zero mode. They add 384 text bytes without relocations, reach x87
+depth one, and balance ESP and x87 depth. The full source now stops at the
+fmod wrapper on line 465.
 
 General GAS input and other file-scope templates remain unsupported. The
 checked seed predates named operands, these five statement blocks, and the
-three fabs effects. The normal libm.c recipe still uses the host compiler.
+three fabs effects. It also predates the rounding family. The normal libm.c
+recipe still uses the host compiler.
 
 The checked seed represents the exact per-CPU pointer output
 mov %%gs:0, %0 with one four-byte =r object or void pointer. It keeps the

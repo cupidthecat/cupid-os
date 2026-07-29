@@ -444,8 +444,24 @@ The wrappers retain their source prototypes and global function symbols.
 function offset 9 to `fabs_mask_s`. Both use Cupid's shared x86 model.
 Contracts cover exact bytes, symbols, relocations, mixed read-only data,
 source ordering, forged metadata, deterministic output, rollback, and
-same-job recovery. The unchanged source now reaches `floor` at line 281.
+same-job recovery.
 
-Named matching constraints, operand modifiers, the `floor` wrapper, and
-general XMM or x87 constraints remain separate work. The checked seed and
-normal host-owned `libm.c` recipe do not change in this increment.
+### libm file-scope rounding wrappers
+
+Compiler head accepts the exact `floor`, `floorf`, `ceil`, `ceilf`, `round`,
+`roundf`, `trunc`, and `truncf` definitions. Each wrapper loads its scalar
+argument, saves the x87 control word, clears the RC field with `0xf3ff`, and
+installs the source mode before `FRNDINT`. It restores the original control
+word before returning the result through XMM0. The nearest-even pair uses
+`RC=00` and omits the OR instruction.
+
+The eight functions add 384 text bytes and no relocations. Exact symbol
+offsets and sizes are checked, as are every decoded instruction and operand,
+the float and double widths, the four control modes, balanced ESP, and
+balanced x87 depth. Negative cases alter the control mask and the `floor`
+prototype, then check output rollback and same-job recovery.
+
+The unchanged source now reaches `fmod` at line 465. Named matching
+constraints, operand modifiers, the `fmod` loop, and general XMM or x87
+constraints remain separate work. The checked seed and normal host-owned
+`libm.c` recipe do not change in this increment.

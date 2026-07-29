@@ -35,13 +35,17 @@ function has no relocations and balanced x87 depth. Compiler head also emits
 the aligned 32-byte `fabs` mask block and both following wrappers. The mask
 labels remain fixed at `.rodata` offsets 0 and 16 even when later read-only C
 objects exist. The 15-byte `fabs` and 14-byte `fabsf` functions each carry
-one `R_386_32` relocation to the matching local label. The complete source
-now proceeds to the `floor` wrapper at line 281. That wrapper and broader
-arbitrary assembly remain open, so this does not transfer a recipe.
+one `R_386_32` relocation to the matching local label. Compiler head also
+emits the next eight rounding wrappers. The four double and float pairs save
+and restore the x87 control word around `FRNDINT`, select down, up,
+nearest-even, and toward-zero mode, and add 384 relocation-free text bytes.
+The complete source now proceeds to `fmod` at line 465. That wrapper and
+broader arbitrary assembly remain open, so this does not transfer a recipe.
 `libm.c` remains host-owned with its `.c` name, and the host C transform
 count is unchanged. ADR 0155 records the initial file-scope boundary, ADR
 0159 records named operand normalization, ADRs 0161 through 0165 record the
-five represented statements, and ADR 0166 records the `fabs` effects.
+five represented statements, ADR 0166 records the `fabs` effects, and ADR
+0169 records the rounding family.
 
 Checked-seed CupidC represents the two exact volatile FXSAVE statements in
 `kernel/core/process.cc`. One independent four-byte object or

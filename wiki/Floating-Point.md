@@ -134,10 +134,17 @@ Compiler head also represents the exact aligned `fabs` mask block and the
 following `fabs` and `fabsf` wrappers. The masks occupy the first 32 bytes of
 `.rodata`, with local labels at offsets 0 and 16. The 15-byte double wrapper
 uses `MOVSD` and `ANDPD`; the 14-byte float wrapper uses `MOVSS` and `ANDPS`.
-Each has one absolute relocation to its mask. The unchanged file now stops at
-the `floor` wrapper on line 281. The checked seed does not yet carry these
-compiler-head capabilities, so
-`kernel/cpu/libm.c` remains host-owned.
+Each has one absolute relocation to its mask.
+
+The following `floor`, `floorf`, `ceil`, `ceilf`, `round`, `roundf`,
+`trunc`, and `truncf` wrappers are represented at compiler head too. They
+save the incoming x87 control word, select the source rounding mode, apply
+`FRNDINT`, and restore the original word. The four pairs select down, up,
+nearest-even, and toward-zero mode. Together they occupy 384 text bytes with
+no relocations, never exceed x87 depth one, and balance ESP and x87 depth.
+The unchanged file now stops at `fmod` on line 465. The checked seed does not
+yet carry these compiler-head capabilities, so `kernel/cpu/libm.c` remains
+host-owned.
 
 The normal build now compiles `kernel/gfx/jpeg.cc` and
 `kernel/gfx/glyph_raster.cc` with that seed. JPEG exercises exact static

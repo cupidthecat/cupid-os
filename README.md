@@ -472,10 +472,15 @@ Compiler head now emits the following aligned `fabs` mask block and the
 `fabs` and `fabsf` wrappers. The masks occupy the first 32 bytes of
 `.rodata`, with local labels at offsets 0 and 16. The wrappers contain 15 and
 14 text bytes and carry one `R_386_32` relocation each to the matching mask.
-The complete source now reaches the `floor` wrapper at line 281. The checked
-seed carries the opening wrappers but predates named operands, these five
-statement blocks, and the three `fabs` effects, so `libm.c` stays on its
-host-owned recipe and keeps its `.c` name.
+Compiler head also emits the next eight rounding wrappers. It saves and
+restores the x87 control word around `FRNDINT`, selecting down, up,
+nearest-even, or toward-zero mode for each double and float pair. The family
+adds 384 exact text bytes, has no relocations, reaches x87 depth one, and
+balances ESP and x87 depth. The complete source now reaches the `fmod`
+wrapper at line 465. The checked seed carries the opening wrappers but
+predates named operands, these five statement blocks, the three `fabs`
+effects, and the rounding family, so `libm.c` stays on its host-owned recipe
+and keeps its `.c` name.
 
 The checked seed emits the exact volatile
 `call 1f\n1: popl %0` state read used by the stack-trace helpers in
@@ -713,6 +718,8 @@ and the generated kernel symbol translation described above.
 [ADR 0167](docs/adr/0167-transfer-fpu-percpu-smp-to-cupidc.md) records the production transfer of the FPU, per-CPU, and SMP roots.
 
 [ADR 0168](docs/adr/0168-represent-fixed-register-input-overlap.md) records compatible fixed-register input and output sharing.
+
+[ADR 0169](docs/adr/0169-represent-libm-rounding-file-scope-assembly.md) records the exact eight-wrapper libm rounding family and the following `fmod` frontier.
 
 [ADR 0143](docs/adr/0143-share-ordinary-padding-nops.md) records the shared ordinary compiler padding family and its measured disassembly improvement.
 

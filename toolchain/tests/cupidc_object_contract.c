@@ -27821,20 +27821,20 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.cc",           "/toolchain/x86.cc",
       "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
-      65u, 68u, 66u, 14u, 31u, 143u, 254u, 296u, 407u, 81u, 37u, 60u,
+      65u, 68u, 66u, 14u, 31u, 143u, 254u, 300u, 407u, 81u, 37u, 60u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 76860u, 85252u, 16872u, 42212u,
-      190304u, 469147u, 464088u, 822022u, 139646u, 70368u, 80478u,
+      190304u, 469147u, 467561u, 822022u, 139646u, 70368u, 80478u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 89320u, 99772u, 20180u, 49484u,
-      226668u, 504556u, 508748u, 976512u, 157828u, 79348u, 134656u,
+      226668u, 504556u, 515632u, 976512u, 157828u, 79348u, 134656u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x5fbbfaf2u, 0x4ca44a27u,
       0x7238e153u, 0x999f97b7u, 0xb49d8eb9u,
-      0x67557415u, 0x4cbcb346u, 0x503c286fu, 0x239f52c7u,
+      0x67557415u, 0xf49ab960u, 0x503c286fu, 0x239f52c7u,
       0x34558a49u, 0x7c198364u, 0x8774de7du};
   ctool_u32 index;
   int all_matched = 1;
@@ -39807,8 +39807,294 @@ cleanup:
   return 1;
 }
 
+static int file_scope_rounding_imm8_matches(
+    const ctool_x86_operand_t *operand, ctool_u32 bits) {
+  return operand != NULL &&
+                 operand->kind == CTOOL_X86_OPERAND_IMMEDIATE &&
+                 operand->width_bits == 32u &&
+                 operand->encoding_bits == 8u &&
+                 operand->as.value.kind == CTOOL_X86_VALUE_CONSTANT &&
+                 operand->as.value.bits == bits &&
+                 operand->as.value.addend == 0
+             ? 1
+             : 0;
+}
+
+static int file_scope_rounding_instruction_matches(
+    const ctool_x86_instruction_t *instruction, ctool_u32 step,
+    ctool_u16 scalar_width, ctool_i32 result_displacement,
+    ctool_u16 control_bits) {
+  ctool_x86_mnemonic_t move =
+      scalar_width == 32u ? CTOOL_X86_MN_MOVSS : CTOOL_X86_MN_MOVSD;
+  if (instruction == NULL) {
+    return 0;
+  }
+  switch (step) {
+    case 0u:
+      return instruction->mnemonic == CTOOL_X86_MN_FLD &&
+                     instruction->operand_count == 1u &&
+                     validate_x87_round_down_memory_operand(
+                         &instruction->operands[0], scalar_width,
+                         NARROW_ORACLE_ESP, 4)
+                 ? 1
+                 : 0;
+    case 1u:
+      return instruction->mnemonic == CTOOL_X86_MN_SUB &&
+                     instruction->operand_bits == 32u &&
+                     instruction->operand_count == 2u &&
+                     validate_x87_round_down_register_operand(
+                         &instruction->operands[0],
+                         CTOOL_X86_REG_GPR32, NARROW_ORACLE_ESP) &&
+                     file_scope_rounding_imm8_matches(
+                         &instruction->operands[1], 8u)
+                 ? 1
+                 : 0;
+    case 2u:
+      return instruction->mnemonic == CTOOL_X86_MN_FNSTCW &&
+                     instruction->operand_count == 1u &&
+                     validate_x87_round_down_memory_operand(
+                         &instruction->operands[0], 16u,
+                         NARROW_ORACLE_ESP, 0)
+                 ? 1
+                 : 0;
+    case 3u:
+      return instruction->mnemonic == CTOOL_X86_MN_MOV &&
+                     instruction->operand_bits == 16u &&
+                     instruction->operand_count == 2u &&
+                     validate_x87_round_down_register_operand(
+                         &instruction->operands[0],
+                         CTOOL_X86_REG_GPR16, NARROW_ORACLE_EAX) &&
+                     validate_x87_round_down_memory_operand(
+                         &instruction->operands[1], 16u,
+                         NARROW_ORACLE_ESP, 0)
+                 ? 1
+                 : 0;
+    case 4u:
+      return instruction->mnemonic == CTOOL_X86_MN_AND &&
+                     instruction->operand_bits == 16u &&
+                     instruction->operand_count == 2u &&
+                     validate_x87_round_down_register_operand(
+                         &instruction->operands[0],
+                         CTOOL_X86_REG_GPR16, NARROW_ORACLE_EAX) &&
+                     validate_x87_round_down_immediate_operand(
+                         &instruction->operands[1], 16u, 0xf3ffu)
+                 ? 1
+                 : 0;
+    case 5u:
+      return control_bits != 0u &&
+                     instruction->mnemonic == CTOOL_X86_MN_OR &&
+                     instruction->operand_bits == 16u &&
+                     instruction->operand_count == 2u &&
+                     validate_x87_round_down_register_operand(
+                         &instruction->operands[0],
+                         CTOOL_X86_REG_GPR16, NARROW_ORACLE_EAX) &&
+                     validate_x87_round_down_immediate_operand(
+                         &instruction->operands[1], 16u, control_bits)
+                 ? 1
+                 : 0;
+    case 6u:
+      return instruction->mnemonic == CTOOL_X86_MN_MOV &&
+                     instruction->operand_bits == 16u &&
+                     instruction->operand_count == 2u &&
+                     validate_x87_round_down_memory_operand(
+                         &instruction->operands[0], 16u,
+                         NARROW_ORACLE_ESP, 2) &&
+                     validate_x87_round_down_register_operand(
+                         &instruction->operands[1],
+                         CTOOL_X86_REG_GPR16, NARROW_ORACLE_EAX)
+                 ? 1
+                 : 0;
+    case 7u:
+      return instruction->mnemonic == CTOOL_X86_MN_FLDCW &&
+                     instruction->operand_count == 1u &&
+                     validate_x87_round_down_memory_operand(
+                         &instruction->operands[0], 16u,
+                         NARROW_ORACLE_ESP, 2)
+                 ? 1
+                 : 0;
+    case 8u:
+      return instruction->mnemonic == CTOOL_X86_MN_FRNDINT &&
+                     instruction->operand_count == 0u
+                 ? 1
+                 : 0;
+    case 9u:
+      return instruction->mnemonic == CTOOL_X86_MN_FLDCW &&
+                     instruction->operand_count == 1u &&
+                     validate_x87_round_down_memory_operand(
+                         &instruction->operands[0], 16u,
+                         NARROW_ORACLE_ESP, 0)
+                 ? 1
+                 : 0;
+    case 10u:
+      return instruction->mnemonic == CTOOL_X86_MN_FSTP &&
+                     instruction->operand_count == 1u &&
+                     validate_x87_round_down_memory_operand(
+                         &instruction->operands[0], scalar_width,
+                         NARROW_ORACLE_ESP, result_displacement)
+                 ? 1
+                 : 0;
+    case 11u:
+      return instruction->mnemonic == move &&
+                     instruction->operand_bits == 32u &&
+                     instruction->operand_count == 2u &&
+                     validate_x87_round_down_register_operand(
+                         &instruction->operands[0],
+                         CTOOL_X86_REG_XMM, 0u) &&
+                     validate_x87_round_down_memory_operand(
+                         &instruction->operands[1], scalar_width,
+                         NARROW_ORACLE_ESP, result_displacement)
+                 ? 1
+                 : 0;
+    case 12u:
+      return instruction->mnemonic == CTOOL_X86_MN_ADD &&
+                     instruction->operand_bits == 32u &&
+                     instruction->operand_count == 2u &&
+                     validate_x87_round_down_register_operand(
+                         &instruction->operands[0],
+                         CTOOL_X86_REG_GPR32, NARROW_ORACLE_ESP) &&
+                     file_scope_rounding_imm8_matches(
+                         &instruction->operands[1], 8u)
+                 ? 1
+                 : 0;
+    case 13u:
+      return instruction->mnemonic == CTOOL_X86_MN_RET &&
+                     instruction->operand_count == 0u
+                 ? 1
+                 : 0;
+    default:
+      return 0;
+  }
+}
+
+static int validate_file_scope_rounding_wrapper_decode(
+    ctool_job_t *job, const ctool_elf32_section_t *text,
+    const ctool_elf32_symbol_t *symbol, ctool_bool single_precision,
+    ctool_u16 control_bits) {
+  static const ctool_u8 double_control[] = {
+      0xddu, 0x44u, 0x24u, 0x04u, 0x83u, 0xecu, 0x08u,
+      0xd9u, 0x3cu, 0x24u, 0x66u, 0x8bu, 0x04u, 0x24u,
+      0x66u, 0x25u, 0xffu, 0xf3u, 0x66u, 0x0du, 0x00u, 0x00u,
+      0x66u, 0x89u, 0x44u, 0x24u, 0x02u,
+      0xd9u, 0x6cu, 0x24u, 0x02u, 0xd9u, 0xfcu,
+      0xd9u, 0x2cu, 0x24u, 0xddu, 0x1cu, 0x24u,
+      0xf2u, 0x0fu, 0x10u, 0x04u, 0x24u,
+      0x83u, 0xc4u, 0x08u, 0xc3u};
+  static const ctool_u8 single_control[] = {
+      0xd9u, 0x44u, 0x24u, 0x04u, 0x83u, 0xecu, 0x08u,
+      0xd9u, 0x3cu, 0x24u, 0x66u, 0x8bu, 0x04u, 0x24u,
+      0x66u, 0x25u, 0xffu, 0xf3u, 0x66u, 0x0du, 0x00u, 0x00u,
+      0x66u, 0x89u, 0x44u, 0x24u, 0x02u,
+      0xd9u, 0x6cu, 0x24u, 0x02u, 0xd9u, 0xfcu,
+      0xd9u, 0x2cu, 0x24u, 0xd9u, 0x5cu, 0x24u, 0x04u,
+      0xf3u, 0x0fu, 0x10u, 0x44u, 0x24u, 0x04u,
+      0x83u, 0xc4u, 0x08u, 0xc3u};
+  static const ctool_u8 double_nearest[] = {
+      0xddu, 0x44u, 0x24u, 0x04u, 0x83u, 0xecu, 0x08u,
+      0xd9u, 0x3cu, 0x24u, 0x66u, 0x8bu, 0x04u, 0x24u,
+      0x66u, 0x25u, 0xffu, 0xf3u,
+      0x66u, 0x89u, 0x44u, 0x24u, 0x02u,
+      0xd9u, 0x6cu, 0x24u, 0x02u, 0xd9u, 0xfcu,
+      0xd9u, 0x2cu, 0x24u, 0xddu, 0x1cu, 0x24u,
+      0xf2u, 0x0fu, 0x10u, 0x04u, 0x24u,
+      0x83u, 0xc4u, 0x08u, 0xc3u};
+  static const ctool_u8 single_nearest[] = {
+      0xd9u, 0x44u, 0x24u, 0x04u, 0x83u, 0xecu, 0x08u,
+      0xd9u, 0x3cu, 0x24u, 0x66u, 0x8bu, 0x04u, 0x24u,
+      0x66u, 0x25u, 0xffu, 0xf3u,
+      0x66u, 0x89u, 0x44u, 0x24u, 0x02u,
+      0xd9u, 0x6cu, 0x24u, 0x02u, 0xd9u, 0xfcu,
+      0xd9u, 0x2cu, 0x24u, 0xd9u, 0x5cu, 0x24u, 0x04u,
+      0xf3u, 0x0fu, 0x10u, 0x44u, 0x24u, 0x04u,
+      0x83u, 0xc4u, 0x08u, 0xc3u};
+  static const ctool_u32 double_control_sizes[] = {
+      4u, 3u, 3u, 4u, 4u, 4u, 5u, 4u, 2u, 3u, 3u, 5u, 3u, 1u};
+  static const ctool_u32 single_control_sizes[] = {
+      4u, 3u, 3u, 4u, 4u, 4u, 5u, 4u, 2u, 3u, 4u, 6u, 3u, 1u};
+  static const ctool_u32 double_nearest_sizes[] = {
+      4u, 3u, 3u, 4u, 4u, 5u, 4u, 2u, 3u, 3u, 5u, 3u, 1u};
+  static const ctool_u32 single_nearest_sizes[] = {
+      4u, 3u, 3u, 4u, 4u, 5u, 4u, 2u, 3u, 4u, 6u, 3u, 1u};
+  const ctool_u8 *template_bytes;
+  const ctool_u32 *instruction_sizes;
+  ctool_u32 expected_size;
+  ctool_u32 instruction_count;
+  ctool_u16 scalar_width =
+      single_precision == CTOOL_TRUE ? 32u : 64u;
+  ctool_i32 result_displacement =
+      single_precision == CTOOL_TRUE ? 4 : 0;
+  ctool_u8 expected[50];
+  ctool_u32 cursor = 0u;
+  ctool_u32 index;
+  if (control_bits == 0u) {
+    template_bytes = single_precision == CTOOL_TRUE
+                         ? single_nearest
+                         : double_nearest;
+    instruction_sizes =
+        single_precision == CTOOL_TRUE
+            ? single_nearest_sizes
+            : double_nearest_sizes;
+    expected_size = single_precision == CTOOL_TRUE
+                        ? (ctool_u32)sizeof(single_nearest)
+                        : (ctool_u32)sizeof(double_nearest);
+    instruction_count = 13u;
+  } else {
+    template_bytes = single_precision == CTOOL_TRUE
+                         ? single_control
+                         : double_control;
+    instruction_sizes =
+        single_precision == CTOOL_TRUE
+            ? single_control_sizes
+            : double_control_sizes;
+    expected_size = single_precision == CTOOL_TRUE
+                        ? (ctool_u32)sizeof(single_control)
+                        : (ctool_u32)sizeof(double_control);
+    instruction_count = 14u;
+  }
+  if (job == NULL || text == NULL || symbol == NULL ||
+      expected_size > (ctool_u32)sizeof(expected) ||
+      symbol->value > text->contents.size ||
+      symbol->size > text->contents.size - symbol->value ||
+      symbol->size != expected_size) {
+    return 0;
+  }
+  (void)memcpy(expected, template_bytes, (size_t)expected_size);
+  if (control_bits != 0u) {
+    expected[20] = (ctool_u8)(control_bits & 0xffu);
+    expected[21] = (ctool_u8)(control_bits >> 8u);
+  }
+  if (memcmp(text->contents.data + symbol->value, expected,
+             (size_t)expected_size) != 0) {
+    return 0;
+  }
+  for (index = 0u; index < instruction_count; index++) {
+    ctool_x86_decoded_t decoded;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + symbol->value + cursor,
+        symbol->size - cursor);
+    ctool_u32 step =
+        control_bits == 0u && index >= 5u ? index + 1u : index;
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(
+        job, CTOOL_X86_MODE_32, remaining, 0u, &decoded);
+    if (status != CTOOL_OK ||
+        decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed != instruction_sizes[index] ||
+        decoded.encoding.size != instruction_sizes[index] ||
+        memcmp(decoded.encoding.bytes, expected + cursor,
+               (size_t)instruction_sizes[index]) != 0 ||
+        !file_scope_rounding_instruction_matches(
+            &decoded.instruction, step, scalar_width,
+            result_displacement, control_bits)) {
+      return 0;
+    }
+    cursor += decoded.consumed;
+  }
+  return cursor == expected_size ? 1 : 0;
+}
+
 static int validate_file_scope_math_object(
-    const ctool_elf32_object_t *object) {
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
   static const ctool_u8 expected_text[] = {
       0xf2u, 0x0fu, 0x10u, 0x44u, 0x24u, 0x04u, 0xf2u, 0x0fu,
       0x51u, 0xc0u, 0xc3u,
@@ -39848,17 +40134,27 @@ static int validate_file_scope_math_object(
       0xc3u};
   static const char *const names[] = {
       "sqrt", "sqrtf", "sin", "sinf", "cos", "cosf",
-      "tan", "tanf", "atan", "atanf", "atan2", "atan2f"};
+      "tan", "tanf", "atan", "atanf", "atan2", "atan2f",
+      "floor", "floorf", "ceil", "ceilf",
+      "round", "roundf", "trunc", "truncf"};
   static const ctool_u32 offsets[] = {
       0u, 11u, 22u, 43u, 64u, 85u,
-      106u, 129u, 152u, 175u, 198u, 223u};
+      106u, 129u, 152u, 175u, 198u, 223u,
+      248u, 296u, 346u, 394u,
+      444u, 488u, 534u, 582u};
   static const ctool_u32 sizes[] = {
       11u, 11u, 21u, 21u, 21u, 21u,
-      23u, 23u, 23u, 23u, 25u, 25u};
+      23u, 23u, 23u, 23u, 25u, 25u,
+      48u, 50u, 48u, 50u,
+      44u, 46u, 48u, 50u};
+  static const ctool_u16 control_bits[] = {
+      0x0400u, 0x0400u, 0x0800u, 0x0800u,
+      0u, 0u, 0x0c00u, 0x0c00u};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   ctool_u32 index;
   if (text == NULL || text->contents.data == NULL ||
-      text->contents.size != (ctool_u32)sizeof(expected_text) ||
+      text->contents.size !=
+          (ctool_u32)sizeof(expected_text) + 384u ||
       memcmp(text->contents.data, expected_text,
              sizeof(expected_text)) != 0 ||
       object->relocation_count != 0u) {
@@ -39879,11 +40175,27 @@ static int validate_file_scope_math_object(
       return 0;
     }
   }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(control_bits) /
+                          sizeof(control_bits[0]));
+       index++) {
+    const ctool_elf32_symbol_t *symbol =
+        find_symbol(object, names[12u + index]);
+    if (!validate_file_scope_rounding_wrapper_decode(
+            job, text, symbol,
+            (index & 1u) != 0u ? CTOOL_TRUE : CTOOL_FALSE,
+            control_bits[index])) {
+      (void)fprintf(
+          stderr, "file-scope rounding wrapper %s differs\n",
+          names[12u + index]);
+      return 0;
+    }
+  }
   return 1;
 }
 
 static int run_file_scope_assembly_object(const char *host_root) {
-  static const char source[] =
+  static const char opening_source[] =
       "double sqrt(double); float sqrtf(float);\n"
       "double sin(double); float sinf(float);\n"
       "double cos(double); float cosf(float);\n"
@@ -39942,6 +40254,75 @@ static int run_file_scope_assembly_object(const char *host_root) {
       "\"fpatan\\n\\tsub    $4, %esp\\n\\tfstps  (%esp)\\n\\t\"\n"
       "\"movss  (%esp), %xmm0\\n\\tadd    $4, %esp\\n\\t\"\n"
       "\"ret\\n\\t.size  atan2f, .-atan2f\\n\");\n";
+  static const char rounding_source[] =
+      "double floor(double); float floorf(float);\n"
+      "double ceil(double); float ceilf(float);\n"
+      "double round(double); float roundf(float);\n"
+      "double trunc(double); float truncf(float);\n"
+      "__asm__(\".text\\n\\t.globl floor\\n\\t.type  floor, @function\\n\"\n"
+      "\"floor:\\n\\tfldl   4(%esp)\\n\\tsub    $8, %esp\\n\\t\"\n"
+      "\"fnstcw (%esp)\\n\\tmovw   (%esp), %ax\\n\\t\"\n"
+      "\"andw   $0xF3FF, %ax\\n\\torw    $0x0400, %ax\\n\\t\"\n"
+      "\"movw   %ax, 2(%esp)\\n\\tfldcw  2(%esp)\\n\\t\"\n"
+      "\"frndint\\n\\tfldcw  (%esp)\\n\\tfstpl  (%esp)\\n\\t\"\n"
+      "\"movsd  (%esp), %xmm0\\n\\tadd    $8, %esp\\n\\t\"\n"
+      "\"ret\\n\\t.size  floor, .-floor\\n\");\n"
+      "__asm__(\".text\\n\\t.globl floorf\\n\\t.type  floorf, @function\\n\"\n"
+      "\"floorf:\\n\\tflds   4(%esp)\\n\\tsub    $8, %esp\\n\\t\"\n"
+      "\"fnstcw (%esp)\\n\\tmovw   (%esp), %ax\\n\\t\"\n"
+      "\"andw   $0xF3FF, %ax\\n\\torw    $0x0400, %ax\\n\\t\"\n"
+      "\"movw   %ax, 2(%esp)\\n\\tfldcw  2(%esp)\\n\\t\"\n"
+      "\"frndint\\n\\tfldcw  (%esp)\\n\\tfstps  4(%esp)\\n\\t\"\n"
+      "\"movss  4(%esp), %xmm0\\n\\tadd    $8, %esp\\n\\t\"\n"
+      "\"ret\\n\\t.size  floorf, .-floorf\\n\");\n"
+      "__asm__(\".text\\n\\t.globl ceil\\n\\t.type  ceil, @function\\n\"\n"
+      "\"ceil:\\n\\tfldl   4(%esp)\\n\\tsub    $8, %esp\\n\\t\"\n"
+      "\"fnstcw (%esp)\\n\\tmovw   (%esp), %ax\\n\\t\"\n"
+      "\"andw   $0xF3FF, %ax\\n\\torw    $0x0800, %ax\\n\\t\"\n"
+      "\"movw   %ax, 2(%esp)\\n\\tfldcw  2(%esp)\\n\\t\"\n"
+      "\"frndint\\n\\tfldcw  (%esp)\\n\\tfstpl  (%esp)\\n\\t\"\n"
+      "\"movsd  (%esp), %xmm0\\n\\tadd    $8, %esp\\n\\t\"\n"
+      "\"ret\\n\\t.size  ceil, .-ceil\\n\");\n"
+      "__asm__(\".text\\n\\t.globl ceilf\\n\\t.type  ceilf, @function\\n\"\n"
+      "\"ceilf:\\n\\tflds   4(%esp)\\n\\tsub    $8, %esp\\n\\t\"\n"
+      "\"fnstcw (%esp)\\n\\tmovw   (%esp), %ax\\n\\t\"\n"
+      "\"andw   $0xF3FF, %ax\\n\\torw    $0x0800, %ax\\n\\t\"\n"
+      "\"movw   %ax, 2(%esp)\\n\\tfldcw  2(%esp)\\n\\t\"\n"
+      "\"frndint\\n\\tfldcw  (%esp)\\n\\tfstps  4(%esp)\\n\\t\"\n"
+      "\"movss  4(%esp), %xmm0\\n\\tadd    $8, %esp\\n\\t\"\n"
+      "\"ret\\n\\t.size  ceilf, .-ceilf\\n\");\n"
+      "__asm__(\".text\\n\\t.globl round\\n\\t.type  round, @function\\n\"\n"
+      "\"round:\\n\\tfldl   4(%esp)\\n\\tsub    $8, %esp\\n\\t\"\n"
+      "\"fnstcw (%esp)\\n\\tmovw   (%esp), %ax\\n\\t\"\n"
+      "\"andw   $0xF3FF, %ax\\n\\tmovw   %ax, 2(%esp)\\n\\t\"\n"
+      "\"fldcw  2(%esp)\\n\\tfrndint\\n\\tfldcw  (%esp)\\n\\t\"\n"
+      "\"fstpl  (%esp)\\n\\tmovsd  (%esp), %xmm0\\n\\t\"\n"
+      "\"add    $8, %esp\\n\\tret\\n\\t.size  round, .-round\\n\");\n"
+      "__asm__(\".text\\n\\t.globl roundf\\n\\t.type  roundf, @function\\n\"\n"
+      "\"roundf:\\n\\tflds   4(%esp)\\n\\tsub    $8, %esp\\n\\t\"\n"
+      "\"fnstcw (%esp)\\n\\tmovw   (%esp), %ax\\n\\t\"\n"
+      "\"andw   $0xF3FF, %ax\\n\\tmovw   %ax, 2(%esp)\\n\\t\"\n"
+      "\"fldcw  2(%esp)\\n\\tfrndint\\n\\tfldcw  (%esp)\\n\\t\"\n"
+      "\"fstps  4(%esp)\\n\\tmovss  4(%esp), %xmm0\\n\\t\"\n"
+      "\"add    $8, %esp\\n\\tret\\n\\t.size  roundf, .-roundf\\n\");\n"
+      "__asm__(\".text\\n\\t.globl trunc\\n\\t.type  trunc, @function\\n\"\n"
+      "\"trunc:\\n\\tfldl   4(%esp)\\n\\tsub    $8, %esp\\n\\t\"\n"
+      "\"fnstcw (%esp)\\n\\tmovw   (%esp), %ax\\n\\t\"\n"
+      "\"andw   $0xF3FF, %ax\\n\\torw    $0x0C00, %ax\\n\\t\"\n"
+      "\"movw   %ax, 2(%esp)\\n\\tfldcw  2(%esp)\\n\\t\"\n"
+      "\"frndint\\n\\tfldcw  (%esp)\\n\\tfstpl  (%esp)\\n\\t\"\n"
+      "\"movsd  (%esp), %xmm0\\n\\tadd    $8, %esp\\n\\t\"\n"
+      "\"ret\\n\\t.size  trunc, .-trunc\\n\");\n"
+      "__asm__(\".text\\n\\t.globl truncf\\n\\t.type  truncf, @function\\n\"\n"
+      "\"truncf:\\n\\tflds   4(%esp)\\n\\tsub    $8, %esp\\n\\t\"\n"
+      "\"fnstcw (%esp)\\n\\tmovw   (%esp), %ax\\n\\t\"\n"
+      "\"andw   $0xF3FF, %ax\\n\\torw    $0x0C00, %ax\\n\\t\"\n"
+      "\"movw   %ax, 2(%esp)\\n\\tfldcw  2(%esp)\\n\\t\"\n"
+      "\"frndint\\n\\tfldcw  (%esp)\\n\\tfstps  4(%esp)\\n\\t\"\n"
+      "\"movss  4(%esp), %xmm0\\n\\tadd    $8, %esp\\n\\t\"\n"
+      "\"ret\\n\\t.size  truncf, .-truncf\\n\");\n";
+  char source[
+      sizeof(opening_source) + sizeof(rounding_source) - 1u];
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
   ctool_job_t *job = NULL;
@@ -39950,20 +40331,32 @@ static int run_file_scope_assembly_object(const char *host_root) {
   ctool_buffer_t *failure = NULL;
   ctool_c_translation_unit_t unit;
   ctool_c_translation_unit_t mutant;
-  ctool_c_assembly_t mutant_assemblies[12];
+  ctool_c_assembly_t mutant_assemblies[20];
+  ctool_c_binding_t mutant_bindings[20];
   unit_snapshot_t snapshot;
   ctool_source_t object_source;
   ctool_elf32_object_t object;
   ctool_bytes_t first_bytes;
   ctool_bytes_t second_bytes;
+  ctool_u32 floor_binding = CTOOL_C_AST_NONE;
+  ctool_u32 floorf_binding = CTOOL_C_AST_NONE;
+  ctool_u32 index;
   ctool_status_t status;
   int passed = 0;
 
   (void)memset(&unit, 0, sizeof(unit));
   (void)memset(&snapshot, 0, sizeof(snapshot));
+  (void)memcpy(
+      source, opening_source, sizeof(opening_source) - 1u);
+  (void)memcpy(
+      source + sizeof(opening_source) - 1u,
+      rounding_source, sizeof(rounding_source));
   if (!open_job(host_root, &adapter, &config, &job) ||
       !parse_source_mode(job, "/file-scope-assembly-object.c",
                          source, CTOOL_TRUE, &unit) ||
+      unit.binding_count !=
+          (ctool_u32)(sizeof(mutant_bindings) /
+                      sizeof(mutant_bindings[0])) ||
       unit.function_definition_count != 0u ||
       unit.file_assembly_count !=
           (ctool_u32)(sizeof(mutant_assemblies) /
@@ -39976,6 +40369,20 @@ static int run_file_scope_assembly_object(const char *host_root) {
     if (job != NULL) {
       (void)ctool_job_render_diagnostics(job);
     }
+    goto cleanup;
+  }
+  for (index = 0u; index < unit.binding_count; index++) {
+    if (string_equal(unit.bindings[index].name, "floor") != 0) {
+      floor_binding = index;
+    } else if (string_equal(
+                   unit.bindings[index].name, "floorf") != 0) {
+      floorf_binding = index;
+    }
+  }
+  if (floor_binding == CTOOL_C_AST_NONE ||
+      floorf_binding == CTOOL_C_AST_NONE) {
+    (void)fprintf(
+        stderr, "file-scope rounding bindings differ\n");
     goto cleanup;
   }
   status = ctool_job_open_buffer(
@@ -40012,7 +40419,7 @@ static int run_file_scope_assembly_object(const char *host_root) {
   (void)memset(&object, 0xa5, sizeof(object));
   status = ctool_elf32_read(job, &object_source, &object);
   if (!check_status(status, CTOOL_OK, "read file-scope assembly object") ||
-      !validate_file_scope_math_object(&object)) {
+      !validate_file_scope_math_object(job, &object)) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
@@ -40029,6 +40436,45 @@ static int run_file_scope_assembly_object(const char *host_root) {
           "GNU file-scope assembly template is outside this i386 "
           "emission slice",
           "unsupported file-scope assembly template") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+
+  mutant_assemblies[0] = unit.file_assemblies[0];
+  mutant_assemblies[12].template_text = ctool_string(
+      ".text\n\t.globl floor\n\t.type  floor, @function\n"
+      "floor:\n\tfldl   4(%esp)\n\tsub    $8, %esp\n\t"
+      "fnstcw (%esp)\n\tmovw   (%esp), %ax\n\t"
+      "andw   $0xF7FF, %ax\n\torw    $0x0400, %ax\n\t"
+      "movw   %ax, 2(%esp)\n\tfldcw  2(%esp)\n\t"
+      "frndint\n\tfldcw  (%esp)\n\tfstpl  (%esp)\n\t"
+      "movsd  (%esp), %xmm0\n\tadd    $8, %esp\n\t"
+      "ret\n\t.size  floor, .-floor\n");
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_EMIT_DIAG_UNSUPPORTED,
+          "GNU file-scope assembly template is outside this i386 "
+          "emission slice",
+          "altered file-scope rounding control mask") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_assemblies[12] = unit.file_assemblies[12];
+
+  (void)memcpy(
+      mutant_bindings, unit.bindings, sizeof(mutant_bindings));
+  mutant_bindings[floor_binding].type =
+      unit.bindings[floorf_binding].type;
+  mutant = unit;
+  mutant.bindings = mutant_bindings;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_EMIT_DIAG_SYMBOL,
+          "GNU file-scope assembly does not match its external "
+          "function declaration",
+          "floor wrapper with float prototype") ||
       unit_snapshot_matches(&snapshot, &unit) == 0 ||
       ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
     goto cleanup;

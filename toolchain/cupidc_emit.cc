@@ -38,6 +38,14 @@ typedef enum {
   CEMIT_FILE_ASSEMBLY_ATAN2F,
   CEMIT_FILE_ASSEMBLY_FABS,
   CEMIT_FILE_ASSEMBLY_FABSF,
+  CEMIT_FILE_ASSEMBLY_FLOOR,
+  CEMIT_FILE_ASSEMBLY_FLOORF,
+  CEMIT_FILE_ASSEMBLY_CEIL,
+  CEMIT_FILE_ASSEMBLY_CEILF,
+  CEMIT_FILE_ASSEMBLY_ROUND,
+  CEMIT_FILE_ASSEMBLY_ROUNDF,
+  CEMIT_FILE_ASSEMBLY_TRUNC,
+  CEMIT_FILE_ASSEMBLY_TRUNCF,
   CEMIT_FILE_ASSEMBLY_FABS_MASKS,
   CEMIT_FILE_ASSEMBLY_COUNT
 } cemit_file_assembly_kind_t;
@@ -898,6 +906,68 @@ static cemit_file_assembly_kind_t cemit_file_assembly_template_kind(
       "fabsf:\n\tmovss  4(%esp), %xmm0\n\t"
       "andps  fabs_mask_s, %xmm0\n\tret\n\t"
       ".size  fabsf, .-fabsf\n",
+      ".text\n\t.globl floor\n\t.type  floor, @function\n"
+      "floor:\n\tfldl   4(%esp)\n\tsub    $8, %esp\n\t"
+      "fnstcw (%esp)\n\tmovw   (%esp), %ax\n\t"
+      "andw   $0xF3FF, %ax\n\torw    $0x0400, %ax\n\t"
+      "movw   %ax, 2(%esp)\n\tfldcw  2(%esp)\n\t"
+      "frndint\n\tfldcw  (%esp)\n\tfstpl  (%esp)\n\t"
+      "movsd  (%esp), %xmm0\n\tadd    $8, %esp\n\t"
+      "ret\n\t.size  floor, .-floor\n",
+      ".text\n\t.globl floorf\n\t.type  floorf, @function\n"
+      "floorf:\n\tflds   4(%esp)\n\tsub    $8, %esp\n\t"
+      "fnstcw (%esp)\n\tmovw   (%esp), %ax\n\t"
+      "andw   $0xF3FF, %ax\n\torw    $0x0400, %ax\n\t"
+      "movw   %ax, 2(%esp)\n\tfldcw  2(%esp)\n\t"
+      "frndint\n\tfldcw  (%esp)\n\tfstps  4(%esp)\n\t"
+      "movss  4(%esp), %xmm0\n\tadd    $8, %esp\n\t"
+      "ret\n\t.size  floorf, .-floorf\n",
+      ".text\n\t.globl ceil\n\t.type  ceil, @function\n"
+      "ceil:\n\tfldl   4(%esp)\n\tsub    $8, %esp\n\t"
+      "fnstcw (%esp)\n\tmovw   (%esp), %ax\n\t"
+      "andw   $0xF3FF, %ax\n\torw    $0x0800, %ax\n\t"
+      "movw   %ax, 2(%esp)\n\tfldcw  2(%esp)\n\t"
+      "frndint\n\tfldcw  (%esp)\n\tfstpl  (%esp)\n\t"
+      "movsd  (%esp), %xmm0\n\tadd    $8, %esp\n\t"
+      "ret\n\t.size  ceil, .-ceil\n",
+      ".text\n\t.globl ceilf\n\t.type  ceilf, @function\n"
+      "ceilf:\n\tflds   4(%esp)\n\tsub    $8, %esp\n\t"
+      "fnstcw (%esp)\n\tmovw   (%esp), %ax\n\t"
+      "andw   $0xF3FF, %ax\n\torw    $0x0800, %ax\n\t"
+      "movw   %ax, 2(%esp)\n\tfldcw  2(%esp)\n\t"
+      "frndint\n\tfldcw  (%esp)\n\tfstps  4(%esp)\n\t"
+      "movss  4(%esp), %xmm0\n\tadd    $8, %esp\n\t"
+      "ret\n\t.size  ceilf, .-ceilf\n",
+      ".text\n\t.globl round\n\t.type  round, @function\n"
+      "round:\n\tfldl   4(%esp)\n\tsub    $8, %esp\n\t"
+      "fnstcw (%esp)\n\tmovw   (%esp), %ax\n\t"
+      "andw   $0xF3FF, %ax\n\tmovw   %ax, 2(%esp)\n\t"
+      "fldcw  2(%esp)\n\tfrndint\n\tfldcw  (%esp)\n\t"
+      "fstpl  (%esp)\n\tmovsd  (%esp), %xmm0\n\t"
+      "add    $8, %esp\n\tret\n\t.size  round, .-round\n",
+      ".text\n\t.globl roundf\n\t.type  roundf, @function\n"
+      "roundf:\n\tflds   4(%esp)\n\tsub    $8, %esp\n\t"
+      "fnstcw (%esp)\n\tmovw   (%esp), %ax\n\t"
+      "andw   $0xF3FF, %ax\n\tmovw   %ax, 2(%esp)\n\t"
+      "fldcw  2(%esp)\n\tfrndint\n\tfldcw  (%esp)\n\t"
+      "fstps  4(%esp)\n\tmovss  4(%esp), %xmm0\n\t"
+      "add    $8, %esp\n\tret\n\t.size  roundf, .-roundf\n",
+      ".text\n\t.globl trunc\n\t.type  trunc, @function\n"
+      "trunc:\n\tfldl   4(%esp)\n\tsub    $8, %esp\n\t"
+      "fnstcw (%esp)\n\tmovw   (%esp), %ax\n\t"
+      "andw   $0xF3FF, %ax\n\torw    $0x0C00, %ax\n\t"
+      "movw   %ax, 2(%esp)\n\tfldcw  2(%esp)\n\t"
+      "frndint\n\tfldcw  (%esp)\n\tfstpl  (%esp)\n\t"
+      "movsd  (%esp), %xmm0\n\tadd    $8, %esp\n\t"
+      "ret\n\t.size  trunc, .-trunc\n",
+      ".text\n\t.globl truncf\n\t.type  truncf, @function\n"
+      "truncf:\n\tflds   4(%esp)\n\tsub    $8, %esp\n\t"
+      "fnstcw (%esp)\n\tmovw   (%esp), %ax\n\t"
+      "andw   $0xF3FF, %ax\n\torw    $0x0C00, %ax\n\t"
+      "movw   %ax, 2(%esp)\n\tfldcw  2(%esp)\n\t"
+      "frndint\n\tfldcw  (%esp)\n\tfstps  4(%esp)\n\t"
+      "movss  4(%esp), %xmm0\n\tadd    $8, %esp\n\t"
+      "ret\n\t.size  truncf, .-truncf\n",
       ".section .rodata\n\t.align 16\n"
       "fabs_mask_d:\n\t.quad 0x7FFFFFFFFFFFFFFF\n\t"
       ".quad 0x7FFFFFFFFFFFFFFF\n"
@@ -919,7 +989,8 @@ static const char *cemit_file_assembly_function_name(
   static const char *const names[] = {
       "", "sqrt", "sqrtf", "sin", "sinf", "cos", "cosf",
       "tan", "tanf", "atan", "atanf", "atan2", "atan2f",
-      "fabs", "fabsf", ""};
+      "fabs", "fabsf", "floor", "floorf", "ceil", "ceilf",
+      "round", "roundf", "trunc", "truncf", ""};
   return kind > CEMIT_FILE_ASSEMBLY_NONE &&
                  kind < CEMIT_FILE_ASSEMBLY_COUNT
              ? names[(ctool_u32)kind]
@@ -2602,6 +2673,25 @@ static ctool_status_t cemit_x86_word_stack_immediate(
       cemit_x86_register(CTOOL_X86_REG_GPR32, 4u),
       displacement, 0u);
   instruction.operands[0].width_bits = 16u;
+  instruction.operands[1] = cemit_x86_value_operand(
+      CTOOL_X86_OPERAND_IMMEDIATE, 16u, 16u, immediate);
+  return cemit_x86_encode(context, &instruction,
+                          (ctool_x86_encoding_t *)0,
+                          (ctool_u32 *)0);
+}
+
+static ctool_status_t cemit_x86_word_ax_immediate(
+    cemit_context_t *context, ctool_x86_mnemonic_t mnemonic,
+    ctool_u16 immediate) {
+  ctool_x86_instruction_t instruction =
+      cemit_x86_instruction(mnemonic, 16u);
+  if (mnemonic != CTOOL_X86_MN_AND &&
+      mnemonic != CTOOL_X86_MN_OR) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  instruction.operand_count = 2u;
+  instruction.operands[0] =
+      cemit_x86_register_operand(CTOOL_X86_REG_GPR16, 0u);
   instruction.operands[1] = cemit_x86_value_operand(
       CTOOL_X86_OPERAND_IMMEDIATE, 16u, 16u, immediate);
   return cemit_x86_encode(context, &instruction,
@@ -12375,6 +12465,110 @@ static ctool_status_t cemit_finish_file_assembly_x87_result(
   return status;
 }
 
+static ctool_bool cemit_file_assembly_is_rounding(
+    cemit_file_assembly_kind_t kind) {
+  return kind >= CEMIT_FILE_ASSEMBLY_FLOOR &&
+                 kind <= CEMIT_FILE_ASSEMBLY_TRUNCF
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_u16 cemit_file_assembly_rounding_control(
+    cemit_file_assembly_kind_t kind) {
+  if (kind == CEMIT_FILE_ASSEMBLY_FLOOR ||
+      kind == CEMIT_FILE_ASSEMBLY_FLOORF) {
+    return 0x0400u;
+  }
+  if (kind == CEMIT_FILE_ASSEMBLY_CEIL ||
+      kind == CEMIT_FILE_ASSEMBLY_CEILF) {
+    return 0x0800u;
+  }
+  if (kind == CEMIT_FILE_ASSEMBLY_ROUND ||
+      kind == CEMIT_FILE_ASSEMBLY_ROUNDF) {
+    return 0u;
+  }
+  if (kind == CEMIT_FILE_ASSEMBLY_TRUNC ||
+      kind == CEMIT_FILE_ASSEMBLY_TRUNCF) {
+    return 0x0c00u;
+  }
+  return 0xffffu;
+}
+
+static ctool_status_t cemit_emit_file_assembly_rounding_body(
+    cemit_context_t *context, cemit_file_assembly_kind_t kind,
+    ctool_bool single_precision) {
+  ctool_u16 width_bits =
+      single_precision == CTOOL_TRUE ? 32u : 64u;
+  ctool_i32 result_displacement =
+      single_precision == CTOOL_TRUE ? 4 : 0;
+  ctool_x86_mnemonic_t move =
+      single_precision == CTOOL_TRUE ? CTOOL_X86_MN_MOVSS
+                                     : CTOOL_X86_MN_MOVSD;
+  ctool_u16 control_bits =
+      cemit_file_assembly_rounding_control(kind);
+  ctool_status_t status;
+  if (cemit_file_assembly_is_rounding(kind) == CTOOL_FALSE ||
+      control_bits == 0xffffu) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  status = cemit_x86_x87_memory(
+      context, CTOOL_X86_MN_FLD, 4u, 4, width_bits);
+  if (status == CTOOL_OK) {
+    status = cemit_x86_reserve_locals(context, 8u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_x87_control_memory(
+        context, CTOOL_X86_MN_FNSTCW, 4u, 0);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_move_word_stack_ax(
+        context, CTOOL_TRUE, 0);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_word_ax_immediate(
+        context, CTOOL_X86_MN_AND, 0xf3ffu);
+  }
+  if (status == CTOOL_OK && control_bits != 0u) {
+    status = cemit_x86_word_ax_immediate(
+        context, CTOOL_X86_MN_OR, control_bits);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_move_word_stack_ax(
+        context, CTOOL_FALSE, 2);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_x87_control_memory(
+        context, CTOOL_X86_MN_FLDCW, 4u, 2);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_no_operand(
+        context, CTOOL_X86_MN_FRNDINT);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_x87_control_memory(
+        context, CTOOL_X86_MN_FLDCW, 4u, 0);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_x87_memory(
+        context, CTOOL_X86_MN_FSTP, 4u,
+        result_displacement, width_bits);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_sse_memory(
+        context, move, CTOOL_TRUE, 0u, 4u,
+        result_displacement, width_bits);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_add_register_constant(
+        context, 4u, 8u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_no_operand(
+        context, CTOOL_X86_MN_RET);
+  }
+  return status;
+}
+
 static ctool_status_t cemit_emit_file_assembly_body(
     cemit_context_t *context, cemit_file_assembly_kind_t kind) {
   ctool_bool single_precision =
@@ -12408,6 +12602,10 @@ static ctool_status_t cemit_emit_file_assembly_body(
       status = cemit_x86_no_operand(context, CTOOL_X86_MN_RET);
     }
     return status;
+  }
+  if (cemit_file_assembly_is_rounding(kind) == CTOOL_TRUE) {
+    return cemit_emit_file_assembly_rounding_body(
+        context, kind, single_precision);
   }
   if (kind == CEMIT_FILE_ASSEMBLY_SQRT ||
       kind == CEMIT_FILE_ASSEMBLY_SQRTF) {

@@ -87,11 +87,15 @@ relocations, and balanced x87 depth. Compiler head also emits the aligned
 32-byte `fabs` mask block and the following `fabs` and `fabsf` wrappers. The
 mask labels are local `STT_NOTYPE` symbols at `.rodata` offsets 0 and 16.
 The wrappers contain 15 and 14 text bytes and carry one `R_386_32`
-relocation each. The complete unchanged source now reaches the `floor`
-wrapper at line 281. The checked seed predates named operands, all five
-statement forms, and the three `fabs` effects, so GCC or Clang continues to
-own the normal `libm.c` transform. No dependency or production ownership
-count changes.
+relocation each. Compiler head also emits the following `floor`, `floorf`,
+`ceil`, `ceilf`, `round`, `roundf`, `trunc`, and `truncf` wrappers. The
+family saves and restores the x87 control word around `FRNDINT`, selects all
+four source rounding modes, occupies 384 text bytes, and has no relocations.
+The complete unchanged source now reaches `fmod` at line 465. The checked
+seed predates named operands, all five statement forms, the three `fabs`
+effects, and the rounding family, so GCC or Clang continues to own the
+normal `libm.c` transform. No dependency or production ownership count
+changes.
 
 The USB lifetime work retires no additional compiler transform, but it
 supplies the runtime contract for EHCI and UHCI ownership. Reconciliation

@@ -146,10 +146,16 @@ Compiler head also represents the exact aligned fabs mask block and the
 following fabs and fabsf wrappers. The masks occupy the first 32 bytes of
 .rodata, with local labels at offsets 0 and 16. The double wrapper uses MOVSD
 and ANDPD in 15 text bytes. The float wrapper uses MOVSS and ANDPS in 14
-bytes. Each has one absolute relocation to its mask. The unchanged source now
-stops at the floor wrapper on line 281. The checked seed does not yet carry
-these compiler-head capabilities, so
-kernel/cpu/libm.c remains host-owned.
+bytes. Each has one absolute relocation to its mask.
+
+The following floor, floorf, ceil, ceilf, round, roundf, trunc, and truncf
+wrappers are represented at compiler head too. They save the incoming x87
+control word, select down, up, nearest-even, or toward-zero mode, apply
+FRNDINT, and restore the original word. Together they occupy 384 text bytes
+without relocations, reach x87 depth one, and balance ESP and x87 depth. The
+unchanged source now stops at fmod on line 465. The checked seed does not yet
+carry these compiler-head capabilities, so kernel/cpu/libm.c remains
+host-owned.
 
 Direct floating truth, a floating controlling expression, increment and
 decrement, hexadecimal or subnormal constants, long double, SIMD, and atomic

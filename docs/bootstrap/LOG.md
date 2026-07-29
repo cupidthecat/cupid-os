@@ -14790,3 +14790,111 @@ SIMD blocker is the `xmm1` clobber on line 134. `kernel/core/kernel.c` and
 therefore remains open for later GNU assembly forms, and issue #28 remains
 open for the remaining production transfers. `TempleOS/` remains untouched
 reference material and is absent from the ownership totals.
+
+## 2026-07-28: emit the libm rounding wrappers
+
+Compiler head now represents all eight file-scope rounding definitions after
+`fabsf` in unchanged `kernel/cpu/libm.c`:
+
+- `floor` and `floorf` select x87 `RC=01`.
+- `ceil` and `ceilf` select x87 `RC=10`.
+- `round` and `roundf` select x87 `RC=00`.
+- `trunc` and `truncf` select x87 `RC=11`.
+
+Each wrapper loads its argument at the source width, reserves eight stack
+bytes, saves the incoming x87 control word, and clears the RC field with
+`0xf3ff`. The emitter writes the selected nonzero bits for the down, up, and
+toward-zero pairs. The nearest-even pair omits the OR instruction because
+its RC value is zero. After `FRNDINT`, every path reloads the original control
+word, pops the rounded result at the source width, moves it to XMM0, restores
+ESP, and returns. The shared x86 model emits every instruction.
+
+The eight wrappers occupy 384 text bytes and have no relocations. They follow
+the 248-byte opening-wrapper family, giving the combined fixture 632 text
+bytes. Their symbol layout is:
+
+| Symbol | Offset | Size |
+| --- | ---: | ---: |
+| `floor` | 248 | 48 |
+| `floorf` | 296 | 50 |
+| `ceil` | 346 | 48 |
+| `ceilf` | 394 | 50 |
+| `round` | 444 | 44 |
+| `roundf` | 488 | 46 |
+| `trunc` | 534 | 48 |
+| `truncf` | 582 | 50 |
+
+Every function reaches x87 depth one and returns to its incoming x87 depth.
+ESP and the caller's control word are restored on every represented path.
+The decoder checks each instruction, operand, width, control immediate,
+symbol offset, and symbol size.
+
+### Test-first findings
+
+The object contract and unchanged-source probe were changed before the
+emitter. They failed on the first `floor` template at line 281. After the
+emitter change, the full source passes all eight wrappers and reaches the
+`fmod` definition on line 465.
+
+The first expanded C contract placed the opening and rounding source in one
+string literal. Its length exceeded the C99 minimum supported literal size,
+and the warning-as-error build rejected it. The fixture now keeps two
+ordinary literals and joins them in a fixed runtime array before parsing.
+This preserves the same translation unit without weakening the strict
+hosted build.
+
+The first complete build-graph run passed 61 of 62 tests. Its drift gate
+reported that the larger contract added 16 `sizeof` expressions, moving the
+checked count from 5,143 to 5,159. The lock was updated to the regenerated
+inventory. The focused drift selector and the complete 62-test rerun then
+passed.
+
+Negative object cases replace the exact `0xf3ff` control mask and give
+`floor` the `float (float)` type. Both fail without changing the parsed unit
+or publishing partial output. A valid emission in the same job succeeds
+afterward. Repeat emission is byte-identical.
+
+### Frozen compiler records
+
+| Compiler source | Definitions | Statements | Expressions | Block bindings | Initializers |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `toolchain/cupidc_frontend.cc` | 407 | 16,052 | 106,261 | 2,407 | 1,479 |
+| `toolchain/cupidc_ir.cc` | 254 | 7,084 | 65,836 | 930 | 340 |
+| `toolchain/cupidc_emit.cc` | 300 | 7,405 | 63,099 | 898 | 522 |
+
+The self-host frontier objects are:
+
+| Compiler source | Functions | Text bytes | Object bytes | Text fingerprint |
+| --- | ---: | ---: | ---: | --- |
+| `toolchain/cupidc_frontend.cc` | 407 | 822,022 | 976,512 | `503C286F` |
+| `toolchain/cupidc_ir.cc` | 254 | 469,147 | 504,556 | `67557415` |
+| `toolchain/cupidc_emit.cc` | 300 | 467,561 | 515,632 | `F49AB960` |
+
+### Evidence
+
+| Gate | Result |
+| --- | --- |
+| Focused rounding and neighboring assembly objects | 7 tests passed in 31.360 seconds |
+| Hosted source and self-host frontier relock | 2 tests passed in 52.282 seconds |
+| Complete frontend and Linear IR modules | 171 tests passed in 38.719 seconds |
+| Strict hosted Toolchain build | All native contracts passed in 50.7 seconds; six static i386 artifacts linked |
+| Cupid-built compiler self-object | 1 test passed in 289.993 seconds |
+| Five-tool static fixed point | 1 test passed in 855.513 seconds |
+| Bootstrap audit regeneration | Passed in 85.0 seconds |
+| Bootstrap audit drift check | Passed in 73.8 seconds |
+| Focused corrected manifest-drift gate | 1 test passed in 211.350 seconds |
+| Complete build-graph audit module | 62 tests passed in 581.434 seconds |
+
+The regenerated graph contains 698 active sources, 253 feature IDs, 504
+transforms, and 42 accounted unreachable files. Its active-source digest is
+`8287cc2659a15b404f412b30fc3643c08ce1fd7fe7fe739f08a4bb8a4f1afced`.
+The 1,526,996-byte JSON has SHA-256
+`481a484df5c36d579521a4312ce871178681f9c908178fda0ba51c0fe25cc667`.
+The 15,060-byte Markdown report has SHA-256
+`1c42b82f36735d7f10e010f6b6291827047c9af46300549a7a7e0fd91dda6471`.
+
+The checked seed has not moved. `kernel/cpu/libm.c` remains host-owned and
+keeps its `.c` suffix. No production object, ABI, image, runtime path,
+ownership count, or host-dependency count changes in this increment. Issue
+#26 remains open for `fmod` and later GNU assembly forms. `TempleOS/` remains
+untouched reference material.
