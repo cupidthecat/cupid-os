@@ -530,13 +530,22 @@ Compiler head also emits the exact `fmod` and `fmodf` definitions. Each
 loads `y` below `x`, repeats `FPREM` while status-word C2 remains set, and
 uses the source's short backward branch. It then discards ST(1), returns the
 remainder through XMM0 at the source width, and restores ESP and x87 depth.
-Both wrappers contain 35 text bytes and no relocation. The full source now
-proceeds to the aligned read-only constant block at line 544.
+Both wrappers contain 35 text bytes and no relocation.
+
+Compiler head also emits the aligned `libm_log2e_const` and
+`libm_ln2_const` block and the exact `exp2`, `exp2f`, `exp`, `expf`, `log2`,
+`log2f`, `log`, and `logf` definitions. The constants occupy 16 bytes of
+`.rodata` at alignment eight. The wrappers add 264 text bytes. The four
+natural forms each carry one `R_386_32` relocation to the matching local
+constant, while the base-two forms have none. All eight wrappers balance ESP
+and x87 depth and reach no deeper than three x87 values. The full source now
+proceeds to `pow` at line 846.
 
 General GAS syntax and other file-scope templates remain unsupported. The
 checked seed predates named operands, these five statement blocks, and the
 three `fabs` effects. It also predates the rounding and remainder families.
-The normal `libm.c` recipe still uses the host compiler.
+It predates the exponent/log family too. The normal `libm.c` recipe still
+uses the host compiler.
 
 The same checked seed accepts a modifiable four-byte object or `void` pointer
 as the single `=r` output of `mov %%gs:0, %0`. It retains the pointer type,

@@ -489,7 +489,32 @@ The decoder checks every instruction and operand, including the C2 mask and
 short branch target. Negative cases alter the mask and give `fmod` the float
 prototype, then check output rollback and same-job recovery.
 
-The unchanged source now reaches the aligned `libm_log2e_const` and
-`libm_ln2_const` block at line 544. General data templates and later
-file-scope assembly remain separate work. The checked seed and normal
-host-owned `libm.c` recipe do not change in this increment.
+That remainder slice ended at the aligned `libm_log2e_const` and
+`libm_ln2_const` block on line 544. The next section records the later
+compiler-head ownership of that exact data and its wrappers.
+
+### libm file-scope exponent and logarithm wrappers
+
+Compiler head accepts that exact constant block and the following `exp2`,
+`exp2f`, `exp`, `expf`, `log2`, `log2f`, `log`, and `logf` definitions. The
+two local `STT_NOTYPE` symbols occupy offsets 0 and 8 in a 16-byte `.rodata`
+section with alignment eight.
+
+The exponent wrappers share the source `FRNDINT`, `F2XM1`, and `FSCALE`
+sequence. The natural pair loads `libm_log2e_const`, multiplies, and then
+uses that sequence. The logarithm wrappers use `FYL2X`; the base-two pair
+loads one, and the natural pair loads `libm_ln2_const`.
+
+The eight functions occupy 264 text bytes. `exp2` and `exp2f` are 37 bytes
+each, `exp` and `expf` are 45 each, `log2` and `log2f` are 23 each, and
+`log` and `logf` are 27 each. The natural forms contribute four
+`R_386_32` relocations. Decoder checks cover every instruction and operand,
+x87 depth up to three, and balanced ESP and x87 state.
+
+Negative contracts change one constant bit, remove or move the data block,
+duplicate it, collide a label with a C declaration, forge metadata, and give
+`exp` the float prototype. Each failure rolls back cleanly, and the same job
+can emit the valid object afterward.
+
+The unchanged source now reaches `pow` at line 846. The checked seed and
+normal host-owned `libm.c` recipe do not change in this increment.

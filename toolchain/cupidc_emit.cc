@@ -48,7 +48,16 @@ typedef enum {
   CEMIT_FILE_ASSEMBLY_TRUNCF,
   CEMIT_FILE_ASSEMBLY_FMOD,
   CEMIT_FILE_ASSEMBLY_FMODF,
+  CEMIT_FILE_ASSEMBLY_EXP2,
+  CEMIT_FILE_ASSEMBLY_EXP2F,
+  CEMIT_FILE_ASSEMBLY_EXP,
+  CEMIT_FILE_ASSEMBLY_EXPF,
+  CEMIT_FILE_ASSEMBLY_LOG2,
+  CEMIT_FILE_ASSEMBLY_LOG2F,
+  CEMIT_FILE_ASSEMBLY_LOG,
+  CEMIT_FILE_ASSEMBLY_LOGF,
   CEMIT_FILE_ASSEMBLY_FABS_MASKS,
+  CEMIT_FILE_ASSEMBLY_EXP_LOG_CONSTANTS,
   CEMIT_FILE_ASSEMBLY_COUNT
 } cemit_file_assembly_kind_t;
 
@@ -90,6 +99,9 @@ typedef struct {
   ctool_u32 fabs_mask_assembly;
   ctool_u32 fabs_mask_d_symbol;
   ctool_u32 fabs_mask_s_symbol;
+  ctool_u32 exp_log_constant_assembly;
+  ctool_u32 log2e_constant_symbol;
+  ctool_u32 ln2_constant_symbol;
   ctool_u32 *block_binding_symbols;
   ctool_u32 *block_binding_offsets;
   ctool_u32 *compound_literal_offsets;
@@ -992,12 +1004,68 @@ static cemit_file_assembly_kind_t cemit_file_assembly_template_kind(
       "fstp   %st(1)\n\tsub    $4, %esp\n\t"
       "fstps  (%esp)\n\tmovss  (%esp), %xmm0\n\t"
       "add    $4, %esp\n\tret\n\t.size  fmodf, .-fmodf\n",
+      ".text\n\t.globl exp2\n\t.type  exp2, @function\n"
+      "exp2:\n\tfldl   4(%esp)\n\tfld    %st(0)\n\t"
+      "frndint\n\tfsub   %st, %st(1)\n\tfxch\n\t"
+      "f2xm1\n\tfld1\n\tfaddp\n\tfscale\n\t"
+      "fstp   %st(1)\n\tsub    $8, %esp\n\t"
+      "fstpl  (%esp)\n\tmovsd  (%esp), %xmm0\n\t"
+      "add    $8, %esp\n\tret\n\t.size  exp2, .-exp2\n",
+      ".text\n\t.globl exp2f\n\t.type  exp2f, @function\n"
+      "exp2f:\n\tflds   4(%esp)\n\tfld    %st(0)\n\t"
+      "frndint\n\tfsub   %st, %st(1)\n\tfxch\n\t"
+      "f2xm1\n\tfld1\n\tfaddp\n\tfscale\n\t"
+      "fstp   %st(1)\n\tsub    $4, %esp\n\t"
+      "fstps  (%esp)\n\tmovss  (%esp), %xmm0\n\t"
+      "add    $4, %esp\n\tret\n\t.size  exp2f, .-exp2f\n",
+      ".text\n\t.globl exp\n\t.type  exp, @function\n"
+      "exp:\n\tfldl   4(%esp)\n\t"
+      "fldl   libm_log2e_const\n\tfmulp\n\t"
+      "fld    %st(0)\n\tfrndint\n\t"
+      "fsub   %st, %st(1)\n\tfxch\n\tf2xm1\n\t"
+      "fld1\n\tfaddp\n\tfscale\n\tfstp   %st(1)\n\t"
+      "sub    $8, %esp\n\tfstpl  (%esp)\n\t"
+      "movsd  (%esp), %xmm0\n\tadd    $8, %esp\n\t"
+      "ret\n\t.size  exp, .-exp\n",
+      ".text\n\t.globl expf\n\t.type  expf, @function\n"
+      "expf:\n\tflds   4(%esp)\n\t"
+      "fldl   libm_log2e_const\n\tfmulp\n\t"
+      "fld    %st(0)\n\tfrndint\n\t"
+      "fsub   %st, %st(1)\n\tfxch\n\tf2xm1\n\t"
+      "fld1\n\tfaddp\n\tfscale\n\tfstp   %st(1)\n\t"
+      "sub    $4, %esp\n\tfstps  (%esp)\n\t"
+      "movss  (%esp), %xmm0\n\tadd    $4, %esp\n\t"
+      "ret\n\t.size  expf, .-expf\n",
+      ".text\n\t.globl log2\n\t.type  log2, @function\n"
+      "log2:\n\tfld1\n\tfldl   4(%esp)\n\tfyl2x\n\t"
+      "sub    $8, %esp\n\tfstpl  (%esp)\n\t"
+      "movsd  (%esp), %xmm0\n\tadd    $8, %esp\n\t"
+      "ret\n\t.size  log2, .-log2\n",
+      ".text\n\t.globl log2f\n\t.type  log2f, @function\n"
+      "log2f:\n\tfld1\n\tflds   4(%esp)\n\tfyl2x\n\t"
+      "sub    $4, %esp\n\tfstps  (%esp)\n\t"
+      "movss  (%esp), %xmm0\n\tadd    $4, %esp\n\t"
+      "ret\n\t.size  log2f, .-log2f\n",
+      ".text\n\t.globl log\n\t.type  log, @function\n"
+      "log:\n\tfldl   libm_ln2_const\n\t"
+      "fldl   4(%esp)\n\tfyl2x\n\tsub    $8, %esp\n\t"
+      "fstpl  (%esp)\n\tmovsd  (%esp), %xmm0\n\t"
+      "add    $8, %esp\n\tret\n\t.size  log, .-log\n",
+      ".text\n\t.globl logf\n\t.type  logf, @function\n"
+      "logf:\n\tfldl   libm_ln2_const\n\t"
+      "flds   4(%esp)\n\tfyl2x\n\tsub    $4, %esp\n\t"
+      "fstps  (%esp)\n\tmovss  (%esp), %xmm0\n\t"
+      "add    $4, %esp\n\tret\n\t.size  logf, .-logf\n",
       ".section .rodata\n\t.align 16\n"
       "fabs_mask_d:\n\t.quad 0x7FFFFFFFFFFFFFFF\n\t"
       ".quad 0x7FFFFFFFFFFFFFFF\n"
       "fabs_mask_s:\n\t.long 0x7FFFFFFF\n\t"
       ".long 0x7FFFFFFF\n\t.long 0x7FFFFFFF\n\t"
-      ".long 0x7FFFFFFF\n\t.text\n"};
+      ".long 0x7FFFFFFF\n\t.text\n",
+      ".section .rodata\n\t.align 8\n"
+      "libm_log2e_const:\n\t.quad 0x3FF71547652B82FE\n"
+      "libm_ln2_const:\n\t.quad 0x3FE62E42FEFA39EF\n"
+      ".text\n"};
   ctool_u32 kind;
   for (kind = 1u; kind < CEMIT_FILE_ASSEMBLY_COUNT; kind++) {
     if (cemit_strings_equal(text, ctool_string(templates[kind])) ==
@@ -1014,7 +1082,9 @@ static const char *cemit_file_assembly_function_name(
       "", "sqrt", "sqrtf", "sin", "sinf", "cos", "cosf",
       "tan", "tanf", "atan", "atanf", "atan2", "atan2f",
       "fabs", "fabsf", "floor", "floorf", "ceil", "ceilf",
-      "round", "roundf", "trunc", "truncf", "fmod", "fmodf", ""};
+      "round", "roundf", "trunc", "truncf", "fmod", "fmodf",
+      "exp2", "exp2f", "exp", "expf", "log2", "log2f",
+      "log", "logf", "", ""};
   return kind > CEMIT_FILE_ASSEMBLY_NONE &&
                  kind < CEMIT_FILE_ASSEMBLY_COUNT
              ? names[(ctool_u32)kind]
@@ -1100,6 +1170,9 @@ static ctool_status_t cemit_index_file_assemblies(
   context->fabs_mask_assembly = CTOOL_C_AST_NONE;
   context->fabs_mask_d_symbol = CTOOL_C_AST_NONE;
   context->fabs_mask_s_symbol = CTOOL_C_AST_NONE;
+  context->exp_log_constant_assembly = CTOOL_C_AST_NONE;
+  context->log2e_constant_symbol = CTOOL_C_AST_NONE;
+  context->ln2_constant_symbol = CTOOL_C_AST_NONE;
   for (index = 0u; index < context->ir.file_assembly_count; index++) {
     ctool_u32 assembly_index = context->ir.file_assemblies[index];
     const ctool_c_assembly_t *assembly;
@@ -1143,6 +1216,29 @@ static ctool_status_t cemit_index_file_assemblies(
         }
       }
       context->fabs_mask_assembly = index;
+    } else if (kind == CEMIT_FILE_ASSEMBLY_EXP_LOG_CONSTANTS) {
+      ctool_u32 binding;
+      if (context->exp_log_constant_assembly != CTOOL_C_AST_NONE) {
+        return cemit_emit_failure(
+            context, CTOOL_ERR_INPUT, CTOOL_C_EMIT_DIAG_SYMBOL,
+            &assembly->location,
+            "GNU exp/log constant block is defined twice");
+      }
+      for (binding = 0u; binding < context->unit->binding_count;
+           binding++) {
+        ctool_string_t name =
+            context->unit->bindings[binding].name;
+        if (cemit_strings_equal(
+                name, ctool_string("libm_log2e_const")) == CTOOL_TRUE ||
+            cemit_strings_equal(
+                name, ctool_string("libm_ln2_const")) == CTOOL_TRUE) {
+          return cemit_emit_failure(
+              context, CTOOL_ERR_INPUT, CTOOL_C_EMIT_DIAG_SYMBOL,
+              &assembly->location,
+              "GNU exp/log constant label conflicts with a C declaration");
+        }
+      }
+      context->exp_log_constant_assembly = index;
     }
   }
   for (index = 0u; index < context->ir.file_assembly_count; index++) {
@@ -1156,7 +1252,8 @@ static ctool_status_t cemit_index_file_assemblies(
     ctool_u32 binding;
     ctool_bool found = CTOOL_FALSE;
     ctool_u32 prior;
-    if (kind == CEMIT_FILE_ASSEMBLY_FABS_MASKS) {
+    if (kind == CEMIT_FILE_ASSEMBLY_FABS_MASKS ||
+        kind == CEMIT_FILE_ASSEMBLY_EXP_LOG_CONSTANTS) {
       continue;
     }
     if ((kind == CEMIT_FILE_ASSEMBLY_FABS ||
@@ -1167,6 +1264,18 @@ static ctool_status_t cemit_index_file_assemblies(
           context, CTOOL_ERR_INPUT, CTOOL_C_EMIT_DIAG_SYMBOL,
           &assembly->location,
           "GNU fabs wrapper requires the exact file-scope mask block");
+    }
+    if ((kind == CEMIT_FILE_ASSEMBLY_EXP ||
+         kind == CEMIT_FILE_ASSEMBLY_EXPF ||
+         kind == CEMIT_FILE_ASSEMBLY_LOG ||
+         kind == CEMIT_FILE_ASSEMBLY_LOGF) &&
+        (context->exp_log_constant_assembly == CTOOL_C_AST_NONE ||
+         context->exp_log_constant_assembly >= index)) {
+      return cemit_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_EMIT_DIAG_SYMBOL,
+          &assembly->location,
+          "GNU exp/log wrapper requires the exact file-scope "
+          "constant block");
     }
     name = cemit_file_assembly_function_name(kind);
     for (binding = 0u; binding < context->unit->binding_count; binding++) {
@@ -1618,24 +1727,46 @@ static ctool_status_t cemit_add_file_assembly_symbol(
 
 static ctool_status_t cemit_index_file_assembly_symbols(
     cemit_context_t *context) {
-  ctool_status_t status;
+  ctool_status_t status = CTOOL_OK;
   if (context->fabs_mask_assembly == CTOOL_C_AST_NONE) {
-    return context->fabs_mask_d_symbol == CTOOL_C_AST_NONE &&
-                   context->fabs_mask_s_symbol == CTOOL_C_AST_NONE
+    if (context->fabs_mask_d_symbol != CTOOL_C_AST_NONE ||
+        context->fabs_mask_s_symbol != CTOOL_C_AST_NONE) {
+      return CTOOL_ERR_INTERNAL;
+    }
+  } else {
+    if (context->fabs_mask_assembly >=
+            context->ir.file_assembly_count ||
+        context->fabs_mask_d_symbol != CTOOL_C_AST_NONE ||
+        context->fabs_mask_s_symbol != CTOOL_C_AST_NONE) {
+      return CTOOL_ERR_INTERNAL;
+    }
+    status = cemit_add_file_assembly_symbol(
+        context, "fabs_mask_d", &context->fabs_mask_d_symbol);
+    if (status == CTOOL_OK) {
+      status = cemit_add_file_assembly_symbol(
+          context, "fabs_mask_s", &context->fabs_mask_s_symbol);
+    }
+  }
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if (context->exp_log_constant_assembly == CTOOL_C_AST_NONE) {
+    return context->log2e_constant_symbol == CTOOL_C_AST_NONE &&
+                   context->ln2_constant_symbol == CTOOL_C_AST_NONE
                ? CTOOL_OK
                : CTOOL_ERR_INTERNAL;
   }
-  if (context->fabs_mask_assembly >=
+  if (context->exp_log_constant_assembly >=
           context->ir.file_assembly_count ||
-      context->fabs_mask_d_symbol != CTOOL_C_AST_NONE ||
-      context->fabs_mask_s_symbol != CTOOL_C_AST_NONE) {
+      context->log2e_constant_symbol != CTOOL_C_AST_NONE ||
+      context->ln2_constant_symbol != CTOOL_C_AST_NONE) {
     return CTOOL_ERR_INTERNAL;
   }
   status = cemit_add_file_assembly_symbol(
-      context, "fabs_mask_d", &context->fabs_mask_d_symbol);
+      context, "libm_log2e_const", &context->log2e_constant_symbol);
   if (status == CTOOL_OK) {
     status = cemit_add_file_assembly_symbol(
-        context, "fabs_mask_s", &context->fabs_mask_s_symbol);
+        context, "libm_ln2_const", &context->ln2_constant_symbol);
   }
   return status;
 }
@@ -2466,6 +2597,51 @@ static ctool_status_t cemit_x86_x87_memory(
   return cemit_x86_encode(context, &instruction,
                           (ctool_x86_encoding_t *)0,
                           (ctool_u32 *)0);
+}
+
+static ctool_status_t cemit_x86_x87_absolute_symbol(
+    cemit_context_t *context, ctool_u32 symbol) {
+  ctool_x86_instruction_t instruction =
+      cemit_x86_instruction(CTOOL_X86_MN_FLD, 64u);
+  ctool_x86_operand_t memory = cemit_x86_memory_operand(
+      cemit_x86_register(CTOOL_X86_REG_NONE, 0u), 0, 32u);
+  ctool_x86_encoding_t encoding;
+  ctool_u32 offset;
+  ctool_u32 relocation_offset;
+  ctool_status_t status;
+  if (symbol >= context->symbol_count) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  memory.width_bits = 64u;
+  memory.as.memory.displacement.kind = CTOOL_X86_VALUE_REFERENCE;
+  memory.as.memory.displacement.bits = 0u;
+  memory.as.memory.displacement.addend = 0;
+  memory.as.memory.displacement.reference = symbol;
+  instruction.operand_count = 1u;
+  instruction.operands[0] = memory;
+  status = cemit_x86_encode(
+      context, &instruction, &encoding, &offset);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if (encoding.size != 6u ||
+      encoding.field_count != 1u ||
+      encoding.fields[0].kind != CTOOL_X86_FIELD_DISPLACEMENT ||
+      encoding.fields[0].relocation != CTOOL_X86_RELOC_ABSOLUTE ||
+      encoding.fields[0].operand_index != 0u ||
+      encoding.fields[0].byte_offset != 2u ||
+      encoding.fields[0].byte_width != 4u ||
+      encoding.fields[0].pc_bias != 0u ||
+      encoding.fields[0].reference != symbol ||
+      encoding.fields[0].encoded_addend != 0 ||
+      cemit_add_overflows(
+          offset, encoding.fields[0].byte_offset) == CTOOL_TRUE) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  relocation_offset = offset + encoding.fields[0].byte_offset;
+  return cemit_add_relocation(
+      context, context->active_text_section, relocation_offset, symbol,
+      CTOOL_ELF32_R_386_32, 0);
 }
 
 static ctool_status_t cemit_x86_sse_memory(
@@ -12913,6 +13089,128 @@ static ctool_status_t cemit_emit_file_assembly_fmod_body(
              : status;
 }
 
+static ctool_bool cemit_file_assembly_is_exponential(
+    cemit_file_assembly_kind_t kind) {
+  return kind >= CEMIT_FILE_ASSEMBLY_EXP2 &&
+                 kind <= CEMIT_FILE_ASSEMBLY_EXPF
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cemit_file_assembly_is_logarithm(
+    cemit_file_assembly_kind_t kind) {
+  return kind >= CEMIT_FILE_ASSEMBLY_LOG2 &&
+                 kind <= CEMIT_FILE_ASSEMBLY_LOGF
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_status_t cemit_emit_file_assembly_exp_sequence(
+    cemit_context_t *context) {
+  ctool_status_t status = cemit_x86_one_register(
+      context, CTOOL_X86_MN_FLD, CTOOL_X86_REG_X87, 0u, 32u);
+  if (status == CTOOL_OK) {
+    status = cemit_x86_no_operand(context, CTOOL_X86_MN_FRNDINT);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_FSUBR,
+        CTOOL_X86_REG_X87, 1u, CTOOL_X86_REG_X87, 0u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_FXCH, CTOOL_X86_REG_X87, 1u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_no_operand(context, CTOOL_X86_MN_F2XM1);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_no_operand(context, CTOOL_X86_MN_FLD1);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_FADDP, CTOOL_X86_REG_X87, 1u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_no_operand(context, CTOOL_X86_MN_FSCALE);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_FSTP, CTOOL_X86_REG_X87, 1u, 32u);
+  }
+  return status;
+}
+
+static ctool_status_t cemit_emit_file_assembly_exponential_body(
+    cemit_context_t *context, cemit_file_assembly_kind_t kind,
+    ctool_bool single_precision) {
+  ctool_u16 width_bits =
+      single_precision == CTOOL_TRUE ? 32u : 64u;
+  ctool_bool natural =
+      kind == CEMIT_FILE_ASSEMBLY_EXP ||
+              kind == CEMIT_FILE_ASSEMBLY_EXPF
+          ? CTOOL_TRUE
+          : CTOOL_FALSE;
+  ctool_status_t status;
+  if (cemit_file_assembly_is_exponential(kind) == CTOOL_FALSE ||
+      (natural == CTOOL_TRUE &&
+       (context->log2e_constant_symbol == CTOOL_C_AST_NONE ||
+        context->log2e_constant_symbol >= context->symbol_count))) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  status = cemit_x86_x87_memory(
+      context, CTOOL_X86_MN_FLD, 4u, 4, width_bits);
+  if (status == CTOOL_OK && natural == CTOOL_TRUE) {
+    status = cemit_x86_x87_absolute_symbol(
+        context, context->log2e_constant_symbol);
+  }
+  if (status == CTOOL_OK && natural == CTOOL_TRUE) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_FMULP, CTOOL_X86_REG_X87, 1u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_emit_file_assembly_exp_sequence(context);
+  }
+  return status == CTOOL_OK
+             ? cemit_finish_file_assembly_x87_result(
+                   context, width_bits)
+             : status;
+}
+
+static ctool_status_t cemit_emit_file_assembly_logarithm_body(
+    cemit_context_t *context, cemit_file_assembly_kind_t kind,
+    ctool_bool single_precision) {
+  ctool_u16 width_bits =
+      single_precision == CTOOL_TRUE ? 32u : 64u;
+  ctool_bool natural =
+      kind == CEMIT_FILE_ASSEMBLY_LOG ||
+              kind == CEMIT_FILE_ASSEMBLY_LOGF
+          ? CTOOL_TRUE
+          : CTOOL_FALSE;
+  ctool_status_t status;
+  if (cemit_file_assembly_is_logarithm(kind) == CTOOL_FALSE ||
+      (natural == CTOOL_TRUE &&
+       (context->ln2_constant_symbol == CTOOL_C_AST_NONE ||
+        context->ln2_constant_symbol >= context->symbol_count))) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  status = natural == CTOOL_TRUE
+               ? cemit_x86_x87_absolute_symbol(
+                     context, context->ln2_constant_symbol)
+               : cemit_x86_no_operand(context, CTOOL_X86_MN_FLD1);
+  if (status == CTOOL_OK) {
+    status = cemit_x86_x87_memory(
+        context, CTOOL_X86_MN_FLD, 4u, 4, width_bits);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_no_operand(context, CTOOL_X86_MN_FYL2X);
+  }
+  return status == CTOOL_OK
+             ? cemit_finish_file_assembly_x87_result(
+                   context, width_bits)
+             : status;
+}
+
 static ctool_status_t cemit_emit_file_assembly_body(
     cemit_context_t *context, cemit_file_assembly_kind_t kind) {
   ctool_bool single_precision =
@@ -12953,6 +13251,14 @@ static ctool_status_t cemit_emit_file_assembly_body(
   }
   if (cemit_file_assembly_is_fmod(kind) == CTOOL_TRUE) {
     return cemit_emit_file_assembly_fmod_body(
+        context, kind, single_precision);
+  }
+  if (cemit_file_assembly_is_exponential(kind) == CTOOL_TRUE) {
+    return cemit_emit_file_assembly_exponential_body(
+        context, kind, single_precision);
+  }
+  if (cemit_file_assembly_is_logarithm(kind) == CTOOL_TRUE) {
+    return cemit_emit_file_assembly_logarithm_body(
         context, kind, single_precision);
   }
   if (kind == CEMIT_FILE_ASSEMBLY_SQRT ||
@@ -13084,6 +13390,66 @@ static ctool_status_t cemit_place_fabs_masks(
   return CTOOL_OK;
 }
 
+static ctool_status_t cemit_place_exp_log_constants(
+    cemit_context_t *context) {
+  static const ctool_u8 bytes[] = {
+      0xfeu, 0x82u, 0x2bu, 0x65u, 0x47u, 0x15u, 0xf7u, 0x3fu,
+      0xefu, 0x39u, 0xfau, 0xfeu, 0x42u, 0x2eu, 0xe6u, 0x3fu};
+  ctool_elf32_symbol_spec_t *log2e;
+  ctool_elf32_symbol_spec_t *ln2;
+  ctool_u32 start;
+  ctool_status_t status;
+  if (context->log2e_constant_symbol >= context->symbol_count ||
+      context->ln2_constant_symbol >= context->symbol_count) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  log2e = &context->symbols[context->log2e_constant_symbol];
+  ln2 = &context->symbols[context->ln2_constant_symbol];
+  if (cemit_strings_equal(
+          log2e->name,
+          ctool_string("libm_log2e_const")) == CTOOL_FALSE ||
+      cemit_strings_equal(
+          ln2->name, ctool_string("libm_ln2_const")) == CTOOL_FALSE ||
+      log2e->binding != CTOOL_ELF32_BIND_LOCAL ||
+      ln2->binding != CTOOL_ELF32_BIND_LOCAL ||
+      log2e->type != CTOOL_ELF32_SYMBOL_NOTYPE ||
+      ln2->type != CTOOL_ELF32_SYMBOL_NOTYPE ||
+      log2e->visibility != CTOOL_ELF32_VIS_DEFAULT ||
+      ln2->visibility != CTOOL_ELF32_VIS_DEFAULT ||
+      log2e->placement != CTOOL_ELF32_SYMBOL_UNDEFINED ||
+      ln2->placement != CTOOL_ELF32_SYMBOL_UNDEFINED) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  status = cemit_align_buffer(context, CEMIT_SECTION_RODATA, 8u);
+  if (status == CTOOL_OK) {
+    status = cemit_raise_section_alignment(
+        context, CEMIT_SECTION_RODATA, 8u);
+  }
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  start = ctool_buffer_view(context->rodata).size;
+  if (start > 0xffffffffu - (ctool_u32)sizeof(bytes)) {
+    return CTOOL_ERR_OVERFLOW;
+  }
+  status = ctool_buffer_append(
+      context->rodata, ctool_bytes(bytes, (ctool_u32)sizeof(bytes)));
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  log2e->placement = CTOOL_ELF32_SYMBOL_DEFINED;
+  log2e->section = CEMIT_SECTION_RODATA;
+  log2e->value = start;
+  log2e->size = 0u;
+  log2e->alignment = 0u;
+  ln2->placement = CTOOL_ELF32_SYMBOL_DEFINED;
+  ln2->section = CEMIT_SECTION_RODATA;
+  ln2->value = start + 8u;
+  ln2->size = 0u;
+  ln2->alignment = 0u;
+  return CTOOL_OK;
+}
+
 static ctool_status_t cemit_place_file_assembly(
     cemit_context_t *context, ctool_u32 index) {
   const ctool_c_assembly_t *assembly;
@@ -13116,6 +13482,13 @@ static ctool_status_t cemit_place_file_assembly(
       return cemit_invalid_unit(context, &assembly->location);
     }
     return cemit_place_fabs_masks(context);
+  }
+  if (kind == CEMIT_FILE_ASSEMBLY_EXP_LOG_CONSTANTS) {
+    if (binding != CTOOL_C_AST_NONE ||
+        context->exp_log_constant_assembly != index) {
+      return cemit_invalid_unit(context, &assembly->location);
+    }
+    return cemit_place_exp_log_constants(context);
   }
   if (binding >= context->unit->binding_count) {
     return cemit_invalid_unit(context, &assembly->location);
@@ -13591,14 +13964,19 @@ ctool_status_t ctool_c_emit_object(
       }
       kind = cemit_file_assembly_template_kind(
           unit->file_assemblies[assembly_index].template_text);
-      if (kind == CEMIT_FILE_ASSEMBLY_FABS_MASKS) {
+      if (kind == CEMIT_FILE_ASSEMBLY_FABS_MASKS ||
+          kind == CEMIT_FILE_ASSEMBLY_EXP_LOG_CONSTANTS) {
         if (file_assembly_symbol_count > 0xfffffffdu) {
           status = CTOOL_ERR_OVERFLOW;
         } else {
           file_assembly_symbol_count += 2u;
         }
       } else if (kind == CEMIT_FILE_ASSEMBLY_FABS ||
-                 kind == CEMIT_FILE_ASSEMBLY_FABSF) {
+                 kind == CEMIT_FILE_ASSEMBLY_FABSF ||
+                 kind == CEMIT_FILE_ASSEMBLY_EXP ||
+                 kind == CEMIT_FILE_ASSEMBLY_EXPF ||
+                 kind == CEMIT_FILE_ASSEMBLY_LOG ||
+                 kind == CEMIT_FILE_ASSEMBLY_LOGF) {
         if (text_relocation_count == 0xffffffffu) {
           status = CTOOL_ERR_OVERFLOW;
         } else {
@@ -13757,10 +14135,13 @@ ctool_status_t ctool_c_emit_object(
   if (status == CTOOL_OK) {
     status = cemit_index_named_sections(&context);
   }
-  if (status == CTOOL_OK &&
-      context.fabs_mask_assembly != CTOOL_C_AST_NONE) {
-    status = cemit_place_file_assembly(
-        &context, context.fabs_mask_assembly);
+  for (index = 0u; status == CTOOL_OK &&
+                    index < context.ir.file_assembly_count;
+       index++) {
+    if (index == context.fabs_mask_assembly ||
+        index == context.exp_log_constant_assembly) {
+      status = cemit_place_file_assembly(&context, index);
+    }
   }
   for (index = 0u; status == CTOOL_OK &&
                     index < unit->object_definition_count;
@@ -13775,7 +14156,8 @@ ctool_status_t ctool_c_emit_object(
   for (index = 0u; status == CTOOL_OK &&
                     index < context.ir.file_assembly_count;
        index++) {
-    if (index != context.fabs_mask_assembly) {
+    if (index != context.fabs_mask_assembly &&
+        index != context.exp_log_constant_assembly) {
       status = cemit_place_file_assembly(&context, index);
     }
   }

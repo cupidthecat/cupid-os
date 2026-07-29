@@ -93,11 +93,15 @@ family saves and restores the x87 control word around `FRNDINT`, selects all
 four source rounding modes, occupies 384 text bytes, and has no relocations.
 Compiler head also emits the following `fmod` and `fmodf` definitions. Each
 35-byte function loops on `FPREM` until status-word C2 clears, discards the
-divisor, returns the result through XMM0, and has no relocation. The complete
-unchanged source now reaches the aligned read-only constant block at line
-544. The checked seed predates named operands, all five statement forms, the
-three `fabs` effects, the rounding family, and the remainder family, so GCC
-or Clang continues to own the normal `libm.c` transform. No dependency or
+divisor, returns the result through XMM0, and has no relocation. Compiler
+head also emits the aligned `libm_log2e_const` and `libm_ln2_const` block
+and the following eight exponent/logarithm wrappers. The constants occupy 16
+`.rodata` bytes at alignment eight. The wrappers add 264 text bytes and four
+`R_386_32` relocations, reach at most x87 depth three, and balance ESP and
+x87 depth. The unchanged source reaches `pow` at line 846. The checked seed
+predates named operands, all five statement forms, the three `fabs` effects,
+the rounding and remainder families, and the exponent/log family, so GCC or
+Clang continues to own the normal `libm.c` transform. No dependency or
 production ownership count changes.
 
 The USB lifetime work retires no additional compiler transform, but it

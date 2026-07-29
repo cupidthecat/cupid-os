@@ -168,8 +168,16 @@ The following fmod and fmodf wrappers are represented at compiler head too.
 Each repeats FPREM while x87 status-word C2 is set, uses a short backward
 branch, discards the divisor, and returns the remainder through XMM0. Each
 body contains 35 text bytes, reaches x87 depth two, balances ESP and x87
-depth, and has no relocation. The unchanged source now stops at the aligned
-constant block on line 544. The checked seed does not yet carry these
+depth, and has no relocation.
+
+Compiler head also represents the aligned libm_log2e_const and libm_ln2_const
+data and the next eight exponent and logarithm wrappers. The constants occupy
+16 read-only bytes at alignment eight. exp2 and exp2f use FRNDINT, F2XM1, and
+FSCALE. exp and expf multiply by log2(e) first. log2 and log2f use FLD1 with
+FYL2X, while log and logf use ln(2). The functions add 264 text bytes and
+four absolute relocations, never exceed x87 depth three, and balance ESP and
+x87 depth. The unchanged source now stops at pow on line 846. The checked
+seed does not yet carry these
 compiler-head capabilities, so kernel/cpu/libm.c remains host-owned.
 
 Direct floating truth, a floating controlling expression, increment and

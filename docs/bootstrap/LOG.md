@@ -15124,3 +15124,109 @@ keeps its `.c` suffix. No production object, ABI, image, runtime path,
 ownership count, or host-dependency count changes in this increment. Issue
 #26 remains open for the constant block and later GNU assembly forms.
 `TempleOS/` remains untouched reference material.
+
+## 2026-07-29: emit the libm exponent and logarithm wrappers
+
+Compiler head now represents the exact aligned constant block and the next
+eight file-scope definitions in unchanged `kernel/cpu/libm.c`: `exp2`,
+`exp2f`, `exp`, `expf`, `log2`, `log2f`, `log`, and `logf`.
+
+The constant effect writes the source's exact `log2(e)` and `ln(2)` bit
+patterns as 16 little-endian `.rodata` bytes at alignment eight. It defines
+`libm_log2e_const` and `libm_ln2_const` as local `STT_NOTYPE` symbols at
+offsets 0 and 8. A mixed fixture places a later C object at offset 16, which
+pins the ordering between file-scope assembly data and ordinary read-only
+objects.
+
+The four exponent functions share one emitter path for the `FRNDINT`,
+`F2XM1`, and `FSCALE` sequence. The natural pair first multiplies its
+argument by the stored `log2(e)` value. The base-two logarithms put one
+below the argument before `FYL2X`; the natural logarithms put the stored
+`ln(2)` value there instead.
+
+All instructions go through Cupid's shared x86 encoder. A new checked helper
+accepts only the six-byte x87 absolute memory load with one four-byte
+displacement field, then publishes an `R_386_32` relocation with a zero
+addend. It is used by the four natural forms. The base-two forms need no
+relocation.
+
+### Test-first findings
+
+The isolated object contract and unchanged-source probe changed before the
+emitter. Both failed at the constant block on line 544. After the emitter
+change, the isolated object is deterministic and the complete source reaches
+the `pow` wrapper on line 846.
+
+The eight functions occupy 264 text bytes:
+
+| Symbol | Offset | Size | Relocation |
+| --- | ---: | ---: | --- |
+| `exp2` | 0 | 37 | none |
+| `exp2f` | 37 | 37 | none |
+| `exp` | 74 | 45 | function offset 6 to `libm_log2e_const` |
+| `expf` | 119 | 45 | function offset 6 to `libm_log2e_const` |
+| `log2` | 164 | 23 | none |
+| `log2f` | 187 | 23 | none |
+| `log` | 210 | 27 | function offset 2 to `libm_ln2_const` |
+| `logf` | 237 | 27 | function offset 2 to `libm_ln2_const` |
+
+The decoder walks every instruction and checks the argument and result
+widths, memory operands, register-stack operands, XMM0 moves, stack
+adjustments, and relocation fields. The exponent functions reach x87 depth
+three, the logarithms reach depth two, and every function restores ESP and
+x87 depth.
+
+Negative cases change one constant bit, remove or move the block, duplicate
+it, collide a label with a C declaration, give `exp` the float prototype,
+forge assembly metadata, and exhaust the output limit. Each failure keeps
+the parsed translation unit unchanged and publishes no partial object. The
+same job then emits the valid object byte for byte.
+
+### Frozen compiler records
+
+| Compiler source | Definitions | Statements | Expressions | Block bindings | Initializers |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `toolchain/cupidc_frontend.cc` | 407 | 16,052 | 106,289 | 2,407 | 1,479 |
+| `toolchain/cupidc_ir.cc` | 254 | 7,086 | 65,901 | 932 | 342 |
+| `toolchain/cupidc_emit.cc` | 314 | 7,774 | 65,903 | 941 | 581 |
+
+The self-host frontier objects are:
+
+| Compiler source | Functions | Text bytes | Object bytes | Text fingerprint |
+| --- | ---: | ---: | ---: | --- |
+| `toolchain/cupidc_frontend.cc` | 407 | 822,280 | 976,768 | `9B9037F6` |
+| `toolchain/cupidc_ir.cc` | 254 | 469,582 | 505,000 | `360B9EEC` |
+| `toolchain/cupidc_emit.cc` | 314 | 489,091 | 542,576 | `36B99E5C` |
+
+### Evidence
+
+| Gate | Result |
+| --- | --- |
+| Initial object and unchanged-source probes | 2 expected failures in 23.4 seconds |
+| First green object and unchanged-source probes | 2 tests passed in 24.4 seconds |
+| Strengthened object and unchanged-source replay | 2 tests passed in 25.3 seconds |
+| Mixed `.rodata` object contract | 1 test passed in 20.4 seconds |
+| Complete frontend and Linear IR modules | 171 tests passed in 29.712 seconds |
+| Neighboring object, source, and self-host group | 6 tests passed in 27.432 seconds |
+| Self-host frontier object lock | 1 test passed in 29.906 seconds |
+| Fresh strict native Toolchain build | All native contracts passed; six static i386 artifacts and the self-host link check completed |
+| Cupid-built compiler-generation object | 1 test passed in 239.893 seconds |
+| Cupid-built five-tool static fixed point | 1 test passed in 771.967 seconds |
+| Bootstrap audit regeneration | Passed in 77 seconds |
+| Bootstrap audit drift check | Passed in 71 seconds |
+| Complete build-graph audit module | 62 tests passed in 624.548 seconds |
+| Final exp/log object and source replay | 2 tests passed in 22.252 seconds |
+
+The regenerated graph contains 698 active sources, 253 feature IDs, 504
+transforms, and 42 accounted unreachable files. Its active-source digest is
+`9396c1fda51e0175c6211a0c1da654da438c0173293c900827f1b6d89e0d3d5b`.
+The 1,526,996-byte JSON has SHA-256
+`a98342b8bcf5912cc25d07d69349719196b7b7f02061c0e5e53be8b72d68c3f9`.
+The 15,060-byte Markdown report has SHA-256
+`83b99f0222133ca2405592e2825e71ffc5231a7d7a75216a19c9b4756e7035b8`.
+
+The checked seed has not moved. `kernel/cpu/libm.c` remains host-owned and
+keeps its `.c` suffix. No production object, ABI, image, runtime path,
+ownership count, or host-dependency count changes in this increment. Issue
+#26 remains open for `pow` and later GNU assembly. ADR 0172 records the
+boundary. `TempleOS/` remains untouched reference material.

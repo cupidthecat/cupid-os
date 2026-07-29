@@ -27995,20 +27995,20 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.cc",           "/toolchain/x86.cc",
       "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
-      65u, 68u, 66u, 14u, 31u, 143u, 254u, 307u, 407u, 81u, 37u, 60u,
+      65u, 68u, 66u, 14u, 31u, 143u, 254u, 314u, 407u, 81u, 37u, 60u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 76860u, 85252u, 16872u, 42212u,
-      190304u, 469582u, 477755u, 822280u, 139646u, 70368u, 80478u,
+      190304u, 469582u, 489091u, 822280u, 139646u, 70368u, 80478u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 89320u, 99772u, 20180u, 49484u,
-      226668u, 505000u, 527264u, 976768u, 157828u, 79348u, 134656u,
+      226668u, 505000u, 542576u, 976768u, 157828u, 79348u, 134656u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x5fbbfaf2u, 0x4ca44a27u,
       0x7238e153u, 0x999f97b7u, 0xb49d8eb9u,
-      0x360b9eecu, 0x28484716u, 0x9b9037f6u, 0x239f52c7u,
+      0x360b9eecu, 0x36b99e5cu, 0x9b9037f6u, 0x239f52c7u,
       0x34558a49u, 0x7c198364u, 0x8774de7du};
   ctool_u32 index;
   int all_matched = 1;
@@ -41552,6 +41552,833 @@ cleanup:
   return 1;
 }
 
+static int validate_file_scope_exp_log_wrapper_decode(
+    ctool_job_t *job, const ctool_elf32_section_t *text,
+    const ctool_elf32_symbol_t *symbol, ctool_u32 family,
+    ctool_bool single_precision) {
+  static const ctool_u8 exp2_double[] = {
+      0xddu, 0x44u, 0x24u, 0x04u, 0xd9u, 0xc0u, 0xd9u, 0xfcu,
+      0xdcu, 0xe1u, 0xd9u, 0xc9u, 0xd9u, 0xf0u, 0xd9u, 0xe8u,
+      0xdeu, 0xc1u, 0xd9u, 0xfdu, 0xddu, 0xd9u, 0x83u, 0xecu,
+      0x08u, 0xddu, 0x1cu, 0x24u, 0xf2u, 0x0fu, 0x10u, 0x04u,
+      0x24u, 0x83u, 0xc4u, 0x08u, 0xc3u};
+  static const ctool_u8 exp2_single[] = {
+      0xd9u, 0x44u, 0x24u, 0x04u, 0xd9u, 0xc0u, 0xd9u, 0xfcu,
+      0xdcu, 0xe1u, 0xd9u, 0xc9u, 0xd9u, 0xf0u, 0xd9u, 0xe8u,
+      0xdeu, 0xc1u, 0xd9u, 0xfdu, 0xddu, 0xd9u, 0x83u, 0xecu,
+      0x04u, 0xd9u, 0x1cu, 0x24u, 0xf3u, 0x0fu, 0x10u, 0x04u,
+      0x24u, 0x83u, 0xc4u, 0x04u, 0xc3u};
+  static const ctool_u8 exp_double[] = {
+      0xddu, 0x44u, 0x24u, 0x04u,
+      0xddu, 0x05u, 0x00u, 0x00u, 0x00u, 0x00u,
+      0xdeu, 0xc9u, 0xd9u, 0xc0u, 0xd9u, 0xfcu, 0xdcu, 0xe1u,
+      0xd9u, 0xc9u, 0xd9u, 0xf0u, 0xd9u, 0xe8u, 0xdeu, 0xc1u,
+      0xd9u, 0xfdu, 0xddu, 0xd9u, 0x83u, 0xecu, 0x08u,
+      0xddu, 0x1cu, 0x24u, 0xf2u, 0x0fu, 0x10u, 0x04u, 0x24u,
+      0x83u, 0xc4u, 0x08u, 0xc3u};
+  static const ctool_u8 exp_single[] = {
+      0xd9u, 0x44u, 0x24u, 0x04u,
+      0xddu, 0x05u, 0x00u, 0x00u, 0x00u, 0x00u,
+      0xdeu, 0xc9u, 0xd9u, 0xc0u, 0xd9u, 0xfcu, 0xdcu, 0xe1u,
+      0xd9u, 0xc9u, 0xd9u, 0xf0u, 0xd9u, 0xe8u, 0xdeu, 0xc1u,
+      0xd9u, 0xfdu, 0xddu, 0xd9u, 0x83u, 0xecu, 0x04u,
+      0xd9u, 0x1cu, 0x24u, 0xf3u, 0x0fu, 0x10u, 0x04u, 0x24u,
+      0x83u, 0xc4u, 0x04u, 0xc3u};
+  static const ctool_u8 log2_double[] = {
+      0xd9u, 0xe8u, 0xddu, 0x44u, 0x24u, 0x04u, 0xd9u, 0xf1u,
+      0x83u, 0xecu, 0x08u, 0xddu, 0x1cu, 0x24u,
+      0xf2u, 0x0fu, 0x10u, 0x04u, 0x24u,
+      0x83u, 0xc4u, 0x08u, 0xc3u};
+  static const ctool_u8 log2_single[] = {
+      0xd9u, 0xe8u, 0xd9u, 0x44u, 0x24u, 0x04u, 0xd9u, 0xf1u,
+      0x83u, 0xecu, 0x04u, 0xd9u, 0x1cu, 0x24u,
+      0xf3u, 0x0fu, 0x10u, 0x04u, 0x24u,
+      0x83u, 0xc4u, 0x04u, 0xc3u};
+  static const ctool_u8 log_double[] = {
+      0xddu, 0x05u, 0x00u, 0x00u, 0x00u, 0x00u,
+      0xddu, 0x44u, 0x24u, 0x04u, 0xd9u, 0xf1u,
+      0x83u, 0xecu, 0x08u, 0xddu, 0x1cu, 0x24u,
+      0xf2u, 0x0fu, 0x10u, 0x04u, 0x24u,
+      0x83u, 0xc4u, 0x08u, 0xc3u};
+  static const ctool_u8 log_single[] = {
+      0xddu, 0x05u, 0x00u, 0x00u, 0x00u, 0x00u,
+      0xd9u, 0x44u, 0x24u, 0x04u, 0xd9u, 0xf1u,
+      0x83u, 0xecu, 0x04u, 0xd9u, 0x1cu, 0x24u,
+      0xf3u, 0x0fu, 0x10u, 0x04u, 0x24u,
+      0x83u, 0xc4u, 0x04u, 0xc3u};
+  static const ctool_x86_mnemonic_t exp2_mnemonics[] = {
+      CTOOL_X86_MN_FLD, CTOOL_X86_MN_FLD,
+      CTOOL_X86_MN_FRNDINT, CTOOL_X86_MN_FSUBR,
+      CTOOL_X86_MN_FXCH, CTOOL_X86_MN_F2XM1,
+      CTOOL_X86_MN_FLD1, CTOOL_X86_MN_FADDP,
+      CTOOL_X86_MN_FSCALE, CTOOL_X86_MN_FSTP,
+      CTOOL_X86_MN_SUB, CTOOL_X86_MN_FSTP,
+      CTOOL_X86_MN_MOVSD, CTOOL_X86_MN_ADD,
+      CTOOL_X86_MN_RET};
+  static const ctool_x86_mnemonic_t exp_mnemonics[] = {
+      CTOOL_X86_MN_FLD, CTOOL_X86_MN_FLD,
+      CTOOL_X86_MN_FMULP, CTOOL_X86_MN_FLD,
+      CTOOL_X86_MN_FRNDINT, CTOOL_X86_MN_FSUBR,
+      CTOOL_X86_MN_FXCH, CTOOL_X86_MN_F2XM1,
+      CTOOL_X86_MN_FLD1, CTOOL_X86_MN_FADDP,
+      CTOOL_X86_MN_FSCALE, CTOOL_X86_MN_FSTP,
+      CTOOL_X86_MN_SUB, CTOOL_X86_MN_FSTP,
+      CTOOL_X86_MN_MOVSD, CTOOL_X86_MN_ADD,
+      CTOOL_X86_MN_RET};
+  static const ctool_x86_mnemonic_t log_mnemonics[] = {
+      CTOOL_X86_MN_FLD1, CTOOL_X86_MN_FLD,
+      CTOOL_X86_MN_FYL2X, CTOOL_X86_MN_SUB,
+      CTOOL_X86_MN_FSTP, CTOOL_X86_MN_MOVSD,
+      CTOOL_X86_MN_ADD, CTOOL_X86_MN_RET};
+  static const ctool_x86_mnemonic_t natural_log_mnemonics[] = {
+      CTOOL_X86_MN_FLD, CTOOL_X86_MN_FLD,
+      CTOOL_X86_MN_FYL2X, CTOOL_X86_MN_SUB,
+      CTOOL_X86_MN_FSTP, CTOOL_X86_MN_MOVSD,
+      CTOOL_X86_MN_ADD, CTOOL_X86_MN_RET};
+  const ctool_u8 *expected;
+  const ctool_x86_mnemonic_t *mnemonics;
+  ctool_u32 expected_size;
+  ctool_u32 instruction_count;
+  ctool_u32 argument_index;
+  ctool_u32 absolute_index = CTOOL_C_AST_NONE;
+  ctool_u32 finish_index;
+  ctool_u32 cursor = 0u;
+  ctool_u32 depth = 0u;
+  ctool_u32 maximum_depth = 0u;
+  ctool_u32 index;
+  ctool_u16 scalar_width =
+      single_precision == CTOOL_TRUE ? 32u : 64u;
+  ctool_u32 result_bytes =
+      single_precision == CTOOL_TRUE ? 4u : 8u;
+  ctool_x86_mnemonic_t move =
+      single_precision == CTOOL_TRUE ? CTOOL_X86_MN_MOVSS
+                                     : CTOOL_X86_MN_MOVSD;
+  if (family == 0u) {
+    expected = single_precision == CTOOL_TRUE
+                   ? exp2_single
+                   : exp2_double;
+    expected_size = (ctool_u32)sizeof(exp2_double);
+    mnemonics = exp2_mnemonics;
+    instruction_count = 15u;
+    argument_index = 0u;
+  } else if (family == 1u) {
+    expected = single_precision == CTOOL_TRUE
+                   ? exp_single
+                   : exp_double;
+    expected_size = (ctool_u32)sizeof(exp_double);
+    mnemonics = exp_mnemonics;
+    instruction_count = 17u;
+    argument_index = 0u;
+    absolute_index = 1u;
+  } else if (family == 2u) {
+    expected = single_precision == CTOOL_TRUE
+                   ? log2_single
+                   : log2_double;
+    expected_size = (ctool_u32)sizeof(log2_double);
+    mnemonics = log_mnemonics;
+    instruction_count = 8u;
+    argument_index = 1u;
+  } else if (family == 3u) {
+    expected = single_precision == CTOOL_TRUE
+                   ? log_single
+                   : log_double;
+    expected_size = (ctool_u32)sizeof(log_double);
+    mnemonics = natural_log_mnemonics;
+    instruction_count = 8u;
+    argument_index = 1u;
+    absolute_index = 0u;
+  } else {
+    return 0;
+  }
+  finish_index = instruction_count - 5u;
+  if (job == NULL || text == NULL || symbol == NULL ||
+      text->contents.data == NULL ||
+      symbol->value > text->contents.size ||
+      symbol->size > text->contents.size - symbol->value ||
+      symbol->size != expected_size ||
+      memcmp(
+          text->contents.data + symbol->value, expected,
+          (size_t)expected_size) != 0) {
+    return 0;
+  }
+  for (index = 0u; index < instruction_count; index++) {
+    ctool_x86_decoded_t decoded;
+    const ctool_x86_instruction_t *instruction;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + symbol->value + cursor,
+        symbol->size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(
+        job, CTOOL_X86_MODE_32, remaining, 0u, &decoded);
+    if (status != CTOOL_OK ||
+        decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u ||
+        decoded.encoding.size != decoded.consumed) {
+      return 0;
+    }
+    instruction = &decoded.instruction;
+    if (instruction->mnemonic !=
+            (index == finish_index + 2u ? move : mnemonics[index]) ||
+        instruction->address_bits != 32u ||
+        instruction->prefixes != 0u) {
+      return 0;
+    }
+    if (instruction->mnemonic == CTOOL_X86_MN_FLD ||
+        instruction->mnemonic == CTOOL_X86_MN_FLD1) {
+      if (depth == 8u) {
+        return 0;
+      }
+      depth++;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_FMULP ||
+               instruction->mnemonic == CTOOL_X86_MN_FADDP ||
+               instruction->mnemonic == CTOOL_X86_MN_FYL2X ||
+               instruction->mnemonic == CTOOL_X86_MN_FSTP) {
+      if (depth == 0u) {
+        return 0;
+      }
+      depth--;
+    }
+    if (depth > maximum_depth) {
+      maximum_depth = depth;
+    }
+    if (index == argument_index) {
+      if (instruction->operand_count != 1u ||
+          file_scope_fabs_memory_matches(
+              &instruction->operands[0], scalar_width,
+              CTOOL_X86_REG_GPR32, NARROW_ORACLE_ESP,
+              8u, 4u) == 0) {
+        return 0;
+      }
+    } else if (index == absolute_index) {
+      if (instruction->operand_count != 1u ||
+          file_scope_fabs_memory_matches(
+              &instruction->operands[0], 64u,
+              CTOOL_X86_REG_NONE, 0u, 32u, 0u) == 0 ||
+          decoded.encoding.field_count != 1u ||
+          decoded.encoding.fields[0].kind !=
+              CTOOL_X86_FIELD_DISPLACEMENT ||
+          decoded.encoding.fields[0].relocation !=
+              CTOOL_X86_RELOC_NONE ||
+          decoded.encoding.fields[0].operand_index != 0u ||
+          decoded.encoding.fields[0].byte_offset != 2u ||
+          decoded.encoding.fields[0].byte_width != 4u ||
+          decoded.encoding.fields[0].encoded_addend != 0) {
+        return 0;
+      }
+    } else if (index == finish_index ||
+               index == finish_index + 3u) {
+      if (instruction->operand_count != 2u ||
+          !validate_x87_round_down_register_operand(
+              &instruction->operands[0],
+              CTOOL_X86_REG_GPR32, NARROW_ORACLE_ESP) ||
+          !file_scope_rounding_imm8_matches(
+              &instruction->operands[1], result_bytes)) {
+        return 0;
+      }
+    } else if (index == finish_index + 1u) {
+      if (instruction->operand_count != 1u ||
+          file_scope_fabs_memory_matches(
+              &instruction->operands[0], scalar_width,
+              CTOOL_X86_REG_GPR32, NARROW_ORACLE_ESP,
+              0u, 0u) == 0) {
+        return 0;
+      }
+    } else if (index == finish_index + 2u) {
+      if (instruction->operand_count != 2u ||
+          file_scope_fabs_register_matches(
+              &instruction->operands[0]) == 0 ||
+          file_scope_fabs_memory_matches(
+              &instruction->operands[1], scalar_width,
+              CTOOL_X86_REG_GPR32, NARROW_ORACLE_ESP,
+              0u, 0u) == 0) {
+        return 0;
+      }
+    } else if (index == instruction_count - 1u) {
+      if (instruction->operand_count != 0u) {
+        return 0;
+      }
+    }
+    cursor += decoded.consumed;
+  }
+  return cursor == symbol->size && depth == 0u &&
+                 maximum_depth ==
+                     (family <= 1u ? 3u : 2u)
+             ? 1
+             : 0;
+}
+
+static int validate_file_scope_exp_log_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const ctool_u8 expected_rodata[] = {
+      0xfeu, 0x82u, 0x2bu, 0x65u, 0x47u, 0x15u, 0xf7u, 0x3fu,
+      0xefu, 0x39u, 0xfau, 0xfeu, 0x42u, 0x2eu, 0xe6u, 0x3fu,
+      0x44u, 0x33u, 0x22u, 0x11u};
+  static const char *const names[] = {
+      "exp2", "exp2f", "exp", "expf",
+      "log2", "log2f", "log", "logf"};
+  static const ctool_u32 offsets[] = {
+      0u, 37u, 74u, 119u, 164u, 187u, 210u, 237u};
+  static const ctool_u32 sizes[] = {
+      37u, 37u, 45u, 45u, 23u, 23u, 27u, 27u};
+  static const ctool_u32 relocation_offsets[] = {
+      80u, 125u, 212u, 239u};
+  static const ctool_u32 relocation_function_indices[] = {
+      2u, 3u, 6u, 7u};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *rodata =
+      find_section(object, ".rodata");
+  const ctool_elf32_section_t *rel_text =
+      find_section(object, ".rel.text");
+  const ctool_elf32_symbol_t *log2e =
+      find_symbol(object, "libm_log2e_const");
+  const ctool_elf32_symbol_t *ln2 =
+      find_symbol(object, "libm_ln2_const");
+  const ctool_elf32_symbol_t *later_rodata =
+      find_symbol(object, "later_rodata");
+  const ctool_elf32_symbol_t *functions[8];
+  ctool_u32 index;
+  if (job == NULL || object == NULL || text == NULL ||
+      rodata == NULL || rel_text == NULL ||
+      log2e == NULL || ln2 == NULL || later_rodata == NULL ||
+      object->file_type != CTOOL_ELF32_ET_REL ||
+      object->program_header_count != 0u ||
+      object->relocation_count != 4u ||
+      object->relocations == NULL ||
+      text->type != CTOOL_ELF32_SHT_PROGBITS ||
+      text->flags !=
+          (CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_EXECINSTR) ||
+      text->alignment != 1u || text->contents.size != 264u ||
+      text->relocation_count != 4u ||
+      rodata->type != CTOOL_ELF32_SHT_PROGBITS ||
+      rodata->flags != CTOOL_ELF32_SHF_ALLOC ||
+      rodata->alignment != 8u ||
+      rodata->contents.size != (ctool_u32)sizeof(expected_rodata) ||
+      memcmp(
+          rodata->contents.data, expected_rodata,
+          sizeof(expected_rodata)) != 0 ||
+      rodata->relocation_count != 0u ||
+      rel_text->type != 9u || rel_text->flags != 0u ||
+      rel_text->alignment != 4u || rel_text->entry_size != 8u ||
+      rel_text->size != 32u ||
+      rel_text->info != text->file_index ||
+      log2e->binding != CTOOL_ELF32_BIND_LOCAL ||
+      log2e->type != CTOOL_ELF32_SYMBOL_NOTYPE ||
+      log2e->visibility != CTOOL_ELF32_VIS_DEFAULT ||
+      log2e->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      log2e->section_file_index != rodata->file_index ||
+      log2e->value != 0u || log2e->size != 0u ||
+      log2e->alignment != 0u ||
+      ln2->binding != CTOOL_ELF32_BIND_LOCAL ||
+      ln2->type != CTOOL_ELF32_SYMBOL_NOTYPE ||
+      ln2->visibility != CTOOL_ELF32_VIS_DEFAULT ||
+      ln2->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      ln2->section_file_index != rodata->file_index ||
+      ln2->value != 8u || ln2->size != 0u ||
+      ln2->alignment != 0u ||
+      later_rodata->binding != CTOOL_ELF32_BIND_LOCAL ||
+      later_rodata->type != CTOOL_ELF32_SYMBOL_OBJECT ||
+      later_rodata->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      later_rodata->section_file_index != rodata->file_index ||
+      later_rodata->value != 16u || later_rodata->size != 4u) {
+    (void)fprintf(stderr, "exp/log object inventory differs\n");
+    return 0;
+  }
+  for (index = 0u; index < 8u; index++) {
+    functions[index] = find_symbol(object, names[index]);
+    if (functions[index] == NULL ||
+        functions[index]->binding != CTOOL_ELF32_BIND_GLOBAL ||
+        functions[index]->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
+        functions[index]->visibility != CTOOL_ELF32_VIS_DEFAULT ||
+        functions[index]->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+        functions[index]->section_file_index != text->file_index ||
+        functions[index]->value != offsets[index] ||
+        functions[index]->size != sizes[index] ||
+        !validate_file_scope_exp_log_wrapper_decode(
+            job, text, functions[index], index / 2u,
+            (index & 1u) != 0u ? CTOOL_TRUE : CTOOL_FALSE)) {
+      (void)fprintf(
+          stderr, "exp/log function %s differs\n", names[index]);
+      return 0;
+    }
+  }
+  for (index = 0u; index < 4u; index++) {
+    const ctool_elf32_relocation_t *relocation =
+        &object->relocations[index];
+    const ctool_elf32_symbol_t *target =
+        index < 2u ? log2e : ln2;
+    const ctool_elf32_symbol_t *function =
+        functions[relocation_function_indices[index]];
+    if (relocation->relocation_section_file_index !=
+            rel_text->file_index ||
+        relocation->entry_index != index ||
+        relocation->target_section_file_index != text->file_index ||
+        relocation->offset != relocation_offsets[index] ||
+        relocation->offset - function->value !=
+            (index < 2u ? 6u : 2u) ||
+        relocation->symbol_file_index != target->file_index ||
+        relocation->type != CTOOL_ELF32_R_386_32 ||
+        relocation->addend_known != CTOOL_TRUE ||
+        relocation->addend != 0) {
+      (void)fprintf(
+          stderr, "exp/log relocation %u differs\n",
+          (unsigned int)index);
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int run_file_scope_exp_log_assembly_object(
+    const char *host_root) {
+  static const char constants_source[] =
+      "double exp2(double); float exp2f(float);\n"
+      "double exp(double); float expf(float);\n"
+      "double log2(double); float log2f(float);\n"
+      "double log(double); float logf(float);\n"
+      "__asm__(\n"
+      "\".section .rodata\\n\\t\"\n"
+      "\".align 8\\n\"\n"
+      "\"libm_log2e_const:\\n\\t\"\n"
+      "\".quad 0x3FF71547652B82FE\\n\"\n"
+      "\"libm_ln2_const:\\n\\t\"\n"
+      "\".quad 0x3FE62E42FEFA39EF\\n\"\n"
+      "\".text\\n\"\n"
+      ");\n";
+  static const char exponent_source[] =
+      "__asm__(\n"
+      "\".text\\n\\t\"\n"
+      "\".globl exp2\\n\\t\"\n"
+      "\".type  exp2, @function\\n\"\n"
+      "\"exp2:\\n\\t\"\n"
+      "\"fldl   4(%esp)\\n\\t\"\n"
+      "\"fld    %st(0)\\n\\t\"\n"
+      "\"frndint\\n\\t\"\n"
+      "\"fsub   %st, %st(1)\\n\\t\"\n"
+      "\"fxch\\n\\t\"\n"
+      "\"f2xm1\\n\\t\"\n"
+      "\"fld1\\n\\t\"\n"
+      "\"faddp\\n\\t\"\n"
+      "\"fscale\\n\\t\"\n"
+      "\"fstp   %st(1)\\n\\t\"\n"
+      "\"sub    $8, %esp\\n\\t\"\n"
+      "\"fstpl  (%esp)\\n\\t\"\n"
+      "\"movsd  (%esp), %xmm0\\n\\t\"\n"
+      "\"add    $8, %esp\\n\\t\"\n"
+      "\"ret\\n\\t\"\n"
+      "\".size  exp2, .-exp2\\n\"\n"
+      ");\n"
+      "__asm__(\n"
+      "\".text\\n\\t\"\n"
+      "\".globl exp2f\\n\\t\"\n"
+      "\".type  exp2f, @function\\n\"\n"
+      "\"exp2f:\\n\\t\"\n"
+      "\"flds   4(%esp)\\n\\t\"\n"
+      "\"fld    %st(0)\\n\\t\"\n"
+      "\"frndint\\n\\t\"\n"
+      "\"fsub   %st, %st(1)\\n\\t\"\n"
+      "\"fxch\\n\\t\"\n"
+      "\"f2xm1\\n\\t\"\n"
+      "\"fld1\\n\\t\"\n"
+      "\"faddp\\n\\t\"\n"
+      "\"fscale\\n\\t\"\n"
+      "\"fstp   %st(1)\\n\\t\"\n"
+      "\"sub    $4, %esp\\n\\t\"\n"
+      "\"fstps  (%esp)\\n\\t\"\n"
+      "\"movss  (%esp), %xmm0\\n\\t\"\n"
+      "\"add    $4, %esp\\n\\t\"\n"
+      "\"ret\\n\\t\"\n"
+      "\".size  exp2f, .-exp2f\\n\"\n"
+      ");\n"
+      "__asm__(\n"
+      "\".text\\n\\t\"\n"
+      "\".globl exp\\n\\t\"\n"
+      "\".type  exp, @function\\n\"\n"
+      "\"exp:\\n\\t\"\n"
+      "\"fldl   4(%esp)\\n\\t\"\n"
+      "\"fldl   libm_log2e_const\\n\\t\"\n"
+      "\"fmulp\\n\\t\"\n"
+      "\"fld    %st(0)\\n\\t\"\n"
+      "\"frndint\\n\\t\"\n"
+      "\"fsub   %st, %st(1)\\n\\t\"\n"
+      "\"fxch\\n\\t\"\n"
+      "\"f2xm1\\n\\t\"\n"
+      "\"fld1\\n\\t\"\n"
+      "\"faddp\\n\\t\"\n"
+      "\"fscale\\n\\t\"\n"
+      "\"fstp   %st(1)\\n\\t\"\n"
+      "\"sub    $8, %esp\\n\\t\"\n"
+      "\"fstpl  (%esp)\\n\\t\"\n"
+      "\"movsd  (%esp), %xmm0\\n\\t\"\n"
+      "\"add    $8, %esp\\n\\t\"\n"
+      "\"ret\\n\\t\"\n"
+      "\".size  exp, .-exp\\n\"\n"
+      ");\n"
+      "__asm__(\n"
+      "\".text\\n\\t\"\n"
+      "\".globl expf\\n\\t\"\n"
+      "\".type  expf, @function\\n\"\n"
+      "\"expf:\\n\\t\"\n"
+      "\"flds   4(%esp)\\n\\t\"\n"
+      "\"fldl   libm_log2e_const\\n\\t\"\n"
+      "\"fmulp\\n\\t\"\n"
+      "\"fld    %st(0)\\n\\t\"\n"
+      "\"frndint\\n\\t\"\n"
+      "\"fsub   %st, %st(1)\\n\\t\"\n"
+      "\"fxch\\n\\t\"\n"
+      "\"f2xm1\\n\\t\"\n"
+      "\"fld1\\n\\t\"\n"
+      "\"faddp\\n\\t\"\n"
+      "\"fscale\\n\\t\"\n"
+      "\"fstp   %st(1)\\n\\t\"\n"
+      "\"sub    $4, %esp\\n\\t\"\n"
+      "\"fstps  (%esp)\\n\\t\"\n"
+      "\"movss  (%esp), %xmm0\\n\\t\"\n"
+      "\"add    $4, %esp\\n\\t\"\n"
+      "\"ret\\n\\t\"\n"
+      "\".size  expf, .-expf\\n\"\n"
+      ");\n";
+  static const char log_source[] =
+      "__asm__(\n"
+      "\".text\\n\\t\"\n"
+      "\".globl log2\\n\\t\"\n"
+      "\".type  log2, @function\\n\"\n"
+      "\"log2:\\n\\t\"\n"
+      "\"fld1\\n\\t\"\n"
+      "\"fldl   4(%esp)\\n\\t\"\n"
+      "\"fyl2x\\n\\t\"\n"
+      "\"sub    $8, %esp\\n\\t\"\n"
+      "\"fstpl  (%esp)\\n\\t\"\n"
+      "\"movsd  (%esp), %xmm0\\n\\t\"\n"
+      "\"add    $8, %esp\\n\\t\"\n"
+      "\"ret\\n\\t\"\n"
+      "\".size  log2, .-log2\\n\"\n"
+      ");\n"
+      "__asm__(\n"
+      "\".text\\n\\t\"\n"
+      "\".globl log2f\\n\\t\"\n"
+      "\".type  log2f, @function\\n\"\n"
+      "\"log2f:\\n\\t\"\n"
+      "\"fld1\\n\\t\"\n"
+      "\"flds   4(%esp)\\n\\t\"\n"
+      "\"fyl2x\\n\\t\"\n"
+      "\"sub    $4, %esp\\n\\t\"\n"
+      "\"fstps  (%esp)\\n\\t\"\n"
+      "\"movss  (%esp), %xmm0\\n\\t\"\n"
+      "\"add    $4, %esp\\n\\t\"\n"
+      "\"ret\\n\\t\"\n"
+      "\".size  log2f, .-log2f\\n\"\n"
+      ");\n"
+      "__asm__(\n"
+      "\".text\\n\\t\"\n"
+      "\".globl log\\n\\t\"\n"
+      "\".type  log, @function\\n\"\n"
+      "\"log:\\n\\t\"\n"
+      "\"fldl   libm_ln2_const\\n\\t\"\n"
+      "\"fldl   4(%esp)\\n\\t\"\n"
+      "\"fyl2x\\n\\t\"\n"
+      "\"sub    $8, %esp\\n\\t\"\n"
+      "\"fstpl  (%esp)\\n\\t\"\n"
+      "\"movsd  (%esp), %xmm0\\n\\t\"\n"
+      "\"add    $8, %esp\\n\\t\"\n"
+      "\"ret\\n\\t\"\n"
+      "\".size  log, .-log\\n\"\n"
+      ");\n"
+      "__asm__(\n"
+      "\".text\\n\\t\"\n"
+      "\".globl logf\\n\\t\"\n"
+      "\".type  logf, @function\\n\"\n"
+      "\"logf:\\n\\t\"\n"
+      "\"fldl   libm_ln2_const\\n\\t\"\n"
+      "\"flds   4(%esp)\\n\\t\"\n"
+      "\"fyl2x\\n\\t\"\n"
+      "\"sub    $4, %esp\\n\\t\"\n"
+      "\"fstps  (%esp)\\n\\t\"\n"
+      "\"movss  (%esp), %xmm0\\n\\t\"\n"
+      "\"add    $4, %esp\\n\\t\"\n"
+      "\"ret\\n\\t\"\n"
+      "\".size  logf, .-logf\\n\"\n"
+      ");\n"
+      "static const unsigned int later_rodata = 0x11223344u;\n";
+  static const char altered_constants[] =
+      ".section .rodata\n\t"
+      ".align 8\n"
+      "libm_log2e_const:\n\t"
+      ".quad 0x3FF71547652B82FF\n"
+      "libm_ln2_const:\n\t"
+      ".quad 0x3FE62E42FEFA39EF\n"
+      ".text\n";
+  static const char unsupported_message[] =
+      "GNU file-scope assembly template is outside this i386 "
+      "emission slice";
+  char source[
+      sizeof(constants_source) + sizeof(exponent_source) +
+      sizeof(log_source) - 2u];
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_buffer_t *first = NULL;
+  ctool_buffer_t *second = NULL;
+  ctool_buffer_t *failure = NULL;
+  ctool_buffer_t *limited = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t mutant;
+  ctool_c_assembly_t mutant_assemblies[9];
+  ctool_c_binding_t mutant_bindings[9];
+  unit_snapshot_t snapshot;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t first_bytes;
+  ctool_bytes_t second_bytes;
+  ctool_u32 exp_binding = CTOOL_C_AST_NONE;
+  ctool_u32 expf_binding = CTOOL_C_AST_NONE;
+  ctool_u32 index;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&snapshot, 0, sizeof(snapshot));
+  (void)memcpy(
+      source, constants_source, sizeof(constants_source) - 1u);
+  (void)memcpy(
+      source + sizeof(constants_source) - 1u,
+      exponent_source, sizeof(exponent_source) - 1u);
+  (void)memcpy(
+      source + sizeof(constants_source) + sizeof(exponent_source) - 2u,
+      log_source, sizeof(log_source));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(
+          job, "/file-scope-exp-log-assembly-object.c", source,
+          CTOOL_TRUE, &unit) ||
+      unit.binding_count != 9u ||
+      unit.function_definition_count != 0u ||
+      unit.file_assembly_count != 9u ||
+      unit.file_assemblies == NULL || unit.assembly_count != 0u ||
+      unit.assemblies != NULL || unit.assembly_operand_count != 0u ||
+      unit.assembly_operands != NULL ||
+      !take_unit_snapshot(&unit, &snapshot)) {
+    (void)fprintf(
+        stderr, "exp/log file-scope assembly object setup failed\n");
+    if (job != NULL) {
+      (void)ctool_job_render_diagnostics(job);
+    }
+    goto cleanup;
+  }
+  for (index = 0u; index < unit.binding_count; index++) {
+    if (string_equal(unit.bindings[index].name, "exp") != 0) {
+      exp_binding = index;
+    } else if (string_equal(
+                   unit.bindings[index].name, "expf") != 0) {
+      expf_binding = index;
+    }
+  }
+  if (exp_binding == CTOOL_C_AST_NONE ||
+      expf_binding == CTOOL_C_AST_NONE) {
+    (void)fprintf(stderr, "exp/log bindings differ\n");
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(
+      job, 1024u, config.limits.output_bytes, &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &second);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &failure);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 16u, 64u, &limited);
+  }
+  if (!check_status(
+          status, CTOOL_OK, "exp/log file-scope assembly buffers") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, first,
+          "first exp/log file-scope assembly object") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second,
+          "repeat exp/log file-scope assembly object") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(
+          first_bytes.data, second_bytes.data,
+          (size_t)first_bytes.size) != 0) {
+    (void)fprintf(
+        stderr, "exp/log object is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text =
+      ctool_string("/file-scope-exp-log-assembly-object.o");
+  object_source.contents = second_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(
+          status, CTOOL_OK, "read exp/log file-scope object") ||
+      !validate_file_scope_exp_log_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+
+  (void)memcpy(
+      mutant_assemblies, unit.file_assemblies,
+      sizeof(mutant_assemblies));
+  mutant = unit;
+  mutant.file_assemblies = mutant_assemblies;
+  mutant_assemblies[0].template_text =
+      ctool_string(altered_constants);
+  if (!expect_object_failure_preserves_unit(
+          job, &mutant, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_EMIT_DIAG_UNSUPPORTED, unsupported_message,
+          "altered exp/log constant bits") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    goto cleanup;
+  }
+
+  for (index = 0u; index < 8u; index++) {
+    mutant_assemblies[index] = unit.file_assemblies[index + 1u];
+  }
+  mutant = unit;
+  mutant.file_assemblies = mutant_assemblies;
+  mutant.file_assembly_count = 8u;
+  if (!expect_object_failure_preserves_unit(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_EMIT_DIAG_SYMBOL,
+          "GNU exp/log wrapper requires the exact file-scope "
+          "constant block",
+          "exp/log wrappers without constant block") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    goto cleanup;
+  }
+
+  mutant_assemblies[0] = unit.file_assemblies[1];
+  mutant_assemblies[1] = unit.file_assemblies[2];
+  mutant_assemblies[2] = unit.file_assemblies[3];
+  mutant_assemblies[3] = unit.file_assemblies[0];
+  for (index = 4u; index < 9u; index++) {
+    mutant_assemblies[index] = unit.file_assemblies[index];
+  }
+  mutant = unit;
+  mutant.file_assemblies = mutant_assemblies;
+  if (!expect_object_failure_preserves_unit(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_EMIT_DIAG_SYMBOL,
+          "GNU exp/log wrapper requires the exact file-scope "
+          "constant block",
+          "exp wrapper before constant block") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    goto cleanup;
+  }
+
+  (void)memcpy(
+      mutant_assemblies, unit.file_assemblies,
+      sizeof(mutant_assemblies));
+  mutant_assemblies[1] = unit.file_assemblies[0];
+  mutant = unit;
+  mutant.file_assemblies = mutant_assemblies;
+  if (!expect_object_failure_preserves_unit(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_EMIT_DIAG_SYMBOL,
+          "GNU exp/log constant block is defined twice",
+          "duplicate exp/log constant block") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    goto cleanup;
+  }
+
+  (void)memcpy(
+      mutant_bindings, unit.bindings, sizeof(mutant_bindings));
+  mutant_bindings[exp_binding].name =
+      ctool_string("libm_log2e_const");
+  mutant = unit;
+  mutant.bindings = mutant_bindings;
+  if (!expect_object_failure_preserves_unit(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_EMIT_DIAG_SYMBOL,
+          "GNU exp/log constant label conflicts with a C declaration",
+          "exp/log constant label with C declaration") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    goto cleanup;
+  }
+
+  (void)memcpy(
+      mutant_bindings, unit.bindings, sizeof(mutant_bindings));
+  mutant_bindings[exp_binding].type =
+      unit.bindings[expf_binding].type;
+  mutant = unit;
+  mutant.bindings = mutant_bindings;
+  if (!expect_object_failure_preserves_unit(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_EMIT_DIAG_SYMBOL,
+          "GNU file-scope assembly does not match its external "
+          "function declaration",
+          "exp wrapper with float prototype") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    goto cleanup;
+  }
+
+  (void)memcpy(
+      mutant_assemblies, unit.file_assemblies,
+      sizeof(mutant_assemblies));
+  mutant_assemblies[8].flags |= 0x80000000u;
+  mutant = unit;
+  mutant.file_assemblies = mutant_assemblies;
+  if (!expect_object_failure_preserves_unit(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "logf wrapper with forged flags") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    goto cleanup;
+  }
+
+  if (!expect_object_failure_preserves_unit(
+          job, &unit, limited, CTOOL_ERR_LIMIT,
+          CTOOL_C_EMIT_DIAG_LIMIT, NULL,
+          "limited exp/log file-scope assembly object") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    goto cleanup;
+  }
+  if (!expect_object_success_preserves_unit(
+          job, &unit, failure,
+          "exp/log file-scope assembly recovery") ||
+      ctool_buffer_view(failure).size != first_bytes.size ||
+      memcmp(
+          ctool_buffer_view(failure).data, first_bytes.data,
+          (size_t)first_bytes.size) != 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(stderr, "exp/log recovery object differs\n");
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  dispose_unit_snapshot(&snapshot);
+  if (limited != NULL) {
+    ctool_buffer_close(limited);
+  }
+  if (failure != NULL) {
+    ctool_buffer_close(failure);
+  }
+  if (second != NULL) {
+    ctool_buffer_close(second);
+  }
+  if (first != NULL) {
+    ctool_buffer_close(first);
+  }
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("file-scope-exp-log-assembly: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int run_section_attributes_object(const char *host_root) {
   static const char source[] =
       "extern int imported_value;\n"
@@ -42867,6 +43694,10 @@ int main(int argc, char **argv) {
       strcmp(argv[1], "file-scope-fabs-assembly") == 0) {
     return run_file_scope_fabs_assembly_object(argv[2]);
   }
+  if (argc == 3 &&
+      strcmp(argv[1], "file-scope-exp-log-assembly") == 0) {
+    return run_file_scope_exp_log_assembly_object(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "structure-values") == 0) {
     return run_structure_value_object(argv[2]);
   }
@@ -42982,6 +43813,7 @@ int main(int argc, char **argv) {
                 "pointer-output-assembly|"
                 "operand-free-assembly|file-scope-assembly|"
                 "file-scope-fabs-assembly|"
+                "file-scope-exp-log-assembly|"
                 "structure-values|call-alignment|"
                 "compound-literals|old-style-empty-functions|"
                 "doom-implicit-functions|block-records|"

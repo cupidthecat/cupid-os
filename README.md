@@ -481,11 +481,19 @@ wrappers. Each repeats `FPREM` while status-word C2 is set, using an exact
 short backward branch, then discards the divisor and returns the remainder
 through XMM0. Both functions contain 35 text bytes, reach x87 depth two,
 balance ESP and x87 depth, and need no relocation. The complete source now
-reaches the aligned constant block at line 544. The checked seed carries the
-opening wrappers but
+reaches the exact aligned `libm_log2e_const` and `libm_ln2_const` block and
+the next eight exponent and logarithm wrappers. The data effect contributes
+16 `.rodata` bytes at alignment eight and local labels at offsets 0 and 8.
+`exp2` and `exp2f` contain 37 text bytes each, `exp` and `expf` contain 45
+each, `log2` and `log2f` contain 23 each, and `log` and `logf` contain 27
+each. The four natural forms carry one `R_386_32` relocation apiece to the
+matching constant. All eight wrappers use Cupid's x86 model, balance ESP
+and x87 depth, and reach no deeper than three x87 values. The unchanged
+source now reaches the `pow` wrapper at line 846. The checked seed carries
+the opening wrappers but
 predates named operands, these five statement blocks, the three `fabs`
-effects, the rounding family, and the remainder family, so `libm.c` stays on
-its host-owned recipe and keeps its `.c` name.
+effects, the rounding family, the remainder family, and the exponent/log
+family, so `libm.c` stays on its host-owned recipe and keeps its `.c` name.
 
 The checked seed emits the exact volatile
 `call 1f\n1: popl %0` state read used by the stack-trace helpers in
@@ -742,6 +750,8 @@ and the generated kernel symbol translation described above.
 [ADR 0170](docs/adr/0170-represent-double-to-unsigned-wide-conversion.md) records the explicit `double` to `unsigned long long` conversion and the resulting complete compiler-head `string.c` object.
 
 [ADR 0171](docs/adr/0171-represent-libm-fmod-file-scope-assembly.md) records the exact `fmod` and `fmodf` loops and the following read-only constant frontier.
+
+[ADR 0172](docs/adr/0172-represent-libm-exp-log-file-scope-assembly.md) records the exact exponent/logarithm constants and wrappers and the following `pow` frontier.
 
 [ADR 0143](docs/adr/0143-share-ordinary-padding-nops.md) records the shared ordinary compiler padding family and its measured disassembly improvement.
 

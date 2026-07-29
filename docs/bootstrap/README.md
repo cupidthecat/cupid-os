@@ -451,10 +451,10 @@ The hosted `ctool_c_parse` operation consumes the ADR 0012 tape directly and pub
 
 The unchanged `/kernel/fs/fat16.h` closure still reproduces every FAT layout oracle. Exact additional contracts parse unchanged `kernel.h`, `irq.h`, `cupidscript.h`, and `shell.h` and merge representative duplicate prototypes and typedefs once at the first declaration. GNU `packed`, `aligned`, and `noreturn` lists retain their semantic destinations, and compatibility keeps stronger alignment and `noreturn`. File- and record-scope `_Static_assert` use target integer evaluation, including conditional selection and fault suppression in unevaluated arms. Active-source fragments prove all 26 tracked assertions across `memory.h`, `percpu.h`, `exec.cc`, `process.cc`, and `syscall.cc`.
 
-The [audit-derived active-source gate](./ACTIVE-SOURCE-AUDIT.md) is 155/155 general non-Doom headers at compiler head. The six i386 Linux adapter headers have their own exact profiles and object contracts, and the strict-C11 hosted profile keeps all twelve hermetic Toolchain implementation gates complete. The checked source inventory records 646 direct designated initializers across 19 files, 51 variadic declarations across 22 files, 2,689 lexical `goto` occurrences in 26 files, 65 `do`, 222 `switch`, 1,653 `case`, 153 `default`, 2,669 `while`, 1,826 `break`, 1,109 `continue`, 34,360 `if`, 4,371 `else`, 20,738 `return`, 3,840 `for`, and 5,163 `sizeof` occurrences. The graph contains 698 active sources, 253 feature IDs, 504 transforms, and 42 accounted unreachable files. CupidC owns 158 transforms, the host C compiler owns 139, Python owns 173, and Make owns five. The audit evaluates Make conditionals with the canonical Windows branch and C locale on every host; direct Linux builds cover the Linux execution branch. One Python transform checks the external-program syscall ABI and produces no OS artifact. Two more keep the ISO runtime fixture in the normal image dependency graph. The fifth Make transform prepares the native Windows user drivers. The host compiler still produces 87 root objects.
+The [audit-derived active-source gate](./ACTIVE-SOURCE-AUDIT.md) is 155/155 general non-Doom headers at compiler head. The six i386 Linux adapter headers have their own exact profiles and object contracts, and the strict-C11 hosted profile keeps all twelve hermetic Toolchain implementation gates complete. The checked source inventory records 646 direct designated initializers across 19 files, 51 variadic declarations across 22 files, 2,705 lexical `goto` occurrences in 26 files, 65 `do`, 222 `switch`, 1,653 `case`, 153 `default`, 2,669 `while`, 1,826 `break`, 1,109 `continue`, 34,492 `if`, 4,395 `else`, 20,810 `return`, 3,849 `for`, and 5,200 `sizeof` occurrences. The graph contains 698 active sources, 253 feature IDs, 504 transforms, and 42 accounted unreachable files. CupidC owns 158 transforms, the host C compiler owns 139, Python owns 173, and Make owns five. The audit evaluates Make conditionals with the canonical Windows branch and C locale on every host; direct Linux builds cover the Linux execution branch. One Python transform checks the external-program syscall ABI and produces no OS artifact. Two more keep the ISO runtime fixture in the normal image dependency graph. The fifth Make transform prepares the native Windows user drivers. The host compiler still produces 87 root objects.
 
 The canonical active-source digest for this graph is
-`904128fb9116332b4f03abd310f37197f6b726807f67e2df6459a1588a661798`.
+`9396c1fda51e0175c6211a0c1da654da438c0173293c900827f1b6d89e0d3d5b`.
 
 External-inline policy now follows translation-unit finalization described by [ADR 0131](../adr/0131-finalize-c11-external-inline-definitions.md). The frontend recognizes external definitions across compatible declaration sets, preserves inherited internal linkage, and rejects an external-linkage inline declaration without a definition. Iterative memoized type relations normalize C qualifier spellings while retaining atomic parameter identity, distinguish strict typedef identity from compatibility, apply old-style/default-promotion rules, accept a 512-level derived pointer graph, and construct symbol-local immutable array/function composite types without corrupting shared typedefs. Transactional tests cover precise conflicts, lexical-scope duplicates and expiry, automatic and static initializer forests, explicit and tentative file definitions, binding addresses, scalar and aggregate return or assignment legality, recursive aggregate modifiability, pointer arithmetic and comparison constraints, conditional association and conversions, loop and switch constraints, direct jumps and label scope, compound/update constraints, malformed literals, unsupported local storage forms, ownership, deep syntax, constrained output, rollback, and recovery. Runtime expression values carry private integer-constant-expression form and value metadata. A represented zero expression, or that expression cast to non-atomic `void *`, becomes a null pointer constant. Comparisons, conditionals, returns, calls, assignments, and automatic initializers publish a destination-typed `CTOOL_C_CONVERSION_NULL_POINTER`; static explicit nulls publish `ZERO` records and discard their temporary expression AST. Comma expressions now evaluate left to right and retain the last operand, and known-true loops preserve non-fallthrough reachability. GNU `weak`, `section`, and `unused` attributes publish canonical entity metadata; exact output-only assembly can snapshot represented i386 register and EFLAGS state. The constant and body expression grammars remain intentionally partial, and namespace and member lookup remain linear. Chained designated paths, promoted anonymous members, duplicate overrides, positional union or Cupid class lists, static member-address constants, explicit address casts, automatic or block-static bases, runtime offsets and subscripts, block declaration attributes, nested function definitions, computed goto and GNU label addresses, broader GNU assembly forms, hexadecimal and subnormal floating constants, `long double`, remaining integer and floating conversions, floating comparison and truth, nonempty identifier-list definitions, non-scalar arguments without declared parameter types, aggregate variadic reads, block assertions, variable-length arrays and runtime `sizeof`, the remaining GNU attributes, complete Cupid extensions, complete AST and IR coverage, broader function code generation, full translation-unit emission, and production integration remain later work. The shared hosted path owns the 151-source checked-in production kernel cohort, the generated kernel symbol translation, and the six checked generated-install or user translations; the private kernel compiler remains the embedded runtime JIT and AOT path.
 
@@ -635,19 +635,29 @@ Each loads `y` below `x`, repeats `FPREM` while x87 status-word C2 is set,
 and uses a checked short `JNE` with displacement `-10`. After convergence it
 discards ST(1), returns the remainder through XMM0 at the source width, and
 restores ESP and x87 depth. Both functions contain 35 exact text bytes and
-no relocation. The full source now proceeds to the aligned read-only
-constant block at line 544.
+no relocation.
+
+Compiler head now represents the aligned `libm_log2e_const` and
+`libm_ln2_const` block and the following `exp2`, `exp2f`, `exp`, `expf`,
+`log2`, `log2f`, `log`, and `logf` wrappers. The two local constants occupy
+16 `.rodata` bytes at alignment eight. The wrappers add 264 text bytes. The
+four natural forms have one `R_386_32` relocation each, while the base-two
+forms need none. Decoder contracts check every instruction, each operand,
+x87 depth, and ESP balance. The full source now proceeds to `pow` at line
+846.
 
 The checked seed carries the file-scope wrappers but predates named operands
 and these five statement blocks. It also predates the three `fabs` effects.
-It predates the rounding and remainder families too. The `libm.c` name,
+It predates the rounding, remainder, and exponent/log families too. The
+`libm.c` name,
 production recipe, and host-dependency inventory remain unchanged. ADR 0159
 records the naming boundary, ADR 0161 records the
 double-power boundary, ADR 0162 records the mixed-width float-power
 boundary, and ADR 0163 records the square-root boundary. ADR 0164 records
 the `atan2` boundary, ADR 0165 records the exponent boundary, and ADR 0166
-records the `fabs` boundary. ADR 0169 records the rounding boundary, and ADR
-0171 records the remainder boundary.
+records the `fabs` boundary. ADR 0169 records the rounding boundary, ADR
+0171 records the remainder boundary, and ADR 0172 records the exponent/log
+boundary.
 
 ADR 0156 represents the naked interrupt entries in unchanged
 `kernel/smp/smp.c`. A naked function must have type `void (void)` and contain

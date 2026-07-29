@@ -16540,7 +16540,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.else",
-      "occurrences": 4382
+      "occurrences": 4395
     },
     {
       "category": "control",
@@ -16809,7 +16809,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.for",
-      "occurrences": 3841
+      "occurrences": 3849
     },
     {
       "category": "control",
@@ -16859,7 +16859,7 @@
         "toolchain/tests/elf32_contract.c"
       ],
       "id": "c.control.goto",
-      "occurrences": 2691
+      "occurrences": 2705
     },
     {
       "category": "control",
@@ -17249,7 +17249,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 34401
+      "occurrences": 34492
     },
     {
       "category": "control",
@@ -17608,7 +17608,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 20763
+      "occurrences": 20810
     },
     {
       "category": "control",
@@ -18248,7 +18248,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.declarator.unsized_array",
-      "occurrences": 2485
+      "occurrences": 2509
     },
     {
       "category": "declarator",
@@ -18515,7 +18515,7 @@
         "user/examples/cat.cc"
       ],
       "id": "c.expression.sizeof",
-      "occurrences": 5174
+      "occurrences": 5200
     },
     {
       "category": "extension",
@@ -21604,7 +21604,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 13762
+      "occurrences": 13804
     },
     {
       "category": "qualifier",
@@ -22121,7 +22121,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.storage.static",
-      "occurrences": 8175
+      "occurrences": 8209
     },
     {
       "category": "type",
@@ -22520,7 +22520,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.char",
-      "occurrences": 7969
+      "occurrences": 7977
     },
     {
       "category": "type",
@@ -23243,7 +23243,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.int",
-      "occurrences": 20610
+      "occurrences": 20615
     },
     {
       "category": "type",
@@ -24103,7 +24103,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.unsigned",
-      "occurrences": 1517
+      "occurrences": 1518
     },
     {
       "category": "type",
@@ -24691,7 +24691,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.void",
-      "occurrences": 13440
+      "occurrences": 13463
     },
     {
       "category": "declaration",
@@ -25504,7 +25504,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "5786b7a161f7f24a341e5794151b50b6b95b560bbbd3b65abe1aaa218f0bfcef",
+    "active_source_digest": "9396c1fda51e0175c6211a0c1da654da438c0173293c900827f1b6d89e0d3d5b",
     "control_files": [
       {
         "path": "Makefile",
@@ -48923,12 +48923,12 @@
         "toolchain/x86.h"
       ],
       "language": "cupid_c",
-      "lines": 13833,
+      "lines": 14215,
       "origin": "tracked",
       "path": "toolchain/cupidc_emit.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "b278c4b09223132548218c52dcb56442ef6f0869c2b08429d159e7f11d1a005a"
+      "sha256": "a7ba405dde4d56216d0dfb318322557e794264e3f59cf24da352a7955c468ec6"
     },
     {
       "build_owners": [
@@ -50215,7 +50215,7 @@
       "path": "toolchain/tests/cupidc_frontend_contract.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "f4d3dbdf784ccfb4b33f3841cb51972938ef7b499811be996321dbd5e73051fe"
+      "sha256": "047ee33bbe482c46b924b63ca7d8d6abfa9f99fb0736d6774ee0b222aebd3b34"
     },
     {
       "build_owners": [
@@ -50330,12 +50330,12 @@
         "toolchain/x86.h"
       ],
       "language": "c",
-      "lines": 43001,
+      "lines": 43833,
       "origin": "tracked",
       "path": "toolchain/tests/cupidc_object_contract.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "f6f4ceca9116186a5003699160094386134ed95dcce39ab09d93b5664ea7ab32"
+      "sha256": "e5e12d4d132f9eeef7efedaf0bbd60c3cdd97fd59a78afe0bd1b01589665be54"
     },
     {
       "build_owners": [
