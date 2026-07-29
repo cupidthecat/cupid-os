@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidOS Filesystems and Storage
-Verified against source on: 2026-07-10
+Verified against source on: 2026-07-29
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -15,7 +15,7 @@ Verified against source on: 2026-07-10
 
 >h2 Mount Layout
 >tree open Mount Layout
-kernel/core/kernel.c mounts:
+kernel/core/kernel.cc mounts:
 
   /      -> ramfs
   /dev   -> devfs

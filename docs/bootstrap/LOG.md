@@ -16003,3 +16003,133 @@ byte-identical. The deterministic audit check passes.
 
 ADR 0179 records the promotion. General GNU assembly and the production
 handoff remain open. `TempleOS/` remains untouched reference material.
+
+## 2026-07-29: transfer kernel entry and SIMD to CupidC
+
+The normal build now compiles the kernel entry and SIMD services with the
+checked CupidC seed. This removes two more host-compiled root objects without
+changing either source.
+
+### Production ownership
+
+`kernel/core/kernel.c` moved to `kernel/core/kernel.cc` with all 31,172 bytes
+unchanged. Its SHA-256 remains
+`fcc92bb561ed107ec6b328f5e9502f1040a2fedd9cf573f6876e5b93556945c3`.
+`kernel/cpu/simd.c` moved to `kernel/cpu/simd.cc` with all 13,971 bytes
+unchanged. Its SHA-256 remains
+`5b4c892322d41e901cdeda34817f79a6547139a2ed703fb6a90eb4b06d34692d`.
+The SIMD source has reviewed mixed line endings. Its new path uses a specific
+`-text` Git attribute so staging the rename cannot normalize those bytes.
+
+The root Makefile sends both objects through
+`tools/cupidc_kernel_compile.py`. The wrapper approves the new `.cc` paths,
+rejects the retired `.c` paths, and freezes a 63-header kernel-entry closure
+and a seven-header SIMD closure. Each run snapshots those inputs into a
+private compiler root, verifies the checked seed, compiles with the fixed
+`KERNEL_I386` profile, validates i386 `ET_REL`, checks live-input stability,
+and publishes only a complete object.
+
+Two checked-seed builds of each source match byte for byte:
+
+| Source | Object bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/core/kernel.cc` | 25,920 | `d44d06949d48ead865d0d8c1bdd3b76a67b429e0b7a369318ec4fbe8d9f44ed7` |
+| `kernel/cpu/simd.cc` | 8,768 | `fd280c321b8eb38a90d4f0982d70b8df0364585e3da322eb2c9de722e071f8d4` |
+
+CupidDis accepts both objects. The kernel entry decodes to the fixed stack
+setup, linked BSS clear, `kmain()` call, and halt loop. The SIMD object
+contains the expected streaming copies and stores, broadcast, unpack,
+multiply, add, pack, and saturating-add instructions. A Make expansion with
+`CC` poisoned names only the checked wrapper for these targets.
+
+### Contract evidence
+
+The kernel-wrapper module passed all 29 tests in 103.691 seconds. New
+positives cover both complete closures and their exact objects. New negatives
+reject retired paths, unapproved sources, closure drift, malformed objects,
+and partial publication. The final combined wrapper, freestanding-codegen,
+and memory-layout replay passed all 36 tests in 112.171 seconds.
+
+The compiler frontend passed 93 tests in 17.343 seconds. Linear IR passed 82
+tests in 17.277 seconds. Object emission passed 105 tests in 1,240.986
+seconds. The combined compiler result is 282/282. Two direct checked-seed
+source proofs also passed in 22.752 seconds.
+
+The complete native Toolchain target passed in about 46 seconds. It covered
+the compiler, assembler, disassembler, object wrapper, and linker contracts,
+including their expected diagnostic cases.
+
+The complete checked-seed module passed all 25 tests in 813.110 seconds. That
+run included another five-tool fixed point and both transferred source
+proofs.
+
+The first complete frontier run compiled both passes of all 154 checked-in
+roots with zero boundaries and 3,694,528 total object bytes. It then found a
+stale snapshot lock. The only changed input was the regenerated
+`toolchain/tests/cupidc_pp_active_cases.inc`, which now records the renamed
+production paths. The reviewed 443-file snapshot has SHA-256
+`c94e8f69bfb3de5792ad81ec0334b4ef88be56d6437926f32146630c26f0b50d`.
+No compiler or object mismatch occurred in that failed run.
+
+After the lock update, the complete frontier passed in 1,626.509 seconds. It
+compiled all 154 checked-in roots twice with zero boundaries. The two
+154-object sets match byte for byte, and each set totals 3,694,528 bytes.
+
+The regenerated build graph contains 699 active sources, 253 feature IDs, 504
+transforms, and 42 accounted unreachable files. Its active-source digest is
+`ef26b7bd09cdf4fcb3eec19b5a5599714a5a52e9faf061310159cbe50b5edd3c`.
+The 1,531,825-byte JSON record has SHA-256
+`1c451c56984f182f2e13ee61cae52056a2afb877da39530db7a5e1ad7a0fc442`.
+The 15,060-byte Markdown summary has SHA-256
+`50f911374bd36c5dd15a957408a7f329f90d6043a12353d3a111cc429082d13b`.
+The 39,040-byte active preprocessor cases have SHA-256
+`9ec21e0316b8f5b16c962283736c024b63aa50e82838d4c6c680a4676331788e`.
+The deterministic audit check accepts all three records. The complete
+build-graph module passed all 62 tests in 605.004 seconds.
+
+### Image and runtime evidence
+
+The normal build completed both CupidLD passes, generated the symbol table
+through CupidDis, compiled it through checked-seed CupidC, flattened the
+kernel through CupidObj, and staged the final image.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.elf.pass1` | 8,083,520 | `e79a858431b96f6152441ef62ef75ec2fc6cc86e8020a18a7e46b0dbf6d8515a` |
+| `kernel/cpu/ksyms_data.cc` | 352,217 | `4d18784c13ff6cb45a7b0025030c68c9e7a9f1d94e40381f426344d190900a3b` |
+| `kernel/cpu/ksyms_data.o` | 106,656 | `b884e111c9141a299fdf2082224f5da56205a877366f51f5cf9820a0d11558ab` |
+| `kernel/kernel.elf` | 8,190,016 | `25b7b66b4a7997fe9d0b4a8bfb163a016b18c8a66dc415889355bc7d1bfee372` |
+| `kernel/kernel.bin` | 7,994,604 | `a930d09bfc2e1cc6db8652412bfec9b4bd798fcc5082d0717913d9804d89dbf8` |
+| `cupidos.img` | 209,715,200 | `2b144f8c005756f5f4f254b1132f8d0de42f25c8bbced8673f6ec64af574d0ee` |
+
+An independently created clean image matched `cupidos.img` byte for byte.
+The flat kernel matches the image bytes at LBA 5. CupidDis reads the same
+4,419 text-symbol rows at the same addresses from both kernel passes. The
+generated blob contains 106,241 meaningful bytes and three padding bytes.
+
+Running both four-vCPU guests together under the default 45-second deadline
+was not useful. Each stopped during first-boot HomeFS work without a panic or
+rejected self-test marker. An uncontended e1000 retry with the same short
+deadline also stopped while creating `HOMEFS.SYS`.
+
+The final isolated runs used a 180-second allowance. e1000 passed in 75.291
+seconds; its 64,192-byte log has SHA-256
+`68a870df5431d350d91802925db6e6a5221e770600ef5849b6a7a217cf51a2b0`.
+RTL8139 passed in 70.426 seconds; its 62,351-byte log has SHA-256
+`09e75044765e4c0d003dbf51c86f1f8a78032a45a6d3798f37a6db269a8ea25a`.
+Both guests brought all four CPUs online, enabled SSE2, passed all 62 TLS
+checks, entered the desktop, launched the terminal, and compiled and ran
+`/bin/ls.cc`. Neither final log contains a rejected panic, exception,
+storage, SMP, TLS, or network marker.
+
+### Remaining ownership
+
+Checked-seed CupidC owns 154 checked-in roots and the generated symbol
+translation, for 155 normal transforms. Host C owns 84 normal root objects.
+The whole graph assigns 161 transforms to CupidC, 136 to host C, and 176 to
+Python.
+
+`kernel/core/string.c` is the only strict checked-in root outside production
+CupidC ownership. Issues #26 and #28 stay open for that transfer, broader GNU
+assembly, native execution, Doom, and vendored code. ADR 0180 records this
+handoff. `TempleOS/` remains untouched reference material.

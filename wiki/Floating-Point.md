@@ -78,12 +78,14 @@ integer through `r`, has no output, and requires one `cc` clobber. The shared
 x86 path emits `POP EAX`, `PUSH EAX`, and `POPF` with balanced ESP.
 It also accepts the CPUID leaf input sharing EAX with its
 compatible write-only output. It loads that leaf immediately before CPUID
-and keeps the four existing output snapshots. Compiler head also emits all
-six packed SSE2 statement shapes in the unchanged SIMD source. It retains the
+and keeps the four existing output snapshots. The checked seed also emits all
+six packed SSE2 statement shapes in `kernel/cpu/simd.cc`. It retains the
 ordered pointer and integer inputs and exact memory plus XMM0 through XMM7
-clobbers. The resulting 8,768-byte object is deterministic and validates as
-ELF32 `ET_REL` through the checked seed. The normal SIMD recipe remains
-host-owned until production transfer.
+clobbers. The production wrapper freezes the source and its seven-header
+closure. Two checked builds produce the same validated 8,768-byte ELF32
+`ET_REL` object with SHA-256
+`fd280c321b8eb38a90d4f0982d70b8df0364585e3da322eb2c9de722e071f8d4`.
+The normal SIMD recipe now uses this checked object.
 
 The checked seed also represents the exact x87 round-down statement in
 `str_floor()`. It takes one `double` memory output and one `double`
@@ -191,9 +193,10 @@ strong guest gate checks the TrueType path and every pixel of a byte-fixed
 baseline JPEG. ADR 0139 records the production transfer.
 
 Direct floating truth, a floating controlling expression, increment or
-decrement, hexadecimal or subnormal constants, `long double`, SIMD, and
-atomic floating access remain unsupported. The SSE details below describe the
-private in-kernel compiler.
+decrement, hexadecimal or subnormal constants, `long double`, general SIMD
+value semantics, and atomic floating access remain unsupported. The exact
+production SIMD assembly forms above are a narrower checked path. The SSE
+details below describe the private in-kernel compiler.
 
 ### Arithmetic
 

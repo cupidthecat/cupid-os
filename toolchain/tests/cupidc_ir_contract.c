@@ -2357,7 +2357,7 @@ static int active_source_is_unchanged(ctool_job_t *job) {
     (void)fprintf(stderr, "the active memory alignment helper changed\n");
     return 0;
   }
-  path.text = ctool_string("/kernel/cpu/simd.c");
+  path.text = ctool_string("/kernel/cpu/simd.cc");
   (void)memset(&source, 0xa5, sizeof(source));
   status = ctool_job_load_source(job, &path, &source);
   if (!check_status(status, CTOOL_OK, "load active SIMD source") ||
@@ -2568,7 +2568,7 @@ static int active_source_is_unchanged(ctool_job_t *job) {
     (void)fprintf(stderr, "an active ATA pointer advance changed\n");
     return 0;
   }
-  path.text = ctool_string("/kernel/core/kernel.c");
+  path.text = ctool_string("/kernel/core/kernel.cc");
   (void)memset(&source, 0xa5, sizeof(source));
   status = ctool_job_load_source(job, &path, &source);
   if (!check_status(status, CTOOL_OK, "load active CPU frequency source") ||

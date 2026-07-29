@@ -3335,21 +3335,89 @@
       },
       {
         "inputs": [
-          "kernel/core/kernel.c",
+          "kernel/core/kernel.cc",
+          "drivers/ata.h",
+          "drivers/keyboard.h",
+          "drivers/mouse.h",
+          "drivers/pci.h",
+          "drivers/pit.h",
+          "drivers/rtc.h",
+          "drivers/serial.h",
+          "drivers/speaker.h",
+          "drivers/timer.h",
+          "drivers/vga.h",
+          "kernel/core/debug.h",
           "kernel/core/kernel.h",
-          "kernel/cpu/cpu.h",
+          "kernel/core/panic.h",
+          "kernel/core/ports.h",
+          "kernel/core/process.h",
+          "kernel/core/string.h",
+          "kernel/core/syscall.h",
+          "kernel/core/types.h",
+          "kernel/cpu/fpu.h",
+          "kernel/cpu/idt.h",
+          "kernel/cpu/irq.h",
+          "kernel/cpu/isr.h",
+          "kernel/cpu/pic.h",
+          "kernel/cpu/simd.h",
+          "kernel/crypto/csprng.h",
+          "kernel/fs/blockcache.h",
+          "kernel/fs/blockdev.h",
+          "kernel/fs/devfs.h",
+          "kernel/fs/fat16.h",
+          "kernel/fs/fat16_vfs.h",
+          "kernel/fs/fs.h",
+          "kernel/fs/homefs.h",
+          "kernel/fs/iso9660_vfs.h",
+          "kernel/fs/ramfs.h",
+          "kernel/fs/vfs.h",
+          "kernel/gfx/fontsys.h",
+          "kernel/gfx/gfx2d.h",
+          "kernel/gfx/graphics.h",
+          "kernel/gui/clipboard.h",
+          "kernel/gui/desktop.h",
+          "kernel/gui/gui.h",
+          "kernel/gui/gui_containers.h",
+          "kernel/gui/gui_events.h",
+          "kernel/gui/gui_menus.h",
+          "kernel/gui/gui_themes.h",
+          "kernel/gui/gui_widgets.h",
+          "kernel/gui/ui.h",
           "kernel/lang/as.h",
           "kernel/lang/ctool_kernel.h",
+          "kernel/lang/exec.h",
+          "kernel/lang/shell.h",
           "kernel/mm/memory.h",
-          "kernel/usb/usb.h"
+          "kernel/network/net_if.h",
+          "kernel/smp/bkl.h",
+          "kernel/smp/ioapic.h",
+          "kernel/smp/lapic.h",
+          "kernel/smp/percpu.h",
+          "kernel/smp/smp.h",
+          "kernel/tls/tls_selftest.h",
+          "kernel/usb/usb.h",
+          "kernel/usb/usb_hc.h",
+          "kernel/util/calendar.h",
+          "toolchain/ctool.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/core/kernel.o",
         "recipe": [
-          "$(CC) $(CFLAGS) kernel/core/kernel.c -o kernel/core/kernel.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/core/kernel.cc --output kernel/core/kernel.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
@@ -3751,16 +3819,33 @@
       },
       {
         "inputs": [
-          "kernel/cpu/simd.c",
-          "kernel/cpu/simd.h"
+          "kernel/cpu/simd.cc",
+          "drivers/serial.h",
+          "drivers/timer.h",
+          "kernel/core/kernel.h",
+          "kernel/core/string.h",
+          "kernel/core/types.h",
+          "kernel/cpu/isr.h",
+          "kernel/cpu/simd.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/cpu/simd.o",
         "recipe": [
-          "$(CC) $(SIMD_CFLAGS) kernel/cpu/simd.c -o kernel/cpu/simd.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/simd.cc --output kernel/cpu/simd.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
@@ -15723,7 +15808,7 @@
         "kernel/cpu/fpu.cc",
         "kernel/cpu/irq.cc",
         "kernel/cpu/ksyms.cc",
-        "kernel/cpu/simd.c",
+        "kernel/cpu/simd.cc",
         "kernel/crypto/bigint.cc",
         "kernel/crypto/csprng.cc",
         "kernel/crypto/p256.cc",
@@ -16214,7 +16299,7 @@
         "drivers/rtc.cc",
         "kernel/audio/ac97.cc",
         "kernel/core/assert.h",
-        "kernel/core/kernel.c",
+        "kernel/core/kernel.cc",
         "kernel/core/panic.h",
         "kernel/crypto/chacha20.cc",
         "kernel/doom/dglibc.c",
@@ -16366,7 +16451,7 @@
         "kernel/audio/mus2midi.cc",
         "kernel/audio/nuked_opl3.cc",
         "kernel/core/assert.h",
-        "kernel/core/kernel.c",
+        "kernel/core/kernel.cc",
         "kernel/core/panic.cc",
         "kernel/core/process.cc",
         "kernel/core/string.c",
@@ -16608,7 +16693,7 @@
         "kernel/audio/nuked_opl3.cc",
         "kernel/audio/opl_smoke.cc",
         "kernel/core/app_launch.cc",
-        "kernel/core/kernel.c",
+        "kernel/core/kernel.cc",
         "kernel/core/panic.cc",
         "kernel/core/process.cc",
         "kernel/core/string.c",
@@ -16619,7 +16704,7 @@
         "kernel/cpu/ksyms.cc",
         "kernel/cpu/libm.cc",
         "kernel/cpu/math.cc",
-        "kernel/cpu/simd.c",
+        "kernel/cpu/simd.cc",
         "kernel/crypto/aes.cc",
         "kernel/crypto/aes_gcm.cc",
         "kernel/crypto/asn1.cc",
@@ -17019,7 +17104,7 @@
         "kernel/audio/opl_smoke.cc",
         "kernel/core/app_launch.cc",
         "kernel/core/assert.h",
-        "kernel/core/kernel.c",
+        "kernel/core/kernel.cc",
         "kernel/core/panic.cc",
         "kernel/core/process.cc",
         "kernel/core/string.c",
@@ -17032,7 +17117,7 @@
         "kernel/cpu/libm.cc",
         "kernel/cpu/math.cc",
         "kernel/cpu/pic.cc",
-        "kernel/cpu/simd.c",
+        "kernel/cpu/simd.cc",
         "kernel/crypto/aes.cc",
         "kernel/crypto/aes_gcm.cc",
         "kernel/crypto/asn1.cc",
@@ -17387,7 +17472,7 @@
         "kernel/audio/nuked_opl3.cc",
         "kernel/audio/opl_smoke.cc",
         "kernel/core/app_launch.cc",
-        "kernel/core/kernel.c",
+        "kernel/core/kernel.cc",
         "kernel/core/ports.h",
         "kernel/core/process.cc",
         "kernel/core/string.c",
@@ -17399,7 +17484,7 @@
         "kernel/cpu/libm.cc",
         "kernel/cpu/math.cc",
         "kernel/cpu/pic.cc",
-        "kernel/cpu/simd.c",
+        "kernel/cpu/simd.cc",
         "kernel/crypto/aes.cc",
         "kernel/crypto/aes_gcm.cc",
         "kernel/crypto/asn1.cc",
@@ -17824,7 +17909,7 @@
         "kernel/audio/mus2midi.cc",
         "kernel/audio/nuked_opl3.cc",
         "kernel/core/assert.h",
-        "kernel/core/kernel.c",
+        "kernel/core/kernel.cc",
         "kernel/core/panic.cc",
         "kernel/core/panic.h",
         "kernel/core/process.cc",
@@ -17833,7 +17918,7 @@
         "kernel/cpu/fpu.cc",
         "kernel/cpu/ksyms.cc",
         "kernel/cpu/math.cc",
-        "kernel/cpu/simd.c",
+        "kernel/cpu/simd.cc",
         "kernel/crypto/aes_gcm.cc",
         "kernel/crypto/bigint.cc",
         "kernel/crypto/chacha20.cc",
@@ -18181,7 +18266,7 @@
         "kernel/audio/midiopl.cc",
         "kernel/audio/mus2midi.cc",
         "kernel/core/app_launch.cc",
-        "kernel/core/kernel.c",
+        "kernel/core/kernel.cc",
         "kernel/core/panic.cc",
         "kernel/core/process.cc",
         "kernel/cpu/idt.cc",
@@ -18368,7 +18453,7 @@
         "kernel/audio/mus2midi.cc",
         "kernel/audio/nuked_opl3.cc",
         "kernel/core/app_launch.cc",
-        "kernel/core/kernel.c",
+        "kernel/core/kernel.cc",
         "kernel/core/process.cc",
         "kernel/core/string.c",
         "kernel/core/syscall.cc",
@@ -18683,7 +18768,7 @@
       "examples": [
         {
           "line": 82,
-          "path": "kernel/core/kernel.c",
+          "path": "kernel/core/kernel.cc",
           "text": "void _start(void) __attribute__((section(\".text.start\")));"
         },
         {
@@ -18693,7 +18778,7 @@
         }
       ],
       "files": [
-        "kernel/core/kernel.c",
+        "kernel/core/kernel.cc",
         "kernel/cpu/ksyms.cc"
       ],
       "id": "c.extension.attribute.section",
@@ -19007,7 +19092,7 @@
         "drivers/serial.cc",
         "drivers/timer.cc",
         "kernel/audio/ac97.cc",
-        "kernel/core/kernel.c",
+        "kernel/core/kernel.cc",
         "kernel/core/panic.cc",
         "kernel/core/panic.h",
         "kernel/core/ports.h",
@@ -19018,7 +19103,7 @@
         "kernel/cpu/idt.cc",
         "kernel/cpu/libm.cc",
         "kernel/cpu/pic.cc",
-        "kernel/cpu/simd.c",
+        "kernel/cpu/simd.cc",
         "kernel/crypto/csprng.cc",
         "kernel/doom/dglibc.c",
         "kernel/doom/doomgeneric_cupidos.c",
@@ -19091,24 +19176,22 @@
       "examples": [
         {
           "line": 1,
-          "path": "kernel/core/kernel.c",
-          "text": "compile_c_to_elf32_object -> kernel/core/kernel.o"
-        },
-        {
-          "line": 1,
           "path": "kernel/core/string.c",
           "text": "compile_c_to_elf32_object -> kernel/core/string.o"
         },
         {
           "line": 1,
-          "path": "kernel/cpu/simd.c",
-          "text": "compile_c_to_elf32_object -> kernel/cpu/simd.o"
+          "path": "kernel/doom/dglibc.c",
+          "text": "compile_c_to_elf32_object -> kernel/doom/dglibc.o"
+        },
+        {
+          "line": 1,
+          "path": "kernel/doom/doom_libc_stubs.c",
+          "text": "compile_c_to_elf32_object -> kernel/doom/doom_libc_stubs.o"
         }
       ],
       "files": [
-        "kernel/core/kernel.c",
         "kernel/core/string.c",
-        "kernel/cpu/simd.c",
         "kernel/doom/dglibc.c",
         "kernel/doom/doom_libc_stubs.c",
         "kernel/doom/doomgeneric_cupidos.c",
@@ -19194,7 +19277,7 @@
         "kernel/doom/src/z_zone.c"
       ],
       "id": "c.output.elf32_relocatable",
-      "occurrences": 86
+      "occurrences": 84
     },
     {
       "category": "preprocessor",
@@ -19260,7 +19343,7 @@
         "kernel/core/app_launch.h",
         "kernel/core/assert.h",
         "kernel/core/debug.h",
-        "kernel/core/kernel.c",
+        "kernel/core/kernel.cc",
         "kernel/core/kernel.h",
         "kernel/core/panic.h",
         "kernel/core/ports.h",
@@ -19678,7 +19761,7 @@
         "bin/cupidc_test5.cc",
         "kernel/audio/nuked_opl3.cc",
         "kernel/core/assert.h",
-        "kernel/core/kernel.c",
+        "kernel/core/kernel.cc",
         "kernel/doom/src/d_iwad.c",
         "kernel/doom/src/d_loop.c",
         "kernel/doom/src/deh_misc.h",
@@ -19750,7 +19833,7 @@
         "kernel/core/app_launch.h",
         "kernel/core/assert.h",
         "kernel/core/debug.h",
-        "kernel/core/kernel.c",
+        "kernel/core/kernel.cc",
         "kernel/core/kernel.h",
         "kernel/core/panic.h",
         "kernel/core/ports.h",
@@ -19767,7 +19850,7 @@
         "kernel/cpu/libm.h",
         "kernel/cpu/math.h",
         "kernel/cpu/pic.h",
-        "kernel/cpu/simd.c",
+        "kernel/cpu/simd.cc",
         "kernel/cpu/simd.h",
         "kernel/crypto/aes.h",
         "kernel/crypto/aes_gcm.h",
@@ -20235,8 +20318,8 @@
         "kernel/audio/mus2midi.cc",
         "kernel/audio/nuked_opl3.h",
         "kernel/core/assert.h",
-        "kernel/core/kernel.c",
-        "kernel/cpu/simd.c",
+        "kernel/core/kernel.cc",
+        "kernel/cpu/simd.cc",
         "kernel/cpu/simd.h",
         "kernel/doom/src/d_iwad.c",
         "kernel/doom/src/d_loop.c",
@@ -20620,7 +20703,7 @@
         "kernel/core/app_launch.h",
         "kernel/core/assert.h",
         "kernel/core/debug.h",
-        "kernel/core/kernel.c",
+        "kernel/core/kernel.cc",
         "kernel/core/kernel.h",
         "kernel/core/panic.cc",
         "kernel/core/panic.h",
@@ -20647,7 +20730,7 @@
         "kernel/cpu/math.h",
         "kernel/cpu/pic.cc",
         "kernel/cpu/pic.h",
-        "kernel/cpu/simd.c",
+        "kernel/cpu/simd.cc",
         "kernel/cpu/simd.h",
         "kernel/crypto/aes.cc",
         "kernel/crypto/aes.h",
@@ -21324,7 +21407,7 @@
         "kernel/core/app_launch.cc",
         "kernel/core/app_launch.h",
         "kernel/core/debug.h",
-        "kernel/core/kernel.c",
+        "kernel/core/kernel.cc",
         "kernel/core/kernel.h",
         "kernel/core/panic.cc",
         "kernel/core/panic.h",
@@ -21341,7 +21424,7 @@
         "kernel/cpu/ksyms.cc",
         "kernel/cpu/ksyms.h",
         "kernel/cpu/libm.cc",
-        "kernel/cpu/simd.c",
+        "kernel/cpu/simd.cc",
         "kernel/cpu/simd.h",
         "kernel/crypto/aes.cc",
         "kernel/crypto/aes.h",
@@ -21646,7 +21729,7 @@
         "drivers/timer.cc",
         "drivers/vga.cc",
         "kernel/audio/ac97.cc",
-        "kernel/core/kernel.c",
+        "kernel/core/kernel.cc",
         "kernel/core/panic.cc",
         "kernel/core/panic.h",
         "kernel/core/ports.h",
@@ -21657,7 +21740,7 @@
         "kernel/cpu/idt.cc",
         "kernel/cpu/irq.cc",
         "kernel/cpu/pic.cc",
-        "kernel/cpu/simd.c",
+        "kernel/cpu/simd.cc",
         "kernel/crypto/csprng.cc",
         "kernel/crypto/ct.cc",
         "kernel/crypto/ct.h",
@@ -21719,7 +21802,7 @@
         "drivers/mouse.h",
         "kernel/audio/ac97.cc",
         "kernel/audio/nuked_opl3.h",
-        "kernel/core/kernel.c",
+        "kernel/core/kernel.cc",
         "kernel/core/kernel.h",
         "kernel/core/process.cc",
         "kernel/cpu/idt.cc",
@@ -21842,7 +21925,7 @@
         "drivers/vga.cc",
         "kernel/audio/nuked_opl3.cc",
         "kernel/core/debug.h",
-        "kernel/core/kernel.c",
+        "kernel/core/kernel.cc",
         "kernel/core/ports.h",
         "kernel/cpu/cpu.h",
         "kernel/cpu/fpu.cc",
@@ -21928,7 +22011,7 @@
         "kernel/audio/opl_smoke.cc",
         "kernel/core/app_launch.cc",
         "kernel/core/debug.h",
-        "kernel/core/kernel.c",
+        "kernel/core/kernel.cc",
         "kernel/core/panic.cc",
         "kernel/core/ports.h",
         "kernel/core/process.cc",
@@ -21940,7 +22023,7 @@
         "kernel/cpu/ksyms.cc",
         "kernel/cpu/libm.cc",
         "kernel/cpu/pic.cc",
-        "kernel/cpu/simd.c",
+        "kernel/cpu/simd.cc",
         "kernel/crypto/aes.cc",
         "kernel/crypto/aes_gcm.cc",
         "kernel/crypto/asn1.cc",
@@ -22252,7 +22335,7 @@
         "kernel/core/app_launch.cc",
         "kernel/core/app_launch.h",
         "kernel/core/debug.h",
-        "kernel/core/kernel.c",
+        "kernel/core/kernel.cc",
         "kernel/core/kernel.h",
         "kernel/core/panic.cc",
         "kernel/core/panic.h",
@@ -22880,7 +22963,7 @@
         "kernel/audio/mus2midi.h",
         "kernel/core/app_launch.cc",
         "kernel/core/app_launch.h",
-        "kernel/core/kernel.c",
+        "kernel/core/kernel.cc",
         "kernel/core/kernel.h",
         "kernel/core/panic.cc",
         "kernel/core/process.cc",
@@ -22901,7 +22984,7 @@
         "kernel/cpu/libm.h",
         "kernel/cpu/math.cc",
         "kernel/cpu/math.h",
-        "kernel/cpu/simd.c",
+        "kernel/cpu/simd.cc",
         "kernel/cpu/simd.h",
         "kernel/crypto/aes_gcm.cc",
         "kernel/crypto/aes_gcm.h",
@@ -23476,7 +23559,7 @@
         "kernel/audio/mus2midi.h",
         "kernel/audio/nuked_opl3.h",
         "kernel/core/app_launch.h",
-        "kernel/core/kernel.c",
+        "kernel/core/kernel.cc",
         "kernel/core/kernel.h",
         "kernel/core/panic.cc",
         "kernel/core/panic.h",
@@ -24009,7 +24092,7 @@
         "kernel/audio/memio.cc",
         "kernel/audio/midiopl.cc",
         "kernel/audio/mus2midi.cc",
-        "kernel/core/kernel.c",
+        "kernel/core/kernel.cc",
         "kernel/core/string.c",
         "kernel/core/types.h",
         "kernel/cpu/ksyms.cc",
@@ -24300,7 +24383,7 @@
         "kernel/core/app_launch.h",
         "kernel/core/assert.h",
         "kernel/core/debug.h",
-        "kernel/core/kernel.c",
+        "kernel/core/kernel.cc",
         "kernel/core/kernel.h",
         "kernel/core/panic.cc",
         "kernel/core/panic.h",
@@ -24326,7 +24409,7 @@
         "kernel/cpu/math.h",
         "kernel/cpu/pic.cc",
         "kernel/cpu/pic.h",
-        "kernel/cpu/simd.c",
+        "kernel/cpu/simd.cc",
         "kernel/cpu/simd.h",
         "kernel/crypto/aes.cc",
         "kernel/crypto/aes.h",
@@ -25026,6 +25109,7 @@
         "kernel/audio/nuked_opl3.cc",
         "kernel/audio/opl_smoke.cc",
         "kernel/core/app_launch.cc",
+        "kernel/core/kernel.cc",
         "kernel/core/panic.cc",
         "kernel/core/process.cc",
         "kernel/core/syscall.cc",
@@ -25037,6 +25121,7 @@
         "kernel/cpu/libm.cc",
         "kernel/cpu/math.cc",
         "kernel/cpu/pic.cc",
+        "kernel/cpu/simd.cc",
         "kernel/crypto/aes.cc",
         "kernel/crypto/aes_gcm.cc",
         "kernel/crypto/asn1.cc",
@@ -25167,7 +25252,7 @@
         "user/examples/ls.cc"
       ],
       "id": "cupid_c.output.elf32_relocatable",
-      "occurrences": 159
+      "occurrences": 161
     },
     {
       "category": "storage",
@@ -25523,11 +25608,11 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "58cc8cf3789391e77437ff9d13ebd1b0611a9a9231c3c74b1e1a306208e5d443",
+    "active_source_digest": "ef26b7bd09cdf4fcb3eec19b5a5599714a5a52e9faf061310159cbe50b5edd3c",
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "d5d3c3e0c4de53e7746859c3e2a119be8984210c57a8c6c03bf75fa1e0470113"
+        "sha256": "d695545ae1ba38614721aa422cc178cba034e97a0520f869b57b912366130669"
       },
       {
         "path": "user/Makefile",
@@ -25539,7 +25624,7 @@
       },
       {
         "path": "tools/cupidc_kernel_compile.py",
-        "sha256": "4b455fb6316c508094975a7d77a5b02187d920544480a19c6065745113e30394"
+        "sha256": "ae667c3ca2734d71ba976a8933832bd3b2691c74379bfb6e54469e4171fad048"
       },
       {
         "path": "tools/kernel_cupidc_frontier.py",
@@ -25572,7 +25657,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "0955ba0df662f2b5662611074ef1dc9cb38f7a493346edced74b9926e8ef088a"
+      "sha256": "49d8aa07bb9a3a764b8ab9d5f9cc17fb80b10bc714cbf5320d5d1ebadb97beef"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -26035,7 +26120,7 @@
           "drivers/timer.cc",
           "kernel/audio/ac97.cc",
           "kernel/audio/mus2midi.h",
-          "kernel/core/kernel.c",
+          "kernel/core/kernel.cc",
           "kernel/core/panic.cc"
         ],
         "source_count": 56,
@@ -26113,7 +26198,7 @@
           "bin/browser/input.cc",
           "bin/browser/js_dom.cc"
         ],
-        "source_count": 289,
+        "source_count": 291,
         "title": "Scale Cupid mode across embedded programs and browser fragments"
       }
     ],
@@ -29520,7 +29605,7 @@
       "path": "bin/ssh.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "b527df47dce7c0e19cd9e7bac6181c89ae7d8e96c75ac9a480cce005354a1683"
+      "sha256": "cede66f23e44d147fcdf687fee5e2bc7c4c8d6d10826005f9f9f3ddbaaf6744f"
     },
     {
       "build_owners": [
@@ -32402,7 +32487,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -32419,7 +32505,6 @@
         "c.expression.sizeof",
         "c.extension.attribute.section",
         "c.extension.inline_assembly",
-        "c.output.elf32_relocatable",
         "c.preprocessor.define",
         "c.preprocessor.else",
         "c.preprocessor.endif",
@@ -32434,7 +32519,8 @@
         "c.type.int",
         "c.type.struct",
         "c.type.unsigned",
-        "c.type.void"
+        "c.type.void",
+        "cupid_c.output.elf32_relocatable"
       ],
       "includes": [
         "drivers/ata.h",
@@ -32495,18 +32581,17 @@
         "kernel/tls/tls_selftest.h",
         "kernel/usb/usb.h"
       ],
-      "language": "c",
+      "language": "cupid_c",
       "lines": 950,
       "origin": "tracked",
-      "path": "kernel/core/kernel.c",
+      "path": "kernel/core/kernel.cc",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "fcc92bb561ed107ec6b328f5e9502f1040a2fedd9cf573f6876e5b93556945c3"
     },
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -32966,7 +33051,6 @@
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -33583,7 +33667,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -33596,7 +33681,6 @@
         "c.control.return",
         "c.control.while",
         "c.extension.inline_assembly",
-        "c.output.elf32_relocatable",
         "c.preprocessor.endif",
         "c.preprocessor.ifdef",
         "c.preprocessor.include",
@@ -33604,7 +33688,8 @@
         "c.qualifier.volatile",
         "c.storage.static",
         "c.type.int",
-        "c.type.void"
+        "c.type.void",
+        "cupid_c.output.elf32_relocatable"
       ],
       "includes": [
         "drivers/serial.h",
@@ -33612,18 +33697,17 @@
         "kernel/core/string.h",
         "kernel/cpu/simd.h"
       ],
-      "language": "c",
+      "language": "cupid_c",
       "lines": 487,
       "origin": "tracked",
-      "path": "kernel/cpu/simd.c",
+      "path": "kernel/cpu/simd.cc",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "9da24356ff08957c07ad60335bdb03cfa6eb08ea4fa85afb9f198d3615c30cdd"
     },
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -44611,7 +44695,6 @@
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -44751,7 +44834,6 @@
     {
       "build_owners": [
         "cupid_c_compiler",
-        "host_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -50234,7 +50316,7 @@
       "path": "toolchain/tests/cupidc_frontend_contract.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "190185b1be20ee8a10c4c7108c10ffd422e105419eedfab2d7907e8b6c8cfbbf"
+      "sha256": "1cecbabce76833b0c8ec0249d9793192c8cb9b3221406ce1a3b277cfb9d7f1ca"
     },
     {
       "build_owners": [
@@ -50289,7 +50371,7 @@
       "path": "toolchain/tests/cupidc_ir_contract.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "c7b55c0a61d57cf5b6ba20031a6e86814114d46ff714065c6cf7b3fef97500d5"
+      "sha256": "d4fbe9af8e4512f57d6724b1238ac3c889a6012f675ea7de02bcbf50116e0981"
     },
     {
       "build_owners": [
@@ -50380,7 +50462,7 @@
       "path": "toolchain/tests/cupidc_object_contract.c",
       "reachability": "direct_build_input",
       "runtime_owner": null,
-      "sha256": "e51b2f3a206358a1875bb95b06d10924ac2647574df722020f9e3bfa91397fc2"
+      "sha256": "9d46c25d77da3277a0f2570b0f3c0224d97c4dbcf75ead9fc161748e87ad08e7"
     },
     {
       "build_owners": [
@@ -52296,7 +52378,7 @@
         {
           "evidence": "audited project source relationship",
           "kind": "historical_copy_of",
-          "path": "kernel/core/kernel.c"
+          "path": "kernel/core/kernel.cc"
         }
       ],
       "sha256": "97c028810df417159eb905c09d59a81fe69696b30440c4cb7b030781e41e8a46"

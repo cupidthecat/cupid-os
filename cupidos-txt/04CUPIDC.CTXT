@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidC Guide (.cc)
-Verified against source on: 2026-07-28
+Verified against source on: 2026-07-29
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -120,9 +120,9 @@ Current toolchain gaps:
 
 >h2 Normal Build Ownership
 >tree open Normal Build Ownership
-The checked CupidC seed compiles 152 checked-in sources in the normal image
+The checked CupidC seed compiles 154 checked-in sources in the normal image
 build. The generated kernel symbol source adds one checked transform, bringing
-the normal total to 153 CupidC transforms. All 153 sources use .cc. The
+the normal total to 155 CupidC transforms. All 155 sources use .cc. The
 19-source i386 Linux fixed point uses the same names, including its five roots
 shared with the normal image. Native GCC or Clang rules select C explicitly
 with -x c, while the checked seed compiles those paths under its fixed target
@@ -146,16 +146,17 @@ implementations complete the established 116-source group. ADRs 0115 and 0123
 transferred the first 28 source-driven roots. ADR 0124 renames another 111
 roots used only by production CupidC. ADR 0126 completes the fixed-point
 naming work, ADR 0129 transfers the lexer, ADR 0135 transfers Nuked OPL3,
-ADR 0139 transfers JPEG decoding and glyph rasterization, and ADR 0167
-transfers the FPU and SMP roots.
+ADR 0139 transfers JPEG decoding and glyph rasterization, ADR 0167 transfers
+the FPU and SMP roots, and ADR 0176 transfers libm. The checked production
+path now also owns kernel/core/kernel.cc and kernel/cpu/simd.cc.
 
 Each result is checked as an i386 ELF32 relocatable object before it replaces
 the build output. A valid data-only object may omit .text, but its other
 sections and symbols must still pass validation. The strict frontier must
-compile all 152 checked-in roots twice. The full frontier now passes with a
-440-input path snapshot whose SHA-256 is
-2143222ba61544b44655f882bc06e55ef0ff195033c907f5ae512801251e9cc1.
-Both 152-object sets are byte-identical and total 3,659,840 bytes. The combined
+compile all 154 checked-in roots twice. The full frontier now passes with a
+443-input path snapshot whose SHA-256 is
+c94e8f69bfb3de5792ad81ec0334b4ef88be56d6437926f32146630c26f0b50d.
+Both 154-object sets are byte-identical; each totals 3,694,528 bytes. The combined
 graph passes clean normal and partitioned image builds. Final frontier
 publication retries a short permission-style directory lock with five bounded
 delays. A persistent lock leaves the frontier unpublished. The input scan
@@ -178,10 +179,10 @@ freezes the source and its two-header closure before object validation and
 publication. The pass-one and final kernels project the same text symbols at
 the same addresses.
 
-Across root and supplemental builds, the ownership audit reports 159 CupidC
-transforms, 138 host C transforms, and 174 host Python transforms. Host C
-still creates 86 root objects. Three strict checked-in roots remain outside
-production CupidC ownership.
+Across root and supplemental builds, the ownership audit reports 161 CupidC
+transforms, 136 host C transforms, and 176 host Python transforms. Host C
+still creates 84 root objects. The kernel/core/string.c root is the only
+strict checked-in source outside production CupidC ownership.
 
 The normal build compiles kernel/gfx/jpeg.cc and
 kernel/gfx/glyph_raster.cc through the checked seed. Their closed header sets
@@ -371,7 +372,7 @@ FC F3 66 6D and FC F3 66 6F through the shared x86 model. The non-Doom
 header gate is 155/155 in the checked seed.
 
 The checked seed carries this port-I/O capability. The normal build uses it in
-the 152-source checked-in CupidC cohort. It emits unchanged kernel/smp/acpi.cc
+the 154-source checked-in CupidC cohort. It emits unchanged kernel/smp/acpi.cc
 and kernel/smp/mp_tables.cc with the checked seed. Their 5,708-byte and
 4,156-byte objects are deterministic and validated. Exact recursive header
 closures and poisoned host recipes protect each transferred build rule.
@@ -483,8 +484,9 @@ around 2^32 and derives both words through 2^31-safe truncations. Hexadecimal
 floating literals, long double, runtime conversion to unsigned four-byte
 integers or _Bool, other floating-to-wide conversions, runtime floating
 truth, runtime mixed wide and floating arithmetic or conditional arms,
-increment and decrement, SIMD, floating atomic access, and over-aligned
-object emission remain unfinished. Matching or mixed-width floating
+increment and decrement, general SIMD value semantics, floating atomic access,
+and over-aligned object emission remain unfinished. The exact production SIMD
+assembly forms have their own checked path. Matching or mixed-width floating
 conditional arms and the four arithmetic compound assignments keep their
 established x87 path.
 
@@ -770,9 +772,9 @@ aggregate variadic reads, wide strings, literal pooling, and block-static
 addresses in other
 block-static initializers remain unfinished in the shared path.
 
-The shared path builds 152 checked-in normal kernel and toolchain objects. It
-also owns the generated kernel symbol source as the 153rd normal CupidC
-transform. All 153 normal sources use .cc. The checked seed also
+The shared path builds 154 checked-in normal kernel and toolchain objects. It
+also owns the generated kernel symbol source as the 155th normal CupidC
+transform. All 155 normal sources use .cc. The checked seed also
 compiles the three generated installation tables and the three example ELF
 programs. Checked CupidLD links those example programs. The host compiler
 still owns the remaining C transforms, while the private in-kernel CupidC
@@ -829,11 +831,14 @@ its compatible write-only output. The input keeps its a constraint and
 names the =a output as its match. Linear IR and emission require both sides
 to be represented integers of equal width before loading EAX immediately
 before CPUID. Frozen pointer, floating, and aggregate substitutes fail.
-Read/write outputs cannot receive a second fixed input. Compiler head now
-emits all six remaining packed SSE2 statement shapes in unchanged simd.c. It
-checks their ordered pointer and 32-bit integer inputs plus exact memory and
-XMM0 through XMM7 clobbers. Two checked-seed builds produce the same validated
-8,768-byte object. The production recipe remains host-owned until transfer.
+Read/write outputs cannot receive a second fixed input. The checked seed emits
+all six packed SSE2 statement shapes in kernel/cpu/simd.cc. It checks their
+ordered pointer and 32-bit integer inputs plus exact memory and XMM0 through
+XMM7 clobbers. The production wrapper freezes the source and its seven-header
+closure. Two checked-seed builds produce the same validated 8,768-byte object
+with SHA-256
+fd280c321b8eb38a90d4f0982d70b8df0364585e3da322eb2c9de722e071f8d4.
+The normal recipe now uses this checked object.
 
 The checked seed accepts the exact volatile x87 round-down block in
 str_floor. It keeps one modifiable, non-atomic double =m output, one
@@ -871,12 +876,12 @@ loop.
 
 The exact fixture has a 27-byte assembly body in a 42-byte function. Its
 three relocations name _bss_start, _kernel_end, and kmain. Two runs of the
-Cupid-built compiler emit unchanged kernel/core/kernel.c as the same
-25,920-byte object with SHA-256
+Cupid-built compiler emit kernel/core/kernel.cc as the same 25,920-byte object
+with SHA-256
 d44d06949d48ead865d0d8c1bdd3b76a67b429e0b7a369318ec4fbe8d9f44ed7.
 A private hybrid image reaches the desktop and completes /bin/ls.cc. The
-checked seed carries this statement, while the normal recipe remains
-host-owned and the source keeps its .c suffix until production transfer.
+production wrapper freezes the source and its 63-header closure, and the
+normal recipe now uses this checked object.
 
 The checked seed accepts the four exact descriptor-table and
 segment-register statements in kernel/smp/percpu.cc. A packed

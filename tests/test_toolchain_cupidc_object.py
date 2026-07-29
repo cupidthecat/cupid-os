@@ -1283,7 +1283,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             )
 
     def test_unchanged_kernel_source_emits_a_deterministic_object(self):
-        source = REPO_ROOT / "kernel/core/kernel.c"
+        source = REPO_ROOT / "kernel/core/kernel.cc"
         source_bytes = source.read_bytes()
         self.assertEqual(len(source_bytes), KERNEL_SOURCE_SIZE)
         self.assertEqual(source_bytes.count(b"\n"), 950)
@@ -1335,7 +1335,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                         str(self.hosted_cupidc_path),
                         *arguments,
                         "-c",
-                        "/kernel/core/kernel.c",
+                        "/kernel/core/kernel.cc",
                         "-o",
                         logical_output,
                     ],

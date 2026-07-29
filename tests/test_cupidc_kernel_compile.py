@@ -159,6 +159,7 @@ SOURCE_DRIVEN_SOURCES = (
     "drivers/timer.cc",
     "kernel/audio/nuked_opl3.cc",
     "kernel/core/app_launch.cc",
+    "kernel/core/kernel.cc",
     "kernel/core/panic.cc",
     "kernel/core/process.cc",
     "kernel/cpu/fpu.cc",
@@ -167,6 +168,7 @@ SOURCE_DRIVEN_SOURCES = (
     "kernel/cpu/ksyms.cc",
     "kernel/cpu/libm.cc",
     "kernel/cpu/pic.cc",
+    "kernel/cpu/simd.cc",
     "kernel/fs/fat16.cc",
     "kernel/fs/iso9660.cc",
     "kernel/fs/loopdev.cc",
@@ -199,6 +201,71 @@ FROZEN_KERNEL_INPUT_CLOSURES = {
         "kernel/core/string.h",
         "kernel/core/types.h",
     ),
+    "kernel/core/kernel.cc": (
+        "drivers/ata.h",
+        "drivers/keyboard.h",
+        "drivers/mouse.h",
+        "drivers/pci.h",
+        "drivers/pit.h",
+        "drivers/rtc.h",
+        "drivers/serial.h",
+        "drivers/speaker.h",
+        "drivers/timer.h",
+        "drivers/vga.h",
+        "kernel/core/debug.h",
+        "kernel/core/kernel.h",
+        "kernel/core/panic.h",
+        "kernel/core/ports.h",
+        "kernel/core/process.h",
+        "kernel/core/string.h",
+        "kernel/core/syscall.h",
+        "kernel/core/types.h",
+        "kernel/cpu/fpu.h",
+        "kernel/cpu/idt.h",
+        "kernel/cpu/irq.h",
+        "kernel/cpu/isr.h",
+        "kernel/cpu/pic.h",
+        "kernel/cpu/simd.h",
+        "kernel/crypto/csprng.h",
+        "kernel/fs/blockcache.h",
+        "kernel/fs/blockdev.h",
+        "kernel/fs/devfs.h",
+        "kernel/fs/fat16.h",
+        "kernel/fs/fat16_vfs.h",
+        "kernel/fs/fs.h",
+        "kernel/fs/homefs.h",
+        "kernel/fs/iso9660_vfs.h",
+        "kernel/fs/ramfs.h",
+        "kernel/fs/vfs.h",
+        "kernel/gfx/fontsys.h",
+        "kernel/gfx/gfx2d.h",
+        "kernel/gfx/graphics.h",
+        "kernel/gui/clipboard.h",
+        "kernel/gui/desktop.h",
+        "kernel/gui/gui.h",
+        "kernel/gui/gui_containers.h",
+        "kernel/gui/gui_events.h",
+        "kernel/gui/gui_menus.h",
+        "kernel/gui/gui_themes.h",
+        "kernel/gui/gui_widgets.h",
+        "kernel/gui/ui.h",
+        "kernel/lang/as.h",
+        "kernel/lang/ctool_kernel.h",
+        "kernel/lang/exec.h",
+        "kernel/lang/shell.h",
+        "kernel/mm/memory.h",
+        "kernel/network/net_if.h",
+        "kernel/smp/bkl.h",
+        "kernel/smp/ioapic.h",
+        "kernel/smp/lapic.h",
+        "kernel/smp/percpu.h",
+        "kernel/smp/smp.h",
+        "kernel/tls/tls_selftest.h",
+        "kernel/usb/usb.h",
+        "kernel/usb/usb_hc.h",
+        "kernel/util/calendar.h",
+        "toolchain/ctool.h",
+    ),
     "kernel/cpu/fpu.cc": (
         "drivers/serial.h",
         "kernel/core/panic.h",
@@ -211,6 +278,15 @@ FROZEN_KERNEL_INPUT_CLOSURES = {
     "kernel/cpu/libm.cc": (
         "kernel/core/types.h",
         "kernel/cpu/libm.h",
+    ),
+    "kernel/cpu/simd.cc": (
+        "drivers/serial.h",
+        "drivers/timer.h",
+        "kernel/core/kernel.h",
+        "kernel/core/string.h",
+        "kernel/core/types.h",
+        "kernel/cpu/isr.h",
+        "kernel/cpu/simd.h",
     ),
     "kernel/gfx/glyph_raster.cc": (
         "kernel/core/string.h",
@@ -843,8 +919,8 @@ class KernelCompileCommandTests(unittest.TestCase):
             kernel_compile.APPROVED_KERNEL_COMPILE_SOURCES,
             tuple(sorted(KERNEL_SOURCES + GENERATED_KERNEL_SOURCES)),
         )
-        self.assertEqual(len(KERNEL_SOURCES), 152)
-        self.assertEqual(len(set(KERNEL_SOURCES)), 152)
+        self.assertEqual(len(KERNEL_SOURCES), 154)
+        self.assertEqual(len(set(KERNEL_SOURCES)), 154)
         self.assertEqual(kernel_compile.KERNEL_I386_ARGUMENTS, KERNEL_I386_ARGUMENTS)
 
         command = kernel_compile.build_compile_arguments(
@@ -867,8 +943,8 @@ class KernelCompileCommandTests(unittest.TestCase):
 
     def test_production_owned_roots_use_the_cupidc_extension(self):
         renamed_sources = KERNEL_SOURCES
-        self.assertEqual(len(renamed_sources), 152)
-        self.assertEqual(len(set(renamed_sources)), 152)
+        self.assertEqual(len(renamed_sources), 154)
+        self.assertEqual(len(set(renamed_sources)), 154)
         self.assertEqual(
             tuple(
                 source
@@ -879,7 +955,7 @@ class KernelCompileCommandTests(unittest.TestCase):
         )
         self.assertEqual(
             sum(Path(source).suffix == ".cc" for source in KERNEL_SOURCES),
-            152,
+            154,
         )
 
         for source in renamed_sources:
@@ -954,6 +1030,71 @@ class KernelCompileMakefileTests(unittest.TestCase):
                 "kernel/core/string.h",
                 "kernel/core/types.h",
             ),
+            "kernel/core/kernel.cc": (
+                "drivers/ata.h",
+                "drivers/keyboard.h",
+                "drivers/mouse.h",
+                "drivers/pci.h",
+                "drivers/pit.h",
+                "drivers/rtc.h",
+                "drivers/serial.h",
+                "drivers/speaker.h",
+                "drivers/timer.h",
+                "drivers/vga.h",
+                "kernel/core/debug.h",
+                "kernel/core/kernel.h",
+                "kernel/core/panic.h",
+                "kernel/core/ports.h",
+                "kernel/core/process.h",
+                "kernel/core/string.h",
+                "kernel/core/syscall.h",
+                "kernel/core/types.h",
+                "kernel/cpu/fpu.h",
+                "kernel/cpu/idt.h",
+                "kernel/cpu/irq.h",
+                "kernel/cpu/isr.h",
+                "kernel/cpu/pic.h",
+                "kernel/cpu/simd.h",
+                "kernel/crypto/csprng.h",
+                "kernel/fs/blockcache.h",
+                "kernel/fs/blockdev.h",
+                "kernel/fs/devfs.h",
+                "kernel/fs/fat16.h",
+                "kernel/fs/fat16_vfs.h",
+                "kernel/fs/fs.h",
+                "kernel/fs/homefs.h",
+                "kernel/fs/iso9660_vfs.h",
+                "kernel/fs/ramfs.h",
+                "kernel/fs/vfs.h",
+                "kernel/gfx/fontsys.h",
+                "kernel/gfx/gfx2d.h",
+                "kernel/gfx/graphics.h",
+                "kernel/gui/clipboard.h",
+                "kernel/gui/desktop.h",
+                "kernel/gui/gui.h",
+                "kernel/gui/gui_containers.h",
+                "kernel/gui/gui_events.h",
+                "kernel/gui/gui_menus.h",
+                "kernel/gui/gui_themes.h",
+                "kernel/gui/gui_widgets.h",
+                "kernel/gui/ui.h",
+                "kernel/lang/as.h",
+                "kernel/lang/ctool_kernel.h",
+                "kernel/lang/exec.h",
+                "kernel/lang/shell.h",
+                "kernel/mm/memory.h",
+                "kernel/network/net_if.h",
+                "kernel/smp/bkl.h",
+                "kernel/smp/ioapic.h",
+                "kernel/smp/lapic.h",
+                "kernel/smp/percpu.h",
+                "kernel/smp/smp.h",
+                "kernel/tls/tls_selftest.h",
+                "kernel/usb/usb.h",
+                "kernel/usb/usb_hc.h",
+                "kernel/util/calendar.h",
+                "toolchain/ctool.h",
+            ),
             "kernel/cpu/fpu.cc": (
                 "drivers/serial.h",
                 "kernel/core/panic.h",
@@ -966,6 +1107,15 @@ class KernelCompileMakefileTests(unittest.TestCase):
             "kernel/cpu/libm.cc": (
                 "kernel/core/types.h",
                 "kernel/cpu/libm.h",
+            ),
+            "kernel/cpu/simd.cc": (
+                "drivers/serial.h",
+                "drivers/timer.h",
+                "kernel/core/kernel.h",
+                "kernel/core/string.h",
+                "kernel/core/types.h",
+                "kernel/cpu/isr.h",
+                "kernel/cpu/simd.h",
             ),
             "kernel/gfx/glyph_raster.cc": (
                 "kernel/core/string.h",
@@ -1498,6 +1648,7 @@ class KernelCompileOperationTests(unittest.TestCase):
 
         for relative in (
             "kernel/core/panic.c",
+            "kernel/core/kernel.c",
             "kernel/crypto/ct.c",
             "kernel/audio/nuked_opl3.c",
             "kernel/core/string.c",
@@ -1509,6 +1660,7 @@ class KernelCompileOperationTests(unittest.TestCase):
             "kernel/mm/paging.c",
             "kernel/cpu/fpu.c",
             "kernel/cpu/libm.c",
+            "kernel/cpu/simd.c",
             "kernel/smp/percpu.c",
             "kernel/smp/smp.c",
         ):

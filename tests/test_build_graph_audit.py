@@ -1526,7 +1526,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             contract = generated["contracts"][
                 "c_preprocessor_line_directives"
             ]
-            self.assertEqual(contract["source_files"], 667)
+            self.assertEqual(contract["source_files"], 668)
             self.assertEqual(contract["named_line_occurrences"], 0)
             self.assertEqual(contract["direct_line_occurrences"], 0)
             self.assertEqual(contract["pp_token_line_occurrences"], 0)
@@ -1547,7 +1547,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertIn(
                 "`c_preprocessor_line_directives` | `pass` | "
                 "0 named #line directives (0 direct, 0 pp-token; 0 filename); "
-                "0 numeric markers; 667 source files; max conditional depth 0",
+                "0 numeric markers; 668 source files; max conditional depth 0",
                 summary.read_text(encoding="utf-8"),
             )
 
@@ -2437,7 +2437,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 checked["contracts"]["c_preprocessor_include_operands"],
                 contract,
             )
-            self.assertEqual(contract["source_files"], 667)
+            self.assertEqual(contract["source_files"], 668)
             self.assertEqual(contract["include_occurrences"], 2382)
             self.assertEqual(contract["direct_quoted_occurrences"], 2150)
             self.assertEqual(contract["direct_angle_occurrences"], 232)
@@ -3040,7 +3040,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         )
         self.assertEqual(len(active), 379)
         for expected in (
-            ("KERNEL_I386", "/kernel/core/kernel.c"),
+            ("KERNEL_I386", "/kernel/core/kernel.cc"),
             ("KERNEL_I386", "/kernel/audio/memio.cc"),
             ("KERNEL_I386", "/kernel/audio/mus2midi.cc"),
             ("KERNEL_I386", "/kernel/audio/nuked_opl3.cc"),
@@ -4254,7 +4254,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(
                 audit_payload["summary"],
                 {
-                    "active_sources": 698,
+                    "active_sources": 699,
                     "features": 253,
                     "transforms": 504,
                     "unreachable_sources": 42,
@@ -4265,7 +4265,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (5260, 168),
+                "c.expression.sizeof": (5283, 168),
                 "c.extension.builtin.offsetof": (12, 6),
                 "c.extension.gnu_alignof": (1, 1),
             }
@@ -4344,7 +4344,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "toolchain/elf32.cc",
                 "toolchain/x86.cc",
             }
-            self.assertEqual(len(checked_cupidc_roots), 156)
+            self.assertEqual(len(checked_cupidc_roots), 158)
             self.assertEqual(
                 {
                     path
@@ -4361,7 +4361,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     Path(path).suffix == ".cc"
                     for path in checked_cupidc_roots
                 ),
-                156,
+                158,
             )
             symbol_transform = root_transform_by_output[
                 "kernel/cpu/ksyms_data.cc"
@@ -4744,9 +4744,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     )
                 },
                 {
-                    "cupid_c_compiler": 159,
-                    "host_c_compiler": 138,
-                    "host_python": 174,
+                    "cupid_c_compiler": 161,
+                    "host_c_compiler": 136,
+                    "host_python": 176,
                 },
             )
 
@@ -4755,7 +4755,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 for cohort in audit_payload["roadmap"]["source_cohort_order"]
                 if cohort["id"] == "toolchain_sources"
             )
-            self.assertEqual(toolchain_cohort["source_count"], 69)
+            self.assertEqual(toolchain_cohort["source_count"], 70)
             user_program_cohort = next(
                 cohort
                 for cohort in audit_payload["roadmap"]["source_cohort_order"]
@@ -5076,7 +5076,6 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             root,
             *,
             cflags_extra="",
-            simd_extra="",
             opt_extra="",
             roots_extra="",
             doom_implicit_flag="-Wno-implicit-function-declaration",
@@ -5097,8 +5096,6 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     -include kernel/doom/dglibc_compat.h \\
                     -DDEFAULT_SAVEGAMEDIR=\\\"/home/doom/\\\" \\
                     -DDOOM_PORT_CUPIDOS=1
-                SIMD_CFLAGS=$(filter-out -pedantic,$(CFLAGS)) \\
-                            -msse2 -O2 {simd_extra}
                 OPT=-O2 {opt_extra}
                 """,
             )
@@ -5130,7 +5127,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 r"unmodeled preprocessor flag.*-m64",
             ),
             "disabled SIMD target": (
-                {"simd_extra": "-mno-sse2"},
+                {"cflags_extra": "-mno-sse2"},
                 r"unmodeled preprocessor flag.*-mno-sse2",
             ),
             "driver preprocessor pass-through": (
@@ -5164,10 +5161,6 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             "extra include root": (
                 {"roots_extra": "-I./private"},
                 r"include-root order differs",
-            ),
-            "SIMD-only macro": (
-                {"simd_extra": "-DLOCAL=1"},
-                r"configured macros differ.*SIMD_CFLAGS",
             ),
             "OPT-only macro": (
                 {"opt_extra": "-DLOCAL=1"},

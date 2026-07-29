@@ -289,7 +289,7 @@ The `cupidc` driver compiles one C11 input to an ELF32 object. It accepts defini
 
 The five static i386 Linux tools have a checked seed. The manifest binds their hashes, sizes, target ABI, source revision, producer lineage, 19-source plan, and five link orders. The current CupidC image is the 2,511,176-byte stage-three output from revision `8d5ef4564f753d528630c0f0a78db0f535d56b60`, with SHA-256 `4b24bf45726e4ab43fe7830f992120f11de34236daef9ef8753303ab4513934c`. It carries the complete audited Doom frontier, current GNU entity metadata, x87 and SSE forms, descriptor and segment assembly, every unchanged assembly effect in the then-named `libm.c`, exact naked IPI entries, the kernel-entry BSS clear, and the active packed SSE2 statements. Its plan uses `.cc` for all 19 C roots and has SHA-256 `59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`.
 
-The bootstrap copies the 40-input source closure into a private compiler root. Both rebuilt stages compile from that root, and the harness checks the private and live closures at each stage and behavior boundary. The checked seed, stage two, and stage three all contain the same five tool images. The two rebuilt stages also match every C and startup object and agree on all five help paths, ten successful operations, and six failure cases. Their stage directories, behavior evidence, and report are published together only after the complete gate passes. See [Toolchain Bootstrap](Toolchain-Bootstrap) for the commands and report layout. Native contract runners, hosted development commands, and 86 normal Cupid OS root objects still come from a host compiler.
+The bootstrap copies the 40-input source closure into a private compiler root. Both rebuilt stages compile from that root, and the harness checks the private and live closures at each stage and behavior boundary. The checked seed, stage two, and stage three all contain the same five tool images. The two rebuilt stages also match every C and startup object and agree on all five help paths, ten successful operations, and six failure cases. Their stage directories, behavior evidence, and report are published together only after the complete gate passes. See [Toolchain Bootstrap](Toolchain-Bootstrap) for the commands and report layout. Native contract runners, hosted development commands, and 84 normal Cupid OS root objects still come from a host compiler.
 
 Supported direct and indirect calls put ESP on a sixteen-byte boundary immediately before `call`. The emitter chooses zero, four, eight, or twelve bytes of padding from the function frame, live Linear IR stack, and outgoing target-sized argument area. Prototyped, variadic, unprototyped, nested, structure, and wide calls follow the same rule.
 
@@ -357,9 +357,13 @@ EAX immediately before CPUID. Linear IR and emission both require represented
 integer operands of equal width, so a forged same-width float or pointer
 fails instead of becoming register bits. Existing numeric ties are unchanged,
 and a second input cannot claim the same output. Read/write outputs cannot
-receive another fixed input. A complete unchanged `simd.c` probe now reaches the
-unsupported `xmm1` clobber on line 134. The normal recipe remains host-owned,
-and the source keeps its `.c` suffix.
+receive another fixed input. The checked seed also accepts the six packed SSE2
+statement shapes in `kernel/cpu/simd.cc`, including their ordered pointer and
+32-bit integer inputs and exact memory plus XMM0 through XMM7 clobbers. The
+production wrapper freezes the source and its seven-header closure. Two
+checked compiles produce the same validated 8,768-byte object with SHA-256
+`fd280c321b8eb38a90d4f0982d70b8df0364585e3da322eb2c9de722e071f8d4`.
+The normal recipe now uses this checked object.
 
 The checked seed accepts the exact volatile x87 round-down block in
 `str_floor()`. It requires one modifiable, non-atomic `double` `=m` output,
@@ -399,13 +403,12 @@ halts instead of using the discarded frame.
 
 The exact fixture has a 27-byte assembly body inside a 42-byte function. Its
 three relocations name `_bss_start`, `_kernel_end`, and `kmain`. Two runs of
-the Cupid-built compiler emit unchanged `kernel/core/kernel.c` as the same
+the Cupid-built compiler emit `kernel/core/kernel.cc` as the same
 25,920-byte object with SHA-256
 `d44d06949d48ead865d0d8c1bdd3b76a67b429e0b7a369318ec4fbe8d9f44ed7`.
 A private hybrid image with that object reaches the desktop and completes
-`/bin/ls.cc`. The checked seed carries this statement, while the normal recipe
-remains host-owned and the source keeps its `.c` suffix until production
-transfer.
+`/bin/ls.cc`. The production wrapper freezes the source and its 63-header
+closure, and the normal recipe now uses this checked object.
 
 The checked seed accepts the four exact descriptor-table and
 segment-register statements in `kernel/smp/percpu.cc`. A packed
@@ -437,15 +440,17 @@ The existing `__FILE__` diagnostic accounts for the new hash.
 
 Static-duration and variable-length compound literals, the named-aggregate backward-jump alias case, explicit bit-field initializer leaves, Boolean mutation, atomic variadic access, aggregate arguments without declared parameter types, aggregate variadic reads, wide strings, literal pooling, and block-static addresses in other block-static initializers also remain unfinished in the shared path.
 
-Across the root and supplemental builds, the checked CupidC seed owns 159 C
-transforms. Its normal cohort has 153 transforms: 152 checked-in sources plus
-the generated `kernel/cpu/ksyms_data.cc` source. All 153 sources use `.cc`.
+Across the root and supplemental builds, the checked CupidC seed owns 161 C
+transforms. Its normal cohort has 155 transforms: 154 checked-in sources plus
+the generated `kernel/cpu/ksyms_data.cc` source. All 155 sources use `.cc`.
 The five shared Toolchain roots also belong to the 19-source i386 Linux
 fixed-point plan, and native GCC or Clang rules select C with `-x c`. ADRs
 0124 and 0126 record the first two naming steps, ADR 0129 records the lexer
 transfer, ADR 0135 records the Nuked OPL3 transfer, ADR 0139 records the JPEG
-and glyph-raster transfer, and ADR 0167 records the FPU and SMP transfer. Four
-strict checked-in roots remain host-owned.
+and glyph-raster transfer, ADR 0167 records the FPU and SMP transfer, and ADR
+0176 records the libm transfer. The kernel entry and SIMD roots now use checked
+production recipes. `kernel/core/string.c` is the only strict checked-in root
+that remains host-owned.
 Three generated installation tables and the `hello.cc`, `ls.cc`, and
 `cat.cc` programs account for the other six CupidC transforms.
 
@@ -453,10 +458,10 @@ The Nuked OPL3 recipe compiles from a private snapshot of its source and
 three-header closure. The wrapper compares every live input before replacing
 the object, so a concurrent edit cannot publish a mixed result.
 
-The strict kernel frontier must compile all 152 approved checked-in sources
-twice. The full frontier passes against a 440-file snapshot with SHA-256
-`2143222ba61544b44655f882bc06e55ef0ff195033c907f5ae512801251e9cc1`.
-Both 152-object sets are byte-identical and total 3,659,840 bytes. The
+The strict kernel frontier must compile all 154 approved checked-in sources
+twice. The full frontier passes against a 443-file snapshot with SHA-256
+`c94e8f69bfb3de5792ad81ec0334b4ef88be56d6437926f32146630c26f0b50d`.
+Both 154-object sets are byte-identical; each totals 3,694,528 bytes. The
 combined graph keeps the ISO fixture as an explicit image input. Strong
 four-vCPU runtime gates pass with e1000 and RTL8139 networking through SMP,
 RDRAND, all 62 crypto checks, USB storage, audio, TrueType glyphs, a baseline
@@ -464,7 +469,7 @@ JPEG decode, the desktop, terminal, and in-OS CupidC execution. Both runs
 print `[fpu] SSE2 enabled`, `[fpu] boot smoke ok`, and
 `FPU boot smoke passed`, then finish
 `feature16_asm_fpu.cc`. The generated symbol source stores a logical
-105,574-byte blob as little-endian `unsigned int` words with two trailing
+106,241-byte blob as little-endian `unsigned int` words with three trailing
 pad bytes.
 
 Forced poisoned-host builds cover every production wrapper recipe, and each
@@ -475,8 +480,8 @@ Cupid's x86 model while preserving EBX. The combined four-vCPU GUI gate reaches
 SMP, all 62 crypto checks, e1000 traffic, the desktop, terminal, and CupidC
 execution at `0x01100000`. A separate gate loads and reaps the same
 external program twice at `0x00F00000`. ADR 0124 records the exact build and
-runtime evidence. The host C compiler owns 138
-transforms and 86 root objects. Host Python owns 174 transforms. The private
+runtime evidence. The host C compiler owns 136
+transforms and 84 root objects. Host Python owns 176 transforms. The private
 in-kernel CupidC compiler still handles embedded runtime compilation.
 
 The checked seed decides C11 inline linkage from the complete file-scope
@@ -634,7 +639,7 @@ shared x86 model. The checked seed therefore carries the complete 155/155
 active non-Doom header gate.
 
 The refreshed checked seed carries this port-I/O support. The normal build
-uses it in the 152-source checked-in CupidC cohort. Earlier frontier evidence
+uses it in the 154-source checked-in CupidC cohort. Earlier frontier evidence
 measured the ACPI and MP-table objects at 5,708 and 4,156 bytes. Their current
 `.cc` paths must pass the shared validator and re-run the four-vCPU contract
 with both supported NIC paths.

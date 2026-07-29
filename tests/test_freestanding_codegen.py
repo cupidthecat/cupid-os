@@ -156,15 +156,23 @@ class KernelFpuCodeGenerationContractTests(unittest.TestCase):
 
 class FreestandingCodeGenerationPolicyTests(unittest.TestCase):
     def test_freestanding_objects_disable_unusable_unwind_tables(self):
-        cases = [
-            (REPO_ROOT, "kernel/core/kernel.o", "kernel/core/kernel.c"),
-            (REPO_ROOT, "kernel/doom/src/am_map.o", "kernel/doom/src/am_map.c"),
-        ]
-        for make_root, target, source in cases:
-            with self.subTest(make_root=make_root.name, target=target):
-                arguments = _make_compile_command(make_root, target, source)
-                self.assertIn("-fno-asynchronous-unwind-tables", arguments)
-                self.assertIn("-fno-unwind-tables", arguments)
+        arguments = _make_compile_command(
+            REPO_ROOT,
+            "kernel/doom/src/am_map.o",
+            "kernel/doom/src/am_map.c",
+        )
+        self.assertIn("-fno-asynchronous-unwind-tables", arguments)
+        self.assertIn("-fno-unwind-tables", arguments)
+
+    def test_checked_cupidc_freestanding_objects_avoid_host_unwind_flags(self):
+        arguments = _make_compile_command(
+            REPO_ROOT,
+            "kernel/core/kernel.o",
+            "kernel/core/kernel.cc",
+        )
+        self.assertIn("tools/cupidc_kernel_compile.py", arguments)
+        self.assertNotIn("-fno-asynchronous-unwind-tables", arguments)
+        self.assertNotIn("-fno-unwind-tables", arguments)
 
     def test_user_objects_use_the_checked_cupidc_profile(self):
         arguments = _make_compile_command(

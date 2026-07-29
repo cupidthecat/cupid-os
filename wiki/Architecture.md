@@ -118,16 +118,19 @@ drivers/        ATA, keyboard, mouse, PIT, RTC, serial, speaker,
                 timer, VGA, PCI, RTL8139, E1000
 ```
 
-The normal CupidC cohort has 152 checked-in roots and one generated symbol
-root. All 153 sources use `.cc`. Five shared Toolchain roots also belong to
+The normal CupidC cohort has 154 checked-in roots and one generated symbol
+root. All 155 sources use `.cc`. Five shared Toolchain roots also belong to
 the 19-source i386 Linux fixed point, and their native GCC or Clang rules
 select C with `-x c`. ADRs 0124 and 0126 record the first two naming steps,
 ADR 0129 records the lexer transfer, ADR 0135 records the Nuked OPL3 transfer,
 ADR 0139 records the JPEG and glyph-raster transfer, ADR 0167 records the FPU
-and SMP transfer, and ADR 0176 records the libm transfer. The complete
-152-root frontier passes twice against a frozen 440-file snapshot; both object
-sets are byte-identical and total 3,659,840 bytes. The combined graph keeps the ISO runtime fixture as an
-explicit image input.
+and SMP transfer, and ADR 0176 records the libm transfer. The checked wrappers
+also own `kernel/core/kernel.cc` and `kernel/cpu/simd.cc`. Their deterministic
+objects are 25,920 and 8,768 bytes. The complete 154-root frontier passes twice
+against a frozen 443-file snapshot; both object sets are byte-identical and
+total 3,694,528 bytes. The combined graph keeps the ISO runtime fixture as an
+explicit image input. `kernel/core/string.c` is the only strict checked-in root
+that still uses the host compiler.
 Strong four-vCPU runtime checks pass with both NICs through SMP, RDRAND, all
 62 crypto checks, USB storage, audio, TrueType glyphs, a baseline JPEG decode,
 the desktop, terminal, and in-OS CupidC. They require `[fpu] SSE2 enabled`,

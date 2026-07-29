@@ -1617,7 +1617,7 @@ static int active_object_sources_are_unchanged(ctool_job_t *job) {
              "*buf4)",
              NULL) &&
          active_source_contains(
-             job, "/kernel/core/kernel.c",
+             job, "/kernel/core/kernel.cc",
              "load active CPU frequency source",
              "the active CPU frequency helper changed",
              active_cpu_frequency, active_cpu_frequency_crlf);

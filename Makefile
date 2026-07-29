@@ -283,15 +283,34 @@ $(BOOTLOADER): boot/boot.asm $(CUPIDASM)
 	$(CUPIDASM) -f bin boot/boot.asm -o $(BOOTLOADER)
 
 # Compile C source files
-kernel/core/kernel.o: kernel/core/kernel.c kernel/core/kernel.h kernel/cpu/cpu.h \
-	kernel/lang/as.h kernel/lang/ctool_kernel.h kernel/mm/memory.h \
-	kernel/usb/usb.h
-	$(CC) $(CFLAGS) kernel/core/kernel.c -o kernel/core/kernel.o
+kernel/core/kernel.o: kernel/core/kernel.cc drivers/ata.h drivers/keyboard.h \
+	drivers/mouse.h drivers/pci.h drivers/pit.h drivers/rtc.h \
+	drivers/serial.h drivers/speaker.h drivers/timer.h drivers/vga.h \
+	kernel/core/debug.h kernel/core/kernel.h kernel/core/panic.h \
+	kernel/core/ports.h kernel/core/process.h kernel/core/string.h \
+	kernel/core/syscall.h kernel/core/types.h kernel/cpu/fpu.h \
+	kernel/cpu/idt.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/cpu/pic.h \
+	kernel/cpu/simd.h kernel/crypto/csprng.h kernel/fs/blockcache.h \
+	kernel/fs/blockdev.h kernel/fs/devfs.h kernel/fs/fat16.h \
+	kernel/fs/fat16_vfs.h kernel/fs/fs.h kernel/fs/homefs.h \
+	kernel/fs/iso9660_vfs.h kernel/fs/ramfs.h kernel/fs/vfs.h \
+	kernel/gfx/fontsys.h kernel/gfx/gfx2d.h kernel/gfx/graphics.h \
+	kernel/gui/clipboard.h kernel/gui/desktop.h kernel/gui/gui.h \
+	kernel/gui/gui_containers.h kernel/gui/gui_events.h \
+	kernel/gui/gui_menus.h kernel/gui/gui_themes.h kernel/gui/gui_widgets.h \
+	kernel/gui/ui.h kernel/lang/as.h kernel/lang/ctool_kernel.h \
+	kernel/lang/exec.h kernel/lang/shell.h kernel/mm/memory.h \
+	kernel/network/net_if.h kernel/smp/bkl.h kernel/smp/ioapic.h \
+	kernel/smp/lapic.h kernel/smp/percpu.h kernel/smp/smp.h \
+	kernel/tls/tls_selftest.h kernel/usb/usb.h kernel/usb/usb_hc.h \
+	kernel/util/calendar.h toolchain/ctool.h \
+	$(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/core/kernel.cc --output kernel/core/kernel.o
 
-# simd.c uses SSE2 inline asm helpers; keep freestanding include policy
-SIMD_CFLAGS=$(filter-out -pedantic,$(CFLAGS)) -msse2 -O2
-kernel/cpu/simd.o: kernel/cpu/simd.c kernel/cpu/simd.h
-	$(CC) $(SIMD_CFLAGS) kernel/cpu/simd.c -o kernel/cpu/simd.o
+kernel/cpu/simd.o: kernel/cpu/simd.cc drivers/serial.h drivers/timer.h \
+	kernel/core/kernel.h kernel/core/string.h kernel/core/types.h \
+	kernel/cpu/isr.h kernel/cpu/simd.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/simd.cc --output kernel/cpu/simd.o
 
 kernel/cpu/idt.o: kernel/cpu/idt.cc drivers/serial.h kernel/core/kernel.h \
 	kernel/core/panic.h kernel/core/types.h kernel/cpu/idt.h kernel/cpu/isr.h \

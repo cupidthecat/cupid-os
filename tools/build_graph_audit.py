@@ -87,7 +87,7 @@ KNOWN_SOURCE_RELATIONS = {
     "bin/cupidc_parse.c": ("historical_copy_of", "kernel/lang/cupidc_parse.cc"),
     "bin/fat16.c": ("historical_copy_of", "kernel/fs/fat16.cc"),
     "bin/fat16_vfs.c": ("historical_copy_of", "kernel/fs/fat16_vfs.cc"),
-    "bin/kernel.c": ("historical_copy_of", "kernel/core/kernel.c"),
+    "bin/kernel.c": ("historical_copy_of", "kernel/core/kernel.cc"),
     "bin/terminal_app.c": ("historical_copy_of", "kernel/gui/terminal_app.cc"),
     "demos/paint.cc": ("superseded_by", "bin/paint.cc"),
     "kernel/core/scheduler.c": ("superseded_by", "kernel/core/process.cc"),
@@ -4111,13 +4111,11 @@ def _c_preprocessor_profile_for_c_transform(
                 "CFLAGS",
                 "CFLAGS_DOOM",
                 "CFLAGS_DOOM_TREE",
-                "SIMD_CFLAGS",
                 "OPT",
             },
         )
         profiles = {
             "CFLAGS": "KERNEL_I386",
-            "SIMD_CFLAGS": "KERNEL_I386",
             "CFLAGS_DOOM": "DOOM_COMPAT_I386",
             "CFLAGS_DOOM_TREE": "DOOM_TREE_I386",
         }
@@ -4915,7 +4913,7 @@ def _validate_c_preprocessor_make_profiles(root: Path, make: str) -> None:
     root_values = _read_evaluated_make_variables(
         root,
         make,
-        ("CFLAGS", "SIMD_CFLAGS", "CFLAGS_DOOM", "CFLAGS_DOOM_TREE", "OPT"),
+        ("CFLAGS", "CFLAGS_DOOM", "CFLAGS_DOOM_TREE", "OPT"),
     )
     user_wrapper = root / "tools" / "cupidc_production_compile.py"
     if user_wrapper.is_file():
@@ -4939,7 +4937,6 @@ def _validate_c_preprocessor_make_profiles(root: Path, make: str) -> None:
     )
     specifications = (
         ("KERNEL_I386", ".", "CFLAGS", root_values["CFLAGS"]),
-        ("KERNEL_I386", ".", "SIMD_CFLAGS", root_values["SIMD_CFLAGS"]),
         (
             "DOOM_COMPAT_I386",
             ".",

@@ -69,7 +69,7 @@ class MemoryLayoutContractTests(unittest.TestCase):
     def test_link_boot_kernel_and_user_build_use_the_same_boundaries(self):
         linker = (REPO_ROOT / "link.ld").read_text(encoding="utf-8")
         boot = (REPO_ROOT / "boot/boot.asm").read_text(encoding="utf-8")
-        kernel = (REPO_ROOT / "kernel/core/kernel.c").read_text(
+        kernel = (REPO_ROOT / "kernel/core/kernel.cc").read_text(
             encoding="utf-8"
         )
         cupidc = (REPO_ROOT / "kernel/lang/cupidc.h").read_text(

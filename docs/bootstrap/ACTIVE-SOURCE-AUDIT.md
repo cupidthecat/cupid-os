@@ -21,9 +21,9 @@ Generated C translation units are recorded as reachable build inputs but have no
 | Language | Files |
 | --- | ---: |
 | `assembly` | 27 |
-| `c` | 101 |
+| `c` | 99 |
 | `c_header` | 271 |
-| `cupid_c` | 300 |
+| `cupid_c` | 302 |
 
 ## Source cohorts
 
@@ -77,12 +77,12 @@ Generated C translation units are recorded as reachable build inputs but have no
 | Tool interface | Reachable transforms |
 | --- | ---: |
 | `cupid_assembler` | 4 |
-| `cupid_c_compiler` | 159 |
+| `cupid_c_compiler` | 161 |
 | `cupid_disassembler` | 1 |
 | `cupid_linker` | 5 |
 | `cupid_object` | 182 |
-| `host_c_compiler` | 138 |
-| `host_python` | 174 |
+| `host_c_compiler` | 136 |
+| `host_python` | 176 |
 | `make` | 5 |
 
 ## Feature inventory
@@ -106,7 +106,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `c.expression` | 2 | 5325 |
 | `c.extension` | 18 | 393 |
 | `c.initializer` | 1 | 646 |
-| `c.output` | 1 | 86 |
+| `c.output` | 1 | 84 |
 | `c.preprocessor` | 18 | 6696 |
 | `c.qualifier` | 2 | 14233 |
 | `c.storage` | 4 | 9137 |
@@ -116,7 +116,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `cupid_c.directive` | 1 | 1 |
 | `cupid_c.expression` | 2 | 4 |
 | `cupid_c.extension` | 1 | 9 |
-| `cupid_c.output` | 1 | 159 |
+| `cupid_c.output` | 1 | 161 |
 | `cupid_c.storage` | 2 | 129 |
 | `cupid_c.type` | 12 | 152 |
 
@@ -152,7 +152,7 @@ It is also a declared Make prerequisite.
 | 9 | `cupidc_c11_types_initializers_and_abi` - Implement freestanding C11 type, initializer, and cdecl semantics | 641 |
 | 10 | `cupidc_platform_extensions` - Implement required GNU attributes and extended inline assembly | 56 |
 | 11 | `cupidc_doom_compatibility` - Compile the complete Doom and compatibility cohort | 190 |
-| 12 | `cupid_mode_production_and_extensions` - Scale Cupid mode across embedded programs and browser fragments | 289 |
+| 12 | `cupid_mode_production_and_extensions` - Scale Cupid mode across embedded programs and browser fragments | 291 |
 
 ## Source-cohort migration order
 
@@ -188,7 +188,7 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `bin/cupidc_parse.c` | `c` | `historical_copy` | 4111 | historical_copy_of: `kernel/lang/cupidc_parse.cc` |
 | `bin/fat16.c` | `c` | `historical_copy` | 1468 | historical_copy_of: `kernel/fs/fat16.cc` |
 | `bin/fat16_vfs.c` | `c` | `historical_copy` | 423 | historical_copy_of: `kernel/fs/fat16_vfs.cc` |
-| `bin/kernel.c` | `c` | `historical_copy` | 719 | historical_copy_of: `kernel/core/kernel.c` |
+| `bin/kernel.c` | `c` | `historical_copy` | 719 | historical_copy_of: `kernel/core/kernel.cc` |
 | `bin/old_cc2.cc` | `cupid_c` | `explicitly_excluded` | 2 | listed in a Make filter-out expression |
 | `bin/old_cc2_single.cc` | `cupid_c` | `explicitly_excluded` | 6744 | listed in a Make filter-out expression |
 | `bin/terminal_app.c` | `c` | `historical_copy` | 318 | historical_copy_of: `kernel/gui/terminal_app.cc` |

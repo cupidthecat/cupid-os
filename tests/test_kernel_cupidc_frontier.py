@@ -159,6 +159,7 @@ SOURCE_DRIVEN_SOURCES = [
     "drivers/timer.cc",
     "kernel/audio/nuked_opl3.cc",
     "kernel/core/app_launch.cc",
+    "kernel/core/kernel.cc",
     "kernel/core/panic.cc",
     "kernel/core/process.cc",
     "kernel/cpu/fpu.cc",
@@ -167,6 +168,7 @@ SOURCE_DRIVEN_SOURCES = [
     "kernel/cpu/ksyms.cc",
     "kernel/cpu/libm.cc",
     "kernel/cpu/pic.cc",
+    "kernel/cpu/simd.cc",
     "kernel/fs/fat16.cc",
     "kernel/fs/iso9660.cc",
     "kernel/fs/loopdev.cc",
@@ -1868,7 +1870,7 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
             self.assertEqual(manifest["boundaries"], [])
             self.assertEqual(
                 sum(entry["size"] for entry in manifest["sources"]),
-                3659840,
+                3694528,
             )
             object_records = {
                 entry["source"]: (entry["size"], entry["object_sha256"])
@@ -2044,6 +2046,11 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                     "242aa3d0d14d70f6096fd64d3cff4a52"
                     "a148b3caa660190c1024da0b0f6b1e9f",
                 ),
+                "kernel/core/kernel.cc": (
+                    25920,
+                    "d44d06949d48ead865d0d8c1bdd3b76"
+                    "a67b429e0b7a369318ec4fbe8d9f44ed7",
+                ),
                 "kernel/core/panic.cc": (
                     10212,
                     "84daa51a65d6970ae7a7918b05fe64b7"
@@ -2083,6 +2090,11 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                     2408,
                     "c1855a19e0cd285953996344493dcefe9"
                     "16f06d89fed706219718920b4d2ea5d",
+                ),
+                "kernel/cpu/simd.cc": (
+                    8768,
+                    "fd280c321b8eb38a90d4f0982d70b8d"
+                    "f0364585e3da322eb2c9de722e071f8d4",
                 ),
                 "kernel/fs/fat16.cc": (
                     52084,
@@ -2202,11 +2214,11 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                 },
                 source_driven_object_records,
             )
-            self.assertEqual(manifest["input_snapshot"]["count"], 440)
+            self.assertEqual(manifest["input_snapshot"]["count"], 443)
             self.assertEqual(
                 manifest["input_snapshot"]["sha256"],
-                "2143222ba61544b44655f882bc06e55e"
-                "f0ff195033c907f5ae512801251e9cc1",
+                "c94e8f69bfb3de5792ad81ec0334b4ef"
+                "88be56d6437926f32146630c26f0b50d",
             )
             self.assertEqual(
                 manifest["provenance"]["compiler"],

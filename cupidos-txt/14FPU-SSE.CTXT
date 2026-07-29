@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 FPU + SSE2 + CupidC Float/Double
-Verified against source on: 2026-07-27
+Verified against source on: 2026-07-29
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -95,11 +95,13 @@ sites pass.
 
 It also accepts the CPUID leaf input sharing EAX with the
 compatible write-only output. It keeps the a and =a constraints, records
-their match, and loads EAX immediately before CPUID. Compiler head now emits
-the six remaining packed SSE2 statement shapes in unchanged simd.c. Their
-ordered inputs, memory effect, and XMM0 through XMM7 clobbers remain explicit.
-Two checked-seed builds produce the same validated 8,768-byte object. The
-normal SIMD recipe still uses the host compiler until production transfer.
+their match, and loads EAX immediately before CPUID. The checked seed emits
+the six packed SSE2 statement shapes in kernel/cpu/simd.cc. Their ordered
+inputs, memory effect, and XMM0 through XMM7 clobbers remain explicit. The
+production wrapper freezes the source and its seven-header closure. Two
+checked-seed builds produce the same validated 8,768-byte object with SHA-256
+fd280c321b8eb38a90d4f0982d70b8df0364585e3da322eb2c9de722e071f8d4.
+The normal SIMD recipe now uses this checked object.
 
 The checked seed represents the exact x87 round-down statement in
 str_floor. It takes one double memory output and one double memory input with
@@ -191,9 +193,10 @@ kernel/cpu/libm.h with the source. The guest smoke runs
 /bin/feature15_libm.cc and requires all 22 checks plus PASS feature15_libm.
 
 Direct floating truth, a floating controlling expression, increment and
-decrement, hexadecimal or subnormal constants, long double, SIMD, and atomic
-floating access remain outside this shared path. The SSE details below
-describe the private in-OS compiler.
+decrement, hexadecimal or subnormal constants, long double, general SIMD
+value semantics, and atomic floating access remain outside this shared path.
+The exact production SIMD assembly forms above have their own checked path.
+The SSE details below describe the private in-OS compiler.
 
 >h3 Arithmetic
 Binary operators `+`, `-`, `*`, `/` work on scalar float/double via SSE
