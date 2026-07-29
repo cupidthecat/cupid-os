@@ -108,9 +108,11 @@ remainder. Each unsigned-word step splits at 2^31 before the signed SSE
 truncation. The decoder-driven oracle covers positive and negative fractions
 and the active range through the largest binary64 value below 2^64. Two
 complete compiles of unchanged
-`kernel/core/string.c` produce the same 14,460-byte object with SHA-256
+`kernel/core/string.cc` produce the same 14,460-byte object with SHA-256
 `d48bb6ea18b7124fbefeaca0d5d5ee8a517db950f21ea88e30ededd6c5c2a577`.
-Production ownership does not move, and the source keeps its `.c` name.
+The production wrapper freezes the source and its two headers, validates the
+ELF32 object, and publishes it without a host compiler. ADR 0181 records the
+transfer.
 
 The checked seed represents the x87 power statements in `libm_pow_impl()` and
 `libm_powf_impl()`. The double form has five `double` memory operands. The

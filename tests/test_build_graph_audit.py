@@ -4344,7 +4344,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "toolchain/elf32.cc",
                 "toolchain/x86.cc",
             }
-            self.assertEqual(len(checked_cupidc_roots), 158)
+            self.assertEqual(len(checked_cupidc_roots), 159)
             self.assertEqual(
                 {
                     path
@@ -4361,7 +4361,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     Path(path).suffix == ".cc"
                     for path in checked_cupidc_roots
                 ),
-                158,
+                159,
             )
             symbol_transform = root_transform_by_output[
                 "kernel/cpu/ksyms_data.cc"
@@ -4744,9 +4744,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     )
                 },
                 {
-                    "cupid_c_compiler": 161,
-                    "host_c_compiler": 136,
-                    "host_python": 176,
+                    "cupid_c_compiler": 162,
+                    "host_c_compiler": 135,
+                    "host_python": 177,
                 },
             )
 

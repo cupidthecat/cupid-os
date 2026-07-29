@@ -118,19 +118,21 @@ drivers/        ATA, keyboard, mouse, PIT, RTC, serial, speaker,
                 timer, VGA, PCI, RTL8139, E1000
 ```
 
-The normal CupidC cohort has 154 checked-in roots and one generated symbol
-root. All 155 sources use `.cc`. Five shared Toolchain roots also belong to
+The normal CupidC cohort has 155 checked-in roots and one generated symbol
+root. All 156 sources use `.cc`. Five shared Toolchain roots also belong to
 the 19-source i386 Linux fixed point, and their native GCC or Clang rules
 select C with `-x c`. ADRs 0124 and 0126 record the first two naming steps,
 ADR 0129 records the lexer transfer, ADR 0135 records the Nuked OPL3 transfer,
 ADR 0139 records the JPEG and glyph-raster transfer, ADR 0167 records the FPU
-and SMP transfer, and ADR 0176 records the libm transfer. The checked wrappers
-also own `kernel/core/kernel.cc` and `kernel/cpu/simd.cc`. Their deterministic
-objects are 25,920 and 8,768 bytes. The complete 154-root frontier passes twice
-against a frozen 443-file snapshot; both object sets are byte-identical and
-total 3,694,528 bytes. The combined graph keeps the ISO runtime fixture as an
-explicit image input. `kernel/core/string.c` is the only strict checked-in root
-that still uses the host compiler.
+and SMP transfer, ADR 0176 records the libm transfer, ADR 0180 records the
+kernel entry and SIMD transfer, and ADR 0181 records the string transfer. The
+checked wrappers own `kernel/core/kernel.cc`, `kernel/cpu/simd.cc`, and
+`kernel/core/string.cc`. Their deterministic objects are 25,920, 8,768, and
+14,460 bytes. The complete 155-root frontier passes twice against a frozen
+444-file snapshot; both object sets are byte-identical and total 3,708,988
+bytes. The combined graph keeps the ISO runtime fixture as an explicit image
+input. No strict checked-in kernel or driver root still uses the host
+compiler.
 Strong four-vCPU runtime checks pass with both NICs through SMP, RDRAND, all
 62 crypto checks, USB storage, audio, TrueType glyphs, a baseline JPEG decode,
 the desktop, terminal, and in-OS CupidC. They require `[fpu] SSE2 enabled`,
@@ -168,7 +170,7 @@ core     → (nothing)
 | Memory | `memory.cc/h`, `paging.cc` | PMM, heap, paging, canaries, leak detection |
 | VFS | `vfs.cc/h` | Virtual filesystem, mount table, path resolution |
 | Panic | `panic.cc/h`, `assert.h` | Crash handler, assertions |
-| Strings | `string.c/h` | `strlen`, `strcmp`, `memcpy`, `memset` |
+| Strings | `string.cc/h` | `strlen`, `strcmp`, `memcpy`, `memset` |
 | Math | `math.cc/h` | 64-bit division, `itoa`, hex printing |
 
 ### Drivers

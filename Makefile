@@ -388,8 +388,8 @@ kernel/lang/shell.o: kernel/lang/shell.cc drivers/keyboard.h drivers/pci.h \
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/shell.cc --output kernel/lang/shell.o
 
 # Add new rule for string.o
-kernel/core/string.o: kernel/core/string.c kernel/core/string.h
-	$(CC) $(CFLAGS) $(OPT) kernel/core/string.c -o kernel/core/string.o
+kernel/core/string.o: kernel/core/string.cc kernel/core/string.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source kernel/core/string.cc --output kernel/core/string.o
 
 # Add new rule for fs.o
 kernel/fs/fs.o: kernel/fs/fs.cc kernel/core/string.h kernel/core/types.h kernel/fs/fs.h $(CUPIDC_KERNEL_COMPILE_INPUTS)

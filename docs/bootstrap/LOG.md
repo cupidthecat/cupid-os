@@ -16147,3 +16147,140 @@ capability, and host-dependency records now agree with those results.
 
 This review changed documentation only. The deterministic bootstrap audit
 check passed again after the correction.
+
+## 2026-07-29: transfer the core string root to CupidC
+
+The normal build now compiles `kernel/core/string.cc` with the checked CupidC
+seed. This removes the last host-compiled root from the strict checked-in
+kernel and driver cohort.
+
+### Production ownership
+
+`kernel/core/string.c` moved to `kernel/core/string.cc` with all 8,751 bytes
+unchanged. Its SHA-256 remains
+`d376b489757cc7835b1e249310dd3c9c26bc920b4799d61ae619613e0765d17f`.
+The source still contains the full string, number-formatting, floating-point,
+memory, and comparison implementation.
+
+The root Makefile sends the object through
+`tools/cupidc_kernel_compile.py`. Its production closure contains only the
+source, `kernel/core/string.h`, and `kernel/core/types.h`, along with the
+common checked-seed controls. The wrapper snapshots those files into a
+private compiler root, verifies the seed, compiles under the fixed
+`KERNEL_I386` profile, validates i386 `ET_REL`, checks the live inputs again,
+and publishes only a complete object.
+
+Direct compilation and a forced Make rebuild matched byte for byte. The Make
+run poisoned `CC`, `CXX`, `CPP`, `HOSTCC`, `HOSTCXX`, `ASM`, `AS`, `LD`,
+`AR`, `NM`, and `OBJCOPY`.
+
+| Source | Object bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/core/string.cc` | 14,460 | `d48bb6ea18b7124fbefeaca0d5d5ee8a517db950f21ea88e30ededd6c5c2a577` |
+
+The first direct proof failed because its ignored output directory did not
+exist. Creating that directory and repeating the same compiler request
+passed. No compiler, source, or recipe change was needed.
+
+### Contract evidence
+
+Four ownership and recipe assertions failed before the implementation. The
+completed tests require the new `.cc` path, the exact two-header closure, the
+checked wrapper command, and the expanded approved cohort. They also keep the
+retired `.c` path in the negative source set.
+
+Five focused ownership and recipe tests pass. The fake-frontier and object
+contracts pass all three cases in 60.236 seconds. The build-graph ownership
+contract passes in 176.404 seconds. The complete kernel-wrapper module passes
+all 29 tests in 107.663 seconds.
+
+The full frontier compiles all 155 checked-in roots twice with no compiler
+boundary. Both object sets match byte for byte and total 3,708,988 bytes
+each. The 444-file snapshot has SHA-256
+`bfa1e7210193b95df3c357a6c893078c86a74afa33e1cb2baa1cafc0173efab6`.
+The run completed in 1,508.732 seconds.
+
+The regenerated build graph contains 699 sources, 253 feature IDs, 504
+transforms, and 42 accounted unreachable files. Its active-source digest is
+`996ce721955e6be27cad7b166eab6bef9028614b356a0f9e10d9e13c0cabcd93`.
+The generated records are:
+
+| Record | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `docs/bootstrap/ACTIVE-SOURCE-AUDIT.md` | 15,060 | `8c73b022efa4b2a5af809fad78d68a4978d07d32a535530172916c23fab7bb72` |
+| `docs/bootstrap/audits/active-build.json` | 1,532,457 | `8ea61f8db0e40735e86184a457775f0667f4195f61347ba70d77f5b062ec2b65` |
+| `toolchain/tests/cupidc_pp_active_cases.inc` | 39,041 | `73658dee198a5b7f4a437c27fa9ef53a16c3e50ebc1292af4b95ccae9265b5ad` |
+
+The graph assigns 162 transforms to CupidC, 135 to host C, and 177 to
+Python. The host compiler still owns 83 normal root objects outside the
+strict cohort.
+
+### Image and runtime evidence
+
+The normal build completed both CupidLD passes, generated the symbol table
+through CupidDis, compiled it through checked-seed CupidC, flattened the
+kernel through CupidObj, and staged the final image.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.elf.pass1` | 8,095,832 | `5b46f8a0ab033f789fd3ad4fb82811ef3539b91c81484158388523610caaaebe` |
+| `kernel/cpu/ksyms_data.cc` | 352,269 | `3e0c8730304b4db6e5636ee6358a6e3bf2673434044604f3340224e608c81f86` |
+| `kernel/cpu/ksyms_data.o` | 106,672 | `6e6ccb31aca44246d14372a865da10648222565ebc47f9a6b28aa67dd3f3909d` |
+| `kernel/kernel.elf` | 8,202,328 | `9f9bcd4e1e4646ccbe326982feb93502f86d5e86786949aeb1cbdf2dd897998f` |
+| `kernel/kernel.bin` | 8,004,284 | `ddd4a197cd1fd3797875786ea6569735f5434103712472bec7f1855f5a66cb42` |
+| `cupidos.img` | 209,715,200 | `5769f200192d3a253925d04d58310fa62fa355541032e7943924f8c06b2ee5b9` |
+
+An independently created clean image matched `cupidos.img` byte for byte.
+The flat kernel matches the image bytes at LBA 5. CupidDis reads the same
+4,420 text-symbol rows at the same addresses from both kernel passes. The
+generated blob contains 106,259 meaningful bytes and one padding byte.
+
+The first two final RTL8139 attempts reached the `godsong` command but sent
+its follow-up keys as soon as CupidC reported execution. That marker appears
+before graphics input is ready. Waiting for the second framebuffer flip
+fixed the race. A two-second delay on every interactive command was tried
+and rejected because it changed the keyboard-substitution timing and lost a
+Shift event. The final harness applies that delay only to `godsong`, and all
+76 harness contracts pass.
+
+The final combined GUI-harness and kernel-wrapper run passes all 105 tests in
+113.583 seconds. The deterministic audit replay passes in 74.2 seconds.
+
+The isolated RTL8139 gate passed in 240.482 seconds. Its 72,978-byte serial
+log has SHA-256
+`dcc65e4666ef0b0f1d1df2829d2d7b6b7f63148c2488b4556b2ef44322cf006b`.
+The guest brought all four CPUs online, reached the 640x480 desktop, changed
+91,302 pixels, checked AC97 and PC speaker output, completed the USB replug
+sequence, and passed the complete in-OS CupidC frontier. Stderr was empty.
+
+The matching e1000 gate passed in 251.169 seconds. Its 76,483-byte serial log
+has SHA-256
+`2101c1062c704e972afd4a077703ad6dd4c50171675ea138efed56e9d8d115bb`.
+It changed 65,436 pixels and passed the same graphics, audio, storage, and
+in-OS compiler checks. Stderr was empty.
+
+### Remaining ownership
+
+Checked-seed CupidC owns 155 checked-in normal roots and the generated symbol
+translation, for 156 normal transforms. There is no host-compiled root in the
+strict checked-in kernel and driver cohort.
+
+Issue #28 can close on this evidence. Doom, vendored code, native hosted
+tools, broader GNU assembly, and the remaining normal-build roots keep their
+separate bootstrap scopes. ADR 0181 records the handoff. `TempleOS/` remains
+untouched reference material.
+
+### Post-transfer review
+
+The independent standards review found that the first runtime fixture wrote
+the graphics marker and completed command output at the same time. That
+fixture could not prove that the five `godsong` keys waited for the marker.
+The revised fixture withholds `flip frame=2`, checks that no follow-up key is
+sent while the harness waits, and releases the command tail only after input
+begins. All 76 harness tests and the final 105-test combined run pass with the
+stronger contract.
+
+The review also found two stale `string.c` names in the root README. The
+historical ADR entry now says that the file had that name at the time, and
+the active utility table names `string.cc`. The issue-spec review found no
+remaining defect.

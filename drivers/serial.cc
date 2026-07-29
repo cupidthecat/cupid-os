@@ -160,7 +160,7 @@ static void vserial_printf(const char *fmt, __builtin_va_list ap) {
         case 'p': serial_print_hex((uint32_t)__builtin_va_arg(ap, void *)); break;
         case 'c': serial_write_char((char)__builtin_va_arg(ap, int));       break;
         case 'f': {
-            /* Phase D: %f and %.Nf via shared fmt_f in kernel/core/string.c.
+            /* Phase D: %f and %.Nf via shared fmt_f in kernel/core/string.cc.
              * Max len ≈ 1 sign + 20 int digits + '.' + 17 frac digits = 39.*/
             double v = __builtin_va_arg(ap, double);
             char buf[48];
@@ -171,7 +171,7 @@ static void vserial_printf(const char *fmt, __builtin_va_list ap) {
             break;
         }
         case 'e': {
-            /* Phase D: %e / %.Ne via shared fmt_e in kernel/core/string.c.
+            /* Phase D: %e / %.Ne via shared fmt_e in kernel/core/string.cc.
              * Mantissa in [1,10) + 'e' + sign + 2 digits = small fixed tail.*/
             double v = __builtin_va_arg(ap, double);
             char buf[48];
@@ -182,7 +182,7 @@ static void vserial_printf(const char *fmt, __builtin_va_list ap) {
             break;
         }
         case 'g': {
-            /* Phase D: %g / %.Ng via shared fmt_g in kernel/core/string.c.
+            /* Phase D: %g / %.Ng via shared fmt_g in kernel/core/string.cc.
              * Picks the shorter of %f and %e for this value.*/
             double v = __builtin_va_arg(ap, double);
             char buf[48];
