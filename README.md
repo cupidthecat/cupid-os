@@ -403,8 +403,8 @@ Redeclarations merge the flag into one canonical entity, and the Linear IR
 and object boundaries validate it before use. The generated
 `kernel/cpu/ksyms_data.cc` source is part of the normal checked CupidC graph.
 Its i386-word initializer preserves the current 106,241-byte symbol blob. The
-checked wrapper produces a 105,988-byte object with SHA-256
-`6bc9457da85e1a806179ec6a9fb5666b9d32e26f58ff786600cdcff540006967`.
+checked wrapper produces a 106,656-byte object with SHA-256
+`b884e111c9141a299fdf2082224f5da56205a877366f51f5cf9820a0d11558ab`.
 
 The checked seed retains GNU `noinline` and
 `target("general-regs-only")` on canonical file-scope functions.

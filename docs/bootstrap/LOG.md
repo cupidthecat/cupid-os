@@ -16133,3 +16133,17 @@ Python.
 CupidC ownership. Issues #26 and #28 stay open for that transfer, broader GNU
 assembly, native execution, Doom, and vendored code. ADR 0180 records this
 handoff. `TempleOS/` remains untouched reference material.
+
+### Post-transfer review
+
+The independent standards review found three stale records in the living
+bootstrap documents. The current kernel-symbol source and object evidence is
+352,217 and 106,656 bytes, with the hashes in the artifact table above. The
+hosted source gates now report 261/7,199/67,130/944/348 for `cupidc_ir.cc`,
+341/8,319/70,291/1,003/669 for `cupidc_emit.cc`, and
+418/16,284/107,814/2,440/1,490 for `cupidc_frontend.cc`. The remaining host
+ownership is 84 normal root objects and 136 transforms. The living README,
+capability, and host-dependency records now agree with those results.
+
+This review changed documentation only. The deterministic bootstrap audit
+check passed again after the correction.

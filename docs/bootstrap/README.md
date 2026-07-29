@@ -105,8 +105,8 @@ The pass-one kernel feeds CupidDis symbol output into
 `kernel/cpu/ksyms_data.cc`. The generator stores the byte-exact symbol blob
 as little-endian i386 words, then records its logical length separately. This
 encoding replaced an earlier 638,361-byte source. The current source is
-349,779 bytes with SHA-256
-`bbf4782d42b002cb37818ca125bf8d4774795b17b4dde3d851be76df585b1450`.
+352,217 bytes with SHA-256
+`4d18784c13ff6cb45a7b0025030c68c9e7a9f1d94e40381f426344d190900a3b`.
 Generation uses
 private byte snapshots of the pass-one kernel and CupidDis. It rejects
 malformed rows, missing text symbols, i386 address overflow, and live input
@@ -187,8 +187,8 @@ the generated kernel-symbol declaration with `section(".ksyms")`, `used`, and
 four-byte alignment. The normal build now compiles
 `kernel/cpu/ksyms_data.cc` through the checked wrapper. The current generated
 symbol blob contains 106,241 meaningful bytes followed by three zero padding
-bytes. Its 105,988-byte ELF32 object has SHA-256
-`6bc9457da85e1a806179ec6a9fb5666b9d32e26f58ff786600cdcff540006967`.
+bytes. Its 106,656-byte ELF32 object has SHA-256
+`b884e111c9141a299fdf2082224f5da56205a877366f51f5cf9820a0d11558ab`.
 ADR 0116 records the language boundary, ADR 0122 records the seed refresh,
 and ADR 0123 records the production transfer.
 
@@ -440,7 +440,7 @@ ADR 0149 adds a separate Doom compatibility switch for old C implicit function d
 
 The block-static object proof emits eleven exact local symbols, from `.LBS0.hex` through `.LBS10.unused`. Its sections contain 21 bytes of read-only data, 56 bytes of initialized writable data, and 4 bytes of zero-filled storage. Ten text, one read-only-data, and five data relocations are all direct `R_386_32` references with addend zero. The fixture covers shadowed names, unused and unreachable objects, aggregate and string initializers, linked and unresolved addresses, runtime reads and writes, and an unused eight-byte image. A referenced eight-byte block static now lowers through the wide snapshot path. Missing, out-of-range, mistyped, runtime-initialized, and constrained-output cases still fail transactionally. The unchanged `dis_hex_fixed` helper in `toolchain/cupiddis.cc` pins the active constant character array.
 
-All twelve hermetic hosted Toolchain source gates parse their files completely. Each tuple reports definitions, statements, expressions, block bindings, and initializers: `ctool.cc` 65/1,012/5,981/133/33, `cupidasm.cc` 81/2,935/19,252/326/186, `cupidc_emit.cc` 327/8,037/68,223/980/653, `cupidc_frontend.cc` 412/16,128/106,991/2,422/1,487, `cupidc_ir.cc` 258/7,127/66,562/938/344, `cupidc_pp.cc` 143/3,932/25,287/479/286, `cupidc_type.cc` 31/737/5,487/85/43, `cupiddis.cc` 68/1,553/10,065/154/118, `cupidld.cc` 66/2,064/13,347/267/146, `cupidobj.cc` 14/329/2,201/47/26, `elf32.cc` 37/1,219/9,457/143/70, and `x86.cc` 60/1,756/11,850/180/16,652. The generated audit records the current lexical totals and source graph. The hosted source and object gates change no production artifact, runtime path, ownership, or host dependency.
+All twelve hermetic hosted Toolchain source gates parse their files completely. Each tuple reports definitions, statements, expressions, block bindings, and initializers: `ctool.cc` 65/1,012/5,981/133/33, `cupidasm.cc` 81/2,935/19,252/326/186, `cupidc_emit.cc` 341/8,319/70,291/1,003/669, `cupidc_frontend.cc` 418/16,284/107,814/2,440/1,490, `cupidc_ir.cc` 261/7,199/67,130/944/348, `cupidc_pp.cc` 143/3,932/25,287/479/286, `cupidc_type.cc` 31/737/5,487/85/43, `cupiddis.cc` 68/1,553/10,065/154/118, `cupidld.cc` 66/2,064/13,347/267/146, `cupidobj.cc` 14/329/2,201/47/26, `elf32.cc` 37/1,219/9,457/143/70, and `x86.cc` 60/1,756/11,850/180/16,652. The generated audit records the current lexical totals and source graph. The hosted source and object gates change no production artifact, runtime path, ownership, or host dependency.
 
 The shared frontend treats C11 `<:` and `:>` spellings as canonical brackets across array declarators, subscripts, and the explicit unsupported `__builtin_offsetof` array-designator seam while leaving the immutable preprocessing tape's original token spelling untouched. Strict-C contracts cover mixed and full digraph forms plus malformed and non-pointer subscripts. Compound/update diagnostics distinguish valid but deferred floating `*=`, `/=`, `+=`, `-=`, and updates from invalid floating remainder, shift, bitwise, or aggregate compound/update operands. Compatible aggregate plain assignment is represented without weakening those constraints.
 

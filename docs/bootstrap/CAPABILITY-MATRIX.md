@@ -37,7 +37,7 @@ graph passes the two-link symbol and memory checks, clean normal and
 partitioned image builds, and strong four-vCPU runtime gates for both NICs.
 Those gates cover the TrueType glyph path and an exact baseline JPEG decode.
 The generated `kernel/cpu/ksyms_data.cc` wrapper compiles 106,241 logical bytes packed as
-little-endian `unsigned int` words with two zero bytes of tail padding.
+little-endian `unsigned int` words with three zero bytes of tail padding.
 Ownership is 161 transforms for CupidC and 136 for the host C compiler.
 Host Python owns 176 transforms, including one external-program ABI check
 that produces no OS code and two ISO fixture operations. Make owns five
@@ -224,7 +224,7 @@ Empty identifier-list definitions and unprototyped calls now cross the same host
 
 The object operation now consumes static roots owned by file definitions and block bindings. Block-static declarations emit no runtime initializer instructions. Their `LOCAL_ADDRESS` identities map to local ELF symbols and `R_386_32` relocations instead of automatic frame slots. File objects retain first placement, block statics follow in absolute binding order, and functions come afterward.
 
-The generated active-source audit records the current lexical totals and build graph. All twelve hermetic hosted Toolchain implementation gates parse completely. Each five-number tuple reports definitions, statements, expressions, block bindings, and initializers. The largest compiler units are `cupidc_pp.cc` at 143/3,932/25,287/479/286, `cupidc_ir.cc` at 258/7,127/66,562/938/344, `cupidc_emit.cc` at 327/8,037/68,223/980/653, and `cupidc_frontend.cc` at 412/16,128/106,991/2,422/1,487. The same gate includes `cupidasm.cc`, `elf32.cc`, and `x86.cc` without source changes.
+The generated active-source audit records the current lexical totals and build graph. All twelve hermetic hosted Toolchain implementation gates parse completely. Each five-number tuple reports definitions, statements, expressions, block bindings, and initializers. The largest compiler units are `cupidc_pp.cc` at 143/3,932/25,287/479/286, `cupidc_ir.cc` at 261/7,199/67,130/944/348, `cupidc_emit.cc` at 341/8,319/70,291/1,003/669, and `cupidc_frontend.cc` at 418/16,284/107,814/2,440/1,490. The same gate includes `cupidasm.cc`, `elf32.cc`, and `x86.cc` without source changes.
 
 The deterministic object frontier contains those twelve implementation files plus `kernel/lang/as_elf.cc`. Hosted CupidC copies nested union storage inside supported structures, loads scalar members from structure rvalues, accepts a direct four-byte literal zero as a function-pointer null, converts object pointers to and from signed or unsigned eight-byte integers, and retains parenthesized static string addresses. In the detailed rows below, broad references to unsupported union values mean a union used directly as a value; nested union bytes inside a structure are represented. Checked four-byte i386 Linux profiles cover every C source in the static tool closure. Repository startup and runtime code link complete CupidC-built CupidC, CupidASM, CupidDis, CupidLD, and CupidObj commands. The checked seed carries those five images and their exact plan into a clean staged build. Linux and WSL behavior checks cover both compared stages. Broader normal-build C ownership remains open beyond the 155-transform normal cohort.
 
