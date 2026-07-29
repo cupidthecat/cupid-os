@@ -15028,3 +15028,99 @@ ownership, ABI, image layout, runtime path, or host-dependency count moves in
 this increment. ADR 0170 records the boundary. Issue #25 remains open for the
 rest of the freestanding C11 and i386 cdecl work. `TempleOS/` remains
 untouched reference material.
+
+## 2026-07-28: emit the libm remainder wrappers
+
+Compiler head now represents the exact `fmod` and `fmodf` file-scope
+definitions in unchanged `kernel/cpu/libm.c`.
+
+Both functions load `y` and then `x`, leaving the dividend in ST(0) and the
+divisor in ST(1). The emitter marks `FPREM` as the loop target, stores the
+x87 status word in AX, tests C2 with `0x0400`, and asks Cupid's shared x86
+model for a short `JNE`. The checked signed-byte patch is `-10`, returning to
+function offset 8. Once C2 clears, `FSTP ST(1)` removes the divisor. The
+remaining value moves through a width-specific stack slot into XMM0 before
+ESP is restored.
+
+Each wrapper contains 35 text bytes. `fmod` starts at fixture offset 632 and
+`fmodf` at offset 667, so the combined opening math fixture grows from 632
+to 702 text bytes. Neither function needs a relocation. Both reach x87 depth
+two and return with ESP and x87 depth balanced.
+
+### Test-first findings
+
+The expanded object contract and unchanged-source probe were run before the
+emitter changed. Both failed at the first `fmod` template on line 465. The
+green run checks the complete two-function object and moves the source
+frontier to the aligned constant block on line 544.
+
+The object decoder checks all twelve instructions in each function,
+including both argument displacements, scalar widths, `FPREM`, `FNSTSW AX`,
+the C2 mask, rel8 branch target, `FSTP ST(1)`, XMM0 transport, and stack
+adjustments. Its short-branch check follows the shared decoder contract:
+both `width_bits` and `encoding_bits` are eight for rel8.
+
+Negative cases replace `0x0400` with `0x0200` and give the double `fmod`
+symbol the float prototype. Both fail without changing the parsed unit or
+publishing partial output. Repeat valid emission is byte-identical, and the
+same job recovers after each failure.
+
+The first complete build-graph run passed 61 of 62 tests. The remaining
+drift gate found eleven added `sizeof` expressions in the expanded C
+contract. Before replay, the checked count moved from 5,159 to 5,170 while
+its file count stayed at 168. The remote conversion increment had
+independently moved its count to 5,163; the combined inventory is 5,174. The
+focused drift selector and complete module passed before replay.
+
+### Frozen compiler records
+
+| Compiler source | Definitions | Statements | Expressions | Block bindings | Initializers |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `toolchain/cupidc_frontend.cc` | 407 | 16,052 | 106,289 | 2,407 | 1,479 |
+| `toolchain/cupidc_ir.cc` | 254 | 7,086 | 65,901 | 932 | 342 |
+| `toolchain/cupidc_emit.cc` | 307 | 7,593 | 64,407 | 921 | 537 |
+
+The self-host frontier objects are:
+
+| Compiler source | Functions | Text bytes | Object bytes | Text fingerprint |
+| --- | ---: | ---: | ---: | --- |
+| `toolchain/cupidc_frontend.cc` | 407 | 822,280 | 976,768 | `9B9037F6` |
+| `toolchain/cupidc_ir.cc` | 254 | 469,582 | 505,000 | `360B9EEC` |
+| `toolchain/cupidc_emit.cc` | 307 | 477,755 | 527,264 | `28484716` |
+
+### Evidence
+
+| Gate | Result |
+| --- | --- |
+| Initial red fmod object and source probes | 2 expected failures in 21.231 seconds |
+| Green fmod object and source probes | 2 tests passed in 23.467 seconds |
+| Neighboring x87 and file-scope object group | 9 tests passed in 22.798 seconds |
+| Complete frontend and Linear IR modules | 171 tests passed in 32.322 seconds |
+| Self-host frontier object lock | 1 test passed in 34.158 seconds |
+| Strict hosted Toolchain build | All native contracts passed in 21.1 seconds; six static i386 artifacts linked |
+| Cupid-built compiler object and five-tool fixed point | 2 tests passed in 995.321 seconds |
+| Bootstrap audit regeneration | Passed in 78.6 seconds |
+| Bootstrap audit drift check | Passed in 71.1 seconds |
+| Focused manifest-drift selector | 1 test passed in 177.445 seconds |
+| Complete build-graph audit module | 62 tests passed in 587.935 seconds |
+| Combined frontend, IR, fmod object, and source replay | 173 tests passed in 53.490 seconds |
+| Combined self-host frontier object lock | 1 test passed in 27.691 seconds |
+| Final combined strict Toolchain build | All native contracts passed in 31.8 seconds; six static i386 artifacts linked |
+| Final combined compiler object and five-tool fixed point | 2 tests passed in 890.182 seconds |
+| Final combined bootstrap audit regeneration | Passed in 70.2 seconds |
+| Final combined bootstrap audit drift check | Passed in 60.1 seconds |
+| Final combined build-graph audit module | 62 tests passed in 570.420 seconds |
+
+The regenerated graph contains 698 active sources, 253 feature IDs, 504
+transforms, and 42 accounted unreachable files. Its active-source digest is
+`5786b7a161f7f24a341e5794151b50b6b95b560bbbd3b65abe1aaa218f0bfcef`.
+The 1,526,996-byte JSON has SHA-256
+`5de096f73e4d9733b9b6a2e5889a3fd949023a0f42bea25e89f6f2fbec59df26`.
+The 15,060-byte Markdown report has SHA-256
+`ea882a5e450f44124cd639de531f6da53bad6701f5df06de8ed3772b169a46d1`.
+
+The checked seed has not moved. `kernel/cpu/libm.c` remains host-owned and
+keeps its `.c` suffix. No production object, ABI, image, runtime path,
+ownership count, or host-dependency count changes in this increment. Issue
+#26 remains open for the constant block and later GNU assembly forms.
+`TempleOS/` remains untouched reference material.

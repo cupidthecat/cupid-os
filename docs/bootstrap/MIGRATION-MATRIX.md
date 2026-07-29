@@ -39,13 +39,16 @@ one `R_386_32` relocation to the matching local label. Compiler head also
 emits the next eight rounding wrappers. The four double and float pairs save
 and restore the x87 control word around `FRNDINT`, select down, up,
 nearest-even, and toward-zero mode, and add 384 relocation-free text bytes.
-The complete source now proceeds to `fmod` at line 465. That wrapper and
+Compiler head also emits `fmod` and `fmodf`. Both 35-byte functions repeat
+`FPREM` while C2 is set, use a checked short backward branch, and leave ESP
+and x87 depth balanced without a relocation. The complete source now
+proceeds to the aligned constant block at line 544. That data block and
 broader arbitrary assembly remain open, so this does not transfer a recipe.
 `libm.c` remains host-owned with its `.c` name, and the host C transform
 count is unchanged. ADR 0155 records the initial file-scope boundary, ADR
 0159 records named operand normalization, ADRs 0161 through 0165 record the
-five represented statements, ADR 0166 records the `fabs` effects, and ADR
-0169 records the rounding family.
+five represented statements, ADR 0166 records the `fabs` effects, ADR 0169
+records the rounding family, and ADR 0171 records the remainder family.
 
 Checked-seed CupidC represents the two exact volatile FXSAVE statements in
 `kernel/core/process.cc`. One independent four-byte object or

@@ -524,12 +524,19 @@ nearest-even, and toward-zero modes. Every double and float wrapper saves
 the caller's control word, runs `FRNDINT` under its selected mode, restores
 the original word, and returns through XMM0. The family adds 384 exact text
 bytes with no relocations. Each wrapper reaches x87 depth one and balances
-ESP and x87 depth. The full source now proceeds to `fmod` at line 465.
+ESP and x87 depth.
+
+Compiler head also emits the exact `fmod` and `fmodf` definitions. Each
+loads `y` below `x`, repeats `FPREM` while status-word C2 remains set, and
+uses the source's short backward branch. It then discards ST(1), returns the
+remainder through XMM0 at the source width, and restores ESP and x87 depth.
+Both wrappers contain 35 text bytes and no relocation. The full source now
+proceeds to the aligned read-only constant block at line 544.
 
 General GAS syntax and other file-scope templates remain unsupported. The
 checked seed predates named operands, these five statement blocks, and the
-three `fabs` effects. It also predates the rounding family. The normal
-`libm.c` recipe still uses the host compiler.
+three `fabs` effects. It also predates the rounding and remainder families.
+The normal `libm.c` recipe still uses the host compiler.
 
 The same checked seed accepts a modifiable four-byte object or `void` pointer
 as the single `=r` output of `mov %%gs:0, %0`. It retains the pointer type,

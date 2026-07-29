@@ -91,11 +91,14 @@ relocation each. Compiler head also emits the following `floor`, `floorf`,
 `ceil`, `ceilf`, `round`, `roundf`, `trunc`, and `truncf` wrappers. The
 family saves and restores the x87 control word around `FRNDINT`, selects all
 four source rounding modes, occupies 384 text bytes, and has no relocations.
-The complete unchanged source now reaches `fmod` at line 465. The checked
-seed predates named operands, all five statement forms, the three `fabs`
-effects, and the rounding family, so GCC or Clang continues to own the
-normal `libm.c` transform. No dependency or production ownership count
-changes.
+Compiler head also emits the following `fmod` and `fmodf` definitions. Each
+35-byte function loops on `FPREM` until status-word C2 clears, discards the
+divisor, returns the result through XMM0, and has no relocation. The complete
+unchanged source now reaches the aligned read-only constant block at line
+544. The checked seed predates named operands, all five statement forms, the
+three `fabs` effects, the rounding family, and the remainder family, so GCC
+or Clang continues to own the normal `libm.c` transform. No dependency or
+production ownership count changes.
 
 The USB lifetime work retires no additional compiler transform, but it
 supplies the runtime contract for EHCI and UHCI ownership. Reconciliation

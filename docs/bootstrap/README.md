@@ -628,17 +628,26 @@ field, selects the source mode, applies `FRNDINT`, and restores the original
 word. The four pairs select down, up, nearest-even, and toward-zero mode. The
 nearest-even pair emits no OR instruction. The family occupies 384 exact
 text bytes, uses no relocations, reaches x87 depth one, and balances ESP and
-x87 depth. The full source now proceeds to `fmod` at line 465.
+x87 depth.
+
+Compiler head also represents the exact `fmod` and `fmodf` definitions.
+Each loads `y` below `x`, repeats `FPREM` while x87 status-word C2 is set,
+and uses a checked short `JNE` with displacement `-10`. After convergence it
+discards ST(1), returns the remainder through XMM0 at the source width, and
+restores ESP and x87 depth. Both functions contain 35 exact text bytes and
+no relocation. The full source now proceeds to the aligned read-only
+constant block at line 544.
 
 The checked seed carries the file-scope wrappers but predates named operands
 and these five statement blocks. It also predates the three `fabs` effects.
-It predates the rounding family too. The `libm.c` name, production recipe,
-and host-dependency inventory remain unchanged. ADR 0159 records the naming
-boundary, ADR 0161 records the
+It predates the rounding and remainder families too. The `libm.c` name,
+production recipe, and host-dependency inventory remain unchanged. ADR 0159
+records the naming boundary, ADR 0161 records the
 double-power boundary, ADR 0162 records the mixed-width float-power
 boundary, and ADR 0163 records the square-root boundary. ADR 0164 records
 the `atan2` boundary, ADR 0165 records the exponent boundary, and ADR 0166
-records the `fabs` boundary. ADR 0169 records the rounding boundary.
+records the `fabs` boundary. ADR 0169 records the rounding boundary, and ADR
+0171 records the remainder boundary.
 
 ADR 0156 represents the naked interrupt entries in unchanged
 `kernel/smp/smp.c`. A naked function must have type `void (void)` and contain

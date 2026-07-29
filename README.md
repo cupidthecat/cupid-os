@@ -476,11 +476,16 @@ Compiler head also emits the next eight rounding wrappers. It saves and
 restores the x87 control word around `FRNDINT`, selecting down, up,
 nearest-even, or toward-zero mode for each double and float pair. The family
 adds 384 exact text bytes, has no relocations, reaches x87 depth one, and
-balances ESP and x87 depth. The complete source now reaches the `fmod`
-wrapper at line 465. The checked seed carries the opening wrappers but
+balances ESP and x87 depth. It also emits the following `fmod` and `fmodf`
+wrappers. Each repeats `FPREM` while status-word C2 is set, using an exact
+short backward branch, then discards the divisor and returns the remainder
+through XMM0. Both functions contain 35 text bytes, reach x87 depth two,
+balance ESP and x87 depth, and need no relocation. The complete source now
+reaches the aligned constant block at line 544. The checked seed carries the
+opening wrappers but
 predates named operands, these five statement blocks, the three `fabs`
-effects, and the rounding family, so `libm.c` stays on its host-owned recipe
-and keeps its `.c` name.
+effects, the rounding family, and the remainder family, so `libm.c` stays on
+its host-owned recipe and keeps its `.c` name.
 
 The checked seed emits the exact volatile
 `call 1f\n1: popl %0` state read used by the stack-trace helpers in
@@ -735,6 +740,8 @@ and the generated kernel symbol translation described above.
 [ADR 0169](docs/adr/0169-represent-libm-rounding-file-scope-assembly.md) records the exact eight-wrapper libm rounding family and the following `fmod` frontier.
 
 [ADR 0170](docs/adr/0170-represent-double-to-unsigned-wide-conversion.md) records the explicit `double` to `unsigned long long` conversion and the resulting complete compiler-head `string.c` object.
+
+[ADR 0171](docs/adr/0171-represent-libm-fmod-file-scope-assembly.md) records the exact `fmod` and `fmodf` loops and the following read-only constant frontier.
 
 [ADR 0143](docs/adr/0143-share-ordinary-padding-nops.md) records the shared ordinary compiler padding family and its measured disassembly improvement.
 

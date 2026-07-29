@@ -151,9 +151,15 @@ save the incoming x87 control word, select the source rounding mode, apply
 `FRNDINT`, and restore the original word. The four pairs select down, up,
 nearest-even, and toward-zero mode. Together they occupy 384 text bytes with
 no relocations, never exceed x87 depth one, and balance ESP and x87 depth.
-The unchanged file now stops at `fmod` on line 465. The checked seed does not
-yet carry these compiler-head capabilities, so `kernel/cpu/libm.c` remains
-host-owned.
+
+The following `fmod` and `fmodf` wrappers are represented at compiler head
+as well. Each repeats `FPREM` while x87 status-word C2 is set, uses a short
+backward branch to the reduction instruction, discards the divisor, and
+returns the remainder through XMM0. Each body contains 35 text bytes, reaches
+x87 depth two, balances ESP and x87 depth, and has no relocation. The
+unchanged file now stops at the aligned constant block on line 544. The
+checked seed does not yet carry these compiler-head capabilities, so
+`kernel/cpu/libm.c` remains host-owned.
 
 The normal build now compiles `kernel/gfx/jpeg.cc` and
 `kernel/gfx/glyph_raster.cc` with that seed. JPEG exercises exact static

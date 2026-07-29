@@ -466,7 +466,30 @@ the float and double widths, the four control modes, balanced ESP, and
 balanced x87 depth. Negative cases alter the control mask and the `floor`
 prototype, then check output rollback and same-job recovery.
 
-The unchanged source now reaches `fmod` at line 465. Named matching
-constraints, operand modifiers, the `fmod` loop, and general XMM or x87
-constraints remain separate work. The checked seed and normal host-owned
-`libm.c` recipe do not change in this increment.
+At this boundary the unchanged source reaches `fmod` at line 465. Named
+matching constraints, operand modifiers, and general XMM or x87 constraints
+remain separate work. The checked seed and normal host-owned `libm.c` recipe
+do not change.
+
+### libm file-scope remainder wrappers
+
+Compiler head accepts the exact `fmod` and `fmodf` definitions. Each wrapper
+loads `y` and then `x`, leaving the dividend in ST(0) and divisor in ST(1).
+It repeats `FPREM` while C2 in the x87 status word remains set. `FNSTSW AX`
+and `TEST AX, 0x0400` feed a rel8 `JNE` with displacement `-10` back to the
+reduction instruction.
+
+After convergence, `FSTP ST(1)` removes the divisor without losing the
+remainder. The wrapper stores the result at the source width, moves it to
+XMM0, restores ESP, and returns. Both functions contain 35 text bytes. The
+pair adds 70 bytes to the fixture, for a total of 702, and has no
+relocations. Each reaches x87 depth two and returns to its incoming depth.
+
+The decoder checks every instruction and operand, including the C2 mask and
+short branch target. Negative cases alter the mask and give `fmod` the float
+prototype, then check output rollback and same-job recovery.
+
+The unchanged source now reaches the aligned `libm_log2e_const` and
+`libm_ln2_const` block at line 544. General data templates and later
+file-scope assembly remain separate work. The checked seed and normal
+host-owned `libm.c` recipe do not change in this increment.

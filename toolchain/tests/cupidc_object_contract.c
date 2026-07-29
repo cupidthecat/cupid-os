@@ -27995,20 +27995,20 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.cc",           "/toolchain/x86.cc",
       "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
-      65u, 68u, 66u, 14u, 31u, 143u, 254u, 303u, 407u, 81u, 37u, 60u,
+      65u, 68u, 66u, 14u, 31u, 143u, 254u, 307u, 407u, 81u, 37u, 60u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 76860u, 85252u, 16872u, 42212u,
-      190304u, 469582u, 474541u, 822280u, 139646u, 70368u, 80478u,
+      190304u, 469582u, 477755u, 822280u, 139646u, 70368u, 80478u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 89320u, 99772u, 20180u, 49484u,
-      226668u, 505000u, 523080u, 976768u, 157828u, 79348u, 134656u,
+      226668u, 505000u, 527264u, 976768u, 157828u, 79348u, 134656u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x5fbbfaf2u, 0x4ca44a27u,
       0x7238e153u, 0x999f97b7u, 0xb49d8eb9u,
-      0x360b9eecu, 0x43a6ceacu, 0x9b9037f6u, 0x239f52c7u,
+      0x360b9eecu, 0x28484716u, 0x9b9037f6u, 0x239f52c7u,
       0x34558a49u, 0x7c198364u, 0x8774de7du};
   ctool_u32 index;
   int all_matched = 1;
@@ -40267,6 +40267,170 @@ static int validate_file_scope_rounding_wrapper_decode(
   return cursor == expected_size ? 1 : 0;
 }
 
+static int validate_file_scope_fmod_wrapper_decode(
+    ctool_job_t *job, const ctool_elf32_section_t *text,
+    const ctool_elf32_symbol_t *symbol, ctool_bool single_precision) {
+  static const ctool_u8 double_bytes[] = {
+      0xddu, 0x44u, 0x24u, 0x0cu, 0xddu, 0x44u, 0x24u, 0x04u,
+      0xd9u, 0xf8u, 0xdfu, 0xe0u, 0x66u, 0xa9u, 0x00u, 0x04u,
+      0x75u, 0xf6u, 0xddu, 0xd9u, 0x83u, 0xecu, 0x08u,
+      0xddu, 0x1cu, 0x24u, 0xf2u, 0x0fu, 0x10u, 0x04u, 0x24u,
+      0x83u, 0xc4u, 0x08u, 0xc3u};
+  static const ctool_u8 single_bytes[] = {
+      0xd9u, 0x44u, 0x24u, 0x08u, 0xd9u, 0x44u, 0x24u, 0x04u,
+      0xd9u, 0xf8u, 0xdfu, 0xe0u, 0x66u, 0xa9u, 0x00u, 0x04u,
+      0x75u, 0xf6u, 0xddu, 0xd9u, 0x83u, 0xecu, 0x04u,
+      0xd9u, 0x1cu, 0x24u, 0xf3u, 0x0fu, 0x10u, 0x04u, 0x24u,
+      0x83u, 0xc4u, 0x04u, 0xc3u};
+  static const ctool_u32 instruction_sizes[] = {
+      4u, 4u, 2u, 2u, 4u, 2u, 2u, 3u, 3u, 5u, 3u, 1u};
+  static const ctool_x86_mnemonic_t mnemonics[] = {
+      CTOOL_X86_MN_FLD, CTOOL_X86_MN_FLD, CTOOL_X86_MN_FPREM,
+      CTOOL_X86_MN_FNSTSW, CTOOL_X86_MN_TEST, CTOOL_X86_MN_JNE,
+      CTOOL_X86_MN_FSTP, CTOOL_X86_MN_SUB, CTOOL_X86_MN_FSTP,
+      CTOOL_X86_MN_MOVSD, CTOOL_X86_MN_ADD, CTOOL_X86_MN_RET};
+  const ctool_u8 *expected =
+      single_precision == CTOOL_TRUE ? single_bytes : double_bytes;
+  ctool_u16 scalar_width =
+      single_precision == CTOOL_TRUE ? 32u : 64u;
+  ctool_i32 divisor_displacement =
+      single_precision == CTOOL_TRUE ? 8 : 12;
+  ctool_x86_mnemonic_t move =
+      single_precision == CTOOL_TRUE ? CTOOL_X86_MN_MOVSS
+                                     : CTOOL_X86_MN_MOVSD;
+  ctool_u32 result_bytes =
+      single_precision == CTOOL_TRUE ? 4u : 8u;
+  ctool_u32 cursor = 0u;
+  ctool_u32 index;
+  if (job == NULL || text == NULL || symbol == NULL ||
+      symbol->value > text->contents.size ||
+      symbol->size > text->contents.size - symbol->value ||
+      symbol->size != (ctool_u32)sizeof(double_bytes) ||
+      sizeof(double_bytes) != sizeof(single_bytes) ||
+      memcmp(text->contents.data + symbol->value, expected,
+             sizeof(double_bytes)) != 0) {
+    return 0;
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(instruction_sizes) /
+                          sizeof(instruction_sizes[0]));
+       index++) {
+    ctool_x86_decoded_t decoded;
+    const ctool_x86_instruction_t *instruction;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + symbol->value + cursor,
+        symbol->size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(
+        job, CTOOL_X86_MODE_32, remaining, 0u, &decoded);
+    if (status != CTOOL_OK ||
+        decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed != instruction_sizes[index] ||
+        decoded.encoding.size != instruction_sizes[index] ||
+        memcmp(decoded.encoding.bytes, expected + cursor,
+               (size_t)instruction_sizes[index]) != 0) {
+      return 0;
+    }
+    instruction = &decoded.instruction;
+    if ((index != 9u &&
+         instruction->mnemonic != mnemonics[index]) ||
+        (index == 9u && instruction->mnemonic != move)) {
+      return 0;
+    }
+    if (index == 0u || index == 1u) {
+      ctool_i32 displacement =
+          index == 0u ? divisor_displacement : 4;
+      if (instruction->operand_count != 1u ||
+          !validate_x87_round_down_memory_operand(
+              &instruction->operands[0], scalar_width,
+              NARROW_ORACLE_ESP, displacement)) {
+        return 0;
+      }
+    } else if (index == 2u || index == 11u) {
+      if (instruction->operand_count != 0u) {
+        return 0;
+      }
+    } else if (index == 3u) {
+      if (instruction->operand_count != 1u ||
+          !validate_x87_round_down_register_operand(
+              &instruction->operands[0],
+              CTOOL_X86_REG_GPR16, NARROW_ORACLE_EAX)) {
+        return 0;
+      }
+    } else if (index == 4u) {
+      if (instruction->operand_bits != 16u ||
+          instruction->operand_count != 2u ||
+          !validate_x87_round_down_register_operand(
+              &instruction->operands[0],
+              CTOOL_X86_REG_GPR16, NARROW_ORACLE_EAX) ||
+          !validate_x87_round_down_immediate_operand(
+              &instruction->operands[1], 16u, 0x0400u)) {
+        return 0;
+      }
+    } else if (index == 5u) {
+      const ctool_x86_operand_t *operand =
+          &instruction->operands[0];
+      int8_t displacement;
+      if (instruction->operand_count != 1u ||
+          operand->kind != CTOOL_X86_OPERAND_RELATIVE ||
+          operand->width_bits != 8u ||
+          operand->encoding_bits != 8u ||
+          operand->as.value.kind != CTOOL_X86_VALUE_CONSTANT ||
+          decoded.encoding.field_count != 1u ||
+          decoded.encoding.fields[0].kind !=
+              CTOOL_X86_FIELD_RELATIVE ||
+          decoded.encoding.fields[0].byte_width != 1u) {
+        return 0;
+      }
+      displacement = (int8_t)(ctool_u8)operand->as.value.bits;
+      if (displacement != -10 ||
+          decoded.encoding.fields[0].encoded_addend != -10 ||
+          (ctool_i32)cursor + (ctool_i32)decoded.consumed +
+                  (ctool_i32)displacement !=
+              8) {
+        return 0;
+      }
+    } else if (index == 6u) {
+      if (instruction->operand_count != 1u ||
+          !validate_x87_round_down_register_operand(
+              &instruction->operands[0],
+              CTOOL_X86_REG_X87, 1u)) {
+        return 0;
+      }
+    } else if (index == 7u || index == 10u) {
+      if (instruction->operand_bits != 32u ||
+          instruction->operand_count != 2u ||
+          !validate_x87_round_down_register_operand(
+              &instruction->operands[0],
+              CTOOL_X86_REG_GPR32, NARROW_ORACLE_ESP) ||
+          !file_scope_rounding_imm8_matches(
+              &instruction->operands[1], result_bytes)) {
+        return 0;
+      }
+    } else if (index == 8u) {
+      if (instruction->operand_count != 1u ||
+          !validate_x87_round_down_memory_operand(
+              &instruction->operands[0], scalar_width,
+              NARROW_ORACLE_ESP, 0)) {
+        return 0;
+      }
+    } else if (index == 9u) {
+      if (instruction->operand_count != 2u ||
+          !validate_x87_round_down_register_operand(
+              &instruction->operands[0],
+              CTOOL_X86_REG_XMM, 0u) ||
+          !validate_x87_round_down_memory_operand(
+              &instruction->operands[1], scalar_width,
+              NARROW_ORACLE_ESP, 0)) {
+        return 0;
+      }
+    }
+    cursor += decoded.consumed;
+  }
+  return cursor == symbol->size ? 1 : 0;
+}
+
 static int validate_file_scope_math_object(
     ctool_job_t *job, const ctool_elf32_object_t *object) {
   static const ctool_u8 expected_text[] = {
@@ -40310,17 +40474,17 @@ static int validate_file_scope_math_object(
       "sqrt", "sqrtf", "sin", "sinf", "cos", "cosf",
       "tan", "tanf", "atan", "atanf", "atan2", "atan2f",
       "floor", "floorf", "ceil", "ceilf",
-      "round", "roundf", "trunc", "truncf"};
+      "round", "roundf", "trunc", "truncf", "fmod", "fmodf"};
   static const ctool_u32 offsets[] = {
       0u, 11u, 22u, 43u, 64u, 85u,
       106u, 129u, 152u, 175u, 198u, 223u,
       248u, 296u, 346u, 394u,
-      444u, 488u, 534u, 582u};
+      444u, 488u, 534u, 582u, 632u, 667u};
   static const ctool_u32 sizes[] = {
       11u, 11u, 21u, 21u, 21u, 21u,
       23u, 23u, 23u, 23u, 25u, 25u,
       48u, 50u, 48u, 50u,
-      44u, 46u, 48u, 50u};
+      44u, 46u, 48u, 50u, 35u, 35u};
   static const ctool_u16 control_bits[] = {
       0x0400u, 0x0400u, 0x0800u, 0x0800u,
       0u, 0u, 0x0c00u, 0x0c00u};
@@ -40328,7 +40492,7 @@ static int validate_file_scope_math_object(
   ctool_u32 index;
   if (text == NULL || text->contents.data == NULL ||
       text->contents.size !=
-          (ctool_u32)sizeof(expected_text) + 384u ||
+          (ctool_u32)sizeof(expected_text) + 384u + 70u ||
       memcmp(text->contents.data, expected_text,
              sizeof(expected_text)) != 0 ||
       object->relocation_count != 0u) {
@@ -40364,6 +40528,13 @@ static int validate_file_scope_math_object(
           names[12u + index]);
       return 0;
     }
+  }
+  if (!validate_file_scope_fmod_wrapper_decode(
+          job, text, find_symbol(object, "fmod"), CTOOL_FALSE) ||
+      !validate_file_scope_fmod_wrapper_decode(
+          job, text, find_symbol(object, "fmodf"), CTOOL_TRUE)) {
+    (void)fprintf(stderr, "file-scope fmod wrappers differ\n");
+    return 0;
   }
   return 1;
 }
@@ -40495,8 +40666,25 @@ static int run_file_scope_assembly_object(const char *host_root) {
       "\"frndint\\n\\tfldcw  (%esp)\\n\\tfstps  4(%esp)\\n\\t\"\n"
       "\"movss  4(%esp), %xmm0\\n\\tadd    $8, %esp\\n\\t\"\n"
       "\"ret\\n\\t.size  truncf, .-truncf\\n\");\n";
+  static const char remainder_source[] =
+      "double fmod(double, double); float fmodf(float, float);\n"
+      "__asm__(\".text\\n\\t.globl fmod\\n\\t.type  fmod, @function\\n\"\n"
+      "\"fmod:\\n\\tfldl   12(%esp)\\n\\tfldl    4(%esp)\\n\\t\"\n"
+      "\"1:\\n\\tfprem\\n\\tfnstsw %ax\\n\\t\"\n"
+      "\"testw  $0x0400, %ax\\n\\tjnz    1b\\n\\t\"\n"
+      "\"fstp   %st(1)\\n\\tsub    $8, %esp\\n\\t\"\n"
+      "\"fstpl  (%esp)\\n\\tmovsd  (%esp), %xmm0\\n\\t\"\n"
+      "\"add    $8, %esp\\n\\tret\\n\\t.size  fmod, .-fmod\\n\");\n"
+      "__asm__(\".text\\n\\t.globl fmodf\\n\\t.type  fmodf, @function\\n\"\n"
+      "\"fmodf:\\n\\tflds   8(%esp)\\n\\tflds   4(%esp)\\n\\t\"\n"
+      "\"1:\\n\\tfprem\\n\\tfnstsw %ax\\n\\t\"\n"
+      "\"testw  $0x0400, %ax\\n\\tjnz    1b\\n\\t\"\n"
+      "\"fstp   %st(1)\\n\\tsub    $4, %esp\\n\\t\"\n"
+      "\"fstps  (%esp)\\n\\tmovss  (%esp), %xmm0\\n\\t\"\n"
+      "\"add    $4, %esp\\n\\tret\\n\\t.size  fmodf, .-fmodf\\n\");\n";
   char source[
-      sizeof(opening_source) + sizeof(rounding_source) - 1u];
+      sizeof(opening_source) + sizeof(rounding_source) +
+      sizeof(remainder_source) - 2u];
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
   ctool_job_t *job = NULL;
@@ -40505,8 +40693,8 @@ static int run_file_scope_assembly_object(const char *host_root) {
   ctool_buffer_t *failure = NULL;
   ctool_c_translation_unit_t unit;
   ctool_c_translation_unit_t mutant;
-  ctool_c_assembly_t mutant_assemblies[20];
-  ctool_c_binding_t mutant_bindings[20];
+  ctool_c_assembly_t mutant_assemblies[22];
+  ctool_c_binding_t mutant_bindings[22];
   unit_snapshot_t snapshot;
   ctool_source_t object_source;
   ctool_elf32_object_t object;
@@ -40514,6 +40702,8 @@ static int run_file_scope_assembly_object(const char *host_root) {
   ctool_bytes_t second_bytes;
   ctool_u32 floor_binding = CTOOL_C_AST_NONE;
   ctool_u32 floorf_binding = CTOOL_C_AST_NONE;
+  ctool_u32 fmod_binding = CTOOL_C_AST_NONE;
+  ctool_u32 fmodf_binding = CTOOL_C_AST_NONE;
   ctool_u32 index;
   ctool_status_t status;
   int passed = 0;
@@ -40524,7 +40714,10 @@ static int run_file_scope_assembly_object(const char *host_root) {
       source, opening_source, sizeof(opening_source) - 1u);
   (void)memcpy(
       source + sizeof(opening_source) - 1u,
-      rounding_source, sizeof(rounding_source));
+      rounding_source, sizeof(rounding_source) - 1u);
+  (void)memcpy(
+      source + sizeof(opening_source) + sizeof(rounding_source) - 2u,
+      remainder_source, sizeof(remainder_source));
   if (!open_job(host_root, &adapter, &config, &job) ||
       !parse_source_mode(job, "/file-scope-assembly-object.c",
                          source, CTOOL_TRUE, &unit) ||
@@ -40551,10 +40744,18 @@ static int run_file_scope_assembly_object(const char *host_root) {
     } else if (string_equal(
                    unit.bindings[index].name, "floorf") != 0) {
       floorf_binding = index;
+    } else if (string_equal(
+                   unit.bindings[index].name, "fmod") != 0) {
+      fmod_binding = index;
+    } else if (string_equal(
+                   unit.bindings[index].name, "fmodf") != 0) {
+      fmodf_binding = index;
     }
   }
   if (floor_binding == CTOOL_C_AST_NONE ||
-      floorf_binding == CTOOL_C_AST_NONE) {
+      floorf_binding == CTOOL_C_AST_NONE ||
+      fmod_binding == CTOOL_C_AST_NONE ||
+      fmodf_binding == CTOOL_C_AST_NONE) {
     (void)fprintf(
         stderr, "file-scope rounding bindings differ\n");
     goto cleanup;
@@ -40637,6 +40838,28 @@ static int run_file_scope_assembly_object(const char *host_root) {
   }
   mutant_assemblies[12] = unit.file_assemblies[12];
 
+  mutant_assemblies[20].template_text = ctool_string(
+      ".text\n\t.globl fmod\n\t.type  fmod, @function\n"
+      "fmod:\n\tfldl   12(%esp)\n\tfldl    4(%esp)\n\t"
+      "1:\n\tfprem\n\tfnstsw %ax\n\t"
+      "testw  $0x0200, %ax\n\tjnz    1b\n\t"
+      "fstp   %st(1)\n\tsub    $8, %esp\n\t"
+      "fstpl  (%esp)\n\tmovsd  (%esp), %xmm0\n\t"
+      "add    $8, %esp\n\tret\n\t.size  fmod, .-fmod\n");
+  mutant = unit;
+  mutant.file_assemblies = mutant_assemblies;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_EMIT_DIAG_UNSUPPORTED,
+          "GNU file-scope assembly template is outside this i386 "
+          "emission slice",
+          "altered file-scope fmod status mask") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_assemblies[20] = unit.file_assemblies[20];
+
   (void)memcpy(
       mutant_bindings, unit.bindings, sizeof(mutant_bindings));
   mutant_bindings[floor_binding].type =
@@ -40649,6 +40872,21 @@ static int run_file_scope_assembly_object(const char *host_root) {
           "GNU file-scope assembly does not match its external "
           "function declaration",
           "floor wrapper with float prototype") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_bindings[floor_binding] = unit.bindings[floor_binding];
+  mutant_bindings[fmod_binding].type =
+      unit.bindings[fmodf_binding].type;
+  mutant = unit;
+  mutant.bindings = mutant_bindings;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_EMIT_DIAG_SYMBOL,
+          "GNU file-scope assembly does not match its external "
+          "function declaration",
+          "fmod wrapper with float prototype") ||
       unit_snapshot_matches(&snapshot, &unit) == 0 ||
       ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
     goto cleanup;

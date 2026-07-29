@@ -46,6 +46,8 @@ typedef enum {
   CEMIT_FILE_ASSEMBLY_ROUNDF,
   CEMIT_FILE_ASSEMBLY_TRUNC,
   CEMIT_FILE_ASSEMBLY_TRUNCF,
+  CEMIT_FILE_ASSEMBLY_FMOD,
+  CEMIT_FILE_ASSEMBLY_FMODF,
   CEMIT_FILE_ASSEMBLY_FABS_MASKS,
   CEMIT_FILE_ASSEMBLY_COUNT
 } cemit_file_assembly_kind_t;
@@ -108,7 +110,15 @@ static ctool_status_t cemit_patch_branch(ctool_buffer_t *text,
                                          ctool_u32 after,
                                          ctool_u32 target);
 
+static ctool_status_t cemit_patch_short_branch(
+    ctool_buffer_t *text, ctool_u32 patch, ctool_u32 after,
+    ctool_u32 target);
+
 static ctool_status_t cemit_x86_branch(
+    cemit_context_t *context, ctool_x86_mnemonic_t mnemonic,
+    ctool_u32 *patch_out, ctool_u32 *after_out);
+
+static ctool_status_t cemit_x86_short_branch(
     cemit_context_t *context, ctool_x86_mnemonic_t mnemonic,
     ctool_u32 *patch_out, ctool_u32 *after_out);
 
@@ -968,6 +978,20 @@ static cemit_file_assembly_kind_t cemit_file_assembly_template_kind(
       "frndint\n\tfldcw  (%esp)\n\tfstps  4(%esp)\n\t"
       "movss  4(%esp), %xmm0\n\tadd    $8, %esp\n\t"
       "ret\n\t.size  truncf, .-truncf\n",
+      ".text\n\t.globl fmod\n\t.type  fmod, @function\n"
+      "fmod:\n\tfldl   12(%esp)\n\tfldl    4(%esp)\n\t"
+      "1:\n\tfprem\n\tfnstsw %ax\n\t"
+      "testw  $0x0400, %ax\n\tjnz    1b\n\t"
+      "fstp   %st(1)\n\tsub    $8, %esp\n\t"
+      "fstpl  (%esp)\n\tmovsd  (%esp), %xmm0\n\t"
+      "add    $8, %esp\n\tret\n\t.size  fmod, .-fmod\n",
+      ".text\n\t.globl fmodf\n\t.type  fmodf, @function\n"
+      "fmodf:\n\tflds   8(%esp)\n\tflds   4(%esp)\n\t"
+      "1:\n\tfprem\n\tfnstsw %ax\n\t"
+      "testw  $0x0400, %ax\n\tjnz    1b\n\t"
+      "fstp   %st(1)\n\tsub    $4, %esp\n\t"
+      "fstps  (%esp)\n\tmovss  (%esp), %xmm0\n\t"
+      "add    $4, %esp\n\tret\n\t.size  fmodf, .-fmodf\n",
       ".section .rodata\n\t.align 16\n"
       "fabs_mask_d:\n\t.quad 0x7FFFFFFFFFFFFFFF\n\t"
       ".quad 0x7FFFFFFFFFFFFFFF\n"
@@ -990,7 +1014,7 @@ static const char *cemit_file_assembly_function_name(
       "", "sqrt", "sqrtf", "sin", "sinf", "cos", "cosf",
       "tan", "tanf", "atan", "atanf", "atan2", "atan2f",
       "fabs", "fabsf", "floor", "floorf", "ceil", "ceilf",
-      "round", "roundf", "trunc", "truncf", ""};
+      "round", "roundf", "trunc", "truncf", "fmod", "fmodf", ""};
   return kind > CEMIT_FILE_ASSEMBLY_NONE &&
                  kind < CEMIT_FILE_ASSEMBLY_COUNT
              ? names[(ctool_u32)kind]
@@ -1028,7 +1052,9 @@ static ctool_bool cemit_file_assembly_function_type_matches(
       (((ctool_u32)kind - 1u) & 1u) != 0u ? CTOOL_TRUE : CTOOL_FALSE;
   ctool_u32 expected_parameters =
       kind == CEMIT_FILE_ASSEMBLY_ATAN2 ||
-              kind == CEMIT_FILE_ASSEMBLY_ATAN2F
+              kind == CEMIT_FILE_ASSEMBLY_ATAN2F ||
+              kind == CEMIT_FILE_ASSEMBLY_FMOD ||
+              kind == CEMIT_FILE_ASSEMBLY_FMODF
           ? 2u
           : 1u;
   ctool_u32 parameter;
@@ -2686,7 +2712,8 @@ static ctool_status_t cemit_x86_word_ax_immediate(
   ctool_x86_instruction_t instruction =
       cemit_x86_instruction(mnemonic, 16u);
   if (mnemonic != CTOOL_X86_MN_AND &&
-      mnemonic != CTOOL_X86_MN_OR) {
+      mnemonic != CTOOL_X86_MN_OR &&
+      mnemonic != CTOOL_X86_MN_TEST) {
     return CTOOL_ERR_INTERNAL;
   }
   instruction.operand_count = 2u;
@@ -4629,6 +4656,32 @@ static ctool_status_t cemit_x86_branch(
       encoding.fields[0].byte_width != 4u ||
       encoding.size < 4u ||
       encoding.fields[0].byte_offset > encoding.size - 4u) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  *patch_out = offset + encoding.fields[0].byte_offset;
+  *after_out = offset + encoding.size;
+  return CTOOL_OK;
+}
+
+static ctool_status_t cemit_x86_short_branch(
+    cemit_context_t *context, ctool_x86_mnemonic_t mnemonic,
+    ctool_u32 *patch_out, ctool_u32 *after_out) {
+  ctool_x86_instruction_t instruction =
+      cemit_x86_instruction(mnemonic, 32u);
+  ctool_x86_encoding_t encoding;
+  ctool_u32 offset;
+  ctool_status_t status;
+  instruction.operand_count = 1u;
+  instruction.operands[0] = cemit_x86_value_operand(
+      CTOOL_X86_OPERAND_RELATIVE, 32u, 8u, 0u);
+  status = cemit_x86_encode(context, &instruction, &encoding, &offset);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if (encoding.field_count != 1u ||
+      encoding.fields[0].kind != CTOOL_X86_FIELD_RELATIVE ||
+      encoding.fields[0].byte_width != 1u ||
+      encoding.fields[0].byte_offset >= encoding.size) {
     return CTOOL_ERR_INTERNAL;
   }
   *patch_out = offset + encoding.fields[0].byte_offset;
@@ -11927,6 +11980,25 @@ static ctool_status_t cemit_patch_branch(ctool_buffer_t *text,
   return ctool_buffer_patch_le32(text, patch, displacement);
 }
 
+static ctool_status_t cemit_patch_short_branch(
+    ctool_buffer_t *text, ctool_u32 patch, ctool_u32 after,
+    ctool_u32 target) {
+  ctool_u32 displacement;
+  if (target >= after) {
+    if (target - after > 0x7fu) {
+      return CTOOL_ERR_OVERFLOW;
+    }
+    displacement = target - after;
+  } else {
+    ctool_u32 magnitude = after - target;
+    if (magnitude > 0x80u) {
+      return CTOOL_ERR_OVERFLOW;
+    }
+    displacement = 0u - magnitude;
+  }
+  return ctool_buffer_patch_u8(text, patch, (ctool_u8)displacement);
+}
+
 static ctool_status_t cemit_ir_stack_effect(
     const cemit_context_t *context,
     const ctool_c_ir_instruction_t *instruction,
@@ -12688,6 +12760,14 @@ static ctool_bool cemit_file_assembly_is_rounding(
              : CTOOL_FALSE;
 }
 
+static ctool_bool cemit_file_assembly_is_fmod(
+    cemit_file_assembly_kind_t kind) {
+  return kind == CEMIT_FILE_ASSEMBLY_FMOD ||
+                 kind == CEMIT_FILE_ASSEMBLY_FMODF
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
 static ctool_u16 cemit_file_assembly_rounding_control(
     cemit_file_assembly_kind_t kind) {
   if (kind == CEMIT_FILE_ASSEMBLY_FLOOR ||
@@ -12784,6 +12864,55 @@ static ctool_status_t cemit_emit_file_assembly_rounding_body(
   return status;
 }
 
+static ctool_status_t cemit_emit_file_assembly_fmod_body(
+    cemit_context_t *context, cemit_file_assembly_kind_t kind,
+    ctool_bool single_precision) {
+  ctool_u16 width_bits =
+      single_precision == CTOOL_TRUE ? 32u : 64u;
+  ctool_u32 repeat_target;
+  ctool_u32 repeat_patch;
+  ctool_u32 repeat_after;
+  ctool_status_t status;
+  if (cemit_file_assembly_is_fmod(kind) == CTOOL_FALSE) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  status = cemit_x86_x87_memory(
+      context, CTOOL_X86_MN_FLD, 4u,
+      single_precision == CTOOL_TRUE ? 8 : 12, width_bits);
+  if (status == CTOOL_OK) {
+    status = cemit_x86_x87_memory(
+        context, CTOOL_X86_MN_FLD, 4u, 4, width_bits);
+  }
+  repeat_target = ctool_buffer_view(context->active_text).size;
+  if (status == CTOOL_OK) {
+    status = cemit_x86_no_operand(context, CTOOL_X86_MN_FPREM);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_FNSTSW, CTOOL_X86_REG_GPR16, 0u, 16u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_word_ax_immediate(
+        context, CTOOL_X86_MN_TEST, 0x0400u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_short_branch(
+        context, CTOOL_X86_MN_JNE, &repeat_patch, &repeat_after);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_patch_short_branch(
+        context->active_text, repeat_patch, repeat_after, repeat_target);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_FSTP, CTOOL_X86_REG_X87, 1u, 32u);
+  }
+  return status == CTOOL_OK
+             ? cemit_finish_file_assembly_x87_result(
+                   context, width_bits)
+             : status;
+}
+
 static ctool_status_t cemit_emit_file_assembly_body(
     cemit_context_t *context, cemit_file_assembly_kind_t kind) {
   ctool_bool single_precision =
@@ -12820,6 +12949,10 @@ static ctool_status_t cemit_emit_file_assembly_body(
   }
   if (cemit_file_assembly_is_rounding(kind) == CTOOL_TRUE) {
     return cemit_emit_file_assembly_rounding_body(
+        context, kind, single_precision);
+  }
+  if (cemit_file_assembly_is_fmod(kind) == CTOOL_TRUE) {
+    return cemit_emit_file_assembly_fmod_body(
         context, kind, single_precision);
   }
   if (kind == CEMIT_FILE_ASSEMBLY_SQRT ||
