@@ -1140,7 +1140,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             )
 
         active_source = (
-            REPO_ROOT / "kernel/core/string.c"
+            REPO_ROOT / "kernel/core/string.cc"
         ).read_text(encoding="utf-8")
         start = active_source.index("static double str_floor(double x) {")
         end = active_source.index("\n}\n", start) + 3
@@ -1203,7 +1203,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             )
 
     def test_unchanged_string_source_emits_a_deterministic_object(self):
-        source = REPO_ROOT / "kernel/core/string.c"
+        source = REPO_ROOT / "kernel/core/string.cc"
         source_bytes = source.read_bytes()
         self.assertEqual(len(source_bytes), 8751)
         self.assertEqual(source_bytes.count(b"\n"), 333)
@@ -1249,7 +1249,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                         str(self.hosted_cupidc_path),
                         *arguments,
                         "-c",
-                        "/kernel/core/string.c",
+                        "/kernel/core/string.cc",
                         "-o",
                         logical_output,
                     ],

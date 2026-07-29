@@ -162,6 +162,7 @@ SOURCE_DRIVEN_SOURCES = (
     "kernel/core/kernel.cc",
     "kernel/core/panic.cc",
     "kernel/core/process.cc",
+    "kernel/core/string.cc",
     "kernel/cpu/fpu.cc",
     "kernel/cpu/idt.cc",
     "kernel/cpu/irq.cc",
@@ -265,6 +266,10 @@ FROZEN_KERNEL_INPUT_CLOSURES = {
         "kernel/usb/usb_hc.h",
         "kernel/util/calendar.h",
         "toolchain/ctool.h",
+    ),
+    "kernel/core/string.cc": (
+        "kernel/core/string.h",
+        "kernel/core/types.h",
     ),
     "kernel/cpu/fpu.cc": (
         "drivers/serial.h",
@@ -919,8 +924,8 @@ class KernelCompileCommandTests(unittest.TestCase):
             kernel_compile.APPROVED_KERNEL_COMPILE_SOURCES,
             tuple(sorted(KERNEL_SOURCES + GENERATED_KERNEL_SOURCES)),
         )
-        self.assertEqual(len(KERNEL_SOURCES), 154)
-        self.assertEqual(len(set(KERNEL_SOURCES)), 154)
+        self.assertEqual(len(KERNEL_SOURCES), 155)
+        self.assertEqual(len(set(KERNEL_SOURCES)), 155)
         self.assertEqual(kernel_compile.KERNEL_I386_ARGUMENTS, KERNEL_I386_ARGUMENTS)
 
         command = kernel_compile.build_compile_arguments(
@@ -943,8 +948,8 @@ class KernelCompileCommandTests(unittest.TestCase):
 
     def test_production_owned_roots_use_the_cupidc_extension(self):
         renamed_sources = KERNEL_SOURCES
-        self.assertEqual(len(renamed_sources), 154)
-        self.assertEqual(len(set(renamed_sources)), 154)
+        self.assertEqual(len(renamed_sources), 155)
+        self.assertEqual(len(set(renamed_sources)), 155)
         self.assertEqual(
             tuple(
                 source
@@ -955,7 +960,7 @@ class KernelCompileCommandTests(unittest.TestCase):
         )
         self.assertEqual(
             sum(Path(source).suffix == ".cc" for source in KERNEL_SOURCES),
-            154,
+            155,
         )
 
         for source in renamed_sources:
@@ -1094,6 +1099,10 @@ class KernelCompileMakefileTests(unittest.TestCase):
                 "kernel/usb/usb_hc.h",
                 "kernel/util/calendar.h",
                 "toolchain/ctool.h",
+            ),
+            "kernel/core/string.cc": (
+                "kernel/core/string.h",
+                "kernel/core/types.h",
             ),
             "kernel/cpu/fpu.cc": (
                 "drivers/serial.h",

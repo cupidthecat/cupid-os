@@ -217,8 +217,8 @@ class X86SourceManifestTests(unittest.TestCase):
 
         self.assertTrue(all(label.startswith("inline:") for label in labels))
         self.assertEqual(len(labels), 129)
-        self.assertEqual(len(feature["files"]), 39)
-        self.assertEqual(feature["occurrences"], 212)
+        self.assertEqual(len(feature["files"]), 40)
+        self.assertEqual(feature["occurrences"], 218)
 
         spellings = {
             label.split(":", 2)[1].split("->", 1)[0] for label in labels

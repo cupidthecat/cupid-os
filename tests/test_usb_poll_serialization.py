@@ -15,7 +15,7 @@ class UsbPollSerializationTests(unittest.TestCase):
         cls.header = (ROOT / "kernel" / "usb" / "usb.h").read_text(
             encoding="utf-8"
         )
-        cls.kernel = (ROOT / "kernel" / "core" / "kernel.c").read_text(
+        cls.kernel = (ROOT / "kernel" / "core" / "kernel.cc").read_text(
             encoding="utf-8"
         )
         cls.doom = (

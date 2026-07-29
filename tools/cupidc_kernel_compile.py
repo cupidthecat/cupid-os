@@ -169,6 +169,7 @@ APPROVED_SOURCE_DRIVEN_SOURCES = (
     "kernel/core/kernel.cc",
     "kernel/core/panic.cc",
     "kernel/core/process.cc",
+    "kernel/core/string.cc",
     "kernel/cpu/fpu.cc",
     "kernel/cpu/idt.cc",
     "kernel/cpu/irq.cc",
@@ -272,6 +273,10 @@ FROZEN_KERNEL_INPUT_CLOSURES = {
         "kernel/usb/usb_hc.h",
         "kernel/util/calendar.h",
         "toolchain/ctool.h",
+    ),
+    "kernel/core/string.cc": (
+        "kernel/core/string.h",
+        "kernel/core/types.h",
     ),
     "kernel/cpu/fpu.cc": (
         "drivers/serial.h",

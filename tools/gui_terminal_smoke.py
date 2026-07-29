@@ -108,6 +108,7 @@ class TerminalCommand:
     expected_pattern: str
     followup_keys: tuple[str, ...] = ()
     interaction_pattern: str | None = None
+    followup_settle_seconds: float = 0.0
 
 
 FRONTIER_RUNTIME_COMMANDS = (
@@ -191,7 +192,8 @@ FRONTIER_RUNTIME_COMMANDS = (
             rf".*?{CUPIDC_COMPLETION_PATTERN}"
         ),
         ("esc", "n", "n", "esc", "esc"),
-        r"\[cupidc\] Executing at 0x(?:0x)?[0-9A-Fa-f]+",
+        r"\[gfx2d\] flip frame=2",
+        2.0,
     ),
 )
 
@@ -1001,6 +1003,8 @@ def run_frontier_commands(
                 cursor,
                 timeout,
             )
+            if command.followup_settle_seconds > 0.0:
+                time.sleep(command.followup_settle_seconds)
             for key in command.followup_keys:
                 send_key(
                     monitor,

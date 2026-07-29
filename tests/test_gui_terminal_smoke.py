@@ -131,6 +131,7 @@ def _frontier_command_outputs():
         (
             "[cupidc] JIT compile: /bin/godsong.cc\n"
             "[cupidc] Executing at 0x0x01100000\n"
+            "[gfx2d] flip frame=2\n"
             "[print_int] num=1 (0x0x00000001) gui_mode=1\n"
             "[print_int] num=200 (0x0x000000c8) gui_mode=1\n"
             "[cupidc] JIT execution complete\n"
@@ -210,18 +211,52 @@ class FakeMonitorSocket:
 
 
 class SequencedMonitorSocket(FakeMonitorSocket):
-    def __init__(self, log, command_outputs):
+    def __init__(self, log, command_outputs, delayed_marker=None):
         super().__init__()
         self.log = log
         self.command_outputs = list(command_outputs)
+        self.delayed_marker = delayed_marker
+        self.pending_marker = None
+        self.pending_tail = None
+        self.marker_wait_sent_count = None
         self.completed = 0
+
+    def append_log(self, text):
+        with self.log.open("a", encoding="utf-8") as output:
+            output.write(text)
+
+    def release_delayed_marker(self):
+        if self.pending_marker is None:
+            raise AssertionError("no delayed interaction marker is pending")
+        self.append_log(self.pending_marker)
+        self.pending_marker = None
 
     def sendall(self, data):
         super().sendall(data)
         if data.startswith(b"sendkey ret ") and self.command_outputs:
-            with self.log.open("a", encoding="utf-8") as output:
-                output.write(self.command_outputs.pop(0))
+            command_output = self.command_outputs.pop(0)
+            if not self.command_outputs and self.delayed_marker is not None:
+                prefix, marker, tail = command_output.partition(
+                    self.delayed_marker
+                )
+                if marker == "":
+                    raise AssertionError(
+                        "delayed interaction marker is absent"
+                    )
+                self.append_log(prefix)
+                self.pending_marker = marker
+                self.pending_tail = tail
+                self.marker_wait_sent_count = len(self.sent)
+            else:
+                self.append_log(command_output)
             self.completed += 1
+        elif (
+            data.startswith(b"sendkey ")
+            and self.pending_marker is None
+            and self.pending_tail is not None
+        ):
+            self.append_log(self.pending_tail)
+            self.pending_tail = None
 
 
 class ReplugMonitorSocket(FakeMonitorSocket):
@@ -1082,11 +1117,13 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             ("esc", "n", "n", "esc", "esc"),
         )
         self.assertEqual(commands[1].followup_keys, ("shift",))
+        self.assertEqual(commands[1].followup_settle_seconds, 0.0)
         self.assertIn(
             "waiting for USB Shift",
             commands[1].interaction_pattern,
         )
-        self.assertIn("Executing at", commands[-1].interaction_pattern)
+        self.assertIn("flip frame=2", commands[-1].interaction_pattern)
+        self.assertEqual(commands[-1].followup_settle_seconds, 2.0)
 
         for command, sample in zip(commands, _frontier_command_outputs()):
             with self.subTest(command=command.text):
@@ -1218,12 +1255,25 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             monitor = SequencedMonitorSocket(
                 log,
                 _frontier_command_outputs(),
+                delayed_marker="[gfx2d] flip frame=2\n",
             )
             process = mock.Mock()
             process.poll.return_value = None
+            marker_release_sent_counts = []
+
+            def release_interaction_marker(_seconds):
+                if monitor.pending_marker is None:
+                    return
+                self.assertEqual(
+                    len(monitor.sent),
+                    monitor.marker_wait_sent_count,
+                )
+                marker_release_sent_counts.append(len(monitor.sent))
+                monitor.release_delayed_marker()
 
             with mock.patch(
-                "tools.gui_terminal_smoke.time.sleep"
+                "tools.gui_terminal_smoke.time.sleep",
+                side_effect=release_interaction_marker,
             ) as sleep:
                 data = gui_terminal_smoke.run_frontier_commands(
                     process,
@@ -1235,10 +1285,19 @@ class FrontierRuntimeContractTests(unittest.TestCase):
                 )
 
         self.assertEqual(monitor.completed, 9)
+        self.assertEqual(
+            marker_release_sent_counts,
+            [monitor.marker_wait_sent_count],
+        )
+        self.assertIsNone(monitor.pending_tail)
         self.assertIn("[cupidc] JIT compile: /bin/godsong.cc", data)
         self.assertEqual(
             sleep.call_args_list.count(mock.call(1.0)),
             8,
+        )
+        self.assertEqual(
+            sleep.call_args_list.count(mock.call(2.0)),
+            1,
         )
         sent = b"".join(monitor.sent)
         self.assertIn(b"sendkey shift-minus 300\n", sent)

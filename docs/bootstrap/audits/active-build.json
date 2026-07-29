@@ -3495,16 +3495,28 @@
       },
       {
         "inputs": [
-          "kernel/core/string.c",
-          "kernel/core/string.h"
+          "kernel/core/string.cc",
+          "kernel/core/string.h",
+          "kernel/core/types.h",
+          "Makefile",
+          "tools/cupidc_kernel_compile.py",
+          "tools/kernel_cupidc_frontier.py",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "compile_c_to_elf32_object",
         "output": "kernel/core/string.o",
         "recipe": [
-          "$(CC) $(CFLAGS) $(OPT) kernel/core/string.c -o kernel/core/string.o"
+          "$(CUPIDC_KERNEL_COMPILE) --source kernel/core/string.cc --output kernel/core/string.o"
         ],
         "tools": [
-          "host_c_compiler"
+          "cupid_c_compiler",
+          "host_python"
         ]
       },
       {
@@ -16454,7 +16466,7 @@
         "kernel/core/kernel.cc",
         "kernel/core/panic.cc",
         "kernel/core/process.cc",
-        "kernel/core/string.c",
+        "kernel/core/string.cc",
         "kernel/cpu/idt.cc",
         "kernel/cpu/ksyms.cc",
         "kernel/cpu/libm.cc",
@@ -16696,7 +16708,7 @@
         "kernel/core/kernel.cc",
         "kernel/core/panic.cc",
         "kernel/core/process.cc",
-        "kernel/core/string.c",
+        "kernel/core/string.cc",
         "kernel/core/syscall.cc",
         "kernel/cpu/fpu.cc",
         "kernel/cpu/idt.cc",
@@ -17107,7 +17119,7 @@
         "kernel/core/kernel.cc",
         "kernel/core/panic.cc",
         "kernel/core/process.cc",
-        "kernel/core/string.c",
+        "kernel/core/string.cc",
         "kernel/core/syscall.cc",
         "kernel/core/types.h",
         "kernel/cpu/fpu.cc",
@@ -17475,7 +17487,7 @@
         "kernel/core/kernel.cc",
         "kernel/core/ports.h",
         "kernel/core/process.cc",
-        "kernel/core/string.c",
+        "kernel/core/string.cc",
         "kernel/core/syscall.cc",
         "kernel/cpu/cpu.h",
         "kernel/cpu/fpu.cc",
@@ -17913,7 +17925,7 @@
         "kernel/core/panic.cc",
         "kernel/core/panic.h",
         "kernel/core/process.cc",
-        "kernel/core/string.c",
+        "kernel/core/string.cc",
         "kernel/core/syscall.cc",
         "kernel/cpu/fpu.cc",
         "kernel/cpu/ksyms.cc",
@@ -18455,7 +18467,7 @@
         "kernel/core/app_launch.cc",
         "kernel/core/kernel.cc",
         "kernel/core/process.cc",
-        "kernel/core/string.c",
+        "kernel/core/string.cc",
         "kernel/core/syscall.cc",
         "kernel/cpu/idt.cc",
         "kernel/cpu/ksyms.cc",
@@ -19097,7 +19109,7 @@
         "kernel/core/panic.h",
         "kernel/core/ports.h",
         "kernel/core/process.cc",
-        "kernel/core/string.c",
+        "kernel/core/string.cc",
         "kernel/cpu/cpu.h",
         "kernel/cpu/fpu.cc",
         "kernel/cpu/idt.cc",
@@ -19176,11 +19188,6 @@
       "examples": [
         {
           "line": 1,
-          "path": "kernel/core/string.c",
-          "text": "compile_c_to_elf32_object -> kernel/core/string.o"
-        },
-        {
-          "line": 1,
           "path": "kernel/doom/dglibc.c",
           "text": "compile_c_to_elf32_object -> kernel/doom/dglibc.o"
         },
@@ -19188,10 +19195,14 @@
           "line": 1,
           "path": "kernel/doom/doom_libc_stubs.c",
           "text": "compile_c_to_elf32_object -> kernel/doom/doom_libc_stubs.o"
+        },
+        {
+          "line": 1,
+          "path": "kernel/doom/doomgeneric_cupidos.c",
+          "text": "compile_c_to_elf32_object -> kernel/doom/doomgeneric_cupidos.o"
         }
       ],
       "files": [
-        "kernel/core/string.c",
         "kernel/doom/dglibc.c",
         "kernel/doom/doom_libc_stubs.c",
         "kernel/doom/doomgeneric_cupidos.c",
@@ -19277,7 +19288,7 @@
         "kernel/doom/src/z_zone.c"
       ],
       "id": "c.output.elf32_relocatable",
-      "occurrences": 84
+      "occurrences": 83
     },
     {
       "category": "preprocessor",
@@ -20710,7 +20721,7 @@
         "kernel/core/ports.h",
         "kernel/core/process.cc",
         "kernel/core/process.h",
-        "kernel/core/string.c",
+        "kernel/core/string.cc",
         "kernel/core/string.h",
         "kernel/core/syscall.cc",
         "kernel/core/syscall.h",
@@ -21414,7 +21425,7 @@
         "kernel/core/ports.h",
         "kernel/core/process.cc",
         "kernel/core/process.h",
-        "kernel/core/string.c",
+        "kernel/core/string.cc",
         "kernel/core/string.h",
         "kernel/core/syscall.cc",
         "kernel/core/syscall.h",
@@ -21734,7 +21745,7 @@
         "kernel/core/panic.h",
         "kernel/core/ports.h",
         "kernel/core/process.cc",
-        "kernel/core/string.c",
+        "kernel/core/string.cc",
         "kernel/cpu/cpu.h",
         "kernel/cpu/fpu.cc",
         "kernel/cpu/idt.cc",
@@ -22015,7 +22026,7 @@
         "kernel/core/panic.cc",
         "kernel/core/ports.h",
         "kernel/core/process.cc",
-        "kernel/core/string.c",
+        "kernel/core/string.cc",
         "kernel/core/syscall.cc",
         "kernel/cpu/cpu.h",
         "kernel/cpu/fpu.cc",
@@ -22341,7 +22352,7 @@
         "kernel/core/panic.h",
         "kernel/core/process.cc",
         "kernel/core/process.h",
-        "kernel/core/string.c",
+        "kernel/core/string.cc",
         "kernel/core/string.h",
         "kernel/core/syscall.cc",
         "kernel/core/syscall.h",
@@ -22648,7 +22659,7 @@
         "bin/feature15_libm.cc",
         "bin/test_fpaug.cc",
         "drivers/serial.cc",
-        "kernel/core/string.c",
+        "kernel/core/string.cc",
         "kernel/core/string.h",
         "kernel/cpu/fpu.cc",
         "kernel/cpu/libm.cc",
@@ -22968,7 +22979,7 @@
         "kernel/core/panic.cc",
         "kernel/core/process.cc",
         "kernel/core/process.h",
-        "kernel/core/string.c",
+        "kernel/core/string.cc",
         "kernel/core/string.h",
         "kernel/core/syscall.cc",
         "kernel/core/syscall.h",
@@ -23367,7 +23378,7 @@
         "kernel/audio/memio.cc",
         "kernel/audio/memio.h",
         "kernel/audio/mus2midi.cc",
-        "kernel/core/string.c",
+        "kernel/core/string.cc",
         "kernel/core/types.h",
         "kernel/doom/dglibc_compat.h",
         "kernel/doom/doom_libc_stubs.c",
@@ -24093,7 +24104,7 @@
         "kernel/audio/midiopl.cc",
         "kernel/audio/mus2midi.cc",
         "kernel/core/kernel.cc",
-        "kernel/core/string.c",
+        "kernel/core/string.cc",
         "kernel/core/types.h",
         "kernel/cpu/ksyms.cc",
         "kernel/crypto/chacha20.cc",
@@ -24390,7 +24401,7 @@
         "kernel/core/ports.h",
         "kernel/core/process.cc",
         "kernel/core/process.h",
-        "kernel/core/string.c",
+        "kernel/core/string.cc",
         "kernel/core/string.h",
         "kernel/core/syscall.cc",
         "kernel/core/syscall.h",
@@ -25112,6 +25123,7 @@
         "kernel/core/kernel.cc",
         "kernel/core/panic.cc",
         "kernel/core/process.cc",
+        "kernel/core/string.cc",
         "kernel/core/syscall.cc",
         "kernel/cpu/fpu.cc",
         "kernel/cpu/idt.cc",
@@ -25252,7 +25264,7 @@
         "user/examples/ls.cc"
       ],
       "id": "cupid_c.output.elf32_relocatable",
-      "occurrences": 161
+      "occurrences": 162
     },
     {
       "category": "storage",
@@ -25608,11 +25620,11 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "ef26b7bd09cdf4fcb3eec19b5a5599714a5a52e9faf061310159cbe50b5edd3c",
+    "active_source_digest": "996ce721955e6be27cad7b166eab6bef9028614b356a0f9e10d9e13c0cabcd93",
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "d695545ae1ba38614721aa422cc178cba034e97a0520f869b57b912366130669"
+        "sha256": "43cdd62f5b3df8f774102232c23c1be32430cffd0283be2e1a87e9a09b69aae4"
       },
       {
         "path": "user/Makefile",
@@ -25624,7 +25636,7 @@
       },
       {
         "path": "tools/cupidc_kernel_compile.py",
-        "sha256": "ae667c3ca2734d71ba976a8933832bd3b2691c74379bfb6e54469e4171fad048"
+        "sha256": "5e75cc5bca2fe2259471f8ffa5dc3413896dcb0e435329e732ba455538227a41"
       },
       {
         "path": "tools/kernel_cupidc_frontier.py",
@@ -26198,7 +26210,7 @@
           "bin/browser/input.cc",
           "bin/browser/js_dom.cc"
         ],
-        "source_count": 291,
+        "source_count": 292,
         "title": "Scale Cupid mode across embedded programs and browser fragments"
       }
     ],
@@ -31505,7 +31517,7 @@
       "path": "drivers/serial.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "7106c5fc41dc486fc5381397f4646406178ad2561982674f7f71cf28e91a588b"
+      "sha256": "c3220bafa858ecec9241e2fa986b844be9e7f54e130eac8a312cb9171099f206"
     },
     {
       "build_owners": [
@@ -32842,7 +32854,8 @@
     },
     {
       "build_owners": [
-        "host_c_compiler"
+        "cupid_c_compiler",
+        "host_python"
       ],
       "builds": [
         "."
@@ -32856,7 +32869,6 @@
         "c.control.while",
         "c.expression.sizeof",
         "c.extension.inline_assembly",
-        "c.output.elf32_relocatable",
         "c.preprocessor.include",
         "c.qualifier.const",
         "c.qualifier.volatile",
@@ -32866,17 +32878,18 @@
         "c.type.int",
         "c.type.long",
         "c.type.unsigned",
-        "c.type.void"
+        "c.type.void",
+        "cupid_c.output.elf32_relocatable"
       ],
       "includes": [
         "kernel/core/string.h"
       ],
-      "language": "c",
+      "language": "cupid_c",
       "lines": 334,
       "origin": "tracked",
-      "path": "kernel/core/string.c",
+      "path": "kernel/core/string.cc",
       "reachability": "direct_build_input",
-      "runtime_owner": null,
+      "runtime_owner": "CupidC",
       "sha256": "d376b489757cc7835b1e249310dd3c9c26bc920b4799d61ae619613e0765d17f"
     },
     {
