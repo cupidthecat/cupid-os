@@ -176,9 +176,18 @@ data and the next eight exponent and logarithm wrappers. The constants occupy
 FSCALE. exp and expf multiply by log2(e) first. log2 and log2f use FLD1 with
 FYL2X, while log and logf use ln(2). The functions add 264 text bytes and
 four absolute relocations, never exceed x87 depth three, and balance ESP and
-x87 depth. The unchanged source now stops at pow on line 846. The checked
-seed does not yet carry these
-compiler-head capabilities, so kernel/cpu/libm.c remains host-owned.
+x87 depth. The unchanged source then reaches pow on line 846.
+
+Compiler head now represents that wrapper and all 17 later cdecl bridges.
+The pow, hypot, and nextafter pairs take two arguments. The asin, acos, sinh,
+cosh, tanh, and cbrt pairs take one. Each wrapper copies its original cdecl
+words, calls a matching external implementation, reclaims the copied words,
+and moves the ST(0) result into XMM0 at float or double width. The family
+adds 558 text bytes and 18 PC-relative call relocations. Unchanged
+kernel/cpu/libm.c now emits a deterministic 16,164-byte ELF32 object.
+
+The checked seed does not yet carry these compiler-head capabilities, so
+kernel/cpu/libm.c remains host-owned pending seed promotion.
 
 Direct floating truth, a floating controlling expression, increment and
 decrement, hexadecimal or subnormal constants, long double, SIMD, and atomic

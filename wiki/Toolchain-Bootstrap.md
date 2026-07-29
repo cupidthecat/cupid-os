@@ -516,5 +516,31 @@ duplicate it, collide a label with a C declaration, forge metadata, and give
 `exp` the float prototype. Each failure rolls back cleanly, and the same job
 can emit the valid object afterward.
 
-The unchanged source now reaches `pow` at line 846. The checked seed and
-normal host-owned `libm.c` recipe do not change in this increment.
+The unchanged source then reaches `pow` at line 846.
+
+### libm cdecl bridge wrappers
+
+Compiler head accepts `pow`, `powf`, `asin`, `asinf`, `acos`, `acosf`,
+`sinh`, `sinhf`, `cosh`, `coshf`, `tanh`, `tanhf`, `cbrt`, `cbrtf`,
+`hypot`, `hypotf`, `nextafter`, and `nextafterf`. Each exact file-scope
+template copies the original cdecl words, calls a matching external
+`libm_*_impl` function, reclaims the copied words, stores the ST(0) result,
+and moves it into XMM0.
+
+Four shared stack shapes cover unary and binary float and double functions.
+The family occupies 558 text bytes. Its 18 direct calls each use one
+`R_386_PC32` relocation with known addend `-4`. Decoder contracts check all
+push displacements and widths, the call fields, cleanup, result bridge,
+return, ESP balance, and x87 balance.
+
+Negative contracts change a template, remove a callee, change a wrapper or
+callee prototype, forge metadata, and exhaust the output limit. Each failure
+rolls back, and the same job can emit the valid object afterward.
+
+Two exact kernel-profile compiles of unchanged `kernel/cpu/libm.c` now
+produce the same valid 16,164-byte ELF32 relocatable object with SHA-256
+`ccfb59839b058020a3cdc30c8e6db7ebac8845215a38ff974b3cbca876574eac`.
+General GAS remains unsupported.
+
+The checked seed and normal host-owned `libm.c` recipe do not change in this
+increment. Seed promotion must precede production ownership transfer.

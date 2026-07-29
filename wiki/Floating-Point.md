@@ -165,9 +165,20 @@ The constants occupy 16 `.rodata` bytes at alignment eight. `exp2` and
 `expf` first multiply by `log2(e)`. `log2` and `log2f` load one before
 `FYL2X`, while `log` and `logf` load `ln(2)`. The functions add 264 text
 bytes and four absolute relocations, never exceed x87 depth three, and
-balance ESP and x87 depth. The unchanged file now stops at `pow` on line
-846. The checked seed does not yet carry these compiler-head capabilities, so
-`kernel/cpu/libm.c` remains host-owned.
+balance ESP and x87 depth. The unchanged file then reaches `pow` on line
+846.
+
+Compiler head now represents `pow` and all 17 later cdecl bridge wrappers.
+The `pow`, `hypot`, and `nextafter` pairs take two arguments. The `asin`,
+`acos`, `sinh`, `cosh`, `tanh`, and `cbrt` pairs take one. Each copies its
+original cdecl argument words, calls the matching external implementation,
+reclaims the copy, and moves the ST(0) result into XMM0 at float or double
+width. The family has 558 text bytes and 18 PC-relative call relocations.
+Two complete compiles of unchanged `kernel/cpu/libm.c` produce the same
+16,164-byte ELF32 relocatable object.
+
+The checked seed does not yet carry these compiler-head capabilities, so
+`kernel/cpu/libm.c` remains host-owned pending seed promotion.
 
 The normal build now compiles `kernel/gfx/jpeg.cc` and
 `kernel/gfx/glyph_raster.cc` with that seed. JPEG exercises exact static

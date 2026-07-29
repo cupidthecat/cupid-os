@@ -489,11 +489,25 @@ each, `log2` and `log2f` contain 23 each, and `log` and `logf` contain 27
 each. The four natural forms carry one `R_386_32` relocation apiece to the
 matching constant. All eight wrappers use Cupid's x86 model, balance ESP
 and x87 depth, and reach no deeper than three x87 values. The unchanged
-source now reaches the `pow` wrapper at line 846. The checked seed carries
-the opening wrappers but
-predates named operands, these five statement blocks, the three `fabs`
-effects, the rounding family, the remainder family, and the exponent/log
-family, so `libm.c` stays on its host-owned recipe and keeps its `.c` name.
+source then reaches the `pow` wrapper at line 846.
+
+Compiler head now emits that wrapper and the other 17 remaining cdecl
+bridges. The binary `pow`, `hypot`, and `nextafter` pairs and the unary
+`asin`, `acos`, `sinh`, `cosh`, `tanh`, and `cbrt` pairs copy their original
+argument words, call the matching external implementation, reclaim the
+copied words, and move the ST(0) result into XMM0. The four float or double,
+unary or binary shapes occupy 558 text bytes and carry exactly 18
+`R_386_PC32` relocations with addend `-4`. The decoder checks every stack
+access, call, cleanup, result move, and return. Two complete compiles of
+unchanged `kernel/cpu/libm.c` produce the same 16,164-byte ELF32 relocatable
+object with SHA-256
+`ccfb59839b058020a3cdc30c8e6db7ebac8845215a38ff974b3cbca876574eac`.
+
+The checked seed carries the opening wrappers but predates named operands,
+these five statement blocks, the three `fabs` effects, the rounding,
+remainder, exponent/log, and cdecl bridge families. The normal `libm.c`
+recipe therefore stays host-owned and keeps its `.c` name until seed
+promotion and production transfer.
 
 The checked seed emits the exact volatile
 `call 1f\n1: popl %0` state read used by the stack-trace helpers in
@@ -752,6 +766,8 @@ and the generated kernel symbol translation described above.
 [ADR 0171](docs/adr/0171-represent-libm-fmod-file-scope-assembly.md) records the exact `fmod` and `fmodf` loops and the following read-only constant frontier.
 
 [ADR 0172](docs/adr/0172-represent-libm-exp-log-file-scope-assembly.md) records the exact exponent/logarithm constants and wrappers and the following `pow` frontier.
+
+[ADR 0173](docs/adr/0173-represent-libm-cdecl-bridges.md) records the final 18 libm cdecl bridges and complete compiler-head object emission for unchanged `libm.c`.
 
 [ADR 0143](docs/adr/0143-share-ordinary-padding-nops.md) records the shared ordinary compiler padding family and its measured disassembly improvement.
 

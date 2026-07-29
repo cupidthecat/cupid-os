@@ -292,13 +292,22 @@ wrappers. The constants occupy 16 read-only bytes at alignment eight. The
 functions add 264 text bytes. The natural forms carry four R_386_32
 relocations in total, while the base-two forms need none. All eight balance
 ESP and x87 depth and reach no deeper than three x87 values. The full source
-now stops at pow on line 846.
+then reaches pow on line 846.
+
+Compiler head now emits pow, powf, asin, asinf, acos, acosf, sinh, sinhf,
+cosh, coshf, tanh, tanhf, cbrt, cbrtf, hypot, hypotf, nextafter, and
+nextafterf. These wrappers copy their original cdecl argument words, call the
+matching external libm implementation, reclaim the copies, and move the
+ST(0) result into XMM0. Four shared unary or binary float or double shapes
+add 558 text bytes and 18 R_386_PC32 relocations with addend -4. Two complete
+kernel-profile compiles of unchanged kernel/cpu/libm.c produce the same
+16,164-byte ELF32 relocatable object.
 
 General GAS input and other file-scope templates remain unsupported. The
-checked seed predates named operands, these five statement blocks, and the
-three fabs effects. It also predates the rounding and remainder families.
-It predates the exponent/log family too. The normal libm.c recipe still uses
-the host compiler.
+checked seed predates named operands, these five statement blocks, the three
+fabs effects, and the rounding, remainder, exponent/log, and cdecl bridge
+families. The normal libm.c recipe still uses the host compiler pending seed
+promotion and production transfer.
 
 The checked seed represents the exact per-CPU pointer output
 mov %%gs:0, %0 with one four-byte =r object or void pointer. It keeps the

@@ -1263,9 +1263,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                 ),
             )
 
-    def test_unchanged_libm_source_advances_past_exp_log_assembly(
-        self,
-    ):
+    def test_unchanged_libm_source_emits_a_deterministic_object(self):
         source = REPO_ROOT / "kernel/cpu/libm.c"
         source_bytes = source.read_bytes()
         self.assertEqual(len(source_bytes), LIBM_SOURCE_SIZE)
@@ -1303,16 +1301,11 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                 "-D" + action["name"] + "=" + action["replacement"]
             )
 
-        expected = (
-            "/kernel/cpu/libm.c:846:1: error CTC000003: "
-            "GNU file-scope assembly template is outside this "
-            "i386 emission slice\n"
-        )
         with tempfile.TemporaryDirectory(
             prefix=".cupidc-libm-frontier-", dir=REPO_ROOT
         ) as temp:
             output_root = Path(temp)
-            failures = []
+            objects = []
             for index in range(2):
                 output = output_root / f"libm-{index}.o"
                 logical_output = "/" + output.relative_to(
@@ -1332,12 +1325,27 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                     capture_output=True,
                     timeout=180,
                 )
-                self.assertEqual(result.returncode, 1, result.stderr)
+                self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(result.stdout, "")
-                self.assertEqual(result.stderr, expected)
-                self.assertFalse(output.exists())
-                failures.append(result.stderr)
-            self.assertEqual(failures[0], failures[1])
+                self.assertEqual(result.stderr, "")
+                self.assertTrue(output.is_file())
+                image = output.read_bytes()
+                validate_i386_relocatable_bytes(image)
+                objects.append(image)
+            self.assertEqual(objects[0], objects[1])
+            digest = hashlib.sha256(objects[0]).hexdigest()
+            self.assertEqual(
+                (len(objects[0]), digest),
+                (
+                    16164,
+                    "ccfb59839b058020a3cdc30c8e6db7ebac8845215a38ff"
+                    "974b3cbca876574eac",
+                ),
+                (
+                    "unchanged libm object lock changed: "
+                    f"{len(objects[0])} {digest}"
+                ),
+            )
         self.assertEqual(source.read_bytes(), source_bytes)
 
     def test_legacy_port_constraints_emit_through_dx(self):
@@ -1440,6 +1448,23 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(
             result.stdout,
             "file-scope-exp-log-assembly: ok\n",
+        )
+
+    def test_libm_cdecl_bridges_emit_exact_relocatable_i386(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "file-scope-cdecl-bridges",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            result.stdout,
+            "file-scope-cdecl-bridges: ok\n",
         )
 
     def test_naked_ipi_wrappers_emit_exact_i386_without_a_c_frame(self):

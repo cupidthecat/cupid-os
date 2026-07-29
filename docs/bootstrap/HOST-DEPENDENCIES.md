@@ -98,11 +98,16 @@ head also emits the aligned `libm_log2e_const` and `libm_ln2_const` block
 and the following eight exponent/logarithm wrappers. The constants occupy 16
 `.rodata` bytes at alignment eight. The wrappers add 264 text bytes and four
 `R_386_32` relocations, reach at most x87 depth three, and balance ESP and
-x87 depth. The unchanged source reaches `pow` at line 846. The checked seed
-predates named operands, all five statement forms, the three `fabs` effects,
-the rounding and remainder families, and the exponent/log family, so GCC or
-Clang continues to own the normal `libm.c` transform. No dependency or
-production ownership count changes.
+x87 depth. Compiler head also emits all 18 remaining cdecl bridges. The
+unary and binary float or double shapes copy the original argument words,
+call matching external `libm_*_impl` symbols, reclaim the words, and move
+ST(0) into XMM0. The family occupies 558 text bytes with 18
+`R_386_PC32` relocations. Unchanged `libm.c` now compiles twice to the same
+16,164-byte ELF32 relocatable object. The checked seed predates named
+operands, all five statement forms, the three `fabs` effects, the rounding,
+remainder, exponent/log, and cdecl bridge families. GCC or Clang therefore
+continues to own the normal `libm.c` transform until seed promotion. No
+dependency or production ownership count changes.
 
 The USB lifetime work retires no additional compiler transform, but it
 supplies the runtime contract for EHCI and UHCI ownership. Reconciliation

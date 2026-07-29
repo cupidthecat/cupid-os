@@ -45,15 +45,24 @@ and x87 depth balanced without a relocation. Compiler head also emits the
 aligned `libm_log2e_const` and `libm_ln2_const` block and all eight following
 exponent/logarithm wrappers. The constants occupy 16 aligned `.rodata`
 bytes. The functions add 264 text bytes, and `exp`, `expf`, `log`, and
-`logf` each carry one `R_386_32` relocation. The complete source now
-proceeds to `pow` at line 846. That wrapper and broader arbitrary assembly
-remain open, so this does not transfer a recipe.
-`libm.c` remains host-owned with its `.c` name, and the host C transform
-count is unchanged. ADR 0155 records the initial file-scope boundary, ADR
-0159 records named operand normalization, ADRs 0161 through 0165 record the
-five represented statements, ADR 0166 records the `fabs` effects, ADR 0169
-records the rounding family, ADR 0171 records the remainder family, and ADR
-0172 records the exponent/log family.
+`logf` each carry one `R_386_32` relocation. Compiler head now emits all 18
+remaining cdecl bridges: six binary wrappers in the `pow`, `hypot`, and
+`nextafter` pairs and twelve unary wrappers in the `asin`, `acos`, `sinh`,
+`cosh`, `tanh`, and `cbrt` pairs. Four shared stack shapes copy the original
+argument words, call the matching external implementation, reclaim the
+copies, and move ST(0) into XMM0. The functions add 558 text bytes and 18
+`R_386_PC32` relocations with addend `-4`. Two complete kernel-profile
+compiles of unchanged `libm.c` produce the same 16,164-byte valid ELF32
+object. General GAS remains open.
+
+This compiler-head result does not transfer a recipe. The checked seed
+predates the later libm work. `libm.c` remains host-owned with its `.c`
+name, and the host C transform count is unchanged pending seed promotion.
+ADR 0155 records the initial file-scope boundary, ADR 0159 records named
+operand normalization, ADRs 0161 through 0165 record the five represented
+statements, ADR 0166 records the `fabs` effects, ADR 0169 records the
+rounding family, ADR 0171 records the remainder family, ADR 0172 records the
+exponent/log family, and ADR 0173 records the cdecl bridges.
 
 Checked-seed CupidC represents the two exact volatile FXSAVE statements in
 `kernel/core/process.cc`. One independent four-byte object or

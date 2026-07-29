@@ -643,21 +643,32 @@ Compiler head now represents the aligned `libm_log2e_const` and
 16 `.rodata` bytes at alignment eight. The wrappers add 264 text bytes. The
 four natural forms have one `R_386_32` relocation each, while the base-two
 forms need none. Decoder contracts check every instruction, each operand,
-x87 depth, and ESP balance. The full source now proceeds to `pow` at line
+x87 depth, and ESP balance. The full source then proceeds to `pow` at line
 846.
 
-The checked seed carries the file-scope wrappers but predates named operands
-and these five statement blocks. It also predates the three `fabs` effects.
-It predates the rounding, remainder, and exponent/log families too. The
-`libm.c` name,
-production recipe, and host-dependency inventory remain unchanged. ADR 0159
-records the naming boundary, ADR 0161 records the
-double-power boundary, ADR 0162 records the mixed-width float-power
-boundary, and ADR 0163 records the square-root boundary. ADR 0164 records
-the `atan2` boundary, ADR 0165 records the exponent boundary, and ADR 0166
-records the `fabs` boundary. ADR 0169 records the rounding boundary, ADR
-0171 records the remainder boundary, and ADR 0172 records the exponent/log
-boundary.
+Compiler head also represents `pow`, `powf`, `asin`, `asinf`, `acos`,
+`acosf`, `sinh`, `sinhf`, `cosh`, `coshf`, `tanh`, `tanhf`, `cbrt`,
+`cbrtf`, `hypot`, `hypotf`, `nextafter`, and `nextafterf`. Each wrapper
+copies its one or two original cdecl arguments, calls the matching external
+`libm_*_impl` function, reclaims the copied words, and moves the ST(0)
+result into XMM0. Shared emission covers four stack shapes and adds 558 text
+bytes with 18 `R_386_PC32` relocations. Each relocation has a known `-4`
+addend. The decoder checks the argument copies, call, cleanup, result
+bridge, return, ESP balance, and x87 balance.
+
+Two exact kernel-profile compiles of unchanged `kernel/cpu/libm.c` now
+produce the same valid 16,164-byte ELF32 relocatable object with SHA-256
+`ccfb59839b058020a3cdc30c8e6db7ebac8845215a38ff974b3cbca876574eac`.
+General file-scope GAS still fails at the CupidC boundary.
+
+The checked seed carries the opening file-scope wrappers but predates named
+operands, the five statement blocks, the three `fabs` effects, and the
+rounding, remainder, exponent/log, and cdecl bridge families. The `libm.c`
+name, production recipe, and host-dependency inventory remain unchanged
+until seed promotion and production transfer. ADR 0159 records the naming
+boundary. ADRs 0161 through 0165 record the five statement blocks. ADR 0166
+records `fabs`, ADR 0169 records rounding, ADR 0171 records remainder, ADR
+0172 records exponent/log, and ADR 0173 records the final cdecl bridges.
 
 ADR 0156 represents the naked interrupt entries in unchanged
 `kernel/smp/smp.c`. A naked function must have type `void (void)` and contain

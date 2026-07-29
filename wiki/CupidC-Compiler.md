@@ -541,11 +541,22 @@ constant, while the base-two forms have none. All eight wrappers balance ESP
 and x87 depth and reach no deeper than three x87 values. The full source now
 proceeds to `pow` at line 846.
 
+Compiler head emits that wrapper and the 17 cdecl bridges that follow it.
+The binary `pow`, `hypot`, and `nextafter` pairs and unary `asin`, `acos`,
+`sinh`, `cosh`, `tanh`, and `cbrt` pairs copy their original argument words,
+call matching external `libm_*_impl` functions, reclaim the copied words,
+and move the ST(0) result into XMM0. Four shared stack shapes cover float and
+double functions with one or two arguments. The family has 558 text bytes
+and 18 `R_386_PC32` relocations with addend `-4`. Two exact compiles of
+unchanged `kernel/cpu/libm.c` produce the same 16,164-byte ELF32 relocatable
+object.
+
 General GAS syntax and other file-scope templates remain unsupported. The
 checked seed predates named operands, these five statement blocks, and the
 three `fabs` effects. It also predates the rounding and remainder families.
-It predates the exponent/log family too. The normal `libm.c` recipe still
-uses the host compiler.
+It predates the exponent/log and cdecl bridge families too. The normal
+`libm.c` recipe still uses the host compiler pending seed promotion and
+production transfer.
 
 The same checked seed accepts a modifiable four-byte object or `void` pointer
 as the single `=r` output of `mov %%gs:0, %0`. It retains the pointer type,

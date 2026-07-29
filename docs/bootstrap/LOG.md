@@ -15230,3 +15230,126 @@ keeps its `.c` suffix. No production object, ABI, image, runtime path,
 ownership count, or host-dependency count changes in this increment. Issue
 #26 remains open for `pow` and later GNU assembly. ADR 0172 records the
 boundary. `TempleOS/` remains untouched reference material.
+
+## 2026-07-29: emit the remaining libm cdecl bridges
+
+Compiler head now represents the last 18 file-scope assembly definitions in
+unchanged `kernel/cpu/libm.c`:
+
+- binary `pow`, `powf`, `hypot`, `hypotf`, `nextafter`, and `nextafterf`
+- unary `asin`, `asinf`, `acos`, `acosf`, `sinh`, `sinhf`, `cosh`, `coshf`,
+  `tanh`, `tanhf`, `cbrt`, and `cbrtf`
+
+These definitions bridge two calling conventions. Each public wrapper
+receives ordinary System V i386 cdecl arguments. Its matching
+`libm_*_impl` C function returns a floating value in x87 ST(0), while
+CupidC callers expect the value in XMM0.
+
+The source copies each original argument word above a new return address,
+calls the implementation, reclaims the copied words, spills ST(0) at float
+or double width, and moves that result into XMM0. A tail jump would give the
+implementation the wrong cdecl stack layout.
+
+### Shared emitter
+
+One emitter covers four exact shapes:
+
+| Shape | Copied words | Text bytes | Call relocation offset |
+| --- | ---: | ---: | ---: |
+| Unary `double` | 2 | 31 | 9 |
+| Unary `float` | 1 | 27 | 5 |
+| Binary `double` | 4 | 39 | 17 |
+| Binary `float` | 2 | 31 | 9 |
+
+Every stack push, direct call, cleanup, x87 store, XMM0 move, and return goes
+through Cupid's shared x86 model. Each call publishes one `R_386_PC32`
+relocation to its external implementation function with a known addend of
+`-4`.
+
+Indexing now resolves the wrapper and its implementation declaration before
+emission. Both functions must be visible external declarations with the
+same expected precision and argument count. The object keeps the wrapper as
+a global defined `STT_FUNC` symbol and the implementation as a global
+undefined `STT_FUNC` symbol.
+
+### Test-first findings
+
+The isolated bridge contract and the unchanged-source probe changed before
+the emitter. The probe failed at the `pow` definition on line 846 with the
+existing unsupported file-scope template diagnostic. This was the final
+assembly boundary in the translation unit.
+
+After implementation, the focused object contains 558 exact text bytes, 18
+global wrapper functions, 18 undefined implementation functions, and 18
+text relocations. The shared decoder checks every source stack displacement
+and width, the direct call field, cleanup, result scratch space, x87 store,
+XMM0 move, return, ESP balance, and x87 depth balance.
+
+Negative cases change a stack displacement, remove an implementation
+declaration, change an implementation or wrapper prototype, forge assembly
+metadata, and exhaust the output limit. Each failure preserves the parsed
+unit and publishes no partial object. The same job can emit the valid object
+afterward, and repeated successful emission is byte-identical.
+
+The unchanged source remains 43,736 bytes and 1,500 lines with SHA-256
+`f1c13c83b758394189cc74ed6addfd9dfa99d42064c349c548476686b26cabce`.
+Two exact `KERNEL_I386` compiles now produce the same valid 16,164-byte
+ELF32 relocatable object with SHA-256
+`ccfb59839b058020a3cdc30c8e6db7ebac8845215a38ff974b3cbca876574eac`.
+
+The first complete frontend and Linear IR replay found stale active-source
+oracles for `for`, `goto`, `if`, `else`, `return`, and `while`. The
+regenerated graph reported the new emitter's current totals: 3,853 `for`,
+2,717 `goto`, 34,561 `if`, 4,410 `else`, 20,847 `return`, and 2,670 `while`
+occurrences. Updating those six audit locks made all 171 tests pass. No
+compiler contract failed.
+
+### Frozen compiler records
+
+| Compiler source | Definitions | Statements | Expressions | Block bindings | Initializers |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `toolchain/cupidc_frontend.cc` | 407 | 16,052 | 106,289 | 2,407 | 1,479 |
+| `toolchain/cupidc_ir.cc` | 254 | 7,086 | 65,901 | 932 | 342 |
+| `toolchain/cupidc_emit.cc` | 320 | 7,872 | 66,568 | 956 | 644 |
+
+The self-host frontier objects are:
+
+| Compiler source | Functions | Text bytes | Object bytes | Text fingerprint |
+| --- | ---: | ---: | ---: | --- |
+| `toolchain/cupidc_frontend.cc` | 407 | 822,280 | 976,768 | `9B9037F6` |
+| `toolchain/cupidc_ir.cc` | 254 | 469,582 | 505,000 | `360B9EEC` |
+| `toolchain/cupidc_emit.cc` | 320 | 494,170 | 554,852 | `B1A52C41` |
+
+### Evidence
+
+| Gate | Result |
+| --- | --- |
+| Initial bridge and unchanged-source probes | Expected `pow` rejection |
+| Bridge and complete-source pair | 2 tests passed in 20.625 seconds |
+| Initial adjacent file-scope and self-host group | 6 tests passed in 28.659 seconds |
+| Frontend aggregate contract | 1 test passed in 13.696 seconds |
+| Self-host frontier object lock | 1 test passed in 31.893 seconds |
+| Complete frontend and Linear IR modules | 171 tests passed in 27.827 seconds |
+| Fresh strict native Toolchain build | All native contracts passed; six static i386 artifacts and the self-host link checks completed in 67.9 seconds |
+| Cupid-built compiler-generation object | 1 test passed in 241.646 seconds |
+| Cupid-built five-tool static fixed point | 1 test passed in 800.342 seconds |
+| Final adjacent object replay | 6 tests passed in 27.287 seconds |
+| Final bridge and unchanged-source replay | 2 tests passed in 22.060 seconds |
+| Bootstrap audit regeneration | Passed in 78.6 seconds |
+| Bootstrap audit drift check | Passed in 78.7 seconds |
+| Complete build-graph audit module | 62 tests passed in 673.729 seconds |
+
+The regenerated graph contains 698 active sources, 253 feature IDs, 504
+transforms, and 42 accounted unreachable files. Its active-source digest is
+`95c2eb5c3af777d6b6901d491b502e0658ddac0bbcaea7d834138d810979e909`.
+The generated JSON has SHA-256
+`d23e49eefd4885508fd63f10454d9dd69f0b9e361e0d97a68ce255fea411529d`.
+The Markdown report has SHA-256
+`53f72262e6dbae27da017e08cc83a662368f83438beb5c6909cc66b922951298`.
+
+The checked seed has not moved. It predates these bridges and the earlier
+compiler-head libm work. `kernel/cpu/libm.c` therefore remains host-owned
+and keeps its `.c` suffix. No production object, ABI, image, runtime path,
+ownership count, or host-dependency count changes in this increment. Issue
+#26 remains open for seed promotion and production transfer. ADR 0173
+records the boundary. `TempleOS/` remains untouched reference material.
