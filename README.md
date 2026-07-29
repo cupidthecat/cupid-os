@@ -435,16 +435,15 @@ accepts the unchanged CPUID statement where the `a` input shares EAX with
 the `=a` output. The public operand keeps its fixed-register spelling and
 names output zero as its match; Linear IR and object emission verify that
 relationship, including represented integer types and equal widths, before
-loading EAX. A frozen same-width float cannot bypass those checks. Compiler
-head now accepts the six remaining packed SSE2 statement shapes in unchanged
-`kernel/cpu/simd.c`. It checks the exact pointer and integer inputs plus the
-memory and XMM0 through XMM7 clobbers, then emits the copy, broadcast, blend,
-and saturating-add instructions through Cupid's shared x86 model. Two full
-compiler-head builds produce the same validated 8,768-byte object with
-SHA-256
+loading EAX. A frozen same-width float cannot bypass those checks. The
+checked seed now accepts the six remaining packed SSE2 statement shapes in
+unchanged `kernel/cpu/simd.c`. It checks the exact pointer and integer inputs
+plus the memory and XMM0 through XMM7 clobbers, then emits the copy, broadcast,
+blend, and saturating-add instructions through Cupid's shared x86 model. Two
+checked-seed builds produce the same validated 8,768-byte object with SHA-256
 `fd280c321b8eb38a90d4f0982d70b8df0364585e3da322eb2c9de722e071f8d4`.
-The checked seed still predates this packed SSE2 capability. The normal SIMD
-recipe remains host-owned, and the source keeps its `.c` suffix.
+The normal SIMD recipe remains host-owned until its separate production
+transfer, and the source keeps its `.c` suffix.
 
 The checked seed emits the four exact descriptor-table and segment-register
 statements in `kernel/smp/percpu.cc`. The LGDT forms keep their
@@ -684,7 +683,7 @@ CupidC emits the repository's i386 Linux runtime and five command closures: Cupi
 
 The native and Cupid-built `cupidc` drivers accept compile-only C11 jobs with ordered include roots, command-line definitions and undefinitions, forced inputs, GNU or freestanding mode, and commit-gated output. `-I` enables quoted and angle lookup, while `--include-angle` enables angle lookup only. Repeatable `-include` options run in caller order before the primary source. These path options accept native paths or absolute logical paths under `--root`. Compilation failures leave an existing output untouched; a file-adapter write failure can still leave a partial file. The checked seed expresses the exact Doom-tree preprocessing profile and emits all 80 source objects. Its explicit `--doom-compat` switch gives the five audited calls in `i_system.c` old-style external declarations and permits eleven audited, bit-preserving conversions between unqualified function pointers and unqualified four-byte data or `void` pointers in `m_menu.c`, `p_saveg.c`, `p_ceilng.c`, and `p_plats.c`. Strict C and plain GNU mode still reject those implicit conversions, and explicit function/data casts remain outside Linear IR. An integer-only IEEE evaluator compiles the unchanged automap table, the sound driver's empty volatile memory barrier emits no target bytes, one-active-member union initialization compiles unchanged `info.c`, and ordinary narrow bit-field promotion compiles unchanged `i_video.c`. Doom remains host-owned until the object comparisons, its three separate compatibility roots, and runtime proof are complete.
 
-The five static i386 Linux tools have a checked bootstrap seed. Its manifest binds the exact binaries, source revision, target ABI, producer lineage, 19-source build plan, and five link orders before execution. The current CupidC seed is the checked bootstrap's 2,447,776-byte stage-three image with SHA-256 `afc8003e5e047c721fa085c793f2c4fe7e0b5c8e29d4f0bebac5282eb10cace9`. It comes from revision `be5945915af8f76792eba573950f263bdae133a3` and carries the complete audited Doom frontier, current GNU entity metadata, the active x87 and SSE memory forms, descriptor and segment assembly, naked IPI entries, all `libm.cc` file-scope effects, and explicit `double` to `unsigned long long` conversion. The same seed carries the 587-row shared x86 catalogue through CupidASM and CupidDis.
+The five static i386 Linux tools have a checked bootstrap seed. Its manifest binds the exact binaries, source revision, target ABI, producer lineage, 19-source build plan, and five link orders before execution. The current CupidC seed is the checked bootstrap's 2,511,176-byte stage-three image with SHA-256 `4b24bf45726e4ab43fe7830f992120f11de34236daef9ef8753303ab4513934c`. It comes from revision `8d5ef4564f753d528630c0f0a78db0f535d56b60` and carries the complete audited Doom frontier, current GNU entity metadata, the active x87 and SSE forms, descriptor and segment assembly, naked IPI entries, all `libm.cc` file-scope effects, the kernel-entry BSS clear, packed SSE2 statements, and explicit `double` to `unsigned long long` conversion. The same seed carries the 587-row shared x86 catalogue through CupidASM and CupidDis.
 
 The harness pins the build plan independently and freezes the verified manifest and binaries. It also copies the exact bytes of all 40 source inputs, including `link.ld`, into a private compiler root. Seed CupidC, CupidASM, and CupidLD build stage two below that root, then the stage-two producer trio repeats the work for stage three. The harness rehashes both the private closure and the live closure before the first stage, after each stage, and after the behavior suite. A live edit that is made and restored during a compile cannot change the bytes consumed by either stage.
 
@@ -781,6 +780,8 @@ and the generated kernel symbol translation described above.
 [ADR 0176](docs/adr/0176-transfer-libm-to-cupidc.md) records the checked production recipe, byte-preserving `.cc` rename, complete frontier, image, and guest libm proof.
 
 [ADR 0178](docs/adr/0178-represent-active-packed-sse2-assembly.md) records the six exact packed SSE2 statement shapes and complete compiler-head SIMD object.
+
+[ADR 0179](docs/adr/0179-promote-bss-and-simd-capable-toolchain-seed.md) records the five-tool seed promotion, direct kernel-entry and SIMD compile proofs, and poisoned-host fixed-point reproof.
 
 [ADR 0143](docs/adr/0143-share-ordinary-padding-nops.md) records the shared ordinary compiler padding family and its measured disassembly improvement.
 

@@ -25547,11 +25547,11 @@
       },
       {
         "path": "tools/bootstrap_toolchain.py",
-        "sha256": "5691e6a4486307be5efbf75fedcf6645077e143004dc694c80135f072ca16eda"
+        "sha256": "d9ac819a9edb7b4e95e1c5a6f32a612032f92b06f9eab9d65551622ad0c33dde"
       },
       {
         "path": "bootstrap/seeds/i386-linux/manifest.json",
-        "sha256": "11cba1f48348ea857a8a8f4a3d1d276fdd90df03f889ff07154f25d85e51db52"
+        "sha256": "34ce355ea8939c5f61a2998c2b084ef860e1f13430940abbfb85ddbe8b46790b"
       },
       {
         "path": "tools/cupidc_production_compile.py",

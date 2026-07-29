@@ -82,8 +82,8 @@ and keeps the four existing output snapshots. Compiler head also emits all
 six packed SSE2 statement shapes in the unchanged SIMD source. It retains the
 ordered pointer and integer inputs and exact memory plus XMM0 through XMM7
 clobbers. The resulting 8,768-byte object is deterministic and validates as
-ELF32 `ET_REL`. The checked seed still predates this capability, so the
-normal SIMD recipe remains host-owned.
+ELF32 `ET_REL` through the checked seed. The normal SIMD recipe remains
+host-owned until production transfer.
 
 The checked seed also represents the exact x87 round-down statement in
 `str_floor()`. It takes one `double` memory output and one `double`

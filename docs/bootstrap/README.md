@@ -36,9 +36,9 @@ The i386 Linux adapter objects are `ctool_host.cc` at 11 functions, 5,522 text b
 
 The `ctool_host.cc` tracer applies 45 relocations, resolves 24 symbols, and leaves no undefined symbol in its static executable. Omitting the errno provider produces the exact CupidLD undefined-symbol failure with empty output and a zero result. The same job then links the original bytes again. Linux and WSL hosts with static i386 support run the tracer with exit status zero.
 
-The current checked artifacts are CupidASM at 433,104 bytes, CupidDis at 371,108 bytes, CupidLD at 262,388 bytes, CupidObj at 182,704 bytes, and CupidC at 2,447,776 bytes. Verification checks every hash, size, static ELF property, target ABI, producer lineage, source revision, and build-plan field before execution. The 19-source plan uses `.cc` throughout and has SHA-256 `59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`. Native GCC and Clang recipes select C with `-x c`.
+The current checked artifacts are CupidASM at 433,104 bytes, CupidDis at 371,108 bytes, CupidLD at 262,388 bytes, CupidObj at 182,704 bytes, and CupidC at 2,511,176 bytes. Verification checks every hash, size, static ELF property, target ABI, producer lineage, source revision, and build-plan field before execution. The 19-source plan uses `.cc` throughout and has SHA-256 `59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`. Native GCC and Clang recipes select C with `-x c`.
 
-The promoted seed completes that plan through stage two and stage three. All 19 C object pairs, the startup objects, and all five tool images match byte for byte with host code-generator commands poisoned. Each checked seed image also matches its stage-two replacement. Both stages agree on every help path, ten successful operations, and six useful failures across compilation, assembly, disassembly, symbol inspection, linking, wrapping, and flattening. The 2,447,776-byte CupidC image carries the complete audited Doom frontier, current GNU entity metadata, x87 and SSE memory forms, descriptor and segment assembly, exact naked IPI entries, all file-scope effects in the then-named `libm.c`, and explicit `double` to `unsigned long long` conversion. Its SHA-256 is `afc8003e5e047c721fa085c793f2c4fe7e0b5c8e29d4f0bebac5282eb10cace9`, and its source revision is `be5945915af8f76792eba573950f263bdae133a3`. CupidASM and CupidDis carry the 587-row shared x86 catalogue. [ADR 0174](../adr/0174-promote-libm-capable-toolchain-seed.md) records the poisoned-host transition and post-promotion reproof. `make verify-bootstrap-seed` checks the current inputs without running them. `make bootstrap-from-seed` performs the complete staged build, while `make test-toolchain-fixed-point` retains the native-generation oracle. GCC or Clang still builds the native contracts, hosted development commands, and 86 normal Cupid OS root objects. Native Windows tooling and the remaining production C ownership stay open.
+The promoted seed completes that plan through stage two and stage three. All 19 C object pairs, the startup objects, and all five tool images match byte for byte with host code-generator commands poisoned. Each checked seed image also matches its stage-two replacement. Both stages agree on every help path, ten successful operations, and six useful failures across compilation, assembly, disassembly, symbol inspection, linking, wrapping, and flattening. The 2,511,176-byte CupidC image carries the complete audited Doom frontier, current GNU entity metadata, x87 and SSE forms, descriptor and segment assembly, exact naked IPI entries, all file-scope effects in the then-named `libm.c`, the kernel-entry BSS clear, packed SSE2 statements, and explicit `double` to `unsigned long long` conversion. Its SHA-256 is `4b24bf45726e4ab43fe7830f992120f11de34236daef9ef8753303ab4513934c`, and its source revision is `8d5ef4564f753d528630c0f0a78db0f535d56b60`. CupidASM and CupidDis carry the 587-row shared x86 catalogue. [ADR 0179](../adr/0179-promote-bss-and-simd-capable-toolchain-seed.md) records the poisoned-host transition and post-promotion reproof. `make verify-bootstrap-seed` checks the current inputs without running them. `make bootstrap-from-seed` performs the complete staged build, while `make test-toolchain-fixed-point` retains the native-generation oracle. GCC or Clang still builds the native contracts, hosted development commands, and 86 normal Cupid OS root objects. Native Windows tooling and the remaining production C ownership stay open.
 
 The checked-seed bootstrap copies the exact bytes of its 40 source inputs into
 a private compiler root before it starts either stage. CupidC receives that
@@ -524,15 +524,15 @@ same-width pointer, floating, and aggregate inputs fail without publishing
 IR or an object. The emitter repeats those checks, loads the evaluated leaf
 into EAX immediately before CPUID, then snapshots all four outputs through
 the existing EBX-preserving path. Numeric ties keep their existing behavior.
-Compiler head now carries unchanged `kernel/cpu/simd.c` past that overlap
+The checked seed now carries unchanged `kernel/cpu/simd.c` past that overlap
 and through all six packed SSE2 statement shapes. The frontend and Linear IR
 lock the exact ordered pointer and 32-bit integer inputs plus each memory and
 XMM0 through XMM7 clobber set. Emission uses Cupid's shared x86 model for the
-copy, broadcast, blend, and saturating-add paths. Two complete builds produce
+copy, broadcast, blend, and saturating-add paths. Two checked-seed builds produce
 the same validated 8,768-byte object with SHA-256
 `fd280c321b8eb38a90d4f0982d70b8df0364585e3da322eb2c9de722e071f8d4`.
-The checked seed still predates this addition, so normal source ownership is
-unchanged. ADR 0178 records the packed SSE2 boundary.
+Normal source ownership is unchanged until production transfer. ADR 0178
+records the packed SSE2 boundary, and ADR 0179 records seed carriage.
 
 ADR 0154 represents the complete unchanged x87 round-down statement in
 `str_floor()`. It requires one modifiable `double` `=m` output, one

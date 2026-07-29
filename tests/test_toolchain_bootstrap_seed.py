@@ -585,7 +585,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 hashlib.sha256(
                     frozen.tools["cupidc"].read_bytes()
                 ).hexdigest(),
-                "afc8003e5e047c721fa085c793f2c4fe7e0b5c8e29d4f0bebac5282eb10cace9",
+                "4b24bf45726e4ab43fe7830f992120f11de34236daef9ef8753303ab4513934c",
             )
 
     def test_wsl_runner_uses_a_private_temporary_directory(self):
@@ -617,16 +617,24 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         )
         self.assertEqual(result.stderr, "")
 
-    def test_checked_seed_emits_complete_unchanged_libm_object(self):
+    def _assert_checked_seed_emits_complete_unchanged_kernel_object(
+        self,
+        source_path: str,
+        source_size: int,
+        source_newlines: int,
+        source_sha256: str,
+        object_size: int,
+        object_sha256: str,
+    ):
         if os.name == "nt" and shutil.which("wsl") is None:
             self.skipTest("WSL is not available")
-        source = REPO_ROOT / "kernel" / "cpu" / "libm.cc"
+        source = REPO_ROOT / source_path
         source_bytes = source.read_bytes()
-        self.assertEqual(len(source_bytes), 43736)
-        self.assertEqual(source_bytes.count(b"\n"), 1500)
+        self.assertEqual(len(source_bytes), source_size)
+        self.assertEqual(source_bytes.count(b"\n"), source_newlines)
         self.assertEqual(
             hashlib.sha256(source_bytes).hexdigest(),
-            "f1c13c83b758394189cc74ed6addfd9dfa99d42064c349c548476686b26cabce",
+            source_sha256,
         )
         audit = json.loads(
             (
@@ -666,7 +674,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
 
         with tempfile.TemporaryDirectory(
-            prefix=".checked-seed-libm-", dir=REPO_ROOT
+            prefix=".checked-seed-kernel-source-", dir=REPO_ROOT
         ) as temporary:
             root = Path(temporary)
             frozen = freeze_seed_inputs(
@@ -675,7 +683,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             runner = ToolRunner(REPO_ROOT)
             objects = []
             for index in range(2):
-                output = root / f"libm-{index}.o"
+                output = root / f"source-{index}.o"
                 logical_output = "/" + output.relative_to(
                     REPO_ROOT
                 ).as_posix()
@@ -684,7 +692,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     [
                         *arguments,
                         "-c",
-                        "/kernel/cpu/libm.cc",
+                        "/" + source_path,
                         "-o",
                         logical_output,
                     ],
@@ -703,12 +711,41 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     hashlib.sha256(objects[0]).hexdigest(),
                 ),
                 (
-                    16164,
-                    "ccfb59839b058020a3cdc30c8e6db7ebac8845215a38ff"
-                    "974b3cbca876574eac",
+                    object_size,
+                    object_sha256,
                 ),
             )
         self.assertEqual(source.read_bytes(), source_bytes)
+
+    def test_checked_seed_emits_complete_unchanged_libm_object(self):
+        self._assert_checked_seed_emits_complete_unchanged_kernel_object(
+            "kernel/cpu/libm.cc",
+            43736,
+            1500,
+            "f1c13c83b758394189cc74ed6addfd9dfa99d42064c349c548476686b26cabce",
+            16164,
+            "ccfb59839b058020a3cdc30c8e6db7ebac8845215a38ff974b3cbca876574eac",
+        )
+
+    def test_checked_seed_emits_complete_unchanged_kernel_entry_object(self):
+        self._assert_checked_seed_emits_complete_unchanged_kernel_object(
+            "kernel/core/kernel.c",
+            31172,
+            950,
+            "fcc92bb561ed107ec6b328f5e9502f1040a2fedd9cf573f6876e5b93556945c3",
+            25920,
+            "d44d06949d48ead865d0d8c1bdd3b76a67b429e0b7a369318ec4fbe8d9f44ed7",
+        )
+
+    def test_checked_seed_emits_complete_unchanged_simd_object(self):
+        self._assert_checked_seed_emits_complete_unchanged_kernel_object(
+            "kernel/cpu/simd.c",
+            13971,
+            487,
+            "5b4c892322d41e901cdeda34817f79a6547139a2ed703fb6a90eb4b06d34692d",
+            8768,
+            "fd280c321b8eb38a90d4f0982d70b8df0364585e3da322eb2c9de722e071f8d4",
+        )
 
     def test_changed_seed_byte_is_rejected_before_execution(self):
         with tempfile.TemporaryDirectory(
@@ -1051,7 +1088,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(report["status"], "pass")
             self.assertEqual(
                 report["seed_source_revision"],
-                "be5945915af8f76792eba573950f263bdae133a3",
+                "8d5ef4564f753d528630c0f0a78db0f535d56b60",
             )
             self.assertNotIn("source_revision", report)
             self.assertEqual(
@@ -1087,7 +1124,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 },
             )
             seed_transition_snapshot = (
-                "0a10b3d9e477cdb9ca341814e481bdfcb4532fa052e5cfb1d0ca27045f6457e7"
+                "c5807ad5189552501ed25d2a2a2e37dff94867ab65efaca2fb3cf2db54960c6a"
             )
             if report["source_snapshot_sha256"] == seed_transition_snapshot:
                 self.assertTrue(all(initial_matches.values()))

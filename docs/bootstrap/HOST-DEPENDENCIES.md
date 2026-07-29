@@ -278,7 +278,7 @@ The self-host source frontier also retires no dependency. Hosted CupidC emits de
 
 The repository i386 Linux runtime replaces the tracer's test-only providers for complete tool closures. CupidC compiles allocation, file, memory, string, `errno`, working-directory, and diagnostic services. CupidASM supplies startup and system-call wrappers, and CupidLD produces static CupidC, CupidASM, CupidDis, CupidLD, and CupidObj commands. Linux and WSL behavior matches the native sibling commands for real outputs and failure paths.
 
-The five static commands share one complete checked-seed gate. The manifest binds the exact executables, source revision, target ABI, producer lineage, 19-source build plan, startup, and five link orders. The current seed contains the checked bootstrap's stage-three images at revision `be5945915af8f76792eba573950f263bdae133a3`. CupidC changed from the preceding seed, while CupidASM, CupidDis, CupidLD, and CupidObj remain byte-identical. The 2,447,776-byte CupidC image has SHA-256 `afc8003e5e047c721fa085c793f2c4fe7e0b5c8e29d4f0bebac5282eb10cace9`.
+The five static commands share one complete checked-seed gate. The manifest binds the exact executables, source revision, target ABI, producer lineage, 19-source build plan, startup, and five link orders. The current seed contains the checked bootstrap's stage-three images at revision `8d5ef4564f753d528630c0f0a78db0f535d56b60`. CupidC changed from the preceding seed, while CupidASM, CupidDis, CupidLD, and CupidObj remain byte-identical. The 2,511,176-byte CupidC image has SHA-256 `4b24bf45726e4ab43fe7830f992120f11de34236daef9ef8753303ab4513934c`.
 
 The harness copies the exact 40-input source closure into a private compiler root. Checked CupidC compiles the stage-two union there, checked CupidASM assembles startup, and checked CupidLD links all five tools. The stage-two producer trio repeats that work for stage three below the same root. Both the private closure and the live closure are checked before the first stage, after each stage, and after behavior checks. Every seed image matches stage two, every C object, startup object, and linked image matches across the stages, and both stages execute positive and failure cases for every command. The two stages, behavior evidence, and report are published together only after success. This tighter source and publication boundary does not retire another host dependency. A clean checkout can rebuild the static i386 Linux Toolchain without external code generation. The native contracts, hosted development commands, and remaining normal OS C objects remain host-owned.
 
@@ -438,9 +438,10 @@ Two Cupid-built compiler runs emit unchanged `kernel/core/kernel.c` as the
 same 25,920-byte object with SHA-256
 `d44d06949d48ead865d0d8c1bdd3b76a67b429e0b7a369318ec4fbe8d9f44ed7`.
 A private hybrid image links and boots that object through desktop and
-`/bin/ls.cc` execution. The checked seed and normal recipe do not carry this
-statement yet, so the host dependency count is unchanged and `kernel.c`
-keeps its `.c` suffix. ADR 0175 records the boundary.
+`/bin/ls.cc` execution. The checked seed now carries this statement, but the
+normal recipe remains host-owned and `kernel.c` keeps its `.c` suffix until
+production transfer. ADR 0175 records the boundary, and ADR 0179 records seed
+carriage.
 
 The checked seed accepts the exact volatile EFLAGS restore used twice by
 `simd_cpu_has_cpuid()`: one 32-bit `r` input, no outputs, and one `cc`
@@ -453,11 +454,11 @@ remaining packed SSE2 statement shapes with their exact ordered inputs and
 memory plus XMM0 through XMM7 clobbers. Two unchanged-source compiles produce
 the same validated 8,768-byte object with SHA-256
 `fd280c321b8eb38a90d4f0982d70b8df0364585e3da322eb2c9de722e071f8d4`.
-The checked seed still predates this addition. The normal
-`kernel/cpu/simd.c` recipe therefore still uses the host compiler, so this
-work retires no host dependency and the source keeps its `.c` suffix. ADRs
-0160 and 0168 record the earlier boundaries, ADR 0174 records seed carriage,
-and ADR 0178 records packed SSE2 support.
+The checked seed now carries this addition. The normal `kernel/cpu/simd.c`
+recipe still uses the host compiler, so this step retires no host dependency
+and the source keeps its `.c` suffix. ADRs 0160 and 0168 record the earlier
+boundaries, ADR 0178 records packed SSE2 support, and ADR 0179 records complete
+seed carriage.
 
 The checked seed also emits `kernel/smp/percpu.cc` completely. Its
 exact GNU assembly forms load a packed six-byte GDTR, reload the code and

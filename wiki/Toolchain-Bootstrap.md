@@ -70,14 +70,16 @@ current GNU entity metadata, the active x87 and SSE memory forms, descriptor
 and segment assembly, every unchanged assembly effect in the then-named
 `libm.c`, explicit
 `double` to `unsigned long long` conversion, and exact naked IPI entries. Its
-stage-three CupidC image is 2,447,776 bytes with SHA-256
-`afc8003e5e047c721fa085c793f2c4fe7e0b5c8e29d4f0bebac5282eb10cace9`.
+stage-three CupidC image is 2,511,176 bytes with SHA-256
+`4b24bf45726e4ab43fe7830f992120f11de34236daef9ef8753303ab4513934c`.
 It came from stage three of the checked bootstrap at revision
-`be5945915af8f76792eba573950f263bdae133a3`. CupidASM and CupidDis carry
+`8d5ef4564f753d528630c0f0a78db0f535d56b60`. It also carries the
+kernel-entry BSS clear and all packed SSE2 statements in the active SIMD
+source. CupidASM and CupidDis carry
 the 587-row shared x86 catalogue. With host code-generator commands
 poisoned, all five seed images match stage two. All 19 stage-two C objects,
 startup, and five images then match stage three, and both stages pass all 21
-tool behavior cases. ADR 0174 records the promotion and its post-promotion
+tool behavior cases. ADR 0179 records this promotion and its post-promotion
 reproof.
 
 The refreshed seed represents operand-free GNU assembly statements inside
@@ -168,9 +170,8 @@ non-integer substitute fails transactionally. Compiler head now emits the six
 remaining packed SSE2 statements in the unchanged source. It checks their
 ordered pointer and 32-bit integer inputs, exact memory and XMM0 through XMM7
 clobbers, and uses Cupid's shared x86 model for every packed instruction.
-Two full builds produce the same validated 8,768-byte object. The checked
-seed still predates this addition, so the normal SIMD recipe remains
-host-owned.
+Two checked-seed builds produce the same validated 8,768-byte object. The
+normal SIMD recipe remains host-owned until its production transfer.
 
 The checked seed represents the complete x87 round-down statement
 in unchanged `str_floor()`. It requires one modifiable `double` output, one
@@ -210,8 +211,8 @@ Two Cupid-built compiler runs emit unchanged `kernel/core/kernel.c` as the
 same 25,920-byte object with SHA-256
 `d44d06949d48ead865d0d8c1bdd3b76a67b429e0b7a369318ec4fbe8d9f44ed7`.
 A private hybrid image with that object passes the GUI terminal smoke. The
-checked seed and normal recipe predate this statement, so the root remains
-host-owned with its `.c` suffix.
+checked seed carries the statement, while the normal recipe remains host-owned
+and the root keeps its `.c` suffix until production transfer.
 
 The checked seed retains GNU `naked` and `__naked__` for the exact IPI
 entries. A naked definition must be

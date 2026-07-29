@@ -15927,3 +15927,79 @@ therefore remains host-owned, and `kernel/cpu/simd.c` keeps its `.c` suffix.
 No production ownership or host-dependency count changes in this increment.
 ADR 0178 records the boundary. `TempleOS/` remains untouched reference
 material.
+
+## 2026-07-29: promote the BSS and SIMD capable Toolchain seed
+
+The checked i386 Linux seed now carries both remaining compiler-head
+capabilities needed by `kernel/core/kernel.c` and `kernel/cpu/simd.c`. This
+increment changes the seed trust root only. Both normal recipes remain
+host-owned until their production transfer.
+
+### Transition bootstrap
+
+The transition started from clean pushed revision
+`8d5ef4564f753d528630c0f0a78db0f535d56b60` and the preceding checked seed.
+Host C and linker commands were poisoned. The harness froze 40 inputs with
+snapshot SHA-256
+`c5807ad5189552501ed25d2a2a2e37dff94867ab65efaca2fb3cf2db54960c6a`.
+
+All 19 C objects, startup, and five linked images matched between stage two
+and stage three. Both stages passed five help cases, ten successful
+operations, and six useful failures. CupidASM, CupidDis, CupidLD, and CupidObj
+matched the preceding seed. CupidC did not, which was the expected compiler
+transition. The run completed in 729.685 seconds. Its 14,880-byte report has
+SHA-256
+`57864d38fa69f66715173ff3ff9b9f25c4149bd55d5c855fc779549e0315dfdf`.
+
+### Promoted seed
+
+The complete stage-three set replaced the manifest-bound seed as one unit.
+Four tool images remain byte-identical. The promoted identities are:
+
+| Tool | Bytes | SHA-256 |
+| --- | ---: | --- |
+| CupidASM | 433,104 | `d57e4f0494aef294045c633b12e4db3f14e879102ac4e528fe70d6a5f089c7e7` |
+| CupidDis | 371,108 | `e67157c4883f4164635b6084bc8c6475b77fd9d051196f4a553ae64346948d70` |
+| CupidLD | 262,388 | `373ed96803dcfb0005b8b3b1d49ca1313396ee11e17521aad6402f487cdd97e5` |
+| CupidObj | 182,704 | `1f48c3d7b5f80d3e33eb9268c087111e8fa54eb390c24368a09f7ec2981c0030` |
+| CupidC | 2,511,176 | `4b24bf45726e4ab43fe7830f992120f11de34236daef9ef8753303ab4513934c` |
+
+The 5,440-byte manifest has SHA-256
+`34ce355ea8939c5f61a2998c2b084ef860e1f13430940abbfb85ddbe8b46790b`.
+It keeps the 19-source build plan at
+`59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`.
+
+The checked-seed gate now compiles unchanged libm, kernel entry, and SIMD
+sources twice under the exact `KERNEL_I386` profile. The outputs are:
+
+| Source | Object bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/cpu/libm.cc` | 16,164 | `ccfb59839b058020a3cdc30c8e6db7ebac8845215a38ff974b3cbca876574eac` |
+| `kernel/core/kernel.c` | 25,920 | `d44d06949d48ead865d0d8c1bdd3b76a67b429e0b7a369318ec4fbe8d9f44ed7` |
+| `kernel/cpu/simd.c` | 8,768 | `fd280c321b8eb38a90d4f0982d70b8df0364585e3da322eb2c9de722e071f8d4` |
+
+The seed verification and three compile proofs pass as four tests in 22.980
+seconds.
+
+### Post-promotion reproof
+
+A second poisoned-host bootstrap started from the promoted seed. All five
+seed images matched stage two. Stage two and stage three again matched the 19
+C objects, startup, and five tools and passed the same 21 behavior cases. The
+run completed in 716.195 seconds. Its 14,879-byte report has SHA-256
+`7f7c41bfdddb6bc1d50fa4e225f02db0b80e49f6f61b2790c1ef57391f6a76f7`.
+The complete bootstrap-seed module then passed all 25 tests, including another
+fixed-point rebuild and the three production-source proofs, in 772.465
+seconds.
+
+The regenerated build graph still has 699 active sources, 253 feature IDs,
+504 transforms, and 42 accounted unreachable files. The active-source digest
+remains
+`58cc8cf3789391e77437ff9d13ebd1b0611a9a9231c3c74b1e1a306208e5d443`.
+The 1,528,732-byte JSON record has SHA-256
+`e9f908d808b22258dbd502169b2db1ec0e2506da9d9cfa99ade3bb71cc99d6c0`.
+The 15,060-byte Markdown summary and 39,038-byte preprocessor case file remain
+byte-identical. The deterministic audit check passes.
+
+ADR 0179 records the promotion. General GNU assembly and the production
+handoff remain open. `TempleOS/` remains untouched reference material.
