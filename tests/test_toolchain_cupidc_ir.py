@@ -200,6 +200,23 @@ class ToolchainCupidCIRContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "file-scope-assembly: ok\n")
 
+    def test_fabs_mask_and_wrappers_lower_in_source_order(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "file-scope-fabs-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            result.stdout,
+            "file-scope-fabs-assembly: ok\n",
+        )
+
     def test_port_io_assembly_lowers_widths_and_read_write_operands(self):
         result = subprocess.run(
             [

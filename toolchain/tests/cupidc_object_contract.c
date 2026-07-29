@@ -27652,20 +27652,20 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.cc",           "/toolchain/x86.cc",
       "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
-      65u, 68u, 66u, 14u, 31u, 143u, 251u, 288u, 400u, 81u, 37u, 60u,
+      65u, 68u, 66u, 14u, 31u, 143u, 251u, 292u, 400u, 81u, 37u, 60u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 76860u, 85252u, 16872u, 42212u,
-      190304u, 465697u, 450041u, 813122u, 139646u, 70368u, 80478u,
+      190304u, 465697u, 460094u, 813122u, 139646u, 70368u, 80478u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 89320u, 99772u, 20180u, 49484u,
-      226668u, 500760u, 492328u, 965760u, 157828u, 79348u, 134656u,
+      226668u, 500760u, 504072u, 965760u, 157828u, 79348u, 134656u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x5fbbfaf2u, 0x4ca44a27u,
       0x7238e153u, 0x999f97b7u, 0xb49d8eb9u,
-      0x2de5cd05u, 0x15744a10u, 0xe905a804u, 0x239f52c7u,
+      0x2de5cd05u, 0xb1bdb127u, 0xe905a804u, 0x239f52c7u,
       0x34558a49u, 0x7c198364u, 0x8774de7du};
   ctool_u32 index;
   int all_matched = 1;
@@ -39743,6 +39743,640 @@ cleanup:
   return 1;
 }
 
+static int file_scope_fabs_register_matches(
+    const ctool_x86_operand_t *operand) {
+  return operand != NULL &&
+                 operand->kind == CTOOL_X86_OPERAND_REGISTER &&
+                 operand->as.reg.class_id == CTOOL_X86_REG_XMM &&
+                 operand->as.reg.index == 0u
+             ? 1
+             : 0;
+}
+
+static int file_scope_fabs_memory_matches(
+    const ctool_x86_operand_t *operand, ctool_u16 width_bits,
+    ctool_x86_reg_class_t base_class, ctool_u8 base_index,
+    ctool_u16 displacement_bits, ctool_u32 displacement) {
+  return operand != NULL &&
+                 operand->kind == CTOOL_X86_OPERAND_MEMORY &&
+                 operand->width_bits == width_bits &&
+                 operand->as.memory.address_bits == 32u &&
+                 operand->as.memory.segment.class_id ==
+                     CTOOL_X86_REG_NONE &&
+                 operand->as.memory.segment.index == 0u &&
+                 operand->as.memory.base.class_id == base_class &&
+                 operand->as.memory.base.index == base_index &&
+                 operand->as.memory.index.class_id ==
+                     CTOOL_X86_REG_NONE &&
+                 operand->as.memory.index.index == 0u &&
+                 operand->as.memory.scale == 1u &&
+                 operand->as.memory.displacement.kind ==
+                     CTOOL_X86_VALUE_CONSTANT &&
+                 operand->as.memory.displacement.bits == displacement &&
+                 operand->as.memory.displacement.addend == 0 &&
+                 operand->as.memory.displacement.reference == 0u &&
+                 operand->as.memory.displacement_bits == displacement_bits
+             ? 1
+             : 0;
+}
+
+static int validate_file_scope_fabs_wrapper_decode(
+    ctool_job_t *job, const ctool_elf32_section_t *text,
+    const ctool_elf32_symbol_t *symbol, ctool_bool single_precision) {
+  static const ctool_u8 double_bytes[] = {
+      0xf2u, 0x0fu, 0x10u, 0x44u, 0x24u, 0x04u,
+      0x66u, 0x0fu, 0x54u, 0x05u, 0x00u, 0x00u, 0x00u, 0x00u,
+      0xc3u};
+  static const ctool_u8 single_bytes[] = {
+      0xf3u, 0x0fu, 0x10u, 0x44u, 0x24u, 0x04u,
+      0x0fu, 0x54u, 0x05u, 0x00u, 0x00u, 0x00u, 0x00u,
+      0xc3u};
+  static const ctool_u32 double_sizes[] = {6u, 8u, 1u};
+  static const ctool_u32 single_sizes[] = {6u, 7u, 1u};
+  const ctool_u8 *expected_bytes =
+      single_precision == CTOOL_TRUE ? single_bytes : double_bytes;
+  const ctool_u32 *expected_sizes =
+      single_precision == CTOOL_TRUE ? single_sizes : double_sizes;
+  ctool_u32 expected_size =
+      single_precision == CTOOL_TRUE
+          ? (ctool_u32)sizeof(single_bytes)
+          : (ctool_u32)sizeof(double_bytes);
+  ctool_u16 scalar_width =
+      single_precision == CTOOL_TRUE ? 32u : 64u;
+  ctool_x86_mnemonic_t move =
+      single_precision == CTOOL_TRUE ? CTOOL_X86_MN_MOVSS
+                                     : CTOOL_X86_MN_MOVSD;
+  ctool_x86_mnemonic_t bitwise_and =
+      single_precision == CTOOL_TRUE ? CTOOL_X86_MN_ANDPS
+                                     : CTOOL_X86_MN_ANDPD;
+  ctool_u32 cursor = 0u;
+  ctool_u32 index;
+  if (job == NULL || text == NULL || symbol == NULL ||
+      symbol->value > text->contents.size ||
+      symbol->size > text->contents.size - symbol->value ||
+      symbol->size != expected_size ||
+      memcmp(text->contents.data + symbol->value, expected_bytes,
+             (size_t)expected_size) != 0) {
+    (void)fprintf(stderr, "fabs wrapper range or bytes differ\n");
+    return 0;
+  }
+  for (index = 0u; index < 3u; index++) {
+    ctool_x86_decoded_t decoded;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + symbol->value + cursor,
+        symbol->size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(
+        job, CTOOL_X86_MODE_32, remaining, 0u, &decoded);
+    if (status != CTOOL_OK ||
+        decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed != expected_sizes[index] ||
+        decoded.encoding.size != expected_sizes[index] ||
+        memcmp(decoded.encoding.bytes, expected_bytes + cursor,
+               (size_t)expected_sizes[index]) != 0 ||
+        decoded.instruction.address_bits != 32u ||
+        decoded.instruction.prefixes != 0u) {
+      (void)fprintf(
+          stderr, "fabs wrapper instruction %u decode differs\n",
+          (unsigned int)index);
+      return 0;
+    }
+    if (index == 0u) {
+      const ctool_x86_field_t *field;
+      if (decoded.instruction.mnemonic != move ||
+          decoded.instruction.operand_bits != 32u ||
+          decoded.instruction.operand_count != 2u ||
+          file_scope_fabs_register_matches(
+              &decoded.instruction.operands[0]) == 0 ||
+          file_scope_fabs_memory_matches(
+              &decoded.instruction.operands[1], scalar_width,
+              CTOOL_X86_REG_GPR32, 4u, 8u, 4u) == 0 ||
+          decoded.encoding.field_count != 1u) {
+        (void)fprintf(stderr, "fabs wrapper load operands differ\n");
+        return 0;
+      }
+      field = &decoded.encoding.fields[0];
+      if (field->kind != CTOOL_X86_FIELD_DISPLACEMENT ||
+          field->relocation != CTOOL_X86_RELOC_NONE ||
+          field->operand_index != 1u || field->byte_offset != 5u ||
+          field->byte_width != 1u || field->pc_bias != 0u ||
+          field->reference != 0u || field->encoded_addend != 4) {
+        (void)fprintf(stderr, "fabs wrapper load field differs\n");
+        return 0;
+      }
+    } else if (index == 1u) {
+      const ctool_x86_field_t *field;
+      if (decoded.instruction.mnemonic != bitwise_and ||
+          decoded.instruction.operand_bits != 32u ||
+          decoded.instruction.operand_count != 2u ||
+          file_scope_fabs_register_matches(
+              &decoded.instruction.operands[0]) == 0 ||
+          file_scope_fabs_memory_matches(
+              &decoded.instruction.operands[1], 128u,
+              CTOOL_X86_REG_NONE, 0u, 32u, 0u) == 0 ||
+          decoded.encoding.field_count != 1u) {
+        (void)fprintf(stderr, "fabs wrapper mask operands differ\n");
+        return 0;
+      }
+      field = &decoded.encoding.fields[0];
+      if (field->kind != CTOOL_X86_FIELD_DISPLACEMENT ||
+          field->relocation != CTOOL_X86_RELOC_NONE ||
+          field->operand_index != 1u ||
+          field->byte_offset !=
+              (single_precision == CTOOL_TRUE ? 3u : 4u) ||
+          field->byte_width != 4u || field->pc_bias != 0u ||
+          field->reference != 0u || field->encoded_addend != 0) {
+        (void)fprintf(stderr, "fabs wrapper mask field differs\n");
+        return 0;
+      }
+    } else if (decoded.instruction.mnemonic != CTOOL_X86_MN_RET ||
+               decoded.instruction.operand_count != 0u ||
+               decoded.encoding.field_count != 0u) {
+      (void)fprintf(stderr, "fabs wrapper return differs\n");
+      return 0;
+    }
+    cursor += decoded.consumed;
+  }
+  if (cursor != symbol->size) {
+    (void)fprintf(stderr, "fabs wrapper trailing bytes differ\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_file_scope_fabs_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const ctool_u8 expected_text[] = {
+      0xf2u, 0x0fu, 0x10u, 0x44u, 0x24u, 0x04u,
+      0x66u, 0x0fu, 0x54u, 0x05u, 0x00u, 0x00u, 0x00u, 0x00u,
+      0xc3u,
+      0xf3u, 0x0fu, 0x10u, 0x44u, 0x24u, 0x04u,
+      0x0fu, 0x54u, 0x05u, 0x00u, 0x00u, 0x00u, 0x00u,
+      0xc3u};
+  static const ctool_u8 expected_rodata[] = {
+      0xffu, 0xffu, 0xffu, 0xffu, 0xffu, 0xffu, 0xffu, 0x7fu,
+      0xffu, 0xffu, 0xffu, 0xffu, 0xffu, 0xffu, 0xffu, 0x7fu,
+      0xffu, 0xffu, 0xffu, 0x7fu,
+      0xffu, 0xffu, 0xffu, 0x7fu,
+      0xffu, 0xffu, 0xffu, 0x7fu,
+      0xffu, 0xffu, 0xffu, 0x7fu,
+      0x44u, 0x33u, 0x22u, 0x11u};
+  static const ctool_u32 relocation_offsets[] = {10u, 24u};
+  static const ctool_u32 function_relative_offsets[] = {10u, 9u};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *rodata =
+      find_section(object, ".rodata");
+  const ctool_elf32_section_t *rel_text =
+      find_section(object, ".rel.text");
+  const ctool_elf32_symbol_t *mask_d =
+      find_symbol(object, "fabs_mask_d");
+  const ctool_elf32_symbol_t *mask_s =
+      find_symbol(object, "fabs_mask_s");
+  const ctool_elf32_symbol_t *fabs_symbol =
+      find_symbol(object, "fabs");
+  const ctool_elf32_symbol_t *fabsf_symbol =
+      find_symbol(object, "fabsf");
+  const ctool_elf32_symbol_t *later_rodata =
+      find_symbol(object, "later_rodata");
+  const ctool_elf32_symbol_t *targets[2];
+  const ctool_elf32_symbol_t *functions[2];
+  ctool_u32 index;
+  if (job == NULL || object == NULL || text == NULL || rodata == NULL ||
+      rel_text == NULL || mask_d == NULL || mask_s == NULL ||
+      fabs_symbol == NULL || fabsf_symbol == NULL ||
+      later_rodata == NULL ||
+      object->file_type != CTOOL_ELF32_ET_REL ||
+      object->program_header_count != 0u ||
+      object->section_count != 7u || object->symbol_count != 6u ||
+      object->relocation_count != 2u || object->relocations == NULL ||
+      text->file_index != 1u || text->type != CTOOL_ELF32_SHT_PROGBITS ||
+      text->flags !=
+          (CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_EXECINSTR) ||
+      text->alignment != 1u ||
+      text->contents.size != (ctool_u32)sizeof(expected_text) ||
+      memcmp(text->contents.data, expected_text,
+             sizeof(expected_text)) != 0 ||
+      text->relocation_first != 0u || text->relocation_count != 2u ||
+      rodata->file_index != 2u ||
+      rodata->type != CTOOL_ELF32_SHT_PROGBITS ||
+      rodata->flags != CTOOL_ELF32_SHF_ALLOC ||
+      rodata->alignment != 16u ||
+      rodata->contents.size != (ctool_u32)sizeof(expected_rodata) ||
+      memcmp(rodata->contents.data, expected_rodata,
+             sizeof(expected_rodata)) != 0 ||
+      rodata->relocation_count != 0u ||
+      rel_text->file_index != 3u ||
+      rel_text->type != 9u ||
+      rel_text->flags != 0u || rel_text->alignment != 4u ||
+      rel_text->entry_size != 8u || rel_text->size != 16u ||
+      rel_text->info != text->file_index ||
+      !symbol_matches(
+          mask_d, 1u, CTOOL_ELF32_BIND_LOCAL,
+          CTOOL_ELF32_SYMBOL_NOTYPE, CTOOL_ELF32_SYMBOL_DEFINED,
+          rodata->file_index, 0u, 0u) ||
+      mask_d->alignment != 0u ||
+      !symbol_matches(
+          mask_s, 2u, CTOOL_ELF32_BIND_LOCAL,
+          CTOOL_ELF32_SYMBOL_NOTYPE, CTOOL_ELF32_SYMBOL_DEFINED,
+          rodata->file_index, 16u, 0u) ||
+      mask_s->alignment != 0u ||
+      !symbol_matches(
+          later_rodata, 3u, CTOOL_ELF32_BIND_LOCAL,
+          CTOOL_ELF32_SYMBOL_OBJECT, CTOOL_ELF32_SYMBOL_DEFINED,
+          rodata->file_index, 32u, 4u) ||
+      !symbol_matches(
+          fabs_symbol, 4u, CTOOL_ELF32_BIND_GLOBAL,
+          CTOOL_ELF32_SYMBOL_FUNCTION, CTOOL_ELF32_SYMBOL_DEFINED,
+          text->file_index, 0u, 15u) ||
+      !symbol_matches(
+          fabsf_symbol, 5u, CTOOL_ELF32_BIND_GLOBAL,
+          CTOOL_ELF32_SYMBOL_FUNCTION, CTOOL_ELF32_SYMBOL_DEFINED,
+          text->file_index, 15u, 14u)) {
+    (void)fprintf(
+        stderr, "fabs file-scope object inventory differs\n");
+    return 0;
+  }
+  targets[0] = mask_d;
+  targets[1] = mask_s;
+  functions[0] = fabs_symbol;
+  functions[1] = fabsf_symbol;
+  for (index = 0u; index < 2u; index++) {
+    const ctool_elf32_relocation_t *relocation =
+        &object->relocations[index];
+    if (relocation->relocation_section_file_index !=
+            rel_text->file_index ||
+        relocation->entry_index != index ||
+        relocation->target_section_file_index != text->file_index ||
+        relocation->offset != relocation_offsets[index] ||
+        relocation->offset - functions[index]->value !=
+            function_relative_offsets[index] ||
+        relocation->symbol_file_index != targets[index]->file_index ||
+        relocation->type != CTOOL_ELF32_R_386_32 ||
+        relocation->addend_known != CTOOL_TRUE ||
+        relocation->addend != 0) {
+      (void)fprintf(
+          stderr, "fabs file-scope relocation %u differs\n",
+          (unsigned int)index);
+      return 0;
+    }
+  }
+  return validate_file_scope_fabs_wrapper_decode(
+             job, text, fabs_symbol, CTOOL_FALSE) &&
+                 validate_file_scope_fabs_wrapper_decode(
+                     job, text, fabsf_symbol, CTOOL_TRUE)
+             ? 1
+             : 0;
+}
+
+static int run_file_scope_fabs_assembly_object(
+    const char *host_root) {
+  static const char source[] =
+      "double fabs(double value);\n"
+      "float fabsf(float value);\n"
+      "__asm__(\n"
+      "\".section .rodata\\n\\t\"\n"
+      "\".align 16\\n\"\n"
+      "\"fabs_mask_d:\\n\\t\"\n"
+      "\".quad 0x7FFFFFFFFFFFFFFF\\n\\t\"\n"
+      "\".quad 0x7FFFFFFFFFFFFFFF\\n\"\n"
+      "\"fabs_mask_s:\\n\\t\"\n"
+      "\".long 0x7FFFFFFF\\n\\t\"\n"
+      "\".long 0x7FFFFFFF\\n\\t\"\n"
+      "\".long 0x7FFFFFFF\\n\\t\"\n"
+      "\".long 0x7FFFFFFF\\n\\t\"\n"
+      "\".text\\n\"\n"
+      ");\n"
+      "__asm__(\n"
+      "\".text\\n\\t\"\n"
+      "\".globl fabs\\n\\t\"\n"
+      "\".type  fabs, @function\\n\"\n"
+      "\"fabs:\\n\\t\"\n"
+      "\"movsd  4(%esp), %xmm0\\n\\t\"\n"
+      "\"andpd  fabs_mask_d, %xmm0\\n\\t\"\n"
+      "\"ret\\n\\t\"\n"
+      "\".size  fabs, .-fabs\\n\"\n"
+      ");\n"
+      "__asm__(\n"
+      "\".text\\n\\t\"\n"
+      "\".globl fabsf\\n\\t\"\n"
+      "\".type  fabsf, @function\\n\"\n"
+      "\"fabsf:\\n\\t\"\n"
+      "\"movss  4(%esp), %xmm0\\n\\t\"\n"
+      "\"andps  fabs_mask_s, %xmm0\\n\\t\"\n"
+      "\"ret\\n\\t\"\n"
+      "\".size  fabsf, .-fabsf\\n\"\n"
+      ");\n"
+      "static const unsigned int later_rodata = 0x11223344u;\n";
+  static const char altered_alignment[] =
+      ".section .rodata\n\t"
+      ".align 8\n"
+      "fabs_mask_d:\n\t"
+      ".quad 0x7FFFFFFFFFFFFFFF\n\t"
+      ".quad 0x7FFFFFFFFFFFFFFF\n"
+      "fabs_mask_s:\n\t"
+      ".long 0x7FFFFFFF\n\t"
+      ".long 0x7FFFFFFF\n\t"
+      ".long 0x7FFFFFFF\n\t"
+      ".long 0x7FFFFFFF\n\t"
+      ".text\n";
+  static const char altered_mask_bytes[] =
+      ".section .rodata\n\t"
+      ".align 16\n"
+      "fabs_mask_d:\n\t"
+      ".quad 0x7FFFFFFFFFFFFFFE\n\t"
+      ".quad 0x7FFFFFFFFFFFFFFF\n"
+      "fabs_mask_s:\n\t"
+      ".long 0x7FFFFFFF\n\t"
+      ".long 0x7FFFFFFF\n\t"
+      ".long 0x7FFFFFFF\n\t"
+      ".long 0x7FFFFFFF\n\t"
+      ".text\n";
+  static const char reversed_fabs_operands[] =
+      ".text\n\t"
+      ".globl fabs\n\t"
+      ".type  fabs, @function\n"
+      "fabs:\n\t"
+      "movsd  4(%esp), %xmm0\n\t"
+      "andpd  %xmm0, fabs_mask_d\n\t"
+      "ret\n\t"
+      ".size  fabs, .-fabs\n";
+  static const char unsupported_message[] =
+      "GNU file-scope assembly template is outside this i386 "
+      "emission slice";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_buffer_t *first = NULL;
+  ctool_buffer_t *second = NULL;
+  ctool_buffer_t *failure = NULL;
+  ctool_buffer_t *limited = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t mutant;
+  ctool_c_assembly_t mutant_assemblies[3];
+  ctool_c_binding_t mutant_bindings[3];
+  unit_snapshot_t snapshot;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t first_bytes;
+  ctool_bytes_t second_bytes;
+  ctool_u32 fabs_binding = CTOOL_C_AST_NONE;
+  ctool_u32 fabsf_binding = CTOOL_C_AST_NONE;
+  ctool_u32 index;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&snapshot, 0, sizeof(snapshot));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(
+          job, "/file-scope-fabs-assembly-object.c", source,
+          CTOOL_TRUE, &unit) ||
+      unit.binding_count !=
+          (ctool_u32)(sizeof(mutant_bindings) /
+                      sizeof(mutant_bindings[0])) ||
+      unit.function_definition_count != 0u ||
+      unit.file_assembly_count !=
+          (ctool_u32)(sizeof(mutant_assemblies) /
+                      sizeof(mutant_assemblies[0])) ||
+      unit.file_assemblies == NULL || unit.assembly_count != 0u ||
+      unit.assemblies != NULL || unit.assembly_operand_count != 0u ||
+      unit.assembly_operands != NULL ||
+      !take_unit_snapshot(&unit, &snapshot)) {
+    (void)fprintf(
+        stderr, "fabs file-scope assembly object setup failed\n");
+    if (job != NULL) {
+      (void)ctool_job_render_diagnostics(job);
+    }
+    goto cleanup;
+  }
+  for (index = 0u; index < unit.binding_count; index++) {
+    if (string_equal(unit.bindings[index].name, "fabs") != 0) {
+      fabs_binding = index;
+    } else if (string_equal(unit.bindings[index].name, "fabsf") != 0) {
+      fabsf_binding = index;
+    }
+  }
+  if (fabs_binding == CTOOL_C_AST_NONE ||
+      fabsf_binding == CTOOL_C_AST_NONE) {
+    (void)fprintf(
+        stderr, "fabs file-scope assembly bindings differ\n");
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(
+      job, 1024u, config.limits.output_bytes, &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &second);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &failure);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 16u, 64u, &limited);
+  }
+  if (!check_status(
+          status, CTOOL_OK, "fabs file-scope assembly buffers") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, first, "first fabs file-scope assembly object") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second,
+          "repeat fabs file-scope assembly object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(
+        stderr,
+        "fabs file-scope assembly object is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text =
+      ctool_string("/file-scope-fabs-assembly-object.o");
+  object_source.contents = second_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(
+          status, CTOOL_OK,
+          "read fabs file-scope assembly object") ||
+      !validate_file_scope_fabs_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+
+  (void)memcpy(
+      mutant_assemblies, unit.file_assemblies,
+      sizeof(mutant_assemblies));
+  mutant = unit;
+  mutant.file_assemblies = mutant_assemblies;
+  mutant_assemblies[0].template_text =
+      ctool_string(altered_alignment);
+  if (!expect_object_failure_preserves_unit(
+          job, &mutant, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_EMIT_DIAG_UNSUPPORTED, unsupported_message,
+          "altered fabs mask alignment") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    goto cleanup;
+  }
+  mutant_assemblies[0] = unit.file_assemblies[0];
+  mutant_assemblies[0].template_text =
+      ctool_string(altered_mask_bytes);
+  if (!expect_object_failure_preserves_unit(
+          job, &mutant, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_EMIT_DIAG_UNSUPPORTED, unsupported_message,
+          "altered fabs mask bytes") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    goto cleanup;
+  }
+  mutant_assemblies[0] = unit.file_assemblies[0];
+  mutant_assemblies[1].template_text =
+      ctool_string(reversed_fabs_operands);
+  if (!expect_object_failure_preserves_unit(
+          job, &mutant, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_EMIT_DIAG_UNSUPPORTED, unsupported_message,
+          "reversed fabs mask operands") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    goto cleanup;
+  }
+
+  mutant = unit;
+  mutant.file_assemblies = unit.file_assemblies + 1u;
+  mutant.file_assembly_count = 2u;
+  if (!expect_object_failure_preserves_unit(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_EMIT_DIAG_SYMBOL,
+          "GNU fabs wrapper requires the exact file-scope mask block",
+          "fabs wrappers without mask block") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    goto cleanup;
+  }
+
+  mutant_assemblies[0] = unit.file_assemblies[1];
+  mutant_assemblies[1] = unit.file_assemblies[0];
+  mutant_assemblies[2] = unit.file_assemblies[2];
+  mutant = unit;
+  mutant.file_assemblies = mutant_assemblies;
+  if (!expect_object_failure_preserves_unit(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_EMIT_DIAG_SYMBOL,
+          "GNU fabs wrapper requires the exact file-scope mask block",
+          "fabs wrapper before mask block") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    goto cleanup;
+  }
+
+  (void)memcpy(
+      mutant_assemblies, unit.file_assemblies,
+      sizeof(mutant_assemblies));
+  mutant_assemblies[1] = unit.file_assemblies[0];
+  mutant = unit;
+  mutant.file_assemblies = mutant_assemblies;
+  if (!expect_object_failure_preserves_unit(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_EMIT_DIAG_SYMBOL,
+          "GNU fabs mask block is defined twice",
+          "duplicate fabs mask block") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    goto cleanup;
+  }
+
+  (void)memcpy(
+      mutant_bindings, unit.bindings, sizeof(mutant_bindings));
+  mutant_bindings[fabs_binding].name =
+      ctool_string("fabs_mask_d");
+  mutant = unit;
+  mutant.bindings = mutant_bindings;
+  if (!expect_object_failure_preserves_unit(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_EMIT_DIAG_SYMBOL,
+          "GNU fabs mask label conflicts with a C declaration",
+          "fabs mask label with C declaration") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    goto cleanup;
+  }
+
+  (void)memcpy(
+      mutant_bindings, unit.bindings, sizeof(mutant_bindings));
+  mutant_bindings[fabs_binding].type =
+      unit.bindings[fabsf_binding].type;
+  mutant = unit;
+  mutant.bindings = mutant_bindings;
+  if (!expect_object_failure_preserves_unit(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_EMIT_DIAG_SYMBOL,
+          "GNU file-scope assembly does not match its external "
+          "function declaration",
+          "fabs wrapper with float prototype") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    goto cleanup;
+  }
+
+  (void)memcpy(
+      mutant_assemblies, unit.file_assemblies,
+      sizeof(mutant_assemblies));
+  mutant_assemblies[2].flags |= 0x80000000u;
+  mutant = unit;
+  mutant.file_assemblies = mutant_assemblies;
+  if (!expect_object_failure_preserves_unit(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "fabsf wrapper with forged flags") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    goto cleanup;
+  }
+
+  if (!expect_object_failure_preserves_unit(
+          job, &unit, limited, CTOOL_ERR_LIMIT,
+          CTOOL_C_EMIT_DIAG_LIMIT, NULL,
+          "limited fabs file-scope assembly object") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    goto cleanup;
+  }
+  if (!expect_object_success_preserves_unit(
+          job, &unit, failure,
+          "fabs file-scope assembly recovery") ||
+      ctool_buffer_view(failure).size != first_bytes.size ||
+      memcmp(
+          ctool_buffer_view(failure).data, first_bytes.data,
+          (size_t)first_bytes.size) != 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(
+        stderr, "fabs file-scope assembly recovery object differs\n");
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  dispose_unit_snapshot(&snapshot);
+  if (limited != NULL) {
+    ctool_buffer_close(limited);
+  }
+  if (failure != NULL) {
+    ctool_buffer_close(failure);
+  }
+  if (second != NULL) {
+    ctool_buffer_close(second);
+  }
+  if (first != NULL) {
+    ctool_buffer_close(first);
+  }
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("file-scope-fabs-assembly: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int run_section_attributes_object(const char *host_root) {
   static const char source[] =
       "extern int imported_value;\n"
@@ -41050,6 +41684,10 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "file-scope-assembly") == 0) {
     return run_file_scope_assembly_object(argv[2]);
   }
+  if (argc == 3 &&
+      strcmp(argv[1], "file-scope-fabs-assembly") == 0) {
+    return run_file_scope_fabs_assembly_object(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "structure-values") == 0) {
     return run_structure_value_object(argv[2]);
   }
@@ -41163,6 +41801,7 @@ int main(int argc, char **argv) {
                 "naked-functions|"
                 "pointer-output-assembly|"
                 "operand-free-assembly|file-scope-assembly|"
+                "file-scope-fabs-assembly|"
                 "structure-values|call-alignment|"
                 "compound-literals|old-style-empty-functions|"
                 "doom-implicit-functions|block-records|"

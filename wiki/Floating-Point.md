@@ -115,9 +115,15 @@ non-atomic `double` `m` inputs in `x`, `log2e` order, and one `memory`
 clobber. Linear IR evaluates all three addresses once in source order. The
 focused function contains 71 text bytes and no relocations. Its direct
 33-byte path computes `exp2(x * log2(e))`, reaches x87 depth three, and
-returns to its incoming depth through Cupid's shared x86 model. The unchanged
-file now stops at the aligned file-scope `fabs` mask block on line 242. The
-checked seed does not yet carry these compiler-head capabilities, so
+returns to its incoming depth through Cupid's shared x86 model.
+
+Compiler head also represents the exact aligned `fabs` mask block and the
+following `fabs` and `fabsf` wrappers. The masks occupy the first 32 bytes of
+`.rodata`, with local labels at offsets 0 and 16. The 15-byte double wrapper
+uses `MOVSD` and `ANDPD`; the 14-byte float wrapper uses `MOVSS` and `ANDPS`.
+Each has one absolute relocation to its mask. The unchanged file now stops at
+the `floor` wrapper on line 281. The checked seed does not yet carry these
+compiler-head capabilities, so
 `kernel/cpu/libm.c` remains host-owned.
 
 The normal build now compiles `kernel/gfx/jpeg.cc` and

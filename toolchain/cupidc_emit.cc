@@ -36,6 +36,9 @@ typedef enum {
   CEMIT_FILE_ASSEMBLY_ATANF,
   CEMIT_FILE_ASSEMBLY_ATAN2,
   CEMIT_FILE_ASSEMBLY_ATAN2F,
+  CEMIT_FILE_ASSEMBLY_FABS,
+  CEMIT_FILE_ASSEMBLY_FABSF,
+  CEMIT_FILE_ASSEMBLY_FABS_MASKS,
   CEMIT_FILE_ASSEMBLY_COUNT
 } cemit_file_assembly_kind_t;
 
@@ -74,6 +77,9 @@ typedef struct {
   ctool_u32 *binding_function_definitions;
   ctool_u32 *file_assembly_bindings;
   ctool_u32 *file_assembly_kinds;
+  ctool_u32 fabs_mask_assembly;
+  ctool_u32 fabs_mask_d_symbol;
+  ctool_u32 fabs_mask_s_symbol;
   ctool_u32 *block_binding_symbols;
   ctool_u32 *block_binding_offsets;
   ctool_u32 *compound_literal_offsets;
@@ -883,7 +889,21 @@ static cemit_file_assembly_kind_t cemit_file_assembly_template_kind(
       "atan2f:\n\tflds    4(%esp)\n\tflds    8(%esp)\n\t"
       "fpatan\n\tsub    $4, %esp\n\tfstps  (%esp)\n\t"
       "movss  (%esp), %xmm0\n\tadd    $4, %esp\n\t"
-      "ret\n\t.size  atan2f, .-atan2f\n"};
+      "ret\n\t.size  atan2f, .-atan2f\n",
+      ".text\n\t.globl fabs\n\t.type  fabs, @function\n"
+      "fabs:\n\tmovsd  4(%esp), %xmm0\n\t"
+      "andpd  fabs_mask_d, %xmm0\n\tret\n\t"
+      ".size  fabs, .-fabs\n",
+      ".text\n\t.globl fabsf\n\t.type  fabsf, @function\n"
+      "fabsf:\n\tmovss  4(%esp), %xmm0\n\t"
+      "andps  fabs_mask_s, %xmm0\n\tret\n\t"
+      ".size  fabsf, .-fabsf\n",
+      ".section .rodata\n\t.align 16\n"
+      "fabs_mask_d:\n\t.quad 0x7FFFFFFFFFFFFFFF\n\t"
+      ".quad 0x7FFFFFFFFFFFFFFF\n"
+      "fabs_mask_s:\n\t.long 0x7FFFFFFF\n\t"
+      ".long 0x7FFFFFFF\n\t.long 0x7FFFFFFF\n\t"
+      ".long 0x7FFFFFFF\n\t.text\n"};
   ctool_u32 kind;
   for (kind = 1u; kind < CEMIT_FILE_ASSEMBLY_COUNT; kind++) {
     if (cemit_strings_equal(text, ctool_string(templates[kind])) ==
@@ -898,7 +918,8 @@ static const char *cemit_file_assembly_function_name(
     cemit_file_assembly_kind_t kind) {
   static const char *const names[] = {
       "", "sqrt", "sqrtf", "sin", "sinf", "cos", "cosf",
-      "tan", "tanf", "atan", "atanf", "atan2", "atan2f"};
+      "tan", "tanf", "atan", "atanf", "atan2", "atan2f",
+      "fabs", "fabsf", ""};
   return kind > CEMIT_FILE_ASSEMBLY_NONE &&
                  kind < CEMIT_FILE_ASSEMBLY_COUNT
              ? names[(ctool_u32)kind]
@@ -979,14 +1000,13 @@ static ctool_status_t cemit_index_file_assemblies(
     return cemit_invalid_unit(
         context, (const ctool_c_pp_location_t *)0);
   }
+  context->fabs_mask_assembly = CTOOL_C_AST_NONE;
+  context->fabs_mask_d_symbol = CTOOL_C_AST_NONE;
+  context->fabs_mask_s_symbol = CTOOL_C_AST_NONE;
   for (index = 0u; index < context->ir.file_assembly_count; index++) {
     ctool_u32 assembly_index = context->ir.file_assemblies[index];
     const ctool_c_assembly_t *assembly;
     cemit_file_assembly_kind_t kind;
-    const char *name;
-    ctool_u32 binding;
-    ctool_bool found = CTOOL_FALSE;
-    ctool_u32 prior;
     if (assembly_index != index ||
         assembly_index >= context->unit->file_assembly_count) {
       return cemit_invalid_unit(
@@ -1000,6 +1020,56 @@ static ctool_status_t cemit_index_file_assemblies(
           CTOOL_C_EMIT_DIAG_UNSUPPORTED, &assembly->location,
           "GNU file-scope assembly template is outside this i386 "
           "emission slice");
+    }
+    context->file_assembly_bindings[index] = CTOOL_C_AST_NONE;
+    context->file_assembly_kinds[index] = (ctool_u32)kind;
+    if (kind == CEMIT_FILE_ASSEMBLY_FABS_MASKS) {
+      ctool_u32 binding;
+      if (context->fabs_mask_assembly != CTOOL_C_AST_NONE) {
+        return cemit_emit_failure(
+            context, CTOOL_ERR_INPUT, CTOOL_C_EMIT_DIAG_SYMBOL,
+            &assembly->location,
+            "GNU fabs mask block is defined twice");
+      }
+      for (binding = 0u; binding < context->unit->binding_count;
+           binding++) {
+        ctool_string_t name =
+            context->unit->bindings[binding].name;
+        if (cemit_strings_equal(
+                name, ctool_string("fabs_mask_d")) == CTOOL_TRUE ||
+            cemit_strings_equal(
+                name, ctool_string("fabs_mask_s")) == CTOOL_TRUE) {
+          return cemit_emit_failure(
+              context, CTOOL_ERR_INPUT, CTOOL_C_EMIT_DIAG_SYMBOL,
+              &assembly->location,
+              "GNU fabs mask label conflicts with a C declaration");
+        }
+      }
+      context->fabs_mask_assembly = index;
+    }
+  }
+  for (index = 0u; index < context->ir.file_assembly_count; index++) {
+    const ctool_c_assembly_t *assembly =
+        &context->unit->file_assemblies[
+            context->ir.file_assemblies[index]];
+    cemit_file_assembly_kind_t kind =
+        (cemit_file_assembly_kind_t)
+            context->file_assembly_kinds[index];
+    const char *name;
+    ctool_u32 binding;
+    ctool_bool found = CTOOL_FALSE;
+    ctool_u32 prior;
+    if (kind == CEMIT_FILE_ASSEMBLY_FABS_MASKS) {
+      continue;
+    }
+    if ((kind == CEMIT_FILE_ASSEMBLY_FABS ||
+         kind == CEMIT_FILE_ASSEMBLY_FABSF) &&
+        (context->fabs_mask_assembly == CTOOL_C_AST_NONE ||
+         context->fabs_mask_assembly >= index)) {
+      return cemit_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_EMIT_DIAG_SYMBOL,
+          &assembly->location,
+          "GNU fabs wrapper requires the exact file-scope mask block");
     }
     name = cemit_file_assembly_function_name(kind);
     for (binding = 0u; binding < context->unit->binding_count; binding++) {
@@ -1045,7 +1115,6 @@ static ctool_status_t cemit_index_file_assemblies(
       }
     }
     context->file_assembly_bindings[index] = binding;
-    context->file_assembly_kinds[index] = (ctool_u32)kind;
     context->binding_needed[binding] = CTOOL_TRUE;
   }
   return CTOOL_OK;
@@ -1421,6 +1490,57 @@ static ctool_status_t cemit_ensure_binding_symbol(
   context->binding_symbols[binding_index] = symbol_index;
   *symbol_out = symbol_index;
   return CTOOL_OK;
+}
+
+static ctool_status_t cemit_add_file_assembly_symbol(
+    cemit_context_t *context, const char *name,
+    ctool_u32 *symbol_out) {
+  ctool_elf32_symbol_spec_t *symbol;
+  ctool_u32 symbol_index;
+  if (name == (const char *)0 || name[0] == '\0' ||
+      symbol_out == (ctool_u32 *)0) {
+    return CTOOL_ERR_INVALID_ARGUMENT;
+  }
+  if (context->symbol_count >= context->symbol_capacity) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  symbol_index = context->symbol_count++;
+  symbol = &context->symbols[symbol_index];
+  symbol->name = ctool_string(name);
+  symbol->binding = CTOOL_ELF32_BIND_LOCAL;
+  symbol->type = CTOOL_ELF32_SYMBOL_NOTYPE;
+  symbol->visibility = CTOOL_ELF32_VIS_DEFAULT;
+  symbol->placement = CTOOL_ELF32_SYMBOL_UNDEFINED;
+  symbol->section = CTOOL_ELF32_NO_SECTION;
+  symbol->value = 0u;
+  symbol->size = 0u;
+  symbol->alignment = 0u;
+  *symbol_out = symbol_index;
+  return CTOOL_OK;
+}
+
+static ctool_status_t cemit_index_file_assembly_symbols(
+    cemit_context_t *context) {
+  ctool_status_t status;
+  if (context->fabs_mask_assembly == CTOOL_C_AST_NONE) {
+    return context->fabs_mask_d_symbol == CTOOL_C_AST_NONE &&
+                   context->fabs_mask_s_symbol == CTOOL_C_AST_NONE
+               ? CTOOL_OK
+               : CTOOL_ERR_INTERNAL;
+  }
+  if (context->fabs_mask_assembly >=
+          context->ir.file_assembly_count ||
+      context->fabs_mask_d_symbol != CTOOL_C_AST_NONE ||
+      context->fabs_mask_s_symbol != CTOOL_C_AST_NONE) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  status = cemit_add_file_assembly_symbol(
+      context, "fabs_mask_d", &context->fabs_mask_d_symbol);
+  if (status == CTOOL_OK) {
+    status = cemit_add_file_assembly_symbol(
+        context, "fabs_mask_s", &context->fabs_mask_s_symbol);
+  }
+  return status;
 }
 
 static ctool_status_t cemit_ensure_block_binding_symbol(
@@ -2277,6 +2397,62 @@ static ctool_status_t cemit_x86_sse_memory(
   return cemit_x86_encode(context, &instruction,
                           (ctool_x86_encoding_t *)0,
                           (ctool_u32 *)0);
+}
+
+static ctool_status_t cemit_x86_sse_absolute_mask(
+    cemit_context_t *context, ctool_x86_mnemonic_t mnemonic,
+    ctool_u32 symbol) {
+  ctool_x86_instruction_t instruction =
+      cemit_x86_instruction(mnemonic, 128u);
+  ctool_x86_operand_t memory = cemit_x86_memory_operand(
+      cemit_x86_register(CTOOL_X86_REG_NONE, 0u), 0, 32u);
+  ctool_x86_encoding_t encoding;
+  ctool_u32 offset;
+  ctool_u32 relocation_offset;
+  ctool_u8 expected_size;
+  ctool_u8 expected_field_offset;
+  ctool_status_t status;
+  if ((mnemonic != CTOOL_X86_MN_ANDPD &&
+       mnemonic != CTOOL_X86_MN_ANDPS) ||
+      symbol >= context->symbol_count) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  expected_size =
+      mnemonic == CTOOL_X86_MN_ANDPD ? 8u : 7u;
+  expected_field_offset =
+      mnemonic == CTOOL_X86_MN_ANDPD ? 4u : 3u;
+  memory.width_bits = 128u;
+  memory.as.memory.displacement.kind = CTOOL_X86_VALUE_REFERENCE;
+  memory.as.memory.displacement.bits = 0u;
+  memory.as.memory.displacement.addend = 0;
+  memory.as.memory.displacement.reference = symbol;
+  instruction.operand_count = 2u;
+  instruction.operands[0] =
+      cemit_x86_register_operand(CTOOL_X86_REG_XMM, 0u);
+  instruction.operands[1] = memory;
+  status = cemit_x86_encode(
+      context, &instruction, &encoding, &offset);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if (encoding.size != expected_size ||
+      encoding.field_count != 1u ||
+      encoding.fields[0].kind != CTOOL_X86_FIELD_DISPLACEMENT ||
+      encoding.fields[0].relocation != CTOOL_X86_RELOC_ABSOLUTE ||
+      encoding.fields[0].operand_index != 1u ||
+      encoding.fields[0].byte_offset != expected_field_offset ||
+      encoding.fields[0].byte_width != 4u ||
+      encoding.fields[0].pc_bias != 0u ||
+      encoding.fields[0].reference != symbol ||
+      encoding.fields[0].encoded_addend != 0 ||
+      cemit_add_overflows(
+          offset, encoding.fields[0].byte_offset) == CTOOL_TRUE) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  relocation_offset = offset + encoding.fields[0].byte_offset;
+  return cemit_add_relocation(
+      context, context->active_text_section, relocation_offset, symbol,
+      CTOOL_ELF32_R_386_32, 0);
 }
 
 static ctool_status_t cemit_x86_fxsave_memory(
@@ -12082,6 +12258,31 @@ static ctool_status_t cemit_emit_file_assembly_body(
       single_precision == CTOOL_TRUE ? CTOOL_X86_MN_MOVSS
                                      : CTOOL_X86_MN_MOVSD;
   ctool_status_t status;
+  if (kind == CEMIT_FILE_ASSEMBLY_FABS ||
+      kind == CEMIT_FILE_ASSEMBLY_FABSF) {
+    ctool_u32 mask_symbol =
+        kind == CEMIT_FILE_ASSEMBLY_FABSF
+            ? context->fabs_mask_s_symbol
+            : context->fabs_mask_d_symbol;
+    ctool_x86_mnemonic_t bitwise_and =
+        kind == CEMIT_FILE_ASSEMBLY_FABSF
+            ? CTOOL_X86_MN_ANDPS
+            : CTOOL_X86_MN_ANDPD;
+    if (mask_symbol == CTOOL_C_AST_NONE ||
+        mask_symbol >= context->symbol_count) {
+      return CTOOL_ERR_INTERNAL;
+    }
+    status = cemit_x86_sse_memory(
+        context, move, CTOOL_TRUE, 0u, 4u, 4, width_bits);
+    if (status == CTOOL_OK) {
+      status = cemit_x86_sse_absolute_mask(
+          context, bitwise_and, mask_symbol);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_no_operand(context, CTOOL_X86_MN_RET);
+    }
+    return status;
+  }
   if (kind == CEMIT_FILE_ASSEMBLY_SQRT ||
       kind == CEMIT_FILE_ASSEMBLY_SQRTF) {
     ctool_x86_mnemonic_t square_root =
@@ -12148,6 +12349,69 @@ static ctool_status_t cemit_emit_file_assembly_body(
              : status;
 }
 
+static ctool_status_t cemit_place_fabs_masks(
+    cemit_context_t *context) {
+  static const ctool_u8 bytes[] = {
+      0xffu, 0xffu, 0xffu, 0xffu, 0xffu, 0xffu, 0xffu, 0x7fu,
+      0xffu, 0xffu, 0xffu, 0xffu, 0xffu, 0xffu, 0xffu, 0x7fu,
+      0xffu, 0xffu, 0xffu, 0x7fu,
+      0xffu, 0xffu, 0xffu, 0x7fu,
+      0xffu, 0xffu, 0xffu, 0x7fu,
+      0xffu, 0xffu, 0xffu, 0x7fu};
+  ctool_elf32_symbol_spec_t *mask_d;
+  ctool_elf32_symbol_spec_t *mask_s;
+  ctool_u32 start;
+  ctool_status_t status;
+  if (context->fabs_mask_d_symbol >= context->symbol_count ||
+      context->fabs_mask_s_symbol >= context->symbol_count) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  mask_d = &context->symbols[context->fabs_mask_d_symbol];
+  mask_s = &context->symbols[context->fabs_mask_s_symbol];
+  if (cemit_strings_equal(
+          mask_d->name, ctool_string("fabs_mask_d")) == CTOOL_FALSE ||
+      cemit_strings_equal(
+          mask_s->name, ctool_string("fabs_mask_s")) == CTOOL_FALSE ||
+      mask_d->binding != CTOOL_ELF32_BIND_LOCAL ||
+      mask_s->binding != CTOOL_ELF32_BIND_LOCAL ||
+      mask_d->type != CTOOL_ELF32_SYMBOL_NOTYPE ||
+      mask_s->type != CTOOL_ELF32_SYMBOL_NOTYPE ||
+      mask_d->visibility != CTOOL_ELF32_VIS_DEFAULT ||
+      mask_s->visibility != CTOOL_ELF32_VIS_DEFAULT ||
+      mask_d->placement != CTOOL_ELF32_SYMBOL_UNDEFINED ||
+      mask_s->placement != CTOOL_ELF32_SYMBOL_UNDEFINED) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  status = cemit_align_buffer(context, CEMIT_SECTION_RODATA, 16u);
+  if (status == CTOOL_OK) {
+    status = cemit_raise_section_alignment(
+        context, CEMIT_SECTION_RODATA, 16u);
+  }
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  start = ctool_buffer_view(context->rodata).size;
+  if (start > 0xffffffffu - (ctool_u32)sizeof(bytes)) {
+    return CTOOL_ERR_OVERFLOW;
+  }
+  status = ctool_buffer_append(
+      context->rodata, ctool_bytes(bytes, (ctool_u32)sizeof(bytes)));
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  mask_d->placement = CTOOL_ELF32_SYMBOL_DEFINED;
+  mask_d->section = CEMIT_SECTION_RODATA;
+  mask_d->value = start;
+  mask_d->size = 0u;
+  mask_d->alignment = 0u;
+  mask_s->placement = CTOOL_ELF32_SYMBOL_DEFINED;
+  mask_s->section = CEMIT_SECTION_RODATA;
+  mask_s->value = start + 16u;
+  mask_s->size = 0u;
+  mask_s->alignment = 0u;
+  return CTOOL_OK;
+}
+
 static ctool_status_t cemit_place_file_assembly(
     cemit_context_t *context, ctool_u32 index) {
   const ctool_c_assembly_t *assembly;
@@ -12167,12 +12431,21 @@ static ctool_status_t cemit_place_file_assembly(
   }
   assembly = &context->unit->file_assemblies[
       context->ir.file_assemblies[index]];
-  binding = context->file_assembly_bindings[index];
   kind = (cemit_file_assembly_kind_t)
       context->file_assembly_kinds[index];
-  if (binding >= context->unit->binding_count ||
-      kind <= CEMIT_FILE_ASSEMBLY_NONE ||
+  if (kind <= CEMIT_FILE_ASSEMBLY_NONE ||
       kind >= CEMIT_FILE_ASSEMBLY_COUNT) {
+    return cemit_invalid_unit(context, &assembly->location);
+  }
+  binding = context->file_assembly_bindings[index];
+  if (kind == CEMIT_FILE_ASSEMBLY_FABS_MASKS) {
+    if (binding != CTOOL_C_AST_NONE ||
+        context->fabs_mask_assembly != index) {
+      return cemit_invalid_unit(context, &assembly->location);
+    }
+    return cemit_place_fabs_masks(context);
+  }
+  if (binding >= context->unit->binding_count) {
     return cemit_invalid_unit(context, &assembly->location);
   }
   context->active_text = context->text;
@@ -12575,6 +12848,7 @@ ctool_status_t ctool_c_emit_object(
   ctool_elf32_object_spec_t object;
   ctool_u32 text_relocation_count = 0u;
   ctool_u32 block_static_count = 0u;
+  ctool_u32 file_assembly_symbol_count = 0u;
   ctool_u32 section_count = 0u;
   ctool_u32 symbol_capacity;
   ctool_u32 index;
@@ -12634,6 +12908,32 @@ ctool_status_t ctool_c_emit_object(
         text_relocation_count++;
       }
     }
+    for (index = 0u; status == CTOOL_OK &&
+                      index < context.ir.file_assembly_count;
+         index++) {
+      ctool_u32 assembly_index = context.ir.file_assemblies[index];
+      cemit_file_assembly_kind_t kind;
+      if (assembly_index >= unit->file_assembly_count) {
+        status = CTOOL_ERR_INTERNAL;
+        break;
+      }
+      kind = cemit_file_assembly_template_kind(
+          unit->file_assemblies[assembly_index].template_text);
+      if (kind == CEMIT_FILE_ASSEMBLY_FABS_MASKS) {
+        if (file_assembly_symbol_count > 0xfffffffdu) {
+          status = CTOOL_ERR_OVERFLOW;
+        } else {
+          file_assembly_symbol_count += 2u;
+        }
+      } else if (kind == CEMIT_FILE_ASSEMBLY_FABS ||
+                 kind == CEMIT_FILE_ASSEMBLY_FABSF) {
+        if (text_relocation_count == 0xffffffffu) {
+          status = CTOOL_ERR_OVERFLOW;
+        } else {
+          text_relocation_count++;
+        }
+      }
+    }
   }
   if (status == CTOOL_OK &&
       cemit_add_overflows(unit->binding_count, unit->initializer_count) ==
@@ -12652,13 +12952,21 @@ ctool_status_t ctool_c_emit_object(
     status = CTOOL_ERR_OVERFLOW;
   }
   if (status == CTOOL_OK &&
+      cemit_add_overflows(unit->binding_count + unit->initializer_count +
+                              unit->expression_count +
+                              block_static_count,
+                          file_assembly_symbol_count) == CTOOL_TRUE) {
+    status = CTOOL_ERR_OVERFLOW;
+  }
+  if (status == CTOOL_OK &&
       cemit_add_overflows(unit->initializer_count,
                           text_relocation_count) == CTOOL_TRUE) {
     status = CTOOL_ERR_OVERFLOW;
   }
   symbol_capacity = status == CTOOL_OK
                         ? unit->binding_count + unit->initializer_count +
-                              unit->expression_count + block_static_count
+                              unit->expression_count + block_static_count +
+                              file_assembly_symbol_count
                         : 0u;
   context.symbol_capacity = symbol_capacity;
   context.relocation_capacity =
@@ -12763,6 +13071,9 @@ ctool_status_t ctool_c_emit_object(
     status = cemit_index_initializers(&context);
   }
   if (status == CTOOL_OK) {
+    status = cemit_index_file_assembly_symbols(&context);
+  }
+  if (status == CTOOL_OK) {
     status = cemit_index_symbols(&context);
   }
   if (status == CTOOL_OK) {
@@ -12773,6 +13084,11 @@ ctool_status_t ctool_c_emit_object(
   }
   if (status == CTOOL_OK) {
     status = cemit_index_named_sections(&context);
+  }
+  if (status == CTOOL_OK &&
+      context.fabs_mask_assembly != CTOOL_C_AST_NONE) {
+    status = cemit_place_file_assembly(
+        &context, context.fabs_mask_assembly);
   }
   for (index = 0u; status == CTOOL_OK &&
                     index < unit->object_definition_count;
@@ -12787,7 +13103,9 @@ ctool_status_t ctool_c_emit_object(
   for (index = 0u; status == CTOOL_OK &&
                     index < context.ir.file_assembly_count;
        index++) {
-    status = cemit_place_file_assembly(&context, index);
+    if (index != context.fabs_mask_assembly) {
+      status = cemit_place_file_assembly(&context, index);
+    }
   }
   for (index = 0u; status == CTOOL_OK &&
                     index < unit->function_definition_count;

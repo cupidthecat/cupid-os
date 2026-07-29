@@ -1192,7 +1192,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                 self.assertEqual(result.stderr, expected)
                 self.assertFalse(output.exists())
 
-    def test_unchanged_libm_source_advances_past_x87_exp_assembly(
+    def test_unchanged_libm_source_advances_past_fabs_assembly(
         self,
     ):
         source = REPO_ROOT / "kernel/cpu/libm.c"
@@ -1233,7 +1233,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             )
 
         expected = (
-            "/kernel/cpu/libm.c:242:1: error CTC000003: "
+            "/kernel/cpu/libm.c:281:1: error CTC000003: "
             "GNU file-scope assembly template is outside this "
             "i386 emission slice\n"
         )
@@ -1334,6 +1334,23 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "file-scope-assembly: ok\n")
+
+    def test_fabs_masks_and_wrappers_emit_exact_relocatable_i386(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "file-scope-fabs-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            result.stdout,
+            "file-scope-fabs-assembly: ok\n",
+        )
 
     def test_naked_ipi_wrappers_emit_exact_i386_without_a_c_frame(self):
         result = subprocess.run(

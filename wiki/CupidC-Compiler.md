@@ -481,12 +481,18 @@ accepts one modifiable, non-atomic `double` `=m` output, two addressable,
 non-atomic `double` `m` inputs in `x`, `log2e` order, and one `memory`
 clobber. Linear IR evaluates all three addresses once in source order. The
 71-byte focused function has no relocations, reaches x87 depth three, and
-returns to its incoming depth. The full source now proceeds to the aligned
-file-scope `fabs` mask block at line 242.
+returns to its incoming depth.
+
+Compiler head also emits the exact aligned `fabs` mask block and the
+following `fabs` and `fabsf` wrappers. The masks occupy the first 32 bytes of
+`.rodata`, with local `STT_NOTYPE` labels at offsets 0 and 16. The wrappers
+contain 15 and 14 text bytes and carry one `R_386_32` relocation each to the
+matching mask. The full source now proceeds to the `floor` wrapper at line
+281.
 
 General GAS syntax and other file-scope templates remain unsupported. The
-checked seed predates named operands and these five statement blocks, and the
-normal `libm.c` recipe still uses the host compiler.
+checked seed predates named operands, these five statement blocks, and the
+three `fabs` effects. The normal `libm.c` recipe still uses the host compiler.
 
 The same checked seed accepts a modifiable four-byte object or `void` pointer
 as the single `=r` output of `mov %%gs:0, %0`. It retains the pointer type,

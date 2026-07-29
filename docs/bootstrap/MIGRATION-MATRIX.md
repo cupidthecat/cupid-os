@@ -31,13 +31,17 @@ output, two `double` `m` inputs, and a `memory` clobber. Its 53-byte focused
 function has no relocations. It also emits the exact x87
 `libm_exp_impl()` statement with one `double` `=m` output, two `double` `m`
 inputs in `x`, `log2e` order, and a `memory` clobber. Its 71-byte focused
-function has no relocations and balanced x87 depth. The complete source now
-proceeds to the aligned file-scope `fabs` mask block at line 242. That block
-and broader arbitrary assembly remain open, so this does not transfer a
-recipe. `libm.c` remains host-owned with its `.c` name, and the host C
-transform count is unchanged. ADR 0155 records the file-scope boundary, ADR
-0159 records named operand normalization, and ADRs 0161 through 0165 record
-the five represented statements.
+function has no relocations and balanced x87 depth. Compiler head also emits
+the aligned 32-byte `fabs` mask block and both following wrappers. The mask
+labels remain fixed at `.rodata` offsets 0 and 16 even when later read-only C
+objects exist. The 15-byte `fabs` and 14-byte `fabsf` functions each carry
+one `R_386_32` relocation to the matching local label. The complete source
+now proceeds to the `floor` wrapper at line 281. That wrapper and broader
+arbitrary assembly remain open, so this does not transfer a recipe.
+`libm.c` remains host-owned with its `.c` name, and the host C transform
+count is unchanged. ADR 0155 records the initial file-scope boundary, ADR
+0159 records named operand normalization, ADRs 0161 through 0165 record the
+five represented statements, and ADR 0166 records the `fabs` effects.
 
 Checked-seed CupidC represents the two exact volatile FXSAVE statements in
 `kernel/core/process.cc`. One independent four-byte object or

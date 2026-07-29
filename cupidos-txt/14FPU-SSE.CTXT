@@ -124,8 +124,14 @@ libm_exp_impl. It accepts one modifiable, non-atomic double =m output, two
 addressable, non-atomic double m inputs in x, log2e order, and one memory
 clobber. Linear IR evaluates all three addresses once in source order. The
 71-byte focused function has no relocations, reaches x87 depth three, and
-returns to its incoming depth. The unchanged source now stops at the aligned
-file-scope fabs mask block on line 242. The checked seed does not yet carry
+returns to its incoming depth.
+
+Compiler head also represents the exact aligned fabs mask block and the
+following fabs and fabsf wrappers. The masks occupy the first 32 bytes of
+.rodata, with local labels at offsets 0 and 16. The double wrapper uses MOVSD
+and ANDPD in 15 text bytes. The float wrapper uses MOVSS and ANDPS in 14
+bytes. Each has one absolute relocation to its mask. The unchanged source now
+stops at the floor wrapper on line 281. The checked seed does not yet carry
 these compiler-head capabilities, so
 kernel/cpu/libm.c remains host-owned.
 

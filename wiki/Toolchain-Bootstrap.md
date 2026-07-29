@@ -411,9 +411,24 @@ computes `exp2(x * log2(e))`, reaches x87 depth three, and returns to the
 incoming depth before storing through the saved output address. Contracts
 cover shared decoding, forged metadata, operand diagnostics, deterministic
 output, unreachable validation, rollback, and same-job recovery. The
-unchanged source now reaches the aligned file-scope `fabs` mask block at line
-242.
+unchanged source then reaches the aligned file-scope `fabs` mask block.
 
-Named matching constraints, operand modifiers, the mask block, and general
-XMM or x87 constraints remain separate work. The checked seed and normal
-host-owned `libm.c` recipe do not change in this increment.
+### fabs file-scope masks and wrappers
+
+Compiler head accepts the exact mask block followed by `fabs` and `fabsf`.
+The mask effect reserves the first 32 bytes of `.rodata` at alignment 16 and
+defines local `STT_NOTYPE` symbols at offsets 0 and 16. It is placed before
+ordinary and block-static objects, so later read-only C data starts at offset
+32 or later.
+
+The wrappers retain their source prototypes and global function symbols.
+`fabs` contains 15 text bytes and an `R_386_32` relocation at function offset
+10 to `fabs_mask_d`. `fabsf` contains 14 bytes and the same relocation type at
+function offset 9 to `fabs_mask_s`. Both use Cupid's shared x86 model.
+Contracts cover exact bytes, symbols, relocations, mixed read-only data,
+source ordering, forged metadata, deterministic output, rollback, and
+same-job recovery. The unchanged source now reaches `floor` at line 281.
+
+Named matching constraints, operand modifiers, the `floor` wrapper, and
+general XMM or x87 constraints remain separate work. The checked seed and
+normal host-owned `libm.c` recipe do not change in this increment.

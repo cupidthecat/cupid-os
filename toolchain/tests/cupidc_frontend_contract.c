@@ -7656,8 +7656,8 @@ static int validate_toolchain_frontier(const char *host_root) {
        25287u, 479u, 286u, 0u, 0u},
       {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 251u, 7051u,
        65279u, 925u, 338u, 0u, 0u},
-      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 288u, 7080u,
-       60689u, 860u, 451u, 0u, 0u},
+      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 292u, 7275u,
+       62115u, 885u, 499u, 0u, 0u},
       {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 400u,
        15889u, 105265u, 2382u, 1464u, 0u, 0u},
       {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 81u, 2935u,
@@ -30933,6 +30933,240 @@ cleanup:
   return failed;
 }
 
+static int file_scope_fabs_function_matches(
+    const ctool_c_translation_unit_t *unit, const char *name,
+    ctool_c_type_kind_t scalar_kind, ctool_u32 scalar_size) {
+  const ctool_c_binding_t *binding = find_binding(unit, name);
+  const ctool_c_type_node_t *function;
+  const ctool_c_type_node_t *result;
+  const ctool_c_type_node_t *parameter;
+  ctool_u32 parameter_type;
+  if (binding == NULL || binding->kind != CTOOL_C_BINDING_FUNCTION ||
+      binding->linkage != CTOOL_C_LINKAGE_EXTERNAL ||
+      binding->file_scope_visible != CTOOL_TRUE ||
+      binding->attributes != 0u || binding->type >= unit->graph.type_count ||
+      binding->type >= unit->layout.type_count) {
+    return 0;
+  }
+  function = &unit->graph.types[binding->type];
+  if (function->kind != CTOOL_C_TYPE_FUNCTION ||
+      function->qualifiers != 0u ||
+      function->has_prototype != CTOOL_TRUE ||
+      function->variadic != CTOOL_FALSE ||
+      function->parameter_count != 1u ||
+      function->first_parameter >= unit->graph.parameter_type_count ||
+      function->referenced_type >= unit->graph.type_count ||
+      function->referenced_type >= unit->layout.type_count) {
+    return 0;
+  }
+  parameter_type =
+      unit->graph.parameter_types[function->first_parameter];
+  if (parameter_type >= unit->graph.type_count ||
+      parameter_type >= unit->layout.type_count) {
+    return 0;
+  }
+  result = &unit->graph.types[function->referenced_type];
+  parameter = &unit->graph.types[parameter_type];
+  return result->kind == scalar_kind && result->qualifiers == 0u &&
+                 parameter->kind == scalar_kind &&
+                 parameter->qualifiers == 0u &&
+                 unit->layout.types[function->referenced_type].is_object ==
+                     CTOOL_TRUE &&
+                 unit->layout.types[function->referenced_type]
+                         .is_complete_object == CTOOL_TRUE &&
+                 unit->layout.types[function->referenced_type].size ==
+                     scalar_size &&
+                 unit->layout.types[parameter_type].is_object ==
+                     CTOOL_TRUE &&
+                 unit->layout.types[parameter_type].is_complete_object ==
+                     CTOOL_TRUE &&
+                 unit->layout.types[parameter_type].size == scalar_size
+             ? 1
+             : 0;
+}
+
+static int validate_file_scope_fabs_assembly_unit(
+    const ctool_c_translation_unit_t *unit) {
+  static const char *const templates[] = {
+      ".section .rodata\n\t"
+      ".align 16\n"
+      "fabs_mask_d:\n\t"
+      ".quad 0x7FFFFFFFFFFFFFFF\n\t"
+      ".quad 0x7FFFFFFFFFFFFFFF\n"
+      "fabs_mask_s:\n\t"
+      ".long 0x7FFFFFFF\n\t"
+      ".long 0x7FFFFFFF\n\t"
+      ".long 0x7FFFFFFF\n\t"
+      ".long 0x7FFFFFFF\n\t"
+      ".text\n",
+      ".text\n\t"
+      ".globl fabs\n\t"
+      ".type  fabs, @function\n"
+      "fabs:\n\t"
+      "movsd  4(%esp), %xmm0\n\t"
+      "andpd  fabs_mask_d, %xmm0\n\t"
+      "ret\n\t"
+      ".size  fabs, .-fabs\n",
+      ".text\n\t"
+      ".globl fabsf\n\t"
+      ".type  fabsf, @function\n"
+      "fabsf:\n\t"
+      "movss  4(%esp), %xmm0\n\t"
+      "andps  fabs_mask_s, %xmm0\n\t"
+      "ret\n\t"
+      ".size  fabsf, .-fabsf\n"};
+  static const ctool_u32 lines[] = {3u, 16u, 26u};
+  ctool_u32 index;
+  if (unit == NULL ||
+      unit->file_assembly_count != ARRAY_COUNT(templates) ||
+      unit->file_assemblies == NULL || unit->assembly_count != 0u ||
+      unit->assemblies != NULL || unit->assembly_operand_count != 0u ||
+      unit->assembly_operands != NULL || unit->statement_count != 0u ||
+      unit->statements != NULL || unit->function_definition_count != 0u ||
+      unit->object_definition_count != 0u ||
+      file_scope_fabs_function_matches(
+          unit, "fabs", CTOOL_C_TYPE_DOUBLE, 8u) == 0 ||
+      file_scope_fabs_function_matches(
+          unit, "fabsf", CTOOL_C_TYPE_FLOAT, 4u) == 0 ||
+      find_binding(unit, "fabs_mask_d") != NULL ||
+      find_binding(unit, "fabs_mask_s") != NULL) {
+    return 1;
+  }
+  for (index = 0u; index < unit->file_assembly_count; index++) {
+    const ctool_c_assembly_t *assembly = &unit->file_assemblies[index];
+    if (string_equal(assembly->template_text, templates[index]) == 0 ||
+        assembly->flags !=
+            (CTOOL_C_ASSEMBLY_BASIC | CTOOL_C_ASSEMBLY_VOLATILE) ||
+        assembly->first_operand != 0u || assembly->output_count != 0u ||
+        assembly->input_count != 0u ||
+        dual_location_matches(
+            &assembly->location, &assembly->physical_location,
+            "/file-scope-fabs-assembly.c", lines[index]) == 0) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static int run_file_scope_fabs_assembly(const char *host_root) {
+  static const char source[] =
+      "double fabs(double value);\n"
+      "float fabsf(float value);\n"
+      "__asm__(\n"
+      "\".section .rodata\\n\\t\"\n"
+      "\".align 16\\n\"\n"
+      "\"fabs_mask_d:\\n\\t\"\n"
+      "\".quad 0x7FFFFFFFFFFFFFFF\\n\\t\"\n"
+      "\".quad 0x7FFFFFFFFFFFFFFF\\n\"\n"
+      "\"fabs_mask_s:\\n\\t\"\n"
+      "\".long 0x7FFFFFFF\\n\\t\"\n"
+      "\".long 0x7FFFFFFF\\n\\t\"\n"
+      "\".long 0x7FFFFFFF\\n\\t\"\n"
+      "\".long 0x7FFFFFFF\\n\\t\"\n"
+      "\".text\\n\"\n"
+      ");\n"
+      "__asm__(\n"
+      "\".text\\n\\t\"\n"
+      "\".globl fabs\\n\\t\"\n"
+      "\".type  fabs, @function\\n\"\n"
+      "\"fabs:\\n\\t\"\n"
+      "\"movsd  4(%esp), %xmm0\\n\\t\"\n"
+      "\"andpd  fabs_mask_d, %xmm0\\n\\t\"\n"
+      "\"ret\\n\\t\"\n"
+      "\".size  fabs, .-fabs\\n\"\n"
+      ");\n"
+      "__asm__(\n"
+      "\".text\\n\\t\"\n"
+      "\".globl fabsf\\n\\t\"\n"
+      "\".type  fabsf, @function\\n\"\n"
+      "\"fabsf:\\n\\t\"\n"
+      "\"movss  4(%esp), %xmm0\\n\\t\"\n"
+      "\"andps  fabs_mask_s, %xmm0\\n\\t\"\n"
+      "\"ret\\n\\t\"\n"
+      "\".size  fabsf, .-fabsf\\n\"\n"
+      ");\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"extended fabs mask assembly",
+        "double fabs(double);\n"
+        "__asm__(\".section .rodata\\n\" :);\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU file-scope assembly supports only the basic string form"},
+      {{"blank fabs wrapper assembly",
+        "double fabs(double);\n__asm__(\" \\t\\n\");\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU file-scope assembly template requires an instruction"},
+      {{"fabs wrapper embedded null",
+        "double fabs(double);\n__asm__(\"ret\\0\");\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u, "GNU inline assembly strings cannot contain a null byte"}};
+  static const frontend_exact_failure_case_t disabled_gnu_case = {
+      {"fabs assembly without GNU extensions",
+       "double fabs(double);\n__asm__(\"ret\");\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+      0u, 0u, "GNU file-scope assembly requires GNU extensions"};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t recovered;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(
+          &fixture, "file-scope-fabs-assembly", host_root,
+          8u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  if (parse_valid_fixture(
+          &fixture, "/file-scope-fabs-assembly.c", source, &unit) != 0 ||
+      validate_file_scope_fabs_assembly_unit(&unit) != 0) {
+    (void)fprintf(
+        stderr, "file-scope-fabs-assembly: public graph differs\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case = &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure,
+            "/file-scope-fabs-assembly-failure.c",
+            test_case->line, test_case->column, test_case->message) != 0 ||
+        validate_file_scope_fabs_assembly_unit(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  fixture.parse_request.gnu_extensions = CTOOL_FALSE;
+  if (expect_frontend_failure_at_message(
+          &fixture, &disabled_gnu_case.failure,
+          "/file-scope-fabs-assembly-disabled.c",
+          disabled_gnu_case.line, disabled_gnu_case.column,
+          disabled_gnu_case.message) != 0 ||
+      validate_file_scope_fabs_assembly_unit(&unit) != 0) {
+    goto cleanup;
+  }
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  if (parse_valid_fixture(
+          &fixture, "/file-scope-fabs-assembly.c", source,
+          &recovered) != 0 ||
+      validate_file_scope_fabs_assembly_unit(&recovered) != 0 ||
+      validate_file_scope_fabs_assembly_unit(&unit) != 0) {
+    (void)fprintf(
+        stderr, "file-scope-fabs-assembly: recovery differs\n");
+    goto cleanup;
+  }
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("file-scope-fabs-assembly: ok\n");
+  }
+  return failed;
+}
+
 static int run_inline_assembly(const char *host_root) {
   static const char source[] =
       "typedef unsigned int u32;\n"
@@ -31495,6 +31729,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "file-scope-assembly") == 0) {
     return run_file_scope_assembly(argv[2]);
+  }
+  if (strcmp(argv[1], "file-scope-fabs-assembly") == 0) {
+    return run_file_scope_fabs_assembly(argv[2]);
   }
   if (strcmp(argv[1], "block-bindings") == 0) {
     return run_block_bindings(argv[2]);

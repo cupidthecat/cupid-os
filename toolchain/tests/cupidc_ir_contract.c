@@ -36585,6 +36585,227 @@ cleanup:
   return 1;
 }
 
+static int file_scope_fabs_assembly_ir_matches(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir) {
+  static const char *const templates[] = {
+      ".section .rodata\n\t"
+      ".align 16\n"
+      "fabs_mask_d:\n\t"
+      ".quad 0x7FFFFFFFFFFFFFFF\n\t"
+      ".quad 0x7FFFFFFFFFFFFFFF\n"
+      "fabs_mask_s:\n\t"
+      ".long 0x7FFFFFFF\n\t"
+      ".long 0x7FFFFFFF\n\t"
+      ".long 0x7FFFFFFF\n\t"
+      ".long 0x7FFFFFFF\n\t"
+      ".text\n",
+      ".text\n\t"
+      ".globl fabs\n\t"
+      ".type  fabs, @function\n"
+      "fabs:\n\t"
+      "movsd  4(%esp), %xmm0\n\t"
+      "andpd  fabs_mask_d, %xmm0\n\t"
+      "ret\n\t"
+      ".size  fabs, .-fabs\n",
+      ".text\n\t"
+      ".globl fabsf\n\t"
+      ".type  fabsf, @function\n"
+      "fabsf:\n\t"
+      "movss  4(%esp), %xmm0\n\t"
+      "andps  fabs_mask_s, %xmm0\n\t"
+      "ret\n\t"
+      ".size  fabsf, .-fabsf\n"};
+  ctool_u32 index;
+  if (unit == NULL || ir == NULL ||
+      unit->file_assembly_count !=
+          (ctool_u32)(sizeof(templates) / sizeof(templates[0])) ||
+      unit->file_assemblies == NULL || unit->assembly_count != 0u ||
+      unit->assemblies != NULL || unit->assembly_operand_count != 0u ||
+      unit->assembly_operands != NULL || ir->function_count != 0u ||
+      ir->functions != NULL || ir->instruction_count != 0u ||
+      ir->instructions != NULL || ir->argument_type_count != 0u ||
+      ir->argument_types != NULL ||
+      ir->file_assembly_count != unit->file_assembly_count ||
+      ir->file_assemblies == NULL) {
+    return 0;
+  }
+  for (index = 0u; index < ir->file_assembly_count; index++) {
+    const ctool_c_assembly_t *assembly = &unit->file_assemblies[index];
+    if (ir->file_assemblies[index] != index ||
+        string_equal(assembly->template_text, templates[index]) == 0 ||
+        assembly->flags !=
+            (CTOOL_C_ASSEMBLY_BASIC | CTOOL_C_ASSEMBLY_VOLATILE) ||
+        assembly->first_operand != 0u || assembly->output_count != 0u ||
+        assembly->input_count != 0u) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int run_file_scope_fabs_assembly(const char *host_root) {
+  static const char source[] =
+      "double fabs(double value);\n"
+      "float fabsf(float value);\n"
+      "__asm__(\n"
+      "\".section .rodata\\n\\t\"\n"
+      "\".align 16\\n\"\n"
+      "\"fabs_mask_d:\\n\\t\"\n"
+      "\".quad 0x7FFFFFFFFFFFFFFF\\n\\t\"\n"
+      "\".quad 0x7FFFFFFFFFFFFFFF\\n\"\n"
+      "\"fabs_mask_s:\\n\\t\"\n"
+      "\".long 0x7FFFFFFF\\n\\t\"\n"
+      "\".long 0x7FFFFFFF\\n\\t\"\n"
+      "\".long 0x7FFFFFFF\\n\\t\"\n"
+      "\".long 0x7FFFFFFF\\n\\t\"\n"
+      "\".text\\n\"\n"
+      ");\n"
+      "__asm__(\n"
+      "\".text\\n\\t\"\n"
+      "\".globl fabs\\n\\t\"\n"
+      "\".type  fabs, @function\\n\"\n"
+      "\"fabs:\\n\\t\"\n"
+      "\"movsd  4(%esp), %xmm0\\n\\t\"\n"
+      "\"andpd  fabs_mask_d, %xmm0\\n\\t\"\n"
+      "\"ret\\n\\t\"\n"
+      "\".size  fabs, .-fabs\\n\"\n"
+      ");\n"
+      "__asm__(\n"
+      "\".text\\n\\t\"\n"
+      "\".globl fabsf\\n\\t\"\n"
+      "\".type  fabsf, @function\\n\"\n"
+      "\"fabsf:\\n\\t\"\n"
+      "\"movss  4(%esp), %xmm0\\n\\t\"\n"
+      "\"andps  fabs_mask_s, %xmm0\\n\\t\"\n"
+      "\"ret\\n\\t\"\n"
+      "\".size  fabsf, .-fabsf\\n\"\n"
+      ");\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_ir_unit_t first_ir;
+  ctool_c_ir_unit_t repeat_ir;
+  ctool_c_ir_unit_t recovered_ir;
+  ctool_c_assembly_t assemblies[3];
+  ctool_u32 diagnostic_count;
+  uint64_t unit_hash;
+  uint64_t ir_hash;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&first_ir, 0xa5, sizeof(first_ir));
+  (void)memset(&repeat_ir, 0xa5, sizeof(repeat_ir));
+  (void)memset(&recovered_ir, 0xa5, sizeof(recovered_ir));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(
+          job, "/file-scope-fabs-assembly.c", source, CTOOL_TRUE,
+          &unit) ||
+      unit.file_assembly_count !=
+          (ctool_u32)(sizeof(assemblies) / sizeof(assemblies[0])) ||
+      unit.file_assemblies == NULL || unit.assembly_count != 0u ||
+      unit.assemblies != NULL || unit.assembly_operand_count != 0u ||
+      unit.assembly_operands != NULL) {
+    if (job != NULL) {
+      (void)ctool_job_render_diagnostics(job);
+    }
+    goto cleanup;
+  }
+  unit_hash = unit_fingerprint(&unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &unit, &first_ir);
+  if (!check_status(
+          status, CTOOL_OK, "fabs file-scope assembly lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash ||
+      !file_scope_fabs_assembly_ir_matches(&unit, &first_ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  ir_hash = file_scope_assembly_ir_fingerprint(&first_ir);
+  status = ctool_c_lower_ir(job, &unit, &repeat_ir);
+  if (!check_status(
+          status, CTOOL_OK,
+          "repeat fabs file-scope assembly lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash || ir_hash == 0u ||
+      file_scope_assembly_ir_fingerprint(&repeat_ir) != ir_hash ||
+      !file_scope_fabs_assembly_ir_matches(&unit, &repeat_ir)) {
+    goto cleanup;
+  }
+
+  invalid_unit = unit;
+  invalid_unit.file_assemblies = NULL;
+  if (!expect_ir_failure(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "fabs file assembly count without table")) {
+    goto cleanup;
+  }
+  (void)memcpy(assemblies, unit.file_assemblies, sizeof(assemblies));
+  invalid_unit = unit;
+  invalid_unit.file_assemblies = assemblies;
+  assemblies[0].flags |= 0x80000000u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "fabs mask assembly unknown flag")) {
+    goto cleanup;
+  }
+  assemblies[0] = unit.file_assemblies[0];
+  assemblies[1].output_count = 1u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "fabs wrapper nonempty operand slice")) {
+    goto cleanup;
+  }
+  assemblies[1] = unit.file_assemblies[1];
+  assemblies[2].first_operand = 1u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "fabsf wrapper forged operand reference")) {
+    goto cleanup;
+  }
+  assemblies[2] = unit.file_assemblies[2];
+  assemblies[0].template_text = ctool_string("");
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "fabs mask blank template")) {
+    goto cleanup;
+  }
+
+  status = ctool_c_lower_ir(job, &unit, &recovered_ir);
+  if (!check_status(
+          status, CTOOL_OK, "fabs file-scope assembly recovery") ||
+      unit_fingerprint(&unit) != unit_hash ||
+      file_scope_assembly_ir_fingerprint(&recovered_ir) != ir_hash ||
+      !file_scope_fabs_assembly_ir_matches(&unit, &recovered_ir)) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("file-scope-fabs-assembly: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_comma_expression_ir(const ctool_c_ir_unit_t *ir) {
   ctool_u32 call_count = 0u;
   ctool_u32 discard_count = 0u;
@@ -38123,6 +38344,10 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "file-scope-assembly") == 0) {
     return run_file_scope_assembly(argv[2]);
   }
+  if (argc == 3 &&
+      strcmp(argv[1], "file-scope-fabs-assembly") == 0) {
+    return run_file_scope_fabs_assembly(argv[2]);
+  }
   (void)fprintf(stderr,
                 "usage: cupidc-ir-contract "
                 "active-leaf|forward-goto|nested-goto|switch-lowering|"
@@ -38167,7 +38392,8 @@ int main(int argc, char **argv) {
                 "register-snapshot-assembly|"
                 "call-next-assembly|"
                 "pointer-output-assembly|"
-                "operand-free-assembly|file-scope-assembly "
+                "operand-free-assembly|file-scope-assembly|"
+                "file-scope-fabs-assembly "
                 "HOST_ROOT\n");
   return 2;
 }

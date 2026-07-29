@@ -448,11 +448,15 @@ output, two `double` `m` inputs, and one `memory` clobber. Its focused
 function has 53 text bytes and no relocations. The exact
 `libm_exp_impl()` statement is represented with the same three operand
 types in output, `x`, `log2e` order. Its 71-byte focused function has no
-relocations, reaches x87 depth three, and returns to its incoming depth. The
-complete source now reaches the file-scope `fabs` mask block at line 242.
-The checked seed carries the opening wrappers but predates named operands
-and these five statement blocks, so `libm.c` stays on its host-owned recipe
-and keeps its `.c` name.
+relocations, reaches x87 depth three, and returns to its incoming depth.
+Compiler head now emits the following aligned `fabs` mask block and the
+`fabs` and `fabsf` wrappers. The masks occupy the first 32 bytes of
+`.rodata`, with local labels at offsets 0 and 16. The wrappers contain 15 and
+14 text bytes and carry one `R_386_32` relocation each to the matching mask.
+The complete source now reaches the `floor` wrapper at line 281. The checked
+seed carries the opening wrappers but predates named operands, these five
+statement blocks, and the three `fabs` effects, so `libm.c` stays on its
+host-owned recipe and keeps its `.c` name.
 
 The checked seed emits the exact volatile
 `call 1f\n1: popl %0` state read used by the stack-trace helpers in
@@ -684,6 +688,8 @@ and the generated kernel symbol translation described above.
 [ADR 0164](docs/adr/0164-represent-x87-atan2-memory-assembly.md) records the exact x87 `atan2` statement and the following `exp` frontier.
 
 [ADR 0165](docs/adr/0165-represent-x87-exp-memory-assembly.md) records the exact x87 exponent statement and the following file-scope mask frontier.
+
+[ADR 0166](docs/adr/0166-represent-fabs-file-scope-assembly.md) records the exact `fabs` mask and wrapper effects and the following `floor` frontier.
 
 [ADR 0143](docs/adr/0143-share-ordinary-padding-nops.md) records the shared ordinary compiler padding family and its measured disassembly improvement.
 

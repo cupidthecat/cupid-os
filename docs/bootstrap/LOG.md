@@ -14645,3 +14645,110 @@ suffix. No production object, ABI, image, runtime path, or ownership count
 changes in this increment. ADR 0165 records the decision. `TempleOS/` remains
 untouched reference material. Issue #26 stays open for the mask block and
 later GNU assembly forms.
+
+## 2026-07-28: emit the libm fabs file-scope effects
+
+Compiler-head CupidC now represents the exact aligned mask block and the
+following `fabs` and `fabsf` wrappers in unchanged `kernel/cpu/libm.c`. The
+frontend and Linear IR retain the three effects in source order and keep the
+two wrapper prototypes attached to their global function definitions.
+
+The mask effect reserves the first 32 bytes of `.rodata` at alignment 16. It
+defines local `STT_NOTYPE` symbols `fabs_mask_d` and `fabs_mask_s` at offsets
+0 and 16. The exact bytes are:
+
+```text
+FF FF FF FF FF FF FF 7F FF FF FF FF FF FF FF 7F
+FF FF FF 7F FF FF FF 7F FF FF FF 7F FF FF FF 7F
+```
+
+The i386 emitter uses Cupid's shared x86 model for both wrappers. `fabs`
+contains 15 text bytes:
+
+```text
+F2 0F 10 44 24 04 66 0F 54 05 00 00 00 00 C3
+```
+
+It has one `R_386_32` relocation at function offset 10 to `fabs_mask_d`.
+`fabsf` contains 14 text bytes:
+
+```text
+F3 0F 10 44 24 04 0F 54 05 00 00 00 00 C3
+```
+
+Its `R_386_32` relocation sits at function offset 9 and targets
+`fabs_mask_s`. Both addends are zero.
+
+The first object layout appended the mask bytes to the current `.rodata`
+buffer. That passed the isolated fixture but would have moved both labels
+behind `k_log2e`, `k_ln2`, or any other earlier C constant in the complete
+source. A mixed-data regression exposed the error by adding a later
+read-only sentinel. The final emitter preplaces the mask effect before
+ordinary and block-static objects, skips it in the later source-order
+assembly pass, and locks the sentinel at offset 32.
+
+Contracts cover exact bytes, symbols, relocations, prototypes, source order,
+duplicate or missing mask effects, C label conflicts, forged metadata,
+deterministic output, rollback, and same-job recovery. The unchanged source
+now stops at:
+
+```text
+/kernel/cpu/libm.c:281:1: error CTC000003: GNU file-scope assembly template is outside this i386 emission slice
+```
+
+This is the `floor` wrapper. The following `floorf` wrapper begins at line
+304.
+
+### Evidence
+
+| Gate | Result |
+| --- | --- |
+| Focused file-scope frontend, IR, object, and source-frontier seams | 7 tests passed in 51.887 seconds |
+| Complete frontend and Linear IR modules | 168 tests passed in 31.884 seconds |
+| Object assembly regressions | 19 tests passed in 20.491 seconds |
+| Refreshed self-host frontier object lock | 1 test passed in 30.255 seconds |
+| Cupid-built compiler self-object | 1 test passed in 235.398 seconds |
+| Strict hosted Toolchain build | All native contracts passed in 50.154 seconds; six static i386 artifacts linked |
+| Five-tool static fixed point | 1 test passed in 741.880 seconds |
+| Checked-seed verifier | All five tools passed |
+| Normal OS image build | `make all` passed in 895.977 seconds |
+| Private-image boot and in-OS CupidC smoke | `ls` compiled and reached JIT completion in 62.424 seconds |
+| Bootstrap audit regeneration and drift check | Passed |
+
+The refreshed frontend source records are:
+
+| Compiler source | Definitions | Statements | Expressions | Block bindings | Initializers |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `toolchain/cupidc_ir.cc` | 251 | 7,051 | 65,279 | 925 | 338 |
+| `toolchain/cupidc_emit.cc` | 292 | 7,275 | 62,115 | 885 | 499 |
+| `toolchain/cupidc_frontend.cc` | 400 | 15,889 | 105,265 | 2,382 | 1,464 |
+
+The refreshed object records are:
+
+| Compiler source | Functions | Text bytes | Object bytes | Text fingerprint |
+| --- | ---: | ---: | ---: | --- |
+| `toolchain/cupidc_ir.cc` | 251 | 465,697 | 500,760 | `2de5cd05` |
+| `toolchain/cupidc_emit.cc` | 292 | 460,094 | 504,072 | `b1bdb127` |
+| `toolchain/cupidc_frontend.cc` | 400 | 813,122 | 965,760 | `e905a804` |
+
+The generated graph still has 698 active sources, 253 feature IDs, 504
+transforms, and 42 accounted unreachable files. Its active-source digest is
+`d641c3e30732097ac873d5f36e577b5ce09db6f5fff57e84988090faea16ec19`.
+The 1,526,996-byte JSON has SHA-256
+`e5010a54d8b291aca73a4d3dab98c613f7f9de5831c139160458e1b05c53494f`.
+
+One combined fixed-point, seed, and image invocation reached its 15-minute
+outer guard while the image job was writing a large asset object. Closing
+the shared output stream interrupted the batch, so that run is excluded.
+Separate runs then passed the seed verifier, the complete fixed point, and
+the normal image build. A later `test-user-cupidc-runtime` attempt spent its
+outer window rebuilding and staging user programs and never started QEMU.
+It produced no guest log and is excluded. The direct private-image boot
+supplies the runtime evidence above.
+
+This remains a compiler-head capability. The checked seed has not moved, and
+the normal `kernel/cpu/libm.c` transform remains host-owned with its `.c`
+suffix. No production object, ABI, runtime path, or ownership count changes
+in this increment. ADR 0166 records the decision. `TempleOS/` remains
+untouched reference material. Issue #26 stays open for `floor`, `floorf`,
+and later GNU assembly forms.
