@@ -137,6 +137,23 @@ CUPID_TOOLCHAIN_FIXED_POINT_LINKS = (
     ),
 )
 DOOM_TREE_FRONTIER_FAILURES = {}
+DOOM_COMPAT_OBJECTS = {
+    "/kernel/doom/dglibc.c": (
+        27992,
+        "88e3a66488e09ee15769e666971dd34e"
+        "d0fe0707a54f9962f5f7dadbe4fd4224",
+    ),
+    "/kernel/doom/doom_libc_stubs.c": (
+        14352,
+        "8f667113c54fa0b0d27ce83d13424206"
+        "5ba5b9258324a809e11e72229752ff3b",
+    ),
+    "/kernel/doom/doomgeneric_cupidos.c": (
+        10232,
+        "5274b91dfa7bac56cd83ff0f8096eb5a"
+        "06fef5e61f91ebb3b80efacc8ad2a9cb",
+    ),
+}
 DOOM_I_VIDEO_OBJECT_SIZE = 9312
 DOOM_I_VIDEO_OBJECT_SHA256 = (
     "8e9fcb59120cac9e8237a8243003fe169"
@@ -308,6 +325,45 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         if result.returncode in (126, 127):
             self.skipTest("WSL cannot execute static i386 ELF files")
         return result
+
+    def load_cupidc_profile(self, name):
+        audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
+        audit = json.loads(audit_path.read_text(encoding="utf-8"))
+        contract = audit["contracts"]["c_preprocessor_translation_units"]
+        return (
+            audit,
+            next(
+                profile
+                for profile in contract["profiles"]
+                if profile["name"] == name
+            ),
+        )
+
+    def cupidc_profile_arguments(self, profile):
+        arguments = [
+            "--root",
+            REPO_ROOT,
+            "--gnu",
+            "--doom-compat",
+            "--freestanding",
+        ]
+        both_forms = (
+            "(CTOOL_C_PP_INCLUDE_QUOTED | "
+            "CTOOL_C_PP_INCLUDE_ANGLE)"
+        )
+        for include_root in profile["include_roots"]:
+            self.assertEqual(include_root["forms"], both_forms)
+            arguments.extend(["-I", include_root["path"]])
+        for action in profile["macro_actions"]:
+            if action["name"] == "__SIZEOF_POINTER__":
+                self.assertEqual(action["replacement"], "4")
+                continue
+            arguments.append(
+                "-D" + action["name"] + "=" + action["replacement"]
+            )
+        for forced_include in profile["forced_includes"]:
+            arguments.extend(["-include", forced_include])
+        return arguments
 
     def test_static_definitions_emit_deterministic_elf32_objects(self):
         result = subprocess.run(
@@ -1583,6 +1639,20 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             result.stdout,
             "file-scope-cdecl-bridges: ok\n",
         )
+
+    def test_dglibc_file_scope_jumps_emit_exact_i386_functions(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "dglibc-jump-assembly",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "dglibc-jump-assembly: ok\n")
 
     def test_naked_ipi_wrappers_emit_exact_i386_without_a_c_frame(self):
         result = subprocess.run(
@@ -3077,14 +3147,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
     def test_cupidc_exact_doom_tree_profile_has_a_frozen_object_frontier(
         self,
     ):
-        audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
-        audit = json.loads(audit_path.read_text(encoding="utf-8"))
-        contract = audit["contracts"]["c_preprocessor_translation_units"]
-        profile = next(
-            item
-            for item in contract["profiles"]
-            if item["name"] == "DOOM_TREE_I386"
-        )
+        audit, profile = self.load_cupidc_profile("DOOM_TREE_I386")
         sources = sorted(
             "/" + transform["inputs"][0]
             for transform in audit["build"]["transforms"]
@@ -3102,29 +3165,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             ["/kernel/doom/dglibc_compat.h"],
         )
 
-        arguments = [
-            "--root",
-            str(REPO_ROOT),
-            "--gnu",
-            "--doom-compat",
-            "--freestanding",
-        ]
-        both_forms = (
-            "(CTOOL_C_PP_INCLUDE_QUOTED | "
-            "CTOOL_C_PP_INCLUDE_ANGLE)"
-        )
-        for include_root in profile["include_roots"]:
-            self.assertEqual(include_root["forms"], both_forms)
-            arguments.extend(["-I", include_root["path"]])
-        for action in profile["macro_actions"]:
-            if action["name"] == "__SIZEOF_POINTER__":
-                self.assertEqual(action["replacement"], "4")
-                continue
-            arguments.append(
-                "-D" + action["name"] + "=" + action["replacement"]
-            )
-        for forced_include in profile["forced_includes"]:
-            arguments.extend(["-include", forced_include])
+        arguments = self.cupidc_profile_arguments(profile)
 
         with tempfile.TemporaryDirectory(
             prefix=".cupidc-doom-frontier-", dir=REPO_ROOT
@@ -3223,6 +3264,80 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                     self.assertFalse(output.exists())
             self.assertEqual(failures, DOOM_TREE_FRONTIER_FAILURES)
             self.assertEqual(len(results) - len(failures), 80)
+
+    def test_cupidc_exact_doom_compat_profile_is_complete_and_self_hosted(
+        self,
+    ):
+        audit, profile = self.load_cupidc_profile("DOOM_COMPAT_I386")
+        sources = sorted(
+            "/" + transform["inputs"][0]
+            for transform in audit["build"]["transforms"]
+            if transform["recipe"]
+            == ["$(CC) $(CFLAGS_DOOM) -o $@ $<"]
+        )
+        self.assertEqual(sources, sorted(DOOM_COMPAT_OBJECTS))
+        self.assertEqual(profile["tracked_translation_units"], 3)
+        self.assertTrue(profile["gnu_extensions"])
+        self.assertFalse(profile["hosted_environment"])
+        self.assertTrue(profile["implicit_function_declarations"])
+        self.assertTrue(profile["compatibility_pointer_conversions"])
+        self.assertEqual(profile["forced_includes"], [])
+        arguments = self.cupidc_profile_arguments(profile)
+
+        linked = self.build_cupid_tools()
+        self.assertEqual(linked.returncode, 0, linked.stderr)
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidc-doom-compat-frontier-", dir=REPO_ROOT
+        ) as temp:
+            output_root = Path(temp)
+            logical_root = "/" + output_root.relative_to(
+                REPO_ROOT
+            ).as_posix()
+            for index, source in enumerate(sources):
+                hosted_output = output_root / f"{index}-hosted.o"
+                cupid_output = output_root / f"{index}-cupid.o"
+                hosted = subprocess.run(
+                    [
+                        str(self.hosted_cupidc_path),
+                        *arguments,
+                        "-c",
+                        source,
+                        "-o",
+                        f"{logical_root}/{index}-hosted.o",
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                    timeout=180,
+                )
+                cupid = self.run_cupid_linux_tool(
+                    self.cupid_cupidc_path,
+                    [
+                        *arguments,
+                        "-c",
+                        source,
+                        "-o",
+                        f"{logical_root}/{index}-cupid.o",
+                    ],
+                    timeout=180,
+                )
+                with self.subTest(source=source):
+                    self.assertEqual(hosted.returncode, 0, hosted.stderr)
+                    self.assertEqual(cupid.returncode, 0, cupid.stderr)
+                    self.assertEqual(hosted.stdout, "")
+                    self.assertEqual(cupid.stdout, "")
+                    self.assertEqual(hosted.stderr, "")
+                    self.assertEqual(cupid.stderr, "")
+                    hosted_bytes = hosted_output.read_bytes()
+                    self.assertEqual(cupid_output.read_bytes(), hosted_bytes)
+                    expected_size, expected_sha256 = DOOM_COMPAT_OBJECTS[
+                        source
+                    ]
+                    self.assertEqual(len(hosted_bytes), expected_size)
+                    self.assertEqual(
+                        hashlib.sha256(hosted_bytes).hexdigest(),
+                        expected_sha256,
+                    )
 
     def test_cupidc_forced_include_rejects_bad_values_and_root_paths(self):
         linked = self.build_cupid_tools()

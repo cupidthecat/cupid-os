@@ -257,9 +257,15 @@ still reject those implicit conversions, and explicit function/data casts
 remain outside Linear IR. The checked seed retains member provenance while
 narrow `unsigned int` color fields promote to signed `int` in unchanged
 `kernel/doom/src/i_video.c`. It now emits all 80 Doom-tree objects. The
-checked seed carries this complete frontier, but no Doom recipe moves until
-object comparison, the three separate compatibility roots, and runtime proof
-pass.
+checked seed carries this complete tree frontier.
+
+Compiler head also emits the three separate compatibility roots. It keeps the
+explicit static string cast in `doom_libc_stubs.c` and emits the exact
+`dg_setjmp` and `dg_longjmp` file-scope block through Cupid's x86 model. A
+Cupid-built current compiler matches the host-built current compiler for all
+three objects. The current compiler frontier is 83/83, but no Doom recipe
+moves until the capability reaches the checked seed, host and Cupid link
+boundaries compare, the owned roots move to `.cc`, and runtime proof passes.
 
 The checked seed resolves the C11 inline declaration set in
 `kernel/audio/nuked_opl3.cc`. The ordinary declaration in its header means

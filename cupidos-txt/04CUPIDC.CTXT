@@ -244,6 +244,11 @@ shared x86 encoder. The fixture has 248 text bytes and no relocations. The
 checked seed accepts named operands on function-body GNU assembly and
 resolves %[name] to the existing numeric operand before IR.
 
+Compiler head also recognizes the exact combined dg_setjmp and dg_longjmp
+file-scope block in kernel/doom/dglibc.c. It checks both prototypes and emits
+27-byte and 38-byte global functions through Cupid's x86 model. The pair has
+no relocation. A changed template or mismatched declaration is rejected.
+
 The checked seed emits the complete x87 statements in libm_pow_impl and
 libm_powf_impl. The double form accepts one double output and four double
 inputs. The mixed form accepts one float output, two float inputs, and two
@@ -545,8 +550,10 @@ Object pointers can convert to signed or unsigned eight-byte integers with a
 zero high word, and conversion back keeps the low word. Computed or nonzero
 function-pointer casts and conversions between function pointers and wide
 integers remain unsupported. Static compatible character and void pointers
-accept an ordinary string literal through parentheses or a macro. Arithmetic
-and explicit casts on that static address remain unfinished.
+accept an ordinary string literal through parentheses or a macro. Compiler
+head also keeps a static string or linked binding address through an explicit
+cast between non-atomic pointer types. A cast through an integer and static
+address arithmetic outside the represented addend path remain unfinished.
 
 An external array with an unspecified bound can produce its linked address and
 decay to the compatible element pointer when the element type is complete.
@@ -593,9 +600,14 @@ implicit conversions, and explicit function/data casts remain outside Linear
 IR. A one-active-member union initializer emits unchanged info.c. Narrow
 unsigned int color fields keep their member identity when they promote to
 signed int in ordinary expressions, which compiles unchanged i_video.c.
-The checked seed emits all 80 audited Doom-tree objects. Doom stays
-host-owned until object comparison, the three separate compatibility roots,
-and runtime proof are complete.
+The checked seed emits all 80 audited Doom-tree objects.
+
+Compiler head emits the three separate compatibility roots. The explicit
+static string cast in doom_libc_stubs.c and the dglibc jump block now keep
+their source meaning. Host-built and Cupid-built current compilers produce
+the same objects for all three roots. Doom stays host-owned until the
+capabilities reach the checked seed, host and Cupid link boundaries compare,
+the sources move to .cc, and runtime proof is complete.
 
 The five static i386 Linux tools reach a stage-two to stage-three fixed point
 under WSL. Generation-one CupidC, CupidASM, and CupidLD build all 19 C objects,
