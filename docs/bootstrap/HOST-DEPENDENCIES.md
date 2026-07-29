@@ -70,12 +70,12 @@ translation-unit effect rather than passing it to GAS. The exact Task 23
 fixture emits the twelve opening x87/SSE floating wrappers from `libm.c` in
 248 text bytes through Cupid's x86 encoder, with twelve global function
 symbols and no relocations.
-Compiler head resolves named function-body operands without invoking GAS.
+The checked seed resolves named function-body operands without invoking GAS.
 It now emits the exact x87 statements in `libm_pow_impl()` and
 `libm_powf_impl()`. The double form has five `double` memory operands. The
 mixed form has a `float` output, two `float` inputs, and two `double` inputs.
 Each 116-byte focused function uses no relocations and returns the x87 stack
-to its incoming depth. Compiler head also emits the exact `sqrtsd %1, %0`
+to its incoming depth. The checked seed also emits the exact `sqrtsd %1, %0`
 statement with a `double` `=x` output and a `double` `x` input. The focused
 function has 65 text bytes and no relocations. It also emits the exact x87
 statement in `libm_atan2_impl()` with one `double` `=m` output, two `double`
@@ -83,31 +83,29 @@ statement in `libm_atan2_impl()` with one `double` `=m` output, two `double`
 and no relocations. It also emits the exact x87 statement in
 `libm_exp_impl()` with one `double` `=m` output, two `double` `m` inputs,
 and one `memory` clobber. That focused function has 71 text bytes, no
-relocations, and balanced x87 depth. Compiler head also emits the aligned
+relocations, and balanced x87 depth. The checked seed also emits the aligned
 32-byte `fabs` mask block and the following `fabs` and `fabsf` wrappers. The
 mask labels are local `STT_NOTYPE` symbols at `.rodata` offsets 0 and 16.
 The wrappers contain 15 and 14 text bytes and carry one `R_386_32`
-relocation each. Compiler head also emits the following `floor`, `floorf`,
+relocation each. The checked seed also emits the following `floor`, `floorf`,
 `ceil`, `ceilf`, `round`, `roundf`, `trunc`, and `truncf` wrappers. The
 family saves and restores the x87 control word around `FRNDINT`, selects all
 four source rounding modes, occupies 384 text bytes, and has no relocations.
-Compiler head also emits the following `fmod` and `fmodf` definitions. Each
+The checked seed also emits the following `fmod` and `fmodf` definitions. Each
 35-byte function loops on `FPREM` until status-word C2 clears, discards the
-divisor, returns the result through XMM0, and has no relocation. Compiler
-head also emits the aligned `libm_log2e_const` and `libm_ln2_const` block
+divisor, returns the result through XMM0, and has no relocation. The checked
+seed also emits the aligned `libm_log2e_const` and `libm_ln2_const` block
 and the following eight exponent/logarithm wrappers. The constants occupy 16
 `.rodata` bytes at alignment eight. The wrappers add 264 text bytes and four
 `R_386_32` relocations, reach at most x87 depth three, and balance ESP and
-x87 depth. Compiler head also emits all 18 remaining cdecl bridges. The
+x87 depth. The checked seed also emits all 18 remaining cdecl bridges. The
 unary and binary float or double shapes copy the original argument words,
 call matching external `libm_*_impl` symbols, reclaim the words, and move
 ST(0) into XMM0. The family occupies 558 text bytes with 18
-`R_386_PC32` relocations. Unchanged `libm.c` now compiles twice to the same
-16,164-byte ELF32 relocatable object. The checked seed predates named
-operands, all five statement forms, the three `fabs` effects, the rounding,
-remainder, exponent/log, and cdecl bridge families. GCC or Clang therefore
-continues to own the normal `libm.c` transform until seed promotion. No
-dependency or production ownership count changes.
+`R_386_PC32` relocations. Unchanged `libm.c` compiles twice to the same
+16,164-byte ELF32 relocatable object through the checked seed. GCC or Clang
+continues to own the normal `libm.c` transform until production transfer.
+No dependency or production ownership count changes.
 
 The USB lifetime work retires no additional compiler transform, but it
 supplies the runtime contract for EHCI and UHCI ownership. Reconciliation
@@ -136,12 +134,11 @@ exact IEEE bits without calling a host floating library. The IR and SSE
 emitter cover represented integer-to-floating conversions,
 floating-to-signed conversions, floating-to-unsigned byte or word
 conversions, and mixed represented integer and floating arithmetic.
-Compiler head also covers an explicit non-atomic `double` to
+The checked seed also covers an explicit non-atomic `double` to
 `unsigned long long` cast. Unsigned four-byte input uses an exact split
 across the sign boundary, while unsigned-wide output is decomposed around
-2^32. The refreshed seed carries the older conversion path, and
-`kernel/lang/cupidc_lex.cc` now builds through the checked wrapper. It does
-not yet carry the unsigned-wide cast.
+2^32. The seed carries both conversion paths, and
+`kernel/lang/cupidc_lex.cc` builds through the checked wrapper.
 CupidC writes target-width static floating constant data for
 scalar and aggregate leaves. Parentheses, unary signs, direct conversion
 between `float` and `double`, and signed zero are represented without a host
@@ -275,7 +272,7 @@ The self-host source frontier also retires no dependency. Hosted CupidC emits de
 
 The repository i386 Linux runtime replaces the tracer's test-only providers for complete tool closures. CupidC compiles allocation, file, memory, string, `errno`, working-directory, and diagnostic services. CupidASM supplies startup and system-call wrappers, and CupidLD produces static CupidC, CupidASM, CupidDis, CupidLD, and CupidObj commands. Linux and WSL behavior matches the native sibling commands for real outputs and failure paths.
 
-The five static commands now share one complete checked-seed gate. The manifest binds the exact executables, source revision, target ABI, producer lineage, 19-source build plan, startup, and five link orders. The current seed contains the checked bootstrap's stage-three images at revision `c00b3494014ca0a5f41143caa7e713e46b2ad3ec`. CupidC, CupidASM, and CupidDis changed from the preceding seed, while CupidLD and CupidObj remain byte-identical. The 2,320,544-byte CupidC image has SHA-256 `fe4e99837053332e32624208bfceddc60e2be9cdcea5bdacb5b174e6b432cdbb`.
+The five static commands share one complete checked-seed gate. The manifest binds the exact executables, source revision, target ABI, producer lineage, 19-source build plan, startup, and five link orders. The current seed contains the checked bootstrap's stage-three images at revision `be5945915af8f76792eba573950f263bdae133a3`. CupidC changed from the preceding seed, while CupidASM, CupidDis, CupidLD, and CupidObj remain byte-identical. The 2,447,776-byte CupidC image has SHA-256 `afc8003e5e047c721fa085c793f2c4fe7e0b5c8e29d4f0bebac5282eb10cace9`.
 
 The harness copies the exact 40-input source closure into a private compiler root. Checked CupidC compiles the stage-two union there, checked CupidASM assembles startup, and checked CupidLD links all five tools. The stage-two producer trio repeats that work for stage three below the same root. Both the private closure and the live closure are checked before the first stage, after each stage, and after behavior checks. Every seed image matches stage two, every C object, startup object, and linked image matches across the stages, and both stages execute positive and failure cases for every command. The two stages, behavior evidence, and report are published together only after success. This tighter source and publication boundary does not retire another host dependency. A clean checkout can rebuild the static i386 Linux Toolchain without external code generation. The native contracts, hosted development commands, and remaining normal OS C objects remain host-owned.
 
@@ -411,28 +408,28 @@ incoming x87 control word, and leaves the pending output address intact. Two
 compiles of the extracted active helper produce the same 420-byte object with
 SHA-256
 `448012fe57ec625c6075e97cf91163b994a0443238c5d6bdf25e4b839763f14e`.
-Compiler head now emits the later explicit double-to-`uint64_t` casts. Two
+The checked seed emits the later explicit double-to-`uint64_t` casts. Two
 complete compiles of unchanged `kernel/core/string.c` produce the same
 14,460-byte object with SHA-256
 `d48bb6ea18b7124fbefeaca0d5d5ee8a517db950f21ea88e30ededd6c5c2a577`.
 
 `kernel/cpu/fpu.cc` has transferred to checked CupidC.
-`kernel/core/string.c` keeps its `.c` name because the checked seed and
-production recipe do not carry the new conversion yet. ADRs 0141, 0146,
+`kernel/core/string.c` keeps its `.c` name because its production recipe
+has not transferred. ADRs 0141, 0146,
 0148, 0150, and 0154 record the assembly boundaries. ADR 0170 records the
 conversion.
 
-Compiler head now accepts the exact volatile EFLAGS restore used twice by
+The checked seed accepts the exact volatile EFLAGS restore used twice by
 `simd_cpu_has_cpuid()`: one 32-bit `r` input, no outputs, and one `cc`
 clobber. The shared x86 path emits `POP EAX`, `PUSH EAX`, and `POPF` without
-a temporary or relocation. Compiler head also accepts the valid fixed EAX
+a temporary or relocation. It also accepts the valid fixed EAX
 overlap in the following CPUID statement. Its `a` input keeps the original
 constraint and names the compatible `=a` output; the emitter consumes the
 leaf through EAX immediately before CPUID. A complete unchanged-source probe
-now advances to the unsupported `xmm1` clobber on line 134. The checked seed
-and normal `kernel/cpu/simd.c` recipe still predate both capabilities, so
-this work retires no host dependency and the source keeps its `.c` suffix.
-ADRs 0160 and 0162 record the boundaries.
+now advances to the unsupported `xmm1` clobber on line 134. The normal
+`kernel/cpu/simd.c` recipe still uses the host compiler, so this work retires
+no host dependency and the source keeps its `.c` suffix. ADRs 0160 and 0162
+record the boundaries, and ADR 0174 records seed carriage.
 
 The checked seed also emits `kernel/smp/percpu.cc` completely. Its
 exact GNU assembly forms load a packed six-byte GDTR, reload the code and

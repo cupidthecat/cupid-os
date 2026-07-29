@@ -18,7 +18,7 @@ integer.
 Object-pointer interchange and narrower or wider integer forms still fail
 with a feature diagnostic. ADR 0113 records the current boundary.
 
-The exact frontend gate parses all twelve hermetic `HOSTED_TOOLCHAIN_64` implementation files. The object gate emits those files plus `kernel/lang/as_elf.cc` twice, reads each result through Cupid's ELF32 reader, and requires byte-identical output. The static i386 audit adds all 20 C files in the hosted tool closure under the checked four-byte Linux target: 19 strict C11 units and the GNU-enabled runtime. The five-tool fixed point excludes the separate runtime-contract source, so its build manifest contains 19 C sources: 18 strict units and the GNU-enabled runtime. The checked seed manifest carries that source set, all five link orders, producer lineage, and target ABI into a clean bootstrap. The fourteen-file issue #27 cohort remains ten hermetic Toolchain files, the kernel bridge, and the `ctool_host.cc`, `cupidasm_main.cc`, and `cupiddis_main.cc` adapters. ADR 0082 records the ABI boundary, ADR 0088 records the full target-profile audit, ADR 0089 records the compiler fixed point, ADR 0090 records the complete static tool fixed point, ADR 0092 records the first checked seed, ADR 0097 records the first stage-three refresh, and ADRs 0102, 0106, and 0108 record the SMP, port-I/O, and fetch-or compiler refreshes. ADR 0122 records the GNU assembly frontier seed, ADR 0134 records the shared-x86 and external-inline seed, and ADR 0138 records the current floating-data and comparison seed.
+The exact frontend gate parses all twelve hermetic `HOSTED_TOOLCHAIN_64` implementation files. The object gate emits those files plus `kernel/lang/as_elf.cc` twice, reads each result through Cupid's ELF32 reader, and requires byte-identical output. The static i386 audit adds all 20 C files in the hosted tool closure under the checked four-byte Linux target: 19 strict C11 units and the GNU-enabled runtime. The five-tool fixed point excludes the separate runtime-contract source, so its build manifest contains 19 C sources: 18 strict units and the GNU-enabled runtime. The checked seed manifest carries that source set, all five link orders, producer lineage, and target ABI into a clean bootstrap. The fourteen-file issue #27 cohort remains ten hermetic Toolchain files, the kernel bridge, and the `ctool_host.cc`, `cupidasm_main.cc`, and `cupiddis_main.cc` adapters. ADR 0082 records the ABI boundary, ADR 0088 records the full target-profile audit, ADR 0089 records the compiler fixed point, ADR 0090 records the complete static tool fixed point, ADR 0092 records the first checked seed, ADR 0097 records the first stage-three refresh, and ADRs 0102, 0106, and 0108 record the SMP, port-I/O, and fetch-or compiler refreshes. ADR 0122 records the GNU assembly frontier seed, ADR 0134 records the shared-x86 and external-inline seed, ADR 0138 records the floating-data and comparison seed, and ADR 0174 records the current libm-capable seed.
 
 The repository now provides the next boundary as working code. CupidASM assembles i386 Linux startup and system-call wrappers. CupidC compiles a narrow runtime with a reusable heap, unbuffered files, standard streams, memory and string functions, `errno`, `getcwd`, and formatted diagnostics. CupidLD joins that runtime with complete CupidC-emitted closures for CupidC, CupidASM, CupidDis, CupidLD, and CupidObj. The compiler driver handles compile-only C11 jobs, definitions, undefinitions, forced inputs, GNU and freestanding modes, and commit-gated compiler output. Ordered `-I` roots accept quoted and angle includes, while `--include-angle` roots accept angle includes only. Repeatable `-include` options run before the primary source in caller order. The resulting static commands run real positive and failure fixtures on Linux or through WSL. ADR 0086 records the runtime and sibling commands. ADR 0088 records the compiler driver and first compiler generation. ADR 0140 records the forced-input command boundary, and ADR 0145 records the empty memory-barrier boundary.
 
@@ -36,9 +36,9 @@ The i386 Linux adapter objects are `ctool_host.cc` at 11 functions, 5,522 text b
 
 The `ctool_host.cc` tracer applies 45 relocations, resolves 24 symbols, and leaves no undefined symbol in its static executable. Omitting the errno provider produces the exact CupidLD undefined-symbol failure with empty output and a zero result. The same job then links the original bytes again. Linux and WSL hosts with static i386 support run the tracer with exit status zero.
 
-The current checked artifacts are CupidASM at 433,104 bytes, CupidDis at 371,108 bytes, CupidLD at 262,388 bytes, CupidObj at 182,704 bytes, and CupidC at 2,320,544 bytes. Verification checks every hash, size, static ELF property, target ABI, producer lineage, source revision, and build-plan field before execution. The 19-source plan uses `.cc` throughout and has SHA-256 `59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`. Native GCC and Clang recipes select C with `-x c`.
+The current checked artifacts are CupidASM at 433,104 bytes, CupidDis at 371,108 bytes, CupidLD at 262,388 bytes, CupidObj at 182,704 bytes, and CupidC at 2,447,776 bytes. Verification checks every hash, size, static ELF property, target ABI, producer lineage, source revision, and build-plan field before execution. The 19-source plan uses `.cc` throughout and has SHA-256 `59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`. Native GCC and Clang recipes select C with `-x c`.
 
-The promoted seed completes that plan through stage two and stage three. All 19 C object pairs, the startup objects, and all five tool images match byte for byte with host code-generator commands poisoned. Each checked seed image also matches its stage-two replacement. Both stages agree on every help path, ten successful operations, and six useful failures across compilation, assembly, disassembly, symbol inspection, linking, wrapping, and flattening. The 2,320,544-byte CupidC image carries the complete audited Doom frontier, current GNU entity metadata, x87 and SSE memory forms, descriptor and segment assembly, Task 23 file-scope wrappers, and exact naked IPI entries. Its SHA-256 is `fe4e99837053332e32624208bfceddc60e2be9cdcea5bdacb5b174e6b432cdbb`, and its source revision is `c00b3494014ca0a5f41143caa7e713e46b2ad3ec`. CupidASM and CupidDis carry the 587-row shared x86 catalogue. [ADR 0158](../adr/0158-promote-current-toolchain-seed.md) records the clean promotion and post-promotion reproof. `make verify-bootstrap-seed` checks the current inputs without running them. `make bootstrap-from-seed` performs the complete staged build, while `make test-toolchain-fixed-point` retains the native-generation oracle. GCC or Clang still builds the native contracts, hosted development commands, and 87 normal Cupid OS root objects. Native Windows tooling and the remaining production C ownership stay open.
+The promoted seed completes that plan through stage two and stage three. All 19 C object pairs, the startup objects, and all five tool images match byte for byte with host code-generator commands poisoned. Each checked seed image also matches its stage-two replacement. Both stages agree on every help path, ten successful operations, and six useful failures across compilation, assembly, disassembly, symbol inspection, linking, wrapping, and flattening. The 2,447,776-byte CupidC image carries the complete audited Doom frontier, current GNU entity metadata, x87 and SSE memory forms, descriptor and segment assembly, exact naked IPI entries, all `libm.c` file-scope effects, and explicit `double` to `unsigned long long` conversion. Its SHA-256 is `afc8003e5e047c721fa085c793f2c4fe7e0b5c8e29d4f0bebac5282eb10cace9`, and its source revision is `be5945915af8f76792eba573950f263bdae133a3`. CupidASM and CupidDis carry the 587-row shared x86 catalogue. [ADR 0174](../adr/0174-promote-libm-capable-toolchain-seed.md) records the poisoned-host transition and post-promotion reproof. `make verify-bootstrap-seed` checks the current inputs without running them. `make bootstrap-from-seed` performs the complete staged build, while `make test-toolchain-fixed-point` retains the native-generation oracle. GCC or Clang still builds the native contracts, hosted development commands, and 87 normal Cupid OS root objects. Native Windows tooling and the remaining production C ownership stay open.
 
 The checked-seed bootstrap copies the exact bytes of its 40 source inputs into
 a private compiler root before it starts either stage. CupidC receives that
@@ -523,10 +523,9 @@ same-width pointer, floating, and aggregate inputs fail without publishing
 IR or an object. The emitter repeats those checks, loads the evaluated leaf
 into EAX immediately before CPUID, then snapshots all four outputs through
 the existing EBX-preserving path. Numeric ties keep their existing behavior.
-Compiler head now carries unchanged
+The checked seed carries unchanged
 `kernel/cpu/simd.c` through line 52 and stops at the first unsupported
-`xmm1` clobber on line 134. The checked seed and normal source ownership
-remain unchanged.
+`xmm1` clobber on line 134. Normal source ownership remains unchanged.
 
 ADR 0154 represents the complete unchanged x87 round-down statement in
 `str_floor()`. It requires one modifiable `double` `=m` output, one
@@ -543,15 +542,14 @@ and no relocations.
 The exact unchanged `str_floor()` definition compiles twice to the same
 420-byte object with SHA-256
 `448012fe57ec625c6075e97cf91163b994a0443238c5d6bdf25e4b839763f14e`.
-Compiler head also accepts the later explicit non-atomic `double` to
+The checked seed also accepts the later explicit non-atomic `double` to
 `uint64_t` casts. It divides by 2^32 to obtain the high word, reconstructs
 that multiple exactly, subtracts it, and truncates the remainder to the low
 word. The shared-decoder oracle covers the active range through the largest
 binary64 value below 2^64. Two complete compiles of unchanged
 `kernel/core/string.c` produce the same 14,460-byte object with SHA-256
 `d48bb6ea18b7124fbefeaca0d5d5ee8a517db950f21ea88e30ededd6c5c2a577`.
-The checked seed carries the round-down statement but not this cast, so
-production ownership remains unchanged and the source keeps its `.c` name.
+Production ownership remains unchanged, and the source keeps its `.c` name.
 ADR 0170 records the conversion boundary.
 
 ADR 0157 carries the four descriptor-table and segment-register assembly
@@ -576,12 +574,12 @@ ADR 0155 gives file-scope GNU basic assembly its own frontend and Linear IR
 tables. The checked seed emits the twelve exact x87/SSE floating wrappers at the
 start of unchanged `kernel/cpu/libm.c` as source-ordered, prologue-free global
 functions. The shared x86 encoder produces all 248 text bytes, and the object
-has no relocations. Compiler head accepts `[identifier]` labels on statement
+has no relocations. The checked seed accepts `[identifier]` labels on statement
 operands and resolves `%[identifier]` to the existing numeric index before
 public metadata freezes. The same lvalue, atomic, type, and constraint checks
 apply to named and numeric operands, and `%%` remains escaped text.
 
-Compiler head represents the complete x87 statements in `libm_pow_impl()` and
+The checked seed represents the complete x87 statements in `libm_pow_impl()` and
 `libm_powf_impl()`. The double form requires one modifiable `double` output
 and four addressable `double` inputs. The mixed form requires one modifiable
 `float` output, two addressable `float` inputs, and two addressable `double`
@@ -591,14 +589,14 @@ exact text bytes, no relocations, the canonical `DC E1` reverse-subtract
 encoding, and balanced x87 depth. Those blocks exposed the following
 `sqrtsd` statement in `libm_sqrt_impl()`.
 
-Compiler head now represents that exact volatile square-root statement. It
+The checked seed represents that exact volatile square-root statement. It
 requires one modifiable, non-atomic `double` `=x` output, one non-atomic
 `double` `x` input, and no clobbers. Linear IR evaluates the output address
 before the input value. The emitter uses XMM0 internally for `MOVSD`,
 `SQRTSD`, and the final `MOVSD` store. The 65-byte focused function has no
 relocations.
 
-Compiler head also represents the exact volatile x87 statement in
+The checked seed also represents the exact volatile x87 statement in
 `libm_atan2_impl()`. It requires one modifiable, non-atomic `double` `=m`
 output, two addressable, non-atomic `double` `m` inputs in `y`, `x` order,
 and one `memory` clobber. Linear IR evaluates the three addresses once in
@@ -607,21 +605,21 @@ source order. The 53-byte focused function has no relocations, and its
 full source then proceeds to the x87 exponent statement in
 `libm_exp_impl()`.
 
-Compiler head also represents that exact volatile exponent statement. It
+The checked seed also represents that exact volatile exponent statement. It
 requires one modifiable, non-atomic `double` `=m` output, two addressable,
 non-atomic `double` `m` inputs in `x`, `log2e` order, and one `memory`
 clobber. Linear IR evaluates all three addresses once in source order. The
 71-byte focused function has no relocations, reaches x87 depth three, and
 returns to its incoming depth.
 
-Compiler head now represents the following aligned mask block and the exact
+The checked seed represents the following aligned mask block and the exact
 `fabs` and `fabsf` wrappers. The mask effect reserves the first 32 bytes of
 `.rodata` at alignment 16 and defines local `STT_NOTYPE` labels at offsets 0
 and 16. Later read-only C objects follow the masks. The wrappers contain 15
 and 14 text bytes and carry one `R_386_32` relocation each to the matching
 mask.
 
-Compiler head also represents the next eight file-scope rounding wrappers:
+The checked seed also represents the next eight file-scope rounding wrappers:
 `floor`, `floorf`, `ceil`, `ceilf`, `round`, `roundf`, `trunc`, and
 `truncf`. Each saves the caller's x87 control word, clears its rounding
 field, selects the source mode, applies `FRNDINT`, and restores the original
@@ -630,14 +628,14 @@ nearest-even pair emits no OR instruction. The family occupies 384 exact
 text bytes, uses no relocations, reaches x87 depth one, and balances ESP and
 x87 depth.
 
-Compiler head also represents the exact `fmod` and `fmodf` definitions.
+The checked seed also represents the exact `fmod` and `fmodf` definitions.
 Each loads `y` below `x`, repeats `FPREM` while x87 status-word C2 is set,
 and uses a checked short `JNE` with displacement `-10`. After convergence it
 discards ST(1), returns the remainder through XMM0 at the source width, and
 restores ESP and x87 depth. Both functions contain 35 exact text bytes and
 no relocation.
 
-Compiler head now represents the aligned `libm_log2e_const` and
+The checked seed represents the aligned `libm_log2e_const` and
 `libm_ln2_const` block and the following `exp2`, `exp2f`, `exp`, `expf`,
 `log2`, `log2f`, `log`, and `logf` wrappers. The two local constants occupy
 16 `.rodata` bytes at alignment eight. The wrappers add 264 text bytes. The
@@ -646,7 +644,7 @@ forms need none. Decoder contracts check every instruction, each operand,
 x87 depth, and ESP balance. The full source then proceeds to `pow` at line
 846.
 
-Compiler head also represents `pow`, `powf`, `asin`, `asinf`, `acos`,
+The checked seed also represents `pow`, `powf`, `asin`, `asinf`, `acos`,
 `acosf`, `sinh`, `sinhf`, `cosh`, `coshf`, `tanh`, `tanhf`, `cbrt`,
 `cbrtf`, `hypot`, `hypotf`, `nextafter`, and `nextafterf`. Each wrapper
 copies its one or two original cdecl arguments, calls the matching external
@@ -661,14 +659,12 @@ produce the same valid 16,164-byte ELF32 relocatable object with SHA-256
 `ccfb59839b058020a3cdc30c8e6db7ebac8845215a38ff974b3cbca876574eac`.
 General file-scope GAS still fails at the CupidC boundary.
 
-The checked seed carries the opening file-scope wrappers but predates named
-operands, the five statement blocks, the three `fabs` effects, and the
-rounding, remainder, exponent/log, and cdecl bridge families. The `libm.c`
-name, production recipe, and host-dependency inventory remain unchanged
-until seed promotion and production transfer. ADR 0159 records the naming
-boundary. ADRs 0161 through 0165 record the five statement blocks. ADR 0166
-records `fabs`, ADR 0169 records rounding, ADR 0171 records remainder, ADR
-0172 records exponent/log, and ADR 0173 records the final cdecl bridges.
+The `libm.c` name, production recipe, and host-dependency inventory remain
+unchanged until production transfer. ADR 0159 records the naming boundary.
+ADRs 0161 through 0165 record the five statement blocks. ADR 0166 records
+`fabs`, ADR 0169 records rounding, ADR 0171 records remainder, ADR 0172
+records exponent/log, ADR 0173 records the final cdecl bridges, and ADR 0174
+records checked-seed carriage.
 
 ADR 0156 represents the naked interrupt entries in unchanged
 `kernel/smp/smp.c`. A naked function must have type `void (void)` and contain

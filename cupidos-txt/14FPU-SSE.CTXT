@@ -87,17 +87,17 @@ Four-vCPU e1000 and RTL8139 boots print [fpu] SSE2 enabled,
 [fpu] boot smoke ok, and FPU boot smoke passed before they finish
 feature16_asm_fpu.cc successfully.
 
-Compiler-head CupidC also accepts the exact volatile EFLAGS restore in
+The checked seed also accepts the exact volatile EFLAGS restore in
 simd_cpu_has_cpuid. One non-atomic 32-bit integer r input and one cc clobber
 produce a checked POP EAX, PUSH EAX, POPF sequence. ESP remains balanced and
 the object needs no relocation for this statement. Both unchanged restore
 sites pass.
 
-Compiler head also accepts the CPUID leaf input sharing EAX with the
+It also accepts the CPUID leaf input sharing EAX with the
 compatible write-only output. It keeps the a and =a constraints, records
 their match, and loads EAX immediately before CPUID. The full source now
-stops at the unsupported xmm1 clobber on line 134. The checked seed and
-normal SIMD recipe still predate these capabilities.
+stops at the unsupported xmm1 clobber on line 134. The normal SIMD recipe
+still uses the host compiler.
 
 The checked seed represents the exact x87 round-down statement in
 str_floor. It takes one double memory output and one double memory input with
@@ -112,7 +112,7 @@ incoming rounding modes. It verifies exact results, balanced x87 depth, and
 control-word restoration without executing native x87 code. Two exact
 compiles of the unchanged helper produce the same 420-byte object.
 
-Compiler head also emits the later explicit non-atomic double-to-uint64_t
+The checked seed also emits the later explicit non-atomic double-to-uint64_t
 casts. It derives the high word from value / 2^32, subtracts that exact
 multiple, and derives the low word from the remainder. Each unsigned-word
 step splits at 2^31 before signed SSE truncation. The decoder-driven oracle
@@ -121,10 +121,9 @@ largest binary64 value below 2^64.
 Full unchanged kernel/core/string.c compiles twice to the same 14,460-byte
 object with SHA-256
 d48bb6ea18b7124fbefeaca0d5d5ee8a517db950f21ea88e30ededd6c5c2a577.
-The checked seed does not carry the cast yet, so production ownership does
-not move and the source keeps its .c name.
+Production ownership does not move, and the source keeps its .c name.
 
-Compiler head also represents the x87 power statements in libm_pow_impl and
+The checked seed also represents the x87 power statements in libm_pow_impl and
 libm_powf_impl. The double form has five double memory operands. The mixed
 form has a float output, two float inputs, and two double inputs. Both require
 one memory clobber. Linear IR evaluates each set of five addresses once in
@@ -132,45 +131,45 @@ source order. Each 116-byte focused function contains seventeen x87
 instructions, uses DC E1 for FSUBR ST(1), ST(0), reaches stack depth three,
 and returns to its incoming depth without a relocation.
 
-Compiler head also represents the exact volatile sqrtsd %1, %0 statement in
+The checked seed also represents the exact volatile sqrtsd %1, %0 statement in
 libm_sqrt_impl. It accepts one modifiable, non-atomic double =x output, one
 non-atomic double x input, and no clobbers. Linear IR evaluates the output
 address before the input value. The 65-byte focused function uses the shared
 MOVSD and SQRTSD encodings and has no relocations.
 
-Compiler head also represents the exact volatile x87 statement in
+The checked seed also represents the exact volatile x87 statement in
 libm_atan2_impl. It accepts one modifiable, non-atomic double =m output, two
 addressable, non-atomic double m inputs in y, x order, and one memory
 clobber. Linear IR evaluates all three addresses once in source order. The
 53-byte focused function uses the shared model for both loads, FPATAN, and
 the final store, with no relocations.
 
-Compiler head also represents the exact volatile x87 statement in
+The checked seed also represents the exact volatile x87 statement in
 libm_exp_impl. It accepts one modifiable, non-atomic double =m output, two
 addressable, non-atomic double m inputs in x, log2e order, and one memory
 clobber. Linear IR evaluates all three addresses once in source order. The
 71-byte focused function has no relocations, reaches x87 depth three, and
 returns to its incoming depth.
 
-Compiler head also represents the exact aligned fabs mask block and the
+The checked seed also represents the exact aligned fabs mask block and the
 following fabs and fabsf wrappers. The masks occupy the first 32 bytes of
 .rodata, with local labels at offsets 0 and 16. The double wrapper uses MOVSD
 and ANDPD in 15 text bytes. The float wrapper uses MOVSS and ANDPS in 14
 bytes. Each has one absolute relocation to its mask.
 
 The following floor, floorf, ceil, ceilf, round, roundf, trunc, and truncf
-wrappers are represented at compiler head too. They save the incoming x87
+wrappers are represented by the checked seed too. They save the incoming x87
 control word, select down, up, nearest-even, or toward-zero mode, apply
 FRNDINT, and restore the original word. Together they occupy 384 text bytes
 without relocations, reach x87 depth one, and balance ESP and x87 depth.
 
-The following fmod and fmodf wrappers are represented at compiler head too.
+The following fmod and fmodf wrappers are represented by the checked seed too.
 Each repeats FPREM while x87 status-word C2 is set, uses a short backward
 branch, discards the divisor, and returns the remainder through XMM0. Each
 body contains 35 text bytes, reaches x87 depth two, balances ESP and x87
 depth, and has no relocation.
 
-Compiler head also represents the aligned libm_log2e_const and libm_ln2_const
+The checked seed also represents the aligned libm_log2e_const and libm_ln2_const
 data and the next eight exponent and logarithm wrappers. The constants occupy
 16 read-only bytes at alignment eight. exp2 and exp2f use FRNDINT, F2XM1, and
 FSCALE. exp and expf multiply by log2(e) first. log2 and log2f use FLD1 with
@@ -178,7 +177,7 @@ FYL2X, while log and logf use ln(2). The functions add 264 text bytes and
 four absolute relocations, never exceed x87 depth three, and balance ESP and
 x87 depth. The unchanged source then reaches pow on line 846.
 
-Compiler head now represents that wrapper and all 17 later cdecl bridges.
+The checked seed represents that wrapper and all 17 later cdecl bridges.
 The pow, hypot, and nextafter pairs take two arguments. The asin, acos, sinh,
 cosh, tanh, and cbrt pairs take one. Each wrapper copies its original cdecl
 words, calls a matching external implementation, reclaims the copied words,
@@ -186,8 +185,7 @@ and moves the ST(0) result into XMM0 at float or double width. The family
 adds 558 text bytes and 18 PC-relative call relocations. Unchanged
 kernel/cpu/libm.c now emits a deterministic 16,164-byte ELF32 object.
 
-The checked seed does not yet carry these compiler-head capabilities, so
-kernel/cpu/libm.c remains host-owned pending seed promotion.
+Kernel/cpu/libm.c remains host-owned pending production transfer.
 
 Direct floating truth, a floating controlling expression, increment and
 decrement, hexadecimal or subnormal constants, long double, SIMD, and atomic

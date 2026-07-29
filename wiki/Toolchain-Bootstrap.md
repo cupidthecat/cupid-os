@@ -67,16 +67,17 @@ CupidASM and the optional NASM oracle produce the same bytes for the current
 
 The checked seed includes the complete audited Doom compiler frontier,
 current GNU entity metadata, the active x87 and SSE memory forms, descriptor
-and segment assembly, Task 23 file-scope wrappers, and exact naked IPI
-entries. Its stage-three CupidC image is 2,320,544 bytes with SHA-256
-`fe4e99837053332e32624208bfceddc60e2be9cdcea5bdacb5b174e6b432cdbb`.
+and segment assembly, every unchanged `libm.c` assembly effect, explicit
+`double` to `unsigned long long` conversion, and exact naked IPI entries. Its
+stage-three CupidC image is 2,447,776 bytes with SHA-256
+`afc8003e5e047c721fa085c793f2c4fe7e0b5c8e29d4f0bebac5282eb10cace9`.
 It came from stage three of the checked bootstrap at revision
-`c00b3494014ca0a5f41143caa7e713e46b2ad3ec`. CupidASM and CupidDis carry
+`be5945915af8f76792eba573950f263bdae133a3`. CupidASM and CupidDis carry
 the 587-row shared x86 catalogue. With host code-generator commands
 poisoned, all five seed images match stage two. All 19 stage-two C objects,
 startup, and five images then match stage three, and both stages pass all 21
-tool behavior cases. ADR 0158 records the clean promotion and its
-post-promotion reproof.
+tool behavior cases. ADR 0174 records the promotion and its post-promotion
+reproof.
 
 The refreshed seed represents operand-free GNU assembly statements inside
 functions and emits exact PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT
@@ -151,22 +152,22 @@ The normal build owns the root through the checked wrapper. A typed policy
 decodes `fpu_init_cpu()`, rejects helper calls and floating work before the
 CR4 write, and requires `FNINIT` before one 32-bit memory `LDMXCSR`.
 
-Compiler head now represents the exact volatile EFLAGS restore in
+The checked seed represents the exact volatile EFLAGS restore in
 `simd_cpu_has_cpuid()`. One 32-bit `r` input and one `cc` clobber reach
 Linear IR as checked public metadata. The emitter produces `POP EAX`,
 `PUSH EAX`, and `POPF` through the shared x86 model, leaving ESP balanced.
 Both unchanged restore statements pass.
 
-Compiler head accepts the CPUID statement's fixed EAX input/output overlap.
+It accepts the CPUID statement's fixed EAX input/output overlap.
 The `a` input keeps its original spelling and points to the compatible
 write-only `=a` output in the public operand record. Linear IR checks that
 tie, including represented integer types and equal widths. Emission repeats
 the check and loads EAX immediately before CPUID. A frozen same-width
 non-integer substitute fails transactionally. The complete source
-now stops at the `xmm1` clobber on line 134. Neither compiler-head capability
-has reached the checked seed or normal SIMD recipe.
+now stops at the `xmm1` clobber on line 134. The normal SIMD recipe remains
+host-owned.
 
-The next compiler-head slice represents the complete x87 round-down statement
+The checked seed represents the complete x87 round-down statement
 in unchanged `str_floor()`. It requires one modifiable `double` output, one
 addressable `double` input, and the exact `ax` plus `memory` clobber set.
 After loading the input, emission reuses its consumed address slot below ESP
@@ -177,15 +178,15 @@ then restores the incoming x87 control word before storing the result.
 Two exact compiles of the extracted active helper produce the same 420-byte
 ELF32 object with SHA-256
 `448012fe57ec625c6075e97cf91163b994a0443238c5d6bdf25e4b839763f14e`.
-Compiler head also emits the later explicit double-to-`uint64_t` casts. It
+It also emits the later explicit double-to-`uint64_t` casts. It
 splits the result around 2^32 and uses a 2^31-safe truncation for each word.
 The decoder-driven oracle covers positive and negative fractions and the
 active range through the largest binary64 value below 2^64. Full unchanged
 `kernel/core/string.c` compiles
 twice to the same 14,460-byte object with SHA-256
 `d48bb6ea18b7124fbefeaca0d5d5ee8a517db950f21ea88e30ededd6c5c2a577`.
-The checked seed carries the round-down increment but not this conversion,
-so the root remains host-owned and keeps its `.c` name.
+The root remains host-owned and keeps its `.c` name until production
+transfer.
 
 The checked seed retains GNU `naked` and `__naked__` for the exact IPI
 entries. A naked definition must be
@@ -371,7 +372,7 @@ every host. Direct Linux builds test the separate Linux execution branch.
 
 ### GNU named assembly operands
 
-Compiler-head CupidC accepts optional `[identifier]` labels on GNU extended
+Checked-seed CupidC accepts optional `[identifier]` labels on GNU extended
 assembly outputs and inputs. It collects the complete operand namespace and
 normalizes each unescaped `%[identifier]` reference to the existing numeric
 operand index before public frontend metadata freezes. Escaped `%%` pairs
@@ -380,7 +381,7 @@ contracts and apply the same validation to named and numeric source.
 
 ### x87 power statements
 
-Compiler head accepts the complete volatile assembly statements in
+The checked seed accepts the complete volatile assembly statements in
 `libm_pow_impl()` and `libm_powf_impl()`. The double form requires one
 modifiable `double` output and four addressable `double` inputs. The mixed
 form requires one modifiable `float` output, two addressable `float` inputs,
@@ -395,7 +396,7 @@ deterministic output, rollback, and same-job recovery.
 
 ### SSE2 square-root statement
 
-Compiler head accepts the exact volatile `sqrtsd %1, %0` statement in
+The checked seed accepts the exact volatile `sqrtsd %1, %0` statement in
 `libm_sqrt_impl()`. It requires one modifiable, non-atomic `double` `=x`
 output, one non-atomic `double` `x` input, and no clobbers. Linear IR
 evaluates the output address before the input value.
@@ -408,7 +409,7 @@ output, unreachable validation, rollback, and same-job recovery.
 
 ### x87 atan2 memory statement
 
-Compiler head accepts the exact volatile statement in `libm_atan2_impl()`.
+The checked seed accepts the exact volatile statement in `libm_atan2_impl()`.
 It requires one modifiable, non-atomic `double` `=m` output, two addressable,
 non-atomic `double` `m` inputs in `y`, `x` order, and one `memory` clobber.
 The named spelling normalizes to the same frozen metadata as the numeric
@@ -422,7 +423,7 @@ rollback, and same-job recovery.
 
 ### x87 exponent memory statement
 
-Compiler head accepts the exact volatile statement in `libm_exp_impl()`. It
+The checked seed accepts the exact volatile statement in `libm_exp_impl()`. It
 requires one modifiable, non-atomic `double` `=m` output, two addressable,
 non-atomic `double` `m` inputs in `x`, `log2e` order, and one `memory`
 clobber. The named spelling and normalized numeric form use the same
@@ -437,7 +438,7 @@ unchanged source then reaches the aligned file-scope `fabs` mask block.
 
 ### fabs file-scope masks and wrappers
 
-Compiler head accepts the exact mask block followed by `fabs` and `fabsf`.
+The checked seed accepts the exact mask block followed by `fabs` and `fabsf`.
 The mask effect reserves the first 32 bytes of `.rodata` at alignment 16 and
 defines local `STT_NOTYPE` symbols at offsets 0 and 16. It is placed before
 ordinary and block-static objects, so later read-only C data starts at offset
@@ -453,7 +454,7 @@ same-job recovery.
 
 ### libm file-scope rounding wrappers
 
-Compiler head accepts the exact `floor`, `floorf`, `ceil`, `ceilf`, `round`,
+The checked seed accepts the exact `floor`, `floorf`, `ceil`, `ceilf`, `round`,
 `roundf`, `trunc`, and `truncf` definitions. Each wrapper loads its scalar
 argument, saves the x87 control word, clears the RC field with `0xf3ff`, and
 installs the source mode before `FRNDINT`. It restores the original control
@@ -468,12 +469,12 @@ prototype, then check output rollback and same-job recovery.
 
 At this boundary the unchanged source reaches `fmod` at line 465. Named
 matching constraints, operand modifiers, and general XMM or x87 constraints
-remain separate work. The checked seed and normal host-owned `libm.c` recipe
-do not change.
+remain separate work. The normal host-owned `libm.c` recipe remains
+unchanged.
 
 ### libm file-scope remainder wrappers
 
-Compiler head accepts the exact `fmod` and `fmodf` definitions. Each wrapper
+The checked seed accepts the exact `fmod` and `fmodf` definitions. Each wrapper
 loads `y` and then `x`, leaving the dividend in ST(0) and divisor in ST(1).
 It repeats `FPREM` while C2 in the x87 status word remains set. `FNSTSW AX`
 and `TEST AX, 0x0400` feed a rel8 `JNE` with displacement `-10` back to the
@@ -491,11 +492,11 @@ prototype, then check output rollback and same-job recovery.
 
 That remainder slice ended at the aligned `libm_log2e_const` and
 `libm_ln2_const` block on line 544. The next section records the later
-compiler-head ownership of that exact data and its wrappers.
+checked-seed ownership of that exact data and its wrappers.
 
 ### libm file-scope exponent and logarithm wrappers
 
-Compiler head accepts that exact constant block and the following `exp2`,
+The checked seed accepts that exact constant block and the following `exp2`,
 `exp2f`, `exp`, `expf`, `log2`, `log2f`, `log`, and `logf` definitions. The
 two local `STT_NOTYPE` symbols occupy offsets 0 and 8 in a 16-byte `.rodata`
 section with alignment eight.
@@ -520,7 +521,7 @@ The unchanged source then reaches `pow` at line 846.
 
 ### libm cdecl bridge wrappers
 
-Compiler head accepts `pow`, `powf`, `asin`, `asinf`, `acos`, `acosf`,
+The checked seed accepts `pow`, `powf`, `asin`, `asinf`, `acos`, `acosf`,
 `sinh`, `sinhf`, `cosh`, `coshf`, `tanh`, `tanhf`, `cbrt`, `cbrtf`,
 `hypot`, `hypotf`, `nextafter`, and `nextafterf`. Each exact file-scope
 template copies the original cdecl words, calls a matching external
@@ -542,5 +543,5 @@ produce the same valid 16,164-byte ELF32 relocatable object with SHA-256
 `ccfb59839b058020a3cdc30c8e6db7ebac8845215a38ff974b3cbca876574eac`.
 General GAS remains unsupported.
 
-The checked seed and normal host-owned `libm.c` recipe do not change in this
-increment. Seed promotion must precede production ownership transfer.
+The checked seed carries this whole boundary. The normal host-owned
+`libm.c` recipe remains until production ownership transfers.

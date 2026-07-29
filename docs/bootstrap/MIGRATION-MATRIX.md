@@ -5,11 +5,12 @@
 Hosted CupidC now emits deterministic i386 ELF32 objects for all fourteen files in issue #27's CupidC, CupidASM, and CupidDis cohort. Ten cohort files use the hermetic `HOSTED_TOOLCHAIN_64` profile. `kernel/lang/as_elf.cc` is the cohort's kernel bridge, while `ctool_host.cc`, `cupidasm_main.cc`, and `cupiddis_main.cc` use a checked i386 Linux profile with Cupid-owned declarations for their hosted interfaces. The same gate now covers complete CupidLD and CupidObj command closures. Each object is emitted twice and read back through Cupid's ELF32 reader. The adapters also lock their named undefined imports and bounded relocation records. This supersedes the older nine-file, eleven-file, and core-only counts in the historical notes and long-form rows below.
 
 Repository startup and runtime code now take five complete CupidC-emitted command closures across CupidASM and CupidLD. The runtime supplies the checked heap, file, memory, string, `errno`, working-directory, and diagnostic interfaces. CupidC, CupidASM, CupidDis, CupidLD, and CupidObj run on i386 Linux or through WSL. Their checked seed binds the static images to the target ABI, source revision, producer lineage, and complete build plan. The harness freezes the verified seed and copies 40 current inputs, including `link.ld`, into a private compiler root. The seed producer trio builds the 19-source stage-two union and all five tools below that root, then the stage-two trio repeats that work for stage three. The private and live closures are rehashed at every stage and behavior boundary. Every C object, startup object, and tool image matches across the two stages, and both stages agree on positive and failure behavior for all five commands. The two stages, behavior evidence, and report appear together only after the full gate passes. ADR 0086 records the sibling commands, ADR 0088 records the compiler driver, ADR 0089 records the compiler fixed point, ADR 0090 records the five-tool fixed point, ADR 0092 records the checked seed, and ADR 0142 records the frozen source closure.
-ADRs 0102, 0106, 0108, and 0122 record the current stage-three seed lineage.
+ADR 0174 records the current stage-three seed lineage.
 ADR 0123 records the production transfer that follows that seed promotion.
 The seed carries operand-free assembly, the per-CPU pointer output, the active
-integer atomics through fetch-or, width-aware port I/O, GNU `used`, and the
-source-driven assembly frontier. ADR 0103 uses that seed
+integer atomics through fetch-or, width-aware port I/O, GNU `used`, the
+source-driven assembly frontier, and the complete `libm.c` compiler
+frontier. ADR 0103 uses that seed
 to transfer ACPI and MP-table discovery into the normal build. ADR 0104
 transfers e1000, the desktop, the socket layer, and TCP.
 
@@ -18,34 +19,34 @@ translation-unit effect table and carries its source order through Linear IR.
 It emits the twelve exact x87/SSE floating wrapper definitions at the start
 of unchanged `kernel/cpu/libm.c` through the shared x86 model. The focused
 object has 248 text bytes, twelve global function symbols, and no
-relocations. Compiler head now resolves named function-body operands before
+relocations. The checked seed resolves named function-body operands before
 it publishes the statement. It also emits the exact `libm_pow_impl` and
 `libm_powf_impl` programs. The double form uses five `double` operands. The
 mixed form uses a `float` output, two `float` inputs, and two `double`
 inputs. Both have one memory clobber and balanced x87 depth. Each focused
-function has 116 text bytes and no relocations. Compiler head also emits the
+function has 116 text bytes and no relocations. The checked seed also emits the
 exact `sqrtsd %1, %0` statement with a `double` `=x` output and a `double`
-`x` input. Its 65-byte focused function has no relocations. Compiler head
+`x` input. Its 65-byte focused function has no relocations. The checked seed
 also emits the exact x87 `libm_atan2_impl()` statement with one `double` `=m`
 output, two `double` `m` inputs, and a `memory` clobber. Its 53-byte focused
 function has no relocations. It also emits the exact x87
 `libm_exp_impl()` statement with one `double` `=m` output, two `double` `m`
 inputs in `x`, `log2e` order, and a `memory` clobber. Its 71-byte focused
-function has no relocations and balanced x87 depth. Compiler head also emits
+function has no relocations and balanced x87 depth. The checked seed also emits
 the aligned 32-byte `fabs` mask block and both following wrappers. The mask
 labels remain fixed at `.rodata` offsets 0 and 16 even when later read-only C
 objects exist. The 15-byte `fabs` and 14-byte `fabsf` functions each carry
-one `R_386_32` relocation to the matching local label. Compiler head also
+one `R_386_32` relocation to the matching local label. The checked seed also
 emits the next eight rounding wrappers. The four double and float pairs save
 and restore the x87 control word around `FRNDINT`, select down, up,
 nearest-even, and toward-zero mode, and add 384 relocation-free text bytes.
-Compiler head also emits `fmod` and `fmodf`. Both 35-byte functions repeat
+The checked seed also emits `fmod` and `fmodf`. Both 35-byte functions repeat
 `FPREM` while C2 is set, use a checked short backward branch, and leave ESP
-and x87 depth balanced without a relocation. Compiler head also emits the
+and x87 depth balanced without a relocation. The checked seed also emits the
 aligned `libm_log2e_const` and `libm_ln2_const` block and all eight following
 exponent/logarithm wrappers. The constants occupy 16 aligned `.rodata`
 bytes. The functions add 264 text bytes, and `exp`, `expf`, `log`, and
-`logf` each carry one `R_386_32` relocation. Compiler head now emits all 18
+`logf` each carry one `R_386_32` relocation. The checked seed emits all 18
 remaining cdecl bridges: six binary wrappers in the `pow`, `hypot`, and
 `nextafter` pairs and twelve unary wrappers in the `asin`, `acos`, `sinh`,
 `cosh`, `tanh`, and `cbrt` pairs. Four shared stack shapes copy the original
@@ -55,14 +56,15 @@ copies, and move ST(0) into XMM0. The functions add 558 text bytes and 18
 compiles of unchanged `libm.c` produce the same 16,164-byte valid ELF32
 object. General GAS remains open.
 
-This compiler-head result does not transfer a recipe. The checked seed
-predates the later libm work. `libm.c` remains host-owned with its `.c`
-name, and the host C transform count is unchanged pending seed promotion.
+This checked-seed result does not transfer a recipe. `libm.c` remains
+host-owned with its `.c` name, and the host C transform count is unchanged
+pending production transfer.
 ADR 0155 records the initial file-scope boundary, ADR 0159 records named
 operand normalization, ADRs 0161 through 0165 record the five represented
 statements, ADR 0166 records the `fabs` effects, ADR 0169 records the
 rounding family, ADR 0171 records the remainder family, ADR 0172 records the
-exponent/log family, and ADR 0173 records the cdecl bridges.
+exponent/log family, ADR 0173 records the cdecl bridges, and ADR 0174 records
+checked-seed carriage.
 
 Checked-seed CupidC represents the two exact volatile FXSAVE statements in
 `kernel/core/process.cc`. One independent four-byte object or
@@ -123,13 +125,12 @@ exact IEEE bits using bounded integer arithmetic. The Linear IR and SSE
 emitter cover represented integer-to-floating conversions,
 floating-to-signed conversions, floating-to-unsigned byte or word
 conversions, and mixed represented integer and floating arithmetic.
-Compiler head also covers the explicit non-atomic `double` to
+The checked seed also covers the explicit non-atomic `double` to
 `unsigned long long` cast needed by `kernel/core/string.c`. Unsigned
 four-byte input uses an exact split across the sign boundary, while the new
-unsigned-wide output is decomposed around 2^32. The refreshed seed carries
-the older path, so `kernel/lang/cupidc_lex.cc` now belongs to the normal
-CupidC cohort. It does not yet carry the unsigned-wide conversion. The
-checked seed also evaluates decimal
+unsigned-wide output is decomposed around 2^32. The seed also carries the
+older path, so `kernel/lang/cupidc_lex.cc` belongs to the normal CupidC
+cohort. The checked seed also evaluates decimal
 static-duration scalar and aggregate leaves with integer-only IEEE binary32
 and binary64 arithmetic. It covers unary signs, the four arithmetic
 operations, comparisons, casts, scalar truth, short-circuit logic,
@@ -307,8 +308,8 @@ transfer.
 | Seventy-one kernel/driver `.cc` sources plus `ctool.cc`, `cupidasm.cc`, `cupiddis.cc`, `elf32.cc`, and `x86.cc` | Checked-seed CupidC through the verified kernel wrapper | Native normal-build CupidC with no host execution bridge | Production-owned by CupidC. These 76 sources established the 116-source frontier. The five Toolchain roots now use `.cc`; native GCC or Clang recipes select C explicitly with `-x c`. Recursive dependencies and poisoned-host runs cover each recipe. Data-only `ET_REL` output is accepted without `.text` when the rest of the object is valid. |
 | Current checked-in CupidC naming boundary | Checked-seed CupidC through the verified kernel wrapper | Native normal-build CupidC with no host execution bridge | The 151 checked-in roots and generated symbol source all use `.cc`. The five Toolchain roots shared with the 19-source fixed point keep C semantics through explicit `-x c` in native recipes. ADRs 0115 and 0123 record the first 28 ownership transfers, ADR 0124 records the next 111 renames, ADR 0126 records the fixed-point rename and old-seed proof, ADR 0129 records the lexer transfer, ADR 0135 records the Nuked OPL3 transfer, ADR 0139 records the JPEG and glyph-raster transfer, and ADR 0167 records the FPU and SMP transfer. The 151-root frontier, clean image, symbol, memory, typed FPU-ordering, and four-vCPU dual-NIC runtime checks pass. |
 | `kernel/core/process.cc` FXSAVE frontier | Checked-seed CupidC through the verified kernel wrapper | Native normal-build CupidC with no host execution bridge | Production-owned by CupidC. The deterministic 30,216-byte object contains both exact `0F AE 00` FXSAVE instructions and passes the shared relocatable validator. The normal Make recipe and runtime path now use this object. ADR 0119 records the compiler boundary, and ADR 0123 records the transfer. |
-| Remaining checked-in core/driver/tool C cohort | GCC/Clang freestanding compilation | CupidC C mode to ELF32 `ET_REL` | Host-owned except for the 151 checked-in normal CupidC roots. Four strict checked-in roots remain. ADR 0123 transferred `idt.cc`, `paging.cc`, `lapic.cc`, `pic.cc`, `process.cc`, `panic.cc`, `as.cc`, and `cupidc.cc`, along with the generated `kernel/cpu/ksyms_data.cc` object. ADR 0129 transferred `cupidc_lex.cc`, ADR 0135 transferred Nuked OPL3, ADR 0139 transferred JPEG and glyph rasterization, and ADR 0167 transferred the FPU and SMP roots. The checked seed accepts the complete x87 control-word and round-down statement in unchanged `str_floor()`, including its exact AX and memory clobbers. Two compiles of that extracted active helper produce the same 420-byte object with SHA-256 `448012fe57ec625c6075e97cf91163b994a0443238c5d6bdf25e4b839763f14e`. Compiler head also accepts the later explicit non-atomic `double` to `uint64_t` casts. Two full compiles of unchanged `kernel/core/string.c` produce the same 14,460-byte object with SHA-256 `d48bb6ea18b7124fbefeaca0d5d5ee8a517db950f21ea88e30ededd6c5c2a577`. The checked seed does not carry those casts, so the file remains host-owned and keeps its `.c` suffix. Other roots still stop on broader GNU assembly, attributes, or floating forms. |
-| `kernel/cpu/simd.c` GNU assembly frontier | GCC/Clang freestanding compilation | CupidC C mode to ELF32 `ET_REL` | Compiler head accepts both exact volatile `pushl %0`, `popfl` statements with one 32-bit `r` input and one `cc` clobber. It emits the balanced `58 50 9D` sequence through Cupid's shared x86 model. It also accepts the unchanged CPUID `a` input sharing EAX with the compatible write-only `=a` output, records output zero as the match, and loads EAX immediately before CPUID. Linear IR and emission require represented integer operands of equal width, including for caller-supplied frozen units. The complete unchanged source now stops at line 134 on the first unsupported `xmm1` clobber. The checked seed does not yet carry either capability, the normal recipe remains host-owned, and the source keeps its `.c` suffix. A seed refresh, the remaining SSE assembly forms, deterministic object proof, normal image, and runtime proof remain before transfer. ADRs 0160 and 0162 record the compiler-head boundary. |
+| Remaining checked-in core/driver/tool C cohort | GCC/Clang freestanding compilation | CupidC C mode to ELF32 `ET_REL` | Host-owned except for the 151 checked-in normal CupidC roots. Four strict checked-in roots remain. ADR 0123 transferred `idt.cc`, `paging.cc`, `lapic.cc`, `pic.cc`, `process.cc`, `panic.cc`, `as.cc`, and `cupidc.cc`, along with the generated `kernel/cpu/ksyms_data.cc` object. ADR 0129 transferred `cupidc_lex.cc`, ADR 0135 transferred Nuked OPL3, ADR 0139 transferred JPEG and glyph rasterization, and ADR 0167 transferred the FPU and SMP roots. The checked seed accepts the complete x87 control-word and round-down statement in unchanged `str_floor()`, including its exact AX and memory clobbers. Two compiles of that extracted active helper produce the same 420-byte object with SHA-256 `448012fe57ec625c6075e97cf91163b994a0443238c5d6bdf25e4b839763f14e`. It also accepts the later explicit non-atomic `double` to `uint64_t` casts. Two full compiles of unchanged `kernel/core/string.c` produce the same 14,460-byte object with SHA-256 `d48bb6ea18b7124fbefeaca0d5d5ee8a517db950f21ea88e30ededd6c5c2a577`. The file remains host-owned and keeps its `.c` suffix until its production transfer. Other roots still stop on broader GNU assembly, attributes, or floating forms. |
+| `kernel/cpu/simd.c` GNU assembly frontier | GCC/Clang freestanding compilation | CupidC C mode to ELF32 `ET_REL` | The checked seed accepts both exact volatile `pushl %0`, `popfl` statements with one 32-bit `r` input and one `cc` clobber. It emits the balanced `58 50 9D` sequence through Cupid's shared x86 model. It also accepts the unchanged CPUID `a` input sharing EAX with the compatible write-only `=a` output, records output zero as the match, and loads EAX immediately before CPUID. Linear IR and emission require represented integer operands of equal width, including for caller-supplied frozen units. The complete unchanged source stops at line 134 on the first unsupported `xmm1` clobber. The normal recipe remains host-owned, and the source keeps its `.c` suffix. The remaining SSE assembly forms, deterministic object proof, normal image, and runtime proof remain before transfer. ADRs 0160 and 0162 record the compiler boundary, and ADR 0174 records seed carriage. |
 | `kernel/smp/percpu.cc` descriptor-table root | Checked-seed CupidC through the verified kernel wrapper | Native normal-build CupidC with no host execution bridge | Production-owned by CupidC. Its four exact assembly forms load a packed six-byte GDTR, reload DS, ES, SS, and CS, and write a represented 16-bit selector to GS. Two complete compiles produce the same 6,760-byte object with SHA-256 `3c2c6f0e00e5edec1ca16cba91e9fc593d1c42e24f4ebd3591e5f574fb0dd772`. The wrapper freezes the recursive input closure, and the image plus four-vCPU dual-NIC runtime gates pass. ADR 0157 records the compiler boundary, and ADR 0167 records the transfer. |
 | `kernel/audio/nuked_opl3.cc` | Checked-seed CupidC through the verified kernel wrapper | Native normal-build CupidC with no host execution bridge | Production-owned by CupidC. The checked seed recognizes the ordinary header declaration plus inline source definition as one C11 external definition. It also preserves inherited internal linkage and rejects external-linkage inline declarations without a definition. Two complete compiles produce the same validated 40,424-byte object with SHA-256 `a3a04ade4029d9333902bb93376fb5eef21f349ee5a1406bd0751cc4cee9f2a1`, and CupidDis reports a defined global `OPL3_Generate4Ch` with only `memset` undefined. The wrapper compiles from a private copy of the source and its three headers and refuses live input drift. The closed recipe, complete 151-root frontier, image builds, and dual-NIC runtime gates pass. ADR 0134 records the seed promotion, and ADR 0135 records the production transfer. |
 | `kernel/gfx/jpeg.cc` and `kernel/gfx/glyph_raster.cc` | Checked-seed CupidC through the verified kernel wrapper | Native normal-build CupidC with no host execution bridge | Production-owned by CupidC. Their exact four-header closures, deterministic i386 objects, poisoned-host builds, strict frontier proof, image dependency, and guest JPEG and glyph paths pass. JPEG is 21,120 bytes with SHA-256 `ccabae9e3b979031079f1ed72189c990f3aee4aa773c6ec742b5ccc263570851`; glyph rasterization is 11,744 bytes with SHA-256 `83d2f4cac28abbc5bb8a92020ab7fb57251b1b927b4fdbc40981f29556aa1e80`. ADR 0139 records the transfer. |
@@ -349,10 +350,10 @@ memory operands, requires the exact `ax` plus `memory` clobber set, reuses the
 consumed input-address slot for control-word scratch, restores the caller's
 x87 control word, and emits every instruction through the shared model.
 General floating memory substitution and arbitrary register or x87 clobbers
-remain open. Compiler head now emits the separate cast and the complete
+remain open. The checked seed emits the separate cast and the complete
 unchanged `kernel/core/string.c` object. The root remains host-owned until
-the checked seed and production recipe carry that conversion. ADR 0170
-records the boundary.
+its production recipe transfers to CupidC. ADR 0170 records the boundary,
+and ADR 0174 records seed carriage.
 
 ADR 0157 adds the four exact descriptor-table and segment-register forms
 from the former `kernel/smp/percpu.c`. A packed six-byte `m` input supplies LGDT, the

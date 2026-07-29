@@ -72,15 +72,15 @@ Cupid's ELF reader and x86 decoder also enforce the production
 RTL8139 boots print `[fpu] SSE2 enabled`, `[fpu] boot smoke ok`, and
 `FPU boot smoke passed` before finishing `feature16_asm_fpu.cc`.
 
-Compiler-head CupidC also represents the two exact EFLAGS restore statements
+The checked seed also represents the two exact EFLAGS restore statements
 that guard SIMD CPUID detection. Each volatile statement takes one 32-bit
 integer through `r`, has no output, and requires one `cc` clobber. The shared
 x86 path emits `POP EAX`, `PUSH EAX`, and `POPF` with balanced ESP.
-Compiler head now also accepts the CPUID leaf input sharing EAX with its
+It also accepts the CPUID leaf input sharing EAX with its
 compatible write-only output. It loads that leaf immediately before CPUID
 and keeps the four existing output snapshots. The complete unchanged SIMD
 source now reaches the first unsupported `xmm1` clobber on line 134. The
-checked seed and normal SIMD recipe still predate these capabilities.
+normal SIMD recipe remains host-owned.
 
 The checked seed also represents the exact x87 round-down statement in
 `str_floor()`. It takes one `double` memory output and one `double`
@@ -96,7 +96,7 @@ incoming rounding modes. It verifies exact results and control-word
 restoration without executing native x87 code. Two exact compiles of the
 unchanged helper produce the same 420-byte object.
 
-Compiler head also emits the later explicit non-atomic `double` to
+The checked seed also emits the later explicit non-atomic `double` to
 `uint64_t` casts. It obtains the high word from `value / 2^32`, reconstructs
 and subtracts that exact multiple, then obtains the low word from the
 remainder. Each unsigned-word step splits at 2^31 before the signed SSE
@@ -105,10 +105,9 @@ and the active range through the largest binary64 value below 2^64. Two
 complete compiles of unchanged
 `kernel/core/string.c` produce the same 14,460-byte object with SHA-256
 `d48bb6ea18b7124fbefeaca0d5d5ee8a517db950f21ea88e30ededd6c5c2a577`.
-The checked seed does not carry the conversion yet, so production ownership
-does not move and the source keeps its `.c` name.
+Production ownership does not move, and the source keeps its `.c` name.
 
-Compiler head represents the x87 power statements in `libm_pow_impl()` and
+The checked seed represents the x87 power statements in `libm_pow_impl()` and
 `libm_powf_impl()`. The double form has five `double` memory operands. The
 mixed form has a `float` output, two `float` inputs, and two `double` inputs.
 Each requires one memory clobber. Linear IR evaluates each set of five
@@ -116,7 +115,7 @@ addresses once in source order. Both 116-byte focused functions contain
 seventeen x87 instructions, use `DC E1` for `FSUBR ST(1), ST(0)`, reach
 stack depth three, and return to their incoming depth without a relocation.
 
-Compiler head also represents the exact volatile `sqrtsd %1, %0` statement
+The checked seed also represents the exact volatile `sqrtsd %1, %0` statement
 in `libm_sqrt_impl()`. It takes one modifiable, non-atomic `double` `=x`
 output and one non-atomic `double` `x` input, with no clobbers. Linear IR
 evaluates the output address before the input value. The focused function
@@ -139,26 +138,26 @@ focused function contains 71 text bytes and no relocations. Its direct
 33-byte path computes `exp2(x * log2(e))`, reaches x87 depth three, and
 returns to its incoming depth through Cupid's shared x86 model.
 
-Compiler head also represents the exact aligned `fabs` mask block and the
+The checked seed also represents the exact aligned `fabs` mask block and the
 following `fabs` and `fabsf` wrappers. The masks occupy the first 32 bytes of
 `.rodata`, with local labels at offsets 0 and 16. The 15-byte double wrapper
 uses `MOVSD` and `ANDPD`; the 14-byte float wrapper uses `MOVSS` and `ANDPS`.
 Each has one absolute relocation to its mask.
 
 The following `floor`, `floorf`, `ceil`, `ceilf`, `round`, `roundf`,
-`trunc`, and `truncf` wrappers are represented at compiler head too. They
+`trunc`, and `truncf` wrappers are represented by the checked seed too. They
 save the incoming x87 control word, select the source rounding mode, apply
 `FRNDINT`, and restore the original word. The four pairs select down, up,
 nearest-even, and toward-zero mode. Together they occupy 384 text bytes with
 no relocations, never exceed x87 depth one, and balance ESP and x87 depth.
 
-The following `fmod` and `fmodf` wrappers are represented at compiler head
+The following `fmod` and `fmodf` wrappers are represented by the checked seed
 as well. Each repeats `FPREM` while x87 status-word C2 is set, uses a short
 backward branch to the reduction instruction, discards the divisor, and
 returns the remainder through XMM0. Each body contains 35 text bytes, reaches
 x87 depth two, balances ESP and x87 depth, and has no relocation.
 
-Compiler head also represents the aligned `libm_log2e_const` and
+The checked seed also represents the aligned `libm_log2e_const` and
 `libm_ln2_const` data and the next eight exponent and logarithm wrappers.
 The constants occupy 16 `.rodata` bytes at alignment eight. `exp2` and
 `exp2f` use the shared `FRNDINT`, `F2XM1`, and `FSCALE` sequence. `exp` and
@@ -168,7 +167,7 @@ bytes and four absolute relocations, never exceed x87 depth three, and
 balance ESP and x87 depth. The unchanged file then reaches `pow` on line
 846.
 
-Compiler head now represents `pow` and all 17 later cdecl bridge wrappers.
+The checked seed represents `pow` and all 17 later cdecl bridge wrappers.
 The `pow`, `hypot`, and `nextafter` pairs take two arguments. The `asin`,
 `acos`, `sinh`, `cosh`, `tanh`, and `cbrt` pairs take one. Each copies its
 original cdecl argument words, calls the matching external implementation,
@@ -177,8 +176,7 @@ width. The family has 558 text bytes and 18 PC-relative call relocations.
 Two complete compiles of unchanged `kernel/cpu/libm.c` produce the same
 16,164-byte ELF32 relocatable object.
 
-The checked seed does not yet carry these compiler-head capabilities, so
-`kernel/cpu/libm.c` remains host-owned pending seed promotion.
+`kernel/cpu/libm.c` remains host-owned pending production transfer.
 
 The normal build now compiles `kernel/gfx/jpeg.cc` and
 `kernel/gfx/glyph_raster.cc` with that seed. JPEG exercises exact static

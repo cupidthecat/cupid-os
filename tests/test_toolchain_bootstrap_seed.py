@@ -585,7 +585,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 hashlib.sha256(
                     frozen.tools["cupidc"].read_bytes()
                 ).hexdigest(),
-                "fe4e99837053332e32624208bfceddc60e2be9cdcea5bdacb5b174e6b432cdbb",
+                "afc8003e5e047c721fa085c793f2c4fe7e0b5c8e29d4f0bebac5282eb10cace9",
             )
 
     def test_wsl_runner_uses_a_private_temporary_directory(self):
@@ -616,6 +616,99 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             "checked i386 Linux seed: ok (5 tools)\n",
         )
         self.assertEqual(result.stderr, "")
+
+    def test_checked_seed_emits_complete_unchanged_libm_object(self):
+        if os.name == "nt" and shutil.which("wsl") is None:
+            self.skipTest("WSL is not available")
+        source = REPO_ROOT / "kernel" / "cpu" / "libm.c"
+        source_bytes = source.read_bytes()
+        self.assertEqual(len(source_bytes), 43736)
+        self.assertEqual(source_bytes.count(b"\n"), 1500)
+        self.assertEqual(
+            hashlib.sha256(source_bytes).hexdigest(),
+            "f1c13c83b758394189cc74ed6addfd9dfa99d42064c349c548476686b26cabce",
+        )
+        audit = json.loads(
+            (
+                REPO_ROOT
+                / "docs"
+                / "bootstrap"
+                / "audits"
+                / "active-build.json"
+            ).read_text(encoding="utf-8")
+        )
+        profile = next(
+            item
+            for item in audit["contracts"][
+                "c_preprocessor_translation_units"
+            ]["profiles"]
+            if item["name"] == "KERNEL_I386"
+        )
+        arguments: list[str | Path] = [
+            "--root",
+            REPO_ROOT,
+            "--gnu",
+            "--freestanding",
+        ]
+        both_forms = (
+            "(CTOOL_C_PP_INCLUDE_QUOTED | "
+            "CTOOL_C_PP_INCLUDE_ANGLE)"
+        )
+        for include_root in profile["include_roots"]:
+            self.assertEqual(include_root["forms"], both_forms)
+            arguments.extend(["-I", include_root["path"]])
+        for action in profile["macro_actions"]:
+            if action["name"] == "__SIZEOF_POINTER__":
+                self.assertEqual(action["replacement"], "4")
+                continue
+            arguments.append(
+                "-D" + action["name"] + "=" + action["replacement"]
+            )
+
+        with tempfile.TemporaryDirectory(
+            prefix=".checked-seed-libm-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            frozen = freeze_seed_inputs(
+                SEED_MANIFEST, root / "seed"
+            )
+            runner = ToolRunner(REPO_ROOT)
+            objects = []
+            for index in range(2):
+                output = root / f"libm-{index}.o"
+                logical_output = "/" + output.relative_to(
+                    REPO_ROOT
+                ).as_posix()
+                result = runner.run(
+                    frozen.tools["cupidc"],
+                    [
+                        *arguments,
+                        "-c",
+                        "/kernel/cpu/libm.c",
+                        "-o",
+                        logical_output,
+                    ],
+                    180,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout, "")
+                self.assertEqual(result.stderr, "")
+                image = output.read_bytes()
+                self.assertEqual(image[:7], b"\x7fELF\x01\x01\x01")
+                objects.append(image)
+            self.assertEqual(objects[0], objects[1])
+            self.assertEqual(
+                (
+                    len(objects[0]),
+                    hashlib.sha256(objects[0]).hexdigest(),
+                ),
+                (
+                    16164,
+                    "ccfb59839b058020a3cdc30c8e6db7ebac8845215a38ff"
+                    "974b3cbca876574eac",
+                ),
+            )
+        self.assertEqual(source.read_bytes(), source_bytes)
 
     def test_changed_seed_byte_is_rejected_before_execution(self):
         with tempfile.TemporaryDirectory(
@@ -958,7 +1051,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(report["status"], "pass")
             self.assertEqual(
                 report["seed_source_revision"],
-                "c00b3494014ca0a5f41143caa7e713e46b2ad3ec",
+                "be5945915af8f76792eba573950f263bdae133a3",
             )
             self.assertNotIn("source_revision", report)
             self.assertEqual(
@@ -994,7 +1087,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 },
             )
             seed_transition_snapshot = (
-                "e90771d9cb9429b15f136f008ba9c5d8d982f3fd867a57bb520b5aa7b6b32535"
+                "0a10b3d9e477cdb9ca341814e481bdfcb4532fa052e5cfb1d0ca27045f6457e7"
             )
             if report["source_snapshot_sha256"] == seed_transition_snapshot:
                 self.assertTrue(all(initial_matches.values()))

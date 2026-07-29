@@ -237,10 +237,10 @@ without treating it as a function statement. The i386 emitter recognizes the
 twelve exact x87/SSE floating wrapper definitions at the start of unchanged
 kernel/cpu/libm.c and writes prologue-free global functions through Cupid's
 shared x86 encoder. The fixture has 248 text bytes and no relocations. The
-compiler head accepts named operands on function-body GNU assembly and
+checked seed accepts named operands on function-body GNU assembly and
 resolves %[name] to the existing numeric operand before IR.
 
-Compiler head emits the complete x87 statements in libm_pow_impl and
+The checked seed emits the complete x87 statements in libm_pow_impl and
 libm_powf_impl. The double form accepts one double output and four double
 inputs. The mixed form accepts one float output, two float inputs, and two
 double inputs. Both use a memory clobber. Linear IR evaluates each set of
@@ -248,45 +248,45 @@ five addresses once in source order. Each focused function has 116 exact
 text bytes, no relocations, a maximum x87 depth of three, and balanced depth
 on return. FSUBR ST(1), ST(0) uses the canonical DC E1 encoding.
 
-Compiler head also emits the exact volatile sqrtsd %1, %0 statement. It
+The checked seed also emits the exact volatile sqrtsd %1, %0 statement. It
 accepts one modifiable, non-atomic double =x output, one non-atomic double x
 input, and no clobbers. Linear IR evaluates the output address before the
 input value. The 65-byte focused function uses the shared MOVSD and SQRTSD
 encodings and has no relocations.
 
-Compiler head also emits the exact volatile x87 statement in
+The checked seed also emits the exact volatile x87 statement in
 libm_atan2_impl. It accepts one modifiable, non-atomic double =m output, two
 addressable, non-atomic double m inputs in y, x order, and one memory
 clobber. Linear IR evaluates all three addresses once in source order. The
 53-byte focused function uses the shared model for both loads, FPATAN, and
 the final store, with no relocations.
 
-Compiler head also emits the exact volatile x87 statement in libm_exp_impl.
+The checked seed also emits the exact volatile x87 statement in libm_exp_impl.
 It accepts one modifiable, non-atomic double =m output, two addressable,
 non-atomic double m inputs in x, log2e order, and one memory clobber. Linear
 IR evaluates all three addresses once in source order. The 71-byte focused
 function has no relocations, reaches x87 depth three, and returns to its
 incoming depth.
 
-Compiler head also emits the exact aligned fabs mask block and the following
+The checked seed also emits the exact aligned fabs mask block and the following
 fabs and fabsf wrappers. The masks occupy the first 32 bytes of .rodata, with
 local NOTYPE labels at offsets 0 and 16. The wrappers contain 15 and 14 text
 bytes and carry one R_386_32 relocation each to the matching label.
 
-Compiler head also emits the following floor, floorf, ceil, ceilf, round,
+The checked seed also emits the following floor, floorf, ceil, ceilf, round,
 roundf, trunc, and truncf wrappers. Each saves the incoming x87 control word,
 selects the source rounding mode, runs FRNDINT, restores the original word,
 and returns through XMM0. The four pairs select down, up, nearest-even, and
 toward-zero mode. They add 384 text bytes without relocations, reach x87
 depth one, and balance ESP and x87 depth.
 
-Compiler head also emits the exact fmod and fmodf wrappers. Each loads y
+The checked seed also emits the exact fmod and fmodf wrappers. Each loads y
 below x, repeats FPREM while status-word C2 remains set, and uses a checked
 short backward branch. It discards ST(1), returns the remainder through XMM0
 at the source width, and restores ESP and x87 depth. Both wrappers contain 35
 text bytes and no relocation.
 
-Compiler head also emits the aligned libm_log2e_const and libm_ln2_const
+The checked seed also emits the aligned libm_log2e_const and libm_ln2_const
 block and the following exp2, exp2f, exp, expf, log2, log2f, log, and logf
 wrappers. The constants occupy 16 read-only bytes at alignment eight. The
 functions add 264 text bytes. The natural forms carry four R_386_32
@@ -294,7 +294,7 @@ relocations in total, while the base-two forms need none. All eight balance
 ESP and x87 depth and reach no deeper than three x87 values. The full source
 then reaches pow on line 846.
 
-Compiler head now emits pow, powf, asin, asinf, acos, acosf, sinh, sinhf,
+The checked seed emits pow, powf, asin, asinf, acos, acosf, sinh, sinhf,
 cosh, coshf, tanh, tanhf, cbrt, cbrtf, hypot, hypotf, nextafter, and
 nextafterf. These wrappers copy their original cdecl argument words, call the
 matching external libm implementation, reclaim the copies, and move the
@@ -304,10 +304,8 @@ kernel-profile compiles of unchanged kernel/cpu/libm.c produce the same
 16,164-byte ELF32 relocatable object.
 
 General GAS input and other file-scope templates remain unsupported. The
-checked seed predates named operands, these five statement blocks, the three
-fabs effects, and the rounding, remainder, exponent/log, and cdecl bridge
-families. The normal libm.c recipe still uses the host compiler pending seed
-promotion and production transfer.
+normal libm.c recipe still uses the host compiler pending production
+transfer.
 
 The checked seed represents the exact per-CPU pointer output
 mov %%gs:0, %0 with one four-byte =r object or void pointer. It keeps the
@@ -602,12 +600,12 @@ failure cases.
 The repository carries those exact five images as a checked i386 Linux seed.
 Its manifest binds their hashes, sizes, target ABI, source revision, producer
 lineage, exact source plan, startup, and five link orders before execution.
-The current CupidC image is 2,320,544 bytes. Its SHA-256 is
-fe4e99837053332e32624208bfceddc60e2be9cdcea5bdacb5b174e6b432cdbb
-and its source revision is c00b3494014ca0a5f41143caa7e713e46b2ad3ec.
+The current CupidC image is 2,447,776 bytes. Its SHA-256 is
+afc8003e5e047c721fa085c793f2c4fe7e0b5c8e29d4f0bebac5282eb10cace9
+and its source revision is be5945915af8f76792eba573950f263bdae133a3.
 It carries the complete audited Doom frontier, current GNU entity metadata,
-x87 and SSE memory forms, descriptor and segment assembly, Task 23
-file-scope wrappers, and exact naked IPI entries.
+x87 and SSE memory forms, descriptor and segment assembly, every unchanged
+libm assembly effect, and exact naked IPI entries.
 The harness freezes the verified manifest and binaries and copies the exact
 bytes of 40 current inputs, including link.ld, into a private compiler root.
 The seed producer trio builds stage two below that root, and the stage-two trio
@@ -815,20 +813,20 @@ floating work before the CR4 write. It requires FNINIT before one 32-bit
 memory LDMXCSR. The four-vCPU gate requires [fpu] SSE2 enabled,
 [fpu] boot smoke ok, and FPU boot smoke passed.
 
-Compiler-head CupidC accepts the exact volatile flags restore used twice by
+The checked seed accepts the exact volatile flags restore used twice by
 simd_cpu_has_cpuid. It takes one non-atomic 32-bit integer r input, has no
 outputs, and requires one cc clobber. Linear IR keeps the effect as public
 metadata. The shared x86 path consumes the value through EAX, pushes it back,
 and emits POPF with balanced ESP.
 
-Compiler head also accepts the unchanged CPUID input that shares EAX with
+It also accepts the unchanged CPUID input that shares EAX with
 its compatible write-only output. The input keeps its a constraint and
 names the =a output as its match. Linear IR and emission require both sides
 to be represented integers of equal width before loading EAX immediately
 before CPUID. Frozen pointer, floating, and aggregate substitutes fail.
 Read/write outputs cannot receive a second fixed input. Full unchanged simd.c
-now reaches the unsupported xmm1 clobber on line 134. The checked seed and
-production recipe do not yet carry these increments.
+now reaches the unsupported xmm1 clobber on line 134. The production recipe
+does not yet carry these increments.
 
 The checked seed accepts the exact volatile x87 round-down block in
 str_floor. It keeps one modifiable, non-atomic double =m output, one
@@ -842,15 +840,14 @@ depth. A bounded shared-decoder oracle checks eight binary64 inputs under all
 four incoming rounding modes without executing native x87 code.
 
 Two exact compiles of the unchanged str_floor helper produce the same
-420-byte object. Compiler head also emits the later explicit
+420-byte object. The checked seed also emits the later explicit
 double-to-uint64_t casts. The decoder-driven oracle covers zero, positive and
 negative fractions, both sides of 2^32, 2^53 minus one, 2^63, the active
 1.8e19 guard, and the largest binary64 value below 2^64. Full unchanged
 kernel/core/string.c
 compiles twice to the same 14,460-byte object with SHA-256
 d48bb6ea18b7124fbefeaca0d5d5ee8a517db950f21ea88e30ededd6c5c2a577.
-The checked seed carries the round-down statement but not the cast, so the
-production owner is unchanged and the source keeps its .c name.
+The production owner is unchanged, and the source keeps its .c name.
 
 The checked seed accepts the four exact descriptor-table and
 segment-register statements in kernel/smp/percpu.cc. A packed

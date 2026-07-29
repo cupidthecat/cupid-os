@@ -25528,11 +25528,11 @@
       },
       {
         "path": "tools/bootstrap_toolchain.py",
-        "sha256": "91a61563aebfe76926e80052985e654de7f8aac2362c24f938a032e438006c8b"
+        "sha256": "5691e6a4486307be5efbf75fedcf6645077e143004dc694c80135f072ca16eda"
       },
       {
         "path": "bootstrap/seeds/i386-linux/manifest.json",
-        "sha256": "57f7a9dc390ace86e46de9a13b5b8d19330fd5c91fe34d502a550e5d04ed7ee8"
+        "sha256": "11cba1f48348ea857a8a8f4a3d1d276fdd90df03f889ff07154f25d85e51db52"
       },
       {
         "path": "tools/cupidc_production_compile.py",

@@ -15353,3 +15353,88 @@ and keeps its `.c` suffix. No production object, ABI, image, runtime path,
 ownership count, or host-dependency count changes in this increment. Issue
 #26 remains open for seed promotion and production transfer. ADR 0173
 records the boundary. `TempleOS/` remains untouched reference material.
+
+## 2026-07-29: promote the libm-capable checked seed
+
+The preceding checked seed came from revision
+`c00b3494014ca0a5f41143caa7e713e46b2ad3ec`. It could rebuild the later
+compiler, but it could not use the later GNU assembly and conversion
+capabilities during a normal checked-seed compile. That left the complete
+unchanged `kernel/cpu/libm.c` object outside the production transfer path.
+
+Revision `be5945915af8f76792eba573950f263bdae133a3` was clean and already
+pushed before the transition began. Its stage-three bootstrap output now
+supplies the complete checked trust root:
+
+| Tool | Bytes | SHA-256 |
+| --- | ---: | --- |
+| CupidASM | 433,104 | `d57e4f0494aef294045c633b12e4db3f14e879102ac4e528fe70d6a5f089c7e7` |
+| CupidC | 2,447,776 | `afc8003e5e047c721fa085c793f2c4fe7e0b5c8e29d4f0bebac5282eb10cace9` |
+| CupidDis | 371,108 | `e67157c4883f4164635b6084bc8c6475b77fd9d051196f4a553ae64346948d70` |
+| CupidLD | 262,388 | `373ed96803dcfb0005b8b3b1d49ca1313396ee11e17521aad6402f487cdd97e5` |
+| CupidObj | 182,704 | `1f48c3d7b5f80d3e33eb9268c087111e8fa54eb390c24368a09f7ec2981c0030` |
+
+Only CupidC changes bytes. The manifest still binds all five static tools,
+so the promotion copies and verifies the whole stage-three set. The
+19-source build plan and five link orders remain unchanged. The refreshed
+5,440-byte manifest has SHA-256
+`11cba1f48348ea857a8a8f4a3d1d276fdd90df03f889ff07154f25d85e51db52`.
+
+### Transition and reproof
+
+The prior seed rebuilt the clean source revision with `CC`, `CXX`, `CPP`,
+`HOSTCC`, `HOSTCXX`, `ASM`, `LD`, `AR`, `NM`, and `OBJCOPY` set to commands
+that do not exist. The frozen 40-input source snapshot has SHA-256
+`0a10b3d9e477cdb9ca341814e481bdfcb4532fa052e5cfb1d0ca27045f6457e7`.
+All 19 C objects, startup, and five tool images match between stages two and
+three. Both stages pass five help cases, ten successful operations, and six
+useful failures. The 715.1-second transition produced a 14,879-byte report
+with SHA-256
+`48fb5af629d5770990305fd51663a74966569993f067ee069cf85c6f77fc4ade`.
+
+A second poisoned-host bootstrap started from the promoted files in a fresh
+tree. Every checked seed image matches stage two. All 19 stage-two C
+objects, startup, and five images then match stage three, and all 21
+behavior cases pass. The 705.2-second reproof produced a 14,878-byte report
+with SHA-256
+`a3a5d48867b781af56f8a48ab0e2db86cc1df0c22d7ec42a3e803d4be9a7df25`.
+
+### Direct libm proof
+
+The new checked-seed contract locks the unchanged source at 43,736 bytes,
+1,500 lines, and SHA-256
+`f1c13c83b758394189cc74ed6addfd9dfa99d42064c349c548476686b26cabce`.
+It derives the exact `KERNEL_I386` profile from the active audit, freezes the
+seed, and compiles the source twice. Both results are the same 16,164-byte
+ELF32 relocatable object with SHA-256
+`ccfb59839b058020a3cdc30c8e6db7ebac8845215a38ff974b3cbca876574eac`.
+
+### Evidence
+
+| Gate | Result |
+| --- | --- |
+| Poisoned-host transition | 19 objects, startup, 5 images, and 21 behavior cases passed in 715.1 seconds |
+| Post-promotion reproof | All 5 seed images matched stage two; the full fixed point and 21 behavior cases passed in 705.2 seconds |
+| Standalone manifest verifier | Accepted all 5 static ELF32 images |
+| Direct checked-seed libm contract | Passed in 5.085 seconds |
+| Complete checked-seed module | 23 tests passed in 709.937 seconds |
+| Active-source audit regeneration and drift check | Passed; the final drift check took 60.129 seconds, and graph shape plus the active-source digest remained unchanged |
+| Complete build-graph audit module | 62 tests passed in 570.748 seconds |
+
+The regenerated graph still contains 698 active sources, 253 feature IDs,
+504 transforms, and 42 accounted unreachable files. Its active-source
+digest remains
+`95c2eb5c3af777d6b6901d491b502e0658ddac0bbcaea7d834138d810979e909`.
+The 1,526,996-byte JSON has SHA-256
+`be6ecfdcbddfb9e0b789e317f10cbc2154e44556d5d95e4dbcc25517c5b6e145`.
+The unchanged 15,060-byte Markdown report has SHA-256
+`53f72262e6dbae27da017e08cc83a662368f83438beb5c6909cc66b922951298`.
+The unchanged active preprocessor cases have SHA-256
+`67c2e854455c5fdf38be1551c00b739a2501a31b79f04a9461fdbc0de3f22672`.
+
+This increment changes the checked bootstrap input, not production
+ownership. `kernel/cpu/libm.c` remains host-owned and keeps its `.c` suffix.
+No normal object, image, ABI, runtime path, ownership count, or
+host-dependency count changes. Issue #26 remains open for production
+transfer and the broader GNU assembly surface. ADR 0174 records the
+decision. `TempleOS/` remains untouched reference material.

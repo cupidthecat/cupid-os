@@ -423,11 +423,11 @@ write. It requires one `FNINIT` followed by one 32-bit memory `LDMXCSR`.
 The four-vCPU runtime gate requires `[fpu] SSE2 enabled`,
 `[fpu] boot smoke ok`, and `FPU boot smoke passed`.
 
-Compiler-head CupidC also represents the two exact EFLAGS restore statements
+The checked seed also represents the two exact EFLAGS restore statements
 in `simd_cpu_has_cpuid()`. Each volatile statement takes one 32-bit integer
 through `r`, has no output, and requires the `cc` clobber. Linear IR keeps the
 input value and clobber metadata, while the shared x86 path emits
-`POP EAX`, `PUSH EAX`, and `POPF` with balanced ESP. Compiler head now also
+`POP EAX`, `PUSH EAX`, and `POPF` with balanced ESP. It also
 accepts the unchanged CPUID statement where the `a` input shares EAX with
 the `=a` output. The public operand keeps its fixed-register spelling and
 names output zero as its match; Linear IR and object emission verify that
@@ -435,8 +435,7 @@ relationship, including represented integer types and equal widths, before
 loading EAX. A frozen same-width float cannot bypass those checks. A complete
 unchanged `kernel/cpu/simd.c`
 probe now reaches line 134, where the four-register SSE block first names the
-unsupported `xmm1` clobber. The checked seed does not carry these
-compiler-head increments, so the normal SIMD recipe remains host-owned and
+unsupported `xmm1` clobber. The normal SIMD recipe remains host-owned, and
 the source keeps its `.c` suffix.
 
 The checked seed emits the four exact descriptor-table and segment-register
@@ -453,13 +452,13 @@ The frontend owns immutable templates outside function bodies, and Linear IR
 keeps their source order. The i386 emitter handles the twelve exact x87/SSE
 floating wrappers at the start of unchanged `kernel/cpu/libm.c`. Cupid's
 shared x86 encoder produces 248 text bytes, twelve global function symbols,
-and no relocations. Compiler head accepts named operands on function-body GNU
+and no relocations. The checked seed accepts named operands on function-body GNU
 assembly and resolves `%[name]` to the existing numeric operand before Linear
 IR. It emits the complete `libm_pow_impl` and `libm_powf_impl` statements.
 The double form has five `double` memory operands. The mixed form has a
 `float` output, two `float` inputs, and two `double` inputs. Each focused
 function has 116 exact text bytes, no relocations, a maximum x87 depth of
-three, and balanced depth on return. Compiler head also emits the exact
+three, and balanced depth on return. The checked seed also emits the exact
 `sqrtsd %1, %0` statement with one `double` `=x` output and one `double` `x`
 input. Its focused function has 65 text bytes and no relocations. The exact
 `libm_atan2_impl()` statement is also represented with one `double` `=m`
@@ -468,11 +467,11 @@ function has 53 text bytes and no relocations. The exact
 `libm_exp_impl()` statement is represented with the same three operand
 types in output, `x`, `log2e` order. Its 71-byte focused function has no
 relocations, reaches x87 depth three, and returns to its incoming depth.
-Compiler head now emits the following aligned `fabs` mask block and the
+The checked seed emits the following aligned `fabs` mask block and the
 `fabs` and `fabsf` wrappers. The masks occupy the first 32 bytes of
 `.rodata`, with local labels at offsets 0 and 16. The wrappers contain 15 and
 14 text bytes and carry one `R_386_32` relocation each to the matching mask.
-Compiler head also emits the next eight rounding wrappers. It saves and
+The checked seed also emits the next eight rounding wrappers. It saves and
 restores the x87 control word around `FRNDINT`, selecting down, up,
 nearest-even, or toward-zero mode for each double and float pair. The family
 adds 384 exact text bytes, has no relocations, reaches x87 depth one, and
@@ -491,8 +490,8 @@ matching constant. All eight wrappers use Cupid's x86 model, balance ESP
 and x87 depth, and reach no deeper than three x87 values. The unchanged
 source then reaches the `pow` wrapper at line 846.
 
-Compiler head now emits that wrapper and the other 17 remaining cdecl
-bridges. The binary `pow`, `hypot`, and `nextafter` pairs and the unary
+The checked seed emits that wrapper and the other 17 remaining cdecl bridges.
+The binary `pow`, `hypot`, and `nextafter` pairs and the unary
 `asin`, `acos`, `sinh`, `cosh`, `tanh`, and `cbrt` pairs copy their original
 argument words, call the matching external implementation, reclaim the
 copied words, and move the ST(0) result into XMM0. The four float or double,
@@ -503,11 +502,8 @@ unchanged `kernel/cpu/libm.c` produce the same 16,164-byte ELF32 relocatable
 object with SHA-256
 `ccfb59839b058020a3cdc30c8e6db7ebac8845215a38ff974b3cbca876574eac`.
 
-The checked seed carries the opening wrappers but predates named operands,
-these five statement blocks, the three `fabs` effects, the rounding,
-remainder, exponent/log, and cdecl bridge families. The normal `libm.c`
-recipe therefore stays host-owned and keeps its `.c` name until seed
-promotion and production transfer.
+The normal `libm.c` recipe stays host-owned and keeps its `.c` name until
+the separate production transfer.
 
 The checked seed emits the exact volatile
 `call 1f\n1: popl %0` state read used by the stack-trace helpers in
@@ -630,17 +626,16 @@ evaluates its operand once and discards any represented result.
 
 The hosted path also carries signed and unsigned eight-byte integers through constants, matching conditional arms, fixed direct and indirect call results, object access, declared parameters, and named direct or indirect call arguments. File objects, block statics, fixed automatic objects, pointer dereferences, ordinary members, and indexed elements can be loaded, initialized, assigned, mutated, chained, discarded, and returned. One Linear IR entry names an emitter-owned eight-byte snapshot, so a load is a stable C value rather than a borrowed object address. A declared wide argument occupies eight cdecl stack bytes, and later parameter addresses include its full width. On return, EAX carries the low word and EDX carries the high word. Wide values support addition, subtraction, multiplication, division, remainder, unary plus, unary minus, bitwise complement, left shift, signed or unsigned right shift, AND, OR, XOR, all six signed or unsigned comparisons, logical not, short-circuit logical operators, conditional selection, structured scalar conditions, signed or unsigned switch dispatch, all ten compound assignments, prefix and postfix update, explicit casts to or from represented byte, word, and doubleword integers, and the usual arithmetic conversion from `signed long long` to `unsigned long long`. A wide switch evaluates its condition once, duplicates the private snapshot handle, and compares both words of each case value. Wide mutation evaluates the destination once and performs one semantic load and store. Wide multiplication combines one full low-word product with both cross-word products. Division and remainder run a fixed 64-step restoring loop over unsigned magnitudes, then apply the quotient or dividend sign. Each multiplication, division, or remainder result receives a fresh snapshot. GNU wide enums promote to their compatible signed or unsigned wide type. The complete unchanged `ctool_buffer_put_le64`, `ctool_buffer_patch_le64`, `pp_if_value_truth`, `pp_if_is_negative`, `pp_if_signed_less`, `pp_if_signed_magnitude`, `cfront_constant_apply_binary`, and X25519 `fe_carry` bodies guard those operations. CupidASM's unchanged number parser and unary expression branch guard the arithmetic, while X25519's unchanged `fe_mul_u32` helper guards wide-by-narrow multiplication. Runtime cases that C leaves undefined promise neither a trap nor a result. Signed and unsigned wide integers can also pass through an ellipsis or a call without a prototype.
 
-Compiler head also accepts an explicit non-atomic `double` to
+The checked seed also accepts an explicit non-atomic `double` to
 `unsigned long long` cast. The i386 emitter derives an unsigned high word
 from `value / 2^32`, subtracts that exact multiple from the original value,
 and derives the low word from the remainder. Each 32-bit step splits at
 2^31 so the signed SSE truncation instruction stays in range. Decoder-driven
 cases cover zero, positive and negative fractions, both sides of 2^32, 2^53
 minus one, 2^63, the active `1.8e19` guard, and the largest binary64 value
-below 2^64. This lets compiler head emit complete unchanged
-`kernel/core/string.c` as a deterministic 14,460-byte object. The checked
-seed does not carry the conversion yet, so the normal recipe remains
-host-owned and the source keeps its `.c` suffix.
+below 2^64. This lets the seed emit complete unchanged
+`kernel/core/string.c` as a deterministic 14,460-byte object. The normal
+recipe remains host-owned, and the source keeps its `.c` suffix.
 
 The hosted path carries `float` and `double` values through objects,
 initialization, assignment, discard, calls, parameters, results, and returns.
@@ -679,7 +674,7 @@ CupidC emits the repository's i386 Linux runtime and five command closures: Cupi
 
 The native and Cupid-built `cupidc` drivers accept compile-only C11 jobs with ordered include roots, command-line definitions and undefinitions, forced inputs, GNU or freestanding mode, and commit-gated output. `-I` enables quoted and angle lookup, while `--include-angle` enables angle lookup only. Repeatable `-include` options run in caller order before the primary source. These path options accept native paths or absolute logical paths under `--root`. Compilation failures leave an existing output untouched; a file-adapter write failure can still leave a partial file. The checked seed expresses the exact Doom-tree preprocessing profile and emits all 80 source objects. Its explicit `--doom-compat` switch gives the five audited calls in `i_system.c` old-style external declarations and permits eleven audited, bit-preserving conversions between unqualified function pointers and unqualified four-byte data or `void` pointers in `m_menu.c`, `p_saveg.c`, `p_ceilng.c`, and `p_plats.c`. Strict C and plain GNU mode still reject those implicit conversions, and explicit function/data casts remain outside Linear IR. An integer-only IEEE evaluator compiles the unchanged automap table, the sound driver's empty volatile memory barrier emits no target bytes, one-active-member union initialization compiles unchanged `info.c`, and ordinary narrow bit-field promotion compiles unchanged `i_video.c`. Doom remains host-owned until the object comparisons, its three separate compatibility roots, and runtime proof are complete.
 
-The five static i386 Linux tools now have a checked bootstrap seed. Its manifest binds the exact binaries, source revision, target ABI, producer lineage, 19-source build plan, and five link orders before execution. The current CupidC seed is the checked bootstrap's 2,320,544-byte stage-three image with SHA-256 `fe4e99837053332e32624208bfceddc60e2be9cdcea5bdacb5b174e6b432cdbb`. It comes from revision `c00b3494014ca0a5f41143caa7e713e46b2ad3ec` and carries the complete audited Doom frontier, the current GNU entity metadata, x87 and SSE memory forms, descriptor and segment assembly, Task 23 file-scope wrappers, and exact naked IPI entries. The same seed carries the 587-row shared x86 catalogue through CupidASM and CupidDis.
+The five static i386 Linux tools have a checked bootstrap seed. Its manifest binds the exact binaries, source revision, target ABI, producer lineage, 19-source build plan, and five link orders before execution. The current CupidC seed is the checked bootstrap's 2,447,776-byte stage-three image with SHA-256 `afc8003e5e047c721fa085c793f2c4fe7e0b5c8e29d4f0bebac5282eb10cace9`. It comes from revision `be5945915af8f76792eba573950f263bdae133a3` and carries the complete audited Doom frontier, current GNU entity metadata, the active x87 and SSE memory forms, descriptor and segment assembly, naked IPI entries, all `libm.c` file-scope effects, and explicit `double` to `unsigned long long` conversion. The same seed carries the 587-row shared x86 catalogue through CupidASM and CupidDis.
 
 The harness pins the build plan independently and freezes the verified manifest and binaries. It also copies the exact bytes of all 40 source inputs, including `link.ld`, into a private compiler root. Seed CupidC, CupidASM, and CupidLD build stage two below that root, then the stage-two producer trio repeats the work for stage three. The harness rehashes both the private closure and the live closure before the first stage, after each stage, and after the behavior suite. A live edit that is made and restored during a compile cannot change the bytes consumed by either stage.
 
@@ -768,6 +763,8 @@ and the generated kernel symbol translation described above.
 [ADR 0172](docs/adr/0172-represent-libm-exp-log-file-scope-assembly.md) records the exact exponent/logarithm constants and wrappers and the following `pow` frontier.
 
 [ADR 0173](docs/adr/0173-represent-libm-cdecl-bridges.md) records the final 18 libm cdecl bridges and complete compiler-head object emission for unchanged `libm.c`.
+
+[ADR 0174](docs/adr/0174-promote-libm-capable-toolchain-seed.md) records the poisoned-host seed transition, promoted five-tool set, and post-promotion reproof.
 
 [ADR 0143](docs/adr/0143-share-ordinary-padding-nops.md) records the shared ordinary compiler padding family and its measured disassembly improvement.
 
