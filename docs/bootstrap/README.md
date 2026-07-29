@@ -524,9 +524,15 @@ same-width pointer, floating, and aggregate inputs fail without publishing
 IR or an object. The emitter repeats those checks, loads the evaluated leaf
 into EAX immediately before CPUID, then snapshots all four outputs through
 the existing EBX-preserving path. Numeric ties keep their existing behavior.
-The checked seed carries unchanged
-`kernel/cpu/simd.c` through line 52 and stops at the first unsupported
-`xmm1` clobber on line 134. Normal source ownership remains unchanged.
+Compiler head now carries unchanged `kernel/cpu/simd.c` past that overlap
+and through all six packed SSE2 statement shapes. The frontend and Linear IR
+lock the exact ordered pointer and 32-bit integer inputs plus each memory and
+XMM0 through XMM7 clobber set. Emission uses Cupid's shared x86 model for the
+copy, broadcast, blend, and saturating-add paths. Two complete builds produce
+the same validated 8,768-byte object with SHA-256
+`fd280c321b8eb38a90d4f0982d70b8df0364585e3da322eb2c9de722e071f8d4`.
+The checked seed still predates this addition, so normal source ownership is
+unchanged. ADR 0178 records the packed SSE2 boundary.
 
 ADR 0154 represents the complete unchanged x87 round-down statement in
 `str_floor()`. It requires one modifiable `double` `=m` output, one

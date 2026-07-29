@@ -164,8 +164,12 @@ The `a` input keeps its original spelling and points to the compatible
 write-only `=a` output in the public operand record. Linear IR checks that
 tie, including represented integer types and equal widths. Emission repeats
 the check and loads EAX immediately before CPUID. A frozen same-width
-non-integer substitute fails transactionally. The complete source
-now stops at the `xmm1` clobber on line 134. The normal SIMD recipe remains
+non-integer substitute fails transactionally. Compiler head now emits the six
+remaining packed SSE2 statements in the unchanged source. It checks their
+ordered pointer and 32-bit integer inputs, exact memory and XMM0 through XMM7
+clobbers, and uses Cupid's shared x86 model for every packed instruction.
+Two full builds produce the same validated 8,768-byte object. The checked
+seed still predates this addition, so the normal SIMD recipe remains
 host-owned.
 
 The checked seed represents the complete x87 round-down statement

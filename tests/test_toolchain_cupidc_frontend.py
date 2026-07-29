@@ -147,6 +147,9 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
     ):
         self.run_contract("movss-memory-assembly")
 
+    def test_kernel_simd_assembly_keeps_pointer_inputs_and_xmm_clobbers(self):
+        self.run_contract("kernel-simd-assembly")
+
     def test_x87_sine_assembly_keeps_double_memory_operands(self):
         self.run_contract("x87-sine-memory-assembly")
 

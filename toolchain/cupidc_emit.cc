@@ -3004,6 +3004,77 @@ static ctool_status_t cemit_x86_sse_memory(
                           (ctool_u32 *)0);
 }
 
+static ctool_status_t cemit_x86_simd_memory(
+    cemit_context_t *context, ctool_x86_mnemonic_t mnemonic,
+    ctool_bool load, ctool_u8 xmm_register,
+    ctool_u8 base_register, ctool_i32 displacement,
+    ctool_u16 width_bits) {
+  ctool_x86_instruction_t instruction =
+      cemit_x86_instruction(mnemonic, width_bits);
+  ctool_x86_operand_t xmm =
+      cemit_x86_register_operand(
+          CTOOL_X86_REG_XMM, xmm_register);
+  ctool_x86_operand_t memory = cemit_x86_memory_operand(
+      cemit_x86_register(CTOOL_X86_REG_GPR32, base_register),
+      displacement, 0u);
+  if (!((mnemonic == CTOOL_X86_MN_MOVDQU &&
+         width_bits == 128u) ||
+        (mnemonic == CTOOL_X86_MN_MOVNTDQ &&
+         width_bits == 128u && load == CTOOL_FALSE) ||
+        (mnemonic == CTOOL_X86_MN_MOVD &&
+         width_bits == 32u && load == CTOOL_TRUE)) ||
+      xmm_register >= 8u || base_register >= 8u) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  memory.width_bits = width_bits;
+  instruction.operand_count = 2u;
+  instruction.operands[0] =
+      load == CTOOL_TRUE ? xmm : memory;
+  instruction.operands[1] =
+      load == CTOOL_TRUE ? memory : xmm;
+  return cemit_x86_encode(
+      context, &instruction, (ctool_x86_encoding_t *)0,
+      (ctool_u32 *)0);
+}
+
+static ctool_status_t cemit_x86_xmm_shuffle_immediate(
+    cemit_context_t *context, ctool_u8 destination,
+    ctool_u8 source, ctool_u8 immediate) {
+  ctool_x86_instruction_t instruction =
+      cemit_x86_instruction(CTOOL_X86_MN_PSHUFD, 128u);
+  if (destination >= 8u || source >= 8u) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  instruction.operand_count = 3u;
+  instruction.operands[0] =
+      cemit_x86_register_operand(CTOOL_X86_REG_XMM, destination);
+  instruction.operands[1] =
+      cemit_x86_register_operand(CTOOL_X86_REG_XMM, source);
+  instruction.operands[2] = cemit_x86_value_operand(
+      CTOOL_X86_OPERAND_IMMEDIATE, 8u, 8u, immediate);
+  return cemit_x86_encode(
+      context, &instruction, (ctool_x86_encoding_t *)0,
+      (ctool_u32 *)0);
+}
+
+static ctool_status_t cemit_x86_xmm_shift_immediate(
+    cemit_context_t *context, ctool_u8 destination,
+    ctool_u8 immediate) {
+  ctool_x86_instruction_t instruction =
+      cemit_x86_instruction(CTOOL_X86_MN_PSRLW, 128u);
+  if (destination >= 8u) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  instruction.operand_count = 2u;
+  instruction.operands[0] =
+      cemit_x86_register_operand(CTOOL_X86_REG_XMM, destination);
+  instruction.operands[1] = cemit_x86_value_operand(
+      CTOOL_X86_OPERAND_IMMEDIATE, 8u, 8u, immediate);
+  return cemit_x86_encode(
+      context, &instruction, (ctool_x86_encoding_t *)0,
+      (ctool_u32 *)0);
+}
+
 static ctool_status_t cemit_x86_sse_absolute_mask(
     cemit_context_t *context, ctool_x86_mnemonic_t mnemonic,
     ctool_u32 symbol) {
@@ -8007,6 +8078,100 @@ typedef enum {
   CEMIT_MOVSS_MEMORY_STORE
 } cemit_movss_memory_kind_t;
 
+typedef enum {
+  CEMIT_KERNEL_SIMD_NONE = 0,
+  CEMIT_KERNEL_SIMD_COPY_64,
+  CEMIT_KERNEL_SIMD_COPY_16,
+  CEMIT_KERNEL_SIMD_BROADCAST,
+  CEMIT_KERNEL_SIMD_STORE_16,
+  CEMIT_KERNEL_SIMD_BLEND_16,
+  CEMIT_KERNEL_SIMD_ADD_16
+} cemit_kernel_simd_kind_t;
+
+static cemit_kernel_simd_kind_t cemit_kernel_simd_template_kind(
+    ctool_string_t template_text) {
+  if (cemit_string_equals_literal(
+          template_text,
+          "movdqu   (%1), %%xmm0\n\t"
+          "movdqu 16(%1), %%xmm1\n\t"
+          "movdqu 32(%1), %%xmm2\n\t"
+          "movdqu 48(%1), %%xmm3\n\t"
+          "movntdq %%xmm0,   (%0)\n\t"
+          "movntdq %%xmm1, 16(%0)\n\t"
+          "movntdq %%xmm2, 32(%0)\n\t"
+          "movntdq %%xmm3, 48(%0)\n\t") == CTOOL_TRUE) {
+    return CEMIT_KERNEL_SIMD_COPY_64;
+  }
+  if (cemit_string_equals_literal(
+          template_text,
+          "movdqu (%1), %%xmm0\n\t"
+          "movntdq %%xmm0, (%0)\n\t") == CTOOL_TRUE) {
+    return CEMIT_KERNEL_SIMD_COPY_16;
+  }
+  if (cemit_string_equals_literal(
+          template_text,
+          "movd %0, %%xmm0\n\t"
+          "pshufd $0x00, %%xmm0, %%xmm0\n\t") == CTOOL_TRUE) {
+    return CEMIT_KERNEL_SIMD_BROADCAST;
+  }
+  if (cemit_string_equals_literal(
+          template_text,
+          "movntdq %%xmm0, (%0)\n\t") == CTOOL_TRUE) {
+    return CEMIT_KERNEL_SIMD_STORE_16;
+  }
+  if (cemit_string_equals_literal(
+          template_text,
+          "movd %2, %%xmm5\n\t"
+          "movd %3, %%xmm6\n\t"
+          "movd %4, %%xmm7\n\t"
+          "punpcklwd %%xmm5, %%xmm5\n\t"
+          "punpcklwd %%xmm6, %%xmm6\n\t"
+          "punpcklwd %%xmm7, %%xmm7\n\t"
+          "pshufd $0x00, %%xmm5, %%xmm5\n\t"
+          "pshufd $0x00, %%xmm6, %%xmm6\n\t"
+          "pshufd $0x00, %%xmm7, %%xmm7\n\t"
+          "pxor %%xmm4, %%xmm4\n\t"
+          "movdqu (%1), %%xmm0\n\t"
+          "movdqu (%0), %%xmm1\n\t"
+          "movdqa %%xmm0, %%xmm2\n\t"
+          "punpcklbw %%xmm4, %%xmm2\n\t"
+          "movdqa %%xmm1, %%xmm3\n\t"
+          "punpcklbw %%xmm4, %%xmm3\n\t"
+          "pmullw %%xmm5, %%xmm2\n\t"
+          "pmullw %%xmm6, %%xmm3\n\t"
+          "paddw %%xmm3, %%xmm2\n\t"
+          "paddw %%xmm7, %%xmm2\n\t"
+          "psrlw $8, %%xmm2\n\t"
+          "punpckhbw %%xmm4, %%xmm0\n\t"
+          "punpckhbw %%xmm4, %%xmm1\n\t"
+          "pmullw %%xmm5, %%xmm0\n\t"
+          "pmullw %%xmm6, %%xmm1\n\t"
+          "paddw %%xmm1, %%xmm0\n\t"
+          "paddw %%xmm7, %%xmm0\n\t"
+          "psrlw $8, %%xmm0\n\t"
+          "packuswb %%xmm0, %%xmm2\n\t"
+          "movdqu %%xmm2, (%0)\n\t") == CTOOL_TRUE) {
+    return CEMIT_KERNEL_SIMD_BLEND_16;
+  }
+  return cemit_string_equals_literal(
+             template_text,
+             "movdqu (%1), %%xmm0\n\t"
+             "movdqu (%0), %%xmm1\n\t"
+             "paddusb %%xmm0, %%xmm1\n\t"
+             "movdqu %%xmm1, (%0)\n\t") == CTOOL_TRUE
+             ? CEMIT_KERNEL_SIMD_ADD_16
+             : CEMIT_KERNEL_SIMD_NONE;
+}
+
+static ctool_bool cemit_assembly_uses_kernel_simd_path(
+    const ctool_c_assembly_t *assembly) {
+  return assembly != (const ctool_c_assembly_t *)0 &&
+                 cemit_kernel_simd_template_kind(
+                     assembly->template_text) != CEMIT_KERNEL_SIMD_NONE
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
 static cemit_movss_memory_kind_t cemit_movss_memory_template_kind(
     ctool_string_t template_text) {
   if (cemit_string_equals_literal(
@@ -8194,6 +8359,387 @@ static ctool_status_t cemit_emit_movss_memory_assembly(
     }
   }
   return status;
+}
+
+static ctool_bool cemit_kernel_simd_operand_is_valid(
+    const cemit_context_t *context,
+    const ctool_c_assembly_operand_t *operand, ctool_bool pointer) {
+  const ctool_c_type_node_t *node;
+  const ctool_c_type_node_t *referent;
+  const ctool_c_type_layout_t *layout;
+  ctool_u32 qualifiers;
+  ctool_u32 referent_qualifiers;
+  if (operand == (const ctool_c_assembly_operand_t *)0 ||
+      operand->type >= context->unit->layout.type_count ||
+      operand->expression >= context->unit->expression_count ||
+      operand->matching_output != CTOOL_C_AST_NONE ||
+      context->unit->expressions == (const ctool_c_expression_t *)0 ||
+      context->unit->expressions[operand->expression].type != operand->type ||
+      cemit_string_equals_literal(
+          operand->constraint, "r") == CTOOL_FALSE ||
+      cemit_underlying_type(
+          context, operand->type, &qualifiers, &node) == CTOOL_FALSE) {
+    return CTOOL_FALSE;
+  }
+  layout = &context->unit->layout.types[operand->type];
+  if (pointer == CTOOL_FALSE) {
+    return layout->is_integer == CTOOL_TRUE &&
+                   layout->is_object == CTOOL_TRUE &&
+                   layout->is_complete_object == CTOOL_TRUE &&
+                   layout->size == 4u
+               ? CTOOL_TRUE
+               : CTOOL_FALSE;
+  }
+  if (node->kind != CTOOL_C_TYPE_POINTER ||
+      cemit_underlying_type(
+          context, node->referenced_type, &referent_qualifiers,
+          &referent) == CTOOL_FALSE) {
+    return CTOOL_FALSE;
+  }
+  (void)qualifiers;
+  (void)referent_qualifiers;
+  return referent->kind != CTOOL_C_TYPE_FUNCTION &&
+                 layout->is_object == CTOOL_TRUE &&
+                 layout->is_complete_object == CTOOL_TRUE &&
+                 layout->size == 4u
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cemit_kernel_simd_metadata_is_valid(
+    const cemit_context_t *context,
+    const ctool_c_assembly_t *assembly,
+    cemit_kernel_simd_kind_t kind) {
+  ctool_u32 expected_flags = CTOOL_C_ASSEMBLY_VOLATILE;
+  ctool_u32 expected_inputs = 1u;
+  ctool_u32 pointer_inputs = 0u;
+  ctool_u32 input;
+  if (context == (const cemit_context_t *)0 ||
+      assembly == (const ctool_c_assembly_t *)0 ||
+      kind == CEMIT_KERNEL_SIMD_NONE) {
+    return CTOOL_FALSE;
+  }
+  if (kind == CEMIT_KERNEL_SIMD_COPY_64) {
+    expected_flags |= CTOOL_C_ASSEMBLY_MEMORY_CLOBBER |
+                      CTOOL_C_ASSEMBLY_XMM0_CLOBBER |
+                      CTOOL_C_ASSEMBLY_XMM1_CLOBBER |
+                      CTOOL_C_ASSEMBLY_XMM2_CLOBBER |
+                      CTOOL_C_ASSEMBLY_XMM3_CLOBBER;
+    expected_inputs = 2u;
+    pointer_inputs = 2u;
+  } else if (kind == CEMIT_KERNEL_SIMD_COPY_16) {
+    expected_flags |= CTOOL_C_ASSEMBLY_MEMORY_CLOBBER |
+                      CTOOL_C_ASSEMBLY_XMM0_CLOBBER;
+    expected_inputs = 2u;
+    pointer_inputs = 2u;
+  } else if (kind == CEMIT_KERNEL_SIMD_BROADCAST) {
+    expected_flags |= CTOOL_C_ASSEMBLY_XMM0_CLOBBER;
+  } else if (kind == CEMIT_KERNEL_SIMD_STORE_16) {
+    expected_flags |= CTOOL_C_ASSEMBLY_MEMORY_CLOBBER;
+    pointer_inputs = 1u;
+  } else if (kind == CEMIT_KERNEL_SIMD_BLEND_16) {
+    expected_flags |= CTOOL_C_ASSEMBLY_MEMORY_CLOBBER |
+                      CTOOL_C_ASSEMBLY_XMM0_CLOBBER |
+                      CTOOL_C_ASSEMBLY_XMM1_CLOBBER |
+                      CTOOL_C_ASSEMBLY_XMM2_CLOBBER |
+                      CTOOL_C_ASSEMBLY_XMM3_CLOBBER |
+                      CTOOL_C_ASSEMBLY_XMM4_CLOBBER |
+                      CTOOL_C_ASSEMBLY_XMM5_CLOBBER |
+                      CTOOL_C_ASSEMBLY_XMM6_CLOBBER |
+                      CTOOL_C_ASSEMBLY_XMM7_CLOBBER;
+    expected_inputs = 5u;
+    pointer_inputs = 2u;
+  } else {
+    expected_flags |= CTOOL_C_ASSEMBLY_MEMORY_CLOBBER |
+                      CTOOL_C_ASSEMBLY_XMM0_CLOBBER |
+                      CTOOL_C_ASSEMBLY_XMM1_CLOBBER;
+    expected_inputs = 2u;
+    pointer_inputs = 2u;
+  }
+  if (assembly->flags != expected_flags ||
+      assembly->output_count != 0u ||
+      assembly->input_count != expected_inputs ||
+      assembly->first_operand > context->unit->assembly_operand_count ||
+      expected_inputs >
+          context->unit->assembly_operand_count - assembly->first_operand ||
+      context->unit->assembly_operands ==
+          (const ctool_c_assembly_operand_t *)0) {
+    return CTOOL_FALSE;
+  }
+  for (input = 0u; input < expected_inputs; input++) {
+    if (cemit_kernel_simd_operand_is_valid(
+            context,
+            &context->unit->assembly_operands[
+                assembly->first_operand + input],
+            input < pointer_inputs ? CTOOL_TRUE : CTOOL_FALSE) ==
+        CTOOL_FALSE) {
+      return CTOOL_FALSE;
+    }
+  }
+  return CTOOL_TRUE;
+}
+
+static ctool_status_t cemit_kernel_simd_pop_pointer_pair(
+    cemit_context_t *context) {
+  ctool_status_t status = cemit_x86_one_register(
+      context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 2u, 32u);
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
+  }
+  return status;
+}
+
+static ctool_status_t cemit_emit_kernel_simd_copy(
+    cemit_context_t *context, cemit_kernel_simd_kind_t kind) {
+  ctool_u32 lanes =
+      kind == CEMIT_KERNEL_SIMD_COPY_64 ? 4u : 1u;
+  ctool_u32 lane;
+  ctool_status_t status = cemit_kernel_simd_pop_pointer_pair(context);
+  for (lane = 0u; status == CTOOL_OK && lane < lanes; lane++) {
+    status = cemit_x86_simd_memory(
+        context, CTOOL_X86_MN_MOVDQU, CTOOL_TRUE,
+        (ctool_u8)lane, 2u, (ctool_i32)(lane * 16u), 128u);
+  }
+  for (lane = 0u; status == CTOOL_OK && lane < lanes; lane++) {
+    status = cemit_x86_simd_memory(
+        context, CTOOL_X86_MN_MOVNTDQ, CTOOL_FALSE,
+        (ctool_u8)lane, 0u, (ctool_i32)(lane * 16u), 128u);
+  }
+  return status;
+}
+
+static ctool_status_t cemit_emit_kernel_simd_broadcast(
+    cemit_context_t *context) {
+  ctool_status_t status = cemit_x86_one_register(
+      context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_MOVD, CTOOL_X86_REG_XMM, 0u,
+        CTOOL_X86_REG_GPR32, 0u, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_xmm_shuffle_immediate(
+        context, 0u, 0u, 0u);
+  }
+  return status;
+}
+
+static ctool_status_t cemit_emit_kernel_simd_store(
+    cemit_context_t *context) {
+  ctool_status_t status = cemit_x86_one_register(
+      context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
+  if (status == CTOOL_OK) {
+    status = cemit_x86_simd_memory(
+        context, CTOOL_X86_MN_MOVNTDQ, CTOOL_FALSE,
+        0u, 0u, 0, 128u);
+  }
+  return status;
+}
+
+static ctool_status_t cemit_emit_kernel_simd_blend(
+    cemit_context_t *context) {
+  ctool_status_t status = cemit_x86_simd_memory(
+      context, CTOOL_X86_MN_MOVD, CTOOL_TRUE, 7u, 4u, 0, 32u);
+  if (status == CTOOL_OK) {
+    status = cemit_x86_simd_memory(
+        context, CTOOL_X86_MN_MOVD, CTOOL_TRUE, 6u, 4u, 4, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_simd_memory(
+        context, CTOOL_X86_MN_MOVD, CTOOL_TRUE, 5u, 4u, 8, 32u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_discard_arguments(context, 12u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_kernel_simd_pop_pointer_pair(context);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_PUNPCKLWD, CTOOL_X86_REG_XMM, 5u,
+        CTOOL_X86_REG_XMM, 5u, 128u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_PUNPCKLWD, CTOOL_X86_REG_XMM, 6u,
+        CTOOL_X86_REG_XMM, 6u, 128u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_PUNPCKLWD, CTOOL_X86_REG_XMM, 7u,
+        CTOOL_X86_REG_XMM, 7u, 128u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_xmm_shuffle_immediate(
+        context, 5u, 5u, 0u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_xmm_shuffle_immediate(
+        context, 6u, 6u, 0u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_xmm_shuffle_immediate(
+        context, 7u, 7u, 0u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_PXOR, CTOOL_X86_REG_XMM, 4u,
+        CTOOL_X86_REG_XMM, 4u, 128u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_simd_memory(
+        context, CTOOL_X86_MN_MOVDQU, CTOOL_TRUE,
+        0u, 2u, 0, 128u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_simd_memory(
+        context, CTOOL_X86_MN_MOVDQU, CTOOL_TRUE,
+        1u, 0u, 0, 128u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_MOVDQA, CTOOL_X86_REG_XMM, 2u,
+        CTOOL_X86_REG_XMM, 0u, 128u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_PUNPCKLBW, CTOOL_X86_REG_XMM, 2u,
+        CTOOL_X86_REG_XMM, 4u, 128u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_MOVDQA, CTOOL_X86_REG_XMM, 3u,
+        CTOOL_X86_REG_XMM, 1u, 128u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_PUNPCKLBW, CTOOL_X86_REG_XMM, 3u,
+        CTOOL_X86_REG_XMM, 4u, 128u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_PMULLW, CTOOL_X86_REG_XMM, 2u,
+        CTOOL_X86_REG_XMM, 5u, 128u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_PMULLW, CTOOL_X86_REG_XMM, 3u,
+        CTOOL_X86_REG_XMM, 6u, 128u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_PADDW, CTOOL_X86_REG_XMM, 2u,
+        CTOOL_X86_REG_XMM, 3u, 128u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_PADDW, CTOOL_X86_REG_XMM, 2u,
+        CTOOL_X86_REG_XMM, 7u, 128u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_xmm_shift_immediate(context, 2u, 8u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_PUNPCKHBW, CTOOL_X86_REG_XMM, 0u,
+        CTOOL_X86_REG_XMM, 4u, 128u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_PUNPCKHBW, CTOOL_X86_REG_XMM, 1u,
+        CTOOL_X86_REG_XMM, 4u, 128u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_PMULLW, CTOOL_X86_REG_XMM, 0u,
+        CTOOL_X86_REG_XMM, 5u, 128u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_PMULLW, CTOOL_X86_REG_XMM, 1u,
+        CTOOL_X86_REG_XMM, 6u, 128u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_PADDW, CTOOL_X86_REG_XMM, 0u,
+        CTOOL_X86_REG_XMM, 1u, 128u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_PADDW, CTOOL_X86_REG_XMM, 0u,
+        CTOOL_X86_REG_XMM, 7u, 128u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_xmm_shift_immediate(context, 0u, 8u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_PACKUSWB, CTOOL_X86_REG_XMM, 2u,
+        CTOOL_X86_REG_XMM, 0u, 128u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_simd_memory(
+        context, CTOOL_X86_MN_MOVDQU, CTOOL_FALSE,
+        2u, 0u, 0, 128u);
+  }
+  return status;
+}
+
+static ctool_status_t cemit_emit_kernel_simd_add(
+    cemit_context_t *context) {
+  ctool_status_t status = cemit_kernel_simd_pop_pointer_pair(context);
+  if (status == CTOOL_OK) {
+    status = cemit_x86_simd_memory(
+        context, CTOOL_X86_MN_MOVDQU, CTOOL_TRUE,
+        0u, 2u, 0, 128u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_simd_memory(
+        context, CTOOL_X86_MN_MOVDQU, CTOOL_TRUE,
+        1u, 0u, 0, 128u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_two_registers(
+        context, CTOOL_X86_MN_PADDUSB, CTOOL_X86_REG_XMM, 1u,
+        CTOOL_X86_REG_XMM, 0u, 128u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_simd_memory(
+        context, CTOOL_X86_MN_MOVDQU, CTOOL_FALSE,
+        1u, 0u, 0, 128u);
+  }
+  return status;
+}
+
+static ctool_status_t cemit_emit_kernel_simd_assembly(
+    cemit_context_t *context,
+    const ctool_c_assembly_t *assembly,
+    ctool_u32 temporary_offset) {
+  cemit_kernel_simd_kind_t kind =
+      cemit_kernel_simd_template_kind(assembly->template_text);
+  if (temporary_offset != 0u ||
+      cemit_kernel_simd_metadata_is_valid(
+          context, assembly, kind) == CTOOL_FALSE) {
+    return cemit_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_EMIT_DIAG_UNSUPPORTED,
+        &assembly->location,
+        "GNU inline assembly template is outside this i386 emission slice");
+  }
+  if (kind == CEMIT_KERNEL_SIMD_COPY_64 ||
+      kind == CEMIT_KERNEL_SIMD_COPY_16) {
+    return cemit_emit_kernel_simd_copy(context, kind);
+  }
+  if (kind == CEMIT_KERNEL_SIMD_BROADCAST) {
+    return cemit_emit_kernel_simd_broadcast(context);
+  }
+  if (kind == CEMIT_KERNEL_SIMD_STORE_16) {
+    return cemit_emit_kernel_simd_store(context);
+  }
+  if (kind == CEMIT_KERNEL_SIMD_BLEND_16) {
+    return cemit_emit_kernel_simd_blend(context);
+  }
+  return cemit_emit_kernel_simd_add(context);
 }
 
 static ctool_bool cemit_assembly_uses_x87_sine_memory_path(
@@ -10280,7 +10826,14 @@ static ctool_status_t cemit_emit_assembly(
          CTOOL_C_ASSEMBLY_CC_CLOBBER |
          CTOOL_C_ASSEMBLY_EAX_CLOBBER |
          CTOOL_C_ASSEMBLY_ECX_CLOBBER |
-         CTOOL_C_ASSEMBLY_EDI_CLOBBER)) != 0u ||
+         CTOOL_C_ASSEMBLY_EDI_CLOBBER |
+         CTOOL_C_ASSEMBLY_XMM1_CLOBBER |
+         CTOOL_C_ASSEMBLY_XMM2_CLOBBER |
+         CTOOL_C_ASSEMBLY_XMM3_CLOBBER |
+         CTOOL_C_ASSEMBLY_XMM4_CLOBBER |
+         CTOOL_C_ASSEMBLY_XMM5_CLOBBER |
+         CTOOL_C_ASSEMBLY_XMM6_CLOBBER |
+         CTOOL_C_ASSEMBLY_XMM7_CLOBBER)) != 0u ||
       assembly->template_text.data == (const char *)0 ||
       assembly->first_operand > context->unit->assembly_operand_count ||
       cemit_add_overflows(
@@ -10326,6 +10879,11 @@ static ctool_status_t cemit_emit_assembly(
   if (cemit_assembly_uses_flags_restore_path(
           assembly) == CTOOL_TRUE) {
     return cemit_emit_flags_restore_assembly(
+        context, assembly, temporary_offset);
+  }
+  if (cemit_assembly_uses_kernel_simd_path(
+          assembly) == CTOOL_TRUE) {
+    return cemit_emit_kernel_simd_assembly(
         context, assembly, temporary_offset);
   }
   if (cemit_assembly_uses_movss_memory_path(
@@ -13193,6 +13751,10 @@ static ctool_status_t cemit_prepare_local_offsets(
           continue;
         }
         if (cemit_assembly_uses_flags_restore_path(
+                assembly) == CTOOL_TRUE) {
+          continue;
+        }
+        if (cemit_assembly_uses_kernel_simd_path(
                 assembly) == CTOOL_TRUE) {
           continue;
         }

@@ -267,6 +267,7 @@ $(BUILD_DIR)/cupidc_ir_contract.o: tests/cupidc_ir_contract.c \
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/cupidc_object_contract.o: tests/cupidc_object_contract.c \
+    tests/cupidc_kernel_simd_fixture.h \
     cupidc_emit.h cupidc_ir.h cupidc_frontend.h cupidc_type.h cupidc_pp.h \
     cupidasm.h cupidld.h elf32.h x86.h ctool.h ctool_host.h \
     $(CUPIDC_HOSTED_I386_HEADERS) | $(BUILD_DIR)

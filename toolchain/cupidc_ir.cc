@@ -755,6 +755,96 @@ typedef enum {
   CIR_MOVSS_MEMORY_STORE
 } cir_movss_memory_kind_t;
 
+typedef enum {
+  CIR_KERNEL_SIMD_NONE = 0,
+  CIR_KERNEL_SIMD_COPY_64,
+  CIR_KERNEL_SIMD_COPY_16,
+  CIR_KERNEL_SIMD_BROADCAST,
+  CIR_KERNEL_SIMD_STORE_16,
+  CIR_KERNEL_SIMD_BLEND_16,
+  CIR_KERNEL_SIMD_ADD_16
+} cir_kernel_simd_kind_t;
+
+static cir_kernel_simd_kind_t cir_kernel_simd_template_kind(
+    ctool_string_t template_text) {
+  if (cir_string_equal(
+          template_text,
+          ctool_string(
+              "movdqu   (%1), %%xmm0\n\t"
+              "movdqu 16(%1), %%xmm1\n\t"
+              "movdqu 32(%1), %%xmm2\n\t"
+              "movdqu 48(%1), %%xmm3\n\t"
+              "movntdq %%xmm0,   (%0)\n\t"
+              "movntdq %%xmm1, 16(%0)\n\t"
+              "movntdq %%xmm2, 32(%0)\n\t"
+              "movntdq %%xmm3, 48(%0)\n\t")) == CTOOL_TRUE) {
+    return CIR_KERNEL_SIMD_COPY_64;
+  }
+  if (cir_string_equal(
+          template_text,
+          ctool_string(
+              "movdqu (%1), %%xmm0\n\t"
+              "movntdq %%xmm0, (%0)\n\t")) == CTOOL_TRUE) {
+    return CIR_KERNEL_SIMD_COPY_16;
+  }
+  if (cir_string_equal(
+          template_text,
+          ctool_string(
+              "movd %0, %%xmm0\n\t"
+              "pshufd $0x00, %%xmm0, %%xmm0\n\t")) == CTOOL_TRUE) {
+    return CIR_KERNEL_SIMD_BROADCAST;
+  }
+  if (cir_string_equal(
+          template_text,
+          ctool_string("movntdq %%xmm0, (%0)\n\t")) == CTOOL_TRUE) {
+    return CIR_KERNEL_SIMD_STORE_16;
+  }
+  if (cir_string_equal(
+          template_text,
+          ctool_string(
+              "movd %2, %%xmm5\n\t"
+              "movd %3, %%xmm6\n\t"
+              "movd %4, %%xmm7\n\t"
+              "punpcklwd %%xmm5, %%xmm5\n\t"
+              "punpcklwd %%xmm6, %%xmm6\n\t"
+              "punpcklwd %%xmm7, %%xmm7\n\t"
+              "pshufd $0x00, %%xmm5, %%xmm5\n\t"
+              "pshufd $0x00, %%xmm6, %%xmm6\n\t"
+              "pshufd $0x00, %%xmm7, %%xmm7\n\t"
+              "pxor %%xmm4, %%xmm4\n\t"
+              "movdqu (%1), %%xmm0\n\t"
+              "movdqu (%0), %%xmm1\n\t"
+              "movdqa %%xmm0, %%xmm2\n\t"
+              "punpcklbw %%xmm4, %%xmm2\n\t"
+              "movdqa %%xmm1, %%xmm3\n\t"
+              "punpcklbw %%xmm4, %%xmm3\n\t"
+              "pmullw %%xmm5, %%xmm2\n\t"
+              "pmullw %%xmm6, %%xmm3\n\t"
+              "paddw %%xmm3, %%xmm2\n\t"
+              "paddw %%xmm7, %%xmm2\n\t"
+              "psrlw $8, %%xmm2\n\t"
+              "punpckhbw %%xmm4, %%xmm0\n\t"
+              "punpckhbw %%xmm4, %%xmm1\n\t"
+              "pmullw %%xmm5, %%xmm0\n\t"
+              "pmullw %%xmm6, %%xmm1\n\t"
+              "paddw %%xmm1, %%xmm0\n\t"
+              "paddw %%xmm7, %%xmm0\n\t"
+              "psrlw $8, %%xmm0\n\t"
+              "packuswb %%xmm0, %%xmm2\n\t"
+              "movdqu %%xmm2, (%0)\n\t")) == CTOOL_TRUE) {
+    return CIR_KERNEL_SIMD_BLEND_16;
+  }
+  return cir_string_equal(
+             template_text,
+             ctool_string(
+                 "movdqu (%1), %%xmm0\n\t"
+                 "movdqu (%0), %%xmm1\n\t"
+                 "paddusb %%xmm0, %%xmm1\n\t"
+                 "movdqu %%xmm1, (%0)\n\t")) == CTOOL_TRUE
+             ? CIR_KERNEL_SIMD_ADD_16
+             : CIR_KERNEL_SIMD_NONE;
+}
+
 static cir_movss_memory_kind_t cir_movss_memory_template_kind(
     ctool_string_t template_text) {
   if (cir_string_equal(
@@ -1062,7 +1152,9 @@ static ctool_bool cir_movss_memory_assembly_metadata_is_valid(
   ctool_u32 expected_outputs;
   ctool_u32 expected_inputs;
   if (kind == CIR_MOVSS_MEMORY_NONE) {
-    return (assembly->flags & CTOOL_C_ASSEMBLY_XMM0_CLOBBER) == 0u
+    return (assembly->flags & CTOOL_C_ASSEMBLY_XMM0_CLOBBER) == 0u ||
+                   cir_kernel_simd_template_kind(
+                       assembly->template_text) != CIR_KERNEL_SIMD_NONE
                ? CTOOL_TRUE
                : CTOOL_FALSE;
   }
@@ -1100,6 +1192,112 @@ static ctool_bool cir_movss_memory_assembly_metadata_is_valid(
                        context, input, CTOOL_FALSE) == CTOOL_TRUE))
              ? CTOOL_TRUE
              : CTOOL_FALSE;
+}
+
+static ctool_bool cir_kernel_simd_operand_is_valid(
+    const cir_context_t *context,
+    const ctool_c_assembly_operand_t *operand, ctool_bool pointer) {
+  const ctool_c_type_layout_t *layout;
+  if (operand == (const ctool_c_assembly_operand_t *)0 ||
+      operand->type >= context->unit->layout.type_count ||
+      operand->expression >= context->unit->expression_count ||
+      operand->matching_output != CTOOL_C_AST_NONE ||
+      context->unit->expressions == (const ctool_c_expression_t *)0 ||
+      context->unit->expressions[operand->expression].type != operand->type ||
+      cir_string_equal(
+          operand->constraint, ctool_string("r")) == CTOOL_FALSE) {
+    return CTOOL_FALSE;
+  }
+  layout = &context->unit->layout.types[operand->type];
+  return pointer == CTOOL_TRUE
+             ? cir_type_is_i32_pointer(context, operand->type)
+             : layout->is_integer == CTOOL_TRUE &&
+                       layout->is_object == CTOOL_TRUE &&
+                       layout->is_complete_object == CTOOL_TRUE &&
+                       layout->size == 4u
+                   ? CTOOL_TRUE
+                   : CTOOL_FALSE;
+}
+
+static ctool_bool cir_kernel_simd_assembly_metadata_is_valid(
+    const cir_context_t *context,
+    const ctool_c_assembly_t *assembly) {
+  cir_kernel_simd_kind_t kind =
+      cir_kernel_simd_template_kind(assembly->template_text);
+  ctool_u32 expected_flags = CTOOL_C_ASSEMBLY_VOLATILE;
+  ctool_u32 expected_inputs = 1u;
+  ctool_u32 pointer_inputs = 0u;
+  ctool_u32 input;
+  if (kind == CIR_KERNEL_SIMD_NONE) {
+    return (assembly->flags &
+            (CTOOL_C_ASSEMBLY_XMM1_CLOBBER |
+             CTOOL_C_ASSEMBLY_XMM2_CLOBBER |
+             CTOOL_C_ASSEMBLY_XMM3_CLOBBER |
+             CTOOL_C_ASSEMBLY_XMM4_CLOBBER |
+             CTOOL_C_ASSEMBLY_XMM5_CLOBBER |
+             CTOOL_C_ASSEMBLY_XMM6_CLOBBER |
+             CTOOL_C_ASSEMBLY_XMM7_CLOBBER)) == 0u
+               ? CTOOL_TRUE
+               : CTOOL_FALSE;
+  }
+  if (kind == CIR_KERNEL_SIMD_COPY_64) {
+    expected_flags |= CTOOL_C_ASSEMBLY_MEMORY_CLOBBER |
+                      CTOOL_C_ASSEMBLY_XMM0_CLOBBER |
+                      CTOOL_C_ASSEMBLY_XMM1_CLOBBER |
+                      CTOOL_C_ASSEMBLY_XMM2_CLOBBER |
+                      CTOOL_C_ASSEMBLY_XMM3_CLOBBER;
+    expected_inputs = 2u;
+    pointer_inputs = 2u;
+  } else if (kind == CIR_KERNEL_SIMD_COPY_16) {
+    expected_flags |= CTOOL_C_ASSEMBLY_MEMORY_CLOBBER |
+                      CTOOL_C_ASSEMBLY_XMM0_CLOBBER;
+    expected_inputs = 2u;
+    pointer_inputs = 2u;
+  } else if (kind == CIR_KERNEL_SIMD_BROADCAST) {
+    expected_flags |= CTOOL_C_ASSEMBLY_XMM0_CLOBBER;
+  } else if (kind == CIR_KERNEL_SIMD_STORE_16) {
+    expected_flags |= CTOOL_C_ASSEMBLY_MEMORY_CLOBBER;
+    pointer_inputs = 1u;
+  } else if (kind == CIR_KERNEL_SIMD_BLEND_16) {
+    expected_flags |= CTOOL_C_ASSEMBLY_MEMORY_CLOBBER |
+                      CTOOL_C_ASSEMBLY_XMM0_CLOBBER |
+                      CTOOL_C_ASSEMBLY_XMM1_CLOBBER |
+                      CTOOL_C_ASSEMBLY_XMM2_CLOBBER |
+                      CTOOL_C_ASSEMBLY_XMM3_CLOBBER |
+                      CTOOL_C_ASSEMBLY_XMM4_CLOBBER |
+                      CTOOL_C_ASSEMBLY_XMM5_CLOBBER |
+                      CTOOL_C_ASSEMBLY_XMM6_CLOBBER |
+                      CTOOL_C_ASSEMBLY_XMM7_CLOBBER;
+    expected_inputs = 5u;
+    pointer_inputs = 2u;
+  } else {
+    expected_flags |= CTOOL_C_ASSEMBLY_MEMORY_CLOBBER |
+                      CTOOL_C_ASSEMBLY_XMM0_CLOBBER |
+                      CTOOL_C_ASSEMBLY_XMM1_CLOBBER;
+    expected_inputs = 2u;
+    pointer_inputs = 2u;
+  }
+  if (assembly->flags != expected_flags ||
+      assembly->output_count != 0u ||
+      assembly->input_count != expected_inputs ||
+      assembly->first_operand > context->unit->assembly_operand_count ||
+      expected_inputs >
+          context->unit->assembly_operand_count - assembly->first_operand ||
+      context->unit->assembly_operands ==
+          (const ctool_c_assembly_operand_t *)0) {
+    return CTOOL_FALSE;
+  }
+  for (input = 0u; input < expected_inputs; input++) {
+    if (cir_kernel_simd_operand_is_valid(
+            context,
+            &context->unit->assembly_operands[
+                assembly->first_operand + input],
+            input < pointer_inputs ? CTOOL_TRUE : CTOOL_FALSE) ==
+        CTOOL_FALSE) {
+      return CTOOL_FALSE;
+    }
+  }
+  return CTOOL_TRUE;
 }
 
 static ctool_bool cir_x87_sine_memory_assembly_metadata_is_valid(
@@ -1622,7 +1820,14 @@ static ctool_status_t cir_validate_assembly_slices(
            CTOOL_C_ASSEMBLY_CC_CLOBBER |
            CTOOL_C_ASSEMBLY_EAX_CLOBBER |
            CTOOL_C_ASSEMBLY_ECX_CLOBBER |
-           CTOOL_C_ASSEMBLY_EDI_CLOBBER)) != 0u ||
+           CTOOL_C_ASSEMBLY_EDI_CLOBBER |
+           CTOOL_C_ASSEMBLY_XMM1_CLOBBER |
+           CTOOL_C_ASSEMBLY_XMM2_CLOBBER |
+           CTOOL_C_ASSEMBLY_XMM3_CLOBBER |
+           CTOOL_C_ASSEMBLY_XMM4_CLOBBER |
+           CTOOL_C_ASSEMBLY_XMM5_CLOBBER |
+           CTOOL_C_ASSEMBLY_XMM6_CLOBBER |
+           CTOOL_C_ASSEMBLY_XMM7_CLOBBER)) != 0u ||
         assembly->output_count > 4u ||
         assembly->first_operand != operand_cursor ||
         cir_add_overflows(assembly->output_count,
@@ -1743,6 +1948,10 @@ static ctool_status_t cir_validate_assembly_slices(
       return cir_invalid_unit(context, &assembly->location);
     }
     if (cir_ldmxcsr_assembly_metadata_is_valid(
+            context, assembly) == CTOOL_FALSE) {
+      return cir_invalid_unit(context, &assembly->location);
+    }
+    if (cir_kernel_simd_assembly_metadata_is_valid(
             context, assembly) == CTOOL_FALSE) {
       return cir_invalid_unit(context, &assembly->location);
     }

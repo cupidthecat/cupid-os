@@ -448,11 +448,16 @@ clobber. The shared x86 path emits `POP EAX`, `PUSH EAX`, and `POPF` without
 a temporary or relocation. It also accepts the valid fixed EAX
 overlap in the following CPUID statement. Its `a` input keeps the original
 constraint and names the compatible `=a` output; the emitter consumes the
-leaf through EAX immediately before CPUID. A complete unchanged-source probe
-now advances to the unsupported `xmm1` clobber on line 134. The normal
-`kernel/cpu/simd.c` recipe still uses the host compiler, so this work retires
-no host dependency and the source keeps its `.c` suffix. ADRs 0160 and 0168
-record the boundaries, and ADR 0174 records seed carriage.
+leaf through EAX immediately before CPUID. Compiler head also emits the six
+remaining packed SSE2 statement shapes with their exact ordered inputs and
+memory plus XMM0 through XMM7 clobbers. Two unchanged-source compiles produce
+the same validated 8,768-byte object with SHA-256
+`fd280c321b8eb38a90d4f0982d70b8df0364585e3da322eb2c9de722e071f8d4`.
+The checked seed still predates this addition. The normal
+`kernel/cpu/simd.c` recipe therefore still uses the host compiler, so this
+work retires no host dependency and the source keeps its `.c` suffix. ADRs
+0160 and 0168 record the earlier boundaries, ADR 0174 records seed carriage,
+and ADR 0178 records packed SSE2 support.
 
 The checked seed also emits `kernel/smp/percpu.cc` completely. Its
 exact GNU assembly forms load a packed six-byte GDTR, reload the code and

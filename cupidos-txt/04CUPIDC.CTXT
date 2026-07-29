@@ -828,9 +828,12 @@ its compatible write-only output. The input keeps its a constraint and
 names the =a output as its match. Linear IR and emission require both sides
 to be represented integers of equal width before loading EAX immediately
 before CPUID. Frozen pointer, floating, and aggregate substitutes fail.
-Read/write outputs cannot receive a second fixed input. Full unchanged simd.c
-now reaches the unsupported xmm1 clobber on line 134. The production recipe
-does not yet carry these increments.
+Read/write outputs cannot receive a second fixed input. Compiler head now
+emits all six remaining packed SSE2 statement shapes in unchanged simd.c. It
+checks their ordered pointer and 32-bit integer inputs plus exact memory and
+XMM0 through XMM7 clobbers. Two complete builds produce the same validated
+8,768-byte object. The checked seed and production recipe do not yet carry
+this packed SSE2 increment.
 
 The checked seed accepts the exact volatile x87 round-down block in
 str_floor. It keeps one modifiable, non-atomic double =m output, one

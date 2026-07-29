@@ -15833,3 +15833,97 @@ panic. The e1000 serial log is 59,240 bytes with SHA-256
 `6c00a3387db79509b26efd1cb7f1611807cc575b003613c61a7341a7eec38ea1`.
 The RTL8139 serial log is 57,565 bytes with SHA-256
 `3fcebd5c5903713816d3ab2f27bcfcb5ebdac808f4144f114401d990abbe11c3`.
+
+## 2026-07-29: represent the active packed SSE2 statements
+
+CupidC compiler head now emits every statement in unchanged
+`kernel/cpu/simd.c`. The previous frontier stopped when the 64-byte copy loop
+named `xmm1`.
+
+### Compiler boundary
+
+The frontend now records XMM1 through XMM7 clobbers alongside the existing
+XMM0 flag. It accepts the six exact volatile statement shapes used for:
+
+- 64-byte streaming copies
+- 16-byte streaming copies
+- color broadcast
+- 16-byte streaming stores
+- four-pixel alpha blending
+- four-pixel saturating addition
+
+Each shape has zero outputs and keeps its source-ordered `r` inputs. Pointer
+lanes accept represented object or `void` pointers. Scalar lanes accept
+represented 32-bit integers. The statement must have the exact memory and XMM
+clobber set used by its source template.
+
+Linear IR evaluates each input once and retains that order. Its trust boundary
+rechecks the template, flags, constraints, types, and target layouts. The
+i386 emitter uses EAX and EDX for the pointer pair. The five-input blend
+consumes its three scalar values from the existing evaluation stack before it
+loads the pointers. All packed instructions go through Cupid's shared x86
+model.
+
+The boundary remains exact. General XMM allocation, XMM outputs, other SSE
+templates, and a host-assembler escape remain unsupported.
+
+### Test-first findings
+
+The positive frontend fixture covers all six templates and thirteen input
+operands. Negative cases reject a missing clobber, duplicate `xmm1`, and a
+changed template. Linear IR mutation cases reject missing and extra XMM
+flags, forged templates, wrong constraints, and wrong operand layouts. Object
+mutations repeat those trust-boundary checks and cover bounded output,
+rollback, deterministic repeat emission, and same-job recovery.
+
+The first complete frontend run found that the self-host source inventory
+still carried the old function and expression counts for the three changed
+compiler files. The parser reported the new counts directly. After those
+exact values were reviewed and locked, all 93 frontend tests passed.
+
+The first native Toolchain run reached the self-host object frontier. The
+three changed compiler objects were deterministic, but their function counts,
+text sizes, object sizes, and fingerprints no longer matched the previous
+source. The contract now locks the reviewed values:
+
+| Source | Functions | Text bytes | Object bytes | Text fingerprint |
+| --- | ---: | ---: | ---: | --- |
+| `toolchain/cupidc_ir.cc` | 261 | 479,330 | 517,076 | `9f6f6a8a` |
+| `toolchain/cupidc_emit.cc` | 341 | 524,975 | 589,832 | `c681e8bc` |
+| `toolchain/cupidc_frontend.cc` | 418 | 834,511 | 993,920 | `9b498557` |
+
+The complete native Toolchain contract target then passed in 26.9 seconds.
+It rebuilt all hosted commands, linked all five static i386 tools through the
+self-host path, exercised every compiler contract, and retained the 587-form
+shared x86 fingerprint `68E281CB`. The complete Linear IR module passed all
+82 tests in 15.746 seconds.
+
+### Object evidence
+
+The focused packed-SSE2 fixture emits six functions in 385 text bytes. Its
+ELF32 object has seven symbols, five sections, and no relocations. The object
+contract decodes every instruction through Cupid's shared x86 reader and
+requires two complete emissions to match byte for byte.
+
+Compiler head compiled unchanged `kernel/cpu/simd.c` twice under the exact
+`KERNEL_I386` profile. Both validated ELF32 relocatable objects are 8,768
+bytes and have SHA-256
+`fd280c321b8eb38a90d4f0982d70b8df0364585e3da322eb2c9de722e071f8d4`.
+
+The regenerated build graph has 699 active sources, 253 feature IDs, 504
+transforms, and 42 accounted unreachable files. The new focused fixture adds
+one Toolchain contract header. The active-source digest is
+`58cc8cf3789391e77437ff9d13ebd1b0611a9a9231c3c74b1e1a306208e5d443`.
+The 1,528,732-byte JSON record has SHA-256
+`631575bd4ea21a8b302c55e117a34f4ed12f1c0d83f2dd8587eee42c8eb6cf18`.
+The 15,060-byte Markdown summary has SHA-256
+`4b7112b536906bc1d59e0f39fd198e227853c5a8881838be78fb6c9da5a2528e`.
+The unchanged 39,038-byte preprocessor case file has SHA-256
+`4a3db85355dec11a8d74a191cdbc5c35a6575c2c500b3c01ec76223a9dc82744`.
+The deterministic drift check passed in 58.2 seconds.
+
+The checked seed still predates this capability. The normal SIMD recipe
+therefore remains host-owned, and `kernel/cpu/simd.c` keeps its `.c` suffix.
+No production ownership or host-dependency count changes in this increment.
+ADR 0178 records the boundary. `TempleOS/` remains untouched reference
+material.

@@ -95,9 +95,12 @@ sites pass.
 
 It also accepts the CPUID leaf input sharing EAX with the
 compatible write-only output. It keeps the a and =a constraints, records
-their match, and loads EAX immediately before CPUID. The full source now
-stops at the unsupported xmm1 clobber on line 134. The normal SIMD recipe
-still uses the host compiler.
+their match, and loads EAX immediately before CPUID. Compiler head now emits
+the six remaining packed SSE2 statement shapes in unchanged simd.c. Their
+ordered inputs, memory effect, and XMM0 through XMM7 clobbers remain explicit.
+Two complete builds produce the same validated 8,768-byte object. The checked
+seed still predates this addition, so the normal SIMD recipe still uses the
+host compiler.
 
 The checked seed represents the exact x87 round-down statement in
 str_floor. It takes one double memory output and one double memory input with

@@ -27995,20 +27995,20 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.cc",           "/toolchain/x86.cc",
       "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
-      65u, 68u, 66u, 14u, 31u, 143u, 258u, 327u, 412u, 81u, 37u, 60u,
+      65u, 68u, 66u, 14u, 31u, 143u, 261u, 341u, 418u, 81u, 37u, 60u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 76860u, 85252u, 16872u, 42212u,
-      190304u, 474830u, 507836u, 827634u, 139646u, 70368u, 80478u,
+      190304u, 479330u, 524975u, 834511u, 139646u, 70368u, 80478u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 89320u, 99772u, 20180u, 49484u,
-      226668u, 510952u, 569964u, 983992u, 157828u, 79348u, 134656u,
+      226668u, 517076u, 589832u, 993920u, 157828u, 79348u, 134656u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x5fbbfaf2u, 0x4ca44a27u,
       0x7238e153u, 0x999f97b7u, 0xb49d8eb9u,
-      0x41018078u, 0x7ee9548eu, 0x1aca7181u, 0x239f52c7u,
+      0x9f6f6a8au, 0xc681e8bcu, 0x9b498557u, 0x239f52c7u,
       0x34558a49u, 0x7c198364u, 0x8774de7du};
   ctool_u32 index;
   int all_matched = 1;
@@ -32986,6 +32986,336 @@ cleanup:
   }
   if (passed != 0) {
     (void)puts("movss-memory-assembly: ok");
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_kernel_simd_function(
+    ctool_job_t *job, const ctool_elf32_section_t *text,
+    const ctool_elf32_symbol_t *symbol,
+    const ctool_u8 *expected, ctool_u32 expected_size) {
+  ctool_u32 cursor = 0u;
+  if (job == NULL || text == NULL || symbol == NULL || expected == NULL ||
+      symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      symbol->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
+      symbol->value > text->contents.size ||
+      symbol->size > text->contents.size - symbol->value ||
+      symbol->size != expected_size ||
+      memcmp(
+          text->contents.data + symbol->value, expected,
+          (size_t)expected_size) != 0) {
+    return 0;
+  }
+  while (cursor < symbol->size) {
+    ctool_x86_decoded_t decoded;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + symbol->value + cursor,
+        symbol->size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(
+        job, CTOOL_X86_MODE_32, remaining, 0u, &decoded);
+    if (status != CTOOL_OK ||
+        decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      return 0;
+    }
+    cursor += decoded.consumed;
+  }
+  return cursor == symbol->size ? 1 : 0;
+}
+
+static int validate_kernel_simd_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const ctool_u8 copy64[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u,
+      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
+      0x50u, 0x5au, 0x58u, 0xf3u, 0x0fu, 0x6fu, 0x02u, 0xf3u,
+      0x0fu, 0x6fu, 0x4au, 0x10u, 0xf3u, 0x0fu, 0x6fu, 0x52u,
+      0x20u, 0xf3u, 0x0fu, 0x6fu, 0x5au, 0x30u, 0x66u, 0x0fu,
+      0xe7u, 0x00u, 0x66u, 0x0fu, 0xe7u, 0x48u, 0x10u, 0x66u,
+      0x0fu, 0xe7u, 0x50u, 0x20u, 0x66u, 0x0fu, 0xe7u, 0x58u,
+      0x30u, 0xc9u, 0xc3u};
+  static const ctool_u8 copy16[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u,
+      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
+      0x50u, 0x5au, 0x58u, 0xf3u, 0x0fu, 0x6fu, 0x02u, 0x66u,
+      0x0fu, 0xe7u, 0x00u, 0xc9u, 0xc3u};
+  static const ctool_u8 broadcast[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x66u,
+      0x0fu, 0x6eu, 0xc0u, 0x66u, 0x0fu, 0x70u, 0xc0u, 0x00u,
+      0xc9u, 0xc3u};
+  static const ctool_u8 store16[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x58u, 0x66u,
+      0x0fu, 0xe7u, 0x00u, 0xc9u, 0xc3u};
+  static const ctool_u8 blend16[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u,
+      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
+      0x50u, 0x8du, 0x85u, 0x10u, 0x00u, 0x00u, 0x00u, 0x50u,
+      0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u, 0x14u, 0x00u,
+      0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x68u,
+      0x80u, 0x00u, 0x00u, 0x00u, 0x66u, 0x0fu, 0x6eu, 0x3cu,
+      0x24u, 0x66u, 0x0fu, 0x6eu, 0x74u, 0x24u, 0x04u, 0x66u,
+      0x0fu, 0x6eu, 0x6cu, 0x24u, 0x08u, 0x83u, 0xc4u, 0x0cu,
+      0x5au, 0x58u, 0x66u, 0x0fu, 0x61u, 0xedu, 0x66u, 0x0fu,
+      0x61u, 0xf6u, 0x66u, 0x0fu, 0x61u, 0xffu, 0x66u, 0x0fu,
+      0x70u, 0xedu, 0x00u, 0x66u, 0x0fu, 0x70u, 0xf6u, 0x00u,
+      0x66u, 0x0fu, 0x70u, 0xffu, 0x00u, 0x66u, 0x0fu, 0xefu,
+      0xe4u, 0xf3u, 0x0fu, 0x6fu, 0x02u, 0xf3u, 0x0fu, 0x6fu,
+      0x08u, 0x66u, 0x0fu, 0x6fu, 0xd0u, 0x66u, 0x0fu, 0x60u,
+      0xd4u, 0x66u, 0x0fu, 0x6fu, 0xd9u, 0x66u, 0x0fu, 0x60u,
+      0xdcu, 0x66u, 0x0fu, 0xd5u, 0xd5u, 0x66u, 0x0fu, 0xd5u,
+      0xdeu, 0x66u, 0x0fu, 0xfdu, 0xd3u, 0x66u, 0x0fu, 0xfdu,
+      0xd7u, 0x66u, 0x0fu, 0x71u, 0xd2u, 0x08u, 0x66u, 0x0fu,
+      0x68u, 0xc4u, 0x66u, 0x0fu, 0x68u, 0xccu, 0x66u, 0x0fu,
+      0xd5u, 0xc5u, 0x66u, 0x0fu, 0xd5u, 0xceu, 0x66u, 0x0fu,
+      0xfdu, 0xc1u, 0x66u, 0x0fu, 0xfdu, 0xc7u, 0x66u, 0x0fu,
+      0x71u, 0xd0u, 0x08u, 0x66u, 0x0fu, 0x67u, 0xd0u, 0xf3u,
+      0x0fu, 0x7fu, 0x10u, 0xc9u, 0xc3u};
+  static const ctool_u8 add16[] = {
+      0x55u, 0x89u, 0xe5u, 0x8du, 0x85u, 0x08u, 0x00u, 0x00u,
+      0x00u, 0x50u, 0x58u, 0x8bu, 0x00u, 0x50u, 0x8du, 0x85u,
+      0x0cu, 0x00u, 0x00u, 0x00u, 0x50u, 0x58u, 0x8bu, 0x00u,
+      0x50u, 0x5au, 0x58u, 0xf3u, 0x0fu, 0x6fu, 0x02u, 0xf3u,
+      0x0fu, 0x6fu, 0x08u, 0x66u, 0x0fu, 0xdcu, 0xc8u, 0xf3u,
+      0x0fu, 0x7fu, 0x08u, 0xc9u, 0xc3u};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  if (text == NULL || text->contents.data == NULL ||
+      text->contents.size != 385u ||
+      object->relocation_count != 0u ||
+      !validate_kernel_simd_function(
+          job, text, find_symbol(object, "kernel_simd_copy64"),
+          copy64, (ctool_u32)sizeof(copy64)) ||
+      !validate_kernel_simd_function(
+          job, text, find_symbol(object, "kernel_simd_copy16"),
+          copy16, (ctool_u32)sizeof(copy16)) ||
+      !validate_kernel_simd_function(
+          job, text, find_symbol(object, "kernel_simd_broadcast"),
+          broadcast, (ctool_u32)sizeof(broadcast)) ||
+      !validate_kernel_simd_function(
+          job, text, find_symbol(object, "kernel_simd_store16"),
+          store16, (ctool_u32)sizeof(store16)) ||
+      !validate_kernel_simd_function(
+          job, text, find_symbol(object, "kernel_simd_blend16"),
+          blend16, (ctool_u32)sizeof(blend16)) ||
+      !validate_kernel_simd_function(
+          job, text, find_symbol(object, "kernel_simd_add16"),
+          add16, (ctool_u32)sizeof(add16))) {
+    (void)fprintf(stderr, "kernel SIMD assembly object differs\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int run_kernel_simd_assembly_object(const char *host_root) {
+  static const char source[] =
+      "#include \"/toolchain/tests/cupidc_kernel_simd_fixture.h\"\n";
+  static const char invalid_message[] =
+      "CupidC IR lowering received an invalid translation unit";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_buffer_t *first = NULL;
+  ctool_buffer_t *second = NULL;
+  ctool_buffer_t *failure = NULL;
+  ctool_buffer_t *limited = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t mutant;
+  ctool_c_assembly_t mutant_assemblies[6];
+  ctool_c_assembly_operand_t mutant_operands[13];
+  ctool_c_type_layout_t *mutant_layouts = NULL;
+  unit_snapshot_t snapshot;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t first_bytes;
+  ctool_bytes_t second_bytes;
+  ctool_bytes_t recovered_bytes;
+  ctool_status_t status;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&snapshot, 0, sizeof(snapshot));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(
+          job, "/kernel-simd-assembly-object.c", source,
+          CTOOL_TRUE, &unit) ||
+      unit.function_definition_count != 6u ||
+      unit.assembly_count != 6u ||
+      unit.assembly_operand_count != 13u ||
+      !take_unit_snapshot(&unit, &snapshot)) {
+    (void)fprintf(stderr, "kernel SIMD assembly object setup failed\n");
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(
+      job, 2048u, config.limits.output_bytes, &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 2048u, config.limits.output_bytes, &second);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 2048u, config.limits.output_bytes, &failure);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 16u, 64u, &limited);
+  }
+  if (!check_status(status, CTOOL_OK, "kernel SIMD assembly buffers") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, first, "first kernel SIMD assembly object") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second, "repeat kernel SIMD assembly object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(
+          first_bytes.data, second_bytes.data,
+          (size_t)first_bytes.size) != 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(
+        stderr, "kernel SIMD assembly object is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text =
+      ctool_string("/kernel-simd-assembly-object.o");
+  object_source.contents = second_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read kernel SIMD assembly object") ||
+      !validate_kernel_simd_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (object.section_count != 5u ||
+      object.symbol_count != 7u ||
+      object.relocation_count != 0u) {
+    (void)fprintf(
+        stderr,
+        "kernel-simd-assembly: object metrics differ: object=%u text=%u "
+        "sections=%u symbols=%u relocations=%u\n",
+        (unsigned int)second_bytes.size,
+        (unsigned int)find_section(&object, ".text")->contents.size,
+        (unsigned int)object.section_count,
+        (unsigned int)object.symbol_count,
+        (unsigned int)object.relocation_count);
+    goto cleanup;
+  }
+
+  (void)memcpy(
+      mutant_assemblies, unit.assemblies, sizeof(mutant_assemblies));
+  (void)memcpy(
+      mutant_operands, unit.assembly_operands, sizeof(mutant_operands));
+  mutant = unit;
+  mutant.assemblies = mutant_assemblies;
+  mutant.assembly_operands = mutant_operands;
+
+  mutant_assemblies[0].template_text =
+      ctool_string(
+          "movdqu 4(%1), %%xmm0\n\t"
+          "movntdq %%xmm0, (%0)\n\t");
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged kernel SIMD template") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_assemblies[0] = unit.assemblies[0];
+
+  mutant_assemblies[0].flags &= ~CTOOL_C_ASSEMBLY_XMM3_CLOBBER;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged kernel SIMD clobber") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_assemblies[0] = unit.assemblies[0];
+
+  mutant_operands[0].constraint = ctool_string("c");
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged kernel SIMD pointer constraint") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_operands[0] = unit.assembly_operands[0];
+
+  mutant_layouts = (ctool_c_type_layout_t *)malloc(
+      (size_t)unit.layout.type_count * sizeof(*mutant_layouts));
+  if (mutant_layouts == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(
+      mutant_layouts, unit.layout.types,
+      (size_t)unit.layout.type_count * sizeof(*mutant_layouts));
+  mutant_layouts[unit.assembly_operands[0].type].size = 8u;
+  mutant.layout.types = mutant_layouts;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged kernel SIMD pointer layout") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant.layout.types = unit.layout.types;
+
+  if (!expect_object_failure(
+          job, &unit, limited, CTOOL_ERR_LIMIT,
+          CTOOL_C_EMIT_DIAG_LIMIT, NULL,
+          "limited kernel SIMD assembly object") ||
+      ctool_buffer_rewind(limited, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+
+  if (!expect_object_success_preserves_unit(
+          job, &unit, failure, "kernel SIMD assembly recovery")) {
+    goto cleanup;
+  }
+  recovered_bytes = ctool_buffer_view(failure);
+  if (recovered_bytes.size != first_bytes.size ||
+      memcmp(
+          recovered_bytes.data, first_bytes.data,
+          (size_t)first_bytes.size) != 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(
+        stderr, "kernel SIMD assembly recovery object differs\n");
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(mutant_layouts);
+  dispose_unit_snapshot(&snapshot);
+  if (limited != NULL) {
+    ctool_buffer_close(limited);
+  }
+  if (failure != NULL) {
+    ctool_buffer_close(failure);
+  }
+  if (second != NULL) {
+    ctool_buffer_close(second);
+  }
+  if (first != NULL) {
+    ctool_buffer_close(first);
+  }
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("kernel-simd-assembly: ok");
     return 0;
   }
   return 1;
@@ -45155,6 +45485,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "movss-memory-assembly") == 0) {
     return run_movss_memory_assembly_object(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "kernel-simd-assembly") == 0) {
+    return run_kernel_simd_assembly_object(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "x87-sine-memory-assembly") == 0) {
     return run_x87_sine_memory_assembly_object(argv[2]);
   }
@@ -45326,6 +45659,7 @@ int main(int argc, char **argv) {
                 "privileged-register-assembly|fxsave-assembly|"
                 "ldmxcsr-memory-input|"
                 "movss-memory-assembly|"
+                "kernel-simd-assembly|"
                 "x87-sine-memory-assembly|"
                 "x87-round-down-memory-assembly|"
                 "x87-pow-memory-assembly|"

@@ -435,11 +435,16 @@ accepts the unchanged CPUID statement where the `a` input shares EAX with
 the `=a` output. The public operand keeps its fixed-register spelling and
 names output zero as its match; Linear IR and object emission verify that
 relationship, including represented integer types and equal widths, before
-loading EAX. A frozen same-width float cannot bypass those checks. A complete
-unchanged `kernel/cpu/simd.c`
-probe now reaches line 134, where the four-register SSE block first names the
-unsupported `xmm1` clobber. The normal SIMD recipe remains host-owned, and
-the source keeps its `.c` suffix.
+loading EAX. A frozen same-width float cannot bypass those checks. Compiler
+head now accepts the six remaining packed SSE2 statement shapes in unchanged
+`kernel/cpu/simd.c`. It checks the exact pointer and integer inputs plus the
+memory and XMM0 through XMM7 clobbers, then emits the copy, broadcast, blend,
+and saturating-add instructions through Cupid's shared x86 model. Two full
+compiler-head builds produce the same validated 8,768-byte object with
+SHA-256
+`fd280c321b8eb38a90d4f0982d70b8df0364585e3da322eb2c9de722e071f8d4`.
+The checked seed still predates this packed SSE2 capability. The normal SIMD
+recipe remains host-owned, and the source keeps its `.c` suffix.
 
 The checked seed emits the four exact descriptor-table and segment-register
 statements in `kernel/smp/percpu.cc`. The LGDT forms keep their
@@ -774,6 +779,8 @@ and the generated kernel symbol translation described above.
 [ADR 0175](docs/adr/0175-represent-kernel-entry-bss-clear-assembly.md) records the exact kernel stack and BSS-clear statement, its entry-only stack contract, and the private compiler-head boot proof.
 
 [ADR 0176](docs/adr/0176-transfer-libm-to-cupidc.md) records the checked production recipe, byte-preserving `.cc` rename, complete frontier, image, and guest libm proof.
+
+[ADR 0178](docs/adr/0178-represent-active-packed-sse2-assembly.md) records the six exact packed SSE2 statement shapes and complete compiler-head SIMD object.
 
 [ADR 0143](docs/adr/0143-share-ordinary-padding-nops.md) records the shared ordinary compiler padding family and its measured disassembly improvement.
 

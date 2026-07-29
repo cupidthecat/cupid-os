@@ -7654,12 +7654,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.cc", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
        25287u, 479u, 286u, 0u, 0u},
-      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 258u, 7127u,
-       66562u, 938u, 344u, 0u, 0u},
-      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 327u, 8037u,
-       68223u, 980u, 653u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 412u,
-       16128u, 106991u, 2422u, 1487u, 0u, 0u},
+      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 261u, 7199u,
+       67130u, 944u, 348u, 0u, 0u},
+      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 341u, 8319u,
+       70291u, 1003u, 669u, 0u, 0u},
+      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 418u,
+       16284u, 107814u, 2440u, 1490u, 0u, 0u},
       {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 81u, 2935u,
        19252u, 326u, 186u, 0u, 0u},
       {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
@@ -27744,9 +27744,10 @@ static int run_movss_memory_assembly(const char *host_root) {
        0u, 0u, "GNU inline assembly xmm0 clobber is listed twice"},
       {{"unsupported XMM clobber",
         "void bad(float *out) { __asm__ volatile("
-        "\"movss %%xmm0, %0\" : \"=m\"(*out) : : \"xmm1\"); }\n",
+       "\"movss %%xmm0, %0\" : \"=m\"(*out) : : \"xmm1\"); }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
-       0u, 0u, "GNU inline assembly clobber is outside this slice"},
+       0u, 0u,
+       "GNU inline assembly XMM clobber template is outside this slice"},
       {{"unrelated floating memory output",
         "void bad(float *out) { __asm__ volatile("
         "\"nop\" : \"=m\"(*out)); }\n",
@@ -27797,6 +27798,248 @@ cleanup:
   }
   if (failed == 0) {
     (void)puts("movss-memory-assembly: ok");
+  }
+  return failed;
+}
+
+static int validate_kernel_simd_assembly_unit(
+    const ctool_c_translation_unit_t *unit) {
+  static const ctool_u32 flags[] = {
+      CTOOL_C_ASSEMBLY_VOLATILE |
+          CTOOL_C_ASSEMBLY_MEMORY_CLOBBER |
+          CTOOL_C_ASSEMBLY_XMM0_CLOBBER |
+          CTOOL_C_ASSEMBLY_XMM1_CLOBBER |
+          CTOOL_C_ASSEMBLY_XMM2_CLOBBER |
+          CTOOL_C_ASSEMBLY_XMM3_CLOBBER,
+      CTOOL_C_ASSEMBLY_VOLATILE |
+          CTOOL_C_ASSEMBLY_MEMORY_CLOBBER |
+          CTOOL_C_ASSEMBLY_XMM0_CLOBBER,
+      CTOOL_C_ASSEMBLY_VOLATILE |
+          CTOOL_C_ASSEMBLY_XMM0_CLOBBER,
+      CTOOL_C_ASSEMBLY_VOLATILE |
+          CTOOL_C_ASSEMBLY_MEMORY_CLOBBER,
+      CTOOL_C_ASSEMBLY_VOLATILE |
+          CTOOL_C_ASSEMBLY_MEMORY_CLOBBER |
+          CTOOL_C_ASSEMBLY_XMM0_CLOBBER |
+          CTOOL_C_ASSEMBLY_XMM1_CLOBBER |
+          CTOOL_C_ASSEMBLY_XMM2_CLOBBER |
+          CTOOL_C_ASSEMBLY_XMM3_CLOBBER |
+          CTOOL_C_ASSEMBLY_XMM4_CLOBBER |
+          CTOOL_C_ASSEMBLY_XMM5_CLOBBER |
+          CTOOL_C_ASSEMBLY_XMM6_CLOBBER |
+          CTOOL_C_ASSEMBLY_XMM7_CLOBBER,
+      CTOOL_C_ASSEMBLY_VOLATILE |
+          CTOOL_C_ASSEMBLY_MEMORY_CLOBBER |
+          CTOOL_C_ASSEMBLY_XMM0_CLOBBER |
+          CTOOL_C_ASSEMBLY_XMM1_CLOBBER};
+  static const ctool_u32 first_operands[] = {0u, 2u, 4u, 5u, 6u, 11u};
+  static const ctool_u32 input_counts[] = {2u, 2u, 1u, 1u, 5u, 2u};
+  static const ctool_bool pointer_operands[] = {
+      CTOOL_TRUE, CTOOL_TRUE, CTOOL_TRUE, CTOOL_TRUE,
+      CTOOL_FALSE, CTOOL_TRUE, CTOOL_TRUE, CTOOL_TRUE,
+      CTOOL_FALSE, CTOOL_FALSE, CTOOL_FALSE, CTOOL_TRUE,
+      CTOOL_TRUE};
+  ctool_u32 assembly_statement_count = 0u;
+  ctool_u32 index;
+  if (unit->function_definition_count != ARRAY_COUNT(flags) ||
+      unit->assembly_count != ARRAY_COUNT(flags) ||
+      unit->assembly_operand_count != ARRAY_COUNT(pointer_operands) ||
+      unit->assemblies == NULL || unit->assembly_operands == NULL ||
+      unit->expressions == NULL || unit->layout.types == NULL) {
+    return 1;
+  }
+  for (index = 0u; index < ARRAY_COUNT(flags); index++) {
+    const ctool_c_assembly_t *assembly = &unit->assemblies[index];
+    if (assembly->template_text.data == NULL ||
+        assembly->template_text.size == 0u ||
+        assembly->flags != flags[index] ||
+        assembly->first_operand != first_operands[index] ||
+        assembly->output_count != 0u ||
+        assembly->input_count != input_counts[index]) {
+      return 1;
+    }
+  }
+  for (index = 0u; index < ARRAY_COUNT(pointer_operands); index++) {
+    const ctool_c_assembly_operand_t *operand =
+        &unit->assembly_operands[index];
+    ctool_c_type_kind_t kind;
+    if (operand->type >= unit->layout.type_count ||
+        operand->expression >= unit->expression_count ||
+        string_equal(operand->constraint, "r") == 0 ||
+        operand->matching_output != CTOOL_C_AST_NONE ||
+        unit->expressions[operand->expression].type != operand->type ||
+        unit->layout.types[operand->type].size != 4u) {
+      return 1;
+    }
+    kind = underlying_type_kind(unit, operand->type, NULL);
+    if ((pointer_operands[index] == CTOOL_TRUE &&
+         kind != CTOOL_C_TYPE_POINTER) ||
+        (pointer_operands[index] == CTOOL_FALSE &&
+         kind != CTOOL_C_TYPE_UNSIGNED_INT)) {
+      return 1;
+    }
+  }
+  for (index = 0u; index < unit->statement_count; index++) {
+    const ctool_c_statement_t *statement = &unit->statements[index];
+    if (statement->kind == CTOOL_C_STATEMENT_ASSEMBLY) {
+      if (statement->assembly != assembly_statement_count ||
+          statement->expression != CTOOL_C_AST_NONE) {
+        return 1;
+      }
+      assembly_statement_count++;
+    } else if (statement->assembly != CTOOL_C_AST_NONE) {
+      return 1;
+    }
+  }
+  return assembly_statement_count == ARRAY_COUNT(flags) ? 0 : 1;
+}
+
+static int run_kernel_simd_assembly(const char *host_root) {
+  static const char source[] =
+      "typedef unsigned int u32;\n"
+      "void copy64(void *d, const void *s) {\n"
+      "  __asm__ volatile("
+      "\"movdqu   (%1), %%xmm0\\n\\t\""
+      "\"movdqu 16(%1), %%xmm1\\n\\t\""
+      "\"movdqu 32(%1), %%xmm2\\n\\t\""
+      "\"movdqu 48(%1), %%xmm3\\n\\t\""
+      "\"movntdq %%xmm0,   (%0)\\n\\t\""
+      "\"movntdq %%xmm1, 16(%0)\\n\\t\""
+      "\"movntdq %%xmm2, 32(%0)\\n\\t\""
+      "\"movntdq %%xmm3, 48(%0)\\n\\t\""
+      ": : \"r\"(d), \"r\"(s) : "
+      "\"memory\", \"xmm0\", \"xmm1\", \"xmm2\", \"xmm3\");\n"
+      "}\n"
+      "void copy16(void *d, const void *s) {\n"
+      "  __asm__ volatile("
+      "\"movdqu (%1), %%xmm0\\n\\t\""
+      "\"movntdq %%xmm0, (%0)\\n\\t\""
+      ": : \"r\"(d), \"r\"(s) : \"memory\", \"xmm0\");\n"
+      "}\n"
+      "void broadcast(u32 color) {\n"
+      "  __asm__ volatile("
+      "\"movd %0, %%xmm0\\n\\t\""
+      "\"pshufd $0x00, %%xmm0, %%xmm0\\n\\t\""
+      ": : \"r\"(color) : \"xmm0\");\n"
+      "}\n"
+      "void store16(void *d) {\n"
+      "  __asm__ volatile(\"movntdq %%xmm0, (%0)\\n\\t\""
+      ": : \"r\"(d) : \"memory\");\n"
+      "}\n"
+      "void blend16(void *d, const void *s, u32 alpha, u32 ia) {\n"
+      "  __asm__ volatile("
+      "\"movd %2, %%xmm5\\n\\t\""
+      "\"movd %3, %%xmm6\\n\\t\""
+      "\"movd %4, %%xmm7\\n\\t\""
+      "\"punpcklwd %%xmm5, %%xmm5\\n\\t\""
+      "\"punpcklwd %%xmm6, %%xmm6\\n\\t\""
+      "\"punpcklwd %%xmm7, %%xmm7\\n\\t\""
+      "\"pshufd $0x00, %%xmm5, %%xmm5\\n\\t\""
+      "\"pshufd $0x00, %%xmm6, %%xmm6\\n\\t\""
+      "\"pshufd $0x00, %%xmm7, %%xmm7\\n\\t\""
+      "\"pxor %%xmm4, %%xmm4\\n\\t\""
+      "\"movdqu (%1), %%xmm0\\n\\t\""
+      "\"movdqu (%0), %%xmm1\\n\\t\""
+      "\"movdqa %%xmm0, %%xmm2\\n\\t\""
+      "\"punpcklbw %%xmm4, %%xmm2\\n\\t\""
+      "\"movdqa %%xmm1, %%xmm3\\n\\t\""
+      "\"punpcklbw %%xmm4, %%xmm3\\n\\t\""
+      "\"pmullw %%xmm5, %%xmm2\\n\\t\""
+      "\"pmullw %%xmm6, %%xmm3\\n\\t\""
+      "\"paddw %%xmm3, %%xmm2\\n\\t\""
+      "\"paddw %%xmm7, %%xmm2\\n\\t\""
+      "\"psrlw $8, %%xmm2\\n\\t\""
+      "\"punpckhbw %%xmm4, %%xmm0\\n\\t\""
+      "\"punpckhbw %%xmm4, %%xmm1\\n\\t\""
+      "\"pmullw %%xmm5, %%xmm0\\n\\t\""
+      "\"pmullw %%xmm6, %%xmm1\\n\\t\""
+      "\"paddw %%xmm1, %%xmm0\\n\\t\""
+      "\"paddw %%xmm7, %%xmm0\\n\\t\""
+      "\"psrlw $8, %%xmm0\\n\\t\""
+      "\"packuswb %%xmm0, %%xmm2\\n\\t\""
+      "\"movdqu %%xmm2, (%0)\\n\\t\""
+      ": : \"r\"(d), \"r\"(s), \"r\"(alpha), \"r\"(ia), \"r\"(128u) : "
+      "\"memory\", \"xmm0\", \"xmm1\", \"xmm2\", \"xmm3\", \"xmm4\", "
+      "\"xmm5\", \"xmm6\", \"xmm7\");\n"
+      "}\n"
+      "void add16(void *d, const void *s) {\n"
+      "  __asm__ volatile("
+      "\"movdqu (%1), %%xmm0\\n\\t\""
+      "\"movdqu (%0), %%xmm1\\n\\t\""
+      "\"paddusb %%xmm0, %%xmm1\\n\\t\""
+      "\"movdqu %%xmm1, (%0)\\n\\t\""
+      ": : \"r\"(d), \"r\"(s) : \"memory\", \"xmm0\", \"xmm1\");\n"
+      "}\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"missing copy clobber",
+        "void bad(void *d, const void *s) { __asm__ volatile("
+        "\"movdqu   (%1), %%xmm0\\n\\t\""
+        "\"movdqu 16(%1), %%xmm1\\n\\t\""
+        "\"movdqu 32(%1), %%xmm2\\n\\t\""
+        "\"movdqu 48(%1), %%xmm3\\n\\t\""
+        "\"movntdq %%xmm0,   (%0)\\n\\t\""
+        "\"movntdq %%xmm1, 16(%0)\\n\\t\""
+        "\"movntdq %%xmm2, 32(%0)\\n\\t\""
+        "\"movntdq %%xmm3, 48(%0)\\n\\t\""
+        ": : \"r\"(d), \"r\"(s) : "
+        "\"memory\", \"xmm0\", \"xmm1\", \"xmm2\"); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU kernel SIMD assembly requires the exact operands and clobbers"},
+      {{"duplicate SIMD clobber",
+        "void bad(void *d, const void *s) { __asm__ volatile("
+        "\"movdqu (%1), %%xmm0\\n\\t\""
+        "\"movntdq %%xmm0, (%0)\\n\\t\""
+        ": : \"r\"(d), \"r\"(s) : "
+        "\"memory\", \"xmm0\", \"xmm1\", \"xmm1\"); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u, "GNU inline assembly xmm1 clobber is listed twice"},
+      {{"changed SIMD template",
+        "void bad(void *d, const void *s) { __asm__ volatile("
+        "\"movdqu 4(%1), %%xmm0\\n\\t\""
+        "\"movntdq %%xmm0, (%0)\\n\\t\""
+        ": : \"r\"(d), \"r\"(s) : "
+        "\"memory\", \"xmm0\", \"xmm1\"); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU inline assembly XMM clobber template is outside this slice"}};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_u32 index;
+  int failed = 1;
+  if (begin_frontend_fixture(
+          &fixture, "kernel-simd-assembly", host_root,
+          8u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  if (parse_valid_fixture(
+          &fixture, "/kernel-simd-assembly.c", source, &unit) != 0 ||
+      validate_kernel_simd_assembly_unit(&unit) != 0) {
+    (void)fprintf(
+        stderr, "kernel-simd-assembly: public graph differs\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case =
+        &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure,
+            "/kernel-simd-assembly-failure.c", test_case->line,
+            test_case->column, test_case->message) != 0 ||
+        validate_kernel_simd_assembly_unit(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)puts("kernel-simd-assembly: ok");
   }
   return failed;
 }
@@ -32052,6 +32295,7 @@ int main(int argc, char **argv) {
                    "privileged-register-assembly|fxsave-assembly|"
                    "ldmxcsr-memory-input|"
                    "movss-memory-assembly|"
+                   "kernel-simd-assembly|"
                    "x87-sine-memory-assembly|"
                    "x87-round-down-memory-assembly|"
                    "x87-pow-memory-assembly|"
@@ -32173,6 +32417,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "movss-memory-assembly") == 0) {
     return run_movss_memory_assembly(argv[2]);
+  }
+  if (strcmp(argv[1], "kernel-simd-assembly") == 0) {
+    return run_kernel_simd_assembly(argv[2]);
   }
   if (strcmp(argv[1], "x87-sine-memory-assembly") == 0) {
     return run_x87_sine_memory_assembly(argv[2]);

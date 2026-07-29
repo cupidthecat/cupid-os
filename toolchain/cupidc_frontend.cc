@@ -12880,6 +12880,142 @@ typedef enum {
   CFRONT_MOVSS_MEMORY_STORE
 } cfront_movss_memory_kind_t;
 
+typedef enum {
+  CFRONT_KERNEL_SIMD_NONE = 0,
+  CFRONT_KERNEL_SIMD_COPY_64,
+  CFRONT_KERNEL_SIMD_COPY_16,
+  CFRONT_KERNEL_SIMD_BROADCAST,
+  CFRONT_KERNEL_SIMD_STORE_16,
+  CFRONT_KERNEL_SIMD_BLEND_16,
+  CFRONT_KERNEL_SIMD_ADD_16
+} cfront_kernel_simd_kind_t;
+
+static cfront_kernel_simd_kind_t cfront_kernel_simd_template_kind(
+    ctool_string_t template_text) {
+  if (cfront_string_literal(
+          template_text,
+          "movdqu   (%1), %%xmm0\n\t"
+          "movdqu 16(%1), %%xmm1\n\t"
+          "movdqu 32(%1), %%xmm2\n\t"
+          "movdqu 48(%1), %%xmm3\n\t"
+          "movntdq %%xmm0,   (%0)\n\t"
+          "movntdq %%xmm1, 16(%0)\n\t"
+          "movntdq %%xmm2, 32(%0)\n\t"
+          "movntdq %%xmm3, 48(%0)\n\t") == CTOOL_TRUE) {
+    return CFRONT_KERNEL_SIMD_COPY_64;
+  }
+  if (cfront_string_literal(
+          template_text,
+          "movdqu (%1), %%xmm0\n\t"
+          "movntdq %%xmm0, (%0)\n\t") == CTOOL_TRUE) {
+    return CFRONT_KERNEL_SIMD_COPY_16;
+  }
+  if (cfront_string_literal(
+          template_text,
+          "movd %0, %%xmm0\n\t"
+          "pshufd $0x00, %%xmm0, %%xmm0\n\t") == CTOOL_TRUE) {
+    return CFRONT_KERNEL_SIMD_BROADCAST;
+  }
+  if (cfront_string_literal(
+          template_text, "movntdq %%xmm0, (%0)\n\t") == CTOOL_TRUE) {
+    return CFRONT_KERNEL_SIMD_STORE_16;
+  }
+  if (cfront_string_literal(
+          template_text,
+          "movd %2, %%xmm5\n\t"
+          "movd %3, %%xmm6\n\t"
+          "movd %4, %%xmm7\n\t"
+          "punpcklwd %%xmm5, %%xmm5\n\t"
+          "punpcklwd %%xmm6, %%xmm6\n\t"
+          "punpcklwd %%xmm7, %%xmm7\n\t"
+          "pshufd $0x00, %%xmm5, %%xmm5\n\t"
+          "pshufd $0x00, %%xmm6, %%xmm6\n\t"
+          "pshufd $0x00, %%xmm7, %%xmm7\n\t"
+          "pxor %%xmm4, %%xmm4\n\t"
+          "movdqu (%1), %%xmm0\n\t"
+          "movdqu (%0), %%xmm1\n\t"
+          "movdqa %%xmm0, %%xmm2\n\t"
+          "punpcklbw %%xmm4, %%xmm2\n\t"
+          "movdqa %%xmm1, %%xmm3\n\t"
+          "punpcklbw %%xmm4, %%xmm3\n\t"
+          "pmullw %%xmm5, %%xmm2\n\t"
+          "pmullw %%xmm6, %%xmm3\n\t"
+          "paddw %%xmm3, %%xmm2\n\t"
+          "paddw %%xmm7, %%xmm2\n\t"
+          "psrlw $8, %%xmm2\n\t"
+          "punpckhbw %%xmm4, %%xmm0\n\t"
+          "punpckhbw %%xmm4, %%xmm1\n\t"
+          "pmullw %%xmm5, %%xmm0\n\t"
+          "pmullw %%xmm6, %%xmm1\n\t"
+          "paddw %%xmm1, %%xmm0\n\t"
+          "paddw %%xmm7, %%xmm0\n\t"
+          "psrlw $8, %%xmm0\n\t"
+          "packuswb %%xmm0, %%xmm2\n\t"
+          "movdqu %%xmm2, (%0)\n\t") == CTOOL_TRUE) {
+    return CFRONT_KERNEL_SIMD_BLEND_16;
+  }
+  return cfront_string_literal(
+             template_text,
+             "movdqu (%1), %%xmm0\n\t"
+             "movdqu (%0), %%xmm1\n\t"
+             "paddusb %%xmm0, %%xmm1\n\t"
+             "movdqu %%xmm1, (%0)\n\t") == CTOOL_TRUE
+             ? CFRONT_KERNEL_SIMD_ADD_16
+             : CFRONT_KERNEL_SIMD_NONE;
+}
+
+static ctool_u32 cfront_xmm_clobber_flag(ctool_string_t name) {
+  if (cfront_string_literal(name, "xmm0") == CTOOL_TRUE) {
+    return CTOOL_C_ASSEMBLY_XMM0_CLOBBER;
+  }
+  if (cfront_string_literal(name, "xmm1") == CTOOL_TRUE) {
+    return CTOOL_C_ASSEMBLY_XMM1_CLOBBER;
+  }
+  if (cfront_string_literal(name, "xmm2") == CTOOL_TRUE) {
+    return CTOOL_C_ASSEMBLY_XMM2_CLOBBER;
+  }
+  if (cfront_string_literal(name, "xmm3") == CTOOL_TRUE) {
+    return CTOOL_C_ASSEMBLY_XMM3_CLOBBER;
+  }
+  if (cfront_string_literal(name, "xmm4") == CTOOL_TRUE) {
+    return CTOOL_C_ASSEMBLY_XMM4_CLOBBER;
+  }
+  if (cfront_string_literal(name, "xmm5") == CTOOL_TRUE) {
+    return CTOOL_C_ASSEMBLY_XMM5_CLOBBER;
+  }
+  if (cfront_string_literal(name, "xmm6") == CTOOL_TRUE) {
+    return CTOOL_C_ASSEMBLY_XMM6_CLOBBER;
+  }
+  return cfront_string_literal(name, "xmm7") == CTOOL_TRUE
+             ? CTOOL_C_ASSEMBLY_XMM7_CLOBBER
+             : 0u;
+}
+
+static const char *cfront_xmm_duplicate_message(ctool_u32 flag) {
+  if (flag == CTOOL_C_ASSEMBLY_XMM0_CLOBBER) {
+    return "GNU inline assembly xmm0 clobber is listed twice";
+  }
+  if (flag == CTOOL_C_ASSEMBLY_XMM1_CLOBBER) {
+    return "GNU inline assembly xmm1 clobber is listed twice";
+  }
+  if (flag == CTOOL_C_ASSEMBLY_XMM2_CLOBBER) {
+    return "GNU inline assembly xmm2 clobber is listed twice";
+  }
+  if (flag == CTOOL_C_ASSEMBLY_XMM3_CLOBBER) {
+    return "GNU inline assembly xmm3 clobber is listed twice";
+  }
+  if (flag == CTOOL_C_ASSEMBLY_XMM4_CLOBBER) {
+    return "GNU inline assembly xmm4 clobber is listed twice";
+  }
+  if (flag == CTOOL_C_ASSEMBLY_XMM5_CLOBBER) {
+    return "GNU inline assembly xmm5 clobber is listed twice";
+  }
+  if (flag == CTOOL_C_ASSEMBLY_XMM6_CLOBBER) {
+    return "GNU inline assembly xmm6 clobber is listed twice";
+  }
+  return "GNU inline assembly xmm7 clobber is listed twice";
+}
+
 static cfront_movss_memory_kind_t cfront_movss_memory_template_kind(
     ctool_string_t template_text) {
   if (cfront_string_literal(
@@ -14736,6 +14872,166 @@ static ctool_bool cfront_movss_memory_operand_is_float(
   return CTOOL_TRUE;
 }
 
+static ctool_bool cfront_kernel_simd_pointer_input_is_valid(
+    cfront_context_t *context,
+    const ctool_c_assembly_operand_t *operand) {
+  ctool_c_type_node_t pointer;
+  ctool_c_type_node_t referent;
+  ctool_u32 pointer_base;
+  ctool_u32 pointer_qualifiers;
+  ctool_u32 referent_base;
+  ctool_u32 referent_qualifiers;
+  ctool_status_t status;
+  if (operand == (const ctool_c_assembly_operand_t *)0 ||
+      operand->matching_output != CTOOL_C_AST_NONE ||
+      operand->expression >= context->expressions.count ||
+      cfront_string_literal(operand->constraint, "r") == CTOOL_FALSE) {
+    return CTOOL_FALSE;
+  }
+  status = cfront_underlying_type(
+      context, operand->type, &pointer_base, &pointer_qualifiers, &pointer);
+  if (status == CTOOL_OK && pointer.kind == CTOOL_C_TYPE_POINTER) {
+    status = cfront_underlying_type(
+        context, pointer.referenced_type, &referent_base,
+        &referent_qualifiers, &referent);
+  }
+  (void)pointer_base;
+  (void)pointer_qualifiers;
+  (void)referent_base;
+  (void)referent_qualifiers;
+  return status == CTOOL_OK &&
+                 pointer.kind == CTOOL_C_TYPE_POINTER &&
+                 referent.kind != CTOOL_C_TYPE_FUNCTION
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cfront_kernel_simd_integer_input_is_valid(
+    cfront_context_t *context,
+    const ctool_c_assembly_operand_t *operand) {
+  cfront_integer_type_t integer;
+  ctool_bool is_integer = CTOOL_FALSE;
+  ctool_status_t status;
+  if (operand == (const ctool_c_assembly_operand_t *)0 ||
+      operand->matching_output != CTOOL_C_AST_NONE ||
+      operand->expression >= context->expressions.count ||
+      cfront_string_literal(operand->constraint, "r") == CTOOL_FALSE) {
+    return CTOOL_FALSE;
+  }
+  status = cfront_integer_type(
+      context, operand->type, &integer, &is_integer);
+  return status == CTOOL_OK && is_integer == CTOOL_TRUE &&
+                 integer.width == 32u
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_status_t cfront_validate_kernel_simd_assembly(
+    cfront_context_t *context, const ctool_c_pp_token_t *keyword,
+    const ctool_c_assembly_t *assembly) {
+  cfront_kernel_simd_kind_t kind =
+      cfront_kernel_simd_template_kind(assembly->template_text);
+  ctool_u32 expected_flags;
+  ctool_u32 expected_inputs;
+  ctool_u32 pointer_inputs;
+  ctool_u32 input;
+  ctool_status_t status;
+  if (kind == CFRONT_KERNEL_SIMD_NONE) {
+    if ((assembly->flags &
+         (CTOOL_C_ASSEMBLY_XMM1_CLOBBER |
+          CTOOL_C_ASSEMBLY_XMM2_CLOBBER |
+          CTOOL_C_ASSEMBLY_XMM3_CLOBBER |
+          CTOOL_C_ASSEMBLY_XMM4_CLOBBER |
+          CTOOL_C_ASSEMBLY_XMM5_CLOBBER |
+          CTOOL_C_ASSEMBLY_XMM6_CLOBBER |
+          CTOOL_C_ASSEMBLY_XMM7_CLOBBER)) != 0u) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+          keyword,
+          "GNU inline assembly XMM clobber template is outside this slice");
+    }
+    return CTOOL_OK;
+  }
+  expected_flags = CTOOL_C_ASSEMBLY_VOLATILE;
+  expected_inputs = 1u;
+  pointer_inputs = 0u;
+  if (kind == CFRONT_KERNEL_SIMD_COPY_64) {
+    expected_flags |= CTOOL_C_ASSEMBLY_MEMORY_CLOBBER |
+                      CTOOL_C_ASSEMBLY_XMM0_CLOBBER |
+                      CTOOL_C_ASSEMBLY_XMM1_CLOBBER |
+                      CTOOL_C_ASSEMBLY_XMM2_CLOBBER |
+                      CTOOL_C_ASSEMBLY_XMM3_CLOBBER;
+    expected_inputs = 2u;
+    pointer_inputs = 2u;
+  } else if (kind == CFRONT_KERNEL_SIMD_COPY_16) {
+    expected_flags |= CTOOL_C_ASSEMBLY_MEMORY_CLOBBER |
+                      CTOOL_C_ASSEMBLY_XMM0_CLOBBER;
+    expected_inputs = 2u;
+    pointer_inputs = 2u;
+  } else if (kind == CFRONT_KERNEL_SIMD_BROADCAST) {
+    expected_flags |= CTOOL_C_ASSEMBLY_XMM0_CLOBBER;
+  } else if (kind == CFRONT_KERNEL_SIMD_STORE_16) {
+    expected_flags |= CTOOL_C_ASSEMBLY_MEMORY_CLOBBER;
+    pointer_inputs = 1u;
+  } else if (kind == CFRONT_KERNEL_SIMD_BLEND_16) {
+    expected_flags |= CTOOL_C_ASSEMBLY_MEMORY_CLOBBER |
+                      CTOOL_C_ASSEMBLY_XMM0_CLOBBER |
+                      CTOOL_C_ASSEMBLY_XMM1_CLOBBER |
+                      CTOOL_C_ASSEMBLY_XMM2_CLOBBER |
+                      CTOOL_C_ASSEMBLY_XMM3_CLOBBER |
+                      CTOOL_C_ASSEMBLY_XMM4_CLOBBER |
+                      CTOOL_C_ASSEMBLY_XMM5_CLOBBER |
+                      CTOOL_C_ASSEMBLY_XMM6_CLOBBER |
+                      CTOOL_C_ASSEMBLY_XMM7_CLOBBER;
+    expected_inputs = 5u;
+    pointer_inputs = 2u;
+  } else {
+    expected_flags |= CTOOL_C_ASSEMBLY_MEMORY_CLOBBER |
+                      CTOOL_C_ASSEMBLY_XMM0_CLOBBER |
+                      CTOOL_C_ASSEMBLY_XMM1_CLOBBER;
+    expected_inputs = 2u;
+    pointer_inputs = 2u;
+  }
+  if (assembly->flags != expected_flags ||
+      assembly->output_count != 0u ||
+      assembly->input_count != expected_inputs ||
+      assembly->first_operand > context->assembly_operands.count ||
+      expected_inputs >
+          context->assembly_operands.count - assembly->first_operand) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
+        keyword,
+        "GNU kernel SIMD assembly requires the exact operands and clobbers");
+  }
+  for (input = 0u; input < expected_inputs; input++) {
+    ctool_c_assembly_operand_t operand;
+    status = cfront_vector_get(
+        &context->assembly_operands, assembly->first_operand + input,
+        &operand);
+    if (status != CTOOL_OK) {
+      return ctool_job_diagnostic_count(context->job) == 0u
+                 ? cfront_storage_failure(context, status)
+                 : status;
+    }
+    if ((input < pointer_inputs &&
+         cfront_kernel_simd_pointer_input_is_valid(
+             context, &operand) == CTOOL_FALSE) ||
+        (input >= pointer_inputs &&
+         cfront_kernel_simd_integer_input_is_valid(
+             context, &operand) == CTOOL_FALSE)) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
+          keyword,
+          input < pointer_inputs
+              ? "GNU kernel SIMD assembly pointer inputs require "
+                "represented object or void pointers"
+              : "GNU kernel SIMD assembly scalar inputs require "
+                "represented 32-bit integers");
+    }
+  }
+  return CTOOL_OK;
+}
+
 static ctool_status_t cfront_validate_movss_memory_assembly(
     cfront_context_t *context, const ctool_c_pp_token_t *keyword,
     const ctool_c_assembly_t *assembly) {
@@ -14749,7 +15045,9 @@ static ctool_status_t cfront_validate_movss_memory_assembly(
   if (kind == CFRONT_MOVSS_MEMORY_NONE) {
     if ((assembly->flags & CTOOL_C_ASSEMBLY_XMM0_CLOBBER) != 0u &&
         cfront_sqrtsd_register_template(
-            assembly->template_text) == CTOOL_FALSE) {
+            assembly->template_text) == CTOOL_FALSE &&
+        cfront_kernel_simd_template_kind(
+            assembly->template_text) == CFRONT_KERNEL_SIMD_NONE) {
       return cfront_emit_failure(
           context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
           keyword,
@@ -15632,7 +15930,7 @@ static ctool_status_t cfront_parse_gnu_assembly_statement(
   if (status == CTOOL_OK && basic_assembly == CTOOL_FALSE &&
       cfront_peek_is(context, ":") == CTOOL_TRUE) {
     ctool_bool saw_memory = CTOOL_FALSE;
-    ctool_bool saw_xmm0 = CTOOL_FALSE;
+    ctool_u32 saw_xmm = 0u;
     ctool_bool saw_ax = CTOOL_FALSE;
     ctool_bool saw_cc = CTOOL_FALSE;
     ctool_bool saw_eax = CTOOL_FALSE;
@@ -15643,13 +15941,17 @@ static ctool_status_t cfront_parse_gnu_assembly_statement(
            cfront_peek_is(context, ")") == CTOOL_FALSE) {
       const ctool_c_pp_token_t *clobber_token = cfront_peek(context);
       ctool_string_t clobber = {0};
+      ctool_u32 xmm_flag = 0u;
       status = cfront_decode_assembly_string(
           context, clobber_token,
           "GNU inline assembly clobber requires a string name",
           &clobber);
+      if (status == CTOOL_OK) {
+        xmm_flag = cfront_xmm_clobber_flag(clobber);
+      }
       if (status == CTOOL_OK &&
           cfront_string_literal(clobber, "memory") == CTOOL_FALSE &&
-          cfront_string_literal(clobber, "xmm0") == CTOOL_FALSE &&
+          xmm_flag == 0u &&
           cfront_string_literal(clobber, "ax") == CTOOL_FALSE &&
           cfront_string_literal(clobber, "cc") == CTOOL_FALSE &&
           cfront_string_literal(clobber, "eax") == CTOOL_FALSE &&
@@ -15669,12 +15971,11 @@ static ctool_status_t cfront_parse_gnu_assembly_statement(
             "GNU inline assembly memory clobber is listed twice");
       }
       if (status == CTOOL_OK &&
-          cfront_string_literal(clobber, "xmm0") == CTOOL_TRUE &&
-          saw_xmm0 == CTOOL_TRUE) {
+          xmm_flag != 0u &&
+          (saw_xmm & xmm_flag) != 0u) {
         status = cfront_emit_failure(
             context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT,
-            clobber_token,
-            "GNU inline assembly xmm0 clobber is listed twice");
+            clobber_token, cfront_xmm_duplicate_message(xmm_flag));
       }
       if (status == CTOOL_OK &&
           cfront_string_literal(clobber, "ax") == CTOOL_TRUE &&
@@ -15720,10 +16021,9 @@ static ctool_status_t cfront_parse_gnu_assembly_statement(
           cfront_string_literal(clobber, "memory") == CTOOL_TRUE) {
         saw_memory = CTOOL_TRUE;
         assembly.flags |= CTOOL_C_ASSEMBLY_MEMORY_CLOBBER;
-      } else if (status == CTOOL_OK &&
-                 cfront_string_literal(clobber, "xmm0") == CTOOL_TRUE) {
-        saw_xmm0 = CTOOL_TRUE;
-        assembly.flags |= CTOOL_C_ASSEMBLY_XMM0_CLOBBER;
+      } else if (status == CTOOL_OK && xmm_flag != 0u) {
+        saw_xmm |= xmm_flag;
+        assembly.flags |= xmm_flag;
       } else if (status == CTOOL_OK &&
                  cfront_string_literal(clobber, "ax") == CTOOL_TRUE) {
         saw_ax = CTOOL_TRUE;
@@ -15808,6 +16108,10 @@ static ctool_status_t cfront_parse_gnu_assembly_statement(
   }
   if (status == CTOOL_OK) {
     status = cfront_validate_ldmxcsr_assembly(
+        context, keyword, &assembly);
+  }
+  if (status == CTOOL_OK) {
+    status = cfront_validate_kernel_simd_assembly(
         context, keyword, &assembly);
   }
   if (status == CTOOL_OK) {
@@ -22626,7 +22930,14 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
              CTOOL_C_ASSEMBLY_CC_CLOBBER |
              CTOOL_C_ASSEMBLY_EAX_CLOBBER |
              CTOOL_C_ASSEMBLY_ECX_CLOBBER |
-             CTOOL_C_ASSEMBLY_EDI_CLOBBER)) != 0u ||
+             CTOOL_C_ASSEMBLY_EDI_CLOBBER |
+             CTOOL_C_ASSEMBLY_XMM1_CLOBBER |
+             CTOOL_C_ASSEMBLY_XMM2_CLOBBER |
+             CTOOL_C_ASSEMBLY_XMM3_CLOBBER |
+             CTOOL_C_ASSEMBLY_XMM4_CLOBBER |
+             CTOOL_C_ASSEMBLY_XMM5_CLOBBER |
+             CTOOL_C_ASSEMBLY_XMM6_CLOBBER |
+             CTOOL_C_ASSEMBLY_XMM7_CLOBBER)) != 0u ||
           direct_binding_valid == CTOOL_FALSE ||
           (assembly->template_text.data == (const char *)0 &&
            assembly->template_text.size != 0u) ||
