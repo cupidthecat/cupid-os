@@ -883,11 +883,14 @@ external object declarations for _bss_start and _kernel_end, and no
 compiler-managed frame. Frontend statement depth and Linear IR body identity
 reject leading, label-wrapped, or otherwise nested copies.
 
-The emitter installs the fixed stack, loads both symbols through R_386_32
-relocations, derives the doubleword count, clears eax, and emits CLD plus REP
-STOSD through the shared x86 model. The kmain call uses the reset stack
-residue. If it returns, _start disables interrupts and remains in a halt
-loop.
+The checked seed installs the fixed stack, loads both symbols through
+R_386_32 relocations, derives the doubleword count, clears eax, and emits CLD
+plus REP STOSD through the shared x86 model. Compiler head accepts a nonzero
+stack top written as one through eight hexadecimal digits when it is aligned
+to 4 KiB. It places that value in MOV ESP, imm32 while keeping the rest of the
+statement exact. The kmain call uses the reset stack residue. If it returns,
+_start disables interrupts and remains in a halt loop. The active source and
+checked seed still use 0x00F00000.
 
 The exact fixture has a 27-byte assembly body in a 42-byte function. Its
 three relocations name _bss_start, _kernel_end, and kmain. Two runs of the

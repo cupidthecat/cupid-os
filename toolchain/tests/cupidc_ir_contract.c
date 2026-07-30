@@ -37070,7 +37070,7 @@ static int run_kernel_start_assembly(const char *host_root) {
       "void kmain(void);\n"
       "void _start(void) __attribute__((section(\".text.start\")));\n"
       "void _start(void) {\n"
-      "  asm volatile(\"mov $0xF00000, %%esp\\nmov %%esp, %%ebp\\n"
+      "  asm volatile(\"mov $0x1100000, %%esp\\nmov %%esp, %%ebp\\n"
       "mov $_bss_start, %%edi\\nmov $_kernel_end, %%ecx\\n"
       "sub %%edi, %%ecx\\nshr $2, %%ecx\\n"
       "xor %%eax, %%eax\\ncld\\nrep stosl\\n\""

@@ -27995,20 +27995,20 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.cc",           "/toolchain/x86.cc",
       "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
-      65u, 68u, 66u, 14u, 31u, 143u, 261u, 352u, 419u, 81u, 37u, 60u,
+      65u, 68u, 66u, 14u, 31u, 143u, 262u, 353u, 420u, 81u, 37u, 60u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 76860u, 85252u, 16872u, 42212u,
-      190304u, 479330u, 535119u, 836265u, 139646u, 70368u, 80478u,
+      190304u, 480797u, 536761u, 837454u, 139646u, 70368u, 80478u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 89320u, 99772u, 20180u, 49484u,
-      226668u, 517076u, 602080u, 995868u, 157828u, 79348u, 134656u,
+      226668u, 518620u, 603816u, 997160u, 157828u, 79348u, 134656u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x5fbbfaf2u, 0x4ca44a27u,
       0x7238e153u, 0x999f97b7u, 0xb49d8eb9u,
-      0x9f6f6a8au, 0x6044ec6eu, 0x0ec0b332u, 0x239f52c7u,
+      0x281b3edbu, 0x7de6ea3fu, 0x0f27c0c9u, 0x239f52c7u,
       0x34558a49u, 0x7c198364u, 0x8774de7du};
   ctool_u32 index;
   int all_matched = 1;
@@ -40819,7 +40819,7 @@ static int validate_kernel_start_decoding(
       !kernel_start_register_operand(
           &decoded[0].instruction.operands[0], 4u) ||
       !kernel_start_immediate_operand(
-          &decoded[0].instruction.operands[1], 0x00f00000u) ||
+          &decoded[0].instruction.operands[1], 0x01100000u) ||
       decoded[1].instruction.operand_count != 2u ||
       !kernel_start_register_operand(
           &decoded[1].instruction.operands[0], 5u) ||
@@ -40889,7 +40889,7 @@ static int validate_kernel_start_assembly_object(
     ctool_job_t *job, const ctool_elf32_object_t *object) {
   static const ctool_u8 function_bytes[] = {
       0x55u, 0x89u, 0xe5u,
-      0xbcu, 0x00u, 0x00u, 0xf0u, 0x00u,
+      0xbcu, 0x00u, 0x00u, 0x10u, 0x01u,
       0x89u, 0xe5u,
       0xbfu, 0x00u, 0x00u, 0x00u, 0x00u,
       0xb9u, 0x00u, 0x00u, 0x00u, 0x00u,
@@ -40983,7 +40983,7 @@ static int run_kernel_start_assembly_object(const char *host_root) {
       "void kmain(void);\n"
       "void _start(void) __attribute__((section(\".text.start\")));\n"
       "void _start(void) {\n"
-      "  asm volatile(\"mov $0xF00000, %%esp\\nmov %%esp, %%ebp\\n"
+      "  asm volatile(\"mov $0x1100000, %%esp\\nmov %%esp, %%ebp\\n"
       "mov $_bss_start, %%edi\\nmov $_kernel_end, %%ecx\\n"
       "sub %%edi, %%ecx\\nshr $2, %%ecx\\n"
       "xor %%eax, %%eax\\ncld\\nrep stosl\\n\""

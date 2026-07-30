@@ -436,11 +436,15 @@ external object declarations for `_bss_start` and `_kernel_end`, and no
 compiler-managed frame. Frontend statement depth and Linear IR body identity
 reject leading, label-wrapped, or otherwise nested copies.
 
-The emitter installs the fixed stack, loads both linker symbols through
+The checked seed installs the fixed stack, loads both linker symbols through
 `R_386_32` relocations, derives the doubleword count, clears EAX, and emits
-CLD plus REP STOSD through the shared x86 model. The following `kmain()` call
-uses stack-base residue zero. If it returns, `_start` disables interrupts and
-halts instead of using the discarded frame.
+CLD plus REP STOSD through the shared x86 model. Compiler head now accepts a
+nonzero stack top written as one through eight hexadecimal digits, provided
+it is aligned to 4 KiB, and emits that value in `MOV ESP, imm32`. The rest of
+the statement remains exact. The following `kmain()` call uses stack-base
+residue zero. If it returns, `_start` disables interrupts and halts instead of
+using the discarded frame. The active source and checked seed still use
+`0x00F00000`.
 
 The exact fixture has a 27-byte assembly body inside a 42-byte function. Its
 three relocations name `_bss_start`, `_kernel_end`, and `kmain`. Two runs of
@@ -449,7 +453,8 @@ the Cupid-built compiler emit `kernel/core/kernel.cc` as the same
 `d44d06949d48ead865d0d8c1bdd3b76a67b429e0b7a369318ec4fbe8d9f44ed7`.
 A private hybrid image with that object reaches the desktop and completes
 `/bin/ls.cc`. The production wrapper freezes the source and its 63-header
-closure, and the normal recipe now uses this checked object.
+closure, and the normal recipe now uses this checked object. ADR 0185 records
+the compiler-head stack-top boundary.
 
 The checked seed accepts the four exact descriptor-table and
 segment-register statements in `kernel/smp/percpu.cc`. A packed

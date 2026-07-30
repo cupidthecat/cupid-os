@@ -193,20 +193,70 @@ static ctool_bool cemit_strings_equal(ctool_string_t left,
   return CTOOL_TRUE;
 }
 
+static ctool_bool cemit_kernel_bss_clear_stack_top(
+    ctool_string_t template_text, ctool_u32 *stack_top_out) {
+  static const char prefix[] = "mov $0x";
+  static const char suffix[] =
+      ", %%esp\n"
+      "mov %%esp, %%ebp\n"
+      "mov $_bss_start, %%edi\n"
+      "mov $_kernel_end, %%ecx\n"
+      "sub %%edi, %%ecx\n"
+      "shr $2, %%ecx\n"
+      "xor %%eax, %%eax\n"
+      "cld\n"
+      "rep stosl\n";
+  const ctool_u32 prefix_size = (ctool_u32)sizeof(prefix) - 1u;
+  const ctool_u32 suffix_size = (ctool_u32)sizeof(suffix) - 1u;
+  ctool_u32 digit_count;
+  ctool_u32 index;
+  ctool_u32 stack_top = 0u;
+  if (template_text.data == (const char *)0 ||
+      template_text.size <= prefix_size + suffix_size) {
+    return CTOOL_FALSE;
+  }
+  for (index = 0u; index < prefix_size; index++) {
+    if (template_text.data[index] != prefix[index]) {
+      return CTOOL_FALSE;
+    }
+  }
+  for (index = 0u; index < suffix_size; index++) {
+    if (template_text.data[
+            template_text.size - suffix_size + index] != suffix[index]) {
+      return CTOOL_FALSE;
+    }
+  }
+  digit_count = template_text.size - prefix_size - suffix_size;
+  if (digit_count == 0u || digit_count > 8u) {
+    return CTOOL_FALSE;
+  }
+  for (index = 0u; index < digit_count; index++) {
+    char value = template_text.data[prefix_size + index];
+    ctool_u32 digit;
+    if (value >= '0' && value <= '9') {
+      digit = (ctool_u32)(value - '0');
+    } else if (value >= 'a' && value <= 'f') {
+      digit = 10u + (ctool_u32)(value - 'a');
+    } else if (value >= 'A' && value <= 'F') {
+      digit = 10u + (ctool_u32)(value - 'A');
+    } else {
+      return CTOOL_FALSE;
+    }
+    stack_top = (stack_top << 4u) | digit;
+  }
+  if (stack_top == 0u || (stack_top & 0xfffu) != 0u) {
+    return CTOOL_FALSE;
+  }
+  if (stack_top_out != (ctool_u32 *)0) {
+    *stack_top_out = stack_top;
+  }
+  return CTOOL_TRUE;
+}
+
 static ctool_bool cemit_kernel_bss_clear_template(
     ctool_string_t template_text) {
-  return cemit_strings_equal(
-      template_text,
-      ctool_string(
-          "mov $0xF00000, %%esp\n"
-          "mov %%esp, %%ebp\n"
-          "mov $_bss_start, %%edi\n"
-          "mov $_kernel_end, %%ecx\n"
-          "sub %%edi, %%ecx\n"
-          "shr $2, %%ecx\n"
-          "xor %%eax, %%eax\n"
-          "cld\n"
-          "rep stosl\n"));
+  return cemit_kernel_bss_clear_stack_top(
+      template_text, (ctool_u32 *)0);
 }
 
 static ctool_bool cemit_find_external_object_binding(
@@ -10659,9 +10709,12 @@ static ctool_status_t cemit_emit_kernel_bss_clear_assembly(
   ctool_u32 kernel_end_binding;
   ctool_u32 bss_start_symbol;
   ctool_u32 kernel_end_symbol;
+  ctool_u32 stack_top;
   ctool_status_t status;
   if (cemit_kernel_bss_clear_assembly_metadata_is_valid(
           context, assembly) == CTOOL_FALSE ||
+      cemit_kernel_bss_clear_stack_top(
+          assembly->template_text, &stack_top) == CTOOL_FALSE ||
       cemit_find_external_object_binding(
           context, ctool_string("_bss_start"),
           &bss_start_binding) == CTOOL_FALSE ||
@@ -10678,7 +10731,7 @@ static ctool_status_t cemit_emit_kernel_bss_clear_assembly(
   }
   if (status == CTOOL_OK) {
     status = cemit_x86_move_register_constant(
-        context, 4u, 0x00f00000u);
+        context, 4u, stack_top);
   }
   if (status == CTOOL_OK) {
     status = cemit_x86_two_registers(

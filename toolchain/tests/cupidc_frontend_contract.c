@@ -7654,12 +7654,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.cc", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
        25287u, 479u, 286u, 0u, 0u},
-      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 261u, 7199u,
-       67130u, 944u, 348u, 0u, 0u},
-      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 352u, 8481u,
-       71733u, 1031u, 702u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 419u,
-       16332u, 108107u, 2450u, 1492u, 0u, 0u},
+      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 262u, 7250u,
+       67354u, 953u, 354u, 0u, 0u},
+      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 353u, 8533u,
+       71971u, 1041u, 708u, 0u, 0u},
+      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 420u,
+       16374u, 108280u, 2458u, 1497u, 0u, 0u},
       {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 81u, 2935u,
        19252u, 326u, 186u, 0u, 0u},
       {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
@@ -31109,7 +31109,7 @@ cleanup:
 static int validate_kernel_start_assembly_unit(
     const ctool_c_translation_unit_t *unit) {
   static const char kernel_template[] =
-      "mov $0xF00000, %%esp\n"
+      "mov $0x1100000, %%esp\n"
       "mov %%esp, %%ebp\n"
       "mov $_bss_start, %%edi\n"
       "mov $_kernel_end, %%ecx\n"
@@ -31170,7 +31170,7 @@ static int run_kernel_start_assembly(const char *host_root) {
       "void _start(void) __attribute__((section(\".text.start\")));\n"
       "void _start(void) {\n"
       "  __asm__ volatile(\n"
-      "      \"mov $0xF00000, %%esp\\n\"\n"
+      "      \"mov $0x1100000, %%esp\\n\"\n"
       "      \"mov %%esp, %%ebp\\n\"\n"
       "      \"mov $_bss_start, %%edi\\n\"\n"
       "      \"mov $_kernel_end, %%ecx\\n\"\n"
@@ -31203,7 +31203,23 @@ static int run_kernel_start_assembly(const char *host_root) {
          "void bad(void) { asm volatile(\"nop\" : : : \"eax\"); }\n",
          CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
         1u, 18u,
-        "GNU eax, ecx, and edi clobbers require the exact kernel BSS clear "
+        "GNU eax, ecx, and edi clobbers require the supported kernel BSS clear "
+        "template"},
+      {{"unaligned kernel stack top",
+         "extern unsigned int _kernel_end;\n"
+         "extern unsigned int _bss_start;\n"
+         "void _start(void) __attribute__((section(\".text.start\")));\n"
+         "void _start(void) {\n"
+         "  asm volatile("
+         "\"mov $0x1100001, %%esp\\nmov %%esp, %%ebp\\n"
+         "mov $_bss_start, %%edi\\nmov $_kernel_end, %%ecx\\n"
+         "sub %%edi, %%ecx\\nshr $2, %%ecx\\n"
+         "xor %%eax, %%eax\\ncld\\nrep stosl\\n\""
+         " : : : \"eax\", \"ecx\", \"edi\", \"memory\");\n"
+         "}\n",
+         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+        5u, 3u,
+        "GNU eax, ecx, and edi clobbers require the supported kernel BSS clear "
         "template"},
       {{"duplicate eax clobber",
          "void bad(void) { "
