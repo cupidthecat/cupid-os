@@ -65,21 +65,20 @@ The production boot source assembles to an exact 2,560-byte image with SHA-256
 CupidASM and the optional NASM oracle produce the same bytes for the current
 `0x00F00000` boot-stack layout.
 
-The checked seed includes the complete audited Doom compiler frontier,
+The checked seed includes the complete 83-root Doom compiler frontier,
 current GNU entity metadata, the active x87 and SSE memory forms, descriptor
-and segment assembly, every unchanged assembly effect in the then-named
-`libm.c`, explicit
-`double` to `unsigned long long` conversion, and exact naked IPI entries. Its
-stage-three CupidC image is 2,511,176 bytes with SHA-256
-`4b24bf45726e4ab43fe7830f992120f11de34236daef9ef8753303ab4513934c`.
+and segment assembly, every unchanged assembly effect in `libm.cc`, the exact
+dglibc jump block, pointer-preserving static address casts, explicit `double`
+to `unsigned long long` conversion, and exact naked IPI entries. Its
+stage-three CupidC image is 2,524,088 bytes with SHA-256
+`d05b48f14c5c57930c151f4d7099d686066c6cface01305c7d2c0261b660970d`.
 It came from stage three of the checked bootstrap at revision
-`8d5ef4564f753d528630c0f0a78db0f535d56b60`. It also carries the
-kernel-entry BSS clear and all packed SSE2 statements in the active SIMD
-source. CupidASM and CupidDis carry
-the 587-row shared x86 catalogue. With host code-generator commands
+`7609793ea594a8e024474509e5faacaf1d6c76ea`. It also carries the kernel-entry
+BSS clear and all packed SSE2 statements in the active SIMD source. CupidASM
+and CupidDis carry the 587-row shared x86 catalogue. With host code-generator commands
 poisoned, all five seed images match stage two. All 19 stage-two C objects,
 startup, and five images then match stage three, and both stages pass all 21
-tool behavior cases. ADR 0179 records this promotion and its post-promotion
+tool behavior cases. ADR 0183 records this promotion and its post-promotion
 reproof.
 
 The refreshed seed represents operand-free GNU assembly statements inside
@@ -243,8 +242,8 @@ transfer, and ADR 0181 records the string transfer. No strict checked-in
 kernel or driver root remains host-owned.
 
 The checked seed accepts ordered `-include` inputs through both the native
-and Cupid-built driver. That command can reproduce the complete audited
-Doom-tree preprocessing profile without editing vendored source. It also
+and Cupid-built driver. That command reproduces both complete audited Doom
+preprocessing profiles without editing vendored source. It also
 retains the sound driver's empty volatile memory barrier without emitting an
 instruction. An integer-only IEEE evaluator folds the unchanged static
 fixed-point table in `kernel/doom/src/am_map.c` without a host floating
@@ -259,13 +258,13 @@ narrow `unsigned int` color fields promote to signed `int` in unchanged
 `kernel/doom/src/i_video.c`. It now emits all 80 Doom-tree objects. The
 checked seed carries this complete tree frontier.
 
-Compiler head also emits the three separate compatibility roots. It keeps the
+The seed also emits the three separate compatibility roots. It keeps the
 explicit static string cast in `doom_libc_stubs.c` and emits the exact
 `dg_setjmp` and `dg_longjmp` file-scope block through Cupid's x86 model. A
-Cupid-built current compiler matches the host-built current compiler for all
-three objects. The current compiler frontier is 83/83, but no Doom recipe
-moves until the capability reaches the checked seed, host and Cupid link
-boundaries compare, the owned roots move to `.cc`, and runtime proof passes.
+second checked-seed compile matches the first for all three objects. The
+checked compiler frontier is 83/83, but no Doom recipe moves until the host
+and Cupid link boundaries compare, the owned roots move to `.cc`, and runtime
+proof passes.
 
 The checked seed resolves the C11 inline declaration set in
 `kernel/audio/nuked_opl3.cc`. The ordinary declaration in its header means
