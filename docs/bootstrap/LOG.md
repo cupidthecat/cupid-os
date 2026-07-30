@@ -17308,3 +17308,118 @@ This review correction changes no compiler output or ownership boundary. It
 makes the acceptance evidence match the narrow language rule already recorded
 by ADR 0189. Runtime floating truth, floating increment and decrement, SIMD
 unary signs, and the other documented Cupid mode gaps remain open.
+
+## 2026-07-30: author the ISO fixture without an external command
+
+The root graph still had one hidden executable dependency. When
+`test_iso/hello.iso` needed rebuilding, hostbuild searched for `mkisofs`,
+`genisoimage`, or `xorrisofs`. The audit saw only the surrounding Python
+recipe. A clean machine could build every Cupid-owned object and still stop
+at test-fixture packaging.
+
+Hostbuild now writes the data image itself. It emits the ECMA-119 primary
+descriptor, terminator, both path-table byte orders, block-bounded directory
+records, one canonical `RRIP_1991A` continuation, and sorted contiguous file
+data. Fixed timestamps remove checkout metadata. Stable ISO identifiers and
+Rock Ridge `NM` entries preserve the guest-visible names.
+
+The first candidate put a short extension declaration directly in the root
+record and emitted no `PX` metadata. That was enough for Cupid OS, but it was
+not an honest Rock Ridge image. The next version used the same older profile
+as the previous fixture: inline `SP`, deterministic `PX` and `TF`, one
+bounded `CE`, and the canonical extension record.
+
+An independent Windows libarchive probe then found a streaming defect. The
+continuation occupied block 20, behind a directory stream that ended at block
+23. Cupid OS could seek backward, but libarchive refused the backward
+continuation request. Moving `CE` after every directory removed the error.
+The following probe saw only the first long name because the candidate also
+emitted optional `ST` fields. The previous xorriso image omitted them; doing
+the same kept that reader's SUSP scan active across every `NM` record. It now
+lists all six root names and `sub/nested.txt`. The guest reads `SP`, `CE`, and
+`NM`; it ignores ownership and timestamps.
+
+The build graph also exposed a separate ownership mistake. `build-iso`
+regenerated `big.bin` even though Make already modeled that file as its own
+transform. ISO packaging now treats the complete fixture tree as immutable.
+The seven-line `test_iso/fixtures.manifest` pins the root's directories and
+files without making Make recurse through an unchecked path. A review then
+caught raw manifest paths entering Make prerequisite grammar: a semicolon or
+pipe could change the rule before hostbuild rejected the name. Make now
+declares the same seven portable paths explicitly, and a test requires that
+list to equal the manifest. Hostbuild also rejects names outside the letter,
+digit, dot, underscore, and dash alphabet. The rule records the fixture root,
+manifest, all seven members, writer, its imported bootstrap helper, and
+Makefile. Hostbuild requires the live tree to match the manifest exactly. The
+audit calls the operation `package_iso9660_image`.
+
+Publication follows the checked symbol and JPEG paths. Hostbuild renders from
+one byte snapshot, rereads the manifest, rescans the tree, confirms the output
+did not change, flushes a private file beside the destination, and replaces it
+atomically. Identical content keeps its timestamp.
+
+The ECMA-119 primary hierarchy uses d-character descriptor values, sorts
+directory records and path-table siblings by their allocated identifiers, and
+keeps the mandatory empty extension separator in names such as `README.;1`.
+The writer rejects a ninth directory level because it does not emit Rock Ridge
+relocation records. Windows reparse-point attributes keep junction rejection
+active even on Python versions that predate `os.path.isjunction`. Links,
+special files, unsafe outputs, guest-name collisions, malformed manifests,
+input drift, output drift, and failed publication leave an existing image
+alone.
+
+### Focused evidence
+
+| Gate | Result |
+| --- | --- |
+| Hostbuild suite | 42 tests completed; 41 pass and one case-only sibling test skips on the Windows filesystem |
+| ISO writer slice | 18 tests completed; 17 pass and the same filesystem-dependent case skips |
+| GUI frontier contracts | 91 tests pass, including the new ISO directory-name marker |
+| Complete build-graph audit module | 67 tests pass in 555.892 seconds |
+| Canonical audit regeneration | Passes in 58.4 seconds |
+| Canonical audit drift check | Passes in 57.8 seconds |
+| Independent host format probes | `file` recognizes ISO9660 volume `CUPID_OS_TEST`; libarchive 3.5.2 lists every Rock Ridge path |
+| Settled-source Windows `make -j8 all WAD_SRCS=` | Passes in 382.440 seconds with empty stderr; FAT16 extraction matches the tracked ISO exactly |
+| Complete four-vCPU e1000 frontier | Passes in 232.2 seconds; Feature 17, SMP, networking, graphics, audio, and six USB storage lifetimes all complete |
+
+The old xorriso-authored fixture was 389,120 bytes and carried 150 blocks of
+padding. The tracked repository-owned image is 61,440 bytes with SHA-256
+`40359c1cec72219f21e87ce71b31e621209036042440e1b38c5e59de157e0fb6`.
+It contains only the structures and file blocks needed by the documented
+contract.
+
+The regenerated active-source digest is
+`acb45e969e42b40aca599fed4d8aa90075f4b88e2938993146ee409d0915f3b0`.
+The 2,564,353-byte audit JSON has SHA-256
+`7b07bb3f19f8d72f1968f31c176ab66d7ae94ffbc47d672adf10904d4dcdc15b`.
+
+The settled build produced:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.elf.pass1` | 8,583,920 | `c2ed1aaab5a3a3eb46b9420c6a1fe54559b9d3da59cd7533ee22215f1d6ac8a0` |
+| `kernel/kernel.elf` | 8,694,512 | `1e7d8f5dc26313c44d4b5f85f9a08177fa3a7f999d76e4c67949d01491d9cdd0` |
+| `kernel/kernel.bin` | 8,493,300 | `072a8507f9aee6fc4d2d09f88f8baebef910cea0a553961db6915ab721141cd0` |
+| `cupidos.img` | 209,715,200 | `db74c4857dd2d20247ae96569bc7e5015995a84c953a64fa29dccddc0da052a4` |
+
+The build wrote 98,907 bytes of standard output with SHA-256
+`bc94444dbcf238c6c4caf298cbd64bf0757e83e0b17919160ddabaf73feb9ea8`
+and no standard error.
+
+Feature 17 now walks `/iso` and requires the six root names exactly once,
+including `long_named_file.txt` from its Rock Ridge `NM` record. The gate
+checks each entry's file or directory type before continuing through the
+existing lookup, read, JPEG, mount-reuse, and pool-exhaustion cases.
+
+The private four-vCPU e1000 run contains one directory marker, one final
+Feature 17 pass, and ten completed in-OS CupidC commands. Its six mass-storage
+attachments appear as `usb0` through `usb5`. The framebuffer changed 71,963
+pixels; AC97 captured 8,270,885 frames, and the PC speaker captured 78,284.
+The 46,452-byte serial log has SHA-256
+`cf0c5b521115087e718a8b0acfcf5c5c0fb4c106dec7b1ea85d7f979f9356596`.
+The harness wrote no standard error.
+
+This retires `mkisofs`, `genisoimage`, and `xorrisofs` from normal builds,
+fixture regeneration, and tests. Python remains responsible for
+orchestration and image packaging. ADR 0191 records the format and
+publication boundary.

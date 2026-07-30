@@ -571,6 +571,21 @@ five-tool trust unit after every command. Output-bearing wildcard lists pass
 through Make's `$(sort ...)` before generators or link order consume them.
 ADR 0190 records the root tool handoff.
 
+The two ISO fixture transforms are now explicit. `gen-big` owns only
+`test_iso/fixtures/big.bin`. A separate `package_iso9660_image` transform
+checks the exact membership in `test_iso/fixtures.manifest`, freezes that
+tree, and writes the tracked ECMA-119 image with fixed `RRIP_1991A` metadata
+and a continuation placed after the directory stream.
+Make declares the same seven portable paths explicitly instead of expanding
+raw manifest text or recursively walking a possible link. A test locks that
+prerequisite list to the manifest.
+Hostbuild checks the manifest and tree again before atomic publication and
+preserves an identical output. The normal graph no longer probes for
+`mkisofs`, `genisoimage`, or `xorrisofs`. ADR 0191 records the format and
+publication contract. The settled image passes the complete four-vCPU e1000
+frontier, including the exact six-name ISO directory check and the existing
+read, JPEG, mount-lifetime, graphics, audio, network, SMP, and USB checks.
+
 An initial Windows and Linux comparison matched 426 of 430 kernel artifacts.
 The only differing input object wrapped a progressive JPEG that host FFmpeg
 had rewritten differently on the two systems. The repository stores the
@@ -590,7 +605,7 @@ A private `/bin/ls.cc` JIT boot from it passed in 49.8 seconds. ADR 0190
 records the complete artifact table, log identity, and layout headroom.
 
 The canonical active-source digest for this graph is
-`c6a189d1d287bef25448c5233ea77d93a62a589cad9c48dca86ee34bfe6ad4bf`.
+`acb45e969e42b40aca599fed4d8aa90075f4b88e2938993146ee409d0915f3b0`.
 
 External-inline policy now follows translation-unit finalization described by [ADR 0131](../adr/0131-finalize-c11-external-inline-definitions.md). The frontend recognizes external definitions across compatible declaration sets, preserves inherited internal linkage, and rejects an external-linkage inline declaration without a definition. Iterative memoized type relations normalize C qualifier spellings while retaining atomic parameter identity, distinguish strict typedef identity from compatibility, apply old-style/default-promotion rules, accept a 512-level derived pointer graph, and construct symbol-local immutable array/function composite types without corrupting shared typedefs. Transactional tests cover precise conflicts, lexical-scope duplicates and expiry, automatic and static initializer forests, explicit and tentative file definitions, binding addresses, scalar and aggregate return or assignment legality, recursive aggregate modifiability, pointer arithmetic and comparison constraints, conditional association and conversions, loop and switch constraints, direct jumps and label scope, compound/update constraints, malformed literals, unsupported local storage forms, ownership, deep syntax, constrained output, rollback, and recovery. Runtime expression values carry private integer-constant-expression form and value metadata. A represented zero expression, or that expression cast to non-atomic `void *`, becomes a null pointer constant. Comparisons, conditionals, returns, calls, assignments, and automatic initializers publish a destination-typed `CTOOL_C_CONVERSION_NULL_POINTER`; static explicit nulls publish `ZERO` records and discard their temporary expression AST. Comma expressions now evaluate left to right and retain the last operand, and known-true loops preserve non-fallthrough reachability. GNU `weak`, `section`, and `unused` attributes publish canonical entity metadata; exact output-only assembly can snapshot represented i386 register and EFLAGS state. The constant and body expression grammars remain intentionally partial, and namespace and member lookup remain linear. Chained designated paths, promoted anonymous members, duplicate overrides, positional union or Cupid class lists, static member-address constants, integer-routed and other unrepresented address casts, automatic or block-static bases, runtime offsets and subscripts, block declaration attributes, nested function definitions, computed goto and GNU label addresses, broader GNU assembly forms, hexadecimal and subnormal floating constants, `long double`, remaining integer and floating conversions, floating comparison and truth, nonempty identifier-list definitions, non-scalar arguments without declared parameter types, aggregate variadic reads, block assertions, variable-length arrays and runtime `sizeof`, the remaining GNU attributes, complete Cupid extensions, complete AST and IR coverage, broader function code generation, full translation-unit emission, and production integration remain later work. The shared hosted path owns the 155-source checked-in production kernel cohort, the generated kernel symbol translation, and the six checked generated-install or user translations; the private kernel compiler remains the embedded runtime JIT and AOT path.
 

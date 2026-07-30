@@ -1,6 +1,5 @@
->comment CupidMark converted document
 >h1 ISO9660 Read-Only Mount
-Verified against source on: 2026-05-15
+Verified against source on: 2026-07-30
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -15,17 +14,18 @@ Verified against source on: 2026-05-15
 
 >h2 Overview
 >tree open Overview
-CupidOS mounts `.iso` files (ECMA-119 + Rock Ridge) as read-only
+Cupid OS mounts `.iso` files (ECMA-119 with Rock Ridge names) as read-only
 filesystems at arbitrary mount points.
 >endtree
 
 >h2 Quick Start
 >tree open Quick Start
 1. Host-side: build a test ISO:
-   `make sync-iso` generates `test_iso/hello.iso` via `mkisofs -R`
-   (or `genisoimage` / `xorrisofs`) from `test_iso/fixtures/` and
-   writes it directly to the FAT16 disk image as `/hello.iso`. Cupid OS
-   exposes that file as `/disk/hello.iso`.
+   `make sync-iso` builds `test_iso/hello.iso` directly from
+   the members in `test_iso/fixtures.manifest` with `tools/hostbuild.py`,
+   then writes it to the FAT16 disk image as `/hello.iso`. No external ISO
+   author is needed.
+   Cupid OS exposes that file as `/disk/hello.iso`.
 
 2. Boot CupidOS (`make run`).
 
@@ -33,7 +33,8 @@ filesystems at arbitrary mount points.
 
 mount /disk/hello.iso /iso
 
-4. `ls /iso` shows `readme.txt`, `long_named_file.txt`, `sub/`, and `big.bin`.
+4. `ls /iso` shows `big.bin`, `gen_big.sh`, `jpeg_baseline_8x8.jpg`,
+   `long_named_file.txt`, `readme.txt`, and `sub/`.
 
 5. `cat /iso/readme.txt` prints the content.
 
@@ -41,15 +42,16 @@ mount /disk/hello.iso /iso
 
 [Mount test ISO](shell:mount /disk/hello.iso /iso)
 [List mounted ISO](shell:ls /iso)
-[Read hello file](shell:cat /iso/HELLO.TXT)
+[Read fixture file](shell:cat /iso/README.TXT)
 >endtree
 
 >h2 Features
 >tree open Features
   ECMA-119 base format (8.3 uppercase filenames, `;1` versions).
-  Rock Ridge (SUSP/RRIP): NM records for long filenames, PX/TF
-    preserved where possible. SUSP CE continuation chains followed up
-    to 8 levels.
+  Rock Ridge NM records provide long names. SUSP CE continuation chains
+    are followed up to 8 levels. PX and TF metadata is ignored.
+  The repository image keeps its continuation after the directory stream,
+    so sequential host readers and Cupid OS see the same Rock Ridge names.
   Case-insensitive path lookups: `/iso/README.TXT` matches `readme.txt`.
     Display names are preserved case.
   Multi-mount: up to 4 ISOs mounted concurrently.
@@ -64,8 +66,8 @@ mount /disk/hello.iso /iso
     (e.g. on FAT16 at `/disk/...` or in homefs at `/home/...`).
   No Joliet. Windows-made Unicode-only ISOs use base names (8.3).
   No symlink traversal. Rock Ridge `SL` records are ignored.
-  No deep-tree relocation (CL/PL/RE records). Use `mkisofs -D 1`
-    (the default) to produce ISOs that don't need them.
+  No deep-tree relocation through CL, PL, or RE records.
+  The repository fixture writer rejects more than 8 directory levels.
   4 GB filesize limit (ECMA-119 32-bit LBA).
 >endtree
 
@@ -82,16 +84,19 @@ Stack layers (top to bottom):
               vfs_read on the .iso file
 
 Source files:
-  kernel/iso9660.h + iso9660.cc   PVD parser, directory walker, SUSP/RR
+  kernel/fs/iso9660.h + iso9660.cc PVD parser, directory walker, SUSP/RR
   kernel/fs/loopdev.cc           file-backed block device adapter
-  kernel/iso9660_vfs.cc           VFS mount/open/read/readdir adapter
+  kernel/fs/iso9660_vfs.cc       VFS mount/open/read/readdir adapter
+  tools/hostbuild.py             deterministic test-fixture author
 >endtree
 
 >h2 Testing
 >tree open Testing
   `test_iso/fixtures/`      checked-in source tree.
+  `test_iso/fixtures.manifest` exact build membership.
+  `test_iso/hello.iso`      byte-reproducible tracked image.
   `make sync-iso`           rebuilds hello.iso and syncs into the FAT partition.
-  `bin/feature17_iso.cc`    end-to-end smoke test.
+  `bin/feature17_iso.cc`    checks all 6 root names, reads, and mount reuse.
 
 Run `feature17_iso` from the shell; expect `PASS feature17_iso`.
 
@@ -103,12 +108,12 @@ Run `feature17_iso` from the shell; expect `PASS feature17_iso`.
 How to verify P2 ISO9660:
 
 mount /disk/hello.iso /iso
-cat /iso/HELLO.TXT
+cat /iso/README.TXT
 
 Expected: file contents printed without error.
 
 [Mount ISO](shell:mount /disk/hello.iso /iso)
-[Cat HELLO.TXT](shell:cat /iso/HELLO.TXT)
+[Cat README.TXT](shell:cat /iso/README.TXT)
 >endbox
 
 >rule

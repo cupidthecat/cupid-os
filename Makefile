@@ -1488,13 +1488,24 @@ test-user-cupidc-runtime: sync-user-runtime tools/gui_terminal_smoke.py
 
 # Test-only ISO - built from test_iso/fixtures/, mounted via
 # `mount /disk/hello.iso /iso` in the shell for feature17.
-TEST_ISO_FIXTURES := $(sort $(wildcard test_iso/fixtures/* test_iso/fixtures/sub/*))
+ISO_FIXTURE_MANIFEST := test_iso/fixtures.manifest
+ISO_FIXTURE_RELATIVE := \
+	big.bin \
+	gen_big.sh \
+	jpeg_baseline_8x8.jpg \
+	long_named_file.txt \
+	readme.txt \
+	sub \
+	sub/nested.txt
+TEST_ISO_FIXTURES := $(sort test_iso/fixtures $(ISO_FIXTURE_MANIFEST) \
+	$(addprefix test_iso/fixtures/,$(ISO_FIXTURE_RELATIVE)))
 
-test_iso/fixtures/big.bin:
+test_iso/fixtures/big.bin: tools/hostbuild.py tools/bootstrap_toolchain.py Makefile
 	$(PYTHON) tools/hostbuild.py gen-big $@
 
-test_iso/hello.iso: $(TEST_ISO_FIXTURES) test_iso/fixtures/big.bin
-	$(PYTHON) tools/hostbuild.py build-iso --fixtures test_iso/fixtures --out test_iso/hello.iso
+test_iso/hello.iso: $(TEST_ISO_FIXTURES) tools/hostbuild.py tools/bootstrap_toolchain.py Makefile
+	$(PYTHON) tools/hostbuild.py build-iso --fixtures test_iso/fixtures \
+	  --manifest $(ISO_FIXTURE_MANIFEST) --out test_iso/hello.iso
 
 sync-iso: $(OS_IMAGE) test_iso/hello.iso
 	$(PYTHON) tools/hostbuild.py stage --image $(OS_IMAGE) --fat-start-lba $(FAT_START_LBA) test_iso/hello.iso:/hello.iso

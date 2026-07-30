@@ -190,6 +190,8 @@ FRONTIER_RUNTIME_COMMANDS = (
         "/bin/feature17_iso.cc",
         (
             r"\[cupidc\] JIT compile: /bin/feature17_iso\.cc"
+            r".*?PASS feature17_readdir names=6 "
+            r"long=long_named_file\.txt"
             r".*?PASS jpeg_decode_mem baseline 8x8 gray128"
             r".*?PASS glyph_rasterize Liberation Mono Q size37 "
             r"width=(?P<glyph_width>[1-9][0-9]*) "

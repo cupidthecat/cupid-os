@@ -32,7 +32,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `boot_assembly` | 1 | 298 |
 | `cupid_asm_demo` | 22 | 1469 |
 | `cupid_c_browser_fragment` | 22 | 14185 |
-| `cupid_c_program` | 105 | 18813 |
+| `cupid_c_program` | 105 | 18881 |
 | `cupid_c_runtime_header` | 2 | 286 |
 | `cupidasm` | 7 | 6683 |
 | `cupidc` | 8 | 13252 |
@@ -99,7 +99,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 777 |
 | `asm.relocation` | 1 | 13 |
-| `c.control` | 12 | 74901 |
+| `c.control` | 12 | 74928 |
 | `c.declaration` | 1 | 28 |
 | `c.declarator` | 4 | 3579 |
 | `c.expression` | 2 | 5352 |
@@ -108,7 +108,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `c.preprocessor` | 18 | 6741 |
 | `c.qualifier` | 2 | 14302 |
 | `c.storage` | 4 | 9176 |
-| `c.type` | 14 | 47215 |
+| `c.type` | 14 | 47228 |
 | `cupid_c.declaration` | 1 | 2 |
 | `cupid_c.delivery` | 2 | 129 |
 | `cupid_c.directive` | 1 | 1 |

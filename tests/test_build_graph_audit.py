@@ -4426,11 +4426,24 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(iso_transform["tools"], ["host_python"])
             self.assertEqual(
                 iso_transform["operation"],
-                "host_orchestration",
+                "package_iso9660_image",
             )
-            self.assertIn(
-                "test_iso/fixtures/jpeg_baseline_8x8.jpg",
-                iso_transform["inputs"],
+            self.assertEqual(
+                set(iso_transform["inputs"]),
+                {
+                    "Makefile",
+                    "tools/bootstrap_toolchain.py",
+                    "tools/hostbuild.py",
+                    "test_iso/fixtures",
+                    "test_iso/fixtures.manifest",
+                    "test_iso/fixtures/big.bin",
+                    "test_iso/fixtures/gen_big.sh",
+                    "test_iso/fixtures/jpeg_baseline_8x8.jpg",
+                    "test_iso/fixtures/long_named_file.txt",
+                    "test_iso/fixtures/readme.txt",
+                    "test_iso/fixtures/sub",
+                    "test_iso/fixtures/sub/nested.txt",
+                },
             )
             big_fixture_transform = root_transform_by_output[
                 "test_iso/fixtures/big.bin"
@@ -4442,6 +4455,14 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(
                 big_fixture_transform["operation"],
                 "generate_binary_fixture",
+            )
+            self.assertEqual(
+                set(big_fixture_transform["inputs"]),
+                {
+                    "Makefile",
+                    "tools/bootstrap_toolchain.py",
+                    "tools/hostbuild.py",
+                },
             )
             system_image_transform = root_transform_by_output[
                 "cupidos.img"
@@ -5152,6 +5173,37 @@ class BuildGraphAuditCliTests(unittest.TestCase):
 
     def test_output_source_discovery_has_locale_neutral_order(self):
         makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
+        self.assertNotIn("iso_fixture_walk", makefile)
+        self.assertNotIn(
+            "$(file <$(ISO_FIXTURE_MANIFEST))",
+            makefile,
+        )
+        fixture_assignment = re.search(
+            r"(?ms)^ISO_FIXTURE_RELATIVE :="
+            r"(?P<body>.*?)"
+            r"(?=^TEST_ISO_FIXTURES :=)",
+            makefile,
+        )
+        self.assertIsNotNone(fixture_assignment)
+        declared_fixtures = (
+            fixture_assignment.group("body")
+            .replace("\\", " ")
+            .split()
+        )
+        manifest_fixtures = (
+            REPO_ROOT / "test_iso" / "fixtures.manifest"
+        ).read_text(encoding="ascii").splitlines()
+        self.assertEqual(declared_fixtures, manifest_fixtures)
+        self.assertTrue(
+            all(
+                re.fullmatch(r"[A-Za-z0-9._/-]+", path)
+                for path in declared_fixtures
+            )
+        )
+        self.assertIn(
+            "--manifest $(ISO_FIXTURE_MANIFEST)",
+            makefile,
+        )
         for variable in (
             "BIN_CC_SRCS",
             "BIN_HDR_SRCS",

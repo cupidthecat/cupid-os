@@ -1319,6 +1319,8 @@ def _operation_for_recipe(
     if "host_python" in tools:
         if "hostbuild.py image " in joined:
             return "package_disk_image"
+        if "hostbuild.py build-iso " in joined:
+            return "package_iso9660_image"
         if " mksyms " in joined or (
             " gen-" in joined
             and output.lower().endswith((".c", ".cc"))

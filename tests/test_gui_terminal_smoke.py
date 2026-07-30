@@ -120,6 +120,8 @@ def _frontier_command_outputs():
         ),
         (
             "[cupidc] JIT compile: /bin/feature17_iso.cc\n"
+            "PASS feature17_readdir names=6 "
+            "long=long_named_file.txt\n"
             "PASS jpeg_decode_mem baseline 8x8 gray128\n"
             "PASS glyph_rasterize Liberation Mono Q size37 "
             "width=22 cache=22\n"
@@ -1547,6 +1549,33 @@ class FrontierRuntimeContractTests(unittest.TestCase):
         self.assertIn(
             "PASS glyph_rasterize Liberation Mono Q size37",
             source,
+        )
+
+    def test_iso_guest_source_checks_readdir_rock_ridge_names(self):
+        source = (
+            REPO_ROOT / "bin" / "feature17_iso.cc"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("int check_directory_names()", source)
+        self.assertIn('vfs_open("/iso", 0)', source)
+        self.assertIn("vfs_readdir(fd, ent)", source)
+        self.assertIn(
+            'strcmp(ent, "long_named_file.txt")',
+            source,
+        )
+        self.assertIn(
+            "PASS feature17_readdir names=6 "
+            "long=long_named_file.txt",
+            source,
+        )
+        command = next(
+            entry
+            for entry in gui_terminal_smoke.FRONTIER_RUNTIME_COMMANDS
+            if entry.text == "/bin/feature17_iso.cc"
+        )
+        self.assertIn(
+            "PASS feature17_readdir names=6",
+            command.expected_pattern,
         )
 
     def test_command_sequence_waits_for_each_marker_before_continuing(self):

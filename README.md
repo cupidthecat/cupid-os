@@ -235,6 +235,8 @@ choco install make python llvm qemu
 
 `mtools` is no longer required for the normal build; the Makefile uses
 `tools/hostbuild.py` to create and update the FAT16 image on both platforms.
+The same helper now authors the tracked ISO9660 test fixture, so `mkisofs`,
+`genisoimage`, and `xorrisofs` are not build prerequisites.
 NASM is also not required; install it only to run the optional
 `make nasm-assembly-oracle` comparison suite.
 On Windows, QEMU defaults to no host audio so booting does not depend on a
@@ -630,8 +632,15 @@ transforms belong to the hosted Toolchain build. The 438-transform root image
 graph has no host C or recursive Make transform. Its CupidASM, CupidObj,
 CupidLD, and CupidDis commands run from the checked seed. One
 Python transform checks the external program syscall ABI and produces no OS
-code. Two Python transforms generate the ISO fixture inputs that the system
-image declares explicitly.
+code. One Python transform generates `big.bin`; another packages the frozen
+fixture tree as deterministic ISO9660/Rock Ridge bytes.
+`test_iso/fixtures.manifest` pins every directory and file without asking Make
+to recurse through an unchecked path. Make declares the same portable paths
+explicitly, and a checked test prevents that prerequisite list from drifting
+away from the manifest. Raw manifest text never enters Make grammar. The graph
+records the manifest, fixture root, every declared member, writer, imported
+bootstrap helper, and Makefile. ISO authoring does not probe or launch an
+external command.
 The runner checks the live five-tool cohort again after every command. Make
 passes every wildcard-discovered output list through `$(sort ...)` before
 generation or link, so Windows and Linux do not inherit different link order

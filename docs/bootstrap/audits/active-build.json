@@ -36768,7 +36768,11 @@
         ]
       },
       {
-        "inputs": [],
+        "inputs": [
+          "tools/hostbuild.py",
+          "tools/bootstrap_toolchain.py",
+          "Makefile"
+        ],
         "operation": "generate_binary_fixture",
         "output": "test_iso/fixtures/big.bin",
         "recipe": [
@@ -36780,18 +36784,24 @@
       },
       {
         "inputs": [
+          "test_iso/fixtures",
+          "test_iso/fixtures.manifest",
           "test_iso/fixtures/big.bin",
           "test_iso/fixtures/gen_big.sh",
           "test_iso/fixtures/jpeg_baseline_8x8.jpg",
           "test_iso/fixtures/long_named_file.txt",
           "test_iso/fixtures/readme.txt",
           "test_iso/fixtures/sub",
-          "test_iso/fixtures/sub/nested.txt"
+          "test_iso/fixtures/sub/nested.txt",
+          "tools/hostbuild.py",
+          "tools/bootstrap_toolchain.py",
+          "Makefile"
         ],
-        "operation": "host_orchestration",
+        "operation": "package_iso9660_image",
         "output": "test_iso/hello.iso",
         "recipe": [
-          "$(PYTHON) tools/hostbuild.py build-iso --fixtures test_iso/fixtures --out test_iso/hello.iso"
+          "$(PYTHON) tools/hostbuild.py build-iso --fixtures test_iso/fixtures \\",
+          "--manifest $(ISO_FIXTURE_MANIFEST) --out test_iso/hello.iso"
         ],
         "tools": [
           "host_python"
@@ -43154,7 +43164,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.else",
-      "occurrences": 4452
+      "occurrences": 4458
     },
     {
       "category": "control",
@@ -43863,7 +43873,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 34972
+      "occurrences": 34988
     },
     {
       "category": "control",
@@ -44222,7 +44232,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 21078
+      "occurrences": 21082
     },
     {
       "category": "control",
@@ -44599,7 +44609,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.while",
-      "occurrences": 2671
+      "occurrences": 2672
     },
     {
       "category": "declaration",
@@ -49071,7 +49081,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.char",
-      "occurrences": 8041
+      "occurrences": 8042
     },
     {
       "category": "type",
@@ -49805,7 +49815,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.int",
-      "occurrences": 20722
+      "occurrences": 20734
     },
     {
       "category": "type",
@@ -52175,11 +52185,11 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "45a74045e5ba0aa3573736746720954939651dd2a5278fa03f82cd679679e72b",
+    "active_source_digest": "acb45e969e42b40aca599fed4d8aa90075f4b88e2938993146ee409d0915f3b0",
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "65010bf03a5bea20eb6cf7eb72fc8d2b8dcdba831f9c9fdd43bf95906ccc3e80"
+        "sha256": "88b6d67b21b35a3b051da2834df8b43d8cc207deff446a0293e1bb4028acaa9e"
       },
       {
         "path": "user/Makefile",
@@ -52224,7 +52234,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "ec36de88060efb1f2cea34690bdbe389171b4268078258cc57b2ffe57919d57c"
+      "sha256": "d0a89d9778ff167ce554b338a6076073cf02132dd9a6c544e682bb2506156e89"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -54555,12 +54565,12 @@
       ],
       "includes": [],
       "language": "cupid_c",
-      "lines": 278,
+      "lines": 346,
       "origin": "tracked",
       "path": "bin/feature17_iso.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "427a649fa4c3c08571a8524062463acd60932d46283e761b08ad2848c00c8be5"
+      "sha256": "b59d8a9ea766183005555e9dfea8eecb9258aa4937d46133513db2b765a4d24a"
     },
     {
       "build_owners": [

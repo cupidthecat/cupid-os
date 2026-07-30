@@ -413,6 +413,20 @@ command, and Make passes wildcard-discovered output sources through
 `$(sort ...)` before generation or link. Windows and Linux therefore consume
 the same root order across host locales.
 ADR 0190 records this handoff.
+
+ISO test-fixture packaging no longer hides an external tool behind Python.
+`test_iso/fixtures.manifest` pins every directory and file. Make declares the
+same seven portable paths explicitly, and a test keeps that prerequisite list
+equal to the manifest. Raw manifest text never enters Make grammar, and Make
+never recurses through an unchecked fixture path. The graph includes the
+manifest, fixture root, all seven members, `tools/hostbuild.py`, its imported
+bootstrap helper, and the Makefile. The writer produces the tracked ECMA-119 and
+`RRIP_1991A` bytes directly. Its continuation follows the directory stream,
+so sequential readers retain every long name. Hostbuild then rechecks the
+manifest and tree before atomic publication. Rebuilding the fixture does not
+need `mkisofs`, `genisoimage`, or `xorrisofs`. ADR 0191 records the format
+boundary and negative cases.
+
 The first direct comparison matched 426 of 430 kernel artifacts. The remaining
 four were one JPEG object and the three outputs that consumed it. Host FFmpeg
 had rewritten the tracked progressive image differently on Windows and Linux.

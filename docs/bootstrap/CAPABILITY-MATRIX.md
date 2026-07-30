@@ -61,6 +61,21 @@ no host C transform. The runner checks the complete live seed before and
 after each command. Make applies `$(sort ...)` to every wildcard-discovered
 output list before generators and the linker consume it.
 
+ISO fixture generation is repository-owned. The graph classifies
+`test_iso/hello.iso` as `package_iso9660_image` and records the writer,
+its imported bootstrap helper, Makefile, fixture manifest, fixture root,
+nested directories, and regular files as its exact inputs. Make carries the
+same seven portable paths as explicit prerequisites, with a checked equality
+contract against the manifest. The deterministic writer emits both ECMA-119
+path tables, identifier-sorted bounded directory records, a forward
+`RRIP_1991A` continuation, fixed names and metadata, and contiguous file
+extents. It rejects undeclared paths and a ninth directory level, then
+rechecks the manifest, frozen tree, and output before atomic replacement.
+External ISO authors are optional maintenance oracles, not dependencies.
+Windows libarchive lists all long names from the settled image, which also
+passes the complete four-vCPU e1000 frontier with the exact six-name ISO
+directory marker.
+
 The first Windows and Linux comparison matched 426 of 430 kernel artifacts.
 The four differences came from one JPEG object and its linked descendants.
 Host FFmpeg had converted the tracked progressive source differently on the

@@ -179,12 +179,12 @@ Goal:
 >tree open Lab
 Mount a read-only ISO image (P2).
 
-  make sync-iso  (host side, builds test_iso/hello.iso and copies to /disk)
+  make sync-iso  (host side, builds the ISO directly and copies it to /disk)
 
 Then in the shell:
   mount /disk/hello.iso /iso
   ls /iso
-  cat /iso/HELLO.TXT
+  cat /iso/README.TXT
   umount /iso
 
 Or run the smoke test:
