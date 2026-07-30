@@ -14622,11 +14622,11 @@ static ctool_bool cfront_naked_panic_template(
       template_text, "cli\n1: hlt\njmp 1b\n");
 }
 
-static ctool_bool cfront_kernel_bss_clear_template(
-    ctool_string_t template_text) {
-  return cfront_string_literal(
-      template_text,
-      "mov $0xF00000, %%esp\n"
+static ctool_bool cfront_kernel_bss_clear_stack_top(
+    ctool_string_t template_text, ctool_u32 *stack_top_out) {
+  static const char prefix[] = "mov $0x";
+  static const char suffix[] =
+      ", %%esp\n"
       "mov %%esp, %%ebp\n"
       "mov $_bss_start, %%edi\n"
       "mov $_kernel_end, %%ecx\n"
@@ -14634,7 +14634,53 @@ static ctool_bool cfront_kernel_bss_clear_template(
       "shr $2, %%ecx\n"
       "xor %%eax, %%eax\n"
       "cld\n"
-      "rep stosl\n");
+      "rep stosl\n";
+  const ctool_u32 prefix_size = (ctool_u32)sizeof(prefix) - 1u;
+  const ctool_u32 suffix_size = (ctool_u32)sizeof(suffix) - 1u;
+  ctool_u32 digit_count;
+  ctool_u32 index;
+  ctool_u32 stack_top = 0u;
+  if (template_text.data == (const char *)0 ||
+      template_text.size <= prefix_size + suffix_size) {
+    return CTOOL_FALSE;
+  }
+  for (index = 0u; index < prefix_size; index++) {
+    if (template_text.data[index] != prefix[index]) {
+      return CTOOL_FALSE;
+    }
+  }
+  for (index = 0u; index < suffix_size; index++) {
+    if (template_text.data[
+            template_text.size - suffix_size + index] != suffix[index]) {
+      return CTOOL_FALSE;
+    }
+  }
+  digit_count = template_text.size - prefix_size - suffix_size;
+  if (digit_count == 0u || digit_count > 8u) {
+    return CTOOL_FALSE;
+  }
+  for (index = 0u; index < digit_count; index++) {
+    ctool_u32 digit;
+    if (cfront_digit_value(
+            template_text.data[prefix_size + index],
+            &digit) == CTOOL_FALSE) {
+      return CTOOL_FALSE;
+    }
+    stack_top = (stack_top << 4u) | digit;
+  }
+  if (stack_top == 0u || (stack_top & 0xfffu) != 0u) {
+    return CTOOL_FALSE;
+  }
+  if (stack_top_out != (ctool_u32 *)0) {
+    *stack_top_out = stack_top;
+  }
+  return CTOOL_TRUE;
+}
+
+static ctool_bool cfront_kernel_bss_clear_template(
+    ctool_string_t template_text) {
+  return cfront_kernel_bss_clear_stack_top(
+      template_text, (ctool_u32 *)0);
 }
 
 static ctool_bool cfront_kernel_linker_object_is_declared(
@@ -14710,7 +14756,7 @@ static ctool_status_t cfront_validate_kernel_bss_clear_assembly(
       return cfront_emit_failure(
           context, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_PARSE_DIAG_STATEMENT, keyword,
-          "GNU eax, ecx, and edi clobbers require the exact kernel BSS clear "
+          "GNU eax, ecx, and edi clobbers require the supported kernel BSS clear "
           "template");
     }
     return CTOOL_OK;

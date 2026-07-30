@@ -485,20 +485,70 @@ static ctool_bool cir_naked_panic_template(
       template_text, ctool_string("cli\n1: hlt\njmp 1b\n"));
 }
 
+static ctool_bool cir_kernel_bss_clear_stack_top(
+    ctool_string_t template_text, ctool_u32 *stack_top_out) {
+  static const char prefix[] = "mov $0x";
+  static const char suffix[] =
+      ", %%esp\n"
+      "mov %%esp, %%ebp\n"
+      "mov $_bss_start, %%edi\n"
+      "mov $_kernel_end, %%ecx\n"
+      "sub %%edi, %%ecx\n"
+      "shr $2, %%ecx\n"
+      "xor %%eax, %%eax\n"
+      "cld\n"
+      "rep stosl\n";
+  const ctool_u32 prefix_size = (ctool_u32)sizeof(prefix) - 1u;
+  const ctool_u32 suffix_size = (ctool_u32)sizeof(suffix) - 1u;
+  ctool_u32 digit_count;
+  ctool_u32 index;
+  ctool_u32 stack_top = 0u;
+  if (template_text.data == (const char *)0 ||
+      template_text.size <= prefix_size + suffix_size) {
+    return CTOOL_FALSE;
+  }
+  for (index = 0u; index < prefix_size; index++) {
+    if (template_text.data[index] != prefix[index]) {
+      return CTOOL_FALSE;
+    }
+  }
+  for (index = 0u; index < suffix_size; index++) {
+    if (template_text.data[
+            template_text.size - suffix_size + index] != suffix[index]) {
+      return CTOOL_FALSE;
+    }
+  }
+  digit_count = template_text.size - prefix_size - suffix_size;
+  if (digit_count == 0u || digit_count > 8u) {
+    return CTOOL_FALSE;
+  }
+  for (index = 0u; index < digit_count; index++) {
+    char value = template_text.data[prefix_size + index];
+    ctool_u32 digit;
+    if (value >= '0' && value <= '9') {
+      digit = (ctool_u32)(value - '0');
+    } else if (value >= 'a' && value <= 'f') {
+      digit = 10u + (ctool_u32)(value - 'a');
+    } else if (value >= 'A' && value <= 'F') {
+      digit = 10u + (ctool_u32)(value - 'A');
+    } else {
+      return CTOOL_FALSE;
+    }
+    stack_top = (stack_top << 4u) | digit;
+  }
+  if (stack_top == 0u || (stack_top & 0xfffu) != 0u) {
+    return CTOOL_FALSE;
+  }
+  if (stack_top_out != (ctool_u32 *)0) {
+    *stack_top_out = stack_top;
+  }
+  return CTOOL_TRUE;
+}
+
 static ctool_bool cir_kernel_bss_clear_template(
     ctool_string_t template_text) {
-  return cir_string_equal(
-      template_text,
-      ctool_string(
-          "mov $0xF00000, %%esp\n"
-          "mov %%esp, %%ebp\n"
-          "mov $_bss_start, %%edi\n"
-          "mov $_kernel_end, %%ecx\n"
-          "sub %%edi, %%ecx\n"
-          "shr $2, %%ecx\n"
-          "xor %%eax, %%eax\n"
-          "cld\n"
-          "rep stosl\n"));
+  return cir_kernel_bss_clear_stack_top(
+      template_text, (ctool_u32 *)0);
 }
 
 static ctool_bool cir_external_object_binding_exists(

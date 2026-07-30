@@ -587,11 +587,15 @@ declarations for `_bss_start` and `_kernel_end`. Frontend statement depth and
 Linear IR body identity reject a leading statement or a reset hidden by a
 label or another nested body.
 
-The emitter installs ESP at `0x00F00000`, copies it to EBP, loads both linker
-symbols, derives the doubleword count, clears EAX, then emits CLD and REP
-STOSD through the shared x86 model. The function cannot have a
-compiler-managed frame. Its following `kmain()` call uses stack-base residue
-zero, and a returning `kmain()` reaches an interrupt-disabled halt loop.
+The checked seed installs ESP at `0x00F00000`, copies it to EBP, loads both
+linker symbols, derives the doubleword count, clears EAX, then emits CLD and
+REP STOSD through the shared x86 model. Compiler head now reads the stack top
+from the same exact statement. It accepts one through eight hexadecimal
+digits, rejects zero or a value that is not aligned to 4 KiB, and emits the
+parsed `imm32`. The function still cannot have a compiler-managed frame. Its
+following `kmain()` call uses stack-base residue zero, and a returning
+`kmain()` reaches an interrupt-disabled halt loop. The active source and
+checked seed keep `0x00F00000` until the next seed and memory-map transitions.
 
 The exact fixture has 42 text bytes and three relocations. Its 27-byte
 assembly body has `R_386_32` relocations at offsets 11 and 16. The
@@ -602,7 +606,8 @@ object with SHA-256
 The normal recipe freezes the source and its 63-header recursive closure.
 Poisoning `CC` leaves the recipe on the checked wrapper, and CupidDis decodes
 the stack reset, linked BSS clear, `kmain()` call, and halt loop. ADR 0180
-records production ownership.
+records production ownership. ADR 0185 records the variable, page-aligned
+stack-top boundary in compiler head.
 
 ADR 0157 carries the four descriptor-table and segment-register assembly
 forms in unchanged `kernel/smp/percpu.c`. The LGDT forms require one

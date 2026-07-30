@@ -16501,3 +16501,35 @@ Doom recipe. Host-object and link comparison, closed source and header
 snapshots, byte-preserving `.cc` renames, image construction, and runtime
 proof remain part of the production handoff. Native Windows tools also remain
 host-produced. `TempleOS/` remains untouched reference material.
+
+## 2026-07-29: parameterize the kernel-entry stack top
+
+The kernel-entry BSS-clear form no longer bakes `0x00F00000` into compiler
+head. Its structure, placement, symbols, and clobbers remain fixed, but the
+stack immediate may contain one through eight hexadecimal digits. The value
+must be nonzero and aligned to 4 KiB.
+
+The change was driven by the full Doom link. That image needs a later
+memory-map adjustment, and the active source must be able to state the new
+boundary directly. This increment does not change the checked seed, kernel
+source, linker script, bootloader, or disk layout.
+
+The focused frontend, Linear IR, and object tests first failed after their
+positive fixtures moved to `0x01100000`. With the parser and emitter in place,
+all three pass. The object proof decodes `BC 00 00 10 01` and retains the
+entry function's three relocations. A negative fixture rejects the unaligned
+value `0x01100001`.
+
+The source-frontier check passes with 262 IR definitions, 353 emitter
+definitions, and 420 frontend definitions. The repeated object frontier fixes
+their current output sizes at 518,620, 603,816, and 997,160 bytes with text
+fingerprints `281B3EDB`, `7DE6EA3F`, and `0F27C0C9`.
+
+The complete frontend and Linear IR modules pass all 175 tests in 25.678
+seconds. The exact entry-object and self-host-frontier checks pass together in
+25.216 seconds. A Cupid-built compiler then reproduces the current
+`cupidc_ir.cc` object byte for byte in 218.460 seconds. The native Toolchain
+build and `make verify-bootstrap-seed` also pass.
+
+[ADR 0185](../adr/0185-accept-page-aligned-kernel-stack-tops.md) records the
+design and the rejected alternatives.
