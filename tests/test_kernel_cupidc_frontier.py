@@ -2049,8 +2049,8 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                 ),
                 "kernel/core/kernel.cc": (
                     25920,
-                    "d44d06949d48ead865d0d8c1bdd3b76"
-                    "a67b429e0b7a369318ec4fbe8d9f44ed7",
+                    "ed42676ad0d7f16b1fb83442ead1b008"
+                    "2781324dca719104922099cee34b5ab0",
                 ),
                 "kernel/core/panic.cc": (
                     10212,
@@ -2059,8 +2059,8 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                 ),
                 "kernel/core/process.cc": (
                     30216,
-                    "819e6e712cdb08d3b1b112fcc42122a1"
-                    "aa5802b19c0cac8c1a3edbc0bca620d4",
+                    "371751153c0140b92e2534c890d74b4b"
+                    "cb9e3a60b5b544103f9bf7f06bef277c",
                 ),
                 "kernel/core/string.cc": (
                     14460,
@@ -2154,8 +2154,8 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                 ),
                 "kernel/lang/cupidc.cc": (
                     288272,
-                    "056ac9a34697725d451ccb50d1f4bac5"
-                    "8a917f79b348411d665debe7faff8e93",
+                    "41e1a3ff97e18a991e629288fbc659423"
+                    "4ed317d4365467cabb3222026dac2f1",
                 ),
                 "kernel/lang/cupidc_lex.cc": (
                     32408,
@@ -2179,8 +2179,8 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                 ),
                 "kernel/mm/memory.cc": (
                     18364,
-                    "7e0dc352c315dba8250bf7ae9b126c27"
-                    "2e0b98f2cf0bf7429a6d7675d82636c1",
+                    "45869b2941187d99d95dcb40b5396a68"
+                    "7fc3170fbc794cf377a82ce2002e78d4",
                 ),
                 "kernel/mm/paging.cc": (
                     2336,
@@ -2223,8 +2223,8 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
             self.assertEqual(manifest["input_snapshot"]["count"], 444)
             self.assertEqual(
                 manifest["input_snapshot"]["sha256"],
-                "bfa1e7210193b95df3c357a6c893078c"
-                "86a74afa33e1cb2baa1cafc0173efab6",
+                "4e153fdf4446128916bb10c0e51b3d1f"
+                "815ed16bd57d6b1b85527355a0db190d",
             )
             self.assertEqual(
                 manifest["provenance"]["compiler"],

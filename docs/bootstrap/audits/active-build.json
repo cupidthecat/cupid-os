@@ -26,7 +26,7 @@
         ".text"
       ],
       "path": "link.ld",
-      "sha256": "2c8da90636551e805149b7c8e50dd071dcc02d7eadb9b1148626df566d0fcae1"
+      "sha256": "69da6839c814f7d5b3d166c531184ebb7c35757f5523d4b4d2db37d9123678fe"
     },
     "object_interchange": "ELF32 ET_REL",
     "plain_char": "signed",
@@ -12149,7 +12149,7 @@
           "text": "mov dl, [BOOT_DRIVE]"
         },
         {
-          "line": 90,
+          "line": 88,
           "path": "boot/boot.asm",
           "text": "lgdt [gdt_descriptor]"
         }
@@ -12178,12 +12178,12 @@
       "category": "addressing",
       "examples": [
         {
-          "line": 153,
+          "line": 151,
           "path": "boot/boot.asm",
           "text": "a32 mov eax, [ds:esi]"
         },
         {
-          "line": 154,
+          "line": 152,
           "path": "boot/boot.asm",
           "text": "a32 mov [ds:edi], eax"
         }
@@ -12198,12 +12198,12 @@
       "category": "addressing",
       "examples": [
         {
-          "line": 267,
+          "line": 264,
           "path": "boot/boot.asm",
           "text": "mov byte [0xb8000], 'P'"
         },
         {
-          "line": 268,
+          "line": 265,
           "path": "boot/boot.asm",
           "text": "mov byte [0xb8001], 0x0f"
         },
@@ -12224,17 +12224,17 @@
       "category": "addressing",
       "examples": [
         {
-          "line": 110,
+          "line": 108,
           "path": "boot/boot.asm",
           "text": "mov dword [dest_high], KERNEL_OFFSET"
         },
         {
-          "line": 130,
+          "line": 128,
           "path": "boot/boot.asm",
           "text": "mov eax, dword [lba_current]"
         },
         {
-          "line": 131,
+          "line": 129,
           "path": "boot/boot.asm",
           "text": "mov dword [chunk_dap + 8], eax"
         }
@@ -12251,17 +12251,17 @@
       "category": "addressing",
       "examples": [
         {
-          "line": 111,
+          "line": 109,
           "path": "boot/boot.asm",
-          "text": "mov word [sectors_left], 16379   ; LBA 5 through 16383"
+          "text": "mov word [sectors_left], 20475   ; LBA 5 through 20479"
         },
         {
-          "line": 114,
+          "line": 112,
           "path": "boot/boot.asm",
           "text": "cmp word [sectors_left], 0"
         },
         {
-          "line": 129,
+          "line": 127,
           "path": "boot/boot.asm",
           "text": "mov word [chunk_dap + 2], ax"
         }
@@ -12327,12 +12327,12 @@
           "text": "[bits 16]"
         },
         {
-          "line": 253,
+          "line": 251,
           "path": "boot/boot.asm",
           "text": "[bits 32]"
         },
         {
-          "line": 274,
+          "line": 271,
           "path": "boot/boot.asm",
           "text": "[bits 16]"
         }
@@ -12398,17 +12398,17 @@
       "category": "directive",
       "examples": [
         {
-          "line": 57,
+          "line": 55,
           "path": "boot/boot.asm",
-          "text": "dd 16384"
+          "text": "dd 20480"
         },
         {
-          "line": 58,
+          "line": 56,
           "path": "boot/boot.asm",
           "text": "dd 98304"
         },
         {
-          "line": 235,
+          "line": 233,
           "path": "boot/boot.asm",
           "text": "dest_high    dd 0"
         }
@@ -12435,12 +12435,12 @@
           "text": "dq 1               ; LBA start"
         },
         {
-          "line": 234,
+          "line": 232,
           "path": "boot/boot.asm",
           "text": "lba_current  dq 5"
         },
         {
-          "line": 244,
+          "line": 242,
           "path": "boot/boot.asm",
           "text": "dq 0"
         }
@@ -12488,12 +12488,12 @@
           "text": "STAGE2_SECTORS     equ 4       ; Stage 2 = 4 sectors (2KB)"
         },
         {
-          "line": 69,
+          "line": 67,
           "path": "boot/boot.asm",
           "text": "KERNEL_OFFSET      equ 0x100000  ; Kernel destination (1MB)"
         },
         {
-          "line": 70,
+          "line": 68,
           "path": "boot/boot.asm",
           "text": "TEMP_SEGMENT       equ 0x1000    ; Temp buffer segment"
         }
@@ -12740,12 +12740,12 @@
           "text": "times 446-($-$$) db 0"
         },
         {
-          "line": 61,
+          "line": 59,
           "path": "boot/boot.asm",
           "text": "times 48 db 0"
         },
         {
-          "line": 301,
+          "line": 298,
           "path": "boot/boot.asm",
           "text": "times (512 + STAGE2_SECTORS * 512) - ($-$$) db 0"
         }
@@ -12767,7 +12767,7 @@
           "text": "jmp $"
         },
         {
-          "line": 250,
+          "line": 248,
           "path": "boot/boot.asm",
           "text": "jmp $"
         }
@@ -12787,7 +12787,7 @@
           "text": "times 446-($-$$) db 0"
         },
         {
-          "line": 301,
+          "line": 298,
           "path": "boot/boot.asm",
           "text": "times (512 + STAGE2_SECTORS * 512) - ($-$$) db 0"
         },
@@ -12808,7 +12808,7 @@
       "category": "instruction",
       "examples": [
         {
-          "line": 171,
+          "line": 169,
           "path": "boot/boot.asm",
           "text": "adc dword [lba_current + 4], 0"
         }
@@ -12823,17 +12823,17 @@
       "category": "instruction",
       "examples": [
         {
-          "line": 155,
+          "line": 153,
           "path": "boot/boot.asm",
           "text": "add esi, 4"
         },
         {
-          "line": 156,
+          "line": 154,
           "path": "boot/boot.asm",
           "text": "add edi, 4"
         },
         {
-          "line": 165,
+          "line": 163,
           "path": "boot/boot.asm",
           "text": "add [dest_high], eax"
         }
@@ -12911,12 +12911,12 @@
       "category": "instruction",
       "examples": [
         {
-          "line": 100,
+          "line": 98,
           "path": "boot/boot.asm",
           "text": "and al, 0xFE"
         },
         {
-          "line": 216,
+          "line": 214,
           "path": "boot/boot.asm",
           "text": "and eax, 0xFFFFFFF0"
         },
@@ -13039,12 +13039,12 @@
       "category": "instruction",
       "examples": [
         {
-          "line": 89,
+          "line": 87,
           "path": "boot/boot.asm",
           "text": "cli"
         },
         {
-          "line": 224,
+          "line": 222,
           "path": "boot/boot.asm",
           "text": "cli"
         },
@@ -13082,12 +13082,12 @@
       "category": "instruction",
       "examples": [
         {
-          "line": 114,
+          "line": 112,
           "path": "boot/boot.asm",
           "text": "cmp word [sectors_left], 0"
         },
         {
-          "line": 119,
+          "line": 117,
           "path": "boot/boot.asm",
           "text": "cmp ax, SECTORS_PER_CHUNK"
         },
@@ -13154,17 +13154,17 @@
       "category": "instruction",
       "examples": [
         {
-          "line": 157,
+          "line": 155,
           "path": "boot/boot.asm",
           "text": "dec ecx"
         },
         {
-          "line": 185,
+          "line": 183,
           "path": "boot/boot.asm",
           "text": "dec dx"
         },
         {
-          "line": 191,
+          "line": 189,
           "path": "boot/boot.asm",
           "text": "dec dx"
         }
@@ -13358,12 +13358,12 @@
       "category": "instruction",
       "examples": [
         {
-          "line": 81,
+          "line": 79,
           "path": "boot/boot.asm",
           "text": "in al, 0x92"
         },
         {
-          "line": 215,
+          "line": 213,
           "path": "boot/boot.asm",
           "text": "in eax, dx"
         }
@@ -13378,17 +13378,17 @@
       "category": "instruction",
       "examples": [
         {
-          "line": 182,
+          "line": 180,
           "path": "boot/boot.asm",
           "text": "inc dx"
         },
         {
-          "line": 188,
+          "line": 186,
           "path": "boot/boot.asm",
           "text": "inc dx"
         },
         {
-          "line": 194,
+          "line": 192,
           "path": "boot/boot.asm",
           "text": "inc dx"
         }
@@ -13418,7 +13418,7 @@
           "text": "int 0x10"
         },
         {
-          "line": 137,
+          "line": 135,
           "path": "boot/boot.asm",
           "text": "int 0x13"
         }
@@ -13519,7 +13519,7 @@
       "category": "instruction",
       "examples": [
         {
-          "line": 120,
+          "line": 118,
           "path": "boot/boot.asm",
           "text": "jbe .chunk_ok"
         }
@@ -13539,7 +13539,7 @@
           "text": "jc .s1err"
         },
         {
-          "line": 138,
+          "line": 136,
           "path": "boot/boot.asm",
           "text": "jc disk_error"
         },
@@ -13560,7 +13560,7 @@
       "category": "instruction",
       "examples": [
         {
-          "line": 115,
+          "line": 113,
           "path": "boot/boot.asm",
           "text": "je .load_done"
         },
@@ -13671,7 +13671,7 @@
           "text": "jmp $"
         },
         {
-          "line": 172,
+          "line": 170,
           "path": "boot/boot.asm",
           "text": "jmp .read_loop"
         }
@@ -13768,7 +13768,7 @@
       "category": "instruction",
       "examples": [
         {
-          "line": 158,
+          "line": 156,
           "path": "boot/boot.asm",
           "text": "jnz .copy_loop"
         },
@@ -13819,7 +13819,7 @@
       "category": "instruction",
       "examples": [
         {
-          "line": 124,
+          "line": 122,
           "path": "boot/boot.asm",
           "text": "jz .load_done"
         },
@@ -13875,12 +13875,12 @@
       "category": "instruction",
       "examples": [
         {
-          "line": 90,
+          "line": 88,
           "path": "boot/boot.asm",
           "text": "lgdt [gdt_descriptor]"
         },
         {
-          "line": 225,
+          "line": 223,
           "path": "boot/boot.asm",
           "text": "lgdt [gdt_descriptor]"
         },
@@ -14049,17 +14049,17 @@
       "category": "instruction",
       "examples": [
         {
-          "line": 147,
+          "line": 145,
           "path": "boot/boot.asm",
           "text": "movzx ecx, cx"
         },
         {
-          "line": 163,
+          "line": 161,
           "path": "boot/boot.asm",
           "text": "movzx eax, cx"
         },
         {
-          "line": 169,
+          "line": 167,
           "path": "boot/boot.asm",
           "text": "movzx eax, cx"
         }
@@ -14105,17 +14105,17 @@
       "category": "instruction",
       "examples": [
         {
-          "line": 82,
+          "line": 80,
           "path": "boot/boot.asm",
           "text": "or al, 2"
         },
         {
-          "line": 93,
+          "line": 91,
           "path": "boot/boot.asm",
           "text": "or al, 1"
         },
         {
-          "line": 228,
+          "line": 226,
           "path": "boot/boot.asm",
           "text": "or eax, 0x1"
         }
@@ -14132,17 +14132,17 @@
       "category": "instruction",
       "examples": [
         {
-          "line": 83,
+          "line": 81,
           "path": "boot/boot.asm",
           "text": "out 0x92, al"
         },
         {
-          "line": 181,
+          "line": 179,
           "path": "boot/boot.asm",
           "text": "out dx, ax"
         },
         {
-          "line": 184,
+          "line": 182,
           "path": "boot/boot.asm",
           "text": "out dx, ax"
         }
@@ -14157,12 +14157,12 @@
       "category": "instruction",
       "examples": [
         {
-          "line": 143,
+          "line": 141,
           "path": "boot/boot.asm",
           "text": "pop cx                      ; CX = sectors read"
         },
         {
-          "line": 160,
+          "line": 158,
           "path": "boot/boot.asm",
           "text": "pop cx"
         },
@@ -14229,12 +14229,12 @@
       "category": "instruction",
       "examples": [
         {
-          "line": 126,
+          "line": 124,
           "path": "boot/boot.asm",
           "text": "push ax                     ; Save sector count for later"
         },
         {
-          "line": 146,
+          "line": 144,
           "path": "boot/boot.asm",
           "text": "push cx"
         },
@@ -14411,12 +14411,12 @@
       "category": "instruction",
       "examples": [
         {
-          "line": 148,
+          "line": 146,
           "path": "boot/boot.asm",
           "text": "shl ecx, 7                  ; dword count = sectors \u00d7 128"
         },
         {
-          "line": 164,
+          "line": 162,
           "path": "boot/boot.asm",
           "text": "shl eax, 9                  ; bytes = sectors \u00d7 512"
         },
@@ -14528,7 +14528,7 @@
       "category": "instruction",
       "examples": [
         {
-          "line": 107,
+          "line": 105,
           "path": "boot/boot.asm",
           "text": "sti"
         },
@@ -14579,7 +14579,7 @@
       "category": "instruction",
       "examples": [
         {
-          "line": 166,
+          "line": 164,
           "path": "boot/boot.asm",
           "text": "sub [sectors_left], cx"
         },
@@ -14653,7 +14653,7 @@
       "category": "instruction",
       "examples": [
         {
-          "line": 123,
+          "line": 121,
           "path": "boot/boot.asm",
           "text": "test ax, ax"
         },
@@ -14734,12 +14734,12 @@
           "text": "xor ax, ax"
         },
         {
-          "line": 76,
+          "line": 74,
           "path": "boot/boot.asm",
           "text": "xor ax, ax"
         },
         {
-          "line": 104,
+          "line": 102,
           "path": "boot/boot.asm",
           "text": "xor ax, ax"
         }
@@ -14763,12 +14763,12 @@
           "text": "start:"
         },
         {
-          "line": 74,
+          "line": 72,
           "path": "boot/boot.asm",
           "text": "stage2_entry:"
         },
         {
-          "line": 238,
+          "line": 236,
           "path": "boot/boot.asm",
           "text": "chunk_dap:"
         }
@@ -14818,7 +14818,7 @@
           "text": ".s1err:"
         },
         {
-          "line": 113,
+          "line": 111,
           "path": "boot/boot.asm",
           "text": ".read_loop:"
         }
@@ -14889,12 +14889,12 @@
       "category": "prefix",
       "examples": [
         {
-          "line": 153,
+          "line": 151,
           "path": "boot/boot.asm",
           "text": "a32 mov eax, [ds:esi]"
         },
         {
-          "line": 154,
+          "line": 152,
           "path": "boot/boot.asm",
           "text": "a32 mov [ds:edi], eax"
         }
@@ -14984,7 +14984,7 @@
           "text": "mov ah, 0x0e"
         },
         {
-          "line": 135,
+          "line": 133,
           "path": "boot/boot.asm",
           "text": "mov ah, 0x42"
         }
@@ -15004,12 +15004,12 @@
           "text": "mov al, '!'"
         },
         {
-          "line": 81,
+          "line": 79,
           "path": "boot/boot.asm",
           "text": "in al, 0x92"
         },
         {
-          "line": 82,
+          "line": 80,
           "path": "boot/boot.asm",
           "text": "or al, 2"
         }
@@ -15053,17 +15053,17 @@
       "category": "register",
       "examples": [
         {
-          "line": 96,
+          "line": 94,
           "path": "boot/boot.asm",
           "text": "mov bx, 0x10              ; GDT data selector (4GB limit)"
         },
         {
-          "line": 97,
+          "line": 95,
           "path": "boot/boot.asm",
           "text": "mov ds, bx"
         },
         {
-          "line": 98,
+          "line": 96,
           "path": "boot/boot.asm",
           "text": "mov es, bx"
         }
@@ -15078,17 +15078,17 @@
       "category": "register",
       "examples": [
         {
-          "line": 92,
+          "line": 90,
           "path": "boot/boot.asm",
           "text": "mov eax, cr0"
         },
         {
-          "line": 94,
+          "line": 92,
           "path": "boot/boot.asm",
           "text": "mov cr0, eax              ; PE=1: protected mode (but CS still real-mode)"
         },
         {
-          "line": 101,
+          "line": 99,
           "path": "boot/boot.asm",
           "text": "mov cr0, eax              ; PE=0: back to real mode"
         }
@@ -15104,17 +15104,17 @@
       "category": "register",
       "examples": [
         {
-          "line": 143,
+          "line": 141,
           "path": "boot/boot.asm",
           "text": "pop cx                      ; CX = sectors read"
         },
         {
-          "line": 146,
+          "line": 144,
           "path": "boot/boot.asm",
           "text": "push cx"
         },
         {
-          "line": 147,
+          "line": 145,
           "path": "boot/boot.asm",
           "text": "movzx ecx, cx"
         }
@@ -15139,7 +15139,7 @@
           "text": "mov dl, [BOOT_DRIVE]"
         },
         {
-          "line": 136,
+          "line": 134,
           "path": "boot/boot.asm",
           "text": "mov dl, [BOOT_DRIVE]"
         }
@@ -15159,12 +15159,12 @@
           "text": "mov ds, ax"
         },
         {
-          "line": 77,
+          "line": 75,
           "path": "boot/boot.asm",
           "text": "mov ds, ax"
         },
         {
-          "line": 97,
+          "line": 95,
           "path": "boot/boot.asm",
           "text": "mov ds, bx"
         }
@@ -15181,17 +15181,17 @@
       "category": "register",
       "examples": [
         {
-          "line": 179,
+          "line": 177,
           "path": "boot/boot.asm",
           "text": "mov dx, 0x01CE"
         },
         {
-          "line": 181,
+          "line": 179,
           "path": "boot/boot.asm",
           "text": "out dx, ax"
         },
         {
-          "line": 182,
+          "line": 180,
           "path": "boot/boot.asm",
           "text": "inc dx"
         }
@@ -15206,17 +15206,17 @@
       "category": "register",
       "examples": [
         {
-          "line": 92,
+          "line": 90,
           "path": "boot/boot.asm",
           "text": "mov eax, cr0"
         },
         {
-          "line": 94,
+          "line": 92,
           "path": "boot/boot.asm",
           "text": "mov cr0, eax              ; PE=1: protected mode (but CS still real-mode)"
         },
         {
-          "line": 101,
+          "line": 99,
           "path": "boot/boot.asm",
           "text": "mov cr0, eax              ; PE=0: back to real mode"
         }
@@ -15254,7 +15254,7 @@
       "category": "register",
       "examples": [
         {
-          "line": 264,
+          "line": 261,
           "path": "boot/boot.asm",
           "text": "mov ebp, esp"
         },
@@ -15318,17 +15318,17 @@
       "category": "register",
       "examples": [
         {
-          "line": 147,
+          "line": 145,
           "path": "boot/boot.asm",
           "text": "movzx ecx, cx"
         },
         {
-          "line": 148,
+          "line": 146,
           "path": "boot/boot.asm",
           "text": "shl ecx, 7                  ; dword count = sectors \u00d7 128"
         },
         {
-          "line": 157,
+          "line": 155,
           "path": "boot/boot.asm",
           "text": "dec ecx"
         }
@@ -15354,17 +15354,17 @@
       "category": "register",
       "examples": [
         {
-          "line": 150,
+          "line": 148,
           "path": "boot/boot.asm",
           "text": "mov edi, [dest_high]"
         },
         {
-          "line": 154,
+          "line": 152,
           "path": "boot/boot.asm",
           "text": "a32 mov [ds:edi], eax"
         },
         {
-          "line": 156,
+          "line": 154,
           "path": "boot/boot.asm",
           "text": "add edi, 4"
         }
@@ -15416,12 +15416,12 @@
           "text": "mov es, ax"
         },
         {
-          "line": 78,
+          "line": 76,
           "path": "boot/boot.asm",
           "text": "mov es, ax"
         },
         {
-          "line": 98,
+          "line": 96,
           "path": "boot/boot.asm",
           "text": "mov es, bx"
         }
@@ -15438,17 +15438,17 @@
       "category": "register",
       "examples": [
         {
-          "line": 149,
+          "line": 147,
           "path": "boot/boot.asm",
           "text": "mov esi, TEMP_LINEAR"
         },
         {
-          "line": 153,
+          "line": 151,
           "path": "boot/boot.asm",
           "text": "a32 mov eax, [ds:esi]"
         },
         {
-          "line": 155,
+          "line": 153,
           "path": "boot/boot.asm",
           "text": "add esi, 4"
         }
@@ -15469,12 +15469,12 @@
       "category": "register",
       "examples": [
         {
-          "line": 261,
+          "line": 259,
           "path": "boot/boot.asm",
-          "text": "mov esp, 0xF00000           ; Boot stack top (2 MB stack from 0xD00000)."
+          "text": "mov esp, 0x1100000          ; Boot stack top (2 MiB from 0xF00000)."
         },
         {
-          "line": 264,
+          "line": 261,
           "path": "boot/boot.asm",
           "text": "mov ebp, esp"
         },
@@ -15519,7 +15519,7 @@
       "category": "register",
       "examples": [
         {
-          "line": 258,
+          "line": 256,
           "path": "boot/boot.asm",
           "text": "mov fs, ax"
         },
@@ -15546,7 +15546,7 @@
       "category": "register",
       "examples": [
         {
-          "line": 259,
+          "line": 257,
           "path": "boot/boot.asm",
           "text": "mov gs, ax"
         },
@@ -15578,7 +15578,7 @@
           "text": "mov si, .dap"
         },
         {
-          "line": 134,
+          "line": 132,
           "path": "boot/boot.asm",
           "text": "mov si, chunk_dap"
         }
@@ -15613,7 +15613,7 @@
           "text": "mov ss, ax"
         },
         {
-          "line": 260,
+          "line": 258,
           "path": "boot/boot.asm",
           "text": "mov ss, ax"
         },
@@ -25620,15 +25620,15 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "9c9fd3a677342df52ec462b77bd72ff3712b3b8bd5e531e4a9c61b51a049f3a6",
+    "active_source_digest": "779814b816e02f719e520cb5650d2bfb83467f615ffa8af13a7b473fd1dc2b37",
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "43cdd62f5b3df8f774102232c23c1be32430cffd0283be2e1a87e9a09b69aae4"
+        "sha256": "4e1ac15cdd26145cdeed7232a1ae29f1eba8aed8677ed10fcfb328381fc5a3c4"
       },
       {
         "path": "user/Makefile",
-        "sha256": "d9e16499f21caf9dec0377dd7c066f9efddb84b4410ae5567fea85b8b05259a1"
+        "sha256": "5241b8c4df1df9fc6ef30208c6de5db2c94713adc25b49e69ada01f5660386af"
       },
       {
         "path": "toolchain/Makefile",
@@ -25660,7 +25660,7 @@
       },
       {
         "path": "tools/cupidld_user_link.py",
-        "sha256": "09852fe740303bdfc37f680fac8c5c2edd10c15c185bbc232f3d8799fb0a4e56"
+        "sha256": "068de99a985ef2afe105d9d867192f6975f0a77faf7a9b229beb20cf7cf07256"
       },
       {
         "path": "tools/native_user_toolchain.py",
@@ -30085,12 +30085,12 @@
       ],
       "includes": [],
       "language": "assembly",
-      "lines": 301,
+      "lines": 298,
       "origin": "tracked",
       "path": "boot/boot.asm",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidASM",
-      "sha256": "291f042d70de1720cb03c97b903f5ae27749ec3f11beb2bbb3945825170d3397"
+      "sha256": "e42225f1fea0eaa7a7144c8a0e0c047466aa144bd6d4ef6240e826f11dc49b14"
     },
     {
       "build_owners": [
@@ -32599,7 +32599,7 @@
       "path": "kernel/core/kernel.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "fcc92bb561ed107ec6b328f5e9502f1040a2fedd9cf573f6876e5b93556945c3"
+      "sha256": "f882ac45e2fc9a41ce805a22a602fb4839293a755ef5fea3b7e21d159d5bbf83"
     },
     {
       "build_owners": [
@@ -42716,12 +42716,12 @@
         "kernel/mm/memory.h"
       ],
       "language": "cupid_c",
-      "lines": 952,
+      "lines": 951,
       "origin": "tracked",
       "path": "kernel/gfx/fontsys.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "c86d683f6b6b0c2878b4a95c00eaddaecb88ad80108078a0b3fef4546e6820d6"
+      "sha256": "a68cb14ed8ecf776bb5d23755467b0c7fc1c50becf4bc23c56b1ea28ecde37c9"
     },
     {
       "build_owners": [
@@ -46197,7 +46197,7 @@
       "path": "kernel/mm/memory.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "9afa2d707d88bcb655d05e379be3f9e0eb5c90fb4943a43cc2d8f61d1b149b6e"
+      "sha256": "105316be1c41e98f4c3e99935892ff861481eb033fe61263f5429862b2a0be09"
     },
     {
       "build_owners": [
@@ -46233,7 +46233,7 @@
       "path": "kernel/mm/memory.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "371787576e9a85e3bc54d6bf66e020eee9b5015235d0fb78874f82409fe97e4b"
+      "sha256": "9da877d60a6166b54aedc27d6433f1824b43f65c0ae077036ccbc99427fb47a8"
     },
     {
       "build_owners": [
@@ -53302,7 +53302,7 @@
       "path": "tests/kernel_exec_contract.c",
       "reason": "not reachable from the supported Make target or include closure",
       "relations": [],
-      "sha256": "ca68fcb28732f8711718bcfd33a304791f8acea3499bc844408f7121aaa2a4a6"
+      "sha256": "ac2ef4ed3691014954d19f5f043cbff4905672276a94e8596c798bcb5615a1bd"
     },
     {
       "classification": "not_reached",

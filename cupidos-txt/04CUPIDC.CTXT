@@ -157,7 +157,7 @@ the build output. A valid data-only object may omit .text, but its other
 sections and symbols must still pass validation. The strict frontier must
 compile all 155 checked-in roots twice. The full frontier now passes with a
 444-input path snapshot whose SHA-256 is
-bfa1e7210193b95df3c357a6c893078c86a74afa33e1cb2baa1cafc0173efab6.
+4e153fdf4446128916bb10c0e51b3d1f815ed16bd57d6b1b85527355a0db190d.
 Both 155-object sets are byte-identical; each totals 3,708,988 bytes. The combined
 graph passes clean normal and partitioned image builds. Final frontier
 publication retries a short permission-style directory lock with five bounded
@@ -220,7 +220,7 @@ traffic, the desktop, terminal, and CupidC execution at 0x01100000. The
 e1000 and RTL8139 contracts still cover keyboard and mouse detach and
 reattach, ATA, AC'97 and PC speaker audio, EHCI storage across six lifetimes,
 a zero-padded RTC timestamp, and DHCP traffic. A separate runtime check must
-load the same external ELF program twice at 0x00F00000 and release its first
+load the same external ELF program twice at 0x01C00000 and release its first
 arena lease before the second load. CupidC optimization, removal of the Python
 and WSL launch bridge, and the remaining kernel C graph are still in progress.
 
@@ -890,16 +890,16 @@ stack top written as one through eight hexadecimal digits when it is aligned
 to 4 KiB. It places that value in MOV ESP, imm32 while keeping the rest of the
 statement exact. The kmain call uses the reset stack residue. If it returns,
 _start disables interrupts and remains in a halt loop. The active source
-still uses 0x00F00000.
+installs 0x01100000 at the top of the fixed two-MiB stack.
 
 The exact fixture has a 27-byte assembly body in a 42-byte function. Its
 three relocations name _bss_start, _kernel_end, and kmain. Two runs of the
 Cupid-built compiler emit kernel/core/kernel.cc as the same 25,920-byte object
 with SHA-256
-d44d06949d48ead865d0d8c1bdd3b76a67b429e0b7a369318ec4fbe8d9f44ed7.
-A private hybrid image reaches the desktop and completes /bin/ls.cc. The
-production wrapper freezes the source and its 63-header closure, and the
-normal recipe now uses this checked object.
+ed42676ad0d7f16b1fb83442ead1b0082781324dca719104922099cee34b5ab0.
+The normal image built with this object passes the four-CPU frontier contract
+on both supported NICs. The production wrapper freezes the source and its
+63-header closure, and the normal recipe uses this checked object.
 
 The checked seed accepts the four exact descriptor-table and
 segment-register statements in kernel/smp/percpu.cc. A packed

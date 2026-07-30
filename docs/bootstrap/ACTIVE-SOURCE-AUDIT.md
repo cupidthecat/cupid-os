@@ -29,7 +29,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 
 | Cohort | Files | Checked-source lines |
 | --- | ---: | ---: |
-| `boot_assembly` | 1 | 301 |
+| `boot_assembly` | 1 | 298 |
 | `cupid_asm_demo` | 22 | 1469 |
 | `cupid_c_browser_fragment` | 22 | 14185 |
 | `cupid_c_program` | 105 | 18782 |
@@ -47,7 +47,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_cpu` | 18 | 3276 |
 | `kernel_crypto` | 40 | 5149 |
 | `kernel_fs` | 26 | 6283 |
-| `kernel_gfx` | 28 | 12183 |
+| `kernel_gfx` | 28 | 12182 |
 | `kernel_gui` | 28 | 11971 |
 | `kernel_lang` | 20 | 10538 |
 | `kernel_mm` | 7 | 1302 |
@@ -134,7 +134,7 @@ The JSON companion records stable feature IDs, occurrence counts, files, and rep
 | Required relocations | `R_386_32, R_386_PC32` |
 | Stack alignment | 16 bytes |
 
-`link.ld` has SHA-256 `2c8da90636551e805149b7c8e50dd071dcc02d7eadb9b1148626df566d0fcae1` and uses `ALIGN`, `ASSERT`, `COMMON`, `ENTRY`, `SECTIONS`, `input_section_wildcards`, `location_counter`, `symbol_definitions`.
+`link.ld` has SHA-256 `69da6839c814f7d5b3d166c531184ebb7c35757f5523d4b4d2db37d9123678fe` and uses `ALIGN`, `ASSERT`, `COMMON`, `ENTRY`, `SECTIONS`, `input_section_wildcards`, `location_counter`, `symbol_definitions`.
 It is also a declared Make prerequisite.
 
 ## Source-driven capability priority

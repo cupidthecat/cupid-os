@@ -310,7 +310,7 @@ before publication. A valid data-only object may omit `.text`; its remaining
 sections and symbols still receive the full bounds checks. The strict kernel
 frontier compiles all 155 checked-in sources twice. The complete two-pass
 frontier passes against a 444-file snapshot with SHA-256
-`bfa1e7210193b95df3c357a6c893078c86a74afa33e1cb2baa1cafc0173efab6`.
+`4e153fdf4446128916bb10c0e51b3d1f815ed16bd57d6b1b85527355a0db190d`.
 Both 155-object passes are byte-identical; each totals 3,708,988 bytes. The
 frontier publisher retries a short permission-style directory lock with five
 bounded delays. A persistent lock or any other filesystem error leaves the
@@ -629,7 +629,7 @@ NICs and reach SMP
 startup, RDRAND, all 62 crypto checks, USB storage, the desktop, terminal,
 audio playback, the glyph path, a checked 8-by-8 JPEG decode, and in-OS CupidC
 execution at `0x01100000`. A separate smoke
-loads the same external ELF program twice at `0x00F00000`; process cleanup
+loads the same external ELF program twice at `0x01C00000`; process cleanup
 releases the first arena lease before the second load. ADR 0124 records
 the first renamed graph's exact hashes, byte counts, timing, and runtime log.
 ADR 0126 records the fixed-point naming proof.
@@ -830,9 +830,11 @@ and the generated kernel symbol translation described above.
 
 [ADR 0183](docs/adr/0183-promote-doom-capable-toolchain-seed.md) records the five-tool seed promotion, exact checked-seed Doom compatibility objects, and poisoned-host fixed-point reproof.
 
-[ADR 0185](docs/adr/0185-accept-page-aligned-kernel-stack-tops.md) records compiler-head support for a nonzero, page-aligned kernel stack top in the otherwise fixed BSS-clear entry statement. The active source still uses `0x00F00000` until the separate memory-map transition.
+[ADR 0185](docs/adr/0185-accept-page-aligned-kernel-stack-tops.md) records compiler-head support for a nonzero, page-aligned kernel stack top in the otherwise fixed BSS-clear entry statement.
 
 [ADR 0186](docs/adr/0186-promote-stack-top-capable-toolchain-seed.md) records the five-tool seed promotion, the exact `0x01100000` checked-seed regression, and both poisoned-host fixed-point proofs.
+
+[ADR 0187](docs/adr/0187-expand-kernel-and-relocate-external-elf.md) records the expanded kernel reservation, the stack move to `0x00F00000..0x01100000`, the external ELF move to `0x01C00000`, and the FAT16 move to LBA 20480.
 
 [ADR 0143](docs/adr/0143-share-ordinary-padding-nops.md) records the shared ordinary compiler padding family and its measured disassembly improvement.
 
@@ -850,18 +852,18 @@ Cupid OS mounts FAT16 at `/disk` and persistent `homefs` at `/home`.
 - `/home` is `homefs`, serialized into `HOMEFS.SYS` on FAT16.
 - On first boot without `HOMEFS.SYS`, `homefs` imports existing FAT16 files.
 
-The FAT16 partition sits at byte offset 8388608 (16384 * 512) inside `cupidos.img`. Use the portable host helper to put files in the FAT16 backend:
+The FAT16 partition sits at byte offset 10485760 (20480 * 512) inside `cupidos.img`. Use the portable host helper to put files in the FAT16 backend:
 
 ```bash
-python3 tools/hostbuild.py stage --image cupidos.img --fat-start-lba 16384 myfile.txt:/myfile.txt
+python3 tools/hostbuild.py stage --image cupidos.img --fat-start-lba 20480 myfile.txt:/myfile.txt
 ```
 
 On Windows, use `python` instead of `python3`. If you prefer `mtools`, point it
 at the same offset:
 
 ```bash
-mcopy -o -i cupidos.img@@8388608 myfile.txt ::/myfile.txt
-mdir  -i cupidos.img@@8388608 ::/
+mcopy -o -i cupidos.img@@10485760 myfile.txt ::/myfile.txt
+mdir  -i cupidos.img@@10485760 ::/
 ```
 
 If you change `FAT_START_LBA` in the Makefile, recalculate: offset =
@@ -948,8 +950,8 @@ Disk layout:
 ```
 LBA 0       MBR / Stage 1
 LBA 1-4     Stage 2
-LBA 5-16383 Kernel binary area (up to ~8MB)
-LBA 16384+  FAT16 partition (mounted as /disk)
+LBA 5-20479 Kernel binary area
+LBA 20480+  FAT16 partition (mounted as /disk)
            homefs persistent container (HOMEFS.SYS), mounted as /home
 ```
 
@@ -961,7 +963,7 @@ LBA 16384+  FAT16 partition (mounted as /disk)
 
 | File | What it does |
 |------|-------------|
-| `kernel.c/.h` | kmain() entry, initializes IDT/GDT/PIC/PIT/keyboard/mouse/VBE, starts desktop |
+| `kernel.cc/.h` | kmain() entry, initializes IDT/GDT/PIC/PIT/keyboard/mouse/VBE, starts desktop |
 | `idt.cc/.h` | IDT setup, 256 gate descriptors |
 | `irq.cc/.h` | IRQ dispatch, handler registration |
 | `pic.cc/.h` | 8259 PIC init, IRQ masking, EOI |
@@ -976,7 +978,7 @@ LBA 16384+  FAT16 partition (mounted as /disk)
 | `memory.cc/.h` | Physical memory manager, bitmap allocator over 512MB, kernel heap |
 | `paging.cc` | Page tables, identity-mapped address space |
 
-The kernel heap uses a bump allocator with a free list. Everything runs at ring 0 in a flat 32-bit identity-mapped address space. The PMM manages 512MB, starts with a 256MB heap, and reserves the 2MB kernel stack at `0x00D00000..0x00F00000`.
+The kernel heap uses a bump allocator with a free list. Everything runs at ring 0 in a flat 32-bit identity-mapped address space. The PMM manages 512MB, starts with a 256MB heap, and reserves the 2MB kernel stack at `0x00F00000..0x01100000`.
 
 ### Processes
 
@@ -1166,7 +1168,7 @@ The generated `user/build/` directory is ignored by Git, so rebuild the
 programs before staging them into an image.
 
 External executables must be linked for the current
-`0x00F00000..0x01100000` arena. Binaries linked at an earlier fixed base must
+`0x01C00000..0x01E00000` arena. Binaries linked at an earlier fixed base must
 be rebuilt.
 
 ---
@@ -1179,10 +1181,10 @@ be rebuilt.
 0x100000            Kernel start (_start)
                     .text, .rodata, .data
                     .bss
-0x00D00000-0x00F00000 Kernel stack (2MB, grows down; 16-byte guard)
-0x00F00000-0x01100000 External ELF arena (exclusive fixed-address lease)
+0x00F00000-0x01100000 Kernel stack (2MB, grows down; 16-byte guard)
 0x01100000-0x01A00000 CupidC JIT/AOT region (1MB code + 8MB data)
 0x01A00000-0x01C00000 CupidASM JIT/AOT region (1MB code + 1MB data)
+0x01C00000-0x01E00000 External ELF arena (exclusive fixed-address lease)
 0xE0000000+         VBE linear framebuffer (address comes from BIOS)
 ```
 

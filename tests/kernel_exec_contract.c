@@ -15,7 +15,7 @@
 #define TEST_PF_X 0x1u
 #define TEST_PF_W 0x2u
 #define TEST_PF_R 0x4u
-#define TEST_OLD_EXTERNAL_BASE 0x00D00000u
+#define TEST_OLD_EXTERNAL_BASE 0x00F00000u
 
 _Static_assert(TEST_OLD_EXTERNAL_BASE >= STACK_BOTTOM &&
                    TEST_OLD_EXTERNAL_BASE < STACK_TOP,

@@ -106,7 +106,7 @@ def _valid_elf32_object():
     return bytes(image)
 
 
-def _valid_user_executable(entry=0x00F00004):
+def _valid_user_executable(entry=0x01C00004):
     payload_offset = 0x100
     payload = b"\x90" * 16
     image = bytearray(payload_offset + len(payload))
@@ -135,8 +135,8 @@ def _valid_user_executable(entry=0x00F00004):
         52,
         1,
         payload_offset,
-        0x00F00000,
-        0x00F00000,
+        0x01C00000,
+        0x01C00000,
         len(payload),
         len(payload),
         5,
@@ -461,7 +461,7 @@ class UserLinkTests(unittest.TestCase):
 
     def test_entry_may_follow_the_external_arena_base(self):
         user_link.validate_user_executable_bytes(
-            _valid_user_executable(entry=0x00F00004)
+            _valid_user_executable(entry=0x01C00004)
         )
 
     def test_entry_must_be_in_executable_file_backed_bytes(self):
@@ -470,7 +470,7 @@ class UserLinkTests(unittest.TestCase):
             "entry point is not in executable file-backed bytes",
         ):
             user_link.validate_user_executable_bytes(
-                _valid_user_executable(entry=0x00F00040)
+                _valid_user_executable(entry=0x01C00040)
             )
 
     def test_program_table_matches_the_kernel_loader_contract(self):
@@ -507,8 +507,8 @@ class UserLinkTests(unittest.TestCase):
         overlapping = bytearray(_valid_user_executable())
         struct.pack_into("<H", overlapping, 44, 2)
         overlapping[84:116] = overlapping[52:84]
-        struct.pack_into("<I", overlapping, 84 + 8, 0x00F00008)
-        struct.pack_into("<I", overlapping, 84 + 12, 0x00F00008)
+        struct.pack_into("<I", overlapping, 84 + 8, 0x01C00008)
+        struct.pack_into("<I", overlapping, 84 + 12, 0x01C00008)
         cases.append(
             ("overlapping loads", overlapping, "load segments overlap")
         )
@@ -542,7 +542,7 @@ class UserLinkTests(unittest.TestCase):
             2,
             3,
             1,
-            0x00F00000,
+            0x01C00000,
             32,
             0,
             0,
@@ -559,8 +559,8 @@ class UserLinkTests(unittest.TestCase):
             64,
             1,
             payload_offset,
-            0x00F00000,
-            0x00F00000,
+            0x01C00000,
+            0x01C00000,
             16,
             16,
             5,
@@ -615,7 +615,7 @@ class UserLinkTests(unittest.TestCase):
             )
         self.assertEqual(self.output.read_bytes(), _valid_user_executable())
         arguments = runner.calls[0][1]
-        self.assertIn("0x00F00000", arguments)
+        self.assertIn("0x01C00000", arguments)
         self.assertIn("_start", arguments)
 
     def test_native_link_uses_a_private_tool_snapshot_without_seed_access(self):
@@ -1332,7 +1332,7 @@ class ProductionBuildContractTests(unittest.TestCase):
         runtime_log = (
             "[shell_exec_cmd] prog='/disk/hello' rpath='/disk/hello' args=''\n"
             "[elf] Loaded /disk/hello as PID 4 "
-            "(ELF32, 8196 bytes at 0x0x00f00000)\n"
+            "(ELF32, 8196 bytes at 0x0x01c00000)\n"
             "[elf-syscall] pid=4 op=print bytes=27 "
             "fnv1a=0x6d2edfa6\n"
             "[elf-syscall] pid=4 op=print_int value=4\n"

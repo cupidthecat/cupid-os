@@ -13,7 +13,7 @@ The shortest setup uses the portable host helper:
 make HDD_MB=200
 
 # Copy host file into FAT root (visible as /disk in CupidOS)
-python3 tools/hostbuild.py stage --image cupidos.img --fat-start-lba 16384 cupid.bmp:/cupid.bmp
+python3 tools/hostbuild.py stage --image cupidos.img --fat-start-lba 20480 cupid.bmp:/cupid.bmp
 
 # Boot
 make run
@@ -73,7 +73,7 @@ Default is `HDD_MB=200`.
 Copy files into FAT root with the Python helper:
 
 ```bash
-python3 tools/hostbuild.py stage --image cupidos.img --fat-start-lba 16384 cupid.bmp:/cupid.bmp
+python3 tools/hostbuild.py stage --image cupidos.img --fat-start-lba 20480 cupid.bmp:/cupid.bmp
 ```
 
 On Windows, use `python` instead of `python3`.
@@ -83,8 +83,8 @@ If you prefer `mtools`, install it and use the FAT byte offset:
 ```bash
 sudo apt-get update
 sudo apt-get install -y mtools
-mcopy -o -i cupidos.img@@8388608 cupid.bmp ::/cupid.bmp
-mdir -i cupidos.img@@8388608 ::/
+mcopy -o -i cupidos.img@@10485760 cupid.bmp ::/cupid.bmp
+mdir -i cupidos.img@@10485760 ::/
 ```
 
 Mapping:
@@ -104,7 +104,7 @@ mcopy -o -i cupidos.img@@${offset_bytes} file.txt ::/file.txt
 If you prefer mounting from Linux directly:
 
 ```bash
-sudo mount -o loop,offset=$((16384*512)) cupidos.img /mnt/cupidos
+sudo mount -o loop,offset=$((20480*512)) cupidos.img /mnt/cupidos
 ```
 
 This mounts the FAT16 partition directly from `cupidos.img`.
@@ -261,7 +261,7 @@ Always `sync` before shutting down QEMU to avoid data loss.
 
 ### No files visible in /disk
 - Verify files were copied to FAT root `::/`.
-- Check FAT listing from host: `mdir -i cupidos.img@@8388608 ::/`.
+- Check FAT listing from host: `mdir -i cupidos.img@@10485760 ::/`.
 - Check serial output for FAT16 mount messages.
 
 ### "mount" doesn't show /disk as fat16
@@ -278,7 +278,7 @@ Always `sync` before shutting down QEMU to avoid data loss.
 - No long filename (LFN) support.
 
 ### Wrong offset in mtools/loop mount
-- Default FAT offset is `8388608` bytes (`16384 * 512`).
+- Default FAT offset is `10485760` bytes (`20480 * 512`).
 - If `FAT_START_LBA` changed, recompute offset as `FAT_START_LBA * 512`.
 
 ### Permission denied

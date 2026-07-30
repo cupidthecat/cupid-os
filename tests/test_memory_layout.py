@@ -39,10 +39,10 @@ class MemoryLayoutContractTests(unittest.TestCase):
         )
         cupidasm_end = _macro_value(header, "CUPIDASM_EXEC_ARENA_END")
 
-        self.assertEqual(stack_bottom, 0x00D00000)
-        self.assertEqual(stack_top, 0x00F00000)
-        self.assertEqual(external_start, 0x00F00000)
-        self.assertEqual(external_end, 0x01100000)
+        self.assertEqual(stack_bottom, 0x00F00000)
+        self.assertEqual(stack_top, 0x01100000)
+        self.assertEqual(external_start, 0x01C00000)
+        self.assertEqual(external_end, 0x01E00000)
         self.assertEqual(cupidc_start, 0x01100000)
         self.assertEqual(cupidc_end, 0x01A00000)
         self.assertEqual(cupidasm_start, 0x01A00000)
@@ -51,9 +51,9 @@ class MemoryLayoutContractTests(unittest.TestCase):
         self.assertEqual(external_end - external_start, 2 * 1024 * 1024)
         self.assertEqual(cupidc_end - cupidc_start, 9 * 1024 * 1024)
         self.assertEqual(cupidasm_end - cupidasm_start, 2 * 1024 * 1024)
-        self.assertEqual(stack_top, external_start)
-        self.assertEqual(external_end, cupidc_start)
+        self.assertEqual(stack_top, cupidc_start)
         self.assertEqual(cupidc_end, cupidasm_start)
+        self.assertEqual(cupidasm_end, external_start)
         for address in (
             stack_bottom,
             stack_top,
@@ -82,14 +82,21 @@ class MemoryLayoutContractTests(unittest.TestCase):
         )
         logical_user_makefile = user_makefile.replace("\\\n", " ")
 
-        self.assertIn("ASSERT(_kernel_end <= 0xD00000,", linker)
-        self.assertRegex(boot, r"(?m)^\s*mov esp, 0xF00000\s+;")
-        self.assertIn('"mov $0xF00000, %%esp\\n"', kernel)
+        self.assertIn("ASSERT(_loaded_end <= 0xAFF600,", linker)
+        self.assertIn("ASSERT(_kernel_end <= 0xF00000,", linker)
+        self.assertRegex(boot, r"(?m)^\s*dd 20480\s*$")
+        self.assertRegex(
+            boot,
+            r"(?m)^\s*mov word \[sectors_left\], 20475\s+;",
+        )
+        self.assertRegex(boot, r"(?m)^\s*mov esp, 0x1100000\s+;")
+        self.assertIn('"mov $0x1100000, %%esp\\n"', kernel)
         self.assertIn("#define CC_JIT_CODE_BASE 0x01100000u", cupidc)
         self.assertIn("#define CC_JIT_DATA_BASE 0x01200000u", cupidc)
         self.assertIn("#define CC_AOT_CODE_BASE 0x01100000u", cupidc)
         self.assertIn("#define CC_AOT_DATA_BASE 0x01200000u", cupidc)
-        self.assertIn("USER_TEXT_ADDRESS ?= 0x00F00000", user_makefile)
+        self.assertIn("FAT_START_LBA ?= 20480", root_makefile)
+        self.assertIn("USER_TEXT_ADDRESS ?= 0x01C00000", user_makefile)
         self.assertRegex(
             logical_user_makefile,
             r"(?m)^\$\(BUILD\)/%: \$\(BUILD\)/%\.o "
@@ -149,8 +156,8 @@ class MemoryLayoutContractTests(unittest.TestCase):
                 self.assertEqual(ident[:6], b"\x7fELF\x01\x01")
                 self.assertEqual(file_type, 2)
                 self.assertEqual(machine, 3)
-                self.assertGreaterEqual(entry, 0x00F00000)
-                self.assertLess(entry, 0x01100000)
+                self.assertGreaterEqual(entry, 0x01C00000)
+                self.assertLess(entry, 0x01E00000)
 
                 entry_is_executable = False
                 load_count = 0
@@ -170,9 +177,9 @@ class MemoryLayoutContractTests(unittest.TestCase):
                     if segment_type != 1:
                         continue
                     load_count += 1
-                    self.assertGreaterEqual(virtual_address, 0x00F00000)
+                    self.assertGreaterEqual(virtual_address, 0x01C00000)
                     self.assertLessEqual(
-                        virtual_address + memory_size, 0x01100000
+                        virtual_address + memory_size, 0x01E00000
                     )
                     self.assertLessEqual(file_offset + file_size, len(image))
                     if (

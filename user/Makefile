@@ -54,7 +54,7 @@ USER_SYSCALL_ABI_INPUTS := ../tools/user_syscall_abi.py \
 USER_FRONTIER_INPUTS := ../tools/cupidc_production_frontier.py \
 	$(CUPIDC_PRODUCTION_COMPILE_INPUTS) $(CUPIDLD_USER_LINK_INPUTS) \
 	$(USER_SYSCALL_ABI_INPUTS)
-USER_TEXT_ADDRESS ?= 0x00F00000
+USER_TEXT_ADDRESS ?= 0x01C00000
 
 ifeq ($(OS),Windows_NT)
 NATIVE_USER_TOOL_GATE := native-user-tools

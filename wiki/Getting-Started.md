@@ -133,7 +133,7 @@ The default login is `root` / `cupid`; change it in the guest with
 - FAT16 partition mounted as `/disk`
 - persistent `/home` data stored in `HOMEFS.SYS` on FAT16
 
-By default, FAT starts at LBA 16384 (offset `8388608` bytes).
+By default, FAT starts at LBA 20480 (offset `10485760` bytes).
 
 The build does not use a separate `test-disk.img`.
 
@@ -145,7 +145,7 @@ Use the portable host helper against the FAT partition inside `cupidos.img`:
 
 ```bash
 # Host file -> OS /disk/cupid.bmp
-python3 tools/hostbuild.py stage --image cupidos.img --fat-start-lba 16384 cupid.bmp:/cupid.bmp
+python3 tools/hostbuild.py stage --image cupidos.img --fat-start-lba 20480 cupid.bmp:/cupid.bmp
 ```
 
 On Windows, use `python` instead of `python3`.
@@ -153,10 +153,10 @@ On Windows, use `python` instead of `python3`.
 If you prefer `mtools`, use the FAT byte offset:
 
 ```bash
-mcopy -o -i cupidos.img@@8388608 cupid.bmp ::/cupid.bmp
+mcopy -o -i cupidos.img@@10485760 cupid.bmp ::/cupid.bmp
 
 # Verify the FAT root (visible in CupidOS as /disk)
-mdir -i cupidos.img@@8388608 ::/
+mdir -i cupidos.img@@10485760 ::/
 ```
 
 If `FAT_START_LBA` changes, recompute offset:

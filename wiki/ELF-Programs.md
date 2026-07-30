@@ -123,21 +123,21 @@ Cupid OS uses a **flat 512 MB identity-mapped** address space. The loader places
 
 ```
 Physical / Virtual Memory (512 MB identity-mapped):
-0x00100000 ... kernel image ... below 0x00D00000
-0x00D00000 - 0x00F00000  fixed kernel stack
-0x00F00000 - 0x01100000  exclusive external-ELF arena
+0x00100000 ... kernel image ... below 0x00F00000
+0x00F00000 - 0x01100000  fixed kernel stack
 0x01100000 - 0x01A00000  CupidC JIT/AOT region
 0x01A00000 - 0x01C00000  CupidASM JIT/AOT region
+0x01C00000 - 0x01E00000  exclusive external-ELF arena
 0x20000000                end of identity map
 ```
 
-Ordinary external programs are linked at `0x00F00000`. The whole two-MiB
+Ordinary external programs are linked at `0x01C00000`. The whole two-MiB
 arena is permanently reserved from ordinary PMM allocation and leased to one
 fixed-address external process at a time. Process cleanup releases the lease,
 not the permanent pages. Programs linked at an earlier fixed base must be
 rebuilt.
 
-A runtime smoke runs the same external program twice at `0x00F00000`. The
+A runtime smoke runs the same external program twice at `0x01C00000`. The
 first process exits and releases its lease before the second process claims the
 arena and loads at the same address.
 
@@ -193,7 +193,7 @@ at byte 0 and `type` at byte 4.
 | Flag | Purpose |
 |------|---------|
 | `-m elf_i386` | Target i386 ELF format |
-| `--text-address 0x00F00000` | Set the external-ELF arena base |
+| `--text-address 0x01C00000` | Set the external-ELF arena base |
 | `--entry _start` | Select the program entry symbol |
 
 ### User Makefile
@@ -582,7 +582,7 @@ make -C user
 # For /home import, stage into a fresh image before its first boot
 make clean-image
 make
-python tools/hostbuild.py stage --image cupidos.img --fat-start-lba 16384 \
+python tools/hostbuild.py stage --image cupidos.img --fat-start-lba 20480 \
     user/build/hello:/hello user/build/ls:/ls user/build/cat:/cat
 ```
 
@@ -621,10 +621,10 @@ The loader checks all of the following before loading:
 
 | Constraint | Value | Reason |
 |------------|-------|--------|
-| External arena | `0x00F00000..0x01100000` | Avoid kernel, stack, and Cupid JIT/AOT regions |
+| External arena | `0x01C00000..0x01E00000` | Avoid kernel, stack, and Cupid JIT/AOT regions |
 | Max external image span | 2 MiB | The complete image must fit the external arena |
 | Entry/load range | Loads wholly inside one arena; entry in file-backed `PF_X` bytes | Prevent cross-region overwrite and non-code entry |
-| Link address | `0x00F00000` | Fixed base used by `user/Makefile` |
+| Link address | `0x01C00000` | Fixed base used by `user/Makefile` |
 
 The loader also preserves CupidC's `0x01100000..0x01A00000` and CupidASM's
 `0x01A00000..0x01C00000` fixed AOT ranges. An image must fit wholly inside

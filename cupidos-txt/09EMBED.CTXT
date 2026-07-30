@@ -103,9 +103,9 @@ Simple in-OS approach:
 3) Run sync after edits.
 
 Host copy approach (recommended for bulk docs):
-  mcopy -o -i cupidos.img@@8388608 00INDEX.CTXT ::/00INDEX.CTXT
-  mcopy -o -i cupidos.img@@8388608 01SHELL.CTXT ::/01SHELL.CTXT
-  mdir  -i cupidos.img@@8388608 ::/
+  mcopy -o -i cupidos.img@@10485760 00INDEX.CTXT ::/00INDEX.CTXT
+  mcopy -o -i cupidos.img@@10485760 01SHELL.CTXT ::/01SHELL.CTXT
+  mdir  -i cupidos.img@@10485760 ::/
 
 Mapping reminder:
 - FAT ::/ is always mounted as CupidOS /disk.
