@@ -303,11 +303,12 @@ The checked seed compiles three generated installation tables. CupidC also
 compiles the three example external ELF programs. All six use `.cc` source
 names. The generated tables keep the kernel profile. `hello.cc`, `ls.cc`, and
 `cat.cc` use the closed user profile and CupidLD link. Linux runs the checked
-seed directly. Windows prepares native hosted CupidC and CupidLD drivers and
-runs private PE snapshots without WSL. Both wrappers freeze their source and
-control inputs, validate every ELF result, and replace an artifact only after
-the operation succeeds. The Windows frontier also requires all six files to
-match checked-seed output.
+seed directly, while Windows runs it through WSL. Both wrappers freeze their
+source and control inputs, validate every ELF result, and replace an artifact
+only after the operation succeeds. The default frontier tracks 23 checked-seed
+inputs. An explicit 46-input Windows frontier runs private native hosted
+CupidC and CupidLD snapshots and requires all six files to match checked-seed
+output.
 
 Before compilation, the user ABI operation captures the exact bytes of its
 six kernel and public declarations. It compares the reviewed i386 layout and

@@ -2,10 +2,10 @@
 
 Cupid OS loads and runs static **ELF32 i386** executables. CupidC compiles the
 three repository examples, and CupidLD links them. Linux runs the checked
-i386 Linux seed directly. Windows runs native hosted CupidC and CupidLD
-drivers and requires their output to match the checked seed. Programs run as
-ring-0 kernel threads and receive a **syscall table**, a struct of function
-pointers passed to `_start()`.
+i386 Linux seed directly, while Windows runs it through WSL. An optional
+native Windows comparison requires hosted CupidC and CupidLD output to match
+the checked seed. Programs run as ring-0 kernel threads and receive a
+**syscall table**, a struct of function pointers passed to `_start()`.
 
 ---
 
@@ -44,10 +44,10 @@ make test-user-cupidc-frontier
 make test-user-native-windows-equivalence
 ```
 
-The Windows build prepares the native drivers with Clang and its native
-linker, then runs the drivers without WSL. This is a native user build, but it
-is not a Windows self-hosting fixed point. A Cupid-built Windows runtime and
-PE/COFF executable output remain open.
+The normal Windows build runs the checked seed through WSL and does not
+prepare native drivers. The separate comparison command builds those drivers
+with Clang and its native linker. A Cupid-built Windows runtime and PE or COFF
+executable output remain open.
 
 ### 3. Deploy to Disk
 
@@ -205,8 +205,8 @@ make -C user          # Build all programs
 make -C user clean    # Clean build artifacts
 ```
 
-On Windows, the first command prepares and runs the native hosted CupidC and
-CupidLD drivers. On Linux, it runs the checked seed directly.
+The first command runs the checked seed directly on Linux and through WSL on
+Windows. It does not build the optional native hosted drivers.
 
 To add a new program:
 

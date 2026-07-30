@@ -127,20 +127,18 @@ def _relative_files(root: Path, pattern: str) -> tuple[str, ...]:
     )
 
 
-def _user_inputs() -> tuple[str, ...]:
-    return tuple(
-        sorted(
-            {
-                *USER_SOURCES,
-                *USER_INCLUDE_CLOSURE,
-                *ABI_INPUTS,
-                *CONTROL_FILES,
-                *USER_CONTROL_FILES,
-                *SEED_FILES,
-                *NATIVE_USER_TOOL_SOURCES,
-            }
-        )
-    )
+def _user_inputs(*, include_native_tools: bool = False) -> tuple[str, ...]:
+    inputs = {
+        *USER_SOURCES,
+        *USER_INCLUDE_CLOSURE,
+        *ABI_INPUTS,
+        *CONTROL_FILES,
+        *USER_CONTROL_FILES,
+        *SEED_FILES,
+    }
+    if include_native_tools:
+        inputs.update(NATIVE_USER_TOOL_SOURCES)
+    return tuple(sorted(inputs))
 
 
 def _generator_inputs(root: Path) -> dict[str, tuple[str, ...]]:
@@ -276,7 +274,7 @@ def run_user_frontier(
         raise FrontierError(
             "native Windows checked-seed comparison requires Windows"
         )
-    closure = _user_inputs()
+    closure = _user_inputs(include_native_tools=compare_checked_seed)
     before = _snapshot(root, closure)
     native_options = (
         {"tool_mode": "native-windows"}
@@ -396,7 +394,10 @@ def run_user_frontier(
             records[source_relative] = record
 
     after = _snapshot(root, closure)
-    if after != before or _user_inputs() != closure:
+    if (
+        after != before
+        or _user_inputs(include_native_tools=compare_checked_seed) != closure
+    ):
         raise FrontierError("user frontier inputs changed during the check")
     return {
         "schema": SCHEMA,

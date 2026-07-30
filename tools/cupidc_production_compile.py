@@ -295,13 +295,6 @@ def compile_production_source(
     use_native = (
         native_compiler is not None
         or tool_mode == "native-windows"
-        or (
-            tool_mode == "auto"
-            and cohort == "user"
-            and executor is None
-            and manifest is None
-            and os.name == "nt"
-        )
     )
     if use_native and cohort != "user":
         raise ProductionCompileError(

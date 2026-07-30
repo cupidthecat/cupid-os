@@ -311,12 +311,6 @@ def link_user_program(
     use_native = (
         native_linker is not None
         or tool_mode == "native-windows"
-        or (
-            tool_mode == "auto"
-            and runner is None
-            and manifest is None
-            and os.name == "nt"
-        )
     )
     try:
         source_payload = source.read_bytes()

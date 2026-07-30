@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 ELF User Programs (user/cupid.h)
-Verified against source on: 2026-07-26
+Verified against source on: 2026-07-30
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -16,8 +16,9 @@ Verified against source on: 2026-07-26
 >h2 Overview
 >tree open Overview
 The CupidC and CupidLD ELF path is separate from the CupidC source JIT.
-Linux runs the checked i386 Linux seed. Windows runs native hosted CupidC and
-CupidLD drivers and checks that their output matches the seed.
+Linux runs the checked i386 Linux seed directly. Windows runs it through WSL.
+An optional native Windows check requires CupidC and CupidLD output to match
+the seed.
 
 kernel/lang/exec.cc currently supports:
 - ELF32 executables
@@ -78,11 +79,10 @@ The current user/Makefile writes outputs to:
 
 The build freezes its CupidC and CupidLD tool images, validates each object
 and executable, and publishes only complete files. Linux runs the checked
-seed directly. Windows prepares native hosted drivers and runs private PE
-snapshots without WSL. Use `make test-user-cupidc-frontier` to repeat the
-deterministic build check. On Windows,
-`make test-user-native-windows-equivalence` also compares all six files with
-checked-seed output.
+seed directly, while Windows runs it through WSL. Use
+`make test-user-cupidc-frontier` to repeat the deterministic build check. On
+Windows, `make test-user-native-windows-equivalence` builds private native
+driver snapshots and compares all six files with checked-seed output.
 
 Run `make sync-user` to build the image and stage the examples at FAT root.
 A fresh image imports them into /home on first boot. Once HOMEFS.SYS exists,

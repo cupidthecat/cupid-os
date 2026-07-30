@@ -207,9 +207,9 @@ sudo apt-get install gcc gcc-multilib binutils python3 make qemu-system-x86
 
 On Windows, install GNU Make, Python 3, WSL, and QEMU, then build from
 PowerShell or another native Windows shell. LLVM remains necessary for the
-native Toolchain contracts and the native CupidC and CupidLD drivers used by
-`user:all`; it is not an image code generator. `llvm-nm` is an optional
-comparison oracle:
+native Toolchain contracts and the optional native user equivalence check. It
+is not an image or normal user-program code generator. `llvm-nm` is an
+optional comparison oracle:
 
 ```powershell
 choco install make python llvm qemu
@@ -322,20 +322,20 @@ The generated ramfs, homefs, and demo installation tables are emitted as
 `.cc` sources and compiled by the checked CupidC seed. The separate `user/`
 build uses CupidC for `hello.cc`, `ls.cc`, and `cat.cc`, then CupidLD places
 each executable in the fixed external arena. Linux runs the checked i386
-Linux seed directly. Windows prepares the native hosted drivers through an
-explicit Make prerequisite and runs private PE snapshots. A separate
-frontier compares all six Windows outputs with the checked seed. Before
-compiling, the user build checks the kernel and public syscall declarations
-as one i386 ABI. The checker captures all six declaration inputs and rechecks
-their exact bytes before success. The contract is version 5 with 103 fields in
-412 bytes, a 136-byte directory entry, an 8-byte file status record, and 101
-reviewed function providers. Both paths freeze their complete source and
-control inputs, validate the resulting ELF files, and publish only complete
-artifacts. Poisoned-host tests prove that the prepared Windows user path
-cannot fall back to WSL, GCC, Clang, `ld`, or `cc`. The native driver build
-still needs Clang and its Windows linker, so this is not a native Windows
-fixed point. `user/build/` contains local generated outputs and is ignored
-by Git.
+Linux seed directly, while Windows runs it through WSL. The normal user build
+does not prepare a native compiler or linker. An optional Windows frontier
+runs private snapshots of the native hosted drivers and requires all six
+outputs to match the checked seed. Before compiling, the user build checks
+the kernel and public syscall declarations as one i386 ABI. The checker
+captures all six declaration inputs and rechecks their exact bytes before
+success. The contract is version 5 with 103 fields in 412 bytes, a 136-byte
+directory entry, an 8-byte file status record, and 101 reviewed function
+providers. Both execution paths freeze their complete source and control
+inputs, validate the resulting ELF files, and publish only complete
+artifacts. Poisoned-host tests prove that the normal user build cannot fall
+back to GCC, Clang, `ld`, or `cc`. The optional native drivers still need
+Clang and its Windows linker, so this is not a native Windows fixed point.
+`user/build/` contains local generated outputs and is ignored by Git.
 
 The external-program gate boots `hello`, `ls`, and `cat` from separate
 private image copies. Serial
@@ -608,13 +608,12 @@ the strict and Doom gates. They fail if a CupidC-owned object reaches Clang or
 GCC. They pass against the renamed graph. Across the three supported build
 roots, ownership
 is 245 transforms for CupidC, 52 C transforms for the host compiler,
-261 transforms involving host Python, and five transforms for Make recursion.
+261 transforms involving host Python, and four transforms for Make recursion.
 The host compiler's 52 transforms belong to the hosted Toolchain build; the
 442-transform root image graph has no host C transform. One
 Python transform checks the external program syscall ABI and produces no OS
-code. The fifth Make transform prepares native CupidC and CupidLD for the
-Windows user build. Two Python transforms now generate the ISO fixture inputs
-that the system image declares explicitly.
+code. Two Python transforms generate the ISO fixture inputs that the system
+image declares explicitly.
 The CupidC transforms are 238 checked-in normal roots, the generated kernel
 symbol table, three generated installation tables, and three example
 programs. The renamed graph passes both CupidLD links and CupidObj flattening.
@@ -774,7 +773,7 @@ kernel symbol translation described above.
 
 [ADR 0123](docs/adr/0123-transfer-gnu-assembly-frontier-to-cupidc.md) records the eight-root and generated-symbol production transfer.
 
-[ADR 0124](docs/adr/0124-name-production-cupidc-sources-consistently.md) records the 111-root `.cc` naming transfer. ADR 0126 completes the five shared Toolchain roots. [ADR 0127](docs/adr/0127-lock-the-external-program-syscall-abi.md) records the external syscall contract, [ADR 0130](docs/adr/0130-run-user-cupid-tools-natively-on-windows.md) records the native Windows user-tool handoff, and [ADR 0133](docs/adr/0133-freeze-user-abi-inputs-and-isolate-runtime-boots.md) records the ABI snapshot and private guest checks.
+[ADR 0124](docs/adr/0124-name-production-cupidc-sources-consistently.md) records the 111-root `.cc` naming transfer. ADR 0126 completes the five shared Toolchain roots. [ADR 0127](docs/adr/0127-lock-the-external-program-syscall-abi.md) records the external syscall contract, [ADR 0130](docs/adr/0130-run-user-cupid-tools-natively-on-windows.md) records the optional native Windows user-tool path, [ADR 0133](docs/adr/0133-freeze-user-abi-inputs-and-isolate-runtime-boots.md) records the ABI snapshot and private guest checks, and [ADR 0188](docs/adr/0188-run-the-windows-user-build-from-the-checked-seed.md) makes the checked seed the normal Windows user path.
 
 [ADR 0125](docs/adr/0125-represent-decimal-floating-scalars.md) records decimal binary32 and binary64 constants, represented integer conversions, and mixed scalar arithmetic. [ADR 0126](docs/adr/0126-name-fixed-point-sources-consistently.md) records the complete 19-source fixed-point rename and old-seed proof. [ADR 0129](docs/adr/0129-refresh-seed-and-transfer-cupidc-lexer.md) records the promoted seed and the lexer handoff.
 
@@ -1172,11 +1171,11 @@ and `ls.cc`. Its `cupid.h` header defines the syscall-table ABI. `make -C user`
 first compares that header with the kernel types, syscall table and
 initializer, VFS declarations, and socket constants. It then compiles the
 sources with CupidC and links them with CupidLD. Linux runs the checked seed
-directly. Windows first builds the native hosted drivers, then runs them
-without WSL. `make test-user-native-windows-equivalence` checks every Windows
-object and executable against the seed. The host compiler remains necessary
-to build those native drivers. The current ABI is version 5 with 103 fields
-and a 412-byte i386 table.
+directly, while Windows runs it through WSL.
+`make test-user-native-windows-equivalence` builds the optional native hosted
+drivers and checks every object and executable against the seed. The host
+compiler is needed only for that comparison and the hosted Toolchain. The
+current ABI is version 5 with 103 fields and a 412-byte i386 table.
 The generated `user/build/` directory is ignored by Git, so rebuild the
 programs before staging them into an image.
 

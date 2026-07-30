@@ -4,7 +4,7 @@ The deterministic active-source audit records three supported build roots:
 root `all`, `user:all`, and `toolchain:all`. It evaluates Make conditionals
 with `OS=Windows_NT` and `LC_ALL=C` on every host so the checked graph has one
 stable shape, then covers the Linux branch with direct build tests.
-`audits/active-build.json` owns the current 716-input/505-transform graph. The
+`audits/active-build.json` owns the current 716-input/504-transform graph. The
 language graph contains 15 C translation units, 288 headers, and 386 Cupid C
 files. The checked Windows Clang/LLVM and Linux GCC/binutils baselines at
 revision `1e079d1` predate the current CupidC ownership and remain historical
@@ -17,20 +17,18 @@ CupidC owns 245 transforms across the three roots. The normal cohort contains
 for the other six CupidC transforms. The host C compiler owns 52 transforms,
 all in the hosted Toolchain build. Python participates in 261 transforms,
 including checked compiler launches, one external-program syscall ABI
-verification, and two ISO fixture operations. Make owns five transforms.
+verification, and two ISO fixture operations. Make owns four transforms.
 
 The ABI verification captures the exact bytes of its six declaration inputs,
 compares the reviewed i386 contract, and rechecks every input before success.
 The external-program runtime gate gives hello, ls, and cat separate private
 copies of the staged image. ADR 0133 records these consistency boundaries.
 
-Linux runs the checked i386 seed for all six user artifacts. Windows runs
-private snapshots of the two native hosted drivers. A separate frontier
-compares all six Windows outputs with the seed. That user path no longer
-needs WSL after the drivers exist. The root and generated-table checked-seed
-paths still use WSL on Windows. Clang and its native linker still build the
-Windows drivers, so the native user path does not establish a Windows fixed
-point.
+Linux runs the checked i386 seed for all six user artifacts. Windows runs the
+same seed through WSL. A separate frontier uses private snapshots of the two
+native hosted drivers and compares all six outputs with the seed. Clang and
+its native linker build those optional drivers, so the comparison path does
+not establish a Windows fixed point.
 
 The strict frontier must compile all 155 checked-in sources twice. Every
 transferred Make recipe names its exact recursive header closure and common
@@ -338,15 +336,15 @@ The nine-file source count in the preceding historical summary is superseded by 
 | Dependency | Current role | Current requirement | Fixed-point disposition |
 | --- | --- | --- | --- |
 | GCC with i386/multilib support | Builds the native hosted core, CupidC operations, ELF32, x86, CupidDis, CupidASM, CupidObj, and CupidLD contracts and commands on Linux | Required for `toolchain:all` and native development commands; not required to emit a normal image object | Remove it from the hosted bootstrap and contract path; retain it only as an optional oracle or bootstrap escape hatch |
-| Clang with i386 target support | Builds the same native hosted contracts and commands on Windows, including the native CupidC and CupidLD drivers used by `user:all` | Required for the hosted Toolchain and native user drivers; not required to emit a normal image object | Remove it from the hosted bootstrap and contract path; retain it only as an optional oracle or bootstrap escape hatch |
+| Clang with i386 target support | Builds the same native hosted contracts and commands on Windows, including the optional native CupidC and CupidLD user oracle | Required for the hosted Toolchain and explicit native comparison; not required by root `all` or `user:all` | Remove it from the hosted bootstrap and contract path; retain it only as an optional oracle or bootstrap escape hatch |
 | NASM | Optional comparison oracle for the four active-source CupidASM parity tests and the shared ELF32 reader | Not required by root `all`, `user:all`, `toolchain:all`, or baseline preflight; `make nasm-assembly-oracle` uses it when installed | Retain only as an optional oracle/bootstrap escape hatch |
-| Host linker backend (`ld`, `ld.lld`, `lld-link`, or platform equivalent) | No direct i386 OS/user link recipe remains; CupidLD owns those five outputs. The host C compiler still invokes a native linker backend to bootstrap the Cupid contract and CLI executables, and standalone ELF linkers remain optional comparison oracles. Canonical Windows LLD links use `/Brepro` so hosted PE timestamps cannot invalidate same-host evidence | Required transitively wherever hosted Cupid tools are rebuilt, including root `all`, `user:all` on Windows, and `toolchain:all`; not an owner of an OS/user ELF transform | Remove from the normal bootstrap after checked Cupid-built seeds/self-hosting exist; retain standalone ELF linkers only as optional oracles/escape hatches |
+| Host linker backend (`ld`, `ld.lld`, `lld-link`, or platform equivalent) | No direct i386 OS/user link recipe remains; CupidLD owns those five outputs. The host C compiler still invokes a native linker backend to bootstrap the Cupid contract and CLI executables, and standalone ELF linkers remain optional comparison oracles. Canonical Windows LLD links use `/Brepro` so hosted PE timestamps cannot invalidate same-host evidence | Required transitively wherever hosted Cupid tools are rebuilt, including root `all`, `toolchain:all`, and the optional native user comparison; not required by `user:all` and not an owner of an OS/user ELF transform | Remove from the normal bootstrap after checked Cupid-built seeds/self-hosting exist; retain standalone ELF linkers only as optional oracles/escape hatches |
 | GNU `objcopy` / `llvm-objcopy` | No role in the normal build; tracked legacy/oracle helpers may still invoke it manually, and the checked `6731dd6` evidence fingerprints the then-installed oracle | Not required for root `all`, `user:all`, `toolchain:all`, or new `bootstrap-baseline` captures | Retain only as an optional comparison/maintenance utility; CupidObj owns the production transformations |
 | GNU `nm` / `llvm-nm` | Optional comparison oracle for CupidDis's numeric symbol view and historical baseline evidence | Not required by root `all`, `user:all`, `toolchain:all`, or baseline preflight; configured through `NM` only for optional oracle probes/tests | Retain only as an optional comparison/maintenance utility; CupidDis owns production kernel-symbol inspection |
 | Hosted C runtime/libc | Backs the native hosted adapter's allocation, whole-file, and diagnostic seams plus the CupidC preprocessing, declaration, type/layout, IR, and object contracts and the native CupidC, CupidDis, CupidASM, CupidObj, and CupidLD command drivers. Cupid owns checked i386 Linux declarations and a matching narrow runtime for static Cupid-built commands | Native libc remains required by the temporary native oracle, contracts, and hosted production commands. The repository runtime is sufficient for the five generated Linux i386 commands but is not a general libc or a Windows runtime | Retain a platform runtime seam; it must not own preprocessing, parsing, type/layout semantics, code generation, object, assembly, link, or inspection semantics |
 | GNU Make | Declares the root, user, and toolchain-contract build graphs and invokes tools | Required; the graph uses portable ordinary/stamp targets rather than GNU Make 4.3 grouped-target syntax | May remain as host orchestration; it must invoke Cupid code-producing tools on the normal path |
-| Python 3 | Generates embedded-source and symbol tables; creates, stages, and cleans images; builds fixtures; drives QEMU tests; verifies the external-program syscall ABI; launches checked-seed CupidC for 242 root transforms; and launches native CupidC for the Windows user cohort | Required | May remain for orchestration, verification, test control, and image packaging; code, object, and link behavior stays behind Cupid tools |
-| WSL on Windows | Runs the checked static i386 Linux CupidC seed for 242 root transforms and the staged Toolchain bootstrap | Required for those paths on Windows; the native Windows user build no longer uses it, and native Linux runs the seed directly | Remove it when a checked native CupidC or an equivalent Cupid-owned execution path is available |
+| Python 3 | Generates embedded-source and symbol tables; creates, stages, and cleans images; builds fixtures; drives QEMU tests; verifies the external-program syscall ABI; launches checked-seed CupidC for 245 root and user transforms; and launches checked CupidLD for three user links | Required | May remain for orchestration, verification, test control, and image packaging; code, object, and link behavior stays behind Cupid tools |
+| WSL on Windows | Runs the checked static i386 Linux seed for 242 root CupidC transforms, six external-program compile and link operations, and the staged Toolchain bootstrap | Required for those paths on Windows; native Linux runs the seed directly | Remove it when a checked native Cupid toolchain or an equivalent Cupid-owned execution path is available |
 | Git | Enumerates the tracked audit universe and creates detached baseline worktrees | Required for development/audit workflows, not image production | Retain as source-control orchestration, never as a code-producing dependency |
 | `link.ld` and its documented GNU-script subset | Defines kernel memory and section layout; CupidLD parses the exercised `ENTRY`, `SECTIONS`, location-counter, wildcard, alignment, symbol, `COMMON`, and `ASSERT` forms | Required input to both kernel link passes; host-linker interpretation is oracle-only | Keep the script as the source-owned layout contract and deepen CupidLD when the active script needs more semantics |
 | `jpegtran`, `djpeg`/`cjpeg`, or FFmpeg | Optional JPEG normalization selected by `tools/hostbuild.py`; availability changes embedded bytes | At least one converter is preferred; raw-copy fallback exists | Keep as optional asset preprocessing or replace with a deterministic checked policy; fingerprint the selected path |
@@ -394,8 +392,8 @@ Counts are output transforms in the checked audit, not textual recipe occurrence
 | CupidLD | 5 owned transforms | Two script-driven kernel links plus three fixed-address user executables; owns `R_386_32`/`R_386_PC32`, weak/strong/common/script symbols, absolute COMMON alignment, relocation-aware merge entries, assertions, static ELF32 serialization, explicit unsupported allocated-section diagnostics, and the used `link.ld` subset |
 | CupidObj | 182 owned transforms | 172 canonical text-to-ELF wrappers, eight byte-exact binary-to-ELF wrappers, one Python-assisted JPEG wrapper, and final initialized ELF-to-raw conversion |
 | CupidDis | 1 composite transform | Supplies deterministic numeric symbols to `_symbols_from_nm`; the current consumer cohort contains 4,560 text symbols and a 109,857-byte panic-backtrace blob; the host oracle remains optional |
-| Python | 261 transforms | Checked CupidC launches plus generation, inspection, link, input-manifest, image, and verification orchestration; Windows uses native CupidC for three user launches, and symbol generation still uses Python after CupidDis inspection |
-| Make recursion | 5 transforms | Builds the hosted CupidASM, CupidObj, CupidLD, and CupidDis executables from the root and prepares native CupidC plus CupidLD for the Windows user build before production transforms consume them |
+| Python | 261 transforms | Checked CupidC launches plus generation, inspection, link, input-manifest, image, and verification orchestration; the three Windows user launches now use the checked seed, and symbol generation still uses Python after CupidDis inspection |
+| Make recursion | 4 transforms | Builds the hosted CupidASM, CupidObj, CupidLD, and CupidDis executables from the root before production transforms consume them |
 
 `tools/hostbuild.py::_symbols_from_nm` remains the drop-in numeric-reader subprocess seam, but the normal Make path passes `$(CUPIDDIS)` and no longer defines or invokes `$(NM)`. `embed_jpeg` performs optional image preprocessing, then calls CupidObj once with the original source identity; the former temporary-name wrapper plus three-symbol rewrite pass was removed. `tools/mksyms.sh` and `tools/embed_jpeg_baseline.sh` are tracked legacy/oracle duplicates outside the normal Make path.
 

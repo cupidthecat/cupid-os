@@ -16944,3 +16944,53 @@ reached their markers, and the frontier harnesses continued after the
 lost, so none of those runs is counted. Repeating two frontier VMs and then
 two recovery VMs preserved all four successful exit codes without changing
 the guest checks.
+
+## 2026-07-30: run the Windows user build from the checked seed
+
+The normal external-program build now uses the checked i386 Linux CupidC and
+CupidLD seed on every host. Linux runs it directly, while Windows uses the
+existing WSL runner. `user:all` no longer builds native hosted drivers, so a
+clean Windows user build does not invoke Clang or the Windows linker.
+
+The production wrappers retain an explicit `native-windows` mode. On Windows,
+`make test-user-native-windows-equivalence` builds those optional hosted
+drivers and compares all three objects and executables with the checked seed.
+The default frontier excludes the 23 native tool sources from its input
+closure. The comparison target includes them.
+
+ADR 0188 records the new default and leaves ADR 0130's native path in place as
+an oracle. The normal user build accepts the cost of WSL because the root
+checked-seed build already requires it on Windows. Removing the native path
+was considered and rejected because it provides an independent same-host
+comparison.
+
+### Test evidence
+
+Two new policy tests first failed because automatic Windows mode called
+`capture_native_tool` for CupidC and CupidLD. After the handoff, the compiler,
+linker, Makefile, and frontier closure tests pass.
+
+A forced Windows `user:all` build compiles and links hello, ls, and cat from
+the checked seed. The poisoned-host build also passes with all conventional
+Make code-generator variables replaced and failing `gcc.exe`, `clang.exe`,
+`ld.exe`, and `cc.exe` commands placed first on `PATH`.
+
+The default frontier covers 23 inputs with SHA-256
+`b722622ded83c2b2a410099ca9d76d6cbe3788905f025b1174f1a95e2274af56`.
+The optional native comparison covers 46 inputs with SHA-256
+`bbd90f10f0305f12fc6eacbb71a7525f88a96db7a5922d501b86f9217cee4552`.
+Every native object and executable matches its checked-seed counterpart.
+
+The regenerated active graph contains 716 sources, 252 feature IDs, 504
+transforms, and 25 accounted unreachable files. Removing the native user
+prerequisite lowers `user:all` from nine transforms to eight and Make
+recursion from five transforms to four. CupidC still owns 245 transforms, the
+host compiler owns 52 hosted Toolchain transforms, and Python participates in
+261.
+
+### Remaining host boundary
+
+The root image still prepares native CupidASM, CupidObj, CupidLD, and CupidDis
+through four recursive Make transforms. `toolchain:all` still has 52
+host-compiler transforms. Moving those four root commands to the checked seed
+is the next normal-build handoff.

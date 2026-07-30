@@ -50938,7 +50938,7 @@
       },
       {
         "path": "user/Makefile",
-        "sha256": "5241b8c4df1df9fc6ef30208c6de5db2c94713adc25b49e69ada01f5660386af"
+        "sha256": "35f7e084b0a7a3e4c5aaf1e76b1f6ef1076362f0fde4d2c938547e5d790dc327"
       },
       {
         "path": "toolchain/Makefile",
@@ -50962,15 +50962,15 @@
       },
       {
         "path": "tools/cupidc_production_compile.py",
-        "sha256": "0af5ae57b4f0ca89dd857cdbba3a6a7f6aca6de8c5dd4d5d3357f243f467394f"
+        "sha256": "0c8eb4463d7b2ee157deae589110e543e5c5656cfc6ee7a799fe1c554cd26120"
       },
       {
         "path": "tools/cupidc_production_frontier.py",
-        "sha256": "7b9684a6a5c202cc6d75a05068ceeb10b6006404d103e7b5adb6a446c7975554"
+        "sha256": "1649358a568da230dfd3ac2b702cb74a0c1a3fb11f877925476095fbb97a8335"
       },
       {
         "path": "tools/cupidld_user_link.py",
-        "sha256": "068de99a985ef2afe105d9d867192f6975f0a77faf7a9b229beb20cf7cf07256"
+        "sha256": "d88c54efd151c26cf8da6945c588c1c38cab65e1f47fd27795616e01f768d6df"
       },
       {
         "path": "tools/native_user_toolchain.py",
@@ -50979,7 +50979,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "3d671ee1458d73d868b073db507cc1be51a7cd405aed7ac16e8f9371d23fcabd"
+      "sha256": "3b9e869ae6148f5990008db837c85066b70cad8bbd5a68e610fc6722ac719b97"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -51637,7 +51637,7 @@
         ],
         "id": "user_programs",
         "rank": 5,
-        "rationale": "Keep the native Windows and checked-seed Linux CupidC and CupidLD user build reproducible, then stage its validated executables deliberately.",
+        "rationale": "Keep the checked-seed CupidC and CupidLD user build reproducible on Linux and Windows, keep the native Windows oracle explicit, then stage its validated executables deliberately.",
         "sample_sources": [
           "user/cupid.h",
           "user/examples/cat.cc",
@@ -77149,7 +77149,7 @@
   "summary": {
     "active_sources": 716,
     "features": 252,
-    "transforms": 505,
+    "transforms": 504,
     "unreachable_sources": 25
   },
   "supplemental_builds": [
@@ -77183,8 +77183,7 @@
             "bootstrap/seeds/i386-linux/cupiddis.elf",
             "bootstrap/seeds/i386-linux/cupidld.elf",
             "bootstrap/seeds/i386-linux/cupidobj.elf",
-            "user/Makefile",
-            "user/native-user-tools"
+            "user/Makefile"
           ],
           "operation": "link_elf32_executable",
           "output": "user/build/cat",
@@ -77212,7 +77211,6 @@
             "bootstrap/seeds/i386-linux/cupidld.elf",
             "bootstrap/seeds/i386-linux/cupidobj.elf",
             "user/Makefile",
-            "user/native-user-tools",
             "user/build",
             "user/test-syscall-abi"
           ],
@@ -77239,8 +77237,7 @@
             "bootstrap/seeds/i386-linux/cupiddis.elf",
             "bootstrap/seeds/i386-linux/cupidld.elf",
             "bootstrap/seeds/i386-linux/cupidobj.elf",
-            "user/Makefile",
-            "user/native-user-tools"
+            "user/Makefile"
           ],
           "operation": "link_elf32_executable",
           "output": "user/build/hello",
@@ -77268,7 +77265,6 @@
             "bootstrap/seeds/i386-linux/cupidld.elf",
             "bootstrap/seeds/i386-linux/cupidobj.elf",
             "user/Makefile",
-            "user/native-user-tools",
             "user/build",
             "user/test-syscall-abi"
           ],
@@ -77295,8 +77291,7 @@
             "bootstrap/seeds/i386-linux/cupiddis.elf",
             "bootstrap/seeds/i386-linux/cupidld.elf",
             "bootstrap/seeds/i386-linux/cupidobj.elf",
-            "user/Makefile",
-            "user/native-user-tools"
+            "user/Makefile"
           ],
           "operation": "link_elf32_executable",
           "output": "user/build/ls",
@@ -77324,7 +77319,6 @@
             "bootstrap/seeds/i386-linux/cupidld.elf",
             "bootstrap/seeds/i386-linux/cupidobj.elf",
             "user/Makefile",
-            "user/native-user-tools",
             "user/build",
             "user/test-syscall-abi"
           ],
@@ -77336,17 +77330,6 @@
           "tools": [
             "cupid_c_compiler",
             "host_python"
-          ]
-        },
-        {
-          "inputs": [],
-          "operation": "recursive_make",
-          "output": "user/native-user-tools",
-          "recipe": [
-            "$(MAKE) -C ../toolchain build/cupidc.exe build/cupidld.exe"
-          ],
-          "tools": [
-            "make"
           ]
         },
         {

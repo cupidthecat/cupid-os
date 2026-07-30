@@ -1,6 +1,6 @@
 # Run user Cupid tools natively on Windows
 
-- Status: Accepted
+- Status: Superseded in part by ADR 0188
 - Date: 2026-07-26
 
 ## Context

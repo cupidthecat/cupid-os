@@ -30,9 +30,9 @@ SOURCE_SUFFIXES = {
 }
 
 # Keep the checked graph independent of the host running the audit. The
-# Windows branch is the canonical superset because it includes the native
-# user-tool prerequisite. The C locale also keeps Make wildcard ordering
-# stable. Linux execution remains covered by direct build tests.
+# Windows branch stays canonical so platform-specific declarations remain
+# visible, while the C locale keeps Make wildcard ordering stable. Direct
+# Linux builds cover the Linux execution branch.
 CANONICAL_MAKE_VARIABLES = ("OS=Windows_NT",)
 TOOL_MARKERS = (
     ("$(CUPIDDIS)", "cupid_disassembler"),
@@ -1702,7 +1702,7 @@ def _roadmap(
         (
             "user_programs",
             ("user_program", "user_runtime_interface"),
-            "Keep the native Windows and checked-seed Linux CupidC and CupidLD user build reproducible, then stage its validated executables deliberately.",
+            "Keep the checked-seed CupidC and CupidLD user build reproducible on Linux and Windows, keep the native Windows oracle explicit, then stage its validated executables deliberately.",
         ),
         (
             "embedded_cupid_sources",

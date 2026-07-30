@@ -4308,7 +4308,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 {
                     "active_sources": 716,
                     "features": 252,
-                    "transforms": 505,
+                    "transforms": 504,
                     "unreachable_sources": 25,
                 },
             )
@@ -4816,9 +4816,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(user_program_cohort["source_count"], 4)
             self.assertEqual(
                 user_program_cohort["rationale"],
-                "Keep the native Windows and checked-seed Linux CupidC and "
-                "CupidLD user build reproducible, then stage its validated "
-                "executables deliberately.",
+                "Keep the checked-seed CupidC and CupidLD user build "
+                "reproducible on Linux and Windows, keep the native Windows "
+                "oracle explicit, then stage its validated executables "
+                "deliberately.",
             )
 
             source_by_path = {

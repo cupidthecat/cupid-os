@@ -289,6 +289,40 @@ class ProductionCompileTests(unittest.TestCase):
         self.assertEqual(output.read_bytes(), _valid_elf32_object())
         self.assertEqual(len(executor.calls), 1)
 
+    def test_auto_mode_uses_the_checked_seed_on_windows(self):
+        output = self.root / "user/build/hello.o"
+        executor = FakeCompilerExecutor(
+            self.root, payload=_valid_elf32_object()
+        )
+        windows_os = SimpleNamespace(name="nt", replace=os.replace)
+        with (
+            mock.patch.object(production_compile, "os", windows_os),
+            mock.patch.object(
+                production_compile, "SeedExecutor", return_value=executor
+            ),
+            mock.patch.object(
+                production_compile,
+                "freeze_seed_inputs",
+                return_value=self.seed_inputs,
+            ),
+            mock.patch.object(
+                production_compile,
+                "capture_native_tool",
+                side_effect=AssertionError(
+                    "auto mode selected the native compiler"
+                ),
+            ),
+        ):
+            production_compile.compile_production_source(
+                self.root,
+                "user",
+                Path("user/examples/hello.cc"),
+                Path("user/build/hello.o"),
+            )
+
+        self.assertEqual(output.read_bytes(), _valid_elf32_object())
+        self.assertEqual(len(executor.calls), 1)
+
     def test_native_compile_uses_a_private_tool_snapshot_without_seed_access(self):
         output = self.root / "user/build/hello.o"
         native = self.root / "toolchain/build/cupidc.exe"
@@ -618,6 +652,34 @@ class UserLinkTests(unittest.TestCase):
         self.assertIn("0x01C00000", arguments)
         self.assertIn("_start", arguments)
 
+    def test_auto_mode_uses_the_checked_linker_on_windows(self):
+        runner = FakeLinkRunner(payload=_valid_user_executable())
+        windows_os = SimpleNamespace(name="nt", replace=os.replace)
+        with (
+            mock.patch.object(user_link, "os", windows_os),
+            mock.patch.object(user_link, "ToolRunner", return_value=runner),
+            mock.patch.object(
+                user_link,
+                "freeze_seed_inputs",
+                return_value=self.seed_inputs,
+            ),
+            mock.patch.object(
+                user_link,
+                "capture_native_tool",
+                side_effect=AssertionError(
+                    "auto mode selected the native linker"
+                ),
+            ),
+        ):
+            user_link.link_user_program(
+                self.root,
+                Path("user/build/hello.o"),
+                Path("user/build/hello"),
+            )
+
+        self.assertEqual(self.output.read_bytes(), _valid_user_executable())
+        self.assertEqual(len(runner.calls), 1)
+
     def test_native_link_uses_a_private_tool_snapshot_without_seed_access(self):
         native = self.root / "toolchain/build/cupidld.exe"
         native.parent.mkdir(parents=True)
@@ -840,7 +902,9 @@ class ProductionFrontierTests(unittest.TestCase):
             with self.subTest(mismatch=mismatch):
                 with tempfile.TemporaryDirectory() as temporary:
                     root = Path(temporary)
-                    closure = production_frontier._user_inputs()
+                    closure = production_frontier._user_inputs(
+                        include_native_tools=True
+                    )
                     for relative in closure:
                         path = root / relative
                         path.parent.mkdir(parents=True, exist_ok=True)
@@ -1082,17 +1146,20 @@ class ProductionBuildContractTests(unittest.TestCase):
             logical,
         )
         self.assertIn(
-            "all: test-syscall-abi $(NATIVE_USER_TOOL_GATE)",
+            "all: test-syscall-abi $(BUILD) $(BOOTSTRAP_ARTIFACTS)",
+            logical,
+        )
+        self.assertNotIn("NATIVE_USER_TOOL_GATE", makefile)
+        self.assertNotIn("USER_FRONTIER_COMPARISON", makefile)
+        self.assertIn(
+            "--root .. --cohort user",
             logical,
         )
         self.assertIn(
-            "USER_FRONTIER_COMPARISON := --compare-checked-seed",
-            makefile,
-        )
-        self.assertIn(
-            "--root .. --cohort user $(USER_FRONTIER_COMPARISON)",
+            "test-native-windows-equivalence: native-user-tools all",
             logical,
         )
+        self.assertIn("--compare-checked-seed", makefile)
         self.assertNotIn("../toolchain/build/cupidld.exe -m", logical)
         self.assertIn("examples/%.cc", logical)
         self.assertIn(
@@ -1134,6 +1201,12 @@ class ProductionBuildContractTests(unittest.TestCase):
             self.assertIn(source, user_inputs)
         for seed in production_frontier.SEED_FILES:
             self.assertIn(seed, user_inputs)
+        native_inputs = production_frontier._user_inputs(
+            include_native_tools=True
+        )
+        for source in production_frontier.NATIVE_USER_TOOL_SOURCES:
+            self.assertNotIn(source, user_inputs)
+            self.assertIn(source, native_inputs)
 
         generator_inputs = production_frontier._generator_inputs(REPO_ROOT)
         generated_inputs = production_frontier._generated_inputs(
@@ -1151,25 +1224,6 @@ class ProductionBuildContractTests(unittest.TestCase):
         make = shutil.which("make")
         if make is None:
             self.skipTest("GNU Make is unavailable")
-        if os.name == "nt":
-            native_tools = subprocess.run(
-                [
-                    make,
-                    "-C",
-                    "toolchain",
-                    "build/cupidc.exe",
-                    "build/cupidld.exe",
-                ],
-                cwd=REPO_ROOT,
-                text=True,
-                capture_output=True,
-                timeout=600,
-            )
-            self.assertEqual(
-                native_tools.returncode,
-                0,
-                msg=(native_tools.stderr + native_tools.stdout)[-4000:],
-            )
         poisons = {
             "CC": "host-cc-must-not-run",
             "CXX": "host-cxx-must-not-run",
@@ -1180,7 +1234,7 @@ class ProductionBuildContractTests(unittest.TestCase):
             "OBJCOPY": "host-objcopy-must-not-run",
         }
         poison_context = (
-            tempfile.TemporaryDirectory(prefix="poison-wsl-")
+            tempfile.TemporaryDirectory(prefix="poison-codegen-")
             if os.name == "nt"
             else nullcontext(None)
         )
@@ -1196,7 +1250,6 @@ class ProductionBuildContractTests(unittest.TestCase):
             if poison_directory is not None:
                 poison = Path(poison_directory)
                 for executable in (
-                    "wsl.exe",
                     "gcc.exe",
                     "clang.exe",
                     "ld.exe",

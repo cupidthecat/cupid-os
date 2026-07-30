@@ -8,7 +8,7 @@ This file is generated deterministically by `tools/build_graph_audit.py` from th
 - Supplemental builds: `user:all`, `toolchain:all`
 - Active source inputs: 716
 - Unreachable source-like files: 25
-- Reachable output transforms: 505
+- Reachable output transforms: 504
 - Distinct feature requirements: 252
 - Make conditionals use the canonical `OS=Windows_NT` graph and the C locale fixes wildcard order on every host. Direct Linux build tests cover the Linux execution branch.
 - The `TempleOS/` reference tree is excluded.
@@ -69,7 +69,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | Directory | Root target | Transforms | Include paths |
 | --- | --- | ---: | ---: |
 | `.` | `all` | 442 | 20 |
-| `user` | `all` | 9 | 0 |
+| `user` | `all` | 8 | 0 |
 | `toolchain` | `all` | 54 | 2 |
 
 ## Current output ownership
@@ -83,7 +83,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `cupid_object` | 182 |
 | `host_c_compiler` | 52 |
 | `host_python` | 261 |
-| `make` | 5 |
+| `make` | 4 |
 
 ## Feature inventory
 
@@ -161,7 +161,7 @@ It is also a declared Make prerequisite.
 | 2 | `boot_and_kernel_assembly` | 4 | Keep the four production transforms CupidASM-owned while retaining NASM only as an optional parity oracle. |
 | 3 | `kernel_and_drivers` | 278 | Move foundational strict C before vendored compatibility cohorts. |
 | 4 | `doom_and_vendored_c` | 204 | Preserve upstream behavior under a deliberate compatibility mode. |
-| 5 | `user_programs` | 4 | Keep the native Windows and checked-seed Linux CupidC and CupidLD user build reproducible, then stage its validated executables deliberately. |
+| 5 | `user_programs` | 4 | Keep the checked-seed CupidC and CupidLD user build reproducible on Linux and Windows, keep the native Windows oracle explicit, then stage its validated executables deliberately. |
 | 6 | `embedded_cupid_sources` | 151 | Keep runtime CupidC/CupidASM regression corpora active through the host migration. |
 
 ## Unreachable source classification
