@@ -266,14 +266,13 @@ Value-preserving bit-field assignment changes compiler capability without moving
 
 Ordinary narrow bit-field promotion also changes compiler capability without moving an output. The frontend and Linear IR now retain and validate the direct member behind an eight-bit `unsigned int` field's promotion to signed `int`. A 127-byte exact object and eight decoder-driven executions cover the active shift and mask forms. The checked seed uses this support to emit unchanged `kernel/doom/src/i_video.c`; two exact-profile compiles reproduce its 9,312-byte object with SHA-256 `8e9fcb59120cac9e8237a8243003fe1696a7841096aca7af360c89fec173336f`. Every Doom recipe remains unchanged. GCC or Clang still builds the compiler and this proof, so no host dependency is retired.
 
-The completed current-compiler Doom compatibility frontier also retires no
-dependency yet. Compiler head preserves explicit non-atomic pointer casts
-around static addresses and emits the exact dglibc jump block through Cupid's
-x86 model. Host-built and Cupid-built current compilers agree on all three
-compatibility objects. Their normal recipes still use GCC or Clang, and the
-checked seed does not carry this increment. Seed promotion, object and link
-comparison, `.cc` renames, and runtime proof remain before the host compiler
-can leave this 83-root cohort.
+The checked-seed Doom compatibility frontier does not retire a dependency by
+itself. CupidC preserves explicit non-atomic pointer casts around static
+addresses and emits the exact dglibc jump block through Cupid's x86 model.
+Repeated checked-seed compiles agree on all three compatibility objects. Their
+normal recipes still use GCC or Clang. Object and link comparison, `.cc`
+renames, and runtime proof remain before the host compiler can leave this
+83-root cohort.
 
 Eight-byte integer values cross the shared path through full-width constants, matching conditional results, fixed direct and indirect call results, object access, initialization, plain and chained assignment, declared parameters, named arguments, ellipsis and unprototyped call arguments, variadic reads, discard, returns, arithmetic, unary operations, shifts, bitwise operations, comparisons, logical operations, conditions, switch dispatch, and conversion to or from represented integer widths. File objects, block statics, fixed automatic objects, pointer dereferences, ordinary members, and indexed elements use private eight-byte frame snapshots. The i386 emitter restores the low word to EAX and the high word to EDX on return. Calls publish packed post-conversion actual types in emitted instruction order, which gives an open-position wide integer two adjacent stack words and advances a wide variadic cursor by eight bytes. The CupidC-built socket and TCP objects now use this production path. The deterministic result, object, parameter, operation, and call-position contracts remain host-built.
 
@@ -291,7 +290,7 @@ The self-host source frontier also retires no dependency. Hosted CupidC emits de
 
 The repository i386 Linux runtime replaces the tracer's test-only providers for complete tool closures. CupidC compiles allocation, file, memory, string, `errno`, working-directory, and diagnostic services. CupidASM supplies startup and system-call wrappers, and CupidLD produces static CupidC, CupidASM, CupidDis, CupidLD, and CupidObj commands. Linux and WSL behavior matches the native sibling commands for real outputs and failure paths.
 
-The five static commands share one complete checked-seed gate. The manifest binds the exact executables, source revision, target ABI, producer lineage, 19-source build plan, startup, and five link orders. The current seed contains the checked bootstrap's stage-three images at revision `8d5ef4564f753d528630c0f0a78db0f535d56b60`. CupidC changed from the preceding seed, while CupidASM, CupidDis, CupidLD, and CupidObj remain byte-identical. The 2,511,176-byte CupidC image has SHA-256 `4b24bf45726e4ab43fe7830f992120f11de34236daef9ef8753303ab4513934c`.
+The five static commands share one complete checked-seed gate. The manifest binds the exact executables, source revision, target ABI, producer lineage, 19-source build plan, startup, and five link orders. The current seed contains the checked bootstrap's stage-three images at revision `7609793ea594a8e024474509e5faacaf1d6c76ea`. CupidC changed from the preceding seed, while CupidASM, CupidDis, CupidLD, and CupidObj remain byte-identical. The 2,524,088-byte CupidC image has SHA-256 `d05b48f14c5c57930c151f4d7099d686066c6cface01305c7d2c0261b660970d`.
 
 The harness copies the exact 40-input source closure into a private compiler root. Checked CupidC compiles the stage-two union there, checked CupidASM assembles startup, and checked CupidLD links all five tools. The stage-two producer trio repeats that work for stage three below the same root. Both the private closure and the live closure are checked before the first stage, after each stage, and after behavior checks. Every seed image matches stage two, every C object, startup object, and linked image matches across the stages, and both stages execute positive and failure cases for every command. The two stages, behavior evidence, and report are published together only after success. This tighter source and publication boundary does not retire another host dependency. A clean checkout can rebuild the static i386 Linux Toolchain without external code generation. The native contracts, hosted development commands, and remaining normal OS C objects remain host-owned.
 
@@ -392,11 +391,11 @@ between unqualified function pointers and unqualified four-byte data or
 Strict C and plain GNU mode still reject the implicit conversions, and their
 explicit function/data casts remain outside Linear IR. One-active-member union
 initialization also compiles unchanged `info.c`, and ordinary narrow bit-field
-promotion compiles unchanged `i_video.c`. The checked seed emits all 80
-objects, but all 83 Doom and port roots still use host recipes. The three
-compatibility roots, object comparison and validation, and runtime proof must
-pass before ownership moves. This Doom work itself changes neither the 84
-host-built root objects nor the 136 host C transforms.
+promotion compiles unchanged `i_video.c`. The checked seed emits all 83 Doom
+and port objects, but all 83 roots still use host recipes. Object and link
+comparison, `.cc` renames, and runtime proof must pass before ownership moves.
+This seed promotion changes neither the 83 host-built root objects nor the 135
+host C transforms.
 
 Eight-byte integer and exact floating object access use those existing storage identities. A wide `LOAD` copies eight bytes into its own frame snapshot, and `STORE` or `STORE_VALUE` copies from that snapshot to a selected object. This applies to file objects, block statics, fixed automatics, pointer dereferences, ordinary members, and indexed elements. A `float` load keeps its raw four bytes. A `double` load receives its own frame snapshot, and both types pass through compatible stores, fixed calls, discard, and returns. Same-kind floating arithmetic stores each changed result before the next IR instruction. Values already typed as `double` also pass through ellipsis and unprototyped calls, and `va_arg(double)` advances by eight bytes. The host compiler still builds the operation's native contracts and the 135 active host C transforms that have not moved.
 

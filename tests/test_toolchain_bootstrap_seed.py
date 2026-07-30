@@ -585,7 +585,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 hashlib.sha256(
                     frozen.tools["cupidc"].read_bytes()
                 ).hexdigest(),
-                "4b24bf45726e4ab43fe7830f992120f11de34236daef9ef8753303ab4513934c",
+                "d05b48f14c5c57930c151f4d7099d686066c6cface01305c7d2c0261b660970d",
             )
 
     def test_wsl_runner_uses_a_private_temporary_directory(self):
@@ -746,6 +746,172 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             8768,
             "fd280c321b8eb38a90d4f0982d70b8df0364585e3da322eb2c9de722e071f8d4",
         )
+
+    def test_checked_seed_emits_exact_doom_compatibility_objects_twice(
+        self,
+    ):
+        if os.name == "nt" and shutil.which("wsl") is None:
+            self.skipTest("WSL is not available")
+        audit = json.loads(
+            (
+                REPO_ROOT
+                / "docs"
+                / "bootstrap"
+                / "audits"
+                / "active-build.json"
+            ).read_text(encoding="utf-8")
+        )
+        profile = next(
+            item
+            for item in audit["contracts"][
+                "c_preprocessor_translation_units"
+            ]["profiles"]
+            if item["name"] == "DOOM_COMPAT_I386"
+        )
+        self.assertEqual(profile["tracked_translation_units"], 3)
+        self.assertTrue(profile["gnu_extensions"])
+        self.assertFalse(profile["hosted_environment"])
+        self.assertTrue(profile["implicit_function_declarations"])
+        self.assertTrue(profile["compatibility_pointer_conversions"])
+        self.assertEqual(profile["forced_includes"], [])
+        self.assertEqual(len(profile["include_roots"]), 20)
+        self.assertEqual(
+            profile["macro_actions"],
+            [
+                {"name": "__GNUC__", "replacement": "1"},
+                {"name": "__SIZEOF_POINTER__", "replacement": "4"},
+                {
+                    "name": "__ORDER_LITTLE_ENDIAN__",
+                    "replacement": "1234",
+                },
+                {
+                    "name": "__ORDER_BIG_ENDIAN__",
+                    "replacement": "4321",
+                },
+                {
+                    "name": "__ORDER_PDP_ENDIAN__",
+                    "replacement": "3412",
+                },
+                {
+                    "name": "__BYTE_ORDER__",
+                    "replacement": "__ORDER_LITTLE_ENDIAN__",
+                },
+                {"name": "__SSE2__", "replacement": "1"},
+            ],
+        )
+        arguments: list[str | Path] = [
+            "--root",
+            REPO_ROOT,
+            "--gnu",
+            "--doom-compat",
+            "--freestanding",
+        ]
+        both_forms = (
+            "(CTOOL_C_PP_INCLUDE_QUOTED | "
+            "CTOOL_C_PP_INCLUDE_ANGLE)"
+        )
+        for include_root in profile["include_roots"]:
+            self.assertEqual(include_root["forms"], both_forms)
+            arguments.extend(["-I", include_root["path"]])
+        for action in profile["macro_actions"]:
+            if action["name"] == "__SIZEOF_POINTER__":
+                self.assertEqual(action["replacement"], "4")
+                continue
+            arguments.append(
+                "-D" + action["name"] + "=" + action["replacement"]
+            )
+
+        expected_objects = {
+            "/kernel/doom/dglibc.c": (
+                22607,
+                814,
+                "1f0d6f52e6b59b3f6364fd1dbdeb0949"
+                "1804409e11fc6932dc86134a39ad2cca",
+                27992,
+                "88e3a66488e09ee15769e666971dd34ed"
+                "0fe0707a54f9962f5f7dadbe4fd4224",
+            ),
+            "/kernel/doom/doom_libc_stubs.c": (
+                8168,
+                289,
+                "41ba584dd83a21602d46307837e0966bd"
+                "f1d7087ec832ca57c38882b20ad16b6",
+                14352,
+                "8f667113c54fa0b0d27ce83d13424206"
+                "5ba5b9258324a809e11e72229752ff3b",
+            ),
+            "/kernel/doom/doomgeneric_cupidos.c": (
+                13544,
+                400,
+                "049359f33dbdb64af446522043c528b67"
+                "fd8bc98bb344fa3aa8e16e3b690dd2e",
+                10232,
+                "5274b91dfa7bac56cd83ff0f8096eb5a"
+                "06fef5e61f91ebb3b80efacc8ad2a9cb",
+            ),
+        }
+        tracked_sources = sorted(
+            "/" + transform["inputs"][0]
+            for transform in audit["build"]["transforms"]
+            if transform["recipe"]
+            == ["$(CC) $(CFLAGS_DOOM) -o $@ $<"]
+        )
+        self.assertEqual(tracked_sources, sorted(expected_objects))
+        with tempfile.TemporaryDirectory(
+            prefix=".checked-seed-doom-compat-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            frozen = freeze_seed_inputs(SEED_MANIFEST, root / "seed")
+            runner = ToolRunner(REPO_ROOT)
+            for source, expected in expected_objects.items():
+                source_bytes = (REPO_ROOT / source.lstrip("/")).read_bytes()
+                self.assertEqual(
+                    (
+                        len(source_bytes),
+                        source_bytes.count(b"\n"),
+                        hashlib.sha256(source_bytes).hexdigest(),
+                    ),
+                    expected[:3],
+                )
+                images = []
+                for index in range(2):
+                    output = root / (
+                        Path(source).stem + f"-{index}.o"
+                    )
+                    logical_output = "/" + output.relative_to(
+                        REPO_ROOT
+                    ).as_posix()
+                    result = runner.run(
+                        frozen.tools["cupidc"],
+                        [
+                            *arguments,
+                            "-c",
+                            source,
+                            "-o",
+                            logical_output,
+                        ],
+                        180,
+                    )
+                    self.assertEqual(
+                        result.returncode,
+                        0,
+                        f"{source}: {result.stderr}",
+                    )
+                    self.assertEqual(result.stdout, "")
+                    self.assertEqual(result.stderr, "")
+                    image = output.read_bytes()
+                    self.assertEqual(
+                        image[:7], b"\x7fELF\x01\x01\x01"
+                    )
+                    images.append(image)
+                self.assertEqual(images[0], images[1])
+                self.assertEqual(
+                    (
+                        len(images[0]),
+                        hashlib.sha256(images[0]).hexdigest(),
+                    ),
+                    expected[3:],
+                )
 
     def test_changed_seed_byte_is_rejected_before_execution(self):
         with tempfile.TemporaryDirectory(
@@ -1088,7 +1254,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(report["status"], "pass")
             self.assertEqual(
                 report["seed_source_revision"],
-                "8d5ef4564f753d528630c0f0a78db0f535d56b60",
+                "7609793ea594a8e024474509e5faacaf1d6c76ea",
             )
             self.assertNotIn("source_revision", report)
             self.assertEqual(
@@ -1124,7 +1290,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 },
             )
             seed_transition_snapshot = (
-                "c5807ad5189552501ed25d2a2a2e37dff94867ab65efaca2fb3cf2db54960c6a"
+                "1199072a4415195a83e45c6469c79e066d445d96a884d6b0b9235cc09f035986"
             )
             if report["source_snapshot_sha256"] == seed_transition_snapshot:
                 self.assertTrue(all(initial_matches.values()))

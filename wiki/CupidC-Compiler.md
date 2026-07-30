@@ -288,7 +288,7 @@ integer forms, and conversions between function pointers and wide integers
 remain unsupported.
 
 Static compatible character and void pointers accept an ordinary string
-literal through parentheses or a macro. Compiler head also preserves a static
+literal through parentheses or a macro. Checked-seed CupidC also preserves a static
 string or linked binding address through an explicit cast between non-atomic
 pointer types. A cast through an integer remains unsupported. Pointer
 qualification accepts the safe `char **` to `char *const *` conversion. It
@@ -320,15 +320,14 @@ IR. One-active-member union initialization compiles unchanged `info.c`, while
 ordinary narrow bit-field promotion compiles unchanged `i_video.c`. The
 checked seed emits all 80 audited Doom-tree objects.
 
-Compiler head completes the three-root compatibility frontier. It retains the
+The checked seed completes the three-root compatibility frontier. It retains the
 explicit static string cast in `doom_libc_stubs.c` and emits the exact
-`dg_setjmp` and `dg_longjmp` block through Cupid's x86 model. Host-built and
-Cupid-built current compilers produce byte-identical objects for all three
-roots. Doom remains host-owned until these changes reach the checked seed,
-the host and Cupid link boundaries compare, the sources move to `.cc`, and
-the runtime proof passes.
+`dg_setjmp` and `dg_longjmp` block through Cupid's x86 model. Two seed compiles
+produce byte-identical objects for all three roots. Doom remains host-owned
+until the host and Cupid link boundaries compare, the sources move to `.cc`,
+and the runtime proof passes.
 
-The five static i386 Linux tools have a checked seed. The manifest binds their hashes, sizes, target ABI, source revision, producer lineage, 19-source plan, and five link orders. The current CupidC image is the 2,511,176-byte stage-three output from revision `8d5ef4564f753d528630c0f0a78db0f535d56b60`, with SHA-256 `4b24bf45726e4ab43fe7830f992120f11de34236daef9ef8753303ab4513934c`. It carries the complete audited Doom frontier, current GNU entity metadata, x87 and SSE forms, descriptor and segment assembly, every unchanged assembly effect in the then-named `libm.c`, exact naked IPI entries, the kernel-entry BSS clear, and the active packed SSE2 statements. Its plan uses `.cc` for all 19 C roots and has SHA-256 `59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`.
+The five static i386 Linux tools have a checked seed. The manifest binds their hashes, sizes, target ABI, source revision, producer lineage, 19-source plan, and five link orders. The current CupidC image is the 2,524,088-byte stage-three output from revision `7609793ea594a8e024474509e5faacaf1d6c76ea`, with SHA-256 `d05b48f14c5c57930c151f4d7099d686066c6cface01305c7d2c0261b660970d`. It carries the complete 83-root Doom frontier, current GNU entity metadata, x87 and SSE forms, descriptor and segment assembly, every unchanged assembly effect in `libm.cc`, the exact dglibc jump block, pointer-preserving static address casts, exact naked IPI entries, the kernel-entry BSS clear, and the active packed SSE2 statements. Its plan uses `.cc` for all 19 C roots and has SHA-256 `59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`.
 
 The bootstrap copies the 40-input source closure into a private compiler root. Both rebuilt stages compile from that root, and the harness checks the private and live closures at each stage and behavior boundary. The checked seed, stage two, and stage three all contain the same five tool images. The two rebuilt stages also match every C and startup object and agree on all five help paths, ten successful operations, and six failure cases. Their stage directories, behavior evidence, and report are published together only after the complete gate passes. See [Toolchain Bootstrap](Toolchain-Bootstrap) for the commands and report layout. Native contract runners, hosted development commands, and 83 normal Cupid OS root objects still come from a host compiler.
 

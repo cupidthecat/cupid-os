@@ -116,13 +116,12 @@ union initialization and ordinary narrow bit-field promotion close the other
 two audited source boundaries. The checked seed now emits all 80 Doom-tree
 objects.
 
-Compiler head also emits the three compatibility roots. It preserves the
+The checked seed also emits the three compatibility roots. It preserves the
 explicit static string cast in doom_libc_stubs.c and emits the exact
-dg_setjmp and dg_longjmp block through Cupid's x86 model. Host-built and
-Cupid-built current compilers agree on those three objects. The normal Doom
-build stays on its host recipe until these changes reach the checked seed,
-the host and Cupid link boundaries compare, the sources move to .cc, and
-runtime proof is complete.
+dg_setjmp and dg_longjmp block through Cupid's x86 model. Two seed compiles
+agree on those three objects. The normal Doom build stays on its host recipe
+until the host and Cupid link boundaries compare, the sources move to .cc,
+and runtime proof is complete.
 >endtree
 
 >h2 Feature 5: Print Builtin
