@@ -8,6 +8,18 @@ programs: `U0/U8/U16/U32/I8/I16/I32`,
 `signed`, `unsigned`, `extern`, `inline`, `register`, `restrict`, labels,
 `goto`, and skipped `__attribute__((...))` decorations.
 
+## In-kernel floating rules
+
+The private JIT and AOT compiler keeps scalar `float` and `double` values in
+XMM registers. Unary signs preserve the floating width, and unary minus
+changes only the IEEE sign bit. The six equality and relational operators
+accept matching widths or widen a mixed pair to `double`. They return a
+normalized `int`.
+
+Floating comparisons follow C's unordered rules. Signed zero compares equal
+to positive zero. NaN makes only `!=` true. Pointers, aggregates, function
+pointers, and SIMD vectors are not accepted as floating arithmetic operands.
+
 ## Hosted floating-width rules
 
 The shared self-hosting compiler carries non-atomic `float` and `double`

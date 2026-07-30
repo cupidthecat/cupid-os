@@ -993,6 +993,10 @@ Operators +, -, *, / work on scalar float/double with implicit
 promotion (int -> float -> double). SIMD types need matching types
 for +/-/*//; mixing scalar and SIMD is a compile error.
 
+The six scalar comparison operators return int. Matching float or double
+widths compare directly. A mixed pair compares as double. Signed zero equals
+positive zero, and only != is true when either operand is NaN.
+
 Runtime unary plus preserves char, int, float, and double operands. Runtime
 unary minus uses integer NEG for char and int, while float and double change
 only their IEEE-754 sign bit. The floating path preserves negative zero,

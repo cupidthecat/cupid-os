@@ -36,6 +36,14 @@ compiler errors fail. A separate host oracle compiles the active emitter
 helpers and interprets their instruction bytes across binary32 and binary64
 payloads.
 
+The private compiler also accepts all six scalar floating comparisons.
+Matching widths compare directly, and a mixed `float` and `double` pair
+compares as `double`. The result is a normalized `int`; explicit parity
+handling makes only `!=` true for NaN. A host byte oracle and the
+`feature13_double.cc` four-vCPU guest command cover ordered values, mixed
+widths, signed zero, and unordered inputs. ADR 0192 records this boundary.
+It changes private JIT and AOT behavior, not build ownership.
+
 Hosted CupidC now emits deterministic i386 ELF32 objects for all fourteen files in issue #27's CupidC, CupidASM, and CupidDis cohort. Ten cohort files use the hermetic `HOSTED_TOOLCHAIN_64` profile. `kernel/lang/as_elf.cc` is the cohort's kernel bridge, while `ctool_host.cc`, `cupidasm_main.cc`, and `cupiddis_main.cc` use a checked i386 Linux profile with Cupid-owned declarations for their hosted interfaces. The same gate now covers complete CupidLD and CupidObj command closures. Each object is emitted twice and read back through Cupid's ELF32 reader. The adapters also lock their named undefined imports and bounded relocation records. This supersedes the older nine-file, eleven-file, and core-only counts in the historical notes and long-form rows below.
 
 Repository startup and runtime code now take five complete CupidC-emitted command closures across CupidASM and CupidLD. The runtime supplies the checked heap, file, memory, string, `errno`, working-directory, and diagnostic interfaces. CupidC, CupidASM, CupidDis, CupidLD, and CupidObj run on i386 Linux or through WSL. Their checked seed binds the static images to the target ABI, source revision, producer lineage, and complete build plan. The harness freezes the verified seed and copies 40 current inputs, including `link.ld`, into a private compiler root. The seed producer trio builds the 19-source stage-two union and all five tools below that root, then the stage-two trio repeats that work for stage three. The private and live closures are rehashed at every stage and behavior boundary. Every C object, startup object, and tool image matches across the two stages, and both stages agree on positive and failure behavior for all five commands. The two stages, behavior evidence, and report appear together only after the full gate passes. ADR 0086 records the sibling commands, ADR 0088 records the compiler driver, ADR 0089 records the compiler fixed point, ADR 0090 records the five-tool fixed point, ADR 0092 records the checked seed, and ADR 0142 records the frozen source closure.

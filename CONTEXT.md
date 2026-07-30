@@ -332,13 +332,17 @@ private in-kernel JIT and AOT compiler keeps integer expressions in EAX and
 scalar floating expressions in XMM registers. Runtime unary plus preserves an
 arithmetic scalar. Runtime unary minus uses integer `NEG` for `char` and
 `int`, or toggles only the IEEE-754 sign bit for `float` and `double`.
+All six scalar floating comparisons return a normalized `int`. Matching
+widths compare directly, while a mixed `float` and `double` pair compares as
+`double`. Explicit parity handling keeps every unordered relation false
+except `!=`.
 Non-arithmetic operands receive a specific diagnostic, and a rejected REPL
 expression does not poison the next compilation. The frontier accepts that
 diagnostic only once, inside the completed `feature13_double.cc` command
 slice. A stale, repeated, or out-of-context compiler error remains fatal. A
 host oracle compiles the active emitter helpers and interprets their exact
-bytes against binary32 and binary64 payloads. ADR 0189 records this
-private-compiler boundary.
+bytes against binary32 and binary64 payloads. ADR 0189 records unary signs,
+and ADR 0192 records scalar comparisons.
 _Avoid_: C mode, HolyC mode
 
 **Cupid ASM**:

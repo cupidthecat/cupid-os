@@ -83,6 +83,18 @@ four-CPU frontier allows this deliberate diagnostic only during the
 `feature13_double.cc` check. A stale or repeated copy is still treated as a
 compiler failure.
 
+### Runtime scalar comparisons
+
+The private JIT and AOT compiler accepts `==`, `!=`, `<`, `>`, `<=`, and
+`>=` for scalar `float` and `double` values. Matching widths compare
+directly, while a mixed-width pair compares as `double`. Each operator
+returns `0` or `1` as an `int`.
+
+Signed zero compares equal to positive zero. If either input is NaN, `!=` is
+true and the other five relations are false. Floating operators reject
+pointers, aggregates, function pointers, and SIMD vectors instead of
+converting their storage bits.
+
 ### Arrays
 
 Fixed-size arrays, both local (stack-allocated) and global (data section):

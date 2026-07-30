@@ -17423,3 +17423,61 @@ This retires `mkisofs`, `genisoimage`, and `xorrisofs` from normal builds,
 fixture regeneration, and tests. Python remains responsible for
 orchestration and image packaging. ADR 0191 records the format and
 publication boundary.
+
+## 2026-07-30: compare floating scalars in private CupidC
+
+The private in-kernel compiler now accepts `==`, `!=`, `<`, `>`, `<=`, and
+`>=` for scalar `float` and `double` operands. Matching widths compare
+directly. A mixed pair widens to `double`, and each relation returns a
+normalized `int` in EAX.
+
+The emitter keeps the left value in XMM1 and the right value in XMM0 before
+using `UCOMISS` or `UCOMISD`. Equality, less-than, and less-than-or-equal
+combine their predicate with ordered parity. Inequality combines not-equal
+with unordered parity. This makes `!=` true for NaN and keeps the other five
+relations false.
+
+The old path rejected every floating comparison. Browser JavaScript code
+therefore scaled differences into integers, which could classify small
+values incorrectly. The new compiler feature follows the hosted comparison
+contract instead of preserving that workaround. It also rejects pointers,
+aggregates, function pointers, and SIMD vectors as non-arithmetic operands.
+
+### Test evidence
+
+The focused byte suite first failed because the private comparison emitter
+did not exist. It now compiles the active emitter helper and checks twelve
+exact binary32 and binary64 sequences. Its flag interpreter covers ordered
+values, signed zero, subnormals, infinities, quiet NaNs, and signaling NaNs.
+A compiled type oracle accepts `char`, `int`, `float`, and `double` and
+rejects the nine non-arithmetic private types. All three tests pass.
+
+The GUI contract suite has 92 passing tests. Its feature13 command now
+requires:
+
+```text
+[feature13-compare] PASS ordered=6 mixed=4 zero=2 unordered=6
+PASS feature13_double
+[cupidc] JIT execution complete
+```
+
+All 30 checked-seed kernel compiler tests pass. A four-job normal Windows
+build completed in 540.4 seconds and rebuilt the full forced production
+cohort. It linked and staged the image without a host C compiler in the root
+graph.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/lang/cupidc_parse.o` | 296,112 | `243aae2362739af67295c8020341141956936079934b9127f024f03afe739c0e` |
+| `kernel/kernel.elf.pass1` | 8,588,100 | `9470498b0a68c511eda649fc49a70542df28e73f4741499ea9bebf2cb08cbc8e` |
+| `kernel/kernel.elf` | 8,698,692 | `7411b3963e8495396c11e7219cbc285d4baa65951824c6f10f225d0790e64e01` |
+| `kernel/kernel.bin` | 8,497,624 | `6c740e19dac92c02d9d6e44e60fa69e2a511184c97bce34cc7fa4e0cb1ef602b` |
+
+The complete private four-vCPU e1000 frontier passed in 233.8 seconds. It
+finished all ten guest commands, six USB storage lifetimes, HID reattachment,
+69,549 changed pixels, 8,248,083 AC97 frames, and 77,857 PC-speaker frames.
+
+This capability changes private JIT and AOT behavior but moves no build
+ownership. Runtime floating truth, floating increment and decrement, SIMD
+operator gaps, and the remaining Cupid mode work stay open. ADR 0192 records
+the comparison decision.

@@ -42,6 +42,44 @@ void main() {
                       unary_reject, unary_recovery);
     }
 
+    /* Exercise every scalar floating comparison. Mixed widths compare as
+     * double, signed zero compares equal to positive zero, and unordered
+     * comparisons follow C rules. */
+    int compare_ordered =
+        (1.0 == 1.0) +
+        (1.0 != 2.0) +
+        (1.0 < 2.0) +
+        (2.0 > 1.0) +
+        (1.0 <= 1.0) +
+        (2.0 >= 2.0);
+    int compare_mixed =
+        (1.0f < 2.0) +
+        (2.0 > 1.0f) +
+        (2.0f == 2.0) +
+        (1.0 != 2.0f);
+    int compare_zero =
+        (negative_zero == 0.0) +
+        !(negative_zero != 0.0);
+    double compare_nan = 0.0 / 0.0;
+    int compare_unordered =
+        (compare_nan != compare_nan) +
+        !(compare_nan == compare_nan) +
+        !(compare_nan < 0.0) +
+        !(compare_nan > 0.0) +
+        !(compare_nan <= 0.0) +
+        !(compare_nan >= 0.0);
+    if (compare_ordered != 6 || compare_mixed != 4 ||
+        compare_zero != 2 || compare_unordered != 6) {
+        serial_printf("[feature13-compare] FAIL ordered=%d mixed=%d zero=%d unordered=%d\n",
+                      compare_ordered, compare_mixed,
+                      compare_zero, compare_unordered);
+        ok = 0;
+    } else {
+        serial_printf("[feature13-compare] PASS ordered=%d mixed=%d zero=%d unordered=%d\n",
+                      compare_ordered, compare_mixed,
+                      compare_zero, compare_unordered);
+    }
+
     /* sin(pi/2) = 1. Check |sin(pi/2) - 1| < 1e-12 via scale 1e12. */
     double s = sin(pi / 2.0);
     double d_s = s - 1.0;

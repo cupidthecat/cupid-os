@@ -109,6 +109,8 @@ def _frontier_command_outputs():
             "unary sign requires an arithmetic scalar operand\n"
             "[feature13-unary] PASS float=-15 double=-9 "
             "zero=0x80000000 plus=9 reject=1 recovery=1\n"
+            "[feature13-compare] PASS ordered=6 mixed=4 "
+            "zero=2 unordered=6\n"
             "PASS feature13_double\n"
             "[cupidc] JIT execution complete\n"
         ),
@@ -1225,6 +1227,44 @@ class FrontierRuntimeContractTests(unittest.TestCase):
                 + r"\r?$"
             ),
         )
+
+    def test_feature13_requires_all_scalar_comparison_evidence(self):
+        command = _frontier_command("/bin/feature13_double.cc")
+        expected = command.expected_pattern
+        sample = _frontier_command_output("/bin/feature13_double.cc")
+        marker = (
+            "[feature13-compare] PASS ordered=6 mixed=4 "
+            "zero=2 unordered=6\n"
+        )
+
+        self.assertIsNone(
+            re.search(
+                expected,
+                sample.replace(marker, ""),
+                re.S | re.M,
+            )
+        )
+        self.assertIn(
+            "[feature13-compare] FAIL",
+            gui_terminal_smoke.FRONTIER_RUNTIME_REJECTED_MARKERS,
+        )
+
+        source = (
+            REPO_ROOT / "bin" / "feature13_double.cc"
+        ).read_text(encoding="utf-8")
+        for expression in (
+            "1.0 == 1.0",
+            "1.0 != 2.0",
+            "1.0 < 2.0",
+            "2.0 > 1.0",
+            "1.0 <= 1.0",
+            "2.0 >= 2.0",
+            "1.0f < 2.0",
+            "negative_zero == 0.0",
+            "compare_nan != compare_nan",
+        ):
+            with self.subTest(expression=expression):
+                self.assertIn(expression, source)
 
     def test_unary_command_allows_only_its_expected_compiler_error(self):
         command = _frontier_command("/bin/feature13_double.cc")

@@ -36,6 +36,13 @@ Linux kernel build passed in 607.7 seconds, and the Windows root build passed
 in 341.6 seconds. Their 430 frozen kernel artifacts match byte for byte. A
 fresh normal image passed a private `/bin/ls.cc` JIT boot in 49.8 seconds.
 
+Private CupidC scalar comparisons change no build owner or host dependency.
+The in-kernel emitter now handles all six matching or mixed `float` and
+`double` relations with C's unordered behavior. Focused byte tests still use
+a host compiler as an optional execution oracle, while the normal kernel
+object is produced by checked-seed CupidC and the guest frontier executes the
+result.
+
 The ABI verification captures the exact bytes of its six declaration inputs,
 compares the reviewed i386 contract, and rechecks every input before success.
 The external-program runtime gate gives hello, ls, and cat separate private

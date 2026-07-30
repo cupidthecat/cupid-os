@@ -17,8 +17,8 @@ Cupid OS is a 32-bit x86 hobby OS written in C and Cupid ASM. It has a graphical
 - VBE 640x480 32bpp graphics with a window manager, taskbar, and desktop icons
 - CupidC, a HolyC-inspired C compiler with JIT and ELF32 AOT output
 - Hardware FPU (x87) and SSE/SSE2 with eager FXSAVE context switch
-- CupidC float/double scalars, exact runtime unary signs, and float4/double2
-  SIMD types with SSE intrinsics
+- CupidC float/double scalars, exact runtime unary signs, scalar comparisons,
+  and float4/double2 SIMD types with SSE intrinsics
 - libm: 25 operations (sqrt, sin, cos, tan, atan, atan2, exp, exp2, log, log2, pow, asin, acos, sinh, cosh, tanh, cbrt, hypot, nextafter, fabs, floor, ceil, round, trunc, fmod + f-variants)
 - printf %f, %e, %g, %.Nf with x87-backed int/fractional split
 - #NM/#MF/#XF FPU exception handlers with MXCSR/FSW/FCW dump
@@ -72,8 +72,9 @@ Recent subsystem work is summarized below. Detailed pages live under `wiki/`, an
 - A two-pass kernel link generates and embeds a `.ksyms` blob. The generator reads private snapshots of the pass-one kernel and CupidDis, rejects malformed symbol output or live input drift, and replaces the generated `.cc` source only after validation. Checked-seed CupidC compiles that source. `kernel_panic` uses `ksym_lookup` and a frame-pointer walk to print `function_name+offset` for each return address. It prints raw addresses if the blob is missing or corrupt.
 
 Built-in CupidC smoke tests exercise each track: `feature12_float`,
-`feature13_double` (including runtime unary signs, signed zero, a type error,
-and recovery), `feature14_simd`, `feature15_libm`, `feature16_asm_fpu`
+`feature13_double` (including runtime unary signs, all six scalar floating
+comparisons, signed zero, NaN behavior, a type error, and recovery),
+`feature14_simd`, `feature15_libm`, `feature16_asm_fpu`
 (float/SIMD/libm), `feature17_iso` (ISO9660), `feature18_swap` (swap),
 `feature19_usb` (USB), `feature20_smp` (SMP), `feature21_net` (TCP client:
 DNS + connect + HTTP GET), `feature22_net_server` (TCP listen + accept +
@@ -89,6 +90,12 @@ diagnostic only once and only inside the completed `feature13_double.cc`
 command. Stale and repeated copies still fail the boot. A host oracle compiles
 the active emitter functions, checks their instruction bytes, and interprets
 those bytes against ordinary values, signed zero, and NaN payloads.
+
+[ADR 0192](docs/adr/0192-compare-floating-scalars-in-private-cupidc.md)
+records private scalar comparison behavior. Matching widths use `UCOMISS` or
+`UCOMISD`, mixed widths compare as `double`, and explicit parity checks make
+only `!=` true for NaN. The feature13 frontier requires ordered, mixed-width,
+signed-zero, and unordered results before JIT completion.
 
 ## Feature demo quickstart
 

@@ -449,6 +449,75 @@ static void emit_sse_scalar_op(cc_state_t *cc, int is_double, uint8_t op_byte,
   emit8(cc, (uint8_t)(0xC0 | ((xmm_dst & 7) << 3) | (xmm_src & 7)));
 }
 
+/* Compare the scalar left operand in XMM1 with the right operand in XMM0.
+ * UCOMISS and UCOMISD report an unordered comparison by setting PF, ZF, and
+ * CF. The parity checks below keep NaN unequal to every value, including
+ * itself, while making every ordered relation false. */
+static void emit_compare_xmm1_xmm0(cc_state_t *cc, int is_double,
+                                   cc_token_type_t op) {
+  if (is_double)
+    emit8(cc, 0x66);
+  emit8(cc, 0x0F);
+  emit8(cc, 0x2E); /* UCOMISS/UCOMISD xmm1, xmm0 */
+  emit8(cc, 0xC8);
+
+  switch (op) {
+  case CC_TOK_EQEQ:
+    emit8(cc, 0x0F);
+    emit8(cc, 0x94);
+    emit8(cc, 0xC0); /* sete al */
+    emit8(cc, 0x0F);
+    emit8(cc, 0x9B);
+    emit8(cc, 0xC2); /* setnp dl */
+    emit8(cc, 0x20);
+    emit8(cc, 0xD0); /* and al, dl */
+    break;
+  case CC_TOK_NE:
+    emit8(cc, 0x0F);
+    emit8(cc, 0x95);
+    emit8(cc, 0xC0); /* setne al */
+    emit8(cc, 0x0F);
+    emit8(cc, 0x9A);
+    emit8(cc, 0xC2); /* setp dl */
+    emit8(cc, 0x08);
+    emit8(cc, 0xD0); /* or al, dl */
+    break;
+  case CC_TOK_LT:
+    emit8(cc, 0x0F);
+    emit8(cc, 0x92);
+    emit8(cc, 0xC0); /* setb al */
+    emit8(cc, 0x0F);
+    emit8(cc, 0x9B);
+    emit8(cc, 0xC2); /* setnp dl */
+    emit8(cc, 0x20);
+    emit8(cc, 0xD0); /* and al, dl */
+    break;
+  case CC_TOK_GT:
+    emit8(cc, 0x0F);
+    emit8(cc, 0x97);
+    emit8(cc, 0xC0); /* seta al */
+    break;
+  case CC_TOK_LE:
+    emit8(cc, 0x0F);
+    emit8(cc, 0x96);
+    emit8(cc, 0xC0); /* setbe al */
+    emit8(cc, 0x0F);
+    emit8(cc, 0x9B);
+    emit8(cc, 0xC2); /* setnp dl */
+    emit8(cc, 0x20);
+    emit8(cc, 0xD0); /* and al, dl */
+    break;
+  case CC_TOK_GE:
+    emit8(cc, 0x0F);
+    emit8(cc, 0x93);
+    emit8(cc, 0xC0); /* setae al */
+    break;
+  default:
+    return;
+  }
+  emit_movzx_eax_al(cc);
+}
+
 /* Forward decl: defined just below the error-handling block. */
 static int cc_data_reserve(cc_state_t *cc, uint32_t bytes);
 
@@ -1188,6 +1257,11 @@ static int32_t cc_type_size(cc_state_t *cc, cc_type_t type, int struct_index) {
   default:
     return 4;
   }
+}
+
+static int cc_is_arithmetic_scalar_type(cc_type_t type) {
+  return type == TYPE_INT || type == TYPE_CHAR ||
+         type == TYPE_FLOAT || type == TYPE_DOUBLE;
 }
 
 /* Promote binary-op types per FP hierarchy. Rules:
@@ -3246,7 +3320,13 @@ static void cc_parse_expression(cc_state_t *cc, int min_prec) {
     int right_is_fp = (right_type == TYPE_FLOAT || right_type == TYPE_DOUBLE);
 
     if (left_is_fp || right_is_fp) {
-      /* Scalar SSE binary op. Only + - * / supported.
+      if (!cc_is_arithmetic_scalar_type(left_type) ||
+          !cc_is_arithmetic_scalar_type(right_type)) {
+        cc_error(cc, "floating operator requires arithmetic scalar operands");
+        return;
+      }
+
+      /* Scalar SSE arithmetic and comparison.
        *
        * Implicit promotion for mixed int/FP and mixed float/double.
        * The promoted type is determined by cc_promote().
@@ -3263,12 +3343,21 @@ static void cc_parse_expression(cc_state_t *cc, int min_prec) {
       cc_type_t fp_result_type = cc_promote(cc, left_type, right_type);
       int is_double = (fp_result_type == TYPE_DOUBLE);
       uint8_t op_byte = 0;
+      int is_comparison = 0;
       int ok = 1;
       switch (op.type) {
       case CC_TOK_PLUS:  op_byte = 0x58; break; /* ADDSS/ADDSD */
       case CC_TOK_MINUS: op_byte = 0x5C; break; /* SUBSS/SUBSD */
       case CC_TOK_STAR:  op_byte = 0x59; break; /* MULSS/MULSD */
       case CC_TOK_SLASH: op_byte = 0x5E; break; /* DIVSS/DIVSD */
+      case CC_TOK_EQEQ:
+      case CC_TOK_NE:
+      case CC_TOK_LT:
+      case CC_TOK_GT:
+      case CC_TOK_LE:
+      case CC_TOK_GE:
+        is_comparison = 1;
+        break;
       default:
         cc_error(cc, "invalid operator for floating-point operands");
         ok = 0;
@@ -3346,6 +3435,12 @@ static void cc_parse_expression(cc_state_t *cc, int min_prec) {
       }
 
       if (ok) {
+        if (is_comparison) {
+          emit_compare_xmm1_xmm0(cc, is_double, op.type);
+          cc_last_expr_type = TYPE_INT;
+          continue;
+        }
+
         /* Result = LHS OP RHS must land in XMM0.
          *   For + and *: commutative, XMM0 := XMM0 OP XMM1.
          *   For - and /: non-commutative, compute XMM1 OP= XMM0 then
