@@ -22,6 +22,13 @@ from typing import Sequence
 SEED_SCHEMA = "cupid.bootstrap-seed.v1"
 SEED_SOURCE_REVISION = "af4644177c033eebda164d7893074315439df119"
 TOOL_NAMES = ("cupidasm", "cupiddis", "cupidld", "cupidobj", "cupidc")
+TOOL_DISPLAY_NAMES = {
+    "cupidasm": "CupidASM",
+    "cupiddis": "CupidDis",
+    "cupidld": "CupidLD",
+    "cupidobj": "CupidObj",
+    "cupidc": "CupidC",
+}
 PRODUCER_NAMES = ("cupidc", "cupidasm", "cupidld")
 EXPECTED_TARGET = {
     "abi": "linux-int80",
@@ -899,6 +906,69 @@ def freeze_seed_inputs(
         snapshot_directory.mkdir(mode=0o700)
     snapshot_directory.chmod(0o700)
     return _load_seed_inputs(manifest_path, snapshot_directory)
+
+
+def run_seed_tool(
+    manifest_path: Path,
+    working_directory: Path,
+    tool_name: str,
+    arguments: Sequence[str | Path],
+    *,
+    timeout: int = 300,
+) -> subprocess.CompletedProcess[str]:
+    """Verify, freeze, and run one checked-seed tool."""
+    if tool_name not in TOOL_NAMES:
+        raise BootstrapError(
+            f"checked seed has no tool named {tool_name}"
+        )
+    if timeout <= 0:
+        raise BootstrapError("tool timeout must be positive")
+    try:
+        root = working_directory.resolve(strict=True)
+    except OSError as error:
+        raise BootstrapError(
+            f"tool working directory cannot be resolved: "
+            f"{working_directory}: {error}"
+        ) from error
+    if not root.is_dir():
+        raise BootstrapError(
+            f"tool working directory is not a directory: {root}"
+        )
+
+    display_name = TOOL_DISPLAY_NAMES[tool_name]
+    with tempfile.TemporaryDirectory(
+        prefix=f"cupid-{tool_name}-seed-"
+    ) as temporary:
+        seed_inputs = freeze_seed_inputs(
+            manifest_path,
+            Path(temporary),
+        )
+        executable = seed_inputs.tools[tool_name]
+        runner = ToolRunner(root)
+        try:
+            result = runner.run(executable, arguments, timeout)
+        except subprocess.TimeoutExpired as error:
+            unit = "second" if timeout == 1 else "seconds"
+            raise BootstrapError(
+                f"{display_name} timed out after {timeout} {unit}"
+            ) from error
+        except OSError as error:
+            raise BootstrapError(
+                f"{display_name} could not run: {error}"
+            ) from error
+        try:
+            live_seed = _load_seed_inputs(manifest_path, None)
+        except BootstrapError as error:
+            raise BootstrapError(
+                f"checked seed inputs changed while "
+                f"{display_name} ran: {error}"
+            ) from error
+        if live_seed.manifest_sha256 != seed_inputs.manifest_sha256:
+            raise BootstrapError(
+                f"checked seed inputs changed while {display_name} ran: "
+                "manifest content differs"
+            )
+        return result
 
 
 def _build_stage(
@@ -1868,6 +1938,15 @@ def _build_parser() -> argparse.ArgumentParser:
     bootstrap.add_argument("--manifest", required=True, type=Path)
     bootstrap.add_argument("--root", required=True, type=Path)
     bootstrap.add_argument("--output", required=True, type=Path)
+    run = subparsers.add_parser(
+        "run",
+        help="verify, freeze, and run one checked-seed tool",
+    )
+    run.add_argument("--manifest", required=True, type=Path)
+    run.add_argument("--root", required=True, type=Path)
+    run.add_argument("--tool", required=True, choices=TOOL_NAMES)
+    run.add_argument("--timeout", type=int, default=300)
+    run.add_argument("tool_arguments", nargs=argparse.REMAINDER)
     return parser
 
 
@@ -1887,9 +1966,25 @@ def main(argv: list[str] | None = None) -> int:
                 "(stage two equals stage three)"
             )
             return 0
+        if arguments.command == "run":
+            tool_arguments = list(arguments.tool_arguments)
+            if tool_arguments[:1] == ["--"]:
+                tool_arguments = tool_arguments[1:]
+            result = run_seed_tool(
+                arguments.manifest,
+                arguments.root,
+                arguments.tool,
+                tool_arguments,
+                timeout=arguments.timeout,
+            )
+            sys.stdout.write(result.stdout or "")
+            sys.stderr.write(result.stderr or "")
+            return result.returncode
     except BootstrapError as error:
         if arguments.command == "verify":
             prefix = "bootstrap seed verification failed"
+        elif arguments.command == "run":
+            prefix = "checked seed tool failed"
         else:
             prefix = "checked bootstrap failed"
         print(f"{prefix}: {error}", file=sys.stderr)

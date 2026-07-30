@@ -17072,3 +17072,177 @@ reattachment, four CPUs, 69,548 changed pixels, 8,244,917 AC97 frames, and
 Runtime floating truth, floating increment and decrement, SIMD unary signs,
 and the other documented Cupid mode gaps remain open. This change hardens the
 private JIT and AOT compiler without changing build ownership.
+
+## 2026-07-30: run the root Cupid tools from the checked seed
+
+Root `all` no longer prepares native CupidASM, CupidObj, CupidLD, or CupidDis.
+The normal recipes call the manifest-bound static i386 Linux seed. Linux runs
+those commands directly, and Windows runs them through WSL.
+
+`bootstrap_toolchain.py run` verifies the complete five-tool trust unit,
+copies it into a private directory, and forwards one selected command's
+status, standard output, and standard error. It validates the live trust unit
+again after execution. A timeout, an unknown tool, a changed seed image, or
+live cohort drift fails before the caller can publish an output.
+
+Make now keeps command text separate from the files that make a command
+current. The default input closure contains the Makefile, runner, manifest,
+and all five seed images. Moving `BOOTSTRAP_SEED_MANIFEST` moves the five
+image prerequisites with it. An explicit command override may provide a
+matching dependency closure.
+
+The two nested consumers use the same checked path. Symbol generation freezes
+the pass-one kernel before running CupidDis. JPEG embedding freezes its source
+before running CupidObj. Both recheck their live inputs and keep an existing
+output on failure or drift.
+
+ADR 0190 records the handoff. Native hosted tool targets remain available for
+contract and oracle work, but they are not reachable from root `all`.
+
+### Test evidence
+
+The new runner tests first failed because no `run` subcommand existed. The new
+hostbuild tests first failed because `mksyms` and `embed-jpeg` did not accept a
+seed manifest. The focused graph tests also caught the old native
+prerequisites and four recursive Make transforms before the Make handoff.
+
+After implementation:
+
+| Gate | Result |
+| --- | --- |
+| Checked-seed bootstrap suite | 32 tests pass in 701.652 seconds |
+| Hostbuild suite | 22 tests pass |
+| Final focused graph suite | 10 tests pass in 86.320 seconds |
+| Broad three-root audit contract | Passes in 178.886 seconds |
+| Canonical audit regeneration | Passes in 57.3 seconds |
+| Poisoned root build | Passes in 378.1 seconds |
+| Final checked root rebuild | Passes in 382 seconds |
+| Final focused private-image `/bin/ls.cc` boot | Passes in 61.3 seconds |
+| Complete four-vCPU e1000 frontier | Passes in 249.2 seconds |
+
+The audit now records 716 active inputs, 252 feature requirements, 500
+transforms, and 25 accounted unreachable files. Root `all` has 438
+transforms, `user:all` has eight, and `toolchain:all` has 54. Across the three
+roots, CupidC owns 245 transforms, the host compiler owns 52 hosted
+Toolchain transforms, and Python participates in 448. There is no recursive
+Make transform.
+
+The root ownership split is four CupidASM transforms, 182 CupidObj transforms,
+two CupidLD transforms, one CupidDis transform, and 242 CupidC transforms.
+All 431 run through checked tools. The hosted 52-transform Toolchain remains
+the only supported graph with host C output.
+
+### Pre-JPEG-fix build and runtime artifacts
+
+The following hashes record the accepted Windows checkpoint before the
+repository JPEG changed. They are historical evidence, not current final
+artifact identities.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `kernel/kernel.elf.pass1` | 8,579,824 | `1615a094f0b92f6ac3f5be2b784810856229ed4a199fb0ed980545867fdc6497` |
+| `kernel/cpu/ksyms_data.cc` | 364,301 | `ee456346cd21ac285f0f145850ba283406be005c027565476ac5881d41cef6e8` |
+| `kernel/cpu/ksyms_data.o` | 110,304 | `45e77aff292df2d47ac7b9c2004371fa767ed511df066238a2e3299c9a9d08c2` |
+| `kernel/kernel.elf` | 8,690,416 | `fe9412e68395ebbbe411f548e416a8f6ccb9905da6af1d729dcddace571ad392` |
+| `kernel/kernel.bin` | 8,489,416 | `7536b0aea322ee42ac4744e98e829dca899e02204c5f95a2e37944af0481f0a1` |
+| clean `cupidos.img` | 209,715,200 | `03df2547b89bd3bd77ff544f1efed444afbb42851f2a607bb91dfc08915490fb` |
+
+Checked CupidDis reports 4,561 text-symbol addresses. The logical symbol blob
+is 109,889 bytes and ends with three padding bytes in its word initializer.
+`_loaded_end` is `0x009189C8`, `_bss_start` is `0x00919000`, and
+`_kernel_end` is `0x00D3DD5C`. The raw kernel uses 16,581 sectors and leaves
+3,899 sectors before FAT16. It remains 1,993,784 bytes below the raw-file cap
+and 1,843,876 bytes below the memory cap.
+
+The focused boot log is 35,101 bytes with SHA-256
+`32c8c123e4ff929b4bb2f62a6fbe5942bdf9e90ea182be222434a2afd73c3e79`.
+The complete frontier log is 87,295 bytes with SHA-256
+`2d95f9540bf7df7593c6c025330f6883a00556bf1a7b6b8a17aaae05741f5186`.
+The frontier covers all ten guest commands, six USB storage lifetimes, HID
+reattachment, four CPUs, 127,515 changed pixels, 8,323,059 AC97 frames, and
+77,332 PC-speaker frames.
+
+### Failed approach and remaining boundary
+
+The first forced poisoned build reached `test_iso/hello.iso` and stopped
+because no `mkisofs`, `genisoimage`, or `xorrisofs` command was installed.
+The failure is unrelated to compiler ownership, but it proves that a forced
+fixture regeneration still has one external authoring dependency. The
+existing deterministic ISO remained byte-unchanged. Restoring its timestamp
+after the unchanged `big.bin` rewrite allowed the complete root ownership
+proof to proceed.
+
+Python remains required for orchestration and image packaging. Windows still
+needs WSL for the static i386 Linux seed. `toolchain:all` still builds 52
+hosted outputs through GCC or Clang and a native linker. Native Windows
+self-hosting, a Python-free normal build, and deterministic repository-owned
+ISO authoring remain open.
+
+## 2026-07-30: remove locale and JPEG variance from the checked root
+
+The first direct Linux root build completed, but its generated program tables
+and link inputs did not follow the Windows order. Relying on Make's ambient
+wildcard order had allowed the host locale to choose between names such as
+`icon` and `i_endoom`. Every wildcard-discovered list that affects output now
+passes through `$(sort ...)`.
+
+With the order fixed, the Windows and Linux comparison matched 426 of 430
+kernel artifacts. The only different input object was
+`file_example_JPG_1MB.jpg.o`; the pass-one ELF, final ELF, and raw kernel
+inherited that difference. Both hosts had invoked FFmpeg on the same tracked
+progressive image, but their output streams differed. The wrapped object sizes
+differed by 420 bytes.
+
+Build-time conversion could not produce stable bytes across hosts. Copying the
+progressive input unchanged was not valid either because Cupid OS accepts
+sequential SOF0 and SOF1 frames and rejects progressive SOF2. The repository
+now stores the baseline bytes produced by the accepted Windows path. Hostbuild
+parses the JPEG marker stream, accepts only a structurally checked SOF0 or
+SOF1 frame,
+copies the complete input unchanged, and rejects progressive, unsupported, or
+malformed frames before publication. Checked CupidObj wraps that exact private
+snapshot. The root path no longer probes or runs FFmpeg, `jpegtran`, `djpeg`,
+or `cjpeg`.
+
+The checked-seed runner also verifies the live manifest and all five images
+after every private command. A test that changes a live seed while the command
+runs now fails instead of accepting output from a stale trust unit.
+
+### Focused evidence
+
+| Gate | Result |
+| --- | --- |
+| Checked-seed bootstrap suite | 32 tests pass in 701.652 seconds |
+| Hostbuild suite | 24 tests pass in 2.989 seconds |
+| Focused build-graph suite | 67 tests pass in 507.408 seconds |
+| First sorted cross-host comparison | 426 of 430 kernel artifacts match; one JPEG object accounts for the three downstream differences |
+
+The tracked baseline asset and exact-copy policy address the JPEG mismatch.
+Make's `$(sort ...)` addresses the ordering mismatch.
+
+### Final cross-host verification
+
+| Gate | Result |
+| --- | --- |
+| Linux `make -j8 kernel/kernel.bin WAD_SRCS=` | Passes in 607.7 seconds |
+| Windows `make -j8 all WAD_SRCS=` | Passes in 341.6 seconds |
+| Frozen kernel-artifact comparison | All 430 files match byte for byte |
+
+The matching outputs are:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `file_example_JPG_1MB.jpg.o` | 800,860 | `74ab86d88302c90385bb0b858632b0d6c4ac983d6be28c976dd1a3a348204b3e` |
+| `kernel/kernel.elf.pass1` | 8,579,824 | `2350b1a4f32c674d386ca50d4be4f6be8308082291f2852cfecfde4ba151b4df` |
+| `kernel/kernel.elf` | 8,690,416 | `80b23fbd198f4aa9ec030ac69526b2d612c49e6d6328cfa01af9a0ef6217d8bb` |
+| `kernel/kernel.bin` | 8,490,228 | `53770a93658e757d25f5aeab9d3e434d4a3be2a1dc3fbe4b19869e5bf9820a06` |
+| `build/verification-20260730/cupidos-final-clean.img` | 209,715,200 | `e815d2ef67f114a26181f0e2cbde85f892cdadd487f8d9cbee9715e720800b3e` |
+
+The clean image passed a private `/bin/ls.cc` JIT boot in 49.8 seconds. Its
+35,033-byte log has SHA-256
+`74951551108b76fa1e7def8e525dbc50f0a7c62f19d5b47a70e4d1cf9961f21f`.
+CupidDis reports 4,561 text symbols. The raw kernel uses 16,583 sectors and
+leaves 3,892 before FAT16. It has 1,992,972 bytes of raw-file headroom.
+`_kernel_end` remains `0x00D3DD5C`, 1,843,876 bytes below `0x00F00000`.
+The hashes in the preceding pre-fix checkpoint remain historical evidence.

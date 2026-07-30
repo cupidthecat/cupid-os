@@ -337,6 +337,22 @@ The five static i386 Linux tools have a checked seed. The manifest binds their h
 
 The bootstrap copies the 40-input source closure into a private compiler root. Both rebuilt stages compile from that root, and the harness checks the private and live closures at each stage and behavior boundary. The checked seed, stage two, and stage three all contain the same five tool images. The two rebuilt stages also match every C and startup object and agree on all five help paths, ten successful operations, and six failure cases. Their stage directories, behavior evidence, and report are published together only after the complete gate passes. See [Toolchain Bootstrap](Toolchain-Bootstrap) for the commands and report layout. Native contract runners and hosted development commands still come from a host compiler. Normal OS objects do not.
 
+Root image assembly, object, link, and inspection commands use that checked
+five-tool seed. The runner verifies the live trust unit again after each
+command, and Make passes wildcard-discovered output lists through `$(sort ...)`
+before generation or link. The repository's runtime JPEG contains sequential
+baseline bytes.
+Hostbuild validates SOF0 or SOF1 input, copies it unchanged, rejects
+progressive, unsupported, or malformed frames, and asks checked CupidObj to
+wrap the private snapshot. This replaces the old host FFmpeg conversion. The
+first Windows and Linux comparison matched 426 of 430 kernel artifacts and
+traced the other four to that conversion. The Linux kernel build passed in
+607.7 seconds, and the Windows root build passed in 341.6 seconds. All 430
+frozen kernel artifacts match byte for byte. A fresh 209,715,200-byte image
+has SHA-256
+`e815d2ef67f114a26181f0e2cbde85f892cdadd487f8d9cbee9715e720800b3e`.
+A private `/bin/ls.cc` JIT boot from that image passed in 49.8 seconds.
+
 Supported direct and indirect calls put ESP on a sixteen-byte boundary immediately before `call`. The emitter chooses zero, four, eight, or twelve bytes of padding from the function frame, live Linear IR stack, and outgoing target-sized argument area. Prototyped, variadic, unprototyped, nested, structure, and wide calls follow the same rule.
 
 For a variadic call, the shared frontend applies lvalue conversion, array and function decay, integer promotion, and `float` to `double` promotion to the ellipsis arguments as required. Every call instruction owns a contiguous slice of post-conversion actual argument types in a packed Linear IR array. A shared validator requires one complete ordered partition and rejects gaps, overlaps, invalid types, trailing entries, and metadata on non-call instructions. Named slots use declared parameter types after compatibility checking, while unnamed slots use the packed actual types. The emitter uses the validated slice and actual count for cdecl order, slot widths, the saved indirect callee, stack alignment, and caller cleanup. Direct and indirect calls can pass represented four-byte integers and pointers, signed and unsigned eight-byte integers, existing `double` values, or source `float` values promoted to `double` through an ellipsis. An eight-byte unnamed value selects the outgoing-area path. Arguments occupy increasing addresses in source order, with the low word before the high word for an eight-byte value. Each argument still has one abstract IR handle, and an indirect callee remains below the argument handles while the emitter prepares the outgoing area.
@@ -520,9 +536,9 @@ RDRAND, all 62 crypto checks, USB storage, audio, TrueType glyphs, a baseline
 JPEG decode, the desktop, terminal, and in-OS CupidC execution. Both runs
 print `[fpu] SSE2 enabled`, `[fpu] boot smoke ok`, and
 `FPU boot smoke passed`, then finish
-`feature16_asm_fpu.cc`. The generated symbol source stores a logical
-109,857-byte blob as little-endian `unsigned int` words with three trailing
-pad bytes.
+`feature16_asm_fpu.cc`. The generated symbol source stores the current
+109,889-byte logical blob as little-endian `unsigned int` words with three
+trailing pad bytes.
 
 Forced poisoned-host builds cover every production wrapper recipe, and each
 recipe declares its exact recursive header closure. A valid data-only object
@@ -533,8 +549,10 @@ SMP, all 62 crypto checks, e1000 traffic, the desktop, terminal, and CupidC
 execution at `0x01100000`. A separate gate loads and reaps the same
 external program twice at `0x01C00000`. ADR 0124 records the exact build and
 runtime evidence. The host C compiler owns 52 hosted Toolchain transforms and
-no root image object. Host Python participates in 261 transforms. The private
-in-kernel CupidC compiler still handles embedded runtime compilation.
+no root image object. Python participates in 448 transforms across the three
+audited roots. Root `all` runs CupidC, CupidASM, CupidObj, CupidLD, and
+CupidDis from the manifest-checked seed; the private in-kernel CupidC compiler
+still handles embedded runtime compilation.
 
 The checked seed decides C11 inline linkage from the complete file-scope
 declaration set. This covers the ordinary header declaration and inline

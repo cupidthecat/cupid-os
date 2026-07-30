@@ -183,9 +183,10 @@ publication. The pass-one and final kernels project the same text symbols at
 the same addresses.
 
 Across root and supplemental builds, the ownership audit reports 245 CupidC
-transforms, 52 host C transforms, and 261 transforms involving host Python.
-The host C transforms belong to the hosted Toolchain build. The normal image
-has no host C transform.
+transforms and 52 host C transforms. Host Python participates in 448
+transforms. The host C transforms belong to the hosted Toolchain build. The
+438-transform normal image has no host C or recursive Make transform. Its
+CupidASM, CupidObj, CupidLD, and CupidDis commands run from the checked seed.
 
 The normal build compiles kernel/gfx/jpeg.cc and
 kernel/gfx/glyph_raster.cc through the checked seed. Their closed header sets

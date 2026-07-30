@@ -1,4 +1,6 @@
+import contextlib
 import hashlib
+import io
 import json
 import os
 import shutil
@@ -21,6 +23,8 @@ from tools.bootstrap_toolchain import (
     publish_bootstrap_outputs,
     require_frozen_source_snapshot,
     require_source_snapshot,
+    main as bootstrap_main,
+    run_seed_tool,
 )
 
 
@@ -616,6 +620,183 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             "checked i386 Linux seed: ok (5 tools)\n",
         )
         self.assertEqual(result.stderr, "")
+
+    def test_checked_seed_run_forwards_cupidasm_help(self):
+        if os.name == "nt" and shutil.which("wsl") is None:
+            self.skipTest("WSL is not available")
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(BOOTSTRAP_TOOL),
+                "run",
+                "--manifest",
+                str(SEED_MANIFEST),
+                "--root",
+                str(REPO_ROOT),
+                "--tool",
+                "cupidasm",
+                "--",
+                "--help",
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+            timeout=60,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("usage:", result.stdout.casefold())
+        self.assertIn("cupidasm", result.stdout.casefold())
+        self.assertEqual(result.stderr, "")
+
+    def test_checked_seed_run_rejects_a_changed_tool_before_execution(self):
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-bootstrap-run-seed-"
+        ) as temporary:
+            copied_seed = Path(temporary) / "i386-linux"
+            shutil.copytree(SEED_MANIFEST.parent, copied_seed)
+            assembler = copied_seed / "cupidasm.elf"
+            image = bytearray(assembler.read_bytes())
+            image[-1] ^= 0x01
+            assembler.write_bytes(image)
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(BOOTSTRAP_TOOL),
+                    "run",
+                    "--manifest",
+                    str(copied_seed / "manifest.json"),
+                    "--root",
+                    str(REPO_ROOT),
+                    "--tool",
+                    "cupidasm",
+                    "--",
+                    "--help",
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+                timeout=60,
+            )
+
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout, "")
+        self.assertEqual(
+            result.stderr,
+            "checked seed tool failed: SHA-256 differs for cupidasm.elf\n",
+        )
+
+    def test_checked_seed_run_rejects_live_tool_drift_after_execution(self):
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-bootstrap-run-drift-"
+        ) as temporary:
+            copied_seed = Path(temporary) / "i386-linux"
+            shutil.copytree(SEED_MANIFEST.parent, copied_seed)
+            assembler = copied_seed / "cupidasm.elf"
+
+            def mutate_live_seed(*_arguments, **_keywords):
+                image = bytearray(assembler.read_bytes())
+                image[-1] ^= 0x01
+                assembler.write_bytes(image)
+                return subprocess.CompletedProcess(
+                    ["cupidasm", "--help"],
+                    0,
+                    "usage: cupidasm\n",
+                    "",
+                )
+
+            with mock.patch(
+                "tools.bootstrap_toolchain.ToolRunner.run",
+                side_effect=mutate_live_seed,
+            ):
+                with self.assertRaisesRegex(
+                    BootstrapError,
+                    "checked seed inputs changed while CupidASM ran: "
+                    "SHA-256 differs for cupidasm.elf",
+                ):
+                    run_seed_tool(
+                        copied_seed / "manifest.json",
+                        REPO_ROOT,
+                        "cupidasm",
+                        ("--help",),
+                    )
+
+    def test_checked_seed_run_maps_timeout_and_invalid_requests(self):
+        with mock.patch(
+            "tools.bootstrap_toolchain.ToolRunner"
+        ) as runner_type:
+            runner_type.return_value.run.side_effect = (
+                subprocess.TimeoutExpired(["cupidasm"], 1)
+            )
+            with self.assertRaisesRegex(
+                BootstrapError,
+                "CupidASM timed out after 1 second",
+            ):
+                run_seed_tool(
+                    SEED_MANIFEST,
+                    REPO_ROOT,
+                    "cupidasm",
+                    (),
+                    timeout=1,
+                )
+
+        with self.assertRaisesRegex(
+            BootstrapError,
+            "tool timeout must be positive",
+        ):
+            run_seed_tool(
+                SEED_MANIFEST,
+                REPO_ROOT,
+                "cupidasm",
+                (),
+                timeout=0,
+            )
+        with self.assertRaisesRegex(
+            BootstrapError,
+            "checked seed has no tool named unknown",
+        ):
+            run_seed_tool(
+                SEED_MANIFEST,
+                REPO_ROOT,
+                "unknown",
+                (),
+            )
+
+    def test_checked_seed_run_forwards_exact_tool_streams_and_status(self):
+        completed = subprocess.CompletedProcess(
+            ["cupiddis", "--bad"],
+            7,
+            "tool stdout\n",
+            "tool stderr\n",
+        )
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with (
+            mock.patch(
+                "tools.bootstrap_toolchain.run_seed_tool",
+                return_value=completed,
+            ),
+            contextlib.redirect_stdout(stdout),
+            contextlib.redirect_stderr(stderr),
+        ):
+            status = bootstrap_main(
+                [
+                    "run",
+                    "--manifest",
+                    str(SEED_MANIFEST),
+                    "--root",
+                    str(REPO_ROOT),
+                    "--tool",
+                    "cupiddis",
+                    "--",
+                    "--bad",
+                ]
+            )
+
+        self.assertEqual(status, 7)
+        self.assertEqual(stdout.getvalue(), "tool stdout\n")
+        self.assertEqual(stderr.getvalue(), "tool stderr\n")
 
     def _assert_checked_seed_emits_complete_unchanged_kernel_object(
         self,

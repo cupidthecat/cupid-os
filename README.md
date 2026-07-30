@@ -412,9 +412,9 @@ CupidC accepts GNU `used` and `__used__` on file-scope objects and functions.
 Redeclarations merge the flag into one canonical entity, and the Linear IR
 and object boundaries validate it before use. The generated
 `kernel/cpu/ksyms_data.cc` source is part of the normal checked CupidC graph.
-Its i386-word initializer preserves the current 109,857-byte symbol blob. The
-checked wrapper produces a 110,272-byte object with SHA-256
-`1022442e1d69544092f4ad0d8ad4ca8c85fd824eb83dd6677528d3796bb98115`.
+Its i386-word initializer preserves the current 109,889-byte symbol blob. The
+checked wrapper produces a 110,304-byte object with SHA-256
+`45e77aff292df2d47ac7b9c2004371fa767ed511df066238a2e3299c9a9d08c2`.
 
 The checked seed retains GNU `noinline` and
 `target("general-regs-only")` on canonical file-scope functions.
@@ -620,18 +620,40 @@ header closure.
 Poisoned-host checks cover all 238 checked-in normal CupidC recipes through
 the strict and Doom gates. They fail if a CupidC-owned object reaches Clang or
 GCC. They pass against the renamed graph. Across the three supported build
-roots, ownership
-is 245 transforms for CupidC, 52 C transforms for the host compiler,
-261 transforms involving host Python, and four transforms for Make recursion.
-The host compiler's 52 transforms belong to the hosted Toolchain build; the
-442-transform root image graph has no host C transform. One
+roots, ownership is 245 transforms for CupidC and 52 C transforms for the
+host compiler. Python participates in 448 transforms. The host compiler's 52
+transforms belong to the hosted Toolchain build. The 438-transform root image
+graph has no host C or recursive Make transform. Its CupidASM, CupidObj,
+CupidLD, and CupidDis commands run from the checked seed. One
 Python transform checks the external program syscall ABI and produces no OS
 code. Two Python transforms generate the ISO fixture inputs that the system
 image declares explicitly.
+The runner checks the live five-tool cohort again after every command. Make
+passes every wildcard-discovered output list through `$(sort ...)` before
+generation or link, so Windows and Linux do not inherit different link order
+from host locale.
+The first direct host comparison matched 426 of 430 kernel artifacts and
+traced all four differences to one JPEG object. Host FFmpeg had rewritten the
+tracked progressive image differently on Windows and Linux. The repository
+stores the accepted sequential baseline bytes. Hostbuild validates and
+copies exact SOF0 or SOF1 input, rejects progressive, unsupported, or malformed
+frames, and gives the private snapshot to checked CupidObj. The root build no
+longer calls FFmpeg, `jpegtran`, `djpeg`, or `cjpeg`. The Linux kernel build
+passed in 607.7 seconds, and the Windows root build passed in 341.6 seconds.
+All 430 frozen kernel artifacts match byte for byte.
+
+The current raw kernel is 8,490,228 bytes with SHA-256
+`53770a93658e757d25f5aeab9d3e434d4a3be2a1dc3fbe4b19869e5bf9820a06`.
+The fresh 209,715,200-byte normal image has
+SHA-256
+`e815d2ef67f114a26181f0e2cbde85f892cdadd487f8d9cbee9715e720800b3e`.
+A private `/bin/ls.cc` JIT boot from that image passed in 49.8 seconds. Its
+35,033-byte log has SHA-256
+`74951551108b76fa1e7def8e525dbc50f0a7c62f19d5b47a70e4d1cf9961f21f`.
 The CupidC transforms are 238 checked-in normal roots, the generated kernel
 symbol table, three generated installation tables, and three example
 programs. The renamed graph passes both CupidLD links and CupidObj flattening.
-The latest clean image
+The current clean-image runtime checkpoint
 includes the transferred lexer, Nuked OPL3, FPU, per-CPU, and SMP roots in the
 complete checked frontier. Four-vCPU GUI runs pass with both supported
 NICs and reach SMP
@@ -787,7 +809,7 @@ kernel symbol translation described above.
 
 [ADR 0123](docs/adr/0123-transfer-gnu-assembly-frontier-to-cupidc.md) records the eight-root and generated-symbol production transfer.
 
-[ADR 0124](docs/adr/0124-name-production-cupidc-sources-consistently.md) records the 111-root `.cc` naming transfer. ADR 0126 completes the five shared Toolchain roots. [ADR 0127](docs/adr/0127-lock-the-external-program-syscall-abi.md) records the external syscall contract, [ADR 0130](docs/adr/0130-run-user-cupid-tools-natively-on-windows.md) records the optional native Windows user-tool path, [ADR 0133](docs/adr/0133-freeze-user-abi-inputs-and-isolate-runtime-boots.md) records the ABI snapshot and private guest checks, and [ADR 0188](docs/adr/0188-run-the-windows-user-build-from-the-checked-seed.md) makes the checked seed the normal Windows user path.
+[ADR 0124](docs/adr/0124-name-production-cupidc-sources-consistently.md) records the 111-root `.cc` naming transfer. ADR 0126 completes the five shared Toolchain roots. [ADR 0127](docs/adr/0127-lock-the-external-program-syscall-abi.md) records the external syscall contract, [ADR 0130](docs/adr/0130-run-user-cupid-tools-natively-on-windows.md) records the optional native Windows user-tool path, [ADR 0133](docs/adr/0133-freeze-user-abi-inputs-and-isolate-runtime-boots.md) records the ABI snapshot and private guest checks, [ADR 0188](docs/adr/0188-run-the-windows-user-build-from-the-checked-seed.md) makes the checked seed the normal Windows user path, and [ADR 0190](docs/adr/0190-run-root-cupid-tools-from-the-checked-seed.md) moves the root assembler, object, linker, and disassembler commands to the same checked trust unit.
 
 [ADR 0125](docs/adr/0125-represent-decimal-floating-scalars.md) records decimal binary32 and binary64 constants, represented integer conversions, and mixed scalar arithmetic. [ADR 0126](docs/adr/0126-name-fixed-point-sources-consistently.md) records the complete 19-source fixed-point rename and old-seed proof. [ADR 0129](docs/adr/0129-refresh-seed-and-transfer-cupidc-lexer.md) records the promoted seed and the lexer handoff.
 

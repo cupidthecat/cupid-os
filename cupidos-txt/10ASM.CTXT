@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidASM Guide (.asm)
-Verified against source on: 2026-07-26
+Verified against source on: 2026-07-30
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -29,11 +29,30 @@ Source architecture:
 - kernel/lang/as_elf.cc and .h: checked fixed-image to sectionless ET_EXEC bridge
 - toolchain/cupidasm_main.cc: hosted cupidasm command adapter
 
-The normal build compiles cupidasm.cc, x86.cc, and elf32.cc with CupidC. They
-also belong to the checked-seed fixed point. Together with ctool.cc and
-cupiddis.cc, they complete the five shared Toolchain roots. Native GCC or
-Clang rules select C explicitly with -x c, while the checked seed consumes
-the same .cc paths. ADR 0126 records the naming change and old-seed proof.
+The normal image runs CupidASM from the checked five-tool seed. It owns four
+production assembly transforms without first building a native hosted
+command. The same checked trust unit supplies CupidObj for 182 transforms,
+CupidLD for two links, and CupidDis for symbol inspection. Python verifies
+and freezes all five images before each command; Windows executes them
+through WSL. It checks the live seed cohort again after the command. Make
+passes wildcard-discovered output sources through $(sort ...) before
+generation and link, so Windows and Linux use the same root order regardless
+of host locale.
+
+The first direct Windows and Linux comparison matched 426 of 430 kernel
+artifacts. The other four followed one JPEG object that host FFmpeg had
+produced differently from the tracked progressive source. The repository
+stores the accepted sequential baseline bytes. Hostbuild validates SOF0 or
+SOF1 input, copies it exactly, rejects progressive, unsupported, or malformed
+frames, and asks checked CupidObj to wrap the private snapshot. The normal
+root no longer needs FFmpeg, jpegtran, djpeg, or cjpeg. The cross-host
+artifact gate checks this byte-exact boundary after related build changes.
+
+cupidasm.cc, x86.cc, and elf32.cc also belong to the checked fixed point.
+Together with ctool.cc and cupiddis.cc, they complete the five shared
+Toolchain roots. Native GCC or Clang rules remain only in the hosted
+Toolchain and explicit oracle paths. ADR 0126 records the naming change and
+old-seed proof. ADR 0190 records the root command handoff.
 
 The old kernel-only as_lex.c and as_parse.c implementations were removed.
 

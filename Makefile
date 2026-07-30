@@ -45,14 +45,29 @@ CUPIDC_PRODUCTION_COMPILE_INPUTS := Makefile \
 CUPIDC_PRODUCTION_FRONTIER_INPUTS := \
 	tools/cupidc_production_frontier.py tools/hostbuild.py \
 	$(CUPIDC_PRODUCTION_COMPILE_INPUTS)
+BOOTSTRAP_SEED_MANIFEST ?= bootstrap/seeds/i386-linux/manifest.json
+BOOTSTRAP_SEED_DIRECTORY := $(dir $(BOOTSTRAP_SEED_MANIFEST))
+CHECKED_SEED_INPUTS := Makefile tools/bootstrap_toolchain.py \
+	$(BOOTSTRAP_SEED_MANIFEST) \
+	$(BOOTSTRAP_SEED_DIRECTORY)cupidasm.elf \
+	$(BOOTSTRAP_SEED_DIRECTORY)cupidc.elf \
+	$(BOOTSTRAP_SEED_DIRECTORY)cupiddis.elf \
+	$(BOOTSTRAP_SEED_DIRECTORY)cupidld.elf \
+	$(BOOTSTRAP_SEED_DIRECTORY)cupidobj.elf
+CHECKED_SEED_RUN := $(PYTHON) tools/bootstrap_toolchain.py run \
+	--manifest $(BOOTSTRAP_SEED_MANIFEST) --root .
 CUPIDDIS_BUILD := toolchain/build/cupiddis$(HOST_EXE)
-CUPIDDIS ?= $(CUPIDDIS_BUILD)
+CUPIDDIS ?= $(CHECKED_SEED_RUN) --tool cupiddis --
+CUPIDDIS_INPUTS ?= $(CHECKED_SEED_INPUTS)
 CUPIDASM_BUILD := toolchain/build/cupidasm$(HOST_EXE)
-CUPIDASM ?= $(CUPIDASM_BUILD)
+CUPIDASM ?= $(CHECKED_SEED_RUN) --tool cupidasm --
+CUPIDASM_INPUTS ?= $(CHECKED_SEED_INPUTS)
 CUPIDOBJ_BUILD := toolchain/build/cupidobj$(HOST_EXE)
-CUPIDOBJ ?= $(CUPIDOBJ_BUILD)
+CUPIDOBJ ?= $(CHECKED_SEED_RUN) --tool cupidobj --
+CUPIDOBJ_INPUTS ?= $(CHECKED_SEED_INPUTS)
 CUPIDLD_BUILD := toolchain/build/cupidld$(HOST_EXE)
-CUPIDLD ?= $(CUPIDLD_BUILD)
+CUPIDLD ?= $(CHECKED_SEED_RUN) --tool cupidld --
+CUPIDLD_INPUTS ?= $(CHECKED_SEED_INPUTS)
 HOSTED_TOOL_CORE_SOURCES := toolchain/ctool.cc toolchain/ctool.h \
 	toolchain/ctool_host.cc toolchain/ctool_host.h \
 	toolchain/elf32.cc toolchain/elf32.h
@@ -110,13 +125,13 @@ OPT=-O2
 # Exclude legacy cc2-bootstrap fixtures (old_cc2*) — they're superseded
 # by the production CupidC compiler and embed ~265 KB of fixture text
 # into the kernel binary, eating the bootloader's reserved kernel-area.
-BIN_CC_SRCS := $(filter-out bin/old_cc2.cc bin/old_cc2_single.cc, $(wildcard bin/*.cc))
+BIN_CC_SRCS := $(sort $(filter-out bin/old_cc2.cc bin/old_cc2_single.cc, $(wildcard bin/*.cc)))
 $(info BIN_CC_SRCS=$(BIN_CC_SRCS))
 BIN_CC_OBJS := $(BIN_CC_SRCS:.cc=.o)
 BIN_CC_NAMES := $(notdir $(basename $(BIN_CC_SRCS)))
 
 # Auto-discover embeddable headers used by CupidC demos/programs
-BIN_HDR_SRCS := $(wildcard bin/*.h)
+BIN_HDR_SRCS := $(sort $(wildcard bin/*.h))
 $(info BIN_HDR_SRCS=$(BIN_HDR_SRCS))
 BIN_HDR_OBJS := $(BIN_HDR_SRCS:.h=.h.o)
 BIN_HDR_NAMES := $(notdir $(basename $(BIN_HDR_SRCS)))
@@ -125,13 +140,13 @@ BIN_HDR_NAMES := $(notdir $(basename $(BIN_HDR_SRCS)))
 # These are #include'd by bin/browser.cc and embedded in ramfs at
 # /bin/browser/<n>.cc so the CupidC preprocessor can resolve them
 # at JIT time. They are NOT runnable programs (not added to BIN_CC_NAMES).
-BROWSER_SUB_SRCS := $(wildcard bin/browser/*.cc)
+BROWSER_SUB_SRCS := $(sort $(wildcard bin/browser/*.cc))
 $(info BROWSER_SUB_SRCS=$(BROWSER_SUB_SRCS))
 BROWSER_SUB_OBJS := $(BROWSER_SUB_SRCS:.cc=.o)
 BROWSER_SUB_NAMES := $(notdir $(basename $(BROWSER_SUB_SRCS)))
 
 # Auto-discover CupidDoc files to embed at boot (/docs/*.ctxt in ramfs)
-DOC_CTXT_SRCS := $(wildcard cupidos-txt/*.CTXT)
+DOC_CTXT_SRCS := $(sort $(wildcard cupidos-txt/*.CTXT))
 $(info DOC_CTXT_SRCS=$(DOC_CTXT_SRCS))
 DOC_CTXT_OBJS := $(DOC_CTXT_SRCS:.CTXT=.o)
 DOC_CTXT_NAMES := $(notdir $(basename $(DOC_CTXT_SRCS)))
@@ -143,10 +158,10 @@ DOC_ASSET_OBJS := $(DOC_ASSET_SRCS:.bmp=.bmp.o)
 DOC_ASSET_NAMES := $(notdir $(basename $(DOC_ASSET_SRCS)))
 
 # Auto-discover top-level image assets to seed /home at boot.
-HOME_BMP_SRCS := $(wildcard *.bmp)
-HOME_PNG_SRCS := $(wildcard *.png)
-HOME_JPG_SRCS := $(wildcard *.jpg)
-HOME_JPEG_SRCS := $(wildcard *.jpeg)
+HOME_BMP_SRCS := $(sort $(wildcard *.bmp))
+HOME_PNG_SRCS := $(sort $(wildcard *.png))
+HOME_JPG_SRCS := $(sort $(wildcard *.jpg))
+HOME_JPEG_SRCS := $(sort $(wildcard *.jpeg))
 HOME_ASSET_SRCS := $(HOME_BMP_SRCS) $(HOME_PNG_SRCS) $(HOME_JPG_SRCS) $(HOME_JPEG_SRCS)
 $(info HOME_ASSET_SRCS=$(HOME_ASSET_SRCS))
 HOME_ASSET_OBJS := $(addsuffix .o,$(HOME_ASSET_SRCS))
@@ -157,20 +172,20 @@ HOME_JPEG_NAMES := $(notdir $(basename $(HOME_JPEG_SRCS)))
 EMBED_ASSET_OBJS := $(sort $(DOC_ASSET_OBJS) $(HOME_ASSET_OBJS))
 
 # Auto-discover CupidASM demos to embed at boot (/demos/*.asm in ramfs)
-DEMO_ASM_SRCS := $(wildcard demos/*.asm)
+DEMO_ASM_SRCS := $(sort $(wildcard demos/*.asm))
 $(info DEMO_ASM_SRCS=$(DEMO_ASM_SRCS))
 DEMO_ASM_OBJS := $(DEMO_ASM_SRCS:.asm=.o)
 DEMO_ASM_NAMES := $(notdir $(basename $(DEMO_ASM_SRCS)))
 
 # TempleOS God vocabulary data (embedded at boot)
-GOD_DD_SRCS := $(wildcard god/*.DD)
+GOD_DD_SRCS := $(sort $(wildcard god/*.DD))
 $(info GOD_DD_SRCS=$(GOD_DD_SRCS))
 GOD_DD_OBJS := $(GOD_DD_SRCS:.DD=.o)
 
 # System fonts. Bundled TTFs are embedded directly into the kernel
 # binary so fontsys can register them at boot without depending on the
 # filesystem coming up first.
-FONT_TTF_SRCS := $(wildcard system/fonts/*.ttf)
+FONT_TTF_SRCS := $(sort $(wildcard system/fonts/*.ttf))
 $(info FONT_TTF_SRCS=$(FONT_TTF_SRCS))
 FONT_TTF_OBJS := $(FONT_TTF_SRCS:.ttf=.ttf.o)
 
@@ -181,7 +196,7 @@ OS_IMAGE=cupidos.img
 HDD_MB ?= 200
 FAT_START_LBA ?= 20480
 FAT_OFFSET_BYTES := $(shell $(PYTHON) -c "print($(FAT_START_LBA) * 512)")
-WAD_SRCS := $(wildcard /usr/share/games/doom/freedoom*.wad)
+WAD_SRCS := $(sort $(wildcard /usr/share/games/doom/freedoom*.wad))
 KERNEL_OBJS=kernel/core/kernel.o kernel/cpu/idt.o kernel/cpu/isr.o kernel/cpu/irq.o kernel/cpu/pic.o \
             kernel/fs/fs.o drivers/keyboard.o drivers/timer.o kernel/cpu/math.o drivers/pit.o \
             drivers/speaker.o kernel/lang/shell.o kernel/core/string.o kernel/mm/memory.o drivers/pci.o kernel/usb/usb.o kernel/usb/uhci.o kernel/usb/ehci.o kernel/usb/usb_hid.o kernel/usb/usb_hub.o kernel/usb/usb_msc.o \
@@ -280,7 +295,7 @@ FORCE:
 all: $(OS_IMAGE)
 
 # Compile bootloader
-$(BOOTLOADER): boot/boot.asm $(CUPIDASM)
+$(BOOTLOADER): boot/boot.asm $(CUPIDASM_INPUTS)
 	$(CUPIDASM) -f bin boot/boot.asm -o $(BOOTLOADER)
 
 # Compile C source files
@@ -319,7 +334,7 @@ kernel/cpu/idt.o: kernel/cpu/idt.cc drivers/serial.h kernel/core/kernel.h \
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/idt.cc --output kernel/cpu/idt.o
 
 # Compile assembly files
-kernel/cpu/isr.o: kernel/cpu/isr.asm $(CUPIDASM)
+kernel/cpu/isr.o: kernel/cpu/isr.asm $(CUPIDASM_INPUTS)
 	$(CUPIDASM) -f elf32 kernel/cpu/isr.asm -o kernel/cpu/isr.o
 
 kernel/cpu/pic.o: kernel/cpu/pic.cc kernel/core/kernel.h kernel/core/types.h \
@@ -406,10 +421,12 @@ drivers/pci.o: drivers/pci.cc drivers/pci.h drivers/serial.h \
 	$(CUPIDC_KERNEL_COMPILE) --source drivers/pci.cc --output drivers/pci.o
 
 # AP trampoline raw binary blob (P5 SMP T8)
-kernel/smp_trampoline.bin: kernel/smp/smp_trampoline.S $(CUPIDASM)
+kernel/smp_trampoline.bin: kernel/smp/smp_trampoline.S \
+	$(CUPIDASM_INPUTS)
 	$(CUPIDASM) -f bin -o $@ $<
 
-kernel/smp/smp_trampoline.o: kernel/smp_trampoline.bin $(CUPIDOBJ)
+kernel/smp/smp_trampoline.o: kernel/smp_trampoline.bin \
+	$(CUPIDOBJ_INPUTS)
 	$(CUPIDOBJ) wrap $< --stem smp_trampoline --section .rodata --readonly -o $@
 
 # Per-CPU data infrastructure (P5 SMP)
@@ -654,13 +671,13 @@ kernel/audio/opl_smoke.o: kernel/audio/opl_smoke.cc drivers/serial.h kernel/audi
 
 # The wrapper freezes every configured include root. Make tracks that same
 # complete header search space, including headers not selected by this source.
-DOOM_CUPIDC_HEADERS := $(wildcard drivers/*.h kernel/*.h kernel/*/*.h \
+DOOM_CUPIDC_HEADERS := $(sort $(wildcard drivers/*.h kernel/*.h kernel/*/*.h \
 	                         kernel/doom/src/*.h \
 	                         kernel/doom/src/include_stubs/*.h \
 	                         kernel/doom/src/include_stubs/*/*.h \
 	                         toolchain/*.h \
 	                         toolchain/hosted/i386-linux/include/*.h \
-	                         toolchain/tests/*.h toolchain/tests/*.inc)
+	                         toolchain/tests/*.h toolchain/tests/*.inc))
 DOOM_CUPIDC_INPUT_MANIFEST := build/bootstrap/doom-cupidc-inputs.json
 
 # FORCE makes the profile scan run on every build. The writer retains the
@@ -723,7 +740,7 @@ kernel/doom/i_sound_cupidos.o: kernel/doom/i_sound_cupidos.cc \
 KERNEL_OBJS += kernel/doom/i_sound_cupidos.o
 
 # Doom source tree
-DOOM_SRC := $(wildcard kernel/doom/src/*.cc)
+DOOM_SRC := $(sort $(wildcard kernel/doom/src/*.cc))
 DOOM_SRC_OBJS := $(DOOM_SRC:.cc=.o)
 
 kernel/doom/src/%.o: kernel/doom/src/%.cc $(DOOM_CUPIDC_HEADERS) \
@@ -848,7 +865,8 @@ kernel/core/process.o: kernel/core/process.cc drivers/serial.h \
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/core/process.cc --output kernel/core/process.o
 
 # Context switch (assembly)
-kernel/core/context_switch.o: kernel/core/context_switch.asm $(CUPIDASM)
+kernel/core/context_switch.o: kernel/core/context_switch.asm \
+	$(CUPIDASM_INPUTS)
 	$(CUPIDASM) -f elf32 kernel/core/context_switch.asm -o kernel/core/context_switch.o
 
 # Clipboard
@@ -1132,7 +1150,6 @@ browser_css_gen: $(BROWSER_CSS_GEN)
 BOOTSTRAP_AUDIT_BUILDS := --supplemental-build user:all \
 	--supplemental-build toolchain:all
 BOOTSTRAP_CUPIDC_ACTIVE_CASES := toolchain/tests/cupidc_pp_active_cases.inc
-BOOTSTRAP_SEED_MANIFEST ?= bootstrap/seeds/i386-linux/manifest.json
 BOOTSTRAP_SEED_OUTPUT ?= build/bootstrap/checked-seed
 BOOTSTRAP_WINDOWS_BASELINE ?= docs/bootstrap/baselines/windows-amd64.json
 BOOTSTRAP_LINUX_BASELINE ?= docs/bootstrap/baselines/linux-x86_64.json
@@ -1256,47 +1273,49 @@ test-generated-cupidc-frontier: kernel/util/bin_programs_gen.cc \
 		--root . --cohort generated-install
 
 # Pattern rule: embed any bin/*.cc file with CupidObj.
-bin/%.o: bin/%.cc $(CUPIDOBJ) Makefile
+bin/%.o: bin/%.cc $(CUPIDOBJ_INPUTS)
 	$(CUPIDOBJ) wrap-text $< -o $@
 
 # Pattern rule: embed any bin/browser/*.cc library file with CupidObj.
 # These live in ramfs at /bin/browser/<n>.cc and are #include'd by
 # bin/browser.cc at JIT time. They are NOT in BIN_CC_NAMES.
-bin/browser/%.o: bin/browser/%.cc $(CUPIDOBJ) Makefile
+bin/browser/%.o: bin/browser/%.cc $(CUPIDOBJ_INPUTS)
 	$(CUPIDOBJ) wrap-text $< -o $@
 
 # Pattern rule: embed any bin/*.h file with CupidObj (output keeps .h in name).
-bin/%.h.o: bin/%.h $(CUPIDOBJ) Makefile
+bin/%.h.o: bin/%.h $(CUPIDOBJ_INPUTS)
 	$(CUPIDOBJ) wrap-text $< -o $@
 
 # Pattern rule: embed any cupidos-txt/*.CTXT file with CupidObj.
-cupidos-txt/%.o: cupidos-txt/%.CTXT $(CUPIDOBJ) Makefile
+cupidos-txt/%.o: cupidos-txt/%.CTXT $(CUPIDOBJ_INPUTS)
 	$(CUPIDOBJ) wrap-text $< -o $@
 
-%.bmp.o: %.bmp $(CUPIDOBJ)
+%.bmp.o: %.bmp $(CUPIDOBJ_INPUTS)
 	$(CUPIDOBJ) wrap $< -o $@
 
-%.png.o: %.png $(CUPIDOBJ)
+%.png.o: %.png $(CUPIDOBJ_INPUTS)
 	$(CUPIDOBJ) wrap $< -o $@
 
-%.jpg.o: %.jpg tools/hostbuild.py $(CUPIDOBJ)
-	$(PYTHON) tools/hostbuild.py embed-jpeg --object-tool $(CUPIDOBJ) $< $@
+%.jpg.o: %.jpg tools/hostbuild.py $(CHECKED_SEED_INPUTS)
+	$(PYTHON) tools/hostbuild.py embed-jpeg \
+		--seed-manifest $(BOOTSTRAP_SEED_MANIFEST) $< $@
 
-%.jpeg.o: %.jpeg tools/hostbuild.py $(CUPIDOBJ)
-	$(PYTHON) tools/hostbuild.py embed-jpeg --object-tool $(CUPIDOBJ) $< $@
+%.jpeg.o: %.jpeg tools/hostbuild.py $(CHECKED_SEED_INPUTS)
+	$(PYTHON) tools/hostbuild.py embed-jpeg \
+		--seed-manifest $(BOOTSTRAP_SEED_MANIFEST) $< $@
 
 # Pattern rule: embed any system/fonts/*.ttf file with CupidObj.
 # Object exposes _binary_system_fonts_<name>_ttf_{start,end} symbols
 # (dashes in the filename get translated to underscores by CupidObj).
-system/fonts/%.ttf.o: system/fonts/%.ttf $(CUPIDOBJ)
+system/fonts/%.ttf.o: system/fonts/%.ttf $(CUPIDOBJ_INPUTS)
 	$(CUPIDOBJ) wrap $< -o $@
 
 # Pattern rule: embed any demos/*.asm file with CupidObj.
-demos/%.o: demos/%.asm $(CUPIDOBJ) Makefile
+demos/%.o: demos/%.asm $(CUPIDOBJ_INPUTS)
 	$(CUPIDOBJ) wrap-text $< -o $@
 
 # Pattern rule: embed any god/*.DD file with CupidObj.
-god/%.o: god/%.DD $(CUPIDOBJ) Makefile
+god/%.o: god/%.DD $(CUPIDOBJ_INPUTS)
 	$(CUPIDOBJ) wrap-text $< -o $@
 
 # Link kernel objects.
@@ -1314,20 +1333,23 @@ god/%.o: god/%.DD $(CUPIDOBJ) Makefile
 #           addresses do not shift between passes; only .bss start
 #           moves, which is fine.
 #   CupidObj flattens kernel.elf into the raw binary the bootloader expects.
-kernel/kernel.elf.pass1: $(KERNEL_OBJS) link.ld $(CUPIDLD)
+kernel/kernel.elf.pass1: $(KERNEL_OBJS) link.ld $(CUPIDLD_INPUTS)
 	$(CUPIDLD) -m elf_i386 -T link.ld -o $@ $(KERNEL_OBJS)
 
-kernel/cpu/ksyms_data.cc: kernel/kernel.elf.pass1 tools/hostbuild.py Makefile $(CUPIDDIS)
-	$(PYTHON) tools/hostbuild.py mksyms --nm $(CUPIDDIS) $< $@
+kernel/cpu/ksyms_data.cc: kernel/kernel.elf.pass1 tools/hostbuild.py \
+	$(CHECKED_SEED_INPUTS)
+	$(PYTHON) tools/hostbuild.py mksyms \
+		--seed-manifest $(BOOTSTRAP_SEED_MANIFEST) $< $@
 
 kernel/cpu/ksyms_data.o: kernel/cpu/ksyms_data.cc kernel/cpu/ksyms.h \
 	kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/ksyms_data.cc --output kernel/cpu/ksyms_data.o
 
-kernel/kernel.elf: $(KERNEL_OBJS) kernel/cpu/ksyms_data.o link.ld $(CUPIDLD)
+kernel/kernel.elf: $(KERNEL_OBJS) kernel/cpu/ksyms_data.o link.ld \
+	$(CUPIDLD_INPUTS)
 	$(CUPIDLD) -m elf_i386 -T link.ld -o $@ $(KERNEL_OBJS) kernel/cpu/ksyms_data.o
 
-$(KERNEL): kernel/kernel.elf $(CUPIDOBJ)
+$(KERNEL): kernel/kernel.elf $(CUPIDOBJ_INPUTS)
 	$(CUPIDOBJ) flat $< -o $(KERNEL)
 
 # Create HDD image: MBR + Stage2 + kernel area + FAT16 partition (size via HDD_MB, default 200MB)
@@ -1466,7 +1488,7 @@ test-user-cupidc-runtime: sync-user-runtime tools/gui_terminal_smoke.py
 
 # Test-only ISO - built from test_iso/fixtures/, mounted via
 # `mount /disk/hello.iso /iso` in the shell for feature17.
-TEST_ISO_FIXTURES := $(wildcard test_iso/fixtures/* test_iso/fixtures/sub/*)
+TEST_ISO_FIXTURES := $(sort $(wildcard test_iso/fixtures/* test_iso/fixtures/sub/*))
 
 test_iso/fixtures/big.bin:
 	$(PYTHON) tools/hostbuild.py gen-big $@

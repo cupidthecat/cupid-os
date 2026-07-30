@@ -236,14 +236,17 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ):
                 module._validate_user_syscall_abi_transform("user", changed)
 
-    def test_inventory_attributes_assembly_outputs_to_cupidasm(self):
+    def test_inventory_attributes_checked_seed_assembly_once(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             _write(
                 root / "Makefile",
                 """
                 .SUFFIXES:
-                CUPIDASM = cupidasm
+                PYTHON = python
+                CUPIDASM = $(PYTHON) tools/bootstrap_toolchain.py run \
+                    --manifest seed/manifest.json --root . \
+                    --tool cupidasm --
 
                 .PHONY: all
                 all: boot.bin entry.o
@@ -278,13 +281,15 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 entry["output"]: entry for entry in audit["build"]["transforms"]
             }
             self.assertEqual(
-                transforms["boot.bin"]["tools"], ["cupid_assembler"]
+                transforms["boot.bin"]["tools"],
+                ["cupid_assembler", "host_python"],
             )
             self.assertEqual(
                 transforms["boot.bin"]["operation"], "assemble_flat_binary"
             )
             self.assertEqual(
-                transforms["entry.o"]["tools"], ["cupid_assembler"]
+                transforms["entry.o"]["tools"],
+                ["cupid_assembler", "host_python"],
             )
             self.assertEqual(
                 transforms["entry.o"]["operation"], "assemble_elf32_relocatable"
@@ -408,8 +413,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 f"""
                 .SUFFIXES:
                 CC = host-cc
-                CUPIDLD = cupidld
-                CUPIDOBJ = cupidobj
+                PYTHON = python
+                CUPIDLD = $(PYTHON) tools/bootstrap_toolchain.py run \
+                    --manifest seed/manifest.json --root . \
+                    --tool cupidld --
+                CUPIDOBJ = $(PYTHON) tools/bootstrap_toolchain.py run \
+                    --manifest seed/manifest.json --root . \
+                    --tool cupidobj --
 
                 .PHONY: all print-bootstrap-artifacts
                 all: kernel.elf kernel.bin app.o
@@ -456,15 +466,24 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             transforms = {
                 entry["output"]: entry for entry in audit["build"]["transforms"]
             }
-            self.assertEqual(transforms["kernel.elf"]["tools"], ["cupid_linker"])
+            self.assertEqual(
+                transforms["kernel.elf"]["tools"],
+                ["cupid_linker", "host_python"],
+            )
             self.assertEqual(
                 transforms["kernel.elf"]["operation"], "link_elf32_executable"
             )
-            self.assertEqual(transforms["kernel.bin"]["tools"], ["cupid_object"])
+            self.assertEqual(
+                transforms["kernel.bin"]["tools"],
+                ["cupid_object", "host_python"],
+            )
             self.assertEqual(
                 transforms["kernel.bin"]["operation"], "extract_raw_binary"
             )
-            self.assertEqual(transforms["app.o"]["tools"], ["cupid_object"])
+            self.assertEqual(
+                transforms["app.o"]["tools"],
+                ["cupid_object", "host_python"],
+            )
             self.assertEqual(
                 transforms["app.o"]["operation"],
                 "wrap_text_as_elf32_relocatable",
@@ -472,6 +491,77 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(
                 audit["contracts"]["bootstrap_artifact_coverage"]["linked_objects"],
                 1,
+            )
+
+    def test_inventory_attributes_nested_checked_seed_tools_once(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _write(
+                root / "Makefile",
+                """
+                .SUFFIXES:
+                PYTHON = python
+                CUPIDDIS = $(PYTHON) tools/bootstrap_toolchain.py run \
+                    --manifest seed/manifest.json --root . \
+                    --tool cupiddis --
+
+                .PHONY: all
+                all: symbols.cc photo.o reader.txt
+
+                symbols.cc: kernel.elf
+                \t$(PYTHON) tools/hostbuild.py mksyms \
+                    --seed-manifest seed/manifest.json $< $@
+
+                photo.o: photo.jpg
+                \t$(PYTHON) tools/hostbuild.py embed-jpeg \
+                    --seed-manifest seed/manifest.json $< $@
+
+                reader.txt: kernel.elf
+                \t$(PYTHON) helper.py --reader $(CUPIDDIS) $< $@
+                """,
+            )
+            _write(root / "kernel.elf", "fixture\n")
+            _write(root / "photo.jpg", "fixture\n")
+
+            output = root / "audit.json"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(AUDIT_TOOL),
+                    "--root",
+                    str(root),
+                    "--output",
+                    str(output),
+                ],
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            audit = json.loads(output.read_text(encoding="utf-8"))
+            transforms = {
+                entry["output"]: entry
+                for entry in audit["build"]["transforms"]
+            }
+            self.assertEqual(
+                transforms["symbols.cc"]["tools"],
+                ["cupid_disassembler", "host_python"],
+            )
+            self.assertEqual(
+                transforms["symbols.cc"]["operation"],
+                "generate_c_source",
+            )
+            self.assertEqual(
+                transforms["photo.o"]["tools"],
+                ["cupid_object", "host_python"],
+            )
+            self.assertEqual(
+                transforms["photo.o"]["operation"],
+                "wrap_binary_as_elf32_relocatable",
+            )
+            self.assertEqual(
+                transforms["reader.txt"]["tools"],
+                ["cupid_disassembler", "host_python"],
             )
 
     def test_make_database_does_not_execute_recursive_recipes(self):
@@ -1999,7 +2089,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             for output_path, operation in expected_assembly.items():
                 self.assertEqual(
-                    transforms[output_path]["tools"], ["cupid_assembler"]
+                    transforms[output_path]["tools"],
+                    ["cupid_assembler", "host_python"],
                 )
                 self.assertEqual(transforms[output_path]["operation"], operation)
             self.assertFalse(
@@ -3083,36 +3174,26 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ],
         )
 
-    def test_recursive_tool_builds_do_not_claim_cupid_source_delivery(self):
+    def test_hosted_tool_builds_remain_optional(self):
+        make = shutil.which("make")
+        if make is None:
+            self.skipTest("GNU Make is unavailable")
         module = _load_audit_module()
-        audit = json.loads(
-            ACTIVE_BUILD_MANIFEST.read_text(encoding="utf-8")
+        rules = module._parse_make_rules(
+            module._run_make_database(REPO_ROOT, make, "all")
         )
-        recursive = [
-            transform
-            for transform in audit["build"]["transforms"]
-            if transform["operation"] == "recursive_make"
+        hosted_tools = [
+            f"toolchain/build/{tool}.exe"
+            for tool in ("cupidasm", "cupiddis", "cupidld", "cupidobj")
         ]
-
-        self.assertEqual(
-            [
-                re.sub(r"\.exe$", "", transform["output"])
-                for transform in recursive
-            ],
-            [
-                "toolchain/build/cupidasm",
-                "toolchain/build/cupiddis",
-                "toolchain/build/cupidld",
-                "toolchain/build/cupidobj",
-            ],
+        self.assertTrue(
+            set(hosted_tools).issubset(rules),
         )
         self.assertTrue(
-            all(
-                any(path.endswith(".cc") for path in transform["inputs"])
-                for transform in recursive
+            set(hosted_tools).isdisjoint(
+                module._reachable_rules(rules, "all")
             )
         )
-        module._c_preprocessor_active_cases_manifest(audit)
 
     def test_checked_cupidc_active_manifest_keeps_profiles_isolated(self):
         lines = ACTIVE_CASE_MANIFEST.read_text(encoding="utf-8").splitlines()
@@ -4308,7 +4389,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 {
                     "active_sources": 716,
                     "features": 252,
-                    "transforms": 504,
+                    "transforms": 500,
                     "unreachable_sources": 25,
                 },
             )
@@ -4425,11 +4506,19 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(
                 symbol_transform["operation"], "generate_c_source"
             )
-            self.assertIn(
-                "toolchain/build/cupiddis"
-                + (".exe" if sys.platform == "win32" else ""),
-                symbol_transform["inputs"],
-            )
+            for checked_seed_input in (
+                "tools/bootstrap_toolchain.py",
+                "bootstrap/seeds/i386-linux/manifest.json",
+                "bootstrap/seeds/i386-linux/cupidasm.elf",
+                "bootstrap/seeds/i386-linux/cupidc.elf",
+                "bootstrap/seeds/i386-linux/cupiddis.elf",
+                "bootstrap/seeds/i386-linux/cupidld.elf",
+                "bootstrap/seeds/i386-linux/cupidobj.elf",
+            ):
+                self.assertIn(
+                    checked_seed_input,
+                    symbol_transform["inputs"],
+                )
             self.assertFalse(
                 any(
                     "host_symbol_reader" in transform["tools"]
@@ -4798,7 +4887,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 {
                     "cupid_c_compiler": 245,
                     "host_c_compiler": 52,
-                    "host_python": 261,
+                    "host_python": 448,
                 },
             )
 
@@ -4954,7 +5043,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 {
                     "output": "bin/new.h.o",
                     "inputs": ["bin/new.h"],
-                    "tools": ["cupid_object"],
+                    "tools": ["cupid_object", "host_python"],
                     "operation": "wrap_text_as_elf32_relocatable",
                     "recipe": ["$(CUPIDOBJ) wrap-text $< -o $@"],
                 }
@@ -4978,6 +5067,210 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             )
             self.assertEqual(stale.returncode, 1)
             self.assertIn(manifest.name, stale.stderr)
+
+    def test_root_build_uses_the_checked_seed_tool_trust_unit(self):
+        make = shutil.which("make")
+        if make is None:
+            self.skipTest("GNU Make is unavailable")
+        module = _load_audit_module()
+        commands = module._read_evaluated_make_variables(
+            REPO_ROOT,
+            make,
+            ("CUPIDASM", "CUPIDOBJ", "CUPIDLD", "CUPIDDIS"),
+        )
+        for variable, tool_name in (
+            ("CUPIDASM", "cupidasm"),
+            ("CUPIDOBJ", "cupidobj"),
+            ("CUPIDLD", "cupidld"),
+            ("CUPIDDIS", "cupiddis"),
+        ):
+            with self.subTest(command=variable):
+                command = " ".join(commands[variable].split())
+                self.assertIn(
+                    "tools/bootstrap_toolchain.py run",
+                    command,
+                )
+                self.assertIn(f"--tool {tool_name} --", command)
+
+        with tempfile.TemporaryDirectory() as td:
+            output = Path(td) / "audit.json"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(AUDIT_TOOL),
+                    "--root",
+                    str(REPO_ROOT),
+                    "--output",
+                    str(output),
+                ],
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            audit = json.loads(output.read_text(encoding="utf-8"))
+
+        seed_inputs = {
+            "Makefile",
+            "tools/bootstrap_toolchain.py",
+            "bootstrap/seeds/i386-linux/manifest.json",
+            "bootstrap/seeds/i386-linux/cupidasm.elf",
+            "bootstrap/seeds/i386-linux/cupidc.elf",
+            "bootstrap/seeds/i386-linux/cupiddis.elf",
+            "bootstrap/seeds/i386-linux/cupidld.elf",
+            "bootstrap/seeds/i386-linux/cupidobj.elf",
+        }
+        expected_counts = {
+            "cupid_assembler": 4,
+            "cupid_object": 182,
+            "cupid_linker": 2,
+            "cupid_disassembler": 1,
+        }
+        for tool, expected_count in expected_counts.items():
+            transforms = [
+                transform
+                for transform in audit["build"]["transforms"]
+                if tool in transform["tools"]
+            ]
+            with self.subTest(tool=tool):
+                self.assertEqual(len(transforms), expected_count)
+                for transform in transforms:
+                    self.assertEqual(
+                        transform["tools"].count("host_python"),
+                        1,
+                        transform["output"],
+                    )
+                    self.assertTrue(
+                        seed_inputs.issubset(transform["inputs"]),
+                        transform["output"],
+                    )
+        self.assertFalse(
+            any(
+                transform["operation"] == "recursive_make"
+                for transform in audit["build"]["transforms"]
+            )
+        )
+
+    def test_output_source_discovery_has_locale_neutral_order(self):
+        makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
+        for variable in (
+            "BIN_CC_SRCS",
+            "BIN_HDR_SRCS",
+            "BROWSER_SUB_SRCS",
+            "DOC_CTXT_SRCS",
+            "HOME_BMP_SRCS",
+            "HOME_PNG_SRCS",
+            "HOME_JPG_SRCS",
+            "HOME_JPEG_SRCS",
+            "DEMO_ASM_SRCS",
+            "GOD_DD_SRCS",
+            "FONT_TTF_SRCS",
+            "WAD_SRCS",
+            "DOOM_CUPIDC_HEADERS",
+            "DOOM_SRC",
+            "TEST_ISO_FIXTURES",
+        ):
+            self.assertRegex(
+                makefile,
+                rf"(?m)^{variable}\s*:=\s*\$\(sort\b",
+                f"{variable} must sort discovered paths before use",
+            )
+
+    def test_root_seed_manifest_override_moves_the_trust_unit(self):
+        make = shutil.which("make")
+        if make is None:
+            self.skipTest("GNU Make is unavailable")
+        module = _load_audit_module()
+        with tempfile.TemporaryDirectory(
+            prefix=".audit-seed-",
+            dir=REPO_ROOT,
+        ) as td:
+            seed_directory = Path(td)
+            manifest = seed_directory / "manifest.json"
+            manifest.write_text("{}\n", encoding="utf-8")
+            for tool in (
+                "cupidasm",
+                "cupidc",
+                "cupiddis",
+                "cupidld",
+                "cupidobj",
+            ):
+                (seed_directory / f"{tool}.elf").write_bytes(b"seed\n")
+            relative_manifest = manifest.relative_to(REPO_ROOT).as_posix()
+            variables = (
+                *module.CANONICAL_MAKE_VARIABLES,
+                f"BOOTSTRAP_SEED_MANIFEST={relative_manifest}",
+            )
+            with mock.patch.object(
+                module,
+                "CANONICAL_MAKE_VARIABLES",
+                variables,
+            ):
+                rules = module._parse_make_rules(
+                    module._run_make_database(
+                        REPO_ROOT,
+                        make,
+                        "boot/boot.bin",
+                    )
+                )
+
+            inputs = set(rules["boot/boot.bin"].prerequisites)
+            expected = {
+                relative_manifest,
+                *{
+                    (seed_directory / f"{tool}.elf")
+                    .relative_to(REPO_ROOT)
+                    .as_posix()
+                    for tool in (
+                        "cupidasm",
+                        "cupidc",
+                        "cupiddis",
+                        "cupidld",
+                        "cupidobj",
+                    )
+                },
+            }
+            self.assertTrue(expected.issubset(inputs))
+            self.assertNotIn(
+                "bootstrap/seeds/i386-linux/manifest.json",
+                inputs,
+            )
+
+    def test_root_tool_override_can_replace_its_dependency_closure(self):
+        make = shutil.which("make")
+        if make is None:
+            self.skipTest("GNU Make is unavailable")
+        module = _load_audit_module()
+        with tempfile.TemporaryDirectory(
+            prefix=".audit-tool-",
+            dir=REPO_ROOT,
+        ) as td:
+            driver = Path(td) / "cupidasm-driver"
+            driver.write_bytes(b"driver\n")
+            relative_driver = driver.relative_to(REPO_ROOT).as_posix()
+            variables = (
+                *module.CANONICAL_MAKE_VARIABLES,
+                "CUPIDASM=custom-cupidasm",
+                f"CUPIDASM_INPUTS={relative_driver}",
+            )
+            with mock.patch.object(
+                module,
+                "CANONICAL_MAKE_VARIABLES",
+                variables,
+            ):
+                rules = module._parse_make_rules(
+                    module._run_make_database(
+                        REPO_ROOT,
+                        make,
+                        "boot/boot.bin",
+                    )
+                )
+
+            inputs = set(rules["boot/boot.bin"].prerequisites)
+            self.assertIn(relative_driver, inputs)
+            self.assertNotIn(
+                "bootstrap/seeds/i386-linux/manifest.json",
+                inputs,
+            )
 
     def test_generated_kernel_symbols_use_the_checked_cupidc_graph(self):
         with tempfile.TemporaryDirectory() as td:
@@ -5013,8 +5306,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "kernel/kernel.elf.pass1",
                     "tools/hostbuild.py",
                     "Makefile",
-                    "toolchain/build/cupiddis"
-                    + (".exe" if sys.platform == "win32" else ""),
+                    "tools/bootstrap_toolchain.py",
+                    "bootstrap/seeds/i386-linux/manifest.json",
+                    "bootstrap/seeds/i386-linux/cupidasm.elf",
+                    "bootstrap/seeds/i386-linux/cupidc.elf",
+                    "bootstrap/seeds/i386-linux/cupiddis.elf",
+                    "bootstrap/seeds/i386-linux/cupidld.elf",
+                    "bootstrap/seeds/i386-linux/cupidobj.elf",
                 },
             )
 

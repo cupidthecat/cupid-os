@@ -10,6 +10,13 @@ from unittest import mock
 from tools import hostbuild
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+BASELINE_JPEG = (
+    b"\xff\xd8"
+    b"\xff\xc0\x00\x0b\x08\x00\x01\x00\x01\x01\x01\x11\x00"
+    b"\xff\xda\x00\x08\x01\x01\x00\x00\x3f\x00"
+    b"\xff\xd9"
+)
+PROGRESSIVE_JPEG = BASELINE_JPEG.replace(b"\xff\xc0", b"\xff\xc2", 1)
 
 
 class HostBuildImageTests(unittest.TestCase):
@@ -88,6 +95,159 @@ class HostBuildImageTests(unittest.TestCase):
 
 
 class HostBuildSymbolTests(unittest.TestCase):
+    def test_mksyms_runs_checked_cupiddis_from_the_seed(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            manifest = root / "manifest.json"
+            elf = root / "kernel.elf.pass1"
+            output = root / "ksyms_data.cc"
+            manifest.write_bytes(b"checked manifest")
+            elf.write_bytes(b"pass-one ELF")
+            calls = []
+
+            def run_seed(
+                manifest_path,
+                working_directory,
+                tool_name,
+                arguments,
+                *,
+                timeout,
+            ):
+                calls.append(
+                    (
+                        manifest_path,
+                        working_directory,
+                        tool_name,
+                        arguments,
+                        timeout,
+                    )
+                )
+                self.assertEqual(tool_name, "cupiddis")
+                self.assertEqual(arguments[0], "-n")
+                self.assertNotEqual(Path(arguments[1]), elf)
+                self.assertEqual(
+                    Path(arguments[1]).read_bytes(),
+                    elf.read_bytes(),
+                )
+                return subprocess.CompletedProcess(
+                    ["cupiddis", *arguments],
+                    0,
+                    "00001000 T first\n00002000 T second\n",
+                    "",
+                )
+
+            with mock.patch(
+                "tools.hostbuild.run_seed_tool",
+                side_effect=run_seed,
+                create=True,
+            ):
+                status = hostbuild.main(
+                    [
+                        "mksyms",
+                        "--seed-manifest",
+                        str(manifest),
+                        str(elf),
+                        str(output),
+                    ]
+                )
+
+            self.assertEqual(status, 0)
+            self.assertEqual(len(calls), 1)
+            self.assertTrue(output.is_file())
+
+    def test_mksyms_maps_checked_seed_failure_and_preserves_output(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            manifest = root / "manifest.json"
+            elf = root / "kernel.elf.pass1"
+            output = root / "ksyms_data.cc"
+            manifest.write_bytes(b"checked manifest")
+            elf.write_bytes(b"pass-one ELF")
+            output.write_bytes(b"existing generated source")
+            failure = subprocess.CompletedProcess(
+                ["cupiddis", "-n"],
+                9,
+                "",
+                "invalid pass-one ELF\n",
+            )
+            diagnostic = io.StringIO()
+
+            with (
+                mock.patch(
+                    "tools.hostbuild.run_seed_tool",
+                    return_value=failure,
+                    create=True,
+                ),
+                contextlib.redirect_stderr(diagnostic),
+            ):
+                status = hostbuild.main(
+                    [
+                        "mksyms",
+                        "--seed-manifest",
+                        str(manifest),
+                        str(elf),
+                        str(output),
+                    ]
+                )
+
+            self.assertEqual(status, 1)
+            self.assertIn(
+                "checked CupidDis failed with status 9: "
+                "invalid pass-one ELF",
+                diagnostic.getvalue(),
+            )
+            self.assertEqual(
+                output.read_bytes(),
+                b"existing generated source",
+            )
+
+    def test_mksyms_rejects_seed_manifest_drift(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            manifest = root / "manifest.json"
+            elf = root / "kernel.elf.pass1"
+            output = root / "ksyms_data.cc"
+            manifest.write_bytes(b"checked manifest")
+            elf.write_bytes(b"pass-one ELF")
+            output.write_bytes(b"existing generated source")
+            diagnostic = io.StringIO()
+
+            def run_seed(*_args, **_kwargs):
+                manifest.write_bytes(b"changed manifest")
+                return subprocess.CompletedProcess(
+                    ["cupiddis", "-n"],
+                    0,
+                    "00001000 T first\n",
+                    "",
+                )
+
+            with (
+                mock.patch(
+                    "tools.hostbuild.run_seed_tool",
+                    side_effect=run_seed,
+                ),
+                contextlib.redirect_stderr(diagnostic),
+            ):
+                status = hostbuild.main(
+                    [
+                        "mksyms",
+                        "--seed-manifest",
+                        str(manifest),
+                        str(elf),
+                        str(output),
+                    ]
+                )
+
+            self.assertEqual(status, 1)
+            self.assertIn(
+                "kernel symbol inputs changed while generating source",
+                diagnostic.getvalue(),
+            )
+            self.assertEqual(
+                output.read_bytes(),
+                b"existing generated source",
+            )
+
     def test_mksyms_uses_one_frozen_reader_and_elf_snapshot(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
@@ -514,37 +674,186 @@ class HostBuildSymbolTests(unittest.TestCase):
 
 
 class HostBuildAssetTests(unittest.TestCase):
-    def test_embed_jpeg_wraps_converted_bytes_with_original_identity(self):
+    def test_embed_jpeg_runs_checked_cupidobj_from_the_seed(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            manifest = root / "manifest.json"
+            src = root / "photo.jpg"
+            out = root / "photo.jpg.o"
+            manifest.write_bytes(b"checked manifest")
+            src.write_bytes(BASELINE_JPEG)
+            calls = []
+
+            def run_seed(
+                manifest_path,
+                working_directory,
+                tool_name,
+                arguments,
+                *,
+                timeout,
+            ):
+                calls.append(
+                    (
+                        manifest_path,
+                        working_directory,
+                        tool_name,
+                        arguments,
+                        timeout,
+                    )
+                )
+                self.assertEqual(tool_name, "cupidobj")
+                self.assertEqual(arguments[0], "wrap")
+                self.assertEqual(arguments[2:4], ["--identity", str(src)])
+                Path(arguments[-1]).write_bytes(b"checked object")
+                return subprocess.CompletedProcess(
+                    ["cupidobj", *arguments],
+                    0,
+                    "",
+                    "",
+                )
+
+            with mock.patch(
+                "tools.hostbuild.run_seed_tool",
+                side_effect=run_seed,
+                create=True,
+            ):
+                status = hostbuild.main(
+                    [
+                        "embed-jpeg",
+                        "--seed-manifest",
+                        str(manifest),
+                        str(src),
+                        str(out),
+                    ]
+                )
+
+            self.assertEqual(status, 0)
+            self.assertEqual(len(calls), 1)
+            self.assertEqual(out.read_bytes(), b"checked object")
+
+    def test_embed_jpeg_preserves_output_after_checked_seed_failure(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            manifest = root / "manifest.json"
+            src = root / "photo.jpg"
+            out = root / "photo.jpg.o"
+            manifest.write_bytes(b"checked manifest")
+            src.write_bytes(BASELINE_JPEG)
+            out.write_bytes(b"existing object")
+            failure = subprocess.CompletedProcess(
+                ["cupidobj", "wrap"],
+                6,
+                "",
+                "wrap failed\n",
+            )
+            diagnostic = io.StringIO()
+
+            with (
+                mock.patch(
+                    "tools.hostbuild.run_seed_tool",
+                    return_value=failure,
+                    create=True,
+                ),
+                contextlib.redirect_stderr(diagnostic),
+            ):
+                status = hostbuild.main(
+                    [
+                        "embed-jpeg",
+                        "--seed-manifest",
+                        str(manifest),
+                        str(src),
+                        str(out),
+                    ]
+                )
+
+            self.assertEqual(status, 1)
+            self.assertIn(
+                "checked CupidObj failed with status 6: wrap failed",
+                diagnostic.getvalue(),
+            )
+            self.assertEqual(out.read_bytes(), b"existing object")
+
+    def test_embed_jpeg_rejects_input_drift_before_publication(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            manifest = root / "manifest.json"
+            src = root / "photo.jpg"
+            out = root / "photo.jpg.o"
+            manifest.write_bytes(b"checked manifest")
+            src.write_bytes(BASELINE_JPEG)
+            out.write_bytes(b"existing object")
+            diagnostic = io.StringIO()
+
+            def run_seed(
+                _manifest,
+                _working_directory,
+                _tool_name,
+                arguments,
+                *,
+                timeout,
+            ):
+                self.assertEqual(timeout, 60)
+                src.write_bytes(BASELINE_JPEG + b"\x00")
+                Path(arguments[-1]).write_bytes(b"checked object")
+                return subprocess.CompletedProcess(
+                    ["cupidobj", *arguments],
+                    0,
+                    "",
+                    "",
+                )
+
+            with (
+                mock.patch(
+                    "tools.hostbuild.run_seed_tool",
+                    side_effect=run_seed,
+                ),
+                contextlib.redirect_stderr(diagnostic),
+            ):
+                status = hostbuild.main(
+                    [
+                        "embed-jpeg",
+                        "--seed-manifest",
+                        str(manifest),
+                        str(src),
+                        str(out),
+                    ]
+                )
+
+            self.assertEqual(status, 1)
+            self.assertIn(
+                "checked JPEG inputs changed while wrapping the object",
+                diagnostic.getvalue(),
+            )
+            self.assertEqual(out.read_bytes(), b"existing object")
+
+    def test_embed_jpeg_wraps_checked_in_bytes_with_original_identity(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             src = root / "photo.jpg"
             out = root / "photo.jpg.o"
-            src.write_bytes(b"source jpeg")
-            ffmpeg_outputs = []
+            src.write_bytes(BASELINE_JPEG)
             object_tool_commands = []
 
-            def fake_which(name):
-                return "ffmpeg" if name == "ffmpeg" else None
-
             def fake_run(args, **kwargs):
-                if args[0] == "ffmpeg":
-                    tmp = Path(args[-1])
-                    ffmpeg_outputs.append(tmp)
-                    if tmp.suffix.lower() == ".jpg":
-                        tmp.write_bytes(b"converted jpeg")
-                        return subprocess.CompletedProcess(args, 0)
-                    return subprocess.CompletedProcess(args, 1)
                 if args[0] == "cupidobj":
                     object_tool_commands.append(args)
+                    self.assertEqual(
+                        Path(args[2]).read_bytes(),
+                        BASELINE_JPEG,
+                    )
                     Path(args[-1]).write_bytes(b"object")
                     return subprocess.CompletedProcess(args, 0)
                 raise AssertionError(f"unexpected command: {args}")
 
-            with mock.patch("tools.hostbuild.shutil.which", side_effect=fake_which), \
-                mock.patch("tools.hostbuild.subprocess.run", side_effect=fake_run):
+            with mock.patch(
+                "tools.hostbuild.shutil.which",
+                side_effect=AssertionError("host converter lookup"),
+            ), mock.patch(
+                "tools.hostbuild.subprocess.run",
+                side_effect=fake_run,
+            ):
                 hostbuild.embed_jpeg("cupidobj", src, out)
 
-            self.assertEqual(ffmpeg_outputs[0].suffix.lower(), ".jpg")
             self.assertEqual(
                 object_tool_commands,
                 [[
@@ -558,6 +867,79 @@ class HostBuildAssetTests(unittest.TestCase):
                 ]],
             )
             self.assertTrue(out.exists())
+
+    def test_embed_jpeg_rejects_progressive_input_without_replacing_output(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            manifest = root / "manifest.json"
+            src = root / "photo.jpg"
+            out = root / "photo.jpg.o"
+            manifest.write_bytes(b"checked manifest")
+            src.write_bytes(PROGRESSIVE_JPEG)
+            out.write_bytes(b"existing object")
+            diagnostic = io.StringIO()
+
+            with mock.patch(
+                "tools.hostbuild.shutil.which",
+                side_effect=AssertionError("host converter lookup"),
+            ), mock.patch(
+                "tools.hostbuild.run_seed_tool",
+                side_effect=AssertionError("CupidObj must not run"),
+            ), contextlib.redirect_stderr(diagnostic):
+                status = hostbuild.main(
+                    [
+                        "embed-jpeg",
+                        "--seed-manifest",
+                        str(manifest),
+                        str(src),
+                        str(out),
+                    ]
+                )
+
+            self.assertEqual(status, 1)
+            self.assertIn(
+                "unsupported progressive JPEG frame",
+                diagnostic.getvalue(),
+            )
+            self.assertEqual(out.read_bytes(), b"existing object")
+
+    def test_embed_jpeg_rejects_malformed_frame_without_running_cupidobj(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            manifest = root / "manifest.json"
+            src = root / "photo.jpg"
+            out = root / "photo.jpg.o"
+            manifest.write_bytes(b"checked manifest")
+            src.write_bytes(
+                BASELINE_JPEG.replace(
+                    b"\xff\xc0\x00\x0b",
+                    b"\xff\xc0\x00\x08",
+                    1,
+                )
+            )
+            out.write_bytes(b"existing object")
+            diagnostic = io.StringIO()
+
+            with mock.patch(
+                "tools.hostbuild.run_seed_tool",
+                side_effect=AssertionError("CupidObj must not run"),
+            ), contextlib.redirect_stderr(diagnostic):
+                status = hostbuild.main(
+                    [
+                        "embed-jpeg",
+                        "--seed-manifest",
+                        str(manifest),
+                        str(src),
+                        str(out),
+                    ]
+                )
+
+            self.assertEqual(status, 1)
+            self.assertIn(
+                "JPEG frame header has an invalid component table",
+                diagnostic.getvalue(),
+            )
+            self.assertEqual(out.read_bytes(), b"existing object")
 
 
 if __name__ == "__main__":

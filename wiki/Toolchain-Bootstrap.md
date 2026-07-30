@@ -331,13 +331,13 @@ expressions in source order. It also keeps all target bits through represented
 function-pointer casts and supports bounded output-only register and EFLAGS
 snapshots. The checked production wrapper now compiles the generated
 `kernel/cpu/ksyms_data.cc` root. The generator writes little-endian
-`unsigned int` words and records the logical 109,857-byte blob length
+`unsigned int` words and records the logical 109,889-byte blob length
 separately. It runs private snapshots of the pass-one kernel and CupidDis,
 rejects malformed symbol rows, an empty text-symbol set, and live input
 drift, then replaces the `.cc` source atomically. The checked compiler
 wrapper freezes that source and its header closure before it publishes the
 object. The word array ends with three zero pad bytes. The final kernel
-consumes 4,560 text symbols and shows no address drift from the pass-one
+consumes 4,561 text symbols and shows no address drift from the pass-one
 kernel.
 
 The checked seed emits the exact volatile
@@ -401,11 +401,33 @@ hostname, chain state, and embedded-root lookup paths. They are not a full
 trust-validation claim.
 
 Across the root and supplemental builds, the current audit assigns 245
-transforms to CupidC, 52 to the host C compiler, 261 to host Python, and five
-to Make. CupidC's total is 239 normal transforms plus three generated
+transforms to CupidC and 52 to the host C compiler. Python participates in
+448 transforms. CupidC's total is 239 normal transforms plus three generated
 installation tables and the `hello.cc`, `ls.cc`, and `cat.cc` programs. The
 host compiler's transforms belong to the hosted Toolchain build. The
-442-transform root image graph has no host C transform.
+438-transform root image graph has no host C or recursive Make transform.
+Its four CupidASM, 182 CupidObj, two CupidLD, and one CupidDis transforms run
+from the manifest-checked five-tool seed. Native hosted commands remain
+explicit oracle targets. The runner rechecks the live seed cohort after each
+command, and Make passes wildcard-discovered output sources through
+`$(sort ...)` before generation or link. Windows and Linux therefore consume
+the same root order across host locales.
+ADR 0190 records this handoff.
+The first direct comparison matched 426 of 430 kernel artifacts. The remaining
+four were one JPEG object and the three outputs that consumed it. Host FFmpeg
+had rewritten the tracked progressive image differently on Windows and Linux.
+The repository stores the accepted sequential baseline bytes. Hostbuild
+validates and copies structurally checked SOF0 or SOF1 input, rejects
+progressive, unsupported, or malformed marker streams, and gives the exact
+private snapshot to
+checked CupidObj. FFmpeg, `jpegtran`, `djpeg`, and `cjpeg` are no longer root
+dependencies. The Linux kernel build passed in 607.7 seconds, and the Windows
+root build passed in 341.6 seconds. All 430 frozen kernel artifacts match byte
+for byte. The matching raw kernel is 8,490,228 bytes with SHA-256
+`53770a93658e757d25f5aeab9d3e434d4a3be2a1dc3fbe4b19869e5bf9820a06`.
+The fresh normal image has SHA-256
+`e815d2ef67f114a26181f0e2cbde85f892cdadd487f8d9cbee9715e720800b3e`.
+A private `/bin/ls.cc` JIT boot from it passed in 49.8 seconds.
 The checked audit uses the canonical Windows Make branch and C locale on
 every host. Direct Linux builds test the separate Linux execution branch.
 

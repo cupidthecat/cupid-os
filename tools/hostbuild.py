@@ -18,6 +18,11 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
+try:
+    from tools.bootstrap_toolchain import BootstrapError, run_seed_tool
+except ModuleNotFoundError:
+    from bootstrap_toolchain import BootstrapError, run_seed_tool
+
 
 SECTOR_SIZE = 512
 FAT16_TYPES = {0x04, 0x06, 0x0E}
@@ -27,6 +32,10 @@ FAT16_EOC_MIN = 0xFFF8
 
 class KsymsGenerationError(RuntimeError):
     """The kernel symbol source could not be generated safely."""
+
+
+class EmbedJpegError(RuntimeError):
+    """A JPEG asset could not be wrapped safely."""
 
 
 @dataclass(frozen=True)
@@ -627,6 +636,33 @@ def _symbols_from_nm(
     return _parse_nm_symbols(proc.stdout)
 
 
+def _symbols_from_seed(
+    manifest: Path,
+    working_directory: Path,
+    elf: Path,
+) -> list[tuple[int, str]]:
+    try:
+        proc = run_seed_tool(
+            manifest,
+            working_directory,
+            "cupiddis",
+            ("-n", elf),
+            timeout=60,
+        )
+    except BootstrapError as error:
+        raise KsymsGenerationError(
+            f"checked CupidDis could not run: {error}"
+        ) from error
+    if proc.returncode != 0:
+        details = (proc.stderr or proc.stdout or "").strip()
+        suffix = f": {details}" if details else ""
+        raise KsymsGenerationError(
+            f"checked CupidDis failed with status "
+            f"{proc.returncode}{suffix}"
+        )
+    return _parse_nm_symbols(proc.stdout)
+
+
 def _render_ksyms_source(blob: bytes) -> bytes:
     words = _pack_ksyms_words(blob)
     lines = [
@@ -692,8 +728,18 @@ def _read_ksyms_input(path: Path, description: str) -> bytes:
         ) from error
 
 
-def write_ksyms_source(nm: str, elf: Path, out: Path) -> None:
-    reader = _resolve_symbol_reader(nm)
+def write_ksyms_source(
+    nm: str | None,
+    elf: Path,
+    out: Path,
+    *,
+    seed_manifest: Path | None = None,
+) -> None:
+    if (nm is None) == (seed_manifest is None):
+        raise KsymsGenerationError(
+            "select exactly one symbol reader"
+        )
+    reader = _resolve_symbol_reader(nm) if nm is not None else None
     try:
         input_elf = elf.resolve(strict=True)
         output_parent = out.parent.resolve(strict=True)
@@ -714,19 +760,40 @@ def write_ksyms_source(nm: str, elf: Path, out: Path) -> None:
         raise KsymsGenerationError(
             f"generated symbol output is not a file: {output}"
         )
-    if output == input_elf or output == reader:
+    if output == input_elf or (reader is not None and output == reader):
         raise KsymsGenerationError(
             "generated symbol output may not replace an input"
         )
 
     elf_payload = _read_ksyms_input(input_elf, "pass-one kernel")
-    reader_payload = _read_ksyms_input(reader, "symbol reader")
-    try:
-        reader_mode = reader.stat().st_mode
-    except OSError as error:
-        raise KsymsGenerationError(
-            f"symbol reader metadata cannot be read: {reader}: {error}"
-        ) from error
+    reader_payload: bytes | None = None
+    reader_mode: int | None = None
+    manifest: Path | None = None
+    manifest_payload: bytes | None = None
+    if reader is not None:
+        reader_payload = _read_ksyms_input(reader, "symbol reader")
+        try:
+            reader_mode = reader.stat().st_mode
+        except OSError as error:
+            raise KsymsGenerationError(
+                f"symbol reader metadata cannot be read: {reader}: {error}"
+            ) from error
+    else:
+        assert seed_manifest is not None
+        try:
+            manifest = seed_manifest.resolve(strict=True)
+        except OSError as error:
+            raise KsymsGenerationError(
+                f"checked seed manifest cannot be resolved: "
+                f"{seed_manifest}: {error}"
+            ) from error
+        if output == manifest:
+            raise KsymsGenerationError(
+                "generated symbol output may not replace an input"
+            )
+        manifest_payload = _read_ksyms_input(
+            manifest, "checked seed manifest"
+        )
 
     try:
         with tempfile.TemporaryDirectory(
@@ -735,18 +802,28 @@ def write_ksyms_source(nm: str, elf: Path, out: Path) -> None:
         ) as temporary:
             frozen_root = Path(temporary)
             frozen_elf = frozen_root / "input" / "kernel.elf.pass1"
-            frozen_reader = (
-                frozen_root / "tool" / f"cupiddis{reader.suffix}"
-            )
             frozen_output = frozen_root / "output" / output.name
             frozen_elf.parent.mkdir()
-            frozen_reader.parent.mkdir()
             frozen_output.parent.mkdir()
             frozen_elf.write_bytes(elf_payload)
-            frozen_reader.write_bytes(reader_payload)
-            frozen_reader.chmod(reader_mode)
 
-            symbols = _symbols_from_nm(str(frozen_reader), frozen_elf)
+            if reader is not None:
+                frozen_reader = (
+                    frozen_root / "tool" / f"cupiddis{reader.suffix}"
+                )
+                frozen_reader.parent.mkdir()
+                assert reader_payload is not None
+                assert reader_mode is not None
+                frozen_reader.write_bytes(reader_payload)
+                frozen_reader.chmod(reader_mode)
+                symbols = _symbols_from_nm(
+                    str(frozen_reader), frozen_elf
+                )
+            else:
+                assert manifest is not None
+                symbols = _symbols_from_seed(
+                    manifest, frozen_root, frozen_elf
+                )
             if not symbols:
                 raise KsymsGenerationError(
                     "symbol reader reported no kernel text symbols"
@@ -757,8 +834,18 @@ def write_ksyms_source(nm: str, elf: Path, out: Path) -> None:
             if (
                 _read_ksyms_input(input_elf, "pass-one kernel")
                 != elf_payload
-                or _read_ksyms_input(reader, "symbol reader")
-                != reader_payload
+                or (
+                    reader is not None
+                    and _read_ksyms_input(reader, "symbol reader")
+                    != reader_payload
+                )
+                or (
+                    manifest is not None
+                    and _read_ksyms_input(
+                        manifest, "checked seed manifest"
+                    )
+                    != manifest_payload
+                )
             ):
                 raise KsymsGenerationError(
                     "kernel symbol inputs changed while generating source"
@@ -773,58 +860,272 @@ def write_ksyms_source(nm: str, elf: Path, out: Path) -> None:
     print(f"[hostbuild] mksyms: {out} ({len(blob)} bytes)")
 
 
-def embed_jpeg(object_tool: str, src: Path, out: Path) -> None:
-    tmp = Path(str(out) + ".baseline.jpg")
-    converted = False
+def _prepare_baseline_jpeg(src: Path, tmp: Path) -> None:
     try:
-        jpegtran = shutil.which("jpegtran")
-        if jpegtran:
-            result = subprocess.run(
-                [jpegtran, "-copy", "none", "-optimize", "-outfile", str(tmp), str(src)],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-            converted = result.returncode == 0 and tmp.exists()
-        if not converted and shutil.which("djpeg") and shutil.which("cjpeg"):
-            with tmp.open("wb") as f:
-                p1 = subprocess.Popen(
-                    [shutil.which("djpeg") or "djpeg", "-rgb", str(src)],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.DEVNULL,
-                )
-                p2 = subprocess.run(
-                    [shutil.which("cjpeg") or "cjpeg", "-quality", "90", "-baseline", "-optimize"],
-                    stdin=p1.stdout,
-                    stdout=f,
-                    stderr=subprocess.DEVNULL,
-                )
-                if p1.stdout:
-                    p1.stdout.close()
-                converted = p1.wait() == 0 and p2.returncode == 0
-        if not converted and shutil.which("ffmpeg"):
-            result = subprocess.run(
-                [
-                    shutil.which("ffmpeg") or "ffmpeg",
-                    "-y",
-                    "-hide_banner",
-                    "-loglevel",
-                    "error",
-                    "-i",
-                    str(src),
-                    "-frames:v",
-                    "1",
-                    "-q:v",
-                    "2",
-                    str(tmp),
-                ]
-            )
-            converted = result.returncode == 0 and tmp.exists()
-        if not converted:
-            shutil.copyfile(src, tmp)
-            print(f"[hostbuild] JPEG raw embed {src}")
-        else:
-            print(f"[hostbuild] JPEG baseline embed {src}")
+        payload = src.read_bytes()
+    except OSError as error:
+        raise EmbedJpegError(
+            f"JPEG input cannot be read: {src}: {error}"
+        ) from error
+    if not payload.startswith(b"\xff\xd8"):
+        raise EmbedJpegError("JPEG input has no SOI marker")
 
+    frame_markers = {
+        0xC0,
+        0xC1,
+        0xC2,
+        0xC3,
+        0xC5,
+        0xC6,
+        0xC7,
+        0xC9,
+        0xCA,
+        0xCB,
+        0xCD,
+        0xCE,
+        0xCF,
+    }
+    offset = 2
+    frame_marker: int | None = None
+    saw_scan = False
+    saw_eoi = False
+    while offset < len(payload):
+        if payload[offset] != 0xFF:
+            raise EmbedJpegError(
+                "JPEG marker stream is malformed outside a scan"
+            )
+        while offset < len(payload) and payload[offset] == 0xFF:
+            offset += 1
+        if offset >= len(payload):
+            break
+        marker = payload[offset]
+        offset += 1
+        if marker == 0x00:
+            raise EmbedJpegError(
+                "JPEG marker stream contains stuffed data before a scan"
+            )
+        if marker == 0xD9:
+            saw_eoi = True
+            if offset != len(payload):
+                raise EmbedJpegError(
+                    "JPEG input has trailing bytes after the EOI marker"
+                )
+            break
+        if marker in {0x01, 0xD8} or 0xD0 <= marker <= 0xD7:
+            if marker != 0x01:
+                raise EmbedJpegError(
+                    f"unexpected standalone JPEG marker 0x{marker:02x}"
+                )
+            continue
+        if offset + 2 > len(payload):
+            raise EmbedJpegError("JPEG marker length is truncated")
+        segment_size = int.from_bytes(payload[offset : offset + 2], "big")
+        if segment_size < 2 or offset + segment_size > len(payload):
+            raise EmbedJpegError("JPEG marker length is invalid")
+        if marker in frame_markers:
+            if frame_marker is not None:
+                raise EmbedJpegError(
+                    "JPEG input contains more than one frame header"
+                )
+            if segment_size < 8:
+                raise EmbedJpegError("JPEG frame header is truncated")
+            component_count = payload[offset + 7]
+            if component_count == 0 or segment_size != 8 + 3 * component_count:
+                raise EmbedJpegError(
+                    "JPEG frame header has an invalid component table"
+                )
+            if payload[offset + 2] == 0:
+                raise EmbedJpegError(
+                    "JPEG frame header has an invalid sample precision"
+                )
+            if (
+                int.from_bytes(payload[offset + 3 : offset + 5], "big") == 0
+                or int.from_bytes(payload[offset + 5 : offset + 7], "big")
+                == 0
+            ):
+                raise EmbedJpegError(
+                    "JPEG frame header has an invalid image size"
+                )
+            frame_marker = marker
+        if marker == 0xDA:
+            if frame_marker is None:
+                raise EmbedJpegError(
+                    "JPEG scan appears before its frame header"
+                )
+            if segment_size < 6:
+                raise EmbedJpegError("JPEG scan header is truncated")
+            scan_components = payload[offset + 2]
+            if (
+                scan_components == 0
+                or segment_size != 6 + 2 * scan_components
+            ):
+                raise EmbedJpegError(
+                    "JPEG scan header has an invalid component table"
+                )
+            saw_scan = True
+            offset += segment_size
+            while offset < len(payload):
+                if payload[offset] != 0xFF:
+                    offset += 1
+                    continue
+                marker_offset = offset
+                while offset < len(payload) and payload[offset] == 0xFF:
+                    offset += 1
+                if offset >= len(payload):
+                    raise EmbedJpegError(
+                        "JPEG entropy data ends with a partial marker"
+                    )
+                scan_marker = payload[offset]
+                offset += 1
+                if scan_marker == 0x00 or 0xD0 <= scan_marker <= 0xD7:
+                    continue
+                offset = marker_offset
+                break
+            continue
+        offset += segment_size
+
+    if frame_marker == 0xC2:
+        raise EmbedJpegError(
+            "unsupported progressive JPEG frame; "
+            "check in a baseline SOF0/SOF1 asset"
+        )
+    if frame_marker not in {0xC0, 0xC1}:
+        if frame_marker is None:
+            raise EmbedJpegError(
+                "JPEG input has no supported SOF0/SOF1 frame"
+            )
+        raise EmbedJpegError(
+            f"unsupported JPEG frame marker 0x{frame_marker:02x}; "
+            "check in a baseline SOF0/SOF1 asset"
+        )
+    if not saw_scan:
+        raise EmbedJpegError("JPEG input has no scan")
+    if not saw_eoi:
+        raise EmbedJpegError("JPEG input has no EOI marker")
+    try:
+        tmp.write_bytes(payload)
+    except OSError as error:
+        raise EmbedJpegError(
+            f"checked JPEG copy cannot be written: {tmp}: {error}"
+        ) from error
+    print(f"[hostbuild] JPEG baseline embed {src}")
+
+
+def _embed_jpeg_with_seed(
+    seed_manifest: Path,
+    src: Path,
+    out: Path,
+) -> None:
+    try:
+        manifest = seed_manifest.resolve(strict=True)
+        input_jpeg = src.resolve(strict=True)
+        output_parent = out.parent.resolve(strict=True)
+    except OSError as error:
+        raise EmbedJpegError(
+            f"checked JPEG path cannot be resolved: {error}"
+        ) from error
+    output = output_parent / out.name
+    if output.is_symlink():
+        raise EmbedJpegError(
+            f"embedded JPEG output may not be a symlink: {output}"
+        )
+    if output.exists() and not output.is_file():
+        raise EmbedJpegError(
+            f"embedded JPEG output is not a file: {output}"
+        )
+    if not input_jpeg.is_file():
+        raise EmbedJpegError(
+            f"JPEG input is not a file: {input_jpeg}"
+        )
+    if output in {manifest, input_jpeg}:
+        raise EmbedJpegError(
+            "embedded JPEG output may not replace an input"
+        )
+    try:
+        manifest_payload = manifest.read_bytes()
+        jpeg_payload = input_jpeg.read_bytes()
+    except OSError as error:
+        raise EmbedJpegError(
+            f"checked JPEG input cannot be read: {error}"
+        ) from error
+
+    try:
+        with tempfile.TemporaryDirectory(
+            prefix=f".{output.name}.embed-jpeg-",
+            dir=output_parent,
+        ) as temporary:
+            temporary_root = Path(temporary)
+            frozen_jpeg = temporary_root / "input.jpg"
+            baseline = temporary_root / "asset.baseline.jpg"
+            wrapped = temporary_root / output.name
+            frozen_jpeg.write_bytes(jpeg_payload)
+            _prepare_baseline_jpeg(frozen_jpeg, baseline)
+            arguments = [
+                "wrap",
+                str(baseline),
+                "--identity",
+                str(src),
+                "-o",
+                str(wrapped),
+            ]
+            try:
+                proc = run_seed_tool(
+                    manifest,
+                    Path.cwd(),
+                    "cupidobj",
+                    arguments,
+                    timeout=60,
+                )
+            except BootstrapError as error:
+                raise EmbedJpegError(
+                    f"checked CupidObj could not run: {error}"
+                ) from error
+            if proc.returncode != 0:
+                details = (proc.stderr or proc.stdout or "").strip()
+                suffix = f": {details}" if details else ""
+                raise EmbedJpegError(
+                    f"checked CupidObj failed with status "
+                    f"{proc.returncode}{suffix}"
+                )
+            if not wrapped.is_file():
+                raise EmbedJpegError(
+                    "checked CupidObj reported success without an object"
+                )
+            if (
+                manifest.read_bytes() != manifest_payload
+                or input_jpeg.read_bytes() != jpeg_payload
+            ):
+                raise EmbedJpegError(
+                    "checked JPEG inputs changed while wrapping the object"
+                )
+            os.replace(wrapped, output)
+    except EmbedJpegError:
+        raise
+    except OSError as error:
+        raise EmbedJpegError(
+            f"embedded JPEG object could not be published: {error}"
+        ) from error
+
+
+def embed_jpeg(
+    object_tool: str | None,
+    src: Path,
+    out: Path,
+    *,
+    seed_manifest: Path | None = None,
+) -> None:
+    if (object_tool is None) == (seed_manifest is None):
+        raise EmbedJpegError(
+            "select exactly one JPEG object writer"
+        )
+    if seed_manifest is not None:
+        _embed_jpeg_with_seed(seed_manifest, src, out)
+        return
+
+    assert object_tool is not None
+    tmp = Path(str(out) + ".baseline.jpg")
+    try:
+        _prepare_baseline_jpeg(src, tmp)
         subprocess.run(
             [
                 object_tool,
@@ -1040,12 +1341,16 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("wads", nargs="*", type=Path)
 
     p = sub.add_parser("mksyms")
-    p.add_argument("--nm", default="nm")
+    readers = p.add_mutually_exclusive_group()
+    readers.add_argument("--nm")
+    readers.add_argument("--seed-manifest", type=Path)
     p.add_argument("elf", type=Path)
     p.add_argument("out", type=Path)
 
     p = sub.add_parser("embed-jpeg")
-    p.add_argument("--object-tool", default="cupidobj")
+    writers = p.add_mutually_exclusive_group()
+    writers.add_argument("--object-tool")
+    writers.add_argument("--seed-manifest", type=Path)
     p.add_argument("src", type=Path)
     p.add_argument("out", type=Path)
 
@@ -1099,12 +1404,35 @@ def main(argv: list[str] | None = None) -> int:
         stage_wads(args.image, args.fat_start_lba, args.wads)
     elif args.cmd == "mksyms":
         try:
-            write_ksyms_source(args.nm, args.elf, args.out)
+            nm = args.nm
+            if nm is None and args.seed_manifest is None:
+                nm = "nm"
+            write_ksyms_source(
+                nm,
+                args.elf,
+                args.out,
+                seed_manifest=args.seed_manifest,
+            )
         except KsymsGenerationError as error:
             print(f"[hostbuild] mksyms failed: {error}", file=sys.stderr)
             return 1
     elif args.cmd == "embed-jpeg":
-        embed_jpeg(args.object_tool, args.src, args.out)
+        object_tool = args.object_tool
+        if object_tool is None and args.seed_manifest is None:
+            object_tool = "cupidobj"
+        try:
+            embed_jpeg(
+                object_tool,
+                args.src,
+                args.out,
+                seed_manifest=args.seed_manifest,
+            )
+        except EmbedJpegError as error:
+            print(
+                f"[hostbuild] embed-jpeg failed: {error}",
+                file=sys.stderr,
+            )
+            return 1
     elif args.cmd == "gen-bin-programs":
         gen_bin_programs(args.out, args.bin, args.headers, args.browser)
     elif args.cmd == "gen-docs-programs":

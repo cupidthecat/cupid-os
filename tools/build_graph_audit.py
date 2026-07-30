@@ -35,12 +35,18 @@ SOURCE_SUFFIXES = {
 # Linux builds cover the Linux execution branch.
 CANONICAL_MAKE_VARIABLES = ("OS=Windows_NT",)
 TOOL_MARKERS = (
+    ("mksyms --seed-manifest", "cupid_disassembler"),
+    ("embed-jpeg --seed-manifest", "cupid_object"),
     ("$(CUPIDDIS)", "cupid_disassembler"),
+    ("$(CUPIDDIS)", "host_python"),
     ("$(CUPIDASM)", "cupid_assembler"),
+    ("$(CUPIDASM)", "host_python"),
     ("$(CUPIDLD_USER_LINK)", "cupid_linker"),
     ("$(CUPIDLD_USER_LINK)", "host_python"),
     ("$(CUPIDLD)", "cupid_linker"),
+    ("$(CUPIDLD)", "host_python"),
     ("$(CUPIDOBJ)", "cupid_object"),
+    ("$(CUPIDOBJ)", "host_python"),
     ("$(CUPIDC_PRODUCTION_COMPILE)", "cupid_c_compiler"),
     ("$(CUPIDC_PRODUCTION_COMPILE)", "host_python"),
     ("$(CUPIDC_KERNEL_COMPILE)", "cupid_c_compiler"),
@@ -1216,8 +1222,15 @@ def _include_closure(
 
 
 def _tools_for_recipe(recipe: list[str]) -> list[str]:
-    joined = "\n".join(recipe)
-    tools = [tool for marker, tool in TOOL_MARKERS if marker in joined]
+    joined = " ".join(
+        token
+        for token in "\n".join(recipe).split()
+        if token != "\\"
+    )
+    tools = []
+    for marker, tool in TOOL_MARKERS:
+        if marker in joined and tool not in tools:
+            tools.append(tool)
     if recipe and not tools:
         return ["host_shell"]
     return tools
@@ -1295,6 +1308,7 @@ def _operation_for_recipe(
         if (
             ("-i binary" in joined and "-o elf32-i386" in joined)
             or re.search(r"(?:^|\s)wrap(?:\s|$)", joined)
+            or re.search(r"(?:^|\s)embed-jpeg(?:\s|$)", joined)
         ):
             return "wrap_binary_as_elf32_relocatable"
         if re.search(r"(?:^|\s)-o\s+binary(?:\s|$)", joined) or re.search(
@@ -5494,7 +5508,7 @@ def _c_preprocessor_active_cases_manifest(
                     f"delivery transform: {transform.get('output')} ({operation})"
                 )
             _c_preprocessor_recipe_markers(transform, {"CUPIDOBJ"})
-            if tools != ["cupid_object"]:
+            if tools != ["cupid_object", "host_python"]:
                 raise AuditError(
                     f"CupidC delivery transform has unexpected tools for "
                     f"{transform.get('output')}: {tools!r}"
