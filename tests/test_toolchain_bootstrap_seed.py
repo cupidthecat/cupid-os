@@ -585,7 +585,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 hashlib.sha256(
                     frozen.tools["cupidc"].read_bytes()
                 ).hexdigest(),
-                "d05b48f14c5c57930c151f4d7099d686066c6cface01305c7d2c0261b660970d",
+                "f53989572cd1564a8bf91059552868ee43a1d80905986b58cd97d44949aab3a1",
             )
 
     def test_wsl_runner_uses_a_private_temporary_directory(self):
@@ -736,6 +736,66 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             25920,
             "d44d06949d48ead865d0d8c1bdd3b76a67b429e0b7a369318ec4fbe8d9f44ed7",
         )
+
+    def test_checked_seed_emits_page_aligned_kernel_stack_top(self):
+        if os.name == "nt" and shutil.which("wsl") is None:
+            self.skipTest("WSL is not available")
+        source_text = (
+            "extern unsigned int _kernel_end;\n"
+            "extern unsigned int _bss_start;\n"
+            "void kmain(void);\n"
+            "void _start(void) "
+            "__attribute__((section(\".text.start\")));\n"
+            "void _start(void) {\n"
+            "  asm volatile("
+            "\"mov $0x1100000, %%esp\\nmov %%esp, %%ebp\\n"
+            "mov $_bss_start, %%edi\\nmov $_kernel_end, %%ecx\\n"
+            "sub %%edi, %%ecx\\nshr $2, %%ecx\\n"
+            "xor %%eax, %%eax\\ncld\\nrep stosl\\n\""
+            " : : : \"eax\", \"ecx\", \"edi\", \"memory\");\n"
+            "  kmain();\n"
+            "}\n"
+        )
+        with tempfile.TemporaryDirectory(
+            prefix=".checked-seed-stack-top-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            source = root / "kernel-entry.cc"
+            source.write_text(
+                source_text,
+                encoding="utf-8",
+                newline="\n",
+            )
+            frozen = freeze_seed_inputs(SEED_MANIFEST, root / "seed")
+            runner = ToolRunner(REPO_ROOT)
+            images = []
+            for index in range(2):
+                output = root / f"kernel-entry-{index}.o"
+                result = runner.run(
+                    frozen.tools["cupidc"],
+                    [
+                        "--root",
+                        REPO_ROOT,
+                        "--gnu",
+                        "--freestanding",
+                        "-c",
+                        "/" + source.relative_to(REPO_ROOT).as_posix(),
+                        "-o",
+                        "/" + output.relative_to(REPO_ROOT).as_posix(),
+                    ],
+                    180,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout, "")
+                self.assertEqual(result.stderr, "")
+                images.append(output.read_bytes())
+            self.assertEqual(images[0], images[1])
+            self.assertEqual(images[0][:7], b"\x7fELF\x01\x01\x01")
+            self.assertEqual(
+                images[0].count(b"\xbc\x00\x00\x10\x01"),
+                1,
+            )
+            self.assertNotIn(b"\xbc\x00\x00\xf0\x00", images[0])
 
     def test_checked_seed_emits_complete_unchanged_simd_object(self):
         self._assert_checked_seed_emits_complete_unchanged_kernel_object(
@@ -1254,7 +1314,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(report["status"], "pass")
             self.assertEqual(
                 report["seed_source_revision"],
-                "7609793ea594a8e024474509e5faacaf1d6c76ea",
+                "af4644177c033eebda164d7893074315439df119",
             )
             self.assertNotIn("source_revision", report)
             self.assertEqual(

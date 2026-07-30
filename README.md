@@ -723,7 +723,7 @@ checked compiler frontier. Doom remains host-owned until the host and Cupid
 link boundaries compare, the owned roots move to `.cc`, and the runtime proof
 passes.
 
-The five static i386 Linux tools have a checked bootstrap seed. Its manifest binds the exact binaries, source revision, target ABI, producer lineage, 19-source build plan, and five link orders before execution. The current CupidC seed is the checked bootstrap's 2,524,088-byte stage-three image with SHA-256 `d05b48f14c5c57930c151f4d7099d686066c6cface01305c7d2c0261b660970d`. It comes from revision `7609793ea594a8e024474509e5faacaf1d6c76ea` and carries the complete 83-root Doom frontier, current GNU entity metadata, the active x87 and SSE forms, descriptor and segment assembly, naked IPI entries, all `libm.cc` file-scope effects, the exact dglibc jump block, pointer-preserving static address casts, the kernel-entry BSS clear, packed SSE2 statements, and explicit `double` to `unsigned long long` conversion. The same seed carries the 587-row shared x86 catalogue through CupidASM and CupidDis.
+The five static i386 Linux tools have a checked bootstrap seed. Its manifest binds the exact binaries, source revision, target ABI, producer lineage, 19-source build plan, and five link orders before execution. The current CupidC seed is the checked bootstrap's 2,528,332-byte stage-three image with SHA-256 `f53989572cd1564a8bf91059552868ee43a1d80905986b58cd97d44949aab3a1`. It comes from revision `af4644177c033eebda164d7893074315439df119` and carries the complete 83-root Doom frontier, current GNU entity metadata, the active x87 and SSE forms, descriptor and segment assembly, naked IPI entries, all `libm.cc` file-scope effects, the exact dglibc jump block, pointer-preserving static address casts, the kernel-entry BSS clear with a nonzero page-aligned stack top, packed SSE2 statements, and explicit `double` to `unsigned long long` conversion. The same seed carries the 587-row shared x86 catalogue through CupidASM and CupidDis.
 
 The harness pins the build plan independently and freezes the verified manifest and binaries. It also copies the exact bytes of all 40 source inputs, including `link.ld`, into a private compiler root. Seed CupidC, CupidASM, and CupidLD build stage two below that root, then the stage-two producer trio repeats the work for stage three. The harness rehashes both the private closure and the live closure before the first stage, after each stage, and after the behavior suite. A live edit that is made and restored during a compile cannot change the bytes consumed by either stage.
 
@@ -830,7 +830,9 @@ and the generated kernel symbol translation described above.
 
 [ADR 0183](docs/adr/0183-promote-doom-capable-toolchain-seed.md) records the five-tool seed promotion, exact checked-seed Doom compatibility objects, and poisoned-host fixed-point reproof.
 
-[ADR 0185](docs/adr/0185-accept-page-aligned-kernel-stack-tops.md) records compiler-head support for a nonzero, page-aligned kernel stack top in the otherwise fixed BSS-clear entry statement. The active source and checked seed still use `0x00F00000` until the separate seed and memory-map transitions.
+[ADR 0185](docs/adr/0185-accept-page-aligned-kernel-stack-tops.md) records compiler-head support for a nonzero, page-aligned kernel stack top in the otherwise fixed BSS-clear entry statement. The active source still uses `0x00F00000` until the separate memory-map transition.
+
+[ADR 0186](docs/adr/0186-promote-stack-top-capable-toolchain-seed.md) records the five-tool seed promotion, the exact `0x01100000` checked-seed regression, and both poisoned-host fixed-point proofs.
 
 [ADR 0143](docs/adr/0143-share-ordinary-padding-nops.md) records the shared ordinary compiler padding family and its measured disassembly improvement.
 
