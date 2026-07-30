@@ -103,6 +103,14 @@ Supported core features include:
 - arithmetic and logical operators
 - #pragma once
 
+Unary signs:
+- Unary plus accepts char, int, float, and double.
+- Unary minus uses integer NEG for char and int.
+- Float and double negation changes only the IEEE-754 sign bit. Signed zero
+  and every other payload bit remain intact.
+- Other operand types report a focused error. The failed expression is rolled
+  back, so the next REPL expression can still compile.
+
 The private compiler tags loops and switches separately. Break exits the
 nearest control. Continue finds the nearest loop and removes every crossed
 switch selector before jumping to the loop target. While continues at its

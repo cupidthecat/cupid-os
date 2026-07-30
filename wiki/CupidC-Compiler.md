@@ -69,6 +69,20 @@ If `-o` is omitted, the output name is derived from the source file (e.g., `prog
 | `struct` | varies | User-defined composite type |
 | `struct*` | 32-bit | Pointer to struct |
 
+### Runtime unary signs
+
+Unary plus accepts `char`, `int`, `float`, and `double`. It keeps the value
+and applies the usual integer promotion to `char`. Unary minus uses integer
+`NEG` for `char` and `int`. For `float` and `double`, it changes only the
+IEEE-754 sign bit, preserving signed zero and every other payload bit.
+
+Other operand types produce
+`unary sign requires an arithmetic scalar operand`. The compiler rolls that
+failed expression back, so the next REPL expression can still compile. The
+four-CPU frontier allows this deliberate diagnostic only during the
+`feature13_double.cc` check. A stale or repeated copy is still treated as a
+compiler failure.
+
 ### Arrays
 
 Fixed-size arrays, both local (stack-allocated) and global (data section):

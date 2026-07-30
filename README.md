@@ -84,7 +84,11 @@ and parser-depth rejection and recovery).
 
 [ADR 0189](docs/adr/0189-preserve-floating-values-in-private-cupidc-unary-signs.md)
 records the private compiler's typed unary-sign behavior and its guest
-recovery proof.
+recovery proof. The frontier permits the deliberate non-arithmetic operand
+diagnostic only once and only inside the completed `feature13_double.cc`
+command. Stale and repeated copies still fail the boot. A host oracle compiles
+the active emitter functions, checks their instruction bytes, and interprets
+those bytes against ordinary values, signed zero, and NaN payloads.
 
 ## Feature demo quickstart
 

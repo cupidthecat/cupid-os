@@ -17246,3 +17246,65 @@ CupidDis reports 4,561 text symbols. The raw kernel uses 16,583 sectors and
 leaves 3,892 before FAT16. It has 1,992,972 bytes of raw-file headroom.
 `_kernel_end` remains `0x00D3DD5C`, 1,843,876 bytes below `0x00F00000`.
 The hashes in the preceding pre-fix checkpoint remain historical evidence.
+
+## 2026-07-30: scope the private CupidC unary diagnostic
+
+Independent review found that the frontier removed every exact copy of the
+expected unary type diagnostic from the full serial log. That made the
+exception wider than the feature it was proving. A stale copy before
+`feature13_double.cc`, or a repeated copy after it, could avoid the ordinary
+CupidC error check.
+
+The command contract now owns one diagnostic pattern, its literal text, and
+the feature13 compile context. During a live command, the gate masks one exact
+diagnostic only after that context. It also tolerates a line-bounded trailing
+prefix while QEMU is still writing the serial line. Final-log and USB checks
+require the diagnostic to fall inside one unique, complete feature13 success
+slice whenever that diagnostic is present. The command sequence proves the
+slice separately. Stale, repeated, embedded, out-of-order, and unrelated
+compiler errors remain fatal.
+
+The tests were written before each correction. The first red run timed out on
+an out-of-order diagnostic and accepted stale and repeated copies. A second
+red run exposed the partial-line race at every prefix from `[cupidc] error`
+through the final message byte. Spec review then supplied a complete
+mid-line diagnostic that still passed. Two more red tests fixed the final
+boundary by anchoring the permitted diagnostic at the start of its serial
+line. Standards review applied the same adversary to the feature13 compile
+marker. Its live and completed-log tests failed first on leading text, then on
+trailing text, until that context was anchored to one complete serial line.
+
+A separate host oracle reads the active `emit8`, `emit32`, four XMM/ESP move
+helpers, and scalar negation function from `kernel/lang/cupidc_parse.cc`. It
+compiles that exact C code with the configured host compiler, checks the
+binary32 and binary64 instruction streams, then interprets the emitted i386
+subset over raw payload bits. The cases cover ordinary values, signed zero in
+both directions, infinities, quiet and signaling NaNs, and subnormals. Stack
+balance and canaries around the eight-byte scratch slot are also checked.
+
+### Test evidence
+
+| Gate | Result |
+| --- | --- |
+| GUI terminal contract suite | All 90 tests pass |
+| Active private-emitter host oracle | Both tests pass |
+| Canonical bootstrap audit regeneration and drift check | Pass |
+| Windows `make -j8 all WAD_SRCS=` | Passes in 343 seconds |
+| Complete four-vCPU e1000 frontier | Passes in 242 seconds |
+
+The rebuilt raw kernel is 8,490,736 bytes with SHA-256
+`00ec20c5aa19221ea89ddaf9e0fbdf98467f051b38d9bebb28931859cb16d9fe`.
+The 209,715,200-byte image has SHA-256
+`448bb7eaf581cba55eb5b79d9fc2231cf8f8422bf095748bb1946cf0e981e7b7`.
+
+The 94,323-byte frontier log has SHA-256
+`c91ec6438c176d2270d8f52df34d47ad60b3be891c3916d1cf9624b0609427e1`.
+It contains exactly one feature13 compile marker, one permitted diagnostic,
+one feature pass, no other CupidC error, and ten JIT completions. The wider
+run covers six USB storage lifetimes, HID reattachment, 75,635 changed
+pixels, 8,189,087 AC97 frames, and 75,220 PC-speaker frames.
+
+This review correction changes no compiler output or ownership boundary. It
+makes the acceptance evidence match the narrow language rule already recorded
+by ADR 0189. Runtime floating truth, floating increment and decrement, SIMD
+unary signs, and the other documented Cupid mode gaps remain open.

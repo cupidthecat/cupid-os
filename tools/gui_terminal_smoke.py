@@ -98,12 +98,18 @@ NIC_RUNTIME_REJECTED_MARKERS = (
 )
 CUPIDC_COMPLETION_PATTERN = r"\[cupidc\] JIT execution complete"
 ASM_COMPLETION_PATTERN = r"\[asm\] JIT execution complete"
-UNARY_TYPE_DIAGNOSTIC_PATTERN = (
-    r"\[cupidc\] error \(line 1\): "
-    r"unary sign requires an arithmetic scalar operand\r?\n"
+UNARY_TYPE_DIAGNOSTIC_LITERAL = (
+    "[cupidc] error (line 1): "
+    "unary sign requires an arithmetic scalar operand"
 )
-FRONTIER_RUNTIME_ALLOWED_FAILURE_PATTERNS = (
-    UNARY_TYPE_DIAGNOSTIC_PATTERN,
+UNARY_TYPE_DIAGNOSTIC_PATTERN = (
+    r"^" + re.escape(UNARY_TYPE_DIAGNOSTIC_LITERAL) + r"\r?\n"
+)
+FEATURE13_COMPILE_LITERAL = (
+    "[cupidc] JIT compile: /bin/feature13_double.cc"
+)
+FEATURE13_COMPILE_PATTERN = (
+    r"^" + re.escape(FEATURE13_COMPILE_LITERAL) + r"\r?$"
 )
 
 
@@ -116,7 +122,9 @@ class TerminalCommand:
     followup_keys: tuple[str, ...] = ()
     interaction_pattern: str | None = None
     followup_settle_seconds: float = 0.0
-    allowed_failure_patterns: tuple[str, ...] = ()
+    allowed_failure_pattern: str | None = None
+    allowed_failure_literal: str | None = None
+    allowed_failure_context_pattern: str | None = None
 
 
 FRONTIER_RUNTIME_COMMANDS = (
@@ -160,13 +168,15 @@ FRONTIER_RUNTIME_COMMANDS = (
     TerminalCommand(
         "/bin/feature13_double.cc",
         (
-            r"\[cupidc\] JIT compile: /bin/feature13_double\.cc"
-            rf".*?{UNARY_TYPE_DIAGNOSTIC_PATTERN}"
+            FEATURE13_COMPILE_PATTERN
+            + rf".*?{UNARY_TYPE_DIAGNOSTIC_PATTERN}"
             r".*?\[feature13-unary\] PASS float=-15 double=-9 "
             r"zero=0x80000000 plus=9 reject=1 recovery=1"
             rf".*?PASS feature13_double.*?{CUPIDC_COMPLETION_PATTERN}"
         ),
-        allowed_failure_patterns=FRONTIER_RUNTIME_ALLOWED_FAILURE_PATTERNS,
+        allowed_failure_pattern=UNARY_TYPE_DIAGNOSTIC_PATTERN,
+        allowed_failure_literal=UNARY_TYPE_DIAGNOSTIC_LITERAL,
+        allowed_failure_context_pattern=FEATURE13_COMPILE_PATTERN,
     ),
     TerminalCommand(
         "/bin/feature15_libm.cc",
@@ -408,9 +418,9 @@ def validate_smp_runtime_log(data: str, nic: str = "e1000") -> None:
 
 def validate_frontier_runtime_log(data: str, nic: str = "e1000") -> None:
     """Require the stable subsystem markers for the port-I/O cohort."""
+    checked_data = mask_completed_frontier_command_failures(data)
     failure = frontier_failure_marker(
-        data,
-        FRONTIER_RUNTIME_ALLOWED_FAILURE_PATTERNS,
+        checked_data,
     )
     if failure is not None:
         raise FrontierRuntimeContractError(
@@ -947,24 +957,152 @@ def run_terminal_command(
     return ok and success_count(data, success_pattern) >= completed + 1, data
 
 
-def frontier_failure_marker(
-    data: str,
-    allowed_patterns: tuple[str, ...] = (),
-) -> str | None:
+def frontier_failure_marker(data: str) -> str | None:
     """Return the first known frontier failure found in serial output."""
-    filtered = data
-    for pattern in allowed_patterns:
-        filtered = re.sub(
-            pattern,
-            "",
-            filtered,
-            flags=re.I | re.M,
-        )
-    folded = filtered.casefold()
+    folded = data.casefold()
     for marker in FRONTIER_RUNTIME_REJECTED_MARKERS:
         if marker.casefold() in folded:
             return marker
     return None
+
+
+def _blank_frontier_spans(
+    data: str,
+    spans: list[tuple[int, int]],
+) -> str:
+    """Hide checked failures without joining neighboring serial lines."""
+    characters = list(data)
+    for start, end in spans:
+        for index in range(start, end):
+            if characters[index] not in "\r\n":
+                characters[index] = " "
+    return "".join(characters)
+
+
+def _allowed_failure_matches(
+    data: str,
+    command: TerminalCommand,
+) -> list[re.Match[str]]:
+    pattern = command.allowed_failure_pattern
+    if pattern is None:
+        return []
+    matches = list(re.finditer(pattern, data, re.I | re.M))
+    if len(matches) > 1:
+        raise FrontierRuntimeContractError(
+            "allowed failure must appear exactly once for frontier "
+            f"command {command.text!r}; found {len(matches)} copies"
+        )
+    return matches
+
+
+def _trailing_allowed_failure_prefix(
+    data: str,
+    command: TerminalCommand,
+) -> tuple[int, int] | None:
+    literal = command.allowed_failure_literal
+    if literal is None:
+        return None
+    best_length = 0
+    for complete_text in (literal + "\n", literal + "\r\n"):
+        for length in range(1, len(complete_text)):
+            start = len(data) - length
+            line_boundary = start == 0 or data[start - 1] in "\r\n"
+            if (
+                length > best_length
+                and line_boundary
+                and data.endswith(complete_text[:length])
+            ):
+                best_length = length
+    if best_length == 0:
+        return None
+    return len(data) - best_length, len(data)
+
+
+def _require_allowed_failure_context(
+    data: str,
+    command: TerminalCommand,
+    failure_start: int,
+) -> None:
+    context_pattern = command.allowed_failure_context_pattern
+    if context_pattern is None:
+        raise FrontierRuntimeContractError(
+            f"frontier command {command.text!r} allows a failure without "
+            "declaring its serial context"
+        )
+    contexts = list(re.finditer(context_pattern, data, re.I | re.M))
+    if len(contexts) != 1 or contexts[0].end() > failure_start:
+        raise FrontierRuntimeContractError(
+            "allowed failure appeared outside frontier command "
+            f"{command.text!r}; its compile context must appear exactly "
+            "once and before the diagnostic"
+        )
+
+
+def mask_frontier_command_failures(
+    data: str,
+    command: TerminalCommand,
+) -> str:
+    """Scope an in-flight command's one expected failure to its context."""
+    matches = _allowed_failure_matches(data, command)
+    if matches:
+        _require_allowed_failure_context(
+            data,
+            command,
+            matches[0].start(),
+        )
+        spans = [(matches[0].start(), matches[0].end())]
+    else:
+        partial_span = _trailing_allowed_failure_prefix(data, command)
+        if partial_span is None:
+            return data
+        _require_allowed_failure_context(
+            data,
+            command,
+            partial_span[0],
+        )
+        spans = [partial_span]
+
+    return _blank_frontier_spans(data, spans)
+
+
+def mask_completed_frontier_command_failures(data: str) -> str:
+    """Hide only failures inside one fully proved frontier command."""
+    spans: list[tuple[int, int]] = []
+    for command in FRONTIER_RUNTIME_COMMANDS:
+        if command.allowed_failure_pattern is None:
+            continue
+        matches = _allowed_failure_matches(data, command)
+        if not matches:
+            continue
+
+        context_pattern = command.allowed_failure_context_pattern
+        contexts = (
+            []
+            if context_pattern is None
+            else list(re.finditer(context_pattern, data, re.I | re.M))
+        )
+        completed = list(
+            re.finditer(command.expected_pattern, data, re.S | re.M)
+        )
+        if len(contexts) != 1 or len(completed) != 1:
+            raise FrontierRuntimeContractError(
+                "allowed failure appeared outside the completed frontier "
+                f"command {command.text!r}"
+            )
+
+        command_match = completed[0]
+        for match in matches:
+            if not (
+                command_match.start() <= match.start()
+                and match.end() <= command_match.end()
+            ):
+                raise FrontierRuntimeContractError(
+                    "allowed failure appeared outside the completed "
+                    f"frontier command {command.text!r}"
+                )
+            spans.append((match.start(), match.end()))
+
+    return _blank_frontier_spans(data, spans)
 
 
 def wait_frontier_command(
@@ -980,10 +1118,11 @@ def wait_frontier_command(
     while time.time() < deadline:
         data = read_log(log)
         suffix = data[start_offset:]
-        failure = frontier_failure_marker(
+        checked_suffix = mask_frontier_command_failures(
             suffix,
-            command.allowed_failure_patterns,
+            command,
         )
+        failure = frontier_failure_marker(checked_suffix)
         if failure is not None:
             raise FrontierRuntimeContractError(
                 f"frontier command {command.text!r} saw failure marker: "
@@ -1106,9 +1245,11 @@ def run_frontier_usb_replug_contract(
 ) -> str:
     """Prove HID recovery and six EHCI storage lifetimes in one boot."""
     initial_data = read_log(log)
+    checked_initial_data = mask_completed_frontier_command_failures(
+        initial_data
+    )
     initial_failure = frontier_failure_marker(
-        initial_data,
-        FRONTIER_RUNTIME_ALLOWED_FAILURE_PATTERNS,
+        checked_initial_data,
     )
     if initial_failure is not None:
         raise FrontierRuntimeContractError(

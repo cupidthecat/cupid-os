@@ -68,6 +68,44 @@ reattachment, 69,548 changed pixels, 8,244,917 AC97 frames, and 72,034
 PC-speaker frames. Its 79,254-byte serial log has SHA-256
 `c4242b3b9ec17e0354c5d256a13de99ca3611d6a5f5c5e0f00ef55f1c48047d3`.
 
+### Review hardening
+
+The first acceptance gate removed every exact copy of the expected type
+diagnostic from the full serial log before checking failures. That was too
+broad. A stale copy before the feature command or a repeated copy elsewhere
+could escape the compiler-error check.
+
+The gate now permits one copy only after the
+`[cupidc] JIT compile: /bin/feature13_double.cc` marker. Final-log validation
+also requires that copy to sit inside one complete feature13 success match.
+Missing context, stale text, and repeated diagnostics all fail with a focused
+contract error. The live poll tolerates only a line-bounded trailing prefix
+while QEMU is still writing that one diagnostic.
+
+Red tests captured the stale, repeated, out-of-order, partial-write, and
+embedded-line cases before the gate changed. The GUI terminal suite now has
+90 passing tests. A separate two-test host oracle extracts the active byte
+writers and five unary emitter functions from
+`kernel/lang/cupidc_parse.cc`, compiles that exact C code, checks both byte
+sequences, and interprets the emitted instruction subset. Its raw-bit cases
+cover ordinary binary32 and binary64 values, signed zero in both directions,
+infinities, quiet and signaling NaNs, and subnormals. The interpreter also
+checks stack balance and canaries around the eight-byte scratch slot.
+
+The rebuilt checked-seed root passed in 343 seconds. Its 8,490,736-byte raw
+kernel has SHA-256
+`00ec20c5aa19221ea89ddaf9e0fbdf98467f051b38d9bebb28931859cb16d9fe`,
+and the 209,715,200-byte image has SHA-256
+`448bb7eaf581cba55eb5b79d9fc2231cf8f8422bf095748bb1946cf0e981e7b7`.
+
+That image passed the complete four-vCPU e1000 frontier in 242 seconds. The
+94,323-byte serial log contains one feature13 compile marker, one permitted
+diagnostic, one feature pass, no other CupidC error, and ten JIT completions.
+It has SHA-256
+`c91ec6438c176d2270d8f52df34d47ad60b3be891c3916d1cf9624b0609427e1`.
+The run also completed six USB storage lifetimes, HID reattachment, 75,635
+changed pixels, 8,189,087 AC97 frames, and 75,220 PC-speaker frames.
+
 ## Rejected alternatives
 
 Keeping source-level `0.0 - value` workarounds was rejected because active

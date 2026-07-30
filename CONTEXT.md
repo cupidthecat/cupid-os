@@ -329,7 +329,11 @@ scalar floating expressions in XMM registers. Runtime unary plus preserves an
 arithmetic scalar. Runtime unary minus uses integer `NEG` for `char` and
 `int`, or toggles only the IEEE-754 sign bit for `float` and `double`.
 Non-arithmetic operands receive a specific diagnostic, and a rejected REPL
-expression does not poison the next compilation. ADR 0189 records this
+expression does not poison the next compilation. The frontier accepts that
+diagnostic only once, inside the completed `feature13_double.cc` command
+slice. A stale, repeated, or out-of-context compiler error remains fatal. A
+host oracle compiles the active emitter helpers and interprets their exact
+bytes against binary32 and binary64 payloads. ADR 0189 records this
 private-compiler boundary.
 _Avoid_: C mode, HolyC mode
 

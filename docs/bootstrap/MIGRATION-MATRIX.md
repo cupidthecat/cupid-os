@@ -30,7 +30,11 @@ IEEE-754 sign bit in XMM0, which preserves negative zero and every other
 payload bit. `/bin/feature13_double.cc` proves both widths, signed zero, unary
 plus, a non-arithmetic operand diagnostic, recovery, and clean JIT
 completion. ADR 0189 records the boundary. This capability does not change
-build ownership.
+build ownership. The runtime gate now exempts that exact diagnostic only once
+inside the completed feature command. Stale, repeated, or out-of-context
+compiler errors fail. A separate host oracle compiles the active emitter
+helpers and interprets their instruction bytes across binary32 and binary64
+payloads.
 
 Hosted CupidC now emits deterministic i386 ELF32 objects for all fourteen files in issue #27's CupidC, CupidASM, and CupidDis cohort. Ten cohort files use the hermetic `HOSTED_TOOLCHAIN_64` profile. `kernel/lang/as_elf.cc` is the cohort's kernel bridge, while `ctool_host.cc`, `cupidasm_main.cc`, and `cupiddis_main.cc` use a checked i386 Linux profile with Cupid-owned declarations for their hosted interfaces. The same gate now covers complete CupidLD and CupidObj command closures. Each object is emitted twice and read back through Cupid's ELF32 reader. The adapters also lock their named undefined imports and bounded relocation records. This supersedes the older nine-file, eleven-file, and core-only counts in the historical notes and long-form rows below.
 

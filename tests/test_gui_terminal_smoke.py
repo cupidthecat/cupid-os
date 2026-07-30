@@ -148,6 +148,22 @@ def _frontier_command_outputs():
     ]
 
 
+def _frontier_command(text):
+    return next(
+        command
+        for command in gui_terminal_smoke.FRONTIER_RUNTIME_COMMANDS
+        if command.text == text
+    )
+
+
+def _frontier_command_output(text):
+    command_texts = [
+        command.text
+        for command in gui_terminal_smoke.FRONTIER_RUNTIME_COMMANDS
+    ]
+    return _frontier_command_outputs()[command_texts.index(text)]
+
+
 def _write_ppm(path, width, height, pixels):
     path.write_bytes(
         f"P6\n# unit fixture\n{width} {height}\n255\n".encode("ascii")
@@ -316,7 +332,7 @@ class ReplugMonitorSocket(FakeMonitorSocket):
             command == "sendkey ret 300"
             and self.keyboard_online
         ):
-            self.append_log(_frontier_command_outputs()[0])
+            self.append_log(_frontier_command_output("ls"))
         elif command == "device_del frontier_mouse":
             self.append_log(
                 "usb_hid: mouse detached\n"
@@ -994,7 +1010,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             log = Path(temporary) / "serial.log"
             log.write_text(
                 _frontier_runtime_log()
-                + _frontier_command_outputs()[4],
+                + _frontier_command_output("/bin/feature13_double.cc"),
                 encoding="utf-8",
             )
             monitor = ReplugMonitorSocket(log)
@@ -1158,10 +1174,9 @@ class FrontierRuntimeContractTests(unittest.TestCase):
     def test_unary_command_requires_value_type_error_and_recovery_evidence(
         self,
     ):
-        expected = gui_terminal_smoke.FRONTIER_RUNTIME_COMMANDS[
-            4
-        ].expected_pattern
-        sample = _frontier_command_outputs()[4]
+        command = _frontier_command("/bin/feature13_double.cc")
+        expected = command.expected_pattern
+        sample = _frontier_command_output("/bin/feature13_double.cc")
         for fragment in (
             (
                 "[cupidc] error (line 1): "
@@ -1188,21 +1203,34 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             gui_terminal_smoke.FRONTIER_RUNTIME_REJECTED_MARKERS,
         )
         self.assertEqual(
-            gui_terminal_smoke.FRONTIER_RUNTIME_COMMANDS[
-                4
-            ].allowed_failure_patterns,
+            command.allowed_failure_pattern,
+            r"^" + re.escape(command.allowed_failure_literal) + r"\r?\n",
+        )
+        self.assertEqual(
+            command.allowed_failure_literal,
             (
-                r"\[cupidc\] error \(line 1\): "
-                r"unary sign requires an arithmetic scalar operand\r?\n",
+                "[cupidc] error (line 1): "
+                "unary sign requires an arithmetic scalar operand"
+            ),
+        )
+        self.assertEqual(
+            command.allowed_failure_context_pattern,
+            (
+                r"^"
+                + re.escape(
+                    "[cupidc] JIT compile: /bin/feature13_double.cc"
+                )
+                + r"\r?$"
             ),
         )
 
     def test_unary_command_allows_only_its_expected_compiler_error(self):
-        command = gui_terminal_smoke.FRONTIER_RUNTIME_COMMANDS[4]
+        command = _frontier_command("/bin/feature13_double.cc")
+        output = _frontier_command_output("/bin/feature13_double.cc")
         with tempfile.TemporaryDirectory() as temporary:
             log = Path(temporary) / "serial.log"
             log.write_text(
-                _frontier_command_outputs()[4],
+                output,
                 encoding="utf-8",
             )
             process = mock.Mock()
@@ -1218,7 +1246,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             self.assertGreater(cursor, 0)
 
             log.write_text(
-                _frontier_command_outputs()[4].replace(
+                output.replace(
                     "unary sign requires an arithmetic scalar operand",
                     "undefined variable",
                 ),
@@ -1236,16 +1264,180 @@ class FrontierRuntimeContractTests(unittest.TestCase):
                     timeout=1.0,
                 )
 
+    def test_unary_command_rejects_its_diagnostic_before_compile_context(
+        self,
+    ):
+        command = _frontier_command("/bin/feature13_double.cc")
+        output = _frontier_command_output("/bin/feature13_double.cc")
+        diagnostic = (
+            "[cupidc] error (line 1): "
+            "unary sign requires an arithmetic scalar operand\n"
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            log = Path(temporary) / "serial.log"
+            log.write_text(
+                diagnostic + output.replace(diagnostic, ""),
+                encoding="utf-8",
+            )
+            process = mock.Mock()
+            process.poll.return_value = None
+
+            with self.assertRaisesRegex(
+                gui_terminal_smoke.FrontierRuntimeContractError,
+                "outside.*feature13_double",
+            ):
+                gui_terminal_smoke.wait_frontier_command(
+                    process,
+                    log,
+                    command,
+                    start_offset=0,
+                    timeout=0.1,
+                )
+
+    def test_unary_command_rejects_a_second_copy_of_its_diagnostic(self):
+        command = _frontier_command("/bin/feature13_double.cc")
+        output = _frontier_command_output("/bin/feature13_double.cc")
+        diagnostic = (
+            "[cupidc] error (line 1): "
+            "unary sign requires an arithmetic scalar operand\n"
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            log = Path(temporary) / "serial.log"
+            log.write_text(output + diagnostic, encoding="utf-8")
+            process = mock.Mock()
+            process.poll.return_value = None
+
+            with self.assertRaisesRegex(
+                gui_terminal_smoke.FrontierRuntimeContractError,
+                "exactly once.*feature13_double",
+            ):
+                gui_terminal_smoke.wait_frontier_command(
+                    process,
+                    log,
+                    command,
+                    start_offset=0,
+                    timeout=0.1,
+                )
+
+    def test_unary_command_accepts_each_trailing_diagnostic_prefix(self):
+        command = _frontier_command("/bin/feature13_double.cc")
+        context = (
+            "[cupidc] JIT compile: /bin/feature13_double.cc\n"
+        )
+        diagnostic = (
+            "[cupidc] error (line 1): "
+            "unary sign requires an arithmetic scalar operand\n"
+        )
+
+        for prefix_length in range(1, len(diagnostic)):
+            with self.subTest(prefix_length=prefix_length):
+                checked = gui_terminal_smoke.mask_frontier_command_failures(
+                    context + diagnostic[:prefix_length],
+                    command,
+                )
+                self.assertIsNone(
+                    gui_terminal_smoke.frontier_failure_marker(checked)
+                )
+
+        checked = gui_terminal_smoke.mask_frontier_command_failures(
+            context + diagnostic[:-1] + "\r",
+            command,
+        )
+        self.assertIsNone(
+            gui_terminal_smoke.frontier_failure_marker(checked)
+        )
+
+    def test_unary_command_does_not_mask_an_embedded_partial_diagnostic(
+        self,
+    ):
+        command = _frontier_command("/bin/feature13_double.cc")
+        data = (
+            "[cupidc] JIT compile: /bin/feature13_double.cc\n"
+            "junk[cupidc] error (line 1): unary sign requires"
+        )
+
+        checked = gui_terminal_smoke.mask_frontier_command_failures(
+            data,
+            command,
+        )
+        self.assertEqual(
+            gui_terminal_smoke.frontier_failure_marker(checked),
+            "[cupidc] error",
+        )
+
+    def test_unary_command_rejects_an_embedded_complete_diagnostic(self):
+        command = _frontier_command("/bin/feature13_double.cc")
+        output = _frontier_command_output("/bin/feature13_double.cc")
+        diagnostic = (
+            "[cupidc] error (line 1): "
+            "unary sign requires an arithmetic scalar operand\n"
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            log = Path(temporary) / "serial.log"
+            log.write_text(
+                output.replace(diagnostic, "junk" + diagnostic),
+                encoding="utf-8",
+            )
+            process = mock.Mock()
+            process.poll.return_value = None
+
+            with self.assertRaisesRegex(
+                gui_terminal_smoke.FrontierRuntimeContractError,
+                "saw failure marker.*\\[cupidc\\] error",
+            ):
+                gui_terminal_smoke.wait_frontier_command(
+                    process,
+                    log,
+                    command,
+                    start_offset=0,
+                    timeout=0.1,
+                )
+
+    def test_unary_command_rejects_an_embedded_compile_context(self):
+        command = _frontier_command("/bin/feature13_double.cc")
+        output = _frontier_command_output("/bin/feature13_double.cc")
+        context = "[cupidc] JIT compile: /bin/feature13_double.cc"
+        malformed_contexts = (
+            ("leading text", "junk" + context),
+            ("trailing text", context + "junk"),
+        )
+        for name, malformed in malformed_contexts:
+            with (
+                self.subTest(name=name),
+                tempfile.TemporaryDirectory() as temporary,
+            ):
+                log = Path(temporary) / "serial.log"
+                log.write_text(
+                    output.replace(context, malformed),
+                    encoding="utf-8",
+                )
+                process = mock.Mock()
+                process.poll.return_value = None
+
+                with self.assertRaisesRegex(
+                    gui_terminal_smoke.FrontierRuntimeContractError,
+                    "outside.*feature13_double",
+                ):
+                    gui_terminal_smoke.wait_frontier_command(
+                        process,
+                        log,
+                        command,
+                        start_offset=0,
+                        timeout=0.1,
+                    )
+
     def test_libm_command_requires_total_and_pass_markers(self):
-        expected = gui_terminal_smoke.FRONTIER_RUNTIME_COMMANDS[
-            5
-        ].expected_pattern
+        expected = _frontier_command(
+            "/bin/feature15_libm.cc"
+        ).expected_pattern
         for marker in (
             "[feature15] 22 checks total, 0 failed\n",
             "PASS feature15_libm\n",
         ):
             with self.subTest(marker=marker):
-                output = _frontier_command_outputs()[5].replace(marker, "")
+                output = _frontier_command_output(
+                    "/bin/feature15_libm.cc"
+                ).replace(marker, "")
                 self.assertIsNone(
                     re.search(expected, output, re.S | re.M)
                 )
@@ -1304,9 +1496,9 @@ class FrontierRuntimeContractTests(unittest.TestCase):
         self.assertIn("test_iso/hello.iso", rule.group(1).split())
 
     def test_iso_command_requires_the_jpeg_and_glyph_markers(self):
-        expected = gui_terminal_smoke.FRONTIER_RUNTIME_COMMANDS[
-            6
-        ].expected_pattern
+        expected = _frontier_command(
+            "/bin/feature17_iso.cc"
+        ).expected_pattern
         for marker in (
             "PASS jpeg_decode_mem baseline 8x8 gray128\n",
             (
@@ -1315,11 +1507,15 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             ),
         ):
             with self.subTest(marker=marker):
-                output = _frontier_command_outputs()[6].replace(marker, "")
+                output = _frontier_command_output(
+                    "/bin/feature17_iso.cc"
+                ).replace(marker, "")
                 self.assertIsNone(
                     re.search(expected, output, re.S | re.M)
                 )
-        mismatched_cache = _frontier_command_outputs()[6].replace(
+        mismatched_cache = _frontier_command_output(
+            "/bin/feature17_iso.cc"
+        ).replace(
             "width=22 cache=22",
             "width=22 cache=23",
         )
@@ -1422,7 +1618,9 @@ class FrontierRuntimeContractTests(unittest.TestCase):
         )
 
     def test_syscall_demo_failure_cannot_pass_on_jit_completion(self):
-        failed = _frontier_command_outputs()[3].replace(
+        failed = _frontier_command_output(
+            "as /demos/syscall_vfs_extended_demo.asm"
+        ).replace(
             "extended SYS VFS calls: OK",
             "extended SYS VFS calls: FAIL",
         )
@@ -1439,7 +1637,9 @@ class FrontierRuntimeContractTests(unittest.TestCase):
                 gui_terminal_smoke.wait_frontier_command(
                     process,
                     log,
-                    gui_terminal_smoke.FRONTIER_RUNTIME_COMMANDS[3],
+                    _frontier_command(
+                        "as /demos/syscall_vfs_extended_demo.asm"
+                    ),
                     0,
                     0.1,
                 )
@@ -1472,7 +1672,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             log = Path(temporary) / "serial.log"
             log.write_text(
-                _frontier_command_outputs()[0],
+                _frontier_command_output("ls"),
                 encoding="utf-8",
             )
             start_offset = len(log.read_text(encoding="utf-8"))
@@ -1504,7 +1704,8 @@ class FrontierRuntimeContractTests(unittest.TestCase):
     def test_complete_frontier_allows_only_the_expected_unary_diagnostic(
         self,
     ):
-        data = _frontier_runtime_log() + _frontier_command_outputs()[4]
+        output = _frontier_command_output("/bin/feature13_double.cc")
+        data = _frontier_runtime_log() + output
         gui_terminal_smoke.validate_frontier_runtime_log(data)
 
         with self.assertRaisesRegex(
@@ -1517,6 +1718,84 @@ class FrontierRuntimeContractTests(unittest.TestCase):
                     "undefined variable",
                 )
             )
+
+    def test_complete_frontier_rejects_a_stale_unary_diagnostic(
+        self,
+    ):
+        output = _frontier_command_output("/bin/feature13_double.cc")
+        diagnostic = (
+            "[cupidc] error (line 1): "
+            "unary sign requires an arithmetic scalar operand\n"
+        )
+        data = (
+            _frontier_runtime_log()
+            + diagnostic
+            + output.replace(diagnostic, "")
+        )
+
+        with self.assertRaisesRegex(
+            gui_terminal_smoke.FrontierRuntimeContractError,
+            "outside.*feature13_double",
+        ):
+            gui_terminal_smoke.validate_frontier_runtime_log(data)
+
+    def test_complete_frontier_rejects_a_duplicate_unary_diagnostic(
+        self,
+    ):
+        output = _frontier_command_output("/bin/feature13_double.cc")
+        diagnostic = (
+            "[cupidc] error (line 1): "
+            "unary sign requires an arithmetic scalar operand\n"
+        )
+        data = _frontier_runtime_log() + output + diagnostic
+
+        with self.assertRaisesRegex(
+            gui_terminal_smoke.FrontierRuntimeContractError,
+            "exactly once.*feature13_double",
+        ):
+            gui_terminal_smoke.validate_frontier_runtime_log(data)
+
+    def test_complete_frontier_rejects_an_embedded_unary_diagnostic(
+        self,
+    ):
+        output = _frontier_command_output("/bin/feature13_double.cc")
+        diagnostic = (
+            "[cupidc] error (line 1): "
+            "unary sign requires an arithmetic scalar operand\n"
+        )
+        data = _frontier_runtime_log() + output.replace(
+            diagnostic,
+            "junk" + diagnostic,
+        )
+
+        with self.assertRaisesRegex(
+            gui_terminal_smoke.FrontierRuntimeContractError,
+            "failure marker.*\\[cupidc\\] error",
+        ):
+            gui_terminal_smoke.validate_frontier_runtime_log(data)
+
+    def test_complete_frontier_rejects_an_embedded_compile_context(
+        self,
+    ):
+        output = _frontier_command_output("/bin/feature13_double.cc")
+        context = "[cupidc] JIT compile: /bin/feature13_double.cc"
+        malformed_contexts = (
+            ("leading text", "junk" + context),
+            ("trailing text", context + "junk"),
+        )
+        for name, malformed in malformed_contexts:
+            data = _frontier_runtime_log() + output.replace(
+                context,
+                malformed,
+            )
+            with (
+                self.subTest(name=name),
+                self.assertRaisesRegex(
+                    gui_terminal_smoke.FrontierRuntimeContractError,
+                    "outside.*feature13_double",
+                ),
+            ):
+                gui_terminal_smoke.validate_frontier_runtime_log(data)
 
     def test_frontier_runtime_requires_traffic_from_the_selected_nic(self):
         rtl8139 = (
@@ -1652,7 +1931,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
                 gui_terminal_smoke.wait_frontier_command(
                     process,
                     log,
-                    gui_terminal_smoke.FRONTIER_RUNTIME_COMMANDS[0],
+                    _frontier_command("ls"),
                     start_offset=0,
                     timeout=1.0,
                 )

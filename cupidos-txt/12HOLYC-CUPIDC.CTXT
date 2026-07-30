@@ -256,6 +256,8 @@ Unary plus accepts char, int, float, and double. Unary minus uses integer NEG
 for char and int. For float and double it changes only the IEEE-754 sign bit,
 so negative zero and payload bits stay exact. Other operand types fail with a
 clear diagnostic, and the next REPL expression can still compile.
+The boot frontier accepts that deliberate diagnostic only during the
+feature13_double check. A stale or repeated copy still fails the run.
 
 [Run feature12_float](shell:feature12_float)
 [Run feature13_double](shell:feature13_double)

@@ -41,6 +41,11 @@ Both object sets are byte-identical; each totals 3,708,988 bytes. The combined
 graph passes the two-link symbol and memory checks, clean normal and
 partitioned image builds, and strong four-vCPU runtime gates for both NICs.
 Those gates cover the TrueType glyph path and an exact baseline JPEG decode.
+The private CupidC unary-sign check allows its deliberate type diagnostic
+only once inside the completed `feature13_double.cc` command. Stale,
+repeated, and out-of-context compiler errors fail. A host oracle extracts and
+compiles the active scalar-negation emitter before interpreting its bytes over
+binary32 and binary64 values, including signed zero and NaN payloads.
 The generated `kernel/cpu/ksyms_data.cc` wrapper compiles 109,889 logical bytes packed as
 little-endian `unsigned int` words with three zero bytes of tail padding.
 The Doom wrapper separately freezes exact three-source and 80-source

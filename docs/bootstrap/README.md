@@ -10,7 +10,12 @@ IEEE-754 sign word, reloads the original width, and restores the stack.
 `feature13_double.cc` checks negative values at both widths, the exact
 binary32 negative-zero payload, unary plus, rejection of a string operand,
 and same-job recovery. The GUI command frontier requires that evidence before
-JIT completion. ADR 0189 records this private-compiler decision.
+JIT completion. Its one expected compiler diagnostic is scoped to that
+completed command. An earlier copy, a second copy, or the same text outside
+the feature run fails the gate. A host oracle compiles the emitter helpers
+directly from `kernel/lang/cupidc_parse.cc`, checks their exact instruction
+bytes, and interprets them against binary32 and binary64 payloads. ADR 0189
+records this private-compiler decision.
 
 Hosted CupidC now carries signed and unsigned eight-byte integer values through constants, matching conditional arms, fixed direct and indirect call results, object access, declared parameters, named call arguments, ellipsis arguments, and calls through function types without prototypes. File objects, block statics, fixed automatic objects, pointer dereferences, ordinary members, and indexed elements can be initialized, loaded, assigned, mutated, chained, discarded, and returned. One Linear IR entry names an emitter-owned eight-byte frame snapshot. A declared or undeclared wide argument occupies eight cdecl stack bytes. A supported wide `va_arg` read produces an instruction-owned snapshot and advances the cursor by eight. Return restores the low word to EAX and the high word to EDX.
 
