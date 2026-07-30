@@ -2,6 +2,9 @@
 //help: Usage: feature13_double
 //help: Verifies sin/cos/sqrt/exp/log/pow/tanh/cbrt within tight tolerances.
 
+float feature13_update_global_float;
+double feature13_update_global_double;
+
 void main() {
     int ok = 1;
     double pi = 3.141592653589793;
@@ -132,6 +135,64 @@ void main() {
         serial_printf("[feature13-truth] PASS zero=%d nonzero=%d control=%d nan=%d\n",
                       truth_zero_score, truth_nonzero_score,
                       truth_control, !!truth_nan);
+    }
+
+    /* Prefix and postfix floating updates preserve their expression result
+     * while storing an exact one-unit change. Cover local and global
+     * variables, statement updates, and the for-increment shortcut. */
+    float update_float = 1.25f;
+    float update_float_old = update_float++;
+    float update_float_new = ++update_float;
+    update_float--;
+
+    double update_double = 4.5;
+    double update_double_old = update_double--;
+    double update_double_new = --update_double;
+    update_double++;
+
+    int update_local_score =
+        (int)(update_float_old * 4.0f) +
+        (int)(update_float_new * 4.0f) +
+        (int)(update_float * 4.0f) +
+        (int)(update_double_old * 2.0) +
+        (int)(update_double_new * 2.0) +
+        (int)(update_double * 2.0);
+
+    feature13_update_global_float = 0.5f;
+    feature13_update_global_double = 5.25;
+    feature13_update_global_float++;
+    --feature13_update_global_double;
+    double update_global_old = feature13_update_global_double--;
+    float update_global_new = ++feature13_update_global_float;
+    int update_global_score =
+        (int)(update_global_old * 4.0) +
+        (int)(update_global_new * 2.0f) +
+        (int)(feature13_update_global_float * 2.0f) +
+        (int)(feature13_update_global_double * 4.0);
+
+    float update_for = 0.0f;
+    int update_iterations = 0;
+    for (; update_iterations < 3; update_for++)
+        update_iterations++;
+
+    float update_negative_zero = -0.0f;
+    float update_zero_old = update_negative_zero++;
+    int update_zero_bits = *(int*)&update_zero_old;
+    double update_nan = 0.0 / 0.0;
+    double update_nan_old = update_nan++;
+    int update_nan_score = !!update_nan_old + !!update_nan;
+
+    if (update_local_score != 48 || update_global_score != 40 ||
+        (int)update_for != 3 || update_zero_bits != 0x80000000 ||
+        update_nan_score != 2) {
+        serial_printf("[feature13-update] FAIL local=%d global=%d for=%d zero=%x nan=%d\n",
+                      update_local_score, update_global_score,
+                      (int)update_for, update_zero_bits, update_nan_score);
+        ok = 0;
+    } else {
+        serial_printf("[feature13-update] PASS local=%d global=%d for=%d zero=%x nan=%d\n",
+                      update_local_score, update_global_score,
+                      (int)update_for, update_zero_bits, update_nan_score);
     }
 
     /* sin(pi/2) = 1. Check |sin(pi/2) - 1| < 1e-12 via scale 1e12. */

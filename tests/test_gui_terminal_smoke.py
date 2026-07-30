@@ -113,6 +113,8 @@ def _frontier_command_outputs():
             "zero=2 unordered=6\n"
             "[feature13-truth] PASS zero=2 nonzero=3 "
             "control=255 nan=1\n"
+            "[feature13-update] PASS local=48 global=40 "
+            "for=3 zero=0x80000000 nan=2\n"
             "PASS feature13_double\n"
             "[cupidc] JIT execution complete\n"
         ),
@@ -1302,6 +1304,48 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             "for (; truth_for; truth_for = 0.0)",
             "} while (truth_do);",
             "if (truth_nan)",
+        ):
+            with self.subTest(expression=expression):
+                self.assertIn(expression, source)
+
+    def test_feature13_requires_all_scalar_update_evidence(self):
+        command = _frontier_command("/bin/feature13_double.cc")
+        expected = command.expected_pattern
+        sample = _frontier_command_output("/bin/feature13_double.cc")
+        marker = (
+            "[feature13-update] PASS local=48 global=40 "
+            "for=3 zero=0x80000000 nan=2\n"
+        )
+
+        self.assertIsNone(
+            re.search(
+                expected,
+                sample.replace(marker, ""),
+                re.S | re.M,
+            )
+        )
+        self.assertIn(
+            "[feature13-update] FAIL",
+            gui_terminal_smoke.FRONTIER_RUNTIME_REJECTED_MARKERS,
+        )
+
+        source = (
+            REPO_ROOT / "bin" / "feature13_double.cc"
+        ).read_text(encoding="utf-8")
+        for expression in (
+            "update_float_old = update_float++",
+            "update_float_new = ++update_float",
+            "update_float--;",
+            "update_double_old = update_double--",
+            "update_double_new = --update_double",
+            "update_double++;",
+            "feature13_update_global_float++;",
+            "--feature13_update_global_double;",
+            "update_global_old = feature13_update_global_double--",
+            "update_global_new = ++feature13_update_global_float",
+            "for (; update_iterations < 3; update_for++)",
+            "update_zero_old = update_negative_zero++",
+            "update_nan_old = update_nan++",
         ):
             with self.subTest(expression=expression):
                 self.assertIn(expression, source)

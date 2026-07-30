@@ -113,6 +113,19 @@ return an integer, pointer, `float`, or `double`, while the other 192 calls
 are `void`. A result from `input_dialog`, for example, can control an `if`
 without losing its integer type.
 
+### Floating variable updates
+
+Scalar `float` and `double` variables support prefix and postfix `++` and
+`--`. Each form adds or subtracts exactly 1.0 at the variable's own width.
+Prefix expressions return the stored value. Postfix expressions return the
+old payload, including a negative-zero or NaN payload, after storing the
+update.
+
+The same typed path handles locals, parameters, globals, standalone
+statements, and `for` increments. Arrays, structures, function pointers,
+`float4`, and `double2` fail with
+`increment or decrement requires a scalar variable`.
+
 ### Arrays
 
 Fixed-size arrays, both local (stack-allocated) and global (data section):

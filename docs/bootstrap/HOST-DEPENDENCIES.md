@@ -54,6 +54,12 @@ value-returning bindings publish an explicit Cupid type, and the remaining
 192 bindings are verified `void` functions. This metadata is compiled into
 the checked-seed-owned kernel object.
 
+Private floating increment and decrement retire no host dependency. The
+in-kernel parser and SSE emitter own local, parameter, global, statement, and
+`for` update behavior. A host compiler checks extracted active emitter bytes
+as an optional oracle, while checked-seed CupidC builds the production parser
+object and the guest frontier executes the result.
+
 The ABI verification captures the exact bytes of its six declaration inputs,
 compares the reviewed i386 contract, and rechecks every input before success.
 The external-program runtime gate gives hello, ls, and cat separate private

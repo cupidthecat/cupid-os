@@ -17,8 +17,8 @@ Cupid OS is a 32-bit x86 hobby OS written in C and Cupid ASM. It has a graphical
 - VBE 640x480 32bpp graphics with a window manager, taskbar, and desktop icons
 - CupidC, a HolyC-inspired C compiler with JIT and ELF32 AOT output
 - Hardware FPU (x87) and SSE/SSE2 with eager FXSAVE context switch
-- CupidC float/double scalars, exact runtime unary signs, comparisons, scalar
-  truth in every control form, and float4/double2 SIMD types with SSE intrinsics
+- CupidC float/double scalars, exact unary signs, comparisons, control-flow
+  truth, prefix/postfix updates, and float4/double2 SIMD types with SSE intrinsics
 - libm: 25 operations (sqrt, sin, cos, tan, atan, atan2, exp, exp2, log, log2, pow, asin, acos, sinh, cosh, tanh, cbrt, hypot, nextafter, fabs, floor, ceil, round, trunc, fmod + f-variants)
 - printf %f, %e, %g, %.Nf with x87-backed int/fractional split
 - #NM/#MF/#XF FPU exception handlers with MXCSR/FSW/FCW dump

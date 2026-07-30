@@ -17568,3 +17568,77 @@ byte-identical validated ELF32 objects with zero deferred boundaries.
 This changes private JIT and AOT semantics without moving build ownership.
 Floating increment and decrement, the remaining SIMD operators, and the
 other Cupid mode gaps stay open. ADR 0193 records the decision.
+
+## 2026-07-30: update floating scalars in private CupidC
+
+Private CupidC now supports prefix and postfix `++` and `--` on direct scalar
+`float` and `double` variables. The old parser recognized those forms but
+used `INC EAX` or `DEC EAX` in four separate parser areas. Floating values
+live in XMM registers, so those instructions could not update the source
+value.
+
+One typed helper now serves prefix expressions, postfix expressions,
+standalone statement shortcuts, and `for` increments. It loads a local,
+parameter, or global floating variable into XMM0, converts integer one into
+XMM1 at the same width, performs the scalar addition or subtraction, and
+stores XMM0. Postfix forms preserve the old payload in XMM2 until the store
+finishes. Integer and pointer variables keep their existing EAX path.
+
+Arrays, structures, function pointers, and SIMD vectors fail with
+`increment or decrement requires a scalar variable`. Postfix use on a value
+that is not a direct variable now reports that error instead of consuming the
+operator as a silent no-op.
+
+### Test evidence
+
+The three focused tests failed first because the typed emitter, validator,
+and shared callers did not exist. They now check exact binary32 and binary64
+increment and decrement bytes, compile the positive and vector-negative type
+boundary, require the useful diagnostic, and lock all eight parser callers to
+the shared helper.
+
+The first combined command named a nonexistent `float_unary` test module.
+Its other 108 tests passed, but unittest returned failure for that import.
+The corrected command used the repository's `unary` module name and all 109
+binding, unary, comparison, truth, update, and GUI contract tests passed.
+
+The embedded feature covers local and global prefix and postfix expression
+results, standalone updates, a `for` increment, negative-zero payload
+preservation, and NaN:
+
+```text
+[feature13-update] PASS local=48 global=40 for=3 zero=0x80000000 nan=2
+PASS feature13_double
+[cupidc] JIT execution complete
+```
+
+Checked-seed CupidC compiled the production parser object directly in 45.1
+seconds. Replacing the duplicated mutation bodies reduced the object by 1,100
+bytes, from 298,280 to 297,180. Its SHA-256 is
+`d46d4f50b885795cb4626ace8b16ba1b8bd1ee09c6a69adcce594360cbba161f`.
+
+The final four-job Windows build passed in 564.1 seconds:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/lang/cupidc_parse.o` | 297,180 | `d46d4f50b885795cb4626ace8b16ba1b8bd1ee09c6a69adcce594360cbba161f` |
+| `kernel/kernel.elf.pass1` | 8,596,580 | `e38f3609e71f1c8a7967259f8b914267bdefa4af3a261a4f041ec3b53f8b5c8f` |
+| `kernel/kernel.elf` | 8,707,172 | `1ade2983b5ac8e88f69f306b6d7fe67ff0cf5a8b465e4e371311fcbb02788d48` |
+| `kernel/kernel.bin` | 8,504,588 | `74c43b1105e00a1c72f0c1a5483b5c850571f4f4d75a7809c189623ccabaa2ca` |
+| `cupidos.img` | 209,715,200 | `5afbd32c486e64af1f92ca933e9f0a664cb4c5d7e9b29b23e8c7707529230b9b` |
+
+The complete private four-vCPU e1000 frontier passed in 236.9 seconds. It
+changed 91,141 framebuffer pixels, captured 8,301,609 AC97 frames, captured
+76,923 PC-speaker frames, and completed every later command and hardware
+gate. The 48,990-byte serial log has SHA-256
+`ebe6872bd74860c7cb3d9d841b34f4bb8696f51b0c849dfdc0dcbffd9a52db0d`.
+
+The checked-seed frontier passed in 1,386.9 seconds. It compiled all 155
+production sources twice into byte-identical validated ELF32 objects with
+zero deferred boundaries. The objects total 3,717,636 bytes, and the
+444-input snapshot has SHA-256
+`5124e8c33394388519e391ae359f726b0de60e8b18cfd364b7e09bbbe6765ff1`.
+
+This changes private JIT and AOT semantics without moving build ownership.
+Hosted floating updates, indirect lvalue updates, SIMD updates, and the other
+Cupid mode gaps remain open. ADR 0194 records the decision.

@@ -28,6 +28,11 @@ and SIMD vectors are rejected as truth operands.
 Pre-registered kernel calls retain their declared result type in later
 expressions. Only bindings whose functions return no value have type `void`.
 
+Scalar `float` and `double` variables accept prefix and postfix `++` and
+`--`. Prefix returns the updated value; postfix returns the old value after
+storing the update. Direct locals, parameters, and globals are supported.
+Arrays, aggregates, function pointers, and SIMD vectors are rejected.
+
 ## Hosted floating-width rules
 
 The shared self-hosting compiler carries non-atomic `float` and `double`

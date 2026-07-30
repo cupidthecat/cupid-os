@@ -271,6 +271,10 @@ All kernel bindings carry their declared result type. The private compiler
 uses that metadata to keep returned integers, pointers, floats, and doubles
 in later expressions and conditions.
 
+Scalar float and double variables support prefix and postfix ++ and --.
+Postfix expressions return the old value, while all four forms store the
+one-unit update. The same path handles locals, parameters, and globals.
+
 [Run feature12_float](shell:feature12_float)
 [Run feature13_double](shell:feature13_double)
 [Run feature14_simd](shell:feature14_simd)

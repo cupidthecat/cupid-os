@@ -176,6 +176,8 @@ FRONTIER_RUNTIME_COMMANDS = (
             r"zero=2 unordered=6"
             r".*?\[feature13-truth\] PASS zero=2 nonzero=3 "
             r"control=255 nan=1"
+            r".*?\[feature13-update\] PASS local=48 global=40 "
+            r"for=3 zero=0x80000000 nan=2"
             rf".*?PASS feature13_double.*?{CUPIDC_COMPLETION_PATTERN}"
         ),
         allowed_failure_pattern=UNARY_TYPE_DIAGNOSTIC_PATTERN,
@@ -343,6 +345,7 @@ FRONTIER_RUNTIME_REJECTED_MARKERS = (
     "[feature13-unary] FAIL",
     "[feature13-compare] FAIL",
     "[feature13-truth] FAIL",
+    "[feature13-update] FAIL",
     "FAIL feature13_double",
     "FAIL jpeg_decode_mem",
     "FAIL glyph_rasterize",

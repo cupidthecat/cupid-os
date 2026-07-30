@@ -44,6 +44,15 @@ records every value result. A source-contract test parses the complete table,
 checks its exact size, and rejects an untyped non-void fixture. This prevents
 a returned control value from being mistaken for a `void` expression.
 
+Private CupidC also supports prefix and postfix `++` and `--` on scalar
+`float` and `double` variables. One typed helper serves expression updates,
+statement shortcuts, and `for` increments. It converts integer one into XMM1
+at the variable's width, updates XMM0, and stores through the local,
+parameter, or global path. A postfix expression holds the old payload in
+XMM2 until the store is complete. Arrays, structures, function pointers, and
+SIMD vectors fail with `increment or decrement requires a scalar variable`.
+ADR 0194 records this private-compiler boundary.
+
 Hosted CupidC now carries signed and unsigned eight-byte integer values through constants, matching conditional arms, fixed direct and indirect call results, object access, declared parameters, named call arguments, ellipsis arguments, and calls through function types without prototypes. File objects, block statics, fixed automatic objects, pointer dereferences, ordinary members, and indexed elements can be initialized, loaded, assigned, mutated, chained, discarded, and returned. One Linear IR entry names an emitter-owned eight-byte frame snapshot. A declared or undeclared wide argument occupies eight cdecl stack bytes. A supported wide `va_arg` read produces an instruction-owned snapshot and advances the cursor by eight. Return restores the low word to EAX and the high word to EDX.
 
 Wide values support addition, subtraction, multiplication, division, remainder, unary plus, unary minus, bitwise complement, shifts, AND, OR, XOR, comparisons, logical operators, conditional selection, structured scalar conditions, signed or unsigned switch dispatch, all ten compound assignments, prefix and postfix update, and conversion to or from represented integer widths. Switch lowering evaluates the condition once and duplicates its snapshot handle before each full-width case comparison. Mutation evaluates its destination once and keeps one semantic load and store. Multiplication combines one full low-word product with both cross-word products. Division and remainder run a fixed 64-step restoring loop over unsigned magnitudes, then apply the quotient or dividend sign. Each multiplication, division, remainder, or wide variadic-read result receives a fresh snapshot. The unchanged `ctool_buffer_put_le64`, `ctool_buffer_patch_le64`, `pp_if_value_truth`, `pp_if_is_negative`, `pp_if_signed_less`, `pp_if_signed_magnitude`, `cfront_constant_apply_binary`, and X25519 `fe_carry` bodies guard the broader operation set. CupidASM's unchanged number parser and unary expression branch guard the arithmetic, while X25519's unchanged `fe_mul_u32` helper guards wide-by-narrow multiplication. ADRs 0065 through 0075 record these boundaries. Runtime cases that C leaves undefined promise neither a trap nor a result.

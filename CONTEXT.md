@@ -339,7 +339,9 @@ except `!=`. Scalar floating truth is also normalized in EAX before `!`,
 `if`, `?:`, `while`, `for`, or `do` tests it. Positive and negative zero are
 false. Every nonzero value, including infinity and NaN, is true. Void
 expressions, structures by value, and SIMD vectors are not scalar truth
-operands.
+operands. Prefix and postfix `++` and `--` add or subtract an exact one from
+scalar `float` and `double` variables. Postfix results preserve the old
+floating payload while the updated value is stored.
 Non-arithmetic operands receive a specific diagnostic, and a rejected REPL
 expression does not poison the next compilation. The frontier accepts that
 diagnostic only once, inside the completed `feature13_double.cc` command
@@ -348,7 +350,8 @@ host oracle compiles the active emitter helpers and interprets their exact
 bytes against binary32 and binary64 payloads. The kernel bridge publishes the
 declared result type of all 510 bindings: 318 return a value and 192 return
 `void`. ADR 0189 records unary signs, ADR 0192 records scalar comparisons, and
-ADR 0193 records scalar truth and binding-result metadata.
+ADR 0193 records scalar truth and binding-result metadata. ADR 0194 records
+floating variable updates.
 _Avoid_: C mode, HolyC mode
 
 **Cupid ASM**:

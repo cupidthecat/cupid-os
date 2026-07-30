@@ -1311,6 +1311,105 @@ static int cc_materialize_scalar_truth(cc_state_t *cc, cc_type_t type) {
   return 1;
 }
 
+static int cc_is_scalar_update_type(cc_type_t type) {
+  return type == TYPE_INT || type == TYPE_CHAR ||
+         type == TYPE_PTR || type == TYPE_INT_PTR ||
+         type == TYPE_CHAR_PTR || type == TYPE_STRUCT_PTR ||
+         type == TYPE_FLOAT || type == TYPE_DOUBLE;
+}
+
+static int cc_validate_variable_update(cc_state_t *cc, cc_symbol_t *sym) {
+  if (!sym || sym->is_array ||
+      (sym->kind != SYM_LOCAL && sym->kind != SYM_PARAM &&
+       sym->kind != SYM_GLOBAL) ||
+      !cc_is_scalar_update_type(sym->type)) {
+    cc_error(cc, "increment or decrement requires a scalar variable");
+    return 0;
+  }
+  return 1;
+}
+
+/* Add or subtract one from the scalar floating value in XMM0. Converting the
+ * integer constant in EAX avoids a data-segment literal and gives XMM1 the
+ * exact 1.0 value for either width. */
+static void emit_update_xmm0_scalar(cc_state_t *cc, int is_double,
+                                    int decrement) {
+  emit_mov_eax_imm(cc, 1);
+  if (is_double)
+    emit_cvtsi2sd(cc, 1);
+  else
+    emit_cvtsi2ss(cc, 1);
+  emit_sse_scalar_op(cc, is_double, decrement ? 0x5C : 0x58, 0, 1);
+}
+
+/* Update a direct local, parameter, or global variable. A postfix floating
+ * expression keeps its original payload in XMM2 while XMM0 is updated and
+ * stored. The integer path uses the existing stack preservation. */
+static int cc_emit_variable_update(cc_state_t *cc, cc_symbol_t *sym,
+                                   int decrement, int preserve_old) {
+  if (!cc_validate_variable_update(cc, sym))
+    return 0;
+
+  if (sym->type == TYPE_FLOAT || sym->type == TYPE_DOUBLE) {
+    int is_double = sym->type == TYPE_DOUBLE;
+    if (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM) {
+      if (is_double)
+        emit_movsd_xmm_local(cc, 0, sym->offset);
+      else
+        emit_movss_xmm_local(cc, 0, sym->offset);
+    } else {
+      if (is_double)
+        emit_movsd_xmm_disp32(cc, 0, sym->address);
+      else
+        emit_movss_xmm_disp32(cc, 0, sym->address);
+    }
+
+    if (preserve_old)
+      emit_movaps_xmm_xmm(cc, 2, 0);
+    emit_update_xmm0_scalar(cc, is_double, decrement);
+
+    if (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM) {
+      if (is_double)
+        emit_movsd_local_xmm(cc, 0, sym->offset);
+      else
+        emit_movss_local_xmm(cc, 0, sym->offset);
+    } else {
+      emit8(cc, is_double ? 0xF2 : 0xF3);
+      emit8(cc, 0x0F);
+      emit8(cc, 0x11);
+      emit8(cc, 0x05); /* movss/movsd [disp32], xmm0 */
+      emit32(cc, sym->address);
+    }
+
+    if (preserve_old)
+      emit_movaps_xmm_xmm(cc, 0, 2);
+    cc_last_xmm = 0;
+  } else {
+    if (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM) {
+      emit_load_local(cc, sym->offset);
+    } else {
+      emit8(cc, 0xA1);
+      emit32(cc, sym->address);
+    }
+
+    if (preserve_old)
+      emit_push_eax(cc);
+    emit8(cc, decrement ? 0x48 : 0x40); /* dec/inc eax */
+
+    if (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM) {
+      emit_store_local(cc, sym->offset);
+    } else {
+      emit8(cc, 0xA3);
+      emit32(cc, sym->address);
+    }
+    if (preserve_old)
+      emit_pop_eax(cc);
+  }
+
+  cc_last_expr_type = sym->type;
+  return 1;
+}
+
 /* Promote binary-op types per FP hierarchy. Rules:
  *  - SIMD (float4/double2) must match exactly on both sides.
  *  - double > float > int for scalar ops.
@@ -2941,18 +3040,8 @@ static void cc_parse_primary(cc_state_t *cc) {
       cc_error(cc, "undefined variable");
       return;
     }
-    if (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM) {
-      emit_load_local(cc, sym->offset);
-      emit8(cc, 0x40); /* inc eax */
-      emit_store_local(cc, sym->offset);
-    } else if (sym->kind == SYM_GLOBAL) {
-      emit8(cc, 0xA1);
-      emit32(cc, sym->address);
-      emit8(cc, 0x40); /* inc eax */
-      emit8(cc, 0xA3);
-      emit32(cc, sym->address);
-    }
-    cc_last_expr_type = sym->type;
+    if (!cc_emit_variable_update(cc, sym, 0, 0))
+      return;
     break;
   }
 
@@ -2968,18 +3057,8 @@ static void cc_parse_primary(cc_state_t *cc) {
       cc_error(cc, "undefined variable");
       return;
     }
-    if (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM) {
-      emit_load_local(cc, sym->offset);
-      emit8(cc, 0x48); /* dec eax */
-      emit_store_local(cc, sym->offset);
-    } else if (sym->kind == SYM_GLOBAL) {
-      emit8(cc, 0xA1);
-      emit32(cc, sym->address);
-      emit8(cc, 0x48); /* dec eax */
-      emit8(cc, 0xA3);
-      emit32(cc, sym->address);
-    }
-    cc_last_expr_type = sym->type;
+    if (!cc_emit_variable_update(cc, sym, 1, 0))
+      return;
     break;
   }
 
@@ -3286,46 +3365,23 @@ static void cc_parse_primary(cc_state_t *cc) {
 
     if (next.type == CC_TOK_PLUSPLUS) {
       cc_next(cc);
-      if (postfix_lvalue_valid && postfix_lvalue_sym) {
-        /* Keep old value in EAX for postfix expression result. */
-        emit_push_eax(cc);
-        if (postfix_lvalue_sym->kind == SYM_LOCAL ||
-            postfix_lvalue_sym->kind == SYM_PARAM) {
-          emit_load_local(cc, postfix_lvalue_sym->offset);
-          emit8(cc, 0x40); /* inc eax */
-          emit_store_local(cc, postfix_lvalue_sym->offset);
-        } else if (postfix_lvalue_sym->kind == SYM_GLOBAL) {
-          emit8(cc, 0xA1);
-          emit32(cc, postfix_lvalue_sym->address);
-          emit8(cc, 0x40); /* inc eax */
-          emit8(cc, 0xA3);
-          emit32(cc, postfix_lvalue_sym->address);
-        }
-        emit_pop_eax(cc);
-        cc_last_expr_type = postfix_lvalue_sym->type;
+      if (!postfix_lvalue_valid || !postfix_lvalue_sym) {
+        cc_error(cc, "increment or decrement requires a scalar variable");
+        return;
       }
+      if (!cc_emit_variable_update(cc, postfix_lvalue_sym, 0, 1))
+        return;
       break;
     }
 
     if (next.type == CC_TOK_MINUSMINUS) {
       cc_next(cc);
-      if (postfix_lvalue_valid && postfix_lvalue_sym) {
-        emit_push_eax(cc);
-        if (postfix_lvalue_sym->kind == SYM_LOCAL ||
-            postfix_lvalue_sym->kind == SYM_PARAM) {
-          emit_load_local(cc, postfix_lvalue_sym->offset);
-          emit8(cc, 0x48); /* dec eax */
-          emit_store_local(cc, postfix_lvalue_sym->offset);
-        } else if (postfix_lvalue_sym->kind == SYM_GLOBAL) {
-          emit8(cc, 0xA1);
-          emit32(cc, postfix_lvalue_sym->address);
-          emit8(cc, 0x48); /* dec eax */
-          emit8(cc, 0xA3);
-          emit32(cc, postfix_lvalue_sym->address);
-        }
-        emit_pop_eax(cc);
-        cc_last_expr_type = postfix_lvalue_sym->type;
+      if (!postfix_lvalue_valid || !postfix_lvalue_sym) {
+        cc_error(cc, "increment or decrement requires a scalar variable");
+        return;
       }
+      if (!cc_emit_variable_update(cc, postfix_lvalue_sym, 1, 1))
+        return;
       break;
     }
 
@@ -5163,32 +5219,12 @@ static void cc_parse_for_increment(cc_state_t *cc) {
     } else if (id.type == CC_TOK_IDENT && cc_peek(cc).type == CC_TOK_PLUSPLUS) {
       cc_next(cc);
       cc_symbol_t *sym = cc_sym_find(cc, id.text);
-      if (sym && (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM)) {
-        emit_load_local(cc, sym->offset);
-        emit8(cc, 0x40); /* inc eax */
-        emit_store_local(cc, sym->offset);
-      } else if (sym && sym->kind == SYM_GLOBAL) {
-        emit8(cc, 0xA1);
-        emit32(cc, sym->address);
-        emit8(cc, 0x40); /* inc eax */
-        emit8(cc, 0xA3);
-        emit32(cc, sym->address);
-      }
+      cc_emit_variable_update(cc, sym, 0, 0);
     } else if (id.type == CC_TOK_IDENT &&
                cc_peek(cc).type == CC_TOK_MINUSMINUS) {
       cc_next(cc);
       cc_symbol_t *sym = cc_sym_find(cc, id.text);
-      if (sym && (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM)) {
-        emit_load_local(cc, sym->offset);
-        emit8(cc, 0x48); /* dec eax */
-        emit_store_local(cc, sym->offset);
-      } else if (sym && sym->kind == SYM_GLOBAL) {
-        emit8(cc, 0xA1);
-        emit32(cc, sym->address);
-        emit8(cc, 0x48); /* dec eax */
-        emit8(cc, 0xA3);
-        emit32(cc, sym->address);
-      }
+      cc_emit_variable_update(cc, sym, 1, 0);
     } else {
       cc->has_peek = 1;
       cc->peek_buf = cc->cur;
@@ -5969,34 +6005,14 @@ static void cc_parse_simple_statement(cc_state_t *cc) {
     else if (next.type == CC_TOK_PLUSPLUS) {
       cc_next(cc);
       cc_symbol_t *sym = cc_sym_find(cc, id.text);
-      if (sym && (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM)) {
-        emit_load_local(cc, sym->offset);
-        emit8(cc, 0x40); /* inc eax */
-        emit_store_local(cc, sym->offset);
-      } else if (sym && sym->kind == SYM_GLOBAL) {
-        emit8(cc, 0xA1);
-        emit32(cc, sym->address);
-        emit8(cc, 0x40); /* inc eax */
-        emit8(cc, 0xA3);
-        emit32(cc, sym->address);
-      }
+      cc_emit_variable_update(cc, sym, 0, 0);
       cc_expect(cc, CC_TOK_SEMICOLON);
     }
     /* Post-decrement */
     else if (next.type == CC_TOK_MINUSMINUS) {
       cc_next(cc);
       cc_symbol_t *sym = cc_sym_find(cc, id.text);
-      if (sym && (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM)) {
-        emit_load_local(cc, sym->offset);
-        emit8(cc, 0x48); /* dec eax */
-        emit_store_local(cc, sym->offset);
-      } else if (sym && sym->kind == SYM_GLOBAL) {
-        emit8(cc, 0xA1);
-        emit32(cc, sym->address);
-        emit8(cc, 0x48); /* dec eax */
-        emit8(cc, 0xA3);
-        emit32(cc, sym->address);
-      }
+      cc_emit_variable_update(cc, sym, 1, 0);
       cc_expect(cc, CC_TOK_SEMICOLON);
     }
     /* Expression statement (function call, etc.) */

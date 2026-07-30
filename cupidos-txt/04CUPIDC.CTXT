@@ -1007,6 +1007,13 @@ value-returning entries identify integer, pointer, float, or double results.
 The other 192 entries return void. Conditions therefore use the value that a
 binding actually returns instead of stale expression state.
 
+Prefix and postfix ++ and -- work on scalar float and double variables.
+Each update adds or subtracts an exact 1.0 at the variable's width. A postfix
+expression returns the old floating payload after storing the new value.
+Locals, parameters, globals, statement updates, and for-loop increments use
+the same typed path. Arrays, structures, function pointers, and SIMD vectors
+are not valid update targets.
+
 Runtime unary plus preserves char, int, float, and double operands. Runtime
 unary minus uses integer NEG for char and int, while float and double change
 only their IEEE-754 sign bit. The floating path preserves negative zero,
