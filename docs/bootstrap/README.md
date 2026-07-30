@@ -26,6 +26,24 @@ zero, subnormals, infinities, quiet NaNs, and signaling NaNs.
 `feature13_double.cc` proves the behavior inside the complete four-vCPU
 frontier. ADR 0192 records the decision.
 
+Private CupidC now converts a scalar floating value to C truth before every
+truth-consuming control path. Unary `!`, `if`, `?:`, `while`, `for`, and
+`do ... while` share one lowering helper. It compares XMM0 with zero, treats
+both signed zero encodings as false, and treats every nonzero value, infinity,
+and NaN as true. Void expressions, structures by value, and SIMD vectors fail
+with `truth test requires a scalar operand`. The exact-byte oracle covers
+binary32 and binary64 zero, subnormal, finite, infinite, quiet-NaN, and
+signaling-NaN payloads. The guest feature covers all six parser sites. ADR
+0193 records this private-compiler boundary.
+
+The private compiler's 510 kernel bindings now publish the same result type
+as their local function-pointer declarations. The table contains 244 integer,
+25 `float`, 25 `double`, 19 character-pointer, five other-pointer, and 192
+`void` results. `BIND` is reserved for the `void` group, while `BIND_T`
+records every value result. A source-contract test parses the complete table,
+checks its exact size, and rejects an untyped non-void fixture. This prevents
+a returned control value from being mistaken for a `void` expression.
+
 Hosted CupidC now carries signed and unsigned eight-byte integer values through constants, matching conditional arms, fixed direct and indirect call results, object access, declared parameters, named call arguments, ellipsis arguments, and calls through function types without prototypes. File objects, block statics, fixed automatic objects, pointer dereferences, ordinary members, and indexed elements can be initialized, loaded, assigned, mutated, chained, discarded, and returned. One Linear IR entry names an emitter-owned eight-byte frame snapshot. A declared or undeclared wide argument occupies eight cdecl stack bytes. A supported wide `va_arg` read produces an instruction-owned snapshot and advances the cursor by eight. Return restores the low word to EAX and the high word to EDX.
 
 Wide values support addition, subtraction, multiplication, division, remainder, unary plus, unary minus, bitwise complement, shifts, AND, OR, XOR, comparisons, logical operators, conditional selection, structured scalar conditions, signed or unsigned switch dispatch, all ten compound assignments, prefix and postfix update, and conversion to or from represented integer widths. Switch lowering evaluates the condition once and duplicates its snapshot handle before each full-width case comparison. Mutation evaluates its destination once and keeps one semantic load and store. Multiplication combines one full low-word product with both cross-word products. Division and remainder run a fixed 64-step restoring loop over unsigned magnitudes, then apply the quotient or dividend sign. Each multiplication, division, remainder, or wide variadic-read result receives a fresh snapshot. The unchanged `ctool_buffer_put_le64`, `ctool_buffer_patch_le64`, `pp_if_value_truth`, `pp_if_is_negative`, `pp_if_signed_less`, `pp_if_signed_magnitude`, `cfront_constant_apply_binary`, and X25519 `fe_carry` bodies guard the broader operation set. CupidASM's unchanged number parser and unary expression branch guard the arithmetic, while X25519's unchanged `fe_mul_u32` helper guards wide-by-narrow multiplication. ADRs 0065 through 0075 record these boundaries. Runtime cases that C leaves undefined promise neither a trap nor a result.

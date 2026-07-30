@@ -335,14 +335,20 @@ arithmetic scalar. Runtime unary minus uses integer `NEG` for `char` and
 All six scalar floating comparisons return a normalized `int`. Matching
 widths compare directly, while a mixed `float` and `double` pair compares as
 `double`. Explicit parity handling keeps every unordered relation false
-except `!=`.
+except `!=`. Scalar floating truth is also normalized in EAX before `!`,
+`if`, `?:`, `while`, `for`, or `do` tests it. Positive and negative zero are
+false. Every nonzero value, including infinity and NaN, is true. Void
+expressions, structures by value, and SIMD vectors are not scalar truth
+operands.
 Non-arithmetic operands receive a specific diagnostic, and a rejected REPL
 expression does not poison the next compilation. The frontier accepts that
 diagnostic only once, inside the completed `feature13_double.cc` command
 slice. A stale, repeated, or out-of-context compiler error remains fatal. A
 host oracle compiles the active emitter helpers and interprets their exact
-bytes against binary32 and binary64 payloads. ADR 0189 records unary signs,
-and ADR 0192 records scalar comparisons.
+bytes against binary32 and binary64 payloads. The kernel bridge publishes the
+declared result type of all 510 bindings: 318 return a value and 192 return
+`void`. ADR 0189 records unary signs, ADR 0192 records scalar comparisons, and
+ADR 0193 records scalar truth and binding-result metadata.
 _Avoid_: C mode, HolyC mode
 
 **Cupid ASM**:

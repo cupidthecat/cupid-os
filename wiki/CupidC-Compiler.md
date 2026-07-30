@@ -95,6 +95,24 @@ true and the other five relations are false. Floating operators reject
 pointers, aggregates, function pointers, and SIMD vectors instead of
 converting their storage bits.
 
+### Runtime scalar truth
+
+The private compiler accepts `float` and `double` wherever C requires a
+scalar truth value. Unary `!`, `if`, `?:`, `while`, `for`, and
+`do ... while` all use the same conversion. Positive and negative zero are
+false. Every finite nonzero value, either infinity, and every NaN are true.
+The normalized result lives in EAX before the existing branch code uses it.
+
+Integer and pointer conditions keep their existing EAX path. Void
+expressions, structures by value, `float4`, and `double2` fail with
+`truth test requires a scalar operand`.
+
+Kernel calls participate in the same type rules. Each of the 510 registered
+bindings carries its declared result type. The compiler knows which 318 calls
+return an integer, pointer, `float`, or `double`, while the other 192 calls
+are `void`. A result from `input_dialog`, for example, can control an `if`
+without losing its integer type.
+
 ### Arrays
 
 Fixed-size arrays, both local (stack-allocated) and global (data section):

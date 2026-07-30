@@ -997,6 +997,16 @@ The six scalar comparison operators return int. Matching float or double
 widths compare directly. A mixed pair compares as double. Signed zero equals
 positive zero, and only != is true when either operand is NaN.
 
+Scalar float and double values work directly with !, if, ?:, while, for, and
+do-while. Positive and negative zero are false. Every nonzero value,
+infinity, and NaN is true. Void expressions, structures by value, and SIMD
+vectors are not valid truth operands.
+
+The kernel binding table preserves each function's declared result. Its 318
+value-returning entries identify integer, pointer, float, or double results.
+The other 192 entries return void. Conditions therefore use the value that a
+binding actually returns instead of stale expression state.
+
 Runtime unary plus preserves char, int, float, and double operands. Runtime
 unary minus uses integer NEG for char and int, while float and double change
 only their IEEE-754 sign bit. The floating path preserves negative zero,

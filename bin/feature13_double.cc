@@ -80,6 +80,60 @@ void main() {
                       compare_zero, compare_unordered);
     }
 
+    /* Scalar floating truth follows C rules in every private compiler
+     * control-flow path. Both signed zero encodings are false. Finite
+     * nonzero values, infinity, and NaN are true. */
+    float truth_zero = 0.0f;
+    double truth_negative_zero = -0.0;
+    double truth_nonzero = -0.25;
+    double truth_nan = 0.0 / 0.0;
+    int truth_zero_score =
+        (!truth_zero) +
+        (!truth_negative_zero);
+    int truth_nonzero_score =
+        !!1.0f +
+        !!truth_nonzero +
+        !!truth_nan;
+    int truth_control = 0;
+    if (truth_nonzero)
+        truth_control += 1;
+    if (truth_zero)
+        truth_control += 1000;
+    else
+        truth_control += 2;
+    truth_control += truth_nonzero ? 4 : 1000;
+    truth_control += truth_zero ? 1000 : 8;
+
+    float truth_while = 1.0f;
+    while (truth_while) {
+        truth_control += 16;
+        truth_while = 0.0f;
+    }
+
+    double truth_for = 1.0;
+    for (; truth_for; truth_for = 0.0)
+        truth_control += 32;
+
+    double truth_do = 0.0;
+    do {
+        truth_control += 64;
+    } while (truth_do);
+
+    if (truth_nan)
+        truth_control += 128;
+
+    if (truth_zero_score != 2 || truth_nonzero_score != 3 ||
+        truth_control != 255) {
+        serial_printf("[feature13-truth] FAIL zero=%d nonzero=%d control=%d nan=%d\n",
+                      truth_zero_score, truth_nonzero_score,
+                      truth_control, !!truth_nan);
+        ok = 0;
+    } else {
+        serial_printf("[feature13-truth] PASS zero=%d nonzero=%d control=%d nan=%d\n",
+                      truth_zero_score, truth_nonzero_score,
+                      truth_control, !!truth_nan);
+    }
+
     /* sin(pi/2) = 1. Check |sin(pi/2) - 1| < 1e-12 via scale 1e12. */
     double s = sin(pi / 2.0);
     double d_s = s - 1.0;

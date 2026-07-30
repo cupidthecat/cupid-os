@@ -43,6 +43,17 @@ a host compiler as an optional execution oracle, while the normal kernel
 object is produced by checked-seed CupidC and the guest frontier executes the
 result.
 
+Private CupidC scalar truth has the same ownership boundary. The in-kernel
+emitter now materializes `float` and `double` truth for unary `!`, conditional
+selection, and every structured control form. The focused host oracle checks
+the active instruction helper, while checked-seed CupidC produces the normal
+kernel object and the guest frontier executes each parser path. No host
+compiler, assembler, linker, or packaging dependency was added or retired.
+The same change repairs the in-kernel symbol boundary: all 318
+value-returning bindings publish an explicit Cupid type, and the remaining
+192 bindings are verified `void` functions. This metadata is compiled into
+the checked-seed-owned kernel object.
+
 The ABI verification captures the exact bytes of its six declaration inputs,
 compares the reviewed i386 contract, and rechecks every input before success.
 The external-program runtime gate gives hello, ls, and cat separate private

@@ -244,7 +244,7 @@ These features were added in P1. See 14FPU-SSE.CTXT for full reference.
 
 Summary:
 - Feature 12: scalar float arithmetic, casts, element access
-- Feature 13: double, transcendentals, unary signs, and scalar comparisons
+- Feature 13: double, transcendentals, unary signs, comparisons, and truth
 - Feature 14: float4 / double2 SIMD + intrinsics
 - Feature 15: libm (25 operations, 50 symbols with f-variants)
 - Feature 16: CupidC inline asm using SSE + x87
@@ -262,6 +262,14 @@ feature13_double check. A stale or repeated copy still fails the run.
 All six float and double comparisons return a normalized int. Matching
 widths compare directly, while a mixed pair compares as double. Signed zero
 compares equal to positive zero. If either operand is NaN, only != is true.
+
+Float and double values can control !, if, ?:, while, for, and do-while
+directly. Both signed zero encodings are false. Finite nonzero values,
+infinities, and NaNs are true.
+
+All kernel bindings carry their declared result type. The private compiler
+uses that metadata to keep returned integers, pointers, floats, and doubles
+in later expressions and conditions.
 
 [Run feature12_float](shell:feature12_float)
 [Run feature13_double](shell:feature13_double)

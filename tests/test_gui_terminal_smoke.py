@@ -111,6 +111,8 @@ def _frontier_command_outputs():
             "zero=0x80000000 plus=9 reject=1 recovery=1\n"
             "[feature13-compare] PASS ordered=6 mixed=4 "
             "zero=2 unordered=6\n"
+            "[feature13-truth] PASS zero=2 nonzero=3 "
+            "control=255 nan=1\n"
             "PASS feature13_double\n"
             "[cupidc] JIT execution complete\n"
         ),
@@ -1262,6 +1264,44 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             "1.0f < 2.0",
             "negative_zero == 0.0",
             "compare_nan != compare_nan",
+        ):
+            with self.subTest(expression=expression):
+                self.assertIn(expression, source)
+
+    def test_feature13_requires_all_scalar_truth_evidence(self):
+        command = _frontier_command("/bin/feature13_double.cc")
+        expected = command.expected_pattern
+        sample = _frontier_command_output("/bin/feature13_double.cc")
+        marker = (
+            "[feature13-truth] PASS zero=2 nonzero=3 "
+            "control=255 nan=1\n"
+        )
+
+        self.assertIsNone(
+            re.search(
+                expected,
+                sample.replace(marker, ""),
+                re.S | re.M,
+            )
+        )
+        self.assertIn(
+            "[feature13-truth] FAIL",
+            gui_terminal_smoke.FRONTIER_RUNTIME_REJECTED_MARKERS,
+        )
+
+        source = (
+            REPO_ROOT / "bin" / "feature13_double.cc"
+        ).read_text(encoding="utf-8")
+        for expression in (
+            "!truth_zero",
+            "!truth_negative_zero",
+            "!!truth_nan",
+            "if (truth_nonzero)",
+            "truth_nonzero ? 4 : 1000",
+            "while (truth_while)",
+            "for (; truth_for; truth_for = 0.0)",
+            "} while (truth_do);",
+            "if (truth_nan)",
         ):
             with self.subTest(expression=expression):
                 self.assertIn(expression, source)

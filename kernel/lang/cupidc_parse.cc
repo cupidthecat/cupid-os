@@ -518,6 +518,32 @@ static void emit_compare_xmm1_xmm0(cc_state_t *cc, int is_double,
   emit_movzx_eax_al(cc);
 }
 
+/* Convert the scalar floating value in XMM0 to C truth in EAX.
+ * UCOMISS/UCOMISD sets ZF for either signed zero and PF for unordered
+ * operands. Combining SETNE with SETP therefore makes both zero encodings
+ * false while keeping every nonzero value, including NaN, true. */
+static void emit_scalar_truth_xmm0(cc_state_t *cc, int is_double) {
+  emit8(cc, 0x0F);
+  emit8(cc, 0x57);
+  emit8(cc, 0xC9); /* xorps xmm1, xmm1 */
+
+  if (is_double)
+    emit8(cc, 0x66);
+  emit8(cc, 0x0F);
+  emit8(cc, 0x2E);
+  emit8(cc, 0xC1); /* ucomiss/ucomisd xmm0, xmm1 */
+
+  emit8(cc, 0x0F);
+  emit8(cc, 0x95);
+  emit8(cc, 0xC0); /* setne al */
+  emit8(cc, 0x0F);
+  emit8(cc, 0x9A);
+  emit8(cc, 0xC2); /* setp dl */
+  emit8(cc, 0x08);
+  emit8(cc, 0xD0); /* or al, dl */
+  emit_movzx_eax_al(cc);
+}
+
 /* Forward decl: defined just below the error-handling block. */
 static int cc_data_reserve(cc_state_t *cc, uint32_t bytes);
 
@@ -1262,6 +1288,27 @@ static int32_t cc_type_size(cc_state_t *cc, cc_type_t type, int struct_index) {
 static int cc_is_arithmetic_scalar_type(cc_type_t type) {
   return type == TYPE_INT || type == TYPE_CHAR ||
          type == TYPE_FLOAT || type == TYPE_DOUBLE;
+}
+
+static int cc_is_scalar_truth_type(cc_type_t type) {
+  return type == TYPE_INT || type == TYPE_CHAR ||
+         type == TYPE_PTR || type == TYPE_INT_PTR ||
+         type == TYPE_CHAR_PTR || type == TYPE_STRUCT_PTR ||
+         type == TYPE_FUNC_PTR || type == TYPE_FLOAT ||
+         type == TYPE_DOUBLE;
+}
+
+/* Materialize a scalar expression's C truth value in EAX. Integer and
+ * pointer expressions already use EAX. Floating expressions use XMM0 and
+ * need an explicit comparison with zero before control-flow code tests EAX. */
+static int cc_materialize_scalar_truth(cc_state_t *cc, cc_type_t type) {
+  if (!cc_is_scalar_truth_type(type)) {
+    cc_error(cc, "truth test requires a scalar operand");
+    return 0;
+  }
+  if (type == TYPE_FLOAT || type == TYPE_DOUBLE)
+    emit_scalar_truth_xmm0(cc, type == TYPE_DOUBLE);
+  return 1;
 }
 
 /* Promote binary-op types per FP hierarchy. Rules:
@@ -2748,6 +2795,9 @@ static void cc_parse_primary(cc_state_t *cc) {
   case CC_TOK_NOT: {
     /* Logical NOT: !expr */
     cc_parse_primary(cc);
+    if (cc->error ||
+        !cc_materialize_scalar_truth(cc, cc_last_expr_type))
+      return;
     emit_cmp_eax_zero(cc);
     emit8(cc, 0x0F);
     emit8(cc, 0x94);
@@ -3477,9 +3527,13 @@ static void cc_parse_expression(cc_state_t *cc, int min_prec) {
    * We keep this outside binary-op precedence handling and only allow
    * it when caller accepts lowest-precedence expressions (min_prec <= 1).*/
   while (!cc->error && min_prec <= 1 && cc_peek(cc).type == CC_TOK_QUESTION) {
+    cc_type_t condition_type = cc_last_expr_type;
     cc_next(cc); /* consume ? */
 
-    /* EAX currently holds condition value. */
+    if (!cc_materialize_scalar_truth(cc, condition_type))
+      return;
+
+    /* EAX now holds the condition's normalized scalar truth value. */
     emit8(cc, 0x85);
     emit8(cc, 0xC0); /* test eax, eax */
     uint32_t jz_off = cc->code_pos;
@@ -4997,6 +5051,9 @@ static void cc_consume_statement_keyword(cc_state_t *cc) {
 static void cc_parse_if(cc_state_t *cc) {
   cc_expect(cc, CC_TOK_LPAREN);
   cc_parse_expression(cc, 1);
+  if (cc->error ||
+      !cc_materialize_scalar_truth(cc, cc_last_expr_type))
+    return;
   cc_expect(cc, CC_TOK_RPAREN);
 
   /* test eax, eax; je else_label */
@@ -5052,6 +5109,9 @@ static void cc_parse_while(cc_state_t *cc) {
 
   cc_expect(cc, CC_TOK_LPAREN);
   cc_parse_expression(cc, 1);
+  if (cc->error ||
+      !cc_materialize_scalar_truth(cc, cc_last_expr_type))
+    return;
   cc_expect(cc, CC_TOK_RPAREN);
 
   emit_cmp_eax_zero(cc);
@@ -5155,6 +5215,9 @@ static void cc_parse_for(cc_state_t *cc) {
   uint32_t exit_patch = 0;
   if (cc_statement_token_type(cc) != CC_TOK_SEMICOLON) {
     cc_parse_expression(cc, 1);
+    if (cc->error ||
+        !cc_materialize_scalar_truth(cc, cc_last_expr_type))
+      return;
     emit_cmp_eax_zero(cc);
     exit_patch = emit_jcc_placeholder(cc, 0x84); /* je */
   }
@@ -5238,6 +5301,9 @@ static void cc_parse_do(cc_state_t *cc) {
     cc_expect(cc, CC_TOK_LPAREN);
     patch_jump(cc, condition_patch);
     cc_parse_expression(cc, 1);
+    if (cc->error ||
+        !cc_materialize_scalar_truth(cc, cc_last_expr_type))
+      return;
     cc_expect(cc, CC_TOK_RPAREN);
     cc_expect(cc, CC_TOK_SEMICOLON);
     emit_cmp_eax_zero(cc);

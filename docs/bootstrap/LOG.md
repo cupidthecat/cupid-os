@@ -17481,3 +17481,90 @@ This capability changes private JIT and AOT behavior but moves no build
 ownership. Runtime floating truth, floating increment and decrement, SIMD
 operator gaps, and the remaining Cupid mode work stay open. ADR 0192 records
 the comparison decision.
+
+## 2026-07-30: materialize scalar truth in private CupidC
+
+The private in-kernel compiler now converts runtime `float` and `double`
+values to C truth before unary `!`, conditional selection, `if`, `while`,
+`for`, and `do ... while` consume them. Positive and negative zero are false.
+Every finite nonzero value, infinity, and NaN is true. Integer and pointer
+conditions keep their existing EAX representation.
+
+One emitter helper clears XMM1, compares XMM0 with zero through `UCOMISS` or
+`UCOMISD`, combines `setne` with `setp`, and returns a normalized integer in
+EAX. The parity term keeps NaN true. A `void` expression, structure by value,
+or SIMD vector fails with `truth test requires a scalar operand`.
+
+The stricter condition boundary exposed incorrect kernel symbol metadata.
+The old table had 223 non-void declarations registered through the `void`
+macro, two clipboard wrappers that erased an integer result, and one
+character-pointer result tagged as an integer. The repaired table has 510
+checked entries:
+
+| Cupid result | Bindings |
+| --- | ---: |
+| Integer | 244 |
+| `float` | 25 |
+| `double` | 25 |
+| Character pointer | 19 |
+| Other pointer | 5 |
+| `void` | 192 |
+
+`BIND` is now reserved for the 192 functions that return no value. Every
+other registration uses `BIND_T`. A source-contract test checks each local
+function-pointer declaration against its registration and locks the complete
+table size. Its negative fixture rejects an integer declaration that uses
+the untyped macro.
+
+### Test evidence
+
+The exact-byte truth oracle covers binary32 and binary64 signed zero,
+subnormal, finite, infinite, quiet-NaN, and signaling-NaN payloads. Type,
+diagnostic, and recovery contracts cover all private types. The combined
+truth, binding, comparison, unary, and GUI contract run has 105 passing
+tests.
+
+The embedded feature reports:
+
+```text
+[feature13-truth] PASS zero=2 nonzero=3 control=255 nan=1
+PASS feature13_double
+[cupidc] JIT execution complete
+```
+
+The first four-vCPU guest run reached that marker, then stopped at line 73 of
+`godsong.cc`. Its direct `if (input_dialog(...))` condition saw the binding's
+old `void` type and correctly reported `truth test requires a scalar operand`.
+Fixing only that call would have left the rest of the table unsound, so the
+implementation moved to the complete declaration-to-registration audit.
+
+The final four-job Windows build passed in 554.3 seconds:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/lang/cupidc.o` | 288,272 | `6f89f5bf02e3e35e549f501601387ee5f41e380f1284e9a94ad2c55310770f45` |
+| `kernel/lang/cupidc_parse.o` | 298,280 | `e8017bd231d0908a56faf63a53e2a74dcb6c4dba3421fe4d31b4ad0fccde1592` |
+| `kernel/kernel.elf.pass1` | 8,592,316 | `b7aed88e66d90722b70ba2c10cb3eb1920c7bdeeb516582b39f016be85252a89` |
+| `kernel/kernel.elf` | 8,702,908 | `4f6c3dfbc46d5e4eb2b1792c7ea2fe5bb95e74f2667e8eedb865c1e1ee35f906` |
+| `kernel/kernel.bin` | 8,502,512 | `745ff6ba128d4a48e127eceed709672cf7c77e537bc457f84c72f01adf89e2b4` |
+| `cupidos.img` | 209,715,200 | `e5b8f04fa689bcd24d84eabca3f0976a9efb13c152e4664e96a10581425fb233` |
+
+The complete private four-vCPU e1000 frontier passed in 237.3 seconds. It
+continued through `godsong.cc` and every later guest command, completed all
+six USB storage lifetimes and HID reattachment, changed 71,952 framebuffer
+pixels, captured 8,279,024 AC97 frames, and captured 76,163 PC-speaker
+frames. Its 46,975-byte serial log has SHA-256
+`81fa437c3ab77cf05287573dfb0fd801c716a65286536c9fd7b4ab5ab4e09450`.
+
+The first complete checked-seed frontier compiled its production cohort, then
+failed the old aggregate-size assertion. The new compiler objects total
+3,718,736 bytes rather than 3,708,988. The refreshed contract also records
+the new `cupidc.cc` and `cupidc_parse.cc` object hashes and the 444-input
+snapshot SHA-256
+`80147cbf8be0c903126678855ef1943afb2be9d131e3f5ab9be6b592bbc0b581`.
+The rerun passed in 1,437.9 seconds, compiling all 155 sources twice to
+byte-identical validated ELF32 objects with zero deferred boundaries.
+
+This changes private JIT and AOT semantics without moving build ownership.
+Floating increment and decrement, the remaining SIMD operators, and the
+other Cupid mode gaps stay open. ADR 0193 records the decision.

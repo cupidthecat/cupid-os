@@ -20,6 +20,14 @@ Floating comparisons follow C's unordered rules. Signed zero compares equal
 to positive zero. NaN makes only `!=` true. Pointers, aggregates, function
 pointers, and SIMD vectors are not accepted as floating arithmetic operands.
 
+Scalar floating truth works in unary `!`, conditional selection, `if`, and
+all three loop forms. Both signed zero encodings are false. Finite nonzero
+values, infinities, and NaNs are true. Void expressions, structures by value,
+and SIMD vectors are rejected as truth operands.
+
+Pre-registered kernel calls retain their declared result type in later
+expressions. Only bindings whose functions return no value have type `void`.
+
 ## Hosted floating-width rules
 
 The shared self-hosting compiler carries non-atomic `float` and `double`
