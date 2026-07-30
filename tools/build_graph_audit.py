@@ -4082,14 +4082,53 @@ def _c_preprocessor_profile_for_c_transform(
                     "CupidC kernel compile wrapper is outside the root "
                     f"build for {output}: {directory!r}"
                 )
-            expected_tokens = [
-                "$(CUPIDC_KERNEL_COMPILE)",
-                "--source",
-                root,
-                "--output",
-                output,
-            ]
-            profile = "KERNEL_I386"
+            doom_compat_roots = {
+                "kernel/doom/dglibc.cc",
+                "kernel/doom/doom_libc_stubs.cc",
+                "kernel/doom/doomgeneric_cupidos.cc",
+            }
+            if root in doom_compat_roots:
+                expected_tokens = [
+                    "$(CUPIDC_KERNEL_COMPILE)",
+                    "--profile",
+                    "doom-compat",
+                    "--source",
+                    root,
+                    "--output",
+                    output,
+                ]
+                profile = "DOOM_COMPAT_I386"
+            elif root == "kernel/doom/i_sound_cupidos.cc":
+                expected_tokens = [
+                    "$(CUPIDC_KERNEL_COMPILE)",
+                    "--profile",
+                    "doom-tree",
+                    "--source",
+                    root,
+                    "--output",
+                    output,
+                ]
+                profile = "DOOM_TREE_I386"
+            elif root.startswith("kernel/doom/src/"):
+                expected_tokens = [
+                    "$(CUPIDC_KERNEL_COMPILE)",
+                    "--profile",
+                    "doom-tree",
+                    "--source",
+                    "$<",
+                    "--output",
+                    "$@",
+                ]
+                profile = "DOOM_TREE_I386"
+            else:
+                expected_tokens = [
+                    "$(CUPIDC_KERNEL_COMPILE)",
+                    "--source",
+                    root,
+                    "--output",
+                    output,
+                ]
+                profile = "KERNEL_I386"
         if markers != expected_markers:
             raise AuditError(
                 "CupidC compile wrapper markers differ for "

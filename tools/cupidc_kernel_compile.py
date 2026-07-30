@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Compile an approved kernel source with the checked CupidC seed."""
+"""Compile an approved production source with the checked CupidC seed."""
 
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 import os
 import shutil
 import struct
@@ -202,6 +204,93 @@ APPROVED_SOURCE_DRIVEN_SOURCES = (
 )
 APPROVED_GENERATED_KERNEL_SOURCES = (
     "kernel/cpu/ksyms_data.cc",
+)
+APPROVED_DOOM_COMPAT_SOURCES = (
+    "kernel/doom/dglibc.cc",
+    "kernel/doom/doom_libc_stubs.cc",
+    "kernel/doom/doomgeneric_cupidos.cc",
+)
+APPROVED_DOOM_TREE_SOURCES = (
+    "kernel/doom/i_sound_cupidos.cc",
+    "kernel/doom/src/am_map.cc",
+    "kernel/doom/src/d_event.cc",
+    "kernel/doom/src/d_items.cc",
+    "kernel/doom/src/d_iwad.cc",
+    "kernel/doom/src/d_loop.cc",
+    "kernel/doom/src/d_main.cc",
+    "kernel/doom/src/d_mode.cc",
+    "kernel/doom/src/d_net.cc",
+    "kernel/doom/src/doomdef.cc",
+    "kernel/doom/src/doomgeneric.cc",
+    "kernel/doom/src/doomstat.cc",
+    "kernel/doom/src/dstrings.cc",
+    "kernel/doom/src/dummy.cc",
+    "kernel/doom/src/f_finale.cc",
+    "kernel/doom/src/f_wipe.cc",
+    "kernel/doom/src/g_game.cc",
+    "kernel/doom/src/gusconf.cc",
+    "kernel/doom/src/hu_lib.cc",
+    "kernel/doom/src/hu_stuff.cc",
+    "kernel/doom/src/i_endoom.cc",
+    "kernel/doom/src/i_input.cc",
+    "kernel/doom/src/i_joystick.cc",
+    "kernel/doom/src/i_scale.cc",
+    "kernel/doom/src/i_system.cc",
+    "kernel/doom/src/i_timer.cc",
+    "kernel/doom/src/i_video.cc",
+    "kernel/doom/src/icon.cc",
+    "kernel/doom/src/info.cc",
+    "kernel/doom/src/m_argv.cc",
+    "kernel/doom/src/m_bbox.cc",
+    "kernel/doom/src/m_cheat.cc",
+    "kernel/doom/src/m_config.cc",
+    "kernel/doom/src/m_controls.cc",
+    "kernel/doom/src/m_fixed.cc",
+    "kernel/doom/src/m_menu.cc",
+    "kernel/doom/src/m_misc.cc",
+    "kernel/doom/src/m_random.cc",
+    "kernel/doom/src/p_ceilng.cc",
+    "kernel/doom/src/p_doors.cc",
+    "kernel/doom/src/p_enemy.cc",
+    "kernel/doom/src/p_floor.cc",
+    "kernel/doom/src/p_inter.cc",
+    "kernel/doom/src/p_lights.cc",
+    "kernel/doom/src/p_map.cc",
+    "kernel/doom/src/p_maputl.cc",
+    "kernel/doom/src/p_mobj.cc",
+    "kernel/doom/src/p_plats.cc",
+    "kernel/doom/src/p_pspr.cc",
+    "kernel/doom/src/p_saveg.cc",
+    "kernel/doom/src/p_setup.cc",
+    "kernel/doom/src/p_sight.cc",
+    "kernel/doom/src/p_spec.cc",
+    "kernel/doom/src/p_switch.cc",
+    "kernel/doom/src/p_telept.cc",
+    "kernel/doom/src/p_tick.cc",
+    "kernel/doom/src/p_user.cc",
+    "kernel/doom/src/r_bsp.cc",
+    "kernel/doom/src/r_data.cc",
+    "kernel/doom/src/r_draw.cc",
+    "kernel/doom/src/r_main.cc",
+    "kernel/doom/src/r_plane.cc",
+    "kernel/doom/src/r_segs.cc",
+    "kernel/doom/src/r_sky.cc",
+    "kernel/doom/src/r_things.cc",
+    "kernel/doom/src/s_sound.cc",
+    "kernel/doom/src/sha1.cc",
+    "kernel/doom/src/sounds.cc",
+    "kernel/doom/src/st_lib.cc",
+    "kernel/doom/src/st_stuff.cc",
+    "kernel/doom/src/statdump.cc",
+    "kernel/doom/src/tables.cc",
+    "kernel/doom/src/v_video.cc",
+    "kernel/doom/src/w_checksum.cc",
+    "kernel/doom/src/w_file.cc",
+    "kernel/doom/src/w_file_stdc.cc",
+    "kernel/doom/src/w_main.cc",
+    "kernel/doom/src/w_wad.cc",
+    "kernel/doom/src/wi_stuff.cc",
+    "kernel/doom/src/z_zone.cc",
 )
 FROZEN_KERNEL_INPUT_CLOSURES = {
     "kernel/audio/nuked_opl3.cc": (
@@ -408,6 +497,83 @@ KERNEL_I386_ARGUMENTS = (
     "-I",
     "/toolchain",
 )
+DOOM_COMPAT_I386_ARGUMENTS = (
+    "--gnu",
+    "--doom-compat",
+    "--freestanding",
+    "-D",
+    "__GNUC__=1",
+    "-D",
+    "__ORDER_LITTLE_ENDIAN__=1234",
+    "-D",
+    "__ORDER_BIG_ENDIAN__=4321",
+    "-D",
+    "__ORDER_PDP_ENDIAN__=3412",
+    "-D",
+    "__BYTE_ORDER__=__ORDER_LITTLE_ENDIAN__",
+    "-D",
+    "__SSE2__=1",
+    "-I",
+    "/kernel",
+    "-I",
+    "/kernel/audio",
+    "-I",
+    "/kernel/core",
+    "-I",
+    "/kernel/cpu",
+    "-I",
+    "/kernel/crypto",
+    "-I",
+    "/kernel/doom",
+    "-I",
+    "/kernel/fs",
+    "-I",
+    "/kernel/gfx",
+    "-I",
+    "/kernel/gui",
+    "-I",
+    "/kernel/lang",
+    "-I",
+    "/kernel/mm",
+    "-I",
+    "/kernel/network",
+    "-I",
+    "/kernel/smp",
+    "-I",
+    "/kernel/tls",
+    "-I",
+    "/kernel/usb",
+    "-I",
+    "/kernel/util",
+    "-I",
+    "/drivers",
+    "-I",
+    "/toolchain",
+    "-I",
+    "/kernel/doom/src",
+    "-I",
+    "/kernel/doom/src/include_stubs",
+)
+DOOM_TREE_I386_ARGUMENTS = (
+    *DOOM_COMPAT_I386_ARGUMENTS,
+    "-D",
+    'DEFAULT_SAVEGAMEDIR="/home/doom/"',
+    "-D",
+    "DOOM_PORT_CUPIDOS=1",
+    "-include",
+    "/kernel/doom/dglibc_compat.h",
+)
+
+COMPILER_PROFILE_SOURCES = {
+    "kernel": APPROVED_KERNEL_COMPILE_SOURCES,
+    "doom-compat": APPROVED_DOOM_COMPAT_SOURCES,
+    "doom-tree": APPROVED_DOOM_TREE_SOURCES,
+}
+COMPILER_PROFILE_ARGUMENTS = {
+    "kernel": KERNEL_I386_ARGUMENTS,
+    "doom-compat": DOOM_COMPAT_I386_ARGUMENTS,
+    "doom-tree": DOOM_TREE_I386_ARGUMENTS,
+}
 
 DEFAULT_TIMEOUT_SECONDS = 180
 GENERATED_KERNEL_TIMEOUT_SECONDS = 600
@@ -421,14 +587,22 @@ def build_compile_arguments(
     logical_source: str,
     logical_output: str,
     compiler_root: str,
+    *,
+    profile: str = "kernel",
 ) -> tuple[str, ...]:
-    """Build the complete, fixed KERNEL_I386 CupidC argument vector."""
+    """Build one complete, fixed production CupidC argument vector."""
+    try:
+        profile_arguments = COMPILER_PROFILE_ARGUMENTS[profile]
+    except KeyError as error:
+        raise KernelCompileError(
+            f"unknown CupidC production profile: {profile}"
+        ) from error
     return (
         "-c",
         logical_source,
         "-o",
         logical_output,
-        *KERNEL_I386_ARGUMENTS,
+        *profile_arguments,
         "--root",
         compiler_root,
     )
@@ -783,16 +957,11 @@ def validate_i386_relocatable_bytes(image: bytes) -> None:
                 image,
                 target[4] + relocation_offset,
             )[0]
-            expected_addend = 0 if relocation_type == 1 else -4
-            if addend != expected_addend:
-                description = (
-                    "absolute"
-                    if relocation_type == 1
-                    else "PC-relative"
-                )
+            # An absolute relocation may select a static subobject through
+            # its signed addend. Direct PC-relative calls still use -4.
+            if relocation_type == 2 and addend != -4:
                 raise KernelCompileError(
-                    f"{description} relocation addend is {addend}, "
-                    f"expected {expected_addend}"
+                    f"PC-relative relocation addend is {addend}, expected -4"
                 )
 
 
@@ -814,7 +983,11 @@ def _root_path(root: Path) -> Path:
     return resolved
 
 
-def _source_path(root: Path, source: Path) -> tuple[Path, str]:
+def _source_path(
+    root: Path,
+    source: Path,
+    profile: str,
+) -> tuple[Path, str]:
     candidate = source if source.is_absolute() else root / source
     if candidate.is_symlink():
         raise KernelCompileError("approved source may not be a symlink")
@@ -826,9 +999,20 @@ def _source_path(root: Path, source: Path) -> tuple[Path, str]:
             f"source must resolve inside repository root: {source}"
         ) from error
     relative_name = relative.as_posix()
-    if relative_name not in APPROVED_KERNEL_COMPILE_SOURCES:
+    try:
+        approved_sources = COMPILER_PROFILE_SOURCES[profile]
+    except KeyError as error:
         raise KernelCompileError(
-            "source is outside the approved CupidC kernel cohort: "
+            f"unknown CupidC production profile: {profile}"
+        ) from error
+    if relative_name not in approved_sources:
+        cohort = (
+            "CupidC kernel"
+            if profile == "kernel"
+            else f"{profile} CupidC"
+        )
+        raise KernelCompileError(
+            f"source is outside the approved {cohort} cohort: "
             f"{relative_name}"
         )
     if not resolved.is_file():
@@ -859,10 +1043,181 @@ def _output_path(root: Path, output: Path) -> tuple[Path, str]:
     return resolved, "/" + relative.as_posix()
 
 
+def _is_link_like(path: Path) -> bool:
+    if path.is_symlink():
+        return True
+    is_junction = getattr(path, "is_junction", None)
+    return bool(is_junction is not None and is_junction())
+
+
+def _profile_header_paths(
+    root: Path,
+    profile: str,
+) -> tuple[Path, ...]:
+    try:
+        arguments = COMPILER_PROFILE_ARGUMENTS[profile]
+    except KeyError as error:
+        raise KernelCompileError(
+            f"unknown CupidC production profile: {profile}"
+        ) from error
+    if profile == "kernel":
+        raise KernelCompileError(
+            "the kernel profile uses source-specific frozen closures"
+        )
+
+    paths = set()
+    for index, argument in enumerate(arguments):
+        if argument != "-I":
+            continue
+        include_root = root / arguments[index + 1].lstrip("/")
+        if _is_link_like(include_root):
+            raise KernelCompileError(
+                "CupidC profile include root may not be a link or junction: "
+                f"{include_root.relative_to(root).as_posix()}"
+            )
+        try:
+            resolved_root = include_root.resolve(strict=True)
+            resolved_root.relative_to(root)
+        except (OSError, ValueError) as error:
+            raise KernelCompileError(
+                "CupidC profile include root is unavailable: "
+                f"{arguments[index + 1]}"
+            ) from error
+        if not resolved_root.is_dir():
+            raise KernelCompileError(
+                "CupidC profile include root is not a directory: "
+                f"{arguments[index + 1]}"
+            )
+        for path in resolved_root.rglob("*"):
+            relative_parts = path.relative_to(resolved_root).parts
+            if any(part.startswith(".") for part in relative_parts):
+                continue
+            if _is_link_like(path):
+                relative_name = path.relative_to(root).as_posix()
+                raise KernelCompileError(
+                    "CupidC profile input may not be a link or junction: "
+                    f"{relative_name}"
+                )
+            if path.is_file() and path.suffix in {".h", ".inc"}:
+                paths.add(path)
+    return tuple(sorted(paths))
+
+
+def _profile_source_paths(
+    root: Path,
+    profile: str,
+) -> tuple[Path, ...]:
+    try:
+        approved_sources = COMPILER_PROFILE_SOURCES[profile]
+    except KeyError as error:
+        raise KernelCompileError(
+            f"unknown CupidC production profile: {profile}"
+        ) from error
+
+    paths = []
+    for relative_name in approved_sources:
+        path = root / relative_name
+        current = root
+        for part in Path(relative_name).parts:
+            current /= part
+            if _is_link_like(current):
+                raise KernelCompileError(
+                    "CupidC profile source may not be a link or junction: "
+                    f"{relative_name}"
+                )
+        try:
+            resolved = path.resolve(strict=True)
+            resolved.relative_to(root)
+        except (OSError, ValueError) as error:
+            raise KernelCompileError(
+                f"CupidC profile source is unavailable: {relative_name}"
+            ) from error
+        if not resolved.is_file():
+            raise KernelCompileError(
+                f"CupidC profile source is not a file: {relative_name}"
+            )
+        paths.append(resolved)
+    return tuple(paths)
+
+
+def _doom_source_membership(root: Path) -> tuple[Path, ...]:
+    approved = (
+        *_profile_source_paths(root, "doom-compat"),
+        *_profile_source_paths(root, "doom-tree"),
+    )
+    approved_names = {
+        path.relative_to(root).as_posix() for path in approved
+    }
+    discovered = set()
+    doom_root = root / "kernel" / "doom"
+    if _is_link_like(doom_root):
+        raise KernelCompileError(
+            "CupidC profile source directory may not be a link or junction: "
+            "kernel/doom"
+        )
+    for path in doom_root.rglob("*"):
+        relative_parts = path.relative_to(doom_root).parts
+        if any(part.startswith(".") for part in relative_parts[:-1]):
+            continue
+        relative_name = path.relative_to(root).as_posix()
+        if _is_link_like(path):
+            raise KernelCompileError(
+                "CupidC profile source tree may not contain a link or "
+                f"junction: {relative_name}"
+            )
+        if path.suffix not in {".c", ".cc"}:
+            continue
+        if not path.is_file():
+            raise KernelCompileError(
+                f"CupidC profile source is not a file: {relative_name}"
+            )
+        discovered.add(relative_name)
+    if discovered != approved_names:
+        details = []
+        missing = sorted(approved_names - discovered)
+        unlisted = sorted(discovered - approved_names)
+        if missing:
+            details.append("missing " + ", ".join(missing))
+        if unlisted:
+            details.append("unlisted " + ", ".join(unlisted))
+        raise KernelCompileError(
+            "Doom profile source membership differs from the approved "
+            f"cohort: {'; '.join(details)}"
+        )
+    return tuple(sorted(approved))
+
+
 def _kernel_input_paths(
     root: Path,
     source_name: str,
+    profile: str,
 ) -> tuple[Path, ...]:
+    if profile != "kernel":
+        paths = {
+            root / source_name,
+            *_profile_header_paths(root, profile),
+        }
+        ordered = []
+        for path in sorted(paths):
+            relative_name = path.relative_to(root).as_posix()
+            if path.is_symlink():
+                raise KernelCompileError(
+                    f"CupidC profile input may not be a symlink: {relative_name}"
+                )
+            try:
+                resolved = path.resolve(strict=True)
+                resolved.relative_to(root)
+            except (OSError, ValueError) as error:
+                raise KernelCompileError(
+                    f"CupidC profile input is unavailable: {relative_name}"
+                ) from error
+            if not resolved.is_file():
+                raise KernelCompileError(
+                    f"CupidC profile input is not a file: {relative_name}"
+                )
+            ordered.append(resolved)
+        return tuple(ordered)
+
     closure = FROZEN_KERNEL_INPUT_CLOSURES.get(source_name)
     if closure is None:
         return ()
@@ -886,6 +1241,131 @@ def _kernel_input_paths(
             )
         paths.append(resolved)
     return tuple(paths)
+
+
+def _profile_input_manifest(root: Path) -> dict[str, object]:
+    source_membership = _doom_source_membership(root)
+    profile_header_paths = {
+        profile: _profile_header_paths(root, profile)
+        for profile in ("doom-compat", "doom-tree")
+    }
+    profile_source_paths = {
+        profile: _profile_source_paths(root, profile)
+        for profile in profile_header_paths
+    }
+    paths = tuple(
+        sorted(
+            {
+                path
+                for members in profile_header_paths.values()
+                for path in members
+            }
+        )
+    )
+    captured = _capture_kernel_inputs(paths)
+    repeated_header_paths = {
+        profile: _profile_header_paths(root, profile)
+        for profile in profile_header_paths
+    }
+    repeated_source_paths = {
+        profile: _profile_source_paths(root, profile)
+        for profile in profile_source_paths
+    }
+    if (
+        _doom_source_membership(root) != source_membership
+        or repeated_header_paths != profile_header_paths
+        or repeated_source_paths != profile_source_paths
+    ):
+        raise KernelCompileError(
+            "Doom profile input membership changed while writing its manifest"
+        )
+    if _capture_kernel_inputs(paths) != captured:
+        raise KernelCompileError(
+            "Doom profile input bytes changed while writing its manifest"
+        )
+
+    relative_names = {
+        path: path.relative_to(root).as_posix() for path in paths
+    }
+    return {
+        "schema": "cupid.doom-profile-inputs.v1",
+        "profiles": {
+            profile: [
+                relative_names[path] for path in members
+            ]
+            for profile, members in profile_header_paths.items()
+        },
+        "sources": {
+            profile: [
+                path.relative_to(root).as_posix() for path in members
+            ]
+            for profile, members in profile_source_paths.items()
+        },
+        "inputs": [
+            {
+                "path": relative_names[path],
+                "bytes": len(captured[path]),
+                "sha256": hashlib.sha256(captured[path]).hexdigest(),
+            }
+            for path in paths
+        ],
+    }
+
+
+def write_profile_input_manifest(root: Path, output: Path) -> bool:
+    """Write the Doom profile input manifest when its content has changed."""
+    root = _root_path(root)
+    candidate = output if output.is_absolute() else root / output
+    if candidate.is_symlink():
+        raise KernelCompileError("profile input manifest may not be a symlink")
+    try:
+        parent = candidate.parent.resolve(strict=False)
+        resolved = (parent / candidate.name).resolve(strict=False)
+        resolved.relative_to(root)
+    except (OSError, ValueError) as error:
+        raise KernelCompileError(
+            f"profile input manifest must stay inside repository root: {output}"
+        ) from error
+    if resolved.suffix != ".json":
+        raise KernelCompileError(
+            "profile input manifest must use the .json suffix"
+        )
+    try:
+        parent.mkdir(parents=True, exist_ok=True)
+    except OSError as error:
+        raise KernelCompileError(
+            f"could not create profile input manifest directory {parent}: "
+            f"{error}"
+        ) from error
+    payload = (
+        json.dumps(
+            _profile_input_manifest(root),
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n"
+    ).encode("utf-8")
+    try:
+        if resolved.is_file() and resolved.read_bytes() == payload:
+            return False
+        with tempfile.NamedTemporaryFile(
+            prefix=f".{resolved.name}.",
+            suffix=".tmp",
+            dir=parent,
+            delete=False,
+        ) as temporary:
+            temporary_path = Path(temporary.name)
+            temporary.write(payload)
+        try:
+            os.replace(temporary_path, resolved)
+        finally:
+            if temporary_path.exists():
+                temporary_path.unlink()
+    except OSError as error:
+        raise KernelCompileError(
+            f"could not publish profile input manifest {resolved}: {error}"
+        ) from error
+    return True
 
 
 def _capture_kernel_inputs(
@@ -928,10 +1408,11 @@ def compile_kernel_source(
     manifest: Path | None = None,
     executor: SeedExecutor | None = None,
     timeout: int | None = None,
+    profile: str = "kernel",
 ) -> None:
     """Compile one approved source and atomically publish a checked object."""
     root = _root_path(root)
-    source, logical_source = _source_path(root, source)
+    source, logical_source = _source_path(root, source, profile)
     output, _logical_output = _output_path(root, output)
     if source == output:
         raise KernelCompileError("output may not replace an approved source")
@@ -945,8 +1426,13 @@ def compile_kernel_source(
     if timeout <= 0:
         raise KernelCompileError("compiler timeout must be positive")
 
-    input_paths = _kernel_input_paths(root, source_name)
+    input_paths = _kernel_input_paths(root, source_name, profile)
     captured_inputs = _capture_kernel_inputs(input_paths)
+    profile_source_membership = (
+        _doom_source_membership(root)
+        if profile != "kernel"
+        else ()
+    )
     manifest_path = (
         manifest.resolve()
         if manifest is not None
@@ -1005,6 +1491,7 @@ def compile_kernel_source(
                     logical_source,
                     logical_temporary,
                     compiler_root,
+                    profile=profile,
                 )
                 try:
                     result = active_executor.run(seed, arguments, timeout)
@@ -1044,11 +1531,25 @@ def compile_kernel_source(
                     ) from error
                 if (
                     captured_inputs
-                    and _capture_kernel_inputs(input_paths)
-                    != captured_inputs
+                    and (
+                        _kernel_input_paths(root, source_name, profile)
+                        != input_paths
+                        or (
+                            profile != "kernel"
+                            and _doom_source_membership(root)
+                            != profile_source_membership
+                        )
+                        or _capture_kernel_inputs(input_paths)
+                        != captured_inputs
+                    )
                 ):
+                    input_label = (
+                        "kernel"
+                        if profile == "kernel"
+                        else f"{profile} profile"
+                    )
                     raise KernelCompileError(
-                        f"kernel inputs changed while compiling "
+                        f"{input_label} inputs changed while compiling "
                         f"{source_name}"
                     )
                 os.replace(temporary_output, output)
@@ -1065,9 +1566,23 @@ def _build_parser() -> argparse.ArgumentParser:
         )
     )
     parser.add_argument("--root", required=True, type=Path)
-    parser.add_argument("--source", required=True, type=Path)
-    parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--source", type=Path)
+    parser.add_argument("--output", type=Path)
     parser.add_argument("--manifest", type=Path)
+    parser.add_argument(
+        "--write-profile-input-manifest",
+        type=Path,
+        help=(
+            "write the content-addressed Doom profile input manifest and "
+            "leave its timestamp unchanged when the input space is unchanged"
+        ),
+    )
+    parser.add_argument(
+        "--profile",
+        choices=tuple(COMPILER_PROFILE_SOURCES),
+        default="kernel",
+        help="fixed production compiler profile",
+    )
     parser.add_argument(
         "--timeout",
         type=int,
@@ -1080,7 +1595,35 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
-    arguments = _build_parser().parse_args(argv)
+    parser = _build_parser()
+    arguments = parser.parse_args(argv)
+    if arguments.write_profile_input_manifest is not None:
+        if arguments.source is not None or arguments.output is not None:
+            parser.error(
+                "--write-profile-input-manifest cannot be combined with "
+                "--source or --output"
+            )
+        try:
+            changed = write_profile_input_manifest(
+                arguments.root,
+                arguments.write_profile_input_manifest,
+            )
+        except KernelCompileError as error:
+            print(
+                f"CupidC profile input manifest failed: {error}",
+                file=sys.stderr,
+            )
+            return 1
+        status = "updated" if changed else "unchanged"
+        print(
+            "CupidC profile input manifest "
+            f"{status}: {arguments.write_profile_input_manifest}"
+        )
+        return 0
+    if arguments.source is None or arguments.output is None:
+        parser.error(
+            "--source and --output are required for a compile operation"
+        )
     try:
         compile_kernel_source(
             arguments.root,
@@ -1088,6 +1631,7 @@ def main(argv: list[str] | None = None) -> int:
             arguments.output,
             manifest=arguments.manifest,
             timeout=arguments.timeout,
+            profile=arguments.profile,
         )
     except KernelCompileError as error:
         print(f"CupidC kernel compile failed: {error}", file=sys.stderr)

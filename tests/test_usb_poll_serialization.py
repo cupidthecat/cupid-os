@@ -19,7 +19,7 @@ class UsbPollSerializationTests(unittest.TestCase):
             encoding="utf-8"
         )
         cls.doom = (
-            ROOT / "kernel" / "doom" / "doomgeneric_cupidos.c"
+            ROOT / "kernel" / "doom" / "doomgeneric_cupidos.cc"
         ).read_text(encoding="utf-8")
         cls.hid = (ROOT / "kernel" / "usb" / "usb_hid.cc").read_text(
             encoding="utf-8"

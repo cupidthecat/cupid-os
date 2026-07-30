@@ -16771,3 +16771,176 @@ gate when a WAD is available.
 
 [ADR 0187](../adr/0187-expand-kernel-and-relocate-external-elf.md) records
 the map, disk boundary, evidence, and rejected alternatives.
+
+## 2026-07-29: transfer Doom to CupidC
+
+The normal Make graph now compiles all 83 Doom and Cupid platform roots
+through the promoted checked seed. Three roots use `doom-compat`; the sound
+adapter and 79 vendored roots use `doom-tree`.
+
+### Source and recipe ownership
+
+All 83 owned sources use `.cc`. The 79 files under `kernel/doom/src/` are
+byte-preserving renames. The four Cupid platform roots have comment-only
+wording updates; their C tokens and behavior are unchanged. `TempleOS/` has
+no changed path.
+
+The compatibility source and object locks are:
+
+| Source | Source bytes | Source SHA-256 | Object bytes | Object SHA-256 |
+| --- | ---: | --- | ---: | --- |
+| `kernel/doom/dglibc.cc` | 22,632 | `00229885ddcd06c12e476cc47cc24a914053d49db9c690c8c8fea7c880b6aa9c` | 27,992 | `54ce387c7eae45d9f4ae379afdaa11092d2dd021d4e9ca7696be5da2ff5d3dcd` |
+| `kernel/doom/doom_libc_stubs.cc` | 8,099 | `808580d6c35388304fa4a07b7c5e0e91ad4687e1a189c3959482f51e17a0ecf8` | 14,352 | `8f667113c54fa0b0d27ce83d134242065ba5b9258324a809e11e72229752ff3b` |
+| `kernel/doom/doomgeneric_cupidos.cc` | 13,521 | `8511fd4035db73fde8147a39a92ff65f50e8097ab6f27d4ca517b9883ff15a3e` | 10,232 | `5274b91dfa7bac56cd83ff0f8096eb5a06fef5e61f91ebb3b80efacc8ad2a9cb` |
+
+The dglibc object changes identity because `__FILE__` now names the `.cc`
+source. Its size and generated code remain fixed. The other two objects keep
+their preceding hashes.
+
+The build graph records the checked wrapper command for every Doom object.
+Dry-run tests poison conventional compiler, assembler, linker, archive,
+symbol, and object-copy commands and find no host tool in any Doom recipe.
+
+### Closed profile inputs
+
+The wrapper owns exact allowlists of three compatibility sources and 80 tree
+sources. It walks the 20 configured include roots and freezes every visible
+`.h` and `.inc` file. The current union contains 289 files.
+
+Each compile copies the selected source and the full header space into one
+private root. The wrapper verifies the seed, compiles under the selected
+profile, validates i386 `ET_REL`, checks the complete 83-source census and live
+bytes again, and publishes only after every check passes. Source and header
+paths reject symbolic links and NTFS junctions at each traversed component.
+
+The census recursively inspects visible `.c` and `.cc` files beneath
+`kernel/doom`. A legacy `.c` file or any unlisted `.cc` file now stops the
+manifest before publication. The negative test writes `legacy.c` under the
+vendored tree and confirms that no manifest appears.
+
+The always-checked `build/bootstrap/doom-cupidc-inputs.json` prerequisite
+records exact source membership, profile header membership, and all 289
+header hashes. Its 68,850 bytes have SHA-256
+`259d7994ba929d6740528eba117bf9586c713a35e9d3edd0b4fae8b82219d87c`.
+An unchanged scan keeps the file timestamp. Tests add and remove a header,
+change and restore a header's bytes, and rename an approved source. Each case
+changes the manifest or stops the normal Make target as required.
+
+The first source-membership regression relied on Make's wildcard alone. A
+removed `am_map.cc` then disappeared from the target set instead of failing.
+Making the exact manifest a prerequisite of the Doom targets and resolving
+membership from the wrapper allowlists closes that gap.
+
+The first closed wrapper rechecked only the selected source and the header
+space. Adding another `.cc` root during a compile could escape that second
+check. The final wrapper compares the complete allowlist union with the live
+83-source census before and after seed execution. Its negative test adds an
+unlisted source during compilation and confirms that the old object survives.
+
+The first manifest test covered header membership but not an in-place byte
+change. Its final form mutates and restores a header and checks the digest and
+timestamp behavior in both directions.
+
+The renamed seed regression initially indexed the first input of every audit
+transform while constructing its exact wrapper predicate. Some transforms
+have no file input. Requiring a nonempty input list before matching the recipe
+fixed the test without weakening source membership.
+
+### Test and audit evidence
+
+The renamed compatibility seed proof passes in 21.531 seconds. The complete
+production-wrapper module passes all 21 tests in 26.273 seconds.
+
+Unchanged `g_game.cc` uses `&mousearray[1]` and `&joyarray[1]` in static
+initializers. Its 51,492-byte checked-seed object has SHA-256
+`c9da48e696eb521441e8bee0a2b69bfdd691db57b7fbbda42450d208e78d9034`.
+The two `.data` `R_386_32` relocations carry addend 4. The validator now
+permits signed absolute addends while retaining the exact -4 rule for
+`R_386_PC32`.
+
+Earlier production checks on the same implementation passed:
+
+| Gate | Result |
+| --- | --- |
+| Full frontend module | 93 tests in 12.688 seconds |
+| Doom tree frontier | 80 objects in 24.865 seconds |
+| Doom compatibility frontier | 3 host/Cupid driver object pairs in 39.475 seconds |
+| Production, freestanding, and USB set | 28 tests in 25.959 seconds |
+| Complete build-graph module | 62 tests in 598.261 seconds |
+
+The complete object module passed all 107 tests in 1,131.760 seconds. It rebuilt
+the hosted tools, repeated the five-tool fixed point, compiled all 80
+Doom-tree roots, compared all three compatibility roots across host-built and
+Cupid-built current compiler drivers, and checked the renamed object locks.
+
+The standalone header sweep reports `header-sweep: ok 156 2`. Its two known
+boundaries remain `kernel/core/scheduler.h:16:37` with `0x0b000007` and
+`kernel/cpu/simd_intrin.h:28:1` with `0x0b000003`.
+
+The regenerated graph contains 716 active sources, 252 feature IDs, 505
+transforms, and 25 accounted unreachable files.
+
+| Record | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `docs/bootstrap/ACTIVE-SOURCE-AUDIT.md` | 12,129 | `56ea4711ed89066c47d97ea1751b0a68c5d29b1ae405347ef5fef038bc5f82a8` |
+| `docs/bootstrap/audits/active-build.json` | 2,503,595 | `ed3d7b043b14b27bcd4f9c3918f4d763351844e9440961a9ef0242c3068ed40c` |
+| `toolchain/tests/cupidc_pp_active_cases.inc` | 39,124 | `5468af617b18fbc3d62207053cab938899a99df86048a5959f0b92083776eb3d` |
+
+The root image graph assigns 242 transforms to CupidC, four to CupidASM, one
+to CupidDis, two to CupidLD, and 182 to CupidObj. It has no host C transform.
+Across the root, user, and hosted Toolchain builds, CupidC owns 245 transforms,
+the host compiler owns 52 hosted transforms, Python participates in 261, and
+Make owns five.
+
+The first current frontend run found stale occurrence locks for `return`,
+`for`, `if`, and `else`. The generated audit and the preceding checked graph
+agree on 21,076 returns, 3,892 `for` statements, 34,961 `if` statements, and
+4,445 `else` clauses. The tests now pin those values. This repairs the drift
+gate without changing compiler behavior.
+
+### Final production image
+
+The final `make -j8 all` run exits successfully. Its artifacts are:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.elf.pass1` | 8,575,688 | `968ffb652b6065bbef005b45b2ac90343367cbc9ab3ac34fd081a92f1f592cfc` |
+| `kernel/cpu/ksyms_data.cc` | 364,195 | `fe08622b91f471492d8320fb82be1aae2e1b5a98666ae78604b6917cef0c14a2` |
+| `kernel/cpu/ksyms_data.o` | 110,272 | `1022442e1d69544092f4ad0d8ad4ca8c85fd824eb83dd6677528d3796bb98115` |
+| `kernel/kernel.elf` | 8,682,184 | `4da26719fe5a88bd7ddef5a434ba99c8d1c62af30c7d9d82182b41c94cce9591` |
+| `kernel/kernel.bin` | 8,482,788 | `28e8630956a79803dd4ee29e67fdbc049fbb848b188daa16f1a0b328b9525ed4` |
+| clean `cupidos.img` | 209,715,200 | `2d0363b58a8319cb858c14e040c53334702dd72dc9856849764e4e0192a3ae29` |
+
+CupidDis reports `_loaded_end` at `0x00916FE4`, `_bss_start` at
+`0x00917000`, and `_kernel_end` at `0x00D3BD5C`. The image payload at LBA 5
+matches the raw kernel. Its 16,568 sectors leave 3,907 sectors before FAT16.
+The raw file keeps 2,000,412 bytes below its cap, while allocated kernel
+memory keeps 1,852,068 bytes below its cap.
+
+The pass-one CupidDis view contributes 4,560 unique text-symbol addresses.
+The generated source packs the 109,857-byte logical symbol blob into i386
+words and adds three zero bytes after the recorded length.
+
+### Runtime evidence and remaining boundary
+
+The final private-image runtime gates are:
+
+| NIC and gate | Log bytes | Log SHA-256 | Result |
+| --- | ---: | --- | --- |
+| e1000 complete frontier | 83,300 | `971a7b40621e35920304c8cbfd3140f668b0dff16f259b47444ed66b9caa63f7` | 51,044 changed pixels; 7,477,683 AC97 frames and 75,901 PC-speaker frames; SMP, network, command, and USB replug contracts pass |
+| RTL8139 complete frontier | 77,125 | `a6659d20d6b11a4828c2e684b9b0a36d699fac6ee6d2585a61212f9534ac96cd` | 73,682 changed pixels; 7,435,844 AC97 frames and 79,127 PC-speaker frames; SMP, network, command, and USB replug contracts pass |
+| e1000 Doom recovery | 139,396 | `b1e5a3bdb3d5fdae4d21605e01327571ff99798b5f4794b82ac7d6734fc69504` | no-WAD guidance, missing-IWAD error, return to shell, then CupidC-built `ls` |
+| RTL8139 Doom recovery | 128,902 | `2256539f8708844ba9142a1b7ef23ab2ada166b44c4fa8154e855564122ed623` | no-WAD guidance, missing-IWAD error, return to shell, then CupidC-built `ls` |
+
+All four runs use the final image with SHA-256
+`2d0363b58a8319cb858c14e040c53334702dd72dc9856849764e4e0192a3ae29`.
+None of the logs contains a panic or corruption marker. The repository and
+current image contain no IWAD. Gameplay, game input, game audio, and save
+behavior require a separately staged IWAD and remain outside this evidence.
+
+The first final-image launch ran all four VMs together. Both recovery logs
+reached their markers, and the frontier harnesses continued after the
+360-second outer allowance killed their parent shells. Their exit states were
+lost, so none of those runs is counted. Repeating two frontier VMs and then
+two recovery VMs preserved all four successful exit codes without changing
+the guest checks.

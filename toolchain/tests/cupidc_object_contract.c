@@ -1526,7 +1526,7 @@ static int active_object_sources_are_unchanged(ctool_job_t *job) {
              "the active sleep helper changed", active_sleep,
              active_sleep_crlf) &&
          active_source_contains(
-             job, "/kernel/doom/src/d_main.c",
+             job, "/kernel/doom/src/d_main.cc",
              "load active Doom display source",
              "the active Doom tick loop changed", active_doom_tick_loop,
              active_doom_tick_loop_crlf) &&
@@ -18296,7 +18296,7 @@ static int bit_field_promotion_active_sources_are_unchanged(
     (void)fprintf(stderr, "the active Doom color declaration changed\n");
     return 0;
   }
-  path.text = ctool_string("/kernel/doom/src/i_video.c");
+  path.text = ctool_string("/kernel/doom/src/i_video.cc");
   (void)memset(&source, 0xa5, sizeof(source));
   status = ctool_job_load_source(job, &path, &source);
   if (!check_status(status, CTOOL_OK,
@@ -19001,7 +19001,7 @@ static int run_bit_field_store_object(const char *host_root) {
           "the active Doom color record changed", "struct color {",
           NULL) ||
       !active_source_contains(
-          job, "/kernel/doom/src/i_video.c",
+          job, "/kernel/doom/src/i_video.cc",
           "load active Doom video source",
           "the active Doom bit-field write changed",
           "colors[i].r = gammatable[usegamma][*palette++];", NULL) ||

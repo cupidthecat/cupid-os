@@ -1526,7 +1526,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             contract = generated["contracts"][
                 "c_preprocessor_line_directives"
             ]
-            self.assertEqual(contract["source_files"], 668)
+            self.assertEqual(contract["source_files"], 685)
             self.assertEqual(contract["named_line_occurrences"], 0)
             self.assertEqual(contract["direct_line_occurrences"], 0)
             self.assertEqual(contract["pp_token_line_occurrences"], 0)
@@ -1547,7 +1547,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertIn(
                 "`c_preprocessor_line_directives` | `pass` | "
                 "0 named #line directives (0 direct, 0 pp-token; 0 filename); "
-                "0 numeric markers; 668 source files; max conditional depth 0",
+                "0 numeric markers; 685 source files; max conditional depth 0",
                 summary.read_text(encoding="utf-8"),
             )
 
@@ -2437,9 +2437,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 checked["contracts"]["c_preprocessor_include_operands"],
                 contract,
             )
-            self.assertEqual(contract["source_files"], 668)
-            self.assertEqual(contract["include_occurrences"], 2382)
-            self.assertEqual(contract["direct_quoted_occurrences"], 2150)
+            self.assertEqual(contract["source_files"], 685)
+            self.assertEqual(contract["include_occurrences"], 2390)
+            self.assertEqual(contract["direct_quoted_occurrences"], 2158)
             self.assertEqual(contract["direct_angle_occurrences"], 232)
             self.assertEqual(contract["pp_token_operand_occurrences"], 0)
 
@@ -3044,8 +3044,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ("KERNEL_I386", "/kernel/audio/memio.cc"),
             ("KERNEL_I386", "/kernel/audio/mus2midi.cc"),
             ("KERNEL_I386", "/kernel/audio/nuked_opl3.cc"),
-            ("DOOM_TREE_I386", "/kernel/doom/i_sound_cupidos.c"),
-            ("DOOM_TREE_I386", "/kernel/doom/src/d_main.c"),
+            ("DOOM_TREE_I386", "/kernel/doom/i_sound_cupidos.cc"),
+            ("DOOM_TREE_I386", "/kernel/doom/src/d_main.cc"),
             ("USER_I386", "/user/examples/hello.cc"),
             ("CUPID_RUNTIME", "/bin/browser.cc"),
             ("HOSTED_TOOLCHAIN_64", "/toolchain/ctool.cc"),
@@ -3992,6 +3992,58 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         ):
             module._c_preprocessor_profile_for_c_transform(".", changed)
 
+        doom_compat = {
+            "output": "kernel/doom/dglibc.o",
+            "inputs": [
+                "kernel/doom/dglibc.cc",
+                "kernel/doom/dglibc.h",
+            ],
+            "tools": ["cupid_c_compiler", "host_python"],
+            "operation": "compile_c_to_elf32_object",
+            "recipe": [
+                "$(CUPIDC_KERNEL_COMPILE) --profile doom-compat "
+                "--source kernel/doom/dglibc.cc "
+                "--output kernel/doom/dglibc.o"
+            ],
+        }
+        self.assertEqual(
+            module._c_preprocessor_profile_for_c_transform(
+                ".", doom_compat
+            ),
+            "DOOM_COMPAT_I386",
+        )
+
+        doom_tree = {
+            "output": "kernel/doom/src/am_map.o",
+            "inputs": [
+                "kernel/doom/src/am_map.cc",
+                "kernel/doom/src/am_map.h",
+            ],
+            "tools": ["cupid_c_compiler", "host_python"],
+            "operation": "compile_c_to_elf32_object",
+            "recipe": [
+                "$(CUPIDC_KERNEL_COMPILE) --profile doom-tree "
+                "--source $< --output $@"
+            ],
+        }
+        self.assertEqual(
+            module._c_preprocessor_profile_for_c_transform(".", doom_tree),
+            "DOOM_TREE_I386",
+        )
+
+        wrong_doom_profile = dict(doom_compat)
+        wrong_doom_profile["recipe"] = [
+            "$(CUPIDC_KERNEL_COMPILE) --profile doom-tree "
+            "--source kernel/doom/dglibc.cc "
+            "--output kernel/doom/dglibc.o"
+        ]
+        with self.assertRaisesRegex(
+            module.AuditError, r"wrapper arguments differ"
+        ):
+            module._c_preprocessor_profile_for_c_transform(
+                ".", wrong_doom_profile
+            )
+
     def test_checked_cupidc_active_manifest_classifies_non_roots_and_hosted(self):
         lines = ACTIVE_CASE_MANIFEST.read_text(encoding="utf-8").splitlines()
         include_only_pattern = re.compile(
@@ -4254,10 +4306,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(
                 audit_payload["summary"],
                 {
-                    "active_sources": 699,
-                    "features": 253,
-                    "transforms": 504,
-                    "unreachable_sources": 42,
+                    "active_sources": 716,
+                    "features": 252,
+                    "transforms": 505,
+                    "unreachable_sources": 25,
                 },
             )
             features = {
@@ -4344,7 +4396,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "toolchain/elf32.cc",
                 "toolchain/x86.cc",
             }
-            self.assertEqual(len(checked_cupidc_roots), 159)
+            self.assertEqual(len(checked_cupidc_roots), 242)
             self.assertEqual(
                 {
                     path
@@ -4361,7 +4413,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     Path(path).suffix == ".cc"
                     for path in checked_cupidc_roots
                 ),
-                159,
+                242,
             )
             symbol_transform = root_transform_by_output[
                 "kernel/cpu/ksyms_data.cc"
@@ -4744,9 +4796,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     )
                 },
                 {
-                    "cupid_c_compiler": 162,
-                    "host_c_compiler": 135,
-                    "host_python": 177,
+                    "cupid_c_compiler": 245,
+                    "host_c_compiler": 52,
+                    "host_python": 261,
                 },
             )
 
@@ -4755,7 +4807,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 for cohort in audit_payload["roadmap"]["source_cohort_order"]
                 if cohort["id"] == "toolchain_sources"
             )
-            self.assertEqual(toolchain_cohort["source_count"], 70)
+            self.assertEqual(toolchain_cohort["source_count"], 71)
             user_program_cohort = next(
                 cohort
                 for cohort in audit_payload["roadmap"]["source_cohort_order"]
@@ -4798,15 +4850,15 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "toolchain/cupidc_emit.cc":
                     ("toolchain_core", "CupidC"),
                 "toolchain/cupidc_emit.h":
-                    ("toolchain_core", None),
+                    ("toolchain_core", "CupidC"),
                 "toolchain/cupidc_frontend.cc":
                     ("toolchain_core", "CupidC"),
                 "toolchain/cupidc_frontend.h":
-                    ("toolchain_core", None),
+                    ("toolchain_core", "CupidC"),
                 "toolchain/cupidc_ir.cc":
                     ("toolchain_core", "CupidC"),
                 "toolchain/cupidc_ir.h":
-                    ("toolchain_core", None),
+                    ("toolchain_core", "CupidC"),
                 "toolchain/cupidc_main.cc":
                     ("toolchain_core", "CupidC"),
                 "toolchain/hosted/i386-linux/runtime.cc":

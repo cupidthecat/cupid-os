@@ -100,9 +100,9 @@ Demo: bin/feature4_forward_calls.cc
 [Run feature4_forward_calls](shell:feature4_forward_calls)
 >endtree
 
->h2 Hosted Doom Compatibility
->tree open Hosted Doom Compatibility
-The hosted bootstrap compiler has an explicit --doom-compat profile for the
+>h2 Doom Compatibility
+>tree open Doom Compatibility
+CupidC has an explicit --doom-compat profile for the
 vendored Doom source. It represents a bare call made before any declaration
 as an old-style external int() function. Calls parsed before a later prototype
 keep the usual default argument promotions. The profile also marks the eleven
@@ -116,12 +116,17 @@ union initialization and ordinary narrow bit-field promotion close the other
 two audited source boundaries. The checked seed now emits all 80 Doom-tree
 objects.
 
-The checked seed also emits the three compatibility roots. It preserves the
-explicit static string cast in doom_libc_stubs.c and emits the exact
+The production wrapper also emits the three compatibility roots. It preserves
+the explicit static string cast in doom_libc_stubs.cc and emits the exact
 dg_setjmp and dg_longjmp block through Cupid's x86 model. Two seed compiles
-agree on those three objects. The normal Doom build stays on its host recipe
-until the host and Cupid link boundaries compare, the sources move to .cc,
-and runtime proof is complete.
+agree on those three objects. All 83 Doom and platform sources use .cc and
+compile through the checked seed. The wrapper freezes the selected source and
+all 289 profile headers before it publishes an object. Its exact source
+memberships make a missing, renamed, or unlisted root fail the normal build.
+It scans visible .c and .cc files beneath the Doom tree before publication, so
+a legacy .c file or an unlisted .cc file also fails. Four-CPU e1000 and RTL8139
+boots pass the no-WAD, missing-IWAD recovery, shell-survival, and full frontier
+checks. Gameplay still needs a staged WAD.
 >endtree
 
 >h2 Feature 5: Print Builtin

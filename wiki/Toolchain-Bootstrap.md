@@ -56,9 +56,8 @@ copy in a mode-0700 WSL directory created by `mktemp`. Native Windows seed
 executables are not available yet.
 
 This seed makes the hosted static toolchain reproducible from a clean checkout.
-It does not complete the normal OS build migration. Native contract runners,
-hosted development commands, and 83 normal C root objects still use a host C
-compiler.
+Native contract runners and hosted development commands still use a host C
+compiler. Normal OS objects do not.
 
 The production boot source assembles to an exact 2,560-byte image with SHA-256
 `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3`.
@@ -248,25 +247,29 @@ and Cupid-built driver. That command reproduces both complete audited Doom
 preprocessing profiles without editing vendored source. It also
 retains the sound driver's empty volatile memory barrier without emitting an
 instruction. An integer-only IEEE evaluator folds the unchanged static
-fixed-point table in `kernel/doom/src/am_map.c` without a host floating
+fixed-point table in `kernel/doom/src/am_map.cc` without a host floating
 operation. A one-active-member union initializer also emits unchanged
-`kernel/doom/src/info.c`. An explicit `--doom-compat` switch represents the
-five calls in `i_system.c` that precede a declaration and permits the eleven
+`kernel/doom/src/info.cc`. An explicit `--doom-compat` switch represents the
+five calls in `i_system.cc` that precede a declaration and permits the eleven
 audited, bit-preserving conversions between unqualified function pointers and
 unqualified four-byte data or `void` pointers. Strict C and plain GNU mode
 still reject those implicit conversions, and explicit function/data casts
 remain outside Linear IR. The checked seed retains member provenance while
 narrow `unsigned int` color fields promote to signed `int` in unchanged
-`kernel/doom/src/i_video.c`. It now emits all 80 Doom-tree objects. The
-checked seed carries this complete tree frontier.
+`kernel/doom/src/i_video.cc`. It emits all 80 Doom-tree objects.
 
-The seed also emits the three separate compatibility roots. It keeps the
-explicit static string cast in `doom_libc_stubs.c` and emits the exact
+The production wrapper also emits the three compatibility roots. It keeps the
+explicit static string cast in `doom_libc_stubs.cc` and emits the exact
 `dg_setjmp` and `dg_longjmp` file-scope block through Cupid's x86 model. A
 second checked-seed compile matches the first for all three objects. The
-checked compiler frontier is 83/83, but no Doom recipe moves until the host
-and Cupid link boundaries compare, the owned roots move to `.cc`, and runtime
-proof passes.
+normal graph owns all 83 roots through CupidC, and every source uses `.cc`.
+The wrapper fixes exact three-source and 80-source allowlists and freezes the
+complete 289-file header space. Its input manifest detects source removal,
+while the wrapper recursively checks visible `.c` and `.cc` files and live
+bytes before publication. A legacy `.c` file, an unlisted `.cc` file, header
+drift, a symbolic link, or an NTFS junction fails closed. The 51,492-byte
+`g_game.cc` object keeps two `R_386_32` relocations
+with addend 4. Full IWAD gameplay remains a separate runtime gate.
 
 The checked seed resolves the C11 inline declaration set in
 `kernel/audio/nuked_opl3.cc`. The ordinary declaration in its header means
@@ -327,13 +330,13 @@ expressions in source order. It also keeps all target bits through represented
 function-pointer casts and supports bounded output-only register and EFLAGS
 snapshots. The checked production wrapper now compiles the generated
 `kernel/cpu/ksyms_data.cc` root. The generator writes little-endian
-`unsigned int` words and records the logical 106,259-byte blob length
+`unsigned int` words and records the logical 109,857-byte blob length
 separately. It runs private snapshots of the pass-one kernel and CupidDis,
 rejects malformed symbol rows, an empty text-symbol set, and live input
 drift, then replaces the `.cc` source atomically. The checked compiler
 wrapper freezes that source and its header closure before it publishes the
-object. The word array ends with one zero pad byte. The final kernel
-consumes 4,420 text symbols and shows no address drift from the pass-one
+object. The word array ends with three zero pad bytes. The final kernel
+consumes 4,560 text symbols and shows no address drift from the pass-one
 kernel.
 
 The checked seed emits the exact volatile
@@ -396,16 +399,19 @@ illegal-instruction failure markers. The X.509 checks exercise parser,
 hostname, chain state, and embedded-root lookup paths. They are not a full
 trust-validation claim.
 
-Across the root and supplemental builds, the current audit assigns 162
-transforms to CupidC, 135 to the host C compiler, 177 to host Python, and five
-to Make.
-CupidC's total is the 156 normal transforms plus three generated installation
-tables and the `hello.cc`, `ls.cc`, and `cat.cc` programs. The host compiler
-still produces 83 root objects and still builds the native user drivers.
-The fifth Make transform prepares those drivers. Two Python transforms keep
-the ISO runtime fixture in the normal image dependency graph.
+Across the root and supplemental builds, the current audit assigns 245
+transforms to CupidC, 52 to the host C compiler, 261 to host Python, and five
+to Make. CupidC's total is 239 normal transforms plus three generated
+installation tables and the `hello.cc`, `ls.cc`, and `cat.cc` programs. The
+host compiler's transforms belong to the hosted Toolchain build. The
+442-transform root image graph has no host C transform.
 The checked audit uses the canonical Windows Make branch and C locale on
 every host. Direct Linux builds test the separate Linux execution branch.
+
+The production Doom runtime proof uses private four-CPU images on e1000 and
+RTL8139. Both NICs pass the full frontier, print the no-WAD guidance, recover
+from `doom -iwad /disk/missing.wad`, and complete a later CupidC-built `ls`.
+The checkout has no WAD, so this evidence stops before gameplay.
 
 ### GNU named assembly operands
 

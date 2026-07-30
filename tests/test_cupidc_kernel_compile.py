@@ -2107,6 +2107,12 @@ class KernelCompileOperationTests(unittest.TestCase):
         ):
             kernel_compile.validate_i386_relocatable(path)
 
+    def test_public_validator_accepts_a_nonzero_absolute_addend(self):
+        image = bytearray(_valid_elf32_object())
+        struct.pack_into("<i", image, 52, 4)
+
+        kernel_compile.validate_i386_relocatable_bytes(image)
+
     def test_public_validator_accepts_a_data_only_relocatable_object(self):
         kernel_compile.validate_i386_relocatable_bytes(
             _data_only_elf32_object()

@@ -311,25 +311,31 @@ the previous output.
 
 Empty volatile extended assembly with one `memory` clobber remains an IR
 ordering point and emits no instruction bytes. The explicit `--doom-compat`
-switch gives the five audited calls in `i_system.c` old-style
+switch gives the five audited calls in `i_system.cc` old-style
 `extern int name()` declarations and permits eleven audited, bit-preserving
 conversions between unqualified function pointers and unqualified four-byte
 data or `void` pointers. Strict C and plain GNU mode still reject those
 implicit conversions, and explicit function/data casts remain outside Linear
-IR. One-active-member union initialization compiles unchanged `info.c`, while
-ordinary narrow bit-field promotion compiles unchanged `i_video.c`. The
+IR. One-active-member union initialization compiles unchanged `info.cc`, while
+ordinary narrow bit-field promotion compiles unchanged `i_video.cc`. The
 checked seed emits all 80 audited Doom-tree objects.
 
-The checked seed completes the three-root compatibility frontier. It retains the
-explicit static string cast in `doom_libc_stubs.c` and emits the exact
+The production wrapper completes the three-root compatibility frontier. It
+retains the explicit static string cast in `doom_libc_stubs.cc` and emits the exact
 `dg_setjmp` and `dg_longjmp` block through Cupid's x86 model. Two seed compiles
-produce byte-identical objects for all three roots. Doom remains host-owned
-until the host and Cupid link boundaries compare, the sources move to `.cc`,
-and the runtime proof passes.
+produce byte-identical objects for all three roots. All 83 sources use `.cc`
+and the normal graph compiles them through the checked seed. The wrapper fixes
+the exact source memberships, freezes all 289 profile headers, and rechecks
+the visible `.c` and `.cc` tree before publishing each object. A legacy `.c`
+file or unlisted `.cc` file fails the closed scan. The validator also accepts
+the two static-subobject `R_386_32` addends of 4 in unchanged `g_game.cc`, while
+direct-call `R_386_PC32` relocations remain fixed at -4. Private four-CPU
+boots pass the full frontier, no-WAD, missing-IWAD recovery, and shell-survival
+checks on e1000 and RTL8139. Full IWAD gameplay remains a runtime boundary.
 
 The five static i386 Linux tools have a checked seed. The manifest binds their hashes, sizes, target ABI, source revision, producer lineage, 19-source plan, and five link orders. The current CupidC image is the 2,528,332-byte stage-three output from revision `af4644177c033eebda164d7893074315439df119`, with SHA-256 `f53989572cd1564a8bf91059552868ee43a1d80905986b58cd97d44949aab3a1`. It carries the complete 83-root Doom frontier, current GNU entity metadata, x87 and SSE forms, descriptor and segment assembly, every unchanged assembly effect in `libm.cc`, the exact dglibc jump block, pointer-preserving static address casts, exact naked IPI entries, the kernel-entry BSS clear with a nonzero page-aligned stack top, and the active packed SSE2 statements. Its plan uses `.cc` for all 19 C roots and has SHA-256 `59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`.
 
-The bootstrap copies the 40-input source closure into a private compiler root. Both rebuilt stages compile from that root, and the harness checks the private and live closures at each stage and behavior boundary. The checked seed, stage two, and stage three all contain the same five tool images. The two rebuilt stages also match every C and startup object and agree on all five help paths, ten successful operations, and six failure cases. Their stage directories, behavior evidence, and report are published together only after the complete gate passes. See [Toolchain Bootstrap](Toolchain-Bootstrap) for the commands and report layout. Native contract runners, hosted development commands, and 83 normal Cupid OS root objects still come from a host compiler.
+The bootstrap copies the 40-input source closure into a private compiler root. Both rebuilt stages compile from that root, and the harness checks the private and live closures at each stage and behavior boundary. The checked seed, stage two, and stage three all contain the same five tool images. The two rebuilt stages also match every C and startup object and agree on all five help paths, ten successful operations, and six failure cases. Their stage directories, behavior evidence, and report are published together only after the complete gate passes. See [Toolchain Bootstrap](Toolchain-Bootstrap) for the commands and report layout. Native contract runners and hosted development commands still come from a host compiler. Normal OS objects do not.
 
 Supported direct and indirect calls put ESP on a sixteen-byte boundary immediately before `call`. The emitter chooses zero, four, eight, or twelve bytes of padding from the function frame, live Linear IR stack, and outgoing target-sized argument area. Prototyped, variadic, unprototyped, nested, structure, and wide calls follow the same rule.
 
@@ -343,7 +349,7 @@ Block-scope `struct` and `union` tags follow lexical C scope. The shared fronten
 
 A block-scope `extern` object keeps a lexical alias to one canonical linked object. Compatible repeats share identity, an incomplete array can be completed, and a visible file-scope `static` object keeps internal linkage. The declaration creates no automatic storage or runtime IR. Block typedefs also follow the ordinary identifier scope. They retain stable scalar, record, or function types, allow exact same-type repetition and nested shadowing, and create no runtime IR or ELF record.
 
-A block function declaration keeps a lexical alias and visible type alongside one canonical linked function. Plain and `extern` forms share compatible identity. A visible prior declaration contributes to the alias's composite type, but an expired sibling prototype does not change the type seen by a later old-style declaration. A visible file-scope `static` function keeps internal linkage, while a function introduced only in a block stays out of file lookup until a later file declaration publishes it. The declaration emits no runtime IR or storage. Direct calls use `R_386_PC32`, and function addresses use `R_386_32`. Active-source guards cover 27 declarations across nine files. The exact Doom profile still parses all of `kernel/doom/src/d_main.c`, including its local `forwardmove` and `sidemove` declarations.
+A block function declaration keeps a lexical alias and visible type alongside one canonical linked function. Plain and `extern` forms share compatible identity. A visible prior declaration contributes to the alias's composite type, but an expired sibling prototype does not change the type seen by a later old-style declaration. A visible file-scope `static` function keeps internal linkage, while a function introduced only in a block stays out of file lookup until a later file declaration publishes it. The declaration emits no runtime IR or storage. Direct calls use `R_386_PC32`, and function addresses use `R_386_32`. Active-source guards cover 27 declarations across nine files. The exact Doom profile still parses all of `kernel/doom/src/d_main.cc`, including its local `forwardmove` and `sidemove` declarations.
 
 Block enums keep each enumerator in the ordinary lexical binding stream. A later enumerator can use an earlier value, nested tags and constants shadow their outer names, and scope exit restores those names. Definitions work in declarations, record members, function-definition parameter lists, and block type names. Function prefixes and expression or initializer activation records preserve the exact point where each name becomes visible. Linear IR checks that lexical order before lowering runtime control flow, including type names in case values, loop headers, variadic reads, aggregate designators, and compound literals. Represented uses become integer constants, so enums need no frame slot, symbol, relocation, or runtime declaration instruction. File and block enumerators also feed static floating arithmetic, comparison, and conditional expressions. This covers the cursor constants in the production CupidC-built `kernel/gui/desktop.cc` object; the REPL limits remain a separate active guard in `kernel/lang/shell.cc`. Block declaration attributes, nested function definitions, nonempty identifier lists, atomic variadic access, aggregate arguments without declared parameter types, and aggregate variadic reads remain unfinished.
 
@@ -486,17 +492,17 @@ The existing `__FILE__` diagnostic accounts for the new hash.
 
 Static-duration and variable-length compound literals, the named-aggregate backward-jump alias case, explicit bit-field initializer leaves, Boolean mutation, atomic variadic access, aggregate arguments without declared parameter types, aggregate variadic reads, wide strings, literal pooling, and block-static addresses in other block-static initializers also remain unfinished in the shared path.
 
-Across the root and supplemental builds, the checked CupidC seed owns 162 C
-transforms. Its normal cohort has 156 transforms: 155 checked-in sources plus
-the generated `kernel/cpu/ksyms_data.cc` source. All 156 sources use `.cc`.
+Across the root and supplemental builds, CupidC owns 245 C transforms. Its
+normal cohort has 239 transforms: 238 checked-in sources plus the generated
+`kernel/cpu/ksyms_data.cc` source. All 239 sources use `.cc`.
 The five shared Toolchain roots also belong to the 19-source i386 Linux
 fixed-point plan, and native GCC or Clang rules select C with `-x c`. ADRs
 0124 and 0126 record the first two naming steps, ADR 0129 records the lexer
 transfer, ADR 0135 records the Nuked OPL3 transfer, ADR 0139 records the JPEG
 and glyph-raster transfer, ADR 0167 records the FPU and SMP transfer, and ADR
 0176 records the libm transfer, ADR 0180 records the kernel entry and SIMD
-transfer, and ADR 0181 records the string transfer. No strict checked-in
-kernel or driver root remains host-owned.
+transfer, ADR 0181 records the string transfer, and ADR 0184 records the Doom
+transfer. No checked-in normal root remains host-owned.
 Three generated installation tables and the `hello.cc`, `ls.cc`, and
 `cat.cc` programs account for the other six CupidC transforms.
 
@@ -515,8 +521,8 @@ JPEG decode, the desktop, terminal, and in-OS CupidC execution. Both runs
 print `[fpu] SSE2 enabled`, `[fpu] boot smoke ok`, and
 `FPU boot smoke passed`, then finish
 `feature16_asm_fpu.cc`. The generated symbol source stores a logical
-106,259-byte blob as little-endian `unsigned int` words with one trailing
-pad byte.
+109,857-byte blob as little-endian `unsigned int` words with three trailing
+pad bytes.
 
 Forced poisoned-host builds cover every production wrapper recipe, and each
 recipe declares its exact recursive header closure. A valid data-only object
@@ -526,8 +532,8 @@ Cupid's x86 model while preserving EBX. The combined four-vCPU GUI gate reaches
 SMP, all 62 crypto checks, e1000 traffic, the desktop, terminal, and CupidC
 execution at `0x01100000`. A separate gate loads and reaps the same
 external program twice at `0x01C00000`. ADR 0124 records the exact build and
-runtime evidence. The host C compiler owns 135
-transforms and 83 root objects. Host Python owns 177 transforms. The private
+runtime evidence. The host C compiler owns 52 hosted Toolchain transforms and
+no root image object. Host Python participates in 261 transforms. The private
 in-kernel CupidC compiler still handles embedded runtime compilation.
 
 The checked seed decides C11 inline linkage from the complete file-scope
@@ -541,7 +547,7 @@ finalization, while a pure external inline definition remains unsupported
 during lowering. The closed production recipe, frontier, image builds, and
 dual-NIC runtime gates pass.
 
-CupidC also accepts operand-free GNU assembly inside functions. Basic statements and extended statements with an empty output list are implicitly volatile. Exact sequences of PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT emit without a temporary frame slot or EBX traffic. These semantics serve the four normal-build e1000, desktop, socket, and TCP objects. The checked seed also keeps an exact empty volatile extended template with one `memory` clobber as an IR ordering point and emits no instruction bytes. That form compiles the unchanged Doom sound driver, though its build recipe remains host-owned pending the broader Doom handoff.
+CupidC also accepts operand-free GNU assembly inside functions. Basic statements and extended statements with an empty output list are implicitly volatile. Exact sequences of PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT emit without a temporary frame slot or EBX traffic. These semantics serve the four normal-build e1000, desktop, socket, and TCP objects. The checked seed also keeps an exact empty volatile extended template with one `memory` clobber as an IR ordering point and emits no instruction bytes. That form compiles the unchanged Doom sound driver through its production CupidC recipe.
 
 File-scope GNU basic assembly has a separate translation-unit representation
 in the checked seed. The frontend owns immutable templates outside the function

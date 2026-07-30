@@ -85,7 +85,8 @@ CFLAGS=$(CC_TARGET) -m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc -ffre
 	-mfpmath=sse -msse -msse2 -mstackrealign -fno-omit-frame-pointer \
        -DDEBUG -pedantic -Werror -Wall -Wextra -Wshadow -Wpointer-arith -Wcast-qual -Wstrict-prototypes \
        -Wmissing-prototypes -Wconversion -Wsign-conversion -Wwrite-strings $(EXTRA_CFLAGS) $(CLANG_COMPAT_CFLAGS)
-# Relaxed flags for vendored / DOOM-tree code that won't pass our strict gates
+# These legacy flag records define the audited Doom preprocessing profiles.
+# Production Doom recipes below use the equivalent fixed CupidC profiles.
 CFLAGS_DOOM := $(CC_TARGET) -m32 -fno-pie -fno-stack-protector -nostdlib -nostdinc \
                -ffreestanding $(FREESTANDING_CODEGEN_CFLAGS) -c $(KERNEL_INCLUDES) \
                -I./kernel/doom/src \
@@ -95,8 +96,8 @@ CFLAGS_DOOM := $(CC_TARGET) -m32 -fno-pie -fno-stack-protector -nostdlib -nostdi
                -Wno-implicit-function-declaration \
                -Wno-sign-compare -Wno-strict-prototypes \
                -Wno-unused-parameter $(CLANG_COMPAT_CFLAGS)
-# DOOM source tree flags — extends CFLAGS_DOOM with the dglibc_compat.h alias
-# header and extra suppressions needed for the DOOM upstream source files.
+# The source-tree record adds the dglibc compatibility header and upstream
+# Doom definitions to the shared profile.
 CFLAGS_DOOM_TREE := $(CFLAGS_DOOM) \
                -include kernel/doom/dglibc_compat.h \
                -Wno-unused-variable -Wno-type-limits \
@@ -636,7 +637,7 @@ kernel/audio/nuked_opl3.o: kernel/audio/nuked_opl3.cc \
 	$(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/audio/nuked_opl3.cc --output kernel/audio/nuked_opl3.o
 
-# mus2midi + memio — vendored GPL-2, built with relaxed CFLAGS_DOOM
+# Vendored GPL-2 mus2midi and memio sources compiled by checked CupidC
 kernel/audio/memio.o: kernel/audio/memio.cc kernel/audio/memio.h kernel/core/string.h kernel/core/types.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/audio/memio.cc --output kernel/audio/memio.o
 
@@ -651,16 +652,36 @@ kernel/audio/midiopl.o: kernel/audio/midiopl.cc drivers/serial.h kernel/audio/mi
 kernel/audio/opl_smoke.o: kernel/audio/opl_smoke.cc drivers/serial.h kernel/audio/ac97.h kernel/audio/mixer.h kernel/audio/nuked_opl3.h kernel/audio/opl_smoke.h kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/audio/opl_smoke.cc --output kernel/audio/opl_smoke.o
 
-# dglibc — DOOM libc shim (heap/string/stdio/fmt/setjmp) built with relaxed CFLAGS_DOOM
-kernel/doom/dglibc.o: kernel/doom/dglibc.c kernel/doom/dglibc.h kernel/core/types.h \
+# The wrapper freezes every configured include root. Make tracks that same
+# complete header search space, including headers not selected by this source.
+DOOM_CUPIDC_HEADERS := $(wildcard drivers/*.h kernel/*.h kernel/*/*.h \
+	                         kernel/doom/src/*.h \
+	                         kernel/doom/src/include_stubs/*.h \
+	                         kernel/doom/src/include_stubs/*/*.h \
+	                         toolchain/*.h \
+	                         toolchain/hosted/i386-linux/include/*.h \
+	                         toolchain/tests/*.h toolchain/tests/*.inc)
+DOOM_CUPIDC_INPUT_MANIFEST := build/bootstrap/doom-cupidc-inputs.json
+
+# FORCE makes the profile scan run on every build. The writer retains the
+# manifest timestamp unless header membership or content has changed.
+$(DOOM_CUPIDC_INPUT_MANIFEST): FORCE $(DOOM_CUPIDC_HEADERS) Makefile \
+	tools/cupidc_kernel_compile.py
+	$(PYTHON) tools/cupidc_kernel_compile.py --root . \
+		--write-profile-input-manifest $@
+
+# dglibc: DOOM libc shim (heap/string/stdio/fmt/setjmp)
+kernel/doom/dglibc.o: kernel/doom/dglibc.cc kernel/doom/dglibc.h kernel/core/types.h \
                       kernel/mm/memory.h kernel/fs/vfs.h kernel/core/string.h \
-                      drivers/serial.h drivers/timer.h
-	$(CC) $(CFLAGS_DOOM) -o $@ $<
+                      drivers/serial.h drivers/timer.h $(DOOM_CUPIDC_HEADERS) \
+                      $(DOOM_CUPIDC_INPUT_MANIFEST) \
+                      $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --profile doom-compat --source kernel/doom/dglibc.cc --output kernel/doom/dglibc.o
 
 KERNEL_OBJS += kernel/doom/dglibc.o
 
-# doomgeneric cupidos platform shim (Task 13)
-kernel/doom/doomgeneric_cupidos.o: kernel/doom/doomgeneric_cupidos.c \
+# doomgeneric cupidos platform shim
+kernel/doom/doomgeneric_cupidos.o: kernel/doom/doomgeneric_cupidos.cc \
                                     kernel/doom/doomgeneric_cupidos.h \
                                     kernel/doom/dglibc.h \
                                     kernel/core/types.h \
@@ -669,36 +690,45 @@ kernel/doom/doomgeneric_cupidos.o: kernel/doom/doomgeneric_cupidos.c \
                                     drivers/serial.h \
                                     drivers/timer.h \
                                     kernel/fs/vfs.h \
-                                    kernel/usb/usb.h
-	$(CC) $(CFLAGS_DOOM) -o $@ $<
+                                    kernel/usb/usb.h \
+                                    $(DOOM_CUPIDC_HEADERS) \
+                                    $(DOOM_CUPIDC_INPUT_MANIFEST) \
+                                    $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --profile doom-compat --source kernel/doom/doomgeneric_cupidos.cc --output kernel/doom/doomgeneric_cupidos.o
 
 KERNEL_OBJS += kernel/doom/doomgeneric_cupidos.o
 
-# doom_libc_stubs — atoi/sscanf/puts/etc. + i_music stubs (SFX moved to Task 16)
-kernel/doom/doom_libc_stubs.o: kernel/doom/doom_libc_stubs.c \
+# doom_libc_stubs: atoi/sscanf/puts/etc. and i_music stubs
+kernel/doom/doom_libc_stubs.o: kernel/doom/doom_libc_stubs.cc \
                                 kernel/core/types.h kernel/core/string.h kernel/doom/dglibc.h \
-                                drivers/serial.h
-	$(CC) $(CFLAGS_DOOM) -o $@ $<
+                                drivers/serial.h $(DOOM_CUPIDC_HEADERS) \
+                                $(DOOM_CUPIDC_INPUT_MANIFEST) \
+                                $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --profile doom-compat --source kernel/doom/doom_libc_stubs.cc --output kernel/doom/doom_libc_stubs.o
 
 KERNEL_OBJS += kernel/doom/doom_libc_stubs.o
 
-# i_sound_cupidos — SFX path: lump cache + mixer bridge (Task 16)
-kernel/doom/i_sound_cupidos.o: kernel/doom/i_sound_cupidos.c \
+# i_sound_cupidos: SFX path, lump cache, and mixer bridge
+kernel/doom/i_sound_cupidos.o: kernel/doom/i_sound_cupidos.cc \
                                 kernel/core/types.h kernel/mm/memory.h \
                                 drivers/serial.h \
                                 kernel/audio/mixer.h \
                                 kernel/doom/src/i_sound.h \
-                                kernel/doom/src/w_wad.h
-	$(CC) $(CFLAGS_DOOM_TREE) -o $@ $<
+                                kernel/doom/src/w_wad.h \
+                                $(DOOM_CUPIDC_HEADERS) \
+                                $(DOOM_CUPIDC_INPUT_MANIFEST) \
+                                $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --profile doom-tree --source kernel/doom/i_sound_cupidos.cc --output kernel/doom/i_sound_cupidos.o
 
 KERNEL_OBJS += kernel/doom/i_sound_cupidos.o
 
-# DOOM source tree — all .c files under kernel/doom/src/
-DOOM_SRC := $(wildcard kernel/doom/src/*.c)
-DOOM_SRC_OBJS := $(DOOM_SRC:.c=.o)
+# Doom source tree
+DOOM_SRC := $(wildcard kernel/doom/src/*.cc)
+DOOM_SRC_OBJS := $(DOOM_SRC:.cc=.o)
 
-kernel/doom/src/%.o: kernel/doom/src/%.c
-	$(CC) $(CFLAGS_DOOM_TREE) -o $@ $<
+kernel/doom/src/%.o: kernel/doom/src/%.cc $(DOOM_CUPIDC_HEADERS) \
+	$(DOOM_CUPIDC_INPUT_MANIFEST) $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --profile doom-tree --source $< --output $@
 
 KERNEL_OBJS += $(DOOM_SRC_OBJS)
 

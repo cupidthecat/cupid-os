@@ -1,7 +1,7 @@
-/* doomgeneric_cupidos.c
- * Task 13: Real CupidOS platform shim for doomgeneric.
+/* doomgeneric_cupidos.cc
+ * Cupid OS platform shim for doomgeneric.
  *
- * Replaces the Task 12 stubs with:
+ * Provides:
  *   DG_DrawFrame  - blits 640x400 ARGB into VBE backbuffer (y=40 letterbox)
  *   DG_GetKey     - drains ring buffer fed by keyboard_subscribe callback
  *   DG_SleepMs    - timer_sleep_ms wrapper
@@ -9,7 +9,7 @@
  *   DG_Init       - registers kbd subscriber, ensures /home/doom exists
  *   doom_main     - entry with dg_setjmp envelope so dg_exit returns to shell
  *
- * Built with CFLAGS_DOOM (no -include dglibc_compat.h).
+ * Compiled through the checked Doom compatibility CupidC profile.
 */
 
 #include "doomgeneric_cupidos.h"
@@ -25,7 +25,7 @@
 extern void process_yield(void);
 
 /* doomgeneric global framebuffer: 640*400 ARGB.
- * Defined inside kernel/doom/src/doomgeneric.c.*/
+ * Defined inside kernel/doom/src/doomgeneric.cc.*/
 extern uint32_t *DG_ScreenBuffer;
 extern void doomgeneric_Tick(void);
 
@@ -136,7 +136,7 @@ void DG_DrawFrame(void) {
  * never yields, so we drain pending USB events ourselves on each timer
  * query / sleep call. Without this, USB-attached keyboards never reach
  * DOOM.*/
-/* Producer for the music ring buffer (defined in i_sound_cupidos.c).
+/* Producer for the music ring buffer (defined in i_sound_cupidos.cc).
  * Synthesises OPL3 audio ahead of the AC97 IRQ on the main thread so
  * the IRQ becomes a pure memcpy.*/
 extern void cup_music_pump(void);
