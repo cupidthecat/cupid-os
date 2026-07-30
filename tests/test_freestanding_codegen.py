@@ -155,14 +155,17 @@ class KernelFpuCodeGenerationContractTests(unittest.TestCase):
 
 
 class FreestandingCodeGenerationPolicyTests(unittest.TestCase):
-    def test_freestanding_objects_disable_unusable_unwind_tables(self):
+    def test_doom_objects_use_the_checked_cupidc_profile(self):
         arguments = _make_compile_command(
             REPO_ROOT,
             "kernel/doom/src/am_map.o",
-            "kernel/doom/src/am_map.c",
+            "kernel/doom/src/am_map.cc",
         )
-        self.assertIn("-fno-asynchronous-unwind-tables", arguments)
-        self.assertIn("-fno-unwind-tables", arguments)
+        self.assertIn("tools/cupidc_kernel_compile.py", arguments)
+        self.assertIn("--profile", arguments)
+        self.assertIn("doom-tree", arguments)
+        self.assertNotIn("-fno-asynchronous-unwind-tables", arguments)
+        self.assertNotIn("-fno-unwind-tables", arguments)
 
     def test_checked_cupidc_freestanding_objects_avoid_host_unwind_flags(self):
         arguments = _make_compile_command(

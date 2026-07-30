@@ -882,29 +882,29 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
 
         expected_objects = {
-            "/kernel/doom/dglibc.c": (
-                22607,
+            "/kernel/doom/dglibc.cc": (
+                22632,
                 814,
-                "1f0d6f52e6b59b3f6364fd1dbdeb0949"
-                "1804409e11fc6932dc86134a39ad2cca",
+                "00229885ddcd06c12e476cc47cc24a91"
+                "4053d49db9c690c8c8fea7c880b6aa9c",
                 27992,
-                "88e3a66488e09ee15769e666971dd34ed"
-                "0fe0707a54f9962f5f7dadbe4fd4224",
+                "54ce387c7eae45d9f4ae379afdaa1109"
+                "2d2dd021d4e9ca7696be5da2ff5d3dcd",
             ),
-            "/kernel/doom/doom_libc_stubs.c": (
-                8168,
-                289,
-                "41ba584dd83a21602d46307837e0966bd"
-                "f1d7087ec832ca57c38882b20ad16b6",
+            "/kernel/doom/doom_libc_stubs.cc": (
+                8099,
+                288,
+                "808580d6c35388304fa4a07b7c5e0e91"
+                "ad4687e1a189c3959482f51e17a0ecf8",
                 14352,
                 "8f667113c54fa0b0d27ce83d13424206"
                 "5ba5b9258324a809e11e72229752ff3b",
             ),
-            "/kernel/doom/doomgeneric_cupidos.c": (
-                13544,
+            "/kernel/doom/doomgeneric_cupidos.cc": (
+                13521,
                 400,
-                "049359f33dbdb64af446522043c528b67"
-                "fd8bc98bb344fa3aa8e16e3b690dd2e",
+                "8511fd4035db73fde8147a39a92ff65f"
+                "50e8097ab6f27d4ca517b9883ff15a3e",
                 10232,
                 "5274b91dfa7bac56cd83ff0f8096eb5a"
                 "06fef5e61f91ebb3b80efacc8ad2a9cb",
@@ -913,8 +913,13 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         tracked_sources = sorted(
             "/" + transform["inputs"][0]
             for transform in audit["build"]["transforms"]
-            if transform["recipe"]
-            == ["$(CC) $(CFLAGS_DOOM) -o $@ $<"]
+            if transform["inputs"]
+            and transform["recipe"]
+            == [
+                "$(CUPIDC_KERNEL_COMPILE) --profile doom-compat "
+                f"--source {transform['inputs'][0]} "
+                f"--output {transform['output']}"
+            ]
         )
         self.assertEqual(tracked_sources, sorted(expected_objects))
         with tempfile.TemporaryDirectory(

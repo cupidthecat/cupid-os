@@ -15,7 +15,7 @@ Removed files (replaced by Cupid OS platform code):
   - doomgeneric_soso.c      (SOS platform)
   - doomgeneric_sosox.c     (SOS-X platform)
   - doomgeneric_linuxvt.c   (Linux VT platform)
-  - i_sound.c               (stubbed, then replaced by i_sound_cupidos.c in Task 16)
+  - i_sound.c               (stubbed, then replaced by i_sound_cupidos.cc)
   - i_sdlsound.c            (SDL2 sound backend)
   - i_sdlmusic.c            (SDL2 music backend)
   - i_allegromusic.c        (Allegro music backend)

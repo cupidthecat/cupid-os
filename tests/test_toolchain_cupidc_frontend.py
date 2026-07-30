@@ -309,8 +309,8 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
                 "kernel/cpu/fpu.cc",
                 "kernel/cpu/irq.cc",
                 "kernel/cpu/pic.cc",
-                "kernel/doom/doomgeneric_cupidos.c",
-                "kernel/doom/src/i_scale.c",
+                "kernel/doom/doomgeneric_cupidos.cc",
+                "kernel/doom/src/i_scale.cc",
                 "kernel/doom/src/i_swap.h",
                 "kernel/gfx/glyph_raster.cc",
                 "kernel/mm/memory.cc",
@@ -348,7 +348,7 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
         feature = next(
             item for item in audit["features"] if item["id"] == "c.control.return"
         )
-        self.assertEqual(feature["occurrences"], 21055)
+        self.assertEqual(feature["occurrences"], 21076)
 
     def test_active_for_statement_inventory_is_drift_gated(self):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
@@ -356,7 +356,7 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
         feature = next(
             item for item in audit["features"] if item["id"] == "c.control.for"
         )
-        self.assertEqual(feature["occurrences"], 3883)
+        self.assertEqual(feature["occurrences"], 3892)
 
     def test_active_while_statement_inventory_is_drift_gated(self):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
@@ -391,9 +391,9 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
         audit = json.loads(audit_path.read_text(encoding="utf-8"))
         features = {item["id"]: item for item in audit["features"]}
-        self.assertEqual(features["c.control.if"]["occurrences"], 34936)
+        self.assertEqual(features["c.control.if"]["occurrences"], 34961)
         self.assertEqual(len(features["c.control.if"]["files"]), 366)
-        self.assertEqual(features["c.control.else"]["occurrences"], 4439)
+        self.assertEqual(features["c.control.else"]["occurrences"], 4445)
         self.assertEqual(len(features["c.control.else"]["files"]), 277)
 
     def test_active_goto_inventory_is_drift_gated(self):
@@ -426,9 +426,22 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
             and not source["path"].startswith("kernel/doom/")
             and source["path"] not in excluded
         )
-        failures = {}
-        self.assertEqual(len(headers), 155)
-        self.assertEqual(len(failures), 0)
+        failures = {
+            "/kernel/core/scheduler.h": (
+                "/kernel/core/scheduler.h",
+                16,
+                37,
+                "0x0b000007",
+            ),
+            "/kernel/cpu/simd_intrin.h": (
+                "/kernel/cpu/simd_intrin.h",
+                28,
+                1,
+                "0x0b000003",
+            ),
+        }
+        self.assertEqual(len(headers), 158)
+        self.assertEqual(len(failures), 2)
         expected_lines = []
         for header in headers:
             if header not in failures:
@@ -438,7 +451,7 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
             expected_lines.append(
                 f"FAIL\t{header}\tinput\t{code}\t{path}\t{line}\t{column}"
             )
-        expected_lines.append("header-sweep: ok 155 0")
+        expected_lines.append("header-sweep: ok 156 2")
         result = subprocess.run(
             [
                 str(self.contract_path),

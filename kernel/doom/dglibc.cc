@@ -1,11 +1,11 @@
 /*
- * dglibc.c - libc shim bridging DOOM calls to CupidOS kernel APIs
+ * dglibc.cc - libc shim bridging DOOM calls to CupidOS kernel APIs
  *
  * Maps malloc/free, fopen/fread/fseek/ftell, snprintf/sprintf/printf,
  * setjmp/longjmp, ctype, strcasecmp, qsort, time, getenv to existing
  * CupidOS APIs.
  *
- * Built with CFLAGS_DOOM (relaxed flags).
+ * Compiled through the checked Doom compatibility CupidC profile.
 */
 
 #include "dglibc.h"

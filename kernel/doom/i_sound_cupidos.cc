@@ -1,8 +1,8 @@
-/* i_sound_cupidos.c: SFX path for DOOM via the CupidOS mixer.
- * Music path lands in Task 17.
+/* i_sound_cupidos.cc: SFX path for DOOM through the Cupid OS mixer.
+ * The music path remains separate.
  *
- * Built with CFLAGS_DOOM (no dglibc_compat.h alias), so we pull
- * kernel symbols explicitly.
+ * Compiled through the checked Doom source-tree CupidC profile. Kernel
+ * symbols are included explicitly.
 */
 
 #include "types.h"
@@ -513,7 +513,7 @@ static void smf_advance(uint32_t pull_us)
  * a memcpy.
  *
  * Producer: cup_music_pump() runs on the main thread (called from
- * DG_GetTicksMs / DG_SleepMs in doomgeneric_cupidos.c). It synthesises
+ * DG_GetTicksMs / DG_SleepMs in doomgeneric_cupidos.cc). It synthesises
  * one MUS_BUF_FRAMES chunk into the ring whenever there's room, until
  * the ring is full.
  *

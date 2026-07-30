@@ -2143,7 +2143,7 @@ static int floating_transport_active_source_is_unchanged(
                   "the active browser double transport fragment changed\n");
     return 0;
   }
-  path.text = ctool_string("/kernel/doom/src/m_config.c");
+  path.text = ctool_string("/kernel/doom/src/m_config.cc");
   (void)memset(&source, 0xa5, sizeof(source));
   status = ctool_job_load_source(job, &path, &source);
   if (!check_status(status, CTOOL_OK,
@@ -2527,7 +2527,7 @@ static int active_source_is_unchanged(ctool_job_t *job) {
     (void)fprintf(stderr, "the active Doom color type changed\n");
     return 0;
   }
-  path.text = ctool_string("/kernel/doom/src/i_video.c");
+  path.text = ctool_string("/kernel/doom/src/i_video.cc");
   (void)memset(&source, 0xa5, sizeof(source));
   status = ctool_job_load_source(job, &path, &source);
   if (!check_status(status, CTOOL_OK, "load active Doom color reads") ||
@@ -2599,7 +2599,7 @@ static int active_doom_bit_field_writes_are_unchanged(ctool_job_t *job) {
     (void)fprintf(stderr, "the active Doom color record changed\n");
     return 0;
   }
-  path.text = ctool_string("/kernel/doom/src/i_video.c");
+  path.text = ctool_string("/kernel/doom/src/i_video.cc");
   (void)memset(&source, 0xa5, sizeof(source));
   status = ctool_job_load_source(job, &path, &source);
   if (!check_status(status, CTOOL_OK, "load active Doom video source") ||

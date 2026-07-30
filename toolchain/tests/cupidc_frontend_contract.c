@@ -5305,12 +5305,12 @@ static int block_function_active_source_is_unchanged(
        "    extern void kernel_check_reschedule(void);", 1u},
       {"/kernel/core/process.cc",
        "    extern void kernel_clear_reschedule(void);", 1u},
-      {"/kernel/doom/doom_libc_stubs.c",
+      {"/kernel/doom/doom_libc_stubs.cc",
        "    extern void serial_write_string(const char *s);", 1u},
-      {"/kernel/doom/src/i_video.c", "    extern void I_InitInput(void);", 1u},
-      {"/kernel/doom/src/m_menu.c",
+      {"/kernel/doom/src/i_video.cc", "    extern void I_InitInput(void);", 1u},
+      {"/kernel/doom/src/m_menu.cc",
        "    extern void I_OPL_DevMessages(char *, size_t);", 1u},
-      {"/kernel/doom/src/wi_stuff.c", "    void WI_unloadData(void);", 1u},
+      {"/kernel/doom/src/wi_stuff.cc", "    void WI_unloadData(void);", 1u},
       {"/kernel/network/arp.cc", "    extern void net_process_pending(void);",
        1u},
       {"/kernel/network/icmp.cc",
@@ -16952,10 +16952,10 @@ static int run_doom_compatibility_pointers(const char *host_root) {
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
        0u, 0u, "return expression is not convertible to function result type"}};
   static const char *const doom_paths[] = {
-      "/kernel/doom/src/m_menu.c",
-      "/kernel/doom/src/p_saveg.c",
-      "/kernel/doom/src/p_ceilng.c",
-      "/kernel/doom/src/p_plats.c"};
+      "/kernel/doom/src/m_menu.cc",
+      "/kernel/doom/src/p_saveg.cc",
+      "/kernel/doom/src/p_ceilng.cc",
+      "/kernel/doom/src/p_plats.cc"};
   static const ctool_u32 m_menu_lines[] = {701u, 733u, 948u, 1060u, 1173u,
                                            1297u};
   static const ctool_u32 p_saveg_lines[] = {251u, 257u, 1712u};
@@ -23691,7 +23691,7 @@ static int run_doom_implicit_functions(const char *host_root) {
     goto cleanup;
   }
   fixture.pp_request = doom_request;
-  if (parse_loaded_fixture(&fixture, "/kernel/doom/src/i_system.c", NULL, 0u,
+  if (parse_loaded_fixture(&fixture, "/kernel/doom/src/i_system.cc", NULL, 0u,
                            &doom_unit) != 0 ||
       validate_doom_i_system_implicit_calls(&doom_unit) != 0) {
     (void)fprintf(stderr,
@@ -26313,7 +26313,7 @@ static int validate_active_d_main_unit(
         array->array_bound_kind != CTOOL_C_ARRAY_FIXED ||
         array->element_count != 2u ||
         dual_location_matches(&block->location, &block->physical_location,
-                              "/kernel/doom/src/d_main.c",
+                              "/kernel/doom/src/d_main.cc",
                               externs[index].line) == 0) {
       return 1;
     }
@@ -26490,7 +26490,7 @@ static int run_variadic_callees(const char *host_root) {
                   "variadic-callees: active compatibility header differs\n");
     goto cleanup;
   }
-  if (parse_loaded_fixture(&fixture, "/kernel/doom/src/d_main.c", NULL, 0u,
+  if (parse_loaded_fixture(&fixture, "/kernel/doom/src/d_main.cc", NULL, 0u,
                            &active_unit) != 0 ||
       validate_active_d_main_unit(&active_unit) != 0) {
     (void)fprintf(stderr,

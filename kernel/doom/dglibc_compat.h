@@ -207,7 +207,7 @@ extern double log(double x);
 #define abs(x) (((int)(x)) < 0 ? -((int)(x)) : ((int)(x)))
 #endif
 
-/* stdlib.h extras - implemented in doom_libc_stubs.c */
+/* stdlib.h extras - implemented in doom_libc_stubs.cc */
 extern int           atoi(const char *s);
 extern long          atol(const char *s);
 extern double        atof(const char *s);

@@ -138,17 +138,17 @@ CUPID_TOOLCHAIN_FIXED_POINT_LINKS = (
 )
 DOOM_TREE_FRONTIER_FAILURES = {}
 DOOM_COMPAT_OBJECTS = {
-    "/kernel/doom/dglibc.c": (
+    "/kernel/doom/dglibc.cc": (
         27992,
-        "88e3a66488e09ee15769e666971dd34e"
-        "d0fe0707a54f9962f5f7dadbe4fd4224",
+        "54ce387c7eae45d9f4ae379afdaa1109"
+        "2d2dd021d4e9ca7696be5da2ff5d3dcd",
     ),
-    "/kernel/doom/doom_libc_stubs.c": (
+    "/kernel/doom/doom_libc_stubs.cc": (
         14352,
         "8f667113c54fa0b0d27ce83d13424206"
         "5ba5b9258324a809e11e72229752ff3b",
     ),
-    "/kernel/doom/doomgeneric_cupidos.c": (
+    "/kernel/doom/doomgeneric_cupidos.cc": (
         10232,
         "5274b91dfa7bac56cd83ff0f8096eb5a"
         "06fef5e61f91ebb3b80efacc8ad2a9cb",
@@ -3148,13 +3148,44 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self,
     ):
         audit, profile = self.load_cupidc_profile("DOOM_TREE_I386")
-        sources = sorted(
-            "/" + transform["inputs"][0]
+        transforms = [
+            transform
             for transform in audit["build"]["transforms"]
-            if transform["recipe"]
-            == ["$(CC) $(CFLAGS_DOOM_TREE) -o $@ $<"]
+            if transform["inputs"]
+            and (
+                transform["inputs"][0]
+                == "kernel/doom/i_sound_cupidos.cc"
+                or (
+                    transform["inputs"][0].startswith("kernel/doom/src/")
+                    and transform["inputs"][0].endswith(".cc")
+                )
+            )
+        ]
+        sources = sorted(
+            "/" + transform["inputs"][0] for transform in transforms
         )
         self.assertEqual(len(sources), 80)
+        for transform in transforms:
+            source = transform["inputs"][0]
+            output = transform["output"]
+            expected_source = (
+                source
+                if source == "kernel/doom/i_sound_cupidos.cc"
+                else "$<"
+            )
+            expected_output = (
+                output
+                if source == "kernel/doom/i_sound_cupidos.cc"
+                else "$@"
+            )
+            self.assertEqual(
+                transform["recipe"],
+                [
+                    "$(CUPIDC_KERNEL_COMPILE) --profile doom-tree "
+                    f"--source {expected_source} "
+                    f"--output {expected_output}"
+                ],
+            )
         self.assertEqual(profile["tracked_translation_units"], 80)
         self.assertTrue(profile["gnu_extensions"])
         self.assertFalse(profile["hosted_environment"])
@@ -3212,9 +3243,9 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                             object_bytes[:7],
                             b"\x7fELF\x01\x01\x01",
                         )
-                        if source == "/kernel/doom/src/info.c":
+                        if source == "/kernel/doom/src/info.cc":
                             self.assertEqual(output.stat().st_size, 51268)
-                        if source == "/kernel/doom/src/i_video.c":
+                        if source == "/kernel/doom/src/i_video.cc":
                             self.assertEqual(
                                 len(object_bytes),
                                 DOOM_I_VIDEO_OBJECT_SIZE,
@@ -3269,13 +3300,28 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self,
     ):
         audit, profile = self.load_cupidc_profile("DOOM_COMPAT_I386")
-        sources = sorted(
-            "/" + transform["inputs"][0]
+        expected_sources = {
+            source.lstrip("/") for source in DOOM_COMPAT_OBJECTS
+        }
+        transforms = [
+            transform
             for transform in audit["build"]["transforms"]
-            if transform["recipe"]
-            == ["$(CC) $(CFLAGS_DOOM) -o $@ $<"]
+            if transform["inputs"]
+            and transform["inputs"][0] in expected_sources
+        ]
+        sources = sorted(
+            "/" + transform["inputs"][0] for transform in transforms
         )
         self.assertEqual(sources, sorted(DOOM_COMPAT_OBJECTS))
+        for transform in transforms:
+            source = transform["inputs"][0]
+            self.assertEqual(
+                transform["recipe"],
+                [
+                    "$(CUPIDC_KERNEL_COMPILE) --profile doom-compat "
+                    f"--source {source} --output {transform['output']}"
+                ],
+            )
         self.assertEqual(profile["tracked_translation_units"], 3)
         self.assertTrue(profile["gnu_extensions"])
         self.assertFalse(profile["hosted_environment"])

@@ -120,9 +120,9 @@ Current toolchain gaps:
 
 >h2 Normal Build Ownership
 >tree open Normal Build Ownership
-The checked CupidC seed compiles 155 checked-in sources in the normal image
+The checked CupidC seed compiles 238 checked-in sources in the normal image
 build. The generated kernel symbol source adds one checked transform, bringing
-the normal total to 156 CupidC transforms. All 156 sources use .cc. The
+the normal total to 239 CupidC transforms. All 239 sources use .cc. The
 19-source i386 Linux fixed point uses the same names, including its five roots
 shared with the normal image. Native GCC or Clang rules select C explicitly
 with -x c, while the checked seed compiles those paths under its fixed target
@@ -148,9 +148,10 @@ roots used only by production CupidC. ADR 0126 completes the fixed-point
 naming work, ADR 0129 transfers the lexer, ADR 0135 transfers Nuked OPL3,
 ADR 0139 transfers JPEG decoding and glyph rasterization, ADR 0167 transfers
 the FPU and SMP roots, ADR 0176 transfers libm, ADR 0180 transfers the kernel
-entry and SIMD roots, and ADR 0181 transfers the string root. The checked
-production path owns kernel/core/kernel.cc, kernel/cpu/simd.cc, and
-kernel/core/string.cc.
+entry and SIMD roots, ADR 0181 transfers the string root, and ADR 0184
+transfers all 83 Doom and platform roots. The checked production path owns
+kernel/core/kernel.cc, kernel/cpu/simd.cc, kernel/core/string.cc, and every
+Doom .cc source.
 
 Each result is checked as an i386 ELF32 relocatable object before it replaces
 the build output. A valid data-only object may omit .text, but its other
@@ -181,10 +182,10 @@ freezes the source and its two-header closure before object validation and
 publication. The pass-one and final kernels project the same text symbols at
 the same addresses.
 
-Across root and supplemental builds, the ownership audit reports 162 CupidC
-transforms, 135 host C transforms, and 177 host Python transforms. Host C
-still creates 83 root objects. No strict checked-in kernel or driver root
-remains outside production CupidC ownership.
+Across root and supplemental builds, the ownership audit reports 245 CupidC
+transforms, 52 host C transforms, and 261 transforms involving host Python.
+The host C transforms belong to the hosted Toolchain build. The normal image
+has no host C transform.
 
 The normal build compiles kernel/gfx/jpeg.cc and
 kernel/gfx/glyph_raster.cc through the checked seed. Their closed header sets
@@ -232,8 +233,8 @@ builds the normal e1000, desktop, socket, and TCP objects with this path.
 
 In the checked seed, an exact empty volatile extended template with one memory
 clobber and no operands remains a compiler ordering point and emits no
-instruction bytes. This compiles the unchanged Doom sound driver. Its build
-recipe remains host-owned until its production ownership transfer.
+instruction bytes. This compiles the unchanged Doom sound driver through its
+production CupidC recipe.
 
 The checked seed keeps file-scope GNU basic assembly in a separate
 translation-unit table. Linear IR preserves each template in source order
@@ -245,7 +246,7 @@ checked seed accepts named operands on function-body GNU assembly and
 resolves %[name] to the existing numeric operand before IR.
 
 Checked-seed CupidC also recognizes the exact combined dg_setjmp and dg_longjmp
-file-scope block in kernel/doom/dglibc.c. It checks both prototypes and emits
+file-scope block in kernel/doom/dglibc.cc. It checks both prototypes and emits
 27-byte and 38-byte global functions through Cupid's x86 model. The pair has
 no relocation. A changed template or mismatched declaration is rejected.
 
@@ -591,22 +592,33 @@ The checked seed reproduces the exact audited Doom-tree profile without
 editing its source. It keeps the sound driver's empty volatile memory barrier
 as a compiler ordering point and emits no instruction for it. Its static
 scalar evaluator folds the unchanged fixed-point table in
-kernel/doom/src/am_map.c. The explicit --doom-compat profile represents the
-five old-style calls in i_system.c. It also permits the eleven audited,
+kernel/doom/src/am_map.cc. The explicit --doom-compat profile represents the
+five old-style calls in i_system.cc. It also permits the eleven audited,
 bit-preserving conversions between unqualified function pointers and
-unqualified four-byte data or void pointers in m_menu.c, p_saveg.c,
-p_ceilng.c, and p_plats.c. Strict C and plain GNU mode still reject those
+unqualified four-byte data or void pointers in m_menu.cc, p_saveg.cc,
+p_ceilng.cc, and p_plats.cc. Strict C and plain GNU mode still reject those
 implicit conversions, and explicit function/data casts remain outside Linear
-IR. A one-active-member union initializer emits unchanged info.c. Narrow
+IR. A one-active-member union initializer emits unchanged info.cc. Narrow
 unsigned int color fields keep their member identity when they promote to
-signed int in ordinary expressions, which compiles unchanged i_video.c.
+signed int in ordinary expressions, which compiles unchanged i_video.cc.
 The checked seed emits all 80 audited Doom-tree objects.
 
-The checked seed emits the three separate compatibility roots. The explicit
-static string cast in doom_libc_stubs.c and the dglibc jump block now keep
+The production wrapper emits the three separate compatibility roots. The
+explicit static string cast in doom_libc_stubs.cc and the dglibc jump block keep
 their source meaning. Two checked-seed compiles produce the same object for
-each root. Doom stays host-owned until the host and Cupid link boundaries
-compare, the sources move to .cc, and runtime proof is complete.
+each root. All 83 sources use .cc and compile through the checked seed.
+The wrapper freezes the selected source and all 289 profile headers. Its
+input manifest fixes exact three-source and 80-source memberships and rejects
+source removal, header drift, symbolic links, and NTFS junctions. The wrapper
+also scans visible .c and .cc files beneath the Doom tree before and after
+compilation. A legacy .c file or an unlisted .cc file fails the scan. The
+g_game.cc object keeps two R_386_32 static subobject relocations with addend
+4; direct-call R_386_PC32 relocations still require addend -4.
+
+Private four-CPU boots pass the full frontier with e1000 and RTL8139. Both
+NICs print the no-WAD guidance, recover from an explicit missing IWAD, and
+complete a later CupidC-built ls command. This image carries no WAD, so these
+checks do not prove gameplay.
 
 The five static i386 Linux tools reach a stage-two to stage-three fixed point
 under WSL. Generation-one CupidC, CupidASM, and CupidLD build all 19 C objects,
@@ -640,8 +652,8 @@ make verify-bootstrap-seed checks the seed without executing it.
 make bootstrap-from-seed publishes both stages, behavior evidence, and a report
 under build/bootstrap/checked-seed only after the full gate passes. The output
 must start absent or empty. Linux runs the static tools directly. Windows uses
-WSL. Native contract runners, hosted development commands, and the 90 remaining
-normal Cupid OS root objects still use a host compiler.
+WSL. Native contract runners and hosted development commands still use a host
+compiler. Normal OS objects do not.
 
 Structure arguments occupy inline cdecl stack storage in parameter order, and
 each argument is rounded up to four bytes. The caller clears ABI padding before
@@ -713,7 +725,7 @@ keeps a lexical alias to one canonical linked object. Compatible repeats share
 identity, an incomplete array can be completed, and a visible file-scope
 static object keeps internal linkage. The declaration creates no automatic
 storage or runtime IR. The exact Doom profile parses all of
-kernel/doom/src/d_main.c, including its local forwardmove and sidemove
+kernel/doom/src/d_main.cc, including its local forwardmove and sidemove
 declarations. Block typedefs follow the ordinary identifier scope. They retain
 stable scalar, record, or function types, allow exact same-type repetition and
 nested shadowing, and create no runtime IR, frame storage, symbol, or
@@ -786,12 +798,12 @@ aggregate variadic reads, wide strings, literal pooling, and block-static
 addresses in other
 block-static initializers remain unfinished in the shared path.
 
-The shared path builds 155 checked-in normal kernel and toolchain objects. It
-also owns the generated kernel symbol source as the 156th normal CupidC
-transform. All 156 normal sources use .cc. The checked seed also
+The shared path builds 238 checked-in normal kernel, driver, Doom, and
+toolchain objects. It also owns the generated kernel symbol source as the
+239th normal CupidC transform. All 239 normal sources use .cc. The checked seed also
 compiles the three generated installation tables and the three example ELF
 programs. Checked CupidLD links those example programs. The host compiler
-still owns the remaining C transforms, while the private in-kernel CupidC
+owns native hosted Toolchain transforms, while the private in-kernel CupidC
 compiler handles embedded runtime compilation.
 
 The checked seed gives weak, section, and unused attributes their declaration

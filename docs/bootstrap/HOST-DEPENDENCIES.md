@@ -1,21 +1,23 @@
 # Host dependency inventory
 
-The deterministic active-source audit records three supported build roots: root `all`, `user:all`, and `toolchain:all`. It evaluates Make conditionals with `OS=Windows_NT` and `LC_ALL=C` on every host so the checked graph has one stable shape, then covers the Linux branch with direct build tests. `audits/active-build.json` owns the current 699-input/504-transform graph. The language graph contains 98 C translation units, 271 headers, and 303 Cupid C files; the prioritized toolchain-source cohort contains 70 files. The checked Windows Clang/LLVM and Linux GCC/binutils baselines both reproduce the complete 447-artifact three-root cohort at revision `1e079d1`; `baselines/windows-linux.json` verifies their common logical cohort and required behavior while treating cross-toolchain byte equality as observational. That evidence predates the CupidC preprocessing, declaration, type/layout, IR, and object contracts. The hosted root declares 25 artifacts, including six Cupid-built i386 executables.
+The deterministic active-source audit records three supported build roots:
+root `all`, `user:all`, and `toolchain:all`. It evaluates Make conditionals
+with `OS=Windows_NT` and `LC_ALL=C` on every host so the checked graph has one
+stable shape, then covers the Linux branch with direct build tests.
+`audits/active-build.json` owns the current 716-input/505-transform graph. The
+language graph contains 15 C translation units, 288 headers, and 386 Cupid C
+files. The checked Windows Clang/LLVM and Linux GCC/binutils baselines at
+revision `1e079d1` predate the current CupidC ownership and remain historical
+oracle evidence.
 
-The normal root build no longer sends every C object through GCC or Clang.
-Checked-seed CupidC owns 162 C transforms across the three roots. The normal
-cohort contains 155 checked-in sources and the generated kernel symbol table.
-All 156 normal sources use `.cc`. The 19-source i386 Linux fixed point uses
-the same naming, including its five roots shared with the normal image.
-Native GCC or Clang recipes select C explicitly with `-x c`; this avoids
-silently changing the language while the checked seed consumes those roots.
-Three generated installation tables and three example programs account for
-the other six transforms. The host C compiler still owns 135 transforms,
-including 83 root objects. Python owns 177 transforms, including the 162
-CupidC launches, one external-program syscall ABI verification, and two ISO
-fixture operations. Make owns five transforms. The
-fifth prepares the native hosted CupidC and CupidLD drivers for `user:all` on
-Windows.
+The normal root build sends no C object through GCC or Clang. Checked-seed
+CupidC owns 245 transforms across the three roots. The normal cohort contains
+238 checked-in sources and the generated kernel symbol table; all 239 use
+`.cc`. Three generated installation tables and three example programs account
+for the other six CupidC transforms. The host C compiler owns 52 transforms,
+all in the hosted Toolchain build. Python participates in 261 transforms,
+including checked compiler launches, one external-program syscall ABI
+verification, and two ISO fixture operations. Make owns five transforms.
 
 The ABI verification captures the exact bytes of its six declaration inputs,
 compares the reviewed i386 contract, and rechecks every input before success.
@@ -47,7 +49,18 @@ the fixed-point rename and old-seed proof, ADR 0129 records the lexer
 handoff, ADR 0135 records the Nuked OPL3 transfer, ADR 0139 records the
 JPEG and glyph-raster transfer, ADR 0167 records the FPU and SMP transfer,
 ADR 0176 records the libm transfer, ADR 0180 records the kernel entry and
-SIMD transfer, and ADR 0181 records the final strict-root transfer.
+SIMD transfer, ADR 0181 records the final strict-root transfer, and ADR 0184
+records the 83-root Doom transfer.
+
+The Doom wrapper fixes exact three-source and 80-source allowlists and freezes
+the selected source with all 289 `.h` and `.inc` inputs visible through the
+two compiler profiles. It recursively checks visible `.c` and `.cc` files
+beneath the Doom tree before and after a compile. Its always-checked manifest
+detects source removal. A legacy `.c` file, an unlisted `.cc` file, header
+membership or byte changes, a symbolic link, or an NTFS junction fails before
+publication. An unchanged scan preserves the manifest timestamp. This closes
+the host C dependency for normal Doom objects without changing strict C or
+ordinary GNU mode.
 
 The combined cohort's four-vCPU GUI proof starts every CPU, forces the CSPRNG
 through RDRAND, passes all 62 crypto, ASN.1, and X.509 checks, reaches e1000
@@ -57,6 +70,11 @@ glyph use, an exact 8-by-8 JPEG decode, UHCI input reattachment, and six EHCI
 storage lifetimes. The private-image gate loads and
 reaps the same external ELF program twice at `0x01C00000`, with lease release
 between the two runs.
+
+The Doom handoff uses the same four-CPU e1000 and RTL8139 frontier. A second
+private boot per NIC checks the no-WAD guidance, explicit missing-IWAD
+recovery, and a later CupidC-built command. No host C tool participates. The
+checkout has no WAD, so gameplay remains outside this host-dependency proof.
 
 CupidC represents operand-free GNU assembly statements inside functions and
 emits their exact no-operand i386 instructions. The checked seed uses that
@@ -208,10 +226,10 @@ objects and functions. The Linear IR and object boundaries validate the
 frozen flag, and the focused object proof reproduces the generated
 `section(".ksyms"), used, aligned(4)` declaration. The generated
 `kernel/cpu/ksyms_data.cc` now compiles through the normal checked wrapper.
-Its packed i386 words preserve the exact 106,259-byte blob. The current
-106,672-byte object has
+Its packed i386 words preserve the exact 109,857-byte blob. The current
+110,272-byte object has
 SHA-256
-`6e6ccb31aca44246d14372a865da10648222565ebc47f9a6b28aa67dd3f3909d`.
+`1022442e1d69544092f4ad0d8ad4ca8c85fd824eb83dd6677528d3796bb98115`.
 Python still serializes the blob, but it runs a frozen CupidDis image against
 a frozen pass-one kernel. It rejects malformed output, an empty text-symbol
 set, i386 address overflow, and live input drift before atomic publication.
@@ -264,25 +282,32 @@ boundary, and ADR 0123 records the ownership transfer.
 
 Value-preserving bit-field assignment changes compiler capability without moving another output. Four focused functions cover unsigned, signed, full-width, pointer-derived, and indexed stores. The execution oracle checks the stored value, neighboring bits, arguments, and stack state. GCC or Clang still builds the shared frontend, Linear IR, emitter, and contracts. The proof adds no transform beyond the current production cohort and retires no executable, linker, assembler, or object-tool dependency.
 
-Ordinary narrow bit-field promotion also changes compiler capability without moving an output. The frontend and Linear IR now retain and validate the direct member behind an eight-bit `unsigned int` field's promotion to signed `int`. A 127-byte exact object and eight decoder-driven executions cover the active shift and mask forms. The checked seed uses this support to emit unchanged `kernel/doom/src/i_video.c`; two exact-profile compiles reproduce its 9,312-byte object with SHA-256 `8e9fcb59120cac9e8237a8243003fe1696a7841096aca7af360c89fec173336f`. Every Doom recipe remains unchanged. GCC or Clang still builds the compiler and this proof, so no host dependency is retired.
+Ordinary narrow bit-field promotion serves the production Doom cohort. The
+frontend and Linear IR retain and validate the direct member behind an
+eight-bit `unsigned int` field's promotion to signed `int`. A 127-byte exact
+object and eight decoder-driven executions cover the active shift and mask
+forms. The checked seed uses this support to emit unchanged
+`kernel/doom/src/i_video.cc`; two exact-profile compiles reproduce its
+9,312-byte object with SHA-256
+`8e9fcb59120cac9e8237a8243003fe1696a7841096aca7af360c89fec173336f`.
 
-The checked-seed Doom compatibility frontier does not retire a dependency by
-itself. CupidC preserves explicit non-atomic pointer casts around static
+The checked Doom compatibility path now retires all 83 normal host C
+transforms. CupidC preserves explicit non-atomic pointer casts around static
 addresses and emits the exact dglibc jump block through Cupid's x86 model.
-Repeated checked-seed compiles agree on all three compatibility objects. Their
-normal recipes still use GCC or Clang. Object and link comparison, `.cc`
-renames, and runtime proof remain before the host compiler can leave this
-83-root cohort.
+Repeated checked-seed compiles agree on all three compatibility objects, and
+the normal recipes consume those objects through the closed production
+wrapper. A staged IWAD is still needed to check complete gameplay, input,
+audio, and save behavior.
 
 Eight-byte integer values cross the shared path through full-width constants, matching conditional results, fixed direct and indirect call results, object access, initialization, plain and chained assignment, declared parameters, named arguments, ellipsis and unprototyped call arguments, variadic reads, discard, returns, arithmetic, unary operations, shifts, bitwise operations, comparisons, logical operations, conditions, switch dispatch, and conversion to or from represented integer widths. File objects, block statics, fixed automatic objects, pointer dereferences, ordinary members, and indexed elements use private eight-byte frame snapshots. The i386 emitter restores the low word to EAX and the high word to EDX on return. Calls publish packed post-conversion actual types in emitted instruction order, which gives an open-position wide integer two adjacent stack words and advances a wide variadic cursor by eight bytes. The CupidC-built socket and TCP objects now use this production path. The deterministic result, object, parameter, operation, and call-position contracts remain host-built.
 
 The floating work does not move production ownership. The shared path copies matching `float` and `double` values through objects, calls, variadic reads, and returns. It now evaluates same-kind unary plus and minus and binary addition, subtraction, multiplication, and division. Every changed x87 result is stored immediately at its C width. A `float` rounds into a fresh four-byte semantic slot, and a `double` receives a fresh private eight-byte snapshot. The exact `libm_tanh_impl` guard pins nested `double` arithmetic with call-produced operands. The execution model checks operand order, immediate spills, selected IEEE patterns, call alignment, and frame state. It does not execute native x87 code. GCC or Clang still builds the compiler and proof, so the dependency table and ownership counts do not change.
 
-The static evaluator also leaves the dependency inventory unchanged. It uses
-only target-sized integer arithmetic to produce IEEE binary32 and binary64
-bits, so it adds no host floating or math-library dependency. The checked
-seed carries this evaluator, while the Doom cohort remains host-owned.
-GCC or Clang still builds the native compiler and its contracts.
+The static evaluator uses only target-sized integer arithmetic to produce IEEE
+binary32 and binary64 bits, so it adds no host floating or math-library
+dependency. The checked seed carries this evaluator into the production Doom
+automap object. GCC or Clang still builds the native compiler and its
+contracts.
 
 Mixed-mode raw inspection also leaves the dependency inventory unchanged. CupidDis now accepts borrowed ordered 16/32-bit ranges and its hosted CLI exposes `--mode-at OFFSET:16|32`. The existing CupidDis executable still owns the normal kernel-symbol inspection transform, but that transform uses ELF input and does not need a raw map. GCC or Clang still builds the hosted CLI and the in-kernel adapter, so no output changes owner and no host tool is retired.
 
@@ -292,17 +317,17 @@ The repository i386 Linux runtime replaces the tracer's test-only providers for 
 
 The five static commands share one complete checked-seed gate. The manifest binds the exact executables, source revision, target ABI, producer lineage, 19-source build plan, startup, and five link orders. The current seed contains the checked bootstrap's stage-three images at revision `af4644177c033eebda164d7893074315439df119`. CupidC changed from the preceding seed, while CupidASM, CupidDis, CupidLD, and CupidObj remain byte-identical. The 2,528,332-byte CupidC image has SHA-256 `f53989572cd1564a8bf91059552868ee43a1d80905986b58cd97d44949aab3a1` and accepts the page-aligned kernel-entry stack top needed by the next memory-map change.
 
-The harness copies the exact 40-input source closure into a private compiler root. Checked CupidC compiles the stage-two union there, checked CupidASM assembles startup, and checked CupidLD links all five tools. The stage-two producer trio repeats that work for stage three below the same root. Both the private closure and the live closure are checked before the first stage, after each stage, and after behavior checks. Every seed image matches stage two, every C object, startup object, and linked image matches across the stages, and both stages execute positive and failure cases for every command. The two stages, behavior evidence, and report are published together only after success. This tighter source and publication boundary does not retire another host dependency. A clean checkout can rebuild the static i386 Linux Toolchain without external code generation. The native contracts, hosted development commands, and remaining normal OS C objects remain host-owned.
+The harness copies the exact 40-input source closure into a private compiler root. Checked CupidC compiles the stage-two union there, checked CupidASM assembles startup, and checked CupidLD links all five tools. The stage-two producer trio repeats that work for stage three below the same root. Both the private closure and the live closure are checked before the first stage, after each stage, and after behavior checks. Every seed image matches stage two, every C object, startup object, and linked image matches across the stages, and both stages execute positive and failure cases for every command. The two stages, behavior evidence, and report are published together only after success. A clean checkout can rebuild the static i386 Linux Toolchain without external code generation. Native contracts and hosted development commands remain host-owned; normal OS C objects do not.
 
 Two active-source fragments anchor the wide call requirement. `toolchain/tests/cupidc_object_contract.c::decode_function` passes the signed `long long` branch target to `fprintf`. `toolchain/tests/cupidc_frontend_contract.c::validate_file_object_finalization_storage_limit` passes three `unsigned long long` byte counts to `fprintf`. The guards cover those call fragments only. They do not establish whole-function CupidC ownership. No active-source guard covers a wide `va_arg` or an unprototyped wide call, so those paths have focused ABI fixture evidence only. Current public modules contain 77 frontend tests, 65 IR tests, and 83 object tests. The neighboring `variadic-callees`, `old-style-empty-functions`, `wide-returns`, and `floating-transport` modes remain part of the full gate. The `js_push_num` guard covers its declaration and assignment lines only, not the full browser interpreter function.
 
 Cast-to-void support now serves production e1000, desktop, and TCP code. The shared path evaluates the operand once, emits `DISCARD` for a represented integer, object pointer, or function pointer, and leaves a `void` operand off the abstract stack. The complete unchanged `ctool_host_allocate` and `ctool_host_release` helpers guard the focused requirement. A deterministic 52-byte object proves the existing discard and direct-call emission paths. GCC or Clang and the native host linker still build the focused proof, while checked-seed CupidC emits the production uses.
 
-Automatic aggregate initializer lowering serves the CupidC-built desktop object. CupidC semantically zeros a complete fixed automatic array or structure, then evaluates represented leaves in source order and stores them through direct member and element paths. A supported structure-valued leaf uses the structure copy path. The object emitter preserves EDI and uses `CLD` plus `REP STOSB` for the complete object before explicit stores. Named automatic aggregate declarations still initialize in place; backward-jump reentry with an escaped alias remains open under issue #25. The active `no_name` initializer in `cupidc_pp.cc` and the `{0}` type-node initializer in `cupidc_frontend.cc` retain focused guards. GCC or Clang and the native host linker still build those contracts, while the host C compiler owns 135 transforms recorded below.
+Automatic aggregate initializer lowering serves the CupidC-built desktop object. CupidC semantically zeros a complete fixed automatic array or structure, then evaluates represented leaves in source order and stores them through direct member and element paths. A supported structure-valued leaf uses the structure copy path. The object emitter preserves EDI and uses `CLD` plus `REP STOSB` for the complete object before explicit stores. Named automatic aggregate declarations still initialize in place; backward-jump reentry with an escaped alias remains open under issue #25. The active `no_name` initializer in `cupidc_pp.cc` and the `{0}` type-node initializer in `cupidc_frontend.cc` retain focused guards. GCC or Clang and the native host linker still build those contracts, while the host C compiler owns 52 hosted transforms recorded below.
 
-Runtime narrow string lowering serves production e1000 and desktop code. `STRING_LITERAL_ADDRESS` gives normal string expressions local `.rodata` symbols and absolute text relocations. `COPY_STRING` fills named automatic arrays, nested initializer leaves, and block-scope compound literals after their destinations have been zeroed. The unchanged automatic hexadecimal array in `drivers/serial.cc` retains a focused source guard. GCC or Clang and the native host linker still build those contracts, and the host C compiler owns 135 recorded transforms.
+Runtime narrow string lowering serves production e1000 and desktop code. `STRING_LITERAL_ADDRESS` gives normal string expressions local `.rodata` symbols and absolute text relocations. `COPY_STRING` fills named automatic arrays, nested initializer leaves, and block-scope compound literals after their destinations have been zeroed. The unchanged automatic hexadecimal array in `drivers/serial.cc` retains a focused source guard. GCC or Clang and the native host linker still build those contracts, and the host C compiler owns 52 hosted transforms.
 
-Structure values serve the CupidC-built socket and desktop objects. CupidC copies complete supported structures through loads, stores, assignment results, conditional joins, expression initialization, discard, fixed direct and indirect calls, and returns. Instruction-owned frame slots hold snapshots and call results. The i386 call path places structure arguments inline in rounded four-byte spans and uses a hidden return pointer at `EBP + 8`; the callee returns that pointer through EAX and removes its slot with `RET 4`. The shared x86 catalogue has 587 forms, 242 mnemonics, 64 registers, and fingerprint `68E281CB`, and the checked seed carries that full model. It covers all sixteen i686 conditional moves in 16-bit and 32-bit widths, the complete 16-bit and 32-bit three-operand immediate `IMUL` family, ordinary `90`, `66 90`, and `0F 1F /0` padding, and `RET imm16`. A private decoder path accepts only five exact repeated-prefix Clang padding strings and creates no catalogue form. CupidASM accepts canonical and alias conditional-move spellings, chooses `6B /r` only for a signed-byte multiply constant, applies mode-sized defaults to memory NOPs, and rejects invalid operands or prefixes. It cannot request redundant prefixes. CupidDis renders stable canonical names and keeps conservative recovery around malformed bytes. GCC or Clang and the native host linker still build these contracts. The host compiler remains responsible for 135 transforms, so this change retires no dependency.
+Structure values serve the CupidC-built socket and desktop objects. CupidC copies complete supported structures through loads, stores, assignment results, conditional joins, expression initialization, discard, fixed direct and indirect calls, and returns. Instruction-owned frame slots hold snapshots and call results. The i386 call path places structure arguments inline in rounded four-byte spans and uses a hidden return pointer at `EBP + 8`; the callee returns that pointer through EAX and removes its slot with `RET 4`. The shared x86 catalogue has 587 forms, 242 mnemonics, 64 registers, and fingerprint `68E281CB`, and the checked seed carries that full model. It covers all sixteen i686 conditional moves in 16-bit and 32-bit widths, the complete 16-bit and 32-bit three-operand immediate `IMUL` family, ordinary `90`, `66 90`, and `0F 1F /0` padding, and `RET imm16`. A private decoder path accepts only five exact repeated-prefix Clang padding strings and creates no catalogue form. CupidASM accepts canonical and alias conditional-move spellings, chooses `6B /r` only for a signed-byte multiply constant, applies mode-sized defaults to memory NOPs, and rejects invalid operands or prefixes. It cannot request redundant prefixes. CupidDis renders stable canonical names and keeps conservative recovery around malformed bytes. GCC or Clang and the native host linker still build these contracts. The host compiler remains responsible for 52 hosted transforms.
 
 The private in-kernel CupidC emitter now sends `continue` in a `do` loop to the condition. The shared hosted path can emit static data and functions with canonical one-byte, two-byte, and four-byte integer values plus 32-bit integer arithmetic, signed and unsigned division and remainder, every integer relation, bitwise AND, OR, and XOR, all four integer unary operators, explicit casts among represented one-byte, two-byte, and four-byte integer types, both shift directions, both short-circuit logical operators, statement-level `if` with optional `else`, pre-test `while`, post-test `do`, `for` with expression or declaration initializers and optional iteration, nearest-loop `break` and `continue`, and multiple returns. It also covers fixed direct and indirect calls with four-byte argument slots and normalized narrow results, represented target-sized scalar locals and target-sized fixed automatic arrays and structures in supported compound statements, including the initializer-list subset, linked file-object loads, direct ordinary record-member loads, four-byte integer bit-field reads, value-preserving plain assignments, compound assignments and prefix or postfix updates for represented non-Boolean byte, word, and doubleword integers, and pointer compound assignments and updates, and discarded nonvoid values in deterministic ELF32 objects. The unchanged `section_map` and `children` arrays and their indexed uses drive automatic object storage. The unchanged `asm_lower`, `x86_class_width`, and `x86_set_memory_width` functions drive signed and unsigned byte and word loads, stores, promotions, conditions, and results. The unchanged `cemit_multiply_overflows`, `cemit_power_of_two`, `cfront_bool_valid`, `asm_branch_fits_i8`, and AES `rotw` helpers drive division, logic, comparisons, shifts, and bitwise OR. The unchanged `size++`, `capacity *= 2u`, and `value /= 10u` statements in `toolchain/ctool.cc` pin four-byte destination-preserving mutation. The complete unchanged `x86_put_u8` body and active decoder byte operations pin narrow mutation. Their 201-byte exact object proof contains four functions, one four-byte BSS object, six symbols, and one `R_386_32` relocation. The separate narrow-mutation object has eight functions in 878 exact text bytes, ten symbols, one byte of BSS, and one absolute relocation. The unchanged CPUID-toggle return statement drives XOR with its mask, comparison, and `bool` conversion. Its surrounding GNU inline assembly and broader statement sequence remain outside this hosted leaf slice. The unchanged memory `align_up` helper drives bitwise complement inside unsigned arithmetic and masking. The complete unchanged `dis_signed_bits` helper drives two comparisons, two conditional branches, three returns, complement, addition, an explicit unsigned-to-signed cast, and negation. Its deterministic object contains one 143-byte local function, 71 decoded instructions, two symbols, no relocations, and branch targets at byte offsets 53 and 111. The complete unchanged `syscall_sleep_ms` helper drives a pre-test loop. Its deterministic object contains one 94-byte local function, 43 decoded instructions, branch targets at byte offsets 92 and 20, and three direct-call relocations at offsets 11, 24, and 80. The unchanged Doom wipe tick loop drives a post-test loop. Its deterministic object contains one 125-byte local function, 59 decoded instructions, branch targets at byte offsets 123 and 6, and two direct-call relocations at offsets 14 and 78. The guarded `url_hash_hex` loop drives a `for` path, while unchanged statements in `cir_validate_initializer_ownership` drive loop control. Their combined deterministic object contains the 107-byte browser function and eight loop-control functions totaling 319 bytes. It has 426 text bytes, ten symbols including the null symbol, exact decoded branch targets, and no relocations. The active `cc_skip_brace_initializer` fragment drives logical not without claiming its complete function. The VGA setter drives a linked store, the timer getter drives an ordinary member at byte offset 8, and the Doom color source drives an eight-bit field at bit offset 16. Bit-field emission also covers signed extraction, a nonzero storage offset, and a full-width field. Local and unresolved external calls use `.rel.text` `R_386_PC32` relocations with addend `-4`; direct object addresses use `R_386_32` with addend zero. Member selection and field extraction do not change the base symbol or relocation addend. This work retires no host dependency. GCC or Clang and the native host linker still build the shared modules and contracts. All nine hosted Toolchain source gates parse completely, including `cupidc_ir.cc`, `cupidc_emit.cc`, and `cupidc_frontend.cc`.
 
@@ -312,16 +337,16 @@ The nine-file source count in the preceding historical summary is superseded by 
 
 | Dependency | Current role | Current requirement | Fixed-point disposition |
 | --- | --- | --- | --- |
-| GCC with i386/multilib support | Compiles the remaining root C objects on Linux and builds the native hosted core, CupidC preprocessing/declaration/type-layout/IR/object operations, ELF32, x86, CupidDis, CupidASM, CupidObj, and CupidLD contracts/CLIs | Required on Linux for the remaining root and hosted contract builds; the checked seed owns 155 checked-in normal roots, generated kernel symbols, three generated tables, and all three user programs | Remove it from the remaining code-producing normal path; retain it only as an optional oracle or bootstrap escape hatch |
-| Clang with i386 target support | Compiles the remaining root C objects on Windows and builds the same native hosted contracts and commands | Required on Windows for those remaining root and hosted builds, including the native CupidC and CupidLD drivers used by `user:all`; the prepared user path itself does not call Clang | Remove it from the remaining code-producing normal and contract paths; retain it only as an optional oracle or bootstrap escape hatch |
+| GCC with i386/multilib support | Builds the native hosted core, CupidC operations, ELF32, x86, CupidDis, CupidASM, CupidObj, and CupidLD contracts and commands on Linux | Required for `toolchain:all` and native development commands; not required to emit a normal image object | Remove it from the hosted bootstrap and contract path; retain it only as an optional oracle or bootstrap escape hatch |
+| Clang with i386 target support | Builds the same native hosted contracts and commands on Windows, including the native CupidC and CupidLD drivers used by `user:all` | Required for the hosted Toolchain and native user drivers; not required to emit a normal image object | Remove it from the hosted bootstrap and contract path; retain it only as an optional oracle or bootstrap escape hatch |
 | NASM | Optional comparison oracle for the four active-source CupidASM parity tests and the shared ELF32 reader | Not required by root `all`, `user:all`, `toolchain:all`, or baseline preflight; `make nasm-assembly-oracle` uses it when installed | Retain only as an optional oracle/bootstrap escape hatch |
 | Host linker backend (`ld`, `ld.lld`, `lld-link`, or platform equivalent) | No direct i386 OS/user link recipe remains; CupidLD owns those five outputs. The host C compiler still invokes a native linker backend to bootstrap the Cupid contract and CLI executables, and standalone ELF linkers remain optional comparison oracles. Canonical Windows LLD links use `/Brepro` so hosted PE timestamps cannot invalidate same-host evidence | Required transitively wherever hosted Cupid tools are rebuilt, including root `all`, `user:all` on Windows, and `toolchain:all`; not an owner of an OS/user ELF transform | Remove from the normal bootstrap after checked Cupid-built seeds/self-hosting exist; retain standalone ELF linkers only as optional oracles/escape hatches |
 | GNU `objcopy` / `llvm-objcopy` | No role in the normal build; tracked legacy/oracle helpers may still invoke it manually, and the checked `6731dd6` evidence fingerprints the then-installed oracle | Not required for root `all`, `user:all`, `toolchain:all`, or new `bootstrap-baseline` captures | Retain only as an optional comparison/maintenance utility; CupidObj owns the production transformations |
 | GNU `nm` / `llvm-nm` | Optional comparison oracle for CupidDis's numeric symbol view and historical baseline evidence | Not required by root `all`, `user:all`, `toolchain:all`, or baseline preflight; configured through `NM` only for optional oracle probes/tests | Retain only as an optional comparison/maintenance utility; CupidDis owns production kernel-symbol inspection |
 | Hosted C runtime/libc | Backs the native hosted adapter's allocation, whole-file, and diagnostic seams plus the CupidC preprocessing, declaration, type/layout, IR, and object contracts and the native CupidC, CupidDis, CupidASM, CupidObj, and CupidLD command drivers. Cupid owns checked i386 Linux declarations and a matching narrow runtime for static Cupid-built commands | Native libc remains required by the temporary native oracle, contracts, and hosted production commands. The repository runtime is sufficient for the five generated Linux i386 commands but is not a general libc or a Windows runtime | Retain a platform runtime seam; it must not own preprocessing, parsing, type/layout semantics, code generation, object, assembly, link, or inspection semantics |
 | GNU Make | Declares the root, user, and toolchain-contract build graphs and invokes tools | Required; the graph uses portable ordinary/stamp targets rather than GNU Make 4.3 grouped-target syntax | May remain as host orchestration; it must invoke Cupid code-producing tools on the normal path |
-| Python 3 | Generates embedded-source/symbol tables; creates, stages, and cleans images; builds fixtures; transforms JPEG data; drives QEMU network tests with standard-library sockets; parses and correlates Ethernet PCAP captures; verifies the external-program syscall ABI; launches checked-seed CupidC for 156 normal production objects, and launches native CupidC for the Windows user cohort | Required | May remain for orchestration, verification, test control, and image packaging; code/object/link behavior stays behind Cupid tools |
-| WSL on Windows | Runs the checked static i386 Linux CupidC seed for 156 normal-build production objects, three generated installation tables, and the staged Toolchain bootstrap | Required for those paths on Windows; the native Windows user build no longer uses it, and native Linux runs the seed directly | Remove from the remaining Windows build when a checked native CupidC or an equivalent Cupid-owned execution path is available |
+| Python 3 | Generates embedded-source and symbol tables; creates, stages, and cleans images; builds fixtures; drives QEMU tests; verifies the external-program syscall ABI; launches checked-seed CupidC for 242 root transforms; and launches native CupidC for the Windows user cohort | Required | May remain for orchestration, verification, test control, and image packaging; code, object, and link behavior stays behind Cupid tools |
+| WSL on Windows | Runs the checked static i386 Linux CupidC seed for 242 root transforms and the staged Toolchain bootstrap | Required for those paths on Windows; the native Windows user build no longer uses it, and native Linux runs the seed directly | Remove it when a checked native CupidC or an equivalent Cupid-owned execution path is available |
 | Git | Enumerates the tracked audit universe and creates detached baseline worktrees | Required for development/audit workflows, not image production | Retain as source-control orchestration, never as a code-producing dependency |
 | `link.ld` and its documented GNU-script subset | Defines kernel memory and section layout; CupidLD parses the exercised `ENTRY`, `SECTIONS`, location-counter, wildcard, alignment, symbol, `COMMON`, and `ASSERT` forms | Required input to both kernel link passes; host-linker interpretation is oracle-only | Keep the script as the source-owned layout contract and deepen CupidLD when the active script needs more semantics |
 | `jpegtran`, `djpeg`/`cjpeg`, or FFmpeg | Optional JPEG normalization selected by `tools/hostbuild.py`; availability changes embedded bytes | At least one converter is preferred; raw-copy fallback exists | Keep as optional asset preprocessing or replace with a deterministic checked policy; fingerprint the selected path |
@@ -342,7 +367,7 @@ Hosted scalar variadic callees follow that same boundary. GNU C mode exposes `__
 
 Hosted empty identifier-list definitions and unprototyped calls keep the same ownership boundary. The frontend preserves a non-prototype function type and applies default promotions to every call argument. Linear IR carries the actual count and one packed post-conversion type for each argument. The emitter uses those types for cdecl layout, alignment, and cleanup. Signed and unsigned wide integers, existing `double` values, and source `float` values promoted to `double` occupy two adjacent stack words in direct and indirect calls. GCC or Clang still builds the shared compiler and all three focused contracts, so the host dependency count and normal OS build ownership remain unchanged.
 
-Block-scope `struct` and `union` tags now serve the production desktop object. The frontend owns their lexical identity and completion, including record tags declared in a function definition's parameter list. An empty tag declaration with a represented storage class or type qualifier adds no runtime IR when it introduces a tag; repeating a visible tag without a declarator is rejected. A `for` initializer can use a visible tag or anonymous record for its object but cannot introduce a named tag. Deterministic object evidence covers Doom's anonymous block-static record, its exact literal bytes, the text reference to `packs`, and all three string relocations. The exact Doom profile passes this declaration and now parses the complete `d_main.c` file after the linked-object work in ADR 0058. The focused proof remains host-built; checked-seed CupidC owns the desktop use.
+Block-scope `struct` and `union` tags now serve the production desktop object. The frontend owns their lexical identity and completion, including record tags declared in a function definition's parameter list. An empty tag declaration with a represented storage class or type qualifier adds no runtime IR when it introduces a tag; repeating a visible tag without a declarator is rejected. A `for` initializer can use a visible tag or anonymous record for its object but cannot introduce a named tag. Deterministic object evidence covers Doom's anonymous block-static record, its exact literal bytes, the text reference to `packs`, and all three string relocations. The exact Doom profile passes this declaration and now parses the complete `d_main.cc` file after the linked-object work in ADR 0058. The focused proof remains host-built; checked-seed CupidC owns the desktop use.
 
 Block-scope external objects are also host-built capability. The frontend keeps lexical aliases separate from canonical linked entities, and Linear IR lowers each use through `FILE_ADDRESS` without reserving an automatic slot. The exact ELF32 proof has 15 text bytes, three symbols, and one `R_386_32` relocation to one undefined object. GCC or Clang still builds the compiler and contract. No normal Cupid OS object changed owner, and no host dependency was retired.
 
@@ -362,14 +387,14 @@ Counts are output transforms in the checked audit, not textual recipe occurrence
 
 | Tool hand-off | Reachable outputs | Required external behavior |
 | --- | ---: | --- |
-| Host C compiler | 135 | 83 i386 root objects, 33 native hosted core/CupidC-preprocessing/declaration/type-layout/IR/object/ELF32/x86/CupidDis/CupidASM/CupidObj/CupidLD/kernel-bridge objects, and 19 native contract/CLI executables; these builds remain temporary bootstrap evidence even though preprocessing, declaration, type/layout, scalar and structure-value code, fixed direct and indirect cdecl calls, file and block-static object emission, assembly, inspection, object-transformation, and link semantics have shared Cupid-owned implementations |
-| CupidC | 162 owned transforms | The 155-source checked-in normal cohort, generated kernel symbols, three generated installation tables, and three example external programs; Python verifies and launches the checked seed for Linux and non-user Windows paths, while Windows user builds run a private native driver snapshot; each object is validated before publication |
+| Host C compiler | 52 | 33 native hosted core, compiler, object, ELF32, x86, assembler, disassembler, linker, and kernel-bridge objects plus 19 native contract or command executables; no normal image object |
+| CupidC | 245 owned transforms | The 238-source checked-in normal cohort, generated kernel symbols, three generated installation tables, and three example external programs; every published object is validated |
 | CupidASM | 4 owned transforms | Two production flat binaries and two production ELF32 `ET_REL` objects; the raw outputs are byte-identical to the optional NASM oracle and the objects match its code, symbol, alignment, and relocation semantics |
 | NASM | 0 production transforms | Optional active-source and ELF32 interoperability oracle only |
 | CupidLD | 5 owned transforms | Two script-driven kernel links plus three fixed-address user executables; owns `R_386_32`/`R_386_PC32`, weak/strong/common/script symbols, absolute COMMON alignment, relocation-aware merge entries, assertions, static ELF32 serialization, explicit unsupported allocated-section diagnostics, and the used `link.ld` subset |
 | CupidObj | 182 owned transforms | 172 canonical text-to-ELF wrappers, eight byte-exact binary-to-ELF wrappers, one Python-assisted JPEG wrapper, and final initialized ELF-to-raw conversion |
-| CupidDis | 1 composite transform | Supplies deterministic numeric symbols to `_symbols_from_nm`; the current consumer cohort contains 4,420 text symbols and a 106,259-byte panic-backtrace blob; the host oracle remains optional |
-| Python | 177 transforms | The 162 CupidC launches plus fourteen generation, inspection, link, and orchestration transforms and one external-program syscall ABI verification; Windows uses native CupidC for three user launches, and symbol generation still uses Python after CupidDis inspection |
+| CupidDis | 1 composite transform | Supplies deterministic numeric symbols to `_symbols_from_nm`; the current consumer cohort contains 4,560 text symbols and a 109,857-byte panic-backtrace blob; the host oracle remains optional |
+| Python | 261 transforms | Checked CupidC launches plus generation, inspection, link, input-manifest, image, and verification orchestration; Windows uses native CupidC for three user launches, and symbol generation still uses Python after CupidDis inspection |
 | Make recursion | 5 transforms | Builds the hosted CupidASM, CupidObj, CupidLD, and CupidDis executables from the root and prepares native CupidC plus CupidLD for the Windows user build before production transforms consume them |
 
 `tools/hostbuild.py::_symbols_from_nm` remains the drop-in numeric-reader subprocess seam, but the normal Make path passes `$(CUPIDDIS)` and no longer defines or invokes `$(NM)`. `embed_jpeg` performs optional image preprocessing, then calls CupidObj once with the original source identity; the former temporary-name wrapper plus three-symbol rewrite pass was removed. `tools/mksyms.sh` and `tools/embed_jpeg_baseline.sh` are tracked legacy/oracle duplicates outside the normal Make path.
@@ -382,28 +407,34 @@ The native and Cupid-built compiler drivers now pass repeatable `-include`
 inputs into that preprocessing operation in caller order. This lets the
 checked seed reproduce the Doom-tree profile. CupidC retains the sound
 driver's empty volatile memory barrier. Its integer-only IEEE evaluator also
-folds the unchanged static fixed-point table in `am_map.c`. The explicit
-`--doom-compat` profile also represents the five calls in `i_system.c` that
+folds the unchanged static fixed-point table in `am_map.cc`. The explicit
+`--doom-compat` profile also represents the five calls in `i_system.cc` that
 appear before a declaration. Strict C and plain GNU mode still reject those
 calls. The same profile carries the eleven audited conversions
 between unqualified function pointers and unqualified four-byte data or
-`void` pointers in `m_menu.c`, `p_saveg.c`, `p_ceilng.c`, and `p_plats.c`.
+`void` pointers in `m_menu.cc`, `p_saveg.cc`, `p_ceilng.cc`, and `p_plats.cc`.
 Strict C and plain GNU mode still reject the implicit conversions, and their
 explicit function/data casts remain outside Linear IR. One-active-member union
-initialization also compiles unchanged `info.c`, and ordinary narrow bit-field
-promotion compiles unchanged `i_video.c`. The checked seed emits all 83 Doom
-and port objects, but all 83 roots still use host recipes. Object and link
-comparison, `.cc` renames, and runtime proof must pass before ownership moves.
-This seed promotion changes neither the 83 host-built root objects nor the 135
-host C transforms.
+initialization also compiles unchanged `info.cc`, and ordinary narrow bit-field
+promotion compiles unchanged `i_video.cc`. All 83 normal recipes now use the
+checked production wrapper. The exact input manifest and prepublication drift
+checks make that ownership fail closed.
 
-Eight-byte integer and exact floating object access use those existing storage identities. A wide `LOAD` copies eight bytes into its own frame snapshot, and `STORE` or `STORE_VALUE` copies from that snapshot to a selected object. This applies to file objects, block statics, fixed automatics, pointer dereferences, ordinary members, and indexed elements. A `float` load keeps its raw four bytes. A `double` load receives its own frame snapshot, and both types pass through compatible stores, fixed calls, discard, and returns. Same-kind floating arithmetic stores each changed result before the next IR instruction. Values already typed as `double` also pass through ellipsis and unprototyped calls, and `va_arg(double)` advances by eight bytes. The host compiler still builds the operation's native contracts and the 135 active host C transforms that have not moved.
+Eight-byte integer and exact floating object access use those existing storage identities. A wide `LOAD` copies eight bytes into its own frame snapshot, and `STORE` or `STORE_VALUE` copies from that snapshot to a selected object. This applies to file objects, block statics, fixed automatics, pointer dereferences, ordinary members, and indexed elements. A `float` load keeps its raw four bytes. A `double` load receives its own frame snapshot, and both types pass through compatible stores, fixed calls, discard, and returns. Same-kind floating arithmetic stores each changed result before the next IR instruction. Values already typed as `double` also pass through ellipsis and unprototyped calls, and `va_arg(double)` advances by eight bytes. The host compiler still builds the operation's native contracts and 52 hosted Toolchain transforms.
 
 File definitions and block-static bindings now share one object encoder. It places file objects first, then every block static in absolute binding order, before it emits functions. The same initializer forms, section rules, target bytes, symbol construction, and direct-symbol relocations apply to both storage domains. Static initializer addresses based on another block static remain a frontend boundary.
 
 The unchanged FAT16 and active-header contracts still pin layout, redeclaration, attribute, assertion, and lexical ownership. The checked seed passes the active 155/155 non-Doom header sweep. `cpu.h` passes through the represented RDTSC form, the three roots that include `percpu.h` parse through all active integer atomics, and `ports.h` parses through all eight width-aware helpers. All twelve Toolchain source gates parse completely. Each five-number tuple reports definitions, statements, expressions, block bindings, and initializers. `cupidc_pp.cc` publishes 143/3,932/25,287/479/286. `cupidc_ir.cc` publishes 262/7,250/67,354/953/354. `cupidc_emit.cc` publishes 353/8,533/71,971/1,041/708, while `cupidc_frontend.cc` publishes 420/16,374/108,280/2,458/1,497. The generated audit records the current active-source totals and source graph.
 
-These hosted semantics do not retire a host dependency. GCC or Clang still builds the shared frontend, emitter, and contracts, the host linker still links the hosted tools, and the host C compiler still owns 83 normal OS root objects and 135 active transforms, while the private kernel compiler owns embedded runtime JIT and AOT compilation. The open host-bound work includes chained and overriding designators, promoted anonymous-member designators, repeated union-member overrides, Cupid class lists, static member-address constants, integer-routed and other unrepresented address casts, broader runtime values and addresses, deferred automatic initializer forms, aggregate categories outside the supported structure slice, Boolean mutation, character-sized bit-field storage, non-four-byte storage units, partial volatile bit-field mutation, pointer and eight-byte atomics, computed `goto`, GNU label addresses, the remaining GNU surface, hexadecimal floating literals, `long double`, unrepresented runtime floating and integer conversions, runtime floating truth and controlling expressions, runtime mixed wide and floating arithmetic or conditional arms, floating increment and decrement, broader local and function code generation, whole-unit emission, and production integration. The private compiler's tagged loop and switch frames change production JIT output and pass the expanded in-OS `feature25` smoke. It transfers no build ownership.
+GCC or Clang still builds the shared frontend, emitter, native contracts, and
+hosted commands, and the host linker still links those commands. The host C
+compiler owns 52 hosted transforms and no normal OS root object. Open work
+includes chained and overriding designators, promoted anonymous-member
+designators, repeated union-member overrides, Cupid class lists, broader
+runtime values, pointer and eight-byte atomics, computed `goto`, GNU label
+addresses, the remaining GNU surface, hexadecimal floating literals,
+`long double`, and broader self-hosting. The private kernel compiler continues
+to own embedded runtime JIT and AOT compilation.
 
 Checked-seed `noinline` and `target("general-regs-only")` semantics narrow
 that GNU gap without changing the dependency count. The seed also accepts
@@ -508,13 +539,13 @@ kernel C inputs through the existing generators and first-pass link. The
 64-bit profiles describe the Windows AMD64 and Linux x86_64 bootstrap
 processes. The target profiles use checked repository headers and
 `__SIZEOF_POINTER__=4` for the static Linux closure. This is compatibility
-evidence, not host-compiler retirement: the host compiler still compiles 83
-normal root objects plus all native contracts and tools. Twenty native hosted
-C transforms are explicit deferrals for external system headers or runtime
-services; no hermetic hosted unit remains deferred.
+evidence for the native contracts and tools, which remain host-built. The
+normal root has no host C transform. Twenty native hosted C transforms are
+explicit deferrals for external system headers or runtime services; no
+hermetic hosted unit remains deferred.
 
-The production-integration item above refers to the 135 remaining host-C
-transforms. Checked-seed CupidC owns the 155-source checked-in normal cohort,
+The production-integration item above refers to the 52 hosted Toolchain
+transforms. Checked-seed CupidC owns the 238-source checked-in normal cohort,
 generated kernel symbols, and the six generated-install or user translations.
 
 The broad inventory below records the original IR contract boundary. Its statements that wide multiplication, division, remainder, mutation, open-position arguments, and wider variadic reads were unsupported are historical. ADRs 0072 through 0075 supersede those gaps.
