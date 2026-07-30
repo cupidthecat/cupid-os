@@ -61,9 +61,9 @@ hosted development commands, and 83 normal C root objects still use a host C
 compiler.
 
 The production boot source assembles to an exact 2,560-byte image with SHA-256
-`9545d6a2f44404af85bb3fd568f1b2d7215b7cd1af2933f7ae5a877353dc95fc`.
+`46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3`.
 CupidASM and the optional NASM oracle produce the same bytes for the current
-`0x00F00000` boot-stack layout.
+`0x01100000` stack top and LBA 20480 FAT boundary.
 
 The checked seed includes the complete 83-root Doom compiler frontier,
 current GNU entity metadata, the active x87 and SSE memory forms, descriptor
@@ -211,10 +211,11 @@ loop. The 42-byte fixture has three relocations and a 27-byte assembly body.
 
 Two Cupid-built compiler runs emit `kernel/core/kernel.cc` as the
 same 25,920-byte object with SHA-256
-`d44d06949d48ead865d0d8c1bdd3b76a67b429e0b7a369318ec4fbe8d9f44ed7`.
-A private hybrid image with that object passes the GUI terminal smoke. The
-production wrapper freezes the source and its 63-header closure, and the
-normal recipe now uses the checked object.
+`ed42676ad0d7f16b1fb83442ead1b0082781324dca719104922099cee34b5ab0`.
+The normal image built with that object passes the four-CPU frontier gate on
+both supported NICs. The production wrapper freezes the source and its
+63-header closure, and the normal recipe uses the checked object. ADR 0187
+records the coordinated memory-map move.
 
 The checked seed retains GNU `naked` and `__naked__` for the exact IPI
 entries. A naked definition must be
@@ -290,7 +291,7 @@ or any other filesystem error publishes nothing. Input discovery skips hidden
 paths under active include roots, so private compiler staging headers from a
 concurrent build do not enter the repository snapshot. The complete frontier
 compiles all 155 roots twice against a 444-file snapshot with SHA-256
-`bfa1e7210193b95df3c357a6c893078c86a74afa33e1cb2baa1cafc0173efab6`.
+`4e153fdf4446128916bb10c0e51b3d1f815ed16bd57d6b1b85527355a0db190d`.
 Both object sets are byte-identical; each totals 3,708,988 bytes. The combined graph passes the
 two-link symbol and memory checks, clean normal and partitioned image builds,
 and strong four-vCPU runtime gates with both NICs.
@@ -388,7 +389,7 @@ gates continue to cover audio, input reattachment, and six EHCI storage
 lifetimes. Both NIC runs print `[fpu] SSE2 enabled`,
 `[fpu] boot smoke ok`, and `FPU boot smoke passed`, then finish
 `feature16_asm_fpu.cc`. A private-image smoke loads the same external ELF
-program twice at `0x00F00000`; cleanup releases the first arena lease before
+program twice at `0x01C00000`; cleanup releases the first arena lease before
 the second load.
 The gate rejects SMP, storage, crypto, exception, panic, corruption, and
 illegal-instruction failure markers. The X.509 checks exercise parser,

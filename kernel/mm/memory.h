@@ -24,35 +24,35 @@ typedef struct heap_block {
   65536 /* 256MB initial heap */
 #define HEAP_MIN_SPLIT (sizeof(heap_block_t) + 8)
 
-/* link.ld keeps the kernel below this fixed stack. The stack and external ELF
- * arena occupy the four megabytes below CupidC's fixed execution arena. */
-#define STACK_BOTTOM 0xD00000u /* Bottom of kernel stack (13 MB) */
-#define STACK_TOP 0xF00000u    /* Top of kernel stack (2 MB tall) */
+/* link.ld keeps the kernel below this fixed stack. The stack fills the two
+ * mebibytes immediately below CupidC's fixed execution arena. */
+#define STACK_BOTTOM 0xF00000u /* Bottom of kernel stack (15 MiB) */
+#define STACK_TOP 0x1100000u   /* Top of kernel stack (17 MiB) */
 #define STACK_SIZE (STACK_TOP - STACK_BOTTOM)
 #define STACK_GUARD_MAGIC 0x5741524Eu /* "WARN" in hex */
 #define STACK_GUARD_SIZE 16           /* Guard zone at bottom (bytes) */
 
 /* Fixed executable arenas are identity-mapped and permanently reserved.
- * The external arena is the transitional CupidLD user-program layout.
- * CupidC keeps nine MiB of JIT/AOT space, and CupidASM keeps its fixed base. */
-#define EXTERNAL_EXEC_ARENA_START 0x00F00000u
-#define EXTERNAL_EXEC_ARENA_END   0x01100000u
+ * CupidC and CupidASM keep their existing bases. External CupidLD programs
+ * use the two mebibytes immediately after CupidASM. */
 #define CUPIDC_EXEC_ARENA_START   0x01100000u
 #define CUPIDC_EXEC_ARENA_END     0x01A00000u
 #define CUPIDASM_EXEC_ARENA_START 0x01A00000u
 #define CUPIDASM_EXEC_ARENA_END   0x01C00000u
+#define EXTERNAL_EXEC_ARENA_START 0x01C00000u
+#define EXTERNAL_EXEC_ARENA_END   0x01E00000u
 
 _Static_assert(STACK_SIZE == 2u * 1024u * 1024u,
                "fixed kernel stack must remain 2 MiB");
-_Static_assert(STACK_TOP == EXTERNAL_EXEC_ARENA_START,
-               "kernel stack and external ELF arena must be adjacent");
+_Static_assert(STACK_TOP == CUPIDC_EXEC_ARENA_START,
+               "kernel stack and CupidC arena must be adjacent");
 _Static_assert(EXTERNAL_EXEC_ARENA_END - EXTERNAL_EXEC_ARENA_START ==
                    2u * 1024u * 1024u,
                "external ELF arena must remain 2 MiB");
-_Static_assert(EXTERNAL_EXEC_ARENA_END == CUPIDC_EXEC_ARENA_START,
-               "external ELF arena must end at the CupidC arena");
 _Static_assert(CUPIDC_EXEC_ARENA_END == CUPIDASM_EXEC_ARENA_START,
                "CupidC and CupidASM arenas must be adjacent");
+_Static_assert(CUPIDASM_EXEC_ARENA_END == EXTERNAL_EXEC_ARENA_START,
+               "CupidASM and external ELF arenas must be adjacent");
 _Static_assert(CUPIDASM_EXEC_ARENA_END - CUPIDASM_EXEC_ARENA_START ==
                    2u * 1024u * 1024u,
                "CupidASM arena must remain 2 MiB");

@@ -164,10 +164,10 @@ LIBM_SOURCE_SHA256 = (
     "f1c13c83b758394189cc74ed6addfd9d"
     "fa99d42064c349c548476686b26cabce"
 )
-KERNEL_SOURCE_SIZE = 31172
+KERNEL_SOURCE_SIZE = 31174
 KERNEL_SOURCE_SHA256 = (
-    "fcc92bb561ed107ec6b328f5e9502f10"
-    "40a2fedd9cf573f6876e5b93556945c3"
+    "f882ac45e2fc9a41ce805a22a602fb48"
+    "39293a755ef5fea3b7e21d159d5bbf83"
 )
 
 
@@ -1413,8 +1413,8 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                 (len(objects[0]), digest),
                 (
                     25920,
-                    "d44d06949d48ead865d0d8c1bdd3b76a"
-                    "67b429e0b7a369318ec4fbe8d9f44ed7",
+                    "ed42676ad0d7f16b1fb83442ead1b008"
+                    "2781324dca719104922099cee34b5ab0",
                 ),
                 (
                     "kernel object lock changed: "

@@ -75,11 +75,11 @@ void pmm_init(uint32_t kernel_end) {
   pmm_mark_region(STACK_BOTTOM, STACK_TOP, 1); /* fixed kernel stack */
 
   /* Reserve every fixed execution region so the PMM never allocates into it.
-   * Layout (well above kernel BSS + stack):
-   *   15 MB - 17 MB  external CupidLD executables
-   *   17 MB - 26 MB  CupidC   (1 MB code + 8 MB data)
-   *   26 MB - 28 MB  CupidASM (1 MB code + 1 MB data)
-*/
+   * Layout above the kernel and its stack:
+   *   17 MiB - 26 MiB  CupidC   (1 MiB code + 8 MiB data)
+   *   26 MiB - 28 MiB  CupidASM (1 MiB code + 1 MiB data)
+   *   28 MiB - 30 MiB  external CupidLD executables
+   */
   pmm_mark_region(EXTERNAL_EXEC_ARENA_START, EXTERNAL_EXEC_ARENA_END, 1);
   pmm_mark_region(CUPIDC_EXEC_ARENA_START, CUPIDC_EXEC_ARENA_END, 1);
   pmm_mark_region(CUPIDASM_EXEC_ARENA_START, CUPIDASM_EXEC_ARENA_END, 1);

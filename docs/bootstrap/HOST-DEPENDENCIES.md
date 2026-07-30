@@ -35,7 +35,7 @@ transferred Make recipe names its exact recursive header closure and common
 checked-seed controls. Poisoned-host recipes, strict syntax, focused tests,
 and the normal-image gate remain part of the proof. The full 155-root
 frontier passes twice against a 444-file frozen snapshot with SHA-256
-`bfa1e7210193b95df3c357a6c893078c86a74afa33e1cb2baa1cafc0173efab6`.
+`4e153fdf4446128916bb10c0e51b3d1f815ed16bd57d6b1b85527355a0db190d`.
 The two object sets are byte-identical; each totals 3,708,988 bytes. The combined 155-root graph
 also carries the ISO fixture as an explicit image input and passes the strong
 four-vCPU runtime gate with both NICs.
@@ -55,7 +55,7 @@ traffic, opens the desktop and terminal, and completes embedded CupidC
 execution at `0x01100000`. The dual-NIC contract also covers audio, TrueType
 glyph use, an exact 8-by-8 JPEG decode, UHCI input reattachment, and six EHCI
 storage lifetimes. The private-image gate loads and
-reaps the same external ELF program twice at `0x00F00000`, with lease release
+reaps the same external ELF program twice at `0x01C00000`, with lease release
 between the two runs.
 
 CupidC represents operand-free GNU assembly statements inside functions and
@@ -448,11 +448,12 @@ IR independently checks the outer body relationship.
 
 Two Cupid-built compiler runs emit unchanged `kernel/core/kernel.cc` as the
 same 25,920-byte object with SHA-256
-`d44d06949d48ead865d0d8c1bdd3b76a67b429e0b7a369318ec4fbe8d9f44ed7`.
+`ed42676ad0d7f16b1fb83442ead1b0082781324dca719104922099cee34b5ab0`.
 The normal recipe freezes the source and its 63-header recursive closure.
 Poisoning `CC` leaves it on the checked wrapper, and CupidDis decodes the
-entry, BSS clear, `kmain()` call, and halt loop. ADR 0175 records the boundary,
-ADR 0179 records seed carriage, and ADR 0180 records production ownership.
+`0x01100000` stack reset, BSS clear, `kmain()` call, and halt loop. ADR 0175
+records the boundary, ADR 0179 records seed carriage, ADR 0180 records
+production ownership, and ADR 0187 records the active memory-map placement.
 
 The checked seed accepts the exact volatile EFLAGS restore used twice by
 `simd_cpu_has_cpuid()`: one 32-bit `r` input, no outputs, and one `cc`

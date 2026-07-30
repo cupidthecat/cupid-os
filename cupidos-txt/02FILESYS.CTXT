@@ -166,8 +166,8 @@ Mapping reminder:
   additions remain under /disk until copied into homefs in the guest
 
 Example host commands:
-  mcopy -o -i cupidos.img@@8388608 file.txt ::/file.txt
-  mdir  -i cupidos.img@@8388608 ::/
+  mcopy -o -i cupidos.img@@10485760 file.txt ::/file.txt
+  mdir  -i cupidos.img@@10485760 ::/
 
 Use this for bulk host-to-image transfer.
 Use in-OS editing under /home for normal runtime work.

@@ -127,11 +127,10 @@ extern const char _binary_system_fonts_LiberationSerif_Regular_ttf_end[];
 extern const char _binary_system_fonts_LiberationMono_Regular_ttf_start[];
 extern const char _binary_system_fonts_LiberationMono_Regular_ttf_end[];
 /* Noto Sans Symbols covers Misc Symbols (U+2600 incl. snowman U+2603),
- * dingbats, arrows, and geometric shapes. ~227 KB. The current boot area ends
- * at FAT_START_LBA 16384, and link.ld checks every file-backed kernel image
- * against that boundary. fontsys_find_face_with_cp uses this
- * face as last-resort glyph fallback when the chosen family lacks a
- * codepoint.*/
+ * dingbats, arrows, and geometric shapes. It is about 227 KiB. The boot area
+ * ends at FAT_START_LBA 20480, and link.ld checks every file-backed kernel
+ * image against that boundary. fontsys_find_face_with_cp uses this face as
+ * the last glyph fallback when the chosen family lacks a codepoint.*/
 extern const char _binary_system_fonts_NotoSansSymbols_Regular_ttf_start[];
 extern const char _binary_system_fonts_NotoSansSymbols_Regular_ttf_end[];
 

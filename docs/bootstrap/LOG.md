@@ -16624,3 +16624,137 @@ remain host-owned until their production handoff.
 
 [ADR 0186](../adr/0186-promote-stack-top-capable-toolchain-seed.md) records
 the promotion boundary and rejected alternatives.
+
+## 2026-07-30: expand the kernel map for the CupidC Doom image
+
+The complete CupidC Doom cohort exposed a real address-space limit. A
+diagnostic link placed `_loaded_end` at `0x00916B24`, `_bss_start` at
+`0x00917000`, and `_kernel_end` at `0x00D3BD5C`. The file-backed image crossed
+the old disk reservation by 95,524 bytes, and BSS reached 245,084 bytes into
+the old stack.
+
+The host-built comparison reached `_loaded_end` at `0x008888C4`,
+`_bss_start` at `0x00889000`, and `_kernel_end` at `0x00CADA30`. CupidC's
+Doom objects added 470,524 file-backed bytes and 842 BSS bytes. No Doom
+source or behavior was removed to hide that difference.
+
+### Coordinated map
+
+The kernel may now occupy `[0x00100000, 0x00F00000)`. Its two-MiB stack moved
+to `[0x00F00000, 0x01100000)` and resets ESP to `0x01100000`. CupidC keeps
+`[0x01100000, 0x01A00000)`, and CupidASM keeps
+`[0x01A00000, 0x01C00000)`. The ordinary external ELF lease moved intact to
+`[0x01C00000, 0x01E00000)`.
+
+FAT16 moved from LBA 16384 to LBA 20480. The BIOS loader reads the kernel
+from LBA 5 through LBA 20479. The linker caps file-backed bytes at
+`0x00AFF600` and all allocated kernel bytes at `0x00F00000`.
+
+The linker script, boot source, memory header, kernel entry, image builder,
+external-program linker, Makefiles, source locks, and runtime patterns changed
+together. Tests pin all addresses, adjacency rules, partition values, boot
+bytes, kernel-entry bytes, and user program headers. The active README,
+bootstrap records, wiki, glossary, and in-OS manuals use the same layout.
+
+### Build and object evidence
+
+The final normal build completed with `make -j8 all`. CupidLD placed
+`_loaded_end` at `0x008A2844`, `_bss_start` at `0x008A3000`, and
+`_kernel_end` at `0x00CC7A30`.
+
+The 8,005,700-byte raw kernel has SHA-256
+`da9972bb3a35ca10032b9577600866a595d3e2c99302002e58282faa499032ef`.
+It ends at LBA 15642, leaving 4,838 sectors before FAT16. A separate clean
+209,715,200-byte image has SHA-256
+`026cf8fca46c04202cd78939efed68d26f2c1077a767cfc316a0d57ce4592df5`.
+Its MBR declares FAT16 at LBA 20480, its stage-two bytes match the CupidASM
+output, and its LBA 5 payload matches the raw kernel.
+
+CupidASM emits the 2,560-byte boot image with SHA-256
+`46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3`.
+Two checked-seed compiles emit the 31,174-byte
+`kernel/core/kernel.cc` as the same 25,920-byte object with SHA-256
+`ed42676ad0d7f16b1fb83442ead1b0082781324dca719104922099cee34b5ab0`.
+
+The strict kernel frontier compiles all 155 checked-in roots twice against a
+444-file snapshot with SHA-256
+`4e153fdf4446128916bb10c0e51b3d1f815ed16bd57d6b1b85527355a0db190d`.
+Both object sets are byte-identical and total 3,708,988 bytes each. The moved
+constants changed three frozen object hashes without changing their sizes:
+`kernel/core/process.cc`, `kernel/lang/cupidc.cc`, and
+`kernel/mm/memory.cc`. A 37-source diagnostic frontier reproduced those
+three changes twice in 562.0 seconds. The corrected complete frontier passed
+in 1,370.297 seconds.
+
+### Runtime evidence
+
+The focused memory, wrapper, loader, user-runtime, and boot-source contracts
+pass 95 tests. Two additional checked-seed kernel tests pass with the new
+source and object locks.
+
+The broader memory, production, runtime, process, CupidASM-source, baseline,
+host-build, active-audit, and CupidLD selection passes all 199 tests in
+555.897 seconds. It includes the negative link whose memory image crosses the
+new stack boundary and the active inventory of 5,310 `sizeof` expressions.
+
+Three private-image boots run `hello`, `ls`, and `cat`. Each executable loads
+at `0x01C00000` as PID 4, produces its expected PID-bound syscall evidence,
+exits, and is reaped. The cat boot completes its CupidC JIT setup and does not
+accept a marker-shaped file line as a serial event.
+
+The four-CPU frontier contract passes with both NICs. The e1000 run changes
+83,130 framebuffer pixels, captures 7,419,389 AC97 frames and 78,661
+PC-speaker frames, and survives USB removal and reattachment. This final-image
+run completed in 224.5 seconds after the embedded manuals were rebuilt. The
+75,158-byte serial log has SHA-256
+`eb1e9e3035729cb35f9d072a368736daf52524d1fdca8d41b41316b6486f89b7`. The
+RTL8139 run changes 88,178 pixels, captures 7,356,675 AC97 frames and 77,895
+PC-speaker frames, and passes the same storage and survival checks. Both runs
+also cover RDRAND, TLS, network traffic, and the fixed port-I/O cohort.
+
+### Failed approach
+
+The first two `make test-user-cupidc-runtime` attempts spent their ten-minute
+outer windows recompiling the kernel and never reached QEMU. The image target
+was not stale. The build graph deliberately gives every kernel object a
+phony `FORCE` prerequisite, and the runtime target inherits that full serial
+rebuild through `cupidos.img`.
+
+After the parallel normal build passed, a dry run with
+`make -o cupidos.img test-user-cupidc-runtime` showed zero kernel compile
+commands and the expected staging plus three smoke commands. That fixed-image
+run completed all three boots in 214.7 seconds. The forced rebuild remains a
+known build-graph cost; this increment does not change its policy.
+
+The first complete kernel-frontier run outlived its 1,204-second outer
+capture window. Its child continued through the remaining objects, but the
+expired wrapper lost the unittest result. A captured rerun finished all
+compiles in 1,361.746 seconds and exposed the three stale object locks
+described above. The focused frontier supplied their exact deterministic
+values before the final complete run. Increasing the capture window fixed
+the orchestration problem; weakening the frontier was unnecessary.
+
+The first final-image e1000 boot used the harness's 45-second default. It
+timed out while homefs was still importing FAT clusters and showed no panic.
+The same command passed with a 300-second guest window in 224.5 seconds.
+
+### Active build audit
+
+The regenerated audit still finds 699 active sources, 253 feature
+requirements, 504 output transforms, and 42 accounted unreachable files.
+The 1,532,449-byte JSON record has SHA-256
+`5522ad94f41c270f2419c08886597746085f05735f41d2325a76d0609d638239`.
+The 15,060-byte summary has SHA-256
+`d49144df3533eb363534a7703d8d4b54928faad503fc70d1f094f4c6541e5c9d`.
+The deterministic audit replay passes.
+
+### Remaining ownership
+
+The expanded map removes the measured link blocker, but it does not by itself
+transfer the 83 Doom roots into the production graph or prove gameplay. The
+Doom handoff still needs closed normal recipes, byte-preserving `.cc` names,
+full object and link tests, dual-NIC launch checks, and an IWAD-backed gameplay
+gate when a WAD is available.
+
+[ADR 0187](../adr/0187-expand-kernel-and-relocate-external-elf.md) records
+the map, disk boundary, evidence, and rejected alternatives.

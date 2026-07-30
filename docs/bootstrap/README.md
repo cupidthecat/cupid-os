@@ -83,7 +83,7 @@ validator. The production frontier covers 155 approved sources, and every
 Make recipe names its recursive header closure and common checked controls.
 Forced rebuilds poison the host compiler. The complete frontier now compiles
 all 155 roots twice against a 444-file snapshot with SHA-256
-`bfa1e7210193b95df3c357a6c893078c86a74afa33e1cb2baa1cafc0173efab6`.
+`4e153fdf4446128916bb10c0e51b3d1f815ed16bd57d6b1b85527355a0db190d`.
 Both object passes are byte-identical; each totals 3,708,988 bytes. The combined
 frontier retries only short permission-style directory locks with five
 bounded delays; persistent locks and other filesystem errors publish nothing.
@@ -147,13 +147,13 @@ root-directory read. The cat boot also copies a fixed FAT fixture over
 and the selected image stays unchanged. Every boot requires PID-matched
 process completion.
 
-The larger unoptimized objects needed more kernel address space. The kernel
-ceiling is now `0x00D00000`; the full two-MiB stack occupies
-`[0x00D00000, 0x00F00000)`, the full two-MiB external ELF arena occupies
-`[0x00F00000, 0x01100000)`, and CupidC keeps nine MiB at
-`[0x01100000, 0x01A00000)`. CupidASM stays at
-`[0x01A00000, 0x01C00000)`. The layout reclaims the former gap before
-CupidASM without shrinking any active arena.
+The larger unoptimized objects need more kernel address space. The kernel
+ceiling is `0x00F00000`, and the two-MiB stack occupies
+`[0x00F00000, 0x01100000)`. CupidC keeps nine MiB at
+`[0x01100000, 0x01A00000)`, and CupidASM keeps two MiB at
+`[0x01A00000, 0x01C00000)`. The two-MiB external ELF lease now follows at
+`[0x01C00000, 0x01E00000)`. FAT16 starts at LBA 20480, so the BIOS loader
+may read the kernel through LBA 20479. No active runtime arena was reduced.
 
 The renamed graph starts every discovered CPU on the four-vCPU GUI gate,
 seeds the CSPRNG through RDRAND, passes all 62 crypto, ASN.1, and X.509
@@ -161,7 +161,7 @@ checks, reaches the desktop and terminal, initializes e1000, and completes
 in-OS CupidC execution at `0x01100000`. The dual-NIC, audio, input
 reattachment, and six EHCI lifetime gates remain part of the contract. An
 isolated image gate also
-loads the same external ELF program twice at `0x00F00000` and releases the
+loads the same external ELF program twice at `0x01C00000` and releases the
 first lease before reuse.
 
 Python still launches the compiler. Windows still uses WSL for the root and
@@ -594,19 +594,20 @@ compiler-managed frame. It copies ESP to EBP, loads both linker symbols,
 derives the doubleword count, clears EAX, then emits CLD and REP STOSD through
 the shared x86 model. Its following `kmain()` call uses stack-base residue
 zero, and a returning `kmain()` reaches an interrupt-disabled halt loop. The
-active source keeps `0x00F00000` until the memory-map transition.
+active source installs `0x01100000`, the top of the fixed two-MiB stack.
 
 The exact fixture has 42 text bytes and three relocations. Its 27-byte
 assembly body has `R_386_32` relocations at offsets 11 and 16. The
 `R_386_PC32` call relocation is at offset 31. Two runs of the Cupid-built
 compiler emit unchanged `kernel/core/kernel.cc` as the same 25,920-byte
 object with SHA-256
-`d44d06949d48ead865d0d8c1bdd3b76a67b429e0b7a369318ec4fbe8d9f44ed7`.
+`ed42676ad0d7f16b1fb83442ead1b0082781324dca719104922099cee34b5ab0`.
 The normal recipe freezes the source and its 63-header recursive closure.
 Poisoning `CC` leaves the recipe on the checked wrapper, and CupidDis decodes
 the stack reset, linked BSS clear, `kmain()` call, and halt loop. ADR 0180
 records production ownership. ADR 0185 records the variable, page-aligned
-stack-top boundary, and ADR 0186 records its checked-seed promotion.
+stack-top boundary, ADR 0186 records its checked-seed promotion, and ADR 0187
+records the coordinated memory-map move.
 
 ADR 0157 carries the four descriptor-table and segment-register assembly
 forms in unchanged `kernel/smp/percpu.c`. The LGDT forms require one

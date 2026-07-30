@@ -730,11 +730,11 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
     def test_checked_seed_emits_complete_unchanged_kernel_entry_object(self):
         self._assert_checked_seed_emits_complete_unchanged_kernel_object(
             "kernel/core/kernel.cc",
-            31172,
+            31174,
             950,
-            "fcc92bb561ed107ec6b328f5e9502f1040a2fedd9cf573f6876e5b93556945c3",
+            "f882ac45e2fc9a41ce805a22a602fb4839293a755ef5fea3b7e21d159d5bbf83",
             25920,
-            "d44d06949d48ead865d0d8c1bdd3b76a67b429e0b7a369318ec4fbe8d9f44ed7",
+            "ed42676ad0d7f16b1fb83442ead1b0082781324dca719104922099cee34b5ab0",
         )
 
     def test_checked_seed_emits_page_aligned_kernel_stack_top(self):

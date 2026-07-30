@@ -5,9 +5,9 @@ SECTIONS
 {
     /*
      * Kernel is loaded at 1MB (0x100000) by the bootloader via unreal mode.
-     * File-backed bytes must end by 0x8FF600 for the bootloader's reserved
+     * File-backed bytes must end by 0xAFF600 for the bootloader's reserved
      * disk area, and the complete memory image must end below the fixed
-     * kernel stack at 0xD00000 (both asserted below).
+     * kernel stack at 0xF00000. Both boundaries are asserted below.
      */
     . = 0x100000;
     .text : {
@@ -48,12 +48,12 @@ SECTIONS
 
     /*
      * Safety check: kernel text+data must fit in bootloader kernel area
-     * (LBA 5..16383 = 16379 sectors = 0x7FF600 bytes) loaded at 0x100000.
-     * The partition table moves with this — see boot/boot.asm partition
-     * entry start LBA and Makefile FAT_START_LBA.
+     * (LBA 5..20479 = 20475 sectors = 0x9FF600 bytes) loaded at 0x100000.
+     * The partition table moves with this boundary. See boot/boot.asm and
+     * Makefile FAT_START_LBA.
      */
-    ASSERT(_loaded_end <= 0x8FF600,
+    ASSERT(_loaded_end <= 0xAFF600,
            "Kernel binary (text+data) exceeds reserved HDD kernel area")
-    ASSERT(_kernel_end <= 0xD00000,
+    ASSERT(_kernel_end <= 0xF00000,
            "Kernel memory image overlaps the fixed kernel stack")
 }

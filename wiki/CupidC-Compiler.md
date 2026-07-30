@@ -443,17 +443,18 @@ nonzero stack top written as one through eight hexadecimal digits, provided
 it is aligned to 4 KiB, and emits that value in `MOV ESP, imm32`. The rest of
 the statement remains exact. The following `kmain()` call uses stack-base
 residue zero. If it returns, `_start` disables interrupts and halts instead of
-using the discarded frame. The active source still uses `0x00F00000`.
+using the discarded frame. The active source installs `0x01100000`.
 
 The exact fixture has a 27-byte assembly body inside a 42-byte function. Its
 three relocations name `_bss_start`, `_kernel_end`, and `kmain`. Two runs of
 the Cupid-built compiler emit `kernel/core/kernel.cc` as the same
 25,920-byte object with SHA-256
-`d44d06949d48ead865d0d8c1bdd3b76a67b429e0b7a369318ec4fbe8d9f44ed7`.
-A private hybrid image with that object reaches the desktop and completes
-`/bin/ls.cc`. The production wrapper freezes the source and its 63-header
-closure, and the normal recipe now uses this checked object. ADR 0185 records
-the compiler-head stack-top boundary, and ADR 0186 records its seed carriage.
+`ed42676ad0d7f16b1fb83442ead1b0082781324dca719104922099cee34b5ab0`.
+The normal image built with that object passes the four-CPU frontier gate on
+both supported NICs. The production wrapper freezes the source and its
+63-header closure, and the normal recipe uses this checked object. ADR 0185
+records the compiler-head stack-top boundary, ADR 0186 records its seed
+carriage, and ADR 0187 records the active placement.
 
 The checked seed accepts the four exact descriptor-table and
 segment-register statements in `kernel/smp/percpu.cc`. A packed
@@ -505,7 +506,7 @@ the object, so a concurrent edit cannot publish a mixed result.
 
 The strict kernel frontier must compile all 155 approved checked-in sources
 twice. The full frontier passes against a 444-file snapshot with SHA-256
-`bfa1e7210193b95df3c357a6c893078c86a74afa33e1cb2baa1cafc0173efab6`.
+`4e153fdf4446128916bb10c0e51b3d1f815ed16bd57d6b1b85527355a0db190d`.
 Both 155-object sets are byte-identical; each totals 3,708,988 bytes. The
 combined graph keeps the ISO fixture as an explicit image input. Strong
 four-vCPU runtime gates pass with e1000 and RTL8139 networking through SMP,
@@ -524,7 +525,7 @@ checks. The CSPRNG assembly emits RDTSC, CPUID, RDRAND, and SETC through
 Cupid's x86 model while preserving EBX. The combined four-vCPU GUI gate reaches
 SMP, all 62 crypto checks, e1000 traffic, the desktop, terminal, and CupidC
 execution at `0x01100000`. A separate gate loads and reaps the same
-external program twice at `0x00F00000`. ADR 0124 records the exact build and
+external program twice at `0x01C00000`. ADR 0124 records the exact build and
 runtime evidence. The host C compiler owns 135
 transforms and 83 root objects. Host Python owns 177 transforms. The private
 in-kernel CupidC compiler still handles embedded runtime compilation.

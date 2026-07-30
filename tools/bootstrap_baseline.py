@@ -1097,7 +1097,7 @@ def capture_build(
     make_config = (
         "WAD_SRCS=",
         "HDD_MB=200",
-        "FAT_START_LBA=16384",
+        "FAT_START_LBA=20480",
     )
     build_checks = []
     for root in SUPPORTED_BUILD_ROOTS:
@@ -1305,7 +1305,7 @@ def capture_baseline(
             "runs": runs,
             "jobs": jobs,
             "hdd_mb": 200,
-            "fat_start_lba": 16384,
+            "fat_start_lba": 20480,
             "optional_wads": False,
             "environment_overrides": {
                 name: os.environ[name]
