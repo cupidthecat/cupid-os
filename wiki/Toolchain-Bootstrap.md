@@ -70,15 +70,16 @@ current GNU entity metadata, the active x87 and SSE memory forms, descriptor
 and segment assembly, every unchanged assembly effect in `libm.cc`, the exact
 dglibc jump block, pointer-preserving static address casts, explicit `double`
 to `unsigned long long` conversion, and exact naked IPI entries. Its
-stage-three CupidC image is 2,524,088 bytes with SHA-256
-`d05b48f14c5c57930c151f4d7099d686066c6cface01305c7d2c0261b660970d`.
+stage-three CupidC image is 2,528,332 bytes with SHA-256
+`f53989572cd1564a8bf91059552868ee43a1d80905986b58cd97d44949aab3a1`.
 It came from stage three of the checked bootstrap at revision
-`7609793ea594a8e024474509e5faacaf1d6c76ea`. It also carries the kernel-entry
-BSS clear and all packed SSE2 statements in the active SIMD source. CupidASM
+`af4644177c033eebda164d7893074315439df119`. It also carries the kernel-entry
+BSS clear with a nonzero page-aligned stack top and all packed SSE2 statements
+in the active SIMD source. CupidASM
 and CupidDis carry the 587-row shared x86 catalogue. With host code-generator commands
 poisoned, all five seed images match stage two. All 19 stage-two C objects,
 startup, and five images then match stage three, and both stages pass all 21
-tool behavior cases. ADR 0183 records this promotion and its post-promotion
+tool behavior cases. ADR 0186 records this promotion and its post-promotion
 reproof.
 
 The refreshed seed represents operand-free GNU assembly statements inside

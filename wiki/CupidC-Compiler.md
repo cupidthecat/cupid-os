@@ -327,7 +327,7 @@ produce byte-identical objects for all three roots. Doom remains host-owned
 until the host and Cupid link boundaries compare, the sources move to `.cc`,
 and the runtime proof passes.
 
-The five static i386 Linux tools have a checked seed. The manifest binds their hashes, sizes, target ABI, source revision, producer lineage, 19-source plan, and five link orders. The current CupidC image is the 2,524,088-byte stage-three output from revision `7609793ea594a8e024474509e5faacaf1d6c76ea`, with SHA-256 `d05b48f14c5c57930c151f4d7099d686066c6cface01305c7d2c0261b660970d`. It carries the complete 83-root Doom frontier, current GNU entity metadata, x87 and SSE forms, descriptor and segment assembly, every unchanged assembly effect in `libm.cc`, the exact dglibc jump block, pointer-preserving static address casts, exact naked IPI entries, the kernel-entry BSS clear, and the active packed SSE2 statements. Its plan uses `.cc` for all 19 C roots and has SHA-256 `59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`.
+The five static i386 Linux tools have a checked seed. The manifest binds their hashes, sizes, target ABI, source revision, producer lineage, 19-source plan, and five link orders. The current CupidC image is the 2,528,332-byte stage-three output from revision `af4644177c033eebda164d7893074315439df119`, with SHA-256 `f53989572cd1564a8bf91059552868ee43a1d80905986b58cd97d44949aab3a1`. It carries the complete 83-root Doom frontier, current GNU entity metadata, x87 and SSE forms, descriptor and segment assembly, every unchanged assembly effect in `libm.cc`, the exact dglibc jump block, pointer-preserving static address casts, exact naked IPI entries, the kernel-entry BSS clear with a nonzero page-aligned stack top, and the active packed SSE2 statements. Its plan uses `.cc` for all 19 C roots and has SHA-256 `59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`.
 
 The bootstrap copies the 40-input source closure into a private compiler root. Both rebuilt stages compile from that root, and the harness checks the private and live closures at each stage and behavior boundary. The checked seed, stage two, and stage three all contain the same five tool images. The two rebuilt stages also match every C and startup object and agree on all five help paths, ten successful operations, and six failure cases. Their stage directories, behavior evidence, and report are published together only after the complete gate passes. See [Toolchain Bootstrap](Toolchain-Bootstrap) for the commands and report layout. Native contract runners, hosted development commands, and 83 normal Cupid OS root objects still come from a host compiler.
 
@@ -436,15 +436,14 @@ external object declarations for `_bss_start` and `_kernel_end`, and no
 compiler-managed frame. Frontend statement depth and Linear IR body identity
 reject leading, label-wrapped, or otherwise nested copies.
 
-The checked seed installs the fixed stack, loads both linker symbols through
+The checked seed loads both linker symbols through
 `R_386_32` relocations, derives the doubleword count, clears EAX, and emits
-CLD plus REP STOSD through the shared x86 model. Compiler head now accepts a
+CLD plus REP STOSD through the shared x86 model. It accepts a
 nonzero stack top written as one through eight hexadecimal digits, provided
 it is aligned to 4 KiB, and emits that value in `MOV ESP, imm32`. The rest of
 the statement remains exact. The following `kmain()` call uses stack-base
 residue zero. If it returns, `_start` disables interrupts and halts instead of
-using the discarded frame. The active source and checked seed still use
-`0x00F00000`.
+using the discarded frame. The active source still uses `0x00F00000`.
 
 The exact fixture has a 27-byte assembly body inside a 42-byte function. Its
 three relocations name `_bss_start`, `_kernel_end`, and `kmain`. Two runs of
@@ -454,7 +453,7 @@ the Cupid-built compiler emit `kernel/core/kernel.cc` as the same
 A private hybrid image with that object reaches the desktop and completes
 `/bin/ls.cc`. The production wrapper freezes the source and its 63-header
 closure, and the normal recipe now uses this checked object. ADR 0185 records
-the compiler-head stack-top boundary.
+the compiler-head stack-top boundary, and ADR 0186 records its seed carriage.
 
 The checked seed accepts the four exact descriptor-table and
 segment-register statements in `kernel/smp/percpu.cc`. A packed

@@ -16546,3 +16546,94 @@ build and `make verify-bootstrap-seed` also pass.
 
 [ADR 0185](../adr/0185-accept-page-aligned-kernel-stack-tops.md) records the
 design and the rejected alternatives.
+
+## 2026-07-29: promote the stack-top-capable Toolchain seed
+
+The checked i386 Linux seed now carries the page-aligned kernel-entry stack
+top represented in compiler head. The capability commit was tested and pushed
+as `af4644177c033eebda164d7893074315439df119` before the candidate was built.
+
+### Red seed regression
+
+A new checked-seed test compiles a small kernel-entry source twice and looks
+for the exact `BC 00 00 10 01` encoding of `MOV ESP, 0x01100000`. The
+preceding seed failed at line 6, column 3 with `CTB00000F`, reporting that the
+kernel BSS-clear template was unsupported.
+
+After promotion, both objects are byte-identical and contain the requested
+immediate once. The old `0x00F00000` encoding is absent.
+
+### Transition fixed point
+
+The transition ran with the host compiler, C++ compiler, assembler, linker,
+archive tool, symbol tool, object-copy tool, object inspector, and NASM
+commands poisoned. The harness froze 40 source inputs with snapshot SHA-256
+`0f203fa31a8212e804c82ccc70aef267d83b70aadc3d2c4e969640947c5468ff`.
+
+All 19 C objects, startup, and five tools matched between stage two and stage
+three. Both stages passed five help cases, ten successful operations, and six
+useful failures. Four seed tools already matched stage two. CupidC differed,
+as expected:
+
+| Tool | Input seed matched stage two |
+| --- | --- |
+| CupidASM | yes |
+| CupidC | no |
+| CupidDis | yes |
+| CupidLD | yes |
+| CupidObj | yes |
+
+The run completed in 671.599 seconds. Its 14,880-byte report has SHA-256
+`14238a5b62f06bbb8d51874bccb7635ab1e1fe5a1a0382a9c25b285181645cd7`.
+The build plan remains unchanged, with SHA-256
+`59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`.
+
+### Promoted trust unit
+
+All five stage-three files were copied together. Only CupidC changed from the
+preceding seed:
+
+| Tool | Bytes | SHA-256 |
+| --- | ---: | --- |
+| CupidASM | 433,104 | `d57e4f0494aef294045c633b12e4db3f14e879102ac4e528fe70d6a5f089c7e7` |
+| CupidC | 2,528,332 | `f53989572cd1564a8bf91059552868ee43a1d80905986b58cd97d44949aab3a1` |
+| CupidDis | 371,108 | `e67157c4883f4164635b6084bc8c6475b77fd9d051196f4a553ae64346948d70` |
+| CupidLD | 262,388 | `373ed96803dcfb0005b8b3b1d49ca1313396ee11e17521aad6402f487cdd97e5` |
+| CupidObj | 182,704 | `1f48c3d7b5f80d3e33eb9268c087111e8fa54eb390c24368a09f7ec2981c0030` |
+
+The 5,440-byte manifest binds those files and the pushed source revision. Its
+SHA-256 is
+`98dd40674aa42f0fc52689dfe22d459d78c9b2374f7110f83727e5da12321939`.
+
+### Post-promotion proof
+
+A second poisoned-host bootstrap started from the promoted seed. All five
+input images matched stage two. The 19 C objects, startup, and five tools then
+matched between stage two and stage three, and both stages passed all 21
+behavior cases.
+
+The run completed in 670.133 seconds. Its 14,879-byte report has SHA-256
+`5aea23e068e68f09eba2bbc97e2e03ae0773223e42b153780bf2006b0e99ce41`.
+
+The complete checked-seed module passed all 27 tests in 717.669 seconds. It
+repeated the fixed point and checked schema and provenance, source and plan
+drift, frozen inputs, ELF properties, tamper rejection, kernel and Doom
+objects, and the new stack-top object.
+
+The regenerated build graph remains at 699 active sources, 253 feature
+requirements, 504 output transforms, and 42 accounted unreachable files. The
+1,532,457-byte JSON record has SHA-256
+`2a45704c0b984ed04f46f8bca88f917ea4aa01e2d94213740b7877622cd253db`.
+The 15,060-byte summary has SHA-256
+`c7fb4d3294aaaa1a4c936df1a8327e84a8bf9dc4258a43597103df1c7bb8ed99`.
+The deterministic audit replay passes.
+
+### Remaining ownership
+
+This increment changes the checked compiler, not the active memory map. The
+kernel still installs ESP at `0x00F00000`, and the linker, bootloader, disk
+layout, and external-program arena remain unchanged. The 83 Doom roots also
+remain host-owned until their production handoff.
+
+[ADR 0186](../adr/0186-promote-stack-top-capable-toolchain-seed.md) records
+the promotion boundary and rejected alternatives.
