@@ -98,6 +98,13 @@ NIC_RUNTIME_REJECTED_MARKERS = (
 )
 CUPIDC_COMPLETION_PATTERN = r"\[cupidc\] JIT execution complete"
 ASM_COMPLETION_PATTERN = r"\[asm\] JIT execution complete"
+UNARY_TYPE_DIAGNOSTIC_PATTERN = (
+    r"\[cupidc\] error \(line 1\): "
+    r"unary sign requires an arithmetic scalar operand\r?\n"
+)
+FRONTIER_RUNTIME_ALLOWED_FAILURE_PATTERNS = (
+    UNARY_TYPE_DIAGNOSTIC_PATTERN,
+)
 
 
 @dataclass(frozen=True)
@@ -109,6 +116,7 @@ class TerminalCommand:
     followup_keys: tuple[str, ...] = ()
     interaction_pattern: str | None = None
     followup_settle_seconds: float = 0.0
+    allowed_failure_patterns: tuple[str, ...] = ()
 
 
 FRONTIER_RUNTIME_COMMANDS = (
@@ -148,6 +156,17 @@ FRONTIER_RUNTIME_COMMANDS = (
             r".*?extended SYS VFS calls: OK"
             rf".*?{ASM_COMPLETION_PATTERN}"
         ),
+    ),
+    TerminalCommand(
+        "/bin/feature13_double.cc",
+        (
+            r"\[cupidc\] JIT compile: /bin/feature13_double\.cc"
+            rf".*?{UNARY_TYPE_DIAGNOSTIC_PATTERN}"
+            r".*?\[feature13-unary\] PASS float=-15 double=-9 "
+            r"zero=0x80000000 plus=9 reject=1 recovery=1"
+            rf".*?PASS feature13_double.*?{CUPIDC_COMPLETION_PATTERN}"
+        ),
+        allowed_failure_patterns=FRONTIER_RUNTIME_ALLOWED_FAILURE_PATTERNS,
     ),
     TerminalCommand(
         "/bin/feature15_libm.cc",
@@ -305,6 +324,8 @@ FRONTIER_RUNTIME_REJECTED_MARKERS = (
     "[FAIL] kbdsub",
     "[cupidc] error",
     "[asm] error",
+    "[feature13-unary] FAIL",
+    "FAIL feature13_double",
     "FAIL jpeg_decode_mem",
     "FAIL glyph_rasterize",
     "FAIL feature15_libm",
@@ -387,12 +408,14 @@ def validate_smp_runtime_log(data: str, nic: str = "e1000") -> None:
 
 def validate_frontier_runtime_log(data: str, nic: str = "e1000") -> None:
     """Require the stable subsystem markers for the port-I/O cohort."""
-    folded = data.casefold()
-    for marker in FRONTIER_RUNTIME_REJECTED_MARKERS:
-        if marker.casefold() in folded:
-            raise FrontierRuntimeContractError(
-                f"found failure marker: {marker}"
-            )
+    failure = frontier_failure_marker(
+        data,
+        FRONTIER_RUNTIME_ALLOWED_FAILURE_PATTERNS,
+    )
+    if failure is not None:
+        raise FrontierRuntimeContractError(
+            f"found failure marker: {failure}"
+        )
 
     for subsystem, pattern in FRONTIER_RUNTIME_REQUIRED_PATTERNS:
         if re.search(pattern, data, re.S | re.M) is None:
@@ -924,9 +947,20 @@ def run_terminal_command(
     return ok and success_count(data, success_pattern) >= completed + 1, data
 
 
-def frontier_failure_marker(data: str) -> str | None:
+def frontier_failure_marker(
+    data: str,
+    allowed_patterns: tuple[str, ...] = (),
+) -> str | None:
     """Return the first known frontier failure found in serial output."""
-    folded = data.casefold()
+    filtered = data
+    for pattern in allowed_patterns:
+        filtered = re.sub(
+            pattern,
+            "",
+            filtered,
+            flags=re.I | re.M,
+        )
+    folded = filtered.casefold()
     for marker in FRONTIER_RUNTIME_REJECTED_MARKERS:
         if marker.casefold() in folded:
             return marker
@@ -945,14 +979,17 @@ def wait_frontier_command(
     compiled = re.compile(command.expected_pattern, re.S | re.M)
     while time.time() < deadline:
         data = read_log(log)
-        failure = frontier_failure_marker(data)
+        suffix = data[start_offset:]
+        failure = frontier_failure_marker(
+            suffix,
+            command.allowed_failure_patterns,
+        )
         if failure is not None:
             raise FrontierRuntimeContractError(
                 f"frontier command {command.text!r} saw failure marker: "
                 f"{failure}"
             )
 
-        suffix = data[start_offset:]
         matched = compiled.search(suffix)
         if matched is not None:
             return start_offset + matched.end(), data
@@ -1069,7 +1106,10 @@ def run_frontier_usb_replug_contract(
 ) -> str:
     """Prove HID recovery and six EHCI storage lifetimes in one boot."""
     initial_data = read_log(log)
-    initial_failure = frontier_failure_marker(initial_data)
+    initial_failure = frontier_failure_marker(
+        initial_data,
+        FRONTIER_RUNTIME_ALLOWED_FAILURE_PATTERNS,
+    )
     if initial_failure is not None:
         raise FrontierRuntimeContractError(
             "initial USB storage check saw failure marker: "

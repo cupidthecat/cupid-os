@@ -17,7 +17,8 @@ Cupid OS is a 32-bit x86 hobby OS written in C and Cupid ASM. It has a graphical
 - VBE 640x480 32bpp graphics with a window manager, taskbar, and desktop icons
 - CupidC, a HolyC-inspired C compiler with JIT and ELF32 AOT output
 - Hardware FPU (x87) and SSE/SSE2 with eager FXSAVE context switch
-- CupidC float/double scalars and float4/double2 SIMD types with SSE intrinsics
+- CupidC float/double scalars, exact runtime unary signs, and float4/double2
+  SIMD types with SSE intrinsics
 - libm: 25 operations (sqrt, sin, cos, tan, atan, atan2, exp, exp2, log, log2, pow, asin, acos, sinh, cosh, tanh, cbrt, hypot, nextafter, fabs, floor, ceil, round, trunc, fmod + f-variants)
 - printf %f, %e, %g, %.Nf with x87-backed int/fractional split
 - #NM/#MF/#XF FPU exception handlers with MXCSR/FSW/FCW dump
@@ -70,7 +71,20 @@ Recent subsystem work is summarized below. Detailed pages live under `wiki/`, an
 - The vendored doomgeneric core lives under `kernel/doom/src/` with BSD and GPL-2 components. The platform shim sends `DG_DrawFrame` to the VBE back buffer, connects `DG_GetKey` to the raw-scancode subscriber ring, and implements `DG_SleepMs` and `DG_GetTicksMs` with the PIT. `dglibc` supplies the required heap, string, stdio, formatting, and setjmp routines. Sound effects go straight to the mixer, while music passes from MUS to MIDI, `midiopl`, Nuked-OPL3, and mixer slot 8. The shell command `doom` finds Freedoom WADs under `/disk/wads/`; `doom -iwad <path>` selects another IWAD. Savegames and `default.cfg` live in homefs under `/home/doom/`.
 - A two-pass kernel link generates and embeds a `.ksyms` blob. The generator reads private snapshots of the pass-one kernel and CupidDis, rejects malformed symbol output or live input drift, and replaces the generated `.cc` source only after validation. Checked-seed CupidC compiles that source. `kernel_panic` uses `ksym_lookup` and a frame-pointer walk to print `function_name+offset` for each return address. It prints raw addresses if the blob is missing or corrupt.
 
-Built-in CupidC smoke tests exercise each track: `feature12_float`, `feature13_double`, `feature14_simd`, `feature15_libm`, `feature16_asm_fpu` (float/SIMD/libm), `feature17_iso` (ISO9660), `feature18_swap` (swap), `feature19_usb` (USB), `feature20_smp` (SMP), `feature21_net` (TCP client: DNS + connect + HTTP GET), `feature22_net_server` (TCP listen + accept + echo), `feature23_full_access` (network/kernel binding sanity), `feature24_widetypes` (CupidC C-compatibility spellings and control-flow parsing), and `feature25` (nearest-loop continuation, saved-selector cleanup, and parser-depth rejection and recovery).
+Built-in CupidC smoke tests exercise each track: `feature12_float`,
+`feature13_double` (including runtime unary signs, signed zero, a type error,
+and recovery), `feature14_simd`, `feature15_libm`, `feature16_asm_fpu`
+(float/SIMD/libm), `feature17_iso` (ISO9660), `feature18_swap` (swap),
+`feature19_usb` (USB), `feature20_smp` (SMP), `feature21_net` (TCP client:
+DNS + connect + HTTP GET), `feature22_net_server` (TCP listen + accept +
+echo), `feature23_full_access` (network/kernel binding sanity),
+`feature24_widetypes` (CupidC C-compatibility spellings and control-flow
+parsing), and `feature25` (nearest-loop continuation, saved-selector cleanup,
+and parser-depth rejection and recovery).
+
+[ADR 0189](docs/adr/0189-preserve-floating-values-in-private-cupidc-unary-signs.md)
+records the private compiler's typed unary-sign behavior and its guest
+recovery proof.
 
 ## Feature demo quickstart
 

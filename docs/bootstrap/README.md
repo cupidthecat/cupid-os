@@ -2,6 +2,16 @@
 
 This directory is the durable record for moving Cupid OS from its current host-produced build to a self-hosting Cupid Toolchain. The implementation map is [GitHub issue #13](https://github.com/cupidthecat/cupid-os/issues/13).
 
+The private in-kernel CupidC compiler now gives runtime unary signs a typed
+scalar path. Unary plus preserves `char`, `int`, `float`, or `double`
+operands, with integer promotion where required. Unary minus emits `NEG` for
+the integer path. For `float` and `double`, it spills XMM0, toggles only the
+IEEE-754 sign word, reloads the original width, and restores the stack.
+`feature13_double.cc` checks negative values at both widths, the exact
+binary32 negative-zero payload, unary plus, rejection of a string operand,
+and same-job recovery. The GUI command frontier requires that evidence before
+JIT completion. ADR 0189 records this private-compiler decision.
+
 Hosted CupidC now carries signed and unsigned eight-byte integer values through constants, matching conditional arms, fixed direct and indirect call results, object access, declared parameters, named call arguments, ellipsis arguments, and calls through function types without prototypes. File objects, block statics, fixed automatic objects, pointer dereferences, ordinary members, and indexed elements can be initialized, loaded, assigned, mutated, chained, discarded, and returned. One Linear IR entry names an emitter-owned eight-byte frame snapshot. A declared or undeclared wide argument occupies eight cdecl stack bytes. A supported wide `va_arg` read produces an instruction-owned snapshot and advances the cursor by eight. Return restores the low word to EAX and the high word to EDX.
 
 Wide values support addition, subtraction, multiplication, division, remainder, unary plus, unary minus, bitwise complement, shifts, AND, OR, XOR, comparisons, logical operators, conditional selection, structured scalar conditions, signed or unsigned switch dispatch, all ten compound assignments, prefix and postfix update, and conversion to or from represented integer widths. Switch lowering evaluates the condition once and duplicates its snapshot handle before each full-width case comparison. Mutation evaluates its destination once and keeps one semantic load and store. Multiplication combines one full low-word product with both cross-word products. Division and remainder run a fixed 64-step restoring loop over unsigned magnitudes, then apply the quotient or dividend sign. Each multiplication, division, remainder, or wide variadic-read result receives a fresh snapshot. The unchanged `ctool_buffer_put_le64`, `ctool_buffer_patch_le64`, `pp_if_value_truth`, `pp_if_is_negative`, `pp_if_signed_less`, `pp_if_signed_magnitude`, `cfront_constant_apply_binary`, and X25519 `fe_carry` bodies guard the broader operation set. CupidASM's unchanged number parser and unary expression branch guard the arithmetic, while X25519's unchanged `fe_mul_u32` helper guards wide-by-narrow multiplication. ADRs 0065 through 0075 record these boundaries. Runtime cases that C leaves undefined promise neither a trap nor a result.

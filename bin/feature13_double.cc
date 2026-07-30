@@ -8,8 +8,39 @@ void main() {
 
     /* Inline tolerance check without a user helper function (user
      * functions with FP params have calling-convention edge cases).
-     * Pattern: compute |a - b| via fabs, scale, cast to int, INT-compare.
-     * CupidC also can't do unary minus on doubles - use 0.0 - x.*/
+     * Pattern: compute |a - b| via fabs, scale, cast to int, INT-compare.*/
+
+    /* Unary signs preserve scalar floating types and flip only the sign bit.
+     * Check ordinary values, signed zero, unary plus, a useful type error,
+     * and compiler recovery after the rejected expression.*/
+    float positive_float = 1.5;
+    float negative_float = -positive_float;
+    int negative_float_scaled = (int)(negative_float * 10.0);
+    double positive_double = 2.25;
+    double negative_double = -positive_double;
+    int negative_double_scaled = (int)(negative_double * 4.0);
+    float negative_zero = -0.0;
+    int negative_zero_bits = *(int*)&negative_zero;
+    double plus_double = +positive_double;
+    int plus_double_scaled = (int)(plus_double * 4.0);
+    int unary_reject = repl_eval("-\"not arithmetic\";") == -1;
+    int unary_recovery = repl_eval("1 + 1;") == 0;
+    if (negative_float_scaled != -15 ||
+        negative_double_scaled != -9 ||
+        negative_zero_bits != 0x80000000 ||
+        plus_double_scaled != 9 ||
+        !unary_reject || !unary_recovery) {
+        serial_printf("[feature13-unary] FAIL float=%d double=%d zero=%x plus=%d reject=%d recovery=%d\n",
+                      negative_float_scaled, negative_double_scaled,
+                      negative_zero_bits, plus_double_scaled,
+                      unary_reject, unary_recovery);
+        ok = 0;
+    } else {
+        serial_printf("[feature13-unary] PASS float=%d double=%d zero=%x plus=%d reject=%d recovery=%d\n",
+                      negative_float_scaled, negative_double_scaled,
+                      negative_zero_bits, plus_double_scaled,
+                      unary_reject, unary_recovery);
+    }
 
     /* sin(pi/2) = 1. Check |sin(pi/2) - 1| < 1e-12 via scale 1e12. */
     double s = sin(pi / 2.0);
@@ -104,8 +135,8 @@ void main() {
         ok = 0;
     }
 
-    /* fabs of -5.5 = 5.5. Avoid unary minus via 0.0 - 5.5. Scale *2 -> 11. */
-    double neg55 = 0.0 - 5.5;
+    /* fabs of -5.5 = 5.5. Scale *2 -> 11. */
+    double neg55 = -5.5;
     double af = fabs(neg55);
     int af_i = (int)(af * 2.0);
     if (af_i != 11) {

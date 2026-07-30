@@ -1486,10 +1486,10 @@ Source (.cc)
 
 | File | Lines | Role |
 |------|-------|------|
-| `cupidc.h` | 459 | Tokens, types, limits, compiler state, and public API |
-| `cupidc.cc` | 3,963 | JIT/AOT driver, preprocessor, kernel bindings, and state setup |
+| `cupidc.h` | 467 | Tokens, types, limits, compiler state, and public API |
+| `cupidc.cc` | 3,966 | JIT/AOT driver, preprocessor, kernel bindings, and state setup |
 | `cupidc_lex.cc` | 833 | Lexer for keywords, literals, operators, and delimiters |
-| `cupidc_parse.cc` | 7,371 | Recursive-descent parser and direct x86/SSE code generator |
+| `cupidc_parse.cc` | 7,461 | Recursive-descent parser and direct x86/SSE code generator |
 | `cupidc_elf.cc` | 147 | Fixed-address ELF32 executable writer for AOT mode |
 
 ### Lexer
@@ -1521,9 +1521,16 @@ The parser (`cupidc_parse.cc`) is recursive descent and writes x86 machine-code 
 **Code generation pattern:**
 
 - Integer and pointer expressions use `EAX`; scalar floating and SIMD expressions use XMM registers, normally `XMM0`
+- Unary plus preserves an arithmetic scalar. Unary minus uses `NEG EAX` for
+  `char` and `int`, or flips only the IEEE-754 sign bit in XMM0 for `float`
+  and `double`. Other operand types receive a specific diagnostic.
 - Integer binary operations use the stack with `EAX` and `EBX`; floating and vector operations use XMM registers and explicit spills when needed
 - Direct calls and stored function-pointer calls use cdecl stack arguments and caller cleanup; floating results use the private compiler's XMM return path
 - Locals use `[EBP - offset]`, parameters use `[EBP + offset]`, and globals live in the data region
+
+[ADR 0189](../docs/adr/0189-preserve-floating-values-in-private-cupidc-unary-signs.md)
+records the unary-sign decision, signed-zero evidence, useful type failure,
+and same-REPL recovery.
 
 ### Symbol Table
 

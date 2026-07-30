@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidC Guide (.cc)
-Verified against source on: 2026-07-29
+Verified against source on: 2026-07-30
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -983,6 +983,12 @@ SIMD types:
 Operators +, -, *, / work on scalar float/double with implicit
 promotion (int -> float -> double). SIMD types need matching types
 for +/-/*//; mixing scalar and SIMD is a compile error.
+
+Runtime unary plus preserves char, int, float, and double operands. Runtime
+unary minus uses integer NEG for char and int, while float and double change
+only their IEEE-754 sign bit. The floating path preserves negative zero,
+infinities, and payload bits. A non-arithmetic operand receives a clear type
+error, and a later REPL expression can still compile.
 
 Casts use CVTSI2SS/CVTTSS2SI/CVTSS2SD form:
   (int)3.7      -> 3 (truncating)

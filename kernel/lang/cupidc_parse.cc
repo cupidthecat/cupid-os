@@ -341,6 +341,37 @@ static void emit_movsd_xmm_esp(cc_state_t *cc, int xmm) {
   emit8(cc, 0x24);
 }
 
+/* Negate a scalar in XMM0 by flipping its IEEE-754 sign bit. This preserves
+ * signed zero, NaN payloads, and every other payload bit. */
+static void emit_negate_xmm0_scalar(cc_state_t *cc, int is_double) {
+  emit8(cc, 0x83); /* sub esp, 8 */
+  emit8(cc, 0xEC);
+  emit8(cc, 0x08);
+  if (is_double)
+    emit_movsd_esp_xmm(cc, 0);
+  else
+    emit_movss_esp_xmm(cc, 0);
+
+  emit8(cc, 0x81); /* xor dword ptr [esp + sign_word], 0x80000000 */
+  if (is_double) {
+    emit8(cc, 0x74);
+    emit8(cc, 0x24);
+    emit8(cc, 0x04);
+  } else {
+    emit8(cc, 0x34);
+    emit8(cc, 0x24);
+  }
+  emit32(cc, 0x80000000u);
+
+  if (is_double)
+    emit_movsd_xmm_esp(cc, 0);
+  else
+    emit_movss_xmm_esp(cc, 0);
+  emit8(cc, 0x83); /* add esp, 8 */
+  emit8(cc, 0xC4);
+  emit8(cc, 0x08);
+}
+
 /* Push an XMM float onto the stack: SUB ESP,4 + MOVSS [ESP], xmm.
  * Used by function-call arg-push loop when arg is TYPE_FLOAT.*/
 static void emit_push_xmm_float(cc_state_t *cc, int xmm) {
@@ -2661,12 +2692,34 @@ static void cc_parse_primary(cc_state_t *cc) {
     break;
   }
 
+  case CC_TOK_PLUS:
   case CC_TOK_MINUS: {
-    /* Unary minus: -expr */
+    /* Unary signs apply to arithmetic scalar operands. Floating results live
+     * in XMM0, while integer results live in EAX. */
+    int negate = tok.type == CC_TOK_MINUS;
     cc_parse_primary(cc);
-    emit8(cc, 0xF7);
-    emit8(cc, 0xD8); /* neg eax */
-    cc_last_expr_type = TYPE_INT;
+    if (cc->error)
+      return;
+
+    if (cc_last_expr_type == TYPE_FLOAT) {
+      if (negate)
+        emit_negate_xmm0_scalar(cc, 0);
+      cc_last_xmm = 0;
+    } else if (cc_last_expr_type == TYPE_DOUBLE) {
+      if (negate)
+        emit_negate_xmm0_scalar(cc, 1);
+      cc_last_xmm = 0;
+    } else if (cc_last_expr_type == TYPE_INT ||
+               cc_last_expr_type == TYPE_CHAR) {
+      if (negate) {
+        emit8(cc, 0xF7);
+        emit8(cc, 0xD8); /* neg eax */
+      }
+      cc_last_expr_type = TYPE_INT;
+    } else {
+      cc_error(cc, "unary sign requires an arithmetic scalar operand");
+      return;
+    }
     break;
   }
 

@@ -16994,3 +16994,81 @@ The root image still prepares native CupidASM, CupidObj, CupidLD, and CupidDis
 through four recursive Make transforms. `toolchain:all` still has 52
 host-compiler transforms. Moving those four root commands to the checked seed
 is the next normal-build handoff.
+
+## 2026-07-30: preserve floating unary signs in private CupidC
+
+The private in-kernel compiler now applies unary plus and minus according to
+the operand type. Integer values stay in EAX. Floating values stay in XMM0,
+where unary minus toggles only the binary32 or binary64 sign bit. Unary plus
+emits no instruction. String, pointer, aggregate, and vector operands remain
+outside this scalar boundary and receive
+`unary sign requires an arithmetic scalar operand`.
+
+The first direct probe exposed the old behavior: `-1.5 * 10.0` produced
+`-188743720` because the parser emitted integer `NEG` against a floating value.
+The production test had also been spelling `-5.5` as `0.0 - 5.5`. Both cases
+now use ordinary unary syntax.
+
+ADR 0189 records the decision to toggle the sign bit instead of subtracting
+from zero. That preserves negative zero, infinities, and NaN payload bits.
+The implementation uses one balanced eight-byte stack spill, changes the
+correct sign word, and reloads the original width.
+
+`feature13_double.cc` now tests negative `float` and `double` values, the
+exact binary32 negative-zero payload, unary plus, rejection of a string
+operand, and a successful REPL expression after the rejection. The fixed GUI
+frontier runs that command and rejects either feature failure marker.
+
+### Test evidence
+
+The new GUI contract tests failed before the command and rejection markers
+were added. The frontier normally treats every compiler diagnostic as a
+failure. This command permits only the exact expected unary-type diagnostic
+within its own log slice; a different or stale diagnostic still stops the
+gate.
+
+The first complete four-vCPU frontier reached all ten guest commands, then
+the initial USB replug check rescanned the full log and rediscovered the
+intentional diagnostic. The complete-log validator and that initial handoff
+now remove only the same exact line. Their focused tests prove that a changed
+compiler error still fails. After the change, 80 GUI terminal tests pass. All
+30 kernel compile tests also pass.
+
+The first guest run reached every value check but printed
+`zero=0x0x80000000`. Cupid's `%x` formatter already supplies the prefix. The
+test source now uses `zero=%x`, and the clean-image rerun reports:
+
+```text
+[cupidc] error (line 1): unary sign requires an arithmetic scalar operand
+[feature13-unary] PASS float=-15 double=-9 zero=0x80000000 plus=9 reject=1 recovery=1
+PASS feature13_double
+[cupidc] JIT execution complete (stack: 0 bytes used, peak: 0 bytes)
+```
+
+The normal OS build passes. The 292,728-byte private parser object has
+SHA-256
+`08a0d87c531e033b29adc77bdec5c63b75a18beac5c36b0fc154989a532e151c`.
+The 8,488,252-byte kernel has SHA-256
+`aa522e896d55656efc041b1395979474859f61dd3b2088d840325c5a3183212a`.
+It uses 16,579 sectors, leaves 3,896 sectors before FAT16, and keeps
+1,994,948 bytes below the raw-file cap. `_kernel_end` is `0x00D3DD5C`,
+which leaves 1,843,876 bytes below the memory cap.
+
+A fresh 209,715,200-byte image has SHA-256
+`b7a6aeae11cf455390d4c2bf10927fad803253eaf7dff43aaad77c48c536c037`.
+The private-copy guest log is 35,502 bytes with SHA-256
+`55057a407f7068124454e3e6064f5d55f06f63ad8bc42e7761380db8dfee46b7`.
+The pass-one CupidDis view contributes 4,561 text symbols and a 109,889-byte
+logical symbol blob.
+
+The repeated complete e1000 frontier passes on a private copy of that clean
+image. It covers all ten guest commands, six USB storage lifetimes, HID
+reattachment, four CPUs, 69,548 changed pixels, 8,244,917 AC97 frames, and
+72,034 PC-speaker frames. Its 79,254-byte serial log has SHA-256
+`c4242b3b9ec17e0354c5d256a13de99ca3611d6a5f5c5e0f00ef55f1c48047d3`.
+
+### Remaining boundary
+
+Runtime floating truth, floating increment and decrement, SIMD unary signs,
+and the other documented Cupid mode gaps remain open. This change hardens the
+private JIT and AOT compiler without changing build ownership.

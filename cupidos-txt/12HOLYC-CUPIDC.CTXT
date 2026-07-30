@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 HolyC-Style CupidC Features
-Verified against source on: 2026-07-28
+Verified against source on: 2026-07-30
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -244,13 +244,18 @@ These features were added in P1. See 14FPU-SSE.CTXT for full reference.
 
 Summary:
 - Feature 12: scalar float arithmetic, casts, element access
-- Feature 13: double + transcendentals
+- Feature 13: double, transcendentals, and exact runtime unary signs
 - Feature 14: float4 / double2 SIMD + intrinsics
 - Feature 15: libm (25 operations, 50 symbols with f-variants)
 - Feature 16: CupidC inline asm using SSE + x87
 
 Types added: float, double, float4, double2
 Intrinsics: _mm_*_ps (17 variants), _mm_*_pd (11 variants)
+
+Unary plus accepts char, int, float, and double. Unary minus uses integer NEG
+for char and int. For float and double it changes only the IEEE-754 sign bit,
+so negative zero and payload bits stay exact. Other operand types fail with a
+clear diagnostic, and the next REPL expression can still compile.
 
 [Run feature12_float](shell:feature12_float)
 [Run feature13_double](shell:feature13_double)

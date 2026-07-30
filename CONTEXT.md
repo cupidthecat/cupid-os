@@ -319,7 +319,14 @@ The explicit compiler profile for source requirements audited in the vendored Do
 _Avoid_: GNU mode, ordinary C mode
 
 **Cupid mode**:
-The CupidC language mode for Cupid C source and its native extensions.
+The CupidC language mode for Cupid C source and its native extensions. Its
+private in-kernel JIT and AOT compiler keeps integer expressions in EAX and
+scalar floating expressions in XMM registers. Runtime unary plus preserves an
+arithmetic scalar. Runtime unary minus uses integer `NEG` for `char` and
+`int`, or toggles only the IEEE-754 sign bit for `float` and `double`.
+Non-arithmetic operands receive a specific diagnostic, and a rejected REPL
+expression does not poison the next compilation. ADR 0189 records this
+private-compiler boundary.
 _Avoid_: C mode, HolyC mode
 
 **Cupid ASM**:
