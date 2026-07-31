@@ -5,7 +5,7 @@ root `all`, `user:all`, and `toolchain:all`. It evaluates Make conditionals
 with `OS=Windows_NT` and `LC_ALL=C` on every host so the checked graph has one
 stable shape, then covers the Linux branch with direct build tests.
 `audits/active-build.json` owns the current 716-input/500-transform graph. The
-language graph contains 15 C translation units, 288 headers, and 386 Cupid C
+language graph contains 14 C translation units, 288 headers, and 387 Cupid C
 files. The checked Windows Clang/LLVM and Linux GCC/binutils baselines at
 revision `1e079d1` predate the current CupidC ownership and remain historical
 oracle evidence.
@@ -59,6 +59,12 @@ in-kernel parser and SSE emitter own local, parameter, global, statement, and
 `for` update behavior. A host compiler checks extracted active emitter bytes
 as an optional oracle, while checked-seed CupidC builds the production parser
 object and the guest frontier executes the result.
+
+The i386 runtime contract has crossed the CupidC language boundary and uses
+`.cc`. CupidC emits it twice, CupidLD links it with the repository runtime and
+CupidASM startup, and Linux or WSL runs the result. Host Python still
+orchestrates the check, and native Toolchain contracts remain host-built, so
+the host dependency totals do not change.
 
 The ABI verification captures the exact bytes of its six declaration inputs,
 compares the reviewed i386 contract, and rechecks every input before success.

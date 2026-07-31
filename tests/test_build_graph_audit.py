@@ -3148,7 +3148,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ("HOSTED_I386_LINUX", "/toolchain/cupidc_main.cc"),
             (
                 "HOSTED_I386_LINUX",
-                "/toolchain/tests/hosted_i386_runtime_contract.c",
+                "/toolchain/tests/hosted_i386_runtime_contract.cc",
             ),
             (
                 "HOSTED_I386_LINUX_GNU",
@@ -3156,6 +3156,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
         ):
             self.assertIn(expected, active)
+        self.assertNotIn(
+            (
+                "HOSTED_I386_LINUX",
+                "/toolchain/tests/hosted_i386_runtime_contract.c",
+            ),
+            active,
+        )
         self.assertNotIn(
             ("DOOM_COMPAT_I386", "/kernel/audio/memio.cc"),
             active,
@@ -4982,8 +4989,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     ("toolchain_contract", None),
                 "toolchain/tests/cupidc_object_contract.c":
                     ("toolchain_contract", None),
-                "toolchain/tests/hosted_i386_runtime_contract.c":
-                    ("toolchain_contract", None),
+                "toolchain/tests/hosted_i386_runtime_contract.cc":
+                    ("toolchain_contract", "CupidC"),
             }
             for path, (cohort, runtime_owner) in frontend_sources.items():
                 with self.subTest(path=path):
@@ -4996,6 +5003,16 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                         source_by_path[path]["runtime_owner"],
                         runtime_owner,
                     )
+            self.assertEqual(
+                source_by_path[
+                    "toolchain/tests/hosted_i386_runtime_contract.cc"
+                ]["language"],
+                "cupid_c",
+            )
+            self.assertNotIn(
+                "toolchain/tests/hosted_i386_runtime_contract.c",
+                source_by_path,
+            )
 
             toolchain_build = next(
                 build
@@ -5017,7 +5034,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             for input_path in (
                 "toolchain/hosted/i386-linux/runtime.cc",
                 "toolchain/hosted/i386-linux/start.asm",
-                "toolchain/tests/hosted_i386_runtime_contract.c",
+                "toolchain/tests/hosted_i386_runtime_contract.cc",
                 "toolchain/cupidc_main.cc",
             ):
                 with self.subTest(hosted_i386_input=input_path):

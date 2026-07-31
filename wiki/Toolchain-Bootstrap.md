@@ -14,6 +14,12 @@ duplicate JSON keys, numeric and Boolean type substitutions, writable
 executable load segments, entry points outside executable file bytes, unlisted
 ELF files, and unexpected target metadata.
 
+The separate i386 runtime contract is not part of those 19 tool inputs. It
+uses `.cc` because CupidC compiles it, CupidLD links it with CupidASM startup
+and the repository runtime, and Linux or WSL runs the result. This makes all
+20 sources in the wider checked closure CupidC-named without changing the
+seed manifest. ADR 0195 records the transfer.
+
 ```sh
 make verify-bootstrap-seed
 ```

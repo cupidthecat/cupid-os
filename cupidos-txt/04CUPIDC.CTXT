@@ -577,18 +577,20 @@ unsafe nested level. It also rejects removing the nested const.
 
 The exact hosted gate covers the hermetic Toolchain sources,
 kernel/lang/as_elf.cc, and the complete command closures for CupidC, CupidASM,
-CupidDis, CupidLD, and CupidObj. The target audit preprocesses all 20 C sources
-under the checked i386 Linux profile with a four-byte pointer fact. Nineteen
-use strict C11, while the runtime enables the represented GNU variadic
-built-ins. Repeated emission produces identical ELF32 objects, and Cupid's
-ELF32 reader checks each object before linking.
+CupidDis, CupidLD, and CupidObj. The target audit preprocesses all 20 .cc
+sources under the checked i386 Linux profile with a four-byte pointer fact.
+Nineteen use strict C11, while the runtime enables the represented GNU
+variadic built-ins. Repeated emission produces identical ELF32 objects, and
+Cupid's ELF32 reader checks each object before linking. The separate runtime
+contract is CupidC-owned but stays outside the 19-source fixed-point plan.
 
 The repository runtime supplies the checked file, heap, memory, string, errno,
 getcwd, and formatted-output interfaces used by the five commands. CupidC
-emits the runtime, CupidASM assembles _start and the int 0x80 system-call
-boundary, and CupidLD links five deterministic static Linux i386 executables
-without unresolved symbols. A sixth executable checks allocation, tail
-release, files, seeks, errors, arguments, memory comparison, and strings.
+emits the runtime and its .cc behavior contract. CupidASM assembles _start and
+the int 0x80 system-call boundary. CupidLD links five deterministic static
+Linux i386 tools plus the contract without unresolved symbols. The sixth
+executable checks allocation, tail release, files, seeks, errors, arguments,
+memory comparison, and strings.
 
 The cupidc driver accepts one C11 input, definitions, undefinitions, forced
 inputs, GNU or freestanding mode, ordered include roots, and an ELF32 object

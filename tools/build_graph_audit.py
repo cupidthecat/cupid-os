@@ -314,7 +314,7 @@ _C_PP_HOSTED_I386_STRICT_CASES = (
     "/toolchain/cupidobj.cc",
     "/toolchain/cupidobj_main.cc",
     "/toolchain/elf32.cc",
-    "/toolchain/tests/hosted_i386_runtime_contract.c",
+    "/toolchain/tests/hosted_i386_runtime_contract.cc",
     "/toolchain/x86.cc",
 )
 _C_PP_HOSTED_I386_GNU_CASES = (

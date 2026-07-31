@@ -494,7 +494,7 @@ CUPIDC_PP_ACTIVE_CASE(HOSTED_I386_LINUX, "/toolchain/cupidld_main.cc")
 CUPIDC_PP_ACTIVE_CASE(HOSTED_I386_LINUX, "/toolchain/cupidobj.cc")
 CUPIDC_PP_ACTIVE_CASE(HOSTED_I386_LINUX, "/toolchain/cupidobj_main.cc")
 CUPIDC_PP_ACTIVE_CASE(HOSTED_I386_LINUX, "/toolchain/elf32.cc")
-CUPIDC_PP_ACTIVE_CASE(HOSTED_I386_LINUX, "/toolchain/tests/hosted_i386_runtime_contract.c")
+CUPIDC_PP_ACTIVE_CASE(HOSTED_I386_LINUX, "/toolchain/tests/hosted_i386_runtime_contract.cc")
 CUPIDC_PP_ACTIVE_CASE(HOSTED_I386_LINUX, "/toolchain/x86.cc")
 CUPIDC_PP_ACTIVE_CASE(HOSTED_I386_LINUX_GNU, "/toolchain/hosted/i386-linux/runtime.cc")
 

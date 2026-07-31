@@ -185,7 +185,7 @@ The deterministic hosted C request used to compile an i386 Linux tool closure. I
 _Avoid_: `HOSTED_TOOLCHAIN_64`, vendored libc, host system headers
 
 **Hosted i386 Linux runtime**:
-The repository-owned startup and narrow C service layer for static Cupid-built i386 Linux commands. CupidASM supplies process entry and `int 0x80` system-call wrappers. CupidC supplies allocation, unbuffered files, standard streams, memory and string functions, `errno`, `getcwd`, and formatted diagnostics through the checked hosted declarations. A CupidC-built runtime contract checks the heap, files, errors, arguments, memory, and string surface under Linux or WSL.
+The repository-owned startup and narrow C service layer for static Cupid-built i386 Linux commands. CupidASM supplies process entry and `int 0x80` system-call wrappers. CupidC supplies allocation, unbuffered files, standard streams, memory and string functions, `errno`, `getcwd`, and formatted diagnostics through the checked hosted declarations. A CupidC-built `.cc` runtime contract checks the heap, files, errors, arguments, memory, and string surface under Linux or WSL. It is a separate behavior probe and does not enter the 19-source fixed-point plan.
 _Avoid_: general libc, Windows runtime, test-only import providers
 
 **CupidC compiler generation**:

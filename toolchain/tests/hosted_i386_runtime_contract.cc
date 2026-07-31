@@ -1,3 +1,5 @@
+/* Checked by the Cupid-owned i386 toolchain closure. */
+
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>

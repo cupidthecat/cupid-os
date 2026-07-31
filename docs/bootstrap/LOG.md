@@ -17642,3 +17642,70 @@ zero deferred boundaries. The objects total 3,717,636 bytes, and the
 This changes private JIT and AOT semantics without moving build ownership.
 Hosted floating updates, indirect lvalue updates, SIMD updates, and the other
 Cupid mode gaps remain open. ADR 0194 records the decision.
+
+## 2026-07-30: transfer the i386 runtime contract to CupidC
+
+The hosted i386 runtime contract was already part of the checked CupidC
+closure. CupidC preprocessed and emitted it twice, Cupid's ELF reader checked
+both objects, CupidLD linked it with CupidASM startup and the repository
+runtime, and Linux or WSL executed the result. Its `.c` suffix still made the
+active-source audit report ordinary C with no runtime owner.
+
+The source is now
+`toolchain/tests/hosted_i386_runtime_contract.cc`. The Make prerequisite,
+active preprocessor manifest, object-link case table, audit model, and audit
+tests use the new path. The positive test requires the `.cc` case. Two
+negative assertions reject the former path from both the preprocessing
+manifest and source inventory.
+
+The wider static i386 closure has 20 `.cc` sources: 19 strict C11 units and
+the GNU-enabled runtime. The separate behavior contract stays outside the
+19-source seed and fixed-point plan, so no tool input, link order, seed hash,
+or tool image changes.
+
+The regenerated audit still has 716 active inputs, 252 feature requirements,
+500 transforms, and 25 accounted unreachable source-like files. Its language
+split is now 27 assembly files, 14 ordinary C files, 288 headers, and 387
+Cupid C files. The contract is a direct `toolchain_contract` input with
+CupidC runtime ownership and SHA-256
+`18c4abdd34f18a5e88f5bf4fd516fbc2ef66dc990f1c50b624de5ea1b053baf5`.
+
+Thirty-one `.c` paths remain outside `TempleOS/`. They are native contracts,
+oracles, or inactive legacy sources whose CupidC ownership has not been
+proved. They keep their current names until a checked Cupid path compiles and
+runs them.
+
+### Test evidence
+
+| Check | Result |
+| --- | --- |
+| Focused active-manifest test | Passed in 0.003 seconds, including rejection of the former `.c` path |
+| Audit drift and recovery test | Passed in 180.385 seconds |
+| Canonical audit regeneration | Passed in 62.7 seconds after the in-OS manual update |
+| `make check-bootstrap-audit` | Passed without drift in 60.4 seconds |
+| Cupid-built runtime execution | Passed in 30.803 seconds under WSL with `runtime-ok`, empty standard error, and the expected output file |
+| `make -C toolchain all` | Passed in 27.9 seconds; the runtime contract is 42,720 bytes with SHA-256 `76700d2a5066fba1942f5c86177bfaa11bf1ed85246db5c42ee97e0facd225dc` |
+| `make -C toolchain test` | Passed in 35.9 seconds with 284 contract markers |
+| `make -j4 all` | Passed in 588.7 seconds |
+| Private four-vCPU e1000 frontier | Passed in 239.6 seconds |
+
+The normal build compiled the changed manual into an 11,032-byte
+`docs_programs_gen.o`. Its final artifacts are:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.elf.pass1` | 8,596,580 | `af6249b6aaf7ae765150d192d9f94c18d2f2567538f944ab14b1111caea7d8e7` |
+| `kernel/kernel.elf` | 8,707,172 | `c84d06e641517b1c9a01b15aeae7341aa67da231688ccc6103808b3f98eef774` |
+| `kernel/kernel.bin` | 8,504,728 | `b013b9b1c5722f7caa7fbe5baaeeacf7bb9b9193c54982e736fdf9235a9c0108` |
+| `cupidos.img` | 209,715,200 | `9e85f55267f6e16153a069a1da985ee5b12ce3bbe09b185a1547c34f65fdd1d5` |
+
+The private frontier changed 52,191 framebuffer pixels, captured 8,334,678
+AC97 frames, captured 75,868 PC-speaker frames, and passed the compiler,
+network, six-storage-lifetime, HID reattachment, graphics, and audio gates.
+Its 48,555-byte log has SHA-256
+`5e8151231f55a71fe094902cbc93e9dfd27c22b676273593dfeec81c15e41a9a`.
+
+This transfers language ownership without changing the runtime ABI or normal
+build ownership. Host Python still orchestrates the runtime check, and native
+Toolchain contracts still use the host C compiler. ADR 0195 records the
+decision.

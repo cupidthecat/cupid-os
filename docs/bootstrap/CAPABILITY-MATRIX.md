@@ -11,7 +11,7 @@ The capability requirements below are backed by `ACTIVE-SOURCE-AUDIT.md` and
 `audits/active-build.json`: 716 active language inputs across root, user, and
 hosted Toolchain build roots, 252 stable feature IDs, 500 output transforms,
 and an explicit i386 ILP32/cdecl/ELF32 contract. The language split is 27
-assembly files, 15 C translation units, 288 C headers, and 386 Cupid C files.
+assembly files, 14 C translation units, 288 C headers, and 387 Cupid C files.
 Lexical counts are discovery evidence; semantic completion still requires
 focused compiler and assembler tests.
 
@@ -31,6 +31,14 @@ The external-program ABI check captures the exact bytes of its six
 declaration inputs, compares the reviewed i386 contract, and rechecks every
 input before success. The hello, ls, and cat guest checks each boot a private
 copy of the staged image. ADR 0133 records both consistency boundaries.
+
+A separate checked runtime contract also uses `.cc`. CupidC compiles it twice,
+Cupid's ELF reader validates both identical objects, and CupidLD links it with
+the repository runtime and CupidASM startup. Linux or WSL then exercises its
+success and failure paths. All 20 C-family sources in this static closure now
+carry CupidC names, while the test-only contract remains outside the
+19-source fixed-point plan. ADR 0195 records the transfer.
+
 A data-only object may omit `.text` when its remaining sections and symbols
 are valid. The strict checked-in frontier must compile all 155 roots twice.
 Poisoned-host Make runs cover every recipe, and each recipe pins its complete

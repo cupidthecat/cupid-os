@@ -39,7 +39,7 @@ CUPIDC_HOSTED_I386_HEADERS := hosted/i386-linux/include/cupid_host_abi.h \
                               hosted/i386-linux/include/unistd.h
 CUPIDC_HOSTED_I386_RUNTIME := hosted/i386-linux/runtime.cc \
                               hosted/i386-linux/start.asm \
-                              tests/hosted_i386_runtime_contract.c
+                              tests/hosted_i386_runtime_contract.cc
 CUPIDC_HOSTED_I386_CLOSURE := ctool.cc ctool.h ctool_host.cc ctool_host.h \
                               elf32.cc elf32.h x86.cc x86.h \
                               cupidc_pp.cc cupidc_pp.h \
