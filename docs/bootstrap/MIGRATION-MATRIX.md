@@ -14,6 +14,13 @@ C transform. `toolchain:all` now uses the checked seed and both rebuilt
 compiler stages to compile and link all fourteen `.cc` Toolchain contracts.
 ADR 0190 records the root handoff, and ADR 0196 records the contract handoff.
 
+CupidObj now has a self-hosted public operation for the bin, docs, and demos
+installation-table formats. It validates typed path groups, preserves sorted
+caller order, and matches the Python generator across the complete live
+inventory. The normal recipes still use Python in this capability increment,
+so no transform owner or dependency count changes yet. ADR 0201 records the
+operation and the required seed-promotion boundary.
+
 The shared CupidASM source path now owns explicit alignment for raw, ELF32,
 NOBITS, and fixed-image output. The active FPU demo declares its 16-byte
 FXSAVE requirement with `align 16`; it no longer depends on being the first

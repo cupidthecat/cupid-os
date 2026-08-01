@@ -195,6 +195,321 @@ class CupidObjHostedCliTests(unittest.TestCase):
             self.assertEqual(second.returncode, 0, second.stderr)
             self.assertEqual(duplicate.read_bytes(), output.read_bytes())
 
+    def test_install_source_demos_matches_python_oracle(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            demos = root / "demos"
+            demos.mkdir()
+            (demos / "alpha.asm").write_text("ret\n", encoding="ascii")
+            (demos / "beta_test.asm").write_text("ret\n", encoding="ascii")
+            expected = root / "expected.cc"
+            actual = root / "actual.cc"
+            oracle = subprocess.run(
+                [
+                    shutil.which("python") or "python",
+                    str(REPO_ROOT / "tools" / "hostbuild.py"),
+                    "gen-demos-programs",
+                    "--out",
+                    str(expected),
+                    "--demos",
+                    "demos/alpha.asm",
+                    "demos/beta_test.asm",
+                ],
+                cwd=root,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(oracle.returncode, 0, oracle.stderr)
+            generated = subprocess.run(
+                [
+                    str(self.cli),
+                    "install-source",
+                    "demos",
+                    "--demos",
+                    "demos/alpha.asm",
+                    "demos/beta_test.asm",
+                    "-o",
+                    str(actual),
+                ],
+                cwd=root,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(generated.returncode, 0, generated.stderr)
+            self.assertEqual(actual.read_bytes(), expected.read_bytes())
+
+    def test_install_source_bin_matches_python_oracle(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            (root / "bin" / "browser").mkdir(parents=True)
+            for relative in (
+                "bin/alpha.cc",
+                "bin/beta_test.cc",
+                "bin/shared.h",
+                "bin/browser/dom.cc",
+                "bin/browser/url_hash.cc",
+            ):
+                (root / relative).write_text("\n", encoding="ascii")
+            expected = root / "expected.cc"
+            actual = root / "actual.cc"
+            arguments = [
+                "--bin",
+                "bin/alpha.cc",
+                "bin/beta_test.cc",
+                "--headers",
+                "bin/shared.h",
+                "--browser",
+                "bin/browser/dom.cc",
+                "bin/browser/url_hash.cc",
+            ]
+            oracle = subprocess.run(
+                [
+                    shutil.which("python") or "python",
+                    str(REPO_ROOT / "tools" / "hostbuild.py"),
+                    "gen-bin-programs",
+                    "--out",
+                    str(expected),
+                    *arguments,
+                ],
+                cwd=root,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(oracle.returncode, 0, oracle.stderr)
+            generated = subprocess.run(
+                [
+                    str(self.cli),
+                    "install-source",
+                    "bin",
+                    *arguments,
+                    "-o",
+                    str(actual),
+                ],
+                cwd=root,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(generated.returncode, 0, generated.stderr)
+            self.assertEqual(actual.read_bytes(), expected.read_bytes())
+
+    def test_install_source_docs_matches_python_oracle(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            (root / "cupidos-txt").mkdir()
+            for relative in (
+                "cupidos-txt/00INDEX.CTXT",
+                "cupidos-txt/12HOLYC-CUPIDC.CTXT",
+                "image.bmp",
+                "snail.bmp",
+                "test.png",
+                "photo.jpg",
+                "scan.jpeg",
+            ):
+                (root / relative).write_bytes(b"fixture")
+            expected = root / "expected.cc"
+            actual = root / "actual.cc"
+            arguments = [
+                "--ctxt",
+                "cupidos-txt/00INDEX.CTXT",
+                "cupidos-txt/12HOLYC-CUPIDC.CTXT",
+                "--doc-assets",
+                "image.bmp",
+                "--home-assets",
+                "image.bmp",
+                "snail.bmp",
+                "test.png",
+                "photo.jpg",
+                "scan.jpeg",
+            ]
+            oracle = subprocess.run(
+                [
+                    shutil.which("python") or "python",
+                    str(REPO_ROOT / "tools" / "hostbuild.py"),
+                    "gen-docs-programs",
+                    "--out",
+                    str(expected),
+                    *arguments,
+                ],
+                cwd=root,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(oracle.returncode, 0, oracle.stderr)
+            generated = subprocess.run(
+                [
+                    str(self.cli),
+                    "install-source",
+                    "docs",
+                    *arguments,
+                    "-o",
+                    str(actual),
+                ],
+                cwd=root,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(generated.returncode, 0, generated.stderr)
+            self.assertEqual(actual.read_bytes(), expected.read_bytes())
+
+    def test_install_source_active_inventory_matches_oracle_and_repeats(self):
+        bin_sources = sorted(
+            path.relative_to(REPO_ROOT).as_posix()
+            for path in (REPO_ROOT / "bin").glob("*.cc")
+            if path.name not in {"old_cc2.cc", "old_cc2_single.cc"}
+        )
+        bin_headers = sorted(
+            path.relative_to(REPO_ROOT).as_posix()
+            for path in (REPO_ROOT / "bin").glob("*.h")
+        )
+        browser_sources = sorted(
+            path.relative_to(REPO_ROOT).as_posix()
+            for path in (REPO_ROOT / "bin" / "browser").glob("*.cc")
+        )
+        ctxt_sources = sorted(
+            path.relative_to(REPO_ROOT).as_posix()
+            for path in (REPO_ROOT / "cupidos-txt").glob("*.CTXT")
+        )
+        home_assets = [
+            path.relative_to(REPO_ROOT).as_posix()
+            for extension in ("*.bmp", "*.png", "*.jpg", "*.jpeg")
+            for path in sorted(REPO_ROOT.glob(extension))
+        ]
+        demo_sources = sorted(
+            path.relative_to(REPO_ROOT).as_posix()
+            for path in (REPO_ROOT / "demos").glob("*.asm")
+        )
+        cases = (
+            (
+                "bin",
+                "gen-bin-programs",
+                [
+                    "--bin",
+                    *bin_sources,
+                    "--headers",
+                    *bin_headers,
+                    "--browser",
+                    *browser_sources,
+                ],
+            ),
+            (
+                "docs",
+                "gen-docs-programs",
+                [
+                    "--ctxt",
+                    *ctxt_sources,
+                    "--doc-assets",
+                    "image.bmp",
+                    "--home-assets",
+                    *home_assets,
+                ],
+            ),
+            (
+                "demos",
+                "gen-demos-programs",
+                ["--demos", *demo_sources],
+            ),
+        )
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            for mode, oracle_command, arguments in cases:
+                expected = root / f"{mode}-expected.cc"
+                first = root / f"{mode}-first.cc"
+                second = root / f"{mode}-second.cc"
+                oracle = subprocess.run(
+                    [
+                        shutil.which("python") or "python",
+                        str(REPO_ROOT / "tools" / "hostbuild.py"),
+                        oracle_command,
+                        "--out",
+                        str(expected),
+                        *arguments,
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                )
+                self.assertEqual(oracle.returncode, 0, oracle.stderr)
+                for output in (first, second):
+                    generated = subprocess.run(
+                        [
+                            str(self.cli),
+                            "install-source",
+                            mode,
+                            *arguments,
+                            "-o",
+                            str(output),
+                        ],
+                        cwd=REPO_ROOT,
+                        text=True,
+                        capture_output=True,
+                    )
+                    self.assertEqual(generated.returncode, 0, generated.stderr)
+                self.assertEqual(first.read_bytes(), expected.read_bytes())
+                self.assertEqual(second.read_bytes(), first.read_bytes())
+
+    def test_install_source_rejects_bad_paths_without_clobbering_output(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            demos = root / "demos"
+            demos.mkdir()
+            (demos / "good.asm").write_text("ret\n", encoding="ascii")
+            (demos / "wrong.cc").write_text("return 0;\n", encoding="ascii")
+            output = root / "install.cc"
+            output.write_bytes(b"sentinel")
+            invalid = subprocess.run(
+                [
+                    str(self.cli),
+                    "install-source",
+                    "demos",
+                    "--demos",
+                    "demos/wrong.cc",
+                    "-o",
+                    str(output),
+                ],
+                cwd=root,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(invalid.returncode, 1)
+            self.assertIn("must match demos/NAME.asm", invalid.stderr)
+            self.assertEqual(output.read_bytes(), b"sentinel")
+
+            duplicate = subprocess.run(
+                [
+                    str(self.cli),
+                    "install-source",
+                    "demos",
+                    "--demos",
+                    "demos/good.asm",
+                    "demos/good.asm",
+                    "-o",
+                    str(output),
+                ],
+                cwd=root,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(duplicate.returncode, 1)
+            self.assertIn("duplicated", duplicate.stderr)
+            self.assertEqual(output.read_bytes(), b"sentinel")
+
+            recovered = subprocess.run(
+                [
+                    str(self.cli),
+                    "install-source",
+                    "demos",
+                    "--demos",
+                    "demos/good.asm",
+                    "-o",
+                    str(output),
+                ],
+                cwd=root,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(recovered.returncode, 0, recovered.stderr)
+            self.assertNotEqual(output.read_bytes(), b"sentinel")
+
     def test_wrap_absolute_input_supports_identity_stem_section_and_readonly(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)

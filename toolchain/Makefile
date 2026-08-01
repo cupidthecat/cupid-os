@@ -721,6 +721,7 @@ test: $(CONTRACT_MANIFEST) \
 	$(CUPIDOBJ_CONTRACT) wrap-text
 	$(CUPIDOBJ_CONTRACT) extract-basic
 	$(CUPIDOBJ_CONTRACT) extract-fallback
+	$(CUPIDOBJ_CONTRACT) install-source
 	$(CUPIDOBJ_CONTRACT) errors
 	$(CUPIDLD_CONTRACT) fixed-basic
 	$(CUPIDLD_CONTRACT) fixed-layout

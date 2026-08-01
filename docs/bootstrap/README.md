@@ -339,6 +339,17 @@ The local `user/build/` directory is generated and ignored by Git. ADR 0127
 records the ABI correction and gate. ADR 0130 records the optional native
 Windows path. ADR 0188 records the checked-seed default.
 
+CupidObj can now generate those three installation-table sources through one
+typed public operation and the `install-source` CLI. The bin, docs, and demos
+modes validate their own path categories, reject duplicate or mixed lists,
+cap the inventory at 512 paths, and rewind partial output on failure. Native
+and Cupid-built commands each reproduced the complete live tables twice and
+matched the current Python generator byte for byte. The outputs are 46,335,
+9,794, and 12,845 bytes. The private five-tool bootstrap reached a fixed point
+with a 245,132-byte CupidObj image. The normal Make recipes still use Python
+until a checked seed carrying this command is promoted. ADR 0201 records the
+capability and that staging boundary.
+
 The external syscall table records `print`, `print_int`, and `exit` events
 with the running PID before using the normal console or process path. A print
 event carries only its byte count and FNV-1a fingerprint, so newline or
@@ -676,7 +687,7 @@ WAD, so gameplay, game input, game audio, and save behavior remain open.
 
 The block-static object proof emits eleven exact local symbols, from `.LBS0.hex` through `.LBS10.unused`. Its sections contain 21 bytes of read-only data, 56 bytes of initialized writable data, and 4 bytes of zero-filled storage. Ten text, one read-only-data, and five data relocations are all direct `R_386_32` references with addend zero. The fixture covers shadowed names, unused and unreachable objects, aggregate and string initializers, linked and unresolved addresses, runtime reads and writes, and an unused eight-byte image. A referenced eight-byte block static now lowers through the wide snapshot path. Missing, out-of-range, mistyped, runtime-initialized, and constrained-output cases still fail transactionally. The unchanged `dis_hex_fixed` helper in `toolchain/cupiddis.cc` pins the active constant character array.
 
-All twelve shared hosted Toolchain implementation files parse completely. Each tuple reports definitions, statements, expressions, block bindings, and initializers: `ctool.cc` 65/1,012/5,981/133/33, `cupidasm.cc` 81/2,935/19,252/326/186, `cupidc_emit.cc` 353/8,554/72,476/1,045/710, `cupidc_frontend.cc` 422/16,503/109,174/2,480/1,509, `cupidc_ir.cc` 262/7,250/67,490/953/354, `cupidc_pp.cc` 143/3,932/25,287/479/286, `cupidc_type.cc` 31/737/5,487/85/43, `cupiddis.cc` 68/1,553/10,065/154/118, `cupidld.cc` 66/2,064/13,347/267/146, `cupidobj.cc` 14/329/2,201/47/26, `elf32.cc` 37/1,219/9,457/143/70, and `x86.cc` 60/1,760/11,855/180/16,702. The generated audit records the current lexical totals and source graph. They now belong to the actual i386 Linux profile and feed both the five-tool fixed point and the Cupid-built contract cohort.
+All twelve shared hosted Toolchain implementation files parse completely. Each tuple reports definitions, statements, expressions, block bindings, and initializers: `ctool.cc` 65/1,012/5,981/133/33, `cupidasm.cc` 81/2,935/19,252/326/186, `cupidc_emit.cc` 353/8,554/72,476/1,045/710, `cupidc_frontend.cc` 422/16,503/109,174/2,480/1,509, `cupidc_ir.cc` 262/7,250/67,490/953/354, `cupidc_pp.cc` 143/3,932/25,287/479/286, `cupidc_type.cc` 31/737/5,487/85/43, `cupiddis.cc` 68/1,553/10,065/154/118, `cupidld.cc` 66/2,064/13,347/267/146, `cupidobj.cc` 34/1,012/7,202/117/58, `elf32.cc` 37/1,219/9,457/143/70, and `x86.cc` 60/1,760/11,855/180/16,702. The generated audit records the current lexical totals and source graph. They now belong to the actual i386 Linux profile and feed both the five-tool fixed point and the Cupid-built contract cohort.
 
 The shared frontend treats C11 `<:` and `:>` spellings as canonical brackets across array declarators, subscripts, and the explicit unsupported `__builtin_offsetof` array-designator seam while leaving the immutable preprocessing tape's original token spelling untouched. Strict-C contracts cover mixed and full digraph forms plus malformed and non-pointer subscripts. Compound/update diagnostics distinguish valid but deferred floating `*=`, `/=`, `+=`, `-=`, and updates from invalid floating remainder, shift, bitwise, or aggregate compound/update operands. Compatible aggregate plain assignment is represented without weakening those constraints.
 

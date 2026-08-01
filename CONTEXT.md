@@ -402,8 +402,18 @@ _Avoid_: host linker
 **CupidObj**:
 The Cupid Toolchain object and binary transformation utility. `wrap` keeps
 binary input unchanged, while `wrap-text` converts CRLF pairs to LF before it
-builds an ELF32 object. A lone carriage return remains part of the input.
+builds an ELF32 object. A lone carriage return remains part of the input. Its
+typed `install-source` operation emits the bin, docs, or demos installation
+table from a validated repository path inventory. That command is self-hosted
+and byte-compatible with the current Python generator, but the normal Make
+recipes have not moved to it yet.
 _Avoid_: objcopy
+
+**Installation source table**:
+One generated `.cc` file that installs an auto-discovered source or asset
+cohort into the boot filesystem. CupidObj defines the byte-exact bin, docs,
+and demos table formats. Checked CupidC compiles the result.
+_Avoid_: checked-in file list, embedded source object
 
 **Canonical text wrap**:
 The CupidObj transform used for source, manuals, demos, and vocabulary data.

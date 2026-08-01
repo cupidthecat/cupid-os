@@ -359,6 +359,14 @@ inputs. An explicit 46-input Windows frontier runs private native hosted
 CupidC and CupidLD snapshots and requires all six files to match checked-seed
 output.
 
+CupidObj now implements the bin, docs, and demos table formats through its
+public `install-source` command. It keeps caller order, validates the path
+category and extension, rejects duplicates and mixed lists, and rolls back a
+partial result on failure. A Cupid-built command reproduced all three live
+tables twice with exact Python-oracle parity. This capability is ready for a
+checked seed promotion; the normal Make recipes still use Python in the
+current ownership graph.
+
 Before compilation, the user ABI operation captures the exact bytes of its
 six kernel and public declarations. It compares the reviewed i386 layout and
 rechecks every input before reporting success.

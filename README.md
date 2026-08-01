@@ -387,6 +387,15 @@ back to GCC, Clang, `ld`, or `cc`. The optional native drivers still need
 Clang and its Windows linker, so this is not a native Windows fixed point.
 `user/build/` contains local generated outputs and is ignored by Git.
 
+CupidObj also has a self-hosted `install-source` command for all three table
+formats. It validates each path category, rejects duplicate and mixed lists,
+limits one inventory to 512 paths, and preserves an existing output after a
+failure. Native and Cupid-built commands reproduce the current bin, docs, and
+demos tables byte for byte against the Python generator. The Make recipes
+still use that Python generator until a checked seed carrying the new command
+is promoted. [ADR 0201](docs/adr/0201-generate-installation-source-with-cupidobj.md)
+records the capability boundary.
+
 The external-program gate boots `hello`, `ls`, and `cat` from separate
 private image copies. Serial
 events bind each syscall to the loaded PID and record printable content by

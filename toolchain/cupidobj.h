@@ -7,8 +7,15 @@
 typedef enum {
   CTOOL_OBJ_WRAP_BINARY = 1,
   CTOOL_OBJ_WRAP_TEXT,
-  CTOOL_OBJ_EXTRACT_FLAT
+  CTOOL_OBJ_EXTRACT_FLAT,
+  CTOOL_OBJ_GENERATE_INSTALL_SOURCE
 } ctool_obj_operation_t;
+
+typedef enum {
+  CTOOL_OBJ_INSTALL_DEMOS = 1,
+  CTOOL_OBJ_INSTALL_BIN,
+  CTOOL_OBJ_INSTALL_DOCS
+} ctool_obj_install_source_kind_t;
 
 typedef struct {
   ctool_string_t section_name;
@@ -20,10 +27,29 @@ typedef struct {
 } ctool_obj_wrap_binary_request_t;
 
 typedef struct {
+  ctool_obj_install_source_kind_t kind;
+  const ctool_string_t *bin_paths;
+  ctool_u32 bin_count;
+  const ctool_string_t *header_paths;
+  ctool_u32 header_count;
+  const ctool_string_t *browser_paths;
+  ctool_u32 browser_count;
+  const ctool_string_t *ctxt_paths;
+  ctool_u32 ctxt_count;
+  const ctool_string_t *doc_asset_paths;
+  ctool_u32 doc_asset_count;
+  const ctool_string_t *home_asset_paths;
+  ctool_u32 home_asset_count;
+  const ctool_string_t *demo_paths;
+  ctool_u32 demo_count;
+} ctool_obj_install_source_request_t;
+
+typedef struct {
   ctool_obj_operation_t operation;
   const ctool_source_t *input;
   union {
     ctool_obj_wrap_binary_request_t wrap_binary;
+    ctool_obj_install_source_request_t install_source;
   } as;
 } ctool_obj_request_t;
 
@@ -52,7 +78,8 @@ ctool_status_t ctool_obj_transform(ctool_job_t *job,
                                     ctool_buffer_t *output,
                                     ctool_obj_result_t *result_out);
 
-/* Request/source views are borrowed for the call.  WRAP_BINARY emits one
+/* Request/source and installation path views are borrowed for the call.
+ * WRAP_BINARY emits one
  * canonical ELF32 ET_REL PROGBITS section with the exact requested bytes and
  * global start, end, and absolute size symbols.  WRAP_TEXT has the same
  * object model but canonicalizes CRLF pairs to LF; lone carriage returns are
@@ -63,6 +90,12 @@ ctool_status_t ctool_obj_transform(ctool_job_t *job,
  * Output must be empty.  Every failure preserves its pre-call bytes and fully
  * zeros result_out.  On success result bytes borrow output; extraction addresses
  * describe the half-open initialized range [base_address, end_address).
- * Equal requests and inputs produce byte-identical output. */
+ * Equal requests and inputs produce byte-identical output.
+ *
+ * GENERATE_INSTALL_SOURCE emits one of the bin, docs, or demos installation
+ * tables from a typed path inventory.  Paths use repository-relative forward
+ * slash spelling and their category's exact extension.  A request may contain
+ * at most 512 paths.  Category mixing, malformed paths, duplicate paths, and
+ * output exhaustion fail before publication. */
 
 #endif

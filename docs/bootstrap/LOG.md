@@ -18306,3 +18306,64 @@ SHA-256
 `fa8d1ff83bd16021c3ea0acf70821272ad936b35197ce465d99b999c3cec463d`.
 The rendered summary and generated preprocessor corpus remain byte-identical
 at the hashes shown in the earlier checkpoint.
+
+## 2026-08-01: CupidObj gains installation-source generation
+
+The three generated installation tables sat between Cupid-owned packaging and
+compilation, but Python still wrote their C source. CupidObj now exposes a
+typed `CTOOL_OBJ_GENERATE_INSTALL_SOURCE` operation and matching
+`install-source` command modes for bin files, docs and home assets, and Cupid
+ASM demos.
+
+Each mode checks its repository-relative path grammar and extension. The
+shared request rejects duplicate paths, unrelated category fields, empty
+inventories, and more than 512 total paths. Manual and asset hyphens remain in
+installed filenames and become underscores in symbols, matching the existing
+generator. A failed request rewinds partial buffer contents and zeros its
+result. The hosted command leaves an existing destination untouched after a
+semantic failure.
+
+The CLI contract started red on each missing mode. The public contract then
+exposed missing mixed-category and inventory-limit checks. The green contract
+pins exact two-demo output, repeatability, the 512-path limit, useful path and
+category diagnostics, output-limit rollback, and same-job recovery. Eleven
+hosted CLI tests pass, including the complete live inventory and preserved
+output after wrong-path and duplicate failures.
+
+Stage-three CupidC emits the expanded public contract as a 49,812-byte object
+with SHA-256
+`f6178558abe258c97542ed7536f847efd5086e0c3933fe4bf905244ef8c9bafc`.
+CupidLD links it into a 261,652-byte static executable with SHA-256
+`bf4b50bf6731e6bc84313d1a3f34b374369a125a30a427ad9fb0548d302154dc`.
+That Cupid-built executable passes the `install-source` selector under WSL.
+
+Native and Cupid-built commands generated each live table twice and matched
+the Python oracle byte for byte:
+
+| Table | Bytes | SHA-256 |
+| --- | ---: | --- |
+| bin | 46,335 | `3af136af46726ae1a594169d12da2dbe1035f17d992fd5f08b2139e4787ab85a` |
+| docs | 9,794 | `cff3fc8943d4b1999869653b14a882d21a463471452e429b2d742d47107b13fc` |
+| demos | 12,845 | `0d1f7ee032b13abbbe1767d75fe32c6f1ffa8b7014db44ae35c9d4c47ebb8305` |
+
+The checked seed built the 19-source tool union twice in a private directory.
+All C objects, the CupidASM startup object, and the five static tool images
+matched between stages. The run also passed five help cases, ten successful
+operations, and six expected failures in 896.4 seconds. Its 41-file source
+snapshot has SHA-256
+`7d5589ba377fcebf6295cd6c58157b098e5fc5f0c5131574e3ba31bc5927c502`.
+The matching 245,132-byte CupidObj image has SHA-256
+`d39fe725cec9c3c968d9abe33281d34dd9a192f5e3d5f77bb6a9dbc13e935b43`.
+
+This capability step does not modify the checked seed or normal Make recipes.
+Python remains the production source generator until the new CupidObj command
+is promoted and the ownership gate changes. ADR 0201 records the boundary.
+
+The canonical audit regeneration and independent check both pass. The graph
+still contains 717 active inputs, 449 transforms, 253 feature requirements,
+and 25 classified unreachable files. Its active-source digest is
+`4c59c3c06f3699f7afe3392d478b83b3062450cc9d638491eb0a5548a33ac087`.
+The audit JSON has SHA-256
+`97180a45be2a6745b0bc1bbb3471567f7bd16f50716df8cfd1efa4a6879f8f25`,
+and the rendered summary has SHA-256
+`8ff843e1e4599d44250bb721b4b77aa01e5075590a83b7f4d64f388d3267a1e0`.

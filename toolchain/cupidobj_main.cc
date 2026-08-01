@@ -24,6 +24,21 @@ typedef struct {
   const char *identity;
   const char *stem;
   const char *section;
+  const char *const *bin_paths;
+  ctool_u32 bin_count;
+  const char *const *header_paths;
+  ctool_u32 header_count;
+  const char *const *browser_paths;
+  ctool_u32 browser_count;
+  const char *const *ctxt_paths;
+  ctool_u32 ctxt_count;
+  const char *const *doc_asset_paths;
+  ctool_u32 doc_asset_count;
+  const char *const *home_asset_paths;
+  ctool_u32 home_asset_count;
+  const char *const *demo_paths;
+  ctool_u32 demo_count;
+  ctool_obj_install_source_kind_t install_kind;
   ctool_bool readonly;
 } cupidobj_cli_t;
 
@@ -34,7 +49,12 @@ static void cupidobj_usage(FILE *stream) {
       "[--section NAME] [--readonly]\n"
       "       cupidobj wrap-text INPUT -o OUTPUT "
       "[--identity NAME | --stem NAME] [--section NAME] [--readonly]\n"
-      "       cupidobj flat INPUT -o OUTPUT\n");
+      "       cupidobj flat INPUT -o OUTPUT\n"
+      "       cupidobj install-source bin [--bin PATH...] "
+      "[--headers PATH...] [--browser PATH...] -o OUTPUT\n"
+      "       cupidobj install-source docs [--ctxt PATH...] "
+      "[--doc-assets PATH...] [--home-assets PATH...] -o OUTPUT\n"
+      "       cupidobj install-source demos --demos PATH... -o OUTPUT\n");
 }
 
 static ctool_bool cupidobj_is_wrap(ctool_obj_operation_t operation) {
@@ -81,15 +101,122 @@ static int cupidobj_parse_cli(int argc, char **argv, cupidobj_cli_t *cli) {
     cli->operation = CTOOL_OBJ_WRAP_TEXT;
   } else if (strcmp(argv[1], "flat") == 0) {
     cli->operation = CTOOL_OBJ_EXTRACT_FLAT;
+  } else if (strcmp(argv[1], "install-source") == 0) {
+    if (argc < 3) {
+      return 0;
+    }
+    cli->operation = CTOOL_OBJ_GENERATE_INSTALL_SOURCE;
+    if (strcmp(argv[2], "demos") == 0) {
+      cli->install_kind = CTOOL_OBJ_INSTALL_DEMOS;
+    } else if (strcmp(argv[2], "bin") == 0) {
+      cli->install_kind = CTOOL_OBJ_INSTALL_BIN;
+    } else if (strcmp(argv[2], "docs") == 0) {
+      cli->install_kind = CTOOL_OBJ_INSTALL_DOCS;
+    } else {
+      return 0;
+    }
   } else {
     return 0;
   }
-  for (index = 2; index < argc; index++) {
+  for (index = cli->operation == CTOOL_OBJ_GENERATE_INSTALL_SOURCE ? 3 : 2;
+       index < argc; index++) {
     const char *argument = argv[index];
     const char *value = (const char *)0;
     int taken;
     if (strcmp(argument, "--help") == 0 || strcmp(argument, "-h") == 0) {
       return -1;
+    }
+    if (strcmp(argument, "--demos") == 0) {
+      int first;
+      if (cli->operation != CTOOL_OBJ_GENERATE_INSTALL_SOURCE ||
+          cli->install_kind != CTOOL_OBJ_INSTALL_DEMOS ||
+          cli->demo_paths != (const char *const *)0) {
+        return 0;
+      }
+      first = index + 1;
+      index = first;
+      while (index < argc && argv[index][0] != '-') {
+        index++;
+      }
+      if (index == first) {
+        return 0;
+      }
+      cli->demo_paths = (const char *const *)&argv[first];
+      cli->demo_count = (ctool_u32)(index - first);
+      index--;
+      continue;
+    }
+    if (strcmp(argument, "--bin") == 0 ||
+        strcmp(argument, "--headers") == 0 ||
+        strcmp(argument, "--browser") == 0) {
+      const char *const **paths_out;
+      ctool_u32 *count_out;
+      int first;
+      if (cli->operation != CTOOL_OBJ_GENERATE_INSTALL_SOURCE ||
+          cli->install_kind != CTOOL_OBJ_INSTALL_BIN) {
+        return 0;
+      }
+      if (strcmp(argument, "--bin") == 0) {
+        paths_out = &cli->bin_paths;
+        count_out = &cli->bin_count;
+      } else if (strcmp(argument, "--headers") == 0) {
+        paths_out = &cli->header_paths;
+        count_out = &cli->header_count;
+      } else {
+        paths_out = &cli->browser_paths;
+        count_out = &cli->browser_count;
+      }
+      if (*paths_out != (const char *const *)0) {
+        return 0;
+      }
+      first = index + 1;
+      index = first;
+      while (index < argc && argv[index][0] != '-') {
+        index++;
+      }
+      if (index == first) {
+        return 0;
+      }
+      *paths_out = (const char *const *)&argv[first];
+      *count_out = (ctool_u32)(index - first);
+      index--;
+      continue;
+    }
+    if (strcmp(argument, "--ctxt") == 0 ||
+        strcmp(argument, "--doc-assets") == 0 ||
+        strcmp(argument, "--home-assets") == 0) {
+      const char *const **paths_out;
+      ctool_u32 *count_out;
+      int first;
+      if (cli->operation != CTOOL_OBJ_GENERATE_INSTALL_SOURCE ||
+          cli->install_kind != CTOOL_OBJ_INSTALL_DOCS) {
+        return 0;
+      }
+      if (strcmp(argument, "--ctxt") == 0) {
+        paths_out = &cli->ctxt_paths;
+        count_out = &cli->ctxt_count;
+      } else if (strcmp(argument, "--doc-assets") == 0) {
+        paths_out = &cli->doc_asset_paths;
+        count_out = &cli->doc_asset_count;
+      } else {
+        paths_out = &cli->home_asset_paths;
+        count_out = &cli->home_asset_count;
+      }
+      if (*paths_out != (const char *const *)0) {
+        return 0;
+      }
+      first = index + 1;
+      index = first;
+      while (index < argc && argv[index][0] != '-') {
+        index++;
+      }
+      if (index == first) {
+        return 0;
+      }
+      *paths_out = (const char *const *)&argv[first];
+      *count_out = (ctool_u32)(index - first);
+      index--;
+      continue;
     }
     taken = cupidobj_take_value(argc, argv, &index, argument, "-o", &value);
     if (taken != 0) {
@@ -135,15 +262,53 @@ static int cupidobj_parse_cli(int argc, char **argv, cupidobj_cli_t *cli) {
       have_readonly = CTOOL_TRUE;
       continue;
     }
-    if (argument[0] == '-' || cli->input != (const char *)0) {
+    if (cli->operation == CTOOL_OBJ_GENERATE_INSTALL_SOURCE ||
+        argument[0] == '-' || cli->input != (const char *)0) {
       return 0;
     }
     cli->input = argument;
   }
+  if (cli->operation == CTOOL_OBJ_GENERATE_INSTALL_SOURCE) {
+    if (cli->install_kind == CTOOL_OBJ_INSTALL_DEMOS) {
+      if (cli->demo_paths == (const char *const *)0 ||
+          cli->demo_count == 0u) {
+        return 0;
+      }
+      cli->input = cli->demo_paths[0];
+    } else if (cli->install_kind == CTOOL_OBJ_INSTALL_BIN) {
+      if (cli->bin_count + cli->header_count + cli->browser_count == 0u) {
+        return 0;
+      }
+      if (cli->bin_count != 0u) {
+        cli->input = cli->bin_paths[0];
+      } else if (cli->header_count != 0u) {
+        cli->input = cli->header_paths[0];
+      } else {
+        cli->input = cli->browser_paths[0];
+      }
+    } else {
+      if (cli->ctxt_count + cli->doc_asset_count + cli->home_asset_count ==
+          0u) {
+        return 0;
+      }
+      if (cli->ctxt_count != 0u) {
+        cli->input = cli->ctxt_paths[0];
+      } else if (cli->doc_asset_count != 0u) {
+        cli->input = cli->doc_asset_paths[0];
+      } else {
+        cli->input = cli->home_asset_paths[0];
+      }
+    }
+  }
   if (cli->input == (const char *)0 || cli->output == (const char *)0) {
     return 0;
   }
-  if (cli->operation == CTOOL_OBJ_EXTRACT_FLAT) {
+  if (cli->operation == CTOOL_OBJ_GENERATE_INSTALL_SOURCE) {
+    if (cli->identity != (const char *)0 || cli->stem != (const char *)0 ||
+        cli->section != (const char *)0 || cli->readonly == CTOOL_TRUE) {
+      return 0;
+    }
+  } else if (cli->operation == CTOOL_OBJ_EXTRACT_FLAT) {
     if (cli->identity != (const char *)0 || cli->stem != (const char *)0 ||
         cli->section != (const char *)0 || cli->readonly == CTOOL_TRUE) {
       return 0;
@@ -370,6 +535,13 @@ int main(int argc, char **argv) {
   char *start_symbol = (char *)0;
   char *end_symbol = (char *)0;
   char *size_symbol = (char *)0;
+  ctool_string_t *demo_paths = (ctool_string_t *)0;
+  ctool_string_t *bin_paths = (ctool_string_t *)0;
+  ctool_string_t *header_paths = (ctool_string_t *)0;
+  ctool_string_t *browser_paths = (ctool_string_t *)0;
+  ctool_string_t *ctxt_paths = (ctool_string_t *)0;
+  ctool_string_t *doc_asset_paths = (ctool_string_t *)0;
+  ctool_string_t *home_asset_paths = (ctool_string_t *)0;
   ctool_status_t status;
   int parsed = cupidobj_parse_cli(argc, argv, &cli);
   int exit_code = 1;
@@ -426,6 +598,84 @@ int main(int argc, char **argv) {
     context.request.as.wrap_binary.start_symbol = ctool_string(start_symbol);
     context.request.as.wrap_binary.end_symbol = ctool_string(end_symbol);
     context.request.as.wrap_binary.size_symbol = ctool_string(size_symbol);
+  } else if (cli.operation == CTOOL_OBJ_GENERATE_INSTALL_SOURCE) {
+    ctool_u32 index;
+    if (cli.demo_count != 0u) {
+      demo_paths = (ctool_string_t *)malloc(
+          (size_t)cli.demo_count * sizeof(*demo_paths));
+    }
+    if (cli.bin_count != 0u) {
+      bin_paths = (ctool_string_t *)malloc(
+          (size_t)cli.bin_count * sizeof(*bin_paths));
+    }
+    if (cli.header_count != 0u) {
+      header_paths = (ctool_string_t *)malloc(
+          (size_t)cli.header_count * sizeof(*header_paths));
+    }
+    if (cli.browser_count != 0u) {
+      browser_paths = (ctool_string_t *)malloc(
+          (size_t)cli.browser_count * sizeof(*browser_paths));
+    }
+    if (cli.ctxt_count != 0u) {
+      ctxt_paths = (ctool_string_t *)malloc(
+          (size_t)cli.ctxt_count * sizeof(*ctxt_paths));
+    }
+    if (cli.doc_asset_count != 0u) {
+      doc_asset_paths = (ctool_string_t *)malloc(
+          (size_t)cli.doc_asset_count * sizeof(*doc_asset_paths));
+    }
+    if (cli.home_asset_count != 0u) {
+      home_asset_paths = (ctool_string_t *)malloc(
+          (size_t)cli.home_asset_count * sizeof(*home_asset_paths));
+    }
+    if ((cli.demo_count != 0u && demo_paths == (ctool_string_t *)0) ||
+        (cli.bin_count != 0u && bin_paths == (ctool_string_t *)0) ||
+        (cli.header_count != 0u && header_paths == (ctool_string_t *)0) ||
+        (cli.browser_count != 0u && browser_paths == (ctool_string_t *)0) ||
+        (cli.ctxt_count != 0u && ctxt_paths == (ctool_string_t *)0) ||
+        (cli.doc_asset_count != 0u &&
+         doc_asset_paths == (ctool_string_t *)0) ||
+        (cli.home_asset_count != 0u &&
+         home_asset_paths == (ctool_string_t *)0)) {
+      (void)fprintf(stderr, "cupidobj: installation list allocation failed\n");
+      goto done;
+    }
+    for (index = 0u; index < cli.demo_count; index++) {
+      demo_paths[index] = ctool_string(cli.demo_paths[index]);
+    }
+    for (index = 0u; index < cli.bin_count; index++) {
+      bin_paths[index] = ctool_string(cli.bin_paths[index]);
+    }
+    for (index = 0u; index < cli.header_count; index++) {
+      header_paths[index] = ctool_string(cli.header_paths[index]);
+    }
+    for (index = 0u; index < cli.browser_count; index++) {
+      browser_paths[index] = ctool_string(cli.browser_paths[index]);
+    }
+    for (index = 0u; index < cli.ctxt_count; index++) {
+      ctxt_paths[index] = ctool_string(cli.ctxt_paths[index]);
+    }
+    for (index = 0u; index < cli.doc_asset_count; index++) {
+      doc_asset_paths[index] = ctool_string(cli.doc_asset_paths[index]);
+    }
+    for (index = 0u; index < cli.home_asset_count; index++) {
+      home_asset_paths[index] = ctool_string(cli.home_asset_paths[index]);
+    }
+    context.request.as.install_source.kind = cli.install_kind;
+    context.request.as.install_source.bin_paths = bin_paths;
+    context.request.as.install_source.bin_count = cli.bin_count;
+    context.request.as.install_source.header_paths = header_paths;
+    context.request.as.install_source.header_count = cli.header_count;
+    context.request.as.install_source.browser_paths = browser_paths;
+    context.request.as.install_source.browser_count = cli.browser_count;
+    context.request.as.install_source.ctxt_paths = ctxt_paths;
+    context.request.as.install_source.ctxt_count = cli.ctxt_count;
+    context.request.as.install_source.doc_asset_paths = doc_asset_paths;
+    context.request.as.install_source.doc_asset_count = cli.doc_asset_count;
+    context.request.as.install_source.home_asset_paths = home_asset_paths;
+    context.request.as.install_source.home_asset_count = cli.home_asset_count;
+    context.request.as.install_source.demo_paths = demo_paths;
+    context.request.as.install_source.demo_count = cli.demo_count;
   }
   invocation_request.input_path = ctool_string(logical_input);
   invocation_request.output_path = ctool_string(logical_output);
@@ -451,6 +701,13 @@ int main(int argc, char **argv) {
   exit_code = 0;
 
 done:
+  free(home_asset_paths);
+  free(doc_asset_paths);
+  free(ctxt_paths);
+  free(browser_paths);
+  free(header_paths);
+  free(bin_paths);
+  free(demo_paths);
   free(logical_output);
   free(logical_input);
   free(size_symbol);

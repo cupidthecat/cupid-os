@@ -25,6 +25,14 @@ each command. Make passes discovered output paths through `$(sort ...)` before
 generation and link, so the Windows and Linux branches consume one canonical
 source order.
 
+CupidObj can now generate the three installation-table sources from the same
+sorted inventories. Native and Cupid-built commands match the current Python
+generator for all live inputs, and the public operation fails transactionally
+on malformed, duplicate, mixed, or oversized lists. This capability step does
+not change the 449 Python participants because the normal Make recipes still
+call Python. The dependency can move only after a checked seed carries the new
+command. ADR 0201 records that boundary.
+
 CupidASM's `align` statement adds no host tool to that graph. The shared
 assembler computes raw padding from the absolute `ORG` address, records ELF32
 section alignment, keeps NOBITS padding out of the file, and respects fixed

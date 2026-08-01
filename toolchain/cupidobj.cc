@@ -4,6 +4,7 @@
   (CTOOL_ELF32_SHF_WRITE | CTOOL_ELF32_SHF_ALLOC |                        \
    CTOOL_ELF32_SHF_EXECINSTR | CTOOL_ELF32_SHF_TLS |                      \
    CTOOL_ELF32_SHF_EXCLUDE)
+#define CTOOL_OBJ_INSTALL_PATH_LIMIT 512u
 
 typedef struct {
   ctool_u32 address;
@@ -59,6 +60,33 @@ static ctool_bool obj_string_has_prefix(ctool_string_t string,
     }
   }
   return CTOOL_TRUE;
+}
+
+static ctool_bool obj_string_has_suffix(ctool_string_t string,
+                                        const char *suffix) {
+  ctool_string_t suffix_string = ctool_string(suffix);
+  ctool_u32 index;
+  if (string.size < suffix_string.size) {
+    return CTOOL_FALSE;
+  }
+  for (index = 0u; index < suffix_string.size; index++) {
+    if (string.data[string.size - suffix_string.size + index] !=
+        suffix_string.data[index]) {
+      return CTOOL_FALSE;
+    }
+  }
+  return CTOOL_TRUE;
+}
+
+static ctool_status_t obj_append_literal(ctool_buffer_t *output,
+                                         const char *text) {
+  ctool_string_t string = ctool_string(text);
+  return ctool_buffer_append(output, ctool_bytes(string.data, string.size));
+}
+
+static ctool_status_t obj_append_string(ctool_buffer_t *output,
+                                        ctool_string_t string) {
+  return ctool_buffer_append(output, ctool_bytes(string.data, string.size));
 }
 
 static ctool_bool obj_power_of_two(ctool_u32 value) {
@@ -426,6 +454,984 @@ static ctool_status_t obj_extract_flat(
   return CTOOL_OK;
 }
 
+static ctool_bool obj_install_demo_stem(ctool_string_t path,
+                                        ctool_string_t *stem_out) {
+  ctool_string_t prefix = ctool_string("demos/");
+  ctool_string_t suffix = ctool_string(".asm");
+  ctool_u32 index;
+  if (stem_out == (ctool_string_t *)0 ||
+      obj_string_valid(path) == CTOOL_FALSE ||
+      obj_string_has_prefix(path, "demos/") == CTOOL_FALSE ||
+      obj_string_has_suffix(path, ".asm") == CTOOL_FALSE ||
+      path.size <= prefix.size + suffix.size) {
+    return CTOOL_FALSE;
+  }
+  stem_out->data = path.data + prefix.size;
+  stem_out->size = path.size - prefix.size - suffix.size;
+  for (index = 0u; index < stem_out->size; index++) {
+    unsigned char character = (unsigned char)stem_out->data[index];
+    if (!((character >= (unsigned char)'a' &&
+           character <= (unsigned char)'z') ||
+          (character >= (unsigned char)'A' &&
+           character <= (unsigned char)'Z') ||
+          (character >= (unsigned char)'0' &&
+           character <= (unsigned char)'9') ||
+          character == (unsigned char)'_')) {
+      return CTOOL_FALSE;
+    }
+  }
+  return CTOOL_TRUE;
+}
+
+static ctool_bool obj_install_plain_stem(ctool_string_t path,
+                                         const char *prefix_text,
+                                         const char *suffix_text,
+                                         ctool_string_t *stem_out) {
+  ctool_string_t prefix = ctool_string(prefix_text);
+  ctool_string_t suffix = ctool_string(suffix_text);
+  ctool_u32 index;
+  if (stem_out == (ctool_string_t *)0 ||
+      obj_string_valid(path) == CTOOL_FALSE ||
+      obj_string_has_prefix(path, prefix_text) == CTOOL_FALSE ||
+      obj_string_has_suffix(path, suffix_text) == CTOOL_FALSE ||
+      path.size <= prefix.size + suffix.size) {
+    return CTOOL_FALSE;
+  }
+  stem_out->data = path.data + prefix.size;
+  stem_out->size = path.size - prefix.size - suffix.size;
+  for (index = 0u; index < stem_out->size; index++) {
+    unsigned char character = (unsigned char)stem_out->data[index];
+    if (!((character >= (unsigned char)'a' &&
+           character <= (unsigned char)'z') ||
+          (character >= (unsigned char)'A' &&
+           character <= (unsigned char)'Z') ||
+          (character >= (unsigned char)'0' &&
+           character <= (unsigned char)'9') ||
+          character == (unsigned char)'_')) {
+      return CTOOL_FALSE;
+    }
+  }
+  return CTOOL_TRUE;
+}
+
+static ctool_status_t obj_install_emit_extern(
+    ctool_buffer_t *output, const char *symbol_prefix, ctool_string_t stem,
+    const char *symbol_suffix) {
+  ctool_status_t status = obj_append_literal(output, "extern const char ");
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, symbol_prefix);
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_string(output, stem);
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, symbol_suffix);
+  }
+  return status;
+}
+
+static ctool_status_t obj_install_emit_bin_entry(
+    ctool_buffer_t *output, const char *symbol_prefix, ctool_string_t stem,
+    const char *symbol_type, const char *install_directory,
+    const char *extension, const char *log_directory) {
+  ctool_status_t status = obj_append_literal(
+      output, "    { uint32_t sz = (uint32_t)(");
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, symbol_prefix);
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_string(output, stem);
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, symbol_type);
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, "_end - ");
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, symbol_prefix);
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_string(output, stem);
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, symbol_type);
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(
+        output, "_start); ramfs_add_file(fs_private, \"");
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, install_directory);
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_string(output, stem);
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, extension);
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, "\", ");
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, symbol_prefix);
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_string(output, stem);
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, symbol_type);
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(
+        output, "_start, sz); serial_printf(\"[kernel] Installed ");
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, log_directory);
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_string(output, stem);
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, extension);
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, " (%u bytes)\\n\", sz); }\n");
+  }
+  return status;
+}
+
+static ctool_status_t obj_install_validate_plain_list(
+    ctool_job_t *job, const ctool_source_t *source,
+    const ctool_string_t *paths, ctool_u32 count, const char *prefix,
+    const char *suffix, ctool_u32 column_base, const char *message) {
+  ctool_u32 index;
+  if (count != 0u && paths == (const ctool_string_t *)0) {
+    return obj_emit_failure(job, source, CTOOL_ERR_INVALID_ARGUMENT,
+                            CTOOL_OBJ_DIAG_INVALID_REQUEST, column_base,
+                            "CupidObj installation path list is missing");
+  }
+  for (index = 0u; index < count; index++) {
+    ctool_string_t stem;
+    ctool_u32 prior;
+    if (obj_install_plain_stem(paths[index], prefix, suffix, &stem) ==
+        CTOOL_FALSE) {
+      return obj_emit_failure(job, source, CTOOL_ERR_INPUT,
+                              CTOOL_OBJ_DIAG_INVALID_INPUT,
+                              column_base + index, message);
+    }
+    for (prior = 0u; prior < index; prior++) {
+      if (obj_string_equal(paths[prior], paths[index]) == CTOOL_TRUE) {
+        return obj_emit_failure(
+            job, source, CTOOL_ERR_INPUT, CTOOL_OBJ_DIAG_SYMBOL_COLLISION,
+            column_base + index,
+            "CupidObj installation path is duplicated");
+      }
+    }
+  }
+  return CTOOL_OK;
+}
+
+static ctool_status_t obj_install_output_failure(
+    ctool_job_t *job, const ctool_source_t *source, ctool_status_t status) {
+  ctool_u32 code = status == CTOOL_ERR_LIMIT || status == CTOOL_ERR_OVERFLOW ||
+                           status == CTOOL_ERR_NO_MEMORY
+                       ? CTOOL_OBJ_DIAG_LIMIT
+                       : CTOOL_OBJ_DIAG_OUTPUT;
+  return obj_emit_failure(job, source, status, code, 0u,
+                          "CupidObj could not emit installation source");
+}
+
+static ctool_status_t obj_install_demos(
+    ctool_job_t *job, const ctool_obj_request_t *request,
+    ctool_buffer_t *output, ctool_obj_result_t *result_out) {
+  const ctool_obj_install_source_request_t *install =
+      &request->as.install_source;
+  ctool_u32 total_count;
+  if (install->bin_count > CTOOL_OBJ_INSTALL_PATH_LIMIT ||
+      install->header_count > CTOOL_OBJ_INSTALL_PATH_LIMIT ||
+      install->browser_count > CTOOL_OBJ_INSTALL_PATH_LIMIT ||
+      install->ctxt_count > CTOOL_OBJ_INSTALL_PATH_LIMIT ||
+      install->doc_asset_count > CTOOL_OBJ_INSTALL_PATH_LIMIT ||
+      install->home_asset_count > CTOOL_OBJ_INSTALL_PATH_LIMIT ||
+      install->demo_count > CTOOL_OBJ_INSTALL_PATH_LIMIT) {
+    return obj_emit_failure(job, request->input, CTOOL_ERR_LIMIT,
+                            CTOOL_OBJ_DIAG_LIMIT, 0u,
+                            "CupidObj installation inventory exceeds 512 paths");
+  }
+  total_count = install->bin_count + install->header_count +
+                install->browser_count + install->ctxt_count +
+                install->doc_asset_count + install->home_asset_count +
+                install->demo_count;
+  if (total_count > CTOOL_OBJ_INSTALL_PATH_LIMIT) {
+    return obj_emit_failure(job, request->input, CTOOL_ERR_LIMIT,
+                            CTOOL_OBJ_DIAG_LIMIT, 0u,
+                            "CupidObj installation inventory exceeds 512 paths");
+  }
+  ctool_u32 index;
+  ctool_status_t status;
+  if (install->demo_paths == (const ctool_string_t *)0 ||
+      install->demo_count == 0u) {
+    return obj_emit_failure(job, request->input, CTOOL_ERR_INPUT,
+                            CTOOL_OBJ_DIAG_INVALID_INPUT, 0u,
+                            "CupidObj demo installation list is empty");
+  }
+  for (index = 0u; index < install->demo_count; index++) {
+    ctool_string_t stem;
+    ctool_u32 prior;
+    if (obj_install_demo_stem(install->demo_paths[index], &stem) ==
+        CTOOL_FALSE) {
+      return obj_emit_failure(job, request->input, CTOOL_ERR_INPUT,
+                              CTOOL_OBJ_DIAG_INVALID_INPUT, index,
+                              "CupidObj demo path must match demos/NAME.asm");
+    }
+    for (prior = 0u; prior < index; prior++) {
+      if (obj_string_equal(install->demo_paths[prior],
+                           install->demo_paths[index]) == CTOOL_TRUE) {
+        return obj_emit_failure(job, request->input, CTOOL_ERR_INPUT,
+                                CTOOL_OBJ_DIAG_SYMBOL_COLLISION, index,
+                                "CupidObj demo installation path is duplicated");
+      }
+    }
+  }
+  status = obj_append_literal(
+      output,
+      "/* Auto-generated -- do not edit. */\n"
+      "/* Lists all embedded CupidASM demos from demos/ directory */\n"
+      "#include \"ramfs.h\"\n"
+      "#include \"types.h\"\n"
+      "#include \"../drivers/serial.h\"\n");
+  for (index = 0u; status == CTOOL_OK && index < install->demo_count;
+       index++) {
+    ctool_string_t stem;
+    (void)obj_install_demo_stem(install->demo_paths[index], &stem);
+    status = obj_append_literal(output,
+                                "extern const char _binary_demos_");
+    if (status == CTOOL_OK) {
+      status = obj_append_string(output, stem);
+    }
+    if (status == CTOOL_OK) {
+      status = obj_append_literal(output, "_asm_start[];\n");
+    }
+  }
+  for (index = 0u; status == CTOOL_OK && index < install->demo_count;
+       index++) {
+    ctool_string_t stem;
+    (void)obj_install_demo_stem(install->demo_paths[index], &stem);
+    status = obj_append_literal(output,
+                                "extern const char _binary_demos_");
+    if (status == CTOOL_OK) {
+      status = obj_append_string(output, stem);
+    }
+    if (status == CTOOL_OK) {
+      status = obj_append_literal(output, "_asm_end[];\n");
+    }
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(
+        output,
+        "void install_demo_programs(void *fs_private);\n"
+        "void install_demo_programs(void *fs_private) {\n");
+  }
+  for (index = 0u; status == CTOOL_OK && index < install->demo_count;
+       index++) {
+    ctool_string_t stem;
+    (void)obj_install_demo_stem(install->demo_paths[index], &stem);
+    status = obj_append_literal(
+        output,
+        "    { uint32_t sz = (uint32_t)(_binary_demos_");
+    if (status == CTOOL_OK) {
+      status = obj_append_string(output, stem);
+    }
+    if (status == CTOOL_OK) {
+      status = obj_append_literal(output, "_asm_end - _binary_demos_");
+    }
+    if (status == CTOOL_OK) {
+      status = obj_append_string(output, stem);
+    }
+    if (status == CTOOL_OK) {
+      status = obj_append_literal(
+          output,
+          "_asm_start); ramfs_add_file(fs_private, \"demos/");
+    }
+    if (status == CTOOL_OK) {
+      status = obj_append_string(output, stem);
+    }
+    if (status == CTOOL_OK) {
+      status = obj_append_literal(
+          output,
+          ".asm\", _binary_demos_");
+    }
+    if (status == CTOOL_OK) {
+      status = obj_append_string(output, stem);
+    }
+    if (status == CTOOL_OK) {
+      status = obj_append_literal(
+          output,
+          "_asm_start, sz); serial_printf(\"[kernel] Installed /demos/");
+    }
+    if (status == CTOOL_OK) {
+      status = obj_append_string(output, stem);
+    }
+    if (status == CTOOL_OK) {
+      status = obj_append_literal(
+          output,
+          ".asm (%u bytes)\\n\", sz); ramfs_add_file(fs_private, "
+          "\"docs/demos/");
+    }
+    if (status == CTOOL_OK) {
+      status = obj_append_string(output, stem);
+    }
+    if (status == CTOOL_OK) {
+      status = obj_append_literal(
+          output,
+          ".asm\", _binary_demos_");
+    }
+    if (status == CTOOL_OK) {
+      status = obj_append_string(output, stem);
+    }
+    if (status == CTOOL_OK) {
+      status = obj_append_literal(
+          output,
+          "_asm_start, sz); serial_printf(\"[kernel] Installed /docs/demos/");
+    }
+    if (status == CTOOL_OK) {
+      status = obj_append_string(output, stem);
+    }
+    if (status == CTOOL_OK) {
+      status = obj_append_literal(output, ".asm (%u bytes)\\n\", sz); }\n");
+    }
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, "}\n");
+  }
+  if (status != CTOOL_OK) {
+    return obj_install_output_failure(job, request->input, status);
+  }
+  result_out->bytes = ctool_buffer_view(output);
+  return CTOOL_OK;
+}
+
+static ctool_status_t obj_install_bin(
+    ctool_job_t *job, const ctool_obj_request_t *request,
+    ctool_buffer_t *output, ctool_obj_result_t *result_out) {
+  const ctool_obj_install_source_request_t *install =
+      &request->as.install_source;
+  ctool_status_t status;
+  ctool_u32 index;
+  if (install->bin_count + install->header_count + install->browser_count ==
+      0u) {
+    return obj_emit_failure(job, request->input, CTOOL_ERR_INPUT,
+                            CTOOL_OBJ_DIAG_INVALID_INPUT, 0u,
+                            "CupidObj bin installation lists are empty");
+  }
+  status = obj_install_validate_plain_list(
+      job, request->input, install->bin_paths, install->bin_count, "bin/",
+      ".cc", 0u, "CupidObj program path must match bin/NAME.cc");
+  if (status == CTOOL_OK) {
+    status = obj_install_validate_plain_list(
+        job, request->input, install->header_paths, install->header_count,
+        "bin/", ".h", install->bin_count,
+        "CupidObj header path must match bin/NAME.h");
+  }
+  if (status == CTOOL_OK) {
+    status = obj_install_validate_plain_list(
+        job, request->input, install->browser_paths, install->browser_count,
+        "bin/browser/", ".cc", install->bin_count + install->header_count,
+        "CupidObj browser path must match bin/browser/NAME.cc");
+  }
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  status = obj_append_literal(
+      output,
+      "/* Auto-generated -- do not edit. */\n"
+      "/* Lists all embedded CupidC programs from bin/ directory */\n"
+      "#include \"ramfs.h\"\n"
+      "#include \"types.h\"\n"
+      "#include \"../drivers/serial.h\"\n");
+  for (index = 0u; status == CTOOL_OK && index < install->bin_count;
+       index++) {
+    ctool_string_t stem;
+    (void)obj_install_plain_stem(install->bin_paths[index], "bin/", ".cc",
+                                 &stem);
+    status = obj_install_emit_extern(output, "_binary_bin_", stem,
+                                     "_cc_start[];\n");
+  }
+  for (index = 0u; status == CTOOL_OK && index < install->header_count;
+       index++) {
+    ctool_string_t stem;
+    (void)obj_install_plain_stem(install->header_paths[index], "bin/", ".h",
+                                 &stem);
+    status = obj_install_emit_extern(output, "_binary_bin_", stem,
+                                     "_h_start[];\n");
+  }
+  for (index = 0u; status == CTOOL_OK && index < install->bin_count;
+       index++) {
+    ctool_string_t stem;
+    (void)obj_install_plain_stem(install->bin_paths[index], "bin/", ".cc",
+                                 &stem);
+    status = obj_install_emit_extern(output, "_binary_bin_", stem,
+                                     "_cc_end[];\n");
+  }
+  for (index = 0u; status == CTOOL_OK && index < install->header_count;
+       index++) {
+    ctool_string_t stem;
+    (void)obj_install_plain_stem(install->header_paths[index], "bin/", ".h",
+                                 &stem);
+    status = obj_install_emit_extern(output, "_binary_bin_", stem,
+                                     "_h_end[];\n");
+  }
+  for (index = 0u; status == CTOOL_OK && index < install->browser_count;
+       index++) {
+    ctool_string_t stem;
+    (void)obj_install_plain_stem(install->browser_paths[index],
+                                 "bin/browser/", ".cc", &stem);
+    status = obj_install_emit_extern(output, "_binary_bin_browser_", stem,
+                                     "_cc_start[];\n");
+  }
+  for (index = 0u; status == CTOOL_OK && index < install->browser_count;
+       index++) {
+    ctool_string_t stem;
+    (void)obj_install_plain_stem(install->browser_paths[index],
+                                 "bin/browser/", ".cc", &stem);
+    status = obj_install_emit_extern(output, "_binary_bin_browser_", stem,
+                                     "_cc_end[];\n");
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(
+        output,
+        "void install_bin_programs(void *fs_private);\n"
+        "void install_bin_programs(void *fs_private) {\n");
+  }
+  for (index = 0u; status == CTOOL_OK && index < install->bin_count;
+       index++) {
+    ctool_string_t stem;
+    (void)obj_install_plain_stem(install->bin_paths[index], "bin/", ".cc",
+                                 &stem);
+    status = obj_install_emit_bin_entry(output, "_binary_bin_", stem, "_cc",
+                                        "bin/", ".cc", "/bin/");
+  }
+  for (index = 0u; status == CTOOL_OK && index < install->header_count;
+       index++) {
+    ctool_string_t stem;
+    (void)obj_install_plain_stem(install->header_paths[index], "bin/", ".h",
+                                 &stem);
+    status = obj_install_emit_bin_entry(output, "_binary_bin_", stem, "_h",
+                                        "bin/", ".h", "/bin/");
+  }
+  for (index = 0u; status == CTOOL_OK && index < install->browser_count;
+       index++) {
+    ctool_string_t stem;
+    (void)obj_install_plain_stem(install->browser_paths[index],
+                                 "bin/browser/", ".cc", &stem);
+    status = obj_install_emit_bin_entry(
+        output, "_binary_bin_browser_", stem, "_cc", "bin/browser/", ".cc",
+        "/bin/browser/");
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, "}\n");
+  }
+  if (status != CTOOL_OK) {
+    return obj_install_output_failure(job, request->input, status);
+  }
+  result_out->bytes = ctool_buffer_view(output);
+  return CTOOL_OK;
+}
+
+static ctool_bool obj_install_docs_stem(ctool_string_t path,
+                                        const char *prefix_text,
+                                        const char *suffix_text,
+                                        ctool_string_t *stem_out) {
+  ctool_string_t prefix = ctool_string(prefix_text);
+  ctool_string_t suffix = ctool_string(suffix_text);
+  ctool_u32 index;
+  if (stem_out == (ctool_string_t *)0 ||
+      obj_string_valid(path) == CTOOL_FALSE ||
+      obj_string_has_prefix(path, prefix_text) == CTOOL_FALSE ||
+      obj_string_has_suffix(path, suffix_text) == CTOOL_FALSE ||
+      path.size <= prefix.size + suffix.size) {
+    return CTOOL_FALSE;
+  }
+  stem_out->data = path.data + prefix.size;
+  stem_out->size = path.size - prefix.size - suffix.size;
+  for (index = 0u; index < stem_out->size; index++) {
+    unsigned char character = (unsigned char)stem_out->data[index];
+    if (!((character >= (unsigned char)'a' &&
+           character <= (unsigned char)'z') ||
+          (character >= (unsigned char)'A' &&
+           character <= (unsigned char)'Z') ||
+          (character >= (unsigned char)'0' &&
+           character <= (unsigned char)'9') ||
+          character == (unsigned char)'_' ||
+          character == (unsigned char)'-')) {
+      return CTOOL_FALSE;
+    }
+  }
+  return CTOOL_TRUE;
+}
+
+static ctool_status_t obj_install_append_symbol_stem(
+    ctool_buffer_t *output, ctool_string_t stem) {
+  ctool_u32 index;
+  for (index = 0u; index < stem.size; index++) {
+    ctool_u8 character = (ctool_u8)stem.data[index];
+    ctool_status_t status;
+    if (character == (ctool_u8)'-') {
+      character = (ctool_u8)'_';
+    }
+    status = ctool_buffer_put_u8(output, character);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+  }
+  return CTOOL_OK;
+}
+
+static ctool_status_t obj_install_emit_docs_extern(
+    ctool_buffer_t *output, const char *symbol_prefix, ctool_string_t stem,
+    const char *symbol_extension, const char *boundary) {
+  ctool_status_t status = obj_append_literal(output, "extern const char ");
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, symbol_prefix);
+  }
+  if (status == CTOOL_OK) {
+    status = obj_install_append_symbol_stem(output, stem);
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, symbol_extension);
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, boundary);
+  }
+  return status;
+}
+
+static ctool_status_t obj_install_emit_docs_entry(
+    ctool_buffer_t *output, const char *symbol_prefix, ctool_string_t stem,
+    const char *symbol_extension, const char *install_directory,
+    const char *file_extension, const char *log_directory) {
+  ctool_status_t status = obj_append_literal(
+      output, "    { uint32_t sz = (uint32_t)(");
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, symbol_prefix);
+  }
+  if (status == CTOOL_OK) {
+    status = obj_install_append_symbol_stem(output, stem);
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, symbol_extension);
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, "_end - ");
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, symbol_prefix);
+  }
+  if (status == CTOOL_OK) {
+    status = obj_install_append_symbol_stem(output, stem);
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, symbol_extension);
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(
+        output, "_start); ramfs_add_file(fs_private, \"");
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, install_directory);
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_string(output, stem);
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, file_extension);
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, "\", ");
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, symbol_prefix);
+  }
+  if (status == CTOOL_OK) {
+    status = obj_install_append_symbol_stem(output, stem);
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, symbol_extension);
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(
+        output, "_start, sz); serial_printf(\"[kernel] Installed ");
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, log_directory);
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_string(output, stem);
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, file_extension);
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, " (%u bytes)\\n\", sz); }\n");
+  }
+  return status;
+}
+
+static ctool_status_t obj_install_emit_home_entry(
+    ctool_buffer_t *output, ctool_string_t stem, const char *extension) {
+  ctool_status_t status = obj_append_literal(
+      output, "    { uint32_t sz = (uint32_t)(_binary_");
+  if (status == CTOOL_OK) {
+    status = obj_install_append_symbol_stem(output, stem);
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, "_");
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, extension);
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, "_end - _binary_");
+  }
+  if (status == CTOOL_OK) {
+    status = obj_install_append_symbol_stem(output, stem);
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, "_");
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, extension);
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(
+        output, "_start); install_home_asset(\"/home/");
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_string(output, stem);
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, ".");
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, extension);
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, "\", _binary_");
+  }
+  if (status == CTOOL_OK) {
+    status = obj_install_append_symbol_stem(output, stem);
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, "_");
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, extension);
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, "_start, sz); }\n");
+  }
+  return status;
+}
+
+static ctool_u32 obj_install_home_extension(ctool_string_t path,
+                                             ctool_string_t *stem_out) {
+  static const char *extensions[] = {".bmp", ".png", ".jpg", ".jpeg"};
+  ctool_u32 index;
+  for (index = 0u; index < 4u; index++) {
+    if (obj_install_docs_stem(path, "", extensions[index], stem_out) ==
+        CTOOL_TRUE) {
+      return index + 1u;
+    }
+  }
+  return 0u;
+}
+
+static ctool_status_t obj_install_validate_docs_list(
+    ctool_job_t *job, const ctool_source_t *source,
+    const ctool_string_t *paths, ctool_u32 count, const char *prefix,
+    const char *suffix, ctool_u32 column_base, const char *message) {
+  ctool_u32 index;
+  if (count != 0u && paths == (const ctool_string_t *)0) {
+    return obj_emit_failure(job, source, CTOOL_ERR_INVALID_ARGUMENT,
+                            CTOOL_OBJ_DIAG_INVALID_REQUEST, column_base,
+                            "CupidObj installation path list is missing");
+  }
+  for (index = 0u; index < count; index++) {
+    ctool_string_t stem;
+    ctool_u32 prior;
+    if (obj_install_docs_stem(paths[index], prefix, suffix, &stem) ==
+        CTOOL_FALSE) {
+      return obj_emit_failure(job, source, CTOOL_ERR_INPUT,
+                              CTOOL_OBJ_DIAG_INVALID_INPUT,
+                              column_base + index, message);
+    }
+    for (prior = 0u; prior < index; prior++) {
+      if (obj_string_equal(paths[prior], paths[index]) == CTOOL_TRUE) {
+        return obj_emit_failure(
+            job, source, CTOOL_ERR_INPUT, CTOOL_OBJ_DIAG_SYMBOL_COLLISION,
+            column_base + index,
+            "CupidObj installation path is duplicated");
+      }
+    }
+  }
+  return CTOOL_OK;
+}
+
+static ctool_status_t obj_install_docs(
+    ctool_job_t *job, const ctool_obj_request_t *request,
+    ctool_buffer_t *output, ctool_obj_result_t *result_out) {
+  const ctool_obj_install_source_request_t *install =
+      &request->as.install_source;
+  static const char *home_extensions[] = {"bmp", "png", "jpg", "jpeg"};
+  ctool_u32 index;
+  ctool_u32 group;
+  ctool_status_t status;
+  if (install->ctxt_count + install->doc_asset_count +
+          install->home_asset_count ==
+      0u) {
+    return obj_emit_failure(job, request->input, CTOOL_ERR_INPUT,
+                            CTOOL_OBJ_DIAG_INVALID_INPUT, 0u,
+                            "CupidObj docs installation lists are empty");
+  }
+  status = obj_install_validate_docs_list(
+      job, request->input, install->ctxt_paths, install->ctxt_count,
+      "cupidos-txt/", ".CTXT", 0u,
+      "CupidObj manual path must match cupidos-txt/NAME.CTXT");
+  if (status == CTOOL_OK) {
+    status = obj_install_validate_docs_list(
+        job, request->input, install->doc_asset_paths,
+        install->doc_asset_count, "", ".bmp", install->ctxt_count,
+        "CupidObj documentation asset must match NAME.bmp");
+  }
+  if (status == CTOOL_OK && install->home_asset_count != 0u &&
+      install->home_asset_paths == (const ctool_string_t *)0) {
+    status = obj_emit_failure(job, request->input, CTOOL_ERR_INVALID_ARGUMENT,
+                              CTOOL_OBJ_DIAG_INVALID_REQUEST,
+                              install->ctxt_count + install->doc_asset_count,
+                              "CupidObj home asset list is missing");
+  }
+  for (index = 0u; status == CTOOL_OK && index < install->home_asset_count;
+       index++) {
+    ctool_string_t stem;
+    ctool_u32 prior;
+    if (obj_install_home_extension(install->home_asset_paths[index], &stem) ==
+        0u) {
+      status = obj_emit_failure(
+          job, request->input, CTOOL_ERR_INPUT, CTOOL_OBJ_DIAG_INVALID_INPUT,
+          install->ctxt_count + install->doc_asset_count + index,
+          "CupidObj home asset must be NAME.bmp, NAME.png, NAME.jpg, or NAME.jpeg");
+      break;
+    }
+    for (prior = 0u; prior < index; prior++) {
+      if (obj_string_equal(install->home_asset_paths[prior],
+                           install->home_asset_paths[index]) == CTOOL_TRUE) {
+        status = obj_emit_failure(
+            job, request->input, CTOOL_ERR_INPUT,
+            CTOOL_OBJ_DIAG_SYMBOL_COLLISION,
+            install->ctxt_count + install->doc_asset_count + index,
+            "CupidObj installation path is duplicated");
+        break;
+      }
+    }
+  }
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  status = obj_append_literal(
+      output,
+      "/* Auto-generated -- do not edit. */\n"
+      "/* Lists all embedded CupidDoc files from cupidos-txt/ directory */\n"
+      "#include \"homefs.h\"\n"
+      "#include \"ramfs.h\"\n"
+      "#include \"types.h\"\n"
+      "#include \"vfs.h\"\n"
+      "#include \"../drivers/serial.h\"\n");
+  for (index = 0u; status == CTOOL_OK && index < install->ctxt_count;
+       index++) {
+    ctool_string_t stem;
+    (void)obj_install_docs_stem(install->ctxt_paths[index], "cupidos-txt/",
+                                ".CTXT", &stem);
+    status = obj_install_emit_docs_extern(
+        output, "_binary_cupidos_txt_", stem, "_CTXT", "_start[];\n");
+  }
+  for (index = 0u; status == CTOOL_OK && index < install->doc_asset_count;
+       index++) {
+    ctool_string_t stem;
+    (void)obj_install_docs_stem(install->doc_asset_paths[index], "", ".bmp",
+                                &stem);
+    status = obj_install_emit_docs_extern(output, "_binary_", stem, "_bmp",
+                                          "_start[];\n");
+  }
+  for (group = 1u; status == CTOOL_OK && group <= 4u; group++) {
+    for (index = 0u; status == CTOOL_OK && index < install->home_asset_count;
+         index++) {
+      ctool_string_t stem;
+      if (obj_install_home_extension(install->home_asset_paths[index], &stem) ==
+          group) {
+        status = obj_install_emit_docs_extern(
+            output, "_binary_", stem,
+            group == 1u   ? "_bmp"
+            : group == 2u ? "_png"
+            : group == 3u ? "_jpg"
+                          : "_jpeg",
+            "_start[];\n");
+      }
+    }
+  }
+  for (index = 0u; status == CTOOL_OK && index < install->ctxt_count;
+       index++) {
+    ctool_string_t stem;
+    (void)obj_install_docs_stem(install->ctxt_paths[index], "cupidos-txt/",
+                                ".CTXT", &stem);
+    status = obj_install_emit_docs_extern(
+        output, "_binary_cupidos_txt_", stem, "_CTXT", "_end[];\n");
+  }
+  for (index = 0u; status == CTOOL_OK && index < install->doc_asset_count;
+       index++) {
+    ctool_string_t stem;
+    (void)obj_install_docs_stem(install->doc_asset_paths[index], "", ".bmp",
+                                &stem);
+    status = obj_install_emit_docs_extern(output, "_binary_", stem, "_bmp",
+                                          "_end[];\n");
+  }
+  for (group = 1u; status == CTOOL_OK && group <= 4u; group++) {
+    for (index = 0u; status == CTOOL_OK && index < install->home_asset_count;
+         index++) {
+      ctool_string_t stem;
+      if (obj_install_home_extension(install->home_asset_paths[index], &stem) ==
+          group) {
+        status = obj_install_emit_docs_extern(
+            output, "_binary_", stem,
+            group == 1u   ? "_bmp"
+            : group == 2u ? "_png"
+            : group == 3u ? "_jpg"
+                          : "_jpeg",
+            "_end[];\n");
+      }
+    }
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(
+        output,
+        "static void install_home_asset(const char *path, const char *data, uint32_t size) {\n"
+        "    int fd = vfs_open(path, O_WRONLY | O_CREAT | O_TRUNC);\n"
+        "    if (fd < 0) { serial_printf(\"[kernel] Failed to open %s (%d)\\n\", path, fd); return; }\n"
+        "    uint32_t off = 0;\n"
+        "    while (off < size) {\n"
+        "        int n = vfs_write(fd, data + off, size - off);\n"
+        "        if (n <= 0) break;\n"
+        "        off += (uint32_t)n;\n"
+        "    }\n"
+        "    vfs_close(fd);\n"
+        "    serial_printf(\"[kernel] Installed %s (%u bytes)\\n\", path, off);\n"
+        "}\n"
+        "void install_docs_programs(void *fs_private);\n"
+        "void install_docs_programs(void *fs_private) {\n");
+  }
+  for (index = 0u; status == CTOOL_OK && index < install->ctxt_count;
+       index++) {
+    ctool_string_t stem;
+    (void)obj_install_docs_stem(install->ctxt_paths[index], "cupidos-txt/",
+                                ".CTXT", &stem);
+    status = obj_install_emit_docs_entry(
+        output, "_binary_cupidos_txt_", stem, "_CTXT", "docs/", ".ctxt",
+        "/docs/");
+  }
+  for (index = 0u; status == CTOOL_OK && index < install->doc_asset_count;
+       index++) {
+    ctool_string_t stem;
+    (void)obj_install_docs_stem(install->doc_asset_paths[index], "", ".bmp",
+                                &stem);
+    status = obj_install_emit_docs_entry(output, "_binary_", stem, "_bmp",
+                                         "docs/", ".bmp", "/docs/");
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, "    homefs_seed_begin();\n");
+  }
+  for (group = 1u; status == CTOOL_OK && group <= 4u; group++) {
+    for (index = 0u; status == CTOOL_OK && index < install->home_asset_count;
+         index++) {
+      ctool_string_t stem;
+      if (obj_install_home_extension(install->home_asset_paths[index], &stem) ==
+          group) {
+        status = obj_install_emit_home_entry(output, stem,
+                                             home_extensions[group - 1u]);
+      }
+    }
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, "    homefs_seed_end();\n}\n");
+  }
+  if (status != CTOOL_OK) {
+    return obj_install_output_failure(job, request->input, status);
+  }
+  result_out->bytes = ctool_buffer_view(output);
+  return CTOOL_OK;
+}
+
+static ctool_status_t obj_install_source(
+    ctool_job_t *job, const ctool_obj_request_t *request,
+    ctool_buffer_t *output, ctool_obj_result_t *result_out) {
+  const ctool_obj_install_source_request_t *install =
+      &request->as.install_source;
+  if (request->as.install_source.kind == CTOOL_OBJ_INSTALL_DEMOS) {
+    if (install->bin_paths != (const ctool_string_t *)0 ||
+        install->bin_count != 0u ||
+        install->header_paths != (const ctool_string_t *)0 ||
+        install->header_count != 0u ||
+        install->browser_paths != (const ctool_string_t *)0 ||
+        install->browser_count != 0u ||
+        install->ctxt_paths != (const ctool_string_t *)0 ||
+        install->ctxt_count != 0u ||
+        install->doc_asset_paths != (const ctool_string_t *)0 ||
+        install->doc_asset_count != 0u ||
+        install->home_asset_paths != (const ctool_string_t *)0 ||
+        install->home_asset_count != 0u) {
+      return obj_emit_failure(
+          job, request->input, CTOOL_ERR_INVALID_ARGUMENT,
+          CTOOL_OBJ_DIAG_INVALID_REQUEST, 0u,
+          "CupidObj demo request contains another installation category");
+    }
+    return obj_install_demos(job, request, output, result_out);
+  }
+  if (request->as.install_source.kind == CTOOL_OBJ_INSTALL_BIN) {
+    if (install->ctxt_paths != (const ctool_string_t *)0 ||
+        install->ctxt_count != 0u ||
+        install->doc_asset_paths != (const ctool_string_t *)0 ||
+        install->doc_asset_count != 0u ||
+        install->home_asset_paths != (const ctool_string_t *)0 ||
+        install->home_asset_count != 0u ||
+        install->demo_paths != (const ctool_string_t *)0 ||
+        install->demo_count != 0u) {
+      return obj_emit_failure(
+          job, request->input, CTOOL_ERR_INVALID_ARGUMENT,
+          CTOOL_OBJ_DIAG_INVALID_REQUEST, 0u,
+          "CupidObj bin request contains another installation category");
+    }
+    return obj_install_bin(job, request, output, result_out);
+  }
+  if (request->as.install_source.kind == CTOOL_OBJ_INSTALL_DOCS) {
+    if (install->bin_paths != (const ctool_string_t *)0 ||
+        install->bin_count != 0u ||
+        install->header_paths != (const ctool_string_t *)0 ||
+        install->header_count != 0u ||
+        install->browser_paths != (const ctool_string_t *)0 ||
+        install->browser_count != 0u ||
+        install->demo_paths != (const ctool_string_t *)0 ||
+        install->demo_count != 0u) {
+      return obj_emit_failure(
+          job, request->input, CTOOL_ERR_INVALID_ARGUMENT,
+          CTOOL_OBJ_DIAG_INVALID_REQUEST, 0u,
+          "CupidObj docs request contains another installation category");
+    }
+    return obj_install_docs(job, request, output, result_out);
+  }
+  return obj_emit_failure(job, request->input, CTOOL_ERR_INVALID_ARGUMENT,
+                          CTOOL_OBJ_DIAG_INVALID_REQUEST, 0u,
+                          "CupidObj installation source kind is invalid");
+}
+
 ctool_status_t ctool_obj_transform(ctool_job_t *job,
                                     const ctool_obj_request_t *request,
                                     ctool_buffer_t *output,
@@ -455,6 +1461,8 @@ ctool_status_t ctool_obj_transform(ctool_job_t *job,
     status = obj_wrap(job, request, output, result_out);
   } else if (request->operation == CTOOL_OBJ_EXTRACT_FLAT) {
     status = obj_extract_flat(job, request, output, result_out);
+  } else if (request->operation == CTOOL_OBJ_GENERATE_INSTALL_SOURCE) {
+    status = obj_install_source(job, request, output, result_out);
   } else {
     status = obj_emit_failure(job, request->input,
                               CTOOL_ERR_INVALID_ARGUMENT,

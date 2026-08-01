@@ -600,6 +600,120 @@ static int expect_failure(ctool_job_t *job, ctool_buffer_t *output,
   return 1;
 }
 
+static int run_install_source(void) {
+  static const char expected[] =
+      "/* Auto-generated -- do not edit. */\n"
+      "/* Lists all embedded CupidASM demos from demos/ directory */\n"
+      "#include \"ramfs.h\"\n"
+      "#include \"types.h\"\n"
+      "#include \"../drivers/serial.h\"\n"
+      "extern const char _binary_demos_alpha_asm_start[];\n"
+      "extern const char _binary_demos_beta_test_asm_start[];\n"
+      "extern const char _binary_demos_alpha_asm_end[];\n"
+      "extern const char _binary_demos_beta_test_asm_end[];\n"
+      "void install_demo_programs(void *fs_private);\n"
+      "void install_demo_programs(void *fs_private) {\n"
+      "    { uint32_t sz = (uint32_t)(_binary_demos_alpha_asm_end - _binary_demos_alpha_asm_start); ramfs_add_file(fs_private, \"demos/alpha.asm\", _binary_demos_alpha_asm_start, sz); serial_printf(\"[kernel] Installed /demos/alpha.asm (%u bytes)\\n\", sz); ramfs_add_file(fs_private, \"docs/demos/alpha.asm\", _binary_demos_alpha_asm_start, sz); serial_printf(\"[kernel] Installed /docs/demos/alpha.asm (%u bytes)\\n\", sz); }\n"
+      "    { uint32_t sz = (uint32_t)(_binary_demos_beta_test_asm_end - _binary_demos_beta_test_asm_start); ramfs_add_file(fs_private, \"demos/beta_test.asm\", _binary_demos_beta_test_asm_start, sz); serial_printf(\"[kernel] Installed /demos/beta_test.asm (%u bytes)\\n\", sz); ramfs_add_file(fs_private, \"docs/demos/beta_test.asm\", _binary_demos_beta_test_asm_start, sz); serial_printf(\"[kernel] Installed /docs/demos/beta_test.asm (%u bytes)\\n\", sz); }\n"
+      "}\n";
+  static const ctool_u8 payload[] = {0u};
+  ctool_string_t demos[2];
+  ctool_string_t invalid[2];
+  ctool_string_t stray_bin[1];
+  ctool_string_t oversized[513];
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_buffer_t *output = (ctool_buffer_t *)0;
+  ctool_buffer_t *limited = (ctool_buffer_t *)0;
+  ctool_source_t source;
+  ctool_obj_request_t request;
+  ctool_obj_result_t first_result;
+  ctool_obj_result_t second_result;
+  ctool_status_t status;
+  ctool_u32 index;
+  int ok = 1;
+  if (!open_job(&adapter, &config, &job)) {
+    return 1;
+  }
+  status = ctool_job_open_buffer(job, 64u, config.limits.output_bytes,
+                                 &output);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 8u, 64u, &limited);
+  }
+  if (status != CTOOL_OK) {
+    if (output != (ctool_buffer_t *)0) {
+      ctool_buffer_close(output);
+    }
+    ctool_job_close(job);
+    return 1;
+  }
+  source.path.text = ctool_string("/demos/alpha.asm");
+  source.contents = ctool_bytes(payload, (ctool_u32)sizeof(payload));
+  demos[0] = ctool_string("demos/alpha.asm");
+  demos[1] = ctool_string("demos/beta_test.asm");
+  invalid[0] = ctool_string("demos/alpha.cc");
+  invalid[1] = demos[1];
+  stray_bin[0] = ctool_string("bin/alpha.cc");
+  for (index = 0u; index < 513u; index++) {
+    oversized[index] = demos[0];
+  }
+  (void)memset(&request, 0, sizeof(request));
+  request.operation = CTOOL_OBJ_GENERATE_INSTALL_SOURCE;
+  request.input = &source;
+  request.as.install_source.kind = CTOOL_OBJ_INSTALL_DEMOS;
+  request.as.install_source.demo_paths = demos;
+  request.as.install_source.demo_count = 2u;
+  status = ctool_obj_transform(job, &request, output, &first_result);
+  if (status != CTOOL_OK ||
+      first_result.bytes.size != (ctool_u32)sizeof(expected) - 1u ||
+      memcmp(first_result.bytes.data, expected, sizeof(expected) - 1u) != 0) {
+    (void)fprintf(stderr, "install source: exact output mismatch\n");
+    ok = 0;
+  }
+  ctool_buffer_clear(output);
+  status = ctool_obj_transform(job, &request, output, &second_result);
+  if (status != CTOOL_OK || second_result.bytes.size != first_result.bytes.size ||
+      memcmp(second_result.bytes.data, expected, sizeof(expected) - 1u) != 0) {
+    (void)fprintf(stderr, "install source: repeat output mismatch\n");
+    ok = 0;
+  }
+  ctool_buffer_clear(output);
+
+  request.as.install_source.demo_paths = invalid;
+  ok &= expect_failure(job, output, &request, CTOOL_ERR_INPUT,
+                       CTOOL_OBJ_DIAG_INVALID_INPUT, 0u,
+                       "invalid install path");
+  request.as.install_source.demo_paths = demos;
+  request.as.install_source.bin_paths = stray_bin;
+  request.as.install_source.bin_count = 1u;
+  ok &= expect_failure(job, output, &request, CTOOL_ERR_INVALID_ARGUMENT,
+                       CTOOL_OBJ_DIAG_INVALID_REQUEST, 0u,
+                       "mixed install categories");
+  request.as.install_source.bin_paths = (const ctool_string_t *)0;
+  request.as.install_source.bin_count = 0u;
+  request.as.install_source.demo_paths = oversized;
+  request.as.install_source.demo_count = 513u;
+  ok &= expect_failure(job, output, &request, CTOOL_ERR_LIMIT,
+                       CTOOL_OBJ_DIAG_LIMIT, 0u,
+                       "install inventory limit");
+  request.as.install_source.demo_paths = demos;
+  request.as.install_source.demo_count = 2u;
+  ok &= expect_failure(job, limited, &request, CTOOL_ERR_LIMIT,
+                       CTOOL_OBJ_DIAG_LIMIT, 0u,
+                       "install output rollback");
+  if (ctool_obj_transform(job, &request, output, &second_result) != CTOOL_OK ||
+      second_result.bytes.size != (ctool_u32)sizeof(expected) - 1u) {
+    (void)fprintf(stderr, "install source: same-job recovery failed\n");
+    ok = 0;
+  }
+
+  ctool_buffer_close(limited);
+  ctool_buffer_close(output);
+  ctool_job_close(job);
+  return ok != 0 ? 0 : 1;
+}
+
 static int run_errors(void) {
   static const ctool_u8 payload[] = {1u, 2u, 3u};
   static const ctool_u8 text_payload[] = {'x', '\r', '\n', 'y'};
@@ -807,8 +921,12 @@ int main(int argc, char **argv) {
   if (argc == 2 && strcmp(argv[1], "errors") == 0) {
     return run_errors();
   }
+  if (argc == 2 && strcmp(argv[1], "install-source") == 0) {
+    return run_install_source();
+  }
   (void)fprintf(stderr,
                 "usage: cupidobj-contract wrap-basic|wrap-model|"
-                "wrap-text|extract-basic|extract-fallback|errors\n");
+                "wrap-text|extract-basic|extract-fallback|install-source|"
+                "errors\n");
   return 2;
 }

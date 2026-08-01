@@ -57,6 +57,14 @@ LF in the wrapped object, while lone carriage returns stay intact. This keeps
 the installed files and kernel layout stable across Windows and Linux
 checkouts. Images, fonts, and other binary inputs still use byte-exact wrap.
 
+CupidObj also understands the three generated installation-table formats.
+Its install-source command validates bin, docs, home-asset, browser, header,
+and demo path groups before it writes a .cc table. Repeated generation is
+byte-identical, and a failed request leaves the previous table intact. The
+command is self-hosted and ready for the next checked toolchain seed. The
+current image build keeps the established table generator until that seed is
+promoted.
+
 Makefile variable definitions:
   BIN_CC_SRCS  := $(filter-out bin/old_cc2.cc bin/old_cc2_single.cc, $(wildcard bin/*.cc))
   BROWSER_SUB_SRCS := $(wildcard bin/browser/*.cc)
