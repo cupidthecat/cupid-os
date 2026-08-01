@@ -18619,3 +18619,79 @@ The normal installation-table recipes still use Python. This promotion gives
 them a checked CupidObj command but does not move their ownership. Python
 bootstrap coordination, WSL execution on Windows, and a native Windows fixed
 point remain open. ADR 0203 records the promotion.
+
+## 2026-08-01: Transfer installation-table generation to CupidObj
+
+The normal Make graph now asks checked-seed CupidObj to generate
+`kernel/util/bin_programs_gen.cc`, `kernel/util/docs_programs_gen.cc`, and
+`kernel/util/demos_programs_gen.cc`. The recipes use the bin, docs, and demos
+forms of `install-source` with Make's ordinal path inventories. Each depends
+on `$(CUPIDOBJ_INPUTS)`, which carries the checked runner, seed manifest, and
+all five seed images.
+
+`tools/hostbuild.py` is no longer a prerequisite or recipe owner for the three
+outputs. It remains their Python parity oracle and keeps its other image,
+fixture, symbol, staging, and cleanup roles. Python also remains the checked
+seed launcher, so `host_python` still participates in every reachable
+transform.
+
+The production commands preserved the three pre-transfer files byte for byte
+and matched the Python oracle:
+
+| Table | Bytes | SHA-256 |
+| --- | ---: | --- |
+| bin | 46,335 | `c79edeeaf909d6c204690acd31dd56ca91be4f65ed148fa8e5e9768ac8dc1d8f` |
+| docs | 9,794 | `cff3fc8943d4b1999869653b14a882d21a463471452e429b2d742d47107b13fc` |
+| demos | 12,845 | `0d1f7ee032b13abbbe1767d75fe32c6f1ffa8b7014db44ae35c9d4c47ebb8305` |
+
+The bin hash recorded in ADR 0201 came from culture-sensitive PowerShell
+ordering. GNU Make's ordinal inventory is the production order and produces
+the bin hash above. The docs and demos evidence was already ordinal and did
+not change. ADR 0201 keeps its original table with a correction note.
+
+The first audit regression failed in 0.012 seconds because all three new
+recipes were classified as generic object transforms. Teaching the classifier
+the `generate_install_source` operation exposed a second failure: the active
+Cupid delivery guard accepted only the old Python `generate_c_source` recipe.
+The final validator covers the exact bin, docs, and demos targets and recipes,
+their mode-specific inventory markers, both audit tool owners, and every
+checked-seed input. Positive checks cover all three outputs. Changed tools,
+missing seeds, duplicate or substituted content, near-match subcommands,
+misplaced tokens, and quoted shell text fail closed. The focused test passes
+in 0.222 seconds.
+
+Verification completed as follows:
+
+| Gate | Result |
+| --- | --- |
+| Production contract class | 9 tests passed in 24.802 seconds |
+| Active inventory parity | 1 test passed in 1.929 seconds |
+| Seed verification | Passed |
+| Combined production and audit selector | 10 tests passed in 23.962 seconds |
+| Hosted CupidObj CLI | 11 tests passed in 2.792 seconds |
+| Full CupidC production module | 38 tests passed in 24.623 seconds |
+| Generated CupidC frontier | Passed in 24.2 seconds with 195 inputs and digest `1f98b0fcbcf82e391ed93718cdb65067c2dece393c36d8afe4435e3a68b2f16b` |
+| Root checked-seed trust audit | Passed in 26.529 seconds with the exact CupidObj lock at 185 |
+| Full build-graph audit module | 68 tests passed in 558.167 seconds |
+| Final bootstrap audit regeneration | Passed in 57.8 seconds |
+| Read-only bootstrap audit check | Passed in 59.7 seconds |
+| Normal root build | Passed in 1,432.8 seconds |
+| Private-image runtime smoke | Desktop and terminal booted, then `ls` completed through the in-OS JIT in 48.8 seconds without a panic |
+
+The normal build produced an 8,719,780-byte final kernel ELF with SHA-256
+`e4485ba74005957dc729fa74f81e389bcb11e9f96087d7309832574ee97458d5`
+and an 8,517,504-byte raw kernel with SHA-256
+`f60e2b5cbc70536bae9c99be87b46b0a8dca9dfea1c39e9c393f3a8f1ccf6c04`.
+
+The generated frontier retained its locked source and object hashes. The
+regenerated graph still has 717 active inputs, 449 transforms, 254 feature
+requirements, and 25 classified unreachable files. CupidObj participates in
+185 transforms, up from 182, while Python remains present in all 449. The
+active-source digest remains
+`31a3a757763cd9f5ada368ed6b685b81410440101e7f8bccccb9191304d03249`.
+
+The 2,546,806-byte audit JSON has SHA-256
+`9912d7f6d03d9f816de6fc5565e4aae7bc2cd8678069bd7befd5d81871ff5957`.
+The 12,136-byte summary has SHA-256
+`cf42887835899609791c6dba94068d5f5fd4b901ec678ae0c9a65a93c1749d7d`.
+ADR 0204 records the production ownership transfer.

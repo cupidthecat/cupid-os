@@ -62,8 +62,10 @@ Its install-source command validates bin, docs, home-asset, browser, header,
 and demo path groups before it writes a .cc table. Repeated generation is
 byte-identical, and a failed request leaves the previous table intact. The
 command is self-hosted and present in the checked toolchain seed. The current
-image build keeps the established Python table generator until a separate
-ownership change moves these recipes to CupidObj.
+image build runs this checked CupidObj command for all three tables. The
+recipes depend on the complete checked-seed trust unit. The Python generator
+remains a byte-parity oracle but no longer owns these production sources.
+ADR 0204 records the transfer.
 
 Makefile variable definitions:
   BIN_CC_SRCS  := $(filter-out bin/old_cc2.cc bin/old_cc2_single.cc, $(wildcard bin/*.cc))

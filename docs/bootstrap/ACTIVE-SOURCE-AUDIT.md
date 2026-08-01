@@ -79,7 +79,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `cupid_c_compiler` | 245 |
 | `cupid_disassembler` | 1 |
 | `cupid_linker` | 5 |
-| `cupid_object` | 182 |
+| `cupid_object` | 185 |
 | `host_python` | 449 |
 
 ## Feature inventory

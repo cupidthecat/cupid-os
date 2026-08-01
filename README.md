@@ -368,10 +368,10 @@ desktop and terminal, and complete in-OS CupidC execution.
 The command gate now requires all 22 `feature15_libm.cc` checks, the exact
 zero-failure summary, and `PASS feature15_libm`.
 
-The generated ramfs, homefs, and demo installation tables are emitted as
-`.cc` sources and compiled by the checked CupidC seed. The separate `user/`
-build uses CupidC for `hello.cc`, `ls.cc`, and `cat.cc`, then CupidLD places
-each executable in the fixed external arena. Linux runs the checked i386
+Checked-seed CupidObj emits the generated ramfs, homefs, and demo installation
+tables as `.cc` sources, and checked-seed CupidC compiles them. The separate
+`user/` build uses CupidC for `hello.cc`, `ls.cc`, and `cat.cc`, then CupidLD
+places each executable in the fixed external arena. Linux runs the checked i386
 Linux seed directly, while Windows runs it through WSL. The normal user build
 does not prepare a native compiler or linker. An optional Windows frontier
 runs private snapshots of the native hosted drivers and requires all six
@@ -391,13 +391,15 @@ CupidObj also has a self-hosted `install-source` command for all three table
 formats. It validates each path category, rejects duplicate and mixed lists,
 limits one inventory to 512 paths, and preserves an existing output after a
 failure. Native and Cupid-built commands reproduce the current bin, docs, and
-demos tables byte for byte against the Python generator. The checked seed now
-carries this command. The Make recipes still use Python until a separate
-ownership change moves them to CupidObj.
+demos tables byte for byte against the Python oracle. The normal Make recipes
+now run the checked command for all three outputs and depend on the complete
+CupidObj trust inputs. `tools/hostbuild.py` remains the oracle and retains its
+other build roles, but it no longer generates these production sources.
 [ADR 0201](docs/adr/0201-generate-installation-source-with-cupidobj.md)
 records the capability, and
 [ADR 0203](docs/adr/0203-promote-toolchain-capabilities-seed.md) records its
-seed promotion.
+seed promotion. [ADR 0204](docs/adr/0204-transfer-installation-table-generation-to-cupidobj.md)
+records the production transfer.
 
 The external-program gate boots `hello`, `ls`, and `cat` from separate
 private image copies. Serial
@@ -668,8 +670,9 @@ header closure.
 Poisoned-host checks cover all 238 checked-in normal CupidC recipes through
 the strict and Doom gates. They fail if a CupidC-owned object reaches Clang or
 GCC. They pass against the renamed graph. Across the three supported build
-roots, the audit records 449 transforms. CupidC participates in 245, Python
-participates in all 449, and no normal transform invokes a host C compiler.
+roots, the audit records 449 transforms. CupidC participates in 245, CupidObj
+participates in 185 transforms, Python participates in all 449, and no normal
+transform invokes a host C compiler.
 The Toolchain root now builds its fourteen `.cc` contracts twice with
 stage-two and stage-three CupidC, compares the static i386 executables, and
 publishes the cohort together. The publisher accepts only a dedicated

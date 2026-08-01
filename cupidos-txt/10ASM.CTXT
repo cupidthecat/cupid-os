@@ -31,7 +31,7 @@ Source architecture:
 
 The normal image runs CupidASM from the checked five-tool seed. It owns four
 production assembly transforms without first building a native hosted
-command. The same checked trust unit supplies CupidObj for 182 transforms,
+command. The same checked trust unit supplies CupidObj for 185 transforms,
 CupidLD for two links, and CupidDis for symbol inspection. Python verifies
 and freezes all five images before each command; Windows executes them
 through WSL. It checks the live seed cohort again after the command. Make

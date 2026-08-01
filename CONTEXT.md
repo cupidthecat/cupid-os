@@ -179,11 +179,11 @@ The 83 `.cc` Doom and Cupid platform translation units built by checked-seed Cup
 _Avoid_: compiler-head Doom frontier, WAD runtime behavior, host-built Doom cohort
 
 **Production generated-install cohort**:
-The ramfs program table, homefs document table, and CupidASM demo table generated as `.cc` source and compiled by the checked CupidC seed under the fixed kernel profile. Their closed wrapper freezes the generator inputs, complete header union, seed manifest, and seed images, validates each relocatable object, and publishes it atomically.
+The ramfs program table, homefs document table, and CupidASM demo table. Checked-seed CupidObj generates all three `.cc` sources from Make's ordinal inventories, and checked-seed CupidC compiles them under the fixed kernel profile. Each generation recipe depends on the checked runner, seed manifest, and all five seed images. The compiler wrapper freezes the generated source and complete header union, validates each relocatable object, and publishes it atomically. `tools/hostbuild.py` remains the parity oracle but no longer owns these production sources. ADR 0204 records the generation transfer.
 _Avoid_: every generated C file, Python-free generation, kernel source cohort
 
 **Production checked-seed tool cohort**:
-The root image transforms owned by CupidASM, CupidObj, CupidLD, and CupidDis. The normal graph verifies and freezes the manifest-bound five-tool seed before each command, then checks the live trust unit again after the command. It contains four assembly transforms, 182 object transforms, two links, and one symbol inspection. Python supplies orchestration, and Windows uses WSL, but no native hosted Cupid executable is reachable from root `all`. Make applies `$(sort ...)` to every wildcard-discovered output list, so generators and links receive the same order under Windows and Linux host locales. The repository stores its runtime JPEG as a sequential SOF0 frame. Hostbuild validates and copies exact SOF0 or SOF1 bytes, rejects progressive, unsupported, or malformed frames, and gives the private snapshot to checked CupidObj. FFmpeg, `jpegtran`, `djpeg`, and `cjpeg` do not participate. The first cross-host comparison matched 426 of 430 kernel artifacts and traced all four remaining differences to the old host JPEG conversion. After the replacement, a 607.7-second Linux kernel build and a 341.6-second Windows root build produced all 430 frozen kernel artifacts byte for byte. A fresh normal image then passed a private `/bin/ls.cc` JIT boot in 49.8 seconds. Native commands remain explicit development and oracle targets. ADR 0190 records the handoff.
+The root image transforms owned by CupidASM, CupidObj, CupidLD, and CupidDis. The normal graph verifies and freezes the manifest-bound five-tool seed before each command, then checks the live trust unit again after the command. It contains four CupidASM transforms, 185 CupidObj transforms, two CupidLD links, and one CupidDis inspection. The CupidObj total includes the three installation-source generators. Python supplies orchestration, and Windows uses WSL, but no native hosted Cupid executable is reachable from root `all`. Make applies `$(sort ...)` to every wildcard-discovered output list, so generators and links receive the same order under Windows and Linux host locales. The repository stores its runtime JPEG as a sequential SOF0 frame. Hostbuild validates and copies exact SOF0 or SOF1 bytes, rejects progressive, unsupported, or malformed frames, and gives the private snapshot to checked CupidObj. FFmpeg, `jpegtran`, `djpeg`, and `cjpeg` do not participate. The first cross-host comparison matched 426 of 430 kernel artifacts and traced all four remaining differences to the old host JPEG conversion. After the replacement, a 607.7-second Linux kernel build and a 341.6-second Windows root build produced all 430 frozen kernel artifacts byte for byte. A fresh normal image then passed a private `/bin/ls.cc` JIT boot in 49.8 seconds. Native commands remain explicit development and oracle targets. ADR 0190 records the root tool handoff, and ADR 0204 records installation-source ownership.
 _Avoid_: native fixed point, Python-free build, hosted Toolchain contract cohort
 
 **Repository ISO fixture author**:
@@ -405,14 +405,15 @@ binary input unchanged, while `wrap-text` converts CRLF pairs to LF before it
 builds an ELF32 object. A lone carriage return remains part of the input. Its
 typed `install-source` operation emits the bin, docs, or demos installation
 table from a validated repository path inventory. That command is self-hosted
-and byte-compatible with the current Python generator. The checked seed carries
-the command, but the normal Make recipes have not moved to it yet.
+and byte-compatible with the Python oracle. The normal Make recipes invoke the
+checked-seed command and depend on the complete CupidObj trust inputs. ADR 0204
+records the production transfer.
 _Avoid_: objcopy
 
 **Installation source table**:
 One generated `.cc` file that installs an auto-discovered source or asset
-cohort into the boot filesystem. CupidObj defines the byte-exact bin, docs,
-and demos table formats. Checked CupidC compiles the result.
+cohort into the boot filesystem. Checked-seed CupidObj emits the byte-exact
+bin, docs, and demos formats. Checked-seed CupidC compiles the result.
 _Avoid_: checked-in file list, embedded source object
 
 **Canonical text wrap**:

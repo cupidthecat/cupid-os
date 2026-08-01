@@ -65,6 +65,15 @@ Python oracle exactly:
 | docs | 9,794 | `cff3fc8943d4b1999869653b14a882d21a463471452e429b2d742d47107b13fc` |
 | demos | 12,845 | `0d1f7ee032b13abbbe1767d75fe32c6f1ffa8b7014db44ae35c9d4c47ebb8305` |
 
+### Correction recorded with ADR 0204
+
+The bin hash above came from culture-sensitive PowerShell ordering. GNU Make
+uses ordinal ordering for the production inventory. The pre-transfer file,
+checked CupidObj command, and Python oracle agree on 46,335 bytes with
+SHA-256
+`c79edeeaf909d6c204690acd31dd56ca91be4f65ed148fa8e5e9768ac8dc1d8f`.
+The docs and demos hashes above remain correct.
+
 The public contract pins a complete two-demo source as a literal. It also
 checks repeated output, a wrong extension, a mixed category, the 512-path
 limit, output-limit rollback, a zeroed failure result, and recovery in the

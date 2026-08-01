@@ -3198,6 +3198,206 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ],
         )
 
+    def test_cupidobj_install_source_is_a_checked_delivery_generator(self):
+        module = _load_audit_module()
+        audit = json.loads(ACTIVE_BUILD_MANIFEST.read_text(encoding="utf-8"))
+        expected_content = module._cupidobj_install_source_expected_content(
+            audit["build"]["transforms"]
+        )
+        checked_inputs = [
+            "Makefile",
+            "tools/bootstrap_toolchain.py",
+            "bootstrap/seeds/i386-linux/manifest.json",
+            "bootstrap/seeds/i386-linux/cupidasm.elf",
+            "bootstrap/seeds/i386-linux/cupidc.elf",
+            "bootstrap/seeds/i386-linux/cupiddis.elf",
+            "bootstrap/seeds/i386-linux/cupidld.elf",
+            "bootstrap/seeds/i386-linux/cupidobj.elf",
+        ]
+        ignored_inputs = {*checked_inputs, "tools/hostbuild.py"}
+        cases = (
+            (
+                "kernel/util/bin_programs_gen.cc",
+                "$(CUPIDOBJ) install-source bin "
+                "--bin $(BIN_CC_SRCS) --headers $(BIN_HDR_SRCS) "
+                "--browser $(BROWSER_SUB_SRCS) -o $@",
+            ),
+            (
+                "kernel/util/docs_programs_gen.cc",
+                "$(CUPIDOBJ) install-source docs "
+                "--ctxt $(DOC_CTXT_SRCS) --doc-assets $(DOC_ASSET_SRCS) "
+                "--home-assets $(HOME_ASSET_SRCS) -o $@",
+            ),
+            (
+                "kernel/util/demos_programs_gen.cc",
+                "$(CUPIDOBJ) install-source demos "
+                "--demos $(DEMO_ASM_SRCS) -o $@",
+            ),
+        )
+        deliveries = {}
+        for delivery_target, recipe in cases:
+            with self.subTest(delivery_target=delivery_target):
+                checked = next(
+                    item
+                    for item in audit["build"]["transforms"]
+                    if item["output"] == delivery_target
+                )
+                content_inputs = [
+                    path
+                    for path in checked["inputs"]
+                    if path not in ignored_inputs
+                ]
+                delivery = module._build_transforms(
+                    ".",
+                    {delivery_target},
+                    {
+                        delivery_target: module.MakeRule(
+                            prerequisites=[*content_inputs, *checked_inputs],
+                            recipe=[recipe],
+                        )
+                    },
+                )[0]
+                self.assertEqual(
+                    delivery["operation"], "generate_install_source"
+                )
+                module._validate_cupidobj_install_source_delivery(
+                    ".", delivery, expected_content[delivery_target]
+                )
+                checked.update(delivery)
+                deliveries[delivery_target] = delivery
+
+        manifest = module._c_preprocessor_active_cases_manifest(audit)
+        for delivery_target, _recipe in cases:
+            self.assertIn(
+                ("KERNEL_I386", f"/{delivery_target}"),
+                manifest.generated_cases,
+            )
+
+        target = "kernel/util/bin_programs_gen.cc"
+        transform = deliveries[target]
+        changes = {
+            "wrong output": {**transform, "output": "bin/install.cc"},
+            "wrong operation": {
+                **transform,
+                "operation": "transform_object",
+            },
+            "wrong tools": {**transform, "tools": ["cupid_object"]},
+            "missing checked input": {
+                **transform,
+                "inputs": [
+                    path
+                    for path in transform["inputs"]
+                    if path != "bootstrap/seeds/i386-linux/cupidobj.elf"
+                ],
+            },
+            "missing content input": {
+                **transform,
+                "inputs": [
+                    path
+                    for path in transform["inputs"]
+                    if path != "bin/fat16.h"
+                ],
+            },
+            "duplicate content input": {
+                **transform,
+                "inputs": [*transform["inputs"], "bin/fat16.h"],
+            },
+            "changed recipe": {
+                **transform,
+                "recipe": [
+                    "$(CUPIDOBJ) install-source bin "
+                    "--bin $(BIN_CC_SRCS) -o $@"
+                ],
+            },
+        }
+        for name, changed in changes.items():
+            with self.subTest(name=name), self.assertRaisesRegex(
+                module.AuditError,
+                r"CupidObj install-source delivery",
+            ):
+                module._validate_cupidobj_install_source_delivery(
+                    ".", changed, expected_content[target]
+                )
+
+        substitutions = (
+            (
+                "kernel/util/bin_programs_gen.cc",
+                "bin/cat.cc",
+                "bin/not_a_real_program.cc",
+            ),
+            (
+                "kernel/util/docs_programs_gen.cc",
+                "cupidos-txt/00INDEX.CTXT",
+                "cupidos-txt/99NOTREAL.CTXT",
+            ),
+            (
+                "kernel/util/demos_programs_gen.cc",
+                "demos/hello.asm",
+                "demos/not_a_real_demo.asm",
+            ),
+        )
+        for delivery_target, existing, replacement in substitutions:
+            changed = deliveries[delivery_target]
+            changed = {
+                **changed,
+                "inputs": [
+                    replacement if path == existing else path
+                    for path in changed["inputs"]
+                ],
+            }
+            with self.subTest(
+                delivery_target=delivery_target
+            ), self.assertRaisesRegex(
+                module.AuditError,
+                r"CupidObj install-source delivery content inputs changed",
+            ):
+                module._validate_cupidobj_install_source_delivery(
+                    ".", changed, expected_content[delivery_target]
+                )
+
+        near_match = module._build_transforms(
+            ".",
+            {target},
+            {
+                target: module.MakeRule(
+                    prerequisites=transform["inputs"],
+                    recipe=[
+                        "$(CUPIDOBJ) install-sources bin "
+                        "--bin $(BIN_CC_SRCS) -o $@"
+                    ],
+                )
+            },
+        )[0]
+        self.assertEqual(near_match["operation"], "transform_object")
+
+        misplaced_tokens = {
+            "$(CUPIDOBJ) wrap-text bin/hello.cc -o install-source": (
+                "wrap_text_as_elf32_relocatable"
+            ),
+            "echo install-source && "
+            "$(CUPIDOBJ) wrap-text bin/hello.cc -o hello.o": (
+                "wrap_text_as_elf32_relocatable"
+            ),
+            "echo $(CUPIDOBJ) install-source bin": "transform_object",
+            "echo '; $(CUPIDOBJ) install-source bin'": "transform_object",
+            'printf "x && $(CUPIDOBJ) install-source bin"': (
+                "transform_object"
+            ),
+        }
+        for recipe, expected_operation in misplaced_tokens.items():
+            with self.subTest(recipe=recipe):
+                misplaced = module._build_transforms(
+                    ".",
+                    {target},
+                    {
+                        target: module.MakeRule(
+                            prerequisites=transform["inputs"],
+                            recipe=[recipe],
+                        )
+                    },
+                )[0]
+                self.assertEqual(misplaced["operation"], expected_operation)
+
     def test_hosted_tool_builds_remain_optional(self):
         make = shutil.which("make")
         if make is None:
@@ -4405,7 +4605,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 audit_payload["summary"],
                 {
                     "active_sources": 717,
-                    "features": 252,
+                    "features": 254,
                     "transforms": 449,
                     "unreachable_sources": 25,
                 },
@@ -4415,7 +4615,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (5348, 168),
+                "c.expression.sizeof": (5397, 168),
                 "c.extension.builtin.offsetof": (12, 6),
                 "c.extension.gnu_alignof": (1, 1),
             }
@@ -5114,7 +5314,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             )
             module = _load_audit_module()
             with self.assertRaisesRegex(
-                module.AuditError, r"delivered non-root headers changed"
+                module.AuditError,
+                r"CupidObj install-source delivery content inputs changed",
             ):
                 module._c_preprocessor_active_cases_manifest(audit_payload)
             checked = subprocess.run(
@@ -5185,7 +5386,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         }
         expected_counts = {
             "cupid_assembler": 4,
-            "cupid_object": 182,
+            "cupid_object": 185,
             "cupid_linker": 2,
             "cupid_disassembler": 1,
         }

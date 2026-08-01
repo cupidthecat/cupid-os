@@ -36517,15 +36517,22 @@
           "bin/browser/util.cc",
           "bin/browser/woff.cc",
           "bin/browser/woff2.cc",
-          "tools/hostbuild.py",
-          "Makefile"
+          "Makefile",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
-        "operation": "generate_c_source",
+        "operation": "generate_install_source",
         "output": "kernel/util/bin_programs_gen.cc",
         "recipe": [
-          "$(PYTHON) tools/hostbuild.py gen-bin-programs --out $@ --bin $(BIN_CC_SRCS) --headers $(BIN_HDR_SRCS) --browser $(BROWSER_SUB_SRCS)"
+          "$(CUPIDOBJ) install-source bin --bin $(BIN_CC_SRCS) --headers $(BIN_HDR_SRCS) --browser $(BROWSER_SUB_SRCS) -o $@"
         ],
         "tools": [
+          "cupid_object",
           "host_python"
         ]
       },
@@ -36611,15 +36618,22 @@
           "demos/stack.asm",
           "demos/syscall_table_demo.asm",
           "demos/syscall_vfs_extended_demo.asm",
-          "tools/hostbuild.py",
-          "Makefile"
+          "Makefile",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
-        "operation": "generate_c_source",
+        "operation": "generate_install_source",
         "output": "kernel/util/demos_programs_gen.cc",
         "recipe": [
-          "$(PYTHON) tools/hostbuild.py gen-demos-programs --out $@ --demos $(DEMO_ASM_SRCS)"
+          "$(CUPIDOBJ) install-source demos --demos $(DEMO_ASM_SRCS) -o $@"
         ],
         "tools": [
+          "cupid_object",
           "host_python"
         ]
       },
@@ -36677,15 +36691,22 @@
           "snail.bmp",
           "test.png",
           "file_example_JPG_1MB.jpg",
-          "tools/hostbuild.py",
-          "Makefile"
+          "Makefile",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
-        "operation": "generate_c_source",
+        "operation": "generate_install_source",
         "output": "kernel/util/docs_programs_gen.cc",
         "recipe": [
-          "$(PYTHON) tools/hostbuild.py gen-docs-programs --out $@ --ctxt $(DOC_CTXT_SRCS) --doc-assets $(DOC_ASSET_SRCS) --home-assets $(HOME_ASSET_SRCS)"
+          "$(CUPIDOBJ) install-source docs --ctxt $(DOC_CTXT_SRCS) --doc-assets $(DOC_ASSET_SRCS) --home-assets $(HOME_ASSET_SRCS) -o $@"
         ],
         "tools": [
+          "cupid_object",
           "host_python"
         ]
       },
@@ -52383,7 +52404,7 @@
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "88b6d67b21b35a3b051da2834df8b43d8cc207deff446a0293e1bb4028acaa9e"
+        "sha256": "72fe8206c6c3dca62d242bc43c1f104eb3c4ed714f6c1e5e699489aa4b31b767"
       },
       {
         "path": "user/Makefile",
@@ -52428,7 +52449,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "a26b45d10932d9e438e0a6357a7f68dea0f3e410cdcf97eb829e2c64df86a5d4"
+      "sha256": "7656a30473c8dac31262e7f7d97993c51a4bbd6907d89e10398dbb8b25738f8b"
     },
     "text_hash_policy": "canonical_lf"
   },

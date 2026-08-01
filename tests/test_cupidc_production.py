@@ -1195,6 +1195,33 @@ class ProductionBuildContractTests(unittest.TestCase):
             3,
         )
 
+    def test_generated_install_tables_run_checked_cupidobj_directly(self):
+        makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
+        logical = makefile.replace("\\\n", " ")
+        cases = (
+            (
+                "bin",
+                "--bin $(BIN_CC_SRCS) --headers $(BIN_HDR_SRCS) "
+                "--browser $(BROWSER_SUB_SRCS)",
+            ),
+            (
+                "docs",
+                "--ctxt $(DOC_CTXT_SRCS) --doc-assets $(DOC_ASSET_SRCS) "
+                "--home-assets $(HOME_ASSET_SRCS)",
+            ),
+            ("demos", "--demos $(DEMO_ASM_SRCS)"),
+        )
+        for name, arguments in cases:
+            source = f"kernel/util/{name}_programs_gen.cc"
+            target = f"kernel/util/{name}_programs_gen.o"
+            rule = logical[logical.index(f"{source}:") : logical.index(f"{target}:")]
+            self.assertIn("$(CUPIDOBJ_INPUTS)", rule)
+            self.assertIn(
+                f"$(CUPIDOBJ) install-source {name} {arguments} -o $@",
+                rule,
+            )
+            self.assertNotIn("tools/hostbuild.py", rule)
+
     def test_frontier_closures_name_every_seed_and_renamed_source(self):
         user_inputs = production_frontier._user_inputs()
         for source in production_compile.USER_SOURCES:

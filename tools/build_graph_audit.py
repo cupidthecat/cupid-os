@@ -1308,6 +1308,14 @@ def _operation_for_recipe(
     if "host_linker" in tools or "cupid_linker" in tools:
         return "link_elf32_executable"
     if "host_object_copy" in tools or "cupid_object" in tools:
+        install_source_command = re.compile(
+            r"^[@+-]*\$\(cupidobj\)\s+install-source(?:\s|$)"
+        )
+        if any(
+            install_source_command.search(command.strip().lower())
+            for command in recipe
+        ):
+            return "generate_install_source"
         if re.search(r"(?:^|\s)wrap-text(?:\s|$)", joined):
             return "wrap_text_as_elf32_relocatable"
         if (
@@ -5245,6 +5253,221 @@ def _validate_native_user_tools_transform(
         )
 
 
+_CUPIDOBJ_INSTALL_SOURCE_DELIVERIES = {
+    "kernel/util/bin_programs_gen.cc": (
+        "$(CUPIDOBJ) install-source bin --bin $(BIN_CC_SRCS) "
+        "--headers $(BIN_HDR_SRCS) --browser $(BROWSER_SUB_SRCS) -o $@",
+        collections.Counter(
+            {
+                "CUPIDOBJ": 1,
+                "BIN_CC_SRCS": 1,
+                "BIN_HDR_SRCS": 1,
+                "BROWSER_SUB_SRCS": 1,
+            }
+        ),
+    ),
+    "kernel/util/docs_programs_gen.cc": (
+        "$(CUPIDOBJ) install-source docs --ctxt $(DOC_CTXT_SRCS) "
+        "--doc-assets $(DOC_ASSET_SRCS) --home-assets "
+        "$(HOME_ASSET_SRCS) -o $@",
+        collections.Counter(
+            {
+                "CUPIDOBJ": 1,
+                "DOC_CTXT_SRCS": 1,
+                "DOC_ASSET_SRCS": 1,
+                "HOME_ASSET_SRCS": 1,
+            }
+        ),
+    ),
+    "kernel/util/demos_programs_gen.cc": (
+        "$(CUPIDOBJ) install-source demos --demos $(DEMO_ASM_SRCS) -o $@",
+        collections.Counter({"CUPIDOBJ": 1, "DEMO_ASM_SRCS": 1}),
+    ),
+}
+
+
+def _cupidobj_install_source_expected_content(
+    transforms: list[dict[str, object]],
+) -> dict[str, set[str]]:
+    wrapped_text: set[str] = set()
+    wrapped_binary: set[str] = set()
+    for transform in transforms:
+        operation = transform.get("operation")
+        if operation not in {
+            "wrap_text_as_elf32_relocatable",
+            "wrap_binary_as_elf32_relocatable",
+        }:
+            continue
+        inputs = transform.get("inputs")
+        if not isinstance(inputs, list):
+            continue
+        destination = (
+            wrapped_text
+            if operation == "wrap_text_as_elf32_relocatable"
+            else wrapped_binary
+        )
+        destination.update(
+            path for path in inputs if isinstance(path, str)
+        )
+
+    bin_content = {
+        path
+        for path in wrapped_text
+        if (
+            path.startswith("bin/")
+            and path.endswith((".cc", ".h"))
+        )
+    }
+    documents = {
+        path
+        for path in wrapped_text
+        if path.startswith("cupidos-txt/") and path.endswith(".CTXT")
+    }
+    demos = {
+        path
+        for path in wrapped_text
+        if path.startswith("demos/") and path.endswith(".asm")
+    }
+    assets = {
+        "image.bmp",
+        "snail.bmp",
+        "test.png",
+        "file_example_JPG_1MB.jpg",
+    }
+    missing_assets = sorted(assets - wrapped_binary)
+    if missing_assets:
+        raise AuditError(
+            "CupidObj install-source asset wraps changed; missing="
+            f"{missing_assets!r}"
+        )
+    return {
+        "kernel/util/bin_programs_gen.cc": bin_content,
+        "kernel/util/docs_programs_gen.cc": documents | assets,
+        "kernel/util/demos_programs_gen.cc": demos,
+    }
+
+
+def _validate_cupidobj_install_source_delivery(
+    directory: str,
+    transform: dict[str, object],
+    expected_content: set[str],
+) -> None:
+    output = str(transform.get("output", "<unknown>"))
+    contract = _CUPIDOBJ_INSTALL_SOURCE_DELIVERIES.get(output)
+    expected_recipe = [contract[0]] if contract is not None else None
+    if (
+        directory != "."
+        or contract is None
+        or transform.get("operation") != "generate_install_source"
+        or transform.get("tools") != ["cupid_object", "host_python"]
+        or transform.get("recipe") != expected_recipe
+    ):
+        raise AuditError(
+            "CupidObj install-source delivery differs from its checked "
+            "target, operation, tool, or recipe contract"
+        )
+    inputs = transform.get("inputs")
+    if not isinstance(inputs, list):
+        raise AuditError("CupidObj install-source delivery inputs are absent")
+    required_inputs = {
+        "Makefile",
+        "tools/bootstrap_toolchain.py",
+        "bootstrap/seeds/i386-linux/manifest.json",
+        "bootstrap/seeds/i386-linux/cupidasm.elf",
+        "bootstrap/seeds/i386-linux/cupidc.elf",
+        "bootstrap/seeds/i386-linux/cupiddis.elf",
+        "bootstrap/seeds/i386-linux/cupidld.elf",
+        "bootstrap/seeds/i386-linux/cupidobj.elf",
+    }
+    missing_inputs = sorted(required_inputs - set(inputs))
+    if missing_inputs:
+        raise AuditError(
+            "CupidObj install-source delivery lost checked inputs: "
+            f"{missing_inputs!r}"
+        )
+    content_inputs = [
+        path for path in inputs if path not in required_inputs
+    ]
+    if len(content_inputs) != len(set(content_inputs)):
+        raise AuditError(
+            "CupidObj install-source delivery has duplicate content inputs"
+        )
+    content_set = set(content_inputs)
+    if output == "kernel/util/bin_programs_gen.cc":
+        programs = {
+            path
+            for path in content_set
+            if path.startswith("bin/")
+            and path.count("/") == 1
+            and path.endswith(".cc")
+        }
+        headers = {
+            path
+            for path in content_set
+            if path.startswith("bin/")
+            and path.count("/") == 1
+            and path.endswith(".h")
+        }
+        browser = {
+            path
+            for path in content_set
+            if path.startswith("bin/browser/") and path.endswith(".cc")
+        }
+        expected_headers = {"bin/fat16.h", "bin/shell.h"}
+        content_valid = (
+            len(programs) == 105
+            and headers == expected_headers
+            and len(browser) == 22
+            and content_set == programs | headers | browser
+        )
+    elif output == "kernel/util/docs_programs_gen.cc":
+        documents = {
+            path
+            for path in content_set
+            if path.startswith("cupidos-txt/") and path.endswith(".CTXT")
+        }
+        assets = {
+            "image.bmp",
+            "snail.bmp",
+            "test.png",
+            "file_example_JPG_1MB.jpg",
+        }
+        content_valid = (
+            len(documents) == 19
+            and assets.issubset(content_set)
+            and content_set == documents | assets
+        )
+    else:
+        demos = {
+            path
+            for path in content_set
+            if path.startswith("demos/") and path.endswith(".asm")
+        }
+        content_valid = len(demos) == 22 and content_set == demos
+    if not content_valid:
+        raise AuditError(
+            "CupidObj install-source delivery content inputs changed for "
+            f"{output}: {sorted(content_set)!r}"
+        )
+    if content_set != expected_content:
+        missing_content = sorted(expected_content - content_set)
+        unexpected_content = sorted(content_set - expected_content)
+        raise AuditError(
+            "CupidObj install-source delivery content inputs changed for "
+            f"{output}: missing={missing_content!r}, "
+            f"unexpected={unexpected_content!r}"
+        )
+    expected_markers = contract[1]
+    markers = _c_preprocessor_recipe_markers(
+        transform, set(expected_markers)
+    )
+    if markers != expected_markers:
+        raise AuditError(
+            "CupidObj install-source delivery recipe markers changed; "
+            f"actual={dict(markers)!r}"
+        )
+
+
 def _c_preprocessor_active_cases_manifest(
     audit: dict[str, object],
 ) -> CPreprocessorActiveCasesManifest:
@@ -5297,6 +5520,17 @@ def _c_preprocessor_active_cases_manifest(
             raise AuditError(
                 f"CupidC active preprocessing transforms are absent for {directory!r}"
             )
+        has_install_source_delivery = any(
+            isinstance(transform, dict)
+            and transform.get("output")
+            in _CUPIDOBJ_INSTALL_SOURCE_DELIVERIES
+            for transform in transforms
+        )
+        install_source_content = (
+            _cupidobj_install_source_expected_content(transforms)
+            if directory == "." and has_install_source_delivery
+            else {}
+        )
         for transform_value in sorted(
             transforms,
             key=lambda item: str(item.get("output", ""))
@@ -5416,6 +5650,16 @@ def _c_preprocessor_active_cases_manifest(
             ):
                 _validate_native_user_tools_transform(directory, transform)
                 continue
+            if (
+                directory == "."
+                and output in _CUPIDOBJ_INSTALL_SOURCE_DELIVERIES
+            ):
+                _validate_cupidobj_install_source_delivery(
+                    directory,
+                    transform,
+                    install_source_content[output],
+                )
+                continue
             if operation in {
                 "compile_c_to_elf32_object",
                 "compile_c_to_host_object",
@@ -5521,17 +5765,6 @@ def _c_preprocessor_active_cases_manifest(
                     )
                 )
             ]
-            if (
-                delivered_inputs
-                and directory == "."
-                and operation == "generate_c_source"
-                and transform.get("output") == "kernel/util/bin_programs_gen.cc"
-                and tools == ["host_python"]
-            ):
-                # This generator embeds the delivered Cupid sources; their
-                # preprocessing ownership is established by the separate
-                # CupidObj wrap transform for each source below.
-                continue
             if delivered_inputs and operation != "wrap_text_as_elf32_relocatable":
                 raise AuditError(
                     f"CupidC active preprocessing found an unclassified Cupid "

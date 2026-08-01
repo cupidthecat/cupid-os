@@ -350,8 +350,9 @@ Both object sets are byte-identical; each totals 3,719,100 bytes. The combined g
 two-link symbol and memory checks, clean normal and partitioned image builds,
 and strong four-vCPU runtime gates with both NICs.
 
-The checked seed compiles three generated installation tables. CupidC also
-compiles the three example external ELF programs. All six use `.cc` source
+Checked-seed CupidObj generates three installation tables, and checked-seed
+CupidC compiles them. CupidC also compiles the three example external ELF
+programs. All six use `.cc` source
 names. The generated tables keep the kernel profile. `hello.cc`, `ls.cc`, and
 `cat.cc` use the closed user profile and CupidLD link. Linux runs the checked
 seed directly, while Windows runs it through WSL. Both wrappers freeze their
@@ -365,9 +366,10 @@ CupidObj now implements the bin, docs, and demos table formats through its
 public `install-source` command. It keeps caller order, validates the path
 category and extension, rejects duplicates and mixed lists, and rolls back a
 partial result on failure. A Cupid-built command reproduced all three live
-tables twice with exact Python-oracle parity. The checked seed carries the
-command; the normal Make recipes still use Python until a separate ownership
-transfer.
+tables twice with exact Python-oracle parity. The normal Make recipes now run
+that checked command for all three outputs. `tools/hostbuild.py` is no longer
+a prerequisite or recipe owner for them, but it remains the parity oracle.
+ADR 0204 records the transfer.
 
 Before compilation, the user ABI operation captures the exact bytes of its
 six kernel and public declarations. It compares the reviewed i386 layout and
@@ -488,7 +490,7 @@ all 449 transforms. CupidC's total is 239 normal transforms plus three
 generated installation tables and the `hello.cc`, `ls.cc`, and `cat.cc`
 programs. The
 438-transform root image graph has no host C or recursive Make transform.
-Its four CupidASM, 182 CupidObj, two CupidLD, and one CupidDis transforms run
+Its four CupidASM, 185 CupidObj, two CupidLD, and one CupidDis transforms run
 from the manifest-checked five-tool seed. Native hosted commands remain
 explicit oracle targets. The runner rechecks the live seed cohort after each
 command, and Make passes wildcard-discovered output sources through

@@ -7,7 +7,13 @@ stable shape, then covers the Linux branch with direct build tests.
 `audits/active-build.json` owns the current 717-input/449-transform graph. The
 language graph contains 27 assembly inputs, 289 headers, and 401 Cupid C
 files. No ordinary C translation unit remains in a supported root. The
-checked Windows Clang/LLVM and Linux GCC/binutils baselines at
+active-source digest is
+`31a3a757763cd9f5ada368ed6b685b81410440101e7f8bccccb9191304d03249`.
+The 2,546,806-byte audit JSON has SHA-256
+`9912d7f6d03d9f816de6fc5565e4aae7bc2cd8678069bd7befd5d81871ff5957`,
+and the 12,136-byte summary has SHA-256
+`cf42887835899609791c6dba94068d5f5fd4b901ec678ae0c9a65a93c1749d7d`.
+The checked Windows Clang/LLVM and Linux GCC/binutils baselines at
 revision `1e079d1` predate the current CupidC ownership and remain historical
 oracle evidence.
 
@@ -16,7 +22,8 @@ CupidC owns 245 transforms across the three roots. The normal cohort contains
 238 checked-in sources and the generated kernel symbol table; all 239 use
 `.cc`. Three generated installation tables and three example programs account
 for the other six CupidC transforms. The host C compiler owns no transform in
-a supported root. Python participates in 449 transforms,
+a supported root. CupidObj participates in 185 transforms, including the
+three installation-source generators. Python participates in 449 transforms,
 including every checked root tool launch, one external-program syscall ABI
 verification, and two ISO fixture operations. No recursive Make transform
 remains. Root `all` runs CupidASM, CupidObj, CupidLD, and CupidDis from the
@@ -25,14 +32,15 @@ each command. Make passes discovered output paths through `$(sort ...)` before
 generation and link, so the Windows and Linux branches consume one canonical
 source order.
 
-CupidObj can now generate the three installation-table sources from the same
-sorted inventories. Native and Cupid-built commands match the current Python
-generator for all live inputs, and the public operation fails transactionally
-on malformed, duplicate, mixed, or oversized lists. This capability step does
-not change the 449 Python participants because the normal Make recipes still
-call Python. The checked seed now carries the command, so a separate ownership
-change can move the three recipes to CupidObj. ADRs 0201 and 0203 record the
-capability and seed boundaries.
+Checked-seed CupidObj generates the three installation-table sources from the
+same ordinal inventories. The production outputs match their pre-transfer
+files and the Python oracle, and the public operation fails transactionally on
+malformed, duplicate, mixed, or oversized lists. Each Make recipe depends on
+`$(CUPIDOBJ_INPUTS)`. `tools/hostbuild.py` is no longer a prerequisite or
+recipe owner for these outputs, though it remains their oracle and keeps its
+other roles. Python still participates in all 449 transforms because the
+checked-seed runner uses it to launch CupidObj. ADRs 0201, 0203, and 0204
+record the operation, seed promotion, and ownership transfer.
 
 CupidASM's `align` statement adds no host tool to that graph. The shared
 assembler computes raw padding from the absolute `ORG` address, records ELF32
@@ -471,8 +479,8 @@ records the ownership transfer.
 | GNU `nm` / `llvm-nm` | Optional comparison oracle for CupidDis's numeric symbol view and historical baseline evidence | Not required by root `all`, `user:all`, `toolchain:all`, or baseline preflight; configured through `NM` only for optional oracle probes/tests | Retain only as an optional comparison/maintenance utility; CupidDis owns production kernel-symbol inspection |
 | Hosted C runtime/libc | Backs only the explicit native oracle and development adapters. The normal five-tool build and fifteen-executable contract cohort use Cupid's checked i386 Linux declarations and repository runtime | Not required by root `all`, `user:all`, or `toolchain:all`; required only by native oracle and development targets. The repository runtime is intentionally narrow and is not a general libc or a Windows runtime | Retain only for optional native oracle and development seams; it must not own normal preprocessing, parsing, type/layout semantics, code generation, object, assembly, link, or inspection behavior |
 | GNU Make | Declares the root, user, and toolchain-contract build graphs and invokes tools | Required; the graph uses portable ordinary/stamp targets rather than GNU Make 4.3 grouped-target syntax | May remain as host orchestration; it must invoke Cupid code-producing tools on the normal path |
-| Python 3 | Generates embedded-source and symbol tables; creates, stages, and cleans images; builds fixtures; drives QEMU tests; verifies the external-program syscall ABI; and launches the checked seed for all 431 Cupid-owned root transforms plus six external-program compile and link operations | Required | May remain for tests and packaging, but removing it from the staged fixed point and checked-tool launch path is the open Python-free bootstrap gate |
-| WSL on Windows | Runs the checked static i386 Linux seed for 431 root CupidC, CupidASM, CupidObj, CupidLD, and CupidDis transforms, six external-program compile and link operations, and the staged Toolchain bootstrap | Required for those paths on Windows; native Linux runs the seed directly | Remove it when a checked native Cupid toolchain or an equivalent Cupid-owned execution path is available |
+| Python 3 | Launches the checked seed for all 434 Cupid-owned root transforms plus six external-program compile and link operations; generates kernel symbol source; validates the JPEG path; acts as the installation-table parity oracle; creates, stages, and cleans images; builds fixtures; drives QEMU tests; and verifies the external-program syscall ABI | Required | May remain for tests and packaging, but removing it from the staged fixed point and checked-tool launch path is the open Python-free bootstrap gate |
+| WSL on Windows | Runs the checked static i386 Linux seed for 434 root CupidC, CupidASM, CupidObj, CupidLD, and CupidDis transforms, six external-program compile and link operations, and the staged Toolchain bootstrap | Required for those paths on Windows; native Linux runs the seed directly | Remove it when a checked native Cupid toolchain or an equivalent Cupid-owned execution path is available |
 | Git | Enumerates the tracked audit universe and creates detached baseline worktrees | Required for development/audit workflows, not image production | Retain as source-control orchestration, never as a code-producing dependency |
 | `link.ld` and its documented GNU-script subset | Defines kernel memory and section layout; CupidLD parses the exercised `ENTRY`, `SECTIONS`, location-counter, wildcard, alignment, symbol, `COMMON`, and `ASSERT` forms | Required input to both kernel link passes; host-linker interpretation is oracle-only | Keep the script as the source-owned layout contract and deepen CupidLD when the active script needs more semantics |
 | `jpegtran`, `djpeg`/`cjpeg`, or FFmpeg | No role in the normal root build. Hostbuild validates the repository's sequential SOF0 or SOF1 JPEG and copies its exact bytes before checked CupidObj wraps them | Not required by root `all`; progressive, unsupported, and malformed input fails instead of selecting a host converter | Retain only for optional asset maintenance outside the build graph |
@@ -518,9 +526,9 @@ Counts are output transforms in the checked audit, not textual recipe occurrence
 | CupidASM | 4 owned transforms | Two production flat binaries and two production ELF32 `ET_REL` objects; the raw outputs are byte-identical to the optional NASM oracle and the objects match its code, symbol, alignment, and relocation semantics |
 | NASM | 0 production transforms | Optional active-source and ELF32 interoperability oracle only |
 | CupidLD | 5 owned transforms | Two script-driven kernel links plus three fixed-address user executables; owns `R_386_32`/`R_386_PC32`, weak/strong/common/script symbols, absolute COMMON alignment, relocation-aware merge entries, assertions, static ELF32 serialization, explicit unsupported allocated-section diagnostics, and the used `link.ld` subset |
-| CupidObj | 182 owned transforms | 172 canonical text-to-ELF wrappers, eight byte-exact binary-to-ELF wrappers, one Python-assisted JPEG wrapper, and final initialized ELF-to-raw conversion |
+| CupidObj | 185 owned transforms | 172 canonical text-to-ELF wrappers, eight byte-exact binary-to-ELF wrappers, one Python-assisted JPEG wrapper, final initialized ELF-to-raw conversion, and three installation-source generators |
 | CupidDis | 1 composite transform | Supplies deterministic numeric symbols through a checked private seed image; the current consumer cohort contains 4,561 text symbols and a 109,889-byte panic-backtrace blob; the host oracle remains optional |
-| Python | 449 transforms | Launches checked Cupid tools and handles generation, input manifests, image packaging, and verification; the code-producing owner remains explicit on every composite transform |
+| Python | 449 transforms | Launches checked Cupid tools and handles remaining generation, input manifests, image packaging, and verification. It remains a composite owner for the three installation-table transforms because it launches checked CupidObj, not because it constructs their source bytes |
 | Make recursion | 0 transforms | Native hosted CupidASM, CupidObj, CupidLD, and CupidDis targets remain available, but no supported root reaches them recursively |
 
 `tools/hostbuild.py::_symbols_from_nm` remains the drop-in native-reader seam

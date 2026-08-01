@@ -1238,8 +1238,8 @@ $(CUPIDDIS_BUILD): $(CUPIDDIS_SOURCES) | $(CUPIDLD_BUILD)
 # This generates extern declarations + install function automatically.
 # To add a new CupidC program: just create bin/<name>.cc - that's it!
 kernel/util/bin_programs_gen.cc: $(BIN_CC_SRCS) $(BIN_HDR_SRCS) \
-	$(BROWSER_SUB_SRCS) tools/hostbuild.py Makefile
-	$(PYTHON) tools/hostbuild.py gen-bin-programs --out $@ --bin $(BIN_CC_SRCS) --headers $(BIN_HDR_SRCS) --browser $(BROWSER_SUB_SRCS)
+	$(BROWSER_SUB_SRCS) $(CUPIDOBJ_INPUTS)
+	$(CUPIDOBJ) install-source bin --bin $(BIN_CC_SRCS) --headers $(BIN_HDR_SRCS) --browser $(BROWSER_SUB_SRCS) -o $@
 
 kernel/util/bin_programs_gen.o: kernel/util/bin_programs_gen.cc \
 	drivers/serial.h kernel/core/types.h kernel/fs/ramfs.h kernel/fs/vfs.h \
@@ -1248,8 +1248,8 @@ kernel/util/bin_programs_gen.o: kernel/util/bin_programs_gen.cc \
 
 # Generate docs_programs_gen.cc from the manuals and seeded home assets.
 kernel/util/docs_programs_gen.cc: $(DOC_CTXT_SRCS) $(DOC_ASSET_SRCS) \
-	$(HOME_ASSET_SRCS) tools/hostbuild.py Makefile
-	$(PYTHON) tools/hostbuild.py gen-docs-programs --out $@ --ctxt $(DOC_CTXT_SRCS) --doc-assets $(DOC_ASSET_SRCS) --home-assets $(HOME_ASSET_SRCS)
+	$(HOME_ASSET_SRCS) $(CUPIDOBJ_INPUTS)
+	$(CUPIDOBJ) install-source docs --ctxt $(DOC_CTXT_SRCS) --doc-assets $(DOC_ASSET_SRCS) --home-assets $(HOME_ASSET_SRCS) -o $@
 
 kernel/util/docs_programs_gen.o: kernel/util/docs_programs_gen.cc \
 	drivers/serial.h kernel/core/types.h kernel/fs/homefs.h \
@@ -1257,8 +1257,8 @@ kernel/util/docs_programs_gen.o: kernel/util/docs_programs_gen.cc \
 	$(CUPIDC_PRODUCTION_COMPILE) --source $< --output $@
 
 # Generate demos_programs_gen.cc from the active CupidASM demos.
-kernel/util/demos_programs_gen.cc: $(DEMO_ASM_SRCS) tools/hostbuild.py Makefile
-	$(PYTHON) tools/hostbuild.py gen-demos-programs --out $@ --demos $(DEMO_ASM_SRCS)
+kernel/util/demos_programs_gen.cc: $(DEMO_ASM_SRCS) $(CUPIDOBJ_INPUTS)
+	$(CUPIDOBJ) install-source demos --demos $(DEMO_ASM_SRCS) -o $@
 
 kernel/util/demos_programs_gen.o: kernel/util/demos_programs_gen.cc \
 	drivers/serial.h kernel/core/types.h kernel/fs/ramfs.h kernel/fs/vfs.h \
