@@ -61,9 +61,9 @@ CupidObj also understands the three generated installation-table formats.
 Its install-source command validates bin, docs, home-asset, browser, header,
 and demo path groups before it writes a .cc table. Repeated generation is
 byte-identical, and a failed request leaves the previous table intact. The
-command is self-hosted and ready for the next checked toolchain seed. The
-current image build keeps the established table generator until that seed is
-promoted.
+command is self-hosted and present in the checked toolchain seed. The current
+image build keeps the established Python table generator until a separate
+ownership change moves these recipes to CupidObj.
 
 Makefile variable definitions:
   BIN_CC_SRCS  := $(filter-out bin/old_cc2.cc bin/old_cc2_single.cc, $(wildcard bin/*.cc))

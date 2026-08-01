@@ -115,18 +115,20 @@ The checked seed includes the complete 83-root Doom compiler frontier,
 current GNU entity metadata, the active x87 and SSE memory forms, descriptor
 and segment assembly, every unchanged assembly effect in `libm.cc`, the exact
 dglibc jump block, pointer-preserving static address casts, explicit `double`
-to `unsigned long long` conversion, and exact naked IPI entries. Its
-stage-three CupidC image is 2,528,332 bytes with SHA-256
-`f53989572cd1564a8bf91059552868ee43a1d80905986b58cd97d44949aab3a1`.
-It came from stage three of the checked bootstrap at revision
-`af4644177c033eebda164d7893074315439df119`. It also carries the kernel-entry
-BSS clear with a nonzero page-aligned stack top and all packed SSE2 statements
-in the active SIMD source. CupidASM
-and CupidDis carry the 587-row shared x86 catalogue. With host code-generator commands
-poisoned, all five seed images match stage two. All 19 stage-two C objects,
-startup, and five images then match stage three, and both stages pass all 21
-tool behavior cases. ADR 0186 records this promotion and its post-promotion
-reproof.
+to `unsigned long long` conversion, exact naked IPI entries, and runtime
+floating truth. Its stage-three CupidC image is 2,553,244 bytes with SHA-256
+`59d90429cdfff1f5d6f8f3b3009f588d06de78c271e2e320dfca5b5e2a58173f`.
+It came from revision `03d072fefc6703a53be7bfa4948f6116d238832b`. It also
+carries the kernel-entry BSS clear with a nonzero page-aligned stack top and
+all packed SSE2 statements in the active SIMD source. CupidASM and CupidDis
+carry the 591-row shared x86 catalogue. CupidDis carries typed raw code and
+data ranges, and CupidObj carries installation-source generation. In the
+poisoned-host transition, all 19 C objects, startup, and five tool images
+matched between stage two and stage three. Both stages passed five help cases,
+ten successful operations, and six useful failures. None of the preceding
+seed images matched stage two. A post-promotion reproof then reproduced all
+five checked seed images at stage two and repeated the complete fixed point.
+ADR 0203 records the promotion and both proofs.
 
 The refreshed seed represents operand-free GNU assembly statements inside
 functions and emits exact PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT
@@ -363,9 +365,9 @@ CupidObj now implements the bin, docs, and demos table formats through its
 public `install-source` command. It keeps caller order, validates the path
 category and extension, rejects duplicates and mixed lists, and rolls back a
 partial result on failure. A Cupid-built command reproduced all three live
-tables twice with exact Python-oracle parity. This capability is ready for a
-checked seed promotion; the normal Make recipes still use Python in the
-current ownership graph.
+tables twice with exact Python-oracle parity. The checked seed carries the
+command; the normal Make recipes still use Python until a separate ownership
+transfer.
 
 Before compilation, the user ABI operation captures the exact bytes of its
 six kernel and public declarations. It compares the reviewed i386 layout and
@@ -450,18 +452,18 @@ through six leading `66` bytes and the fixed
 `2E 0F 1F 84 00 00 00 00 00` tail. The final scan has 1,901 fallback rows
 in 36 objects and renders 1,781 NOP rows. Other repeated prefixes remain
 invalid, and CupidASM cannot emit the redundant forms. Packed-integer SSE2
-is the next largest measured decoder gap. Source head now has 591 catalogue
-rows, 244 canonical mnemonics, and fingerprint `DBE77533`. The added rows are
-the x87 80-bit `FLD` and `FSTP` memory forms, i686
+is the next largest measured decoder gap. The checked seed and source head
+have 591 catalogue rows, 244 canonical mnemonics, and fingerprint `DBE77533`.
+The four forms added since the preceding seed are x87 80-bit `FLD` and `FSTP`
+memory forms, i686
 `FUCOMIP ST0, ST(i)`, and operand-free `FLDZ`, used by represented `long
 double` values. File-scope and
 block-static scalars, fixed arrays, and complete records may contain
 implicitly or explicitly zeroed non-atomic long-double leaves. The aggregate
 object proof fixes 104 BSS bytes, a 415-byte function with fingerprint
 `BF01CC71`, eight absolute relocations, and six symbols.
-The checked seed
-still carries the earlier 587-row catalogue; both compiler stages in the
-normal contract cohort rebuild the 591-row source head.
+Both compiler stages in the normal contract cohort rebuild the 591-row
+catalogue. ADR 0203 records seed carriage.
 
 The four-vCPU GUI runtime starts every discovered CPU, reaches e1000 or
 RTL8139 traffic,

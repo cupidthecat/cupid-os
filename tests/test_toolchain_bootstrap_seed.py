@@ -627,7 +627,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 hashlib.sha256(
                     frozen.tools["cupidc"].read_bytes()
                 ).hexdigest(),
-                "f53989572cd1564a8bf91059552868ee43a1d80905986b58cd97d44949aab3a1",
+                "59d90429cdfff1f5d6f8f3b3009f588d06de78c271e2e320dfca5b5e2a58173f",
             )
 
     def test_wsl_runner_uses_a_private_temporary_directory(self):
@@ -686,6 +686,421 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         self.assertIn("usage:", result.stdout.casefold())
         self.assertIn("cupidasm", result.stdout.casefold())
         self.assertEqual(result.stderr, "")
+
+    def test_checked_seed_compiles_links_and_runs_floating_truth(self):
+        if os.name == "nt" and shutil.which("wsl") is None:
+            self.skipTest("WSL is not available")
+        source_text = (
+            "typedef union { float value; unsigned int bits; } float_box;\n"
+            "typedef union {\n"
+            "  double value;\n"
+            "  struct { unsigned int low; unsigned int high; } words;\n"
+            "} double_box;\n"
+            "typedef union {\n"
+            "  long double value;\n"
+            "  struct {\n"
+            "    unsigned int significand_low;\n"
+            "    unsigned int significand_high;\n"
+            "    unsigned int sign_exponent_padding;\n"
+            "  } words;\n"
+            "} long_box;\n"
+            "int seed_floating_truth(void) {\n"
+            "  float_box narrow;\n"
+            "  double_box wide;\n"
+            "  long_box extended;\n"
+            "  float narrow_negative_zero;\n"
+            "  float narrow_nan;\n"
+            "  double wide_negative_zero;\n"
+            "  double wide_nan;\n"
+            "  _Bool truth;\n"
+            "  narrow.bits = 0x80000000u;\n"
+            "  narrow_negative_zero = narrow.value;\n"
+            "  narrow.bits = 0x7fc00001u;\n"
+            "  narrow_nan = narrow.value;\n"
+            "  wide.words.low = 0u;\n"
+            "  wide.words.high = 0x80000000u;\n"
+            "  wide_negative_zero = wide.value;\n"
+            "  wide.words.low = 1u;\n"
+            "  wide.words.high = 0x7ff80000u;\n"
+            "  wide_nan = wide.value;\n"
+            "  extended.words.significand_low = 0u;\n"
+            "  extended.words.significand_high = 0u;\n"
+            "  extended.words.sign_exponent_padding = 0x8000u;\n"
+            "  if (narrow_negative_zero || wide_negative_zero ||\n"
+            "      extended.value) return 1;\n"
+            "  extended.words.significand_low = 1u;\n"
+            "  extended.words.significand_high = 0u;\n"
+            "  extended.words.sign_exponent_padding = 0u;\n"
+            "  if (!narrow_nan || !wide_nan || !extended.value) return 2;\n"
+            "  if ((!narrow_negative_zero) != 1 || (!wide_nan) != 0 ||\n"
+            "      (!extended.value) != 0) return 3;\n"
+            "  truth = narrow_negative_zero;\n"
+            "  if (truth != 0) return 4;\n"
+            "  truth = wide_nan;\n"
+            "  if (truth != 1) return 5;\n"
+            "  truth = (_Bool)extended.value;\n"
+            "  if (truth != 1) return 6;\n"
+            "  if (!(narrow_nan && extended.value) ||\n"
+            "      wide_negative_zero) return 7;\n"
+            "  if ((wide_nan ? 11 : 13) != 11) return 8;\n"
+            "  return 0;\n"
+            "}\n"
+        )
+        start_text = (
+            "bits 32\n"
+            "section .text\n"
+            "global _start\n"
+            "extern seed_floating_truth\n"
+            "_start:\n"
+            "    call seed_floating_truth\n"
+            "    mov ebx, eax\n"
+            "    mov eax, 1\n"
+            "    int 0x80\n"
+        )
+        atomic_source_text = (
+            "int bad(_Atomic float value) { return !value; }\n"
+        )
+        with tempfile.TemporaryDirectory(
+            prefix=".checked-seed-floating-truth-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            source = root / "floating-truth.cc"
+            start = root / "start.asm"
+            source.write_text(source_text, encoding="utf-8", newline="\n")
+            start.write_text(start_text, encoding="utf-8", newline="\n")
+            frozen = freeze_seed_inputs(SEED_MANIFEST, root / "seed")
+            runner = ToolRunner(REPO_ROOT)
+            source_object = root / "floating-truth.o"
+            start_object = root / "start.o"
+            executable = root / "floating-truth.elf"
+            compile_result = runner.run(
+                frozen.tools["cupidc"],
+                [
+                    "--root",
+                    REPO_ROOT,
+                    "--gnu",
+                    "--freestanding",
+                    "-c",
+                    "/" + source.relative_to(REPO_ROOT).as_posix(),
+                    "-o",
+                    "/" + source_object.relative_to(REPO_ROOT).as_posix(),
+                ],
+                180,
+            )
+            self.assertEqual(compile_result.returncode, 0, compile_result.stderr)
+            self.assertEqual(compile_result.stdout, "")
+            self.assertEqual(compile_result.stderr, "")
+            assemble_result = runner.run(
+                frozen.tools["cupidasm"],
+                ["-f", "elf32", start, "-o", start_object],
+                120,
+            )
+            self.assertEqual(
+                assemble_result.returncode, 0, assemble_result.stderr
+            )
+            self.assertEqual(assemble_result.stdout, "")
+            self.assertEqual(assemble_result.stderr, "")
+            link_result = runner.run(
+                frozen.tools["cupidld"],
+                [
+                    "-m",
+                    "elf_i386",
+                    "--text-address",
+                    "0x08048000",
+                    "--entry",
+                    "_start",
+                    "-o",
+                    executable,
+                    start_object,
+                    source_object,
+                ],
+                180,
+            )
+            self.assertEqual(link_result.returncode, 0, link_result.stderr)
+            self.assertEqual(link_result.stdout, "")
+            self.assertEqual(link_result.stderr, "")
+            run_result = runner.run(executable, [], 60)
+            self.assertEqual(run_result.returncode, 0, run_result.stderr)
+            self.assertEqual(run_result.stdout, "")
+            self.assertEqual(run_result.stderr, "")
+
+            atomic_source = root / "atomic-floating-truth.cc"
+            atomic_object = root / "atomic-floating-truth.o"
+            atomic_source.write_text(
+                atomic_source_text, encoding="utf-8", newline="\n"
+            )
+            atomic_object.write_bytes(b"sentinel")
+            atomic_result = runner.run(
+                frozen.tools["cupidc"],
+                [
+                    "--root",
+                    REPO_ROOT,
+                    "--gnu",
+                    "--freestanding",
+                    "-c",
+                    "/" + atomic_source.relative_to(REPO_ROOT).as_posix(),
+                    "-o",
+                    "/" + atomic_object.relative_to(REPO_ROOT).as_posix(),
+                ],
+                180,
+            )
+            self.assertEqual(atomic_result.returncode, 1)
+            self.assertEqual(atomic_result.stdout, "")
+            self.assertIn(
+                "atomic floating logical operands are outside this body slice",
+                atomic_result.stderr,
+            )
+            self.assertEqual(atomic_object.read_bytes(), b"sentinel")
+
+    def test_checked_seed_disassembles_typed_raw_ranges_and_legacy_modes(
+        self,
+    ):
+        if os.name == "nt" and shutil.which("wsl") is None:
+            self.skipTest("WSL is not available")
+        with tempfile.TemporaryDirectory(
+            prefix=".checked-seed-raw-ranges-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            mixed = root / "typed-ranges.bin"
+            mixed.write_bytes(
+                bytes(
+                    [
+                        0xB8,
+                        0x34,
+                        0x12,
+                        0x00,
+                        0x00,
+                        0x90,
+                        0xC3,
+                        0xB8,
+                        0x78,
+                        0x56,
+                        0x34,
+                        0x12,
+                        0xB8,
+                        0xCD,
+                        0xAB,
+                        0xC3,
+                    ]
+                )
+            )
+            code_only = root / "legacy-modes.bin"
+            code_only.write_bytes(
+                bytes(
+                    [
+                        0xB8,
+                        0x34,
+                        0x12,
+                        0xB8,
+                        0x78,
+                        0x56,
+                        0x34,
+                        0x12,
+                        0xB8,
+                        0xCD,
+                        0xAB,
+                        0xC3,
+                    ]
+                )
+            )
+            frozen = freeze_seed_inputs(SEED_MANIFEST, root / "seed")
+            runner = ToolRunner(REPO_ROOT)
+            typed = runner.run(
+                frozen.tools["cupiddis"],
+                [
+                    "--raw",
+                    "--mode=16",
+                    "--range-at=3:data",
+                    "--range-at=7:32",
+                    "--range-at=12:16",
+                    "--base=0x7c00",
+                    mixed,
+                ],
+                60,
+            )
+            self.assertEqual(typed.returncode, 0, typed.stderr)
+            self.assertEqual(typed.stderr, "")
+            self.assertIn("00007C00", typed.stdout)
+            self.assertIn("mov ax, 0x1234", typed.stdout)
+            self.assertIn("00007C03", typed.stdout)
+            self.assertIn("db 0x00, 0x00, 0x90, 0xC3", typed.stdout)
+            self.assertNotIn("add byte", typed.stdout)
+            self.assertIn("00007C07", typed.stdout)
+            self.assertIn("mov eax, 0x12345678", typed.stdout)
+            self.assertIn("00007C0C", typed.stdout)
+            self.assertIn("mov ax, 0xABCD", typed.stdout)
+
+            legacy = runner.run(
+                frozen.tools["cupiddis"],
+                [
+                    "--raw",
+                    "--mode=16",
+                    "--mode-at=3:32",
+                    "--mode-at=8:16",
+                    "--base=0x7c00",
+                    code_only,
+                ],
+                60,
+            )
+            self.assertEqual(legacy.returncode, 0, legacy.stderr)
+            self.assertEqual(legacy.stderr, "")
+            self.assertIn("mov eax, 0x12345678", legacy.stdout)
+            self.assertIn("00007C08", legacy.stdout)
+
+    def test_checked_seed_generates_canonical_install_sources(self):
+        if os.name == "nt" and shutil.which("wsl") is None:
+            self.skipTest("WSL is not available")
+        expected_bin = (
+            "/* Auto-generated -- do not edit. */\n"
+            "/* Lists all embedded CupidC programs from bin/ directory */\n"
+            '#include "ramfs.h"\n'
+            '#include "types.h"\n'
+            '#include "../drivers/serial.h"\n'
+            "extern const char _binary_bin_hello_cc_start[];\n"
+            "extern const char _binary_bin_hello_cc_end[];\n"
+            "void install_bin_programs(void *fs_private);\n"
+            "void install_bin_programs(void *fs_private) {\n"
+            "    { uint32_t sz = (uint32_t)(_binary_bin_hello_cc_end - "
+            "_binary_bin_hello_cc_start); ramfs_add_file(fs_private, "
+            '"bin/hello.cc", _binary_bin_hello_cc_start, sz); '
+            'serial_printf("[kernel] Installed /bin/hello.cc (%u bytes)'
+            '\\n", sz); }\n'
+            "}\n"
+        ).encode("utf-8")
+        expected_docs = (
+            "/* Auto-generated -- do not edit. */\n"
+            "/* Lists all embedded CupidDoc files from cupidos-txt/ "
+            "directory */\n"
+            '#include "homefs.h"\n'
+            '#include "ramfs.h"\n'
+            '#include "types.h"\n'
+            '#include "vfs.h"\n'
+            '#include "../drivers/serial.h"\n'
+            "extern const char "
+            "_binary_cupidos_txt_00INDEX_CTXT_start[];\n"
+            "extern const char _binary_cupidos_txt_00INDEX_CTXT_end[];\n"
+            "static void install_home_asset(const char *path, const char "
+            "*data, uint32_t size) {\n"
+            "    int fd = vfs_open(path, O_WRONLY | O_CREAT | O_TRUNC);\n"
+            '    if (fd < 0) { serial_printf("[kernel] Failed to open %s '
+            '(%d)\\n", path, fd); return; }\n'
+            "    uint32_t off = 0;\n"
+            "    while (off < size) {\n"
+            "        int n = vfs_write(fd, data + off, size - off);\n"
+            "        if (n <= 0) break;\n"
+            "        off += (uint32_t)n;\n"
+            "    }\n"
+            "    vfs_close(fd);\n"
+            '    serial_printf("[kernel] Installed %s (%u bytes)\\n", '
+            "path, off);\n"
+            "}\n"
+            "void install_docs_programs(void *fs_private);\n"
+            "void install_docs_programs(void *fs_private) {\n"
+            "    { uint32_t sz = (uint32_t)("
+            "_binary_cupidos_txt_00INDEX_CTXT_end - "
+            "_binary_cupidos_txt_00INDEX_CTXT_start); "
+            'ramfs_add_file(fs_private, "docs/00INDEX.ctxt", '
+            "_binary_cupidos_txt_00INDEX_CTXT_start, sz); "
+            'serial_printf("[kernel] Installed /docs/00INDEX.ctxt '
+            '(%u bytes)\\n", sz); }\n'
+            "    homefs_seed_begin();\n"
+            "    homefs_seed_end();\n"
+            "}\n"
+        ).encode("utf-8")
+        expected_demos = (
+            "/* Auto-generated -- do not edit. */\n"
+            "/* Lists all embedded CupidASM demos from demos/ directory */\n"
+            '#include "ramfs.h"\n'
+            '#include "types.h"\n'
+            '#include "../drivers/serial.h"\n'
+            "extern const char _binary_demos_hello_asm_start[];\n"
+            "extern const char _binary_demos_hello_asm_end[];\n"
+            "void install_demo_programs(void *fs_private);\n"
+            "void install_demo_programs(void *fs_private) {\n"
+            "    { uint32_t sz = (uint32_t)(_binary_demos_hello_asm_end - "
+            "_binary_demos_hello_asm_start); ramfs_add_file(fs_private, "
+            '"demos/hello.asm", _binary_demos_hello_asm_start, sz); '
+            'serial_printf("[kernel] Installed /demos/hello.asm (%u bytes)'
+            '\\n", sz); ramfs_add_file(fs_private, '
+            '"docs/demos/hello.asm", _binary_demos_hello_asm_start, sz); '
+            'serial_printf("[kernel] Installed /docs/demos/hello.asm '
+            '(%u bytes)\\n", sz); }\n'
+            "}\n"
+        ).encode("utf-8")
+        with tempfile.TemporaryDirectory(
+            prefix=".checked-seed-install-source-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            (root / "bin").mkdir()
+            (root / "cupidos-txt").mkdir()
+            (root / "demos").mkdir()
+            (root / "bin" / "hello.cc").write_text(
+                "int main(void) { return 0; }\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+            (root / "cupidos-txt" / "00INDEX.CTXT").write_text(
+                "Index\n", encoding="utf-8", newline="\n"
+            )
+            (root / "demos" / "hello.asm").write_text(
+                "ret\n", encoding="utf-8", newline="\n"
+            )
+            frozen = freeze_seed_inputs(SEED_MANIFEST, root / "seed")
+            runner = ToolRunner(root)
+            cases = (
+                (
+                    "bin",
+                    ["--bin", "bin/hello.cc"],
+                    expected_bin,
+                ),
+                (
+                    "docs",
+                    ["--ctxt", "cupidos-txt/00INDEX.CTXT"],
+                    expected_docs,
+                ),
+                (
+                    "demos",
+                    ["--demos", "demos/hello.asm"],
+                    expected_demos,
+                ),
+            )
+            for mode, arguments, expected in cases:
+                with self.subTest(mode=mode):
+                    output = root / f"{mode}-install.cc"
+                    result = runner.run(
+                        frozen.tools["cupidobj"],
+                        [
+                            "install-source",
+                            mode,
+                            *arguments,
+                            "-o",
+                            output,
+                        ],
+                        60,
+                    )
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertEqual(result.stdout, "")
+                    self.assertEqual(result.stderr, "")
+                    self.assertEqual(output.read_bytes(), expected)
+
+            sentinel = root / "invalid-install.cc"
+            sentinel.write_bytes(b"sentinel")
+            rejected = runner.run(
+                frozen.tools["cupidobj"],
+                [
+                    "install-source",
+                    "demos",
+                    "--demos",
+                    "bin/hello.cc",
+                    "-o",
+                    sentinel,
+                ],
+                60,
+            )
+            self.assertEqual(rejected.returncode, 1)
+            self.assertEqual(rejected.stdout, "")
+            self.assertIn("must match demos/NAME.asm", rejected.stderr)
+            self.assertEqual(sentinel.read_bytes(), b"sentinel")
 
     def test_checked_seed_run_rejects_a_changed_tool_before_execution(self):
         with tempfile.TemporaryDirectory(
@@ -1538,7 +1953,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(report["status"], "pass")
             self.assertEqual(
                 report["seed_source_revision"],
-                "af4644177c033eebda164d7893074315439df119",
+                "03d072fefc6703a53be7bfa4948f6116d238832b",
             )
             self.assertNotIn("source_revision", report)
             self.assertEqual(
@@ -1573,11 +1988,13 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     "cupidobj",
                 },
             )
-            seed_transition_snapshot = (
-                "1199072a4415195a83e45c6469c79e066d445d96a884d6b0b9235cc09f035986"
+            promoted_seed_snapshot = (
+                "074be1d0220c7b6c26a020cfc147246d66189860ac7795bee1a15b7a4dcd485f"
             )
-            if report["source_snapshot_sha256"] == seed_transition_snapshot:
-                self.assertTrue(all(initial_matches.values()))
+            self.assertEqual(
+                report["source_snapshot_sha256"], promoted_seed_snapshot
+            )
+            self.assertTrue(all(initial_matches.values()))
             self.assertEqual(report["source_inputs"]["count"], 41)
             self.assertEqual(
                 len(report["source_inputs"]["sha256"]),

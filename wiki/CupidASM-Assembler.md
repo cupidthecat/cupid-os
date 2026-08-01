@@ -303,19 +303,18 @@ section .data
 
 ## Instruction Reference
 
-CupidASM uses the shared Cupid Toolchain x86 catalogue. Source head carries
-591 forms, 244 canonical mnemonics, and 64 register names, with catalogue
-fingerprint `DBE77533`. The four forms added after the checked seed encode
-and decode 80-bit x87 `FLD` and `FSTP` memory operands plus i686
-`FUCOMIP ST0, ST(i)` and operand-free `FLDZ`. The repository seed retains the earlier
-587-form catalogue and rebuilds the current model during the checked fixed
-point. The same catalogue drives instruction encoding and decoding. All
-sixteen i686 conditional moves accept 16-bit or 32-bit same-width register and
+CupidASM uses the shared Cupid Toolchain x86 catalogue. The checked seed and
+source head carry 591 forms, 244 canonical mnemonics, and 64 register names,
+with catalogue fingerprint `DBE77533`. The four forms added since the
+preceding seed encode and decode 80-bit x87 `FLD` and `FSTP` memory operands,
+i686 `FUCOMIP ST0, ST(i)`, and operand-free `FLDZ`. Both checked stages rebuild
+this catalogue, which drives instruction encoding and decoding for all sixteen
+i686 conditional moves. They accept 16-bit or 32-bit same-width register and
 memory sources in either mode. Common alias spellings assemble to the same
 bytes, while CupidDis prints canonical names. Three-operand `IMUL` accepts a
 16-bit or 32-bit register destination, a same-width register or memory source,
 and an immediate. CupidASM uses `6B /r` when the value fits a signed byte and
-`69 /r` otherwise.
+`69 /r` otherwise. ADR 0203 records the current catalogue's seed carriage.
 
 `fucomip st0, st1` emits `DF E9`. The first operand must be `ST0`; the
 second operand selects `ST0` through `ST7`. The instruction compares `ST0`

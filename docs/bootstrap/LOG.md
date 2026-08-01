@@ -18549,3 +18549,73 @@ nonzero or floating static long-double initializers, integer conversions
 involving `long double` other than `_Bool`, conversion to unsigned four-byte
 integers, floating updates, general SIMD values, floating atomics, and
 over-aligned floating objects remain open. ADR 0202 records the decision.
+
+## 2026-08-01: Promote the toolchain capabilities seed
+
+The checked i386 Linux seed now carries the three capability increments above.
+CupidC materializes runtime floating truth and uses the shared `FLDZ` form.
+CupidDis classifies raw ranges as code16, code32, or data. CupidObj generates
+the bin, docs, and demos installation-table sources.
+
+The candidate was built from pushed revision
+`03d072fefc6703a53be7bfa4948f6116d238832b`. Its 19-source build plan remains
+at SHA-256
+`59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`.
+The poisoned-host transition froze 41 inputs with source snapshot SHA-256
+`074be1d0220c7b6c26a020cfc147246d66189860ac7795bee1a15b7a4dcd485f`.
+
+All 19 C objects, the startup object, and the five tool images matched between
+stage two and stage three. Both stages passed five help cases, ten successful
+operations, and six useful failures. None of the five preceding seed images
+matched its stage-two replacement. The 15,058-byte transition report has
+SHA-256
+`dcb592b885af6d81e42b1af6657505747c0fa39564e757ec191468c64225a3d9`.
+
+The complete stage-three set was promoted:
+
+| Tool | Bytes | SHA-256 | Producer |
+| --- | ---: | --- | --- |
+| CupidASM | 445,616 | `0b12d88f4b2162fe1f07c2774ce5a04acaef31a505b204d712eb37316b9b8071` | yes |
+| CupidC | 2,553,244 | `59d90429cdfff1f5d6f8f3b3009f588d06de78c271e2e320dfca5b5e2a58173f` | yes |
+| CupidDis | 379,648 | `52922515701dee5f5921e8a0967d57e50c3f8b007627242e18739f803ce25e6e` | no |
+| CupidLD | 266,672 | `2bdb6ce6b04678bb89c6bb4f7afac7e152ce6c4a07c4e14e1b3aee0c899008ec` | yes |
+| CupidObj | 245,132 | `d39fe725cec9c3c968d9abe33281d34dd9a192f5e3d5f77bb6a9dbc13e935b43` | no |
+
+The producer flags remain true for CupidASM, CupidC, and CupidLD and false for
+CupidDis and CupidObj. The promoted 5,440-byte manifest has SHA-256
+`06f69bfeb4777cc5c263dd162bf90cbaf170bfda950aaf86f3f5195d48c86ff3`.
+`make verify-bootstrap-seed` passes against that trust unit.
+
+Three focused checked-seed regressions pass in 6.750 seconds. They compile,
+link, and run floating truth while retaining the atomic negative; exercise
+typed raw code and data ranges plus the legacy mode spelling; and generate
+installation source through CupidObj. The full checked-seed module passes all
+36 tests in 811.387 seconds.
+
+The post-promotion poisoned-host reproof finished in 695.4 seconds. It froze
+the same 41-input source snapshot and reproduced all five promoted seed images
+at stage two. All 19 C objects, the startup object, and all five tool images
+then matched between stage two and stage three. Both stages again passed five
+help cases, ten successful operations, and six useful failures. The
+15,053-byte report has SHA-256
+`855f2c99b0afe541bbc59cbe91b1be513f97ab9bd0649bde3a5bb5df37b165d4`.
+
+Two regression gaps were fixed before this work was committed. The fixed-point
+test now binds the exact 41-input snapshot and requires all five initial
+matches. That selector passes in 689.814 seconds. The floating negative now
+proves that a rejected atomic compile preserves existing output bytes, and the
+revised selector passes in 2.394 seconds.
+
+The regenerated audit and its independent check pass with 717 active inputs,
+449 transforms, 254 feature requirements, and 25 classified unreachable
+files. Its active-source digest is
+`31a3a757763cd9f5ada368ed6b685b81410440101e7f8bccccb9191304d03249`.
+The 2,545,786-byte JSON has SHA-256
+`63598adbb291ae2e1d026967dd587b7f96c1a4260e2f6cae85f0fef1b1d72013`,
+and the 12,136-byte summary has SHA-256
+`7caaf93fddff2e227cc222ab82f857c8310ec66c34d6838d7501bac0eabce0c0`.
+
+The normal installation-table recipes still use Python. This promotion gives
+them a checked CupidObj command but does not move their ownership. Python
+bootstrap coordination, WSL execution on Windows, and a native Windows fixed
+point remain open. ADR 0203 records the promotion.
