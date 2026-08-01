@@ -9,7 +9,7 @@ This file is generated deterministically by `tools/build_graph_audit.py` from th
 - Active source inputs: 717
 - Unreachable source-like files: 25
 - Reachable output transforms: 449
-- Distinct feature requirements: 253
+- Distinct feature requirements: 254
 - Make conditionals use the canonical `OS=Windows_NT` graph and the C locale fixes wildcard order on every host. Direct Linux build tests cover the Linux execution branch.
 - The `TempleOS/` reference tree is excluded.
 - Source and control-file SHA-256 values use canonical LF text bytes.
@@ -55,8 +55,8 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_tls` | 13 | 6661 |
 | `kernel_usb` | 8 | 3518 |
 | `kernel_util` | 2 | 660 |
-| `toolchain_contract` | 16 | 141854 |
-| `toolchain_core` | 32 | 79308 |
+| `toolchain_contract` | 16 | 142662 |
+| `toolchain_core` | 32 | 79495 |
 | `toolchain_host_adapter` | 2 | 266 |
 | `toolchain_kernel_adapter` | 2 | 530 |
 | `user_program` | 3 | 139 |
@@ -97,16 +97,16 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 777 |
 | `asm.relocation` | 1 | 13 |
-| `c.control` | 12 | 75985 |
+| `c.control` | 12 | 76201 |
 | `c.declaration` | 1 | 28 |
-| `c.declarator` | 4 | 3615 |
-| `c.expression` | 2 | 5423 |
+| `c.declarator` | 4 | 3622 |
+| `c.expression` | 2 | 5439 |
 | `c.extension` | 18 | 405 |
-| `c.initializer` | 1 | 646 |
+| `c.initializer` | 1 | 648 |
 | `c.preprocessor` | 18 | 6775 |
-| `c.qualifier` | 2 | 14582 |
-| `c.storage` | 4 | 9283 |
-| `c.type` | 14 | 47987 |
+| `c.qualifier` | 2 | 14607 |
+| `c.storage` | 4 | 9301 |
+| `c.type` | 15 | 48177 |
 | `cupid_c.declaration` | 1 | 2 |
 | `cupid_c.delivery` | 2 | 129 |
 | `cupid_c.directive` | 1 | 1 |

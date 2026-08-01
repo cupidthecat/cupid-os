@@ -25535,6 +25535,306 @@ cleanup:
   return 1;
 }
 
+static int validate_floating_truth_x86(
+    ctool_job_t *job, const ctool_elf32_section_t *text) {
+  ctool_u32 counts[CTOOL_X86_MN_COUNT];
+  ctool_u32 cursor = 0u;
+  (void)memset(counts, 0, sizeof(counts));
+  if (job == NULL || text == NULL || text->contents.data == NULL) {
+    return 0;
+  }
+  while (cursor < text->contents.size) {
+    ctool_x86_decoded_t decoded;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + cursor, text->contents.size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(job, CTOOL_X86_MODE_32, remaining, 0u,
+                              &decoded);
+    if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u ||
+        decoded.instruction.mnemonic >= CTOOL_X86_MN_COUNT) {
+      return 0;
+    }
+    counts[decoded.instruction.mnemonic]++;
+    cursor += decoded.consumed;
+  }
+  if (cursor != text->contents.size || counts[CTOOL_X86_MN_PXOR] != 8u ||
+      counts[CTOOL_X86_MN_UCOMISS] != 4u ||
+      counts[CTOOL_X86_MN_UCOMISD] != 4u ||
+      counts[CTOOL_X86_MN_FLDZ] != 3u ||
+      counts[CTOOL_X86_MN_FUCOMIP] != 3u ||
+      counts[CTOOL_X86_MN_FSTP] != 3u || counts[CTOOL_X86_MN_JP] != 11u ||
+      counts[CTOOL_X86_MN_SETE] != 8u ||
+      counts[CTOOL_X86_MN_SETNE] != 3u) {
+    (void)fprintf(
+        stderr,
+        "floating truth x86 inventory differs: pxor=%u ucomi=%u/%u "
+        "fldz=%u fucomip=%u fstp=%u jp=%u sete=%u setne=%u\n",
+        (unsigned int)counts[CTOOL_X86_MN_PXOR],
+        (unsigned int)counts[CTOOL_X86_MN_UCOMISS],
+        (unsigned int)counts[CTOOL_X86_MN_UCOMISD],
+        (unsigned int)counts[CTOOL_X86_MN_FLDZ],
+        (unsigned int)counts[CTOOL_X86_MN_FUCOMIP],
+        (unsigned int)counts[CTOOL_X86_MN_FSTP],
+        (unsigned int)counts[CTOOL_X86_MN_JP],
+        (unsigned int)counts[CTOOL_X86_MN_SETE],
+        (unsigned int)counts[CTOOL_X86_MN_SETNE]);
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_floating_truth_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const char *const function_names[] = {
+      "float_not", "double_not", "long_not",
+      "float_and", "double_or", "long_choose",
+      "float_bool", "double_bool", "long_bool"};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *bss = find_section(object, ".bss");
+  ctool_u32 index;
+  if (job == NULL || object == NULL || text == NULL ||
+      text->contents.data == NULL || text->contents.size != 855u ||
+      structure_text_fingerprint(text->contents) != 0x6b4d7e90u ||
+      (bss != NULL && bss->size != 0u) || object->symbol_count != 10u ||
+      object->relocation_count != 0u) {
+    (void)fprintf(
+        stderr,
+        "floating truth object inventory differs: text=%u fingerprint=%08x "
+        "bss=%u symbols=%u relocations=%u\n",
+        text == NULL ? 0u : (unsigned int)text->contents.size,
+        text == NULL
+            ? 0u
+            : (unsigned int)structure_text_fingerprint(text->contents),
+        bss == NULL ? 0u : (unsigned int)bss->size,
+        object == NULL ? 0u : (unsigned int)object->symbol_count,
+        object == NULL ? 0u : (unsigned int)object->relocation_count);
+    return 0;
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(function_names) /
+                           sizeof(function_names[0]));
+       index++) {
+    if (!wide_function_symbol_is_valid(
+            object, text, find_symbol(object, function_names[index]))) {
+      (void)fprintf(stderr, "missing floating truth symbol %s\n",
+                    function_names[index]);
+      return 0;
+    }
+  }
+  return validate_floating_truth_x86(job, text);
+}
+
+static int run_floating_truth_object(const char *host_root) {
+  static const char source[] =
+      "int float_not(float value) { return !value; }\n"
+      "int double_not(double value) { return !value; }\n"
+      "int long_not(long double value) { return !value; }\n"
+      "int float_and(float left, float right) { return left && right; }\n"
+      "int double_or(double left, double right) { return left || right; }\n"
+      "int long_choose(long double value, int yes, int no) { return value ? yes : no; }\n"
+      "_Bool float_bool(float value) { return (_Bool)value; }\n"
+      "_Bool double_bool(double value) { return value; }\n"
+      "void long_bool(_Bool *result, long double value) { *result = value; }\n";
+  static const char atomic_source[] =
+      "extern _Atomic float atomic_float_probe;\n"
+      "int constant_truth(void) { return !1.0f; }\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_buffer_t *first = NULL;
+  ctool_buffer_t *second = NULL;
+  ctool_buffer_t *failure = NULL;
+  ctool_buffer_t *limited = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_translation_unit_t atomic_unit;
+  ctool_c_translation_unit_t atomic_invalid_unit;
+  ctool_c_expression_t *invalid_expressions = NULL;
+  ctool_c_expression_t *atomic_expressions = NULL;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t first_bytes;
+  ctool_bytes_t second_bytes;
+  ctool_u32 float_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 floating_not = CTOOL_C_AST_NONE;
+  ctool_u32 atomic_float_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 floating_constant = CTOOL_C_AST_NONE;
+  ctool_u32 index;
+  ctool_status_t status;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&atomic_unit, 0, sizeof(atomic_unit));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(job, "/floating-truth.c", source, CTOOL_TRUE,
+                         &unit) ||
+      !parse_source_mode(job, "/floating-truth-atomic.c", atomic_source,
+                         CTOOL_TRUE, &atomic_unit) ||
+      unit.function_definition_count != 9u || unit.expression_count == 0u ||
+      sizeof(*invalid_expressions) >
+          SIZE_MAX / (size_t)unit.expression_count) {
+    (void)fprintf(stderr, "floating truth object setup failed\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < unit.graph.type_count; index++) {
+    if (unit.graph.types[index].qualifiers == 0u &&
+        unit.graph.types[index].kind == CTOOL_C_TYPE_FLOAT) {
+      float_type = index;
+      break;
+    }
+  }
+  for (index = 0u; index < unit.expression_count; index++) {
+    const ctool_c_expression_t *expression = &unit.expressions[index];
+    if (expression->kind == CTOOL_C_EXPRESSION_UNARY &&
+        expression->operation == CTOOL_C_EXPRESSION_OPERATOR_LOGICAL_NOT &&
+        expression->child_count == 1u &&
+        expression->first_child < unit.expression_child_count &&
+        unit.expression_children[expression->first_child] <
+            unit.expression_count &&
+        unit.expressions[unit.expression_children[expression->first_child]]
+                .type == float_type) {
+      floating_not = index;
+      break;
+    }
+  }
+  if (float_type == CTOOL_C_TYPE_NONE || floating_not == CTOOL_C_AST_NONE) {
+    (void)fprintf(stderr, "floating truth mutation fixture differs\n");
+    goto cleanup;
+  }
+  invalid_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)unit.expression_count * sizeof(*invalid_expressions));
+  if (invalid_expressions == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count * sizeof(*invalid_expressions));
+  invalid_expressions[floating_not].type = float_type;
+  invalid_unit = unit;
+  invalid_unit.expressions = invalid_expressions;
+  for (index = 0u; index < atomic_unit.binding_count; index++) {
+    if (string_equal(atomic_unit.bindings[index].name,
+                     "atomic_float_probe") != 0) {
+      atomic_float_type = atomic_unit.bindings[index].type;
+      break;
+    }
+  }
+  for (index = 0u; index < atomic_unit.expression_count; index++) {
+    if (atomic_unit.expressions[index].kind ==
+        CTOOL_C_EXPRESSION_FLOATING_CONSTANT) {
+      floating_constant = index;
+      break;
+    }
+  }
+  if (atomic_float_type == CTOOL_C_TYPE_NONE ||
+      floating_constant == CTOOL_C_AST_NONE ||
+      atomic_unit.expression_count == 0u ||
+      sizeof(*atomic_expressions) >
+          SIZE_MAX / (size_t)atomic_unit.expression_count) {
+    goto cleanup;
+  }
+  atomic_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)atomic_unit.expression_count * sizeof(*atomic_expressions));
+  if (atomic_expressions == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(atomic_expressions, atomic_unit.expressions,
+               (size_t)atomic_unit.expression_count *
+                   sizeof(*atomic_expressions));
+  atomic_expressions[floating_constant].type = atomic_float_type;
+  atomic_invalid_unit = atomic_unit;
+  atomic_invalid_unit.expressions = atomic_expressions;
+  status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                 &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                   &second);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                   &failure);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 16u, 64u, &limited);
+  }
+  if (!check_status(status, CTOOL_OK, "floating truth buffers") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, first, "floating truth object") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second, "repeat floating truth object") ||
+      !expect_object_failure_preserves_unit(
+          job, &invalid_unit, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "floating logical-not result metadata at object boundary") ||
+      !expect_object_failure_preserves_unit(
+          job, &atomic_invalid_unit, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "atomic floating truth operand at object boundary")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0) {
+    (void)fprintf(stderr, "floating truth objects are not deterministic\n");
+    goto cleanup;
+  }
+  if (!expect_object_failure_preserves_unit(
+          job, &unit, limited, CTOOL_ERR_LIMIT, CTOOL_C_EMIT_DIAG_LIMIT,
+          NULL, "limited floating truth object") ||
+      ctool_buffer_rewind(second, 0u) != CTOOL_OK ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second, "recovered floating truth object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0) {
+    (void)fprintf(stderr, "floating truth recovery changed the object\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/floating-truth.o");
+  object_source.contents = second_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read floating truth object") ||
+      !validate_floating_truth_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(atomic_expressions);
+  free(invalid_expressions);
+  if (limited != NULL) {
+    ctool_buffer_close(limited);
+  }
+  if (failure != NULL) {
+    ctool_buffer_close(failure);
+  }
+  if (second != NULL) {
+    ctool_buffer_close(second);
+  }
+  if (first != NULL) {
+    ctool_buffer_close(first);
+  }
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("floating-truth: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_floating_arithmetic_x87_inventory(
     ctool_job_t *job, const ctool_elf32_section_t *text) {
   ctool_u32 cursor = 0u;
@@ -27962,12 +28262,6 @@ static int run_floating_transport_object(const char *host_root) {
       "  box.value = callback(value);\n"
       "  return box.words.high;\n"
       "}\n";
-  static const char condition_source[] =
-      "void condition_fixture(float narrow, double wide, int condition) {\n"
-      "  (void)narrow;\n"
-      "  (void)wide;\n"
-      "  if (condition) return;\n"
-      "}\n";
   static const char long_double_source[] =
       "typedef __builtin_va_list va_list;\n"
       "typedef void (*long_double_callback)(long double);\n"
@@ -28065,12 +28359,9 @@ static int run_floating_transport_object(const char *host_root) {
   ctool_buffer_t *long_double_aggregate_output =
       (ctool_buffer_t *)0;
   ctool_c_translation_unit_t unit;
-  ctool_c_translation_unit_t condition_unit;
   ctool_c_translation_unit_t long_double_unit;
   ctool_c_translation_unit_t long_double_aggregate_unit;
-  ctool_c_translation_unit_t invalid_condition_unit;
   ctool_c_translation_unit_t invalid_promotion_unit;
-  ctool_c_statement_t *invalid_condition_statements = NULL;
   ctool_c_expression_t *invalid_promotion_expressions = NULL;
   ctool_source_t object_source;
   ctool_elf32_object_t object;
@@ -28079,11 +28370,6 @@ static int run_floating_transport_object(const char *host_root) {
   ctool_bytes_t first_bytes;
   ctool_bytes_t second_bytes;
   ctool_status_t status;
-  ctool_u32 float_type = CTOOL_C_TYPE_NONE;
-  ctool_u32 double_type = CTOOL_C_TYPE_NONE;
-  ctool_u32 float_value = CTOOL_C_AST_NONE;
-  ctool_u32 double_value = CTOOL_C_AST_NONE;
-  ctool_u32 selection = CTOOL_C_AST_NONE;
   ctool_u32 promotion = CTOOL_C_AST_NONE;
   ctool_u32 invalid_promotion_target = CTOOL_C_TYPE_NONE;
   ctool_u32 index;
@@ -28096,8 +28382,6 @@ static int run_floating_transport_object(const char *host_root) {
   if (!open_job(host_root, &adapter, &config, &job) ||
       !parse_source_mode(job, "/floating-transport.c", source, CTOOL_TRUE,
                           &unit) ||
-      !parse_source_mode(job, "/floating-truth-boundary.c",
-                         condition_source, CTOOL_TRUE, &condition_unit) ||
       !parse_source_mode(job, "/long-double-locals.c",
                          long_double_source, CTOOL_TRUE,
                          &long_double_unit) ||
@@ -28152,54 +28436,6 @@ static int run_floating_transport_object(const char *host_root) {
       invalid_promotion_target;
   invalid_promotion_unit = unit;
   invalid_promotion_unit.expressions = invalid_promotion_expressions;
-  for (index = 0u; index < condition_unit.graph.type_count; index++) {
-    const ctool_c_type_node_t *type = &condition_unit.graph.types[index];
-    if (type->qualifiers == 0u && type->kind == CTOOL_C_TYPE_FLOAT) {
-      float_type = index;
-    } else if (type->qualifiers == 0u &&
-               type->kind == CTOOL_C_TYPE_DOUBLE) {
-      double_type = index;
-    }
-  }
-  for (index = 0u; index < condition_unit.expression_count; index++) {
-    const ctool_c_expression_t *expression =
-        &condition_unit.expressions[index];
-    if (expression->kind == CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
-        expression->conversion == CTOOL_C_CONVERSION_LVALUE_TO_VALUE) {
-      if (expression->type == float_type) {
-        float_value = index;
-      } else if (expression->type == double_type) {
-        double_value = index;
-      }
-    }
-  }
-  for (index = 0u; index < condition_unit.statement_count; index++) {
-    if (condition_unit.statements[index].kind == CTOOL_C_STATEMENT_IF) {
-      selection = index;
-      break;
-    }
-  }
-  if (float_type == CTOOL_C_TYPE_NONE ||
-      double_type == CTOOL_C_TYPE_NONE || float_value == CTOOL_C_AST_NONE ||
-      double_value == CTOOL_C_AST_NONE || selection == CTOOL_C_AST_NONE ||
-      condition_unit.statement_count == 0u ||
-      sizeof(*invalid_condition_statements) >
-          SIZE_MAX / (size_t)condition_unit.statement_count) {
-    (void)fprintf(stderr, "floating truth object fixture differs\n");
-    goto cleanup;
-  }
-  invalid_condition_statements = (ctool_c_statement_t *)malloc(
-      (size_t)condition_unit.statement_count *
-      sizeof(*invalid_condition_statements));
-  if (invalid_condition_statements == NULL) {
-    goto cleanup;
-  }
-  invalid_condition_unit = condition_unit;
-  invalid_condition_unit.statements = invalid_condition_statements;
-  (void)memcpy(invalid_condition_statements, condition_unit.statements,
-               (size_t)condition_unit.statement_count *
-                   sizeof(*invalid_condition_statements));
-  invalid_condition_statements[selection].condition = float_value;
   status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
                                   &first);
   if (status == CTOOL_OK) {
@@ -28236,24 +28472,6 @@ static int run_floating_transport_object(const char *host_root) {
           long_double_aggregate_output,
           "long double static aggregate object")) {
     (void)ctool_job_render_diagnostics(job);
-    goto cleanup;
-  }
-  if (!expect_object_failure_preserves_unit(
-          job, &invalid_condition_unit, failure, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
-          "floating branch metadata at object boundary")) {
-    goto cleanup;
-  }
-  (void)memcpy(invalid_condition_statements, condition_unit.statements,
-               (size_t)condition_unit.statement_count *
-                   sizeof(*invalid_condition_statements));
-  invalid_condition_statements[selection].condition = double_value;
-  if (!expect_object_failure_preserves_unit(
-          job, &invalid_condition_unit, failure, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
-          "CupidC IR lowering does not yet support this value type",
-          "double branch metadata at object boundary")) {
     goto cleanup;
   }
   if (!expect_object_failure_preserves_unit(
@@ -28337,7 +28555,6 @@ static int run_floating_transport_object(const char *host_root) {
 
 cleanup:
   free(invalid_promotion_expressions);
-  free(invalid_condition_statements);
   if (limited != (ctool_buffer_t *)0) {
     ctool_buffer_close(limited);
   }
@@ -28820,21 +29037,21 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.cc",           "/toolchain/x86.cc",
       "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
-      65u, 68u, 66u, 14u, 31u, 143u, 262u, 353u, 422u, 82u, 37u, 60u,
+      65u, 71u, 66u, 34u, 31u, 143u, 262u, 354u, 422u, 82u, 37u, 60u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
-      42118u, 76860u, 85252u, 16872u, 42212u,
-      190304u, 481749u, 542392u, 846915u, 146398u, 70368u, 80596u,
+      42118u, 78841u, 85252u, 54775u, 42212u,
+      190304u, 481787u, 545550u, 848185u, 146398u, 70368u, 80596u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
-      46720u, 89320u, 99772u, 20180u, 49484u,
-      226668u, 519572u, 609484u, 1007172u, 165728u, 79348u, 134984u,
+      46720u, 91460u, 99772u, 70756u, 49484u,
+      226668u, 519620u, 612956u, 1008476u, 165728u, 79348u, 135084u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
-      0x6bff5a25u, 0x5fbbfaf2u, 0x4ca44a27u,
-      0x7238e153u, 0x999f97b7u, 0xb49d8eb9u,
-      0xd8e6fb83u, 0x4deaa311u, 0xa91ff4afu, 0x0f9eb363u,
-      0x34558a49u, 0x9302dce8u, 0x8774de7du};
+      0x6bff5a25u, 0x6a4e9e64u, 0x4ca44a27u,
+      0x84ffc4e9u, 0x999f97b7u, 0xb49d8eb9u,
+      0xda73966du, 0x4b7739c5u, 0x1dde4dd4u, 0x74b56084u,
+      0x34558a49u, 0xbbc3eaefu, 0x8774de7du};
   ctool_u32 index;
   int all_matched = 1;
   for (index = 0u; index <
@@ -29156,8 +29373,8 @@ static int run_self_host_hosted_adapters(const char *host_root) {
        ctool_host_undefined, 10u, 25u, 38u, 28u, 10u},
       {"/toolchain/cupidasm_main.cc", 13u, 9455u, 12384u, 0x561bbc22u,
        cupidasm_undefined, 31u, 56u, 88u, 72u, 16u},
-      {"/toolchain/cupiddis_main.cc", 13u, 13816u, 17420u, 0xe33c130cu,
-       cupiddis_undefined, 31u, 67u, 106u, 74u, 32u}};
+      {"/toolchain/cupiddis_main.cc", 14u, 14876u, 18672u, 0x6b703670u,
+       cupiddis_undefined, 31u, 70u, 113u, 79u, 34u}};
   ctool_u32 index;
   for (index = 0u; index <
                        (ctool_u32)(sizeof(cases) / sizeof(cases[0]));
@@ -46825,6 +47042,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "floating-comparisons") == 0) {
     return run_floating_comparison_object(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "floating-truth") == 0) {
+    return run_floating_truth_object(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "floating-conversions") == 0) {
     return run_floating_conversion_object(argv[2]);
   }
@@ -46912,6 +47132,7 @@ int main(int argc, char **argv) {
                 "doom-implicit-functions|block-records|"
                 "variadic-callees|wide-variadics|floating-transport|"
                 "floating-arithmetic|floating-comparisons|"
+                "floating-truth|"
                 "floating-conversions|"
                 "floating-scalars|"
                 "wide-returns|"

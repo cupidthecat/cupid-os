@@ -67,8 +67,8 @@ class ToolchainX86ContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(
             result.stdout,
-            "inventory: forms=590 mnemonics=243 registers=64 "
-            "fingerprint=74EC8312\n",
+            "inventory: forms=591 mnemonics=244 registers=64 "
+            "fingerprint=DBE77533\n",
         )
 
     def test_integer_encoding_decoding_and_relocation_fields(self):

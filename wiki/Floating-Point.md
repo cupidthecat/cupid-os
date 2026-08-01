@@ -223,10 +223,13 @@ floating data, while glyph rasterization exercises the comparison path. The
 strong guest gate checks the TrueType path and every pixel of a byte-fixed
 baseline JPEG. ADR 0139 records the production transfer.
 
-Direct floating truth, a floating controlling expression, increment or
-decrement, hexadecimal or subnormal floating constants, `long double`
-literals, nonzero or floating static long-double initializers, integer
-conversions involving `long double`, general SIMD value semantics, and atomic
+Runtime `float`, `double`, and automatic `long double` values work with unary
+`!`, `&&`, `||`, the controlling operand of `?:`, the conditions of `if`,
+`while`, `do`, and `for`, and conversion to `_Bool`. Both signed zeros are false; finite nonzero values,
+subnormals, infinities, and NaNs are true. Increment or decrement,
+hexadecimal or subnormal floating constants, `long double` literals, nonzero
+or floating static long-double initializers, integer conversions involving
+`long double` other than `_Bool`, general SIMD value semantics, and atomic
 floating access remain unsupported. Twelve-byte direct
 and indirect fixed, variadic, and unprototyped arguments, function returns,
 direct and indirect call results, and `va_arg(long double)` use the represented

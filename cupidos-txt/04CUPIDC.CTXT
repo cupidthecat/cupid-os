@@ -529,14 +529,17 @@ and leaves the cursor at the following four-byte slot.
 All six comparisons accept matching long-double operands or a mixed float or
 double input. The emitter loads right then left, executes FUCOMIP ST0, ST1,
 and discards the surviving x87 value. Signed zeros compare equal, and only !=
-is true for an unordered input. Hexadecimal floating literals, long double
-literals, nonzero or floating static initializers,
-integer conversions involving long double, runtime conversion to
-unsigned four-byte integers or _Bool,
-other floating-to-wide conversions, runtime floating truth, runtime mixed
-wide and floating arithmetic or conditional arms, increment and decrement,
-general SIMD value semantics, floating atomic access, and over-aligned object
-emission remain unfinished. The exact production SIMD
+is true for an unordered input. Runtime float, double, and automatic long
+double values work with unary !, &&, ||, the controlling operand of ?:, the
+conditions of if, while, do, and for, and conversion to _Bool. Both signed zeros are
+false; finite nonzero values, subnormals, infinities, and NaNs are true.
+Hexadecimal floating literals, long double literals, nonzero or floating
+static initializers, integer conversions involving long double other than
+_Bool, runtime conversion to unsigned four-byte integers, other
+floating-to-wide conversions, runtime mixed wide and floating arithmetic or
+conditional arms, increment and decrement, general SIMD value semantics,
+floating atomic access, and over-aligned object emission remain unfinished.
+The exact production SIMD
 assembly forms have their own checked path. Matching or mixed-width floating
 conditional arms and the four arithmetic compound assignments keep their
 established x87 path.

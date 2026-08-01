@@ -48,8 +48,9 @@ evaluated once. A source `float` passed through an ellipsis or a function type
 without a prototype is promoted to `double`.
 
 The hosted path accepts decimal floating constants and converts between
-represented integer and floating widths, apart from unsigned four-byte and
-Boolean results. Mixed integer-and-floating arithmetic is represented. All
+represented integer and floating widths, apart from unsigned four-byte
+results. Conversion from any represented floating width to `_Bool` follows
+C scalar truth rules. Mixed integer-and-floating arithmetic is represented. All
 six comparisons work for matching or mixed floating widths, and only `!=`
 is true when either operand is NaN.
 
@@ -67,12 +68,14 @@ callers store it in a twelve-byte snapshot. `va_arg(long double)` copies
 twelve bytes and leaves the cursor at the following four-byte slot. Matching
 long-double operands and mixed `float` or `double` inputs support all six
 comparisons. The balanced `FUCOMIP` path preserves C unordered behavior, so
-only `!=` is true when either input is NaN. Direct
-floating truth, a floating controlling expression, floating increment or
-decrement, hexadecimal or subnormal constants, `long double` literals, nonzero
-or floating static initializers, integer conversions, SIMD, and
-atomic floating access
-remain unsupported. The in-kernel compiler has a separate, broader floating
+only `!=` is true when either input is NaN. Unary `!`, `&&`, `||`, the
+controlling operand of `?:`, the conditions of `if`, `while`, `do`, and `for`, and conversion to `_Bool`
+accept non-atomic `float`, `double`, and automatic `long double`. Both signed
+zeros are false; finite nonzero values, subnormals, infinities, and NaNs are
+true. Floating increment or decrement, hexadecimal or subnormal constants,
+`long double` literals, nonzero or floating static initializers, integer
+conversions other than `_Bool`, SIMD, and atomic floating access remain
+unsupported. The in-kernel compiler has a separate, broader floating
 and SIMD implementation.
 
 ## Hosted static initializer references

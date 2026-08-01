@@ -169,7 +169,8 @@ static int run_model(void) {
       "adc",      "add",      "addps",    "addss",    "and",
       "bswap",    "call",     "clc",      "cld",      "cli",
       "clts",     "cmp",      "cmpxchg",  "cpuid",    "dec",
-      "div",      "finit",    "fld",      "fninit",   "fsin",
+      "div",      "finit",    "fld",      "fldz",     "fninit",
+      "fsin",
       "fstp",     "fwait",    "fxrstor",  "fxsave",   "hlt",
       "in",       "inc",      "int",      "invd",     "invlpg",
       "iret",     "iretd",    "jb",       "jbe",      "jc",
@@ -233,9 +234,9 @@ static int run_model(void) {
     return 1;
   }
   info = ctool_x86_model_info();
-  if (!check_true(info.form_count == 590u && info.mnemonic_count == 243u &&
+  if (!check_true(info.form_count == 591u && info.mnemonic_count == 244u &&
                       info.register_count == 64u &&
-                      info.fingerprint == 0x74ec8312u,
+                      info.fingerprint == 0xdbe77533u,
                   "model inventory")) {
     ctool_job_close(job);
     return 1;
@@ -2162,6 +2163,7 @@ static int run_relocations(void) {
 
 static int run_system_simd(void) {
   static const ctool_u8 cr_bytes[] = {0x0fu, 0x22u, 0xc0u};
+  static const ctool_u8 fldz_bytes[] = {0xd9u, 0xeeu};
   static const ctool_u8 fxsave_bytes[] = {0x0fu, 0xaeu, 0x40u, 0x10u};
   static const ctool_u8 fucomip_bytes[] = {0xdfu, 0xe9u};
   static const ctool_u8 fsin_bytes[] = {0xd9u, 0xfeu};
@@ -2230,6 +2232,26 @@ static int run_system_simd(void) {
       !check_true(decoded.kind == CTOOL_X86_DECODE_KNOWN &&
                       decoded.instruction.mnemonic == CTOOL_X86_MN_FSIN,
                   "fsin decode semantics")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  insn = instruction(CTOOL_X86_MN_FLDZ, 32u, 32u, 0u);
+  if (!encode(job, CTOOL_X86_MODE_32, &insn, &encoding, "fldz") ||
+      !bytes_equal(&encoding, fldz_bytes, (ctool_u8)sizeof(fldz_bytes),
+                   "fldz bytes")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  status = ctool_x86_decode(
+      job, CTOOL_X86_MODE_32,
+      ctool_bytes(fldz_bytes, (ctool_u32)sizeof(fldz_bytes)), 0u,
+      &decoded);
+  if (!check_status(status, CTOOL_OK, "fldz decode") ||
+      !check_true(decoded.kind == CTOOL_X86_DECODE_KNOWN &&
+                      decoded.instruction.mnemonic == CTOOL_X86_MN_FLDZ &&
+                      decoded.instruction.operand_count == 0u,
+                  "fldz decode semantics")) {
     ctool_job_close(job);
     return 1;
   }
@@ -2443,6 +2465,8 @@ static int run_active_surface(void) {
        {0xddu, 0u}},
       {"fld-m80", CTOOL_X86_MODE_32, CTOOL_X86_MN_FLD, 2u,
        {0xdbu, 0x28u}},
+      {"fldz", CTOOL_X86_MODE_32, CTOOL_X86_MN_FLDZ, 2u,
+       {0xd9u, 0xeeu}},
       {"fninit", CTOOL_X86_MODE_32, CTOOL_X86_MN_FNINIT, 2u,
        {0xdbu, 0xe3u}},
       {"fsin", CTOOL_X86_MODE_32, CTOOL_X86_MN_FSIN, 2u,

@@ -7655,17 +7655,17 @@ static int validate_toolchain_frontier(const char *host_root) {
       {"/toolchain/cupidc_pp.cc", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
        25287u, 479u, 286u, 0u, 0u},
       {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 262u, 7250u,
-       67490u, 953u, 354u, 0u, 0u},
-      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 353u, 8572u,
-       72586u, 1045u, 711u, 0u, 0u},
+       67491u, 953u, 354u, 0u, 0u},
+      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 354u, 8658u,
+       73247u, 1056u, 716u, 0u, 0u},
       {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 422u,
-       16503u, 109179u, 2480u, 1509u, 0u, 0u},
+       16524u, 109328u, 2489u, 1517u, 0u, 0u},
       {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 82u, 3054u,
        20124u, 338u, 190u, 0u, 0u},
       {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
        9457u, 143u, 70u, 0u, 1u},
       {"/toolchain/x86.cc", CTOOL_OK, 0u, 0u, 0u, "", 60u, 1760u,
-       11855u, 180u, 16732u, 3u, 0u}};
+       11855u, 180u, 16762u, 3u, 0u}};
   ctool_u32 index;
   for (index = 0u; index < ARRAY_COUNT(cases); index++) {
     const toolchain_frontier_case_t *test_case = &cases[index];
@@ -8180,10 +8180,10 @@ static int run_scalar_initializers(const char *host_root) {
          "void bad(void) { int value = { 1, 2 }; }\n",
          CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
         1u, 35u, "scalar initializer list has excess elements"},
-      {{"floating boolean initializer boundary",
-         "void bad(void) { _Bool value = 1.0; }\n",
+      {{"atomic floating boolean initializer boundary",
+         "void bad(_Atomic float input) { _Bool value = input; }\n",
          CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-        1u, 32u,
+        0u, 0u,
         "floating assignment conversion is outside this body slice"}};
   frontend_fixture_t fixture;
   ctool_c_translation_unit_t unit;
@@ -11626,14 +11626,6 @@ static int run_automatic_aggregate_initializers(const char *host_root) {
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
        3u, 19u,
        "initializer expression is not convertible to block object type"},
-      {{"floating expression leaf",
-        "typedef struct { _Bool value; } item_t;\n"
-        "void bad(void) {\n"
-        "  item_t value = {1.0};\n"
-        "}\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       3u, 19u,
-       "floating assignment conversion is outside this body slice"},
       {{"character array string excess",
         "void bad(void) {\n"
         "  char text[2] = \"abc\";\n"
@@ -12486,13 +12478,6 @@ static int run_for_statements(const char *host_root) {
         "}\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
        3u, 10u, "controlling expression requires scalar type"},
-      {{"floating controlling expression",
-        "void bad(double value) {\n"
-        "  for (; value; ) { }\n"
-        "}\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       2u, 10u,
-       "floating controlling expressions are outside this body slice"},
       {{"declaration is not a loop body",
         "void bad(void) {\n"
         "  for (;;) int value;\n"
@@ -12733,13 +12718,6 @@ static int run_if_statements(const char *host_root) {
         "}\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
        3u, 7u, "controlling expression requires scalar type"},
-      {{"floating controlling expression",
-        "void bad(double value) {\n"
-        "  if (value) ;\n"
-        "}\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       2u, 7u,
-       "floating controlling expressions are outside this body slice"},
       {{"missing opening parenthesis",
         "void bad(int value) {\n"
         "  if value) ;\n"
@@ -13803,13 +13781,6 @@ static int run_while_statements(const char *host_root) {
         "}\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
        3u, 10u, "controlling expression requires scalar type"},
-      {{"floating controlling expression",
-        "void bad(double value) {\n"
-        "  while (value) { }\n"
-        "}\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       2u, 10u,
-       "floating controlling expressions are outside this body slice"},
       {{"declaration is not a while body",
         "void bad(void) {\n"
         "  while (1) int value;\n"
@@ -14080,13 +14051,6 @@ static int run_do_statements(const char *host_root) {
         "}\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
        3u, 17u, "controlling expression requires scalar type"},
-      {{"floating controlling expression",
-        "void bad(double value) {\n"
-        "  do { } while (value);\n"
-        "}\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       2u, 17u,
-       "floating controlling expressions are outside this body slice"},
       {{"declaration is not a do body",
         "void bad(void) {\n"
         "  do int value; while (1);\n"
@@ -15956,26 +15920,11 @@ static int run_scalar_returns(const char *host_root) {
       {{"malformed integer literal", "int bad(void) { return 09; }\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
        1u, 24u, "integer constant suffix is invalid"},
-      {{"floating boolean return",
-        "_Bool bad(void) { return 1.0; }\n", CTOOL_ERR_UNSUPPORTED,
-        CTOOL_C_PARSE_DIAG_EXPRESSION},
-       1u, 26u,
-       "floating assignment conversion is outside this body slice"},
       {{"deferred hexadecimal floating literal",
         "int bad(void) { return 0x1p0; }\n", CTOOL_ERR_UNSUPPORTED,
         CTOOL_C_PARSE_DIAG_EXPRESSION},
        1u, 24u,
        "hexadecimal floating constants are outside this decimal slice"},
-      {{"floating boolean return conversion",
-        "_Bool bad(float value) { return value; }\n",
-        CTOOL_ERR_UNSUPPORTED,
-        CTOOL_C_PARSE_DIAG_EXPRESSION},
-       1u, 33u,
-       "floating assignment conversion is outside this body slice"},
-      {{"deferred floating logical operand",
-        "int bad(float value) { return !value; }\n", CTOOL_ERR_UNSUPPORTED,
-        CTOOL_C_PARSE_DIAG_EXPRESSION},
-       1u, 31u, "floating logical operands are outside this body slice"},
       {{"malformed character literal",
         "int bad(void) { return '\\x'; }\n", CTOOL_ERR_INPUT,
         CTOOL_C_PARSE_DIAG_EXPRESSION},
@@ -22242,11 +22191,6 @@ static int run_conditional_expressions(const char *host_root) {
         "typedef struct { int value; } item_t; int bad(item_t value) { return value ? 1 : 0; }\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
        1u, 76u, "controlling expression requires scalar type"},
-      {{"conditional floating condition",
-        "int bad(double value) { return value ? 1 : 0; }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       1u, 38u,
-       "floating controlling expressions are outside this body slice"},
       {{"conditional result is not an lvalue",
         "int *bad(int condition, int left, int right) { return &(condition ? left : right); }\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
@@ -24856,6 +24800,195 @@ cleanup:
   return failed;
 }
 
+static int validate_floating_truth(const ctool_c_translation_unit_t *unit) {
+  ctool_u32 logical_not[3] = {0u, 0u, 0u};
+  ctool_u32 logical_and = 0u;
+  ctool_u32 logical_or = 0u;
+  ctool_u32 conditional = 0u;
+  ctool_u32 controlling[3] = {0u, 0u, 0u};
+  ctool_u32 boolean_conversions[3] = {0u, 0u, 0u};
+  ctool_u32 index;
+  if (unit == NULL || unit->function_definition_count != 13u) {
+    return 1;
+  }
+  for (index = 0u; index < unit->expression_count; index++) {
+    const ctool_c_expression_t *expression = &unit->expressions[index];
+    if (expression->operation == CTOOL_C_EXPRESSION_OPERATOR_LOGICAL_NOT) {
+      ctool_u32 child = expression_child(unit, expression, 0u);
+      ctool_c_type_kind_t kind;
+      if (expression->kind != CTOOL_C_EXPRESSION_UNARY ||
+          expression->child_count != 1u ||
+          underlying_type_kind(unit, expression->type, NULL) !=
+              CTOOL_C_TYPE_SIGNED_INT ||
+          child >= unit->expression_count) {
+        return 1;
+      }
+      kind = underlying_type_kind(unit, unit->expressions[child].type, NULL);
+      if (kind == CTOOL_C_TYPE_FLOAT) {
+        logical_not[0]++;
+      } else if (kind == CTOOL_C_TYPE_DOUBLE) {
+        logical_not[1]++;
+      } else if (kind == CTOOL_C_TYPE_LONG_DOUBLE) {
+        logical_not[2]++;
+      }
+    } else if (expression->operation ==
+               CTOOL_C_EXPRESSION_OPERATOR_LOGICAL_AND) {
+      logical_and++;
+    } else if (expression->operation ==
+               CTOOL_C_EXPRESSION_OPERATOR_LOGICAL_OR) {
+      logical_or++;
+    }
+    if (expression->kind == CTOOL_C_EXPRESSION_CONDITIONAL) {
+      ctool_u32 condition = expression_child(unit, expression, 0u);
+      if (condition >= unit->expression_count ||
+          underlying_type_kind(unit, unit->expressions[condition].type,
+                               NULL) != CTOOL_C_TYPE_LONG_DOUBLE) {
+        return 1;
+      }
+      conditional++;
+    }
+    if ((expression->kind == CTOOL_C_EXPRESSION_CAST ||
+         expression->kind == CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION) &&
+        expression->child_count == 1u &&
+        underlying_type_kind(unit, expression->type, NULL) ==
+            CTOOL_C_TYPE_BOOL) {
+      ctool_u32 child = expression_child(unit, expression, 0u);
+      ctool_c_type_kind_t kind;
+      if (child >= unit->expression_count) {
+        return 1;
+      }
+      kind = underlying_type_kind(unit, unit->expressions[child].type, NULL);
+      if (kind == CTOOL_C_TYPE_FLOAT) {
+        boolean_conversions[0]++;
+      } else if (kind == CTOOL_C_TYPE_DOUBLE) {
+        boolean_conversions[1]++;
+      } else if (kind == CTOOL_C_TYPE_LONG_DOUBLE) {
+        boolean_conversions[2]++;
+      }
+    }
+  }
+  for (index = 0u; index < unit->statement_count; index++) {
+    const ctool_c_statement_t *statement = &unit->statements[index];
+    ctool_c_type_kind_t kind;
+    if ((statement->kind != CTOOL_C_STATEMENT_IF &&
+         statement->kind != CTOOL_C_STATEMENT_WHILE &&
+         statement->kind != CTOOL_C_STATEMENT_DO &&
+         statement->kind != CTOOL_C_STATEMENT_FOR) ||
+        statement->condition == CTOOL_C_AST_NONE) {
+      continue;
+    }
+    if (statement->condition >= unit->expression_count) {
+      return 1;
+    }
+    kind = underlying_type_kind(
+        unit, unit->expressions[statement->condition].type, NULL);
+    if (kind == CTOOL_C_TYPE_FLOAT) {
+      controlling[0]++;
+    } else if (kind == CTOOL_C_TYPE_DOUBLE) {
+      controlling[1]++;
+    } else if (kind == CTOOL_C_TYPE_LONG_DOUBLE) {
+      controlling[2]++;
+    }
+  }
+  if (logical_not[0] != 1u || logical_not[1] != 1u ||
+      logical_not[2] != 1u || logical_and != 1u || logical_or != 1u ||
+      conditional != 1u || controlling[0] != 2u || controlling[1] != 1u ||
+      controlling[2] != 1u || boolean_conversions[0] != 1u ||
+      boolean_conversions[1] != 1u || boolean_conversions[2] != 1u) {
+    (void)fprintf(
+        stderr,
+        "floating-truth: inventory differs: not=%u/%u/%u and=%u or=%u "
+        "conditional=%u controlling=%u/%u/%u bool=%u/%u/%u\n",
+        (unsigned int)logical_not[0], (unsigned int)logical_not[1],
+        (unsigned int)logical_not[2], (unsigned int)logical_and,
+        (unsigned int)logical_or, (unsigned int)conditional,
+        (unsigned int)controlling[0], (unsigned int)controlling[1],
+        (unsigned int)controlling[2],
+        (unsigned int)boolean_conversions[0],
+        (unsigned int)boolean_conversions[1],
+        (unsigned int)boolean_conversions[2]);
+    return 1;
+  }
+  return 0;
+}
+
+static int run_floating_truth(const char *host_root) {
+  static const char source[] =
+      "int float_not(float value) { return !value; }\n"
+      "int double_not_not(double value) { return !!value; }\n"
+      "int long_not(long double value) { return !value; }\n"
+      "int float_and(float left, float right) { return left && right; }\n"
+      "int double_or(double left, double right) { return left || right; }\n"
+      "int long_choose(long double value, int yes, int no) { return value ? yes : no; }\n"
+      "int if_float(float value) { if (value) return 1; return 0; }\n"
+      "int while_double(double value) { while (value) return 1; return 0; }\n"
+      "int do_long(long double value) { int result = 0; do { result = 1; } while (value); return result; }\n"
+      "int for_float(float value) { for (; value;) return 1; return 0; }\n"
+      "_Bool float_bool(float value) { return (_Bool)value; }\n"
+      "_Bool double_bool(double value) { return value; }\n"
+      "void long_bool(_Bool *result, long double value) { *result = value; }\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"atomic floating logical operand",
+        "int bad(_Atomic float value) { return !value; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "atomic floating logical operands are outside this body slice"},
+      {{"atomic floating controlling expression",
+        "int bad(_Atomic double value) { if (value) return 1; return 0; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "atomic floating controlling expressions are outside this body slice"},
+      {{"atomic floating boolean conversion",
+        "_Bool bad(_Atomic long double value) { return value; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "floating assignment conversion is outside this body slice"},
+      {{"long double integer conversion remains separate",
+        "int bad(long double value) { return (int)value; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "floating cast is outside this expression slice"},
+      {{"aggregate logical operand",
+        "struct pair { int first; int second; }; "
+        "int bad(struct pair value) { return !value; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "non-scalar logical operands are outside this slice"}};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "floating-truth", host_root,
+                             4u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  if (parse_valid_fixture(&fixture, "/floating-truth.c", source, &unit) != 0 ||
+      validate_floating_truth(&unit) != 0) {
+    (void)fprintf(stderr, "floating-truth: public graph differs\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case = &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure, "/floating-truth-failure.c",
+            test_case->line, test_case->column, test_case->message) != 0 ||
+        validate_floating_truth(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("floating-truth: ok\n");
+  }
+  return failed;
+}
+
 static int floating_width_conversion_matches(
     const ctool_c_translation_unit_t *unit,
     const ctool_c_expression_t *expression,
@@ -25168,11 +25301,6 @@ static int run_floating_conversions(const char *host_root) {
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
        0u, 0u,
        "atomic floating conditional operands are outside this body slice"},
-      {{"floating condition",
-        "int bad(float condition) { return condition ? 1 : 0; }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       0u, 0u,
-       "floating controlling expressions are outside this body slice"},
       {{"integer and floating compound assignment",
         "void bad(float *left, int right) { *left += right; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
@@ -26737,11 +26865,6 @@ static int run_floating_transport(const char *host_root) {
   static const char atomic_pointer_source[] =
       "static _Atomic long double *ok;\n";
   static const frontend_exact_failure_case_t failure_cases[] = {
-      {{"float to boolean assignment boundary",
-        "void bad(_Bool left, float right) { left = right; }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       1u, 44u,
-       "floating assignment conversion is outside this body slice"},
       {{"long double return conversion",
         "long double bad(void *value) { return value; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
@@ -26804,14 +26927,11 @@ static int run_floating_transport(const char *host_root) {
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
        5u, 9u,
        "atomic variadic argument reads are outside this ABI slice"},
-      {{"double zero truth boundary",
-        "int bad(void) { return !0.0; }\n",
+      {{"atomic negative float zero truth boundary",
+        "int bad(_Atomic float value) { if (value) return 1; return 0; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       1u, 24u, "floating logical operands are outside this body slice"},
-      {{"negative float zero truth boundary",
-       "int bad(void) { if (-0.0f) return 1; return 0; }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       1u, 21u, "floating controlling expressions are outside this body slice"}};
+       0u, 0u,
+       "atomic floating controlling expressions are outside this body slice"}};
   frontend_fixture_t fixture;
   ctool_c_translation_unit_t unit;
   ctool_c_translation_unit_t promotion_unit;
@@ -33110,6 +33230,7 @@ int main(int argc, char **argv) {
                    "function-bodies|old-style-empty-functions|"
                    "wide-variadics|floating-transport|floating-arithmetic|"
                    "floating-comparisons|floating-conversions|"
+                   "floating-truth|"
                    "floating-scalars|"
                    "variadic-callees|"
                    "atomic-builtins|"
@@ -33212,6 +33333,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "floating-conversions") == 0) {
     return run_floating_conversions(argv[2]);
+  }
+  if (strcmp(argv[1], "floating-truth") == 0) {
+    return run_floating_truth(argv[2]);
   }
   if (strcmp(argv[1], "floating-scalars") == 0) {
     return run_floating_scalars(argv[2]);

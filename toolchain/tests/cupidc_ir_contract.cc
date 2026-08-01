@@ -27449,6 +27449,294 @@ static int validate_floating_compound_ir(
              : 0;
 }
 
+static int validate_floating_truth_ir(
+    const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir) {
+  ctool_u32 float_type = find_plain_type_kind(unit, CTOOL_C_TYPE_FLOAT);
+  ctool_u32 double_type = find_plain_type_kind(unit, CTOOL_C_TYPE_DOUBLE);
+  ctool_u32 long_double_type =
+      find_plain_type_kind(unit, CTOOL_C_TYPE_LONG_DOUBLE);
+  ctool_u32 int_type = find_plain_type_kind(unit, CTOOL_C_TYPE_SIGNED_INT);
+  ctool_u32 bool_type = find_plain_type_kind(unit, CTOOL_C_TYPE_BOOL);
+  ctool_u32 logical_not[3] = {0u, 0u, 0u};
+  ctool_u32 zero_branches[3] = {0u, 0u, 0u};
+  ctool_u32 boolean_conversions[3] = {0u, 0u, 0u};
+  ctool_u32 index;
+  if (unit == NULL || ir == NULL || ir->functions == NULL ||
+      ir->instructions == NULL || float_type == CTOOL_C_TYPE_NONE ||
+      double_type == CTOOL_C_TYPE_NONE ||
+      long_double_type == CTOOL_C_TYPE_NONE || int_type == CTOOL_C_TYPE_NONE ||
+      bool_type == CTOOL_C_TYPE_NONE ||
+      unit->function_definition_count != 13u || ir->function_count != 13u) {
+    return 0;
+  }
+  for (index = 0u; index < ir->instruction_count; index++) {
+    const ctool_c_ir_instruction_t *instruction = &ir->instructions[index];
+    ctool_u32 *counts = NULL;
+    if (instruction->input_type == float_type) {
+      counts = instruction->kind == CTOOL_C_IR_INSTRUCTION_UNARY
+                   ? logical_not
+                   : zero_branches;
+    } else if (instruction->input_type == double_type) {
+      counts = instruction->kind == CTOOL_C_IR_INSTRUCTION_UNARY
+                   ? &logical_not[1]
+                   : &zero_branches[1];
+    } else if (instruction->input_type == long_double_type) {
+      counts = instruction->kind == CTOOL_C_IR_INSTRUCTION_UNARY
+                   ? &logical_not[2]
+                   : &zero_branches[2];
+    }
+    if (instruction->kind == CTOOL_C_IR_INSTRUCTION_UNARY &&
+        instruction->operation == CTOOL_C_EXPRESSION_OPERATOR_LOGICAL_NOT &&
+        (instruction->input_type == float_type ||
+         instruction->input_type == double_type ||
+         instruction->input_type == long_double_type)) {
+      if (counts == NULL || instruction->type != int_type ||
+          instruction->conversion != CTOOL_C_CONVERSION_NONE ||
+          instruction->reference != CTOOL_C_AST_NONE ||
+          instruction->integer_bits != 0u) {
+        return 0;
+      }
+      (*counts)++;
+    } else if (instruction->kind == CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO &&
+               (instruction->input_type == float_type ||
+                instruction->input_type == double_type ||
+                instruction->input_type == long_double_type)) {
+      if (counts == NULL || instruction->type != CTOOL_C_TYPE_NONE ||
+          instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+          instruction->conversion != CTOOL_C_CONVERSION_NONE ||
+          instruction->reference == CTOOL_C_AST_NONE ||
+          instruction->integer_bits != 0u) {
+        return 0;
+      }
+      (*counts)++;
+    } else if (instruction->kind == CTOOL_C_IR_INSTRUCTION_CONVERT &&
+               instruction->type == bool_type &&
+               (instruction->input_type == float_type ||
+                instruction->input_type == double_type ||
+                instruction->input_type == long_double_type)) {
+      ctool_u32 conversion_index =
+          instruction->input_type == float_type
+              ? 0u
+              : (instruction->input_type == double_type ? 1u : 2u);
+      if ((instruction->conversion != CTOOL_C_CONVERSION_NONE &&
+           instruction->conversion != CTOOL_C_CONVERSION_ASSIGNMENT) ||
+          instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+          instruction->reference != CTOOL_C_AST_NONE ||
+          instruction->integer_bits != 0u) {
+        return 0;
+      }
+      boolean_conversions[conversion_index]++;
+    }
+  }
+  if (logical_not[0] != 1u || logical_not[1] != 1u ||
+      logical_not[2] != 1u || zero_branches[0] != 4u ||
+      zero_branches[1] != 3u || zero_branches[2] != 2u ||
+      boolean_conversions[0] != 1u || boolean_conversions[1] != 1u ||
+      boolean_conversions[2] != 1u ||
+      ir->instruction_count != 96u ||
+      wide_variadic_ir_fingerprint(ir) !=
+          UINT64_C(0x67e16bf9d4c6fba3)) {
+    (void)fprintf(
+        stderr,
+        "floating-truth: IR inventory differs: not=%u/%u/%u "
+        "branches=%u/%u/%u bool=%u/%u/%u instructions=%u "
+        "fingerprint=%016llx\n",
+        (unsigned int)logical_not[0], (unsigned int)logical_not[1],
+        (unsigned int)logical_not[2], (unsigned int)zero_branches[0],
+        (unsigned int)zero_branches[1], (unsigned int)zero_branches[2],
+        (unsigned int)boolean_conversions[0],
+        (unsigned int)boolean_conversions[1],
+        (unsigned int)boolean_conversions[2],
+        (unsigned int)ir->instruction_count,
+        (unsigned long long)wide_variadic_ir_fingerprint(ir));
+    return 0;
+  }
+  return 1;
+}
+
+static int run_floating_truth(const char *host_root) {
+  static const char source[] =
+      "int float_not(float value) { return !value; }\n"
+      "int double_not_not(double value) { return !!value; }\n"
+      "int long_not(long double value) { return !value; }\n"
+      "int float_and(float left, float right) { return left && right; }\n"
+      "int double_or(double left, double right) { return left || right; }\n"
+      "int long_choose(long double value, int yes, int no) { return value ? yes : no; }\n"
+      "int if_float(float value) { if (value) return 1; return 0; }\n"
+      "int while_double(double value) { while (value) return 1; return 0; }\n"
+      "int do_long(long double value) { int result = 0; do { result = 1; } while (value); return result; }\n"
+      "int for_float(float value) { for (; value;) return 1; return 0; }\n"
+      "_Bool float_bool(float value) { return (_Bool)value; }\n"
+      "_Bool double_bool(double value) { return value; }\n"
+      "void long_bool(_Bool *result, long double value) { *result = value; }\n";
+  static const char atomic_source[] =
+      "extern _Atomic float atomic_float_probe;\n"
+      "int constant_truth(void) { return !1.0f; }\n";
+  ctool_host_adapter_t adapter;
+  ctool_host_adapter_t limited_adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_job_t *limited_job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_translation_unit_t atomic_unit;
+  ctool_c_translation_unit_t atomic_invalid_unit;
+  ctool_c_ir_unit_t ir;
+  ctool_c_ir_unit_t repeat_ir;
+  ctool_c_ir_unit_t recovered_ir;
+  ctool_c_expression_t *invalid_expressions = NULL;
+  ctool_c_expression_t *atomic_expressions = NULL;
+  ctool_status_t status;
+  ctool_u32 diagnostic_count;
+  ctool_u32 floating_not = CTOOL_C_AST_NONE;
+  ctool_u32 float_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 atomic_float_binding = CTOOL_C_AST_NONE;
+  ctool_u32 atomic_float_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 floating_constant = CTOOL_C_AST_NONE;
+  ctool_u32 index;
+  uint64_t unit_hash;
+  uint64_t ir_hash;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&atomic_unit, 0, sizeof(atomic_unit));
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  (void)memset(&repeat_ir, 0xa5, sizeof(repeat_ir));
+  (void)memset(&recovered_ir, 0xa5, sizeof(recovered_ir));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(job, "/floating-truth.c", source, CTOOL_TRUE,
+                         &unit) ||
+      !parse_source_mode(job, "/floating-truth-atomic.c", atomic_source,
+                         CTOOL_TRUE, &atomic_unit)) {
+    goto cleanup;
+  }
+  unit_hash = unit_fingerprint(&unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &unit, &ir);
+  if (!check_status(status, CTOOL_OK, "floating truth lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash ||
+      !validate_floating_truth_ir(&unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  ir_hash = wide_variadic_ir_fingerprint(&ir);
+  status = ctool_c_lower_ir(job, &unit, &repeat_ir);
+  if (!check_status(status, CTOOL_OK, "repeat floating truth lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash || ir_hash == 0u ||
+      wide_variadic_ir_fingerprint(&repeat_ir) != ir_hash ||
+      !validate_floating_truth_ir(&unit, &repeat_ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  float_type = find_plain_type_kind(&unit, CTOOL_C_TYPE_FLOAT);
+  for (index = 0u; index < unit.expression_count; index++) {
+    const ctool_c_expression_t *expression = &unit.expressions[index];
+    if (expression->kind == CTOOL_C_EXPRESSION_UNARY &&
+        expression->operation == CTOOL_C_EXPRESSION_OPERATOR_LOGICAL_NOT &&
+        expression->child_count == 1u &&
+        expression->first_child < unit.expression_child_count &&
+        unit.expression_children[expression->first_child] <
+            unit.expression_count &&
+        unit.expressions[unit.expression_children[expression->first_child]]
+                .type == float_type) {
+      floating_not = index;
+      break;
+    }
+  }
+  if (floating_not == CTOOL_C_AST_NONE || float_type == CTOOL_C_TYPE_NONE ||
+      sizeof(*invalid_expressions) >
+          SIZE_MAX / (size_t)unit.expression_count) {
+    goto cleanup;
+  }
+  invalid_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)unit.expression_count * sizeof(*invalid_expressions));
+  if (invalid_expressions == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count * sizeof(*invalid_expressions));
+  invalid_expressions[floating_not].type = float_type;
+  invalid_unit = unit;
+  invalid_unit.expressions = invalid_expressions;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "floating logical-not result metadata")) {
+    goto cleanup;
+  }
+  atomic_float_binding = find_binding(&atomic_unit, "atomic_float_probe");
+  atomic_float_type =
+      atomic_float_binding < atomic_unit.binding_count
+          ? atomic_unit.bindings[atomic_float_binding].type
+          : CTOOL_C_TYPE_NONE;
+  for (index = 0u; index < atomic_unit.expression_count; index++) {
+    if (atomic_unit.expressions[index].kind ==
+        CTOOL_C_EXPRESSION_FLOATING_CONSTANT) {
+      floating_constant = index;
+      break;
+    }
+  }
+  if (atomic_float_type == CTOOL_C_TYPE_NONE ||
+      floating_constant == CTOOL_C_AST_NONE ||
+      atomic_unit.expression_count == 0u ||
+      sizeof(*atomic_expressions) >
+          SIZE_MAX / (size_t)atomic_unit.expression_count) {
+    goto cleanup;
+  }
+  atomic_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)atomic_unit.expression_count * sizeof(*atomic_expressions));
+  if (atomic_expressions == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(atomic_expressions, atomic_unit.expressions,
+               (size_t)atomic_unit.expression_count *
+                   sizeof(*atomic_expressions));
+  atomic_expressions[floating_constant].type = atomic_float_type;
+  atomic_invalid_unit = atomic_unit;
+  atomic_invalid_unit.expressions = atomic_expressions;
+  if (!expect_ir_failure_preserves_unit(
+          job, &atomic_invalid_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "atomic floating truth operand metadata")) {
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &unit, &recovered_ir);
+  if (!check_status(status, CTOOL_OK, "floating truth recovery") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != unit_hash ||
+      wide_variadic_ir_fingerprint(&recovered_ir) != ir_hash ||
+      !validate_floating_truth_ir(&unit, &recovered_ir) ||
+      !open_limited_job(host_root, &limited_adapter, &limited_job) ||
+      !expect_ir_failure_preserves_unit(
+          limited_job, &unit, CTOOL_ERR_LIMIT, CTOOL_C_IR_DIAG_LIMIT,
+          "CupidC IR lowering exceeded a configured resource limit",
+          "floating truth constrained allocation")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(atomic_expressions);
+  free(invalid_expressions);
+  if (limited_job != NULL) {
+    ctool_job_close(limited_job);
+  }
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("floating-truth: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_floating_conversion_ir(
     const ctool_c_translation_unit_t *unit,
     const ctool_c_ir_unit_t *ir) {
@@ -29030,14 +29318,13 @@ static int validate_long_double_local_ir(
   return 1;
 }
 
-static int floating_truth_mutations_are_rejected(
+static int floating_truth_metadata_mutations_are_rejected(
     ctool_job_t *job, const ctool_c_translation_unit_t *unit) {
   static const char *message =
-      "CupidC IR lowering does not yet support this value type";
+      "CupidC IR lowering received an invalid translation unit";
   ctool_c_translation_unit_t invalid_unit;
   ctool_c_expression_t *expressions = NULL;
   ctool_u32 *children = NULL;
-  ctool_c_statement_t *statements = NULL;
   ctool_u32 float_type = find_plain_type_kind(unit, CTOOL_C_TYPE_FLOAT);
   ctool_u32 double_type = find_plain_type_kind(unit, CTOOL_C_TYPE_DOUBLE);
   ctool_u32 float_value = CTOOL_C_AST_NONE;
@@ -29045,7 +29332,6 @@ static int floating_truth_mutations_are_rejected(
   ctool_u32 logical_not = CTOOL_C_AST_NONE;
   ctool_u32 logical_and = CTOOL_C_AST_NONE;
   ctool_u32 conditional = CTOOL_C_AST_NONE;
-  ctool_u32 selection = CTOOL_C_AST_NONE;
   ctool_u32 index;
   int result = 0;
 
@@ -29053,8 +29339,7 @@ static int floating_truth_mutations_are_rejected(
       unit->expression_child_count == 0u || unit->statement_count == 0u ||
       float_type == CTOOL_C_TYPE_NONE || double_type == CTOOL_C_TYPE_NONE ||
       sizeof(*expressions) > SIZE_MAX / (size_t)unit->expression_count ||
-      sizeof(*children) > SIZE_MAX / (size_t)unit->expression_child_count ||
-      sizeof(*statements) > SIZE_MAX / (size_t)unit->statement_count) {
+      sizeof(*children) > SIZE_MAX / (size_t)unit->expression_child_count) {
     return 0;
   }
   for (index = 0u; index < unit->expression_count; index++) {
@@ -29078,15 +29363,9 @@ static int floating_truth_mutations_are_rejected(
       conditional = index;
     }
   }
-  for (index = 0u; index < unit->statement_count; index++) {
-    if (unit->statements[index].kind == CTOOL_C_STATEMENT_IF) {
-      selection = index;
-      break;
-    }
-  }
   if (float_value == CTOOL_C_AST_NONE || double_value == CTOOL_C_AST_NONE ||
       logical_not == CTOOL_C_AST_NONE || logical_and == CTOOL_C_AST_NONE ||
-      conditional == CTOOL_C_AST_NONE || selection == CTOOL_C_AST_NONE ||
+      conditional == CTOOL_C_AST_NONE ||
       unit->expressions[logical_not].child_count != 1u ||
       unit->expressions[logical_and].child_count != 2u ||
       unit->expressions[conditional].child_count != 3u ||
@@ -29103,27 +29382,23 @@ static int floating_truth_mutations_are_rejected(
       (size_t)unit->expression_count * sizeof(*expressions));
   children = (ctool_u32 *)malloc(
       (size_t)unit->expression_child_count * sizeof(*children));
-  statements = (ctool_c_statement_t *)malloc(
-      (size_t)unit->statement_count * sizeof(*statements));
-  if (expressions == NULL || children == NULL || statements == NULL) {
+  if (expressions == NULL || children == NULL) {
     goto cleanup;
   }
   invalid_unit = *unit;
   invalid_unit.expressions = expressions;
   invalid_unit.expression_children = children;
-  invalid_unit.statements = statements;
 
   (void)memcpy(expressions, unit->expressions,
                (size_t)unit->expression_count * sizeof(*expressions));
   (void)memcpy(children, unit->expression_children,
                (size_t)unit->expression_child_count * sizeof(*children));
-  (void)memcpy(statements, unit->statements,
-               (size_t)unit->statement_count * sizeof(*statements));
   children[expressions[logical_not].first_child] = float_value;
+  expressions[logical_not].type = float_type;
   if (!expect_ir_failure_preserves_unit(
-          job, &invalid_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE, message,
-          "floating logical-not operand")) {
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, message,
+          "floating logical-not result type")) {
     goto cleanup;
   }
 
@@ -29132,10 +29407,11 @@ static int floating_truth_mutations_are_rejected(
   (void)memcpy(children, unit->expression_children,
                (size_t)unit->expression_child_count * sizeof(*children));
   children[expressions[logical_and].first_child] = double_value;
+  expressions[logical_and].type = double_type;
   if (!expect_ir_failure_preserves_unit(
-          job, &invalid_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE, message,
-          "double short-circuit operand")) {
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, message,
+          "floating short-circuit result type")) {
     goto cleanup;
   }
 
@@ -29144,30 +29420,17 @@ static int floating_truth_mutations_are_rejected(
   (void)memcpy(children, unit->expression_children,
                (size_t)unit->expression_child_count * sizeof(*children));
   children[expressions[conditional].first_child] = double_value;
+  expressions[conditional].type = double_type;
   if (!expect_ir_failure_preserves_unit(
-          job, &invalid_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE, message,
-          "double conditional condition")) {
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, message,
+          "floating conditional result type")) {
     goto cleanup;
   }
 
-  (void)memcpy(expressions, unit->expressions,
-               (size_t)unit->expression_count * sizeof(*expressions));
-  (void)memcpy(children, unit->expression_children,
-               (size_t)unit->expression_child_count * sizeof(*children));
-  (void)memcpy(statements, unit->statements,
-               (size_t)unit->statement_count * sizeof(*statements));
-  statements[selection].condition = float_value;
-  if (!expect_ir_failure_preserves_unit(
-          job, &invalid_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE, message,
-          "floating statement condition")) {
-    goto cleanup;
-  }
   result = 1;
 
 cleanup:
-  free(statements);
   free(children);
   free(expressions);
   return result;
@@ -29358,7 +29621,7 @@ static int run_floating_transport(const char *host_root) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
-  if (!floating_truth_mutations_are_rejected(job, &condition_unit)) {
+  if (!floating_truth_metadata_mutations_are_rejected(job, &condition_unit)) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
@@ -39494,6 +39757,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "floating-conversions") == 0) {
     return run_floating_conversions(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "floating-truth") == 0) {
+    return run_floating_truth(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "floating-scalars") == 0) {
     return run_floating_scalars(argv[2]);
   }
@@ -39645,6 +39911,7 @@ int main(int argc, char **argv) {
                 "old-style-empty-functions|variadic-callees|wide-variadics|"
                 "floating-transport|floating-arithmetic|"
                 "floating-comparisons|floating-conversions|"
+                "floating-truth|"
                 "floating-scalars|"
                 "block-records|"
                 "block-enums|bit-field-stores|bit-field-promotions|"

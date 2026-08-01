@@ -112,6 +112,9 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
     def test_floating_width_conversions_follow_c11_value_rules(self):
         self.run_contract("floating-conversions")
 
+    def test_floating_truth_and_boolean_conversions_follow_c11(self):
+        self.run_contract("floating-truth")
+
     def test_static_floating_arithmetic_is_folded_without_host_fp(self):
         self.run_contract("floating-scalars")
 
@@ -348,7 +351,7 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
         feature = next(
             item for item in audit["features"] if item["id"] == "c.control.return"
         )
-        self.assertEqual(feature["occurrences"], 21232)
+        self.assertEqual(feature["occurrences"], 21454)
 
     def test_active_for_statement_inventory_is_drift_gated(self):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
@@ -356,7 +359,7 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
         feature = next(
             item for item in audit["features"] if item["id"] == "c.control.for"
         )
-        self.assertEqual(feature["occurrences"], 3912)
+        self.assertEqual(feature["occurrences"], 3973)
 
     def test_active_while_statement_inventory_is_drift_gated(self):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
@@ -364,8 +367,8 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
         feature = next(
             item for item in audit["features"] if item["id"] == "c.control.while"
         )
-        self.assertEqual(feature["occurrences"], 2680)
-        self.assertEqual(len(feature["files"]), 261)
+        self.assertEqual(feature["occurrences"], 2688)
+        self.assertEqual(len(feature["files"]), 262)
 
     def test_active_do_statement_inventory_is_drift_gated(self):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
@@ -373,28 +376,28 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
         feature = next(
             item for item in audit["features"] if item["id"] == "c.control.do"
         )
-        self.assertEqual(feature["occurrences"], 66)
-        self.assertEqual(len(feature["files"]), 40)
+        self.assertEqual(feature["occurrences"], 67)
+        self.assertEqual(len(feature["files"]), 41)
 
     def test_active_switch_label_inventory_is_drift_gated(self):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
         audit = json.loads(audit_path.read_text(encoding="utf-8"))
         features = {item["id"]: item for item in audit["features"]}
-        self.assertEqual(features["c.control.switch"]["occurrences"], 223)
+        self.assertEqual(features["c.control.switch"]["occurrences"], 224)
         self.assertEqual(len(features["c.control.switch"]["files"]), 69)
-        self.assertEqual(features["c.control.case"]["occurrences"], 1669)
+        self.assertEqual(features["c.control.case"]["occurrences"], 1678)
         self.assertEqual(len(features["c.control.case"]["files"]), 69)
-        self.assertEqual(features["c.control.default"]["occurrences"], 154)
+        self.assertEqual(features["c.control.default"]["occurrences"], 155)
         self.assertEqual(len(features["c.control.default"]["files"]), 56)
 
     def test_active_if_else_inventory_is_drift_gated(self):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
         audit = json.loads(audit_path.read_text(encoding="utf-8"))
         features = {item["id"]: item for item in audit["features"]}
-        self.assertEqual(features["c.control.if"]["occurrences"], 35216)
+        self.assertEqual(features["c.control.if"]["occurrences"], 35603)
         self.assertEqual(len(features["c.control.if"]["files"]), 366)
-        self.assertEqual(features["c.control.else"]["occurrences"], 4533)
-        self.assertEqual(len(features["c.control.else"]["files"]), 277)
+        self.assertEqual(features["c.control.else"]["occurrences"], 4569)
+        self.assertEqual(len(features["c.control.else"]["files"]), 278)
 
     def test_active_goto_inventory_is_drift_gated(self):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
@@ -402,7 +405,7 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
         feature = next(
             item for item in audit["features"] if item["id"] == "c.control.goto"
         )
-        self.assertEqual(feature["occurrences"], 2806)
+        self.assertEqual(feature["occurrences"], 2824)
         self.assertEqual(len(feature["files"]), 26)
 
     def test_active_non_doom_header_frontier_is_drift_gated(self):

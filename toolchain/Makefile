@@ -514,6 +514,7 @@ test: $(CONTRACT_MANIFEST) \
 	$(CUPIDC_FRONTEND_CONTRACT) floating-arithmetic ..
 	$(CUPIDC_FRONTEND_CONTRACT) floating-comparisons ..
 	$(CUPIDC_FRONTEND_CONTRACT) floating-conversions ..
+	$(CUPIDC_FRONTEND_CONTRACT) floating-truth ..
 	$(CUPIDC_FRONTEND_CONTRACT) floating-scalars ..
 	$(CUPIDC_FRONTEND_CONTRACT) inline-assembly ..
 	$(CUPIDC_FRONTEND_CONTRACT) port-io-assembly ..
@@ -596,6 +597,7 @@ test: $(CONTRACT_MANIFEST) \
 	$(CUPIDC_IR_CONTRACT) floating-arithmetic ..
 	$(CUPIDC_IR_CONTRACT) floating-comparisons ..
 	$(CUPIDC_IR_CONTRACT) floating-conversions ..
+	$(CUPIDC_IR_CONTRACT) floating-truth ..
 	$(CUPIDC_IR_CONTRACT) floating-scalars ..
 	$(CUPIDC_IR_CONTRACT) inline-assembly ..
 	$(CUPIDC_IR_CONTRACT) port-io-assembly ..
@@ -646,6 +648,7 @@ test: $(CONTRACT_MANIFEST) \
 	$(CUPIDC_OBJECT_CONTRACT) floating-arithmetic ..
 	$(CUPIDC_OBJECT_CONTRACT) floating-comparisons ..
 	$(CUPIDC_OBJECT_CONTRACT) floating-conversions ..
+	$(CUPIDC_OBJECT_CONTRACT) floating-truth ..
 	$(CUPIDC_OBJECT_CONTRACT) floating-scalars ..
 	$(CUPIDC_OBJECT_CONTRACT) inline-assembly ..
 	$(CUPIDC_OBJECT_CONTRACT) port-io-assembly ..

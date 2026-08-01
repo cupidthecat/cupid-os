@@ -53,6 +53,7 @@ class CupidX87ComparisonCliTests(unittest.TestCase):
             binary = root / "compare.bin"
             source.write_text(
                 "BITS 32\n"
+                "    fldz\n"
                 "    fucomip st0, st1\n"
                 "    fstp st0\n",
                 encoding="utf-8",
@@ -71,7 +72,9 @@ class CupidX87ComparisonCliTests(unittest.TestCase):
                 capture_output=True,
             )
             self.assertEqual(assembled.returncode, 0, assembled.stderr)
-            self.assertEqual(binary.read_bytes(), bytes.fromhex("df e9 dd d8"))
+            self.assertEqual(
+                binary.read_bytes(), bytes.fromhex("d9 ee df e9 dd d8")
+            )
 
             disassembled = subprocess.run(
                 [
@@ -87,6 +90,7 @@ class CupidX87ComparisonCliTests(unittest.TestCase):
                 capture_output=True,
             )
             self.assertEqual(disassembled.returncode, 0, disassembled.stderr)
+            self.assertIn("fldz", disassembled.stdout)
             self.assertIn("fucomip st0, st1", disassembled.stdout)
             self.assertIn("fstp st0", disassembled.stdout)
 
@@ -100,6 +104,29 @@ class CupidX87ComparisonCliTests(unittest.TestCase):
                 "    fucomip st1, st0\n",
                 encoding="utf-8",
             )
+            assembled = subprocess.run(
+                [
+                    str(self.assembler_path),
+                    "-f",
+                    "bin",
+                    str(source),
+                    "-o",
+                    str(binary),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+            self.assertNotEqual(assembled.returncode, 0)
+            self.assertIn("no x86 form matches", assembled.stderr)
+            self.assertFalse(binary.exists())
+
+    def test_fldz_rejects_an_operand_without_publishing_output(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "invalid-zero.asm"
+            binary = root / "invalid-zero.bin"
+            source.write_text("BITS 32\n    fldz st0\n", encoding="utf-8")
             assembled = subprocess.run(
                 [
                     str(self.assembler_path),

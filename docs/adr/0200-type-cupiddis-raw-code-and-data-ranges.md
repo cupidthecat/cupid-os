@@ -8,10 +8,9 @@
 
 ADR 0080 let one raw inspection request change between 16-bit and 32-bit
 decoding. That model still treated every byte as an instruction. The active
-SMP trampoline does not have that shape. Its 16-bit startup ends at offset
-`0x01f`, followed by tables and padding through `0x210`. The 32-bit entry runs
-from `0x210` through `0x254`, followed by padding through the end of the
-4,096-byte image.
+SMP trampoline does not have that shape. Code occupies `[0x000, 0x01f)`, data
+occupies `[0x01f, 0x210)`, code occupies `[0x210, 0x254)`, and data occupies
+`[0x254, 0x1000)`.
 
 With only a mode map, CupidDis decoded all 3,997 non-code bytes in that image.
 Zero-filled regions appeared as long runs of `add byte` instructions, and a

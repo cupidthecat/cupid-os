@@ -432,8 +432,9 @@ active host-owned build path.
 Raw inspection uses an ordered range map with 16-bit code, 32-bit code, and
 data kinds. Code ranges enter the shared decoder, while data ranges print as
 literal `db` rows. The active SMP trampoline test assembles the unchanged
-4,096-byte source and marks `0x000..0x01f` as code16, `0x01f..0x210` as data,
-`0x210..0x254` as code32, and the remaining bytes as data. Two CLI renders
+4,096-byte source and marks `[0x000, 0x01f)` as code16,
+`[0x01f, 0x210)` as data, `[0x210, 0x254)` as code32, and
+`[0x254, 0x1000)` as data. Two CLI renders
 match, and neither data interval produces invented instructions. This changes
 no production owner because the normal build uses CupidDis's ELF symbol view.
 
@@ -449,17 +450,18 @@ through six leading `66` bytes and the fixed
 `2E 0F 1F 84 00 00 00 00 00` tail. The final scan has 1,901 fallback rows
 in 36 objects and renders 1,781 NOP rows. Other repeated prefixes remain
 invalid, and CupidASM cannot emit the redundant forms. Packed-integer SSE2
-is the next largest measured decoder gap. Source head now has 590 catalogue
-rows, 243 canonical mnemonics, and fingerprint `74EC8312`. The added rows are
-the x87 80-bit `FLD` and `FSTP` memory forms plus i686
-`FUCOMIP ST0, ST(i)`, used by represented `long double` values. File-scope and
+is the next largest measured decoder gap. Source head now has 591 catalogue
+rows, 244 canonical mnemonics, and fingerprint `DBE77533`. The added rows are
+the x87 80-bit `FLD` and `FSTP` memory forms, i686
+`FUCOMIP ST0, ST(i)`, and operand-free `FLDZ`, used by represented `long
+double` values. File-scope and
 block-static scalars, fixed arrays, and complete records may contain
 implicitly or explicitly zeroed non-atomic long-double leaves. The aggregate
 object proof fixes 104 BSS bytes, a 415-byte function with fingerprint
 `BF01CC71`, eight absolute relocations, and six symbols.
 The checked seed
 still carries the earlier 587-row catalogue; both compiler stages in the
-normal contract cohort rebuild the 590-row source head.
+normal contract cohort rebuild the 591-row source head.
 
 The four-vCPU GUI runtime starts every discovered CPU, reaches e1000 or
 RTL8139 traffic,

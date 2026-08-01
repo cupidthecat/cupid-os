@@ -304,10 +304,10 @@ section .data
 ## Instruction Reference
 
 CupidASM uses the shared Cupid Toolchain x86 catalogue. Source head carries
-590 forms, 243 canonical mnemonics, and 64 register names, with catalogue
-fingerprint `74EC8312`. The three forms added after the checked seed encode
+591 forms, 244 canonical mnemonics, and 64 register names, with catalogue
+fingerprint `DBE77533`. The four forms added after the checked seed encode
 and decode 80-bit x87 `FLD` and `FSTP` memory operands plus i686
-`FUCOMIP ST0, ST(i)`. The repository seed retains the earlier
+`FUCOMIP ST0, ST(i)` and operand-free `FLDZ`. The repository seed retains the earlier
 587-form catalogue and rebuilds the current model during the checked fixed
 point. The same catalogue drives instruction encoding and decoding. All
 sixteen i686 conditional moves accept 16-bit or 32-bit same-width register and

@@ -345,13 +345,16 @@ Functions return the value in x87 `ST0`, and direct or indirect callers store
 it in a twelve-byte snapshot. `va_arg(long double)` copies twelve bytes and
 leaves the cursor at the following four-byte slot. All six comparisons accept
 matching long-double operands or a mixed `float` or `double` input. A balanced
-`FUCOMIP` sequence preserves signed-zero and unordered behavior. Runtime floating truth,
-hexadecimal floating literals, `long double` literals, nonzero or floating
-static long-double initializers, integer conversions involving
-`long double`, runtime conversion to unsigned four-byte
-integers or `_Bool`, runtime mixed wide and floating arithmetic or conditional
-arms, floating increment and decrement, SIMD values, floating atomics, and
-over-aligned object emission remain unfinished.
+`FUCOMIP` sequence preserves signed-zero and unordered behavior. Runtime
+`float`, `double`, and automatic `long double` values work with unary `!`,
+`&&`, `||`, the controlling operand of `?:`, the conditions of `if`, `while`,
+`do`, and `for`, and conversion to `_Bool`. Both signed zeros are false; finite nonzero values,
+subnormals, infinities, and NaNs are true. Hexadecimal floating literals,
+`long double` literals, nonzero or floating static long-double initializers,
+integer conversions involving `long double` other than `_Bool`, runtime
+conversion to unsigned four-byte integers, runtime mixed wide and floating
+arithmetic or conditional arms, floating increment and decrement, SIMD
+values, floating atomics, and over-aligned object emission remain unfinished.
 
 Plain assignment, all ten compound assignments, and prefix and postfix update work for represented non-atomic integer bit fields when the declared storage unit is four bytes and fits inside the record. The compiler evaluates the record designator once and applies the target's integer-promotion rules before a compound operation. Partial fields preserve the other bits in their unit. Assignment, compound assignment, and prefix update return the stored lane after width truncation and signed extension, while postfix update returns the extracted old value. A 32-bit field uses the direct load and store path. Volatile 32-bit updates perform one read and one store. Partial volatile mutation, atomic fields, and other storage-unit sizes remain unsupported.
 
@@ -564,11 +567,12 @@ floating-width conversions, unary plus and minus, all four arithmetic
 operators, twelve-byte direct and indirect fixed, variadic, and unprototyped
 arguments, function returns, direct and indirect call results, and
 `va_arg(long double)`. Static-duration arrays and records may contain the same
-implicitly or explicitly zeroed leaves. Hexadecimal floating literals,
-`long double` literals, nonzero or floating static initializers, integer conversions
-involving `long double`, runtime conversion to unsigned four-byte integers or
-`_Bool`, other floating-to-wide conversions, runtime floating truth, runtime
-mixed wide and floating arithmetic or conditional arms, and floating
+implicitly or explicitly zeroed leaves. Runtime truth and conversion to
+`_Bool` cover all three represented floating widths. Hexadecimal floating
+literals, `long double` literals, nonzero or floating static initializers,
+integer conversions involving `long double` other than `_Bool`, runtime
+conversion to unsigned four-byte integers, other floating-to-wide conversions,
+runtime mixed wide and floating arithmetic or conditional arms, and floating
 increment and decrement remain unsupported. Matching or mixed-width floating
 conditional arms and the four arithmetic compound assignments keep their
 established x87 path.
@@ -1814,11 +1818,12 @@ described above. Non-atomic `long double` values use x87 80-bit
 transport, floating-width conversions, unary plus and minus, all four
 arithmetic operators, twelve-byte direct and indirect fixed, variadic, and
 unprototyped arguments, function returns, direct and indirect call results,
-and `va_arg(long double)`. Runtime floating truth, runtime mixed wide and
-floating arithmetic or conditional arms, increment and decrement,
+and `va_arg(long double)`. Runtime truth, structured conditions, and `_Bool`
+conversion cover `float`, `double`, and automatic `long double`. Runtime mixed
+wide and floating arithmetic or conditional arms, increment and decrement,
 hexadecimal floating literals, `long double` literals, nonzero or floating
 static long-double initializers, integer conversions involving
-`long double`, and SIMD remain open in the hosted path.
+`long double` other than `_Bool`, and SIMD remain open in the hosted path.
 
 ---
 

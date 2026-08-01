@@ -10023,6 +10023,7 @@ typedef enum {
   CFRONT_SCALAR_VALUE_INTEGER = 0,
   CFRONT_SCALAR_VALUE_POINTER,
   CFRONT_SCALAR_VALUE_FLOATING,
+  CFRONT_SCALAR_VALUE_ATOMIC_FLOATING,
   CFRONT_SCALAR_VALUE_OTHER
 } cfront_scalar_value_kind_t;
 
@@ -10031,11 +10032,29 @@ static ctool_status_t cfront_classify_scalar_value(
     cfront_scalar_value_kind_t *kind_out) {
   cfront_integer_type_t integer;
   ctool_c_type_node_t node = {0};
+  ctool_c_type_node_t original_node = {0};
   ctool_bool is_integer = CTOOL_FALSE;
+  ctool_bool atomic_floating = CTOOL_FALSE;
   ctool_u32 base;
   ctool_u32 qualifiers;
-  ctool_status_t status = cfront_apply_default_conversion(context, value);
+  ctool_u32 original_base;
+  ctool_u32 original_qualifiers;
+  ctool_status_t status = cfront_underlying_type(
+      context, value->type, &original_base, &original_qualifiers,
+      &original_node);
   *kind_out = CFRONT_SCALAR_VALUE_OTHER;
+  (void)original_base;
+  if (status != CTOOL_OK) {
+    return cfront_storage_failure(context, status);
+  }
+  if ((original_node.kind == CTOOL_C_TYPE_FLOAT ||
+       original_node.kind == CTOOL_C_TYPE_DOUBLE ||
+       original_node.kind == CTOOL_C_TYPE_LONG_DOUBLE) &&
+      ((original_qualifiers | original_node.qualifiers) &
+       CTOOL_C_QUAL_ATOMIC) != 0u) {
+    atomic_floating = CTOOL_TRUE;
+  }
+  status = cfront_apply_default_conversion(context, value);
   if (status != CTOOL_OK) {
     return status;
   }
@@ -10055,6 +10074,8 @@ static ctool_status_t cfront_classify_scalar_value(
     *kind_out = CFRONT_SCALAR_VALUE_INTEGER;
   } else if (node.kind == CTOOL_C_TYPE_POINTER) {
     *kind_out = CFRONT_SCALAR_VALUE_POINTER;
+  } else if (atomic_floating == CTOOL_TRUE) {
+    *kind_out = CFRONT_SCALAR_VALUE_ATOMIC_FLOATING;
   } else if (node.kind == CTOOL_C_TYPE_FLOAT ||
              node.kind == CTOOL_C_TYPE_DOUBLE ||
              node.kind == CTOOL_C_TYPE_LONG_DOUBLE) {
@@ -10073,16 +10094,15 @@ static ctool_status_t cfront_require_scalar_value(
       cfront_classify_scalar_value(context, value, &kind);
   if (status != CTOOL_OK || kind == CFRONT_SCALAR_VALUE_INTEGER ||
       kind == CFRONT_SCALAR_VALUE_POINTER ||
-      (kind == CFRONT_SCALAR_VALUE_FLOATING &&
-       context->static_initializer_depth != 0u)) {
+      kind == CFRONT_SCALAR_VALUE_FLOATING) {
     return status;
   }
   return cfront_emit_failure(
       context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
       operator_token,
-      kind == CFRONT_SCALAR_VALUE_FLOATING
-          ? "floating logical operands are outside this body slice"
-          : "non-scalar logical operands are outside this slice");
+      kind == CFRONT_SCALAR_VALUE_ATOMIC_FLOATING
+           ? "atomic floating logical operands are outside this body slice"
+           : "non-scalar logical operands are outside this slice");
 }
 
 static ctool_status_t cfront_apply_assignment_conversion(
@@ -10178,11 +10198,12 @@ static ctool_status_t cfront_apply_assignment_conversion(
           source_integer.width <= 32u) ||
          (source_is_floating == CTOOL_TRUE &&
           target_is_integer == CTOOL_TRUE &&
-          target_integer.width <= 32u &&
-          target_integer.kind != CTOOL_C_TYPE_BOOL &&
-          (target_integer.is_unsigned == CTOOL_FALSE ||
-           target_integer.width < 32u))) &&
-        (target_node.kind == CTOOL_C_TYPE_FLOAT ||
+          ((target_integer.kind == CTOOL_C_TYPE_BOOL) ||
+           (target_integer.width <= 32u &&
+            (target_integer.is_unsigned == CTOOL_FALSE ||
+             target_integer.width < 32u))))) &&
+        (target_integer.kind == CTOOL_C_TYPE_BOOL ||
+         target_node.kind == CTOOL_C_TYPE_FLOAT ||
          target_node.kind == CTOOL_C_TYPE_DOUBLE ||
          source_node.kind == CTOOL_C_TYPE_FLOAT ||
          source_node.kind == CTOOL_C_TYPE_DOUBLE) &&
@@ -11215,31 +11236,58 @@ static ctool_status_t cfront_apply_cast(
           CTOOL_C_AST_NONE, CTOOL_FALSE, CTOOL_FALSE, 0u, CTOOL_FALSE,
           operand);
     }
-    if ((((target.kind == CTOOL_C_TYPE_FLOAT ||
+    {
+      ctool_bool source_floating =
+          source.kind == CTOOL_C_TYPE_FLOAT ||
+                  source.kind == CTOOL_C_TYPE_DOUBLE ||
+                  source.kind == CTOOL_C_TYPE_LONG_DOUBLE
+              ? CTOOL_TRUE
+              : CTOOL_FALSE;
+      ctool_bool source_narrow_floating =
+          source.kind == CTOOL_C_TYPE_FLOAT ||
+                  source.kind == CTOOL_C_TYPE_DOUBLE
+              ? CTOOL_TRUE
+              : CTOOL_FALSE;
+      ctool_bool integer_to_floating =
+          (target.kind == CTOOL_C_TYPE_FLOAT ||
            target.kind == CTOOL_C_TYPE_DOUBLE) &&
-          source_integer == CTOOL_TRUE &&
-          (source_integer_info.width <= 32u ||
-           context->static_initializer_depth != 0u)) ||
-         ((source.kind == CTOOL_C_TYPE_FLOAT ||
-           source.kind == CTOOL_C_TYPE_DOUBLE) &&
-          target_integer == CTOOL_TRUE &&
-          (context->static_initializer_depth != 0u ||
-           (target_integer_info.width <= 32u &&
-            target_integer_info.kind != CTOOL_C_TYPE_BOOL &&
-            (target_integer_info.is_unsigned == CTOOL_FALSE ||
-             target_integer_info.width < 32u)) ||
-           (source.kind == CTOOL_C_TYPE_DOUBLE &&
-            target.kind == CTOOL_C_TYPE_UNSIGNED_LONG_LONG &&
-            target_integer_info.width == 64u &&
-            target_integer_info.is_unsigned == CTOOL_TRUE)))) &&
-        ((target_qualifiers | target.qualifiers |
-          original_source_qualifiers | original_source.qualifiers) &
-         CTOOL_C_QUAL_ATOMIC) == 0u) {
-      return cfront_append_one_child_expression(
-          context, CTOOL_C_EXPRESSION_CAST,
-          CTOOL_C_EXPRESSION_OPERATOR_NONE, cast_token, target_type,
-          CTOOL_C_AST_NONE, CTOOL_FALSE, CTOOL_FALSE, 0u, CTOOL_FALSE,
-          operand);
+                  source_integer == CTOOL_TRUE &&
+                  (source_integer_info.width <= 32u ||
+                   context->static_initializer_depth != 0u)
+              ? CTOOL_TRUE
+              : CTOOL_FALSE;
+      ctool_bool floating_to_boolean =
+          source_floating == CTOOL_TRUE &&
+                  target_integer == CTOOL_TRUE &&
+                  target_integer_info.kind == CTOOL_C_TYPE_BOOL
+              ? CTOOL_TRUE
+              : CTOOL_FALSE;
+      ctool_bool floating_to_integer =
+          source_narrow_floating == CTOOL_TRUE &&
+                  target_integer == CTOOL_TRUE &&
+                  target_integer_info.kind != CTOOL_C_TYPE_BOOL &&
+                  (context->static_initializer_depth != 0u ||
+                   (target_integer_info.width <= 32u &&
+                    (target_integer_info.is_unsigned == CTOOL_FALSE ||
+                     target_integer_info.width < 32u)) ||
+                   (source.kind == CTOOL_C_TYPE_DOUBLE &&
+                    target.kind == CTOOL_C_TYPE_UNSIGNED_LONG_LONG &&
+                    target_integer_info.width == 64u &&
+                    target_integer_info.is_unsigned == CTOOL_TRUE))
+              ? CTOOL_TRUE
+              : CTOOL_FALSE;
+      if ((integer_to_floating == CTOOL_TRUE ||
+           floating_to_boolean == CTOOL_TRUE ||
+           floating_to_integer == CTOOL_TRUE) &&
+          ((target_qualifiers | target.qualifiers |
+            original_source_qualifiers | original_source.qualifiers) &
+           CTOOL_C_QUAL_ATOMIC) == 0u) {
+        return cfront_append_one_child_expression(
+            context, CTOOL_C_EXPRESSION_CAST,
+            CTOOL_C_EXPRESSION_OPERATOR_NONE, cast_token, target_type,
+            CTOOL_C_AST_NONE, CTOOL_FALSE, CTOOL_FALSE, 0u, CTOOL_FALSE,
+            operand);
+      }
     }
     return cfront_emit_failure(
         context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
@@ -20320,14 +20368,13 @@ static ctool_status_t cfront_require_controlling_value(
       cfront_classify_scalar_value(context, value, &kind);
   if (status != CTOOL_OK || kind == CFRONT_SCALAR_VALUE_INTEGER ||
       kind == CFRONT_SCALAR_VALUE_POINTER ||
-      (kind == CFRONT_SCALAR_VALUE_FLOATING &&
-       context->static_initializer_depth != 0u)) {
+      kind == CFRONT_SCALAR_VALUE_FLOATING) {
     return status;
   }
-  if (kind == CFRONT_SCALAR_VALUE_FLOATING) {
+  if (kind == CFRONT_SCALAR_VALUE_ATOMIC_FLOATING) {
     return cfront_emit_failure(
         context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION, token,
-        "floating controlling expressions are outside this body slice");
+        "atomic floating controlling expressions are outside this body slice");
   }
   return cfront_emit_failure(
       context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION, token,

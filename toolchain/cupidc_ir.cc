@@ -2697,7 +2697,10 @@ static ctool_bool cir_type_is_value_scalar(const cir_context_t *context,
 static ctool_bool cir_type_is_truth_scalar(const cir_context_t *context,
                                            ctool_u32 type) {
   return cir_type_is_value_integer(context, type) == CTOOL_TRUE ||
-                 cir_type_is_i32_pointer_value(context, type) == CTOOL_TRUE
+                 cir_type_is_i32_pointer_value(context, type) == CTOOL_TRUE ||
+                 (cir_type_is_floating_value(context, type) == CTOOL_TRUE &&
+                  cir_type_has_atomic_qualification(context, type) ==
+                      CTOOL_FALSE)
              ? CTOOL_TRUE
              : CTOOL_FALSE;
 }
@@ -3886,11 +3889,11 @@ static ctool_bool cir_floating_conversion_is_valid(
             : (const ctool_c_type_layout_t *)0;
     ctool_bool represented_conversion =
         layout != (const ctool_c_type_layout_t *)0 &&
-                source->kind != CTOOL_C_TYPE_LONG_DOUBLE &&
                 cir_type_is_represented_integer(
                     context, target_type) == CTOOL_TRUE &&
-                target->kind != CTOOL_C_TYPE_BOOL &&
-                (layout->is_signed == CTOOL_TRUE || layout->size < 4u) &&
+                (target->kind == CTOOL_C_TYPE_BOOL ||
+                 (source->kind != CTOOL_C_TYPE_LONG_DOUBLE &&
+                  (layout->is_signed == CTOOL_TRUE || layout->size < 4u))) &&
                 (conversion == CTOOL_C_CONVERSION_NONE ||
                  conversion == CTOOL_C_CONVERSION_ASSIGNMENT)
             ? CTOOL_TRUE
@@ -5755,9 +5758,7 @@ static ctool_status_t cir_lower_unary(
       (logical_not == CTOOL_FALSE &&
        cir_type_is_value_integer(context, expression->type) ==
                CTOOL_FALSE &&
-       floating_unary == CTOOL_FALSE) ||
-      (logical_not == CTOOL_TRUE &&
-       cir_type_is_i32_integer(context, expression->type) == CTOOL_FALSE)) {
+       floating_unary == CTOOL_FALSE)) {
     return cir_unsupported_type(context, &expression->location);
   }
   if (operand.type != context->unit->expressions[child].type ||

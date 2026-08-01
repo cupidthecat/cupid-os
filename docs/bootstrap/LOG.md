@@ -18367,6 +18367,7 @@ The audit JSON has SHA-256
 `97180a45be2a6745b0bc1bbb3471567f7bd16f50716df8cfd1efa4a6879f8f25`,
 and the rendered summary has SHA-256
 `8ff843e1e4599d44250bb721b4b77aa01e5075590a83b7f4d64f388d3267a1e0`.
+
 ## 2026-08-01: Type CupidDis raw code and data ranges
 
 The existing raw map could switch between 16-bit and 32-bit decoding, but it
@@ -18459,3 +18460,92 @@ build still uses checked CupidDis for ELF symbol inspection, not raw image
 inspection. Production raw-map consumers, source-derived map generation,
 dynamic ELF, DWARF, the remaining bounded instruction domain, and native
 Windows self-hosting remain open. ADR 0200 records the decision.
+
+## 2026-08-01: Materialize hosted floating truth
+
+Hosted CupidC already transported and calculated with non-atomic `float`,
+`double`, and automatic `long double` values. It still rejected those values
+when C asked whether they were true. Unary `!`, `&&`, `||`, the controlling
+operand of `?:`, the conditions of `if`, `while`, `do`, and `for`, and
+conversion to `_Bool` all stopped at that boundary.
+
+The frontend now treats each represented non-atomic floating width as a
+scalar truth operand. It keeps atomic floating objects outside the supported
+load path and reports the established precise diagnostic. Linear IR retains
+the source width on logical-not, zero-branch, and Boolean-conversion records.
+Whole-unit validation rejects a forged atomic floating type before object
+emission, preserves the frozen unit and output buffers, and lets the same job
+recover with a valid unit.
+
+The i386 emitter compares `float` and `double` with SSE zero through
+`UCOMISS` or `UCOMISD`. It compares automatic `long double` with x87 zero
+through `FLDZ`, `FUCOMIP ST0, ST1`, and `FSTP ST0`. The x87 sequence finishes
+at its starting register-stack depth. An explicit parity branch handles
+unordered comparisons, so positive and negative zero are false while finite
+nonzero values, subnormals, infinities, and NaNs are true. The result is a
+normalized zero or one in EAX.
+
+`FLDZ` was added to the shared x86 model instead of being emitted as private
+bytes. Source head now has 591 forms, 244 canonical mnemonics, 64 registers,
+and fingerprint `DBE77533`. The model and CLI encode and decode operand-free
+`FLDZ` as `D9 EE`, round-trip it with the long-double comparison sequence,
+and reject an operand without publishing output.
+
+The work followed four public red-to-green slices. The x86 contract first
+failed because `FLDZ` did not exist. The frontend then failed at the old
+floating-cast diagnostic, Linear IR failed at unsupported truth operands, and
+the object contract reached its prior internal boundary. Each implementation
+step added positive coverage and a useful negative before moving on.
+
+A later semantic review found two weak tests. A hand-built IR record could
+retag a floating constant with `_Atomic float` and reach a lower layer, and
+the supposed long-double subnormal had first been promoted from binary64,
+where it is normal in the wider x87 range. The IR and emitter validators now
+reject the forged atomic type. The runtime contract now constructs the
+smallest positive 80-bit subnormal directly in the target twelve-byte layout
+and repeats its condition, logical-not, Boolean, and selection checks 32
+times. Those corrections landed before the final green run.
+
+The final Linear IR fixture has 13 functions and 96 instructions with
+fingerprint `67E16BF9D4C6FBA3`. The deterministic object fixture has nine
+functions, 855 text bytes, ten symbols including the null symbol, no
+relocations, and fingerprint `6B4D7E90`. Shared decoding finds eight `PXOR`,
+four `UCOMISS`, four `UCOMISD`, three `FLDZ`, three `FUCOMIP`, three x87
+`FSTP`, eleven parity branches, eight `SETE`, and three `SETNE` instructions.
+Constrained output, malformed metadata, deterministic repetition, rollback,
+and same-job recovery all pass.
+
+Native CupidC emitted the hosted runtime and contract objects, CupidASM built
+the startup object, and CupidLD linked a 76,052-byte static i386 executable
+with SHA-256
+`fefbb56f06d752681146cc6da2534c7d4ab445b4caa27911ef022a06d3f1d1e6`.
+Its Linux run exited with status zero, printed the expected four lines ending
+in `runtime-ok`, wrote the exact bytes `ok -12 0000002A\n`, and left the
+deliberately missing path absent.
+
+The stable frontend, IR, and object sweep passes all 284 tests in 959.317
+seconds. It includes the Cupid-built stage-two and stage-three source cohort,
+adapter linking, object determinism, runtime behavior, transactional
+failures, and recovery. A separate 41-test x86, x87, CupidDis, and CupidObj
+run passes in 11.551 seconds; the only skip is the Windows host's missing
+`/dev/full` device.
+
+The regenerated audit and its independent check pass with 717 active inputs,
+449 transforms, 254 feature requirements, and 25 classified unreachable
+files. Its active-source digest is
+`31a3a757763cd9f5ada368ed6b685b81410440101e7f8bccccb9191304d03249`.
+The audit JSON has SHA-256
+`b1bf9d4d4dfcb6f689008629ebff291c301406e43c87db408ec3048f8b8e0a2d`,
+the rendered summary has SHA-256
+`7caaf93fddff2e227cc222ab82f857c8310ec66c34d6838d7501bac0eabce0c0`,
+and the generated preprocessor cases remain at SHA-256
+`99e3ecac637d363c29a3eca25a2b7300a35f4ce2d119fa903490c964a47f87a1`.
+
+This capability changes no production owner and adds no host dependency.
+The repository seed still carries the earlier compiler and 587-form x86
+catalogue. Seed promotion and production use therefore remain separate
+commits. Hexadecimal and subnormal floating literals, `long double` literals,
+nonzero or floating static long-double initializers, integer conversions
+involving `long double` other than `_Bool`, conversion to unsigned four-byte
+integers, floating updates, general SIMD values, floating atomics, and
+over-aligned floating objects remain open. ADR 0202 records the decision.

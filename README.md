@@ -798,13 +798,16 @@ zero-initialization forms, a following four-byte argument, both old-style call
 forms, and result transport through x87 `ST0`. All six comparisons accept
 matching long-double values and mixed `float` or `double` inputs. The emitter
 uses `FUCOMIP`, balances the x87 stack, treats signed zeros as equal, and makes
-only `!=` true for an unordered input. Direct floating truth,
-hexadecimal and subnormal floating literals, `long double` literals, nonzero
-or floating static long-double initializers, integer conversions
-involving `long double`, conversion to unsigned four-byte integers
-or `_Bool`, mixed integer and floating conditional arms, floating increment
-and decrement, SIMD values, floating atomics, and over-aligned emission
-remain open.
+only `!=` true for an unordered input. Runtime `float`, `double`, and
+automatic `long double` values also work with unary `!`, `&&`, `||`, the
+controlling operand of `?:`, the conditions of `if`, `while`, `do`, and
+`for`, and conversion to `_Bool`. Both signed zeros are false; finite nonzero values, subnormals,
+infinities, and NaNs are true. Hexadecimal and subnormal floating literals,
+`long double` literals, nonzero or floating static long-double initializers,
+integer conversions involving `long double` other than `_Bool`, conversion to
+unsigned four-byte integers, mixed integer and floating conditional arms,
+floating increment and decrement, SIMD values, floating atomics, and
+over-aligned emission remain open. ADR 0202 records the truth boundary.
 
 Plain assignment, all ten compound assignments, and prefix or postfix increment and decrement now work for represented non-atomic bit fields in four-byte storage units. Linear IR keeps the selected member and evaluates the record address once. Partial fields preserve neighboring bits, and postfix updates retain the extracted old value through the store so width wrap does not change the result. Narrow unsigned fields promote to signed `int` when their values fit. A volatile 32-bit field uses one read and one direct store. An execution oracle proves that `states[(*index)++].value++` advances its side-effecting index exactly once. Partial volatile mutation, atomic bit-field access, and non-four-byte storage units remain open. The plain-assignment contracts still pin Doom's unchanged `colors[index].r = value` shape.
 
@@ -1253,7 +1256,7 @@ CupidScript (`cupidscript*.cc`) is a shell scripting language for `.cup` files:
 - Arrays, string operations
 - Calls shell commands and kernel functions directly
 
-CupidDis is the shared x86-32 disassembler and ELF inspector used by the hosted CLI and the kernel `dis` and `exec -d` adapters. Raw input accepts one 16-bit or 32-bit mode, or an ordered range map that classifies a flat image as 16-bit code, 32-bit code, or literal data. The hosted form is `cupiddis --raw --mode 16|32 [--range-at OFFSET:16|32|data]... --base ADDRESS FILE`; `--mode-at OFFSET:16|32` remains a code-only alias. CupidDis validates the ordered starts and source bounds. It sends code ranges to the shared x86 decoder and writes data ranges as `db` rows without decoding them. The active SMP trampoline map marks code at offsets `0x000..0x01f` and `0x210..0x254`, with data everywhere else in its 4,096-byte image. The shared x86 model covers all sixteen i686 conditional moves for 16-bit and 32-bit register or memory sources. It also covers three-operand `IMUL` with same-width register or memory sources, using `69 /r` for a full immediate and `6B /r` when the value fits a sign-extended byte. Ordinary compiler padding includes plain `90`, `66 90`, and word or doubleword `0F 1F /0` register and memory forms. A private 32-bit decoder exception recognizes the five exact Clang forms with two through six leading `66` bytes and the fixed `2E 0F 1F 84 00 00 00 00 00` tail. Other repeated prefixes remain invalid, and CupidASM cannot emit the redundant forms. CupidASM accepts the conditional-move aliases, chooses the shortest valid multiply encoding, and applies the current mode's default width to a memory NOP. Source head has 590 forms, 243 canonical mnemonics, and fingerprint `74EC8312`. Its newest i686 form encodes and decodes `FUCOMIP ST0, ST(i)` for long-double comparisons. The repository seed retains the earlier 587-form catalogue and rebuilds the current model during the checked fixed point. ADR 0200 records the typed raw-range contract.
+CupidDis is the shared x86-32 disassembler and ELF inspector used by the hosted CLI and the kernel `dis` and `exec -d` adapters. Raw input accepts one 16-bit or 32-bit mode, or an ordered range map that classifies a flat image as 16-bit code, 32-bit code, or literal data. The hosted form is `cupiddis --raw --mode 16|32 [--range-at OFFSET:16|32|data]... --base ADDRESS FILE`; `--mode-at OFFSET:16|32` remains a code-only alias. CupidDis validates the ordered starts and source bounds. It sends code ranges to the shared x86 decoder and writes data ranges as `db` rows without decoding them. In the active 4,096-byte SMP trampoline map, code occupies `[0x000, 0x01f)` and `[0x210, 0x254)`; data occupies `[0x01f, 0x210)` and `[0x254, 0x1000)`. The shared x86 model covers all sixteen i686 conditional moves for 16-bit and 32-bit register or memory sources. It also covers three-operand `IMUL` with same-width register or memory sources, using `69 /r` for a full immediate and `6B /r` when the value fits a sign-extended byte. Ordinary compiler padding includes plain `90`, `66 90`, and word or doubleword `0F 1F /0` register and memory forms. A private 32-bit decoder exception recognizes the five exact Clang forms with two through six leading `66` bytes and the fixed `2E 0F 1F 84 00 00 00 00 00` tail. Other repeated prefixes remain invalid, and CupidASM cannot emit the redundant forms. CupidASM accepts the conditional-move aliases, chooses the shortest valid multiply encoding, and applies the current mode's default width to a memory NOP. Source head has 591 forms, 244 canonical mnemonics, and fingerprint `DBE77533`. The newest forms include `FUCOMIP ST0, ST(i)` for long-double comparisons and operand-free `FLDZ` for floating truth tests. The repository seed retains the earlier 587-form catalogue and rebuilds the current model during the checked fixed point. ADR 0200 records the typed raw-range contract, and ADR 0202 records `FLDZ` ownership.
 
 ### Program execution
 

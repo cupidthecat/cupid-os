@@ -316,6 +316,156 @@ typedef union {
   } words;
 } long_double_result_box;
 
+typedef union {
+  float value;
+  unsigned int bits;
+} floating_truth_float_box;
+
+typedef union {
+  long double value;
+  struct {
+    unsigned int significand_low;
+    unsigned int significand_high;
+    unsigned int sign_exponent_padding;
+  } words;
+} floating_truth_long_box;
+
+static unsigned int floating_truth_side_effect_count;
+
+static float floating_truth_side_effect(void) {
+  floating_truth_side_effect_count++;
+  return 1.0f;
+}
+
+static int floating_truth_contract(void) {
+  floating_truth_float_box narrow_box;
+  long_double_result_box wide_box;
+  floating_truth_long_box long_box;
+  float narrow_zero = 0.0f;
+  float narrow_negative_zero = -0.0f;
+  float narrow_finite = 1.5f;
+  float narrow_subnormal;
+  float narrow_infinity;
+  float narrow_quiet_nan;
+  float narrow_signaling_nan;
+  double wide_zero = 0.0;
+  double wide_negative_zero = -0.0;
+  double wide_finite = 2.5;
+  double wide_subnormal;
+  double wide_infinity;
+  double wide_quiet_nan;
+  double wide_signaling_nan;
+  long double long_subnormal;
+  long double long_infinity;
+  unsigned int iterations = 0u;
+  unsigned int long_truth_checks;
+  _Bool narrow_truth;
+  _Bool wide_truth;
+  _Bool long_truth;
+  int selected;
+
+  narrow_box.bits = 1u;
+  narrow_subnormal = narrow_box.value;
+  narrow_box.bits = 0x7f800000u;
+  narrow_infinity = narrow_box.value;
+  narrow_box.bits = 0x7fc00001u;
+  narrow_quiet_nan = narrow_box.value;
+  narrow_box.bits = 0x7f800001u;
+  narrow_signaling_nan = narrow_box.value;
+  wide_box.words.low = 1u;
+  wide_box.words.high = 0u;
+  wide_subnormal = wide_box.value;
+  wide_box.words.low = 0u;
+  wide_box.words.high = 0x7ff00000u;
+  wide_infinity = wide_box.value;
+  wide_box.words.low = 1u;
+  wide_box.words.high = 0x7ff80000u;
+  wide_quiet_nan = wide_box.value;
+  wide_box.words.low = 1u;
+  wide_box.words.high = 0x7ff00000u;
+  wide_signaling_nan = wide_box.value;
+  long_box.words.significand_low = 1u;
+  long_box.words.significand_high = 0u;
+  long_box.words.sign_exponent_padding = 0u;
+  long_subnormal = long_box.value;
+  long_infinity = (long double)wide_infinity;
+
+  if (narrow_zero || narrow_negative_zero || !narrow_finite ||
+      !narrow_subnormal || !narrow_infinity || !narrow_quiet_nan ||
+      !narrow_signaling_nan) {
+    return 651;
+  }
+  if (wide_zero || wide_negative_zero || !wide_finite ||
+      !wide_subnormal || !wide_infinity || !wide_quiet_nan ||
+      !wide_signaling_nan) {
+    return 652;
+  }
+  if ((!narrow_zero) != 1 || (!narrow_negative_zero) != 1 ||
+      (!narrow_finite) != 0 || (!narrow_quiet_nan) != 0 ||
+      (!wide_zero) != 1 || (!wide_negative_zero) != 1 ||
+      (!wide_finite) != 0 || (!wide_quiet_nan) != 0) {
+    return 653;
+  }
+  narrow_truth = narrow_quiet_nan;
+  wide_truth = (_Bool)wide_subnormal;
+  long_truth = (_Bool)(long double)wide_quiet_nan;
+  if ((_Bool)narrow_zero != 0 || (_Bool)narrow_negative_zero != 0 ||
+      (_Bool)wide_zero != 0 || (_Bool)wide_negative_zero != 0 ||
+      (_Bool)narrow_finite != 1 || (_Bool)narrow_subnormal != 1 ||
+      (_Bool)narrow_infinity != 1 || (_Bool)narrow_signaling_nan != 1 ||
+      (_Bool)wide_finite != 1 || (_Bool)wide_infinity != 1 ||
+      (_Bool)wide_quiet_nan != 1 || (_Bool)wide_signaling_nan != 1 ||
+      (_Bool)long_subnormal != 1 || (_Bool)long_infinity != 1 ||
+      narrow_truth != 1 || wide_truth != 1 || long_truth != 1) {
+    return 659;
+  }
+  for (long_truth_checks = 0u; long_truth_checks < 32u;
+       long_truth_checks++) {
+    if (long_subnormal) {
+      long_truth = (_Bool)long_subnormal;
+    } else {
+      return 660;
+    }
+    if ((!long_subnormal) != 0 || long_truth != 1 ||
+        (long_subnormal ? 1 : 0) != 1) {
+      return 661;
+    }
+  }
+
+  floating_truth_side_effect_count = 0u;
+  if (narrow_zero && floating_truth_side_effect()) {
+    return 654;
+  }
+  if (!(narrow_finite || floating_truth_side_effect()) ||
+      floating_truth_side_effect_count != 0u) {
+    return 655;
+  }
+  if (!(narrow_zero || floating_truth_side_effect()) ||
+      !(wide_finite && floating_truth_side_effect()) ||
+      floating_truth_side_effect_count != 2u) {
+    return 656;
+  }
+
+  selected = narrow_quiet_nan ? 7 : 9;
+  if (selected != 7) {
+    return 657;
+  }
+  while (narrow_finite) {
+    iterations++;
+    narrow_finite = narrow_zero;
+  }
+  for (; wide_finite; wide_finite = wide_zero) {
+    iterations++;
+  }
+  do {
+    iterations++;
+  } while (wide_zero);
+  if (iterations != 3u) {
+    return 658;
+  }
+  return 0;
+}
+
 typedef struct {
   long double first;
   unsigned int marker;
@@ -485,6 +635,23 @@ static int long_double_contract(void) {
   box.words.low = 1u;
   box.words.high = 0x7ff80000u;
   quiet_nan = (long double)box.value;
+  if (zero || negative_zero || !lower || !higher || !quiet_nan ||
+      (!zero) != 1 || (!negative_zero) != 1 || (!lower) != 0 ||
+      (!quiet_nan) != 0) {
+    return 717;
+  }
+  floating_truth_side_effect_count = 0u;
+  if (zero && floating_truth_side_effect()) {
+    return 718;
+  }
+  if (!(quiet_nan || floating_truth_side_effect()) ||
+      floating_truth_side_effect_count != 0u) {
+    return 719;
+  }
+  tail = quiet_nan ? 0xa5c39e71u : 0u;
+  if (tail != 0xa5c39e71u) {
+    return 720;
+  }
   if (quiet_nan == lower || !(quiet_nan != lower) || quiet_nan < lower ||
       quiet_nan <= lower || quiet_nan > lower || quiet_nan >= lower) {
     return 713;
@@ -502,7 +669,9 @@ static int long_double_contract(void) {
         quiet_nan > lower || quiet_nan >= lower ||
         lower == quiet_nan || !(lower != quiet_nan) ||
         lower < quiet_nan || lower <= quiet_nan ||
-        lower > quiet_nan || lower >= quiet_nan) {
+        lower > quiet_nan || lower >= quiet_nan ||
+        (!zero) != 1 || (!lower) != 0 || (!quiet_nan) != 0 ||
+        !(lower && quiet_nan) || !(zero || lower)) {
       return 715;
     }
   }
@@ -604,6 +773,9 @@ int runtime_contract_run(int argc, char **argv) {
   }
   if (result == 0) {
     result = integer_contract();
+  }
+  if (result == 0) {
+    result = floating_truth_contract();
   }
   if (result == 0) {
     result = long_double_contract();
