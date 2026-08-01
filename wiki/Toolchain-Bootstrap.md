@@ -427,7 +427,17 @@ CupidDis accepts every one of the 428 active i386 ELF objects, including all
 current symbols and relocations. Cupid-built objects, checked tool images, and
 user executables have no unsupported instruction fallback. The remaining
 measured gap comes from a legacy native-oracle kernel and Doom corpus, not an
-active host-owned build path. The shared catalogue
+active host-owned build path.
+
+Raw inspection uses an ordered range map with 16-bit code, 32-bit code, and
+data kinds. Code ranges enter the shared decoder, while data ranges print as
+literal `db` rows. The active SMP trampoline test assembles the unchanged
+4,096-byte source and marks `0x000..0x01f` as code16, `0x01f..0x210` as data,
+`0x210..0x254` as code32, and the remaining bytes as data. Two CLI renders
+match, and neither data interval produces invented instructions. This changes
+no production owner because the normal build uses CupidDis's ELF symbol view.
+
+The shared catalogue
 now covers 16-bit and 32-bit three-operand `IMUL` through both `69 /r` and
 `6B /r`. It also covers ordinary compiler padding from `66 90` through the
 ten-byte `66 2E 0F 1F 84 00 00 00 00 00` form. An independent census found

@@ -1,3 +1,4 @@
+import hashlib
 import os
 import shutil
 import struct
@@ -52,6 +53,7 @@ class CupidDisContractTests(unittest.TestCase):
         cls.contract_path = build_path / ("cupiddis-contract" + suffix)
         cls.elf_contract_path = build_path / ("elf32-contract" + suffix)
         cls.cli_path = build_path / ("cupiddis" + suffix)
+        cls.asm_path = build_path / ("cupidasm" + suffix)
         relative_prefix = relative_build.as_posix()
         result = subprocess.run(
             [
@@ -62,6 +64,7 @@ class CupidDisContractTests(unittest.TestCase):
                 f"{relative_prefix}/cupiddis-contract{suffix}",
                 f"{relative_prefix}/elf32-contract{suffix}",
                 f"{relative_prefix}/cupiddis{suffix}",
+                f"{relative_prefix}/cupidasm{suffix}",
             ],
             cwd=REPO_ROOT,
             text=True,
@@ -98,6 +101,19 @@ class CupidDisContractTests(unittest.TestCase):
             Path(cls._fixture_directory.name) / "mixed-mode.bin"
         )
         cls.mixed_raw_path.write_bytes(
+            bytes(
+                [
+                    0xB8, 0x34, 0x12,
+                    0x00, 0x00, 0x90, 0xC3,
+                    0xB8, 0x78, 0x56, 0x34, 0x12,
+                    0xB8, 0xCD, 0xAB, 0xC3,
+                ]
+            )
+        )
+        cls.mode_alias_path = (
+            Path(cls._fixture_directory.name) / "code-only-modes.bin"
+        )
+        cls.mode_alias_path.write_bytes(
             bytes(
                 [
                     0xB8, 0x34, 0x12,
@@ -255,9 +271,10 @@ class CupidDisContractTests(unittest.TestCase):
                 str(self.cli_path),
                 "--raw",
                 "--mode=16",
-                "--mode-at",
-                "3:32",
-                "--mode-at=8:16",
+                "--range-at",
+                "3:data",
+                "--range-at=7:32",
+                "--range-at=12:16",
                 "--base",
                 "0x7c00",
                 str(self.mixed_raw_path),
@@ -270,8 +287,11 @@ class CupidDisContractTests(unittest.TestCase):
         self.assertIn("00007C00", decoded.stdout)
         self.assertIn("mov ax, 0x1234", decoded.stdout)
         self.assertIn("00007C03", decoded.stdout)
+        self.assertIn("db 0x00, 0x00, 0x90, 0xC3", decoded.stdout)
+        self.assertNotIn("add byte", decoded.stdout)
+        self.assertIn("00007C07", decoded.stdout)
         self.assertIn("mov eax, 0x12345678", decoded.stdout)
-        self.assertIn("00007C08", decoded.stdout)
+        self.assertIn("00007C0C", decoded.stdout)
         self.assertIn("mov ax, 0xABCD", decoded.stdout)
 
         duplicate_start = subprocess.run(
@@ -289,8 +309,95 @@ class CupidDisContractTests(unittest.TestCase):
         )
         self.assertEqual(duplicate_start.returncode, 1)
         self.assertIn(
-            "raw mode map offsets must increase", duplicate_start.stderr
+            "raw range starts must increase without overlap",
+            duplicate_start.stderr,
         )
+
+        outside_input = subprocess.run(
+            [
+                str(self.cli_path),
+                "--raw",
+                "--mode=16",
+                f"--range-at={len(self.mixed_raw_path.read_bytes())}:data",
+                "--base=0x7c00",
+                str(self.mixed_raw_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(outside_input.returncode, 1)
+        self.assertIn("raw range start is outside input", outside_input.stderr)
+
+        code_only_alias = subprocess.run(
+            [
+                str(self.cli_path),
+                "--raw",
+                "--mode=16",
+                "--mode-at=3:32",
+                "--mode-at=8:16",
+                "--base=0x7c00",
+                str(self.mode_alias_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(code_only_alias.returncode, 0, code_only_alias.stderr)
+        self.assertIn("mov eax, 0x12345678", code_only_alias.stdout)
+        self.assertIn("00007C08", code_only_alias.stdout)
+
+    def test_cli_typed_ranges_follow_the_active_smp_trampoline_layout(self):
+        trampoline = Path(self._fixture_directory.name) / "smp-trampoline.bin"
+        assembled = subprocess.run(
+            [
+                str(self.asm_path),
+                "-f",
+                "bin",
+                str(REPO_ROOT / "kernel" / "smp" / "smp_trampoline.S"),
+                "-o",
+                str(trampoline),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(assembled.returncode, 0, assembled.stderr)
+        image = trampoline.read_bytes()
+        self.assertEqual(len(image), 4096)
+        self.assertEqual(
+            hashlib.sha256(image).hexdigest(),
+            "b738ebb68f28b9b07e330761f4e9a7898f0424ab0a3835cd6079ae7d4a189e90",
+        )
+
+        command = [
+            str(self.cli_path),
+            "--raw",
+            "--mode=16",
+            "--range-at=0x1f:data",
+            "--range-at=0x210:32",
+            "--range-at=0x254:data",
+            "--base=0x8000",
+            str(trampoline),
+        ]
+        decoded = subprocess.run(
+            command, cwd=REPO_ROOT, text=True, capture_output=True
+        )
+        repeated = subprocess.run(
+            command, cwd=REPO_ROOT, text=True, capture_output=True
+        )
+        self.assertEqual(decoded.returncode, 0, decoded.stderr)
+        self.assertEqual(repeated.returncode, 0, repeated.stderr)
+        self.assertEqual(decoded.stdout, repeated.stdout)
+        self.assertIn("00008000", decoded.stdout)
+        self.assertIn("cli", decoded.stdout)
+        self.assertIn("0000801F", decoded.stdout)
+        self.assertIn("db 0x00", decoded.stdout)
+        self.assertIn("00008210", decoded.stdout)
+        self.assertIn("mov ax, 0x10", decoded.stdout)
+        self.assertIn("00008254", decoded.stdout)
+        self.assertNotIn("add byte [bx+si], al", decoded.stdout)
+        self.assertNotIn("add byte [eax], al", decoded.stdout)
 
     def test_cli_distinguishes_usage_and_processing_failures(self):
         not_elf = subprocess.run(

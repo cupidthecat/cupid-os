@@ -143,18 +143,21 @@ operand does not fit the 16-bit field. CupidDis renders `C2 04 00` as
 
 ### Inspecting mixed-mode raw output
 
-Hosted CupidDis can inspect a flat image that changes between 16-bit and
-32-bit code without splitting the file. Start with `--mode 16` or `--mode 32`,
-then add each later transition with `--mode-at OFFSET:16|32`:
+Hosted CupidDis can inspect a flat image that mixes 16-bit code, 32-bit code,
+and data without splitting the file. Start with `--mode 16` or `--mode 32`,
+then add each later range with `--range-at OFFSET:16|32|data`:
 
 ```text
-cupiddis --raw --mode 16 --mode-at 0x80:32 --mode-at 0x140:16 \
-    --base 0x7c00 boot.bin
+cupiddis --raw --mode 16 --range-at 0x1f:data --range-at 0x210:32 \
+    --range-at 0x254:data \
+    --base 0x8000 kernel/smp_trampoline.bin
 ```
 
 Offsets are relative to the start of the file. They must increase and remain
-inside the input. CupidDis checks those rules, but the caller is responsible
-for placing each transition between instructions.
+inside the input. CupidDis decodes code ranges and prints data ranges as `db`
+rows. The caller is responsible for placing each code transition between
+instructions. The older `--mode-at OFFSET:16|32` spelling remains available
+when every range contains code.
 
 ### Hosted i386 commands
 

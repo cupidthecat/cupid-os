@@ -18367,3 +18367,95 @@ The audit JSON has SHA-256
 `97180a45be2a6745b0bc1bbb3471567f7bd16f50716df8cfd1efa4a6879f8f25`,
 and the rendered summary has SHA-256
 `8ff843e1e4599d44250bb721b4b77aa01e5075590a83b7f4d64f388d3267a1e0`.
+## 2026-08-01: Type CupidDis raw code and data ranges
+
+The existing raw map could switch between 16-bit and 32-bit decoding, but it
+still sent every byte to the x86 decoder. That made the active SMP trampoline
+a useful counterexample. Its 16-bit startup occupies offsets `0x000..0x01f`,
+tables and padding occupy `0x01f..0x210`, its 32-bit entry occupies
+`0x210..0x254`, and padding fills the rest of the 4,096-byte image. The old
+map presented those 3,997 non-code bytes as instructions, mostly repeated
+`add byte` rows.
+
+The public map now uses code16, code32, and data range kinds. The canonical
+selector is `CTOOL_DIS_RAW_RANGE_MAP`; the earlier
+`CTOOL_DIS_RAW_MODE_MAP` name remains as an alias for that selector.
+Ordered starts still partition the whole input, so the API needs no separate
+end offsets or gap policy. Data ranges bypass `ctool_x86_decode`, render as
+bounded `db` rows, and stop at labels so each label keeps its exact address.
+
+The CLI adds `--range-at OFFSET:16|32|data`. The first code kind still comes
+from `--mode 16|32`, and `--mode-at OFFSET:16|32` remains a tested code-only
+alias. Invalid kinds, starts at or beyond the end of the input, and duplicate
+or decreasing starts have separate diagnostics. Inspection leaves a zeroed
+report on failure. Rendering rejects a changed report before writing, and a
+later valid request on the same job succeeds.
+
+The work followed three public red-to-green slices:
+
+- The C contract first failed to compile because the range-kind API and its
+  constants did not exist. It passed after the typed record, validation, and
+  literal data renderer were added.
+- The diagnostic contract then failed on the old mode-map wording. It passed
+  after range-kind, input-bound, and overlap messages were made specific and
+  the changed-report case covered an invalid borrowed kind.
+- The CLI contract first returned usage status 2 for `--range-at`. It passed
+  after the parser accepted typed transitions and kept `--mode-at` limited to
+  code kinds.
+
+The active integration test assembles unchanged
+`kernel/smp/smp_trampoline.S` with CupidASM. It produces the established
+4,096-byte image with SHA-256
+`b738ebb68f28b9b07e330761f4e9a7898f0424ab0a3835cd6079ae7d4a189e90`.
+CupidDis renders that image twice with identical output, resumes 32-bit
+decoding at address `0x8210`, starts literal data at `0x801f` and `0x8254`,
+and emits neither of the false zero-byte `add` forms. The hosted CupidDis test
+module passes 15 tests; the late-output `/dev/full` case is skipped on Windows
+because that device is unavailable.
+
+`make -C toolchain all` passes in 3,636.5 seconds. The checked seed builds the
+complete stage-two contract cohort, stage two builds stage three, and all 20
+published objects and executables match across the two stages. Both stages
+compile and link the changed CupidDis contract. The hosted runtime contract
+passes, and the live inputs still match the frozen private source tree.
+
+The next `make -C toolchain test` run reused that cohort, passed every earlier
+selector, and entered the frontend aggregate-value case. It stopped on the
+intentional Toolchain source-frontier lock for changed `cupiddis.cc`.
+The new parsed shape is 71 function definitions, 1,594 statements, 10,331
+expressions, 162 block bindings, and 124 initializers. The unchanged static
+`hex` initializer also moved from line 322 to line 336. Both locks were updated
+from the contract's measured output, and the focused native aggregate-value
+selector passes in 11.382 seconds. The combined integration branch will rerun
+the authoritative checked cohort after the other sequential changes land.
+
+The final focused run passes 48 tests in 19.635 seconds. It includes all 15
+CupidDis module cases, active CupidASM raw-source parity, the corrected
+frontend frontier selector, and the 31 Toolchain contract-plan tests. The one
+skip is the Windows host's missing `/dev/full` device. The active build audit
+regeneration and independent drift check both pass with 717 active sources,
+449 transforms, 253 feature requirements, 25 classified unreachable files,
+and active-source digest
+`66804e844892c42a8ebdd24b7b84ad10e3aea8e744f43193a1df9610c53c0a86`.
+The audit JSON has SHA-256
+`10c51ac566a52e25ec862171fe3312d4412745b19caf4299dd4e653fec808e37`,
+the rendered summary has SHA-256
+`d9025b28bc835ac15e2ec4ed90c3b00e556804c1ecdde63432128cd470ff3113`,
+and the generated preprocessor cases remain unchanged at SHA-256
+`99e3ecac637d363c29a3eca25a2b7300a35f4ce2d119fa903490c964a47f87a1`.
+The final post-audit replay passes the 15 CupidDis cases and the corrected
+frontend selector in 20.338 seconds, with the same Windows-only skip.
+
+Teaching the x86 decoder about tables was rejected because the bytes have no
+instruction meaning. Splitting the image into several files was rejected
+because it would fragment labels, addresses, and output order. Explicit range
+ends were rejected because ordered starts already describe a complete,
+gap-free partition and avoid separate gap and overlap states. Automatic
+code/data inference remains out of scope because a flat binary does not carry
+reliable type metadata.
+
+This capability changes no production owner or host dependency. The normal
+build still uses checked CupidDis for ELF symbol inspection, not raw image
+inspection. Production raw-map consumers, source-derived map generation,
+dynamic ELF, DWARF, the remaining bounded instruction domain, and native
+Windows self-hosting remain open. ADR 0200 records the decision.

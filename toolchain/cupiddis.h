@@ -31,15 +31,23 @@ typedef struct {
   ctool_string_t name;
 } ctool_dis_label_t;
 
-#define CTOOL_DIS_RAW_MODE_MAP ((ctool_x86_mode_t)0)
+#define CTOOL_DIS_RAW_RANGE_MAP ((ctool_x86_mode_t)0)
+/* Compatibility alias for the former map selector. */
+#define CTOOL_DIS_RAW_MODE_MAP CTOOL_DIS_RAW_RANGE_MAP
+
+typedef enum {
+  CTOOL_DIS_RAW_RANGE_CODE16 = 1,
+  CTOOL_DIS_RAW_RANGE_CODE32,
+  CTOOL_DIS_RAW_RANGE_DATA
+} ctool_dis_raw_range_kind_t;
 
 /* A mapped raw request starts with one range at offset zero.  Later ranges
- * change decoding mode at strictly increasing byte offsets.  The caller owns
- * instruction-boundary selection.  A fixed-mode request leaves the range
+ * change the code or data kind at strictly increasing byte offsets.  The
+ * caller owns boundary selection.  A fixed-mode request leaves the range
  * pointer null and the count zero. */
 typedef struct {
   ctool_u32 offset;
-  ctool_x86_mode_t mode;
+  ctool_dis_raw_range_kind_t kind;
 } ctool_dis_raw_range_t;
 
 typedef struct {

@@ -441,9 +441,9 @@ _Avoid_: PAUSE, arbitrary repeated legacy prefixes, treating every `0F 1F /r` gr
 Five exact 32-bit decode-only alignment NOPs with two through six leading `66` bytes followed by `2E 0F 1F 84 00 00 00 00 00`. They preserve the general rule that other repeated legacy prefixes are invalid and have no encodable form.
 _Avoid_: a general repeated-prefix grammar, CupidASM output, a catalogue form
 
-**Raw mode map**:
-An ordered set of borrowed byte ranges that assigns 16-bit or 32-bit x86 decoding to one flat image. The first range starts at offset zero. Later offsets increase within the source, and the caller places each transition at an instruction boundary.
-_Avoid_: automatic mode detection, one mode per retained instruction
+**Raw range map**:
+An ordered set of borrowed byte ranges that classifies one flat image as 16-bit code, 32-bit code, or literal data. The first range starts at offset zero, and later starts increase within the source. CupidDis decodes code ranges and renders data ranges as `db` rows without entering the x86 decoder. The caller places code transitions at instruction boundaries.
+_Avoid_: raw mode map, automatic code or mode detection, one kind per retained instruction
 
 ### Bootstrap
 

@@ -417,7 +417,7 @@ dependency. The checked seed carries this evaluator into the production Doom
 automap object. Both checked compiler stages build its contracts. GCC or Clang
 builds only the optional native copy.
 
-Mixed-mode raw inspection also leaves the dependency inventory unchanged. CupidDis accepts borrowed ordered 16/32-bit ranges, and its hosted CLI exposes `--mode-at OFFSET:16|32`. The checked CupidDis executable owns normal kernel-symbol inspection, though that ELF input does not need a raw map. Both checked compiler stages rebuild the hosted CLI, and checked CupidC builds the in-kernel adapter. GCC or Clang builds only the optional native copy.
+Typed raw inspection leaves the dependency inventory unchanged. CupidDis accepts borrowed ordered code16, code32, and data ranges. Its hosted CLI exposes `--range-at OFFSET:16|32|data` and retains `--mode-at OFFSET:16|32` for code-only changes. The checked CupidDis executable owns normal kernel-symbol inspection, though that ELF input does not need a raw map. Both checked compiler stages rebuild the hosted CLI, and checked CupidC builds the in-kernel adapter. GCC or Clang builds only the optional native copy.
 
 The self-host source frontier also retires no dependency. Hosted CupidC emits deterministic i386 ELF32 objects for all fourteen files in issue #27's CupidC, CupidASM, and CupidDis cohort. Ten cohort files use the hermetic profile. `kernel/lang/as_elf.cc` is the kernel bridge, and the hosted adapters use Cupid-owned i386 Linux declarations for their runtime interfaces. The profile rejects a missing or non-32-bit pointer fact. The gate also covers complete CupidLD and CupidObj command closures. Adapter checks lock the named undefined imports and every text relocation.
 
