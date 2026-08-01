@@ -389,12 +389,17 @@ Clang and its Windows linker, so this is not a native Windows fixed point.
 
 CupidObj also has a self-hosted `install-source` command for all three table
 formats. It validates each path category, rejects duplicate and mixed lists,
-limits one inventory to 512 paths, and preserves an existing output after a
-failure. Native and Cupid-built commands reproduce the current bin, docs, and
-demos tables byte for byte against the Python oracle. The normal Make recipes
-now run the checked command for all three outputs and depend on the complete
-CupidObj trust inputs. `tools/hostbuild.py` remains the oracle and retains its
-other build roles, but it no longer generates these production sources.
+limits the combined request to 512 paths without overflowing its count, keeps
+caller order across mixed asset extensions, and preserves an existing output
+after a failure. The source implementation and Python oracle carry those
+corrections; the next checked-seed promotion will carry them into production.
+The current active inventories stay below the limit and use the same order, so
+their bytes do not change. Native and Cupid-built commands reproduce the
+current bin, docs, and demos tables byte for byte against the Python oracle.
+The normal Make recipes run the checked command for all three outputs and
+depend on the complete CupidObj trust inputs. `tools/hostbuild.py` remains the
+oracle and retains its other build roles, but it no longer generates these
+production sources.
 [ADR 0201](docs/adr/0201-generate-installation-source-with-cupidobj.md)
 records the capability, and
 [ADR 0203](docs/adr/0203-promote-toolchain-capabilities-seed.md) records its

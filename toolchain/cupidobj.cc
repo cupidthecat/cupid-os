@@ -642,32 +642,40 @@ static ctool_status_t obj_install_output_failure(
                           "CupidObj could not emit installation source");
 }
 
+static ctool_bool obj_install_count_fits(ctool_u32 count,
+                                         ctool_u32 *total) {
+  if (count > CTOOL_OBJ_INSTALL_PATH_LIMIT ||
+      *total > CTOOL_OBJ_INSTALL_PATH_LIMIT - count) {
+    return CTOOL_FALSE;
+  }
+  *total += count;
+  return CTOOL_TRUE;
+}
+
+static ctool_status_t obj_install_validate_path_limit(
+    ctool_job_t *job, const ctool_obj_request_t *request) {
+  const ctool_obj_install_source_request_t *install =
+      &request->as.install_source;
+  ctool_u32 total = 0u;
+  if (obj_install_count_fits(install->bin_count, &total) == CTOOL_FALSE ||
+      obj_install_count_fits(install->header_count, &total) == CTOOL_FALSE ||
+      obj_install_count_fits(install->browser_count, &total) == CTOOL_FALSE ||
+      obj_install_count_fits(install->ctxt_count, &total) == CTOOL_FALSE ||
+      obj_install_count_fits(install->doc_asset_count, &total) == CTOOL_FALSE ||
+      obj_install_count_fits(install->home_asset_count, &total) == CTOOL_FALSE ||
+      obj_install_count_fits(install->demo_count, &total) == CTOOL_FALSE) {
+    return obj_emit_failure(job, request->input, CTOOL_ERR_LIMIT,
+                            CTOOL_OBJ_DIAG_LIMIT, 0u,
+                            "CupidObj installation inventory exceeds 512 paths");
+  }
+  return CTOOL_OK;
+}
+
 static ctool_status_t obj_install_demos(
     ctool_job_t *job, const ctool_obj_request_t *request,
     ctool_buffer_t *output, ctool_obj_result_t *result_out) {
   const ctool_obj_install_source_request_t *install =
       &request->as.install_source;
-  ctool_u32 total_count;
-  if (install->bin_count > CTOOL_OBJ_INSTALL_PATH_LIMIT ||
-      install->header_count > CTOOL_OBJ_INSTALL_PATH_LIMIT ||
-      install->browser_count > CTOOL_OBJ_INSTALL_PATH_LIMIT ||
-      install->ctxt_count > CTOOL_OBJ_INSTALL_PATH_LIMIT ||
-      install->doc_asset_count > CTOOL_OBJ_INSTALL_PATH_LIMIT ||
-      install->home_asset_count > CTOOL_OBJ_INSTALL_PATH_LIMIT ||
-      install->demo_count > CTOOL_OBJ_INSTALL_PATH_LIMIT) {
-    return obj_emit_failure(job, request->input, CTOOL_ERR_LIMIT,
-                            CTOOL_OBJ_DIAG_LIMIT, 0u,
-                            "CupidObj installation inventory exceeds 512 paths");
-  }
-  total_count = install->bin_count + install->header_count +
-                install->browser_count + install->ctxt_count +
-                install->doc_asset_count + install->home_asset_count +
-                install->demo_count;
-  if (total_count > CTOOL_OBJ_INSTALL_PATH_LIMIT) {
-    return obj_emit_failure(job, request->input, CTOOL_ERR_LIMIT,
-                            CTOOL_OBJ_DIAG_LIMIT, 0u,
-                            "CupidObj installation inventory exceeds 512 paths");
-  }
   ctool_u32 index;
   ctool_status_t status;
   if (install->demo_paths == (const ctool_string_t *)0 ||
@@ -1184,8 +1192,9 @@ static ctool_status_t obj_install_docs(
   const ctool_obj_install_source_request_t *install =
       &request->as.install_source;
   static const char *home_extensions[] = {"bmp", "png", "jpg", "jpeg"};
+  static const char *home_symbol_suffixes[] = {"_bmp", "_png", "_jpg",
+                                               "_jpeg"};
   ctool_u32 index;
-  ctool_u32 group;
   ctool_status_t status;
   if (install->ctxt_count + install->doc_asset_count +
           install->home_asset_count ==
@@ -1263,21 +1272,14 @@ static ctool_status_t obj_install_docs(
     status = obj_install_emit_docs_extern(output, "_binary_", stem, "_bmp",
                                           "_start[];\n");
   }
-  for (group = 1u; status == CTOOL_OK && group <= 4u; group++) {
-    for (index = 0u; status == CTOOL_OK && index < install->home_asset_count;
-         index++) {
-      ctool_string_t stem;
-      if (obj_install_home_extension(install->home_asset_paths[index], &stem) ==
-          group) {
-        status = obj_install_emit_docs_extern(
-            output, "_binary_", stem,
-            group == 1u   ? "_bmp"
-            : group == 2u ? "_png"
-            : group == 3u ? "_jpg"
-                          : "_jpeg",
-            "_start[];\n");
-      }
-    }
+  for (index = 0u; status == CTOOL_OK && index < install->home_asset_count;
+       index++) {
+    ctool_string_t stem;
+    ctool_u32 extension =
+        obj_install_home_extension(install->home_asset_paths[index], &stem);
+    status = obj_install_emit_docs_extern(
+        output, "_binary_", stem, home_symbol_suffixes[extension - 1u],
+        "_start[];\n");
   }
   for (index = 0u; status == CTOOL_OK && index < install->ctxt_count;
        index++) {
@@ -1295,21 +1297,14 @@ static ctool_status_t obj_install_docs(
     status = obj_install_emit_docs_extern(output, "_binary_", stem, "_bmp",
                                           "_end[];\n");
   }
-  for (group = 1u; status == CTOOL_OK && group <= 4u; group++) {
-    for (index = 0u; status == CTOOL_OK && index < install->home_asset_count;
-         index++) {
-      ctool_string_t stem;
-      if (obj_install_home_extension(install->home_asset_paths[index], &stem) ==
-          group) {
-        status = obj_install_emit_docs_extern(
-            output, "_binary_", stem,
-            group == 1u   ? "_bmp"
-            : group == 2u ? "_png"
-            : group == 3u ? "_jpg"
-                          : "_jpeg",
-            "_end[];\n");
-      }
-    }
+  for (index = 0u; status == CTOOL_OK && index < install->home_asset_count;
+       index++) {
+    ctool_string_t stem;
+    ctool_u32 extension =
+        obj_install_home_extension(install->home_asset_paths[index], &stem);
+    status = obj_install_emit_docs_extern(
+        output, "_binary_", stem, home_symbol_suffixes[extension - 1u],
+        "_end[];\n");
   }
   if (status == CTOOL_OK) {
     status = obj_append_literal(
@@ -1349,16 +1344,13 @@ static ctool_status_t obj_install_docs(
   if (status == CTOOL_OK) {
     status = obj_append_literal(output, "    homefs_seed_begin();\n");
   }
-  for (group = 1u; status == CTOOL_OK && group <= 4u; group++) {
-    for (index = 0u; status == CTOOL_OK && index < install->home_asset_count;
-         index++) {
-      ctool_string_t stem;
-      if (obj_install_home_extension(install->home_asset_paths[index], &stem) ==
-          group) {
-        status = obj_install_emit_home_entry(output, stem,
-                                             home_extensions[group - 1u]);
-      }
-    }
+  for (index = 0u; status == CTOOL_OK && index < install->home_asset_count;
+       index++) {
+    ctool_string_t stem;
+    ctool_u32 extension =
+        obj_install_home_extension(install->home_asset_paths[index], &stem);
+    status = obj_install_emit_home_entry(output, stem,
+                                         home_extensions[extension - 1u]);
   }
   if (status == CTOOL_OK) {
     status = obj_append_literal(output, "    homefs_seed_end();\n}\n");
@@ -1375,6 +1367,10 @@ static ctool_status_t obj_install_source(
     ctool_buffer_t *output, ctool_obj_result_t *result_out) {
   const ctool_obj_install_source_request_t *install =
       &request->as.install_source;
+  ctool_status_t status = obj_install_validate_path_limit(job, request);
+  if (status != CTOOL_OK) {
+    return status;
+  }
   if (request->as.install_source.kind == CTOOL_OBJ_INSTALL_DEMOS) {
     if (install->bin_paths != (const ctool_string_t *)0 ||
         install->bin_count != 0u ||

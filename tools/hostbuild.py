@@ -1228,10 +1228,12 @@ def gen_bin_programs(out: Path, bins: list[str], headers: list[str], browser: li
 def gen_docs_programs(out: Path, ctxt: list[str], doc_assets: list[str], home_assets: list[str]) -> None:
     ctxt_names = [_name_no_ext(p) for p in ctxt]
     doc_bmps = [_name_no_ext(p) for p in doc_assets if Path(p).suffix.lower() == ".bmp"]
-    home_bmps = [_name_no_ext(p) for p in home_assets if Path(p).suffix.lower() == ".bmp"]
-    home_pngs = [_name_no_ext(p) for p in home_assets if Path(p).suffix.lower() == ".png"]
-    home_jpgs = [_name_no_ext(p) for p in home_assets if Path(p).suffix.lower() == ".jpg"]
-    home_jpegs = [_name_no_ext(p) for p in home_assets if Path(p).suffix.lower() == ".jpeg"]
+    supported_home_extensions = {"bmp", "png", "jpg", "jpeg"}
+    home_entries = [
+        (_name_no_ext(path), Path(path).suffix.lower()[1:])
+        for path in home_assets
+        if Path(path).suffix.lower()[1:] in supported_home_extensions
+    ]
     lines = [
         "/* Auto-generated -- do not edit. */",
         "/* Lists all embedded CupidDoc files from cupidos-txt/ directory */",
@@ -1243,16 +1245,10 @@ def gen_docs_programs(out: Path, ctxt: list[str], doc_assets: list[str], home_as
     ]
     lines += [f"extern const char _binary_cupidos_txt_{_c_symbol_part(n)}_CTXT_start[];" for n in ctxt_names]
     lines += [f"extern const char _binary_{_c_symbol_part(n)}_bmp_start[];" for n in doc_bmps]
-    lines += [f"extern const char _binary_{_c_symbol_part(n)}_bmp_start[];" for n in home_bmps]
-    lines += [f"extern const char _binary_{_c_symbol_part(n)}_png_start[];" for n in home_pngs]
-    lines += [f"extern const char _binary_{_c_symbol_part(n)}_jpg_start[];" for n in home_jpgs]
-    lines += [f"extern const char _binary_{_c_symbol_part(n)}_jpeg_start[];" for n in home_jpegs]
+    lines += [f"extern const char _binary_{_c_symbol_part(n)}_{ext}_start[];" for n, ext in home_entries]
     lines += [f"extern const char _binary_cupidos_txt_{_c_symbol_part(n)}_CTXT_end[];" for n in ctxt_names]
     lines += [f"extern const char _binary_{_c_symbol_part(n)}_bmp_end[];" for n in doc_bmps]
-    lines += [f"extern const char _binary_{_c_symbol_part(n)}_bmp_end[];" for n in home_bmps]
-    lines += [f"extern const char _binary_{_c_symbol_part(n)}_png_end[];" for n in home_pngs]
-    lines += [f"extern const char _binary_{_c_symbol_part(n)}_jpg_end[];" for n in home_jpgs]
-    lines += [f"extern const char _binary_{_c_symbol_part(n)}_jpeg_end[];" for n in home_jpegs]
+    lines += [f"extern const char _binary_{_c_symbol_part(n)}_{ext}_end[];" for n, ext in home_entries]
     lines += [
         "static void install_home_asset(const char *path, const char *data, uint32_t size) {",
         "    int fd = vfs_open(path, O_WRONLY | O_CREAT | O_TRUNC);",
@@ -1278,11 +1274,10 @@ def gen_docs_programs(out: Path, ctxt: list[str], doc_assets: list[str], home_as
         for n in doc_bmps
     ]
     lines.append("    homefs_seed_begin();")
-    for names, ext in ((home_bmps, "bmp"), (home_pngs, "png"), (home_jpgs, "jpg"), (home_jpegs, "jpeg")):
-        lines += [
-            f'    {{ uint32_t sz = (uint32_t)(_binary_{_c_symbol_part(n)}_{ext}_end - _binary_{_c_symbol_part(n)}_{ext}_start); install_home_asset("/home/{n}.{ext}", _binary_{_c_symbol_part(n)}_{ext}_start, sz); }}'
-            for n in names
-        ]
+    lines += [
+        f'    {{ uint32_t sz = (uint32_t)(_binary_{_c_symbol_part(n)}_{ext}_end - _binary_{_c_symbol_part(n)}_{ext}_start); install_home_asset("/home/{n}.{ext}", _binary_{_c_symbol_part(n)}_{ext}_start, sz); }}'
+        for n, ext in home_entries
+    ]
     lines += ["    homefs_seed_end();", "}"]
     out.write_text("\n".join(lines) + "\n", newline="\n")
 

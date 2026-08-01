@@ -74,6 +74,27 @@ SHA-256
 `c79edeeaf909d6c204690acd31dd56ca91be4f65ed148fa8e5e9768ac8dc1d8f`.
 The docs and demos hashes above remain correct.
 
+### Contract correction after production review
+
+The first implementation checked the 512-path total inside the demos emitter.
+Bin and docs reached their validation loops without that guard, and summing
+large counts there could wrap. The shared operation now checks every category
+before mode dispatch. It rejects any single count above 512 and accumulates
+the combined total only after proving the subtraction safe.
+
+The docs emitter also grouped home assets by extension. That happened to match
+the active Make inventory, but it did not honor the caller-order decision
+above for an interleaved request. CupidObj and the Python oracle now emit the
+home externs and installation entries in the supplied order. The active files
+remain byte-identical because their input is already grouped.
+
+The core contract rejects 513 bin paths, 513 docs paths, a 256 plus 257 bin
+and header request, and an extreme unsigned count. A hosted interleaved docs
+case checks PNG, JPEG, BMP, JPG, and BMP order while retaining oracle parity.
+All seven native contract modes pass, and all eleven hosted CupidObj tests
+pass. The source implementation carries these corrections; the next seed
+promotion will replace the earlier checked CupidObj image.
+
 The public contract pins a complete two-demo source as a literal. It also
 checks repeated output, a wrong extension, a mixed category, the 512-path
 limit, output-limit rollback, a zeroed failure result, and recovery in the

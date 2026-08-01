@@ -18695,3 +18695,56 @@ The 2,546,806-byte audit JSON has SHA-256
 The 12,136-byte summary has SHA-256
 `cf42887835899609791c6dba94068d5f5fd4b901ec678ae0c9a65a93c1749d7d`.
 ADR 0204 records the production ownership transfer.
+
+## 2026-08-01: Close CupidObj installation request boundaries
+
+The final review of the production cutover found two older contract gaps in
+the CupidObj capability. The public API promised no more than 512 paths per
+request, but the implementation checked that total only inside the demos
+emitter. Bin and docs could enter their validation loops with larger counts,
+and direct addition was not safe for extreme unsigned values. The docs emitter
+also grouped home assets by extension even though ADR 0201 promised caller
+order. The active Make inventory hid the ordering difference because it was
+already grouped.
+
+The new red core cases used 513 bin paths, 513 docs paths, 256 bin plus 257
+header paths, and `0xffffffff` bin paths. All four returned the wrong failure
+before the fix. The hosted docs case supplied PNG, JPEG, BMP, JPG, and BMP
+assets; it found the old grouped positions `[2792, 3092, 2492, 2941, 2643]`
+instead of ascending caller order.
+
+CupidObj now validates one combined count before mode dispatch. Each addition
+first proves that the new count fits the remaining space below 512, so the
+calculation cannot wrap. The docs emitter walks home assets once for start
+symbols, once for end symbols, and once for installation entries, preserving
+the same input order in each section. The Python oracle uses the same ordered
+entry list.
+
+The focused red cases are green. All seven native CupidObj contract modes
+pass, and the hosted CupidObj module passes all eleven tests in 2.482 seconds.
+The production module passes all 39 tests in 25.203 seconds, including the
+exact Make-order regression.
+The native command and Python oracle still agree for all three active
+inventories. This slice also updates the installed CTXT explanation, so the
+generated docs table will receive new manual bytes even though the ordering
+algorithm produces the same active sequence. The source and native command
+carry the correction; checked-seed promotion remains the next step before
+claiming it for the production command.
+
+The regenerated graph still contains 717 active inputs, 449 transforms, 254
+feature requirements, and 25 classified unreachable files. Its active-source
+digest is
+`dbe1004fedddefd7d76742b5378bbde17ffb6369365abe80117293f417a3874d`.
+The 2,546,806-byte audit JSON has SHA-256
+`990051e3076726231db498df1f81137d2d6dd92b53e0ec425165b94a42062d80`,
+and the 12,136-byte summary has SHA-256
+`2bad7ddbe6977c578b108d2a7cfd6b4979c133ad28faf95214fee9d3d74ece19`.
+
+The generated-install frontier first failed because it reconstructed top-level
+assets with one global sort while Make orders four separately sorted extension
+groups. The old Python oracle had silently regrouped that list, hiding the
+fixture error. The frontier now follows Make's BMP, PNG, JPG, then JPEG groups
+and pins the current four-path order. It passes in 23.0 seconds with 195 inputs
+and digest
+`efc3fe1cbd71bd90cc5fc24dd5a2c2e217666e625b43de4907f5389afa018c1d`.
+All three generated source and object hashes remain unchanged.

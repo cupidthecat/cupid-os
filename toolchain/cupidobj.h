@@ -95,7 +95,9 @@ ctool_status_t ctool_obj_transform(ctool_job_t *job,
  * GENERATE_INSTALL_SOURCE emits one of the bin, docs, or demos installation
  * tables from a typed path inventory.  Paths use repository-relative forward
  * slash spelling and their category's exact extension.  A request may contain
- * at most 512 paths.  Category mixing, malformed paths, duplicate paths, and
+ * at most 512 paths across all categories, and that total is checked without
+ * overflowing before a list is traversed.  Output keeps caller order within
+ * each typed list.  Category mixing, malformed paths, duplicate paths, and
  * output exhaustion fail before publication. */
 
 #endif

@@ -697,6 +697,46 @@ static int run_install_source(void) {
   ok &= expect_failure(job, output, &request, CTOOL_ERR_LIMIT,
                        CTOOL_OBJ_DIAG_LIMIT, 0u,
                        "install inventory limit");
+
+  request.as.install_source.kind = CTOOL_OBJ_INSTALL_BIN;
+  request.as.install_source.demo_paths = (const ctool_string_t *)0;
+  request.as.install_source.demo_count = 0u;
+  request.as.install_source.bin_paths = oversized;
+  request.as.install_source.bin_count = 513u;
+  ok &= expect_failure(job, output, &request, CTOOL_ERR_LIMIT,
+                       CTOOL_OBJ_DIAG_LIMIT, 0u,
+                       "bin install inventory limit");
+
+  request.as.install_source.kind = CTOOL_OBJ_INSTALL_DOCS;
+  request.as.install_source.bin_paths = (const ctool_string_t *)0;
+  request.as.install_source.bin_count = 0u;
+  request.as.install_source.ctxt_paths = oversized;
+  request.as.install_source.ctxt_count = 513u;
+  ok &= expect_failure(job, output, &request, CTOOL_ERR_LIMIT,
+                       CTOOL_OBJ_DIAG_LIMIT, 0u,
+                       "docs install inventory limit");
+
+  request.as.install_source.kind = CTOOL_OBJ_INSTALL_BIN;
+  request.as.install_source.ctxt_paths = (const ctool_string_t *)0;
+  request.as.install_source.ctxt_count = 0u;
+  request.as.install_source.bin_paths = oversized;
+  request.as.install_source.bin_count = 256u;
+  request.as.install_source.header_paths = oversized + 256u;
+  request.as.install_source.header_count = 257u;
+  ok &= expect_failure(job, output, &request, CTOOL_ERR_LIMIT,
+                       CTOOL_OBJ_DIAG_LIMIT, 0u,
+                       "combined install inventory limit");
+
+  request.as.install_source.bin_count = 0xffffffffu;
+  request.as.install_source.header_paths = (const ctool_string_t *)0;
+  request.as.install_source.header_count = 0u;
+  ok &= expect_failure(job, output, &request, CTOOL_ERR_LIMIT,
+                       CTOOL_OBJ_DIAG_LIMIT, 0u,
+                       "overflowing install inventory limit");
+
+  request.as.install_source.kind = CTOOL_OBJ_INSTALL_DEMOS;
+  request.as.install_source.bin_paths = (const ctool_string_t *)0;
+  request.as.install_source.bin_count = 0u;
   request.as.install_source.demo_paths = demos;
   request.as.install_source.demo_count = 2u;
   ok &= expect_failure(job, limited, &request, CTOOL_ERR_LIMIT,

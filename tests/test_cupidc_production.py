@@ -1247,6 +1247,18 @@ class ProductionBuildContractTests(unittest.TestCase):
             tuple(sorted(generator_inputs["demos"])),
         )
 
+    def test_generated_frontier_keeps_make_home_asset_order(self):
+        inputs = production_frontier._generator_inputs(REPO_ROOT)
+        self.assertEqual(
+            inputs["home-assets"],
+            (
+                "image.bmp",
+                "snail.bmp",
+                "test.png",
+                "file_example_JPG_1MB.jpg",
+            ),
+        )
+
     def test_poisoned_host_code_generators_cannot_break_user_build(self):
         make = shutil.which("make")
         if make is None:

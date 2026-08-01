@@ -364,12 +364,16 @@ output.
 
 CupidObj now implements the bin, docs, and demos table formats through its
 public `install-source` command. It keeps caller order, validates the path
-category and extension, rejects duplicates and mixed lists, and rolls back a
-partial result on failure. A Cupid-built command reproduced all three live
-tables twice with exact Python-oracle parity. The normal Make recipes now run
-that checked command for all three outputs. `tools/hostbuild.py` is no longer
-a prerequisite or recipe owner for them, but it remains the parity oracle.
-ADR 0204 records the transfer.
+category and extension, rejects duplicates and mixed lists, applies one
+overflow-safe 512-path limit across the complete request, and rolls back a
+partial result on failure. Mixed home-asset extensions retain their supplied
+order in both CupidObj and the Python oracle. Source head carries these two
+contract corrections, and the next checked-seed promotion will move them into
+production. The active inventories already satisfy both rules. A Cupid-built
+command reproduced all three live tables twice with exact Python-oracle
+parity. The normal Make recipes now run that checked command for all three
+outputs. `tools/hostbuild.py` is no longer a prerequisite or recipe owner for
+them, but it remains the parity oracle. ADR 0204 records the transfer.
 
 Before compilation, the user ABI operation captures the exact bytes of its
 six kernel and public declarations. It compares the reviewed i386 layout and

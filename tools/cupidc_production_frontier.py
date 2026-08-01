@@ -151,14 +151,9 @@ def _generator_inputs(root: Path) -> dict[str, tuple[str, ...]]:
     browser_sources = _relative_files(root, "bin/browser/*.cc")
     docs = _relative_files(root, "cupidos-txt/*.CTXT")
     top_level_assets = tuple(
-        sorted(
-            {
-                *_relative_files(root, "*.bmp"),
-                *_relative_files(root, "*.png"),
-                *_relative_files(root, "*.jpg"),
-                *_relative_files(root, "*.jpeg"),
-            }
-        )
+        path
+        for pattern in ("*.bmp", "*.png", "*.jpg", "*.jpeg")
+        for path in _relative_files(root, pattern)
     )
     demos = _relative_files(root, "demos/*.asm")
     return {

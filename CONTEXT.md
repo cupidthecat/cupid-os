@@ -404,10 +404,13 @@ The Cupid Toolchain object and binary transformation utility. `wrap` keeps
 binary input unchanged, while `wrap-text` converts CRLF pairs to LF before it
 builds an ELF32 object. A lone carriage return remains part of the input. Its
 typed `install-source` operation emits the bin, docs, or demos installation
-table from a validated repository path inventory. That command is self-hosted
-and byte-compatible with the Python oracle. The normal Make recipes invoke the
-checked-seed command and depend on the complete CupidObj trust inputs. ADR 0204
-records the production transfer.
+table from a validated repository path inventory. Source head rejects more
+than 512 paths across all request lists before mode dispatch, accumulates that
+total without overflow, and preserves caller order across mixed home-asset
+extensions. The Python oracle follows the same order. The command is
+self-hosted and byte-compatible with that oracle. The normal Make recipes
+invoke the checked-seed command and depend on the complete CupidObj trust
+inputs. ADR 0204 records the production transfer.
 _Avoid_: objcopy
 
 **Installation source table**:

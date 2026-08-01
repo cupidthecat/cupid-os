@@ -315,11 +315,11 @@ class CupidObjHostedCliTests(unittest.TestCase):
                 "--doc-assets",
                 "image.bmp",
                 "--home-assets",
-                "image.bmp",
-                "snail.bmp",
                 "test.png",
-                "photo.jpg",
                 "scan.jpeg",
+                "image.bmp",
+                "photo.jpg",
+                "snail.bmp",
             ]
             oracle = subprocess.run(
                 [
@@ -350,6 +350,16 @@ class CupidObjHostedCliTests(unittest.TestCase):
             )
             self.assertEqual(generated.returncode, 0, generated.stderr)
             self.assertEqual(actual.read_bytes(), expected.read_bytes())
+            output = actual.read_text(encoding="utf-8")
+            ordered_entries = [
+                'install_home_asset("/home/test.png"',
+                'install_home_asset("/home/scan.jpeg"',
+                'install_home_asset("/home/image.bmp"',
+                'install_home_asset("/home/photo.jpg"',
+                'install_home_asset("/home/snail.bmp"',
+            ]
+            positions = [output.index(entry) for entry in ordered_entries]
+            self.assertEqual(positions, sorted(positions))
 
     def test_install_source_active_inventory_matches_oracle_and_repeats(self):
         bin_sources = sorted(
