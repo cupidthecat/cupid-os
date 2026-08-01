@@ -391,11 +391,11 @@ CupidObj also has a self-hosted `install-source` command for all three table
 formats. It validates each path category, rejects duplicate and mixed lists,
 limits the combined request to 512 paths without overflowing its count, keeps
 caller order across mixed asset extensions, and preserves an existing output
-after a failure. The source implementation and Python oracle carry those
-corrections; the next checked-seed promotion will carry them into production.
-The current active inventories stay below the limit and use the same order, so
-their bytes do not change. Native and Cupid-built commands reproduce the
-current bin, docs, and demos tables byte for byte against the Python oracle.
+after a failure. The checked seed, source implementation, and Python oracle
+carry those corrections. The current active inventories stay below the limit
+and use the same order, so their bytes do not change. Native and Cupid-built
+commands reproduce the current bin, docs, and demos tables byte for byte
+against the Python oracle.
 The normal Make recipes run the checked command for all three outputs and
 depend on the complete CupidObj trust inputs. `tools/hostbuild.py` remains the
 oracle and retains its other build roles, but it no longer generates these
@@ -404,7 +404,9 @@ production sources.
 records the capability, and
 [ADR 0203](docs/adr/0203-promote-toolchain-capabilities-seed.md) records its
 seed promotion. [ADR 0204](docs/adr/0204-transfer-installation-table-generation-to-cupidobj.md)
-records the production transfer.
+records the production transfer, and
+[ADR 0205](docs/adr/0205-promote-cupidobj-request-boundaries.md) records the
+corrected checked seed.
 
 The external-program gate boots `hello`, `ls`, and `cat` from separate
 private image copies. Serial
@@ -887,7 +889,7 @@ missing-IWAD error, `[doom] returned to shell`, and no panic marker. This
 checkout contains no WAD, so these checks do not claim gameplay, input, game
 audio, or save behavior.
 
-The five static i386 Linux tools have a checked bootstrap seed. Its manifest binds the exact binaries, source revision, target ABI, producer lineage, 19-source build plan, and five link orders before execution. The current CupidC seed is a 2,553,244-byte stage-three image with SHA-256 `59d90429cdfff1f5d6f8f3b3009f588d06de78c271e2e320dfca5b5e2a58173f`. It comes from revision `03d072fefc6703a53be7bfa4948f6116d238832b`, retains the complete 83-root Doom frontier and earlier kernel and ABI capabilities, and adds runtime floating truth. The same seed gives CupidASM and CupidDis the 591-row shared x86 catalogue, gives CupidDis typed raw code and data ranges, and gives CupidObj installation-source generation. [ADR 0203](docs/adr/0203-promote-toolchain-capabilities-seed.md) records the five-tool promotion.
+The five static i386 Linux tools have a checked bootstrap seed. Its manifest binds the exact binaries, source revision, target ABI, producer lineage, 19-source build plan, and five link orders before execution. The current CupidC seed is a 2,553,244-byte stage-three image with SHA-256 `59d90429cdfff1f5d6f8f3b3009f588d06de78c271e2e320dfca5b5e2a58173f`. It comes from revision `a32d1cc0f655cd0e161fc5bac8ead54f4586423e`, retains the complete 83-root Doom frontier and earlier kernel and ABI capabilities, and adds runtime floating truth. The same seed gives CupidASM and CupidDis the 591-row shared x86 catalogue and gives CupidDis typed raw code and data ranges. Its 245,220-byte CupidObj image has SHA-256 `e9631e8b9377a17497bc87418c56282d97f91b8d1cd43e4670130e5e54334747` and carries the corrected installation-source request contract. [ADR 0205](docs/adr/0205-promote-cupidobj-request-boundaries.md) records the current promotion.
 
 The harness pins the build plan independently and freezes the verified manifest and binaries. It also copies the exact bytes of all 41 source inputs, including `link.ld`, into a private compiler root. Seed CupidC, CupidASM, and CupidLD build stage two below that root, then the stage-two producer trio repeats the work for stage three. The harness rehashes both the private closure and the live closure before the first stage, after each stage, and after the behavior suite. A live edit that is made and restored during a compile cannot change the bytes consumed by either stage.
 

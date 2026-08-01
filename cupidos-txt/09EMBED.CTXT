@@ -60,16 +60,18 @@ checkouts. Images, fonts, and other binary inputs still use byte-exact wrap.
 CupidObj also understands the three generated installation-table formats.
 Its install-source command validates bin, docs, home-asset, browser, header,
 and demo path groups before it writes a .cc table. Repeated generation is
-byte-identical, and a failed request leaves the previous table intact. Source
-head checks one overflow-safe limit of 512 paths across every group before it
-dispatches a mode. It also keeps caller order when home assets mix extensions.
+byte-identical, and a failed request leaves the previous table intact. The
+checked seed applies one overflow-safe limit of 512 paths across every group
+before it dispatches a mode. It also keeps caller order when home assets mix
+extensions.
 The Python oracle follows the same order. The command is self-hosted and
-present in the checked toolchain seed; the next seed promotion will carry the
-limit and ordering corrections. The current image build runs checked CupidObj
-for all three tables. Its active inventories remain within the limit and keep
-the same bytes. The recipes depend on the complete checked-seed trust unit.
+present in the checked toolchain seed. The current image build runs checked
+CupidObj for all three tables. Its active inventories remain within the limit
+and keep the same bytes. The recipes depend on the complete checked-seed trust
+unit.
 The Python generator remains a byte-parity oracle but no longer owns these
-production sources. ADR 0204 records the transfer.
+production sources. ADR 0204 records the transfer, and ADR 0205 records the
+corrected seed.
 
 Makefile variable definitions:
   BIN_CC_SRCS  := $(filter-out bin/old_cc2.cc bin/old_cc2_single.cc, $(wildcard bin/*.cc))

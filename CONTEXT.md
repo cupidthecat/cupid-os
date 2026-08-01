@@ -404,13 +404,14 @@ The Cupid Toolchain object and binary transformation utility. `wrap` keeps
 binary input unchanged, while `wrap-text` converts CRLF pairs to LF before it
 builds an ELF32 object. A lone carriage return remains part of the input. Its
 typed `install-source` operation emits the bin, docs, or demos installation
-table from a validated repository path inventory. Source head rejects more
-than 512 paths across all request lists before mode dispatch, accumulates that
+table from a validated repository path inventory. The checked seed rejects
+more than 512 paths across all request lists before mode dispatch, accumulates that
 total without overflow, and preserves caller order across mixed home-asset
 extensions. The Python oracle follows the same order. The command is
 self-hosted and byte-compatible with that oracle. The normal Make recipes
 invoke the checked-seed command and depend on the complete CupidObj trust
-inputs. ADR 0204 records the production transfer.
+inputs. ADR 0204 records the production transfer, and ADR 0205 records the
+corrected seed.
 _Avoid_: objcopy
 
 **Installation source table**:
@@ -460,7 +461,7 @@ A checked-in Cupid Toolchain executable that starts a bootstrap without an exter
 _Avoid_: oracle toolchain
 
 **Checked i386 Linux bootstrap seed**:
-The manifest-bound set of static CupidC, CupidASM, CupidDis, CupidLD, and CupidObj executables under `bootstrap/seeds/i386-linux/`. Verification binds their hashes, sizes, ELF properties, target ABI, producer lineage, source revision, and exact 19-source build plan before execution. The current seed is the stage-three output built from revision `03d072fefc6703a53be7bfa4948f6116d238832b`. Its 2,553,244-byte CupidC image has SHA-256 `59d90429cdfff1f5d6f8f3b3009f588d06de78c271e2e320dfca5b5e2a58173f`. The seed retains the complete 83-root Doom frontier and the later kernel, GNU assembly, x87, SSE, and ABI capabilities. It also carries runtime floating truth, the 591-row shared x86 catalogue with `FLDZ`, typed CupidDis raw code and data ranges, and CupidObj installation-source generation. The transition froze 41 source inputs with SHA-256 `074be1d0220c7b6c26a020cfc147246d66189860ac7795bee1a15b7a4dcd485f`. With normal host code-generator commands poisoned, all 19 C objects, the startup object, and all five tool images matched between stage two and stage three. Both stages passed five help cases, ten successful operations, and six useful failures. None of the five preceding seed images matched its stage-two replacement. A post-promotion reproof then reproduced all five current seed images at stage two and repeated the complete fixed point. ADR 0203 records the promotion and both proofs.
+The manifest-bound set of static CupidC, CupidASM, CupidDis, CupidLD, and CupidObj executables under `bootstrap/seeds/i386-linux/`. Verification binds their hashes, sizes, ELF properties, target ABI, producer lineage, source revision, and exact 19-source build plan before execution. The current seed comes from revision `a32d1cc0f655cd0e161fc5bac8ead54f4586423e`. Its 2,553,244-byte CupidC image has SHA-256 `59d90429cdfff1f5d6f8f3b3009f588d06de78c271e2e320dfca5b5e2a58173f`, and its 245,220-byte CupidObj image has SHA-256 `e9631e8b9377a17497bc87418c56282d97f91b8d1cd43e4670130e5e54334747`. The seed retains the complete 83-root Doom frontier and the later kernel, GNU assembly, x87, SSE, and ABI capabilities. It also carries runtime floating truth, the 591-row shared x86 catalogue with `FLDZ`, typed CupidDis raw code and data ranges, and corrected CupidObj installation-source bounds and ordering. The latest transition froze 41 source inputs with SHA-256 `eefdb24a987176ebb79a9407f45dcb3d02b803364a1450048678bb3aafa126cd`. With normal host code-generator commands poisoned, all 19 C objects, the startup object, and all five tool images matched between stage two and stage three. Both stages passed five help cases, ten successful operations, and six useful failures. Only the preceding CupidObj image differed from its stage-two replacement. A post-promotion reproof reproduced all five current seed images at stage two and repeated the complete fixed point. ADR 0205 records this promotion and both proofs.
 _Avoid_: current normal-build toolchain, native Windows seed, unverified binary cache
 
 **Frozen fixed-point source closure**:

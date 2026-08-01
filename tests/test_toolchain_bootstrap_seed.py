@@ -1102,6 +1102,80 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertIn("must match demos/NAME.asm", rejected.stderr)
             self.assertEqual(sentinel.read_bytes(), b"sentinel")
 
+    def test_checked_seed_enforces_install_request_bounds_and_order(self):
+        if os.name == "nt" and shutil.which("wsl") is None:
+            self.skipTest("WSL is not available")
+        with tempfile.TemporaryDirectory(
+            prefix=".checked-seed-install-contract-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            (root / "bin").mkdir()
+            for name in (
+                "first.png",
+                "second.jpeg",
+                "third.bmp",
+                "fourth.jpg",
+                "fifth.bmp",
+            ):
+                (root / name).write_bytes(b"asset")
+            (root / "bin" / "program-0.cc").write_text(
+                "int main(void) { return 0; }\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+            frozen = freeze_seed_inputs(SEED_MANIFEST, root / "seed")
+            runner = ToolRunner(root)
+
+            ordered = root / "ordered-home-install.cc"
+            result = runner.run(
+                frozen.tools["cupidobj"],
+                [
+                    "install-source",
+                    "docs",
+                    "--home-assets",
+                    "first.png",
+                    "second.jpeg",
+                    "third.bmp",
+                    "fourth.jpg",
+                    "fifth.bmp",
+                    "-o",
+                    ordered,
+                ],
+                60,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout, "")
+            self.assertEqual(result.stderr, "")
+            output = ordered.read_text(encoding="utf-8")
+            entries = (
+                'install_home_asset("/home/first.png"',
+                'install_home_asset("/home/second.jpeg"',
+                'install_home_asset("/home/third.bmp"',
+                'install_home_asset("/home/fourth.jpg"',
+                'install_home_asset("/home/fifth.bmp"',
+            )
+            positions = [output.index(entry) for entry in entries]
+            self.assertEqual(positions, sorted(positions))
+
+            sentinel = root / "oversized-install.cc"
+            sentinel.write_bytes(b"sentinel")
+            rejected = runner.run(
+                frozen.tools["cupidobj"],
+                [
+                    "install-source",
+                    "bin",
+                    "--bin",
+                    *(f"bin/program-{index}.cc" for index in range(513)),
+                    "-o",
+                    sentinel,
+                ],
+                60,
+            )
+            self.assertEqual(rejected.returncode, 1)
+            self.assertEqual(rejected.stdout, "")
+            self.assertIn("exceeds 512 paths", rejected.stderr)
+            self.assertEqual(sentinel.read_bytes(), b"sentinel")
+
     def test_checked_seed_run_rejects_a_changed_tool_before_execution(self):
         with tempfile.TemporaryDirectory(
             prefix="cupid-bootstrap-run-seed-"
@@ -1953,7 +2027,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(report["status"], "pass")
             self.assertEqual(
                 report["seed_source_revision"],
-                "03d072fefc6703a53be7bfa4948f6116d238832b",
+                "a32d1cc0f655cd0e161fc5bac8ead54f4586423e",
             )
             self.assertNotIn("source_revision", report)
             self.assertEqual(
@@ -1989,7 +2063,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 },
             )
             promoted_seed_snapshot = (
-                "074be1d0220c7b6c26a020cfc147246d66189860ac7795bee1a15b7a4dcd485f"
+                "eefdb24a987176ebb79a9407f45dcb3d02b803364a1450048678bb3aafa126cd"
             )
             self.assertEqual(
                 report["source_snapshot_sha256"], promoted_seed_snapshot

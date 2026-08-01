@@ -92,8 +92,8 @@ The core contract rejects 513 bin paths, 513 docs paths, a 256 plus 257 bin
 and header request, and an extreme unsigned count. A hosted interleaved docs
 case checks PNG, JPEG, BMP, JPG, and BMP order while retaining oracle parity.
 All seven native contract modes pass, and all eleven hosted CupidObj tests
-pass. The source implementation carries these corrections; the next seed
-promotion will replace the earlier checked CupidObj image.
+pass. ADR 0205 promotes the corrected 245,220-byte CupidObj image with SHA-256
+`e9631e8b9377a17497bc87418c56282d97f91b8d1cd43e4670130e5e54334747`.
 
 The public contract pins a complete two-demo source as a literal. It also
 checks repeated output, a wrong extension, a mixed category, the 512-path

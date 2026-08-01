@@ -18748,3 +18748,73 @@ and pins the current four-path order. It passes in 23.0 seconds with 195 inputs
 and digest
 `efc3fe1cbd71bd90cc5fc24dd5a2c2e217666e625b43de4907f5389afa018c1d`.
 All three generated source and object hashes remain unchanged.
+
+## 2026-08-01: Promote the corrected CupidObj seed
+
+The request-boundary source was committed and pushed at revision
+`a32d1cc0f655cd0e161fc5bac8ead54f4586423e` before the seed candidate was
+built. The 19-source plan remains unchanged at SHA-256
+`59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`.
+
+The transition bootstrap completed in 646.6 seconds. It froze 41 source
+inputs with SHA-256
+`eefdb24a987176ebb79a9407f45dcb3d02b803364a1450048678bb3aafa126cd`.
+All 19 C objects, startup, and five tool images matched between stage two and
+stage three. Both stages passed five help cases, ten successful operations,
+and six useful failures. CupidASM, CupidC, CupidDis, and CupidLD already
+matched the checked seed. CupidObj was the only changed image:
+
+| Tool | Earlier bytes | Promoted bytes | Promoted SHA-256 |
+| --- | ---: | ---: | --- |
+| CupidObj | 245,132 | 245,220 | `e9631e8b9377a17497bc87418c56282d97f91b8d1cd43e4670130e5e54334747` |
+
+The 15,054-byte transition report has SHA-256
+`db2c62ea8de385847ee14ad57f006fac781168d99b6db6288526077638c17470`.
+The promoted manifest binds the complete five-tool cohort to the pushed
+revision. It is 5,440 bytes with SHA-256
+`906abf16651775fe4ab52c13652a19b2e36d816ad506c08f05fbcc3264c5576b`.
+
+`make verify-bootstrap-seed` passed. A new checked-seed regression then kept
+PNG, JPEG, BMP, JPG, and BMP home entries in caller order. The same test sent
+513 bin paths, received the limit diagnostic, and found its sentinel output
+unchanged. It passed in 0.768 seconds.
+The complete checked-seed module passed all 37 tests in 712.199 seconds.
+All eleven hosted CupidObj tests passed in 2.977 seconds, and all 39
+production tests passed in 27.309 seconds. The generated frontier passed in
+25.4 seconds. Its 195-input digest is
+`fb526be4b4388ecd62ed54b8321b043ef483fd3907c998dc7e062ab6ffef39ea`.
+The three generated source and object pairs remain byte-identical to the
+pre-promotion outputs.
+The full 68-test build-graph audit passed in 589.740 seconds.
+
+The complete Toolchain target passed in 2,755.8 seconds. Both checked stages
+compiled and linked the 20-artifact contract cohort byte-identically. The
+hosted runtime contract passed, and the live source inventory still matched
+the frozen build.
+
+The first normal root build passed in 1,500.1 seconds. A final prose pass
+rewrapped the installed CTXT explanation without changing its meaning, so the
+complete root target ran again against the final bytes and passed in 1,428.5
+seconds. It produced an 8,719,780-byte kernel ELF with SHA-256
+`b3964b134e777ca73bcd5c87e504efe5ae01cf9d31a5ad7d2d476c28cdd941cf`
+and an 8,517,944-byte flat image with SHA-256
+`0fd1d09d451a13f14e6c396e6dd32b28b376c0a68fe2826768ac2727b307bae2`.
+The flat image is 440 bytes larger than the preceding checked-in source build
+because the installed manuals now describe the corrected seed. A private-image
+boot reached the desktop and terminal, then ran `ls` through the in-OS JIT
+without a panic in 47.5 seconds.
+
+The post-promotion bootstrap completed in 650.5 seconds. Every checked image
+matched stage two, and both stages again matched all objects and tools and
+passed the complete behavior matrix. Its 15,053-byte report has SHA-256
+`9c1fa329855aa1a3a4e68e5b17dc7fac95b07905c1817fce80ad58f25847d92a`.
+ADR 0205 records the trust-root change.
+
+The regenerated audit still contains 717 active inputs, 449 transforms, 254
+feature requirements, and 25 classified unreachable files. Its active-source
+digest remains
+`dbe1004fedddefd7d76742b5378bbde17ffb6369365abe80117293f417a3874d`.
+The 2,546,806-byte JSON has SHA-256
+`f4e826579075d43102aa1cad95cfbaa6a827062b1371f3110538ee8c10469c0f`,
+and the 12,136-byte summary has SHA-256
+`2bad7ddbe6977c578b108d2a7cfd6b4979c133ad28faf95214fee9d3d74ece19`.

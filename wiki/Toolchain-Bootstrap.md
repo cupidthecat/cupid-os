@@ -118,17 +118,19 @@ dglibc jump block, pointer-preserving static address casts, explicit `double`
 to `unsigned long long` conversion, exact naked IPI entries, and runtime
 floating truth. Its stage-three CupidC image is 2,553,244 bytes with SHA-256
 `59d90429cdfff1f5d6f8f3b3009f588d06de78c271e2e320dfca5b5e2a58173f`.
-It came from revision `03d072fefc6703a53be7bfa4948f6116d238832b`. It also
+It came from revision `a32d1cc0f655cd0e161fc5bac8ead54f4586423e`. It also
 carries the kernel-entry BSS clear with a nonzero page-aligned stack top and
 all packed SSE2 statements in the active SIMD source. CupidASM and CupidDis
 carry the 591-row shared x86 catalogue. CupidDis carries typed raw code and
-data ranges, and CupidObj carries installation-source generation. In the
-poisoned-host transition, all 19 C objects, startup, and five tool images
-matched between stage two and stage three. Both stages passed five help cases,
-ten successful operations, and six useful failures. None of the preceding
-seed images matched stage two. A post-promotion reproof then reproduced all
-five checked seed images at stage two and repeated the complete fixed point.
-ADR 0203 records the promotion and both proofs.
+data ranges, and CupidObj carries installation-source generation. Its
+245,220-byte CupidObj image has SHA-256
+`e9631e8b9377a17497bc87418c56282d97f91b8d1cd43e4670130e5e54334747`.
+In the latest poisoned-host transition, all 19 C objects, startup, and five
+tool images matched between stage two and stage three. Both stages passed five
+help cases, ten successful operations, and six useful failures. Only the
+preceding CupidObj image differed from stage two. A post-promotion reproof
+then reproduced all five checked seed images at stage two and repeated the
+complete fixed point. ADR 0205 records the promotion and both proofs.
 
 The refreshed seed represents operand-free GNU assembly statements inside
 functions and emits exact PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT
@@ -367,13 +369,13 @@ public `install-source` command. It keeps caller order, validates the path
 category and extension, rejects duplicates and mixed lists, applies one
 overflow-safe 512-path limit across the complete request, and rolls back a
 partial result on failure. Mixed home-asset extensions retain their supplied
-order in both CupidObj and the Python oracle. Source head carries these two
-contract corrections, and the next checked-seed promotion will move them into
-production. The active inventories already satisfy both rules. A Cupid-built
+order in the checked seed, source head, and Python oracle. The active
+inventories already satisfy both rules. A Cupid-built
 command reproduced all three live tables twice with exact Python-oracle
 parity. The normal Make recipes now run that checked command for all three
 outputs. `tools/hostbuild.py` is no longer a prerequisite or recipe owner for
-them, but it remains the parity oracle. ADR 0204 records the transfer.
+them, but it remains the parity oracle. ADR 0204 records the transfer, and ADR
+0205 records the corrected seed.
 
 Before compilation, the user ABI operation captures the exact bytes of its
 six kernel and public declarations. It compares the reviewed i386 layout and

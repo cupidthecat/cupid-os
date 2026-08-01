@@ -218,12 +218,13 @@ The i386 Linux adapter objects are `ctool_host.cc` at 11 functions, 5,522 text b
 
 The `ctool_host.cc` tracer applies 45 relocations, resolves 24 symbols, and leaves no undefined symbol in its static executable. Omitting the errno provider produces the exact CupidLD undefined-symbol failure with empty output and a zero result. The same job then links the original bytes again. Linux and WSL hosts with static i386 support run the tracer with exit status zero.
 
-The current checked artifacts are CupidASM at 445,616 bytes, CupidDis at 379,648 bytes, CupidLD at 266,672 bytes, CupidObj at 245,132 bytes, and CupidC at 2,553,244 bytes. Verification checks every hash, size, static ELF property, target ABI, producer lineage, source revision, and build-plan field before execution. The 19-source plan uses `.cc` throughout and has SHA-256 `59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`. Native GCC and Clang recipes select C with `-x c`.
+The current checked artifacts are CupidASM at 445,616 bytes, CupidDis at 379,648 bytes, CupidLD at 266,672 bytes, CupidObj at 245,220 bytes, and CupidC at 2,553,244 bytes. Verification checks every hash, size, static ELF property, target ABI, producer lineage, source revision, and build-plan field before execution. The 19-source plan uses `.cc` throughout and has SHA-256 `59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`. Native GCC and Clang recipes select C with `-x c`.
 
 The promotion transition completes that plan through stage two and stage
 three. All 19 C object pairs, the startup objects, and all five tool images
-match byte for byte with host code-generator commands poisoned. None of the
-five preceding seed images matches its stage-two replacement. Both stages
+match byte for byte with host code-generator commands poisoned. Every
+stage-two image matches stage three. Only the preceding CupidObj image differs
+from its stage-two replacement. Both stages
 agree on five help paths, ten successful operations, and six useful failures
 across compilation, assembly, disassembly, symbol inspection, linking,
 wrapping, and flattening. The 2,553,244-byte CupidC image carries the complete
@@ -237,20 +238,23 @@ floating truth. Its
 SHA-256 is
 `59d90429cdfff1f5d6f8f3b3009f588d06de78c271e2e320dfca5b5e2a58173f`,
 and its source revision is
-`03d072fefc6703a53be7bfa4948f6116d238832b`. CupidASM and CupidDis carry the
+`a32d1cc0f655cd0e161fc5bac8ead54f4586423e`. CupidASM and CupidDis carry the
 591-row shared x86 catalogue. CupidDis carries typed raw code and data ranges,
-and CupidObj carries installation-source generation.
-[ADR 0203](../adr/0203-promote-toolchain-capabilities-seed.md) records the
-transition and promotion.
-The post-promotion reproof reproduced all five checked seed images at stage
-two and repeated the complete fixed point in 695.4 seconds. Its 15,053-byte
-report has SHA-256
-`855f2c99b0afe541bbc59cbe91b1be513f97ab9bd0649bde3a5bb5df37b165d4`.
+and the 245,220-byte CupidObj image carries the corrected installation-source
+bounds and ordering. Its SHA-256 is
+`e9631e8b9377a17497bc87418c56282d97f91b8d1cd43e4670130e5e54334747`.
+[ADR 0205](../adr/0205-promote-cupidobj-request-boundaries.md) records the
+current transition and promotion. The post-promotion reproof reproduced all
+five checked seed images at stage two and repeated the complete fixed point in
+650.5 seconds. Its 15,053-byte report has SHA-256
+`9c1fa329855aa1a3a4e68e5b17dc7fac95b07905c1817fce80ad58f25847d92a`.
+The complete checked-seed module passes all 37 tests in 712.199 seconds.
 `make verify-bootstrap-seed` checks the current inputs without running them.
 `make bootstrap-from-seed` performs the complete staged build, while
 `make test-toolchain-fixed-point` retains the native-generation oracle.
 `make -C toolchain all` builds the checked i386 contract cohort without a
-host C compiler. GCC or Clang is used only by the explicit
+host C compiler. The complete 20-artifact cohort passes in 2,755.8 seconds,
+with stage two and stage three matching byte for byte. GCC or Clang is used only by the explicit
 `native-oracles` and hosted development targets.
 ADR 0184 moves the 83 Doom roots out of host ownership.
 
@@ -358,9 +362,9 @@ public operation and the `install-source` CLI. The bin, docs, and demos modes
 validate their own path categories, reject duplicate or mixed lists, cap the
 combined inventory at 512 paths with overflow-safe accumulation, preserve
 caller order across mixed home-asset extensions, and rewind partial output on
-failure. Source head and the Python oracle carry the limit and ordering
-corrections. The next checked-seed promotion will move them into production;
-the active inventories already fit the limit and retain byte-identical order.
+failure. The checked seed, source head, and Python oracle carry the limit and
+ordering corrections. The active inventories already fit the limit and retain
+byte-identical order.
 The normal Make recipes invoke the checked command and depend on
 `$(CUPIDOBJ_INPUTS)`.
 `tools/hostbuild.py` remains the parity oracle but is no longer a prerequisite
@@ -373,9 +377,9 @@ the pre-transfer files and the oracle exactly:
 | docs | 9,794 | `cff3fc8943d4b1999869653b14a882d21a463471452e429b2d742d47107b13fc` |
 | demos | 12,845 | `0d1f7ee032b13abbbe1767d75fe32c6f1ffa8b7014db44ae35c9d4c47ebb8305` |
 
-The private five-tool bootstrap reached a fixed point with a 245,132-byte
-CupidObj image. ADR 0201 records the operation, ADR 0203 records seed
-carriage, and ADR 0204 records production ownership.
+The private five-tool bootstrap reached a fixed point with the 245,220-byte
+CupidObj image. ADR 0201 records the operation, ADR 0204 records production
+ownership, and ADR 0205 records the corrected seed.
 
 The active-source audit classifies all three recipes as
 `generate_install_source` with `cupid_object` and `host_python`. Its exact
@@ -383,12 +387,12 @@ delivery guard checks each target, mode-specific recipe, inventory markers,
 and the complete checked-seed input set. Its focused positive and negative
 coverage passes in 0.222 seconds, including substituted inventories and shell
 text that only resembles a command. The full CupidC production module passes
-all 38 tests in 24.623 seconds, and the 195-input generated frontier passes in
-24.2 seconds with digest
-`efc3fe1cbd71bd90cc5fc24dd5a2c2e217666e625b43de4907f5389afa018c1d`.
-The full 68-test build-graph audit passes in 558.167 seconds. A normal root
-build passes in 1,432.8 seconds, followed by a private-image `ls` JIT smoke in
-48.8 seconds.
+all 39 tests in 27.309 seconds, and the 195-input generated frontier passes in
+25.4 seconds with digest
+`fb526be4b4388ecd62ed54b8321b043ef483fd3907c998dc7e062ab6ffef39ea`.
+The full 68-test build-graph audit passes in 589.740 seconds. A normal root
+build passes in 1,428.5 seconds, followed by a private-image `ls` JIT smoke in
+47.5 seconds.
 
 The external syscall table records `print`, `print_int`, and `exit` events
 with the running PID before using the normal console or process path. A print
@@ -782,7 +786,7 @@ quoted and 234 angle forms.
 The active-source digest remains
 `dbe1004fedddefd7d76742b5378bbde17ffb6369365abe80117293f417a3874d`.
 The 2,546,806-byte audit JSON has SHA-256
-`990051e3076726231db498df1f81137d2d6dd92b53e0ec425165b94a42062d80`,
+`f4e826579075d43102aa1cad95cfbaa6a827062b1371f3110538ee8c10469c0f`,
 and the 12,136-byte summary has SHA-256
 `2bad7ddbe6977c578b108d2a7cfd6b4979c133ad28faf95214fee9d3d74ece19`.
 
