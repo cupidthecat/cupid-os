@@ -233,9 +233,9 @@ static int run_model(void) {
     return 1;
   }
   info = ctool_x86_model_info();
-  if (!check_true(info.form_count == 589u && info.mnemonic_count == 242u &&
+  if (!check_true(info.form_count == 590u && info.mnemonic_count == 243u &&
                       info.register_count == 64u &&
-                      info.fingerprint == 0x22c336a0u,
+                      info.fingerprint == 0x74ec8312u,
                   "model inventory")) {
     ctool_job_close(job);
     return 1;
@@ -2163,6 +2163,7 @@ static int run_relocations(void) {
 static int run_system_simd(void) {
   static const ctool_u8 cr_bytes[] = {0x0fu, 0x22u, 0xc0u};
   static const ctool_u8 fxsave_bytes[] = {0x0fu, 0xaeu, 0x40u, 0x10u};
+  static const ctool_u8 fucomip_bytes[] = {0xdfu, 0xe9u};
   static const ctool_u8 fsin_bytes[] = {0xd9u, 0xfeu};
   static const ctool_u8 movss_bytes[] = {0xf3u, 0x0fu, 0x10u, 0x00u};
   static const ctool_u8 pxor_bytes[] = {0x66u, 0x0fu, 0xefu, 0xcau};
@@ -2229,6 +2230,40 @@ static int run_system_simd(void) {
       !check_true(decoded.kind == CTOOL_X86_DECODE_KNOWN &&
                       decoded.instruction.mnemonic == CTOOL_X86_MN_FSIN,
                   "fsin decode semantics")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  insn = instruction(CTOOL_X86_MN_FUCOMIP, 32u, 32u, 0u);
+  insn.operand_count = 2u;
+  insn.operands[0] = register_operand(CTOOL_X86_REG_X87, 0u);
+  insn.operands[1] = register_operand(CTOOL_X86_REG_X87, 1u);
+  if (!encode(job, CTOOL_X86_MODE_32, &insn, &encoding,
+              "fucomip st0, st1") ||
+      !bytes_equal(&encoding, fucomip_bytes,
+                   (ctool_u8)sizeof(fucomip_bytes), "fucomip bytes")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  status = ctool_x86_decode(
+      job, CTOOL_X86_MODE_32,
+      ctool_bytes(fucomip_bytes, (ctool_u32)sizeof(fucomip_bytes)), 0u,
+      &decoded);
+  if (!check_status(status, CTOOL_OK, "fucomip decode") ||
+      !check_true(decoded.kind == CTOOL_X86_DECODE_KNOWN &&
+                      decoded.instruction.mnemonic == CTOOL_X86_MN_FUCOMIP &&
+                      decoded.instruction.operand_count == 2u &&
+                      decoded.instruction.operands[0].kind ==
+                          CTOOL_X86_OPERAND_REGISTER &&
+                      decoded.instruction.operands[0].as.reg.class_id ==
+                          CTOOL_X86_REG_X87 &&
+                      decoded.instruction.operands[0].as.reg.index == 0u &&
+                      decoded.instruction.operands[1].kind ==
+                          CTOOL_X86_OPERAND_REGISTER &&
+                      decoded.instruction.operands[1].as.reg.class_id ==
+                          CTOOL_X86_REG_X87 &&
+                      decoded.instruction.operands[1].as.reg.index == 1u,
+                  "fucomip decode semantics")) {
     ctool_job_close(job);
     return 1;
   }

@@ -27042,16 +27042,22 @@ static int validate_floating_comparison_ir(
     const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir) {
   ctool_u32 float_type = find_plain_type_kind(unit, CTOOL_C_TYPE_FLOAT);
   ctool_u32 double_type = find_plain_type_kind(unit, CTOOL_C_TYPE_DOUBLE);
+  ctool_u32 long_double_type =
+      find_plain_type_kind(unit, CTOOL_C_TYPE_LONG_DOUBLE);
   ctool_u32 int_type = find_plain_type_kind(unit, CTOOL_C_TYPE_SIGNED_INT);
   ctool_u32 float_counts[6] = {0u, 0u, 0u, 0u, 0u, 0u};
   ctool_u32 double_counts[6] = {0u, 0u, 0u, 0u, 0u, 0u};
+  ctool_u32 long_double_counts[6] = {0u, 0u, 0u, 0u, 0u, 0u};
   ctool_u32 widenings = 0u;
+  ctool_u32 long_double_widenings = 0u;
   ctool_u32 index;
   if (unit == NULL || ir == NULL || ir->functions == NULL ||
       ir->instructions == NULL || float_type == CTOOL_C_TYPE_NONE ||
-      double_type == CTOOL_C_TYPE_NONE || int_type == CTOOL_C_TYPE_NONE ||
-      unit->function_definition_count != 18u || ir->function_count != 18u ||
-      ir->instruction_count != 114u) {
+      double_type == CTOOL_C_TYPE_NONE ||
+      long_double_type == CTOOL_C_TYPE_NONE ||
+      int_type == CTOOL_C_TYPE_NONE ||
+      unit->function_definition_count != 30u || ir->function_count != 30u ||
+      ir->instruction_count != 192u) {
     return 0;
   }
   for (index = 0u; index < ir->function_count; index++) {
@@ -27067,6 +27073,15 @@ static int validate_floating_comparison_ir(
         instruction->conversion ==
             CTOOL_C_CONVERSION_USUAL_ARITHMETIC) {
       widenings++;
+      continue;
+    }
+    if (instruction->kind == CTOOL_C_IR_INSTRUCTION_CONVERT &&
+        (instruction->input_type == float_type ||
+         instruction->input_type == double_type) &&
+        instruction->type == long_double_type &&
+        instruction->conversion ==
+            CTOOL_C_CONVERSION_USUAL_ARITHMETIC) {
+      long_double_widenings++;
       continue;
     }
     if (instruction->kind == CTOOL_C_IR_INSTRUCTION_BINARY) {
@@ -27086,6 +27101,8 @@ static int validate_floating_comparison_ir(
         counts = float_counts;
       } else if (instruction->input_type == double_type) {
         counts = double_counts;
+      } else if (instruction->input_type == long_double_type) {
+        counts = long_double_counts;
       } else {
         return 0;
       }
@@ -27093,23 +27110,26 @@ static int validate_floating_comparison_ir(
     }
   }
   for (index = 0u; index < 6u; index++) {
-    if (float_counts[index] != 1u || double_counts[index] != 2u) {
+    if (float_counts[index] != 1u || double_counts[index] != 2u ||
+        long_double_counts[index] != 2u) {
       (void)fprintf(
           stderr,
           "floating-comparisons: IR operator %u inventory differs: "
-          "float=%u double=%u\n",
+          "float=%u double=%u long-double=%u\n",
           (unsigned int)index, (unsigned int)float_counts[index],
-          (unsigned int)double_counts[index]);
+          (unsigned int)double_counts[index],
+          (unsigned int)long_double_counts[index]);
       return 0;
     }
   }
-  if (widenings != 6u ||
-      wide_variadic_ir_fingerprint(ir) != UINT64_C(0x1952ee3c6e22efe2)) {
+  if (widenings != 6u || long_double_widenings != 6u ||
+      wide_variadic_ir_fingerprint(ir) != UINT64_C(0x00ef66c81c2a4bd4)) {
     (void)fprintf(
         stderr,
         "floating-comparisons: IR inventory differs: widenings=%u "
-        "fingerprint=%016llx\n",
+        "long-double-widenings=%u fingerprint=%016llx\n",
         (unsigned int)widenings,
+        (unsigned int)long_double_widenings,
         (unsigned long long)wide_variadic_ir_fingerprint(ir));
     return 0;
   }
@@ -27135,7 +27155,19 @@ static int run_floating_comparisons(const char *host_root) {
       "int mixed_less(float left, double right) { return left < right; }\n"
       "int mixed_less_equal(double left, float right) { return left <= right; }\n"
       "int mixed_greater(float left, double right) { return left > right; }\n"
-      "int mixed_greater_equal(double left, float right) { return left >= right; }\n";
+      "int mixed_greater_equal(double left, float right) { return left >= right; }\n"
+      "int long_double_equal(long double left, long double right) { return left == right; }\n"
+      "int long_double_not_equal(long double left, long double right) { return left != right; }\n"
+      "int long_double_less(long double left, long double right) { return left < right; }\n"
+      "int long_double_less_equal(long double left, long double right) { return left <= right; }\n"
+      "int long_double_greater(long double left, long double right) { return left > right; }\n"
+      "int long_double_greater_equal(long double left, long double right) { return left >= right; }\n"
+      "int mixed_long_equal(long double left, double right) { return left == right; }\n"
+      "int mixed_long_not_equal(float left, long double right) { return left != right; }\n"
+      "int mixed_long_less(long double left, double right) { return left < right; }\n"
+      "int mixed_long_less_equal(float left, long double right) { return left <= right; }\n"
+      "int mixed_long_greater(long double left, float right) { return left > right; }\n"
+      "int mixed_long_greater_equal(double left, long double right) { return left >= right; }\n";
   ctool_host_adapter_t adapter;
   ctool_host_adapter_t limited_adapter;
   ctool_job_config_t config;

@@ -55,6 +55,9 @@ ctool_status_t ctool_c_emit_object(
  * zero initialization occupy twelve zero-filled bytes in BSS.
  * Floating-width conversions, unary signs, and the four arithmetic operators
  * preserve one abstract value handle.
+ * All six long-double comparisons use `FUCOMIP ST0, ST1`, discard the
+ * surviving operand with `FSTP ST0`, and leave one normalized integer result
+ * with no x87 stack growth.
  * Direct and indirect fixed, variadic, and unprototyped arguments occupy
  * three cdecl words. Variadic reads advance twelve bytes, and functions return
  * through x87 ST0 before callers spill the result into a fresh snapshot.

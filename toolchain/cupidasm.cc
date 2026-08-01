@@ -147,6 +147,7 @@ typedef enum {
   ASM_STATEMENT_EQU,
   ASM_STATEMENT_INSTRUCTION,
   ASM_STATEMENT_DATA,
+  ASM_STATEMENT_ALIGNMENT,
   ASM_STATEMENT_RESERVE
 } asm_statement_kind_t;
 
@@ -178,6 +179,11 @@ struct asm_statement {
       asm_expr_t *repeat;
       ctool_u32 repeat_count;
     } data;
+    struct {
+      asm_expr_t *boundary;
+      asm_expr_t *fill;
+      ctool_u8 fill_value;
+    } alignment;
     struct {
       ctool_u8 width;
       asm_expr_t *count;
@@ -1376,6 +1382,59 @@ static ctool_status_t asm_parse_reserve(asm_context_t *context,
   return CTOOL_OK;
 }
 
+static ctool_status_t asm_parse_alignment(asm_context_t *context,
+                                          const asm_token_t *tokens,
+                                          ctool_u32 count,
+                                          ctool_u32 directive_index) {
+  asm_statement_t *statement;
+  ctool_u32 index = directive_index + 1u;
+  ctool_status_t status;
+  if (index == count) {
+    asm_fail(context, CTOOL_ERR_INPUT, CTOOL_ASM_DIAG_SYNTAX,
+             tokens[directive_index].line, tokens[directive_index].column,
+             "ALIGN requires a boundary expression");
+    return CTOOL_ERR_INPUT;
+  }
+  statement = asm_append_statement(context, ASM_STATEMENT_ALIGNMENT,
+                                   tokens[directive_index].line,
+                                   tokens[directive_index].column);
+  if (statement == (asm_statement_t *)0) {
+    return context->failure_status;
+  }
+  status = asm_parse_expression(context, tokens, count, &index,
+                                &statement->as.alignment.boundary);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if (index < count) {
+    if (tokens[index].kind != ASM_TOKEN_COMMA) {
+      asm_fail(context, CTOOL_ERR_INPUT, CTOOL_ASM_DIAG_SYNTAX,
+               tokens[index].line, tokens[index].column,
+               "expected a comma before the ALIGN fill expression");
+      return CTOOL_ERR_INPUT;
+    }
+    index++;
+    if (index == count) {
+      asm_fail(context, CTOOL_ERR_INPUT, CTOOL_ASM_DIAG_SYNTAX,
+               tokens[index - 1u].line, tokens[index - 1u].column,
+               "ALIGN fill expression is missing");
+      return CTOOL_ERR_INPUT;
+    }
+    status = asm_parse_expression(context, tokens, count, &index,
+                                  &statement->as.alignment.fill);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+  }
+  if (index != count) {
+    asm_fail(context, CTOOL_ERR_INPUT, CTOOL_ASM_DIAG_SYNTAX,
+             tokens[index].line, tokens[index].column,
+             "ALIGN accepts one boundary and one optional fill expression");
+    return CTOOL_ERR_INPUT;
+  }
+  return CTOOL_OK;
+}
+
 static ctool_status_t asm_parse_add(asm_context_t *context,
                                     const asm_token_t *tokens,
                                     ctool_u32 count,
@@ -2136,6 +2195,9 @@ static ctool_status_t asm_parse_line(asm_context_t *context,
   }
   if (asm_reserve_width(tokens[start].text) != 0u) {
     return asm_parse_reserve(context, tokens, end, start);
+  }
+  if (asm_string_equal_case(tokens[start].text, "align") == CTOOL_TRUE) {
+    return asm_parse_alignment(context, tokens, end, start);
   }
   if (end != count) {
     asm_fail(context, CTOOL_ERR_INPUT, CTOOL_ASM_DIAG_UNKNOWN_DIRECTIVE,
@@ -2954,6 +3016,9 @@ static ctool_status_t asm_fixed_layout_sections(
     ctool_u32 *code_memory_out, ctool_u32 *data_file_out,
     ctool_u32 *data_memory_out);
 
+static ctool_status_t asm_align_u32(ctool_u32 value, ctool_u32 alignment,
+                                    ctool_u32 *aligned_out);
+
 static ctool_status_t asm_layout_pass(asm_context_t *context) {
   asm_statement_t *statement = context->statements;
   asm_section_t *section = context->sections;
@@ -3015,6 +3080,71 @@ static ctool_status_t asm_layout_pass(asm_context_t *context) {
       statement->as.data.repeat_count = (ctool_u32)repeat;
       statement->size =
           (ctool_u32)(size * (ctool_u64)statement->as.data.width);
+    } else if (statement->kind == ASM_STATEMENT_ALIGNMENT) {
+      ctool_u64 boundary;
+      ctool_u64 fill = 0ull;
+      ctool_u32 current = offset;
+      ctool_u32 aligned;
+      ctool_status_t status = asm_evaluate_expression(
+          context, statement->as.alignment.boundary, offset, CTOOL_TRUE,
+          &boundary);
+      if (status != CTOOL_OK) {
+        return status;
+      }
+      if (boundary > (ctool_u64)ASM_U32_MAX) {
+        asm_fail(context, CTOOL_ERR_OVERFLOW, CTOOL_ASM_DIAG_LAYOUT,
+                 statement->line, statement->column,
+                 "ALIGN boundary exceeds the 32-bit layout range");
+        return CTOOL_ERR_OVERFLOW;
+      }
+      if (boundary == 0ull ||
+          (((ctool_u32)boundary & ((ctool_u32)boundary - 1u)) != 0u)) {
+        asm_fail(context, CTOOL_ERR_INPUT, CTOOL_ASM_DIAG_LAYOUT,
+                 statement->line, statement->column,
+                 "ALIGN boundary must be a nonzero power of two");
+        return CTOOL_ERR_INPUT;
+      }
+      if (statement->as.alignment.fill != (asm_expr_t *)0) {
+        status = asm_evaluate_expression(
+            context, statement->as.alignment.fill, offset, CTOOL_TRUE,
+            &fill);
+        if (status != CTOOL_OK) {
+          return status;
+        }
+      }
+      if (fill > 0xffull) {
+        asm_fail(context, CTOOL_ERR_INPUT, CTOOL_ASM_DIAG_LAYOUT,
+                 statement->line, statement->column,
+                 "ALIGN fill must fit in one byte");
+        return CTOOL_ERR_INPUT;
+      }
+      if (statement->section->type == CTOOL_ELF32_SHT_NOBITS && fill != 0ull) {
+        asm_fail(context, CTOOL_ERR_INPUT, CTOOL_ASM_DIAG_INVALID_SECTION,
+                 statement->line, statement->column,
+                 "NOBITS alignment cannot use a nonzero fill byte");
+        return CTOOL_ERR_INPUT;
+      }
+      statement->as.alignment.fill_value = (ctool_u8)fill;
+      if (statement->section->alignment < (ctool_u32)boundary) {
+        statement->section->alignment = (ctool_u32)boundary;
+      }
+      if (context->request->artifact == CTOOL_ASM_ARTIFACT_RAW) {
+        if (context->origin > ASM_U32_MAX - offset) {
+          asm_fail(context, CTOOL_ERR_OVERFLOW, CTOOL_ASM_DIAG_LAYOUT,
+                   statement->line, statement->column,
+                   "raw ALIGN address exceeds the 32-bit layout range");
+          return CTOOL_ERR_OVERFLOW;
+        }
+        current = context->origin + offset;
+      }
+      status = asm_align_u32(current, (ctool_u32)boundary, &aligned);
+      if (status != CTOOL_OK) {
+        asm_fail(context, status, CTOOL_ASM_DIAG_LAYOUT,
+                 statement->line, statement->column,
+                 "ALIGN padding exceeds the 32-bit layout range");
+        return status;
+      }
+      statement->size = aligned - current;
     } else if (statement->kind == ASM_STATEMENT_RESERVE) {
       ctool_u64 count;
       ctool_status_t status = asm_evaluate_expression(
@@ -3234,6 +3364,10 @@ static ctool_status_t asm_emit_raw(asm_context_t *context,
           value = value->next;
         }
       }
+    } else if (statement->kind == ASM_STATEMENT_ALIGNMENT) {
+      status = ctool_buffer_fill(output,
+                                 statement->as.alignment.fill_value,
+                                 statement->size);
     } else if (statement->kind == ASM_STATEMENT_RESERVE) {
       status = ctool_buffer_fill(output, 0u, statement->size);
     }
@@ -3576,6 +3710,18 @@ static ctool_status_t asm_object_emit_statements(
           data = data->next;
         }
       }
+    } else if (statement->kind == ASM_STATEMENT_ALIGNMENT &&
+               statement->section->type == CTOOL_ELF32_SHT_PROGBITS) {
+      ctool_u32 index;
+      if (statement->offset > statement->section->size ||
+          statement->size > statement->section->size - statement->offset) {
+        status = CTOOL_ERR_INTERNAL;
+      }
+      for (index = 0u; status == CTOOL_OK && index < statement->size;
+           index++) {
+        statement->section->contents[statement->offset + index] =
+            statement->as.alignment.fill_value;
+      }
     }
     if (status != CTOOL_OK) {
       if (context->failure_status == CTOOL_OK) {
@@ -3674,21 +3820,34 @@ static ctool_status_t asm_fixed_layout_sections(
     ctool_u32 base = code == CTOOL_TRUE
                          ? context->request->as.fixed.code.base_address
                          : context->request->as.fixed.data.base_address;
+    ctool_u32 current;
+    ctool_u32 aligned_address;
     ctool_u32 aligned;
     ctool_status_t status;
+    if (base > ASM_U32_MAX - *used) {
+      asm_fail(context, CTOOL_ERR_OVERFLOW, CTOOL_ASM_DIAG_LAYOUT,
+               0u, 0u, "fixed image section address overflows");
+      return CTOOL_ERR_OVERFLOW;
+    }
+    current = base + *used;
+    status = asm_align_u32(current, section->alignment, &aligned_address);
+    if (status != CTOOL_OK) {
+      asm_fail(context, CTOOL_ERR_OVERFLOW, CTOOL_ASM_DIAG_LAYOUT,
+               0u, 0u, "fixed image section address overflows");
+      return CTOOL_ERR_OVERFLOW;
+    }
+    aligned = aligned_address - base;
+    section->load_address = aligned_address;
     if (section->size == 0u) {
-      section->load_address = base + *used;
       section = section->next;
       continue;
     }
-    status = asm_align_u32(*used, section->alignment, &aligned);
-    if (status != CTOOL_OK || aligned > ASM_U32_MAX - section->size ||
+    if (aligned > ASM_U32_MAX - section->size ||
         base > ASM_U32_MAX - aligned) {
       asm_fail(context, CTOOL_ERR_OVERFLOW, CTOOL_ASM_DIAG_LAYOUT,
                0u, 0u, "fixed image section address overflows");
       return CTOOL_ERR_OVERFLOW;
     }
-    section->load_address = base + aligned;
     *used = aligned + section->size;
     if (section->type == CTOOL_ELF32_SHT_PROGBITS) {
       *file = *used;
@@ -3890,6 +4049,15 @@ static ctool_status_t asm_fixed_emit_statements(asm_context_t *context,
           }
           data = data->next;
         }
+      }
+    } else if (statement->kind == ASM_STATEMENT_ALIGNMENT &&
+               statement->section->type == CTOOL_ELF32_SHT_PROGBITS) {
+      ctool_u32 index;
+      for (index = 0u; status == CTOOL_OK && index < statement->size;
+           index++) {
+        status = ctool_buffer_patch_u8(
+            output, output_offset + index,
+            statement->as.alignment.fill_value);
       }
     }
     if (status != CTOOL_OK) {

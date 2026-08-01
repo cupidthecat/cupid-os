@@ -18,7 +18,8 @@ Cupid OS is a 32-bit x86 hobby OS written in Cupid C and Cupid ASM. It has a gra
 - CupidC, a HolyC-inspired C compiler with JIT and ELF32 AOT output
 - Hardware FPU (x87) and SSE/SSE2 with eager FXSAVE context switch
 - CupidC float/double scalars, exact unary signs, comparisons, control-flow
-  truth, prefix/postfix updates, and float4/double2 SIMD types with SSE intrinsics
+  truth, prefix/postfix updates, mixed-width scalar cdecl calls, and
+  float4/double2 SIMD types with SSE intrinsics
 - libm: 25 operations (sqrt, sin, cos, tan, atan, atan2, exp, exp2, log, log2, pow, asin, acos, sinh, cosh, tanh, cbrt, hypot, nextafter, fabs, floor, ceil, round, trunc, fmod + f-variants)
 - printf %f, %e, %g, %.Nf with x87-backed int/fractional split
 - #NM/#MF/#XF FPU exception handlers with MXCSR/FSW/FCW dump
@@ -96,6 +97,15 @@ records private scalar comparison behavior. Matching widths use `UCOMISS` or
 `UCOMISD`, mixed widths compare as `double`, and explicit parity checks make
 only `!=` true for NaN. The feature13 frontier requires ordered, mixed-width,
 signed-zero, and unordered results before JIT completion.
+
+[ADR 0198](docs/adr/0198-layout-private-cupidc-mixed-width-calls.md)
+records the private compiler's scalar cdecl layout. Calls evaluate arguments
+from left to right, then place four-byte scalar or pointer slots and eight-byte
+`double` slots at increasing addresses in source order. Callees use the same
+widths for later parameter offsets, methods place `self` first, and callers
+reclaim the complete outgoing area. `feature13_double.cc` now calls one
+`double, double, double, int` helper nine times instead of expanding its
+tolerance calculation at every call site.
 
 ## Feature demo quickstart
 
@@ -343,8 +353,8 @@ before publication. A valid data-only object may omit `.text`; its remaining
 sections and symbols still receive the full bounds checks. The strict kernel
 frontier compiles all 155 checked-in sources twice. The complete two-pass
 frontier passes against a 445-file snapshot with SHA-256
-`e28b1024edc5361d99583f79f65ce43690ebc873f04b568837f57f8af5df5db7`.
-Both 155-object passes are byte-identical; each totals 3,717,856 bytes. The
+`543c7bb3e4946967835fe81daeb6d895d661c03961021681a34b5236cfa20423`.
+Both 155-object passes are byte-identical; each totals 3,719,100 bytes. The
 frontier publisher retries a short permission-style directory lock with five
 bounded delays. A persistent lock or any other filesystem error leaves the
 frontier unpublished. Input discovery also skips hidden paths under the active
@@ -697,10 +707,10 @@ longer calls FFmpeg, `jpegtran`, `djpeg`, or `cjpeg`. The Linux kernel build
 passed in 607.7 seconds, and the Windows root build passed in 341.6 seconds.
 All 430 frozen kernel artifacts match byte for byte.
 
-The current raw kernel is 8,510,856 bytes with SHA-256
-`5bd12f137dbbbba30bff4d3fe2b95e1727379b2ece1aaffc6a96cb2dc4416d5a`.
+The current raw kernel is 8,513,704 bytes with SHA-256
+`3ddc5abbf90bc69b58917577d5ded12ba601feb905eaad0ce9eb986a32f8adf6`.
 The fresh 209,715,200-byte normal image has SHA-256
-`5589c5cc151c486a85efaffc3551b37ec4f733ebd57f78c863c5bf6b96c7e23d`.
+`1d59fd38a2999e53cf4b89a3ea7d5a662efeb65ac42b392271d538e6ebf7daa4`.
 The kernel bytes match the image from the 2,560-byte boot boundary. This is a
 preboot digest; guest filesystem writes intentionally change the image. The
 preceding cross-host image passed a private `/bin/ls.cc` JIT boot in 49.8
@@ -776,9 +786,12 @@ direct or indirect call results. Fixed, ellipsis, and unprototyped arguments
 occupy twelve cdecl bytes. `va_arg(long double)` copies the same width and
 advances the cursor by twelve bytes. The static i386 runtime checks both
 zero-initialization forms, a following four-byte argument, both old-style call
-forms, and result transport through x87 `ST0`. Direct floating truth,
+forms, and result transport through x87 `ST0`. All six comparisons accept
+matching long-double values and mixed `float` or `double` inputs. The emitter
+uses `FUCOMIP`, balances the x87 stack, treats signed zeros as equal, and makes
+only `!=` true for an unordered input. Direct floating truth,
 hexadecimal and subnormal floating literals, `long double` literals, nonzero
-or floating static long-double initializers, comparisons, integer conversions
+or floating static long-double initializers, integer conversions
 involving `long double`, conversion to unsigned four-byte integers
 or `_Bool`, mixed integer and floating conditional arms, floating increment
 and decrement, SIMD values, floating atomics, and over-aligned emission
@@ -1213,9 +1226,15 @@ CupidASM (`as*.cc`) is an Intel-syntax x86-32 assembler:
 
 - Expanded x86-32 integer/control-flow/system/FPU/SSE/atomic coverage
 - JIT and AOT (ELF32) modes
-- Directives: `%include`, reserve aliases, `times`, alignment
+- Directives: `%include`, reserve aliases, `times`, and
+  `align POWER_OF_TWO[, FILL_BYTE]`
 - Forward references, up to 8192 labels
 - Kernel bindings for print, malloc, VFS, graphics calls
+
+`align` uses the absolute `ORG` address for raw binaries, records the required
+section alignment in ELF32 objects, and honors absolute region bases in fixed
+images. Its fill byte defaults to zero. NOBITS padding grows memory without
+adding file bytes.
 
 CupidScript (`cupidscript*.cc`) is a shell scripting language for `.cup` files:
 
@@ -1225,7 +1244,7 @@ CupidScript (`cupidscript*.cc`) is a shell scripting language for `.cup` files:
 - Arrays, string operations
 - Calls shell commands and kernel functions directly
 
-CupidDis is the shared x86-32 disassembler and ELF inspector used by the hosted CLI and the kernel `dis` and `exec -d` adapters. Raw input accepts one 16-bit or 32-bit mode, or an ordered mode map for a flat image that changes modes. The hosted form is `cupiddis --raw --mode 16|32 [--mode-at OFFSET:16|32]... --base ADDRESS FILE`. The caller supplies instruction-boundary offsets; CupidDis validates ordering and range bounds but does not infer transitions from bytes. The shared x86 model covers all sixteen i686 conditional moves for 16-bit and 32-bit register or memory sources. It also covers three-operand `IMUL` with same-width register or memory sources, using `69 /r` for a full immediate and `6B /r` when the value fits a sign-extended byte. Ordinary compiler padding includes plain `90`, `66 90`, and word or doubleword `0F 1F /0` register and memory forms. A private 32-bit decoder exception recognizes the five exact Clang forms with two through six leading `66` bytes and the fixed `2E 0F 1F 84 00 00 00 00 00` tail. Other repeated prefixes remain invalid, and CupidASM cannot emit the redundant forms. CupidASM accepts the conditional-move aliases, chooses the shortest valid multiply encoding, and applies the current mode's default width to a memory NOP. Source head has 589 forms and fingerprint `22C336A0`, including 80-bit x87 memory forms for automatic `long double` values. The repository seed retains the earlier 587-form catalogue and rebuilds the current model during the checked fixed point.
+CupidDis is the shared x86-32 disassembler and ELF inspector used by the hosted CLI and the kernel `dis` and `exec -d` adapters. Raw input accepts one 16-bit or 32-bit mode, or an ordered mode map for a flat image that changes modes. The hosted form is `cupiddis --raw --mode 16|32 [--mode-at OFFSET:16|32]... --base ADDRESS FILE`. The caller supplies instruction-boundary offsets; CupidDis validates ordering and range bounds but does not infer transitions from bytes. The shared x86 model covers all sixteen i686 conditional moves for 16-bit and 32-bit register or memory sources. It also covers three-operand `IMUL` with same-width register or memory sources, using `69 /r` for a full immediate and `6B /r` when the value fits a sign-extended byte. Ordinary compiler padding includes plain `90`, `66 90`, and word or doubleword `0F 1F /0` register and memory forms. A private 32-bit decoder exception recognizes the five exact Clang forms with two through six leading `66` bytes and the fixed `2E 0F 1F 84 00 00 00 00 00` tail. Other repeated prefixes remain invalid, and CupidASM cannot emit the redundant forms. CupidASM accepts the conditional-move aliases, chooses the shortest valid multiply encoding, and applies the current mode's default width to a memory NOP. Source head has 590 forms, 243 canonical mnemonics, and fingerprint `74EC8312`. Its newest i686 form encodes and decodes `FUCOMIP ST0, ST(i)` for long-double comparisons. The repository seed retains the earlier 587-form catalogue and rebuilds the current model during the checked fixed point.
 
 ### Program execution
 

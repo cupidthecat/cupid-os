@@ -1132,6 +1132,374 @@ static void init_fixed_request(ctool_asm_request_t *request,
   request->as.fixed.data.maximum_bytes = 0x1000u;
 }
 
+static int run_alignment(void) {
+  static const char invalid_fill_source_text[] =
+      "BITS 32\n"
+      "align 4, 256\n";
+  static const char raw_source_text[] =
+      "BITS 32\n"
+      "ORG 0x101\n"
+      "db 0x11\n"
+      "align 4, 0xa5\n"
+      "aligned_raw:\n"
+      "dw aligned_raw\n"
+      "align 8\n"
+      "db 0x22\n";
+  static const ctool_u8 expected_raw[] = {
+      0x11u, 0xa5u, 0xa5u, 0x04u, 0x01u, 0x00u, 0x00u, 0x22u};
+  static const char object_source_text[] =
+      "BITS 32\n"
+      "section .data\n"
+      "db 1\n"
+      "align 16, 0x5a\n"
+      "aligned_data:\n"
+      "dd aligned_data\n"
+      "section .bss\n"
+      "resb 3\n"
+      "align 32\n"
+      "aligned_bss:\n"
+      "resb 5\n";
+  static const char fixed_source_text[] =
+      "BITS 32\n"
+      "section .text\n"
+      "main: ret\n"
+      "section .data\n"
+      "db 0x11\n"
+      "align 16, 0xcc\n"
+      "aligned_fixed:\n"
+      "dd aligned_fixed\n"
+      "section .bss\n"
+      "resb 3\n"
+      "align 32\n"
+      "fixed_bss:\n"
+      "resb 5\n";
+  static const char fixed_empty_source_text[] =
+      "BITS 32\n"
+      "section .text\n"
+      "align 32\n"
+      "main:\n"
+      "section .data\n"
+      "dd main\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job;
+  ctool_buffer_t *output;
+  ctool_source_t source;
+  ctool_source_t object_source;
+  ctool_asm_request_t raw;
+  ctool_asm_request_t object_request;
+  ctool_asm_request_t fixed;
+  ctool_asm_request_t fixed_overflow;
+  ctool_asm_request_t fixed_empty;
+  ctool_asm_request_t fixed_empty_overflow;
+  ctool_asm_result_t result;
+  ctool_elf32_object_t object;
+  const ctool_elf32_section_t *data;
+  const ctool_elf32_section_t *bss;
+  const ctool_elf32_symbol_t *aligned_data;
+  const ctool_elf32_symbol_t *aligned_bss;
+  const ctool_asm_region_t *text_region;
+  const ctool_asm_region_t *data_region;
+  const ctool_diagnostic_t *diagnostic;
+  ctool_string_t entry = ctool_string("main");
+  ctool_bytes_t bytes;
+  ctool_status_t status;
+  ctool_u32 index;
+
+  status = ctool_host_adapter_init(&adapter, ".");
+  if (!check_status(status, CTOOL_OK, "alignment host adapter init")) {
+    return 1;
+  }
+  config = ctool_host_job_config(&adapter, ctool_default_limits());
+  init_raw_request(&raw);
+  init_object_request(&object_request);
+  init_fixed_request(&fixed, &entry);
+  fixed_overflow = fixed;
+  fixed_overflow.as.fixed.data.base_address = 0xfffffff1u;
+  fixed_empty = fixed;
+  fixed_empty.as.fixed.code.base_address = 0x01a00003u;
+  fixed_empty_overflow = fixed;
+  fixed_empty_overflow.as.fixed.code.base_address = 0xfffffff1u;
+
+  if (!expect_assembly_failure(
+          "zero alignment", config, "/align-zero.asm",
+          "BITS 32\nalign 0\n", &raw, CTOOL_ERR_INPUT,
+          CTOOL_ASM_DIAG_LAYOUT, "/align-zero.asm") ||
+      !expect_assembly_failure(
+          "non-power-of-two alignment", config, "/align-three.asm",
+          "BITS 32\nalign 3\n", &raw, CTOOL_ERR_INPUT,
+          CTOOL_ASM_DIAG_LAYOUT, "/align-three.asm") ||
+      !expect_assembly_failure(
+          "initialized BSS alignment", config, "/align-bss-fill.asm",
+          "BITS 32\nsection .bss\nresb 1\nalign 8, 1\n", &object_request,
+          CTOOL_ERR_INPUT, CTOOL_ASM_DIAG_INVALID_SECTION,
+          "/align-bss-fill.asm") ||
+      !expect_assembly_failure(
+          "fixed absolute alignment overflow", config,
+          "/align-fixed-overflow.asm",
+          "BITS 32\nsection .text\nmain: ret\nsection .data\n"
+          "align 16\ndb 1\n",
+          &fixed_overflow, CTOOL_ERR_OVERFLOW, CTOOL_ASM_DIAG_LAYOUT,
+          "/align-fixed-overflow.asm") ||
+      !expect_assembly_failure(
+          "fixed empty-section alignment overflow", config,
+          "/align-fixed-empty-overflow.asm",
+          "BITS 32\nsection .text\nalign 16\nmain:\n",
+          &fixed_empty_overflow, CTOOL_ERR_OVERFLOW,
+          CTOOL_ASM_DIAG_LAYOUT,
+          "/align-fixed-empty-overflow.asm")) {
+    return 1;
+  }
+
+  status = ctool_job_open(&config, &job);
+  if (!check_status(status, CTOOL_OK, "alignment raw job open")) {
+    return 1;
+  }
+  status = ctool_job_open_buffer(job, 16u, config.limits.output_bytes,
+                                 &output);
+  if (!check_status(status, CTOOL_OK, "alignment raw output open")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  source.path.text = ctool_string("/align-fill.asm");
+  source.contents = ctool_bytes(
+      invalid_fill_source_text,
+      (ctool_u32)(sizeof(invalid_fill_source_text) - 1u));
+  (void)memset(&result, 0xa5, sizeof(result));
+  status = ctool_asm_assemble(job, &source, &raw, output, &result);
+  diagnostic = ctool_job_diagnostic(job, 0u);
+  if (!check_status(status, CTOOL_ERR_INPUT, "alignment fill overflow") ||
+      ctool_buffer_view(output).size != 0u ||
+      !contract_result_is_zero(&result) ||
+      ctool_job_diagnostic_count(job) != 1u ||
+      diagnostic == (const ctool_diagnostic_t *)0 ||
+      diagnostic->code != CTOOL_ASM_DIAG_LAYOUT) {
+    (void)fprintf(stderr, "alignment fill diagnostic differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    ctool_buffer_close(output);
+    ctool_job_close(job);
+    return 1;
+  }
+
+  source.path.text = ctool_string("/alignment-raw.asm");
+  source.contents = ctool_bytes(
+      raw_source_text, (ctool_u32)(sizeof(raw_source_text) - 1u));
+  (void)memset(&result, 0xa5, sizeof(result));
+  status = ctool_asm_assemble(job, &source, &raw, output, &result);
+  bytes = ctool_buffer_view(output);
+  if (!check_status(status, CTOOL_OK, "raw alignment recovery") ||
+      bytes.size != (ctool_u32)sizeof(expected_raw) ||
+      memcmp(bytes.data, expected_raw, sizeof(expected_raw)) != 0 ||
+      result.artifact != CTOOL_ASM_ARTIFACT_RAW ||
+      result.bytes.data != bytes.data || result.bytes.size != bytes.size ||
+      ctool_job_diagnostic_count(job) != 1u) {
+    (void)fprintf(stderr, "raw alignment recovery artifact differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    ctool_buffer_close(output);
+    ctool_job_close(job);
+    return 1;
+  }
+  status = ctool_buffer_rewind(output, 0u);
+  if (status == CTOOL_OK) {
+    (void)memset(&result, 0xa5, sizeof(result));
+    status = ctool_asm_assemble(job, &source, &raw, output, &result);
+  }
+  bytes = ctool_buffer_view(output);
+  if (!check_status(status, CTOOL_OK, "raw alignment deterministic repeat") ||
+      bytes.size != (ctool_u32)sizeof(expected_raw) ||
+      memcmp(bytes.data, expected_raw, sizeof(expected_raw)) != 0 ||
+      ctool_job_diagnostic_count(job) != 1u) {
+    (void)fprintf(stderr, "raw alignment repeat differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    ctool_buffer_close(output);
+    ctool_job_close(job);
+    return 1;
+  }
+  ctool_buffer_close(output);
+  ctool_job_close(job);
+
+  status = ctool_job_open(&config, &job);
+  if (!check_status(status, CTOOL_OK, "alignment object job open")) {
+    return 1;
+  }
+  status = ctool_job_open_buffer(job, 256u, config.limits.output_bytes,
+                                 &output);
+  if (!check_status(status, CTOOL_OK, "alignment object output open")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  source.path.text = ctool_string("/alignment-object.asm");
+  source.contents = ctool_bytes(
+      object_source_text, (ctool_u32)(sizeof(object_source_text) - 1u));
+  (void)memset(&result, 0xa5, sizeof(result));
+  (void)memset(&object, 0, sizeof(object));
+  status = ctool_asm_assemble(job, &source, &object_request, output, &result);
+  if (status == CTOOL_OK) {
+    object_source.path.text = ctool_string("/alignment-object.o");
+    object_source.contents = result.bytes;
+    status = ctool_elf32_read(job, &object_source, &object);
+  }
+  data = find_section(&object, ".data");
+  bss = find_section(&object, ".bss");
+  aligned_data = find_symbol(&object, "aligned_data");
+  aligned_bss = find_symbol(&object, "aligned_bss");
+  if (!check_status(status, CTOOL_OK, "ELF32 alignment assembly") ||
+      data == (const ctool_elf32_section_t *)0 ||
+      data->alignment != 16u || data->size != 20u ||
+      data->contents.size != 20u || data->contents.data[0] != 1u ||
+      bss == (const ctool_elf32_section_t *)0 ||
+      bss->type != CTOOL_ELF32_SHT_NOBITS || bss->alignment != 32u ||
+      bss->size != 37u || bss->contents.size != 0u ||
+      aligned_data == (const ctool_elf32_symbol_t *)0 ||
+      aligned_data->section_file_index != data->file_index ||
+      aligned_data->value != 16u ||
+      aligned_bss == (const ctool_elf32_symbol_t *)0 ||
+      aligned_bss->section_file_index != bss->file_index ||
+      aligned_bss->value != 32u || object.relocation_count != 1u ||
+      object.relocations[0].target_section_file_index != data->file_index ||
+      object.relocations[0].offset != 16u ||
+      object.relocations[0].symbol_file_index != aligned_data->file_index ||
+      object.relocations[0].type != CTOOL_ELF32_R_386_32 ||
+      object.relocations[0].addend_known == CTOOL_FALSE ||
+      object.relocations[0].addend != 0 ||
+      ctool_job_diagnostic_count(job) != 0u) {
+    (void)fprintf(stderr, "ELF32 alignment artifact differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    ctool_buffer_close(output);
+    ctool_job_close(job);
+    return 1;
+  }
+  for (index = 1u; index < 16u; index++) {
+    if (data->contents.data[index] != 0x5au) {
+      (void)fprintf(stderr, "ELF32 alignment fill differs\n");
+      ctool_buffer_close(output);
+      ctool_job_close(job);
+      return 1;
+    }
+  }
+  for (index = 16u; index < 20u; index++) {
+    if (data->contents.data[index] != 0u) {
+      (void)fprintf(stderr, "ELF32 alignment relocation field differs\n");
+      ctool_buffer_close(output);
+      ctool_job_close(job);
+      return 1;
+    }
+  }
+  ctool_buffer_close(output);
+  ctool_job_close(job);
+
+  fixed.as.fixed.data.base_address = 0x01b00003u;
+  status = ctool_job_open(&config, &job);
+  if (!check_status(status, CTOOL_OK, "alignment fixed job open")) {
+    return 1;
+  }
+  status = ctool_job_open_buffer(job, 64u, config.limits.output_bytes,
+                                 &output);
+  if (!check_status(status, CTOOL_OK, "alignment fixed output open")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  source.path.text = ctool_string("/alignment-fixed.asm");
+  source.contents = ctool_bytes(
+      fixed_source_text, (ctool_u32)(sizeof(fixed_source_text) - 1u));
+  (void)memset(&result, 0xa5, sizeof(result));
+  status = ctool_asm_assemble(job, &source, &fixed, output, &result);
+  bytes = ctool_buffer_view(output);
+  text_region = result.region_count >= 1u ? &result.regions[0]
+                                          : (const ctool_asm_region_t *)0;
+  data_region = result.region_count >= 2u ? &result.regions[1]
+                                          : (const ctool_asm_region_t *)0;
+  if (!check_status(status, CTOOL_OK, "fixed alignment assembly") ||
+      bytes.size != 34u || bytes.data[0] != 0xc3u ||
+      text_region == (const ctool_asm_region_t *)0 ||
+      text_region->address != 0x01a00000u || text_region->file_size != 1u ||
+      text_region->memory_size != 1u ||
+      data_region == (const ctool_asm_region_t *)0 ||
+      data_region->address != 0x01b00003u ||
+      data_region->output_offset != 1u || data_region->file_size != 33u ||
+      data_region->memory_size != 98u || result.has_entry != CTOOL_TRUE ||
+      result.entry_address != 0x01a00000u ||
+      ctool_job_diagnostic_count(job) != 0u) {
+    (void)fprintf(stderr, "fixed alignment artifact differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    ctool_buffer_close(output);
+    ctool_job_close(job);
+    return 1;
+  }
+  for (index = 1u; index < 14u; index++) {
+    if (bytes.data[index] != 0u) {
+      (void)fprintf(stderr, "fixed leading alignment differs\n");
+      ctool_buffer_close(output);
+      ctool_job_close(job);
+      return 1;
+    }
+  }
+  if (bytes.data[14] != 0x11u) {
+    (void)fprintf(stderr, "fixed aligned section payload differs\n");
+    ctool_buffer_close(output);
+    ctool_job_close(job);
+    return 1;
+  }
+  for (index = 15u; index < 30u; index++) {
+    if (bytes.data[index] != 0xccu) {
+      (void)fprintf(stderr, "fixed alignment fill differs\n");
+      ctool_buffer_close(output);
+      ctool_job_close(job);
+      return 1;
+    }
+  }
+  if (bytes.data[30] != 0x20u || bytes.data[31] != 0x00u ||
+      bytes.data[32] != 0xb0u || bytes.data[33] != 0x01u) {
+    (void)fprintf(stderr, "fixed aligned label address differs\n");
+    ctool_buffer_close(output);
+    ctool_job_close(job);
+    return 1;
+  }
+  ctool_buffer_close(output);
+  ctool_job_close(job);
+
+  status = ctool_job_open(&config, &job);
+  if (!check_status(status, CTOOL_OK, "empty alignment fixed job open")) {
+    return 1;
+  }
+  status = ctool_job_open_buffer(job, 16u, config.limits.output_bytes,
+                                 &output);
+  if (!check_status(status, CTOOL_OK, "empty alignment fixed output open")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  source.path.text = ctool_string("/alignment-fixed-empty.asm");
+  source.contents = ctool_bytes(
+      fixed_empty_source_text,
+      (ctool_u32)(sizeof(fixed_empty_source_text) - 1u));
+  (void)memset(&result, 0xa5, sizeof(result));
+  status = ctool_asm_assemble(job, &source, &fixed_empty, output, &result);
+  bytes = ctool_buffer_view(output);
+  data_region = result.region_count == 1u
+                    ? &result.regions[0]
+                    : (const ctool_asm_region_t *)0;
+  if (!check_status(status, CTOOL_OK, "fixed empty alignment assembly") ||
+      bytes.size != 4u || bytes.data[0] != 0x20u ||
+      bytes.data[1] != 0x00u || bytes.data[2] != 0xa0u ||
+      bytes.data[3] != 0x01u || result.region_count != 1u ||
+      data_region == (const ctool_asm_region_t *)0 ||
+      data_region->address != fixed_empty.as.fixed.data.base_address ||
+      data_region->output_offset != 0u || data_region->file_size != 4u ||
+      data_region->memory_size != 4u || result.has_entry != CTOOL_TRUE ||
+      result.entry_address != 0x01a00020u ||
+      ctool_job_diagnostic_count(job) != 0u) {
+    (void)fprintf(stderr, "fixed empty alignment artifact differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    ctool_buffer_close(output);
+    ctool_job_close(job);
+    return 1;
+  }
+  ctool_buffer_close(output);
+  ctool_job_close(job);
+  (void)puts("alignment: ok");
+  return 0;
+}
+
 static int run_error_contracts(void) {
   static const char cycle_a[] = "%include \"cycle-b.asm\"\n";
   static const char cycle_b[] = "%include \"cycle-a.asm\"\n";
@@ -1462,6 +1830,9 @@ int main(int argc, char **argv) {
   if (argc == 2 && strcmp(argv[1], "fixed-directives") == 0) {
     return run_fixed_directives();
   }
+  if (argc == 2 && strcmp(argv[1], "alignment") == 0) {
+    return run_alignment();
+  }
   if (argc == 2 && strcmp(argv[1], "include-resolution") == 0) {
     return run_include_resolution();
   }
@@ -1474,6 +1845,7 @@ int main(int argc, char **argv) {
   (void)fprintf(stderr,
                 "usage: cupidasm-contract raw-basic|raw-expressions|"
                 "object-basic|object-symbolic-immediate|fixed-image|"
-                "fixed-directives|include-resolution|errors|long-line\n");
+                "fixed-directives|alignment|include-resolution|errors|"
+                "long-line\n");
   return 2;
 }

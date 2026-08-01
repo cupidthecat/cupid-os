@@ -166,8 +166,8 @@ the build output. A valid data-only object may omit .text, but its other
 sections and symbols must still pass validation. The strict frontier must
 compile all 155 checked-in roots twice. The full frontier now passes with a
 445-input path snapshot whose SHA-256 is
-e28b1024edc5361d99583f79f65ce43690ebc873f04b568837f57f8af5df5db7.
-Both 155-object sets are byte-identical; each totals 3,717,856 bytes. The combined
+543c7bb3e4946967835fe81daeb6d895d661c03961021681a34b5236cfa20423.
+Both 155-object sets are byte-identical; each totals 3,719,100 bytes. The combined
 graph passes clean normal and partitioned image builds. Final frontier
 publication retries a short permission-style directory lock with five bounded
 delays. A persistent lock leaves the frontier unpublished. The input scan
@@ -525,9 +525,13 @@ and minus, and supports +, -, *, and /. Direct and
 indirect fixed, variadic, and unprototyped arguments occupy twelve cdecl
 bytes. Functions return the value in x87 ST0, and direct or indirect callers
 store it in a twelve-byte snapshot. va_arg(long double) copies twelve bytes
-and leaves the cursor at the following four-byte slot. Hexadecimal floating
-literals, long double literals, nonzero or floating static initializers,
-long double comparisons, integer conversions involving long double, runtime conversion to
+and leaves the cursor at the following four-byte slot.
+All six comparisons accept matching long-double operands or a mixed float or
+double input. The emitter loads right then left, executes FUCOMIP ST0, ST1,
+and discards the surviving x87 value. Signed zeros compare equal, and only !=
+is true for an unordered input. Hexadecimal floating literals, long double
+literals, nonzero or floating static initializers,
+integer conversions involving long double, runtime conversion to
 unsigned four-byte integers or _Bool,
 other floating-to-wide conversions, runtime floating truth, runtime mixed
 wide and floating arithmetic or conditional arms, increment and decrement,

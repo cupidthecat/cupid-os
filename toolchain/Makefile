@@ -708,6 +708,7 @@ test: $(CONTRACT_MANIFEST) \
 	$(CUPIDASM_CONTRACT) object-symbolic-immediate
 	$(CUPIDASM_CONTRACT) fixed-image
 	$(CUPIDASM_CONTRACT) fixed-directives
+	$(CUPIDASM_CONTRACT) alignment
 	$(CUPIDASM_CONTRACT) include-resolution
 	$(CUPIDASM_CONTRACT) errors
 	$(CUPIDASM_CONTRACT) long-line

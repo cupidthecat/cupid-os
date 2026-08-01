@@ -1911,7 +1911,7 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
             self.assertEqual(manifest["boundaries"], [])
             self.assertEqual(
                 sum(entry["size"] for entry in manifest["sources"]),
-                3717856,
+                3719100,
             )
             object_records = {
                 entry["source"]: (entry["size"], entry["object_sha256"])
@@ -1982,9 +1982,9 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
             self.assertEqual(
                 object_records["toolchain/x86.cc"],
                 (
-                    134876,
-                    "c7ea70a953a63e4942216fb8118e0f1c"
-                    "2b212f0e9b4aae782610c14289cca516",
+                    134984,
+                    "9f7a9e58fdd9a28d089e72ababf3248e"
+                    "f64a25e67ab2107c18bbe8cf3bc41c17",
                 ),
             )
             port_io_object_records = {
@@ -2203,9 +2203,9 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                     "586ee7804a401a5a44de786dbd95fec1",
                 ),
                 "kernel/lang/cupidc_parse.cc": (
-                    297180,
-                    "d46d4f50b885795cb4626ace8b16ba1b"
-                    "8bd1ee09c6a69adcce594360cbba161f",
+                    290416,
+                    "f330b802b80e2625a97801592f2a267d9"
+                    "7734da5f9ae8dbe5132689e15e5695b",
                 ),
                 "kernel/lang/cupidc_string.cc": (
                     7332,
@@ -2263,8 +2263,8 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
             self.assertEqual(manifest["input_snapshot"]["count"], 445)
             self.assertEqual(
                 manifest["input_snapshot"]["sha256"],
-                "e28b1024edc5361d99583f79f65ce436"
-                "90ebc873f04b568837f57f8af5df5db7",
+                "543c7bb3e4946967835fe81daeb6d895"
+                "d661c03961021681a34b5236cfa20423",
             )
             self.assertEqual(
                 manifest["provenance"]["compiler"],

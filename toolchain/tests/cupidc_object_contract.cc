@@ -24954,8 +24954,12 @@ static int validate_floating_comparison_x86_inventory(
   ctool_u32 movsd = 0u;
   ctool_u32 fld32 = 0u;
   ctool_u32 fld64 = 0u;
+  ctool_u32 fld80 = 0u;
   ctool_u32 fstp32 = 0u;
   ctool_u32 fstp64 = 0u;
+  ctool_u32 fstp80 = 0u;
+  ctool_u32 fstp_register = 0u;
+  ctool_u32 fucomip = 0u;
   ctool_u32 ucomiss = 0u;
   ctool_u32 ucomisd = 0u;
   ctool_u32 sete = 0u;
@@ -24999,13 +25003,42 @@ static int validate_floating_comparison_x86_inventory(
       } else if (instruction->mnemonic == CTOOL_X86_MN_FLD &&
                  instruction->operands[0].width_bits == 64u) {
         fld64++;
+      } else if (instruction->mnemonic == CTOOL_X86_MN_FLD &&
+                 instruction->operands[0].width_bits == 80u) {
+        fld80++;
       } else if (instruction->mnemonic == CTOOL_X86_MN_FSTP &&
                  instruction->operands[0].width_bits == 32u) {
         fstp32++;
       } else if (instruction->mnemonic == CTOOL_X86_MN_FSTP &&
                  instruction->operands[0].width_bits == 64u) {
         fstp64++;
+      } else if (instruction->mnemonic == CTOOL_X86_MN_FSTP &&
+                 instruction->operands[0].width_bits == 80u) {
+        fstp80++;
       }
+    } else if (instruction->mnemonic == CTOOL_X86_MN_FUCOMIP) {
+      if (instruction->operand_count != 2u ||
+          instruction->operands[0].kind !=
+              CTOOL_X86_OPERAND_REGISTER ||
+          instruction->operands[0].as.reg.class_id !=
+              CTOOL_X86_REG_X87 ||
+          instruction->operands[0].as.reg.index != 0u ||
+          instruction->operands[1].kind !=
+              CTOOL_X86_OPERAND_REGISTER ||
+          instruction->operands[1].as.reg.class_id !=
+              CTOOL_X86_REG_X87 ||
+          instruction->operands[1].as.reg.index != 1u) {
+        return 0;
+      }
+      fucomip++;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_FSTP &&
+               instruction->operand_count == 1u &&
+               instruction->operands[0].kind ==
+                   CTOOL_X86_OPERAND_REGISTER &&
+               instruction->operands[0].as.reg.class_id ==
+                   CTOOL_X86_REG_X87 &&
+               instruction->operands[0].as.reg.index == 0u) {
+      fstp_register++;
     } else if (instruction->mnemonic == CTOOL_X86_MN_UCOMISS ||
                instruction->mnemonic == CTOOL_X86_MN_UCOMISD) {
       if (instruction->operand_count != 2u ||
@@ -25048,21 +25081,27 @@ static int validate_floating_comparison_x86_inventory(
     cursor += decoded.consumed;
   }
   if (cursor != text->contents.size || movss != 12u || movsd != 24u ||
-      fld32 != 6u || fld64 != 0u || fstp32 != 0u || fstp64 != 6u ||
+      fld32 != 9u || fld64 != 3u || fld80 != 24u ||
+      fstp32 != 0u || fstp64 != 6u || fstp80 != 6u ||
+      fstp_register != 12u || fucomip != 12u ||
       ucomiss != 6u || ucomisd != 12u ||
-      sete != 3u || setne != 3u || setb != 3u || setbe != 3u ||
-      seta != 3u || setae != 3u || jp != 12u || jmp != 12u ||
-      ret != 18u) {
+      sete != 5u || setne != 5u || setb != 5u || setbe != 5u ||
+      seta != 5u || setae != 5u || jp != 20u || jmp != 20u ||
+      ret != 30u) {
     (void)fprintf(
         stderr,
         "floating comparison x86 inventory differs: "
-        "movss=%u movsd=%u fld32=%u fld64=%u fstp32=%u fstp64=%u "
+        "movss=%u movsd=%u fld32=%u fld64=%u fld80=%u "
+        "fstp32=%u fstp64=%u fstp80=%u fstp-register=%u fucomip=%u "
         "ucomiss=%u ucomisd=%u "
         "sete=%u setne=%u setb=%u setbe=%u seta=%u setae=%u "
         "jp=%u jmp=%u ret=%u cursor=%u/%u\n",
         (unsigned int)movss, (unsigned int)movsd,
         (unsigned int)fld32, (unsigned int)fld64,
+        (unsigned int)fld80,
         (unsigned int)fstp32, (unsigned int)fstp64,
+        (unsigned int)fstp80,
+        (unsigned int)fstp_register, (unsigned int)fucomip,
         (unsigned int)ucomiss, (unsigned int)ucomisd,
         (unsigned int)sete, (unsigned int)setne, (unsigned int)setb,
         (unsigned int)setbe, (unsigned int)seta, (unsigned int)setae,
@@ -25251,15 +25290,21 @@ static int validate_floating_comparison_object(
       "double_equal", "double_not_equal", "double_less",
       "double_less_equal", "double_greater", "double_greater_equal",
       "mixed_equal", "mixed_not_equal", "mixed_less",
-      "mixed_less_equal", "mixed_greater", "mixed_greater_equal"};
+      "mixed_less_equal", "mixed_greater", "mixed_greater_equal",
+      "long_double_equal", "long_double_not_equal", "long_double_less",
+      "long_double_less_equal", "long_double_greater",
+      "long_double_greater_equal",
+      "mixed_long_equal", "mixed_long_not_equal", "mixed_long_less",
+      "mixed_long_less_equal", "mixed_long_greater",
+      "mixed_long_greater_equal"};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   const ctool_elf32_section_t *bss = find_section(object, ".bss");
   ctool_u32 index;
   if (job == NULL || object == NULL || text == NULL ||
-      text->contents.data == NULL || text->contents.size != 1524u ||
-      structure_text_fingerprint(text->contents) != 0x0dc63c53u ||
+      text->contents.data == NULL || text->contents.size != 2861u ||
+      structure_text_fingerprint(text->contents) != 0x76d70ca0u ||
       (bss != NULL && bss->size != 0u) ||
-      object->symbol_count != 19u || object->relocation_count != 0u) {
+      object->symbol_count != 31u || object->relocation_count != 0u) {
     (void)fprintf(
         stderr,
         "floating comparison object inventory differs: "
@@ -25309,7 +25354,19 @@ static int run_floating_comparison_object(const char *host_root) {
       "int mixed_less(float left, double right) { return left < right; }\n"
       "int mixed_less_equal(double left, float right) { return left <= right; }\n"
       "int mixed_greater(float left, double right) { return left > right; }\n"
-      "int mixed_greater_equal(double left, float right) { return left >= right; }\n";
+      "int mixed_greater_equal(double left, float right) { return left >= right; }\n"
+      "int long_double_equal(long double left, long double right) { return left == right; }\n"
+      "int long_double_not_equal(long double left, long double right) { return left != right; }\n"
+      "int long_double_less(long double left, long double right) { return left < right; }\n"
+      "int long_double_less_equal(long double left, long double right) { return left <= right; }\n"
+      "int long_double_greater(long double left, long double right) { return left > right; }\n"
+      "int long_double_greater_equal(long double left, long double right) { return left >= right; }\n"
+      "int mixed_long_equal(long double left, double right) { return left == right; }\n"
+      "int mixed_long_not_equal(float left, long double right) { return left != right; }\n"
+      "int mixed_long_less(long double left, double right) { return left < right; }\n"
+      "int mixed_long_less_equal(float left, long double right) { return left <= right; }\n"
+      "int mixed_long_greater(long double left, float right) { return left > right; }\n"
+      "int mixed_long_greater_equal(double left, long double right) { return left >= right; }\n";
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
   ctool_job_t *job = NULL;
@@ -25333,7 +25390,7 @@ static int run_floating_comparison_object(const char *host_root) {
   if (!open_job(host_root, &adapter, &config, &job) ||
       !parse_source_mode(job, "/floating-comparisons.c", source,
                          CTOOL_TRUE, &unit) ||
-      unit.function_definition_count != 18u ||
+      unit.function_definition_count != 30u ||
       unit.expression_count == 0u ||
       sizeof(*invalid_expressions) >
           SIZE_MAX / (size_t)unit.expression_count) {
@@ -28763,21 +28820,21 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.cc",           "/toolchain/x86.cc",
       "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
-      65u, 68u, 66u, 14u, 31u, 143u, 262u, 353u, 422u, 81u, 37u, 60u,
+      65u, 68u, 66u, 14u, 31u, 143u, 262u, 353u, 422u, 82u, 37u, 60u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 76860u, 85252u, 16872u, 42212u,
-      190304u, 481749u, 541569u, 846845u, 139646u, 70368u, 80596u,
+      190304u, 481749u, 542392u, 846915u, 146398u, 70368u, 80596u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 89320u, 99772u, 20180u, 49484u,
-      226668u, 519572u, 608624u, 1007060u, 157828u, 79348u, 134876u,
+      226668u, 519572u, 609484u, 1007172u, 165728u, 79348u, 134984u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x5fbbfaf2u, 0x4ca44a27u,
       0x7238e153u, 0x999f97b7u, 0xb49d8eb9u,
-      0xd8e6fb83u, 0x2aba8014u, 0x87f6e1b5u, 0x239f52c7u,
-      0x34558a49u, 0x787e8906u, 0x8774de7du};
+      0xd8e6fb83u, 0x4deaa311u, 0xa91ff4afu, 0x0f9eb363u,
+      0x34558a49u, 0x9302dce8u, 0x8774de7du};
   ctool_u32 index;
   int all_matched = 1;
   for (index = 0u; index <

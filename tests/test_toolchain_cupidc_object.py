@@ -2304,6 +2304,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             gnu = root / "gnu.c"
             freestanding = root / "freestanding.c"
             invalid = root / "invalid.c"
+            invalid_long_double = root / "invalid-long-double.c"
             hosted_object = root / "hosted.o"
             cupid_object = root / "cupid.o"
             cupid_native_path_object = root / "cupid-native-path.o"
@@ -2315,6 +2316,10 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             cupid_freestanding = root / "cupid-freestanding.o"
             hosted_failure = root / "hosted-failure.o"
             cupid_failure = root / "cupid-failure.o"
+            hosted_long_double_failure = root / "hosted-long-double.o"
+            cupid_long_double_failure = root / "cupid-long-double.o"
+            hosted_recovery = root / "hosted-recovery.o"
+            cupid_recovery = root / "cupid-recovery.o"
             hosted_missing_output = root / "hosted-missing.o"
             cupid_missing_output = root / "cupid-missing.o"
             reserved_output = root / "reserved.o"
@@ -2350,6 +2355,12 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             )
             invalid.write_text(
                 "int broken_source( {\n",
+                encoding="utf-8",
+            )
+            invalid_long_double.write_text(
+                "int bad(long double left, int right) {\n"
+                "  return left < right;\n"
+                "}\n",
                 encoding="utf-8",
             )
             arguments = [
@@ -2591,6 +2602,106 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             self.assertEqual(cupid_bad.stderr, hosted_bad.stderr)
             self.assertEqual(hosted_failure.read_bytes(), b"hosted-sentinel")
             self.assertEqual(cupid_failure.read_bytes(), b"cupid-sentinel")
+
+            hosted_long_double_failure.write_bytes(b"hosted-long-sentinel")
+            cupid_long_double_failure.write_bytes(b"cupid-long-sentinel")
+            hosted_long_bad = subprocess.run(
+                [
+                    str(self.hosted_cupidc_path),
+                    "--root",
+                    str(root),
+                    "-c",
+                    "/invalid-long-double.c",
+                    "-o",
+                    "/hosted-long-double.o",
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+                timeout=60,
+            )
+            cupid_long_bad = self.run_cupid_linux_tool(
+                self.cupid_cupidc_path,
+                [
+                    "--root",
+                    root,
+                    "-c",
+                    "/invalid-long-double.c",
+                    "-o",
+                    "/cupid-long-double.o",
+                ],
+                timeout=60,
+            )
+            self.assertEqual(
+                hosted_long_bad.returncode, 1, hosted_long_bad.stderr
+            )
+            self.assertEqual(
+                cupid_long_bad.returncode,
+                hosted_long_bad.returncode,
+                cupid_long_bad.stderr,
+            )
+            self.assertEqual(cupid_long_bad.stdout, hosted_long_bad.stdout)
+            self.assertEqual(cupid_long_bad.stderr, hosted_long_bad.stderr)
+            self.assertIn(
+                "integer and long double comparison conversion is outside "
+                "this expression slice",
+                hosted_long_bad.stderr,
+            )
+            self.assertEqual(
+                hosted_long_double_failure.read_bytes(),
+                b"hosted-long-sentinel",
+            )
+            self.assertEqual(
+                cupid_long_double_failure.read_bytes(),
+                b"cupid-long-sentinel",
+            )
+
+            hosted_recovered = subprocess.run(
+                [
+                    str(self.hosted_cupidc_path),
+                    "--root",
+                    str(root),
+                    "-c",
+                    "/source.c",
+                    "-I",
+                    "/include",
+                    "-DCOMMAND_VALUE=7",
+                    "-o",
+                    "/hosted-recovery.o",
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+                timeout=60,
+            )
+            cupid_recovered = self.run_cupid_linux_tool(
+                self.cupid_cupidc_path,
+                [
+                    "--root",
+                    root,
+                    "-c",
+                    "/source.c",
+                    "-I",
+                    "/include",
+                    "-DCOMMAND_VALUE=7",
+                    "-o",
+                    "/cupid-recovery.o",
+                ],
+                timeout=60,
+            )
+            self.assertEqual(
+                hosted_recovered.returncode, 0, hosted_recovered.stderr
+            )
+            self.assertEqual(
+                cupid_recovered.returncode,
+                hosted_recovered.returncode,
+                cupid_recovered.stderr,
+            )
+            self.assertEqual(cupid_recovered.stdout, hosted_recovered.stdout)
+            self.assertEqual(cupid_recovered.stderr, hosted_recovered.stderr)
+            self.assertEqual(
+                cupid_recovery.read_bytes(), hosted_recovery.read_bytes()
+            )
 
             hosted_missing_output.write_bytes(b"hosted-missing-sentinel")
             cupid_missing_output.write_bytes(b"cupid-missing-sentinel")

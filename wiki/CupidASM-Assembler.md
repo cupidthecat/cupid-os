@@ -246,6 +246,7 @@ main:
 | `reserve` | Alias of `resb` | `scratch reserve 64` |
 | `times` | Repeat | `times 10 db 0` |
 | `equ` | Constant | `SIZE equ 1024` |
+| `align` | Pad to an address or section boundary | `align 16, 0x90` |
 
 You can declare reserve/data directives in either style:
 
@@ -255,6 +256,26 @@ buffer: resb 256
 array:  rd 8
 scratch reserve 64
 ```
+
+### Alignment
+
+`align POWER_OF_TWO[, FILL_BYTE]` advances to the next requested boundary.
+The boundary must be a nonzero power of two, and the optional fill must fit
+in one byte. The fill defaults to zero.
+
+```asm
+section .data
+    db 1
+    align 16, 0xcc
+aligned_buffer:
+    times 512 db 0
+```
+
+For a raw binary, the boundary applies to `ORG + output offset`. For an ELF32
+object, it applies to the section offset and raises the section's recorded
+alignment. For a fixed image, CupidASM includes the caller-provided absolute
+region base in the calculation. NOBITS sections may use only zero fill; the
+padding changes memory size without adding bytes to the file.
 
 ### String Data
 
@@ -280,9 +301,10 @@ section .data
 ## Instruction Reference
 
 CupidASM uses the shared Cupid Toolchain x86 catalogue. Source head carries
-589 forms, 242 canonical mnemonics, and 64 register names, with catalogue
-fingerprint `22C336A0`. The two newest forms encode and decode 80-bit x87
-`FLD` and `FSTP` memory operands. The repository seed retains the earlier
+590 forms, 243 canonical mnemonics, and 64 register names, with catalogue
+fingerprint `74EC8312`. The three forms added after the checked seed encode
+and decode 80-bit x87 `FLD` and `FSTP` memory operands plus i686
+`FUCOMIP ST0, ST(i)`. The repository seed retains the earlier
 587-form catalogue and rebuilds the current model during the checked fixed
 point. The same catalogue drives instruction encoding and decoding. All
 sixteen i686 conditional moves accept 16-bit or 32-bit same-width register and
@@ -291,6 +313,12 @@ bytes, while CupidDis prints canonical names. Three-operand `IMUL` accepts a
 16-bit or 32-bit register destination, a same-width register or memory source,
 and an immediate. CupidASM uses `6B /r` when the value fits a signed byte and
 `69 /r` otherwise.
+
+`fucomip st0, st1` emits `DF E9`. The first operand must be `ST0`; the
+second operand selects `ST0` through `ST7`. The instruction compares `ST0`
+with that source, writes ZF, PF, and CF, and pops `ST0` once. CupidC follows
+it with `fstp st0` when a long-double comparison must discard the surviving
+x87 value.
 
 Ordinary padding NOPs use the same model. `nop` emits `90`. A word or
 doubleword register or memory operand emits `0F 1F /0`, with normal

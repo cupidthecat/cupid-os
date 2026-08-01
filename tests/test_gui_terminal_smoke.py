@@ -115,6 +115,7 @@ def _frontier_command_outputs():
             "control=255 nan=1\n"
             "[feature13-update] PASS local=48 global=40 "
             "for=3 zero=0x80000000 nan=2\n"
+            "[feature13-call] PASS checks=9\n"
             "PASS feature13_double\n"
             "[cupidc] JIT execution complete\n"
         ),
@@ -1162,8 +1163,9 @@ class FrontierRuntimeContractTests(unittest.TestCase):
         )
         self.assertEqual(
             commands[-1].followup_keys,
-            ("esc", "n", "n", "esc", "esc"),
+            ("esc",) * 8,
         )
+        self.assertGreater(len(commands[-1].followup_keys), 5)
         self.assertEqual(commands[1].followup_keys, ("shift",))
         self.assertEqual(commands[1].followup_settle_seconds, 0.0)
         self.assertIn(
@@ -1349,6 +1351,35 @@ class FrontierRuntimeContractTests(unittest.TestCase):
         ):
             with self.subTest(expression=expression):
                 self.assertIn(expression, source)
+
+    def test_feature13_requires_mixed_width_user_call_evidence(self):
+        command = _frontier_command("/bin/feature13_double.cc")
+        expected = command.expected_pattern
+        sample = _frontier_command_output("/bin/feature13_double.cc")
+        marker = "[feature13-call] PASS checks=9\n"
+
+        self.assertIsNone(
+            re.search(
+                expected,
+                sample.replace(marker, ""),
+                re.S | re.M,
+            )
+        )
+        self.assertIn(
+            "[feature13-call] FAIL",
+            gui_terminal_smoke.FRONTIER_RUNTIME_REJECTED_MARKERS,
+        )
+
+        source = (
+            REPO_ROOT / "bin" / "feature13_double.cc"
+        ).read_text(encoding="utf-8")
+        self.assertRegex(
+            source,
+            r"int feature13_within\(\s*double actual,\s*double expected,\s*"
+            r"double scale,\s*int max_scaled_error\)",
+        )
+        self.assertEqual(source.count("feature13_within("), 10)
+        self.assertNotIn("calling-convention edge cases", source)
 
     def test_unary_command_allows_only_its_expected_compiler_error(self):
         command = _frontier_command("/bin/feature13_double.cc")
@@ -1760,14 +1791,8 @@ class FrontierRuntimeContractTests(unittest.TestCase):
         self.assertIn(b"sendkey shift-minus 300\n", sent)
         self.assertIn(b"sendkey dot 300\n", sent)
         self.assertEqual(
-            monitor.sent[-5:],
-            [
-                b"sendkey esc 300\n",
-                b"sendkey n 300\n",
-                b"sendkey n 300\n",
-                b"sendkey esc 300\n",
-                b"sendkey esc 300\n",
-            ],
+            monitor.sent[-8:],
+            [b"sendkey esc 300\n"] * 8,
         )
 
     def test_syscall_demo_failure_cannot_pass_on_jit_completion(self):

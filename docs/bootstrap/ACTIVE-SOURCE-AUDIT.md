@@ -9,7 +9,7 @@ This file is generated deterministically by `tools/build_graph_audit.py` from th
 - Active source inputs: 717
 - Unreachable source-like files: 25
 - Reachable output transforms: 449
-- Distinct feature requirements: 252
+- Distinct feature requirements: 253
 - Make conditionals use the canonical `OS=Windows_NT` graph and the C locale fixes wildcard order on every host. Direct Linux build tests cover the Linux execution branch.
 - The `TempleOS/` reference tree is excluded.
 - Source and control-file SHA-256 values use canonical LF text bytes.
@@ -29,12 +29,12 @@ Generated C translation units are recorded as reachable build inputs but have no
 | Cohort | Files | Checked-source lines |
 | --- | ---: | ---: |
 | `boot_assembly` | 1 | 298 |
-| `cupid_asm_demo` | 22 | 1469 |
+| `cupid_asm_demo` | 22 | 1466 |
 | `cupid_c_browser_fragment` | 22 | 14185 |
-| `cupid_c_program` | 105 | 19034 |
+| `cupid_c_program` | 105 | 19037 |
 | `cupid_c_runtime_header` | 2 | 286 |
-| `cupidasm` | 7 | 6683 |
-| `cupidc` | 8 | 13436 |
+| `cupidasm` | 7 | 6851 |
+| `cupidc` | 8 | 13359 |
 | `cupiddis` | 5 | 2905 |
 | `doom_port` | 7 | 2630 |
 | `driver` | 22 | 3861 |
@@ -55,8 +55,8 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_tls` | 13 | 6661 |
 | `kernel_usb` | 8 | 3518 |
 | `kernel_util` | 2 | 660 |
-| `toolchain_contract` | 16 | 141106 |
-| `toolchain_core` | 32 | 77971 |
+| `toolchain_contract` | 16 | 141707 |
+| `toolchain_core` | 32 | 78010 |
 | `toolchain_host_adapter` | 2 | 266 |
 | `toolchain_kernel_adapter` | 2 | 530 |
 | `user_program` | 3 | 139 |
@@ -88,7 +88,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | --- | ---: | ---: |
 | `asm.addressing` | 6 | 133 |
 | `asm.delivery` | 1 | 22 |
-| `asm.directive` | 18 | 308 |
+| `asm.directive` | 19 | 309 |
 | `asm.expression` | 2 | 12 |
 | `asm.instruction` | 91 | 1250 |
 | `asm.label` | 2 | 160 |
@@ -97,23 +97,23 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 777 |
 | `asm.relocation` | 1 | 13 |
-| `c.control` | 12 | 75446 |
+| `c.control` | 12 | 75631 |
 | `c.declaration` | 1 | 28 |
-| `c.declarator` | 4 | 3604 |
-| `c.expression` | 2 | 5390 |
+| `c.declarator` | 4 | 3611 |
+| `c.expression` | 2 | 5408 |
 | `c.extension` | 18 | 405 |
 | `c.initializer` | 1 | 646 |
 | `c.preprocessor` | 18 | 6773 |
-| `c.qualifier` | 2 | 14444 |
-| `c.storage` | 4 | 9240 |
-| `c.type` | 14 | 47807 |
+| `c.qualifier` | 2 | 14472 |
+| `c.storage` | 4 | 9254 |
+| `c.type` | 14 | 47840 |
 | `cupid_c.declaration` | 1 | 2 |
 | `cupid_c.delivery` | 2 | 129 |
 | `cupid_c.directive` | 1 | 1 |
 | `cupid_c.expression` | 2 | 4 |
 | `cupid_c.extension` | 1 | 9 |
 | `cupid_c.output` | 1 | 245 |
-| `cupid_c.storage` | 2 | 411 |
+| `cupid_c.storage` | 2 | 421 |
 | `cupid_c.type` | 12 | 152 |
 
 The JSON companion records stable feature IDs, occurrence counts, files, and representative source locations.

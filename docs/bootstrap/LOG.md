@@ -18114,3 +18114,195 @@ artifact. The older Windows and Linux host `.text` measurements differ by
 22.73 percent for the same revision, so choosing either one by assumption
 would not produce a trustworthy gate. Existing linker capacity assertions
 remain separate safety checks.
+
+## 2026-08-01: Cupid ASM alignment
+
+The active FPU demo needed a 16-byte FXSAVE area but could only put the buffer
+first in `.data` and rely on loader placement. A red native contract and a
+red CLI test both stopped at `align` as an unknown mnemonic.
+
+CupidASM now parses `align POWER_OF_TWO[, FILL_BYTE]` as a source statement.
+Raw output aligns the absolute `ORG` address. ELF32 output pads the current
+section, raises `sh_addralign`, and keeps later labels and relocations at the
+new offsets. NOBITS padding increases memory size without writing file bytes.
+Fixed images align `region base + bytes used`, so an unaligned caller-provided
+base still produces the requested absolute address. The optional fill byte
+defaults to zero.
+
+The implementation rejects zero and non-power-of-two boundaries, values
+outside the 32-bit layout range, fills larger than one byte, nonzero NOBITS
+fills, and fixed-address overflow. An empty fixed-image code section now keeps
+its aligned absolute address for labels and the entry point without emitting a
+region. A paired near-limit base proves that zero size cannot bypass overflow
+checking. Failure leaves the result empty. The same job can then assemble
+valid source, and a repeated assembly produces the same bytes.
+
+The native `alignment` selector passed. The final fourteen-test CupidASM CLI,
+demo, active-source, and kernel run passed in 8.477 seconds. The complete
+checked Toolchain cohort follows after all shared compiler and x86 catalogue
+inputs settle.
+
+`demos/fpu_kernel.asm` now states `align 16` immediately before its 512-byte
+save area. This removes a source-order workaround without changing a build
+owner or adding a host dependency. ADR 0197 records the decision.
+
+## 2026-08-01: Private CupidC mixed-width cdecl calls
+
+Private CupidC already evaluated arguments from left to right, but each call
+syntax carried its own block-reversal code. Two `double` arguments could lose
+their correct word order, a call that mixed `double` with a four-byte value
+was rejected, and every callee advanced later parameter addresses by only
+four bytes. A two-`double` runtime case first returned 30 instead of 34.
+Method calls and a void-valued argument exposed the same incomplete boundary.
+
+Call arguments now receive one explicit four-byte or eight-byte slot width.
+One shared word permutation serves direct calls, stored function pointers,
+object methods, and pointer methods after left-to-right evaluation. The
+matching parameter helper advances each EBP-relative address by the complete
+slot width. The implicit method `self` pointer remains the first four-byte
+slot, and caller cleanup uses the sum of all slots.
+
+The focused runtime module passes ten tests. It executes matching and
+alternating widths, source-order side effects, stored function-pointer calls,
+object and pointer method forms, exact 24-byte cleanup, and useful diagnostics
+for unsupported call and parameter types. One unchanged four-word popup call
+also locks the established all-four-byte order. The GUI smoke module passes 95
+tests in 2.080 seconds, and
+fifteen existing unary, comparison, truth, update, and binding tests pass in
+2.770 seconds. Checked CupidC compiles the changed parser into a
+290,416-byte object.
+
+`feature13_double.cc` replaces nine expanded tolerance calculations with
+calls to `feature13_within(double, double, double, int)`. The four-CPU guest
+frontier now requires `[feature13-call] PASS checks=9`. This repairs private
+JIT and AOT behavior without moving a build owner or adding a host
+dependency. Aggregate values, SIMD vectors, variadic promotion, and structure
+returns remain outside this private ABI slice. ADR 0198 records the decision.
+
+## 2026-08-01: Hosted long-double comparisons and shared FUCOMIP
+
+Hosted CupidC could transport and calculate with a non-atomic `long double`,
+but the frontend still rejected every comparison. Its SSE comparison path
+could not inspect the 80-bit value stored in the target's twelve-byte object.
+The shared x86 catalogue also lacked the required register-stack comparison.
+
+The x86 model now represents i686 `FUCOMIP ST0, ST(i)` for both assembly and
+disassembly. Hosted comparison lowering accepts matching long-double values
+and mixed `float` or `double` inputs after the usual conversion. The emitter
+loads right then left, compares `ST0` with `ST1`, pops that left value, and
+discards the remaining right value. The existing predicate path returns a
+normalized `int`: signed zeros compare equal, and an unordered input makes
+only `!=` true.
+
+The final source catalogue contains 590 forms, 243 canonical mnemonics, 64
+registers, and fingerprint `74EC8312`. The focused CLI round trip emits
+`DF E9 DD D8` for `fucomip st0,st1` followed by `fstp st0`. The Linear IR
+fixture has 30 functions and 192 instructions with fingerprint
+`00EF66C81C2A4BD4`. Its deterministic object has 2,861 text bytes,
+fingerprint `76D70CA0`, 31 symbols, no relocations, 24 80-bit loads, 12
+`FUCOMIP` instructions, and 12 register-stack `FSTP` instructions.
+
+Eighteen focused x86, CLI, frontend, IR, object, and Cupid-built runtime tests
+pass in 58.716 seconds. The static runtime links with CupidC, CupidASM, and
+CupidLD and exits with `runtime-ok`. Its cases cover every predicate, both
+operand orders, signed zero, NaN in either position, mixed widths, and 32
+repeated comparisons without x87 stack growth. Atomic long-double comparisons
+keep their existing diagnostic. Integer-to-long-double comparison conversion
+also fails before IR publication, with either source order covered by same-job
+recovery tests. The hosted and Cupid-built drivers also preserve existing
+outputs on that failure and produce matching objects on the next valid
+compile. The change moves no source owner and adds no host dependency.
+
+Long-double literals, nonzero or floating static initializers, and integer
+conversions involving `long double` remain open. ADR 0199 records the
+decision.
+
+The final canonical audit regeneration and drift check both pass. The graph
+contains 717 active inputs, 449 transforms, 253 distinct feature requirements,
+and 25 unreachable source-like files. Its active-source digest is
+`01e48a178798ae46b111c155f2f0e65efd11d274373d4f4630c892877621f951`.
+The audit JSON has SHA-256
+`2bdb38400f3e9ed3f2b9117eb50f1dacfc6109aed0366cbdf314fd064c1a4d8e`,
+the rendered summary has SHA-256
+`5f725eea2dc206bbb41099e7520b10cea4de13bd6af0e8aa1f8b73300515a7eb`,
+and the generated preprocessor cases retain SHA-256
+`99e3ecac637d363c29a3eca25a2b7300a35f4ce2d119fa903490c964a47f87a1`.
+
+The refreshed strict kernel frontier passed in 1,343 seconds. Checked-seed
+CupidC compiled all 155 production sources twice with zero boundaries, and
+the two object sets match byte for byte at 3,719,100 bytes each. The
+445-input snapshot has SHA-256
+`543c7bb3e4946967835fe81daeb6d895d661c03961021681a34b5236cfa20423`.
+The changed private compiler parser emits a 290,416-byte object with SHA-256
+`f330b802b80e2625a97801592f2a267d97734da5f9ae8dbe5132689e15e5695b`.
+
+The first public frontier replay compiled the full cohort again, then exposed
+one stale direct assertion for `toolchain/x86.cc`. The current object is
+134,984 bytes with SHA-256
+`9f7a9e58fdd9a28d089e72ababf3248ef64a25e67ab2107c18bbe8cf3bc41c17`.
+The older lock expected 134,876 bytes from the catalogue before `FUCOMIP`.
+After the correction, a manifest audit matched all 60 direct and grouped
+object locks, the 3,719,100-byte total, and the 445-input snapshot.
+The final public `make test-kernel-cupidc-frontier` replay then passed in
+1,298.596 seconds with the complete cohort and zero boundaries.
+
+## 2026-08-01: Integrated alignment, call ABI, and x87 validation
+
+The uninterrupted `make -C toolchain test` gate passed in 5,216.5 seconds.
+It rebuilt the 20-artifact checked seed, compiled and linked the complete
+second and third stages, matched those stages, ran the hosted i386 runtime,
+and verified every published artifact. The final catalogue contains 590 x86
+forms, 243 canonical mnemonics, and 64 registers with fingerprint `74EC8312`.
+CupidASM alignment, CupidDis inspection, CupidObj validation, CupidLD linking,
+the self-host frontier, and all 22 assembly demos passed in the same run.
+
+The first complete run found stale source-inventory and self-host object
+locks after the new assembler and x86 forms landed. Fresh native contracts
+established the new values before those locks were changed. A second complete
+run then passed without a watchdog or selector failure. Diagnostic fixtures
+still print their intentional error cases, but Make exits successfully.
+
+The root `make all` build passed in 1,417 seconds. It compiled the full kernel,
+program set, browser, Doom cohort, documentation, and assets, then completed
+both CupidLD links, the CupidDis symbol pass, the generated-symbol CupidC
+compile, and the CupidObj flattening step. The staged `cupidos.img` completed,
+and `make test_usb_partitioned.img` confirmed the partitioned fixture was
+current.
+
+That build produced an 8,604,972-byte pass-one ELF with SHA-256
+`fa2ea1d07d25ec03283ee17eafeaee09a02868570f504b77edbec1bb5eb90ea2`
+and an 8,715,564-byte final ELF with SHA-256
+`5975de91f244e37929892b7dc1300a9308996f7fdf29dda817be5220829d98ab`.
+CupidObj flattened the final ELF into an 8,513,704-byte kernel with SHA-256
+`3ddc5abbf90bc69b58917577d5ded12ba601feb905eaad0ce9eb986a32f8adf6`.
+The 209,715,200-byte preboot image has SHA-256
+`1d59fd38a2999e53cf4b89a3ea7d5a662efeb65ac42b392271d538e6ebf7daa4`,
+and the complete raw kernel begins at byte 2,560.
+
+The first private four-vCPU QEMU run passed SMP discovery, all 62 crypto and
+X.509 checks, the in-kernel toolchain tests, USB, audio, swap, ISO, and every
+feature through the GodSong interaction. It then timed out after the third
+GodSong flip because one USB keyboard report was missed. A new native runtime
+case proved that the unchanged four-word popup-menu call still preserves its
+argument order, so the mixed-width cdecl change was not the cause. Skipping
+the interactive program would have weakened the runtime frontier and was not
+accepted.
+
+The smoke driver now sends eight Escape reports at that interaction. Every
+GodSong dialog already treats Escape as cancellation, so the extra reports
+only tolerate missed HID polling and do not select a different action. The
+uninstrumented private four-vCPU run then passed in 233.5 seconds at 640 by
+480 with 87,103 changed pixels. It reached `[feature13-call] PASS checks=9`,
+completed GodSong, and validated AC97 and PC-speaker output. The complete GUI
+smoke module passes 95 tests in 2.080 seconds, and the private cdecl module
+passes ten tests in 9.021 seconds.
+
+The final audit regeneration and independent drift check pass with the same
+717 active inputs, 449 transforms, 253 feature requirements, 25 classified
+unreachable files, and active-source digest
+`7caa739641b278914bdabea9686992a14b5f8ab22acac5f5a27a1884cd26b566`.
+After the final contract and smoke inputs were recorded, the audit JSON has
+SHA-256
+`fa8d1ff83bd16021c3ea0acf70821272ad936b35197ce465d99b999c3cec463d`.
+The rendered summary and generated preprocessor corpus remain byte-identical
+at the hashes shown in the earlier checkpoint.

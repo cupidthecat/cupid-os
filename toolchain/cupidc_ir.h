@@ -396,8 +396,10 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * Eight-byte integer BINARY records support addition, subtraction,
  * multiplication, division, remainder, left shift, signed or unsigned right
  * shift, AND, OR, XOR, and all six comparisons. Floating BINARY records
- * support addition, subtraction, multiplication, and division after both
- * operands reach the common `float`, `double`, or `long double` width.
+ * support addition, subtraction, multiplication, division, and all six
+ * comparisons after both operands reach the common `float`, `double`, or
+ * `long double` width. Integer conversions involving `long double` remain
+ * unsupported.
  * Implicitly zero-initialized and integer-zero file-scope or block-static
  * long-double objects use the same twelve-byte load and store path as
  * automatic objects.

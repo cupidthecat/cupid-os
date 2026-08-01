@@ -736,6 +736,9 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * is promoted to `double`;
  * existing unnamed `double` and `long double` values, `va_arg(arguments,
  * double)`, and `va_arg(arguments, long double)` are represented. Runtime
+ * comparisons accept matching long-double operands and mixed `float` or
+ * `double` inputs. Integer conversions involving `long double` remain
+ * unsupported.
  * integer expressions are typed without constant folding. Unevaluated query
  * operands are type-checked through the same grammar and leave no public AST
  * nodes. Floating updates remain an explicit deferred feature. Mixed integer
@@ -768,8 +771,8 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * block-static object's address through initializer metadata. Chained,
  * promoted, or overriding designators, union and Cupid class lists,
  * arithmetic or casts on static addresses, long-double literals and nonzero
- * or floating static long-double initializers, long-double comparisons,
- * integer conversions, compound assignments, and updates,
+ * or floating static long-double initializers, integer conversions involving
+ * long double, compound assignments, and updates,
  * universal-character or non-ordinary literals, non-scalar arguments without
  * declared parameter types, and Cupid #exe execution remain explicit
  * boundaries. Code generation and object emission consume the published

@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 HolyC-Style CupidC Features
-Verified against source on: 2026-07-30
+Verified against source on: 2026-08-01
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -274,6 +274,15 @@ in later expressions and conditions.
 Scalar float and double variables support prefix and postfix ++ and --.
 Postfix expressions return the old value, while all four forms store the
 one-unit update. The same path handles locals, parameters, and globals.
+
+Private CupidC uses one scalar cdecl layout for direct calls, stored
+function-pointer calls, and methods. Integers, pointers, function pointers,
+float, and the implicit method self value occupy four bytes. Double occupies
+eight bytes with its low word at the lower address. Arguments are evaluated
+from left to right, then arranged at increasing addresses in source order.
+Callees use the same widths for parameter offsets, and callers reclaim the
+complete outgoing area. Feature 13 requires nine calls through one mixed-width
+tolerance helper.
 
 [Run feature12_float](shell:feature12_float)
 [Run feature13_double](shell:feature13_double)

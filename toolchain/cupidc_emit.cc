@@ -6685,7 +6685,7 @@ static ctool_status_t cemit_x86_push_floating_comparison(
     ctool_c_expression_operator_t operation) {
   const ctool_c_type_layout_t *layout;
   ctool_x86_mnemonic_t predicate;
-  ctool_x86_mnemonic_t comparison;
+  ctool_x86_mnemonic_t comparison = CTOOL_X86_MN_INVALID;
   ctool_bool ordered_sensitive;
   ctool_u32 unordered_patch = CTOOL_C_AST_NONE;
   ctool_u32 unordered_after = CTOOL_C_AST_NONE;
@@ -6704,11 +6704,13 @@ static ctool_status_t cemit_x86_push_floating_comparison(
     return CTOOL_ERR_INTERNAL;
   }
   layout = &context->unit->layout.types[type];
-  if (layout->size != 4u && layout->size != 8u) {
+  if (layout->size != 4u && layout->size != 8u && layout->size != 12u) {
     return CTOOL_ERR_INTERNAL;
   }
-  comparison = layout->size == 4u ? CTOOL_X86_MN_UCOMISS
-                                  : CTOOL_X86_MN_UCOMISD;
+  if (layout->size != 12u) {
+    comparison = layout->size == 4u ? CTOOL_X86_MN_UCOMISS
+                                    : CTOOL_X86_MN_UCOMISD;
+  }
   predicate = cemit_comparison_predicate(operation, CTOOL_FALSE);
   ordered_sensitive =
       operation == CTOOL_C_EXPRESSION_OPERATOR_GREATER ||
@@ -6716,14 +6718,33 @@ static ctool_status_t cemit_x86_push_floating_comparison(
           ? CTOOL_FALSE
           : CTOOL_TRUE;
 
-  status = cemit_x86_load_floating_xmm_stack_value(context, type, 1u);
-  if (status == CTOOL_OK) {
-    status = cemit_x86_load_floating_xmm_stack_value(context, type, 0u);
-  }
-  if (status == CTOOL_OK) {
-    status = cemit_x86_two_registers(
-        context, comparison, CTOOL_X86_REG_XMM, 0u,
-        CTOOL_X86_REG_XMM, 1u, 32u);
+  if (layout->size == 12u) {
+    status = cemit_x86_load_floating_stack_value(context, type, 0u);
+    if (status == CTOOL_OK) {
+      status = cemit_x86_load_floating_stack_value(context, type, 4u);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_discard_arguments(context, 8u);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_two_registers(
+          context, CTOOL_X86_MN_FUCOMIP,
+          CTOOL_X86_REG_X87, 0u, CTOOL_X86_REG_X87, 1u, 32u);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_one_register(
+          context, CTOOL_X86_MN_FSTP, CTOOL_X86_REG_X87, 0u, 32u);
+    }
+  } else {
+    status = cemit_x86_load_floating_xmm_stack_value(context, type, 1u);
+    if (status == CTOOL_OK) {
+      status = cemit_x86_load_floating_xmm_stack_value(context, type, 0u);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_two_registers(
+          context, comparison, CTOOL_X86_REG_XMM, 0u,
+          CTOOL_X86_REG_XMM, 1u, 32u);
+    }
   }
   if (status == CTOOL_OK && ordered_sensitive == CTOOL_TRUE) {
     status = cemit_x86_branch(

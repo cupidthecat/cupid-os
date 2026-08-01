@@ -9920,16 +9920,6 @@ static ctool_status_t cfront_prepare_floating_binary(
           operator_token, "bitwise operators require integer operands");
     }
   }
-  if (comparison == CTOOL_TRUE &&
-      (left_node.kind == CTOOL_C_TYPE_LONG_DOUBLE ||
-       right_node.kind == CTOOL_C_TYPE_LONG_DOUBLE)) {
-    return cfront_emit_failure(
-        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
-        operator_token,
-        comparison == CTOOL_TRUE
-            ? "long double comparison is outside this expression slice"
-            : "long double arithmetic is outside this expression slice");
-  }
   if ((left_floating == CTOOL_TRUE &&
        ((left_qualifiers | left_node.qualifiers) &
         CTOOL_C_QUAL_ATOMIC) != 0u) ||
@@ -9953,6 +9943,19 @@ static ctool_status_t cfront_prepare_floating_binary(
     }
     if (status != CTOOL_OK) {
       return cfront_storage_failure(context, status);
+    }
+    if ((left_node.kind == CTOOL_C_TYPE_LONG_DOUBLE ||
+         right_node.kind == CTOOL_C_TYPE_LONG_DOUBLE) &&
+        (left_is_integer == CTOOL_TRUE ||
+         right_is_integer == CTOOL_TRUE)) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_PARSE_DIAG_EXPRESSION, operator_token,
+          comparison == CTOOL_TRUE
+              ? "integer and long double comparison conversion is outside "
+                "this expression slice"
+              : "integer and long double arithmetic conversion is outside "
+                "this expression slice");
     }
     if ((left_floating == CTOOL_FALSE &&
          (left_is_integer == CTOOL_FALSE ||

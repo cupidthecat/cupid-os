@@ -142,6 +142,84 @@ class CupidAsmCliTests(unittest.TestCase):
                 ),
             )
 
+    def test_cli_aligns_raw_addresses_and_elf32_sections(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            raw_source = root / "aligned-raw.asm"
+            raw_output = root / "aligned-raw.bin"
+            raw_source.write_text(
+                "BITS 32\n"
+                "ORG 0x101\n"
+                "    db 0x11\n"
+                "    align 4, 0xa5\n"
+                "aligned_raw:\n"
+                "    dw aligned_raw\n"
+                "    align 8\n"
+                "    db 0x22\n",
+                encoding="utf-8",
+            )
+            result = subprocess.run(
+                [
+                    str(self.cli_path),
+                    "-f",
+                    "bin",
+                    str(raw_source),
+                    "-o",
+                    str(raw_output),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(
+                raw_output.read_bytes(), bytes.fromhex("11 a5 a5 04 01 00 00 22")
+            )
+
+            object_source = root / "aligned-object.asm"
+            object_output = root / "aligned-object.o"
+            object_source.write_text(
+                "BITS 32\n"
+                "section .data\n"
+                "    db 1\n"
+                "    align 16, 0x5a\n"
+                "aligned_data:\n"
+                "    dd aligned_data\n"
+                "section .bss\n"
+                "    resb 3\n"
+                "    align 32\n"
+                "aligned_bss:\n"
+                "    resb 5\n",
+                encoding="utf-8",
+            )
+            result = subprocess.run(
+                [
+                    str(self.cli_path),
+                    "-f",
+                    "elf32",
+                    str(object_source),
+                    "-o",
+                    str(object_output),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+            _, sections = _elf_sections(object_output.read_bytes())
+            by_name = {section["name"]: section for section in sections}
+            data = by_name[".data"]
+            bss = by_name[".bss"]
+            self.assertEqual(data["row"][8], 16)
+            self.assertEqual(
+                data["data"], b"\x01" + b"\x5a" * 15 + b"\x00" * 4
+            )
+            self.assertEqual(
+                (bss["row"][1], bss["row"][5], bss["row"][8]),
+                (8, 37, 32),
+            )
+
     def test_cli_assembles_nasm_style_elf32_command_with_symbols_and_relocation(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

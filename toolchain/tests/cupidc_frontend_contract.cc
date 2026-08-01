@@ -7656,16 +7656,16 @@ static int validate_toolchain_frontier(const char *host_root) {
        25287u, 479u, 286u, 0u, 0u},
       {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 262u, 7250u,
        67490u, 953u, 354u, 0u, 0u},
-      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 353u, 8554u,
-       72476u, 1045u, 710u, 0u, 0u},
+      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 353u, 8572u,
+       72586u, 1045u, 711u, 0u, 0u},
       {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 422u,
-       16503u, 109174u, 2480u, 1509u, 0u, 0u},
-      {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 81u, 2935u,
-       19252u, 326u, 186u, 0u, 0u},
+       16503u, 109179u, 2480u, 1509u, 0u, 0u},
+      {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 82u, 3054u,
+       20124u, 338u, 190u, 0u, 0u},
       {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
        9457u, 143u, 70u, 0u, 1u},
       {"/toolchain/x86.cc", CTOOL_OK, 0u, 0u, 0u, "", 60u, 1760u,
-       11855u, 180u, 16702u, 3u, 0u}};
+       11855u, 180u, 16732u, 3u, 0u}};
   ctool_u32 index;
   for (index = 0u; index < ARRAY_COUNT(cases); index++) {
     const toolchain_frontier_case_t *test_case = &cases[index];
@@ -24654,9 +24654,11 @@ static int validate_floating_comparisons(
     const ctool_c_translation_unit_t *unit) {
   ctool_u32 float_counts[6] = {0u, 0u, 0u, 0u, 0u, 0u};
   ctool_u32 double_counts[6] = {0u, 0u, 0u, 0u, 0u, 0u};
+  ctool_u32 long_double_counts[6] = {0u, 0u, 0u, 0u, 0u, 0u};
   ctool_u32 widenings = 0u;
+  ctool_u32 long_double_widenings = 0u;
   ctool_u32 index;
-  if (unit == NULL || unit->function_definition_count != 18u) {
+  if (unit == NULL || unit->function_definition_count != 30u) {
     return 1;
   }
   for (index = 0u; index < unit->expression_count; index++) {
@@ -24674,6 +24676,25 @@ static int validate_floating_comparisons(
         return 1;
       }
       widenings++;
+      continue;
+    }
+    if (expression->kind == CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+        expression->conversion == CTOOL_C_CONVERSION_USUAL_ARITHMETIC &&
+        underlying_type_kind(unit, expression->type, NULL) ==
+            CTOOL_C_TYPE_LONG_DOUBLE) {
+      ctool_u32 child = expression_child(unit, expression, 0u);
+      ctool_c_type_kind_t child_kind;
+      if (expression->child_count != 1u ||
+          child >= unit->expression_count) {
+        return 1;
+      }
+      child_kind = underlying_type_kind(
+          unit, unit->expressions[child].type, NULL);
+      if (child_kind != CTOOL_C_TYPE_FLOAT &&
+          child_kind != CTOOL_C_TYPE_DOUBLE) {
+        return 1;
+      }
+      long_double_widenings++;
       continue;
     }
     if (expression->kind == CTOOL_C_EXPRESSION_BINARY) {
@@ -24702,6 +24723,8 @@ static int validate_floating_comparisons(
         counts = float_counts;
       } else if (operand_kind == CTOOL_C_TYPE_DOUBLE) {
         counts = double_counts;
+      } else if (operand_kind == CTOOL_C_TYPE_LONG_DOUBLE) {
+        counts = long_double_counts;
       } else {
         return 1;
       }
@@ -24709,21 +24732,25 @@ static int validate_floating_comparisons(
     }
   }
   for (index = 0u; index < 6u; index++) {
-    if (float_counts[index] != 1u || double_counts[index] != 2u) {
+    if (float_counts[index] != 1u || double_counts[index] != 2u ||
+        long_double_counts[index] != 2u) {
       (void)fprintf(
           stderr,
           "floating-comparisons: operator %u inventory differs: "
-          "float=%u double=%u\n",
+          "float=%u double=%u long-double=%u\n",
           (unsigned int)index, (unsigned int)float_counts[index],
-          (unsigned int)double_counts[index]);
+          (unsigned int)double_counts[index],
+          (unsigned int)long_double_counts[index]);
       return 1;
     }
   }
-  if (widenings != 6u) {
+  if (widenings != 6u || long_double_widenings != 6u) {
     (void)fprintf(
         stderr,
-        "floating-comparisons: widening inventory differs: %u\n",
-        (unsigned int)widenings);
+        "floating-comparisons: widening inventory differs: "
+        "double=%u long-double=%u\n",
+        (unsigned int)widenings,
+        (unsigned int)long_double_widenings);
     return 1;
   }
   return 0;
@@ -24748,13 +24775,25 @@ static int run_floating_comparisons(const char *host_root) {
       "int mixed_less(float left, double right) { return left < right; }\n"
       "int mixed_less_equal(double left, float right) { return left <= right; }\n"
       "int mixed_greater(float left, double right) { return left > right; }\n"
-      "int mixed_greater_equal(double left, float right) { return left >= right; }\n";
+      "int mixed_greater_equal(double left, float right) { return left >= right; }\n"
+      "int long_double_equal(long double left, long double right) { return left == right; }\n"
+      "int long_double_not_equal(long double left, long double right) { return left != right; }\n"
+      "int long_double_less(long double left, long double right) { return left < right; }\n"
+      "int long_double_less_equal(long double left, long double right) { return left <= right; }\n"
+      "int long_double_greater(long double left, long double right) { return left > right; }\n"
+      "int long_double_greater_equal(long double left, long double right) { return left >= right; }\n"
+      "int mixed_long_equal(long double left, double right) { return left == right; }\n"
+      "int mixed_long_not_equal(float left, long double right) { return left != right; }\n"
+      "int mixed_long_less(long double left, double right) { return left < right; }\n"
+      "int mixed_long_less_equal(float left, long double right) { return left <= right; }\n"
+      "int mixed_long_greater(long double left, float right) { return left > right; }\n"
+      "int mixed_long_greater_equal(double left, long double right) { return left >= right; }\n";
   static const frontend_exact_failure_case_t failure_cases[] = {
-      {{"long double comparison",
-        "int bad(long double left, long double right) { return left < right; }\n",
+      {{"atomic long double comparison",
+        "int bad(_Atomic long double left, long double right) { return left < right; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
        0u, 0u,
-       "long double comparison is outside this expression slice"},
+       "atomic floating comparison is outside this expression slice"},
       {{"atomic floating comparison",
         "int bad(_Atomic float left, float right) { return left == right; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
@@ -24764,7 +24803,19 @@ static int run_floating_comparisons(const char *host_root) {
         "int bad(long long left, float right) { return left >= right; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
        0u, 0u,
-       "integer and floating comparison conversion exceeds the represented 32-bit slice"}};
+       "integer and floating comparison conversion exceeds the represented 32-bit slice"},
+      {{"integer and long double comparison",
+        "int bad(long double left, int right) { return left < right; }\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "integer and long double comparison conversion is outside this "
+       "expression slice"},
+      {{"long double and integer comparison",
+        "int bad(int left, long double right) { return left >= right; }\n",
+       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "integer and long double comparison conversion is outside this "
+       "expression slice"}};
   frontend_fixture_t fixture;
   ctool_c_translation_unit_t unit;
   ctool_u32 index;

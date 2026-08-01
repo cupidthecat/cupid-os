@@ -380,6 +380,12 @@ static int long_double_contract(void) {
   long double initial = (long double)1.5;
   long double direct;
   long double indirect;
+  long double lower = (long double)1.0;
+  long double higher = (long double)2.0;
+  long double zero = (long double)0.0;
+  long double negative_zero = (long double)-0.0;
+  long double quiet_nan;
+  unsigned int comparison_index;
   unsigned int tail;
 
   if (sizeof(long double) != 12u ||
@@ -451,6 +457,54 @@ static int long_double_contract(void) {
       long_double_capture_low != 0u ||
       long_double_capture_high != 0x3ff80000u) {
     return 704;
+  }
+
+  if (lower == higher || !(lower != higher) || !(lower < higher) ||
+      !(lower <= higher) || lower > higher || lower >= higher) {
+    return 709;
+  }
+  if (higher == lower || !(higher != lower) || higher < lower ||
+      higher <= lower || !(higher > lower) || !(higher >= lower)) {
+    return 710;
+  }
+  if (!(lower == lower) || lower != lower || lower < lower ||
+      !(lower <= lower) || lower > lower || !(lower >= lower)) {
+    return 711;
+  }
+  if (!(zero == negative_zero) || zero != negative_zero ||
+      zero < negative_zero || !(zero <= negative_zero) ||
+      zero > negative_zero || !(zero >= negative_zero)) {
+    return 712;
+  }
+  if (!(lower == 1.0) || !(1.0 == lower) ||
+      !(lower == 1.0f) || !(1.0f == lower) ||
+      !(lower < 2.0) || !(1.0 < higher) ||
+      !(lower < 2.0f) || !(1.0f < higher)) {
+    return 716;
+  }
+  box.words.low = 1u;
+  box.words.high = 0x7ff80000u;
+  quiet_nan = (long double)box.value;
+  if (quiet_nan == lower || !(quiet_nan != lower) || quiet_nan < lower ||
+      quiet_nan <= lower || quiet_nan > lower || quiet_nan >= lower) {
+    return 713;
+  }
+  if (lower == quiet_nan || !(lower != quiet_nan) || lower < quiet_nan ||
+      lower <= quiet_nan || lower > quiet_nan || lower >= quiet_nan) {
+    return 714;
+  }
+  for (comparison_index = 0u; comparison_index < 32u;
+       comparison_index++) {
+    if (!(lower < higher) || !(higher > lower) ||
+        !(lower < 2.0) || !(1.0f < higher) ||
+        quiet_nan == lower || !(quiet_nan != lower) ||
+        quiet_nan < lower || quiet_nan <= lower ||
+        quiet_nan > lower || quiet_nan >= lower ||
+        lower == quiet_nan || !(lower != quiet_nan) ||
+        lower < quiet_nan || lower <= quiet_nan ||
+        lower > quiet_nan || lower >= quiet_nan) {
+      return 715;
+    }
   }
   return 0;
 }

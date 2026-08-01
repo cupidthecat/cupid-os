@@ -37830,7 +37830,7 @@
             },
             {
               "directive": "if",
-              "line": 29359,
+              "line": 29416,
               "path": "toolchain/tests/cupidc_object_contract.cc",
               "text": "#if defined(_WIN32)"
             }
@@ -38952,6 +38952,21 @@
       "category": "directive",
       "examples": [
         {
+          "line": 21,
+          "path": "demos/fpu_kernel.asm",
+          "text": "align 16"
+        }
+      ],
+      "files": [
+        "demos/fpu_kernel.asm"
+      ],
+      "id": "asm.directive.align",
+      "occurrences": 1
+    },
+    {
+      "category": "directive",
+      "examples": [
+        {
           "line": 2,
           "path": "boot/boot.asm",
           "text": "[bits 16]"
@@ -39500,7 +39515,7 @@
       "category": "instruction",
       "examples": [
         {
-          "line": 99,
+          "line": 96,
           "path": "demos/fpu_kernel.asm",
           "text": "addps   xmm0, xmm1"
         },
@@ -39526,7 +39541,7 @@
       "category": "instruction",
       "examples": [
         {
-          "line": 79,
+          "line": 76,
           "path": "demos/fpu_kernel.asm",
           "text": "addss   xmm0, xmm1"
         }
@@ -39830,12 +39845,12 @@
       "category": "instruction",
       "examples": [
         {
-          "line": 66,
+          "line": 63,
           "path": "demos/fpu_kernel.asm",
           "text": "finit"
         },
         {
-          "line": 113,
+          "line": 110,
           "path": "demos/fpu_kernel.asm",
           "text": "finit"
         }
@@ -39850,7 +39865,7 @@
       "category": "instruction",
       "examples": [
         {
-          "line": 110,
+          "line": 107,
           "path": "demos/fpu_kernel.asm",
           "text": "fld     [fx_zero]"
         }
@@ -39865,7 +39880,7 @@
       "category": "instruction",
       "examples": [
         {
-          "line": 64,
+          "line": 61,
           "path": "demos/fpu_kernel.asm",
           "text": "fninit"
         }
@@ -39880,7 +39895,7 @@
       "category": "instruction",
       "examples": [
         {
-          "line": 111,
+          "line": 108,
           "path": "demos/fpu_kernel.asm",
           "text": "fsin"
         }
@@ -39895,7 +39910,7 @@
       "category": "instruction",
       "examples": [
         {
-          "line": 112,
+          "line": 109,
           "path": "demos/fpu_kernel.asm",
           "text": "fstp    [result_x87_sin]"
         }
@@ -39910,7 +39925,7 @@
       "category": "instruction",
       "examples": [
         {
-          "line": 65,
+          "line": 62,
           "path": "demos/fpu_kernel.asm",
           "text": "fwait"
         }
@@ -39925,7 +39940,7 @@
       "category": "instruction",
       "examples": [
         {
-          "line": 68,
+          "line": 65,
           "path": "demos/fpu_kernel.asm",
           "text": "fxrstor [fp_buf]"
         },
@@ -39946,7 +39961,7 @@
       "category": "instruction",
       "examples": [
         {
-          "line": 67,
+          "line": 64,
           "path": "demos/fpu_kernel.asm",
           "text": "fxsave  [fp_buf]"
         },
@@ -40341,17 +40356,17 @@
       "category": "instruction",
       "examples": [
         {
-          "line": 83,
+          "line": 80,
           "path": "demos/fpu_kernel.asm",
           "text": "jne     fail_scalar_add"
         },
         {
-          "line": 90,
+          "line": 87,
           "path": "demos/fpu_kernel.asm",
           "text": "jne     fail_scalar_sqrt"
         },
         {
-          "line": 103,
+          "line": 100,
           "path": "demos/fpu_kernel.asm",
           "text": "jne     fail_packed_add"
         }
@@ -40475,7 +40490,7 @@
       "category": "instruction",
       "examples": [
         {
-          "line": 70,
+          "line": 67,
           "path": "demos/fpu_kernel.asm",
           "text": "ldmxcsr [mxcsr_tmp]"
         }
@@ -40628,17 +40643,17 @@
       "category": "instruction",
       "examples": [
         {
-          "line": 77,
+          "line": 74,
           "path": "demos/fpu_kernel.asm",
           "text": "movss   xmm0, [c_one_five]"
         },
         {
-          "line": 78,
+          "line": 75,
           "path": "demos/fpu_kernel.asm",
           "text": "movss   xmm1, [c_two_five]"
         },
         {
-          "line": 80,
+          "line": 77,
           "path": "demos/fpu_kernel.asm",
           "text": "movss   [result_scalar_add], xmm0"
         }
@@ -40653,17 +40668,17 @@
       "category": "instruction",
       "examples": [
         {
-          "line": 97,
+          "line": 94,
           "path": "demos/fpu_kernel.asm",
           "text": "movups  xmm0, [vec_a]"
         },
         {
-          "line": 98,
+          "line": 95,
           "path": "demos/fpu_kernel.asm",
           "text": "movups  xmm1, [vec_b]"
         },
         {
-          "line": 100,
+          "line": 97,
           "path": "demos/fpu_kernel.asm",
           "text": "movups  [result_packed_add], xmm0"
         }
@@ -41128,7 +41143,7 @@
       "category": "instruction",
       "examples": [
         {
-          "line": 86,
+          "line": 83,
           "path": "demos/fpu_kernel.asm",
           "text": "sqrtss  xmm0, xmm0"
         }
@@ -41179,7 +41194,7 @@
       "category": "instruction",
       "examples": [
         {
-          "line": 69,
+          "line": 66,
           "path": "demos/fpu_kernel.asm",
           "text": "stmxcsr [mxcsr_tmp]"
         }
@@ -42264,17 +42279,17 @@
       "category": "register",
       "examples": [
         {
-          "line": 77,
+          "line": 74,
           "path": "demos/fpu_kernel.asm",
           "text": "movss   xmm0, [c_one_five]"
         },
         {
-          "line": 79,
+          "line": 76,
           "path": "demos/fpu_kernel.asm",
           "text": "addss   xmm0, xmm1"
         },
         {
-          "line": 80,
+          "line": 77,
           "path": "demos/fpu_kernel.asm",
           "text": "movss   [result_scalar_add], xmm0"
         }
@@ -42290,17 +42305,17 @@
       "category": "register",
       "examples": [
         {
-          "line": 78,
+          "line": 75,
           "path": "demos/fpu_kernel.asm",
           "text": "movss   xmm1, [c_two_five]"
         },
         {
-          "line": 79,
+          "line": 76,
           "path": "demos/fpu_kernel.asm",
           "text": "addss   xmm0, xmm1"
         },
         {
-          "line": 98,
+          "line": 95,
           "path": "demos/fpu_kernel.asm",
           "text": "movups  xmm1, [vec_b]"
         }
@@ -42576,7 +42591,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.break",
-      "occurrences": 1839
+      "occurrences": 1836
     },
     {
       "category": "control",
@@ -42669,7 +42684,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.case",
-      "occurrences": 1669
+      "occurrences": 1678
     },
     {
       "category": "control",
@@ -42835,7 +42850,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.continue",
-      "occurrences": 1116
+      "occurrences": 1118
     },
     {
       "category": "control",
@@ -42915,13 +42930,13 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.default",
-      "occurrences": 154
+      "occurrences": 155
     },
     {
       "category": "control",
       "examples": [
         {
-          "line": 121,
+          "line": 124,
           "path": "bin/feature13_double.cc",
           "text": "do {"
         },
@@ -43280,7 +43295,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.else",
-      "occurrences": 4533
+      "occurrences": 4538
     },
     {
       "category": "control",
@@ -43550,7 +43565,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.for",
-      "occurrences": 3912
+      "occurrences": 3915
     },
     {
       "category": "control",
@@ -43990,7 +44005,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 35216
+      "occurrences": 35296
     },
     {
       "category": "control",
@@ -44052,6 +44067,7 @@
         "bin/dglibc_test.cc",
         "bin/ed.cc",
         "bin/feature11_ternary.cc",
+        "bin/feature13_double.cc",
         "bin/feature17_iso.cc",
         "bin/feature18_swap.cc",
         "bin/feature21_net.cc",
@@ -44349,7 +44365,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 21232
+      "occurrences": 21318
     },
     {
       "category": "control",
@@ -44442,7 +44458,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.switch",
-      "occurrences": 223
+      "occurrences": 224
     },
     {
       "category": "control",
@@ -44727,7 +44743,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.while",
-      "occurrences": 2680
+      "occurrences": 2681
     },
     {
       "category": "declaration",
@@ -44992,7 +45008,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.declarator.unsized_array",
-      "occurrences": 2593
+      "occurrences": 2600
     },
     {
       "category": "declarator",
@@ -45260,7 +45276,7 @@
         "user/examples/cat.cc"
       ],
       "id": "c.expression.sizeof",
-      "occurrences": 5348
+      "occurrences": 5366
     },
     {
       "category": "extension",
@@ -45461,7 +45477,7 @@
           "text": "__attribute__((unused))"
         },
         {
-          "line": 844,
+          "line": 920,
           "path": "kernel/lang/cupidc_parse.cc",
           "text": "__attribute__((unused))"
         }
@@ -48288,7 +48304,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 14203
+      "occurrences": 14231
     },
     {
       "category": "qualifier",
@@ -48809,7 +48825,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.storage.static",
-      "occurrences": 8422
+      "occurrences": 8436
     },
     {
       "category": "type",
@@ -49212,7 +49228,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.char",
-      "occurrences": 8098
+      "occurrences": 8104
     },
     {
       "category": "type",
@@ -49259,7 +49275,7 @@
         "toolchain/tests/hosted_i386_runtime_contract.cc"
       ],
       "id": "c.type.double",
-      "occurrences": 456
+      "occurrences": 452
     },
     {
       "category": "type",
@@ -49949,7 +49965,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.int",
-      "occurrences": 20930
+      "occurrences": 20915
     },
     {
       "category": "type",
@@ -49999,7 +50015,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.long",
-      "occurrences": 266
+      "occurrences": 276
     },
     {
       "category": "type",
@@ -50382,7 +50398,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.struct",
-      "occurrences": 857
+      "occurrences": 858
     },
     {
       "category": "type",
@@ -50834,7 +50850,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.unsigned",
-      "occurrences": 1683
+      "occurrences": 1692
     },
     {
       "category": "type",
@@ -51430,7 +51446,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.void",
-      "occurrences": 13701
+      "occurrences": 13727
     },
     {
       "category": "declaration",
@@ -52026,7 +52042,7 @@
         "toolchain/x86.cc"
       ],
       "id": "cupid_c.storage.reg",
-      "occurrences": 410
+      "occurrences": 420
     },
     {
       "category": "type",
@@ -52332,7 +52348,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "862037cdf964a196478117c0c8f8a0dad5fa0b18df30d0758d49078095a13c28",
+    "active_source_digest": "7caa739641b278914bdabea9686992a14b5f8ab22acac5f5a27a1884cd26b566",
     "control_files": [
       {
         "path": "Makefile",
@@ -52344,7 +52360,7 @@
       },
       {
         "path": "toolchain/Makefile",
-        "sha256": "06fbe36508c467cd26505b5147e7bcf9f41a85001bf5c66c612ce198aed7119d"
+        "sha256": "a9122547263e82065966db3d1598d5a29083b0fb5434432b61ae5c889755afc1"
       },
       {
         "path": "tools/cupidc_kernel_compile.py",
@@ -52626,6 +52642,7 @@
           "cupid_asm_demo"
         ],
         "feature_ids": [
+          "asm.directive.align",
           "asm.directive.bits",
           "asm.directive.db",
           "asm.directive.dd",
@@ -54593,6 +54610,7 @@
         "c.control.else",
         "c.control.for",
         "c.control.if",
+        "c.control.return",
         "c.control.while",
         "c.type.double",
         "c.type.float",
@@ -54602,12 +54620,12 @@
       ],
       "includes": [],
       "language": "cupid_c",
-      "lines": 318,
+      "lines": 321,
       "origin": "tracked",
       "path": "bin/feature13_double.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "434a268e9d27f8115d0c327fb9b88138dd5323004ba3ff1d6aae86fcff40ba18"
+      "sha256": "9dfe751e83e3a511bf4d4dbe9da8888e80864f81379ea9db5528311e8f09b376"
     },
     {
       "build_owners": [
@@ -57029,6 +57047,7 @@
       "features": [
         "asm.addressing.memory",
         "asm.delivery.embedded_source",
+        "asm.directive.align",
         "asm.directive.db",
         "asm.directive.dd",
         "asm.directive.section",
@@ -57063,12 +57082,12 @@
       ],
       "includes": [],
       "language": "assembly",
-      "lines": 151,
+      "lines": 148,
       "origin": "tracked",
       "path": "demos/fpu_kernel.asm",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidASM",
-      "sha256": "40629aad7ba6ce189fb6fcfa915df223fc3a6e4fcd65d7c9996b16f95b00793e"
+      "sha256": "af345c08fe6afa4a35b7463f67a19dde995aabdcb44774a695c3b72744ddf27a"
     },
     {
       "build_owners": [
@@ -72650,12 +72669,12 @@
         "kernel/lang/cupidc.h"
       ],
       "language": "cupid_c",
-      "lines": 7638,
+      "lines": 7561,
       "origin": "tracked",
       "path": "kernel/lang/cupidc_parse.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "ca8c813ef405d8340c2b00bfc810e1f3c7d3ce09497968dfe123fc321eb43d47"
+      "sha256": "1855134bedbde3e88b69d73221378744a7b7cb7ca637189f623744b24f3a0210"
     },
     {
       "build_owners": [
@@ -76408,12 +76427,12 @@
         "toolchain/cupidasm.h"
       ],
       "language": "cupid_c",
-      "lines": 4154,
+      "lines": 4322,
       "origin": "tracked",
       "path": "toolchain/cupidasm.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "22df57ede95f60405aeda06322482da9e2adfd23ddec2795bd45769eb5e08efb"
+      "sha256": "08227e879ed59cad6795dfed4fbf6d1fa2df9f1768dcf4aa28d943295c9cdc09"
     },
     {
       "build_owners": [
@@ -76534,12 +76553,12 @@
         "toolchain/x86.h"
       ],
       "language": "cupid_c",
-      "lines": 15923,
+      "lines": 15944,
       "origin": "tracked",
       "path": "toolchain/cupidc_emit.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "17f5e17bf2111de68e8dff80d91ee16baadae1e78eb93da13d0ec5106641bf87"
+      "sha256": "ccf34360751c93974f5e5ace4fee19ed5961f24e5431fe53939b38b1bd3279a5"
     },
     {
       "build_owners": [
@@ -76564,12 +76583,12 @@
         "toolchain/cupidc_frontend.h"
       ],
       "language": "c_header",
-      "lines": 69,
+      "lines": 72,
       "origin": "tracked",
       "path": "toolchain/cupidc_emit.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "47d55d7e2de607b774c5f015573b6cdb7f910503b6fcedba2c43ed177d85d31b"
+      "sha256": "b96bab206102d687fb8ae2903b845bca833c511b462665961fe2f7ba73195305"
     },
     {
       "build_owners": [
@@ -76610,12 +76629,12 @@
         "toolchain/cupidc_frontend.h"
       ],
       "language": "cupid_c",
-      "lines": 25906,
+      "lines": 25909,
       "origin": "tracked",
       "path": "toolchain/cupidc_frontend.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "62930fca4d160f8d5ff1b0611c6ef9b74dab4db50666bc1cc58d60f148a98c69"
+      "sha256": "d731ffdae032296e82d30841b6578116111a2fc1708f689c8a39845bf78e227d"
     },
     {
       "build_owners": [
@@ -76641,12 +76660,12 @@
         "toolchain/cupidc_type.h"
       ],
       "language": "c_header",
-      "lines": 778,
+      "lines": 781,
       "origin": "tracked",
       "path": "toolchain/cupidc_frontend.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "a592789718302cd8171e431e0be41f4cba9cff1aa44d4a31b1769f52bb013c64"
+      "sha256": "2c7bf291a9a454c09e7692faeaa790879c1e4438e11fbe9205f4c5be85f258f3"
     },
     {
       "build_owners": [
@@ -76715,12 +76734,12 @@
         "toolchain/cupidc_frontend.h"
       ],
       "language": "c_header",
-      "lines": 425,
+      "lines": 427,
       "origin": "tracked",
       "path": "toolchain/cupidc_ir.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "5531ba509a472dc19fb01381141379de8bbcc67fc308b11dd68cdf991abd2902"
+      "sha256": "d360a72c4d9493a62e22d5b887f2e6da1c68513e80b8bf6c7236eeb6de3b0b90"
     },
     {
       "build_owners": [
@@ -77697,12 +77716,12 @@
         "toolchain/cupidasm.h"
       ],
       "language": "cupid_c",
-      "lines": 1479,
+      "lines": 1851,
       "origin": "tracked",
       "path": "toolchain/tests/cupidasm_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "30fbf7730a35407582f2631995e4226cb7e8ee58ac6243fa1658e36ff93a854c"
+      "sha256": "aef35bb49fb3405bfd9959874c6fecf9bcf42398a5b33ba0e35a156c43770060"
     },
     {
       "build_owners": [
@@ -77826,12 +77845,12 @@
         "toolchain/cupidc_frontend.h"
       ],
       "language": "cupid_c",
-      "lines": 33365,
+      "lines": 33416,
       "origin": "tracked",
       "path": "toolchain/tests/cupidc_frontend_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "ece7f64d85dd29c937d79a6dd963fcc913c0a0e9feab9a83f582ca30b5379ef6"
+      "sha256": "68d8ec9831e8a4b086cc22bd3782e690797c5a28e3007127db670142978cf20e"
     },
     {
       "build_owners": [
@@ -77881,12 +77900,12 @@
         "toolchain/cupidc_pp.h"
       ],
       "language": "cupid_c",
-      "lines": 39644,
+      "lines": 39676,
       "origin": "tracked",
       "path": "toolchain/tests/cupidc_ir_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "4a746a637c21b5d692941b54cb4344957cc05c05514e47bdecbd18bc9e6d0061"
+      "sha256": "6ff5f045ad015d8709b7326a811748ed6f3e356ecbdb5905e2eafd678e7eef82"
     },
     {
       "build_owners": [
@@ -77975,12 +77994,12 @@
         "toolchain/x86.h"
       ],
       "language": "cupid_c",
-      "lines": 46869,
+      "lines": 46926,
       "origin": "tracked",
       "path": "toolchain/tests/cupidc_object_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "fd31ae42ee6a2b452e7ee3180510092f6aa204361935d142398f6e200e2dbb61"
+      "sha256": "1582436e41e959448cde57216c53d02d63e40f9b3ec38775003462bada554ad6"
     },
     {
       "build_owners": [
@@ -78259,12 +78278,12 @@
       ],
       "includes": [],
       "language": "cupid_c",
-      "lines": 571,
+      "lines": 625,
       "origin": "tracked",
       "path": "toolchain/tests/hosted_i386_runtime_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "911fe8547ddc2e590b25550e538ad43e50e82d0f4aab385b1edefe82148f9aae"
+      "sha256": "cbc8f38e9d0ecfb110cd518b0b66f726e849a023cc85b779246fd027c5fefc63"
     },
     {
       "build_owners": [
@@ -78303,12 +78322,12 @@
         "toolchain/x86.h"
       ],
       "language": "cupid_c",
-      "lines": 3056,
+      "lines": 3091,
       "origin": "tracked",
       "path": "toolchain/tests/x86_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "1641a1f3d0749ca85beb8a27dc83e0ec942011a4c9608ad9f928cf3f820e1833"
+      "sha256": "d81ac98c5d7bd73dd17d471dd5456e4eac8ce6b888002c2b7439bd4cd7151f65"
     },
     {
       "build_owners": [
@@ -78352,12 +78371,12 @@
         "toolchain/x86.h"
       ],
       "language": "cupid_c",
-      "lines": 3990,
+      "lines": 3996,
       "origin": "tracked",
       "path": "toolchain/x86.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "ab8a34f4483ab84bec368fa27e30736da9c043b92976f411f5e3137c215b4175"
+      "sha256": "d33345f30154352ba3c780b5e9e520d26d9bcb7b502fef6d96547c19d96e42ab"
     },
     {
       "build_owners": [
@@ -78385,12 +78404,12 @@
         "toolchain/ctool.h"
       ],
       "language": "c_header",
-      "lines": 293,
+      "lines": 294,
       "origin": "tracked",
       "path": "toolchain/x86.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "f39a725c2a5ce6a68d6f33af75ba369de4933daa8377f68711e13f997a253d4a"
+      "sha256": "94f6949b0dfc7bd9f6c42a987b9d1ece369a87409e4c5bc9a01c63ab5ee18c79"
     },
     {
       "build_owners": [
@@ -78520,7 +78539,7 @@
   ],
   "summary": {
     "active_sources": 717,
-    "features": 252,
+    "features": 253,
     "transforms": 449,
     "unreachable_sources": 25
   },

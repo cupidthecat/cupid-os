@@ -61,8 +61,12 @@ evaluates addition, subtraction, multiplication, and division. Direct and
 indirect fixed, variadic, and unprototyped arguments occupy twelve cdecl
 bytes. Functions return the value in x87 `ST0`, and direct or indirect callers
 store it in a twelve-byte snapshot. `va_arg(long double)` copies twelve bytes
-and leaves the cursor at the following four-byte slot. Long-double literals,
-nonzero and floating static initializers, comparisons, and integer conversions
+and leaves the cursor at the following four-byte slot. All six comparisons
+accept matching long-double values and mixed `float` or `double` inputs. The
+emitter loads right then left, executes `FUCOMIP ST0, ST1`, and discards the
+surviving x87 value. Signed zeros compare equal, and only `!=` is true for an
+unordered input. Long-double literals,
+nonzero and floating static initializers, and integer conversions
 involving `long double` remain open.
 
 The static aggregate proof covers two 24-byte arrays and two 28-byte records.
@@ -221,7 +225,7 @@ baseline JPEG. ADR 0139 records the production transfer.
 
 Direct floating truth, a floating controlling expression, increment or
 decrement, hexadecimal or subnormal floating constants, `long double`
-literals, nonzero or floating static long-double initializers, comparisons, integer
+literals, nonzero or floating static long-double initializers, integer
 conversions involving `long double`, general SIMD value semantics, and atomic
 floating access remain unsupported. Twelve-byte direct
 and indirect fixed, variadic, and unprototyped arguments, function returns,
@@ -229,6 +233,14 @@ direct and indirect call results, and `va_arg(long double)` use the represented
 automatic `long double` path. The exact production SIMD assembly forms above
 are a narrower checked path. The SSE details below describe the private
 in-kernel compiler.
+
+That private compiler now passes arbitrary mixtures of represented four-byte
+scalars and pointers with eight-byte `double` values. Direct,
+function-pointer, and method calls preserve left-to-right evaluation, arrange
+complete argument words in cdecl source order, and use the same widths for
+callee parameter offsets and caller cleanup. The feature13 guest requires
+nine calls through one mixed-width tolerance helper. ADR 0198 records this
+private ABI boundary.
 
 ### Arithmetic
 
@@ -268,8 +280,8 @@ them directly. CupidC JIT code calls them through the `BIND_T` table.
 CupidASM implements about 80 floating-point opcodes: FPU state control
 (FXSAVE, FXRSTOR, FINIT, FNINIT, FWAIT, LDMXCSR, STMXCSR), SSE scalar (23:
 MOVSS/SD, ADDSS/SD, etc.),
-SSE packed (24: MOVAPS/UPS, ADDPS/PD, SHUFPS, CMPPS, etc.), x87 (25: FLD,
-FSIN, FPATAN, F2XM1, FYL2X, etc.). XMM0-7 and ST0-7 register tokens.
+SSE packed (24: MOVAPS/UPS, ADDPS/PD, SHUFPS, CMPPS, etc.), x87 (26: FLD,
+FUCOMIP, FSIN, FPATAN, F2XM1, FYL2X, etc.). XMM0-7 and ST0-7 register tokens.
 
 ## Testing
 

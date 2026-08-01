@@ -64,10 +64,13 @@ work for represented values.
 Direct and indirect fixed, variadic, and unprototyped arguments occupy twelve
 cdecl bytes. Functions return the value in x87 `ST0`, and direct or indirect
 callers store it in a twelve-byte snapshot. `va_arg(long double)` copies
-twelve bytes and leaves the cursor at the following four-byte slot. Direct
+twelve bytes and leaves the cursor at the following four-byte slot. Matching
+long-double operands and mixed `float` or `double` inputs support all six
+comparisons. The balanced `FUCOMIP` path preserves C unordered behavior, so
+only `!=` is true when either input is NaN. Direct
 floating truth, a floating controlling expression, floating increment or
 decrement, hexadecimal or subnormal constants, `long double` literals, nonzero
-or floating static initializers, comparisons, integer conversions, SIMD, and
+or floating static initializers, integer conversions, SIMD, and
 atomic floating access
 remain unsupported. The in-kernel compiler has a separate, broader floating
 and SIMD implementation.

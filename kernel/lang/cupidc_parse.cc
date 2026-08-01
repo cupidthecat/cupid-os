@@ -691,6 +691,82 @@ static void cc_error(cc_state_t *cc, const char *msg) {
   cc->error_msg[i] = '\0';
 }
 
+/* Arguments are evaluated and pushed from left to right. This leaves their
+ * cdecl blocks in reverse order at ESP. Reorder the complete stack words in
+ * place while retaining the low-to-high word order inside each double. */
+static int cc_emit_cdecl_argument_layout(cc_state_t *cc,
+                                         const int *argument_sizes,
+                                         int argument_count) {
+  int current_words[CC_MAX_PARAMS * 2];
+  int target_words[CC_MAX_PARAMS * 2];
+  int word_count = 0;
+  int argument;
+  int destination;
+
+  if (argument_count < 0 || argument_count > CC_MAX_PARAMS) {
+    cc_error(cc, "invalid cdecl argument count");
+    return 0;
+  }
+
+  for (argument = 0; argument < argument_count; argument++) {
+    int size = argument_sizes[argument];
+    int word;
+    if (size != 4 && size != 8) {
+      cc_error(cc, "cdecl argument must occupy four or eight bytes");
+      return 0;
+    }
+    for (word = 0; word < size / 4; word++) {
+      target_words[word_count++] = argument * 2 + word;
+    }
+  }
+
+  destination = 0;
+  for (argument = argument_count - 1; argument >= 0; argument--) {
+    int word;
+    for (word = 0; word < argument_sizes[argument] / 4; word++) {
+      current_words[destination++] = argument * 2 + word;
+    }
+  }
+
+  for (destination = 0; destination < word_count; destination++) {
+    int source = destination;
+    while (source < word_count &&
+           current_words[source] != target_words[destination]) {
+      source++;
+    }
+    if (source >= word_count) {
+      cc_error(cc, "cdecl argument layout is inconsistent");
+      return 0;
+    }
+    if (source != destination) {
+      int destination_offset = destination * 4;
+      int source_offset = source * 4;
+      int saved_word = current_words[destination];
+
+      emit8(cc, 0x8B);
+      emit8(cc, 0x8C);
+      emit8(cc, 0x24);
+      emit32(cc, (uint32_t)destination_offset);
+      emit8(cc, 0x8B);
+      emit8(cc, 0x94);
+      emit8(cc, 0x24);
+      emit32(cc, (uint32_t)source_offset);
+      emit8(cc, 0x89);
+      emit8(cc, 0x94);
+      emit8(cc, 0x24);
+      emit32(cc, (uint32_t)destination_offset);
+      emit8(cc, 0x89);
+      emit8(cc, 0x8C);
+      emit8(cc, 0x24);
+      emit32(cc, (uint32_t)source_offset);
+
+      current_words[destination] = current_words[source];
+      current_words[source] = saved_word;
+    }
+  }
+  return 1;
+}
+
 static int cc_data_reserve(cc_state_t *cc, uint32_t bytes) {
   if (bytes > (CC_MAX_DATA - cc->data_pos)) {
     cc_error(cc, "data section overflow");
@@ -1283,6 +1359,70 @@ static int32_t cc_type_size(cc_state_t *cc, cc_type_t type, int struct_index) {
   default:
     return 4;
   }
+}
+
+/* Private CupidC passes scalar and pointer values in cdecl stack slots.
+ * SIMD vectors and aggregate values need a separate ABI before they can
+ * cross a function boundary. */
+static int32_t cc_cdecl_slot_size(cc_type_t type) {
+  switch (type) {
+  case TYPE_INT:
+  case TYPE_CHAR:
+  case TYPE_PTR:
+  case TYPE_INT_PTR:
+  case TYPE_CHAR_PTR:
+  case TYPE_STRUCT_PTR:
+  case TYPE_FUNC_PTR:
+  case TYPE_FLOAT:
+    return 4;
+  case TYPE_DOUBLE:
+    return 8;
+  default:
+    return 0;
+  }
+}
+
+static int cc_emit_cdecl_argument_push(cc_state_t *cc, cc_type_t type,
+                                       int *slot_size) {
+  int size;
+
+  if (cc->error)
+    return 0;
+
+  size = cc_cdecl_slot_size(type);
+  if (size == 0) {
+    cc_error(cc, "cdecl call argument type is not supported");
+    return 0;
+  }
+
+  if (type == TYPE_FLOAT) {
+    emit_push_xmm_float(cc, 0);
+  } else if (type == TYPE_DOUBLE) {
+    emit_push_xmm_double(cc, 0);
+  } else {
+    emit_push_eax(cc);
+  }
+  *slot_size = size;
+  return 1;
+}
+
+static int cc_bind_cdecl_parameter(cc_state_t *cc, const char *name,
+                                   cc_type_t type, int struct_index,
+                                   int32_t offset) {
+  int slot_size = cc_cdecl_slot_size(type);
+  cc_symbol_t *symbol;
+
+  if (slot_size == 0) {
+    cc_error(cc, "cdecl parameter type is not supported");
+    return 0;
+  }
+
+  symbol = cc_sym_add(cc, name, SYM_PARAM, type);
+  if (!symbol)
+    return 0;
+  symbol->offset = offset;
+  symbol->struct_index = struct_index;
+  return slot_size;
 }
 
 static int cc_is_arithmetic_scalar_type(cc_type_t type) {
@@ -2257,27 +2397,17 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
     }
     cc_next(cc); /* consume '(' */
 
-    /* Count and push arguments (right to left by collecting first) */
-    uint32_t arg_addrs[CC_MAX_PARAMS];
+    /* Evaluate arguments in source order and retain their stack widths. */
     int argc = 0;
-    /* Track size (4 or 8 bytes) of each pushed arg so we can do
-     * a size-aware reversal and emit the correct cleanup ADD ESP.*/
     int arg_sizes[CC_MAX_PARAMS];
     int total_arg_bytes = 0;
 
     if (cc_peek(cc).type != CC_TOK_RPAREN) {
       /* Parse first argument */
       cc_parse_expression(cc, 1);
-      if (cc_last_expr_type == TYPE_FLOAT) {
-        emit_push_xmm_float(cc, 0);
-        arg_sizes[argc] = 4;
-      } else if (cc_last_expr_type == TYPE_DOUBLE) {
-        emit_push_xmm_double(cc, 0);
-        arg_sizes[argc] = 8;
-      } else {
-        emit_push_eax(cc);
-        arg_sizes[argc] = 4;
-      }
+      if (!cc_emit_cdecl_argument_push(cc, cc_last_expr_type,
+                                       &arg_sizes[argc]))
+        return;
       total_arg_bytes += arg_sizes[argc];
       argc++;
 
@@ -2287,109 +2417,17 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
           cc_error(cc, "too many call arguments");
           break;
         }
-        if (cc_last_expr_type == TYPE_FLOAT) {
-          emit_push_xmm_float(cc, 0);
-          arg_sizes[argc] = 4;
-        } else if (cc_last_expr_type == TYPE_DOUBLE) {
-          emit_push_xmm_double(cc, 0);
-          arg_sizes[argc] = 8;
-        } else {
-          emit_push_eax(cc);
-          arg_sizes[argc] = 4;
-        }
+        if (!cc_emit_cdecl_argument_push(cc, cc_last_expr_type,
+                                         &arg_sizes[argc]))
+          return;
         total_arg_bytes += arg_sizes[argc];
         argc++;
       }
     }
     cc_expect(cc, CC_TOK_RPAREN);
 
-    /* Reverse args on stack for cdecl (we pushed left-to-right, need
-     * right-to-left).  With all-4-byte args (int/float) we can swap
-     * pairs of 4-byte slots directly.  With 8-byte args (doubles) we
-     * need to swap pairs whose total byte layout matches.
-     *
-     * Layout after left-to-right push (low addr = top of stack):
-     *    [arg_{argc-1}] [arg_{argc-2}] ... [arg_1] [arg_0]
-     * Target cdecl layout (low addr first):
-     *    [arg_0] [arg_1] ... [arg_{argc-1}]
-     *
-     * For each pair (a, b) where a < b = argc-1-a, we swap the bytes
-     * belonging to arg_a and arg_b.  The 4-byte same-size fast path
-     * handles both int-only and float-only calls.
-     * Doubles and mixed sizes are handled by a size-aware swap.*/
-    if (argc > 1) {
-      /* Compute byte-offset (from current ESP) where arg_i lives after
-       * left-to-right push.  arg at index i is pushed i-th, so its
-       * bytes end up at [prefix(i+1) .. total) counting from the end
-       * (high addr).  From ESP (low addr), arg_i's low byte is at:
-       *    src_off[i] = total - sum(sizes[0..i]) - sizes[i]
-       * Equivalently: src_off[i] = sum(sizes[i+1..argc-1]).
-       * The target layout has arg_i at dst_off[i] = sum(sizes[0..i-1]).*/
-      int src_off[CC_MAX_PARAMS];
-      {
-        int running = 0;
-        for (int k = argc - 1; k >= 0; k--) {
-          src_off[k] = running;
-          running += arg_sizes[k];
-        }
-      }
-
-      for (int a = 0; a < argc / 2; a++) {
-        int b = argc - 1 - a;
-        int sa = arg_sizes[a];
-        int sb = arg_sizes[b];
-        int off_a = src_off[a];
-        int off_b = src_off[b];
-
-        if (sa == 4 && sb == 4) {
-          /* 4-byte swap via ECX/EDX (original int-only fast path). */
-          /* mov ecx, [esp+off_a] */
-          emit8(cc, 0x8B);
-          emit8(cc, 0x8C);
-          emit8(cc, 0x24);
-          emit32(cc, (uint32_t)off_a);
-          /* mov edx, [esp+off_b] */
-          emit8(cc, 0x8B);
-          emit8(cc, 0x94);
-          emit8(cc, 0x24);
-          emit32(cc, (uint32_t)off_b);
-          /* mov [esp+off_a], edx */
-          emit8(cc, 0x89);
-          emit8(cc, 0x94);
-          emit8(cc, 0x24);
-          emit32(cc, (uint32_t)off_a);
-          /* mov [esp+off_b], ecx */
-          emit8(cc, 0x89);
-          emit8(cc, 0x8C);
-          emit8(cc, 0x24);
-          emit32(cc, (uint32_t)off_b);
-        } else if (sa == 8 && sb == 8) {
-          /* 8-byte swap: two 4-byte swaps of adjacent dwords.
-           * Slot a occupies [off_a, off_a+4), slot b occupies
-           * [off_b, off_b+4) in the same pattern.*/
-          for (int d = 0; d < 2; d++) {
-            int oa = off_a + d * 4;
-            int ob = off_b + d * 4;
-            emit8(cc, 0x8B); emit8(cc, 0x8C); emit8(cc, 0x24);
-            emit32(cc, (uint32_t)oa); /* mov ecx, [esp+oa] */
-            emit8(cc, 0x8B); emit8(cc, 0x94); emit8(cc, 0x24);
-            emit32(cc, (uint32_t)ob); /* mov edx, [esp+ob] */
-            emit8(cc, 0x89); emit8(cc, 0x94); emit8(cc, 0x24);
-            emit32(cc, (uint32_t)oa); /* mov [esp+oa], edx */
-            emit8(cc, 0x89); emit8(cc, 0x8C); emit8(cc, 0x24);
-            emit32(cc, (uint32_t)ob); /* mov [esp+ob], ecx */
-          }
-        } else {
-          /* Mixed-size pair (e.g. f(double, int)).  A correct swap
-           * requires a variable-width block reverse.  Punted
-           * on this rare case until a clear use case appears.*/
-          cc_error(cc,
-                   "mixed int/double args in same call not yet supported");
-          break;
-        }
-      }
-    }
-    (void)arg_addrs;
+    if (!cc_emit_cdecl_argument_layout(cc, arg_sizes, argc))
+      return;
 
     /* Builtins: Print(fmt, ...) and PrintLine(fmt, ...) */
     if (strcmp(name, "Print") == 0 || strcmp(name, "PrintLine") == 0) {
@@ -3098,27 +3136,21 @@ static void cc_parse_primary(cc_state_t *cc) {
 
         /* First implicit argument is self pointer in eax. */
         int argc = 0;
-        /* Track per-arg sizes for size-aware reversal. */
+        /* Track each stack width for layout and cleanup. */
         int arg_sizes[CC_MAX_PARAMS];
         int total_arg_bytes = 0;
-        emit_push_eax(cc);
-        arg_sizes[argc] = 4;
-        total_arg_bytes += 4;
+        if (!cc_emit_cdecl_argument_push(cc, TYPE_STRUCT_PTR,
+                                         &arg_sizes[argc]))
+          return;
+        total_arg_bytes += arg_sizes[argc];
         argc++;
 
         if (cc_peek(cc).type != CC_TOK_RPAREN) {
           cc_parse_expression(cc, 1);
           if (argc < CC_MAX_PARAMS) {
-            if (cc_last_expr_type == TYPE_FLOAT) {
-              emit_push_xmm_float(cc, 0);
-              arg_sizes[argc] = 4;
-            } else if (cc_last_expr_type == TYPE_DOUBLE) {
-              emit_push_xmm_double(cc, 0);
-              arg_sizes[argc] = 8;
-            } else {
-              emit_push_eax(cc);
-              arg_sizes[argc] = 4;
-            }
+            if (!cc_emit_cdecl_argument_push(cc, cc_last_expr_type,
+                                             &arg_sizes[argc]))
+              return;
             total_arg_bytes += arg_sizes[argc];
             argc++;
           }
@@ -3129,71 +3161,17 @@ static void cc_parse_primary(cc_state_t *cc) {
               cc_error(cc, "too many call arguments");
               break;
             }
-            if (cc_last_expr_type == TYPE_FLOAT) {
-              emit_push_xmm_float(cc, 0);
-              arg_sizes[argc] = 4;
-            } else if (cc_last_expr_type == TYPE_DOUBLE) {
-              emit_push_xmm_double(cc, 0);
-              arg_sizes[argc] = 8;
-            } else {
-              emit_push_eax(cc);
-              arg_sizes[argc] = 4;
-            }
+            if (!cc_emit_cdecl_argument_push(cc, cc_last_expr_type,
+                                             &arg_sizes[argc]))
+              return;
             total_arg_bytes += arg_sizes[argc];
             argc++;
           }
         }
         cc_expect(cc, CC_TOK_RPAREN);
 
-        /* Reverse pushed args (same convention as normal calls).
-         * Size-aware swap - see cc_parse_ident_expr call-site
-         * for identical logic and rationale.*/
-        if (argc > 1) {
-          int src_off[CC_MAX_PARAMS];
-          {
-            int running = 0;
-            for (int i = argc - 1; i >= 0; i--) {
-              src_off[i] = running;
-              running += arg_sizes[i];
-            }
-          }
-          int a;
-          for (a = 0; a < argc / 2; a++) {
-            int b = argc - 1 - a;
-            int sa = arg_sizes[a];
-            int sb = arg_sizes[b];
-            int off_a = src_off[a];
-            int off_b = src_off[b];
-            if (sa == 4 && sb == 4) {
-              emit8(cc, 0x8B); emit8(cc, 0x8C); emit8(cc, 0x24);
-              emit32(cc, (uint32_t)off_a); /* mov ecx, [esp+off_a] */
-              emit8(cc, 0x8B); emit8(cc, 0x94); emit8(cc, 0x24);
-              emit32(cc, (uint32_t)off_b); /* mov edx, [esp+off_b] */
-              emit8(cc, 0x89); emit8(cc, 0x94); emit8(cc, 0x24);
-              emit32(cc, (uint32_t)off_a); /* mov [esp+off_a], edx */
-              emit8(cc, 0x89); emit8(cc, 0x8C); emit8(cc, 0x24);
-              emit32(cc, (uint32_t)off_b); /* mov [esp+off_b], ecx */
-            } else if (sa == 8 && sb == 8) {
-              for (int d = 0; d < 2; d++) {
-                int oa = off_a + d * 4;
-                int ob = off_b + d * 4;
-                emit8(cc, 0x8B); emit8(cc, 0x8C); emit8(cc, 0x24);
-                emit32(cc, (uint32_t)oa);
-                emit8(cc, 0x8B); emit8(cc, 0x94); emit8(cc, 0x24);
-                emit32(cc, (uint32_t)ob);
-                emit8(cc, 0x89); emit8(cc, 0x94); emit8(cc, 0x24);
-                emit32(cc, (uint32_t)oa);
-                emit8(cc, 0x89); emit8(cc, 0x8C); emit8(cc, 0x24);
-                emit32(cc, (uint32_t)ob);
-              }
-            } else {
-              cc_error(cc,
-                       "mixed int/double args in same method call not yet "
-                       "supported");
-              break;
-            }
-          }
-        }
+        if (!cc_emit_cdecl_argument_layout(cc, arg_sizes, argc))
+          return;
 
         {
           cc_symbol_t *msym = cc_sym_find(cc, method_sym_name);
@@ -5745,28 +5723,22 @@ static void cc_parse_simple_statement(cc_state_t *cc) {
 
           {
             int argc = 0;
-            /* Track per-arg sizes for size-aware reversal. */
+            /* Track each stack width for layout and cleanup. */
             int arg_sizes[CC_MAX_PARAMS];
             int total_arg_bytes = 0;
 
-            emit_push_eax(cc); /* implicit self */
-            arg_sizes[argc] = 4;
-            total_arg_bytes += 4;
+            if (!cc_emit_cdecl_argument_push(cc, TYPE_STRUCT_PTR,
+                                             &arg_sizes[argc]))
+              return;
+            total_arg_bytes += arg_sizes[argc];
             argc++;
 
             if (cc_peek(cc).type != CC_TOK_RPAREN) {
               cc_parse_expression(cc, 1);
               if (argc < CC_MAX_PARAMS) {
-                if (cc_last_expr_type == TYPE_FLOAT) {
-                  emit_push_xmm_float(cc, 0);
-                  arg_sizes[argc] = 4;
-                } else if (cc_last_expr_type == TYPE_DOUBLE) {
-                  emit_push_xmm_double(cc, 0);
-                  arg_sizes[argc] = 8;
-                } else {
-                  emit_push_eax(cc);
-                  arg_sizes[argc] = 4;
-                }
+                if (!cc_emit_cdecl_argument_push(cc, cc_last_expr_type,
+                                                 &arg_sizes[argc]))
+                  return;
                 total_arg_bytes += arg_sizes[argc];
                 argc++;
               }
@@ -5776,68 +5748,17 @@ static void cc_parse_simple_statement(cc_state_t *cc) {
                   cc_error(cc, "too many call arguments");
                   break;
                 }
-                if (cc_last_expr_type == TYPE_FLOAT) {
-                  emit_push_xmm_float(cc, 0);
-                  arg_sizes[argc] = 4;
-                } else if (cc_last_expr_type == TYPE_DOUBLE) {
-                  emit_push_xmm_double(cc, 0);
-                  arg_sizes[argc] = 8;
-                } else {
-                  emit_push_eax(cc);
-                  arg_sizes[argc] = 4;
-                }
+                if (!cc_emit_cdecl_argument_push(cc, cc_last_expr_type,
+                                                 &arg_sizes[argc]))
+                  return;
                 total_arg_bytes += arg_sizes[argc];
                 argc++;
               }
             }
             cc_expect(cc, CC_TOK_RPAREN);
 
-            if (argc > 1) {
-              int src_off[CC_MAX_PARAMS];
-              {
-                int running = 0;
-                for (int i = argc - 1; i >= 0; i--) {
-                  src_off[i] = running;
-                  running += arg_sizes[i];
-                }
-              }
-              int a;
-              for (a = 0; a < argc / 2; a++) {
-                int b = argc - 1 - a;
-                int sa = arg_sizes[a];
-                int sb = arg_sizes[b];
-                int off_a = src_off[a];
-                int off_b = src_off[b];
-                if (sa == 4 && sb == 4) {
-                  emit8(cc, 0x8B); emit8(cc, 0x8C); emit8(cc, 0x24);
-                  emit32(cc, (uint32_t)off_a);
-                  emit8(cc, 0x8B); emit8(cc, 0x94); emit8(cc, 0x24);
-                  emit32(cc, (uint32_t)off_b);
-                  emit8(cc, 0x89); emit8(cc, 0x94); emit8(cc, 0x24);
-                  emit32(cc, (uint32_t)off_a);
-                  emit8(cc, 0x89); emit8(cc, 0x8C); emit8(cc, 0x24);
-                  emit32(cc, (uint32_t)off_b);
-                } else if (sa == 8 && sb == 8) {
-                  for (int d = 0; d < 2; d++) {
-                    int oa = off_a + d * 4;
-                    int ob = off_b + d * 4;
-                    emit8(cc, 0x8B); emit8(cc, 0x8C); emit8(cc, 0x24);
-                    emit32(cc, (uint32_t)oa);
-                    emit8(cc, 0x8B); emit8(cc, 0x94); emit8(cc, 0x24);
-                    emit32(cc, (uint32_t)ob);
-                    emit8(cc, 0x89); emit8(cc, 0x94); emit8(cc, 0x24);
-                    emit32(cc, (uint32_t)oa);
-                    emit8(cc, 0x89); emit8(cc, 0x8C); emit8(cc, 0x24);
-                    emit32(cc, (uint32_t)ob);
-                  }
-                } else {
-                  cc_error(cc,
-                           "mixed int/double args in same method call not "
-                           "yet supported");
-                  break;
-                }
-              }
-            }
+            if (!cc_emit_cdecl_argument_layout(cc, arg_sizes, argc))
+              return;
 
             {
               cc_symbol_t *msym = cc_sym_find(cc, method_sym_name);
@@ -6122,12 +6043,13 @@ static void cc_parse_function(cc_state_t *cc) {
           else if (ptype == TYPE_INT)  ptype = TYPE_INT_PTR;
           else                          ptype = TYPE_PTR;
         }
-        cc_symbol_t *psym = cc_sym_add(cc, pname.text, SYM_PARAM, ptype);
-        if (psym) {
-          psym->offset = param_offset;
-          psym->struct_index = psi;
+        {
+          int slot_size = cc_bind_cdecl_parameter(
+              cc, pname.text, ptype, psi, param_offset);
+          if (slot_size == 0)
+            return;
+          param_offset += slot_size;
         }
-        param_offset += 4;
         cc->param_count++;
       }
 
@@ -6154,12 +6076,13 @@ static void cc_parse_function(cc_state_t *cc) {
           else if (ptype == TYPE_INT)  ptype = TYPE_INT_PTR;
           else                          ptype = TYPE_PTR;
         }
-        cc_symbol_t *psym = cc_sym_add(cc, pname.text, SYM_PARAM, ptype);
-        if (psym) {
-          psym->offset = param_offset;
-          psym->struct_index = psi;
+        {
+          int slot_size = cc_bind_cdecl_parameter(
+              cc, pname.text, ptype, psi, param_offset);
+          if (slot_size == 0)
+            return;
+          param_offset += slot_size;
         }
-        param_offset += 4;
         cc->param_count++;
       }
     }
@@ -6262,11 +6185,9 @@ static void cc_parse_class_method(cc_state_t *cc, int class_index,
 
   /* Implicit self parameter at [ebp+8]. */
   {
-    cc_symbol_t *self_sym = cc_sym_add(cc, "self", SYM_PARAM, TYPE_STRUCT_PTR);
-    if (self_sym) {
-      self_sym->offset = 8;
-      self_sym->struct_index = class_index;
-    }
+    if (cc_bind_cdecl_parameter(cc, "self", TYPE_STRUCT_PTR, class_index, 8) ==
+        0)
+      return;
     cc->param_count = 1;
   }
 
@@ -6296,12 +6217,13 @@ static void cc_parse_class_method(cc_state_t *cc, int class_index,
           else if (ptype == TYPE_INT)  ptype = TYPE_INT_PTR;
           else                          ptype = TYPE_PTR;
         }
-        cc_symbol_t *psym = cc_sym_add(cc, pname.text, SYM_PARAM, ptype);
-        if (psym) {
-          psym->offset = param_offset;
-          psym->struct_index = psi;
+        {
+          int slot_size = cc_bind_cdecl_parameter(
+              cc, pname.text, ptype, psi, param_offset);
+          if (slot_size == 0)
+            return;
+          param_offset += slot_size;
         }
-        param_offset += 4;
         cc->param_count++;
       }
 
@@ -6328,12 +6250,13 @@ static void cc_parse_class_method(cc_state_t *cc, int class_index,
           else if (ptype == TYPE_INT)  ptype = TYPE_INT_PTR;
           else                          ptype = TYPE_PTR;
         }
-        cc_symbol_t *psym = cc_sym_add(cc, pname.text, SYM_PARAM, ptype);
-        if (psym) {
-          psym->offset = param_offset;
-          psym->struct_index = psi;
+        {
+          int slot_size = cc_bind_cdecl_parameter(
+              cc, pname.text, ptype, psi, param_offset);
+          if (slot_size == 0)
+            return;
+          param_offset += slot_size;
         }
-        param_offset += 4;
         cc->param_count++;
       }
     }

@@ -104,6 +104,13 @@ The production boot source assembles to an exact 2,560-byte image with SHA-256
 CupidASM and the optional NASM oracle produce the same bytes for the current
 `0x01100000` stack top and LBA 20480 FAT boundary.
 
+Source-head CupidASM also accepts `align POWER_OF_TWO[, FILL_BYTE]`. Raw
+output aligns the absolute `ORG` address, ELF32 output carries the required
+section alignment, and fixed images include the absolute region base in the
+calculation. NOBITS padding consumes memory but no file bytes. The FPU demo
+now declares its 16-byte FXSAVE requirement directly. This language change
+does not move a build owner or add a host dependency. ADR 0197 records it.
+
 The checked seed includes the complete 83-root Doom compiler frontier,
 current GNU entity metadata, the active x87 and SSE memory forms, descriptor
 and segment assembly, every unchanged assembly effect in `libm.cc`, the exact
@@ -336,8 +343,8 @@ or any other filesystem error publishes nothing. Input discovery skips hidden
 paths under active include roots, so private compiler staging headers from a
 concurrent build do not enter the repository snapshot. The complete frontier
 compiles all 155 roots twice against a 445-file snapshot with SHA-256
-`e28b1024edc5361d99583f79f65ce43690ebc873f04b568837f57f8af5df5db7`.
-Both object sets are byte-identical; each totals 3,717,856 bytes. The combined graph passes the
+`543c7bb3e4946967835fe81daeb6d895d661c03961021681a34b5236cfa20423`.
+Both object sets are byte-identical; each totals 3,719,100 bytes. The combined graph passes the
 two-link symbol and memory checks, clean normal and partitioned image builds,
 and strong four-vCPU runtime gates with both NICs.
 
@@ -424,16 +431,17 @@ through six leading `66` bytes and the fixed
 `2E 0F 1F 84 00 00 00 00 00` tail. The final scan has 1,901 fallback rows
 in 36 objects and renders 1,781 NOP rows. Other repeated prefixes remain
 invalid, and CupidASM cannot emit the redundant forms. Packed-integer SSE2
-is the next largest measured decoder gap. Source head now has 589 catalogue
-rows and fingerprint `22C336A0`. The added rows are the x87 80-bit `FLD` and
-`FSTP` memory forms used by represented `long double` values. File-scope and
+is the next largest measured decoder gap. Source head now has 590 catalogue
+rows, 243 canonical mnemonics, and fingerprint `74EC8312`. The added rows are
+the x87 80-bit `FLD` and `FSTP` memory forms plus i686
+`FUCOMIP ST0, ST(i)`, used by represented `long double` values. File-scope and
 block-static scalars, fixed arrays, and complete records may contain
 implicitly or explicitly zeroed non-atomic long-double leaves. The aggregate
 object proof fixes 104 BSS bytes, a 415-byte function with fingerprint
 `BF01CC71`, eight absolute relocations, and six symbols.
 The checked seed
 still carries the earlier 587-row catalogue; both compiler stages in the
-normal contract cohort rebuild the 589-row source head.
+normal contract cohort rebuild the 590-row source head.
 
 The four-vCPU GUI runtime starts every discovered CPU, reaches e1000 or
 RTL8139 traffic,
@@ -444,7 +452,9 @@ lifetimes. Both NIC runs print `[fpu] SSE2 enabled`,
 `[fpu] boot smoke ok`, and `FPU boot smoke passed`, then finish
 `feature16_asm_fpu.cc`. A private-image smoke loads the same external ELF
 program twice at `0x01C00000`; cleanup releases the first arena lease before
-the second load.
+the second load. The current uninstrumented four-vCPU private run also reaches
+`[feature13-call] PASS checks=9`, completes the GodSong interaction, and
+finishes the full GUI frontier in 233.5 seconds.
 The gate rejects SMP, storage, crypto, exception, panic, corruption, and
 illegal-instruction failure markers. The X.509 checks exercise parser,
 hostname, chain state, and embedded-root lookup paths. They are not a full
@@ -464,6 +474,14 @@ command, and Make passes wildcard-discovered output sources through
 the same root order across host locales.
 ADR 0190 records the root handoff, and ADR 0196 records the Toolchain contract
 handoff.
+
+The separate private in-kernel CupidC compiler now uses one scalar cdecl
+layout for direct, function-pointer, and method calls. Represented scalars and
+pointers occupy four-byte slots, while `double` occupies eight. Calls retain
+left-to-right evaluation, then arrange complete words at increasing source
+addresses. Callees and caller cleanup use the same widths. This repairs guest
+JIT and AOT behavior without moving a build owner. ADR 0198 records the
+boundary.
 
 ISO test-fixture packaging no longer hides an external tool behind Python.
 `test_iso/fixtures.manifest` pins every directory and file. Make declares the
@@ -496,13 +514,13 @@ A private `/bin/ls.cc` JIT boot from it passed in 49.8 seconds.
 The checked audit uses the canonical Windows Make branch and C locale on
 every host. Direct Linux builds test the separate Linux execution branch.
 
-The latest local normal build includes the transferred Toolchain work. Its
-8,711,268-byte final ELF has SHA-256
-`893185668ce0282f1e57efed1c3224404c04a2a1a87393c17281610cc141c50a`;
-the 8,510,856-byte raw kernel has SHA-256
-`5bd12f137dbbbba30bff4d3fe2b95e1727379b2ece1aaffc6a96cb2dc4416d5a`.
+The latest local normal build includes the transferred Toolchain work and
+completed in 1,417 seconds. Its 8,715,564-byte final ELF has SHA-256
+`5975de91f244e37929892b7dc1300a9308996f7fdf29dda817be5220829d98ab`;
+the 8,513,704-byte raw kernel has SHA-256
+`3ddc5abbf90bc69b58917577d5ded12ba601feb905eaad0ce9eb986a32f8adf6`.
 The fresh preboot image has SHA-256
-`5589c5cc151c486a85efaffc3551b37ec4f733ebd57f78c863c5bf6b96c7e23d`,
+`1d59fd38a2999e53cf4b89a3ea7d5a662efeb65ac42b392271d538e6ebf7daa4`,
 with the complete raw kernel at offset 2,560.
 
 The production Doom runtime proof uses private four-CPU images on e1000 and

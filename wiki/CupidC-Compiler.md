@@ -126,6 +126,21 @@ statements, and `for` increments. Arrays, structures, function pointers,
 `float4`, and `double2` fail with
 `increment or decrement requires a scalar variable`.
 
+### Mixed-width function calls
+
+Private CupidC uses one scalar cdecl layout for direct calls, stored
+function-pointer calls, and both method-call forms. Integers, pointers,
+function pointers, `float`, and the implicit method `self` value occupy four
+bytes. A `double` occupies eight bytes with its low word at the lower stack
+address.
+
+Arguments are still evaluated from left to right. The compiler then arranges
+their complete words at increasing addresses in source order. Callees use the
+same widths when they assign parameter offsets, and callers reclaim the whole
+outgoing area. SIMD and aggregate parameters still need a separate private
+ABI. `feature13_double.cc` exercises the represented path through nine calls
+to one `double, double, double, int` helper.
+
 ### Arrays
 
 Fixed-size arrays, both local (stack-allocated) and global (data section):
@@ -328,9 +343,11 @@ that path. Direct and indirect
 fixed, variadic, and unprototyped arguments occupy twelve cdecl bytes.
 Functions return the value in x87 `ST0`, and direct or indirect callers store
 it in a twelve-byte snapshot. `va_arg(long double)` copies twelve bytes and
-leaves the cursor at the following four-byte slot. Runtime floating truth,
+leaves the cursor at the following four-byte slot. All six comparisons accept
+matching long-double operands or a mixed `float` or `double` input. A balanced
+`FUCOMIP` sequence preserves signed-zero and unordered behavior. Runtime floating truth,
 hexadecimal floating literals, `long double` literals, nonzero or floating
-static long-double initializers, comparisons, integer conversions involving
+static long-double initializers, integer conversions involving
 `long double`, runtime conversion to unsigned four-byte
 integers or `_Bool`, runtime mixed wide and floating arithmetic or conditional
 arms, floating increment and decrement, SIMD values, floating atomics, and
@@ -548,7 +565,7 @@ operators, twelve-byte direct and indirect fixed, variadic, and unprototyped
 arguments, function returns, direct and indirect call results, and
 `va_arg(long double)`. Static-duration arrays and records may contain the same
 implicitly or explicitly zeroed leaves. Hexadecimal floating literals,
-`long double` literals, nonzero or floating static initializers, comparisons, integer conversions
+`long double` literals, nonzero or floating static initializers, integer conversions
 involving `long double`, runtime conversion to unsigned four-byte integers or
 `_Bool`, other floating-to-wide conversions, runtime floating truth, runtime
 mixed wide and floating arithmetic or conditional arms, and floating
@@ -712,8 +729,8 @@ the object, so a concurrent edit cannot publish a mixed result.
 
 The strict kernel frontier must compile all 155 approved checked-in sources
 twice. The full frontier passes against a 445-file snapshot with SHA-256
-`e28b1024edc5361d99583f79f65ce43690ebc873f04b568837f57f8af5df5db7`.
-Both 155-object sets are byte-identical; each totals 3,717,856 bytes. The
+`543c7bb3e4946967835fe81daeb6d895d661c03961021681a34b5236cfa20423`.
+Both 155-object sets are byte-identical; each totals 3,719,100 bytes. The
 combined graph keeps the ISO fixture as an explicit image input. Strong
 four-vCPU runtime gates pass with e1000 and RTL8139 networking through SMP,
 RDRAND, all 62 crypto checks, USB storage, audio, TrueType glyphs, a baseline
@@ -1728,12 +1745,20 @@ The parser (`cupidc_parse.cc`) is recursive descent and writes x86 machine-code 
   `char` and `int`, or flips only the IEEE-754 sign bit in XMM0 for `float`
   and `double`. Other operand types receive a specific diagnostic.
 - Integer binary operations use the stack with `EAX` and `EBX`; floating and vector operations use XMM registers and explicit spills when needed
-- Direct calls and stored function-pointer calls use cdecl stack arguments and caller cleanup; floating results use the private compiler's XMM return path
+- Direct calls, stored function-pointer calls, and methods use four-byte
+  scalar or pointer slots and eight-byte `double` slots. They preserve
+  left-to-right evaluation, arrange complete words in source order, and clean
+  the exact outgoing size. Floating results use the private compiler's XMM
+  return path.
 - Locals use `[EBP - offset]`, parameters use `[EBP + offset]`, and globals live in the data region
 
 [ADR 0189](../docs/adr/0189-preserve-floating-values-in-private-cupidc-unary-signs.md)
 records the unary-sign decision, signed-zero evidence, useful type failure,
 and same-REPL recovery.
+
+[ADR 0198](../docs/adr/0198-layout-private-cupidc-mixed-width-calls.md)
+records the private scalar cdecl slot widths, shared call layout, parameter
+offsets, cleanup, and guest evidence.
 
 ### Symbol Table
 
@@ -1792,7 +1817,7 @@ unprototyped arguments, function returns, direct and indirect call results,
 and `va_arg(long double)`. Runtime floating truth, runtime mixed wide and
 floating arithmetic or conditional arms, increment and decrement,
 hexadecimal floating literals, `long double` literals, nonzero or floating
-static long-double initializers, comparisons, integer conversions involving
+static long-double initializers, integer conversions involving
 `long double`, and SIMD remain open in the hosted path.
 
 ---
