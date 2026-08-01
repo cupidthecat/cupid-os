@@ -347,8 +347,9 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * scalar value or preserved structure snapshot. DISCARD consumes one value.
  * An explicit cast to void evaluates its operand once and produces no result.
  * A represented integer, object pointer, function pointer, `float`, `double`,
- * or supported structure operand emits DISCARD. A void operand leaves the
- * abstract stack at its incoming depth and emits no extra instruction.
+ * `long double`, or supported structure operand emits DISCARD. A void operand
+ * leaves the abstract stack at its incoming depth and emits no extra
+ * instruction.
  * CALL_DIRECT consumes its arguments after they have been evaluated in source
  * order. CALL_INDIRECT also consumes the function pointer below those
  * arguments. Each call owns its actual argument count and a contiguous packed
@@ -359,19 +360,19 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * After compatibility checks, the i386 emitter uses declared parameter types
  * for named slots and packed actual types for unnamed slots. Represented
  * four-byte scalar arguments, including `float`, use one slot. Signed and
- * unsigned eight-byte integers and `double` use two slots. Named structure
- * arguments are copied inline and
+ * unsigned eight-byte integers and `double` use two slots. A `long double`
+ * uses three slots. Named structure arguments are copied inline and
  * rounded up to four bytes. Arguments occupy increasing addresses in source
  * order, and a wide integer stores its low word before its high word. A call
- * with a structure, wide integer, or `double` argument reserves one outgoing
- * area before filling those slots. An indirect callee remains below the
- * argument handles while the
- * emitter fills that area. Parameter addresses account for the full width of
+ * with a structure, wide integer, `double`, or `long double` argument
+ * reserves one outgoing area before filling those slots. An indirect callee
+ * remains below the argument handles while the emitter fills that area.
+ * Parameter addresses account for the full width of
  * every earlier argument. Ellipsis and unprototyped calls accept represented
  * four-byte integer and pointer types, signed and unsigned eight-byte
- * integers, or `double`. An unnamed `float` is rejected until default
- * promotion can convert it to `double`. Atomic, `long double`, and aggregate
- * unnamed arguments remain unsupported. A structure result uses a hidden
+ * integers, `double`, or `long double`. An unnamed `float` is converted to
+ * `double` by default argument promotion. Atomic and aggregate unnamed
+ * arguments remain unsupported. A structure result uses a hidden
  * pointer before the explicit
  * arguments. The callee copies into that storage, returns its address in EAX,
  * and removes the hidden pointer with RET 4. Either call pushes one result
@@ -380,21 +381,27 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * An eight-byte integer result arrives with its low word in EAX and its high
  * word in EDX. RETURN_VALUE restores those registers from the private
  * snapshot. A floating result crosses the i386 ABI in x87 ST0. The emitter
- * spills an incoming call result immediately, then reloads ST0 for a floating
- * RETURN_VALUE. VARIADIC_START places the cursor after the full width of the
- * final named cdecl parameter. VARIADIC_ARGUMENT reads a represented four-byte
+ * spills an incoming four-, eight-, or twelve-byte call result immediately,
+ * then reloads ST0 for a floating RETURN_VALUE. VARIADIC_START places the
+ * cursor after the full width of the final named cdecl parameter.
+ * VARIADIC_ARGUMENT reads a represented four-byte
  * pointer, integer, or enum and advances the stored cursor by four bytes. A
  * signed or unsigned eight-byte integer, 64-bit enum, or `double` is copied
  * into a fresh private snapshot, produces one abstract handle, and advances
- * the cursor by eight bytes. Both forms keep the cursor on i386 four-byte slot
- * alignment. `va_arg(arguments, float)` is invalid because default argument
- * promotion passes a `double`. Atomic, `long double`, and aggregate variadic
- * reads remain unsupported.
+ * the cursor by eight bytes. A `long double` uses a twelve-byte snapshot and
+ * advances the cursor by twelve. Every form keeps the cursor on i386 four-byte
+ * slot alignment. `va_arg(arguments, float)` is invalid because default
+ * argument promotion passes a `double`. Atomic and aggregate variadic reads
+ * remain unsupported.
  * Eight-byte integer BINARY records support addition, subtraction,
  * multiplication, division, remainder, left shift, signed or unsigned right
  * shift, AND, OR, XOR, and all six comparisons. Floating BINARY records
  * support addition, subtraction, multiplication, and division after both
- * operands reach the common width. Floating values can also join through
+ * operands reach the common `float`, `double`, or `long double` width.
+ * Implicitly zero-initialized and integer-zero file-scope or block-static
+ * long-double objects use the same twelve-byte load and store path as
+ * automatic objects.
+ * `float` and `double` values can also join through
  * conditional selection when the controlling value is an integer or pointer.
  * UNARY records support plus,
  * negate, complement, and logical not. Wide values also feed short-circuit
@@ -403,8 +410,8 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * zero through 63 preserve both words. CONVERT records support represented
  * integer widening to eight bytes and explicit or assignment narrowing back
  * to a represented integer. They also support explicit and assignment
- * conversion between `float` and `double`, plus `float` widening for common
- * arithmetic. They
+ * conversion among `float`, `double`, and `long double`, plus floating
+ * widening for common arithmetic. They
  * also support the same-rank signed-to-unsigned usual arithmetic conversion
  * and, in GNU mode, promotion of a wide enum to its exact compatible signed or
  * unsigned integer type. Boolean narrowing tests both source words. Boolean

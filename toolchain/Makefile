@@ -19,12 +19,74 @@ HOST_REPRO_LDFLAGS ?=
 endif
 
 BUILD_DIR ?= build
-CONTRACT := $(BUILD_DIR)/core-contract$(EXE)
-CUPIDC_PP_CONTRACT := $(BUILD_DIR)/cupidc-pp-contract$(EXE)
-CUPIDC_TYPE_CONTRACT := $(BUILD_DIR)/cupidc-type-contract$(EXE)
-CUPIDC_FRONTEND_CONTRACT := $(BUILD_DIR)/cupidc-frontend-contract$(EXE)
-CUPIDC_IR_CONTRACT := $(BUILD_DIR)/cupidc-ir-contract$(EXE)
-CUPIDC_OBJECT_CONTRACT := $(BUILD_DIR)/cupidc-object-contract$(EXE)
+CONTRACT_DIR := $(BUILD_DIR)/cupidc-contracts
+CONTRACT_MANIFEST := $(CONTRACT_DIR)/manifest.json
+CONTRACT_RUN := $(PYTHON) ../tools/cupidc_toolchain_contracts.py run \
+	--root .. --executable
+CONTRACT_ARTIFACT := $(CONTRACT_DIR)/core-contract.elf
+CUPIDC_PP_CONTRACT_ARTIFACT := $(CONTRACT_DIR)/cupidc-pp-contract.elf
+CUPIDC_TYPE_CONTRACT_ARTIFACT := $(CONTRACT_DIR)/cupidc-type-contract.elf
+CUPIDC_FRONTEND_CONTRACT_ARTIFACT := \
+	$(CONTRACT_DIR)/cupidc-frontend-contract.elf
+CUPIDC_IR_CONTRACT_ARTIFACT := $(CONTRACT_DIR)/cupidc-ir-contract.elf
+CUPIDC_OBJECT_CONTRACT_ARTIFACT := \
+	$(CONTRACT_DIR)/cupidc-object-contract.elf
+ELF32_CONTRACT_ARTIFACT := $(CONTRACT_DIR)/elf32-contract.elf
+X86_CONTRACT_ARTIFACT := $(CONTRACT_DIR)/x86-contract.elf
+CUPIDDIS_CONTRACT_ARTIFACT := $(CONTRACT_DIR)/cupiddis-contract.elf
+CUPIDASM_CONTRACT_ARTIFACT := $(CONTRACT_DIR)/cupidasm-contract.elf
+CUPIDASM_DEMOS_CONTRACT_ARTIFACT := \
+	$(CONTRACT_DIR)/cupidasm-demos-contract.elf
+CUPIDASM_KERNEL_ELF_CONTRACT_ARTIFACT := \
+	$(CONTRACT_DIR)/cupidasm-kernel-elf-contract.elf
+CUPIDOBJ_CONTRACT_ARTIFACT := $(CONTRACT_DIR)/cupidobj-contract.elf
+CUPIDLD_CONTRACT_ARTIFACT := $(CONTRACT_DIR)/cupidld-contract.elf
+CONTRACT := $(CONTRACT_RUN) $(CONTRACT_ARTIFACT) --
+CUPIDC_PP_CONTRACT := \
+	$(CONTRACT_RUN) $(CUPIDC_PP_CONTRACT_ARTIFACT) --
+CUPIDC_TYPE_CONTRACT := \
+	$(CONTRACT_RUN) $(CUPIDC_TYPE_CONTRACT_ARTIFACT) --
+CUPIDC_FRONTEND_CONTRACT := \
+	$(CONTRACT_RUN) $(CUPIDC_FRONTEND_CONTRACT_ARTIFACT) --
+CUPIDC_IR_CONTRACT := \
+	$(CONTRACT_RUN) $(CUPIDC_IR_CONTRACT_ARTIFACT) --
+CUPIDC_OBJECT_CONTRACT := \
+	$(CONTRACT_RUN) $(CUPIDC_OBJECT_CONTRACT_ARTIFACT) --
+CUPIDC_OBJECT_CONTRACT_SLOW := \
+	$(CONTRACT_RUN) $(CUPIDC_OBJECT_CONTRACT_ARTIFACT) --timeout 1800 --
+ELF32_CONTRACT := $(CONTRACT_RUN) $(ELF32_CONTRACT_ARTIFACT) --
+X86_CONTRACT := $(CONTRACT_RUN) $(X86_CONTRACT_ARTIFACT) --
+CUPIDDIS_CONTRACT := \
+	$(CONTRACT_RUN) $(CUPIDDIS_CONTRACT_ARTIFACT) --
+CUPIDASM_CONTRACT := \
+	$(CONTRACT_RUN) $(CUPIDASM_CONTRACT_ARTIFACT) --
+CUPIDASM_DEMOS_CONTRACT := \
+	$(CONTRACT_RUN) $(CUPIDASM_DEMOS_CONTRACT_ARTIFACT) --
+CUPIDASM_KERNEL_ELF_CONTRACT := \
+	$(CONTRACT_RUN) $(CUPIDASM_KERNEL_ELF_CONTRACT_ARTIFACT) --
+CUPIDOBJ_CONTRACT := \
+	$(CONTRACT_RUN) $(CUPIDOBJ_CONTRACT_ARTIFACT) --
+CUPIDLD_CONTRACT := \
+	$(CONTRACT_RUN) $(CUPIDLD_CONTRACT_ARTIFACT) --
+NATIVE_CONTRACT := $(BUILD_DIR)/core-contract$(EXE)
+NATIVE_CUPIDC_PP_CONTRACT := $(BUILD_DIR)/cupidc-pp-contract$(EXE)
+NATIVE_CUPIDC_TYPE_CONTRACT := \
+	$(BUILD_DIR)/cupidc-type-contract$(EXE)
+NATIVE_CUPIDC_FRONTEND_CONTRACT := \
+	$(BUILD_DIR)/cupidc-frontend-contract$(EXE)
+NATIVE_CUPIDC_IR_CONTRACT := $(BUILD_DIR)/cupidc-ir-contract$(EXE)
+NATIVE_CUPIDC_OBJECT_CONTRACT := \
+	$(BUILD_DIR)/cupidc-object-contract$(EXE)
+NATIVE_ELF32_CONTRACT := $(BUILD_DIR)/elf32-contract$(EXE)
+NATIVE_X86_CONTRACT := $(BUILD_DIR)/x86-contract$(EXE)
+NATIVE_CUPIDDIS_CONTRACT := $(BUILD_DIR)/cupiddis-contract$(EXE)
+NATIVE_CUPIDASM_CONTRACT := $(BUILD_DIR)/cupidasm-contract$(EXE)
+NATIVE_CUPIDASM_DEMOS_CONTRACT := \
+	$(BUILD_DIR)/cupidasm-demos-contract$(EXE)
+NATIVE_CUPIDASM_KERNEL_ELF_CONTRACT := \
+	$(BUILD_DIR)/cupidasm-kernel-elf-contract$(EXE)
+NATIVE_CUPIDOBJ_CONTRACT := $(BUILD_DIR)/cupidobj-contract$(EXE)
+NATIVE_CUPIDLD_CONTRACT := $(BUILD_DIR)/cupidld-contract$(EXE)
 CUPIDC := $(BUILD_DIR)/cupidc$(EXE)
 CUPIDC_PP_ACTIVE_CASES := tests/cupidc_pp_active_cases.inc
 CUPIDC_PP_GENERATED_SOURCES := ../kernel/cpu/ksyms_data.cc \
@@ -33,6 +95,7 @@ CUPIDC_PP_GENERATED_SOURCES := ../kernel/cpu/ksyms_data.cc \
                               ../kernel/util/docs_programs_gen.cc
 CUPIDC_HOSTED_I386_HEADERS := hosted/i386-linux/include/cupid_host_abi.h \
                               hosted/i386-linux/include/errno.h \
+                              hosted/i386-linux/include/stdint.h \
                               hosted/i386-linux/include/stdio.h \
                               hosted/i386-linux/include/stdlib.h \
                               hosted/i386-linux/include/string.h \
@@ -53,24 +116,40 @@ CUPIDC_HOSTED_I386_CLOSURE := ctool.cc ctool.h ctool_host.cc ctool_host.h \
                               cupidobj.cc cupidobj.h cupidobj_main.cc \
                               $(CUPIDC_HOSTED_I386_HEADERS) \
                               $(CUPIDC_HOSTED_I386_RUNTIME)
-CUPIDC_HOSTED_I386_ARTIFACTS := $(BUILD_DIR)/cupidc-cupidasm.elf \
-                                $(BUILD_DIR)/cupidc-cupiddis.elf \
-                                $(BUILD_DIR)/cupidc-cupidld.elf \
-                                $(BUILD_DIR)/cupidc-cupidobj.elf \
-                                $(BUILD_DIR)/cupidc-cupidc.elf \
-                                $(BUILD_DIR)/cupidc-runtime-contract.elf
-CUPIDC_HOSTED_I386_MANIFEST := $(BUILD_DIR)/cupidc-hosted-i386-tools.json
-ELF32_CONTRACT := $(BUILD_DIR)/elf32-contract$(EXE)
-X86_CONTRACT := $(BUILD_DIR)/x86-contract$(EXE)
-CUPIDDIS_CONTRACT := $(BUILD_DIR)/cupiddis-contract$(EXE)
+CUPIDC_CONTRACT_SOURCES := tests/core_contract.cc \
+	tests/cupidc_pp_contract.cc tests/cupidc_type_contract.cc \
+	tests/cupidc_frontend_contract.cc tests/cupidc_ir_contract.cc \
+	tests/cupidc_object_contract.cc tests/elf32_contract.cc \
+	tests/x86_contract.cc tests/cupiddis_contract.cc \
+	tests/cupidasm_contract.cc tests/cupidasm_demos_contract.cc \
+	tests/cupidasm_kernel_elf_contract.cc tests/cupidobj_contract.cc \
+	tests/cupidld_contract.cc
+CUPIDC_CONTRACT_SUPPORT := $(wildcard tests/*.inc) \
+	$(wildcard tests/*.h) ../kernel/lang/as_elf.cc \
+	../kernel/lang/as_elf.h
+CUPIDC_CONTRACT_SEED := ../bootstrap/seeds/i386-linux/manifest.json \
+	../bootstrap/seeds/i386-linux/cupidasm.elf \
+	../bootstrap/seeds/i386-linux/cupidc.elf \
+	../bootstrap/seeds/i386-linux/cupiddis.elf \
+	../bootstrap/seeds/i386-linux/cupidld.elf \
+	../bootstrap/seeds/i386-linux/cupidobj.elf
+CUPIDC_HOSTED_I386_ARTIFACTS := $(CONTRACT_DIR)/cupidc-cupidasm.elf \
+	$(CONTRACT_DIR)/cupidc-cupiddis.elf \
+	$(CONTRACT_DIR)/cupidc-cupidld.elf \
+	$(CONTRACT_DIR)/cupidc-cupidobj.elf \
+	$(CONTRACT_DIR)/cupidc-cupidc.elf \
+	$(CONTRACT_DIR)/cupidc-runtime-contract.elf
+CUPIDC_CONTRACT_ARTIFACTS := $(CONTRACT_ARTIFACT) \
+	$(CUPIDC_PP_CONTRACT_ARTIFACT) $(CUPIDC_TYPE_CONTRACT_ARTIFACT) \
+	$(CUPIDC_FRONTEND_CONTRACT_ARTIFACT) $(CUPIDC_IR_CONTRACT_ARTIFACT) \
+	$(CUPIDC_OBJECT_CONTRACT_ARTIFACT) $(ELF32_CONTRACT_ARTIFACT) \
+	$(X86_CONTRACT_ARTIFACT) $(CUPIDDIS_CONTRACT_ARTIFACT) \
+	$(CUPIDASM_CONTRACT_ARTIFACT) $(CUPIDASM_DEMOS_CONTRACT_ARTIFACT) \
+	$(CUPIDASM_KERNEL_ELF_CONTRACT_ARTIFACT) \
+	$(CUPIDOBJ_CONTRACT_ARTIFACT) $(CUPIDLD_CONTRACT_ARTIFACT)
 CUPIDDIS := $(BUILD_DIR)/cupiddis$(EXE)
-CUPIDASM_CONTRACT := $(BUILD_DIR)/cupidasm-contract$(EXE)
-CUPIDASM_DEMOS_CONTRACT := $(BUILD_DIR)/cupidasm-demos-contract$(EXE)
-CUPIDASM_KERNEL_ELF_CONTRACT := $(BUILD_DIR)/cupidasm-kernel-elf-contract$(EXE)
 CUPIDASM := $(BUILD_DIR)/cupidasm$(EXE)
-CUPIDOBJ_CONTRACT := $(BUILD_DIR)/cupidobj-contract$(EXE)
 CUPIDOBJ := $(BUILD_DIR)/cupidobj$(EXE)
-CUPIDLD_CONTRACT := $(BUILD_DIR)/cupidld-contract$(EXE)
 CUPIDLD := $(BUILD_DIR)/cupidld$(EXE)
 CORE_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
                 $(BUILD_DIR)/core_contract.o
@@ -152,20 +231,18 @@ CUPIDLD_CONTRACT_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
 CUPIDLD_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
                    $(BUILD_DIR)/elf32.o $(BUILD_DIR)/cupidld.o \
                    $(BUILD_DIR)/cupidld_main.o
-HOST_BOOTSTRAP_ARTIFACTS := $(CONTRACT) $(CUPIDC_PP_CONTRACT) \
-                            $(CUPIDC_TYPE_CONTRACT) \
-                            $(CUPIDC_FRONTEND_CONTRACT) \
-                            $(CUPIDC_IR_CONTRACT) $(CUPIDC_OBJECT_CONTRACT) \
-                            $(CUPIDC) \
-                            $(ELF32_CONTRACT) $(X86_CONTRACT) \
-                            $(CUPIDDIS_CONTRACT) $(CUPIDDIS) \
-                            $(CUPIDASM_CONTRACT) \
-                            $(CUPIDASM_DEMOS_CONTRACT) \
-                            $(CUPIDASM_KERNEL_ELF_CONTRACT) $(CUPIDASM) \
-                            $(CUPIDOBJ_CONTRACT) $(CUPIDOBJ) \
-                            $(CUPIDLD_CONTRACT) $(CUPIDLD)
-BOOTSTRAP_ARTIFACTS := $(HOST_BOOTSTRAP_ARTIFACTS) \
-                       $(CUPIDC_HOSTED_I386_ARTIFACTS)
+NATIVE_ORACLE_ARTIFACTS := $(NATIVE_CONTRACT) \
+	$(NATIVE_CUPIDC_PP_CONTRACT) $(NATIVE_CUPIDC_TYPE_CONTRACT) \
+	$(NATIVE_CUPIDC_FRONTEND_CONTRACT) $(NATIVE_CUPIDC_IR_CONTRACT) \
+	$(NATIVE_CUPIDC_OBJECT_CONTRACT) $(CUPIDC) \
+	$(NATIVE_ELF32_CONTRACT) $(NATIVE_X86_CONTRACT) \
+	$(NATIVE_CUPIDDIS_CONTRACT) $(CUPIDDIS) \
+	$(NATIVE_CUPIDASM_CONTRACT) $(NATIVE_CUPIDASM_DEMOS_CONTRACT) \
+	$(NATIVE_CUPIDASM_KERNEL_ELF_CONTRACT) $(CUPIDASM) \
+	$(NATIVE_CUPIDOBJ_CONTRACT) $(CUPIDOBJ) \
+	$(NATIVE_CUPIDLD_CONTRACT) $(CUPIDLD)
+BOOTSTRAP_ARTIFACTS := $(CUPIDC_CONTRACT_ARTIFACTS) \
+	$(CUPIDC_HOSTED_I386_ARTIFACTS)
 CFLAGS ?= -std=c11 -O2 -pedantic -Werror -Wall -Wextra -Wshadow \
           -Wpointer-arith -Wcast-qual -Wstrict-prototypes \
           -Wmissing-prototypes -Wconversion -Wsign-conversion
@@ -174,7 +251,9 @@ LDFLAGS ?=
 
 .DEFAULT_GOAL := all
 
-all: $(HOST_BOOTSTRAP_ARTIFACTS) $(CUPIDC_HOSTED_I386_MANIFEST)
+all: $(CONTRACT_MANIFEST)
+	$(PYTHON) ../tools/cupidc_toolchain_contracts.py verify \
+		--root .. --output $(CONTRACT_DIR)
 
 $(BUILD_DIR):
 	$(PYTHON) -c "from pathlib import Path; Path(r'$@').mkdir(parents=True, exist_ok=True)"
@@ -242,138 +321,135 @@ $(BUILD_DIR)/cupidld_main.o: cupidld_main.cc cupidld.h ctool_host.h ctool.h elf3
 $(BUILD_DIR)/as_elf.o: ../kernel/lang/as_elf.cc ../kernel/lang/as_elf.h cupidasm.h ctool.h elf32.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) -I../kernel/lang $(CFLAGS) -x c -c $< -o $@
 
-$(BUILD_DIR)/core_contract.o: tests/core_contract.c ctool.h ctool_host.h | $(BUILD_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+$(BUILD_DIR)/core_contract.o: tests/core_contract.cc ctool.h ctool_host.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
-$(BUILD_DIR)/cupidc_pp_contract.o: tests/cupidc_pp_contract.c \
+$(BUILD_DIR)/cupidc_pp_contract.o: tests/cupidc_pp_contract.cc \
                                  tests/cupidc_pp_conditional_cases.inc \
                                  $(CUPIDC_PP_ACTIVE_CASES) \
                                  cupidc_pp.h ctool.h ctool_host.h | $(BUILD_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
-$(BUILD_DIR)/cupidc_type_contract.o: tests/cupidc_type_contract.c \
+$(BUILD_DIR)/cupidc_type_contract.o: tests/cupidc_type_contract.cc \
                                    cupidc_type.h cupidc_pp.h \
                                    ctool.h ctool_host.h | $(BUILD_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
 $(BUILD_DIR)/cupidc_frontend_contract.o: \
-    tests/cupidc_frontend_contract.c $(CUPIDC_PP_ACTIVE_CASES) \
+    tests/cupidc_frontend_contract.cc $(CUPIDC_PP_ACTIVE_CASES) \
     cupidc_frontend.h cupidc_type.h cupidc_pp.h ctool.h ctool_host.h | $(BUILD_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
-$(BUILD_DIR)/cupidc_ir_contract.o: tests/cupidc_ir_contract.c \
+$(BUILD_DIR)/cupidc_ir_contract.o: tests/cupidc_ir_contract.cc \
     cupidc_ir.h cupidc_frontend.h cupidc_type.h cupidc_pp.h \
     ctool.h ctool_host.h | $(BUILD_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
-$(BUILD_DIR)/cupidc_object_contract.o: tests/cupidc_object_contract.c \
+$(BUILD_DIR)/cupidc_object_contract.o: tests/cupidc_object_contract.cc \
     tests/cupidc_kernel_simd_fixture.h \
     cupidc_emit.h cupidc_ir.h cupidc_frontend.h cupidc_type.h cupidc_pp.h \
     cupidasm.h cupidld.h elf32.h x86.h ctool.h ctool_host.h \
     $(CUPIDC_HOSTED_I386_HEADERS) | $(BUILD_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
-$(BUILD_DIR)/elf32_contract.o: tests/elf32_contract.c elf32.h ctool.h ctool_host.h | $(BUILD_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+$(BUILD_DIR)/elf32_contract.o: tests/elf32_contract.cc elf32.h ctool.h ctool_host.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
-$(BUILD_DIR)/x86_contract.o: tests/x86_contract.c tests/x86_active_cases.inc tests/x86_inline_cases.inc x86.h ctool.h ctool_host.h | $(BUILD_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+$(BUILD_DIR)/x86_contract.o: tests/x86_contract.cc tests/x86_active_cases.inc tests/x86_inline_cases.inc x86.h ctool.h ctool_host.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
-$(BUILD_DIR)/cupiddis_contract.o: tests/cupiddis_contract.c cupiddis.h elf32.h x86.h ctool.h ctool_host.h | $(BUILD_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+$(BUILD_DIR)/cupiddis_contract.o: tests/cupiddis_contract.cc cupiddis.h elf32.h x86.h ctool.h ctool_host.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
-$(BUILD_DIR)/cupidasm_contract.o: tests/cupidasm_contract.c cupidasm.h elf32.h x86.h ctool.h ctool_host.h | $(BUILD_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+$(BUILD_DIR)/cupidasm_contract.o: tests/cupidasm_contract.cc cupidasm.h elf32.h x86.h ctool.h ctool_host.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
-$(BUILD_DIR)/cupidasm_demos_contract.o: tests/cupidasm_demos_contract.c cupidasm.h elf32.h x86.h ctool.h ctool_host.h | $(BUILD_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+$(BUILD_DIR)/cupidasm_demos_contract.o: tests/cupidasm_demos_contract.cc cupidasm.h elf32.h x86.h ctool.h ctool_host.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
-$(BUILD_DIR)/cupidasm_kernel_elf_contract.o: tests/cupidasm_kernel_elf_contract.c ../kernel/lang/as_elf.h cupidasm.h elf32.h ctool.h ctool_host.h | $(BUILD_DIR)
-	$(CC) $(CPPFLAGS) -I../kernel/lang $(CFLAGS) -c $< -o $@
+$(BUILD_DIR)/cupidasm_kernel_elf_contract.o: tests/cupidasm_kernel_elf_contract.cc ../kernel/lang/as_elf.h cupidasm.h elf32.h ctool.h ctool_host.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) -I../kernel/lang $(CFLAGS) -x c -c $< -o $@
 
-$(BUILD_DIR)/cupidobj_contract.o: tests/cupidobj_contract.c cupidobj.h elf32.h ctool.h ctool_host.h | $(BUILD_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+$(BUILD_DIR)/cupidobj_contract.o: tests/cupidobj_contract.cc cupidobj.h elf32.h ctool.h ctool_host.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
-$(BUILD_DIR)/cupidld_contract.o: tests/cupidld_contract.c cupidld.h elf32.h ctool.h ctool_host.h | $(BUILD_DIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+$(BUILD_DIR)/cupidld_contract.o: tests/cupidld_contract.cc cupidld.h elf32.h ctool.h ctool_host.h | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
-$(CONTRACT): $(CORE_OBJECTS)
+$(NATIVE_CONTRACT): $(CORE_OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CORE_OBJECTS) -o $@
 
-$(CUPIDC_PP_CONTRACT): $(CUPIDC_PP_CONTRACT_OBJECTS)
+$(NATIVE_CUPIDC_PP_CONTRACT): $(CUPIDC_PP_CONTRACT_OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDC_PP_CONTRACT_OBJECTS) -o $@
 
-$(CUPIDC_TYPE_CONTRACT): $(CUPIDC_TYPE_CONTRACT_OBJECTS)
+$(NATIVE_CUPIDC_TYPE_CONTRACT): $(CUPIDC_TYPE_CONTRACT_OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDC_TYPE_CONTRACT_OBJECTS) -o $@
 
-$(CUPIDC_FRONTEND_CONTRACT): $(CUPIDC_FRONTEND_CONTRACT_OBJECTS)
+$(NATIVE_CUPIDC_FRONTEND_CONTRACT): $(CUPIDC_FRONTEND_CONTRACT_OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDC_FRONTEND_CONTRACT_OBJECTS) -o $@
 
-$(CUPIDC_IR_CONTRACT): $(CUPIDC_IR_CONTRACT_OBJECTS)
+$(NATIVE_CUPIDC_IR_CONTRACT): $(CUPIDC_IR_CONTRACT_OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDC_IR_CONTRACT_OBJECTS) -o $@
 
-$(CUPIDC_OBJECT_CONTRACT): $(CUPIDC_OBJECT_CONTRACT_OBJECTS)
+$(NATIVE_CUPIDC_OBJECT_CONTRACT): $(CUPIDC_OBJECT_CONTRACT_OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDC_OBJECT_CONTRACT_OBJECTS) -o $@
 
 $(CUPIDC): $(CUPIDC_OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDC_OBJECTS) -o $@
 
-$(CUPIDC_HOSTED_I386_MANIFEST): FORCE $(CUPIDC_OBJECT_CONTRACT) \
-                                $(CUPIDC_HOSTED_I386_CLOSURE) Makefile | \
-                                $(BUILD_DIR)
-	$(CUPIDC_OBJECT_CONTRACT) self-host-link-tools .. \
-		$(CUPIDC_HOSTED_I386_ARTIFACTS)
-	$(PYTHON) -c "import hashlib,json,sys; from pathlib import Path; paths=[Path(value) for value in sys.argv[2:]]; payload={'artifacts':[{'path':path.as_posix(),'sha256':hashlib.sha256(path.read_bytes()).hexdigest(),'size':path.stat().st_size} for path in paths]}; Path(sys.argv[1]).write_bytes((json.dumps(payload,sort_keys=True,separators=(',',':'))+'\n').encode('ascii'))" \
-		$(CUPIDC_HOSTED_I386_MANIFEST) $(CUPIDC_HOSTED_I386_ARTIFACTS)
+$(CONTRACT_MANIFEST): ../tools/cupidc_toolchain_contracts.py \
+	../tools/bootstrap_toolchain.py $(CUPIDC_CONTRACT_SEED) \
+	../link.ld \
+	$(CUPIDC_HOSTED_I386_CLOSURE) $(CUPIDC_CONTRACT_SOURCES) \
+	$(CUPIDC_CONTRACT_SUPPORT) Makefile | $(BUILD_DIR)
+	$(PYTHON) ../tools/cupidc_toolchain_contracts.py build \
+		--root .. --manifest ../bootstrap/seeds/i386-linux/manifest.json \
+		--output $(CONTRACT_DIR)
 
-$(CUPIDC_HOSTED_I386_ARTIFACTS): $(CUPIDC_HOSTED_I386_MANIFEST)
+$(CUPIDC_CONTRACT_ARTIFACTS) $(CUPIDC_HOSTED_I386_ARTIFACTS): \
+	$(CONTRACT_MANIFEST)
 
-$(ELF32_CONTRACT): $(ELF32_OBJECTS)
+$(NATIVE_ELF32_CONTRACT): $(ELF32_OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(ELF32_OBJECTS) -o $@
 
-$(X86_CONTRACT): $(X86_OBJECTS)
+$(NATIVE_X86_CONTRACT): $(X86_OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(X86_OBJECTS) -o $@
 
-$(CUPIDDIS_CONTRACT): $(CUPIDDIS_CONTRACT_OBJECTS)
+$(NATIVE_CUPIDDIS_CONTRACT): $(CUPIDDIS_CONTRACT_OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDDIS_CONTRACT_OBJECTS) -o $@
 
 $(CUPIDDIS): $(CUPIDDIS_OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDDIS_OBJECTS) -o $@
 
-$(CUPIDASM_CONTRACT): $(CUPIDASM_CONTRACT_OBJECTS)
+$(NATIVE_CUPIDASM_CONTRACT): $(CUPIDASM_CONTRACT_OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDASM_CONTRACT_OBJECTS) -o $@
 
-$(CUPIDASM_DEMOS_CONTRACT): $(CUPIDASM_DEMOS_CONTRACT_OBJECTS)
+$(NATIVE_CUPIDASM_DEMOS_CONTRACT): $(CUPIDASM_DEMOS_CONTRACT_OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDASM_DEMOS_CONTRACT_OBJECTS) -o $@
 
-$(CUPIDASM_KERNEL_ELF_CONTRACT): $(CUPIDASM_KERNEL_ELF_CONTRACT_OBJECTS)
+$(NATIVE_CUPIDASM_KERNEL_ELF_CONTRACT): $(CUPIDASM_KERNEL_ELF_CONTRACT_OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDASM_KERNEL_ELF_CONTRACT_OBJECTS) -o $@
 
 $(CUPIDASM): $(CUPIDASM_OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDASM_OBJECTS) -o $@
 
-$(CUPIDOBJ_CONTRACT): $(CUPIDOBJ_CONTRACT_OBJECTS)
+$(NATIVE_CUPIDOBJ_CONTRACT): $(CUPIDOBJ_CONTRACT_OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDOBJ_CONTRACT_OBJECTS) -o $@
 
 $(CUPIDOBJ): $(CUPIDOBJ_OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDOBJ_OBJECTS) -o $@
 
-$(CUPIDLD_CONTRACT): $(CUPIDLD_CONTRACT_OBJECTS)
+$(NATIVE_CUPIDLD_CONTRACT): $(CUPIDLD_CONTRACT_OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDLD_CONTRACT_OBJECTS) -o $@
 
 $(CUPIDLD): $(CUPIDLD_OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) $(HOST_REPRO_LDFLAGS) $(CUPIDLD_OBJECTS) -o $@
 
-test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
-      $(CUPIDC_FRONTEND_CONTRACT) $(CUPIDC_IR_CONTRACT) \
-      $(CUPIDC_OBJECT_CONTRACT) $(CUPIDC) \
-      $(ELF32_CONTRACT) $(X86_CONTRACT) \
-      $(CUPIDDIS_CONTRACT) \
-      $(CUPIDDIS) $(CUPIDASM_CONTRACT) $(CUPIDASM_DEMOS_CONTRACT) \
-      $(CUPIDASM_KERNEL_ELF_CONTRACT) $(CUPIDASM) $(CUPIDOBJ_CONTRACT) \
-      $(CUPIDOBJ) $(CUPIDLD_CONTRACT) $(CUPIDLD) \
+test: $(CONTRACT_MANIFEST) \
       tests/x86_active_cases.inc tests/x86_inline_cases.inc \
       $(CUPIDC_PP_ACTIVE_CASES) $(CUPIDC_HOSTED_I386_RUNTIME)
+	$(PYTHON) ../tools/cupidc_toolchain_contracts.py verify \
+		--root .. --output $(CONTRACT_DIR)
 	$(CONTRACT) foundations
 	$(CONTRACT) paths
 	$(CONTRACT) diagnostics
@@ -589,12 +665,12 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 	$(CUPIDC_OBJECT_CONTRACT) wide-conditions ..
 	$(CUPIDC_OBJECT_CONTRACT) wide-objects ..
 	$(CUPIDC_OBJECT_CONTRACT) wide-mutations ..
-	$(CUPIDC_OBJECT_CONTRACT) self-host-frontier ..
+	$(CUPIDC_OBJECT_CONTRACT_SLOW) self-host-frontier ..
 	$(CUPIDC_OBJECT_CONTRACT) self-host-hosted-adapters ..
 	$(CUPIDC_OBJECT_CONTRACT) self-host-hosted-profile-errors ..
 	$(CUPIDC_OBJECT_CONTRACT) self-host-link-ctool-host .. \
 		$(BUILD_DIR)/cupidc-ctool-host-smoke.elf
-	$(CUPIDC_OBJECT_CONTRACT) self-host-link-tools .. \
+	$(CUPIDC_OBJECT_CONTRACT_SLOW) self-host-link-tools .. \
 		$(BUILD_DIR)/cupidc-cupidasm.elf \
 		$(BUILD_DIR)/cupidc-cupiddis.elf \
 		$(BUILD_DIR)/cupidc-cupidld.elf \
@@ -655,18 +731,20 @@ test: $(CONTRACT) $(CUPIDC_PP_CONTRACT) $(CUPIDC_TYPE_CONTRACT) \
 # Generated C sources remain explicit materialization boundaries.  The hosted
 # contract prerequisite completes first; one recipe then serializes the root
 # build and execution even under parallel Make.  A missing file is not a skip.
-test-cupidc-pp-active-generated: $(CUPIDC_PP_CONTRACT) \
+test-cupidc-pp-active-generated: $(CONTRACT_MANIFEST) \
                                  $(CUPIDC_PP_ACTIVE_CASES)
+	$(PYTHON) ../tools/cupidc_toolchain_contracts.py verify \
+		--root .. --output $(CONTRACT_DIR)
 	$(MAKE) -C .. $(patsubst ../%,%,$(CUPIDC_PP_GENERATED_SOURCES))
 	$(CUPIDC_PP_CONTRACT) active-corpus-generated ..
 
 clean:
 	$(PYTHON) -c "import shutil; shutil.rmtree(r'$(BUILD_DIR)', ignore_errors=True)"
 
-FORCE:
+native-oracles: $(NATIVE_ORACLE_ARTIFACTS)
 
 print-bootstrap-artifacts:
 	@$(PYTHON) -c "import json,sys; print(json.dumps(sys.argv[1:]))" $(BOOTSTRAP_ARTIFACTS)
 
-.PHONY: all test test-cupidc-pp-active-generated clean \
-        FORCE print-bootstrap-artifacts
+.PHONY: all test test-cupidc-pp-active-generated native-oracles clean \
+        print-bootstrap-artifacts

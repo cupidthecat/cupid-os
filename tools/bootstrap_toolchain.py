@@ -887,8 +887,13 @@ def _load_seed_inputs(
     )
 
 
+def verify_seed_inputs(manifest_path: Path) -> SeedInputs:
+    """Verify one captured manifest and its listed seed tools."""
+    return _load_seed_inputs(manifest_path, None)
+
+
 def verify_seed_manifest(manifest_path: Path) -> dict[str, Path]:
-    return _load_seed_inputs(manifest_path, None).tools
+    return verify_seed_inputs(manifest_path).tools
 
 
 def freeze_seed_inputs(

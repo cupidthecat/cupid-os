@@ -5868,21 +5868,21 @@ static int block_typedef_active_source_is_unchanged(
     const char *path;
     const char *declaration_end;
   } cases[] = {
-      {"/toolchain/tests/cupidc_frontend_contract.c",
+      {"/toolchain/tests/cupidc_frontend_contract.cc",
        "} toolchain_frontier_" "case_t;"},
-      {"/toolchain/tests/cupidc_frontend_contract.c",
+      {"/toolchain/tests/cupidc_frontend_contract.cc",
        "} constant_" "oracle_t;"},
-      {"/toolchain/tests/cupidc_ir_contract.c",
+      {"/toolchain/tests/cupidc_ir_contract.cc",
        "} variadic_ir_" "expectation_t;"},
-      {"/toolchain/tests/cupidc_object_contract.c",
+      {"/toolchain/tests/cupidc_object_contract.cc",
        "} narrow_mutation_" "case_t;"},
-      {"/toolchain/tests/cupidc_object_contract.c",
+      {"/toolchain/tests/cupidc_object_contract.cc",
        "} narrow_mutation_" "function_t;"},
-      {"/toolchain/tests/cupidc_object_contract.c",
+      {"/toolchain/tests/cupidc_object_contract.cc",
        "} call_alignment_" "case_t;"},
-      {"/toolchain/tests/cupidc_pp_contract.c",
+      {"/toolchain/tests/cupidc_pp_contract.cc",
        "} line_error_" "case_t;"},
-      {"/toolchain/tests/cupidc_pp_contract.c",
+      {"/toolchain/tests/cupidc_pp_contract.cc",
        "} conditional_" "case_t;"}};
   ctool_u32 index;
   for (index = 0u; index < ARRAY_COUNT(cases); index++) {
@@ -7655,17 +7655,17 @@ static int validate_toolchain_frontier(const char *host_root) {
       {"/toolchain/cupidc_pp.cc", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
        25287u, 479u, 286u, 0u, 0u},
       {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 262u, 7250u,
-       67354u, 953u, 354u, 0u, 0u},
-      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 353u, 8533u,
-       71971u, 1041u, 708u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 420u,
-       16374u, 108280u, 2458u, 1497u, 0u, 0u},
+       67490u, 953u, 354u, 0u, 0u},
+      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 353u, 8554u,
+       72476u, 1045u, 710u, 0u, 0u},
+      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 422u,
+       16503u, 109174u, 2480u, 1509u, 0u, 0u},
       {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 81u, 2935u,
        19252u, 326u, 186u, 0u, 0u},
       {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
        9457u, 143u, 70u, 0u, 1u},
-      {"/toolchain/x86.cc", CTOOL_OK, 0u, 0u, 0u, "", 60u, 1756u,
-       11850u, 180u, 16652u, 3u, 0u}};
+      {"/toolchain/x86.cc", CTOOL_OK, 0u, 0u, 0u, "", 60u, 1760u,
+       11855u, 180u, 16702u, 3u, 0u}};
   ctool_u32 index;
   for (index = 0u; index < ARRAY_COUNT(cases); index++) {
     const toolchain_frontier_case_t *test_case = &cases[index];
@@ -8266,6 +8266,8 @@ static int validate_static_initializer_unit(
     const ctool_c_translation_unit_t *unit);
 static int validate_static_pointer_initializer_unit(
     const ctool_c_translation_unit_t *unit);
+static int validate_static_const_chain_unit(
+    const ctool_c_translation_unit_t *unit);
 
 static int run_static_initializers(const char *host_root) {
   static const char source[] =
@@ -8325,6 +8327,24 @@ static int run_static_initializers(const char *host_root) {
       "  static const char *parenthesized = TABLE_NAME(\"name\");\n"
       "  static const void *parenthesized_void = TABLE_NAME(\"v\");\n"
       "}\n";
+  static const char const_chain_source[] =
+      "typedef struct { unsigned address; unsigned value; } cell_t;\n"
+      "static const unsigned file_base = 64u;\n"
+      "static const unsigned file_next = file_base + 4u;\n"
+      "static const unsigned file_values[] = {file_base, file_next};\n"
+      "static const cell_t file_cells[] = {\n"
+      "  {file_base, 1u}, {file_base + 4u, file_next}\n"
+      "};\n"
+      "void static_const_chain(void) {\n"
+      "  static const unsigned base_address = 32u;\n"
+      "  static const unsigned step_address = base_address + 16u;\n"
+      "  static const unsigned arguments[] = {\n"
+      "    base_address, step_address, base_address + 4u\n"
+      "  };\n"
+      "  static const cell_t cells[] = {\n"
+      "    {base_address, 2u}, {base_address + 4u, step_address}\n"
+      "  };\n"
+      "}\n";
   static const frontend_exact_failure_case_t failure_cases[] = {
       {{"pending static object shadows enumerator",
         "enum { VALUE = 7 };\n"
@@ -8354,9 +8374,23 @@ static int run_static_initializers(const char *host_root) {
         "}\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
        2u, 22u, "integer constant expression operand is unsupported"},
-      {{"const object is not an integer constant expression",
+      {{"mutable static object is not an integer constant expression",
         "void bad(void) {\n"
-        "  static const int first = 1;\n"
+        "  static int first = 1;\n"
+        "  static int result = first;\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       3u, 23u, "integer constant expression operand is unsupported"},
+      {{"automatic const object is not a static constant",
+        "void bad(void) {\n"
+        "  const int first = 1;\n"
+        "  static int result = first;\n"
+        "}\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       3u, 23u, "integer constant expression operand is unsupported"},
+      {{"atomic const object is not a static constant",
+        "void bad(void) {\n"
+        "  static const _Atomic int first = 1;\n"
         "  static int result = first;\n"
         "}\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
@@ -8548,6 +8582,7 @@ static int run_static_initializers(const char *host_root) {
   frontend_fixture_t fixture;
   ctool_c_translation_unit_t unit;
   ctool_c_translation_unit_t pointer_unit;
+  ctool_c_translation_unit_t const_chain_unit;
   ctool_c_translation_unit_t depth_unit;
   char *depth_success = NULL;
   char *depth_failure = NULL;
@@ -8565,7 +8600,10 @@ static int run_static_initializers(const char *host_root) {
       validate_static_initializer_unit(&unit) == 0 &&
       parse_valid_fixture(&fixture, "/static-pointer-initializers.c",
                           pointer_source, &pointer_unit) == 0 &&
-      validate_static_pointer_initializer_unit(&pointer_unit) == 0) {
+      validate_static_pointer_initializer_unit(&pointer_unit) == 0 &&
+      parse_valid_fixture(&fixture, "/static-const-chain.c",
+                          const_chain_source, &const_chain_unit) == 0 &&
+      validate_static_const_chain_unit(&const_chain_unit) == 0) {
     for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
       const frontend_exact_failure_case_t *test_case =
           &failure_cases[index];
@@ -8574,7 +8612,8 @@ static int run_static_initializers(const char *host_root) {
               "/static-initializer-failure.c", test_case->line,
               test_case->column, test_case->message) != 0 ||
           validate_static_initializer_unit(&unit) != 0 ||
-          validate_static_pointer_initializer_unit(&pointer_unit) != 0) {
+          validate_static_pointer_initializer_unit(&pointer_unit) != 0 ||
+          validate_static_const_chain_unit(&const_chain_unit) != 0) {
         goto cleanup;
       }
     }
@@ -10011,14 +10050,6 @@ static int run_file_scope_initializers(const char *host_root) {
         "static int *pointer = (int *)(unsigned int)&target;\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
        2u, 23u,
-       "static pointer initialization requires a supported address constant"},
-      {{"block static address",
-        "void function(void) {\n"
-        "  static int local;\n"
-        "  static int *pointer = &local;\n"
-        "}\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
-       3u, 25u,
        "static pointer initialization requires a supported address constant"}};
   static const char *const active_theme_names[] = {
       "UI_THEME_WINDOWS95",      "UI_THEME_PASTEL_DREAM",
@@ -13085,6 +13116,203 @@ static int validate_static_initializer_unit(
   return 0;
 }
 
+static int validate_static_const_integer(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_initializer_t *initializer, ctool_u32 type,
+    ctool_u64 expected_bits, ctool_bool require_const) {
+  ctool_u32 qualifiers = 0u;
+  return initializer != NULL &&
+                 initializer->kind == CTOOL_C_INITIALIZER_INTEGER &&
+                 initializer->type == type &&
+                 initializer->integer_bits == expected_bits &&
+                 initializer->expression == CTOOL_C_AST_NONE &&
+                 underlying_type_kind(unit, type, &qualifiers) ==
+                     CTOOL_C_TYPE_UNSIGNED_INT &&
+                 (require_const == CTOOL_FALSE ||
+                  (qualifiers & CTOOL_C_QUAL_CONST) != 0u)
+             ? 0
+             : 1;
+}
+
+static int validate_static_const_array(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_initializer_t *root, ctool_u32 element_type,
+    const ctool_u64 *expected_bits, ctool_u32 count) {
+  ctool_u32 index;
+  if (root == NULL || root->kind != CTOOL_C_INITIALIZER_LIST ||
+      root->element_count != count) {
+    return 1;
+  }
+  for (index = 0u; index < count; index++) {
+    if (validate_static_const_integer(
+            unit, initializer_list_child(unit, root, index, index),
+            element_type, expected_bits[index], CTOOL_TRUE) != 0) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static int validate_static_const_cells(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_initializer_t *root, ctool_u32 array_type,
+    const ctool_u64 expected_bits[4]) {
+  const ctool_c_type_node_t *array =
+      unwrapped_type_node(unit, array_type);
+  const ctool_c_type_node_t *record =
+      array == NULL
+          ? NULL
+          : unwrapped_type_node(unit, array->referenced_type);
+  ctool_u32 row;
+  if (array == NULL || array->kind != CTOOL_C_TYPE_ARRAY ||
+      array->element_count != 2u || record == NULL ||
+      record->kind != CTOOL_C_TYPE_RECORD || record->member_count != 2u ||
+      root == NULL || root->kind != CTOOL_C_INITIALIZER_LIST ||
+      root->element_count != 2u) {
+    return 1;
+  }
+  for (row = 0u; row < 2u; row++) {
+    const ctool_c_initializer_t *record_initializer =
+        initializer_list_child(unit, root, row, row);
+    ctool_u32 column;
+    if (record_initializer == NULL ||
+        record_initializer->kind != CTOOL_C_INITIALIZER_LIST ||
+        record_initializer->element_count != 2u) {
+      return 1;
+    }
+    for (column = 0u; column < 2u; column++) {
+      ctool_u32 member = record->first_member + column;
+      const ctool_c_initializer_t *value = initializer_list_child(
+          unit, record_initializer, column, member);
+      if (member >= unit->graph.member_count ||
+          validate_static_const_integer(
+              unit, value, unit->graph.members[member].type,
+              expected_bits[row * 2u + column], CTOOL_FALSE) != 0) {
+        return 1;
+      }
+    }
+  }
+  return 0;
+}
+
+static int validate_static_const_chain_unit(
+    const ctool_c_translation_unit_t *unit) {
+  static const char *const file_scalar_names[] = {
+      "file_base", "file_next"};
+  static const ctool_u64 file_scalar_bits[] = {64ull, 68ull};
+  static const ctool_u64 file_array_bits[] = {64ull, 68ull};
+  static const ctool_u64 file_cell_bits[] = {
+      64ull, 1ull, 68ull, 68ull};
+  static const char *const block_scalar_names[] = {
+      "base_address", "step_address"};
+  static const ctool_u64 block_scalar_bits[] = {32ull, 48ull};
+  static const ctool_u64 block_array_bits[] = {32ull, 48ull, 36ull};
+  static const ctool_u64 block_cell_bits[] = {
+      32ull, 2ull, 36ull, 48ull};
+  const ctool_c_object_definition_t *definition;
+  const ctool_c_block_binding_t *block;
+  const ctool_c_initializer_t *root;
+  const ctool_c_type_node_t *array;
+  ctool_u32 index;
+  if (unit->object_definition_count != 4u ||
+      unit->block_binding_count != 4u ||
+      unit->function_definition_count != 1u ||
+      unit->initializer_count != 25u ||
+      unit->initializer_element_count != 17u) {
+    (void)fprintf(
+        stderr,
+        "static-initializers: constant-chain inventory differs "
+        "(%u file, %u block, %u initializers/%u elements)\n",
+        unit->object_definition_count, unit->block_binding_count,
+        unit->initializer_count, unit->initializer_element_count);
+    return 1;
+  }
+  for (index = 0u; index < ARRAY_COUNT(file_scalar_names); index++) {
+    const ctool_c_binding_t *binding =
+        find_binding(unit, file_scalar_names[index]);
+    definition = find_object_definition(unit, file_scalar_names[index]);
+    root = definition == NULL
+               ? NULL
+               : initializer_node(unit, definition->initializer);
+    if (binding == NULL || binding->kind != CTOOL_C_BINDING_OBJECT ||
+        binding->storage != CTOOL_C_STORAGE_STATIC ||
+        definition == NULL ||
+        definition->kind != CTOOL_C_OBJECT_DEFINITION_EXPLICIT ||
+        definition->storage != CTOOL_C_STORAGE_STATIC ||
+        validate_static_const_integer(
+            unit, root, definition->declared_type,
+            file_scalar_bits[index], CTOOL_TRUE) != 0) {
+      (void)fprintf(
+          stderr, "static-initializers: file constant %u differs\n",
+          index);
+      return 1;
+    }
+  }
+  definition = find_object_definition(unit, "file_values");
+  root = definition == NULL
+             ? NULL
+             : initializer_node(unit, definition->initializer);
+  array = definition == NULL
+              ? NULL
+              : unwrapped_type_node(unit, definition->declared_type);
+  if (array == NULL || array->kind != CTOOL_C_TYPE_ARRAY ||
+      validate_static_const_array(
+          unit, root, array->referenced_type, file_array_bits,
+          ARRAY_COUNT(file_array_bits)) != 0) {
+    (void)fprintf(
+        stderr, "static-initializers: file constant array differs\n");
+    return 1;
+  }
+  definition = find_object_definition(unit, "file_cells");
+  root = definition == NULL
+             ? NULL
+             : initializer_node(unit, definition->initializer);
+  if (definition == NULL ||
+      validate_static_const_cells(
+          unit, root, definition->declared_type, file_cell_bits) != 0) {
+    (void)fprintf(
+        stderr, "static-initializers: file constant cells differ\n");
+    return 1;
+  }
+  for (index = 0u; index < ARRAY_COUNT(block_scalar_names); index++) {
+    block = find_block_binding(unit, block_scalar_names[index]);
+    root = block == NULL
+               ? NULL
+               : initializer_node(unit, block->initializer);
+    if (block == NULL || block->kind != CTOOL_C_BINDING_OBJECT ||
+        block->storage != CTOOL_C_STORAGE_STATIC ||
+        validate_static_const_integer(
+            unit, root, block->type, block_scalar_bits[index],
+            CTOOL_TRUE) != 0) {
+      (void)fprintf(
+          stderr, "static-initializers: block constant %u differs\n",
+          index);
+      return 1;
+    }
+  }
+  block = find_block_binding(unit, "arguments");
+  root = block == NULL ? NULL : initializer_node(unit, block->initializer);
+  array = block == NULL ? NULL : unwrapped_type_node(unit, block->type);
+  if (array == NULL || array->kind != CTOOL_C_TYPE_ARRAY ||
+      validate_static_const_array(
+          unit, root, array->referenced_type, block_array_bits,
+          ARRAY_COUNT(block_array_bits)) != 0) {
+    (void)fprintf(
+        stderr, "static-initializers: block constant array differs\n");
+    return 1;
+  }
+  block = find_block_binding(unit, "cells");
+  root = block == NULL ? NULL : initializer_node(unit, block->initializer);
+  if (block == NULL ||
+      validate_static_const_cells(
+          unit, root, block->type, block_cell_bits) != 0) {
+    (void)fprintf(
+        stderr, "static-initializers: block constant cells differ\n");
+    return 1;
+  }
+  return 0;
+}
+
 static int validate_static_pointer_initializer_unit(
     const ctool_c_translation_unit_t *unit) {
   static const char *const scalar_names[] = {
@@ -15002,7 +15230,11 @@ static int validate_expression_storage_limit(
     return 1;
   }
   (void)memcpy(snapshot, chain_tape.tokens, token_bytes);
-  limits.output_bytes = 256u;
+  /*
+   * Keep this failure in the first declaration for both the ILP32 checked
+   * target and the 64-bit native oracle.
+   */
+  limits.output_bytes = 224u;
   status = ctool_host_adapter_init(&adapter, host_root);
   if (status != CTOOL_OK) {
     goto cleanup;
@@ -24343,10 +24575,6 @@ static int run_floating_arithmetic(const char *host_root) {
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
        1u, 54u,
        "integer and floating arithmetic conversion exceeds the represented 32-bit slice"},
-      {{"long double arithmetic",
-        "void bad(long double left, long double right) { (void)(left / right); }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       1u, 61u, "long double arithmetic is outside this expression slice"},
       {{"floating remainder",
         "float bad(float left, float right) { return left % right; }\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
@@ -24853,10 +25081,6 @@ static int run_floating_conversions(const char *host_root) {
        "floating to unsigned 32-bit conversion is outside this body slice"},
       {{"wide integer to floating cast",
         "double bad(long long value) { return (double)value; }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       0u, 0u, "floating cast is outside this expression slice"},
-      {{"long double conversion",
-        "double bad(long double value) { return (double)value; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
        0u, 0u, "floating cast is outside this expression slice"},
       {{"atomic floating cast",
@@ -25748,8 +25972,8 @@ static int run_floating_scalars(const char *host_root) {
         "static long double bad = 1.0L;\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
        1u, 26u,
-       "static long double initialization is outside this constant-data "
-       "slice"},
+       "floating arithmetic static initialization is outside this "
+       "constant-data slice"},
       {{"excess decimal scale",
         "double bad(void) { return 1e4097; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
@@ -25960,6 +26184,354 @@ static int validate_floating_transport(
   return 0;
 }
 
+static int validate_long_double_locals(
+    const ctool_c_translation_unit_t *unit) {
+  ctool_u32 long_double_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 fixed_sink = find_binding_index(unit, "long_double_sink");
+  ctool_u32 variadic_sink =
+      find_binding_index(unit, "long_double_variadic_sink");
+  ctool_u32 open_sink =
+      find_binding_index(unit, "long_double_open_sink");
+  ctool_u32 identity =
+      find_binding_index(unit, "long_double_identity");
+  const ctool_c_object_definition_t *file_zero_definition =
+      find_object_definition(unit, "long_double_file_zero");
+  const ctool_c_object_definition_t *explicit_zero_definition =
+      find_object_definition(unit, "long_double_explicit_zero");
+  const ctool_c_block_binding_t *block_zero =
+      find_block_binding(unit, "long_double_block_zero");
+  const ctool_c_block_binding_t *block_explicit_zero =
+      find_block_binding(unit, "long_double_block_explicit_zero");
+  ctool_u32 widen_float = 0u;
+  ctool_u32 widen_double = 0u;
+  ctool_u32 narrow_double = 0u;
+  ctool_u32 initializers = 0u;
+  ctool_u32 zero_initializers = 0u;
+  ctool_u32 assignments = 0u;
+  ctool_u32 unary_pluses = 0u;
+  ctool_u32 negations = 0u;
+  ctool_u32 additions = 0u;
+  ctool_u32 subtractions = 0u;
+  ctool_u32 multiplications = 0u;
+  ctool_u32 divisions = 0u;
+  ctool_u32 fixed_direct_calls = 0u;
+  ctool_u32 void_indirect_calls = 0u;
+  ctool_u32 variadic_calls = 0u;
+  ctool_u32 open_direct_calls = 0u;
+  ctool_u32 result_direct_calls = 0u;
+  ctool_u32 result_indirect_calls = 0u;
+  ctool_u32 variadic_arguments = 0u;
+  ctool_u32 long_double_returns = 0u;
+  ctool_u32 index;
+  if (unit == NULL || unit->function_definition_count != 8u ||
+      fixed_sink == CTOOL_C_AST_NONE ||
+      variadic_sink == CTOOL_C_AST_NONE ||
+      open_sink == CTOOL_C_AST_NONE ||
+      identity == CTOOL_C_AST_NONE ||
+      file_zero_definition == NULL ||
+      explicit_zero_definition == NULL ||
+      block_zero == NULL || block_explicit_zero == NULL) {
+    return 1;
+  }
+  for (index = 0u; index < unit->graph.type_count; index++) {
+    const ctool_c_type_node_t *type = &unit->graph.types[index];
+    if (type->qualifiers == 0u &&
+        type->kind == CTOOL_C_TYPE_LONG_DOUBLE) {
+      long_double_type = index;
+      break;
+    }
+  }
+  if (long_double_type == CTOOL_C_TYPE_NONE ||
+      long_double_type >= unit->layout.type_count ||
+      unit->layout.types[long_double_type].size != 12u ||
+      unit->layout.types[long_double_type].alignment != 4u) {
+    return 1;
+  }
+  for (index = 0u; index < unit->initializer_count; index++) {
+    const ctool_c_initializer_t *initializer = &unit->initializers[index];
+    if (initializer->kind == CTOOL_C_INITIALIZER_EXPRESSION &&
+        underlying_type_kind(unit, initializer->type, NULL) ==
+            CTOOL_C_TYPE_LONG_DOUBLE) {
+      initializers++;
+    } else if (initializer->kind == CTOOL_C_INITIALIZER_ZERO &&
+               underlying_type_kind(unit, initializer->type, NULL) ==
+                   CTOOL_C_TYPE_LONG_DOUBLE) {
+      zero_initializers++;
+    }
+  }
+  if (initializer_node(unit, file_zero_definition->initializer) == NULL ||
+      initializer_node(unit, file_zero_definition->initializer)->kind !=
+          CTOOL_C_INITIALIZER_ZERO ||
+      initializer_node(unit, explicit_zero_definition->initializer) == NULL ||
+      initializer_node(unit, explicit_zero_definition->initializer)->kind !=
+          CTOOL_C_INITIALIZER_ZERO ||
+      block_zero->storage != CTOOL_C_STORAGE_STATIC ||
+      initializer_node(unit, block_zero->initializer) == NULL ||
+      initializer_node(unit, block_zero->initializer)->kind !=
+          CTOOL_C_INITIALIZER_ZERO ||
+      block_explicit_zero->storage != CTOOL_C_STORAGE_STATIC ||
+      initializer_node(unit, block_explicit_zero->initializer) == NULL ||
+      initializer_node(unit, block_explicit_zero->initializer)->kind !=
+          CTOOL_C_INITIALIZER_ZERO) {
+    return 1;
+  }
+  for (index = 0u; index < unit->expression_count; index++) {
+    const ctool_c_expression_t *expression = &unit->expressions[index];
+    if (floating_width_conversion_matches(
+            unit, expression, CTOOL_C_EXPRESSION_CAST,
+            CTOOL_C_CONVERSION_NONE, CTOOL_C_TYPE_LONG_DOUBLE,
+            CTOOL_C_TYPE_FLOAT)) {
+      widen_float++;
+    } else if (floating_width_conversion_matches(
+                   unit, expression, CTOOL_C_EXPRESSION_CAST,
+                   CTOOL_C_CONVERSION_NONE, CTOOL_C_TYPE_LONG_DOUBLE,
+                   CTOOL_C_TYPE_DOUBLE)) {
+      widen_double++;
+    } else if (floating_width_conversion_matches(
+                   unit, expression, CTOOL_C_EXPRESSION_CAST,
+                   CTOOL_C_CONVERSION_NONE, CTOOL_C_TYPE_DOUBLE,
+                   CTOOL_C_TYPE_LONG_DOUBLE)) {
+      narrow_double++;
+    } else if (expression->kind == CTOOL_C_EXPRESSION_ASSIGNMENT &&
+               expression->operation ==
+                   CTOOL_C_EXPRESSION_OPERATOR_ASSIGN &&
+               underlying_type_kind(unit, expression->type, NULL) ==
+                   CTOOL_C_TYPE_LONG_DOUBLE &&
+               expression->computation_type == expression->type) {
+      assignments++;
+    } else if (expression->kind == CTOOL_C_EXPRESSION_UNARY &&
+               expression->operation ==
+                   CTOOL_C_EXPRESSION_OPERATOR_UNARY_PLUS &&
+               underlying_type_kind(unit, expression->type, NULL) ==
+                   CTOOL_C_TYPE_LONG_DOUBLE) {
+      unary_pluses++;
+    } else if (expression->kind == CTOOL_C_EXPRESSION_UNARY &&
+               expression->operation ==
+                   CTOOL_C_EXPRESSION_OPERATOR_UNARY_NEGATE &&
+               underlying_type_kind(unit, expression->type, NULL) ==
+                   CTOOL_C_TYPE_LONG_DOUBLE) {
+      negations++;
+    } else if (expression->kind == CTOOL_C_EXPRESSION_BINARY &&
+               expression->operation == CTOOL_C_EXPRESSION_OPERATOR_ADD &&
+               underlying_type_kind(unit, expression->type, NULL) ==
+                   CTOOL_C_TYPE_LONG_DOUBLE) {
+      additions++;
+    } else if (expression->kind == CTOOL_C_EXPRESSION_BINARY &&
+               expression->operation ==
+                   CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT &&
+               underlying_type_kind(unit, expression->type, NULL) ==
+                   CTOOL_C_TYPE_LONG_DOUBLE) {
+      subtractions++;
+    } else if (expression->kind == CTOOL_C_EXPRESSION_BINARY &&
+               expression->operation ==
+                   CTOOL_C_EXPRESSION_OPERATOR_MULTIPLY &&
+               underlying_type_kind(unit, expression->type, NULL) ==
+                   CTOOL_C_TYPE_LONG_DOUBLE) {
+      multiplications++;
+    } else if (expression->kind == CTOOL_C_EXPRESSION_BINARY &&
+               expression->operation == CTOOL_C_EXPRESSION_OPERATOR_DIVIDE &&
+               underlying_type_kind(unit, expression->type, NULL) ==
+                   CTOOL_C_TYPE_LONG_DOUBLE) {
+      divisions++;
+    } else if (expression->kind ==
+               CTOOL_C_EXPRESSION_VARIADIC_ARGUMENT) {
+      if (expression->type != long_double_type ||
+          expression->child_count != 1u) {
+        return 1;
+      }
+      variadic_arguments++;
+    } else if (expression->kind == CTOOL_C_EXPRESSION_CALL) {
+      ctool_u32 callee_index = expression_child(unit, expression, 0u);
+      ctool_u32 terminal = unwrap_conversions(unit, callee_index);
+      const ctool_c_expression_t *callee =
+          terminal < unit->expression_count
+              ? &unit->expressions[terminal]
+              : NULL;
+      ctool_u32 argument_index =
+          expression->child_count > 1u
+              ? expression_child(unit, expression,
+                                 expression->child_count - 1u)
+              : CTOOL_C_AST_NONE;
+      if (callee == NULL || argument_index >= unit->expression_count ||
+          unit->expressions[argument_index].type != long_double_type) {
+        return 1;
+      }
+      if (callee->kind == CTOOL_C_EXPRESSION_IDENTIFIER &&
+          callee->reference == fixed_sink) {
+        fixed_direct_calls++;
+      } else if (callee->kind == CTOOL_C_EXPRESSION_IDENTIFIER &&
+                 callee->reference == variadic_sink) {
+        variadic_calls++;
+      } else if (callee->kind == CTOOL_C_EXPRESSION_IDENTIFIER &&
+                 callee->reference == open_sink) {
+        open_direct_calls++;
+      } else if (callee->kind == CTOOL_C_EXPRESSION_IDENTIFIER &&
+                 callee->reference == identity) {
+        result_direct_calls++;
+      } else if (callee->kind == CTOOL_C_EXPRESSION_PARAMETER) {
+        if (expression->type == long_double_type) {
+          result_indirect_calls++;
+        } else {
+          void_indirect_calls++;
+        }
+      } else {
+        return 1;
+      }
+    }
+  }
+  for (index = 0u; index < unit->statement_count; index++) {
+    const ctool_c_statement_t *statement = &unit->statements[index];
+    if (statement->kind == CTOOL_C_STATEMENT_RETURN &&
+        statement->expression < unit->expression_count &&
+        unit->expressions[statement->expression].type == long_double_type) {
+      long_double_returns++;
+    }
+  }
+  if (widen_float != 1u || widen_double != 1u ||
+      narrow_double != 3u || initializers != 5u ||
+      zero_initializers != 4u || assignments != 9u ||
+      unary_pluses != 1u ||
+      negations != 1u || additions != 2u ||
+      subtractions != 1u || multiplications != 1u ||
+      divisions != 1u || fixed_direct_calls != 2u ||
+      void_indirect_calls != 2u || variadic_calls != 1u ||
+      open_direct_calls != 1u || result_direct_calls != 1u ||
+      result_indirect_calls != 1u || variadic_arguments != 1u ||
+      long_double_returns != 1u) {
+    (void)fprintf(
+        stderr,
+        "long-double-locals: inventory differs: casts=%u/%u/%u "
+        "initializers=%u/%u assignments=%u unary=%u/%u "
+        "binary=%u/%u/%u/%u calls=%u/%u/%u/%u/%u/%u "
+        "va_arg=%u returns=%u\n",
+        (unsigned int)widen_float, (unsigned int)widen_double,
+        (unsigned int)narrow_double, (unsigned int)initializers,
+        (unsigned int)zero_initializers, (unsigned int)assignments,
+        (unsigned int)unary_pluses,
+        (unsigned int)negations, (unsigned int)additions,
+        (unsigned int)subtractions, (unsigned int)multiplications,
+        (unsigned int)divisions, (unsigned int)fixed_direct_calls,
+        (unsigned int)void_indirect_calls,
+        (unsigned int)variadic_calls, (unsigned int)open_direct_calls,
+        (unsigned int)result_direct_calls,
+        (unsigned int)result_indirect_calls,
+        (unsigned int)variadic_arguments,
+        (unsigned int)long_double_returns);
+    return 1;
+  }
+  return 0;
+}
+
+static int validate_long_double_static_aggregates(
+    const ctool_c_translation_unit_t *unit) {
+  const ctool_c_object_definition_t *file_array =
+      find_object_definition(unit, "long_double_file_array");
+  const ctool_c_object_definition_t *file_record =
+      find_object_definition(unit, "long_double_file_record");
+  const ctool_c_block_binding_t *block_array =
+      find_block_binding(unit, "long_double_block_array");
+  const ctool_c_block_binding_t *block_record =
+      find_block_binding(unit, "long_double_block_record");
+  const ctool_c_function_definition_t *function =
+      find_function_definition(
+          unit, "long_double_static_aggregate_zero");
+  const ctool_c_initializer_t *file_array_root =
+      file_array == NULL
+          ? NULL
+          : initializer_node(unit, file_array->initializer);
+  const ctool_c_initializer_t *file_record_root =
+      file_record == NULL
+          ? NULL
+          : initializer_node(unit, file_record->initializer);
+  const ctool_c_initializer_t *block_array_root =
+      block_array == NULL
+          ? NULL
+          : initializer_node(unit, block_array->initializer);
+  const ctool_c_initializer_t *block_record_root =
+      block_record == NULL
+          ? NULL
+          : initializer_node(unit, block_record->initializer);
+  const ctool_c_type_node_t *array =
+      file_array == NULL
+          ? NULL
+          : unwrapped_type_node(unit, file_array->declared_type);
+  const ctool_c_type_node_t *record =
+      file_record == NULL
+          ? NULL
+          : unwrapped_type_node(unit, file_record->declared_type);
+  const ctool_c_type_layout_t *array_layout =
+      file_array == NULL
+          ? NULL
+          : type_layout(unit, file_array->declared_type);
+  const ctool_c_type_layout_t *record_layout =
+      file_record == NULL
+          ? NULL
+          : type_layout(unit, file_record->declared_type);
+  const ctool_c_initializer_t *file_first;
+  const ctool_c_initializer_t *file_marker;
+  const ctool_c_initializer_t *file_second;
+  const ctool_c_initializer_t *block_first;
+  const ctool_c_initializer_t *block_marker;
+  const ctool_c_initializer_t *block_second;
+
+  if (unit == NULL || unit->object_definition_count != 2u ||
+      unit->block_binding_count != 2u ||
+      unit->function_definition_count != 1u ||
+      file_array == NULL || file_record == NULL ||
+      block_array == NULL || block_record == NULL ||
+      function == NULL || array == NULL ||
+      array->kind != CTOOL_C_TYPE_ARRAY ||
+      array->element_count != 2u || record == NULL ||
+      record->kind != CTOOL_C_TYPE_RECORD ||
+      record->member_count != 3u || array_layout == NULL ||
+      array_layout->size != 24u || array_layout->alignment != 4u ||
+      record_layout == NULL || record_layout->size != 28u ||
+      record_layout->alignment != 4u ||
+      file_array_root == NULL ||
+      file_array_root->kind != CTOOL_C_INITIALIZER_ZERO ||
+      block_array->storage != CTOOL_C_STORAGE_STATIC ||
+      block_array_root == NULL ||
+      block_array_root->kind != CTOOL_C_INITIALIZER_ZERO ||
+      file_record_root == NULL ||
+      file_record_root->kind != CTOOL_C_INITIALIZER_LIST ||
+      file_record_root->element_count != 3u ||
+      block_record->storage != CTOOL_C_STORAGE_STATIC ||
+      block_record_root == NULL ||
+      block_record_root->kind != CTOOL_C_INITIALIZER_LIST ||
+      block_record_root->element_count != 3u) {
+    return 1;
+  }
+  file_first = initializer_list_child(
+      unit, file_record_root, 0u, record->first_member);
+  file_marker = initializer_list_child(
+      unit, file_record_root, 1u, record->first_member + 1u);
+  file_second = initializer_list_child(
+      unit, file_record_root, 2u, record->first_member + 2u);
+  block_first = initializer_list_child(
+      unit, block_record_root, 0u, record->first_member);
+  block_marker = initializer_list_child(
+      unit, block_record_root, 1u, record->first_member + 1u);
+  block_second = initializer_list_child(
+      unit, block_record_root, 2u, record->first_member + 2u);
+  if (file_first == NULL ||
+      file_first->kind != CTOOL_C_INITIALIZER_ZERO ||
+      file_second == NULL ||
+      file_second->kind != CTOOL_C_INITIALIZER_ZERO ||
+      block_first == NULL ||
+      block_first->kind != CTOOL_C_INITIALIZER_ZERO ||
+      block_second == NULL ||
+      block_second->kind != CTOOL_C_INITIALIZER_ZERO ||
+      file_marker == NULL ||
+      file_marker->kind != CTOOL_C_INITIALIZER_INTEGER ||
+      file_marker->integer_bits != 0u ||
+      block_marker == NULL ||
+      block_marker->kind != CTOOL_C_INITIALIZER_INTEGER ||
+      block_marker->integer_bits != 0u) {
+    return 1;
+  }
+  return 0;
+}
+
 static int run_floating_transport(const char *host_root) {
   static const char promotion_source[] =
       "typedef void (*variadic_callback)(int, ...);\n"
@@ -26026,22 +26598,161 @@ static int run_floating_transport(const char *host_root) {
       "  wide_copy = wide;\n"
       "  fixed_sink(narrow_copy, wide_copy);\n"
       "}\n";
+  static const char long_double_source[] =
+      "typedef __builtin_va_list va_list;\n"
+      "typedef void (*long_double_callback)(long double);\n"
+      "typedef void (*long_double_open_callback)();\n"
+      "typedef long double (*long_double_result_callback)(long double);\n"
+      "long double long_double_file_zero;\n"
+      "static long double long_double_explicit_zero = "
+      "sizeof(float) - 4;\n"
+      "void long_double_sink(long double value);\n"
+      "void long_double_variadic_sink(int marker, ...);\n"
+      "void long_double_open_sink();\n"
+      "long double long_double_identity(long double value);\n"
+      "double long_double_locals(float narrow, double wide) {\n"
+      "  long double left = (long double)narrow;\n"
+      "  long double right = (long double)wide;\n"
+      "  left = +left;\n"
+      "  right = -right;\n"
+      "  left = left + right;\n"
+      "  right = left - right;\n"
+      "  left = left * right;\n"
+      "  right = left / right;\n"
+      "  return (double)right;\n"
+      "}\n"
+      "double long_double_static_zero(void) {\n"
+      "  static long double long_double_block_zero;\n"
+      "  static long double long_double_block_explicit_zero = 0;\n"
+      "  long_double_block_zero = long_double_file_zero;\n"
+      "  long_double_block_explicit_zero = long_double_explicit_zero;\n"
+      "  return (double)(long_double_block_zero +\n"
+      "                  long_double_block_explicit_zero);\n"
+      "}\n"
+      "void long_double_fixed_calls(long double value,\n"
+      "                             long_double_callback callback) {\n"
+      "  long double copy = value;\n"
+      "  long_double_sink(copy);\n"
+      "  callback(copy);\n"
+      "}\n"
+      "void long_double_variadic_call(long double value) {\n"
+      "  long_double_variadic_sink(7, value);\n"
+      "}\n"
+      "void long_double_variadic_read(int marker, ...) {\n"
+      "  va_list arguments;\n"
+      "  long double value;\n"
+      "  __builtin_va_start(arguments, marker);\n"
+      "  value = __builtin_va_arg(arguments, long double);\n"
+      "  long_double_sink(value);\n"
+      "  __builtin_va_end(arguments);\n"
+      "}\n"
+      "long double long_double_identity(long double value) {\n"
+      "  return value;\n"
+      "}\n"
+      "void long_double_open_calls(long double value,\n"
+      "                            long_double_open_callback callback) {\n"
+      "  long_double_open_sink(value);\n"
+      "  callback(value);\n"
+      "}\n"
+      "double long_double_call_results(\n"
+      "    long double value, long_double_result_callback callback) {\n"
+      "  long double direct = long_double_identity(value);\n"
+      "  long double indirect = callback(direct);\n"
+      "  return (double)indirect;\n"
+      "}\n";
+  static const char long_double_aggregate_source[] =
+      "struct long_double_record {\n"
+      "  long double first;\n"
+      "  unsigned int marker;\n"
+      "  long double second;\n"
+      "};\n"
+      "long double long_double_file_array[2];\n"
+      "static struct long_double_record long_double_file_record = {\n"
+      "  0, 0, sizeof(float) - 4\n"
+      "};\n"
+      "double long_double_static_aggregate_zero(void) {\n"
+      "  static long double long_double_block_array[2];\n"
+      "  static struct long_double_record long_double_block_record = {\n"
+      "    0, 0, sizeof(float) - 4\n"
+      "  };\n"
+      "  long_double_block_array[1] = long_double_file_array[0];\n"
+      "  long_double_block_record.second =\n"
+      "      long_double_file_record.first;\n"
+      "  return (double)(long_double_block_array[1] +\n"
+      "                  long_double_block_record.second +\n"
+      "                  long_double_file_array[1] +\n"
+      "                  long_double_file_record.second);\n"
+      "}\n";
+  static const char atomic_pointer_source[] =
+      "static _Atomic long double *ok;\n";
   static const frontend_exact_failure_case_t failure_cases[] = {
       {{"float to boolean assignment boundary",
         "void bad(_Bool left, float right) { left = right; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
        1u, 44u,
        "floating assignment conversion is outside this body slice"},
-      {{"long double assignment boundary",
-        "void bad(long double left, long double right) { left = right; }\n",
+      {{"long double return conversion",
+        "long double bad(void *value) { return value; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       1u, 54u,
-       "long double assignment is outside this transport slice"},
-      {{"long double return boundary",
-        "long double bad(long double value) { return value; }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
-       1u, 38u,
-        "long double function returns are outside this transport slice"},
+       1u, 39u,
+       "floating assignment conversion is outside this body slice"},
+      {{"nonzero static long double initializer",
+        "static long double bad = 1;\n",
+        CTOOL_ERR_UNSUPPORTED,
+        CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       1u, 26u,
+       "static long double initialization currently requires zero"},
+      {{"atomic implicit static long double initializer",
+        "static _Atomic long double bad;\n",
+        CTOOL_ERR_UNSUPPORTED,
+        CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       1u, 28u,
+       "atomic static long double initialization is outside this "
+       "constant-data slice"},
+      {{"atomic implicit static long double array initializer",
+        "static _Atomic long double bad[2];\n",
+        CTOOL_ERR_UNSUPPORTED,
+        CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       1u, 28u,
+       "atomic static long double initialization is outside this "
+       "constant-data slice"},
+      {{"atomic implicit block-static long double record initializer",
+        "struct box {\n"
+        "  _Atomic long double value;\n"
+        "};\n"
+        "void use(void) {\n"
+        "  static struct box bad;\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED,
+        CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       5u, 21u,
+       "atomic static long double initialization is outside this "
+       "constant-data slice"},
+      {{"partially initialized static record with atomic long double",
+        "struct box { int ok; _Atomic long double bad; };\n"
+        "static struct box value = {0};\n",
+        CTOOL_ERR_UNSUPPORTED,
+        CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       2u, 27u,
+       "atomic static long double initialization is outside this "
+       "constant-data slice"},
+      {{"atomic explicit static long double initializer",
+        "static _Atomic long double bad = 0;\n",
+        CTOOL_ERR_UNSUPPORTED,
+        CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       1u, 34u,
+       "atomic static long double initialization is outside this "
+       "constant-data slice"},
+      {{"atomic long double variadic read boundary",
+        "typedef __builtin_va_list va_list;\n"
+        "void bad(int marker, ...) {\n"
+        "  va_list arguments;\n"
+        "  __builtin_va_start(arguments, marker);\n"
+        "  (void)__builtin_va_arg(arguments, _Atomic long double);\n"
+        "}\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       5u, 9u,
+       "atomic variadic argument reads are outside this ABI slice"},
       {{"double zero truth boundary",
         "int bad(void) { return !0.0; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
@@ -26053,6 +26764,9 @@ static int run_floating_transport(const char *host_root) {
   frontend_fixture_t fixture;
   ctool_c_translation_unit_t unit;
   ctool_c_translation_unit_t promotion_unit;
+  ctool_c_translation_unit_t long_double_unit;
+  ctool_c_translation_unit_t long_double_aggregate_unit;
+  ctool_c_translation_unit_t atomic_pointer_unit;
   ctool_u32 index;
   int failed = 1;
 
@@ -26067,7 +26781,21 @@ static int run_floating_transport(const char *host_root) {
       validate_floating_transport(&unit) != 0 ||
       parse_valid_fixture(&fixture, "/float-default-promotions.c",
                           promotion_source, &promotion_unit) != 0 ||
-      validate_float_default_promotions(&promotion_unit) != 0) {
+      validate_float_default_promotions(&promotion_unit) != 0 ||
+      parse_valid_fixture(&fixture, "/long-double-locals.c",
+                           long_double_source, &long_double_unit) != 0 ||
+      validate_long_double_locals(&long_double_unit) != 0 ||
+      parse_valid_fixture(
+          &fixture, "/long-double-static-aggregates.c",
+          long_double_aggregate_source,
+          &long_double_aggregate_unit) != 0 ||
+      validate_long_double_static_aggregates(
+          &long_double_aggregate_unit) != 0 ||
+      parse_valid_fixture(&fixture, "/long-double-atomic-pointer.c",
+                          atomic_pointer_source, &atomic_pointer_unit) != 0 ||
+      atomic_pointer_unit.object_definition_count != 1u ||
+      atomic_pointer_unit.initializer_count != 1u ||
+      atomic_pointer_unit.initializers[0].kind != CTOOL_C_INITIALIZER_ZERO) {
     (void)fprintf(stderr, "floating-transport: public graph differs\n");
     goto cleanup;
   }
@@ -26078,7 +26806,10 @@ static int run_floating_transport(const char *host_root) {
             "/floating-transport-failure.c", test_case->line,
             test_case->column, test_case->message) != 0 ||
         validate_floating_transport(&unit) != 0 ||
-        validate_float_default_promotions(&promotion_unit) != 0) {
+        validate_float_default_promotions(&promotion_unit) != 0 ||
+        validate_long_double_locals(&long_double_unit) != 0 ||
+        validate_long_double_static_aggregates(
+            &long_double_aggregate_unit) != 0) {
       goto cleanup;
     }
   }

@@ -9,29 +9,43 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 TOOLCHAIN_ROOT = REPO_ROOT / "toolchain"
 
 
-def _contract_path():
-    suffix = ".exe" if os.name == "nt" else ""
-    return TOOLCHAIN_ROOT / "build" / ("core-contract" + suffix)
-
-
 class ToolchainCoreContractTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        cls._build_directory = tempfile.TemporaryDirectory(
+            prefix=".core-build-", dir=TOOLCHAIN_ROOT
+        )
+        build_path = Path(cls._build_directory.name)
+        relative_build = build_path.relative_to(TOOLCHAIN_ROOT)
+        suffix = ".exe" if os.name == "nt" else ""
+        cls.contract_path = build_path / ("core-contract" + suffix)
+        target = f"{relative_build.as_posix()}/core-contract{suffix}"
         result = subprocess.run(
-            ["make", "-C", str(TOOLCHAIN_ROOT), "clean", "all"],
+            [
+                "make",
+                "-C",
+                str(TOOLCHAIN_ROOT),
+                f"BUILD_DIR={relative_build}",
+                target,
+            ],
             cwd=REPO_ROOT,
             text=True,
             capture_output=True,
         )
-        if result.returncode != 0:
+        if result.returncode != 0 or not cls.contract_path.exists():
+            cls._build_directory.cleanup()
             raise AssertionError(
                 "toolchain contract build failed\n"
                 + result.stdout
                 + result.stderr
             )
 
+    @classmethod
+    def tearDownClass(cls):
+        cls._build_directory.cleanup()
+
     def _run_contract(self, mode, root=None):
-        command = [str(_contract_path()), mode]
+        command = [str(self.contract_path), mode]
         if root is not None:
             command.append(str(root))
         return subprocess.run(command, text=True, capture_output=True)

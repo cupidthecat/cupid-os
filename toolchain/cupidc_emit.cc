@@ -1979,10 +1979,22 @@ static ctool_status_t cemit_index_initializers(cemit_context_t *context) {
           (initializer->address_kind ==
                CTOOL_C_INITIALIZER_ADDRESS_BINDING &&
            initializer->address_reference >= context->unit->binding_count) ||
+          (initializer->address_kind ==
+               CTOOL_C_INITIALIZER_ADDRESS_BLOCK_BINDING &&
+           (initializer->address_reference >=
+                context->unit->block_binding_count ||
+            context->unit
+                    ->block_bindings[initializer->address_reference]
+                    .kind != CTOOL_C_BINDING_OBJECT ||
+            context->unit
+                    ->block_bindings[initializer->address_reference]
+                    .storage != CTOOL_C_STORAGE_STATIC)) ||
           (initializer->address_kind !=
                CTOOL_C_INITIALIZER_ADDRESS_STRING &&
            initializer->address_kind !=
-               CTOOL_C_INITIALIZER_ADDRESS_BINDING)) {
+               CTOOL_C_INITIALIZER_ADDRESS_BINDING &&
+           initializer->address_kind !=
+               CTOOL_C_INITIALIZER_ADDRESS_BLOCK_BINDING)) {
         return cemit_invalid_unit(context, &initializer->location);
       }
       if (initializer->address_kind ==
@@ -2881,6 +2893,10 @@ static ctool_status_t cemit_encode_initializer(
         CTOOL_C_INITIALIZER_ADDRESS_BINDING) {
       status = cemit_ensure_binding_symbol(
           context, initializer->address_reference, &symbol);
+    } else if (initializer->address_kind ==
+               CTOOL_C_INITIALIZER_ADDRESS_BLOCK_BINDING) {
+      status = cemit_ensure_block_binding_symbol(
+          context, initializer->address_reference, &symbol);
     } else {
       status = cemit_add_string_literal(context, initializer, &symbol);
     }
@@ -3150,7 +3166,8 @@ static ctool_status_t cemit_x86_x87_memory(
       cemit_x86_instruction(mnemonic, width_bits);
   if ((mnemonic != CTOOL_X86_MN_FLD &&
        mnemonic != CTOOL_X86_MN_FSTP) ||
-      (width_bits != 32u && width_bits != 64u)) {
+      (width_bits != 32u && width_bits != 64u &&
+       width_bits != 80u)) {
     return CTOOL_ERR_INTERNAL;
   }
   instruction.operand_count = 1u;
@@ -5384,12 +5401,23 @@ static ctool_status_t cemit_x86_copy_edx_to_eax(
 }
 
 /* EAX holds the current cursor and EDX holds the cursor object's address. */
-static ctool_status_t cemit_x86_push_wide_variadic_snapshot(
+static ctool_status_t cemit_x86_push_variadic_snapshot(
     cemit_context_t *context, ctool_u32 temporary_offset,
-    ctool_u32 cursor_type) {
+    ctool_u32 cursor_type, ctool_u32 value_type) {
+  const ctool_c_type_layout_t *layout;
+  ctool_u32 byte_count;
   ctool_status_t status;
-  if (temporary_offset < 8u || temporary_offset > 0x7fffffffu ||
-      (temporary_offset & 3u) != 0u) {
+  if (value_type >= context->unit->layout.type_count) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  layout = &context->unit->layout.types[value_type];
+  byte_count = layout->size;
+  if ((byte_count != 8u && byte_count != 12u) ||
+      layout->alignment == 0u ||
+      (layout->alignment & (layout->alignment - 1u)) != 0u ||
+      temporary_offset < byte_count ||
+      temporary_offset > 0x7fffffffu ||
+      (temporary_offset & (layout->alignment - 1u)) != 0u) {
     return CTOOL_ERR_INTERNAL;
   }
   status = cemit_x86_one_register(
@@ -5407,14 +5435,14 @@ static ctool_status_t cemit_x86_push_wide_variadic_snapshot(
     status = cemit_x86_lea_local(context, temporary_offset);
   }
   if (status == CTOOL_OK) {
-    status = cemit_x86_copy_edx_to_eax(context, 8u);
+    status = cemit_x86_copy_edx_to_eax(context, byte_count);
   }
   if (status == CTOOL_OK) {
     status = cemit_x86_one_register(
         context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
   }
   if (status == CTOOL_OK) {
-    status = cemit_x86_add_eax_constant(context, 8u);
+    status = cemit_x86_add_eax_constant(context, byte_count);
   }
   if (status == CTOOL_OK) {
     status = cemit_x86_two_registers(
@@ -5760,14 +5788,17 @@ static ctool_bool cemit_ir_type_is_floating_value(
   if (node == (const ctool_c_type_node_t *)0 ||
       type >= context->unit->layout.type_count ||
       (node->kind != CTOOL_C_TYPE_FLOAT &&
-       node->kind != CTOOL_C_TYPE_DOUBLE)) {
+       node->kind != CTOOL_C_TYPE_DOUBLE &&
+       node->kind != CTOOL_C_TYPE_LONG_DOUBLE)) {
     return CTOOL_FALSE;
   }
   layout = &context->unit->layout.types[type];
   return layout->is_object == CTOOL_TRUE &&
                  layout->is_complete_object == CTOOL_TRUE &&
                  ((node->kind == CTOOL_C_TYPE_FLOAT && layout->size == 4u) ||
-                  (node->kind == CTOOL_C_TYPE_DOUBLE && layout->size == 8u))
+                  (node->kind == CTOOL_C_TYPE_DOUBLE && layout->size == 8u) ||
+                  (node->kind == CTOOL_C_TYPE_LONG_DOUBLE &&
+                   layout->size == 12u))
              ? CTOOL_TRUE
              : CTOOL_FALSE;
 }
@@ -5842,8 +5873,13 @@ static ctool_bool cemit_ir_type_is_variadic_argument(
   if (node->kind == CTOOL_C_TYPE_POINTER) {
     return layout->size == 4u ? CTOOL_TRUE : CTOOL_FALSE;
   }
-  if (node->kind == CTOOL_C_TYPE_DOUBLE) {
-    return layout->size == 8u ? CTOOL_TRUE : CTOOL_FALSE;
+  if (node->kind == CTOOL_C_TYPE_DOUBLE ||
+      node->kind == CTOOL_C_TYPE_LONG_DOUBLE) {
+    return ((node->kind == CTOOL_C_TYPE_DOUBLE && layout->size == 8u) ||
+            (node->kind == CTOOL_C_TYPE_LONG_DOUBLE &&
+             layout->size == 12u))
+               ? CTOOL_TRUE
+               : CTOOL_FALSE;
   }
   return layout->is_integer == CTOOL_TRUE &&
                  (layout->size == 4u || layout->size == 8u) &&
@@ -6156,13 +6192,15 @@ static ctool_bool cemit_ir_floating_conversion_is_valid(
   source_floating =
       cemit_ir_type_is_floating_value(context, source_type) == CTOOL_TRUE &&
               (source->kind == CTOOL_C_TYPE_FLOAT ||
-               source->kind == CTOOL_C_TYPE_DOUBLE)
+               source->kind == CTOOL_C_TYPE_DOUBLE ||
+               source->kind == CTOOL_C_TYPE_LONG_DOUBLE)
           ? CTOOL_TRUE
           : CTOOL_FALSE;
   target_floating =
       cemit_ir_type_is_floating_value(context, target_type) == CTOOL_TRUE &&
               (target->kind == CTOOL_C_TYPE_FLOAT ||
-               target->kind == CTOOL_C_TYPE_DOUBLE)
+               target->kind == CTOOL_C_TYPE_DOUBLE ||
+               target->kind == CTOOL_C_TYPE_LONG_DOUBLE)
           ? CTOOL_TRUE
           : CTOOL_FALSE;
   if (source_floating == CTOOL_TRUE &&
@@ -6172,6 +6210,7 @@ static ctool_bool cemit_ir_floating_conversion_is_valid(
     ctool_bool represented_conversion =
         cemit_ir_type_is_represented_integer(
             context, target_type) == CTOOL_TRUE &&
+                source->kind != CTOOL_C_TYPE_LONG_DOUBLE &&
                 target->kind != CTOOL_C_TYPE_BOOL &&
                 (layout->is_signed == CTOOL_TRUE ||
                  layout->size < 4u) &&
@@ -6197,6 +6236,7 @@ static ctool_bool cemit_ir_floating_conversion_is_valid(
       target_floating == CTOOL_TRUE) {
     return cemit_ir_type_is_represented_integer(
                context, source_type) == CTOOL_TRUE &&
+                   target->kind != CTOOL_C_TYPE_LONG_DOUBLE &&
                    context->unit->layout.types[source_type].size <= 4u &&
                    (conversion == CTOOL_C_CONVERSION_NONE ||
                     conversion == CTOOL_C_CONVERSION_ASSIGNMENT ||
@@ -6218,7 +6258,10 @@ static ctool_bool cemit_ir_floating_conversion_is_valid(
   if (conversion == CTOOL_C_CONVERSION_USUAL_ARITHMETIC) {
     return source->kind == target->kind ||
                    (source->kind == CTOOL_C_TYPE_FLOAT &&
-                    target->kind == CTOOL_C_TYPE_DOUBLE)
+                    (target->kind == CTOOL_C_TYPE_DOUBLE ||
+                     target->kind == CTOOL_C_TYPE_LONG_DOUBLE)) ||
+                   (source->kind == CTOOL_C_TYPE_DOUBLE &&
+                    target->kind == CTOOL_C_TYPE_LONG_DOUBLE)
                ? CTOOL_TRUE
                : CTOOL_FALSE;
   }
@@ -6561,14 +6604,17 @@ static ctool_status_t cemit_x86_push_floating_result(
                      context, CTOOL_X86_MN_FSTP, 4u, 0, 32u)
                : status;
   }
-  if (temporary_offset == CTOOL_C_AST_NONE || temporary_offset < 8u ||
+  if ((layout->size != 8u && layout->size != 12u) ||
+      temporary_offset == CTOOL_C_AST_NONE ||
+      temporary_offset < layout->size ||
       temporary_offset > 0x7fffffffu ||
       (temporary_offset & (layout->alignment - 1u)) != 0u) {
     return CTOOL_ERR_INTERNAL;
   }
   status = cemit_x86_x87_memory(
       context, CTOOL_X86_MN_FSTP, 5u,
-      0 - (ctool_i32)temporary_offset, 64u);
+      0 - (ctool_i32)temporary_offset,
+      layout->size == 8u ? 64u : 80u);
   if (status == CTOOL_OK) {
     status = cemit_x86_lea_local(context, temporary_offset);
   }
@@ -6593,11 +6639,15 @@ static ctool_status_t cemit_x86_load_floating_stack_value(
     return cemit_x86_x87_memory(
         context, CTOOL_X86_MN_FLD, 4u, (ctool_i32)stack_offset, 32u);
   }
+  if (layout->size != 8u && layout->size != 12u) {
+    return CTOOL_ERR_INTERNAL;
+  }
   status = cemit_x86_load_register_at_register(
       context, 0u, 4u, stack_offset);
   return status == CTOOL_OK
              ? cemit_x86_x87_memory(
-                   context, CTOOL_X86_MN_FLD, 0u, 0, 64u)
+                   context, CTOOL_X86_MN_FLD, 0u, 0,
+                   layout->size == 8u ? 64u : 80u)
              : status;
 }
 
@@ -6610,6 +6660,9 @@ static ctool_status_t cemit_x86_load_floating_xmm_stack_value(
     return CTOOL_ERR_INTERNAL;
   }
   layout = &context->unit->layout.types[type];
+  if (layout->size != 4u && layout->size != 8u) {
+    return CTOOL_ERR_INTERNAL;
+  }
   if (layout->size == 4u) {
     status = cemit_x86_sse_memory(
         context, CTOOL_X86_MN_MOVSS, CTOOL_TRUE,
@@ -7257,7 +7310,7 @@ static ctool_status_t cemit_call_uses_outgoing_area(
         cemit_ir_type_is_wide_integer(context, transport_type) == CTOOL_TRUE ||
         (cemit_ir_type_is_floating_value(context, transport_type) ==
              CTOOL_TRUE &&
-         context->unit->layout.types[transport_type].size == 8u)) {
+         context->unit->layout.types[transport_type].size > 4u)) {
       *uses_outgoing_area_out = CTOOL_TRUE;
     }
   }
@@ -11666,12 +11719,16 @@ static ctool_status_t cemit_emit_ir_instruction(
     return status;
   }
   if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_VARIADIC_ARGUMENT) {
+    const ctool_c_type_layout_t *value_layout =
+        ir_instruction->type < context->unit->layout.type_count
+            ? &context->unit->layout.types[ir_instruction->type]
+            : (const ctool_c_type_layout_t *)0;
     ctool_bool indirect =
         cemit_ir_type_is_wide_integer(context, ir_instruction->type) ==
                 CTOOL_TRUE ||
                 (cemit_ir_type_is_floating_value(
                      context, ir_instruction->type) == CTOOL_TRUE &&
-                 context->unit->layout.types[ir_instruction->type].size == 8u)
+                 context->unit->layout.types[ir_instruction->type].size > 4u)
             ? CTOOL_TRUE
             : CTOOL_FALSE;
     if (cemit_ir_type_is_variadic_cursor(
@@ -11679,10 +11736,13 @@ static ctool_status_t cemit_emit_ir_instruction(
         cemit_ir_type_is_variadic_argument(context, ir_instruction->type) ==
             CTOOL_FALSE ||
         (indirect == CTOOL_TRUE &&
-         (value_temporary_offset == CTOOL_C_AST_NONE ||
-          value_temporary_offset < 8u ||
+         (value_layout == (const ctool_c_type_layout_t *)0 ||
+          value_layout->alignment == 0u ||
+          (value_layout->alignment & (value_layout->alignment - 1u)) != 0u ||
+          value_temporary_offset == CTOOL_C_AST_NONE ||
+          value_temporary_offset < value_layout->size ||
           value_temporary_offset > 0x7fffffffu ||
-          (value_temporary_offset & 3u) != 0u)) ||
+          (value_temporary_offset & (value_layout->alignment - 1u)) != 0u)) ||
         ir_instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
         ir_instruction->conversion != CTOOL_C_CONVERSION_NONE ||
         ir_instruction->reference != CTOOL_C_AST_NONE ||
@@ -11700,8 +11760,9 @@ static ctool_status_t cemit_emit_ir_instruction(
       status = cemit_x86_load_eax(context, ir_instruction->input_type);
     }
     if (status == CTOOL_OK && indirect == CTOOL_TRUE) {
-      status = cemit_x86_push_wide_variadic_snapshot(
-          context, value_temporary_offset, ir_instruction->input_type);
+      status = cemit_x86_push_variadic_snapshot(
+          context, value_temporary_offset, ir_instruction->input_type,
+          ir_instruction->type);
     }
     if (indirect == CTOOL_TRUE) {
       return status;
@@ -12231,7 +12292,7 @@ static ctool_status_t cemit_emit_ir_instruction(
                 CTOOL_TRUE ||
                 (cemit_ir_type_is_floating_value(
                      context, ir_instruction->type) == CTOOL_TRUE &&
-                 context->unit->layout.types[ir_instruction->type].size == 8u)
+                 context->unit->layout.types[ir_instruction->type].size > 4u)
             ? CTOOL_TRUE
             : CTOOL_FALSE;
     if ((scalar == CTOOL_FALSE && structure == CTOOL_FALSE) ||
@@ -12374,7 +12435,7 @@ static ctool_status_t cemit_emit_ir_instruction(
                 CTOOL_TRUE ||
                 (cemit_ir_type_is_floating_value(
                      context, ir_instruction->type) == CTOOL_TRUE &&
-                 context->unit->layout.types[ir_instruction->type].size == 8u)
+                 context->unit->layout.types[ir_instruction->type].size > 4u)
             ? CTOOL_TRUE
             : CTOOL_FALSE;
     if ((scalar == CTOOL_FALSE && structure == CTOOL_FALSE) ||
@@ -13353,11 +13414,17 @@ static ctool_status_t cemit_emit_ir_instruction(
           status = cemit_x86_discard_arguments(context, 4u);
         }
       } else {
+        ctool_u16 width_bits =
+            layout->size == 8u ? 64u
+                               : layout->size == 12u ? 80u : 0u;
+        if (width_bits == 0u) {
+          return CTOOL_ERR_INTERNAL;
+        }
         status = cemit_x86_one_register(
             context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
         if (status == CTOOL_OK) {
           status = cemit_x86_x87_memory(
-              context, CTOOL_X86_MN_FLD, 0u, 0, 64u);
+              context, CTOOL_X86_MN_FLD, 0u, 0, width_bits);
         }
       }
       if (status == CTOOL_OK) {
@@ -13868,7 +13935,7 @@ static ctool_status_t cemit_prepare_local_offsets(
                instruction->conversion) == CTOOL_TRUE)) &&
          cemit_ir_type_is_floating_value(context, instruction->type) ==
              CTOOL_TRUE &&
-         context->unit->layout.types[instruction->type].size == 8u)) {
+         context->unit->layout.types[instruction->type].size > 4u)) {
       context->value_temporary_offsets[absolute] = 0u;
     }
   }
@@ -14125,7 +14192,7 @@ static ctool_status_t cemit_prepare_local_offsets(
                context, instruction->type) == CTOOL_FALSE &&
            (cemit_ir_type_is_floating_value(
                 context, instruction->type) == CTOOL_FALSE ||
-            context->unit->layout.types[instruction->type].size != 8u))) {
+            context->unit->layout.types[instruction->type].size <= 4u))) {
         return CTOOL_ERR_INTERNAL;
       }
       if (layout->size > 0x7fffffffu ||

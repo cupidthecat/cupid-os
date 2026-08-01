@@ -118,21 +118,40 @@ drivers/        ATA, keyboard, mouse, PIT, RTC, serial, speaker,
                 timer, VGA, PCI, RTL8139, E1000
 ```
 
-The normal CupidC cohort has 155 checked-in roots and one generated symbol
-root. All 156 sources use `.cc`. Five shared Toolchain roots also belong to
-the 19-source i386 Linux fixed point, and their native GCC or Clang rules
-select C with `-x c`. ADRs 0124 and 0126 record the first two naming steps,
-ADR 0129 records the lexer transfer, ADR 0135 records the Nuked OPL3 transfer,
-ADR 0139 records the JPEG and glyph-raster transfer, ADR 0167 records the FPU
-and SMP transfer, ADR 0176 records the libm transfer, ADR 0180 records the
-kernel entry and SIMD transfer, and ADR 0181 records the string transfer. The
-checked wrappers own `kernel/core/kernel.cc`, `kernel/cpu/simd.cc`, and
-`kernel/core/string.cc`. Their deterministic objects are 25,920, 8,768, and
-14,460 bytes. The complete 155-root frontier passes twice against a frozen
-444-file snapshot; both object sets are byte-identical and total 3,708,988
-bytes. The combined graph keeps the ISO runtime fixture as an explicit image
-input. No strict checked-in kernel or driver root still uses the host
-compiler.
+The normal CupidC image cohort has 238 checked-in roots and one generated
+symbol root. The strict non-Doom kernel and driver frontier covers 155 of
+those checked-in roots. All normal sources use `.cc`. Five shared Toolchain
+roots also belong to the 19-source i386 Linux fixed point, and their native
+GCC or Clang rules select C with `-x c`. ADRs 0124 and 0126 record the first
+two naming steps, ADR 0129 records the lexer transfer, ADR 0135 records the
+Nuked OPL3 transfer, ADR 0139 records the JPEG and glyph-raster transfer, ADR
+0167 records the FPU and SMP transfer, ADR 0176 records the libm transfer,
+ADR 0180 records the kernel entry and SIMD transfer, and ADR 0181 records the
+string transfer. The checked wrappers own `kernel/core/kernel.cc`,
+`kernel/cpu/simd.cc`, and `kernel/core/string.cc`. Their deterministic
+objects are 25,920, 8,768, and 14,460 bytes. The complete 155-root frontier
+passes twice against a frozen 445-file snapshot; both object sets are
+byte-identical and total 3,717,856 bytes. The combined graph keeps the ISO
+runtime fixture as an explicit image input. No strict checked-in kernel or
+driver root still uses the host compiler.
+
+The normal Toolchain root builds fourteen `.cc` contracts and the runtime
+probe with stage-two and stage-three CupidC. Its publisher accepts only a
+dedicated `cupidc-contracts` directory inside the source tree. It validates
+the target before work and again before promotion, and an existing
+destination must already verify as a complete cohort. Arbitrary directories,
+source trees, files, and symbolic links remain untouched. Exact initial,
+private, and newly discovered contract inventories catch additions, removals,
+and restored edits that changed a copied input. Every contract run derives the
+cohort from its executable, requires a named manifest artifact, and verifies
+all artifact hashes, the current 45-input contract set, the checked seed
+manifest, and the 41-file fixed-point source inventory before execution. The
+contract inventory includes the Toolchain Makefile and both Python control
+modules. One
+captured seed-manifest byte sequence supplies the digest, decoded data, schema
+checks, and build plan.
+Native contract binaries are optional oracles.
+
 Strong four-vCPU runtime checks pass with both NICs through SMP, RDRAND, all
 62 crypto checks, USB storage, audio, TrueType glyphs, a baseline JPEG decode,
 the desktop, terminal, and in-OS CupidC. They require `[fpu] SSE2 enabled`,
@@ -163,7 +182,7 @@ core     → (nothing)
 ### Kernel Core
 | Component | Files | Purpose |
 |-----------|-------|---------|
-| Kernel entry | `kernel.c/h` | Fixed stack, linked BSS clear, non-returning entry handoff, VGA, initialization, and main print functions |
+| Kernel entry | `kernel/core/kernel.cc`, `kernel/core/kernel.h` | Fixed stack, linked BSS clear, non-returning entry handoff, VGA, initialization, and main print functions |
 | IDT | `idt.cc/h` | Interrupt descriptor table setup |
 | ISR/IRQ | `isr.asm`, `irq.cc/h` | Interrupt/exception dispatching |
 | PIC | `pic.cc/h` | Programmable interrupt controller |
@@ -202,7 +221,7 @@ core     → (nothing)
 | Process Mgr | `process.cc/h`, `context_switch.asm` | Scheduler, context switching |
 | GUI | `gui.cc/h`, `desktop.cc/h`, `graphics.cc/h`, `font_8x8.cc/h` | Window manager, desktop |
 | Terminal | `terminal_app.cc/h` | GUI terminal application |
-| Notepad | `notepad.c/h` | Text editor application (VFS file dialog) |
+| Notepad | `bin/notepad.cc` | Text editor application (VFS file dialog) |
 | Clipboard | `clipboard.cc/h` | System clipboard |
 | Calendar | `calendar.cc/h` | Calendar math, time/date formatting, popup state |
 

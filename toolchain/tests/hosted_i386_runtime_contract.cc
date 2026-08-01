@@ -1,6 +1,7 @@
 /* Checked by the Cupid-owned i386 toolchain closure. */
 
 #include <errno.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -134,8 +135,10 @@ static int allocator_contract(void) {
 }
 
 static int string_contract(void) {
+  static const char haystack[] = "Cupid toolchain";
   unsigned char source[12];
   unsigned char destination[12];
+  char overlap[16] = "0123456789";
   size_t index;
 
   (void)memset(source, 0x5a, sizeof(source));
@@ -164,8 +167,20 @@ static int string_contract(void) {
           (char *)destination ||
       strchr((const char *)destination, 'x') != (char *)0 ||
       strchr((const char *)destination, '\0') !=
-          (char *)(destination + 11u)) {
+          (char *)(destination + 11u) ||
+      strstr(haystack, "tool") != haystack + 6 ||
+      strstr(haystack, "") != haystack ||
+      strstr(haystack, "host") != (char *)0) {
     return 204;
+  }
+  (void)memmove(overlap + 2, overlap, 8u);
+  if (strcmp(overlap, "0101234567") != 0) {
+    return 205;
+  }
+  (void)memmove(overlap, overlap + 2, 8u);
+  overlap[8] = '\0';
+  if (strcmp(overlap, "01234567") != 0) {
+    return 206;
   }
   return 0;
 }
@@ -276,6 +291,246 @@ static int directory_contract(void) {
   return 0;
 }
 
+static int integer_contract(void) {
+  if (sizeof(int8_t) != 1u || sizeof(uint8_t) != 1u ||
+      sizeof(int16_t) != 2u || sizeof(uint16_t) != 2u ||
+      sizeof(int32_t) != 4u || sizeof(uint32_t) != 4u ||
+      sizeof(int64_t) != 8u || sizeof(uint64_t) != 8u ||
+      sizeof(intptr_t) != 4u || sizeof(uintptr_t) != 4u ||
+      INT32_MAX != 2147483647 || UINT32_MAX != 4294967295u ||
+      UINT64_MAX != UINT64_C(18446744073709551615)) {
+    return 501;
+  }
+  return 0;
+}
+
+typedef __builtin_va_list long_double_va_list;
+typedef long double (*long_double_result_callback)(long double);
+typedef void (*long_double_open_callback)();
+
+typedef union {
+  double value;
+  struct {
+    unsigned int low;
+    unsigned int high;
+  } words;
+} long_double_result_box;
+
+typedef struct {
+  long double first;
+  unsigned int marker;
+  long double second;
+} long_double_zero_record;
+
+static unsigned int long_double_capture_low;
+static unsigned int long_double_capture_high;
+static unsigned int long_double_capture_count;
+static long double long_double_file_zero;
+static long double long_double_file_explicit_zero =
+    sizeof(float) - 4;
+static long double long_double_file_array[2];
+static long_double_zero_record long_double_file_record = {
+    0, 0, sizeof(float) - 4};
+
+static long double long_double_identity(long double value) {
+  return value;
+}
+
+static void long_double_capture(long double value) {
+  long_double_result_box box;
+  box.value = (double)value;
+  long_double_capture_low = box.words.low;
+  long_double_capture_high = box.words.high;
+  long_double_capture_count++;
+}
+
+static void long_double_open_direct();
+
+static void long_double_open_calls(
+    long double value, long_double_open_callback callback) {
+  long_double_open_direct(value);
+  callback(value);
+}
+
+static void long_double_open_direct(long double value) {
+  long_double_capture(value);
+}
+
+static unsigned int long_double_variadic_tail(int marker, ...) {
+  long_double_va_list arguments;
+  long double value;
+  unsigned int tail;
+  (void)marker;
+  __builtin_va_start(arguments, marker);
+  value = __builtin_va_arg(arguments, long double);
+  tail = __builtin_va_arg(arguments, unsigned int);
+  __builtin_va_end(arguments);
+  long_double_capture(value);
+  return tail;
+}
+
+static int long_double_contract(void) {
+  long_double_result_callback callback = long_double_identity;
+  long_double_result_box box;
+  static long double long_double_block_zero;
+  static long double long_double_block_explicit_zero = 0;
+  static long double long_double_block_array[2];
+  static long_double_zero_record long_double_block_record = {
+      0, 0, sizeof(float) - 4};
+  long double initial = (long double)1.5;
+  long double direct;
+  long double indirect;
+  unsigned int tail;
+
+  if (sizeof(long double) != 12u ||
+      sizeof(long_double_file_array) != 24u ||
+      sizeof(long_double_zero_record) != 28u) {
+    return 701;
+  }
+  box.value =
+      (double)(long_double_file_array[0] +
+               long_double_file_array[1] +
+               long_double_file_record.first +
+               long_double_file_record.second +
+               long_double_block_array[0] +
+               long_double_block_array[1] +
+               long_double_block_record.first +
+               long_double_block_record.second);
+  if (box.words.low != 0u || box.words.high != 0u ||
+      long_double_file_record.marker != 0u ||
+      long_double_block_record.marker != 0u) {
+    return 707;
+  }
+  long_double_file_array[1] = initial;
+  long_double_block_array[0] = long_double_file_array[1];
+  long_double_file_record.second = long_double_block_array[0];
+  long_double_block_record.first = long_double_file_record.second;
+  box.value = (double)long_double_block_record.first;
+  if (box.words.low != 0u || box.words.high != 0x3ff80000u) {
+    return 708;
+  }
+  long_double_block_zero = long_double_file_zero;
+  long_double_block_explicit_zero =
+      long_double_file_explicit_zero;
+  box.value =
+      (double)(long_double_block_zero +
+               long_double_block_explicit_zero);
+  if (box.words.low != 0u || box.words.high != 0u) {
+    return 705;
+  }
+  long_double_file_zero = initial;
+  long_double_block_zero = long_double_file_zero;
+  long_double_file_explicit_zero = long_double_block_zero;
+  long_double_block_explicit_zero =
+      long_double_file_explicit_zero;
+  box.value = (double)long_double_block_explicit_zero;
+  if (box.words.low != 0u || box.words.high != 0x3ff80000u) {
+    return 706;
+  }
+  direct = long_double_identity(initial);
+  indirect = callback(direct);
+  box.value = (double)indirect;
+  if (box.words.low != 0u || box.words.high != 0x3ff80000u) {
+    return 702;
+  }
+
+  long_double_capture_low = 0u;
+  long_double_capture_high = 0u;
+  long_double_capture_count = 0u;
+  long_double_open_calls(
+      indirect, (long_double_open_callback)long_double_capture);
+  if (long_double_capture_count != 2u ||
+      long_double_capture_low != 0u ||
+      long_double_capture_high != 0x3ff80000u) {
+    return 703;
+  }
+
+  tail = long_double_variadic_tail(
+      7, indirect, 0xa5c39e71u);
+  if (tail != 0xa5c39e71u || long_double_capture_count != 3u ||
+      long_double_capture_low != 0u ||
+      long_double_capture_high != 0x3ff80000u) {
+    return 704;
+  }
+  return 0;
+}
+
+static int stdio_contract(void) {
+  static const char wide_expected[] =
+      "-9223372036854775808|18446744073709551615|"
+      "0123456789abcdef|trun";
+  char formatted[96];
+  char truncated[5];
+  int result;
+
+  if (printf("printf-ok %u\n", 7u) != 12) {
+    return 601;
+  }
+  if (puts("puts-ok") < 0) {
+    return 602;
+  }
+  if (fputs("fputs-", stdout) < 0 ||
+      fputc('o', stdout) != 'o' ||
+      fputc('k', stdout) != 'k' ||
+      fputc('\n', stdout) != '\n') {
+    return 603;
+  }
+  errno = 0;
+  if (printf("%q") != -1 || errno != EINVAL) {
+    return 604;
+  }
+  result = snprintf(formatted, sizeof(formatted), "%s-%03u-%d",
+                    "value", 7u, -2);
+  if (result != 12 || strcmp(formatted, "value-007--2") != 0) {
+    return 605;
+  }
+  result = snprintf(truncated, sizeof(truncated), "abcdef");
+  if (result != 6 || strcmp(truncated, "abcd") != 0) {
+    return 606;
+  }
+  if (snprintf((char *)0, 0u, "%u", 1234u) != 4) {
+    return 607;
+  }
+  result = snprintf(
+      formatted, sizeof(formatted), "%lld|%llu|%016llx|%.*s",
+      -9223372036854775807LL - 1LL,
+      18446744073709551615ULL, 0x0123456789abcdefULL,
+      4, "truncate");
+  if (result != (int)strlen(wide_expected) ||
+      strcmp(formatted, wide_expected) != 0) {
+    return 608;
+  }
+  result = snprintf(formatted, sizeof(formatted),
+                    "[%.*s][%.3s][%.*s]", 0, "hidden",
+                    "abcdef", -1, "full");
+  if (result != 13 || strcmp(formatted, "[][abc][full]") != 0) {
+    return 609;
+  }
+  errno = 0;
+  if (snprintf(formatted, sizeof(formatted), "%q") != -1 ||
+      errno != EINVAL || formatted[0] != '\0') {
+    return 610;
+  }
+  errno = 0;
+  if (snprintf(formatted, sizeof(formatted), "%lls", "bad") != -1 ||
+      errno != EINVAL || formatted[0] != '\0') {
+    return 611;
+  }
+  errno = 0;
+  if (fputc('x', (FILE *)0) != EOF || errno != EBADF) {
+    return 612;
+  }
+  errno = 0;
+  if (fputs("x", (FILE *)0) != EOF || errno != EBADF) {
+    return 613;
+  }
+  errno = 0;
+  if (fprintf((FILE *)0, "%s", "x") != -1 || errno != EBADF) {
+    return 614;
+  }
+  return 0;
+}
+
 int runtime_contract_run(int argc, char **argv) {
   int result;
   if (argc != 3 || argv == (char **)0 ||
@@ -292,6 +547,15 @@ int runtime_contract_run(int argc, char **argv) {
   }
   if (result == 0) {
     result = directory_contract();
+  }
+  if (result == 0) {
+    result = integer_contract();
+  }
+  if (result == 0) {
+    result = long_double_contract();
+  }
+  if (result == 0) {
+    result = stdio_contract();
   }
   return result;
 }

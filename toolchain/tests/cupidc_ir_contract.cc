@@ -64,6 +64,8 @@ static const char active_x86_class_width[] =
     "    case X86_OC_MMX_RM64:\n"
     "    case X86_OC_XMM_RM64:\n"
     "      return 64u;\n"
+    "    case X86_OC_MEM80:\n"
+    "      return 80u;\n"
     "    case X86_OC_MEM48:\n"
     "      return 48u;\n"
     "    case X86_OC_MEM128:\n"
@@ -2094,7 +2096,7 @@ static int wide_variadic_active_sources_are_unchanged(ctool_job_t *job) {
   ctool_path_t path;
   ctool_source_t source;
   ctool_status_t status;
-  path.text = ctool_string("/toolchain/tests/cupidc_object_contract.c");
+  path.text = ctool_string("/toolchain/tests/cupidc_object_contract.cc");
   (void)memset(&source, 0xa5, sizeof(source));
   status = ctool_job_load_source(job, &path, &source);
   if (!check_status(status, CTOOL_OK,
@@ -2105,7 +2107,7 @@ static int wide_variadic_active_sources_are_unchanged(ctool_job_t *job) {
     (void)fprintf(stderr, "the signed wide fprintf argument changed\n");
     return 0;
   }
-  path.text = ctool_string("/toolchain/tests/cupidc_frontend_contract.c");
+  path.text = ctool_string("/toolchain/tests/cupidc_frontend_contract.cc");
   (void)memset(&source, 0xa5, sizeof(source));
   status = ctool_job_load_source(job, &path, &source);
   if (!check_status(status, CTOOL_OK,
@@ -2639,7 +2641,7 @@ static char *make_narrow_active_fixture(void) {
       "  X86_OC_GPR8, X86_OC_GPR16, X86_OC_GPR32,\n"
       "  X86_OC_RM8, X86_OC_RM16, X86_OC_RM32,\n"
       "  X86_OC_MEM, X86_OC_MEM8, X86_OC_MEM16, X86_OC_MEM32,\n"
-      "  X86_OC_MEM48, X86_OC_MEM64, X86_OC_MEM128,\n"
+      "  X86_OC_MEM48, X86_OC_MEM64, X86_OC_MEM80, X86_OC_MEM128,\n"
       "  X86_OC_SEGMENT, X86_OC_CONTROL, X86_OC_X87, X86_OC_MMX,\n"
       "  X86_OC_MMX_RM32, X86_OC_MMX_RM64, X86_OC_XMM,\n"
       "  X86_OC_XMM_RM32, X86_OC_XMM_RM64, X86_OC_XMM_RM128,\n"
@@ -28797,6 +28799,205 @@ static int validate_floating_transport_ir(
   return 1;
 }
 
+static int validate_long_double_local_ir(
+    const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir) {
+  ctool_u32 long_double_type =
+      find_plain_type_kind(unit, CTOOL_C_TYPE_LONG_DOUBLE);
+  ctool_u32 float_type = find_plain_type_kind(unit, CTOOL_C_TYPE_FLOAT);
+  ctool_u32 double_type = find_plain_type_kind(unit, CTOOL_C_TYPE_DOUBLE);
+  ctool_u32 fixed_sink = find_binding(unit, "long_double_sink");
+  ctool_u32 variadic_sink =
+      find_binding(unit, "long_double_variadic_sink");
+  ctool_u32 open_sink =
+      find_binding(unit, "long_double_open_sink");
+  ctool_u32 identity =
+      find_binding(unit, "long_double_identity");
+  ctool_u32 loads = 0u;
+  ctool_u32 stores = 0u;
+  ctool_u32 store_values = 0u;
+  ctool_u32 widen_float = 0u;
+  ctool_u32 widen_double = 0u;
+  ctool_u32 narrow_double = 0u;
+  ctool_u32 unary_pluses = 0u;
+  ctool_u32 negations = 0u;
+  ctool_u32 additions = 0u;
+  ctool_u32 subtractions = 0u;
+  ctool_u32 multiplications = 0u;
+  ctool_u32 divisions = 0u;
+  ctool_u32 fixed_direct_calls = 0u;
+  ctool_u32 void_indirect_calls = 0u;
+  ctool_u32 variadic_calls = 0u;
+  ctool_u32 open_direct_calls = 0u;
+  ctool_u32 result_direct_calls = 0u;
+  ctool_u32 result_indirect_calls = 0u;
+  ctool_u32 variadic_arguments = 0u;
+  ctool_u32 long_double_returns = 0u;
+  ctool_u32 index;
+  if (unit == NULL || ir == NULL || ir->functions == NULL ||
+      ir->instructions == NULL || unit->function_definition_count != 7u ||
+      ir->function_count != 7u ||
+      long_double_type == CTOOL_C_TYPE_NONE ||
+      float_type == CTOOL_C_TYPE_NONE ||
+      double_type == CTOOL_C_TYPE_NONE ||
+      fixed_sink == CTOOL_C_AST_NONE ||
+      variadic_sink == CTOOL_C_AST_NONE ||
+      open_sink == CTOOL_C_AST_NONE ||
+      identity == CTOOL_C_AST_NONE ||
+      long_double_type >= unit->layout.type_count ||
+      unit->layout.types[long_double_type].size != 12u ||
+      unit->layout.types[long_double_type].alignment != 4u) {
+    return 0;
+  }
+  for (index = 0u; index < ir->instruction_count; index++) {
+    const ctool_c_ir_instruction_t *instruction = &ir->instructions[index];
+    if (instruction->kind == CTOOL_C_IR_INSTRUCTION_LOAD &&
+        instruction->type == long_double_type) {
+      loads++;
+    } else if (instruction->kind == CTOOL_C_IR_INSTRUCTION_STORE &&
+               instruction->type == long_double_type) {
+      stores++;
+    } else if (instruction->kind == CTOOL_C_IR_INSTRUCTION_STORE_VALUE &&
+               instruction->type == long_double_type) {
+      store_values++;
+    } else if (instruction->kind == CTOOL_C_IR_INSTRUCTION_CONVERT &&
+               instruction->input_type == float_type &&
+               instruction->type == long_double_type &&
+               instruction->conversion == CTOOL_C_CONVERSION_NONE) {
+      widen_float++;
+    } else if (instruction->kind == CTOOL_C_IR_INSTRUCTION_CONVERT &&
+               instruction->input_type == double_type &&
+               instruction->type == long_double_type &&
+               instruction->conversion == CTOOL_C_CONVERSION_NONE) {
+      widen_double++;
+    } else if (instruction->kind == CTOOL_C_IR_INSTRUCTION_CONVERT &&
+               instruction->input_type == long_double_type &&
+               instruction->type == double_type &&
+               instruction->conversion == CTOOL_C_CONVERSION_NONE) {
+      narrow_double++;
+    } else if (instruction->kind == CTOOL_C_IR_INSTRUCTION_UNARY &&
+               instruction->input_type == long_double_type &&
+               instruction->type == long_double_type &&
+               instruction->operation ==
+                   CTOOL_C_EXPRESSION_OPERATOR_UNARY_PLUS) {
+      unary_pluses++;
+    } else if (instruction->kind == CTOOL_C_IR_INSTRUCTION_UNARY &&
+               instruction->input_type == long_double_type &&
+               instruction->type == long_double_type &&
+               instruction->operation ==
+                   CTOOL_C_EXPRESSION_OPERATOR_UNARY_NEGATE) {
+      negations++;
+    } else if (instruction->kind == CTOOL_C_IR_INSTRUCTION_BINARY &&
+               instruction->input_type == long_double_type &&
+               instruction->type == long_double_type &&
+               instruction->operation == CTOOL_C_EXPRESSION_OPERATOR_ADD) {
+      additions++;
+    } else if (instruction->kind == CTOOL_C_IR_INSTRUCTION_BINARY &&
+               instruction->input_type == long_double_type &&
+               instruction->type == long_double_type &&
+               instruction->operation ==
+                   CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT) {
+      subtractions++;
+    } else if (instruction->kind == CTOOL_C_IR_INSTRUCTION_BINARY &&
+               instruction->input_type == long_double_type &&
+               instruction->type == long_double_type &&
+               instruction->operation ==
+                   CTOOL_C_EXPRESSION_OPERATOR_MULTIPLY) {
+      multiplications++;
+    } else if (instruction->kind == CTOOL_C_IR_INSTRUCTION_BINARY &&
+               instruction->input_type == long_double_type &&
+               instruction->type == long_double_type &&
+               instruction->operation ==
+                   CTOOL_C_EXPRESSION_OPERATOR_DIVIDE) {
+      divisions++;
+    } else if (instruction->kind ==
+                   CTOOL_C_IR_INSTRUCTION_VARIADIC_ARGUMENT &&
+               instruction->type == long_double_type) {
+      variadic_arguments++;
+    } else if (instruction->kind == CTOOL_C_IR_INSTRUCTION_CALL_DIRECT) {
+      if (instruction->reference == fixed_sink &&
+          instruction->argument_count == 1u &&
+          instruction->first_argument_type < ir->argument_type_count &&
+          ir->argument_types[instruction->first_argument_type] ==
+              long_double_type) {
+        fixed_direct_calls++;
+      } else if (instruction->reference == variadic_sink &&
+                 instruction->argument_count == 2u &&
+                 instruction->first_argument_type <
+                     ir->argument_type_count - 1u &&
+                 ir->argument_types[
+                     instruction->first_argument_type + 1u] ==
+                     long_double_type) {
+        variadic_calls++;
+      } else if (instruction->reference == open_sink &&
+                 instruction->argument_count == 1u &&
+                 instruction->first_argument_type <
+                     ir->argument_type_count &&
+                 ir->argument_types[instruction->first_argument_type] ==
+                     long_double_type) {
+        open_direct_calls++;
+      } else if (instruction->reference == identity &&
+                 instruction->type == long_double_type &&
+                 instruction->argument_count == 1u &&
+                 instruction->first_argument_type <
+                     ir->argument_type_count &&
+                 ir->argument_types[instruction->first_argument_type] ==
+                     long_double_type) {
+        result_direct_calls++;
+      } else {
+        return 0;
+      }
+    } else if (instruction->kind ==
+                   CTOOL_C_IR_INSTRUCTION_CALL_INDIRECT &&
+               instruction->argument_count == 1u &&
+               instruction->first_argument_type <
+                   ir->argument_type_count &&
+               ir->argument_types[instruction->first_argument_type] ==
+                   long_double_type) {
+      if (instruction->type == long_double_type) {
+        result_indirect_calls++;
+      } else {
+        void_indirect_calls++;
+      }
+    } else if (instruction->kind ==
+                   CTOOL_C_IR_INSTRUCTION_RETURN_VALUE &&
+               instruction->type == long_double_type &&
+               instruction->input_type == long_double_type) {
+      long_double_returns++;
+    }
+  }
+  if (loads != 22u || stores != 5u || store_values != 7u ||
+      widen_float != 1u || widen_double != 1u ||
+      narrow_double != 2u || unary_pluses != 1u ||
+      negations != 1u || additions != 1u ||
+      subtractions != 1u || multiplications != 1u ||
+      divisions != 1u || fixed_direct_calls != 2u ||
+      void_indirect_calls != 2u || variadic_calls != 1u ||
+      open_direct_calls != 1u || result_direct_calls != 1u ||
+      result_indirect_calls != 1u || variadic_arguments != 1u ||
+      long_double_returns != 1u) {
+    (void)fprintf(
+        stderr,
+        "long-double-locals: IR inventory differs: loads=%u stores=%u/%u "
+        "casts=%u/%u/%u unary=%u/%u binary=%u/%u/%u/%u "
+        "calls=%u/%u/%u/%u/%u/%u va_arg=%u returns=%u\n",
+        (unsigned int)loads, (unsigned int)stores,
+        (unsigned int)store_values, (unsigned int)widen_float,
+        (unsigned int)widen_double, (unsigned int)narrow_double,
+        (unsigned int)unary_pluses, (unsigned int)negations,
+        (unsigned int)additions, (unsigned int)subtractions,
+        (unsigned int)multiplications, (unsigned int)divisions,
+        (unsigned int)fixed_direct_calls,
+        (unsigned int)void_indirect_calls,
+        (unsigned int)variadic_calls, (unsigned int)open_direct_calls,
+        (unsigned int)result_direct_calls,
+        (unsigned int)result_indirect_calls,
+        (unsigned int)variadic_arguments,
+        (unsigned int)long_double_returns);
+    return 0;
+  }
+  return 1;
+}
+
 static int floating_truth_mutations_are_rejected(
     ctool_job_t *job, const ctool_c_translation_unit_t *unit) {
   static const char *message =
@@ -28998,6 +29199,57 @@ static int run_floating_transport(const char *host_root) {
       "  (void)(condition ? condition : condition);\n"
       "  if (condition) return;\n"
       "}\n";
+  static const char long_double_source[] =
+      "typedef __builtin_va_list va_list;\n"
+      "typedef void (*long_double_callback)(long double);\n"
+      "typedef void (*long_double_open_callback)();\n"
+      "typedef long double (*long_double_result_callback)(long double);\n"
+      "void long_double_sink(long double value);\n"
+      "void long_double_variadic_sink(int marker, ...);\n"
+      "void long_double_open_sink();\n"
+      "long double long_double_identity(long double value);\n"
+      "double long_double_locals(float narrow, double wide) {\n"
+      "  long double left = (long double)narrow;\n"
+      "  long double right = (long double)wide;\n"
+      "  left = +left;\n"
+      "  right = -right;\n"
+      "  left = left + right;\n"
+      "  right = left - right;\n"
+      "  left = left * right;\n"
+      "  right = left / right;\n"
+      "  return (double)right;\n"
+      "}\n"
+      "void long_double_fixed_calls(long double value,\n"
+      "                             long_double_callback callback) {\n"
+      "  long double copy = value;\n"
+      "  long_double_sink(copy);\n"
+      "  callback(copy);\n"
+      "}\n"
+      "void long_double_variadic_call(long double value) {\n"
+      "  long_double_variadic_sink(7, value);\n"
+      "}\n"
+      "void long_double_variadic_read(int marker, ...) {\n"
+      "  va_list arguments;\n"
+      "  long double value;\n"
+      "  __builtin_va_start(arguments, marker);\n"
+      "  value = __builtin_va_arg(arguments, long double);\n"
+      "  long_double_sink(value);\n"
+      "  __builtin_va_end(arguments);\n"
+      "}\n"
+      "long double long_double_identity(long double value) {\n"
+      "  return value;\n"
+      "}\n"
+      "void long_double_open_calls(long double value,\n"
+      "                            long_double_open_callback callback) {\n"
+      "  long_double_open_sink(value);\n"
+      "  callback(value);\n"
+      "}\n"
+      "double long_double_call_results(\n"
+      "    long double value, long_double_result_callback callback) {\n"
+      "  long double direct = long_double_identity(value);\n"
+      "  long double indirect = callback(direct);\n"
+      "  return (double)indirect;\n"
+      "}\n";
   ctool_host_adapter_t adapter;
   ctool_host_adapter_t limited_adapter;
   ctool_job_config_t config;
@@ -29005,11 +29257,13 @@ static int run_floating_transport(const char *host_root) {
   ctool_job_t *limited_job = NULL;
   ctool_c_translation_unit_t unit;
   ctool_c_translation_unit_t condition_unit;
+  ctool_c_translation_unit_t long_double_unit;
   ctool_c_translation_unit_t invalid_unit;
   ctool_c_translation_unit_t invalid_promotion_unit;
   ctool_c_ir_unit_t ir;
   ctool_c_ir_unit_t repeat_ir;
   ctool_c_ir_unit_t recovered_ir;
+  ctool_c_ir_unit_t long_double_ir;
   ctool_c_type_node_t *invalid_types = NULL;
   ctool_c_expression_t *invalid_promotion_expressions = NULL;
   ctool_status_t status;
@@ -29027,14 +29281,27 @@ static int run_floating_transport(const char *host_root) {
   (void)memset(&ir, 0xa5, sizeof(ir));
   (void)memset(&repeat_ir, 0xa5, sizeof(repeat_ir));
   (void)memset(&recovered_ir, 0xa5, sizeof(recovered_ir));
+  (void)memset(&long_double_ir, 0xa5, sizeof(long_double_ir));
   if (!open_job(host_root, &adapter, &config, &job) ||
       !floating_transport_active_source_is_unchanged(job) ||
       !parse_source_mode(job, "/floating-transport.c", source, CTOOL_TRUE,
                          &unit) ||
       !parse_source_mode(job, "/floating-truth-boundary.c",
                          condition_source, CTOOL_TRUE, &condition_unit) ||
+      !parse_source_mode(job, "/long-double-locals.c",
+                         long_double_source, CTOOL_TRUE,
+                         &long_double_unit) ||
       !expect_ir_success_preserves_unit(
           job, &condition_unit, "floating truth boundary baseline")) {
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &long_double_unit, &long_double_ir);
+  if (!check_status(status, CTOOL_OK, "long double local lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      !validate_long_double_local_ir(
+          &long_double_unit, &long_double_ir)) {
+    (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
   unit_hash = unit_fingerprint(&unit);

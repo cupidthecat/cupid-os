@@ -1,6 +1,9 @@
 # Cupid Toolchain bootstrap
 
-This directory is the durable record for moving Cupid OS from its current host-produced build to a self-hosting Cupid Toolchain. The implementation map is [GitHub issue #13](https://github.com/cupidthecat/cupid-os/issues/13).
+This directory records Cupid OS's move from a host-produced bootstrap to the
+current checked-seed build and the remaining work toward a native,
+Python-free fixed point. [GitHub issue #13](https://github.com/cupidthecat/cupid-os/issues/13)
+is the implementation map.
 
 The private in-kernel CupidC compiler now gives runtime unary signs a typed
 scalar path. Unary plus preserves `char`, `int`, `float`, or `double`
@@ -59,7 +62,63 @@ Wide values support addition, subtraction, multiplication, division, remainder, 
 
 Hosted CupidC carries `float` and `double` values through object access, automatic initialization, plain assignment, discard, fixed direct or indirect calls, parameters, call results, and returns. Explicit casts and assignment conversion work in both directions between the two widths. Unary plus and minus and binary addition, subtraction, multiplication, and division accept matching or mixed floating operands. Matching floating conditional arms keep their width; mixed arithmetic and conditional arms use `double`. The four arithmetic compound assignments compute at the common width, convert back to the left width, and evaluate their lvalue once. Every changed x87 result is immediately stored at its C width. A `float` rounds into a fresh four-byte semantic slot, while a `double` receives a fresh private eight-byte snapshot. The unchanged `libm_tanh_impl` body pins nested arithmetic with call-produced `double` values, and the complete following `float` helper slice pins the width conversions. The path also promotes `float` to `double` at ellipsis and unprototyped call positions. Calls use four-byte or eight-byte cdecl slots, floating returns use x87 `ST0`, and `va_arg(double)` advances by eight bytes.
 
-Decimal `float` and `double` constants carry exact IEEE bits from the frontend into linear IR. The integer-only literal parser rounds once to nearest with ties to even. Static-duration scalar and aggregate leaves use a separate integer-only IEEE evaluator for unary signs, addition, subtraction, multiplication, division, all six comparisons, casts, scalar truth, short-circuit logic, and conditional selection. It rounds after each semantic operation at the expression's binary32 or binary64 width, converts represented signed and unsigned integers through 64 bits, preserves signed zero, and uses the normal `.rodata`, `.data`, or `.bss` placement policy. SSE emission covers represented runtime integer-to-floating conversions, floating-to-signed conversions, floating-to-unsigned byte or word conversions, an explicit non-atomic `double` to `unsigned long long` cast, mixed represented integer and floating arithmetic, and all six comparisons. Matching widths use `UCOMISS` or `UCOMISD`; a mixed pair widens to `double`. Explicit parity handling makes every unordered relation false except `!=`. The unsigned four-byte input path stays exact across `0x80000000` by converting its upper 31 bits and low bit separately. The unsigned-wide output path splits the truncated value into high and low words around exact powers of two. Hexadecimal floating literals, `long double`, runtime conversion to unsigned four-byte integers or `_Bool`, other floating-to-wide conversions, runtime floating truth, increment and decrement, SIMD, floating atomics, and over-aligned floating objects remain open. Decoder-driven oracles check width conversion, operand order, selected IEEE patterns, quiet and signaling NaNs, unsigned boundary values, call alignment, and frame state. Exact section-byte contracts check static initialization without executing target code. ADR 0076 records transport, ADR 0077 records default argument promotion, ADR 0079 records the first arithmetic boundary, ADR 0091 records width conversion and mixed expressions, ADR 0125 records decimal scalar constants and integer conversion, ADR 0136 records static floating constant data, ADR 0137 records comparisons, ADR 0147 records static arithmetic, and ADR 0170 records the unsigned-wide cast.
+Decimal `float` and `double` constants carry exact IEEE bits from the frontend
+into linear IR. The integer-only literal parser rounds once to nearest with
+ties to even. Static-duration scalar and aggregate leaves use a separate
+integer-only IEEE evaluator for unary signs, addition, subtraction,
+multiplication, division, all six comparisons, casts, scalar truth,
+short-circuit logic, and conditional selection. It rounds after each semantic
+operation at the expression's binary32 or binary64 width, converts represented
+signed and unsigned integers through 64 bits, preserves signed zero, and uses
+the normal `.rodata`, `.data`, or `.bss` placement policy. SSE emission covers
+represented runtime integer-to-floating conversions, floating-to-signed
+conversions, floating-to-unsigned byte or word conversions, an explicit
+non-atomic `double` to `unsigned long long` cast, mixed represented integer
+and floating arithmetic, and all six comparisons. Matching widths use
+`UCOMISS` or `UCOMISD`; a mixed pair widens to `double`. Explicit parity
+handling makes every unordered relation false except `!=`. The unsigned
+four-byte input path stays exact across `0x80000000` by converting its upper
+31 bits and low bit separately. The unsigned-wide output path splits the
+truncated value into high and low words around exact powers of two.
+
+Non-atomic automatic `long double` objects use twelve-byte storage and x87
+80-bit memory forms. They support conversion among the three floating widths,
+unary plus and minus, and addition, subtraction, multiplication, and division.
+Direct and indirect fixed, variadic, and unprototyped arguments occupy twelve
+cdecl bytes. Functions return a `long double` in x87 `ST0`, and direct or
+indirect callers spill the result into a twelve-byte snapshot.
+`va_arg(long double)` copies twelve bytes and leaves the cursor at the
+following four-byte slot. Static-duration scalars, fixed arrays, and complete
+records may contain non-atomic long-double leaves. Implicit initialization
+zeros the complete object; explicit leaves accept zero-valued integer constant
+expressions and occupy twelve BSS bytes apiece. Atomic leaves fail recursively
+without following pointers. Hexadecimal floating literals,
+`long double` literals, nonzero or floating static long-double initializers,
+`long double` comparisons, integer conversions involving `long double`,
+runtime conversion to unsigned four-byte integers or `_Bool`, other
+floating-to-wide conversions, runtime floating truth, increment and decrement,
+SIMD, floating atomics, and over-aligned floating objects remain open.
+
+The static aggregate proof uses two 24-byte arrays and two 28-byte records.
+They occupy 104 BSS bytes in a separate object whose 415-byte access function
+has fingerprint `BF01CC71`, eight absolute relocations, and six symbols. The
+hosted i386 runtime proves every leaf and marker starts at zero, then moves
+1.5 through both file-scope and block-static members. `sizeof(float) - 4`
+provides a zero integer constant-expression case; a true `1.0L` initializer
+still fails with a focused diagnostic.
+
+Decoder-driven oracles check width conversion, operand order, selected IEEE
+patterns, quiet and signaling NaNs, unsigned boundary values, call alignment,
+frame state, and the exact 80-bit load/store inventory. The static i386
+runtime executes both call-result paths, both unprototyped argument paths, and
+the variadic cursor transition. Exact section-byte contracts check static
+initialization without executing target code. ADR 0076 records transport, ADR
+0077 records default argument promotion, ADR 0079 records the first arithmetic
+boundary, ADR 0091 records width conversion and mixed expressions, ADR 0125
+records decimal scalar constants and integer conversion, ADR 0136 records
+static floating constant data, ADR 0137 records comparisons, ADR 0147 records
+static arithmetic, ADR 0170 records the unsigned-wide cast, and ADR 0196
+records the automatic `long double` slice.
 
 The self-host source frontier first closed five requirements from unchanged Toolchain code. Supported structure snapshots retain nested union bytes, and a scalar member can be loaded from a returned structure snapshot. A direct four-byte literal zero can form a represented null function pointer. An object pointer can convert to a signed or unsigned eight-byte integer with a zero high word, and conversion back keeps the low word. Compatible static character and void pointers accept an ordinary string literal through parentheses and macro expansion. At that boundary, top-level union values, aggregate members from structure rvalues, nonzero function-pointer casts, function-pointer and wide-integer conversions, and arithmetic or explicit casts on static string addresses remained open. ADR 0081 records that earlier language boundary.
 
@@ -69,9 +128,46 @@ integer.
 Object-pointer interchange and narrower or wider integer forms still fail
 with a feature diagnostic. ADR 0113 records the current boundary.
 
-The exact frontend gate parses all twelve hermetic `HOSTED_TOOLCHAIN_64` implementation files. The object gate emits those files plus `kernel/lang/as_elf.cc` twice, reads each result through Cupid's ELF32 reader, and requires byte-identical output. The static i386 audit adds all 20 `.cc` files in the hosted tool closure under the checked four-byte Linux target: 19 strict C11 units and the GNU-enabled runtime. The separate runtime contract now carries CupidC language ownership too. The five-tool fixed point excludes that behavior probe, so its build manifest contains 19 C sources: 18 strict units and the GNU-enabled runtime. The checked seed manifest carries that source set, all five link orders, producer lineage, and target ABI into a clean bootstrap. The fourteen-file issue #27 cohort remains ten hermetic Toolchain files, the kernel bridge, and the `ctool_host.cc`, `cupidasm_main.cc`, and `cupiddis_main.cc` adapters. ADR 0082 records the ABI boundary, ADR 0088 records the full target-profile audit, ADR 0089 records the compiler fixed point, ADR 0090 records the complete static tool fixed point, ADR 0092 records the checked seed, ADR 0097 records the first stage-three refresh, and ADRs 0102, 0106, and 0108 record the SMP, port-I/O, and fetch-or compiler refreshes. ADR 0122 records the GNU assembly frontier seed, ADR 0134 records the shared-x86 and external-inline seed, and ADR 0138 records the floating-data and comparison seed. ADR 0174 records the libm-capable seed, ADR 0179 records the kernel-entry and packed-SSE2 seed, ADR 0183 records the Doom-capable seed, ADR 0186 records the current stack-top-capable seed, and ADR 0195 records the runtime-contract ownership transfer.
+The exact frontend gate checks the whole hosted source frontier at its real
+i386 Linux ABI. It has 33 strict C11 roots and two GNU runtime roots.
+`HOSTED_I386_LINUX` owns the 31 ordinary strict roots, which search only the
+Toolchain tree and the angle-only hosted declarations. The GNU profile owns
+the runtime implementation and its behavior probe.
+`HOSTED_I386_KERNEL_BRIDGE` owns `kernel/lang/as_elf.cc` and its Toolchain
+contract, the two roots that may also include `/kernel/lang`. The full set
+contains the 19-source static tool union, runtime implementation and probe,
+and all fourteen Toolchain contracts. The retired `HOSTED_TOOLCHAIN_64` and
+`HOSTED_KERNEL_BRIDGE_64` profiles have no active roots.
+Stage-two and stage-three CupidC compile every contract, CupidLD links each
+static executable, and the harness rejects a byte difference in any of the
+sixteen new objects or fifteen executables. The publisher validates a
+dedicated `cupidc-contracts` target before work and again before promotion.
+An existing destination must already verify as a complete cohort. Arbitrary
+directories, source trees, files, and symbolic links are rejected without
+modification. The initial contract snapshot, private copy, and newly discovered
+live contract inventory must match in membership and hashes. This catches additions,
+removals, and a transient edit copied before its live source is restored.
+Every run derives the cohort from its requested executable, requires a named
+manifest artifact, and verifies all artifact hashes, the live 45-input
+contract set, the checked seed manifest, and the 41-file fixed-point source
+inventory before execution. The contract set includes the Toolchain Makefile
+and both Python modules that construct or verify the cohort. The seed manifest is read once for hashing,
+decoding, schema validation, and build-plan use. A concurrent replacement
+cannot mix those facts across reads.
+The five-tool fixed point still contains 19 C sources because test programs
+do not contribute to a tool image. ADRs 0082 through 0186 record the earlier
+compiler, fixed-point, and seed boundaries. ADR 0195 records the runtime
+contract rename, and ADR 0196 records the full contract transfer.
 
-The repository now provides the next boundary as working code. CupidASM assembles i386 Linux startup and system-call wrappers. CupidC compiles a narrow runtime with a reusable heap, unbuffered files, standard streams, memory and string functions, `errno`, `getcwd`, and formatted diagnostics. CupidLD joins that runtime with complete CupidC-emitted closures for CupidC, CupidASM, CupidDis, CupidLD, and CupidObj. The compiler driver handles compile-only C11 jobs, definitions, undefinitions, forced inputs, GNU and freestanding modes, and commit-gated compiler output. Ordered `-I` roots accept quoted and angle includes, while `--include-angle` roots accept angle includes only. Repeatable `-include` options run before the primary source in caller order. The resulting static commands run real positive and failure fixtures on Linux or through WSL. ADR 0086 records the runtime and sibling commands. ADR 0088 records the compiler driver and first compiler generation. ADR 0140 records the forced-input command boundary, and ADR 0145 records the empty memory-barrier boundary.
+Host Python still coordinates the fixed point, and Windows still uses WSL to
+execute the static i386 Linux tools. Native Windows and Python-free fixed
+points remain open. The proposed 20 percent output-quality gate is disabled
+because no approved cohort, metric, oracle producer, or same-revision oracle
+artifact exists. Older Windows and Linux host `.text` measurements differ by
+22.73 percent for the same revision, so neither is a safe default. Linker
+capacity checks remain independent safety gates.
+
+The repository now provides the next boundary as working code. CupidASM assembles i386 Linux startup and system-call wrappers. CupidC compiles a narrow runtime with a reusable heap, unbuffered files, standard streams, fixed-width integers, memory and string functions, `errno`, `getcwd`, and formatted diagnostics. Its checked surface now includes `printf`, `puts`, `snprintf`, `fputc`, `fputs`, `memmove`, and `strstr`. The formatter covers the 32-bit and 64-bit integer forms and bounded strings used by the unchanged Toolchain contracts. CupidLD joins that runtime with complete CupidC-emitted closures for CupidC, CupidASM, CupidDis, CupidLD, and CupidObj. The compiler driver handles compile-only C11 jobs, definitions, undefinitions, forced inputs, GNU and freestanding modes, and commit-gated compiler output. Ordered `-I` roots accept quoted and angle includes, while `--include-angle` roots accept angle includes only. Repeatable `-include` options run before the primary source in caller order. The resulting static commands run real positive and failure fixtures on Linux or through WSL. ADR 0086 records the runtime and sibling commands. ADR 0088 records the compiler driver and first compiler generation. ADR 0140 records the forced-input command boundary, ADR 0145 records the empty memory-barrier boundary, and ADR 0196 records the contract cohort.
 
 The unchanged CupidLD command also exposed a valid `char **` to `char *const *` call that CupidC had rejected. The frontend now recognizes that immediate qualification addition, and Linear IR keeps it as a representation-preserving conversion. Qualifier removal and the unsafe `char **` to `const char **` conversion still fail. ADR 0087 records the type boundary.
 
@@ -79,7 +175,14 @@ In the older detailed sections below, open references to general floating
 computation or comparison are superseded by ADRs 0079 through 0137. Direct
 floating truth and the limits listed in the current summary remain open.
 
-Each direct or indirect call instruction owns a packed, source-ordered slice of every actual post-conversion argument type. The shared IR validator requires those slices to form one complete partition in call-instruction order, rejects metadata on non-call instructions, and checks every packed type index. The i386 emitter uses the same validator before it reads a slice. A signed or unsigned eight-byte integer, an existing `double`, or a source `float` promoted to `double` at an ellipsis or unprototyped position occupies eight bytes in the shared outgoing area. ESP remains aligned to a sixteen-byte boundary before `CALL`. Four-byte integer and pointer transport is unchanged. Atomic and aggregate values remain outside the undeclared-parameter and variadic-read boundaries. ADRs 0075 through 0077 record the IR metadata, ABI rules, and floating promotion.
+Each direct or indirect call instruction owns a packed, source-ordered slice of every actual post-conversion argument type. The shared IR validator requires those slices to form one complete partition in call-instruction order, rejects metadata on non-call instructions, and checks every packed type index. The i386 emitter uses the same validator before it reads a slice. A signed or unsigned eight-byte integer, an existing `double`, or a source `float` promoted to `double` at an ellipsis or unprototyped position occupies eight bytes in the shared outgoing area. An existing `long double` occupies twelve bytes at a fixed, ellipsis, or unprototyped position. ESP remains aligned to a sixteen-byte boundary before `CALL`. Four-byte integer and pointer transport is unchanged. Atomic and aggregate values remain outside the undeclared-parameter and variadic-read boundaries. ADRs 0075 through 0077 record the IR metadata, ABI rules, and floating promotion.
+
+ADR 0196 extends the same checked argument metadata to represented automatic
+`long double` values. A direct or indirect fixed, ellipsis, or unprototyped
+argument occupies twelve bytes in the outgoing area. A function result crosses
+the ABI in x87 `ST0`, then a direct or indirect caller stores it in a private
+twelve-byte snapshot. A corresponding `va_arg(long double)` read copies twelve
+bytes and advances the cursor to the next four-byte slot.
 
 The verified hosted suites cover the complete frontend, Linear IR, and object surfaces, with each final count recorded in the chronological log. Focused contracts cover direct and indirect variadic and unprototyped calls, wide and floating values, all six floating comparisons, one-active-member union initializers, canonical function code generation attributes, Doom compatibility conversions, operand-bearing and operand-free assembly, empty memory barriers, pointer output, port I/O, privileged registers, FXSAVE, LDMXCSR, MOVSS, x87 sine memory, descriptor-table and segment transitions, call-next, GNU `Nd`, machine-state memory, the self-host source frontier, deterministic output, malformed metadata, constrained storage, and same-job recovery. Decoder and execution oracles check call alignment, x87 and cdecl stack balance, word order, arithmetic, width conversion, comparisons, structure snapshots, pointer bits, register preservation, cursor movement, preserved arguments, and restored frame state. The adapter gate fixes each function count, text size, object size, and text fingerprint. The tool link gate emits every closure object twice, repeats five command links and the runtime-contract link, and checks rollback and recovery. Public execution covers compilation, assembly, disassembly, linking, object wrapping, include resolution, mixed raw decode modes, missing files, runtime success paths, and useful failures.
 
@@ -109,11 +212,13 @@ the 587-row shared x86 catalogue. [ADR 0186](../adr/0186-promote-stack-top-capab
 records the poisoned-host transition and post-promotion reproof.
 `make verify-bootstrap-seed` checks the current inputs without running them.
 `make bootstrap-from-seed` performs the complete staged build, while
-`make test-toolchain-fixed-point` retains the native-generation oracle. GCC
-or Clang still builds the native contracts and hosted development commands.
+`make test-toolchain-fixed-point` retains the native-generation oracle.
+`make -C toolchain all` builds the checked i386 contract cohort without a
+host C compiler. GCC or Clang is used only by the explicit
+`native-oracles` and hosted development targets.
 ADR 0184 moves the 83 Doom roots out of host ownership.
 
-The checked-seed bootstrap copies the exact bytes of its 40 source inputs into
+The checked-seed bootstrap copies the exact bytes of its 41 source inputs into
 a private compiler root before it starts either stage. CupidC receives that
 root through `--root`, and both stage directories and the behavior workspace
 stay below it. The harness rehashes the private closure and the live closure
@@ -124,16 +229,18 @@ complete directory only after every gate succeeds. A failed run leaves an
 absent or empty output unchanged, and a nonempty output is rejected without
 modification. ADR 0142 records this trust boundary.
 
-The normal root build gives checked-seed CupidC ownership of 155 checked-in
-sources and the generated kernel symbol source. All 156 sources use `.cc`.
-The five shared Toolchain roots also belong to the 19-source i386 Linux fixed
-point, and native GCC or Clang rules select C with `-x c`. ADR 0124 records
-the first 111-root transfer, and ADR 0126 records the complete fixed-point
-rename and old-seed proof. ADR 0129 records the seed promotion and lexer
-transfer. ADR 0135 records the Nuked OPL3 transfer, ADR 0139 records the
-JPEG and glyph-raster transfer, ADR 0167 records the FPU, per-CPU, and SMP
-transfer, ADR 0176 records the libm transfer, ADR 0180 records the kernel
-entry and SIMD transfer, and ADR 0181 records the final strict-root transfer.
+The strict non-Doom root cohort gives checked-seed CupidC ownership of 155
+checked-in sources and the generated kernel symbol source. All 156 sources
+use `.cc`. The 83 Doom roots bring the normal checked-in total to 238, also
+with no ordinary C translation unit. The five shared Toolchain roots belong
+to the 19-source i386 Linux fixed point, and native GCC or Clang rules select
+C with `-x c` only for optional oracles. ADR 0124 records the first 111-root
+transfer, and ADR 0126 records the complete fixed-point rename and old-seed
+proof. ADR 0129 records the seed promotion and lexer transfer. ADR 0135
+records the Nuked OPL3 transfer, ADR 0139 records the JPEG and glyph-raster
+transfer, ADR 0167 records the FPU, per-CPU, and SMP transfer, ADR 0176
+records the libm transfer, ADR 0180 records the kernel entry and SIMD
+transfer, and ADR 0181 records the final strict-root transfer.
 
 The checked seed now finalizes C11 inline meaning from the complete file-scope
 declaration set. The ordinary declaration in `kernel/audio/nuked_opl3.h` and
@@ -155,9 +262,9 @@ only a validated i386 ELF32 object. A valid data-only object no longer needs a
 validator. The production frontier covers 155 approved sources, and every
 Make recipe names its recursive header closure and common checked controls.
 Forced rebuilds poison the host compiler. The complete frontier now compiles
-all 155 roots twice against a 444-file snapshot with SHA-256
-`4e153fdf4446128916bb10c0e51b3d1f815ed16bd57d6b1b85527355a0db190d`.
-Both object passes are byte-identical; each totals 3,708,988 bytes. The combined
+all 155 roots twice against a 445-file snapshot with SHA-256
+`e28b1024edc5361d99583f79f65ce43690ebc873f04b568837f57f8af5df5db7`.
+Both object passes are byte-identical; each totals 3,717,856 bytes. The combined
 frontier retries only short permission-style directory locks with five
 bounded delays; persistent locks and other filesystem errors publish nothing.
 Its input inventory skips hidden paths under active include roots, so a
@@ -546,7 +653,7 @@ WAD, so gameplay, game input, game audio, and save behavior remain open.
 
 The block-static object proof emits eleven exact local symbols, from `.LBS0.hex` through `.LBS10.unused`. Its sections contain 21 bytes of read-only data, 56 bytes of initialized writable data, and 4 bytes of zero-filled storage. Ten text, one read-only-data, and five data relocations are all direct `R_386_32` references with addend zero. The fixture covers shadowed names, unused and unreachable objects, aggregate and string initializers, linked and unresolved addresses, runtime reads and writes, and an unused eight-byte image. A referenced eight-byte block static now lowers through the wide snapshot path. Missing, out-of-range, mistyped, runtime-initialized, and constrained-output cases still fail transactionally. The unchanged `dis_hex_fixed` helper in `toolchain/cupiddis.cc` pins the active constant character array.
 
-All twelve hermetic hosted Toolchain source gates parse their files completely. Each tuple reports definitions, statements, expressions, block bindings, and initializers: `ctool.cc` 65/1,012/5,981/133/33, `cupidasm.cc` 81/2,935/19,252/326/186, `cupidc_emit.cc` 353/8,533/71,971/1,041/708, `cupidc_frontend.cc` 420/16,374/108,280/2,458/1,497, `cupidc_ir.cc` 262/7,250/67,354/953/354, `cupidc_pp.cc` 143/3,932/25,287/479/286, `cupidc_type.cc` 31/737/5,487/85/43, `cupiddis.cc` 68/1,553/10,065/154/118, `cupidld.cc` 66/2,064/13,347/267/146, `cupidobj.cc` 14/329/2,201/47/26, `elf32.cc` 37/1,219/9,457/143/70, and `x86.cc` 60/1,756/11,850/180/16,652. The generated audit records the current lexical totals and source graph. The hosted source and object gates change no production artifact, runtime path, ownership, or host dependency.
+All twelve shared hosted Toolchain implementation files parse completely. Each tuple reports definitions, statements, expressions, block bindings, and initializers: `ctool.cc` 65/1,012/5,981/133/33, `cupidasm.cc` 81/2,935/19,252/326/186, `cupidc_emit.cc` 353/8,554/72,476/1,045/710, `cupidc_frontend.cc` 422/16,503/109,174/2,480/1,509, `cupidc_ir.cc` 262/7,250/67,490/953/354, `cupidc_pp.cc` 143/3,932/25,287/479/286, `cupidc_type.cc` 31/737/5,487/85/43, `cupiddis.cc` 68/1,553/10,065/154/118, `cupidld.cc` 66/2,064/13,347/267/146, `cupidobj.cc` 14/329/2,201/47/26, `elf32.cc` 37/1,219/9,457/143/70, and `x86.cc` 60/1,760/11,855/180/16,702. The generated audit records the current lexical totals and source graph. They now belong to the actual i386 Linux profile and feed both the five-tool fixed point and the Cupid-built contract cohort.
 
 The shared frontend treats C11 `<:` and `:>` spellings as canonical brackets across array declarators, subscripts, and the explicit unsupported `__builtin_offsetof` array-designator seam while leaving the immutable preprocessing tape's original token spelling untouched. Strict-C contracts cover mixed and full digraph forms plus malformed and non-pointer subscripts. Compound/update diagnostics distinguish valid but deferred floating `*=`, `/=`, `+=`, `-=`, and updates from invalid floating remainder, shift, bitwise, or aggregate compound/update operands. Compatible aggregate plain assignment is represented without weakening those constraints.
 
@@ -560,28 +667,29 @@ Toolchain foundation, a typed transactional CupidC preprocessing tape, a
 shared declaration and function-body frontend, typed linear IR, deterministic
 object emission, an immutable indexed i386 type/layout operation, a shared
 ELF32 module, and a shared typed 16/32-bit x86 instruction model serve the
-active kernel, driver, and Doom sources. Native hosted contracts and
+active kernel, driver, and Doom sources. Explicit native oracle contracts and
 development commands still use GCC or Clang.
 
 The preprocessing module owns translation-phase tokenization, ordered
 object, function, and variadic macros, C11 conditionals and predefined macros,
 `#line` locations, direct and macro-expanded includes, forced inputs,
 guarded traversal, canonical once identity, pack metadata, and typed Cupid
-`#exe` markers. Checked manifests classify all 2,390 include operands as
-2,158 direct quoted plus 232 direct angle forms with zero macro operands
-across 685 active C-family inputs. The generated manifest drives 379 tracked
-profile runs under nine profiles plus four generated kernel roots. The
+`#exe` markers. Checked manifests classify all 2,392 include operands as
+2,158 direct quoted plus 234 direct angle forms with zero macro operands
+across 686 active C-family inputs. The generated manifest drives 381 tracked
+profile runs under ten profiles plus four generated kernel roots. The
 profile counts are 155 kernel, three Doom compatibility, 80 Doom tree, three
-user, 105 Cupid programs, twelve hosted Toolchain, one hosted kernel bridge,
-19 strict hosted i386 Linux, and one GNU hosted i386 Linux runtime.
+user, 105 Cupid programs, 31 strict hosted i386 Linux, two hosted i386 kernel
+bridge, and two GNU hosted i386 Linux runtime roots. Both 64-bit hosted profiles
+now have zero roots.
 
-The `toolchain:all` target runs the native contracts, produces six static i386
-ELF files, and writes a deterministic hash manifest. The audit also keeps 22
-browser fragments under `bin/browser.cc`, two delivered headers without an
-invented standalone context, and 20 native hosted units deferred because they
-require external system headers or runtime services. Native Windows
-self-hosting, hosted-runtime integration, and the remaining GNU surface stay
-open.
+The `toolchain:all` target bootstraps both checked compiler stages, builds
+fourteen Toolchain contracts and the runtime probe as static i386 ELF files,
+compares the two generations, and publishes the contracts with five refreshed
+tools and a manifest. The audit also keeps 22 browser fragments under
+`bin/browser.cc` and two delivered headers without an invented standalone
+context. No hosted translation unit is deferred. Native Windows self-hosting
+and a Python-free driver remain open.
 
 The hosted `ctool_c_layout_types` contract fixes scalar, pointer, array, enum, vector, function-marker, aligned-wrapper, qualified-wrapper, struct, union, class, bit-field, flexible-array, packed, and explicit-alignment representation to the Cupid i386 target. Enum size, alignment, and signedness copy a frontend-selected compatible integer type. The independent manual active-source layout fixtures select signed `int` and are `4/4`; the declaration frontend now selects compatible types from source, including unsigned `int` for both nonnegative enums in the FAT16 closure. Positive contracts include a direct atomic pointer at `4/4`, a synthetic signed-`long long`-compatible atomic enum at `8/8`, and an aligned incomplete array retained as `0/16` until a compatible declaration supplies its bound. `QUALIFIED` represents `const`/`volatile`/`restrict`/`_Atomic` use of an existing semantic type without cloning its representation or record slice; a pointer to qualified `T` remains distinct from a qualified pointer to `T`. Non-atomic qualification preserves layout. Aligned wrappers carry an exact effective typedef/type-attribute alignment that may lower or raise natural alignment; explicit record alignment only raises the computed record result. Atomic identity propagates through both wrappers, but alignment follows source order: introducing `_Atomic` applies the cached target minimum, a later exact alignment may lower it, and later non-atomic qualification preserves it. Atomic aggregates remain unsupported. Layout enforces a flexible array's final structure position, while the declaration frontend enforces named-member eligibility, including names promoted through anonymous records. The operation resolves immutable index graphs with an iterative strong-edge walk, caches `_Bool`, active-atomic, and atomic-minimum facts once per type, preserves presumed/physical semantic locations, reclaims traversal scratch, and returns stable job-owned layouts transactionally in `O(types + members)`. A 4,096-wrapper/4,096-bit-field regression closes the former repeated-unwrapping path. Manual typed graphs pin all 54 FAT16 member offsets plus active Doom, process, syscall-table, `e1000_rx_desc_t`, and per-CPU ABI shapes.
 
@@ -590,22 +698,23 @@ The hosted `ctool_c_parse` operation consumes the ADR 0012 tape directly and pub
 The unchanged `/kernel/fs/fat16.h` closure still reproduces every FAT layout oracle. Exact additional contracts parse unchanged `kernel.h`, `irq.h`, `cupidscript.h`, and `shell.h` and merge representative duplicate prototypes and typedefs once at the first declaration. GNU `packed`, `aligned`, and `noreturn` lists retain their semantic destinations, and compatibility keeps stronger alignment and `noreturn`. File- and record-scope `_Static_assert` use target integer evaluation, including conditional selection and fault suppression in unevaluated arms. Active-source fragments prove all 26 tracked assertions across `memory.h`, `percpu.h`, `exec.cc`, `process.cc`, and `syscall.cc`.
 
 The [audit-derived active-source gate](./ACTIVE-SOURCE-AUDIT.md) is 155/155
-general non-Doom headers at compiler head. The graph contains 716 active
-sources: 27 assembly inputs, 14 C translation units, 288 headers, and 387
-Cupid C files. It records 252 feature IDs, 500 transforms, and 25 accounted
-unreachable files. The preprocessor inventory covers 685 files and 2,390
-include occurrences, split into 2,158 quoted and 232 angle forms.
+general non-Doom headers at compiler head. The graph contains 717 active
+language inputs: 27 assembly files, 289 headers, and 401 Cupid C files. No
+ordinary C translation unit remains in the supported roots. It records 252
+feature IDs, 449 transforms, and 25 accounted unreachable files. The preprocessor
+inventory covers 686 files and 2,392 include occurrences, split into 2,158
+quoted and 234 angle forms.
 
-Across the three supported roots, CupidC owns 245 transforms and the host C
-compiler owns 52 hosted Toolchain transforms. Python participates in 448.
-No recursive Make transform remains. The 438-transform root image graph has
-no host C transform; its CupidASM, CupidObj, CupidLD, and CupidDis commands
-run from the checked seed. The audit evaluates Make conditionals with the
-canonical Windows branch and C locale on every host; direct Linux builds
-cover the Linux execution branch. The public runner rechecks the live
-five-tool trust unit after every command. Output-bearing wildcard lists pass
-through Make's `$(sort ...)` before generators or link order consume them.
-ADR 0190 records the root tool handoff.
+Across the three supported roots, CupidC participates in 245 transforms and
+Python participates in all 449. No transform invokes a host C compiler, and
+no recursive Make transform remains. The 438-transform root image graph runs
+CupidASM, CupidObj, CupidLD, and CupidDis from the checked seed. The audit
+evaluates Make conditionals with the canonical Windows branch and C locale on
+every host; direct Linux builds cover the Linux execution branch. The public
+runner rechecks the live five-tool trust unit after every command.
+Output-bearing wildcard lists pass through Make's `$(sort ...)` before
+generators or link order consume them. ADR 0190 records the root tool handoff,
+and ADR 0196 removes host C from the normal Toolchain root.
 
 The two ISO fixture transforms are now explicit. `gen-big` owns only
 `test_iso/fixtures/big.bin`. A separate `package_iso9660_image` transform
@@ -641,9 +750,25 @@ A private `/bin/ls.cc` JIT boot from it passed in 49.8 seconds. ADR 0190
 records the complete artifact table, log identity, and layout headroom.
 
 The canonical active-source digest for this graph is
-`acb45e969e42b40aca599fed4d8aa90075f4b88e2938993146ee409d0915f3b0`.
+`862037cdf964a196478117c0c8f8a0dad5fa0b18df30d0758d49078095a13c28`.
 
-External-inline policy now follows translation-unit finalization described by [ADR 0131](../adr/0131-finalize-c11-external-inline-definitions.md). The frontend recognizes external definitions across compatible declaration sets, preserves inherited internal linkage, and rejects an external-linkage inline declaration without a definition. Iterative memoized type relations normalize C qualifier spellings while retaining atomic parameter identity, distinguish strict typedef identity from compatibility, apply old-style/default-promotion rules, accept a 512-level derived pointer graph, and construct symbol-local immutable array/function composite types without corrupting shared typedefs. Transactional tests cover precise conflicts, lexical-scope duplicates and expiry, automatic and static initializer forests, explicit and tentative file definitions, binding addresses, scalar and aggregate return or assignment legality, recursive aggregate modifiability, pointer arithmetic and comparison constraints, conditional association and conversions, loop and switch constraints, direct jumps and label scope, compound/update constraints, malformed literals, unsupported local storage forms, ownership, deep syntax, constrained output, rollback, and recovery. Runtime expression values carry private integer-constant-expression form and value metadata. A represented zero expression, or that expression cast to non-atomic `void *`, becomes a null pointer constant. Comparisons, conditionals, returns, calls, assignments, and automatic initializers publish a destination-typed `CTOOL_C_CONVERSION_NULL_POINTER`; static explicit nulls publish `ZERO` records and discard their temporary expression AST. Comma expressions now evaluate left to right and retain the last operand, and known-true loops preserve non-fallthrough reachability. GNU `weak`, `section`, and `unused` attributes publish canonical entity metadata; exact output-only assembly can snapshot represented i386 register and EFLAGS state. The constant and body expression grammars remain intentionally partial, and namespace and member lookup remain linear. Chained designated paths, promoted anonymous members, duplicate overrides, positional union or Cupid class lists, static member-address constants, integer-routed and other unrepresented address casts, automatic or block-static bases, runtime offsets and subscripts, block declaration attributes, nested function definitions, computed goto and GNU label addresses, broader GNU assembly forms, hexadecimal and subnormal floating constants, `long double`, remaining integer and floating conversions, floating comparison and truth, nonempty identifier-list definitions, non-scalar arguments without declared parameter types, aggregate variadic reads, block assertions, variable-length arrays and runtime `sizeof`, the remaining GNU attributes, complete Cupid extensions, complete AST and IR coverage, broader function code generation, full translation-unit emission, and production integration remain later work. The shared hosted path owns the 155-source checked-in production kernel cohort, the generated kernel symbol translation, and the six checked generated-install or user translations; the private kernel compiler remains the embedded runtime JIT and AOT path.
+External-inline policy now follows translation-unit finalization described by [ADR 0131](../adr/0131-finalize-c11-external-inline-definitions.md). The frontend recognizes external definitions across compatible declaration sets, preserves inherited internal linkage, and rejects an external-linkage inline declaration without a definition. Iterative memoized type relations normalize C qualifier spellings while retaining atomic parameter identity, distinguish strict typedef identity from compatibility, apply old-style/default-promotion rules, accept a 512-level derived pointer graph, and construct symbol-local immutable array/function composite types without corrupting shared typedefs. Transactional tests cover precise conflicts, lexical-scope duplicates and expiry, automatic and static initializer forests, explicit and tentative file definitions, binding addresses, scalar and aggregate return or assignment legality, recursive aggregate modifiability, pointer arithmetic and comparison constraints, conditional association and conversions, loop and switch constraints, direct jumps and label scope, compound/update constraints, malformed literals, unsupported local storage forms, ownership, deep syntax, constrained output, rollback, and recovery. Runtime expression values carry private integer-constant-expression form and value metadata. A represented zero expression, or that expression cast to non-atomic `void *`, becomes a null pointer constant. Comparisons, conditionals, returns, calls, assignments, and automatic initializers publish a destination-typed `CTOOL_C_CONVERSION_NULL_POINTER`; static explicit nulls publish `ZERO` records and discard their temporary expression AST. Comma expressions now evaluate left to right and retain the last operand, and known-true loops preserve non-fallthrough reachability. GNU `weak`, `section`, and `unused` attributes publish canonical entity metadata; exact output-only assembly can snapshot represented i386 register and EFLAGS state. The constant and body expression grammars remain intentionally partial, and namespace and member lookup remain linear. Chained designated paths, promoted anonymous members, duplicate overrides, positional union or Cupid class lists, static member-address constants outside the block-static symbol path, integer-routed and other unrepresented address casts, automatic bases, runtime offsets and subscripts, block declaration attributes, nested function definitions, computed goto and GNU label addresses, broader GNU assembly forms, hexadecimal and subnormal floating constants, long-double literals, nonzero or floating static long-double initializers, long-double comparisons and integer conversions, remaining integer and floating conversions, floating comparison and truth, nonempty identifier-list definitions, non-scalar arguments without declared parameter types, aggregate variadic reads, block assertions, variable-length arrays and runtime `sizeof`, the remaining GNU attributes, complete Cupid extensions, complete AST and IR coverage, broader function code generation, full translation-unit emission, and production integration remain later work. The shared hosted path owns the 155-source strict non-Doom cohort, all 83 Doom roots, the generated kernel symbol translation, and the six checked generated-install or user translations; the private kernel compiler remains the embedded runtime JIT and AOT path. ADR 0196 adds block-static address initializers, earlier static `const` integer reuse, automatic `long double` transport, and zero-filled static long-double objects without claiming the broader forms.
+
+The latest local normal build completed in 508.2 seconds. Its 8,600,676-byte
+pass-one ELF has SHA-256
+`c62830037528b29d470a8266f37bd9131ce18ab20df4896727109e5dd8783caa`;
+the 8,711,268-byte final ELF has SHA-256
+`893185668ce0282f1e57efed1c3224404c04a2a1a87393c17281610cc141c50a`.
+CupidObj flattened it to an 8,510,856-byte kernel with SHA-256
+`5bd12f137dbbbba30bff4d3fe2b95e1727379b2ece1aaffc6a96cb2dc4416d5a`.
+The fresh 209,715,200-byte image has SHA-256
+`5589c5cc151c486a85efaffc3551b37ec4f733ebd57f78c863c5bf6b96c7e23d`,
+and its bytes from offset 2,560 match the complete raw kernel.
+
+The earlier static `const` integer rule is a narrow Cupid C extension rather
+than an ISO C integer constant expression. It preserves the unchanged
+`atomic_oracle_execute` address tables, which strict GCC and Clang already
+fold, without making mutable or indirect object reads compile-time values.
 
 ADR 0116 extends the entity-attribute list above with GNU `used` and
 `__used__`. The metadata is canonical and validated, and the checked seed now
@@ -932,9 +1057,19 @@ The checked seed carries this capability, and the normal panic recipe uses it.
 
 The body operator ladder uses checked value/operator vectors and an iterative precedence reducer. A recursive wrapper per precedence tier was rejected after the established 256-deep nested-call contract exhausted the default Windows host stack before reaching its transactional syntax-limit diagnostic. The iterative reducer keeps binary chains bounded by job storage while calls, parentheses, unary nesting, and assignment continue to consume the explicit 256-level budget. A 4,096-operator flat addition oracle publishes 8,193 left-associated postorder expressions and 8,192 child references; a 256-byte output ceiling on the same source proves one limit diagnostic, complete arena/scratch rollback, tape and prior-result preservation, and same-job recovery. High-bit ordinary character bytes sign-extend into signed target `int`; compatible enum/integer assignment retains an explicit destination conversion; and freeze requires every assignment's `computation_type` to equal its result type. Valid decimal normal `float` and `double` constants now publish exact bits. Hexadecimal, subnormal, and `long double` constants and floating logical operands retain distinct unsupported diagnostics.
 
-The call subset accepts fixed prototypes, direct or indirect variadic prototypes, and function types without prototypes. It applies the shared scalar or compatible aggregate assignment conversion to named parameters. Ellipsis arguments and every argument without a declared parameter type receive lvalue conversion, array and function decay, integer promotion, and `float` to `double` promotion as required before IR accepts four-byte integers and pointers, signed or unsigned eight-byte integers, or `double`. Aggregate transport at those call boundaries remains open. Lvalue conversion removes top-level `const`, `volatile`, and `_Atomic` from the result while retaining the qualified source child, and nested calls consume the shared 256-level syntax budget instead of recursing without a host-stack bound.
+The call subset accepts fixed prototypes, direct or indirect variadic prototypes, and function types without prototypes. It applies the shared scalar or compatible aggregate assignment conversion to named parameters. Ellipsis arguments and every argument without a declared parameter type receive lvalue conversion, array and function decay, integer promotion, and `float` to `double` promotion as required before IR accepts four-byte integers and pointers, signed or unsigned eight-byte integers, `double`, or automatic `long double`. Aggregate transport at those call boundaries remains open. Lvalue conversion removes top-level `const`, `volatile`, and `_Atomic` from the result while retaining the qualified source child, and nested calls consume the shared 256-level syntax budget instead of recursing without a host-stack bound.
 
-[CupidDis](../adr/0008-typed-cupiddis-inspection-report.md) is fully shared between its native CLI and kernel adapters. Raw input accepts one explicit 16-bit or 32-bit mode or an ordered borrowed range map for one mixed-mode flat image. The hosted CLI spells each transition as `--mode-at OFFSET:16|32`; the caller supplies instruction-boundary offsets. Active guards pin the 16-bit to 32-bit to 16-bit boot image and the 16-bit to 32-bit SMP trampoline. ADR 0080 records the range contract. The shared x86 catalogue carries all sixteen i686 `CMOVcc` conditions in 16-bit and 32-bit widths, with same-width register or memory sources. CupidASM accepts fourteen conventional alias spellings, and CupidDis always renders the canonical condition. The catalogue also carries the complete 16-bit and 32-bit three-operand `IMUL` family. It uses `69 /r` for a full immediate and `6B /r` for a sign-extended byte, with register or memory sources in either mode. Ordinary compiler padding now shares that authority: plain `90`, `66 90`, and word or doubleword `0F 1F /0` register and memory forms encode and decode under the usual operand-size, address-size, and segment rules. A private 32-bit recognizer accepts only the five measured Clang padding strings with two through six `66` prefixes and the exact `2E 0F 1F 84 00 00 00 00 00` tail. The decoded form is automatic, so CupidASM and the encoder cannot request redundant prefixes. Other duplicate prefixes remain invalid. The checked seed carries all 587 rows, 242 canonical mnemonics, 64 registers, and fingerprint `68E281CB`; the private recognizer does not change the catalogue. ADR 0083 records the conditional-move boundary, ADR 0132 records immediate multiply, ADR 0143 records ordinary padding NOPs, and ADR 0144 records the exact Clang exception. One freestanding CupidASM implementation produces raw, ELF32 relocatable, and fixed-image artifacts for both its hosted CLI and the in-kernel JIT/AOT commands; it owns all four production assembly transforms as well as runtime demo assembly. CupidObj is the code-producing owner for 182 normal-build outputs: 172 canonical text wraps, eight byte-exact binary wraps, the Python-assisted JPEG wrapper, and the flat kernel image. ADR 0084 records the text and binary boundary. CupidLD owns the two-pass kernel link and all three separate user-program links. No standalone host assembler, ELF linker, `objcopy`, or symbol-reader command produces an OS or user artifact. CupidDis owns the normal two-pass kernel's symbol extraction through its deterministic `-n` view; the checked pass-one kernel produces 4,561 consumed text symbols and a 109,889-byte blob. Python still serializes the generated Cupid C blob. Root `all` runs all four production Cupid commands from the checked seed, while the host C compiler and native linker remain confined to hosted contracts and explicit native commands. The checked static i386 CupidC command owns 156 normal production C transforms through the Python/WSL wrapper. It also executes the three user translations, while checked CupidLD executes their three links. The optional native Windows drivers remain byte-exact oracles and still depend on Clang and its Windows linker. NASM and GNU/LLVM `nm` remain optional oracle tooling only. ADR 0190 records the root handoff. Checked revision `1e079d1` independently reproduces the 447-artifact root/user/toolchain cohort on Windows Clang/LLVM and Linux GCC/binutils; it predates the hosted preprocessor and active-corpus contracts.
+[CupidDis](../adr/0008-typed-cupiddis-inspection-report.md) is fully shared between its native CLI and kernel adapters. Raw input accepts one explicit 16-bit or 32-bit mode or an ordered borrowed range map for one mixed-mode flat image. The hosted CLI spells each transition as `--mode-at OFFSET:16|32`; the caller supplies instruction-boundary offsets. Active guards pin the 16-bit to 32-bit to 16-bit boot image and the 16-bit to 32-bit SMP trampoline. ADR 0080 records the range contract. The shared x86 catalogue carries all sixteen i686 `CMOVcc` conditions in 16-bit and 32-bit widths, with same-width register or memory sources. CupidASM accepts fourteen conventional alias spellings, and CupidDis always renders the canonical condition. The catalogue also carries the complete 16-bit and 32-bit three-operand `IMUL` family. It uses `69 /r` for a full immediate and `6B /r` for a sign-extended byte, with register or memory sources in either mode. Ordinary compiler padding now shares that authority: plain `90`, `66 90`, and word or doubleword `0F 1F /0` register and memory forms encode and decode under the usual operand-size, address-size, and segment rules. A private 32-bit recognizer accepts only the five measured Clang padding strings with two through six `66` prefixes and the exact `2E 0F 1F 84 00 00 00 00 00` tail. The decoded form is automatic, so CupidASM and the encoder cannot request redundant prefixes. Other duplicate prefixes remain invalid. The checked seed carries all 587 rows, 242 canonical mnemonics, 64 registers, and fingerprint `68E281CB`; the private recognizer does not change the catalogue. ADR 0083 records the conditional-move boundary, ADR 0132 records immediate multiply, ADR 0143 records ordinary padding NOPs, and ADR 0144 records the exact Clang exception. One freestanding CupidASM implementation produces raw, ELF32 relocatable, and fixed-image artifacts for both its hosted CLI and the in-kernel JIT/AOT commands; it owns all four production assembly transforms as well as runtime demo assembly. CupidObj is the code-producing owner for 182 normal-build outputs: 172 canonical text wraps, eight byte-exact binary wraps, the Python-assisted JPEG wrapper, and the flat kernel image. ADR 0084 records the text and binary boundary. CupidLD owns the two-pass kernel link and all three separate user-program links. No standalone host assembler, ELF linker, `objcopy`, or symbol-reader command produces an OS or user artifact. CupidDis owns the normal two-pass kernel's symbol extraction through its deterministic `-n` view; the checked pass-one kernel produces 4,561 consumed text symbols and a 109,889-byte blob. Python still serializes the generated Cupid C blob. Root `all` runs all four production Cupid commands from the checked seed. The host C compiler and native linker remain confined to explicit native oracle and development commands. The checked static i386 CupidC command participates in all 245 active C transforms through the Python/WSL wrapper. It also executes the three user translations, while checked CupidLD executes their three links. The optional native Windows drivers remain byte-exact oracles and still depend on Clang and its Windows linker. NASM and GNU/LLVM `nm` remain optional oracle tooling only. ADR 0190 records the root handoff. Checked revision `1e079d1` independently reproduces the 447-artifact root/user/toolchain cohort on Windows Clang/LLVM and Linux GCC/binutils; it predates the hosted preprocessor and active-corpus contracts.
+
+Source head now carries 589 rows and fingerprint `22C336A0`. The two added
+rows encode and decode 80-bit x87 `FLD` and `FSTP` memory operands. The checked
+fixed point rebuilds that current catalogue from the earlier seed before it
+compiles the Toolchain contract cohort.
+
+ADR 0196 supersedes that paragraph's hosted-contract ownership sentence. The
+normal Toolchain contracts are now built by the checked i386 CupidC and
+CupidLD path. GCC or Clang and a native linker are used only when an explicit
+native oracle or development command is requested.
 
 A block type name or record member may either reuse a visible enum tag or define a new one. New enumerators keep their exact lexical activation point through ADR 0062 ownership records.
 

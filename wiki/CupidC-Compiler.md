@@ -316,11 +316,25 @@ arithmetic use the SSE object path. Unsigned four-byte input uses an exact
 split across the sign boundary. The x87 transport model, SSE conversion
 oracle, and comparison execution oracle check rounding, operand order, signed
 zero, infinities, quiet and signaling NaNs, call alignment, and frame state.
-Runtime floating truth, hexadecimal floating literals, `long double`,
-runtime conversion to unsigned four-byte integers or `_Bool`, runtime mixed
-wide and floating arithmetic or conditional arms, floating increment and
-decrement, SIMD values, floating atomics, and over-aligned object emission
-remain unfinished.
+Non-atomic `long double` values now use twelve-byte target objects and x87
+80-bit memory loads and stores. Automatic values use frame snapshots.
+Static-duration scalars, fixed arrays, and complete records may contain
+long-double leaves. Implicit initialization zeros the complete object; an
+explicit leaf accepts an integer constant expression equal to zero. Each leaf
+occupies twelve zero-filled BSS bytes, and atomic leaves fail recursively
+without following pointers. Conversions among `float`, `double`, and `long double`, unary plus
+and minus, and addition, subtraction, multiplication, and division work on
+that path. Direct and indirect
+fixed, variadic, and unprototyped arguments occupy twelve cdecl bytes.
+Functions return the value in x87 `ST0`, and direct or indirect callers store
+it in a twelve-byte snapshot. `va_arg(long double)` copies twelve bytes and
+leaves the cursor at the following four-byte slot. Runtime floating truth,
+hexadecimal floating literals, `long double` literals, nonzero or floating
+static long-double initializers, comparisons, integer conversions involving
+`long double`, runtime conversion to unsigned four-byte
+integers or `_Bool`, runtime mixed wide and floating arithmetic or conditional
+arms, floating increment and decrement, SIMD values, floating atomics, and
+over-aligned object emission remain unfinished.
 
 Plain assignment, all ten compound assignments, and prefix and postfix update work for represented non-atomic integer bit fields when the declared storage unit is four bytes and fits inside the record. The compiler evaluates the record designator once and applies the target's integer-promotion rules before a compound operation. Partial fields preserve the other bits in their unit. Assignment, compound assignment, and prefix update return the stored lane after width truncation and signed extension, while postfix update returns the extracted old value. A 32-bit field uses the direct load and store path. Volatile 32-bit updates perform one read and one store. Partial volatile mutation, atomic fields, and other storage-unit sizes remain unsupported.
 
@@ -354,9 +368,47 @@ nested level, and rejects removing the nested `const`.
 
 An external array may omit its bound when its element type is complete. The shared IR can take that linked object's address, decay it to the compatible element pointer, apply the element scale, and continue through member access. The array remains incomplete, so it cannot be loaded as a value or used as if its storage size were known.
 
-The exact hosted gate covers the hermetic Toolchain sources, `kernel/lang/as_elf.cc`, and complete command closures for CupidC, CupidASM, CupidDis, CupidLD, and CupidObj. The static-tool preprocessing audit runs all 20 `.cc` sources under the checked four-byte i386 Linux target: 19 strict C11 files and the GNU-enabled runtime. Repeated emission produces identical ELF32 objects, and Cupid's ELF32 reader checks each object before linking. The separate runtime contract carries CupidC ownership but stays outside the 19-source fixed-point plan.
+The exact hosted gate checks 33 strict C11 roots and two GNU-enabled runtime
+roots under the four-byte i386 Linux target. It covers the 19-source tool
+union, `kernel/lang/as_elf.cc`, the runtime implementation and probe, and all
+fourteen Toolchain contracts. `HOSTED_I386_LINUX` owns the 31 strict roots
+that can include only the Toolchain tree and the angle-only hosted
+declarations. The GNU profile is limited to the runtime implementation and
+probe.
+`HOSTED_I386_KERNEL_BRIDGE` owns the assembler ELF adapter and its contract,
+which may also include `/kernel/lang`. The retired 64-bit hosted audit
+profiles have no active roots.
+Stage-two and stage-three CupidC emit the contract objects, CupidLD links the
+static executables, and the harness rejects a cross-stage byte difference in
+any of the sixteen new objects or fifteen executables. Publication accepts
+only a dedicated `cupidc-contracts` directory inside the source tree and
+checks the target before work and again before promotion. An existing
+destination must already verify as a complete cohort. Arbitrary directories,
+source trees, files, and symbolic links remain untouched. The initial,
+private, and newly discovered contract inventories must match exactly, which
+catches added or removed inputs and restored edits that changed a copied
+file. Every run derives its cohort from the requested executable, requires a
+named manifest artifact, and verifies the complete cohort, live 45-input
+contract set, checked seed manifest, and 41-file fixed-point source inventory
+before execution. The contract set includes the Toolchain Makefile and both
+Python control modules. Seed-manifest hashing, JSON decoding, schema validation, and
+build-plan use share one captured byte sequence.
+The test programs stay outside the 19-source fixed-point plan because they do
+not contribute to a tool image.
 
-The repository runtime supplies the checked file, heap, memory, string, `errno`, `getcwd`, and formatted-output interfaces required by the five commands. CupidC emits the runtime and the `.cc` behavior contract, CupidASM assembles `_start` and the system-call boundary, and CupidLD links five deterministic static Linux i386 tools plus the contract without unresolved symbols. The sixth executable checks allocation, tail release, files, seeks, errors, arguments, memory comparison, and strings. The runtime has unbuffered streams and single-threaded heap, stream, and `errno` state. ADR 0195 records the contract's ownership transfer.
+The repository runtime supplies the checked file, heap, memory, string,
+`errno`, `getcwd`, fixed-width integer, and formatted-output interfaces
+required by the five commands. The public slice includes `printf`, `puts`,
+`snprintf`, `fputc`, `fputs`, `memmove`, and `strstr`. CupidC emits the
+runtime and the `.cc` behavior contract, CupidASM assembles `_start` and the
+system-call boundary, and CupidLD links five deterministic static Linux i386
+tools plus the contract without unresolved symbols. The runtime probe checks
+allocation, tail release, files, seeks, errors, arguments, formatting, memory
+comparison, and strings. Its formatter covers signed and unsigned `long long`
+values, padded 64-bit hexadecimal output, and fixed or argument-supplied
+string precision. The runtime has unbuffered streams and single-threaded heap,
+stream, and `errno` state. ADR 0195 records the probe rename, and ADR 0196
+records the full contract transfer.
 
 The `cupidc` driver compiles one C11 input to an ELF32 object. It accepts
 definitions, undefinitions, forced inputs, GNU or freestanding mode, and
@@ -392,7 +444,7 @@ checks on e1000 and RTL8139. Full IWAD gameplay remains a runtime boundary.
 
 The five static i386 Linux tools have a checked seed. The manifest binds their hashes, sizes, target ABI, source revision, producer lineage, 19-source plan, and five link orders. The current CupidC image is the 2,528,332-byte stage-three output from revision `af4644177c033eebda164d7893074315439df119`, with SHA-256 `f53989572cd1564a8bf91059552868ee43a1d80905986b58cd97d44949aab3a1`. It carries the complete 83-root Doom frontier, current GNU entity metadata, x87 and SSE forms, descriptor and segment assembly, every unchanged assembly effect in `libm.cc`, the exact dglibc jump block, pointer-preserving static address casts, exact naked IPI entries, the kernel-entry BSS clear with a nonzero page-aligned stack top, and the active packed SSE2 statements. Its plan uses `.cc` for all 19 C roots and has SHA-256 `59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`.
 
-The bootstrap copies the 40-input source closure into a private compiler root. Both rebuilt stages compile from that root, and the harness checks the private and live closures at each stage and behavior boundary. The checked seed, stage two, and stage three all contain the same five tool images. The two rebuilt stages also match every C and startup object and agree on all five help paths, ten successful operations, and six failure cases. Their stage directories, behavior evidence, and report are published together only after the complete gate passes. See [Toolchain Bootstrap](Toolchain-Bootstrap) for the commands and report layout. Native contract runners and hosted development commands still come from a host compiler. Normal OS objects do not.
+The bootstrap copies the 41-input source closure into a private compiler root. Both rebuilt stages compile from that root, and the harness checks the private and live closures at each stage and behavior boundary. The checked seed, stage two, and stage three all contain the same five tool images. The two rebuilt stages also match every C and startup object and agree on all five help paths, ten successful operations, and six failure cases. Their stage directories, behavior evidence, and report are published together only after the complete gate passes. The normal Toolchain build snapshots 45 contract inputs, including the Toolchain Makefile and both Python control modules, reproduces that exact inventory under a private root, and uses both rebuilt stages for all fourteen contract programs and the runtime probe. It compares sixteen new objects and fifteen linked executables. Every invocation verifies its named artifact, the complete cohort, both source inventories, and the checked seed manifest. The seed manifest is captured once for its digest, decoded data, schema checks, and build plan. See [Toolchain Bootstrap](Toolchain-Bootstrap) for the commands and report layout. Native contract runners and hosted development commands are explicit host-built oracles; normal OS and Toolchain artifacts do not depend on them.
 
 Root image assembly, object, link, and inspection commands use that checked
 five-tool seed. The runner verifies the live trust unit again after each
@@ -412,11 +464,50 @@ A private `/bin/ls.cc` JIT boot from that image passed in 49.8 seconds.
 
 Supported direct and indirect calls put ESP on a sixteen-byte boundary immediately before `call`. The emitter chooses zero, four, eight, or twelve bytes of padding from the function frame, live Linear IR stack, and outgoing target-sized argument area. Prototyped, variadic, unprototyped, nested, structure, and wide calls follow the same rule.
 
-For a variadic call, the shared frontend applies lvalue conversion, array and function decay, integer promotion, and `float` to `double` promotion to the ellipsis arguments as required. Every call instruction owns a contiguous slice of post-conversion actual argument types in a packed Linear IR array. A shared validator requires one complete ordered partition and rejects gaps, overlaps, invalid types, trailing entries, and metadata on non-call instructions. Named slots use declared parameter types after compatibility checking, while unnamed slots use the packed actual types. The emitter uses the validated slice and actual count for cdecl order, slot widths, the saved indirect callee, stack alignment, and caller cleanup. Direct and indirect calls can pass represented four-byte integers and pointers, signed and unsigned eight-byte integers, existing `double` values, or source `float` values promoted to `double` through an ellipsis. An eight-byte unnamed value selects the outgoing-area path. Arguments occupy increasing addresses in source order, with the low word before the high word for an eight-byte value. Each argument still has one abstract IR handle, and an indirect callee remains below the argument handles while the emitter prepares the outgoing area.
+For a variadic call, the shared frontend applies lvalue conversion, array and
+function decay, integer promotion, and `float` to `double` promotion to the
+ellipsis arguments as required. Every call instruction owns a contiguous
+slice of post-conversion actual argument types in a packed Linear IR array. A
+shared validator requires one complete ordered partition and rejects gaps,
+overlaps, invalid types, trailing entries, and metadata on non-call
+instructions. Named slots use declared parameter types after compatibility
+checking, while unnamed slots use the packed actual types. The emitter uses
+the validated slice and actual count for cdecl order, slot widths, the saved
+indirect callee, stack alignment, and caller cleanup. Direct and indirect
+calls can pass represented four-byte integers and pointers, signed and
+unsigned eight-byte integers, existing `double` or `long double` values, or
+source `float` values promoted to `double` through an ellipsis. An eight-byte
+unnamed value uses two adjacent words. A `long double` value uses three.
+Arguments occupy increasing addresses in source order, with lower words
+first. Each argument still has one abstract IR handle, and an indirect callee
+remains below the argument handles while the emitter prepares the outgoing
+area.
 
-In GNU C mode, the shared frontend treats `__builtin_va_list` as a target `char *` cursor and retains typed start, argument, copy, and end operations. The i386 emitter starts the cursor after the full width of the final named cdecl parameter. A four-byte pointer, integer, or enum read advances the stored cursor by four bytes. A signed or unsigned eight-byte integer, 64-bit enum, or `double` is copied into a fresh private snapshot and advances the cursor by eight bytes. Both widths keep the i386 cursor on four-byte slot alignment. Execution contracts read successive wide integer and `double` slots through the original cursor and the first slot through a copied cursor. Nested callers also check aligned calls, cleanup, and complete returned values. Atomic, `float`, and aggregate reads remain unsupported. Calling `va_arg` with `float` is invalid C because variadic `float` arrives as `double`. The unchanged Doom compatibility header parses under its generated profile.
+In GNU C mode, the shared frontend treats `__builtin_va_list` as a target
+`char *` cursor and retains typed start, argument, copy, and end operations.
+The i386 emitter starts the cursor after the full width of the final named
+cdecl parameter. A four-byte pointer, integer, or enum read advances the
+stored cursor by four bytes. A signed or unsigned eight-byte integer, 64-bit
+enum, or `double` is copied into a fresh private snapshot and advances the
+cursor by eight bytes. A `long double` read copies twelve bytes and advances
+the cursor by twelve. All represented widths keep the i386 cursor on
+four-byte slot alignment. Execution contracts read successive wide integer,
+`double`, and `long double` slots through the original cursor and the first
+slot through a copied cursor. The static i386 runtime also reads a four-byte
+value immediately after a long double. Nested callers check aligned calls,
+cleanup, and complete returned values. Atomic, `float`, and aggregate reads
+remain unsupported. Calling `va_arg` with `float` is invalid C because a
+variadic `float` arrives as `double`. The unchanged Doom compatibility header
+parses under its generated profile.
 
-An empty identifier-list definition has zero parameters and keeps its non-prototype function type. Calls through a function type without a prototype apply default argument promotions to every argument. Each call keeps its actual count and post-conversion type slice in Linear IR, and the i386 emitter accepts represented four-byte integers and pointers, signed or unsigned eight-byte integers, existing `double` values, and source `float` values promoted to `double`.
+An empty identifier-list definition has zero parameters and keeps its
+non-prototype function type. Calls through a function type without a
+prototype apply default argument promotions to every argument. Each call
+keeps its actual count and post-conversion type slice in Linear IR, and the
+i386 emitter accepts represented four-byte integers and pointers, signed or
+unsigned eight-byte integers, existing `double` or `long double` values, and
+source `float` values promoted to `double`. The static i386 runtime executes
+both direct and indirect unprototyped long-double calls.
 
 Block-scope `struct` and `union` tags follow lexical C scope. The shared frontend handles forward declarations, same-scope completion, ordinary references, nested shadowing, and restoration after a nested block ends. A record tag declared in a function definition's parameter list stays visible through the outer body, then expires with the definition. A tag-only declaration may use the represented `typedef`, `extern`, `static`, `auto`, or `register` spelling, or a represented type qualifier, when it introduces a tag, and has no runtime work. An empty declaration with storage or type qualification cannot merely repeat a visible tag. A `for` initializer may use a visible record type or an anonymous record definition for its object, but it cannot introduce a named tag or omit the object. An anonymous definition can supply the type for a local or block-static object, including Doom's unchanged block-static `packs` array.
 
@@ -434,7 +525,43 @@ One-active-member union initializer lists use the same aggregate paths. A positi
 
 Runtime narrow string expressions receive local `.rodata` symbols and `R_386_32` relocations. They can decay into pointers for initialization, arguments, indexing, and returns. Supported structure graphs have alignment no greater than four bytes and contain no stored `volatile` or `_Atomic` subobjects. A graph may contain a nested union, but top-level union and class values remain unsupported.
 
-The shared frontend publishes decimal `float` and `double` constants as exact IEEE bits. It uses bounded integer arithmetic and rounds once to nearest with ties to even, so self-hosted compilation does not depend on a host floating library. A second integer-only evaluator handles static-duration arithmetic, comparisons, casts, scalar truth, short-circuit logic, conditional selection, enumerators, and represented signed or unsigned integer conversion through 64 bits. It rounds after each operation at the expression's binary32 or binary64 width and places the final bits, including signed zero, through the ordinary read-only, writable, or zero-filled policy. The IR and SSE object path cover represented runtime integer-to-floating conversions, floating-to-signed conversions, floating-to-unsigned byte or word conversions, an explicit non-atomic `double` to `unsigned long long` cast, mixed integer and floating addition, subtraction, multiplication, and division, and all six matching or mixed-width comparisons. Unsigned four-byte input uses an exact split conversion across the sign boundary. Unsigned-wide output splits around 2^32 and derives each word through a 2^31-safe truncation. Hexadecimal floating literals, `long double`, runtime conversion to unsigned four-byte integers or `_Bool`, other floating-to-wide conversions, runtime floating truth, runtime mixed wide and floating arithmetic or conditional arms, and floating increment and decrement remain unsupported. Matching or mixed-width floating conditional arms and the four arithmetic compound assignments keep their established x87 path.
+The shared frontend publishes decimal `float` and `double` constants as exact
+IEEE bits. It uses bounded integer arithmetic and rounds once to nearest with
+ties to even, so self-hosted compilation does not depend on a host floating
+library. A second integer-only evaluator handles static-duration arithmetic,
+comparisons, casts, scalar truth, short-circuit logic, conditional selection,
+enumerators, and represented signed or unsigned integer conversion through 64
+bits. It rounds after each operation at the expression's binary32 or binary64
+width and places the final bits, including signed zero, through the ordinary
+read-only, writable, or zero-filled policy. The IR and SSE object path cover
+represented runtime integer-to-floating conversions, floating-to-signed
+conversions, floating-to-unsigned byte or word conversions, an explicit
+non-atomic `double` to `unsigned long long` cast, mixed integer and floating
+addition, subtraction, multiplication, and division, and all six matching or
+mixed-width comparisons. Unsigned four-byte input uses an exact split
+conversion across the sign boundary. Unsigned-wide output splits around 2^32
+and derives each word through a 2^31-safe truncation.
+
+Non-atomic `long double` values use x87 80-bit memory transport for
+floating-width conversions, unary plus and minus, all four arithmetic
+operators, twelve-byte direct and indirect fixed, variadic, and unprototyped
+arguments, function returns, direct and indirect call results, and
+`va_arg(long double)`. Static-duration arrays and records may contain the same
+implicitly or explicitly zeroed leaves. Hexadecimal floating literals,
+`long double` literals, nonzero or floating static initializers, comparisons, integer conversions
+involving `long double`, runtime conversion to unsigned four-byte integers or
+`_Bool`, other floating-to-wide conversions, runtime floating truth, runtime
+mixed wide and floating arithmetic or conditional arms, and floating
+increment and decrement remain unsupported. Matching or mixed-width floating
+conditional arms and the four arithmetic compound assignments keep their
+established x87 path.
+
+The static aggregate contract fixes two 24-byte arrays and two 28-byte
+records in 104 BSS bytes. Its 415-byte access function has fingerprint
+`BF01CC71`, eight absolute relocations, and six symbols. The hosted i386
+runtime proves every leaf and marker begins at zero, then moves 1.5 through
+file and block members. `sizeof(float) - 4` is accepted as a zero integer
+constant expression, while `1.0L` remains rejected.
 
 The checked seed retains GNU `noinline` and
 `target("general-regs-only")` on canonical file-scope functions.
@@ -563,7 +690,7 @@ The checked production root is now `kernel/smp/smp.cc`. Its object remains
 `bd3189b2a1a6d15728c559172f5d6acca0889103428085cec8cc1024742a22d1`.
 The existing `__FILE__` diagnostic accounts for the new hash.
 
-Static-duration and variable-length compound literals, the named-aggregate backward-jump alias case, explicit bit-field initializer leaves, Boolean mutation, atomic variadic access, aggregate arguments without declared parameter types, aggregate variadic reads, wide strings, literal pooling, and block-static addresses in other block-static initializers also remain unfinished in the shared path.
+Static-duration and variable-length compound literals, the named-aggregate backward-jump alias case, explicit bit-field initializer leaves, Boolean mutation, atomic variadic access, aggregate arguments without declared parameter types, aggregate variadic reads, wide strings, and literal pooling remain unfinished in the shared path. A block-static initializer may now take the address of another block-static object. Static initializers can also reuse a direct integer initializer from an earlier non-atomic `const` integer. This narrow Cupid C extension preserves the unchanged Toolchain object contract's address tables; it is not an ISO C integer constant expression. Mutable, automatic, atomic, indirect, and non-integer cases remain rejected.
 
 Across the root and supplemental builds, CupidC owns 245 C transforms. Its
 normal cohort has 239 transforms: 238 checked-in sources plus the generated
@@ -584,9 +711,9 @@ three-header closure. The wrapper compares every live input before replacing
 the object, so a concurrent edit cannot publish a mixed result.
 
 The strict kernel frontier must compile all 155 approved checked-in sources
-twice. The full frontier passes against a 444-file snapshot with SHA-256
-`4e153fdf4446128916bb10c0e51b3d1f815ed16bd57d6b1b85527355a0db190d`.
-Both 155-object sets are byte-identical; each totals 3,708,988 bytes. The
+twice. The full frontier passes against a 445-file snapshot with SHA-256
+`e28b1024edc5361d99583f79f65ce43690ebc873f04b568837f57f8af5df5db7`.
+Both 155-object sets are byte-identical; each totals 3,717,856 bytes. The
 combined graph keeps the ISO fixture as an explicit image input. Strong
 four-vCPU runtime gates pass with e1000 and RTL8139 networking through SMP,
 RDRAND, all 62 crypto checks, USB storage, audio, TrueType glyphs, a baseline
@@ -605,10 +732,11 @@ Cupid's x86 model while preserving EBX. The combined four-vCPU GUI gate reaches
 SMP, all 62 crypto checks, e1000 traffic, the desktop, terminal, and CupidC
 execution at `0x01100000`. A separate gate loads and reaps the same
 external program twice at `0x01C00000`. ADR 0124 records the exact build and
-runtime evidence. The host C compiler owns 52 hosted Toolchain transforms and
-no root image object. Python participates in 448 transforms across the three
-audited roots. Root `all` runs CupidC, CupidASM, CupidObj, CupidLD, and
-CupidDis from the manifest-checked seed; the private in-kernel CupidC compiler
+runtime evidence. No supported transform invokes a host C compiler. Python
+participates in all 449 transforms across the three audited roots, and CupidC
+participates in 245. Root `all` runs CupidC, CupidASM, CupidObj, CupidLD, and
+CupidDis from the manifest-checked seed; `toolchain:all` uses the rebuilt
+static tools for its contract cohort. The private in-kernel CupidC compiler
 still handles embedded runtime compilation.
 
 The checked seed decides C11 inline linkage from the complete file-scope
@@ -1648,7 +1776,24 @@ When the parser encounters a call to an undefined function, it emits a placehold
 - Variadic declarations and definitions parse, but compiled CupidC code cannot yet traverse unnamed arguments.
 - Direct code generation has no optimization pass.
 
-The private compiler implements a broader runtime floating and SIMD language. The hosted self-hosting path converts between `float` and `double`, evaluates matching or mixed floating arithmetic and all six comparisons, selects matching or mixed floating conditional arms, and stores `+=`, `-=`, `*=`, and `/=` results at the left width. It also carries existing `double` values and source `float` values promoted to `double` through ellipsis and unprototyped calls and supports `va_arg(double)`. Decimal constants, represented integer conversions, mixed integer and floating arithmetic, and comparisons use the public SSE path. Static initializers use the integer-only IEEE evaluator described above. Runtime floating truth, runtime mixed wide and floating arithmetic or conditional arms, increment and decrement, hexadecimal floating literals, `long double`, and SIMD remain open in the hosted path.
+The private compiler implements a broader runtime floating and SIMD language.
+The hosted self-hosting path converts between `float` and `double`, evaluates
+matching or mixed floating arithmetic and all six comparisons, selects
+matching or mixed floating conditional arms, and stores `+=`, `-=`, `*=`, and
+`/=` results at the left width. It also carries existing `double` values and
+source `float` values promoted to `double` through ellipsis and unprototyped
+calls and supports `va_arg(double)`. Decimal constants, represented integer
+conversions, mixed integer and floating arithmetic, and comparisons use the
+public SSE path. Static initializers use the integer-only IEEE evaluator
+described above. Non-atomic `long double` values use x87 80-bit
+transport, floating-width conversions, unary plus and minus, all four
+arithmetic operators, twelve-byte direct and indirect fixed, variadic, and
+unprototyped arguments, function returns, direct and indirect call results,
+and `va_arg(long double)`. Runtime floating truth, runtime mixed wide and
+floating arithmetic or conditional arms, increment and decrement,
+hexadecimal floating literals, `long double` literals, nonzero or floating
+static long-double initializers, comparisons, integer conversions involving
+`long double`, and SIMD remain open in the hosted path.
 
 ---
 

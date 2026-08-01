@@ -52,13 +52,16 @@ class CupidDisContractTests(unittest.TestCase):
         cls.contract_path = build_path / ("cupiddis-contract" + suffix)
         cls.elf_contract_path = build_path / ("elf32-contract" + suffix)
         cls.cli_path = build_path / ("cupiddis" + suffix)
+        relative_prefix = relative_build.as_posix()
         result = subprocess.run(
             [
                 "make",
                 "-C",
                 str(TOOLCHAIN_ROOT),
                 f"BUILD_DIR={relative_build}",
-                "all",
+                f"{relative_prefix}/cupiddis-contract{suffix}",
+                f"{relative_prefix}/elf32-contract{suffix}",
+                f"{relative_prefix}/cupiddis{suffix}",
             ],
             cwd=REPO_ROOT,
             text=True,

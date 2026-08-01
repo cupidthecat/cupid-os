@@ -17709,3 +17709,408 @@ This transfers language ownership without changing the runtime ABI or normal
 build ownership. Host Python still orchestrates the runtime check, and native
 Toolchain contracts still use the host C compiler. ADR 0195 records the
 decision.
+
+## 2026-07-30: transfer the Toolchain contract cohort to CupidC
+
+The fourteen native Toolchain contract programs were the last supported build
+cohort owned by GCC or Clang. They covered the right production seams, but
+their `.c` names and native-only recipes left 52 host-C transforms in the
+active graph.
+
+All fourteen sources now use `.cc`, and `make -C toolchain all` builds them
+from the checked i386 seed. One checked harness completes the existing
+stage-two and stage-three bootstrap, compiles every contract with each
+generation of CupidC, links it with CupidLD, checks its static i386 ELF shape,
+and compares both generations byte for byte. The comparison now covers all
+sixteen new objects and fifteen executables. It also rebuilds and runs the
+hosted runtime contract. The harness freezes 45 contract inputs: the original
+42 source, header, and profile inputs, plus `toolchain/Makefile`,
+`tools/bootstrap_toolchain.py`, and
+`tools/cupidc_toolchain_contracts.py`. It publishes the 15 contracts, five
+refreshed tools, and manifest together, so a partial build cannot replace a
+previously complete result. The manifest also binds the checked seed and its
+complete 41-file fixed-point source inventory. Every normal Toolchain entry
+point verifies the manifest, file inventory, sizes, and hashes before use. It
+reconstructs both source inventories from the live tree, so a backdated change
+cannot escape through Make timestamps. `make -C toolchain test` runs the full
+behavior matrix against that checked publication. Native binaries remain
+available through `native-oracles`; they are no longer part of the normal
+target.
+
+The unchanged contracts exposed compiler work instead of being rewritten
+around it:
+
+- Block-static pointers can now use the address of another block-static
+  object in a constant initializer. The local symbol and its `R_386_32`
+  relocation survive frontend, IR, and ELF emission.
+- An earlier file- or block-scope non-atomic `const` integer with a direct
+  integer initializer can feed a later static initializer. Mutable,
+  automatic, atomic, indirect, and non-integer values remain useful negative
+  cases. This is an intentional Cupid C extension rather than an ISO C
+  integer constant expression. It preserves the unchanged address tables in
+  the object contract's `atomic_oracle_execute`, which strict GCC and Clang
+  already fold.
+- Non-atomic automatic `long double` objects now use their twelve-byte i386
+  layout and 80-bit x87 memory operations. Locals, assignment, unary signs,
+  the four arithmetic operators, and conversions among `float`, `double`,
+  and `long double` share the floating path. Direct and indirect fixed,
+  variadic, and unprototyped arguments use twelve-byte cdecl slots. Functions
+  return the value in x87 `ST0`, and direct or indirect callers store it in a
+  twelve-byte snapshot. `va_arg(long double)` advances to the following
+  four-byte slot. Static-duration scalars, fixed arrays, and complete records
+  may contain non-atomic long-double leaves. Implicit initialization zeros the
+  complete object; explicit leaves accept zero-valued integer constant
+  expressions and occupy twelve BSS bytes apiece. Long-double literals, nonzero or
+  floating static initializers, comparisons, and conversions between long
+  double and integer types remain open.
+- The hosted runtime now declares fixed-width integers, `NULL`, and `EOF`,
+  and implements `printf`, `puts`, `snprintf`, `fputc`, `fputs`, `memmove`,
+  and `strstr`. The contract checks exact output as well as invalid streams,
+  invalid format strings, truncation, overlap, and missing substrings.
+
+The first long cohort attempt outlived its outer command timeout, so its
+compiler children kept working without a usable result channel. The harness
+now writes durable per-stage progress and can be launched with redirected
+logs. A clean diagnostic run then compiled all fourteen programs with
+stage-two CupidC before the separate runtime contract stopped on an
+undeclared `EBADF`. Adding the i386 Linux value to the Cupid-owned
+`errno.h` fixed the unchanged source. That failure confirmed that the checked
+build was not borrowing a host system header.
+
+Two later candidate runs were stopped deliberately during source review. The
+first found that the formatter used a null stream as its private buffer-sink
+marker, which made `fprintf(NULL, ...)` indistinguishable from a zero-capacity
+`snprintf`. The sink now records its mode explicitly, preserves `EBADF`, and
+has a negative runtime check. The same pass changed `memmove`'s overlap test
+to unsigned address subtraction so its decision does not depend on wrapped
+address addition. The second review found that an up-to-date manifest alone
+did not detect a deleted or changed published artifact. A fast verifier now
+checks schema, target, fixed-point record, input inventory, exact filenames,
+sizes, hashes, object and executable stage comparisons, and live input hashes
+before every normal build or test entry.
+A final path scan found eight runtime source lookups in the frontend contract
+and two in the IR contract that still opened retired `.c` names. Compilation
+could not expose them because they are data strings. The active modes now
+open their `.cc` siblings, and a harness unit test rejects every retired
+contract path across the fourteen-source cohort.
+
+A native-oracle compatibility pass found four Python modules that still used
+`all` as a shortcut for their host binaries. Each module now requests only
+the native contract, tool, or fixture it uses. The core module also builds in
+its own temporary directory, so it cannot remove a checked publication with a
+global clean. The hosted output names stay unchanged for developers and test
+callers.
+
+A format-string audit then found four active forms that the narrow hosted
+formatter did not cover: `%lld`, `%llu`, `%016llx`, and `%.*s`. They occur in
+unchanged frontend, IR, and object-contract diagnostics. The in-flight cohort
+was stopped before publication. A focused Cupid-built probe first failed at
+the new wide-format assertion with contract status 608. After the runtime
+learned `long long` decimal and hexadecimal conversion plus fixed and
+argument-supplied string precision, the same probe passed under WSL. It
+checks the signed minimum, unsigned maximum, a padded sixteen-digit value,
+zero and negative string precision, and an invalid `ll` string format.
+
+The next candidate exposed stale contract locks and one overly broad profile
+assumption before publication. The complete frontend suite reported the
+current token totals and four source-frontier rows. The IR contract's copied
+x86 class fixture was also missing the new 80-bit memory class. Adding
+`X86_OC_MEM80` brought that fixture back in step with the production enum.
+The clean frontend and IR replays now pass all 175 tests.
+
+The preprocessor gate then reached
+`toolchain/tests/cupidasm_kernel_elf_contract.cc` and correctly failed because
+its hosted profile could not find `as_elf.h`. Giving every hosted source
+access to kernel-private headers would have hidden the request boundary.
+Instead, the audit and contract harness now put only that source and
+`kernel/lang/as_elf.cc` in a separate i386 kernel-bridge profile. Those two
+requests search `/kernel/lang`; the other ordinary strict roots do not. The
+regenerated audit records ten profiles and preserves the 381 tracked-unit
+total with no deferred hosted source.
+
+The whole audit suite later found one more stale lexical lock. It expected
+5,330 active `sizeof` expressions while the regenerated graph contained
+5,333. A word-level diff found exactly three additions and no removals, one
+in each of the frontend, IR, and object contracts. The focused drift test
+then passed in 188.441 seconds, and the complete 67-test audit module passed
+in 548.970 seconds.
+
+The frontend inventory had five similarly stale control locks. Comparing the
+staged pre-call snapshot with the final source accounted for every added
+site. The emitter added one `return` and one `if`. The frontend contract
+added three `return` statements, eleven `if` statements, and nine `else`
+clauses. The IR contract added nine `if` statements and eight `else`
+clauses. The object contract added eleven `return` statements, two `for`
+statements, seventeen `if` statements, eight `else` clauses, and one
+`while`. At that checkpoint, the checked totals were 21,221 `return`, 3,910
+`for`, 35,199 `if`, 4,528 `else`, and 2,680 `while` occurrences. One replay was initially
+set aside because it overlapped the audit's mutation tests. A clean replay
+reported the same values, which showed that the locks, not the concurrent
+run, were stale.
+
+The first published cohort passed its fixed-point and runtime gate, but the
+complete public behavior suite found a cross-data-model contract assumption.
+The Cupid-built frontend contract exhausted a 256-byte output budget on line
+2 of a scalar-chain fixture; the 64-bit native oracle exhausted the same
+budget on line 1. The rollback state, diagnostic code, path, count, arena
+mark, allocator balance, source tape, and recovery all remained correct. A
+breakpoint probe against the emitted i386 branch identified the line check as
+the first failing predicate and measured line 2, column 17. Budgets from 96
+through 232 bytes retained the exact line-1 assertion on i386. The contract
+now uses 224 bytes, which also passes the native oracle. No compiler or
+runtime behavior changed to hide the ABI-dependent allocation size.
+
+The long-double object proof keeps exact output evidence. The arithmetic
+fixture has 753 text bytes and fingerprint `82A5F459`; fixed calls have 220
+bytes and fingerprint `EDB702DD`; the variadic caller has 99 bytes and
+fingerprint `1FED7CA7`; and the variadic reader has 176 bytes and fingerprint
+`6296CE84`. The return function adds 39 bytes with fingerprint `46BAFE97`.
+Direct and indirect unprototyped calls add 176 bytes with fingerprint
+`A3C2BF25`, while direct and indirect results add 278 bytes with fingerprint
+`69385492`. Static-zero access adds a 214-byte function with fingerprint
+`5B39C697`. Four twelve-byte objects occupy 48 BSS bytes and have six absolute
+relocations. The complete fixture has 1,955 text bytes, fingerprint `282CA98B`,
+eleven relocations, and sixteen symbols.
+The separate static-aggregate object adds a 415-byte function with fingerprint
+`BF01CC71`, 104 BSS bytes, eight absolute relocations, and six symbols.
+
+A final publication review found that the first manifest retained only the
+hash of the staged bootstrap report. The report itself held a 41-file source
+inventory, but normal verification rehashed only the 42 contract inputs. That
+left `link.ld`, eighteen top-level Toolchain implementations, the hosted
+runtime, and startup assembly dependent on timestamps alone. `link.ld` was
+not even a Make prerequisite. The candidate rebuild was stopped before
+publication, and the preceding verified cohort was preserved.
+
+The v2 manifest now records the seed manifest, build-plan digest, and complete
+bootstrap source inventory. Verify and run validate the seed, reconstruct the
+41-file set through the checked build plan, and compare every size and hash
+before a static i386 executable starts. Focused negatives restore the original
+mtime after changing `cupidc_emit.cc`, `start.asm`, `link.ld`, and the seed
+manifest; all fail before execution. `link.ld` is also a direct Make
+prerequisite.
+
+Review found one more provenance race in that path. Verification had read the
+seed manifest once for its hash, again for schema checks, and again for the
+build plan. It now returns one `SeedInputs` value containing the digest,
+decoded manifest, and verified tools derived from a single byte capture. The
+contract publisher uses that same value throughout validation. A test
+replaces the manifest immediately after its only read and still observes the
+original digest and build plan.
+
+A final control-plane review found three timestamp-only inputs outside both
+inventories: `toolchain/Makefile`, `tools/bootstrap_toolchain.py`, and
+`tools/cupidc_toolchain_contracts.py`. They now belong to the contract
+inventory, which grows from 42 to 45 while the compiled fixed-point source
+closure stays at 41. Focused tests require all three and backdate a byte
+change in each one. Verification rejects every change before constructing a
+contract runner.
+
+The link plan used plain string keys for staged objects and checked only their
+order and uniqueness. A misspelled key would survive until a deep link step.
+Valid shared keys now come from the fixed bootstrap source plan, with only the
+three cohort-local objects added explicitly. Plan validation rejects an
+unknown key before the first compiler process starts, and a focused harness
+case pins the diagnostic.
+
+The final replacement cohort built and published in 2,655.7 seconds. Its
+`cupid.toolchain-contracts.v2` manifest has SHA-256
+`0bc87715cf03d291e084974d088183c910835cf383f922ec0aa4d0e124f416ea`
+and records 20 artifacts, all 45 contract inputs, and the unchanged 41-file
+fixed-point source closure. The closure digest is
+`079ed8c0688ddf683ed112e0bee5c895da47e7143096dcdcc98b2ec425127999`;
+the seed manifest is
+`98dd40674aa42f0fc52689dfe22d459d78c9b2374f7110f83727e5da12321939`,
+and the checked build plan is
+`59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`.
+Both generations produced byte-identical objects and executables, the hosted
+runtime passed, and the publisher rechecked the live inputs before promotion.
+The refreshed x86 witness input has SHA-256
+`e72256e7b8b057c8f3d650364186d18345bad0708b9f65e56124fa3a1795859c`.
+
+Review also found that the accepted automatic long-double ABI was wider than
+its focused proof. The frontend already admitted function results and
+unprototyped arguments. The emitter now returns a long double in x87 `ST0` and
+spills direct or indirect results into twelve-byte snapshots. Frontend, Linear
+IR, and object contracts cover both result paths and both unprototyped call
+paths. A static i386 runtime executes all four and reads a four-byte argument
+immediately after a variadic long double.
+
+The frontend and Linear IR interface comments still described those result,
+unnamed-argument, and variadic-read paths as unsupported. They now record the
+twelve-byte cdecl slots, ST0 result, twelve-byte cursor advance,
+floating-width conversions, block-static relocation, and earlier static
+`const` initializer extension. The comments change no emitted object, but they
+belong to the frozen source inventory and therefore receive the same
+source-drift checks as implementation code.
+
+A later specification review found an undocumented edge in that boundary.
+Generic zero initialization already admitted an uninitialized static
+`long double`, even though the current records still called every static form
+unsupported. The frontend now treats that behavior as a checked capability.
+File-scope and block-static non-atomic scalar objects accept implicit zero or
+an integer constant expression equal to zero. The object proof pins four
+twelve-byte symbols in 48 BSS bytes, six absolute relocations, and exact read
+and write code. The i386 runtime checks their initial values and then stores
+and reloads 1.5 through all four. Nonzero integers, floating initializers, and
+atomic scalar forms have exact diagnostics.
+
+The same review then followed implicit zero through aggregate types and found
+that an array or record containing `_Atomic long double` could bypass the
+scalar check. The zero-initializer path now walks arrays and complete records,
+stops at pointer and function boundaries, and rejects any atomic long-double
+leaf. A further pass found that `{0}` could initialize an earlier ordinary
+record member while omitting and silently zeroing a later atomic long-double
+member. Every explicit static initializer now runs the same aggregate walk
+before parsing a scalar or brace list. Negative cases cover a file-scope atomic
+array, a block-static record, and the partially initialized record. The
+positive boundary also keeps a zero-initialized pointer to atomic long double,
+because the pointee is not an initialized subobject. The complete frontend
+module passes all 93 tests in 11.731 seconds. Its source
+frontier records 422 functions, 16,503 statements, 109,174 expressions, 2,480
+block bindings, and 1,509 initializers.
+
+A final specification pass found that the same non-atomic walk already
+accepted long-double leaves inside static arrays and records while the
+published boundary still described scalars only. The capability is now kept
+and proved. Frontend fixtures cover implicit arrays and explicit record leaves
+at file and block scope. A separate ELF object fixes 104 BSS bytes, a
+415-byte access function with fingerprint `BF01CC71`, eight absolute
+relocations, and six symbols. The hosted runtime checks 24-byte arrays and
+28-byte records, proves every leaf and marker starts at zero, and moves 1.5
+through file and block members. The same pass removed the token-spelling
+shortcut that rejected `sizeof(float) - 4`; integer constant-expression
+evaluation now accepts it while a genuine `1.0L` initializer still fails with
+a focused diagnostic.
+
+Those aggregate fixtures add real control-flow sites to the same audited
+corpus. The final locks are 21,232 `return`, 3,912 `for`, 35,216 `if`, 4,533
+`else`, 2,680 `while`, and 2,806 `goto` occurrences.
+
+That runtime probe uses direct `__builtin_va_*` operations, so its actual
+CupidC invocation enables GNU mode. The audit caught the old strict-profile
+entry before regeneration. The final split is 31 ordinary strict roots, two
+strict kernel-bridge roots, and two GNU runtime roots for the implementation
+and behavior probe. The total remains 381 tracked preprocessing runs. The new
+long-double coverage, including scalar, array, and record size checks, raises
+the active `sizeof` inventory from 5,333 to 5,348 occurrences across the same
+168 files.
+
+The first complete Toolchain test run caught a stale copy of the same profile
+split in the self-hosted preprocessor contract. The generated case file and
+audit tests expected 31 strict roots and two GNU roots, while the contract
+still expected the earlier 32 and one. Its active-corpus check stopped after
+the fixed point passed. The contract now uses the generated split, and the
+corrected source is part of the next frozen cohort rather than an exception to
+it.
+
+The next complete run passed every object case through wide mutations, then
+the active self-host frontier reached the runner's 900-second limit. An
+isolated reproduction reached the same limit without a diagnostic. A
+case-local 1,800-second budget let the check finish in 928 seconds and exposed
+two stale object identities instead of hiding them behind the timeout. The
+reviewed emitter object has 353 functions, 541,569 text bytes, 608,624 total
+bytes, and fingerprint `2ABA8014`. The frontend object has 422 functions,
+846,845 text bytes, 1,007,060 total bytes, and fingerprint `87F6E1B5`. The
+native frontier and the remaining hosted-adapter and self-host link cases pass
+with those identities. The complete static producer-link closure also reached
+the old limit without a diagnostic, then passed in 1,048.8 seconds with the
+same case-local 1,800-second budget. Every other contract command retains the
+900-second default.
+
+Promotion failure tests now cover the point after the old cohort moves aside.
+A single rename failure restores it. If restoration also fails, the error
+names both failures and the exact recoverable backup. Failure to remove an
+obsolete backup leaves the new verified cohort live and reports the retained
+backup without turning successful publication into a false failure.
+
+The active-source audit now records 717 inputs, 252 feature groups, 449
+transforms, and 25 accounted unreachable files. Its language inventory is 27
+assembly files, 289 headers, 401 Cupid C files, and no ordinary C translation
+unit. The preprocessing gate covers 381 tracked units and four generated
+units, including 31 ordinary hosted i386 Linux roots, two kernel-bridge roots,
+and two GNU runtime roots, with no deferred hosted source. CupidC participates
+in 245 transforms, Python coordinates 449, and no supported transform invokes
+a host C compiler. Its active-source digest is
+`862037cdf964a196478117c0c8f8a0dad5fa0b18df30d0758d49078095a13c28`.
+The generated audit JSON has SHA-256
+`ca9facbf52f5d6ae62f9b39450a90d8068127caf538081623bf11373ba8c67b4`.
+The rendered audit summary has SHA-256
+`e4c32abcb21671c21b93f34d5e1ee5c86fd8f39be69d74f80689d9bf2f03249a`,
+and the generated active-case include has SHA-256
+`99e3ecac637d363c29a3eca25a2b7300a35f4ce2d119fa903490c964a47f87a1`.
+The x86 source witness include records 1,250 active assembly instructions,
+164 mode-independent signatures, and 187 mode-specific cases. Its SHA-256 is
+`e72256e7b8b057c8f3d650364186d18345bad0708b9f65e56124fa3a1795859c`.
+
+The normal image build and partitioned USB fixture completed in 508.2
+seconds with no error output. The boot image remains the exact 2,560-byte
+CupidASM output. The complete raw kernel matches the normal image from that
+boundary.
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `kernel/kernel.elf.pass1` | 8,600,676 | `c62830037528b29d470a8266f37bd9131ce18ab20df4896727109e5dd8783caa` |
+| `kernel/kernel.elf` | 8,711,268 | `893185668ce0282f1e57efed1c3224404c04a2a1a87393c17281610cc141c50a` |
+| `kernel/kernel.bin` | 8,510,856 | `5bd12f137dbbbba30bff4d3fe2b95e1727379b2ece1aaffc6a96cb2dc4416d5a` |
+| fresh `cupidos.img` | 209,715,200 | `5589c5cc151c486a85efaffc3551b37ec4f733ebd57f78c863c5bf6b96c7e23d` |
+| `test_usb_partitioned.img` | 33,554,432 | `057e0c86874090c99095f0558e9fa604bd7f1929f4da357da2c1baca949bb2bb` |
+
+The first repository-wide replay ran 1,003 tests in 4,068.692 seconds. It
+passed the implementation, full kernel frontier, both five-tool fixed points,
+and GUI runtime smoke, then reported three stale evidence failures. One test
+still rejected an absolute relocation addend even though static-subobject
+selection now requires it. The kernel snapshot lock predated the final
+Toolchain include, and 49 `boot.asm` witness labels retained older line
+numbers. The repaired frontier accepts a nonzero `R_386_32` addend and still
+rejects a non-`-4` `R_386_PC32` addend. Every refreshed x86 label keeps its
+mode, signature, mnemonic, length, and encoded bytes. Four focused tests pass,
+the 445-input snapshot now has SHA-256
+`e28b1024edc5361d99583f79f65ce43690ebc873f04b568837f57f8af5df5db7`,
+and the canonical audit regenerates and checks without drift.
+
+The final repository-wide replay passed all 1,004 tests in 3,884.554 seconds,
+with two optional skips. The complete Make target returned in 3,980.5 seconds
+after rebuilding the generated installation sources, checking the user ABI
+and frontiers, passing the GUI terminal runtime smoke, and rechecking the
+canonical audit.
+
+### Focused test evidence
+
+An initial audit-module replay used a 120-second outer budget and expired
+before the generator cases finished. A clean rerun with a long enough wrapper
+completed all 67 tests in 636.942 seconds.
+
+| Check | Result |
+| --- | --- |
+| Earlier contract harness unit suite | Before the three control-plane files joined the manifest, all 26 plan, safe-target, include-profile, object-comparison, dual-inventory, backdated-drift, publication, rollback, cleanup, completeness, manifest, run-target, missing-artifact, and artifact-drift tests passed in 2.268 seconds |
+| Final control-boundary harness | All 31 tests passed in 3.230 seconds, including the exact 45-input inventory, early rejection of an unknown link-object key, and backdated changes to each of the three control-plane files |
+| Final 45-input cohort publication | Passed in 2,655.7 seconds with 20 artifacts, byte-identical stage-two and stage-three outputs, a passing hosted runtime, a live-input recheck, and final verification |
+| Reviewed frontend and Linear IR modules | All 175 tests passed in 23.975 seconds with long-double returns, results, unprototyped calls, aggregate static-zero initialization, and exact inventory locks included |
+| Seed capture and contract publication focus | All 29 focused manifest-capture, plan, safe-target, publication, rollback, cleanup, and recovery tests passed in 2.178 seconds |
+| Checked-seed fixed point | The complete five-tool fixed-point case passed in 619.956 seconds and reported all 41 frozen source inputs |
+| Complete object and fixed-point module | All 106 tests passed in 859.704 seconds, including exact scalar and aggregate long-double objects and the static five-tool fixed point |
+| Complete Toolchain target | `make -C toolchain test` passed in 2,608.0 seconds, including the verified 20-artifact cohort, every CupidC contract mode, the two scoped 1,800-second self-host cases, all 22 CupidASM demos, and the full ELF32, x86, CupidDis, CupidObj, and CupidLD matrix |
+| Native contract callers | Core, x86, ELF32, and CupidDis modules passed 44 tests; one optional symbol-oracle test skipped |
+| Native Toolchain oracle build | All 19 optional artifacts built in 14.8 seconds with the repository warning profile and no warning or error |
+| Audit cohort and classification checks | Passed with all fourteen `.cc` contracts owned by CupidC and no deferred hosted root |
+| Complete audit module | All 67 tests passed in 582.607 seconds with no failures, errors, or skips after the static-zero source and control locks were refreshed |
+| Canonical audit regeneration and drift check | Both passed and produced the checked 717-input graph with the 31 ordinary strict, two strict bridge, and two GNU runtime profile split |
+| Strict kernel frontier | All 155 production sources compiled twice in 1,518.956 seconds with no deferred boundary; both object sets are byte-identical and total 3,717,856 bytes against the 445-input snapshot |
+| Direct object-contract compile | Checked-seed CupidC emitted the complete unchanged object contract |
+| Direct runtime-contract compile | Checked-seed CupidC emitted the unchanged runtime contract after the public `EBADF` addition |
+| Cupid-built formatter probe | The old runtime failed the new wide-format assertion with status 608; the updated runtime passed the same executable probe under WSL |
+| Public Cupid-built runtime test | Passed in 26.010 seconds with exact standard output, empty standard error, and the expected file bytes |
+| Repository-wide gate | `make test` passed all 1,004 tests in 3,884.554 seconds with two optional skips; total Make wall time was 3,980.5 seconds |
+
+ADR 0196 records the ownership decision and remaining boundary. Windows still
+uses WSL to execute these static i386 programs, Host Python still coordinates
+the fixed point, and native Windows and Python-free bootstrap paths remain
+open. The repository still has no IWAD, so gameplay remains outside this
+evidence. The agreed 20 percent quality ceiling is also not enabled: there is
+no approved cohort, metric, oracle producer, or same-revision host-oracle
+artifact. The older Windows and Linux host `.text` measurements differ by
+22.73 percent for the same revision, so choosing either one by assumption
+would not produce a trustworthy gate. Existing linker capacity assertions
+remain separate safety checks.

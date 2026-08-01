@@ -94,9 +94,13 @@ This model is useful for operating-system experiments and low-level study, but i
 
 ## Quick Start
 
+The repository includes a checked static i386 Cupid seed. Linux runs it
+directly, while native Windows builds run it through WSL. CupidC, CupidASM,
+CupidObj, CupidLD, and CupidDis produce the normal OS artifacts.
+
 ```bash
 # Install dependencies (Ubuntu/Debian)
-sudo apt-get install gcc gcc-multilib binutils python3 make qemu-system-x86
+sudo apt-get install python3 make qemu-system-x86
 
 # Build
 make
@@ -104,6 +108,10 @@ make
 # Run (with serial output)
 make run
 ```
+
+On Windows, install GNU Make, Python 3, WSL with a Linux distribution, and
+QEMU. GCC, Clang, binutils, and NASM are needed only for explicit native
+development builds and comparison oracles.
 
 ---
 

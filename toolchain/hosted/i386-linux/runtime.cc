@@ -34,6 +34,8 @@
 #define CUPID_RUNTIME_IO_CHUNK 2147479552u
 #define CUPID_RUNTIME_HEAP_ALIGNMENT 16u
 
+typedef __builtin_va_list cupid_va_list;
+
 int cupid_linux_syscall1(int number, unsigned int first);
 int cupid_linux_syscall2(int number, unsigned int first,
                          unsigned int second);
@@ -85,6 +87,27 @@ void *memcpy(void *destination, const void *source, size_t bytes) {
   size_t index;
   for (index = 0u; index < bytes; index++) {
     target[index] = input[index];
+  }
+  return destination;
+}
+
+void *memmove(void *destination, const void *source, size_t bytes) {
+  unsigned char *target = (unsigned char *)destination;
+  const unsigned char *input = (const unsigned char *)source;
+  unsigned int target_address = (unsigned int)target;
+  unsigned int input_address = (unsigned int)input;
+  size_t index;
+  if (target_address <= input_address ||
+      target_address - input_address >= bytes) {
+    for (index = 0u; index < bytes; index++) {
+      target[index] = input[index];
+    }
+  } else {
+    index = bytes;
+    while (index != 0u) {
+      index--;
+      target[index] = input[index];
+    }
   }
   return destination;
 }
@@ -153,6 +176,22 @@ char *strchr(const char *text, int character) {
     }
     index++;
   }
+}
+
+char *strstr(const char *text, const char *needle) {
+  size_t needle_size = strlen(needle);
+  size_t index = 0u;
+  if (needle_size == 0u) {
+    return (char *)text;
+  }
+  while (text[index] != '\0') {
+    if (text[index] == needle[0] &&
+        strncmp(text + index, needle, needle_size) == 0) {
+      return (char *)(text + index);
+    }
+    index++;
+  }
+  return (char *)0;
 }
 
 static int cupid_heap_size(size_t bytes, size_t *aligned_out) {
@@ -595,96 +634,121 @@ long ftell(FILE *stream) {
   return (long)result;
 }
 
-static int cupid_fprintf_write(FILE *stream, const char *text, size_t size,
-                               int *total) {
-  if (size > (size_t)(CUPID_RUNTIME_INT_MAX - *total)) {
+typedef struct cupid_format_sink cupid_format_sink_t;
+
+struct cupid_format_sink {
+  FILE *stream;
+  char *buffer;
+  size_t capacity;
+  size_t stored;
+  int total;
+  int buffer_mode;
+};
+
+static int cupid_format_write(cupid_format_sink_t *sink, const char *text,
+                              size_t size) {
+  size_t copied = 0u;
+  if (size > (size_t)(CUPID_RUNTIME_INT_MAX - sink->total)) {
     errno = CUPID_LINUX_EOVERFLOW;
     return 0;
   }
-  if (size != 0u && fwrite(text, 1u, size, stream) != size) {
-    return 0;
+  if (sink->buffer_mode == 0) {
+    if (size != 0u && fwrite(text, 1u, size, sink->stream) != size) {
+      return 0;
+    }
+  } else if (sink->capacity != 0u) {
+    size_t available = sink->capacity - 1u - sink->stored;
+    copied = size < available ? size : available;
+    if (copied != 0u) {
+      (void)memcpy(sink->buffer + sink->stored, text, copied);
+      sink->stored += copied;
+    }
+    sink->buffer[sink->stored] = '\0';
   }
-  *total += (int)size;
+  sink->total += (int)size;
   return 1;
 }
 
-static int cupid_fprintf_character(FILE *stream, char value, int *total) {
-  return cupid_fprintf_write(stream, &value, 1u, total);
+static int cupid_format_character(cupid_format_sink_t *sink, char value) {
+  return cupid_format_write(sink, &value, 1u);
 }
 
-static int cupid_fprintf_padding(FILE *stream, char value, size_t count,
-                                 int *total) {
+static int cupid_format_padding(cupid_format_sink_t *sink, char value,
+                                size_t count) {
   size_t index;
   for (index = 0u; index < count; index++) {
-    if (!cupid_fprintf_character(stream, value, total)) {
+    if (!cupid_format_character(sink, value)) {
       return 0;
     }
   }
   return 1;
 }
 
-static int cupid_fprintf_number(FILE *stream, unsigned int value,
-                                unsigned int base, int uppercase,
-                                int negative, size_t width, int zero_pad,
-                                int *total) {
-  char digits[16];
+static int cupid_format_number(cupid_format_sink_t *sink,
+                               unsigned long long value,
+                               unsigned int base,
+                               int uppercase, int negative, size_t width,
+                               int zero_pad) {
+  char digits[32];
   size_t size = 0u;
   size_t padding;
   const char *alphabet =
       uppercase != 0 ? "0123456789ABCDEF" : "0123456789abcdef";
   do {
-    digits[size] = alphabet[value % base];
+    digits[size] =
+        alphabet[(unsigned int)(value % (unsigned long long)base)];
     size++;
-    value /= base;
-  } while (value != 0u);
+    value /= (unsigned long long)base;
+  } while (value != 0ULL);
   padding = width > size + (negative != 0 ? 1u : 0u)
                 ? width - size - (negative != 0 ? 1u : 0u)
                 : 0u;
   if (zero_pad == 0 &&
-      !cupid_fprintf_padding(stream, ' ', padding, total)) {
+      !cupid_format_padding(sink, ' ', padding)) {
     return 0;
   }
   if (negative != 0 &&
-      !cupid_fprintf_character(stream, '-', total)) {
+      !cupid_format_character(sink, '-')) {
     return 0;
   }
   if (zero_pad != 0 &&
-      !cupid_fprintf_padding(stream, '0', padding, total)) {
+      !cupid_format_padding(sink, '0', padding)) {
     return 0;
   }
   while (size != 0u) {
     size--;
-    if (!cupid_fprintf_character(stream, digits[size], total)) {
+    if (!cupid_format_character(sink, digits[size])) {
       return 0;
     }
   }
   return 1;
 }
 
-int fprintf(FILE *stream, const char *format, ...) {
-  typedef __builtin_va_list cupid_va_list;
-  cupid_va_list arguments;
+static int cupid_vformat(cupid_format_sink_t *sink, const char *format,
+                         cupid_va_list arguments) {
   size_t index = 0u;
-  int total = 0;
   int result = -1;
-  if (cupid_stdio_bad_stream(stream) ||
-      format == (const char *)0) {
+  if (format == (const char *)0) {
     errno = CUPID_LINUX_EINVAL;
     return -1;
   }
-  __builtin_va_start(arguments, format);
+  if (sink->buffer_mode == 0 &&
+      cupid_stdio_bad_stream(sink->stream)) {
+    return -1;
+  }
   while (format[index] != '\0') {
     size_t start = index;
     size_t width = 0u;
+    size_t precision = 0u;
     int zero_pad = 0;
+    int precision_set = 0;
     int long_value = 0;
     char specifier;
     while (format[index] != '\0' && format[index] != '%') {
       index++;
     }
     if (index != start &&
-        !cupid_fprintf_write(stream, format + start, index - start,
-                             &total)) {
+        !cupid_format_write(sink, format + start, index - start)) {
       goto done;
     }
     if (format[index] == '\0') {
@@ -692,7 +756,7 @@ int fprintf(FILE *stream, const char *format, ...) {
     }
     index++;
     if (format[index] == '%') {
-      if (!cupid_fprintf_character(stream, '%', &total)) {
+      if (!cupid_format_character(sink, '%')) {
         goto done;
       }
       index++;
@@ -713,9 +777,40 @@ int fprintf(FILE *stream, const char *format, ...) {
       width = width * 10u + digit;
       index++;
     }
+    if (format[index] == '.') {
+      index++;
+      if (format[index] == '*') {
+        int requested_precision =
+            __builtin_va_arg(arguments, int);
+        index++;
+        if (requested_precision >= 0) {
+          precision = (size_t)requested_precision;
+          precision_set = 1;
+        }
+      } else {
+        precision_set = 1;
+        while (format[index] >= '0' && format[index] <= '9') {
+          unsigned int digit =
+              (unsigned int)(format[index] - '0');
+          if (precision >
+                  (size_t)CUPID_RUNTIME_INT_MAX / 10u ||
+              precision * 10u >
+                  (size_t)CUPID_RUNTIME_INT_MAX - digit) {
+            errno = CUPID_LINUX_EOVERFLOW;
+            goto done;
+          }
+          precision = precision * 10u + digit;
+          index++;
+        }
+      }
+    }
     if (format[index] == 'l') {
       long_value = 1;
       index++;
+      if (format[index] == 'l') {
+        long_value = 2;
+        index++;
+      }
     }
     specifier = format[index];
     if (specifier == '\0') {
@@ -728,54 +823,82 @@ int fprintf(FILE *stream, const char *format, ...) {
           __builtin_va_arg(arguments, const char *);
       size_t size;
       size_t padding;
+      if (long_value != 0) {
+        errno = CUPID_LINUX_EINVAL;
+        goto done;
+      }
       if (text == (const char *)0) {
         text = "(null)";
       }
-      size = strlen(text);
+      if (precision_set != 0) {
+        size = 0u;
+        while (size < precision && text[size] != '\0') {
+          size++;
+        }
+      } else {
+        size = strlen(text);
+      }
       padding = width > size ? width - size : 0u;
-      if (!cupid_fprintf_padding(stream, ' ', padding, &total) ||
-          !cupid_fprintf_write(stream, text, size, &total)) {
+      if (!cupid_format_padding(sink, ' ', padding) ||
+          !cupid_format_write(sink, text, size)) {
         goto done;
       }
     } else if (specifier == 'c') {
       int value = __builtin_va_arg(arguments, int);
-      if (width > 1u &&
-          !cupid_fprintf_padding(stream, ' ', width - 1u, &total)) {
+      if (long_value != 0 || precision_set != 0) {
+        errno = CUPID_LINUX_EINVAL;
         goto done;
       }
-      if (!cupid_fprintf_character(stream, (char)value, &total)) {
+      if (width > 1u &&
+          !cupid_format_padding(sink, ' ', width - 1u)) {
+        goto done;
+      }
+      if (!cupid_format_character(sink, (char)value)) {
         goto done;
       }
     } else if (specifier == 'd' || specifier == 'i') {
-      long value;
-      unsigned int magnitude;
+      long long value;
+      unsigned long long magnitude;
       int negative;
-      if (long_value != 0) {
-        value = __builtin_va_arg(arguments, long);
-      } else {
-        value = (long)__builtin_va_arg(arguments, int);
+      if (precision_set != 0) {
+        errno = CUPID_LINUX_EINVAL;
+        goto done;
       }
-      negative = value < 0L ? 1 : 0;
+      if (long_value == 2) {
+        value = __builtin_va_arg(arguments, long long);
+      } else if (long_value == 1) {
+        value = (long long)__builtin_va_arg(arguments, long);
+      } else {
+        value = (long long)__builtin_va_arg(arguments, int);
+      }
+      negative = value < 0LL ? 1 : 0;
       magnitude = negative != 0
-                      ? 0u - (unsigned int)value
-                      : (unsigned int)value;
-      if (!cupid_fprintf_number(stream, magnitude, 10u, 0, negative,
-                                width, zero_pad, &total)) {
+                      ? 0ULL - (unsigned long long)value
+                      : (unsigned long long)value;
+      if (!cupid_format_number(sink, magnitude, 10u, 0, negative,
+                               width, zero_pad)) {
         goto done;
       }
     } else if (specifier == 'u' || specifier == 'x' ||
                specifier == 'X') {
-      unsigned long value;
+      unsigned long long value;
       unsigned int base = specifier == 'u' ? 10u : 16u;
-      if (long_value != 0) {
-        value = __builtin_va_arg(arguments, unsigned long);
+      if (precision_set != 0) {
+        errno = CUPID_LINUX_EINVAL;
+        goto done;
+      }
+      if (long_value == 2) {
+        value = __builtin_va_arg(arguments, unsigned long long);
+      } else if (long_value == 1) {
+        value =
+            (unsigned long long)__builtin_va_arg(arguments, unsigned long);
       } else {
         value =
-            (unsigned long)__builtin_va_arg(arguments, unsigned int);
+            (unsigned long long)__builtin_va_arg(arguments, unsigned int);
       }
-      if (!cupid_fprintf_number(stream, (unsigned int)value, base,
-                                specifier == 'X' ? 1 : 0, 0, width,
-                                zero_pad, &total)) {
+      if (!cupid_format_number(sink, value, base,
+                               specifier == 'X' ? 1 : 0, 0, width,
+                               zero_pad)) {
         goto done;
       }
     } else {
@@ -783,9 +906,103 @@ int fprintf(FILE *stream, const char *format, ...) {
       goto done;
     }
   }
-  result = total;
+  result = sink->total;
 
 done:
+  return result;
+}
+
+int fprintf(FILE *stream, const char *format, ...) {
+  cupid_va_list arguments;
+  cupid_format_sink_t sink;
+  int result;
+  sink.stream = stream;
+  sink.buffer = (char *)0;
+  sink.capacity = 0u;
+  sink.stored = 0u;
+  sink.total = 0;
+  sink.buffer_mode = 0;
+  __builtin_va_start(arguments, format);
+  result = cupid_vformat(&sink, format, arguments);
+  __builtin_va_end(arguments);
+  return result;
+}
+
+int printf(const char *format, ...) {
+  cupid_va_list arguments;
+  cupid_format_sink_t sink;
+  int result;
+  sink.stream = stdout;
+  sink.buffer = (char *)0;
+  sink.capacity = 0u;
+  sink.stored = 0u;
+  sink.total = 0;
+  sink.buffer_mode = 0;
+  __builtin_va_start(arguments, format);
+  result = cupid_vformat(&sink, format, arguments);
+  __builtin_va_end(arguments);
+  return result;
+}
+
+int fputc(int character, FILE *stream) {
+  unsigned char byte = (unsigned char)character;
+  return fwrite(&byte, 1u, 1u, stream) == 1u ? (int)byte : EOF;
+}
+
+int fputs(const char *text, FILE *stream) {
+  size_t size;
+  if (text == (const char *)0) {
+    errno = CUPID_LINUX_EINVAL;
+    if (stream != (FILE *)0) {
+      stream->error = 1;
+    }
+    return EOF;
+  }
+  if (cupid_stdio_bad_stream(stream)) {
+    return EOF;
+  }
+  size = strlen(text);
+  return size == 0u || fwrite(text, 1u, size, stream) == size ? 0 : EOF;
+}
+
+int puts(const char *text) {
+  cupid_format_sink_t sink;
+  if (text == (const char *)0) {
+    errno = CUPID_LINUX_EINVAL;
+    return -1;
+  }
+  sink.stream = stdout;
+  sink.buffer = (char *)0;
+  sink.capacity = 0u;
+  sink.stored = 0u;
+  sink.total = 0;
+  sink.buffer_mode = 0;
+  if (!cupid_format_write(&sink, text, strlen(text)) ||
+      !cupid_format_character(&sink, '\n')) {
+    return -1;
+  }
+  return sink.total;
+}
+
+int snprintf(char *destination, size_t capacity, const char *format, ...) {
+  cupid_va_list arguments;
+  cupid_format_sink_t sink;
+  int result;
+  if (capacity != 0u && destination == (char *)0) {
+    errno = CUPID_LINUX_EINVAL;
+    return -1;
+  }
+  sink.stream = (FILE *)0;
+  sink.buffer = destination;
+  sink.capacity = capacity;
+  sink.stored = 0u;
+  sink.total = 0;
+  sink.buffer_mode = 1;
+  if (capacity != 0u) {
+    destination[0] = '\0';
+  }
+  __builtin_va_start(arguments, format);
+  result = cupid_vformat(&sink, format, arguments);
   __builtin_va_end(arguments);
   return result;
 }

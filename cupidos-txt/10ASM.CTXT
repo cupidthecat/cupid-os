@@ -50,9 +50,9 @@ artifact gate checks this byte-exact boundary after related build changes.
 
 cupidasm.cc, x86.cc, and elf32.cc also belong to the checked fixed point.
 Together with ctool.cc and cupiddis.cc, they complete the five shared
-Toolchain roots. Native GCC or Clang rules remain only in the hosted
-Toolchain and explicit oracle paths. ADR 0126 records the naming change and
-old-seed proof. ADR 0190 records the root command handoff.
+Toolchain roots. Native GCC or Clang rules remain only in explicit
+native-oracle and hosted development targets. ADR 0126 records the naming
+change and old-seed proof. ADR 0190 records the root command handoff.
 
 The old kernel-only as_lex.c and as_parse.c implementations were removed.
 
@@ -141,7 +141,7 @@ useful failures.
 The checked i386 Linux seed includes CupidASM. Its manifest binds the exact
 assembler image to the target ABI, source revision, producer lineage, source
 plan, and link order. The bootstrap freezes the verified manifest and binaries
-and copies its 40-input source closure, including link.ld, into a private root.
+and copies its 41-input source closure, including link.ld, into a private root.
 Checked CupidASM assembles stage-two startup there, then the stage-two
 assembler produces byte-identical stage-three startup below the same root.
 The harness checks both the private and live closures at each stage and
@@ -151,8 +151,9 @@ together only after the gate passes.
 
 make verify-bootstrap-seed validates the files without executing them.
 make bootstrap-from-seed performs the staged build. Windows runs the static
-Linux tools through WSL. Native contract runners, hosted development commands,
-and 87 normal Cupid OS root objects still use a host compiler.
+Linux tools through WSL. Normal Cupid OS C roots and Toolchain contracts use
+checked CupidC. A host compiler remains only for explicit native oracles and
+hosted development commands.
 
 >box
 If an asm demo crashes strangely, stack cleanup is the first thing to inspect.
@@ -196,9 +197,13 @@ repository paths without making the assembler depend on ambient host paths.
 CupidASM implements the cleanly expressible NASM-compatible surface required
 by active CupidOS sources; it does not claim unrestricted NASM compatibility.
 
-The checked seed's shared x86 catalogue has 587 rows, 242 canonical mnemonics,
-and 64 register names. The active-source contracts cover every instruction in all
-22 demos and the four boot/kernel assembly sources. Common families include:
+The current shared x86 catalogue has 589 rows, 242 canonical mnemonics, and
+64 register names. Its fingerprint is 22C336A0. The two newest rows cover
+80-bit x87 FLD and FSTP memory operands for automatic long double values. The
+repository seed keeps the earlier 587-row catalogue and rebuilds the current
+model during the checked fixed point. Active-source contracts cover every
+instruction in all 22 demos and the four boot/kernel assembly sources. Common
+families include:
 - mov, lea, xchg
 - push, pop, call, ret, and ret imm16 such as RET 4
 - jmp and common conditional jumps

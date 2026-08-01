@@ -2660,14 +2660,17 @@ static ctool_bool cir_type_is_floating_value(
   if (node == (const ctool_c_type_node_t *)0 ||
       type >= context->unit->layout.type_count ||
       (node->kind != CTOOL_C_TYPE_FLOAT &&
-       node->kind != CTOOL_C_TYPE_DOUBLE)) {
+       node->kind != CTOOL_C_TYPE_DOUBLE &&
+       node->kind != CTOOL_C_TYPE_LONG_DOUBLE)) {
     return CTOOL_FALSE;
   }
   layout = &context->unit->layout.types[type];
   return layout->is_object == CTOOL_TRUE &&
                  layout->is_complete_object == CTOOL_TRUE &&
                  ((node->kind == CTOOL_C_TYPE_FLOAT && layout->size == 4u) ||
-                  (node->kind == CTOOL_C_TYPE_DOUBLE && layout->size == 8u))
+                  (node->kind == CTOOL_C_TYPE_DOUBLE && layout->size == 8u) ||
+                  (node->kind == CTOOL_C_TYPE_LONG_DOUBLE &&
+                   layout->size == 12u))
              ? CTOOL_TRUE
              : CTOOL_FALSE;
 }
@@ -3864,13 +3867,15 @@ static ctool_bool cir_floating_conversion_is_valid(
   source_floating =
       cir_type_is_floating_value(context, source_type) == CTOOL_TRUE &&
               (source->kind == CTOOL_C_TYPE_FLOAT ||
-               source->kind == CTOOL_C_TYPE_DOUBLE)
+               source->kind == CTOOL_C_TYPE_DOUBLE ||
+               source->kind == CTOOL_C_TYPE_LONG_DOUBLE)
           ? CTOOL_TRUE
           : CTOOL_FALSE;
   target_floating =
       cir_type_is_floating_value(context, target_type) == CTOOL_TRUE &&
               (target->kind == CTOOL_C_TYPE_FLOAT ||
-               target->kind == CTOOL_C_TYPE_DOUBLE)
+               target->kind == CTOOL_C_TYPE_DOUBLE ||
+               target->kind == CTOOL_C_TYPE_LONG_DOUBLE)
           ? CTOOL_TRUE
           : CTOOL_FALSE;
   if (source_floating == CTOOL_TRUE &&
@@ -3881,6 +3886,7 @@ static ctool_bool cir_floating_conversion_is_valid(
             : (const ctool_c_type_layout_t *)0;
     ctool_bool represented_conversion =
         layout != (const ctool_c_type_layout_t *)0 &&
+                source->kind != CTOOL_C_TYPE_LONG_DOUBLE &&
                 cir_type_is_represented_integer(
                     context, target_type) == CTOOL_TRUE &&
                 target->kind != CTOOL_C_TYPE_BOOL &&
@@ -3907,6 +3913,7 @@ static ctool_bool cir_floating_conversion_is_valid(
       target_floating == CTOOL_TRUE) {
     return cir_type_is_represented_integer(
                context, source_type) == CTOOL_TRUE &&
+                   target->kind != CTOOL_C_TYPE_LONG_DOUBLE &&
                    context->unit->layout.types[source_type].size <= 4u &&
                    (conversion == CTOOL_C_CONVERSION_NONE ||
                     conversion == CTOOL_C_CONVERSION_ASSIGNMENT ||
@@ -3928,7 +3935,10 @@ static ctool_bool cir_floating_conversion_is_valid(
   if (conversion == CTOOL_C_CONVERSION_USUAL_ARITHMETIC) {
     return source->kind == target->kind ||
                    (source->kind == CTOOL_C_TYPE_FLOAT &&
-                    target->kind == CTOOL_C_TYPE_DOUBLE)
+                    (target->kind == CTOOL_C_TYPE_DOUBLE ||
+                     target->kind == CTOOL_C_TYPE_LONG_DOUBLE)) ||
+                   (source->kind == CTOOL_C_TYPE_DOUBLE &&
+                    target->kind == CTOOL_C_TYPE_LONG_DOUBLE)
                ? CTOOL_TRUE
                : CTOOL_FALSE;
   }
@@ -7532,7 +7542,7 @@ static ctool_status_t cir_lower_call(
       }
       if (cir_type_is_floating_value(
               context, argument_expression->type) == CTOOL_TRUE &&
-          layout->size != 8u) {
+          layout->size <= 4u) {
         return cir_emit_failure(
             context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_ABI,
             &argument_expression->location,
@@ -7672,8 +7682,13 @@ static ctool_bool cir_variadic_argument_type(
   if (node->kind == CTOOL_C_TYPE_POINTER) {
     return layout->size == 4u ? CTOOL_TRUE : CTOOL_FALSE;
   }
-  if (node->kind == CTOOL_C_TYPE_DOUBLE) {
-    return layout->size == 8u ? CTOOL_TRUE : CTOOL_FALSE;
+  if (node->kind == CTOOL_C_TYPE_DOUBLE ||
+      node->kind == CTOOL_C_TYPE_LONG_DOUBLE) {
+    return ((node->kind == CTOOL_C_TYPE_DOUBLE && layout->size == 8u) ||
+            (node->kind == CTOOL_C_TYPE_LONG_DOUBLE &&
+             layout->size == 12u))
+               ? CTOOL_TRUE
+               : CTOOL_FALSE;
   }
   return layout->is_integer == CTOOL_TRUE &&
                  (layout->size == 4u || layout->size == 8u) &&

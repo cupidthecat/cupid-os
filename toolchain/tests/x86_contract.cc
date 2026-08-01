@@ -233,9 +233,9 @@ static int run_model(void) {
     return 1;
   }
   info = ctool_x86_model_info();
-  if (!check_true(info.form_count == 587u && info.mnemonic_count == 242u &&
+  if (!check_true(info.form_count == 589u && info.mnemonic_count == 242u &&
                       info.register_count == 64u &&
-                      info.fingerprint == 0x68e281cbu,
+                      info.fingerprint == 0x22c336a0u,
                   "model inventory")) {
     ctool_job_close(job);
     return 1;
@@ -2406,6 +2406,8 @@ static int run_active_surface(void) {
       {"fld", CTOOL_X86_MODE_32, CTOOL_X86_MN_FLD, 2u, {0xd9u, 0u}},
       {"fld-m64", CTOOL_X86_MODE_32, CTOOL_X86_MN_FLD, 2u,
        {0xddu, 0u}},
+      {"fld-m80", CTOOL_X86_MODE_32, CTOOL_X86_MN_FLD, 2u,
+       {0xdbu, 0x28u}},
       {"fninit", CTOOL_X86_MODE_32, CTOOL_X86_MN_FNINIT, 2u,
        {0xdbu, 0xe3u}},
       {"fsin", CTOOL_X86_MODE_32, CTOOL_X86_MN_FSIN, 2u,
@@ -2414,6 +2416,8 @@ static int run_active_surface(void) {
        {0xd9u, 0x18u}},
       {"fstp-m64", CTOOL_X86_MODE_32, CTOOL_X86_MN_FSTP, 2u,
        {0xddu, 0x18u}},
+      {"fstp-m80", CTOOL_X86_MODE_32, CTOOL_X86_MN_FSTP, 2u,
+       {0xdbu, 0x38u}},
       {"fstp-st0", CTOOL_X86_MODE_32, CTOOL_X86_MN_FSTP, 2u,
        {0xddu, 0xd8u}},
       {"fstp-st1", CTOOL_X86_MODE_32, CTOOL_X86_MN_FSTP, 2u,
@@ -2751,6 +2755,22 @@ static int run_errors(void) {
   ctool_u32 vector_index;
   ctool_u32 cut;
   if (!open_job(&adapter, &job)) {
+    return 1;
+  }
+  insn = instruction(CTOOL_X86_MN_FLD, 0u, 32u, 0u);
+  insn.operand_count = 1u;
+  insn.operands[0] = memory_operand(
+      96u, 32u, reg(CTOOL_X86_REG_NONE, 0u),
+      reg(CTOOL_X86_REG_GPR32, 0u), reg(CTOOL_X86_REG_NONE, 0u),
+      1u, 0, 0u);
+  (void)memset(&encoding, 0xa5, sizeof(encoding));
+  status = ctool_x86_encode(job, CTOOL_X86_MODE_32, &insn,
+                            CTOOL_X86_FORM_AUTO, &encoding);
+  if (!check_status(status, CTOOL_ERR_INPUT,
+                    "unsupported x87 real width") ||
+      !check_true(encoding_is_zero(&encoding),
+                  "unsupported x87 real width zeroed output")) {
+    ctool_job_close(job);
     return 1;
   }
   insn = instruction(CTOOL_X86_MN_MOV, 32u, 32u, 0u);

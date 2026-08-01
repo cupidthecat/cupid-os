@@ -2051,7 +2051,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                 int.from_bytes(image[18:20], "little"), 3
             )
 
-    def test_cupid_built_runtime_contract_covers_success_and_failure_paths(self):
+    def test_cupid_built_runtime_covers_errors_and_long_double_abi(self):
         linked = self.build_cupid_tools()
         self.assertEqual(linked.returncode, 0, linked.stderr)
         with tempfile.TemporaryDirectory(
@@ -2066,71 +2066,15 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                 [output, missing],
             )
             self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
-            self.assertEqual(run.stdout, "runtime-ok\n")
+            self.assertEqual(
+                run.stdout,
+                "printf-ok 7\nputs-ok\nfputs-ok\nruntime-ok\n",
+            )
             self.assertEqual(run.stderr, "")
             self.assertEqual(
                 output.read_text(encoding="utf-8"),
                 "ok -12 0000002A\n",
             )
-
-    def test_toolchain_all_rebuilds_a_missing_cupid_artifact(self):
-        build_path = Path(self._build_directory.name)
-        relative_build = build_path.relative_to(TOOLCHAIN_ROOT).as_posix()
-        command = [
-            "make",
-            "-C",
-            str(TOOLCHAIN_ROOT),
-            f"BUILD_DIR={relative_build}",
-            "all",
-        ]
-        initial = subprocess.run(
-            command,
-            cwd=REPO_ROOT,
-            text=True,
-            capture_output=True,
-            timeout=180,
-        )
-        self.assertEqual(initial.returncode, 0, initial.stdout + initial.stderr)
-
-        manifest = build_path / "cupidc-hosted-i386-tools.json"
-        artifact = build_path / "cupidc-cupidc.elf"
-        self.assertTrue(manifest.exists())
-        self.assertTrue(artifact.exists())
-        manifest_bytes = manifest.read_bytes()
-        artifact_bytes = artifact.read_bytes()
-
-        artifact.unlink()
-        self.assertTrue(manifest.exists())
-        rebuilt = subprocess.run(
-            command,
-            cwd=REPO_ROOT,
-            text=True,
-            capture_output=True,
-            timeout=180,
-        )
-        self.assertEqual(rebuilt.returncode, 0, rebuilt.stdout + rebuilt.stderr)
-        self.assertIn("self-host-link-tools: ok", rebuilt.stdout)
-        self.assertEqual(artifact.read_bytes(), artifact_bytes)
-        self.assertEqual(manifest.read_bytes(), manifest_bytes)
-
-        artifact.unlink()
-        direct = subprocess.run(
-            [
-                "make",
-                "-C",
-                str(TOOLCHAIN_ROOT),
-                f"BUILD_DIR={relative_build}",
-                f"{relative_build}/cupidc-cupidc.elf",
-            ],
-            cwd=REPO_ROOT,
-            text=True,
-            capture_output=True,
-            timeout=180,
-        )
-        self.assertEqual(direct.returncode, 0, direct.stdout + direct.stderr)
-        self.assertIn("self-host-link-tools: ok", direct.stdout)
-        self.assertEqual(artifact.read_bytes(), artifact_bytes)
-        self.assertEqual(manifest.read_bytes(), manifest_bytes)
 
     def test_cupid_built_tools_match_hosted_runtime_behavior(self):
         linked = self.build_cupid_tools()

@@ -1,6 +1,6 @@
 # Getting Started
 
-This guide covers building cupid-os from source and running it in QEMU.
+This guide covers building Cupid OS from source and running it in QEMU.
 
 ---
 
@@ -8,14 +8,13 @@ This guide covers building cupid-os from source and running it in QEMU.
 
 | Tool | Purpose |
 |------|---------|
-| **CupidASM** | Built automatically, then owns the boot, ISR, context-switch, and SMP-trampoline transforms |
-| **GCC** (32-bit support, Linux) | C compiler for the remaining host-owned kernel and driver sources plus native compiler/link bootstrap for hosted Cupid tools |
-| **GNU binutils** (Linux) | `nm` for the remaining kernel-symbol extraction hand-off |
-| **LLVM** (Windows) | `clang` plus its native linker backend bootstrap hosted Cupid tools and compile the remaining host-owned C; CupidDis extracts kernel symbols, while CupidLD and CupidObj own OS/user ELF linking and binary transforms |
+| **Checked Cupid toolchain** | The repository carries a verified static i386 seed. CupidC, CupidASM, CupidObj, CupidLD, and CupidDis own the normal C, assembly, object, link, and inspection transforms |
 | **Python 3** | Portable host-side image and code-generation helpers |
 | **GNU Make** | Build system |
 | **QEMU** (`qemu-system-i386`) | x86 emulator for testing |
+| **WSL** (Windows only) | Runs the checked static i386 Linux Cupid tools from a native Windows build |
 | **mtools** (optional) | Manual FAT16 inspection/copying from Linux hosts |
+| **GCC, Clang, and binutils** (optional) | Native development builds and comparison oracles; they do not produce normal OS artifacts |
 | **NASM** (optional) | Comparison oracle used by `make nasm-assembly-oracle` when installed |
 
 ---
@@ -24,30 +23,54 @@ This guide covers building cupid-os from source and running it in QEMU.
 
 ### Ubuntu / Debian
 ```bash
-sudo apt-get install gcc gcc-multilib binutils python3 make qemu-system-x86
+sudo apt-get install python3 make qemu-system-x86
+```
+
+Install native compiler and comparison tools only when you plan to run the
+optional oracle targets:
+
+```bash
+sudo apt-get install gcc gcc-multilib binutils nasm
 ```
 
 ### Arch Linux
 ```bash
-sudo pacman -S gcc binutils python make qemu-full
+sudo pacman -S python make qemu-full
+```
+
+The optional native oracles also use GCC, binutils, or NASM:
+
+```bash
+sudo pacman -S gcc binutils nasm
 ```
 
 ### Native Windows
-Install GNU Make, Python 3, LLVM, and QEMU, and make sure they are on
-`PATH`.
+Install GNU Make, Python 3, and QEMU, make sure they are on `PATH`, then
+enable WSL with a Linux distribution.
 
 ```powershell
-choco install make python llvm qemu
+choco install make python qemu
+wsl --install
 ```
 
-MinGW GCC is not the supported native Windows compiler; the Makefile defaults
-to Clang's i386 freestanding target. The kernel is linked by CupidLD.
+Run `make` from PowerShell or another native Windows shell. The Makefile uses
+WSL to execute the checked static i386 Cupid seed. CupidC compiles the normal
+C sources, and CupidLD links the kernel. Install LLVM only for the explicit
+native Toolchain contracts and native Windows comparison targets:
+
+```powershell
+choco install llvm
+```
+
 QEMU defaults to no host audio on Windows so booting does not depend on a
 working DirectSound device; use `make QEMU_AUDIODEV=dsound,id=speaker run` to
 enable DirectSound.
 
 ### WSL (Windows Subsystem for Linux)
-Install the same packages as on Ubuntu or Debian. QEMU's graphical output also requires an X server such as VcXsrv or WSLg.
+When you build entirely inside WSL, install the Ubuntu or Debian requirements
+in that distribution. Native Windows builds normally start QEMU outside WSL,
+so they do not need an X server. Running QEMU inside WSL requires WSLg or an X
+server such as VcXsrv.
 
 ---
 
@@ -60,9 +83,10 @@ make
 ```
 
 This produces:
-- `boot/boot.bin` - 2,560-byte image (512-byte stage 1 + 2 KiB stage 2)
-- `kernel/kernel.bin` - Flat binary kernel
-- `cupidos.img` - Bootable IDE HDD image (default 200MB) with embedded FAT16 partition
+
+- `boot/boot.bin`: 2,560-byte image with a 512-byte stage 1 and 2 KiB stage 2
+- `kernel/kernel.bin`: flat binary kernel
+- `cupidos.img`: bootable IDE HDD image, 200 MB by default, with an embedded FAT16 partition
 
 ### Choose HDD Size
 

@@ -16,9 +16,34 @@ ELF files, and unexpected target metadata.
 
 The separate i386 runtime contract is not part of those 19 tool inputs. It
 uses `.cc` because CupidC compiles it, CupidLD links it with CupidASM startup
-and the repository runtime, and Linux or WSL runs the result. This makes all
-20 sources in the wider checked closure CupidC-named without changing the
-seed manifest. ADR 0195 records the transfer.
+and the repository runtime, and Linux or WSL runs the result. The normal
+Toolchain target also owns fourteen `.cc` contract programs. Stage-two and
+stage-three CupidC compile them at the checked i386 ABI, CupidLD links each
+one against matching stage objects, and the harness requires all sixteen new
+objects and fifteen executables to match across stages. It freezes 45
+contract inputs and reconstructs that exact inventory under a private source
+root. That inventory includes the Toolchain Makefile and both Python modules
+that construct or verify the cohort. Newly discovered contract inventories catch additions, removals, and a
+transient edit copied before the live file is restored. The public manifest
+also binds the checked seed, build plan, and 41-file fixed-point source
+inventory. Verify and run reconstruct both inventories before execution.
+Hashing, JSON decoding, schema checks, and build-plan use share one captured
+seed-manifest byte sequence. Replacing the file during validation cannot mix
+facts from separate reads. The
+publisher accepts only a dedicated `cupidc-contracts` directory inside the
+source tree. It validates that target before work and again before promotion,
+and an existing destination must already verify as a complete cohort.
+Arbitrary directories, source trees, files, and symbolic links remain
+untouched. It publishes all fifteen contracts, five refreshed tools, and a
+manifest together. ADR 0195 records the runtime probe rename, and ADR 0196
+records the complete transfer.
+Every normal Toolchain run derives the cohort from its requested executable,
+requires a named manifest artifact, and verifies the target, fixed-point
+record, exact filenames, sizes, hashes, and current live input hashes before
+execution.
+The runtime probe also exercises signed and unsigned `long long` formatting,
+sixteen-digit zero-padded hexadecimal output, and precision-bounded strings.
+Those forms come from the unchanged Toolchain contract diagnostics.
 
 ```sh
 make verify-bootstrap-seed
@@ -30,8 +55,8 @@ This command validates the seed without executing it.
 make bootstrap-from-seed
 ```
 
-The full command reads all 40 current source inputs once: 19 C sources,
-startup, 19 project headers, and `link.ld`. It copies those exact bytes into a
+The full command reads all 41 current source inputs once: 19 C sources,
+startup, 20 project headers, and `link.ld`. It copies those exact bytes into a
 private compiler root. Checked CupidC compiles stage two below that root,
 checked CupidASM assembles its startup, and checked CupidLD links all five
 tools. The stage-two producer trio repeats the build for stage three below the
@@ -61,9 +86,18 @@ Linux runs private copies of the static tools directly. Windows stages each
 copy in a mode-0700 WSL directory created by `mktemp`. Native Windows seed
 executables are not available yet.
 
-This seed makes the hosted static toolchain reproducible from a clean checkout.
-Native contract runners and hosted development commands still use a host C
-compiler. Normal OS objects do not.
+This seed makes the hosted static toolchain reproducible from a clean
+checkout. `make -C toolchain all` uses it for the normal contract cohort and
+does not invoke a host C compiler or native linker. Native contracts remain
+available under `native-oracles`, and hosted development commands may still
+use a host compiler. Normal OS objects do not.
+
+Host Python still coordinates the fixed point, and Windows still runs the
+static i386 Linux tools through WSL. Native Windows and Python-free fixed
+points remain open. No output-quality gate is defined. Older Windows and
+Linux host `.text` measurements differ by 22.73 percent for the same revision,
+so neither measurement can define that gate. Linker capacity checks remain
+separate.
 
 The production boot source assembles to an exact 2,560-byte image with SHA-256
 `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3`.
@@ -236,10 +270,12 @@ The production `kernel/smp/smp.cc` object remains 8,444 bytes and has SHA-256
 `bd3189b2a1a6d15728c559172f5d6acca0889103428085cec8cc1024742a22d1`.
 The existing `__FILE__` diagnostic accounts for the difference.
 
-The normal image has 156 checked CupidC C transforms: 155 checked-in sources
-and the generated `kernel/cpu/ksyms_data.cc` source. All 156 sources use
-`.cc`. The five shared Toolchain roots also belong to the 19-source i386
-Linux fixed point. Native GCC and Clang rules select C with `-x c`. ADR 0124
+The strict non-Doom portion of the normal image has 156 checked CupidC
+transforms: 155 checked-in sources and the generated
+`kernel/cpu/ksyms_data.cc` source. All 156 sources use `.cc`. The 83 Doom
+roots bring the normal checked-in total to 238. The five shared Toolchain
+roots also belong to the 19-source i386 Linux fixed point. Native GCC and
+Clang rules select C with `-x c` only for optional oracles. ADR 0124
 records the first 111-root transfer, ADR 0126 records the complete
 fixed-point rename and old-seed proof, ADR 0129 records the lexer transfer,
 ADR 0135 records the Nuked OPL3 transfer, ADR 0139 records the JPEG and
@@ -299,9 +335,9 @@ permission-style directory locks with five bounded delays. A persistent lock
 or any other filesystem error publishes nothing. Input discovery skips hidden
 paths under active include roots, so private compiler staging headers from a
 concurrent build do not enter the repository snapshot. The complete frontier
-compiles all 155 roots twice against a 444-file snapshot with SHA-256
-`4e153fdf4446128916bb10c0e51b3d1f815ed16bd57d6b1b85527355a0db190d`.
-Both object sets are byte-identical; each totals 3,708,988 bytes. The combined graph passes the
+compiles all 155 roots twice against a 445-file snapshot with SHA-256
+`e28b1024edc5361d99583f79f65ce43690ebc873f04b568837f57f8af5df5db7`.
+Both object sets are byte-identical; each totals 3,717,856 bytes. The combined graph passes the
 two-link symbol and memory checks, clean normal and partitioned image builds,
 and strong four-vCPU runtime gates with both NICs.
 
@@ -374,22 +410,30 @@ source. Two full kernel-profile compiles produce the same validated
 
 CupidDis accepts every one of the 428 active i386 ELF objects, including all
 current symbols and relocations. Cupid-built objects, checked tool images, and
-user executables have no unsupported instruction fallback. The remaining gap
-is concentrated in host-built kernel and Doom objects. The shared catalogue
+user executables have no unsupported instruction fallback. The remaining
+measured gap comes from a legacy native-oracle kernel and Doom corpus, not an
+active host-owned build path. The shared catalogue
 now covers 16-bit and 32-bit three-operand `IMUL` through both `69 /r` and
 `6B /r`. It also covers ordinary compiler padding from `66 90` through the
 ten-byte `66 2E 0F 1F 84 00 00 00 00 00` form. An independent census found
-1,100 such multibyte NOPs and 6,610 padding bytes in 74 host-built objects.
-Across the 228 i386 kernel objects available to the current audit, CupidDis
+1,100 such multibyte NOPs and 6,610 padding bytes in 74 native-oracle objects.
+Across the 228 i386 kernel objects in that corpus, CupidDis
 fallback rows first fall from 6,952 in 77 objects to 3,597 in 68 objects.
 A private decoder exception then recognizes 568 exact Clang forms with two
 through six leading `66` bytes and the fixed
 `2E 0F 1F 84 00 00 00 00 00` tail. The final scan has 1,901 fallback rows
 in 36 objects and renders 1,781 NOP rows. Other repeated prefixes remain
 invalid, and CupidASM cannot emit the redundant forms. Packed-integer SSE2
-is the next largest measured decoder gap. Source head has 587 catalogue rows
-and fingerprint `68E281CB`; the private exception does not change either
-value. The checked seed carries the same 587-row catalogue.
+is the next largest measured decoder gap. Source head now has 589 catalogue
+rows and fingerprint `22C336A0`. The added rows are the x87 80-bit `FLD` and
+`FSTP` memory forms used by represented `long double` values. File-scope and
+block-static scalars, fixed arrays, and complete records may contain
+implicitly or explicitly zeroed non-atomic long-double leaves. The aggregate
+object proof fixes 104 BSS bytes, a 415-byte function with fingerprint
+`BF01CC71`, eight absolute relocations, and six symbols.
+The checked seed
+still carries the earlier 587-row catalogue; both compiler stages in the
+normal contract cohort rebuild the 589-row source head.
 
 The four-vCPU GUI runtime starts every discovered CPU, reaches e1000 or
 RTL8139 traffic,
@@ -407,10 +451,10 @@ hostname, chain state, and embedded-root lookup paths. They are not a full
 trust-validation claim.
 
 Across the root and supplemental builds, the current audit assigns 245
-transforms to CupidC and 52 to the host C compiler. Python participates in
-448 transforms. CupidC's total is 239 normal transforms plus three generated
-installation tables and the `hello.cc`, `ls.cc`, and `cat.cc` programs. The
-host compiler's transforms belong to the hosted Toolchain build. The
+transforms to CupidC and none to a host C compiler. Python participates in
+all 449 transforms. CupidC's total is 239 normal transforms plus three
+generated installation tables and the `hello.cc`, `ls.cc`, and `cat.cc`
+programs. The
 438-transform root image graph has no host C or recursive Make transform.
 Its four CupidASM, 182 CupidObj, two CupidLD, and one CupidDis transforms run
 from the manifest-checked five-tool seed. Native hosted commands remain
@@ -418,7 +462,8 @@ explicit oracle targets. The runner rechecks the live seed cohort after each
 command, and Make passes wildcard-discovered output sources through
 `$(sort ...)` before generation or link. Windows and Linux therefore consume
 the same root order across host locales.
-ADR 0190 records this handoff.
+ADR 0190 records the root handoff, and ADR 0196 records the Toolchain contract
+handoff.
 
 ISO test-fixture packaging no longer hides an external tool behind Python.
 `test_iso/fixtures.manifest` pins every directory and file. Make declares the
@@ -450,6 +495,15 @@ The fresh normal image has SHA-256
 A private `/bin/ls.cc` JIT boot from it passed in 49.8 seconds.
 The checked audit uses the canonical Windows Make branch and C locale on
 every host. Direct Linux builds test the separate Linux execution branch.
+
+The latest local normal build includes the transferred Toolchain work. Its
+8,711,268-byte final ELF has SHA-256
+`893185668ce0282f1e57efed1c3224404c04a2a1a87393c17281610cc141c50a`;
+the 8,510,856-byte raw kernel has SHA-256
+`5bd12f137dbbbba30bff4d3fe2b95e1727379b2ece1aaffc6a96cb2dc4416d5a`.
+The fresh preboot image has SHA-256
+`5589c5cc151c486a85efaffc3551b37ec4f733ebd57f78c863c5bf6b96c7e23d`,
+with the complete raw kernel at offset 2,560.
 
 The production Doom runtime proof uses private four-CPU images on e1000 and
 RTL8139. Both NICs pass the full frontier, print the no-WAD guidance, recover

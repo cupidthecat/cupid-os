@@ -50,8 +50,18 @@ ctool_status_t ctool_c_emit_object(
  * compares full-width case values. Unary plus keeps its input snapshot. Calls
  * preserve the i386 low word in EAX and high word in EDX, and matching returns
  * restore the same register pair.
+ * Non-atomic `long double` values use twelve-byte snapshots and 80-bit x87
+ * loads and stores. Static-duration objects with implicit or integer-constant
+ * zero initialization occupy twelve zero-filled bytes in BSS.
+ * Floating-width conversions, unary signs, and the four arithmetic operators
+ * preserve one abstract value handle.
+ * Direct and indirect fixed, variadic, and unprototyped arguments occupy
+ * three cdecl words. Variadic reads advance twelve bytes, and functions return
+ * through x87 ST0 before callers spill the result into a fresh snapshot.
  * Direct object and literal addresses use text `R_386_32` relocations,
- * including linked objects first declared by a block extern.
+ * including linked objects first declared by a block extern. Block-static
+ * initializer references use the same relocation type against their local
+ * symbols.
  * Block typedefs consume no frame storage and produce no target record.
  * Direct calls use `R_386_PC32`. The emitter writes those functions beside
  * static definitions in the same object. */

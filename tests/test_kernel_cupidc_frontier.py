@@ -1397,7 +1397,7 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
                 result.stderr,
             )
 
-    def test_relocation_addend_outside_cupidc_contract_is_rejected(self):
+    def test_absolute_relocation_addend_selects_a_static_subobject(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             for source in KERNEL_SOURCES + list(BOUNDARY_DIAGNOSTICS):
@@ -1434,10 +1434,50 @@ class KernelCupidCFrontierCliTests(unittest.TestCase):
                 capture_output=True,
             )
 
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue((root / "frontier" / "manifest.json").is_file())
+
+    def test_pc_relative_relocation_addend_outside_contract_is_rejected(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            for source in KERNEL_SOURCES + list(BOUNDARY_DIAGNOSTICS):
+                path = root / source
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("int source_fixture;\n", encoding="utf-8")
+            malformed = bytearray(_valid_elf32_object())
+            section_offset = struct.unpack_from("<I", malformed, 32)[0]
+            text_offset = struct.unpack_from(
+                "<I",
+                malformed,
+                section_offset + 40 + 16,
+            )[0]
+            struct.pack_into("<i", malformed, text_offset + 4, 4)
+            (root / "fixture.o").write_bytes(malformed)
+            compiler = root / "fake_cupidc.py"
+            _write_fake_compiler(compiler)
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(FRONTIER_TOOL),
+                    "--root",
+                    str(root),
+                    "--compiler",
+                    str(compiler),
+                    "--runner",
+                    sys.executable,
+                    "--output-dir",
+                    str(root / "frontier"),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+
             self.assertEqual(result.returncode, 1)
             self.assertIn(
                 "drivers/ata.cc produced invalid ELF32: "
-                "absolute relocation addend is 4, expected 0",
+                "PC-relative relocation addend is 4, expected -4",
                 result.stderr,
             )
 
@@ -1871,7 +1911,7 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
             self.assertEqual(manifest["boundaries"], [])
             self.assertEqual(
                 sum(entry["size"] for entry in manifest["sources"]),
-                3717636,
+                3717856,
             )
             object_records = {
                 entry["source"]: (entry["size"], entry["object_sha256"])
@@ -1942,9 +1982,9 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
             self.assertEqual(
                 object_records["toolchain/x86.cc"],
                 (
-                    134656,
-                    "5aa44dc579f3e70bb57ef7d4d0161640"
-                    "0164505b66f43d2a2ca4af8e2139b1e0",
+                    134876,
+                    "c7ea70a953a63e4942216fb8118e0f1c"
+                    "2b212f0e9b4aae782610c14289cca516",
                 ),
             )
             port_io_object_records = {
@@ -2220,11 +2260,11 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                 },
                 source_driven_object_records,
             )
-            self.assertEqual(manifest["input_snapshot"]["count"], 444)
+            self.assertEqual(manifest["input_snapshot"]["count"], 445)
             self.assertEqual(
                 manifest["input_snapshot"]["sha256"],
-                "5124e8c33394388519e391ae359f726b"
-                "0de60e8b18cfd364b7e09bbbe6765ff1",
+                "e28b1024edc5361d99583f79f65ce436"
+                "90ebc873f04b568837f57f8af5df5db7",
             )
             self.assertEqual(
                 manifest["provenance"]["compiler"],

@@ -54,6 +54,7 @@ typedef enum {
   X86_OC_MEM32,
   X86_OC_MEM48,
   X86_OC_MEM64,
+  X86_OC_MEM80,
   X86_OC_MEM128,
   X86_OC_SEGMENT,
   X86_OC_CONTROL,
@@ -1494,6 +1495,8 @@ static const x86_form_row_t x86_forms[] = {
            X86_FORM_MEMORY_ONLY),
   X86_X87_MEM(CTOOL_X86_MN_FLD, 0xddu, 0u, X86_OC_MEM64),
   X86_X87_MEM(CTOOL_X86_MN_FSTP, 0xddu, 3u, X86_OC_MEM64),
+  X86_X87_MEM(CTOOL_X86_MN_FLD, 0xdbu, 5u, X86_OC_MEM80),
+  X86_X87_MEM(CTOOL_X86_MN_FSTP, 0xdbu, 7u, X86_OC_MEM80),
   X86_X87_ST(CTOOL_X86_MN_FSTP, 0xddu, 0xd8u, 0u),
   X86_X87_ST(CTOOL_X86_MN_FLD, 0xd9u, 0xc0u, 0u),
   X86_X87_MEM(CTOOL_X86_MN_FST, 0xd9u, 2u, X86_OC_MEM32),
@@ -2053,6 +2056,8 @@ static ctool_u16 x86_class_width(x86_operand_class_t class_id) {
     case X86_OC_MMX_RM64:
     case X86_OC_XMM_RM64:
       return 64u;
+    case X86_OC_MEM80:
+      return 80u;
     case X86_OC_MEM48:
       return 48u;
     case X86_OC_MEM128:
@@ -2126,6 +2131,7 @@ static ctool_bool x86_operand_matches(const ctool_x86_operand_t *operand,
     case X86_OC_MEM32:
     case X86_OC_MEM48:
     case X86_OC_MEM64:
+    case X86_OC_MEM80:
     case X86_OC_MEM128:
       return x86_memory_class_matches(operand, class_id);
     case X86_OC_SEGMENT:
@@ -3247,6 +3253,7 @@ static ctool_bool x86_class_allows_memory(x86_operand_class_t class_id) {
     case X86_OC_MEM32:
     case X86_OC_MEM48:
     case X86_OC_MEM64:
+    case X86_OC_MEM80:
     case X86_OC_MEM128:
     case X86_OC_MMX_RM32:
     case X86_OC_MMX_RM64:

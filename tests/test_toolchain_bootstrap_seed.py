@@ -25,6 +25,7 @@ from tools.bootstrap_toolchain import (
     require_source_snapshot,
     main as bootstrap_main,
     run_seed_tool,
+    verify_seed_inputs,
 )
 
 
@@ -128,6 +129,43 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "^source inputs changed during bootstrap: link.ld$",
             ):
                 require_source_snapshot(source_root, plan, snapshot)
+
+    def test_seed_validation_binds_one_manifest_capture(self):
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-bootstrap-seed-capture-"
+        ) as temporary:
+            copied_seed = Path(temporary) / "seed"
+            shutil.copytree(SEED_MANIFEST.parent, copied_seed)
+            manifest_path = copied_seed / "manifest.json"
+            original = manifest_path.read_bytes()
+            original_read_bytes = Path.read_bytes
+            manifest_reads = 0
+
+            def racing_read_bytes(path: Path) -> bytes:
+                nonlocal manifest_reads
+                captured = original_read_bytes(path)
+                if path == manifest_path:
+                    manifest_reads += 1
+                    if manifest_reads == 1:
+                        path.write_bytes(b'{"replacement":true}\n')
+                return captured
+
+            with mock.patch.object(
+                Path, "read_bytes", racing_read_bytes
+            ):
+                seed = verify_seed_inputs(manifest_path)
+
+            self.assertEqual(manifest_reads, 1)
+            self.assertEqual(
+                seed.manifest_sha256,
+                hashlib.sha256(original).hexdigest(),
+            )
+            self.assertEqual(
+                seed.manifest["build_plan_sha256"],
+                json.loads(original.decode("utf-8"))[
+                    "build_plan_sha256"
+                ],
+            )
 
     def test_frozen_compiler_root_survives_a_live_change_and_restore(self):
         with tempfile.TemporaryDirectory(
@@ -1540,7 +1578,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             if report["source_snapshot_sha256"] == seed_transition_snapshot:
                 self.assertTrue(all(initial_matches.values()))
-            self.assertEqual(report["source_inputs"]["count"], 40)
+            self.assertEqual(report["source_inputs"]["count"], 41)
             self.assertEqual(
                 len(report["source_inputs"]["sha256"]),
                 64,
@@ -1551,7 +1589,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 len(report["source_inputs"]["files"]),
-                40,
+                41,
             )
             for tool_name in (
                 "cupidasm",

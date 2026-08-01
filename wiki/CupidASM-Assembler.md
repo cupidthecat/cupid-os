@@ -184,16 +184,16 @@ scripted linking, binary and canonical-text wrapping, executable flattening,
 help, and useful failures.
 
 The checked i386 Linux seed includes CupidASM and binds it to the complete
-toolchain build plan. The bootstrap copies all 40 source inputs into a private
+toolchain build plan. The bootstrap copies all 41 source inputs into a private
 root. Checked CupidASM assembles stage-two startup there, and the stage-two
 assembler produces the byte-identical stage-three startup below the same root.
 The private and live closures are checked after each stage and after behavior
 tests. Startup objects and the rest of the fixed-point evidence are published
 together only after the full gate passes. See
 [Toolchain Bootstrap](Toolchain-Bootstrap) for the manifest and staged build.
-The native oracle, contract runners, hosted development commands, and 90
-normal Cupid OS C root objects still use a host compiler. Native Windows
-tooling and the remaining production handoff stay open.
+Normal Cupid OS C roots and Toolchain contracts now use checked CupidC.
+A host compiler remains only for explicit native oracles and hosted
+development commands. A native Windows fixed point is still open.
 
 ### Function Example
 
@@ -279,15 +279,18 @@ section .data
 
 ## Instruction Reference
 
-CupidASM uses the shared Cupid Toolchain x86 catalogue. The checked i386
-Linux seed carries all 587 forms, 242 canonical mnemonics, and 64 register
-names, with catalogue fingerprint `68E281CB`. The same catalogue drives
-instruction encoding and decoding. All sixteen i686 conditional moves accept
-16-bit or 32-bit same-width register and memory sources in either mode. Common
-alias spellings assemble to the same bytes, while CupidDis prints canonical
-names. Three-operand `IMUL` accepts a 16-bit or 32-bit register destination,
-a same-width register or memory source, and an immediate. CupidASM uses
-`6B /r` when the value fits a signed byte and `69 /r` otherwise.
+CupidASM uses the shared Cupid Toolchain x86 catalogue. Source head carries
+589 forms, 242 canonical mnemonics, and 64 register names, with catalogue
+fingerprint `22C336A0`. The two newest forms encode and decode 80-bit x87
+`FLD` and `FSTP` memory operands. The repository seed retains the earlier
+587-form catalogue and rebuilds the current model during the checked fixed
+point. The same catalogue drives instruction encoding and decoding. All
+sixteen i686 conditional moves accept 16-bit or 32-bit same-width register and
+memory sources in either mode. Common alias spellings assemble to the same
+bytes, while CupidDis prints canonical names. Three-operand `IMUL` accepts a
+16-bit or 32-bit register destination, a same-width register or memory source,
+and an immediate. CupidASM uses `6B /r` when the value fits a signed byte and
+`69 /r` otherwise.
 
 Ordinary padding NOPs use the same model. `nop` emits `90`. A word or
 doubleword register or memory operand emits `0F 1F /0`, with normal

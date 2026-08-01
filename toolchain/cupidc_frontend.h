@@ -193,7 +193,8 @@ typedef enum {
 typedef enum {
   CTOOL_C_INITIALIZER_ADDRESS_NONE = 0,
   CTOOL_C_INITIALIZER_ADDRESS_STRING,
-  CTOOL_C_INITIALIZER_ADDRESS_BINDING
+  CTOOL_C_INITIALIZER_ADDRESS_BINDING,
+  CTOOL_C_INITIALIZER_ADDRESS_BLOCK_BINDING
 } ctool_c_initializer_address_kind_t;
 
 typedef struct {
@@ -220,7 +221,8 @@ typedef struct {
    * destination pointer type above retains the initializer conversion. */
   ctool_c_initializer_address_kind_t address_kind;
   /* STRING bases use AST_NONE. BINDING bases use a stable file-binding
-   * index. */
+   * index. BLOCK_BINDING bases use a stable block-binding index for an
+   * object with static storage duration. */
   ctool_u32 address_reference;
   ctool_i32 address_addend;
   /* LIST: slice in translation_unit.initializer_elements. Edges name direct,
@@ -683,10 +685,13 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * array, or structure types use the same automatic initializer forms;
  * block-scope static objects with implicit or explicit pointer zero,
  * target-converted integer constants, narrow character-array strings,
- * direct narrow-string addresses or addresses of linked file objects and
- * functions, and matching recursive lists; file-scope object definitions
+ * direct narrow-string addresses, or addresses of linked file objects,
+ * linked functions, and earlier block-static objects, plus matching recursive
+ * lists; file-scope object definitions
  * with exact declaration storage and type, explicit or finalized tentative
- * ownership, and the same semantic static initializer forest.
+ * ownership, and the same semantic static initializer forest. A later static
+ * initializer may reuse the direct value of an earlier file- or block-scope
+ * non-atomic `const` integer.
  * Lists retain explicit subobjects in postorder, apply brace elision, leave
  * omitted tails implicitly zero initialized, and complete direct
  * unknown-bound arrays without mutating shared typedefs;
@@ -722,10 +727,16 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * cross assignments, initializers, named calls, and returns. Assignment and
  * explicit casts can convert between those widths. Mixed floating arithmetic
  * and conditional arms use `double`. Floating compound assignments retain
- * their left type and compute at the common width. An unnamed
- * `float` argument is promoted to `double`; an unnamed `double` value and
- * `va_arg(arguments, double)` are also represented. Runtime integer
- * expressions are typed without constant folding. Unevaluated query
+ * their left type and compute at the common width. Non-atomic `long double`
+ * values use the twelve-byte target type for assignment, floating-width
+ * conversion, unary signs, the four arithmetic operators, direct or indirect
+ * fixed, variadic, and unprototyped calls, returns, and variadic reads.
+ * File-scope and block-static objects may use implicit zero initialization or
+ * an integer constant expression equal to zero. An unnamed `float` argument
+ * is promoted to `double`;
+ * existing unnamed `double` and `long double` values, `va_arg(arguments,
+ * double)`, and `va_arg(arguments, long double)` are represented. Runtime
+ * integer expressions are typed without constant folding. Unevaluated query
  * operands are type-checked through the same grammar and leave no public AST
  * nodes. Floating updates remain an explicit deferred feature. Mixed integer
  * and floating compounds and aggregate compound or update operands are
@@ -752,14 +763,16 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * in either context. Block declaration attributes, union or Cupid class
  * initializer lists, and static assertions remain explicit boundaries.
  * Direct or parenthesized ordinary string literals can initialize compatible
- * static character or void pointers through their implicit array decay and
- * pointer qualification. Chained, promoted, or overriding designators, union
- * lists, arithmetic and casts on static addresses, floating constants,
- * static-data allocation, and relocation lowering remain pending. Comma
- * expressions, integer/floating conversions,
- * universal-character/non-ordinary literals, `long double` call values,
- * non-scalar arguments without declared parameter types, code generation,
- * object emission, and Cupid #exe execution remain later frontend work and are
- * diagnosed rather than skipped. */
+ * static character or void pointers through implicit array decay and pointer
+ * qualification. A block-static pointer can also retain an earlier
+ * block-static object's address through initializer metadata. Chained,
+ * promoted, or overriding designators, union and Cupid class lists,
+ * arithmetic or casts on static addresses, long-double literals and nonzero
+ * or floating static long-double initializers, long-double comparisons,
+ * integer conversions, compound assignments, and updates,
+ * universal-character or non-ordinary literals, non-scalar arguments without
+ * declared parameter types, and Cupid #exe execution remain explicit
+ * boundaries. Code generation and object emission consume the published
+ * frontend graph through later operations. */
 
 #endif

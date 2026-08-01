@@ -53,10 +53,38 @@ Boolean results. Mixed integer-and-floating arithmetic is represented. All
 six comparisons work for matching or mixed floating widths, and only `!=`
 is true when either operand is NaN.
 
-Direct floating truth, a floating controlling expression, floating increment
-or decrement, hexadecimal or subnormal constants, `long double`, SIMD, and
-atomic floating access remain unsupported. The in-kernel compiler has a
-separate, broader floating and SIMD implementation.
+Non-atomic `long double` values use twelve-byte objects with x87 80-bit memory
+transport. Automatic values use frame snapshots. Static-duration scalars,
+fixed arrays, and complete records may contain long-double leaves. Implicit
+initialization zeros the complete object; an explicit leaf accepts an integer
+constant expression equal to zero. Each leaf occupies twelve zero-filled BSS
+bytes, and atomic leaves fail recursively without following pointers. Casts among `float`,
+`double`, and `long double`, unary plus and minus, and `+`, `-`, `*`, and `/`
+work for represented values.
+Direct and indirect fixed, variadic, and unprototyped arguments occupy twelve
+cdecl bytes. Functions return the value in x87 `ST0`, and direct or indirect
+callers store it in a twelve-byte snapshot. `va_arg(long double)` copies
+twelve bytes and leaves the cursor at the following four-byte slot. Direct
+floating truth, a floating controlling expression, floating increment or
+decrement, hexadecimal or subnormal constants, `long double` literals, nonzero
+or floating static initializers, comparisons, integer conversions, SIMD, and
+atomic floating access
+remain unsupported. The in-kernel compiler has a separate, broader floating
+and SIMD implementation.
+
+## Hosted static initializer references
+
+A block-static pointer may be initialized with the address of another
+block-static object. The object keeps its local ELF symbol, so the pointer
+initializer receives the same absolute relocation used for file objects.
+
+Within a static initializer, an earlier file-scope or block-static non-atomic
+`const` integer with a direct integer initializer can be reused as a constant
+value. This works inside scalar, array, and structure initializers. It does
+not turn mutable objects, automatic objects, atomics, indirect initializers,
+or non-integer objects into constant expressions. This is a narrow Cupid C
+extension rather than an ISO C integer constant expression. It preserves the
+unchanged address-table form used by the Toolchain object contract.
 
 ## Hosted null pointers and external arrays
 

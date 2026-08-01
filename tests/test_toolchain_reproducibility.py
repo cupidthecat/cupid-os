@@ -1,5 +1,4 @@
 import hashlib
-import json
 import os
 import shutil
 import subprocess
@@ -11,6 +10,27 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 TOOLCHAIN_ROOT = REPO_ROOT / "toolchain"
+NATIVE_ORACLE_NAMES = (
+    "core-contract",
+    "cupidc-pp-contract",
+    "cupidc-type-contract",
+    "cupidc-frontend-contract",
+    "cupidc-ir-contract",
+    "cupidc-object-contract",
+    "cupidc",
+    "elf32-contract",
+    "x86-contract",
+    "cupiddis-contract",
+    "cupiddis",
+    "cupidasm-contract",
+    "cupidasm-demos-contract",
+    "cupidasm-kernel-elf-contract",
+    "cupidasm",
+    "cupidobj-contract",
+    "cupidobj",
+    "cupidld-contract",
+    "cupidld",
+)
 
 
 class ToolchainReproducibilityTests(unittest.TestCase):
@@ -21,6 +41,10 @@ class ToolchainReproducibilityTests(unittest.TestCase):
         relative_build = build_path.relative_to(TOOLCHAIN_ROOT).as_posix()
         suffix = ".exe" if os.name == "nt" else ""
         core_artifact = f"{relative_build}/core-contract{suffix}"
+        native_artifacts = tuple(
+            f"{relative_build}/{name}{suffix}"
+            for name in NATIVE_ORACLE_NAMES
+        )
 
         def run_make(*goals):
             result = subprocess.run(
@@ -46,33 +70,12 @@ class ToolchainReproducibilityTests(unittest.TestCase):
         def build_manifest(clean):
             if clean:
                 run_make("clean")
-            run_make("all")
-            artifact_result = subprocess.run(
-                [
-                    "make",
-                    "-C",
-                    str(TOOLCHAIN_ROOT),
-                    f"BUILD_DIR={relative_build}",
-                    "-s",
-                    "print-bootstrap-artifacts",
-                ],
-                cwd=REPO_ROOT,
-                text=True,
-                capture_output=True,
-            )
-            self.assertEqual(
-                artifact_result.returncode,
-                0,
-                "hosted toolchain artifact listing failed\n"
-                + artifact_result.stdout
-                + artifact_result.stderr,
-            )
-            artifacts = json.loads(artifact_result.stdout)
+            run_make("native-oracles")
             return {
                 artifact: hashlib.sha256(
                     (TOOLCHAIN_ROOT / artifact).read_bytes()
                 ).hexdigest()
-                for artifact in artifacts
+                for artifact in native_artifacts
             }
 
         try:

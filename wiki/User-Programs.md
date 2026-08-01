@@ -49,7 +49,8 @@ To add a new build-time program:
 1. Create `bin/<name>.cc`
 2. Run `make`
 
-The program list does not need a corresponding edit in `kernel.c` or the Makefile.
+The program list does not need a corresponding edit in
+`kernel/core/kernel.cc` or the Makefile.
 
 #### Runtime installation in homefs
 

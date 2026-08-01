@@ -19,13 +19,14 @@ class ToolchainX86ContractTests(unittest.TestCase):
         relative_build = build_path.relative_to(TOOLCHAIN_ROOT)
         suffix = ".exe" if os.name == "nt" else ""
         cls.contract_path = build_path / ("x86-contract" + suffix)
+        target = f"{relative_build.as_posix()}/x86-contract{suffix}"
         result = subprocess.run(
             [
                 "make",
                 "-C",
                 str(TOOLCHAIN_ROOT),
                 f"BUILD_DIR={relative_build}",
-                "all",
+                target,
             ],
             cwd=REPO_ROOT,
             text=True,
@@ -66,8 +67,8 @@ class ToolchainX86ContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(
             result.stdout,
-            "inventory: forms=587 mnemonics=242 registers=64 "
-            "fingerprint=68E281CB\n",
+            "inventory: forms=589 mnemonics=242 registers=64 "
+            "fingerprint=22C336A0\n",
         )
 
     def test_integer_encoding_decoding_and_relocation_fields(self):

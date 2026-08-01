@@ -5,7 +5,9 @@ CupidASM, libm, and `printf`.
 
 ## Overview
 
-- **Build**: `-mfpmath=sse -msse -msse2 -mstackrealign` in CFLAGS.
+- **Target policy**: Kernel and Doom profiles use SSE/SSE2 floating code and
+  16-byte call alignment. The native-oracle CFLAGS record this as
+  `-mfpmath=sse -msse -msse2 -mstackrealign`.
 - **Init**: `fpu_init()` is the first call in `kmain`. Sets CR0.EM=0/MP=1/NE=1/TS=0
   and CR4.OSFXSR=1/OSXMMEXCPT=1, runs FNINIT, loads MXCSR=0x1F80.
   `fpu_init_cpu()` uses `target("general-regs-only")` so the compiler cannot
@@ -45,6 +47,29 @@ Decimal constants, represented integer conversions, mixed
 integer-and-floating arithmetic, and all six comparisons use the shared SSE
 path. A mixed floating comparison uses `double`; only `!=` is true for an
 unordered NaN input.
+
+Non-atomic `long double` values now use twelve-byte target objects. Automatic
+values use frame snapshots. Static-duration scalars, fixed arrays, and
+complete records may contain long-double leaves. Implicit initialization
+zeros the complete object; an explicit leaf accepts an integer constant
+expression equal to zero. Each leaf contributes twelve zero-filled BSS bytes,
+and atomic leaves fail recursively without following pointers. The value-bearing ten bytes move
+through x87 80-bit `FLD` and `FSTP` memory forms in Cupid's shared x86
+catalogue. The hosted path converts among
+`float`, `double`, and `long double`, applies unary plus and minus, and
+evaluates addition, subtraction, multiplication, and division. Direct and
+indirect fixed, variadic, and unprototyped arguments occupy twelve cdecl
+bytes. Functions return the value in x87 `ST0`, and direct or indirect callers
+store it in a twelve-byte snapshot. `va_arg(long double)` copies twelve bytes
+and leaves the cursor at the following four-byte slot. Long-double literals,
+nonzero and floating static initializers, comparisons, and integer conversions
+involving `long double` remain open.
+
+The static aggregate proof covers two 24-byte arrays and two 28-byte records.
+They occupy 104 BSS bytes, and their 415-byte access function has fingerprint
+`BF01CC71`, eight absolute relocations, and six symbols. The hosted i386
+runtime checks the initial zero state and then moves 1.5 through file and
+block members.
 
 The checked i386 Linux seed at ADR 0138 carries static floating constant data
 and this complete comparison path.
@@ -195,10 +220,15 @@ strong guest gate checks the TrueType path and every pixel of a byte-fixed
 baseline JPEG. ADR 0139 records the production transfer.
 
 Direct floating truth, a floating controlling expression, increment or
-decrement, hexadecimal or subnormal constants, `long double`, general SIMD
-value semantics, and atomic floating access remain unsupported. The exact
-production SIMD assembly forms above are a narrower checked path. The SSE
-details below describe the private in-kernel compiler.
+decrement, hexadecimal or subnormal floating constants, `long double`
+literals, nonzero or floating static long-double initializers, comparisons, integer
+conversions involving `long double`, general SIMD value semantics, and atomic
+floating access remain unsupported. Twelve-byte direct
+and indirect fixed, variadic, and unprototyped arguments, function returns,
+direct and indirect call results, and `va_arg(long double)` use the represented
+automatic `long double` path. The exact production SIMD assembly forms above
+are a narrower checked path. The SSE details below describe the private
+in-kernel compiler.
 
 ### Arithmetic
 

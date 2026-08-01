@@ -15584,17 +15584,21 @@ static int validate_block_static_object(const ctool_elf32_object_t *object) {
       0u,   0u,   0u,   0u,   0u,   0u,   0u,   0u,
       0u,   0u,   0u,   0u,   0u,   0u,   0u,   0u,
       0x88u, 0x77u, 0x66u, 0x55u, 0x44u, 0x33u, 0x22u, 0x11u,
-      11u,  0u,   0u,   0u,   22u,  0u,   0u,   0u};
+      11u,  0u,   0u,   0u,   22u,  0u,   0u,   0u,
+      13u,  0u,   0u,   0u,   0u,   0u,   0u,   0u};
   static const char *const static_names[] = {
       ".LBS0.hex",    ".LBS1.value", ".LBS2.zero",  ".LBS3.values",
       ".LBS4.holder", ".LBS5.label", ".LBS6.refs",  ".LBS7.wide",
-      ".LBS8.same",   ".LBS9.same",  ".LBS10.unused"};
+      ".LBS8.same",   ".LBS9.same",  ".LBS10.unused",
+      ".LBS11.target", ".LBS12.pointer"};
   static const ctool_u32 static_values[] = {0u,  4u, 0u, 8u, 16u, 8u,
-                                            32u, 40u, 48u, 52u, 16u};
+                                            32u, 40u, 48u, 52u, 16u,
+                                            56u, 60u};
   static const ctool_u32 static_sizes[] = {5u, 4u, 4u, 8u, 16u, 4u,
-                                           8u, 8u, 4u, 4u,  5u};
+                                           8u, 8u, 4u, 4u,  5u, 4u, 4u};
   static const ctool_u32 text_reference_counts[] = {1u, 2u, 2u, 1u, 1u, 0u,
-                                                    1u, 0u, 1u, 1u, 0u};
+                                                    1u, 0u, 1u, 1u, 0u, 0u,
+                                                    1u};
   static const ctool_u8 short_frame_reservation[] = {0x83u, 0xecu};
   static const ctool_u8 long_frame_reservation[] = {0x81u, 0xecu};
   const ctool_elf32_section_t *text = find_section(object, ".text");
@@ -15614,8 +15618,8 @@ static int validate_block_static_object(const ctool_elf32_object_t *object) {
   const ctool_elf32_symbol_t *bump = find_symbol(object, "bump");
   const ctool_elf32_symbol_t *shadow = find_symbol(object, "shadow");
   const ctool_elf32_symbol_t *dead = find_symbol(object, "dead");
-  const ctool_elf32_symbol_t *static_symbols[11];
-  ctool_u32 seen_text_references[11];
+  const ctool_elf32_symbol_t *static_symbols[13];
+  ctool_u32 seen_text_references[13];
   ctool_u32 index;
   if (text == (const ctool_elf32_section_t *)0 ||
       rodata == (const ctool_elf32_section_t *)0 ||
@@ -15630,8 +15634,8 @@ static int validate_block_static_object(const ctool_elf32_object_t *object) {
       data->contents.size != (ctool_u32)sizeof(expected_data) ||
       memcmp(data->contents.data, expected_data, sizeof(expected_data)) != 0 ||
       bss->size != 4u || bss->alignment != 4u ||
-      text->relocation_count != 10u || rodata->relocation_count != 1u ||
-      data->relocation_count != 5u || object->relocation_count != 16u ||
+      text->relocation_count != 11u || rodata->relocation_count != 1u ||
+      data->relocation_count != 6u || object->relocation_count != 18u ||
       file_state == (const ctool_elf32_symbol_t *)0 ||
       file_state->binding != CTOOL_ELF32_BIND_LOCAL ||
       file_state->type != CTOOL_ELF32_SYMBOL_OBJECT ||
@@ -15674,7 +15678,7 @@ static int validate_block_static_object(const ctool_elf32_object_t *object) {
         (unsigned long)object->relocation_count);
     return 0;
   }
-  for (index = 0u; index < 11u; index++) {
+  for (index = 0u; index < 13u; index++) {
     const ctool_elf32_section_t *section =
         index == 0u || index == 5u || index == 10u
             ? rodata
@@ -15699,7 +15703,9 @@ static int validate_block_static_object(const ctool_elf32_object_t *object) {
       !block_static_relocation_matches(object, data, 28u, literal_ok) ||
       !block_static_relocation_matches(object, data, 32u, file_state) ||
       !block_static_relocation_matches(object, data, 36u, external_state) ||
-      !block_static_relocation_matches(object, rodata, 8u, literal_tag)) {
+      !block_static_relocation_matches(object, rodata, 8u, literal_tag) ||
+      !block_static_relocation_matches(object, data, 60u,
+                                       static_symbols[11])) {
     (void)fprintf(stderr, "block-static initializer relocations differ\n");
     return 0;
   }
@@ -15714,19 +15720,19 @@ static int validate_block_static_object(const ctool_elf32_object_t *object) {
       (void)fprintf(stderr, "block-static text relocation differs\n");
       return 0;
     }
-    for (symbol_index = 0u; symbol_index < 11u; symbol_index++) {
+    for (symbol_index = 0u; symbol_index < 13u; symbol_index++) {
       if (relocation->symbol_file_index ==
           static_symbols[symbol_index]->file_index) {
         seen_text_references[symbol_index]++;
         break;
       }
     }
-    if (symbol_index == 11u) {
+    if (symbol_index == 13u) {
       (void)fprintf(stderr, "block-static text target differs\n");
       return 0;
     }
   }
-  for (index = 0u; index < 11u; index++) {
+  for (index = 0u; index < 13u; index++) {
     if (seen_text_references[index] != text_reference_counts[index]) {
       (void)fprintf(stderr, "block-static text count for %s differs\n",
                     static_names[index]);
@@ -15763,7 +15769,12 @@ static int run_block_static_object(const char *host_root) {
       "  if (choose) { static int same = 22; return same; }\n"
       "  return same;\n"
       "}\n"
-      "int dead(void) { return 0; static const char unused[] = \"dead\"; }\n";
+      "int dead(void) { return 0; static const char unused[] = \"dead\"; }\n"
+      "int block_pointer(void) {\n"
+      "  static int target = 13;\n"
+      "  static int *pointer = &target;\n"
+      "  return *pointer;\n"
+      "}\n";
   static const char referenced_wide_source[] =
       "long long read_wide(void) {\n"
       "  static long long wide = 7;\n"
@@ -15795,7 +15806,7 @@ static int run_block_static_object(const char *host_root) {
   (void)memset(&snapshot, 0, sizeof(snapshot));
   if (!open_job(host_root, &adapter, &config, &job) ||
       !parse_source(job, "/block-static.c", source, &unit) ||
-      unit.block_binding_count != 11u ||
+      unit.block_binding_count != 13u ||
       !take_unit_snapshot(&unit, &snapshot)) {
     goto cleanup;
   }
@@ -24050,6 +24061,606 @@ static int validate_float_promotion_function(
   return 1;
 }
 
+static int validate_long_double_local_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_symbol_t *function =
+      find_symbol(object, "long_double_local");
+  ctool_u32 cursor = 0u;
+  ctool_u32 fld32 = 0u;
+  ctool_u32 fld64 = 0u;
+  ctool_u32 fld80 = 0u;
+  ctool_u32 fstp64 = 0u;
+  ctool_u32 fstp80 = 0u;
+  ctool_u32 fchs = 0u;
+  ctool_u32 faddp = 0u;
+  ctool_u32 fsubp = 0u;
+  ctool_u32 fmulp = 0u;
+  ctool_u32 fdivp = 0u;
+  ctool_u32 fingerprint;
+  if (job == NULL || object == NULL ||
+      !wide_function_symbol_is_valid(object, text, function)) {
+    return 0;
+  }
+  while (cursor < function->size) {
+    ctool_x86_decoded_t decoded;
+    const ctool_x86_instruction_t *instruction;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + function->value + cursor,
+        function->size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(job, CTOOL_X86_MODE_32, remaining, 0u,
+                              &decoded);
+    if (status != CTOOL_OK ||
+        decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      (void)fprintf(stderr,
+                    "long-double-locals: decode failed at %u\n",
+                    (unsigned int)cursor);
+      return 0;
+    }
+    instruction = &decoded.instruction;
+    if ((instruction->mnemonic == CTOOL_X86_MN_FLD ||
+         instruction->mnemonic == CTOOL_X86_MN_FSTP) &&
+        instruction->operand_count == 1u &&
+        instruction->operands[0].kind == CTOOL_X86_OPERAND_MEMORY) {
+      ctool_u16 width = instruction->operands[0].width_bits;
+      if (instruction->mnemonic == CTOOL_X86_MN_FLD && width == 32u) {
+        fld32++;
+      } else if (instruction->mnemonic == CTOOL_X86_MN_FLD &&
+                 width == 64u) {
+        fld64++;
+      } else if (instruction->mnemonic == CTOOL_X86_MN_FLD &&
+                 width == 80u) {
+        fld80++;
+      } else if (instruction->mnemonic == CTOOL_X86_MN_FSTP &&
+                 width == 64u) {
+        fstp64++;
+      } else if (instruction->mnemonic == CTOOL_X86_MN_FSTP &&
+                 width == 80u) {
+        fstp80++;
+      }
+    } else if (instruction->mnemonic == CTOOL_X86_MN_FCHS) {
+      fchs++;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_FADDP) {
+      faddp++;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_FSUBP) {
+      fsubp++;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_FMULP) {
+      fmulp++;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_FDIVP) {
+      fdivp++;
+    }
+    cursor += decoded.consumed;
+  }
+  fingerprint = structure_text_fingerprint(
+      ctool_bytes(text->contents.data + function->value,
+                  function->size));
+  if (cursor != function->size || function->size != 753u ||
+      fingerprint != 0x82a5f459u ||
+      fld32 != 1u || fld64 != 2u || fld80 != 10u ||
+      fstp64 != 1u || fstp80 != 7u ||
+      fchs != 1u || faddp != 1u || fsubp != 1u ||
+      fmulp != 1u || fdivp != 1u) {
+    (void)fprintf(
+        stderr,
+        "long-double-locals: x87 inventory differs: "
+        "loads=%u/%u/%u stores=%u/%u unary=%u "
+        "binary=%u/%u/%u/%u "
+        "size=%u fingerprint=%08x\n",
+        (unsigned int)fld32, (unsigned int)fld64,
+        (unsigned int)fld80, (unsigned int)fstp64,
+        (unsigned int)fstp80, (unsigned int)fchs,
+        (unsigned int)faddp, (unsigned int)fsubp,
+        (unsigned int)fmulp, (unsigned int)fdivp,
+        (unsigned int)function->size,
+        (unsigned int)fingerprint);
+    return 0;
+  }
+  return 1;
+}
+
+typedef struct {
+  const char *name;
+  ctool_u32 size;
+  ctool_u32 fingerprint;
+  ctool_u32 calls;
+  ctool_u32 direct_calls;
+  ctool_u32 indirect_calls;
+  ctool_u32 moves;
+  ctool_u32 zeroes;
+  ctool_u32 size_twelve_constants;
+} long_double_call_expectation_t;
+
+static int validate_long_double_call_function(
+    ctool_job_t *job, const ctool_elf32_object_t *object,
+    const ctool_elf32_section_t *text,
+    const ctool_elf32_symbol_t *function,
+    const long_double_call_expectation_t *expected) {
+  ctool_u32 cursor = 0u;
+  ctool_u32 direct_calls = 0u;
+  ctool_u32 indirect_calls = 0u;
+  ctool_u32 moves = 0u;
+  ctool_u32 zeroes = 0u;
+  ctool_u32 size_twelve_constants = 0u;
+  ctool_u32 fingerprint;
+  if (job == NULL || text == NULL || expected == NULL ||
+      !wide_function_symbol_is_valid(object, text, function)) {
+    return 0;
+  }
+  while (cursor < function->size) {
+    ctool_x86_decoded_t decoded;
+    const ctool_x86_instruction_t *instruction;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + function->value + cursor,
+        function->size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(job, CTOOL_X86_MODE_32, remaining, 0u,
+                              &decoded);
+    if (status != CTOOL_OK ||
+        decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      (void)fprintf(stderr, "%s: decode failed at %u\n",
+                    expected->name, (unsigned int)cursor);
+      return 0;
+    }
+    instruction = &decoded.instruction;
+    if (instruction->mnemonic == CTOOL_X86_MN_CALL &&
+        instruction->operand_count == 1u) {
+      if (instruction->operands[0].kind ==
+          CTOOL_X86_OPERAND_RELATIVE) {
+        direct_calls++;
+      } else if (instruction->operands[0].kind ==
+                     CTOOL_X86_OPERAND_REGISTER &&
+                 instruction->operands[0].as.reg.class_id ==
+                     CTOOL_X86_REG_GPR32 &&
+                 instruction->operands[0].as.reg.index == 0u) {
+        indirect_calls++;
+      } else {
+        return 0;
+      }
+    } else if (instruction->mnemonic == CTOOL_X86_MN_MOVSB) {
+      if (instruction->prefixes != CTOOL_X86_PREFIX_REP) {
+        return 0;
+      }
+      moves++;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_STOSB) {
+      if (instruction->prefixes != CTOOL_X86_PREFIX_REP) {
+        return 0;
+      }
+      zeroes++;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_MOV &&
+               instruction->operand_count == 2u &&
+               instruction->operands[0].kind ==
+                   CTOOL_X86_OPERAND_REGISTER &&
+               instruction->operands[0].as.reg.class_id ==
+                   CTOOL_X86_REG_GPR32 &&
+               instruction->operands[0].as.reg.index == 1u &&
+               instruction->operands[1].kind ==
+                   CTOOL_X86_OPERAND_IMMEDIATE &&
+               instruction->operands[1].as.value.kind ==
+                   CTOOL_X86_VALUE_CONSTANT &&
+               instruction->operands[1].as.value.bits == 12u) {
+      size_twelve_constants++;
+    }
+    cursor += decoded.consumed;
+  }
+  fingerprint = structure_text_fingerprint(
+      ctool_bytes(text->contents.data + function->value,
+                  function->size));
+  if (cursor != function->size ||
+      function->size != expected->size ||
+      fingerprint != expected->fingerprint ||
+      direct_calls + indirect_calls != expected->calls ||
+      direct_calls != expected->direct_calls ||
+      indirect_calls != expected->indirect_calls ||
+      moves != expected->moves || zeroes != expected->zeroes ||
+      size_twelve_constants != expected->size_twelve_constants ||
+      !validate_call_alignment_function(
+          job, text, function, expected->calls, 0u, 0u, 0u, 0u,
+          expected->name)) {
+    (void)fprintf(
+        stderr,
+        "%s: call transport differs: size=%u fingerprint=%08x "
+        "calls=%u/%u moves=%u zeroes=%u twelve=%u\n",
+        expected->name, (unsigned int)function->size,
+        (unsigned int)fingerprint, (unsigned int)direct_calls,
+        (unsigned int)indirect_calls, (unsigned int)moves,
+        (unsigned int)zeroes, (unsigned int)size_twelve_constants);
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_long_double_call_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const long_double_call_expectation_t functions[] = {
+      {"long_double_fixed_calls", 220u, 0xedb702ddu,
+       2u, 1u, 1u, 6u, 2u, 8u},
+      {"long_double_variadic_call", 99u, 0x1fed7ca7u,
+       1u, 1u, 0u, 2u, 1u, 2u},
+      {"long_double_variadic_read", 176u, 0x6296ce84u,
+       1u, 1u, 0u, 4u, 1u, 5u},
+      {"long_double_identity", 39u, 0x46bafe97u,
+       0u, 0u, 0u, 1u, 0u, 1u},
+      {"long_double_open_calls", 176u, 0xa3c2bf25u,
+       2u, 1u, 1u, 4u, 2u, 6u},
+      {"long_double_call_results", 278u, 0x69385492u,
+       2u, 1u, 1u, 7u, 2u, 9u}};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *rel_text =
+      find_section(object, ".rel.text");
+  const ctool_elf32_symbol_t *sink =
+      find_symbol(object, "long_double_sink");
+  const ctool_elf32_symbol_t *variadic_sink =
+      find_symbol(object, "long_double_variadic_sink");
+  const ctool_elf32_symbol_t *open_sink =
+      find_symbol(object, "long_double_open_sink");
+  const ctool_elf32_symbol_t *identity =
+      find_symbol(object, "long_double_identity");
+  ctool_u32 index;
+  if (job == NULL || object == NULL || text == NULL ||
+      rel_text == NULL || sink == NULL || variadic_sink == NULL ||
+      open_sink == NULL || identity == NULL ||
+      text->contents.size != 1955u ||
+      structure_text_fingerprint(text->contents) != 0x282ca98bu ||
+      text->relocation_count != 11u ||
+      object->relocation_count != 11u ||
+      object->relocations == NULL || object->symbol_count != 16u) {
+    (void)fprintf(
+        stderr,
+        "long-double-calls: object inventory differs: text=%u "
+        "fingerprint=%08x relocations=%u symbols=%u\n",
+        text == NULL ? 0u : (unsigned int)text->contents.size,
+        text == NULL
+            ? 0u
+            : (unsigned int)structure_text_fingerprint(text->contents),
+        object == NULL ? 0u : (unsigned int)object->relocation_count,
+        object == NULL ? 0u : (unsigned int)object->symbol_count);
+    return 0;
+  }
+  for (index = 0u; index < object->relocation_count; index++) {
+    const ctool_elf32_relocation_t *relocation =
+        &object->relocations[index];
+    if (relocation->relocation_section_file_index !=
+            rel_text->file_index ||
+        relocation->target_section_file_index != text->file_index ||
+        relocation->addend_known != CTOOL_TRUE ||
+        !((relocation->type == CTOOL_ELF32_R_386_PC32 &&
+           relocation->addend == -4 &&
+           (relocation->symbol_file_index == sink->file_index ||
+            relocation->symbol_file_index == variadic_sink->file_index ||
+            relocation->symbol_file_index == open_sink->file_index ||
+            relocation->symbol_file_index == identity->file_index)) ||
+          (relocation->type == CTOOL_ELF32_R_386_32 &&
+           relocation->addend == 0))) {
+      (void)fprintf(stderr,
+                    "long-double-calls: relocation %u differs\n",
+                    (unsigned int)index);
+      return 0;
+    }
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(functions) / sizeof(functions[0]));
+       index++) {
+    if (!validate_long_double_call_function(
+            job, object, text,
+            find_symbol(object, functions[index].name),
+            &functions[index])) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int validate_long_double_static_object(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_elf32_object_t *object) {
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *bss = find_section(object, ".bss");
+  const ctool_elf32_symbol_t *file_zero =
+      find_symbol(object, "long_double_file_zero");
+  const ctool_elf32_symbol_t *explicit_zero =
+      find_symbol(object, "long_double_explicit_zero");
+  const ctool_elf32_symbol_t *function =
+      find_symbol(object, "long_double_static_zero");
+  const ctool_elf32_symbol_t *block_zero;
+  const ctool_elf32_symbol_t *block_explicit_zero;
+  ctool_u32 block_zero_binding = CTOOL_C_AST_NONE;
+  ctool_u32 block_explicit_zero_binding = CTOOL_C_AST_NONE;
+  ctool_u32 file_zero_relocations = 0u;
+  ctool_u32 explicit_zero_relocations = 0u;
+  ctool_u32 block_zero_relocations = 0u;
+  ctool_u32 block_explicit_zero_relocations = 0u;
+  ctool_u32 fingerprint;
+  char block_zero_name[64];
+  char block_explicit_zero_name[72];
+  int block_zero_name_size;
+  int block_explicit_zero_name_size;
+  ctool_u32 index;
+  if (unit == NULL || object == NULL) {
+    return 0;
+  }
+  for (index = 0u; index < unit->block_binding_count; index++) {
+    const ctool_c_block_binding_t *binding =
+        &unit->block_bindings[index];
+    if (string_equal(binding->name, "long_double_block_zero") != 0) {
+      block_zero_binding = index;
+    } else if (string_equal(
+                   binding->name,
+                   "long_double_block_explicit_zero") != 0) {
+      block_explicit_zero_binding = index;
+    }
+  }
+  block_zero_name_size = snprintf(
+      block_zero_name, sizeof(block_zero_name),
+      ".LBS%u.long_double_block_zero",
+      (unsigned int)block_zero_binding);
+  block_explicit_zero_name_size = snprintf(
+      block_explicit_zero_name, sizeof(block_explicit_zero_name),
+      ".LBS%u.long_double_block_explicit_zero",
+      (unsigned int)block_explicit_zero_binding);
+  if (block_zero_binding == CTOOL_C_AST_NONE ||
+      block_explicit_zero_binding == CTOOL_C_AST_NONE ||
+      block_zero_name_size < 0 ||
+      (size_t)block_zero_name_size >= sizeof(block_zero_name) ||
+      block_explicit_zero_name_size < 0 ||
+      (size_t)block_explicit_zero_name_size >=
+          sizeof(block_explicit_zero_name)) {
+    return 0;
+  }
+  block_zero = find_symbol(object, block_zero_name);
+  block_explicit_zero =
+      find_symbol(object, block_explicit_zero_name);
+  if (text == NULL || bss == NULL || file_zero == NULL ||
+      explicit_zero == NULL || block_zero == NULL ||
+      block_explicit_zero == NULL || function == NULL ||
+      bss->type != CTOOL_ELF32_SHT_NOBITS ||
+      bss->alignment != 4u || bss->size != 48u ||
+      file_zero->binding != CTOOL_ELF32_BIND_GLOBAL ||
+      file_zero->type != CTOOL_ELF32_SYMBOL_OBJECT ||
+      file_zero->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      file_zero->section_file_index != bss->file_index ||
+      file_zero->value != 0u || file_zero->size != 12u ||
+      explicit_zero->binding != CTOOL_ELF32_BIND_LOCAL ||
+      explicit_zero->type != CTOOL_ELF32_SYMBOL_OBJECT ||
+      explicit_zero->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      explicit_zero->section_file_index != bss->file_index ||
+      explicit_zero->value != 12u || explicit_zero->size != 12u ||
+      block_zero->binding != CTOOL_ELF32_BIND_LOCAL ||
+      block_zero->type != CTOOL_ELF32_SYMBOL_OBJECT ||
+      block_zero->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      block_zero->section_file_index != bss->file_index ||
+      block_zero->value != 24u || block_zero->size != 12u ||
+      block_explicit_zero->binding != CTOOL_ELF32_BIND_LOCAL ||
+      block_explicit_zero->type != CTOOL_ELF32_SYMBOL_OBJECT ||
+      block_explicit_zero->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      block_explicit_zero->section_file_index != bss->file_index ||
+      block_explicit_zero->value != 36u ||
+      block_explicit_zero->size != 12u ||
+      !wide_function_symbol_is_valid(object, text, function)) {
+    (void)fprintf(
+        stderr,
+        "long-double-statics: storage inventory differs: bss=%u "
+        "function=%u\n",
+        bss == NULL ? 0u : (unsigned int)bss->size,
+        function == NULL ? 0u : (unsigned int)function->size);
+    return 0;
+  }
+  for (index = 0u; index < object->relocation_count; index++) {
+    const ctool_elf32_relocation_t *relocation =
+        &object->relocations[index];
+    if (relocation->offset < function->value ||
+        relocation->offset >= function->value + function->size) {
+      continue;
+    }
+    if (relocation->type != CTOOL_ELF32_R_386_32 ||
+        relocation->addend_known != CTOOL_TRUE ||
+        relocation->addend != 0) {
+      return 0;
+    }
+    if (relocation->symbol_file_index == file_zero->file_index) {
+      file_zero_relocations++;
+    } else if (relocation->symbol_file_index ==
+               explicit_zero->file_index) {
+      explicit_zero_relocations++;
+    } else if (relocation->symbol_file_index ==
+               block_zero->file_index) {
+      block_zero_relocations++;
+    } else if (relocation->symbol_file_index ==
+               block_explicit_zero->file_index) {
+      block_explicit_zero_relocations++;
+    } else {
+      return 0;
+    }
+  }
+  fingerprint = structure_text_fingerprint(
+      ctool_bytes(text->contents.data + function->value,
+                  function->size));
+  if (function->size != 214u || fingerprint != 0x5b39c697u ||
+      file_zero_relocations != 1u ||
+      explicit_zero_relocations != 1u ||
+      block_zero_relocations != 2u ||
+      block_explicit_zero_relocations != 2u) {
+    (void)fprintf(
+        stderr,
+        "long-double-statics: function inventory differs: "
+        "size=%u fingerprint=%08x relocations=%u/%u/%u/%u\n",
+        (unsigned int)function->size, (unsigned int)fingerprint,
+        (unsigned int)file_zero_relocations,
+        (unsigned int)explicit_zero_relocations,
+        (unsigned int)block_zero_relocations,
+        (unsigned int)block_explicit_zero_relocations);
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_long_double_static_aggregate_object(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_elf32_object_t *object) {
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *bss = find_section(object, ".bss");
+  const ctool_elf32_section_t *rel_text =
+      find_section(object, ".rel.text");
+  const ctool_elf32_symbol_t *file_array =
+      find_symbol(object, "long_double_file_array");
+  const ctool_elf32_symbol_t *file_record =
+      find_symbol(object, "long_double_file_record");
+  const ctool_elf32_symbol_t *function =
+      find_symbol(object, "long_double_static_aggregate_zero");
+  const ctool_elf32_symbol_t *block_array;
+  const ctool_elf32_symbol_t *block_record;
+  ctool_u32 block_array_binding = CTOOL_C_AST_NONE;
+  ctool_u32 block_record_binding = CTOOL_C_AST_NONE;
+  ctool_u32 file_array_relocations = 0u;
+  ctool_u32 file_record_relocations = 0u;
+  ctool_u32 block_array_relocations = 0u;
+  ctool_u32 block_record_relocations = 0u;
+  ctool_u32 fingerprint;
+  char block_array_name[72];
+  char block_record_name[76];
+  int block_array_name_size;
+  int block_record_name_size;
+  ctool_u32 index;
+
+  if (unit == NULL || object == NULL) {
+    return 0;
+  }
+  for (index = 0u; index < unit->block_binding_count; index++) {
+    const ctool_c_block_binding_t *binding =
+        &unit->block_bindings[index];
+    if (string_equal(
+            binding->name, "long_double_block_array") != 0) {
+      block_array_binding = index;
+    } else if (string_equal(
+                   binding->name,
+                   "long_double_block_record") != 0) {
+      block_record_binding = index;
+    }
+  }
+  block_array_name_size = snprintf(
+      block_array_name, sizeof(block_array_name),
+      ".LBS%u.long_double_block_array",
+      (unsigned int)block_array_binding);
+  block_record_name_size = snprintf(
+      block_record_name, sizeof(block_record_name),
+      ".LBS%u.long_double_block_record",
+      (unsigned int)block_record_binding);
+  if (block_array_binding == CTOOL_C_AST_NONE ||
+      block_record_binding == CTOOL_C_AST_NONE ||
+      block_array_name_size < 0 ||
+      (size_t)block_array_name_size >= sizeof(block_array_name) ||
+      block_record_name_size < 0 ||
+      (size_t)block_record_name_size >= sizeof(block_record_name)) {
+    return 0;
+  }
+  block_array = find_symbol(object, block_array_name);
+  block_record = find_symbol(object, block_record_name);
+  if (text == NULL || bss == NULL || rel_text == NULL ||
+      file_array == NULL || file_record == NULL ||
+      block_array == NULL || block_record == NULL ||
+      function == NULL || bss->type != CTOOL_ELF32_SHT_NOBITS ||
+      bss->alignment != 4u || bss->size != 104u ||
+      file_array->binding != CTOOL_ELF32_BIND_GLOBAL ||
+      file_array->type != CTOOL_ELF32_SYMBOL_OBJECT ||
+      file_array->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      file_array->section_file_index != bss->file_index ||
+      file_array->value != 0u || file_array->size != 24u ||
+      file_record->binding != CTOOL_ELF32_BIND_LOCAL ||
+      file_record->type != CTOOL_ELF32_SYMBOL_OBJECT ||
+      file_record->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      file_record->section_file_index != bss->file_index ||
+      file_record->value != 24u || file_record->size != 28u ||
+      block_array->binding != CTOOL_ELF32_BIND_LOCAL ||
+      block_array->type != CTOOL_ELF32_SYMBOL_OBJECT ||
+      block_array->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      block_array->section_file_index != bss->file_index ||
+      block_array->value != 52u || block_array->size != 24u ||
+      block_record->binding != CTOOL_ELF32_BIND_LOCAL ||
+      block_record->type != CTOOL_ELF32_SYMBOL_OBJECT ||
+      block_record->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      block_record->section_file_index != bss->file_index ||
+      block_record->value != 76u || block_record->size != 28u ||
+      !wide_function_symbol_is_valid(object, text, function)) {
+    (void)fprintf(
+        stderr,
+        "long-double-static-aggregates: storage differs: "
+        "bss=%u array=%u/%u record=%u/%u "
+        "block-array=%u/%u block-record=%u/%u function=%u\n",
+        bss == NULL ? 0u : (unsigned int)bss->size,
+        file_array == NULL ? 0u : (unsigned int)file_array->value,
+        file_array == NULL ? 0u : (unsigned int)file_array->size,
+        file_record == NULL ? 0u : (unsigned int)file_record->value,
+        file_record == NULL ? 0u : (unsigned int)file_record->size,
+        block_array == NULL ? 0u : (unsigned int)block_array->value,
+        block_array == NULL ? 0u : (unsigned int)block_array->size,
+        block_record == NULL ? 0u : (unsigned int)block_record->value,
+        block_record == NULL ? 0u : (unsigned int)block_record->size,
+        function == NULL ? 0u : (unsigned int)function->size);
+    return 0;
+  }
+  for (index = 0u; index < object->relocation_count; index++) {
+    const ctool_elf32_relocation_t *relocation =
+        &object->relocations[index];
+    if (relocation->relocation_section_file_index !=
+            rel_text->file_index ||
+        relocation->target_section_file_index != text->file_index ||
+        relocation->offset < function->value ||
+        relocation->offset >= function->value + function->size ||
+        relocation->type != CTOOL_ELF32_R_386_32 ||
+        relocation->addend_known != CTOOL_TRUE ||
+        relocation->addend != 0) {
+      return 0;
+    }
+    if (relocation->symbol_file_index == file_array->file_index) {
+      file_array_relocations++;
+    } else if (relocation->symbol_file_index ==
+               file_record->file_index) {
+      file_record_relocations++;
+    } else if (relocation->symbol_file_index ==
+               block_array->file_index) {
+      block_array_relocations++;
+    } else if (relocation->symbol_file_index ==
+               block_record->file_index) {
+      block_record_relocations++;
+    } else {
+      return 0;
+    }
+  }
+  fingerprint = structure_text_fingerprint(
+      ctool_bytes(text->contents.data + function->value,
+                  function->size));
+  if (text->contents.size != function->size ||
+      function->size != 415u || fingerprint != 0xbf01cc71u ||
+      text->relocation_count != 8u ||
+      object->relocation_count != 8u ||
+      object->symbol_count != 6u ||
+      file_array_relocations != 2u ||
+      file_record_relocations != 2u ||
+      block_array_relocations != 2u ||
+      block_record_relocations != 2u) {
+    (void)fprintf(
+        stderr,
+        "long-double-static-aggregates: function differs: "
+        "text=%u size=%u fingerprint=%08x relocations=%u/%u "
+        "symbols=%u references=%u/%u/%u/%u\n",
+        (unsigned int)text->contents.size,
+        (unsigned int)function->size, (unsigned int)fingerprint,
+        (unsigned int)text->relocation_count,
+        (unsigned int)object->relocation_count,
+        (unsigned int)object->symbol_count,
+        (unsigned int)file_array_relocations,
+        (unsigned int)file_record_relocations,
+        (unsigned int)block_array_relocations,
+        (unsigned int)block_record_relocations);
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_floating_transport_object(
     ctool_job_t *job, const ctool_elf32_object_t *object) {
   static const ctool_u32 float_patterns[] = {
@@ -27300,6 +27911,91 @@ static int run_floating_transport_object(const char *host_root) {
       "  (void)wide;\n"
       "  if (condition) return;\n"
       "}\n";
+  static const char long_double_source[] =
+      "typedef __builtin_va_list va_list;\n"
+      "typedef void (*long_double_callback)(long double);\n"
+      "typedef void (*long_double_open_callback)();\n"
+      "typedef long double (*long_double_result_callback)(long double);\n"
+      "long double long_double_file_zero;\n"
+      "static long double long_double_explicit_zero = "
+      "sizeof(float) - 4;\n"
+      "void long_double_sink(long double value);\n"
+      "void long_double_variadic_sink(int marker, ...);\n"
+      "void long_double_open_sink();\n"
+      "long double long_double_identity(long double value);\n"
+      "double long_double_local(float narrow, double wide) {\n"
+      "  long double left = (long double)narrow;\n"
+      "  long double right = (long double)wide;\n"
+      "  left = +left;\n"
+      "  right = -right;\n"
+      "  left = left + right;\n"
+      "  right = left - right;\n"
+      "  left = left * right;\n"
+      "  right = left / right;\n"
+      "  return (double)right;\n"
+      "}\n"
+      "double long_double_static_zero(void) {\n"
+      "  static long double long_double_block_zero;\n"
+      "  static long double long_double_block_explicit_zero = 0;\n"
+      "  long_double_block_zero = long_double_file_zero;\n"
+      "  long_double_block_explicit_zero = long_double_explicit_zero;\n"
+      "  return (double)(long_double_block_zero +\n"
+      "                  long_double_block_explicit_zero);\n"
+      "}\n"
+      "void long_double_fixed_calls(long double value,\n"
+      "                             long_double_callback callback) {\n"
+      "  long double copy = value;\n"
+      "  long_double_sink(copy);\n"
+      "  callback(copy);\n"
+      "}\n"
+      "void long_double_variadic_call(long double value) {\n"
+      "  long_double_variadic_sink(7, value);\n"
+      "}\n"
+      "void long_double_variadic_read(int marker, ...) {\n"
+      "  va_list arguments;\n"
+      "  long double value;\n"
+      "  __builtin_va_start(arguments, marker);\n"
+      "  value = __builtin_va_arg(arguments, long double);\n"
+      "  long_double_sink(value);\n"
+      "  __builtin_va_end(arguments);\n"
+      "}\n"
+      "long double long_double_identity(long double value) {\n"
+      "  return value;\n"
+      "}\n"
+      "void long_double_open_calls(long double value,\n"
+      "                            long_double_open_callback callback) {\n"
+      "  long_double_open_sink(value);\n"
+      "  callback(value);\n"
+      "}\n"
+      "double long_double_call_results(\n"
+      "    long double value, long_double_result_callback callback) {\n"
+      "  long double direct = long_double_identity(value);\n"
+      "  long double indirect = callback(direct);\n"
+      "  return (double)indirect;\n"
+      "}\n";
+  static const char long_double_aggregate_source[] =
+      "struct long_double_record {\n"
+      "  long double first;\n"
+      "  unsigned int marker;\n"
+      "  long double second;\n"
+      "};\n"
+      "long double long_double_file_array[2];\n"
+      "static struct long_double_record long_double_file_record = {\n"
+      "  0, 0, sizeof(float) - 4\n"
+      "};\n"
+      "double long_double_static_aggregate_zero(void) {\n"
+      "  static long double long_double_block_array[2];\n"
+      "  static struct long_double_record long_double_block_record = {\n"
+      "    0, 0, sizeof(float) - 4\n"
+      "  };\n"
+      "  long_double_block_array[1] = long_double_file_array[0];\n"
+      "  long_double_block_record.second =\n"
+      "      long_double_file_record.first;\n"
+      "  return (double)(long_double_block_array[1] +\n"
+      "                  long_double_block_record.second +\n"
+      "                  long_double_file_array[1] +\n"
+      "                  long_double_file_record.second);\n"
+      "}\n";
   char source[sizeof(source_prefix) + sizeof(source_suffix) - 1u];
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
@@ -27308,14 +28004,21 @@ static int run_floating_transport_object(const char *host_root) {
   ctool_buffer_t *second = (ctool_buffer_t *)0;
   ctool_buffer_t *failure = (ctool_buffer_t *)0;
   ctool_buffer_t *limited = (ctool_buffer_t *)0;
+  ctool_buffer_t *long_double_output = (ctool_buffer_t *)0;
+  ctool_buffer_t *long_double_aggregate_output =
+      (ctool_buffer_t *)0;
   ctool_c_translation_unit_t unit;
   ctool_c_translation_unit_t condition_unit;
+  ctool_c_translation_unit_t long_double_unit;
+  ctool_c_translation_unit_t long_double_aggregate_unit;
   ctool_c_translation_unit_t invalid_condition_unit;
   ctool_c_translation_unit_t invalid_promotion_unit;
   ctool_c_statement_t *invalid_condition_statements = NULL;
   ctool_c_expression_t *invalid_promotion_expressions = NULL;
   ctool_source_t object_source;
   ctool_elf32_object_t object;
+  ctool_elf32_object_t long_double_object;
+  ctool_elf32_object_t long_double_aggregate_object;
   ctool_bytes_t first_bytes;
   ctool_bytes_t second_bytes;
   ctool_status_t status;
@@ -27338,6 +28041,13 @@ static int run_floating_transport_object(const char *host_root) {
                           &unit) ||
       !parse_source_mode(job, "/floating-truth-boundary.c",
                          condition_source, CTOOL_TRUE, &condition_unit) ||
+      !parse_source_mode(job, "/long-double-locals.c",
+                         long_double_source, CTOOL_TRUE,
+                         &long_double_unit) ||
+      !parse_source_mode(
+          job, "/long-double-static-aggregates.c",
+          long_double_aggregate_source, CTOOL_TRUE,
+          &long_double_aggregate_unit) ||
       unit.function_definition_count != 43u) {
     (void)fprintf(stderr, "floating transport object setup failed\n");
     goto cleanup;
@@ -27446,11 +28156,28 @@ static int run_floating_transport_object(const char *host_root) {
   if (status == CTOOL_OK) {
     status = ctool_job_open_buffer(job, 16u, 64u, &limited);
   }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes,
+        &long_double_output);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes,
+        &long_double_aggregate_output);
+  }
   if (!check_status(status, CTOOL_OK, "floating transport buffers") ||
       !expect_object_success_preserves_unit(
           job, &unit, first, "first floating transport object") ||
       !expect_object_success_preserves_unit(
-          job, &unit, second, "repeat floating transport object")) {
+          job, &unit, second, "repeat floating transport object") ||
+      !expect_object_success_preserves_unit(
+          job, &long_double_unit, long_double_output,
+          "long double local object") ||
+      !expect_object_success_preserves_unit(
+          job, &long_double_aggregate_unit,
+          long_double_aggregate_output,
+          "long double static aggregate object")) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
@@ -27514,6 +28241,41 @@ static int run_floating_transport_object(const char *host_root) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
+  object_source.path.text = ctool_string("/long-double-locals.o");
+  object_source.contents = ctool_buffer_view(long_double_output);
+  (void)memset(&long_double_object, 0xa5,
+               sizeof(long_double_object));
+  status = ctool_elf32_read(
+      job, &object_source, &long_double_object);
+  if (!check_status(status, CTOOL_OK,
+                    "read long double local object") ||
+      !validate_long_double_local_object(
+          job, &long_double_object) ||
+      !validate_long_double_call_object(
+          job, &long_double_object) ||
+      !validate_long_double_static_object(
+          &long_double_unit, &long_double_object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  object_source.path.text =
+      ctool_string("/long-double-static-aggregates.o");
+  object_source.contents =
+      ctool_buffer_view(long_double_aggregate_output);
+  (void)memset(
+      &long_double_aggregate_object, 0xa5,
+      sizeof(long_double_aggregate_object));
+  status = ctool_elf32_read(
+      job, &object_source, &long_double_aggregate_object);
+  if (!check_status(
+          status, CTOOL_OK,
+          "read long double static aggregate object") ||
+      !validate_long_double_static_aggregate_object(
+          &long_double_aggregate_unit,
+          &long_double_aggregate_object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
   passed = 1;
 
 cleanup:
@@ -27521,6 +28283,12 @@ cleanup:
   free(invalid_condition_statements);
   if (limited != (ctool_buffer_t *)0) {
     ctool_buffer_close(limited);
+  }
+  if (long_double_output != (ctool_buffer_t *)0) {
+    ctool_buffer_close(long_double_output);
+  }
+  if (long_double_aggregate_output != (ctool_buffer_t *)0) {
+    ctool_buffer_close(long_double_aggregate_output);
   }
   if (failure != (ctool_buffer_t *)0) {
     ctool_buffer_close(failure);
@@ -27995,21 +28763,21 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.cc",           "/toolchain/x86.cc",
       "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
-      65u, 68u, 66u, 14u, 31u, 143u, 262u, 353u, 420u, 81u, 37u, 60u,
+      65u, 68u, 66u, 14u, 31u, 143u, 262u, 353u, 422u, 81u, 37u, 60u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 76860u, 85252u, 16872u, 42212u,
-      190304u, 480797u, 536761u, 837454u, 139646u, 70368u, 80478u,
+      190304u, 481749u, 541569u, 846845u, 139646u, 70368u, 80596u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 89320u, 99772u, 20180u, 49484u,
-      226668u, 518620u, 603816u, 997160u, 157828u, 79348u, 134656u,
+      226668u, 519572u, 608624u, 1007060u, 157828u, 79348u, 134876u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x5fbbfaf2u, 0x4ca44a27u,
       0x7238e153u, 0x999f97b7u, 0xb49d8eb9u,
-      0x281b3edbu, 0x7de6ea3fu, 0x0f27c0c9u, 0x239f52c7u,
-      0x34558a49u, 0x7c198364u, 0x8774de7du};
+      0xd8e6fb83u, 0x2aba8014u, 0x87f6e1b5u, 0x239f52c7u,
+      0x34558a49u, 0x787e8906u, 0x8774de7du};
   ctool_u32 index;
   int all_matched = 1;
   for (index = 0u; index <
@@ -28887,7 +29655,7 @@ static int run_self_host_link_tools(const char *host_root,
        HOST_TOOL_SOURCE_C, CTOOL_FALSE},
       {"/toolchain/tests/hosted_i386_runtime_contract.cc",
        "/toolchain/tests/hosted_i386_runtime_contract.o",
-       HOST_TOOL_SOURCE_C, CTOOL_FALSE},
+       HOST_TOOL_SOURCE_C, CTOOL_TRUE},
       {"/toolchain/cupidc_pp.cc", "/toolchain/cupidc_pp.o",
        HOST_TOOL_SOURCE_C, CTOOL_FALSE},
       {"/toolchain/cupidc_type.cc", "/toolchain/cupidc_type.o",

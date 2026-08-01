@@ -155,13 +155,15 @@ static const active_expected_profile_t active_expected_profiles[] = {
     {"CUPID_RUNTIME", CTOOL_C_PP_MODE_CUPID, CTOOL_FALSE, CTOOL_FALSE,
      CTOOL_FALSE, CTOOL_FALSE, 105u, 0u, 0u, 0u},
     {"HOSTED_TOOLCHAIN_64", CTOOL_C_PP_MODE_C11, CTOOL_FALSE, CTOOL_TRUE,
-     CTOOL_FALSE, CTOOL_FALSE, 12u, 1u, 1u, 0u},
+     CTOOL_FALSE, CTOOL_FALSE, 0u, 1u, 1u, 0u},
     {"HOSTED_KERNEL_BRIDGE_64", CTOOL_C_PP_MODE_C11, CTOOL_FALSE, CTOOL_TRUE,
-     CTOOL_FALSE, CTOOL_FALSE, 1u, 2u, 1u, 0u},
+     CTOOL_FALSE, CTOOL_FALSE, 0u, 2u, 1u, 0u},
     {"HOSTED_I386_LINUX", CTOOL_C_PP_MODE_C11, CTOOL_FALSE, CTOOL_TRUE,
-     CTOOL_FALSE, CTOOL_FALSE, 19u, 2u, 1u, 0u},
+     CTOOL_FALSE, CTOOL_FALSE, 31u, 2u, 1u, 0u},
+    {"HOSTED_I386_KERNEL_BRIDGE", CTOOL_C_PP_MODE_C11, CTOOL_FALSE,
+     CTOOL_TRUE, CTOOL_FALSE, CTOOL_FALSE, 2u, 3u, 1u, 0u},
     {"HOSTED_I386_LINUX_GNU", CTOOL_C_PP_MODE_C11, CTOOL_TRUE, CTOOL_TRUE,
-     CTOOL_FALSE, CTOOL_FALSE, 1u, 2u, 1u, 0u}};
+     CTOOL_FALSE, CTOOL_FALSE, 2u, 2u, 1u, 0u}};
 
 static int open_job_at_root(const char *mode, const char *host_root,
                             ctool_host_adapter_t *adapter,
@@ -5586,12 +5588,12 @@ static int validate_active_manifest(const char *mode) {
   if (profile_count !=
           (ctool_u32)(sizeof(active_expected_profiles) /
                       sizeof(active_expected_profiles[0])) ||
-      kind_counts[ACTIVE_ROW_PROFILE] != 9u ||
-      kind_counts[ACTIVE_ROW_CASE] != 379u ||
+      kind_counts[ACTIVE_ROW_PROFILE] != 10u ||
+      kind_counts[ACTIVE_ROW_CASE] != 381u ||
       kind_counts[ACTIVE_ROW_GENERATED_CASE] != 4u ||
       kind_counts[ACTIVE_ROW_INCLUDE_ONLY] != 22u ||
       kind_counts[ACTIVE_ROW_NON_ROOT] != 2u ||
-      kind_counts[ACTIVE_ROW_DEFERRED_HOSTED] != 20u) {
+      kind_counts[ACTIVE_ROW_DEFERRED_HOSTED] != 0u) {
     (void)fprintf(stderr,
                   "%s: manifest counts differ "
                   "(profiles=%u tracked=%u generated=%u include-only=%u "
@@ -5812,7 +5814,7 @@ static int run_one_active_case(const char *mode, const char *host_root,
 
 static int run_active_corpus(const char *mode, const char *host_root,
                              ctool_bool generated) {
-  ctool_u32 expected_count = generated == CTOOL_TRUE ? 4u : 379u;
+  ctool_u32 expected_count = generated == CTOOL_TRUE ? 4u : 381u;
   ctool_u32 executed_count = 0u;
   ctool_u32 row_index;
 

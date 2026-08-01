@@ -185,6 +185,7 @@ typedef struct {
   /* Private parse-time form for a linkable address constant. It is kept out
    * of the public expression tape and consumed by static initialization. */
   ctool_bool static_address_known;
+  ctool_c_initializer_address_kind_t static_address_kind;
   ctool_u32 static_address_binding;
   ctool_i32 static_address_addend;
 } cfront_expression_value_t;
@@ -1032,7 +1033,8 @@ static ctool_status_t cfront_type_is_complete_object_now(
 
 typedef enum {
   CFRONT_TYPE_PROPERTY_FLEXIBLE_ARRAY = 0,
-  CFRONT_TYPE_PROPERTY_NONMODIFIABLE
+  CFRONT_TYPE_PROPERTY_NONMODIFIABLE,
+  CFRONT_TYPE_PROPERTY_ATOMIC_LONG_DOUBLE
 } cfront_type_property_t;
 
 static ctool_status_t cfront_type_contains_property(
@@ -1086,6 +1088,12 @@ static ctool_status_t cfront_type_contains_property(
       break;
     }
     qualifiers |= node.qualifiers;
+    if (property == CFRONT_TYPE_PROPERTY_ATOMIC_LONG_DOUBLE &&
+        node.kind == CTOOL_C_TYPE_LONG_DOUBLE &&
+        (qualifiers & CTOOL_C_QUAL_ATOMIC) != 0u) {
+      *contains_out = CTOOL_TRUE;
+      break;
+    }
     if (property == CFRONT_TYPE_PROPERTY_NONMODIFIABLE &&
         (qualifiers & CTOOL_C_QUAL_CONST) != 0u) {
       *contains_out = CTOOL_TRUE;
@@ -3302,6 +3310,8 @@ static ctool_status_t cfront_parse_constant_conditional(
 static ctool_status_t cfront_integer_type(
     const cfront_context_t *context, ctool_u32 type,
     cfront_integer_type_t *integer_out, ctool_bool *is_integer_out);
+static cfront_integer_kind_t cfront_static_integer_kind(
+    const cfront_integer_type_t *integer);
 static ctool_status_t cfront_decode_character_constant(
     cfront_context_t *context, const ctool_c_pp_token_t *token,
     ctool_u32 diagnostic_code, ctool_u32 *value_out);
@@ -3786,6 +3796,86 @@ static ctool_status_t cfront_enumerator_constant(
   return CTOOL_OK;
 }
 
+static ctool_status_t cfront_static_const_integer_initializer(
+    cfront_context_t *context, const ctool_c_pp_token_t *token,
+    ctool_u32 type, ctool_u32 initializer_index,
+    cfront_integer_t *value_out, ctool_bool *matched_out) {
+  ctool_c_initializer_t initializer;
+  ctool_c_type_node_t node;
+  cfront_integer_type_t integer;
+  ctool_u32 base;
+  ctool_u32 qualifiers;
+  ctool_bool is_integer = CTOOL_FALSE;
+  ctool_status_t status;
+  *matched_out = CTOOL_FALSE;
+  if (initializer_index == CTOOL_C_AST_NONE ||
+      initializer_index >= context->initializers.count) {
+    return CTOOL_OK;
+  }
+  status = cfront_underlying_type(
+      context, type, &base, &qualifiers, &node);
+  (void)base;
+  if (status != CTOOL_OK) {
+    return cfront_storage_failure(context, status);
+  }
+  qualifiers |= node.qualifiers;
+  if ((qualifiers & CTOOL_C_QUAL_CONST) == 0u ||
+      (qualifiers & CTOOL_C_QUAL_ATOMIC) != 0u) {
+    return CTOOL_OK;
+  }
+  status = cfront_integer_type(
+      context, type, &integer, &is_integer);
+  if (status != CTOOL_OK) {
+    return cfront_storage_failure(context, status);
+  }
+  if (is_integer == CTOOL_FALSE) {
+    return CTOOL_OK;
+  }
+  status = cfront_vector_get(
+      &context->initializers, initializer_index, &initializer);
+  if (status != CTOOL_OK) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL, token,
+        "static constant initializer metadata is unavailable");
+  }
+  if (initializer.kind != CTOOL_C_INITIALIZER_INTEGER ||
+      initializer.type != type) {
+    return CTOOL_OK;
+  }
+  value_out->kind = cfront_static_integer_kind(&integer);
+  value_out->bits = cfront_integer_normalize_bits(
+      initializer.integer_bits, value_out->kind);
+  *value_out = cfront_integer_convert_to_type(*value_out, &integer);
+  *matched_out = CTOOL_TRUE;
+  return CTOOL_OK;
+}
+
+static ctool_status_t cfront_file_static_const_integer(
+    cfront_context_t *context, const ctool_c_pp_token_t *token,
+    ctool_u32 binding_index, cfront_integer_t *value_out,
+    ctool_bool *matched_out) {
+  ctool_u32 index;
+  *matched_out = CTOOL_FALSE;
+  for (index = context->object_definitions.count; index != 0u; index--) {
+    cfront_object_definition_t definition;
+    ctool_status_t status = cfront_vector_get(
+        &context->object_definitions, index - 1u, &definition);
+    if (status != CTOOL_OK) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL, token,
+          "static constant definition metadata is unavailable");
+    }
+    if (definition.definition.binding == binding_index &&
+        definition.definition.kind ==
+            CTOOL_C_OBJECT_DEFINITION_EXPLICIT) {
+      return cfront_static_const_integer_initializer(
+          context, token, definition.definition.declared_type,
+          definition.definition.initializer, value_out, matched_out);
+    }
+  }
+  return CTOOL_OK;
+}
+
 static ctool_status_t cfront_parse_constant_primary(
     cfront_context_t *context, cfront_integer_t *value_out) {
   const ctool_c_pp_token_t *token = cfront_peek(context);
@@ -3839,24 +3929,54 @@ static ctool_status_t cfront_parse_constant_primary(
     return status;
   }
   if (token->kind == CTOOL_C_PP_TOKEN_IDENTIFIER) {
+    ctool_bool matched = CTOOL_FALSE;
+    ctool_u32 binding_index = CTOOL_C_AST_NONE;
     if (cfront_find_active_block_binding(
             context, token->spelling, &block_binding,
-            (ctool_u32 *)0) == CTOOL_TRUE) {
+            &binding_index) == CTOOL_TRUE) {
       if (block_binding.kind == CTOOL_C_BINDING_ENUMERATOR) {
         (void)cfront_advance(context);
         return cfront_enumerator_constant(
             context, token, block_binding.type, block_binding.integer_bits,
             value_out);
       }
+      if (context->static_initializer_depth != 0u &&
+          block_binding.kind == CTOOL_C_BINDING_OBJECT &&
+          block_binding.storage == CTOOL_C_STORAGE_STATIC) {
+        status = cfront_static_const_integer_initializer(
+            context, token, block_binding.type,
+            block_binding.initializer, value_out, &matched);
+        if (status != CTOOL_OK || matched == CTOOL_TRUE) {
+          if (status == CTOOL_OK) {
+            (void)cfront_advance(context);
+          }
+          return status;
+        }
+      }
     } else if (cfront_find_active_parameter(
                    context, token->spelling, &parameter,
                    &parameter_type) == CTOOL_FALSE &&
                cfront_find_binding(context, token->spelling, &binding) ==
-                   CTOOL_TRUE &&
-               binding.kind == CTOOL_C_BINDING_ENUMERATOR) {
-      (void)cfront_advance(context);
-      return cfront_enumerator_constant(context, token, binding.type,
-                                        binding.integer_bits, value_out);
+                   CTOOL_TRUE) {
+      if (binding.kind == CTOOL_C_BINDING_ENUMERATOR) {
+        (void)cfront_advance(context);
+        return cfront_enumerator_constant(context, token, binding.type,
+                                          binding.integer_bits, value_out);
+      }
+      if (context->static_initializer_depth != 0u &&
+          binding.kind == CTOOL_C_BINDING_OBJECT &&
+          cfront_find_file_binding_index(
+              context, token->spelling, &binding,
+              &binding_index) == CTOOL_TRUE) {
+        status = cfront_file_static_const_integer(
+            context, token, binding_index, value_out, &matched);
+        if (status != CTOOL_OK || matched == CTOOL_TRUE) {
+          if (status == CTOOL_OK) {
+            (void)cfront_advance(context);
+          }
+          return status;
+        }
+      }
     }
   }
   return cfront_emit_failure(
@@ -7719,6 +7839,7 @@ static ctool_status_t cfront_decimal_floating_bits(
 
 static void cfront_static_address_clear(cfront_expression_value_t *value) {
   value->static_address_known = CTOOL_FALSE;
+  value->static_address_kind = CTOOL_C_INITIALIZER_ADDRESS_NONE;
   value->static_address_binding = CTOOL_C_AST_NONE;
   value->static_address_addend = 0;
 }
@@ -8592,6 +8713,8 @@ static ctool_status_t cfront_append_conversion_with_reference(
           ? CTOOL_TRUE
           : CTOOL_FALSE;
   ctool_bool static_address_known = value->static_address_known;
+  ctool_c_initializer_address_kind_t static_address_kind =
+      value->static_address_kind;
   ctool_u32 static_address_binding = value->static_address_binding;
   ctool_i32 static_address_addend = value->static_address_addend;
   ctool_u32 first_child;
@@ -8648,6 +8771,7 @@ static ctool_status_t cfront_append_conversion_with_reference(
     if (status == CTOOL_OK && preserve_static_address == CTOOL_TRUE &&
         static_address_known == CTOOL_TRUE) {
       value->static_address_known = CTOOL_TRUE;
+      value->static_address_kind = static_address_kind;
       value->static_address_binding = static_address_binding;
       value->static_address_addend = static_address_addend;
     }
@@ -8677,6 +8801,8 @@ static ctool_status_t cfront_append_one_child_expression(
           ? CTOOL_TRUE
           : CTOOL_FALSE;
   ctool_bool static_address_known = operand->static_address_known;
+  ctool_c_initializer_address_kind_t static_address_kind =
+      operand->static_address_kind;
   ctool_u32 static_address_binding = operand->static_address_binding;
   ctool_i32 static_address_addend = operand->static_address_addend;
   ctool_u32 child = operand->expression;
@@ -8705,6 +8831,7 @@ static ctool_status_t cfront_append_one_child_expression(
     if (preserve_static_address == CTOOL_TRUE &&
         static_address_known == CTOOL_TRUE) {
       operand->static_address_known = CTOOL_TRUE;
+      operand->static_address_kind = static_address_kind;
       operand->static_address_binding = static_address_binding;
       operand->static_address_addend = static_address_addend;
     }
@@ -8995,7 +9122,8 @@ static ctool_status_t cfront_validate_variadic_argument_type(
         builtin_token,
         "atomic variadic argument reads are outside this ABI slice");
   }
-  if (node.kind == CTOOL_C_TYPE_DOUBLE) {
+  if (node.kind == CTOOL_C_TYPE_DOUBLE ||
+      node.kind == CTOOL_C_TYPE_LONG_DOUBLE) {
     return CTOOL_OK;
   }
   if (node.kind == CTOOL_C_TYPE_FLOAT) {
@@ -9028,8 +9156,8 @@ static ctool_status_t cfront_validate_variadic_argument_type(
   return cfront_emit_failure(
       context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
       builtin_token,
-      "variadic argument reads support double, 4-byte pointers, and 4-byte "
-      "or 8-byte integers");
+      "variadic argument reads support double, long double, 4-byte pointers, "
+      "and 4-byte or 8-byte integers");
 }
 
 static ctool_status_t cfront_parse_variadic_builtin(
@@ -9722,12 +9850,6 @@ static ctool_status_t cfront_prepare_floating_unary(
         context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
         operator_token, "floating unary operator metadata is invalid");
   }
-  if (node.kind == CTOOL_C_TYPE_LONG_DOUBLE) {
-    return cfront_emit_failure(
-        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
-        operator_token,
-        "long double arithmetic is outside this expression slice");
-  }
   if (((qualifiers | node.qualifiers) & CTOOL_C_QUAL_ATOMIC) != 0u) {
     return cfront_emit_failure(
         context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
@@ -9798,8 +9920,9 @@ static ctool_status_t cfront_prepare_floating_binary(
           operator_token, "bitwise operators require integer operands");
     }
   }
-  if (left_node.kind == CTOOL_C_TYPE_LONG_DOUBLE ||
-      right_node.kind == CTOOL_C_TYPE_LONG_DOUBLE) {
+  if (comparison == CTOOL_TRUE &&
+      (left_node.kind == CTOOL_C_TYPE_LONG_DOUBLE ||
+       right_node.kind == CTOOL_C_TYPE_LONG_DOUBLE)) {
     return cfront_emit_failure(
         context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
         operator_token,
@@ -9864,7 +9987,10 @@ static ctool_status_t cfront_prepare_floating_binary(
   if (status == CTOOL_OK) {
     status = cfront_scalar_type(
         context,
-        left_node.kind == CTOOL_C_TYPE_DOUBLE ||
+        left_node.kind == CTOOL_C_TYPE_LONG_DOUBLE ||
+                right_node.kind == CTOOL_C_TYPE_LONG_DOUBLE
+            ? CTOOL_C_TYPE_LONG_DOUBLE
+            : left_node.kind == CTOOL_C_TYPE_DOUBLE ||
                 right_node.kind == CTOOL_C_TYPE_DOUBLE
             ? CTOOL_C_TYPE_DOUBLE
             : left_floating == CTOOL_TRUE
@@ -10017,10 +10143,6 @@ static ctool_status_t cfront_apply_assignment_conversion(
     }
     if (target_is_floating == CTOOL_TRUE &&
         source_is_floating == CTOOL_TRUE &&
-        (target_node.kind == CTOOL_C_TYPE_FLOAT ||
-         target_node.kind == CTOOL_C_TYPE_DOUBLE) &&
-        (source_node.kind == CTOOL_C_TYPE_FLOAT ||
-         source_node.kind == CTOOL_C_TYPE_DOUBLE) &&
         ((target_qualifiers | target_node.qualifiers |
           original_source_qualifiers | original_source_node.qualifiers) &
          CTOOL_C_QUAL_ATOMIC) == 0u) {
@@ -10267,20 +10389,32 @@ static ctool_status_t cfront_static_pointer_cast_child(
 
 static ctool_status_t cfront_extract_static_binding_address(
     cfront_context_t *context, const cfront_expression_value_t *value,
-    ctool_u32 *binding_out, ctool_i32 *addend_out,
+    ctool_c_initializer_address_kind_t *kind_out, ctool_u32 *binding_out,
+    ctool_i32 *addend_out,
     ctool_bool *matched_out) {
   ctool_bool has_address_origin = CTOOL_FALSE;
   ctool_u32 expression_index = value->expression;
   ctool_u32 traversed = 0u;
+  *kind_out = CTOOL_C_INITIALIZER_ADDRESS_NONE;
   *binding_out = CTOOL_C_AST_NONE;
   *addend_out = 0;
   *matched_out = CTOOL_FALSE;
   if (value->static_address_known == CTOOL_TRUE) {
-    if (value->static_address_binding >= context->bindings.count) {
+    if ((value->static_address_kind ==
+             CTOOL_C_INITIALIZER_ADDRESS_BINDING &&
+         value->static_address_binding >= context->bindings.count) ||
+        (value->static_address_kind ==
+             CTOOL_C_INITIALIZER_ADDRESS_BLOCK_BINDING &&
+         value->static_address_binding >= context->block_bindings.count) ||
+        (value->static_address_kind !=
+             CTOOL_C_INITIALIZER_ADDRESS_BINDING &&
+         value->static_address_kind !=
+             CTOOL_C_INITIALIZER_ADDRESS_BLOCK_BINDING)) {
       return cfront_emit_failure(
           context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
           cfront_peek(context), "static address binding is unavailable");
     }
+    *kind_out = value->static_address_kind;
     *binding_out = value->static_address_binding;
     *addend_out = value->static_address_addend;
     *matched_out = CTOOL_TRUE;
@@ -10376,6 +10510,27 @@ static ctool_status_t cfront_extract_static_binding_address(
       if ((binding.kind == CTOOL_C_BINDING_OBJECT ||
            binding.kind == CTOOL_C_BINDING_FUNCTION) &&
           binding.linkage != CTOOL_C_LINKAGE_NONE) {
+        *kind_out = CTOOL_C_INITIALIZER_ADDRESS_BINDING;
+        *binding_out = expression.reference;
+        *addend_out = 0;
+        *matched_out = CTOOL_TRUE;
+      }
+    }
+    if (expression.kind == CTOOL_C_EXPRESSION_BLOCK_BINDING &&
+        has_address_origin == CTOOL_TRUE &&
+        expression.reference < context->block_bindings.count) {
+      ctool_c_block_binding_t binding;
+      status = cfront_vector_get(&context->block_bindings,
+                                 expression.reference, &binding);
+      if (status != CTOOL_OK) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            cfront_peek(context),
+            "static address block binding is unavailable");
+      }
+      if (binding.kind == CTOOL_C_BINDING_OBJECT &&
+          binding.storage == CTOOL_C_STORAGE_STATIC) {
+        *kind_out = CTOOL_C_INITIALIZER_ADDRESS_BLOCK_BINDING;
         *binding_out = expression.reference;
         *addend_out = 0;
         *matched_out = CTOOL_TRUE;
@@ -11043,9 +11198,11 @@ static ctool_status_t cfront_apply_cast(
        source.kind == CTOOL_C_TYPE_DOUBLE ||
        source.kind == CTOOL_C_TYPE_LONG_DOUBLE)) {
     if ((target.kind == CTOOL_C_TYPE_FLOAT ||
-         target.kind == CTOOL_C_TYPE_DOUBLE) &&
+         target.kind == CTOOL_C_TYPE_DOUBLE ||
+         target.kind == CTOOL_C_TYPE_LONG_DOUBLE) &&
         (source.kind == CTOOL_C_TYPE_FLOAT ||
-         source.kind == CTOOL_C_TYPE_DOUBLE) &&
+         source.kind == CTOOL_C_TYPE_DOUBLE ||
+         source.kind == CTOOL_C_TYPE_LONG_DOUBLE) &&
         ((target_qualifiers | target.qualifiers |
           original_source_qualifiers | original_source.qualifiers) &
          CTOOL_C_QUAL_ATOMIC) == 0u) {
@@ -11162,6 +11319,8 @@ static ctool_status_t cfront_append_binary_expression(
           ? CTOOL_TRUE
           : CTOOL_FALSE;
   ctool_bool static_address_known = left->static_address_known;
+  ctool_c_initializer_address_kind_t static_address_kind =
+      left->static_address_kind;
   ctool_u32 static_address_binding = left->static_address_binding;
   ctool_i32 static_address_addend = left->static_address_addend;
   ctool_u32 first_child = context->expression_children.count;
@@ -11198,6 +11357,7 @@ static ctool_status_t cfront_append_binary_expression(
     if (preserve_static_address == CTOOL_TRUE &&
         static_address_known == CTOOL_TRUE) {
       left->static_address_known = CTOOL_TRUE;
+      left->static_address_kind = static_address_kind;
       left->static_address_binding = static_address_binding;
       left->static_address_addend = static_address_addend;
     }
@@ -11726,12 +11886,14 @@ static ctool_status_t cfront_prepare_pointer_additive(
   if (status == CTOOL_OK && context->static_initializer_depth != 0u &&
       context->constant_evaluation_suppression_depth == 0u) {
     ctool_c_type_layout_t referent_layout = {0};
+    ctool_c_initializer_address_kind_t address_kind =
+        CTOOL_C_INITIALIZER_ADDRESS_NONE;
     ctool_u32 address_binding = CTOOL_C_AST_NONE;
     ctool_i32 address_addend = 0;
     ctool_bool has_static_address = CTOOL_FALSE;
     status = cfront_extract_static_binding_address(
-        context, pointer_value, &address_binding, &address_addend,
-        &has_static_address);
+        context, pointer_value, &address_kind, &address_binding,
+        &address_addend, &has_static_address);
     cfront_static_address_clear(left);
     if (status == CTOOL_OK && has_static_address == CTOOL_TRUE &&
         integer_value->integer_constant_expression == CTOOL_TRUE &&
@@ -11755,6 +11917,7 @@ static ctool_status_t cfront_prepare_pointer_additive(
       }
       if (status == CTOOL_OK) {
         left->static_address_known = CTOOL_TRUE;
+        left->static_address_kind = address_kind;
         left->static_address_binding = address_binding;
         left->static_address_addend = address_addend;
       }
@@ -12343,7 +12506,8 @@ static ctool_status_t cfront_validate_assignment_target(
         operator_token, "assignment requires a modifiable lvalue");
   }
   if ((node.kind == CTOOL_C_TYPE_FLOAT ||
-       node.kind == CTOOL_C_TYPE_DOUBLE) &&
+       node.kind == CTOOL_C_TYPE_DOUBLE ||
+       node.kind == CTOOL_C_TYPE_LONG_DOUBLE) &&
       (qualifiers & CTOOL_C_QUAL_ATOMIC) != 0u &&
       form != CFRONT_ASSIGNMENT_UPDATE) {
     return cfront_emit_failure(
@@ -12352,13 +12516,6 @@ static ctool_status_t cfront_validate_assignment_target(
         form == CFRONT_ASSIGNMENT_COMPOUND
             ? "floating compound assignment is outside this body slice"
             : "floating assignment conversions are outside this body slice");
-  }
-  if (node.kind == CTOOL_C_TYPE_LONG_DOUBLE &&
-      form == CFRONT_ASSIGNMENT_PLAIN) {
-    return cfront_emit_failure(
-        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
-        operator_token,
-        "long double assignment is outside this transport slice");
   }
   if ((node.kind == CTOOL_C_TYPE_FLOAT ||
        node.kind == CTOOL_C_TYPE_DOUBLE ||
@@ -19191,8 +19348,22 @@ static ctool_status_t cfront_parse_static_initializer(
   const ctool_c_pp_token_t *value_token = cfront_peek(context);
   cfront_integer_type_t target_integer;
   cfront_integer_t value = {0ull, CFRONT_INTEGER_SIGNED_32};
+  ctool_bool contains_atomic_long_double = CTOOL_FALSE;
   ctool_bool is_integer = CTOOL_FALSE;
   ctool_status_t status;
+  status = cfront_type_contains_property(
+      context, *object_type_io, CFRONT_TYPE_PROPERTY_ATOMIC_LONG_DOUBLE,
+      &contains_atomic_long_double);
+  if (status != CTOOL_OK) {
+    return cfront_storage_failure(context, status);
+  }
+  if (contains_atomic_long_double == CTOOL_TRUE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED,
+        CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION, value_token,
+        "atomic static long double initialization is outside this "
+        "constant-data slice");
+  }
   if (cfront_peek_is(context, "{") == CTOOL_TRUE) {
     ctool_c_type_node_t target;
     ctool_c_type_node_t element;
@@ -19295,6 +19466,8 @@ static ctool_status_t cfront_parse_static_initializer(
       ctool_u32 expression_mark = context->expressions.count;
       ctool_u32 child_mark = context->expression_children.count;
       ctool_u32 address_reference = CTOOL_C_AST_NONE;
+      ctool_c_initializer_address_kind_t address_kind =
+          CTOOL_C_INITIALIZER_ADDRESS_NONE;
       ctool_i32 address_addend = 0;
       ctool_bytes_t address_string =
           ctool_bytes((const void *)0, 0u);
@@ -19360,15 +19533,15 @@ static ctool_status_t cfront_parse_static_initializer(
                                              initializer_out);
         } else if (status == CTOOL_OK) {
           status = cfront_extract_static_binding_address(
-              context, &pointer_value, &address_reference, &address_addend,
-              &has_binding_address);
+              context, &pointer_value, &address_kind, &address_reference,
+              &address_addend, &has_binding_address);
         }
         if (status == CTOOL_OK && has_string_address == CTOOL_FALSE &&
             has_binding_address == CTOOL_TRUE) {
           ctool_c_initializer_t initializer;
           cfront_initializer_init(&initializer, CTOOL_C_INITIALIZER_ADDRESS,
                                   *object_type_io, value_token);
-          initializer.address_kind = CTOOL_C_INITIALIZER_ADDRESS_BINDING;
+          initializer.address_kind = address_kind;
           initializer.address_reference = address_reference;
           initializer.address_addend = address_addend;
           status = cfront_append_initializer(context, &initializer,
@@ -19399,11 +19572,24 @@ static ctool_status_t cfront_parse_static_initializer(
         target.kind == CTOOL_C_TYPE_DOUBLE ||
         target.kind == CTOOL_C_TYPE_LONG_DOUBLE) {
       if (target.kind == CTOOL_C_TYPE_LONG_DOUBLE) {
-        return cfront_emit_failure(
-            context, CTOOL_ERR_UNSUPPORTED,
-            CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION, value_token,
-            "static long double initialization is outside this "
-            "constant-data slice");
+        context->static_initializer_depth++;
+        status = cfront_parse_constant_conditional(context, &value);
+        context->static_initializer_depth--;
+        if (status == CTOOL_OK && value.bits != 0ull) {
+          status = cfront_emit_failure(
+              context, CTOOL_ERR_UNSUPPORTED,
+              CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION, value_token,
+              "static long double initialization currently requires zero");
+        }
+        if (status == CTOOL_OK) {
+          ctool_c_initializer_t initializer;
+          cfront_initializer_init(
+              &initializer, CTOOL_C_INITIALIZER_ZERO, *object_type_io,
+              value_token);
+          status = cfront_append_initializer(
+              context, &initializer, initializer_out);
+        }
+        return status;
       }
       if (((target_qualifiers | target.qualifiers) &
            CTOOL_C_QUAL_ATOMIC) != 0u) {
@@ -19466,7 +19652,21 @@ static ctool_status_t cfront_append_zero_initializer(
     cfront_context_t *context, ctool_u32 object_type,
     const ctool_c_pp_token_t *token, ctool_u32 *initializer_out) {
   ctool_c_initializer_t initializer;
+  ctool_bool contains_atomic_long_double = CTOOL_FALSE;
   ctool_status_t status;
+  status = cfront_type_contains_property(
+      context, object_type, CFRONT_TYPE_PROPERTY_ATOMIC_LONG_DOUBLE,
+      &contains_atomic_long_double);
+  if (status != CTOOL_OK) {
+    return cfront_storage_failure(context, status);
+  }
+  if (contains_atomic_long_double == CTOOL_TRUE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED,
+        CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION, token,
+        "atomic static long double initialization is outside this "
+        "constant-data slice");
+  }
   cfront_initializer_init(&initializer, CTOOL_C_INITIALIZER_ZERO,
                           object_type, token);
   status = cfront_vector_append(&context->initializers, &initializer,
@@ -21187,12 +21387,6 @@ static ctool_status_t cfront_parse_return_statement(
         cfront_peek(context), "non-void function requires a return value");
   }
   if (has_value == CTOOL_TRUE) {
-    if (result.kind == CTOOL_C_TYPE_LONG_DOUBLE) {
-      return cfront_emit_failure(
-          context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
-          return_token,
-          "long double function returns are outside this transport slice");
-    }
     status = cfront_integer_type(context, function.referenced_type,
                                  &result_integer, &result_is_integer);
     (void)result_integer;
@@ -21200,10 +21394,11 @@ static ctool_status_t cfront_parse_return_statement(
       return cfront_storage_failure(context, status);
     }
     if (result_is_integer == CTOOL_FALSE &&
-        result.kind != CTOOL_C_TYPE_POINTER &&
-        result.kind != CTOOL_C_TYPE_RECORD &&
-        result.kind != CTOOL_C_TYPE_FLOAT &&
-        result.kind != CTOOL_C_TYPE_DOUBLE) {
+         result.kind != CTOOL_C_TYPE_POINTER &&
+         result.kind != CTOOL_C_TYPE_RECORD &&
+         result.kind != CTOOL_C_TYPE_FLOAT &&
+         result.kind != CTOOL_C_TYPE_DOUBLE &&
+         result.kind != CTOOL_C_TYPE_LONG_DOUBLE) {
       return cfront_emit_failure(
           context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT,
           return_token,
@@ -23378,6 +23573,20 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
                         (binding->kind == CTOOL_C_BINDING_OBJECT ||
                          binding->kind == CTOOL_C_BINDING_FUNCTION) &&
                         binding->linkage != CTOOL_C_LINKAGE_NONE &&
+                        no_string == CTOOL_TRUE
+                    ? CTOOL_TRUE
+                    : CTOOL_FALSE;
+      } else if (valid == CTOOL_TRUE &&
+                 initializer->address_kind ==
+                     CTOOL_C_INITIALIZER_ADDRESS_BLOCK_BINDING) {
+        const ctool_c_block_binding_t *binding =
+            initializer->address_reference <
+                    context->block_bindings.count
+                ? &block_bindings[initializer->address_reference]
+                : (const ctool_c_block_binding_t *)0;
+        valid = binding != (const ctool_c_block_binding_t *)0 &&
+                        binding->kind == CTOOL_C_BINDING_OBJECT &&
+                        binding->storage == CTOOL_C_STORAGE_STATIC &&
                         no_string == CTOOL_TRUE
                     ? CTOOL_TRUE
                     : CTOOL_FALSE;

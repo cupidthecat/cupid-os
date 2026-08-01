@@ -240,6 +240,14 @@ _C_PP_PROFILE_ROWS = (
         compatibility_pointer_conversions="CTOOL_FALSE",
     ),
     CPreprocessorProfile(
+        name="HOSTED_I386_KERNEL_BRIDGE",
+        mode="CTOOL_C_PP_MODE_C11",
+        gnu_extensions="CTOOL_FALSE",
+        hosted_environment="CTOOL_TRUE",
+        implicit_function_declarations="CTOOL_FALSE",
+        compatibility_pointer_conversions="CTOOL_FALSE",
+    ),
+    CPreprocessorProfile(
         name="HOSTED_I386_LINUX_GNU",
         mode="CTOOL_C_PP_MODE_C11",
         gnu_extensions="CTOOL_TRUE",
@@ -291,10 +299,11 @@ _C_PP_ACTIVE_COUNTS = {
     "DOOM_TREE_I386": 80,
     "USER_I386": 3,
     "CUPID_RUNTIME": 105,
-    "HOSTED_TOOLCHAIN_64": 12,
-    "HOSTED_KERNEL_BRIDGE_64": 1,
-    "HOSTED_I386_LINUX": 19,
-    "HOSTED_I386_LINUX_GNU": 1,
+    "HOSTED_TOOLCHAIN_64": 0,
+    "HOSTED_KERNEL_BRIDGE_64": 0,
+    "HOSTED_I386_LINUX": 31,
+    "HOSTED_I386_KERNEL_BRIDGE": 2,
+    "HOSTED_I386_LINUX_GNU": 2,
 }
 _C_PP_HOSTED_I386_STRICT_CASES = (
     "/toolchain/ctool.cc",
@@ -314,11 +323,28 @@ _C_PP_HOSTED_I386_STRICT_CASES = (
     "/toolchain/cupidobj.cc",
     "/toolchain/cupidobj_main.cc",
     "/toolchain/elf32.cc",
-    "/toolchain/tests/hosted_i386_runtime_contract.cc",
     "/toolchain/x86.cc",
 )
 _C_PP_HOSTED_I386_GNU_CASES = (
     "/toolchain/hosted/i386-linux/runtime.cc",
+    "/toolchain/tests/hosted_i386_runtime_contract.cc",
+)
+_C_PP_TOOLCHAIN_CONTRACT_CASES = (
+    "/kernel/lang/as_elf.cc",
+    "/toolchain/tests/core_contract.cc",
+    "/toolchain/tests/cupidasm_contract.cc",
+    "/toolchain/tests/cupidasm_demos_contract.cc",
+    "/toolchain/tests/cupidasm_kernel_elf_contract.cc",
+    "/toolchain/tests/cupidc_frontend_contract.cc",
+    "/toolchain/tests/cupidc_ir_contract.cc",
+    "/toolchain/tests/cupidc_object_contract.cc",
+    "/toolchain/tests/cupidc_pp_contract.cc",
+    "/toolchain/tests/cupidc_type_contract.cc",
+    "/toolchain/tests/cupiddis_contract.cc",
+    "/toolchain/tests/cupidld_contract.cc",
+    "/toolchain/tests/cupidobj_contract.cc",
+    "/toolchain/tests/elf32_contract.cc",
+    "/toolchain/tests/x86_contract.cc",
 )
 _C_PP_GENERATED_KERNEL_CASES = (
     "/kernel/cpu/ksyms_data.cc",
@@ -330,32 +356,11 @@ _C_PP_NON_ROOT_HEADERS = (
     "/bin/fat16.h",
     "/bin/shell.h",
 )
-_C_PP_DEFERRED_HOSTED_CASES = (
-    "/toolchain/ctool_host.cc",
-    "/toolchain/cupidasm_main.cc",
-    "/toolchain/cupiddis_main.cc",
-    "/toolchain/cupidc_main.cc",
-    "/toolchain/cupidld_main.cc",
-    "/toolchain/cupidobj_main.cc",
-    "/toolchain/tests/core_contract.c",
-    "/toolchain/tests/cupidasm_contract.c",
-    "/toolchain/tests/cupidasm_demos_contract.c",
-    "/toolchain/tests/cupidasm_kernel_elf_contract.c",
-    "/toolchain/tests/cupidc_frontend_contract.c",
-    "/toolchain/tests/cupidc_ir_contract.c",
-    "/toolchain/tests/cupidc_object_contract.c",
-    "/toolchain/tests/cupidc_pp_contract.c",
-    "/toolchain/tests/cupidc_type_contract.c",
-    "/toolchain/tests/cupiddis_contract.c",
-    "/toolchain/tests/cupidld_contract.c",
-    "/toolchain/tests/cupidobj_contract.c",
-    "/toolchain/tests/elf32_contract.c",
-    "/toolchain/tests/x86_contract.c",
-)
+_C_PP_DEFERRED_HOSTED_CASES: tuple[str, ...] = ()
 _C_PP_HOSTED_BRIDGE_CASES = frozenset(
     {
         "/kernel/lang/as_elf.cc",
-        "/toolchain/tests/cupidasm_kernel_elf_contract.c",
+        "/toolchain/tests/cupidasm_kernel_elf_contract.cc",
     }
 )
 
@@ -4327,6 +4332,21 @@ def _c_preprocessor_profile_configuration() -> tuple[
                 "CTOOL_C_PP_INCLUDE_ANGLE",
             ),
             (
+                "HOSTED_I386_KERNEL_BRIDGE",
+                "/toolchain",
+                _C_PP_INCLUDE_BOTH,
+            ),
+            (
+                "HOSTED_I386_KERNEL_BRIDGE",
+                "/kernel/lang",
+                _C_PP_INCLUDE_BOTH,
+            ),
+            (
+                "HOSTED_I386_KERNEL_BRIDGE",
+                "/toolchain/hosted/i386-linux/include",
+                "CTOOL_C_PP_INCLUDE_ANGLE",
+            ),
+            (
                 "HOSTED_I386_LINUX_GNU",
                 "/toolchain",
                 _C_PP_INCLUDE_BOTH,
@@ -4370,6 +4390,7 @@ def _c_preprocessor_profile_configuration() -> tuple[
             ("HOSTED_TOOLCHAIN_64", "__SIZEOF_POINTER__", "8"),
             ("HOSTED_KERNEL_BRIDGE_64", "__SIZEOF_POINTER__", "8"),
             ("HOSTED_I386_LINUX", "__SIZEOF_POINTER__", "4"),
+            ("HOSTED_I386_KERNEL_BRIDGE", "__SIZEOF_POINTER__", "4"),
             ("HOSTED_I386_LINUX_GNU", "__SIZEOF_POINTER__", "4"),
         )
     )
@@ -4448,7 +4469,7 @@ def _c_preprocessor_unmodeled_flags(
 
 
 def _validate_hosted_i386_contract_profiles(root: Path) -> None:
-    contract_path = root / "toolchain" / "tests" / "cupidc_object_contract.c"
+    contract_path = root / "toolchain" / "tests" / "cupidc_object_contract.cc"
     try:
         source = contract_path.read_text(encoding="utf-8")
     except OSError as exc:
@@ -5294,7 +5315,7 @@ def _c_preprocessor_active_cases_manifest(
             if (
                 directory == "toolchain"
                 and output
-                == "toolchain/build/cupidc-hosted-i386-tools.json"
+                == "toolchain/build/cupidc-contracts/manifest.json"
             ):
                 inputs = transform.get("inputs")
                 if (
@@ -5304,7 +5325,7 @@ def _c_preprocessor_active_cases_manifest(
                     or not all(isinstance(path, str) for path in inputs)
                 ):
                     raise AuditError(
-                        "CupidC hosted i386 closure transform differs from "
+                        "CupidC contract cohort transform differs from "
                         "the checked orchestration contract"
                     )
                 closure_roots = [
@@ -5315,40 +5336,54 @@ def _c_preprocessor_active_cases_manifest(
                 expected_closure = (
                     _C_PP_HOSTED_I386_STRICT_CASES
                     + _C_PP_HOSTED_I386_GNU_CASES
+                    + _C_PP_TOOLCHAIN_CONTRACT_CASES
                 )
                 _c_preprocessor_require_exact_paths(
-                    "hosted i386 closure", closure_roots, expected_closure
+                    "toolchain contract closure",
+                    closure_roots,
+                    expected_closure,
                 )
-                object_contract_inputs = [
-                    path
-                    for path in inputs
-                    if re.fullmatch(
-                        r"toolchain/build/cupidc-object-contract(?:\.exe)?",
-                        path,
-                    )
-                    is not None
-                ]
-                if len(object_contract_inputs) != 1:
+                required_inputs = {
+                    "bootstrap/seeds/i386-linux/manifest.json",
+                    "bootstrap/seeds/i386-linux/cupidasm.elf",
+                    "bootstrap/seeds/i386-linux/cupidc.elf",
+                    "bootstrap/seeds/i386-linux/cupiddis.elf",
+                    "bootstrap/seeds/i386-linux/cupidld.elf",
+                    "bootstrap/seeds/i386-linux/cupidobj.elf",
+                    "link.ld",
+                    "toolchain/hosted/i386-linux/start.asm",
+                    "toolchain/Makefile",
+                    "tools/bootstrap_toolchain.py",
+                    "tools/cupidc_toolchain_contracts.py",
+                }
+                missing_inputs = sorted(required_inputs - set(inputs))
+                if missing_inputs:
                     raise AuditError(
-                        "CupidC hosted i386 closure must depend on exactly one "
-                        "native object contract"
+                        "CupidC contract cohort lost checked inputs: "
+                        f"{missing_inputs!r}"
                     )
                 recipe = transform.get("recipe")
+                normalized_recipe = " ".join(
+                    token
+                    for token in "\n".join(
+                        recipe if isinstance(recipe, list) else []
+                    ).split()
+                    if token != "\\"
+                )
+                expected_recipe = (
+                    "$(PYTHON) ../tools/cupidc_toolchain_contracts.py build "
+                    "--root .. --manifest "
+                    "../bootstrap/seeds/i386-linux/manifest.json "
+                    "--output $(CONTRACT_DIR)"
+                )
                 if (
                     not isinstance(recipe, list)
                     or not all(isinstance(line, str) for line in recipe)
-                    or len(recipe) < 2
-                    or recipe[0].strip()
-                    != (
-                        "$(CUPIDC_OBJECT_CONTRACT) self-host-link-tools .. "
-                        "\\"
-                    )
-                    or recipe[1].strip()
-                    != "$(CUPIDC_HOSTED_I386_ARTIFACTS)"
+                    or normalized_recipe != expected_recipe
                 ):
                     raise AuditError(
-                        "CupidC hosted i386 closure recipe no longer invokes "
-                        "the checked self-host link operation"
+                        "CupidC contract cohort recipe no longer invokes the "
+                        "checked fixed-point builder"
                     )
                 for logical in expected_closure:
                     entry = source_entries.get(logical[1:])
@@ -5359,6 +5394,14 @@ def _c_preprocessor_active_cases_manifest(
                         )
                 active_by_profile["HOSTED_I386_LINUX"].extend(
                     _C_PP_HOSTED_I386_STRICT_CASES
+                    + tuple(
+                        path
+                        for path in _C_PP_TOOLCHAIN_CONTRACT_CASES
+                        if path not in _C_PP_HOSTED_BRIDGE_CASES
+                    )
+                )
+                active_by_profile["HOSTED_I386_KERNEL_BRIDGE"].extend(
+                    sorted(_C_PP_HOSTED_BRIDGE_CASES)
                 )
                 active_by_profile["HOSTED_I386_LINUX_GNU"].extend(
                     _C_PP_HOSTED_I386_GNU_CASES

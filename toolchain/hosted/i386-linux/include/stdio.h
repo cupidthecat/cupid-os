@@ -3,6 +3,7 @@
 
 #include <cupid_host_abi.h>
 
+#define EOF (-1)
 #define SEEK_END 2
 
 typedef struct _IO_FILE FILE;
@@ -14,7 +15,12 @@ FILE *fopen(const char *path, const char *mode);
 int fclose(FILE *stream);
 int fflush(FILE *stream);
 int ferror(FILE *stream);
+int fputc(int character, FILE *stream);
+int fputs(const char *text, FILE *stream);
 int fprintf(FILE *stream, const char *format, ...);
+int printf(const char *format, ...);
+int puts(const char *text);
+int snprintf(char *destination, size_t capacity, const char *format, ...);
 int fseek(FILE *stream, long offset, int origin);
 long ftell(FILE *stream);
 size_t fread(void *destination, size_t width, size_t count, FILE *stream);

@@ -754,7 +754,7 @@ echo "First 5: ${NAME:0:5}"
 3. **Interpreter** (`cupidscript_exec.cc`) - Walks the AST, executes commands, evaluates tests, manages control flow, handles pipelines and color builtins
 4. **Runtime** (`cupidscript_runtime.cc`) - Variable storage, function registry, `$VAR` expansion engine, `${}` advanced string operations, command substitution
 5. **Streams** (`cupidscript_streams.cc`) - File descriptor table, pipe creation, buffer I/O, stream redirection
-6. **Display** (`terminal_ansi.c`, `shell.cc`, `terminal_app.cc`) - ANSI escape parsing, per-character color tracking, colored rendering
+6. **Display** (`kernel/gui/ansi.cc`, `shell.cc`, `terminal_app.cc`) - ANSI escape parsing, per-character color tracking, colored rendering
 
 ### Limits
 
