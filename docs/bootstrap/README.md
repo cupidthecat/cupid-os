@@ -365,6 +365,11 @@ caller order across mixed home-asset extensions, and rewind partial output on
 failure. The checked seed, source head, and Python oracle carry the limit and
 ordering corrections. The active inventories already fit the limit and retain
 byte-identical order.
+Source head and the Python oracle now compare the complete wrapped symbol
+domain too. They reject distinct paths that normalize to one linked symbol,
+including the bin and browser prefix overlap. One exact BMP path may remain in
+both the docs and home lists because both entries use the same object. This
+last correction still awaits checked-seed promotion.
 The normal Make recipes invoke the checked command and depend on
 `$(CUPIDOBJ_INPUTS)`.
 `tools/hostbuild.py` remains the parity oracle but is no longer a prerequisite
@@ -388,8 +393,8 @@ and the complete checked-seed input set. Its focused positive and negative
 coverage passes in 0.222 seconds, including substituted inventories and shell
 text that only resembles a command. The full CupidC production module passes
 all 39 tests in 27.309 seconds, and the 195-input generated frontier passes in
-25.4 seconds with digest
-`fb526be4b4388ecd62ed54b8321b043ef483fd3907c998dc7e062ab6ffef39ea`.
+15.6 seconds with digest
+`227de1553d905e22bc4d5b84ccc33932cbd7d03d1e6d7b37ebbe20edd36fbcf0`.
 The full 68-test build-graph audit passes in 589.740 seconds. A normal root
 build passes in 1,428.5 seconds, followed by a private-image `ls` JIT smoke in
 47.5 seconds.
@@ -783,12 +788,12 @@ feature IDs, 449 transforms, and 25 accounted unreachable files. The preprocesso
 inventory covers 686 files and 2,392 include occurrences, split into 2,158
 quoted and 234 angle forms.
 
-The active-source digest remains
-`dbe1004fedddefd7d76742b5378bbde17ffb6369365abe80117293f417a3874d`.
-The 2,546,806-byte audit JSON has SHA-256
-`f4e826579075d43102aa1cad95cfbaa6a827062b1371f3110538ee8c10469c0f`,
+The active-source digest is
+`3f297bdac4b05d8a4b644203d93960610c699eba66c5f1459422e86bd6e8af17`.
+The 2,546,938-byte audit JSON has SHA-256
+`7a9439867d0dd993ee3d2baeaf1ba306e96e5a07ece30674e7cd7055e6c132fb`,
 and the 12,136-byte summary has SHA-256
-`2bad7ddbe6977c578b108d2a7cfd6b4979c133ad28faf95214fee9d3d74ece19`.
+`dafb9ec59da59d9a88599522f8b70f275ed2c45fe0e035e13cd0c4304c1a5a65`.
 
 Across the three supported roots, CupidC participates in 245 transforms and
 CupidObj participates in 185 transforms. Python participates in all 449

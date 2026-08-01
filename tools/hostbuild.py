@@ -43,6 +43,10 @@ class IsoAuthoringError(RuntimeError):
     """A deterministic ISO fixture could not be authored safely."""
 
 
+class InstallSourceGenerationError(RuntimeError):
+    """An installation table could not be generated safely."""
+
+
 @dataclass(frozen=True)
 class StageFile:
     source: Path
@@ -1191,10 +1195,42 @@ def _c_symbol_part(name: str) -> str:
     return name.replace("-", "_")
 
 
+def _validate_install_symbols(
+    entries: list[tuple[str, str, str]],
+) -> None:
+    seen: dict[str, list[tuple[str, str]]] = {}
+    for symbol, path, category in entries:
+        for earlier_path, earlier_category in seen.get(symbol, []):
+            shared_docs_asset = (
+                path == earlier_path
+                and {category, earlier_category} == {"doc", "home"}
+            )
+            if not shared_docs_asset:
+                raise InstallSourceGenerationError(
+                    f"{earlier_path} and {path} map to the same binary symbol "
+                    f"{symbol}"
+                )
+        seen.setdefault(symbol, []).append((path, category))
+
+
 def gen_bin_programs(out: Path, bins: list[str], headers: list[str], browser: list[str]) -> None:
     bin_names = [_name_no_ext(p) for p in bins]
     hdr_names = [_name_no_ext(p) for p in headers]
     browser_names = [_name_no_ext(p) for p in browser]
+    _validate_install_symbols(
+        [
+            (f"_binary_bin_{name}_cc", path, "bin")
+            for name, path in zip(bin_names, bins)
+        ]
+        + [
+            (f"_binary_bin_{name}_h", path, "header")
+            for name, path in zip(hdr_names, headers)
+        ]
+        + [
+            (f"_binary_bin_browser_{name}_cc", path, "browser")
+            for name, path in zip(browser_names, browser)
+        ]
+    )
     lines = [
         "/* Auto-generated -- do not edit. */",
         "/* Lists all embedded CupidC programs from bin/ directory */",
@@ -1227,13 +1263,40 @@ def gen_bin_programs(out: Path, bins: list[str], headers: list[str], browser: li
 
 def gen_docs_programs(out: Path, ctxt: list[str], doc_assets: list[str], home_assets: list[str]) -> None:
     ctxt_names = [_name_no_ext(p) for p in ctxt]
-    doc_bmps = [_name_no_ext(p) for p in doc_assets if Path(p).suffix.lower() == ".bmp"]
+    accepted_doc_assets = [
+        path for path in doc_assets if Path(path).suffix.lower() == ".bmp"
+    ]
+    doc_bmps = [_name_no_ext(path) for path in accepted_doc_assets]
     supported_home_extensions = {"bmp", "png", "jpg", "jpeg"}
-    home_entries = [
-        (_name_no_ext(path), Path(path).suffix.lower()[1:])
+    accepted_home_assets = [
+        path
         for path in home_assets
         if Path(path).suffix.lower()[1:] in supported_home_extensions
     ]
+    home_entries = [
+        (_name_no_ext(path), Path(path).suffix.lower()[1:])
+        for path in accepted_home_assets
+    ]
+    _validate_install_symbols(
+        [
+            (
+                f"_binary_cupidos_txt_{_c_symbol_part(name)}_CTXT",
+                path,
+                "ctxt",
+            )
+            for name, path in zip(ctxt_names, ctxt)
+        ]
+        + [
+            (f"_binary_{_c_symbol_part(name)}_bmp", path, "doc")
+            for name, path in zip(doc_bmps, accepted_doc_assets)
+        ]
+        + [
+            (f"_binary_{_c_symbol_part(name)}_{extension}", path, "home")
+            for (name, extension), path in zip(
+                home_entries, accepted_home_assets
+            )
+        ]
+    )
     lines = [
         "/* Auto-generated -- do not edit. */",
         "/* Lists all embedded CupidDoc files from cupidos-txt/ directory */",
@@ -1284,6 +1347,12 @@ def gen_docs_programs(out: Path, ctxt: list[str], doc_assets: list[str], home_as
 
 def gen_demos_programs(out: Path, demos: list[str]) -> None:
     names = [_name_no_ext(p) for p in demos]
+    _validate_install_symbols(
+        [
+            (f"_binary_demos_{name}_asm", path, "demo")
+            for name, path in zip(names, demos)
+        ]
+    )
     lines = [
         "/* Auto-generated -- do not edit. */",
         "/* Lists all embedded CupidASM demos from demos/ directory */",
@@ -2496,11 +2565,25 @@ def main(argv: list[str] | None = None) -> int:
             )
             return 1
     elif args.cmd == "gen-bin-programs":
-        gen_bin_programs(args.out, args.bin, args.headers, args.browser)
+        try:
+            gen_bin_programs(args.out, args.bin, args.headers, args.browser)
+        except InstallSourceGenerationError as error:
+            print(f"[hostbuild] install source failed: {error}", file=sys.stderr)
+            return 1
     elif args.cmd == "gen-docs-programs":
-        gen_docs_programs(args.out, args.ctxt, args.doc_assets, args.home_assets)
+        try:
+            gen_docs_programs(
+                args.out, args.ctxt, args.doc_assets, args.home_assets
+            )
+        except InstallSourceGenerationError as error:
+            print(f"[hostbuild] install source failed: {error}", file=sys.stderr)
+            return 1
     elif args.cmd == "gen-demos-programs":
-        gen_demos_programs(args.out, args.demos)
+        try:
+            gen_demos_programs(args.out, args.demos)
+        except InstallSourceGenerationError as error:
+            print(f"[hostbuild] install source failed: {error}", file=sys.stderr)
+            return 1
     elif args.cmd == "gen-big":
         try:
             gen_big(args.out)

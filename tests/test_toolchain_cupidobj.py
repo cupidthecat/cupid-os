@@ -520,6 +520,92 @@ class CupidObjHostedCliTests(unittest.TestCase):
             self.assertEqual(recovered.returncode, 0, recovered.stderr)
             self.assertNotEqual(output.read_bytes(), b"sentinel")
 
+    def test_install_source_rejects_emitted_symbol_collisions(self):
+        cases = (
+            (
+                "bin",
+                [
+                    "--bin",
+                    "bin/browser_alpha.cc",
+                    "--browser",
+                    "bin/browser/alpha.cc",
+                ],
+            ),
+            (
+                "docs",
+                [
+                    "--ctxt",
+                    "cupidos-txt/a-b.CTXT",
+                    "cupidos-txt/a_b.CTXT",
+                ],
+            ),
+            (
+                "docs",
+                [
+                    "--doc-assets",
+                    "a-b.bmp",
+                    "--home-assets",
+                    "a_b.bmp",
+                ],
+            ),
+        )
+        commands = {
+            "bin": "gen-bin-programs",
+            "docs": "gen-docs-programs",
+        }
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            for relative in (
+                "bin/browser_alpha.cc",
+                "bin/browser/alpha.cc",
+                "cupidos-txt/a-b.CTXT",
+                "cupidos-txt/a_b.CTXT",
+                "a-b.bmp",
+                "a_b.bmp",
+            ):
+                fixture = root / relative
+                fixture.parent.mkdir(parents=True, exist_ok=True)
+                fixture.write_bytes(b"fixture")
+            for case_index, (mode, arguments) in enumerate(cases):
+                with self.subTest(mode=mode, case=case_index):
+                    native_output = root / f"native-{case_index}.cc"
+                    oracle_output = root / f"oracle-{case_index}.cc"
+                    native_output.write_bytes(b"sentinel")
+                    oracle_output.write_bytes(b"sentinel")
+                    native = subprocess.run(
+                        [
+                            str(self.cli),
+                            "install-source",
+                            mode,
+                            *arguments,
+                            "-o",
+                            str(native_output),
+                        ],
+                        cwd=root,
+                        text=True,
+                        capture_output=True,
+                    )
+                    self.assertEqual(native.returncode, 1)
+                    self.assertIn("same binary symbol", native.stderr)
+                    self.assertEqual(native_output.read_bytes(), b"sentinel")
+
+                    oracle = subprocess.run(
+                        [
+                            shutil.which("python") or "python",
+                            str(REPO_ROOT / "tools" / "hostbuild.py"),
+                            commands[mode],
+                            "--out",
+                            str(oracle_output),
+                            *arguments,
+                        ],
+                        cwd=root,
+                        text=True,
+                        capture_output=True,
+                    )
+                    self.assertEqual(oracle.returncode, 1)
+                    self.assertIn("same binary symbol", oracle.stderr)
+                    self.assertEqual(oracle_output.read_bytes(), b"sentinel")
+
     def test_wrap_absolute_input_supports_identity_stem_section_and_readonly(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)

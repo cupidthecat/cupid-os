@@ -412,6 +412,11 @@ self-hosted and byte-compatible with that oracle. The normal Make recipes
 invoke the checked-seed command and depend on the complete CupidObj trust
 inputs. ADR 0204 records the production transfer, and ADR 0205 records the
 corrected seed.
+Source head also compares every complete emitted binary symbol before it
+writes a table. Distinct paths that normalize to one symbol fail, while the
+exact same BMP path may appear once in the docs list and once in the home list
+because both entries use one wrapped object. The Python oracle enforces the
+same rule. Checked-seed promotion of this final correction remains pending.
 _Avoid_: objcopy
 
 **Installation source table**:

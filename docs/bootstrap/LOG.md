@@ -18818,3 +18818,44 @@ The 2,546,806-byte JSON has SHA-256
 `f4e826579075d43102aa1cad95cfbaa6a827062b1371f3110538ee8c10469c0f`,
 and the 12,136-byte summary has SHA-256
 `2bad7ddbe6977c578b108d2a7cfd6b4979c133ad28faf95214fee9d3d74ece19`.
+
+## 2026-08-01: Close CupidObj installation symbol collisions
+
+The final standards review found that raw path checks did not cover the
+linked symbol domain. Manual and asset stems turn hyphens into underscores.
+The bin and browser symbol prefixes can also overlap. As a result,
+`cupidos-txt/a-b.CTXT` and `cupidos-txt/a_b.CTXT`, or
+`bin/browser_alpha.cc` and `bin/browser/alpha.cc`, produced duplicate extern
+names from distinct valid inputs.
+
+Red core cases covered the bin and browser overlap, two manual names that
+normalize together, and distinct docs and home BMP paths that normalize
+together. A positive case kept the active exact `image.bmp` docs and home
+alias valid. The same contract now proves that exactly 512 valid paths
+succeed before the 513-path rollback case. Hosted cases sent all three
+collision shapes through both the native command and the Python oracle and
+kept a sentinel destination unchanged.
+
+CupidObj now compares each complete emitted symbol across a typed request.
+The comparison streams prefix, normalized stem, and suffix bytes without
+allocating a symbol buffer. The only alias it permits is one exact BMP path
+shared by the docs and home lists, where both entries name the same wrapped
+object. The Python oracle validates the same domain before opening its output.
+
+All seven native CupidObj contract modes pass. The hosted CupidObj module
+passes all twelve tests in 2.978 seconds, and the production module passes all
+39 tests in 23.942 seconds. The generated-install frontier still reproduces
+all three source and object pairs byte for byte. It covers 195 inputs, passes
+in 15.6 seconds, and has digest
+`227de1553d905e22bc4d5b84ccc33932cbd7d03d1e6d7b37ebbe20edd36fbcf0`.
+This source correction does not change active table bytes. Checked-seed
+promotion remains before the normal recipes enforce the new guard.
+
+The regenerated audit keeps 717 active inputs, 449 transforms, 254 feature
+requirements, and 25 classified unreachable files. Its active-source digest
+is `3f297bdac4b05d8a4b644203d93960610c699eba66c5f1459422e86bd6e8af17`.
+The 2,546,938-byte JSON has SHA-256
+`7a9439867d0dd993ee3d2baeaf1ba306e96e5a07ece30674e7cd7055e6c132fb`,
+and the 12,136-byte summary has SHA-256
+`dafb9ec59da59d9a88599522f8b70f275ed2c45fe0e035e13cd0c4304c1a5a65`.
+Read-only regeneration passes.

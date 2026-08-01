@@ -376,6 +376,11 @@ parity. The normal Make recipes now run that checked command for all three
 outputs. `tools/hostbuild.py` is no longer a prerequisite or recipe owner for
 them, but it remains the parity oracle. ADR 0204 records the transfer, and ADR
 0205 records the corrected seed.
+Source head and the Python oracle also compare the full wrapped symbol name
+for every typed entry. Distinct paths that collapse to one symbol fail before
+publication. The exact same BMP may remain in both the docs and home lists,
+where both entries use the same object. Checked-seed promotion of this guard
+is still pending.
 
 Before compilation, the user ABI operation captures the exact bytes of its
 six kernel and public declarations. It compares the reviewed i386 layout and

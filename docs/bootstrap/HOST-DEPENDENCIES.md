@@ -8,11 +8,11 @@ stable shape, then covers the Linux branch with direct build tests.
 language graph contains 27 assembly inputs, 289 headers, and 401 Cupid C
 files. No ordinary C translation unit remains in a supported root. The
 active-source digest is
-`dbe1004fedddefd7d76742b5378bbde17ffb6369365abe80117293f417a3874d`.
-The 2,546,806-byte audit JSON has SHA-256
-`f4e826579075d43102aa1cad95cfbaa6a827062b1371f3110538ee8c10469c0f`,
+`3f297bdac4b05d8a4b644203d93960610c699eba66c5f1459422e86bd6e8af17`.
+The 2,546,938-byte audit JSON has SHA-256
+`7a9439867d0dd993ee3d2baeaf1ba306e96e5a07ece30674e7cd7055e6c132fb`,
 and the 12,136-byte summary has SHA-256
-`2bad7ddbe6977c578b108d2a7cfd6b4979c133ad28faf95214fee9d3d74ece19`.
+`dafb9ec59da59d9a88599522f8b70f275ed2c45fe0e035e13cd0c4304c1a5a65`.
 The checked Windows Clang/LLVM and Linux GCC/binutils baselines at
 revision `1e079d1` predate the current CupidC ownership and remain historical
 oracle evidence.
@@ -41,6 +41,11 @@ recipe owner for these outputs, though it remains their oracle and keeps its
 other roles. Python still participates in all 449 transforms because the
 checked-seed runner uses it to launch CupidObj. ADRs 0201, 0203, and 0204
 record the operation, seed promotion, and ownership transfer.
+The source implementation and Python oracle also reject distinct inventory
+paths that map to the same complete wrapped symbol. They preserve the exact
+docs and home BMP alias used by the active image. The current checked seed has
+the earlier bounds and ordering correction; this symbol-domain correction
+still needs promotion. It changes no dependency count.
 
 CupidASM's `align` statement adds no host tool to that graph. The shared
 assembler computes raw padding from the absolute `ORG` address, records ELF32

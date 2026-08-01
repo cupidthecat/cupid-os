@@ -620,7 +620,15 @@ static int run_install_source(void) {
   ctool_string_t demos[2];
   ctool_string_t invalid[2];
   ctool_string_t stray_bin[1];
-  ctool_string_t oversized[513];
+  ctool_string_t boundary_paths[513];
+  ctool_string_t bin_collision[1];
+  ctool_string_t browser_collision[1];
+  ctool_string_t ctxt_collision[2];
+  ctool_string_t doc_collision[1];
+  ctool_string_t home_collision[1];
+  ctool_string_t alias_doc[1];
+  ctool_string_t alias_home[1];
+  char boundary_storage[513][32];
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
   ctool_job_t *job = (ctool_job_t *)0;
@@ -655,8 +663,18 @@ static int run_install_source(void) {
   invalid[0] = ctool_string("demos/alpha.cc");
   invalid[1] = demos[1];
   stray_bin[0] = ctool_string("bin/alpha.cc");
+  bin_collision[0] = ctool_string("bin/browser_alpha.cc");
+  browser_collision[0] = ctool_string("bin/browser/alpha.cc");
+  ctxt_collision[0] = ctool_string("cupidos-txt/a-b.CTXT");
+  ctxt_collision[1] = ctool_string("cupidos-txt/a_b.CTXT");
+  doc_collision[0] = ctool_string("a-b.bmp");
+  home_collision[0] = ctool_string("a_b.bmp");
+  alias_doc[0] = ctool_string("image.bmp");
+  alias_home[0] = alias_doc[0];
   for (index = 0u; index < 513u; index++) {
-    oversized[index] = demos[0];
+    (void)snprintf(boundary_storage[index], sizeof(boundary_storage[index]),
+                   "demos/demo_%u.asm", (unsigned int)index);
+    boundary_paths[index] = ctool_string(boundary_storage[index]);
   }
   (void)memset(&request, 0, sizeof(request));
   request.operation = CTOOL_OBJ_GENERATE_INSTALL_SOURCE;
@@ -692,7 +710,15 @@ static int run_install_source(void) {
                        "mixed install categories");
   request.as.install_source.bin_paths = (const ctool_string_t *)0;
   request.as.install_source.bin_count = 0u;
-  request.as.install_source.demo_paths = oversized;
+  request.as.install_source.demo_paths = boundary_paths;
+  request.as.install_source.demo_count = 512u;
+  status = ctool_obj_transform(job, &request, output, &second_result);
+  if (status != CTOOL_OK || second_result.bytes.size == 0u) {
+    (void)fprintf(stderr, "install inventory boundary: 512 paths failed\n");
+    ok = 0;
+  }
+  ctool_buffer_clear(output);
+
   request.as.install_source.demo_count = 513u;
   ok &= expect_failure(job, output, &request, CTOOL_ERR_LIMIT,
                        CTOOL_OBJ_DIAG_LIMIT, 0u,
@@ -701,7 +727,7 @@ static int run_install_source(void) {
   request.as.install_source.kind = CTOOL_OBJ_INSTALL_BIN;
   request.as.install_source.demo_paths = (const ctool_string_t *)0;
   request.as.install_source.demo_count = 0u;
-  request.as.install_source.bin_paths = oversized;
+  request.as.install_source.bin_paths = boundary_paths;
   request.as.install_source.bin_count = 513u;
   ok &= expect_failure(job, output, &request, CTOOL_ERR_LIMIT,
                        CTOOL_OBJ_DIAG_LIMIT, 0u,
@@ -710,7 +736,7 @@ static int run_install_source(void) {
   request.as.install_source.kind = CTOOL_OBJ_INSTALL_DOCS;
   request.as.install_source.bin_paths = (const ctool_string_t *)0;
   request.as.install_source.bin_count = 0u;
-  request.as.install_source.ctxt_paths = oversized;
+  request.as.install_source.ctxt_paths = boundary_paths;
   request.as.install_source.ctxt_count = 513u;
   ok &= expect_failure(job, output, &request, CTOOL_ERR_LIMIT,
                        CTOOL_OBJ_DIAG_LIMIT, 0u,
@@ -719,9 +745,9 @@ static int run_install_source(void) {
   request.as.install_source.kind = CTOOL_OBJ_INSTALL_BIN;
   request.as.install_source.ctxt_paths = (const ctool_string_t *)0;
   request.as.install_source.ctxt_count = 0u;
-  request.as.install_source.bin_paths = oversized;
+  request.as.install_source.bin_paths = boundary_paths;
   request.as.install_source.bin_count = 256u;
-  request.as.install_source.header_paths = oversized + 256u;
+  request.as.install_source.header_paths = boundary_paths + 256u;
   request.as.install_source.header_count = 257u;
   ok &= expect_failure(job, output, &request, CTOOL_ERR_LIMIT,
                        CTOOL_OBJ_DIAG_LIMIT, 0u,
@@ -734,9 +760,49 @@ static int run_install_source(void) {
                        CTOOL_OBJ_DIAG_LIMIT, 0u,
                        "overflowing install inventory limit");
 
+  (void)memset(&request.as.install_source, 0,
+               sizeof(request.as.install_source));
+  request.as.install_source.kind = CTOOL_OBJ_INSTALL_BIN;
+  request.as.install_source.bin_paths = bin_collision;
+  request.as.install_source.bin_count = 1u;
+  request.as.install_source.browser_paths = browser_collision;
+  request.as.install_source.browser_count = 1u;
+  ok &= expect_failure(job, output, &request, CTOOL_ERR_INPUT,
+                       CTOOL_OBJ_DIAG_SYMBOL_COLLISION, 0u,
+                       "bin and browser symbol collision");
+
+  (void)memset(&request.as.install_source, 0,
+               sizeof(request.as.install_source));
+  request.as.install_source.kind = CTOOL_OBJ_INSTALL_DOCS;
+  request.as.install_source.ctxt_paths = ctxt_collision;
+  request.as.install_source.ctxt_count = 2u;
+  ok &= expect_failure(job, output, &request, CTOOL_ERR_INPUT,
+                       CTOOL_OBJ_DIAG_SYMBOL_COLLISION, 0u,
+                       "manual symbol collision");
+
+  (void)memset(&request.as.install_source, 0,
+               sizeof(request.as.install_source));
+  request.as.install_source.kind = CTOOL_OBJ_INSTALL_DOCS;
+  request.as.install_source.doc_asset_paths = doc_collision;
+  request.as.install_source.doc_asset_count = 1u;
+  request.as.install_source.home_asset_paths = home_collision;
+  request.as.install_source.home_asset_count = 1u;
+  ok &= expect_failure(job, output, &request, CTOOL_ERR_INPUT,
+                       CTOOL_OBJ_DIAG_SYMBOL_COLLISION, 0u,
+                       "documentation and home symbol collision");
+
+  request.as.install_source.doc_asset_paths = alias_doc;
+  request.as.install_source.home_asset_paths = alias_home;
+  status = ctool_obj_transform(job, &request, output, &second_result);
+  if (status != CTOOL_OK || second_result.bytes.size == 0u) {
+    (void)fprintf(stderr, "install symbol alias: shared BMP path failed\n");
+    ok = 0;
+  }
+  ctool_buffer_clear(output);
+
+  (void)memset(&request.as.install_source, 0,
+               sizeof(request.as.install_source));
   request.as.install_source.kind = CTOOL_OBJ_INSTALL_DEMOS;
-  request.as.install_source.bin_paths = (const ctool_string_t *)0;
-  request.as.install_source.bin_count = 0u;
   request.as.install_source.demo_paths = demos;
   request.as.install_source.demo_count = 2u;
   ok &= expect_failure(job, limited, &request, CTOOL_ERR_LIMIT,

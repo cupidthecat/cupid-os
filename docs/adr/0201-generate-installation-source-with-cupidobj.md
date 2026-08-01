@@ -95,6 +95,30 @@ All seven native contract modes pass, and all eleven hosted CupidObj tests
 pass. ADR 0205 promotes the corrected 245,220-byte CupidObj image with SHA-256
 `e9631e8b9377a17497bc87418c56282d97f91b8d1cd43e4670130e5e54334747`.
 
+### Symbol-domain correction after final review
+
+A later review found that raw-path uniqueness was not enough. The wrapping
+rules replace a hyphen with an underscore, and the bin and browser prefixes
+can overlap. Distinct valid paths could therefore declare the same linked
+symbol even though neither path was duplicated.
+
+CupidObj now compares the complete emitted symbol names across every typed
+list before it writes output. It rejects a bin and browser prefix collision,
+hyphen-to-underscore collisions within a manual or asset list, and a collision
+between documentation and home assets. The one deliberate exception is an
+exact BMP path listed once for documentation and once for home. Those entries
+refer to the same wrapped object and remain valid. The Python oracle applies
+the same rule before it opens its destination.
+
+The core contract covers the three collision shapes, the exact BMP alias, and
+the inclusive 512-path success boundary before the existing 513-path failure.
+The hosted suite checks the native command and Python oracle against all three
+collision shapes and verifies that each sentinel output survives. All seven
+native contract modes, all twelve hosted CupidObj tests, and all 39 production
+tests pass. The active installation tables and their objects remain
+byte-identical. The source head carries this correction; the checked CupidObj
+seed still needs promotion before the normal recipes enforce it.
+
 The public contract pins a complete two-demo source as a literal. It also
 checks repeated output, a wrong extension, a mixed category, the 512-path
 limit, output-limit rollback, a zeroed failure result, and recovery in the

@@ -12,6 +12,23 @@ typedef struct {
   ctool_bytes_t contents;
 } obj_flat_region_t;
 
+typedef enum {
+  OBJ_INSTALL_SYMBOL_BIN = 1,
+  OBJ_INSTALL_SYMBOL_HEADER,
+  OBJ_INSTALL_SYMBOL_BROWSER,
+  OBJ_INSTALL_SYMBOL_CTXT,
+  OBJ_INSTALL_SYMBOL_DOC_ASSET,
+  OBJ_INSTALL_SYMBOL_HOME_ASSET
+} obj_install_symbol_kind_t;
+
+typedef struct {
+  const char *prefix;
+  ctool_string_t stem;
+  const char *suffix;
+  ctool_string_t path;
+  obj_install_symbol_kind_t kind;
+} obj_install_symbol_t;
+
 static void obj_zero(void *destination, ctool_u32 size) {
   ctool_u8 *bytes = (ctool_u8 *)destination;
   ctool_u32 index;
@@ -41,6 +58,49 @@ static ctool_bool obj_string_equal(ctool_string_t left,
   }
   for (index = 0u; index < left.size; index++) {
     if (left.data[index] != right.data[index]) {
+      return CTOOL_FALSE;
+    }
+  }
+  return CTOOL_TRUE;
+}
+
+static ctool_u8 obj_install_symbol_character(
+    const obj_install_symbol_t *symbol, ctool_u64 index) {
+  ctool_string_t prefix = ctool_string(symbol->prefix);
+  ctool_string_t suffix = ctool_string(symbol->suffix);
+  ctool_u8 character;
+  if (index < (ctool_u64)prefix.size) {
+    return (ctool_u8)prefix.data[(ctool_u32)index];
+  }
+  index -= (ctool_u64)prefix.size;
+  if (index < (ctool_u64)symbol->stem.size) {
+    character = (ctool_u8)symbol->stem.data[(ctool_u32)index];
+    return character == (ctool_u8)'-' ? (ctool_u8)'_' : character;
+  }
+  index -= (ctool_u64)symbol->stem.size;
+  return (ctool_u8)suffix.data[(ctool_u32)index];
+}
+
+static ctool_bool obj_install_symbols_equal(
+    const obj_install_symbol_t *left,
+    const obj_install_symbol_t *right) {
+  ctool_string_t left_prefix = ctool_string(left->prefix);
+  ctool_string_t left_suffix = ctool_string(left->suffix);
+  ctool_string_t right_prefix = ctool_string(right->prefix);
+  ctool_string_t right_suffix = ctool_string(right->suffix);
+  ctool_u64 left_size = (ctool_u64)left_prefix.size +
+                        (ctool_u64)left->stem.size +
+                        (ctool_u64)left_suffix.size;
+  ctool_u64 right_size = (ctool_u64)right_prefix.size +
+                         (ctool_u64)right->stem.size +
+                         (ctool_u64)right_suffix.size;
+  ctool_u64 index;
+  if (left_size != right_size) {
+    return CTOOL_FALSE;
+  }
+  for (index = 0u; index < left_size; index++) {
+    if (obj_install_symbol_character(left, index) !=
+        obj_install_symbol_character(right, index)) {
       return CTOOL_FALSE;
     }
   }
@@ -632,6 +692,61 @@ static ctool_status_t obj_install_validate_plain_list(
   return CTOOL_OK;
 }
 
+static void obj_install_bin_symbol(
+    const ctool_obj_install_source_request_t *install, ctool_u32 index,
+    obj_install_symbol_t *symbol_out) {
+  if (index < install->bin_count) {
+    (void)obj_install_plain_stem(install->bin_paths[index], "bin/", ".cc",
+                                 &symbol_out->stem);
+    symbol_out->prefix = "_binary_bin_";
+    symbol_out->suffix = "_cc";
+    symbol_out->path = install->bin_paths[index];
+    symbol_out->kind = OBJ_INSTALL_SYMBOL_BIN;
+    return;
+  }
+  index -= install->bin_count;
+  if (index < install->header_count) {
+    (void)obj_install_plain_stem(install->header_paths[index], "bin/", ".h",
+                                 &symbol_out->stem);
+    symbol_out->prefix = "_binary_bin_";
+    symbol_out->suffix = "_h";
+    symbol_out->path = install->header_paths[index];
+    symbol_out->kind = OBJ_INSTALL_SYMBOL_HEADER;
+    return;
+  }
+  index -= install->header_count;
+  (void)obj_install_plain_stem(install->browser_paths[index], "bin/browser/",
+                               ".cc", &symbol_out->stem);
+  symbol_out->prefix = "_binary_bin_browser_";
+  symbol_out->suffix = "_cc";
+  symbol_out->path = install->browser_paths[index];
+  symbol_out->kind = OBJ_INSTALL_SYMBOL_BROWSER;
+}
+
+static ctool_status_t obj_install_validate_bin_symbols(
+    ctool_job_t *job, const ctool_source_t *source,
+    const ctool_obj_install_source_request_t *install) {
+  ctool_u32 count =
+      install->bin_count + install->header_count + install->browser_count;
+  ctool_u32 index;
+  for (index = 0u; index < count; index++) {
+    obj_install_symbol_t current;
+    ctool_u32 prior;
+    obj_install_bin_symbol(install, index, &current);
+    for (prior = 0u; prior < index; prior++) {
+      obj_install_symbol_t earlier;
+      obj_install_bin_symbol(install, prior, &earlier);
+      if (obj_install_symbols_equal(&earlier, &current) == CTOOL_TRUE) {
+        return obj_emit_failure(
+            job, source, CTOOL_ERR_INPUT, CTOOL_OBJ_DIAG_SYMBOL_COLLISION,
+            index,
+            "CupidObj installation paths map to the same binary symbol");
+      }
+    }
+  }
+  return CTOOL_OK;
+}
+
 static ctool_status_t obj_install_output_failure(
     ctool_job_t *job, const ctool_source_t *source, ctool_status_t status) {
   ctool_u32 code = status == CTOOL_ERR_LIMIT || status == CTOOL_ERR_OVERFLOW ||
@@ -847,6 +962,9 @@ static ctool_status_t obj_install_bin(
         job, request->input, install->browser_paths, install->browser_count,
         "bin/browser/", ".cc", install->bin_count + install->header_count,
         "CupidObj browser path must match bin/browser/NAME.cc");
+  }
+  if (status == CTOOL_OK) {
+    status = obj_install_validate_bin_symbols(job, request->input, install);
   }
   if (status != CTOOL_OK) {
     return status;
@@ -1155,6 +1273,80 @@ static ctool_u32 obj_install_home_extension(ctool_string_t path,
   return 0u;
 }
 
+static void obj_install_docs_symbol(
+    const ctool_obj_install_source_request_t *install, ctool_u32 index,
+    obj_install_symbol_t *symbol_out) {
+  static const char *home_symbol_suffixes[] = {"_bmp", "_png", "_jpg",
+                                               "_jpeg"};
+  ctool_u32 extension;
+  if (index < install->ctxt_count) {
+    (void)obj_install_docs_stem(install->ctxt_paths[index], "cupidos-txt/",
+                                ".CTXT", &symbol_out->stem);
+    symbol_out->prefix = "_binary_cupidos_txt_";
+    symbol_out->suffix = "_CTXT";
+    symbol_out->path = install->ctxt_paths[index];
+    symbol_out->kind = OBJ_INSTALL_SYMBOL_CTXT;
+    return;
+  }
+  index -= install->ctxt_count;
+  if (index < install->doc_asset_count) {
+    (void)obj_install_docs_stem(install->doc_asset_paths[index], "", ".bmp",
+                                &symbol_out->stem);
+    symbol_out->prefix = "_binary_";
+    symbol_out->suffix = "_bmp";
+    symbol_out->path = install->doc_asset_paths[index];
+    symbol_out->kind = OBJ_INSTALL_SYMBOL_DOC_ASSET;
+    return;
+  }
+  index -= install->doc_asset_count;
+  extension =
+      obj_install_home_extension(install->home_asset_paths[index],
+                                 &symbol_out->stem);
+  symbol_out->prefix = "_binary_";
+  symbol_out->suffix = home_symbol_suffixes[extension - 1u];
+  symbol_out->path = install->home_asset_paths[index];
+  symbol_out->kind = OBJ_INSTALL_SYMBOL_HOME_ASSET;
+}
+
+static ctool_bool obj_install_docs_alias_allowed(
+    const obj_install_symbol_t *left,
+    const obj_install_symbol_t *right) {
+  if (obj_string_equal(left->path, right->path) == CTOOL_FALSE) {
+    return CTOOL_FALSE;
+  }
+  return ((left->kind == OBJ_INSTALL_SYMBOL_DOC_ASSET &&
+           right->kind == OBJ_INSTALL_SYMBOL_HOME_ASSET) ||
+          (left->kind == OBJ_INSTALL_SYMBOL_HOME_ASSET &&
+           right->kind == OBJ_INSTALL_SYMBOL_DOC_ASSET))
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_status_t obj_install_validate_docs_symbols(
+    ctool_job_t *job, const ctool_source_t *source,
+    const ctool_obj_install_source_request_t *install) {
+  ctool_u32 count = install->ctxt_count + install->doc_asset_count +
+                    install->home_asset_count;
+  ctool_u32 index;
+  for (index = 0u; index < count; index++) {
+    obj_install_symbol_t current;
+    ctool_u32 prior;
+    obj_install_docs_symbol(install, index, &current);
+    for (prior = 0u; prior < index; prior++) {
+      obj_install_symbol_t earlier;
+      obj_install_docs_symbol(install, prior, &earlier);
+      if (obj_install_symbols_equal(&earlier, &current) == CTOOL_TRUE &&
+          obj_install_docs_alias_allowed(&earlier, &current) == CTOOL_FALSE) {
+        return obj_emit_failure(
+            job, source, CTOOL_ERR_INPUT, CTOOL_OBJ_DIAG_SYMBOL_COLLISION,
+            index,
+            "CupidObj installation paths map to the same binary symbol");
+      }
+    }
+  }
+  return CTOOL_OK;
+}
+
 static ctool_status_t obj_install_validate_docs_list(
     ctool_job_t *job, const ctool_source_t *source,
     const ctool_string_t *paths, ctool_u32 count, const char *prefix,
@@ -1243,6 +1435,9 @@ static ctool_status_t obj_install_docs(
         break;
       }
     }
+  }
+  if (status == CTOOL_OK) {
+    status = obj_install_validate_docs_symbols(job, request->input, install);
   }
   if (status != CTOOL_OK) {
     return status;

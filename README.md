@@ -396,6 +396,12 @@ carry those corrections. The current active inventories stay below the limit
 and use the same order, so their bytes do not change. Native and Cupid-built
 commands reproduce the current bin, docs, and demos tables byte for byte
 against the Python oracle.
+The source implementation and Python oracle also compare complete emitted
+binary symbols. Distinct paths that normalize to the same symbol now fail
+before publication. An exact BMP path may still appear once in the docs list
+and once in the home list because both entries refer to the same wrapped
+object. The source and hosted tests carry this final correction; checked-seed
+promotion remains before the normal recipes can enforce it.
 The normal Make recipes run the checked command for all three outputs and
 depend on the complete CupidObj trust inputs. `tools/hostbuild.py` remains the
 oracle and retains its other build roles, but it no longer generates these

@@ -97,7 +97,10 @@ ctool_status_t ctool_obj_transform(ctool_job_t *job,
  * slash spelling and their category's exact extension.  A request may contain
  * at most 512 paths across all categories, and that total is checked without
  * overflowing before a list is traversed.  Output keeps caller order within
- * each typed list.  Category mixing, malformed paths, duplicate paths, and
- * output exhaustion fail before publication. */
+ * each typed list.  Category mixing, malformed paths, duplicate paths,
+ * distinct paths that map to the same complete wrapped binary symbol, and
+ * output exhaustion fail before publication.  One exact BMP path may appear
+ * once in both the documentation and home lists because both entries use the
+ * same wrapped object. */
 
 #endif
