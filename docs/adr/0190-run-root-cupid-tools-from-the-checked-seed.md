@@ -4,6 +4,10 @@
 
 Accepted on 2026-07-30.
 
+ADR 0196 supersedes this record's statements that `toolchain:all` still needs
+GCC, Clang, or a host linker. The normal Toolchain cohort now uses the checked
+seed and staged Cupid-built tools. Native builds remain explicit oracles.
+
 ## Context
 
 The root image already used CupidASM, CupidObj, CupidLD, and CupidDis for every

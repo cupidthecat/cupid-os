@@ -6,6 +6,10 @@ Accepted on 2026-07-30. This supersedes the default Windows path chosen in
 ADR 0130. The native Windows path from that decision remains an explicit
 comparison oracle.
 
+ADR 0196 supersedes this record's statements that `toolchain:all` still needs
+Clang or a host linker. The normal Toolchain cohort now uses the checked seed
+and staged Cupid-built tools. Native Windows tools remain explicit oracles.
+
 ## Context
 
 ADR 0130 made native hosted CupidC and CupidLD the default for the three

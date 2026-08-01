@@ -1,6 +1,9 @@
 # Reproducible oracle baseline
 
-The baseline runner freezes a committed normal build, including Cupid-owned and remaining host-owned stages, as reproducibility and oracle evidence during ownership transfer. It is not part of the fixed-point toolchain.
+The baseline runner freezes all three supported build roots and the explicit
+host-built oracle checks for a committed revision. It records reproducibility
+evidence during ownership transfer, but it is not part of the fixed-point
+toolchain or the normal build.
 
 ## Entry points
 
@@ -33,7 +36,7 @@ The runner:
 1. Resolves and hashes Git, Make, Python, the C compiler, and QEMU, then records their version output. The compiler preflight must also produce a real freestanding i386 object with the configured `CC_TARGET`; a version string without 32-bit capability is a failed prerequisite. Linux evidence records `/etc/os-release` distribution identity in addition to the kernel/platform tuple. Retired host assembler, standalone linker, object-copy, and symbol-reader tools are no longer preflight requirements. NASM and GNU/LLVM `nm` availability are recorded separately under `optional_oracle_tools` and never fail preflight. Older baseline records also inventory PATH-dependent JPEG normalizers. That inventory is environmental history only: the normal build validates the tracked sequential JPEG and copies its exact bytes, so `jpegtran`, `djpeg`/`cjpeg`, and FFmpeg cannot change the embedded object.
 2. Creates two independent worktrees for the requested revision.
 3. Builds all three supported roots in every worktree: root `all` after `distclean` with fixed disk geometry and `WAD_SRCS=`, user `all` after `user:clean`, and hosted toolchain `all` after `toolchain:clean`.
-4. Asks each Make root for its declared final artifacts. The root cohort contains the ordered `KERNEL_OBJS` plus boot, trampoline, pass-1 ELF, generated symbols, final ELF, raw kernel, and freshly formatted disk-image boundaries; the user cohort contains the three CupidLD executables; the hosted cohort contains all 25 declared artifacts in the current graph. Nineteen are native contracts or commands, including five CupidC contracts and the native compiler. The remaining six are the static Cupid-built i386 commands and runtime contract. `make check-bootstrap-audit` independently proves that every linked OS object is present in the root manifest. The checked `1e079d1` evidence predates those twelve additions and therefore contains thirteen hosted artifacts.
+4. Asks each Make root for its declared final artifacts. The root cohort contains the ordered `KERNEL_OBJS` plus boot, trampoline, pass-1 ELF, generated symbols, final ELF, raw kernel, and freshly formatted disk-image boundaries; the user cohort contains the three CupidLD executables. The current hosted cohort contains 20 checked artifacts: fourteen contract executables, five Cupid-built commands, and one runtime contract. Native copies belong to the explicit oracle path and are not declared by `toolchain:all`. `make check-bootstrap-audit` independently proves that every linked OS object is present in the root manifest. The checked `1e079d1` evidence predates the current cohort and correctly retains thirteen hosted artifacts for that revision.
 5. Records per-root and combined artifact byte sizes and SHA-256 values, then compares the combined cohort from every later run with run 1. Any missing, extra, or changed artifact fails the capture and is named in `reproducibility.mismatches`.
 6. On run 1, executes all host unit tests, the explicit `/bin/ls.cc` CupidC GUI smoke, and the `as /demos/hello.asm` CupidASM GUI smoke. Each check records its command, status, duration, output digest, and diagnostic tail.
 7. Reads the final ELF `.text` size without host `objdump` and records kernel/image sizes. Host wall-clock durations are observational evidence only; they are not the future 20% guest-performance gate.
