@@ -627,7 +627,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 hashlib.sha256(
                     frozen.tools["cupidc"].read_bytes()
                 ).hexdigest(),
-                "59d90429cdfff1f5d6f8f3b3009f588d06de78c271e2e320dfca5b5e2a58173f",
+                "a4dff3c1c8ae975e9b8278920d36aefe6ad9b28a52503a6d5d4253e04e4a21af",
             )
 
     def test_wsl_runner_uses_a_private_temporary_directory(self):
@@ -686,6 +686,148 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         self.assertIn("usage:", result.stdout.casefold())
         self.assertIn("cupidasm", result.stdout.casefold())
         self.assertEqual(result.stderr, "")
+
+    def test_checked_seed_carries_forward_x87_stack_subtraction(self):
+        if os.name == "nt" and shutil.which("wsl") is None:
+            self.skipTest("WSL is not available")
+        with tempfile.TemporaryDirectory(
+            prefix=".checked-seed-x87-subtraction-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            source = root / "forward.asm"
+            output = root / "forward.bin"
+            rejected_source = root / "reversed.asm"
+            rejected_output = root / "reversed.bin"
+            compiler_source = root / "compiler-carriage.cc"
+            compiler_object = root / "compiler-carriage.o"
+            source.write_text(
+                "bits 32\nsection .text\nfsub st1, st0\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+            rejected_source.write_text(
+                "bits 32\nsection .text\nfsub st0, st1\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+            compiler_source.write_text(
+                "void corrected(volatile double *out,\n"
+                "               const volatile double *x,\n"
+                "               const double *log2e) {\n"
+                "  __asm__ __volatile__(\n"
+                '      "fldl   %[x]\\n\\t"\n'
+                '      "fldl   %[log2e]\\n\\t"\n'
+                '      "fmulp\\n\\t"\n'
+                '      "fld    %%st(0)\\n\\t"\n'
+                '      "frndint\\n\\t"\n'
+                '      "fsubr  %%st, %%st(1)\\n\\t"\n'
+                '      "fxch\\n\\t"\n'
+                '      "f2xm1\\n\\t"\n'
+                '      "fld1\\n\\t"\n'
+                '      "faddp\\n\\t"\n'
+                '      "fscale\\n\\t"\n'
+                '      "fstp   %%st(1)\\n\\t"\n'
+                '      "fstpl  %[out]\\n\\t"\n'
+                '      : [out] "=m" (*out)\n'
+                '      : [x] "m" (*x), [log2e] "m" (*log2e)\n'
+                '      : "memory");\n'
+                "}\n"
+                "void legacy(volatile double *out,\n"
+                "            const volatile double *x,\n"
+                "            const double *log2e) {\n"
+                "  __asm__ __volatile__(\n"
+                '      "fldl   %[x]\\n\\t"\n'
+                '      "fldl   %[log2e]\\n\\t"\n'
+                '      "fmulp\\n\\t"\n'
+                '      "fld    %%st(0)\\n\\t"\n'
+                '      "frndint\\n\\t"\n'
+                '      "fsub   %%st, %%st(1)\\n\\t"\n'
+                '      "fxch\\n\\t"\n'
+                '      "f2xm1\\n\\t"\n'
+                '      "fld1\\n\\t"\n'
+                '      "faddp\\n\\t"\n'
+                '      "fscale\\n\\t"\n'
+                '      "fstp   %%st(1)\\n\\t"\n'
+                '      "fstpl  %[out]\\n\\t"\n'
+                '      : [out] "=m" (*out)\n'
+                '      : [x] "m" (*x), [log2e] "m" (*log2e)\n'
+                '      : "memory");\n'
+                "}\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+            rejected_output.write_bytes(b"sentinel")
+            frozen = freeze_seed_inputs(SEED_MANIFEST, root / "seed")
+            runner = ToolRunner(REPO_ROOT)
+
+            assembled = runner.run(
+                frozen.tools["cupidasm"],
+                ["-f", "bin", source, "-o", output],
+                60,
+            )
+            self.assertEqual(assembled.returncode, 0, assembled.stderr)
+            self.assertEqual(assembled.stdout, "")
+            self.assertEqual(assembled.stderr, "")
+            self.assertEqual(output.read_bytes(), bytes([0xDC, 0xE9]))
+
+            disassembled = runner.run(
+                frozen.tools["cupiddis"],
+                ["--raw", "--mode=32", "--base=0", output],
+                60,
+            )
+            self.assertEqual(
+                disassembled.returncode, 0, disassembled.stderr
+            )
+            self.assertEqual(disassembled.stderr, "")
+            self.assertIn("fsub st1, st0", disassembled.stdout.casefold())
+
+            rejected = runner.run(
+                frozen.tools["cupidasm"],
+                ["-f", "bin", rejected_source, "-o", rejected_output],
+                60,
+            )
+            self.assertEqual(rejected.returncode, 1)
+            self.assertEqual(rejected.stdout, "")
+            self.assertIn(
+                "no x86 form matches the instruction", rejected.stderr
+            )
+            self.assertEqual(rejected_output.read_bytes(), b"sentinel")
+
+            compiled = runner.run(
+                frozen.tools["cupidc"],
+                [
+                    "--root",
+                    REPO_ROOT,
+                    "--gnu",
+                    "--freestanding",
+                    "-c",
+                    "/" + compiler_source.relative_to(REPO_ROOT).as_posix(),
+                    "-o",
+                    "/" + compiler_object.relative_to(REPO_ROOT).as_posix(),
+                ],
+                180,
+            )
+            self.assertEqual(compiled.returncode, 0, compiled.stderr)
+            self.assertEqual(compiled.stdout, "")
+            self.assertEqual(compiled.stderr, "")
+            compiler_image = compiler_object.read_bytes()
+            self.assertEqual(compiler_image.count(bytes([0xDC, 0xE9])), 1)
+            self.assertEqual(compiler_image.count(bytes([0xDC, 0xE1])), 1)
+
+            compiler_disassembly = runner.run(
+                frozen.tools["cupiddis"],
+                ["--disassemble", compiler_object],
+                60,
+            )
+            self.assertEqual(
+                compiler_disassembly.returncode,
+                0,
+                compiler_disassembly.stderr,
+            )
+            self.assertEqual(compiler_disassembly.stderr, "")
+            rendered = compiler_disassembly.stdout.casefold()
+            self.assertEqual(rendered.count("fsub st1, st0"), 1)
+            self.assertEqual(rendered.count("fsubr st1, st0"), 1)
 
     def test_checked_seed_compiles_links_and_runs_floating_truth(self):
         if os.name == "nt" and shutil.which("wsl") is None:
@@ -2131,7 +2273,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(report["status"], "pass")
             self.assertEqual(
                 report["seed_source_revision"],
-                "957598ac745958cac87fdf61dfe7ada44f2ad96b",
+                "efec9c5f89358999a067a4a7c923d06d814d1639",
             )
             self.assertNotIn("source_revision", report)
             self.assertEqual(
@@ -2167,7 +2309,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 },
             )
             promoted_seed_snapshot = (
-                "cc2cc479b9c7e61342ef119be704dc1ff1854d396237b4b649b78c21de2a72f3"
+                "6ad00c61fa66a3ad713fe197fc1115fbc1f6cdac2944f75ef162a723203ba0d9"
             )
             self.assertEqual(
                 report["source_snapshot_sha256"], promoted_seed_snapshot

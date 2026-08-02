@@ -464,22 +464,23 @@ checks on e1000 and RTL8139. Full IWAD gameplay remains a runtime boundary.
 
 The five static i386 Linux tools have a checked seed. The manifest binds their
 hashes, sizes, target ABI, source revision, producer lineage, 19-source plan,
-and five link orders. The current CupidC image is the 2,553,244-byte
+and five link orders. The current CupidC image is the 2,561,644-byte
 stage-three output from revision
-`957598ac745958cac87fdf61dfe7ada44f2ad96b`, with SHA-256
-`59d90429cdfff1f5d6f8f3b3009f588d06de78c271e2e320dfca5b5e2a58173f`.
+`efec9c5f89358999a067a4a7c923d06d814d1639`, with SHA-256
+`a4dff3c1c8ae975e9b8278920d36aefe6ad9b28a52503a6d5d4253e04e4a21af`.
 It retains the complete 83-root Doom frontier, GNU entity metadata, x87 and
 SSE forms, descriptor and segment assembly, the `libm.cc` effects, the dglibc
 jump block, pointer-preserving static address casts, naked IPI entries, the
 kernel-entry BSS clear, and packed SSE2 statements. It also carries runtime
-floating truth. The same seed carries the 591-row x86 catalogue and typed
+floating truth. The same seed carries the 592-row x86 catalogue with forward
+x87 stack subtraction and typed
 CupidDis raw ranges. Its 253,724-byte CupidObj image has SHA-256
 `f78752dc01daf3d2a9dc9265425f9c60639f438d5dcb91a001cf40d7d241ded5`
 and carries the complete installation-source bounds, ordering, and
 wrapped-symbol contract. Its plan uses `.cc` for all 19 C roots and has
 SHA-256
 `59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`.
-ADR 0206 records the current promotion.
+ADR 0208 records the current promotion.
 
 The bootstrap copies the 41-input source closure into a private compiler root.
 Both rebuilt stages compile from that root, and the harness checks the private
@@ -832,7 +833,7 @@ text bytes with no relocations, uses the legacy `DC E1` encoding for
 `FSUBR ST(1), ST(0)`, reaches a maximum x87 depth of three, and returns to the
 incoming depth.
 
-Compiler head also accepts corrected `fsubr %st, %st(1)` statements. They
+The checked seed also accepts corrected `fsubr %st, %st(1)` statements. They
 emit `FSUB ST(1), ST(0)` as `DC E9`, which computes the intended
 `x - round(x)` remainder. The legacy spelling remains available until the
 checked seed and active source move together.

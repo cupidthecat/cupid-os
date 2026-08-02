@@ -150,8 +150,10 @@ Each requires one memory clobber. Linear IR evaluates each set of five
 addresses once in source order. Both 116-byte focused functions contain
 seventeen x87 instructions, use the legacy `DC E1` reverse subtraction, reach
 stack depth three, and return to their incoming depth without a relocation.
-Compiler head also represents `FSUB ST(1), ST(0)` as `DC E9`. That form
+The checked seed also represents `FSUB ST(1), ST(0)` as `DC E9`. That form
 computes the forward `x - round(x)` remainder needed by the corrected source.
+Active `libm.cc` keeps the legacy spelling until its separate runtime-tested
+correction. ADR 0208 records seed carriage.
 
 The checked seed also represents the exact volatile `sqrtsd %1, %0` statement
 in `libm_sqrt_impl()`. It takes one modifiable, non-atomic `double` `=x`

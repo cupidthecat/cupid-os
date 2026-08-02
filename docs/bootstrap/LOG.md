@@ -19021,3 +19021,73 @@ increment. The source correction follows seed promotion so the normal checked
 compiler can represent it. ADR 0207 records the decision.
 
 `TempleOS/` remains untouched reference material.
+
+## 2026-08-01: Promote forward x87 stack subtraction
+
+The green capability revision
+`efec9c5f89358999a067a4a7c923d06d814d1639` was pushed before the seed
+candidate was built. Its 19-source build plan remains SHA-256
+`59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`.
+
+The transition bootstrap completed in 658.3 seconds and froze 41 source
+inputs with SHA-256
+`6ad00c61fa66a3ad713fe197fc1115fbc1f6cdac2944f75ef162a723203ba0d9`.
+All 19 C objects, startup, and five tool images matched between stage two and
+stage three. Both stages passed five help cases, ten successful operations,
+and six useful failures. CupidASM, CupidC, and CupidDis differed from the
+preceding seed; CupidLD and CupidObj remained byte-identical. The 15,056-byte
+report has SHA-256
+`1a6b5c4f6ccb239b9dc4f8c6eeb4f68d945297492916695bd72491318a79b9ef`.
+
+The promoted five-tool cohort is:
+
+| Tool | Bytes | SHA-256 | Producer |
+| --- | ---: | --- | --- |
+| CupidASM | 445,616 | `267d5ce820aac6bdfdb418552c3c144f8eac30e8589d8f53bd52055c3adca12d` | yes |
+| CupidC | 2,561,644 | `a4dff3c1c8ae975e9b8278920d36aefe6ad9b28a52503a6d5d4253e04e4a21af` | yes |
+| CupidDis | 379,648 | `1ceeec3e65423f11a3b937dee355191ca0769cbfc4a374505f2aacf85db56ec8` | no |
+| CupidLD | 266,672 | `2bdb6ce6b04678bb89c6bb4f7afac7e152ce6c4a07c4e14e1b3aee0c899008ec` | yes |
+| CupidObj | 253,724 | `f78752dc01daf3d2a9dc9265425f9c60639f438d5dcb91a001cf40d7d241ded5` | no |
+
+The 5,440-byte manifest has SHA-256
+`51045d31a941d3bf1c286ed9464b91f6b053eb5ca0d47b031f25353a1d10b2eb`.
+Seed verification passes. A focused checked-seed test assembles
+`fsub st1, st0` as `DC E9`, disassembles it to the canonical instruction, and
+rejects reversed fixed operands while preserving a sentinel output. The same
+frozen cohort has CupidC compile corrected and legacy GNU templates to
+`DC E9` and `DC E1`, then has CupidDis verify both meanings. The test passes
+in 2.244 seconds.
+
+The post-promotion bootstrap completed in 652.3 seconds. All five seed images
+matched stage two, then every object and tool matched stage three. The
+behavior matrix passed again. Its 15,053-byte report has SHA-256
+`c8f52bb27b1be7a4e0a29c0353642d9ef13589013c39df839088da031473d810`.
+
+The first 38-test seed-module run exposed one stale provenance lock. Its
+report correctly carried the new `6ad00c61...` source snapshot, while the
+test still expected the preceding seed's `cc2cc479...` value. The other 37
+tests passed. After the exact lock was corrected, the fixed-point selector
+passed in 655.017 seconds. The final complete module, including the expanded
+CupidC carriage proof, passed all 38 tests in 712.167 seconds. A separate
+checked-seed compile reproduced the unchanged 43,736-byte `libm.cc` object in
+4.433 seconds.
+
+The regenerated audit retains 717 active inputs, 449 transforms, 254 feature
+requirements, and 25 classified unreachable files. Its active-source digest
+is `e122c69d045c6cba75645220b10ae141011f590cb2bec7568e50cb46985311c7`.
+The 2,546,938-byte JSON has SHA-256
+`432bf0764fef8a984daea054b3b61345fdaffea7584e1eae3c9f96cc2b34324b`,
+and the 12,136-byte summary has SHA-256
+`d7bff321cbd51fa17255c9a5950ce11da1c1a0574f6541df0fdf4189da149e63`.
+Read-only regeneration passes.
+
+The first full build-graph run found one stale lexical lock. The capability
+contracts added seven net `sizeof` occurrences, so the generated inventory
+contains 5,409 occurrences across the same 168 files instead of 5,402. After
+the exact lock was updated, all 68 graph tests passed in 566.281 seconds.
+
+This promotion changes the checked trust root but not an active source or
+normal build owner. The seven `libm.cc` spellings remain unchanged for the
+next runtime-tested increment. Python and WSL remain bootstrap dependencies.
+ADR 0208 records the decision. `TempleOS/` remains untouched reference
+material.

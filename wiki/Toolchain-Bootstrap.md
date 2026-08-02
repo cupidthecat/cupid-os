@@ -116,21 +116,23 @@ current GNU entity metadata, the active x87 and SSE memory forms, descriptor
 and segment assembly, every unchanged assembly effect in `libm.cc`, the exact
 dglibc jump block, pointer-preserving static address casts, explicit `double`
 to `unsigned long long` conversion, exact naked IPI entries, and runtime
-floating truth. Its stage-three CupidC image is 2,553,244 bytes with SHA-256
-`59d90429cdfff1f5d6f8f3b3009f588d06de78c271e2e320dfca5b5e2a58173f`.
-It came from revision `957598ac745958cac87fdf61dfe7ada44f2ad96b`. It also
+floating truth. Its stage-three CupidC image is 2,561,644 bytes with SHA-256
+`a4dff3c1c8ae975e9b8278920d36aefe6ad9b28a52503a6d5d4253e04e4a21af`.
+It came from revision `efec9c5f89358999a067a4a7c923d06d814d1639`. It also
 carries the kernel-entry BSS clear with a nonzero page-aligned stack top and
 all packed SSE2 statements in the active SIMD source. CupidASM and CupidDis
-carry the 591-row shared x86 catalogue. CupidDis carries typed raw code and
+carry the 592-row shared x86 catalogue with forward stack subtraction.
+CupidDis carries typed raw code and
 data ranges, and CupidObj carries installation-source generation. Its
 253,724-byte CupidObj image has SHA-256
 `f78752dc01daf3d2a9dc9265425f9c60639f438d5dcb91a001cf40d7d241ded5`.
-In the latest poisoned-host transition, all 19 C objects, startup, and five
-tool images matched between stage two and stage three. Both stages passed five
-help cases, ten successful operations, and six useful failures. Only the
-preceding CupidObj image differed from stage two. A post-promotion rebuild
-then reproduced all five checked seed images at stage two and repeated the
-complete fixed point. ADR 0206 records the promotion and both proofs.
+In the latest transition, all 19 C objects, startup, and five tool images
+matched between stage two and stage three. Both stages passed five help cases,
+ten successful operations, and six useful failures. CupidASM, CupidC, and
+CupidDis changed from the preceding seed; CupidLD and CupidObj stayed
+byte-identical. A post-promotion rebuild then reproduced all five checked seed
+images at stage two and repeated the complete fixed point. ADR 0208 records
+the promotion and both proofs.
 
 The refreshed seed represents operand-free GNU assembly statements inside
 functions and emits exact PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT
@@ -374,8 +376,9 @@ inventories already satisfy both rules. A Cupid-built
 command reproduced all three live tables twice with exact Python-oracle
 parity. The normal Make recipes now run that checked command for all three
 outputs. `tools/hostbuild.py` is no longer a prerequisite or recipe owner for
-them, but it remains the parity oracle. ADR 0204 records the transfer, and ADR
-0206 records the current seed.
+them, but it remains the parity oracle. ADR 0204 records the transfer, ADR
+0206 records the linked-symbol contract, and ADR 0208 records the current
+seed.
 The checked seed, source head, and Python oracle also compare the full wrapped
 symbol name for every typed entry. Distinct paths that collapse to one symbol
 fail before publication. The exact same BMP may remain in both the docs and
@@ -466,10 +469,10 @@ through six leading `66` bytes and the fixed
 in 36 objects and renders 1,781 NOP rows. Other repeated prefixes remain
 invalid, and CupidASM cannot emit the redundant forms. Packed-integer SSE2
 is the next largest measured decoder gap. Source head has 592 catalogue rows,
-244 canonical mnemonics, and fingerprint `F4420CB4`. Its newest form encodes
+244 canonical mnemonics, and fingerprint `F4420CB4`. The checked seed carries
+the same model. Its newest form encodes
 canonical `FSUB ST(1), ST(0)` as `DC E9` for corrected exponent range
-reduction. The checked seed remains on 591 rows and fingerprint `DBE77533`.
-The four forms in that seed are x87 80-bit `FLD` and `FSTP`
+reduction. The four preceding x87 forms are 80-bit `FLD` and `FSTP`
 memory forms, i686
 `FUCOMIP ST0, ST(i)`, and operand-free `FLDZ`, used by represented `long
 double` values. File-scope and
