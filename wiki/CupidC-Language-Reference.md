@@ -6,7 +6,9 @@ The language accepts the common C and HolyC spellings used by the shipped
 programs: `U0/U8/U16/U32/I8/I16/I32`,
 `U64/I64`, `float`, `double`, `float4`, `double2`, `long`, `short`,
 `signed`, `unsigned`, `extern`, `inline`, `register`, `restrict`, labels,
-`goto`, and skipped `__attribute__((...))` decorations.
+`goto`, and `__attribute__((...))` decorations. The private compiler treats
+attributes as compatibility syntax. The shared bootstrap compiler assigns
+meaning to its documented entity attributes and fails closed on unknown ones.
 
 ## In-kernel floating rules
 
@@ -100,6 +102,32 @@ true. Floating increment or decrement, hexadecimal or subnormal constants,
 conversions other than `_Bool`, SIMD, and atomic floating access remain
 unsupported. The in-kernel compiler has a separate, broader floating
 and SIMD implementation.
+
+## Compiler-head returns-twice calls
+
+Compiler-head CupidC recognizes GNU `returns_twice` and
+`__returns_twice__` on file-scope function declarations. Compatible
+redeclared prototypes keep the property on one canonical function binding. A
+marked function must remain a direct call target. CupidC rejects conversion of
+its designator to a function pointer because the pointer type does not carry
+the attribute.
+
+At a direct call to a marked function, the i386 emitter saves every live
+four-byte Linear IR operand below the call arguments in frame slots owned by
+that call instruction. It restores those words after cdecl cleanup and then
+publishes the call result. This keeps a pending assignment address or
+arithmetic operand intact when a later non-local jump resumes at the call.
+
+Supported calls use four-byte cdecl arguments and may return void or any
+nonaggregate type. Aggregate, wide-integer, and wider-than-four-byte floating
+arguments and aggregate results fail with specific diagnostics. Each
+live-prefix site owns its spill region, but it must not be reachable from any
+returns-twice continuation. A marked call with no live prefix may repeat in a
+loop.
+
+A decoder-driven i386 oracle models first and second returns with transfer
+values zero and seven. This is hosted model evidence, not guest runtime proof.
+The checked seed and active dglibc source still use the compatibility form.
 
 ## Hosted static initializer references
 

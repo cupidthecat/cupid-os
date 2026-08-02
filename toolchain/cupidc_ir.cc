@@ -8107,6 +8107,13 @@ static ctool_status_t cir_lower_expression(cir_context_t *context,
           &expression->physical_location);
     }
     if (binding->kind == CTOOL_C_BINDING_FUNCTION) {
+      if ((binding->attributes & CTOOL_C_DECL_ATTR_RETURNS_TWICE) != 0u) {
+        return cir_emit_failure(
+            context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_ABI,
+            &expression->location,
+            "CupidC requires returns_twice functions to be called "
+            "directly instead of converted to a function pointer");
+      }
       if (binding->linkage != CTOOL_C_LINKAGE_INTERNAL &&
           binding->linkage != CTOOL_C_LINKAGE_EXTERNAL) {
         return cir_invalid_unit(context, &expression->location);

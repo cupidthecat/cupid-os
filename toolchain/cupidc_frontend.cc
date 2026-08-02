@@ -114,6 +114,8 @@ typedef struct {
   const ctool_c_pp_token_t *alignment_token;
   ctool_bool noreturn;
   const ctool_c_pp_token_t *noreturn_token;
+  ctool_bool returns_twice;
+  const ctool_c_pp_token_t *returns_twice_token;
   ctool_bool weak;
   const ctool_c_pp_token_t *weak_token;
   ctool_bool has_section;
@@ -2747,6 +2749,16 @@ static ctool_status_t cfront_append_binding(
                                CTOOL_C_PARSE_DIAG_DECLARATOR, token,
                                "declaration requires an identifier");
   }
+  if (kind == CTOOL_C_BINDING_FUNCTION &&
+      (semantics.attributes &
+       (CTOOL_C_DECL_ATTR_NORETURN |
+        CTOOL_C_DECL_ATTR_RETURNS_TWICE)) ==
+          (CTOOL_C_DECL_ATTR_NORETURN |
+           CTOOL_C_DECL_ATTR_RETURNS_TWICE)) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE, token,
+        "function cannot be both noreturn and returns_twice");
+  }
   if (context->prototype_scope_depth != 0u) {
     duplicate =
         cfront_find_binding_from(context, context->prototype_binding_mark,
@@ -2862,6 +2874,17 @@ static ctool_status_t cfront_append_binding(
         ctool_u32 existing_type_alignment = 0u;
         ctool_u32 new_type_alignment = 0u;
         ctool_u32 composite = existing.type;
+        if (kind == CTOOL_C_BINDING_FUNCTION &&
+            ((existing.attributes | semantics.attributes) &
+             (CTOOL_C_DECL_ATTR_NORETURN |
+              CTOOL_C_DECL_ATTR_RETURNS_TWICE)) ==
+                (CTOOL_C_DECL_ATTR_NORETURN |
+                 CTOOL_C_DECL_ATTR_RETURNS_TWICE)) {
+          return cfront_emit_failure(
+              context, CTOOL_ERR_INPUT,
+              CTOOL_C_PARSE_DIAG_ATTRIBUTE, token,
+              "function cannot be both noreturn and returns_twice");
+        }
         status = cfront_type_attribute_alignment(
             context, existing.type, &existing_type_alignment);
         if (status == CTOOL_OK) {
@@ -4323,6 +4346,7 @@ static ctool_bool cfront_attributes_any(
   return attributes->packed == CTOOL_TRUE ||
                  attributes->has_alignment == CTOOL_TRUE ||
                  attributes->noreturn == CTOOL_TRUE ||
+                 attributes->returns_twice == CTOOL_TRUE ||
                  attributes->weak == CTOOL_TRUE ||
                  attributes->has_section == CTOOL_TRUE ||
                  attributes->unused == CTOOL_TRUE ||
@@ -4344,6 +4368,10 @@ static const ctool_c_pp_token_t *cfront_first_attribute_token(
   }
   if (attributes->noreturn_token != (const ctool_c_pp_token_t *)0) {
     return attributes->noreturn_token;
+  }
+  if (attributes->returns_twice_token !=
+      (const ctool_c_pp_token_t *)0) {
+    return attributes->returns_twice_token;
   }
   if (attributes->weak_token != (const ctool_c_pp_token_t *)0) {
     return attributes->weak_token;
@@ -4373,6 +4401,12 @@ static ctool_status_t cfront_validate_record_attributes(
         context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
         attributes->noreturn_token,
         "noreturn attribute cannot apply to a record type");
+  }
+  if (attributes->returns_twice == CTOOL_TRUE) {
+    return cfront_emit_failure(
+        context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+        attributes->returns_twice_token,
+        "returns_twice attribute cannot apply to a record type");
   }
   if (attributes->weak == CTOOL_TRUE) {
     return cfront_emit_failure(
@@ -4692,6 +4726,24 @@ static ctool_status_t cfront_parse_attributes(
                 context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
                 cfront_peek(context),
                 "noreturn attribute does not accept arguments");
+          }
+          (void)cfront_advance(context);
+        }
+      } else if (cfront_token_is(name, "returns_twice") == CTOOL_TRUE ||
+                 cfront_token_is(name, "__returns_twice__") == CTOOL_TRUE) {
+        attributes->returns_twice = CTOOL_TRUE;
+        if (attributes->returns_twice_token ==
+            (const ctool_c_pp_token_t *)0) {
+          attributes->returns_twice_token = name;
+        }
+        (void)cfront_advance(context);
+        if (cfront_peek_is(context, "(") == CTOOL_TRUE) {
+          (void)cfront_advance(context);
+          if (cfront_peek_is(context, ")") == CTOOL_FALSE) {
+            return cfront_emit_failure(
+                context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+                cfront_peek(context),
+                "returns_twice attribute does not accept arguments");
           }
           (void)cfront_advance(context);
         }
@@ -6530,6 +6582,12 @@ static ctool_status_t cfront_parse_member_declaration(
           context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
           declarator_attributes.noreturn_token,
           "noreturn attribute cannot apply to a record member");
+    }
+    if (declarator_attributes.returns_twice == CTOOL_TRUE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+          declarator_attributes.returns_twice_token,
+          "returns_twice attribute cannot apply to a record member");
     }
     if (declarator_attributes.weak == CTOOL_TRUE) {
       return cfront_emit_failure(
@@ -22068,6 +22126,15 @@ static ctool_status_t cfront_parse_external_declaration(
             "noreturn attribute requires a function declaration");
       }
       binding_semantics.attributes |= CTOOL_C_DECL_ATTR_NORETURN;
+    }
+    if (declarator_attributes.returns_twice == CTOOL_TRUE) {
+      if (kind != CTOOL_C_BINDING_FUNCTION) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE,
+            declarator_attributes.returns_twice_token,
+            "returns_twice attribute requires a function declaration");
+      }
+      binding_semantics.attributes |= CTOOL_C_DECL_ATTR_RETURNS_TWICE;
     }
     if (declarator_attributes.weak == CTOOL_TRUE) {
       if (kind != CTOOL_C_BINDING_OBJECT &&

@@ -26,6 +26,14 @@ still participates in all 449 transforms because it launches the checked
 tools. ADRs 0201, 0203, and 0204 record the operation, seed promotion, and
 production transfer.
 
+Compiler head represents GNU `returns_twice` and preserves live operands across
+supported direct calls. It rejects marked-function pointer conversion and any
+live-prefix site reachable from a returns-twice continuation. The corrected
+setjmp form records the stack state after a normal return. This capability does
+not change a build owner. The checked seed and active dglibc source still use
+the compatibility form. Seed promotion, active-source migration, and guest
+runtime proof remain open. ADR 0212 records the boundary.
+
 The shared CupidASM source path now owns explicit alignment for raw, ELF32,
 NOBITS, and fixed-image output. The active FPU demo declares its 16-byte
 FXSAVE requirement with `align 16`; it no longer depends on being the first

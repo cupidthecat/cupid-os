@@ -29037,20 +29037,20 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.cc",           "/toolchain/x86.cc",
       "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
-      65u, 71u, 66u, 43u, 31u, 143u, 263u, 356u, 423u, 82u, 37u, 60u,
+      65u, 71u, 66u, 43u, 31u, 143u, 263u, 358u, 423u, 82u, 37u, 60u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 78841u, 85252u, 61641u, 42212u,
-      190304u, 483104u, 548935u, 849676u, 146398u, 70368u, 80596u,
+      190304u, 483289u, 558285u, 852466u, 146398u, 70368u, 80596u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 91460u, 99772u, 79348u, 49484u,
-      226668u, 520976u, 616500u, 1010028u, 165728u, 79348u, 135136u,
+      226668u, 521304u, 627192u, 1013604u, 165728u, 79348u, 135136u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x6a4e9e64u, 0x4ca44a27u,
       0xff0d403bu, 0x999f97b7u, 0xb49d8eb9u,
-      0x9f50596au, 0x0acd2db4u, 0xf7603bc6u, 0x74b56084u,
+      0x9764d177u, 0xeab89c95u, 0xe4142458u, 0x74b56084u,
       0x34558a49u, 0x398d41d3u, 0x8774de7du};
   ctool_u32 index;
   int all_matched = 1;
@@ -45356,8 +45356,15 @@ static int validate_dglibc_jump_symbol_decode(
 }
 
 static int validate_dglibc_jump_object(
-    ctool_job_t *job, const ctool_elf32_object_t *object) {
-  static const ctool_u8 setjmp_bytes[] = {
+    ctool_job_t *job, const ctool_elf32_object_t *object,
+    ctool_bool corrected) {
+  static const ctool_u8 corrected_setjmp_bytes[] = {
+      0x8bu, 0x44u, 0x24u, 0x04u, 0x89u, 0x18u, 0x89u,
+      0x70u, 0x04u, 0x89u, 0x78u, 0x08u, 0x89u, 0x68u,
+      0x0cu, 0x8du, 0x4cu, 0x24u, 0x04u, 0x89u, 0x48u,
+      0x10u, 0x8bu, 0x0cu, 0x24u, 0x89u, 0x48u, 0x14u,
+      0x31u, 0xc0u, 0xc3u};
+  static const ctool_u8 legacy_setjmp_bytes[] = {
       0x8bu, 0x44u, 0x24u, 0x04u, 0x89u, 0x18u, 0x89u,
       0x70u, 0x04u, 0x89u, 0x78u, 0x08u, 0x89u, 0x68u,
       0x0cu, 0x89u, 0x60u, 0x10u, 0x8bu, 0x0cu, 0x24u,
@@ -45368,11 +45375,18 @@ static int validate_dglibc_jump_object(
       0x00u, 0x8bu, 0x18u, 0x8bu, 0x70u, 0x04u, 0x8bu, 0x78u,
       0x08u, 0x8bu, 0x68u, 0x0cu, 0x8bu, 0x60u, 0x10u, 0x8bu,
       0x50u, 0x14u, 0x89u, 0xc8u, 0xffu, 0xe2u};
-  static const ctool_u32 setjmp_sizes[] = {
+  static const ctool_u32 corrected_setjmp_sizes[] = {
+      4u, 2u, 3u, 3u, 3u, 4u, 3u, 3u, 3u, 2u, 1u};
+  static const ctool_u32 legacy_setjmp_sizes[] = {
       4u, 2u, 3u, 3u, 3u, 3u, 3u, 3u, 2u, 1u};
   static const ctool_u32 longjmp_sizes[] = {
       4u, 4u, 2u, 2u, 5u, 2u, 3u, 3u, 3u, 3u, 3u, 2u, 2u};
-  static const ctool_x86_mnemonic_t setjmp_mnemonics[] = {
+  static const ctool_x86_mnemonic_t corrected_setjmp_mnemonics[] = {
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_LEA,
+      CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV,
+      CTOOL_X86_MN_XOR, CTOOL_X86_MN_RET};
+  static const ctool_x86_mnemonic_t legacy_setjmp_mnemonics[] = {
       CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV,
       CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV,
       CTOOL_X86_MN_MOV, CTOOL_X86_MN_MOV, CTOOL_X86_MN_XOR,
@@ -45388,9 +45402,31 @@ static int validate_dglibc_jump_object(
       find_symbol(object, "dg_setjmp");
   const ctool_elf32_symbol_t *longjmp_symbol =
       find_symbol(object, "dg_longjmp");
+  const ctool_u8 *setjmp_bytes =
+      corrected == CTOOL_TRUE
+          ? corrected_setjmp_bytes
+          : legacy_setjmp_bytes;
+  const ctool_u32 setjmp_size =
+      corrected == CTOOL_TRUE
+          ? (ctool_u32)sizeof(corrected_setjmp_bytes)
+          : (ctool_u32)sizeof(legacy_setjmp_bytes);
+  const ctool_u32 *setjmp_sizes =
+      corrected == CTOOL_TRUE
+          ? corrected_setjmp_sizes
+          : legacy_setjmp_sizes;
+  const ctool_x86_mnemonic_t *setjmp_mnemonics =
+      corrected == CTOOL_TRUE
+          ? corrected_setjmp_mnemonics
+          : legacy_setjmp_mnemonics;
+  const ctool_u32 setjmp_instruction_count =
+      corrected == CTOOL_TRUE
+          ? (ctool_u32)(sizeof(corrected_setjmp_sizes) /
+                        sizeof(corrected_setjmp_sizes[0]))
+          : (ctool_u32)(sizeof(legacy_setjmp_sizes) /
+                        sizeof(legacy_setjmp_sizes[0]));
   if (text == NULL || text->contents.data == NULL ||
       text->contents.size !=
-          (ctool_u32)(sizeof(setjmp_bytes) + sizeof(longjmp_bytes)) ||
+          setjmp_size + (ctool_u32)sizeof(longjmp_bytes) ||
       object->relocation_count != 0u || setjmp_symbol == NULL ||
       longjmp_symbol == NULL || setjmp_symbol->binding != CTOOL_ELF32_BIND_GLOBAL ||
       longjmp_symbol->binding != CTOOL_ELF32_BIND_GLOBAL ||
@@ -45403,8 +45439,8 @@ static int validate_dglibc_jump_object(
       setjmp_symbol->section_file_index != text->file_index ||
       longjmp_symbol->section_file_index != text->file_index ||
       setjmp_symbol->value != 0u ||
-      setjmp_symbol->size != (ctool_u32)sizeof(setjmp_bytes) ||
-      longjmp_symbol->value != (ctool_u32)sizeof(setjmp_bytes) ||
+      setjmp_symbol->size != setjmp_size ||
+      longjmp_symbol->value != setjmp_size ||
       longjmp_symbol->size != (ctool_u32)sizeof(longjmp_bytes)) {
     (void)fprintf(
         stderr,
@@ -45454,10 +45490,8 @@ static int validate_dglibc_jump_object(
   }
   return validate_dglibc_jump_symbol_decode(
              job, text, setjmp_symbol, setjmp_bytes,
-             (ctool_u32)sizeof(setjmp_bytes), setjmp_sizes,
-             setjmp_mnemonics,
-             (ctool_u32)(sizeof(setjmp_sizes) /
-                         sizeof(setjmp_sizes[0]))) &&
+             setjmp_size, setjmp_sizes, setjmp_mnemonics,
+             setjmp_instruction_count) &&
                  validate_dglibc_jump_symbol_decode(
                      job, text, longjmp_symbol, longjmp_bytes,
                      (ctool_u32)sizeof(longjmp_bytes), longjmp_sizes,
@@ -45470,6 +45504,42 @@ static int validate_dglibc_jump_object(
 
 static int run_dglibc_jump_assembly_object(const char *host_root) {
   static const char source[] =
+      "int dg_setjmp(unsigned int env[6]) "
+      "__attribute__((returns_twice));\n"
+      "void dg_longjmp(unsigned int env[6], int value) "
+      "__attribute__((noreturn));\n"
+      "__asm__(\n"
+      "  \".global dg_setjmp\\n\"\n"
+      "  \"dg_setjmp:\\n\"\n"
+      "  \"    movl  4(%esp), %eax\\n\"\n"
+      "  \"    movl  %ebx,  0(%eax)\\n\"\n"
+      "  \"    movl  %esi,  4(%eax)\\n\"\n"
+      "  \"    movl  %edi,  8(%eax)\\n\"\n"
+      "  \"    movl  %ebp, 12(%eax)\\n\"\n"
+      "  \"    leal  4(%esp), %ecx\\n\"\n"
+      "  \"    movl  %ecx, 16(%eax)\\n\"\n"
+      "  \"    movl  (%esp), %ecx\\n\"\n"
+      "  \"    movl  %ecx, 20(%eax)\\n\"\n"
+      "  \"    xorl  %eax, %eax\\n\"\n"
+      "  \"    ret\\n\"\n"
+      "  \".global dg_longjmp\\n\"\n"
+      "  \"dg_longjmp:\\n\"\n"
+      "  \"    movl  4(%esp), %eax\\n\"\n"
+      "  \"    movl  8(%esp), %ecx\\n\"\n"
+      "  \"    testl %ecx, %ecx\\n\"\n"
+      "  \"    jnz   1f\\n\"\n"
+      "  \"    movl  $1, %ecx\\n\"\n"
+      "  \"1:\\n\"\n"
+      "  \"    movl  0(%eax), %ebx\\n\"\n"
+      "  \"    movl  4(%eax), %esi\\n\"\n"
+      "  \"    movl  8(%eax), %edi\\n\"\n"
+      "  \"    movl 12(%eax), %ebp\\n\"\n"
+      "  \"    movl 16(%eax), %esp\\n\"\n"
+      "  \"    movl 20(%eax), %edx\\n\"\n"
+      "  \"    movl  %ecx,  %eax\\n\"\n"
+      "  \"    jmp  *%edx\\n\"\n"
+      ");\n";
+  static const char legacy_source[] =
       "int dg_setjmp(unsigned int env[6]);\n"
       "void dg_longjmp(unsigned int env[6], int value);\n"
       "__asm__(\n"
@@ -45510,7 +45580,8 @@ static int run_dglibc_jump_assembly_object(const char *host_root) {
       "    movl  %esi,  4(%eax)\n"
       "    movl  %edi,  8(%eax)\n"
       "    movl  %ebp, 12(%eax)\n"
-      "    movl  %esp, 16(%eax)\n"
+      "    leal  4(%esp), %ecx\n"
+      "    movl  %ecx, 16(%eax)\n"
       "    movl  (%esp), %ecx\n"
       "    movl  %ecx, 20(%eax)\n"
       "    xorl  %eax, %eax\n"
@@ -45536,9 +45607,11 @@ static int run_dglibc_jump_assembly_object(const char *host_root) {
   ctool_job_t *job = NULL;
   ctool_buffer_t *first = NULL;
   ctool_buffer_t *second = NULL;
+  ctool_buffer_t *legacy = NULL;
   ctool_buffer_t *failure = NULL;
   ctool_buffer_t *limited = NULL;
   ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t legacy_unit;
   ctool_c_translation_unit_t mutant;
   ctool_c_assembly_t mutant_assembly;
   ctool_c_binding_t mutant_bindings[2];
@@ -45553,10 +45626,13 @@ static int run_dglibc_jump_assembly_object(const char *host_root) {
   ctool_status_t status;
   int passed = 0;
   (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&legacy_unit, 0, sizeof(legacy_unit));
   (void)memset(&snapshot, 0, sizeof(snapshot));
   if (!open_job(host_root, &adapter, &config, &job) ||
       !parse_source_mode(job, "/dglibc-jump-assembly-object.c", source,
                          CTOOL_TRUE, &unit) ||
+      !parse_source_mode(job, "/legacy-dglibc-jump-assembly-object.c",
+                         legacy_source, CTOOL_TRUE, &legacy_unit) ||
       unit.binding_count !=
           (ctool_u32)(sizeof(mutant_bindings) /
                       sizeof(mutant_bindings[0])) ||
@@ -45589,6 +45665,10 @@ static int run_dglibc_jump_assembly_object(const char *host_root) {
   }
   if (status == CTOOL_OK) {
     status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &legacy);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
         job, 1024u, config.limits.output_bytes, &failure);
   }
   if (status == CTOOL_OK) {
@@ -45598,7 +45678,9 @@ static int run_dglibc_jump_assembly_object(const char *host_root) {
       !expect_object_success_preserves_unit(
           job, &unit, first, "first dglibc jump object") ||
       !expect_object_success_preserves_unit(
-          job, &unit, second, "repeat dglibc jump object")) {
+          job, &unit, second, "repeat dglibc jump object") ||
+      !expect_object_success_preserves_unit(
+          job, &legacy_unit, legacy, "legacy dglibc jump object")) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
@@ -45616,7 +45698,18 @@ static int run_dglibc_jump_assembly_object(const char *host_root) {
   (void)memset(&object, 0xa5, sizeof(object));
   status = ctool_elf32_read(job, &object_source, &object);
   if (!check_status(status, CTOOL_OK, "read dglibc jump object") ||
-      !validate_dglibc_jump_object(job, &object)) {
+      !validate_dglibc_jump_object(job, &object, CTOOL_TRUE)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  object_source.path.text =
+      ctool_string("/legacy-dglibc-jump-assembly-object.o");
+  object_source.contents = ctool_buffer_view(legacy);
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK,
+                    "read legacy dglibc jump object") ||
+      !validate_dglibc_jump_object(job, &object, CTOOL_FALSE)) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
@@ -45665,6 +45758,34 @@ static int run_dglibc_jump_assembly_object(const char *host_root) {
     goto cleanup;
   }
 
+  (void)memcpy(mutant_bindings, unit.bindings, sizeof(mutant_bindings));
+  mutant_bindings[setjmp_binding].attributes = 0u;
+  mutant = unit;
+  mutant.bindings = mutant_bindings;
+  if (!expect_object_failure_preserves_unit(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_EMIT_DIAG_SYMBOL,
+          "GNU dglibc jump assembly does not match its external "
+          "function declarations",
+          "corrected dglibc jump without returns_twice") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    goto cleanup;
+  }
+
+  (void)memcpy(mutant_bindings, unit.bindings, sizeof(mutant_bindings));
+  mutant_bindings[longjmp_binding].attributes = 0u;
+  mutant = unit;
+  mutant.bindings = mutant_bindings;
+  if (!expect_object_failure_preserves_unit(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_EMIT_DIAG_SYMBOL,
+          "GNU dglibc jump assembly does not match its external "
+          "function declarations",
+          "corrected dglibc jump without noreturn") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    goto cleanup;
+  }
+
   if (!expect_object_failure_preserves_unit(
           job, &unit, limited, CTOOL_ERR_LIMIT,
           CTOOL_C_EMIT_DIAG_LIMIT, NULL, "limited dglibc jump object") ||
@@ -45686,6 +45807,9 @@ cleanup:
   if (failure != NULL) {
     ctool_buffer_close(failure);
   }
+  if (legacy != NULL) {
+    ctool_buffer_close(legacy);
+  }
   if (second != NULL) {
     ctool_buffer_close(second);
   }
@@ -45697,6 +45821,1191 @@ cleanup:
   }
   if (passed != 0) {
     (void)puts("dglibc-jump-assembly: ok");
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_returns_twice_call_object(
+    const ctool_elf32_object_t *object) {
+  static const ctool_u8 direct_tail[] = {
+      0xe8u, 0xfcu, 0xffu, 0xffu, 0xffu,
+      0x83u, 0xc4u, 0x08u, 0x50u};
+  static const ctool_u8 assignment_spill[] = {
+      0x8bu, 0x44u, 0x24u, 0x04u,
+      0x89u, 0x85u, 0xf8u, 0xffu, 0xffu, 0xffu,
+      0x83u, 0xecu, 0x08u,
+      0x8bu, 0x4cu, 0x24u, 0x08u,
+      0x89u, 0x0cu, 0x24u,
+      0xe8u, 0xfcu, 0xffu, 0xffu, 0xffu,
+      0x83u, 0xc4u, 0x0cu,
+      0x8bu, 0x8du, 0xf8u, 0xffu, 0xffu, 0xffu,
+      0x89u, 0x0cu, 0x24u, 0x50u};
+  static const ctool_u8 addition_spill[] = {
+      0x8bu, 0x44u, 0x24u, 0x04u,
+      0x89u, 0x85u, 0xfcu, 0xffu, 0xffu, 0xffu,
+      0x83u, 0xecu, 0x0cu,
+      0x8bu, 0x4cu, 0x24u, 0x0cu,
+      0x89u, 0x0cu, 0x24u,
+      0xe8u, 0xfcu, 0xffu, 0xffu, 0xffu,
+      0x83u, 0xc4u, 0x10u,
+      0x8bu, 0x8du, 0xfcu, 0xffu, 0xffu, 0xffu,
+      0x89u, 0x0cu, 0x24u, 0x50u};
+  static const ctool_u8 first_call_spill[] = {
+      0x8bu, 0x44u, 0x24u, 0x04u,
+      0x89u, 0x85u, 0xfcu, 0xffu, 0xffu, 0xffu,
+      0x83u, 0xecu, 0x08u,
+      0x8bu, 0x4cu, 0x24u, 0x08u,
+      0x89u, 0x0cu, 0x24u,
+      0xe8u, 0xfcu, 0xffu, 0xffu, 0xffu,
+      0x83u, 0xc4u, 0x0cu,
+      0x8bu, 0x8du, 0xfcu, 0xffu, 0xffu, 0xffu,
+      0x89u, 0x0cu, 0x24u, 0x50u};
+  static const ctool_u8 second_call_spill[] = {
+      0x8bu, 0x44u, 0x24u, 0x04u,
+      0x89u, 0x85u, 0xf8u, 0xffu, 0xffu, 0xffu,
+      0x83u, 0xecu, 0x08u,
+      0x8bu, 0x4cu, 0x24u, 0x08u,
+      0x89u, 0x0cu, 0x24u,
+      0xe8u, 0xfcu, 0xffu, 0xffu, 0xffu,
+      0x83u, 0xc4u, 0x0cu,
+      0x8bu, 0x8du, 0xf8u, 0xffu, 0xffu, 0xffu,
+      0x89u, 0x0cu, 0x24u, 0x50u};
+  static const ctool_u32 relocation_offsets[] = {
+      0x19u, 0x4eu, 0x9fu, 0xf7u, 0x135u};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *rel_text =
+      find_section(object, ".rel.text");
+  const ctool_elf32_symbol_t *restart = find_symbol(object, "restart");
+  const ctool_elf32_symbol_t *direct =
+      find_symbol(object, "direct_restart");
+  const ctool_elf32_symbol_t *assignment =
+      find_symbol(object, "assign_restart");
+  const ctool_elf32_symbol_t *addition =
+      find_symbol(object, "add_restart");
+  const ctool_elf32_symbol_t *twice =
+      find_symbol(object, "two_restarts");
+  ctool_u32 index;
+  ctool_u32 fingerprint =
+      text == (const ctool_elf32_section_t *)0
+          ? 0u
+          : structure_text_fingerprint(text->contents);
+  if (text == (const ctool_elf32_section_t *)0 ||
+      rel_text == (const ctool_elf32_section_t *)0 ||
+      text->contents.data == (const ctool_u8 *)0 ||
+      text->contents.size != 334u || fingerprint != 0xfce5b12cu ||
+      text->relocation_first != 0u || text->relocation_count != 5u ||
+      object->symbol_count != 6u || object->relocation_count != 5u ||
+      object->relocations == (const ctool_elf32_relocation_t *)0 ||
+      !symbol_matches(restart, 1u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_UNDEFINED,
+                      CTOOL_ELF32_NO_SECTION, 0u, 0u) ||
+      !symbol_matches(direct, 2u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      0u, 36u) ||
+      !symbol_matches(assignment, 3u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      36u, 74u) ||
+      !symbol_matches(addition, 4u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      110u, 74u) ||
+      !symbol_matches(twice, 5u, CTOOL_ELF32_BIND_GLOBAL,
+                      CTOOL_ELF32_SYMBOL_FUNCTION,
+                      CTOOL_ELF32_SYMBOL_DEFINED, text->file_index,
+                      184u, 150u)) {
+    (void)fprintf(
+        stderr,
+        "returns_twice call inventory differs: text=%u fingerprint=%08x "
+        "symbols=%u relocations=%u\n",
+        text == (const ctool_elf32_section_t *)0
+            ? 0u
+            : (unsigned int)text->contents.size,
+        (unsigned int)fingerprint, (unsigned int)object->symbol_count,
+        (unsigned int)object->relocation_count);
+    if (direct != (const ctool_elf32_symbol_t *)0) {
+      (void)fprintf(stderr, "  direct_restart value=%u size=%u\n",
+                    (unsigned int)direct->value,
+                    (unsigned int)direct->size);
+    }
+    if (assignment != (const ctool_elf32_symbol_t *)0) {
+      (void)fprintf(stderr, "  assign_restart value=%u size=%u\n",
+                    (unsigned int)assignment->value,
+                    (unsigned int)assignment->size);
+    }
+    if (addition != (const ctool_elf32_symbol_t *)0) {
+      (void)fprintf(stderr, "  add_restart value=%u size=%u\n",
+                    (unsigned int)addition->value,
+                    (unsigned int)addition->size);
+    }
+    if (twice != (const ctool_elf32_symbol_t *)0) {
+      (void)fprintf(stderr, "  two_restarts value=%u size=%u\n",
+                    (unsigned int)twice->value,
+                    (unsigned int)twice->size);
+    }
+    for (index = 0u; index < object->relocation_count; index++) {
+      (void)fprintf(stderr, "  relocation %u offset=%u\n",
+                    (unsigned int)index,
+                    (unsigned int)object->relocations[index].offset);
+    }
+    return 0;
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(relocation_offsets) /
+                           sizeof(relocation_offsets[0]));
+       index++) {
+    const ctool_elf32_relocation_t *relocation =
+        &object->relocations[index];
+    if (relocation->relocation_section_file_index !=
+            rel_text->file_index ||
+        relocation->entry_index != index ||
+        relocation->target_section_file_index != text->file_index ||
+        relocation->offset != relocation_offsets[index] ||
+        relocation->symbol_file_index != restart->file_index ||
+        relocation->type != CTOOL_ELF32_R_386_PC32 ||
+        relocation->addend_known != CTOOL_TRUE ||
+        relocation->addend != -4) {
+      (void)fprintf(
+          stderr, "returns_twice relocation %u differs\n",
+          (unsigned int)index);
+      return 0;
+    }
+  }
+  if (!symbol_bytes_contain(text, direct, direct_tail,
+                            (ctool_u32)sizeof(direct_tail)) ||
+      !symbol_bytes_contain(text, assignment, assignment_spill,
+                            (ctool_u32)sizeof(assignment_spill)) ||
+      !symbol_bytes_contain(text, addition, addition_spill,
+                            (ctool_u32)sizeof(addition_spill)) ||
+      !symbol_bytes_contain(text, twice, first_call_spill,
+                            (ctool_u32)sizeof(first_call_spill)) ||
+      !symbol_bytes_contain(text, twice, second_call_spill,
+                            (ctool_u32)sizeof(second_call_spill))) {
+    (void)fprintf(stderr,
+                  "returns_twice spill or restore sequence differs\n");
+    if (twice != (const ctool_elf32_symbol_t *)0 &&
+        twice->value <= text->contents.size &&
+        twice->size <= text->contents.size - twice->value) {
+      for (index = 0u; index < twice->size; index++) {
+        (void)fprintf(stderr, "%02x%s",
+                      (unsigned int)text->contents.data
+                          [twice->value + index],
+                      (index + 1u) % 16u == 0u ||
+                              index + 1u == twice->size
+                          ? "\n"
+                          : " ");
+      }
+    }
+    return 0;
+  }
+  return 1;
+}
+
+static int returns_twice_frame_memory_operand(
+    const ctool_x86_operand_t *operand) {
+  return operand != (const ctool_x86_operand_t *)0 &&
+                 operand->kind == CTOOL_X86_OPERAND_MEMORY &&
+                 operand->as.memory.base.class_id == CTOOL_X86_REG_GPR32 &&
+                 operand->as.memory.base.index == NARROW_ORACLE_EBP &&
+                 operand->as.memory.index.class_id == CTOOL_X86_REG_NONE
+             ? 1
+             : 0;
+}
+
+static int validate_returns_twice_spill_function(
+    ctool_job_t *job, const ctool_elf32_section_t *text,
+    const ctool_elf32_symbol_t *function, ctool_u32 expected_calls,
+    ctool_u32 expected_spills, const char *context) {
+  ctool_i32 store_offsets[64];
+  ctool_u32 cursor = 0u;
+  ctool_u32 calls = 0u;
+  ctool_u32 stores = 0u;
+  ctool_u32 restores = 0u;
+  if (job == (ctool_job_t *)0 ||
+      text == (const ctool_elf32_section_t *)0 ||
+      function == (const ctool_elf32_symbol_t *)0 ||
+      context == (const char *)0 ||
+      function->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      function->section_file_index != text->file_index ||
+      function->value > text->contents.size ||
+      function->size > text->contents.size - function->value) {
+    return 0;
+  }
+  while (cursor < function->size) {
+    ctool_x86_decoded_t decoded;
+    const ctool_x86_instruction_t *instruction;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + function->value + cursor,
+        function->size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(job, CTOOL_X86_MODE_32, remaining, 0u,
+                              &decoded);
+    if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      (void)fprintf(stderr, "%s: instruction decode failed at %u\n",
+                    context, (unsigned int)cursor);
+      return 0;
+    }
+    instruction = &decoded.instruction;
+    if (instruction->mnemonic == CTOOL_X86_MN_CALL) {
+      calls++;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_MOV &&
+               instruction->operand_count == 2u &&
+               returns_twice_frame_memory_operand(
+                   &instruction->operands[0]) != 0 &&
+               instruction->operands[1].kind ==
+                   CTOOL_X86_OPERAND_REGISTER &&
+               instruction->operands[1].as.reg.class_id ==
+                   CTOOL_X86_REG_GPR32 &&
+               instruction->operands[1].as.reg.index ==
+                   NARROW_ORACLE_EAX) {
+      const ctool_x86_memory_t *memory =
+          &instruction->operands[0].as.memory;
+      if (memory->displacement.kind != CTOOL_X86_VALUE_CONSTANT ||
+          memory->displacement.addend != 0 ||
+          stores >= (ctool_u32)(sizeof(store_offsets) /
+                                sizeof(store_offsets[0]))) {
+        (void)fprintf(stderr, "%s: frame-store inventory overflow\n",
+                      context);
+        return 0;
+      }
+      store_offsets[stores] = (ctool_i32)memory->displacement.bits;
+      stores++;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_MOV &&
+               instruction->operand_count == 2u &&
+               instruction->operands[0].kind ==
+                   CTOOL_X86_OPERAND_REGISTER &&
+               instruction->operands[0].as.reg.class_id ==
+                   CTOOL_X86_REG_GPR32 &&
+               instruction->operands[0].as.reg.index ==
+                   NARROW_ORACLE_ECX &&
+               returns_twice_frame_memory_operand(
+                   &instruction->operands[1]) != 0) {
+      const ctool_x86_memory_t *memory =
+          &instruction->operands[1].as.memory;
+      ctool_i32 restore_offset;
+      ctool_u32 store_index;
+      ctool_bool matched = CTOOL_FALSE;
+      if (memory->displacement.kind != CTOOL_X86_VALUE_CONSTANT ||
+          memory->displacement.addend != 0) {
+        (void)fprintf(stderr, "%s: frame restore is not local\n",
+                      context);
+        return 0;
+      }
+      restore_offset = (ctool_i32)memory->displacement.bits;
+      for (store_index = 0u; store_index < stores; store_index++) {
+        if (store_offsets[store_index] == restore_offset) {
+          matched = CTOOL_TRUE;
+          break;
+        }
+      }
+      if (matched == CTOOL_FALSE) {
+        (void)fprintf(stderr,
+                      "%s: frame restore has no matching store\n",
+                      context);
+        return 0;
+      }
+      restores++;
+    }
+    cursor += decoded.consumed;
+  }
+  if (calls != expected_calls || restores != expected_spills) {
+    (void)fprintf(stderr,
+                  "%s: call/spill inventory differs: calls=%u "
+                  "stores=%u restores=%u\n",
+                  context, (unsigned int)calls, (unsigned int)stores,
+                  (unsigned int)restores);
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_returns_twice_propagation_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const char *const names[] = {
+      "call_late_restart", "call_block_restart",
+      "call_defined_restart"};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  ctool_u32 index;
+  if (text == (const ctool_elf32_section_t *)0 ||
+      text->contents.data == (const ctool_u8 *)0) {
+    return 0;
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(names) / sizeof(names[0])); index++) {
+    if (!validate_returns_twice_spill_function(
+            job, text, find_symbol(object, names[index]), 1u, 1u,
+            names[index])) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int validate_returns_twice_shape_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const ctool_u8 zero_argument_sequence[] = {
+      0x8bu, 0x04u, 0x24u,
+      0x89u, 0x85u, 0xfcu, 0xffu, 0xffu, 0xffu,
+      0xe8u, 0xfcu, 0xffu, 0xffu, 0xffu,
+      0x8bu, 0x8du, 0xfcu, 0xffu, 0xffu, 0xffu,
+      0x89u, 0x0cu, 0x24u, 0x50u};
+  static const ctool_u8 many_argument_sequence[] = {
+      0x8bu, 0x44u, 0x24u, 0x0cu,
+      0x89u, 0x85u, 0xfcu, 0xffu, 0xffu, 0xffu,
+      0x8bu, 0x4cu, 0x24u, 0x08u,
+      0x8bu, 0x14u, 0x24u,
+      0x89u, 0x54u, 0x24u, 0x08u,
+      0x89u, 0x0cu, 0x24u,
+      0x83u, 0xecu, 0x04u,
+      0x8bu, 0x4cu, 0x24u, 0x04u,
+      0x89u, 0x0cu, 0x24u,
+      0x8bu, 0x4cu, 0x24u, 0x08u,
+      0x89u, 0x4cu, 0x24u, 0x04u,
+      0x8bu, 0x4cu, 0x24u, 0x0cu,
+      0x89u, 0x4cu, 0x24u, 0x08u,
+      0xe8u, 0xfcu, 0xffu, 0xffu, 0xffu,
+      0x83u, 0xc4u, 0x10u,
+      0x8bu, 0x8du, 0xfcu, 0xffu, 0xffu, 0xffu,
+      0x89u, 0x0cu, 0x24u, 0x50u};
+  static const ctool_u8 void_sequence[] = {
+      0x8bu, 0x44u, 0x24u, 0x04u,
+      0x89u, 0x85u, 0xfcu, 0xffu, 0xffu, 0xffu,
+      0x83u, 0xecu, 0x0cu,
+      0x8bu, 0x4cu, 0x24u, 0x0cu,
+      0x89u, 0x0cu, 0x24u,
+      0xe8u, 0xfcu, 0xffu, 0xffu, 0xffu,
+      0x83u, 0xc4u, 0x10u,
+      0x8bu, 0x8du, 0xfcu, 0xffu, 0xffu, 0xffu,
+      0x89u, 0x0cu, 0x24u,
+      0x68u, 0x01u, 0x00u, 0x00u, 0x00u};
+  static const ctool_u8 wide_sequence[] = {
+      0x8bu, 0x44u, 0x24u, 0x04u,
+      0x89u, 0x85u, 0xe4u, 0xffu, 0xffu, 0xffu,
+      0x83u, 0xecu, 0x04u,
+      0x8bu, 0x4cu, 0x24u, 0x04u,
+      0x89u, 0x0cu, 0x24u,
+      0xe8u, 0xfcu, 0xffu, 0xffu, 0xffu,
+      0x83u, 0xc4u, 0x08u,
+      0x8bu, 0x8du, 0xe4u, 0xffu, 0xffu, 0xffu,
+      0x89u, 0x0cu, 0x24u,
+      0x89u, 0x85u, 0xf0u, 0xffu, 0xffu, 0xffu,
+      0x89u, 0x95u, 0xf4u, 0xffu, 0xffu, 0xffu,
+      0x8du, 0x45u, 0xf0u, 0x50u};
+  static const ctool_u8 double_sequence[] = {
+      0x8bu, 0x44u, 0x24u, 0x04u,
+      0x89u, 0x85u, 0xe4u, 0xffu, 0xffu, 0xffu,
+      0x83u, 0xecu, 0x04u,
+      0x8bu, 0x4cu, 0x24u, 0x04u,
+      0x89u, 0x0cu, 0x24u,
+      0xe8u, 0xfcu, 0xffu, 0xffu, 0xffu,
+      0x83u, 0xc4u, 0x08u,
+      0x8bu, 0x8du, 0xe4u, 0xffu, 0xffu, 0xffu,
+      0x89u, 0x0cu, 0x24u,
+      0xddu, 0x5du, 0xf0u,
+      0x8du, 0x45u, 0xf0u, 0x50u};
+  static const char *const spill_names[] = {
+      "zero_argument_restart", "many_argument_restart", "void_restart",
+      "wide_restart", "double_restart"};
+  static const ctool_u8 *const sequences[] = {
+      zero_argument_sequence, many_argument_sequence, void_sequence,
+      wide_sequence, double_sequence};
+  static const ctool_u32 sequence_sizes[] = {
+      (ctool_u32)sizeof(zero_argument_sequence),
+      (ctool_u32)sizeof(many_argument_sequence),
+      (ctool_u32)sizeof(void_sequence),
+      (ctool_u32)sizeof(wide_sequence),
+      (ctool_u32)sizeof(double_sequence)};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_symbol_t *repeated;
+  const ctool_elf32_symbol_t *scaled;
+  ctool_u32 index;
+  if (text == (const ctool_elf32_section_t *)0 ||
+      text->contents.data == (const ctool_u8 *)0) {
+    return 0;
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(spill_names) /
+                           sizeof(spill_names[0])); index++) {
+    const ctool_elf32_symbol_t *symbol =
+        find_symbol(object, spill_names[index]);
+    if (!validate_returns_twice_spill_function(
+            job, text, symbol, 1u, 1u, spill_names[index]) ||
+        !symbol_bytes_contain(text, symbol, sequences[index],
+                              sequence_sizes[index])) {
+      (void)fprintf(stderr, "%s: exact call choreography differs\n",
+                    spill_names[index]);
+      return 0;
+    }
+  }
+  repeated = find_symbol(object, "repeated_without_live_operands");
+  scaled = find_symbol(object, "scaled_branch_restarts");
+  return validate_returns_twice_spill_function(
+             job, text, repeated, 1u, 0u,
+             "repeated_without_live_operands") &&
+                 validate_returns_twice_spill_function(
+                     job, text, scaled, 64u, 64u,
+                     "scaled_branch_restarts")
+             ? 1
+             : 0;
+}
+
+static int execute_returns_twice_second_return(
+    ctool_job_t *job, const ctool_elf32_section_t *text,
+    const ctool_elf32_symbol_t *function, ctool_u32 transfer_value,
+    ctool_u32 expected_result) {
+  static const ctool_u32 env_address = 32u;
+  static const ctool_u32 left_value = 0x11223344u;
+  static const ctool_u32 return_sentinel = 0x13579bdfu;
+  static const ctool_u32 ebp_sentinel = 64u;
+  static const ctool_u32 ebx_sentinel = 0xc3d2e1f0u;
+  static const ctool_u32 esi_sentinel = 0x4b5a6978u;
+  static const ctool_u32 edi_sentinel = 0x8796a5b4u;
+  narrow_oracle_machine_t machine;
+  ctool_u32 cursor = 0u;
+  ctool_u32 continuation = 0u;
+  ctool_u32 checkpoint_esp = 0u;
+  ctool_u32 checkpoint_ebp = 0u;
+  ctool_u32 checkpoint_ebx = 0u;
+  ctool_u32 checkpoint_esi = 0u;
+  ctool_u32 checkpoint_edi = 0u;
+  ctool_u32 calls = 0u;
+  ctool_u32 steps = 0u;
+  ctool_u32 observed;
+  ctool_bool zero_flag = CTOOL_FALSE;
+  ctool_bool carry_flag = CTOOL_FALSE;
+  ctool_bool sign_flag = CTOOL_FALSE;
+  ctool_bool overflow_flag = CTOOL_FALSE;
+  ctool_bool returned = CTOOL_FALSE;
+  if (job == (ctool_job_t *)0 ||
+      text == (const ctool_elf32_section_t *)0 ||
+      function == (const ctool_elf32_symbol_t *)0 ||
+      function->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      function->section_file_index != text->file_index ||
+      function->value > text->contents.size ||
+      function->size > text->contents.size - function->value) {
+    return 0;
+  }
+  (void)memset(&machine, 0, sizeof(machine));
+  machine.registers[NARROW_ORACLE_ESP] = WIDE_ORACLE_INITIAL_ESP;
+  machine.registers[NARROW_ORACLE_EBP] = ebp_sentinel;
+  machine.registers[NARROW_ORACLE_EBX] = ebx_sentinel;
+  machine.registers[NARROW_ORACLE_ESI] = esi_sentinel;
+  machine.registers[NARROW_ORACLE_EDI] = edi_sentinel;
+  if (!narrow_oracle_write_memory(
+          &machine, WIDE_ORACLE_INITIAL_ESP, 32u, return_sentinel) ||
+      !narrow_oracle_write_memory(
+          &machine, WIDE_ORACLE_INITIAL_ESP + 4u, 32u, env_address) ||
+      !narrow_oracle_write_memory(
+          &machine, WIDE_ORACLE_INITIAL_ESP + 8u, 32u, left_value)) {
+    return 0;
+  }
+  while (cursor < function->size && returned == CTOOL_FALSE &&
+         steps < 1024u) {
+    ctool_x86_decoded_t decoded;
+    const ctool_x86_instruction_t *instruction;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + function->value + cursor,
+        function->size - cursor);
+    ctool_u32 next_cursor;
+    ctool_u32 target;
+    ctool_bool handled = CTOOL_FALSE;
+    ctool_bool leaf_return = CTOOL_FALSE;
+    ctool_status_t status;
+    steps++;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(job, CTOOL_X86_MODE_32, remaining, 0u,
+                              &decoded);
+    if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      return 0;
+    }
+    instruction = &decoded.instruction;
+    next_cursor = cursor + decoded.consumed;
+    if (instruction->mnemonic == CTOOL_X86_MN_CALL) {
+      ctool_u32 stack_pointer = machine.registers[NARROW_ORACLE_ESP];
+      ctool_u32 env_argument;
+      if (instruction->operand_count != 1u ||
+          instruction->operands[0].kind != CTOOL_X86_OPERAND_RELATIVE ||
+          (stack_pointer & 15u) != 0u ||
+          !narrow_oracle_read_memory(
+              &machine, stack_pointer, 32u, &env_argument) ||
+          env_argument != env_address) {
+        return 0;
+      }
+      if (calls == 0u) {
+        continuation = next_cursor;
+        checkpoint_esp = stack_pointer;
+        checkpoint_ebp = machine.registers[NARROW_ORACLE_EBP];
+        checkpoint_ebx = machine.registers[NARROW_ORACLE_EBX];
+        checkpoint_esi = machine.registers[NARROW_ORACLE_ESI];
+        checkpoint_edi = machine.registers[NARROW_ORACLE_EDI];
+        machine.registers[NARROW_ORACLE_EAX] = 0u;
+        machine.registers[NARROW_ORACLE_ECX] = 0xdeadbeefu;
+        machine.registers[NARROW_ORACLE_EDX] = 0xcafebabeu;
+        cursor = next_cursor;
+      } else if (calls == 1u) {
+        ctool_u32 value_argument;
+        if (!narrow_oracle_read_memory(
+                &machine, stack_pointer + 4u, 32u, &value_argument) ||
+            value_argument != transfer_value || continuation == 0u ||
+            checkpoint_esp == 0u) {
+          return 0;
+        }
+        machine.registers[NARROW_ORACLE_ESP] = checkpoint_esp;
+        machine.registers[NARROW_ORACLE_EBP] = checkpoint_ebp;
+        machine.registers[NARROW_ORACLE_EBX] = checkpoint_ebx;
+        machine.registers[NARROW_ORACLE_ESI] = checkpoint_esi;
+        machine.registers[NARROW_ORACLE_EDI] = checkpoint_edi;
+        machine.registers[NARROW_ORACLE_EAX] =
+            transfer_value == 0u ? 1u : transfer_value;
+        machine.registers[NARROW_ORACLE_ECX] = 0xa5a5a5a5u;
+        machine.registers[NARROW_ORACLE_EDX] = 0x5a5a5a5au;
+        cursor = continuation;
+      } else {
+        return 0;
+      }
+      calls++;
+      continue;
+    }
+    if (instruction->mnemonic == CTOOL_X86_MN_JMP ||
+        instruction->mnemonic == CTOOL_X86_MN_JE ||
+        instruction->mnemonic == CTOOL_X86_MN_JNE) {
+      if (!call_alignment_branch_target(
+              &decoded, cursor, function->size, &target)) {
+        return 0;
+      }
+      cursor = instruction->mnemonic == CTOOL_X86_MN_JMP ||
+                       (instruction->mnemonic == CTOOL_X86_MN_JE &&
+                        zero_flag == CTOOL_TRUE) ||
+                       (instruction->mnemonic == CTOOL_X86_MN_JNE &&
+                        zero_flag == CTOOL_FALSE)
+                   ? target
+                   : next_cursor;
+      continue;
+    }
+    if (!wide_oracle_add_subtract_step(
+            &machine, instruction, &carry_flag, &handled) ||
+        (handled == CTOOL_FALSE &&
+         !wide_oracle_flag_step(
+             &machine, instruction, &zero_flag, &carry_flag,
+             &sign_flag, &overflow_flag, &handled)) ||
+        (handled == CTOOL_FALSE &&
+         !narrow_oracle_step(&machine, instruction, &leaf_return))) {
+      (void)fprintf(
+          stderr, "returns_twice execution stopped at %u on %s\n",
+          (unsigned int)cursor,
+          ctool_x86_mnemonic_name(instruction->mnemonic).data);
+      return 0;
+    }
+    if (leaf_return == CTOOL_TRUE) {
+      returned = CTOOL_TRUE;
+    }
+    cursor = next_cursor;
+  }
+  if (returned == CTOOL_FALSE || cursor != function->size || calls != 2u ||
+      steps >= 1024u ||
+      machine.registers[NARROW_ORACLE_EAX] != expected_result ||
+      machine.registers[NARROW_ORACLE_ESP] != WIDE_ORACLE_INITIAL_ESP ||
+      machine.registers[NARROW_ORACLE_EBP] != ebp_sentinel ||
+      machine.registers[NARROW_ORACLE_EBX] != ebx_sentinel ||
+      machine.registers[NARROW_ORACLE_ESI] != esi_sentinel ||
+      machine.registers[NARROW_ORACLE_EDI] != edi_sentinel ||
+      !narrow_oracle_read_memory(
+          &machine, WIDE_ORACLE_INITIAL_ESP, 32u, &observed) ||
+      observed != return_sentinel ||
+      !narrow_oracle_read_memory(
+          &machine, WIDE_ORACLE_INITIAL_ESP + 4u, 32u, &observed) ||
+      observed != env_address ||
+      !narrow_oracle_read_memory(
+          &machine, WIDE_ORACLE_INITIAL_ESP + 8u, 32u, &observed) ||
+      observed != left_value) {
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_returns_twice_execution_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const ctool_u32 left_value = 0x11223344u;
+  static const ctool_u32 relative_offsets[] = {0x35u, 0xb1u};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *rel_text =
+      find_section(object, ".rel.text");
+  const ctool_elf32_symbol_t *restart =
+      find_symbol(object, "runtime_restart");
+  const ctool_elf32_symbol_t *resume =
+      find_symbol(object, "runtime_resume");
+  const ctool_elf32_symbol_t *functions[2];
+  ctool_u32 function_index;
+  functions[0] = find_symbol(object, "resume_zero");
+  functions[1] = find_symbol(object, "resume_seven");
+  if (text == (const ctool_elf32_section_t *)0 ||
+      rel_text == (const ctool_elf32_section_t *)0 ||
+      text->contents.data == (const ctool_u8 *)0 ||
+      object->relocations == (const ctool_elf32_relocation_t *)0 ||
+      object->relocation_count != 4u || text->relocation_first != 0u ||
+      text->relocation_count != 4u ||
+      restart == (const ctool_elf32_symbol_t *)0 ||
+      restart->binding != CTOOL_ELF32_BIND_GLOBAL ||
+      restart->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
+      restart->placement != CTOOL_ELF32_SYMBOL_UNDEFINED ||
+      resume == (const ctool_elf32_symbol_t *)0 ||
+      resume->binding != CTOOL_ELF32_BIND_GLOBAL ||
+      resume->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
+      resume->placement != CTOOL_ELF32_SYMBOL_UNDEFINED) {
+    return 0;
+  }
+  for (function_index = 0u; function_index < 2u; function_index++) {
+    ctool_u32 call_index;
+    const ctool_elf32_symbol_t *function = functions[function_index];
+    if (function == (const ctool_elf32_symbol_t *)0 ||
+        function->binding != CTOOL_ELF32_BIND_GLOBAL ||
+        function->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
+        function->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+        function->section_file_index != text->file_index ||
+        function->size < relative_offsets[1] + 4u) {
+      return 0;
+    }
+    for (call_index = 0u; call_index < 2u; call_index++) {
+      ctool_u32 relocation_index = function_index * 2u + call_index;
+      const ctool_elf32_relocation_t *relocation =
+          &object->relocations[relocation_index];
+      const ctool_elf32_symbol_t *target =
+          call_index == 0u ? restart : resume;
+      if (relocation->relocation_section_file_index !=
+              rel_text->file_index ||
+          relocation->entry_index != relocation_index ||
+          relocation->target_section_file_index != text->file_index ||
+          relocation->offset !=
+              function->value + relative_offsets[call_index] ||
+          relocation->symbol_file_index != target->file_index ||
+          relocation->type != CTOOL_ELF32_R_386_PC32 ||
+          relocation->addend_known != CTOOL_TRUE ||
+          relocation->addend != -4) {
+        (void)fprintf(stderr,
+                      "returns_twice execution relocation %u differs\n",
+                      (unsigned int)relocation_index);
+        return 0;
+      }
+    }
+  }
+  return execute_returns_twice_second_return(
+             job, text, find_symbol(object, "resume_zero"), 0u,
+             left_value + 1u) &&
+                 execute_returns_twice_second_return(
+                     job, text, find_symbol(object, "resume_seven"), 7u,
+                     left_value + 7u)
+             ? 1
+             : 0;
+}
+
+static int run_returns_twice_call_object(const char *host_root) {
+  static const char source[] =
+      "extern int restart(unsigned int env[6]) "
+      "__attribute__((returns_twice));\n"
+      "int direct_restart(unsigned int env[6]) {\n"
+      "  return restart(env);\n"
+      "}\n"
+      "int assign_restart(unsigned int env[6]) {\n"
+      "  int result = restart(env);\n"
+      "  return result;\n"
+      "}\n"
+      "int add_restart(unsigned int env[6], int left) {\n"
+      "  return left + restart(env);\n"
+      "}\n"
+      "int two_restarts(unsigned int first[6], unsigned int second[6], "
+      "int use_first) {\n"
+      "  if (use_first) return 1 + restart(first);\n"
+      "  return 2 + restart(second);\n"
+      "}\n";
+  static const char propagation_source[] =
+      "extern int late_restart(unsigned int env[6]);\n"
+      "int call_late_restart(unsigned int env[6], int left) {\n"
+      "  return left + late_restart(env);\n"
+      "}\n"
+      "extern int late_restart(unsigned int env[6]) "
+      "__attribute__((returns_twice));\n"
+      "extern int block_restart(unsigned int env[6]) "
+      "__attribute__((returns_twice));\n"
+      "int call_block_restart(unsigned int env[6], int left) {\n"
+      "  extern int block_restart(unsigned int env[6]);\n"
+      "  return left + block_restart(env);\n"
+      "}\n"
+      "int defined_restart(unsigned int env[6]) "
+      "__attribute__((returns_twice)) { return (int)env[0]; }\n"
+      "int call_defined_restart(unsigned int env[6], int left) {\n"
+      "  return left + defined_restart(env);\n"
+      "}\n";
+  static const char shape_source[] =
+      "extern int restart_zero(void) __attribute__((returns_twice));\n"
+      "extern int restart_many(unsigned int env[6], int first, int second) "
+      "__attribute__((returns_twice));\n"
+      "extern void restart_void(unsigned int env[6]) "
+      "__attribute__((returns_twice));\n"
+      "extern long long restart_wide(unsigned int env[6]) "
+      "__attribute__((returns_twice));\n"
+      "extern double restart_double(unsigned int env[6]) "
+      "__attribute__((returns_twice));\n"
+      "int zero_argument_restart(int left) {\n"
+      "  return left + restart_zero();\n"
+      "}\n"
+      "int many_argument_restart(unsigned int env[6], int left) {\n"
+      "  return left + restart_many(env, 3, 4);\n"
+      "}\n"
+      "int void_restart(unsigned int env[6], int left) {\n"
+      "  return left + (restart_void(env), 1);\n"
+      "}\n"
+      "long long wide_restart(unsigned int env[6], long long left) {\n"
+      "  return left + restart_wide(env);\n"
+      "}\n"
+      "double double_restart(unsigned int env[6], double left) {\n"
+      "  return left + restart_double(env);\n"
+      "}\n"
+      "int repeated_without_live_operands(unsigned int env[6], int count) {\n"
+      "  while (count > 0) { restart_void(env); count--; }\n"
+      "  return count;\n"
+      "}\n"
+      "extern int restart_scale(unsigned int env[6]) "
+      "__attribute__((returns_twice));\n"
+      "#define SCALE_CASE(value) "
+      "case value: result = restart_scale(env); break;\n"
+      "int scaled_branch_restarts(unsigned int env[6], int selector) {\n"
+      "  int result = selector;\n"
+      "  switch (selector) {\n"
+      "    SCALE_CASE(0)\n"
+      "    SCALE_CASE(1)\n"
+      "    SCALE_CASE(2)\n"
+      "    SCALE_CASE(3)\n"
+      "    SCALE_CASE(4)\n"
+      "    SCALE_CASE(5)\n"
+      "    SCALE_CASE(6)\n"
+      "    SCALE_CASE(7)\n"
+      "    SCALE_CASE(8)\n"
+      "    SCALE_CASE(9)\n"
+      "    SCALE_CASE(10)\n"
+      "    SCALE_CASE(11)\n"
+      "    SCALE_CASE(12)\n"
+      "    SCALE_CASE(13)\n"
+      "    SCALE_CASE(14)\n"
+      "    SCALE_CASE(15)\n"
+      "    SCALE_CASE(16)\n"
+      "    SCALE_CASE(17)\n"
+      "    SCALE_CASE(18)\n"
+      "    SCALE_CASE(19)\n"
+      "    SCALE_CASE(20)\n"
+      "    SCALE_CASE(21)\n"
+      "    SCALE_CASE(22)\n"
+      "    SCALE_CASE(23)\n"
+      "    SCALE_CASE(24)\n"
+      "    SCALE_CASE(25)\n"
+      "    SCALE_CASE(26)\n"
+      "    SCALE_CASE(27)\n"
+      "    SCALE_CASE(28)\n"
+      "    SCALE_CASE(29)\n"
+      "    SCALE_CASE(30)\n"
+      "    SCALE_CASE(31)\n"
+      "    SCALE_CASE(32)\n"
+      "    SCALE_CASE(33)\n"
+      "    SCALE_CASE(34)\n"
+      "    SCALE_CASE(35)\n"
+      "    SCALE_CASE(36)\n"
+      "    SCALE_CASE(37)\n"
+      "    SCALE_CASE(38)\n"
+      "    SCALE_CASE(39)\n"
+      "    SCALE_CASE(40)\n"
+      "    SCALE_CASE(41)\n"
+      "    SCALE_CASE(42)\n"
+      "    SCALE_CASE(43)\n"
+      "    SCALE_CASE(44)\n"
+      "    SCALE_CASE(45)\n"
+      "    SCALE_CASE(46)\n"
+      "    SCALE_CASE(47)\n"
+      "    SCALE_CASE(48)\n"
+      "    SCALE_CASE(49)\n"
+      "    SCALE_CASE(50)\n"
+      "    SCALE_CASE(51)\n"
+      "    SCALE_CASE(52)\n"
+      "    SCALE_CASE(53)\n"
+      "    SCALE_CASE(54)\n"
+      "    SCALE_CASE(55)\n"
+      "    SCALE_CASE(56)\n"
+      "    SCALE_CASE(57)\n"
+      "    SCALE_CASE(58)\n"
+      "    SCALE_CASE(59)\n"
+      "    SCALE_CASE(60)\n"
+      "    SCALE_CASE(61)\n"
+      "    SCALE_CASE(62)\n"
+      "    SCALE_CASE(63)\n"
+      "    default: break;\n"
+      "  }\n"
+      "  return result;\n"
+      "}\n"
+      "#undef SCALE_CASE\n";
+  static const char cyclic_source[] =
+      "extern int restart(unsigned int env[6]) "
+      "__attribute__((returns_twice));\n"
+      "int cyclic_restart(unsigned int env[6], int *result) {\n"
+      "  do { *result = restart(env); } while (*result);\n"
+      "  return *result;\n"
+      "}\n";
+  static const char checkpoint_reentry_source[] =
+      "extern int restart(unsigned int env[6]) "
+      "__attribute__((returns_twice));\n"
+      "int sequential_restarts(unsigned int first[6], "
+      "unsigned int second[6]) {\n"
+      "  return (1 + restart(first)) + (2 + restart(second));\n"
+      "}\n";
+  static const char automatic_pointer_source[] =
+      "extern int restart(unsigned int env[6]) "
+      "__attribute__((returns_twice));\n"
+      "int indirect_restart(unsigned int env[6], int left) {\n"
+      "  int (*saved)(unsigned int env[6]) = restart;\n"
+      "  return left + saved(env);\n"
+      "}\n";
+  static const char static_pointer_source[] =
+      "extern int restart(unsigned int env[6]) "
+      "__attribute__((returns_twice));\n"
+      "static int (*saved_restart)(unsigned int env[6]) = restart;\n"
+      "int static_indirect_restart(unsigned int env[6]) {\n"
+      "  return saved_restart(env);\n"
+      "}\n";
+  static const char late_static_pointer_source[] =
+      "extern int late_restart(unsigned int env[6]);\n"
+      "static int (*saved_late_restart)(unsigned int env[6]) = "
+      "late_restart;\n"
+      "extern int late_restart(unsigned int env[6]) "
+      "__attribute__((returns_twice));\n"
+      "int static_late_indirect_restart(unsigned int env[6]) {\n"
+      "  return saved_late_restart(env);\n"
+      "}\n";
+  static const char execution_source[] =
+      "extern int runtime_restart(unsigned int env[6]) "
+      "__attribute__((returns_twice));\n"
+      "extern void runtime_resume(unsigned int env[6], int value) "
+      "__attribute__((noreturn));\n"
+      "int resume_zero(unsigned int env[6], int left) {\n"
+      "  int result = left + runtime_restart(env);\n"
+      "  if (result == left) runtime_resume(env, 0);\n"
+      "  return result;\n"
+      "}\n"
+      "int resume_seven(unsigned int env[6], int left) {\n"
+      "  int result = left + runtime_restart(env);\n"
+      "  if (result == left) runtime_resume(env, 7);\n"
+      "  return result;\n"
+      "}\n";
+  static const char aggregate_argument_source[] =
+      "typedef struct { unsigned int first; unsigned int second; } pair_t;\n"
+      "extern int restart_pair(pair_t value) "
+      "__attribute__((returns_twice));\n"
+      "int bad_restart(pair_t value) { return restart_pair(value); }\n";
+  static const char aggregate_result_source[] =
+      "typedef struct { unsigned int first; unsigned int second; } pair_t;\n"
+      "extern pair_t restart_result(unsigned int env[6]) "
+      "__attribute__((returns_twice));\n"
+      "pair_t bad_restart_result(unsigned int env[6]) {\n"
+      "  return restart_result(env);\n"
+      "}\n";
+  static const char wide_argument_source[] =
+      "extern int restart_wide_argument(long long value) "
+      "__attribute__((returns_twice));\n"
+      "int bad_wide_argument(long long value) {\n"
+      "  return restart_wide_argument(value);\n"
+      "}\n";
+  static const char double_argument_source[] =
+      "extern int restart_double_argument(double value) "
+      "__attribute__((returns_twice));\n"
+      "int bad_double_argument(double value) {\n"
+      "  return restart_double_argument(value);\n"
+      "}\n";
+  static const char unsupported_message[] =
+      "returns_twice calls currently require four-byte cdecl arguments "
+      "and a non-aggregate result";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_buffer_t *first = (ctool_buffer_t *)0;
+  ctool_buffer_t *second = (ctool_buffer_t *)0;
+  ctool_buffer_t *propagation = (ctool_buffer_t *)0;
+  ctool_buffer_t *shapes = (ctool_buffer_t *)0;
+  ctool_buffer_t *execution = (ctool_buffer_t *)0;
+  ctool_buffer_t *failure = (ctool_buffer_t *)0;
+  ctool_buffer_t *limited = (ctool_buffer_t *)0;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t propagation_unit;
+  ctool_c_translation_unit_t shape_unit;
+  ctool_c_translation_unit_t execution_unit;
+  ctool_c_translation_unit_t cyclic_unit;
+  ctool_c_translation_unit_t checkpoint_reentry_unit;
+  ctool_c_translation_unit_t automatic_pointer_unit;
+  ctool_c_translation_unit_t static_pointer_unit;
+  ctool_c_translation_unit_t late_static_pointer_unit;
+  ctool_c_translation_unit_t aggregate_argument_unit;
+  ctool_c_translation_unit_t aggregate_result_unit;
+  ctool_c_translation_unit_t wide_argument_unit;
+  ctool_c_translation_unit_t double_argument_unit;
+  unit_snapshot_t snapshot;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t first_bytes;
+  ctool_bytes_t second_bytes;
+  ctool_status_t status;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&propagation_unit, 0, sizeof(propagation_unit));
+  (void)memset(&shape_unit, 0, sizeof(shape_unit));
+  (void)memset(&execution_unit, 0, sizeof(execution_unit));
+  (void)memset(&cyclic_unit, 0, sizeof(cyclic_unit));
+  (void)memset(&checkpoint_reentry_unit, 0,
+               sizeof(checkpoint_reentry_unit));
+  (void)memset(&automatic_pointer_unit, 0,
+               sizeof(automatic_pointer_unit));
+  (void)memset(&static_pointer_unit, 0, sizeof(static_pointer_unit));
+  (void)memset(&late_static_pointer_unit, 0,
+               sizeof(late_static_pointer_unit));
+  (void)memset(&aggregate_argument_unit, 0,
+               sizeof(aggregate_argument_unit));
+  (void)memset(&aggregate_result_unit, 0,
+               sizeof(aggregate_result_unit));
+  (void)memset(&wide_argument_unit, 0, sizeof(wide_argument_unit));
+  (void)memset(&double_argument_unit, 0, sizeof(double_argument_unit));
+  (void)memset(&snapshot, 0, sizeof(snapshot));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(job, "/returns-twice-calls.c", source,
+                         CTOOL_TRUE, &unit) ||
+      !parse_source_mode(job, "/returns-twice-propagation.c",
+                         propagation_source, CTOOL_TRUE,
+                         &propagation_unit) ||
+      !parse_source_mode(job, "/returns-twice-shapes.c", shape_source,
+                         CTOOL_TRUE, &shape_unit) ||
+      !parse_source_mode(job, "/returns-twice-execution.c",
+                         execution_source, CTOOL_TRUE,
+                         &execution_unit) ||
+      !parse_source_mode(job, "/returns-twice-cyclic.c", cyclic_source,
+                         CTOOL_TRUE, &cyclic_unit) ||
+      !parse_source_mode(job, "/returns-twice-checkpoint-reentry.c",
+                         checkpoint_reentry_source, CTOOL_TRUE,
+                         &checkpoint_reentry_unit) ||
+      !parse_source_mode(job, "/returns-twice-automatic-pointer.c",
+                         automatic_pointer_source, CTOOL_TRUE,
+                         &automatic_pointer_unit) ||
+      !parse_source_mode(job, "/returns-twice-static-pointer.c",
+                         static_pointer_source, CTOOL_TRUE,
+                         &static_pointer_unit) ||
+      !parse_source_mode(job, "/returns-twice-late-static-pointer.c",
+                         late_static_pointer_source, CTOOL_TRUE,
+                         &late_static_pointer_unit) ||
+      !parse_source_mode(job, "/returns-twice-aggregate-argument.c",
+                         aggregate_argument_source, CTOOL_TRUE,
+                         &aggregate_argument_unit) ||
+      !parse_source_mode(job, "/returns-twice-aggregate-result.c",
+                         aggregate_result_source, CTOOL_TRUE,
+                         &aggregate_result_unit) ||
+      !parse_source_mode(job, "/returns-twice-wide-argument.c",
+                         wide_argument_source, CTOOL_TRUE,
+                         &wide_argument_unit) ||
+      !parse_source_mode(job, "/returns-twice-double-argument.c",
+                         double_argument_source, CTOOL_TRUE,
+                         &double_argument_unit) ||
+      !take_unit_snapshot(&unit, &snapshot)) {
+    (void)fprintf(stderr, "returns_twice call setup failed\n");
+    if (job != (ctool_job_t *)0) {
+      (void)ctool_job_render_diagnostics(job);
+    }
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(
+      job, 1024u, config.limits.output_bytes, &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &second);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &propagation);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &shapes);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &execution);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes, &failure);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 16u, 64u, &limited);
+  }
+  if (!check_status(status, CTOOL_OK, "returns_twice call buffers") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, first, "first returns_twice call object") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second, "repeat returns_twice call object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    (void)fprintf(stderr,
+                  "returns_twice call object is not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/returns-twice-calls.o");
+  object_source.contents = second_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK, "read returns_twice call object") ||
+      !validate_returns_twice_call_object(&object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (!expect_object_success_preserves_unit(
+          job, &propagation_unit, propagation,
+          "returns_twice redeclaration propagation object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  object_source.path.text =
+      ctool_string("/returns-twice-propagation.o");
+  object_source.contents = ctool_buffer_view(propagation);
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK,
+                    "read returns_twice propagation object") ||
+      !validate_returns_twice_propagation_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (!expect_object_success_preserves_unit(
+          job, &shape_unit, shapes, "returns_twice call-shape object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/returns-twice-shapes.o");
+  object_source.contents = ctool_buffer_view(shapes);
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK,
+                    "read returns_twice call-shape object") ||
+      !validate_returns_twice_shape_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (!expect_object_success_preserves_unit(
+          job, &execution_unit, execution,
+          "returns_twice second-return execution object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/returns-twice-execution.o");
+  object_source.contents = ctool_buffer_view(execution);
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK,
+                    "read returns_twice execution object") ||
+      !validate_returns_twice_execution_object(job, &object)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (!expect_object_failure_preserves_unit(
+          job, &cyclic_unit, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_EMIT_DIAG_UNSUPPORTED,
+          "returns_twice calls with live expression operands must not be "
+          "reachable again after a returns_twice checkpoint",
+          "cyclic returns_twice call with live operands") ||
+      !expect_object_failure_preserves_unit(
+          job, &checkpoint_reentry_unit, failure,
+          CTOOL_ERR_UNSUPPORTED, CTOOL_C_EMIT_DIAG_UNSUPPORTED,
+          "returns_twice calls with live expression operands must not be "
+          "reachable again after a returns_twice checkpoint",
+          "returns_twice call reentered by an earlier checkpoint") ||
+      !expect_object_failure_preserves_unit(
+          job, &automatic_pointer_unit, failure,
+          CTOOL_ERR_UNSUPPORTED, CTOOL_C_IR_DIAG_ABI,
+          "CupidC requires returns_twice functions to be called directly "
+          "instead of converted to a function pointer",
+          "automatic returns_twice function pointer") ||
+      !expect_object_failure_preserves_unit(
+          job, &static_pointer_unit, failure,
+          CTOOL_ERR_UNSUPPORTED, CTOOL_C_EMIT_DIAG_INITIALIZER,
+          "CupidC requires returns_twice functions to be called directly "
+          "instead of stored in a function pointer",
+          "static returns_twice function pointer") ||
+      !expect_object_failure_preserves_unit(
+          job, &late_static_pointer_unit, failure,
+          CTOOL_ERR_UNSUPPORTED, CTOOL_C_EMIT_DIAG_INITIALIZER,
+          "CupidC requires returns_twice functions to be called directly "
+          "instead of stored in a function pointer",
+          "static pointer before returns_twice redeclaration") ||
+      !expect_object_failure_preserves_unit(
+          job, &aggregate_argument_unit, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_EMIT_DIAG_UNSUPPORTED, unsupported_message,
+          "returns_twice aggregate argument") ||
+      !expect_object_failure_preserves_unit(
+          job, &aggregate_result_unit, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_EMIT_DIAG_UNSUPPORTED, unsupported_message,
+          "returns_twice aggregate result") ||
+      !expect_object_failure_preserves_unit(
+          job, &wide_argument_unit, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_EMIT_DIAG_UNSUPPORTED, unsupported_message,
+          "returns_twice wide argument") ||
+      !expect_object_failure_preserves_unit(
+          job, &double_argument_unit, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_EMIT_DIAG_UNSUPPORTED, unsupported_message,
+          "returns_twice double argument") ||
+      !expect_object_failure_preserves_unit(
+          job, &unit, limited, CTOOL_ERR_LIMIT,
+          CTOOL_C_EMIT_DIAG_LIMIT, (const char *)0,
+          "limited returns_twice call object") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, failure, "returns_twice call recovery") ||
+      ctool_buffer_view(failure).size != first_bytes.size ||
+      memcmp(ctool_buffer_view(failure).data, first_bytes.data,
+             (size_t)first_bytes.size) != 0 ||
+      unit_snapshot_matches(&snapshot, &unit) == 0) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  dispose_unit_snapshot(&snapshot);
+  if (limited != (ctool_buffer_t *)0) {
+    ctool_buffer_close(limited);
+  }
+  if (failure != (ctool_buffer_t *)0) {
+    ctool_buffer_close(failure);
+  }
+  if (execution != (ctool_buffer_t *)0) {
+    ctool_buffer_close(execution);
+  }
+  if (shapes != (ctool_buffer_t *)0) {
+    ctool_buffer_close(shapes);
+  }
+  if (propagation != (ctool_buffer_t *)0) {
+    ctool_buffer_close(propagation);
+  }
+  if (second != (ctool_buffer_t *)0) {
+    ctool_buffer_close(second);
+  }
+  if (first != (ctool_buffer_t *)0) {
+    ctool_buffer_close(first);
+  }
+  if (job != (ctool_job_t *)0) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("returns-twice-calls: ok");
     return 0;
   }
   return 1;
@@ -47034,6 +48343,9 @@ int main(int argc, char **argv) {
   if (argc == 3 &&
       strcmp(argv[1], "dglibc-jump-assembly") == 0) {
     return run_dglibc_jump_assembly_object(argv[2]);
+  }
+  if (argc == 3 && strcmp(argv[1], "returns-twice-calls") == 0) {
+    return run_returns_twice_call_object(argv[2]);
   }
   if (argc == 3 && strcmp(argv[1], "structure-values") == 0) {
     return run_structure_value_object(argv[2]);

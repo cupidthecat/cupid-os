@@ -123,10 +123,27 @@ agree on those three objects. All 83 Doom and platform sources use .cc and
 compile through the checked seed. The wrapper freezes the selected source and
 all 289 profile headers before it publishes an object. Its exact source
 memberships make a missing, renamed, or unlisted root fail the normal build.
+
 It scans visible .c and .cc files beneath the Doom tree before publication, so
 a legacy .c file or an unlisted .cc file also fails. Four-CPU e1000 and RTL8139
 boots pass the no-WAD, missing-IWAD recovery, shell-survival, and full frontier
 checks. Gameplay still needs a staged WAD.
+
+Shared compiler head represents the GNU returns_twice function attribute. A
+marked function must remain a direct call target. Supported calls use four-byte
+cdecl arguments and may return void or any nonaggregate type. A live-prefix
+call protects its surrounding expression with call-owned frame slots, then
+restores those words after cleanup. Such a site fails if any returns-twice
+continuation can reach it again. A marked call with no live prefix may repeat.
+Aggregate, wide-integer, and wider-than-four-byte floating arguments, aggregate
+results, and marked-function pointer conversions fail explicitly.
+
+The corrected dg_setjmp form records the caller stack after a normal return.
+Its declaration uses returns_twice, while dg_longjmp uses noreturn. A
+decoder-driven i386 oracle models first and second returns, but it is not guest
+runtime proof. The active dglibc source and checked seed still use the
+unannotated 27-byte compatibility form; dg_longjmp remains 38 bytes. Seed
+promotion, active-source migration, and guest runtime proof remain open.
 >endtree
 
 >h2 Feature 5: Print Builtin
@@ -361,8 +378,9 @@ Useful commands:
 3) Separate compilation and multi-file linking remain toolchain work. Focused
    tests should isolate each new capability while that support is built.
 4) #pragma once is supported for include-guard patterns.
-5) __attribute__((...)) and common storage/width spellings are accepted
-   mainly so imported examples parse cleanly.
+5) The private compiler accepts __attribute__((...)) mainly for source
+   compatibility. The shared bootstrap compiler gives its documented entity
+   attributes real declaration or call behavior and rejects unknown forms.
 >endtree
 
 >h2 See Also

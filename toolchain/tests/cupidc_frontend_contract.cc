@@ -2065,6 +2065,9 @@ static int run_attributes(const char *host_root) {
       {"noreturn argument",
        "void bad_noreturn(void) __attribute__((noreturn(1)));\n",
        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"returns-twice argument",
+       "int bad_returns_twice(void) __attribute__((returns_twice(1)));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
       {"packed scalar", "unsigned int packed_scalar __attribute__((packed));\n",
        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
       {"noreturn object", "unsigned int returning_object "
@@ -2075,6 +2078,16 @@ static int run_attributes(const char *host_root) {
        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
       {"noreturn member", "struct bad_member { int value "
                           "__attribute__((noreturn)); };\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"returns-twice object", "unsigned int repeated_object "
+                               "__attribute__((returns_twice));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"returns-twice record",
+       "struct repeated_record { int value; } "
+       "__attribute__((returns_twice));\n",
+       CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
+      {"returns-twice member", "struct repeated_member { int value "
+                               "__attribute__((returns_twice)); };\n",
        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE},
       {"attributed parameter specifier",
        "void bad_parameter(int __attribute__((aligned(16))) value);\n",
@@ -2097,6 +2110,21 @@ static int run_attributes(const char *host_root) {
       "disabled GNU attribute",
       "unsigned int disabled __attribute__((aligned(8)));\n",
       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_ATTRIBUTE};
+  static const frontend_failure_case_t contradictory_attributes = {
+      "contradictory function attributes",
+      "int impossible(void) "
+      "__attribute__((noreturn, returns_twice));\n",
+      CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE};
+  static const frontend_failure_case_t contradictory_redeclaration = {
+      "contradictory redeclaration attributes",
+      "int impossible(void) __attribute__((noreturn));\n"
+      "int impossible(void) __attribute__((returns_twice));\n",
+      CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE};
+  static const frontend_failure_case_t reverse_contradictory_redeclaration = {
+      "reverse contradictory redeclaration attributes",
+      "int impossible(void) __attribute__((returns_twice));\n"
+      "int impossible(void) __attribute__((noreturn));\n",
+      CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_ATTRIBUTE};
   static const char *const exec_types[] = {
       "cupd_header_t", "elf32_ehdr_t", "elf32_phdr_t", "elf32_shdr_t",
       "elf32_sym_t"};
@@ -2498,7 +2526,9 @@ static int run_attributes(const char *host_root) {
           "  unsigned char tag;\n"
           "  unsigned int payload;\n"
           "} normalized_t;\n"
-          "__attribute((__noreturn__())) void normalized_fatal(void);\n",
+          "__attribute((__noreturn__())) void normalized_fatal(void);\n"
+          "int normalized_restart(void) "
+          "__attribute((__returns_twice__()));\n",
           &unit) != 0) {
     goto cleanup;
   }
@@ -2506,18 +2536,22 @@ static int run_attributes(const char *host_root) {
     const ctool_c_binding_t *binding = find_binding(&unit, "normalized_t");
     const ctool_c_binding_t *function =
         find_binding(&unit, "normalized_fatal");
+    const ctool_c_binding_t *restart =
+        find_binding(&unit, "normalized_restart");
     const ctool_c_tag_t *normalized_tag = find_tag(&unit, "normalized");
     const ctool_c_type_node_t *normalized_record =
         normalized_tag == NULL ? NULL : type_node(&unit, normalized_tag->type);
     const ctool_c_type_layout_t *normalized_layout =
         normalized_tag == NULL ? NULL : type_layout(&unit, normalized_tag->type);
-    if (binding == NULL || function == NULL || normalized_tag == NULL ||
+    if (binding == NULL || function == NULL || restart == NULL ||
+        normalized_tag == NULL ||
         normalized_record == NULL || normalized_layout == NULL ||
         binding->type != normalized_tag->type ||
         normalized_record->record_packed != CTOOL_TRUE ||
         normalized_record->explicit_alignment != 32u ||
         normalized_layout->size != 32u || normalized_layout->alignment != 32u ||
-        (function->attributes & CTOOL_C_DECL_ATTR_NORETURN) == 0u) {
+        (function->attributes & CTOOL_C_DECL_ATTR_NORETURN) == 0u ||
+        restart->attributes != CTOOL_C_DECL_ATTR_RETURNS_TWICE) {
       (void)fprintf(stderr,
                     "attributes: normalized GNU spellings differ\n");
       goto cleanup;
@@ -2556,6 +2590,38 @@ static int run_attributes(const char *host_root) {
         aligned_function->minimum_alignment != 32u) {
       (void)fprintf(stderr,
                     "attributes: prefix declaration semantics differ\n");
+      goto cleanup;
+    }
+  }
+  if (parse_valid_fixture(
+          &fixture, "/attributes-returns-twice.c",
+          "int restart_first(void) __attribute__((returns_twice));\n"
+          "int restart_first(void);\n"
+          "int restart_later(void);\n"
+          "int restart_later(void) "
+          "__attribute__((__returns_twice__));\n",
+          &unit) != 0) {
+    goto cleanup;
+  }
+  {
+    const ctool_c_binding_t *first =
+        find_binding(&unit, "restart_first");
+    const ctool_c_binding_t *later =
+        find_binding(&unit, "restart_later");
+    if (unit.binding_count != 2u || first == NULL || later == NULL ||
+        first->kind != CTOOL_C_BINDING_FUNCTION ||
+        later->kind != CTOOL_C_BINDING_FUNCTION ||
+        first->attributes != CTOOL_C_DECL_ATTR_RETURNS_TWICE ||
+        later->attributes != CTOOL_C_DECL_ATTR_RETURNS_TWICE ||
+        !dual_location_matches(
+            &first->location, &first->physical_location,
+            "/attributes-returns-twice.c", 1u) ||
+        !dual_location_matches(
+            &later->location, &later->physical_location,
+            "/attributes-returns-twice.c", 3u)) {
+      (void)fprintf(
+          stderr,
+          "attributes: returns-twice binding semantics differ\n");
       goto cleanup;
     }
   }
@@ -2904,6 +2970,45 @@ static int run_attributes(const char *host_root) {
                     "attributes: attributed function body differs\n");
       goto cleanup;
     }
+  }
+  if (parse_valid_fixture(
+          &fixture, "/attributes-returns-twice-body.c",
+          "int restart_body(void) __attribute__((returns_twice)) "
+          "{ return 0; }\n",
+          &unit) != 0) {
+    goto cleanup;
+  }
+  {
+    const ctool_c_binding_t *restart_body =
+        find_binding(&unit, "restart_body");
+    const ctool_c_function_definition_t *definition =
+        unit.function_definition_count == 1u
+            ? &unit.function_definitions[0]
+            : NULL;
+    if (unit.binding_count != 1u || restart_body == NULL ||
+        restart_body->kind != CTOOL_C_BINDING_FUNCTION ||
+        restart_body->attributes != CTOOL_C_DECL_ATTR_RETURNS_TWICE ||
+        definition == NULL ||
+        definition->binding != find_binding_index(&unit, "restart_body")) {
+      (void)fprintf(
+          stderr,
+          "attributes: returns-twice function body differs\n");
+      goto cleanup;
+    }
+  }
+  if (expect_frontend_failure_at_message(
+          &fixture, &contradictory_attributes,
+          "/attributes-contradictory.c", 1u, 5u,
+          "function cannot be both noreturn and returns_twice") != 0 ||
+      expect_frontend_failure_at_message(
+          &fixture, &contradictory_redeclaration,
+          "/attributes-contradictory-redeclaration.c", 2u, 5u,
+          "function cannot be both noreturn and returns_twice") != 0 ||
+      expect_frontend_failure_at_message(
+          &fixture, &reverse_contradictory_redeclaration,
+          "/attributes-reverse-contradictory-redeclaration.c", 2u, 5u,
+          "function cannot be both noreturn and returns_twice") != 0) {
+    goto cleanup;
   }
   for (failure_index = 0u; failure_index < ARRAY_COUNT(failure_cases);
        failure_index++) {
@@ -7654,12 +7759,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.cc", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
        25287u, 479u, 286u, 0u, 0u},
-      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 263u, 7271u,
-       67674u, 956u, 356u, 0u, 0u},
-      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 356u, 8695u,
-       73658u, 1059u, 717u, 0u, 0u},
+      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 263u, 7274u,
+       67702u, 956u, 356u, 0u, 0u},
+      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 358u, 8916u,
+       74933u, 1097u, 737u, 0u, 0u},
       {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 423u,
-       16545u, 109520u, 2492u, 1519u, 0u, 0u},
+       16580u, 109783u, 2492u, 1519u, 0u, 0u},
       {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 82u, 3054u,
        20124u, 338u, 190u, 0u, 0u},
       {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,

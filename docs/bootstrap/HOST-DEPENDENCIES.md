@@ -17,6 +17,14 @@ The checked Windows Clang/LLVM and Linux GCC/binutils baselines at
 revision `1e079d1` predate the current CupidC ownership and remain historical
 oracle evidence.
 
+Source-head `returns_twice` support adds no dependency or transform to that
+graph. Native Clang builds the optional contract and its decoder-driven
+i386 execution oracle, while the supported roots continue to use the unchanged
+checked seed. The oracle is hosted evidence, not a production transform or
+guest runtime proof. The active dglibc compatibility object remains
+byte-identical to its existing lock. Seed promotion and active-source migration
+remain open.
+
 The normal root build sends no C object through GCC or Clang. Checked-seed
 CupidC owns 245 transforms across the three roots. The normal cohort contains
 238 checked-in sources and the generated kernel symbol table; all 239 use

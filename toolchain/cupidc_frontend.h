@@ -61,6 +61,12 @@ typedef enum {
  * and object emission accept only represented control-transfer assembly in
  * the function body. */
 #define CTOOL_C_DECL_ATTR_NAKED 0x00000080u
+/* RETURNS_TWICE marks a function whose direct call may resume after a later
+ * non-local transfer. The i386 emitter preserves every live Linear IR operand
+ * below that call in a call-owned frame slot. A live-prefix call must
+ * not be reachable from any returns-twice continuation, and marked function
+ * designators must remain direct calls so the IR cannot lose this contract. */
+#define CTOOL_C_DECL_ATTR_RETURNS_TWICE 0x00000100u
 #define CTOOL_C_DECL_ATTR_FUNCTION_CODEGEN                                \
   (CTOOL_C_DECL_ATTR_NOINLINE |                                           \
    CTOOL_C_DECL_ATTR_TARGET_GENERAL_REGS_ONLY |                            \
@@ -68,7 +74,8 @@ typedef enum {
 #define CTOOL_C_DECL_ATTR_ALL                                                \
   (CTOOL_C_DECL_ATTR_NORETURN | CTOOL_C_DECL_ATTR_WEAK |                     \
    CTOOL_C_DECL_ATTR_SECTION | CTOOL_C_DECL_ATTR_UNUSED |                    \
-   CTOOL_C_DECL_ATTR_USED | CTOOL_C_DECL_ATTR_FUNCTION_CODEGEN)
+   CTOOL_C_DECL_ATTR_USED | CTOOL_C_DECL_ATTR_FUNCTION_CODEGEN |             \
+   CTOOL_C_DECL_ATTR_RETURNS_TWICE)
 
 #define CTOOL_C_FUNCTION_DECL_INLINE 0x00000001u
 /* Canonical function bindings add this summary when the translation unit
@@ -658,7 +665,7 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * namespaces, declarators, record/enum definitions, fixed or incomplete
  * arrays, prototypes, compatible file-scope redeclarations, composite array
  * and function types, C linkage, layout, and normalized GNU packed, aligned,
- * noreturn, weak, section, unused, used, noinline, naked, and
+ * noreturn, weak, section, unused, used, noinline, naked, returns_twice, and
  * target("general-regs-only") attributes at their contracted placements.
  * Other attributes fail closed instead of being skipped. Type
  * compatibility uses checked iterative graph walks; the public nesting limit

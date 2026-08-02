@@ -273,7 +273,8 @@ used by larger examples and demos:
 - attributes: the private in-OS compiler accepts compatibility spellings; the
   shared bootstrap compiler gives `weak`, `section`, `unused`, and `used`
   canonical declaration meaning, and the current checked seed carries all
-  four into production
+  four into production. Compiler head gives `returns_twice` a direct-call
+  control-flow meaning; the checked seed does not carry that attribute yet
 - labels and `goto` for simple local control-flow cases
 
 Most of these are compatibility front-end features, not a promise of
@@ -474,6 +475,24 @@ the two static-subobject `R_386_32` addends of 4 in unchanged `g_game.cc`, while
 direct-call `R_386_PC32` relocations remain fixed at -4. Private four-CPU
 boots pass the full frontier, no-WAD, missing-IWAD recovery, and shell-survival
 checks on e1000 and RTL8139. Full IWAD gameplay remains a runtime boundary.
+
+Compiler head accepts a corrected dglibc form while retaining the active
+compatibility form. The corrected `dg_setjmp` saves the caller's post-return
+ESP and is declared `returns_twice`; `dg_longjmp` is declared `noreturn`.
+
+A marked function must remain a direct call target. Supported calls use
+four-byte cdecl arguments and may return void or any nonaggregate type. At each
+live-prefix call, the emitter saves the live four-byte expression operands in
+call-owned slots and restores them after cleanup. Branch-exclusive sites use
+separate regions. A live-prefix site fails if any returns-twice
+continuation can reach it again, while a call with no live prefix may repeat.
+Aggregate, wide-integer, and wider-than-four-byte floating arguments,
+aggregate results, and marked-function pointer conversions fail explicitly.
+
+A decoder-driven i386 oracle models first and second returns with transfer
+values zero and seven. It is not guest runtime proof. The checked seed and
+active `kernel/doom/dglibc.cc` still use the compatibility form. ADR 0212
+records the boundary.
 
 The five static i386 Linux tools have a checked seed. The manifest binds their
 hashes, sizes, target ABI, source revision, producer lineage, 19-source plan,

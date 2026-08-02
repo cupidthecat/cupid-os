@@ -255,7 +255,7 @@ the ABI in x87 `ST0`, then a direct or indirect caller stores it in a private
 twelve-byte snapshot. A corresponding `va_arg(long double)` read copies twelve
 bytes and advances the cursor to the next four-byte slot.
 
-The verified hosted suites cover the complete frontend, Linear IR, and object surfaces, with each final count recorded in the chronological log. Focused contracts cover direct and indirect variadic and unprototyped calls, wide and floating values, all six floating comparisons, one-active-member union initializers, canonical function code generation attributes, Doom compatibility conversions, operand-bearing and operand-free assembly, empty memory barriers, pointer output, port I/O, privileged registers, FXSAVE, LDMXCSR, MOVSS, x87 sine memory, descriptor-table and segment transitions, call-next, GNU `Nd`, machine-state memory, the self-host source frontier, deterministic output, malformed metadata, constrained storage, and same-job recovery. Decoder and execution oracles check call alignment, x87 and cdecl stack balance, word order, arithmetic, width conversion, comparisons, structure snapshots, pointer bits, register preservation, cursor movement, preserved arguments, and restored frame state. The adapter gate fixes each function count, text size, object size, and text fingerprint. The tool link gate emits every closure object twice, repeats five command links and the runtime-contract link, and checks rollback and recovery. Public execution covers compilation, assembly, disassembly, linking, object wrapping, include resolution, mixed raw decode modes, missing files, runtime success paths, and useful failures.
+The verified hosted suites cover the complete frontend, Linear IR, and object surfaces, with each final count recorded in the chronological log. Focused contracts cover direct and indirect variadic and unprototyped calls, source-head `returns_twice` call preservation, wide and floating values, all six floating comparisons, one-active-member union initializers, canonical function code generation attributes, Doom compatibility conversions, operand-bearing and operand-free assembly, empty memory barriers, pointer output, port I/O, privileged registers, FXSAVE, LDMXCSR, MOVSS, x87 sine memory, descriptor-table and segment transitions, call-next, GNU `Nd`, machine-state memory, the self-host source frontier, deterministic output, malformed metadata, constrained storage, and same-job recovery. Decoder and execution oracles check call alignment, x87 and cdecl stack balance, word order, arithmetic, width conversion, comparisons, structure snapshots, pointer bits, register preservation, cursor movement, preserved arguments, and restored frame state. The adapter gate fixes each function count, text size, object size, and text fingerprint. The tool link gate emits every closure object twice, repeats five command links and the runtime-contract link, and checks rollback and recovery. Public execution covers compilation, assembly, disassembly, linking, object wrapping, include resolution, mixed raw decode modes, missing files, runtime success paths, and useful failures.
 
 The i386 Linux adapter objects are `ctool_host.cc` at 11 functions, 5,522 text bytes, 6,944 object bytes, fingerprint `28739C3F`, 25 symbols, and 38 relocations; `cupidasm_main.cc` at 13 functions, 9,455 text bytes, 12,384 object bytes, fingerprint `561BBC22`, 56 symbols, and 88 relocations; and `cupiddis_main.cc` at 13 functions, 13,816 text bytes, 17,420 object bytes, fingerprint `E33C130C`, 67 symbols, and 106 relocations. Their exact undefined import counts are 10, 31, and 31. Every relocation targets `.text` and has the checked `R_386_PC32/-4` or `R_386_32/0` shape. An independent `gcc -m32 -nostdinc` syntax pass accepts all three unchanged sources against the declarations.
 
@@ -770,6 +770,24 @@ checked-seed compiler produces the same 27,992-byte dglibc, 14,352-byte
 libc-stub, and 10,232-byte platform objects on two runs. ADR 0183 records the
 five-tool seed promotion. ADR 0184 moves all 83 normal recipes and source
 names to CupidC and `.cc`.
+
+Compiler head accepts both the compatibility form and a corrected form. GNU
+`returns_twice` is canonical function metadata and must remain on a direct
+call target. Supported calls use four-byte cdecl arguments and may
+return void or any nonaggregate type. Each live-prefix call copies the
+four-byte operands below its arguments into a region owned by that instruction,
+then restores them after cdecl cleanup. A live-prefix site fails if any
+returns-twice continuation can reach it again; a call with no live prefix may
+repeat. Aggregate, wide-integer, and wider-than-four-byte floating arguments,
+aggregate results, and marked-function pointer conversions fail explicitly.
+
+The corrected `dg_setjmp` body saves `ESP + 4`, occupies 31 bytes, and requires
+`returns_twice`; its matching `dg_longjmp` declaration requires `noreturn`. A
+decoder-driven i386 oracle models first and second returns with transfer values
+zero and seven, but it is not guest runtime proof. The checked seed and active
+`kernel/doom/dglibc.cc` still use the unannotated 27-byte compatibility form;
+`dg_longjmp` remains 38 bytes. Seed promotion, active-source migration, and
+guest runtime proof remain open. ADR 0212 records this compiler boundary.
 
 The Doom production wrapper has exact three-source and 80-source allowlists.
 It freezes the selected source and all 289 `.h` and `.inc` inputs visible

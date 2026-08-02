@@ -886,6 +886,24 @@ preserves the explicit static string cast in `doom_libc_stubs.cc` and emits the 
 Two checked-seed compiles produce the same 27,992-byte, 14,352-byte, and
 10,232-byte objects for each root. All 83 sources use `.cc`.
 
+Compiler head represents GNU `returns_twice` on file-scope function
+declarations and merges the attribute across compatible redeclarations. A
+marked function must be called directly; conversion to a function pointer is
+rejected. Supported calls use four-byte cdecl arguments and may return void or
+any nonaggregate type. The emitter saves each live four-byte Linear IR operand
+below the arguments in call-owned frame slots, then restores those words after
+caller cleanup. A live-prefix call is rejected if any returns-twice
+continuation can reach it again, while a call with no live prefix may repeat.
+Aggregate, wide-integer, and wider-than-four-byte floating arguments and
+aggregate results fail with specific diagnostics.
+
+The corrected dglibc assembly form saves the caller's post-return ESP, requires
+`returns_twice` on `dg_setjmp`, and requires `noreturn` on `dg_longjmp`. The
+checked seed and active `kernel/doom/dglibc.cc` remain on the unannotated
+27-byte compatibility form; `dg_longjmp` remains 38 bytes. A decoder-driven
+i386 oracle models the emitted caller's first and second returns with transfer
+values zero and seven. This is hosted model evidence, not guest runtime proof.
+
 The wrapper freezes each selected source and the complete 289-file header and
 include space for both profiles. Its content-addressed manifest fixes the
 three-source and 80-source memberships. It scans the visible Doom tree before
@@ -920,6 +938,16 @@ neither is a trustworthy default. Linker capacity checks remain separate
 safety gates.
 
 Hosted i386 object emission places ESP on a sixteen-byte boundary immediately before every `CALL`. The emitter derives padding from the function frame, the live Linear IR stack depth, and any outgoing target-sized argument area. Direct and indirect calls use the same rule for prototyped, variadic, unprototyped, nested, structure, and wide cases, with zero, four, eight, or twelve bytes of padding as needed.
+
+A direct call marked `returns_twice` also uses that depth record to count its
+live operand prefix. Compiler head spills the prefix before argument reversal
+and call padding, restores it after cleanup, and then publishes the call
+result. Each supported live-prefix call owns its spill region. The emitter
+rejects a live-prefix site that any returns-twice continuation can reach again;
+a call with no live prefix may repeat in a loop. Arguments use four-byte cdecl
+transport, while the result may be void or any nonaggregate type. Unmarked
+calls retain their existing paths. CupidC rejects conversion of a marked
+function to a function pointer.
 
 Variadic calls and callees follow that same hosted path. The frontend applies lvalue conversion, array and function decay, integer promotion, and `float` to `double` promotion to each ellipsis argument as required. Every call instruction owns a contiguous slice of post-conversion actual argument types in a packed Linear IR array. A shared validator requires one complete ordered partition and rejects gaps, overlaps, invalid types, trailing entries, and metadata on non-call instructions. Named slots use declared parameter types after compatibility checking, while unnamed slots use the packed actual types. The i386 emitter uses the validated slice and actual count for cdecl argument order, slot widths, indirect callee placement, alignment, and caller cleanup. Direct and indirect calls can pass represented four-byte integers and pointers, signed and unsigned eight-byte integers, an existing `double` or `long double`, or a source `float` promoted to `double`. The `long double` path works for fixed, ellipsis, and unprototyped calls. A wide integer or `double` unnamed argument uses two adjacent cdecl words; a `long double` uses three. Arguments occupy increasing addresses in source order, with lower words first. Each argument still has one abstract IR handle, and an indirect callee remains below the argument handles while the emitter prepares the outgoing area.
 
@@ -1012,6 +1040,8 @@ invokes a host C compiler.
 [ADR 0176](docs/adr/0176-transfer-libm-to-cupidc.md) records the checked production recipe, byte-preserving `.cc` rename, complete frontier, image, and guest libm proof.
 
 [ADR 0207](docs/adr/0207-represent-forward-x87-stack-subtraction.md) records the corrected exponent range subtraction, its shared x86 form, and the legacy compatibility boundary before seed promotion.
+
+[ADR 0212](docs/adr/0212-preserve-returns-twice-call-operands.md) records the GNU `returns_twice` declaration and direct-call contract, call-owned live-operand spills, the reentry guard, the modeled second-return proof, and the corrected post-return dglibc stack frame.
 
 [ADR 0178](docs/adr/0178-represent-active-packed-sse2-assembly.md) records the six exact packed SSE2 statement shapes and complete compiler-head SIMD object.
 

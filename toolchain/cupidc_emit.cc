@@ -127,6 +127,7 @@ typedef struct {
   ctool_u32 *compound_literal_offsets;
   ctool_u32 *compound_literal_staging_offsets;
   ctool_u32 *value_temporary_offsets;
+  ctool_u32 *returns_twice_spill_offsets;
   ctool_bool *binding_needed;
   ctool_bool *initializer_is_zero;
   ctool_u32 literal_count;
@@ -1033,6 +1034,40 @@ static ctool_status_t cemit_index_definitions(cemit_context_t *context) {
 static ctool_bool cemit_x87_fraction_template_equal(
     ctool_string_t value, const char *corrected_literal);
 
+static ctool_bool cemit_dglibc_legacy_template_equal(
+    ctool_string_t text) {
+  static const char legacy_template[] =
+      ".global dg_setjmp\n"
+      "dg_setjmp:\n"
+      "    movl  4(%esp), %eax\n"
+      "    movl  %ebx,  0(%eax)\n"
+      "    movl  %esi,  4(%eax)\n"
+      "    movl  %edi,  8(%eax)\n"
+      "    movl  %ebp, 12(%eax)\n"
+      "    movl  %esp, 16(%eax)\n"
+      "    movl  (%esp), %ecx\n"
+      "    movl  %ecx, 20(%eax)\n"
+      "    xorl  %eax, %eax\n"
+      "    ret\n"
+      ".global dg_longjmp\n"
+      "dg_longjmp:\n"
+      "    movl  4(%esp), %eax\n"
+      "    movl  8(%esp), %ecx\n"
+      "    testl %ecx, %ecx\n"
+      "    jnz   1f\n"
+      "    movl  $1, %ecx\n"
+      "1:\n"
+      "    movl  0(%eax), %ebx\n"
+      "    movl  4(%eax), %esi\n"
+      "    movl  8(%eax), %edi\n"
+      "    movl 12(%eax), %ebp\n"
+      "    movl 16(%eax), %esp\n"
+      "    movl 20(%eax), %edx\n"
+      "    movl  %ecx,  %eax\n"
+      "    jmp  *%edx\n";
+  return cemit_strings_equal(text, ctool_string(legacy_template));
+}
+
 static cemit_file_assembly_kind_t cemit_file_assembly_template_kind(
     ctool_string_t text) {
   static const char *const templates[] = {
@@ -1353,7 +1388,8 @@ static cemit_file_assembly_kind_t cemit_file_assembly_template_kind(
       "    movl  %esi,  4(%eax)\n"
       "    movl  %edi,  8(%eax)\n"
       "    movl  %ebp, 12(%eax)\n"
-      "    movl  %esp, 16(%eax)\n"
+      "    leal  4(%esp), %ecx\n"
+      "    movl  %ecx, 16(%eax)\n"
       "    movl  (%esp), %ecx\n"
       "    movl  %ecx, 20(%eax)\n"
       "    xorl  %eax, %eax\n"
@@ -1375,6 +1411,9 @@ static cemit_file_assembly_kind_t cemit_file_assembly_template_kind(
       "    movl  %ecx,  %eax\n"
       "    jmp  *%edx\n"};
   ctool_u32 kind;
+  if (cemit_dglibc_legacy_template_equal(text) == CTOOL_TRUE) {
+    return CEMIT_FILE_ASSEMBLY_DGLIBC_JUMPS;
+  }
   for (kind = 1u; kind < CEMIT_FILE_ASSEMBLY_COUNT; kind++) {
     if (cemit_strings_equal(text, ctool_string(templates[kind])) ==
             CTOOL_TRUE ||
@@ -1716,6 +1755,9 @@ static ctool_status_t cemit_index_file_assemblies(
     if (kind == CEMIT_FILE_ASSEMBLY_DGLIBC_JUMPS) {
       ctool_u32 setjmp_binding = CTOOL_C_AST_NONE;
       ctool_u32 longjmp_binding = CTOOL_C_AST_NONE;
+      ctool_bool legacy =
+          cemit_dglibc_legacy_template_equal(
+              assembly->template_text);
       for (binding = 0u; binding < context->unit->binding_count; binding++) {
         const ctool_c_binding_t *candidate =
             &context->unit->bindings[binding];
@@ -1747,8 +1789,14 @@ static ctool_status_t cemit_index_file_assemblies(
             longjmp_candidate->linkage != CTOOL_C_LINKAGE_EXTERNAL ||
             setjmp_candidate->file_scope_visible != CTOOL_TRUE ||
             longjmp_candidate->file_scope_visible != CTOOL_TRUE ||
-            setjmp_candidate->attributes != 0u ||
-            longjmp_candidate->attributes != 0u ||
+            setjmp_candidate->attributes !=
+                (legacy == CTOOL_TRUE
+                     ? 0u
+                     : CTOOL_C_DECL_ATTR_RETURNS_TWICE) ||
+            longjmp_candidate->attributes !=
+                (legacy == CTOOL_TRUE
+                     ? 0u
+                     : CTOOL_C_DECL_ATTR_NORETURN) ||
             context->binding_function_definitions[setjmp_binding] !=
                 CTOOL_C_AST_NONE ||
             context->binding_function_definitions[longjmp_binding] !=
@@ -2006,6 +2054,17 @@ static ctool_status_t cemit_index_initializers(cemit_context_t *context) {
       }
       if (initializer->address_kind ==
           CTOOL_C_INITIALIZER_ADDRESS_BINDING) {
+        const ctool_c_binding_t *addressed = &context->unit->bindings
+            [initializer->address_reference];
+        if (addressed->kind == CTOOL_C_BINDING_FUNCTION &&
+            (addressed->attributes &
+             CTOOL_C_DECL_ATTR_RETURNS_TWICE) != 0u) {
+          return cemit_emit_failure(
+              context, CTOOL_ERR_UNSUPPORTED,
+              CTOOL_C_EMIT_DIAG_INITIALIZER, &initializer->location,
+              "CupidC requires returns_twice functions to be called "
+              "directly instead of stored in a function pointer");
+        }
         context->binding_needed[initializer->address_reference] = CTOOL_TRUE;
       }
     } else if (initializer->kind == CTOOL_C_INITIALIZER_LIST) {
@@ -2246,6 +2305,8 @@ static ctool_status_t cemit_ensure_binding_symbol(
        binding->linkage != CTOOL_C_LINKAGE_EXTERNAL) ||
       (binding->attributes & ~CTOOL_C_DECL_ATTR_ALL) != 0u ||
       ((binding->attributes & CTOOL_C_DECL_ATTR_NORETURN) != 0u &&
+       binding->kind != CTOOL_C_BINDING_FUNCTION) ||
+      ((binding->attributes & CTOOL_C_DECL_ATTR_RETURNS_TWICE) != 0u &&
        binding->kind != CTOOL_C_BINDING_FUNCTION) ||
       ((binding->attributes &
         CTOOL_C_DECL_ATTR_FUNCTION_CODEGEN) != 0u &&
@@ -7637,11 +7698,13 @@ static ctool_status_t cemit_emit_outgoing_area_call(
 static ctool_status_t cemit_emit_direct_call(
     cemit_context_t *context,
     const ctool_c_ir_instruction_t *instruction,
-    ctool_u32 temporary_offset, ctool_u32 stack_base_residue,
-    ctool_u32 frame_size, ctool_u32 stack_depth) {
+    ctool_u32 temporary_offset, ctool_u32 returns_twice_spill_offset,
+    ctool_u32 stack_base_residue, ctool_u32 frame_size,
+    ctool_u32 stack_depth) {
   const ctool_c_binding_t *binding;
   const ctool_c_type_node_t *function_type;
   ctool_bool uses_outgoing_area;
+  ctool_bool returns_twice;
   ctool_u32 argument;
   ctool_u32 argument_bytes;
   ctool_u32 padding;
@@ -7652,6 +7715,10 @@ static ctool_status_t cemit_emit_direct_call(
     return CTOOL_ERR_INTERNAL;
   }
   binding = &context->unit->bindings[instruction->reference];
+  returns_twice =
+      (binding->attributes & CTOOL_C_DECL_ATTR_RETURNS_TWICE) != 0u
+          ? CTOOL_TRUE
+          : CTOOL_FALSE;
   function_type = cemit_unwrapped_type(context, instruction->input_type);
   if (binding->kind != CTOOL_C_BINDING_FUNCTION ||
       cemit_ir_function_types_match(
@@ -7682,6 +7749,14 @@ static ctool_status_t cemit_emit_direct_call(
   if (status != CTOOL_OK) {
     return status;
   }
+  if (returns_twice == CTOOL_TRUE &&
+      uses_outgoing_area == CTOOL_TRUE) {
+    return cemit_emit_failure(
+        context, CTOOL_ERR_UNSUPPORTED,
+        CTOOL_C_EMIT_DIAG_UNSUPPORTED, &instruction->location,
+        "returns_twice calls currently require four-byte cdecl arguments "
+        "and a non-aggregate result");
+  }
   symbol = context->binding_symbols[instruction->reference];
   if (symbol == CTOOL_C_AST_NONE || symbol >= context->symbol_count) {
     return CTOOL_ERR_INTERNAL;
@@ -7691,6 +7766,46 @@ static ctool_status_t cemit_emit_direct_call(
         context, instruction, function_type, CTOOL_TRUE, symbol,
         temporary_offset, stack_base_residue, frame_size,
         stack_depth);
+  }
+  if (returns_twice == CTOOL_TRUE) {
+    ctool_u32 live_count;
+    ctool_u32 live_index;
+    ctool_u32 argument_bytes_for_spill;
+    if (stack_depth < instruction->argument_count ||
+        cemit_multiply_overflows(instruction->argument_count, 4u) ==
+            CTOOL_TRUE) {
+      return CTOOL_ERR_INTERNAL;
+    }
+    live_count = stack_depth - instruction->argument_count;
+    argument_bytes_for_spill = instruction->argument_count * 4u;
+    if ((live_count == 0u &&
+         returns_twice_spill_offset != CTOOL_C_AST_NONE) ||
+        (live_count != 0u &&
+         returns_twice_spill_offset == CTOOL_C_AST_NONE)) {
+      return CTOOL_ERR_INTERNAL;
+    }
+    for (live_index = 0u; status == CTOOL_OK &&
+                         live_index < live_count;
+         live_index++) {
+      ctool_u32 stack_offset;
+      ctool_u32 local_byte_offset;
+      if (cemit_multiply_overflows(live_index, 4u) == CTOOL_TRUE ||
+          cemit_add_overflows(argument_bytes_for_spill,
+                              live_index * 4u) == CTOOL_TRUE) {
+        return CTOOL_ERR_OVERFLOW;
+      }
+      local_byte_offset = live_index * 4u;
+      stack_offset = argument_bytes_for_spill + local_byte_offset;
+      status = cemit_x86_load_stack(context, 0u, stack_offset);
+      if (status == CTOOL_OK) {
+        status = cemit_x86_store_local_register(
+            context, returns_twice_spill_offset,
+            local_byte_offset, 0u);
+      }
+    }
+    if (status != CTOOL_OK) {
+      return status;
+    }
   }
   for (argument = 0u; status == CTOOL_OK &&
                       argument < instruction->argument_count / 2u;
@@ -7730,6 +7845,27 @@ static ctool_status_t cemit_emit_direct_call(
   }
   argument_bytes += padding;
   status = cemit_x86_discard_arguments(context, argument_bytes);
+  if (status == CTOOL_OK && returns_twice == CTOOL_TRUE) {
+    ctool_u32 live_count =
+        stack_depth - instruction->argument_count;
+    ctool_u32 live_index;
+    for (live_index = 0u; status == CTOOL_OK &&
+                         live_index < live_count;
+         live_index++) {
+      ctool_u32 local_byte_offset;
+      if (cemit_multiply_overflows(live_index, 4u) == CTOOL_TRUE) {
+        return CTOOL_ERR_OVERFLOW;
+      }
+      local_byte_offset = live_index * 4u;
+      status = cemit_x86_load_local_register(
+          context, 1u, returns_twice_spill_offset,
+          local_byte_offset);
+      if (status == CTOOL_OK) {
+        status = cemit_x86_store_stack(
+            context, local_byte_offset, 1u);
+      }
+    }
+  }
   if (status == CTOOL_OK &&
       cemit_ir_type_is_wide_integer(context, instruction->type) ==
           CTOOL_TRUE) {
@@ -11708,6 +11844,7 @@ static ctool_status_t cemit_emit_ir_instruction(
     const ctool_c_type_node_t *function_type,
     const ctool_u32 *block_binding_offsets, ctool_u32 ir_offset,
     ctool_u32 value_temporary_offset,
+    ctool_u32 returns_twice_spill_offset,
     ctool_u32 stack_base_residue, ctool_u32 frame_size,
     ctool_u32 stack_depth,
     ctool_u32 *branch_patches, ctool_u32 *branch_afters) {
@@ -13546,6 +13683,7 @@ static ctool_status_t cemit_emit_ir_instruction(
   if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_CALL_DIRECT) {
     return cemit_emit_direct_call(
         context, ir_instruction, value_temporary_offset,
+        returns_twice_spill_offset,
         stack_base_residue, frame_size, stack_depth);
   }
   if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_CALL_INDIRECT) {
@@ -14454,6 +14592,176 @@ static ctool_status_t cemit_prepare_local_offsets(
   return CTOOL_OK;
 }
 
+static ctool_status_t cemit_prepare_returns_twice_spills(
+    cemit_context_t *context,
+    const ctool_c_ir_function_t *function,
+    const ctool_u32 *stack_depths, ctool_u32 *frame_size) {
+  ctool_u32 *visited = (ctool_u32 *)0;
+  ctool_u32 *worklist = (ctool_u32 *)0;
+  ctool_u32 worklist_count = 0u;
+  ctool_u32 worklist_cursor = 0u;
+  ctool_bool has_live_prefix_call = CTOOL_FALSE;
+  ctool_u32 index;
+  if (function == (const ctool_c_ir_function_t *)0 ||
+      frame_size == (ctool_u32 *)0 ||
+      (function->instruction_count != 0u &&
+       (stack_depths == (const ctool_u32 *)0 ||
+        context->returns_twice_spill_offsets ==
+            (ctool_u32 *)0))) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  for (index = 0u; index < function->instruction_count; index++) {
+    ctool_u32 absolute = function->first_instruction + index;
+    const ctool_c_ir_instruction_t *instruction =
+        &context->ir.instructions[absolute];
+    const ctool_c_binding_t *binding;
+    context->returns_twice_spill_offsets[absolute] =
+        CTOOL_C_AST_NONE;
+    if (instruction->kind != CTOOL_C_IR_INSTRUCTION_CALL_DIRECT) {
+      continue;
+    }
+    if (instruction->reference >= context->unit->binding_count) {
+      return CTOOL_ERR_INTERNAL;
+    }
+    binding = &context->unit->bindings[instruction->reference];
+    if ((binding->attributes & CTOOL_C_DECL_ATTR_RETURNS_TWICE) ==
+        0u) {
+      continue;
+    }
+    if (stack_depths[index] == CTOOL_C_AST_NONE ||
+        stack_depths[index] < instruction->argument_count) {
+      return CTOOL_ERR_INTERNAL;
+    }
+    if (stack_depths[index] > instruction->argument_count) {
+      has_live_prefix_call = CTOOL_TRUE;
+    }
+  }
+  if (has_live_prefix_call == CTOOL_FALSE) {
+    return CTOOL_OK;
+  }
+  {
+    ctool_status_t allocation_status = cemit_alloc_array(
+        context, function->instruction_count,
+        (ctool_u32)sizeof(ctool_u32), (void **)&visited);
+    if (allocation_status == CTOOL_OK) {
+      allocation_status = cemit_alloc_array(
+          context, function->instruction_count,
+          (ctool_u32)sizeof(ctool_u32), (void **)&worklist);
+    }
+    if (allocation_status != CTOOL_OK) {
+      return allocation_status;
+    }
+  }
+  for (index = 0u; index < function->instruction_count; index++) {
+    visited[index] = 0u;
+  }
+  for (index = 0u; index < function->instruction_count; index++) {
+    const ctool_c_ir_instruction_t *instruction =
+        &context->ir.instructions[function->first_instruction + index];
+    const ctool_c_binding_t *binding;
+    ctool_u32 continuation;
+    if (instruction->kind != CTOOL_C_IR_INSTRUCTION_CALL_DIRECT) {
+      continue;
+    }
+    binding = &context->unit->bindings[instruction->reference];
+    if ((binding->attributes & CTOOL_C_DECL_ATTR_RETURNS_TWICE) == 0u) {
+      continue;
+    }
+    if (index + 1u >= function->instruction_count) {
+      return CTOOL_ERR_INTERNAL;
+    }
+    continuation = index + 1u;
+    if (visited[continuation] == 0u) {
+      if (worklist_count >= function->instruction_count) {
+        return CTOOL_ERR_INTERNAL;
+      }
+      visited[continuation] = 1u;
+      worklist[worklist_count++] = continuation;
+    }
+  }
+  while (worklist_cursor < worklist_count) {
+    ctool_u32 relative = worklist[worklist_cursor++];
+    const ctool_c_ir_instruction_t *candidate =
+        &context->ir.instructions[function->first_instruction + relative];
+    ctool_u32 successor_count = 0u;
+    ctool_u32 successors[2];
+    ctool_u32 successor_index;
+    ctool_bool falls_through = CTOOL_TRUE;
+    if (candidate->kind == CTOOL_C_IR_INSTRUCTION_CALL_DIRECT) {
+      const ctool_c_binding_t *binding =
+          &context->unit->bindings[candidate->reference];
+      if ((binding->attributes & CTOOL_C_DECL_ATTR_RETURNS_TWICE) != 0u &&
+          stack_depths[relative] > candidate->argument_count) {
+        return cemit_emit_failure(
+            context, CTOOL_ERR_UNSUPPORTED,
+            CTOOL_C_EMIT_DIAG_UNSUPPORTED, &candidate->location,
+            "returns_twice calls with live expression operands must not be "
+            "reachable again after a returns_twice checkpoint");
+      }
+    }
+    if (candidate->kind == CTOOL_C_IR_INSTRUCTION_RETURN_VALUE ||
+        candidate->kind == CTOOL_C_IR_INSTRUCTION_RETURN_VOID) {
+      continue;
+    }
+    if (candidate->kind == CTOOL_C_IR_INSTRUCTION_JUMP ||
+        candidate->kind == CTOOL_C_IR_INSTRUCTION_BRANCH_ZERO) {
+      successors[successor_count++] = candidate->reference;
+      if (candidate->kind == CTOOL_C_IR_INSTRUCTION_JUMP) {
+        falls_through = CTOOL_FALSE;
+      }
+    }
+    if (falls_through == CTOOL_TRUE) {
+      if (relative + 1u >= function->instruction_count) {
+        return CTOOL_ERR_INTERNAL;
+      }
+      successors[successor_count++] = relative + 1u;
+    }
+    for (successor_index = 0u; successor_index < successor_count;
+         successor_index++) {
+      ctool_u32 successor = successors[successor_index];
+      if (successor >= function->instruction_count) {
+        return CTOOL_ERR_INTERNAL;
+      }
+      if (visited[successor] == 0u) {
+        if (worklist_count >= function->instruction_count) {
+          return CTOOL_ERR_INTERNAL;
+        }
+        visited[successor] = 1u;
+        worklist[worklist_count++] = successor;
+      }
+    }
+  }
+  for (index = 0u; index < function->instruction_count; index++) {
+    ctool_u32 absolute = function->first_instruction + index;
+    const ctool_c_ir_instruction_t *instruction =
+        &context->ir.instructions[absolute];
+    const ctool_c_binding_t *binding;
+    ctool_u32 live_count;
+    ctool_u32 spill_bytes;
+    if (instruction->kind != CTOOL_C_IR_INSTRUCTION_CALL_DIRECT) {
+      continue;
+    }
+    binding = &context->unit->bindings[instruction->reference];
+    if ((binding->attributes & CTOOL_C_DECL_ATTR_RETURNS_TWICE) == 0u) {
+      continue;
+    }
+    live_count = stack_depths[index] - instruction->argument_count;
+    if (live_count == 0u) {
+      continue;
+    }
+    if (cemit_multiply_overflows(live_count, 4u) == CTOOL_TRUE) {
+      return CTOOL_ERR_OVERFLOW;
+    }
+    spill_bytes = live_count * 4u;
+    if (*frame_size > 0x7fffffffu - spill_bytes) {
+      return CTOOL_ERR_OVERFLOW;
+    }
+    *frame_size += spill_bytes;
+    context->returns_twice_spill_offsets[absolute] = *frame_size;
+  }
+  return CTOOL_OK;
+}
+
 static ctool_status_t cemit_validate_general_regs_only_codegen(
     cemit_context_t *context, const ctool_c_ir_function_t *function,
     const ctool_c_pp_location_t *location) {
@@ -15114,8 +15422,8 @@ static ctool_status_t cemit_place_exp_log_constants(
 }
 
 static ctool_status_t cemit_emit_dglibc_setjmp_body(
-    cemit_context_t *context) {
-  static const ctool_u8 saved_registers[] = {3u, 6u, 7u, 5u, 4u};
+    cemit_context_t *context, ctool_bool legacy) {
+  static const ctool_u8 saved_registers[] = {3u, 6u, 7u, 5u};
   ctool_u32 index;
   ctool_status_t status = cemit_x86_load_stack(context, 0u, 4u);
   for (index = 0u; status == CTOOL_OK &&
@@ -15123,6 +15431,16 @@ static ctool_status_t cemit_emit_dglibc_setjmp_body(
        index++) {
     status = cemit_x86_store_register_at_register_offset(
         context, 0u, index * 4u, saved_registers[index]);
+  }
+  if (status == CTOOL_OK && legacy == CTOOL_TRUE) {
+    status = cemit_x86_store_register_at_register_offset(
+        context, 0u, 16u, 4u);
+  } else if (status == CTOOL_OK) {
+    status = cemit_x86_lea_stack(context, 1u, 4u);
+    if (status == CTOOL_OK) {
+      status = cemit_x86_store_register_at_register_offset(
+          context, 0u, 16u, 1u);
+    }
   }
   if (status == CTOOL_OK) {
     status = cemit_x86_load_stack(context, 1u, 0u);
@@ -15227,7 +15545,9 @@ static ctool_status_t cemit_place_dglibc_jumps(
   context->active_text = context->text;
   context->active_text_section = CEMIT_SECTION_TEXT;
   setjmp_start = ctool_buffer_view(context->text).size;
-  status = cemit_emit_dglibc_setjmp_body(context);
+  status = cemit_emit_dglibc_setjmp_body(
+      context,
+      cemit_dglibc_legacy_template_equal(assembly->template_text));
   setjmp_size = ctool_buffer_view(context->text).size - setjmp_start;
   longjmp_start = ctool_buffer_view(context->text).size;
   if (status == CTOOL_OK) {
@@ -15568,13 +15888,17 @@ static ctool_status_t cemit_place_function(cemit_context_t *context,
   if (status == CTOOL_OK) {
     status = cemit_prepare_local_offsets(context, function, &frame_size);
   }
-  if (status == CTOOL_OK && naked == CTOOL_TRUE &&
-      frame_size != 0u) {
-    status = cemit_invalid_unit(context, &definition->location);
-  }
   if (status == CTOOL_OK) {
     status = cemit_analyze_stack_depths(
         context, function, &stack_depths);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_prepare_returns_twice_spills(
+        context, function, stack_depths, &frame_size);
+  }
+  if (status == CTOOL_OK && naked == CTOOL_TRUE &&
+      frame_size != 0u) {
+    status = cemit_invalid_unit(context, &definition->location);
   }
   for (index = 0u; status == CTOOL_OK &&
                     index < function->instruction_count;
@@ -15671,6 +15995,8 @@ static ctool_status_t cemit_place_function(cemit_context_t *context,
           context, instruction, function_type,
           context->block_binding_offsets, index,
           context->value_temporary_offsets
+              [function->first_instruction + index],
+          context->returns_twice_spill_offsets
               [function->first_instruction + index],
           stack_base_residue, frame_size, stack_depths[index],
           branch_patches, branch_afters);
@@ -16065,6 +16391,12 @@ ctool_status_t ctool_c_emit_object(
         &context, context.ir.instruction_count,
         (ctool_u32)sizeof(ctool_u32),
         (void **)&context.value_temporary_offsets);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_alloc_array(
+        &context, context.ir.instruction_count,
+        (ctool_u32)sizeof(ctool_u32),
+        (void **)&context.returns_twice_spill_offsets);
   }
   if (status == CTOOL_OK) {
     status = cemit_index_definitions(&context);

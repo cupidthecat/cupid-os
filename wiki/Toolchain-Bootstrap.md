@@ -326,6 +326,23 @@ drift, a symbolic link, or an NTFS junction fails closed. The 51,492-byte
 `g_game.cc` object keeps two `R_386_32` relocations
 with addend 4. Full IWAD gameplay remains a separate runtime gate.
 
+Compiler head represents GNU `returns_twice` on file-scope function
+declarations. Marked functions must remain direct call targets. Supported
+calls use four-byte cdecl arguments and may return void or any nonaggregate
+type. The emitter preserves live four-byte expression operands in call-owned
+frame slots. It rejects a live-prefix site that any returns-twice continuation
+can reach again, while a call with no live prefix may repeat. Aggregate,
+wide-integer, and wider-than-four-byte floating arguments, aggregate results,
+and marked-function pointer conversions fail explicitly.
+
+The corrected dglibc template saves the post-return ESP and requires
+`returns_twice` on `dg_setjmp` and `noreturn` on `dg_longjmp`. A decoder-driven
+i386 oracle models first and second returns, but it is not guest runtime proof.
+The checked seed and active `kernel/doom/dglibc.cc` still use the compatibility
+template. This boundary changes no production owner or host dependency. Seed
+promotion, active-source migration, and guest runtime proof remain open. ADR
+0212 records the decision.
+
 The checked seed resolves the C11 inline declaration set in
 `kernel/audio/nuked_opl3.cc`. The ordinary declaration in its header means
 the later inline body provides a global `OPL3_Generate4Ch` definition. Two

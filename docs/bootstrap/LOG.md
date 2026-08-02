@@ -19302,3 +19302,102 @@ floating arrays inside records. Persistent REPL floating arrays use the same
 checked declaration path but do not yet have a separate execution fixture.
 This work moves no source owner and adds no host dependency. ADR 0210 records
 the boundary. `TempleOS/` remains untouched reference material.
+
+## 2026-08-01: Preserve live operands across returns-twice calls
+
+An ordinary CupidC call leaves the surrounding expression operands on the
+machine stack. That is safe for a function that returns once. It is not safe
+for `dg_setjmp`, because a later `dg_longjmp` resumes after the call and must
+find the same pending assignment address or arithmetic operand.
+
+Compiler head represents GNU `returns_twice` and `__returns_twice__` on
+file-scope function declarations. Compatible redeclarations merge the
+attribute onto the canonical function binding. Objects, records, members, and
+nonempty attribute arguments fail with the existing attribute diagnostic. A
+marked function must remain a direct call target. Linear IR rejects automatic
+function-pointer conversion, and static initializer emission rejects a stored
+marked-function address.
+
+The i386 emitter uses the validated Linear IR stack depth to find each live
+four-byte operand below a supported call's arguments. It copies those words to
+a frame region owned by the call, performs the aligned call and caller cleanup,
+restores the words, and then publishes the call result. Supported calls use
+four-byte cdecl arguments and may return void or any nonaggregate type. The
+positive fixtures cover zero and multiple arguments plus `int`, void,
+`long long`, and `double` results.
+
+Each live-prefix call has its own spill region. Before allocating any of them,
+the emitter seeds one multi-source control-flow traversal with the continuation
+after every returns-twice call in the function. Each reachable instruction and
+edge is processed at most once, so the safety check is linear in the function's
+IR graph. Emission fails if the traversal reaches a live-prefix site. This
+rejects a checkpoint inside a loop and a later live-prefix checkpoint reachable
+after an earlier one. A marked call with no live prefix allocates no spill
+region and may repeat in a loop. Branch-exclusive live-prefix calls remain
+valid.
+
+The corrected dglibc template saves `ESP + 4`, emits a 31-byte `dg_setjmp`, and
+requires `returns_twice` on its declaration. Its 38-byte `dg_longjmp` requires
+`noreturn`. Compiler head also retains the unannotated 27-byte compatibility
+form used by the checked seed and active `kernel/doom/dglibc.cc`. The two forms
+remain separate; the compatibility source is not reinterpreted as the
+corrected sequence.
+
+The base deterministic call object has 334 text bytes, fingerprint
+`FCE5B12C`, five `R_386_PC32` relocations, and exact spill and restore
+sequences. It covers a call with no live prefix, an initializer with a hidden
+lvalue, arithmetic with one live operand, and two branch-exclusive live-prefix
+sites. Separate fixtures prove attribute propagation through a later
+file-scope declaration, a block declaration, and an attributed definition.
+A 64-branch switch fixture covers mutually exclusive live-prefix calls that
+converge on one shared tail. Decoder validation requires all 64 calls and 64
+restores, with each restore matched to a frame store. Negative cases reject
+live-prefix self-reentry, reentry from an earlier checkpoint, automatic and
+static function-pointer conversions, aggregate, wide-integer, and `double`
+arguments, an aggregate result, and constrained output. A constrained failure
+is followed by byte-identical same-job recovery.
+
+A decoder-driven i386 execution oracle models first and second returns with
+transfer values zero and seven. It checks sixteen-byte call alignment, the
+restored live operand, zero-to-one normalization, the final result, and the
+saved stack, frame, and register state. The oracle executes a model of the
+emitted caller. It does not run active dglibc in a guest.
+
+The following focused commands passed:
+
+```text
+make -C toolchain native-oracles
+toolchain/build/cupidc-frontend-contract.exe attributes C:\Users\admin\Desktop\cupid-os-integrate
+toolchain/build/cupidc-frontend-contract.exe aggregate-values C:\Users\admin\Desktop\cupid-os-integrate
+toolchain/build/cupidc-object-contract.exe dglibc-jump-assembly C:\Users\admin\Desktop\cupid-os-integrate
+toolchain/build/cupidc-object-contract.exe returns-twice-calls C:\Users\admin\Desktop\cupid-os-integrate
+python -m unittest tests.test_toolchain_cupidc_object.ToolchainCupidCObjectContractTests.test_dglibc_file_scope_jumps_emit_exact_i386_functions tests.test_toolchain_cupidc_object.ToolchainCupidCObjectContractTests.test_returns_twice_calls_preserve_live_expression_operands
+python -m unittest tests.test_toolchain_cupidc_object.ToolchainCupidCObjectContractTests.test_cupidc_exact_doom_compat_profile_is_complete_and_self_hosted
+```
+
+The exact three-root test compiles the unchanged Doom compatibility roots with
+native source-head CupidC and Cupid-built source-head CupidC. Their outputs
+match each other and the existing size and SHA-256 locks. This is separate
+from checked-seed execution: the checked seed and active dglibc source still
+use the compatibility form.
+
+The first full toolchain run completed stage-two/stage-three identity and all
+new returns-twice selectors before stopping at three stale compiler-head
+object locks. No emitted mismatch was hidden: the changed compiler source had
+grown the expected IR, emitter, and frontend objects. The locks now record
+483,289, 558,285, and 852,466 text bytes, with object fingerprints
+`9764d177`, `eab89c95`, and `e4142458`. The focused self-host frontier passed
+after that refresh.
+
+The corrected `make -C toolchain test` run then passed in 5,483.1 seconds.
+Stage two and stage three produced byte-identical objects and executables, all
+20 published artifacts verified, the hosted runtime passed, and the
+returns-twice, dglibc jump, self-host frontier, and self-host link selectors
+all passed. `make bootstrap-audit` and `make check-bootstrap-audit` passed
+again after the full run. The regenerated graph contains 717 active inputs,
+449 transforms, 254 feature requirements, and 25 classified unreachable
+source-like files.
+
+No normal build owner or host dependency changes. Seed promotion,
+active-source migration, and guest runtime proof remain open. ADR 0212 records
+the boundary. `TempleOS/` remains untouched reference material.

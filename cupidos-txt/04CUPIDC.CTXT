@@ -275,6 +275,27 @@ file-scope block in kernel/doom/dglibc.cc. It checks both prototypes and emits
 27-byte and 38-byte global functions through Cupid's x86 model. The pair has
 no relocation. A changed template or mismatched declaration is rejected.
 
+Compiler head recognizes GNU returns_twice on file-scope function declarations
+and merges the attribute across compatible redeclarations. A marked function
+must remain a direct call target; conversion to a function pointer is rejected.
+Supported calls use four-byte cdecl arguments and may return void or any
+nonaggregate type. Before a supported call, the emitter saves the live
+four-byte expression operands below the arguments in frame slots owned by that
+call. It restores those words after caller cleanup and then publishes the call
+result.
+
+A live-prefix call fails if any returns-twice continuation can reach it again.
+A marked call with no live prefix may repeat. Aggregate, wide-integer, and
+wider-than-four-byte floating arguments and aggregate results fail explicitly.
+A decoder-driven i386 oracle models first and second returns with transfer
+values zero and seven. This is hosted model evidence, not guest runtime proof.
+
+The corrected dg_setjmp form saves ESP plus four, which is the caller stack
+after a normal return. It requires returns_twice on dg_setjmp and noreturn on
+dg_longjmp. The checked seed and active dglibc source still use the unannotated
+27-byte compatibility form. Seed promotion, active-source migration, and guest
+runtime proof remain open.
+
 The checked seed emits the complete x87 statements in libm_pow_impl and
 libm_powf_impl. The double form accepts one double output and four double
 inputs. The mixed form accepts one float output, two float inputs, and two

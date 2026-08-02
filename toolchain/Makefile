@@ -661,6 +661,8 @@ test: $(CONTRACT_MANIFEST) \
 	$(CUPIDC_OBJECT_CONTRACT) call-next-assembly ..
 	$(CUPIDC_OBJECT_CONTRACT) operand-free-assembly ..
 	$(CUPIDC_OBJECT_CONTRACT) kernel-start-assembly ..
+	$(CUPIDC_OBJECT_CONTRACT) dglibc-jump-assembly ..
+	$(CUPIDC_OBJECT_CONTRACT) returns-twice-calls ..
 	$(CUPIDC_OBJECT_CONTRACT) narrow-mutations ..
 	$(CUPIDC_OBJECT_CONTRACT) narrow-values ..
 	$(CUPIDC_OBJECT_CONTRACT) void-casts ..

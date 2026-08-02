@@ -1654,6 +1654,20 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "dglibc-jump-assembly: ok\n")
 
+    def test_returns_twice_calls_preserve_live_expression_operands(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "returns-twice-calls",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "returns-twice-calls: ok\n")
+
     def test_naked_ipi_wrappers_emit_exact_i386_without_a_c_frame(self):
         result = subprocess.run(
             [str(self.contract_path), "naked-functions", str(REPO_ROOT)],
