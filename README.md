@@ -737,16 +737,16 @@ longer calls FFmpeg, `jpegtran`, `djpeg`, or `cjpeg`. The Linux kernel build
 passed in 607.7 seconds, and the Windows root build passed in 341.6 seconds.
 All 430 frozen kernel artifacts match byte for byte.
 
-The current raw kernel is 8,513,704 bytes with SHA-256
-`3ddc5abbf90bc69b58917577d5ded12ba601feb905eaad0ce9eb986a32f8adf6`.
-The fresh 209,715,200-byte normal image has SHA-256
-`1d59fd38a2999e53cf4b89a3ea7d5a662efeb65ac42b392271d538e6ebf7daa4`.
+The current raw kernel is 8,518,280 bytes with SHA-256
+`ecde61e586fb69bf091e3586c7c0a90d65588a9d7aa22ea6cf7d2f48dc341df3`.
+The 209,715,200-byte normal image produced by the current root build has
+SHA-256
+`f488f54c023e6d1f7e9883be1f93f705fbdab4b1de3aab8a2b61b86f3863a085`.
 The kernel bytes match the image from the 2,560-byte boot boundary. This is a
 preboot digest; guest filesystem writes intentionally change the image. The
-preceding cross-host image passed a private `/bin/ls.cc` JIT boot in 49.8
-seconds. Its
-35,033-byte log has SHA-256
-`74951551108b76fa1e7def8e525dbc50f0a7c62f19d5b47a70e4d1cf9961f21f`.
+current image passed a private `/bin/ls.cc` JIT boot in 54.025 seconds without
+a panic marker. Its 27,839-byte log has SHA-256
+`631670b29e91ffe195e343a3cb957e995776b9860efb441f51ffdee4d443d55f`.
 The CupidC transforms are 238 checked-in normal roots, the generated kernel
 symbol table, three generated installation tables, and three example
 programs. The renamed graph passes both CupidLD links and CupidObj flattening.
