@@ -234,9 +234,9 @@ static int run_model(void) {
     return 1;
   }
   info = ctool_x86_model_info();
-  if (!check_true(info.form_count == 591u && info.mnemonic_count == 244u &&
+  if (!check_true(info.form_count == 592u && info.mnemonic_count == 244u &&
                       info.register_count == 64u &&
-                      info.fingerprint == 0xdbe77533u,
+                      info.fingerprint == 0xf4420cb4u,
                   "model inventory")) {
     ctool_job_close(job);
     return 1;
@@ -2164,6 +2164,7 @@ static int run_relocations(void) {
 static int run_system_simd(void) {
   static const ctool_u8 cr_bytes[] = {0x0fu, 0x22u, 0xc0u};
   static const ctool_u8 fldz_bytes[] = {0xd9u, 0xeeu};
+  static const ctool_u8 fsub_st1_st0_bytes[] = {0xdcu, 0xe9u};
   static const ctool_u8 fxsave_bytes[] = {0x0fu, 0xaeu, 0x40u, 0x10u};
   static const ctool_u8 fucomip_bytes[] = {0xdfu, 0xe9u};
   static const ctool_u8 fsin_bytes[] = {0xd9u, 0xfeu};
@@ -2286,6 +2287,94 @@ static int run_system_simd(void) {
                           CTOOL_X86_REG_X87 &&
                       decoded.instruction.operands[1].as.reg.index == 1u,
                   "fucomip decode semantics")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  insn = instruction(CTOOL_X86_MN_FSUB, 32u, 32u, 0u);
+  insn.operand_count = 2u;
+  insn.operands[0] = register_operand(CTOOL_X86_REG_X87, 1u);
+  insn.operands[1] = register_operand(CTOOL_X86_REG_X87, 0u);
+  if (!encode(job, CTOOL_X86_MODE_32, &insn, &encoding,
+              "fsub st1, st0") ||
+      !bytes_equal(&encoding, fsub_st1_st0_bytes,
+                   (ctool_u8)sizeof(fsub_st1_st0_bytes),
+                   "fsub st1, st0 bytes")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  status = ctool_x86_decode(
+      job, CTOOL_X86_MODE_32,
+      ctool_bytes(fsub_st1_st0_bytes,
+                  (ctool_u32)sizeof(fsub_st1_st0_bytes)),
+      0u, &decoded);
+  if (!check_status(status, CTOOL_OK, "fsub st1, st0 decode") ||
+      !check_true(decoded.kind == CTOOL_X86_DECODE_KNOWN &&
+                      decoded.instruction.mnemonic == CTOOL_X86_MN_FSUB &&
+                      decoded.instruction.operand_count == 2u &&
+                      decoded.instruction.operands[0].kind ==
+                          CTOOL_X86_OPERAND_REGISTER &&
+                      decoded.instruction.operands[0].as.reg.class_id ==
+                          CTOOL_X86_REG_X87 &&
+                      decoded.instruction.operands[0].as.reg.index == 1u &&
+                      decoded.instruction.operands[1].kind ==
+                          CTOOL_X86_OPERAND_REGISTER &&
+                      decoded.instruction.operands[1].as.reg.class_id ==
+                          CTOOL_X86_REG_X87 &&
+                      decoded.instruction.operands[1].as.reg.index == 0u,
+                  "fsub st1, st0 decode semantics")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  insn = instruction(CTOOL_X86_MN_FSUB, 16u, 16u, 0u);
+  insn.operand_count = 2u;
+  insn.operands[0] = register_operand(CTOOL_X86_REG_X87, 1u);
+  insn.operands[1] = register_operand(CTOOL_X86_REG_X87, 0u);
+  if (!encode(job, CTOOL_X86_MODE_16, &insn, &encoding,
+              "fsub st1, st0 mode16") ||
+      !bytes_equal(&encoding, fsub_st1_st0_bytes,
+                   (ctool_u8)sizeof(fsub_st1_st0_bytes),
+                   "fsub st1, st0 mode16 bytes")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  status = ctool_x86_decode(
+      job, CTOOL_X86_MODE_16,
+      ctool_bytes(fsub_st1_st0_bytes,
+                  (ctool_u32)sizeof(fsub_st1_st0_bytes)),
+      0u, &decoded);
+  if (!check_status(status, CTOOL_OK,
+                    "fsub st1, st0 mode16 decode") ||
+      !check_true(decoded.kind == CTOOL_X86_DECODE_KNOWN &&
+                      decoded.instruction.mnemonic == CTOOL_X86_MN_FSUB &&
+                      decoded.instruction.operand_count == 2u &&
+                      decoded.instruction.operands[0].kind ==
+                          CTOOL_X86_OPERAND_REGISTER &&
+                      decoded.instruction.operands[0].as.reg.class_id ==
+                          CTOOL_X86_REG_X87 &&
+                      decoded.instruction.operands[0].as.reg.index == 1u &&
+                      decoded.instruction.operands[1].kind ==
+                          CTOOL_X86_OPERAND_REGISTER &&
+                      decoded.instruction.operands[1].as.reg.class_id ==
+                          CTOOL_X86_REG_X87 &&
+                      decoded.instruction.operands[1].as.reg.index == 0u,
+                  "fsub st1, st0 mode16 decode semantics")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  insn = instruction(CTOOL_X86_MN_FSUB, 32u, 32u, 0u);
+  insn.operand_count = 2u;
+  insn.operands[0] = register_operand(CTOOL_X86_REG_X87, 0u);
+  insn.operands[1] = register_operand(CTOOL_X86_REG_X87, 1u);
+  (void)memset(&encoding, 0xa5, sizeof(encoding));
+  status = ctool_x86_encode(job, CTOOL_X86_MODE_32, &insn,
+                            CTOOL_X86_FORM_AUTO, &encoding);
+  if (!check_status(status, CTOOL_ERR_INPUT,
+                    "fsub fixed destination register") ||
+      !check_true(encoding_is_zero(&encoding),
+                  "fsub fixed destination zeroed output")) {
     ctool_job_close(job);
     return 1;
   }
@@ -2481,6 +2570,8 @@ static int run_active_surface(void) {
        {0xddu, 0xd8u}},
       {"fstp-st1", CTOOL_X86_MODE_32, CTOOL_X86_MN_FSTP, 2u,
        {0xddu, 0xd9u}},
+      {"fsub-st1-st0", CTOOL_X86_MODE_32, CTOOL_X86_MN_FSUB, 2u,
+       {0xdcu, 0xe9u}},
       {"fsubr-st1-st0", CTOOL_X86_MODE_32, CTOOL_X86_MN_FSUBR, 2u,
        {0xdcu, 0xe1u}},
       {"fwait", CTOOL_X86_MODE_32, CTOOL_X86_MN_FWAIT, 1u, {0x9bu}},

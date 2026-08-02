@@ -206,9 +206,10 @@ repository paths without making the assembler depend on ambient host paths.
 CupidASM implements the cleanly expressible NASM-compatible surface required
 by active CupidOS sources; it does not claim unrestricted NASM compatibility.
 
-The current shared x86 catalogue has 591 rows, 244 canonical mnemonics, and
-64 register names. Its fingerprint is DBE77533. The checked seed carries the
-same catalogue. The four rows added since the preceding seed cover 80-bit x87
+The source-head x86 catalogue has 592 rows, 244 canonical mnemonics, and
+64 register names. Its fingerprint is F4420CB4. The new row encodes
+FSUB ST(1), ST(0) as DC E9. The checked seed still carries the 591-row
+DBE77533 catalogue. The four rows in that seed cover 80-bit x87
 FLD and FSTP memory operands, i686 FUCOMIP ST0, ST(i), and operand-free FLDZ
 for automatic long double values and truth tests. Active-source contracts
 cover every instruction in all 22 demos and the four boot/kernel assembly
@@ -237,7 +238,7 @@ sources. Common families include:
 - sized memory inc/dec and reserve directives
 
 The checked i386 Linux seed carries the shared IMUL model and the complete
-591-row catalogue in both CupidASM and CupidDis, including the ordinary
+591-row seed catalogue in both CupidASM and CupidDis, including the ordinary
 padding NOP family and FLDZ. ADR 0203 records this seed carriage.
 
 Floating-point and SIMD coverage includes:
@@ -246,6 +247,9 @@ Floating-point and SIMD coverage includes:
 - SSE packed (24): MOVAPS/UPS, ADDPS/PD, SHUFPS, CMPPS, and more
 - x87 (27): FLD, FLDZ, FUCOMIP, FSIN, FPATAN, F2XM1, FYL2X, and more
 - Register tokens: XMM0-7 and ST0-7
+
+FSUB ST1, ST0 emits DC E9 and stores ST1 - ST0 in ST1. ST0 is the fixed
+second operand. The older FSUBR ST1, ST0 form remains DC E1.
 
 Use the shipped demos under /demos as the compatibility baseline.
 Coverage demos include include_helper.asm, jcc_aliases.asm,

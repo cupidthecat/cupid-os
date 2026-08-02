@@ -1030,6 +1030,9 @@ static ctool_status_t cemit_index_definitions(cemit_context_t *context) {
   return CTOOL_OK;
 }
 
+static ctool_bool cemit_x87_fraction_template_equal(
+    ctool_string_t value, const char *corrected_literal);
+
 static cemit_file_assembly_kind_t cemit_file_assembly_template_kind(
     ctool_string_t text) {
   static const char *const templates[] = {
@@ -1172,14 +1175,14 @@ static cemit_file_assembly_kind_t cemit_file_assembly_template_kind(
       "add    $4, %esp\n\tret\n\t.size  fmodf, .-fmodf\n",
       ".text\n\t.globl exp2\n\t.type  exp2, @function\n"
       "exp2:\n\tfldl   4(%esp)\n\tfld    %st(0)\n\t"
-      "frndint\n\tfsub   %st, %st(1)\n\tfxch\n\t"
+      "frndint\n\tfsubr  %st, %st(1)\n\tfxch\n\t"
       "f2xm1\n\tfld1\n\tfaddp\n\tfscale\n\t"
       "fstp   %st(1)\n\tsub    $8, %esp\n\t"
       "fstpl  (%esp)\n\tmovsd  (%esp), %xmm0\n\t"
       "add    $8, %esp\n\tret\n\t.size  exp2, .-exp2\n",
       ".text\n\t.globl exp2f\n\t.type  exp2f, @function\n"
       "exp2f:\n\tflds   4(%esp)\n\tfld    %st(0)\n\t"
-      "frndint\n\tfsub   %st, %st(1)\n\tfxch\n\t"
+      "frndint\n\tfsubr  %st, %st(1)\n\tfxch\n\t"
       "f2xm1\n\tfld1\n\tfaddp\n\tfscale\n\t"
       "fstp   %st(1)\n\tsub    $4, %esp\n\t"
       "fstps  (%esp)\n\tmovss  (%esp), %xmm0\n\t"
@@ -1188,7 +1191,7 @@ static cemit_file_assembly_kind_t cemit_file_assembly_template_kind(
       "exp:\n\tfldl   4(%esp)\n\t"
       "fldl   libm_log2e_const\n\tfmulp\n\t"
       "fld    %st(0)\n\tfrndint\n\t"
-      "fsub   %st, %st(1)\n\tfxch\n\tf2xm1\n\t"
+      "fsubr  %st, %st(1)\n\tfxch\n\tf2xm1\n\t"
       "fld1\n\tfaddp\n\tfscale\n\tfstp   %st(1)\n\t"
       "sub    $8, %esp\n\tfstpl  (%esp)\n\t"
       "movsd  (%esp), %xmm0\n\tadd    $8, %esp\n\t"
@@ -1197,7 +1200,7 @@ static cemit_file_assembly_kind_t cemit_file_assembly_template_kind(
       "expf:\n\tflds   4(%esp)\n\t"
       "fldl   libm_log2e_const\n\tfmulp\n\t"
       "fld    %st(0)\n\tfrndint\n\t"
-      "fsub   %st, %st(1)\n\tfxch\n\tf2xm1\n\t"
+      "fsubr  %st, %st(1)\n\tfxch\n\tf2xm1\n\t"
       "fld1\n\tfaddp\n\tfscale\n\tfstp   %st(1)\n\t"
       "sub    $4, %esp\n\tfstps  (%esp)\n\t"
       "movss  (%esp), %xmm0\n\tadd    $4, %esp\n\t"
@@ -1374,7 +1377,11 @@ static cemit_file_assembly_kind_t cemit_file_assembly_template_kind(
   ctool_u32 kind;
   for (kind = 1u; kind < CEMIT_FILE_ASSEMBLY_COUNT; kind++) {
     if (cemit_strings_equal(text, ctool_string(templates[kind])) ==
-        CTOOL_TRUE) {
+            CTOOL_TRUE ||
+        (kind >= (ctool_u32)CEMIT_FILE_ASSEMBLY_EXP2 &&
+         kind <= (ctool_u32)CEMIT_FILE_ASSEMBLY_EXPF &&
+         cemit_x87_fraction_template_equal(text, templates[kind]) ==
+             CTOOL_TRUE)) {
       return (cemit_file_assembly_kind_t)kind;
     }
   }
@@ -7891,6 +7898,59 @@ static ctool_bool cemit_string_equals_literal(
   return index == value.size ? CTOOL_TRUE : CTOOL_FALSE;
 }
 
+static ctool_bool cemit_x87_fraction_template_equal(
+    ctool_string_t value, const char *corrected_literal) {
+  ctool_u32 corrected_index = 0u;
+  ctool_bool accepted_legacy_space = CTOOL_FALSE;
+  if (cemit_string_equals_literal(value, corrected_literal) == CTOOL_TRUE) {
+    return CTOOL_TRUE;
+  }
+  if (corrected_literal == (const char *)0 ||
+      (value.data == (const char *)0 && value.size != 0u)) {
+    return CTOOL_FALSE;
+  }
+  while (corrected_literal[corrected_index] != '\0') {
+    if (accepted_legacy_space == CTOOL_FALSE && corrected_index >= 4u &&
+        corrected_literal[corrected_index] == 'r' &&
+        corrected_literal[corrected_index - 4u] == 'f' &&
+        corrected_literal[corrected_index - 3u] == 's' &&
+        corrected_literal[corrected_index - 2u] == 'u' &&
+        corrected_literal[corrected_index - 1u] == 'b' &&
+        corrected_literal[corrected_index + 1u] == ' ' &&
+        corrected_index < value.size &&
+        value.data[corrected_index] == ' ') {
+      accepted_legacy_space = CTOOL_TRUE;
+      corrected_index++;
+      continue;
+    }
+    if (corrected_index >= value.size ||
+        value.data[corrected_index] != corrected_literal[corrected_index]) {
+      return CTOOL_FALSE;
+    }
+    corrected_index++;
+  }
+  return accepted_legacy_space == CTOOL_TRUE &&
+                 corrected_index == value.size
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cemit_x87_fraction_template_is_corrected(
+    ctool_string_t value) {
+  ctool_u32 index;
+  if (value.data == (const char *)0) {
+    return CTOOL_FALSE;
+  }
+  for (index = 0u; index + 5u < value.size; index++) {
+    if (value.data[index] == 'f' && value.data[index + 1u] == 's' &&
+        value.data[index + 2u] == 'u' && value.data[index + 3u] == 'b' &&
+        value.data[index + 4u] == 'r' && value.data[index + 5u] == ' ') {
+      return CTOOL_TRUE;
+    }
+  }
+  return CTOOL_FALSE;
+}
+
 static ctool_bool cemit_assembly_output_fixed_register(
     ctool_string_t constraint, ctool_u8 *register_out) {
   if (cemit_string_equals_literal(constraint, "=a") == CTOOL_TRUE) {
@@ -8667,14 +8727,14 @@ static ctool_bool cemit_assembly_uses_x87_atan2_memory_path(
 static ctool_bool cemit_assembly_uses_x87_exp_memory_path(
     const ctool_c_assembly_t *assembly) {
   return assembly != (const ctool_c_assembly_t *)0 &&
-                 cemit_string_equals_literal(
+                 cemit_x87_fraction_template_equal(
                      assembly->template_text,
                      "fldl   %1\n\t"
                      "fldl   %2\n\t"
                      "fmulp\n\t"
                      "fld    %%st(0)\n\t"
                      "frndint\n\t"
-                     "fsub   %%st, %%st(1)\n\t"
+                     "fsubr  %%st, %%st(1)\n\t"
                      "fxch\n\t"
                      "f2xm1\n\t"
                      "fld1\n\t"
@@ -9217,7 +9277,7 @@ static ctool_bool cemit_assembly_uses_x87_round_down_memory_path(
 static ctool_bool cemit_assembly_uses_x87_pow_memory_path(
     const ctool_c_assembly_t *assembly) {
   return assembly != (const ctool_c_assembly_t *)0 &&
-                 cemit_string_equals_literal(
+                 cemit_x87_fraction_template_equal(
                      assembly->template_text,
                      "fldl   %3\n\t"
                      "fldl   %1\n\t"
@@ -9228,7 +9288,7 @@ static ctool_bool cemit_assembly_uses_x87_pow_memory_path(
                      "fmulp\n\t"
                      "fld    %%st(0)\n\t"
                      "frndint\n\t"
-                     "fsub   %%st, %%st(1)\n\t"
+                     "fsubr  %%st, %%st(1)\n\t"
                      "fxch\n\t"
                      "f2xm1\n\t"
                      "fld1\n\t"
@@ -9243,7 +9303,7 @@ static ctool_bool cemit_assembly_uses_x87_pow_memory_path(
 static ctool_bool cemit_assembly_uses_x87_powf_memory_path(
     const ctool_c_assembly_t *assembly) {
   return assembly != (const ctool_c_assembly_t *)0 &&
-                 cemit_string_equals_literal(
+                 cemit_x87_fraction_template_equal(
                      assembly->template_text,
                      "fldl   %3\n\t"
                      "flds   %1\n\t"
@@ -9254,7 +9314,7 @@ static ctool_bool cemit_assembly_uses_x87_powf_memory_path(
                      "fmulp\n\t"
                      "fld    %%st(0)\n\t"
                      "frndint\n\t"
-                     "fsub   %%st, %%st(1)\n\t"
+                     "fsubr  %%st, %%st(1)\n\t"
                      "fxch\n\t"
                      "f2xm1\n\t"
                      "fld1\n\t"
@@ -9512,7 +9572,11 @@ static ctool_status_t cemit_emit_x87_exp_memory_assembly(
   }
   if (status == CTOOL_OK) {
     status = cemit_x86_two_registers(
-        context, CTOOL_X86_MN_FSUBR,
+        context,
+        cemit_x87_fraction_template_is_corrected(
+            assembly->template_text) == CTOOL_TRUE
+            ? CTOOL_X86_MN_FSUB
+            : CTOOL_X86_MN_FSUBR,
         CTOOL_X86_REG_X87, 1u, CTOOL_X86_REG_X87, 0u, 32u);
   }
   if (status == CTOOL_OK) {
@@ -9777,10 +9841,13 @@ static ctool_bool cemit_x87_powf_memory_metadata_is_valid(
 
 static ctool_status_t cemit_emit_x87_pow_sequence(
     cemit_context_t *context, ctool_u16 value_width_bits,
-    ctool_u16 output_width_bits) {
+    ctool_u16 output_width_bits,
+    ctool_x86_mnemonic_t fraction_subtract) {
   ctool_status_t status;
   if ((value_width_bits != 32u && value_width_bits != 64u) ||
-      (output_width_bits != 32u && output_width_bits != 64u)) {
+      (output_width_bits != 32u && output_width_bits != 64u) ||
+      (fraction_subtract != CTOOL_X86_MN_FSUB &&
+       fraction_subtract != CTOOL_X86_MN_FSUBR)) {
     return CTOOL_ERR_INTERNAL;
   }
   status = cemit_x86_load_stack(context, 0u, 4u);
@@ -9829,7 +9896,7 @@ static ctool_status_t cemit_emit_x87_pow_sequence(
   }
   if (status == CTOOL_OK) {
     status = cemit_x86_two_registers(
-        context, CTOOL_X86_MN_FSUBR,
+        context, fraction_subtract,
         CTOOL_X86_REG_X87, 1u, CTOOL_X86_REG_X87, 0u, 32u);
   }
   if (status == CTOOL_OK) {
@@ -9877,7 +9944,12 @@ static ctool_status_t cemit_emit_x87_pow_memory_assembly(
         &assembly->location,
         "GNU inline assembly template is outside this i386 emission slice");
   }
-  return cemit_emit_x87_pow_sequence(context, 64u, 64u);
+  return cemit_emit_x87_pow_sequence(
+      context, 64u, 64u,
+      cemit_x87_fraction_template_is_corrected(
+          assembly->template_text) == CTOOL_TRUE
+          ? CTOOL_X86_MN_FSUB
+          : CTOOL_X86_MN_FSUBR);
 }
 
 static ctool_status_t cemit_emit_x87_powf_memory_assembly(
@@ -9892,7 +9964,12 @@ static ctool_status_t cemit_emit_x87_powf_memory_assembly(
         &assembly->location,
         "GNU inline assembly template is outside this i386 emission slice");
   }
-  return cemit_emit_x87_pow_sequence(context, 32u, 32u);
+  return cemit_emit_x87_pow_sequence(
+      context, 32u, 32u,
+      cemit_x87_fraction_template_is_corrected(
+          assembly->template_text) == CTOOL_TRUE
+          ? CTOOL_X86_MN_FSUB
+          : CTOOL_X86_MN_FSUBR);
 }
 
 typedef enum {
@@ -14638,15 +14715,21 @@ static ctool_bool cemit_file_assembly_is_logarithm(
 }
 
 static ctool_status_t cemit_emit_file_assembly_exp_sequence(
-    cemit_context_t *context) {
-  ctool_status_t status = cemit_x86_one_register(
+    cemit_context_t *context,
+    ctool_x86_mnemonic_t fraction_subtract) {
+  ctool_status_t status;
+  if (fraction_subtract != CTOOL_X86_MN_FSUB &&
+      fraction_subtract != CTOOL_X86_MN_FSUBR) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  status = cemit_x86_one_register(
       context, CTOOL_X86_MN_FLD, CTOOL_X86_REG_X87, 0u, 32u);
   if (status == CTOOL_OK) {
     status = cemit_x86_no_operand(context, CTOOL_X86_MN_FRNDINT);
   }
   if (status == CTOOL_OK) {
     status = cemit_x86_two_registers(
-        context, CTOOL_X86_MN_FSUBR,
+        context, fraction_subtract,
         CTOOL_X86_REG_X87, 1u, CTOOL_X86_REG_X87, 0u, 32u);
   }
   if (status == CTOOL_OK) {
@@ -14675,7 +14758,8 @@ static ctool_status_t cemit_emit_file_assembly_exp_sequence(
 
 static ctool_status_t cemit_emit_file_assembly_exponential_body(
     cemit_context_t *context, cemit_file_assembly_kind_t kind,
-    ctool_bool single_precision) {
+    ctool_bool single_precision,
+    ctool_x86_mnemonic_t fraction_subtract) {
   ctool_u16 width_bits =
       single_precision == CTOOL_TRUE ? 32u : 64u;
   ctool_bool natural =
@@ -14701,7 +14785,8 @@ static ctool_status_t cemit_emit_file_assembly_exponential_body(
         context, CTOOL_X86_MN_FMULP, CTOOL_X86_REG_X87, 1u, 32u);
   }
   if (status == CTOOL_OK) {
-    status = cemit_emit_file_assembly_exp_sequence(context);
+    status = cemit_emit_file_assembly_exp_sequence(
+        context, fraction_subtract);
   }
   return status == CTOOL_OK
              ? cemit_finish_file_assembly_x87_result(
@@ -14782,7 +14867,8 @@ static ctool_status_t cemit_emit_file_assembly_cdecl_bridge_body(
 
 static ctool_status_t cemit_emit_file_assembly_body(
     cemit_context_t *context, cemit_file_assembly_kind_t kind,
-    ctool_u32 callee_symbol) {
+    ctool_u32 callee_symbol,
+    ctool_x86_mnemonic_t fraction_subtract) {
   ctool_bool single_precision =
       (((ctool_u32)kind - 1u) & 1u) != 0u ? CTOOL_TRUE : CTOOL_FALSE;
   ctool_u16 width_bits = single_precision == CTOOL_TRUE ? 32u : 64u;
@@ -14832,7 +14918,7 @@ static ctool_status_t cemit_emit_file_assembly_body(
   }
   if (cemit_file_assembly_is_exponential(kind) == CTOOL_TRUE) {
     return cemit_emit_file_assembly_exponential_body(
-        context, kind, single_precision);
+        context, kind, single_precision, fraction_subtract);
   }
   if (cemit_file_assembly_is_logarithm(kind) == CTOOL_TRUE) {
     return cemit_emit_file_assembly_logarithm_body(
@@ -15237,7 +15323,11 @@ static ctool_status_t cemit_place_file_assembly(
   context->active_text_section = CEMIT_SECTION_TEXT;
   start = ctool_buffer_view(context->text).size;
   status = cemit_emit_file_assembly_body(
-      context, kind, callee_symbol);
+      context, kind, callee_symbol,
+      cemit_x87_fraction_template_is_corrected(
+          assembly->template_text) == CTOOL_TRUE
+          ? CTOOL_X86_MN_FSUB
+          : CTOOL_X86_MN_FSUBR);
   if (status != CTOOL_OK) {
     return status;
   }

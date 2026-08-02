@@ -828,9 +828,14 @@ The checked seed emits the exact x87 programs in `libm_pow_impl()` and
 inputs. The mixed form has one `float` output, two `float` inputs, and two
 `double` inputs. Both use a memory clobber. Linear IR evaluates each set of
 five addresses once in source order. Each emitter proof produces 116 exact
-text bytes with no relocations, uses `DC E1` for
+text bytes with no relocations, uses the legacy `DC E1` encoding for
 `FSUBR ST(1), ST(0)`, reaches a maximum x87 depth of three, and returns to the
 incoming depth.
+
+Compiler head also accepts corrected `fsubr %st, %st(1)` statements. They
+emit `FSUB ST(1), ST(0)` as `DC E9`, which computes the intended
+`x - round(x)` remainder. The legacy spelling remains available until the
+checked seed and active source move together.
 
 The checked seed also emits the exact volatile `sqrtsd %1, %0` statement. It
 accepts one modifiable, non-atomic `double` `=x` output, one non-atomic

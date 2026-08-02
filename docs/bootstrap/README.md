@@ -1046,8 +1046,10 @@ and four addressable `double` inputs. The mixed form requires one modifiable
 `float` output, two addressable `float` inputs, and two addressable `double`
 inputs. Both require one memory clobber. Linear IR evaluates each statement's
 five addresses once in source order. Each focused emitter proof contains 116
-exact text bytes, no relocations, the canonical `DC E1` reverse-subtract
-encoding, and balanced x87 depth. Those blocks exposed the following
+exact text bytes, no relocations, the legacy `DC E1` reverse-subtract
+encoding, and balanced x87 depth. Source head also accepts the corrected
+`DC E9` forward subtraction without changing the checked-seed object. Those
+blocks exposed the following
 `sqrtsd` statement in `libm_sqrt_impl()`.
 
 The checked seed represents that exact volatile square-root statement. It
@@ -1173,12 +1175,16 @@ The trampoline intervals above are half-open: code occupies
 `[0x000, 0x01f)` and `[0x210, 0x254)`, while data occupies
 `[0x01f, 0x210)` and `[0x254, 0x1000)`.
 
-The checked seed and source head carry 591 rows, 244 canonical mnemonics, and
-fingerprint `DBE77533`. The four forms added since the preceding seed are the
+Source head carries 592 rows, 244 canonical mnemonics, and fingerprint
+`F4420CB4`. Its newest row is canonical `FSUB ST(1), ST(0)`, encoded as
+`DC E9`, for the corrected GNU `fsubr %st, %st(1)` exponent range
+subtraction. The checked seed still carries 591 rows and fingerprint
+`DBE77533` until promotion. The four forms added in the preceding seed are the
 80-bit x87 `FLD` and `FSTP` memory forms, the i686 `FUCOMIP ST0, ST(i)`
 register form, and operand-free `FLDZ`. Both checked stages rebuild that
 catalogue before compiling the Toolchain contract cohort. ADR 0203 records
-the seed promotion.
+the preceding seed promotion, and ADR 0207 records the forward-subtraction
+boundary.
 
 ADR 0196 supersedes that paragraph's hosted-contract ownership sentence. The
 normal Toolchain contracts are now built by the checked i386 CupidC and

@@ -223,6 +223,40 @@ static ctool_bool cir_string_equal(ctool_string_t left,
   return CTOOL_TRUE;
 }
 
+static ctool_bool cir_x87_fraction_template_equal(
+    ctool_string_t value, const char *corrected_literal) {
+  ctool_string_t corrected = ctool_string(corrected_literal);
+  ctool_u32 corrected_index;
+  ctool_bool accepted_legacy_space = CTOOL_FALSE;
+  if (cir_string_equal(value, corrected) == CTOOL_TRUE) {
+    return CTOOL_TRUE;
+  }
+  if (value.size != corrected.size ||
+      (value.data == (const char *)0 && value.size != 0u) ||
+      corrected.data == (const char *)0) {
+    return CTOOL_FALSE;
+  }
+  for (corrected_index = 0u; corrected_index < corrected.size;
+       corrected_index++) {
+    if (accepted_legacy_space == CTOOL_FALSE && corrected_index >= 4u &&
+        corrected.data[corrected_index] == 'r' &&
+        corrected.data[corrected_index - 4u] == 'f' &&
+        corrected.data[corrected_index - 3u] == 's' &&
+        corrected.data[corrected_index - 2u] == 'u' &&
+        corrected.data[corrected_index - 1u] == 'b' &&
+        corrected_index + 1u < corrected.size &&
+        corrected.data[corrected_index + 1u] == ' ' &&
+        value.data[corrected_index] == ' ') {
+      accepted_legacy_space = CTOOL_TRUE;
+      continue;
+    }
+    if (value.data[corrected_index] != corrected.data[corrected_index]) {
+      return CTOOL_FALSE;
+    }
+  }
+  return accepted_legacy_space;
+}
+
 static ctool_bool cir_add_overflows(ctool_u32 left, ctool_u32 right) {
   return left > 0xffffffffu - right ? CTOOL_TRUE : CTOOL_FALSE;
 }
@@ -933,22 +967,21 @@ static ctool_bool cir_x87_atan2_memory_template(
 
 static ctool_bool cir_x87_exp_memory_template(
     ctool_string_t template_text) {
-  return cir_string_equal(
+  return cir_x87_fraction_template_equal(
       template_text,
-      ctool_string(
-          "fldl   %1\n\t"
+      "fldl   %1\n\t"
           "fldl   %2\n\t"
           "fmulp\n\t"
           "fld    %%st(0)\n\t"
           "frndint\n\t"
-          "fsub   %%st, %%st(1)\n\t"
+          "fsubr  %%st, %%st(1)\n\t"
           "fxch\n\t"
           "f2xm1\n\t"
           "fld1\n\t"
           "faddp\n\t"
           "fscale\n\t"
           "fstp   %%st(1)\n\t"
-          "fstpl  %0\n\t"));
+          "fstpl  %0\n\t");
 }
 
 static ctool_bool cir_x87_sine_memory_template(
@@ -977,10 +1010,9 @@ static ctool_bool cir_x87_round_down_memory_template(
 
 static ctool_bool cir_x87_pow_memory_template(
     ctool_string_t template_text) {
-  return cir_string_equal(
+  return cir_x87_fraction_template_equal(
       template_text,
-      ctool_string(
-          "fldl   %3\n\t"
+      "fldl   %3\n\t"
           "fldl   %1\n\t"
           "fyl2x\n\t"
           "fldl   %2\n\t"
@@ -989,22 +1021,21 @@ static ctool_bool cir_x87_pow_memory_template(
           "fmulp\n\t"
           "fld    %%st(0)\n\t"
           "frndint\n\t"
-          "fsub   %%st, %%st(1)\n\t"
+          "fsubr  %%st, %%st(1)\n\t"
           "fxch\n\t"
           "f2xm1\n\t"
           "fld1\n\t"
           "faddp\n\t"
           "fscale\n\t"
           "fstp   %%st(1)\n\t"
-          "fstpl  %0\n\t"));
+          "fstpl  %0\n\t");
 }
 
 static ctool_bool cir_x87_powf_memory_template(
     ctool_string_t template_text) {
-  return cir_string_equal(
+  return cir_x87_fraction_template_equal(
       template_text,
-      ctool_string(
-          "fldl   %3\n\t"
+      "fldl   %3\n\t"
           "flds   %1\n\t"
           "fyl2x\n\t"
           "flds   %2\n\t"
@@ -1013,14 +1044,14 @@ static ctool_bool cir_x87_powf_memory_template(
           "fmulp\n\t"
           "fld    %%st(0)\n\t"
           "frndint\n\t"
-          "fsub   %%st, %%st(1)\n\t"
+          "fsubr  %%st, %%st(1)\n\t"
           "fxch\n\t"
           "f2xm1\n\t"
           "fld1\n\t"
           "faddp\n\t"
           "fscale\n\t"
           "fstp   %%st(1)\n\t"
-          "fstps  %0\n\t"));
+          "fstps  %0\n\t");
 }
 
 typedef enum {

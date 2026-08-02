@@ -161,8 +161,10 @@ libm_powf_impl. The double form has five double memory operands. The mixed
 form has a float output, two float inputs, and two double inputs. Both require
 one memory clobber. Linear IR evaluates each set of five addresses once in
 source order. Each 116-byte focused function contains seventeen x87
-instructions, uses DC E1 for FSUBR ST(1), ST(0), reaches stack depth three,
+instructions, uses the legacy DC E1 reverse subtraction, reaches stack depth three,
 and returns to its incoming depth without a relocation.
+Compiler head also represents FSUB ST(1), ST(0) as DC E9 for the corrected
+x - round(x) remainder.
 
 The checked seed also represents the exact volatile sqrtsd %1, %0 statement in
 libm_sqrt_impl. It accepts one modifiable, non-atomic double =x output, one

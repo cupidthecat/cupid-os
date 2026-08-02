@@ -7648,25 +7648,26 @@ static int validate_toolchain_frontier(const char *host_root) {
        10331u, 162u, 124u, 0u, 0u},
       {"/toolchain/cupidld.cc", CTOOL_OK, 0u, 0u, 0u, "", 66u, 2064u,
        13347u, 267u, 146u, 0u, 1u},
-      {"/toolchain/cupidobj.cc", CTOOL_OK, 0u, 0u, 0u, "", 34u, 1012u,
-       7202u, 117u, 58u, 0u, 0u},
+      {"/toolchain/cupidobj.cc", CTOOL_OK, 0u, 0u, 0u, "", 43u, 1138u,
+       8048u, 144u, 84u, 0u, 0u},
       {"/toolchain/cupidc_type.cc", CTOOL_OK, 0u, 0u, 0u, "", 31u, 737u,
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.cc", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
        25287u, 479u, 286u, 0u, 0u},
-      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 262u, 7250u,
-       67491u, 953u, 354u, 0u, 0u},
-      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 354u, 8658u,
-       73247u, 1056u, 716u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 422u,
-       16524u, 109328u, 2489u, 1517u, 0u, 0u},
+      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 263u, 7271u,
+       67674u, 956u, 356u, 0u, 0u},
+      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 356u, 8695u,
+       73658u, 1059u, 717u, 0u, 0u},
+      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 423u,
+       16545u, 109520u, 2492u, 1519u, 0u, 0u},
       {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 82u, 3054u,
        20124u, 338u, 190u, 0u, 0u},
       {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
        9457u, 143u, 70u, 0u, 1u},
       {"/toolchain/x86.cc", CTOOL_OK, 0u, 0u, 0u, "", 60u, 1760u,
-       11855u, 180u, 16762u, 3u, 0u}};
+       11855u, 180u, 16787u, 3u, 0u}};
   ctool_u32 index;
+  int any_failed = 0;
   for (index = 0u; index < ARRAY_COUNT(cases); index++) {
     const toolchain_frontier_case_t *test_case = &cases[index];
     ctool_host_adapter_t adapter;
@@ -7687,7 +7688,8 @@ static int validate_toolchain_frontier(const char *host_root) {
 
     if (open_job("toolchain-frontier", host_root,
                  256u * 1024u * 1024u, &adapter, &job) != 0) {
-      return 1;
+      any_failed = 1;
+      continue;
     }
     (void)memset(&pointer_width, 0, sizeof(pointer_width));
     pointer_width.kind = CTOOL_C_PP_MACRO_DEFINE;
@@ -7715,7 +7717,8 @@ static int validate_toolchain_frontier(const char *host_root) {
                     test_case->path, ctool_status_name(status));
       (void)ctool_job_render_diagnostics(job);
       ctool_job_close(job);
-      return 1;
+      any_failed = 1;
+      continue;
     }
     token_bytes = (size_t)tape.token_count * sizeof(*snapshot);
     snapshot = (ctool_c_pp_token_t *)malloc(token_bytes);
@@ -7783,10 +7786,10 @@ static int validate_toolchain_frontier(const char *host_root) {
     free(snapshot);
     ctool_job_close(job);
     if (failed != 0) {
-      return 1;
+      any_failed = 1;
     }
   }
-  return 0;
+  return any_failed;
 }
 
 static char *build_scalar_initializer_limit_source(ctool_bool initialized) {
@@ -29581,7 +29584,7 @@ cleanup:
   "\"fmulp\\n\\t\""                                                   \
   "\"fld    %%st(0)\\n\\t\""                                         \
   "\"frndint\\n\\t\""                                                 \
-  "\"fsub   %%st, %%st(1)\\n\\t\""                                   \
+  "\"fsubr  %%st, %%st(1)\\n\\t\""                                   \
   "\"fxch\\n\\t\""                                                    \
   "\"f2xm1\\n\\t\""                                                   \
   "\"fld1\\n\\t\""                                                    \
@@ -29600,7 +29603,7 @@ static const char x87_pow_memory_normalized_template[] =
     "fmulp\n\t"
     "fld    %%st(0)\n\t"
     "frndint\n\t"
-    "fsub   %%st, %%st(1)\n\t"
+    "fsubr  %%st, %%st(1)\n\t"
     "fxch\n\t"
     "f2xm1\n\t"
     "fld1\n\t"
@@ -29841,7 +29844,7 @@ cleanup:
   "\"fmulp\\n\\t\""                                                   \
   "\"fld    %%st(0)\\n\\t\""                                         \
   "\"frndint\\n\\t\""                                                 \
-  "\"fsub   %%st, %%st(1)\\n\\t\""                                   \
+  "\"fsubr  %%st, %%st(1)\\n\\t\""                                   \
   "\"fxch\\n\\t\""                                                    \
   "\"f2xm1\\n\\t\""                                                   \
   "\"fld1\\n\\t\""                                                    \
@@ -29860,7 +29863,7 @@ static const char x87_powf_memory_normalized_template[] =
     "fmulp\n\t"
     "fld    %%st(0)\n\t"
     "frndint\n\t"
-    "fsub   %%st, %%st(1)\n\t"
+    "fsubr  %%st, %%st(1)\n\t"
     "fxch\n\t"
     "f2xm1\n\t"
     "fld1\n\t"
@@ -30612,7 +30615,7 @@ cleanup:
   "\"fmulp\\n\\t\""                                                  \
   "\"fld    %%st(0)\\n\\t\""                                        \
   "\"frndint\\n\\t\""                                                \
-  "\"fsub   %%st, %%st(1)\\n\\t\""                                  \
+  "\"fsubr  %%st, %%st(1)\\n\\t\""                                  \
   "\"fxch\\n\\t\""                                                   \
   "\"f2xm1\\n\\t\""                                                  \
   "\"fld1\\n\\t\""                                                   \
@@ -30627,7 +30630,7 @@ static const char x87_exp_memory_normalized_template[] =
     "fmulp\n\t"
     "fld    %%st(0)\n\t"
     "frndint\n\t"
-    "fsub   %%st, %%st(1)\n\t"
+    "fsubr  %%st, %%st(1)\n\t"
     "fxch\n\t"
     "f2xm1\n\t"
     "fld1\n\t"

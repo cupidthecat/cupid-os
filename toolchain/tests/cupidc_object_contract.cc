@@ -29037,21 +29037,21 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.cc",           "/toolchain/x86.cc",
       "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
-      65u, 71u, 66u, 34u, 31u, 143u, 262u, 354u, 422u, 82u, 37u, 60u,
+      65u, 71u, 66u, 43u, 31u, 143u, 263u, 356u, 423u, 82u, 37u, 60u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
-      42118u, 78841u, 85252u, 54775u, 42212u,
-      190304u, 481787u, 545550u, 848185u, 146398u, 70368u, 80596u,
+      42118u, 78841u, 85252u, 61641u, 42212u,
+      190304u, 483104u, 548935u, 849676u, 146398u, 70368u, 80596u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
-      46720u, 91460u, 99772u, 70756u, 49484u,
-      226668u, 519620u, 612956u, 1008476u, 165728u, 79348u, 135084u,
+      46720u, 91460u, 99772u, 79348u, 49484u,
+      226668u, 520976u, 616500u, 1010028u, 165728u, 79348u, 135136u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x6a4e9e64u, 0x4ca44a27u,
-      0x84ffc4e9u, 0x999f97b7u, 0xb49d8eb9u,
-      0xda73966du, 0x4b7739c5u, 0x1dde4dd4u, 0x74b56084u,
-      0x34558a49u, 0xbbc3eaefu, 0x8774de7du};
+      0xff0d403bu, 0x999f97b7u, 0xb49d8eb9u,
+      0x9f50596au, 0x0acd2db4u, 0xf7603bc6u, 0x74b56084u,
+      0x34558a49u, 0x398d41d3u, 0x8774de7du};
   ctool_u32 index;
   int all_matched = 1;
   for (index = 0u; index <
@@ -35110,6 +35110,7 @@ static int x87_pow_instruction_is_x87(
                  mnemonic == CTOOL_X86_MN_FYL2X ||
                  mnemonic == CTOOL_X86_MN_FMULP ||
                  mnemonic == CTOOL_X86_MN_FRNDINT ||
+                 mnemonic == CTOOL_X86_MN_FSUB ||
                  mnemonic == CTOOL_X86_MN_FSUBR ||
                  mnemonic == CTOOL_X86_MN_FXCH ||
                  mnemonic == CTOOL_X86_MN_F2XM1 ||
@@ -35128,7 +35129,7 @@ static int validate_x87_pow_decoded_instruction(
       CTOOL_X86_MN_FYL2X,   CTOOL_X86_MN_FLD,
       CTOOL_X86_MN_FMULP,   CTOOL_X86_MN_FLD,
       CTOOL_X86_MN_FMULP,   CTOOL_X86_MN_FLD,
-      CTOOL_X86_MN_FRNDINT, CTOOL_X86_MN_FSUBR,
+      CTOOL_X86_MN_FRNDINT, CTOOL_X86_MN_FSUB,
       CTOOL_X86_MN_FXCH,    CTOOL_X86_MN_F2XM1,
       CTOOL_X86_MN_FLD1,    CTOOL_X86_MN_FADDP,
       CTOOL_X86_MN_FSCALE,  CTOOL_X86_MN_FSTP,
@@ -35239,7 +35240,7 @@ static int validate_x87_pow_memory_function(
       0xdeu, 0xc9u,
       0xd9u, 0xc0u,
       0xd9u, 0xfcu,
-      0xdcu, 0xe1u,
+      0xdcu, 0xe9u,
       0xd9u, 0xc9u,
       0xd9u, 0xf0u,
       0xd9u, 0xe8u,
@@ -35262,11 +35263,25 @@ static int validate_x87_pow_memory_function(
       symbol->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
       symbol->value > text->contents.size ||
       symbol->size > text->contents.size - symbol->value ||
-      symbol->size != (ctool_u32)sizeof(expected) ||
-      memcmp(text->contents.data + symbol->value, expected,
-             sizeof(expected)) != 0) {
+      symbol->size != (ctool_u32)sizeof(expected)) {
     return 0;
   }
+  if (memcmp(text->contents.data + symbol->value, expected,
+             sizeof(expected)) != 0) {
+    for (cursor = 0u; cursor < (ctool_u32)sizeof(expected); cursor++) {
+      ctool_u8 actual = text->contents.data[symbol->value + cursor];
+      if (actual != expected[cursor]) {
+        (void)fprintf(
+            stderr,
+            "x87 pow byte %u differs: expected %02x, got %02x\n",
+            (unsigned int)cursor, (unsigned int)expected[cursor],
+            (unsigned int)actual);
+        break;
+      }
+    }
+    return 0;
+  }
+  cursor = 0u;
   while (cursor < symbol->size) {
     ctool_x86_decoded_t decoded;
     ctool_bytes_t remaining = ctool_bytes(
@@ -35314,7 +35329,7 @@ static int validate_x87_pow_memory_function(
       if (x87_count == 9u &&
           (decoded.consumed != 2u ||
            remaining.data[0] != 0xdcu ||
-           remaining.data[1] != 0xe1u)) {
+           remaining.data[1] != 0xe9u)) {
         return 0;
       }
       x87_count++;
@@ -35377,7 +35392,7 @@ static int run_x87_pow_memory_assembly_object(const char *host_root) {
       "\"fmulp\\n\\t\""
       "\"fld    %%st(0)\\n\\t\""
       "\"frndint\\n\\t\""
-      "\"fsub   %%st, %%st(1)\\n\\t\""
+      "\"fsubr  %%st, %%st(1)\\n\\t\""
       "\"fxch\\n\\t\""
       "\"f2xm1\\n\\t\""
       "\"fld1\\n\\t\""
@@ -35640,7 +35655,7 @@ static int validate_x87_powf_decoded_instruction(
       CTOOL_X86_MN_FYL2X,   CTOOL_X86_MN_FLD,
       CTOOL_X86_MN_FMULP,   CTOOL_X86_MN_FLD,
       CTOOL_X86_MN_FMULP,   CTOOL_X86_MN_FLD,
-      CTOOL_X86_MN_FRNDINT, CTOOL_X86_MN_FSUBR,
+      CTOOL_X86_MN_FRNDINT, CTOOL_X86_MN_FSUB,
       CTOOL_X86_MN_FXCH,    CTOOL_X86_MN_F2XM1,
       CTOOL_X86_MN_FLD1,    CTOOL_X86_MN_FADDP,
       CTOOL_X86_MN_FSCALE,  CTOOL_X86_MN_FSTP,
@@ -35723,7 +35738,7 @@ static int validate_x87_powf_memory_function(
       0xdeu, 0xc9u,
       0xd9u, 0xc0u,
       0xd9u, 0xfcu,
-      0xdcu, 0xe1u,
+      0xdcu, 0xe9u,
       0xd9u, 0xc9u,
       0xd9u, 0xf0u,
       0xd9u, 0xe8u,
@@ -35746,11 +35761,25 @@ static int validate_x87_powf_memory_function(
       symbol->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
       symbol->value > text->contents.size ||
       symbol->size > text->contents.size - symbol->value ||
-      symbol->size != (ctool_u32)sizeof(expected) ||
-      memcmp(text->contents.data + symbol->value, expected,
-             sizeof(expected)) != 0) {
+      symbol->size != (ctool_u32)sizeof(expected)) {
     return 0;
   }
+  if (memcmp(text->contents.data + symbol->value, expected,
+             sizeof(expected)) != 0) {
+    for (cursor = 0u; cursor < (ctool_u32)sizeof(expected); cursor++) {
+      ctool_u8 actual = text->contents.data[symbol->value + cursor];
+      if (actual != expected[cursor]) {
+        (void)fprintf(
+            stderr,
+            "x87 powf byte %u differs: expected %02x, got %02x\n",
+            (unsigned int)cursor, (unsigned int)expected[cursor],
+            (unsigned int)actual);
+        break;
+      }
+    }
+    return 0;
+  }
+  cursor = 0u;
   while (cursor < symbol->size) {
     ctool_x86_decoded_t decoded;
     ctool_bytes_t remaining = ctool_bytes(
@@ -35798,7 +35827,7 @@ static int validate_x87_powf_memory_function(
       if (x87_count == 9u &&
           (decoded.consumed != 2u ||
            remaining.data[0] != 0xdcu ||
-           remaining.data[1] != 0xe1u)) {
+           remaining.data[1] != 0xe9u)) {
         return 0;
       }
       x87_count++;
@@ -35861,7 +35890,7 @@ static int run_x87_powf_memory_assembly_object(const char *host_root) {
       "\"fmulp\\n\\t\""
       "\"fld    %%st(0)\\n\\t\""
       "\"frndint\\n\\t\""
-      "\"fsub   %%st, %%st(1)\\n\\t\""
+      "\"fsubr  %%st, %%st(1)\\n\\t\""
       "\"fxch\\n\\t\""
       "\"f2xm1\\n\\t\""
       "\"fld1\\n\\t\""
@@ -36949,7 +36978,7 @@ static int validate_x87_exp_direct_instruction(
       CTOOL_X86_MN_MOV,     CTOOL_X86_MN_FLD,
       CTOOL_X86_MN_POP,     CTOOL_X86_MN_FLD,
       CTOOL_X86_MN_FMULP,   CTOOL_X86_MN_FLD,
-      CTOOL_X86_MN_FRNDINT, CTOOL_X86_MN_FSUBR,
+      CTOOL_X86_MN_FRNDINT, CTOOL_X86_MN_FSUB,
       CTOOL_X86_MN_FXCH,    CTOOL_X86_MN_F2XM1,
       CTOOL_X86_MN_FLD1,    CTOOL_X86_MN_FADDP,
       CTOOL_X86_MN_FSCALE,  CTOOL_X86_MN_FSTP,
@@ -37071,7 +37100,7 @@ static int validate_x87_exp_memory_function(
       0xdeu, 0xc9u,
       0xd9u, 0xc0u,
       0xd9u, 0xfcu,
-      0xdcu, 0xe1u,
+      0xdcu, 0xe9u,
       0xd9u, 0xc9u,
       0xd9u, 0xf0u,
       0xd9u, 0xe8u,
@@ -37089,7 +37118,7 @@ static int validate_x87_exp_memory_function(
       0xdeu, 0xc9u,
       0xd9u, 0xc0u,
       0xd9u, 0xfcu,
-      0xdcu, 0xe1u,
+      0xdcu, 0xe9u,
       0xd9u, 0xc9u,
       0xd9u, 0xf0u,
       0xd9u, 0xe8u,
@@ -37182,7 +37211,7 @@ static int run_x87_exp_memory_assembly_object(
       "  __asm__ __volatile__(\"fldl   %[x]\\n\\t\""
       " \"fldl   %[log2e]\\n\\t\" \"fmulp\\n\\t\""
       " \"fld    %%st(0)\\n\\t\" \"frndint\\n\\t\""
-      " \"fsub   %%st, %%st(1)\\n\\t\" \"fxch\\n\\t\""
+      " \"fsubr  %%st, %%st(1)\\n\\t\" \"fxch\\n\\t\""
       " \"f2xm1\\n\\t\" \"fld1\\n\\t\" \"faddp\\n\\t\""
       " \"fscale\\n\\t\" \"fstp   %%st(1)\\n\\t\""
       " \"fstpl  %[out]\\n\\t\""
@@ -37277,7 +37306,7 @@ static int run_x87_exp_memory_assembly_object(
   mutant_assemblies[0].template_text = ctool_string(
       "fldl %1\n\tfldl   %2\n\tfmulp\n\t"
       "fld    %%st(0)\n\tfrndint\n\t"
-      "fsub   %%st, %%st(1)\n\tfxch\n\tf2xm1\n\t"
+      "fsubr  %%st, %%st(1)\n\tfxch\n\tf2xm1\n\t"
       "fld1\n\tfaddp\n\tfscale\n\tfstp   %%st(1)\n\t"
       "fstpl  %0\n\t");
   if (!expect_object_failure(
@@ -43555,20 +43584,20 @@ static int validate_file_scope_exp_log_wrapper_decode(
     ctool_bool single_precision) {
   static const ctool_u8 exp2_double[] = {
       0xddu, 0x44u, 0x24u, 0x04u, 0xd9u, 0xc0u, 0xd9u, 0xfcu,
-      0xdcu, 0xe1u, 0xd9u, 0xc9u, 0xd9u, 0xf0u, 0xd9u, 0xe8u,
+      0xdcu, 0xe9u, 0xd9u, 0xc9u, 0xd9u, 0xf0u, 0xd9u, 0xe8u,
       0xdeu, 0xc1u, 0xd9u, 0xfdu, 0xddu, 0xd9u, 0x83u, 0xecu,
       0x08u, 0xddu, 0x1cu, 0x24u, 0xf2u, 0x0fu, 0x10u, 0x04u,
       0x24u, 0x83u, 0xc4u, 0x08u, 0xc3u};
   static const ctool_u8 exp2_single[] = {
       0xd9u, 0x44u, 0x24u, 0x04u, 0xd9u, 0xc0u, 0xd9u, 0xfcu,
-      0xdcu, 0xe1u, 0xd9u, 0xc9u, 0xd9u, 0xf0u, 0xd9u, 0xe8u,
+      0xdcu, 0xe9u, 0xd9u, 0xc9u, 0xd9u, 0xf0u, 0xd9u, 0xe8u,
       0xdeu, 0xc1u, 0xd9u, 0xfdu, 0xddu, 0xd9u, 0x83u, 0xecu,
       0x04u, 0xd9u, 0x1cu, 0x24u, 0xf3u, 0x0fu, 0x10u, 0x04u,
       0x24u, 0x83u, 0xc4u, 0x04u, 0xc3u};
   static const ctool_u8 exp_double[] = {
       0xddu, 0x44u, 0x24u, 0x04u,
       0xddu, 0x05u, 0x00u, 0x00u, 0x00u, 0x00u,
-      0xdeu, 0xc9u, 0xd9u, 0xc0u, 0xd9u, 0xfcu, 0xdcu, 0xe1u,
+      0xdeu, 0xc9u, 0xd9u, 0xc0u, 0xd9u, 0xfcu, 0xdcu, 0xe9u,
       0xd9u, 0xc9u, 0xd9u, 0xf0u, 0xd9u, 0xe8u, 0xdeu, 0xc1u,
       0xd9u, 0xfdu, 0xddu, 0xd9u, 0x83u, 0xecu, 0x08u,
       0xddu, 0x1cu, 0x24u, 0xf2u, 0x0fu, 0x10u, 0x04u, 0x24u,
@@ -43576,7 +43605,7 @@ static int validate_file_scope_exp_log_wrapper_decode(
   static const ctool_u8 exp_single[] = {
       0xd9u, 0x44u, 0x24u, 0x04u,
       0xddu, 0x05u, 0x00u, 0x00u, 0x00u, 0x00u,
-      0xdeu, 0xc9u, 0xd9u, 0xc0u, 0xd9u, 0xfcu, 0xdcu, 0xe1u,
+      0xdeu, 0xc9u, 0xd9u, 0xc0u, 0xd9u, 0xfcu, 0xdcu, 0xe9u,
       0xd9u, 0xc9u, 0xd9u, 0xf0u, 0xd9u, 0xe8u, 0xdeu, 0xc1u,
       0xd9u, 0xfdu, 0xddu, 0xd9u, 0x83u, 0xecu, 0x04u,
       0xd9u, 0x1cu, 0x24u, 0xf3u, 0x0fu, 0x10u, 0x04u, 0x24u,
@@ -43605,7 +43634,7 @@ static int validate_file_scope_exp_log_wrapper_decode(
       0x83u, 0xc4u, 0x04u, 0xc3u};
   static const ctool_x86_mnemonic_t exp2_mnemonics[] = {
       CTOOL_X86_MN_FLD, CTOOL_X86_MN_FLD,
-      CTOOL_X86_MN_FRNDINT, CTOOL_X86_MN_FSUBR,
+      CTOOL_X86_MN_FRNDINT, CTOOL_X86_MN_FSUB,
       CTOOL_X86_MN_FXCH, CTOOL_X86_MN_F2XM1,
       CTOOL_X86_MN_FLD1, CTOOL_X86_MN_FADDP,
       CTOOL_X86_MN_FSCALE, CTOOL_X86_MN_FSTP,
@@ -43615,7 +43644,7 @@ static int validate_file_scope_exp_log_wrapper_decode(
   static const ctool_x86_mnemonic_t exp_mnemonics[] = {
       CTOOL_X86_MN_FLD, CTOOL_X86_MN_FLD,
       CTOOL_X86_MN_FMULP, CTOOL_X86_MN_FLD,
-      CTOOL_X86_MN_FRNDINT, CTOOL_X86_MN_FSUBR,
+      CTOOL_X86_MN_FRNDINT, CTOOL_X86_MN_FSUB,
       CTOOL_X86_MN_FXCH, CTOOL_X86_MN_F2XM1,
       CTOOL_X86_MN_FLD1, CTOOL_X86_MN_FADDP,
       CTOOL_X86_MN_FSCALE, CTOOL_X86_MN_FSTP,
@@ -43951,7 +43980,7 @@ static int run_file_scope_exp_log_assembly_object(
       "\"fldl   4(%esp)\\n\\t\"\n"
       "\"fld    %st(0)\\n\\t\"\n"
       "\"frndint\\n\\t\"\n"
-      "\"fsub   %st, %st(1)\\n\\t\"\n"
+      "\"fsubr  %st, %st(1)\\n\\t\"\n"
       "\"fxch\\n\\t\"\n"
       "\"f2xm1\\n\\t\"\n"
       "\"fld1\\n\\t\"\n"
@@ -43973,7 +44002,7 @@ static int run_file_scope_exp_log_assembly_object(
       "\"flds   4(%esp)\\n\\t\"\n"
       "\"fld    %st(0)\\n\\t\"\n"
       "\"frndint\\n\\t\"\n"
-      "\"fsub   %st, %st(1)\\n\\t\"\n"
+      "\"fsubr  %st, %st(1)\\n\\t\"\n"
       "\"fxch\\n\\t\"\n"
       "\"f2xm1\\n\\t\"\n"
       "\"fld1\\n\\t\"\n"
@@ -43997,7 +44026,7 @@ static int run_file_scope_exp_log_assembly_object(
       "\"fmulp\\n\\t\"\n"
       "\"fld    %st(0)\\n\\t\"\n"
       "\"frndint\\n\\t\"\n"
-      "\"fsub   %st, %st(1)\\n\\t\"\n"
+      "\"fsubr  %st, %st(1)\\n\\t\"\n"
       "\"fxch\\n\\t\"\n"
       "\"f2xm1\\n\\t\"\n"
       "\"fld1\\n\\t\"\n"
@@ -44021,7 +44050,7 @@ static int run_file_scope_exp_log_assembly_object(
       "\"fmulp\\n\\t\"\n"
       "\"fld    %st(0)\\n\\t\"\n"
       "\"frndint\\n\\t\"\n"
-      "\"fsub   %st, %st(1)\\n\\t\"\n"
+      "\"fsubr  %st, %st(1)\\n\\t\"\n"
       "\"fxch\\n\\t\"\n"
       "\"f2xm1\\n\\t\"\n"
       "\"fld1\\n\\t\"\n"

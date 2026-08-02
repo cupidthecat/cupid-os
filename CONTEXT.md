@@ -241,7 +241,7 @@ An optional C-identifier label in brackets before an extended-assembly output or
 _Avoid_: public operand-name metadata, rewriting active source to numeric operands, treating `%%[name]` as substitution, general template substitution
 
 **Represented GNU x87 double-power memory assembly**:
-The exact volatile statement in `libm_pow_impl()` that consumes one modifiable `double` `=m` output, four addressable `double` `m` inputs, and one `memory` clobber. Checked-seed CupidC resolves its named operands to numeric indexes, evaluates all five addresses once in source order, and emits the complete `FYL2X`, `FRNDINT`, `F2XM1`, and `FSCALE` sequence with balanced x87 depth. The reverse subtraction uses the shared model's canonical `DC E1` encoding for `FSUBR ST(1), ST(0)`.
+The exact volatile statement in `libm_pow_impl()` that consumes one modifiable `double` `=m` output, four addressable `double` `m` inputs, and one `memory` clobber. Checked-seed CupidC resolves its named operands to numeric indexes, evaluates all five addresses once in source order, and emits the complete `FYL2X`, `FRNDINT`, `F2XM1`, and `FSCALE` sequence with balanced x87 depth. The current checked source uses the legacy `DC E1` reverse subtraction. Compiler head also represents the corrected `DC E9` forward subtraction described by ADR 0207.
 _Avoid_: treating the mixed-width `libm_powf_impl()` form as all-double operands, arbitrary x87 stack programs, host-assembler escape
 
 **Represented GNU x87 mixed-width float-power memory assembly**:
@@ -258,6 +258,8 @@ _Avoid_: general x87 programs, reordered address evaluation, host-assembler esca
 
 **Represented GNU x87 exponent memory assembly**:
 The exact volatile statement in `libm_exp_impl()` with one modifiable, non-atomic `double` `=m` output, two addressable, non-atomic `double` `m` inputs in `x`, `log2e` order, and one `memory` clobber. Linear IR evaluates all three addresses once in source order. The i386 emitter runs the complete `exp2(x * log2(e))` pipeline through Cupid's shared x86 model. The focused function has 71 text bytes, no relocations, maximum x87 depth three, and balanced depth on return.
+
+Compiler head now distinguishes both aligned GNU spellings of the exponent range subtraction. Legacy `fsub %st, %st(1)` retains GNU's `DC E1` reverse-subtract meaning. Corrected `fsubr %st, %st(1)` emits canonical `FSUB ST(1), ST(0)` as `DC E9`, which computes `x - round(x)`. The shared catalogue has 592 forms and fingerprint `F4420CB4`. The checked seed remains on the 591-form `DBE77533` model until the next promotion, so active `libm.cc` still uses the legacy spelling in this increment. ADR 0207 records the source diagnosis and compatibility boundary.
 _Avoid_: general x87 programs, host-assembler escape, changing the active libm algorithm
 
 **Represented GNU fabs file-scope assembly**:

@@ -465,9 +465,11 @@ through six leading `66` bytes and the fixed
 `2E 0F 1F 84 00 00 00 00 00` tail. The final scan has 1,901 fallback rows
 in 36 objects and renders 1,781 NOP rows. Other repeated prefixes remain
 invalid, and CupidASM cannot emit the redundant forms. Packed-integer SSE2
-is the next largest measured decoder gap. The checked seed and source head
-have 591 catalogue rows, 244 canonical mnemonics, and fingerprint `DBE77533`.
-The four forms added since the preceding seed are x87 80-bit `FLD` and `FSTP`
+is the next largest measured decoder gap. Source head has 592 catalogue rows,
+244 canonical mnemonics, and fingerprint `F4420CB4`. Its newest form encodes
+canonical `FSUB ST(1), ST(0)` as `DC E9` for corrected exponent range
+reduction. The checked seed remains on 591 rows and fingerprint `DBE77533`.
+The four forms in that seed are x87 80-bit `FLD` and `FSTP`
 memory forms, i686
 `FUCOMIP ST0, ST(i)`, and operand-free `FLDZ`, used by represented `long
 double` values. File-scope and
@@ -475,8 +477,9 @@ block-static scalars, fixed arrays, and complete records may contain
 implicitly or explicitly zeroed non-atomic long-double leaves. The aggregate
 object proof fixes 104 BSS bytes, a 415-byte function with fingerprint
 `BF01CC71`, eight absolute relocations, and six symbols.
-Both compiler stages in the normal contract cohort rebuild the 591-row
-catalogue. ADR 0203 records seed carriage.
+Both compiler stages in the normal contract cohort rebuild the source
+catalogue. ADR 0203 records the checked seed, and ADR 0207 records the new
+subtraction form.
 
 The four-vCPU GUI runtime starts every discovered CPU, reaches e1000 or
 RTL8139 traffic,
@@ -590,7 +593,7 @@ other clobber. Linear IR evaluates each statement's five addresses once in
 source order.
 
 Each focused function has 116 exact text bytes and no relocations. Shared
-decoding checks all seventeen x87 instructions, the canonical `DC E1`
+decoding checks all seventeen x87 instructions, the legacy `DC E1`
 reverse-subtract bytes, maximum stack depth three, balanced depth on return,
 deterministic output, rollback, and same-job recovery.
 

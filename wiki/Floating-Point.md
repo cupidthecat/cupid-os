@@ -148,8 +148,10 @@ The checked seed represents the x87 power statements in `libm_pow_impl()` and
 mixed form has a `float` output, two `float` inputs, and two `double` inputs.
 Each requires one memory clobber. Linear IR evaluates each set of five
 addresses once in source order. Both 116-byte focused functions contain
-seventeen x87 instructions, use `DC E1` for `FSUBR ST(1), ST(0)`, reach
+seventeen x87 instructions, use the legacy `DC E1` reverse subtraction, reach
 stack depth three, and return to their incoming depth without a relocation.
+Compiler head also represents `FSUB ST(1), ST(0)` as `DC E9`. That form
+computes the forward `x - round(x)` remainder needed by the corrected source.
 
 The checked seed also represents the exact volatile `sqrtsd %1, %0` statement
 in `libm_sqrt_impl()`. It takes one modifiable, non-atomic `double` `=x`

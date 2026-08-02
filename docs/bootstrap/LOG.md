@@ -18966,3 +18966,58 @@ Seventeen non-TempleOS `.c` files remain outside the active source graph. The
 audit classifies them as historical copies, superseded sources, or unreachable
 tests and oracles. No active Cupid-owned C transform uses them, so this
 promotion does not rename them or count them as migrated source.
+
+## 2026-08-01: Represent forward x87 stack subtraction
+
+The exponent and power range-reduction blocks intend to retain
+`x - round(x)`. Their active GNU statement instead uses
+`fsub %st, %st(1)`. GNU `as` encodes that spelling as `DC E1`, whose
+Intel-ordered operation is `FSUBR ST(1), ST(0)`. A native x87 probe returned
+`-0.44269504088896339` for the fractional part of `log2(e)`, confirming
+that the block computed `round(x) - x`. This accounts for the earlier
+`exp(1)` result near 1.47.
+
+The first diagnosis blamed CupidC's GNU mnemonic mapping. A separate GNU
+assembly probe produced the same bytes, so changing the compiler's meaning
+for the existing spelling would have hidden a source bug. The corrected GNU
+statement is `fsubr %st, %st(1)`, which must encode canonical
+`FSUB ST(1), ST(0)` as `DC E9`.
+
+The shared x86 catalogue now contains that two-register `FSUB` form.
+Frontend, Linear IR, and object emission accept both aligned statements during
+the bootstrap transition. The legacy source keeps its `DC E1` behavior, and
+the corrected source emits `DC E9`. Exact 16-bit and 32-bit decode checks, a
+reversed-operand failure, forged metadata, constrained output, rollback, and
+same-job recovery cover the new path.
+
+Focused x86, frontend, Linear IR, and object tests pass. Compiler head also
+compiles the unchanged 43,736-byte `kernel/cpu/libm.cc` twice to the locked
+16,164-byte object with SHA-256
+`ccfb59839b058020a3cdc30c8e6db7ebac8845215a38ff974b3cbca876574eac`.
+That result proves the compatibility path does not alter the current
+production object.
+
+The first full checked run was no longer valid after the 16-bit x87 proof was
+added while it was compiling. Its frozen-input guard rejected the run as
+designed. A clean rerun reached byte-identical stage-two and stage-three
+artifacts, passed the hosted runtime, and then exposed exact frontier counts
+that had not kept pace with the source. The frontend contract now reports
+every drift in one pass instead of stopping at the first file. Its source and
+object inventories have been refreshed for CupidObj and the four toolchain
+files changed here. A focused native self-host frontier passes with the new
+locks.
+
+The final clean `make -C toolchain test` run passes from a fresh output
+directory. Stage two and stage three are byte-identical, the hosted runtime
+and frozen-input guards pass, and the published 20-artifact contract cohort
+passes in full. That includes the frontend and object self-host frontiers,
+all five checked tool links, and the 592-form x86 inventory with fingerprint
+`F4420CB4`.
+
+Source head has 592 x86 forms, 244 canonical mnemonics, 64 register names,
+and fingerprint `F4420CB4`. The checked seed still carries the 591-form
+`DBE77533` catalogue. No production owner or host dependency moves in this
+increment. The source correction follows seed promotion so the normal checked
+compiler can represent it. ADR 0207 records the decision.
+
+`TempleOS/` remains untouched reference material.

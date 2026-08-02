@@ -343,6 +343,40 @@ static ctool_bool cfront_string_literal(ctool_string_t value,
   return cfront_string_equal(value, ctool_string(literal));
 }
 
+static ctool_bool cfront_x87_fraction_template_equal(
+    ctool_string_t value, const char *corrected_literal) {
+  ctool_string_t corrected = ctool_string(corrected_literal);
+  ctool_u32 corrected_index;
+  ctool_bool accepted_legacy_space = CTOOL_FALSE;
+  if (cfront_string_equal(value, corrected) == CTOOL_TRUE) {
+    return CTOOL_TRUE;
+  }
+  if (value.size != corrected.size ||
+      (value.data == (const char *)0 && value.size != 0u) ||
+      corrected.data == (const char *)0) {
+    return CTOOL_FALSE;
+  }
+  for (corrected_index = 0u; corrected_index < corrected.size;
+       corrected_index++) {
+    if (accepted_legacy_space == CTOOL_FALSE && corrected_index >= 4u &&
+        corrected.data[corrected_index] == 'r' &&
+        corrected.data[corrected_index - 4u] == 'f' &&
+        corrected.data[corrected_index - 3u] == 's' &&
+        corrected.data[corrected_index - 2u] == 'u' &&
+        corrected.data[corrected_index - 1u] == 'b' &&
+        corrected_index + 1u < corrected.size &&
+        corrected.data[corrected_index + 1u] == ' ' &&
+        value.data[corrected_index] == ' ') {
+      accepted_legacy_space = CTOOL_TRUE;
+      continue;
+    }
+    if (value.data[corrected_index] != corrected.data[corrected_index]) {
+      return CTOOL_FALSE;
+    }
+  }
+  return accepted_legacy_space;
+}
+
 static ctool_u32 cfront_read_le32(const ctool_u8 *bytes) {
   return (ctool_u32)bytes[0] | ((ctool_u32)bytes[1] << 8u) |
          ((ctool_u32)bytes[2] << 16u) | ((ctool_u32)bytes[3] << 24u);
@@ -13334,14 +13368,14 @@ static ctool_bool cfront_x87_atan2_memory_template(
 
 static ctool_bool cfront_x87_exp_memory_template(
     ctool_string_t template_text) {
-  return cfront_string_literal(
+  return cfront_x87_fraction_template_equal(
              template_text,
              "fldl   %1\n\t"
              "fldl   %2\n\t"
              "fmulp\n\t"
              "fld    %%st(0)\n\t"
              "frndint\n\t"
-             "fsub   %%st, %%st(1)\n\t"
+             "fsubr  %%st, %%st(1)\n\t"
              "fxch\n\t"
              "f2xm1\n\t"
              "fld1\n\t"
@@ -13349,14 +13383,14 @@ static ctool_bool cfront_x87_exp_memory_template(
              "fscale\n\t"
              "fstp   %%st(1)\n\t"
              "fstpl  %0\n\t") == CTOOL_TRUE ||
-                 cfront_string_literal(
+                 cfront_x87_fraction_template_equal(
                      template_text,
                      "fldl   %[x]\n\t"
                      "fldl   %[log2e]\n\t"
                      "fmulp\n\t"
                      "fld    %%st(0)\n\t"
                      "frndint\n\t"
-                     "fsub   %%st, %%st(1)\n\t"
+                     "fsubr  %%st, %%st(1)\n\t"
                      "fxch\n\t"
                      "f2xm1\n\t"
                      "fld1\n\t"
@@ -13398,7 +13432,7 @@ static ctool_bool cfront_x87_round_down_memory_template(
 
 static ctool_bool cfront_x87_pow_memory_template(
     ctool_string_t template_text) {
-  return cfront_string_literal(
+  return cfront_x87_fraction_template_equal(
              template_text,
              "fldl   %3\n\t"
              "fldl   %1\n\t"
@@ -13409,7 +13443,7 @@ static ctool_bool cfront_x87_pow_memory_template(
              "fmulp\n\t"
              "fld    %%st(0)\n\t"
              "frndint\n\t"
-             "fsub   %%st, %%st(1)\n\t"
+             "fsubr  %%st, %%st(1)\n\t"
              "fxch\n\t"
              "f2xm1\n\t"
              "fld1\n\t"
@@ -13417,7 +13451,7 @@ static ctool_bool cfront_x87_pow_memory_template(
              "fscale\n\t"
              "fstp   %%st(1)\n\t"
              "fstpl  %0\n\t") == CTOOL_TRUE ||
-                 cfront_string_literal(
+                 cfront_x87_fraction_template_equal(
                      template_text,
                      "fldl   %[ln2]\n\t"
                      "fldl   %[x]\n\t"
@@ -13428,7 +13462,7 @@ static ctool_bool cfront_x87_pow_memory_template(
                      "fmulp\n\t"
                      "fld    %%st(0)\n\t"
                      "frndint\n\t"
-                     "fsub   %%st, %%st(1)\n\t"
+                     "fsubr  %%st, %%st(1)\n\t"
                      "fxch\n\t"
                      "f2xm1\n\t"
                      "fld1\n\t"
@@ -13442,7 +13476,7 @@ static ctool_bool cfront_x87_pow_memory_template(
 
 static ctool_bool cfront_x87_powf_memory_template(
     ctool_string_t template_text) {
-  return cfront_string_literal(
+  return cfront_x87_fraction_template_equal(
              template_text,
              "fldl   %3\n\t"
              "flds   %1\n\t"
@@ -13453,7 +13487,7 @@ static ctool_bool cfront_x87_powf_memory_template(
              "fmulp\n\t"
              "fld    %%st(0)\n\t"
              "frndint\n\t"
-             "fsub   %%st, %%st(1)\n\t"
+             "fsubr  %%st, %%st(1)\n\t"
              "fxch\n\t"
              "f2xm1\n\t"
              "fld1\n\t"
@@ -13461,7 +13495,7 @@ static ctool_bool cfront_x87_powf_memory_template(
              "fscale\n\t"
              "fstp   %%st(1)\n\t"
              "fstps  %0\n\t") == CTOOL_TRUE ||
-                 cfront_string_literal(
+                 cfront_x87_fraction_template_equal(
                      template_text,
                      "fldl   %[ln2]\n\t"
                      "flds   %[x]\n\t"
@@ -13472,7 +13506,7 @@ static ctool_bool cfront_x87_powf_memory_template(
                      "fmulp\n\t"
                      "fld    %%st(0)\n\t"
                      "frndint\n\t"
-                     "fsub   %%st, %%st(1)\n\t"
+                     "fsubr  %%st, %%st(1)\n\t"
                      "fxch\n\t"
                      "f2xm1\n\t"
                      "fld1\n\t"
