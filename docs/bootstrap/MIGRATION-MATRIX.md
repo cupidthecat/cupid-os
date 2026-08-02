@@ -92,7 +92,7 @@ slots. A call evaluates arguments from left to right, then permutes complete
 words into source-order stack positions. This supports arbitrary mixtures of
 represented scalar and pointer values with `double`, including the implicit
 method `self` slot. Later callee offsets and caller cleanup use the same total.
-The feature13 guest uses a real mixed-width helper nine times. This changes
+The feature13 guest uses a real mixed-width helper ten times. This changes
 private JIT and AOT behavior without moving a build owner. ADR 0198 records
 the boundary.
 
@@ -163,22 +163,23 @@ remaining cdecl bridges: six binary wrappers in the `pow`, `hypot`, and
 argument words, call the matching external implementation, reclaim the
 copies, and move ST(0) into XMM0. The functions add 558 text bytes and 18
 `R_386_PC32` relocations with addend `-4`. Two complete kernel-profile
-compiles of the byte-unchanged source produce the same 16,164-byte valid
+compiles of the corrected source produce the same 16,164-byte valid
 ELF32 object. General GAS remains open.
 
 The production source is now `kernel/cpu/libm.cc`. The normal checked wrapper
 owns its transform and freezes an exact closure of that source,
-`kernel/core/types.h`, and `kernel/cpu/libm.h`. The 43,736 source bytes retain
+`kernel/core/types.h`, and `kernel/cpu/libm.h`. The 43,736 source bytes have
 SHA-256
-`f1c13c83b758394189cc74ed6addfd9dfa99d42064c349c548476686b26cabce`,
-and the 16,164-byte object retains SHA-256
-`ccfb59839b058020a3cdc30c8e6db7ebac8845215a38ff974b3cbca876574eac`.
+`baffe801c7573b8500c60251298a753f60732608d58443178be8ce9ab809ef93`,
+and the 16,164-byte object has SHA-256
+`c0911732361f2e1ea78aa778f834719ba12208cc2d9f0a312455a5e6a38a75b4`.
 ADR 0155 records the initial file-scope boundary, ADR 0159 records named
 operand normalization, ADRs 0161 through 0165 record the five represented
 statements, ADR 0166 records the `fabs` effects, ADR 0169 records the
 rounding family, ADR 0171 records the remainder family, ADR 0172 records the
 exponent/log family, ADR 0173 records the cdecl bridges, ADR 0174 records
-checked-seed carriage, and ADR 0176 records production ownership.
+checked-seed carriage, ADR 0176 records production ownership, and ADR 0209
+records the seven active range-reduction corrections.
 
 Checked-seed CupidC represents the two exact volatile FXSAVE statements in
 `kernel/core/process.cc`. One independent four-byte object or
@@ -221,8 +222,8 @@ The checked-in frontier must repeat all 155 compiles. Strict syntax,
 recursive Make dependencies, poisoned-host recipes, focused tests, the normal
 image, and runtime gates remain part of that proof. The complete frontier
 passes twice against a frozen 445-file snapshot with SHA-256
-`543c7bb3e4946967835fe81daeb6d895d661c03961021681a34b5236cfa20423`;
-both 155-object sets are byte-identical; each totals 3,719,100 bytes. The combined graph passes clean
+`4b4dbd802d8faf0cdf9bc1b2749ab7cddf4c4635dafdea4ac171c37a96449a92`;
+both 155-object sets are byte-identical; each totals 3,721,392 bytes. The combined graph passes clean
 normal and partitioned image builds plus strong four-vCPU runtime gates with
 both NICs. ADR 0101 supersedes
 older row text
@@ -505,7 +506,7 @@ records seed carriage for `FLDZ` and the three preceding x87 forms, while ADR
 | `kernel/core/process.cc` FXSAVE frontier | Checked-seed CupidC through the verified kernel wrapper | Native normal-build CupidC with no host execution bridge | Production-owned by CupidC. The deterministic 30,216-byte object contains both exact `0F AE 00` FXSAVE instructions and passes the shared relocatable validator. The normal Make recipe and runtime path now use this object. ADR 0119 records the compiler boundary, and ADR 0123 records the transfer. |
 | Strict checked-in core/driver/tool C cohort | Checked-seed CupidC through the verified kernel wrapper | Native normal-build CupidC with no host execution bridge | All 155 strict checked-in roots are CupidC-owned. `kernel/core/string.cc` is the final transferred root. The checked seed accepts the complete x87 control-word and round-down statement in unchanged `str_floor()`, including its exact AX and memory clobbers. Two compiles of that extracted active helper produce the same 420-byte object with SHA-256 `448012fe57ec625c6075e97cf91163b994a0443238c5d6bdf25e4b839763f14e`. It also accepts the later explicit non-atomic `double` to `uint64_t` casts. Two full compiles of unchanged `kernel/core/string.cc` produce the same 14,460-byte object with SHA-256 `d48bb6ea18b7124fbefeaca0d5d5ee8a517db950f21ea88e30ededd6c5c2a577`. The wrapper freezes its two-header closure and publishes the validated object without a host compiler. ADR 0181 records the transfer. |
 | `kernel/core/kernel.cc` | Checked-seed CupidC through the verified kernel wrapper | Native normal-build CupidC with no host execution bridge | Production-owned by CupidC. The wrapper freezes the 31,174-byte source and its exact 63-header recursive closure. The checked seed emits a 25,920-byte object with SHA-256 `ed42676ad0d7f16b1fb83442ead1b0082781324dca719104922099cee34b5ab0`. CupidDis decodes the `0x01100000` stack reset, linked BSS clear, `kmain()` call, and halt loop. Poisoning `CC` leaves the Make recipe on CupidC. ADR 0175 records the compiler boundary, ADR 0179 records seed carriage, ADR 0180 records production ownership, and ADR 0187 records the active stack placement. |
-| `kernel/cpu/libm.cc` | Checked-seed CupidC through the verified kernel wrapper | Native normal-build CupidC with no host execution bridge | Production-owned by CupidC. The transfer renames the 43,736-byte source without changing a byte, freezes `kernel/core/types.h` and `kernel/cpu/libm.h` with it, and emits the same 16,164-byte validated ELF32 object. A poisoned normal recipe proves that GCC, Clang, NASM, host assemblers, linkers, and binary utilities do not produce the object. The guest smoke runs `/bin/feature15_libm.cc` and requires 22 checks with no failure plus `PASS feature15_libm`. General GAS and the wider GNU surface remain open. ADR 0176 records the transfer. |
+| `kernel/cpu/libm.cc` | Checked-seed CupidC through the verified kernel wrapper | Native normal-build CupidC with no host execution bridge | Production-owned by CupidC. The checked wrapper freezes the 43,736-byte source with `kernel/core/types.h` and `kernel/cpu/libm.h`, then emits a deterministic 16,164-byte validated ELF32 object. Seven aligned source mnemonics now emit `DC E9` for the intended range-reduction subtraction without changing the algorithm, stack order, source size, or ABI. A poisoned normal recipe proves that GCC, Clang, NASM, host assemblers, linkers, and binary utilities do not produce the object. The guest smoke runs `/bin/feature15_libm.cc` and requires seven focused x87 checks, all 29 checks, both zero-failure summaries, and `PASS feature15_libm`. General GAS and the wider GNU surface remain open. ADR 0176 records the transfer, and ADR 0209 records the numerical correction. |
 | `kernel/cpu/simd.cc` | Checked-seed CupidC through the verified kernel wrapper | Native normal-build CupidC with no host execution bridge | Production-owned by CupidC. The wrapper freezes the unchanged 13,971-byte source and its exact seven-header recursive closure. The checked seed emits an 8,768-byte object with SHA-256 `fd280c321b8eb38a90d4f0982d70b8df0364585e3da322eb2c9de722e071f8d4`. CupidDis decodes the copy, broadcast, blend, saturating-add, and streaming-store instructions. Poisoning `CC` leaves the Make recipe on CupidC. ADRs 0160 and 0168 record the earlier compiler boundary, ADR 0174 records first seed carriage, ADR 0178 records packed SSE2 support, ADR 0179 records complete source carriage, and ADR 0180 records production ownership. |
 | `kernel/smp/percpu.cc` descriptor-table root | Checked-seed CupidC through the verified kernel wrapper | Native normal-build CupidC with no host execution bridge | Production-owned by CupidC. Its four exact assembly forms load a packed six-byte GDTR, reload DS, ES, SS, and CS, and write a represented 16-bit selector to GS. Two complete compiles produce the same 6,760-byte object with SHA-256 `3c2c6f0e00e5edec1ca16cba91e9fc593d1c42e24f4ebd3591e5f574fb0dd772`. The wrapper freezes the recursive input closure, and the image plus four-vCPU dual-NIC runtime gates pass. ADR 0157 records the compiler boundary, and ADR 0167 records the transfer. |
 | `kernel/audio/nuked_opl3.cc` | Checked-seed CupidC through the verified kernel wrapper | Native normal-build CupidC with no host execution bridge | Production-owned by CupidC. The checked seed recognizes the ordinary header declaration plus inline source definition as one C11 external definition. It also preserves inherited internal linkage and rejects external-linkage inline declarations without a definition. Two complete compiles produce the same validated 40,424-byte object with SHA-256 `a3a04ade4029d9333902bb93376fb5eef21f349ee5a1406bd0751cc4cee9f2a1`, and CupidDis reports a defined global `OPL3_Generate4Ch` with only `memset` undefined. The wrapper compiles from a private copy of the source and its three headers and refuses live input drift. The closed recipe, current 155-root frontier, image builds, and dual-NIC runtime gates pass. ADR 0134 records the seed promotion, and ADR 0135 records the production transfer. |

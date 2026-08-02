@@ -161,11 +161,11 @@ libm_powf_impl. The double form has five double memory operands. The mixed
 form has a float output, two float inputs, and two double inputs. Both require
 one memory clobber. Linear IR evaluates each set of five addresses once in
 source order. Each 116-byte focused function contains seventeen x87
-instructions, uses the legacy DC E1 reverse subtraction, reaches stack depth three,
-and returns to its incoming depth without a relocation.
-The checked seed also represents FSUB ST(1), ST(0) as DC E9 for the corrected
-x - round(x) remainder. Active libm source keeps the legacy spelling until
-the separate runtime-tested correction. ADR 0208 records seed carriage.
+instructions, uses DC E9 for FSUB ST(1), ST(0), reaches stack depth three,
+and returns to its incoming depth without a relocation. All seven active
+range-reduction sites use the corrected GNU spelling for x - round(x). The
+old DC E1 spelling remains a compatibility contract. ADRs 0208 and 0209
+record seed carriage and the runtime-tested source correction.
 
 The checked seed also represents the exact volatile sqrtsd %1, %0 statement in
 libm_sqrt_impl. It accepts one modifiable, non-atomic double =x output, one
@@ -211,18 +211,19 @@ data and the next eight exponent and logarithm wrappers. The constants occupy
 FSCALE. exp and expf multiply by log2(e) first. log2 and log2f use FLD1 with
 FYL2X, while log and logf use ln(2). The functions add 264 text bytes and
 four absolute relocations, never exceed x87 depth three, and balance ESP and
-x87 depth. The unchanged source then reaches pow on line 846.
+x87 depth. The source then reaches pow on line 846.
 
 The checked seed represents that wrapper and all 17 later cdecl bridges.
 The pow, hypot, and nextafter pairs take two arguments. The asin, acos, sinh,
 cosh, tanh, and cbrt pairs take one. Each wrapper copies its original cdecl
 words, calls a matching external implementation, reclaims the copied words,
 and moves the ST(0) result into XMM0 at float or double width. The family
-adds 558 text bytes and 18 PC-relative call relocations. Byte-unchanged
-kernel/cpu/libm.cc now emits a deterministic 16,164-byte ELF32 object through
+adds 558 text bytes and 18 PC-relative call relocations. Corrected
+kernel/cpu/libm.cc emits a deterministic 16,164-byte ELF32 object through
 the checked production wrapper. The wrapper freezes kernel/core/types.h and
 kernel/cpu/libm.h with the source. The guest smoke runs
-/bin/feature15_libm.cc and requires all 22 checks plus PASS feature15_libm.
+/bin/feature15_libm.cc and requires the seven-case x87 summary, all 29 checks,
+and PASS feature15_libm. ADR 0209 records the numerical correction.
 
 Runtime float, double, and automatic long double values work with unary !,
 &&, ||, the controlling operand of ?:, the conditions of if, while, do, and
@@ -242,7 +243,7 @@ The private compiler passes represented scalar and pointer values in
 four-byte cdecl slots and double values in eight-byte slots. Direct,
 function-pointer, and method calls preserve left-to-right evaluation, arrange
 complete words in source order, and use the same widths for callee parameter
-offsets and caller cleanup. The feature13 guest exercises nine calls through
+offsets and caller cleanup. The feature13 guest exercises ten calls through
 one double, double, double, int helper.
 
 >h3 Arithmetic
@@ -301,7 +302,7 @@ Test programs:
   `bin/feature12_float.cc`    scalar float arithmetic, casts, element access.
   `bin/feature13_double.cc`   double + transcendentals.
   `bin/feature14_simd.cc`     float4/double2 + intrinsics.
-  `bin/feature15_libm.cc`     cycle 8 functions x 7 inputs vs glibc reference.
+  `bin/feature15_libm.cc`     29 fixed checks, including seven x87 range paths.
   `bin/feature16_asm_fpu.cc`  CupidC inline asm using SSE + x87.
   `bin/fp_drill.cc`           manual #XF provocation (panics kernel).
   `demos/fpu_kernel.asm`      CupidASM FPU state + scalar + packed + x87.

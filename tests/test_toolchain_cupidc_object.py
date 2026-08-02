@@ -161,8 +161,8 @@ DOOM_I_VIDEO_OBJECT_SHA256 = (
 )
 LIBM_SOURCE_SIZE = 43736
 LIBM_SOURCE_SHA256 = (
-    "f1c13c83b758394189cc74ed6addfd9d"
-    "fa99d42064c349c548476686b26cabce"
+    "baffe801c7573b8500c60251298a753f"
+    "60732608d58443178be8ce9ab809ef93"
 )
 KERNEL_SOURCE_SIZE = 31174
 KERNEL_SOURCE_SHA256 = (
@@ -1422,7 +1422,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                 ),
             )
 
-    def test_unchanged_libm_source_emits_a_deterministic_object(self):
+    def test_active_libm_source_emits_a_deterministic_object(self):
         source = REPO_ROOT / "kernel/cpu/libm.cc"
         source_bytes = source.read_bytes()
         self.assertEqual(len(source_bytes), LIBM_SOURCE_SIZE)
@@ -1497,11 +1497,11 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                 (len(objects[0]), digest),
                 (
                     16164,
-                    "ccfb59839b058020a3cdc30c8e6db7ebac8845215a38ff"
-                    "974b3cbca876574eac",
+                    "c0911732361f2e1ea78aa778f834719ba12208cc2d9f0a3"
+                    "12455a5e6a38a75b4",
                 ),
                 (
-                    "unchanged libm object lock changed: "
+                    "active libm object lock changed: "
                     f"{len(objects[0])} {digest}"
                 ),
             )

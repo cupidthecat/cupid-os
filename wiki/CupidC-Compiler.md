@@ -138,7 +138,7 @@ Arguments are still evaluated from left to right. The compiler then arranges
 their complete words at increasing addresses in source order. Callees use the
 same widths when they assign parameter offsets, and callers reclaim the whole
 outgoing area. SIMD and aggregate parameters still need a separate private
-ABI. `feature13_double.cc` exercises the represented path through nine calls
+ABI. `feature13_double.cc` exercises the represented path through ten calls
 to one `double, double, double, int` helper.
 
 ### Arrays
@@ -773,8 +773,8 @@ the object, so a concurrent edit cannot publish a mixed result.
 
 The strict kernel frontier must compile all 155 approved checked-in sources
 twice. The full frontier passes against a 445-file snapshot with SHA-256
-`543c7bb3e4946967835fe81daeb6d895d661c03961021681a34b5236cfa20423`.
-Both 155-object sets are byte-identical; each totals 3,719,100 bytes. The
+`4b4dbd802d8faf0cdf9bc1b2749ab7cddf4c4635dafdea4ac171c37a96449a92`.
+Both 155-object sets are byte-identical; each totals 3,721,392 bytes. The
 combined graph keeps the ISO fixture as an explicit image input. Strong
 four-vCPU runtime gates pass with e1000 and RTL8139 networking through SMP,
 RDRAND, all 62 crypto checks, USB storage, audio, TrueType glyphs, a baseline
@@ -829,14 +829,13 @@ The checked seed emits the exact x87 programs in `libm_pow_impl()` and
 inputs. The mixed form has one `float` output, two `float` inputs, and two
 `double` inputs. Both use a memory clobber. Linear IR evaluates each set of
 five addresses once in source order. Each emitter proof produces 116 exact
-text bytes with no relocations, uses the legacy `DC E1` encoding for
-`FSUBR ST(1), ST(0)`, reaches a maximum x87 depth of three, and returns to the
-incoming depth.
+text bytes with no relocations, uses `DC E9` for `FSUB ST(1), ST(0)`, reaches
+a maximum x87 depth of three, and returns to the incoming depth.
 
-The checked seed also accepts corrected `fsubr %st, %st(1)` statements. They
-emit `FSUB ST(1), ST(0)` as `DC E9`, which computes the intended
-`x - round(x)` remainder. The legacy spelling remains available until the
-checked seed and active source move together.
+All seven active range-reduction sites use corrected `fsubr %st, %st(1)` or
+its escaped statement form. CupidC emits the intended `x - round(x)`
+remainder. The old `fsub` spelling still emits `DC E1` and remains covered as
+a compatibility case. ADR 0209 records the source correction.
 
 The checked seed also emits the exact volatile `sqrtsd %1, %0` statement. It
 accepts one modifiable, non-atomic `double` `=x` output, one non-atomic
@@ -895,14 +894,16 @@ call matching external `libm_*_impl` functions, reclaim the copied words,
 and move the ST(0) result into XMM0. Four shared stack shapes cover float and
 double functions with one or two arguments. The family has 558 text bytes
 and 18 `R_386_PC32` relocations with addend `-4`. Two exact compiles of
-byte-unchanged `kernel/cpu/libm.cc` produce the same 16,164-byte ELF32
-relocatable object.
+corrected `kernel/cpu/libm.cc` produce the same 16,164-byte ELF32 relocatable
+object with SHA-256
+`c0911732361f2e1ea78aa778f834719ba12208cc2d9f0a312455a5e6a38a75b4`.
 
 General GAS syntax and other file-scope templates remain unsupported. The
 normal `libm.cc` recipe uses the checked production wrapper. Its frozen
 closure contains `kernel/core/types.h` and `kernel/cpu/libm.h`. The guest gate
-runs `/bin/feature15_libm.cc` and requires 22 checks with no failure plus
-`PASS feature15_libm`. ADR 0176 records the ownership transfer.
+runs `/bin/feature15_libm.cc` and requires seven x87 range checks, all 29
+checks, both zero-failure summaries, and `PASS feature15_libm`. ADR 0176
+records the ownership transfer, and ADR 0209 records the numerical correction.
 
 The same checked seed accepts a modifiable four-byte object or `void` pointer
 as the single `=r` output of `mov %%gs:0, %0`. It retains the pointer type,

@@ -73,7 +73,7 @@ their complete slots at increasing addresses in source order without swapping
 the two words inside a `double`. Callees advance parameter offsets by the same
 widths, and callers reclaim the exact total. `feature13_double.cc` replaces
 its copied tolerance expressions with a real `double, double, double, int`
-helper used by nine checks. ADR 0198 records this private-compiler boundary.
+helper used by ten checks. ADR 0198 records this private-compiler boundary.
 
 Hosted CupidC now carries signed and unsigned eight-byte integer values through constants, matching conditional arms, fixed direct and indirect call results, object access, declared parameters, named call arguments, ellipsis arguments, and calls through function types without prototypes. File objects, block statics, fixed automatic objects, pointer dereferences, ordinary members, and indexed elements can be initialized, loaded, assigned, mutated, chained, discarded, and returned. One Linear IR entry names an emitter-owned eight-byte frame snapshot. A declared or undeclared wide argument occupies eight cdecl stack bytes. A supported wide `va_arg` read produces an instruction-owned snapshot and advances the cursor by eight. Return restores the low word to EAX and the high word to EDX.
 
@@ -308,8 +308,8 @@ validator. The production frontier covers 155 approved sources, and every
 Make recipe names its recursive header closure and common checked controls.
 Forced rebuilds poison the host compiler. The complete frontier now compiles
 all 155 roots twice against a 445-file snapshot with SHA-256
-`543c7bb3e4946967835fe81daeb6d895d661c03961021681a34b5236cfa20423`.
-Both object passes are byte-identical; each totals 3,719,100 bytes. The combined
+`4b4dbd802d8faf0cdf9bc1b2749ab7cddf4c4635dafdea4ac171c37a96449a92`.
+Both object passes are byte-identical; each totals 3,721,392 bytes. The combined
 frontier retries only short permission-style directory locks with five
 bounded delays; persistent locks and other filesystem errors publish nothing.
 Its input inventory skips hidden paths under active include roots, so a
@@ -320,11 +320,12 @@ recipe freezes seven. Poisoning `CC` leaves both recipes on the checked
 wrapper. Their validated objects are 25,920 and 8,768 bytes, respectively,
 and CupidDis accepts both as i386 ELF32 relocatables.
 The 155-root graph passes the two-link symbol and memory checks plus clean
-normal and partitioned image builds. Strong four-vCPU runtime checks pass with e1000
-and RTL8139 networking through the promoted FPU and SMP paths, RDRAND, all 62
+normal and partitioned image builds. Strong four-vCPU runtime checks pass in
+235.259 seconds with e1000 and 232.832 seconds with RTL8139. Both runs cover
+the promoted FPU and SMP paths, RDRAND, all 62
 crypto checks, USB storage, the desktop, terminal, audio output, TrueType glyph
-use, an exact baseline JPEG decode, the 22-check libm guest probe, and in-OS
-CupidC execution.
+use, an exact baseline JPEG decode, the 29-check libm guest probe with seven
+focused x87 range-reduction cases, and in-OS CupidC execution.
 
 The pass-one kernel feeds CupidDis symbol output into
 `kernel/cpu/ksyms_data.cc`. The generator stores the byte-exact symbol blob
@@ -805,11 +806,11 @@ inventory covers 686 files and 2,392 include occurrences, split into 2,158
 quoted and 234 angle forms.
 
 The active-source digest is
-`3f297bdac4b05d8a4b644203d93960610c699eba66c5f1459422e86bd6e8af17`.
+`4cc621b69736f3b9f4c22565a8f4ec026bb775bb311254a6c7f9b1b1dd5f7265`.
 The 2,546,938-byte audit JSON has SHA-256
-`37cacb564a8e38633f3f67905eb18c64ed5abcc8467395298a4767e9c4aa9cf5`,
+`fbd3aabb36e73aea1ee332e7c7413614b6b52bd0ffdec090e9cdcfc5691bb22e`,
 and the 12,136-byte summary has SHA-256
-`dafb9ec59da59d9a88599522f8b70f275ed2c45fe0e035e13cd0c4304c1a5a65`.
+`956a34695080089d697307c2c672966501f5ccebf8a5d44a5f8c331022d8447c`.
 
 Across the three supported roots, CupidC participates in 245 transforms and
 CupidObj participates in 185 transforms. Python participates in all 449
@@ -1049,9 +1050,9 @@ and four addressable `double` inputs. The mixed form requires one modifiable
 `float` output, two addressable `float` inputs, and two addressable `double`
 inputs. Both require one memory clobber. Linear IR evaluates each statement's
 five addresses once in source order. Each focused emitter proof contains 116
-exact text bytes, no relocations, the legacy `DC E1` reverse-subtract
-encoding, and balanced x87 depth. The checked seed also accepts the corrected
-`DC E9` forward subtraction without changing the active-source object. Those
+exact text bytes, no relocations, the corrected `DC E9` forward-subtract
+encoding, and balanced x87 depth. The checked seed also retains the legacy
+`DC E1` reverse subtraction for source compatibility. Those
 blocks exposed the following
 `sqrtsd` statement in `libm_sqrt_impl()`.
 
@@ -1120,23 +1121,25 @@ bytes with 18 `R_386_PC32` relocations. Each relocation has a known `-4`
 addend. The decoder checks the argument copies, call, cleanup, result
 bridge, return, ESP balance, and x87 balance.
 
-Two exact kernel-profile compiles of the byte-unchanged
+Two exact kernel-profile compiles of the corrected
 `kernel/cpu/libm.cc` produce the same valid 16,164-byte ELF32 relocatable
 object with SHA-256
-`ccfb59839b058020a3cdc30c8e6db7ebac8845215a38ff974b3cbca876574eac`.
+`c0911732361f2e1ea78aa778f834719ba12208cc2d9f0a312455a5e6a38a75b4`.
 General file-scope GAS still fails at the CupidC boundary.
 
 Production now uses `kernel/cpu/libm.cc`. The checked wrapper freezes its
 43,736 bytes with `kernel/core/types.h` and `kernel/cpu/libm.h`. The source
-keeps SHA-256
-`f1c13c83b758394189cc74ed6addfd9dfa99d42064c349c548476686b26cabce`,
-and the object bytes stay unchanged. The runtime gate launches
-`/bin/feature15_libm.cc` and requires all 22 checks plus
-`PASS feature15_libm`. ADR 0159 records the naming boundary. ADRs 0161
+has SHA-256
+`baffe801c7573b8500c60251298a753f60732608d58443178be8ce9ab809ef93`.
+Seven aligned GNU mnemonics now emit `DC E9` without changing the algorithm,
+stack order, source size, or ABI. The runtime gate launches
+`/bin/feature15_libm.cc` and requires the seven-case x87 summary, all 29
+checks, and `PASS feature15_libm`. ADR 0159 records the naming boundary. ADRs 0161
 through 0165 record the five statement blocks. ADR 0166 records `fabs`, ADR
 0169 records rounding, ADR 0171 records remainder, ADR 0172 records
 exponent/log, ADR 0173 records the final cdecl bridges, ADR 0174 records
-checked-seed carriage, and ADR 0176 records production ownership.
+checked-seed carriage, ADR 0176 records production ownership, and ADR 0209
+records the active range-reduction correction.
 
 ADR 0156 represents the naked interrupt entries in unchanged
 `kernel/smp/smp.c`. A naked function must have type `void (void)` and contain

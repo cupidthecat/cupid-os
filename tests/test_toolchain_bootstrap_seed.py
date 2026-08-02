@@ -1671,14 +1671,14 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
         self.assertEqual(source.read_bytes(), source_bytes)
 
-    def test_checked_seed_emits_complete_unchanged_libm_object(self):
+    def test_checked_seed_emits_complete_active_libm_object(self):
         self._assert_checked_seed_emits_complete_unchanged_kernel_object(
             "kernel/cpu/libm.cc",
             43736,
             1500,
-            "f1c13c83b758394189cc74ed6addfd9dfa99d42064c349c548476686b26cabce",
+            "baffe801c7573b8500c60251298a753f60732608d58443178be8ce9ab809ef93",
             16164,
-            "ccfb59839b058020a3cdc30c8e6db7ebac8845215a38ff974b3cbca876574eac",
+            "c0911732361f2e1ea78aa778f834719ba12208cc2d9f0a312455a5e6a38a75b4",
         )
 
     def test_checked_seed_emits_complete_unchanged_kernel_entry_object(self):

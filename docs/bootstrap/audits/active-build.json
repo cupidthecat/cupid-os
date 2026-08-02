@@ -42958,7 +42958,7 @@
       "category": "control",
       "examples": [
         {
-          "line": 124,
+          "line": 125,
           "path": "bin/feature13_double.cc",
           "text": "do {"
         },
@@ -43319,7 +43319,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.else",
-      "occurrences": 4569
+      "occurrences": 4570
     },
     {
       "category": "control",
@@ -44029,7 +44029,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 35640
+      "occurrences": 35648
     },
     {
       "category": "control",
@@ -49326,7 +49326,7 @@
         "toolchain/tests/hosted_i386_runtime_contract.cc"
       ],
       "id": "c.type.double",
-      "occurrences": 464
+      "occurrences": 468
     },
     {
       "category": "type",
@@ -50017,7 +50017,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.int",
-      "occurrences": 20984
+      "occurrences": 20995
     },
     {
       "category": "type",
@@ -52402,7 +52402,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "e122c69d045c6cba75645220b10ae141011f590cb2bec7568e50cb46985311c7",
+    "active_source_digest": "4cc621b69736f3b9f4c22565a8f4ec026bb775bb311254a6c7f9b1b1dd5f7265",
     "control_files": [
       {
         "path": "Makefile",
@@ -54675,12 +54675,12 @@
       ],
       "includes": [],
       "language": "cupid_c",
-      "lines": 321,
+      "lines": 330,
       "origin": "tracked",
       "path": "bin/feature13_double.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "9dfe751e83e3a511bf4d4dbe9da8888e80864f81379ea9db5528311e8f09b376"
+      "sha256": "b26f89c7a1b313f4ec45aa4bc6f2a7a3f3aa4f2b6217dd31dddade31400a9efe"
     },
     {
       "build_owners": [
@@ -54730,12 +54730,12 @@
       ],
       "includes": [],
       "language": "cupid_c",
-      "lines": 131,
+      "lines": 160,
       "origin": "tracked",
       "path": "bin/feature15_libm.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "ec7ed85cd2d03f448e046342222aff359907d7d77818953ba71b7795cea363fc"
+      "sha256": "6f20888238a7a16e6ec6ef1d4de34a7e1be83b73ceb192be9ab8795cc2a91ca5"
     },
     {
       "build_owners": [
@@ -60339,7 +60339,7 @@
       "path": "kernel/cpu/libm.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "f1c13c83b758394189cc74ed6addfd9dfa99d42064c349c548476686b26cabce"
+      "sha256": "baffe801c7573b8500c60251298a753f60732608d58443178be8ce9ab809ef93"
     },
     {
       "build_owners": [

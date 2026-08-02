@@ -113,7 +113,7 @@ does not move a build owner or add a host dependency. ADR 0197 records it.
 
 The checked seed includes the complete 83-root Doom compiler frontier,
 current GNU entity metadata, the active x87 and SSE memory forms, descriptor
-and segment assembly, every unchanged assembly effect in `libm.cc`, the exact
+and segment assembly, every represented assembly effect in `libm.cc`, the exact
 dglibc jump block, pointer-preserving static address casts, explicit `double`
 to `unsigned long long` conversion, exact naked IPI entries, and runtime
 floating truth. Its stage-three CupidC image is 2,561,644 bytes with SHA-256
@@ -349,8 +349,8 @@ or any other filesystem error publishes nothing. Input discovery skips hidden
 paths under active include roots, so private compiler staging headers from a
 concurrent build do not enter the repository snapshot. The complete frontier
 compiles all 155 roots twice against a 445-file snapshot with SHA-256
-`543c7bb3e4946967835fe81daeb6d895d661c03961021681a34b5236cfa20423`.
-Both object sets are byte-identical; each totals 3,719,100 bytes. The combined graph passes the
+`4b4dbd802d8faf0cdf9bc1b2749ab7cddf4c4635dafdea4ac171c37a96449a92`.
+Both object sets are byte-identical; each totals 3,721,392 bytes. The combined graph passes the
 two-link symbol and memory checks, clean normal and partitioned image builds,
 and strong four-vCPU runtime gates with both NICs.
 
@@ -493,9 +493,11 @@ lifetimes. Both NIC runs print `[fpu] SSE2 enabled`,
 `[fpu] boot smoke ok`, and `FPU boot smoke passed`, then finish
 `feature16_asm_fpu.cc`. A private-image smoke loads the same external ELF
 program twice at `0x01C00000`; cleanup releases the first arena lease before
-the second load. The current uninstrumented four-vCPU private run also reaches
-`[feature13-call] PASS checks=9`, completes the GodSong interaction, and
-finishes the full GUI frontier in 233.5 seconds.
+the second load. Current private-image runs finish the full e1000 and RTL8139
+frontiers in 235.259 and 232.832 seconds. Both reach
+`[feature13-call] PASS checks=10`, `[feature15-x87] 7 range checks, 0 failed`,
+and `[feature15] 29 checks total, 0 failed` before clean CupidC completion.
+They also complete the GodSong interaction.
 The gate rejects SMP, storage, crypto, exception, panic, corruption, and
 illegal-instruction failure markers. The X.509 checks exercise parser,
 hostname, chain state, and embedded-root lookup paths. They are not a full
@@ -596,9 +598,10 @@ other clobber. Linear IR evaluates each statement's five addresses once in
 source order.
 
 Each focused function has 116 exact text bytes and no relocations. Shared
-decoding checks all seventeen x87 instructions, the legacy `DC E1`
-reverse-subtract bytes, maximum stack depth three, balanced depth on return,
-deterministic output, rollback, and same-job recovery.
+decoding checks all seventeen x87 instructions, the active `DC E9`
+forward-subtract bytes, maximum stack depth three, balanced depth on return,
+deterministic output, rollback, and same-job recovery. The old `DC E1` form
+remains an explicit compatibility case.
 
 ### SSE2 square-root statement
 
@@ -640,7 +643,7 @@ computes `exp2(x * log2(e))`, reaches x87 depth three, and returns to the
 incoming depth before storing through the saved output address. Contracts
 cover shared decoding, forged metadata, operand diagnostics, deterministic
 output, unreachable validation, rollback, and same-job recovery. The
-unchanged source then reaches the aligned file-scope `fabs` mask block.
+source then reaches the aligned file-scope `fabs` mask block.
 
 ### fabs file-scope masks and wrappers
 
@@ -723,7 +726,7 @@ duplicate it, collide a label with a C declaration, forge metadata, and give
 `exp` the float prototype. Each failure rolls back cleanly, and the same job
 can emit the valid object afterward.
 
-The unchanged source then reaches `pow` at line 846.
+The source then reaches `pow` at line 846.
 
 ### libm cdecl bridge wrappers
 
@@ -744,13 +747,14 @@ Negative contracts change a template, remove a callee, change a wrapper or
 callee prototype, forge metadata, and exhaust the output limit. Each failure
 rolls back, and the same job can emit the valid object afterward.
 
-Two exact kernel-profile compiles of byte-unchanged `kernel/cpu/libm.cc` now
+Two exact kernel-profile compiles of corrected `kernel/cpu/libm.cc` now
 produce the same valid 16,164-byte ELF32 relocatable object with SHA-256
-`ccfb59839b058020a3cdc30c8e6db7ebac8845215a38ff974b3cbca876574eac`.
+`c0911732361f2e1ea78aa778f834719ba12208cc2d9f0a312455a5e6a38a75b4`.
 General GAS remains unsupported.
 
 The checked seed carries this whole boundary. The normal `libm.cc` recipe now
 uses the checked production wrapper with `kernel/core/types.h` and
 `kernel/cpu/libm.h` frozen beside the source. The guest gate runs
-`/bin/feature15_libm.cc` and requires all 22 checks plus
-`PASS feature15_libm`. ADR 0176 records production ownership.
+`/bin/feature15_libm.cc` and requires the seven-case x87 summary, all 29
+checks, and `PASS feature15_libm`. ADR 0176 records production ownership, and
+ADR 0209 records the numerical correction.

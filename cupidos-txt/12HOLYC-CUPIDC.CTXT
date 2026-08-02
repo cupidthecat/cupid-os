@@ -281,7 +281,7 @@ float, and the implicit method self value occupy four bytes. Double occupies
 eight bytes with its low word at the lower address. Arguments are evaluated
 from left to right, then arranged at increasing addresses in source order.
 Callees use the same widths for parameter offsets, and callers reclaim the
-complete outgoing area. Feature 13 requires nine calls through one mixed-width
+complete outgoing area. Feature 13 requires ten calls through one mixed-width
 tolerance helper.
 
 [Run feature12_float](shell:feature12_float)

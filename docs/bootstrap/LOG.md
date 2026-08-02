@@ -19091,3 +19091,89 @@ normal build owner. The seven `libm.cc` spellings remain unchanged for the
 next runtime-tested increment. Python and WSL remain bootstrap dependencies.
 ADR 0208 records the decision. `TempleOS/` remains untouched reference
 material.
+
+## 2026-08-01: Correct libm x87 range reduction
+
+The seven exponent and power range-reduction blocks now use the GNU
+`fsubr %st, %st(1)` spelling for `x - round(x)`. The surrounding x87 stack,
+constants, algorithm, ABI, source length, and line count do not change. The
+43,736-byte source has SHA-256
+`baffe801c7573b8500c60251298a753f60732608d58443178be8ce9ab809ef93`.
+
+Checked-seed and hosted CupidC compiles produced the same 16,164-byte ELF32
+object with SHA-256
+`c0911732361f2e1ea78aa778f834719ba12208cc2d9f0a312455a5e6a38a75b4`.
+The focused compiles passed in 4.495 and 18.759 seconds. Checked-seed CupidDis
+reports seven `FSUB ST(1), ST(0)` instructions encoded as `DC E9` and no
+legacy `DC E1` range subtraction in the active object.
+
+`feature15_libm.cc` now checks all seven affected paths and expands from 22
+to 29 fixed references. Its comparison rejects a nonzero result, including
+the negative sentinel left by an invalid integer conversion. The guest prints
+a separate seven-case x87 summary before the full result. `feature13_double.cc`
+again checks `exp(1)`, runs its real mixed-width helper ten times, and rejects
+the same negative sentinel. The GUI frontier requires both zero-failure libm
+summaries, `PASS feature15_libm`, and clean in-OS CupidC completion in order.
+
+Restoring `exp(1)` first exposed a missing `exp` symbol in the focused private
+call harness. That source compile failed with `Unresolved symbol: exp`. Adding
+the typed kernel binding made the selector pass in 0.484 seconds. The final
+95-test GUI contract module passed in 0.471 seconds, and all five checked seed
+tools verified.
+
+The first complete strict frontier compiled the cohort but stopped at a stale
+aggregate lock. The promoted seed produces 3,721,392 bytes across each
+155-object pass rather than 3,719,100. The normal production objects
+independently confirmed that total and the current 135,136-byte
+`toolchain/x86.o`, whose SHA-256 is
+`37711fd5fdabfd1e70e8dd469bc6182c5b9167269a27e46c24dca8ced5ffd23c`.
+After those locks were corrected, an isolated 445-file run reproduced both
+passes and succeeded in 1,342.598 seconds. The frozen input snapshot has
+SHA-256
+`4b4dbd802d8faf0cdf9bc1b2749ab7cddf4c4635dafdea4ac171c37a96449a92`.
+
+The active-source audit still records 717 inputs, 449 transforms, 254 feature
+requirements, and 25 classified unreachable files. Its source digest is
+`4cc621b69736f3b9f4c22565a8f4ec026bb775bb311254a6c7f9b1b1dd5f7265`.
+The 2,546,938-byte JSON has SHA-256
+`fbd3aabb36e73aea1ee332e7c7413614b6b52bd0ffdec090e9cdcfc5691bb22e`,
+and the 12,136-byte summary has SHA-256
+`956a34695080089d697307c2c672966501f5ccebf8a5d44a5f8c331022d8447c`.
+Read-only regeneration passed in 64.4 seconds.
+
+The complete root and partitioned-image build passed in 1,450.715 seconds. It
+produced an 8,723,876-byte kernel ELF with SHA-256
+`096a260ec1369afa197de2efca5044230d5ae600741e7aa4d3deba8d654f4d89`,
+an 8,521,112-byte flat kernel with SHA-256
+`358484dea68d170bec6b43ed88599e69e29551a9567e40358ae4e40f66ff5800`,
+and a 209,715,200-byte image with SHA-256
+`606d5779d8fd96af60e0aadb66cfa85b01af354a705a2630e91b50aeb1fbea40`.
+The 33,554,432-byte partitioned USB fixture has SHA-256
+`057e0c86874090c99095f0558e9fa604bd7f1929f4da357da2c1baca949bb2bb`.
+
+Four-CPU private-image QEMU runs passed the full GUI frontier with both
+production NICs. The e1000 run finished in 235.259 seconds. Its 46,370-byte
+serial log has SHA-256
+`bf502bbf9fc5709d5885e221bd8857e994f06d7fed5dc0b168b40fd969148f72`.
+The RTL8139 run finished in 232.832 seconds. Its 51,063-byte log has SHA-256
+`065b30e44347fffdbcdfb2705712d98947778640f8bb591dc064a01a201bb1e5`.
+Both logs contain `[feature13-call] PASS checks=10`, seven successful x87
+range checks, all 29 successful libm checks, and clean JIT completion. Neither
+contains a panic or failure marker. The same runs cover SMP startup, both
+audio paths, input, USB storage, networking, framebuffer changes, crypto, and
+the rest of the ten-command frontier.
+
+The final 68-test build-graph audit passed in 566.423 seconds without another
+lock change. It covers the generated audit, ownership counts, Make closures,
+and active source-language inventory.
+
+A final 85.598-second focused pass ran all ten private mixed-width call tests,
+all 95 GUI contract tests, both deterministic libm selectors, checked-seed
+verification, read-only audit regeneration, and Python syntax checks. The two
+libm selectors passed in 4.392 and 18.410 seconds.
+
+This increment moves no build owner and adds no host compiler, assembler,
+linker, or binary utility. General GNU assembly coverage, broader libm
+accuracy, host Python orchestration, and the Windows WSL execution bridge
+remain open. ADR 0209 records the correction. `TempleOS/` remains untouched
+reference material.

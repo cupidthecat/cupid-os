@@ -8,11 +8,11 @@ stable shape, then covers the Linux branch with direct build tests.
 language graph contains 27 assembly inputs, 289 headers, and 401 Cupid C
 files. No ordinary C translation unit remains in a supported root. The
 active-source digest is
-`3f297bdac4b05d8a4b644203d93960610c699eba66c5f1459422e86bd6e8af17`.
+`4cc621b69736f3b9f4c22565a8f4ec026bb775bb311254a6c7f9b1b1dd5f7265`.
 The 2,546,938-byte audit JSON has SHA-256
-`37cacb564a8e38633f3f67905eb18c64ed5abcc8467395298a4767e9c4aa9cf5`,
+`fbd3aabb36e73aea1ee332e7c7413614b6b52bd0ffdec090e9cdcfc5691bb22e`,
 and the 12,136-byte summary has SHA-256
-`dafb9ec59da59d9a88599522f8b70f275ed2c45fe0e035e13cd0c4304c1a5a65`.
+`956a34695080089d697307c2c672966501f5ccebf8a5d44a5f8c331022d8447c`.
 The checked Windows Clang/LLVM and Linux GCC/binutils baselines at
 revision `1e079d1` predate the current CupidC ownership and remain historical
 oracle evidence.
@@ -97,7 +97,7 @@ and `double` values eight-byte slots across direct, indirect, and method
 calls. Callees use the same widths for parameter addresses, and callers clean
 the complete outgoing area. A focused host-built runtime remains an optional
 ABI oracle. Checked-seed CupidC builds the production parser object, and the
-four-CPU guest frontier executes nine mixed-width feature13 calls. No host
+four-CPU guest frontier executes ten mixed-width feature13 calls. No host
 compiler, assembler, linker, or packaging dependency was added or retired.
 
 The i386 runtime contract and all fourteen Toolchain contracts now use `.cc`.
@@ -141,8 +141,8 @@ transferred Make recipe names its exact recursive header closure and common
 checked-seed controls. Poisoned-host recipes, strict syntax, focused tests,
 and the normal-image gate remain part of the proof. The full 155-root
 frontier passes twice against a 445-file frozen snapshot with SHA-256
-`543c7bb3e4946967835fe81daeb6d895d661c03961021681a34b5236cfa20423`.
-The two object sets are byte-identical; each totals 3,719,100 bytes. The combined 155-root graph
+`4b4dbd802d8faf0cdf9bc1b2749ab7cddf4c4635dafdea4ac171c37a96449a92`.
+The two object sets are byte-identical; each totals 3,721,392 bytes. The combined 155-root graph
 also carries the ISO fixture as an explicit image input and passes the strong
 four-vCPU runtime gate with both NICs.
 ADRs
@@ -200,7 +200,9 @@ It now emits the exact x87 statements in `libm_pow_impl()` and
 `libm_powf_impl()`. The double form has five `double` memory operands. The
 mixed form has a `float` output, two `float` inputs, and two `double` inputs.
 Each 116-byte focused function uses no relocations and returns the x87 stack
-to its incoming depth. The checked seed also emits the exact `sqrtsd %1, %0`
+to its incoming depth. The active power and exponent paths use `DC E9` for
+the intended `x - round(x)` remainder, while the checked seed keeps the
+legacy `DC E1` form for compatibility. The checked seed also emits the exact `sqrtsd %1, %0`
 statement with a `double` `=x` output and a `double` `x` input. The focused
 function has 65 text bytes and no relocations. It also emits the exact x87
 statement in `libm_atan2_impl()` with one `double` `=m` output, two `double`
@@ -227,14 +229,15 @@ x87 depth. The checked seed also emits all 18 remaining cdecl bridges. The
 unary and binary float or double shapes copy the original argument words,
 call matching external `libm_*_impl` symbols, reclaim the words, and move
 ST(0) into XMM0. The family occupies 558 text bytes with 18
-`R_386_PC32` relocations. The byte-unchanged source is now
-`kernel/cpu/libm.cc`. Its exact 43,736 source bytes have SHA-256
-`f1c13c83b758394189cc74ed6addfd9dfa99d42064c349c548476686b26cabce`.
+`R_386_PC32` relocations. The corrected source is
+`kernel/cpu/libm.cc`. Its 43,736 source bytes have SHA-256
+`baffe801c7573b8500c60251298a753f60732608d58443178be8ce9ab809ef93`.
 The checked wrapper freezes that source with `kernel/core/types.h` and
-`kernel/cpu/libm.h`, then emits the same 16,164-byte ELF32 relocatable object
+`kernel/cpu/libm.h`, then emits a 16,164-byte ELF32 relocatable object
 with SHA-256
-`ccfb59839b058020a3cdc30c8e6db7ebac8845215a38ff974b3cbca876574eac`.
-The normal recipe is CupidC-owned. ADR 0176 records the transfer.
+`c0911732361f2e1ea78aa778f834719ba12208cc2d9f0a312455a5e6a38a75b4`.
+The normal recipe is CupidC-owned. ADR 0176 records the transfer, and ADR
+0209 records the active numerical correction.
 
 The USB lifetime work retires no additional compiler transform, but it
 supplies the runtime contract for EHCI and UHCI ownership. Reconciliation

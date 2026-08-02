@@ -166,8 +166,8 @@ the build output. A valid data-only object may omit .text, but its other
 sections and symbols must still pass validation. The strict frontier must
 compile all 155 checked-in roots twice. The full frontier now passes with a
 445-input path snapshot whose SHA-256 is
-543c7bb3e4946967835fe81daeb6d895d661c03961021681a34b5236cfa20423.
-Both 155-object sets are byte-identical; each totals 3,719,100 bytes. The combined
+4b4dbd802d8faf0cdf9bc1b2749ab7cddf4c4635dafdea4ac171c37a96449a92.
+Both 155-object sets are byte-identical; each totals 3,721,392 bytes. The combined
 graph passes clean normal and partitioned image builds. Final frontier
 publication retries a short permission-style directory lock with five bounded
 delays. A persistent lock leaves the frontier unpublished. The input scan
@@ -281,9 +281,10 @@ inputs. The mixed form accepts one float output, two float inputs, and two
 double inputs. Both use a memory clobber. Linear IR evaluates each set of
 five addresses once in source order. Each focused function has 116 exact
 text bytes, no relocations, a maximum x87 depth of three, and balanced depth
-on return. The active source uses the legacy DC E1 reverse subtraction.
-The checked seed also accepts corrected fsubr %st, %st(1) statements and emits
-FSUB ST(1), ST(0) as DC E9.
+on return. All seven active range-reduction sites use corrected fsubr
+%st, %st(1) or its escaped statement form. CupidC emits FSUB ST(1), ST(0)
+as DC E9 for x - round(x). The old fsub spelling still emits DC E1 and
+remains covered as a compatibility case.
 
 The checked seed also emits the exact volatile sqrtsd %1, %0 statement. It
 accepts one modifiable, non-atomic double =x output, one non-atomic double x
@@ -337,15 +338,18 @@ nextafterf. These wrappers copy their original cdecl argument words, call the
 matching external libm implementation, reclaim the copies, and move the
 ST(0) result into XMM0. Four shared unary or binary float or double shapes
 add 558 text bytes and 18 R_386_PC32 relocations with addend -4. Two complete
-kernel-profile compiles of byte-unchanged kernel/cpu/libm.cc produce the same
-16,164-byte ELF32 relocatable object.
+kernel-profile compiles of corrected kernel/cpu/libm.cc produce the same
+16,164-byte ELF32 relocatable object with SHA-256
+c0911732361f2e1ea78aa778f834719ba12208cc2d9f0a312455a5e6a38a75b4.
 
 General GAS input and other file-scope templates remain unsupported. The
 normal libm.cc recipe uses the checked CupidC wrapper with a frozen closure of
-kernel/core/types.h and kernel/cpu/libm.h. The source keeps all 43,736 bytes,
-and the object bytes remain unchanged. The guest gate runs
-/bin/feature15_libm.cc and requires 22 checks with no failure plus
-PASS feature15_libm.
+kernel/core/types.h and kernel/cpu/libm.h. The source remains 43,736 bytes and
+has SHA-256
+baffe801c7573b8500c60251298a753f60732608d58443178be8ce9ab809ef93.
+The guest gate runs /bin/feature15_libm.cc and requires the seven-case x87
+summary, all 29 checks, and PASS feature15_libm. ADR 0209 records the
+runtime-tested numerical correction.
 
 The checked seed represents the exact per-CPU pointer output
 mov %%gs:0, %0 with one four-byte =r object or void pointer. It keeps the

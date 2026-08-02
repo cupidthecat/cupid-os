@@ -561,7 +561,7 @@ __asm__(
     "fldl   4(%esp)\n\t"        /* ST(0) = x */
     "fld    %st(0)\n\t"         /* ST(0) = x,     ST(1) = x */
     "frndint\n\t"                /* ST(0) = int(x), ST(1) = x */
-    "fsub   %st, %st(1)\n\t"    /* ST(1) = x - int(x) = frac */
+    "fsubr  %st, %st(1)\n\t"    /* ST(1) = x - int(x) = frac */
     "fxch\n\t"                   /* ST(0) = frac,  ST(1) = int(x) */
     "f2xm1\n\t"                  /* ST(0) = 2^frac - 1 */
     "fld1\n\t"                   /* ST(0) = 1, ST(1)=2^frac-1, ST(2)=int */
@@ -584,7 +584,7 @@ __asm__(
     "flds   4(%esp)\n\t"
     "fld    %st(0)\n\t"
     "frndint\n\t"
-    "fsub   %st, %st(1)\n\t"
+    "fsubr  %st, %st(1)\n\t"
     "fxch\n\t"
     "f2xm1\n\t"
     "fld1\n\t"
@@ -610,7 +610,7 @@ __asm__(
     "fmulp\n\t"                          /* ST(0) = x * log2(e) */
     "fld    %st(0)\n\t"
     "frndint\n\t"
-    "fsub   %st, %st(1)\n\t"
+    "fsubr  %st, %st(1)\n\t"
     "fxch\n\t"
     "f2xm1\n\t"
     "fld1\n\t"
@@ -635,7 +635,7 @@ __asm__(
     "fmulp\n\t"
     "fld    %st(0)\n\t"
     "frndint\n\t"
-    "fsub   %st, %st(1)\n\t"
+    "fsubr  %st, %st(1)\n\t"
     "fxch\n\t"
     "f2xm1\n\t"
     "fld1\n\t"
@@ -771,7 +771,7 @@ double libm_pow_impl(double x, double y)
         "fmulp\n\t"                   /* ST(0) = arg * log2(e) */
         "fld    %%st(0)\n\t"
         "frndint\n\t"
-        "fsub   %%st, %%st(1)\n\t"
+        "fsubr  %%st, %%st(1)\n\t"
         "fxch\n\t"
         "f2xm1\n\t"
         "fld1\n\t"
@@ -814,7 +814,7 @@ float libm_powf_impl(float x, float y)
         "fmulp\n\t"
         "fld    %%st(0)\n\t"
         "frndint\n\t"
-        "fsub   %%st, %%st(1)\n\t"
+        "fsubr  %%st, %%st(1)\n\t"
         "fxch\n\t"
         "f2xm1\n\t"
         "fld1\n\t"
@@ -943,7 +943,7 @@ static double libm_exp_impl(double x)
         "fmulp\n\t"                /* ST(0) = x * log2(e) */
         "fld    %%st(0)\n\t"
         "frndint\n\t"
-        "fsub   %%st, %%st(1)\n\t"
+        "fsubr  %%st, %%st(1)\n\t"
         "fxch\n\t"
         "f2xm1\n\t"
         "fld1\n\t"

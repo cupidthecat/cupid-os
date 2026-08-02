@@ -104,7 +104,7 @@ from left to right, then place four-byte scalar or pointer slots and eight-byte
 `double` slots at increasing addresses in source order. Callees use the same
 widths for later parameter offsets, methods place `self` first, and callers
 reclaim the complete outgoing area. `feature13_double.cc` now calls one
-`double, double, double, int` helper nine times instead of expanding its
+`double, double, double, int` helper ten times instead of expanding its
 tolerance calculation at every call site.
 
 ## Feature demo quickstart
@@ -353,20 +353,22 @@ before publication. A valid data-only object may omit `.text`; its remaining
 sections and symbols still receive the full bounds checks. The strict kernel
 frontier compiles all 155 checked-in sources twice. The complete two-pass
 frontier passes against a 445-file snapshot with SHA-256
-`543c7bb3e4946967835fe81daeb6d895d661c03961021681a34b5236cfa20423`.
-Both 155-object passes are byte-identical; each totals 3,719,100 bytes. The
+`4b4dbd802d8faf0cdf9bc1b2749ab7cddf4c4635dafdea4ac171c37a96449a92`.
+Both 155-object passes are byte-identical; each totals 3,721,392 bytes. The
 frontier publisher retries a short permission-style directory lock with five
 bounded delays. A persistent lock or any other filesystem error leaves the
 frontier unpublished. Input discovery also skips hidden paths under the active
 include roots. Private compiler staging headers therefore cannot appear as
 repository drift when a checked build runs at the same time. The combined
 155-root graph carries a byte-fixed baseline JPEG in its ISO runtime fixture.
-Strong four-vCPU runs pass with e1000 and RTL8139 networking. They start CPUs
-1 through 3, report four of four, seed from RDRAND, pass all 62 crypto,
+Strong four-vCPU runs pass with e1000 and RTL8139 networking in 235.259 and
+232.832 seconds, respectively. They start CPUs 1 through 3, report four of
+four, seed from RDRAND, pass all 62 crypto,
 ASN.1, and X.509 checks, exercise USB storage and audio output, reach the
 desktop and terminal, and complete in-OS CupidC execution.
-The command gate now requires all 22 `feature15_libm.cc` checks, the exact
-zero-failure summary, and `PASS feature15_libm`.
+The command gate now requires seven focused x87 range-reduction checks, all
+29 `feature15_libm.cc` checks, both exact zero-failure summaries, and
+`PASS feature15_libm`.
 
 Checked-seed CupidObj emits the generated ramfs, homefs, and demo installation
 tables as `.cc` sources, and checked-seed CupidC compiles them. The separate
@@ -539,7 +541,7 @@ root and its frozen recursive header closure.
 File-scope GNU basic assembly has a separate CupidC representation.
 The frontend owns immutable templates outside function bodies, and Linear IR
 keeps their source order. The i386 emitter handles the twelve exact x87/SSE
-floating wrappers at the start of unchanged `kernel/cpu/libm.cc`. Cupid's
+floating wrappers at the start of `kernel/cpu/libm.cc`. Cupid's
 shared x86 encoder produces 248 text bytes, twelve global function symbols,
 and no relocations. The checked seed accepts named operands on function-body GNU
 assembly and resolves `%[name]` to the existing numeric operand before Linear
@@ -555,7 +557,10 @@ output, two `double` `m` inputs, and one `memory` clobber. Its focused
 function has 53 text bytes and no relocations. The exact
 `libm_exp_impl()` statement is represented with the same three operand
 types in output, `x`, `log2e` order. Its 71-byte focused function has no
-relocations, reaches x87 depth three, and returns to its incoming depth.
+relocations, reaches x87 depth three, and returns to its incoming depth. The
+active power and exponent paths use `DC E9` for the intended
+`x - round(x)` remainder. The checked seed still recognizes the earlier
+`DC E1` reverse-subtraction spelling so existing inputs keep their meaning.
 The checked seed emits the following aligned `fabs` mask block and the
 `fabs` and `fabsf` wrappers. The masks occupy the first 32 bytes of
 `.rodata`, with local labels at offsets 0 and 16. The wrappers contain 15 and
@@ -586,15 +591,17 @@ argument words, call the matching external implementation, reclaim the
 copied words, and move the ST(0) result into XMM0. The four float or double,
 unary or binary shapes occupy 558 text bytes and carry exactly 18
 `R_386_PC32` relocations with addend `-4`. The decoder checks every stack
-access, call, cleanup, result move, and return. Two complete compiles of
-unchanged `kernel/cpu/libm.cc` produce the same 16,164-byte ELF32 relocatable
+access, call, cleanup, result move, and return. Two complete compiles of the
+corrected `kernel/cpu/libm.cc` produce the same 16,164-byte ELF32 relocatable
 object with SHA-256
-`ccfb59839b058020a3cdc30c8e6db7ebac8845215a38ff974b3cbca876574eac`.
+`c0911732361f2e1ea78aa778f834719ba12208cc2d9f0a312455a5e6a38a75b4`.
 
 The normal `libm.cc` recipe runs the checked compiler wrapper against a
-frozen two-header closure. The source keeps the exact pre-transfer bytes,
-and a build with every host code-generator command poisoned produces the
-locked object. ADR 0176 records the production transfer.
+frozen two-header closure. Its seven range-reduction statements now use the
+GNU spelling that emits `DC E9`, while the algorithm, stack order, source
+size, and ABI remain unchanged. A build with every host code-generator
+command poisoned produces the locked object. ADR 0176 records the production
+transfer, and ADR 0209 records the numerical correction.
 
 The checked seed emits the exact volatile
 `call 1f\n1: popl %0` state read used by the stack-trace helpers in

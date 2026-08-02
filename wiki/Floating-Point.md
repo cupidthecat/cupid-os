@@ -148,12 +148,12 @@ The checked seed represents the x87 power statements in `libm_pow_impl()` and
 mixed form has a `float` output, two `float` inputs, and two `double` inputs.
 Each requires one memory clobber. Linear IR evaluates each set of five
 addresses once in source order. Both 116-byte focused functions contain
-seventeen x87 instructions, use the legacy `DC E1` reverse subtraction, reach
-stack depth three, and return to their incoming depth without a relocation.
-The checked seed also represents `FSUB ST(1), ST(0)` as `DC E9`. That form
-computes the forward `x - round(x)` remainder needed by the corrected source.
-Active `libm.cc` keeps the legacy spelling until its separate runtime-tested
-correction. ADR 0208 records seed carriage.
+seventeen x87 instructions, use `DC E9` for `FSUB ST(1), ST(0)`, reach stack
+depth three, and return to their incoming depth without a relocation. All
+seven active range-reduction sites use the corrected GNU spelling for the
+forward `x - round(x)` remainder. The checked seed keeps the old `DC E1`
+spelling as a compatibility contract. ADRs 0208 and 0209 record seed carriage
+and the runtime-tested source correction.
 
 The checked seed also represents the exact volatile `sqrtsd %1, %0` statement
 in `libm_sqrt_impl()`. It takes one modifiable, non-atomic `double` `=x`
@@ -204,7 +204,7 @@ The constants occupy 16 `.rodata` bytes at alignment eight. `exp2` and
 `expf` first multiply by `log2(e)`. `log2` and `log2f` load one before
 `FYL2X`, while `log` and `logf` load `ln(2)`. The functions add 264 text
 bytes and four absolute relocations, never exceed x87 depth three, and
-balance ESP and x87 depth. The unchanged file then reaches `pow` on line
+balance ESP and x87 depth. The file then reaches `pow` on line
 846.
 
 The checked seed represents `pow` and all 17 later cdecl bridge wrappers.
@@ -213,13 +213,18 @@ The `pow`, `hypot`, and `nextafter` pairs take two arguments. The `asin`,
 original cdecl argument words, calls the matching external implementation,
 reclaims the copy, and moves the ST(0) result into XMM0 at float or double
 width. The family has 558 text bytes and 18 PC-relative call relocations.
-Two complete compiles of byte-unchanged `kernel/cpu/libm.cc` produce the same
-16,164-byte ELF32 relocatable object.
+Two complete compiles of corrected `kernel/cpu/libm.cc` produce the same
+16,164-byte ELF32 relocatable object with SHA-256
+`c0911732361f2e1ea78aa778f834719ba12208cc2d9f0a312455a5e6a38a75b4`.
 
 The normal `kernel/cpu/libm.cc` recipe now uses the checked CupidC wrapper.
 Its frozen closure contains `kernel/core/types.h` and `kernel/cpu/libm.h`.
-The guest smoke runs `/bin/feature15_libm.cc` and requires 22 checks with no
-failure plus `PASS feature15_libm`. ADR 0176 records the production transfer.
+The guest smoke runs `/bin/feature15_libm.cc` and requires seven x87 range
+checks, all 29 checks, both zero-failure summaries, and `PASS feature15_libm`.
+Fresh four-CPU e1000 and RTL8139 runs pass that gate in 235.259 and 232.832
+seconds, respectively.
+ADR 0176 records the production transfer, and ADR 0209 records the numerical
+correction.
 
 The normal build now compiles `kernel/gfx/jpeg.cc` and
 `kernel/gfx/glyph_raster.cc` with that seed. JPEG exercises exact static
@@ -246,7 +251,7 @@ scalars and pointers with eight-byte `double` values. Direct,
 function-pointer, and method calls preserve left-to-right evaluation, arrange
 complete argument words in cdecl source order, and use the same widths for
 callee parameter offsets and caller cleanup. The feature13 guest requires
-nine calls through one mixed-width tolerance helper. ADR 0198 records this
+ten calls through one mixed-width tolerance helper. ADR 0198 records this
 private ABI boundary.
 
 ### Arithmetic
@@ -295,7 +300,7 @@ FUCOMIP, FSIN, FPATAN, F2XM1, FYL2X, etc.). XMM0-7 and ST0-7 register tokens.
 - `bin/feature12_float.cc` - scalar float arithmetic, casts, element access.
 - `bin/feature13_double.cc` - double + transcendentals.
 - `bin/feature14_simd.cc` - float4/double2 + intrinsics.
-- `bin/feature15_libm.cc` - cycle 8 functions x 7 inputs vs glibc reference.
+- `bin/feature15_libm.cc` - 29 fixed-reference checks, including seven x87 range paths.
 - `bin/feature16_asm_fpu.cc` - CupidC inline asm using SSE + x87.
 - `bin/fp_drill.cc` - manual #XF provocation (panics kernel).
 - `demos/fpu_kernel.asm` - CupidASM FPU state + scalar + packed + x87.

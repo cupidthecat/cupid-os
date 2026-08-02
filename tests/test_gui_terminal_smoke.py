@@ -115,13 +115,14 @@ def _frontier_command_outputs():
             "control=255 nan=1\n"
             "[feature13-update] PASS local=48 global=40 "
             "for=3 zero=0x80000000 nan=2\n"
-            "[feature13-call] PASS checks=9\n"
+            "[feature13-call] PASS checks=10\n"
             "PASS feature13_double\n"
             "[cupidc] JIT execution complete\n"
         ),
         (
             "[cupidc] JIT compile: /bin/feature15_libm.cc\n"
-            "[feature15] 22 checks total, 0 failed\n"
+            "[feature15-x87] 7 range checks, 0 failed\n"
+            "[feature15] 29 checks total, 0 failed\n"
             "PASS feature15_libm\n"
             "[cupidc] JIT execution complete\n"
         ),
@@ -1356,7 +1357,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
         command = _frontier_command("/bin/feature13_double.cc")
         expected = command.expected_pattern
         sample = _frontier_command_output("/bin/feature13_double.cc")
-        marker = "[feature13-call] PASS checks=9\n"
+        marker = "[feature13-call] PASS checks=10\n"
 
         self.assertIsNone(
             re.search(
@@ -1378,7 +1379,13 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             r"int feature13_within\(\s*double actual,\s*double expected,\s*"
             r"double scale,\s*int max_scaled_error\)",
         )
-        self.assertEqual(source.count("feature13_within("), 10)
+        self.assertEqual(source.count("feature13_within("), 11)
+        self.assertIn("double ex = exp(1.0);", source)
+        self.assertIn(
+            "return scaled >= 0 && scaled <= max_scaled_error;",
+            source,
+        )
+        self.assertNotIn("known bug", source)
         self.assertNotIn("calling-convention edge cases", source)
 
     def test_unary_command_allows_only_its_expected_compiler_error(self):
@@ -1588,7 +1595,8 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             "/bin/feature15_libm.cc"
         ).expected_pattern
         for marker in (
-            "[feature15] 22 checks total, 0 failed\n",
+            "[feature15-x87] 7 range checks, 0 failed\n",
+            "[feature15] 29 checks total, 0 failed\n",
             "PASS feature15_libm\n",
         ):
             with self.subTest(marker=marker):
@@ -1615,8 +1623,13 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             "atan(",
             "sqrt(",
             "exp(",
+            "expf(",
+            "exp2(",
+            "exp2f(",
             "log(",
             "pow(",
+            "powf(",
+            "sinh(",
             "fabs(",
         ):
             with self.subTest(function=function):
@@ -1625,7 +1638,23 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             '"[feature15] %d checks total, %d failed\\n"',
             source,
         )
+        self.assertIn(
+            '"[feature15-x87] 7 range checks, %d failed\\n"',
+            source,
+        )
         self.assertIn('"PASS feature15_libm\\n"', source)
+        self.assertEqual(source.count("scaled != 0"), 29)
+        self.assertNotIn("scaled > 0", source)
+        self.assertIn("double neg_x = -1.5;", source)
+        self.assertNotIn("0.0 - 1.5", source)
+
+        libm_source = (
+            REPO_ROOT / "kernel" / "cpu" / "libm.cc"
+        ).read_text(encoding="utf-8")
+        self.assertEqual(libm_source.count("fsubr  %st, %st(1)"), 4)
+        self.assertEqual(libm_source.count("fsubr  %%st, %%st(1)"), 3)
+        self.assertNotIn("fsub   %st, %st(1)", libm_source)
+        self.assertNotIn("fsub   %%st, %%st(1)", libm_source)
 
     def test_iso_jpeg_fixture_is_a_byte_fixed_baseline_image(self):
         data = JPEG_FIXTURE.read_bytes()

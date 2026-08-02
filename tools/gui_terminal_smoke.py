@@ -178,7 +178,7 @@ FRONTIER_RUNTIME_COMMANDS = (
             r"control=255 nan=1"
             r".*?\[feature13-update\] PASS local=48 global=40 "
             r"for=3 zero=0x80000000 nan=2"
-            r".*?\[feature13-call\] PASS checks=9"
+            r".*?\[feature13-call\] PASS checks=10"
             rf".*?PASS feature13_double.*?{CUPIDC_COMPLETION_PATTERN}"
         ),
         allowed_failure_pattern=UNARY_TYPE_DIAGNOSTIC_PATTERN,
@@ -189,7 +189,8 @@ FRONTIER_RUNTIME_COMMANDS = (
         "/bin/feature15_libm.cc",
         (
             r"\[cupidc\] JIT compile: /bin/feature15_libm\.cc"
-            r".*?\[feature15\] 22 checks total, 0 failed"
+            r".*?\[feature15-x87\] 7 range checks, 0 failed"
+            r".*?\[feature15\] 29 checks total, 0 failed"
             rf".*?PASS feature15_libm.*?{CUPIDC_COMPLETION_PATTERN}"
         ),
     ),

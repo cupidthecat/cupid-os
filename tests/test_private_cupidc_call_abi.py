@@ -148,6 +148,7 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                   bind_kernel(cc, "cbrt", TYPE_DOUBLE, 0x010010a0u);
                   bind_kernel(cc, "atan2", TYPE_DOUBLE, 0x010010b0u);
                   bind_kernel(cc, "hypot", TYPE_DOUBLE, 0x010010c0u);
+                  bind_kernel(cc, "exp", TYPE_DOUBLE, 0x010010d0u);
                 }
 
                 static char *read_source(const char *path) {

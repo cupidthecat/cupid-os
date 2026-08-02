@@ -8,7 +8,8 @@ double feature13_update_global_double;
 int feature13_within(double actual, double expected, double scale,
                      int max_scaled_error) {
     double scaled_error = fabs(actual - expected) * scale;
-    return (int)scaled_error <= max_scaled_error;
+    int scaled = (int)scaled_error;
+    return scaled >= 0 && scaled <= max_scaled_error;
 }
 
 void main() {
@@ -229,8 +230,16 @@ void main() {
         call_checks++;
     }
 
-    /* exp(1) = e = 2.71828... - CupidC's exp has a known bug that
-     * returns ~1.47 for exp(1); skip this check.  exp(0)=1 still works.*/
+    /* exp(1) = e. The corrected x87 range reduction must keep this within
+     * 1e-6 of the fixed reference. */
+    double ex = exp(1.0);
+    if (!feature13_within(ex, 2.7182818284590451, 1000000.0, 0)) {
+        int ex1000 = (int)(ex * 1000.0);
+        serial_printf("[feature13] FAIL exp(1) *1000=%d\n", ex1000);
+        ok = 0;
+    } else {
+        call_checks++;
+    }
 
     /* log(e) = 1 */
     double le = log(2.718281828459045);
@@ -304,7 +313,7 @@ void main() {
         call_checks++;
     }
 
-    if (call_checks != 9) {
+    if (call_checks != 10) {
         serial_printf("[feature13-call] FAIL checks=%d\n", call_checks);
         ok = 0;
     } else {
