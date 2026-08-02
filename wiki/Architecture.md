@@ -131,7 +131,7 @@ string transfer. The checked wrappers own `kernel/core/kernel.cc`,
 `kernel/cpu/simd.cc`, and `kernel/core/string.cc`. Their deterministic
 objects are 25,920, 8,768, and 14,460 bytes. The complete 155-root frontier
 passes twice against a frozen 445-file snapshot; both object sets are
-byte-identical and total 3,721,392 bytes. The combined graph keeps the ISO
+byte-identical and total 3,749,796 bytes. The combined graph keeps the ISO
 runtime fixture as an explicit image input. No strict checked-in kernel or
 driver root still uses the host compiler.
 

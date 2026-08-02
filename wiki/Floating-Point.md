@@ -254,17 +254,36 @@ callee parameter offsets and caller cleanup. The feature13 guest requires
 ten calls through one mixed-width tolerance helper. ADR 0198 records this
 private ABI boundary.
 
+A direct function or method with parsed fixed parameter types converts
+represented integer, `char`, `float`, and `double` arguments to the declared
+slot type before cdecl layout. Represented pointer categories and integer null
+forms can fill a pointer slot. A parsed variadic tail widens `float` to `double`
+and promotes `char` to `int`. Function-pointer calls, kernel bindings, and
+calls without that metadata keep their source-width slots.
+
+One-dimensional fixed `float` and `double` array symbols keep their element
+type for global, automatic, block-static, and persistent REPL storage. The
+private compiler uses four-byte or eight-byte strides, indirect SSE loads and
+stores, scalar assignment conversion, arithmetic compound assignment, and the
+matching result for `sizeof(*array)`. Bounds must be positive, and checked
+count-by-stride multiplication rejects overflowing allocations. Floating
+arrays embedded in structure or class fields, multidimensional floating
+arrays, fixed SIMD arrays, floating pointer types, and floating pointer
+dereference remain unsupported. ADR 0210 records this boundary.
+
 ### Arithmetic
 
 Binary operators `+`, `-`, `*`, `/` work on scalar float/double via SSE
 scalar opcodes (ADDSS/ADDSD/etc.). Implicit promotion: `int + float -> float`,
-`float + double -> double`. SIMD types need matching types for `+/-/*//`;
-mixing scalar and SIMD is a compile error.
+`char + int -> int`, `char + float -> float`, and `float + double -> double`.
+SIMD types need matching types for `+/-/*//`; mixing scalar and SIMD is a
+compile error.
 
 ### Casts
 
-`(int)3.7` -> 3 (truncating). `(float)5` -> 5.0. `(double)1.5f` widens.
-Casts lower to CVTSI2SS/CVTTSS2SI/CVTSS2SD/etc.
+`(int)3.7` -> 3 (truncating). `(float)5` -> 5.0. A `char` uses the same
+integer-to-floating conversion path. `(double)1.5f` widens. Casts lower to
+CVTSI2SS/CVTTSS2SI/CVTSS2SD/etc.
 
 ### Element access
 

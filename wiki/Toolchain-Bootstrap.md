@@ -349,8 +349,8 @@ or any other filesystem error publishes nothing. Input discovery skips hidden
 paths under active include roots, so private compiler staging headers from a
 concurrent build do not enter the repository snapshot. The complete frontier
 compiles all 155 roots twice against a 445-file snapshot with SHA-256
-`4b4dbd802d8faf0cdf9bc1b2749ab7cddf4c4635dafdea4ac171c37a96449a92`.
-Both object sets are byte-identical; each totals 3,721,392 bytes. The combined graph passes the
+`99d03de14f544f6a76d21ed147e62018873f1e2e8dfa2f4459830b69314432c2`.
+Both object sets are byte-identical; each totals 3,749,796 bytes. The combined graph passes the
 two-link symbol and memory checks, clean normal and partitioned image builds,
 and strong four-vCPU runtime gates with both NICs.
 
@@ -525,6 +525,39 @@ left-to-right evaluation, then arrange complete words at increasing source
 addresses. Callees and caller cleanup use the same widths. This repairs guest
 JIT and AOT behavior without moving a build owner. ADR 0198 records the
 boundary.
+
+The Browser's JavaScript runtime now keeps decimal tokens and numeric AST
+nodes in a binary64 lane. Its comparisons and truth conversion use private
+CupidC floating operations directly. Division preserves its IEEE result,
+remainder by zero produces NaN, and malformed decimal exponents receive a
+specific parser diagnostic. The asset-free `browser --selftest` command
+drives the real lexer, parser, and interpreter. Its 17 result fields cover
+close and large-value order, negative zero and its reciprocal, NaN comparison
+and truth, NaN and signed infinity formatting, decimal literals, signed and
+uppercase exponents, relational order, division and division assignment by
+zero, remainder by zero, the exponent cap, and malformed-exponent rejection.
+
+Those five numeric tables exposed integer-only lowering for fixed floating
+array symbols. CupidC now records the declared element type on one-dimensional
+global, automatic, block-static, and persistent REPL arrays. `float` and
+`double` elements use four-byte or eight-byte storage and indirect SSE loads
+and stores. Separate compiler contracts cover scalar assignment conversions
+and arithmetic compound assignment. Bounds must be positive, and checked
+count-by-stride multiplication rejects an overflowing allocation before
+storage is reserved. Fresh subscript metadata also prevents one pointer
+expression from inheriting an earlier array stride. Multidimensional floating
+arrays, fixed SIMD arrays, floating pointer types, floating pointer dereference,
+and floating arrays embedded in structure or class fields remain unsupported.
+
+Direct functions and methods retain parsed fixed parameter types. Known fixed
+arguments convert among represented integer, `char`, `float`, and `double`
+types before cdecl layout. Represented pointer categories and integer null
+forms can fill a pointer slot. Character arithmetic follows integer promotion
+and uses the scalar integer conversion path when mixed with floating values.
+A parsed variadic tail widens `float` to `double` and promotes `char` to `int`.
+Function-pointer calls, kernel bindings, and calls without fixed parameter
+metadata retain source-width arguments. ADR 0210 records these compiler
+capabilities and the Browser path that requires the fixed `double` tables.
 
 ISO test-fixture packaging no longer hides an external tool behind Python.
 `test_iso/fixtures.manifest` pins every directory and file. Make declares the

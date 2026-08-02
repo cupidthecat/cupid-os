@@ -9,17 +9,9 @@
  *     status_msg
  * Functions, objects, arrays land in F1c / F1d.*/
 
-/* CupidC limitation: comparison operators on double operands (< > <= >=
- * and even == / !=) emit "invalid operator for floating-point operands".
- * js_dcmp scales the difference into an int range so all double
- * comparisons go through int compare. The 1e6 scale loses precision
- * past ~2^31 / 1e6 ≈ 2147 magnitude; sufficient for typical browser-
- * script arithmetic. Returns a sign-int: <0 a<b, 0 equal, >0 a>b.*/
-int js_dcmp(double a, double b) {
-    return (int)((a - b) * 1000000.0);
-}
-int js_dnz(double v) {
-    return (int)(v * 1000000.0);
+/* JavaScript treats both zero encodings and NaN as false. */
+int js_number_truth(double v) {
+    return v != 0.0 && v == v;
 }
 
 /* value stack helpers */
@@ -95,7 +87,7 @@ double js_to_number_at(int idx) {
             }
         }
         if (!saw) return 0.0;
-        if (sign < 0) return 0.0 - v;
+        if (sign < 0) return -v;
         return v;
     }
     return 0.0;
@@ -104,8 +96,8 @@ double js_to_number_at(int idx) {
 int js_to_bool_at(int idx) {
     int t = jvs_tag[idx];
     if (t == JS_VAL_UNDEF || t == JS_VAL_NULL) return 0;
-    if (t == JS_VAL_BOOL) return js_dnz(jvs_num[idx]) != 0;
-    if (t == JS_VAL_NUM)  return js_dnz(jvs_num[idx]) != 0;
+    if (t == JS_VAL_BOOL) return js_number_truth(jvs_num[idx]);
+    if (t == JS_VAL_NUM)  return js_number_truth(jvs_num[idx]);
     if (t == JS_VAL_STR) return jvs_str_len[idx] > 0;
     return 1;       /* objects/funcs always truthy */
 }
@@ -131,17 +123,29 @@ int js_format_int(int v, char *buf) {
     return b;
 }
 
-/* Format a double into buf without %f. CupidC can't mix int and
- * double args in one call, so the signature is (double, char*) and
- * the buffer is assumed to be at least 64 bytes. Sign and fractional
- * presence are detected through int-scaled comparisons because the
- * parser also rejects '<' '>' on doubles.*/
+/* Format a double without %f. The buffer must hold at least 64 bytes. */
 int js_format_num(double v, char *buf) {
     int b = 0;
-    int sign_probe = (int)(v * 1000000.0);
-    if (sign_probe < 0) {
+    char *special;
+    double cancelled;
+    if (v != v) {
+        special = "NaN";
+        while (special[b]) { buf[b] = special[b]; b = b + 1; }
+        buf[b] = 0;
+        return b;
+    }
+    cancelled = v + -v;
+    if (cancelled != cancelled) {
+        if (v < 0.0) { buf[b] = '-'; b = b + 1; }
+        special = "Infinity";
+        int i = 0;
+        while (special[i]) { buf[b] = special[i]; b = b + 1; i = i + 1; }
+        buf[b] = 0;
+        return b;
+    }
+    if (v < 0.0) {
         buf[b] = '-'; b = b + 1;
-        v = 0.0 - v;
+        v = -v;
     }
     int int_part = (int)v;
     int micros = (int)((v - (double)int_part) * 1000000.0);
@@ -183,7 +187,7 @@ int js_to_string_at(int idx, char *buf, int max) {
         buf[i] = 0; return i;
     }
     if (t == JS_VAL_BOOL) {
-        char *s = (js_dnz(jvs_num[idx]) != 0) ? "true" : "false";
+        char *s = js_number_truth(jvs_num[idx]) ? "true" : "false";
         int i = 0;
         while (s[i] && i < max - 1) { buf[i] = s[i]; i = i + 1; }
         buf[i] = 0; return i;
@@ -216,7 +220,9 @@ int js_eq_at(int a, int b) {
     if (ta == JS_VAL_NULL && tb == JS_VAL_UNDEF) return 1;
     if (ta == JS_VAL_UNDEF && tb == JS_VAL_NULL) return 1;
     if (ta == JS_VAL_NUM || tb == JS_VAL_NUM) {
-        return js_dcmp(js_to_number_at(a), js_to_number_at(b)) == 0;
+        double left = js_to_number_at(a);
+        double right = js_to_number_at(b);
+        return left == right;
     }
     if (ta == JS_VAL_STR && tb == JS_VAL_STR) {
         if (jvs_str_len[a] != jvs_str_len[b]) return 0;
@@ -226,7 +232,7 @@ int js_eq_at(int a, int b) {
         for (int i = 0; i < n; i++) if (sa[i] != sb[i]) return 0;
         return 1;
     }
-    if (ta == JS_VAL_BOOL && tb == JS_VAL_BOOL) return js_dcmp(jvs_num[a], jvs_num[b]) == 0;
+    if (ta == JS_VAL_BOOL && tb == JS_VAL_BOOL) return jvs_num[a] == jvs_num[b];
     return ta == tb;
 }
 
@@ -285,6 +291,124 @@ int js_lookup_binding(int scope, int name_off, int name_len) {
         s = jsc_parent[s];
     }
     return -1;
+}
+
+int js_selftest_binding_is_true(char *name) {
+    int name_len = b_strlen(name);
+    int name_off = js_str_intern(name, name_len);
+    int binding = js_lookup_binding(jsc_cur, name_off, name_len);
+    return binding >= 0 && jb_tag[binding] == JS_VAL_BOOL &&
+           js_number_truth(jb_num[binding]);
+}
+
+void js_number_selftest() {
+    char *script =
+        "var cupidClose=1.0000005;"
+        "var cupidTiny=.0000001;"
+        "var cupidLarge=5e3;"
+        "var cupidNan=0/0;"
+        "var cupidInfinity=1/0;"
+        "var cupidNegativeInfinity=-1/0;"
+        "var cupidNegativeZero=-0;"
+        "var cupidRemainder=1%0;"
+        "var cupidLiteral=cupidClose>1&&cupidTiny&&cupidLarge===5000;"
+        "var cupidSignedExp=5e+3===5000&&5e-3>0.004&&5e-3<0.006;"
+        "var cupidUpperExp=2E2===200&&2E-2>0.019&&2E-2<0.021;"
+        "var cupidOrder=1<2&&2<=2&&3>=2;"
+        "var cupidDivide=cupidNan!==cupidNan&&!cupidNan&&"
+        "cupidInfinity>cupidLarge;"
+        "var cupidDivideAssign=1;cupidDivideAssign/=0;"
+        "var cupidDivideAssignOk=cupidDivideAssign===cupidInfinity;"
+        "var cupidNegativeZeroOk=1/cupidNegativeZero==="
+        "cupidNegativeInfinity;"
+        "var cupidRemainderOk=cupidRemainder!==cupidRemainder;"
+        "var cupidCap=1e999999999999999999999999999999999999999;"
+        "var cupidCapOk=cupidCap===cupidInfinity;";
+    char *bad_script = "var cupidBad=1e;";
+    double close_low = 1.0;
+    double close_high = 1.0000005;
+    double large_positive = 5000.0;
+    double large_negative = -5000.0;
+    double negative_zero = -0.0;
+    double negative_zero_reciprocal = 1.0 / negative_zero;
+    double number_nan = 0.0 / 0.0;
+    double positive_infinity = 1.0 / 0.0;
+    double negative_infinity = -1.0 / 0.0;
+    double tiny_nonzero = 0.0000001;
+    char nan_text[64];
+    char positive_infinity_text[64];
+    char negative_infinity_text[64];
+
+    int close_ok = close_low != close_high && close_low < close_high;
+    int large_ok = large_positive > 0.0 && large_negative < 0.0 &&
+                   large_positive > large_negative;
+    int negative_zero_ok = negative_zero == 0.0 &&
+                           !js_number_truth(negative_zero) &&
+                           negative_zero_reciprocal < 0.0;
+    int nan_ok = number_nan != number_nan &&
+                 !(number_nan == number_nan) &&
+                 !(number_nan < 0.0) && !(number_nan > 0.0) &&
+                 !(number_nan <= 0.0) && !(number_nan >= 0.0);
+    int truth_ok = js_number_truth(tiny_nonzero) &&
+                   !js_number_truth(0.0) &&
+                   !js_number_truth(number_nan);
+    int nan_format_ok = js_format_num(number_nan, nan_text) == 3 &&
+                        b_streq(nan_text, "NaN");
+    int positive_infinity_format_ok =
+        js_format_num(positive_infinity, positive_infinity_text) == 8 &&
+        b_streq(positive_infinity_text, "Infinity");
+    int negative_infinity_format_ok =
+        js_format_num(negative_infinity, negative_infinity_text) == 9 &&
+        b_streq(negative_infinity_text, "-Infinity");
+    int script_ok = js_run(script, b_strlen(script)) == 0;
+    int literal_ok = script_ok &&
+                     js_selftest_binding_is_true("cupidLiteral");
+    int signed_exponent_ok = script_ok &&
+        js_selftest_binding_is_true("cupidSignedExp");
+    int uppercase_exponent_ok = script_ok &&
+        js_selftest_binding_is_true("cupidUpperExp");
+    int order_ok = script_ok &&
+                   js_selftest_binding_is_true("cupidOrder");
+    int divide_ok = script_ok &&
+                    js_selftest_binding_is_true("cupidDivide");
+    int divide_assign_ok = script_ok &&
+        js_selftest_binding_is_true("cupidDivideAssignOk");
+    int script_negative_zero_ok = script_ok &&
+        js_selftest_binding_is_true("cupidNegativeZeroOk");
+    int remainder_ok = script_ok &&
+                       js_selftest_binding_is_true("cupidRemainderOk");
+    int exponent_cap_ok = script_ok &&
+                          js_selftest_binding_is_true("cupidCapOk");
+    int reject_ok = js_run(bad_script, b_strlen(bad_script)) != 0;
+
+    negative_zero_ok = negative_zero_ok && script_negative_zero_ok;
+    if (close_ok && large_ok && negative_zero_ok && nan_ok && truth_ok &&
+        nan_format_ok && positive_infinity_format_ok &&
+        negative_infinity_format_ok && literal_ok && signed_exponent_ok &&
+        uppercase_exponent_ok && order_ok && divide_ok && divide_assign_ok &&
+        remainder_ok && exponent_cap_ok && reject_ok) {
+        serial_printf(
+            "[browser-js-number] PASS close=%d large=%d negzero=%d nan=%d "
+            "truth=%d nanformat=%d posinfformat=%d neginfformat=%d literal=%d "
+            "signedexp=%d upperexp=%d order=%d divide=%d divideassign=%d "
+            "remainder=%d expcap=%d reject=%d\n",
+            close_ok, large_ok, negative_zero_ok, nan_ok, truth_ok,
+            nan_format_ok, positive_infinity_format_ok,
+            negative_infinity_format_ok, literal_ok, signed_exponent_ok,
+            uppercase_exponent_ok, order_ok, divide_ok, divide_assign_ok,
+            remainder_ok, exponent_cap_ok, reject_ok);
+    } else {
+        serial_printf(
+            "[browser-js-number] FAIL close=%d large=%d negzero=%d nan=%d "
+            "truth=%d nanformat=%d posinfformat=%d neginfformat=%d literal=%d "
+            "signedexp=%d upperexp=%d order=%d divide=%d divideassign=%d "
+            "remainder=%d expcap=%d reject=%d\n",
+            close_ok, large_ok, negative_zero_ok, nan_ok, truth_ok,
+            nan_format_ok, positive_infinity_format_ok,
+            negative_infinity_format_ok, literal_ok, signed_exponent_ok,
+            uppercase_exponent_ok, order_ok, divide_ok, divide_assign_ok,
+            remainder_ok, exponent_cap_ok, reject_ok);
+    }
 }
 
 void js_binding_set_from_top(int b) {
@@ -743,9 +867,7 @@ void js_eval_assign(int node) {
     if (op == JS_TOK_PLUS_EQ) r = na + nb;
     else if (op == JS_TOK_MINUS_EQ) r = na - nb;
     else if (op == JS_TOK_STAR_EQ)  r = na * nb;
-    else if (op == JS_TOK_SLASH_EQ) {
-        if (js_dnz(nb) != 0) r = na / nb; else r = 0.0;
-    }
+    else if (op == JS_TOK_SLASH_EQ) r = na / nb;
     jvs_top = a;
     js_push_num(r);
     js_copy_top_from(jvs_top - 1);
@@ -806,19 +928,17 @@ void js_eval_bin(int node) {
     if (op == JS_TOK_PLUS)        v = na + nb;
     else if (op == JS_TOK_MINUS)  v = na - nb;
     else if (op == JS_TOK_STAR)   v = na * nb;
-    else if (op == JS_TOK_SLASH)  {
-        if (js_dnz(nb) != 0) v = na / nb; else v = 0.0;
-    }
+    else if (op == JS_TOK_SLASH)  v = na / nb;
     else if (op == JS_TOK_PERCENT) {
-        if (js_dnz(nb) != 0) {
+        if (nb != 0.0) {
             int q = (int)(na / nb);
             v = na - (double)q * nb;
-        } else v = 0.0;
+        } else v = 0.0 / 0.0;
     }
-    else if (op == JS_TOK_LT) { as_bool = 1; bv = js_dcmp(na, nb) <  0; }
-    else if (op == JS_TOK_GT) { as_bool = 1; bv = js_dcmp(na, nb) >  0; }
-    else if (op == JS_TOK_LE) { as_bool = 1; bv = js_dcmp(na, nb) <= 0; }
-    else if (op == JS_TOK_GE) { as_bool = 1; bv = js_dcmp(na, nb) >= 0; }
+    else if (op == JS_TOK_LT) { as_bool = 1; bv = na < nb; }
+    else if (op == JS_TOK_GT) { as_bool = 1; bv = na > nb; }
+    else if (op == JS_TOK_LE) { as_bool = 1; bv = na <= nb; }
+    else if (op == JS_TOK_GE) { as_bool = 1; bv = na >= nb; }
     jvs_top = a;
     if (as_bool) js_push_bool(bv); else js_push_num(v);
 }
@@ -833,7 +953,7 @@ void js_eval_unary(int node) {
         jvs_top = t; js_push_bool(b); return;
     }
     if (op == JS_TOK_MINUS) {
-        double v = 0.0 - js_to_number_at(t);
+        double v = -js_to_number_at(t);
         jvs_top = t; js_push_num(v); return;
     }
     if (op == JS_TOK_PLUS) {
@@ -878,7 +998,7 @@ void js_eval_expr(int node) {
     if (node < 0) { js_push_undef(); return; }
     if (js_last_error[0] != 0) { js_push_undef(); return; }
     int k = jn_kind[node];
-    if (k == JS_NODE_NUM)   { js_push_num((double)jn_a[node]); return; }
+    if (k == JS_NODE_NUM)   { js_push_num(jn_num[node]); return; }
     if (k == JS_NODE_STR)   { js_push_str(jn_a[node], jn_b[node]); return; }
     if (k == JS_NODE_BOOL)  { js_push_bool(jn_a[node]); return; }
     if (k == JS_NODE_NULL)  { js_push_null(); return; }

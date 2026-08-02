@@ -142,6 +142,16 @@ def _frontier_command_outputs():
             "[cupidc] JIT execution complete\n"
         ),
         (
+            "[cupidc] JIT compile: /bin/browser.cc\n"
+            "[js] parse error: js: expected exponent digits\n"
+            "[browser-js-number] PASS close=1 large=1 negzero=1 nan=1 "
+            "truth=1 nanformat=1 posinfformat=1 neginfformat=1 literal=1 "
+            "signedexp=1 upperexp=1 order=1 divide=1 divideassign=1 "
+            "remainder=1 expcap=1 "
+            "reject=1\n"
+            "[cupidc] JIT execution complete\n"
+        ),
+        (
             "[cupidc] JIT compile: /bin/audiotest.cc\n"
             "[ac97] DMA refills during audiotest: 441\n"
             "[PASS] audiotest all\n"
@@ -1158,6 +1168,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
                 "/bin/feature15_libm.cc",
                 "/bin/feature17_iso.cc",
                 "/bin/feature18_swap.cc",
+                "browser --selftest",
                 "audiotest all",
                 "godsong 1 200",
             ],
@@ -1181,6 +1192,46 @@ class FrontierRuntimeContractTests(unittest.TestCase):
                 self.assertIsNotNone(
                     re.search(command.expected_pattern, sample, re.S | re.M)
                 )
+
+    def test_browser_number_selftest_requires_every_boundary(self):
+        command = _frontier_command("browser --selftest")
+        expected = command.expected_pattern
+        sample = _frontier_command_output("browser --selftest")
+
+        self.assertIsNotNone(re.search(expected, sample, re.S | re.M))
+        for fragment in (
+            "[js] parse error: js: expected exponent digits",
+            "close=1",
+            "large=1",
+            "negzero=1",
+            "nan=1",
+            "truth=1",
+            "nanformat=1",
+            "posinfformat=1",
+            "neginfformat=1",
+            "literal=1",
+            "signedexp=1",
+            "upperexp=1",
+            "order=1",
+            "divide=1",
+            "divideassign=1",
+            "remainder=1",
+            "expcap=1",
+            "reject=1",
+        ):
+            with self.subTest(fragment=fragment):
+                self.assertIsNone(
+                    re.search(
+                        expected,
+                        sample.replace(fragment, ""),
+                        re.S | re.M,
+                    )
+                )
+
+        self.assertIn(
+            "[browser-js-number] FAIL",
+            gui_terminal_smoke.FRONTIER_RUNTIME_REJECTED_MARKERS,
+        )
 
     def test_unary_command_requires_value_type_error_and_recovery_evidence(
         self,

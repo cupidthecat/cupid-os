@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidC Guide (.cc)
-Verified against source on: 2026-07-30
+Verified against source on: 2026-08-01
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -166,8 +166,8 @@ the build output. A valid data-only object may omit .text, but its other
 sections and symbols must still pass validation. The strict frontier must
 compile all 155 checked-in roots twice. The full frontier now passes with a
 445-input path snapshot whose SHA-256 is
-4b4dbd802d8faf0cdf9bc1b2749ab7cddf4c4635dafdea4ac171c37a96449a92.
-Both 155-object sets are byte-identical; each totals 3,721,392 bytes. The combined
+99d03de14f544f6a76d21ed147e62018873f1e2e8dfa2f4459830b69314432c2.
+Both 155-object sets are byte-identical; each totals 3,749,796 bytes. The combined
 graph passes clean normal and partitioned image builds. Final frontier
 publication retries a short permission-style directory lock with five bounded
 delays. A persistent lock leaves the frontier unpublished. The input scan
@@ -1079,6 +1079,26 @@ do-while. Positive and negative zero are false. Every nonzero value,
 infinity, and NaN is true. Void expressions, structures by value, and SIMD
 vectors are not valid truth operands.
 
+One-dimensional fixed float and double array symbols keep their declared
+element type. Global, automatic, block-static, and persistent REPL arrays
+reserve four or eight bytes per element and use indirect SSE loads and stores.
+Plain indexed assignment uses the scalar conversion rules. Indexed +=, -=,
+*=, and /= stay at the element width, and sizeof(*array) returns that width.
+Bounds must be positive, and checked count-by-stride multiplication rejects
+overflow before storage is reserved. Multidimensional floating arrays, fixed
+SIMD arrays, floating pointer types, floating pointer dereference, and floating
+arrays embedded in structure or class fields remain unsupported.
+
+Direct functions and methods with parsed fixed parameter types convert
+represented integer, char, float, and double arguments to the declared cdecl
+slot type. Represented pointer categories and integer null forms can fill a
+pointer slot. A parsed variadic tail widens float to double and promotes char
+to int. Function-pointer calls, kernel bindings, and calls without fixed
+parameter metadata keep their source-width slots. Character operands undergo
+integer promotion and use the scalar integer conversion path when mixed with
+floating values or explicitly cast. Fresh subscript metadata prevents a
+pointer result from inheriting an earlier array stride.
+
 The kernel binding table preserves each function's declared result. Its 318
 value-returning entries identify integer, pointer, float, or double results.
 The other 192 entries return void. Conditions therefore use the value that a
@@ -1117,6 +1137,7 @@ fabs, floor, ceil, round, trunc, fmod.
 printf supports %f, %e, %g, and precision forms like %.3f.
 
 See also: bin/feature12_float.cc through bin/feature16_asm_fpu.cc.
+The Browser's binary64 token and AST tables use the fixed double-array path.
 See also: 14FPU-SSE.CTXT for full FPU/SSE reference.
 [Open FPU/SSE guide](open:14FPU-SSE.CTXT)
 >endtree

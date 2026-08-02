@@ -215,6 +215,19 @@ FRONTIER_RUNTIME_COMMANDS = (
         ),
     ),
     TerminalCommand(
+        "browser --selftest",
+        (
+            r"\[cupidc\] JIT compile: /bin/browser\.cc"
+            r".*?\[js\] parse error: js: expected exponent digits"
+            r".*?\[browser-js-number\] PASS close=1 large=1 "
+            r"negzero=1 nan=1 truth=1 nanformat=1 posinfformat=1 "
+            r"neginfformat=1 "
+            r"literal=1 signedexp=1 upperexp=1 order=1 divide=1 "
+            r"divideassign=1 remainder=1 expcap=1 reject=1"
+            rf".*?{CUPIDC_COMPLETION_PATTERN}"
+        ),
+    ),
+    TerminalCommand(
         "audiotest all",
         (
             r"\[cupidc\] JIT compile: /bin/audiotest\.cc"
@@ -355,6 +368,7 @@ FRONTIER_RUNTIME_REJECTED_MARKERS = (
     "FAIL feature15_libm",
     "FAIL feature17_iso",
     "FAIL feature18_swap",
+    "[browser-js-number] FAIL",
     "extended SYS VFS calls: FAIL",
 ) + NIC_RUNTIME_REJECTED_MARKERS
 

@@ -275,6 +275,17 @@ Scalar float and double variables support prefix and postfix ++ and --.
 Postfix expressions return the old value, while all four forms store the
 one-unit update. The same path handles locals, parameters, and globals.
 
+One-dimensional fixed float and double array symbols preserve their element
+type. Global, automatic, block-static, and persistent REPL arrays use
+four-byte or eight-byte strides with indirect SSE loads and stores. Plain
+indexed assignment converts from represented integer and floating sources,
+while +=, -=, *=, and /= use the element width. sizeof(*array) reports four
+or eight. Bounds must be positive, and checked count-by-stride multiplication
+rejects overflow before storage is reserved. Multidimensional floating arrays,
+fixed SIMD arrays, floating pointer types, floating pointer dereference, and
+floating arrays embedded in structure or class fields are unsupported by the
+private compiler.
+
 Private CupidC uses one scalar cdecl layout for direct calls, stored
 function-pointer calls, and methods. Integers, pointers, function pointers,
 float, and the implicit method self value occupy four bytes. Double occupies
@@ -283,6 +294,24 @@ from left to right, then arranged at increasing addresses in source order.
 Callees use the same widths for parameter offsets, and callers reclaim the
 complete outgoing area. Feature 13 requires ten calls through one mixed-width
 tolerance helper.
+
+Direct functions and methods with parsed fixed parameter types convert
+represented integer, char, float, and double arguments to the declared cdecl
+slot before the call. Represented pointer categories and integer null forms can
+fill a pointer slot. A parsed variadic tail widens float to double and promotes
+char to int. Function-pointer calls, kernel bindings, and calls without fixed
+parameter metadata keep their source-width slots. Character operands undergo
+integer promotion and use the scalar integer conversion path when mixed with
+floating values or explicitly cast. Fresh subscript metadata prevents a
+pointer result from inheriting an earlier array stride.
+
+The Browser's JavaScript numeric tables use the fixed double-array path.
+browser --selftest exercises that path without opening a window. Its 17
+result fields cover close and large-value order, negative zero and its
+reciprocal, NaN comparison and truth, NaN and signed infinity formatting,
+decimal literals, signed and uppercase exponents, relational order, division
+and division assignment by zero, remainder by zero, the exponent cap, and
+malformed-exponent rejection.
 
 [Run feature12_float](shell:feature12_float)
 [Run feature13_double](shell:feature13_double)

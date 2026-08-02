@@ -8,11 +8,11 @@ stable shape, then covers the Linux branch with direct build tests.
 language graph contains 27 assembly inputs, 289 headers, and 401 Cupid C
 files. No ordinary C translation unit remains in a supported root. The
 active-source digest is
-`4cc621b69736f3b9f4c22565a8f4ec026bb775bb311254a6c7f9b1b1dd5f7265`.
-The 2,546,938-byte audit JSON has SHA-256
-`fbd3aabb36e73aea1ee332e7c7413614b6b52bd0ffdec090e9cdcfc5691bb22e`,
+`0b982fc826a30b89bb9c9e641000d170ddb54aa1b0f152571a4abcd1d5731313`.
+The 2,547,062-byte audit JSON has SHA-256
+`e00e52cc4fd467e3694b5f6e6b5515e196636aa4466b41f4a2544a6ea38e07be`,
 and the 12,136-byte summary has SHA-256
-`956a34695080089d697307c2c672966501f5ccebf8a5d44a5f8c331022d8447c`.
+`83e26bfbf811a1d44739325340a79e78706576191ce9ee669e870dc37a93e8ea`.
 The checked Windows Clang/LLVM and Linux GCC/binutils baselines at
 revision `1e079d1` predate the current CupidC ownership and remain historical
 oracle evidence.
@@ -80,10 +80,23 @@ selection, and every structured control form. The focused host oracle checks
 the active instruction helper, while checked-seed CupidC produces the normal
 kernel object and the guest frontier executes each parser path. No host
 compiler, assembler, linker, or packaging dependency was added or retired.
+
 The same change repairs the in-kernel symbol boundary: all 318
 value-returning bindings publish an explicit Cupid type, and the remaining
 192 bindings are verified `void` functions. This metadata is compiled into
 the checked-seed-owned kernel object.
+
+The Browser number correction also keeps the existing ownership boundary.
+Its lexer, AST, and interpreter remain source-wrapped inputs compiled by the
+private in-OS CupidC path. Native binary64 comparisons, truth, division, and
+the bounded decimal parser replace application workarounds without adding a
+host math library or compiler step. Private CupidC now owns one-dimensional
+fixed `float` and `double` array storage and indexed SSE access because those
+Browser tables require it. Focused host-built i386 tests remain
+optional execution oracles; checked-seed CupidC builds the production parser
+object. The four-CPU guest contract requires the 17-field
+`browser --selftest` PASS marker, the malformed exponent diagnostic, and clean
+JIT completion.
 
 Private floating increment and decrement retire no host dependency. The
 in-kernel parser and SSE emitter own local, parameter, global, statement, and
@@ -95,10 +108,21 @@ Private mixed-width cdecl calls keep the same ownership boundary. The
 in-kernel parser now gives represented scalars and pointers four-byte slots
 and `double` values eight-byte slots across direct, indirect, and method
 calls. Callees use the same widths for parameter addresses, and callers clean
-the complete outgoing area. A focused host-built runtime remains an optional
-ABI oracle. Checked-seed CupidC builds the production parser object, and the
-four-CPU guest frontier executes ten mixed-width feature13 calls. No host
-compiler, assembler, linker, or packaging dependency was added or retired.
+the complete outgoing area. Direct functions and methods with parsed fixed
+parameter types convert represented integer, `char`, `float`, and `double`
+arguments to the declared slot type before the call. Represented pointer
+categories and integer null forms can fill a pointer slot. A parsed variadic
+tail widens `float` to `double` and promotes `char` to `int`. Function-pointer
+calls, kernel bindings, and calls without parameter metadata keep their
+source-width slots. A focused host-built runtime remains an optional ABI oracle.
+Checked-seed CupidC builds the production parser object, and the four-CPU guest
+frontier executes ten mixed-width feature13 calls. No host compiler, assembler,
+linker, or packaging dependency was added or retired.
+
+Positive fixed-array bounds, checked count-by-stride multiplication, REPL data
+reservation, character promotion, and fresh pointer subscript metadata also
+live in the checked-seed-owned parser object. They add no host build step.
+Floating arrays embedded in structure or class fields remain unsupported.
 
 The i386 runtime contract and all fourteen Toolchain contracts now use `.cc`.
 The checked seed produces stage-two and stage-three tools, each stage compiles
@@ -141,8 +165,8 @@ transferred Make recipe names its exact recursive header closure and common
 checked-seed controls. Poisoned-host recipes, strict syntax, focused tests,
 and the normal-image gate remain part of the proof. The full 155-root
 frontier passes twice against a 445-file frozen snapshot with SHA-256
-`4b4dbd802d8faf0cdf9bc1b2749ab7cddf4c4635dafdea4ac171c37a96449a92`.
-The two object sets are byte-identical; each totals 3,721,392 bytes. The combined 155-root graph
+`99d03de14f544f6a76d21ed147e62018873f1e2e8dfa2f4459830b69314432c2`.
+The two object sets are byte-identical; each totals 3,749,796 bytes. The combined 155-root graph
 also carries the ISO fixture as an explicit image input and passes the strong
 four-vCPU runtime gate with both NICs.
 ADRs

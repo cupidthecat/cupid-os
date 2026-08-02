@@ -75,6 +75,49 @@ widths, and callers reclaim the exact total. `feature13_double.cc` replaces
 its copied tolerance expressions with a real `double, double, double, int`
 helper used by ten checks. ADR 0198 records this private-compiler boundary.
 
+Direct functions and methods also retain parsed fixed parameter types. Before
+the cdecl word permutation, a known fixed call converts represented integer or
+`char` arguments to `float` or `double`, converts between the two floating
+widths, and truncates a floating value for an `int` or `char` parameter.
+Represented pointer categories and integer null forms can fill a pointer slot.
+A parsed variadic tail widens `float` to `double` and promotes `char` to `int`.
+Function-pointer calls, kernel bindings, and calls without fixed parameter
+metadata keep their source-width slots. Character operands undergo integer
+promotion in ordinary integer arithmetic and use the integer SSE conversion
+path when paired with a floating operand or cast.
+
+The Browser now consumes those private floating capabilities directly. Its
+JavaScript lexer stores decimal integer, fraction, and exponent tokens as
+`double`, and numeric AST nodes keep the same lane. Interpreter comparisons
+no longer scale through `int`, so close and large finite values retain their
+binary64 order. JavaScript truth rejects both signed zero and NaN. Division by
+zero keeps its floating result, while remainder by zero produces NaN. Decimal
+exponents are bounded to 400 steps and require a digit after the optional
+sign.
+
+The Browser's five numeric tables exposed a private compiler defect in typed
+storage and indexed access. One-dimensional fixed array symbols now retain
+their declared element type. Global, automatic, block-static, and persistent
+REPL `float` and `double` arrays reserve the correct number of bytes and use
+indirect SSE loads and stores. Separate compiler contracts cover scalar
+conversion in plain indexed assignment and all four arithmetic compound
+assignments. Those operations stay at the element width, and `sizeof(*array)`
+reports four or eight. Bounds must be positive, and checked count-by-stride
+arithmetic rejects an allocation that would overflow before storage is
+reserved. Fresh subscript metadata prevents an unrelated pointer result from
+inheriting a previous array stride.
+
+Multidimensional floating arrays, fixed SIMD arrays, floating pointer types,
+floating pointer dereference, and floating arrays in structure or class fields
+remain unsupported. Bitwise or shift compound assignment receives a specific
+diagnostic. `browser --selftest` combines direct binary64 checks with scripts
+sent through the real interpreter. The command checks comparisons, truth,
+decimal fractions, signed and uppercase exponents, a negative-zero reciprocal,
+NaN and signed infinity formatting, relational order, division and division
+assignment by zero, remainder by zero, exponent capping, and malformed-exponent
+rejection. Its PASS marker contains 17 computed fields. ADR 0210 records both
+boundaries.
+
 Hosted CupidC now carries signed and unsigned eight-byte integer values through constants, matching conditional arms, fixed direct and indirect call results, object access, declared parameters, named call arguments, ellipsis arguments, and calls through function types without prototypes. File objects, block statics, fixed automatic objects, pointer dereferences, ordinary members, and indexed elements can be initialized, loaded, assigned, mutated, chained, discarded, and returned. One Linear IR entry names an emitter-owned eight-byte frame snapshot. A declared or undeclared wide argument occupies eight cdecl stack bytes. A supported wide `va_arg` read produces an instruction-owned snapshot and advances the cursor by eight. Return restores the low word to EAX and the high word to EDX.
 
 Wide values support addition, subtraction, multiplication, division, remainder, unary plus, unary minus, bitwise complement, shifts, AND, OR, XOR, comparisons, logical operators, conditional selection, structured scalar conditions, signed or unsigned switch dispatch, all ten compound assignments, prefix and postfix update, and conversion to or from represented integer widths. Switch lowering evaluates the condition once and duplicates its snapshot handle before each full-width case comparison. Mutation evaluates its destination once and keeps one semantic load and store. Multiplication combines one full low-word product with both cross-word products. Division and remainder run a fixed 64-step restoring loop over unsigned magnitudes, then apply the quotient or dividend sign. Each multiplication, division, remainder, or wide variadic-read result receives a fresh snapshot. The unchanged `ctool_buffer_put_le64`, `ctool_buffer_patch_le64`, `pp_if_value_truth`, `pp_if_is_negative`, `pp_if_signed_less`, `pp_if_signed_magnitude`, `cfront_constant_apply_binary`, and X25519 `fe_carry` bodies guard the broader operation set. CupidASM's unchanged number parser and unary expression branch guard the arithmetic, while X25519's unchanged `fe_mul_u32` helper guards wide-by-narrow multiplication. ADRs 0065 through 0075 record these boundaries. Runtime cases that C leaves undefined promise neither a trap nor a result.
@@ -308,8 +351,8 @@ validator. The production frontier covers 155 approved sources, and every
 Make recipe names its recursive header closure and common checked controls.
 Forced rebuilds poison the host compiler. The complete frontier now compiles
 all 155 roots twice against a 445-file snapshot with SHA-256
-`4b4dbd802d8faf0cdf9bc1b2749ab7cddf4c4635dafdea4ac171c37a96449a92`.
-Both object passes are byte-identical; each totals 3,721,392 bytes. The combined
+`99d03de14f544f6a76d21ed147e62018873f1e2e8dfa2f4459830b69314432c2`.
+Both object passes are byte-identical; each totals 3,749,796 bytes. The combined
 frontier retries only short permission-style directory locks with five
 bounded delays; persistent locks and other filesystem errors publish nothing.
 Its input inventory skips hidden paths under active include roots, so a
@@ -806,11 +849,11 @@ inventory covers 686 files and 2,392 include occurrences, split into 2,158
 quoted and 234 angle forms.
 
 The active-source digest is
-`4cc621b69736f3b9f4c22565a8f4ec026bb775bb311254a6c7f9b1b1dd5f7265`.
-The 2,546,938-byte audit JSON has SHA-256
-`fbd3aabb36e73aea1ee332e7c7413614b6b52bd0ffdec090e9cdcfc5691bb22e`,
+`0b982fc826a30b89bb9c9e641000d170ddb54aa1b0f152571a4abcd1d5731313`.
+The 2,547,062-byte audit JSON has SHA-256
+`e00e52cc4fd467e3694b5f6e6b5515e196636aa4466b41f4a2544a6ea38e07be`,
 and the 12,136-byte summary has SHA-256
-`956a34695080089d697307c2c672966501f5ccebf8a5d44a5f8c331022d8447c`.
+`83e26bfbf811a1d44739325340a79e78706576191ce9ee669e870dc37a93e8ea`.
 
 Across the three supported roots, CupidC participates in 245 transforms and
 CupidObj participates in 185 transforms. Python participates in all 449

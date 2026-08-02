@@ -246,16 +246,34 @@ complete words in source order, and use the same widths for callee parameter
 offsets and caller cleanup. The feature13 guest exercises ten calls through
 one double, double, double, int helper.
 
+A direct function or method with parsed fixed parameter types converts
+represented integer, char, float, and double arguments to the declared slot
+type before cdecl layout. Represented pointer categories and integer null forms
+can fill a pointer slot. A parsed variadic tail widens float to double and
+promotes char to int. Function-pointer calls, kernel bindings, and calls
+without that metadata keep their source-width slots.
+
+One-dimensional fixed float and double array symbols keep their element type
+for global, automatic, block-static, and persistent REPL storage. The private
+compiler uses four-byte or eight-byte strides, indirect SSE loads and stores,
+scalar assignment conversion, arithmetic compound assignment, and the matching
+result for sizeof(*array). Bounds must be positive, and checked count-by-stride
+multiplication rejects overflowing allocations. Floating arrays embedded in
+structure or class fields, multidimensional floating arrays, fixed SIMD arrays,
+floating pointer types, and floating pointer dereference remain unsupported.
+
 >h3 Arithmetic
 Binary operators `+`, `-`, `*`, `/` work on scalar float/double via SSE
 scalar opcodes (ADDSS/ADDSD/etc.). Implicit promotion:
-  `int + float -> float`, `float + double -> double`.
+  `int + float -> float`, `char + int -> int`,
+  `char + float -> float`, `float + double -> double`.
 SIMD types need matching types for `+/-/*//`; mixing scalar and SIMD is a
 compile error.
 
 >h3 Casts
-`(int)3.7` -> 3 (truncating). `(float)5` -> 5.0. `(double)1.5f` widens.
-Casts lower to CVTSI2SS/CVTTSS2SI/CVTSS2SD/etc.
+`(int)3.7` -> 3 (truncating). `(float)5` -> 5.0. A char uses the same
+integer-to-floating conversion path. `(double)1.5f` widens. Casts lower to
+CVTSI2SS/CVTTSS2SI/CVTSS2SD/etc.
 
 >h3 Element Access
 `v.x / v.y / v.z / v.w` on float4 extracts a scalar float via SHUFPS.

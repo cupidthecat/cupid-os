@@ -277,6 +277,23 @@ static void emit_movsd_xmm_disp32(cc_state_t *cc, int xmm, uint32_t addr) {
   emit32(cc, addr);
 }
 
+/* MOVSS/MOVSD [disp32], xmm - store to an absolute data address. */
+static void emit_movss_disp32_xmm(cc_state_t *cc, int xmm, uint32_t addr) {
+  emit8(cc, 0xF3);
+  emit8(cc, 0x0F);
+  emit8(cc, 0x11);
+  emit8(cc, cc_xmm_modrm_disp32(xmm));
+  emit32(cc, addr);
+}
+
+static void emit_movsd_disp32_xmm(cc_state_t *cc, int xmm, uint32_t addr) {
+  emit8(cc, 0xF2);
+  emit8(cc, 0x0F);
+  emit8(cc, 0x11);
+  emit8(cc, cc_xmm_modrm_disp32(xmm));
+  emit32(cc, addr);
+}
+
 /* MOVSS/MOVSD xmm, [ebp + disp32] - load FP local/param into XMM reg. */
 static void emit_movss_xmm_local(cc_state_t *cc, int xmm, int32_t offset) {
   emit8(cc, 0xF3);
@@ -307,6 +324,34 @@ static void emit_movsd_local_xmm(cc_state_t *cc, int xmm, int32_t offset) {
   emit8(cc, 0x11); /* MOVSD m64, xmm */
   emit8(cc, cc_xmm_modrm_ebp(xmm));
   emit32(cc, (uint32_t)offset);
+}
+
+/* MOVSS/MOVSD xmm, [eax] and MOVSS/MOVSD [eax], xmm. Fixed floating
+ * arrays keep their computed element address in EAX, so these forms let
+ * subscripting preserve the scalar SSE value lane used everywhere else. */
+static void emit_movss_xmm_eax(cc_state_t *cc, int xmm) {
+  emit8(cc, 0xF3);
+  emit8(cc, 0x0F);
+  emit8(cc, 0x10);
+  emit8(cc, (uint8_t)((xmm & 7) << 3));
+}
+static void emit_movsd_xmm_eax(cc_state_t *cc, int xmm) {
+  emit8(cc, 0xF2);
+  emit8(cc, 0x0F);
+  emit8(cc, 0x10);
+  emit8(cc, (uint8_t)((xmm & 7) << 3));
+}
+static void emit_movss_eax_xmm(cc_state_t *cc, int xmm) {
+  emit8(cc, 0xF3);
+  emit8(cc, 0x0F);
+  emit8(cc, 0x11);
+  emit8(cc, (uint8_t)((xmm & 7) << 3));
+}
+static void emit_movsd_eax_xmm(cc_state_t *cc, int xmm) {
+  emit8(cc, 0xF2);
+  emit8(cc, 0x0F);
+  emit8(cc, 0x11);
+  emit8(cc, (uint8_t)((xmm & 7) << 3));
 }
 
 /* MOVSS/MOVSD [esp], xmm  and  MOVSS/MOVSD xmm, [esp].
@@ -907,6 +952,40 @@ static int cc_last_expr_struct_index; /* which struct, if TYPE_STRUCT */
 static int cc_last_expr_dim2;
 static int cc_last_type_struct_index; /* set by cc_parse_type */
 static int cc_last_expr_elem_size;    /* element size for array subscripts */
+/* The pointer-shaped expression type cannot distinguish int, float, and
+ * double fixed arrays. Carry the declared element type alongside the base
+ * expression until the first subscript materializes the scalar value. */
+static cc_type_t cc_last_expr_array_elem_type;
+
+static void cc_reset_expr_subscript_metadata(void) {
+  cc_last_expr_dim2 = 0;
+  cc_last_expr_elem_size = 0;
+  cc_last_expr_array_elem_type = TYPE_INT;
+}
+
+/* A call or cast returns a scalar type rather than an array symbol, but a
+ * following subscript still needs the ordinary pointee stride. Keep that
+ * baseline separate from fixed-array metadata so an unrelated array
+ * expression cannot leak its wider stride into the result. */
+static void cc_seed_pointer_subscript_metadata(cc_state_t *cc,
+                                               cc_type_t type,
+                                               int struct_index) {
+  cc_reset_expr_subscript_metadata();
+  cc_last_expr_struct_index = struct_index;
+  if (type == TYPE_CHAR_PTR) {
+    cc_last_expr_elem_size = 1;
+    cc_last_expr_array_elem_type = TYPE_CHAR;
+  } else if (type == TYPE_INT_PTR || type == TYPE_PTR ||
+             type == TYPE_FUNC_PTR) {
+    cc_last_expr_elem_size = 4;
+  } else if (type == TYPE_STRUCT_PTR) {
+    if (struct_index >= 0 && struct_index < cc->struct_count &&
+        cc->structs[struct_index].total_size > 0)
+      cc_last_expr_elem_size = cc->structs[struct_index].total_size;
+    else
+      cc_last_expr_elem_size = 4;
+  }
+}
 
 /* XMM register allocator for floating-point expression evaluation.
  * Reset at the start of each function. XMM0-7 available. Spilling (when
@@ -1361,6 +1440,25 @@ static int32_t cc_type_size(cc_state_t *cc, cc_type_t type, int struct_index) {
   }
 }
 
+/* Keep every array byte calculation inside signed parser limits before the
+ * result is aligned or subtracted from a frame offset. The reserve helpers
+ * can reject a large positive request, but they cannot recognize a product
+ * that already wrapped back to a small value. */
+static int cc_checked_array_bytes(cc_state_t *cc, int32_t count,
+                                  int32_t stride, int32_t *out) {
+  const int32_t max_aligned_bytes = 0x7ffffffc;
+  if (count <= 0 || stride <= 0) {
+    cc_error(cc, "array size must be positive");
+    return 0;
+  }
+  if (count > max_aligned_bytes / stride) {
+    cc_error(cc, "array allocation size overflow");
+    return 0;
+  }
+  *out = count * stride;
+  return 1;
+}
+
 /* Private CupidC passes scalar and pointer values in cdecl stack slots.
  * SIMD vectors and aggregate values need a separate ABI before they can
  * cross a function boundary. */
@@ -1404,6 +1502,85 @@ static int cc_emit_cdecl_argument_push(cc_state_t *cc, cc_type_t type,
   }
   *slot_size = size;
   return 1;
+}
+
+/* Apply the conversions required by a known fixed parameter before its
+ * value is assigned a cdecl slot. Calls without parsed parameter metadata
+ * retain the existing source-width behavior. */
+static int cc_coerce_cdecl_argument(cc_state_t *cc, cc_type_t target_type) {
+  cc_type_t source_type = cc_last_expr_type;
+
+  if (cc_cdecl_slot_size(source_type) == 0) {
+    cc_error(cc, "cdecl call argument type is not supported");
+    return 0;
+  }
+  if (source_type == target_type)
+    return 1;
+  if ((source_type == TYPE_INT || source_type == TYPE_CHAR) &&
+      target_type == TYPE_FLOAT) {
+    emit_cvtsi2ss(cc, 0);
+  } else if ((source_type == TYPE_INT || source_type == TYPE_CHAR) &&
+             target_type == TYPE_DOUBLE) {
+    emit_cvtsi2sd(cc, 0);
+  } else if (source_type == TYPE_FLOAT && target_type == TYPE_DOUBLE) {
+    emit_cvtss2sd(cc, 0, 0);
+  } else if (source_type == TYPE_DOUBLE && target_type == TYPE_FLOAT) {
+    emit_cvtsd2ss(cc, 0, 0);
+  } else if (source_type == TYPE_FLOAT &&
+             (target_type == TYPE_INT || target_type == TYPE_CHAR)) {
+    emit_cvttss2si(cc, 0);
+  } else if (source_type == TYPE_DOUBLE &&
+             (target_type == TYPE_INT || target_type == TYPE_CHAR)) {
+    emit_cvttsd2si(cc, 0);
+  } else if ((source_type == TYPE_INT || source_type == TYPE_CHAR) &&
+             (target_type == TYPE_INT || target_type == TYPE_CHAR)) {
+    /* Both private integer spellings use one four-byte cdecl slot. */
+  } else if ((source_type == TYPE_INT || source_type == TYPE_CHAR ||
+              source_type == TYPE_PTR || source_type == TYPE_INT_PTR ||
+              source_type == TYPE_CHAR_PTR ||
+              source_type == TYPE_STRUCT_PTR ||
+              source_type == TYPE_FUNC_PTR) &&
+             (target_type == TYPE_PTR || target_type == TYPE_INT_PTR ||
+              target_type == TYPE_CHAR_PTR ||
+              target_type == TYPE_STRUCT_PTR ||
+              target_type == TYPE_FUNC_PTR)) {
+    /* Represented pointers and integer null forms share a four-byte slot. */
+  } else {
+    cc_error(cc, "cdecl argument type does not match fixed parameter");
+    return 0;
+  }
+
+  cc_last_expr_type = target_type;
+  if (target_type == TYPE_FLOAT || target_type == TYPE_DOUBLE)
+    cc_last_xmm = 0;
+  return 1;
+}
+
+static int cc_emit_call_argument_push(cc_state_t *cc,
+                                      cc_symbol_t *callee,
+                                      int argument_index,
+                                      int *slot_size) {
+  cc_type_t slot_type = cc_last_expr_type;
+  if (callee && callee->kind == SYM_FUNC && callee->has_param_types &&
+      argument_index < callee->param_count) {
+    slot_type = (cc_type_t)callee->param_types[argument_index];
+    if (!cc_coerce_cdecl_argument(cc, slot_type))
+      return 0;
+  } else if (callee && callee->kind == SYM_FUNC &&
+             callee->has_param_types && callee->is_variadic &&
+             argument_index >= callee->param_count) {
+    /* C's default argument promotions apply beyond the fixed prefix. */
+    if (slot_type == TYPE_FLOAT) {
+      emit_cvtss2sd(cc, 0, 0);
+      slot_type = TYPE_DOUBLE;
+      cc_last_expr_type = TYPE_DOUBLE;
+      cc_last_xmm = 0;
+    } else if (slot_type == TYPE_CHAR) {
+      slot_type = TYPE_INT;
+      cc_last_expr_type = TYPE_INT;
+    }
+  }
+  return cc_emit_cdecl_argument_push(cc, slot_type, slot_size);
 }
 
 static int cc_bind_cdecl_parameter(cc_state_t *cc, const char *name,
@@ -1550,9 +1727,10 @@ static int cc_emit_variable_update(cc_state_t *cc, cc_symbol_t *sym,
   return 1;
 }
 
-/* Promote binary-op types per FP hierarchy. Rules:
+/* Promote binary-op types per scalar hierarchy. Rules:
  *  - SIMD (float4/double2) must match exactly on both sides.
  *  - double > float > int for scalar ops.
+ *  - char undergoes the C integer promotions before arithmetic.
  *  - int + float -> float (int promoted via CVTSI2SS).
  *  - float + double -> double.
  *  - pointer arithmetic stays int-only.
@@ -1574,13 +1752,17 @@ static cc_type_t cc_promote(cc_state_t *cc, cc_type_t a, cc_type_t b) {
     return TYPE_DOUBLE;
   if (a == TYPE_FLOAT || b == TYPE_FLOAT)
     return TYPE_FLOAT;
-  /* Otherwise keep existing int behavior */
+  if ((a == TYPE_INT || a == TYPE_CHAR) &&
+      (b == TYPE_INT || b == TYPE_CHAR))
+    return TYPE_INT;
+  /* Preserve the existing pointer-shaped result for integer-only paths. */
   return a;
 }
 
 static int32_t cc_sizeof_symbol_deref(cc_state_t *cc, cc_symbol_t *sym,
                                       int deref_count) {
   cc_type_t type = sym->type;
+  cc_type_t array_elem_type = sym->array_elem_type;
   int struct_index = sym->struct_index;
   int elem_size = sym->array_elem_size;
   int is_array = sym->is_array;
@@ -1590,6 +1772,14 @@ static int32_t cc_sizeof_symbol_deref(cc_state_t *cc, cc_symbol_t *sym,
     int last = (i == deref_count - 1);
 
     if (is_array) {
+      if (array_elem_type == TYPE_FLOAT ||
+          array_elem_type == TYPE_DOUBLE) {
+        if (last)
+          return cc_type_size(cc, array_elem_type, -1);
+        type = array_elem_type;
+        is_array = 0;
+        continue;
+      }
       if (type == TYPE_STRUCT_PTR) {
         if (last)
           return cc_type_size(cc, TYPE_STRUCT, struct_index);
@@ -2378,6 +2568,7 @@ static void cc_emit_intrinsic(cc_state_t *cc, const cc_intrin_t *intr) {
 static void cc_parse_ident_expr(cc_state_t *cc) {
   char name[CC_MAX_IDENT];
   int i = 0;
+  cc_reset_expr_subscript_metadata();
   while (cc->cur.text[i] && i < CC_MAX_IDENT - 1) {
     name[i] = cc->cur.text[i];
     i++;
@@ -2393,9 +2584,12 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
     if (intr) {
       cc_next(cc); /* consume '(' */
       cc_emit_intrinsic(cc, intr);
+      cc_reset_expr_subscript_metadata();
       return;
     }
     cc_next(cc); /* consume '(' */
+
+    cc_symbol_t *call_sym = cc_sym_find(cc, name);
 
     /* Evaluate arguments in source order and retain their stack widths. */
     int argc = 0;
@@ -2405,8 +2599,8 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
     if (cc_peek(cc).type != CC_TOK_RPAREN) {
       /* Parse first argument */
       cc_parse_expression(cc, 1);
-      if (!cc_emit_cdecl_argument_push(cc, cc_last_expr_type,
-                                       &arg_sizes[argc]))
+      if (!cc_emit_call_argument_push(cc, call_sym, argc,
+                                      &arg_sizes[argc]))
         return;
       total_arg_bytes += arg_sizes[argc];
       argc++;
@@ -2417,8 +2611,8 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
           cc_error(cc, "too many call arguments");
           break;
         }
-        if (!cc_emit_cdecl_argument_push(cc, cc_last_expr_type,
-                                         &arg_sizes[argc]))
+        if (!cc_emit_call_argument_push(cc, call_sym, argc,
+                                        &arg_sizes[argc]))
           return;
         total_arg_bytes += arg_sizes[argc];
         argc++;
@@ -2448,16 +2642,19 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
       emit_add_esp(cc, (int32_t)total_arg_bytes);
 
       cc_last_expr_type = TYPE_VOID;
+      cc_reset_expr_subscript_metadata();
       return;
     }
 
     /* Look up function */
-    cc_symbol_t *sym = cc_sym_find(cc, name);
+    cc_symbol_t *sym = call_sym;
     /* Remember callee's return type so we can set cc_last_expr_type
      * correctly after cleanup (default is TYPE_INT for unknown/forward refs).*/
     cc_type_t call_ret_type = TYPE_INT;
+    int call_ret_struct_index = -1;
     if (sym && (sym->kind == SYM_FUNC || sym->kind == SYM_KERNEL)) {
       call_ret_type = sym->type;
+      call_ret_struct_index = sym->struct_index;
     }
     if (sym) {
       /* HolyC-style auto-main: if the user explicitly calls main() at the
@@ -2544,6 +2741,8 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
         cc_last_xmm = 0;
       }
     }
+    cc_seed_pointer_subscript_metadata(cc, cc_last_expr_type,
+                                       call_ret_struct_index);
     return;
   }
 
@@ -2650,6 +2849,8 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
     cc_last_expr_type = sym->type;
     cc_last_expr_struct_index = sym->struct_index;
     cc_last_expr_dim2 = (sym->is_array) ? sym->array_dim2 : 0;
+    cc_last_expr_array_elem_type =
+        sym->is_array ? sym->array_elem_type : TYPE_INT;
     if (sym->is_array && sym->array_elem_size > 0)
       cc_last_expr_elem_size = sym->array_elem_size;
     else if ((sym->type == TYPE_STRUCT_PTR || sym->type == TYPE_STRUCT) &&
@@ -2677,6 +2878,8 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
     cc_last_expr_type = sym->type;
     cc_last_expr_struct_index = sym->struct_index;
     cc_last_expr_dim2 = (sym->is_array) ? sym->array_dim2 : 0;
+    cc_last_expr_array_elem_type =
+        sym->is_array ? sym->array_elem_type : TYPE_INT;
     if (sym->is_array && sym->array_elem_size > 0)
       cc_last_expr_elem_size = sym->array_elem_size;
     else if ((sym->type == TYPE_STRUCT_PTR || sym->type == TYPE_STRUCT) &&
@@ -2704,6 +2907,7 @@ static void cc_parse_primary(cc_state_t *cc) {
   if (cc->error)
     return;
 
+  cc_reset_expr_subscript_metadata();
   cc_token_t tok = cc_next(cc);
   cc_symbol_t *postfix_lvalue_sym = NULL;
   int postfix_lvalue_valid = 0;
@@ -2835,22 +3039,25 @@ static void cc_parse_primary(cc_state_t *cc) {
       cc_expect(cc, CC_TOK_RPAREN);
       cc_parse_primary(cc);
       cc_type_t src_type = cc_last_expr_type;
-      /* int <-> float <-> double explicit casts.
-       * The six combinations among {TYPE_INT, TYPE_FLOAT, TYPE_DOUBLE}
-       * each lower to a single CVT* opcode.  Casts to/from pointer,
-       * char, struct, or SIMD types remain pure retagging (no code).*/
+      /* Integer <-> float <-> double explicit casts. Character values use
+       * the same EAX representation as integers after byte loads, so their
+       * FP conversions use the scalar integer CVT instructions too. */
       if (src_type != cast_type) {
-        if (src_type == TYPE_INT && cast_type == TYPE_FLOAT) {
-          /* int in EAX -> float in XMM0 */
+        if ((src_type == TYPE_INT || src_type == TYPE_CHAR) &&
+            cast_type == TYPE_FLOAT) {
+          /* integer value in EAX -> float in XMM0 */
           emit_cvtsi2ss(cc, 0);
           cc_last_xmm = 0;
-        } else if (src_type == TYPE_INT && cast_type == TYPE_DOUBLE) {
+        } else if ((src_type == TYPE_INT || src_type == TYPE_CHAR) &&
+                   cast_type == TYPE_DOUBLE) {
           emit_cvtsi2sd(cc, 0);
           cc_last_xmm = 0;
-        } else if (src_type == TYPE_FLOAT && cast_type == TYPE_INT) {
-          /* float in XMM0 -> int in EAX (truncating) */
+        } else if (src_type == TYPE_FLOAT &&
+                   (cast_type == TYPE_INT || cast_type == TYPE_CHAR)) {
+          /* float in XMM0 -> integer value in EAX (truncating) */
           emit_cvttss2si(cc, 0);
-        } else if (src_type == TYPE_DOUBLE && cast_type == TYPE_INT) {
+        } else if (src_type == TYPE_DOUBLE &&
+                   (cast_type == TYPE_INT || cast_type == TYPE_CHAR)) {
           emit_cvttsd2si(cc, 0);
         } else if (src_type == TYPE_FLOAT && cast_type == TYPE_DOUBLE) {
           emit_cvtss2sd(cc, 0, 0);
@@ -2864,6 +3071,7 @@ static void cc_parse_primary(cc_state_t *cc) {
          * to/from pointer via a cast is NOT supported - intermediate
          * (int) cast is required.*/
       }
+      cc_seed_pointer_subscript_metadata(cc, cast_type, cast_si);
       cc_last_expr_type = cast_type;
       cc_last_expr_struct_index = cast_si;
     } else {
@@ -2884,6 +3092,7 @@ static void cc_parse_primary(cc_state_t *cc) {
       emit_deref_dword(cc);
       cc_last_expr_type = TYPE_INT;
     }
+    cc_reset_expr_subscript_metadata();
     break;
   }
 
@@ -2917,6 +3126,8 @@ static void cc_parse_primary(cc_state_t *cc) {
       cc_last_expr_type = TYPE_PTR;
     cc_last_expr_struct_index = sym->struct_index;
     cc_last_expr_dim2 = (sym->is_array) ? sym->array_dim2 : 0;
+    cc_last_expr_array_elem_type =
+        sym->is_array ? sym->array_elem_type : TYPE_INT;
     if (sym->is_array && sym->array_elem_size > 0)
       cc_last_expr_elem_size = sym->array_elem_size;
     else if ((sym->type == TYPE_STRUCT || sym->type == TYPE_STRUCT_PTR) &&
@@ -2941,6 +3152,7 @@ static void cc_parse_primary(cc_state_t *cc) {
     emit8(cc, 0xC0); /* sete al */
     emit_movzx_eax_al(cc);
     cc_last_expr_type = TYPE_INT;
+    cc_reset_expr_subscript_metadata();
     break;
   }
 
@@ -2950,6 +3162,7 @@ static void cc_parse_primary(cc_state_t *cc) {
     emit8(cc, 0xF7);
     emit8(cc, 0xD0); /* not eax */
     cc_last_expr_type = TYPE_INT;
+    cc_reset_expr_subscript_metadata();
     break;
   }
 
@@ -2981,6 +3194,7 @@ static void cc_parse_primary(cc_state_t *cc) {
       cc_error(cc, "unary sign requires an arithmetic scalar operand");
       return;
     }
+    cc_reset_expr_subscript_metadata();
     break;
   }
 
@@ -3055,13 +3269,18 @@ static void cc_parse_primary(cc_state_t *cc) {
 
     emit_pop_eax(cc); /* ptr result */
 
-    if (alloc_type == TYPE_CHAR)
+    cc_reset_expr_subscript_metadata();
+    if (alloc_type == TYPE_CHAR) {
       cc_last_expr_type = TYPE_CHAR_PTR;
-    else if (alloc_type == TYPE_STRUCT) {
+      cc_last_expr_elem_size = 1;
+    } else if (alloc_type == TYPE_STRUCT) {
       cc_last_expr_type = TYPE_STRUCT_PTR;
       cc_last_expr_struct_index = alloc_si;
-    } else
+      cc_last_expr_elem_size = elem_size;
+    } else {
       cc_last_expr_type = TYPE_PTR;
+      cc_last_expr_elem_size = elem_size;
+    }
 
     break;
   }
@@ -3132,6 +3351,8 @@ static void cc_parse_primary(cc_state_t *cc) {
         cc_make_method_symbol(method_sym_name, cc->structs[si].name,
                               field_tok.text);
 
+        cc_symbol_t *msym = cc_sym_find(cc, method_sym_name);
+
         cc_next(cc); /* consume '(' */
 
         /* First implicit argument is self pointer in eax. */
@@ -3139,8 +3360,8 @@ static void cc_parse_primary(cc_state_t *cc) {
         /* Track each stack width for layout and cleanup. */
         int arg_sizes[CC_MAX_PARAMS];
         int total_arg_bytes = 0;
-        if (!cc_emit_cdecl_argument_push(cc, TYPE_STRUCT_PTR,
-                                         &arg_sizes[argc]))
+        cc_last_expr_type = TYPE_STRUCT_PTR;
+        if (!cc_emit_call_argument_push(cc, msym, argc, &arg_sizes[argc]))
           return;
         total_arg_bytes += arg_sizes[argc];
         argc++;
@@ -3148,8 +3369,8 @@ static void cc_parse_primary(cc_state_t *cc) {
         if (cc_peek(cc).type != CC_TOK_RPAREN) {
           cc_parse_expression(cc, 1);
           if (argc < CC_MAX_PARAMS) {
-            if (!cc_emit_cdecl_argument_push(cc, cc_last_expr_type,
-                                             &arg_sizes[argc]))
+            if (!cc_emit_call_argument_push(cc, msym, argc,
+                                            &arg_sizes[argc]))
               return;
             total_arg_bytes += arg_sizes[argc];
             argc++;
@@ -3161,8 +3382,8 @@ static void cc_parse_primary(cc_state_t *cc) {
               cc_error(cc, "too many call arguments");
               break;
             }
-            if (!cc_emit_cdecl_argument_push(cc, cc_last_expr_type,
-                                             &arg_sizes[argc]))
+            if (!cc_emit_call_argument_push(cc, msym, argc,
+                                            &arg_sizes[argc]))
               return;
             total_arg_bytes += arg_sizes[argc];
             argc++;
@@ -3174,7 +3395,6 @@ static void cc_parse_primary(cc_state_t *cc) {
           return;
 
         {
-          cc_symbol_t *msym = cc_sym_find(cc, method_sym_name);
           if (msym) {
             if (msym->kind == SYM_FUNC && msym->is_defined) {
               emit_call_abs(cc, cc->code_base + (uint32_t)msym->offset);
@@ -3227,13 +3447,16 @@ static void cc_parse_primary(cc_state_t *cc) {
         {
           cc_symbol_t *msym2 = cc_sym_find(cc, method_sym_name);
           cc_type_t mret = TYPE_INT;
+          int mret_si = -1;
           if (msym2 && (msym2->kind == SYM_FUNC || msym2->kind == SYM_KERNEL)) {
             mret = msym2->type;
+            mret_si = msym2->struct_index;
           }
           cc_last_expr_type = mret;
           if (mret == TYPE_FLOAT || mret == TYPE_DOUBLE) {
             cc_last_xmm = 0;
           }
+          cc_seed_pointer_subscript_metadata(cc, mret, mret_si);
         }
         continue;
       }
@@ -3248,6 +3471,7 @@ static void cc_parse_primary(cc_state_t *cc) {
         emit8(cc, 0x05); /* add eax, imm32 */
         emit32(cc, (uint32_t)field->offset);
       }
+      cc_reset_expr_subscript_metadata();
       /* Determine result: if field is a sub-struct, keep address */
       if (field->array_count > 0) {
         /* Array field: address is already in eax, treat as pointer */
@@ -3255,6 +3479,9 @@ static void cc_parse_primary(cc_state_t *cc) {
           cc_last_expr_type = TYPE_CHAR_PTR;
         else
           cc_last_expr_type = TYPE_PTR;
+        cc_last_expr_elem_size =
+            cc_type_size(cc, field->type, field->struct_index);
+        cc_last_expr_array_elem_type = field->type;
       } else if (field->type == TYPE_STRUCT) {
         cc_last_expr_type = TYPE_STRUCT;
         cc_last_expr_struct_index = field->struct_index;
@@ -3277,6 +3504,7 @@ static void cc_parse_primary(cc_state_t *cc) {
       /* Array subscript: expr[index] */
       cc_next(cc);
       cc_type_t base_type = cc_last_expr_type;
+      cc_type_t base_array_elem_type = cc_last_expr_array_elem_type;
       int base_elem_size = cc_last_expr_elem_size;
       int base_dim2 = cc_last_expr_dim2;
       int base_si = cc_last_expr_struct_index;
@@ -3313,6 +3541,7 @@ static void cc_parse_primary(cc_state_t *cc) {
         cc_last_expr_struct_index = base_si;
         cc_last_expr_elem_size = 4;
         cc_last_expr_dim2 = 0;
+        cc_last_expr_array_elem_type = TYPE_INT;
       } else if (base_type == TYPE_CHAR_PTR && base_elem_size > 1) {
         /* Multi-D char first subscript: pointer to row. For 3D arrays
          * the second-stride (dim2) becomes the new elem_size so the
@@ -3320,21 +3549,39 @@ static void cc_parse_primary(cc_state_t *cc) {
         cc_last_expr_type = TYPE_CHAR_PTR;
         cc_last_expr_elem_size = (base_dim2 > 0) ? base_dim2 : 1;
         cc_last_expr_dim2 = 0;
+        cc_last_expr_array_elem_type = TYPE_CHAR;
       } else if (base_type == TYPE_CHAR_PTR) {
         emit_deref_byte(cc);
         cc_last_expr_type = TYPE_CHAR;
         cc_last_expr_elem_size = 0;
         cc_last_expr_dim2 = 0;
+        cc_last_expr_array_elem_type = TYPE_INT;
+      } else if (base_array_elem_type == TYPE_FLOAT) {
+        emit_movss_xmm_eax(cc, 0);
+        cc_last_xmm = 0;
+        cc_last_expr_type = TYPE_FLOAT;
+        cc_last_expr_elem_size = 0;
+        cc_last_expr_dim2 = 0;
+        cc_last_expr_array_elem_type = TYPE_INT;
+      } else if (base_array_elem_type == TYPE_DOUBLE) {
+        emit_movsd_xmm_eax(cc, 0);
+        cc_last_xmm = 0;
+        cc_last_expr_type = TYPE_DOUBLE;
+        cc_last_expr_elem_size = 0;
+        cc_last_expr_dim2 = 0;
+        cc_last_expr_array_elem_type = TYPE_INT;
       } else if (base_type == TYPE_INT_PTR && base_elem_size > 4) {
         /* Multi-D int first subscript: pointer to row. */
         cc_last_expr_type = TYPE_INT_PTR;
         cc_last_expr_elem_size = (base_dim2 > 0) ? base_dim2 : 4;
         cc_last_expr_dim2 = 0;
+        cc_last_expr_array_elem_type = TYPE_INT;
       } else {
         emit_deref_dword(cc);
         cc_last_expr_type = TYPE_INT;
         cc_last_expr_elem_size = 0;
         cc_last_expr_dim2 = 0;
+        cc_last_expr_array_elem_type = TYPE_INT;
       }
 
       cc_expect(cc, CC_TOK_RBRACK);
@@ -3675,6 +3922,30 @@ static void cc_emit_compound_from_rhs_old(cc_state_t *cc, cc_token_type_t op) {
   }
 }
 
+static int cc_coerce_fp_assignment(cc_state_t *cc, cc_type_t target_type) {
+  if (cc_last_expr_type == target_type)
+    return 1;
+  if ((cc_last_expr_type == TYPE_INT || cc_last_expr_type == TYPE_CHAR) &&
+      target_type == TYPE_FLOAT) {
+    emit_cvtsi2ss(cc, 0);
+  } else if ((cc_last_expr_type == TYPE_INT ||
+              cc_last_expr_type == TYPE_CHAR) &&
+             target_type == TYPE_DOUBLE) {
+    emit_cvtsi2sd(cc, 0);
+  } else if (cc_last_expr_type == TYPE_FLOAT && target_type == TYPE_DOUBLE) {
+    emit_cvtss2sd(cc, 0, 0);
+  } else if (cc_last_expr_type == TYPE_DOUBLE && target_type == TYPE_FLOAT) {
+    emit_cvtsd2ss(cc, 0, 0);
+  } else {
+    cc_error(cc, "FP assignment type mismatch"
+                 " (no implicit conversion from this source type)");
+    return 0;
+  }
+  cc_last_xmm = 0;
+  cc_last_expr_type = target_type;
+  return 1;
+}
+
 /* Parse assignment: var = expr, var += expr, *ptr = expr, arr[i] = expr */
 static void cc_parse_assignment(cc_state_t *cc, const char *name) {
   cc_symbol_t *sym = cc_sym_find(cc, name);
@@ -3781,29 +4052,8 @@ static void cc_parse_assignment(cc_state_t *cc, const char *name) {
       return;
     }
     /* Coerce RHS into the destination's FP type when possible. */
-    if (cc_last_expr_type != sym->type) {
-      if (cc_last_expr_type == TYPE_INT && sym->type == TYPE_FLOAT) {
-        emit_cvtsi2ss(cc, 0);
-        cc_last_xmm = 0;
-        cc_last_expr_type = TYPE_FLOAT;
-      } else if (cc_last_expr_type == TYPE_INT && sym->type == TYPE_DOUBLE) {
-        emit_cvtsi2sd(cc, 0);
-        cc_last_xmm = 0;
-        cc_last_expr_type = TYPE_DOUBLE;
-      } else if (cc_last_expr_type == TYPE_FLOAT && sym->type == TYPE_DOUBLE) {
-        emit_cvtss2sd(cc, 0, 0);
-        cc_last_xmm = 0;
-        cc_last_expr_type = TYPE_DOUBLE;
-      } else if (cc_last_expr_type == TYPE_DOUBLE && sym->type == TYPE_FLOAT) {
-        emit_cvtsd2ss(cc, 0, 0);
-        cc_last_xmm = 0;
-        cc_last_expr_type = TYPE_FLOAT;
-      } else {
-        cc_error(cc, "FP assignment type mismatch"
-                     " (no implicit conversion from this source type)");
-        return;
-      }
-    }
+    if (!cc_coerce_fp_assignment(cc, sym->type))
+      return;
 
     int is_double = (sym->type == TYPE_DOUBLE);
 
@@ -3926,6 +4176,9 @@ static void cc_parse_subscript_assignment(cc_state_t *cc, const char *name) {
 
   /* Get element size for scaling */
   int elem_size;
+  cc_type_t elem_type =
+      sym->is_array ? sym->array_elem_type : TYPE_INT;
+  int is_fp = elem_type == TYPE_FLOAT || elem_type == TYPE_DOUBLE;
   if (sym->is_array && sym->array_elem_size > 0)
     elem_size = sym->array_elem_size;
   else if (sym->type == TYPE_STRUCT_PTR && sym->struct_index >= 0 &&
@@ -4081,7 +4334,7 @@ static void cc_parse_subscript_assignment(cc_state_t *cc, const char *name) {
     }
   }
   /* Handle 2D/3D int array second subscript */
-  else if (!is_char && elem_size > 4 &&
+  else if (!is_char && !is_fp && elem_size > 4 &&
            cc_peek(cc).type == CC_TOK_LBRACK) {
     cc_next(cc); /* consume '[' */
     emit_push_eax(cc);
@@ -4122,6 +4375,72 @@ static void cc_parse_subscript_assignment(cc_state_t *cc, const char *name) {
   cc_token_t assign_op = cc_next(cc);
   if (!cc_is_assignment_op(assign_op.type)) {
     cc_error(cc, "expected assignment operator");
+    return;
+  }
+
+  if (is_fp) {
+    int is_compound_fp =
+        assign_op.type == CC_TOK_PLUSEQ ||
+        assign_op.type == CC_TOK_MINUSEQ ||
+        assign_op.type == CC_TOK_STAREQ ||
+        assign_op.type == CC_TOK_SLASHEQ;
+    if (assign_op.type != CC_TOK_EQ && !is_compound_fp) {
+      cc_error(cc,
+               "bitwise/shift compound assignment not valid on FP arrays");
+      return;
+    }
+
+    cc_parse_expression(cc, 1);
+    if (!cc_coerce_fp_assignment(cc, elem_type))
+      return;
+
+    if (is_compound_fp) {
+      int is_double = elem_type == TYPE_DOUBLE;
+      uint8_t op_byte = 0;
+
+      /* Keep the RHS below the saved address while loading the current
+       * element. The 8-byte spill gives both scalar widths one layout. */
+      emit8(cc, 0x83);
+      emit8(cc, 0xEC);
+      emit8(cc, 0x08); /* sub esp, 8 */
+      if (is_double)
+        emit_movsd_esp_xmm(cc, 0);
+      else
+        emit_movss_esp_xmm(cc, 0);
+
+      emit8(cc, 0x8B);
+      emit8(cc, 0x44);
+      emit8(cc, 0x24);
+      emit8(cc, 0x08); /* mov eax, [esp + 8] */
+      if (is_double)
+        emit_movsd_xmm_eax(cc, 0);
+      else
+        emit_movss_xmm_eax(cc, 0);
+      if (is_double)
+        emit_movsd_xmm_esp(cc, 1);
+      else
+        emit_movss_xmm_esp(cc, 1);
+      emit8(cc, 0x83);
+      emit8(cc, 0xC4);
+      emit8(cc, 0x08); /* add esp, 8 */
+
+      switch (assign_op.type) {
+      case CC_TOK_PLUSEQ:  op_byte = 0x58; break;
+      case CC_TOK_MINUSEQ: op_byte = 0x5C; break;
+      case CC_TOK_STAREQ:  op_byte = 0x59; break;
+      case CC_TOK_SLASHEQ: op_byte = 0x5E; break;
+      default: break;
+      }
+      emit_sse_scalar_op(cc, is_double, op_byte, 0, 1);
+    }
+
+    emit_pop_eax(cc);
+    if (elem_type == TYPE_DOUBLE)
+      emit_movsd_eax_xmm(cc, 0);
+    else
+      emit_movss_eax_xmm(cc, 0);
+    cc_last_expr_type = elem_type;
+    cc_last_xmm = 0;
     return;
   }
 
@@ -4649,12 +4968,22 @@ static void cc_parse_static_local_declaration(cc_state_t *cc, cc_type_t type) {
       cc_error(cc, "expected array size");
       return;
     }
+    if (arr_elems <= 0) {
+      cc_error(cc, "array size must be positive");
+      return;
+    }
     cc_expect(cc, CC_TOK_RBRACK);
     int32_t inner_dim = 0;
+    int has_inner_dim = 0;
     if (cc_peek(cc).type == CC_TOK_LBRACK) {
+      has_inner_dim = 1;
       cc_next(cc); /* '[' */
       if (!cc_parse_const_int_expr(cc, &inner_dim)) {
         cc_error(cc, "expected array size");
+        return;
+      }
+      if (inner_dim <= 0) {
+        cc_error(cc, "array size must be positive");
         return;
       }
       cc_expect(cc, CC_TOK_RBRACK);
@@ -4663,6 +4992,18 @@ static void cc_parse_static_local_declaration(cc_state_t *cc, cc_type_t type) {
     int32_t total_bytes;
     int aes;
     cc_type_t arr_type;
+    if ((type == TYPE_FLOAT || type == TYPE_DOUBLE) && has_inner_dim) {
+      cc_error(cc, "floating arrays support one dimension");
+      return;
+    }
+    if (type == TYPE_STRUCT && has_inner_dim) {
+      cc_error(cc, "struct arrays support one dimension");
+      return;
+    }
+    if (type == TYPE_FLOAT4 || type == TYPE_DOUBLE2) {
+      cc_error(cc, "fixed SIMD arrays are not supported");
+      return;
+    }
     if (type == TYPE_STRUCT && type_struct_index >= 0 &&
         type_struct_index < cc->struct_count) {
       if (!cc_struct_is_complete(cc, type_struct_index)) {
@@ -4670,18 +5011,26 @@ static void cc_parse_static_local_declaration(cc_state_t *cc, cc_type_t type) {
         return;
       }
       int32_t ssize = cc->structs[type_struct_index].total_size;
-      total_bytes = arr_elems * ssize;
+      if (!cc_checked_array_bytes(cc, arr_elems, ssize, &total_bytes))
+        return;
       aes = ssize;
       arr_type = TYPE_STRUCT_PTR;
-    } else if (inner_dim > 0) {
+    } else if (has_inner_dim) {
       int base_elem = (type == TYPE_CHAR) ? 1 : 4;
-      int32_t row_size = inner_dim * base_elem;
-      total_bytes = arr_elems * row_size;
+      int32_t row_size;
+      if (!cc_checked_array_bytes(cc, inner_dim, base_elem, &row_size) ||
+          !cc_checked_array_bytes(cc, arr_elems, row_size, &total_bytes))
+        return;
       aes = row_size;
       arr_type = (type == TYPE_CHAR) ? TYPE_CHAR_PTR : TYPE_INT_PTR;
     } else {
-      int elem_size = (type == TYPE_CHAR) ? 1 : 4;
-      total_bytes = arr_elems * elem_size;
+      int elem_size = cc_type_size(cc, type, type_struct_index);
+      if (elem_size <= 0) {
+        cc_error(cc, "invalid array element type");
+        return;
+      }
+      if (!cc_checked_array_bytes(cc, arr_elems, elem_size, &total_bytes))
+        return;
       aes = elem_size;
       arr_type = (type == TYPE_CHAR) ? TYPE_CHAR_PTR : TYPE_INT_PTR;
     }
@@ -4694,6 +5043,7 @@ static void cc_parse_static_local_declaration(cc_state_t *cc, cc_type_t type) {
       sym->is_array = 1;
       sym->struct_index = type_struct_index;
       sym->array_elem_size = aes;
+      sym->array_elem_type = type;
       memset(cc->data + cc->data_pos, 0, (size_t)total_bytes);
       cc->data_pos += (uint32_t)total_bytes;
     }
@@ -4733,14 +5083,20 @@ static void cc_parse_static_local_declaration(cc_state_t *cc, cc_type_t type) {
     return;
   }
 
+  int32_t scalar_size = cc_type_size(cc, type, type_struct_index);
+  if (scalar_size <= 0 || scalar_size > 8) {
+    cc_error(cc, "static scalar type is not supported");
+    return;
+  }
+  scalar_size = cc_align_up(scalar_size, 4);
   cc_symbol_t *sym = cc_sym_add(cc, name_tok.text, SYM_GLOBAL, type);
   if (sym) {
-    if (!cc_data_reserve(cc, 4))
+    if (!cc_data_reserve(cc, (uint32_t)scalar_size))
       return;
     sym->address = cc->data_base + cc->data_pos;
     sym->struct_index = type_struct_index;
-    memset(cc->data + cc->data_pos, 0, 4);
-    cc->data_pos += 4;
+    memset(cc->data + cc->data_pos, 0, (size_t)scalar_size);
+    cc->data_pos += (uint32_t)scalar_size;
   }
 
   if (cc_match(cc, CC_TOK_EQ)) {
@@ -4750,8 +5106,17 @@ static void cc_parse_static_local_declaration(cc_state_t *cc, cc_type_t type) {
     } else {
       cc_parse_expression(cc, 1);
       if (sym) {
-        emit8(cc, 0xA3); /* mov [addr], eax */
-        emit32(cc, sym->address);
+        if (type == TYPE_FLOAT || type == TYPE_DOUBLE) {
+          if (!cc_coerce_fp_assignment(cc, type))
+            return;
+          if (type == TYPE_DOUBLE)
+            emit_movsd_disp32_xmm(cc, 0, sym->address);
+          else
+            emit_movss_disp32_xmm(cc, 0, sym->address);
+        } else {
+          emit8(cc, 0xA3); /* mov [addr], eax */
+          emit32(cc, sym->address);
+        }
       }
     }
   }
@@ -4780,14 +5145,24 @@ static void cc_parse_declaration(cc_state_t *cc, cc_type_t type) {
         cc_error(cc, "expected array size");
         return;
       }
+      if (arr_size <= 0) {
+        cc_error(cc, "array size must be positive");
+        return;
+      }
       cc_expect(cc, CC_TOK_RBRACK);
 
       int32_t inner_dim = 0;
+      int has_inner_dim = 0;
       /* Check for 2D array: type name[M][N] */
       if (cc_peek(cc).type == CC_TOK_LBRACK) {
+        has_inner_dim = 1;
         cc_next(cc); /* consume '[' */
         if (!cc_parse_const_int_expr(cc, &inner_dim)) {
           cc_error(cc, "expected array size");
+          return;
+        }
+        if (inner_dim <= 0) {
+          cc_error(cc, "array size must be positive");
           return;
         }
         cc_expect(cc, CC_TOK_RBRACK);
@@ -4797,6 +5172,19 @@ static void cc_parse_declaration(cc_state_t *cc, cc_type_t type) {
       int aes; /* array_elem_size for subscript scaling */
       cc_type_t arr_type;
 
+      if ((type == TYPE_FLOAT || type == TYPE_DOUBLE) && has_inner_dim) {
+        cc_error(cc, "floating arrays support one dimension");
+        return;
+      }
+      if (type == TYPE_STRUCT && has_inner_dim) {
+        cc_error(cc, "struct arrays support one dimension");
+        return;
+      }
+      if (type == TYPE_FLOAT4 || type == TYPE_DOUBLE2) {
+        cc_error(cc, "fixed SIMD arrays are not supported");
+        return;
+      }
+
       if (type == TYPE_STRUCT && type_struct_index >= 0 &&
           type_struct_index < cc->struct_count) {
         if (!cc_struct_is_complete(cc, type_struct_index)) {
@@ -4804,18 +5192,26 @@ static void cc_parse_declaration(cc_state_t *cc, cc_type_t type) {
           return;
         }
         int32_t ssize = cc->structs[type_struct_index].total_size;
-        total_bytes = arr_size * ssize;
+        if (!cc_checked_array_bytes(cc, arr_size, ssize, &total_bytes))
+          return;
         aes = ssize;
         arr_type = TYPE_STRUCT_PTR;
-      } else if (inner_dim > 0) {
+      } else if (has_inner_dim) {
         int base_elem = (type == TYPE_CHAR) ? 1 : 4;
-        int32_t row_size = inner_dim * base_elem;
-        total_bytes = arr_size * row_size;
+        int32_t row_size;
+        if (!cc_checked_array_bytes(cc, inner_dim, base_elem, &row_size) ||
+            !cc_checked_array_bytes(cc, arr_size, row_size, &total_bytes))
+          return;
         aes = row_size;
         arr_type = (type == TYPE_CHAR) ? TYPE_CHAR_PTR : TYPE_INT_PTR;
       } else {
-        int elem_size = (type == TYPE_CHAR) ? 1 : 4;
-        total_bytes = arr_size * elem_size;
+        int elem_size = cc_type_size(cc, type, type_struct_index);
+        if (elem_size <= 0) {
+          cc_error(cc, "invalid array element type");
+          return;
+        }
+        if (!cc_checked_array_bytes(cc, arr_size, elem_size, &total_bytes))
+          return;
         aes = elem_size;
         arr_type = (type == TYPE_CHAR) ? TYPE_CHAR_PTR : TYPE_INT_PTR;
       }
@@ -4831,6 +5227,7 @@ static void cc_parse_declaration(cc_state_t *cc, cc_type_t type) {
         sym->is_array = 1;
         sym->struct_index = type_struct_index;
         sym->array_elem_size = aes;
+        sym->array_elem_type = type;
       }
 
       if (!cc_match(cc, CC_TOK_COMMA)) break;
@@ -4926,25 +5323,27 @@ static void cc_parse_declaration(cc_state_t *cc, cc_type_t type) {
         cc_parse_expression(cc, 1);
         /* Coerce element into the lane's scalar FP type. */
         if (elem_type == TYPE_FLOAT) {
-          if (cc_last_expr_type == TYPE_INT) {
+          if (cc_last_expr_type == TYPE_INT ||
+              cc_last_expr_type == TYPE_CHAR) {
             emit_cvtsi2ss(cc, 0);
           } else if (cc_last_expr_type == TYPE_DOUBLE) {
             emit_cvtsd2ss(cc, 0, 0);
           } else if (cc_last_expr_type != TYPE_FLOAT) {
             cc_error(cc,
-                     "float4 initializer element must be int/float/double");
+                     "float4 initializer element must be char/int/float/double");
             return;
           }
           cc_last_xmm = 0;
           emit_movss_local_xmm(cc, 0, cc->local_offset + i * elem_size);
         } else {
-          if (cc_last_expr_type == TYPE_INT) {
+          if (cc_last_expr_type == TYPE_INT ||
+              cc_last_expr_type == TYPE_CHAR) {
             emit_cvtsi2sd(cc, 0);
           } else if (cc_last_expr_type == TYPE_FLOAT) {
             emit_cvtss2sd(cc, 0, 0);
           } else if (cc_last_expr_type != TYPE_DOUBLE) {
             cc_error(cc,
-                     "double2 initializer element must be int/float/double");
+                     "double2 initializer element must be char/int/float/double");
             return;
           }
           cc_last_xmm = 0;
@@ -4991,26 +5390,28 @@ static void cc_parse_declaration(cc_state_t *cc, cc_type_t type) {
     cc_parse_expression(cc, 1);
     if (type == TYPE_FLOAT) {
       /* Coerce initializer into float if needed. */
-      if (cc_last_expr_type == TYPE_INT) {
+      if (cc_last_expr_type == TYPE_INT ||
+          cc_last_expr_type == TYPE_CHAR) {
         emit_cvtsi2ss(cc, 0);
         cc_last_xmm = 0;
       } else if (cc_last_expr_type == TYPE_DOUBLE) {
         emit_cvtsd2ss(cc, 0, 0);
         cc_last_xmm = 0;
       } else if (cc_last_expr_type != TYPE_FLOAT) {
-        cc_error(cc, "float initializer requires int/float/double"
+        cc_error(cc, "float initializer requires char/int/float/double"
                      " (non-scalar initializer not supported)");
       }
       emit_movss_local_xmm(cc, 0, cc->local_offset);
     } else if (type == TYPE_DOUBLE) {
-      if (cc_last_expr_type == TYPE_INT) {
+      if (cc_last_expr_type == TYPE_INT ||
+          cc_last_expr_type == TYPE_CHAR) {
         emit_cvtsi2sd(cc, 0);
         cc_last_xmm = 0;
       } else if (cc_last_expr_type == TYPE_FLOAT) {
         emit_cvtss2sd(cc, 0, 0);
         cc_last_xmm = 0;
       } else if (cc_last_expr_type != TYPE_DOUBLE) {
-        cc_error(cc, "double initializer requires int/float/double"
+        cc_error(cc, "double initializer requires char/int/float/double"
                      " (non-scalar initializer not supported)");
       }
       emit_movsd_local_xmm(cc, 0, cc->local_offset);
@@ -5702,6 +6103,7 @@ static void cc_parse_simple_statement(cc_state_t *cc) {
           cc_make_method_symbol(method_sym_name,
                                 cc->structs[sym->struct_index].name,
                                 member_tok.text);
+          cc_symbol_t *method_sym = cc_sym_find(cc, method_sym_name);
 
           /* Load object/self pointer into eax. */
           if (sym->kind == SYM_GLOBAL) {
@@ -5727,8 +6129,9 @@ static void cc_parse_simple_statement(cc_state_t *cc) {
             int arg_sizes[CC_MAX_PARAMS];
             int total_arg_bytes = 0;
 
-            if (!cc_emit_cdecl_argument_push(cc, TYPE_STRUCT_PTR,
-                                             &arg_sizes[argc]))
+            cc_last_expr_type = TYPE_STRUCT_PTR;
+            if (!cc_emit_call_argument_push(cc, method_sym, argc,
+                                            &arg_sizes[argc]))
               return;
             total_arg_bytes += arg_sizes[argc];
             argc++;
@@ -5736,8 +6139,8 @@ static void cc_parse_simple_statement(cc_state_t *cc) {
             if (cc_peek(cc).type != CC_TOK_RPAREN) {
               cc_parse_expression(cc, 1);
               if (argc < CC_MAX_PARAMS) {
-                if (!cc_emit_cdecl_argument_push(cc, cc_last_expr_type,
-                                                 &arg_sizes[argc]))
+                if (!cc_emit_call_argument_push(cc, method_sym, argc,
+                                                &arg_sizes[argc]))
                   return;
                 total_arg_bytes += arg_sizes[argc];
                 argc++;
@@ -5748,8 +6151,8 @@ static void cc_parse_simple_statement(cc_state_t *cc) {
                   cc_error(cc, "too many call arguments");
                   break;
                 }
-                if (!cc_emit_cdecl_argument_push(cc, cc_last_expr_type,
-                                                 &arg_sizes[argc]))
+                if (!cc_emit_call_argument_push(cc, method_sym, argc,
+                                                &arg_sizes[argc]))
                   return;
                 total_arg_bytes += arg_sizes[argc];
                 argc++;
@@ -5761,7 +6164,7 @@ static void cc_parse_simple_statement(cc_state_t *cc) {
               return;
 
             {
-              cc_symbol_t *msym = cc_sym_find(cc, method_sym_name);
+              cc_symbol_t *msym = method_sym;
               if (msym) {
                 if (msym->kind == SYM_FUNC && msym->is_defined) {
                   emit_call_abs(cc, cc->code_base + (uint32_t)msym->offset);
@@ -5973,6 +6376,7 @@ static void cc_parse_block(cc_state_t *cc) {
 
 static void cc_parse_function(cc_state_t *cc) {
   cc_type_t ret_type = cc_parse_type(cc);
+  int ret_struct_index = cc_last_type_struct_index;
   if (ret_type == TYPE_STRUCT) {
     cc_error(cc, "struct return unsupported; use pointer-out parameter");
     return;
@@ -5993,8 +6397,12 @@ static void cc_parse_function(cc_state_t *cc) {
   if (func_sym) {
     func_sym->kind = SYM_FUNC;
     func_sym->type = ret_type;
+    func_sym->struct_index = ret_struct_index;
     func_sym->offset = (int32_t)cc->code_pos;
     func_sym->is_defined = 1;
+    func_sym->has_param_types = 1;
+    func_sym->is_variadic = 0;
+    memset(func_sym->param_types, 0, sizeof(func_sym->param_types));
   }
 
   /* Is this main()? */
@@ -6018,6 +6426,8 @@ static void cc_parse_function(cc_state_t *cc) {
 
     if (cc_peek(cc).type == CC_TOK_ELLIPSIS) {
       cc_next(cc); /* variadic-only parameter list */
+      if (func_sym)
+        func_sym->is_variadic = 1;
     } else {
       cc_type_t ptype = cc_parse_type(cc);
       int psi = cc_last_type_struct_index;
@@ -6043,6 +6453,12 @@ static void cc_parse_function(cc_state_t *cc) {
           else if (ptype == TYPE_INT)  ptype = TYPE_INT_PTR;
           else                          ptype = TYPE_PTR;
         }
+        if (cc->param_count >= CC_MAX_PARAMS) {
+          cc_error(cc, "too many parameters");
+          return;
+        }
+        if (func_sym)
+          func_sym->param_types[cc->param_count] = (uint8_t)ptype;
         {
           int slot_size = cc_bind_cdecl_parameter(
               cc, pname.text, ptype, psi, param_offset);
@@ -6056,6 +6472,8 @@ static void cc_parse_function(cc_state_t *cc) {
       while (cc_match(cc, CC_TOK_COMMA)) {
         if (cc_peek(cc).type == CC_TOK_ELLIPSIS) {
           cc_next(cc); /* consume ... and finish param list */
+          if (func_sym)
+            func_sym->is_variadic = 1;
           break;
         }
         ptype = cc_parse_type(cc);
@@ -6076,6 +6494,12 @@ static void cc_parse_function(cc_state_t *cc) {
           else if (ptype == TYPE_INT)  ptype = TYPE_INT_PTR;
           else                          ptype = TYPE_PTR;
         }
+        if (cc->param_count >= CC_MAX_PARAMS) {
+          cc_error(cc, "too many parameters");
+          return;
+        }
+        if (func_sym)
+          func_sym->param_types[cc->param_count] = (uint8_t)ptype;
         {
           int slot_size = cc_bind_cdecl_parameter(
               cc, pname.text, ptype, psi, param_offset);
@@ -6152,7 +6576,12 @@ static void cc_parse_function(cc_state_t *cc) {
     if (new_sym) {
       new_sym->offset = func_sym->offset;
       new_sym->address = func_sym->address;
+      new_sym->struct_index = func_sym->struct_index;
       new_sym->param_count = func_sym->param_count;
+      memcpy(new_sym->param_types, func_sym->param_types,
+             sizeof(new_sym->param_types));
+      new_sym->has_param_types = func_sym->has_param_types;
+      new_sym->is_variadic = func_sym->is_variadic;
       new_sym->is_defined = 1;
     }
   }
@@ -6173,6 +6602,9 @@ static void cc_parse_class_method(cc_state_t *cc, int class_index,
     func_sym->type = ret_type;
     func_sym->offset = (int32_t)cc->code_pos;
     func_sym->is_defined = 1;
+    func_sym->has_param_types = 1;
+    func_sym->is_variadic = 0;
+    memset(func_sym->param_types, 0, sizeof(func_sym->param_types));
   }
 
   cc_expect(cc, CC_TOK_LPAREN);
@@ -6185,6 +6617,8 @@ static void cc_parse_class_method(cc_state_t *cc, int class_index,
 
   /* Implicit self parameter at [ebp+8]. */
   {
+    if (func_sym)
+      func_sym->param_types[0] = (uint8_t)TYPE_STRUCT_PTR;
     if (cc_bind_cdecl_parameter(cc, "self", TYPE_STRUCT_PTR, class_index, 8) ==
         0)
       return;
@@ -6196,6 +6630,8 @@ static void cc_parse_class_method(cc_state_t *cc, int class_index,
 
     if (cc_peek(cc).type == CC_TOK_ELLIPSIS) {
       cc_next(cc);
+      if (func_sym)
+        func_sym->is_variadic = 1;
     } else {
       cc_type_t ptype = cc_parse_type(cc);
       int psi = cc_last_type_struct_index;
@@ -6217,6 +6653,12 @@ static void cc_parse_class_method(cc_state_t *cc, int class_index,
           else if (ptype == TYPE_INT)  ptype = TYPE_INT_PTR;
           else                          ptype = TYPE_PTR;
         }
+        if (cc->param_count >= CC_MAX_PARAMS) {
+          cc_error(cc, "too many parameters");
+          return;
+        }
+        if (func_sym)
+          func_sym->param_types[cc->param_count] = (uint8_t)ptype;
         {
           int slot_size = cc_bind_cdecl_parameter(
               cc, pname.text, ptype, psi, param_offset);
@@ -6230,6 +6672,8 @@ static void cc_parse_class_method(cc_state_t *cc, int class_index,
       while (cc_match(cc, CC_TOK_COMMA)) {
         if (cc_peek(cc).type == CC_TOK_ELLIPSIS) {
           cc_next(cc);
+          if (func_sym)
+            func_sym->is_variadic = 1;
           break;
         }
         ptype = cc_parse_type(cc);
@@ -6250,6 +6694,12 @@ static void cc_parse_class_method(cc_state_t *cc, int class_index,
           else if (ptype == TYPE_INT)  ptype = TYPE_INT_PTR;
           else                          ptype = TYPE_PTR;
         }
+        if (cc->param_count >= CC_MAX_PARAMS) {
+          cc_error(cc, "too many parameters");
+          return;
+        }
+        if (func_sym)
+          func_sym->param_types[cc->param_count] = (uint8_t)ptype;
         {
           int slot_size = cc_bind_cdecl_parameter(
               cc, pname.text, ptype, psi, param_offset);
@@ -6302,6 +6752,10 @@ static void cc_parse_class_method(cc_state_t *cc, int class_index,
       new_sym->offset = func_sym->offset;
       new_sym->address = func_sym->address;
       new_sym->param_count = func_sym->param_count;
+      memcpy(new_sym->param_types, func_sym->param_types,
+             sizeof(new_sym->param_types));
+      new_sym->has_param_types = func_sym->has_param_types;
+      new_sym->is_variadic = func_sym->is_variadic;
       new_sym->is_defined = 1;
     }
   }
@@ -6561,8 +7015,19 @@ void cc_parse_program(cc_state_t *cc) {
                 cc_error(cc, "expected array size");
                 break;
               }
+              if (array_count <= 0) {
+                cc_error(cc, "array size must be positive");
+                break;
+              }
               f->array_count = array_count;
               cc_expect(cc, CC_TOK_RBRACK);
+            }
+
+            if (f->array_count > 0 &&
+                (ftype == TYPE_FLOAT || ftype == TYPE_DOUBLE ||
+                 ftype == TYPE_FLOAT4 || ftype == TYPE_DOUBLE2)) {
+              cc_error(cc, "floating struct field arrays are not supported");
+              break;
             }
 
             if (ftype == TYPE_STRUCT && !cc_struct_is_complete(cc, fsi)) {
@@ -6574,8 +7039,10 @@ void cc_parse_program(cc_state_t *cc) {
               int32_t elem_size = cc_type_size(cc, ftype, fsi);
               int32_t field_align = cc_type_align(cc, ftype, fsi);
               int32_t fsize = elem_size;
-              if (f->array_count > 0)
-                fsize = elem_size * f->array_count;
+              if (f->array_count > 0 &&
+                  !cc_checked_array_bytes(cc, f->array_count, elem_size,
+                                          &fsize))
+                break;
 
               field_offset = cc_align_up(field_offset, field_align);
               f->offset = field_offset;
@@ -6680,8 +7147,19 @@ void cc_parse_program(cc_state_t *cc) {
               cc_error(cc, "expected array size");
               break;
             }
+            if (array_count <= 0) {
+              cc_error(cc, "array size must be positive");
+              break;
+            }
             f->array_count = array_count;
             cc_expect(cc, CC_TOK_RBRACK);
+          }
+
+          if (f->array_count > 0 &&
+              (ftype == TYPE_FLOAT || ftype == TYPE_DOUBLE ||
+               ftype == TYPE_FLOAT4 || ftype == TYPE_DOUBLE2)) {
+            cc_error(cc, "floating struct field arrays are not supported");
+            break;
           }
 
           if (ftype == TYPE_STRUCT && !cc_struct_is_complete(cc, fsi)) {
@@ -6693,9 +7171,9 @@ void cc_parse_program(cc_state_t *cc) {
           int32_t elem_size = cc_type_size(cc, ftype, fsi);
           int32_t field_align = cc_type_align(cc, ftype, fsi);
           int32_t fsize = elem_size;
-          if (f->array_count > 0) {
-            fsize = elem_size * f->array_count;
-          }
+          if (f->array_count > 0 &&
+              !cc_checked_array_bytes(cc, f->array_count, elem_size, &fsize))
+            break;
 
           field_offset = cc_align_up(field_offset, field_align);
           f->offset = field_offset;
@@ -6792,22 +7270,38 @@ void cc_parse_program(cc_state_t *cc) {
             cc_error(cc, "expected array size");
             break;
           }
+          if (arr_elems <= 0) {
+            cc_error(cc, "array size must be positive");
+            break;
+          }
           cc_expect(cc, CC_TOK_RBRACK);
           int32_t inner_dim = 0;
           int32_t inner_dim2 = 0;
+          int has_inner_dim = 0;
+          int has_inner_dim2 = 0;
           /* Check for 2D array */
           if (cc_peek(cc).type == CC_TOK_LBRACK) {
+            has_inner_dim = 1;
             cc_next(cc); /* consume '[' */
             if (!cc_parse_const_int_expr(cc, &inner_dim)) {
               cc_error(cc, "expected array size");
               break;
             }
+            if (inner_dim <= 0) {
+              cc_error(cc, "array size must be positive");
+              break;
+            }
             cc_expect(cc, CC_TOK_RBRACK);
             /* Check for 3D array: type name[A][B][C]; */
             if (cc_peek(cc).type == CC_TOK_LBRACK) {
+              has_inner_dim2 = 1;
               cc_next(cc); /* consume '[' */
               if (!cc_parse_const_int_expr(cc, &inner_dim2)) {
                 cc_error(cc, "expected array size");
+                break;
+              }
+              if (inner_dim2 <= 0) {
+                cc_error(cc, "array size must be positive");
                 break;
               }
               cc_expect(cc, CC_TOK_RBRACK);
@@ -6817,6 +7311,20 @@ void cc_parse_program(cc_state_t *cc) {
           int aes;
           int dim2 = 0;
           cc_type_t arr_type;
+          if ((gtype == TYPE_FLOAT || gtype == TYPE_DOUBLE) &&
+              (has_inner_dim || has_inner_dim2)) {
+            cc_error(cc, "floating arrays support one dimension");
+            break;
+          }
+          if (gtype == TYPE_STRUCT &&
+              (has_inner_dim || has_inner_dim2)) {
+            cc_error(cc, "struct arrays support one dimension");
+            break;
+          }
+          if (gtype == TYPE_FLOAT4 || gtype == TYPE_DOUBLE2) {
+            cc_error(cc, "fixed SIMD arrays are not supported");
+            break;
+          }
           if (gtype == TYPE_STRUCT && gtype_si >= 0 &&
               gtype_si < cc->struct_count) {
             if (!cc_struct_is_complete(cc, gtype_si)) {
@@ -6825,29 +7333,46 @@ void cc_parse_program(cc_state_t *cc) {
             }
             /* Array of structs */
             int32_t ssize = cc->structs[gtype_si].total_size;
-            total_bytes = arr_elems * ssize;
+            if (!cc_checked_array_bytes(cc, arr_elems, ssize, &total_bytes))
+              break;
             aes = ssize;
             arr_type = TYPE_STRUCT_PTR;
-          } else if (inner_dim2 > 0) {
+          } else if (has_inner_dim2) {
             /* 3D array name[A][B][C]: outer stride = B*C*base; middle
              * stride = C*base; innermost element = base.*/
             int base_elem = (gtype == TYPE_CHAR) ? 1 : 4;
-            int32_t row_size = inner_dim * inner_dim2 * base_elem;
-            total_bytes = arr_elems * row_size;
+            int32_t middle_stride;
+            int32_t row_size;
+            if (!cc_checked_array_bytes(cc, inner_dim2, base_elem,
+                                        &middle_stride) ||
+                !cc_checked_array_bytes(cc, inner_dim, middle_stride,
+                                        &row_size) ||
+                !cc_checked_array_bytes(cc, arr_elems, row_size,
+                                        &total_bytes))
+              break;
             aes = row_size;
-            dim2 = inner_dim2 * base_elem;
+            dim2 = middle_stride;
             arr_type = (gtype == TYPE_CHAR) ? TYPE_CHAR_PTR : TYPE_INT_PTR;
-          } else if (inner_dim > 0) {
+          } else if (has_inner_dim) {
             /* 2D array */
             int base_elem = (gtype == TYPE_CHAR) ? 1 : 4;
-            int32_t row_size = inner_dim * base_elem;
-            total_bytes = arr_elems * row_size;
+            int32_t row_size;
+            if (!cc_checked_array_bytes(cc, inner_dim, base_elem, &row_size) ||
+                !cc_checked_array_bytes(cc, arr_elems, row_size,
+                                        &total_bytes))
+              break;
             aes = row_size;
             arr_type = (gtype == TYPE_CHAR) ? TYPE_CHAR_PTR : TYPE_INT_PTR;
           } else {
             /* 1D array */
-            int elem_size = (gtype == TYPE_CHAR) ? 1 : 4;
-            total_bytes = arr_elems * elem_size;
+            int elem_size = cc_type_size(cc, gtype, gtype_si);
+            if (elem_size <= 0) {
+              cc_error(cc, "invalid array element type");
+              break;
+            }
+            if (!cc_checked_array_bytes(cc, arr_elems, elem_size,
+                                        &total_bytes))
+              break;
             aes = elem_size;
             arr_type = (gtype == TYPE_CHAR) ? TYPE_CHAR_PTR : TYPE_INT_PTR;
           }
@@ -6861,6 +7386,7 @@ void cc_parse_program(cc_state_t *cc) {
             gsym->struct_index = gtype_si;
             gsym->array_elem_size = aes;
             gsym->array_dim2 = dim2;
+            gsym->array_elem_type = gtype;
             memset(cc->data + cc->data_pos, 0, (size_t)total_bytes);
             cc->data_pos += (uint32_t)total_bytes;
           }
@@ -6892,14 +7418,20 @@ void cc_parse_program(cc_state_t *cc) {
         }
         /* Scalar global variable */
         else {
+          int32_t scalar_size = cc_type_size(cc, gtype, gtype_si);
+          if (scalar_size <= 0 || scalar_size > 8) {
+            cc_error(cc, "global scalar type is not supported");
+            break;
+          }
+          scalar_size = cc_align_up(scalar_size, 4);
           cc_symbol_t *gsym = cc_sym_add(cc, gname.text, SYM_GLOBAL, gtype);
           if (gsym) {
-            if (!cc_data_reserve(cc, 4))
+            if (!cc_data_reserve(cc, (uint32_t)scalar_size))
               break;
             gsym->address = cc->data_base + cc->data_pos;
             gsym->struct_index = gtype_si;
-            memset(cc->data + cc->data_pos, 0, 4);
-            cc->data_pos += 4;
+            memset(cc->data + cc->data_pos, 0, (size_t)scalar_size);
+            cc->data_pos += (uint32_t)scalar_size;
 
             /* Handle initializer: int x = 42; int y = -1; char *s = "hi"; */
             if (cc_match(cc, CC_TOK_EQ)) {
@@ -6911,14 +7443,31 @@ void cc_parse_program(cc_state_t *cc) {
                 negate = 1;
                 val = cc_next(cc);
               }
-              if (val.type == CC_TOK_NUMBER || val.type == CC_TOK_CHAR_LIT) {
+              if ((gtype == TYPE_FLOAT || gtype == TYPE_DOUBLE) &&
+                  (val.type == CC_TOK_NUMBER ||
+                   val.type == CC_TOK_CHAR_LIT ||
+                   val.type == CC_TOK_FLIT)) {
+                double number = val.type == CC_TOK_FLIT
+                                    ? val.fval
+                                    : (double)val.int_value;
+                if (negate)
+                  number = -number;
+                if (gtype == TYPE_FLOAT) {
+                  float narrowed = (float)number;
+                  memcpy(cc->data + addr_off, &narrowed, 4);
+                } else {
+                  memcpy(cc->data + addr_off, &number, 8);
+                }
+              } else if (val.type == CC_TOK_NUMBER ||
+                         val.type == CC_TOK_CHAR_LIT) {
                 int32_t sv = negate ? -val.int_value : val.int_value;
                 uint32_t v = (uint32_t)sv;
                 cc->data[addr_off] = (uint8_t)(v & 0xFF);
                 cc->data[addr_off + 1] = (uint8_t)((v >> 8) & 0xFF);
                 cc->data[addr_off + 2] = (uint8_t)((v >> 16) & 0xFF);
                 cc->data[addr_off + 3] = (uint8_t)((v >> 24) & 0xFF);
-              } else if (val.type == CC_TOK_STRING) {
+              } else if (val.type == CC_TOK_STRING &&
+                         gtype != TYPE_FLOAT && gtype != TYPE_DOUBLE) {
                 /* Store string in data, save address at variable */
                 int slen = 0;
                 while (val.text[slen])
@@ -6938,6 +7487,9 @@ void cc_parse_program(cc_state_t *cc) {
                 cc->data[addr_off + 1] = (uint8_t)((str_addr >> 8) & 0xFF);
                 cc->data[addr_off + 2] = (uint8_t)((str_addr >> 16) & 0xFF);
                 cc->data[addr_off + 3] = (uint8_t)((str_addr >> 24) & 0xFF);
+              } else {
+                cc_error(cc, "unsupported global scalar initializer");
+                break;
               }
             }
           }
@@ -7394,25 +7946,105 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
         cc_error(cc, "expected array size");
         return;
       }
+      if (arr_elems <= 0) {
+        cc_error(cc, "array size must be positive");
+        return;
+      }
       cc_expect(cc, CC_TOK_RBRACK);
-      int32_t elem_size = (gtype == TYPE_CHAR) ? 1 : 4;
-      cc_type_t arr_type = (gtype == TYPE_CHAR) ? TYPE_CHAR_PTR : TYPE_INT_PTR;
+      int32_t inner_dim = 0;
+      int32_t inner_dim2 = 0;
+      int has_inner_dim = 0;
+      int has_inner_dim2 = 0;
+      if (cc_peek(cc).type == CC_TOK_LBRACK) {
+        has_inner_dim = 1;
+        cc_next(cc);
+        if (!cc_parse_const_int_expr(cc, &inner_dim)) {
+          cc_error(cc, "expected array size");
+          return;
+        }
+        if (inner_dim <= 0) {
+          cc_error(cc, "array size must be positive");
+          return;
+        }
+        cc_expect(cc, CC_TOK_RBRACK);
+        if (cc_peek(cc).type == CC_TOK_LBRACK) {
+          has_inner_dim2 = 1;
+          cc_next(cc);
+          if (!cc_parse_const_int_expr(cc, &inner_dim2)) {
+            cc_error(cc, "expected array size");
+            return;
+          }
+          if (inner_dim2 <= 0) {
+            cc_error(cc, "array size must be positive");
+            return;
+          }
+          cc_expect(cc, CC_TOK_RBRACK);
+        }
+      }
+      if ((gtype == TYPE_FLOAT || gtype == TYPE_DOUBLE) &&
+          (has_inner_dim || has_inner_dim2)) {
+        cc_error(cc, "floating arrays support one dimension");
+        return;
+      }
+      if (gtype == TYPE_STRUCT && (has_inner_dim || has_inner_dim2)) {
+        cc_error(cc, "struct arrays support one dimension");
+        return;
+      }
+      if (gtype == TYPE_FLOAT4 || gtype == TYPE_DOUBLE2) {
+        cc_error(cc, "fixed SIMD arrays are not supported");
+        return;
+      }
+      int32_t total_bytes;
+      int32_t elem_size;
+      int32_t dim2 = 0;
+      cc_type_t arr_type;
       if (gtype == TYPE_STRUCT && gtype_si >= 0 && gtype_si < cc->struct_count) {
         elem_size = cc->structs[gtype_si].total_size;
         arr_type = TYPE_STRUCT_PTR;
+        if (!cc_checked_array_bytes(cc, arr_elems, elem_size, &total_bytes))
+          return;
+      } else if (has_inner_dim2) {
+        int32_t base_elem = (gtype == TYPE_CHAR) ? 1 : 4;
+        int32_t middle_stride;
+        if (!cc_checked_array_bytes(cc, inner_dim2, base_elem,
+                                    &middle_stride) ||
+            !cc_checked_array_bytes(cc, inner_dim, middle_stride,
+                                    &elem_size) ||
+            !cc_checked_array_bytes(cc, arr_elems, elem_size, &total_bytes))
+          return;
+        dim2 = middle_stride;
+        arr_type = (gtype == TYPE_CHAR) ? TYPE_CHAR_PTR : TYPE_INT_PTR;
+      } else if (has_inner_dim) {
+        int32_t base_elem = (gtype == TYPE_CHAR) ? 1 : 4;
+        if (!cc_checked_array_bytes(cc, inner_dim, base_elem, &elem_size) ||
+            !cc_checked_array_bytes(cc, arr_elems, elem_size, &total_bytes))
+          return;
+        arr_type = (gtype == TYPE_CHAR) ? TYPE_CHAR_PTR : TYPE_INT_PTR;
+      } else {
+        elem_size = cc_type_size(cc, gtype, gtype_si);
+        if (elem_size <= 0) {
+          cc_error(cc, "invalid array element type");
+          return;
+        }
+        if (!cc_checked_array_bytes(cc, arr_elems, elem_size, &total_bytes))
+          return;
+        arr_type = (gtype == TYPE_CHAR) ? TYPE_CHAR_PTR : TYPE_INT_PTR;
       }
-      int32_t total_bytes = (arr_elems * elem_size + 3) & ~3;
+      total_bytes = (total_bytes + 3) & ~3;
       cc_symbol_t *gsym = cc_sym_add(cc, gname.text, SYM_GLOBAL, arr_type);
       if (gsym) {
+        if (!cc_data_reserve(cc, (uint32_t)total_bytes))
+          return;
         gsym->address = cc->data_base + cc->data_pos;
         gsym->is_array = 1;
         gsym->struct_index = gtype_si;
         gsym->array_elem_size = elem_size;
+        gsym->array_dim2 = dim2;
+        gsym->array_elem_type = gtype;
         memset(cc->data + cc->data_pos, 0, (size_t)total_bytes);
         cc->data_pos += (uint32_t)total_bytes;
       }
-      if (cc_peek(cc).type == CC_TOK_SEMICOLON)
-        cc_next(cc);
+      cc_expect(cc, CC_TOK_SEMICOLON);
       return;
     }
 
@@ -7441,12 +8073,20 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
     }
 
     {
+      int32_t scalar_size = cc_type_size(cc, gtype, gtype_si);
+      if (scalar_size <= 0 || scalar_size > 8) {
+        cc_error(cc, "global scalar type is not supported");
+        return;
+      }
+      scalar_size = cc_align_up(scalar_size, 4);
       cc_symbol_t *gsym = cc_sym_add(cc, gname.text, SYM_GLOBAL, gtype);
       if (gsym) {
+        if (!cc_data_reserve(cc, (uint32_t)scalar_size))
+          return;
         gsym->address = cc->data_base + cc->data_pos;
         gsym->struct_index = gtype_si;
-        memset(cc->data + cc->data_pos, 0, 4);
-        cc->data_pos += 4;
+        memset(cc->data + cc->data_pos, 0, (size_t)scalar_size);
+        cc->data_pos += (uint32_t)scalar_size;
 
         if (cc_match(cc, CC_TOK_EQ)) {
           cc_token_t val = cc_next(cc);
@@ -7456,14 +8096,30 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
             negate = 1;
             val = cc_next(cc);
           }
-          if (val.type == CC_TOK_NUMBER || val.type == CC_TOK_CHAR_LIT) {
+          if ((gtype == TYPE_FLOAT || gtype == TYPE_DOUBLE) &&
+              (val.type == CC_TOK_NUMBER || val.type == CC_TOK_CHAR_LIT ||
+               val.type == CC_TOK_FLIT)) {
+            double number = val.type == CC_TOK_FLIT
+                                ? val.fval
+                                : (double)val.int_value;
+            if (negate)
+              number = -number;
+            if (gtype == TYPE_FLOAT) {
+              float narrowed = (float)number;
+              memcpy(cc->data + addr_off, &narrowed, 4);
+            } else {
+              memcpy(cc->data + addr_off, &number, 8);
+            }
+          } else if (val.type == CC_TOK_NUMBER ||
+                     val.type == CC_TOK_CHAR_LIT) {
             int32_t sv = negate ? -val.int_value : val.int_value;
             uint32_t v = (uint32_t)sv;
             cc->data[addr_off] = (uint8_t)(v & 0xFF);
             cc->data[addr_off + 1] = (uint8_t)((v >> 8) & 0xFF);
             cc->data[addr_off + 2] = (uint8_t)((v >> 16) & 0xFF);
             cc->data[addr_off + 3] = (uint8_t)((v >> 24) & 0xFF);
-          } else if (val.type == CC_TOK_STRING) {
+          } else if (val.type == CC_TOK_STRING &&
+                     gtype != TYPE_FLOAT && gtype != TYPE_DOUBLE) {
             uint32_t str_addr = cc->data_base + cc->data_pos;
             int si = 0;
             while (val.text[si] && cc->data_pos < CC_MAX_DATA) {
@@ -7476,6 +8132,9 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
             cc->data[addr_off + 1] = (uint8_t)((str_addr >> 8) & 0xFF);
             cc->data[addr_off + 2] = (uint8_t)((str_addr >> 16) & 0xFF);
             cc->data[addr_off + 3] = (uint8_t)((str_addr >> 24) & 0xFF);
+          } else {
+            cc_error(cc, "unsupported global scalar initializer");
+            return;
           }
         }
       }

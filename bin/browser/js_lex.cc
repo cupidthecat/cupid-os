@@ -1,9 +1,7 @@
 /* §7 JavaScript lexer. Reads `src[0..len)` and appends tokens into
  * jtk_*[]. Keywords are looked up by string match against an interned
- * identifier; everything else is a punctuator or operator. Numbers
- * keep only the decimal integer portion in jtk_num for now (F1a) -
- * fractional parts are recognised but ignored; F1b switches the
- * runtime to doubles.*/
+ * identifier; everything else is a punctuator or operator. Decimal
+ * integers, fractions, and exponents keep their double value in jtk_num.*/
 
 int js_is_digit(int c)  { return c >= '0' && c <= '9'; }
 int js_is_alpha(int c)  { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || c == '$'; }
@@ -49,7 +47,7 @@ int js_keyword(char *s, int n) {
     return 0;
 }
 
-void js_emit_tok(int kind, int num, int str_off, int str_len, int line) {
+void js_emit_tok(int kind, double num, int str_off, int str_len, int line) {
     if (jtk_count >= MAX_JS_TOKENS) return;
     int t = jtk_count;
     jtk_kind   [t] = kind;
@@ -83,20 +81,56 @@ int js_tokenize(char *src, int n) {
             if (i + 1 < n) i = i + 2;
             continue;
         }
-        /* number */
-        if (js_is_digit(c)) {
-            int v = 0;
-            int s = i;
+        /* decimal number */
+        if (js_is_digit(c) ||
+            (c == '.' && i + 1 < n && js_is_digit(src[i + 1]))) {
+            double v = 0.0;
+            double place = 0.1;
+            int exponent = 0;
+            int exponent_negative = 0;
+            int exponent_cursor;
+            int exponent_digits;
             while (i < n && js_is_digit(src[i])) {
-                v = v * 10 + (src[i] - '0');
+                v = v * 10.0 + (double)(src[i] - '0');
                 i = i + 1;
             }
-            /* fractional - parsed and dropped for now */
             if (i < n && src[i] == '.') {
                 i = i + 1;
-                while (i < n && js_is_digit(src[i])) i = i + 1;
+                while (i < n && js_is_digit(src[i])) {
+                    v = v + (double)(src[i] - '0') * place;
+                    place = place * 0.1;
+                    i = i + 1;
+                }
             }
-            (void)s;
+            if (i < n && (src[i] == 'e' || src[i] == 'E')) {
+                exponent_cursor = i + 1;
+                if (exponent_cursor < n &&
+                    (src[exponent_cursor] == '+' ||
+                     src[exponent_cursor] == '-')) {
+                    exponent_negative =
+                        src[exponent_cursor] == '-' ? 1 : 0;
+                    exponent_cursor = exponent_cursor + 1;
+                }
+                exponent_digits = exponent_cursor;
+                while (exponent_cursor < n &&
+                       js_is_digit(src[exponent_cursor])) {
+                    if (exponent < 400) {
+                        exponent = exponent * 10 +
+                                   (src[exponent_cursor] - '0');
+                        if (exponent > 400) { exponent = 400; }
+                    }
+                    exponent_cursor = exponent_cursor + 1;
+                }
+                if (exponent_cursor == exponent_digits) {
+                    js_set_err("js: expected exponent digits");
+                    return -1;
+                }
+                i = exponent_cursor;
+                while (exponent > 0) {
+                    v = exponent_negative ? v / 10.0 : v * 10.0;
+                    exponent = exponent - 1;
+                }
+            }
             js_emit_tok(JS_TOK_NUMBER, v, -1, 0, line);
             continue;
         }

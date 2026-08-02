@@ -1911,7 +1911,7 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
             self.assertEqual(manifest["boundaries"], [])
             self.assertEqual(
                 sum(entry["size"] for entry in manifest["sources"]),
-                3721392,
+                3749796,
             )
             object_records = {
                 entry["source"]: (entry["size"], entry["object_sha256"])
@@ -2193,9 +2193,9 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                     "1b2ddef65c87e291f582c1d77b0cedfd",
                 ),
                 "kernel/lang/cupidc.cc": (
-                    288272,
-                    "6f89f5bf02e3e35e549f501601387ee5"
-                    "f41e380f1284e9a94ad2c55310770f45",
+                    289296,
+                    "30abaddcdb2a637882f5764be3bea8223"
+                    "520153ecb9d900d361f266653bef4a8",
                 ),
                 "kernel/lang/cupidc_lex.cc": (
                     32408,
@@ -2203,9 +2203,9 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
                     "586ee7804a401a5a44de786dbd95fec1",
                 ),
                 "kernel/lang/cupidc_parse.cc": (
-                    290416,
-                    "f330b802b80e2625a97801592f2a267d9"
-                    "7734da5f9ae8dbe5132689e15e5695b",
+                    317796,
+                    "81c2e0e5267275eae42094d499667366"
+                    "d2be136b160a846f793029efccd66e2c",
                 ),
                 "kernel/lang/cupidc_string.cc": (
                     7332,
@@ -2263,8 +2263,8 @@ class RealKernelCupidCFrontierTests(unittest.TestCase):
             self.assertEqual(manifest["input_snapshot"]["count"], 445)
             self.assertEqual(
                 manifest["input_snapshot"]["sha256"],
-                "4b4dbd802d8faf0cdf9bc1b2749ab7cd"
-                "df4c4635dafdea4ac171c37a96449a92",
+                "99d03de14f544f6a76d21ed147e62018"
+                "873f1e2e8dfa2f4459830b69314432c2",
             )
             self.assertEqual(
                 manifest["provenance"]["compiler"],

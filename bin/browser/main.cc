@@ -772,19 +772,19 @@ int  doc_bg_suppress_body;
  * attr_pool per-page reset pattern). All sizes are conservative for
  * the small scripts the browser is expected to encounter.*/
 int  jtk_kind   [8192];     /* MAX_JS_TOKENS */
-int  jtk_num    [8192];
+double jtk_num  [8192];
 int  jtk_str_off[8192];
 int  jtk_str_len[8192];
 int  jtk_line   [8192];
 int  jtk_count;
 
-/* JS AST nodes - parallel arrays. Each node carries up to four int
- * slots; per-kind layout is documented in js_parse.cc / js_interp.cc.*/
+/* JS AST nodes use four integer slots plus a numeric-literal lane. */
 int  jn_kind   [8192];
 int  jn_a      [8192];
 int  jn_b      [8192];
 int  jn_c      [8192];
 int  jn_d      [8192];
+double jn_num  [8192];
 int  jn_next   [8192];      /* sibling link inside a list (block stmts, args, params) */
 int  jn_count;
 
@@ -946,6 +946,11 @@ void browser_main() {
     jsd_this_dom_idx = -1;
     jsd_this_obj_idx = -1;
     dom_dirty = 0;
+
+    if (raw && b_streq(raw, "--selftest")) {
+        js_number_selftest();
+        return;
+    }
 
     win = gui_win_create("Browser", WIN_X, WIN_Y, WIN_W, WIN_H);
     if (win == -1) {

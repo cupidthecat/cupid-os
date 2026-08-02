@@ -149,20 +149,33 @@ Fixed-size arrays, both local (stack-allocated) and global (data section):
 // Global arrays - stored in data section
 int scores[100];
 char buffer[256];
+double samples[32];
 
 void main() {
     // Local arrays - stack-allocated
     int arr[10];
     char buf[64];
+    float weights[8];
 
     arr[0] = 42;
     buf[0] = 'A';
+    weights[0] = samples[0];
 }
 ```
 
 Array elements are accessed with `arr[i]` and can be assigned with `arr[i] = value`.
 
 Compound assignment also works: `arr[i] += value`, `arr[i] -= value`, `arr[i] *= value`, `arr[i] /= value`.
+
+The private compiler keeps the declared element type on one-dimensional fixed
+`float` and `double` array symbols. It allocates four or eight bytes per
+element, uses the same scalar conversion rules as direct floating variables,
+and emits indirect SSE loads and stores. Global, local, block-static, and
+persistent REPL arrays share this path. `sizeof(*array)` returns the declared
+element width. Bounds must be positive, and checked count-by-stride arithmetic
+rejects an allocation that would overflow. Multidimensional floating arrays,
+fixed SIMD arrays, and floating arrays embedded in structure or class fields
+remain unsupported.
 
 Array bounds at file scope and inside structs accept constant integer
 expressions, including enum values and simple arithmetic. That keeps
@@ -773,8 +786,8 @@ the object, so a concurrent edit cannot publish a mixed result.
 
 The strict kernel frontier must compile all 155 approved checked-in sources
 twice. The full frontier passes against a 445-file snapshot with SHA-256
-`4b4dbd802d8faf0cdf9bc1b2749ab7cddf4c4635dafdea4ac171c37a96449a92`.
-Both 155-object sets are byte-identical; each totals 3,721,392 bytes. The
+`99d03de14f544f6a76d21ed147e62018873f1e2e8dfa2f4459830b69314432c2`.
+Both 155-object sets are byte-identical; each totals 3,749,796 bytes. The
 combined graph keeps the ISO fixture as an explicit image input. Strong
 four-vCPU runtime gates pass with e1000 and RTL8139 networking through SMP,
 RDRAND, all 62 crypto checks, USB storage, audio, TrueType glyphs, a baseline
@@ -1756,10 +1769,10 @@ Source (.cc)
 
 | File | Lines | Role |
 |------|-------|------|
-| `cupidc.h` | 467 | Tokens, types, limits, compiler state, and public API |
-| `cupidc.cc` | 3,966 | JIT/AOT driver, preprocessor, kernel bindings, and state setup |
+| `cupidc.h` | 471 | Tokens, types, limits, compiler state, and public API |
+| `cupidc.cc` | 3,973 | JIT/AOT driver, preprocessor, kernel bindings, and state setup |
 | `cupidc_lex.cc` | 833 | Lexer for keywords, literals, operators, and delimiters |
-| `cupidc_parse.cc` | 7,461 | Recursive-descent parser and direct x86/SSE code generator |
+| `cupidc_parse.cc` | 8,220 | Recursive-descent parser and direct x86/SSE code generator |
 | `cupidc_elf.cc` | 147 | Fixed-address ELF32 executable writer for AOT mode |
 
 ### Lexer
@@ -1801,6 +1814,23 @@ The parser (`cupidc_parse.cc`) is recursive descent and writes x86 machine-code 
   the exact outgoing size. Floating results use the private compiler's XMM
   return path.
 - Locals use `[EBP - offset]`, parameters use `[EBP + offset]`, and globals live in the data region
+- One-dimensional fixed floating arrays keep their declared element type
+  beside the pointer-shaped symbol. Subscripts scale by four or eight and
+  move values through XMM registers. Indexed arithmetic compound assignment
+  uses the matching scalar SSE operation.
+- Direct functions and methods retain parsed fixed parameter types. Calls
+  convert represented integer, `char`, `float`, and `double` arguments to the
+  declared slot type before laying out cdecl words. A parsed variadic tail
+  widens `float` to `double` and promotes `char` to `int`. Function-pointer
+  calls, kernel bindings, and calls without fixed parameter metadata retain
+  source-width slots. Represented pointer categories and integer null forms
+  can fill a known pointer slot.
+- Character operands undergo integer promotion in integer arithmetic and use
+  the integer conversion opcodes for floating arithmetic, assignment, casts,
+  and known fixed calls.
+- Each primary expression starts with fresh subscript metadata. Fixed array
+  symbols, address expressions, pointer casts, and `new` results publish their
+  own known stride instead of inheriting one from a previous expression.
 
 [ADR 0189](../docs/adr/0189-preserve-floating-values-in-private-cupidc-unary-signs.md)
 records the unary-sign decision, signed-zero evidence, useful type failure,
@@ -1809,6 +1839,10 @@ and same-REPL recovery.
 [ADR 0198](../docs/adr/0198-layout-private-cupidc-mixed-width-calls.md)
 records the private scalar cdecl slot widths, shared call layout, parameter
 offsets, cleanup, and guest evidence.
+
+[ADR 0210](../docs/adr/0210-use-native-binary64-browser-numbers.md)
+records typed private floating arrays and the Browser binary64 path that
+requires them.
 
 ### Symbol Table
 
@@ -1850,6 +1884,9 @@ When the parser encounters a call to an undefined function, it emits a placehold
 - Programs use Cupid OS kernel bindings rather than a general hosted C standard library.
 - Variadic declarations and definitions parse, but compiled CupidC code cannot yet traverse unnamed arguments.
 - Direct code generation has no optimization pass.
+- Fixed `float` and `double` array symbols are limited to one dimension. Fixed
+  SIMD arrays, floating pointer types, floating pointer dereference, and
+  floating arrays embedded in structure or class fields remain unsupported.
 
 The private compiler implements a broader runtime floating and SIMD language.
 The hosted self-hosting path converts between `float` and `double`, evaluates

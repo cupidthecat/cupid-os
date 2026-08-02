@@ -227,10 +227,14 @@ typedef struct {
   int32_t offset;   /* stack offset or code offset */
   uint32_t address; /* absolute address (kernel/func) */
   int param_count;  /* for functions */
+  uint8_t param_types[CC_MAX_PARAMS]; /* fixed parameter types when known */
+  int has_param_types; /* parsed prototype or definition supplied types */
+  int is_variadic;     /* fixed parameters may be followed by ellipsis */
   int is_defined;   /* has function body been emitted? */
   int is_array;     /* stack-allocated array? */
   int struct_index; /* index into structs[] for struct types */
   int array_elem_size; /* element size for array subscript scaling */
+  cc_type_t array_elem_type; /* declared element type for fixed arrays */
   /* For 3D arrays: array_dim2 is the size in bytes that each element of
    * the SECOND subscript advances by. For 2D and 1D arrays it is 0.
    * Example: char foo[A][B][C] sets array_elem_size = B*C and array_dim2

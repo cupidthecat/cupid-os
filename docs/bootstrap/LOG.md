@@ -19177,3 +19177,128 @@ linker, or binary utility. General GNU assembly coverage, broader libm
 accuracy, host Python orchestration, and the Windows WSL execution bridge
 remain open. ADR 0209 records the correction. `TempleOS/` remains untouched
 reference material.
+
+## 2026-08-01: Give Browser JavaScript native binary64 numbers
+
+The Browser's number path had two separate integer bottlenecks. Its lexer
+recognized a decimal fraction but discarded it before the token reached the
+AST. Its comparison and truth helpers multiplied a `double` by one million
+and converted the result to `int`. Close finite values could compare equal,
+tiny nonzero values became false, and a large result could leave the integer
+range.
+
+Numbers now remain `double` from the lexer token through the AST and
+interpreter value. Equality, order, and truth use native binary64 behavior.
+Both signed zeros and NaN are false. Division by zero retains infinity or
+NaN, while remainder by zero produces NaN. The formatter names NaN and both
+infinities explicitly. Decimal exponents require a digit after an optional
+sign, cap the accumulator, and run at most 400 scale steps.
+
+`browser --selftest` exercises that path without opening a window or using
+the network. It runs direct helper checks and scripts through the real lexer,
+parser, and interpreter. Its 17 fields cover close and large comparisons,
+negative zero and its reciprocal, NaN comparison and truth, non-finite
+formatting, decimal and exponent literals, relational order, division,
+division assignment, remainder, the exponent cap, and malformed-exponent
+rejection.
+
+The first Browser-shaped compiler probe exposed a deeper private CupidC
+problem. A fixed `double` array reserved four bytes per element, read an
+integer word, and overlapped its neighbor. The compiler now retains the
+declared element type on one-dimensional fixed arrays. Global, automatic,
+block-static, and persistent REPL arrays use four-byte `float` or eight-byte
+`double` strides. Indexed loads and stores use `MOVSS` or `MOVSD`, scalar
+assignment performs the required width conversion, and `+=`, `-=`, `*=`, and
+`/=` use the matching scalar SSE operation. `sizeof(*array)` reports the
+element width.
+
+Fixing the array layout exposed several related ABI and metadata defects.
+An integer zero passed to a declared `double` parameter occupied four bytes
+and shifted every later argument. Parsed direct functions and methods now
+retain fixed parameter types and convert represented scalar arguments before
+the cdecl push. Variadic tails widen `float` to `double` and promote `char` to
+`int`. Calls without a parsed prototype and indirect function-pointer calls
+keep their source widths because the private compiler has no safe parameter
+metadata for them.
+
+`char` now takes the integer-promotion path for arithmetic and uses signed
+integer conversion when assigned or cast to `float` or `double`. Global and
+block-static floating scalars reserve their real width, encode signed literal
+initializers without overlap, and use scalar SSE stores for runtime
+initialization. Function symbols also retain a returned structure pointer's
+stride.
+
+Another probe found that subscript metadata survived into the next unrelated
+primary expression. The parser now clears that state before each expression
+and publishes a stride only for the current array, address, pointer cast,
+allocation, string, or known function result. A floating-array expression can
+no longer change the later indexing of a string literal or an integer pointer
+returned from a function.
+
+Every represented array bound must be positive. Byte counts use checked
+stepwise multiplication, so a large count or dimension cannot wrap into a
+small allocation. Multidimensional floating arrays, fixed SIMD arrays,
+floating arrays in structure or class fields, and floating bitwise or shift
+updates now fail with specific diagnostics instead of silently taking the
+integer path.
+
+The private compiler contract module passes all 28 array, call, conversion,
+initializer, metadata, and failure cases. The wider 142-test private and
+production compiler set passes in 123.925 seconds. The final 143-test Browser,
+call-ABI, floating comparison, truth, update, and GUI contract set passes in
+7.136 seconds. The production parser also builds through the normal
+checked-seed recipe.
+
+The strict kernel frontier compiles 155 sources twice and produces the same
+3,749,796 bytes in each pass. Its 445-input snapshot has SHA-256
+`99d03de14f544f6a76d21ed147e62018873f1e2e8dfa2f4459830b69314432c2`.
+The 317,796-byte private parser object has SHA-256
+`81c2e0e5267275eae42094d499667366d2be136b160a846f793029efccd66e2c`.
+The 289,296-byte compiler-head object has SHA-256
+`30abaddcdb2a637882f5764be3bea8223520153ecb9d900d361f266653bef4a8`.
+The first test-module replay stopped at the old compiler-head byte lock after
+the full frontier had already passed. Comparing every source record showed
+that this was the only remaining mismatch, and the lock now names the exact
+object above.
+
+The regenerated active graph contains 717 inputs, 449 transforms, 254 feature
+requirements, and 25 classified unreachable files. Its active-source digest
+is `0b982fc826a30b89bb9c9e641000d170ddb54aa1b0f152571a4abcd1d5731313`.
+The 2,547,062-byte JSON has SHA-256
+`e00e52cc4fd467e3694b5f6e6b5515e196636aa4466b41f4a2544a6ea38e07be`,
+and the 12,136-byte summary has SHA-256
+`83e26bfbf811a1d44739325340a79e78706576191ce9ee669e870dc37a93e8ea`.
+The first graph-contract run found one stale `sizeof` lock. The source now
+contains 5,413 occurrences instead of 5,409. After that exact update, all 68
+build-graph tests pass in 566.969 seconds.
+
+The normal root build passes in 1,463.8 seconds. It produces an 8,761,216-byte
+kernel ELF with SHA-256
+`704d5edeaa0deff60c5e4fda006580ae0a10a07f1a7baccbfb480e5047165568`,
+an 8,558,284-byte flat kernel with SHA-256
+`ff22e539d81bfda855cb17a28e28d0d1275126847c0abe68e37896f4249eb062`,
+and a 209,715,200-byte image with SHA-256
+`ffdd01119e2b663da405627caacc8cd2af41f0854460321d938e4504b025e084`.
+
+Four-CPU private-image runs pass the complete GUI frontier with both network
+adapters. The e1000 run finishes in 270.1 seconds. Its 51,644-byte serial log
+has SHA-256
+`899455c43aa01058da5362a092f3c508755b0e072107b54cca523d1ea0f8e966`.
+It records 128,109 changed framebuffer pixels, 9,826,602 AC97 frames, and
+76,628 PC-speaker frames. The RTL8139 run finishes in 270.0 seconds. Its
+51,281-byte log has SHA-256
+`d58d1482ff7b7adae43dfa6fa1f86e6930933eba352ab6fad316ec7d474ae3a2`.
+It records 94,632 changed pixels, 9,846,181 AC97 frames, and 76,758 PC-speaker
+frames. Each log contains one exact 17-field Browser PASS marker and no
+Browser failure marker. The same boots pass SMP startup, networking, input,
+USB replug, graphics, audio, crypto, the floating feature programs, and clean
+in-OS CupidC completion.
+
+No design question was needed for this increment. The active Browser source,
+the C ABI, and JavaScript binary64 rules fixed the required behavior. Full
+ECMAScript numeric literals and conversion remain open, as do floating
+pointer dereference, multidimensional floating arrays, fixed SIMD arrays, and
+floating arrays inside records. Persistent REPL floating arrays use the same
+checked declaration path but do not yet have a separate execution fixture.
+This work moves no source owner and adds no host dependency. ADR 0210 records
+the boundary. `TempleOS/` remains untouched reference material.

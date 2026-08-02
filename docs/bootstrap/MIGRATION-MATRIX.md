@@ -96,6 +96,42 @@ The feature13 guest uses a real mixed-width helper ten times. This changes
 private JIT and AOT behavior without moving a build owner. ADR 0198 records
 the boundary.
 
+A direct function or method with parsed fixed parameter types now converts
+represented integer, `char`, `float`, and `double` arguments to the declared
+four-byte or eight-byte slot before the call. Character operands also follow
+integer promotion and the scalar integer-to-floating conversion path.
+Represented pointer categories and integer null forms can also fill a pointer
+slot. Calls to a parsed variadic function widen a tail `float` to
+`double` and promote a tail `char` to `int`. Function-pointer calls, kernel
+bindings, and calls without fixed parameter metadata keep their source-width
+behavior.
+
+The Browser JavaScript runtime now keeps decimal tokens and AST number nodes
+in a binary64 lane. Direct floating comparisons replace the old scaled-integer
+helper, and an explicit JavaScript truth helper treats signed zero and NaN as
+false. Division and remainder by zero follow the represented non-finite paths.
+The lexer bounds decimal exponents and rejects a missing exponent digit with a
+specific diagnostic. An asset-free `browser --selftest` guest command combines
+direct binary64 checks with scripts sent through the lexer, parser, and
+interpreter. It covers close and large-value order, negative zero, NaN
+comparison and truth, NaN and signed infinity formatting, decimal and exponent
+forms, relational order, division and division assignment by zero, remainder
+by zero, the exponent cap, malformed input, and clean CupidC completion. The
+command reports 17 computed result fields.
+
+The five Browser tables require typed private CupidC storage and indexed access.
+Global, automatic, block-static, and persistent REPL `float` and `double`
+array symbols keep the declared element type, use four-byte or eight-byte
+storage, and select typed SSE access. Separate compiler contracts cover indexed
+scalar conversion and arithmetic compound assignment, while `sizeof(*array)`
+follows the element width. Every bound must be positive, and checked
+count-by-stride arithmetic rejects overflowing allocations. Pointer-producing
+expressions publish fresh subscript metadata so one expression cannot leak its
+stride into the next. Multidimensional floating arrays, fixed SIMD arrays,
+floating pointer types, floating pointer dereference, and arrays embedded in
+structure or class fields remain unsupported. This changes private JIT and AOT
+behavior without moving a build owner. ADR 0210 records the boundary.
+
 Hosted CupidC emits deterministic i386 ELF32 objects for all fourteen files in issue #27's CupidC, CupidASM, and CupidDis contract cohort. Those sources, the 19-source static tool union, and `kernel/lang/as_elf.cc` form an i386 Linux set with 31 ordinary strict roots, a two-source strict kernel bridge, and two GNU runtime roots for the implementation and behavior probe. The retired 64-bit profiles have no active roots. The normal build compiles each contract twice from the checked seed, compares all sixteen new objects, links all fourteen programs and the runtime probe through CupidLD, and verifies all fifteen ELF32 executables. Publication accepts only a dedicated `cupidc-contracts` directory inside the source tree. The target is checked before work and again before promotion, and an existing destination must already verify as a complete cohort. Arbitrary directories, source trees, files, and symbolic links remain untouched. The initial, private, and newly discovered contract inventories must match exactly, which catches additions, removals, and restored edits that changed a copied input. Every run derives the cohort from its executable, requires a named manifest artifact, and verifies every artifact hash, the current 45-input contract set, the checked seed manifest, and the 41-file fixed-point source inventory before the behavior matrix starts. The 45 inputs include the Toolchain Makefile and both Python control modules. One captured seed-manifest byte sequence supplies its digest, decoded JSON, schema validation, and checked build plan. The same gate covers complete CupidLD and CupidObj command closures. Native GCC or Clang builds remain available only as explicit development oracles. This supersedes the older nine-file, eleven-file, host-built, and 64-bit profile descriptions in the historical notes and long-form rows below.
 
 Repository startup and runtime code now take five complete CupidC-emitted command closures across CupidASM and CupidLD. The runtime supplies the checked heap, file, memory, string, `errno`, working-directory, and diagnostic interfaces. CupidC, CupidASM, CupidDis, CupidLD, and CupidObj run on i386 Linux or through WSL. Their checked seed binds the static images to the target ABI, source revision, producer lineage, and complete build plan. The harness freezes the verified seed and copies 41 current inputs, including `link.ld`, into a private compiler root. The seed producer trio builds the 19-source stage-two union and all five tools below that root, then the stage-two trio repeats that work for stage three. The private and live closures are rehashed at every stage and behavior boundary. Every C object, startup object, and tool image matches across the two stages, and both stages agree on positive and failure behavior for all five commands. The two stages, behavior evidence, and report appear together only after the full gate passes. ADR 0086 records the sibling commands, ADR 0088 records the compiler driver, ADR 0089 records the compiler fixed point, ADR 0090 records the five-tool fixed point, ADR 0092 records the checked seed, and ADR 0142 records the frozen source closure.
@@ -222,8 +258,8 @@ The checked-in frontier must repeat all 155 compiles. Strict syntax,
 recursive Make dependencies, poisoned-host recipes, focused tests, the normal
 image, and runtime gates remain part of that proof. The complete frontier
 passes twice against a frozen 445-file snapshot with SHA-256
-`4b4dbd802d8faf0cdf9bc1b2749ab7cddf4c4635dafdea4ac171c37a96449a92`;
-both 155-object sets are byte-identical; each totals 3,721,392 bytes. The combined graph passes clean
+`99d03de14f544f6a76d21ed147e62018873f1e2e8dfa2f4459830b69314432c2`;
+both 155-object sets are byte-identical; each totals 3,749,796 bytes. The combined graph passes clean
 normal and partitioned image builds plus strong four-vCPU runtime gates with
 both NICs. ADR 0101 supersedes
 older row text

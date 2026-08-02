@@ -87,7 +87,13 @@ implicit method `self` occupy four bytes. A `double` occupies eight bytes with
 its low word at the lower address. Calls evaluate arguments from left to right,
 then permute complete words into source order before the call. Callees advance
 later parameter offsets by the same slot widths, and callers reclaim the full
-outgoing area.
+outgoing area. A direct function or method call with parsed fixed parameter
+types converts `int` or `char` to either floating width, converts between the
+two floating widths, and truncates a floating value for an `int` or `char`
+slot. Represented pointer categories and integer null forms can fill a pointer
+slot. A parsed variadic tail widens `float` to `double` and promotes `char` to
+`int`. Function-pointer calls, kernel bindings, and calls without fixed
+parameter metadata keep their source width.
 _Avoid_: reversing source evaluation, four bytes for every parameter, splitting a double into unrelated arguments
 
 **Represented bit-field assignment**:
@@ -171,7 +177,7 @@ All 20 `kernel/crypto` translation units built by checked-seed CupidC in the nor
 _Avoid_: compiler-head frontier, partial crypto cohort
 
 **Production CupidC kernel cohort**:
-The 155 checked-in normal-build translation units owned by checked-seed CupidC, plus the generated kernel symbol-table translation unit. All 156 sources use `.cc`. The five shared Toolchain roots are also part of the 19-source i386 Linux fixed-point plan; their native GCC and Clang rules select C explicitly with `-x c`. The symbol generator runs private snapshots of the pass-one kernel and CupidDis, validates the complete symbol view, rejects live input drift, and publishes the source atomically. The checked compiler wrapper freezes that source and its two-header closure before it validates and publishes the data-only object. It also freezes the exact source-driven closures for the kernel entry, SIMD services, the core string implementation, Nuked OPL3, JPEG decoding, glyph rasterization, libm, FPU state, per-CPU setup, and SMP bring-up. ADR 0124 records the first 111-root naming transfer, ADR 0126 completes the fixed-point naming boundary, ADR 0129 transfers the in-kernel CupidC lexer, ADR 0135 transfers Nuked OPL3, ADR 0139 transfers JPEG and glyph rasterization, ADR 0167 transfers the FPU and SMP roots, ADR 0176 transfers libm, ADR 0180 transfers the kernel entry and SIMD roots, and ADR 0181 transfers the final strict host root. The strict frontier compiles all 155 checked-in sources twice before atomic publication, and poisoned-host rebuilds and exact recursive header closures cover every recipe. Its input inventory skips hidden paths under the active include roots, which keeps private compiler staging headers out of the repository snapshot during concurrent builds. Its final directory promotion retries only short permission-style locks; a persistent lock or any other filesystem error fails without publishing a partial frontier. A data-only relocatable object is valid without `.text` when its sections and symbols pass the remaining ELF checks. The full frontier covers a 445-file snapshot with SHA-256 `4b4dbd802d8faf0cdf9bc1b2749ab7cddf4c4635dafdea4ac171c37a96449a92`; both 155-object passes are byte-identical; each totals 3,721,392 bytes. The combined graph includes the ISO runtime fixture as an image input. Strong four-vCPU checks cover both supported NICs, all three FPU milestones, the promoted SMP, libm, and string paths, RDRAND, all 62 crypto checks, USB storage, desktop and terminal startup, audio output, TrueType glyph use, an exact baseline JPEG decode, and in-OS CupidC execution. The strict checked-in kernel and driver cohort has no host-compiled root.
+The 155 checked-in normal-build translation units owned by checked-seed CupidC, plus the generated kernel symbol-table translation unit. All 156 sources use `.cc`. The five shared Toolchain roots are also part of the 19-source i386 Linux fixed-point plan; their native GCC and Clang rules select C explicitly with `-x c`. The symbol generator runs private snapshots of the pass-one kernel and CupidDis, validates the complete symbol view, rejects live input drift, and publishes the source atomically. The checked compiler wrapper freezes that source and its two-header closure before it validates and publishes the data-only object. It also freezes the exact source-driven closures for the kernel entry, SIMD services, the core string implementation, Nuked OPL3, JPEG decoding, glyph rasterization, libm, FPU state, per-CPU setup, and SMP bring-up. ADR 0124 records the first 111-root naming transfer, ADR 0126 completes the fixed-point naming boundary, ADR 0129 transfers the in-kernel CupidC lexer, ADR 0135 transfers Nuked OPL3, ADR 0139 transfers JPEG and glyph rasterization, ADR 0167 transfers the FPU and SMP roots, ADR 0176 transfers libm, ADR 0180 transfers the kernel entry and SIMD roots, and ADR 0181 transfers the final strict host root. The strict frontier compiles all 155 checked-in sources twice before atomic publication, and poisoned-host rebuilds and exact recursive header closures cover every recipe. Its input inventory skips hidden paths under the active include roots, which keeps private compiler staging headers out of the repository snapshot during concurrent builds. Its final directory promotion retries only short permission-style locks; a persistent lock or any other filesystem error fails without publishing a partial frontier. A data-only relocatable object is valid without `.text` when its sections and symbols pass the remaining ELF checks. The full frontier covers a 445-file snapshot with SHA-256 `99d03de14f544f6a76d21ed147e62018873f1e2e8dfa2f4459830b69314432c2`; both 155-object passes are byte-identical; each totals 3,749,796 bytes. The combined graph includes the ISO runtime fixture as an image input. Strong four-vCPU checks cover both supported NICs, all three FPU milestones, the promoted SMP, libm, and string paths, RDRAND, all 62 crypto checks, USB storage, desktop and terminal startup, audio output, TrueType glyph use, an exact baseline JPEG decode, and in-OS CupidC execution. The strict checked-in kernel and driver cohort has no host-compiled root.
 _Avoid_: all kernel C, compiler-head frontier, checked seed alone
 
 **Production Doom cohort**:
@@ -379,6 +385,36 @@ declared result type of all 510 bindings: 318 return a value and 192 return
 ADR 0193 records scalar truth and binding-result metadata. ADR 0194 records
 floating variable updates. ADR 0198 records mixed-width cdecl calls.
 _Avoid_: C mode, HolyC mode
+
+**Private CupidC fixed floating array**:
+A one-dimensional fixed array symbol whose declared element type is `float` or
+`double`. Global, automatic, block-static, and persistent REPL symbols retain
+that type beside the pointer-shaped array type. Subscripting therefore uses a
+four-byte or eight-byte stride and an indirect SSE load or store. Plain
+assignment applies the scalar floating conversion rules. Arithmetic compound
+assignment stays at the element width, and `sizeof(*array)` returns that width.
+Every bound must be positive, and allocation-size arithmetic is checked before
+storage is reserved. Arrays embedded in structure or class fields,
+multidimensional floating arrays, fixed SIMD arrays, floating pointer types,
+and floating pointer dereference remain unsupported. ADR 0210 records the
+boundary.
+_Avoid_: floating array field, complete floating pointer support
+
+**Browser JavaScript number lane**:
+The numeric path shared by the Browser's JavaScript lexer, AST, and
+interpreter. Decimal integer, fraction, and exponent tokens enter a dedicated
+`double` field and reach runtime without narrowing through an integer node.
+Equality and ordering compare the stored binary64 values directly. JavaScript
+truth is nonzero and not NaN, so both signed zeros and NaN are false. Division
+by zero keeps the floating result, while remainder by zero returns NaN. A
+decimal exponent requires at least one digit and is capped at 400 steps before
+evaluation. `browser --selftest` exercises these paths without a window or
+network connection. Its 17 result fields cover close and large-value order,
+negative zero and its reciprocal, NaN comparison and truth, NaN and signed
+infinity formatting, decimal literals, signed and uppercase exponents,
+relational order, division and division assignment by zero, remainder by zero,
+the exponent cap, and malformed-exponent rejection.
+_Avoid_: complete ECMAScript number implementation, integer-scaled comparison
 
 **Cupid ASM**:
 The assembly language native to Cupid OS.

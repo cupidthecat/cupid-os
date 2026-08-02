@@ -421,6 +421,47 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 41, result.stdout + result.stderr)
 
+    def test_method_expressions_and_statements_convert_integer_zero_to_double(self):
+        result = self._compile_and_run(
+            """
+            int recorded_kind;
+            double recorded_number;
+            int recorded_offset;
+            int recorded_length;
+
+            class Probe {
+              int Inspect(int kind, double number, int offset, int length) {
+                if (kind != 17) return 1;
+                if (number != 0.0) return 2;
+                if (offset != -31) return 3;
+                if (length != 37) return 4;
+                return 0;
+              }
+
+              void Record(int kind, double number,
+                          int offset, int length) {
+                recorded_kind = kind;
+                recorded_number = number;
+                recorded_offset = offset;
+                recorded_length = length;
+              }
+            };
+
+            int main() {
+              Probe probe;
+              int expression_status = probe.Inspect(17, 0, -31, 37);
+              if (expression_status != 0) return expression_status;
+              probe.Record(23, 0, -41, 47);
+              if (recorded_kind != 23) return 5;
+              if (recorded_number != 0.0) return 6;
+              if (recorded_offset != -41) return 7;
+              if (recorded_length != 47) return 8;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_indirect_and_pointer_method_calls_share_the_mixed_width_layout(self):
         result = self._compile_and_run(
             """
@@ -522,6 +563,163 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             "expected one call followed by ADD ESP, 24",
         )
 
+    def test_variadic_float_tail_widens_and_cleans_its_double_slot(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-variadic-float-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, code_path, _data = self._compile(
+                Path(temporary),
+                """
+                void consume(int marker, ...) {
+                }
+
+                int main() {
+                  float fraction = 2.5f;
+                  consume(7, fraction, 13);
+                  return 0;
+                }
+                """,
+            )
+            self.assertEqual(
+                result.returncode,
+                0,
+                result.stdout + result.stderr,
+            )
+            entry_offset = int(result.stdout.strip())
+            main_code = code_path.read_bytes()[entry_offset:]
+
+        self.assertIn(
+            b"\xf3\x0f\x5a\xc0",
+            main_code,
+            "expected CVTSS2SD for the variadic float argument",
+        )
+        cleanup_sites = [
+            offset
+            for offset in range(len(main_code) - 7)
+            if main_code[offset] == 0xE8
+            and main_code[offset + 5 : offset + 8] == b"\x83\xc4\x10"
+        ]
+        self.assertEqual(
+            len(cleanup_sites),
+            1,
+            "expected one variadic call followed by ADD ESP, 16",
+        )
+
+    def test_browser_token_call_converts_integer_zero_to_double(self):
+        result = self._compile_and_run(
+            """
+            int seen_kind;
+            double seen_number;
+            int seen_offset;
+            int seen_length;
+            int seen_line;
+
+            void emit_number_token(int kind, double number,
+                                   int string_offset, int string_length,
+                                   int line) {
+              seen_kind = kind;
+              seen_number = number;
+              seen_offset = string_offset;
+              seen_length = string_length;
+              seen_line = line;
+            }
+
+            int main() {
+              emit_number_token(17, 0, -31, 37, 43);
+              if (seen_kind != 17) return 1;
+              if (seen_number != 0.0) return 2;
+              if (seen_offset != -31) return 3;
+              if (seen_length != 37) return 4;
+              if (seen_line != 43) return 5;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_prototype_before_use_preserves_mixed_width_call_metadata(self):
+        result = self._compile_and_run(
+            """
+            int seen_kind;
+            double seen_number;
+            int seen_offset;
+            int seen_length;
+            int seen_line;
+
+            void capture_token(int kind, double number,
+                               int string_offset, int string_length,
+                               int line);
+
+            int main() {
+              capture_token(23, 0, -41, 47, 53);
+              if (seen_kind != 23) return 1;
+              if (seen_number != 0.0) return 2;
+              if (seen_offset != -41) return 3;
+              if (seen_length != 47) return 4;
+              if (seen_line != 53) return 5;
+              return 0;
+            }
+
+            void capture_token(int kind, double number,
+                               int string_offset, int string_length,
+                               int line) {
+              seen_kind = kind;
+              seen_number = number;
+              seen_offset = string_offset;
+              seen_length = string_length;
+              seen_line = line;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_character_values_cast_to_both_floating_widths(self):
+        result = self._compile_and_run(
+            """
+            int main() {
+              char *digits = "79";
+              char seven = digits[0];
+              float as_float = (float)seven;
+              double as_double = (double)seven;
+              float arithmetic_float =
+                  (float)(digits[1] - digits[0]);
+              double arithmetic_double =
+                  (double)(digits[1] - digits[0]);
+              if (as_float != 55.0f) return 1;
+              if (as_double != 55.0) return 2;
+              if (arithmetic_float != 2.0f) return 3;
+              if (arithmetic_double != 2.0) return 4;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_character_assignment_reaches_scalar_and_array_fp_targets(self):
+        result = self._compile_and_run(
+            """
+            float scalar_float;
+            double scalar_double;
+            float float_values[1];
+            double double_values[1];
+
+            int main() {
+              char code = 'A';
+              scalar_float = code;
+              scalar_double = code;
+              float_values[0] = code;
+              double_values[0] = code;
+              if (scalar_float != 65.0f) return 1;
+              if (scalar_double != 65.0) return 2;
+              if (float_values[0] != 65.0f) return 3;
+              if (double_values[0] != 65.0) return 4;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_feature13_source_compiles_through_the_private_call_path(self):
         with tempfile.TemporaryDirectory(
             prefix="private-cupidc-feature13-compile-",
@@ -538,6 +736,291 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             0,
             result.stdout + result.stderr,
         )
+
+    def test_global_fixed_float_and_double_arrays_keep_width_and_stride(self):
+        result = self._compile_and_run(
+            """
+            float singles[3];
+            double doubles[3];
+
+            int main() {
+              singles[0] = 1;
+              singles[1] = 2.25;
+              doubles[0] = singles[1];
+              singles[2] = doubles[0];
+              doubles[1] = 100.5;
+              doubles[2] = doubles[0] + doubles[1];
+              if (singles[0] != 1.0) return 1;
+              if (singles[1] != 2.25) return 2;
+              if (singles[2] != 2.25) return 3;
+              if (doubles[0] != 2.25) return 4;
+              if (doubles[1] != 100.5) return 5;
+              if (doubles[2] != 102.75) return 6;
+              if (sizeof(*singles) != 4) return 7;
+              if (sizeof(*doubles) != 8) return 8;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_global_floating_literals_keep_adjacent_double_storage_independent(self):
+        result = self._compile_and_run(
+            """
+            float leading_float = 1.25f;
+            double first_double = 12.5;
+            double second_double = -3.25;
+            float trailing_float = -4.5f;
+            int sentinel = 73;
+
+            int main() {
+              if (leading_float != 1.25f) return 1;
+              if (first_double != 12.5) return 2;
+              if (second_double != -3.25) return 3;
+              if (trailing_float != -4.5f) return 4;
+              if (sentinel != 73) return 5;
+              first_double = 9.5;
+              if (second_double != -3.25) return 6;
+              second_double = 7.75;
+              if (first_double != 9.5) return 7;
+              if (leading_float != 1.25f) return 8;
+              if (trailing_float != -4.5f) return 9;
+              if (sentinel != 73) return 10;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_local_and_static_fixed_floating_arrays_execute(self):
+        result = self._compile_and_run(
+            """
+            int main() {
+              float local_singles[2];
+              double local_doubles[2];
+              static float saved_singles[2];
+              static double saved_doubles[2];
+              local_singles[0] = 1.5;
+              local_singles[1] = 2.5;
+              local_doubles[0] = local_singles[0] + local_singles[1];
+              local_doubles[1] = 8;
+              saved_singles[1] = local_doubles[0];
+              saved_doubles[1] = local_doubles[1] + saved_singles[1];
+              if (local_doubles[0] != 4.0) return 1;
+              if (saved_singles[1] != 4.0) return 2;
+              if (saved_doubles[1] != 12.0) return 3;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_floating_array_arithmetic_compound_assignments_execute(self):
+        result = self._compile_and_run(
+            """
+            float singles[1];
+            double doubles[1];
+
+            int main() {
+              singles[0] = 5.0;
+              singles[0] += 3.0;
+              singles[0] *= 2.0;
+              singles[0] -= 4.0;
+              singles[0] /= 3.0;
+              doubles[0] = 20.0;
+              doubles[0] += 2.0;
+              doubles[0] *= 3.0;
+              doubles[0] -= 6.0;
+              doubles[0] /= 4.0;
+              if (singles[0] != 4.0) return 1;
+              if (doubles[0] != 15.0) return 2;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_function_returned_int_pointer_drops_stale_array_metadata(self):
+        result = self._compile_and_run(
+            """
+            int numbers[3];
+            double floating_values[1];
+
+            int *numbers_view() {
+              return numbers;
+            }
+
+            int main() {
+              numbers[0] = 11;
+              numbers[1] = 77;
+              numbers[2] = 22;
+              floating_values[0] = 3.5;
+              floating_values;
+              if (numbers_view()[1] != 77) return 1;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_string_subscript_drops_stale_floating_array_metadata(self):
+        result = self._compile_and_run(
+            """
+            double floating_values[1];
+
+            int main() {
+              floating_values[0] = 2.5;
+              floating_values;
+              if ("AZ"[1] != 'Z') return 1;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_program_array_bounds_reject_nonpositive_sizes(self):
+        cases = (
+            ("global zero", "double values[0];"),
+            ("global negative", "float values[1 - 2];"),
+            (
+                "local zero inner bound",
+                "int main() { double values[2][0]; return 0; }",
+            ),
+            (
+                "local negative",
+                "int main() { float values[1 - 2]; return 0; }",
+            ),
+            (
+                "block static zero",
+                "int main() { static double values[0]; return 0; }",
+            ),
+            (
+                "block static negative inner bound",
+                "int main() { static float values[2][1 - 2]; return 0; }",
+            ),
+        )
+
+        for label, source in cases:
+            with self.subTest(storage=label), tempfile.TemporaryDirectory(
+                prefix="private-cupidc-array-bound-",
+                ignore_cleanup_errors=True,
+            ) as temporary:
+                result, _code, _data = self._compile(
+                    Path(temporary), source
+                )
+                self.assertEqual(
+                    result.returncode,
+                    2,
+                    result.stdout + result.stderr,
+                )
+                self.assertIn("array size must be positive", result.stderr)
+
+    def test_array_byte_calculation_rejects_signed_overflow(self):
+        cases = (
+            ("global double", "double values[268435456];"),
+            (
+                "local float",
+                "int main() { float values[536870912]; return 0; }",
+            ),
+            (
+                "block static char alignment",
+                "int main() { static char values[2147483647]; return 0; }",
+            ),
+            ("global two dimensional int", "int values[32768][32768];"),
+        )
+
+        for label, source in cases:
+            with self.subTest(storage=label), tempfile.TemporaryDirectory(
+                prefix="private-cupidc-array-overflow-",
+                ignore_cleanup_errors=True,
+            ) as temporary:
+                result, _code, _data = self._compile(
+                    Path(temporary), source
+                )
+                self.assertEqual(
+                    result.returncode,
+                    2,
+                    result.stdout + result.stderr,
+                )
+                self.assertIn(
+                    "array allocation size overflow", result.stderr
+                )
+
+    def test_multidimensional_floating_array_has_a_useful_diagnostic(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-float-array-dimension-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code, _data = self._compile(
+                Path(temporary),
+                """
+                double table[2][2];
+                """,
+            )
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertIn(
+            "floating arrays support one dimension", result.stderr
+        )
+
+    def test_floating_array_bitwise_compound_has_a_useful_diagnostic(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-float-array-compound-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code, _data = self._compile(
+                Path(temporary),
+                """
+                float values[1];
+
+                int main() {
+                  values[0] &= 1;
+                  return 0;
+                }
+                """,
+            )
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertIn(
+            "bitwise/shift compound assignment not valid on FP arrays",
+            result.stderr,
+        )
+
+    def test_fixed_simd_array_has_a_useful_diagnostic(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-simd-array-diagnostic-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code, _data = self._compile(
+                Path(temporary),
+                """
+                float4 vectors[2];
+                """,
+            )
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertIn("fixed SIMD arrays are not supported", result.stderr)
+
+    def test_floating_struct_field_arrays_have_a_useful_diagnostic(self):
+        cases = (
+            ("struct float field", "struct Samples { float values[2]; };"),
+            ("class double field", "class Samples { double values[2]; };"),
+        )
+
+        for label, source in cases:
+            with self.subTest(declaration=label), tempfile.TemporaryDirectory(
+                prefix="private-cupidc-floating-field-array-",
+                ignore_cleanup_errors=True,
+            ) as temporary:
+                result, _code, _data = self._compile(
+                    Path(temporary), source
+                )
+                self.assertEqual(
+                    result.returncode,
+                    2,
+                    result.stdout + result.stderr,
+                )
+                self.assertIn(
+                    "floating struct field arrays are not supported",
+                    result.stderr,
+                )
 
     def test_unsupported_call_argument_has_a_useful_diagnostic(self):
         with tempfile.TemporaryDirectory(

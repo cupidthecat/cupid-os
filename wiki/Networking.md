@@ -1041,7 +1041,15 @@ as `curl`/`wget`, then use terminal or render-pipeline helpers on top:
 | `ssh` | SSH-2 client with Curve25519, ChaCha20-Poly1305, Ed25519/RSA-SHA2/ECDSA-P256 host-key verification, password/keyboard-interactive auth, PTY shell, remote exec |
 | `telnet` | IAC/WILL/WONT/DO/DONT/SB/SE negotiation, TTYPE=`CUPIDOS`, NAWS resize updates, Ctrl-] local prompt |
 | `sshd` | In-kernel SSH server on port 22; `make run-ssh` forwards host 2222 to guest 22 |
-| `browser` | HTTP/HTTPS fetch, HTML5 tree build, CSS cascade/layout/paint, external stylesheets, `@font-face`, forms |
+| `browser` | HTTP/HTTPS fetch, HTML5 tree build, CSS cascade/layout/paint, external stylesheets, `@font-face`, forms, and an asset-free `--selftest` |
+
+`browser --selftest` runs the JavaScript decimal lexer and binary64
+interpreter without opening a window or making a network request. Its 17
+result fields check close and large-value order, negative zero and its
+reciprocal, NaN comparison and truth, NaN and signed infinity formatting,
+decimal literals, signed and uppercase exponents, relational order, division
+and division assignment by zero, remainder by zero, the exponent cap, and
+malformed-exponent rejection.
 
 Host test for the server:
 

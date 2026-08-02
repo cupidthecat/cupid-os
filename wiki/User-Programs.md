@@ -94,6 +94,24 @@ Hello, World!
 
 ---
 
+## Built-in application checks
+
+The Browser can exercise its number path without a network connection or a
+window:
+
+```text
+browser --selftest
+```
+
+The check combines direct binary64 checks with scripts sent through the page
+lexer, parser, and interpreter. Its 17 fields cover close and large-value
+order, negative zero and its reciprocal, NaN comparison and truth, NaN and
+signed infinity formatting, decimal literals, signed and uppercase exponents,
+relational order, division and division assignment by zero, remainder by zero,
+the exponent cap, and malformed-exponent rejection.
+
+---
+
 ## Program Structure
 
 Every CupidC user program follows the same pattern:

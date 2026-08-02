@@ -33,6 +33,29 @@ Scalar `float` and `double` variables accept prefix and postfix `++` and
 storing the update. Direct locals, parameters, and globals are supported.
 Arrays, aggregates, function pointers, and SIMD vectors are rejected.
 
+One-dimensional fixed `float` and `double` array symbols are supported as
+globals, locals, block statics, and persistent REPL declarations. Their
+declared element type controls the four-byte or eight-byte stride and the
+indirect SSE load or store. Indexed plain assignment accepts represented
+integer, `char`, `float`, and `double` sources. Indexed `+=`, `-=`, `*=`, and
+`/=` stay at the element width, and `sizeof(*array)` returns four or eight.
+Bounds must be positive, and allocation-size multiplication is checked before
+storage is reserved. Multidimensional floating arrays, fixed SIMD arrays,
+floating pointer types, floating pointer dereference, and floating arrays
+embedded in structure or class fields remain unsupported.
+
+Direct functions and methods with parsed fixed parameter types convert each
+represented integer, `char`, `float`, or `double` argument to its declared
+cdecl slot type. Represented pointer categories and integer null forms can fill
+a pointer slot. A parsed variadic tail widens `float` to `double` and promotes
+`char` to `int`. Function-pointer calls, kernel bindings, and calls without
+fixed parameter metadata retain their source-width slots. Character operands
+undergo integer promotion in integer arithmetic and use the integer conversion
+path for floating arithmetic and explicit casts.
+Pointer-producing expressions reset subscript metadata before publishing a
+known stride, so a later pointer result cannot reuse stride state from an
+earlier array expression.
+
 ## Hosted floating-width rules
 
 The shared self-hosting compiler carries non-atomic `float` and `double`

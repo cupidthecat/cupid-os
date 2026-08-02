@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidOS Command Quick Reference
-Verified against source on: 2026-05-15
+Verified against source on: 2026-08-01
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -179,6 +179,9 @@ Source-backed network tools:
 - curl         HTTP/HTTPS client
 - wget         HTTP/HTTPS downloader
 - browser      graphical HTTP/HTTPS browser
+- browser --selftest
+                run 17 decimal, binary64, truth, formatting, division,
+                remainder, exponent, order, and malformed-input checks
 - ssh          SSH-2 client
 - telnet       Telnet client
 - sshd         SSH server manager
@@ -186,6 +189,7 @@ Source-backed network tools:
 Examples:
   curl -i https://www.iana.org/
   browser http://example.com/
+  browser --selftest
   ssh user@host
   telnet telehack.com
 

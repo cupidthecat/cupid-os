@@ -3,7 +3,7 @@
  * per-kind a/b/c/d slots are documented below.
  *
  * Per-kind slot layout (a/b/c/d, jn_next is sibling link in lists):
- *   NUM:           a = integer value (F1b promotes to double)
+ *   NUM:           value is stored in jn_num
  *   STR / IDENT:   a = js_str_pool offset, b = length
  *   BOOL:          a = 0 or 1
  *   BIN:           a = op token kind, b = left, c = right
@@ -71,9 +71,12 @@ int js_alloc_node(int kind, int a, int b, int c, int d) {
 int js_p_primary() {
     int k = js_peek_kind();
     if (k == JS_TOK_NUMBER) {
-        int v = jtk_num[jp_pos];
+        double v = jtk_num[jp_pos];
+        int node;
         jp_pos = jp_pos + 1;
-        return js_alloc_node(JS_NODE_NUM, v, 0, 0, 0);
+        node = js_alloc_node(JS_NODE_NUM, 0, 0, 0, 0);
+        if (node >= 0) { jn_num[node] = v; }
+        return node;
     }
     if (k == JS_TOK_STRING) {
         int o = jtk_str_off[jp_pos];
@@ -619,7 +622,10 @@ int js_run(char *src, int len) {
     int saved_jn = jn_count;
     js_last_error[0] = 0;
     js_ctrl_signal = 0;
-    js_tokenize(src, len);
+    if (js_tokenize(src, len) != 0) {
+        serial_printf("[js] parse error: %s\n", js_last_error);
+        return -1;
+    }
     int root = js_parse();
     if (js_last_error[0] != 0) {
         serial_printf("[js] parse error: %s\n", js_last_error);
