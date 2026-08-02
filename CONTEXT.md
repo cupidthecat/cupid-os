@@ -412,11 +412,11 @@ self-hosted and byte-compatible with that oracle. The normal Make recipes
 invoke the checked-seed command and depend on the complete CupidObj trust
 inputs. ADR 0204 records the production transfer, and ADR 0205 records the
 corrected seed.
-Source head also compares every complete emitted binary symbol before it
+The checked seed also compares every complete emitted binary symbol before it
 writes a table. Distinct paths that normalize to one symbol fail, while the
 exact same BMP path may appear once in the docs list and once in the home list
 because both entries use one wrapped object. The Python oracle enforces the
-same rule. Checked-seed promotion of this final correction remains pending.
+same rule. ADR 0206 records its promotion.
 _Avoid_: objcopy
 
 **Installation source table**:
@@ -466,7 +466,7 @@ A checked-in Cupid Toolchain executable that starts a bootstrap without an exter
 _Avoid_: oracle toolchain
 
 **Checked i386 Linux bootstrap seed**:
-The manifest-bound set of static CupidC, CupidASM, CupidDis, CupidLD, and CupidObj executables under `bootstrap/seeds/i386-linux/`. Verification binds their hashes, sizes, ELF properties, target ABI, producer lineage, source revision, and exact 19-source build plan before execution. The current seed comes from revision `a32d1cc0f655cd0e161fc5bac8ead54f4586423e`. Its 2,553,244-byte CupidC image has SHA-256 `59d90429cdfff1f5d6f8f3b3009f588d06de78c271e2e320dfca5b5e2a58173f`, and its 245,220-byte CupidObj image has SHA-256 `e9631e8b9377a17497bc87418c56282d97f91b8d1cd43e4670130e5e54334747`. The seed retains the complete 83-root Doom frontier and the later kernel, GNU assembly, x87, SSE, and ABI capabilities. It also carries runtime floating truth, the 591-row shared x86 catalogue with `FLDZ`, typed CupidDis raw code and data ranges, and corrected CupidObj installation-source bounds and ordering. The latest transition froze 41 source inputs with SHA-256 `eefdb24a987176ebb79a9407f45dcb3d02b803364a1450048678bb3aafa126cd`. With normal host code-generator commands poisoned, all 19 C objects, the startup object, and all five tool images matched between stage two and stage three. Both stages passed five help cases, ten successful operations, and six useful failures. Only the preceding CupidObj image differed from its stage-two replacement. A post-promotion reproof reproduced all five current seed images at stage two and repeated the complete fixed point. ADR 0205 records this promotion and both proofs.
+The manifest-bound set of static CupidC, CupidASM, CupidDis, CupidLD, and CupidObj executables under `bootstrap/seeds/i386-linux/`. Verification binds their hashes, sizes, ELF properties, target ABI, producer lineage, source revision, and exact 19-source build plan before execution. The current seed comes from revision `957598ac745958cac87fdf61dfe7ada44f2ad96b`. Its 2,553,244-byte CupidC image has SHA-256 `59d90429cdfff1f5d6f8f3b3009f588d06de78c271e2e320dfca5b5e2a58173f`, and its 253,724-byte CupidObj image has SHA-256 `f78752dc01daf3d2a9dc9265425f9c60639f438d5dcb91a001cf40d7d241ded5`. The seed retains the complete 83-root Doom frontier and the later kernel, GNU assembly, x87, SSE, and ABI capabilities. It also carries runtime floating truth, the 591-row shared x86 catalogue with `FLDZ`, typed CupidDis raw code and data ranges, and the complete CupidObj installation-source contract. That contract covers request bounds, caller order, and linked-symbol collisions. The latest transition froze 41 source inputs with SHA-256 `cc2cc479b9c7e61342ef119be704dc1ff1854d396237b4b649b78c21de2a72f3`. With normal host code-generator commands poisoned, all 19 C objects, the startup object, and all five tool images matched between stage two and stage three. Both stages passed five help cases, ten successful operations, and six useful failures. Only the preceding CupidObj image differed from its stage-two replacement. ADR 0206 records this promotion.
 _Avoid_: current normal-build toolchain, native Windows seed, unverified binary cache
 
 **Frozen fixed-point source closure**:

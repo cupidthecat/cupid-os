@@ -1102,14 +1102,15 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertIn("must match demos/NAME.asm", rejected.stderr)
             self.assertEqual(sentinel.read_bytes(), b"sentinel")
 
-    def test_checked_seed_enforces_install_request_bounds_and_order(self):
+    def test_checked_seed_enforces_install_request_bounds_order_and_symbols(self):
         if os.name == "nt" and shutil.which("wsl") is None:
             self.skipTest("WSL is not available")
         with tempfile.TemporaryDirectory(
             prefix=".checked-seed-install-contract-", dir=REPO_ROOT
         ) as temporary:
             root = Path(temporary)
-            (root / "bin").mkdir()
+            (root / "bin" / "browser").mkdir(parents=True)
+            (root / "cupidos-txt").mkdir()
             for name in (
                 "first.png",
                 "second.jpeg",
@@ -1118,11 +1119,26 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "fifth.bmp",
             ):
                 (root / name).write_bytes(b"asset")
-            (root / "bin" / "program-0.cc").write_text(
-                "int main(void) { return 0; }\n",
-                encoding="utf-8",
-                newline="\n",
-            )
+            boundary_paths = [
+                f"bin/program_{index}.cc" for index in range(513)
+            ]
+            for relative in boundary_paths:
+                (root / relative).write_text(
+                    "int main(void) { return 0; }\n",
+                    encoding="utf-8",
+                    newline="\n",
+                )
+            for relative in (
+                "bin/browser_alpha.cc",
+                "bin/browser/alpha.cc",
+                "cupidos-txt/a-b.CTXT",
+                "cupidos-txt/a_b.CTXT",
+                "a-b.bmp",
+                "a_b.bmp",
+                "shared.bmp",
+            ):
+                path = root / relative
+                path.write_bytes(b"fixture")
             frozen = freeze_seed_inputs(SEED_MANIFEST, root / "seed")
             runner = ToolRunner(root)
 
@@ -1157,6 +1173,94 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             positions = [output.index(entry) for entry in entries]
             self.assertEqual(positions, sorted(positions))
 
+            boundary = root / "boundary-install.cc"
+            accepted = runner.run(
+                frozen.tools["cupidobj"],
+                [
+                    "install-source",
+                    "bin",
+                    "--bin",
+                    *boundary_paths[:512],
+                    "-o",
+                    boundary,
+                ],
+                60,
+            )
+            self.assertEqual(accepted.returncode, 0, accepted.stderr)
+            self.assertEqual(accepted.stdout, "")
+            self.assertEqual(accepted.stderr, "")
+            self.assertGreater(boundary.stat().st_size, 0)
+
+            alias = root / "shared-alias-install.cc"
+            shared = runner.run(
+                frozen.tools["cupidobj"],
+                [
+                    "install-source",
+                    "docs",
+                    "--doc-assets",
+                    "shared.bmp",
+                    "--home-assets",
+                    "shared.bmp",
+                    "-o",
+                    alias,
+                ],
+                60,
+            )
+            self.assertEqual(shared.returncode, 0, shared.stderr)
+            self.assertEqual(shared.stdout, "")
+            self.assertEqual(shared.stderr, "")
+            self.assertGreater(alias.stat().st_size, 0)
+
+            collision_cases = (
+                (
+                    "bin",
+                    [
+                        "--bin",
+                        "bin/browser_alpha.cc",
+                        "--browser",
+                        "bin/browser/alpha.cc",
+                    ],
+                ),
+                (
+                    "docs",
+                    [
+                        "--ctxt",
+                        "cupidos-txt/a-b.CTXT",
+                        "cupidos-txt/a_b.CTXT",
+                    ],
+                ),
+                (
+                    "docs",
+                    [
+                        "--doc-assets",
+                        "a-b.bmp",
+                        "--home-assets",
+                        "a_b.bmp",
+                    ],
+                ),
+            )
+            collision_output = root / "collision-install.cc"
+            for mode, arguments in collision_cases:
+                with self.subTest(mode=mode, arguments=arguments):
+                    collision_output.write_bytes(b"sentinel")
+                    collision = runner.run(
+                        frozen.tools["cupidobj"],
+                        [
+                            "install-source",
+                            mode,
+                            *arguments,
+                            "-o",
+                            collision_output,
+                        ],
+                        60,
+                    )
+                    self.assertEqual(collision.returncode, 1)
+                    self.assertEqual(collision.stdout, "")
+                    self.assertIn("same binary symbol", collision.stderr)
+                    self.assertEqual(
+                        collision_output.read_bytes(), b"sentinel"
+                    )
+
             sentinel = root / "oversized-install.cc"
             sentinel.write_bytes(b"sentinel")
             rejected = runner.run(
@@ -1165,7 +1269,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     "install-source",
                     "bin",
                     "--bin",
-                    *(f"bin/program-{index}.cc" for index in range(513)),
+                    *boundary_paths,
                     "-o",
                     sentinel,
                 ],
@@ -2027,7 +2131,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(report["status"], "pass")
             self.assertEqual(
                 report["seed_source_revision"],
-                "a32d1cc0f655cd0e161fc5bac8ead54f4586423e",
+                "957598ac745958cac87fdf61dfe7ada44f2ad96b",
             )
             self.assertNotIn("source_revision", report)
             self.assertEqual(
@@ -2063,7 +2167,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 },
             )
             promoted_seed_snapshot = (
-                "eefdb24a987176ebb79a9407f45dcb3d02b803364a1450048678bb3aafa126cd"
+                "cc2cc479b9c7e61342ef119be704dc1ff1854d396237b4b649b78c21de2a72f3"
             )
             self.assertEqual(
                 report["source_snapshot_sha256"], promoted_seed_snapshot

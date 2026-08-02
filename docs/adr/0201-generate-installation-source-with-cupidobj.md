@@ -116,14 +116,18 @@ The hosted suite checks the native command and Python oracle against all three
 collision shapes and verifies that each sentinel output survives. All seven
 native contract modes, all twelve hosted CupidObj tests, and all 39 production
 tests pass. The active installation tables and their objects remain
-byte-identical. The source head carries this correction; the checked CupidObj
-seed still needs promotion before the normal recipes enforce it.
+byte-identical. The checked CupidObj seed carries this correction, so the
+normal recipes now enforce it. ADR 0206 records the promotion.
 
-The public contract pins a complete two-demo source as a literal. It also
-checks repeated output, a wrong extension, a mixed category, the 512-path
-limit, output-limit rollback, a zeroed failure result, and recovery in the
-same job. The CLI contract keeps an existing destination after a wrong path
-or duplicate and then succeeds with a valid request.
+### Initial capability evidence
+
+The measurements below belong to the first `install-source` capability. They
+predate the request-boundary and symbol-domain corrections above. At that
+point, the public contract pinned a complete two-demo source as a literal. It
+also checked repeated output, a wrong extension, a mixed category, the
+512-path limit, output-limit rollback, a zeroed failure result, and recovery
+in the same job. The CLI contract kept an existing destination after a wrong
+path or duplicate and then succeeded with a valid request.
 
 Stage-three CupidC compiled that contract into a 49,812-byte object with
 SHA-256

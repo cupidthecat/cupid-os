@@ -118,19 +118,19 @@ dglibc jump block, pointer-preserving static address casts, explicit `double`
 to `unsigned long long` conversion, exact naked IPI entries, and runtime
 floating truth. Its stage-three CupidC image is 2,553,244 bytes with SHA-256
 `59d90429cdfff1f5d6f8f3b3009f588d06de78c271e2e320dfca5b5e2a58173f`.
-It came from revision `a32d1cc0f655cd0e161fc5bac8ead54f4586423e`. It also
+It came from revision `957598ac745958cac87fdf61dfe7ada44f2ad96b`. It also
 carries the kernel-entry BSS clear with a nonzero page-aligned stack top and
 all packed SSE2 statements in the active SIMD source. CupidASM and CupidDis
 carry the 591-row shared x86 catalogue. CupidDis carries typed raw code and
 data ranges, and CupidObj carries installation-source generation. Its
-245,220-byte CupidObj image has SHA-256
-`e9631e8b9377a17497bc87418c56282d97f91b8d1cd43e4670130e5e54334747`.
+253,724-byte CupidObj image has SHA-256
+`f78752dc01daf3d2a9dc9265425f9c60639f438d5dcb91a001cf40d7d241ded5`.
 In the latest poisoned-host transition, all 19 C objects, startup, and five
 tool images matched between stage two and stage three. Both stages passed five
 help cases, ten successful operations, and six useful failures. Only the
-preceding CupidObj image differed from stage two. A post-promotion reproof
+preceding CupidObj image differed from stage two. A post-promotion rebuild
 then reproduced all five checked seed images at stage two and repeated the
-complete fixed point. ADR 0205 records the promotion and both proofs.
+complete fixed point. ADR 0206 records the promotion and both proofs.
 
 The refreshed seed represents operand-free GNU assembly statements inside
 functions and emits exact PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT
@@ -375,12 +375,12 @@ command reproduced all three live tables twice with exact Python-oracle
 parity. The normal Make recipes now run that checked command for all three
 outputs. `tools/hostbuild.py` is no longer a prerequisite or recipe owner for
 them, but it remains the parity oracle. ADR 0204 records the transfer, and ADR
-0205 records the corrected seed.
-Source head and the Python oracle also compare the full wrapped symbol name
-for every typed entry. Distinct paths that collapse to one symbol fail before
-publication. The exact same BMP may remain in both the docs and home lists,
-where both entries use the same object. Checked-seed promotion of this guard
-is still pending.
+0206 records the current seed.
+The checked seed, source head, and Python oracle also compare the full wrapped
+symbol name for every typed entry. Distinct paths that collapse to one symbol
+fail before publication. The exact same BMP may remain in both the docs and
+home lists, where both entries use the same object. Every normal
+installation-table recipe now enforces this guard.
 
 Before compilation, the user ABI operation captures the exact bytes of its
 six kernel and public declarations. It compares the reviewed i386 layout and
@@ -550,13 +550,20 @@ The checked audit uses the canonical Windows Make branch and C locale on
 every host. Direct Linux builds test the separate Linux execution branch.
 
 The latest local normal build includes the transferred Toolchain work and
-completed in 1,417 seconds. Its 8,715,564-byte final ELF has SHA-256
-`5975de91f244e37929892b7dc1300a9308996f7fdf29dda817be5220829d98ab`;
-the 8,513,704-byte raw kernel has SHA-256
-`3ddc5abbf90bc69b58917577d5ded12ba601feb905eaad0ce9eb986a32f8adf6`.
-The fresh preboot image has SHA-256
-`1d59fd38a2999e53cf4b89a3ea7d5a662efeb65ac42b392271d538e6ebf7daa4`,
-with the complete raw kernel at offset 2,560.
+current CupidObj collision checks. The complete Toolchain target passed in
+2,863.8 seconds. Its two stages matched 19 C objects, startup, and five tools.
+The 18,231-byte contract manifest covers 45 inputs and has SHA-256
+`27bcebb78404c8013bc56a3e2a0b9d7400cbfa040053863ed55d0d3131baaf33`.
+
+The normal root build passed in 1,452.910 seconds. Its 8,719,780-byte final ELF
+has SHA-256
+`5a7a491a39372697accff9b678054b4bf84e2e68ffc3e882c5ef815d570cee06`;
+the 8,518,280-byte raw kernel has SHA-256
+`ecde61e586fb69bf091e3586c7c0a90d65588a9d7aa22ea6cf7d2f48dc341df3`.
+The 209,715,200-byte image has SHA-256
+`f488f54c023e6d1f7e9883be1f93f705fbdab4b1de3aab8a2b61b86f3863a085`.
+A private copy reached the desktop and terminal and completed `/bin/ls.cc`
+through the in-OS CupidC JIT in 54.025 seconds, with no panic marker.
 
 The production Doom runtime proof uses private four-CPU images on e1000 and
 RTL8139. Both NICs pass the full frontier, print the no-WAD guidance, recover

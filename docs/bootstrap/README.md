@@ -218,7 +218,7 @@ The i386 Linux adapter objects are `ctool_host.cc` at 11 functions, 5,522 text b
 
 The `ctool_host.cc` tracer applies 45 relocations, resolves 24 symbols, and leaves no undefined symbol in its static executable. Omitting the errno provider produces the exact CupidLD undefined-symbol failure with empty output and a zero result. The same job then links the original bytes again. Linux and WSL hosts with static i386 support run the tracer with exit status zero.
 
-The current checked artifacts are CupidASM at 445,616 bytes, CupidDis at 379,648 bytes, CupidLD at 266,672 bytes, CupidObj at 245,220 bytes, and CupidC at 2,553,244 bytes. Verification checks every hash, size, static ELF property, target ABI, producer lineage, source revision, and build-plan field before execution. The 19-source plan uses `.cc` throughout and has SHA-256 `59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`. Native GCC and Clang recipes select C with `-x c`.
+The current checked artifacts are CupidASM at 445,616 bytes, CupidDis at 379,648 bytes, CupidLD at 266,672 bytes, CupidObj at 253,724 bytes, and CupidC at 2,553,244 bytes. Verification checks every hash, size, static ELF property, target ABI, producer lineage, source revision, and build-plan field before execution. The 19-source plan uses `.cc` throughout and has SHA-256 `59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`. Native GCC and Clang recipes select C with `-x c`.
 
 The promotion transition completes that plan through stage two and stage
 three. All 19 C object pairs, the startup objects, and all five tool images
@@ -238,24 +238,27 @@ floating truth. Its
 SHA-256 is
 `59d90429cdfff1f5d6f8f3b3009f588d06de78c271e2e320dfca5b5e2a58173f`,
 and its source revision is
-`a32d1cc0f655cd0e161fc5bac8ead54f4586423e`. CupidASM and CupidDis carry the
+`957598ac745958cac87fdf61dfe7ada44f2ad96b`. CupidASM and CupidDis carry the
 591-row shared x86 catalogue. CupidDis carries typed raw code and data ranges,
-and the 245,220-byte CupidObj image carries the corrected installation-source
-bounds and ordering. Its SHA-256 is
-`e9631e8b9377a17497bc87418c56282d97f91b8d1cd43e4670130e5e54334747`.
-[ADR 0205](../adr/0205-promote-cupidobj-request-boundaries.md) records the
-current transition and promotion. The post-promotion reproof reproduced all
+and the 253,724-byte CupidObj image carries the complete installation-source
+bounds, ordering, and linked-symbol contract. Its SHA-256 is
+`f78752dc01daf3d2a9dc9265425f9c60639f438d5dcb91a001cf40d7d241ded5`.
+[ADR 0206](../adr/0206-promote-cupidobj-symbol-collisions.md) records the
+current transition and promotion. The post-promotion rebuild reproduced all
 five checked seed images at stage two and repeated the complete fixed point in
-650.5 seconds. Its 15,053-byte report has SHA-256
-`9c1fa329855aa1a3a4e68e5b17dc7fac95b07905c1817fce80ad58f25847d92a`.
-The complete checked-seed module passes all 37 tests in 712.199 seconds.
+643.8 seconds. Its 15,053-byte report has SHA-256
+`aa3d29d16ec0a6193367905b2f3adda389c502924f42f9c4f71efad8dfe4afb6`.
+The complete checked-seed module passes all 37 tests in 755.179 seconds.
 `make verify-bootstrap-seed` checks the current inputs without running them.
 `make bootstrap-from-seed` performs the complete staged build, while
 `make test-toolchain-fixed-point` retains the native-generation oracle.
 `make -C toolchain all` builds the checked i386 contract cohort without a
-host C compiler. The complete 20-artifact cohort passes in 2,755.8 seconds,
-with stage two and stage three matching byte for byte. GCC or Clang is used only by the explicit
-`native-oracles` and hosted development targets.
+host C compiler. The complete 20-artifact cohort passes in 2,863.8 seconds,
+with stage two and stage three matching byte for byte. Its 18,231-byte
+manifest covers 45 inputs and has SHA-256
+`27bcebb78404c8013bc56a3e2a0b9d7400cbfa040053863ed55d0d3131baaf33`.
+GCC or Clang is used only by the explicit `native-oracles` and hosted
+development targets.
 ADR 0184 moves the 83 Doom roots out of host ownership.
 
 The checked-seed bootstrap copies the exact bytes of its 41 source inputs into
@@ -365,11 +368,12 @@ caller order across mixed home-asset extensions, and rewind partial output on
 failure. The checked seed, source head, and Python oracle carry the limit and
 ordering corrections. The active inventories already fit the limit and retain
 byte-identical order.
-Source head and the Python oracle now compare the complete wrapped symbol
-domain too. They reject distinct paths that normalize to one linked symbol,
+The checked seed, source head, and Python oracle also compare the complete
+wrapped symbol domain. They reject distinct paths that normalize to one linked
+symbol,
 including the bin and browser prefix overlap. One exact BMP path may remain in
-both the docs and home lists because both entries use the same object. This
-last correction still awaits checked-seed promotion.
+both the docs and home lists because both entries use the same object. Every
+normal installation-table recipe now enforces this guard.
 The normal Make recipes invoke the checked command and depend on
 `$(CUPIDOBJ_INPUTS)`.
 `tools/hostbuild.py` remains the parity oracle but is no longer a prerequisite
@@ -382,9 +386,9 @@ the pre-transfer files and the oracle exactly:
 | docs | 9,794 | `cff3fc8943d4b1999869653b14a882d21a463471452e429b2d742d47107b13fc` |
 | demos | 12,845 | `0d1f7ee032b13abbbe1767d75fe32c6f1ffa8b7014db44ae35c9d4c47ebb8305` |
 
-The private five-tool bootstrap reached a fixed point with the 245,220-byte
+The private five-tool bootstrap reached a fixed point with the 253,724-byte
 CupidObj image. ADR 0201 records the operation, ADR 0204 records production
-ownership, and ADR 0205 records the corrected seed.
+ownership, and ADR 0206 records the current seed.
 
 The active-source audit classifies all three recipes as
 `generate_install_source` with `cupid_object` and `host_python`. Its exact
@@ -392,12 +396,21 @@ delivery guard checks each target, mode-specific recipe, inventory markers,
 and the complete checked-seed input set. Its focused positive and negative
 coverage passes in 0.222 seconds, including substituted inventories and shell
 text that only resembles a command. The full CupidC production module passes
-all 39 tests in 27.309 seconds, and the 195-input generated frontier passes in
-15.6 seconds with digest
-`227de1553d905e22bc4d5b84ccc33932cbd7d03d1e6d7b37ebbe20edd36fbcf0`.
-The full 68-test build-graph audit passes in 589.740 seconds. A normal root
-build passes in 1,428.5 seconds, followed by a private-image `ls` JIT smoke in
-47.5 seconds.
+all 39 tests in 25.698 seconds, and the 195-input generated frontier passes in
+33.0 seconds with digest
+`3819e76ac204f4b2203abe4f34539986bc3a3f68e3a60403aa09ce29f911d799`.
+The full 68-test build-graph audit passes in 613.397 seconds. A normal root
+build passes in 1,452.910 seconds. It produces an 8,719,780-byte kernel ELF
+with SHA-256
+`5a7a491a39372697accff9b678054b4bf84e2e68ffc3e882c5ef815d570cee06`
+and an 8,518,280-byte raw kernel with SHA-256
+`ecde61e586fb69bf091e3586c7c0a90d65588a9d7aa22ea6cf7d2f48dc341df3`.
+The resulting 209,715,200-byte image has SHA-256
+`f488f54c023e6d1f7e9883be1f93f705fbdab4b1de3aab8a2b61b86f3863a085`.
+A private-image `/bin/ls.cc` JIT smoke passes in 54.025 seconds. Its
+27,839-byte serial log has SHA-256
+`631670b29e91ffe195e343a3cb957e995776b9860efb441f51ffdee4d443d55f`
+and contains no panic marker.
 
 The external syscall table records `print`, `print_int`, and `exit` events
 with the running PID before using the normal console or process path. A print
@@ -791,7 +804,7 @@ quoted and 234 angle forms.
 The active-source digest is
 `3f297bdac4b05d8a4b644203d93960610c699eba66c5f1459422e86bd6e8af17`.
 The 2,546,938-byte audit JSON has SHA-256
-`7a9439867d0dd993ee3d2baeaf1ba306e96e5a07ece30674e7cd7055e6c132fb`,
+`37cacb564a8e38633f3f67905eb18c64ed5abcc8467395298a4767e9c4aa9cf5`,
 and the 12,136-byte summary has SHA-256
 `dafb9ec59da59d9a88599522f8b70f275ed2c45fe0e035e13cd0c4304c1a5a65`.
 
@@ -846,16 +859,19 @@ The canonical active-source digest for this graph is
 
 External-inline policy now follows translation-unit finalization described by [ADR 0131](../adr/0131-finalize-c11-external-inline-definitions.md). The frontend recognizes external definitions across compatible declaration sets, preserves inherited internal linkage, and rejects an external-linkage inline declaration without a definition. Iterative memoized type relations normalize C qualifier spellings while retaining atomic parameter identity, distinguish strict typedef identity from compatibility, apply old-style/default-promotion rules, accept a 512-level derived pointer graph, and construct symbol-local immutable array/function composite types without corrupting shared typedefs. Transactional tests cover precise conflicts, lexical-scope duplicates and expiry, automatic and static initializer forests, explicit and tentative file definitions, binding addresses, scalar and aggregate return or assignment legality, recursive aggregate modifiability, pointer arithmetic and comparison constraints, conditional association and conversions, loop and switch constraints, direct jumps and label scope, compound/update constraints, malformed literals, unsupported local storage forms, ownership, deep syntax, constrained output, rollback, and recovery. Runtime expression values carry private integer-constant-expression form and value metadata. A represented zero expression, or that expression cast to non-atomic `void *`, becomes a null pointer constant. Comparisons, conditionals, returns, calls, assignments, and automatic initializers publish a destination-typed `CTOOL_C_CONVERSION_NULL_POINTER`; static explicit nulls publish `ZERO` records and discard their temporary expression AST. Comma expressions now evaluate left to right and retain the last operand, and known-true loops preserve non-fallthrough reachability. GNU `weak`, `section`, and `unused` attributes publish canonical entity metadata; exact output-only assembly can snapshot represented i386 register and EFLAGS state. The constant and body expression grammars remain intentionally partial, and namespace and member lookup remain linear. Chained designated paths, promoted anonymous members, duplicate overrides, positional union or Cupid class lists, static member-address constants outside the block-static symbol path, integer-routed and other unrepresented address casts, automatic bases, runtime offsets and subscripts, block declaration attributes, nested function definitions, computed goto and GNU label addresses, broader GNU assembly forms, hexadecimal and subnormal floating constants, long-double literals, nonzero or floating static long-double initializers, integer conversions involving long double other than `_Bool`, remaining integer and floating conversions, nonempty identifier-list definitions, non-scalar arguments without declared parameter types, aggregate variadic reads, block assertions, variable-length arrays and runtime `sizeof`, the remaining GNU attributes, complete Cupid extensions, complete AST and IR coverage, broader function code generation, full translation-unit emission, and production integration remain later work. The shared hosted path owns the 155-source strict non-Doom cohort, all 83 Doom roots, the generated kernel symbol translation, and the six checked generated-install or user translations; the private kernel compiler remains the embedded runtime JIT and AOT path. ADR 0196 adds block-static address initializers, earlier static `const` integer reuse, automatic `long double` transport, and zero-filled static long-double objects without claiming the broader forms. ADR 0199 adds non-atomic long-double comparisons. ADR 0202 adds floating truth, controlling operands, and conversion to `_Bool` at all three represented widths.
 
-The latest local normal build completed in 1,417 seconds. Its 8,604,972-byte
+The latest local normal build completed in 1,452.910 seconds. Its
+8,609,188-byte
 pass-one ELF has SHA-256
-`fa2ea1d07d25ec03283ee17eafeaee09a02868570f504b77edbec1bb5eb90ea2`;
-the 8,715,564-byte final ELF has SHA-256
-`5975de91f244e37929892b7dc1300a9308996f7fdf29dda817be5220829d98ab`.
-CupidObj flattened it to an 8,513,704-byte kernel with SHA-256
-`3ddc5abbf90bc69b58917577d5ded12ba601feb905eaad0ce9eb986a32f8adf6`.
+`384d69a9f1ebe5bbf228791af5519086a73767d2aafc24efbcf22fa696a9354b`;
+the 8,719,780-byte final ELF has SHA-256
+`5a7a491a39372697accff9b678054b4bf84e2e68ffc3e882c5ef815d570cee06`.
+CupidObj flattened it to an 8,518,280-byte kernel with SHA-256
+`ecde61e586fb69bf091e3586c7c0a90d65588a9d7aa22ea6cf7d2f48dc341df3`.
 The fresh 209,715,200-byte image has SHA-256
-`1d59fd38a2999e53cf4b89a3ea7d5a662efeb65ac42b392271d538e6ebf7daa4`,
-and its bytes from offset 2,560 match the complete raw kernel.
+`f488f54c023e6d1f7e9883be1f93f705fbdab4b1de3aab8a2b61b86f3863a085`,
+and its bytes from offset 2,560 match the complete raw kernel. A private copy
+completed `/bin/ls.cc` through the in-OS CupidC JIT in 54.025 seconds without
+a panic marker.
 
 The earlier static `const` integer rule is a narrow Cupid C extension rather
 than an ISO C integer constant expression. It preserves the unchanged

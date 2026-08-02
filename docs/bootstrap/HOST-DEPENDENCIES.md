@@ -10,7 +10,7 @@ files. No ordinary C translation unit remains in a supported root. The
 active-source digest is
 `3f297bdac4b05d8a4b644203d93960610c699eba66c5f1459422e86bd6e8af17`.
 The 2,546,938-byte audit JSON has SHA-256
-`7a9439867d0dd993ee3d2baeaf1ba306e96e5a07ece30674e7cd7055e6c132fb`,
+`37cacb564a8e38633f3f67905eb18c64ed5abcc8467395298a4767e9c4aa9cf5`,
 and the 12,136-byte summary has SHA-256
 `dafb9ec59da59d9a88599522f8b70f275ed2c45fe0e035e13cd0c4304c1a5a65`.
 The checked Windows Clang/LLVM and Linux GCC/binutils baselines at
@@ -40,12 +40,13 @@ malformed, duplicate, mixed, or oversized lists. Each Make recipe depends on
 recipe owner for these outputs, though it remains their oracle and keeps its
 other roles. Python still participates in all 449 transforms because the
 checked-seed runner uses it to launch CupidObj. ADRs 0201, 0203, and 0204
-record the operation, seed promotion, and ownership transfer.
-The source implementation and Python oracle also reject distinct inventory
-paths that map to the same complete wrapped symbol. They preserve the exact
-docs and home BMP alias used by the active image. The current checked seed has
-the earlier bounds and ordering correction; this symbol-domain correction
-still needs promotion. It changes no dependency count.
+record the operation, its first seed promotion, and the ownership transfer.
+ADRs 0205 and 0206 record the request-boundary and linked-symbol corrections.
+The checked seed, source implementation, and Python oracle reject distinct
+inventory paths that map to the same complete wrapped symbol. They preserve
+the exact docs and home BMP alias used by the active image. The current seed
+has the bounds, ordering, and symbol-domain corrections. This changes no
+dependency count.
 
 CupidASM's `align` statement adds no host tool to that graph. The shared
 assembler computes raw padding from the absolute `ORG` address, records ELF32
@@ -448,7 +449,7 @@ The self-host source frontier also retires no dependency. Hosted CupidC emits de
 
 The repository i386 Linux runtime replaces the tracer's test-only providers for complete tool closures. CupidC compiles allocation, file, memory, string, `errno`, working-directory, and diagnostic services. CupidASM supplies startup and system-call wrappers, and CupidLD produces static CupidC, CupidASM, CupidDis, CupidLD, and CupidObj commands. Linux and WSL behavior matches the native sibling commands for real outputs and failure paths.
 
-The five static commands share one complete checked-seed gate. The manifest binds the exact executables, source revision, target ABI, producer lineage, 19-source build plan, startup, and five link orders. The current seed contains the checked bootstrap's stage-three images from revision `a32d1cc0f655cd0e161fc5bac8ead54f4586423e`. Only the preceding CupidObj image differed from stage two, while stage two and stage three matched all 19 C objects, startup, and five tools. The 2,553,244-byte CupidC image has SHA-256 `59d90429cdfff1f5d6f8f3b3009f588d06de78c271e2e320dfca5b5e2a58173f` and carries runtime floating truth. The same seed carries the 591-row x86 catalogue and typed CupidDis raw ranges. Its 245,220-byte CupidObj image has SHA-256 `e9631e8b9377a17497bc87418c56282d97f91b8d1cd43e4670130e5e54334747` and carries the corrected installation-source bounds and ordering. ADR 0205 records the promotion.
+The five static commands share one complete checked-seed gate. The manifest binds the exact executables, source revision, target ABI, producer lineage, 19-source build plan, startup, and five link orders. The current seed contains the checked bootstrap's stage-three images from revision `957598ac745958cac87fdf61dfe7ada44f2ad96b`. Only the preceding CupidObj image differed from stage two, while stage two and stage three matched all 19 C objects, startup, and five tools. The 2,553,244-byte CupidC image has SHA-256 `59d90429cdfff1f5d6f8f3b3009f588d06de78c271e2e320dfca5b5e2a58173f` and carries runtime floating truth. The same seed carries the 591-row x86 catalogue and typed CupidDis raw ranges. Its 253,724-byte CupidObj image has SHA-256 `f78752dc01daf3d2a9dc9265425f9c60639f438d5dcb91a001cf40d7d241ded5` and carries the complete installation-source bounds, ordering, and linked-symbol contract. ADR 0206 records the promotion.
 
 The harness copies the exact 41-input source closure into a private compiler root. Checked CupidC compiles the stage-two union there, checked CupidASM assembles startup, and checked CupidLD links all five tools. The stage-two producer trio repeats that work for stage three below the same root. Both the private closure and the live closure are checked before the first stage, after each stage, and after behavior checks. In the post-promotion reproof, every seed image matched stage two; every C object, startup object, and linked image also matched across the stages. Both stages executed the positive and failure cases for every command. The two stages, behavior evidence, and report are published together only after success. The normal Toolchain target then uses both static stages to build its contract cohort without external code generation. Native contracts and hosted development commands remain explicit host-built oracles; normal OS and Toolchain artifacts do not depend on them.
 

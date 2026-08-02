@@ -64,14 +64,18 @@ byte-identical, and a failed request leaves the previous table intact. The
 checked seed applies one overflow-safe limit of 512 paths across every group
 before it dispatches a mode. It also keeps caller order when home assets mix
 extensions.
+Before writing a table, CupidObj compares the complete wrapped symbol for
+every entry. Distinct paths that collapse to one linked symbol are rejected.
+The exact same BMP may appear once in the docs list and once in the home list
+because both entries use the same wrapped object.
 The Python oracle follows the same order. The command is self-hosted and
 present in the checked toolchain seed. The current image build runs checked
 CupidObj for all three tables. Its active inventories remain within the limit
 and keep the same bytes. The recipes depend on the complete checked-seed trust
 unit.
 The Python generator remains a byte-parity oracle but no longer owns these
-production sources. ADR 0204 records the transfer, and ADR 0205 records the
-corrected seed.
+production sources. ADR 0204 records the transfer, and ADR 0206 records the
+current seed.
 
 Makefile variable definitions:
   BIN_CC_SRCS  := $(filter-out bin/old_cc2.cc bin/old_cc2_single.cc, $(wildcard bin/*.cc))
