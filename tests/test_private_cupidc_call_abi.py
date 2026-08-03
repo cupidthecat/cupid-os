@@ -53,6 +53,16 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
         if hasattr(cls, "driver_directory"):
             cls.driver_directory.cleanup()
 
+    def test_parser_error_helper_stays_private(self):
+        header = (KERNEL_LANG / "cupidc.h").read_text(encoding="utf-8")
+        parser = PARSER_SOURCE.read_text(encoding="utf-8")
+
+        self.assertNotIn("void cc_error(cc_state_t *cc, const char *msg);", header)
+        self.assertIn(
+            "static void cc_error(cc_state_t *cc, const char *msg)",
+            parser,
+        )
+
     @classmethod
     def _build_compiler_driver(cls):
         (cls.driver_root / "types.h").write_text(
@@ -248,12 +258,16 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                   char *source;
                   int repl_mode =
                       argc == 5 && strcmp(argv[4], "--repl") == 0;
+                  int repl_rollback_mode =
+                      argc == 5 &&
+                      strcmp(argv[4], "--repl-rollback") == 0;
                   int recovery_mode =
                       argc == 5 && strcmp(argv[4], "--recover") == 0;
                   if (argc == 3 &&
                       strcmp(argv[1], "--check-number-boundary") == 0)
                     return check_numeric_token_boundary(argv[2]);
-                  if (argc != 4 && !repl_mode && !recovery_mode)
+                  if (argc != 4 && !repl_mode && !repl_rollback_mode &&
+                      !recovery_mode)
                     return 64;
                   source = read_source(argv[1]);
                   cc = new_compiler_state();
@@ -277,8 +291,12 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                       return 66;
                     cc_lex_init(cc, retry_source);
                     cc_parse_program(cc);
-                  } else if (repl_mode) {
+                  } else if (repl_mode || repl_rollback_mode) {
                     char *unit = source;
+                    int unit_index = 0;
+                    repl_state_t checkpoint;
+                    memset(&checkpoint, 0, sizeof(checkpoint));
+                    checkpoint.cc = cc;
                     while (unit != NULL) {
                       char *next = unit;
                       int is_expr = 0;
@@ -294,8 +312,20 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                       while (!cc->error &&
                              cc_lex_peek(cc).type != CC_TOK_EOF)
                         cc_parse_repl_line(cc, &is_expr);
-                      if (cc->error)
+                      if (repl_rollback_mode && unit_index == 0) {
+                        if (cc->error)
+                          break;
+                        cc_repl_checkpoint_structs(&checkpoint);
+                      } else if (repl_rollback_mode && unit_index == 1) {
+                        if (!cc->error)
+                          return 73;
+                        cc_repl_restore_structs(&checkpoint);
+                        cc->error = 0;
+                        cc->error_msg[0] = 0;
+                      } else if (cc->error) {
                         break;
+                      }
+                      unit_index++;
                       unit = next;
                     }
                   } else {
@@ -346,7 +376,7 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             raise AssertionError(result.stdout + result.stderr)
         return executable
 
-    def _compile(self, root, source, repl=False):
+    def _compile(self, root, source, *, repl=False):
         source_path = root / "fixture.cc"
         code_path = root / "code.bin"
         data_path = root / "data.bin"
@@ -384,6 +414,30 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                 str(code_path),
                 str(data_path),
                 "--repl",
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=30,
+        )
+        return result, code_path, data_path
+
+    def _compile_repl_after_struct_failure(self, root, units):
+        source_path = root / "fixture.cc"
+        code_path = root / "code.bin"
+        data_path = root / "data.bin"
+        source_path.write_text(
+            "\x1e".join(textwrap.dedent(unit) for unit in units),
+            encoding="utf-8",
+        )
+        result = subprocess.run(
+            [
+                str(self.driver),
+                str(source_path),
+                str(code_path),
+                str(data_path),
+                "--repl-rollback",
             ],
             cwd=REPO_ROOT,
             text=True,
@@ -836,6 +890,626 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             """
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_adjacent_string_literals_can_exceed_one_token(self):
+        first = "a" * 700
+        second = "b" * 700
+        result = self._compile_and_run(
+            f"""
+            int main() {{
+              char *text =
+                  "{first}"
+                  "{second}";
+              if (text[0] != 'a') return 1;
+              if (text[699] != 'a') return 2;
+              if (text[700] != 'b') return 3;
+              if (text[1399] != 'b') return 4;
+              if (text[1400] != 0) return 5;
+              return 0;
+            }}
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_global_adjacent_string_initializer_uses_the_full_literal(self):
+        first = "c" * 700
+        second = "d" * 700
+        result = self._compile_and_run(
+            f"""
+            char *text =
+                "{first}"
+                "{second}";
+
+            int main() {{
+              if (text[699] != 'c') return 1;
+              if (text[700] != 'd') return 2;
+              if (text[1399] != 'd') return 3;
+              if (text[1400] != 0) return 4;
+              return 0;
+            }}
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_repl_adjacent_string_initializer_uses_the_full_literal(self):
+        first = "e" * 700
+        second = "f" * 700
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-repl-string-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code, data_path = self._compile(
+                Path(temporary),
+                f'char *text = "{first}" "{second}";',
+                repl=True,
+            )
+            self.assertEqual(
+                result.returncode,
+                0,
+                result.stdout + result.stderr,
+            )
+            data = data_path.read_bytes()
+        string_offset = int.from_bytes(data[:4], "little") - 0x01200000
+        self.assertEqual(data[string_offset : string_offset + 700], b"e" * 700)
+        self.assertEqual(
+            data[string_offset + 700 : string_offset + 1400],
+            b"f" * 700,
+        )
+        self.assertEqual(data[string_offset + 1400], 0)
+
+    def test_struct_typedefs_keep_their_tag_and_member_layout(self):
+        result = self._compile_and_run(
+            """
+            typedef struct TaggedPair {
+              int left;
+              int right;
+            } TaggedPair;
+            typedef TaggedPair PairAlias;
+            typedef TaggedPair *TaggedPairPointer;
+
+            typedef struct {
+              int value;
+            } AnonymousValue;
+
+            typedef struct Node {
+              int value;
+              struct Node *next;
+            } Node;
+
+            int pair_sum(TaggedPairPointer pair) {
+              return pair->left + pair->right;
+            }
+
+            int main() {
+              PairAlias alias_value;
+              struct TaggedPair tagged_value;
+              AnonymousValue anonymous_value;
+              Node first;
+              Node second;
+              alias_value.left = 7;
+              alias_value.right = 11;
+              tagged_value.left = 13;
+              tagged_value.right = 17;
+              anonymous_value.value = 19;
+              first.value = 23;
+              first.next = &second;
+              second.value = 29;
+              second.next = 0;
+              if (pair_sum(&alias_value) != 18) return 1;
+              if (pair_sum(&tagged_value) != 30) return 2;
+              if (anonymous_value.value != 19) return 3;
+              if (first.next->value != 29) return 4;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_address_of_record_fields_keeps_the_selected_storage(self):
+        result = self._compile_and_run(
+            """
+            typedef struct TargetRef {
+              int leading;
+              int key_offset;
+              int key_length;
+              int trailing;
+            } TargetRef;
+
+            int write_key(int *offset, int *length) {
+              *offset = 37;
+              *length = 41;
+              return 0;
+            }
+
+            int main() {
+              TargetRef target;
+              TargetRef *pointer = &target;
+              target.leading = 11;
+              target.trailing = 13;
+              write_key(&target.key_offset, &target.key_length);
+              if (target.key_offset != 37 || target.key_length != 41) return 1;
+              write_key(&pointer->key_offset, &pointer->key_length);
+              if (pointer->key_offset != 37 || pointer->key_length != 41) {
+                return 2;
+              }
+              if (target.leading != 11 || target.trailing != 13) return 3;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_address_of_record_field_reports_an_unknown_member(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-record-field-address-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code_path, _data_path = self._compile(
+                Path(temporary),
+                """
+                struct TargetRef { int key_offset; };
+                int main() {
+                  struct TargetRef target;
+                  struct TargetRef *pointer = &target;
+                  int *missing = &pointer->missing;
+                  return missing != 0;
+                }
+                """,
+            )
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertIn("unknown struct field", result.stderr)
+
+    def test_repl_keeps_a_tagged_struct_typedef_for_later_lines(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-repl-struct-typedef-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code_path, data_path = self._compile_repl(
+                Path(temporary),
+                (
+                    """
+                    typedef struct ReplPair {
+                      int left;
+                      int right;
+                    } ReplPair;
+                    """,
+                    "ReplPair pair;",
+                ),
+            )
+            data = data_path.read_bytes() if data_path.exists() else b""
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertGreaterEqual(len(data), 8)
+
+    def test_repl_rolls_back_a_failed_definition_of_an_existing_tag(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-repl-struct-rollback-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code_path, data_path = (
+                self._compile_repl_after_struct_failure(
+                    Path(temporary),
+                    (
+                        "struct Node;",
+                        "typedef struct Node { int poisoned; };",
+                        "typedef struct Node { int value; } Node;",
+                        "Node recovered;",
+                    ),
+                )
+            )
+            data = data_path.read_bytes() if data_path.exists() else b""
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(len(data), 4)
+
+        runtime_source = (KERNEL_LANG / "cupidc.cc").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn(
+            "cc_repl_checkpoint_structs(&repl_state);",
+            runtime_source,
+        )
+        self.assertIn(
+            "cc_repl_restore_structs(&repl_state);",
+            runtime_source,
+        )
+
+    def test_tagged_struct_typedef_requires_an_alias(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-struct-typedef-alias-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code_path, _data_path = self._compile(
+                Path(temporary),
+                "typedef struct MissingAlias { int value; };",
+            )
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertIn("expected typedef alias name", result.stderr)
+
+    def test_tagged_struct_typedef_rejects_an_incomplete_value_field(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-struct-typedef-incomplete-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code_path, _data_path = self._compile(
+                Path(temporary),
+                """
+                typedef struct Broken {
+                  struct Pending value;
+                } Broken;
+                """,
+            )
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertIn("field has incomplete struct type", result.stderr)
+        self.assertNotIn("expected typedef alias name", result.stderr)
+
+    def test_struct_declarations_reject_invalid_field_array_layouts(self):
+        cases = (
+            (
+                "tagged-zero",
+                "typedef struct Bad { int values[0]; } Bad;",
+                "array size must be positive",
+            ),
+            (
+                "anonymous-negative",
+                "typedef struct { int values[-1]; } Bad;",
+                "array size must be positive",
+            ),
+            (
+                "tagged-overflow",
+                "typedef struct Bad { int values[1073741824]; } Bad;",
+                "array allocation size overflow",
+            ),
+            (
+                "tagged-total-overflow",
+                "typedef struct Bad { char a[2147483644]; char b[4]; } Bad;",
+                "record size overflow",
+            ),
+            (
+                "tagged-allocation-alignment-overflow",
+                "typedef struct Bad { char a[2147483644]; char b[3]; } Bad; "
+                "Bad value;",
+                "record size overflow",
+            ),
+            (
+                "anonymous-allocation-alignment-overflow",
+                "typedef struct { char a[2147483644]; char b[3]; } Bad; "
+                "Bad value;",
+                "record size overflow",
+            ),
+            (
+                "standalone-total-overflow",
+                "struct Bad { char a[2147483644]; char b[4]; };",
+                "record size overflow",
+            ),
+            (
+                "standalone-local-alignment-overflow",
+                "struct Bad { char a[2147483644]; char b[3]; }; "
+                "int main() { struct Bad value; return 0; }",
+                "record size overflow",
+            ),
+            (
+                "class-alignment-overflow",
+                "class Bad { char a[2147483644]; char b[3]; };",
+                "record size overflow",
+            ),
+        )
+        for name, source, diagnostic in cases:
+            with self.subTest(name=name), tempfile.TemporaryDirectory(
+                prefix=f"private-cupidc-struct-array-{name}-",
+                ignore_cleanup_errors=True,
+            ) as temporary:
+                result, _code_path, _data_path = self._compile(
+                    Path(temporary), source
+                )
+                self.assertEqual(
+                    result.returncode,
+                    2,
+                    result.stdout + result.stderr,
+                )
+                self.assertIn(diagnostic, result.stderr)
+                self.assertNotIn("expected typedef alias name", result.stderr)
+                self.assertNotIn("unexpected token", result.stderr)
+                self.assertNotIn("[cupidc] Defined", result.stderr)
+
+    def test_repl_struct_rejects_cumulative_field_size_overflow(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-repl-struct-overflow-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code_path, _data_path = self._compile(
+                Path(temporary),
+                "struct Bad { char a[2147483644]; char b[3]; }; "
+                "struct Bad value;",
+                repl=True,
+            )
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertIn("record size overflow", result.stderr)
+
+    def test_repl_struct_global_respects_remaining_data_capacity(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-repl-struct-capacity-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code_path, _data_path = self._compile_repl(
+                Path(temporary),
+                (
+                    "char padding[8388600];",
+                    "struct ReplWide { int words[4]; };",
+                    "struct ReplWide value;",
+                ),
+            )
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertIn("data section overflow", result.stderr)
+
+    def test_repl_enum_respects_remaining_data_capacity(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-repl-enum-capacity-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code_path, _data_path = self._compile_repl(
+                Path(temporary),
+                (
+                    "char padding[8388608];",
+                    "enum ReplEdge { Value=1 };",
+                ),
+            )
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertIn("data section overflow", result.stderr)
+
+    def test_array_bound_expression_overflow_is_rejected_in_every_lane(self):
+        cases = (
+            (
+                "record field",
+                "struct Bad { char values[65536*65536+1]; };",
+                False,
+            ),
+            ("global", "char values[65536*65536+1];", False),
+            (
+                "local",
+                "int main() { char values[65536*65536+1]; return 0; }",
+                False,
+            ),
+            ("REPL global", "char values[65536*65536+1];", True),
+        )
+        for label, source, repl in cases:
+            with self.subTest(lane=label), tempfile.TemporaryDirectory(
+                prefix="private-cupidc-const-expression-lane-",
+                ignore_cleanup_errors=True,
+            ) as temporary:
+                result, _code_path, _data_path = self._compile(
+                    Path(temporary), source, repl=repl
+                )
+                self.assertEqual(
+                    result.returncode,
+                    2,
+                    result.stdout + result.stderr,
+                )
+                self.assertIn(
+                    "constant integer expression overflow", result.stderr
+                )
+
+    def test_cumulative_local_frame_size_never_wraps(self):
+        cases = (
+            (
+                "arrays",
+                "int main() {"
+                " char a[1073741820]; char b[1073741820];"
+                " char c[1073741820]; return 0; }",
+            ),
+            (
+                "records",
+                "struct Wide { char bytes[1073741820]; };"
+                " int main() { struct Wide a; struct Wide b;"
+                " struct Wide c; return 0; }",
+            ),
+            (
+                "scalar after exact edge",
+                "int main() { char a[1073741816]; char b[1073741816];"
+                " int scalar; return 0; }",
+            ),
+            (
+                "SIMD alignment",
+                "int main() { char bytes[2147483620];"
+                " float4 lanes; return 0; }",
+            ),
+        )
+        for label, source in cases:
+            with self.subTest(lane=label), tempfile.TemporaryDirectory(
+                prefix="private-cupidc-local-frame-overflow-",
+                ignore_cleanup_errors=True,
+            ) as temporary:
+                result, _code_path, _data_path = self._compile(
+                    Path(temporary), source
+                )
+                self.assertEqual(
+                    result.returncode,
+                    2,
+                    result.stdout + result.stderr,
+                )
+                self.assertIn("local frame size overflow", result.stderr)
+
+    def test_constant_integer_expression_checks_every_arithmetic_operator(self):
+        cases = (
+            ("addition", "2147483647+1", "overflow"),
+            ("subtraction", "(-2147483647-1)-1", "overflow"),
+            ("multiplication", "65536*65536", "overflow"),
+            ("division", "(-2147483647-1)/-1", "overflow"),
+            ("negation", "-(-2147483647-1)", "overflow"),
+            ("division by zero", "4/0", "division by zero"),
+            ("decimal literal", "4294967297", "integer literal overflow"),
+            (
+                "hexadecimal literal",
+                "0x100000001",
+                "integer literal overflow",
+            ),
+        )
+        for label, expression, diagnostic in cases:
+            with self.subTest(operator=label), tempfile.TemporaryDirectory(
+                prefix="private-cupidc-const-expression-operator-",
+                ignore_cleanup_errors=True,
+            ) as temporary:
+                result, _code_path, _data_path = self._compile(
+                    Path(temporary), f"char values[{expression}];"
+                )
+                self.assertEqual(
+                    result.returncode,
+                    2,
+                    result.stdout + result.stderr,
+                )
+                self.assertIn(diagnostic, result.stderr)
+
+    def test_uint32_maximum_integer_literals_remain_available(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-uint32-literal-edge-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code_path, data_path = self._compile(
+                Path(temporary),
+                "int decimal = 4294967295u; int hexadecimal = 0xffffffffu;",
+            )
+            data = data_path.read_bytes()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertGreaterEqual(len(data), 8)
+        self.assertEqual(data[:8], b"\xff" * 8)
+
+    def test_hexadecimal_integer_literals_require_digits_and_recover(self):
+        for literal in ("0x", "0xu"):
+            with self.subTest(literal=literal), tempfile.TemporaryDirectory(
+                prefix="private-cupidc-hex-digits-",
+                ignore_cleanup_errors=True,
+            ) as temporary:
+                result, _code_path, _data_path = self._compile(
+                    Path(temporary), f"int value={literal};"
+                )
+                self.assertEqual(
+                    result.returncode,
+                    2,
+                    result.stdout + result.stderr,
+                )
+                self.assertIn("expected hexadecimal digits", result.stderr)
+
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-hex-recovery-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code_path, data_path = self._compile_after_failure(
+                Path(temporary),
+                "int broken=0x;",
+                "int recovered=7;",
+            )
+            self.assertEqual(
+                result.returncode, 0, result.stdout + result.stderr
+            )
+            self.assertEqual(
+                data_path.read_bytes()[:4],
+                bytes.fromhex("07000000"),
+            )
+
+    def test_unsigned_constant_expressions_use_uint32_wraparound(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-unsigned-constant-expression-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code_path, data_path = self._compile(
+                Path(temporary),
+                "enum Edge {"
+                " BelowSign=0x80000000u-1,"
+                " AboveSign=0x7fffffffu+1u,"
+                " Wrapped=0x80000000u*2u,"
+                " Base=0x80000000u,"
+                " BelowBase=Base-1"
+                "};",
+            )
+            self.assertEqual(
+                result.returncode, 0, result.stdout + result.stderr
+            )
+            data = data_path.read_bytes()
+        self.assertGreaterEqual(len(data), 20)
+        self.assertEqual(
+            data[:20],
+            bytes.fromhex(
+                "ffffff7f 00000080 00000000 00000080 ffffff7f"
+            ),
+        )
+
+    def test_enum_maximum_only_overflows_for_an_implicit_successor(self):
+        accepted = (
+            "enum Edge { Maximum=2147483647, };",
+            "enum Edge { Maximum=2147483647, Reset=0 };",
+        )
+        for repl in (False, True):
+            for source in accepted:
+                with self.subTest(repl=repl, source=source), \
+                     tempfile.TemporaryDirectory(
+                         prefix="private-cupidc-enum-maximum-",
+                         ignore_cleanup_errors=True,
+                     ) as temporary:
+                    result, _code_path, _data_path = self._compile(
+                        Path(temporary), source, repl=repl
+                    )
+                    self.assertEqual(
+                        result.returncode,
+                        0,
+                        result.stdout + result.stderr,
+                    )
+
+            with self.subTest(repl=repl, source="implicit overflow"), \
+                 tempfile.TemporaryDirectory(
+                     prefix="private-cupidc-enum-overflow-",
+                     ignore_cleanup_errors=True,
+                 ) as temporary:
+                result, _code_path, _data_path = self._compile(
+                    Path(temporary),
+                    "enum Edge { Maximum=2147483647, Overflow };",
+                    repl=repl,
+                )
+                self.assertEqual(
+                    result.returncode,
+                    2,
+                    result.stdout + result.stderr,
+                )
+                self.assertIn("enum value overflow", result.stderr)
+
+    def test_single_string_token_overflow_has_a_useful_diagnostic(self):
+        oversized = "x" * 1024
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-string-overflow-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code, _data = self._compile(
+                Path(temporary),
+                f'int main() {{ char *text = "{oversized}"; return text[0]; }}',
+            )
+        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn(
+            "string literal is too long; split it into adjacent literals",
+            result.stderr,
+        )
+        diagnostic = (
+            "string literal is too long; split it into adjacent literals"
+        )
+        self.assertEqual(
+            result.stderr.count(f"[cupidc] error (line 1): {diagnostic}"),
+            1,
+            result.stderr,
+        )
+        self.assertEqual(
+            result.stderr.count(f"CupidC Error (line 1): {diagnostic}"),
+            1,
+            result.stderr,
+        )
+        self.assertNotIn("x" * 128, result.stderr)
+
+    def test_adjacent_string_reports_data_section_overflow(self):
+        piece = '"' + ("z" * 1023) + '"\n'
+        source = "int main() { char *text =\n" + (piece * 8201) + "; return 0; }"
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-string-data-overflow-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code, _data = self._compile(Path(temporary), source)
+        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("data section overflow", result.stderr)
 
     def test_prototype_before_use_preserves_mixed_width_call_metadata(self):
         result = self._compile_and_run(
@@ -1321,6 +1995,72 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             "numeric literal exceeds 95 characters",
             suffix_result.stderr,
         )
+
+    def test_integer_suffix_counts_toward_the_numeric_literal_limit(self):
+        accepted_literals = (
+            "0" * 94 + "u",
+            "0x" + "0" * 92 + "U",
+        )
+        rejected_literals = (
+            "0" * 95 + "u",
+            "0x" + "0" * 93 + "U",
+        )
+        for literal in accepted_literals:
+            self.assertEqual(len(literal), 95)
+            with self.subTest(literal=literal), tempfile.TemporaryDirectory(
+                prefix="private-cupidc-integer-suffix-limit-",
+                ignore_cleanup_errors=True,
+            ) as temporary:
+                result, _code, data_path = self._compile(
+                    Path(temporary),
+                    f"unsigned int value = {literal};\n",
+                )
+                self.assertEqual(
+                    result.returncode,
+                    0,
+                    result.stdout + result.stderr,
+                )
+                self.assertEqual(data_path.read_bytes()[:4], b"\0" * 4)
+
+        for literal in rejected_literals:
+            self.assertEqual(len(literal), 96)
+            with self.subTest(literal=literal), tempfile.TemporaryDirectory(
+                prefix="private-cupidc-integer-suffix-overflow-",
+                ignore_cleanup_errors=True,
+            ) as temporary:
+                result, _code, _data = self._compile(
+                    Path(temporary),
+                    f"unsigned int value = {literal};\n",
+                )
+                self.assertEqual(
+                    result.returncode,
+                    2,
+                    result.stdout + result.stderr,
+                )
+                self.assertIn(
+                    "numeric literal exceeds 95 characters",
+                    result.stderr,
+                )
+                self.assertNotIn("unexpected token", result.stderr)
+
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-integer-suffix-recovery-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code, data_path = self._compile_after_failure(
+                Path(temporary),
+                f"unsigned int broken = {rejected_literals[0]};",
+                "int recovered = 7;",
+            )
+            self.assertEqual(
+                result.returncode,
+                0,
+                result.stdout + result.stderr,
+            )
+            self.assertEqual(
+                data_path.read_bytes()[:4],
+                bytes.fromhex("07000000"),
+            )
 
     def test_overlong_decimal_literal_keeps_the_following_token_available(self):
         literal = "1." + "0" * 94

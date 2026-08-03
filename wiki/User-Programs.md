@@ -104,11 +104,22 @@ browser --selftest
 ```
 
 The check combines direct binary64 checks with scripts sent through the page
-lexer, parser, and interpreter. Its 17 fields cover close and large-value
-order, negative zero and its reciprocal, NaN comparison and truth, NaN and
-signed infinity formatting, decimal literals, signed and uppercase exponents,
-relational order, division and division assignment by zero, remainder by zero,
-the exponent cap, and malformed-exponent rejection.
+lexer, parser, and interpreter. Its 26 fields cover decimal and radix literals,
+numeric separators, whole-string number conversion with ECMAScript whitespace,
+primitive equality, UTF-16 string relations, negative zero, NaN and infinity,
+division, IEEE remainder, `%=` and string `+=`. The string check includes exact
+600-byte `+` and `+=` results plus pool exhaustion. Compound checks replace a
+member receiver and advance an index key while the right side runs, proving
+that the write returns to the original target. A 1,100-write loop checks value
+stack balance. String-pool failures in lexer, runtime, DOM, and global setup do
+not publish invalid offsets, and a failed global setup blocks queued scripts.
+Native functions retain their IDs through user-function arguments and returns.
+Array index writes grow `length`; direct length assignment and canonical
+indices outside the signed runtime lane fail explicitly, while 4,294,967,295
+stays a normal property key. Finite conversion checks large plain and small
+scientific output without an out-of-range signed cast. Ten malformed literal
+forms must produce their expected diagnostics before a valid script proves
+recovery.
 
 `feature13_double` checks the in-kernel compiler's exact binary32 and binary64
 decimal payloads, including halfway ties, a minimum subnormal, overflow, and
@@ -976,7 +987,7 @@ See also: [Ed Editor](Ed-Editor)
 - **Keep useful comments.** If a real program reaches a tool limit, improve the toolchain or split the source at a natural module boundary rather than deleting documentation to save bytes.
 - **Test with `cupidc`.** Run `cupidc /bin/yourprog.cc` to JIT-compile and test before deploying.
 - **Use `println` for errors.** CupidC programs do not have a separate standard-error stream.
-- **Structs are supported.** Compiler state allows up to 64 struct definitions with 32 fields apiece.
+- **Structs are supported.** Compiler state allows up to 64 struct definitions with 32 fields apiece. Private source may give a record both a tag and a typedef name; alias chains and structure-pointer aliases retain its member layout.
 - **Programs in `/home/bin/` persist across reboots** in homefs, whose backing container is `/disk/HOMEFS.SYS`. Programs in `/bin/` are in ramfs and rebuilt from source each boot.
 
 ---

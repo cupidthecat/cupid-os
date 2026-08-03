@@ -323,7 +323,8 @@ int js_p_assign() {
     int l = js_p_cond();
     int k = js_peek_kind();
     if (k == JS_TOK_ASSIGN || k == JS_TOK_PLUS_EQ || k == JS_TOK_MINUS_EQ ||
-        k == JS_TOK_STAR_EQ || k == JS_TOK_SLASH_EQ) {
+        k == JS_TOK_STAR_EQ || k == JS_TOK_SLASH_EQ ||
+        k == JS_TOK_PERCENT_EQ) {
         jp_pos = jp_pos + 1;
         int r = js_p_assign();
         return js_alloc_node(JS_NODE_ASSIGN, k, l, r, 0);

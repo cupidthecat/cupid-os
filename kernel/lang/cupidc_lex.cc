@@ -722,36 +722,73 @@ cc_token_t cc_lex_next(cc_state_t *cc) {
   /* Also handle leading-dot floats like .5 - '.' followed by a digit. */
   if (cc_is_digit(c) || (c == '.' && cc_is_digit(cc_peek_char2(cc)))) {
     int i = 0;
-    int32_t val = 0;
+    uint32_t integer_value = 0u;
     int is_float = 0;
     int f_suffix = 0;
     int literal_too_long = 0;
+    int integer_overflow = 0;
+    int unsigned_suffix = 0;
 
     /* Check for hex: 0x... or 0X... (integer only - no hex floats) */
     if (c == '0' && (cc_peek_char2(cc) == 'x' || cc_peek_char2(cc) == 'X')) {
+      int hex_digits = 0;
       tok.text[i++] = cc_next_char(cc); /* '0' */
       tok.text[i++] = cc_next_char(cc); /* 'x'/'X' */
-      while (cc_is_hexdigit(cc_peek_char(cc)) && i < CC_MAX_IDENT - 1) {
+      while (cc_is_hexdigit(cc_peek_char(cc))) {
         char h = cc_next_char(cc);
-        tok.text[i++] = h;
-        val *= 16;
+        uint32_t digit = 0u;
+        hex_digits++;
+        if (i < CC_MAX_IDENT - 1)
+          tok.text[i++] = h;
+        else
+          literal_too_long = 1;
         if (h >= '0' && h <= '9')
-          val += h - '0';
+          digit = (uint32_t)(h - '0');
         else if (h >= 'a' && h <= 'f')
-          val += h - 'a' + 10;
+          digit = (uint32_t)(h - 'a' + 10);
         else if (h >= 'A' && h <= 'F')
-          val += h - 'A' + 10;
+          digit = (uint32_t)(h - 'A' + 10);
+        if (!integer_overflow) {
+          if (integer_value > (0xffffffffu - digit) / 16u)
+            integer_overflow = 1;
+          else
+            integer_value = integer_value * 16u + digit;
+        }
       }
 
       /* Accept optional unsigned suffix: 0xFFU */
-      if ((cc_peek_char(cc) == 'u' || cc_peek_char(cc) == 'U') &&
-          i < CC_MAX_IDENT - 1) {
-        tok.text[i++] = cc_next_char(cc);
+      if (cc_peek_char(cc) == 'u' || cc_peek_char(cc) == 'U') {
+        char suffix = cc_next_char(cc);
+        unsigned_suffix = 1;
+        if (i < CC_MAX_IDENT - 1)
+          tok.text[i++] = suffix;
+        else
+          literal_too_long = 1;
+      }
+
+      if (hex_digits == 0 || literal_too_long || integer_overflow) {
+        const char *message = hex_digits == 0
+                                  ? "expected hexadecimal digits"
+                                  : (literal_too_long
+                                         ? "numeric literal exceeds 95 characters"
+                                         : "integer literal overflow");
+        int message_index = 0;
+        while (message[message_index] != '\0' &&
+               message_index < CC_MAX_STRING - 1) {
+          tok.text[message_index] = message[message_index];
+          message_index++;
+        }
+        tok.text[message_index] = '\0';
+        tok.type = CC_TOK_ERROR;
+        cc->cur = tok;
+        return tok;
       }
 
       tok.text[i] = '\0';
       tok.type = CC_TOK_NUMBER;
-      tok.int_value = val;
+      tok.int_value = (int32_t)integer_value;
+      tok.int_is_unsigned = unsigned_suffix ||
+                            integer_value > 0x7fffffffu;
       cc->cur = tok;
       return tok;
     }
@@ -761,9 +798,15 @@ cc_token_t cc_lex_next(cc_state_t *cc) {
       char d = cc_next_char(cc);
       if (i < CC_MAX_IDENT - 1) {
         tok.text[i++] = d;
-        val = val * 10 + (d - '0');
       } else {
         literal_too_long = 1;
+      }
+      if (!integer_overflow) {
+        uint32_t digit = (uint32_t)(d - '0');
+        if (integer_value > (0xffffffffu - digit) / 10u)
+          integer_overflow = 1;
+        else
+          integer_value = integer_value * 10u + digit;
       }
     }
 
@@ -819,23 +862,22 @@ cc_token_t cc_lex_next(cc_state_t *cc) {
       cc_next_char(cc);
     }
 
-    if (literal_too_long) {
-      const char *message = "numeric literal exceeds 95 characters";
-      int message_index = 0;
-      while (message[message_index] != '\0') {
-        tok.text[message_index] = message[message_index];
-        message_index++;
-      }
-      tok.text[message_index] = '\0';
-      tok.type = CC_TOK_ERROR;
-      cc->cur = tok;
-      return tok;
-    }
-
     if (is_float) {
       uint64_t literal_bits;
       int literal_width = f_suffix ? 32 : 64;
       const char *literal_error;
+      if (literal_too_long) {
+        const char *message = "numeric literal exceeds 95 characters";
+        int message_index = 0;
+        while (message[message_index] != '\0') {
+          tok.text[message_index] = message[message_index];
+          message_index++;
+        }
+        tok.text[message_index] = '\0';
+        tok.type = CC_TOK_ERROR;
+        cc->cur = tok;
+        return tok;
+      }
       tok.text[i] = '\0';
       literal_error =
           cc_decimal_floating_bits(tok.text, literal_width, &literal_bits);
@@ -859,14 +901,47 @@ cc_token_t cc_lex_next(cc_state_t *cc) {
     }
 
     /* Integer: accept optional unsigned suffix: 123u */
-    if ((cc_peek_char(cc) == 'u' || cc_peek_char(cc) == 'U') &&
-        i < CC_MAX_IDENT - 1) {
-      tok.text[i++] = cc_next_char(cc);
+    if (cc_peek_char(cc) == 'u' || cc_peek_char(cc) == 'U') {
+      char suffix = cc_next_char(cc);
+      unsigned_suffix = 1;
+      if (i < CC_MAX_IDENT - 1)
+        tok.text[i++] = suffix;
+      else
+        literal_too_long = 1;
+    }
+
+    if (literal_too_long) {
+      const char *message = "numeric literal exceeds 95 characters";
+      int message_index = 0;
+      while (message[message_index] != '\0') {
+        tok.text[message_index] = message[message_index];
+        message_index++;
+      }
+      tok.text[message_index] = '\0';
+      tok.type = CC_TOK_ERROR;
+      cc->cur = tok;
+      return tok;
+    }
+
+    if (integer_overflow) {
+      const char *message = "integer literal overflow";
+      int message_index = 0;
+      while (message[message_index] != '\0' &&
+             message_index < CC_MAX_STRING - 1) {
+        tok.text[message_index] = message[message_index];
+        message_index++;
+      }
+      tok.text[message_index] = '\0';
+      tok.type = CC_TOK_ERROR;
+      cc->cur = tok;
+      return tok;
     }
 
     tok.text[i] = '\0';
     tok.type = CC_TOK_NUMBER;
-    tok.int_value = val;
+    tok.int_value = (int32_t)integer_value;
+    tok.int_is_unsigned = unsigned_suffix ||
+                          integer_value > 0x7fffffffu;
     cc->cur = tok;
     return tok;
   }
@@ -875,19 +950,38 @@ cc_token_t cc_lex_next(cc_state_t *cc) {
   if (c == '"') {
     cc_next_char(cc); /* consume opening quote */
     int i = 0;
-    while (cc_peek_char(cc) != '"' && cc_peek_char(cc) != '\0' &&
-           i < CC_MAX_STRING - 1) {
+    int overflow = 0;
+    while (cc_peek_char(cc) != '"' && cc_peek_char(cc) != '\0') {
+      char value;
       if (cc_peek_char(cc) == '\\') {
         cc_next_char(cc); /* consume backslash */
-        tok.text[i++] = cc_parse_escape(cc);
+        value = cc_parse_escape(cc);
       } else {
-        tok.text[i++] = cc_next_char(cc);
+        value = cc_next_char(cc);
       }
+      if (i < CC_MAX_STRING - 1)
+        tok.text[i++] = value;
+      else
+        overflow = 1;
     }
     tok.text[i] = '\0';
     tok.int_value = i; /* store string length */
     if (cc_peek_char(cc) == '"')
       cc_next_char(cc); /* consume closing quote */
+    if (overflow) {
+      const char *message =
+          "string literal is too long; split it into adjacent literals";
+      int message_index = 0;
+      while (message[message_index] != '\0' &&
+             message_index < CC_MAX_STRING - 1) {
+        tok.text[message_index] = message[message_index];
+        message_index++;
+      }
+      tok.text[message_index] = '\0';
+      tok.type = CC_TOK_ERROR;
+      cc->cur = tok;
+      return tok;
+    }
     tok.type = CC_TOK_STRING;
     cc->cur = tok;
     return tok;

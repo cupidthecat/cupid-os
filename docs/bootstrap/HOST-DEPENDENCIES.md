@@ -92,17 +92,26 @@ value-returning bindings publish an explicit Cupid type, and the remaining
 192 bindings are verified `void` functions. This metadata is compiled into
 the checked-seed-owned kernel object.
 
-The Browser number correction also keeps the existing ownership boundary.
-Its lexer, AST, and interpreter remain source-wrapped inputs compiled by the
-private in-OS CupidC path. Native binary64 comparisons, truth, division, and
-the bounded decimal parser replace application workarounds without adding a
-host math library or compiler step. Private CupidC now owns one-dimensional
-fixed `float` and `double` array storage and indexed SSE access because those
-Browser tables require it. Focused host-built i386 tests remain
-optional execution oracles; checked-seed CupidC builds the production parser
-object. The four-CPU guest contract requires the 17-field
-`browser --selftest` PASS marker, the malformed exponent diagnostic, and clean
-JIT completion.
+The Browser number work keeps the existing ownership boundary. Its lexer, AST,
+and interpreter remain source-wrapped inputs compiled by private in-OS CupidC.
+The radix and separator scanner, Unicode-aware primitive conversions and
+relations, equality, remainder, pool-backed concatenation, and compound
+operations add no host math library or compiler step. Checked interning,
+native-function identity, array length growth, explicit index limits, and
+range-safe finite formatting stay in the same private runtime. Saved
+assignment references and the tagged structure typedef that carries them also
+compile in the guest. Checked-seed CupidC builds the parser that adds tagged
+typedef bodies, preserves their structure index, checks allocation arithmetic,
+and restores committed REPL record definitions; no host parser is introduced.
+Private CupidC joins the larger active script from bounded string tokens using
+its existing data section. Integer literal and constant-expression checks use
+fixed 32-bit arithmetic inside the private compiler. Focused hosted tests
+remain optional oracles;
+checked-seed CupidC still builds the production lexer and parser objects. The
+four-CPU guest contract requires ten useful diagnostics, the 26-field
+`browser --selftest` marker, recovery, and clean JIT completion. ADRs 0210 and
+0218 record the two number slices, and ADR 0219 records the tagged typedef
+support.
 
 Exact private decimal literals keep the same ownership boundary. The
 in-kernel lexer uses only fixed-size integer arithmetic and does not call a

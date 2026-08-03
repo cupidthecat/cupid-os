@@ -10,6 +10,61 @@ programs: `U0/U8/U16/U32/I8/I16/I32`,
 attributes as compatibility syntax. The shared bootstrap compiler assigns
 meaning to its documented entity attributes and fails closed on unknown ones.
 
+## Private structure typedefs
+
+The private JIT, AOT, and persistent REPL parser accepts both ordinary forms:
+
+```c
+typedef struct Tagged {
+    int value;
+    struct Tagged *next;
+} Tagged;
+
+typedef struct {
+    int value;
+} Anonymous;
+```
+
+The alias keeps the structure identity used by `.` and `->`. That identity also
+survives an alias of an alias and a structure-pointer alias. Tagged and
+anonymous bodies use the same field layout and reject an incomplete structure
+stored by value. The private table remains limited to sixteen aliases with one
+simple alias declarator in each declaration. Array, function-pointer, and
+multiple-alias typedef declarators are not part of this private path.
+
+Field arrays require a positive count and a checked count-by-stride product.
+Each padding step, field addition, and final record alignment must fit the
+signed parser range. Persistent REPL rollback restores complete structure
+records as well as the table count, so a failed definition cannot fill an
+older forward tag. [ADR 0219](../docs/adr/0219-support-private-tagged-struct-typedefs.md)
+records the typedef, layout, and rollback rules.
+
+The private compiler also supports direct member addresses. In
+`&record.field`, it keeps the record object's base address and adds the field
+offset. In `&pointer->field`, it loads the pointed-to record first. Neither
+form reads the field value while forming its address. Missing members report
+`unknown struct field`.
+
+## Private integer constants and allocation limits
+
+Decimal and hexadecimal integer literals cover the represented `uint32_t`
+range. A larger value reports `integer literal overflow`, and `0x` or `0xu`
+reports `expected hexadecimal digits`. The optional `u` or `U` suffix counts
+toward the 95-character token limit and is consumed as part of a rejected
+overlong token.
+
+Constant integer `+`, `-`, `*`, `/`, and unary `-` check signed overflow before
+performing the operation. Division by zero has a separate diagnostic. If
+either operand is unsigned, the operation wraps modulo `2^32`, and enum
+constants retain that unsigned state. An explicit `INT_MAX` enumerator is
+valid; an implicit successor reports `enum value overflow`.
+
+Fixed array products and record layout may not exceed `0x7ffffffc`. Automatic
+objects share one cumulative frame reservation capped at `0x7ffffff0`, leaving
+room for the function's final 16-byte frame alignment. Global and persistent
+REPL records and enums check capacity before bytes and addresses are committed.
+A failed REPL declaration does not escape its transaction.
+
 ## In-kernel floating rules
 
 The private JIT and AOT compiler keeps scalar `float` and `double` values in
@@ -85,6 +140,13 @@ characters including the suffix. A longer token or an exponent without digits
 receives a focused diagnostic, and later parser recovery does not replace the
 first public error. Hexadecimal floating and `long double` literals are not
 implemented in the in-kernel compiler.
+
+Neighboring ordinary string tokens form one null-terminated data object. Each
+token may contain at most 1,023 decoded bytes. The combined string can use the
+remaining private data section and works in automatic expressions, file-scope
+pointer initializers, and persistent REPL declarations. CupidC reports an
+overlong token or data-section exhaustion instead of silently shortening the
+value. Wide strings are not supported.
 
 ## Hosted floating-width rules
 

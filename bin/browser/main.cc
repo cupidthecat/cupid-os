@@ -315,6 +315,7 @@ enum {
     JS_TOK_ASSIGN, JS_TOK_PLUS, JS_TOK_MINUS, JS_TOK_STAR, JS_TOK_SLASH,
     JS_TOK_PERCENT,
     JS_TOK_PLUS_EQ, JS_TOK_MINUS_EQ, JS_TOK_STAR_EQ, JS_TOK_SLASH_EQ,
+    JS_TOK_PERCENT_EQ,
     JS_TOK_PLUS_PLUS, JS_TOK_MINUS_MINUS,
     JS_TOK_EQ, JS_TOK_NEQ, JS_TOK_EQ_EQ, JS_TOK_NEQ_EQ,
     JS_TOK_LT, JS_TOK_GT, JS_TOK_LE, JS_TOK_GE,
@@ -818,6 +819,7 @@ int    jvs_top;
 
 int    jb_name_off[1024];
 int    jb_name_len[1024];
+int    jb_scope   [1024];
 int    jb_tag     [1024];
 double jb_num     [1024];
 int    jb_str_off [1024];
@@ -828,8 +830,6 @@ int    jb_native_id[1024];     /* JS_NATIVE_* when jb_tag == NATIVE */
 int    jb_count;
 
 int    jsc_parent[256];
-int    jsc_first [256];     /* first binding index covered by this frame */
-int    jsc_count [256];
 int    jsc_top;             /* number of allocated frames */
 int    jsc_cur;             /* index of the active frame */
 

@@ -185,11 +185,21 @@ def _frontier_command_outputs():
         (
             "[cupidc] JIT compile: /bin/browser.cc\n"
             "[js] parse error: js: expected exponent digits\n"
+            "[js] parse error: js: expected hexadecimal digits\n"
+            "[js] parse error: js: invalid binary digit\n"
+            "[js] parse error: js: invalid octal digit\n"
+            "[js] parse error: js: invalid numeric separator\n"
+            "[js] parse error: js: invalid numeric separator\n"
+            "[js] parse error: js: invalid numeric separator\n"
+            "[js] parse error: js: invalid numeric separator\n"
+            "[js] parse error: js: invalid numeric separator\n"
+            "[js] parse error: js: identifier follows numeric literal\n"
             "[browser-js-number] PASS close=1 large=1 negzero=1 nan=1 "
             "truth=1 nanformat=1 posinfformat=1 neginfformat=1 literal=1 "
             "signedexp=1 upperexp=1 order=1 divide=1 divideassign=1 "
-            "remainder=1 expcap=1 "
-            "reject=1\n"
+            "remainder=1 expcap=1 radix=1 separators=1 tonumber=1 "
+            "looseeq=1 stringrel=1 largefmod=1 modassign=1 "
+            "strplusassign=1 reject=1 recovery=1\n"
             "[cupidc] JIT execution complete\n"
         ),
         (
@@ -1298,6 +1308,11 @@ class FrontierRuntimeContractTests(unittest.TestCase):
         self.assertIsNotNone(re.search(expected, sample, re.S | re.M))
         for fragment in (
             "[js] parse error: js: expected exponent digits",
+            "[js] parse error: js: expected hexadecimal digits",
+            "[js] parse error: js: invalid binary digit",
+            "[js] parse error: js: invalid octal digit",
+            "[js] parse error: js: invalid numeric separator",
+            "[js] parse error: js: identifier follows numeric literal",
             "close=1",
             "large=1",
             "negzero=1",
@@ -1314,7 +1329,16 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             "divideassign=1",
             "remainder=1",
             "expcap=1",
+            "radix=1",
+            "separators=1",
+            "tonumber=1",
+            "looseeq=1",
+            "stringrel=1",
+            "largefmod=1",
+            "modassign=1",
+            "strplusassign=1",
             "reject=1",
+            "recovery=1",
         ):
             with self.subTest(fragment=fragment):
                 self.assertIsNone(

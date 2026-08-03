@@ -265,11 +265,22 @@ FRONTIER_RUNTIME_COMMANDS = (
         (
             r"\[cupidc\] JIT compile: /bin/browser\.cc"
             r".*?\[js\] parse error: js: expected exponent digits"
+            r".*?\[js\] parse error: js: expected hexadecimal digits"
+            r".*?\[js\] parse error: js: invalid binary digit"
+            r".*?\[js\] parse error: js: invalid octal digit"
+            r".*?\[js\] parse error: js: invalid numeric separator"
+            r".*?\[js\] parse error: js: invalid numeric separator"
+            r".*?\[js\] parse error: js: invalid numeric separator"
+            r".*?\[js\] parse error: js: invalid numeric separator"
+            r".*?\[js\] parse error: js: invalid numeric separator"
+            r".*?\[js\] parse error: js: identifier follows numeric literal"
             r".*?\[browser-js-number\] PASS close=1 large=1 "
             r"negzero=1 nan=1 truth=1 nanformat=1 posinfformat=1 "
             r"neginfformat=1 "
             r"literal=1 signedexp=1 upperexp=1 order=1 divide=1 "
-            r"divideassign=1 remainder=1 expcap=1 reject=1"
+            r"divideassign=1 remainder=1 expcap=1 radix=1 separators=1 "
+            r"tonumber=1 looseeq=1 stringrel=1 largefmod=1 modassign=1 "
+            r"strplusassign=1 reject=1 recovery=1"
             rf".*?{CUPIDC_COMPLETION_PATTERN}"
         ),
     ),

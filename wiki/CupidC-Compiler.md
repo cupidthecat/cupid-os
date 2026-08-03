@@ -212,6 +212,13 @@ struct Rect {
     int height;
 };
 
+typedef struct Pair {
+    int left;
+    int right;
+} Pair;
+
+typedef Pair *PairPointer;
+
 void main() {
     struct Point p;
     p.x = 10;
@@ -229,12 +236,23 @@ void main() {
 
 **Struct features:**
 - Up to 64 named struct types, each with up to 32 fields
-- Field types: `int`, `char`, `void*`, `int*`, `char*`, nested `struct`
+- Fields use represented integer, floating, pointer, fixed-array, and complete
+  nested-record types, subject to the SIMD restrictions below
 - Stack-allocated structs (`struct Foo s;`) are zero-initialized
 - Heap-allocated structs via `kmalloc(sizeof(struct Foo))`
 - Member access with `.` (value) and `->` (pointer)
+- Member addresses with `&value.field` and `&pointer->field`; the pointer form
+  loads the pointee before applying the field offset
 - Chained access: `rect.origin.x`, `ptr->origin.y`
-- All fields are 4-byte aligned for x86 compatibility
+- Fields use their represented alignment; final record allocation rounds to a
+  4-byte boundary
+- Private JIT, AOT, and persistent REPL source may use anonymous or tagged
+  structure typedefs. Alias chains and pointer aliases keep the structure
+  layout. The private typedef table holds sixteen single-alias declarations.
+- Fixed field arrays require a positive count and a checked byte product.
+  Padding, cumulative field size, and final allocation alignment stay within
+  the signed parser range. A failed REPL line restores every committed record,
+  including a forward tag that the rejected line tried to complete.
 
 ### sizeof Operator
 
@@ -1913,6 +1931,20 @@ The parser (`cupidc_parse.cc`) is recursive descent and writes x86 machine-code 
   finite limits, infinity, and signed zero. Numeric tokens may contain up to
   95 characters including a suffix. Longer tokens and missing exponent digits
   receive focused diagnostics, and parser recovery keeps the first one.
+- Decimal and hexadecimal integer tokens accumulate in `uint32_t`. They reject
+  values above `UINT32_MAX`, require at least one hexadecimal digit, and count
+  `u` or `U` inside the 95-character token limit. Signed constant-expression
+  arithmetic checks every operation; an unsigned operand wraps modulo `2^32`.
+- Fixed arrays, records, globals, persistent REPL declarations, and automatic
+  frames check their complete size before reservation. One cumulative frame
+  path covers arrays, records, SIMD values, scalars, multi-declarator
+  statements, and function pointers.
+- Adjacent C string tokens are written directly to one data object. Each token
+  may decode to at most 1,023 bytes, but the joined value can use the remaining
+  8 MiB private data section. Automatic expressions, file-scope pointer
+  initializers, and persistent REPL declarations share this path. An overlong
+  token or a joined value that exhausts the data section fails without
+  publishing a truncated string.
 
 [ADR 0189](../docs/adr/0189-preserve-floating-values-in-private-cupidc-unary-signs.md)
 records the unary-sign decision, signed-zero evidence, useful type failure,
@@ -1937,6 +1969,14 @@ operand order, and the remaining private compiler boundary.
 [ADR 0217](../docs/adr/0217-round-private-decimal-literals-exactly.md) records
 the integer decimal converter, target-width rounding, token boundary, and
 diagnostic recovery.
+
+[ADR 0218](../docs/adr/0218-extend-browser-numbers-and-private-strings.md)
+records the Browser primitive-number lane and the adjacent private C strings
+needed by its active self-test.
+
+[ADR 0219](../docs/adr/0219-support-private-tagged-struct-typedefs.md) records
+tagged structure typedefs, checked private allocation arithmetic, integer
+constant rules, member addresses, and persistent REPL record rollback.
 
 ### Symbol Table
 
@@ -1978,8 +2018,13 @@ When the parser encounters a call to an undefined function, it emits a placehold
 - Programs use Cupid OS kernel bindings rather than a general hosted C standard library.
 - Variadic declarations and definitions parse, but compiled CupidC code cannot yet traverse unnamed arguments.
 - Direct code generation has no optimization pass.
-- Decimal numeric tokens are limited to 95 characters. Hexadecimal floating
-  and `long double` literals are not implemented by the private compiler.
+- Numeric tokens are limited to 95 characters including a suffix. Integer
+  literals are limited to the represented `uint32_t` range. Hexadecimal
+  floating and `long double` literals are not implemented by the private
+  compiler.
+- One decoded string token is limited to 1,023 bytes. Adjacent tokens can fill
+  the private data section, but wide strings and literal pooling are not
+  implemented.
 - Floating pointer depth greater than one, indirect floating `++` and `--`,
   pointer-to-array types, and assignment through a pointer-valued floating
   field subscript remain unsupported.

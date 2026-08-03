@@ -86,14 +86,15 @@ metadata keep their source-width slots. Character operands undergo integer
 promotion in ordinary integer arithmetic and use the integer SSE conversion
 path when paired with a floating operand or cast.
 
-The Browser now consumes those private floating capabilities directly. Its
-JavaScript lexer stores decimal integer, fraction, and exponent tokens as
-`double`, and numeric AST nodes keep the same lane. Interpreter comparisons
+The first Browser number slice consumes those private floating capabilities
+directly. Its JavaScript lexer stores decimal integer, fraction, and exponent
+tokens as `double`, and numeric AST nodes keep the same lane. Interpreter comparisons
 no longer scale through `int`, so close and large finite values retain their
 binary64 order. JavaScript truth rejects both signed zero and NaN. Division by
 zero keeps its floating result, while remainder by zero produces NaN. Decimal
 exponents are bounded to 400 steps and require a digit after the optional
-sign.
+sign. ADR 0210 records that starting point; the expanded forms and runtime
+rules are described below under ADR 0218.
 
 The Browser's five numeric tables first exposed a private compiler defect in
 typed storage and indexed access. Private CupidC now carries `float` and
@@ -145,13 +146,65 @@ Hexadecimal floating and `long double` literals remain unsupported. ADR 0217
 records the boundary.
 
 `browser --selftest` combines direct binary64 checks with scripts sent through
-the real interpreter. The command checks comparisons, truth,
-decimal fractions, signed and uppercase exponents, a negative-zero reciprocal,
-NaN and signed infinity formatting, relational order, division and division
-assignment by zero, remainder by zero, exponent capping, and malformed-exponent
-rejection. Its PASS marker contains 17 computed fields. ADR 0210 records the
-first typed-array and Browser boundary; ADR 0215 records the broader floating
-lvalue model.
+the real interpreter. Decimal, hexadecimal, binary, and octal literals retain
+their binary64 lane, and valid numeric separators remain between digits. The
+interpreter handles complete primitive string-to-number conversion, including
+the ECMAScript whitespace set, primitive loose and strict equality, UTF-16
+string relations, IEEE remainder, `%=` and string `+=`. Concatenation uses the
+remaining 64 KiB string pool and fails cleanly when it cannot fit the result.
+Assignment resolves its binding, member receiver, or computed key once before
+the right side runs. Compound stores therefore keep the original target even
+when the right side replaces its receiver or advances the key. The store copy
+is consumed, so a 1,100-write loop remains stack-balanced. Every binding now
+records its scope owner. A declaration searches that scope alone, while an
+ordinary read still follows parent scopes; nested right-side calls can no
+longer interleave their bindings into a caller-owned range. Checked value-stack
+pushes abort at a fixed diagnostic and unwind expression, call, initializer,
+condition, loop, and return paths to their entry depth. Deliberately exhausted
+string and value pools leave targets and object-property topology unchanged,
+skip a call whose arguments cannot be completed, and recover in the same run.
+Lexer, `typeof`, DOM, property, and global-install paths reserve a complete
+interned string before publishing it. A failed global install blocks queued
+scripts. Native function IDs survive stack copies, bindings, properties, user
+function arguments, and returns. Canonical array-index writes grow `length`;
+indices that exceed the signed runtime lane and direct length assignment fail
+without changing the array, while 4,294,967,295 stays an ordinary property.
+Finite formatting no longer narrows a large integer part to signed `int`; the
+self-test pins 4,294,967,295, `1e20`, and `1e-7`.
+Ten malformed forms receive specific lexer diagnostics, after which a valid
+script proves recovery. The PASS marker contains 26 computed fields, and its
+string field covers exact 600-byte `+` and `+=` results.
+ADR 0210 records the first typed-array and Browser boundary; ADR 0215 records
+the broader floating lvalue model; ADR 0218 records the expanded Browser lane.
+
+The expanded self-test also crosses the private compiler's old joined-string
+buffer. Private CupidC now emits adjacent string tokens directly to the data
+section in automatic expressions, file-scope initializers, and persistent REPL
+declarations. Each token stays within 1,023 decoded bytes, while the joined
+value can use the remaining 8 MiB data section. A longer token is consumed
+before a focused error, and data exhaustion fails without publishing a
+truncated string. ADR 0218 records this compiler boundary too.
+
+The same active Browser source now uses a tagged structure typedef for its
+saved assignment reference. Private CupidC parses named and anonymous
+structure typedef bodies through one field-layout path and retains the
+structure index through aliases, aliases of aliases, and pointer aliases. The
+normal parser and persistent REPL store the same metadata. Missing alias names
+and incomplete by-value fields keep focused errors. Fixed arrays require a
+positive count and a checked count-by-stride product. Record padding, fields,
+final allocation alignment, global or REPL data reservations, and cumulative
+local frames stay within signed parser limits. Signed constant arithmetic
+rejects overflow; an unsigned operand wraps in the represented `uint32_t`
+lane. Integer literals reject values above `UINT32_MAX`, hexadecimal literals
+require at least one digit, and `u` or `U` counts inside the 95-character token
+limit. REPL rollback restores complete structure records, so rejected source
+cannot fill
+an older forward tag. Private member address expressions now keep the selected
+storage too. `&record.field` starts with the record object;
+`&pointer->field` loads the pointer before adding the field offset. A private
+i386 contract writes through both forms and checks the fields on either side,
+while an unknown member keeps the existing focused error. ADR 0219 records
+this language and allocation boundary.
 
 Hosted CupidC now carries signed and unsigned eight-byte integer values through constants, matching conditional arms, fixed direct and indirect call results, object access, declared parameters, named call arguments, ellipsis arguments, and calls through function types without prototypes. File objects, block statics, fixed automatic objects, pointer dereferences, ordinary members, and indexed elements can be initialized, loaded, assigned, mutated, chained, discarded, and returned. One Linear IR entry names an emitter-owned eight-byte frame snapshot. A declared or undeclared wide argument occupies eight cdecl stack bytes. A supported wide `va_arg` read produces an instruction-owned snapshot and advances the cursor by eight. Return restores the low word to EAX and the high word to EDX.
 

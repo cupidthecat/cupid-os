@@ -3398,7 +3398,7 @@ static int repl_bootstrap(void) {
   repl_state.code_committed = repl_state.cc->code_pos;
   repl_state.data_committed = repl_state.cc->data_pos;
   repl_state.sym_committed = repl_state.cc->sym_count;
-  repl_state.struct_committed = repl_state.cc->struct_count;
+  cc_repl_checkpoint_structs(&repl_state);
   repl_state.typedef_committed = repl_state.cc->typedef_count;
   repl_state.patch_committed = repl_state.cc->patch_count;
   repl_state.last_answer_valid = 0;
@@ -3419,7 +3419,7 @@ static void repl_restore_committed_state(void) {
   repl_state.cc->code_pos = repl_state.code_committed;
   repl_state.cc->data_pos = repl_state.data_committed;
   repl_state.cc->sym_count = repl_state.sym_committed;
-  repl_state.cc->struct_count = repl_state.struct_committed;
+  cc_repl_restore_structs(&repl_state);
   repl_state.cc->typedef_count = repl_state.typedef_committed;
   repl_state.cc->patch_count = repl_state.patch_committed;
   repl_state.cc->has_entry = 0;
@@ -3440,7 +3440,7 @@ static void repl_commit_state(void) {
   repl_state.code_committed = repl_state.cc->code_pos;
   repl_state.data_committed = repl_state.cc->data_pos;
   repl_state.sym_committed = repl_state.cc->sym_count;
-  repl_state.struct_committed = repl_state.cc->struct_count;
+  cc_repl_checkpoint_structs(&repl_state);
   repl_state.typedef_committed = repl_state.cc->typedef_count;
   repl_state.patch_committed = repl_state.cc->patch_count;
 }

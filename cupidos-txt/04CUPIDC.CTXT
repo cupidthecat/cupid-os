@@ -97,7 +97,16 @@ Supported core features include:
 - new / del (kmalloc+zero-init / kfree+null)
 - reg / noreg / extern / inline / register / restrict hints
 - typedef and enum support
+- anonymous and tagged structure typedefs in private JIT, AOT, and REPL source;
+  alias chains and structure-pointer aliases keep the field layout, and a
+  failed REPL line cannot fill an older forward tag
+- private member addresses through &record.field and &pointer->field; the
+  pointer form loads the pointed-to record before adding the field offset
 - enum and array bounds can use constant integer expressions
+- private fixed allocations check positive counts, byte products, record
+  layout, data capacity, and cumulative local frames before reservation
+- signed constant integer arithmetic rejects overflow; an unsigned operand
+  wraps modulo 2^32
 - the private compiler accepts __attribute__((...)) compatibility spellings
 - basic inline asm blocks
 - arithmetic and logical operators
@@ -1200,6 +1209,24 @@ to the requested IEEE width, with ties going to even. An f suffix selects
 binary32 before rounding. Numeric tokens may contain up to 95 characters,
 including the suffix. Hexadecimal floating and long double literals remain
 unsupported.
+
+Decimal and hexadecimal integer tokens cover the represented uint32_t range.
+Larger values and empty hexadecimal bodies receive focused errors. An optional
+u or U counts toward the 95-character token limit and remains part of one
+rejected overlong token. An explicit INT_MAX enum value is valid, while an
+implicit successor reports enum value overflow.
+
+Fixed arrays require positive counts and checked byte products. Record padding,
+field growth, final alignment, global or REPL capacity, and cumulative local
+frames stay within signed compiler limits. REPL rollback restores the complete
+record table, not only its count.
+
+Adjacent ordinary string tokens form one null-terminated data object. Each
+token may contain at most 1,023 decoded bytes, while the joined value can use
+the remaining private data section. Automatic expressions, file-scope pointer
+initializers, and persistent REPL declarations share this behavior. An
+overlong token or data-section exhaustion produces an error instead of a
+truncated string.
 
 See also: bin/feature12_float.cc through bin/feature16_asm_fpu.cc.
 feature13_double checks decimal payloads, typed floating matrices, pointers,

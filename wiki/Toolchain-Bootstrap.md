@@ -568,16 +568,45 @@ addresses. Callees and caller cleanup use the same widths. This repairs guest
 JIT and AOT behavior without moving a build owner. ADR 0198 records the
 boundary.
 
-The Browser's JavaScript runtime now keeps decimal tokens and numeric AST
-nodes in a binary64 lane. Its comparisons and truth conversion use private
-CupidC floating operations directly. Division preserves its IEEE result,
-remainder by zero produces NaN, and malformed decimal exponents receive a
-specific parser diagnostic. The asset-free `browser --selftest` command
-drives the real lexer, parser, and interpreter. Its 17 result fields cover
-close and large-value order, negative zero and its reciprocal, NaN comparison
-and truth, NaN and signed infinity formatting, decimal literals, signed and
-uppercase exponents, relational order, division and division assignment by
-zero, remainder by zero, the exponent cap, and malformed-exponent rejection.
+The Browser's JavaScript runtime keeps decimal, hexadecimal, binary, and octal
+tokens in a binary64 lane and accepts separators between valid digits. Its
+primitive path covers whole-string numeric conversion with ECMAScript
+whitespace, equality, UTF-16 string relations, IEEE remainder, `%=` and string
+`+=`. Concatenation uses the remaining 64 KiB string pool and reports
+exhaustion instead of truncating a result. Assignment records a binding,
+member receiver, or computed key before its right side and stores through that
+same reference. The guest checks replace receivers, advance keys, and run
+1,100 plain writes. Every string interning lane checks capacity before it
+publishes runtime state, and failed global installation blocks queued scripts.
+Native function IDs survive user-function arguments and returns. Array writes
+grow the signed `length` lane, reject unsupported canonical indices and direct
+length assignment, and preserve 4,294,967,295 as an ordinary property. Finite
+formatting handles `1e20` and `1e-7` without narrowing the integer part to a
+signed `int`. The asset-free `browser --selftest` command drives the real
+lexer, parser, and interpreter.
+It reports 26 computed fields after ten useful malformed-input diagnostics and
+a valid recovery script. ADR 0210 records the first binary64 slice, and ADR
+0218 records this expansion.
+
+The larger active script also exercises private adjacent C strings. CupidC
+writes neighboring tokens into one data object for automatic expressions,
+file-scope initializers, and persistent REPL declarations. Each decoded token
+is limited to 1,023 bytes; the joined string can use the remaining 8 MiB data
+section. Overlong tokens and data exhaustion fail with focused diagnostics.
+
+The saved Browser reference uses `typedef struct Tag { ... } Alias`. Private
+CupidC now parses that tagged form and the anonymous form through one layout
+path. The typedef table keeps the structure index through alias chains and
+pointer aliases in normal and persistent REPL source. The active Browser
+therefore keeps ordinary C spelling instead of working around its bootstrap
+compiler. Fixed array products, cumulative record layout, final alignment,
+REPL data capacity, and cumulative local frames are checked before allocation.
+Signed constant expressions reject overflow; expressions with an unsigned
+operand wrap in the represented `uint32_t` lane. Integer literals stop at
+`UINT32_MAX`, hexadecimal literals require at least one digit, and the suffix
+counts inside the 95-character limit. REPL rollback restores complete record
+definitions, so rejected source
+cannot fill a committed forward tag. ADR 0219 records the boundary.
 
 Those five numeric tables exposed integer-only lowering for fixed floating
 array symbols. CupidC now records the declared scalar type and remaining row

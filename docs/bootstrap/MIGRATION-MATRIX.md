@@ -115,18 +115,56 @@ slot. Calls to a parsed variadic function widen a tail `float` to
 bindings, and calls without fixed parameter metadata keep their source-width
 behavior.
 
-The Browser JavaScript runtime now keeps decimal tokens and AST number nodes
-in a binary64 lane. Direct floating comparisons replace the old scaled-integer
-helper, and an explicit JavaScript truth helper treats signed zero and NaN as
-false. Division and remainder by zero follow the represented non-finite paths.
-The lexer bounds decimal exponents and rejects a missing exponent digit with a
-specific diagnostic. An asset-free `browser --selftest` guest command combines
-direct binary64 checks with scripts sent through the lexer, parser, and
-interpreter. It covers close and large-value order, negative zero, NaN
-comparison and truth, NaN and signed infinity formatting, decimal and exponent
-forms, relational order, division and division assignment by zero, remainder
-by zero, the exponent cap, malformed input, and clean CupidC completion. The
-command reports 17 computed result fields.
+The Browser JavaScript runtime keeps numeric tokens and AST number nodes in a
+binary64 lane. It accepts decimal, hexadecimal, binary, and octal literals and
+valid separators between digits. Primitive string conversion consumes the
+whole input after trimming the ECMAScript whitespace set and covers decimal
+exponents, unsigned radix forms, signed `Infinity`, empty text, invalid text,
+and `undefined`. Primitive equality, UTF-16 string order, IEEE remainder, `%=`
+and string `+=` use the same runtime values. Concatenation can fill the
+remaining 64 KiB string pool and reports exhaustion. Assignment records its
+binding, member receiver, or computed key once, before the right side runs, and
+stores through that identity. Side-effecting member and index tests cover both
+new compound operators, while 1,100 plain writes prove stack balance. String
+interning reserves a complete slice before publishing runtime state, and a
+failed global install blocks queued scripts. Native function IDs survive a
+round trip through a user function. Canonical array writes grow `length`;
+direct length assignment and canonical indices outside the signed runtime lane
+fail explicitly, while 4,294,967,295 remains an ordinary property. Finite
+formatting covers large plain integers and small scientific values without a
+signed 32-bit narrowing. Ten malformed literal families receive specific
+diagnostics, and the next valid script proves recovery. The asset-free
+`browser --selftest` command reports 26 computed fields before clean CupidC
+completion. ADR 0210 records the first binary64 slice; ADR 0218 records the
+expanded lane.
+
+That active script exceeds the private compiler's former 1,023-byte joined
+string buffer. CupidC now streams adjacent string tokens into one data object
+for automatic expressions, file-scope initializers, and persistent REPL
+declarations. Each token remains capped at 1,023 decoded bytes; the joined
+value can use the remaining 8 MiB data section. Focused errors cover a longer
+single token and joined-data exhaustion. This changes private JIT and AOT
+behavior without moving a build owner. ADR 0218 records the boundary.
+
+The saved Browser reference is declared with a tagged structure typedef.
+Private CupidC now accepts that ordinary form as well as anonymous structure
+typedefs. It keeps the structure index through alias chains and pointer aliases
+in the normal parser and persistent REPL. One shared field parser gives both
+forms the same offsets and completion checks. This expands private source
+acceptance without moving a build owner. The same parser now checks positive
+array counts, count-by-stride products, cumulative record padding and size,
+final record alignment, REPL data capacity, and cumulative local frames before
+allocation. Signed constant expressions reject overflow; an unsigned operand
+uses represented `uint32_t` wrap. Decimal and hexadecimal integer literals
+cover `UINT32_MAX`, hexadecimal literals require at least one digit, and the
+suffix counts inside the 95-character token boundary. Persistent REPL
+checkpoints include the
+complete structure table, so a failed line cannot fill an older forward tag.
+Member address expressions now preserve the selected lvalue. The value form
+starts at the record object, and the pointer form loads the pointee before it
+adds the field offset. Private execution writes through both forms without
+changing adjacent fields; an unknown member still fails during compilation.
+ADR 0219 records the boundary.
 
 The five Browser tables require typed private CupidC storage and indexed
 access. Global, automatic, block-static, and persistent REPL `float` and

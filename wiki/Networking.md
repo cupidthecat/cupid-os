@@ -1043,13 +1043,19 @@ as `curl`/`wget`, then use terminal or render-pipeline helpers on top:
 | `sshd` | In-kernel SSH server on port 22; `make run-ssh` forwards host 2222 to guest 22 |
 | `browser` | HTTP/HTTPS fetch, HTML5 tree build, CSS cascade/layout/paint, external stylesheets, `@font-face`, forms, and an asset-free `--selftest` |
 
-`browser --selftest` runs the JavaScript decimal lexer and binary64
-interpreter without opening a window or making a network request. Its 17
-result fields check close and large-value order, negative zero and its
-reciprocal, NaN comparison and truth, NaN and signed infinity formatting,
-decimal literals, signed and uppercase exponents, relational order, division
-and division assignment by zero, remainder by zero, the exponent cap, and
-malformed-exponent rejection.
+`browser --selftest` runs the JavaScript lexer and binary64 interpreter without
+opening a window or making a network request. Its 26 result fields cover
+decimal and radix literals, numeric separators, primitive string-to-number
+conversion with ECMAScript whitespace, equality, UTF-16 string relations,
+negative zero, NaN and infinity, division, IEEE remainder, `%=` and string
+`+=`. Its string result also covers 600-byte concatenations and pool
+exhaustion. The compound checks save member and index references before their
+right sides replace a receiver or advance a key. A 1,100-write loop also checks
+that assignments do not consume the value stack. Other checks cover atomic
+string-pool failure in lexer, DOM, global setup, and runtime paths; native
+function identity through a user call; array length growth and index limits;
+and range-safe output for 4,294,967,295, `1e20`, and `1e-7`. The command
+requires ten specific malformed-input diagnostics and same-run recovery.
 
 Host test for the server:
 

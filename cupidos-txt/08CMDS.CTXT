@@ -180,8 +180,10 @@ Source-backed network tools:
 - wget         HTTP/HTTPS downloader
 - browser      graphical HTTP/HTTPS browser
 - browser --selftest
-                run 17 decimal, binary64, truth, formatting, division,
-                remainder, exponent, order, and malformed-input checks
+                run 26 decimal, radix, separator, conversion, equality,
+                Unicode relation, long string, remainder, saved compound
+                target, native identity, array-limit, bounded-pool,
+                stack-balance, finite-format, and recovery checks
 - ssh          SSH-2 client
 - telnet       Telnet client
 - sshd         SSH server manager

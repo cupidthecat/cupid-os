@@ -358,12 +358,44 @@ and missing exponent digits receive focused errors. Hexadecimal floating and
 long double literals remain unsupported.
 
 The Browser's JavaScript numeric tables use the fixed double-array path.
-browser --selftest exercises that path without opening a window. Its 17
-result fields cover close and large-value order, negative zero and its
-reciprocal, NaN comparison and truth, NaN and signed infinity formatting,
-decimal literals, signed and uppercase exponents, relational order, division
-and division assignment by zero, remainder by zero, the exponent cap, and
-malformed-exponent rejection.
+browser --selftest exercises that path without opening a window. Its 26 result
+fields cover decimal and radix literals, numeric separators, whole-string
+number conversion with ECMAScript whitespace, primitive equality, UTF-16
+string relations, negative zero, NaN and infinity, division, IEEE remainder,
+%=, and string +=. Long concatenation and pool exhaustion share the string
+field. Compound member and index writes keep the reference selected before the
+right side runs, even when that side changes the receiver or key. A 1,100-write
+loop checks that assignment leaves the value stack balanced. Ten malformed
+forms must report their expected errors before a valid script proves recovery.
+String interning fails before publishing a token, binding, property, DOM
+value, or global, and failed global setup blocks queued scripts. Native
+function IDs survive user-function arguments and returns. Array index writes
+grow length; direct length assignment and canonical indices outside the signed
+runtime lane fail explicitly, while 4,294,967,295 remains an ordinary
+property. Finite formatting covers 4,294,967,295, 1e20, and 1e-7 without a
+signed 32-bit narrowing.
+
+Private CupidC joins adjacent ordinary string tokens in one data object for
+automatic expressions, file-scope pointer initializers, and persistent REPL
+declarations. Each token may decode to 1,023 bytes. The joined string can use
+the remaining private data section. Longer tokens and data exhaustion fail
+without truncation.
+
+Private CupidC accepts both anonymous and tagged structure typedefs. One field
+layout path serves both forms, and the typedef table keeps the structure index
+through alias chains and structure-pointer aliases. The same metadata persists
+across REPL lines. A missing alias and an incomplete by-value field receive
+focused errors. Fixed array products, cumulative record layout, final
+alignment, REPL data capacity, and cumulative local frames are checked before
+allocation. Signed constant arithmetic rejects overflow, while an unsigned
+operand wraps modulo 2^32. Integer tokens stop at UINT32_MAX, hexadecimal
+literals require at least one digit, and the suffix counts inside the
+95-character limit. Failed REPL
+input restores complete records, including a previously declared forward tag.
+Member address expressions select their storage without reading its value.
+The &record.field form starts at the object, while &pointer->field loads the
+pointed-to record before applying the field offset. Missing fields keep the
+unknown-struct-field diagnostic.
 
 [Run feature12_float](shell:feature12_float)
 [Run feature13_double](shell:feature13_double)

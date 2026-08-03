@@ -175,6 +175,7 @@ typedef struct {
   cc_token_type_t type;
   char text[CC_MAX_STRING]; /* holds idents & string content */
   int32_t int_value;
+  int int_is_unsigned; /* integer token uses uint32 arithmetic */
   double fval;     /* filled when type == CC_TOK_FLIT */
   int flit_bits;   /* 32 ('f'/'F' suffix) or 64 (no suffix) */
   int line;
@@ -248,6 +249,7 @@ typedef struct {
    * constant" - fall back to a runtime load.*/
   int     is_const_int;
   int32_t const_int_value;
+  int     const_int_is_unsigned;
 } cc_symbol_t;
 
 typedef struct {
@@ -351,6 +353,7 @@ typedef struct {
   /* Typedef aliases (global scope only) */
   char typedef_names[16][CC_MAX_IDENT];
   cc_type_t typedef_types[16];
+  int typedef_struct_indices[16];
   int typedef_count;
 
   /* HolyC-style top-level / auto-main handling.
@@ -419,6 +422,7 @@ typedef struct {
   uint32_t data_committed; /* Bytes of data permanently committed */
   int sym_committed;       /* Number of symbols permanently committed */
   int struct_committed;    /* Number of structs permanently committed */
+  cc_struct_def_t structs_committed[CC_MAX_STRUCTS];
   int typedef_committed;   /* Number of typedefs permanently committed */
   int patch_committed;     /* Number of patches permanently committed */
   int32_t last_answer;     /* Result of last expression (like TempleOS Fs->answer) */
@@ -459,6 +463,11 @@ int repl_consume_prompt_result(int32_t *value, int *has_value,
  * Frees the old compiler state, allocates fresh, re-registers bindings.
 */
 void repl_reset(void);
+
+/* Preserve completed records as well as the struct-table boundary. A failed
+ * REPL line may fill an existing forward tag without adding a new entry. */
+void cc_repl_checkpoint_structs(repl_state_t *state);
+void cc_repl_restore_structs(repl_state_t *state);
 
 /**
  * cc_parse_repl_line - Parse a single REPL line (statement, expression, or declaration).

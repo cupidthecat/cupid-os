@@ -448,19 +448,83 @@ _Avoid_: untyped SIMD storage, reordered packed operands
 
 **Browser JavaScript number lane**:
 The numeric path shared by the Browser's JavaScript lexer, AST, and
-interpreter. Decimal integer, fraction, and exponent tokens enter a dedicated
+interpreter. Decimal, hexadecimal, binary, and octal tokens enter a dedicated
 `double` field and reach runtime without narrowing through an integer node.
-Equality and ordering compare the stored binary64 values directly. JavaScript
-truth is nonzero and not NaN, so both signed zeros and NaN are false. Division
-by zero keeps the floating result, while remainder by zero returns NaN. A
-decimal exponent requires at least one digit and is capped at 400 steps before
-evaluation. `browser --selftest` exercises these paths without a window or
-network connection. Its 17 result fields cover close and large-value order,
-negative zero and its reciprocal, NaN comparison and truth, NaN and signed
-infinity formatting, decimal literals, signed and uppercase exponents,
-relational order, division and division assignment by zero, remainder by zero,
-the exponent cap, and malformed-exponent rejection.
-_Avoid_: complete ECMAScript number implementation, integer-scaled comparison
+Valid separators may appear between digits. The lexer rejects empty radix
+bodies, invalid radix digits, misplaced separators, and identifier suffixes.
+Primitive conversion decodes UTF-8 while trimming the ECMAScript whitespace
+set, consumes the complete string, accepts decimal exponents, radices without
+a sign, and signed `Infinity`, and returns NaN for invalid text or `undefined`.
+Equality handles same-type primitives, the null and undefined pair,
+Boolean-to-number conversion, and number/string conversion. Two strings
+compare by UTF-16 code unit. Remainder and `%=` use `fmod`. String `+` and
+`+=` append into the remaining 64 KiB string pool and report exhaustion.
+Assignment resolves its binding, member receiver, or computed key once before
+the right side runs, then stores through that saved identity. Each binding
+records its owning scope; declarations search only their current scope, while
+expression lookup may walk through parents. Checked value pushes restore an
+expression's entry depth after overflow. Every string interning path reserves
+the complete slice before it publishes a token, binding, property, or value;
+failed global installation blocks queued scripts. Native function IDs travel
+with their tags through stack, binding, property, and return lanes. Canonical
+array-index writes grow the signed length lane, while indices that fit
+ECMAScript but not that lane fail explicitly. The non-index key 4,294,967,295
+remains an ordinary property, and direct `length` assignment is rejected.
+Finite formatting avoids out-of-range integer casts and covers plain values
+below `1e21` plus scientific notation below `1e-6` or at least `1e21`. The
+26-field asset-free self-test also requires ten useful syntax failures, a
+600-byte concatenation, transactional pool exhaustion, side-effecting compound
+targets, nested-call scope ownership, native round trips, array limits, full
+and near-full value-stack failures, a 1,100-write balance check, and same-run
+recovery.
+ADR 0210 records the first binary64 slice; ADR 0218 records this boundary.
+_Avoid_: complete ECMAScript coercion, object-to-primitive conversion, shortest decimal formatting
+
+**Private CupidC adjacent string literal**:
+One or more neighboring C string tokens emitted as one null-terminated data
+object. Each decoded token may contain at most 1,023 bytes. The combined value
+can use the remaining 8 MiB private data section and works in automatic
+expressions, file-scope initializers, and persistent REPL declarations. The
+lexer consumes a rejected overlong token before reporting it, while the parser
+reports joined-data exhaustion without publishing a truncated string. ADR
+0218 records the model.
+_Avoid_: silently truncated C strings, one fixed buffer for the joined value
+
+**Private CupidC tagged structure typedef**:
+A private JIT, AOT, or persistent REPL declaration that gives one structure
+both a tag and an ordinary typedef name. The typedef table keeps the structure
+index beside the coarse value category, so alias chains and pointer aliases
+retain the field layout used by `.` and `->`. Tagged and anonymous forms share
+one field-layout parser. ADR 0219 records the model.
+_Avoid_: dropping the structure index, rewriting a tagged typedef as anonymous
+
+**Private CupidC record-field address**:
+The address produced for a represented record member in private JIT or AOT
+source. `&record.field` starts from the record object, while
+`&pointer->field` first loads the pointed-to record. Both forms add the
+declared field offset and leave the selected address in EAX instead of loading
+the field value. ADR 0219 records the model.
+_Avoid_: the address of the pointer variable, a field value used as an address
+
+**Private CupidC checked allocation**:
+The common size boundary for private fixed arrays, records, globals, persistent
+REPL objects, and automatic frames. Array counts and strides must be positive,
+and their product may not exceed `0x7ffffffc`. Record padding, each field, and
+the final four-byte allocation alignment stay within that ceiling. Automatic
+objects accumulate through one alignment-aware helper capped at `0x7ffffff0`,
+leaving room for the function's final 16-byte frame rounding. Signed constant
+expression arithmetic rejects overflow before evaluation; expressions with an
+unsigned operand wrap modulo `2^32`. Decimal and hexadecimal integer literals
+span the represented `uint32_t` range, and their suffix counts toward the
+95-character token boundary. ADR 0219 records the model.
+_Avoid_: checking only a wrapped product, direct local-offset subtraction
+
+**Private CupidC REPL record checkpoint**:
+A copy of every committed private structure definition held by the persistent
+REPL. Rollback restores the records and the table count, so a failed line
+cannot complete an older forward tag or expose rejected fields to later input.
+ADR 0219 records the model.
+_Avoid_: restoring only `struct_count`, fields from rejected REPL source
 
 **Cupid ASM**:
 The assembly language native to Cupid OS.

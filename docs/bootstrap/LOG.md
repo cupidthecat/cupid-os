@@ -19902,3 +19902,310 @@ This compiler change does not move a build owner or remove a host dependency.
 Numeric tokens remain limited to 95 characters, and hexadecimal floating and
 `long double` literals remain open. Issue 31 therefore remains open. ADR 0217
 records the boundary, and `TempleOS/` remains untouched reference material.
+
+## 2026-08-03: Extend Browser numbers and private strings
+
+The Browser lexer now accepts case-insensitive hexadecimal, binary, and octal
+literals alongside decimal integers, fractions, and exponents. Numeric
+separators are valid only between digits of the current base. Empty radix
+bodies, invalid binary or octal digits, doubled or misplaced separators,
+missing exponent digits, and identifier suffixes receive focused errors. The
+lexer consumes each rejected numeric form as one failure so the next script
+can run in the same Browser process.
+
+Primitive numeric conversion now consumes the whole represented string. It
+handles Boolean and null values, returns NaN for undefined or invalid text,
+accepts unsigned radix strings and signed `Infinity`, and preserves negative
+zero. A bounded UTF-8 decoder lets it trim the ECMAScript whitespace set rather
+than ASCII alone. The same decoder feeds relational comparison through UTF-16
+code units. A supplementary-plane case distinguishes that order from a raw
+UTF-8 byte comparison.
+
+Loose equality now covers the represented primitive conversions, including
+null with undefined, Boolean-to-number conversion, and number/string pairs.
+Strict equality keeps type and identity checks. `%` and `%=` use `fmod`, which
+removes the old 32-bit quotient limit and preserves signed zero, infinity, and
+NaN behavior. Unary minus negates the converted value directly, so `-0` keeps
+its sign. NaN and both infinities have explicit output strings.
+
+String `+` and `+=` share one concatenation path. The first version formatted
+each operand into 256 bytes and joined them in a 512-byte stack buffer. A
+review test showed that valid results were still cut at 511 bytes. The final
+path keeps existing string slices in place, formats only non-string primitives
+in small temporary buffers, checks the remaining 64 KiB string pool, and
+writes the result there. The guest self-test checks exact 600-byte results for
+both operators and verifies that pool exhaustion returns an error instead of a
+partial string.
+
+The expanded Browser script exposed a private CupidC defect before it reached
+the guest. Each C string token fit the compiler's 1,024-byte token field, but
+the parser copied all adjacent tokens through a second fixed-size buffer. The
+later half of the script disappeared, and the first run reported zero for the
+conversion, equality, relation, remainder, modulo-assignment, and string
+fields. Splitting or shortening the active script was rejected. CupidC now
+streams adjacent tokens into one data object for automatic expressions,
+file-scope pointer initializers, and persistent REPL declarations. A joined
+string can use the remaining 8 MiB data section.
+
+Each individual C token remains limited to 1,023 decoded bytes. The lexer
+consumes an overlong token through its closing quote and stores the useful
+message in the error token. The parser no longer prints 1,023 bytes of rejected
+source as a second diagnostic. Joined-data exhaustion also fails before a
+partial value is published.
+
+An early Browser lexer draft made every unknown character fatal. That changed
+the Browser's established tolerant behavior outside numeric syntax, so the
+change was reverted and strict failure remains limited to malformed numeric
+forms. A narrow object-equality shortcut was also rejected. Correct
+object-to-primitive conversion needs ordered `valueOf` and `toString` calls,
+array joining, receiver handling, and failure propagation; it belongs in the
+object-model work rather than this primitive slice.
+
+The final specification review found that compound member and index assignment
+still evaluated the left side once for its value and again for the store.
+`array[key++] += value` could therefore advance the key twice and write a
+different element. The interpreter now resolves an identifier, member
+receiver, or computed key into one reference record before the right side
+runs. Compound assignment loads and stores through that record. Plain
+assignment uses the same order, and the store consumes its internal copy
+instead of leaving one extra value on the stack.
+
+The first saved-reference draft passed 13 hosted Browser checks and a complete
+image build, then failed its private guest compile. CupidC stopped at the
+ordinary declaration `typedef struct js_target_ref { ... } js_target_ref_t`
+with `expected typedef alias name`. Rewriting the Browser record as anonymous
+or spelling `struct js_target_ref` at every use would have hidden an active C
+requirement. Private CupidC was extended instead.
+
+Tagged and anonymous structure typedefs now share one field parser. The
+typedef table keeps the structure index beside the coarse type, so alias
+chains and structure-pointer aliases retain member layout in normal and
+persistent REPL source. Positive execution covers tagged and anonymous values,
+tag use, an alias of an alias, a pointer alias, and a self-referential pointer.
+Negative checks require an alias and reject an incomplete by-value field. ADR
+0219 records this compiler boundary.
+
+The failed four-vCPU e1000 run ended after the private compile error and the
+host harness waited for its command deadline. It took 230.452 seconds. Its
+39,803-byte log has SHA-256
+`070f44bd431504c2a284c72df2042622046a97ba6a2798a6474e19fab0f3ee01`.
+That failure is retained as the reason the compiler feature was added.
+
+The final hosted checks passed:
+
+```text
+python -m unittest tests.test_browser_cupidc_numbers
+  12 tests in 0.033 seconds
+python -m unittest tests.test_private_cupidc_call_abi
+  70 tests in 6.497 seconds
+python -m unittest discover -s tests -p 'test_private_cupidc*.py'
+  85 tests in 9.082 seconds
+python -m unittest tests.test_gui_terminal_smoke
+  101 tests in 0.424 seconds
+make -j3 -B kernel/lang/cupidc_lex.o kernel/lang/cupidc_parse.o bin/browser/js_interp.o
+  three checked-seed objects in 53.684 seconds
+```
+
+The checked lexer object is 47,816 bytes with SHA-256
+`73e3aa7669223f423cbaa5a56bdf37760f4bc8be0716892c710af2bce36546cf`.
+The checked parser object is 343,868 bytes with SHA-256
+`cb298b3e4a8efcb779f3c17c9cca65c344a7955e11985422e8aa4e525c72511e`.
+The checked Browser interpreter object is 62,252 bytes with SHA-256
+`b3f6452744e437e7947386b96ce3aa14600fa7150a5a95bbd5701210ea033373`.
+
+The normal image build passed in 523.583 seconds. It produced an 8,961,092-byte
+kernel ELF with SHA-256
+`4f10cfcb2a6cdc3ac21feacf11bf04f95d2da440e3ad86f55ddf0b204e4a9d07`,
+an 8,756,492-byte flat kernel with SHA-256
+`74267e30868e01beaf2728404e45c53985131eb3a509bc03eac6f3295bc9ab15`,
+and a 209,715,200-byte image with SHA-256
+`f40216aae434c7b69031589a1ec9ca07c35de93966b72c4841b6f9764d8da04c`.
+
+A four-vCPU e1000 private-image run passed `browser --selftest` in 81.172
+seconds. The log contains the ten expected diagnostics in source order, the
+exact 26-field marker with every value set to one, and clean JIT completion:
+
+```text
+[browser-js-number] PASS close=1 large=1 negzero=1 nan=1 truth=1 nanformat=1 posinfformat=1 neginfformat=1 literal=1 signedexp=1 upperexp=1 order=1 divide=1 divideassign=1 remainder=1 expcap=1 radix=1 separators=1 tonumber=1 looseeq=1 stringrel=1 largefmod=1 modassign=1 strplusassign=1 reject=1 recovery=1
+[cupidc] JIT execution complete (stack: 0 bytes used, peak: 0 bytes)
+```
+
+The 40,027-byte serial log has SHA-256
+`b00c590eb9a82493eeabaac4474bb156fa0f3e4aa6c6d6a2041e57e731b9f1cb`.
+The regenerated active graph still contains 718 inputs, 449 transforms, 255
+feature requirements, and 25 classified unreachable files. Its active-source
+digest is
+`7413b3a70933d8c503372ade3a157ce89d41b5422ca519d1ab25f2a328dabebd`.
+The 2,554,658-byte JSON has SHA-256
+`86a24a9231fa453a6c23cad8cba98ef2821025971afb1f3996d9d41981967a19`,
+and the 12,136-byte summary has SHA-256
+`9f41d3bade80d7c6e40a625bfa42b873bbfdf316ecc0b96d9d3e71c6e5ab32bd`.
+The audit regenerated in 59.337 seconds, and its read-only check passed in
+60.017 seconds.
+
+This step moves no build owner and removes no host dependency. Browser
+object-to-primitive conversion, BigInt, legacy octal syntax, signed radix
+strings in primitive conversion, shortest decimal formatting, and full
+coercion remain open. The Browser string pool is still a fixed page resource,
+but exhaustion is explicit. Private wide strings, tokens beyond 1,023 decoded
+bytes, literal pooling, and joined values larger than the private data section
+also remain open. Issue 31 therefore remains open. ADR 0218 records the
+boundary, and `TempleOS/` remains untouched reference material.
+
+## 2026-08-03: Finish saved references and private record addresses
+
+The preceding entry records the first complete Browser number candidate. The
+final review found more state boundaries in that implementation and one
+private compiler bug that only appeared when the full self-test ran in the
+guest. This entry supersedes the earlier candidate evidence without removing
+it from the investigation record.
+
+Browser assignment now resolves an identifier binding, member receiver, or
+computed key exactly once before the right side runs. Plain assignment and
+compound assignment store through that saved reference. Tests replace a
+member receiver during the right side, advance a computed key, and exercise
+both `%=` and string `+=`. The saved store value is consumed, so 1,100
+successive writes leave the value stack at its starting depth.
+
+Each JavaScript binding records the scope that owns it. A declaration searches
+only that scope, while expression lookup may still follow parent scopes.
+Nested calls on the right side can no longer insert parameters and locals into
+a caller-owned binding range or capture a declaration made after the call.
+Every value-stack push checks the fixed stack boundary. An overflow restores
+the entry depth for expressions, calls, initializers, conditions, loops, and
+returns. A call whose arguments cannot be completed never enters its body.
+
+String interning now reserves the complete slice before it publishes a lexer
+token, binding, property, DOM value, `typeof` result, or installed global.
+Concatenation and `+=` use the remaining pool and leave the target unchanged
+when the result will not fit. Failed global installation blocks queued scripts
+instead of running them against a partial environment. Native function IDs
+are copied with their value tags through the stack, bindings, properties,
+arguments, and returns.
+
+Canonical array-index writes grow `length` when the new signed length is
+representable. Direct length assignment and canonical ECMAScript indices from
+2,147,483,647 through 4,294,967,294 fail explicitly because the current array
+length lane is signed. The non-index key 4,294,967,295 remains an ordinary
+property. Numeric key and finite-number formatting avoid out-of-range signed
+casts; the tests pin 4,294,967,295, `1e20`, and `1e-7`.
+
+Private CupidC now checks the complete size of every represented allocation.
+Fixed arrays require positive counts and strides, then check their product.
+Record layout checks padding, each field addition, and final four-byte
+alignment against `0x7ffffffc`. Global and persistent declarations check data
+capacity before publishing bytes or addresses. One local-frame reservation
+path covers scalars, arrays, records, SIMD values, multi-declarator statements,
+and function pointers. It caps the cumulative frame at `0x7ffffff0`, leaving
+room for final 16-byte alignment while preserving zero-sized empty classes.
+
+Signed constant-expression addition, subtraction, multiplication, division,
+and unary negation reject overflow before the operation. If either operand is
+unsigned, the represented operation wraps modulo `2^32`; enum symbols keep
+that unsigned state. Decimal and hexadecimal literals accumulate in
+`uint32_t`, reject values above `UINT32_MAX`, and require at least one
+hexadecimal digit. An optional `u` or `U` is consumed as part of the literal
+and counts toward the exact 95-character token limit. Focused negatives cover
+96-character decimal and hexadecimal tokens and recover on the next input.
+
+Persistent REPL checkpoints now copy every committed structure definition.
+Rollback restores the records as well as the count, so a rejected line cannot
+complete an older forward tag or leak its fields. Tagged and anonymous
+structure typedefs share the checked field parser, and aliases retain their
+structure identity through alias chains and pointer aliases.
+
+The first runtime candidates still stopped after indexed string `+=`. A
+180-second run produced a 37,638-byte log with SHA-256
+`0f477b42d57a6cbc355db66a3eabe04eea17f59744025523f73f7f904315e7ec`.
+Allowing 420 seconds produced a 40,995-byte log with SHA-256
+`da2bfde37bc2a57b2524f5219922f4c300aae6aadbc3dc24f91bebb73c846fe4`.
+Neither reached the PASS marker or reported a panic, so a longer timeout was
+not a fix.
+
+Temporary checkpoints narrowed the stop in two passes. A 34,998-byte log with
+SHA-256
+`a903b74d80a1f07480da89925ec777ad06660e8a3ecb210b2c23a99b681793c7`
+completed member `+=` and then reported a misaligned stack during indexed
+`+=`. C-side target tracing produced a 37,047-byte log with SHA-256
+`f9dfacf3227ebbff0367e8d431a3da8acbf9cfcd44c58ec77285d9bf8ef0fe5c`.
+It showed that key conversion returned, but `&ref->key_off` and
+`&ref->key_len` did not point into the saved reference. Both fields retained
+their initial values.
+
+Private CupidC treated a pointer member address as an offset from the pointer
+slot and then performed the scalar member load. The corrected emitter loads
+the pointee for `&pointer->field`, adds the field offset, and suppresses the
+terminal value load. `&record.field` starts from the record object's address.
+The new execution contract first failed with exit status 139, then wrote
+through both forms and verified the adjacent fields after the fix. A negative
+contract still requires `unknown struct field` for a missing member. The
+Browser self-test then completed without changing its ordinary C source.
+
+One diagnostic relink attempt extracted the production object list as shell
+text and split a Doom object name. That path was discarded. The working
+diagnostic link asks Make to expand its own `KERNEL_OBJS` value for both link
+passes, so it cannot reinterpret object names. All temporary Browser and
+compiler trace statements were removed before the final build.
+
+The final hosted checks passed:
+
+| Command | Result |
+|---|---|
+| `python -m unittest tests.test_browser_cupidc_numbers` | 20 tests in 0.103 seconds; process time 0.289 seconds |
+| `python -m unittest tests.test_private_cupidc_call_abi` | 90 tests in 12.639 seconds; process time 12.841 seconds |
+| `python -m unittest discover -s tests -p 'test_private_cupidc*.py'` | 105 tests in 14.818 seconds; process time 15.036 seconds |
+| `python -m unittest tests.test_gui_terminal_smoke` | 101 tests in 0.591 seconds; process time 1.019 seconds |
+
+The normal `make -j4 all` build passed in 585.918 seconds. The affected
+production objects and final images are:
+
+| Artifact | Bytes | SHA-256 |
+|---|---:|---|
+| `kernel/lang/cupidc.o` | 289,468 | `cd9be3ad69ac90bfbd2ae9d96ad2988399aea034bd9c561c1b1287baf152ff01` |
+| `kernel/lang/cupidc_lex.o` | 50,100 | `8ef9a5f9ecca3bafd84d8f8d4c1af726f6ca622659e3301e9741d6f8f54fd753` |
+| `kernel/lang/cupidc_parse.o` | 353,832 | `709955e56e15d5fab37e4d3d5f55ed23a7fae44359b7dd2ccbaa07f9318d4601` |
+| `bin/browser/js_dom.o` | 28,096 | `4f3757bbcea74105f97371b4577d9660d671edbdf97ccc4a372c786923c81b51` |
+| `bin/browser/js_interp.o` | 99,624 | `3be7defe141604191754405abb378cc80a7097a97b4e7e8aa18566e5d1b5855e` |
+| `bin/browser/js_lex.o` | 16,220 | `b57a56c41fc9a431b0e2e9570dccdb901360b37e2a4e73a6bc3b09b8f7a5903a` |
+| `bin/browser/js_parse.o` | 22,852 | `acfa62d831163e458b8e26d30be2de9473a73a72427cee12963855c89da945bc` |
+| `bin/browser/main.o` | 36,204 | `bd7d195d8190540de0ab73f8535e0a84ef8e5dc39075b5f56effbb0178baf774` |
+| `bin/browser/parser.o` | 34,244 | `4812f73777fabfc8af8760bfeda81d8fad72046ed7e93bf63ba634178e44609f` |
+| `kernel/kernel.elf` | 9,014,992 | `7c9b028511cbd80975decfb05144e25196dfe1a3135d4fd2371164081369c7d3` |
+| `kernel/kernel.bin` | 8,809,620 | `e56fe5efe850dc6491dce821a058be373843916886d29529249fc36f929742fe` |
+| `cupidos.img` | 209,715,200 | `e513ad89ab307c7f9a4b83456c93ed28a08487c6a429af355e2fac359e8b7476` |
+
+The final private-image runtime used four virtual CPUs, QEMU's `max` CPU
+model, e1000, the registered Browser completion contract, and the strong SMP
+validator. It passed in 93.885 seconds. All four CPUs came online, the ten
+expected parser diagnostics appeared in order, every field in the exact
+26-field marker was one, and CupidC returned with an empty stack:
+
+```text
+[browser-js-number] PASS close=1 large=1 negzero=1 nan=1 truth=1 nanformat=1 posinfformat=1 neginfformat=1 literal=1 signedexp=1 upperexp=1 order=1 divide=1 divideassign=1 remainder=1 expcap=1 radix=1 separators=1 tonumber=1 looseeq=1 stringrel=1 largefmod=1 modassign=1 strplusassign=1 reject=1 recovery=1
+[cupidc] JIT execution complete (stack: 0 bytes used, peak: 0 bytes)
+```
+
+The 39,588-byte serial log has SHA-256
+`eb994c43e7925956cf3d7f0d9d59ea4f6937ad6847386faf2e9ae1797212ee77`.
+It contains no accepted panic, self-test failure, or stack-alignment marker.
+
+The active graph regenerated in 66.502 seconds and passed its independent
+read-only check in 68.677 seconds. It records 718 active inputs, 449 reachable
+transforms, 255 distinct requirements, and 25 classified unreachable files.
+Its active-source digest is
+`86743bfd29a6a18c72ee19835a427fbef529b099bedd535894d3b3c598d6d7eb`.
+The 2,554,828-byte JSON has SHA-256
+`ad6d591dd0abedf96df4cc2af0574c4ace6c9176a5520b7c06b9d620ce369b84`,
+and the 12,136-byte summary has SHA-256
+`4562b4aa9cedbd9c3257367d2fdf843b2dd98695554bcc3d42ae5107bc727dce`.
+
+This step moves no build owner and removes no host dependency. The signed
+array-length lane remains narrower than ECMAScript's full index range. Browser
+object-to-primitive conversion, BigInt, legacy octal syntax, signed radix
+strings, shortest decimal formatting, and full coercion remain open. The
+Browser string pool is still fixed at 64 KiB, though exhaustion is now
+transactional. Private wide strings, larger tokens, literal pooling, fuller
+typedef declarators, broader tag-scope rules, and values beyond the private
+data section also remain open. Issue 31 stays open for that larger bootstrap
+work. No `.c` source was added, no active source was reduced to fit the
+toolchain, and `TempleOS/` remains untouched reference material.

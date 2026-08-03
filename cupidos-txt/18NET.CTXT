@@ -805,9 +805,10 @@ Network apps on this branch:
 - browser   HTTP/HTTPS fetch, HTML5 tree build, CSS cascade/layout/paint,
             external stylesheets, @font-face, forms, about:dump
 - browser --selftest
-            run 17 JavaScript decimal, binary64, truth, non-finite formatting,
-            exponent, order, division, remainder, and malformed-input checks
-            without a window or network
+            run 26 JavaScript decimal, radix, separator, conversion, equality,
+            Unicode relation, long string, remainder, saved compound target,
+            native identity, array-limit, bounded-pool, stack-balance,
+            finite-format, and recovery checks without a window or network
 
 Host-to-guest SSH server:
   make run-ssh
