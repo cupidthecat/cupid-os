@@ -11,6 +11,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from tools import hostbuild
 from tools.bootstrap_toolchain import (
     BootstrapError,
     Stage,
@@ -1510,6 +1511,57 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertIn("exceeds 512 paths", rejected.stderr)
             self.assertEqual(sentinel.read_bytes(), b"sentinel")
 
+    def test_checked_seed_generates_kernel_symbol_source_transactionally(self):
+        if os.name == "nt" and shutil.which("wsl") is None:
+            self.skipTest("WSL is not available")
+        with tempfile.TemporaryDirectory(
+            prefix=".checked-seed-ksyms-source-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            symbols = root / "kernel.symbols"
+            output = root / "ksyms_data.cc"
+            symbol_text = (
+                "00102000 T second\n"
+                "00101000 t first\n"
+                "00101000 W duplicate\n"
+                "         U unresolved\n"
+                "00103000 D data_only\n"
+            )
+            symbols.write_text(symbol_text, encoding="ascii", newline="\n")
+            expected = hostbuild._render_ksyms_source(
+                hostbuild.build_ksyms_blob(
+                    hostbuild._parse_nm_symbols(symbol_text)
+                )
+            )
+            frozen = freeze_seed_inputs(SEED_MANIFEST, root / "seed")
+            runner = ToolRunner(root)
+
+            generated = runner.run(
+                frozen.tools["cupidobj"],
+                ["ksyms-source", str(symbols), "-o", str(output)],
+                60,
+            )
+            self.assertEqual(generated.returncode, 0, generated.stderr)
+            self.assertEqual(generated.stdout, "")
+            self.assertEqual(generated.stderr, "")
+            self.assertEqual(output.read_bytes(), expected)
+
+            symbols.write_text(
+                "00101000 T valid\nnot-an-address T broken\n",
+                encoding="ascii",
+                newline="\n",
+            )
+            output.write_bytes(b"existing generated source")
+            rejected = runner.run(
+                frozen.tools["cupidobj"],
+                ["ksyms-source", str(symbols), "-o", str(output)],
+                60,
+            )
+            self.assertEqual(rejected.returncode, 1)
+            self.assertEqual(rejected.stdout, "")
+            self.assertIn(":2:0: error CT8000002:", rejected.stderr)
+            self.assertEqual(output.read_bytes(), b"existing generated source")
+
     def test_checked_seed_run_rejects_a_changed_tool_before_execution(self):
         with tempfile.TemporaryDirectory(
             prefix="cupid-bootstrap-run-seed-"
@@ -2361,7 +2413,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(report["status"], "pass")
             self.assertEqual(
                 report["seed_source_revision"],
-                "b1106c28abc5a3905655a4b6df9d40737fb88c36",
+                "6f880cc3cf5cced72b81e0d66079aaca913d0a03",
             )
             self.assertNotIn("source_revision", report)
             self.assertEqual(
@@ -2409,7 +2461,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     "cupidc": True,
                     "cupiddis": True,
                     "cupidld": True,
-                    "cupidobj": False,
+                    "cupidobj": True,
                 },
             )
             self.assertEqual(report["source_inputs"]["count"], 41)

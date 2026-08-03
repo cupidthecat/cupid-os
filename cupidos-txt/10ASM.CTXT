@@ -45,8 +45,8 @@ It reads canonical CupidDis text and emits the exact packed kernel-symbol .cc
 source. It keeps nonprivate local, global, and weak text symbols, sorts them by
 address and input order, and keeps the first name at a shared address. Bad
 rows, i386 address overflow, missing text, and resource exhaustion leave the
-old output untouched. The command must reach the checked seed before the
-normal kernel-symbol recipe can use it.
+old output untouched. The current checked seed carries the command. The normal
+kernel-symbol recipe will adopt it in a separate ownership transfer.
 
 The first direct Windows and Linux comparison matched 426 of 430 kernel
 artifacts. The other four followed one JPEG object that host FFmpeg had

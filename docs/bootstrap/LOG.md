@@ -20404,3 +20404,60 @@ Python. Promotion and build-graph transfer therefore remain separate steps
 with their own fixed-point and boot evidence. Issue 31 stays open for the
 larger self-hosting mission, and `TempleOS/` remains untouched reference
 material.
+
+## 2026-08-03: Promote CupidObj kernel-symbol source generation
+
+The capability cohort was committed and pushed as
+`6f880cc3cf5cced72b81e0d66079aaca913d0a03` before its seed candidate was
+built. The transition then completed in 720.9 seconds from the preceding
+checked seed. It froze the same 41-input source plan at SHA-256
+`26555c8a95721689f502fea47c52da8911d10307af3142d82b4da0a53d0bfba0`
+and reproduced all nineteen C objects, startup, and five tools between stage
+two and stage three. Both stages passed five help cases, eleven successful
+operations, and seven useful failures. The 15,054-byte transition report has
+SHA-256
+`2a58f7c69b4f423f459b04b1553d029baf46570b9bb323bf144d0496d48a05c0`.
+
+The promoted trust unit is:
+
+| Tool | Bytes | SHA-256 | Changed from the preceding seed |
+|---|---:|---|---|
+| CupidASM | 445,616 | `267d5ce820aac6bdfdb418552c3c144f8eac30e8589d8f53bd52055c3adca12d` | no |
+| CupidC | 2,574,032 | `8d810739494123a3da1cba34f75f58c005e8796f2cb4e85ba57eead1578a1f4d` | no |
+| CupidDis | 379,648 | `1ceeec3e65423f11a3b937dee355191ca0769cbfc4a374505f2aacf85db56ec8` | no |
+| CupidLD | 266,672 | `2bdb6ce6b04678bb89c6bb4f7afac7e152ce6c4a07c4e14e1b3aee0c899008ec` | no |
+| CupidObj | 270,700 | `a8de7de19d1ffbec90f0603f0f796f4a03fa74b8181c62f0f395b22a52423d1d` | yes |
+
+The 5,440-byte manifest has SHA-256
+`729cd702e34695cf9ee619d10446ce80838ed9a25a14efa856833b2bf37629f3`
+and names the pushed capability revision. Producer flags and the
+`59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`
+build plan did not change.
+
+A new checked-seed carriage test was deliberately run against the old seed
+first. It failed because that CupidObj printed its usage text and returned
+status two for `ksyms-source`. The promoted image passed in 1.323 seconds. Its
+output matched the Python oracle exactly, and an invalid address on line two
+left the existing source untouched. `make verify-bootstrap-seed` passed, then
+the other 39 checked-seed tests passed in 89.345 seconds.
+
+The post-promotion reproof passed in 759.4 seconds. This time every initial
+seed image matched stage two before stage two and stage three repeated the
+complete object, tool, and behavior comparison. The 15,053-byte report has
+SHA-256
+`e44d6387ff1963814ba21dc000f6998cfc324851689addfc887b6260516cb0e9`.
+
+The active-build audit and its independent check passed together in 245.5
+seconds. They retain 718 active inputs, 449 reachable transforms, 255 feature
+requirements, and 25 classified unreachable files. The active-source digest
+is `48a25995a6eb517807dca2f77234ed953ca7ae967845fad446c9a011d0941f75`.
+The 2,554,943-byte JSON has SHA-256
+`9818abc044ac022d19a1b50727b4a902c4af2b4b5e8c6ad54bb0ef504d365d2d`,
+and the 12,136-byte summary has SHA-256
+`0d1ce1a07ffe3d4d17e84814f55872c3dc9f09f3ec436d1c5381595f076b704b`.
+
+This promotion changes the checked trust root but not the normal build graph.
+Python still renders `kernel/cpu/ksyms_data.cc`; moving that recipe to the
+promoted CupidObj command remains the next separately tested ownership step.
+No `.c` file entered the supported Cupid graph, and `TempleOS/` remains
+untouched reference material.

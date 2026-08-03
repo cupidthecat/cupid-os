@@ -63,20 +63,21 @@ tools. The stage-two producer trio repeats the build for stage three below the
 same root.
 
 The gate compares all 19 C objects, both startup objects, and all five linked
-images. It also runs five help checks, ten successful operations, and six
-failure cases across compilation, assembly, disassembly, symbol inspection,
-linking, wrapping, and flattening. The harness rehashes both the private
-closure and the live closure before stage two, after each stage, and after the
-behavior suite. A live edit that is made and restored during a compile cannot
-change the captured compiler input.
+images. It also runs five help checks, eleven successful operations, and seven
+failure cases across compilation, assembly, disassembly, symbol inspection and
+source generation, linking, wrapping, and flattening. The harness rehashes both
+the private closure and the live closure before stage two, after each stage,
+and after the behavior suite. A live edit that is made and restored during a
+compile cannot change the captured compiler input.
 
-Source head adds CupidObj `ksyms-source` to that behavior matrix. The command
-turns canonical CupidDis symbol text into the exact packed kernel-symbol `.cc`
-source. It retains `t`, `T`, `w`, and `W` symbols except private `.L` labels,
-sorts by address and input order, and keeps the first name at a shared address.
-The expanded candidate matrix has eleven successes, seven failures, and five
-help paths. The checked seed still has the earlier matrix, so the normal image
-continues to use Python for this source until promotion and ownership transfer.
+Checked-seed CupidObj includes `ksyms-source` in that behavior matrix. The
+command turns canonical CupidDis symbol text into the exact packed
+kernel-symbol `.cc` source. It retains `t`, `T`, `w`, and `W` symbols except
+private `.L` labels, sorts by address and input order, and keeps the first name
+at a shared address. The focused seed contract checks exact Python-oracle
+parity and preserves an existing destination after a malformed second line.
+The normal image continues to use Python for this source until the separate
+ownership transfer.
 
 Before execution, the harness reads the manifest and each seed binary once. It
 verifies those captured bytes, keeps the manifest hash, and runs private copies
@@ -126,24 +127,26 @@ dglibc jump block, pointer-preserving static address casts, explicit `double`
 to `unsigned long long` conversion, exact naked IPI entries, and runtime
 floating truth. Its stage-three CupidC image is 2,574,032 bytes with SHA-256
 `8d810739494123a3da1cba34f75f58c005e8796f2cb4e85ba57eead1578a1f4d`.
-It came from revision `b1106c28abc5a3905655a4b6df9d40737fb88c36`. It also
+It came from revision `6f880cc3cf5cced72b81e0d66079aaca913d0a03`. It also
 carries the returns-twice direct-call boundary, the kernel-entry BSS clear
 with a nonzero page-aligned stack top, and all packed SSE2 statements in the
 active SIMD source. CupidASM and CupidDis retain the 592-row shared x86
 catalogue with forward stack subtraction.
-CupidDis carries typed raw code and
-data ranges, and CupidObj carries installation-source generation. Its
-253,724-byte CupidObj image has SHA-256
-`f78752dc01daf3d2a9dc9265425f9c60639f438d5dcb91a001cf40d7d241ded5`.
+CupidDis carries typed raw code and data ranges. CupidObj carries both
+installation-source generation and transactional kernel-symbol source
+generation. Its 270,700-byte image has SHA-256
+`a8de7de19d1ffbec90f0603f0f796f4a03fa74b8181c62f0f395b22a52423d1d`.
 In the latest transition, all 19 C objects, startup, and five tool images
 matched between stage two and stage three. Both stages passed five help cases,
-ten successful operations, and six useful failures. Only CupidC changed from
-the preceding seed; the other four tools stayed byte-identical. The 5,440-byte
+eleven successful operations, and seven useful failures. Only CupidObj changed
+from the preceding seed; the other four tools stayed byte-identical. The 5,440-byte
 manifest has SHA-256
-`40ebc0e976eef3ddd4b79aab83407b1131a288414247e5d6eff6bce88cde06bc`.
-A post-promotion rebuild reproduced all five checked seed images at stage two
-and repeated the complete fixed point in 696.4 seconds. ADR 0213 records the
-promotion and both proofs.
+`729cd702e34695cf9ee619d10446ce80838ed9a25a14efa856833b2bf37629f3`.
+The post-promotion rebuild reproduced all five checked seed images at stage two
+and repeated the complete fixed point in 759.4 seconds. Its 15,053-byte report
+has SHA-256
+`e44d6387ff1963814ba21dc000f6998cfc324851689addfc887b6260516cb0e9`.
+ADR 0223 records the promotion and both proofs.
 
 The refreshed seed represents operand-free GNU assembly statements inside
 functions and emits exact PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT

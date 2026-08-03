@@ -593,7 +593,7 @@ The five static i386 Linux tools have a checked seed. The manifest binds their
 hashes, sizes, target ABI, source revision, producer lineage, 19-source plan,
 and five link orders. The current CupidC image is the 2,574,032-byte
 stage-three output from revision
-`b1106c28abc5a3905655a4b6df9d40737fb88c36`, with SHA-256
+`6f880cc3cf5cced72b81e0d66079aaca913d0a03`, with SHA-256
 `8d810739494123a3da1cba34f75f58c005e8796f2cb4e85ba57eead1578a1f4d`.
 It retains the complete 83-root Doom frontier, GNU entity metadata, x87 and
 SSE forms, descriptor and segment assembly, the `libm.cc` effects, the dglibc
@@ -601,24 +601,25 @@ jump block, pointer-preserving static address casts, naked IPI entries, the
 kernel-entry BSS clear, and packed SSE2 statements. It also carries runtime
 floating truth and the returns-twice call boundary. The same seed carries the
 592-row x86 catalogue with forward x87 stack subtraction and typed
-CupidDis raw ranges. Its 253,724-byte CupidObj image has SHA-256
-`f78752dc01daf3d2a9dc9265425f9c60639f438d5dcb91a001cf40d7d241ded5`
+CupidDis raw ranges. Its 270,700-byte CupidObj image has SHA-256
+`a8de7de19d1ffbec90f0603f0f796f4a03fa74b8181c62f0f395b22a52423d1d`
 and carries the complete installation-source bounds, ordering, and
-wrapped-symbol contract. Its plan uses `.cc` for all 19 C roots and has
+wrapped-symbol contract plus transactional kernel-symbol source generation.
+Its plan uses `.cc` for all 19 C roots and has
 SHA-256
 `59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`.
 The 5,440-byte manifest has SHA-256
-`40ebc0e976eef3ddd4b79aab83407b1131a288414247e5d6eff6bce88cde06bc`.
-ADR 0213 records the current promotion.
+`729cd702e34695cf9ee619d10446ce80838ed9a25a14efa856833b2bf37629f3`.
+ADR 0223 records the current promotion.
 
 The bootstrap copies the 41-input source closure into a private compiler root.
 Both rebuilt stages compile from that root, and the harness checks the private
 and live closures at each stage and behavior boundary. The latest transition's
 stage two and stage three contain the same five tool images; only the preceding
-CupidC image differs from stage two. A 696.4-second post-promotion reproof then
-reproduced all five checked seed images at stage two. The two rebuilt stages
-also match every C and startup object and agree on all five help paths, ten
-successful operations, and six failure cases. Their stage directories,
+CupidObj image differs from stage two. The 759.4-second post-promotion reproof
+then reproduced all five checked seed images at stage two. The two rebuilt
+stages also match every C and startup object and agree on all five help paths,
+eleven successful operations, and seven failure cases. Their stage directories,
 behavior evidence, and report are published together only after the complete
 gate passes.
 

@@ -379,20 +379,20 @@ The i386 Linux adapter objects are `ctool_host.cc` at 11 functions, 5,522 text b
 
 The `ctool_host.cc` tracer applies 45 relocations, resolves 24 symbols, and leaves no undefined symbol in its static executable. Omitting the errno provider produces the exact CupidLD undefined-symbol failure with empty output and a zero result. The same job then links the original bytes again. Linux and WSL hosts with static i386 support run the tracer with exit status zero.
 
-The current checked artifacts are CupidASM at 445,616 bytes, CupidDis at 379,648 bytes, CupidLD at 266,672 bytes, CupidObj at 253,724 bytes, and CupidC at 2,574,032 bytes. Verification checks every hash, size, static ELF property, target ABI, producer lineage, source revision, and build-plan field before execution. The 5,440-byte manifest has SHA-256 `40ebc0e976eef3ddd4b79aab83407b1131a288414247e5d6eff6bce88cde06bc`. The 19-source plan uses `.cc` throughout and has SHA-256 `59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`. Native GCC and Clang recipes select C with `-x c`.
+The current checked artifacts are CupidASM at 445,616 bytes, CupidDis at 379,648 bytes, CupidLD at 266,672 bytes, CupidObj at 270,700 bytes, and CupidC at 2,574,032 bytes. Verification checks every hash, size, static ELF property, target ABI, producer lineage, source revision, and build-plan field before execution. The 5,440-byte manifest has SHA-256 `729cd702e34695cf9ee619d10446ce80838ed9a25a14efa856833b2bf37629f3`. The 19-source plan uses `.cc` throughout and has SHA-256 `59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`. Native GCC and Clang recipes select C with `-x c`.
 
 The promotion transition completes that plan through stage two and stage
 three. All 19 C object pairs, the startup objects, and all five tool images
 match byte for byte with host code-generator commands poisoned. Every
-stage-two image matches stage three. Only the preceding CupidC image differs
+stage-two image matches stage three. Only the preceding CupidObj image differs
 from stage two; the other four seed images are byte-identical to the preceding
-seed. Both stages agree on five help paths, ten successful operations, and
-six useful failures. They cover compilation, assembly, disassembly, symbol
-inspection, linking, wrapping, and flattening. The frozen 41-input snapshot
-has SHA-256
-`65d13673bd8787eff4bd78dc601a30a5126cf8a6c26a0c3d99661b0f32913c98`.
-The 15,054-byte transition report has SHA-256
-`31d413aa425b70320c4b5eb7fe511cd3e2f1fd70f064ffb301bbefe730da8811`.
+seed. Both stages agree on five help paths, eleven successful operations, and
+seven useful failures. They cover compilation, assembly, disassembly, symbol
+inspection and source generation, linking, wrapping, and flattening. The
+frozen 41-input snapshot has SHA-256
+`26555c8a95721689f502fea47c52da8911d10307af3142d82b4da0a53d0bfba0`.
+The transition completed in 720.9 seconds. Its 15,054-byte report has SHA-256
+`2a58f7c69b4f423f459b04b1553d029baf46570b9bb323bf144d0496d48a05c0`.
 
 The 2,574,032-byte CupidC image carries the complete 83-root Doom frontier,
 current GNU entity metadata, x87 and SSE forms, descriptor and segment
@@ -403,28 +403,26 @@ statements, explicit `double` to `unsigned long long` conversion, runtime
 floating truth, and the returns-twice direct-call boundary. Its SHA-256 is
 `8d810739494123a3da1cba34f75f58c005e8796f2cb4e85ba57eead1578a1f4d`,
 and its source revision is
-`b1106c28abc5a3905655a4b6df9d40737fb88c36`. CupidASM and CupidDis retain the
+`6f880cc3cf5cced72b81e0d66079aaca913d0a03`. CupidASM and CupidDis retain the
 592-row shared x86 catalogue with forward stack subtraction. CupidDis retains
-typed raw code and data ranges, and the 253,724-byte CupidObj image retains the
-complete installation-source bounds, ordering, and linked-symbol contract.
-Its SHA-256 is
-`f78752dc01daf3d2a9dc9265425f9c60639f438d5dcb91a001cf40d7d241ded5`.
-[ADR 0213](../adr/0213-promote-returns-twice-capable-toolchain-seed.md)
+typed raw code and data ranges. The 270,700-byte CupidObj image retains the
+complete installation-source bounds, ordering, and linked-symbol contract and
+adds transactional kernel-symbol source generation. Its SHA-256 is
+`a8de7de19d1ffbec90f0603f0f796f4a03fa74b8181c62f0f395b22a52423d1d`.
+[ADR 0223](../adr/0223-promote-cupidobj-kernel-symbol-source.md)
 records the current transition and promotion.
 
 The post-promotion rebuild reproduced all five checked seed images at stage
-two and repeated the complete fixed point in 696.4 seconds. It used the same
+two and repeated the complete fixed point in 759.4 seconds. It used the same
 source snapshot, comparisons, and behavior matrix. Its 15,053-byte report has
 SHA-256
-`e885ace7994f8276a52107ba77d02ecabab3593f919694d3b148f1e7c77bb6d1`.
-A focused checked-seed test compiles a marked call twice to the same 500-byte
-object with SHA-256
-`992a554a6fe0d23cba3f33c0faedcf44004c635a75924e3c61847fd1d2540fb8`.
-It also rejects a marked-function pointer conversion without replacing an
-existing output. The focused test passes in 1.269 seconds.
-The complete checked-seed module passes all 39 tests in 791.687 seconds,
-including another poisoned-host fixed point and the existing production,
-tamper, source-drift, and publication checks.
+`e44d6387ff1963814ba21dc000f6998cfc324851689addfc887b6260516cb0e9`.
+A focused carriage test first failed against the preceding seed because its
+CupidObj had no `ksyms-source` mode. It passed against the promoted seed in
+1.323 seconds, matched the Python oracle exactly, and rejected a malformed
+second line without replacing an existing source. The other 39 checked-seed
+tests passed in 89.345 seconds, covering the existing production, tamper,
+source-drift, and publication boundaries.
 
 `make verify-bootstrap-seed` checks the current inputs without running them.
 `make bootstrap-from-seed` performs the complete staged build, while
@@ -517,17 +515,18 @@ that source and its complete header closure, gives this generated root a
 separate 600-second ceiling, validates the relocatable object, rejects input
 drift, and publishes atomically.
 
-Source-head CupidObj now has a transactional `ksyms-source` operation for the
+Checked-seed CupidObj has a transactional `ksyms-source` operation for the
 same format. It consumes canonical CupidDis text, retains local, global, and
 weak text symbols except private `.L` labels, orders by address and input
 position, keeps the first name at a shared address, and emits the exact packed
 blob and C source. Malformed rows keep their line number, and input, arena, or
 output failure publishes nothing. A real CupidASM object passes through
-CupidDis and then CupidObj in the hosted contract. The fixed-point candidate
-passes eleven successful operations, seven failures, and five help paths, but
-the checked seed does not carry this command yet. Python therefore remains the
-normal generator until promotion and a separate ownership transfer. ADR 0222
-records the capability boundary.
+CupidDis and then CupidObj in the hosted contract. The fixed-point and focused
+seed carriage checks cover eleven successful operations, seven failures, five
+help paths, exact Python-oracle output, line-specific rejection, and preserved
+destinations. Python remains the normal generator until a separate ownership
+transfer. ADR 0222 records the capability boundary, and ADR 0223 records seed
+carriage.
 
 Three generated installation tables have also left the host C compiler. The
 checked CupidObj seed generates the ramfs program table, homefs document
@@ -577,10 +576,10 @@ the pre-transfer files and the oracle exactly:
 | docs | 9,794 | `cff3fc8943d4b1999869653b14a882d21a463471452e429b2d742d47107b13fc` |
 | demos | 12,845 | `0d1f7ee032b13abbbe1767d75fe32c6f1ffa8b7014db44ae35c9d4c47ebb8305` |
 
-The private five-tool bootstrap reached a fixed point with the 253,724-byte
+The private five-tool bootstrap reached a fixed point with the 270,700-byte
 CupidObj image. ADR 0201 records the operation, ADR 0204 records production
 ownership, and ADR 0206 records the linked-symbol contract. ADR 0208 records
-the earlier x87 seed carriage, and ADR 0213 records the current seed.
+the earlier x87 seed carriage, while ADR 0223 records the current seed.
 
 The active-source audit classifies all three recipes as
 `generate_install_source` with `cupid_object` and `host_python`. Its exact
