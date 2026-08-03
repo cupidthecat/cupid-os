@@ -354,6 +354,19 @@ static void emit_movsd_eax_xmm(cc_state_t *cc, int xmm) {
   emit8(cc, (uint8_t)((xmm & 7) << 3));
 }
 
+/* MOVUPS xmm, [eax] and MOVUPS [eax], xmm keep vector array access safe
+ * for storage that does not promise sixteen-byte alignment. */
+static void emit_movups_xmm_eax(cc_state_t *cc, int xmm) {
+  emit8(cc, 0x0F);
+  emit8(cc, 0x10);
+  emit8(cc, (uint8_t)((xmm & 7) << 3));
+}
+static void emit_movups_eax_xmm(cc_state_t *cc, int xmm) {
+  emit8(cc, 0x0F);
+  emit8(cc, 0x11);
+  emit8(cc, (uint8_t)((xmm & 7) << 3));
+}
+
 /* MOVSS/MOVSD [esp], xmm  and  MOVSS/MOVSD xmm, [esp].
  * ModR/M: mod=00, reg=xmm, r/m=100 (SIB) + SIB byte 0x24 ([esp]).
 */
@@ -1378,6 +1391,11 @@ static cc_type_t cc_parse_type(cc_state_t *cc) {
           f->array_count = fsz;
           cc_expect(cc, CC_TOK_RBRACK);
         }
+        if (f->array_count > 0 &&
+            (ftype == TYPE_FLOAT4 || ftype == TYPE_DOUBLE2)) {
+          cc_error(cc, "SIMD struct field arrays are not supported");
+          break;
+        }
         int32_t elem_size = cc_type_size(cc, ftype, fsi);
         int32_t field_align = cc_type_align(cc, ftype, fsi);
         int32_t fsize = elem_size;
@@ -1437,6 +1455,11 @@ have_base:
 
   if (pointer_depth <= 0)
     return base;
+
+  if (base == TYPE_FLOAT4 || base == TYPE_DOUBLE2) {
+    cc_error(cc, "SIMD pointer types are not supported");
+    return TYPE_PTR;
+  }
 
   if (pointer_depth == 1) {
     if (base == TYPE_INT)
@@ -1865,7 +1888,9 @@ static int32_t cc_sizeof_symbol_deref(cc_state_t *cc, cc_symbol_t *sym,
 
     if (is_array) {
       if (array_elem_type == TYPE_FLOAT ||
-          array_elem_type == TYPE_DOUBLE) {
+          array_elem_type == TYPE_DOUBLE ||
+          array_elem_type == TYPE_FLOAT4 ||
+          array_elem_type == TYPE_DOUBLE2) {
         int scalar_size = cc_type_size(cc, array_elem_type, -1);
         if (last)
           return elem_size > 0 ? elem_size : scalar_size;
@@ -2424,14 +2449,15 @@ typedef struct {
 } cc_intrin_t;
 
 static const cc_intrin_t cc_intrin_table[] = {
-    /* Arithmetic (ADDPS/SUBPS/MULPS/DIVPS/MINPS/MAXPS) - all 0x0F xx.
-     * ADDPS/MULPS/MINPS/MAXPS are commutative; SUBPS/DIVPS are not.*/
-    { "_mm_add_ps",    0x00, 0x58, 2, -1, CC_INTR_COMMUT },
+    /* Arithmetic (ADDPS/SUBPS/MULPS/DIVPS/MINPS/MAXPS), all 0x0F xx.
+     * MINPS and MAXPS keep source order because NaN and signed zero select
+     * the second machine operand. */
+    { "_mm_add_ps",    0x00, 0x58, 2, -1, 0 },
     { "_mm_sub_ps",    0x00, 0x5C, 2, -1, 0 },
-    { "_mm_mul_ps",    0x00, 0x59, 2, -1, CC_INTR_COMMUT },
+    { "_mm_mul_ps",    0x00, 0x59, 2, -1, 0 },
     { "_mm_div_ps",    0x00, 0x5E, 2, -1, 0 },
-    { "_mm_min_ps",    0x00, 0x5D, 2, -1, CC_INTR_COMMUT },
-    { "_mm_max_ps",    0x00, 0x5F, 2, -1, CC_INTR_COMMUT },
+    { "_mm_min_ps",    0x00, 0x5D, 2, -1, 0 },
+    { "_mm_max_ps",    0x00, 0x5F, 2, -1, 0 },
     { "_mm_sqrt_ps",   0x00, 0x51, 1, -1, 0 },
 
     /* Bitwise (ANDPS/ORPS/XORPS) - all commutative. */
@@ -2458,13 +2484,13 @@ static const cc_intrin_t cc_intrin_table[] = {
     /* Double-precision packed counterparts.
      * Same opcodes as the _ps ops but with a 0x66 operand-size prefix.
      * Arg and result type is double2 (two 64-bit lanes).*/
-    { "_mm_add_pd",    0x66, 0x58, 2, -1, CC_INTR_COMMUT | CC_INTR_PD },
+    { "_mm_add_pd",    0x66, 0x58, 2, -1, CC_INTR_PD },
     { "_mm_sub_pd",    0x66, 0x5C, 2, -1, CC_INTR_PD },
-    { "_mm_mul_pd",    0x66, 0x59, 2, -1, CC_INTR_COMMUT | CC_INTR_PD },
+    { "_mm_mul_pd",    0x66, 0x59, 2, -1, CC_INTR_PD },
     { "_mm_div_pd",    0x66, 0x5E, 2, -1, CC_INTR_PD },
     { "_mm_sqrt_pd",   0x66, 0x51, 1, -1, CC_INTR_PD },
-    { "_mm_min_pd",    0x66, 0x5D, 2, -1, CC_INTR_COMMUT | CC_INTR_PD },
-    { "_mm_max_pd",    0x66, 0x5F, 2, -1, CC_INTR_COMMUT | CC_INTR_PD },
+    { "_mm_min_pd",    0x66, 0x5D, 2, -1, CC_INTR_PD },
+    { "_mm_max_pd",    0x66, 0x5F, 2, -1, CC_INTR_PD },
     /* Bitwise double-precision (ANDPD/ORPD/XORPD share opcodes with _ps
      * variants; the 0x66 prefix selects the pd form).*/
     { "_mm_and_pd",    0x66, 0x54, 2, -1, CC_INTR_COMMUT | CC_INTR_PD },
@@ -2669,6 +2695,62 @@ static void cc_emit_intrinsic(cc_state_t *cc, const cc_intrin_t *intr) {
   cc_last_expr_type = (intr->flags & CC_INTR_RET_INT) ? TYPE_INT : vec_type;
   if (cc_last_expr_type != TYPE_INT)
     cc_last_xmm = 0;
+}
+
+static int cc_extract_simd_lane(cc_state_t *cc, cc_type_t vector_type) {
+  cc_next(cc); /* consume '.' */
+  cc_token_t field_token = cc_next(cc);
+  if (field_token.type != CC_TOK_IDENT) {
+    cc_error(cc, "expected SIMD lane name after '.'");
+    return 0;
+  }
+
+  char field = field_token.text[0];
+  if (field == '\0' || field_token.text[1] != '\0') {
+    cc_error(cc, "invalid SIMD lane name");
+    return 0;
+  }
+
+  if (vector_type == TYPE_FLOAT4) {
+    int lane;
+    if (field == 'x') lane = 0;
+    else if (field == 'y') lane = 1;
+    else if (field == 'z') lane = 2;
+    else if (field == 'w') lane = 3;
+    else {
+      cc_error(cc, "float4 lane must be .x, .y, .z, or .w");
+      return 0;
+    }
+    if (lane != 0) {
+      uint8_t immediate = (uint8_t)(lane | (lane << 2) |
+                                    (lane << 4) | (lane << 6));
+      emit8(cc, 0x0F);
+      emit8(cc, 0xC6); /* SHUFPS */
+      emit8(cc, 0xC0);
+      emit8(cc, immediate);
+    }
+    cc_last_expr_type = TYPE_FLOAT;
+    cc_last_expr_elem_size = 4;
+  } else {
+    if (field == 'y') {
+      emit8(cc, 0x66);
+      emit8(cc, 0x0F);
+      emit8(cc, 0xC6); /* SHUFPD */
+      emit8(cc, 0xC0);
+      emit8(cc, 0x01);
+    } else if (field != 'x') {
+      cc_error(cc, "double2 lane must be .x or .y");
+      return 0;
+    }
+    cc_last_expr_type = TYPE_DOUBLE;
+    cc_last_expr_elem_size = 8;
+  }
+
+  cc_last_expr_struct_index = -1;
+  cc_last_expr_dim2 = 0;
+  cc_last_expr_array_elem_type = TYPE_INT;
+  cc_last_xmm = 0;
+  return 1;
 }
 
 static void cc_parse_ident_expr(cc_state_t *cc) {
@@ -2888,66 +2970,9 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
       cc_last_expr_struct_index = sym->struct_index;
       cc_last_expr_elem_size = 16;
 
-      if (cc_peek(cc).type == CC_TOK_DOT) {
-        cc_next(cc); /* consume '.' */
-        cc_token_t ftok = cc_next(cc);
-        if (ftok.type != CC_TOK_IDENT) {
-          cc_error(cc, "expected field name after '.'");
-          return;
-        }
-        char field = ftok.text[0];
-        /* Ensure single-character field name. */
-        if (field == '\0' || ftok.text[1] != '\0') {
-          cc_error(cc, "invalid SIMD field name");
-          return;
-        }
-        if (sym->type == TYPE_FLOAT4) {
-          int lane;
-          if (field == 'x') lane = 0;
-          else if (field == 'y') lane = 1;
-          else if (field == 'z') lane = 2;
-          else if (field == 'w') lane = 3;
-          else {
-            cc_error(cc, "float4 field must be .x/.y/.z/.w");
-            return;
-          }
-          if (lane != 0) {
-            /* SHUFPS xmm0, xmm0, imm8 - broadcast lane `lane` to all four
-             * 32-bit slots of XMM0 so the scalar result sits in the low
-             * lane.*/
-            uint8_t imm = (uint8_t)(lane | (lane << 2) |
-                                    (lane << 4) | (lane << 6));
-            emit8(cc, 0x0F);
-            emit8(cc, 0xC6); /* SHUFPS */
-            emit8(cc, 0xC0); /* mod=11, reg=xmm0, r/m=xmm0 */
-            emit8(cc, imm);
-          }
-          cc_last_expr_type = TYPE_FLOAT;
-          cc_last_expr_struct_index = -1;
-          cc_last_expr_elem_size = 4;
-          cc_last_xmm = 0;
-        } else { /* TYPE_DOUBLE2 */
-          if (field == 'x') {
-            /* lane 0 already in the low 8 bytes of XMM0 - no-op. */
-          } else if (field == 'y') {
-            /* SHUFPD xmm0, xmm0, 0x01 - imm8 bit 0 selects src high
-             * lane for dst low lane, so lane 1 ends up in the low
-             * 8 bytes of XMM0 where scalar double math reads it.*/
-            emit8(cc, 0x66);
-            emit8(cc, 0x0F);
-            emit8(cc, 0xC6); /* SHUFPD */
-            emit8(cc, 0xC0); /* mod=11, reg=xmm0, r/m=xmm0 */
-            emit8(cc, 0x01);
-          } else {
-            cc_error(cc, "double2 field must be .x or .y");
-            return;
-          }
-          cc_last_expr_type = TYPE_DOUBLE;
-          cc_last_expr_struct_index = -1;
-          cc_last_expr_elem_size = 8;
-          cc_last_xmm = 0;
-        }
-      }
+      if (cc_peek(cc).type == CC_TOK_DOT &&
+          !cc_extract_simd_lane(cc, sym->type))
+        return;
       return;
     } else {
       emit_load_local(cc, sym->offset);
@@ -3291,6 +3316,13 @@ static void cc_parse_primary(cc_state_t *cc) {
       cc_error(cc, "undefined variable for &");
       return;
     }
+    if (sym->type == TYPE_FLOAT4 || sym->type == TYPE_DOUBLE2 ||
+        (sym->is_array &&
+         (sym->array_elem_type == TYPE_FLOAT4 ||
+          sym->array_elem_type == TYPE_DOUBLE2))) {
+      cc_error(cc, "SIMD pointer expressions are not supported");
+      return;
+    }
     if (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM) {
       emit_lea_local(cc, sym->offset);
     } else if (sym->kind == SYM_GLOBAL) {
@@ -3393,6 +3425,11 @@ static void cc_parse_primary(cc_state_t *cc) {
     cc_type_t alloc_type = cc_parse_type(cc);
     int alloc_si = cc_last_type_struct_index;
     int32_t elem_size = cc_type_size(cc, alloc_type, alloc_si);
+
+    if (alloc_type == TYPE_FLOAT4 || alloc_type == TYPE_DOUBLE2) {
+      cc_error(cc, "SIMD allocation with new is not supported");
+      return;
+    }
 
     if (alloc_type == TYPE_VOID || elem_size <= 0) {
       cc_error(cc, "invalid type for new");
@@ -3529,6 +3566,15 @@ static void cc_parse_primary(cc_state_t *cc) {
     if (cc->error)
       return;
     cc_token_t next = cc_peek(cc);
+
+    if (next.type == CC_TOK_DOT &&
+        (cc_last_expr_type == TYPE_FLOAT4 ||
+         cc_last_expr_type == TYPE_DOUBLE2)) {
+      postfix_lvalue_valid = 0;
+      if (!cc_extract_simd_lane(cc, cc_last_expr_type))
+        return;
+      continue;
+    }
 
     /* Struct member access: expr.field or expr->field */
     if (next.type == CC_TOK_DOT || next.type == CC_TOK_ARROW) {
@@ -3772,6 +3818,14 @@ static void cc_parse_primary(cc_state_t *cc) {
             return;
           }
         }
+      } else if (base_array_elem_type == TYPE_FLOAT4 ||
+                 base_array_elem_type == TYPE_DOUBLE2) {
+        emit_movups_xmm_eax(cc, 0);
+        cc_last_xmm = 0;
+        cc_last_expr_type = base_array_elem_type;
+        cc_last_expr_elem_size = 16;
+        cc_last_expr_dim2 = 0;
+        cc_last_expr_array_elem_type = TYPE_INT;
       } else if (base_type == TYPE_INT_PTR && base_elem_size > 4) {
         /* Multi-D int first subscript: pointer to row. */
         cc_last_expr_type = TYPE_INT_PTR;
@@ -3859,7 +3913,11 @@ static void cc_parse_expression(cc_state_t *cc, int min_prec) {
 
     cc_type_t left_type = cc_last_expr_type;
     int left_is_fp = (left_type == TYPE_FLOAT || left_type == TYPE_DOUBLE);
-    if (left_is_fp) {
+    int left_is_simd =
+        (left_type == TYPE_FLOAT4 || left_type == TYPE_DOUBLE2);
+    if (left_is_simd) {
+      cc_intr_spill_xmm0(cc);
+    } else if (left_is_fp) {
       /* Spill XMM0 (the FP accumulator) onto the stack.  Reserve 8 bytes
        * regardless of type so ESP stays 4-byte aligned in both cases.*/
       emit8(cc, 0x83);
@@ -3876,9 +3934,42 @@ static void cc_parse_expression(cc_state_t *cc, int min_prec) {
     cc_parse_expression(cc, prec + 1);
     cc_type_t right_type = cc_last_expr_type;
     int right_is_fp = (right_type == TYPE_FLOAT || right_type == TYPE_DOUBLE);
+    int right_is_simd =
+        (right_type == TYPE_FLOAT4 || right_type == TYPE_DOUBLE2);
+
     /* A binary expression is a computed value, not the array object that a
      * subscript operand may have produced. */
     cc_last_expr_array_object_size = 0;
+
+    if (left_is_simd || right_is_simd) {
+      if (!left_is_simd || !right_is_simd || left_type != right_type) {
+        cc_error(cc,
+                 "SIMD operator requires matching float4 or double2 operands");
+        return;
+      }
+
+      uint8_t op_byte;
+      switch (op.type) {
+      case CC_TOK_PLUS:  op_byte = 0x58; break;
+      case CC_TOK_MINUS: op_byte = 0x5C; break;
+      case CC_TOK_STAR:  op_byte = 0x59; break;
+      case CC_TOK_SLASH: op_byte = 0x5E; break;
+      default:
+        cc_error(cc, "SIMD operator supports only +, -, *, and /");
+        return;
+      }
+
+      cc_intr_restore_xmm1(cc);
+      uint8_t prefix = (left_type == TYPE_DOUBLE2) ? 0x66 : 0x00;
+      /* Keep the source-language left operand in the machine destination for
+       * every direct packed operator. This makes the emitted order stable even
+       * for ADD and MUL. */
+      cc_intr_emit_op_rr(cc, prefix, op_byte, 1, 0, -1);
+      emit_movaps_xmm_xmm(cc, 0, 1);
+      cc_last_expr_type = left_type;
+      cc_last_xmm = 0;
+      continue;
+    }
 
     if (left_is_fp || right_is_fp) {
       if (!cc_is_arithmetic_scalar_type(left_type) ||
@@ -4547,6 +4638,7 @@ static void cc_parse_subscript_assignment(cc_state_t *cc, const char *name) {
   if (elem_type == TYPE_VOID)
     elem_type = TYPE_INT;
   int is_fp = elem_type == TYPE_FLOAT || elem_type == TYPE_DOUBLE;
+  int is_simd = elem_type == TYPE_FLOAT4 || elem_type == TYPE_DOUBLE2;
   if (sym->is_array && sym->array_elem_size > 0)
     elem_size = sym->array_elem_size;
   else if (sym->type == TYPE_STRUCT_PTR && sym->struct_index >= 0 &&
@@ -4752,7 +4844,7 @@ static void cc_parse_subscript_assignment(cc_state_t *cc, const char *name) {
     }
   }
   /* Handle 2D/3D int array second subscript */
-  else if (!is_char && !is_fp && elem_size > 4 &&
+  else if (!is_char && !is_fp && !is_simd && elem_size > 4 &&
            cc_peek(cc).type == CC_TOK_LBRACK) {
     cc_next(cc); /* consume '[' */
     emit_push_eax(cc);
@@ -4793,6 +4885,55 @@ static void cc_parse_subscript_assignment(cc_state_t *cc, const char *name) {
   cc_token_t assign_op = cc_next(cc);
   if (!cc_is_assignment_op(assign_op.type)) {
     cc_error(cc, "expected assignment operator");
+    return;
+  }
+
+  if (is_simd) {
+    int is_compound_simd =
+        assign_op.type == CC_TOK_PLUSEQ ||
+        assign_op.type == CC_TOK_MINUSEQ ||
+        assign_op.type == CC_TOK_STAREQ ||
+        assign_op.type == CC_TOK_SLASHEQ;
+    if (assign_op.type != CC_TOK_EQ && !is_compound_simd) {
+      cc_error(cc,
+               "SIMD array compound assignment supports only +=, -=, *=, and /=");
+      return;
+    }
+
+    cc_parse_expression(cc, 1);
+    if (cc_last_expr_type != elem_type) {
+      cc_error(cc, elem_type == TYPE_FLOAT4
+                       ? "float4 array assignment requires a float4 value"
+                       : "double2 array assignment requires a double2 value");
+      return;
+    }
+
+    if (is_compound_simd) {
+      uint8_t op_byte = 0;
+      cc_intr_spill_xmm0(cc);
+      emit8(cc, 0x8B);
+      emit8(cc, 0x44);
+      emit8(cc, 0x24);
+      emit8(cc, 0x10); /* mov eax, [esp + 16] */
+      emit_movups_xmm_eax(cc, 0);
+      cc_intr_restore_xmm1(cc);
+
+      switch (assign_op.type) {
+      case CC_TOK_PLUSEQ:  op_byte = 0x58; break;
+      case CC_TOK_MINUSEQ: op_byte = 0x5C; break;
+      case CC_TOK_STAREQ:  op_byte = 0x59; break;
+      case CC_TOK_SLASHEQ: op_byte = 0x5E; break;
+      default: break;
+      }
+      cc_intr_emit_op_rr(cc,
+                        elem_type == TYPE_DOUBLE2 ? 0x66 : 0x00,
+                        op_byte, 0, 1, -1);
+    }
+
+    emit_pop_eax(cc);
+    emit_movups_eax_xmm(cc, 0);
+    cc_last_expr_type = elem_type;
+    cc_last_xmm = 0;
     return;
   }
 
@@ -5367,12 +5508,13 @@ static void cc_parse_static_local_declaration(cc_state_t *cc, cc_type_t type) {
     int aes;
     int dim2 = 0;
     cc_type_t arr_type;
-    if (type == TYPE_STRUCT && (has_inner_dim || has_inner_dim2)) {
-      cc_error(cc, "struct arrays support one dimension");
+    if ((type == TYPE_FLOAT4 || type == TYPE_DOUBLE2) &&
+        (has_inner_dim || has_inner_dim2)) {
+      cc_error(cc, "SIMD arrays support one dimension");
       return;
     }
-    if (type == TYPE_FLOAT4 || type == TYPE_DOUBLE2) {
-      cc_error(cc, "fixed SIMD arrays are not supported");
+    if (type == TYPE_STRUCT && (has_inner_dim || has_inner_dim2)) {
+      cc_error(cc, "struct arrays support one dimension");
       return;
     }
     if (type == TYPE_STRUCT && type_struct_index >= 0 &&
@@ -5572,12 +5714,13 @@ static void cc_parse_declaration(cc_state_t *cc, cc_type_t type) {
       int dim2 = 0;
       cc_type_t arr_type;
 
-      if (type == TYPE_STRUCT && (has_inner_dim || has_inner_dim2)) {
-        cc_error(cc, "struct arrays support one dimension");
+      if ((type == TYPE_FLOAT4 || type == TYPE_DOUBLE2) &&
+          (has_inner_dim || has_inner_dim2)) {
+        cc_error(cc, "SIMD arrays support one dimension");
         return;
       }
-      if (type == TYPE_FLOAT4 || type == TYPE_DOUBLE2) {
-        cc_error(cc, "fixed SIMD arrays are not supported");
+      if (type == TYPE_STRUCT && (has_inner_dim || has_inner_dim2)) {
+        cc_error(cc, "struct arrays support one dimension");
         return;
       }
 
@@ -7418,9 +7561,9 @@ void cc_parse_program(cc_state_t *cc) {
               cc_expect(cc, CC_TOK_RBRACK);
             }
 
-            if (f->array_count > 0 &&
-                (ftype == TYPE_FLOAT4 || ftype == TYPE_DOUBLE2)) {
-              cc_error(cc, "fixed SIMD arrays are not supported");
+          if (f->array_count > 0 &&
+              (ftype == TYPE_FLOAT4 || ftype == TYPE_DOUBLE2)) {
+            cc_error(cc, "SIMD struct field arrays are not supported");
               break;
             }
 
@@ -7551,7 +7694,7 @@ void cc_parse_program(cc_state_t *cc) {
 
           if (f->array_count > 0 &&
               (ftype == TYPE_FLOAT4 || ftype == TYPE_DOUBLE2)) {
-            cc_error(cc, "fixed SIMD arrays are not supported");
+            cc_error(cc, "SIMD struct field arrays are not supported");
             break;
           }
 
@@ -7704,13 +7847,14 @@ void cc_parse_program(cc_state_t *cc) {
           int aes;
           int dim2 = 0;
           cc_type_t arr_type;
+          if ((gtype == TYPE_FLOAT4 || gtype == TYPE_DOUBLE2) &&
+              (has_inner_dim || has_inner_dim2)) {
+            cc_error(cc, "SIMD arrays support one dimension");
+            break;
+          }
           if (gtype == TYPE_STRUCT &&
               (has_inner_dim || has_inner_dim2)) {
             cc_error(cc, "struct arrays support one dimension");
-            break;
-          }
-          if (gtype == TYPE_FLOAT4 || gtype == TYPE_DOUBLE2) {
-            cc_error(cc, "fixed SIMD arrays are not supported");
             break;
           }
           if (gtype == TYPE_STRUCT && gtype_si >= 0 &&
@@ -8242,6 +8386,11 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
           cc_error(cc, "field has incomplete struct type");
           return;
         }
+        if (f->array_count > 0 &&
+            (ftype == TYPE_FLOAT4 || ftype == TYPE_DOUBLE2)) {
+          cc_error(cc, "SIMD struct field arrays are not supported");
+          return;
+        }
         int32_t elem_size = cc_type_size(cc, ftype, fsi);
         int32_t field_align_val = cc_type_align(cc, ftype, fsi);
         int32_t fsize = elem_size;
@@ -8369,12 +8518,13 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
           cc_expect(cc, CC_TOK_RBRACK);
         }
       }
-      if (gtype == TYPE_STRUCT && (has_inner_dim || has_inner_dim2)) {
-        cc_error(cc, "struct arrays support one dimension");
+      if ((gtype == TYPE_FLOAT4 || gtype == TYPE_DOUBLE2) &&
+          (has_inner_dim || has_inner_dim2)) {
+        cc_error(cc, "SIMD arrays support one dimension");
         return;
       }
-      if (gtype == TYPE_FLOAT4 || gtype == TYPE_DOUBLE2) {
-        cc_error(cc, "fixed SIMD arrays are not supported");
+      if (gtype == TYPE_STRUCT && (has_inner_dim || has_inner_dim2)) {
+        cc_error(cc, "struct arrays support one dimension");
         return;
       }
       int32_t total_bytes;

@@ -111,10 +111,30 @@ Bounds must be positive, and checked count-by-stride arithmetic rejects an
 overflowing allocation before storage is reserved. Fresh expression metadata
 prevents an unrelated pointer result from inheriting an earlier array stride.
 Floating pointer depth greater than one, indirect floating `++` and `--`,
-pointer-to-array types, fixed SIMD arrays, and assignment through a pointer-valued floating record
+pointer-to-array types, and assignment through a pointer-valued floating record
 field remain unsupported. Bitwise or shift compound assignment receives a
-specific diagnostic. `browser --selftest` combines direct binary64 checks with scripts
-sent through the real interpreter. The command checks comparisons, truth,
+specific diagnostic.
+
+Private `float4` and `double2` values now keep their vector type through
+matching `+`, `-`, `*`, and `/` expressions. One-dimensional fixed arrays work
+in global, automatic, block-static, and persistent REPL storage. Every element
+uses a 16-byte stride and unaligned-safe packed loads and stores. Plain
+assignment and the four arithmetic compound assignments evaluate the
+destination once. A following lane access retains the vector type, and
+`sizeof(*array)` returns 16. Bounds and allocation sizes are checked before
+storage is reserved.
+
+Packed arithmetic keeps the written left operand in the machine destination,
+including ADD and MUL. A byte contract fixes that instruction order. The
+minimum and maximum intrinsics keep x86's second-operand result for NaN and
+equal signed-zero inputs. A both-NaN ADD or MUL may carry either input payload,
+depending on the processor or emulator, so the runtime contract accepts only
+those two known payloads and reports which one appeared. SIMD pointer forms,
+multidimensional arrays, record fields, `new`, array parameters, and call ABI
+transport remain unsupported. ADR 0216 records this boundary.
+
+`browser --selftest` combines direct binary64 checks with scripts sent through
+the real interpreter. The command checks comparisons, truth,
 decimal fractions, signed and uppercase exponents, a negative-zero reciprocal,
 NaN and signed infinity formatting, relational order, division and division
 assignment by zero, remainder by zero, exponent capping, and malformed-exponent

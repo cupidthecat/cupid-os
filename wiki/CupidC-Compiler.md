@@ -176,9 +176,20 @@ Depth-one floating pointers retain their pointee width through address
 expressions, returns, array-parameter decay, dereference, subscripting, direct
 pointer updates, and assignment. Structure and class objects, their arrays,
 and their pointers retain scalar floating fields and one-dimensional fixed
-floating field arrays. Fixed SIMD arrays, deeper floating pointers, indirect
-floating updates, pointer-to-array types, and assignment through a
+floating field arrays. Deeper floating pointers, indirect floating updates,
+pointer-to-array types, and assignment through a
 pointer-valued floating field subscript remain unsupported.
+
+One-dimensional fixed `float4` and `double2` arrays use a 16-byte stride in
+global, local, block-static, and persistent REPL storage. Indexed access uses
+unaligned-safe packed moves, so automatic arrays do not depend on accidental
+stack alignment. Plain assignment and `+=`, `-=`, `*=`, and `/=` retain the
+vector type, evaluate the destination once, and allow `.x`, `.y`, `.z`, or
+`.w` lane access where the type permits it. Matching vectors also support
+direct `+`, `-`, `*`, and `/` expressions. Every direct operation keeps the
+written left value in the machine destination. MIN and MAX intrinsics keep the
+second operand for NaN and equal signed-zero inputs. A both-NaN ADD or MUL may
+carry either input payload, depending on the processor or emulator.
 
 Array bounds at file scope and inside structs accept constant integer
 expressions, including enum values and simple arithmetic. That keeps
@@ -1913,6 +1924,10 @@ requires them.
 floating pointers, multidimensional arrays, record fields, array-parameter
 decay, and unevaluated row sizes in the private compiler.
 
+[ADR 0216](../docs/adr/0216-private-simd-arrays-and-operators.md) records
+matching packed arithmetic, one-dimensional fixed SIMD arrays, observable
+operand order, and the remaining private compiler boundary.
+
 ### Symbol Table
 
 Symbols are stored in a 4,096-entry flat array and searched backward so that locals shadow globals:
@@ -1953,9 +1968,12 @@ When the parser encounters a call to an undefined function, it emits a placehold
 - Programs use Cupid OS kernel bindings rather than a general hosted C standard library.
 - Variadic declarations and definitions parse, but compiled CupidC code cannot yet traverse unnamed arguments.
 - Direct code generation has no optimization pass.
-- Fixed SIMD arrays, floating pointer depth greater than one, indirect
-  floating `++` and `--`, pointer-to-array types, and assignment through a
-  pointer-valued floating field subscript remain unsupported.
+- Floating pointer depth greater than one, indirect floating `++` and `--`,
+  pointer-to-array types, and assignment through a pointer-valued floating
+  field subscript remain unsupported.
+- SIMD pointers, multidimensional SIMD arrays, SIMD record fields, allocation
+  with `new`, SIMD array parameters, and SIMD values crossing the private call
+  ABI remain unsupported.
 
 The private compiler implements a broader runtime floating and SIMD language.
 The hosted self-hosting path converts between `float` and `double`, evaluates

@@ -122,6 +122,17 @@ def _frontier_command_outputs():
             "[cupidc] JIT execution complete\n"
         ),
         (
+            "[cupidc] JIT compile: /bin/feature14_simd.cc\n"
+            "[feature14-operator] PASS float=4 double=4\n"
+            "[feature14-array] PASS global=2 local=2 static=2 "
+            "sizeof=16 index=1\n"
+            "[feature14-minmax] PASS nan=4 signed_zero=4\n"
+            "[feature14-nan] PASS float_left=4 float_right=0 "
+            "double_left=4 double_right=0\n"
+            "PASS feature14_simd\n"
+            "[cupidc] JIT execution complete\n"
+        ),
+        (
             "[cupidc] JIT compile: /bin/feature15_libm.cc\n"
             "[feature15-x87] 7 range checks, 0 failed\n"
             "[feature15] 29 checks total, 0 failed\n"
@@ -1194,6 +1205,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
                 "/bin/date.cc +epoch",
                 "as /demos/syscall_vfs_extended_demo.asm",
                 "/bin/feature13_double.cc",
+                "/bin/feature14_simd.cc",
                 "/bin/feature15_libm.cc",
                 "/bin/feature17_iso.cc",
                 "/bin/feature18_swap.cc",
@@ -1360,6 +1372,66 @@ class FrontierRuntimeContractTests(unittest.TestCase):
                 + r"\r?$"
             ),
         )
+
+    def test_feature14_requires_operator_array_minmax_and_nan_evidence(self):
+        command = _frontier_command("/bin/feature14_simd.cc")
+        expected = command.expected_pattern
+        sample = _frontier_command_output("/bin/feature14_simd.cc")
+
+        for fragment in (
+            "[feature14-operator] PASS float=4 double=4\n",
+            (
+                "[feature14-array] PASS global=2 local=2 static=2 "
+                "sizeof=16 index=1\n"
+            ),
+            "[feature14-minmax] PASS nan=4 signed_zero=4\n",
+            (
+                "[feature14-nan] PASS float_left=4 float_right=0 "
+                "double_left=4 double_right=0\n"
+            ),
+            "PASS feature14_simd\n",
+        ):
+            with self.subTest(fragment=fragment):
+                self.assertIsNone(
+                    re.search(
+                        expected,
+                        sample.replace(fragment, ""),
+                        re.S | re.M,
+                    )
+                )
+
+        for failure in (
+            "[feature14-operator] FAIL",
+            "[feature14-array] FAIL",
+            "[feature14-minmax] FAIL",
+            "[feature14-nan] FAIL",
+            "FAIL feature14_simd",
+        ):
+            self.assertIn(
+                failure,
+                gui_terminal_smoke.FRONTIER_RUNTIME_REJECTED_MARKERS,
+            )
+
+        source = (
+            REPO_ROOT / "bin" / "feature14_simd.cc"
+        ).read_text(encoding="utf-8")
+        for spelling in (
+            "float4 feature14_global_floats[3]",
+            "double2 feature14_global_doubles[2]",
+            "direct_float = a + b",
+            "direct_double = dv / dpos",
+            "feature14_global_floats[1] += a",
+            "saved_doubles[1].y",
+            "_mm_min_ps(edge_float_first, edge_float_second)",
+            "_mm_max_pd(edge_double_first, edge_double_second)",
+            "float_result = float_left + float_right",
+            "float_result = _mm_mul_ps(float_left, float_right)",
+            "double_result = double_left + double_right",
+            "double_result = _mm_mul_pd(double_left, double_right)",
+            "[feature14-nan] PASS float_left=%d float_right=%d "
+            "double_left=%d double_right=%d",
+        ):
+            self.assertIn(spelling, source)
 
     def test_feature13_requires_all_scalar_comparison_evidence(self):
         command = _frontier_command("/bin/feature13_double.cc")

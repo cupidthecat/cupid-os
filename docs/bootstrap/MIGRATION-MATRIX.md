@@ -140,10 +140,25 @@ and one-dimensional fixed floating field arrays. Unevaluated
 index. Checked bounds and size arithmetic guard every fixed allocation, and
 fresh expression metadata prevents stride leakage. Floating pointer depth
 greater than one, indirect floating `++` and `--`, pointer-to-array types,
-fixed SIMD arrays, and assignment through a pointer-valued floating record field remain unsupported.
+and assignment through a pointer-valued floating record field remain
+unsupported.
 This changes private JIT and AOT behavior without moving a build owner. ADR
 0210 records the first typed-array slice; ADR 0215 records the expanded
 floating lvalue boundary.
+
+Private `float4` and `double2` values now support matching direct arithmetic
+and one-dimensional fixed arrays. Global, automatic, block-static, and
+persistent REPL arrays use checked 16-byte strides and unaligned-safe packed
+loads and stores. Plain assignment and `+=`, `-=`, `*=`, and `/=` preserve the
+vector type, evaluate the destination once, and allow a following lane read.
+Direct ADD and MUL retain the written machine operand order, pinned by an exact
+byte contract. The existing minimum and maximum intrinsics retain x86's
+second-operand NaN and signed-zero behavior. Runtime checks accept either input
+payload from a both-NaN ADD or MUL and reject any other result. SIMD pointers,
+multidimensional arrays, record fields, allocation with `new`, array
+parameters, and call ABI transport remain unsupported. This changes private
+JIT and AOT behavior without moving a build owner. ADR 0216 records the
+boundary.
 
 Hosted CupidC emits deterministic i386 ELF32 objects for all fourteen files in issue #27's CupidC, CupidASM, and CupidDis contract cohort. Those sources, the 19-source static tool union, and `kernel/lang/as_elf.cc` form an i386 Linux set with 31 ordinary strict roots, a two-source strict kernel bridge, and two GNU runtime roots for the implementation and behavior probe. The retired 64-bit profiles have no active roots. The normal build compiles each contract twice from the checked seed, compares all sixteen new objects, links all fourteen programs and the runtime probe through CupidLD, and verifies all fifteen ELF32 executables. Publication accepts only a dedicated `cupidc-contracts` directory inside the source tree. The target is checked before work and again before promotion, and an existing destination must already verify as a complete cohort. Arbitrary directories, source trees, files, and symbolic links remain untouched. The initial, private, and newly discovered contract inventories must match exactly, which catches additions, removals, and restored edits that changed a copied input. Every run derives the cohort from its executable, requires a named manifest artifact, and verifies every artifact hash, the current 45-input contract set, the checked seed manifest, and the 41-file fixed-point source inventory before the behavior matrix starts. The 45 inputs include the Toolchain Makefile and both Python control modules. One captured seed-manifest byte sequence supplies its digest, decoded JSON, schema validation, and checked build plan. The same gate covers complete CupidLD and CupidObj command closures. Native GCC or Clang builds remain available only as explicit development oracles. This supersedes the older nine-file, eleven-file, host-built, and 64-bit profile descriptions in the historical notes and long-form rows below.
 

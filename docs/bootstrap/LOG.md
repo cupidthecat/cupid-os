@@ -19720,3 +19720,80 @@ indirect floating `++` and `--`, fixed SIMD arrays, and assignment through a
 pointer-valued floating field subscript remain open. Issue 31 therefore remains
 open. ADR 0215 records the boundary, and `TempleOS/` remains untouched reference
 material.
+
+## 2026-08-03: Add private SIMD arrays and packed operators
+
+Private CupidC now keeps `float4` and `double2` values through matching direct
+`+`, `-`, `*`, and `/` expressions. One-dimensional fixed arrays work in
+global, automatic, block-static, and persistent REPL storage. Every element
+uses a checked 16-byte stride and unaligned-safe packed loads and stores. Plain
+indexed assignment and the four arithmetic compound assignments retain the
+vector type, evaluate the destination once, and allow a following lane read.
+
+The initial packed arithmetic reused a commutative intrinsic flag for ADD and
+MUL and selected different machine destinations for direct commutative and
+noncommutative operations. Finite values passed. An independent payload review
+showed that direct and intrinsic ADD and MUL reversed the written machine
+operands. The lowering now restores the written left operand into the machine
+destination for all four direct operators, and the ADD and MUL intrinsics use
+the same mapping. An exact byte contract pins all eight affected forms. MIN
+and MAX keep their existing second-operand result for NaN and equal signed-zero
+inputs.
+
+A frontier contract was written before the active guest source changed. It
+failed because the feature-14 program lacked the four direct or intrinsic
+binary32 checks, the four binary64 checks, and the new NaN marker. The first
+real guest command was mistyped by the keyboard harness as
+`/binfeature14_simd.cc` and never reached compilation. A paced retry compiled
+and completed every earlier feature check, then failed the left-payload-only
+marker. The physical WSL runner retained the machine destination payload;
+QEMU retained the other written NaN from the same emitted instruction. The
+private language now promises a stable source-to-instruction mapping, not a
+processor-independent ADD or MUL payload. The runtime contract accepts either
+known input payload, rejects any other result, and reports all eight choices in
+`[feature14-nan]`.
+
+Positive private compiler contracts cover both vector widths, every storage
+class, all direct and indexed arithmetic operations, REPL persistence,
+unaligned access, zero initialization, lane reads, single evaluation,
+`sizeof`, adjacent objects, MIN/MAX edges, exact instruction order, and known
+NaN payloads. Focused negative contracts cover mismatched vectors, scalar
+mixing, unsupported operators and compounds, invalid or overflowing bounds,
+multidimensional arrays, pointer and address forms, `new`, array parameters,
+record fields, call ABI transport, and recovery.
+
+After the guest correction, the combined private CupidC suite passed 67 tests
+in 8.301 seconds and all 99 GUI frontier contracts passed in 1.601 seconds. A
+checked-seed parser build passed in 53.3 seconds. The first image build passed
+in 528.0 seconds, producing an 8,919,556-byte kernel ELF, an 8,713,392-byte flat
+kernel, and a 209,715,200-byte image. That image is not final evidence because
+its left-payload-only guest contract failed.
+
+The corrected exact image build passed in 503.1 seconds. It produced an
+8,919,556-byte kernel ELF with SHA-256
+`fec83da5c9aa3fbf4fcc929c4426d7d8c0f790c0de6d165b53127e042f0ebefa`,
+an 8,715,164-byte flat kernel with SHA-256
+`b95f712444e4ac6761d2a79c54e01185448f95267657d58e63842badef41f511`,
+and a 209,715,200-byte image with SHA-256
+`2a8a4f2ef1e57b89c0a679637a97f05a498a20ea1a00642da96488b20af7061c`.
+A paced four-vCPU e1000 private-image run passed in 62.2 seconds. It reported
+all four focused feature markers, including
+`[feature14-nan] PASS float_left=0 float_right=4 double_left=0 double_right=4`,
+the overall PASS, and clean JIT completion. Its 35,552-byte serial log has
+SHA-256
+`326b52e1cc0b9d9c1fb997d8a5e1af0654dcf3228b48ca33c5308cf79848a5ef`.
+The regenerated active graph still contains 718 inputs, 449 transforms, 255
+feature requirements, and 25 classified unreachable files. Its active-source
+digest is
+`cdfcc27e43b038dd71d9e245e3ddb1d2e44d08e5e911c2633cf1c67ade4ed719`.
+The 2,554,278-byte JSON has SHA-256
+`94c9d91f9202954932f9471d3dc8f3ee6635bb89fc5afebaed47fd531b54eabc`,
+and the 12,136-byte summary has SHA-256
+`b8c909c3a13c0a8078f87dce586331de273caa2f979ddd11c627bf0fea9d2e83`.
+The read-only audit check passes.
+
+This change does not move a build owner or remove a host dependency. SIMD
+pointers, multidimensional arrays, record fields, dynamic allocation, array
+parameters, and call ABI transport remain open. Issue 31 therefore remains
+open. ADR 0216 records the boundary, and `TempleOS/` remains untouched
+reference material.

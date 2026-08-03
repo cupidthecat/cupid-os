@@ -42721,7 +42721,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.break",
-      "occurrences": 1889
+      "occurrences": 1899
     },
     {
       "category": "control",
@@ -42814,7 +42814,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.case",
-      "occurrences": 1688
+      "occurrences": 1696
     },
     {
       "category": "control",
@@ -42982,7 +42982,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.continue",
-      "occurrences": 1148
+      "occurrences": 1150
     },
     {
       "category": "control",
@@ -43063,7 +43063,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.default",
-      "occurrences": 158
+      "occurrences": 160
     },
     {
       "category": "control",
@@ -43431,7 +43431,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.else",
-      "occurrences": 4624
+      "occurrences": 4649
     },
     {
       "category": "control",
@@ -44142,7 +44142,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 36397
+      "occurrences": 36456
     },
     {
       "category": "control",
@@ -44205,6 +44205,7 @@
         "bin/ed.cc",
         "bin/feature11_ternary.cc",
         "bin/feature13_double.cc",
+        "bin/feature14_simd.cc",
         "bin/feature17_iso.cc",
         "bin/feature18_swap.cc",
         "bin/feature21_net.cc",
@@ -44502,7 +44503,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 22041
+      "occurrences": 22055
     },
     {
       "category": "control",
@@ -44595,7 +44596,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.switch",
-      "occurrences": 227
+      "occurrences": 229
     },
     {
       "category": "control",
@@ -45248,6 +45249,7 @@
         "bin/cupidc_test2.cc",
         "bin/cupidc_test4.cc",
         "bin/feature13_double.cc",
+        "bin/feature14_simd.cc",
         "drivers/keyboard.cc",
         "drivers/mouse.cc",
         "drivers/serial.cc",
@@ -45415,7 +45417,7 @@
         "user/examples/cat.cc"
       ],
       "id": "c.expression.sizeof",
-      "occurrences": 5513
+      "occurrences": 5515
     },
     {
       "category": "extension",
@@ -45630,12 +45632,12 @@
           "text": "register int __attribute__((unused)) maybe_reg;"
         },
         {
-          "line": 477,
+          "line": 490,
           "path": "kernel/lang/cupidc_parse.cc",
           "text": "__attribute__((unused))"
         },
         {
-          "line": 1054,
+          "line": 1067,
           "path": "kernel/lang/cupidc_parse.cc",
           "text": "__attribute__((unused))"
         }
@@ -48757,14 +48759,15 @@
           "text": "static int c;"
         },
         {
-          "line": 22,
-          "path": "drivers/ata.cc",
-          "text": "static ata_drive_t drives[4];  // Primary master/slave, secondary master/slave (only primary implemented)"
+          "line": 320,
+          "path": "bin/feature14_simd.cc",
+          "text": "static float4 saved_floats[2];"
         }
       ],
       "files": [
         "bin/browser/url_hash.cc",
         "bin/cupidc_test5.cc",
+        "bin/feature14_simd.cc",
         "drivers/ata.cc",
         "drivers/e1000.cc",
         "drivers/keyboard.cc",
@@ -48991,7 +48994,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.storage.static",
-      "occurrences": 8635
+      "occurrences": 8640
     },
     {
       "category": "type",
@@ -49470,7 +49473,7 @@
         "toolchain/tests/hosted_i386_runtime_contract.cc"
       ],
       "id": "c.type.double",
-      "occurrences": 495
+      "occurrences": 503
     },
     {
       "category": "type",
@@ -49635,7 +49638,7 @@
         "toolchain/tests/hosted_i386_runtime_contract.cc"
       ],
       "id": "c.type.float",
-      "occurrences": 392
+      "occurrences": 403
     },
     {
       "category": "type",
@@ -50163,7 +50166,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.int",
-      "occurrences": 21319
+      "occurrences": 21362
     },
     {
       "category": "type",
@@ -51125,7 +51128,6 @@
         "bin/feature11_ternary.cc",
         "bin/feature12_float.cc",
         "bin/feature13_double.cc",
-        "bin/feature14_simd.cc",
         "bin/feature15_libm.cc",
         "bin/feature16_asm_fpu.cc",
         "bin/feature17_iso.cc",
@@ -51652,7 +51654,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.void",
-      "occurrences": 13919
+      "occurrences": 13920
     },
     {
       "category": "declaration",
@@ -52274,14 +52276,14 @@
           "text": "double2 d2 = {7.5, 12.25};"
         },
         {
+          "line": 6,
+          "path": "bin/feature14_simd.cc",
+          "text": "double2 feature14_global_doubles[2];"
+        },
+        {
           "line": 142,
           "path": "bin/feature14_simd.cc",
           "text": "double2 dv = {1.5, 2.5};"
-        },
-        {
-          "line": 143,
-          "path": "bin/feature14_simd.cc",
-          "text": "double2 dw;"
         }
       ],
       "files": [
@@ -52289,7 +52291,7 @@
         "bin/feature14_simd.cc"
       ],
       "id": "cupid_c.type.double2",
-      "occurrences": 15
+      "occurrences": 26
     },
     {
       "category": "type",
@@ -52300,14 +52302,14 @@
           "text": "float4 vec = {1.0, 2.0, 3.0, 4.0};"
         },
         {
-          "line": 16,
+          "line": 5,
           "path": "bin/feature14_simd.cc",
-          "text": "float4 a = {1.0, 2.0, 3.0, 4.0};"
+          "text": "float4 feature14_global_floats[3];"
         },
         {
-          "line": 17,
+          "line": 19,
           "path": "bin/feature14_simd.cc",
-          "text": "float4 b = {5.0, 6.0, 7.0, 8.0};"
+          "text": "float4 a = {1.0, 2.0, 3.0, 4.0};"
         }
       ],
       "files": [
@@ -52316,7 +52318,7 @@
         "bin/feature16_asm_fpu.cc"
       ],
       "id": "cupid_c.type.float4",
-      "occurrences": 20
+      "occurrences": 31
     },
     {
       "category": "type",
@@ -52554,7 +52556,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "0ee13f7b403153040c543abd1f420a94c556a363786ccc5de239c83ae0fe6e88",
+    "active_source_digest": "cdfcc27e43b038dd71d9e245e3ddb1d2e44d08e5e911c2633cf1c67ade4ed719",
     "control_files": [
       {
         "path": "Makefile",
@@ -54851,22 +54853,24 @@
       "features": [
         "c.control.else",
         "c.control.if",
+        "c.control.return",
+        "c.expression.sizeof",
+        "c.storage.static",
         "c.type.double",
         "c.type.float",
         "c.type.int",
-        "c.type.void",
         "cupid_c.delivery.embedded_source",
         "cupid_c.type.double2",
         "cupid_c.type.float4"
       ],
       "includes": [],
       "language": "cupid_c",
-      "lines": 266,
+      "lines": 516,
       "origin": "tracked",
       "path": "bin/feature14_simd.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "ac2a97ce2bda60714b673e2229c3073ba6ce3111927a3d028eab6d37d6aeab59"
+      "sha256": "f0f95a63fcb3f7ec8810429cfed17511092c9d016a9ec4c12f36852e002f9841"
     },
     {
       "build_owners": [
@@ -72937,12 +72941,12 @@
         "kernel/lang/cupidc.h"
       ],
       "language": "cupid_c",
-      "lines": 8603,
+      "lines": 8753,
       "origin": "tracked",
       "path": "kernel/lang/cupidc_parse.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "ba84f3388417b73d3fa7e7e110ac44880705f5f067badde66fb94b353e4ca1b5"
+      "sha256": "c0074c244358ca59934b8eae21efd458918ffedf1a9513b43f7e8fa2ec9de83e"
     },
     {
       "build_owners": [

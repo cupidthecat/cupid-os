@@ -188,6 +188,19 @@ FRONTIER_RUNTIME_COMMANDS = (
         allowed_failure_context_pattern=FEATURE13_COMPILE_PATTERN,
     ),
     TerminalCommand(
+        "/bin/feature14_simd.cc",
+        (
+            r"\[cupidc\] JIT compile: /bin/feature14_simd\.cc"
+            r".*?\[feature14-operator\] PASS float=4 double=4"
+            r".*?\[feature14-array\] PASS global=2 local=2 "
+            r"static=2 sizeof=16 index=1"
+            r".*?\[feature14-minmax\] PASS nan=4 signed_zero=4"
+            r".*?\[feature14-nan\] PASS float_left=[0-4] "
+            r"float_right=[0-4] double_left=[0-4] double_right=[0-4]"
+            rf".*?PASS feature14_simd.*?{CUPIDC_COMPLETION_PATTERN}"
+        ),
+    ),
+    TerminalCommand(
         "/bin/feature15_libm.cc",
         (
             r"\[cupidc\] JIT compile: /bin/feature15_libm\.cc"
@@ -396,6 +409,11 @@ FRONTIER_RUNTIME_REJECTED_MARKERS = (
     "[feature13-lvalue] FAIL",
     "[feature13-call] FAIL",
     "FAIL feature13_double",
+    "[feature14-operator] FAIL",
+    "[feature14-array] FAIL",
+    "[feature14-minmax] FAIL",
+    "[feature14-nan] FAIL",
+    "FAIL feature14_simd",
     "FAIL jpeg_decode_mem",
     "FAIL glyph_rasterize",
     "FAIL feature15_libm",

@@ -413,11 +413,25 @@ Direct pointer updates use the pointee width. Structure and class objects,
 their arrays, and their pointers retain scalar floating fields and
 one-dimensional fixed floating field arrays. Every bound and allocation is
 checked before storage is reserved. Floating pointer depth greater than one,
-indirect floating `++` and `--`, pointer-to-array types, fixed SIMD arrays, and
+indirect floating `++` and `--`, pointer-to-array types, and
 assignment through a pointer-valued floating record field remain outside this
 boundary. ADR 0210 records the first array slice; ADR 0215 records the broader
 lvalue model.
 _Avoid_: complete multi-level floating pointer support, indirect floating update
+
+**Private CupidC SIMD value**:
+A `float4` or `double2` value carried through direct packed arithmetic or a
+one-dimensional fixed array. Matching vectors support `+`, `-`, `*`, and `/`.
+Global, automatic, block-static, and persistent REPL arrays use 16-byte
+elements, unaligned-safe loads and stores, plain assignment, the four
+arithmetic compound assignments, lane reads, checked bounds, and `sizeof`.
+Direct arithmetic keeps the written left value in the machine destination.
+The SSE minimum and maximum intrinsics retain the second-operand rules for NaN
+and signed zero. A both-NaN ADD or MUL result may carry either input payload,
+depending on the processor or emulator. SIMD pointers, multidimensional
+arrays, record fields, allocation with `new`, and function-call ABI transport
+remain outside this boundary. ADR 0216 records the model.
+_Avoid_: untyped SIMD storage, reordered packed operands
 
 **Browser JavaScript number lane**:
 The numeric path shared by the Browser's JavaScript lexer, AST, and

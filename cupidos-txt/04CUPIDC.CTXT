@@ -1135,8 +1135,18 @@ pointer updates, and assignment. Structure and class objects, their arrays,
 and their pointers keep scalar floating fields and one-dimensional fixed
 floating field arrays. Bounds and dimension products are checked before
 storage is reserved. Deeper floating pointers, indirect floating updates,
-pointer-to-array types, fixed SIMD arrays, and assignment through a
+pointer-to-array types, and assignment through a
 pointer-valued floating field subscript remain unsupported.
+
+Matching float4 and double2 values support direct +, -, *, and /. Fixed
+one-dimensional arrays work in global, automatic, block-static, and persistent
+REPL storage with 16-byte elements and unaligned-safe packed loads and stores.
+Indexed assignment and +=, -=, *=, and /= retain the vector type and allow a
+following lane read. Every direct operator keeps the written left value in the
+machine destination. MIN and MAX intrinsics keep the second input for NaN and
+equal signed-zero cases. A both-NaN ADD or MUL may carry either input payload,
+depending on the processor or emulator. SIMD pointers, multidimensional arrays,
+record fields, new, array parameters, and call ABI transport remain unsupported.
 
 Direct functions and methods with parsed fixed parameter types convert
 represented integer, char, float, and double arguments to the declared cdecl
@@ -1187,8 +1197,9 @@ printf supports %f, %e, %g, and precision forms like %.3f.
 
 See also: bin/feature12_float.cc through bin/feature16_asm_fpu.cc.
 feature13_double checks typed floating matrices, pointers, record fields,
-row-sized unevaluated sizeof, scalar calls, and libm. The Browser's binary64
-token and AST tables use the fixed double-array path.
+row-sized unevaluated sizeof, scalar calls, and libm. feature14_simd checks
+packed operators, fixed arrays, NaN handling, and SSE intrinsics. The
+Browser's binary64 token and AST tables use the fixed double-array path.
 See also: 14FPU-SSE.CTXT for full FPU/SSE reference.
 [Open FPU/SSE guide](open:14FPU-SSE.CTXT)
 >endtree

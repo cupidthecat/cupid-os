@@ -274,10 +274,23 @@ expressions, returns, function and method array parameters, dereference,
 subscripting, direct pointer updates, and assignment. Structure and class
 objects, object arrays, and object pointers keep scalar floating fields and
 one-dimensional fixed floating field arrays. Deeper floating pointers,
-indirect floating updates, pointer-to-array types, fixed SIMD arrays, and
+indirect floating updates, pointer-to-array types, and
 assignment through a pointer-valued floating field subscript remain
 unsupported. ADR 0210 records
 the first array boundary, and ADR 0215 records the expanded lvalue model.
+
+One-dimensional fixed `float4` and `double2` arrays use 16-byte elements in
+global, automatic, block-static, and persistent REPL storage. Indexed access
+uses `MOVUPS` in both directions, so stack alignment does not affect the
+result. Plain assignment and the four arithmetic compound assignments retain
+the vector type and allow lane extraction. Matching vectors support direct
+`+`, `-`, `*`, and `/`. Every direct operation keeps the written left value in
+the machine destination. MIN and MAX intrinsics keep the written second operand
+for NaN and equal signed-zero inputs. A both-NaN ADD or MUL may carry either
+input payload, depending on the processor or emulator. SIMD pointers,
+multidimensional arrays, record fields, allocation with `new`, array
+parameters, and call ABI transport remain unsupported. ADR 0216 records this
+boundary.
 
 ### Arithmetic
 

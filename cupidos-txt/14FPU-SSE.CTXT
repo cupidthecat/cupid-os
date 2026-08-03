@@ -263,8 +263,19 @@ dereference, subscripts, scaled direct pointer updates, and assignment.
 Structure and class objects, arrays, and pointers keep scalar floating fields
 and one-dimensional fixed floating field arrays. Bounds and dimension products
 are checked before allocation. Deeper floating pointers, indirect floating
-updates, pointer-to-array types, fixed SIMD arrays, and assignment through a
+updates, pointer-to-array types, and assignment through a
 pointer-valued floating field subscript remain unsupported.
+
+One-dimensional fixed float4 and double2 arrays use 16-byte elements in
+global, automatic, block-static, and persistent REPL storage. Indexed access
+uses unaligned-safe packed moves. Plain assignment and +=, -=, *=, and /=
+retain the vector type and allow lane extraction. Matching vectors support
+direct +, -, *, and /. Every direct operator keeps the written left value in
+the machine destination. MIN and MAX intrinsics keep the second input for NaN
+and equal signed-zero cases. A both-NaN ADD or MUL may carry either input
+payload, depending on the processor or emulator. SIMD pointers,
+multidimensional arrays, record fields, new, array parameters, and call ABI
+transport remain unsupported.
 
 >h3 Arithmetic
 Binary operators `+`, `-`, `*`, `/` work on scalar float/double via SSE
@@ -323,7 +334,7 @@ Register tokens: XMM0-7 and ST0-7.
 Test programs:
   `bin/feature12_float.cc`    scalar float arithmetic, casts, element access.
   `bin/feature13_double.cc`   typed lvalues, scalar calls, and transcendentals.
-  `bin/feature14_simd.cc`     float4/double2 + intrinsics.
+  `bin/feature14_simd.cc`     packed operators, arrays, NaNs, and intrinsics.
   `bin/feature15_libm.cc`     29 fixed checks, including seven x87 range paths.
   `bin/feature16_asm_fpu.cc`  CupidC inline asm using SSE + x87.
   `bin/fp_drill.cc`           manual #XF provocation (panics kernel).

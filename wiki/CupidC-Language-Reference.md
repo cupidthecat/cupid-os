@@ -48,10 +48,22 @@ declarations, address expressions, returns, function and method array
 parameters, dereference, subscripting, assignment, and arithmetic compound
 assignment. Direct pointer `++` and `--` advance by four or eight bytes.
 Structure and class objects, their arrays, and their pointers may contain
-scalar floating fields and one-dimensional fixed floating field arrays. Fixed
-SIMD arrays, deeper floating pointers, indirect floating updates,
+scalar floating fields and one-dimensional fixed floating field arrays. Deeper
+floating pointers, indirect floating updates,
 pointer-to-array types, and assignment through a pointer-valued floating field
 subscript remain unsupported.
+
+Matching `float4` or `double2` values support direct `+`, `-`, `*`, and `/`.
+One-dimensional fixed arrays of either vector type are supported as globals,
+locals, block statics, and persistent REPL declarations. Each element occupies
+16 bytes. Indexed plain assignment and `+=`, `-=`, `*=`, and `/=` use
+unaligned-safe packed moves and preserve lane access. Bounds and allocation
+sizes are checked before storage is reserved. Every direct operation keeps the
+written left value in the machine destination. MIN and MAX intrinsics keep the
+second input for NaN and equal signed-zero cases. A both-NaN ADD or MUL may
+carry either input payload, depending on the processor or emulator. SIMD
+pointers, multidimensional arrays, record fields, `new`, array parameters, and
+call ABI transport remain unsupported.
 
 Direct functions and methods with parsed fixed parameter types convert each
 represented integer, `char`, `float`, or `double` argument to its declared

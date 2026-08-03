@@ -114,6 +114,7 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                 #include <stdarg.h>
 
                 #include "cupidc.h"
+                #include "string.h"
 
                 void serial_printf(const char *format, ...) {
                   va_list arguments;
@@ -206,8 +207,10 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                 int main(int argc, char **argv) {
                   cc_state_t *cc;
                   char *source;
-                  int repl_mode = argc == 5 && argv[4][6] == 0;
-                  int recovery_mode = argc == 5 && !repl_mode;
+                  int repl_mode =
+                      argc == 5 && strcmp(argv[4], "--repl") == 0;
+                  int recovery_mode =
+                      argc == 5 && strcmp(argv[4], "--recover") == 0;
                   if (argc != 4 && !repl_mode && !recovery_mode)
                     return 64;
                   source = read_source(argv[1]);
@@ -246,7 +249,9 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                         next = NULL;
                       }
                       cc_lex_init(cc, unit);
-                      cc_parse_repl_line(cc, &is_expr);
+                      while (!cc->error &&
+                             cc_lex_peek(cc).type != CC_TOK_EOF)
+                        cc_parse_repl_line(cc, &is_expr);
                       if (cc->error)
                         break;
                       unit = next;
@@ -299,13 +304,21 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             raise AssertionError(result.stdout + result.stderr)
         return executable
 
-    def _compile(self, root, source):
+    def _compile(self, root, source, repl=False):
         source_path = root / "fixture.cc"
         code_path = root / "code.bin"
         data_path = root / "data.bin"
         source_path.write_text(textwrap.dedent(source), encoding="utf-8")
+        command = [
+            str(self.driver),
+            str(source_path),
+            str(code_path),
+            str(data_path),
+        ]
+        if repl:
+            command.append("--repl")
         result = subprocess.run(
-            [str(self.driver), str(source_path), str(code_path), str(data_path)],
+            command,
             cwd=REPO_ROOT,
             text=True,
             capture_output=True,
@@ -376,6 +389,36 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                   movl $1, %eax
                   int $0x80
 
+                .org 0x1010
+                  jmp test_print
+                .org 0x1020
+                  jmp test_print
+                .org 0x1100
+                test_print:
+                  pushl %ebp
+                  movl %esp, %ebp
+                  pushl %eax
+                  pushl %ebx
+                  pushl %ecx
+                  pushl %edx
+                  movl 8(%ebp), %ecx
+                  xorl %edx, %edx
+                1:
+                  cmpb $0, (%ecx,%edx,1)
+                  je 2f
+                  incl %edx
+                  jmp 1b
+                2:
+                  movl $4, %eax
+                  movl $2, %ebx
+                  int $0x80
+                  popl %edx
+                  popl %ecx
+                  popl %ebx
+                  popl %eax
+                  leave
+                  ret
+
                 .section .cupidcode,"ax",@progbits
                 .global cupid_code
                 cupid_code:
@@ -432,12 +475,14 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             timeout=30,
         )
 
-    def _compile_and_run(self, source):
+    def _compile_and_run(self, source, repl=False):
         with tempfile.TemporaryDirectory(
             prefix="private-cupidc-call-runtime-", ignore_cleanup_errors=True
         ) as temporary:
             root = Path(temporary)
-            compile_result, _code, _data = self._compile(root, source)
+            compile_result, _code, _data = self._compile(
+                root, source, repl=repl
+            )
             self.assertEqual(
                 compile_result.returncode,
                 0,
@@ -849,6 +894,23 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             result.stdout + result.stderr,
         )
 
+    def test_feature14_source_executes_through_the_private_simd_path(self):
+        result = self._compile_and_run(
+            (REPO_ROOT / "bin" / "feature14_simd.cc").read_text(
+                encoding="utf-8"
+            )
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        for marker in (
+            "[feature14-operator] PASS float=4 double=4",
+            "[feature14-array] PASS global=2 local=2 static=2 "
+            "sizeof=16 index=1",
+            "[feature14-minmax] PASS nan=4 signed_zero=4",
+            "[feature14-nan] PASS float_left=",
+            "PASS feature14_simd",
+        ):
+            self.assertIn(marker, result.stderr)
+
     def test_global_fixed_float_and_double_arrays_keep_width_and_stride(self):
         result = self._compile_and_run(
             """
@@ -1011,6 +1073,99 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             """
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_direct_simd_arithmetic_preserves_lane_values_and_operand_order(self):
+        result = self._compile_and_run(
+            """
+            int main() {
+              float4 float_left = {8.0f, 12.0f, 18.0f, 24.0f};
+              float4 float_right = {2.0f, 3.0f, 6.0f, 8.0f};
+              float4 float_result;
+              double2 double_left = {20.0, 30.0};
+              double2 double_right = {4.0, 5.0};
+              double2 double_result;
+
+              float_result = float_left + float_right;
+              if (float_result.x != 10.0f || float_result.w != 32.0f)
+                return 1;
+              float_result = float_left - float_right;
+              if (float_result.y != 9.0f || float_result.z != 12.0f)
+                return 2;
+              float_result = float_left * float_right;
+              if (float_result.x != 16.0f || float_result.w != 192.0f)
+                return 3;
+              float_result = float_left / float_right;
+              if (float_result.y != 4.0f || float_result.z != 3.0f)
+                return 4;
+
+              double_result = double_left + double_right;
+              if (double_result.x != 24.0 || double_result.y != 35.0)
+                return 5;
+              double_result = double_left - double_right;
+              if (double_result.x != 16.0 || double_result.y != 25.0)
+                return 6;
+              double_result = double_left * double_right;
+              if (double_result.x != 80.0 || double_result.y != 150.0)
+                return 7;
+              double_result = double_left / double_right;
+              if (double_result.x != 5.0 || double_result.y != 6.0)
+                return 8;
+              double2 fractional_left = {1.5, 2.5};
+              double2 fractional_right = {0.5, 2.0};
+              double_result = fractional_left * fractional_right;
+              double fractional_x = double_result.x;
+              int *fractional_bits = (int *)&fractional_x;
+              if (fractional_bits[0] != 0) return 9;
+              if (fractional_bits[1] != 0x3fe80000) return 10;
+              if (double_result.y != 5.0) return 11;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_simd_add_and_multiply_keep_source_order_in_machine_code(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-simd-order-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, code_path, _data = self._compile(
+                Path(temporary),
+                """
+                int main() {
+                  float4 float_left;
+                  float4 float_right;
+                  float4 float_result;
+                  double2 double_left;
+                  double2 double_right;
+                  double2 double_result;
+                  float_result = float_left + float_right;
+                  float_result = float_left * float_right;
+                  float_result = _mm_add_ps(float_left, float_right);
+                  float_result = _mm_mul_ps(float_left, float_right);
+                  double_result = double_left + double_right;
+                  double_result = double_left * double_right;
+                  double_result = _mm_add_pd(double_left, double_right);
+                  double_result = _mm_mul_pd(double_left, double_right);
+                  return 0;
+                }
+                """,
+            )
+            self.assertEqual(
+                result.returncode,
+                0,
+                result.stdout + result.stderr,
+            )
+            code = code_path.read_bytes()
+
+        add_left = b"\x0f\x58\xc8\x0f\x28\xc1"
+        mul_left = b"\x0f\x59\xc8\x0f\x28\xc1"
+        self.assertEqual(code.count(add_left), 4)
+        self.assertEqual(code.count(mul_left), 4)
+        self.assertEqual(code.count(b"\x66" + add_left), 2)
+        self.assertEqual(code.count(b"\x66" + mul_left), 2)
+        self.assertNotIn(b"\x0f\x58\xc1", code)
+        self.assertNotIn(b"\x0f\x59\xc1", code)
 
     def test_deeper_floating_pointers_have_a_useful_diagnostic(self):
         for declaration in ("float **values;", "double **values;"):
@@ -1232,6 +1387,149 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             run_result.stdout + run_result.stderr,
         )
 
+    def test_fixed_simd_arrays_execute_across_supported_storage(self):
+        result = self._compile_and_run(
+            """
+            float4 global_floats[3];
+            int global_sentinel;
+            double2 global_doubles[2];
+
+            int touch_static_array() {
+              static float4 saved[2];
+              float4 seed = {1.0f, 2.0f, 3.0f, 4.0f};
+              if (saved[0].w == 0.0f) {
+                saved[0] = seed;
+                return 1;
+              }
+              saved[1] = saved[0] * seed;
+              if (saved[1].x != 1.0f || saved[1].w != 16.0f)
+                return 2;
+              return 0;
+            }
+
+            int main() {
+              float4 local_floats[2];
+              double2 local_doubles[2];
+              float4 float_seed = {8.0f, 12.0f, 18.0f, 24.0f};
+              float4 float_step = {2.0f, 3.0f, 6.0f, 8.0f};
+              double2 double_seed = {20.0, 30.0};
+              double2 double_step = {4.0, 5.0};
+
+              global_sentinel = 73;
+              global_floats[0] = float_seed;
+              global_floats[1] = float_step;
+              global_floats[1] += float_seed;
+              global_floats[1] -= float_step;
+              global_floats[1] *= float_step;
+              global_floats[1] /= float_step;
+              global_doubles[0] = double_seed;
+              global_doubles[1] = double_step;
+              global_doubles[1] += double_seed;
+              global_doubles[1] -= double_step;
+              global_doubles[1] *= double_step;
+              global_doubles[1] /= double_step;
+
+              local_floats[0] = global_floats[0];
+              local_floats[1] = global_floats[1];
+              local_doubles[0] = global_doubles[0];
+              local_doubles[1] = global_doubles[1];
+              int selected = 0;
+              local_floats[selected++] += float_step;
+
+              if (selected != 1) return 1;
+              if (local_floats[0].x != 10.0f ||
+                  local_floats[1].w != 24.0f)
+                return 2;
+              if (local_doubles[0].x != 20.0 ||
+                  local_doubles[1].y != 30.0)
+                return 3;
+              if (global_floats[2].z != 0.0f) return 4;
+              if (sizeof(*global_floats) != 16) return 5;
+              if (sizeof(*local_doubles) != 16) return 6;
+              if (global_sentinel != 73) return 7;
+              if (touch_static_array() != 1) return 8;
+              if (touch_static_array() != 0) return 9;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_persistent_repl_simd_arrays_keep_values_between_lines(self):
+        result = self._compile_and_run(
+            """
+            float4 persistent_floats[2];
+            double2 persistent_doubles[2];
+            int verify_persistent_vectors() {
+              float4 float_seed = {2.0f, 4.0f, 6.0f, 8.0f};
+              double2 double_seed = {3.0, 9.0};
+              persistent_floats[1] = float_seed;
+              persistent_doubles[1] = double_seed;
+              persistent_floats[1] *= float_seed;
+              persistent_doubles[1] += double_seed;
+              if (persistent_floats[1].z != 36.0f) return 1;
+              if (persistent_doubles[1].y != 18.0) return 2;
+              if (sizeof(*persistent_floats) != 16) return 3;
+              return 0;
+            }
+            verify_persistent_vectors();
+            """,
+            repl=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_simd_min_max_keep_second_operand_nan_and_zero_rules(self):
+        result = self._compile_and_run(
+            """
+            int main() {
+              float float_nan = 0.0f / 0.0f;
+              float float_positive_zero = 0.0f;
+              float float_negative_zero = -float_positive_zero;
+              float4 float_first = {
+                float_nan, float_positive_zero,
+                float_nan, float_positive_zero
+              };
+              float4 float_second = {
+                5.0f, float_negative_zero,
+                -7.0f, float_negative_zero
+              };
+              float4 float_min;
+              float4 float_max;
+              float float_lane;
+
+              double double_nan = 0.0 / 0.0;
+              double double_positive_zero = 0.0;
+              double double_negative_zero = -double_positive_zero;
+              double2 double_first = {double_nan, double_positive_zero};
+              double2 double_second = {9.0, double_negative_zero};
+              double2 double_min;
+              double2 double_max;
+              double double_lane;
+              int *double_bits;
+
+              float_min = _mm_min_ps(float_first, float_second);
+              float_max = _mm_max_ps(float_first, float_second);
+              if (float_min.x != 5.0f || float_max.z != -7.0f) return 1;
+              float_lane = float_min.y;
+              if (*(int *)&float_lane != (int)0x80000000) return 2;
+              float_lane = float_max.w;
+              if (*(int *)&float_lane != (int)0x80000000) return 3;
+
+              double_min = _mm_min_pd(double_first, double_second);
+              double_max = _mm_max_pd(double_first, double_second);
+              if (double_min.x != 9.0 || double_max.x != 9.0) return 4;
+              double_lane = double_min.y;
+              double_bits = (int *)&double_lane;
+              if (double_bits[1] != (int)0x80000000) return 5;
+              double_lane = double_max.y;
+              double_bits = (int *)&double_lane;
+              if (double_bits[1] != (int)0x80000000) return 6;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_function_returned_int_pointer_drops_stale_array_metadata(self):
         result = self._compile_and_run(
             """
@@ -1274,6 +1572,7 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
         cases = (
             ("global zero", "double values[0];"),
             ("global negative", "float values[1 - 2];"),
+            ("global SIMD zero", "float4 values[0];"),
             (
                 "local zero inner bound",
                 "int main() { double values[2][0]; return 0; }",
@@ -1318,6 +1617,7 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
     def test_array_byte_calculation_rejects_signed_overflow(self):
         cases = (
             ("global double", "double values[268435456];"),
+            ("global SIMD", "double2 values[134217728];"),
             (
                 "local float",
                 "int main() { float values[536870912]; return 0; }",
@@ -1499,24 +1799,195 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             result.stderr,
         )
 
-    def test_fixed_simd_array_has_a_useful_diagnostic(self):
+    def test_multidimensional_simd_array_has_a_useful_diagnostic(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-simd-array-diagnostic-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code, _data = self._compile(
+                Path(temporary),
+                """
+                float4 vectors[2][2];
+                """,
+            )
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertIn("SIMD arrays support one dimension", result.stderr)
+
+    def test_simd_operator_diagnostics_name_the_supported_boundary(self):
         cases = (
-            "float4 vectors[2];",
-            "int main() { double2 vectors[2]; return 0; }",
-            "int main() { static float4 vectors[2]; return 0; }",
-            "struct Vectors { double2 values[2]; };",
-            "class Vectors { float4 values[2]; };",
+            (
+                "different vector widths",
+                """
+                int main() {
+                  float4 left = {1, 2, 3, 4};
+                  double2 right = {1, 2};
+                  float4 result;
+                  result = left + right;
+                  return 0;
+                }
+                """,
+                "SIMD operator requires matching float4 or double2 operands",
+            ),
+            (
+                "vector and scalar",
+                """
+                int main() {
+                  float4 left = {1, 2, 3, 4};
+                  float4 result;
+                  result = left + 1;
+                  return 0;
+                }
+                """,
+                "SIMD operator requires matching float4 or double2 operands",
+            ),
+            (
+                "unsupported remainder",
+                """
+                int main() {
+                  float4 left = {1, 2, 3, 4};
+                  float4 right = {1, 2, 3, 4};
+                  float4 result;
+                  result = left % right;
+                  return 0;
+                }
+                """,
+                "SIMD operator supports only +, -, *, and /",
+            ),
+            (
+                "unsupported comparison",
+                """
+                int main() {
+                  float4 left = {1, 2, 3, 4};
+                  float4 right = {1, 2, 3, 4};
+                  if (left == right) return 1;
+                  return 0;
+                }
+                """,
+                "SIMD operator supports only +, -, *, and /",
+            ),
         )
-        for source in cases:
-            with self.subTest(source=source), tempfile.TemporaryDirectory(
+
+        for label, source, message in cases:
+            with self.subTest(operation=label), tempfile.TemporaryDirectory(
+                prefix="private-cupidc-simd-operator-",
+                ignore_cleanup_errors=True,
+            ) as temporary:
+                result, _code, _data = self._compile(
+                    Path(temporary), source
+                )
+                self.assertEqual(
+                    result.returncode,
+                    2,
+                    result.stdout + result.stderr,
+                )
+                self.assertIn(message, result.stderr)
+
+    def test_simd_array_assignment_diagnostics_name_the_required_type(self):
+        cases = (
+            (
+                "float4 from double2",
+                """
+                float4 values[1];
+                int main() {
+                  double2 value = {1, 2};
+                  values[0] = value;
+                  return 0;
+                }
+                """,
+                "float4 array assignment requires a float4 value",
+            ),
+            (
+                "unsupported bitwise compound",
+                """
+                double2 values[1];
+                int main() {
+                  double2 value = {1, 2};
+                  values[0] &= value;
+                  return 0;
+                }
+                """,
+                "SIMD array compound assignment supports only +=, -=, *=, and /=",
+            ),
+        )
+
+        for label, source, message in cases:
+            with self.subTest(assignment=label), tempfile.TemporaryDirectory(
+                prefix="private-cupidc-simd-array-assignment-",
+                ignore_cleanup_errors=True,
+            ) as temporary:
+                result, _code, _data = self._compile(
+                    Path(temporary), source
+                )
+                self.assertEqual(
+                    result.returncode,
+                    2,
+                    result.stdout + result.stderr,
+                )
+                self.assertIn(message, result.stderr)
+
+    def test_simd_pointer_and_new_forms_have_useful_diagnostics(self):
+        cases = (
+            ("spelled pointer", "float4 *values;", "SIMD pointer types"),
+            (
+                "address of vector",
+                """
+                int main() {
+                  float4 value = {1, 2, 3, 4};
+                  &value;
+                  return 0;
+                }
+                """,
+                "SIMD pointer expressions",
+            ),
+            (
+                "vector allocation",
+                """
+                int main() {
+                  new double2[2];
+                  return 0;
+                }
+                """,
+                "SIMD allocation with new",
+            ),
+        )
+
+        for label, source, message in cases:
+            with self.subTest(form=label), tempfile.TemporaryDirectory(
+                prefix="private-cupidc-simd-pointer-",
+                ignore_cleanup_errors=True,
+            ) as temporary:
+                result, _code, _data = self._compile(
+                    Path(temporary), source
+                )
+                self.assertEqual(
+                    result.returncode,
+                    2,
+                    result.stdout + result.stderr,
+                )
+                self.assertIn(message, result.stderr)
+
+    def test_simd_struct_field_arrays_have_a_useful_diagnostic(self):
+        cases = (
+            ("struct SIMD field", "struct Samples { float4 values[2]; };"),
+            ("class SIMD field", "class Samples { double2 values[2]; };"),
+        )
+        for label, source in cases:
+            with self.subTest(declaration=label), tempfile.TemporaryDirectory(
                 prefix="private-cupidc-simd-array-diagnostic-",
                 ignore_cleanup_errors=True,
             ) as temporary:
                 result, _code, _data = self._compile(
                     Path(temporary), source
                 )
-            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
-            self.assertIn("fixed SIMD arrays are not supported", result.stderr)
+                self.assertEqual(
+                    result.returncode,
+                    2,
+                    result.stdout + result.stderr,
+                )
+                self.assertIn(
+                    "SIMD struct field arrays are not supported",
+                    result.stderr,
+                )
 
     def test_address_of_record_array_element_keeps_the_selected_object(self):
         result = self._compile_and_run(

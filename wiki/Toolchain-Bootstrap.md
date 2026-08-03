@@ -590,8 +590,20 @@ one-dimensional fixed floating field arrays. Unevaluated
 `sizeof(array[index])` reports the row without running the index. Checked
 bounds and dimension products protect storage, and fresh expression metadata
 prevents stride leakage. Deeper floating pointers, indirect floating updates,
-pointer-to-array types, fixed SIMD arrays, and assignment through a
+pointer-to-array types, and assignment through a
 pointer-valued floating field subscript remain unsupported.
+
+Private packed values now keep their type through matching `float4` or
+`double2` arithmetic and one-dimensional fixed arrays. Global, automatic,
+block-static, and persistent REPL arrays use checked 16-byte strides and
+unaligned-safe loads and stores. Indexed plain assignment and the four
+arithmetic compound assignments evaluate their destination once and preserve
+lane reads. Every direct operator keeps the written left value in the machine
+destination. MIN and MAX intrinsics preserve their second-operand NaN and
+signed-zero behavior. A both-NaN ADD or MUL may carry either input payload,
+depending on the processor or emulator. SIMD pointers, multidimensional
+arrays, record fields, `new`, array parameters, and call ABI transport remain
+unsupported. ADR 0216 records the boundary.
 
 Direct functions and methods retain parsed fixed parameter types. Known fixed
 arguments convert among represented integer, `char`, `float`, and `double`
