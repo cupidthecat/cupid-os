@@ -142,6 +142,33 @@ def _frontier_command_outputs():
             "[cupidc] JIT execution complete\n"
         ),
         (
+            "[cupidc] JIT compile: /bin/dglibc_test.cc\n"
+            "[PASS] dglibc snprintf\n"
+            "[PASS] dglibc malloc/free\n"
+            "[PASS] dglibc setjmp/longjmp and exit envelope\n"
+            "[PASS] dglibc checked integer parsing\n"
+            "[PASS] dglibc Doom exit callback lifecycle\n"
+            "[PASS] dglibc Doom path resolution\n"
+            "[PASS] dglibc shared errno bridge\n"
+            "[PASS] dglibc Doom config round trip\n"
+            "[PASS] dglibc synthetic config filesystem bridge\n"
+            "[PASS] dglibc synthetic save filesystem bridge\n"
+            "[PASS] dglibc VFS rename boundaries\n"
+            "[PASS] dglibc VFS copy boundaries\n"
+            "[PASS] dglibc block cache failure boundary\n"
+            "[PASS] dglibc RamFS size boundary\n"
+            "[PASS] dglibc FAT directory collision\n"
+            "[PASS] dglibc FAT read boundary\n"
+            "[PASS] dglibc FAT handle exhaustion\n"
+            "[PASS] dglibc FAT busy replacement\n"
+            "[PASS] dglibc FAT 8.3 path boundary\n"
+            "[PASS] dglibc HomeFS mount boundary\n"
+            "[PASS] dglibc HomeFS depth boundary\n"
+            "[PASS] dglibc HomeFS batch boundary\n"
+            "[PASS] dglibc_test\n"
+            "[cupidc] JIT execution complete\n"
+        ),
+        (
             "[cupidc] JIT compile: /bin/browser.cc\n"
             "[js] parse error: js: expected exponent digits\n"
             "[browser-js-number] PASS close=1 large=1 negzero=1 nan=1 "
@@ -1168,6 +1195,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
                 "/bin/feature15_libm.cc",
                 "/bin/feature17_iso.cc",
                 "/bin/feature18_swap.cc",
+                "dglibc_test",
                 "browser --selftest",
                 "audiotest all",
                 "godsong 1 200",
@@ -1192,6 +1220,51 @@ class FrontierRuntimeContractTests(unittest.TestCase):
                 self.assertIsNotNone(
                     re.search(command.expected_pattern, sample, re.S | re.M)
                 )
+
+    def test_dglibc_command_requires_every_filesystem_boundary(self):
+        command = _frontier_command("dglibc_test")
+        expected = command.expected_pattern
+        sample = _frontier_command_output("dglibc_test")
+
+        self.assertIsNotNone(re.search(expected, sample, re.S | re.M))
+        for fragment in (
+            "[PASS] dglibc snprintf",
+            "[PASS] dglibc malloc/free",
+            "[PASS] dglibc setjmp/longjmp and exit envelope",
+            "[PASS] dglibc checked integer parsing",
+            "[PASS] dglibc Doom exit callback lifecycle",
+            "[PASS] dglibc Doom path resolution",
+            "[PASS] dglibc shared errno bridge",
+            "[PASS] dglibc Doom config round trip",
+            "[PASS] dglibc synthetic config filesystem bridge",
+            "[PASS] dglibc synthetic save filesystem bridge",
+            "[PASS] dglibc VFS rename boundaries",
+            "[PASS] dglibc VFS copy boundaries",
+            "[PASS] dglibc block cache failure boundary",
+            "[PASS] dglibc RamFS size boundary",
+            "[PASS] dglibc FAT directory collision",
+            "[PASS] dglibc FAT read boundary",
+            "[PASS] dglibc FAT handle exhaustion",
+            "[PASS] dglibc FAT busy replacement",
+            "[PASS] dglibc FAT 8.3 path boundary",
+            "[PASS] dglibc HomeFS mount boundary",
+            "[PASS] dglibc HomeFS depth boundary",
+            "[PASS] dglibc HomeFS batch boundary",
+            "[PASS] dglibc_test",
+        ):
+            with self.subTest(fragment=fragment):
+                self.assertIsNone(
+                    re.search(
+                        expected,
+                        sample.replace(fragment, ""),
+                        re.S | re.M,
+                    )
+                )
+
+        self.assertIn(
+            "[FAIL] dglibc",
+            gui_terminal_smoke.FRONTIER_RUNTIME_REJECTED_MARKERS,
+        )
 
     def test_browser_number_selftest_requires_every_boundary(self):
         command = _frontier_command("browser --selftest")

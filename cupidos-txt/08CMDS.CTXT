@@ -258,6 +258,8 @@ Media/runtime commands:
 - doom -iwad <path>   choose an IWAD manually
 
 WADs are staged under /disk/wads with make stage-wads.
+default.cfg and save slots live under /home/doom. They are written to a
+temporary file and committed with native same-mount rename.
 >button Audio Test | shell:audiotest all
 >endtree
 
@@ -302,7 +304,7 @@ Compiler/language test programs currently embedded in /bin:
 - feature23_full_access    (binding sanity)
 - feature24_widetypes      (CupidC C-compat types/control flow)
 - fp_drill                 (FPU exception drill; reboots kernel!)
-- dglibc_test
+- dglibc_test             jump/exit, VFS, cache, FAT, and batched HomeFS checks
 - kbdsub_test
 - test
 - test_fpaug

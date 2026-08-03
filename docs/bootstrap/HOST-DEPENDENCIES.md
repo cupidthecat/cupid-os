@@ -4,26 +4,24 @@ The deterministic active-source audit records three supported build roots:
 root `all`, `user:all`, and `toolchain:all`. It evaluates Make conditionals
 with `OS=Windows_NT` and `LC_ALL=C` on every host so the checked graph has one
 stable shape, then covers the Linux branch with direct build tests.
-`audits/active-build.json` owns the current 717-input/449-transform graph. The
-language graph contains 27 assembly inputs, 289 headers, and 401 Cupid C
+`audits/active-build.json` owns the current 718-input/449-transform graph. The
+language graph contains 27 assembly inputs, 290 headers, and 401 Cupid C
 files. No ordinary C translation unit remains in a supported root. The
 active-source digest is
-`5daf197a8bd5d1cdd8d78233daf264db92ef809b48c451c4e89b000ba32ccda9`.
-The 2,547,062-byte audit JSON has SHA-256
-`93d98153a6bde55787b8eb9840a13a7b25519eb93085d3a71148fe0328c597a9`,
+`2c0d7432fd7750a672ab0ea0cc873d2772328182b7679715db2ca214c4b6536d`.
+The 2,554,064-byte audit JSON has SHA-256
+`c55ce43fe9cdaea08fd02dad4a14a5e859c0559ca98b036fc00e07e7dbc8308e`,
 and the 12,136-byte summary has SHA-256
-`f81c6ce5c88e263040b4872658c022ebbf0f4dc15cbb33e7f9d57711bcd7a3fb`.
+`8f9b3f4499df24f53e72c9cd950358a9ce2f51e4f12520e3a1d4cb157d3aacc8`.
 The checked Windows Clang/LLVM and Linux GCC/binutils baselines at
 revision `1e079d1` predate the current CupidC ownership and remain historical
 oracle evidence.
 
-Promoting `returns_twice` support into checked-seed CupidC adds no dependency
-or transform to that graph. Native Clang still builds the optional contract
-and its decoder-driven i386 execution oracle. The oracle is hosted evidence,
-not a production transform or guest runtime proof. The active dglibc
-compatibility object remains byte-identical to its existing lock.
-Active-source migration and guest runtime proof remain open. ADR 0213 records
-the promotion.
+Active dglibc now consumes the checked seed's `returns_twice` support. This
+changes no build owner or host dependency. Native Clang still builds the
+optional decoder-driven oracle, while the asset-free QEMU self-test executes
+the corrected setjmp, longjmp, quit, and error paths in Cupid OS. ADR 0213
+records the seed promotion, and ADR 0214 records active adoption.
 
 The normal root build sends no C object through GCC or Clang. Checked-seed
 CupidC owns 245 transforms across the three roots. The normal cohort contains
@@ -189,7 +187,7 @@ SIMD transfer, ADR 0181 records the final strict-root transfer, and ADR 0184
 records the 83-root Doom transfer.
 
 The Doom wrapper fixes exact three-source and 80-source allowlists and freezes
-the selected source with all 289 `.h` and `.inc` inputs visible through the
+the selected source with all 290 `.h` and `.inc` inputs visible through the
 two compiler profiles. It recursively checks visible `.c` and `.cc` files
 beneath the Doom tree before and after a compile. Its always-checked manifest
 detects source removal. A legacy `.c` file, an unlisted `.cc` file, header
@@ -208,8 +206,9 @@ reaps the same external ELF program twice at `0x01C00000`, with lease release
 between the two runs.
 
 The Doom handoff uses the same four-CPU e1000 and RTL8139 frontier. A second
-private boot per NIC checks the no-WAD guidance, explicit missing-IWAD
-recovery, and a later CupidC-built command. No host C tool participates. The
+private boot per NIC returns from two consecutive missing-IWAD launches, then
+runs the expanded dglibc and storage diagnostic. The stateful frontier also
+passes after swap keeps one FAT handle open. No host C tool participates. The
 checkout has no WAD, so gameplay remains outside this host-dependency proof.
 
 CupidC represents operand-free GNU assembly statements inside functions and
@@ -456,18 +455,22 @@ Ordinary narrow bit-field promotion serves the production Doom cohort. The
 frontend and Linear IR retain and validate the direct member behind an
 eight-bit `unsigned int` field's promotion to signed `int`. A 127-byte exact
 object and eight decoder-driven executions cover the active shift and mask
-forms. The checked seed uses this support to emit unchanged
+forms. The checked seed uses this support to emit
 `kernel/doom/src/i_video.cc`; two exact-profile compiles reproduce its
-9,312-byte object with SHA-256
-`8e9fcb59120cac9e8237a8243003fe1696a7841096aca7af360c89fec173336f`.
+9,288-byte object with SHA-256
+`d04e91844763391d4224d14aefce64ece02a95c9a99c604e9ef5b1392974dd20`.
 
-The checked Doom compatibility path now retires all 83 normal host C
-transforms. CupidC preserves explicit non-atomic pointer casts around static
-addresses and emits the exact dglibc jump block through Cupid's x86 model.
-Repeated checked-seed compiles agree on all three compatibility objects, and
-the normal recipes consume those objects through the closed production
-wrapper. A staged IWAD is still needed to check complete gameplay, input,
-audio, and save behavior.
+The checked Doom compatibility path retires all 83 normal host C transforms.
+CupidC preserves explicit non-atomic pointer casts around static addresses and
+emits the active corrected dglibc jump block through Cupid's x86 model.
+Repeated checked-seed compiles agree on the 93,332-byte, 17,084-byte, and
+10,352-byte compatibility objects, and the normal recipes consume them through
+the closed production wrapper. Native VFS rename, checked cache failure
+handling, FAT durable publication, HomeFS container ownership and batching,
+the repeated exit lifecycle, and production config helpers have asset-free
+guest coverage. A staged IWAD is still needed for gameplay, input, audio,
+menu-driven save/load, and persistence across reboot. QEMU remains a test
+dependency, not a normal build producer.
 
 Eight-byte integer values cross the shared path through full-width constants, matching conditional results, fixed direct and indirect call results, object access, initialization, plain and chained assignment, declared parameters, named arguments, ellipsis and unprototyped call arguments, variadic reads, discard, returns, arithmetic, unary operations, shifts, bitwise operations, comparisons, logical operations, conditions, switch dispatch, and conversion to or from represented integer widths. File objects, block statics, fixed automatic objects, pointer dereferences, ordinary members, and indexed elements use private eight-byte frame snapshots. The i386 emitter restores the low word to EAX and the high word to EDX on return. Calls publish packed post-conversion actual types in emitted instruction order, which gives an open-position wide integer two adjacent stack words and advances a wide variadic cursor by eight bytes. The CupidC-built socket and TCP objects use this production path. Both checked compiler stages build the deterministic result, object, parameter, operation, and call-position contracts; host-built copies are optional oracles.
 
@@ -613,7 +616,7 @@ Eight-byte integer and exact floating object access use those existing storage i
 
 File definitions and block-static bindings now share one object encoder. It places file objects first, then every block static in absolute binding order, before it emits functions. The same initializer forms, section rules, target bytes, symbol construction, and direct-symbol relocations apply to both storage domains. A block-static initializer can now retain another block-static object's symbol and emit an `R_386_32` relocation to it.
 
-The unchanged FAT16 and active-header contracts still pin layout, redeclaration, attribute, assertion, and lexical ownership. The checked seed passes the active 155/155 non-Doom header sweep. `cpu.h` passes through the represented RDTSC form, the three roots that include `percpu.h` parse through all active integer atomics, and `ports.h` parses through all eight width-aware helpers. All twelve Toolchain source gates parse completely. Each five-number tuple reports definitions, statements, expressions, block bindings, and initializers. `cupidc_pp.cc` publishes 143/3,932/25,287/479/286. `cupidc_ir.cc` publishes 262/7,250/67,490/953/354. `cupidc_emit.cc` publishes 353/8,554/72,476/1,045/710, while `cupidc_frontend.cc` publishes 422/16,503/109,174/2,480/1,509. The generated audit records the current active-source totals and source graph.
+The unchanged FAT16 and active-header contracts still pin layout, redeclaration, attribute, assertion, and lexical ownership. The checked-seed standalone sweep passes 157 of 159 active non-Doom headers; `scheduler.h` and `simd_intrin.h` retain exact expected failures. `cpu.h` passes through the represented RDTSC form, the three roots that include `percpu.h` parse through all active integer atomics, and `ports.h` parses through all eight width-aware helpers. All twelve Toolchain source gates parse completely. Each five-number tuple reports definitions, statements, expressions, block bindings, and initializers. `cupidc_pp.cc` publishes 143/3,932/25,287/479/286. `cupidc_ir.cc` publishes 262/7,250/67,490/953/354. `cupidc_emit.cc` publishes 353/8,554/72,476/1,045/710, while `cupidc_frontend.cc` publishes 422/16,503/109,174/2,480/1,509. The generated audit records the current active-source totals and source graph.
 
 Checked stage-two and stage-three CupidC build the shared frontend, emitter,
 and normal contract programs. GCC or Clang and a host linker build only the

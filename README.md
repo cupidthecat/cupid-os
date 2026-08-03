@@ -47,7 +47,7 @@ Cupid OS is a 32-bit x86 hobby OS written in Cupid C and Cupid ASM. It has a gra
 - In-OS `ssh` and `telnet` clients plus an `sshd` server. SSH supports password and keyboard-interactive authentication, PTY shells, remote execution, host-key verification, Curve25519/ChaCha20-Poly1305, and terminal resizing
 - A graphical shell browser with HTML5 tokenization and tree building, CSS cascade and specificity, variables and `calc`, web fonts, block and inline layout, HTTP and HTTPS, navigation history, and GET forms
 - AC97 audio at 22050 Hz stereo, a 16-slot signed 16-bit mixer, the cycle-accurate LGPL-2.1 Nuked-OPL3 emulator, and an 18-voice MIDI dispatcher with percussion, two-voice patches, pan, and sustain
-- DOOM with automatic Freedoom1/2 discovery under `/disk/wads/`, mixer-backed sound effects, MUS-to-MIDI OPL3 music in slot 8, keyboard controls, and persistent saves and `default.cfg` under `/home/doom/`
+- DOOM with automatic Freedoom1/2 discovery under `/disk/wads/`, mixer-backed sound effects, MUS-to-MIDI OPL3 music in slot 8, keyboard controls, and checked replacement of saves and `default.cfg` under `/home/doom/`
 - Headless build (`make run-headless`): boots straight into shell over COM1/stdio, no VBE. Scriptable through the Python serial/QEMU harnesses in `tools/`.
 - PS/2 keyboard and mouse, ATA/IDE disk, RTC, serial, PC speaker drivers
 - System clipboard, x86-32 disassembler, BMP / PNG / JPEG image codecs, TrueType font system with bundled Liberation fonts and live `fontswitch`
@@ -69,7 +69,7 @@ Recent subsystem work is summarized below. Detailed pages live under `wiki/`, an
 - `bin/browser.cc` drives a browser assembled from `bin/browser/{css,dom,font_face,image,input,js_dom,js_interp,js_lex,js_parse,layout,main,nav,net,paint,parser,render_tree,style,url,url_hash,util,woff,woff2}.cc`. It has an HTML5 tokenizer and tree builder, a CSS lexer with user-agent and author cascades, specificity, variables, `calc`, external stylesheets, `@font-face`, WOFF1 support, WOFF2 fallback handling, a render-tree builder, block and inline formatting, clipping, rounded corners, box shadows, and a painter that walks the render tree. The UI supports HTTP and HTTPS, Ctrl-L for the address bar, Backspace history, link navigation, GET forms, checkboxes, text inputs, and `about:dump`. Its JavaScript number lane keeps decimal fractions and exponents as binary64 values, uses native comparisons and truth conversion, and exposes `browser --selftest` for an asset-free guest check. The five numeric tables require private CupidC to preserve the width and SSE access of one-dimensional fixed `double` array symbols. Separate compiler contracts cover scalar conversions and arithmetic compound assignment on fixed `float` and `double` arrays. The self-test reports 17 computed number checks, including non-finite formatting, signed and uppercase exponents, division assignment, exponent capping, and malformed-exponent rejection. ADR 0210 records both parts.
 - `kernel/gfx/fontsys.cc` registers the bundled Liberation fonts, rasterizes UTF-8 text, stores the default in `/etc/font.conf`, exposes CupidC bindings, and supplies text to the browser and `fontswitch`.
 - `kernel/audio/ac97.cc` drives the PCI AC97 codec with a 32-entry BDL ring and IOC refills. `kernel/audio/mixer.cc` provides 16 signed 16-bit slots for PCM and streamed sources. The repository also carries the LGPL-2.1 Nuked-OPL3 emulator, the GPL-2 chocolate-doom MUS-to-MIDI converter, and an 18-voice dispatcher in `kernel/audio/midiopl.cc`. The dispatcher loads GENMIDI patches and handles the percussion bank, two-voice patches, pan, sustain, master-volume re-leveling, and single-pass resampling. `audiotest all` runs the sine, sweep, pan, OPL, and AC97-routed OPL checks.
-- The vendored doomgeneric core lives under `kernel/doom/src/` with BSD and GPL-2 components. The platform shim sends `DG_DrawFrame` to the VBE back buffer, connects `DG_GetKey` to the raw-scancode subscriber ring, and implements `DG_SleepMs` and `DG_GetTicksMs` with the PIT. `dglibc` supplies the required heap, string, stdio, formatting, and setjmp routines. Sound effects go straight to the mixer, while music passes from MUS to MIDI, `midiopl`, Nuked-OPL3, and mixer slot 8. The shell command `doom` finds Freedoom WADs under `/disk/wads/`; `doom -iwad <path>` selects another IWAD. Savegames and `default.cfg` live in homefs under `/home/doom/`.
+- The vendored doomgeneric core lives under `kernel/doom/src/` with BSD and GPL-2 components. The platform shim sends `DG_DrawFrame` to the VBE back buffer, connects `DG_GetKey` to the raw-scancode subscriber ring, and implements `DG_SleepMs` and `DG_GetTicksMs` with the PIT. `dglibc` supplies the required heap, string, stdio, formatting, checked conversion, and nonlocal-exit routines. Sound effects go straight to the mixer, while music passes from MUS to MIDI, `midiopl`, Nuked-OPL3, and mixer slot 8. The shell command `doom` finds Freedoom WADs under `/disk/wads/`; `doom -iwad <path>` selects another IWAD. Savegames and `default.cfg` use temporary files and native VFS rename beneath `/home/doom/`. HomeFS reserves its FAT container, rejects corrupt or duplicate mounts, and can batch related mutations behind one checked publish. FAT16 publishes replacement and deletion state before releasing old storage, while failed cache reads leave the victim's identity intact. The asset-free `dglibc_test` exercises repeated quit and error sessions plus VFS, cache, FAT, and HomeFS failure boundaries. A staged WAD is still required for gameplay and menu-driven save/load proof.
 - A two-pass kernel link generates and embeds a `.ksyms` blob. The generator reads private snapshots of the pass-one kernel and CupidDis, rejects malformed symbol output or live input drift, and replaces the generated `.cc` source only after validation. Checked-seed CupidC compiles that source. `kernel_panic` uses `ksym_lookup` and a frame-pointer walk to print `function_name+offset` for each return address. It prints raw addresses if the blob is missing or corrupt.
 
 Built-in CupidC smoke tests exercise each track: `feature12_float`,
@@ -682,7 +682,8 @@ contention. Runtime order arguments, pointer and eight-byte atomics, and HLE
 flags remain open. The checked seed carries all five operations and compiles
 the active EHCI fetch-or path.
 
-The active non-Doom header gate is 155/155 in the checked seed. Under the full
+The active non-Doom standalone-header sweep passes 157 of 159 inputs in the
+checked seed. `scheduler.h` and `simd_intrin.h` remain explicit failures. Under the full
 kernel profile, unchanged `kernel/smp/acpi.cc` and `kernel/smp/mp_tables.cc`
 emit byte-identical 5,708-byte and 4,156-byte i386 ELF32 objects. The checked
 wrapper also compiles the port-I/O users and EHCI's atomic fetch-or
@@ -883,8 +884,11 @@ unchanged `info.cc`, and ordinary narrow bit-field promotion compiles unchanged
 The same checked production path owns the three compatibility roots. It
 preserves the explicit static string cast in `doom_libc_stubs.cc` and emits the exact
 `dg_setjmp` and `dg_longjmp` file-scope block through Cupid's x86 model.
-Two checked-seed compiles produce the same 27,992-byte, 14,352-byte, and
-10,232-byte objects for each root. All 83 sources use `.cc`.
+Two checked-seed compiles turn the 67,155-byte dglibc source into the same
+93,332-byte object and reproduce the 17,084-byte libc-stub and 10,352-byte
+platform objects. The dglibc object has SHA-256
+`e2496b01c93a7858a0c035b53aea0ad834d95d2be3f7ae49574d1759ebec34d6`.
+All 83 sources use `.cc`.
 
 Checked-seed CupidC represents GNU `returns_twice` on file-scope function
 declarations and merges the attribute across compatible redeclarations. A
@@ -897,17 +901,20 @@ continuation can reach it again, while a call with no live prefix may repeat.
 Aggregate, wide-integer, and wider-than-four-byte floating arguments and
 aggregate results fail with specific diagnostics.
 
-The corrected dglibc assembly form saves the caller's post-return ESP, requires
-`returns_twice` on `dg_setjmp`, and requires `noreturn` on `dg_longjmp`. The
-checked seed carries that compiler boundary, while active
-`kernel/doom/dglibc.cc` remains on the unannotated 27-byte compatibility form;
-`dg_longjmp` remains 38 bytes. A decoder-driven i386 oracle models the emitted
-caller's first and second returns with transfer values zero and seven. This is
-hosted model evidence, not guest runtime proof.
+Active dglibc uses the corrected assembly form. Its 31-byte `dg_setjmp` saves
+the caller's post-return `ESP + 4` and is marked `returns_twice`;
+`dg_longjmp`, `dg_exit`, and `dg_abort` are `noreturn`. A decoder-driven i386
+oracle models first and second returns with values zero and seven. The guest
+self-test adds two real quit cycles and two real error cycles, checking LIFO
+callbacks, error-only filtering, and cleanup between shell sessions. ADR 0214
+records the active boundary.
 
-The wrapper freezes each selected source and the complete 289-file header and
+The wrapper freezes each selected source and the complete 290-file header and
 include space for both profiles. Its content-addressed manifest fixes the
-three-source and 80-source memberships. It scans the visible Doom tree before
+three-source and 80-source memberships. The current 69,366-byte manifest has
+SHA-256
+`e77c8a0dc238b1a6f2257f273cf3367dba930c914e6a5806adf058621bbff4a4`.
+It scans the visible Doom tree before
 and after every compile. A legacy `.c` file, an unlisted `.cc` file, a missing
 root, header membership or byte drift, a symbolic link, or an NTFS junction
 fails before publication. The `g_game.cc` object keeps the two
@@ -916,12 +923,28 @@ fails before publication. The `g_game.cc` object keeps the two
 `R_386_PC32` addend -4. The root Make graph contains no host C transform.
 ADR 0184 records the production transfer.
 
-Private four-CPU boots pass the full frontier with both e1000 and RTL8139.
-Each NIC also passes `doom` with no WAD, `doom -iwad /disk/missing.wad`, and
-a later CupidC-built `ls` command. The logs contain the no-WAD guidance, the
-missing-IWAD error, `[doom] returned to shell`, and no panic marker. This
-checkout contains no WAD, so these checks do not claim gameplay, input, game
-audio, or save behavior.
+The active config and game-save code writes a checked temporary stream and
+uses native same-mount rename; it never removes the previous file first.
+HomeFS and RamFS reject replacement of busy nodes and directory iterators.
+HomeFS rejects corrupt containers and a second live mount, reserves
+`HOMEFS.SYS` against raw FAT writes while mounted, and can batch related
+mutations behind one final checked container publish. FAT16 syncs new data and
+directory state before it releases an old chain, applies the same rule to
+delete and directory creation, distinguishes missing files from handle
+exhaustion and I/O errors, and keeps live readers from being replaced. Failed
+block-cache reads stage into scratch storage, so a device that changes the
+read buffer before returning an error cannot relabel dirty victim bytes. These
+rules have source contracts and live guest checks. No injected power-cut test
+has been run.
+
+Private four-CPU boots exercise the full frontier on e1000 and RTL8139. On
+each adapter, two missing-IWAD launches return to the same shell before the
+expanded dglibc and storage test completes. Separate stateful frontier boots
+also pass after the swap program keeps one raw FAT handle open. The e1000 and
+RTL8139 frontier runs finish in 292.4 and 287.7 seconds, with framebuffer,
+AC97, and PC-speaker evidence. This checkout contains no WAD, so gameplay,
+game input or audio, menu-driven save/load, and persistence across reboot
+remain open.
 
 The five static i386 Linux tools have a checked bootstrap seed. Its manifest binds the exact binaries, source revision, target ABI, producer lineage, 19-source build plan, and five link orders before execution. The current CupidC seed is a 2,574,032-byte stage-three image with SHA-256 `8d810739494123a3da1cba34f75f58c005e8796f2cb4e85ba57eead1578a1f4d`. It comes from revision `b1106c28abc5a3905655a4b6df9d40737fb88c36` and carries the returns-twice boundary along with the complete 83-root Doom frontier, runtime floating truth, and the earlier kernel and ABI capabilities. CupidASM and CupidDis retain the 592-row shared x86 catalogue with canonical `FSUB ST(1), ST(0)`. CupidDis also retains typed raw code and data ranges. The 253,724-byte CupidObj image remains SHA-256 `f78752dc01daf3d2a9dc9265425f9c60639f438d5dcb91a001cf40d7d241ded5` and keeps the complete installation-source request and linked-symbol contract. The 5,440-byte manifest has SHA-256 `40ebc0e976eef3ddd4b79aab83407b1131a288414247e5d6eff6bce88cde06bc`. [ADR 0213](docs/adr/0213-promote-returns-twice-capable-toolchain-seed.md) records the current promotion.
 

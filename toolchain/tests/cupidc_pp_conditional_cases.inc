@@ -5,8 +5,8 @@
  * freestanding C11 i386 profile: __STDC_VERSION__=201112L, four-byte
  * pointers, __BYTE_ORDER__=__ORDER_LITTLE_ENDIAN__,
  * OPL_ENABLE_STEREOEXT=0, OPL_QUIRK_CHANNELSAMPLEDELAY=1,
- * __bool_true_false_are_defined=1, ORIGCODE undefined, and the host/platform
- * macros undefined.
+ * __bool_true_false_are_defined=1, ORIGCODE and DOOM_PORT_CUPIDOS undefined,
+ * and the host/platform macros undefined.
  */
 CUPIDC_PP_CONDITIONAL_CASE("! defined ( _WIN32 ) && ! defined ( __MACOSX__ ) && ! defined ( __DJGPP__ )", 1u, 0u, 1)
 CUPIDC_PP_CONDITIONAL_CASE("! defined ( __SIZEOF_POINTER__ ) || __SIZEOF_POINTER__ != 4", 1u, 0u, 0)
@@ -19,7 +19,9 @@ CUPIDC_PP_CONDITIONAL_CASE("1", 1u, 0u, 1)
 CUPIDC_PP_CONDITIONAL_CASE("OPL_ENABLE_STEREOEXT", 11u, 0u, 0)
 CUPIDC_PP_CONDITIONAL_CASE("OPL_ENABLE_STEREOEXT && ! defined OPL_SIN", 1u, 0u, 0)
 CUPIDC_PP_CONDITIONAL_CASE("OPL_QUIRK_CHANNELSAMPLEDELAY", 4u, 0u, 1)
-CUPIDC_PP_CONDITIONAL_CASE("ORIGCODE", 31u, 0u, 0)
+CUPIDC_PP_CONDITIONAL_CASE("ORIGCODE", 28u, 0u, 0)
+CUPIDC_PP_CONDITIONAL_CASE("defined ( DOOM_PORT_CUPIDOS )", 1u, 0u, 0)
+CUPIDC_PP_CONDITIONAL_CASE("defined ( ORIGCODE ) || defined ( DOOM_PORT_CUPIDOS )", 2u, 0u, 0)
 CUPIDC_PP_CONDITIONAL_CASE("_MSC_VER < 1400", 1u, 0u, 1)
 CUPIDC_PP_CONDITIONAL_CASE("_WIN64", 1u, 0u, 0)
 CUPIDC_PP_CONDITIONAL_CASE("defined ( _MSC_VER ) && ! defined ( __cplusplus )", 1u, 0u, 0)

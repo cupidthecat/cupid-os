@@ -215,6 +215,36 @@ FRONTIER_RUNTIME_COMMANDS = (
         ),
     ),
     TerminalCommand(
+        "dglibc_test",
+        (
+            r"\[cupidc\] JIT compile: /bin/dglibc_test\.cc"
+            r".*?\[PASS\] dglibc snprintf"
+            r".*?\[PASS\] dglibc malloc/free"
+            r".*?\[PASS\] dglibc setjmp/longjmp and exit envelope"
+            r".*?\[PASS\] dglibc checked integer parsing"
+            r".*?\[PASS\] dglibc Doom exit callback lifecycle"
+            r".*?\[PASS\] dglibc Doom path resolution"
+            r".*?\[PASS\] dglibc shared errno bridge"
+            r".*?\[PASS\] dglibc Doom config round trip"
+            r".*?\[PASS\] dglibc synthetic config filesystem bridge"
+            r".*?\[PASS\] dglibc synthetic save filesystem bridge"
+            r".*?\[PASS\] dglibc VFS rename boundaries"
+            r".*?\[PASS\] dglibc VFS copy boundaries"
+            r".*?\[PASS\] dglibc block cache failure boundary"
+            r".*?\[PASS\] dglibc RamFS size boundary"
+            r".*?\[PASS\] dglibc FAT directory collision"
+            r".*?\[PASS\] dglibc FAT read boundary"
+            r".*?\[PASS\] dglibc FAT handle exhaustion"
+            r".*?\[PASS\] dglibc FAT busy replacement"
+            r".*?\[PASS\] dglibc FAT 8.3 path boundary"
+            r".*?\[PASS\] dglibc HomeFS mount boundary"
+            r".*?\[PASS\] dglibc HomeFS depth boundary"
+            r".*?\[PASS\] dglibc HomeFS batch boundary"
+            r".*?\[PASS\] dglibc_test"
+            rf".*?{CUPIDC_COMPLETION_PATTERN}"
+        ),
+    ),
+    TerminalCommand(
         "browser --selftest",
         (
             r"\[cupidc\] JIT compile: /bin/browser\.cc"
@@ -368,6 +398,7 @@ FRONTIER_RUNTIME_REJECTED_MARKERS = (
     "FAIL feature15_libm",
     "FAIL feature17_iso",
     "FAIL feature18_swap",
+    "[FAIL] dglibc",
     "[browser-js-number] FAIL",
     "extended SYS VFS calls: FAIL",
 ) + NIC_RUNTIME_REJECTED_MARKERS

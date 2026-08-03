@@ -655,7 +655,8 @@ UHCI input
 reattachment and six EHCI storage lifetimes. ADR 0109 records these lifetime
 and ownership rules.
 
-The non-Doom header gate is now 155/155 in the checked seed. Checked-seed CupidC
+The non-Doom standalone-header sweep now passes 157 of 159 inputs in the
+checked seed. `scheduler.h` and `simd_intrin.h` remain explicit failures. Checked-seed CupidC
 still owns unchanged `kernel/smp/acpi.cc` and
 `kernel/smp/mp_tables.cc` in the normal build. A four-vCPU QEMU run discovers
 and starts every CPU, initializes e1000, passes all 62 crypto, ASN.1, and
@@ -774,17 +775,19 @@ ADR 0066 adds eight-byte object values to the represented path above. `FILE_ADDR
 
 Active Doom declarations require the same array-address form at `kernel/doom/src/g_game.cc` for `mousearray` and `joyarray`, and at `kernel/doom/src/tables.cc` for `finecosine`. The focused contract mirrors the constant-expression subscript used by `finecosine`. The forced `kernel/doom/dglibc_compat.h` header parses with its builtin cursor alias, and the empty identifier-list definition of `doomgeneric_Tick()` now passes. The pinned exact-profile parse of `d_main.cc` accepts the anonymous block-static `packs` record and both local external arrays, then completes the file. The command driver can reproduce that profile with ordered `-include` inputs. CupidC retains the sound driver's empty volatile memory barrier in Linear IR and emits no instruction bytes for it. Its static scalar evaluator also compiles the unchanged fixed-point table in `kernel/doom/src/am_map.cc`.
 
-ADR 0149 adds a separate Doom compatibility switch for old C implicit function declarations. An undeclared direct call creates a block-scoped `int()` declaration linked to one canonical external function. Calls made before a later prototype keep default argument promotions, while later calls use the refined prototype. ADR 0151 uses that explicit profile for eleven bit-preserving conversions between unqualified function pointers and unqualified four-byte data or `void` pointers. The frontend and Linear IR check the rule independently; strict C and ordinary GNU mode still reject it. The affected pointer sites are in `m_menu.cc`, `p_saveg.cc`, `p_ceilng.cc`, and `p_plats.cc`. ADR 0153 adds one-active-member union initialization, which compiles unchanged `kernel/doom/src/info.cc`. ADR 0152 retains direct member identity when a narrow `unsigned int` bit field promotes to signed `int`; unchanged `kernel/doom/src/i_video.cc` emits a 9,312-byte object with SHA-256 `8e9fcb59120cac9e8237a8243003fe1696a7841096aca7af360c89fec173336f`. The checked seed owns all 80 Doom-tree sources and the three compatibility roots in the normal image.
+ADR 0149 adds a separate Doom compatibility switch for old C implicit function declarations. An undeclared direct call creates a block-scoped `int()` declaration linked to one canonical external function. Calls made before a later prototype keep default argument promotions, while later calls use the refined prototype. ADR 0151 uses that explicit profile for eleven bit-preserving conversions between unqualified function pointers and unqualified four-byte data or `void` pointers. The frontend and Linear IR check the rule independently; strict C and ordinary GNU mode still reject it. The affected pointer sites are in `m_menu.cc`, `p_saveg.cc`, `p_ceilng.cc`, and `p_plats.cc`. ADR 0153 adds one-active-member union initialization, which compiles `kernel/doom/src/info.cc`. ADR 0152 retains direct member identity when a narrow `unsigned int` bit field promotes to signed `int`; `kernel/doom/src/i_video.cc` now emits a 9,288-byte object with SHA-256 `d04e91844763391d4224d14aefce64ece02a95c9a99c604e9ef5b1392974dd20`. The checked seed owns all 80 Doom-tree sources and the three compatibility roots in the normal image.
 
-ADR 0182 completes the separate three-root `DOOM_COMPAT_I386` frontier.
-Explicit non-atomic pointer-to-pointer casts retain a static
-string or binding address, while a cast through an integer remains rejected.
-The exact dglibc file-scope effect emits 27-byte `dg_setjmp` and 38-byte
-`dg_longjmp` functions through Cupid's x86 model with no relocation. A
-checked-seed compiler produces the same 27,992-byte dglibc, 14,352-byte
-libc-stub, and 10,232-byte platform objects on two runs. ADR 0183 records the
-five-tool seed promotion. ADR 0184 moves all 83 normal recipes and source
-names to CupidC and `.cc`.
+ADR 0182 completed the separate three-root `DOOM_COMPAT_I386` frontier.
+Explicit non-atomic pointer-to-pointer casts retain a static string or binding
+address, while a cast through an integer remains rejected. That first frontier
+carried the historical 27-byte `dg_setjmp` and the 38-byte `dg_longjmp` through
+Cupid's x86 model with no relocation. The active 67,155-byte dglibc source now
+uses the corrected 31-byte setjmp form. Checked-seed compiles reproduce its
+93,332-byte object and the 17,084-byte libc-stub and 10,352-byte platform
+objects on two runs. The dglibc object has SHA-256
+`e2496b01c93a7858a0c035b53aea0ad834d95d2be3f7ae49574d1759ebec34d6`.
+ADR 0183 records the first five-tool seed promotion. ADR 0184 moves all 83
+normal recipes and source names to CupidC and `.cc`.
 
 Checked-seed CupidC accepts both the compatibility form and a corrected form.
 GNU `returns_twice` is canonical function metadata and must remain on a direct
@@ -796,20 +799,19 @@ returns-twice continuation can reach it again; a call with no live prefix may
 repeat. Aggregate, wide-integer, and wider-than-four-byte floating arguments,
 aggregate results, and marked-function pointer conversions fail explicitly.
 
-The corrected `dg_setjmp` body saves `ESP + 4`, occupies 31 bytes, and requires
-`returns_twice`; its matching `dg_longjmp` declaration requires `noreturn`. A
-decoder-driven i386 oracle models first and second returns with transfer values
-zero and seven, but it is not guest runtime proof. Active
-`kernel/doom/dglibc.cc` still uses the unannotated 27-byte compatibility form;
-`dg_longjmp` remains 38 bytes. Active-source migration and guest runtime proof
-remain open. ADR 0212 records the compiler boundary, and ADR 0213 records its
-checked-seed promotion.
+The active `dg_setjmp` body saves `ESP + 4`, occupies 31 bytes, and requires
+`returns_twice`; its matching `dg_longjmp` declaration requires `noreturn`.
+A decoder-driven i386 oracle models first and second returns with transfer
+values zero and seven. The asset-free guest self-test exercises direct
+longjmp, two real quit cycles, and two real error cycles through the active
+shell-session envelope. ADR 0212 records the compiler boundary, ADR 0213 its
+checked-seed promotion, and ADR 0214 active adoption.
 
 The Doom production wrapper has exact three-source and 80-source allowlists.
-It freezes the selected source and all 289 `.h` and `.inc` inputs visible
-through the profiles' 20 include roots. The 68,850-byte input manifest has
+It freezes the selected source and all 290 `.h` and `.inc` inputs visible
+through the profiles' 20 include roots. The 69,366-byte input manifest has
 SHA-256
-`259d7994ba929d6740528eba117bf9586c713a35e9d3edd0b4fae8b82219d87c`.
+`e77c8a0dc238b1a6f2257f273cf3367dba930c914e6a5806adf058621bbff4a4`.
 The wrapper recursively checks visible `.c` and `.cc` files beneath the Doom
 tree before and after each compile. It rejects a legacy `.c` file, an
 unlisted `.cc` file, a missing root, header membership or byte changes,
@@ -818,15 +820,31 @@ timestamp, so the closed input check does not force all 83 objects to rebuild.
 
 The production object validator accepts signed `R_386_32` addends used to
 select static subobjects. This keeps `&mousearray[1]` and `&joyarray[1]` in
-unchanged `g_game.cc`; its 51,492-byte object has SHA-256
-`c9da48e696eb521441e8bee0a2b69bfdd691db57b7fbbda42450d208e78d9034`.
+`g_game.cc`; its 52,004-byte object has SHA-256
+`51aff2138ff2ee51bae9cc18e1dcc415567c6be1699ef0ef6f1ed2b009c30df1`.
 Both `.data` relocations carry addend 4. `R_386_PC32` still requires addend
 -4.
 
-Private four-CPU e1000 and RTL8139 boots pass the complete runtime frontier.
-Separate command gates run the no-WAD path, recover from an explicit missing
-IWAD, and then complete CupidC-built `ls` on both NICs. The repository has no
-WAD, so gameplay, game input, game audio, and save behavior remain open.
+The active Doom config path uses a bounded parser, restores registered
+defaults between shell sessions, writes a sibling temporary file, and commits
+with native VFS rename. Game saves use the same close-and-rename rule without
+deleting the prior slot first. HomeFS and RamFS reject busy replacement.
+HomeFS rejects corrupt containers and a second live mount, reserves its FAT
+container while mounted, and batches related mutations behind one final
+checked publish. FAT16 applies durable directory publication to replacement,
+delete, and directory creation; reports handle exhaustion separately; and
+will not replace an entry while a reader still owns it. A failed block-cache
+read cannot corrupt the identity of a dirty victim because new data is staged
+before publication. ADR 0211 records these storage rules.
+
+Private four-CPU e1000 and RTL8139 boots cover the complete runtime frontier.
+Each no-WAD boot returns from two consecutive missing-IWAD errors and then
+completes the expanded dglibc/storage diagnostic. Separate frontier boots pass
+after swap holds one FAT handle open; they also record framebuffer changes and
+both audio paths. The repository has no WAD, so gameplay, game input, game
+audio, menu-driven save/load, and persistence across reboot remain open. FAT
+publication ordering has source and guest coverage but no injected power-cut
+proof.
 
 The block-static object proof emits eleven exact local symbols, from `.LBS0.hex` through `.LBS10.unused`. Its sections contain 21 bytes of read-only data, 56 bytes of initialized writable data, and 4 bytes of zero-filled storage. Ten text, one read-only-data, and five data relocations are all direct `R_386_32` references with addend zero. The fixture covers shadowed names, unused and unreachable objects, aggregate and string initializers, linked and unresolved addresses, runtime reads and writes, and an unused eight-byte image. A referenced eight-byte block static now lowers through the wide snapshot path. Missing, out-of-range, mistyped, runtime-initialized, and constrained-output cases still fail transactionally. The unchanged `dis_hex_fixed` helper in `toolchain/cupiddis.cc` pins the active constant character array.
 
@@ -851,9 +869,9 @@ The preprocessing module owns translation-phase tokenization, ordered
 object, function, and variadic macros, C11 conditionals and predefined macros,
 `#line` locations, direct and macro-expanded includes, forced inputs,
 guarded traversal, canonical once identity, pack metadata, and typed Cupid
-`#exe` markers. Checked manifests classify all 2,392 include operands as
-2,158 direct quoted plus 234 direct angle forms with zero macro operands
-across 686 active C-family inputs. The generated manifest drives 381 tracked
+`#exe` markers. Checked manifests classify all 2,402 include operands as
+2,167 direct quoted plus 235 direct angle forms with zero macro operands
+across 687 active C-family inputs. The generated manifest drives 381 tracked
 profile runs under ten profiles plus four generated kernel roots. The
 profile counts are 155 kernel, three Doom compatibility, 80 Doom tree, three
 user, 105 Cupid programs, 31 strict hosted i386 Linux, two hosted i386 kernel
@@ -874,20 +892,21 @@ The hosted `ctool_c_parse` operation consumes the ADR 0012 tape directly and pub
 
 The unchanged `/kernel/fs/fat16.h` closure still reproduces every FAT layout oracle. Exact additional contracts parse unchanged `kernel.h`, `irq.h`, `cupidscript.h`, and `shell.h` and merge representative duplicate prototypes and typedefs once at the first declaration. GNU `packed`, `aligned`, and `noreturn` lists retain their semantic destinations, and compatibility keeps stronger alignment and `noreturn`. File- and record-scope `_Static_assert` use target integer evaluation, including conditional selection and fault suppression in unevaluated arms. Active-source fragments prove all 26 tracked assertions across `memory.h`, `percpu.h`, `exec.cc`, `process.cc`, and `syscall.cc`.
 
-The [audit-derived active-source gate](./ACTIVE-SOURCE-AUDIT.md) is 155/155
-general non-Doom headers at compiler head. The graph contains 717 active
-language inputs: 27 assembly files, 289 headers, and 401 Cupid C files. No
-ordinary C translation unit remains in the supported roots. It records 254
+The [audit-derived active-source gate](./ACTIVE-SOURCE-AUDIT.md) passes 157 of
+159 general non-Doom headers at compiler head; `scheduler.h` and
+`simd_intrin.h` retain exact expected failures. The graph contains 718 active
+language inputs: 27 assembly files, 290 headers, and 401 Cupid C files. No
+ordinary C translation unit remains in the supported roots. It records 255
 feature IDs, 449 transforms, and 25 accounted unreachable files. The preprocessor
-inventory covers 686 files and 2,392 include occurrences, split into 2,158
-quoted and 234 angle forms.
+inventory covers 687 files and 2,402 include occurrences, split into 2,167
+quoted and 235 angle forms.
 
 The active-source digest is
-`5daf197a8bd5d1cdd8d78233daf264db92ef809b48c451c4e89b000ba32ccda9`.
-The 2,547,062-byte audit JSON has SHA-256
-`93d98153a6bde55787b8eb9840a13a7b25519eb93085d3a71148fe0328c597a9`,
+`2c0d7432fd7750a672ab0ea0cc873d2772328182b7679715db2ca214c4b6536d`.
+The 2,554,064-byte audit JSON has SHA-256
+`c55ce43fe9cdaea08fd02dad4a14a5e859c0559ca98b036fc00e07e7dbc8308e`,
 and the 12,136-byte summary has SHA-256
-`f81c6ce5c88e263040b4872658c022ebbf0f4dc15cbb33e7f9d57711bcd7a3fb`.
+`8f9b3f4499df24f53e72c9cd950358a9ce2f51e4f12520e3a1d4cb157d3aacc8`.
 
 Across the three supported roots, CupidC participates in 245 transforms and
 CupidObj participates in 185 transforms. Python participates in all 449

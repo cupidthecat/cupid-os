@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import errno
 import hashlib
 import json
 import os
@@ -12,6 +13,7 @@ import struct
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 from typing import Sequence
 
@@ -577,10 +579,37 @@ COMPILER_PROFILE_ARGUMENTS = {
 
 DEFAULT_TIMEOUT_SECONDS = 180
 GENERATED_KERNEL_TIMEOUT_SECONDS = 600
+PUBLISH_RETRY_DELAYS_SECONDS = (0.05, 0.1, 0.2, 0.4, 0.8)
 
 
 class KernelCompileError(RuntimeError):
     """A checked kernel compilation could not publish an object."""
+
+
+def _retryable_publish_error(error: OSError) -> bool:
+    return (
+        isinstance(error, PermissionError)
+        or error.errno in (errno.EACCES, errno.EPERM)
+        or getattr(error, "winerror", None) in (5, 32)
+    )
+
+
+def _replace_with_retry(source: Path, destination: Path) -> None:
+    """Atomically publish a file despite a brief Windows sharing lock."""
+    publish_error = None
+    for attempt in range(len(PUBLISH_RETRY_DELAYS_SECONDS) + 1):
+        try:
+            os.replace(source, destination)
+            return
+        except OSError as error:
+            publish_error = error
+            if (
+                not _retryable_publish_error(error)
+                or attempt == len(PUBLISH_RETRY_DELAYS_SECONDS)
+            ):
+                break
+            time.sleep(PUBLISH_RETRY_DELAYS_SECONDS[attempt])
+    raise publish_error
 
 
 def build_compile_arguments(
@@ -1357,7 +1386,7 @@ def write_profile_input_manifest(root: Path, output: Path) -> bool:
             temporary_path = Path(temporary.name)
             temporary.write(payload)
         try:
-            os.replace(temporary_path, resolved)
+            _replace_with_retry(temporary_path, resolved)
         finally:
             if temporary_path.exists():
                 temporary_path.unlink()
@@ -1552,7 +1581,7 @@ def compile_kernel_source(
                         f"{input_label} inputs changed while compiling "
                         f"{source_name}"
                     )
-                os.replace(temporary_output, output)
+                _replace_with_retry(temporary_output, output)
     except OSError as error:
         raise KernelCompileError(
             f"could not publish kernel object {output}: {error}"

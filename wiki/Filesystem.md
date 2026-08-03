@@ -1,6 +1,6 @@
 # Filesystem
 
-cupid-os uses a Linux-style **Virtual File System (VFS)** to expose one file API across several filesystem types. The directory tree contains RamFS boot files, DevFS devices, raw FAT16 at `/disk`, and homefs at `/home`. Homefs stores its logical tree in `/disk/HOMEFS.SYS`; direct FAT16 at `/home` is a fallback used only when the homefs mount fails.
+Cupid OS uses a Linux-style **Virtual File System (VFS)** to expose one file API across several filesystem types. The directory tree contains RamFS boot files, DevFS devices, raw FAT16 at `/disk`, and HomeFS at `/home`. HomeFS stores its logical tree in `/disk/HOMEFS.SYS`; direct FAT16 at `/home` is a fallback used only when the HomeFS mount fails.
 
 ---
 
@@ -55,6 +55,7 @@ The VFS implementation is in `kernel/fs/vfs.cc/h`. The shell, Notepad, and progr
 - **Path resolution** - longest-prefix match finds the correct filesystem
 - **Current working directory** - shell tracks CWD for relative paths
 - **Pluggable backends** - any filesystem implementing `vfs_fs_ops_t` can be mounted
+- **Native rename** - same-mount replacement is delegated to the filesystem; cross-mount requests return `VFS_EXDEV`
 
 ### Mount Points
 
@@ -63,7 +64,7 @@ The VFS implementation is in `kernel/fs/vfs.cc/h`. The shell, Notepad, and progr
 | `/` | RamFS | Root filesystem, boot-time files |
 | `/dev` | DevFS | Device special files |
 | `/disk` | FAT16 | Raw files in the disk partition |
-| `/home` | homefs | Persistent logical tree backed by `/disk/HOMEFS.SYS` |
+| `/home` | HomeFS | Persistent logical tree backed by `/disk/HOMEFS.SYS` |
 | `/bin` | RamFS | System programs (subdirectory of root) |
 | `/tmp` | RamFS | Temporary files (subdirectory of root) |
 
@@ -102,6 +103,7 @@ The VFS implementation is in `kernel/fs/vfs.cc/h`. The shell, Notepad, and progr
 | `vfs_readdir(fd, dirent)` | Read next directory entry |
 | `vfs_mkdir(path)` | Create a directory |
 | `vfs_unlink(path)` | Delete a file |
+| `vfs_rename(old_path, new_path)` | Rename or replace within one mount |
 
 ### Open Flags
 
@@ -133,8 +135,12 @@ When `vfs_open("/home/README.TXT", O_RDONLY)` is called:
 | -2 | `VFS_ENOENT` | No such file or directory |
 | -5 | `VFS_EIO` | I/O error |
 | -12 | `VFS_ENOMEM` | Out of memory |
+| -13 | `VFS_EACCES` | Access denied |
+| -16 | `VFS_EBUSY` | A live handle or owner blocks the operation |
 | -17 | `VFS_EEXIST` | File already exists |
+| -18 | `VFS_EXDEV` | Rename crosses mount boundaries |
 | -20 | `VFS_ENOTDIR` | Not a directory |
+| -21 | `VFS_EISDIR` | A file operation selected a directory |
 | -22 | `VFS_EINVAL` | Invalid argument |
 | -24 | `VFS_EMFILE` | Too many open files |
 | -28 | `VFS_ENOSPC` | No space left |
@@ -150,8 +156,9 @@ The helpers in `kernel/fs/vfs_helpers.cc/h` wrap common `vfs_open`, `vfs_read`, 
 | `vfs_write_all(path, buffer, size)` | Write buffer to file (creates or truncates). Returns bytes written, or negative VFS error. |
 | `vfs_read_text(path, buffer, max_size)` | Read file as null-terminated string. Reserves 1 byte for `\0`. Returns string length. |
 | `vfs_write_text(path, text)` | Write null-terminated string to file. Returns bytes written (excluding null). |
+| `vfs_copy_file(source, destination)` | Copy one regular file and include destination close in the result. |
 
-All helpers return `>= 0` on success and a negative VFS error code on failure, such as `VFS_ENOENT`, `VFS_EIO`, or `VFS_ENOSPC`. They close file descriptors on both success and error paths.
+All helpers return `>= 0` on success and a negative VFS error code on failure, such as `VFS_ENOENT`, `VFS_EIO`, or `VFS_ENOSPC`. They close file descriptors on both success and error paths, and a failed destination close makes a write or copy fail rather than hiding the commit error.
 
 **Example (CupidC):**
 ```c
@@ -240,14 +247,16 @@ The device filesystem (`kernel/fs/devfs.cc/h`) exposes hardware and pseudo-devic
 
 ## FAT16 VFS Wrapper
 
-The FAT16 VFS wrapper (`kernel/fs/fat16_vfs.cc/h`) adapts the existing FAT16 driver to the VFS interface, making raw disk files accessible at `/disk`. Homefs separately serializes `/home` into `/disk/HOMEFS.SYS`.
+The FAT16 VFS wrapper (`kernel/fs/fat16_vfs.cc/h`) adapts the existing FAT16 driver to the VFS interface, making raw disk files accessible at `/disk`. HomeFS separately serializes `/home` into `/disk/HOMEFS.SYS`.
 
 ### How It Works
 
-- `fat16_vfs_open()` wraps `fat16_open()` for reading
+- `fat16_vfs_open()` maps checked missing-file, handle-pool, I/O, invalid-name, and busy results
 - `fat16_vfs_readdir()` uses `fat16_enumerate_root()` to list directory entries
 - `fat16_vfs_unlink()` wraps `fat16_delete_file()`
 - Read operations wrap `fat16_read()` with position tracking
+- Buffered writes publish on close and leave the old entry in place when publication fails
+- Open handles retain the exact directory sector and slot, so replacement and deletion cannot invalidate a live reader
 
 ### Limitations
 
@@ -256,8 +265,8 @@ The FAT16 VFS wrapper (`kernel/fs/fat16_vfs.cc/h`) adapts the existing FAT16 dri
 | Read files | Supported through VFS |
 | List directory | Supported through VFS `readdir` |
 | Delete files | Supported through VFS `unlink` |
-| Write files | Falls back to `fat16_write_file()` |
-| Subdirectories | Not supported; root directory only |
+| Write files | Buffered through VFS and committed by `fat16_write_file()` on close |
+| Subdirectories | Exactly one directory component is supported |
 | Long filenames | Not supported; 8.3 format only |
 
 ### Filename Rules
@@ -266,6 +275,31 @@ The FAT16 VFS wrapper (`kernel/fs/fat16_vfs.cc/h`) adapts the existing FAT16 dri
 - Case-insensitive (stored as uppercase)
 - No spaces or special characters
 - Examples: `HELLO.TXT`, `SCRIPT.CUP`, `DATA.BIN`
+
+FAT mutations use an ordered publication rule. New file data and its cluster
+chain are synced before the directory entry names them. Replacement frees the
+old chain only after the new entry is durable. Deletion flushes the deleted
+entry before it frees the detached chain, and directory creation initializes
+the new directory before its parent entry becomes visible. A failed directory
+sync restores the previous sector when possible.
+
+## HomeFS
+
+HomeFS serializes a nested logical tree into the FAT16 `HOMEFS.SYS` container.
+Mounting an existing malformed container fails instead of importing a fresh
+tree over it. The decoder checks sizes, names, duplicate siblings, exact input
+consumption, and a 32-level depth limit.
+
+Only one HomeFS mount may own the container. Mount reserves `HOMEFS.SYS`, so a
+live raw FAT handle blocks the mount and raw writes, deletion, or write-capable
+opens through `/disk/HOMEFS.SYS` fail while HomeFS is active. Unmount flushes
+the tree before releasing that reservation.
+
+Related mutations can use `homefs_batch_begin()` and `homefs_batch_end()`.
+Batches may nest. Intermediate operations update the live tree and mark it
+dirty; the outermost end performs one durable container publish and returns
+its result. An unmatched end fails, and HomeFS cannot unmount with a batch
+open.
 
 ---
 
@@ -390,10 +424,10 @@ An LRU (Least Recently Used) write-back cache (`kernel/fs/blockcache.cc`) sits b
 How it works:
 
 1. **Read hit**: Return cached sector immediately (no disk I/O)
-2. **Read miss**: Read from disk, store in cache, evict LRU if full
+2. **Read miss**: Write back a dirty victim, then read the incoming sector into scratch storage before changing the entry's LBA or bytes
 3. **Write**: Mark cache entry as dirty, actual write deferred
-4. **Sync**: Flush all dirty entries to disk
-5. **Eviction**: When a dirty entry is evicted, it's written to disk first
+4. **Sync**: Flush all dirty entries and return a device error to the caller
+5. **Failure**: A failed write keeps the old dirty entry; a failed read keeps the old identity and successfully written-back bytes
 
 ### ATA/IDE Driver
 
@@ -488,7 +522,7 @@ The Notepad application uses VFS for its file dialog, open, and save operations:
 - **Double-click** a file to open it, or a directory to enter it
 - **Open** reads file contents via `vfs_open()` / `vfs_read()` / `vfs_close()`
 - **Save** writes via `vfs_open(O_WRONLY | O_CREAT | O_TRUNC)` / `vfs_write()` / `vfs_close()`
-- Saving to `/home` updates homefs, which persists through `/disk/HOMEFS.SYS`
+- Saving to `/home` updates HomeFS, which persists through `/disk/HOMEFS.SYS`
 
 ---
 

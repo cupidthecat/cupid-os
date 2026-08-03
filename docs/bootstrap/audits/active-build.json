@@ -3112,6 +3112,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -6152,6 +6153,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -6465,6 +6467,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -6782,6 +6785,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -7096,6 +7100,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -7410,6 +7415,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -7725,6 +7731,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -8040,6 +8047,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -8355,6 +8363,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -8670,6 +8679,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -8985,6 +8995,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -9300,6 +9311,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -9615,6 +9627,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -9930,6 +9943,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -10245,6 +10259,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -10560,6 +10575,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -10875,6 +10891,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -11190,6 +11207,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -11505,6 +11523,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -11820,6 +11839,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -12135,6 +12155,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -12450,6 +12471,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -12765,6 +12787,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -13080,6 +13103,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -13395,6 +13419,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -13710,6 +13735,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -14025,6 +14051,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -14340,6 +14367,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -14655,6 +14683,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -14970,6 +14999,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -15285,6 +15315,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -15600,6 +15631,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -15915,6 +15947,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -16230,6 +16263,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -16545,6 +16579,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -16860,6 +16895,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -17175,6 +17211,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -17490,6 +17527,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -17805,6 +17843,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -18120,6 +18159,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -18435,6 +18475,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -18750,6 +18791,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -19065,6 +19107,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -19380,6 +19423,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -19695,6 +19739,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -20010,6 +20055,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -20325,6 +20371,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -20640,6 +20687,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -20955,6 +21003,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -21270,6 +21319,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -21585,6 +21635,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -21900,6 +21951,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -22215,6 +22267,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -22530,6 +22583,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -22845,6 +22899,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -23160,6 +23215,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -23475,6 +23531,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -23790,6 +23847,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -24105,6 +24163,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -24420,6 +24479,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -24735,6 +24795,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -25050,6 +25111,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -25365,6 +25427,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -25680,6 +25743,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -25995,6 +26059,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -26310,6 +26375,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -26625,6 +26691,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -26940,6 +27007,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -27255,6 +27323,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -27570,6 +27639,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -27885,6 +27955,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -28200,6 +28271,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -28515,6 +28587,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -28830,6 +28903,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -29145,6 +29219,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -29460,6 +29535,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -29775,6 +29851,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -30090,6 +30167,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -30405,6 +30483,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -30720,6 +30799,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -31035,6 +31115,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -31350,6 +31431,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -31665,6 +31747,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -31980,6 +32063,7 @@
           "kernel/fs/blockdev.h",
           "kernel/fs/devfs.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/fs.h",
           "kernel/fs/homefs.h",
@@ -32214,6 +32298,7 @@
           "kernel/fs/blockcache.h",
           "kernel/fs/blockdev.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "Makefile",
           "tools/cupidc_kernel_compile.py",
           "tools/kernel_cupidc_frontier.py",
@@ -32243,6 +32328,7 @@
           "kernel/core/types.h",
           "kernel/fs/blockdev.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/fat16_vfs.h",
           "kernel/fs/vfs.h",
           "kernel/mm/memory.h",
@@ -32304,6 +32390,7 @@
           "kernel/fs/blockcache.h",
           "kernel/fs/blockdev.h",
           "kernel/fs/fat16.h",
+          "kernel/fs/fat16_control.h",
           "kernel/fs/homefs.h",
           "kernel/fs/vfs.h",
           "kernel/mm/memory.h",
@@ -37055,7 +37142,7 @@
       "status": "pass"
     },
     "c_preprocessor_conditionals": {
-      "directive_expression_pairs": 23,
+      "directive_expression_pairs": 25,
       "elif_occurrences": 4,
       "expression_occurrences": 109,
       "expressions": [
@@ -37064,7 +37151,7 @@
           "evidence": [
             {
               "directive": "if",
-              "line": 267,
+              "line": 283,
               "path": "kernel/doom/src/i_system.cc",
               "text": "#if !defined(_WIN32) && !defined(__MACOSX__) && !defined(__DJGPP__)"
             }
@@ -37475,31 +37562,31 @@
             },
             {
               "directive": "if",
-              "line": 1088,
+              "line": 1087,
               "path": "kernel/doom/src/d_main.cc",
               "text": "#if ORIGCODE"
             },
             {
               "directive": "if",
-              "line": 1168,
+              "line": 1167,
               "path": "kernel/doom/src/d_main.cc",
               "text": "#if ORIGCODE"
             },
             {
               "directive": "if",
-              "line": 1380,
+              "line": 1379,
               "path": "kernel/doom/src/d_main.cc",
               "text": "#if ORIGCODE"
             },
             {
               "directive": "if",
-              "line": 1391,
+              "line": 1390,
               "path": "kernel/doom/src/d_main.cc",
               "text": "#if ORIGCODE"
             },
             {
               "directive": "if",
-              "line": 1521,
+              "line": 1520,
               "path": "kernel/doom/src/d_main.cc",
               "text": "#if ORIGCODE"
             },
@@ -37511,25 +37598,19 @@
             },
             {
               "directive": "if",
-              "line": 216,
+              "line": 232,
               "path": "kernel/doom/src/i_system.cc",
               "text": "#if ORIGCODE"
             },
             {
               "directive": "if",
-              "line": 260,
+              "line": 276,
               "path": "kernel/doom/src/i_system.cc",
               "text": "#if ORIGCODE"
             },
             {
               "directive": "if",
-              "line": 369,
-              "path": "kernel/doom/src/i_system.cc",
-              "text": "#if ORIGCODE"
-            },
-            {
-              "directive": "if",
-              "line": 464,
+              "line": 476,
               "path": "kernel/doom/src/i_system.cc",
               "text": "#if ORIGCODE"
             },
@@ -37547,25 +37628,13 @@
             },
             {
               "directive": "if",
-              "line": 1611,
+              "line": 2562,
               "path": "kernel/doom/src/m_config.cc",
               "text": "#if ORIGCODE"
             },
             {
               "directive": "if",
-              "line": 1773,
-              "path": "kernel/doom/src/m_config.cc",
-              "text": "#if ORIGCODE"
-            },
-            {
-              "directive": "if",
-              "line": 2090,
-              "path": "kernel/doom/src/m_config.cc",
-              "text": "#if ORIGCODE"
-            },
-            {
-              "directive": "if",
-              "line": 2103,
+              "line": 2575,
               "path": "kernel/doom/src/m_config.cc",
               "text": "#if ORIGCODE"
             },
@@ -37648,8 +37717,8 @@
             "kernel/doom/src/statdump.cc",
             "kernel/doom/src/w_wad.cc"
           ],
-          "if_occurrences": 31,
-          "occurrences": 31
+          "if_occurrences": 28,
+          "occurrences": 28
         },
         {
           "elif_occurrences": 0,
@@ -37684,6 +37753,46 @@
           ],
           "if_occurrences": 1,
           "occurrences": 1
+        },
+        {
+          "elif_occurrences": 0,
+          "evidence": [
+            {
+              "directive": "if",
+              "line": 2036,
+              "path": "kernel/doom/src/m_config.cc",
+              "text": "#if defined(DOOM_PORT_CUPIDOS)"
+            }
+          ],
+          "expression": "defined ( DOOM_PORT_CUPIDOS )",
+          "files": [
+            "kernel/doom/src/m_config.cc"
+          ],
+          "if_occurrences": 1,
+          "occurrences": 1
+        },
+        {
+          "elif_occurrences": 0,
+          "evidence": [
+            {
+              "directive": "if",
+              "line": 1629,
+              "path": "kernel/doom/src/m_config.cc",
+              "text": "#if defined(ORIGCODE) || defined(DOOM_PORT_CUPIDOS)"
+            },
+            {
+              "directive": "if",
+              "line": 1955,
+              "path": "kernel/doom/src/m_config.cc",
+              "text": "#if defined(ORIGCODE) || defined(DOOM_PORT_CUPIDOS)"
+            }
+          ],
+          "expression": "defined ( ORIGCODE ) || defined ( DOOM_PORT_CUPIDOS )",
+          "files": [
+            "kernel/doom/src/m_config.cc"
+          ],
+          "if_occurrences": 2,
+          "occurrences": 2
         },
         {
           "elif_occurrences": 0,
@@ -37920,7 +38029,7 @@
             },
             {
               "directive": "elif",
-              "line": 451,
+              "line": 463,
               "path": "kernel/doom/src/i_system.cc",
               "text": "#elif defined(__DJGPP__)"
             }
@@ -37938,7 +38047,7 @@
           "evidence": [
             {
               "directive": "elif",
-              "line": 422,
+              "line": 434,
               "path": "kernel/doom/src/i_system.cc",
               "text": "#elif defined(__MACOSX__)"
             }
@@ -37987,7 +38096,7 @@
       ],
       "if_occurrences": 105,
       "status": "pass",
-      "unique_expressions": 22
+      "unique_expressions": 24
     },
     "c_preprocessor_cupid_exe": {
       "block_occurrences": 1,
@@ -38017,13 +38126,13 @@
     },
     "c_preprocessor_include_operands": {
       "digraph_marker_occurrences": 0,
-      "direct_angle_occurrences": 234,
-      "direct_quoted_occurrences": 2158,
-      "include_occurrences": 2392,
+      "direct_angle_occurrences": 235,
+      "direct_quoted_occurrences": 2167,
+      "include_occurrences": 2402,
       "max_conditional_depth": 2,
-      "ordinary_marker_occurrences": 2392,
+      "ordinary_marker_occurrences": 2402,
       "pp_token_operand_occurrences": 0,
-      "source_files": 686,
+      "source_files": 687,
       "status": "pass"
     },
     "c_preprocessor_line_directives": {
@@ -38036,7 +38145,7 @@
       "numeric_marker_occurrences": 0,
       "ordinary_marker_occurrences": 0,
       "pp_token_line_occurrences": 0,
-      "source_files": 686,
+      "source_files": 687,
       "status": "pass"
     },
     "c_preprocessor_pragmas": {
@@ -42537,6 +42646,7 @@
         "kernel/doom/src/w_wad.cc",
         "kernel/doom/src/wi_stuff.cc",
         "kernel/doom/src/z_zone.cc",
+        "kernel/fs/blockcache.cc",
         "kernel/fs/blockdev.cc",
         "kernel/fs/fat16.cc",
         "kernel/fs/fat16_vfs.cc",
@@ -42544,8 +42654,6 @@
         "kernel/fs/iso9660.cc",
         "kernel/fs/iso9660_vfs.cc",
         "kernel/fs/ramfs.cc",
-        "kernel/fs/vfs.cc",
-        "kernel/fs/vfs_helpers.cc",
         "kernel/gfx/fontsys.cc",
         "kernel/gfx/gfx2d.cc",
         "kernel/gfx/gfx2d_assets.cc",
@@ -42613,7 +42721,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.break",
-      "occurrences": 1870
+      "occurrences": 1888
     },
     {
       "category": "control",
@@ -42706,7 +42814,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.case",
-      "occurrences": 1682
+      "occurrences": 1686
     },
     {
       "category": "control",
@@ -42798,8 +42906,10 @@
         "kernel/fs/blockcache.cc",
         "kernel/fs/devfs.cc",
         "kernel/fs/fat16.cc",
+        "kernel/fs/fat16_vfs.cc",
         "kernel/fs/iso9660.cc",
         "kernel/fs/vfs.cc",
+        "kernel/fs/vfs_helpers.cc",
         "kernel/gfx/bmp.cc",
         "kernel/gfx/fontsys.cc",
         "kernel/gfx/gfx2d.cc",
@@ -42872,7 +42982,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.continue",
-      "occurrences": 1139
+      "occurrences": 1146
     },
     {
       "category": "control",
@@ -42905,6 +43015,7 @@
         "kernel/doom/src/f_finale.cc",
         "kernel/doom/src/g_game.cc",
         "kernel/doom/src/hu_stuff.cc",
+        "kernel/doom/src/m_config.cc",
         "kernel/doom/src/m_menu.cc",
         "kernel/doom/src/p_ceilng.cc",
         "kernel/doom/src/p_doors.cc",
@@ -42952,7 +43063,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.default",
-      "occurrences": 156
+      "occurrences": 158
     },
     {
       "category": "control",
@@ -42986,6 +43097,7 @@
         "kernel/doom/src/d_main.cc",
         "kernel/doom/src/g_game.cc",
         "kernel/doom/src/gusconf.cc",
+        "kernel/doom/src/m_config.cc",
         "kernel/doom/src/m_menu.cc",
         "kernel/doom/src/p_floor.cc",
         "kernel/doom/src/p_mobj.cc",
@@ -43017,7 +43129,7 @@
         "toolchain/tests/hosted_i386_runtime_contract.cc"
       ],
       "id": "c.control.do",
-      "occurrences": 67
+      "occurrences": 68
     },
     {
       "category": "control",
@@ -43319,7 +43431,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.else",
-      "occurrences": 4605
+      "occurrences": 4609
     },
     {
       "category": "control",
@@ -43589,7 +43701,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.for",
-      "occurrences": 3995
+      "occurrences": 4022
     },
     {
       "category": "control",
@@ -43605,14 +43717,15 @@
           "text": "goto stopattack;\t// Oh, gross hack!"
         },
         {
-          "line": 604,
-          "path": "kernel/doom/src/p_enemy.cc",
-          "text": "goto seeyou;"
+          "line": 2110,
+          "path": "kernel/doom/src/m_config.cc",
+          "text": "goto done;"
         }
       ],
       "files": [
         "bin/feature24_widetypes.cc",
         "kernel/doom/src/f_finale.cc",
+        "kernel/doom/src/m_config.cc",
         "kernel/doom/src/p_enemy.cc",
         "kernel/doom/src/p_map.cc",
         "kernel/doom/src/r_bsp.cc",
@@ -43639,7 +43752,7 @@
         "toolchain/tests/elf32_contract.cc"
       ],
       "id": "c.control.goto",
-      "occurrences": 2843
+      "occurrences": 2858
     },
     {
       "category": "control",
@@ -44029,7 +44142,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 35904
+      "occurrences": 36332
     },
     {
       "category": "control",
@@ -44389,7 +44502,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 21622
+      "occurrences": 21995
     },
     {
       "category": "control",
@@ -44482,7 +44595,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.switch",
-      "occurrences": 225
+      "occurrences": 227
     },
     {
       "category": "control",
@@ -44768,7 +44881,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.while",
-      "occurrences": 2696
+      "occurrences": 2715
     },
     {
       "category": "declaration",
@@ -44925,7 +45038,7 @@
         "user/cupid.h"
       ],
       "id": "c.declarator.function_pointer",
-      "occurrences": 951
+      "occurrences": 953
     },
     {
       "category": "declarator",
@@ -45081,7 +45194,7 @@
         "toolchain/tests/x86_contract.cc"
       ],
       "id": "c.declarator.variadic",
-      "occurrences": 56
+      "occurrences": 58
     },
     {
       "category": "expression",
@@ -45158,7 +45271,6 @@
         "kernel/crypto/x509.cc",
         "kernel/crypto/x509_chain.cc",
         "kernel/doom/dglibc.cc",
-        "kernel/doom/doom_libc_stubs.cc",
         "kernel/doom/i_sound_cupidos.cc",
         "kernel/doom/src/am_map.cc",
         "kernel/doom/src/d_iwad.cc",
@@ -45302,7 +45414,7 @@
         "user/examples/cat.cc"
       ],
       "id": "c.expression.sizeof",
-      "occurrences": 5459
+      "occurrences": 5509
     },
     {
       "category": "extension",
@@ -45407,10 +45519,14 @@
         }
       ],
       "files": [
-        "kernel/core/panic.h"
+        "kernel/core/panic.h",
+        "kernel/doom/dglibc.cc",
+        "kernel/doom/dglibc.h",
+        "kernel/doom/doomgeneric_cupidos.cc",
+        "kernel/doom/src/i_system.h"
       ],
       "id": "c.extension.attribute.noreturn",
-      "occurrences": 3
+      "occurrences": 11
     },
     {
       "category": "extension",
@@ -45452,6 +45568,21 @@
       ],
       "id": "c.extension.attribute.packed",
       "occurrences": 30
+    },
+    {
+      "category": "extension",
+      "examples": [
+        {
+          "line": 69,
+          "path": "kernel/doom/dglibc.h",
+          "text": "int  dg_setjmp(dg_jmp_buf env) __attribute__((returns_twice));"
+        }
+      ],
+      "files": [
+        "kernel/doom/dglibc.h"
+      ],
+      "id": "c.extension.attribute.returns_twice",
+      "occurrences": 1
     },
     {
       "category": "extension",
@@ -45675,7 +45806,7 @@
         "toolchain/tests/hosted_i386_runtime_contract.cc"
       ],
       "id": "c.extension.builtin.va_end",
-      "occurrences": 14
+      "occurrences": 16
     },
     {
       "category": "extension",
@@ -45863,7 +45994,7 @@
         "toolchain/tests/cupidc_object_contract.cc"
       ],
       "id": "c.initializer.designated",
-      "occurrences": 648
+      "occurrences": 650
     },
     {
       "category": "preprocessor",
@@ -45980,6 +46111,7 @@
         "kernel/doom/dglibc.cc",
         "kernel/doom/dglibc.h",
         "kernel/doom/dglibc_compat.h",
+        "kernel/doom/doom_libc_stubs.cc",
         "kernel/doom/doomgeneric_cupidos.cc",
         "kernel/doom/doomgeneric_cupidos.h",
         "kernel/doom/i_sound_cupidos.cc",
@@ -46125,6 +46257,7 @@
         "kernel/fs/blockdev.h",
         "kernel/fs/devfs.h",
         "kernel/fs/fat16.h",
+        "kernel/fs/fat16_control.h",
         "kernel/fs/fat16_vfs.cc",
         "kernel/fs/fat16_vfs.h",
         "kernel/fs/fs.h",
@@ -46306,7 +46439,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.define",
-      "occurrences": 2956
+      "occurrences": 2980
     },
     {
       "category": "preprocessor",
@@ -46322,7 +46455,7 @@
           "text": "#elif ( __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__ )"
         },
         {
-          "line": 422,
+          "line": 434,
           "path": "kernel/doom/src/i_system.cc",
           "text": "#elif defined(__MACOSX__)"
         }
@@ -46381,7 +46514,7 @@
         "toolchain/tests/cupidc_object_contract.cc"
       ],
       "id": "c.preprocessor.else",
-      "occurrences": 55
+      "occurrences": 54
     },
     {
       "category": "preprocessor",
@@ -46610,6 +46743,7 @@
         "kernel/fs/blockdev.h",
         "kernel/fs/devfs.h",
         "kernel/fs/fat16.h",
+        "kernel/fs/fat16_control.h",
         "kernel/fs/fat16_vfs.h",
         "kernel/fs/fs.h",
         "kernel/fs/homefs.h",
@@ -46723,7 +46857,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.endif",
-      "occurrences": 505
+      "occurrences": 506
     },
     {
       "category": "preprocessor",
@@ -46814,7 +46948,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.preprocessor.function_macro",
-      "occurrences": 215
+      "occurrences": 213
     },
     {
       "category": "preprocessor",
@@ -47150,6 +47284,7 @@
         "kernel/fs/blockdev.h",
         "kernel/fs/devfs.h",
         "kernel/fs/fat16.h",
+        "kernel/fs/fat16_control.h",
         "kernel/fs/fat16_vfs.h",
         "kernel/fs/fs.h",
         "kernel/fs/homefs.h",
@@ -47256,7 +47391,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.ifndef",
-      "occurrences": 299
+      "occurrences": 300
     },
     {
       "category": "preprocessor",
@@ -47551,6 +47686,7 @@
         "kernel/fs/devfs.h",
         "kernel/fs/fat16.cc",
         "kernel/fs/fat16.h",
+        "kernel/fs/fat16_control.h",
         "kernel/fs/fat16_vfs.cc",
         "kernel/fs/fat16_vfs.h",
         "kernel/fs/fs.cc",
@@ -47780,7 +47916,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.preprocessor.include",
-      "occurrences": 2392
+      "occurrences": 2402
     },
     {
       "category": "preprocessor",
@@ -47859,7 +47995,7 @@
           "text": "#define ASSERT(cond) \\"
         },
         {
-          "line": 95,
+          "line": 111,
           "path": "kernel/doom/src/m_config.cc",
           "text": "#define CONFIG_VARIABLE_GENERIC(name, type) \\"
         },
@@ -47919,7 +48055,7 @@
           "text": "#undef SC_OFF"
         },
         {
-          "line": 427,
+          "line": 480,
           "path": "kernel/doom/dglibc.cc",
           "text": "#undef EMIT"
         },
@@ -48127,6 +48263,7 @@
         "kernel/fs/devfs.h",
         "kernel/fs/fat16.cc",
         "kernel/fs/fat16.h",
+        "kernel/fs/fat16_control.h",
         "kernel/fs/fat16_vfs.cc",
         "kernel/fs/fs.cc",
         "kernel/fs/fs.h",
@@ -48330,7 +48467,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 14540
+      "occurrences": 14645
     },
     {
       "category": "qualifier",
@@ -48443,6 +48580,7 @@
         "kernel/crypto/p256.h",
         "kernel/crypto/x25519.h",
         "kernel/crypto/x509_chain.h",
+        "kernel/doom/dglibc.cc",
         "kernel/doom/dglibc.h",
         "kernel/doom/dglibc_compat.h",
         "kernel/doom/doom_libc_stubs.cc",
@@ -48531,7 +48669,7 @@
         "toolchain/hosted/i386-linux/include/stdio.h"
       ],
       "id": "c.storage.extern",
-      "occurrences": 690
+      "occurrences": 702
     },
     {
       "category": "storage",
@@ -48676,7 +48814,7 @@
         "kernel/crypto/x509.cc",
         "kernel/crypto/x509_chain.cc",
         "kernel/doom/dglibc.cc",
-        "kernel/doom/dglibc_compat.h",
+        "kernel/doom/doom_libc_stubs.cc",
         "kernel/doom/doomgeneric_cupidos.cc",
         "kernel/doom/i_sound_cupidos.cc",
         "kernel/doom/src/am_map.cc",
@@ -48736,6 +48874,7 @@
         "kernel/fs/loopdev.cc",
         "kernel/fs/ramfs.cc",
         "kernel/fs/vfs.cc",
+        "kernel/fs/vfs_helpers.cc",
         "kernel/gfx/bmp.cc",
         "kernel/gfx/deflate.cc",
         "kernel/gfx/fontsys.cc",
@@ -48851,7 +48990,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.storage.static",
-      "occurrences": 8569
+      "occurrences": 8624
     },
     {
       "category": "type",
@@ -49113,6 +49252,7 @@
         "kernel/fs/devfs.h",
         "kernel/fs/fat16.cc",
         "kernel/fs/fat16.h",
+        "kernel/fs/fat16_control.h",
         "kernel/fs/fat16_vfs.cc",
         "kernel/fs/fs.cc",
         "kernel/fs/fs.h",
@@ -49279,7 +49419,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.char",
-      "occurrences": 8238
+      "occurrences": 8429
     },
     {
       "category": "type",
@@ -49318,6 +49458,7 @@
         "kernel/cpu/libm.cc",
         "kernel/cpu/libm.h",
         "kernel/cpu/simd_intrin.h",
+        "kernel/doom/dglibc.cc",
         "kernel/doom/dglibc_compat.h",
         "kernel/doom/doom_libc_stubs.cc",
         "kernel/lang/cupidc.cc",
@@ -49328,7 +49469,7 @@
         "toolchain/tests/hosted_i386_runtime_contract.cc"
       ],
       "id": "c.type.double",
-      "occurrences": 490
+      "occurrences": 492
     },
     {
       "category": "type",
@@ -49370,6 +49511,7 @@
         "kernel/core/app_launch.h",
         "kernel/core/process.h",
         "kernel/core/types.h",
+        "kernel/doom/dglibc.cc",
         "kernel/doom/src/am_map.cc",
         "kernel/doom/src/d_event.h",
         "kernel/doom/src/d_mode.h",
@@ -49444,7 +49586,7 @@
         "toolchain/x86.h"
       ],
       "id": "c.type.enum",
-      "occurrences": 235
+      "occurrences": 236
     },
     {
       "category": "type",
@@ -49492,7 +49634,7 @@
         "toolchain/tests/hosted_i386_runtime_contract.cc"
       ],
       "id": "c.type.float",
-      "occurrences": 381
+      "occurrences": 385
     },
     {
       "category": "type",
@@ -49834,6 +49976,7 @@
         "kernel/fs/devfs.h",
         "kernel/fs/fat16.cc",
         "kernel/fs/fat16.h",
+        "kernel/fs/fat16_control.h",
         "kernel/fs/fat16_vfs.cc",
         "kernel/fs/homefs.cc",
         "kernel/fs/homefs.h",
@@ -50019,7 +50162,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.int",
-      "occurrences": 21072
+      "occurrences": 21261
     },
     {
       "category": "type",
@@ -50047,9 +50190,11 @@
         "kernel/audio/mus2midi.cc",
         "kernel/core/string.cc",
         "kernel/core/types.h",
+        "kernel/doom/dglibc.cc",
         "kernel/doom/dglibc_compat.h",
         "kernel/doom/doom_libc_stubs.cc",
         "kernel/doom/src/i_swap.h",
+        "kernel/doom/src/m_config.cc",
         "kernel/doom/src/m_misc.cc",
         "kernel/doom/src/m_misc.h",
         "kernel/doom/src/memio.h",
@@ -50069,7 +50214,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.long",
-      "occurrences": 283
+      "occurrences": 304
     },
     {
       "category": "type",
@@ -50452,7 +50597,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.struct",
-      "occurrences": 861
+      "occurrences": 862
     },
     {
       "category": "type",
@@ -50585,6 +50730,7 @@
         "kernel/doom/src/wi_stuff.cc",
         "kernel/doom/src/wi_stuff.h",
         "kernel/doom/src/z_zone.cc",
+        "kernel/fs/blockcache.cc",
         "kernel/fs/blockcache.h",
         "kernel/fs/blockdev.h",
         "kernel/fs/devfs.cc",
@@ -50717,7 +50863,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.typedef",
-      "occurrences": 937
+      "occurrences": 938
     },
     {
       "category": "type",
@@ -50824,6 +50970,7 @@
         "kernel/doom/src/i_system.h",
         "kernel/doom/src/i_video.cc",
         "kernel/doom/src/icon.cc",
+        "kernel/doom/src/m_config.cc",
         "kernel/doom/src/m_controls.cc",
         "kernel/doom/src/m_controls.h",
         "kernel/doom/src/m_menu.cc",
@@ -50906,7 +51053,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.unsigned",
-      "occurrences": 1793
+      "occurrences": 1819
     },
     {
       "category": "type",
@@ -51299,6 +51446,7 @@
         "kernel/fs/devfs.h",
         "kernel/fs/fat16.cc",
         "kernel/fs/fat16.h",
+        "kernel/fs/fat16_control.h",
         "kernel/fs/fat16_vfs.cc",
         "kernel/fs/fat16_vfs.h",
         "kernel/fs/fs.cc",
@@ -51502,7 +51650,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.void",
-      "occurrences": 13871
+      "occurrences": 13913
     },
     {
       "category": "declaration",
@@ -52404,11 +52552,11 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "5daf197a8bd5d1cdd8d78233daf264db92ef809b48c451c4e89b000ba32ccda9",
+    "active_source_digest": "2c0d7432fd7750a672ab0ea0cc873d2772328182b7679715db2ca214c4b6536d",
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "72fe8206c6c3dca62d242bc43c1f104eb3c4ed714f6c1e5e699489aa4b31b767"
+        "sha256": "80be8700ad33612b4e00ca27eb4eb50681f3fdbeef21d5927698966be3cfd38e"
       },
       {
         "path": "user/Makefile",
@@ -52420,7 +52568,7 @@
       },
       {
         "path": "tools/cupidc_kernel_compile.py",
-        "sha256": "3bc8afbff33d24c3485a4cdef12b7f73a9cadac578cdaf01b85c1d590cb553cf"
+        "sha256": "01c38d97d94970c4a66127e954f80edae04ed749c22506239f8aec50c87c2241"
       },
       {
         "path": "tools/kernel_cupidc_frontier.py",
@@ -52839,7 +52987,7 @@
           "bin/godspeak.cc",
           "bin/notepad.cc"
         ],
-        "source_count": 548,
+        "source_count": 549,
         "title": "Implement the active C and Cupid C preprocessing contract"
       },
       {
@@ -52885,7 +53033,7 @@
           "bin/browser/input.cc",
           "bin/browser/js_dom.cc"
         ],
-        "source_count": 651,
+        "source_count": 652,
         "title": "Implement freestanding C11 type, initializer, and cdecl semantics"
       },
       {
@@ -52896,6 +53044,7 @@
           "c.extension.attribute.noinline",
           "c.extension.attribute.noreturn",
           "c.extension.attribute.packed",
+          "c.extension.attribute.returns_twice",
           "c.extension.attribute.section",
           "c.extension.attribute.target",
           "c.extension.attribute.unused",
@@ -52920,7 +53069,7 @@
           "kernel/core/kernel.cc",
           "kernel/core/panic.cc"
         ],
-        "source_count": 56,
+        "source_count": 58,
         "title": "Implement required GNU attributes and extended inline assembly"
       },
       {
@@ -53080,7 +53229,7 @@
           "drivers/pit.h",
           "drivers/rtc.cc"
         ],
-        "source_count": 278
+        "source_count": 279
       },
       {
         "cohorts": [
@@ -61902,6 +62051,7 @@
         "c.declarator.function_pointer",
         "c.declarator.variadic",
         "c.expression.sizeof",
+        "c.extension.attribute.noreturn",
         "c.extension.builtin.va_arg",
         "c.extension.builtin.va_end",
         "c.extension.builtin.va_list",
@@ -61913,9 +62063,13 @@
         "c.preprocessor.undef",
         "c.qualifier.const",
         "c.qualifier.volatile",
+        "c.storage.extern",
         "c.storage.static",
         "c.type.char",
+        "c.type.double",
+        "c.type.enum",
         "c.type.int",
+        "c.type.long",
         "c.type.struct",
         "c.type.typedef",
         "c.type.unsigned",
@@ -61927,16 +62081,21 @@
         "drivers/timer.h",
         "kernel/core/string.h",
         "kernel/doom/dglibc.h",
+        "kernel/fs/blockcache.h",
+        "kernel/fs/fat16.h",
+        "kernel/fs/fat16_control.h",
+        "kernel/fs/homefs.h",
         "kernel/fs/vfs.h",
+        "kernel/fs/vfs_helpers.h",
         "kernel/mm/memory.h"
       ],
       "language": "cupid_c",
-      "lines": 814,
+      "lines": 2078,
       "origin": "tracked",
       "path": "kernel/doom/dglibc.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "00229885ddcd06c12e476cc47cc24a914053d49db9c690c8c8fea7c880b6aa9c"
+      "sha256": "6a56616dff23b608260d003b09634c2c22e0220d5b31a1332db0859d152babb2"
     },
     {
       "build_owners": [
@@ -61950,6 +62109,8 @@
       "features": [
         "c.declarator.function_pointer",
         "c.declarator.variadic",
+        "c.extension.attribute.noreturn",
+        "c.extension.attribute.returns_twice",
         "c.preprocessor.define",
         "c.preprocessor.endif",
         "c.preprocessor.ifndef",
@@ -61966,12 +62127,12 @@
         "kernel/core/types.h"
       ],
       "language": "c_header",
-      "lines": 73,
+      "lines": 79,
       "origin": "tracked",
       "path": "kernel/doom/dglibc.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "f29fb2339db61384ec577f37747cba6ab4f7d8a4bec7c72ab411e49506a8d1d9"
+      "sha256": "51902a6c44a5a1a3cf8c62bf135f50d33c1af5ad3ad1d8d15ea0a0bd22a8d512"
     },
     {
       "build_owners": [
@@ -61997,7 +62158,6 @@
         "c.preprocessor.variadic_macro",
         "c.qualifier.const",
         "c.storage.extern",
-        "c.storage.static",
         "c.type.char",
         "c.type.double",
         "c.type.int",
@@ -62013,12 +62173,12 @@
         "kernel/doom/dglibc.h"
       ],
       "language": "c_header",
-      "lines": 248,
+      "lines": 253,
       "origin": "tracked",
       "path": "kernel/doom/dglibc_compat.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "4d49ab0f3b28528946506050ec1aaac2d81bb068f7e83891208ef339bc90540e"
+      "sha256": "bc3cedfb7a1f8156c040c9810e9c312edcc411fc2979795bbd5ea9a71d098e76"
     },
     {
       "build_owners": [
@@ -62036,14 +62196,15 @@
         "c.control.return",
         "c.control.while",
         "c.declarator.variadic",
-        "c.expression.sizeof",
         "c.extension.builtin.va_arg",
         "c.extension.builtin.va_end",
         "c.extension.builtin.va_list",
         "c.extension.builtin.va_start",
+        "c.preprocessor.define",
         "c.preprocessor.include",
         "c.qualifier.const",
         "c.storage.extern",
+        "c.storage.static",
         "c.type.char",
         "c.type.double",
         "c.type.float",
@@ -62061,12 +62222,12 @@
         "kernel/doom/dglibc.h"
       ],
       "language": "cupid_c",
-      "lines": 288,
+      "lines": 360,
       "origin": "tracked",
       "path": "kernel/doom/doom_libc_stubs.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "808580d6c35388304fa4a07b7c5e0e91ad4687e1a189c3959482f51e17a0ecf8"
+      "sha256": "c19a5dbcd96fb9dc9e9a6f0fef20bb05e18502e2a5d058d4737d85886b7ccbea"
     },
     {
       "build_owners": [
@@ -62084,6 +62245,7 @@
         "c.control.return",
         "c.control.while",
         "c.declarator.unsized_array",
+        "c.extension.attribute.noreturn",
         "c.extension.inline_assembly",
         "c.initializer.designated",
         "c.preprocessor.define",
@@ -62113,12 +62275,12 @@
         "kernel/usb/usb.h"
       ],
       "language": "cupid_c",
-      "lines": 400,
+      "lines": 404,
       "origin": "tracked",
       "path": "kernel/doom/doomgeneric_cupidos.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "8511fd4035db73fde8147a39a92ff65f50e8097ab6f27d4ca517b9883ff15a3e"
+      "sha256": "7cc4ef8beba2fdc4664f5c7a5c18a2ef42d3a2595e78b72eef8fc9801ff175ca"
     },
     {
       "build_owners": [
@@ -62712,12 +62874,12 @@
         "kernel/doom/src/z_zone.h"
       ],
       "language": "cupid_c",
-      "lines": 1845,
+      "lines": 1850,
       "origin": "tracked",
       "path": "kernel/doom/src/d_main.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "31f428a4c5f53d43b2c09dc56cd2c3d620ef20769d9fecbef1e37c23b43d3345"
+      "sha256": "f60d6ca75f4ca1f52f8cfae11074042e254769ce83be37eef915e039926352b8"
     },
     {
       "build_owners": [
@@ -63730,12 +63892,12 @@
         "kernel/doom/src/z_zone.h"
       ],
       "language": "cupid_c",
-      "lines": 2303,
+      "lines": 2312,
       "origin": "tracked",
       "path": "kernel/doom/src/g_game.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "a1a90ae61150e534c3e072b57759a174e2bd01676bd738af192b8668d3f1bd8c"
+      "sha256": "3fe8cf83ece5314228dc5834b256ba0dfa9e8b08ca07a1a5c949a1d657934f0d"
     },
     {
       "build_owners": [
@@ -64427,12 +64589,12 @@
         "kernel/doom/src/z_zone.h"
       ],
       "language": "cupid_c",
-      "lines": 578,
+      "lines": 586,
       "origin": "tracked",
       "path": "kernel/doom/src/i_system.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "2f369f76c1a6d12d0768f0ff38c2cffebd3b74984219ad8fdbcfb13ef51298d2"
+      "sha256": "b6946434303f7b8270eeb9b81359afd12471b4bf7effa084cadef7a22f7f3532"
     },
     {
       "build_owners": [
@@ -64446,6 +64608,7 @@
       "features": [
         "c.declarator.function_pointer",
         "c.declarator.variadic",
+        "c.extension.attribute.noreturn",
         "c.preprocessor.define",
         "c.preprocessor.endif",
         "c.preprocessor.ifndef",
@@ -64461,12 +64624,12 @@
         "kernel/doom/src/d_ticcmd.h"
       ],
       "language": "c_header",
-      "lines": 84,
+      "lines": 86,
       "origin": "tracked",
       "path": "kernel/doom/src/i_system.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "19084cfd6ffb7b69516cb62916c2a510ace67545f17dd6fb673be848f1d81d9e"
+      "sha256": "578886f78571a3723fd04428408a0d41e4e51385f29a506c774fecf954033c1f"
     },
     {
       "build_owners": [
@@ -65323,8 +65486,11 @@
         "c.control.break",
         "c.control.case",
         "c.control.continue",
+        "c.control.default",
+        "c.control.do",
         "c.control.else",
         "c.control.for",
+        "c.control.goto",
         "c.control.if",
         "c.control.return",
         "c.control.switch",
@@ -65345,8 +65511,10 @@
         "c.type.enum",
         "c.type.float",
         "c.type.int",
+        "c.type.long",
         "c.type.struct",
         "c.type.typedef",
+        "c.type.unsigned",
         "c.type.void",
         "cupid_c.output.elf32_relocatable"
       ],
@@ -65359,6 +65527,7 @@
         "kernel/doom/src/i_system.h",
         "kernel/doom/src/include_stubs/ctype.h",
         "kernel/doom/src/include_stubs/errno.h",
+        "kernel/doom/src/include_stubs/limits.h",
         "kernel/doom/src/include_stubs/stdio.h",
         "kernel/doom/src/include_stubs/stdlib.h",
         "kernel/doom/src/m_argv.h",
@@ -65366,12 +65535,12 @@
         "kernel/doom/src/z_zone.h"
       ],
       "language": "cupid_c",
-      "lines": 2128,
+      "lines": 2599,
       "origin": "tracked",
       "path": "kernel/doom/src/m_config.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "ecad1965d486de527c0e05e8d225875f5bf7282c88bba28337ed62add25ea2c5"
+      "sha256": "c405cfa7674a493c528d4750012016cc735b3b040891609fe609cb9e50489a92"
     },
     {
       "build_owners": [
@@ -65398,12 +65567,12 @@
         "kernel/doom/src/doomtype.h"
       ],
       "language": "c_header",
-      "lines": 39,
+      "lines": 40,
       "origin": "tracked",
       "path": "kernel/doom/src/m_config.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "6fe479f0a8a6dc26fd8a871efe7fa6802e122922a806b60dbfc98bf5ee6915b4"
+      "sha256": "0bd7707a67c4fa5ba3fca2eebb88dba4efc183d1309740b2e506f5fa828c132a"
     },
     {
       "build_owners": [
@@ -69098,6 +69267,7 @@
       ],
       "cohort": "kernel_fs",
       "features": [
+        "c.control.break",
         "c.control.continue",
         "c.control.for",
         "c.control.if",
@@ -69110,6 +69280,7 @@
         "c.type.char",
         "c.type.int",
         "c.type.struct",
+        "c.type.typedef",
         "c.type.void",
         "cupid_c.output.elf32_relocatable"
       ],
@@ -69123,12 +69294,12 @@
         "kernel/smp/bkl.h"
       ],
       "language": "cupid_c",
-      "lines": 339,
+      "lines": 453,
       "origin": "tracked",
       "path": "kernel/fs/blockcache.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "9fe2806800db2f5b678ee06c7f123a488937058ba30e296ce90e5ef15258b2b5"
+      "sha256": "329d78f94df731642d9694f8038c5bd5ca21c68aaf33410db482264dbf84d1e6"
     },
     {
       "build_owners": [
@@ -69158,12 +69329,12 @@
         "kernel/fs/blockdev.h"
       ],
       "language": "c_header",
-      "lines": 37,
+      "lines": 38,
       "origin": "tracked",
       "path": "kernel/fs/blockcache.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "a1a027417ba7c120bf6a1b6485213f62768179d2d380936cec60369baf0ef3eb"
+      "sha256": "7173e90f074fa892a975bd0064e4e26ef8a67dd352180a45291b58f371736c0a"
     },
     {
       "build_owners": [
@@ -69346,15 +69517,16 @@
         "kernel/core/kernel.h",
         "kernel/core/string.h",
         "kernel/fs/blockcache.h",
-        "kernel/fs/fat16.h"
+        "kernel/fs/fat16.h",
+        "kernel/fs/fat16_control.h"
       ],
       "language": "cupid_c",
-      "lines": 1556,
+      "lines": 1886,
       "origin": "tracked",
       "path": "kernel/fs/fat16.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "bc8794a9b0e2c9a9b75c3b5bb744264f3d092c8f6bad3ee4027439ade9ba9b80"
+      "sha256": "2cff149898dd0264cf9705e71cc61c9573b2036d841d56bdaafb76bd477f8ff3"
     },
     {
       "build_owners": [
@@ -69402,8 +69574,39 @@
       ],
       "cohort": "kernel_fs",
       "features": [
+        "c.preprocessor.define",
+        "c.preprocessor.endif",
+        "c.preprocessor.ifndef",
+        "c.preprocessor.include",
+        "c.qualifier.const",
+        "c.type.char",
+        "c.type.int",
+        "c.type.void"
+      ],
+      "includes": [
+        "kernel/fs/fat16.h"
+      ],
+      "language": "c_header",
+      "lines": 24,
+      "origin": "tracked",
+      "path": "kernel/fs/fat16_control.h",
+      "reachability": "direct_build_input",
+      "runtime_owner": "CupidC",
+      "sha256": "8c096440dd5aeb99de0234e94cd5030e9a81053d70cb69ade88022cf105bc2c3"
+    },
+    {
+      "build_owners": [
+        "cupid_c_compiler",
+        "host_python"
+      ],
+      "builds": [
+        "."
+      ],
+      "cohort": "kernel_fs",
+      "features": [
         "c.control.break",
         "c.control.case",
+        "c.control.continue",
         "c.control.default",
         "c.control.else",
         "c.control.if",
@@ -69427,17 +69630,18 @@
         "drivers/serial.h",
         "kernel/core/string.h",
         "kernel/fs/fat16.h",
+        "kernel/fs/fat16_control.h",
         "kernel/fs/fat16_vfs.h",
         "kernel/fs/vfs.h",
         "kernel/mm/memory.h"
       ],
       "language": "cupid_c",
-      "lines": 525,
+      "lines": 608,
       "origin": "tracked",
       "path": "kernel/fs/fat16_vfs.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "4c97e72016af5d48330bb44065c46e8edb0c6815c07a5dd75d4b51c934da1280"
+      "sha256": "bdab8657fd2b8d11c9c1966390caf03249a10d74a790e5fa448397716e53b556"
     },
     {
       "build_owners": [
@@ -69570,17 +69774,18 @@
         "kernel/core/string.h",
         "kernel/fs/blockcache.h",
         "kernel/fs/fat16.h",
+        "kernel/fs/fat16_control.h",
         "kernel/fs/homefs.h",
         "kernel/fs/vfs.h",
         "kernel/mm/memory.h"
       ],
       "language": "cupid_c",
-      "lines": 888,
+      "lines": 1202,
       "origin": "tracked",
       "path": "kernel/fs/homefs.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "553b509b2efab592c2c08946c31c181b3661b8ac4f690dd86c11144f318e7e5b"
+      "sha256": "4e7b19f4e03e00328a72bca4332051dc627e9d2c0229ef2775490a7f6ee905ff"
     },
     {
       "build_owners": [
@@ -69604,12 +69809,12 @@
         "kernel/fs/vfs.h"
       ],
       "language": "c_header",
-      "lines": 19,
+      "lines": 24,
       "origin": "tracked",
       "path": "kernel/fs/homefs.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "4e1af113c3cdce12dcee5014f1240c50b160cdf7e27630d18a195b07b5437c69"
+      "sha256": "531354fc1f6fe879232fa321b3586f3cf54c7f870f1ba66891c222cef60639e5"
     },
     {
       "build_owners": [
@@ -69875,12 +70080,12 @@
         "kernel/mm/memory.h"
       ],
       "language": "cupid_c",
-      "lines": 484,
+      "lines": 607,
       "origin": "tracked",
       "path": "kernel/fs/ramfs.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "3d51e752190bedf93c51f8da57aca7ba1fdd17b94c3ac9fff02910b69141e083"
+      "sha256": "ce770b1828d14bebe4013a355da8be1ba0ecb54cc88738690ddc98a4876d0c39"
     },
     {
       "build_owners": [
@@ -69923,7 +70128,6 @@
       ],
       "cohort": "kernel_fs",
       "features": [
-        "c.control.break",
         "c.control.continue",
         "c.control.else",
         "c.control.for",
@@ -69947,12 +70151,12 @@
         "kernel/mm/memory.h"
       ],
       "language": "cupid_c",
-      "lines": 436,
+      "lines": 427,
       "origin": "tracked",
       "path": "kernel/fs/vfs.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "d7a9281e220b1d7e51e8232d38df7572e4d2c6b160033a52b640c8dfb19c5548"
+      "sha256": "8e9de1def38d24bf1e11ced52ab3c132ef55876e115909e3d9fe64e21823cd8f"
     },
     {
       "build_owners": [
@@ -69981,12 +70185,12 @@
         "kernel/core/types.h"
       ],
       "language": "c_header",
-      "lines": 126,
+      "lines": 130,
       "origin": "tracked",
       "path": "kernel/fs/vfs.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "40f0e8ce5c337e5e5186ac3537be4c6e85c4c427fdf3b26778090b68b5b0ed60"
+      "sha256": "c01ad3ed0ad8d6e02f81ba99413d3d61f8b2b067b96f8edae9f7ec32f84c89ae"
     },
     {
       "build_owners": [
@@ -69998,12 +70202,13 @@
       ],
       "cohort": "kernel_fs",
       "features": [
-        "c.control.break",
+        "c.control.continue",
         "c.control.if",
         "c.control.return",
         "c.control.while",
         "c.preprocessor.include",
         "c.qualifier.const",
+        "c.storage.static",
         "c.type.char",
         "c.type.int",
         "c.type.void",
@@ -70015,12 +70220,12 @@
         "kernel/fs/vfs_helpers.h"
       ],
       "language": "cupid_c",
-      "lines": 152,
+      "lines": 219,
       "origin": "tracked",
       "path": "kernel/fs/vfs_helpers.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "16ca4f3b2b3b1aacde9727aececc517622ed56e7dacc19e2e0d50c695e40b4db"
+      "sha256": "1eb9f7d6cb83a2f8f25449ae8c39dd80b140f9ce50ed7347fc1eededa4441984"
     },
     {
       "build_owners": [
@@ -72564,7 +72769,7 @@
       "path": "kernel/lang/cupidc.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "13fa2720b83f4372e97f22ee99fbba2f57d1ade1a99c36b49db2f7da552bb661"
+      "sha256": "2ad6601be25f6d8f5bc3f61247eac6c5c67c702180eb9c1b693f0371e48ede80"
     },
     {
       "build_owners": [
@@ -77908,12 +78113,12 @@
         "toolchain/cupidc_frontend.h"
       ],
       "language": "cupid_c",
-      "lines": 33648,
+      "lines": 33646,
       "origin": "tracked",
       "path": "toolchain/tests/cupidc_frontend_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "87c08877b71f28147c3a475f09b4e2acd41c9c6fd34ac35257012a2bb582b44d"
+      "sha256": "1c6538c952d36ac83819295fb3607dda1dffd741f86a89c9c891ab9201be3345"
     },
     {
       "build_owners": [
@@ -78606,8 +78811,8 @@
     }
   ],
   "summary": {
-    "active_sources": 717,
-    "features": 254,
+    "active_sources": 718,
+    "features": 255,
     "transforms": 449,
     "unreachable_sources": 25
   },

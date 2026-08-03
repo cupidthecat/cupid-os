@@ -185,8 +185,9 @@ The checked seed parses all eight helpers in unchanged
 `kernel/core/ports.h`. It retains the 8-, 16-, and 32-bit accumulator lanes,
 the 16-bit DX port, the read/write ESI or EDI buffer, the read/write ECX
 count, and the INSW memory clobber. Scalar port I/O and the CLD plus REP word
-forms emit through the shared x86 model. This brings the active non-Doom
-header gate to 155/155 in the checked seed.
+forms emit through the shared x86 model. The checked-seed standalone sweep now
+passes 157 of 159 active non-Doom headers; `scheduler.h` and `simd_intrin.h`
+remain explicit failures.
 
 The checked seed retains GNU `noinline` and the exact
 `target("general-regs-only")` option on compatible file-scope function
@@ -302,18 +303,18 @@ kernel or driver root remains host-owned.
 
 The checked seed accepts ordered `-include` inputs through both the native
 and Cupid-built driver. That command reproduces both complete audited Doom
-preprocessing profiles without editing vendored source. It also
+preprocessing profiles without source-shaping workarounds. It also
 retains the sound driver's empty volatile memory barrier without emitting an
 instruction. An integer-only IEEE evaluator folds the unchanged static
 fixed-point table in `kernel/doom/src/am_map.cc` without a host floating
-operation. A one-active-member union initializer also emits unchanged
+operation. A one-active-member union initializer also emits
 `kernel/doom/src/info.cc`. An explicit `--doom-compat` switch represents the
 five calls in `i_system.cc` that precede a declaration and permits the eleven
 audited, bit-preserving conversions between unqualified function pointers and
 unqualified four-byte data or `void` pointers. Strict C and plain GNU mode
 still reject those implicit conversions, and explicit function/data casts
 remain outside Linear IR. The checked seed retains member provenance while
-narrow `unsigned int` color fields promote to signed `int` in unchanged
+narrow `unsigned int` color fields promote to signed `int` in
 `kernel/doom/src/i_video.cc`. It emits all 80 Doom-tree objects.
 
 The production wrapper also emits the three compatibility roots. It keeps the
@@ -322,12 +323,20 @@ explicit static string cast in `doom_libc_stubs.cc` and emits the exact
 second checked-seed compile matches the first for all three objects. The
 normal graph owns all 83 roots through CupidC, and every source uses `.cc`.
 The wrapper fixes exact three-source and 80-source allowlists and freezes the
-complete 289-file header space. Its input manifest detects source removal,
+complete 290-file header space. Its input manifest detects source removal,
 while the wrapper recursively checks visible `.c` and `.cc` files and live
 bytes before publication. A legacy `.c` file, an unlisted `.cc` file, header
-drift, a symbolic link, or an NTFS junction fails closed. The 51,492-byte
-`g_game.cc` object keeps two `R_386_32` relocations
-with addend 4. Full IWAD gameplay remains a separate runtime gate.
+drift, a symbolic link, or an NTFS junction fails closed. The 52,004-byte
+`g_game.cc` object has SHA-256
+`51aff2138ff2ee51bae9cc18e1dcc415567c6be1699ef0ef6f1ed2b009c30df1`
+and keeps two `R_386_32` relocations with addend 4. The 67,155-byte dglibc
+source produces a 93,332-byte object with SHA-256
+`e2496b01c93a7858a0c035b53aea0ad834d95d2be3f7ae49574d1759ebec34d6`.
+Repeated compatibility compiles also reproduce the 17,084-byte libc-stub and
+10,352-byte platform objects. The 69,366-byte closed profile manifest has
+SHA-256
+`e77c8a0dc238b1a6f2257f273cf3367dba930c914e6a5806adf058621bbff4a4`.
+Full IWAD gameplay remains a separate runtime gate.
 
 Checked-seed CupidC represents GNU `returns_twice` on file-scope function
 declarations. Marked functions must remain direct call targets. Supported
@@ -338,13 +347,26 @@ can reach again, while a call with no live prefix may repeat. Aggregate,
 wide-integer, and wider-than-four-byte floating arguments, aggregate results,
 and marked-function pointer conversions fail explicitly.
 
-The corrected dglibc template saves the post-return ESP and requires
-`returns_twice` on `dg_setjmp` and `noreturn` on `dg_longjmp`. A decoder-driven
-i386 oracle models first and second returns, but it is not guest runtime proof.
-Active `kernel/doom/dglibc.cc` still uses the compatibility template. The seed
-promotion changes no production owner or host dependency. Active-source
-migration and guest runtime proof remain open. ADR 0212 records the compiler
-boundary, and ADR 0213 records its promotion.
+Active dglibc uses the corrected template. Its 31-byte `dg_setjmp` saves
+`ESP + 4` and is `returns_twice`; `dg_longjmp`, `dg_exit`, and `dg_abort` are
+`noreturn`. The decoder oracle models both returns, and the guest self-test
+executes direct longjmp plus two quit and two error sessions. Callback order,
+error filtering, and cleanup between shell launches are checked directly.
+This changes no production owner or host dependency. ADR 0212 records the
+compiler boundary, ADR 0213 its promotion, and ADR 0214 active adoption.
+
+Doom's active config and game-save paths now write checked temporary streams
+and use native same-mount VFS rename. HomeFS and RamFS reject busy
+replacement. Failed block-cache fills leave the victim's bytes and identity
+paired. FAT16 propagates cache errors, distinguishes handle exhaustion from a
+missing file, rejects file/directory collisions and live-entry replacement,
+enforces its one-level 8.3 namespace, and flushes a replacement or deletion
+before releasing the detached chain. HomeFS rejects malformed containers and
+duplicate mounts, reserves `HOMEFS.SYS` against raw writes and deletion, and
+supports nested mutation batches with one durable outer publish. Buffered FAT
+close and the high-level write/copy helpers treat close as the commit boundary.
+Asset-free tests exercise every one of these paths. ADR 0211 records the
+storage boundary; power-cut injection and WAD-backed save/load remain open.
 
 The checked seed resolves the C11 inline declaration set in
 `kernel/audio/nuked_opl3.cc`. The ordinary declaration in its header means
@@ -629,9 +651,13 @@ A private copy reached the desktop and terminal and completed `/bin/ls.cc`
 through the in-OS CupidC JIT in 54.025 seconds, with no panic marker.
 
 The production Doom runtime proof uses private four-CPU images on e1000 and
-RTL8139. Both NICs pass the full frontier, print the no-WAD guidance, recover
-from `doom -iwad /disk/missing.wad`, and complete a later CupidC-built `ls`.
-The checkout has no WAD, so this evidence stops before gameplay.
+RTL8139. Both NICs pass the full asset-free frontier. Separate one-boot gates
+run two different missing-IWAD launches, require two returns to the shell, and
+then complete `dglibc_test`. A second stateful gate on each NIC reaches the
+same storage diagnostic after the swap feature has kept one FAT handle open,
+then completes the framebuffer, audio, speaker, desktop, terminal, and in-OS
+CupidC checks. The checkout has no WAD, so this evidence stops before gameplay,
+game input and audio, menu-driven save/load, and reboot persistence.
 
 ### GNU named assembly operands
 

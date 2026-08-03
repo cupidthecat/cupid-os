@@ -23,6 +23,7 @@
 #include "doomtype.h"
 
 void M_LoadDefaults(void);
+int M_ConfigFilesystemTest(void);
 void M_SaveDefaults(void);
 void M_SaveDefaultsAlternate(char *main, char *extra);
 void M_SetConfigDir(char *dir);

@@ -1582,7 +1582,10 @@ void G_DoLoadGame (void)
     if (!P_ReadSaveGameEOF())
 	I_Error ("Bad savegame");
 
-    fclose(save_stream);
+    if (fclose(save_stream) != 0 || savegame_error)
+    {
+        I_Error("Failed while reading savegame file '%s'.", savename);
+    }
     
     if (setsizeneeded)
     	R_ExecuteSetViewSize ();
@@ -1657,7 +1660,11 @@ void G_DoSaveGame (void)
     
     // Finish up, close the savegame file.
 
-    fclose(save_stream);
+    if (fclose(save_stream) != 0 || savegame_error)
+    {
+        I_Error("Failed while writing savegame file '%s'.",
+                temp_savegame_file);
+    }
 
     if (recovery_savegame_file != NULL)
     {
@@ -1672,8 +1679,10 @@ void G_DoSaveGame (void)
     // Now rename the temporary savegame file to the actual savegame
     // file, overwriting the old savegame if there was one there.
 
-    remove(savegame_file);
-    rename(temp_savegame_file, savegame_file);
+    if (rename(temp_savegame_file, savegame_file) != 0)
+    {
+        I_Error("Failed to replace savegame file '%s'.", savegame_file);
+    }
     
     gameaction = ga_nothing;
     M_StringCopy(savedescription, "", sizeof(savedescription));

@@ -1605,6 +1605,71 @@ class KernelCompileOperationTests(unittest.TestCase):
         output.parent.mkdir()
         return temporary, root, source, seed, manifest, output
 
+    def test_transient_permission_error_retries_atomic_publication(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            staged = root / "staged.o"
+            output = root / "kernel.o"
+            staged.write_bytes(b"new object")
+            output.write_bytes(b"existing object")
+            real_replace = kernel_compile.os.replace
+            attempts = []
+
+            def replace(source, destination):
+                attempts.append((Path(source), Path(destination)))
+                if len(attempts) < 3:
+                    raise PermissionError(13, "kernel object still busy")
+                real_replace(source, destination)
+
+            with (
+                mock.patch.object(
+                    kernel_compile.os,
+                    "replace",
+                    side_effect=replace,
+                ),
+                mock.patch.object(kernel_compile.time, "sleep") as sleep,
+            ):
+                kernel_compile._replace_with_retry(staged, output)
+
+            self.assertEqual(len(attempts), 3)
+            self.assertEqual(
+                [call.args[0] for call in sleep.call_args_list],
+                list(kernel_compile.PUBLISH_RETRY_DELAYS_SECONDS[:2]),
+            )
+            self.assertEqual(output.read_bytes(), b"new object")
+            self.assertFalse(staged.exists())
+
+    def test_persistent_permission_error_preserves_existing_output(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            staged = root / "staged.o"
+            output = root / "kernel.o"
+            staged.write_bytes(b"new object")
+            output.write_bytes(b"existing object")
+            denied = PermissionError(13, "kernel object remains busy")
+
+            with (
+                mock.patch.object(
+                    kernel_compile.os,
+                    "replace",
+                    side_effect=denied,
+                ) as replace,
+                mock.patch.object(kernel_compile.time, "sleep") as sleep,
+                self.assertRaises(PermissionError),
+            ):
+                kernel_compile._replace_with_retry(staged, output)
+
+            self.assertEqual(
+                replace.call_count,
+                len(kernel_compile.PUBLISH_RETRY_DELAYS_SECONDS) + 1,
+            )
+            self.assertEqual(
+                [call.args[0] for call in sleep.call_args_list],
+                list(kernel_compile.PUBLISH_RETRY_DELAYS_SECONDS),
+            )
+            self.assertEqual(output.read_bytes(), b"existing object")
+            self.assertEqual(staged.read_bytes(), b"new object")
+
     def test_manifest_and_seed_are_frozen_before_successful_execution(self):
         temporary, root, source, seed, manifest, output = self._root_fixture()
         self.addCleanup(temporary.cleanup)

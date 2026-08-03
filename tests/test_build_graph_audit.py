@@ -890,7 +890,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         expected = {
             "packed": 30,
             "aligned": 12,
-            "noreturn": 3,
+            "noreturn": 11,
+            "returns_twice": 1,
             "section": 2,
             "weak": 5,
             "used": 18,
@@ -904,8 +905,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             feature = features[f"c.extension.attribute.{name}"]
             self.assertEqual(feature["occurrences"], occurrences)
             attribute_files.update(feature["files"])
-        self.assertEqual(sum(expected.values()), 97)
-        self.assertEqual(len(attribute_files), 30)
+        self.assertEqual(sum(expected.values()), 106)
+        self.assertEqual(len(attribute_files), 34)
         for name in ("aligned", "section", "weak"):
             self.assertIn(
                 "kernel/cpu/ksyms.cc",
@@ -1616,7 +1617,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             contract = generated["contracts"][
                 "c_preprocessor_line_directives"
             ]
-            self.assertEqual(contract["source_files"], 686)
+            self.assertEqual(contract["source_files"], 687)
             self.assertEqual(contract["named_line_occurrences"], 0)
             self.assertEqual(contract["direct_line_occurrences"], 0)
             self.assertEqual(contract["pp_token_line_occurrences"], 0)
@@ -1637,7 +1638,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertIn(
                 "`c_preprocessor_line_directives` | `pass` | "
                 "0 named #line directives (0 direct, 0 pp-token; 0 filename); "
-                "0 numeric markers; 686 source files; max conditional depth 0",
+                "0 numeric markers; 687 source files; max conditional depth 0",
                 summary.read_text(encoding="utf-8"),
             )
 
@@ -1974,8 +1975,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(contract["if_occurrences"], 105)
             self.assertEqual(contract["elif_occurrences"], 4)
             self.assertEqual(contract["expression_occurrences"], 109)
-            self.assertEqual(contract["unique_expressions"], 22)
-            self.assertEqual(contract["directive_expression_pairs"], 23)
+            self.assertEqual(contract["unique_expressions"], 24)
+            self.assertEqual(contract["directive_expression_pairs"], 25)
             self.assertTrue(
                 all(
                     not item["path"].casefold().startswith("templeos/")
@@ -2017,6 +2018,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "OPL_ENABLE_STEREOEXT && ! defined OPL_SIN": 0,
                     "OPL_QUIRK_CHANNELSAMPLEDELAY": 1,
                     "ORIGCODE": 0,
+                    "defined ( DOOM_PORT_CUPIDOS )": 0,
+                    "defined ( ORIGCODE ) || "
+                    "defined ( DOOM_PORT_CUPIDOS )": 0,
                     "_MSC_VER < 1400": 1,
                     "_WIN64": 0,
                     "defined ( _MSC_VER ) && ! defined ( __cplusplus )": 0,
@@ -2528,10 +2532,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 checked["contracts"]["c_preprocessor_include_operands"],
                 contract,
             )
-            self.assertEqual(contract["source_files"], 686)
-            self.assertEqual(contract["include_occurrences"], 2392)
-            self.assertEqual(contract["direct_quoted_occurrences"], 2158)
-            self.assertEqual(contract["direct_angle_occurrences"], 234)
+            self.assertEqual(contract["source_files"], 687)
+            self.assertEqual(contract["include_occurrences"], 2402)
+            self.assertEqual(contract["direct_quoted_occurrences"], 2167)
+            self.assertEqual(contract["direct_angle_occurrences"], 235)
             self.assertEqual(contract["pp_token_operand_occurrences"], 0)
 
     def test_inventory_detects_link_inputs_missing_from_artifact_manifest(self):
@@ -4604,8 +4608,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(
                 audit_payload["summary"],
                 {
-                    "active_sources": 717,
-                    "features": 254,
+                    "active_sources": 718,
+                    "features": 255,
                     "transforms": 449,
                     "unreachable_sources": 25,
                 },
@@ -4615,7 +4619,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (5459, 168),
+                "c.expression.sizeof": (5509, 167),
                 "c.extension.builtin.offsetof": (12, 6),
                 "c.extension.gnu_alignof": (1, 1),
             }

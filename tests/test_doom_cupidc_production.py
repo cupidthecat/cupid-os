@@ -119,6 +119,368 @@ class DoomCupidCProductionTests(unittest.TestCase):
         )
         self.assertEqual(legacy_sources, set())
 
+    def test_live_doom_uses_the_checked_jump_and_rename_contracts(self):
+        dglibc_header = (REPO_ROOT / "kernel/doom/dglibc.h").read_text(
+            encoding="utf-8"
+        )
+        dglibc_source = (REPO_ROOT / "kernel/doom/dglibc.cc").read_text(
+            encoding="utf-8"
+        )
+        compatibility = (
+            REPO_ROOT / "kernel/doom/dglibc_compat.h"
+        ).read_text(encoding="utf-8")
+        system_header = (
+            REPO_ROOT / "kernel/doom/src/i_system.h"
+        ).read_text(encoding="utf-8")
+        system_source = (
+            REPO_ROOT / "kernel/doom/src/i_system.cc"
+        ).read_text(encoding="utf-8")
+        platform_source = (
+            REPO_ROOT / "kernel/doom/doomgeneric_cupidos.cc"
+        ).read_text(encoding="utf-8")
+        game_source = (
+            REPO_ROOT / "kernel/doom/src/g_game.cc"
+        ).read_text(encoding="utf-8")
+        main_source = (
+            REPO_ROOT / "kernel/doom/src/d_main.cc"
+        ).read_text(encoding="utf-8")
+        config_source = (
+            REPO_ROOT / "kernel/doom/src/m_config.cc"
+        ).read_text(encoding="utf-8")
+        libc_stubs = (
+            REPO_ROOT / "kernel/doom/doom_libc_stubs.cc"
+        ).read_text(encoding="utf-8")
+        vfs_header = (REPO_ROOT / "kernel/fs/vfs.h").read_text(
+            encoding="utf-8"
+        )
+        vfs_source = (REPO_ROOT / "kernel/fs/vfs.cc").read_text(
+            encoding="utf-8"
+        )
+        homefs_source = (REPO_ROOT / "kernel/fs/homefs.cc").read_text(
+            encoding="utf-8"
+        )
+        homefs_header = (REPO_ROOT / "kernel/fs/homefs.h").read_text(
+            encoding="utf-8"
+        )
+        ramfs_source = (REPO_ROOT / "kernel/fs/ramfs.cc").read_text(
+            encoding="utf-8"
+        )
+        blockcache_header = (
+            REPO_ROOT / "kernel/fs/blockcache.h"
+        ).read_text(encoding="utf-8")
+        blockcache_source = (
+            REPO_ROOT / "kernel/fs/blockcache.cc"
+        ).read_text(encoding="utf-8")
+        fat16_source = (REPO_ROOT / "kernel/fs/fat16.cc").read_text(
+            encoding="utf-8"
+        )
+        fat16_vfs_source = (
+            REPO_ROOT / "kernel/fs/fat16_vfs.cc"
+        ).read_text(encoding="utf-8")
+        vfs_helpers_source = (
+            REPO_ROOT / "kernel/fs/vfs_helpers.cc"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("__attribute__((returns_twice))", dglibc_header)
+        self.assertGreaterEqual(
+            dglibc_header.count("__attribute__((noreturn))"), 3
+        )
+        self.assertIn('"    leal  4(%esp), %ecx\\n"', dglibc_source)
+        self.assertNotIn('"    movl  %esp, 16(%eax)\\n"', dglibc_source)
+        self.assertIn(
+            "n > 0xffffffffu - (uint32_t)sizeof(dg_alloc_hdr_t)",
+            dglibc_source,
+        )
+        self.assertIn("n > 0xffffffffu / sz", dglibc_source)
+        self.assertLess(
+            dglibc_source.index(
+                "f = (DG_FILE *)dg_malloc((uint32_t)sizeof(struct DG_FILE))"
+            ),
+            dglibc_source.index("fd = vfs_open(path, flags)"),
+        )
+        self.assertIn("#define O_CREAT   0x0100", compatibility)
+        self.assertIn("#define O_APPEND  0x0400", compatibility)
+        self.assertIn("#define EXDEV  18", compatibility)
+
+        self.assertEqual(
+            system_header.count("__attribute__((noreturn))"), 2
+        )
+        self.assertRegex(
+            system_source,
+            r"#if ORIGCODE\s+SDL_Quit\(\);\s+#endif\s+exit\(0\);",
+        )
+        self.assertIn("void I_ResetExitState(void)", system_source)
+        self.assertIn("exit_funcs = NULL;", system_source)
+        self.assertIn("already_quitting = false;", system_source)
+        self.assertEqual(platform_source.count("I_ResetExitState();"), 2)
+        self.assertIn(
+            "extern void  I_ResetExitState(void);", platform_source
+        )
+        self.assertIn("I_Quit();", platform_source)
+        self.assertNotIn("I_Endoom(endoom);\n\n\texit(0);", main_source)
+        self.assertIn(
+            "defined(ORIGCODE) || defined(DOOM_PORT_CUPIDOS)",
+            config_source,
+        )
+        self.assertIn(".tmp.cfg", config_source)
+        self.assertIn("static boolean ParseConfigLine", config_source)
+        self.assertNotIn("fscanf(", config_source)
+        self.assertIn("errno == ERANGE", config_source)
+        self.assertIn("ResetCollectionDefaults", config_source)
+        self.assertIn("initial_captured", config_source)
+        self.assertIn("int M_ConfigFilesystemTest(void)", config_source)
+        self.assertIn("cutoff = limit / (unsigned long)base", libc_stubs)
+        self.assertIn("return negative ? DG_LONG_MIN : DG_LONG_MAX", libc_stubs)
+        self.assertIn(
+            "if (fclose(save_stream) != 0 || savegame_error)",
+            game_source,
+        )
+        self.assertNotIn("remove(savegame_file);", game_source)
+        self.assertIn(
+            "if (rename(temp_savegame_file, savegame_file) != 0)",
+            game_source,
+        )
+
+        self.assertIn("int (*rename)(void *fs_private", vfs_header)
+        self.assertIn("VFS_EXDEV", vfs_header)
+        self.assertIn("VFS_EBUSY", vfs_header)
+        self.assertIn(
+            "return old_mount == new_mount ? VFS_ENOSYS : VFS_EXDEV",
+            vfs_source,
+        )
+        self.assertNotIn("copy incomplete", vfs_source)
+        self.assertIn("static int homefs_rename_op", homefs_source)
+        self.assertIn("if (rc < 0) {", homefs_source)
+        self.assertIn(
+            "destination->parent = destination_parent", homefs_source
+        )
+        self.assertIn("homefs_checked_add_u32", homefs_source)
+        self.assertIn("HOMEFS_MAX_DEPTH", homefs_source)
+        self.assertIn("homefs_valid_name_bytes", homefs_source)
+        self.assertIn("node->open_count++", homefs_source)
+        self.assertIn("return VFS_EBUSY;", homefs_source)
+        self.assertIn("return failure;", homefs_source)
+        self.assertIn("return load_status;", homefs_source)
+        self.assertIn("if (g_homefs) return VFS_EBUSY;", homefs_source)
+        self.assertIn("int homefs_batch_begin(void);", homefs_header)
+        self.assertIn("int homefs_batch_end(void);", homefs_header)
+        self.assertIn(
+            "if (fs->batch_depth > 0u) return VFS_OK;", homefs_source
+        )
+        self.assertIn(
+            "if (fs->batch_depth > 0u) return VFS_EBUSY;", homefs_source
+        )
+        self.assertIn(
+            "g_homefs->batch_depth == 0xffffffffu", homefs_source
+        )
+        self.assertIn(
+            "!g_homefs || g_homefs->batch_depth == 0u", homefs_source
+        )
+        self.assertIn(
+            "publish_status = homefs_batch_end();", dglibc_source
+        )
+        self.assertIn(
+            "[PASS] dglibc HomeFS batch boundary", dglibc_source
+        )
+        self.assertIn("while (acquired < 16)", dglibc_source)
+        self.assertIn("denied = vfs_open(path, O_WRONLY | O_CREAT)", dglibc_source)
+        self.assertIn("for (int i = 0; i < acquired; i++)", dglibc_source)
+        self.assertIn("fat16_open_checked(path, &file)", homefs_source)
+        self.assertIn(
+            "fat16_reserve_file(HOMEFS_CONTAINER_NAME)", homefs_source
+        )
+        self.assertIn(
+            "fat16_release_file_reservation(HOMEFS_CONTAINER_NAME)",
+            homefs_source,
+        )
+        self.assertIn("rec.name_len > size - pos", homefs_source)
+        self.assertIn("rec.size > size - pos", homefs_source)
+        self.assertNotIn("pos + rec.name_len > size", homefs_source)
+        self.assertNotIn("pos + rec.size > size", homefs_source)
+        self.assertIn("static ramfs_node_t *ramfs_existing_parent", ramfs_source)
+        self.assertIn("node->open_count++", ramfs_source)
+        self.assertIn("return VFS_EBUSY;", ramfs_source)
+        self.assertIn(
+            "if (node->open_count > 0u)", ramfs_source
+        )
+        ramfs_write_start = ramfs_source.index("static int ramfs_write(")
+        ramfs_seek_start = ramfs_source.index("static int ramfs_seek(")
+        ramfs_write = ramfs_source[ramfs_write_start:ramfs_seek_start]
+        self.assertLess(
+            ramfs_write.index("if (end > RAMFS_MAX_DATA)"),
+            ramfs_write.index("/* Grow buffer if needed */"),
+        )
+        self.assertIn(
+            "if (new_pos > RAMFS_MAX_DATA) return VFS_ENOSPC;",
+            ramfs_source,
+        )
+        self.assertNotIn(
+            "ramfs_mkdirs(fs->root, new_path", ramfs_source
+        )
+
+        self.assertIn("int blockcache_flush_all(void);", blockcache_header)
+        self.assertIn("int blockcache_sync(void);", blockcache_header)
+        self.assertIn("return status;", blockcache_source)
+        self.assertIn(
+            "return home_status < 0 ? home_status : cache_status;",
+            blockcache_source,
+        )
+        self.assertEqual(
+            blockcache_source.count(
+                "blkdev_read(cache.device, lba, 1, loaded)"
+            ),
+            2,
+        )
+        self.assertNotIn(
+            "blkdev_read(cache.device, lba, 1, entry->data)",
+            blockcache_source,
+        )
+        self.assertEqual(
+            blockcache_source.count("entry->dirty = 0;"), 3
+        )
+        self.assertIn("int blockcache_failure_selftest(void)", blockcache_source)
+        self.assertIn("memset(buffer, 0x5a, SECTOR_SIZE)", blockcache_source)
+        self.assertIn(
+            "blockcache_failure_victim_is_safe(&entries[0], &test)",
+            blockcache_source,
+        )
+        homefs_flush_start = homefs_source.index("static int homefs_flush(")
+        homefs_read_start = homefs_source.index(
+            "static int homefs_read_fat_file("
+        )
+        homefs_flush = homefs_source[homefs_flush_start:homefs_read_start]
+        self.assertNotIn("blockcache_flush_all()", homefs_flush)
+        self.assertIn("rc = fat16_write_reserved_file(", homefs_flush)
+
+        publish_start = fat16_source.index(
+            "static int fat16_publish_directory_sector("
+        )
+        open_start = fat16_source.index("int fat16_open_checked(")
+        read_start = fat16_source.index("int fat16_read(")
+        write_start = fat16_source.index("int fat16_write_file(")
+        delete_start = fat16_source.index("int fat16_delete_file(")
+        mkdir_start = fat16_source.index("int fat16_mkdir(")
+        publish_helper = fat16_source[publish_start:write_start]
+        checked_open = fat16_source[open_start:read_start]
+        write_file = fat16_source[write_start:delete_start]
+        delete_file = fat16_source[delete_start:mkdir_start]
+        mkdir_file = fat16_source[mkdir_start:]
+        self.assertIn("fat16_get_dir_cluster_checked", checked_open)
+        self.assertIn("fat16_read_fat_entry_checked", checked_open)
+        self.assertNotIn("cur = fat16_read_fat_entry(cur)", checked_open)
+        self.assertIn("return FAT16_OPEN_NO_HANDLES;", checked_open)
+        self.assertIn("directory_lba", checked_open)
+        self.assertIn(
+            "count > file->file_size - file->position", fat16_source
+        )
+        self.assertNotIn(
+            "file->position + count > file->file_size", fat16_source
+        )
+        self.assertIn("if (blockcache_sync() == 0)", publish_helper)
+        self.assertIn(
+            "blockcache_write(lba, original) == 0 && "
+            "blockcache_sync() == 0",
+            publish_helper,
+        )
+        self.assertEqual(
+            write_file.count("fat16_publish_directory_sector("), 4
+        )
+        self.assertGreaterEqual(
+            write_file.count(
+                "fat16_release_unpublished_chain(first_cluster);"
+            ),
+            12,
+        )
+        self.assertIn(
+            "fat16_release_unpublished_pair(first_cluster, c);",
+            write_file,
+        )
+        self.assertEqual(
+            write_file.count(
+                "if (entries[i].attributes & FAT_ATTR_DIRECTORY) {"
+            ),
+            2,
+        )
+        self.assertNotIn(
+            "fat16_free_chain(entries[i].first_cluster)", write_file
+        )
+        self.assertNotIn("blockcache_sync();", write_file)
+        self.assertLess(
+            write_file.index("int was_end_marker"),
+            write_file.index("memset(entry"),
+        )
+        self.assertLess(
+            write_file.index("fat16_publish_directory_sector("),
+            write_file.rindex("fat16_free_chain(old_cluster);"),
+        )
+        self.assertEqual(
+            write_file.count("fat16_directory_entry_is_open("), 2
+        )
+        self.assertIn("fat16_reserved_write_depth == 0", write_file)
+        self.assertEqual(
+            delete_file.count("fat16_publish_deleted_sector("), 2
+        )
+        self.assertLess(
+            delete_file.index("fat16_publish_deleted_sector("),
+            delete_file.index("fat16_free_chain(target_cluster);"),
+        )
+        self.assertIn(
+            "if (blockcache_sync() != 0)", mkdir_file
+        )
+        self.assertIn(
+            "fat16_publish_directory_sector(", mkdir_file
+        )
+        self.assertLess(
+            mkdir_file.index("blockcache_sync()"),
+            mkdir_file.index("fat16_publish_directory_sector("),
+        )
+
+        fat_open_start = fat16_vfs_source.index(
+            "static int fat16_vfs_open("
+        )
+        fat_close_start = fat16_vfs_source.index(
+            "static int fat16_vfs_close("
+        )
+        fat_read_start = fat16_vfs_source.index(
+            "static int fat16_vfs_read("
+        )
+        fat_open = fat16_vfs_source[fat_open_start:fat_close_start]
+        fat_close = fat16_vfs_source[fat_close_start:fat_read_start]
+        self.assertIn("fat16_file_is_reserved(name)", fat_open)
+        self.assertNotIn("fat16_delete_file(", fat_open)
+        self.assertNotIn("fat16_delete_file(", fat_close)
+        self.assertIn("previous entry retained", fat_close)
+        self.assertIn("FAT16_OPEN_NO_HANDLES", fat16_vfs_source)
+        self.assertIn("fat16_vfs_canonical_path", fat_open)
+        self.assertIn("status = VFS_EBUSY;", fat_close)
+        self.assertIn("return status;", fat_close)
+        self.assertIn(
+            "count > 0xffffffffu - h->cursor", fat16_vfs_source
+        )
+        self.assertEqual(
+            vfs_helpers_source.count("int close_rc = vfs_close(fd);"),
+            2,
+        )
+        self.assertIn(
+            "int dst_close_rc = vfs_close(dst_fd);", vfs_helpers_source
+        )
+        self.assertIn(
+            "strcmp(canonical_src, canonical_dest) == 0",
+            vfs_helpers_source,
+        )
+        self.assertIn("while (written < (uint32_t)r)", vfs_helpers_source)
+        self.assertGreaterEqual(
+            vfs_helpers_source.count("return VFS_EIO;"), 4
+        )
+        copy_file = vfs_helpers_source[
+            vfs_helpers_source.index("int vfs_copy_file(") :
+        ]
+        self.assertIn("st.type != VFS_TYPE_FILE", copy_file)
+        self.assertLess(
+            copy_file.index("if (dst_close_rc < 0)"),
+            copy_file.rindex("return (int)total;"),
+        )
+
     def test_checked_seed_compiles_g_game_subobject_pointer_initializers(self):
         if not SEED_MANIFEST.is_file():
             self.skipTest("checked seed manifest is not present")
@@ -144,8 +506,8 @@ class DoomCupidCProductionTests(unittest.TestCase):
         self.assertEqual(
             (len(image), hashlib.sha256(image).hexdigest()),
             (
-                51492,
-                "c9da48e696eb521441e8bee0a2b69bfdd691db57b7fbbda42450d208e78d9034",
+                52004,
+                "51aff2138ff2ee51bae9cc18e1dcc415567c6be1699ef0ef6f1ed2b009c30df1",
             ),
         )
 

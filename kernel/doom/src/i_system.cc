@@ -69,6 +69,22 @@ struct atexit_listentry_s
 };
 
 static atexit_listentry_t *exit_funcs = NULL;
+static boolean already_quitting = false;
+
+void I_ResetExitState(void)
+{
+    atexit_listentry_t *entry;
+
+    entry = exit_funcs;
+    exit_funcs = NULL;
+    while (entry != NULL)
+    {
+        atexit_listentry_t *next = entry->next;
+        free(entry);
+        entry = next;
+    }
+    already_quitting = false;
+}
 
 void I_AtExit(atexit_func_t func, boolean run_on_error)
 {
@@ -259,9 +275,9 @@ void I_Quit (void)
 
 #if ORIGCODE
     SDL_Quit();
+#endif
 
     exit(0);
-#endif
 }
 
 #if !defined(_WIN32) && !defined(__MACOSX__) && !defined(__DJGPP__)
@@ -354,8 +370,6 @@ static int ZenityErrorBox(char *message)
 // I_Error
 //
 
-static boolean already_quitting = false;
-
 void I_Error (char *error, ...)
 {
     char msgbuf[512];
@@ -366,9 +380,7 @@ void I_Error (char *error, ...)
     if (already_quitting)
     {
         fprintf(stderr, "Warning: recursive call to I_Error detected.\n");
-#if ORIGCODE
         exit(-1);
-#endif
     }
     else
     {
@@ -463,11 +475,8 @@ void I_Error (char *error, ...)
     // abort();
 #if ORIGCODE
     SDL_Quit();
-
-    exit(-1);
-#else
-    exit(-1);
 #endif
+    exit(-1);
 }
 
 //
@@ -575,4 +584,3 @@ boolean I_GetMemoryValue(unsigned int offset, void *value, int size)
 
     return false;
 }
-

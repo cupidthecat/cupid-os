@@ -1349,8 +1349,8 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   BIND_T("time_short_string", p_time_short, 0, TYPE_CHAR_PTR);
 
   /* Block cache */
-  void (*p_blockcache_sync)(void) = blockcache_sync;
-  BIND("blockcache_sync", p_blockcache_sync, 0);
+  int (*p_blockcache_sync)(void) = blockcache_sync;
+  BIND_T("blockcache_sync", p_blockcache_sync, 0, TYPE_INT);
 
   void (*p_blockcache_stats)(void) = blockcache_stats;
   BIND("blockcache_stats", p_blockcache_stats, 0);

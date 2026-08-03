@@ -5410,8 +5410,6 @@ static int block_function_active_source_is_unchanged(
        "    extern void kernel_check_reschedule(void);", 1u},
       {"/kernel/core/process.cc",
        "    extern void kernel_clear_reschedule(void);", 1u},
-      {"/kernel/doom/doom_libc_stubs.cc",
-       "    extern void serial_write_string(const char *s);", 1u},
       {"/kernel/doom/src/i_video.cc", "    extern void I_InitInput(void);", 1u},
       {"/kernel/doom/src/m_menu.cc",
        "    extern void I_OPL_DevMessages(char *, size_t);", 1u},
@@ -10173,7 +10171,7 @@ static int run_file_scope_initializers(const char *host_root) {
       {"read", "ramfs_read"},         {"write", "ramfs_write"},
       {"seek", "ramfs_seek"},         {"stat", "ramfs_stat"},
       {"readdir", "ramfs_readdir"},   {"mkdir", "ramfs_mkdir_op"},
-      {"unlink", "ramfs_unlink"}};
+      {"unlink", "ramfs_unlink"},     {"rename", "ramfs_rename"}};
   frontend_fixture_t fixture;
   ctool_c_pp_include_root_t include_roots[ARRAY_COUNT(active_rows)];
   ctool_c_pp_macro_action_t macro_actions[ARRAY_COUNT(active_rows)];
@@ -10696,7 +10694,7 @@ static int run_file_scope_initializers(const char *host_root) {
       pending_definition->kind != CTOOL_C_OBJECT_DEFINITION_EXPLICIT ||
       pending_definition->storage != CTOOL_C_STORAGE_STATIC ||
       root == NULL || root->kind != CTOOL_C_INITIALIZER_LIST ||
-      root->element_count != 12u || child == NULL ||
+      root->element_count != 13u || child == NULL ||
       child->kind != CTOOL_C_INITIALIZER_ADDRESS ||
       child->address_kind != CTOOL_C_INITIALIZER_ADDRESS_STRING ||
       child->string_bytes.size != 6u || child->string_bytes.data == NULL ||
@@ -27292,12 +27290,12 @@ static int validate_active_d_main_unit(
   static const struct {
     const char *name;
     ctool_u32 line;
-  } externs[] = {{"forwardmove", 1336u}, {"sidemove", 1337u}};
+  } externs[] = {{"forwardmove", 1335u}, {"sidemove", 1336u}};
   ctool_u32 index;
 
-  if (unit->binding_count != 2631u ||
+  if (unit->binding_count != 2639u ||
       unit->function_definition_count != 21u ||
-      unit->statement_count != 645u || unit->expression_count != 2999u ||
+      unit->statement_count != 649u || unit->expression_count != 3018u ||
       unit->block_binding_count != 41u ||
       unit->initializer_count != 120u) {
     return 1;

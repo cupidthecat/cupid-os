@@ -251,6 +251,8 @@ void DG_SetWindowTitle(const char *t) { (void)t; }
 
 extern void  D_DoomMain(void);
 extern void  M_FindResponseFile(void);
+extern void  I_ResetExitState(void);
+extern void  I_Quit(void) __attribute__((noreturn));
 extern int   myargc;
 extern char **myargv;
 
@@ -299,6 +301,7 @@ int doom_main(int argc, char **argv) {
     static char *new_argv[16];
     int new_argc;
 
+    I_ResetExitState();
     myargc = argc;
     myargv = argv;
 
@@ -334,13 +337,12 @@ int doom_main(int argc, char **argv) {
 
     if (dg_setjmp(s_doom_env) != 0) {
         /* Arrived here via dg_longjmp from dg_exit/dg_abort */
+        dg_disarm_exit();
         keyboard_unsubscribe();
+        I_ResetExitState();
         serial_write_string("[doom] returned to shell\n");
         return 0;
     }
-
-    /* Arm the exit trap so dg_exit will longjmp here */
-    dg_arm_exit(s_doom_env);
 
     /* Force IF=1.  Shell command path can leave us with interrupts disabled
      * (BKL save/restore in process_yield).  DOOM busy-waits on PIT-driven
@@ -382,6 +384,9 @@ int doom_main(int argc, char **argv) {
         DG_ScreenBuffer = &fb[(uint32_t)y_off * (uint32_t)VGA_GFX_WIDTH];
     }
 
+    /* Every exit after this point unwinds through the shell envelope. */
+    dg_arm_exit(s_doom_env);
+
     DG_Init();
     M_FindResponseFile();
     D_DoomMain();
@@ -393,8 +398,7 @@ int doom_main(int argc, char **argv) {
         doomgeneric_Tick();
     }
 
-    /* Unreachable, but keep cleanup in case the loop ever exits. */
-    keyboard_unsubscribe();
-    serial_write_string("[doom] D_DoomMain returned\n");
+    /* If the loop ever becomes finite, keep the normal shutdown path. */
+    I_Quit();
     return 0;
 }

@@ -4,6 +4,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+import time
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -139,25 +140,25 @@ CUPID_TOOLCHAIN_FIXED_POINT_LINKS = (
 DOOM_TREE_FRONTIER_FAILURES = {}
 DOOM_COMPAT_OBJECTS = {
     "/kernel/doom/dglibc.cc": (
-        27992,
-        "54ce387c7eae45d9f4ae379afdaa1109"
-        "2d2dd021d4e9ca7696be5da2ff5d3dcd",
+        93332,
+        "e2496b01c93a7858a0c035b53aea0ad8"
+        "34d95d2be3f7ae49574d1759ebec34d6",
     ),
     "/kernel/doom/doom_libc_stubs.cc": (
-        14352,
-        "8f667113c54fa0b0d27ce83d13424206"
-        "5ba5b9258324a809e11e72229752ff3b",
+        17084,
+        "a2cef82df789e5770dc91bbe5bb7b4a4"
+        "1dfcbe788f587eec6fc0f6265433c319",
     ),
     "/kernel/doom/doomgeneric_cupidos.cc": (
-        10232,
-        "5274b91dfa7bac56cd83ff0f8096eb5a"
-        "06fef5e61f91ebb3b80efacc8ad2a9cb",
+        10352,
+        "53537aabdaaa5de1db63403f569253f6"
+        "be829b59387bebbe853347b825050c8a",
     ),
 }
-DOOM_I_VIDEO_OBJECT_SIZE = 9312
+DOOM_I_VIDEO_OBJECT_SIZE = 9288
 DOOM_I_VIDEO_OBJECT_SHA256 = (
-    "8e9fcb59120cac9e8237a8243003fe169"
-    "6a7841096aca7af360c89fec173336f"
+    "d04e91844763391d4224d14aefce64ec"
+    "e02a95c9a99c604e9ef5b1392974dd20"
 )
 LIBM_SOURCE_SIZE = 43736
 LIBM_SOURCE_SHA256 = (
@@ -169,6 +170,18 @@ KERNEL_SOURCE_SHA256 = (
     "f882ac45e2fc9a41ce805a22a602fb48"
     "39293a755ef5fea3b7e21d159d5bbf83"
 )
+
+
+def _cleanup_temporary_directory(directory):
+    attempts = 30 if os.name == "nt" else 1
+    for attempt in range(attempts):
+        try:
+            directory.cleanup()
+            return
+        except PermissionError:
+            if attempt + 1 == attempts:
+                raise
+            time.sleep(0.1)
 
 
 class ToolchainCupidCObjectContractTests(unittest.TestCase):
@@ -225,7 +238,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             or not cls.hosted_cupidobj_path.exists()
             or not cls.hosted_cupidc_path.exists()
         ):
-            cls._build_directory.cleanup()
+            _cleanup_temporary_directory(cls._build_directory)
             raise AssertionError(
                 "CupidC object contract build failed\n"
                 + result.stdout
@@ -234,7 +247,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        cls._build_directory.cleanup()
+        _cleanup_temporary_directory(cls._build_directory)
 
     @classmethod
     def build_cupid_tools(cls):
@@ -3323,7 +3336,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                             b"\x7fELF\x01\x01\x01",
                         )
                         if source == "/kernel/doom/src/info.cc":
-                            self.assertEqual(output.stat().st_size, 51268)
+                            self.assertEqual(output.stat().st_size, 51200)
                         if source == "/kernel/doom/src/i_video.cc":
                             self.assertEqual(
                                 len(object_bytes),

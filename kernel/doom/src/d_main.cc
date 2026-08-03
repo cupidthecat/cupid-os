@@ -88,6 +88,7 @@ void D_DoomLoop (void);
 // Location where savegames are stored
 
 char *          savegamedir;
+static boolean  savegamedir_owned;
 
 // location of IWAD and WAD files
 
@@ -1081,8 +1082,6 @@ static void D_Endoom(void)
     endoom = W_CacheLumpName(DEH_String("ENDOOM"), PU_STATIC);
 
     I_Endoom(endoom);
-
-	exit(0);
 }
 
 #if ORIGCODE
@@ -1546,6 +1545,12 @@ void D_DoomMain (void)
     // we've finished loading Dehacked patches.
     D_SetGameDescription();
 
+    if (savegamedir_owned && savegamedir != NULL)
+    {
+        free(savegamedir);
+    }
+    savegamedir_owned = false;
+
 #ifdef _WIN32
     // In -cdrom mode, we write savegames to c:\doomdata as well as configs.
     if (M_ParmExists("-cdrom"))
@@ -1556,6 +1561,7 @@ void D_DoomMain (void)
 #endif
     {
         savegamedir = M_GetSaveGameDir(D_SaveGameIWADName(gamemission));
+        savegamedir_owned = true;
     }
 
     // Check for -file in shareware
@@ -1842,4 +1848,3 @@ void D_DoomMain (void)
 
     D_DoomLoop ();
 }
-

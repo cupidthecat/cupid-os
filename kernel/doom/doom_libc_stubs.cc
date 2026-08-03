@@ -13,24 +13,30 @@
 
 /* atoi / atol / atof / strtol / strtoul / strtod */
 
+#define DG_LONG_MAX  2147483647L
+#define DG_LONG_MIN  (-2147483647L - 1L)
+#define DG_ULONG_MAX 0xffffffffUL
+#define DG_ERANGE     34
+#define DG_EINVAL     22
+
+static int digit_value(int c)
+{
+    if (c >= '0' && c <= '9') return c - '0';
+    if (c >= 'a' && c <= 'z') return c - 'a' + 10;
+    if (c >= 'A' && c <= 'Z') return c - 'A' + 10;
+    return -1;
+}
+
+long strtol(const char *s, char **endp, int base);
+
 int atoi(const char *s)
 {
-    if (!s) return 0;
-    while (*s == ' ' || *s == '\t') s++;
-    int neg = 0;
-    if (*s == '-') { neg = 1; s++; }
-    else if (*s == '+') { s++; }
-    int val = 0;
-    while (*s >= '0' && *s <= '9') {
-        val = val * 10 + (*s - '0');
-        s++;
-    }
-    return neg ? -val : val;
+    return (int)strtol(s, NULL, 10);
 }
 
 long atol(const char *s)
 {
-    return (long)atoi(s);
+    return strtol(s, NULL, 10);
 }
 
 double atof(const char *s)
@@ -54,36 +60,121 @@ double atof(const char *s)
 
 long strtol(const char *s, char **endp, int base)
 {
-    if (!s) { if (endp) *endp = (char*)s; return 0; }
-    while (*s == ' ' || *s == '\t') s++;
-    long neg = 0;
-    if (*s == '-') { neg = 1; s++; }
-    else if (*s == '+') { s++; }
-    if (base == 0) {
-        if (s[0] == '0' && (s[1] == 'x' || s[1] == 'X')) { base = 16; s += 2; }
-        else if (s[0] == '0') { base = 8; s++; }
-        else { base = 10; }
-    } else if (base == 16 && s[0] == '0' && (s[1] == 'x' || s[1] == 'X')) {
-        s += 2;
+    const char *original = s;
+    const char *cursor = s;
+    unsigned long value = 0u;
+    unsigned long limit;
+    unsigned long cutoff;
+    unsigned long cutlim;
+    int negative = 0;
+    int converted = 0;
+    int overflow = 0;
+
+    if (!s) { if (endp) *endp = (char *)s; return 0; }
+    if (base != 0 && (base < 2 || base > 36)) {
+        dg_errno = DG_EINVAL;
+        if (endp) *endp = (char *)original;
+        return 0;
     }
-    long val = 0;
+    while (*cursor == ' ' || *cursor == '\t' || *cursor == '\n' ||
+           *cursor == '\r' || *cursor == '\f' || *cursor == '\v') cursor++;
+    if (*cursor == '-') { negative = 1; cursor++; }
+    else if (*cursor == '+') { cursor++; }
+
+    if ((base == 0 || base == 16) && cursor[0] == '0' &&
+        (cursor[1] == 'x' || cursor[1] == 'X') &&
+        digit_value(cursor[2]) >= 0 && digit_value(cursor[2]) < 16) {
+        base = 16;
+        cursor += 2;
+    } else if (base == 0) {
+        base = cursor[0] == '0' ? 8 : 10;
+    }
+
+    limit = negative ? 0x80000000UL : 0x7fffffffUL;
+    cutoff = limit / (unsigned long)base;
+    cutlim = limit % (unsigned long)base;
     while (1) {
-        int d;
-        if (*s >= '0' && *s <= '9') d = *s - '0';
-        else if (*s >= 'a' && *s <= 'z') d = *s - 'a' + 10;
-        else if (*s >= 'A' && *s <= 'Z') d = *s - 'A' + 10;
-        else break;
-        if (d >= base) break;
-        val = val * base + d;
-        s++;
+        int digit = digit_value(*cursor);
+        if (digit < 0 || digit >= base) break;
+        converted = 1;
+        if (value > cutoff ||
+            (value == cutoff && (unsigned long)digit > cutlim)) {
+            overflow = 1;
+        } else if (!overflow) {
+            value = value * (unsigned long)base + (unsigned long)digit;
+        }
+        cursor++;
     }
-    if (endp) *endp = (char*)s;
-    return neg ? -val : val;
+
+    if (!converted) {
+        if (endp) *endp = (char *)original;
+        return 0;
+    }
+    if (endp) *endp = (char *)cursor;
+    if (overflow) {
+        dg_errno = DG_ERANGE;
+        return negative ? DG_LONG_MIN : DG_LONG_MAX;
+    }
+    if (negative && value == 0x80000000UL) return DG_LONG_MIN;
+    return negative ? -(long)value : (long)value;
 }
 
 unsigned long strtoul(const char *s, char **endp, int base)
 {
-    return (unsigned long)strtol(s, endp, base);
+    const char *original = s;
+    const char *cursor = s;
+    unsigned long value = 0u;
+    unsigned long cutoff;
+    unsigned long cutlim;
+    int negative = 0;
+    int converted = 0;
+    int overflow = 0;
+
+    if (!s) { if (endp) *endp = (char *)s; return 0; }
+    if (base != 0 && (base < 2 || base > 36)) {
+        dg_errno = DG_EINVAL;
+        if (endp) *endp = (char *)original;
+        return 0;
+    }
+    while (*cursor == ' ' || *cursor == '\t' || *cursor == '\n' ||
+           *cursor == '\r' || *cursor == '\f' || *cursor == '\v') cursor++;
+    if (*cursor == '-') { negative = 1; cursor++; }
+    else if (*cursor == '+') { cursor++; }
+
+    if ((base == 0 || base == 16) && cursor[0] == '0' &&
+        (cursor[1] == 'x' || cursor[1] == 'X') &&
+        digit_value(cursor[2]) >= 0 && digit_value(cursor[2]) < 16) {
+        base = 16;
+        cursor += 2;
+    } else if (base == 0) {
+        base = cursor[0] == '0' ? 8 : 10;
+    }
+
+    cutoff = DG_ULONG_MAX / (unsigned long)base;
+    cutlim = DG_ULONG_MAX % (unsigned long)base;
+    while (1) {
+        int digit = digit_value(*cursor);
+        if (digit < 0 || digit >= base) break;
+        converted = 1;
+        if (value > cutoff ||
+            (value == cutoff && (unsigned long)digit > cutlim)) {
+            overflow = 1;
+        } else if (!overflow) {
+            value = value * (unsigned long)base + (unsigned long)digit;
+        }
+        cursor++;
+    }
+
+    if (!converted) {
+        if (endp) *endp = (char *)original;
+        return 0;
+    }
+    if (endp) *endp = (char *)cursor;
+    if (overflow) {
+        dg_errno = DG_ERANGE;
+        return DG_ULONG_MAX;
+    }
+    return negative ? 0u - value : value;
 }
 
 double strtod(const char *s, char **endp)
@@ -142,17 +233,10 @@ int puts(const char *s)
 
 int vfprintf(DG_FILE *f, const char *fmt, __builtin_va_list va)
 {
-    extern void serial_write_string(const char *s);
-    char buf[1024];
-    int n;
-    (void)f;
-    n = dg_vsnprintf(buf, (uint32_t)sizeof(buf), fmt, va);
-    serial_write_string(buf);
-    return n;
+    return dg_vfprintf(f, fmt, va);
 }
 
-/* sscanf - minimal implementation for DOOM's config parsing */
-/* DOOM uses sscanf(s, "%i", &v) and sscanf(s, "%s", buf) and "%f" */
+/* sscanf - the conversions used by the active Doom tree. */
 int sscanf(const char *s, const char *fmt, ...)
 {
     __builtin_va_list ap;
@@ -162,22 +246,31 @@ int sscanf(const char *s, const char *fmt, ...)
     while (*fmt && *p) {
         if (*fmt == '%') {
             fmt++;
-            if (*fmt == 'i' || *fmt == 'd') {
-                /* skip whitespace */
-                while (*p == ' ' || *p == '\t') p++;
+            if (*fmt == 'i' || *fmt == 'd' || *fmt == 'x' ||
+                *fmt == 'X' || *fmt == 'o') {
+                char *end;
+                int base = *fmt == 'i' ? 0 :
+                           (*fmt == 'x' || *fmt == 'X' ? 16 :
+                           (*fmt == 'o' ? 8 : 10));
                 int *out = __builtin_va_arg(ap, int*);
-                int neg = 0;
-                if (*p == '-') { neg = 1; p++; }
-                int val = 0;
-                while (*p >= '0' && *p <= '9') { val = val*10 + (*p-'0'); p++; }
-                *out = neg ? -val : val;
+                long value = strtol(p, &end, base);
+                if (end == p) {
+                    __builtin_va_end(ap);
+                    return matched;
+                }
+                *out = (int)value;
+                p = end;
                 matched++;
             } else if (*fmt == 'u') {
-                while (*p == ' ' || *p == '\t') p++;
+                char *end;
                 unsigned int *out = __builtin_va_arg(ap, unsigned int*);
-                unsigned int val = 0;
-                while (*p >= '0' && *p <= '9') { val = val*10 + (unsigned int)(*p-'0'); p++; }
-                *out = val;
+                unsigned long value = strtoul(p, &end, 10);
+                if (end == p) {
+                    __builtin_va_end(ap);
+                    return matched;
+                }
+                *out = (unsigned int)value;
+                p = end;
                 matched++;
             } else if (*fmt == 'f') {
                 while (*p == ' ' || *p == '\t') p++;
@@ -211,27 +304,6 @@ int sscanf(const char *s, const char *fmt, ...)
     }
     __builtin_va_end(ap);
     return matched;
-}
-
-/* POSIX file ops stubs (DOOM uses these for savegames) */
-
-int remove(const char *path)
-{
-    /* stub - filesystem removal not needed for boot smoke */
-    (void)path;
-    return 0;
-}
-
-int rename(const char *old_path, const char *new_path)
-{
-    (void)old_path; (void)new_path;
-    return 0;
-}
-
-int mkdir(const char *path, uint32_t mode)
-{
-    (void)path; (void)mode;
-    return 0;
 }
 
 int system(const char *cmd)

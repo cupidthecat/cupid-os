@@ -126,9 +126,11 @@ returns-twice continuation. A marked call with no live prefix may repeat in a
 loop.
 
 A decoder-driven i386 oracle models first and second returns with transfer
-values zero and seven. This is hosted model evidence, not guest runtime proof.
-Active dglibc still uses the compatibility form. ADR 0213 records checked-seed
-carriage of the compiler boundary.
+values zero and seven. The guest self-test separately executes active
+`dg_longjmp` and `dg_exit`, so the hosted oracle is no longer the only runtime
+evidence. Active dglibc uses the corrected 31-byte `ESP + 4` form. Outgoing-area
+arguments and aggregate results remain unsupported. ADR 0213 records
+checked-seed carriage, and ADR 0214 records active adoption.
 
 ## Hosted static initializer references
 

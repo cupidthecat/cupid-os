@@ -19483,3 +19483,155 @@ This promotion changes compiler capability only. Active
 27-byte `dg_setjmp` and 38-byte `dg_longjmp` production bodies do not change.
 Active-source migration and guest runtime proof remain separate work. No
 normal build owner or host dependency changes. ADR 0213 records the promotion.
+
+## 2026-08-03: Make Doom exits and HomeFS publication survive repeated sessions
+
+The promoted returns-twice support now serves active Doom. `dg_setjmp` carries
+`returns_twice`, saves the caller's post-return `ESP + 4`, and emits the
+corrected 31-byte body. `dg_longjmp`, `exit`, and `abort` carry `noreturn`.
+The Doom shell adapter owns one nonlocal-exit envelope per launch and clears
+exit callbacks, recursive-error state, config strings, and registered default
+values before returning to the shell. `I_Quit` and `I_Error` always leave
+through that envelope. `D_Endoom` no longer returns early and bypasses the
+normal cleanup path.
+
+The asset-free `dglibc_test` runs two real quit cycles and two real error
+cycles in one process. It also covers direct longjmp and exit transfers. This
+found a stale callback-list lifetime that a one-shot test could not expose.
+The callback state now belongs to a Doom session instead of the lifetime of
+the shell process.
+
+The same test grew into a live storage diagnostic. The dglibc layer now checks
+allocation-size arithmetic, short stdio operations, stream flags, integer
+conversion bounds, and bounded formatting. Floating formatting and `INT_MIN`
+no longer depend on undefined negation. `strtol`, `strtoul`, and the supported
+`sscanf` conversions reject malformed or overflowing values with useful
+stream state and `errno` results.
+
+VFS rename is a native filesystem operation. Cross-filesystem moves return
+`EXDEV`; busy replacements return `EBUSY`; there is no copy-and-unlink
+fallback. Append, access mode, close errors, zero-length I/O, oversized I/O,
+self-copy, directory-copy, and short-write behavior are checked at the VFS
+boundary. RamFS enforces its 64 KiB capacity exactly and refuses truncation
+while another handle keeps the node live.
+
+FAT16 now separates a missing entry, handle-pool exhaustion, and device I/O
+failure when it opens a path. Active VFS paths cover one-level 8.3 names and
+keep a private directory-entry identity for each open file. A live reader
+blocks deletion or replacement of that entry. Replacement publishes the new
+directory entry before the old chain is released. Deletion publishes the
+directory change before freeing clusters. Failed writes, directory updates,
+and directory creation roll back unpublished chains instead of leaking them.
+Reads clamp at the recorded file size and report broken cluster chains rather
+than treating them as short files.
+
+The block cache now returns failure from flush and sync. Evicting a dirty
+entry writes the old contents before reusing the slot. A read miss stages the
+incoming block in scratch storage, so a failed device read cannot change the
+victim's identity or bytes. A mock block device exercises both read and write
+failures in the running kernel.
+
+HomeFS owns `HOMEFS.SYS` while mounted. FAT rejects raw deletion, raw writes,
+and write-capable `/disk/HOMEFS.SYS` VFS opens during that ownership window.
+HomeFS also refuses to mount if a live FAT handle already names the container,
+if another HomeFS mount is active, or if the existing container is corrupt.
+The importer checks names, duplicate children, exact byte consumption, and a
+maximum depth of 32. A corrupt image is not replaced with an empty home.
+
+Nested `homefs_batch_begin` and `homefs_batch_end` calls provide one durable
+publication boundary for related mutations. Inner changes remain dirty. The
+outermost successful end serializes and replaces the container once. An
+unmatched end, counter overflow, or unmount during a batch fails. The Doom
+diagnostic uses this boundary for its temporary storage cohort and prints
+`[PASS] dglibc HomeFS batch boundary` only after the checked publish succeeds.
+
+Doom's configuration and save paths now write a temporary file, check close,
+and use native rename without deleting the prior file first. Config parsing is
+bounded, defaults are reset between launches, and owned strings are released
+at the session boundary. Save replacement follows the same durable order.
+This is production plumbing, but it is not yet a claim that a menu-driven save
+was loaded from a real IWAD session.
+
+The active dglibc source is 67,155 bytes over 2,078 LF-terminated lines, with
+SHA-256
+`6a56616dff23b608260d003b09634c2c22e0220d5b31a1332db0859d152babb2`.
+Checked-seed CupidC produces a 93,332-byte object with SHA-256
+`e2496b01c93a7858a0c035b53aea0ad834d95d2be3f7ae49574d1759ebec34d6`.
+The closed Doom profile manifest is 69,366 bytes over 2,137 lines and has
+SHA-256
+`e77c8a0dc238b1a6f2257f273cf3367dba930c914e6a5806adf058621bbff4a4`.
+Native source-head and Cupid-built source-head compiles reproduce the locked
+dglibc, compatibility-stub, and platform objects exactly.
+
+The build exposed two independent integration bugs. The in-kernel CupidC
+binding still described `blockcache_sync` as returning void after the C API
+became fallible. Its function pointer and public binding now return `int`, and
+the generic 510-binding oracle plus all 32 kernel compiler tests pass. Windows
+also produced a transient sharing violation while atomically replacing a
+checked object. The publisher now retries only permission and sharing errors
+within a bounded window. Tests cover eventual success and persistent failure;
+the persistent case leaves the previous object untouched.
+
+The final active graph contains 718 inputs, 449 transforms, 255 feature
+requirements, and 25 classified unreachable source-like files. It sees 687 C
+family roots and 2,402 includes: 2,167 quoted and 235 angle includes. The
+active-source digest is
+`2c0d7432fd7750a672ab0ea0cc873d2772328182b7679715db2ca214c4b6536d`.
+The 2,554,064-byte JSON has SHA-256
+`c55ce43fe9cdaea08fd02dad4a14a5e859c0559ca98b036fc00e07e7dbc8308e`;
+the 12,136-byte summary has SHA-256
+`8f9b3f4499df24f53e72c9cd950358a9ce2f51e4f12520e3a1d4cb157d3aacc8`.
+The standalone-header sweep passes 157 of 159 headers. `scheduler.h` and
+`simd_intrin.h` remain explicit failures instead of being hidden from the
+inventory.
+
+The following final checks passed:
+
+```text
+python -m unittest tests.test_build_graph_audit
+  68 tests in 583.487 seconds
+python -m unittest tests.test_toolchain_cupidc_frontend
+  94 tests in 12.975 seconds
+python -m unittest tests.test_gui_terminal_smoke tests.test_doom_cupidc_production tests.test_cupidc_kernel_compile
+  151 tests in 114.049 seconds
+python -m unittest tests.test_doom_cupidc_production.DoomCupidCProductionTests.test_checked_seed_compiles_g_game_subobject_pointer_initializers tests.test_toolchain_cupidc_object.ToolchainCupidCObjectContractTests.test_cupidc_exact_doom_compat_profile_is_complete_and_self_hosted
+  2 tests in 77.242 seconds
+make verify-bootstrap-seed
+make check-bootstrap-audit
+make -j4
+```
+
+The final root build completed in 603.1 seconds. It produced an 8,882,240-byte
+kernel ELF with SHA-256
+`b904e8165e36e3fb066720e2c9f659aa3f72023549c464eac2c73d9362cb056d`,
+an 8,676,812-byte flat kernel with SHA-256
+`d18dff813529964462e242c6f7814d123537977440f2a62e3baace1551d4f0af`,
+and a 209,715,200-byte image with SHA-256
+`e2803361e3494c1e84fe11747e942baf5ed498b9a471aeee35d777dc3310368e`.
+
+Four-CPU private-image frontier runs passed against that image with both NICs.
+The e1000 run completed in 293.6 seconds. It recorded a 640 by 480 framebuffer
+with 97,408 changed pixels, 10,856,608 AC97 frames at peak 25,600, and 76,433
+PC-speaker frames at peak 24,226. Its 121,341-byte serial transcript has
+SHA-256
+`a9ed4137cc3fe46bd29f10dc65340732a9c16c3e0537fb93a268ba913b505903`.
+The RTL8139 run also completed the full harness. Its 119,022-byte transcript
+has SHA-256
+`343c8329446043c33b923a7d28f8f50d590e146ee8a9d50be4a832a8bc222060`.
+Both transcripts contain the block-cache, state-aware FAT handle, and HomeFS
+batch PASS markers, repeated in-OS CupidC completions, and no panic.
+
+A complete `make -C toolchain test` was also attempted. It reached the
+30-minute command limit after 1,804 seconds without printing a failure. That
+run is incomplete, not a pass or a reported test failure. The checked seed,
+focused self-host compatibility proof, compiler contracts, exact normal build,
+and guest runtime checks above all completed independently.
+
+No design question was needed for this slice. Existing VFS error conventions,
+FAT publication order, and Doom's session lifetime fixed the choices. Full
+IWAD-backed gameplay, input, audio, menu-driven save/load, persistence after a
+reboot, and power-loss injection between FAT publication steps remain open.
+The normal image still depends on host-side orchestration and the remaining
+owners listed in the migration matrix. Issue 31 therefore stays open. ADR
+0211 records the storage boundary, ADR 0214 records the Doom lifecycle, and
+`TempleOS/` remains untouched reference material.

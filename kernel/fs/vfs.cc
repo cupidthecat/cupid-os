@@ -183,15 +183,28 @@ int vfs_umount(const char *target) {
         if (strcmp(m->path, target) != 0) continue;
 
         /* Close any open files rooted at this mount. */
+        int close_status = VFS_OK;
         for (int fd = 0; fd < VFS_MAX_OPEN_FILES; fd++) {
             if (fd_table[fd].in_use && fd_table[fd].mount == m) {
-                vfs_close(fd);
+                int fd_status = vfs_close(fd);
+                if (fd_status < 0 && close_status == VFS_OK) {
+                    close_status = fd_status;
+                }
             }
+        }
+        if (close_status < 0) {
+            KERROR("VFS: close failed while unmounting '%s' (%d)",
+                   target, close_status);
+            return close_status;
         }
 
         int rc = 0;
         if (m->ops && m->ops->unmount) {
             rc = m->ops->unmount(m->fs_private);
+        }
+        if (rc < 0) {
+            KERROR("VFS: unmount '%s' failed (%d)", target, rc);
+            return rc;
         }
         m->mounted    = 0;
         m->fs_private = NULL;
@@ -211,6 +224,13 @@ int vfs_open(const char *path, uint32_t flags) {
 
     if (!path || path[0] != '/') {
         KDEBUG("vfs_open EINVAL: bad path");
+        return VFS_EINVAL;
+    }
+    uint32_t access = flags & (O_WRONLY | O_RDWR);
+    uint32_t known = O_WRONLY | O_RDWR | O_CREAT | O_TRUNC | O_APPEND;
+    if ((flags & ~known) != 0u || access == (O_WRONLY | O_RDWR) ||
+        ((flags & (O_TRUNC | O_APPEND)) != 0u && access == O_RDONLY)) {
+        KDEBUG("vfs_open EINVAL: invalid flags=0x%x", flags);
         return VFS_EINVAL;
     }
 
@@ -269,6 +289,7 @@ int vfs_read(int fd, void *buffer, uint32_t count) {
     if (!buffer) return VFS_EINVAL;
 
     vfs_file_t *f = &fd_table[fd];
+    if ((f->flags & (O_WRONLY | O_RDWR)) == O_WRONLY) return VFS_EACCES;
     if (!f->mount || !f->mount->ops->read) return VFS_ENOSYS;
 
     int rc = f->mount->ops->read(f->fs_data, buffer, count);
@@ -295,9 +316,16 @@ int vfs_write(int fd, const void *buffer, uint32_t count) {
     KDEBUG("vfs_write fd=%d count=%u buffer=%p", fd, count, buffer);
 
     vfs_file_t *f = &fd_table[fd];
+    if ((f->flags & (O_WRONLY | O_RDWR)) == O_RDONLY) return VFS_EACCES;
     if (!f->mount || !f->mount->ops->write) {
         KDEBUG("vfs_write ENOSYS: no write op");
         return VFS_ENOSYS;
+    }
+    if ((f->flags & O_APPEND) != 0u) {
+        if (!f->mount->ops->seek) return VFS_ENOSYS;
+        int append_pos = f->mount->ops->seek(f->fs_data, 0, SEEK_END);
+        if (append_pos < 0) return append_pos;
+        f->position = (uint32_t)append_pos;
     }
 
     int rc = f->mount->ops->write(f->fs_data, buffer, count);
@@ -373,55 +401,18 @@ int vfs_rename(const char *old_path, const char *new_path) {
     int rc = vfs_stat(old_path, &st);
     if (rc < 0) return rc;
     if (st.type == VFS_TYPE_DIR) return VFS_EISDIR; /* dirs not yet supported */
+    if (strcmp(old_path, new_path) == 0) return VFS_OK;
 
-    uint32_t file_size = st.size;
-
-    /* Open source for reading */
-    int src_fd = vfs_open(old_path, O_RDONLY);
-    if (src_fd < 0) return src_fd;
-
-    /* Create/truncate destination */
-    int dst_fd = vfs_open(new_path, O_WRONLY | O_CREAT | O_TRUNC);
-    if (dst_fd < 0) {
-        vfs_close(src_fd);
-        return dst_fd;
+    const char *old_relative = NULL;
+    const char *new_relative = NULL;
+    vfs_mount_t *old_mount = find_mount(old_path, &old_relative);
+    vfs_mount_t *new_mount = find_mount(new_path, &new_relative);
+    if (!old_mount || !new_mount) return VFS_ENOENT;
+    if (old_mount == new_mount && old_mount->ops->rename) {
+        return old_mount->ops->rename(old_mount->fs_private,
+                                      old_relative, new_relative);
     }
-
-    /* Copy data in chunks */
-    uint8_t buf[512];
-    uint32_t copied = 0;
-    while (copied < file_size) {
-        uint32_t chunk = file_size - copied;
-        if (chunk > 512) chunk = 512;
-        int r = vfs_read(src_fd, buf, chunk);
-        if (r <= 0) break;
-        int w = vfs_write(dst_fd, buf, (uint32_t)r);
-        if (w <= 0) break;
-        copied += (uint32_t)w;
-    }
-
-    vfs_close(src_fd);
-    vfs_close(dst_fd);
-
-    /* Only delete source if copy fully succeeded */
-    if (copied != file_size) {
-        serial_printf("[vfs] rename: copy incomplete (%u/%u), source preserved\n",
-                      copied, file_size);
-        /* Try to clean up the partial destination */
-        vfs_unlink(new_path);
-        return VFS_EIO;
-    }
-
-    /* Delete the source file */
-    rc = vfs_unlink(old_path);
-    if (rc < 0) {
-        /* Rename partially failed - destination exists, source still exists */
-        serial_printf("[vfs] rename: unlink old '%s' failed (%d)\n",
-                      old_path, rc);
-        return rc;
-    }
-
-    return VFS_OK;
+    return old_mount == new_mount ? VFS_ENOSYS : VFS_EXDEV;
 }
 
 /* Query */

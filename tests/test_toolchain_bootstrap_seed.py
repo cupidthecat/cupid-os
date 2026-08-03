@@ -1925,31 +1925,31 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
 
         expected_objects = {
             "/kernel/doom/dglibc.cc": (
-                22632,
-                814,
-                "00229885ddcd06c12e476cc47cc24a91"
-                "4053d49db9c690c8c8fea7c880b6aa9c",
-                27992,
-                "54ce387c7eae45d9f4ae379afdaa1109"
-                "2d2dd021d4e9ca7696be5da2ff5d3dcd",
+                67155,
+                2078,
+                "6a56616dff23b608260d003b09634c2c2"
+                "2e0220d5b31a1332db0859d152babb2",
+                93332,
+                "e2496b01c93a7858a0c035b53aea0ad8"
+                "34d95d2be3f7ae49574d1759ebec34d6",
             ),
             "/kernel/doom/doom_libc_stubs.cc": (
-                8099,
-                288,
-                "808580d6c35388304fa4a07b7c5e0e91"
-                "ad4687e1a189c3959482f51e17a0ecf8",
-                14352,
-                "8f667113c54fa0b0d27ce83d13424206"
-                "5ba5b9258324a809e11e72229752ff3b",
+                10516,
+                360,
+                "c19a5dbcd96fb9dc9e9a6f0fef20bb0"
+                "5e18502e2a5d058d4737d85886b7ccbea",
+                17084,
+                "a2cef82df789e5770dc91bbe5bb7b4a4"
+                "1dfcbe788f587eec6fc0f6265433c319",
             ),
             "/kernel/doom/doomgeneric_cupidos.cc": (
-                13521,
-                400,
-                "8511fd4035db73fde8147a39a92ff65f"
-                "50e8097ab6f27d4ca517b9883ff15a3e",
-                10232,
-                "5274b91dfa7bac56cd83ff0f8096eb5a"
-                "06fef5e61f91ebb3b80efacc8ad2a9cb",
+                13640,
+                404,
+                "7cc4ef8beba2fdc4664f5c7a5c18a2ef"
+                "42d3a2595e78b72eef8fc9801ff175ca",
+                10352,
+                "53537aabdaaa5de1db63403f569253f6"
+                "be829b59387bebbe853347b825050c8a",
             ),
         }
         tracked_sources = sorted(

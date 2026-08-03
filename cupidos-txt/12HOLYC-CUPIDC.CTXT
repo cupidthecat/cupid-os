@@ -139,12 +139,23 @@ Aggregate, wide-integer, and wider-than-four-byte floating arguments, aggregate
 results, and marked-function pointer conversions fail explicitly.
 
 The corrected dg_setjmp form records the caller stack after a normal return.
-Its declaration uses returns_twice, while dg_longjmp uses noreturn. A
-decoder-driven i386 oracle models first and second returns, but it is not guest
-runtime proof. Active dglibc still uses the unannotated 27-byte compatibility
-form; dg_longjmp remains 38 bytes. The checked seed carries the corrected
-compiler boundary. Active-source migration and guest runtime proof remain
-open.
+Active dg_setjmp uses that 31-byte ESP-plus-four form and returns_twice.
+dg_longjmp, dg_exit, and dg_abort use noreturn; dg_longjmp remains 38 bytes.
+A decoder-driven i386 oracle models both returns. The guest dglibc_test also
+executes the active jump and exit landings, then runs two quit and two error
+cycles. It checks LIFO callbacks, error filtering, and cleanup between shell
+sessions.
+
+The active config and game-save routines use checked temporary streams and
+native same-mount rename beneath /home/doom. HomeFS and RamFS reject busy
+replacement. Block-cache reads stage incoming bytes before changing a victim.
+FAT16 distinguishes resource and I/O failures from a missing file, blocks
+replacement of live entries, enforces one-level 8.3 paths, and publishes a
+flushed replacement or deletion before releasing the detached chain. HomeFS
+rejects corrupt containers and duplicate mounts, reserves HOMEFS.SYS against
+raw FAT writes, and supports nested batches with one outer durable publish.
+The asset-free self-test covers these paths with test-only files. A staged WAD
+is still required for gameplay and menu-driven save/load proof.
 >endtree
 
 >h2 Feature 5: Print Builtin

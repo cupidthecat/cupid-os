@@ -270,10 +270,11 @@ shared x86 encoder. The fixture has 248 text bytes and no relocations. The
 checked seed accepts named operands on function-body GNU assembly and
 resolves %[name] to the existing numeric operand before IR.
 
-Checked-seed CupidC also recognizes the exact combined dg_setjmp and dg_longjmp
-file-scope block in kernel/doom/dglibc.cc. It checks both prototypes and emits
-27-byte and 38-byte global functions through Cupid's x86 model. The pair has
-no relocation. A changed template or mismatched declaration is rejected.
+Checked-seed CupidC recognizes both the historical and active dg_setjmp and
+dg_longjmp file-scope blocks in kernel/doom/dglibc.cc. Active dg_setjmp is a
+31-byte global function that saves ESP plus four; dg_longjmp remains 38 bytes.
+Both emit through Cupid's x86 model without relocation. A changed template or
+mismatched declaration is rejected.
 
 Checked-seed CupidC recognizes GNU returns_twice on file-scope function
 declarations and merges the attribute across compatible redeclarations. A
@@ -289,13 +290,14 @@ A live-prefix call fails if any returns-twice continuation can reach it again.
 A marked call with no live prefix may repeat. Aggregate, wide-integer, and
 wider-than-four-byte floating arguments and aggregate results fail explicitly.
 A decoder-driven i386 oracle models first and second returns with transfer
-values zero and seven. This is hosted model evidence, not guest runtime proof.
+values zero and seven. The separate guest diagnostic runs the active landing
+paths in Cupid OS.
 
-The corrected dg_setjmp form saves ESP plus four, which is the caller stack
-after a normal return. It requires returns_twice on dg_setjmp and noreturn on
-dg_longjmp. Active dglibc still uses the unannotated 27-byte compatibility
-form. The checked seed carries the corrected compiler boundary. Active-source
-migration and guest runtime proof remain open.
+Active dg_setjmp saves ESP plus four, which is the caller stack after a normal
+return. Its declaration uses returns_twice. dg_longjmp, dg_exit, and dg_abort
+use noreturn. The guest dglibc_test executes direct longjmp and exit landings,
+then runs two quit and two error sessions to check callback order, filtering,
+and cleanup between Doom launches.
 
 The checked seed emits the complete x87 statements in libm_pow_impl and
 libm_powf_impl. The double form accepts one double output and four double
@@ -429,8 +431,9 @@ The emitter writes back the final pointer and count and preserves ESI or EDI
 across the cdecl call.
 
 The scalar forms emit EC, EE, 66 ED, 66 EF, ED, and EF. INSW and OUTSW emit
-FC F3 66 6D and FC F3 66 6F through the shared x86 model. The non-Doom
-header gate is 155/155 in the checked seed.
+FC F3 66 6D and FC F3 66 6F through the shared x86 model. The checked-seed
+standalone sweep passes 157 of 159 active non-Doom headers. scheduler.h and
+simd_intrin.h remain explicit failures.
 
 The checked seed carries this port-I/O capability. The normal build uses it in
 the 155-source checked-in CupidC cohort. It emits unchanged kernel/smp/acpi.cc
@@ -679,7 +682,7 @@ caller order. These path options accept native paths or absolute logical paths
 under --root. Failed compilation preserves an existing output.
 
 The checked seed reproduces the exact audited Doom-tree profile without
-editing its source. It keeps the sound driver's empty volatile memory barrier
+source-shaping workarounds. It keeps the sound driver's empty volatile memory barrier
 as a compiler ordering point and emits no instruction for it. Its static
 scalar evaluator folds the unchanged fixed-point table in
 kernel/doom/src/am_map.cc. The explicit --doom-compat profile represents the
@@ -688,16 +691,16 @@ bit-preserving conversions between unqualified function pointers and
 unqualified four-byte data or void pointers in m_menu.cc, p_saveg.cc,
 p_ceilng.cc, and p_plats.cc. Strict C and plain GNU mode still reject those
 implicit conversions, and explicit function/data casts remain outside Linear
-IR. A one-active-member union initializer emits unchanged info.cc. Narrow
+IR. A one-active-member union initializer emits info.cc. Narrow
 unsigned int color fields keep their member identity when they promote to
-signed int in ordinary expressions, which compiles unchanged i_video.cc.
+signed int in ordinary expressions, which compiles i_video.cc.
 The checked seed emits all 80 audited Doom-tree objects.
 
 The production wrapper emits the three separate compatibility roots. The
 explicit static string cast in doom_libc_stubs.cc and the dglibc jump block keep
 their source meaning. Two checked-seed compiles produce the same object for
 each root. All 83 sources use .cc and compile through the checked seed.
-The wrapper freezes the selected source and all 289 profile headers. Its
+The wrapper freezes the selected source and all 290 profile headers. Its
 input manifest fixes exact three-source and 80-source memberships and rejects
 source removal, header drift, symbolic links, and NTFS junctions. The wrapper
 also scans visible .c and .cc files beneath the Doom tree before and after
@@ -706,9 +709,24 @@ g_game.cc object keeps two R_386_32 static subobject relocations with addend
 4; direct-call R_386_PC32 relocations still require addend -4.
 
 Private four-CPU boots pass the full frontier with e1000 and RTL8139. Both
-NICs print the no-WAD guidance, recover from an explicit missing IWAD, and
-complete a later CupidC-built ls command. This image carries no WAD, so these
-checks do not prove gameplay.
+NICs run two explicit missing-IWAD launches in one boot, require two returns
+to the shell, and then complete dglibc_test. This image carries no WAD, so
+these checks do not prove gameplay, game input or audio, menu save/load, or
+persistence across reboot.
+
+Doom config and save paths use shared errno and checked dglibc streams. Known
+relative names resolve beneath /home/doom. Config parsing is bounded and each
+shell session restores registered defaults before loading. Config and save
+writers close a temporary file, then use native same-mount rename. HomeFS and
+RamFS reject busy replacement. A failed block-cache fill cannot relabel its
+victim. FAT16 reports missing, handle, I/O, invalid-name, and busy opens
+separately, blocks changes to live entries, enforces one-level 8.3 paths, and
+flushes a replacement or deletion before it frees the detached chain. HomeFS
+rejects malformed containers and duplicate mounts, reserves HOMEFS.SYS against
+raw FAT mutation, and lets nested mutation batches publish once at their outer
+end. dglibc_test uses test-only files to exercise these paths and requires the
+final batch publication. No power-cut injection or WAD-backed save/load proof
+exists yet.
 
 The five static i386 Linux tools reach a stage-two to stage-three fixed point
 under WSL. Generation-one CupidC, CupidASM, and CupidLD build all 19 C objects,
@@ -1189,6 +1207,8 @@ VFS:
   vfs_open, vfs_read, vfs_write, vfs_seek, vfs_close
   vfs_stat, vfs_readdir, vfs_mkdir, vfs_unlink, vfs_rename
   vfs_read_all, vfs_write_all, vfs_read_text, vfs_write_text, vfs_copy_file
+  Rename is native within one mount and returns EXDEV across mounts. The
+  write-all and copy helpers include destination close in their result.
 
 Clipboard:
   clipboard_set, clipboard_get, clipboard_len
@@ -1209,6 +1229,7 @@ Debug:
 
 Disk/cache:
   blockcache_sync, blockcache_stats
+  blockcache_sync returns the device writeback result.
 
 Swap (opt-in):
   swap_init, swap_kmalloc, swap_pin, swap_unpin, swap_free

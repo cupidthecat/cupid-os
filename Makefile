@@ -781,7 +781,7 @@ kernel/fs/blockcache.o: kernel/fs/blockcache.cc kernel/core/debug.h kernel/core/
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/blockcache.cc --output kernel/fs/blockcache.o
 
 # Add new rule for fat16.o
-kernel/fs/fat16.o: kernel/fs/fat16.cc drivers/serial.h kernel/core/debug.h kernel/core/kernel.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/blockcache.h kernel/fs/blockdev.h kernel/fs/fat16.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+kernel/fs/fat16.o: kernel/fs/fat16.cc drivers/serial.h kernel/core/debug.h kernel/core/kernel.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/blockcache.h kernel/fs/blockdev.h kernel/fs/fat16.h kernel/fs/fat16_control.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/fat16.cc --output kernel/fs/fat16.o
 
 # RTC (Real-Time Clock) driver
@@ -927,10 +927,10 @@ kernel/fs/devfs.o: kernel/fs/devfs.cc drivers/serial.h kernel/core/string.h kern
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/devfs.cc --output kernel/fs/devfs.o
 
 # FAT16 VFS wrapper
-kernel/fs/fat16_vfs.o: kernel/fs/fat16_vfs.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/fs/blockdev.h kernel/fs/fat16.h kernel/fs/fat16_vfs.h kernel/fs/vfs.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+kernel/fs/fat16_vfs.o: kernel/fs/fat16_vfs.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/fs/blockdev.h kernel/fs/fat16.h kernel/fs/fat16_control.h kernel/fs/fat16_vfs.h kernel/fs/vfs.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/fat16_vfs.cc --output kernel/fs/fat16_vfs.o
 
-kernel/fs/homefs.o: kernel/fs/homefs.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/blockcache.h kernel/fs/blockdev.h kernel/fs/fat16.h kernel/fs/homefs.h kernel/fs/vfs.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+kernel/fs/homefs.o: kernel/fs/homefs.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/blockcache.h kernel/fs/blockdev.h kernel/fs/fat16.h kernel/fs/fat16_control.h kernel/fs/homefs.h kernel/fs/vfs.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/homefs.cc --output kernel/fs/homefs.o
 
 # File-backed loop block device (for ISO9660 mounting)

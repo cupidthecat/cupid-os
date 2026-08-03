@@ -459,8 +459,8 @@ switch gives the five audited calls in `i_system.cc` old-style
 conversions between unqualified function pointers and unqualified four-byte
 data or `void` pointers. Strict C and plain GNU mode still reject those
 implicit conversions, and explicit function/data casts remain outside Linear
-IR. One-active-member union initialization compiles unchanged `info.cc`, while
-ordinary narrow bit-field promotion compiles unchanged `i_video.cc`. The
+IR. One-active-member union initialization compiles `info.cc`, while
+ordinary narrow bit-field promotion compiles `i_video.cc`. The
 checked seed emits all 80 audited Doom-tree objects.
 
 The production wrapper completes the three-root compatibility frontier. It
@@ -468,17 +468,24 @@ retains the explicit static string cast in `doom_libc_stubs.cc` and emits the ex
 `dg_setjmp` and `dg_longjmp` block through Cupid's x86 model. Two seed compiles
 produce byte-identical objects for all three roots. All 83 sources use `.cc`
 and the normal graph compiles them through the checked seed. The wrapper fixes
-the exact source memberships, freezes all 289 profile headers, and rechecks
+the exact source memberships, freezes all 290 profile headers, and rechecks
 the visible `.c` and `.cc` tree before publishing each object. A legacy `.c`
 file or unlisted `.cc` file fails the closed scan. The validator also accepts
-the two static-subobject `R_386_32` addends of 4 in unchanged `g_game.cc`, while
-direct-call `R_386_PC32` relocations remain fixed at -4. Private four-CPU
-boots pass the full frontier, no-WAD, missing-IWAD recovery, and shell-survival
-checks on e1000 and RTL8139. Full IWAD gameplay remains a runtime boundary.
+the two static-subobject `R_386_32` addends of 4 in `g_game.cc`, while
+direct-call `R_386_PC32` relocations remain fixed at -4. The active object is
+52,004 bytes with SHA-256
+`51aff2138ff2ee51bae9cc18e1dcc415567c6be1699ef0ef6f1ed2b009c30df1`.
+The 67,155-byte dglibc source produces a 93,332-byte object with SHA-256
+`e2496b01c93a7858a0c035b53aea0ad834d95d2be3f7ae49574d1759ebec34d6`.
+Repeated compatibility compiles also reproduce the 17,084-byte libc-stub and
+10,352-byte platform objects. The 69,366-byte closed profile manifest has
+SHA-256
+`e77c8a0dc238b1a6f2257f273cf3367dba930c914e6a5806adf058621bbff4a4`.
 
-Checked-seed CupidC accepts a corrected dglibc form while retaining the active
-compatibility form. The corrected `dg_setjmp` saves the caller's post-return
-ESP and is declared `returns_twice`; `dg_longjmp` is declared `noreturn`.
+Active dglibc uses the corrected form. Its 31-byte `dg_setjmp` saves the
+caller's post-return `ESP + 4` and is declared `returns_twice`; `dg_longjmp`,
+`dg_exit`, and `dg_abort` are declared `noreturn`. The checked compiler retains
+the historical compatibility form for reproducibility.
 
 A marked function must remain a direct call target. Supported calls use
 four-byte cdecl arguments and may return void or any nonaggregate type. At each
@@ -490,9 +497,31 @@ Aggregate, wide-integer, and wider-than-four-byte floating arguments,
 aggregate results, and marked-function pointer conversions fail explicitly.
 
 A decoder-driven i386 oracle models first and second returns with transfer
-values zero and seven. It is not guest runtime proof. Active
-`kernel/doom/dglibc.cc` still uses the compatibility form. ADR 0212 records the
-compiler boundary, and ADR 0213 records its checked-seed promotion.
+values zero and seven. The guest self-test executes active longjmp and exit
+landings, then runs two quit and two error sessions to check callback order,
+filtering, and cleanup. ADR 0212 records the compiler boundary, ADR 0213 its
+checked-seed promotion, and ADR 0214 active adoption.
+
+Both supported NICs also pass two missing-IWAD launches in one shell and a
+separate stateful four-CPU frontier. The latter reaches the diagnostic after
+the swap feature has retained a FAT handle, so the handle-exhaustion check
+must account for live system state. This remains asset-free evidence, not a
+claim about gameplay.
+
+The Doom port also uses production config and save routines through dglibc.
+Known relative paths resolve under `/home/doom`, config parsing is bounded,
+registered defaults reset between shell sessions, and checked temporary files
+commit through native same-mount VFS rename. HomeFS and RamFS reject busy
+replacement. Block-cache misses stage incoming bytes before changing a
+victim's identity. FAT16 distinguishes missing, handle-pool, I/O, invalid, and
+busy opens; blocks replacement of live entries; enforces one-level 8.3 paths;
+and publishes a flushed replacement or deletion before freeing the detached
+chain. HomeFS rejects malformed containers and duplicate mounts, reserves
+`HOMEFS.SYS` against raw FAT mutation, and supports nested mutation batches
+whose outer end reports the durable publish result. The guest self-test uses
+test-only files to cover these paths. A staged WAD is still needed for
+gameplay, input, game audio, menu-driven save/load, and reboot persistence.
+ADR 0211 records the storage boundary.
 
 The five static i386 Linux tools have a checked seed. The manifest binds their
 hashes, sizes, target ABI, source revision, producer lineage, 19-source plan,
@@ -994,8 +1023,9 @@ preserving ESI or EDI across the cdecl call.
 
 The i386 path emits `EC`, `EE`, `66 ED`, `66 EF`, `ED`, and `EF` for scalar
 port I/O. The string forms emit `FC F3 66 6D` and `FC F3 66 6F` through the
-shared x86 model. The checked seed therefore carries the complete 155/155
-active non-Doom header gate.
+shared x86 model. The checked-seed standalone sweep now passes 157 of 159
+active non-Doom headers; `scheduler.h` and `simd_intrin.h` remain explicit
+failures.
 
 The refreshed checked seed carries this port-I/O support. The normal build
 uses it in the 155-source checked-in CupidC cohort. Earlier frontier evidence
@@ -1272,7 +1302,7 @@ CupidC programs can call kernel functions directly. These are pre-registered in 
 | `vfs_readdir` | `int vfs_readdir(int fd, void* dirent)` | Read next directory entry |
 | `vfs_mkdir` | `int vfs_mkdir(char* path)` | Create a directory |
 | `vfs_unlink` | `int vfs_unlink(char* path)` | Delete a file |
-| `vfs_rename` | `int vfs_rename(char* old, char* new)` | Move/rename a file (copy + delete) |
+| `vfs_rename` | `int vfs_rename(char* old, char* new)` | Native rename within one mount; cross-mount moves return `EXDEV` |
 
 ### Shell Integration
 
@@ -1391,7 +1421,7 @@ The `result` buffer must be 128 bytes. Pass `0` for `ext` to show all files.
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `blockcache_sync` | `void blockcache_sync()` | Flush all dirty cache blocks to disk |
+| `blockcache_sync` | `int blockcache_sync()` | Flush dirty cache blocks and report device failure |
 | `blockcache_stats` | `void blockcache_stats()` | Print cache hit/miss statistics |
 
 ### Serial Log Control
