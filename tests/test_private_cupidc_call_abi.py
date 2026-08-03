@@ -151,6 +151,22 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                   bind_kernel(cc, "exp", TYPE_DOUBLE, 0x010010d0u);
                 }
 
+                static cc_state_t *new_compiler_state(void) {
+                  cc_state_t *cc = (cc_state_t *)calloc(1u, sizeof(*cc));
+                  if (cc == NULL)
+                    return NULL;
+                  cc->code = (uint8_t *)calloc(1u, CC_MAX_CODE);
+                  cc->data = (uint8_t *)calloc(1u, CC_MAX_DATA);
+                  if (cc->code == NULL || cc->data == NULL)
+                    return NULL;
+                  cc->code_base = CC_JIT_CODE_BASE;
+                  cc->data_base = CC_JIT_DATA_BASE;
+                  cc->jit_mode = 1;
+                  cc_sym_init(cc);
+                  bind_feature13_kernels(cc);
+                  return cc;
+                }
+
                 static char *read_source(const char *path) {
                   FILE *input = fopen(path, "rb");
                   long length;
@@ -190,23 +206,55 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                 int main(int argc, char **argv) {
                   cc_state_t *cc;
                   char *source;
-                  if (argc != 4)
+                  int repl_mode = argc == 5 && argv[4][6] == 0;
+                  int recovery_mode = argc == 5 && !repl_mode;
+                  if (argc != 4 && !repl_mode && !recovery_mode)
                     return 64;
                   source = read_source(argv[1]);
-                  cc = (cc_state_t *)calloc(1u, sizeof(*cc));
+                  cc = new_compiler_state();
                   if (source == NULL || cc == NULL)
                     return 65;
-                  cc->code = (uint8_t *)calloc(1u, CC_MAX_CODE);
-                  cc->data = (uint8_t *)calloc(1u, CC_MAX_DATA);
-                  if (cc->code == NULL || cc->data == NULL)
-                    return 66;
-                  cc->code_base = CC_JIT_CODE_BASE;
-                  cc->data_base = CC_JIT_DATA_BASE;
-                  cc->jit_mode = 1;
-                  cc_sym_init(cc);
-                  bind_feature13_kernels(cc);
-                  cc_lex_init(cc, source);
-                  cc_parse_program(cc);
+                  if (recovery_mode) {
+                    char *retry_source = source;
+                    while (*retry_source != 0 &&
+                           (unsigned char)*retry_source != 30u)
+                      retry_source++;
+                    if ((unsigned char)*retry_source != 30u)
+                      return 68;
+                    *retry_source = 0;
+                    retry_source++;
+                    cc_lex_init(cc, source);
+                    cc_parse_program(cc);
+                    if (!cc->error)
+                      return 69;
+                    cc = new_compiler_state();
+                    if (cc == NULL)
+                      return 66;
+                    cc_lex_init(cc, retry_source);
+                    cc_parse_program(cc);
+                  } else if (repl_mode) {
+                    char *unit = source;
+                    while (unit != NULL) {
+                      char *next = unit;
+                      int is_expr = 0;
+                      while (*next != 0 && (unsigned char)*next != 30u)
+                        next++;
+                      if ((unsigned char)*next == 30u) {
+                        *next = 0;
+                        next++;
+                      } else {
+                        next = NULL;
+                      }
+                      cc_lex_init(cc, unit);
+                      cc_parse_repl_line(cc, &is_expr);
+                      if (cc->error)
+                        break;
+                      unit = next;
+                    }
+                  } else {
+                    cc_lex_init(cc, source);
+                    cc_parse_program(cc);
+                  }
                   if (cc->error) {
                     (void)fprintf(stderr, "%s", cc->error_msg);
                     return 2;
@@ -258,6 +306,56 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
         source_path.write_text(textwrap.dedent(source), encoding="utf-8")
         result = subprocess.run(
             [str(self.driver), str(source_path), str(code_path), str(data_path)],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=30,
+        )
+        return result, code_path, data_path
+
+    def _compile_repl(self, root, units):
+        source_path = root / "fixture.cc"
+        code_path = root / "code.bin"
+        data_path = root / "data.bin"
+        source_path.write_text(
+            "\x1e".join(textwrap.dedent(unit) for unit in units),
+            encoding="utf-8",
+        )
+        result = subprocess.run(
+            [
+                str(self.driver),
+                str(source_path),
+                str(code_path),
+                str(data_path),
+                "--repl",
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=30,
+        )
+        return result, code_path, data_path
+
+    def _compile_after_failure(self, root, failing_source, retry_source):
+        source_path = root / "fixture.cc"
+        code_path = root / "code.bin"
+        data_path = root / "data.bin"
+        source_path.write_text(
+            textwrap.dedent(failing_source)
+            + "\x1e"
+            + textwrap.dedent(retry_source),
+            encoding="utf-8",
+        )
+        result = subprocess.run(
+            [
+                str(self.driver),
+                str(source_path),
+                str(code_path),
+                str(data_path),
+                "--recover",
+            ],
             cwd=REPO_ROOT,
             text=True,
             capture_output=True,
@@ -340,6 +438,20 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
         ) as temporary:
             root = Path(temporary)
             compile_result, _code, _data = self._compile(root, source)
+            self.assertEqual(
+                compile_result.returncode,
+                0,
+                compile_result.stdout + compile_result.stderr,
+            )
+            entry_offset = int(compile_result.stdout.strip())
+            return self._run_i386(root, entry_offset)
+
+    def _compile_repl_and_run(self, units):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-repl-runtime-", ignore_cleanup_errors=True
+        ) as temporary:
+            root = Path(temporary)
+            compile_result, _code, _data = self._compile_repl(root, units)
             self.assertEqual(
                 compile_result.returncode,
                 0,
@@ -840,6 +952,286 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
+    def test_floating_pointers_keep_typed_indirect_lvalues(self):
+        result = self._compile_and_run(
+            """
+            float singles[3];
+            double doubles[3];
+            float addressed_float;
+            double addressed_double;
+            int index_calls;
+            int pointer_calls;
+
+            int next_index() {
+              index_calls += 1;
+              return 1;
+            }
+
+            double *next_double_pointer() {
+              pointer_calls += 1;
+              return doubles;
+            }
+
+            void update(float *single_pointer, double *double_pointer) {
+              *single_pointer = -0.0f;
+              single_pointer[next_index()] = 3.0f;
+              single_pointer[1] += 5.0;
+              single_pointer[1] -= 2.0f;
+              single_pointer[1] *= 4;
+              single_pointer[1] /= 3.0;
+              *double_pointer = 6.0;
+              *double_pointer += 2.0f;
+              *double_pointer -= 1;
+              *double_pointer *= 3.0;
+              *double_pointer /= 7.0;
+              *next_double_pointer() += 4.0;
+            }
+
+            int main() {
+              float *single_pointer = singles;
+              double *double_pointer = doubles;
+              float *addressed_float_pointer = &addressed_float;
+              double *addressed_double_pointer = &addressed_double;
+              update(single_pointer, double_pointer);
+              *addressed_float_pointer = 2.75f;
+              *addressed_double_pointer = 8.25;
+              if (index_calls != 1) return 1;
+              if (pointer_calls != 1) return 2;
+              if (single_pointer[1] != 8.0f) return 3;
+              if (double_pointer[0] != 7.0) return 4;
+              if (sizeof(*single_pointer) != 4) return 5;
+              if (sizeof(*double_pointer) != 8) return 6;
+              if (*(int *)single_pointer != (-2147483647 - 1)) return 7;
+              if (next_double_pointer()[0] != 7.0) return 8;
+              if (pointer_calls != 2) return 9;
+              if ((&addressed_float)[0] != 2.75f) return 10;
+              if ((&addressed_double)[0] != 8.25) return 11;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_deeper_floating_pointers_have_a_useful_diagnostic(self):
+        for declaration in ("float **values;", "double **values;"):
+            with self.subTest(declaration=declaration), tempfile.TemporaryDirectory(
+                prefix="private-cupidc-deep-floating-pointer-",
+                ignore_cleanup_errors=True,
+            ) as temporary:
+                result, _code, _data = self._compile(
+                    Path(temporary), declaration
+                )
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertIn(
+                "floating pointer depth greater than one is not supported",
+                result.stderr,
+            )
+
+    def test_indirect_floating_updates_have_a_useful_diagnostic(self):
+        cases = (
+            "void probe(float *value) { ++*value; }",
+            "void probe(double *value) { (*value)--; }",
+        )
+        for source in cases:
+            with self.subTest(source=source), tempfile.TemporaryDirectory(
+                prefix="private-cupidc-indirect-floating-update-",
+                ignore_cleanup_errors=True,
+            ) as temporary:
+                result, _code, _data = self._compile(Path(temporary), source)
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertIn(
+                "indirect increment or decrement is not supported",
+                result.stderr,
+            )
+
+    def test_floating_lvalue_failure_allows_same_process_recovery(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-floating-recovery-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            compile_result, _code, _data = self._compile_after_failure(
+                root,
+                "float **unsupported_pointer;",
+                """
+                double values[2];
+
+                int main() {
+                  double *pointer = values;
+                  pointer[1] = 3.5;
+                  *pointer = 1.25;
+                  return pointer[1] == 3.5 && *pointer == 1.25 ? 0 : 1;
+                }
+                """,
+            )
+            self.assertEqual(
+                compile_result.returncode,
+                0,
+                compile_result.stdout + compile_result.stderr,
+            )
+            entry_offset = int(compile_result.stdout.strip())
+            run_result = self._run_i386(root, entry_offset)
+        self.assertEqual(
+            run_result.returncode,
+            0,
+            run_result.stdout + run_result.stderr,
+        )
+
+    def test_typed_floating_pointers_keep_direct_update_results(self):
+        result = self._compile_and_run(
+            """
+            struct Pair {
+              int first;
+              int second;
+            };
+
+            int main() {
+              char char_values[2];
+              int int_values[2];
+              float single_values[2];
+              double double_values[2];
+              struct Pair pair_values[2];
+              char *char_pointer = char_values;
+              int *int_pointer = int_values;
+              float *single_pointer = single_values;
+              double *double_pointer = double_values;
+              struct Pair *pair_pointer = pair_values;
+              char_values[1] = 5;
+              int_values[1] = 7;
+              single_values[0] = 1.0f;
+              single_values[1] = 2.0f;
+              double_values[0] = 3.0;
+              double_values[1] = 4.0;
+              pair_values[1].second = 11;
+              char *old_char = char_pointer++;
+              int *old_int = int_pointer++;
+              float *old_single = single_pointer++;
+              double *old_double = double_pointer++;
+              struct Pair *old_pair = pair_pointer++;
+
+              if (old_char != char_values) return 1;
+              if (old_int != int_values) return 2;
+              if (old_single != single_values) return 3;
+              if (old_double != double_values) return 4;
+              if (old_pair != pair_values) return 5;
+              if (*char_pointer != 5) return 6;
+              if (*int_pointer != 7) return 7;
+              if (*single_pointer != 2.0f) return 8;
+              if (*double_pointer != 4.0) return 9;
+              if (pair_pointer->second != 11) return 10;
+              if (--char_pointer != char_values) return 11;
+              if (--int_pointer != int_values) return 12;
+              if (--single_pointer != single_values) return 13;
+              if (--double_pointer != double_values) return 14;
+              if (--pair_pointer != pair_values) return 15;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_incomplete_struct_pointer_update_has_a_useful_diagnostic(self):
+        cases = (
+            "int main() { struct Pending *pointer; pointer++; return 0; }",
+            "int main() { struct Pending *pointer; --pointer; return 0; }",
+        )
+        for source in cases:
+            with self.subTest(source=source), tempfile.TemporaryDirectory(
+                prefix="private-cupidc-incomplete-struct-pointer-",
+                ignore_cleanup_errors=True,
+            ) as temporary:
+                result, _code, _data = self._compile(Path(temporary), source)
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertIn(
+                "struct pointer update requires a complete pointed-to type",
+                result.stderr,
+            )
+
+    def test_floating_array_parameters_decay_to_typed_pointers(self):
+        result = self._compile_and_run(
+            """
+            int check_function(float singles[], double doubles[]) {
+              singles[1] = 3.25f;
+              doubles[1] = 7.5;
+              return singles[1] == 3.25f && doubles[1] == 7.5 ? 0 : 1;
+            }
+
+            class Probe {
+              int Check(float singles[], double doubles[]) {
+                singles[0] = 1.5f;
+                doubles[0] = 9.25;
+                return singles[0] == 1.5f && doubles[0] == 9.25 ? 0 : 2;
+              }
+            };
+
+            int main() {
+              float singles[2];
+              double doubles[2];
+              Probe probe;
+              int function_status = check_function(singles, doubles);
+              int method_status = probe.Check(singles, doubles);
+              if (function_status != 0) return function_status;
+              if (method_status != 0) return method_status;
+              if (singles[1] != 3.25f || doubles[1] != 7.5) return 3;
+              if (singles[0] != 1.5f || doubles[0] != 9.25) return 4;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_simd_array_parameters_have_a_useful_diagnostic(self):
+        cases = (
+            "void probe(float4 values[]) {}",
+            "class Probe { void Check(double2 values[]) {} };",
+        )
+        for source in cases:
+            with self.subTest(source=source), tempfile.TemporaryDirectory(
+                prefix="private-cupidc-simd-array-parameter-",
+                ignore_cleanup_errors=True,
+            ) as temporary:
+                result, _code, _data = self._compile(Path(temporary), source)
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertIn(
+                "SIMD array parameters are not supported", result.stderr
+            )
+
+    def test_unevaluated_sizeof_keeps_diagnostics_and_recovers(self):
+        failing_source = "int main() { return sizeof(missing_value); }"
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-sizeof-diagnostic-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code, _data = self._compile(
+                Path(temporary), failing_source
+            )
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertIn("undefined variable", result.stderr)
+        self.assertNotIn("operand has no object size", result.stderr)
+
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-sizeof-recovery-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            retry_result, _code, _data = self._compile_after_failure(
+                root,
+                failing_source,
+                "int main() { double value = 4.5; return value == 4.5 ? 0 : 1; }",
+            )
+            self.assertEqual(
+                retry_result.returncode,
+                0,
+                retry_result.stdout + retry_result.stderr,
+            )
+            entry_offset = int(retry_result.stdout.strip())
+            run_result = self._run_i386(root, entry_offset)
+        self.assertEqual(
+            run_result.returncode,
+            0,
+            run_result.stdout + run_result.stderr,
+        )
+
     def test_function_returned_int_pointer_drops_stale_array_metadata(self):
         result = self._compile_and_run(
             """
@@ -898,6 +1290,14 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                 "block static negative inner bound",
                 "int main() { static float values[2][1 - 2]; return 0; }",
             ),
+            (
+                "global zero third bound",
+                "double values[2][2][0];",
+            ),
+            (
+                "local negative third bound",
+                "int main() { float values[2][2][1 - 2]; return 0; }",
+            ),
         )
 
         for label, source in cases:
@@ -927,6 +1327,14 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                 "int main() { static char values[2147483647]; return 0; }",
             ),
             ("global two dimensional int", "int values[32768][32768];"),
+            (
+                "global three dimensional double",
+                "double values[32768][32768][2];",
+            ),
+            (
+                "block static three dimensional float",
+                "int main() { static float values[32768][32768][2]; return 0; }",
+            ),
         )
 
         for label, source in cases:
@@ -946,21 +1354,128 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                     "array allocation size overflow", result.stderr
                 )
 
-    def test_multidimensional_floating_array_has_a_useful_diagnostic(self):
-        with tempfile.TemporaryDirectory(
-            prefix="private-cupidc-float-array-dimension-",
-            ignore_cleanup_errors=True,
-        ) as temporary:
-            result, _code, _data = self._compile(
-                Path(temporary),
-                """
-                double table[2][2];
-                """,
-            )
-        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
-        self.assertIn(
-            "floating arrays support one dimension", result.stderr
+    def test_global_floating_matrices_keep_row_and_scalar_widths(self):
+        result = self._compile_and_run(
+            """
+            int leading_canary = 17;
+            float singles[2][3];
+            double doubles[2][2];
+            int trailing_canary = 29;
+
+            int main() {
+              singles[0][0] = 1.25f;
+              singles[1][2] = -3.5f;
+              doubles[0][1] = 12.5;
+              doubles[1][0] = singles[1][2];
+              if (singles[0][0] != 1.25f) return 1;
+              if (singles[1][2] != -3.5f) return 2;
+              if (doubles[0][1] != 12.5) return 3;
+              if (doubles[1][0] != -3.5) return 4;
+              if (sizeof(*singles) != 12) return 5;
+              if (sizeof(**singles) != 4) return 6;
+              if (sizeof(*doubles) != 16) return 7;
+              if (sizeof(**doubles) != 8) return 8;
+              if (leading_canary != 17) return 9;
+              if (trailing_canary != 29) return 10;
+              return 0;
+            }
+            """
         )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_unevaluated_subscript_sizeof_keeps_remaining_row_size(self):
+        result = self._compile_and_run(
+            """
+            int index_calls;
+            float matrix[2][3];
+            double cube[2][3][4];
+
+            int next_index() {
+              index_calls += 1;
+              return 1;
+            }
+
+            int main() {
+              if (sizeof(matrix[next_index()]) != 12) return 1;
+              if (sizeof(cube[next_index()]) != 96) return 2;
+              if (sizeof(cube[0][next_index()]) != 32) return 3;
+              if (sizeof(matrix[0] == matrix[1]) != 4) return 4;
+              if (sizeof(1 ? matrix[0] : matrix[1]) != 4) return 5;
+              if (index_calls != 0) return 6;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_floating_matrices_cover_local_static_and_three_dimensional_storage(self):
+        result = self._compile_and_run(
+            """
+            float global_cube[2][2][2];
+            int global_canary = 31;
+
+            int main() {
+              int leading_canary = 37;
+              float local_matrix[2][3];
+              double local_cube[2][2][2];
+              int trailing_canary = 41;
+              static double saved_matrix[2][2];
+              static float saved_cube[2][2][2];
+
+              global_cube[1][0][1] = 2.5f;
+              global_cube[1][0][1] *= 2;
+              local_matrix[1][2] = 7.25f;
+              local_cube[0][1][1] = 9.5;
+              saved_matrix[1][0] = local_matrix[1][2];
+              saved_cube[1][1][0] = local_cube[0][1][1];
+              saved_cube[1][1][0] += 0.5f;
+
+              if (global_cube[1][0][1] != 5.0f) return 1;
+              if (local_matrix[1][2] != 7.25f) return 2;
+              if (local_cube[0][1][1] != 9.5) return 3;
+              if (saved_matrix[1][0] != 7.25) return 4;
+              if (saved_cube[1][1][0] != 10.0f) return 5;
+              if (sizeof(*global_cube) != 16) return 6;
+              if (sizeof(**global_cube) != 8) return 7;
+              if (sizeof(***global_cube) != 4) return 8;
+              if (sizeof(*local_cube) != 32) return 9;
+              if (sizeof(**local_cube) != 16) return 10;
+              if (sizeof(***local_cube) != 8) return 11;
+              if (leading_canary != 37) return 12;
+              if (trailing_canary != 41) return 13;
+              if (global_canary != 31) return 14;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_repl_floating_matrices_remain_typed_across_lines(self):
+        result = self._compile_repl_and_run(
+            (
+                "double repl_matrix[2][3];",
+                "float repl_cube[2][2][2];",
+                "int repl_canary = 43;",
+                """
+                int probe() {
+                  repl_matrix[1][2] = 6.5;
+                  repl_matrix[1][2] += 1.0f;
+                  repl_cube[1][0][1] = 4.25f;
+                  if (repl_matrix[1][2] != 7.5) return 1;
+                  if (repl_cube[1][0][1] != 4.25f) return 2;
+                  if (sizeof(*repl_matrix) != 24) return 3;
+                  if (sizeof(**repl_matrix) != 8) return 4;
+                  if (sizeof(*repl_cube) != 16) return 5;
+                  if (sizeof(**repl_cube) != 8) return 6;
+                  if (sizeof(***repl_cube) != 4) return 7;
+                  if (repl_canary != 43) return 8;
+                  return 0;
+                }
+                """,
+                "probe;",
+            )
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_floating_array_bitwise_compound_has_a_useful_diagnostic(self):
         with tempfile.TemporaryDirectory(
@@ -985,42 +1500,150 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
         )
 
     def test_fixed_simd_array_has_a_useful_diagnostic(self):
-        with tempfile.TemporaryDirectory(
-            prefix="private-cupidc-simd-array-diagnostic-",
-            ignore_cleanup_errors=True,
-        ) as temporary:
-            result, _code, _data = self._compile(
-                Path(temporary),
-                """
-                float4 vectors[2];
-                """,
-            )
-        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
-        self.assertIn("fixed SIMD arrays are not supported", result.stderr)
-
-    def test_floating_struct_field_arrays_have_a_useful_diagnostic(self):
         cases = (
-            ("struct float field", "struct Samples { float values[2]; };"),
-            ("class double field", "class Samples { double values[2]; };"),
+            "float4 vectors[2];",
+            "int main() { double2 vectors[2]; return 0; }",
+            "int main() { static float4 vectors[2]; return 0; }",
+            "struct Vectors { double2 values[2]; };",
+            "class Vectors { float4 values[2]; };",
         )
-
-        for label, source in cases:
-            with self.subTest(declaration=label), tempfile.TemporaryDirectory(
-                prefix="private-cupidc-floating-field-array-",
+        for source in cases:
+            with self.subTest(source=source), tempfile.TemporaryDirectory(
+                prefix="private-cupidc-simd-array-diagnostic-",
                 ignore_cleanup_errors=True,
             ) as temporary:
                 result, _code, _data = self._compile(
                     Path(temporary), source
                 )
-                self.assertEqual(
-                    result.returncode,
-                    2,
-                    result.stdout + result.stderr,
-                )
-                self.assertIn(
-                    "floating struct field arrays are not supported",
-                    result.stderr,
-                )
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertIn("fixed SIMD arrays are not supported", result.stderr)
+
+    def test_address_of_record_array_element_keeps_the_selected_object(self):
+        result = self._compile_and_run(
+            """
+            struct Reading {
+              float gain;
+              double bias;
+              float taps[3];
+            };
+
+            struct Reading readings[2];
+
+            int main() {
+              struct Reading *selected = &readings[1];
+              readings[1].gain = 1.5f;
+              readings[1].bias = 2.25;
+              readings[1].taps[2] = 3.25f;
+              selected->gain += 0.5f;
+              selected->bias *= 2.0;
+              if (selected != &readings[1]) return 1;
+              if (selected->gain != 2.0f) return 2;
+              if (selected->bias != 4.5) return 3;
+              if (selected->taps[2] != 3.25f) return 4;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_address_of_array_row_has_a_useful_diagnostic(self):
+        cases = (
+            "int main() { float values[2][3]; float *row = &values[1]; }",
+            (
+                "int main() { double values[2][3][4]; "
+                "double *row = &values[1][2]; }"
+            ),
+        )
+        for source in cases:
+            with self.subTest(source=source), tempfile.TemporaryDirectory(
+                prefix="private-cupidc-array-row-address-",
+                ignore_cleanup_errors=True,
+            ) as temporary:
+                result, _code, _data = self._compile(Path(temporary), source)
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertIn(
+                "address of an array row is not supported", result.stderr
+            )
+
+    def test_floating_record_fields_keep_scalar_and_array_storage_typed(self):
+        result = self._compile_and_run(
+            """
+            struct Sample {
+              int leading;
+              float reading;
+              double values[2];
+              float *reading_pointer;
+              int trailing;
+            };
+
+            class Meter {
+              int leading;
+              double reading;
+              float values[2];
+              double *reading_pointer;
+              int trailing;
+            };
+
+            struct Sample samples[2];
+            Meter meter;
+            int index_calls;
+
+            int next_index() {
+              index_calls += 1;
+              return 1;
+            }
+
+            int main() {
+              float pointer_singles[2];
+              double pointer_doubles[2];
+              struct Sample *sample_pointer = samples;
+              Meter *meter_pointer = &meter;
+              pointer_singles[1] = 6.25f;
+              pointer_doubles[1] = 12.5;
+              samples[0].leading = 11;
+              samples[0].reading = -0.0f;
+              samples[0].values[0] = 2.0;
+              samples[0].trailing = 13;
+              samples[next_index()].reading = 3.0f;
+              samples[1].reading += 5.0;
+              samples[1].reading -= 2;
+              samples[1].reading *= 4.0f;
+              samples[1].reading /= 3.0;
+              samples[1].values[1] = 9.0;
+              samples[1].values[1] += 3.0f;
+              sample_pointer->values[1] = 7.5;
+              sample_pointer->values[1] *= 2;
+              sample_pointer->reading_pointer = pointer_singles;
+
+              meter.leading = 17;
+              meter.reading = 20.0;
+              meter_pointer->reading /= 4.0f;
+              meter.values[0] = 1.5f;
+              meter_pointer->values[0] += 2;
+              meter_pointer->reading_pointer = pointer_doubles;
+              meter.trailing = 19;
+
+              if (index_calls != 1) return 1;
+              if (samples[1].reading != 8.0f) return 2;
+              if (samples[1].values[1] != 12.0) return 3;
+              if (sample_pointer->values[1] != 15.0) return 4;
+              if ((1.0f / samples[0].reading) >= 0.0f) return 5;
+              if (samples[0].leading != 11) return 6;
+              if (samples[0].trailing != 13) return 7;
+              if (meter.reading != 5.0) return 8;
+              if (meter.values[0] != 3.5f) return 9;
+              if (meter.leading != 17) return 10;
+              if (meter.trailing != 19) return 11;
+              if (sample_pointer->reading_pointer[1] != 6.25f) return 12;
+              if (meter_pointer->reading_pointer[1] != 12.5) return 13;
+              if (sizeof(samples[next_index()].values[1]) != 8) return 14;
+              if (sizeof(meter.values[0]) != 4) return 15;
+              if (index_calls != 1) return 16;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_unsupported_call_argument_has_a_useful_diagnostic(self):
         with tempfile.TemporaryDirectory(

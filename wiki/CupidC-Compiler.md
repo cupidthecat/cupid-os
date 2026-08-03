@@ -167,15 +167,18 @@ Array elements are accessed with `arr[i]` and can be assigned with `arr[i] = val
 
 Compound assignment also works: `arr[i] += value`, `arr[i] -= value`, `arr[i] *= value`, `arr[i] /= value`.
 
-The private compiler keeps the declared element type on one-dimensional fixed
-`float` and `double` array symbols. It allocates four or eight bytes per
-element, uses the same scalar conversion rules as direct floating variables,
-and emits indirect SSE loads and stores. Global, local, block-static, and
-persistent REPL arrays share this path. `sizeof(*array)` returns the declared
-element width. Bounds must be positive, and checked count-by-stride arithmetic
-rejects an allocation that would overflow. Multidimensional floating arrays,
-fixed SIMD arrays, and floating arrays embedded in structure or class fields
-remain unsupported.
+The private compiler keeps the declared element type on one-, two-, and
+three-dimensional fixed `float` and `double` arrays. Global, local,
+block-static, and persistent REPL arrays share the same checked allocation and
+typed SSE access. Each subscript scales by the remaining row size, and
+`sizeof(array[index])` reports that row without evaluating the index.
+Depth-one floating pointers retain their pointee width through address
+expressions, returns, array-parameter decay, dereference, subscripting, direct
+pointer updates, and assignment. Structure and class objects, their arrays,
+and their pointers retain scalar floating fields and one-dimensional fixed
+floating field arrays. Fixed SIMD arrays, deeper floating pointers, indirect
+floating updates, pointer-to-array types, and assignment through a
+pointer-valued floating field subscript remain unsupported.
 
 Array bounds at file scope and inside structs accept constant integer
 expressions, including enum values and simple arithmetic. That keeps
@@ -1868,10 +1871,18 @@ The parser (`cupidc_parse.cc`) is recursive descent and writes x86 machine-code 
   the exact outgoing size. Floating results use the private compiler's XMM
   return path.
 - Locals use `[EBP - offset]`, parameters use `[EBP + offset]`, and globals live in the data region
-- One-dimensional fixed floating arrays keep their declared element type
-  beside the pointer-shaped symbol. Subscripts scale by four or eight and
-  move values through XMM registers. Indexed arithmetic compound assignment
-  uses the matching scalar SSE operation.
+- Fixed floating arrays keep their scalar type and remaining row stride through
+  one, two, or three dimensions. Leaf subscripts move values through XMM
+  registers, and indexed arithmetic compound assignment uses the matching
+  scalar SSE operation.
+- Depth-one floating pointers retain their pointee width through declarations,
+  address expressions, returns, function and method array parameters,
+  dereference, subscripting, direct pointer updates, and assignment. Floating
+  fields keep the same behavior through structure or class objects, arrays,
+  and pointers.
+- General `sizeof(expression)` parses its operand without keeping code, data,
+  symbol, or stack side effects. An indexed multidimensional array reports the
+  complete remaining row instead of its scalar leaf width.
 - Direct functions and methods retain parsed fixed parameter types. Calls
   convert represented integer, `char`, `float`, and `double` arguments to the
   declared slot type before laying out cdecl words. A parsed variadic tail
@@ -1897,6 +1908,10 @@ offsets, cleanup, and guest evidence.
 [ADR 0210](../docs/adr/0210-use-native-binary64-browser-numbers.md)
 records typed private floating arrays and the Browser binary64 path that
 requires them.
+
+[ADR 0215](../docs/adr/0215-type-private-floating-lvalues.md) records typed
+floating pointers, multidimensional arrays, record fields, array-parameter
+decay, and unevaluated row sizes in the private compiler.
 
 ### Symbol Table
 
@@ -1938,9 +1953,9 @@ When the parser encounters a call to an undefined function, it emits a placehold
 - Programs use Cupid OS kernel bindings rather than a general hosted C standard library.
 - Variadic declarations and definitions parse, but compiled CupidC code cannot yet traverse unnamed arguments.
 - Direct code generation has no optimization pass.
-- Fixed `float` and `double` array symbols are limited to one dimension. Fixed
-  SIMD arrays, floating pointer types, floating pointer dereference, and
-  floating arrays embedded in structure or class fields remain unsupported.
+- Fixed SIMD arrays, floating pointer depth greater than one, indirect
+  floating `++` and `--`, pointer-to-array types, and assignment through a
+  pointer-valued floating field subscript remain unsupported.
 
 The private compiler implements a broader runtime floating and SIMD language.
 The hosted self-hosting path converts between `float` and `double`, evaluates

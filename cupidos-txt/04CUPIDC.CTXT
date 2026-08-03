@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidC Guide (.cc)
-Verified against source on: 2026-08-01
+Verified against source on: 2026-08-03
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -1126,11 +1126,17 @@ One-dimensional fixed float and double array symbols keep their declared
 element type. Global, automatic, block-static, and persistent REPL arrays
 reserve four or eight bytes per element and use indirect SSE loads and stores.
 Plain indexed assignment uses the scalar conversion rules. Indexed +=, -=,
-*=, and /= stay at the element width, and sizeof(*array) returns that width.
-Bounds must be positive, and checked count-by-stride multiplication rejects
-overflow before storage is reserved. Multidimensional floating arrays, fixed
-SIMD arrays, floating pointer types, floating pointer dereference, and floating
-arrays embedded in structure or class fields remain unsupported.
+*=, and /= stay at the element width. One-, two-, and three-dimensional fixed
+float and double arrays keep the remaining row stride through each subscript.
+sizeof(array[index]) reports that row without running the index. Depth-one
+floating pointers retain their width through address expressions, returns,
+function and method array parameters, dereference, subscripts, scaled direct
+pointer updates, and assignment. Structure and class objects, their arrays,
+and their pointers keep scalar floating fields and one-dimensional fixed
+floating field arrays. Bounds and dimension products are checked before
+storage is reserved. Deeper floating pointers, indirect floating updates,
+pointer-to-array types, fixed SIMD arrays, and assignment through a
+pointer-valued floating field subscript remain unsupported.
 
 Direct functions and methods with parsed fixed parameter types convert
 represented integer, char, float, and double arguments to the declared cdecl
@@ -1180,7 +1186,9 @@ fabs, floor, ceil, round, trunc, fmod.
 printf supports %f, %e, %g, and precision forms like %.3f.
 
 See also: bin/feature12_float.cc through bin/feature16_asm_fpu.cc.
-The Browser's binary64 token and AST tables use the fixed double-array path.
+feature13_double checks typed floating matrices, pointers, record fields,
+row-sized unevaluated sizeof, scalar calls, and libm. The Browser's binary64
+token and AST tables use the fixed double-array path.
 See also: 14FPU-SSE.CTXT for full FPU/SSE reference.
 [Open FPU/SSE guide](open:14FPU-SSE.CTXT)
 >endtree

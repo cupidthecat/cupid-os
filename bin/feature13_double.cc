@@ -4,6 +4,17 @@
 
 float feature13_update_global_float;
 double feature13_update_global_double;
+float feature13_lvalue_global[2][3];
+
+struct feature13_record {
+    float gain;
+    double bias;
+    float taps[3];
+};
+
+float *feature13_lvalue_row() {
+    return &feature13_lvalue_global[1][0];
+}
 
 int feature13_within(double actual, double expected, double scale,
                      int max_scaled_error) {
@@ -197,6 +208,68 @@ void main() {
         serial_printf("[feature13-update] PASS local=%d global=%d for=%d zero=%x nan=%d\n",
                       update_local_score, update_global_score,
                       (int)update_for, update_zero_bits, update_nan_score);
+    }
+
+    /* Keep floating widths attached to arrays, pointers, and record fields.
+     * The sizeof expressions must inspect their operands without changing
+     * the index. */
+    float matrix[2][3];
+    double cube[2][2][2];
+    struct feature13_record records[2];
+    float *row = &matrix[1][0];
+    double *cube_cell = &cube[1][0][0];
+    struct feature13_record *record = &records[1];
+    int index = 0;
+
+    matrix[0][0] = 1.25f;
+    row[0] = 2.5f;
+    row[1] = row[0];
+    row[1] += 0.5f;
+    *row += 0.25f;
+    feature13_lvalue_global[1][2] = 3.5f;
+    float *returned_row = feature13_lvalue_row();
+    returned_row[2] *= 2.0f;
+
+    *cube_cell = 4.5;
+    cube_cell[1] = 1.25;
+    cube_cell[1] += 0.75;
+
+    records[1].gain = 1.5f;
+    records[1].bias = 2.25;
+    records[1].taps[2] = 3.25f;
+    record->gain += 0.5f;
+    record->bias *= 2.0;
+
+    int lvalue_array_score =
+        (int)(matrix[0][0] * 4.0f) +
+        (int)(row[0] * 4.0f) +
+        (int)(row[1] * 4.0f) +
+        (int)(feature13_lvalue_row()[2] * 2.0f);
+    int lvalue_pointer_score =
+        (int)(*cube_cell * 2.0) +
+        (int)(cube_cell[1] * 2.0);
+    int lvalue_record_score =
+        (int)(record->gain * 2.0f) +
+        (int)(record->bias * 2.0) +
+        (int)(records[1].taps[2] * 4.0f);
+    int lvalue_size_score =
+        sizeof(matrix[index++]) + sizeof(cube[0]) +
+        sizeof(*row) + sizeof(*cube_cell);
+    int lvalue_unevaluated = index == 0;
+
+    if (lvalue_array_score != 42 || lvalue_pointer_score != 13 ||
+        lvalue_record_score != 26 || lvalue_size_score != 56 ||
+        !lvalue_unevaluated) {
+        serial_printf("[feature13-lvalue] FAIL array=%d pointer=%d record=%d sizes=%d unevaluated=%d\n",
+                      lvalue_array_score, lvalue_pointer_score,
+                      lvalue_record_score, lvalue_size_score,
+                      lvalue_unevaluated);
+        ok = 0;
+    } else {
+        serial_printf("[feature13-lvalue] PASS array=%d pointer=%d record=%d sizes=%d unevaluated=%d\n",
+                      lvalue_array_score, lvalue_pointer_score,
+                      lvalue_record_score, lvalue_size_score,
+                      lvalue_unevaluated);
     }
 
     /* sin(pi/2) = 1. Check |sin(pi/2) - 1| < 1e-12 via scale 1e12. */

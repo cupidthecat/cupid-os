@@ -19635,3 +19635,88 @@ The normal image still depends on host-side orchestration and the remaining
 owners listed in the migration matrix. Issue 31 therefore stays open. ADR
 0211 records the storage boundary, ADR 0214 records the Doom lifecycle, and
 `TempleOS/` remains untouched reference material.
+
+## 2026-08-03: Carry typed floating lvalues through private CupidC
+
+Private CupidC now keeps `float` and `double` object types through depth-one
+pointers, one- to three-dimensional fixed arrays, function and method array
+parameters, and floating fields in structures and classes. The typed indirect
+path handles reads, plain stores, and all four arithmetic compound stores.
+Function-returned pointers can be subscripted, fully indexed element addresses
+retain the selected object, and direct pointer updates use the pointed-to
+object size. Global, automatic, block-static, and persistent
+REPL arrays use the same checked dimension and storage accounting.
+
+General `sizeof(expression)` now parses a real unevaluated operand and restores
+compiler output, symbols, stack state, call state, and lvalue metadata
+afterward. An indexed matrix or cube retains its remaining row size. A side
+effect in the index is type-checked but never executed. Operand diagnostics
+survive the rollback, and the next REPL expression can still compile.
+
+The first implementation split floating pointer types and expanded array and
+record lowering. A separate correctness review then found three small programs
+that failed: direct typed-pointer updates were rejected, floating array
+parameters decayed to an integer-lane pointer, and `sizeof(matrix[0])` returned
+four instead of the row's twelve bytes. Restoring the old generic pointer type
+would have hidden the first two failures without supplying the necessary
+width. The final path instead decays array parameters to typed pointers,
+retains row-size metadata, and scales character, integer, floating, and
+complete-record pointer updates by their pointed-to size.
+
+Positive execution contracts cover pointer loads and stores, returned-pointer
+subscripts, pointer steps, array-parameter functions and methods, every fixed
+storage class, matrices, cubes, scalar and array record fields, object arrays,
+object pointers, single evaluation, row `sizeof`, and width conversion.
+Negative contracts cover deeper floating pointers, pointer-to-array types,
+indirect floating updates, SIMD array parameters, fixed SIMD arrays, invalid
+or overflowing bounds, bitwise floating compounds, assignment through a
+pointer-valued floating field subscript, and recovery. The feature-13 guest
+program now reports a separate lvalue marker before its
+existing mixed-call and libm checks.
+
+The following focused checks passed:
+
+```text
+python -m unittest discover -s tests -p 'test_private_cupidc*.py'
+  57 tests in 8.315 seconds
+python -m unittest tests.test_gui_terminal_smoke
+  98 tests in 1.014 seconds
+make -B kernel/lang/cupidc_parse.o
+  checked-seed compile in 52.0 seconds
+```
+
+The first feature-13 guest run reached its new marker with `array=42`,
+`pointer=13`, `sizes=56`, and `unevaluated=1`, but reported `record=14` and
+failed the feature. A six-line host reduction then crashed. Address-of on a
+structure array element had scaled to the selected record and loaded its first
+word, turning that word into a pointer. The postfix address path now keeps the
+computed address for a fully indexed scalar or record element and rejects an
+unrepresentable array-row address. The rebuilt image passed in 533.0 seconds.
+A final link produced an 8,898,964-byte kernel ELF with SHA-256
+`841247806eb0349c3837241d381bdde94297e22212ef1aaebffbe02f0f6405ee`,
+an 8,695,252-byte flat kernel with SHA-256
+`b58220734027423fafd53bfb545bd553265307ad32a0acaa82c4ae79db154500`,
+and a 209,715,200-byte image with SHA-256
+`8eb68a3b1d8d0e2ddc68dbf8212e4e1f4007fff9a7d2e134bebf796d0ef5dd6e`.
+A four-vCPU e1000 private-image run passed in 73.2 seconds with the exact marker
+`[feature13-lvalue] PASS array=42 pointer=13 record=26 sizes=56 unevaluated=1`,
+the existing call marker, overall PASS, and clean JIT completion. Its
+38,197-byte serial log has SHA-256
+`43768f5f6399cfbd41064fdfcbfc83c8311dfd8d39b5d7e1eb0f37221cf1f707`.
+
+The regenerated active graph still contains 718 inputs, 449 transforms, 255
+feature requirements, and 25 classified unreachable files. Its active-source
+digest is
+`0ee13f7b403153040c543abd1f420a94c556a363786ccc5de239c83ae0fe6e88`.
+The 2,554,191-byte JSON has SHA-256
+`db4e8f22f76421ade773ea454111ececf5a41359a382a20d42ff86df15fa476c`,
+and the 12,136-byte summary has SHA-256
+`f6d05497ca7f31e53040b111dfe22227c1d445a8aef1e32e083f5ee50b7c658a`.
+The read-only audit check passes.
+
+This compiler change does not transfer a build owner or remove a host
+dependency. Floating pointer depth greater than one, pointer-to-array types,
+indirect floating `++` and `--`, fixed SIMD arrays, and assignment through a
+pointer-valued floating field subscript remain open. Issue 31 therefore remains
+open. ADR 0215 records the boundary, and `TempleOS/` remains untouched reference
+material.

@@ -95,28 +95,32 @@ zero keeps its floating result, while remainder by zero produces NaN. Decimal
 exponents are bounded to 400 steps and require a digit after the optional
 sign.
 
-The Browser's five numeric tables exposed a private compiler defect in typed
-storage and indexed access. One-dimensional fixed array symbols now retain
-their declared element type. Global, automatic, block-static, and persistent
-REPL `float` and `double` arrays reserve the correct number of bytes and use
-indirect SSE loads and stores. Separate compiler contracts cover scalar
-conversion in plain indexed assignment and all four arithmetic compound
-assignments. Those operations stay at the element width, and `sizeof(*array)`
-reports four or eight. Bounds must be positive, and checked count-by-stride
-arithmetic rejects an allocation that would overflow before storage is
-reserved. Fresh subscript metadata prevents an unrelated pointer result from
-inheriting a previous array stride.
+The Browser's five numeric tables first exposed a private compiler defect in
+typed storage and indexed access. Private CupidC now carries `float` and
+`double` lvalues through one-, two-, and three-dimensional fixed arrays in
+global, automatic, block-static, and persistent REPL storage. Subscripts use
+the remaining row stride, while unevaluated `sizeof(array[index])` reports the
+whole row. Depth-one floating pointers retain their pointee width through
+declarations, address expressions, returns, function and method array
+parameters, dereference, subscripting, assignment, and arithmetic compound
+assignment. Direct pointer updates advance by four or eight bytes.
 
-Multidimensional floating arrays, fixed SIMD arrays, floating pointer types,
-floating pointer dereference, and floating arrays in structure or class fields
-remain unsupported. Bitwise or shift compound assignment receives a specific
-diagnostic. `browser --selftest` combines direct binary64 checks with scripts
+Structure and class objects, object arrays, and object pointers also retain
+scalar floating fields and one-dimensional fixed floating field arrays.
+Bounds must be positive, and checked count-by-stride arithmetic rejects an
+overflowing allocation before storage is reserved. Fresh expression metadata
+prevents an unrelated pointer result from inheriting an earlier array stride.
+Floating pointer depth greater than one, indirect floating `++` and `--`,
+pointer-to-array types, fixed SIMD arrays, and assignment through a pointer-valued floating record
+field remain unsupported. Bitwise or shift compound assignment receives a
+specific diagnostic. `browser --selftest` combines direct binary64 checks with scripts
 sent through the real interpreter. The command checks comparisons, truth,
 decimal fractions, signed and uppercase exponents, a negative-zero reciprocal,
 NaN and signed infinity formatting, relational order, division and division
 assignment by zero, remainder by zero, exponent capping, and malformed-exponent
-rejection. Its PASS marker contains 17 computed fields. ADR 0210 records both
-boundaries.
+rejection. Its PASS marker contains 17 computed fields. ADR 0210 records the
+first typed-array and Browser boundary; ADR 0215 records the broader floating
+lvalue model.
 
 Hosted CupidC now carries signed and unsigned eight-byte integer values through constants, matching conditional arms, fixed direct and indirect call results, object access, declared parameters, named call arguments, ellipsis arguments, and calls through function types without prototypes. File objects, block statics, fixed automatic objects, pointer dereferences, ordinary members, and indexed elements can be initialized, loaded, assigned, mutated, chained, discarded, and returned. One Linear IR entry names an emitter-owned eight-byte frame snapshot. A declared or undeclared wide argument occupies eight cdecl stack bytes. A supported wide `va_arg` read produces an instruction-owned snapshot and advances the cursor by eight. Return restores the low word to EAX and the high word to EDX.
 

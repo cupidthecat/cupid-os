@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 FPU + SSE2 + CupidC Float/Double
-Verified against source on: 2026-08-01
+Verified against source on: 2026-08-03
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -253,14 +253,18 @@ can fill a pointer slot. A parsed variadic tail widens float to double and
 promotes char to int. Function-pointer calls, kernel bindings, and calls
 without that metadata keep their source-width slots.
 
-One-dimensional fixed float and double array symbols keep their element type
-for global, automatic, block-static, and persistent REPL storage. The private
-compiler uses four-byte or eight-byte strides, indirect SSE loads and stores,
-scalar assignment conversion, arithmetic compound assignment, and the matching
-result for sizeof(*array). Bounds must be positive, and checked count-by-stride
-multiplication rejects overflowing allocations. Floating arrays embedded in
-structure or class fields, multidimensional floating arrays, fixed SIMD arrays,
-floating pointer types, and floating pointer dereference remain unsupported.
+Fixed float and double arrays keep their element type through one, two, or
+three dimensions in global, automatic, block-static, and persistent REPL
+storage. The private compiler uses the remaining row stride for each
+subscript and typed SSE access at the leaf. sizeof(array[index]) reports the
+row without running the index. Depth-one floating pointers retain their width
+through address expressions, returns, function and method array parameters,
+dereference, subscripts, scaled direct pointer updates, and assignment.
+Structure and class objects, arrays, and pointers keep scalar floating fields
+and one-dimensional fixed floating field arrays. Bounds and dimension products
+are checked before allocation. Deeper floating pointers, indirect floating
+updates, pointer-to-array types, fixed SIMD arrays, and assignment through a
+pointer-valued floating field subscript remain unsupported.
 
 >h3 Arithmetic
 Binary operators `+`, `-`, `*`, `/` work on scalar float/double via SSE
@@ -318,7 +322,7 @@ Register tokens: XMM0-7 and ST0-7.
 >tree open Testing
 Test programs:
   `bin/feature12_float.cc`    scalar float arithmetic, casts, element access.
-  `bin/feature13_double.cc`   double + transcendentals.
+  `bin/feature13_double.cc`   typed lvalues, scalar calls, and transcendentals.
   `bin/feature14_simd.cc`     float4/double2 + intrinsics.
   `bin/feature15_libm.cc`     29 fixed checks, including seven x87 range paths.
   `bin/feature16_asm_fpu.cc`  CupidC inline asm using SSE + x87.

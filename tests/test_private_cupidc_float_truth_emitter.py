@@ -241,14 +241,16 @@ typedef enum {{
   TYPE_FLOAT,
   TYPE_DOUBLE,
   TYPE_FLOAT4,
-  TYPE_DOUBLE2
+  TYPE_DOUBLE2,
+  TYPE_FLOAT_PTR,
+  TYPE_DOUBLE_PTR
 }} cc_type_t;
 
 {classifier}
 
 int main(void) {{
   int type;
-  for (type = TYPE_INT; type <= TYPE_DOUBLE2; type++)
+  for (type = TYPE_INT; type <= TYPE_DOUBLE_PTR; type++)
     printf("%d\\n", cc_is_scalar_truth_type((cc_type_t)type));
   return 0;
 }}
@@ -328,7 +330,9 @@ typedef enum {{
   TYPE_FLOAT,
   TYPE_DOUBLE,
   TYPE_FLOAT4,
-  TYPE_DOUBLE2
+  TYPE_DOUBLE2,
+  TYPE_FLOAT_PTR,
+  TYPE_DOUBLE_PTR
 }} cc_type_t;
 
 typedef struct {{
@@ -475,6 +479,8 @@ int main(void) {{
                 1,  # double
                 0,  # float4
                 0,  # double2
+                1,  # float pointer
+                1,  # double pointer
             ),
         )
 

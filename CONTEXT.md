@@ -401,19 +401,23 @@ ADR 0193 records scalar truth and binding-result metadata. ADR 0194 records
 floating variable updates. ADR 0198 records mixed-width cdecl calls.
 _Avoid_: C mode, HolyC mode
 
-**Private CupidC fixed floating array**:
-A one-dimensional fixed array symbol whose declared element type is `float` or
-`double`. Global, automatic, block-static, and persistent REPL symbols retain
-that type beside the pointer-shaped array type. Subscripting therefore uses a
-four-byte or eight-byte stride and an indirect SSE load or store. Plain
-assignment applies the scalar floating conversion rules. Arithmetic compound
-assignment stays at the element width, and `sizeof(*array)` returns that width.
-Every bound must be positive, and allocation-size arithmetic is checked before
-storage is reserved. Arrays embedded in structure or class fields,
-multidimensional floating arrays, fixed SIMD arrays, floating pointer types,
-and floating pointer dereference remain unsupported. ADR 0210 records the
-boundary.
-_Avoid_: floating array field, complete floating pointer support
+**Private CupidC floating lvalue**:
+A typed `float` or `double` object reached through a fixed array, pointer, or
+record field. Global, automatic, block-static, and persistent REPL arrays keep
+their scalar width through one, two, or three dimensions. Each subscript uses
+the remaining row stride, and `sizeof(array[index])` reports that row without
+evaluating the index. Depth-one floating pointers keep their pointee type
+through declarations, returns, address expressions, parameter decay,
+dereference, subscripting, assignment, and arithmetic compound assignment.
+Direct pointer updates use the pointee width. Structure and class objects,
+their arrays, and their pointers retain scalar floating fields and
+one-dimensional fixed floating field arrays. Every bound and allocation is
+checked before storage is reserved. Floating pointer depth greater than one,
+indirect floating `++` and `--`, pointer-to-array types, fixed SIMD arrays, and
+assignment through a pointer-valued floating record field remain outside this
+boundary. ADR 0210 records the first array slice; ADR 0215 records the broader
+lvalue model.
+_Avoid_: complete multi-level floating pointer support, indirect floating update
 
 **Browser JavaScript number lane**:
 The numeric path shared by the Browser's JavaScript lexer, AST, and

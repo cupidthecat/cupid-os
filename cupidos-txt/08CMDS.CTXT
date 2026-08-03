@@ -291,7 +291,7 @@ Compiler/language test programs currently embedded in /bin:
 - feature10_repl
 - feature11_ternary
 - feature12_float          (P1 FPU/SSE)
-- feature13_double         (P1 FPU/SSE)
+- feature13_double         (floating lvalues, calls, and libm)
 - feature14_simd           (P1 FPU/SSE)
 - feature15_libm           (P1 FPU/SSE)
 - feature16_asm_fpu        (P1 FPU/SSE)

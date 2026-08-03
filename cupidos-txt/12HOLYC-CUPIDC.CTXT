@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 HolyC-Style CupidC Features
-Verified against source on: 2026-08-01
+Verified against source on: 2026-08-03
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -308,12 +308,17 @@ One-dimensional fixed float and double array symbols preserve their element
 type. Global, automatic, block-static, and persistent REPL arrays use
 four-byte or eight-byte strides with indirect SSE loads and stores. Plain
 indexed assignment converts from represented integer and floating sources,
-while +=, -=, *=, and /= use the element width. sizeof(*array) reports four
-or eight. Bounds must be positive, and checked count-by-stride multiplication
-rejects overflow before storage is reserved. Multidimensional floating arrays,
-fixed SIMD arrays, floating pointer types, floating pointer dereference, and
-floating arrays embedded in structure or class fields are unsupported by the
-private compiler.
+while +=, -=, *=, and /= use the element width. One-, two-, and
+three-dimensional fixed arrays retain their remaining row stride, and
+sizeof(array[index]) reports that row without running the index. Depth-one
+floating pointers preserve their pointee width through address expressions,
+returns, array parameters, dereference, subscripts, scaled direct pointer
+updates, and assignment. Structure and class objects, arrays, and pointers
+retain scalar floating fields and one-dimensional fixed floating field arrays.
+Bounds and dimension products are checked before storage is reserved. Deeper
+floating pointers, indirect floating updates, pointer-to-array types, fixed
+SIMD arrays, and assignment through a pointer-valued floating field subscript
+remain unsupported.
 
 Private CupidC uses one scalar cdecl layout for direct calls, stored
 function-pointer calls, and methods. Integers, pointers, function pointers,

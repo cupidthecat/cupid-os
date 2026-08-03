@@ -154,7 +154,9 @@ typedef enum {{
   TYPE_FLOAT,
   TYPE_DOUBLE,
   TYPE_FLOAT4,
-  TYPE_DOUBLE2
+  TYPE_DOUBLE2,
+  TYPE_FLOAT_PTR,
+  TYPE_DOUBLE_PTR
 }} cc_type_t;
 
 typedef enum {{

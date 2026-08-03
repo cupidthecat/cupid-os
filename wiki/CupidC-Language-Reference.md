@@ -35,16 +35,23 @@ Scalar `float` and `double` variables accept prefix and postfix `++` and
 storing the update. Direct locals, parameters, and globals are supported.
 Arrays, aggregates, function pointers, and SIMD vectors are rejected.
 
-One-dimensional fixed `float` and `double` array symbols are supported as
-globals, locals, block statics, and persistent REPL declarations. Their
-declared element type controls the four-byte or eight-byte stride and the
-indirect SSE load or store. Indexed plain assignment accepts represented
-integer, `char`, `float`, and `double` sources. Indexed `+=`, `-=`, `*=`, and
-`/=` stay at the element width, and `sizeof(*array)` returns four or eight.
-Bounds must be positive, and allocation-size multiplication is checked before
-storage is reserved. Multidimensional floating arrays, fixed SIMD arrays,
-floating pointer types, floating pointer dereference, and floating arrays
-embedded in structure or class fields remain unsupported.
+Fixed `float` and `double` arrays are supported with one, two, or three
+dimensions as globals, locals, block statics, and persistent REPL
+declarations. Their declared type and remaining row stride survive each
+subscript. Leaf access uses the matching scalar SSE width, while
+`sizeof(array[index])` reports the full remaining row without evaluating the
+index. Bounds must be positive, and every dimension product is checked before
+storage is reserved.
+
+Depth-one `float *` and `double *` values retain their pointee type through
+declarations, address expressions, returns, function and method array
+parameters, dereference, subscripting, assignment, and arithmetic compound
+assignment. Direct pointer `++` and `--` advance by four or eight bytes.
+Structure and class objects, their arrays, and their pointers may contain
+scalar floating fields and one-dimensional fixed floating field arrays. Fixed
+SIMD arrays, deeper floating pointers, indirect floating updates,
+pointer-to-array types, and assignment through a pointer-valued floating field
+subscript remain unsupported.
 
 Direct functions and methods with parsed fixed parameter types convert each
 represented integer, `char`, `float`, or `double` argument to its declared

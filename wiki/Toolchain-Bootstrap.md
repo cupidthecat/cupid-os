@@ -580,16 +580,18 @@ uppercase exponents, relational order, division and division assignment by
 zero, remainder by zero, the exponent cap, and malformed-exponent rejection.
 
 Those five numeric tables exposed integer-only lowering for fixed floating
-array symbols. CupidC now records the declared element type on one-dimensional
-global, automatic, block-static, and persistent REPL arrays. `float` and
-`double` elements use four-byte or eight-byte storage and indirect SSE loads
-and stores. Separate compiler contracts cover scalar assignment conversions
-and arithmetic compound assignment. Bounds must be positive, and checked
-count-by-stride multiplication rejects an overflowing allocation before
-storage is reserved. Fresh subscript metadata also prevents one pointer
-expression from inheriting an earlier array stride. Multidimensional floating
-arrays, fixed SIMD arrays, floating pointer types, floating pointer dereference,
-and floating arrays embedded in structure or class fields remain unsupported.
+array symbols. CupidC now records the declared scalar type and remaining row
+stride on one-, two-, and three-dimensional global, automatic, block-static,
+and persistent REPL arrays. Depth-one floating pointers keep the same type
+through address expressions, returns, array-parameter decay, dereference,
+subscripts, direct pointer updates, and assignment. Structure and class
+objects, arrays, and pointers retain scalar floating fields and
+one-dimensional fixed floating field arrays. Unevaluated
+`sizeof(array[index])` reports the row without running the index. Checked
+bounds and dimension products protect storage, and fresh expression metadata
+prevents stride leakage. Deeper floating pointers, indirect floating updates,
+pointer-to-array types, fixed SIMD arrays, and assignment through a
+pointer-valued floating field subscript remain unsupported.
 
 Direct functions and methods retain parsed fixed parameter types. Known fixed
 arguments convert among represented integer, `char`, `float`, and `double`
@@ -598,8 +600,9 @@ forms can fill a pointer slot. Character arithmetic follows integer promotion
 and uses the scalar integer conversion path when mixed with floating values.
 A parsed variadic tail widens `float` to `double` and promotes `char` to `int`.
 Function-pointer calls, kernel bindings, and calls without fixed parameter
-metadata retain source-width arguments. ADR 0210 records these compiler
-capabilities and the Browser path that requires the fixed `double` tables.
+metadata retain source-width arguments. ADR 0210 records the first typed-array
+slice and the Browser path that requires it. ADR 0215 records the expanded
+private floating lvalue model.
 
 ISO test-fixture packaging no longer hides an external tool behind Python.
 `test_iso/fixtures.manifest` pins every directory and file. Make declares the

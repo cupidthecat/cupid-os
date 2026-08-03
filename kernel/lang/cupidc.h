@@ -205,7 +205,9 @@ typedef enum {
   TYPE_FLOAT,      /* 32-bit IEEE-754 single (SSE scalar) */
   TYPE_DOUBLE,     /* 64-bit IEEE-754 double (SSE scalar) */
   TYPE_FLOAT4,     /* 4x float SIMD vector (16 bytes) */
-  TYPE_DOUBLE2     /* 2x double SIMD vector (16 bytes) */
+  TYPE_DOUBLE2,    /* 2x double SIMD vector (16 bytes) */
+  TYPE_FLOAT_PTR,  /* float* */
+  TYPE_DOUBLE_PTR  /* double* */
 } cc_type_t;
 
 /* HolyC-style type aliases (kept as aliases for full backward compatibility)

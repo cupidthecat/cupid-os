@@ -261,15 +261,23 @@ forms can fill a pointer slot. A parsed variadic tail widens `float` to `double`
 and promotes `char` to `int`. Function-pointer calls, kernel bindings, and
 calls without that metadata keep their source-width slots.
 
-One-dimensional fixed `float` and `double` array symbols keep their element
-type for global, automatic, block-static, and persistent REPL storage. The
-private compiler uses four-byte or eight-byte strides, indirect SSE loads and
-stores, scalar assignment conversion, arithmetic compound assignment, and the
-matching result for `sizeof(*array)`. Bounds must be positive, and checked
-count-by-stride multiplication rejects overflowing allocations. Floating
-arrays embedded in structure or class fields, multidimensional floating
-arrays, fixed SIMD arrays, floating pointer types, and floating pointer
-dereference remain unsupported. ADR 0210 records this boundary.
+Fixed `float` and `double` arrays keep their element type through one, two, or
+three dimensions in global, automatic, block-static, and persistent REPL
+storage. The private compiler uses the remaining row stride for each
+subscript, typed SSE access at the leaf, scalar assignment conversion, and
+matching arithmetic compound assignment. Unevaluated
+`sizeof(array[index])` reports the row without running the index. Bounds and
+dimension products are checked before allocation.
+
+Depth-one floating pointers keep their pointee width through address
+expressions, returns, function and method array parameters, dereference,
+subscripting, direct pointer updates, and assignment. Structure and class
+objects, object arrays, and object pointers keep scalar floating fields and
+one-dimensional fixed floating field arrays. Deeper floating pointers,
+indirect floating updates, pointer-to-array types, fixed SIMD arrays, and
+assignment through a pointer-valued floating field subscript remain
+unsupported. ADR 0210 records
+the first array boundary, and ADR 0215 records the expanded lvalue model.
 
 ### Arithmetic
 

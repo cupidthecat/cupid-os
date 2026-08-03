@@ -128,18 +128,22 @@ forms, relational order, division and division assignment by zero, remainder
 by zero, the exponent cap, malformed input, and clean CupidC completion. The
 command reports 17 computed result fields.
 
-The five Browser tables require typed private CupidC storage and indexed access.
-Global, automatic, block-static, and persistent REPL `float` and `double`
-array symbols keep the declared element type, use four-byte or eight-byte
-storage, and select typed SSE access. Separate compiler contracts cover indexed
-scalar conversion and arithmetic compound assignment, while `sizeof(*array)`
-follows the element width. Every bound must be positive, and checked
-count-by-stride arithmetic rejects overflowing allocations. Pointer-producing
-expressions publish fresh subscript metadata so one expression cannot leak its
-stride into the next. Multidimensional floating arrays, fixed SIMD arrays,
-floating pointer types, floating pointer dereference, and arrays embedded in
-structure or class fields remain unsupported. This changes private JIT and AOT
-behavior without moving a build owner. ADR 0210 records the boundary.
+The five Browser tables require typed private CupidC storage and indexed
+access. Global, automatic, block-static, and persistent REPL `float` and
+`double` arrays now carry their width through one, two, or three dimensions.
+Depth-one floating pointers keep their pointee type through address
+expressions, returns, function and method array-parameter decay, dereference,
+subscripts, direct pointer updates, and floating assignment. Structure and
+class objects, object arrays, and object pointers keep scalar floating fields
+and one-dimensional fixed floating field arrays. Unevaluated
+`sizeof(array[index])` reports the remaining row size without running the
+index. Checked bounds and size arithmetic guard every fixed allocation, and
+fresh expression metadata prevents stride leakage. Floating pointer depth
+greater than one, indirect floating `++` and `--`, pointer-to-array types,
+fixed SIMD arrays, and assignment through a pointer-valued floating record field remain unsupported.
+This changes private JIT and AOT behavior without moving a build owner. ADR
+0210 records the first typed-array slice; ADR 0215 records the expanded
+floating lvalue boundary.
 
 Hosted CupidC emits deterministic i386 ELF32 objects for all fourteen files in issue #27's CupidC, CupidASM, and CupidDis contract cohort. Those sources, the 19-source static tool union, and `kernel/lang/as_elf.cc` form an i386 Linux set with 31 ordinary strict roots, a two-source strict kernel bridge, and two GNU runtime roots for the implementation and behavior probe. The retired 64-bit profiles have no active roots. The normal build compiles each contract twice from the checked seed, compares all sixteen new objects, links all fourteen programs and the runtime probe through CupidLD, and verifies all fifteen ELF32 executables. Publication accepts only a dedicated `cupidc-contracts` directory inside the source tree. The target is checked before work and again before promotion, and an existing destination must already verify as a complete cohort. Arbitrary directories, source trees, files, and symbolic links remain untouched. The initial, private, and newly discovered contract inventories must match exactly, which catches additions, removals, and restored edits that changed a copied input. Every run derives the cohort from its executable, requires a named manifest artifact, and verifies every artifact hash, the current 45-input contract set, the checked seed manifest, and the 41-file fixed-point source inventory before the behavior matrix starts. The 45 inputs include the Toolchain Makefile and both Python control modules. One captured seed-manifest byte sequence supplies its digest, decoded JSON, schema validation, and checked build plan. The same gate covers complete CupidLD and CupidObj command closures. Native GCC or Clang builds remain available only as explicit development oracles. This supersedes the older nine-file, eleven-file, host-built, and 64-bit profile descriptions in the historical notes and long-form rows below.
 

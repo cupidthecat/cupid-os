@@ -115,6 +115,8 @@ def _frontier_command_outputs():
             "control=255 nan=1\n"
             "[feature13-update] PASS local=48 global=40 "
             "for=3 zero=0x80000000 nan=2\n"
+            "[feature13-lvalue] PASS array=42 pointer=13 "
+            "record=26 sizes=56 unevaluated=1\n"
             "[feature13-call] PASS checks=10\n"
             "PASS feature13_double\n"
             "[cupidc] JIT execution complete\n"
@@ -1473,6 +1475,44 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             "for (; update_iterations < 3; update_for++)",
             "update_zero_old = update_negative_zero++",
             "update_nan_old = update_nan++",
+        ):
+            with self.subTest(expression=expression):
+                self.assertIn(expression, source)
+
+    def test_feature13_requires_typed_floating_lvalue_evidence(self):
+        command = _frontier_command("/bin/feature13_double.cc")
+        expected = command.expected_pattern
+        sample = _frontier_command_output("/bin/feature13_double.cc")
+        marker = (
+            "[feature13-lvalue] PASS array=42 pointer=13 "
+            "record=26 sizes=56 unevaluated=1\n"
+        )
+
+        self.assertIsNone(
+            re.search(
+                expected,
+                sample.replace(marker, ""),
+                re.S | re.M,
+            )
+        )
+        self.assertIn(
+            "[feature13-lvalue] FAIL",
+            gui_terminal_smoke.FRONTIER_RUNTIME_REJECTED_MARKERS,
+        )
+
+        source = (
+            REPO_ROOT / "bin" / "feature13_double.cc"
+        ).read_text(encoding="utf-8")
+        for expression in (
+            "float feature13_lvalue_global[2][3]",
+            "float *row = &matrix[1][0]",
+            "double *cube_cell = &cube[1][0][0]",
+            "float *returned_row = feature13_lvalue_row()",
+            "returned_row[2] *= 2.0f",
+            "record->gain += 0.5f",
+            "record->bias *= 2.0",
+            "sizeof(matrix[index++])",
+            "sizeof(cube[0])",
         ):
             with self.subTest(expression=expression):
                 self.assertIn(expression, source)
