@@ -627,7 +627,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 hashlib.sha256(
                     frozen.tools["cupidc"].read_bytes()
                 ).hexdigest(),
-                "a4dff3c1c8ae975e9b8278920d36aefe6ad9b28a52503a6d5d4253e04e4a21af",
+                "8d810739494123a3da1cba34f75f58c005e8796f2cb4e85ba57eead1578a1f4d",
             )
 
     def test_wsl_runner_uses_a_private_temporary_directory(self):
@@ -828,6 +828,94 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             rendered = compiler_disassembly.stdout.casefold()
             self.assertEqual(rendered.count("fsub st1, st0"), 1)
             self.assertEqual(rendered.count("fsubr st1, st0"), 1)
+
+    def test_checked_seed_preserves_returns_twice_call_operands(self):
+        if os.name == "nt" and shutil.which("wsl") is None:
+            self.skipTest("WSL is not available")
+        with tempfile.TemporaryDirectory(
+            prefix=".checked-seed-returns-twice-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            source = root / "returns-twice.cc"
+            rejected_source = root / "returns-twice-pointer.cc"
+            rejected_output = root / "returns-twice-pointer.o"
+            source.write_text(
+                "extern int seed_restart(unsigned int env[6]) "
+                "__attribute__((returns_twice));\n"
+                "int add_after_restart(unsigned int env[6], int left) {\n"
+                "  return left + seed_restart(env);\n"
+                "}\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+            rejected_source.write_text(
+                "extern int seed_restart(unsigned int env[6]) "
+                "__attribute__((returns_twice));\n"
+                "int indirect_restart(unsigned int env[6]) {\n"
+                "  int (*saved)(unsigned int env[6]) = seed_restart;\n"
+                "  return saved(env);\n"
+                "}\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+            rejected_output.write_bytes(b"sentinel")
+            frozen = freeze_seed_inputs(SEED_MANIFEST, root / "seed")
+            runner = ToolRunner(REPO_ROOT)
+            images = []
+            for index in range(2):
+                output = root / f"returns-twice-{index}.o"
+                compiled = runner.run(
+                    frozen.tools["cupidc"],
+                    [
+                        "--root",
+                        REPO_ROOT,
+                        "--gnu",
+                        "--freestanding",
+                        "-c",
+                        "/" + source.relative_to(REPO_ROOT).as_posix(),
+                        "-o",
+                        "/" + output.relative_to(REPO_ROOT).as_posix(),
+                    ],
+                    180,
+                )
+                self.assertEqual(compiled.returncode, 0, compiled.stderr)
+                self.assertEqual(compiled.stdout, "")
+                self.assertEqual(compiled.stderr, "")
+                images.append(output.read_bytes())
+
+            self.assertEqual(images[0], images[1])
+            self.assertEqual(
+                (len(images[0]), hashlib.sha256(images[0]).hexdigest()),
+                (
+                    500,
+                    "992a554a6fe0d23cba3f33c0faedcf44004c635a75924e3c61847fd1d2540fb8",
+                ),
+            )
+
+            rejected = runner.run(
+                frozen.tools["cupidc"],
+                [
+                    "--root",
+                    REPO_ROOT,
+                    "--gnu",
+                    "--freestanding",
+                    "-c",
+                    "/"
+                    + rejected_source.relative_to(REPO_ROOT).as_posix(),
+                    "-o",
+                    "/"
+                    + rejected_output.relative_to(REPO_ROOT).as_posix(),
+                ],
+                180,
+            )
+            self.assertEqual(rejected.returncode, 1)
+            self.assertEqual(rejected.stdout, "")
+            self.assertIn(
+                "CupidC requires returns_twice functions to be called "
+                "directly instead of converted to a function pointer",
+                rejected.stderr,
+            )
+            self.assertEqual(rejected_output.read_bytes(), b"sentinel")
 
     def test_checked_seed_compiles_links_and_runs_floating_truth(self):
         if os.name == "nt" and shutil.which("wsl") is None:
@@ -2273,7 +2361,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(report["status"], "pass")
             self.assertEqual(
                 report["seed_source_revision"],
-                "efec9c5f89358999a067a4a7c923d06d814d1639",
+                "b1106c28abc5a3905655a4b6df9d40737fb88c36",
             )
             self.assertNotIn("source_revision", report)
             self.assertEqual(
@@ -2309,7 +2397,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 },
             )
             promoted_seed_snapshot = (
-                "6ad00c61fa66a3ad713fe197fc1115fbc1f6cdac2944f75ef162a723203ba0d9"
+                "65d13673bd8787eff4bd78dc601a30a5126cf8a6c26a0c3d99661b0f32913c98"
             )
             self.assertEqual(
                 report["source_snapshot_sha256"], promoted_seed_snapshot

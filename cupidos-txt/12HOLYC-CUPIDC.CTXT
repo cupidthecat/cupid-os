@@ -129,7 +129,7 @@ a legacy .c file or an unlisted .cc file also fails. Four-CPU e1000 and RTL8139
 boots pass the no-WAD, missing-IWAD recovery, shell-survival, and full frontier
 checks. Gameplay still needs a staged WAD.
 
-Shared compiler head represents the GNU returns_twice function attribute. A
+Checked-seed CupidC represents the GNU returns_twice function attribute. A
 marked function must remain a direct call target. Supported calls use four-byte
 cdecl arguments and may return void or any nonaggregate type. A live-prefix
 call protects its surrounding expression with call-owned frame slots, then
@@ -141,9 +141,10 @@ results, and marked-function pointer conversions fail explicitly.
 The corrected dg_setjmp form records the caller stack after a normal return.
 Its declaration uses returns_twice, while dg_longjmp uses noreturn. A
 decoder-driven i386 oracle models first and second returns, but it is not guest
-runtime proof. The active dglibc source and checked seed still use the
-unannotated 27-byte compatibility form; dg_longjmp remains 38 bytes. Seed
-promotion, active-source migration, and guest runtime proof remain open.
+runtime proof. Active dglibc still uses the unannotated 27-byte compatibility
+form; dg_longjmp remains 38 bytes. The checked seed carries the corrected
+compiler boundary. Active-source migration and guest runtime proof remain
+open.
 >endtree
 
 >h2 Feature 5: Print Builtin

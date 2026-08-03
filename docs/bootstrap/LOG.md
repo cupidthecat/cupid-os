@@ -19401,3 +19401,85 @@ source-like files.
 No normal build owner or host dependency changes. Seed promotion,
 active-source migration, and guest runtime proof remain open. ADR 0212 records
 the boundary. `TempleOS/` remains untouched reference material.
+
+## 2026-08-02: Promote returns-twice support into the checked seed
+
+The returns-twice capability revision is pushed as
+`b1106c28abc5a3905655a4b6df9d40737fb88c36`. The promotion publishes all five
+stage-three Toolchain images as one checked cohort:
+
+| Tool | Bytes | SHA-256 |
+| --- | ---: | --- |
+| CupidASM | 445,616 | `267d5ce820aac6bdfdb418552c3c144f8eac30e8589d8f53bd52055c3adca12d` |
+| CupidC | 2,574,032 | `8d810739494123a3da1cba34f75f58c005e8796f2cb4e85ba57eead1578a1f4d` |
+| CupidDis | 379,648 | `1ceeec3e65423f11a3b937dee355191ca0769cbfc4a374505f2aacf85db56ec8` |
+| CupidLD | 266,672 | `2bdb6ce6b04678bb89c6bb4f7afac7e152ce6c4a07c4e14e1b3aee0c899008ec` |
+| CupidObj | 253,724 | `f78752dc01daf3d2a9dc9265425f9c60639f438d5dcb91a001cf40d7d241ded5` |
+
+Only CupidC changes. The preceding compiler was 2,561,644 bytes with SHA-256
+`a4dff3c1c8ae975e9b8278920d36aefe6ad9b28a52503a6d5d4253e04e4a21af`.
+The other four images keep their prior sizes and hashes. The new 5,440-byte
+manifest has SHA-256
+`40ebc0e976eef3ddd4b79aab83407b1131a288414247e5d6eff6bce88cde06bc`.
+
+The transition froze 41 inputs with SHA-256
+`65d13673bd8787eff4bd78dc601a30a5126cf8a6c26a0c3d99661b0f32913c98`.
+Stage two and stage three matched all 19 C objects, the startup object, and all
+five linked tools. Both stages passed five help cases, ten successful
+operations, and six useful failures. Against the preceding seed, only CupidC
+differed from stage two. The other four old seed images already matched it. The
+15,054-byte transition report has SHA-256
+`31d413aa425b70320c4b5eb7fe511cd3e2f1fd70f064ffb301bbefe730da8811`.
+
+The first transition used a launcher with a five-second timeout. The launcher
+returned before the bootstrap finished, so the process continued detached.
+It completed every gate and published the transition directory. A monitored
+duplicate repeated the complete run, then refused to overwrite that directory
+as required by the publisher.
+
+The post-promotion reproof completed in 696.4 seconds. All five promoted seed
+images matched stage two, and the same source snapshot, object comparisons,
+tool comparisons, and behavior matrix passed again. Its 15,053-byte report has
+SHA-256
+`e885ace7994f8276a52107ba77d02ecabab3593f919694d3b148f1e7c77bb6d1`.
+
+The focused carriage test first confirmed that the preceding seed stops at its
+unsupported GNU attribute diagnostic. The promoted seed passed the test in
+1.269 seconds. Two compiles produced the same 500-byte object with SHA-256
+`992a554a6fe0d23cba3f33c0faedcf44004c635a75924e3c61847fd1d2540fb8`.
+The negative case rejected conversion of a marked function to a pointer and
+left the existing sentinel output unchanged.
+
+The complete checked-seed module passed all 39 tests in 791.687 seconds. It
+repeated the poisoned-host fixed point and covered the existing production
+carriage, checked commands, input freezing, tamper rejection, and atomic
+publication boundaries alongside the new returns-twice case.
+
+The promoted seed rebuilt the normal 20-artifact Toolchain contract cohort
+with host compiler and linker commands poisoned. It passed in 3,102.5 seconds:
+stage-two and stage-three objects and executables matched, the hosted runtime
+passed, live inputs still matched their frozen copies, and the published
+cohort verified. The
+18,231-byte manifest covers 45 inputs and has SHA-256
+`6aba176b437bbd7fa9a4f6b3cbc6dd0000875b216f8bae22c9b571f01f66858f`.
+
+The regenerated active graph still contains 717 inputs, 449 transforms, 254
+feature requirements, and 25 classified unreachable files. Its active-source
+digest is
+`5daf197a8bd5d1cdd8d78233daf264db92ef809b48c451c4e89b000ba32ccda9`.
+The 2,547,062-byte JSON has SHA-256
+`93d98153a6bde55787b8eb9840a13a7b25519eb93085d3a71148fe0328c597a9`,
+and the 12,136-byte summary has SHA-256
+`f81c6ce5c88e263040b4872658c022ebbf0f4dc15cbb33e7f9d57711bcd7a3fb`.
+The read-only audit check passes.
+
+The first complete graph-module run stopped at one stale lexical lock. The
+returns-twice contract added 46 `sizeof` tokens without changing the 168-file
+inventory, so the exact total moved from 5,413 to 5,459. The corrected module
+passed all 68 tests in 623.502 seconds.
+
+This promotion changes compiler capability only. Active
+`kernel/doom/dglibc.cc` remains on the unannotated compatibility form, so the
+27-byte `dg_setjmp` and 38-byte `dg_longjmp` production bodies do not change.
+Active-source migration and guest runtime proof remain separate work. No
+normal build owner or host dependency changes. ADR 0213 records the promotion.

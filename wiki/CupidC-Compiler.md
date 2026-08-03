@@ -273,8 +273,8 @@ used by larger examples and demos:
 - attributes: the private in-OS compiler accepts compatibility spellings; the
   shared bootstrap compiler gives `weak`, `section`, `unused`, and `used`
   canonical declaration meaning, and the current checked seed carries all
-  four into production. Compiler head gives `returns_twice` a direct-call
-  control-flow meaning; the checked seed does not carry that attribute yet
+  four into production. The checked seed also gives `returns_twice` a
+  direct-call control-flow meaning
 - labels and `goto` for simple local control-flow cases
 
 Most of these are compatibility front-end features, not a promise of
@@ -476,7 +476,7 @@ direct-call `R_386_PC32` relocations remain fixed at -4. Private four-CPU
 boots pass the full frontier, no-WAD, missing-IWAD recovery, and shell-survival
 checks on e1000 and RTL8139. Full IWAD gameplay remains a runtime boundary.
 
-Compiler head accepts a corrected dglibc form while retaining the active
+Checked-seed CupidC accepts a corrected dglibc form while retaining the active
 compatibility form. The corrected `dg_setjmp` saves the caller's post-return
 ESP and is declared `returns_twice`; `dg_longjmp` is declared `noreturn`.
 
@@ -490,39 +490,42 @@ Aggregate, wide-integer, and wider-than-four-byte floating arguments,
 aggregate results, and marked-function pointer conversions fail explicitly.
 
 A decoder-driven i386 oracle models first and second returns with transfer
-values zero and seven. It is not guest runtime proof. The checked seed and
-active `kernel/doom/dglibc.cc` still use the compatibility form. ADR 0212
-records the boundary.
+values zero and seven. It is not guest runtime proof. Active
+`kernel/doom/dglibc.cc` still uses the compatibility form. ADR 0212 records the
+compiler boundary, and ADR 0213 records its checked-seed promotion.
 
 The five static i386 Linux tools have a checked seed. The manifest binds their
 hashes, sizes, target ABI, source revision, producer lineage, 19-source plan,
-and five link orders. The current CupidC image is the 2,561,644-byte
+and five link orders. The current CupidC image is the 2,574,032-byte
 stage-three output from revision
-`efec9c5f89358999a067a4a7c923d06d814d1639`, with SHA-256
-`a4dff3c1c8ae975e9b8278920d36aefe6ad9b28a52503a6d5d4253e04e4a21af`.
+`b1106c28abc5a3905655a4b6df9d40737fb88c36`, with SHA-256
+`8d810739494123a3da1cba34f75f58c005e8796f2cb4e85ba57eead1578a1f4d`.
 It retains the complete 83-root Doom frontier, GNU entity metadata, x87 and
 SSE forms, descriptor and segment assembly, the `libm.cc` effects, the dglibc
 jump block, pointer-preserving static address casts, naked IPI entries, the
 kernel-entry BSS clear, and packed SSE2 statements. It also carries runtime
-floating truth. The same seed carries the 592-row x86 catalogue with forward
-x87 stack subtraction and typed
+floating truth and the returns-twice call boundary. The same seed carries the
+592-row x86 catalogue with forward x87 stack subtraction and typed
 CupidDis raw ranges. Its 253,724-byte CupidObj image has SHA-256
 `f78752dc01daf3d2a9dc9265425f9c60639f438d5dcb91a001cf40d7d241ded5`
 and carries the complete installation-source bounds, ordering, and
 wrapped-symbol contract. Its plan uses `.cc` for all 19 C roots and has
 SHA-256
 `59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`.
-ADR 0208 records the current promotion.
+The 5,440-byte manifest has SHA-256
+`40ebc0e976eef3ddd4b79aab83407b1131a288414247e5d6eff6bce88cde06bc`.
+ADR 0213 records the current promotion.
 
 The bootstrap copies the 41-input source closure into a private compiler root.
 Both rebuilt stages compile from that root, and the harness checks the private
 and live closures at each stage and behavior boundary. The latest transition's
 stage two and stage three contain the same five tool images; only the preceding
-CupidObj image differs from stage two. A post-promotion reproof then reproduced
-all five checked seed images at stage two. The two rebuilt stages also match
-every C and startup object and agree on all five help paths, ten successful
-operations, and six failure cases. Their stage directories, behavior evidence,
-and report are published together only after the complete gate passes.
+CupidC image differs from stage two. A 696.4-second post-promotion reproof then
+reproduced all five checked seed images at stage two. The two rebuilt stages
+also match every C and startup object and agree on all five help paths, ten
+successful operations, and six failure cases. Their stage directories,
+behavior evidence, and report are published together only after the complete
+gate passes.
 
 The normal Toolchain build snapshots 45 contract inputs, including the
 Toolchain Makefile and both Python control modules, reproduces that exact
@@ -531,9 +534,11 @@ contract programs and the runtime probe. It compares sixteen new objects and
 fifteen linked executables. Every invocation verifies its named artifact, the
 complete cohort, both source inventories, and the checked seed manifest. The
 seed manifest is captured once for its digest, decoded data, schema checks, and
-build plan. The current gate passed in 2,863.8 seconds, and its 18,231-byte
+build plan. The current gate passed in 3,102.5 seconds. Stage-two and
+stage-three objects and executables match, the hosted runtime passes, and all
+20 published artifacts verify. Its 18,231-byte
 manifest has SHA-256
-`27bcebb78404c8013bc56a3e2a0b9d7400cbfa040053863ed55d0d3131baaf33`.
+`6aba176b437bbd7fa9a4f6b3cbc6dd0000875b216f8bae22c9b571f01f66858f`.
 See [Toolchain Bootstrap](Toolchain-Bootstrap) for the commands and report
 layout. Native contract runners and hosted development commands are explicit
 host-built oracles; normal OS and Toolchain artifacts do not depend on them.

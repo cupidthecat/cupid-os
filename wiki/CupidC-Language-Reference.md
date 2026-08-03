@@ -103,9 +103,9 @@ conversions other than `_Bool`, SIMD, and atomic floating access remain
 unsupported. The in-kernel compiler has a separate, broader floating
 and SIMD implementation.
 
-## Compiler-head returns-twice calls
+## Checked-seed returns-twice calls
 
-Compiler-head CupidC recognizes GNU `returns_twice` and
+Checked-seed CupidC recognizes GNU `returns_twice` and
 `__returns_twice__` on file-scope function declarations. Compatible
 redeclared prototypes keep the property on one canonical function binding. A
 marked function must remain a direct call target. CupidC rejects conversion of
@@ -127,7 +127,8 @@ loop.
 
 A decoder-driven i386 oracle models first and second returns with transfer
 values zero and seven. This is hosted model evidence, not guest runtime proof.
-The checked seed and active dglibc source still use the compatibility form.
+Active dglibc still uses the compatibility form. ADR 0213 records checked-seed
+carriage of the compiler boundary.
 
 ## Hosted static initializer references
 

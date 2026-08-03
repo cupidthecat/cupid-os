@@ -255,53 +255,68 @@ the ABI in x87 `ST0`, then a direct or indirect caller stores it in a private
 twelve-byte snapshot. A corresponding `va_arg(long double)` read copies twelve
 bytes and advances the cursor to the next four-byte slot.
 
-The verified hosted suites cover the complete frontend, Linear IR, and object surfaces, with each final count recorded in the chronological log. Focused contracts cover direct and indirect variadic and unprototyped calls, source-head `returns_twice` call preservation, wide and floating values, all six floating comparisons, one-active-member union initializers, canonical function code generation attributes, Doom compatibility conversions, operand-bearing and operand-free assembly, empty memory barriers, pointer output, port I/O, privileged registers, FXSAVE, LDMXCSR, MOVSS, x87 sine memory, descriptor-table and segment transitions, call-next, GNU `Nd`, machine-state memory, the self-host source frontier, deterministic output, malformed metadata, constrained storage, and same-job recovery. Decoder and execution oracles check call alignment, x87 and cdecl stack balance, word order, arithmetic, width conversion, comparisons, structure snapshots, pointer bits, register preservation, cursor movement, preserved arguments, and restored frame state. The adapter gate fixes each function count, text size, object size, and text fingerprint. The tool link gate emits every closure object twice, repeats five command links and the runtime-contract link, and checks rollback and recovery. Public execution covers compilation, assembly, disassembly, linking, object wrapping, include resolution, mixed raw decode modes, missing files, runtime success paths, and useful failures.
+The verified hosted suites cover the complete frontend, Linear IR, and object surfaces, with each final count recorded in the chronological log. Focused contracts cover direct and indirect variadic and unprototyped calls, checked-seed `returns_twice` call preservation, wide and floating values, all six floating comparisons, one-active-member union initializers, canonical function code generation attributes, Doom compatibility conversions, operand-bearing and operand-free assembly, empty memory barriers, pointer output, port I/O, privileged registers, FXSAVE, LDMXCSR, MOVSS, x87 sine memory, descriptor-table and segment transitions, call-next, GNU `Nd`, machine-state memory, the self-host source frontier, deterministic output, malformed metadata, constrained storage, and same-job recovery. Decoder and execution oracles check call alignment, x87 and cdecl stack balance, word order, arithmetic, width conversion, comparisons, structure snapshots, pointer bits, register preservation, cursor movement, preserved arguments, and restored frame state. The adapter gate fixes each function count, text size, object size, and text fingerprint. The tool link gate emits every closure object twice, repeats five command links and the runtime-contract link, and checks rollback and recovery. Public execution covers compilation, assembly, disassembly, linking, object wrapping, include resolution, mixed raw decode modes, missing files, runtime success paths, and useful failures.
 
 The i386 Linux adapter objects are `ctool_host.cc` at 11 functions, 5,522 text bytes, 6,944 object bytes, fingerprint `28739C3F`, 25 symbols, and 38 relocations; `cupidasm_main.cc` at 13 functions, 9,455 text bytes, 12,384 object bytes, fingerprint `561BBC22`, 56 symbols, and 88 relocations; and `cupiddis_main.cc` at 13 functions, 13,816 text bytes, 17,420 object bytes, fingerprint `E33C130C`, 67 symbols, and 106 relocations. Their exact undefined import counts are 10, 31, and 31. Every relocation targets `.text` and has the checked `R_386_PC32/-4` or `R_386_32/0` shape. An independent `gcc -m32 -nostdinc` syntax pass accepts all three unchanged sources against the declarations.
 
 The `ctool_host.cc` tracer applies 45 relocations, resolves 24 symbols, and leaves no undefined symbol in its static executable. Omitting the errno provider produces the exact CupidLD undefined-symbol failure with empty output and a zero result. The same job then links the original bytes again. Linux and WSL hosts with static i386 support run the tracer with exit status zero.
 
-The current checked artifacts are CupidASM at 445,616 bytes, CupidDis at 379,648 bytes, CupidLD at 266,672 bytes, CupidObj at 253,724 bytes, and CupidC at 2,561,644 bytes. Verification checks every hash, size, static ELF property, target ABI, producer lineage, source revision, and build-plan field before execution. The 19-source plan uses `.cc` throughout and has SHA-256 `59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`. Native GCC and Clang recipes select C with `-x c`.
+The current checked artifacts are CupidASM at 445,616 bytes, CupidDis at 379,648 bytes, CupidLD at 266,672 bytes, CupidObj at 253,724 bytes, and CupidC at 2,574,032 bytes. Verification checks every hash, size, static ELF property, target ABI, producer lineage, source revision, and build-plan field before execution. The 5,440-byte manifest has SHA-256 `40ebc0e976eef3ddd4b79aab83407b1131a288414247e5d6eff6bce88cde06bc`. The 19-source plan uses `.cc` throughout and has SHA-256 `59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`. Native GCC and Clang recipes select C with `-x c`.
 
 The promotion transition completes that plan through stage two and stage
 three. All 19 C object pairs, the startup objects, and all five tool images
 match byte for byte with host code-generator commands poisoned. Every
-stage-two image matches stage three. CupidASM, CupidC, and CupidDis differ
-from the preceding seed, while CupidLD and CupidObj remain byte-identical.
-Both stages
-agree on five help paths, ten successful operations, and six useful failures
-across compilation, assembly, disassembly, symbol inspection, linking,
-wrapping, and flattening. The 2,561,644-byte CupidC image carries the complete
-83-root Doom frontier,
+stage-two image matches stage three. Only the preceding CupidC image differs
+from stage two; the other four seed images are byte-identical to the preceding
+seed. Both stages agree on five help paths, ten successful operations, and
+six useful failures. They cover compilation, assembly, disassembly, symbol
+inspection, linking, wrapping, and flattening. The frozen 41-input snapshot
+has SHA-256
+`65d13673bd8787eff4bd78dc601a30a5126cf8a6c26a0c3d99661b0f32913c98`.
+The 15,054-byte transition report has SHA-256
+`31d413aa425b70320c4b5eb7fe511cd3e2f1fd70f064ffb301bbefe730da8811`.
+
+The 2,574,032-byte CupidC image carries the complete 83-root Doom frontier,
 current GNU entity metadata, x87 and SSE forms, descriptor and segment
 assembly, exact naked IPI entries, all file-scope effects in `libm.cc`, the
 exact dglibc jump block, pointer-preserving static address casts, the
 kernel-entry BSS clear with a nonzero page-aligned stack top, packed SSE2
-statements, explicit `double` to `unsigned long long` conversion, and runtime
-floating truth. Its
-SHA-256 is
-`a4dff3c1c8ae975e9b8278920d36aefe6ad9b28a52503a6d5d4253e04e4a21af`,
+statements, explicit `double` to `unsigned long long` conversion, runtime
+floating truth, and the returns-twice direct-call boundary. Its SHA-256 is
+`8d810739494123a3da1cba34f75f58c005e8796f2cb4e85ba57eead1578a1f4d`,
 and its source revision is
-`efec9c5f89358999a067a4a7c923d06d814d1639`. CupidASM and CupidDis carry the
-592-row shared x86 catalogue with forward stack subtraction. CupidDis carries
-typed raw code and data ranges,
-and the 253,724-byte CupidObj image carries the complete installation-source
-bounds, ordering, and linked-symbol contract. Its SHA-256 is
+`b1106c28abc5a3905655a4b6df9d40737fb88c36`. CupidASM and CupidDis retain the
+592-row shared x86 catalogue with forward stack subtraction. CupidDis retains
+typed raw code and data ranges, and the 253,724-byte CupidObj image retains the
+complete installation-source bounds, ordering, and linked-symbol contract.
+Its SHA-256 is
 `f78752dc01daf3d2a9dc9265425f9c60639f438d5dcb91a001cf40d7d241ded5`.
-[ADR 0208](../adr/0208-promote-forward-x87-subtraction.md) records the
-current transition and promotion. The post-promotion rebuild reproduced all
-five checked seed images at stage two and repeated the complete fixed point in
-652.3 seconds. Its 15,053-byte report has SHA-256
-`c8f52bb27b1be7a4e0a29c0353642d9ef13589013c39df839088da031473d810`.
-The complete checked-seed module passes all 38 tests in 712.167 seconds.
+[ADR 0213](../adr/0213-promote-returns-twice-capable-toolchain-seed.md)
+records the current transition and promotion.
+
+The post-promotion rebuild reproduced all five checked seed images at stage
+two and repeated the complete fixed point in 696.4 seconds. It used the same
+source snapshot, comparisons, and behavior matrix. Its 15,053-byte report has
+SHA-256
+`e885ace7994f8276a52107ba77d02ecabab3593f919694d3b148f1e7c77bb6d1`.
+A focused checked-seed test compiles a marked call twice to the same 500-byte
+object with SHA-256
+`992a554a6fe0d23cba3f33c0faedcf44004c635a75924e3c61847fd1d2540fb8`.
+It also rejects a marked-function pointer conversion without replacing an
+existing output. The focused test passes in 1.269 seconds.
+The complete checked-seed module passes all 39 tests in 791.687 seconds,
+including another poisoned-host fixed point and the existing production,
+tamper, source-drift, and publication checks.
+
 `make verify-bootstrap-seed` checks the current inputs without running them.
 `make bootstrap-from-seed` performs the complete staged build, while
 `make test-toolchain-fixed-point` retains the native-generation oracle.
 `make -C toolchain all` builds the checked i386 contract cohort without a
-host C compiler. The complete 20-artifact cohort passes in 2,863.8 seconds,
-with stage two and stage three matching byte for byte. Its 18,231-byte
+host C compiler. The complete 20-artifact cohort passes in 3,102.5 seconds.
+Stage-two and stage-three objects and executables match, the hosted runtime
+passes, and the published cohort verifies. Its 18,231-byte
 manifest covers 45 inputs and has SHA-256
-`27bcebb78404c8013bc56a3e2a0b9d7400cbfa040053863ed55d0d3131baaf33`.
+`6aba176b437bbd7fa9a4f6b3cbc6dd0000875b216f8bae22c9b571f01f66858f`.
 GCC or Clang is used only by the explicit `native-oracles` and hosted
 development targets.
 ADR 0184 moves the 83 Doom roots out of host ownership.
@@ -434,8 +449,8 @@ the pre-transfer files and the oracle exactly:
 
 The private five-tool bootstrap reached a fixed point with the 253,724-byte
 CupidObj image. ADR 0201 records the operation, ADR 0204 records production
-ownership, ADR 0206 records the linked-symbol contract, and ADR 0208 records
-the current seed.
+ownership, and ADR 0206 records the linked-symbol contract. ADR 0208 records
+the earlier x87 seed carriage, and ADR 0213 records the current seed.
 
 The active-source audit classifies all three recipes as
 `generate_install_source` with `cupid_object` and `host_python`. Its exact
@@ -771,10 +786,10 @@ libc-stub, and 10,232-byte platform objects on two runs. ADR 0183 records the
 five-tool seed promotion. ADR 0184 moves all 83 normal recipes and source
 names to CupidC and `.cc`.
 
-Compiler head accepts both the compatibility form and a corrected form. GNU
-`returns_twice` is canonical function metadata and must remain on a direct
-call target. Supported calls use four-byte cdecl arguments and may
-return void or any nonaggregate type. Each live-prefix call copies the
+Checked-seed CupidC accepts both the compatibility form and a corrected form.
+GNU `returns_twice` is canonical function metadata and must remain on a direct
+call target. Supported calls use four-byte cdecl arguments and may return void
+or any nonaggregate type. Each live-prefix call copies the
 four-byte operands below its arguments into a region owned by that instruction,
 then restores them after cdecl cleanup. A live-prefix site fails if any
 returns-twice continuation can reach it again; a call with no live prefix may
@@ -784,10 +799,11 @@ aggregate results, and marked-function pointer conversions fail explicitly.
 The corrected `dg_setjmp` body saves `ESP + 4`, occupies 31 bytes, and requires
 `returns_twice`; its matching `dg_longjmp` declaration requires `noreturn`. A
 decoder-driven i386 oracle models first and second returns with transfer values
-zero and seven, but it is not guest runtime proof. The checked seed and active
-`kernel/doom/dglibc.cc` still use the unannotated 27-byte compatibility form;
-`dg_longjmp` remains 38 bytes. Seed promotion, active-source migration, and
-guest runtime proof remain open. ADR 0212 records this compiler boundary.
+zero and seven, but it is not guest runtime proof. Active
+`kernel/doom/dglibc.cc` still uses the unannotated 27-byte compatibility form;
+`dg_longjmp` remains 38 bytes. Active-source migration and guest runtime proof
+remain open. ADR 0212 records the compiler boundary, and ADR 0213 records its
+checked-seed promotion.
 
 The Doom production wrapper has exact three-source and 80-source allowlists.
 It freezes the selected source and all 289 `.h` and `.inc` inputs visible
@@ -867,11 +883,11 @@ inventory covers 686 files and 2,392 include occurrences, split into 2,158
 quoted and 234 angle forms.
 
 The active-source digest is
-`0b982fc826a30b89bb9c9e641000d170ddb54aa1b0f152571a4abcd1d5731313`.
+`5daf197a8bd5d1cdd8d78233daf264db92ef809b48c451c4e89b000ba32ccda9`.
 The 2,547,062-byte audit JSON has SHA-256
-`e00e52cc4fd467e3694b5f6e6b5515e196636aa4466b41f4a2544a6ea38e07be`,
+`93d98153a6bde55787b8eb9840a13a7b25519eb93085d3a71148fe0328c597a9`,
 and the 12,136-byte summary has SHA-256
-`83e26bfbf811a1d44739325340a79e78706576191ce9ee669e870dc37a93e8ea`.
+`f81c6ce5c88e263040b4872658c022ebbf0f4dc15cbb33e7f9d57711bcd7a3fb`.
 
 Across the three supported roots, CupidC participates in 245 transforms and
 CupidObj participates in 185 transforms. Python participates in all 449

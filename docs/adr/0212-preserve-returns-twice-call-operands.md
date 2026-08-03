@@ -112,6 +112,10 @@ native source-head CupidC and Cupid-built source-head CupidC, requires their
 outputs to match, and checks the same locks. The exact-profile test passed, so
 the compiler change has not altered a production object before seed promotion.
 
+ADR 0213 promotes this compiler boundary into the checked seed. Its focused
+carriage test emits the same 500-byte returns-twice object twice and rejects a
+marked-function pointer conversion without replacing an existing output.
+
 ## Rejected alternatives
 
 Rewriting the dglibc self-test so the assignment address was not live across
@@ -131,9 +135,9 @@ return. Recording that state directly keeps the frame contract local to
 
 Compiler head preserves represented call expressions across the supported
 direct returns-twice boundary. The decoder-driven oracle covers the modeled
-second return, but it is not guest runtime proof. The checked seed and active
-dglibc source still use the compatibility form. Seed promotion,
-active-source migration, and guest runtime proof remain open.
+second return, but it is not guest runtime proof. The checked seed now carries
+the compiler boundary. Active dglibc still uses the compatibility form, so
+active-source migration and guest runtime proof remain open.
 
 Function pointers do not carry this declaration property, so CupidC rejects
 conversion of a marked function to a pointer. Live-prefix reentry, aggregate

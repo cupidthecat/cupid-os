@@ -116,23 +116,26 @@ current GNU entity metadata, the active x87 and SSE memory forms, descriptor
 and segment assembly, every represented assembly effect in `libm.cc`, the exact
 dglibc jump block, pointer-preserving static address casts, explicit `double`
 to `unsigned long long` conversion, exact naked IPI entries, and runtime
-floating truth. Its stage-three CupidC image is 2,561,644 bytes with SHA-256
-`a4dff3c1c8ae975e9b8278920d36aefe6ad9b28a52503a6d5d4253e04e4a21af`.
-It came from revision `efec9c5f89358999a067a4a7c923d06d814d1639`. It also
-carries the kernel-entry BSS clear with a nonzero page-aligned stack top and
-all packed SSE2 statements in the active SIMD source. CupidASM and CupidDis
-carry the 592-row shared x86 catalogue with forward stack subtraction.
+floating truth. Its stage-three CupidC image is 2,574,032 bytes with SHA-256
+`8d810739494123a3da1cba34f75f58c005e8796f2cb4e85ba57eead1578a1f4d`.
+It came from revision `b1106c28abc5a3905655a4b6df9d40737fb88c36`. It also
+carries the returns-twice direct-call boundary, the kernel-entry BSS clear
+with a nonzero page-aligned stack top, and all packed SSE2 statements in the
+active SIMD source. CupidASM and CupidDis retain the 592-row shared x86
+catalogue with forward stack subtraction.
 CupidDis carries typed raw code and
 data ranges, and CupidObj carries installation-source generation. Its
 253,724-byte CupidObj image has SHA-256
 `f78752dc01daf3d2a9dc9265425f9c60639f438d5dcb91a001cf40d7d241ded5`.
 In the latest transition, all 19 C objects, startup, and five tool images
 matched between stage two and stage three. Both stages passed five help cases,
-ten successful operations, and six useful failures. CupidASM, CupidC, and
-CupidDis changed from the preceding seed; CupidLD and CupidObj stayed
-byte-identical. A post-promotion rebuild then reproduced all five checked seed
-images at stage two and repeated the complete fixed point. ADR 0208 records
-the promotion and both proofs.
+ten successful operations, and six useful failures. Only CupidC changed from
+the preceding seed; the other four tools stayed byte-identical. The 5,440-byte
+manifest has SHA-256
+`40ebc0e976eef3ddd4b79aab83407b1131a288414247e5d6eff6bce88cde06bc`.
+A post-promotion rebuild reproduced all five checked seed images at stage two
+and repeated the complete fixed point in 696.4 seconds. ADR 0213 records the
+promotion and both proofs.
 
 The refreshed seed represents operand-free GNU assembly statements inside
 functions and emits exact PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT
@@ -326,7 +329,7 @@ drift, a symbolic link, or an NTFS junction fails closed. The 51,492-byte
 `g_game.cc` object keeps two `R_386_32` relocations
 with addend 4. Full IWAD gameplay remains a separate runtime gate.
 
-Compiler head represents GNU `returns_twice` on file-scope function
+Checked-seed CupidC represents GNU `returns_twice` on file-scope function
 declarations. Marked functions must remain direct call targets. Supported
 calls use four-byte cdecl arguments and may return void or any nonaggregate
 type. The emitter preserves live four-byte expression operands in call-owned
@@ -338,10 +341,10 @@ and marked-function pointer conversions fail explicitly.
 The corrected dglibc template saves the post-return ESP and requires
 `returns_twice` on `dg_setjmp` and `noreturn` on `dg_longjmp`. A decoder-driven
 i386 oracle models first and second returns, but it is not guest runtime proof.
-The checked seed and active `kernel/doom/dglibc.cc` still use the compatibility
-template. This boundary changes no production owner or host dependency. Seed
-promotion, active-source migration, and guest runtime proof remain open. ADR
-0212 records the decision.
+Active `kernel/doom/dglibc.cc` still uses the compatibility template. The seed
+promotion changes no production owner or host dependency. Active-source
+migration and guest runtime proof remain open. ADR 0212 records the compiler
+boundary, and ADR 0213 records its promotion.
 
 The checked seed resolves the C11 inline declaration set in
 `kernel/audio/nuked_opl3.cc`. The ordinary declaration in its header means
@@ -394,8 +397,8 @@ command reproduced all three live tables twice with exact Python-oracle
 parity. The normal Make recipes now run that checked command for all three
 outputs. `tools/hostbuild.py` is no longer a prerequisite or recipe owner for
 them, but it remains the parity oracle. ADR 0204 records the transfer, ADR
-0206 records the linked-symbol contract, and ADR 0208 records the current
-seed.
+0206 records the linked-symbol contract, and ADR 0208 records the earlier x87
+seed carriage. ADR 0213 records the current seed.
 The checked seed, source head, and Python oracle also compare the full wrapped
 symbol name for every typed entry. Distinct paths that collapse to one symbol
 fail before publication. The exact same BMP may remain in both the docs and
@@ -609,9 +612,11 @@ every host. Direct Linux builds test the separate Linux execution branch.
 
 The latest local normal build includes the transferred Toolchain work and
 current CupidObj collision checks. The complete Toolchain target passed in
-2,863.8 seconds. Its two stages matched 19 C objects, startup, and five tools.
+3,102.5 seconds. Its two stages matched sixteen objects and fifteen linked
+executables, the hosted runtime passed, and all 20 published artifacts
+verified.
 The 18,231-byte contract manifest covers 45 inputs and has SHA-256
-`27bcebb78404c8013bc56a3e2a0b9d7400cbfa040053863ed55d0d3131baaf33`.
+`6aba176b437bbd7fa9a4f6b3cbc6dd0000875b216f8bae22c9b571f01f66858f`.
 
 The normal root build passed in 1,452.910 seconds. Its 8,719,780-byte final ELF
 has SHA-256
