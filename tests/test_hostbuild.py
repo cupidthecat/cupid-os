@@ -1108,7 +1108,7 @@ class HostBuildIsoTests(unittest.TestCase):
 
 
 class HostBuildSymbolTests(unittest.TestCase):
-    def test_mksyms_runs_checked_cupiddis_from_the_seed(self):
+    def test_mksyms_runs_checked_cupiddis_then_cupidobj_from_the_seed(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             manifest = root / "manifest.json"
@@ -1117,6 +1117,12 @@ class HostBuildSymbolTests(unittest.TestCase):
             manifest.write_bytes(b"checked manifest")
             elf.write_bytes(b"pass-one ELF")
             calls = []
+            symbol_text = "00001000 T first\n00002000 T second\n"
+            expected = hostbuild._render_ksyms_source(
+                hostbuild.build_ksyms_blob(
+                    hostbuild._parse_nm_symbols(symbol_text)
+                )
+            )
 
             def run_seed(
                 manifest_path,
@@ -1135,18 +1141,30 @@ class HostBuildSymbolTests(unittest.TestCase):
                         timeout,
                     )
                 )
-                self.assertEqual(tool_name, "cupiddis")
-                self.assertEqual(arguments[0], "-n")
-                self.assertNotEqual(Path(arguments[1]), elf)
+                if tool_name == "cupiddis":
+                    self.assertEqual(arguments[0], "-n")
+                    self.assertNotEqual(Path(arguments[1]), elf)
+                    self.assertEqual(
+                        Path(arguments[1]).read_bytes(),
+                        elf.read_bytes(),
+                    )
+                    return subprocess.CompletedProcess(
+                        ["cupiddis", *arguments],
+                        0,
+                        symbol_text,
+                        "",
+                    )
+                self.assertEqual(tool_name, "cupidobj")
+                self.assertEqual(arguments[0], "ksyms-source")
                 self.assertEqual(
                     Path(arguments[1]).read_bytes(),
-                    elf.read_bytes(),
+                    symbol_text.encode("utf-8"),
                 )
+                self.assertEqual(arguments[2], "-o")
+                self.assertNotEqual(Path(arguments[3]), output)
+                Path(arguments[3]).write_bytes(expected)
                 return subprocess.CompletedProcess(
-                    ["cupiddis", *arguments],
-                    0,
-                    "00001000 T first\n00002000 T second\n",
-                    "",
+                    ["cupidobj", *arguments], 0, "", ""
                 )
 
             with mock.patch(
@@ -1165,8 +1183,176 @@ class HostBuildSymbolTests(unittest.TestCase):
                 )
 
             self.assertEqual(status, 0)
-            self.assertEqual(len(calls), 1)
-            self.assertTrue(output.is_file())
+            self.assertEqual(
+                [call[2] for call in calls], ["cupiddis", "cupidobj"]
+            )
+            self.assertEqual(output.read_bytes(), expected)
+
+    def test_mksyms_maps_checked_cupidobj_failure_and_preserves_output(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            manifest = root / "manifest.json"
+            elf = root / "kernel.elf.pass1"
+            output = root / "ksyms_data.cc"
+            manifest.write_bytes(b"checked manifest")
+            elf.write_bytes(b"pass-one ELF")
+            output.write_bytes(b"existing generated source")
+            calls = []
+
+            def run_seed(
+                _manifest,
+                _working_directory,
+                tool_name,
+                arguments,
+                *,
+                timeout,
+            ):
+                calls.append((tool_name, arguments, timeout))
+                if tool_name == "cupiddis":
+                    return subprocess.CompletedProcess(
+                        ["cupiddis", *arguments],
+                        0,
+                        "00001000 T first\n",
+                        "",
+                    )
+                return subprocess.CompletedProcess(
+                    ["cupidobj", *arguments],
+                    7,
+                    "",
+                    "output arena exhausted\n",
+                )
+
+            diagnostic = io.StringIO()
+            with (
+                mock.patch(
+                    "tools.hostbuild.run_seed_tool",
+                    side_effect=run_seed,
+                    create=True,
+                ),
+                contextlib.redirect_stderr(diagnostic),
+            ):
+                status = hostbuild.main(
+                    [
+                        "mksyms",
+                        "--seed-manifest",
+                        str(manifest),
+                        str(elf),
+                        str(output),
+                    ]
+                )
+
+            self.assertEqual(status, 1)
+            self.assertEqual(
+                [call[0] for call in calls], ["cupiddis", "cupidobj"]
+            )
+            self.assertIn(
+                "checked CupidObj failed with status 7: output arena exhausted",
+                diagnostic.getvalue(),
+            )
+            self.assertEqual(output.read_bytes(), b"existing generated source")
+
+    def test_mksyms_rejects_cupidobj_oracle_mismatch(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            manifest = root / "manifest.json"
+            elf = root / "kernel.elf.pass1"
+            output = root / "ksyms_data.cc"
+            manifest.write_bytes(b"checked manifest")
+            elf.write_bytes(b"pass-one ELF")
+            output.write_bytes(b"existing generated source")
+
+            def run_seed(
+                _manifest,
+                _working_directory,
+                tool_name,
+                arguments,
+                **_kwargs,
+            ):
+                if tool_name == "cupiddis":
+                    return subprocess.CompletedProcess(
+                        ["cupiddis", *arguments],
+                        0,
+                        "00001000 T first\n",
+                        "",
+                    )
+                Path(arguments[3]).write_bytes(b"wrong generated source")
+                return subprocess.CompletedProcess(
+                    ["cupidobj", *arguments], 0, "", ""
+                )
+
+            diagnostic = io.StringIO()
+            with (
+                mock.patch(
+                    "tools.hostbuild.run_seed_tool",
+                    side_effect=run_seed,
+                    create=True,
+                ),
+                contextlib.redirect_stderr(diagnostic),
+            ):
+                status = hostbuild.main(
+                    [
+                        "mksyms",
+                        "--seed-manifest",
+                        str(manifest),
+                        str(elf),
+                        str(output),
+                    ]
+                )
+
+            self.assertEqual(status, 1)
+            self.assertIn(
+                "checked CupidObj output differs from the Python oracle",
+                diagnostic.getvalue(),
+            )
+            self.assertEqual(output.read_bytes(), b"existing generated source")
+
+    def test_mksyms_rejects_missing_cupidobj_output(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            manifest = root / "manifest.json"
+            elf = root / "kernel.elf.pass1"
+            output = root / "ksyms_data.cc"
+            manifest.write_bytes(b"checked manifest")
+            elf.write_bytes(b"pass-one ELF")
+            output.write_bytes(b"existing generated source")
+
+            def run_seed(
+                _manifest,
+                _working_directory,
+                tool_name,
+                arguments,
+                **_kwargs,
+            ):
+                stdout = "00001000 T first\n" if tool_name == "cupiddis" else ""
+                return subprocess.CompletedProcess(
+                    [tool_name, *arguments], 0, stdout, ""
+                )
+
+            diagnostic = io.StringIO()
+            with (
+                mock.patch(
+                    "tools.hostbuild.run_seed_tool",
+                    side_effect=run_seed,
+                    create=True,
+                ),
+                contextlib.redirect_stderr(diagnostic),
+            ):
+                status = hostbuild.main(
+                    [
+                        "mksyms",
+                        "--seed-manifest",
+                        str(manifest),
+                        str(elf),
+                        str(output),
+                    ]
+                )
+
+            self.assertEqual(status, 1)
+            self.assertIn(
+                "checked CupidObj did not produce a regular source file",
+                diagnostic.getvalue(),
+            )
+            self.assertEqual(output.read_bytes(), b"existing generated source")
 
     def test_mksyms_maps_checked_seed_failure_and_preserves_output(self):
         with tempfile.TemporaryDirectory() as td:
@@ -1252,6 +1438,73 @@ class HostBuildSymbolTests(unittest.TestCase):
                 )
 
             self.assertEqual(status, 1)
+            self.assertIn(
+                "kernel symbol inputs changed while generating source",
+                diagnostic.getvalue(),
+            )
+            self.assertEqual(
+                output.read_bytes(),
+                b"existing generated source",
+            )
+
+    def test_mksyms_rejects_seed_manifest_drift_after_cupidobj(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            manifest = root / "manifest.json"
+            elf = root / "kernel.elf.pass1"
+            output = root / "ksyms_data.cc"
+            manifest.write_bytes(b"checked manifest")
+            elf.write_bytes(b"pass-one ELF")
+            output.write_bytes(b"existing generated source")
+            symbol_text = "00001000 T first\n"
+            expected = hostbuild._render_ksyms_source(
+                hostbuild.build_ksyms_blob(
+                    hostbuild._parse_nm_symbols(symbol_text)
+                )
+            )
+            calls = []
+
+            def run_seed(
+                _manifest,
+                _working_directory,
+                tool_name,
+                arguments,
+                **_kwargs,
+            ):
+                calls.append(tool_name)
+                if tool_name == "cupiddis":
+                    return subprocess.CompletedProcess(
+                        ["cupiddis", *arguments],
+                        0,
+                        symbol_text,
+                        "",
+                    )
+                Path(arguments[3]).write_bytes(expected)
+                manifest.write_bytes(b"changed manifest")
+                return subprocess.CompletedProcess(
+                    ["cupidobj", *arguments], 0, "", ""
+                )
+
+            diagnostic = io.StringIO()
+            with (
+                mock.patch(
+                    "tools.hostbuild.run_seed_tool",
+                    side_effect=run_seed,
+                ),
+                contextlib.redirect_stderr(diagnostic),
+            ):
+                status = hostbuild.main(
+                    [
+                        "mksyms",
+                        "--seed-manifest",
+                        str(manifest),
+                        str(elf),
+                        str(output),
+                    ]
+                )
+
+            self.assertEqual(status, 1)
+            self.assertEqual(calls, ["cupiddis", "cupidobj"])
             self.assertIn(
                 "kernel symbol inputs changed while generating source",
                 diagnostic.getvalue(),

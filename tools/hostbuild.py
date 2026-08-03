@@ -680,11 +680,11 @@ def _symbols_from_nm(
     return _parse_nm_symbols(proc.stdout)
 
 
-def _symbols_from_seed(
+def _symbol_text_from_seed(
     manifest: Path,
     working_directory: Path,
     elf: Path,
-) -> list[tuple[int, str]]:
+) -> str:
     try:
         proc = run_seed_tool(
             manifest,
@@ -704,7 +704,7 @@ def _symbols_from_seed(
             f"checked CupidDis failed with status "
             f"{proc.returncode}{suffix}"
         )
-    return _parse_nm_symbols(proc.stdout)
+    return proc.stdout
 
 
 def _render_ksyms_source(blob: bytes) -> bytes:
@@ -851,6 +851,27 @@ def write_ksyms_source(
             frozen_output.parent.mkdir()
             frozen_elf.write_bytes(elf_payload)
 
+            def require_inputs_unchanged() -> None:
+                if (
+                    _read_ksyms_input(input_elf, "pass-one kernel")
+                    != elf_payload
+                    or (
+                        reader is not None
+                        and _read_ksyms_input(reader, "symbol reader")
+                        != reader_payload
+                    )
+                    or (
+                        manifest is not None
+                        and _read_ksyms_input(
+                            manifest, "checked seed manifest"
+                        )
+                        != manifest_payload
+                    )
+                ):
+                    raise KsymsGenerationError(
+                        "kernel symbol inputs changed while generating source"
+                    )
+
             if reader is not None:
                 frozen_reader = (
                     frozen_root / "tool" / f"cupiddis{reader.suffix}"
@@ -863,37 +884,65 @@ def write_ksyms_source(
                 symbols = _symbols_from_nm(
                     str(frozen_reader), frozen_elf
                 )
+                symbol_text = None
             else:
                 assert manifest is not None
-                symbols = _symbols_from_seed(
+                symbol_text = _symbol_text_from_seed(
                     manifest, frozen_root, frozen_elf
                 )
+                symbols = _parse_nm_symbols(symbol_text)
             if not symbols:
                 raise KsymsGenerationError(
                     "symbol reader reported no kernel text symbols"
                 )
             blob = build_ksyms_blob(symbols)
-            frozen_output.write_bytes(_render_ksyms_source(blob))
-
-            if (
-                _read_ksyms_input(input_elf, "pass-one kernel")
-                != elf_payload
-                or (
-                    reader is not None
-                    and _read_ksyms_input(reader, "symbol reader")
-                    != reader_payload
-                )
-                or (
-                    manifest is not None
-                    and _read_ksyms_input(
-                        manifest, "checked seed manifest"
+            expected_source = _render_ksyms_source(blob)
+            if manifest is None:
+                frozen_output.write_bytes(expected_source)
+            else:
+                assert symbol_text is not None
+                frozen_symbols = frozen_root / "input" / "kernel.symbols"
+                frozen_symbols.write_bytes(symbol_text.encode("utf-8"))
+                require_inputs_unchanged()
+                try:
+                    generated = run_seed_tool(
+                        manifest,
+                        frozen_root,
+                        "cupidobj",
+                        (
+                            "ksyms-source",
+                            frozen_symbols,
+                            "-o",
+                            frozen_output,
+                        ),
+                        timeout=60,
                     )
-                    != manifest_payload
+                except BootstrapError as error:
+                    raise KsymsGenerationError(
+                        f"checked CupidObj could not run: {error}"
+                    ) from error
+                if generated.returncode != 0:
+                    details = (
+                        generated.stderr or generated.stdout or ""
+                    ).strip()
+                    suffix = f": {details}" if details else ""
+                    raise KsymsGenerationError(
+                        "checked CupidObj failed with status "
+                        f"{generated.returncode}{suffix}"
+                    )
+                if frozen_output.is_symlink() or not frozen_output.is_file():
+                    raise KsymsGenerationError(
+                        "checked CupidObj did not produce a regular source file"
+                    )
+                generated_source = _read_ksyms_input(
+                    frozen_output, "checked CupidObj source"
                 )
-            ):
-                raise KsymsGenerationError(
-                    "kernel symbol inputs changed while generating source"
-                )
+                if generated_source != expected_source:
+                    raise KsymsGenerationError(
+                        "checked CupidObj output differs from the Python oracle"
+                    )
+
+            require_inputs_unchanged()
             os.replace(frozen_output, output)
     except KsymsGenerationError:
         raise

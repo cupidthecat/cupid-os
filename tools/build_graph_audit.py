@@ -36,6 +36,7 @@ SOURCE_SUFFIXES = {
 CANONICAL_MAKE_VARIABLES = ("OS=Windows_NT",)
 TOOL_MARKERS = (
     ("mksyms --seed-manifest", "cupid_disassembler"),
+    ("mksyms --seed-manifest", "cupid_object"),
     ("embed-jpeg --seed-manifest", "cupid_object"),
     ("$(CUPIDDIS)", "cupid_disassembler"),
     ("$(CUPIDDIS)", "host_python"),
@@ -1286,6 +1287,8 @@ def _operation_for_recipe(
     inputs: list[str],
 ) -> str:
     joined = " ".join(recipe).lower()
+    if " mksyms " in f" {joined} " and "cupid_object" in tools:
+        return "generate_ksyms_source"
     if any(
         posixpath.normpath(path.replace("\\", "/")).endswith(
             "tools/user_syscall_abi.py"

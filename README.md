@@ -78,7 +78,7 @@ Recent subsystem work is summarized below. Detailed pages live under `wiki/`, an
 - `kernel/gfx/fontsys.cc` registers the bundled Liberation fonts, rasterizes UTF-8 text, stores the default in `/etc/font.conf`, exposes CupidC bindings, and supplies text to the browser and `fontswitch`.
 - `kernel/audio/ac97.cc` drives the PCI AC97 codec with a 32-entry BDL ring and IOC refills. `kernel/audio/mixer.cc` provides 16 signed 16-bit slots for PCM and streamed sources. The repository also carries the LGPL-2.1 Nuked-OPL3 emulator, the GPL-2 chocolate-doom MUS-to-MIDI converter, and an 18-voice dispatcher in `kernel/audio/midiopl.cc`. The dispatcher loads GENMIDI patches and handles the percussion bank, two-voice patches, pan, sustain, master-volume re-leveling, and single-pass resampling. `audiotest all` runs the sine, sweep, pan, OPL, and AC97-routed OPL checks.
 - The vendored doomgeneric core lives under `kernel/doom/src/` with BSD and GPL-2 components. The platform shim sends `DG_DrawFrame` to the VBE back buffer, connects `DG_GetKey` to the raw-scancode subscriber ring, and implements `DG_SleepMs` and `DG_GetTicksMs` with the PIT. `dglibc` supplies the required heap, string, stdio, formatting, checked conversion, and nonlocal-exit routines. Sound effects go straight to the mixer, while music passes from MUS to MIDI, `midiopl`, Nuked-OPL3, and mixer slot 8. The shell command `doom` finds Freedoom WADs under `/disk/wads/`; `doom -iwad <path>` selects another IWAD. Savegames and `default.cfg` use temporary files and native VFS rename beneath `/home/doom/`. HomeFS reserves its FAT container, rejects corrupt or duplicate mounts, and can batch related mutations behind one checked publish. FAT16 publishes replacement and deletion state before releasing old storage, while failed cache reads leave the victim's identity intact. The asset-free `dglibc_test` exercises repeated quit and error sessions plus VFS, cache, FAT, and HomeFS failure boundaries. A staged WAD is still required for gameplay and menu-driven save/load proof.
-- A two-pass kernel link generates and embeds a `.ksyms` blob. The generator reads private snapshots of the pass-one kernel and CupidDis, rejects malformed symbol output or live input drift, and replaces the generated `.cc` source only after validation. Checked-seed CupidC compiles that source. `kernel_panic` uses `ksym_lookup` and a frame-pointer walk to print `function_name+offset` for each return address. It prints raw addresses if the blob is missing or corrupt.
+- A two-pass kernel link generates and embeds a `.ksyms` blob. The build freezes the pass-one kernel and checked seed, asks CupidDis for canonical symbol text, and gives that exact text to CupidObj for `.cc` generation. Python checks the result against an independent byte oracle, rejects live input drift, and publishes only a complete match. Checked-seed CupidC compiles the source. `kernel_panic` uses `ksym_lookup` and a frame-pointer walk to print `function_name+offset` for each return address. It prints raw addresses if the blob is missing or corrupt.
 
 Built-in CupidC smoke tests exercise each track: `feature12_float`,
 `feature13_double` (including exact decimal payloads, runtime unary signs, all
@@ -427,14 +427,17 @@ request-boundary seed, and
 [ADR 0206](docs/adr/0206-promote-cupidobj-symbol-collisions.md) records the
 current checked seed.
 
-Source-head CupidObj also has `ksyms-source`. It turns canonical CupidDis
-symbol text into the exact packed kernel-symbol `.cc` source, with stable
-address ordering, first-name deduplication, line-specific errors, and
-transactional recovery. A real CupidASM object passes through CupidDis and
-CupidObj in the hosted suite. The command is not in the checked seed yet, so
-Python remains the normal generator until the promotion and ownership-transfer
-steps. [ADR 0222](docs/adr/0222-generate-kernel-symbol-source-with-cupidobj.md)
-records this pre-promotion boundary.
+Checked-seed CupidObj now owns the normal `ksyms-source` generation step. It
+turns canonical CupidDis symbol text into the exact packed kernel-symbol `.cc`
+source, with stable address ordering, first-name deduplication, line-specific
+errors, and transactional recovery. The build keeps Python as an independent
+parity oracle and publication coordinator; a mismatch or changed input leaves
+the previous source untouched. A real CupidASM object also passes through
+CupidDis and CupidObj in the hosted suite. [ADR 0222](docs/adr/0222-generate-kernel-symbol-source-with-cupidobj.md)
+records the capability, [ADR 0223](docs/adr/0223-promote-cupidobj-kernel-symbol-source.md)
+records seed carriage, and
+[ADR 0224](docs/adr/0224-transfer-kernel-symbol-source-to-cupidobj.md)
+records the production transfer.
 
 The external-program gate boots `hello`, `ls`, and `cat` from separate
 private image copies. Serial
@@ -497,9 +500,9 @@ CupidC accepts GNU `used` and `__used__` on file-scope objects and functions.
 Redeclarations merge the flag into one canonical entity, and the Linear IR
 and object boundaries validate it before use. The generated
 `kernel/cpu/ksyms_data.cc` source is part of the normal checked CupidC graph.
-Its i386-word initializer preserves the current 109,889-byte symbol blob. The
-checked wrapper produces a 110,304-byte object with SHA-256
-`45e77aff292df2d47ac7b9c2004371fa767ed511df066238a2e3299c9a9d08c2`.
+Its i386-word initializer preserves the current 114,421-byte symbol blob. The
+checked wrapper produces a 114,836-byte object with SHA-256
+`f3ce6335bccc3d33418dd475685f46f2caed8e968fd649e3e0ca80d28748c67e`.
 
 The checked seed retains GNU `noinline` and
 `target("general-regs-only")` on canonical file-scope functions.
@@ -712,7 +715,7 @@ Poisoned-host checks cover all 238 checked-in normal CupidC recipes through
 the strict and Doom gates. They fail if a CupidC-owned object reaches Clang or
 GCC. They pass against the renamed graph. Across the three supported build
 roots, the audit records 449 transforms. CupidC participates in 245, CupidObj
-participates in 185 transforms, Python participates in all 449, and no normal
+participates in 186 transforms, Python participates in all 449, and no normal
 transform invokes a host C compiler.
 The Toolchain root now builds its fourteen `.cc` contracts twice with
 stage-two and stage-three CupidC, compares the static i386 executables, and

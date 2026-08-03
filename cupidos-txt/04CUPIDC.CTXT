@@ -208,11 +208,13 @@ link. Its normal recipe uses the checked CupidC wrapper. The source stores the
 packed symbol blob as little-endian unsigned int words and records its
 meaningful byte length separately. Zero padding completes the last word but
 is not part of that length. Generation runs private snapshots of the pass-one
-kernel and CupidDis. It rejects malformed symbol rows, missing text symbols,
-or live input drift before it replaces the source. The compiler wrapper
-freezes the source and its two-header closure before object validation and
-publication. The pass-one and final kernels project the same text symbols at
-the same addresses.
+kernel and checked seed. Checked CupidDis emits canonical text, and checked
+CupidObj turns that exact text into the source. Python independently renders
+the expected bytes and rejects malformed rows, missing output, mismatches, or
+live input drift before atomic publication. The compiler wrapper freezes the
+source and its two-header closure before object validation and publication.
+The pass-one and final kernels project the same text symbols at the same
+addresses.
 
 Across root and supplemental builds, the ownership audit reports 245 CupidC
 transforms and no host C transform. Host Python participates in all 449

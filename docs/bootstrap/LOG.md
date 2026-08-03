@@ -20461,3 +20461,78 @@ Python still renders `kernel/cpu/ksyms_data.cc`; moving that recipe to the
 promoted CupidObj command remains the next separately tested ownership step.
 No `.c` file entered the supported Cupid graph, and `TempleOS/` remains
 untouched reference material.
+
+## 2026-08-03: Transfer kernel-symbol source generation to CupidObj
+
+The normal two-pass kernel build now runs checked CupidDis and checked
+CupidObj in sequence. Hostbuild freezes the pass-one ELF and seed manifest,
+keeps CupidDis's exact text in a private file, and asks CupidObj
+`ksyms-source` to produce the candidate `.cc` source. Python parses the same
+text and renders an independent oracle. A failed command, missing or nonregular
+output, byte mismatch, or live input change leaves the previous destination
+untouched. The optional native-`nm` route remains an oracle path.
+
+Four focused tests were added before the implementation. They all failed
+against the old path because it invoked only CupidDis and rendered the source
+in Python. The green cases pin ordered tool calls, exact text handoff,
+CupidObj failure mapping, required output, parity, and atomic recovery. A
+later case changes the seed manifest after CupidObj writes its private output;
+the final live-input check rejects it before publication. The complete
+hostbuild suite now has 46 tests and passed in 2.155 seconds with one expected
+skip. The 101 GUI-smoke harness tests passed in 2.224 seconds.
+
+The build-graph classifier now calls this operation
+`generate_ksyms_source` and records CupidDis, CupidObj, and Python as its three
+participants. CupidObj therefore participates in 186 supported transforms:
+the existing 185 plus this generator. The first complete 68-test graph run
+passed 67 cases in 1,014.526 seconds. Its only failure exposed a stale
+`sizeof` inventory expectation left by the preceding array-capability work:
+the live audit has 5,531 occurrences across 169 files, not 5,509 across 167.
+The expected inventory was corrected. A Windows-only retry was discarded
+because this worktree's WSL-format `.git` pointer made the audit fall back to
+an untracked-directory scan and report 135 unreachable files. A concurrent
+WSL retry exceeded its 184-second command window and was not counted as a
+pass. Once the concurrent audit finished, the corrected drift test passed
+under WSL in 308.309 seconds. The final stable run passed all 68 graph tests in
+1,004.134 seconds.
+
+A direct production probe ran the promoted seed against the current pass-one
+kernel. CupidObj and the Python oracle produced the same 379,312-byte source,
+with SHA-256
+`45a112be18fc9edab1680b1c1622eeb2e2f6b3333e12652be3e0593a8f612f2a`.
+The logical symbol blob is 114,421 bytes. The generated 114,836-byte object
+has SHA-256
+`f3ce6335bccc3d33418dd475685f46f2caed8e968fd649e3e0ca80d28748c67e`.
+Checked CupidDis reported the same 4,704 text-symbol address/name pairs from
+the pass-one and final kernels.
+
+Two complete normal builds passed through the transferred route in 620.5 and
+605.9 seconds. The second includes the updated in-OS manuals:
+
+| Artifact | Bytes | SHA-256 |
+|---|---:|---|
+| `kernel/kernel.elf.pass1` | 8,925,492 | `8ec64e9bb40f68832d4666287c1ae5704fa0bf5c95b4fa8e2e8bc802cb5aaf47` |
+| `kernel/kernel.elf` | 9,040,180 | `3a22ec2b535b80c109dcc5597f389764cfbe2935ccab514dfaf2238199e39903` |
+| `kernel/kernel.bin` | 8,832,828 | `e305a1cacfe315142f216148e16238a37c3e58ff04c5eca2adb1cf1bb270e6d9` |
+| `cupidos.img` | 209,715,200 | `c7db4cd4de6f8425a51d7f536764e04a1313e67f57cd9a2703465fe14343ad52` |
+
+A private four-vCPU e1000 boot passed the exact Browser self-test contract in
+88.8 seconds. ACPI brought all four CPUs online, RDRAND seeded the generator,
+the NIC obtained `10.0.2.15`, and the 26-field Browser result passed. The
+38,246-byte serial log has SHA-256
+`d4488a02e515d8aee0cb87e4292d18981970fc348eb5ebaa983cf74c8c5e3d42`.
+
+The active-build audit and its independent check passed together in 214.9
+seconds. They retain 718 active inputs, 449 reachable transforms, 255 feature
+requirements, and 25 classified unreachable files. The active-source digest
+is `48a25995a6eb517807dca2f77234ed953ca7ae967845fad446c9a011d0941f75`.
+The 2,554,973-byte JSON has SHA-256
+`368af0f92bdaf7b359dbd0067040bdd7eb790a8f13e3527787a90eb4f203f82d`,
+and the 12,136-byte summary has SHA-256
+`8c412081a7311487f1ea4185a1e84d5007ab17e8e119b54f2cac18dd3642db38`.
+
+This step changes a production owner without changing the checked seed or the
+fixed-point source plan. Python remains the launcher and parity oracle, and
+Windows still uses WSL. No active `.c` source was migrated in this step, so no
+new `.cc` rename was due. Issue 31 remains open for the larger self-hosting
+mission, and `TempleOS/` remains untouched reference material.

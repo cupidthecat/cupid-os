@@ -545,11 +545,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             self.assertEqual(
                 transforms["symbols.cc"]["tools"],
-                ["cupid_disassembler", "host_python"],
+                ["cupid_disassembler", "cupid_object", "host_python"],
             )
             self.assertEqual(
                 transforms["symbols.cc"]["operation"],
-                "generate_c_source",
+                "generate_ksyms_source",
             )
             self.assertEqual(
                 transforms["photo.o"]["tools"],
@@ -4619,7 +4619,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (5509, 167),
+                "c.expression.sizeof": (5531, 169),
                 "c.extension.builtin.offsetof": (12, 6),
                 "c.extension.gnu_alignof": (1, 1),
             }
@@ -4743,10 +4743,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ]
             self.assertEqual(
                 symbol_transform["tools"],
-                ["cupid_disassembler", "host_python"],
+                ["cupid_disassembler", "cupid_object", "host_python"],
             )
             self.assertEqual(
-                symbol_transform["operation"], "generate_c_source"
+                symbol_transform["operation"], "generate_ksyms_source"
             )
             for checked_seed_input in (
                 "tools/bootstrap_toolchain.py",
@@ -5390,7 +5390,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         }
         expected_counts = {
             "cupid_assembler": 4,
-            "cupid_object": 185,
+            "cupid_object": 186,
             "cupid_linker": 2,
             "cupid_disassembler": 1,
         }
@@ -5597,9 +5597,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             generated = transforms["kernel/cpu/ksyms_data.cc"]
             self.assertEqual(
                 generated["tools"],
-                ["cupid_disassembler", "host_python"],
+                ["cupid_disassembler", "cupid_object", "host_python"],
             )
-            self.assertEqual(generated["operation"], "generate_c_source")
+            self.assertEqual(
+                generated["operation"], "generate_ksyms_source"
+            )
             self.assertEqual(
                 set(generated["inputs"]),
                 {

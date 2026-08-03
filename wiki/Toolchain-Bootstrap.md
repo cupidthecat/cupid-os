@@ -76,8 +76,9 @@ kernel-symbol `.cc` source. It retains `t`, `T`, `w`, and `W` symbols except
 private `.L` labels, sorts by address and input order, and keeps the first name
 at a shared address. The focused seed contract checks exact Python-oracle
 parity and preserves an existing destination after a malformed second line.
-The normal image continues to use Python for this source until the separate
-ownership transfer.
+The normal image now passes CupidDis's exact text to this checked command.
+Python freezes the inputs, independently renders the expected bytes, and
+publishes only a complete match.
 
 Before execution, the harness reads the manifest and each seed binary once. It
 verifies those captured bytes, keeps the manifest hash, and runs private copies
@@ -459,14 +460,15 @@ expressions in source order. It also keeps all target bits through represented
 function-pointer casts and supports bounded output-only register and EFLAGS
 snapshots. The checked production wrapper now compiles the generated
 `kernel/cpu/ksyms_data.cc` root. The generator writes little-endian
-`unsigned int` words and records the logical 109,889-byte blob length
-separately. It runs private snapshots of the pass-one kernel and CupidDis,
-rejects malformed symbol rows, an empty text-symbol set, and live input
-drift, then replaces the `.cc` source atomically. The checked compiler
-wrapper freezes that source and its header closure before it publishes the
-object. The word array ends with three zero pad bytes. The final kernel
-consumes 4,561 text symbols and shows no address drift from the pass-one
-kernel.
+`unsigned int` words and records the logical 114,421-byte blob length
+separately. Hostbuild freezes the pass-one kernel and checked seed, captures
+canonical text through checked CupidDis, and gives the exact text to checked
+CupidObj. Its independent Python renderer catches malformed text, missing
+output, byte mismatch, or live input drift before atomic publication. The
+checked compiler wrapper freezes that source and its header closure before it
+publishes the object. The word array ends with three zero pad bytes. The final
+kernel retains all 4,704 pass-one text-symbol address/name pairs. ADR 0224
+records the generator handoff.
 
 The checked seed emits the exact volatile
 `call 1f\n1: popl %0` address capture used by the stack-trace helpers in
@@ -562,7 +564,7 @@ all 449 transforms. CupidC's total is 239 normal transforms plus three
 generated installation tables and the `hello.cc`, `ls.cc`, and `cat.cc`
 programs. The
 438-transform root image graph has no host C or recursive Make transform.
-Its four CupidASM, 185 CupidObj, two CupidLD, and one CupidDis transforms run
+Its four CupidASM, 186 CupidObj, two CupidLD, and one CupidDis transforms run
 from the manifest-checked five-tool seed. Native hosted commands remain
 explicit oracle targets. The runner rechecks the live seed cohort after each
 command, and Make passes wildcard-discovered output sources through

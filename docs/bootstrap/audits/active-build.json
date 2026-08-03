@@ -5267,7 +5267,7 @@
           "bootstrap/seeds/i386-linux/cupidld.elf",
           "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
-        "operation": "generate_c_source",
+        "operation": "generate_ksyms_source",
         "output": "kernel/cpu/ksyms_data.cc",
         "recipe": [
           "$(PYTHON) tools/hostbuild.py mksyms \\",
@@ -5275,6 +5275,7 @@
         ],
         "tools": [
           "cupid_disassembler",
+          "cupid_object",
           "host_python"
         ]
       },
@@ -52570,7 +52571,7 @@
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "80be8700ad33612b4e00ca27eb4eb50681f3fdbeef21d5927698966be3cfd38e"
+        "sha256": "dbffbc5d203572324c611a63fdc6c74f8b7beb6d731c0ee9d174331f8a30c61f"
       },
       {
         "path": "user/Makefile",
@@ -52615,7 +52616,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "992ef10095edda9452940a0f3e8480a68e7fc9cc3ba8c6e2f1e6df5cb586120f"
+      "sha256": "386da239198199605307fce842953c72fabe8d417fc14aafbc4c6595c5f21680"
     },
     "text_hash_policy": "canonical_lf"
   },

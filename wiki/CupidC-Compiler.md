@@ -914,9 +914,10 @@ RDRAND, all 62 crypto checks, USB storage, audio, TrueType glyphs, a baseline
 JPEG decode, the desktop, terminal, and in-OS CupidC execution. Both runs
 print `[fpu] SSE2 enabled`, `[fpu] boot smoke ok`, and
 `FPU boot smoke passed`, then finish
-`feature16_asm_fpu.cc`. The generated symbol source stores the current
-109,889-byte logical blob as little-endian `unsigned int` words with three
-trailing pad bytes.
+`feature16_asm_fpu.cc`. Checked CupidObj generates the symbol source from
+canonical CupidDis text, while Python checks the bytes before publication. The
+current 114,421-byte logical blob uses little-endian `unsigned int` words with
+three trailing pad bytes.
 
 Forced poisoned-host builds cover every production wrapper recipe, and each
 recipe declares its exact recursive header closure. A valid data-only object

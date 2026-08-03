@@ -1325,8 +1325,8 @@ god/%.o: god/%.DD $(CUPIDOBJ_INPUTS)
 #   Pass 1: link all KERNEL_OBJS into kernel.elf.pass1.  ksyms.o ships a
 #           weak empty .ksyms blob, so this link succeeds with no symbol
 #           data.
-#   mksyms: read kernel.elf.pass1's symbol table, then generate
-#           kernel/cpu/ksyms_data.cc with the populated blob.
+#   mksyms: CupidDis reads kernel.elf.pass1's symbol table, then CupidObj
+#           generates kernel/cpu/ksyms_data.cc with the populated blob.
 #   Pass 2: link kernel.elf again with ksyms_data.o added. The strong
 #           ksym_blob symbol overrides the weak one from ksyms.o. The
 #           .ksyms section is placed after .data in link.ld so code
