@@ -133,6 +133,17 @@ those two known payloads and reports which one appeared. SIMD pointer forms,
 multidimensional arrays, record fields, `new`, array parameters, and call ABI
 transport remain unsupported. ADR 0216 records this boundary.
 
+Private decimal floating tokens now enter a fixed 1536-bit integer converter.
+It forms the exact decimal ratio and rounds once to binary32 or binary64 using
+nearest-even. The `f` suffix selects binary32 before rounding, avoiding a
+binary64 intermediate. Decimal subnormals, the largest finite values, overflow
+to infinity, and underflow to signed zero retain their expected payloads.
+Numeric tokens may contain up to 95 characters, including a suffix. A longer
+token is consumed as one unit, its following delimiter remains available, and
+the parser keeps the first focused lexer diagnostic across recovery.
+Hexadecimal floating and `long double` literals remain unsupported. ADR 0217
+records the boundary.
+
 `browser --selftest` combines direct binary64 checks with scripts sent through
 the real interpreter. The command checks comparisons, truth,
 decimal fractions, signed and uppercase exponents, a negative-zero reciprocal,

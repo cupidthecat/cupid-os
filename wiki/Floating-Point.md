@@ -261,6 +261,14 @@ forms can fill a pointer slot. A parsed variadic tail widens `float` to `double`
 and promotes `char` to `int`. Function-pointer calls, kernel bindings, and
 calls without that metadata keep their source-width slots.
 
+Private decimal `float` and `double` literals use a fixed 1536-bit integer
+workspace. The converter forms the exact decimal ratio and rounds once to the
+requested IEEE width using nearest-even. An `f` suffix selects binary32 before
+rounding. Tests cover long halfway cases, minimum subnormals, largest finite
+values, overflow to infinity, underflow, and signed zero. Numeric tokens may
+contain 95 characters including their suffix. Hexadecimal floating and `long
+double` literals remain unsupported. ADR 0217 records this boundary.
+
 Fixed `float` and `double` arrays keep their element type through one, two, or
 three dimensions in global, automatic, block-static, and persistent REPL
 storage. The private compiler uses the remaining row stride for each
@@ -338,7 +346,7 @@ FUCOMIP, FSIN, FPATAN, F2XM1, FYL2X, etc.). XMM0-7 and ST0-7 register tokens.
 ## Testing
 
 - `bin/feature12_float.cc` - scalar float arithmetic, casts, element access.
-- `bin/feature13_double.cc` - double + transcendentals.
+- `bin/feature13_double.cc` - exact decimal payloads, typed lvalues, calls, and transcendentals.
 - `bin/feature14_simd.cc` - float4/double2 + intrinsics.
 - `bin/feature15_libm.cc` - 29 fixed-reference checks, including seven x87 range paths.
 - `bin/feature16_asm_fpu.cc` - CupidC inline asm using SSE + x87.

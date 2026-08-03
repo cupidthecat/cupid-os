@@ -77,6 +77,15 @@ Pointer-producing expressions reset subscript metadata before publishing a
 known stride, so a later pointer result cannot reuse stride state from an
 earlier array expression.
 
+Decimal `float` and `double` literals are converted from an exact integer
+ratio and rounded once to nearest with ties to even. An `f` or `F` suffix
+selects binary32 before rounding. Decimal subnormals, finite limits, infinity,
+and signed zero are represented. Numeric tokens may contain up to 95
+characters including the suffix. A longer token or an exponent without digits
+receives a focused diagnostic, and later parser recovery does not replace the
+first public error. Hexadecimal floating and `long double` literals are not
+implemented in the in-kernel compiler.
+
 ## Hosted floating-width rules
 
 The shared self-hosting compiler carries non-atomic `float` and `double`

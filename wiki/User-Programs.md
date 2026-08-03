@@ -110,6 +110,11 @@ signed infinity formatting, decimal literals, signed and uppercase exponents,
 relational order, division and division assignment by zero, remainder by zero,
 the exponent cap, and malformed-exponent rejection.
 
+`feature13_double` checks the in-kernel compiler's exact binary32 and binary64
+decimal payloads, including halfway ties, a minimum subnormal, overflow, and
+signed zero. It also covers typed floating lvalues, mixed-width calls, and
+libm before reporting its overall result.
+
 ---
 
 ## Program Structure

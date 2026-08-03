@@ -605,6 +605,15 @@ depending on the processor or emulator. SIMD pointers, multidimensional
 arrays, record fields, `new`, array parameters, and call ABI transport remain
 unsupported. ADR 0216 records the boundary.
 
+Private decimal literals now use a fixed 1536-bit integer workspace. CupidC
+forms the exact decimal ratio and rounds once to the selected binary32 or
+binary64 width with ties going to even. An `f` suffix selects binary32 before
+rounding. The path covers subnormals, finite limits, infinity, and signed zero.
+It accepts numeric tokens through 95 characters, consumes a rejected longer
+token completely, and keeps the first lexer diagnostic through parser
+recovery. This changes private JIT and AOT behavior without moving a build
+owner. ADR 0217 records the boundary.
+
 Direct functions and methods retain parsed fixed parameter types. Known fixed
 arguments convert among represented integer, `char`, `float`, and `double`
 types before cdecl layout. Represented pointer categories and integer null

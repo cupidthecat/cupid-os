@@ -19797,3 +19797,108 @@ pointers, multidimensional arrays, record fields, dynamic allocation, array
 parameters, and call ABI transport remain open. Issue 31 therefore remains
 open. ADR 0216 records the boundary, and `TempleOS/` remains untouched
 reference material.
+
+## 2026-08-03: Round private decimal literals exactly
+
+Private CupidC no longer builds decimal floating values through repeated
+binary64 arithmetic. The old converter emitted `0.75` as
+`0x3fe8000000000001`, one binary64 unit above the correct payload, even though
+the equivalent `75e-2` spelling happened to work. An `f` suffix also took the
+binary64 path before narrowing.
+
+The lexer now uses a fixed 48-limb unsigned integer workspace. It builds the
+exact decimal numerator and denominator, finds the binary exponent, applies
+the binary32 or binary64 scale, and rounds once to nearest with ties to even.
+An `f` or `F` suffix selects binary32 before conversion. The 1536-bit capacity
+covers a complete accepted token at the binary64 subnormal boundary, including
+the final rounding shift. Early decimal-range checks handle clear overflow and
+underflow without growing an unnecessary power of ten.
+
+Positive contracts inspect exact bytes for `0.75`, `75e-2`, binary32 and
+binary64 halfway cases in both directions, two long binary64 halfway
+spellings, minimum subnormals, largest finite values, infinity, signed zero,
+and extreme exponents. A private i386 program proves the rounded values survive
+runtime assignment and SSE access. An independent review compared 5,200
+generated decimal spellings against the host IEEE conversion and found no
+mismatch.
+
+The first token-boundary review found that the old length guard stopped after
+the local buffer filled and left the rest of one numeric token in the input.
+The final lexer consumes the complete spelling before reporting
+`numeric literal exceeds 95 characters`. It leaves the following delimiter
+and token available. The limit includes an `f` suffix. Missing exponent digits
+receive their own diagnostic.
+
+A second review found that function-body lexer errors were still lost.
+`cc_next` recorded the right message, but expression parsing added a generic
+failure and top-level recovery cleared the active error flag. A later error
+then replaced the public message. Two function-body and same-program recovery
+tests failed with `expected expression` before the fix. The error path now logs
+each failure while retaining the first nonempty public message, and those tests
+pass.
+
+The active feature-13 program checks two binary64 payloads, two binary32
+payloads, the minimum binary64 subnormal, overflow to infinity, and negative
+zero. Its new marker appears after the lvalue checks and before the existing
+mixed-call and libm checks:
+
+```text
+[feature13-literal] PASS double=2 float=2 edge=3
+```
+
+The focused and combined hosted checks passed:
+
+```text
+python -m unittest tests.test_private_cupidc_call_abi
+  65 tests in 6.143 seconds
+python -m unittest discover -s tests -p 'test_private_cupidc*.py'
+  80 tests in 8.562 seconds
+python -m unittest tests.test_gui_terminal_smoke
+  101 tests in 0.475 seconds
+make -B kernel/lang/cupidc_lex.o kernel/lang/cupidc_parse.o
+  both checked-seed objects in 61.0 seconds
+```
+
+The checked lexer object is 47,252 bytes with SHA-256
+`945d5173a724314bdd280d654d09690f008e2b10f4f6b13e599f48478477eabe`.
+The checked parser object is 344,012 bytes with SHA-256
+`ebf71e6f355f1aae736e3990d9f55f98f892b5d490eaeacf7070a754778986c8`.
+The active feature-13 object is 16,512 bytes with SHA-256
+`fb96706001d7d7a0b3e83a93d31c7c1df9ab57c9c4d862369125e0957beb8d5b`.
+
+The normal image build passed in 514.0 seconds. It produced an 8,940,564-byte
+kernel ELF with SHA-256
+`b6ccf65a5a90ee017301962aba8ad805d0ec9f37d9205dedfcc82c13de52056a`,
+an 8,732,836-byte flat kernel with SHA-256
+`94f9283e8693a8b24c34c584f9459303bbdb1bec77b691ff13e1946bc88e6621`,
+and a 209,715,200-byte image with SHA-256
+`9bfb238ea33d16d6ed46d5a0672f37638509b62586a21dcd10e7b94aca0c9880`.
+
+The first four-vCPU e1000 run compiled and executed the feature successfully,
+but the host harness waited until its timeout. The imported frontier pattern
+uses line anchors, while the single-command matcher enabled dot-all mode but
+not multiline mode. The serial tail contained every required PASS marker and
+clean JIT completion, proving a harness false negative rather than a guest
+failure. A new unit test reproduced the mismatch. The completion and repeated
+success matchers now enable dot-all and multiline modes together.
+
+The unchanged guest command then passed through the repaired matcher in 67.9
+seconds. Its 36,666-byte log has SHA-256
+`6a0328d70ac32c57a2859c266e63b054793f3ea8e23753020032e6b43fb09047`.
+It contains the deliberate unary type diagnostic, all earlier feature-13
+markers, the exact decimal marker, overall PASS, and clean JIT completion.
+
+The regenerated active graph still contains 718 inputs, 449 transforms, 255
+feature requirements, and 25 classified unreachable files. Its active-source
+digest is
+`15df4cfd661d38ce9772d19bfa7fd1ca202be00ac55a7d655ec4c5e20c3621a8`.
+The 2,554,535-byte JSON has SHA-256
+`9474e99a908419c54af05345e22b56ac6d1db713f6251e816297e5a663a13f72`,
+and the 12,136-byte summary has SHA-256
+`270ec8e9d1750587046f0b1971314d8a2fe8ce3ed1b7386a40b95de1d7dc6c97`.
+The read-only audit check passes.
+
+This compiler change does not move a build owner or remove a host dependency.
+Numeric tokens remain limited to 95 characters, and hexadecimal floating and
+`long double` literals remain open. Issue 31 therefore remains open. ADR 0217
+records the boundary, and `TempleOS/` remains untouched reference material.

@@ -693,16 +693,16 @@ static void emit_cvtsd2ss(cc_state_t *cc, int xmm_dst, int xmm_src) {
 /* Error Handling */
 
 static void cc_error(cc_state_t *cc, const char *msg) {
-  /* Always log every error to serial so a chain of failures all show up
-   * even though parser only retains the first as cc->error_msg. The
-   * first call sets cc->error and populates cc->error_msg; subsequent
-   * calls log to serial only.*/
+  /* Log each failure to serial, but keep the first public diagnostic. Top-level
+   * recovery clears cc->error temporarily and leaves error_msg as the record. */
   int line = cc->cur.line;
   if (line == 0) line = cc->line;
   serial_printf("[cupidc] error (line %d): %s\n", line, msg);
   if (cc->error)
-    return; /* already errored - keep first message intact */
+    return;
   cc->error = 1;
+  if (cc->error_msg[0] != '\0')
+    return;
 
   /* Build error message */
   int i = 0;
@@ -835,7 +835,12 @@ static int cc_data_reserve(cc_state_t *cc, uint32_t bytes) {
 
 /* Token Helpers */
 
-static cc_token_t cc_next(cc_state_t *cc) { return cc_lex_next(cc); }
+static cc_token_t cc_next(cc_state_t *cc) {
+  cc_token_t token = cc_lex_next(cc);
+  if (token.type == CC_TOK_ERROR)
+    cc_error(cc, token.text[0] != '\0' ? token.text : "invalid token");
+  return token;
+}
 
 static cc_token_t cc_peek(cc_state_t *cc) { return cc_lex_peek(cc); }
 

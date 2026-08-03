@@ -1907,6 +1907,12 @@ The parser (`cupidc_parse.cc`) is recursive descent and writes x86 machine-code 
 - Each primary expression starts with fresh subscript metadata. Fixed array
   symbols, address expressions, pointer casts, and `new` results publish their
   own known stride instead of inheriting one from a previous expression.
+- Decimal `float` and `double` tokens use a fixed 1536-bit integer workspace.
+  The converter rounds the exact ratio once to nearest with ties to even. An
+  `f` or `F` suffix selects binary32 before rounding. It covers subnormals,
+  finite limits, infinity, and signed zero. Numeric tokens may contain up to
+  95 characters including a suffix. Longer tokens and missing exponent digits
+  receive focused diagnostics, and parser recovery keeps the first one.
 
 [ADR 0189](../docs/adr/0189-preserve-floating-values-in-private-cupidc-unary-signs.md)
 records the unary-sign decision, signed-zero evidence, useful type failure,
@@ -1927,6 +1933,10 @@ decay, and unevaluated row sizes in the private compiler.
 [ADR 0216](../docs/adr/0216-private-simd-arrays-and-operators.md) records
 matching packed arithmetic, one-dimensional fixed SIMD arrays, observable
 operand order, and the remaining private compiler boundary.
+
+[ADR 0217](../docs/adr/0217-round-private-decimal-literals-exactly.md) records
+the integer decimal converter, target-width rounding, token boundary, and
+diagnostic recovery.
 
 ### Symbol Table
 
@@ -1968,6 +1978,8 @@ When the parser encounters a call to an undefined function, it emits a placehold
 - Programs use Cupid OS kernel bindings rather than a general hosted C standard library.
 - Variadic declarations and definitions parse, but compiled CupidC code cannot yet traverse unnamed arguments.
 - Direct code generation has no optimization pass.
+- Decimal numeric tokens are limited to 95 characters. Hexadecimal floating
+  and `long double` literals are not implemented by the private compiler.
 - Floating pointer depth greater than one, indirect floating `++` and `--`,
   pointer-to-array types, and assignment through a pointer-valued floating
   field subscript remain unsupported.

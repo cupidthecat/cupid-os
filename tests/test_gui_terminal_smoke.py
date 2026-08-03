@@ -117,6 +117,7 @@ def _frontier_command_outputs():
             "for=3 zero=0x80000000 nan=2\n"
             "[feature13-lvalue] PASS array=42 pointer=13 "
             "record=26 sizes=56 unevaluated=1\n"
+            "[feature13-literal] PASS double=2 float=2 edge=3\n"
             "[feature13-call] PASS checks=10\n"
             "PASS feature13_double\n"
             "[cupidc] JIT execution complete\n"
@@ -567,6 +568,15 @@ class GuiTerminalInputTests(unittest.TestCase):
         )
 
         self.assertEqual(gui_terminal_smoke.success_count(data, pattern), 2)
+
+    def test_command_matchers_support_anchored_multiline_patterns(self):
+        pattern = r"^compile\r?$.*?^complete\r?$"
+        data = "boot noise\ncompile\r\nprogram output\ncomplete\r\n"
+
+        self.assertIsNotNone(
+            gui_terminal_smoke.completion_pattern(pattern).search(data)
+        )
+        self.assertEqual(gui_terminal_smoke.success_count(data, pattern), 1)
 
     def test_positive_count_rejects_zero(self):
         self.assertEqual(gui_terminal_smoke.positive_count("2"), 2)
@@ -1623,6 +1633,39 @@ class FrontierRuntimeContractTests(unittest.TestCase):
         )
         self.assertNotIn("known bug", source)
         self.assertNotIn("calling-convention edge cases", source)
+
+    def test_feature13_requires_exact_decimal_literal_evidence(self):
+        command = _frontier_command("/bin/feature13_double.cc")
+        expected = command.expected_pattern
+        sample = _frontier_command_output("/bin/feature13_double.cc")
+        marker = "[feature13-literal] PASS double=2 float=2 edge=3\n"
+
+        self.assertIsNone(
+            re.search(
+                expected,
+                sample.replace(marker, ""),
+                re.S | re.M,
+            )
+        )
+        self.assertIn(
+            "[feature13-literal] FAIL",
+            gui_terminal_smoke.FRONTIER_RUNTIME_REJECTED_MARKERS,
+        )
+
+        source = (
+            REPO_ROOT / "bin" / "feature13_double.cc"
+        ).read_text(encoding="utf-8")
+        for literal in (
+            "double literal_double = 0.75",
+            "float literal_float = 0.75f",
+            "1.00000000000000011102230246251565404236316680908203125",
+            "1.000000059604644775390625f",
+            "double literal_subnormal = 5e-324",
+            "double literal_overflow = 1e400",
+            "double literal_negative_zero = -0e-9999",
+        ):
+            with self.subTest(literal=literal):
+                self.assertIn(literal, source)
 
     def test_unary_command_allows_only_its_expected_compiler_error(self):
         command = _frontier_command("/bin/feature13_double.cc")

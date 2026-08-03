@@ -272,6 +272,67 @@ void main() {
                       lvalue_unevaluated);
     }
 
+    /* Decimal tokens round directly to their target IEEE widths. Check the
+     * original 0.75 failure, halfway ties, and exponent edges by payload. */
+    int literal_ok = 1;
+    int literal_double_checks = 0;
+    int literal_float_checks = 0;
+    int literal_edge_checks = 0;
+    double literal_double = 0.75;
+    int *literal_bits = (int *)&literal_double;
+    if (literal_bits[0] == 0 && literal_bits[1] == 0x3fe80000)
+        literal_double_checks++;
+    else
+        literal_ok = 0;
+    double literal_double_tie =
+        1.00000000000000011102230246251565404236316680908203125;
+    literal_bits = (int *)&literal_double_tie;
+    if (literal_bits[0] == 0 && literal_bits[1] == 0x3ff00000)
+        literal_double_checks++;
+    else
+        literal_ok = 0;
+
+    float literal_float = 0.75f;
+    if (*(int *)&literal_float == 0x3f400000)
+        literal_float_checks++;
+    else
+        literal_ok = 0;
+    float literal_float_tie = 1.000000059604644775390625f;
+    if (*(int *)&literal_float_tie == 0x3f800000)
+        literal_float_checks++;
+    else
+        literal_ok = 0;
+
+    double literal_subnormal = 5e-324;
+    literal_bits = (int *)&literal_subnormal;
+    if (literal_bits[0] == 1 && literal_bits[1] == 0)
+        literal_edge_checks++;
+    else
+        literal_ok = 0;
+    double literal_overflow = 1e400;
+    literal_bits = (int *)&literal_overflow;
+    if (literal_bits[0] == 0 && literal_bits[1] == 0x7ff00000)
+        literal_edge_checks++;
+    else
+        literal_ok = 0;
+    double literal_negative_zero = -0e-9999;
+    literal_bits = (int *)&literal_negative_zero;
+    if (literal_bits[0] == 0 &&
+        literal_bits[1] == (int)0x80000000)
+        literal_edge_checks++;
+    else
+        literal_ok = 0;
+
+    if (literal_ok && literal_double_checks == 2 &&
+        literal_float_checks == 2 && literal_edge_checks == 3) {
+        serial_printf("[feature13-literal] PASS double=2 float=2 edge=3\n");
+    } else {
+        serial_printf("[feature13-literal] FAIL double=%d float=%d edge=%d\n",
+                      literal_double_checks, literal_float_checks,
+                      literal_edge_checks);
+        ok = 0;
+    }
+
     /* sin(pi/2) = 1. Check |sin(pi/2) - 1| < 1e-12 via scale 1e12. */
     double s = sin(pi / 2.0);
     if (!feature13_within(s, 1.0, 1000000000000.0, 0)) {

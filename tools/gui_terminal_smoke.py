@@ -180,6 +180,7 @@ FRONTIER_RUNTIME_COMMANDS = (
             r"for=3 zero=0x80000000 nan=2"
             r".*?\[feature13-lvalue\] PASS array=42 pointer=13 "
             r"record=26 sizes=56 unevaluated=1"
+            r".*?\[feature13-literal\] PASS double=2 float=2 edge=3"
             r".*?\[feature13-call\] PASS checks=10"
             rf".*?PASS feature13_double.*?{CUPIDC_COMPLETION_PATTERN}"
         ),
@@ -407,6 +408,7 @@ FRONTIER_RUNTIME_REJECTED_MARKERS = (
     "[feature13-truth] FAIL",
     "[feature13-update] FAIL",
     "[feature13-lvalue] FAIL",
+    "[feature13-literal] FAIL",
     "[feature13-call] FAIL",
     "FAIL feature13_double",
     "[feature14-operator] FAIL",
@@ -763,16 +765,16 @@ def qemu_supports_wav_audio(qemu: str) -> bool:
 
 def completion_pattern(success_pattern: str) -> re.Pattern[str]:
     """Return the first-event pattern for either success or a kernel panic."""
-    re.compile(success_pattern)
+    re.compile(success_pattern, re.S | re.M)
     return re.compile(
         rf"(?:{PANIC_RE.pattern})|(?:{success_pattern})",
-        re.S,
+        re.S | re.M,
     )
 
 
 def success_count(data: str, success_pattern: str) -> int:
     """Count completed command markers without depending on capture groups."""
-    return sum(1 for _ in re.finditer(success_pattern, data, re.S))
+    return sum(1 for _ in re.finditer(success_pattern, data, re.S | re.M))
 
 
 def positive_count(text: str) -> int:
@@ -1019,7 +1021,7 @@ def run_terminal_command(
     key_pause: float,
 ) -> tuple[bool, str]:
     """Type one command and require one new matching serial event."""
-    re.compile(success_pattern, re.S)
+    re.compile(success_pattern, re.S | re.M)
     completed = success_count(read_log(log), success_pattern)
     for ch in command:
         send_key(mon, key_name(ch), key_pause)

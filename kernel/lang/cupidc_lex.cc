@@ -51,67 +51,408 @@ static char cc_peek_char2(cc_state_t *cc) {
 }
 
 /*
- * parse_double - naive decimal-string-to-double converter.
- *
- * Handles optional sign, integer part, fractional part, and 'e'/'E'
- * exponent. Precision is lost on very long mantissas because each
- * fractional digit multiplies a 0.1 running scale factor rather than
- * using correctly-rounded arbitrary-precision arithmetic. Acceptable
- * for CupidOS hobby-scope; matching glibc's strtod is out of scope.
+ * The 1536-bit workspace covers a full 95-character numeric token at the
+ * binary64 subnormal boundary, including the shift needed for final rounding.
+ */
+#define CC_DECIMAL_BIG_LIMBS 48
+
+typedef struct {
+  uint32_t limb[CC_DECIMAL_BIG_LIMBS];
+  uint32_t used;
+} cc_big_uint_t;
+
+static void cc_big_zero(cc_big_uint_t *value) {
+  uint32_t index;
+  value->used = 0u;
+  for (index = 0u; index < CC_DECIMAL_BIG_LIMBS; index++)
+    value->limb[index] = 0u;
+}
+
+static void cc_big_set_u32(cc_big_uint_t *value, uint32_t initial) {
+  cc_big_zero(value);
+  if (initial != 0u) {
+    value->limb[0] = initial;
+    value->used = 1u;
+  }
+}
+
+static void cc_big_normalize(cc_big_uint_t *value) {
+  while (value->used != 0u && value->limb[value->used - 1u] == 0u)
+    value->used--;
+}
+
+static int cc_big_is_zero(const cc_big_uint_t *value) {
+  return value->used == 0u;
+}
+
+static int cc_big_multiply_add(cc_big_uint_t *value, uint32_t multiplier,
+                               uint32_t addend) {
+  uint64_t carry = (uint64_t)addend;
+  uint32_t index;
+  for (index = 0u; index < value->used; index++) {
+    uint64_t product =
+        (uint64_t)value->limb[index] * (uint64_t)multiplier + carry;
+    value->limb[index] = (uint32_t)product;
+    carry = product >> 32;
+  }
+  if (carry != 0ull) {
+    if (value->used == CC_DECIMAL_BIG_LIMBS)
+      return 0;
+    value->limb[value->used++] = (uint32_t)carry;
+  } else if (value->used == 0u && addend != 0u) {
+    value->limb[0] = addend;
+    value->used = 1u;
+  }
+  return 1;
+}
+
+static int cc_big_multiply_power_ten(cc_big_uint_t *value, uint32_t power) {
+  while (power != 0u) {
+    if (!cc_big_multiply_add(value, 10u, 0u))
+      return 0;
+    power--;
+  }
+  return 1;
+}
+
+static uint32_t cc_u32_width(uint32_t value) {
+  uint32_t width = 0u;
+  while (value != 0u) {
+    value >>= 1;
+    width++;
+  }
+  return width;
+}
+
+static uint32_t cc_big_width(const cc_big_uint_t *value) {
+  if (value->used == 0u)
+    return 0u;
+  return (value->used - 1u) * 32u +
+         cc_u32_width(value->limb[value->used - 1u]);
+}
+
+static int cc_big_compare(const cc_big_uint_t *left,
+                          const cc_big_uint_t *right) {
+  uint32_t index;
+  if (left->used != right->used)
+    return left->used < right->used ? -1 : 1;
+  index = left->used;
+  while (index != 0u) {
+    index--;
+    if (left->limb[index] != right->limb[index])
+      return left->limb[index] < right->limb[index] ? -1 : 1;
+  }
+  return 0;
+}
+
+static void cc_big_subtract(cc_big_uint_t *left,
+                            const cc_big_uint_t *right) {
+  uint64_t borrow = 0ull;
+  uint32_t index;
+  for (index = 0u; index < left->used; index++) {
+    uint64_t minuend = (uint64_t)left->limb[index];
+    uint64_t subtrahend =
+        (index < right->used ? (uint64_t)right->limb[index] : 0ull) +
+        borrow;
+    if (minuend < subtrahend) {
+      left->limb[index] =
+          (uint32_t)((1ull << 32) + minuend - subtrahend);
+      borrow = 1ull;
+    } else {
+      left->limb[index] = (uint32_t)(minuend - subtrahend);
+      borrow = 0ull;
+    }
+  }
+  cc_big_normalize(left);
+}
+
+static int cc_big_shift_left_copy(const cc_big_uint_t *value, uint32_t shift,
+                                  cc_big_uint_t *result) {
+  uint32_t word_shift = shift / 32u;
+  uint32_t bit_shift = shift % 32u;
+  uint32_t index;
+  cc_big_zero(result);
+  if (value->used == 0u)
+    return 1;
+  if (word_shift >= CC_DECIMAL_BIG_LIMBS)
+    return 0;
+  for (index = 0u; index < value->used; index++) {
+    uint32_t destination = index + word_shift;
+    uint64_t part;
+    if (destination >= CC_DECIMAL_BIG_LIMBS)
+      return 0;
+    part = (uint64_t)value->limb[index] << bit_shift;
+    result->limb[destination] |= (uint32_t)part;
+    if ((part >> 32) != 0ull) {
+      if (destination + 1u >= CC_DECIMAL_BIG_LIMBS)
+        return 0;
+      result->limb[destination + 1u] |= (uint32_t)(part >> 32);
+    }
+  }
+  result->used = value->used + word_shift + (bit_shift != 0u ? 1u : 0u);
+  if (result->used > CC_DECIMAL_BIG_LIMBS)
+    result->used = CC_DECIMAL_BIG_LIMBS;
+  cc_big_normalize(result);
+  return 1;
+}
+
+static void cc_big_shift_right_one(cc_big_uint_t *value) {
+  uint32_t carry = 0u;
+  uint32_t index = value->used;
+  while (index != 0u) {
+    uint32_t next_carry;
+    index--;
+    next_carry = value->limb[index] & 1u;
+    value->limb[index] = (value->limb[index] >> 1) | (carry << 31);
+    carry = next_carry;
+  }
+  cc_big_normalize(value);
+}
+
+static int cc_big_binary_exponent(const cc_big_uint_t *numerator,
+                                  const cc_big_uint_t *denominator,
+                                  int32_t *exponent_out) {
+  int32_t exponent =
+      (int32_t)cc_big_width(numerator) - (int32_t)cc_big_width(denominator);
+  cc_big_uint_t scaled;
+  if (exponent >= 0) {
+    if (!cc_big_shift_left_copy(denominator, (uint32_t)exponent, &scaled))
+      return 0;
+    if (cc_big_compare(numerator, &scaled) < 0)
+      exponent--;
+  } else {
+    if (!cc_big_shift_left_copy(numerator, (uint32_t)(0 - exponent),
+                                &scaled))
+      return 0;
+    if (cc_big_compare(&scaled, denominator) < 0)
+      exponent--;
+  }
+  *exponent_out = exponent;
+  return 1;
+}
+
+static int cc_big_round_ratio(const cc_big_uint_t *numerator_source,
+                              const cc_big_uint_t *denominator_source,
+                              int32_t binary_scale,
+                              uint64_t *rounded_out) {
+  cc_big_uint_t numerator = *numerator_source;
+  cc_big_uint_t denominator = *denominator_source;
+  cc_big_uint_t shifted;
+  cc_big_uint_t divisor;
+  cc_big_uint_t remainder;
+  cc_big_uint_t doubled;
+  uint64_t quotient = 0ull;
+  uint32_t quotient_shift;
+
+  if (binary_scale >= 0) {
+    if (!cc_big_shift_left_copy(&numerator, (uint32_t)binary_scale, &shifted))
+      return 0;
+    numerator = shifted;
+  } else {
+    if (!cc_big_shift_left_copy(&denominator,
+                                (uint32_t)(0 - binary_scale), &shifted))
+      return 0;
+    denominator = shifted;
+  }
+
+  remainder = numerator;
+  if (cc_big_compare(&remainder, &denominator) >= 0) {
+    quotient_shift = cc_big_width(&remainder) - cc_big_width(&denominator);
+    if (quotient_shift >= 64u ||
+        !cc_big_shift_left_copy(&denominator, quotient_shift, &divisor))
+      return 0;
+    for (;;) {
+      if (cc_big_compare(&remainder, &divisor) >= 0) {
+        cc_big_subtract(&remainder, &divisor);
+        quotient |= 1ull << quotient_shift;
+      }
+      if (quotient_shift == 0u)
+        break;
+      quotient_shift--;
+      cc_big_shift_right_one(&divisor);
+    }
+  }
+
+  if (!cc_big_shift_left_copy(&remainder, 1u, &doubled))
+    return 0;
+  if (cc_big_compare(&doubled, &denominator) > 0 ||
+      (cc_big_compare(&doubled, &denominator) == 0 &&
+       (quotient & 1ull) != 0ull))
+    quotient++;
+  *rounded_out = quotient;
+  return 1;
+}
+
+/*
+ * Convert one decimal token with integer arithmetic. The result is rounded
+ * once to the requested IEEE width using round-to-nearest, ties-to-even.
 */
-static double parse_double(const char *s) {
-  double v = 0.0;
-  int i = 0;
-  int neg = 0;
-  if (s[i] == '-') {
-    neg = 1;
-    i++;
-  } else if (s[i] == '+') {
-    i++;
-  }
+static const char *cc_decimal_floating_bits(const char *text, int target_bits,
+                                            uint64_t *bits_out) {
+  int index = 0;
+  int digit_count = 0;
+  int significant_digits = 0;
+  int fractional_digits = 0;
+  int after_point = 0;
+  int exponent_negative = 0;
+  uint32_t exponent_magnitude = 0u;
+  cc_big_uint_t numerator;
+  cc_big_uint_t denominator;
+  int32_t decimal_exponent;
+  int32_t adjusted_decimal_exponent;
+  int32_t binary_exponent;
+  uint32_t precision = target_bits == 32 ? 24u : 53u;
+  int32_t minimum_normal_exponent = target_bits == 32 ? -126 : -1022;
+  int32_t minimum_subnormal_exponent = target_bits == 32 ? -149 : -1074;
+  int32_t maximum_binary_exponent = target_bits == 32 ? 127 : 1023;
+  int32_t maximum_decimal_exponent = target_bits == 32 ? 38 : 308;
+  int32_t minimum_decimal_exponent = target_bits == 32 ? -46 : -324;
+  uint32_t exponent_bias = target_bits == 32 ? 127u : 1023u;
+  uint32_t mantissa_width = target_bits == 32 ? 23u : 52u;
+  uint64_t rounded;
+  uint64_t normal_significand = 1ull << (precision - 1u);
+  uint64_t infinity_bits = target_bits == 32 ? 0x7f800000ull
+                                             : 0x7ff0000000000000ull;
 
-  /* Integer part */
-  while (s[i] >= '0' && s[i] <= '9') {
-    v = v * 10.0 + (double)(s[i] - '0');
-    i++;
-  }
+  if (target_bits != 32 && target_bits != 64)
+    return "decimal floating literal has an invalid target width";
 
-  /* Fractional part */
-  if (s[i] == '.') {
-    i++;
-    double scale = 0.1;
-    while (s[i] >= '0' && s[i] <= '9') {
-      v += (double)(s[i] - '0') * scale;
-      scale *= 0.1;
-      i++;
+  cc_big_zero(&numerator);
+  while (text[index] != '\0' && text[index] != 'e' && text[index] != 'E') {
+    char character = text[index++];
+    uint32_t digit;
+    if (character == '.') {
+      if (after_point)
+        return "decimal floating literal has more than one decimal point";
+      after_point = 1;
+      continue;
     }
+    if (!cc_is_digit(character))
+      return "decimal floating literal contains an invalid digit";
+    digit_count++;
+    digit = (uint32_t)(character - '0');
+    if (significant_digits != 0 || digit != 0u)
+      significant_digits++;
+    if (after_point)
+      fractional_digits++;
+    if (!cc_big_multiply_add(&numerator, 10u, digit))
+      return "decimal floating literal is too long";
   }
 
-  /* Exponent */
-  if (s[i] == 'e' || s[i] == 'E') {
-    i++;
-    int exp_neg = 0;
-    if (s[i] == '-') {
-      exp_neg = 1;
-      i++;
-    } else if (s[i] == '+') {
-      i++;
+  if (digit_count == 0)
+    return "decimal floating literal requires a digit";
+
+  if (text[index] == 'e' || text[index] == 'E') {
+    int exponent_digits = 0;
+    index++;
+    if (text[index] == '+' || text[index] == '-') {
+      exponent_negative = text[index] == '-';
+      index++;
     }
-    int exp_val = 0;
-    while (s[i] >= '0' && s[i] <= '9') {
-      exp_val = exp_val * 10 + (s[i] - '0');
-      i++;
+    while (cc_is_digit(text[index])) {
+      uint32_t digit = (uint32_t)(text[index] - '0');
+      if (exponent_magnitude > 1000u ||
+          exponent_magnitude * 10u + digit > 10000u)
+        exponent_magnitude = 10000u;
+      else
+        exponent_magnitude = exponent_magnitude * 10u + digit;
+      exponent_digits++;
+      index++;
     }
-    double p = 1.0;
-    while (exp_val-- > 0)
-      p *= 10.0;
-    if (exp_neg)
-      v /= p;
-    else
-      v *= p;
+    if (exponent_digits == 0)
+      return "decimal floating literal exponent requires a digit";
   }
 
-  return neg ? -v : v;
+  if (text[index] != '\0')
+    return "decimal floating literal has an invalid suffix";
+
+  decimal_exponent =
+      (exponent_negative ? 0 - (int32_t)exponent_magnitude
+                         : (int32_t)exponent_magnitude) -
+      (int32_t)fractional_digits;
+
+  if (cc_big_is_zero(&numerator)) {
+    *bits_out = 0ull;
+    return NULL;
+  }
+
+  adjusted_decimal_exponent =
+      decimal_exponent + (int32_t)significant_digits - 1;
+  if (adjusted_decimal_exponent > maximum_decimal_exponent) {
+    *bits_out = infinity_bits;
+    return NULL;
+  }
+  if (adjusted_decimal_exponent < minimum_decimal_exponent) {
+    *bits_out = 0ull;
+    return NULL;
+  }
+
+  cc_big_set_u32(&denominator, 1u);
+  if (decimal_exponent >= 0) {
+    if (!cc_big_multiply_power_ten(&numerator,
+                                   (uint32_t)decimal_exponent))
+      return "decimal floating literal exceeds the conversion capacity";
+  } else if (!cc_big_multiply_power_ten(
+                 &denominator, (uint32_t)(0 - decimal_exponent))) {
+    return "decimal floating literal exceeds the conversion capacity";
+  }
+
+  if (!cc_big_binary_exponent(&numerator, &denominator, &binary_exponent))
+    return "decimal floating literal exceeds the conversion capacity";
+
+  if (binary_exponent > maximum_binary_exponent) {
+    *bits_out = infinity_bits;
+    return NULL;
+  }
+
+  if (binary_exponent >= minimum_normal_exponent) {
+    if (!cc_big_round_ratio(&numerator, &denominator,
+                            (int32_t)(precision - 1u) - binary_exponent,
+                            &rounded))
+      return "decimal floating literal exceeds the conversion capacity";
+    if (rounded == (1ull << precision)) {
+      rounded >>= 1;
+      binary_exponent++;
+    }
+    if (binary_exponent > maximum_binary_exponent) {
+      *bits_out = infinity_bits;
+      return NULL;
+    }
+    if (rounded < normal_significand ||
+        rounded >= (1ull << precision))
+      return "decimal floating literal conversion failed";
+    *bits_out =
+        ((uint64_t)((uint32_t)(binary_exponent +
+                              (int32_t)exponent_bias))
+         << mantissa_width) |
+        (rounded - normal_significand);
+    return NULL;
+  }
+
+  if (!cc_big_round_ratio(&numerator, &denominator,
+                          0 - minimum_subnormal_exponent, &rounded))
+    return "decimal floating literal exceeds the conversion capacity";
+  if (rounded > normal_significand)
+    return "decimal floating literal conversion failed";
+  if (rounded == normal_significand)
+    *bits_out = 1ull << mantissa_width;
+  else
+    *bits_out = rounded;
+  return NULL;
+}
+
+static double cc_decimal_bits_as_double(uint64_t bits, int source_bits) {
+  if (source_bits == 32) {
+    uint32_t narrow_bits = (uint32_t)bits;
+    float narrow;
+    memcpy(&narrow, &narrow_bits, 4);
+    return (double)narrow;
+  }
+  {
+    double wide;
+    memcpy(&wide, &bits, 8);
+    return wide;
+  }
 }
 
 static void cc_skip_whitespace(cc_state_t *cc) {
@@ -384,6 +725,7 @@ cc_token_t cc_lex_next(cc_state_t *cc) {
     int32_t val = 0;
     int is_float = 0;
     int f_suffix = 0;
+    int literal_too_long = 0;
 
     /* Check for hex: 0x... or 0X... (integer only - no hex floats) */
     if (c == '0' && (cc_peek_char2(cc) == 'x' || cc_peek_char2(cc) == 'X')) {
@@ -415,32 +757,56 @@ cc_token_t cc_lex_next(cc_state_t *cc) {
     }
 
     /* Decimal integer part (may be empty for ".5") */
-    while (cc_is_digit(cc_peek_char(cc)) && i < CC_MAX_IDENT - 1) {
+    while (cc_is_digit(cc_peek_char(cc))) {
       char d = cc_next_char(cc);
-      tok.text[i++] = d;
-      val = val * 10 + (d - '0');
+      if (i < CC_MAX_IDENT - 1) {
+        tok.text[i++] = d;
+        val = val * 10 + (d - '0');
+      } else {
+        literal_too_long = 1;
+      }
     }
 
     /* Fractional part */
-    if (cc_peek_char(cc) == '.' && i < CC_MAX_IDENT - 1) {
+    if (cc_peek_char(cc) == '.') {
       is_float = 1;
-      tok.text[i++] = cc_next_char(cc); /* '.' */
-      while (cc_is_digit(cc_peek_char(cc)) && i < CC_MAX_IDENT - 1) {
-        tok.text[i++] = cc_next_char(cc);
+      if (i < CC_MAX_IDENT - 1)
+        tok.text[i++] = cc_next_char(cc); /* '.' */
+      else {
+        cc_next_char(cc);
+        literal_too_long = 1;
+      }
+      while (cc_is_digit(cc_peek_char(cc))) {
+        char digit = cc_next_char(cc);
+        if (i < CC_MAX_IDENT - 1)
+          tok.text[i++] = digit;
+        else
+          literal_too_long = 1;
       }
     }
 
     /* Exponent */
-    if ((cc_peek_char(cc) == 'e' || cc_peek_char(cc) == 'E') &&
-        i < CC_MAX_IDENT - 1) {
+    if (cc_peek_char(cc) == 'e' || cc_peek_char(cc) == 'E') {
       is_float = 1;
-      tok.text[i++] = cc_next_char(cc); /* 'e'/'E' */
-      if ((cc_peek_char(cc) == '+' || cc_peek_char(cc) == '-') &&
-          i < CC_MAX_IDENT - 1) {
-        tok.text[i++] = cc_next_char(cc);
+      if (i < CC_MAX_IDENT - 1)
+        tok.text[i++] = cc_next_char(cc); /* 'e'/'E' */
+      else {
+        cc_next_char(cc);
+        literal_too_long = 1;
       }
-      while (cc_is_digit(cc_peek_char(cc)) && i < CC_MAX_IDENT - 1) {
-        tok.text[i++] = cc_next_char(cc);
+      if (cc_peek_char(cc) == '+' || cc_peek_char(cc) == '-') {
+        char sign = cc_next_char(cc);
+        if (i < CC_MAX_IDENT - 1)
+          tok.text[i++] = sign;
+        else
+          literal_too_long = 1;
+      }
+      while (cc_is_digit(cc_peek_char(cc))) {
+        char digit = cc_next_char(cc);
+        if (i < CC_MAX_IDENT - 1)
+          tok.text[i++] = digit;
+        else
+          literal_too_long = 1;
       }
     }
 
@@ -448,14 +814,46 @@ cc_token_t cc_lex_next(cc_state_t *cc) {
     if (cc_peek_char(cc) == 'f' || cc_peek_char(cc) == 'F') {
       is_float = 1;
       f_suffix = 1;
+      if (i >= CC_MAX_IDENT - 1)
+        literal_too_long = 1;
       cc_next_char(cc);
     }
 
+    if (literal_too_long) {
+      const char *message = "numeric literal exceeds 95 characters";
+      int message_index = 0;
+      while (message[message_index] != '\0') {
+        tok.text[message_index] = message[message_index];
+        message_index++;
+      }
+      tok.text[message_index] = '\0';
+      tok.type = CC_TOK_ERROR;
+      cc->cur = tok;
+      return tok;
+    }
+
     if (is_float) {
+      uint64_t literal_bits;
+      int literal_width = f_suffix ? 32 : 64;
+      const char *literal_error;
       tok.text[i] = '\0';
+      literal_error =
+          cc_decimal_floating_bits(tok.text, literal_width, &literal_bits);
+      if (literal_error != NULL) {
+        int error_index = 0;
+        while (literal_error[error_index] != '\0' &&
+               error_index < CC_MAX_STRING - 1) {
+          tok.text[error_index] = literal_error[error_index];
+          error_index++;
+        }
+        tok.text[error_index] = '\0';
+        tok.type = CC_TOK_ERROR;
+        cc->cur = tok;
+        return tok;
+      }
       tok.type = CC_TOK_FLIT;
-      tok.fval = parse_double(tok.text);
-      tok.flit_bits = f_suffix ? 32 : 64;
+      tok.fval = cc_decimal_bits_as_double(literal_bits, literal_width);
+      tok.flit_bits = literal_width;
       cc->cur = tok;
       return tok;
     }

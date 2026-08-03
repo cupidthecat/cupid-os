@@ -253,6 +253,13 @@ can fill a pointer slot. A parsed variadic tail widens float to double and
 promotes char to int. Function-pointer calls, kernel bindings, and calls
 without that metadata keep their source-width slots.
 
+Private decimal float and double literals use a fixed 1536-bit integer
+workspace. CupidC forms the exact decimal ratio and rounds once to the selected
+IEEE width with ties going to even. An f suffix selects binary32 before
+rounding. The converter covers subnormals, finite limits, infinity, and signed
+zero. Numeric tokens may contain 95 characters including their suffix.
+Hexadecimal floating and long double literals remain unsupported.
+
 Fixed float and double arrays keep their element type through one, two, or
 three dimensions in global, automatic, block-static, and persistent REPL
 storage. The private compiler uses the remaining row stride for each
@@ -333,7 +340,7 @@ Register tokens: XMM0-7 and ST0-7.
 >tree open Testing
 Test programs:
   `bin/feature12_float.cc`    scalar float arithmetic, casts, element access.
-  `bin/feature13_double.cc`   typed lvalues, scalar calls, and transcendentals.
+  `bin/feature13_double.cc`   decimal payloads, typed lvalues, calls, and libm.
   `bin/feature14_simd.cc`     packed operators, arrays, NaNs, and intrinsics.
   `bin/feature15_libm.cc`     29 fixed checks, including seven x87 range paths.
   `bin/feature16_asm_fpu.cc`  CupidC inline asm using SSE + x87.

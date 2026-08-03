@@ -349,6 +349,14 @@ integer promotion and use the scalar integer conversion path when mixed with
 floating values or explicitly cast. Fresh subscript metadata prevents a
 pointer result from inheriting an earlier array stride.
 
+Decimal float and double tokens use a fixed 1536-bit integer workspace. The
+compiler forms the exact decimal ratio and rounds once to the requested IEEE
+width with ties going to even. An f suffix selects binary32 before rounding.
+The path covers subnormals, finite limits, infinity, and signed zero. Numeric
+tokens may contain up to 95 characters, including the suffix. Longer tokens
+and missing exponent digits receive focused errors. Hexadecimal floating and
+long double literals remain unsupported.
+
 The Browser's JavaScript numeric tables use the fixed double-array path.
 browser --selftest exercises that path without opening a window. Its 17
 result fields cover close and large-value order, negative zero and its

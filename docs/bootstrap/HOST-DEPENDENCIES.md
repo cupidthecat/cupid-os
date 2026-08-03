@@ -104,6 +104,13 @@ object. The four-CPU guest contract requires the 17-field
 `browser --selftest` PASS marker, the malformed exponent diagnostic, and clean
 JIT completion.
 
+Exact private decimal literals keep the same ownership boundary. The
+in-kernel lexer uses only fixed-size integer arithmetic and does not call a
+host conversion routine or math library. Checked-seed CupidC still produces
+the production lexer and parser objects, while hosted payload and diagnostic
+tests remain development oracles. This step adds or retires no host compiler,
+assembler, linker, or packaging dependency. ADR 0217 records the boundary.
+
 Private floating increment and decrement retire no host dependency. The
 in-kernel parser and SSE emitter own local, parameter, global, statement, and
 `for` update behavior. A host compiler checks extracted active emitter bytes

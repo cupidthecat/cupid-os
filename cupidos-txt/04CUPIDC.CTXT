@@ -1195,10 +1195,17 @@ fabs, floor, ceil, round, trunc, fmod.
 
 printf supports %f, %e, %g, and precision forms like %.3f.
 
+Decimal float and double tokens are converted as exact ratios and rounded once
+to the requested IEEE width, with ties going to even. An f suffix selects
+binary32 before rounding. Numeric tokens may contain up to 95 characters,
+including the suffix. Hexadecimal floating and long double literals remain
+unsupported.
+
 See also: bin/feature12_float.cc through bin/feature16_asm_fpu.cc.
-feature13_double checks typed floating matrices, pointers, record fields,
-row-sized unevaluated sizeof, scalar calls, and libm. feature14_simd checks
-packed operators, fixed arrays, NaN handling, and SSE intrinsics. The
+feature13_double checks decimal payloads, typed floating matrices, pointers,
+record fields, row-sized unevaluated sizeof, scalar calls, and libm.
+feature14_simd checks packed operators, fixed arrays, NaN handling, and SSE
+intrinsics. The
 Browser's binary64 token and AST tables use the fixed double-array path.
 See also: 14FPU-SSE.CTXT for full FPU/SSE reference.
 [Open FPU/SSE guide](open:14FPU-SSE.CTXT)

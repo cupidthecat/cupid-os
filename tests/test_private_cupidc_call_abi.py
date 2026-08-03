@@ -112,6 +112,7 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                 #include <stdio.h>
                 #include <stdlib.h>
                 #include <stdarg.h>
+                #include <string.h>
 
                 #include "cupidc.h"
                 #include "string.h"
@@ -204,6 +205,44 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                   return fclose(output) == 0;
                 }
 
+                static int check_numeric_token_boundary(const char *source) {
+                  cc_state_t *cc =
+                      (cc_state_t *)calloc(1u, sizeof(*cc));
+                  cc_token_t token;
+                  if (cc == NULL)
+                    return 68;
+                  cc_lex_init(cc, source);
+
+                  token = cc_lex_next(cc);
+                  if (token.type != CC_TOK_ERROR) {
+                    (void)fprintf(stderr,
+                                  "overlong literal was not rejected\\n");
+                    return 69;
+                  }
+                  (void)printf("%s\\n", token.text);
+
+                  token = cc_lex_next(cc);
+                  if (token.type != CC_TOK_SEMICOLON) {
+                    (void)fprintf(stderr,
+                                  "semicolon after literal was lost\\n");
+                    return 70;
+                  }
+
+                  token = cc_lex_next(cc);
+                  if (token.type != CC_TOK_FLIT ||
+                      strcmp(token.text, "0.75") != 0) {
+                    (void)fprintf(stderr,
+                                  "lexer did not recover at the next literal\\n");
+                    return 71;
+                  }
+                  (void)printf("%s\\n", token.text);
+
+                  token = cc_lex_next(cc);
+                  if (token.type != CC_TOK_EOF)
+                    return 72;
+                  return 0;
+                }
+
                 int main(int argc, char **argv) {
                   cc_state_t *cc;
                   char *source;
@@ -211,6 +250,9 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                       argc == 5 && strcmp(argv[4], "--repl") == 0;
                   int recovery_mode =
                       argc == 5 && strcmp(argv[4], "--recover") == 0;
+                  if (argc == 3 &&
+                      strcmp(argv[1], "--check-number-boundary") == 0)
+                    return check_numeric_token_boundary(argv[2]);
                   if (argc != 4 && !repl_mode && !recovery_mode)
                     return 64;
                   source = read_source(argv[1]);
@@ -960,6 +1002,377 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
               if (leading_float != 1.25f) return 8;
               if (trailing_float != -4.5f) return 9;
               if (sentinel != 73) return 10;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_decimal_literal_uses_the_nearest_binary64_payload(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-decimal-payload-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code, data_path = self._compile(
+                Path(temporary),
+                """
+                double value = 0.75;
+                """,
+            )
+            self.assertEqual(
+                result.returncode,
+                0,
+                result.stdout + result.stderr,
+            )
+            payload = data_path.read_bytes()[:8]
+
+        self.assertEqual(payload, bytes.fromhex("000000000000e83f"))
+
+    def test_equivalent_exponent_literal_keeps_the_exact_binary64_payload(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-exponent-payload-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code, data_path = self._compile(
+                Path(temporary),
+                """
+                double value = 75e-2;
+                """,
+            )
+            self.assertEqual(
+                result.returncode,
+                0,
+                result.stdout + result.stderr,
+            )
+            payload = data_path.read_bytes()[:8]
+
+        self.assertEqual(payload, bytes.fromhex("000000000000e83f"))
+
+    def test_decimal_literal_ties_round_to_even_at_each_width(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-decimal-ties-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code, data_path = self._compile(
+                Path(temporary),
+                """
+                float float_down = 16777217.0f;
+                float float_up = 16777219.0F;
+                double double_down = 9007199254740993.0;
+                double double_up = 9007199254740995.0;
+                """,
+            )
+            self.assertEqual(
+                result.returncode,
+                0,
+                result.stdout + result.stderr,
+            )
+            payload = data_path.read_bytes()[:24]
+
+        self.assertEqual(
+            payload,
+            bytes.fromhex(
+                "0000804b"
+                "0200804b"
+                "0000000000004043"
+                "0200000000004043"
+            ),
+        )
+
+    def test_decimal_literals_cover_subnormal_maximum_and_overflow_edges(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-decimal-edges-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code, data_path = self._compile(
+                Path(temporary),
+                """
+                float float_minimum = 1.401298464324817e-45f;
+                float float_maximum = 3.4028234663852886e38f;
+                float float_overflow = 3.4028236e38f;
+                double double_minimum = 5e-324;
+                double double_maximum = 1.7976931348623157e308;
+                double double_overflow = 1.7976931348623159e308;
+                """,
+            )
+            self.assertEqual(
+                result.returncode,
+                0,
+                result.stdout + result.stderr,
+            )
+            payload = data_path.read_bytes()[:36]
+
+        self.assertEqual(
+            payload,
+            bytes.fromhex(
+                "01000000"
+                "ffff7f7f"
+                "0000807f"
+                "0100000000000000"
+                "ffffffffffffef7f"
+                "000000000000f07f"
+            ),
+        )
+
+    def test_long_decimal_significands_resolve_binary64_halfway_cases(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-long-decimal-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code, data_path = self._compile(
+                Path(temporary),
+                """
+                double halfway =
+                    1.00000000000000011102230246251565404236316680908203125;
+                double above_halfway =
+                    1.00000000000000011102230246251565404236316680908203126;
+                """,
+            )
+            self.assertEqual(
+                result.returncode,
+                0,
+                result.stdout + result.stderr,
+            )
+            payload = data_path.read_bytes()[:16]
+
+        self.assertEqual(
+            payload,
+            bytes.fromhex(
+                "000000000000f03f"
+                "010000000000f03f"
+            ),
+        )
+
+    def test_extreme_exponents_preserve_zero_sign_and_ieee_limits(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-extreme-decimal-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code, data_path = self._compile(
+                Path(temporary),
+                """
+                float negative_zero = -0.0f;
+                double negative_underflow = -1e-4000;
+                double positive_underflow = 1e-4000;
+                double positive_overflow = 1e4000;
+                double zero_with_large_exponent =
+                    0e999999999999999999999999999999999999;
+                """,
+            )
+            self.assertEqual(
+                result.returncode,
+                0,
+                result.stdout + result.stderr,
+            )
+            payload = data_path.read_bytes()[:36]
+
+        self.assertEqual(
+            payload,
+            bytes.fromhex(
+                "00000080"
+                "0000000000000080"
+                "0000000000000000"
+                "000000000000f07f"
+                "0000000000000000"
+            ),
+        )
+
+    def test_decimal_literal_requires_exponent_digits(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-decimal-exponent-error-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code, _data = self._compile(
+                Path(temporary),
+                """
+                double value = 1e+;
+                """,
+            )
+
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertIn(
+            "decimal floating literal exponent requires a digit",
+            result.stderr,
+        )
+
+    def test_function_body_decimal_error_keeps_the_lexer_diagnostic(self):
+        cases = (
+            (
+                "double value = 1e+;",
+                "decimal floating literal exponent requires a digit",
+            ),
+            (
+                f"double value = {'1.' + '0' * 94};",
+                "numeric literal exceeds 95 characters",
+            ),
+        )
+        for declaration, diagnostic in cases:
+            with self.subTest(diagnostic=diagnostic):
+                with tempfile.TemporaryDirectory(
+                    prefix="private-cupidc-decimal-body-error-",
+                    ignore_cleanup_errors=True,
+                ) as temporary:
+                    result, _code, _data = self._compile(
+                        Path(temporary),
+                        f"""
+                        int main() {{
+                          {declaration}
+                          return 0;
+                        }}
+                        """,
+                    )
+
+                self.assertEqual(
+                    result.returncode,
+                    2,
+                    result.stdout + result.stderr,
+                )
+                public_errors = [
+                    line
+                    for line in result.stderr.splitlines()
+                    if line.startswith("CupidC Error")
+                ]
+                self.assertEqual(len(public_errors), 1, result.stderr)
+                self.assertIn(diagnostic, public_errors[0])
+                self.assertNotIn("expected expression", public_errors[0])
+
+    def test_decimal_recovery_does_not_replace_the_first_diagnostic(self):
+        overlong = "1." + "0" * 94
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-decimal-first-error-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code, _data = self._compile(
+                Path(temporary),
+                f"""
+                int first() {{
+                  double value = 1e+;
+                  return 0;
+                }}
+                int second() {{
+                  double value = {overlong};
+                  return 0;
+                }}
+                """,
+            )
+
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        public_errors = [
+            line
+            for line in result.stderr.splitlines()
+            if line.startswith("CupidC Error")
+        ]
+        self.assertEqual(len(public_errors), 1, result.stderr)
+        self.assertIn(
+            "decimal floating literal exponent requires a digit",
+            public_errors[0],
+        )
+        self.assertNotIn(
+            "numeric literal exceeds 95 characters",
+            public_errors[0],
+        )
+        self.assertNotIn("expected expression", public_errors[0])
+
+    def test_decimal_literal_limit_accepts_95_characters_and_rejects_96(self):
+        accepted_literal = "1." + "0" * 93
+        rejected_literal = accepted_literal + "0"
+        self.assertEqual(len(accepted_literal), 95)
+        self.assertEqual(len(rejected_literal), 96)
+
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-decimal-length-limit-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            accepted_result, _code, accepted_data = self._compile(
+                Path(temporary),
+                f"double value = {accepted_literal};\n",
+            )
+            self.assertEqual(
+                accepted_result.returncode,
+                0,
+                accepted_result.stdout + accepted_result.stderr,
+            )
+            self.assertEqual(
+                accepted_data.read_bytes()[:8],
+                bytes.fromhex("000000000000f03f"),
+            )
+            result, _code, _data = self._compile(
+                Path(temporary),
+                f"double value = {rejected_literal};\n",
+            )
+            suffix_result, _code, _data = self._compile(
+                Path(temporary),
+                f"float value = {accepted_literal}f;\n",
+            )
+
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertIn(
+            "numeric literal exceeds 95 characters",
+            result.stderr,
+        )
+        self.assertNotIn("unexpected token", result.stderr)
+        self.assertNotIn("additional error", result.stderr)
+        self.assertEqual(
+            suffix_result.returncode,
+            2,
+            suffix_result.stdout + suffix_result.stderr,
+        )
+        self.assertIn(
+            "numeric literal exceeds 95 characters",
+            suffix_result.stderr,
+        )
+
+    def test_overlong_decimal_literal_keeps_the_following_token_available(self):
+        literal = "1." + "0" * 94
+        result = subprocess.run(
+            [
+                str(self.driver),
+                "--check-number-boundary",
+                f"{literal}; 0.75",
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=30,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(
+            result.stdout.splitlines(),
+            ["numeric literal exceeds 95 characters", "0.75"],
+        )
+
+    def test_decimal_literal_unbounded_exponent_reaches_ieee_overflow(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-decimal-overflow-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code, data_path = self._compile(
+                Path(temporary),
+                """
+                double value = 1e4097;
+                """,
+            )
+            self.assertEqual(
+                result.returncode,
+                0,
+                result.stdout + result.stderr,
+            )
+            payload = data_path.read_bytes()[:8]
+
+        self.assertEqual(payload, bytes.fromhex("000000000000f07f"))
+
+    def test_runtime_decimal_literals_keep_their_rounded_payloads(self):
+        result = self._compile_and_run(
+            """
+            int main() {
+              double wide;
+              float narrow;
+              wide = 0.75;
+              narrow = 0.1f;
+              if (*(int *)&wide != 0) return 1;
+              if (*(int *)&narrow != 0x3dcccccd) return 2;
               return 0;
             }
             """

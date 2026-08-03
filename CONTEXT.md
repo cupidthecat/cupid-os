@@ -419,6 +419,19 @@ boundary. ADR 0210 records the first array slice; ADR 0215 records the broader
 lvalue model.
 _Avoid_: complete multi-level floating pointer support, indirect floating update
 
+**Private CupidC decimal literal**:
+A decimal `float` or `double` token converted with a 1536-bit integer
+workspace. The converter forms an exact decimal ratio and rounds it once to
+binary32 or binary64 using nearest-even. An `f` or `F` suffix selects binary32
+before rounding. Decimal subnormals, finite limits, overflow to infinity,
+underflow to zero, and a following unary sign keep their IEEE payloads. A
+numeric token may contain at most 95 characters, including its suffix. The
+lexer consumes the whole rejected token, leaves the next delimiter available,
+and reports a focused length or exponent error. Parser recovery keeps that
+first public diagnostic. Hexadecimal floating and `long double` literals are
+outside this boundary. ADR 0217 records the model.
+_Avoid_: host `strtod`, binary64-first conversion of an `f` literal
+
 **Private CupidC SIMD value**:
 A `float4` or `double2` value carried through direct packed arithmetic or a
 one-dimensional fixed array. Matching vectors support `+`, `-`, `*`, and `/`.
