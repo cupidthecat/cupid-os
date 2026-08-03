@@ -140,6 +140,14 @@ _Avoid_: pure external inline definition, static inline function
 A type alias whose name lives in one C block scope. It keeps a stable frontend type identity, shares the ordinary identifier namespace, and owns no runtime storage.
 _Avoid_: file typedef, block object
 
+**Private fixed-array typedef**:
+A private JIT, AOT, or persistent REPL alias that retains one positive element count as part of its type shape. Automatic, global, block-static, record-field, and class-field objects allocate the complete checked size. A record or class array member retains its complete object size and record-element identity through direct or pointer access, including indexed assignment inside another record array. Function and method parameters decay to an element pointer, while `sizeof` keeps the complete type or object size.
+_Avoid_: scalar alias, multidimensional array typedef, pointer to array
+
+**Private unsigned word**:
+A four-byte unsigned value retained by the in-kernel compiler through objects, pointers, calls, kernel binding results, enum symbols, unary and conditional expressions, `sizeof`, usual arithmetic conversion, scalar returns, and conversion to `float` or `double`. Relations, division, remainder, and right shift use unsigned i386 behavior. The Browser array-length lane uses this type through the ECMAScript maximum length.
+_Avoid_: signed int bits, wide integer value, floating-to-unsigned conversion
+
 **Block enumerator**:
 An enum constant whose ordinary identifier lives in one C block scope. Its frontend binding keeps the evaluated target value and type but owns no storage, address, symbol, relocation, or runtime declaration work.
 _Avoid_: local constant object, file enumerator
@@ -395,10 +403,13 @@ diagnostic only once, inside the completed `feature13_double.cc` command
 slice. A stale, repeated, or out-of-context compiler error remains fatal. A
 host oracle compiles the active emitter helpers and interprets their exact
 bytes against binary32 and binary64 payloads. The kernel bridge publishes the
-declared result type of all 510 bindings: 318 return a value and 192 return
-`void`. ADR 0189 records unary signs, ADR 0192 records scalar comparisons, and
-ADR 0193 records scalar truth and binding-result metadata. ADR 0194 records
-floating variable updates. ADR 0198 records mixed-width cdecl calls.
+declared result type of all 510 bindings: 319 return a value and 191 return
+`void`. The value group has 205 promoted integer, 40 unsigned-word, 25
+`float`, 25 `double`, 19 character-pointer, and five other pointer results.
+ADR 0189 records unary signs, ADR 0192 records scalar comparisons, ADR 0193
+records scalar truth and binding-result metadata, and ADR 0221 records the
+unsigned result split. ADR 0194 records floating variable updates. ADR 0198
+records mixed-width cdecl calls.
 _Avoid_: C mode, HolyC mode
 
 **Private CupidC floating lvalue**:
@@ -467,9 +478,9 @@ expression's entry depth after overflow. Every string interning path reserves
 the complete slice before it publishes a token, binding, property, or value;
 failed global installation blocks queued scripts. Native function IDs travel
 with their tags through stack, binding, property, and return lanes. Canonical
-array-index writes grow the signed length lane, while indices that fit
-ECMAScript but not that lane fail explicitly. The non-index key 4,294,967,295
-remains an ordinary property, and direct `length` assignment is rejected.
+array-index writes grow an unsigned length lane through index 4,294,967,294.
+The non-index key 4,294,967,295 remains an ordinary property, and direct
+`length` assignment is rejected.
 Finite formatting avoids out-of-range integer casts and covers plain values
 below `1e21` plus scientific notation below `1e-6` or at least `1e21`. The
 26-field asset-free self-test also requires ten useful syntax failures, a

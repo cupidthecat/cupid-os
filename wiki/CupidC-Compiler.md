@@ -53,6 +53,7 @@ If `-o` is omitted, the output name is derived from the source file (e.g., `prog
 | Type | Size | Description |
 |------|------|-------------|
 | `int` | 32-bit | Signed integer |
+| `unsigned int`, `uint32_t`, `U32` | 32-bit | Unsigned integer with preserved private runtime semantics |
 | `char` | 8-bit | Character / byte |
 | `bool` | 32-bit | Boolean (alias for int) |
 | `U0` | - | HolyC-style `void` spelling |
@@ -60,7 +61,7 @@ If `-o` is omitted, the output name is derived from the source file (e.g., `prog
 | `U16`, `I16` | 16-bit | Unsigned/signed word spellings |
 | `U32`, `I32` | 32-bit | Unsigned/signed dword spellings |
 | `U64`, `I64` | parsed | Accepted C/HolyC compatibility spellings; current codegen remains 32-bit |
-| `long`, `short`, `signed`, `unsigned` | parsed | Accepted C compatibility spellings; width is normalized by the 32-bit codegen |
+| `long`, `short`, `signed`, `unsigned` | parsed | Accepted C compatibility spellings; represented 32-bit signedness is preserved |
 | `float`, `double` | 32/64-bit | SSE scalar floating point |
 | `float4`, `double2` | 128-bit | SSE vector types |
 | `void` | - | No value (functions only) |
@@ -68,6 +69,31 @@ If `-o` is omitted, the output name is derived from the source file (e.g., `prog
 | `char*` | 32-bit | Pointer to char |
 | `struct` | varies | User-defined composite type |
 | `struct*` | 32-bit | Pointer to struct |
+
+### Private typedef declarators
+
+Private JIT, AOT, and persistent REPL source accepts comma-separated value and
+pointer aliases. One-dimensional fixed-array aliases keep their count and
+element type in automatic, global, block-static, structure, class, and REPL
+storage. Array parameters decay to element pointers, while `sizeof` keeps the
+complete object size. An array field keeps that size and a record element's
+identity through `.` or `->`; indexed reads and writes may continue to another
+member, even when the outer record is itself selected from an array. The
+compiler rejects an unsized or multidimensional alias and the other
+unrepresented array-declarator combinations before it publishes an incorrect
+layout.
+
+### Unsigned 32-bit operations
+
+Private `unsigned int` values retain their type through objects, pointers,
+calls, enums, unary operations, and usual arithmetic conversion. Comparisons,
+division, remainder, and right shift use unsigned i386 behavior. Conversion to
+`float` and `double` is exact across the sign boundary, including ordinary and
+method returns. Conditional expressions use both arms to choose their integer
+type, and `sizeof` produces unsigned `size_t`. The 40 kernel calls declared
+with unsigned-word results publish the same type. Conversion in the other
+direction is still unsupported and receives a focused diagnostic, including
+at a function return.
 
 ### Runtime unary signs
 
@@ -108,10 +134,11 @@ expressions, structures by value, `float4`, and `double2` fail with
 `truth test requires a scalar operand`.
 
 Kernel calls participate in the same type rules. Each of the 510 registered
-bindings carries its declared result type. The compiler knows which 318 calls
-return an integer, pointer, `float`, or `double`, while the other 192 calls
-are `void`. A result from `input_dialog`, for example, can control an `if`
-without losing its integer type.
+bindings carries its declared result type. The table contains 319 value calls
+and 191 `void` calls. Its values split into 205 promoted integers, 40 unsigned
+words, 25 `float`, 25 `double`, 19 character pointers, and five other pointers.
+A result from `input_dialog`, for example, can control an `if` without losing
+its integer type, while a high-bit `htonl` result keeps unsigned comparison.
 
 ### Floating variable updates
 
@@ -248,7 +275,14 @@ void main() {
   4-byte boundary
 - Private JIT, AOT, and persistent REPL source may use anonymous or tagged
   structure typedefs. Alias chains and pointer aliases keep the structure
-  layout. The private typedef table holds sixteen single-alias declarations.
+  layout. Declarations may contain several value or pointer aliases. The
+  private typedef table holds sixteen aliases in total.
+- One-dimensional fixed-array aliases keep complete storage in automatic,
+  global, block-static, structure, class, and persistent REPL declarations.
+  Function and method parameters decay to element pointers, while `sizeof`
+  keeps the complete array size. Array members preserve complete size and
+  record-element identity through direct, pointer, and indexed outer-record
+  access.
 - Fixed field arrays require a positive count and a checked byte product.
   Padding, cumulative field size, and final allocation alignment stay within
   the signed parser range. A failed REPL line restores every committed record,

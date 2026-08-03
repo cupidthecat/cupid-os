@@ -6,6 +6,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from tools import hostbuild
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 TOOLCHAIN_ROOT = REPO_ROOT / "toolchain"
@@ -150,6 +152,30 @@ class CupidObjHostedCliTests(unittest.TestCase):
             Path(cls._build_directory.name),
             "cupidobj",
             ["ctool.cc", "ctool_host.cc", "elf32.cc", "cupidobj.cc", "cupidobj_main.cc"],
+        )
+        cls.asm_cli = _build_cli(
+            Path(cls._build_directory.name),
+            "cupidasm",
+            [
+                "ctool.cc",
+                "ctool_host.cc",
+                "elf32.cc",
+                "x86.cc",
+                "cupidasm.cc",
+                "cupidasm_main.cc",
+            ],
+        )
+        cls.dis_cli = _build_cli(
+            Path(cls._build_directory.name),
+            "cupiddis",
+            [
+                "ctool.cc",
+                "ctool_host.cc",
+                "elf32.cc",
+                "x86.cc",
+                "cupiddis.cc",
+                "cupiddis_main.cc",
+            ],
         )
 
     @classmethod
@@ -605,6 +631,143 @@ class CupidObjHostedCliTests(unittest.TestCase):
                     self.assertEqual(oracle.returncode, 1)
                     self.assertIn("same binary symbol", oracle.stderr)
                     self.assertEqual(oracle_output.read_bytes(), b"sentinel")
+
+    def test_ksyms_source_matches_python_oracle_and_repeats(self):
+        symbol_text = (
+            "00002000 T second\n"
+            "00001000 T first\n"
+            "00001000 T duplicate\n"
+            "         U unresolved\n"
+            "00003000 D data_only\n"
+            "00004000 t .Lprivate\n"
+            "00005000 W weak_text\n"
+        )
+        symbols = hostbuild._parse_nm_symbols(symbol_text)
+        expected = hostbuild._render_ksyms_source(
+            hostbuild.build_ksyms_blob(symbols)
+        )
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            source = root / "kernel.symbols"
+            first = root / "first.cc"
+            second = root / "second.cc"
+            source.write_text(symbol_text, encoding="ascii")
+            for output in (first, second):
+                generated = subprocess.run(
+                    [
+                        str(self.cli),
+                        "ksyms-source",
+                        str(source),
+                        "-o",
+                        str(output),
+                    ],
+                    cwd=root,
+                    text=True,
+                    capture_output=True,
+                )
+                self.assertEqual(generated.returncode, 0, generated.stderr)
+            self.assertEqual(first.read_bytes(), expected)
+            self.assertEqual(second.read_bytes(), expected)
+
+    def test_ksyms_source_consumes_real_cupiddis_numeric_symbols(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            assembly = root / "symbols.asm"
+            object_path = root / "symbols.o"
+            symbol_text = root / "symbols.txt"
+            generated_source = root / "ksyms_data.cc"
+            assembly.write_text(
+                "BITS 32\n"
+                "global global_text\n"
+                "section .text\n"
+                "local_text:\n"
+                "    nop\n"
+                "global_text:\n"
+                "    ret\n",
+                encoding="ascii",
+            )
+            assembled = subprocess.run(
+                [
+                    str(self.asm_cli),
+                    "-f",
+                    "elf32",
+                    str(assembly),
+                    "-o",
+                    str(object_path),
+                ],
+                cwd=root,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(assembled.returncode, 0, assembled.stderr)
+            inspected = subprocess.run(
+                [str(self.dis_cli), "-n", str(object_path)],
+                cwd=root,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(inspected.returncode, 0, inspected.stderr)
+            self.assertEqual(inspected.stderr, "")
+            self.assertIn("00000000 t local_text\n", inspected.stdout)
+            self.assertIn("00000001 T global_text\n", inspected.stdout)
+            symbol_text.write_text(inspected.stdout, encoding="ascii")
+            generated = subprocess.run(
+                [
+                    str(self.cli),
+                    "ksyms-source",
+                    str(symbol_text),
+                    "-o",
+                    str(generated_source),
+                ],
+                cwd=root,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(generated.returncode, 0, generated.stderr)
+            expected = hostbuild._render_ksyms_source(
+                hostbuild.build_ksyms_blob(
+                    hostbuild._parse_nm_symbols(inspected.stdout)
+                )
+            )
+            self.assertEqual(generated_source.read_bytes(), expected)
+
+    def test_ksyms_source_rejects_bad_symbol_text_without_clobbering_output(self):
+        cases = (
+            ("not-an-address T broken\n", "invalid address"),
+            (
+                "00001000 T valid\nnot-an-address T broken\n",
+                ":2:0: error CT8000002:",
+            ),
+            ("100000000 T too_wide\n", "outside i386"),
+            ("T missing_address\n", "omitted an address"),
+            ("00001000 TT broken\n", "malformed row"),
+            ("00002000 D data_only\n", "no kernel text symbols"),
+        )
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            source = root / "kernel.symbols"
+            output = root / "ksyms_data.cc"
+            for case_index, (symbol_text, message) in enumerate(cases):
+                with self.subTest(case=case_index):
+                    source.write_text(symbol_text, encoding="ascii")
+                    output.write_bytes(b"existing generated source")
+                    generated = subprocess.run(
+                        [
+                            str(self.cli),
+                            "ksyms-source",
+                            str(source),
+                            "-o",
+                            str(output),
+                        ],
+                        cwd=root,
+                        text=True,
+                        capture_output=True,
+                    )
+                    self.assertEqual(generated.returncode, 1)
+                    self.assertIn(message, generated.stderr)
+                    self.assertEqual(
+                        output.read_bytes(), b"existing generated source"
+                    )
 
     def test_wrap_absolute_input_supports_identity_stem_section_and_readonly(self):
         with tempfile.TemporaryDirectory() as td:

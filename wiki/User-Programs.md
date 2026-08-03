@@ -114,8 +114,8 @@ that the write returns to the original target. A 1,100-write loop checks value
 stack balance. String-pool failures in lexer, runtime, DOM, and global setup do
 not publish invalid offsets, and a failed global setup blocks queued scripts.
 Native functions retain their IDs through user-function arguments and returns.
-Array index writes grow `length`; direct length assignment and canonical
-indices outside the signed runtime lane fail explicitly, while 4,294,967,295
+Array index writes grow the unsigned `length` lane through index
+4,294,967,294. Direct length assignment fails explicitly, while 4,294,967,295
 stays a normal property key. Finite conversion checks large plain and small
 scientific output without an out-of-range signed cast. Ten malformed literal
 forms must produce their expected diagnostics before a valid script proves

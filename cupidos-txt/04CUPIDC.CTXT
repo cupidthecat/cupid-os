@@ -97,6 +97,12 @@ Supported core features include:
 - new / del (kmalloc+zero-init / kfree+null)
 - reg / noreg / extern / inline / register / restrict hints
 - typedef and enum support
+- comma-separated private typedef declarators; value and pointer aliases keep
+  their own pointer depth
+- one-dimensional fixed-array typedefs in automatic, global, block-static,
+  structure, class, and persistent REPL storage; parameters decay to element
+  pointers, while sizeof keeps the complete array size; record-element reads
+  and writes may continue after indexing an array member
 - anonymous and tagged structure typedefs in private JIT, AOT, and REPL source;
   alias chains and structure-pointer aliases keep the field layout, and a
   failed REPL line cannot fill an older forward tag
@@ -107,6 +113,15 @@ Supported core features include:
   layout, data capacity, and cumulative local frames before reservation
 - signed constant integer arithmetic rejects overflow; an unsigned operand
   wraps modulo 2^32
+- private unsigned 32-bit objects, pointers, parameters, returns, fields,
+  arrays, enums, conditional arms, sizeof results, comparisons, division,
+  remainder, and shifts retain unsigned semantics; /= and >>= use the same
+  rules, while private %= syntax remains open
+- unsigned 32-bit values convert exactly to float or double across the sign
+  boundary, including function and method returns; float or double to unsigned
+  32-bit remains unsupported
+- all 40 uint32_t, size_t, and swap_handle_t kernel results publish the private
+  unsigned lane; uint8_t and uint16_t results remain integer-promoted
 - the private compiler accepts __attribute__((...)) compatibility spellings
 - basic inline asm blocks
 - arithmetic and logical operators
@@ -1167,10 +1182,11 @@ integer promotion and use the scalar integer conversion path when mixed with
 floating values or explicitly cast. Fresh subscript metadata prevents a
 pointer result from inheriting an earlier array stride.
 
-The kernel binding table preserves each function's declared result. Its 318
-value-returning entries identify integer, pointer, float, or double results.
-The other 192 entries return void. Conditions therefore use the value that a
-binding actually returns instead of stale expression state.
+The kernel binding table preserves each function's declared result. Its 319
+value-returning entries include 205 promoted integers, 40 unsigned words, 25
+float, 25 double, 19 character pointers, and five other pointers. The other
+191 entries return void. Conditions therefore use the value that a binding
+actually returns instead of stale expression state.
 
 Prefix and postfix ++ and -- work on scalar float and double variables.
 Each update adds or subtracts an exact 1.0 at the variable's width. A postfix

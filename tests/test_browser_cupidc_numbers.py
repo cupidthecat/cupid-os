@@ -442,30 +442,48 @@ class BrowserCupidCNumberTests(unittest.TestCase):
             with self.subTest(fragment=fragment):
                 self.assertIn(_compact(fragment), self.compact_interpreter)
 
-    def test_array_writes_grow_length_and_length_assignment_is_explicit(self):
+    def test_array_indices_use_the_full_unsigned_length_lane(self):
+        combined = _compact(self.interpreter + self.main)
         for fragment in (
-            "int js_array_index_from_key(int off, int len, int *out_index)",
-            "jobj_arr_len[ref->obj_idx] = array_index + 1;",
+            "unsigned int jobj_arr_len [512];",
+            "int js_array_index_from_key(int off, int len, "
+            "unsigned int *out_index)",
+            "unsigned int value = 0u;",
+            "unsigned int array_index = 0u;",
+            "if (array_index >= jobj_arr_len[ref->obj_idx])",
+            "jobj_arr_len[ref->obj_idx] = array_index + 1u;",
+            "js_push_num((double)jobj_arr_len[ref->obj_idx]);",
+            "double n = (double)jobj_arr_len[jvs_obj_idx[t]];",
+            "js_push_num((double)jobj_arr_len[oi]);",
+            "int js_format_large_uint_key(double value, char *buf)",
             'js_set_err("js: array length assignment unsupported");',
             "char *array_length_script =",
-            "char *array_index_limit_script =",
-            "char *array_numeric_limit_script =",
+            "char *array_index_boundary_script =",
+            "cupidPoolArray[2147483648]=13;",
+            "cupidPoolArray[4294967294]=14;",
             "js_exec_program(array_length_root);",
-            "js_exec_program(array_index_limit_root);",
-            "js_exec_program(array_numeric_limit_root);",
+            "js_exec_program(array_index_boundary_root);",
             "array_length_reject_ok",
-            "array_index_limit_reject_ok",
-            "array_numeric_limit_reject_ok",
-            "int js_array_numeric_index_is_unsupported(int value_top)",
-            "int js_format_large_uint_key(double value, char *buf)",
-            'js_set_err("js: array index exceeds runtime limit");',
-            "cupidPoolArray.length===0",
-            "cupidPoolArray.length===3",
-            "cupidPoolArray[2]===11",
+            "array_index_boundary_reject_ok",
+            "array_index_boundary_recovery_ok",
+            'b_streq(js_last_error, "js: string pool full")',
+            "jobj_arr_len[pool_array_idx] == 4294967295u",
+            "cupidPoolArray.length===4294967295",
+            "cupidPoolArray[2147483648]===13",
+            "cupidPoolArray[4294967294]===14",
             "cupidPoolArray[4294967295]===12",
         ):
             with self.subTest(fragment=fragment):
-                self.assertIn(_compact(fragment), self.compact_interpreter)
+                self.assertIn(_compact(fragment), combined)
+
+        self.assertNotIn(
+            "js_array_numeric_index_is_unsupported", self.interpreter
+        )
+        self.assertNotIn(
+            "js: array index exceeds runtime limit", self.interpreter
+        )
+        self.assertNotIn("js_u32_greater_equal", self.interpreter)
+        self.assertNotIn("js_u32_to_number", self.interpreter)
 
     def test_value_stack_overflow_unwinds_expressions_and_recovers(self):
         for fragment in (

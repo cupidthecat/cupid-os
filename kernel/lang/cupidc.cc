@@ -1064,7 +1064,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
 
   /* String operations */
   size_t (*p_strlen)(const char *) = strlen;
-  BIND_T("strlen", p_strlen, 1, TYPE_INT);
+  BIND_T("strlen", p_strlen, 1, TYPE_UINT);
 
   int (*p_strcmp)(const char *, const char *) = strcmp;
   BIND_T("strcmp", p_strcmp, 2, TYPE_INT);
@@ -1083,7 +1083,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   BIND("outb", p_outb, 2);
 
   uint32_t (*p_inb)(uint32_t) = cc_inb;
-  BIND_T("inb", p_inb, 1, TYPE_INT);
+  BIND_T("inb", p_inb, 1, TYPE_UINT);
 
   /* PC speaker */
   void (*p_pc_speaker_on)(uint32_t) = pc_speaker_on;
@@ -1128,7 +1128,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   BIND_T("swap_init", p_swap_init, 2, TYPE_INT);
 
   swap_handle_t (*p_swap_kmalloc)(uint32_t) = swap_kmalloc;
-  BIND_T("swap_kmalloc", p_swap_kmalloc, 1, TYPE_INT);
+  BIND_T("swap_kmalloc", p_swap_kmalloc, 1, TYPE_UINT);
 
   void *(*p_swap_pin)(swap_handle_t) = swap_pin;
   BIND_T("swap_pin", p_swap_pin, 1, TYPE_PTR);
@@ -1188,7 +1188,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   uint16_t (*p_htons)(uint16_t) = htons;
   BIND_T("htons", p_htons, 1, TYPE_INT);
   uint32_t (*p_htonl)(uint32_t) = htonl;
-  BIND_T("htonl", p_htonl, 1, TYPE_INT);
+  BIND_T("htonl", p_htonl, 1, TYPE_UINT);
 
   /* SSH crypto primitives */
   void (*p_sha256)(const uint8_t *, uint32_t, uint8_t *) = sha256;
@@ -1280,7 +1280,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   BIND("process_kill", p_process_kill, 1);
 
   uint32_t (*p_spawn_test)(uint32_t) = cc_spawn_test;
-  BIND_T("spawn_test", p_spawn_test, 1, TYPE_INT);
+  BIND_T("spawn_test", p_spawn_test, 1, TYPE_UINT);
 
   /* Mount info */
   int (*p_mount_count)(void) = vfs_mount_count;
@@ -1293,10 +1293,10 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   BIND_T("mount_path", p_mount_path, 1, TYPE_CHAR_PTR);
 
   uint32_t (*p_storage_total_bytes)(void) = fat16_total_bytes;
-  BIND_T("storage_total_bytes", p_storage_total_bytes, 0, TYPE_INT);
+  BIND_T("storage_total_bytes", p_storage_total_bytes, 0, TYPE_UINT);
 
   uint32_t (*p_storage_free_bytes)(void) = fat16_free_bytes;
-  BIND_T("storage_free_bytes", p_storage_free_bytes, 0, TYPE_INT);
+  BIND_T("storage_free_bytes", p_storage_free_bytes, 0, TYPE_UINT);
 
   /* TempleOS-style argument passing: CupidC programs call get_args()
    * to receive command-line arguments set by the shell.*/
@@ -1305,7 +1305,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
 
   /* Timer */
   uint32_t (*p_uptime)(void) = timer_get_uptime_ms;
-  BIND_T("uptime_ms", p_uptime, 0, TYPE_INT);
+  BIND_T("uptime_ms", p_uptime, 0, TYPE_UINT);
 
   void (*p_sleep_ms)(uint32_t) = timer_sleep_ms;
   BIND("sleep_ms", p_sleep_ms, 1);
@@ -1333,7 +1333,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   BIND_T("rtc_weekday", p_rtc_weekday, 0, TYPE_INT);
 
   uint32_t (*p_rtc_epoch)(void) = rtc_get_epoch_seconds;
-  BIND_T("rtc_epoch", p_rtc_epoch, 0, TYPE_INT);
+  BIND_T("rtc_epoch", p_rtc_epoch, 0, TYPE_UINT);
 
   /* RTC - formatted string accessors */
   const char *(*p_date_full)(void) = cc_date_full_string;
@@ -1363,22 +1363,22 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   BIND("heap_check_integrity", p_heap_check, 0);
 
   uint32_t (*p_pmm_free)(void) = pmm_free_pages;
-  BIND_T("pmm_free_pages", p_pmm_free, 0, TYPE_INT);
+  BIND_T("pmm_free_pages", p_pmm_free, 0, TYPE_UINT);
 
   uint32_t (*p_pmm_total)(void) = pmm_total_pages;
-  BIND_T("pmm_total_pages", p_pmm_total, 0, TYPE_INT);
+  BIND_T("pmm_total_pages", p_pmm_total, 0, TYPE_UINT);
 
   /* Timer - extended */
   uint32_t (*p_timer_freq)(void) = timer_get_frequency;
-  BIND_T("timer_get_frequency", p_timer_freq, 0, TYPE_INT);
+  BIND_T("timer_get_frequency", p_timer_freq, 0, TYPE_UINT);
 
   /* CPU info */
   uint32_t (*p_cpu_mhz)(void) = cc_get_cpu_mhz;
-  BIND_T("get_cpu_mhz", p_cpu_mhz, 0, TYPE_INT);
+  BIND_T("get_cpu_mhz", p_cpu_mhz, 0, TYPE_UINT);
 
   /* Process info - extended */
   uint32_t (*p_proc_count)(void) = process_get_count;
-  BIND_T("process_get_count", p_proc_count, 0, TYPE_INT);
+  BIND_T("process_get_count", p_proc_count, 0, TYPE_UINT);
 
   /* Serial log control */
   void (*p_set_log)(int) = (void (*)(int))set_log_level;
@@ -1460,7 +1460,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
 
   /* GUI mode query */
   uint32_t (*p_is_gui)(void) = cc_is_gui_mode;
-  BIND_T("is_gui_mode", p_is_gui, 0, TYPE_INT);
+  BIND_T("is_gui_mode", p_is_gui, 0, TYPE_UINT);
 
   /* VFS mount count */
   int (*p_vfs_mount_count)(void) = vfs_mount_count;
@@ -1578,7 +1578,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   BIND("gfx2d_text_simple", p_gfx2d_text_simple, 4);
 
   uint32_t (*p_ansi_color)(int) = cc_ansi_color;
-  BIND_T("ansi_color", p_ansi_color, 1, TYPE_INT);
+  BIND_T("ansi_color", p_ansi_color, 1, TYPE_UINT);
 
   /* String operations - extended */
 
@@ -1620,7 +1620,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   BIND("gfx2d_pixel", p_gfx2d_pixel, 3);
 
   uint32_t (*p_gfx2d_getpixel)(int, int) = gfx2d_getpixel;
-  BIND_T("gfx2d_getpixel", p_gfx2d_getpixel, 2, TYPE_INT);
+  BIND_T("gfx2d_getpixel", p_gfx2d_getpixel, 2, TYPE_UINT);
 
   void (*p_gfx2d_pixel_alpha)(int, int, uint32_t) = gfx2d_pixel_alpha;
   BIND("gfx2d_pixel_alpha", p_gfx2d_pixel_alpha, 3);
@@ -1686,7 +1686,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
     BIND("gfx2d_gradient_radial", p_gfx2d_gradient_radial, 6);
 
       uint32_t (*p_gfx2d_color_hsv)(int, int, int) = gfx2d_color_hsv;
-      BIND_T("gfx2d_color_hsv", p_gfx2d_color_hsv, 3, TYPE_INT);
+      BIND_T("gfx2d_color_hsv", p_gfx2d_color_hsv, 3, TYPE_UINT);
 
       void (*p_gfx2d_color_picker_draw_sv)(int, int, int, int, int, int, int) =
         gfx2d_color_picker_draw_sv;
@@ -1766,7 +1766,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   BIND_T("gfx2d_image_height", p_gfx2d_image_height, 1, TYPE_INT);
 
   uint32_t (*p_gfx2d_image_get_pixel)(int, int, int) = gfx2d_image_get_pixel;
-  BIND_T("gfx2d_image_get_pixel", p_gfx2d_image_get_pixel, 3, TYPE_INT);
+  BIND_T("gfx2d_image_get_pixel", p_gfx2d_image_get_pixel, 3, TYPE_UINT);
 
   void (*p_gfx2d_image_draw_transformed)(int, int, int) =
       gfx2d_image_draw_transformed;
@@ -2096,7 +2096,7 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
 
   uint32_t (*p_desktop_bg_get_solid_color)(void) = desktop_bg_get_solid_color;
   BIND_T("desktop_bg_get_solid_color", p_desktop_bg_get_solid_color, 0,
-         TYPE_INT);
+         TYPE_UINT);
 
   void (*p_desktop_bg_set_anim_theme)(int) = desktop_bg_set_anim_theme;
   BIND("desktop_bg_set_anim_theme", p_desktop_bg_set_anim_theme, 1);
@@ -2401,25 +2401,25 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
 
   /* Full networking stack */
   uint32_t (*p_net_ip)(void)        = cc_net_get_ip;
-  BIND_T("net_get_ip", p_net_ip, 0, TYPE_INT);
+  BIND_T("net_get_ip", p_net_ip, 0, TYPE_UINT);
   uint32_t (*p_net_gw)(void)        = cc_net_get_gateway;
-  BIND_T("net_get_gateway", p_net_gw, 0, TYPE_INT);
+  BIND_T("net_get_gateway", p_net_gw, 0, TYPE_UINT);
   uint32_t (*p_net_dns)(void)       = cc_net_get_dns;
-  BIND_T("net_get_dns", p_net_dns, 0, TYPE_INT);
+  BIND_T("net_get_dns", p_net_dns, 0, TYPE_UINT);
   uint32_t (*p_net_mask)(void)      = cc_net_get_mask;
-  BIND_T("net_get_mask", p_net_mask, 0, TYPE_INT);
+  BIND_T("net_get_mask", p_net_mask, 0, TYPE_UINT);
   void     (*p_net_mac)(uint8_t *)  = cc_net_get_mac;
   BIND("net_get_mac", p_net_mac, 1);
   uint32_t (*p_net_link)(void)      = cc_net_link_up;
-  BIND_T("net_link_up", p_net_link, 0, TYPE_INT);
+  BIND_T("net_link_up", p_net_link, 0, TYPE_UINT);
   uint32_t (*p_net_rxp)(void)       = cc_net_rx_packets;
-  BIND_T("net_rx_packets", p_net_rxp, 0, TYPE_INT);
+  BIND_T("net_rx_packets", p_net_rxp, 0, TYPE_UINT);
   uint32_t (*p_net_txp)(void)       = cc_net_tx_packets;
-  BIND_T("net_tx_packets", p_net_txp, 0, TYPE_INT);
+  BIND_T("net_tx_packets", p_net_txp, 0, TYPE_UINT);
   uint32_t (*p_net_rxd)(void)       = cc_net_rx_drops;
-  BIND_T("net_rx_drops", p_net_rxd, 0, TYPE_INT);
+  BIND_T("net_rx_drops", p_net_rxd, 0, TYPE_UINT);
   uint32_t (*p_net_txe)(void)       = cc_net_tx_errors;
-  BIND_T("net_tx_errors", p_net_txe, 0, TYPE_INT);
+  BIND_T("net_tx_errors", p_net_txe, 0, TYPE_UINT);
 
   int  (*p_ip_parse)(const char *, uint32_t *)                           = ip_parse;
   BIND_T("ip_parse", p_ip_parse, 2, TYPE_INT);
@@ -2441,14 +2441,14 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   uint16_t (*p_ntohs)(uint16_t) = htons;   /* htons == ntohs on LE */
   BIND_T("ntohs", p_ntohs, 1, TYPE_INT);
   uint32_t (*p_ntohl)(uint32_t) = htonl;
-  BIND_T("ntohl", p_ntohl, 1, TYPE_INT);
+  BIND_T("ntohl", p_ntohl, 1, TYPE_UINT);
 
   uint32_t (*p_proto_icmp)(void) = cc_proto_icmp;
-  BIND_T("IP_PROTO_ICMP", p_proto_icmp, 0, TYPE_INT);
+  BIND_T("IP_PROTO_ICMP", p_proto_icmp, 0, TYPE_UINT);
   uint32_t (*p_proto_udp)(void)  = cc_proto_udp;
-  BIND_T("IP_PROTO_UDP", p_proto_udp, 0, TYPE_INT);
+  BIND_T("IP_PROTO_UDP", p_proto_udp, 0, TYPE_UINT);
   uint32_t (*p_proto_tcp)(void)  = cc_proto_tcp;
-  BIND_T("IP_PROTO_TCP", p_proto_tcp, 0, TYPE_INT);
+  BIND_T("IP_PROTO_TCP", p_proto_tcp, 0, TYPE_UINT);
 
   /* Block devices (ATA + loopdev + USB-MSC, by blkdev index) */
   int (*p_blkdev_count)(void)                                           = blkdev_count;
@@ -2507,23 +2507,23 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
   int      (*p_pci_count)(void)        = pci_device_count;
   BIND_T("pci_device_count", p_pci_count, 0, TYPE_INT);
   uint32_t (*p_pci_v)(int)             = cc_pci_vendor;
-  BIND_T("pci_get_vendor", p_pci_v, 1, TYPE_INT);
+  BIND_T("pci_get_vendor", p_pci_v, 1, TYPE_UINT);
   uint32_t (*p_pci_d)(int)             = cc_pci_device_id;
-  BIND_T("pci_get_device_id", p_pci_d, 1, TYPE_INT);
+  BIND_T("pci_get_device_id", p_pci_d, 1, TYPE_UINT);
   uint32_t (*p_pci_cl)(int)            = cc_pci_class;
-  BIND_T("pci_get_class", p_pci_cl, 1, TYPE_INT);
+  BIND_T("pci_get_class", p_pci_cl, 1, TYPE_UINT);
   uint32_t (*p_pci_irq)(int)           = cc_pci_irq;
-  BIND_T("pci_get_irq", p_pci_irq, 1, TYPE_INT);
+  BIND_T("pci_get_irq", p_pci_irq, 1, TYPE_UINT);
   uint32_t (*p_pci_bar)(int, int)      = cc_pci_bar;
-  BIND_T("pci_get_bar", p_pci_bar, 2, TYPE_INT);
+  BIND_T("pci_get_bar", p_pci_bar, 2, TYPE_UINT);
   uint32_t (*p_pci_mmio)(int, int)     = cc_pci_bar_is_mmio;
-  BIND_T("pci_bar_is_mmio", p_pci_mmio, 2, TYPE_INT);
+  BIND_T("pci_bar_is_mmio", p_pci_mmio, 2, TYPE_UINT);
   void     (*p_pci_bm)(int)            = cc_pci_enable_bus_master;
   BIND("pci_enable_bus_master", p_pci_bm, 1);
 
   /* SMP / LAPIC */
   uint32_t (*p_lapic_id)(void)         = cc_lapic_get_id;
-  BIND_T("lapic_get_id", p_lapic_id, 0, TYPE_INT);
+  BIND_T("lapic_get_id", p_lapic_id, 0, TYPE_UINT);
   void     (*p_lapic_eoi)(void)        = lapic_eoi;
   BIND("lapic_eoi", p_lapic_eoi, 0);
 

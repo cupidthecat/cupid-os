@@ -10,7 +10,7 @@ programs: `U0/U8/U16/U32/I8/I16/I32`,
 attributes as compatibility syntax. The shared bootstrap compiler assigns
 meaning to its documented entity attributes and fails closed on unknown ones.
 
-## Private structure typedefs
+## Private typedef declarators and structures
 
 The private JIT, AOT, and persistent REPL parser accepts both ordinary forms:
 
@@ -18,19 +18,35 @@ The private JIT, AOT, and persistent REPL parser accepts both ordinary forms:
 typedef struct Tagged {
     int value;
     struct Tagged *next;
-} Tagged;
+} Tagged, TaggedAlias, *TaggedPointer;
 
 typedef struct {
     int value;
 } Anonymous;
+
+typedef int Words[4];
 ```
 
 The alias keeps the structure identity used by `.` and `->`. That identity also
 survives an alias of an alias and a structure-pointer alias. Tagged and
 anonymous bodies use the same field layout and reject an incomplete structure
-stored by value. The private table remains limited to sixteen aliases with one
-simple alias declarator in each declaration. Array, function-pointer, and
-multiple-alias typedef declarators are not part of this private path.
+stored by value. A declaration can publish several value and pointer aliases,
+with independent pointer depth for each name. The private table remains limited
+to sixteen aliases.
+
+One-dimensional fixed-array aliases retain their element type and positive
+count through alias chains. Automatic, global, block-static, record-field,
+class-field, and persistent REPL objects receive the complete storage. A
+function or method parameter declared with an array alias decays to an element
+pointer, while `sizeof` on the type or an object keeps the complete array size.
+An array member keeps that complete size and the structure identity of its
+elements through direct or pointer access. Indexed reads and assignments can
+continue to an element member from either a named record or a record-array
+element. Unsized and multidimensional aliases, pointers to array aliases, a
+second array declarator, array returns, array casts, and `new` with an array
+alias report a focused error. Function-pointer typedef declarators remain
+outside the private path. [ADR 0220](../docs/adr/0220-support-private-fixed-array-typedefs.md)
+records this boundary.
 
 Field arrays require a positive count and a checked count-by-stride product.
 Each padding step, field addition, and final record alignment must fit the
@@ -64,6 +80,34 @@ objects share one cumulative frame reservation capped at `0x7ffffff0`, leaving
 room for the function's final 16-byte frame alignment. Global and persistent
 REPL records and enums check capacity before bytes and addresses are committed.
 A failed REPL declaration does not escape its transaction.
+
+## Private unsigned 32-bit values
+
+Private JIT, AOT, and persistent REPL source keeps `unsigned int`, `uint32_t`,
+and `U32` distinct from signed `int`. The unsigned type survives aliases,
+parameters and returns, arrays, record fields, pointers, dereference, indexing,
+assignment, and calls. If either represented four-byte integer operand is
+unsigned, the usual arithmetic result is unsigned. A conditional expression
+applies that rule to both arms instead of inheriting the final arm's type, and
+`sizeof` has the unsigned `size_t` result required by the i386 ABI.
+
+Comparisons use unsigned conditions. Division and remainder use unsigned
+division, and right shift is logical. The same rules cover `/=` and `>>=`.
+Shift assignment takes its signedness from the promoted left operand, not the
+count. Unary plus, minus, and complement retain the unsigned result type, as
+do unsigned enum constants. Private `%=` syntax is not represented yet.
+
+Conversion from unsigned 32-bit values to `float` or `double` is exact before
+the destination width rounds. Values on both sides of `0x80000000` work in
+casts, initialization, assignment, arguments, ordinary or method returns,
+results, and mixed arithmetic. The 40 kernel bindings declared with
+`uint32_t`, `size_t`, or `swap_handle_t` results publish the same unsigned
+lane; narrower unsigned results keep integer promotion. Runtime conversion
+from `float` or `double` to unsigned 32-bit values remains unsupported and
+reports `floating to unsigned conversion is not supported`, including when a
+function tries to return a floating expression as unsigned.
+[ADR 0221](../docs/adr/0221-preserve-private-unsigned-int-semantics.md)
+records the runtime rules.
 
 ## In-kernel floating rules
 

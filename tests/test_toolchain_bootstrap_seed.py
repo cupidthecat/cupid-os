@@ -2380,9 +2380,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["behavior"],
                 {
-                    "failure_cases": 6,
+                    "failure_cases": 7,
                     "help_cases": 5,
-                    "success_cases": 10,
+                    "success_cases": 11,
                 },
             )
             initial_matches = report["initial_seed_matches_stage_two"]
@@ -2396,13 +2396,22 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     "cupidobj",
                 },
             )
-            promoted_seed_snapshot = (
-                "65d13673bd8787eff4bd78dc601a30a5126cf8a6c26a0c3d99661b0f32913c98"
+            capability_snapshot = (
+                "26555c8a95721689f502fea47c52da8911d10307af3142d82b4da0a53d0bfba0"
             )
             self.assertEqual(
-                report["source_snapshot_sha256"], promoted_seed_snapshot
+                report["source_snapshot_sha256"], capability_snapshot
             )
-            self.assertTrue(all(initial_matches.values()))
+            self.assertEqual(
+                initial_matches,
+                {
+                    "cupidasm": True,
+                    "cupidc": True,
+                    "cupiddis": True,
+                    "cupidld": True,
+                    "cupidobj": False,
+                },
+            )
             self.assertEqual(report["source_inputs"]["count"], 41)
             self.assertEqual(
                 len(report["source_inputs"]["sha256"]),

@@ -70,6 +70,14 @@ closure and the live closure before stage two, after each stage, and after the
 behavior suite. A live edit that is made and restored during a compile cannot
 change the captured compiler input.
 
+Source head adds CupidObj `ksyms-source` to that behavior matrix. The command
+turns canonical CupidDis symbol text into the exact packed kernel-symbol `.cc`
+source. It retains `t`, `T`, `w`, and `W` symbols except private `.L` labels,
+sorts by address and input order, and keeps the first name at a shared address.
+The expanded candidate matrix has eleven successes, seven failures, and five
+help paths. The checked seed still has the earlier matrix, so the normal image
+continues to use Python for this source until promotion and ownership transfer.
+
 Before execution, the harness reads the manifest and each seed binary once. It
 verifies those captured bytes, keeps the manifest hash, and runs private copies
 of the five binaries. A later replacement of a checked-in file cannot change

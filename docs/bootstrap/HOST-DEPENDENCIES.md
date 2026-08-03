@@ -54,6 +54,24 @@ the exact docs and home BMP alias used by the active image. The current seed
 has the bounds, ordering, and symbol-domain corrections. This changes no
 dependency count.
 
+Source-head CupidObj can now generate the packed kernel-symbol `.cc` source
+from canonical CupidDis text. The command is fixed-point tested and matches the
+Python oracle, but it is not present in the checked seed yet. The supported
+graph therefore remains unchanged: CupidDis owns symbol inspection, Python
+owns the production blob and source bytes, and checked CupidC compiles the
+result. Promotion and a later recipe transfer are required before CupidObj's
+count can rise from 185 to 186. ADR 0222 records this boundary.
+
+A fresh extension census found seventeen tracked `.c` files outside
+`TempleOS/`, none in a supported transform. Seven are historical snapshots,
+three are superseded implementations, six are deliberate host C test or
+oracle inputs, and `kernel/lang/cupidc_runtime.c` is unlinked and untested.
+One unreachable Make recipe still names the superseded
+`kernel/gui/terminal_ansi.c`; the linked implementation is
+`kernel/gui/ansi.cc`. Renaming the unlinked runtime or the test fixtures would
+claim ownership they do not have, so their names stay unchanged. Every source
+currently built by Cupid tooling already uses `.cc`.
+
 CupidASM's `align` statement adds no host tool to that graph. The shared
 assembler computes raw padding from the absolute `ORG` address, records ELF32
 section alignment, keeps NOBITS padding out of the file, and respects fixed
@@ -87,10 +105,12 @@ the active instruction helper, while checked-seed CupidC produces the normal
 kernel object and the guest frontier executes each parser path. No host
 compiler, assembler, linker, or packaging dependency was added or retired.
 
-The same change repairs the in-kernel symbol boundary: all 318
-value-returning bindings publish an explicit Cupid type, and the remaining
-192 bindings are verified `void` functions. This metadata is compiled into
-the checked-seed-owned kernel object.
+The in-kernel symbol boundary now has 319 value-returning bindings and 191
+verified `void` functions. Its value group contains 205 promoted integers, 40
+unsigned words, 25 `float`, 25 `double`, 19 character pointers, and five other
+pointers. Explicit `uint32_t`, `size_t`, and `swap_handle_t` results publish
+`TYPE_UINT`; narrow unsigned results retain integer promotion. This metadata is
+compiled into the checked-seed-owned kernel object.
 
 The Browser number work keeps the existing ownership boundary. Its lexer, AST,
 and interpreter remain source-wrapped inputs compiled by private in-OS CupidC.
@@ -144,7 +164,10 @@ linker, or packaging dependency was added or retired.
 Positive fixed-array bounds, checked count-by-stride multiplication, REPL data
 reservation, character promotion, and fresh pointer subscript metadata also
 live in the checked-seed-owned parser object. They add no host build step.
-Floating arrays embedded in structure or class fields remain unsupported.
+Fixed-array typedef fields keep their complete object size and record-element
+identity through direct and pointer member access. One shared lvalue walk
+handles indexed record members whether the outer record is a named object or
+an array element. These parser changes add no host build step.
 
 The i386 runtime contract and all fourteen Toolchain contracts now use `.cc`.
 The checked seed produces stage-two and stage-three tools, each stage compiles

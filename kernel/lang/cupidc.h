@@ -208,7 +208,9 @@ typedef enum {
   TYPE_FLOAT4,     /* 4x float SIMD vector (16 bytes) */
   TYPE_DOUBLE2,    /* 2x double SIMD vector (16 bytes) */
   TYPE_FLOAT_PTR,  /* float* */
-  TYPE_DOUBLE_PTR  /* double* */
+  TYPE_DOUBLE_PTR, /* double* */
+  TYPE_UINT,       /* 32-bit unsigned int */
+  TYPE_UINT_PTR    /* unsigned int* */
 } cc_type_t;
 
 /* HolyC-style type aliases (kept as aliases for full backward compatibility)
@@ -216,7 +218,7 @@ typedef enum {
 #define TYPE_U0 TYPE_VOID
 #define TYPE_U8 TYPE_CHAR
 #define TYPE_U16 TYPE_INT
-#define TYPE_U32 TYPE_INT
+#define TYPE_U32 TYPE_UINT
 #define TYPE_I8 TYPE_CHAR
 #define TYPE_I16 TYPE_INT
 #define TYPE_I32 TYPE_INT
@@ -237,6 +239,7 @@ typedef struct {
   int is_array;     /* stack-allocated array? */
   int struct_index; /* index into structs[] for struct types */
   int array_elem_size; /* element size for array subscript scaling */
+  int array_object_size; /* complete fixed-array size before frame padding */
   cc_type_t array_elem_type; /* declared element type for fixed arrays */
   /* For 3D arrays: array_dim2 is the size in bytes that each element of
    * the SECOND subscript advances by. For 2D and 1D arrays it is 0.
@@ -322,6 +325,7 @@ typedef struct {
   int max_local_offset; /* deepest stack offset seen (most negative) */
   int scope_start;      /* symbol index at function start */
   int param_count;      /* params in current function */
+  cc_type_t current_return_type; /* scalar result expected by return */
 
   /* Forward reference patches */
   cc_patch_t patches[CC_MAX_PATCHES];
@@ -354,6 +358,7 @@ typedef struct {
   char typedef_names[16][CC_MAX_IDENT];
   cc_type_t typedef_types[16];
   int typedef_struct_indices[16];
+  int typedef_array_counts[16];
   int typedef_count;
 
   /* HolyC-style top-level / auto-main handling.

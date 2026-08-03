@@ -29,6 +29,22 @@ typedef struct {
   obj_install_symbol_kind_t kind;
 } obj_install_symbol_t;
 
+typedef struct {
+  ctool_u32 address;
+  ctool_u32 order;
+  ctool_string_t name;
+} obj_ksyms_symbol_t;
+
+typedef enum {
+  OBJ_KSYMS_ROW_EMPTY = 0,
+  OBJ_KSYMS_ROW_IGNORED,
+  OBJ_KSYMS_ROW_TEXT,
+  OBJ_KSYMS_ROW_OMITTED_ADDRESS,
+  OBJ_KSYMS_ROW_MALFORMED,
+  OBJ_KSYMS_ROW_INVALID_ADDRESS,
+  OBJ_KSYMS_ROW_ADDRESS_OUTSIDE_I386
+} obj_ksyms_row_kind_t;
+
 static void obj_zero(void *destination, ctool_u32 size) {
   ctool_u8 *bytes = (ctool_u8 *)destination;
   ctool_u32 index;
@@ -154,12 +170,13 @@ static ctool_bool obj_power_of_two(ctool_u32 value) {
                                                      : CTOOL_FALSE;
 }
 
-static ctool_status_t obj_emit_failure(ctool_job_t *job,
-                                        const ctool_source_t *source,
-                                        ctool_status_t status,
-                                        ctool_u32 code,
-                                        ctool_u32 column,
-                                        const char *message) {
+static ctool_status_t obj_emit_failure_at(ctool_job_t *job,
+                                           const ctool_source_t *source,
+                                           ctool_status_t status,
+                                           ctool_u32 code,
+                                           ctool_u32 line,
+                                           ctool_u32 column,
+                                           const char *message) {
   ctool_diagnostic_t diagnostic;
   ctool_status_t diagnostic_status;
   if (job == (ctool_job_t *)0) {
@@ -170,11 +187,20 @@ static ctool_status_t obj_emit_failure(ctool_job_t *job,
   diagnostic.path = source != (const ctool_source_t *)0
                         ? source->path.text
                         : ctool_string("");
-  diagnostic.line = 0u;
+  diagnostic.line = line;
   diagnostic.column = column;
   diagnostic.message = ctool_string(message);
   diagnostic_status = ctool_job_emit(job, &diagnostic);
   return diagnostic_status == CTOOL_OK ? status : diagnostic_status;
+}
+
+static ctool_status_t obj_emit_failure(ctool_job_t *job,
+                                        const ctool_source_t *source,
+                                        ctool_status_t status,
+                                        ctool_u32 code,
+                                        ctool_u32 column,
+                                        const char *message) {
+  return obj_emit_failure_at(job, source, status, code, 0u, column, message);
 }
 
 static ctool_bool obj_region_less(const obj_flat_region_t *left,
@@ -230,6 +256,460 @@ static void obj_region_sort(obj_flat_region_t *regions, ctool_u32 count) {
     end--;
     obj_region_sift_down(regions, 0u, end);
   }
+}
+
+static ctool_bool obj_ksyms_space(ctool_u8 character) {
+  return character == (ctool_u8)' ' || character == (ctool_u8)'\t' ||
+                 character == (ctool_u8)'\r' ||
+                 character == (ctool_u8)'\v' ||
+                 character == (ctool_u8)'\f'
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool obj_ksyms_token_equal(ctool_string_t token,
+                                         const char *text) {
+  return obj_string_equal(token, ctool_string(text));
+}
+
+static obj_ksyms_row_kind_t obj_ksyms_address(
+    ctool_string_t spelling, ctool_u32 *address_out) {
+  ctool_u32 value = 0u;
+  ctool_u32 index = 0u;
+  if (spelling.size >= 2u && spelling.data[0] == '0' &&
+      (spelling.data[1] == 'x' || spelling.data[1] == 'X')) {
+    index = 2u;
+  }
+  if (index == spelling.size) {
+    return OBJ_KSYMS_ROW_INVALID_ADDRESS;
+  }
+  while (index < spelling.size) {
+    unsigned char character = (unsigned char)spelling.data[index];
+    ctool_u32 digit;
+    if (character >= (unsigned char)'0' &&
+        character <= (unsigned char)'9') {
+      digit = (ctool_u32)(character - (unsigned char)'0');
+    } else if (character >= (unsigned char)'a' &&
+               character <= (unsigned char)'f') {
+      digit = 10u + (ctool_u32)(character - (unsigned char)'a');
+    } else if (character >= (unsigned char)'A' &&
+               character <= (unsigned char)'F') {
+      digit = 10u + (ctool_u32)(character - (unsigned char)'A');
+    } else {
+      return OBJ_KSYMS_ROW_INVALID_ADDRESS;
+    }
+    if (value > (0xffffffffu - digit) / 16u) {
+      return OBJ_KSYMS_ROW_ADDRESS_OUTSIDE_I386;
+    }
+    value = value * 16u + digit;
+    index++;
+  }
+  *address_out = value;
+  return OBJ_KSYMS_ROW_TEXT;
+}
+
+static obj_ksyms_row_kind_t obj_ksyms_parse_row(
+    ctool_bytes_t contents, ctool_u32 start, ctool_u32 end,
+    ctool_u32 order, obj_ksyms_symbol_t *symbol_out) {
+  ctool_string_t fields[3];
+  ctool_u32 field_count = 0u;
+  ctool_u32 index = start;
+  ctool_u32 address = 0u;
+  obj_ksyms_row_kind_t address_kind;
+  while (index < end) {
+    ctool_u32 field_start;
+    while (index < end && obj_ksyms_space(contents.data[index]) == CTOOL_TRUE) {
+      index++;
+    }
+    if (index == end) {
+      break;
+    }
+    if (field_count == 3u) {
+      return OBJ_KSYMS_ROW_MALFORMED;
+    }
+    field_start = index;
+    while (index < end && obj_ksyms_space(contents.data[index]) == CTOOL_FALSE) {
+      if (contents.data[index] == 0u) {
+        return OBJ_KSYMS_ROW_MALFORMED;
+      }
+      index++;
+    }
+    fields[field_count].data =
+        (const char *)(const void *)(contents.data + field_start);
+    fields[field_count].size = index - field_start;
+    field_count++;
+  }
+  if (field_count == 0u) {
+    return OBJ_KSYMS_ROW_EMPTY;
+  }
+  if (field_count == 2u) {
+    if (fields[0].size == 1u &&
+        (obj_ksyms_token_equal(fields[0], "U") == CTOOL_TRUE ||
+         obj_ksyms_token_equal(fields[0], "u") == CTOOL_TRUE ||
+         obj_ksyms_token_equal(fields[0], "v") == CTOOL_TRUE ||
+         obj_ksyms_token_equal(fields[0], "w") == CTOOL_TRUE)) {
+      return OBJ_KSYMS_ROW_IGNORED;
+    }
+    return OBJ_KSYMS_ROW_OMITTED_ADDRESS;
+  }
+  if (field_count != 3u || fields[1].size != 1u) {
+    return OBJ_KSYMS_ROW_MALFORMED;
+  }
+  address_kind = obj_ksyms_address(fields[0], &address);
+  if (address_kind != OBJ_KSYMS_ROW_TEXT) {
+    return address_kind;
+  }
+  if (!(fields[1].data[0] == 't' || fields[1].data[0] == 'T' ||
+        fields[1].data[0] == 'w' || fields[1].data[0] == 'W')) {
+    return OBJ_KSYMS_ROW_IGNORED;
+  }
+  if (obj_string_has_prefix(fields[2], ".L") == CTOOL_TRUE) {
+    return OBJ_KSYMS_ROW_IGNORED;
+  }
+  symbol_out->address = address;
+  symbol_out->order = order;
+  symbol_out->name = fields[2];
+  return OBJ_KSYMS_ROW_TEXT;
+}
+
+static ctool_bool obj_ksyms_symbol_less(
+    const obj_ksyms_symbol_t *left, const obj_ksyms_symbol_t *right) {
+  return left->address < right->address ||
+                 (left->address == right->address &&
+                  left->order < right->order)
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static void obj_ksyms_symbol_swap(obj_ksyms_symbol_t *left,
+                                   obj_ksyms_symbol_t *right) {
+  obj_ksyms_symbol_t temporary = *left;
+  *left = *right;
+  *right = temporary;
+}
+
+static void obj_ksyms_symbol_sift_down(obj_ksyms_symbol_t *symbols,
+                                        ctool_u32 root,
+                                        ctool_u32 count) {
+  for (;;) {
+    ctool_u32 child;
+    ctool_u32 selected;
+    if (root >= count / 2u) {
+      return;
+    }
+    child = root * 2u + 1u;
+    selected = root;
+    if (obj_ksyms_symbol_less(&symbols[selected], &symbols[child]) ==
+        CTOOL_TRUE) {
+      selected = child;
+    }
+    if (child + 1u < count &&
+        obj_ksyms_symbol_less(&symbols[selected], &symbols[child + 1u]) ==
+            CTOOL_TRUE) {
+      selected = child + 1u;
+    }
+    if (selected == root) {
+      return;
+    }
+    obj_ksyms_symbol_swap(&symbols[root], &symbols[selected]);
+    root = selected;
+  }
+}
+
+static void obj_ksyms_symbol_sort(obj_ksyms_symbol_t *symbols,
+                                   ctool_u32 count) {
+  ctool_u32 start = count / 2u;
+  ctool_u32 end = count;
+  while (start != 0u) {
+    start--;
+    obj_ksyms_symbol_sift_down(symbols, start, count);
+  }
+  while (end > 1u) {
+    obj_ksyms_symbol_swap(&symbols[0], &symbols[end - 1u]);
+    end--;
+    obj_ksyms_symbol_sift_down(symbols, 0u, end);
+  }
+}
+
+static void obj_ksyms_write_le32(ctool_u8 *bytes, ctool_u32 offset,
+                                  ctool_u32 value) {
+  bytes[offset] = (ctool_u8)(value & 0xffu);
+  bytes[offset + 1u] = (ctool_u8)((value >> 8u) & 0xffu);
+  bytes[offset + 2u] = (ctool_u8)((value >> 16u) & 0xffu);
+  bytes[offset + 3u] = (ctool_u8)((value >> 24u) & 0xffu);
+}
+
+static ctool_status_t obj_ksyms_append_word(ctool_buffer_t *output,
+                                             ctool_u32 value) {
+  static const char digits[] = "0123456789abcdef";
+  char text[12];
+  ctool_u32 index;
+  text[0] = '0';
+  text[1] = 'x';
+  for (index = 0u; index < 8u; index++) {
+    ctool_u32 shift = (7u - index) * 4u;
+    text[2u + index] = digits[(value >> shift) & 0x0fu];
+  }
+  text[10] = 'u';
+  text[11] = ',';
+  return ctool_buffer_append(output, ctool_bytes(text, 12u));
+}
+
+static ctool_status_t obj_ksyms_append_decimal(ctool_buffer_t *output,
+                                                ctool_u32 value) {
+  char reverse[10];
+  char text[10];
+  ctool_u32 count = 0u;
+  ctool_u32 index;
+  do {
+    reverse[count] = (char)('0' + (char)(value % 10u));
+    count++;
+    value /= 10u;
+  } while (value != 0u);
+  for (index = 0u; index < count; index++) {
+    text[index] = reverse[count - index - 1u];
+  }
+  return ctool_buffer_append(output, ctool_bytes(text, count));
+}
+
+static ctool_status_t obj_ksyms_emit_source(ctool_buffer_t *output,
+                                             const ctool_u8 *blob,
+                                             ctool_u32 blob_size,
+                                             ctool_u32 padded_size) {
+  ctool_u32 offset;
+  ctool_status_t status = obj_append_literal(
+      output, "/* Auto-generated by tools/hostbuild.py -- do not edit. */\n"
+              "#include \"ksyms.h\"\n\n"
+              "/* i386 words preserve the blob bytes with fewer initializers. */\n"
+              "const unsigned int\n"
+              "__attribute__((section(\".ksyms\"), used, aligned(4)))\n"
+              "ksym_blob[] = {\n");
+  for (offset = 0u; status == CTOOL_OK && offset < padded_size;
+       offset += 4u) {
+    ctool_u32 value = (ctool_u32)blob[offset] |
+                      ((ctool_u32)blob[offset + 1u] << 8u) |
+                      ((ctool_u32)blob[offset + 2u] << 16u) |
+                      ((ctool_u32)blob[offset + 3u] << 24u);
+    ctool_u32 word_index = offset / 4u;
+    if (word_index % 8u == 0u) {
+      status = obj_append_literal(output, "  ");
+    } else {
+      status = obj_append_literal(output, " ");
+    }
+    if (status == CTOOL_OK) {
+      status = obj_ksyms_append_word(output, value);
+    }
+    if (status == CTOOL_OK &&
+        (word_index % 8u == 7u || offset + 4u == padded_size)) {
+      status = obj_append_literal(output, "\n");
+    }
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(
+        output, "};\n\nconst unsigned int ksym_blob_size = ");
+  }
+  if (status == CTOOL_OK) {
+    status = obj_ksyms_append_decimal(output, blob_size);
+  }
+  if (status == CTOOL_OK) {
+    status = obj_append_literal(output, "u;\n");
+  }
+  return status;
+}
+
+static ctool_status_t obj_ksyms_failure(
+    ctool_job_t *job, const ctool_source_t *source, ctool_arena_t *arena,
+    ctool_arena_mark_t mark, ctool_status_t status, ctool_u32 code,
+    ctool_u32 line, const char *message) {
+  ctool_status_t rewind_status = ctool_arena_rewind(arena, mark);
+  if (rewind_status != CTOOL_OK) {
+    return rewind_status;
+  }
+  return obj_emit_failure_at(job, source, status, code, line, 0u, message);
+}
+
+static ctool_status_t obj_ksyms_row_failure(
+    ctool_job_t *job, const ctool_source_t *source, ctool_arena_t *arena,
+    ctool_arena_mark_t mark, obj_ksyms_row_kind_t kind, ctool_u32 line) {
+  if (kind == OBJ_KSYMS_ROW_OMITTED_ADDRESS) {
+    return obj_ksyms_failure(
+        job, source, arena, mark, CTOOL_ERR_INPUT,
+        CTOOL_OBJ_DIAG_INVALID_INPUT, line,
+        "CupidObj symbol reader omitted an address");
+  }
+  if (kind == OBJ_KSYMS_ROW_INVALID_ADDRESS) {
+    return obj_ksyms_failure(
+        job, source, arena, mark, CTOOL_ERR_INPUT,
+        CTOOL_OBJ_DIAG_INVALID_INPUT, line,
+        "CupidObj symbol reader emitted an invalid address");
+  }
+  if (kind == OBJ_KSYMS_ROW_ADDRESS_OUTSIDE_I386) {
+    return obj_ksyms_failure(
+        job, source, arena, mark, CTOOL_ERR_INPUT,
+        CTOOL_OBJ_DIAG_ADDRESS_OVERFLOW, line,
+        "CupidObj symbol reader address is outside i386");
+  }
+  return obj_ksyms_failure(
+      job, source, arena, mark, CTOOL_ERR_INPUT,
+      CTOOL_OBJ_DIAG_INVALID_INPUT, line,
+      "CupidObj symbol reader emitted a malformed row");
+}
+
+static ctool_status_t obj_ksyms_source(
+    ctool_job_t *job, const ctool_obj_request_t *request,
+    ctool_buffer_t *output, ctool_obj_result_t *result_out) {
+  ctool_arena_t *arena = ctool_job_arena(job);
+  ctool_arena_mark_t mark = ctool_arena_mark(arena);
+  ctool_bytes_t contents = request->input->contents;
+  obj_ksyms_symbol_t *symbols = (obj_ksyms_symbol_t *)0;
+  ctool_u8 *blob = (ctool_u8 *)0;
+  ctool_u32 symbol_count = 0u;
+  ctool_u32 unique_count = 0u;
+  ctool_u32 offset = 0u;
+  ctool_u32 line = 1u;
+  ctool_u32 index;
+  ctool_u32 string_offset;
+  ctool_u32 blob_size;
+  ctool_u32 padded_size;
+  ctool_u32 string_cursor;
+  ctool_status_t status;
+  ctool_status_t rewind_status;
+  if (contents.data == (const ctool_u8 *)0 && contents.size != 0u) {
+    return obj_ksyms_failure(
+        job, request->input, arena, mark, CTOOL_ERR_INVALID_ARGUMENT,
+        CTOOL_OBJ_DIAG_INVALID_INPUT, 0u,
+        "CupidObj input bytes are invalid");
+  }
+  while (offset < contents.size) {
+    ctool_u32 start = offset;
+    obj_ksyms_symbol_t symbol;
+    obj_ksyms_row_kind_t kind;
+    while (offset < contents.size && contents.data[offset] != (ctool_u8)'\n') {
+      offset++;
+    }
+    kind = obj_ksyms_parse_row(contents, start, offset, symbol_count, &symbol);
+    if (kind == OBJ_KSYMS_ROW_TEXT) {
+      symbol_count++;
+    } else if (kind != OBJ_KSYMS_ROW_EMPTY &&
+               kind != OBJ_KSYMS_ROW_IGNORED) {
+      return obj_ksyms_row_failure(job, request->input, arena, mark, kind,
+                                   line);
+    }
+    if (offset < contents.size) {
+      offset++;
+      line++;
+    }
+  }
+  if (symbol_count == 0u) {
+    return obj_ksyms_failure(
+        job, request->input, arena, mark, CTOOL_ERR_INPUT,
+        CTOOL_OBJ_DIAG_NO_LOAD, 0u,
+        "CupidObj symbol reader reported no kernel text symbols");
+  }
+  status = ctool_arena_alloc_zero(
+      arena, symbol_count, (ctool_u32)sizeof(*symbols),
+      (ctool_u32)sizeof(void *), (void **)&symbols);
+  if (status != CTOOL_OK) {
+    return obj_ksyms_failure(
+        job, request->input, arena, mark, status, CTOOL_OBJ_DIAG_LIMIT, 0u,
+        "CupidObj kernel symbol inventory exceeds its arena limit");
+  }
+  offset = 0u;
+  index = 0u;
+  line = 1u;
+  while (offset < contents.size) {
+    ctool_u32 start = offset;
+    obj_ksyms_symbol_t symbol;
+    obj_ksyms_row_kind_t kind;
+    while (offset < contents.size && contents.data[offset] != (ctool_u8)'\n') {
+      offset++;
+    }
+    kind = obj_ksyms_parse_row(contents, start, offset, index, &symbol);
+    if (kind == OBJ_KSYMS_ROW_TEXT) {
+      symbols[index] = symbol;
+      index++;
+    } else if (kind != OBJ_KSYMS_ROW_EMPTY &&
+               kind != OBJ_KSYMS_ROW_IGNORED) {
+      return obj_ksyms_row_failure(job, request->input, arena, mark, kind,
+                                   line);
+    }
+    if (offset < contents.size) {
+      offset++;
+      line++;
+    }
+  }
+  obj_ksyms_symbol_sort(symbols, symbol_count);
+  for (index = 0u; index < symbol_count; index++) {
+    if (unique_count == 0u ||
+        symbols[index].address != symbols[unique_count - 1u].address) {
+      symbols[unique_count] = symbols[index];
+      unique_count++;
+    }
+  }
+  if (unique_count > (0xffffffffu - 16u) / 8u) {
+    return obj_ksyms_failure(
+        job, request->input, arena, mark, CTOOL_ERR_OVERFLOW,
+        CTOOL_OBJ_DIAG_LIMIT, 0u,
+        "CupidObj kernel symbol table size overflows i386");
+  }
+  string_offset = 16u + unique_count * 8u;
+  blob_size = string_offset;
+  for (index = 0u; index < unique_count; index++) {
+    if (symbols[index].name.size == 0xffffffffu ||
+        blob_size > 0xffffffffu - symbols[index].name.size - 1u) {
+      return obj_ksyms_failure(
+          job, request->input, arena, mark, CTOOL_ERR_OVERFLOW,
+          CTOOL_OBJ_DIAG_LIMIT, 0u,
+          "CupidObj kernel symbol strings overflow i386");
+    }
+    blob_size += symbols[index].name.size + 1u;
+  }
+  if (blob_size > 0xfffffffcu) {
+    return obj_ksyms_failure(
+        job, request->input, arena, mark, CTOOL_ERR_OVERFLOW,
+        CTOOL_OBJ_DIAG_LIMIT, 0u,
+        "CupidObj word-packed kernel symbol source overflows i386");
+  }
+  padded_size = (blob_size + 3u) & ~3u;
+  status = ctool_arena_alloc_zero(arena, padded_size, 1u, 4u,
+                                  (void **)&blob);
+  if (status != CTOOL_OK) {
+    return obj_ksyms_failure(
+        job, request->input, arena, mark, status, CTOOL_OBJ_DIAG_LIMIT, 0u,
+        "CupidObj kernel symbol blob exceeds its arena limit");
+  }
+  obj_ksyms_write_le32(blob, 0u, 0x4d59534bu);
+  obj_ksyms_write_le32(blob, 4u, unique_count);
+  obj_ksyms_write_le32(blob, 8u, string_offset);
+  obj_ksyms_write_le32(blob, 12u, blob_size);
+  string_cursor = string_offset;
+  for (index = 0u; index < unique_count; index++) {
+    ctool_u32 name_index;
+    obj_ksyms_write_le32(blob, 16u + index * 8u, symbols[index].address);
+    obj_ksyms_write_le32(blob, 20u + index * 8u,
+                         string_cursor - string_offset);
+    for (name_index = 0u; name_index < symbols[index].name.size;
+         name_index++) {
+      blob[string_cursor + name_index] =
+          (ctool_u8)symbols[index].name.data[name_index];
+    }
+    string_cursor += symbols[index].name.size + 1u;
+  }
+  status = obj_ksyms_emit_source(output, blob, blob_size, padded_size);
+  rewind_status = ctool_arena_rewind(arena, mark);
+  if (rewind_status != CTOOL_OK) {
+    return rewind_status;
+  }
+  if (status != CTOOL_OK) {
+    ctool_u32 code = status == CTOOL_ERR_LIMIT || status == CTOOL_ERR_OVERFLOW ||
+                             status == CTOOL_ERR_NO_MEMORY
+                         ? CTOOL_OBJ_DIAG_LIMIT
+                         : CTOOL_OBJ_DIAG_OUTPUT;
+    return obj_emit_failure(job, request->input, status, code, 0u,
+                            "CupidObj could not emit kernel symbol source");
+  }
+  result_out->bytes = ctool_buffer_view(output);
+  return CTOOL_OK;
 }
 
 static ctool_status_t obj_extract_failure(
@@ -1654,6 +2134,8 @@ ctool_status_t ctool_obj_transform(ctool_job_t *job,
     status = obj_extract_flat(job, request, output, result_out);
   } else if (request->operation == CTOOL_OBJ_GENERATE_INSTALL_SOURCE) {
     status = obj_install_source(job, request, output, result_out);
+  } else if (request->operation == CTOOL_OBJ_GENERATE_KSYMS_SOURCE) {
+    status = obj_ksyms_source(job, request, output, result_out);
   } else {
     status = obj_emit_failure(job, request->input,
                               CTOOL_ERR_INVALID_ARGUMENT,

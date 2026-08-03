@@ -49,9 +49,12 @@ signaling-NaN payloads. The guest feature covers all six parser sites. ADR
 0193 records this private-compiler boundary.
 
 The private compiler's 510 kernel bindings now publish the same result type
-as their local function-pointer declarations. The table contains 244 integer,
-25 `float`, 25 `double`, 19 character-pointer, five other-pointer, and 192
-`void` results. `BIND` is reserved for the `void` group, while `BIND_T`
+as their local function-pointer declarations. The table contains 205 promoted
+integer, 40 unsigned-word, 25 `float`, 25 `double`, 19 character-pointer, five
+other-pointer, and 191 `void` results. The unsigned group covers every
+`uint32_t`, `size_t`, and `swap_handle_t` result, while `uint8_t` and
+`uint16_t` results keep their integer promotion. `BIND` is reserved for the
+`void` group, while `BIND_T`
 records every value result. A source-contract test parses the complete table,
 checks its exact size, and rejects an untyped non-void fixture. This prevents
 a returned control value from being mistaken for a `void` expression.
@@ -166,9 +169,10 @@ skip a call whose arguments cannot be completed, and recover in the same run.
 Lexer, `typeof`, DOM, property, and global-install paths reserve a complete
 interned string before publishing it. A failed global install blocks queued
 scripts. Native function IDs survive stack copies, bindings, properties, user
-function arguments, and returns. Canonical array-index writes grow `length`;
-indices that exceed the signed runtime lane and direct length assignment fail
-without changing the array, while 4,294,967,295 stays an ordinary property.
+function arguments, and returns. Canonical array-index writes grow the
+unsigned `length` lane through index 4,294,967,294. Direct length assignment
+fails without changing the array, while 4,294,967,295 stays an ordinary
+property.
 Finite formatting no longer narrows a large integer part to signed `int`; the
 self-test pins 4,294,967,295, `1e20`, and `1e-7`.
 Ten malformed forms receive specific lexer diagnostics, after which a valid
@@ -205,6 +209,32 @@ storage too. `&record.field` starts with the record object;
 i386 contract writes through both forms and checks the fields on either side,
 while an unknown member keeps the existing focused error. ADR 0219 records
 this language and allocation boundary.
+
+Private typedef declarations now accept comma-separated value and pointer
+aliases. Each declarator keeps its own pointer depth. A one-dimensional
+fixed-array alias retains its checked count and element type through automatic,
+global, block-static, structure, class, and persistent REPL storage. Function
+and method parameters decay to element pointers, while `sizeof` keeps the
+complete array type. Array fields retain that size and a record element's
+identity through `.` or `->`. Reads and assignments may continue after the
+index, including from an element of a record array. Unsupported array
+declarator combinations fail with specific diagnostics and leave the compiler
+ready for another request. ADR 0220 records the supported shape and its limits.
+
+Private `unsigned int` values now keep their type through aliases, parameters,
+returns, arrays, fields, pointers, calls, enum symbols, unary operators, and
+usual arithmetic conversion. Conditional arms choose their common integer
+type without depending on source order, and `sizeof` produces unsigned
+`size_t`. Relations, division, remainder, and right shift use unsigned i386
+behavior; `/=` and `>>=` follow the same rules. Conversion of the complete
+32-bit unsigned range to `double` is exact; the `float` path rounds from that
+exact value, including for ordinary and method returns. A floating return to
+an unsigned result receives the same focused unsupported diagnostic as other
+assignments. Forty kernel results publish the unsigned lane from their local
+declarations. This lets the Browser store its array length as unsigned, grow
+it through the canonical ECMAScript index maximum of
+4,294,967,294, and leave 4,294,967,295 as an ordinary property. ADR 0221
+records the compiler and Browser boundary.
 
 Hosted CupidC now carries signed and unsigned eight-byte integer values through constants, matching conditional arms, fixed direct and indirect call results, object access, declared parameters, named call arguments, ellipsis arguments, and calls through function types without prototypes. File objects, block statics, fixed automatic objects, pointer dereferences, ordinary members, and indexed elements can be initialized, loaded, assigned, mutated, chained, discarded, and returned. One Linear IR entry names an emitter-owned eight-byte frame snapshot. A declared or undeclared wide argument occupies eight cdecl stack bytes. A supported wide `va_arg` read produces an instruction-owned snapshot and advances the cursor by eight. Return restores the low word to EAX and the high word to EDX.
 
@@ -486,6 +516,18 @@ drift before it atomically replaces the source. The compiler wrapper freezes
 that source and its complete header closure, gives this generated root a
 separate 600-second ceiling, validates the relocatable object, rejects input
 drift, and publishes atomically.
+
+Source-head CupidObj now has a transactional `ksyms-source` operation for the
+same format. It consumes canonical CupidDis text, retains local, global, and
+weak text symbols except private `.L` labels, orders by address and input
+position, keeps the first name at a shared address, and emits the exact packed
+blob and C source. Malformed rows keep their line number, and input, arena, or
+output failure publishes nothing. A real CupidASM object passes through
+CupidDis and then CupidObj in the hosted contract. The fixed-point candidate
+passes eleven successful operations, seven failures, and five help paths, but
+the checked seed does not carry this command yet. Python therefore remains the
+normal generator until promotion and a separate ownership transfer. ADR 0222
+records the capability boundary.
 
 Three generated installation tables have also left the host C compiler. The
 checked CupidObj seed generates the ramfs program table, homefs document

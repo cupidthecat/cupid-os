@@ -1,5 +1,6 @@
 import re
 import unittest
+from collections import Counter
 from pathlib import Path
 
 
@@ -50,6 +51,8 @@ def _expected_cupid_type(return_type):
         if compact in ("char*", "constchar*"):
             return "TYPE_CHAR_PTR"
         return "TYPE_PTR"
+    if compact in ("uint32_t", "size_t", "swap_handle_t"):
+        return "TYPE_UINT"
     return "TYPE_INT"
 
 
@@ -122,6 +125,55 @@ class PrivateCupidCKernelBindingTypeTests(unittest.TestCase):
         self.assertEqual(violations, [])
         self.assertEqual(len(declarations), len(bindings))
         self.assertEqual(len(bindings), 510)
+        published_types = Counter(
+            binding["return_type"]
+            if binding["macro"] == "BIND_T"
+            else "TYPE_VOID"
+            for binding in bindings.values()
+        )
+        self.assertEqual(
+            published_types,
+            Counter(
+                {
+                    "TYPE_INT": 205,
+                    "TYPE_VOID": 191,
+                    "TYPE_UINT": 40,
+                    "TYPE_DOUBLE": 25,
+                    "TYPE_FLOAT": 25,
+                    "TYPE_CHAR_PTR": 19,
+                    "TYPE_PTR": 5,
+                }
+            ),
+        )
+
+    def test_htonl_uses_unsigned_metadata_for_high_bit_results(self):
+        source = BINDING_SOURCE.read_text(encoding="utf-8")
+        declarations, bindings, _violations = _binding_contract(source)
+        self.assertEqual(declarations["p_htonl"].strip(), "uint32_t")
+        self.assertEqual(
+            bindings["p_htonl"],
+            {
+                "macro": "BIND_T",
+                "name": "htonl",
+                "return_type": "TYPE_UINT",
+            },
+        )
+
+    def test_narrow_unsigned_results_keep_integer_promotion_metadata(self):
+        source = BINDING_SOURCE.read_text(encoding="utf-8")
+        declarations, bindings, _violations = _binding_contract(source)
+        for pointer in (
+            "p_usb_device_class",
+            "p_htons",
+            "p_ntohs",
+            "p_ac97_getmaster",
+            "p_ac97_getpcm",
+        ):
+            with self.subTest(pointer=pointer):
+                self.assertIn(
+                    declarations[pointer].strip(), ("uint8_t", "uint16_t")
+                )
+                self.assertEqual(bindings[pointer]["return_type"], "TYPE_INT")
 
     def test_untyped_nonvoid_binding_names_the_bad_contract(self):
         fixture = """

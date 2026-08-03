@@ -370,9 +370,9 @@ forms must report their expected errors before a valid script proves recovery.
 String interning fails before publishing a token, binding, property, DOM
 value, or global, and failed global setup blocks queued scripts. Native
 function IDs survive user-function arguments and returns. Array index writes
-grow length; direct length assignment and canonical indices outside the signed
-runtime lane fail explicitly, while 4,294,967,295 remains an ordinary
-property. Finite formatting covers 4,294,967,295, 1e20, and 1e-7 without a
+grow the unsigned length lane through index 4,294,967,294. Direct length
+assignment fails explicitly, while 4,294,967,295 remains an ordinary property.
+Finite formatting covers 4,294,967,295, 1e20, and 1e-7 without a
 signed 32-bit narrowing.
 
 Private CupidC joins adjacent ordinary string tokens in one data object for
@@ -396,6 +396,20 @@ Member address expressions select their storage without reading its value.
 The &record.field form starts at the object, while &pointer->field loads the
 pointed-to record before applying the field offset. Missing fields keep the
 unknown-struct-field diagnostic.
+
+Private typedef declarations may publish several value or pointer aliases.
+One-dimensional array aliases keep their complete storage in automatic,
+global, block-static, record, class, and persistent REPL declarations. An
+array member keeps its complete sizeof result and the structure identity of
+its elements through direct or pointer access. Reads and assignments may
+continue after the index, including when the outer record came from an array.
+
+Unsigned 32-bit values keep their type through objects, calls, conditional
+arms, sizeof, scalar returns, and conversion to float or double. Comparisons,
+division, remainder, and right shift use unsigned i386 behavior. Forty kernel
+bindings with uint32_t, size_t, or swap_handle_t results publish that lane;
+narrower unsigned results keep integer promotion. A floating expression cannot
+be returned as unsigned until that conversion is represented.
 
 [Run feature12_float](shell:feature12_float)
 [Run feature13_double](shell:feature13_double)

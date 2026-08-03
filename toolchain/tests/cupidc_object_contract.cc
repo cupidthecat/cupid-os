@@ -1518,7 +1518,8 @@ static int active_object_sources_are_unchanged(ctool_job_t *job) {
              "the active fixed-width hexadecimal helper changed",
              active_dis_hex_body, NULL) &&
          active_source_contains(
-             job, "/bin/cupidc_parse.c", "load active CupidC source",
+             job, "/kernel/lang/cupidc_parse.cc",
+             "load active private CupidC source",
              "the active initializer result changed",
              active_initializer_success, NULL) &&
          active_source_contains(
@@ -29027,7 +29028,8 @@ cleanup:
 }
 
 static int validate_active_self_host_frontier_objects(
-    const char *host_root) {
+    const char *host_root, ctool_u32 first_index,
+    ctool_u32 past_last_index) {
   static const char *const paths[] = {
       "/toolchain/ctool.cc",          "/toolchain/cupiddis.cc",
       "/toolchain/cupidld.cc",        "/toolchain/cupidobj.cc",
@@ -29037,26 +29039,30 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.cc",           "/toolchain/x86.cc",
       "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
-      65u, 71u, 66u, 43u, 31u, 143u, 263u, 358u, 423u, 82u, 37u, 60u,
+      65u, 71u, 66u, 59u, 31u, 143u, 263u, 358u, 423u, 82u, 37u, 60u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
-      42118u, 78841u, 85252u, 61641u, 42212u,
+      42118u, 78841u, 85252u, 78097u, 42212u,
       190304u, 483289u, 558285u, 852466u, 146398u, 70368u, 80596u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
-      46720u, 91460u, 99772u, 79348u, 49484u,
+      46720u, 91460u, 99772u, 98536u, 49484u,
       226668u, 521304u, 627192u, 1013604u, 165728u, 79348u, 135136u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x6a4e9e64u, 0x4ca44a27u,
-      0xff0d403bu, 0x999f97b7u, 0xb49d8eb9u,
+      0x09c47dafu, 0x999f97b7u, 0xb49d8eb9u,
       0x9764d177u, 0xeab89c95u, 0xe4142458u, 0x74b56084u,
       0x34558a49u, 0x398d41d3u, 0x8774de7du};
   ctool_u32 index;
   int all_matched = 1;
-  for (index = 0u; index <
-                       (ctool_u32)(sizeof(paths) / sizeof(paths[0]));
-       index++) {
+  if (first_index > past_last_index ||
+      past_last_index >
+          (ctool_u32)(sizeof(paths) / sizeof(paths[0]))) {
+    (void)fprintf(stderr, "self-host frontier range is invalid\n");
+    return 0;
+  }
+  for (index = first_index; index < past_last_index; index++) {
     ctool_host_adapter_t adapter;
     ctool_limits_t limits = ctool_default_limits();
     ctool_job_config_t config;
@@ -30654,7 +30660,8 @@ static int run_self_host_frontier_object(const char *host_root) {
   if (first_bytes.size != second_bytes.size ||
       memcmp(first_bytes.data, second_bytes.data,
              (size_t)first_bytes.size) != 0 ||
-      !validate_active_self_host_frontier_objects(host_root)) {
+      !validate_active_self_host_frontier_objects(
+          host_root, 0u, 13u)) {
     (void)fprintf(stderr, "self-host frontier object is not deterministic\n");
     goto cleanup;
   }
@@ -30678,6 +30685,16 @@ cleanup:
     return 0;
   }
   return 1;
+}
+
+static int run_self_host_frontier_cupidobj_object(
+    const char *host_root) {
+  if (!validate_active_self_host_frontier_objects(
+          host_root, 3u, 4u)) {
+    return 1;
+  }
+  (void)puts("self-host-frontier-cupidobj: ok");
+  return 0;
 }
 
 static int inline_assembly_memory_uses_ebp(
@@ -48414,6 +48431,10 @@ int main(int argc, char **argv) {
     return run_self_host_frontier_object(argv[2]);
   }
   if (argc == 3 &&
+      strcmp(argv[1], "self-host-frontier-cupidobj") == 0) {
+    return run_self_host_frontier_cupidobj_object(argv[2]);
+  }
+  if (argc == 3 &&
       strcmp(argv[1], "self-host-hosted-adapters") == 0) {
     return run_self_host_hosted_adapters(argv[2]);
   }
@@ -48478,7 +48499,8 @@ int main(int argc, char **argv) {
                 "floating-scalars|"
                 "wide-returns|"
                 "wide-conditions|wide-objects|wide-mutations|"
-                "self-host-frontier|self-host-hosted-adapters|"
+                "self-host-frontier|self-host-frontier-cupidobj|"
+                "self-host-hosted-adapters|"
                 "self-host-hosted-profile-errors HOST_ROOT|"
                 "self-host-link-ctool-host HOST_ROOT OUTPUT|"
                 "self-host-link-tools HOST_ROOT CUPIDASM_OUTPUT "

@@ -8,7 +8,8 @@ typedef enum {
   CTOOL_OBJ_WRAP_BINARY = 1,
   CTOOL_OBJ_WRAP_TEXT,
   CTOOL_OBJ_EXTRACT_FLAT,
-  CTOOL_OBJ_GENERATE_INSTALL_SOURCE
+  CTOOL_OBJ_GENERATE_INSTALL_SOURCE,
+  CTOOL_OBJ_GENERATE_KSYMS_SOURCE
 } ctool_obj_operation_t;
 
 typedef enum {
@@ -101,6 +102,13 @@ ctool_status_t ctool_obj_transform(ctool_job_t *job,
  * distinct paths that map to the same complete wrapped binary symbol, and
  * output exhaustion fail before publication.  One exact BMP path may appear
  * once in both the documentation and home lists because both entries use the
- * same wrapped object. */
+ * same wrapped object.
+ *
+ * GENERATE_KSYMS_SOURCE consumes canonical CupidDis nm text.  It retains
+ * defined text and weak-text symbols, orders them by address while preserving
+ * input order at equal addresses, keeps the first symbol at each address, and
+ * emits the kernel's word-packed .ksyms C source.  Undefined and non-text
+ * rows are ignored.  Malformed rows, addresses outside i386, an empty text
+ * symbol set, allocation limits, and output limits fail before publication. */
 
 #endif

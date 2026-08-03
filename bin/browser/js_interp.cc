@@ -639,7 +639,8 @@ int js_str_eq_text(int off, int len, char *text) {
     return text[len] == 0;
 }
 
-int js_array_index_from_key(int off, int len, int *out_index) {
+int js_array_index_from_key(int off, int len,
+                            unsigned int *out_index) {
     if (off < 0 || len <= 0 || off > js_str_pool_pos ||
         len > js_str_pool_pos - off) {
         return 0;
@@ -649,9 +650,7 @@ int js_array_index_from_key(int off, int len, int *out_index) {
         int c = (unsigned char)js_str_pool[off + i];
         if (c < '0' || c > '9') return 0;
     }
-    /* This runtime stores array lengths in signed ints. Return -1 for a
-     * canonical ECMAScript index that does not fit that lane, while keys
-     * above the ECMAScript index ceiling remain ordinary properties. */
+    /* Array indices end one below the largest unsigned 32-bit value. */
     if (len > 10) return 0;
     if (len == 10) {
         char *ecmascript_max = "4294967294";
@@ -664,32 +663,15 @@ int js_array_index_from_key(int off, int len, int *out_index) {
             }
         }
         if (ecmascript_compare > 0) return 0;
-
-        char *runtime_max = "2147483646";
-        int runtime_compare = 0;
-        for (int i = 0; i < 10 && runtime_compare == 0; i++) {
-            if (js_str_pool[off + i] < runtime_max[i]) {
-                runtime_compare = -1;
-            } else if (js_str_pool[off + i] > runtime_max[i]) {
-                runtime_compare = 1;
-            }
-        }
-        if (runtime_compare > 0) return -1;
     }
-    int value = 0;
+    unsigned int value = 0u;
     for (int i = 0; i < len; i++) {
-        int digit = (unsigned char)js_str_pool[off + i] - '0';
-        value = value * 10 + digit;
+        unsigned int digit =
+            (unsigned int)((unsigned char)js_str_pool[off + i] - '0');
+        value = value * 10u + digit;
     }
     *out_index = value;
     return 1;
-}
-
-int js_array_numeric_index_is_unsupported(int value_top) {
-    if (value_top < 0 || jvs_tag[value_top] != JS_VAL_NUM) return 0;
-    double value = jvs_num[value_top];
-    return value >= 2147483647.0 && value <= 4294967294.0 &&
-           fmod(value, 1.0) == 0.0;
 }
 
 int js_lookup_binding_in_scope(int scope,
@@ -887,14 +869,16 @@ void js_number_selftest() {
     char *pool_array_script = "cupidPoolArray.stable+=1;";
     char *pool_typeof_script = "typeof cupidStackTarget;";
     char *array_length_script = "cupidPoolArray.length=4;";
-    char *array_index_limit_script =
-        "cupidPoolArray['2147483647']=cupidPoolRhs();";
-    char *array_numeric_limit_script =
-        "cupidPoolArray[2147483648]=cupidPoolRhs();";
+    char *array_index_boundary_script =
+        "cupidPoolArray[2147483648]=13;"
+        "cupidPoolArray[4294967294]=14;";
     char *pool_recovery_script =
         "var cupidPoolUnchanged=cupidPoolObject[456]===undefined&&"
         "cupidPoolObject[123]===7&&cupidPoolObject.stable==='A'&&"
-        "cupidPoolArray.stable===8&&cupidPoolArray.length===0&&"
+        "cupidPoolArray.stable===8&&"
+        "cupidPoolArray.length===4294967295&&"
+        "cupidPoolArray[2147483648]===13&&"
+        "cupidPoolArray[4294967294]===14&&"
         "cupidPoolRhsCalls===0;"
         "cupidPoolObject[456]=cupidPoolRhs();"
         "cupidPoolObject.stable+='B';"
@@ -902,7 +886,10 @@ void js_number_selftest() {
         "cupidPoolArray[2]=11;"
         "var cupidPoolRecovery=cupidPoolObject[456]===9&&"
         "cupidPoolObject.stable==='AB'&&cupidPoolRhsCalls===1&&"
-        "cupidPoolArray.length===3&&cupidPoolArray[2]===11&&"
+        "cupidPoolArray.length===4294967295&&"
+        "cupidPoolArray[2]===11&&"
+        "cupidPoolArray[2147483648]===13&&"
+        "cupidPoolArray[4294967294]===14&&"
         "cupidPoolArray[4294967295]===12;";
     char *stack_assignment_script = "cupidStackTarget=9;";
     char *stack_full_assignment_script = "cupidStackTarget=10;";
@@ -1133,6 +1120,17 @@ void js_number_selftest() {
     }
     jtk_count = 0;
     js_last_error[0] = 0;
+    int array_index_boundary_root = -1;
+    int array_index_boundary_parse_ok =
+        js_tokenize(array_index_boundary_script,
+                    b_strlen(array_index_boundary_script)) == 0;
+    if (array_index_boundary_parse_ok) {
+        array_index_boundary_root = js_parse();
+        array_index_boundary_parse_ok =
+            array_index_boundary_root >= 0 && js_last_error[0] == 0;
+    }
+    jtk_count = 0;
+    js_last_error[0] = 0;
     int stack_assignment_root = -1;
     int stack_assignment_parse_ok =
         js_tokenize(stack_assignment_script,
@@ -1215,7 +1213,7 @@ void js_number_selftest() {
     int pool_saved_prop_count = jp_count;
     int pool_saved_first_prop = -1;
     int pool_saved_array_first_prop = -1;
-    int pool_saved_array_length = -1;
+    unsigned int pool_saved_array_length = 0u;
     if (pool_object_idx >= 0) {
         pool_saved_first_prop = jobj_first_prop[pool_object_idx];
     }
@@ -1305,6 +1303,18 @@ void js_number_selftest() {
         b_streq(js_last_error, "js: string pool full") &&
         jvs_top == pool_saved_stack;
 
+    jvs_top = pool_saved_stack;
+    js_last_error[0] = 0;
+    if (array_index_boundary_parse_ok) {
+        js_exec_program(array_index_boundary_root);
+    }
+    int array_index_boundary_reject_ok =
+        b_streq(js_last_error, "js: string pool full") &&
+        jvs_top == pool_saved_stack && pool_array_idx >= 0 &&
+        jobj_arr_len[pool_array_idx] == pool_saved_array_length &&
+        jp_count == pool_saved_prop_count &&
+        jobj_first_prop[pool_array_idx] == pool_saved_array_first_prop;
+
     js_str_pool_pos = pool_saved_pos;
     jvs_top = pool_saved_stack;
     js_last_error[0] = 0;
@@ -1331,49 +1341,13 @@ void js_number_selftest() {
 
     jvs_top = pool_saved_stack;
     js_last_error[0] = 0;
-    jtk_count = 0;
-    int array_index_limit_root = -1;
-    int array_index_limit_parse_ok =
-        js_tokenize(array_index_limit_script,
-                    b_strlen(array_index_limit_script)) == 0;
-    if (array_index_limit_parse_ok) {
-        array_index_limit_root = js_parse();
-        array_index_limit_parse_ok = array_index_limit_root >= 0 &&
-                                     js_last_error[0] == 0;
+    if (array_index_boundary_parse_ok) {
+        js_exec_program(array_index_boundary_root);
     }
-    js_last_error[0] = 0;
-    if (array_index_limit_parse_ok) {
-        js_exec_program(array_index_limit_root);
-    }
-    int array_index_limit_reject_ok =
-        b_streq(js_last_error, "js: array index exceeds runtime limit") &&
+    int array_index_boundary_recovery_ok = js_last_error[0] == 0 &&
         jvs_top == pool_saved_stack && pool_array_idx >= 0 &&
-        jobj_arr_len[pool_array_idx] == pool_saved_array_length &&
-        jp_count == pool_saved_prop_count &&
-        jobj_first_prop[pool_array_idx] == pool_saved_array_first_prop;
-
-    jvs_top = pool_saved_stack;
-    js_last_error[0] = 0;
-    jtk_count = 0;
-    int array_numeric_limit_root = -1;
-    int array_numeric_limit_parse_ok =
-        js_tokenize(array_numeric_limit_script,
-                    b_strlen(array_numeric_limit_script)) == 0;
-    if (array_numeric_limit_parse_ok) {
-        array_numeric_limit_root = js_parse();
-        array_numeric_limit_parse_ok = array_numeric_limit_root >= 0 &&
-                                       js_last_error[0] == 0;
-    }
-    js_last_error[0] = 0;
-    if (array_numeric_limit_parse_ok) {
-        js_exec_program(array_numeric_limit_root);
-    }
-    int array_numeric_limit_reject_ok =
-        b_streq(js_last_error, "js: array index exceeds runtime limit") &&
-        jvs_top == pool_saved_stack && pool_array_idx >= 0 &&
-        jobj_arr_len[pool_array_idx] == pool_saved_array_length &&
-        jp_count == pool_saved_prop_count &&
-        jobj_first_prop[pool_array_idx] == pool_saved_array_first_prop;
+        jobj_arr_len[pool_array_idx] == 4294967295u &&
+        jp_count == pool_saved_prop_count + 2;
 
     jvs_top = pool_saved_stack;
     js_last_error[0] = 0;
@@ -1397,9 +1371,9 @@ void js_number_selftest() {
         pool_array_existing_key_ok && pool_lexer_reject_ok &&
         pool_typeof_reject_ok && pool_dom_reject_ok &&
         pool_embedded_boundary_ok && array_length_parse_ok &&
-        array_length_reject_ok && array_index_limit_parse_ok &&
-        array_index_limit_reject_ok && array_numeric_limit_parse_ok &&
-        array_numeric_limit_reject_ok;
+        array_length_reject_ok && array_index_boundary_parse_ok &&
+        array_index_boundary_reject_ok &&
+        array_index_boundary_recovery_ok;
 
     int stack_target_name = js_str_intern("cupidStackTarget", 16);
     int stack_target_binding = -1;
@@ -1999,21 +1973,7 @@ int js_resolve_target(int target_node, js_target_ref_t *ref) {
             js_set_err("js: assignment key evaluation failed");
             return 0;
         }
-        if (ref->value_tag == JS_VAL_ARR &&
-            js_array_numeric_index_is_unsupported(jvs_top - 1)) {
-            js_set_err("js: array index exceeds runtime limit");
-            jvs_top = stack_base;
-            return 0;
-        }
         if (js_index_top_to_key(&ref->key_off, &ref->key_len) != 0) {
-            jvs_top = stack_base;
-            return 0;
-        }
-        int resolved_array_index;
-        if (ref->value_tag == JS_VAL_ARR &&
-            js_array_index_from_key(ref->key_off, ref->key_len,
-                                    &resolved_array_index) < 0) {
-            js_set_err("js: array index exceeds runtime limit");
             jvs_top = stack_base;
             return 0;
         }
@@ -2097,23 +2057,18 @@ void js_store_target(js_target_ref_t *ref) {
         jsd_dom_member_set(ref->dom_idx, ref->key_off, ref->key_len);
     } else if (ref->value_tag == JS_VAL_OBJ ||
                ref->value_tag == JS_VAL_ARR) {
-        int array_index = 0;
+        unsigned int array_index = 0u;
         int array_index_status = 0;
         if (ref->value_tag == JS_VAL_ARR) {
             array_index_status =
                 js_array_index_from_key(ref->key_off, ref->key_len,
                                         &array_index);
-            if (array_index_status < 0) {
-                js_set_err("js: array index exceeds runtime limit");
-                js_pop();
-                return;
-            }
         }
         int property = js_obj_set_prop_from_top(ref->obj_idx,
                                                 ref->key_off, ref->key_len);
         if (property >= 0 && array_index_status > 0) {
             if (array_index >= jobj_arr_len[ref->obj_idx]) {
-                jobj_arr_len[ref->obj_idx] = array_index + 1;
+                jobj_arr_len[ref->obj_idx] = array_index + 1u;
             }
         }
     }
@@ -2517,12 +2472,6 @@ void js_eval_expr(int node) {
         js_eval_expr(jn_b[node]);
         if (js_last_error[0] != 0 ||
             jvs_top != expr_stack_base + 2) {
-            jvs_top = expr_stack_base;
-            return;
-        }
-        if (object_tag == JS_VAL_ARR &&
-            js_array_numeric_index_is_unsupported(jvs_top - 1)) {
-            js_set_err("js: array index exceeds runtime limit");
             jvs_top = expr_stack_base;
             return;
         }

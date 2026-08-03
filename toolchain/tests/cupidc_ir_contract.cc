@@ -1482,8 +1482,8 @@ static const char active_double_transport_signature[] =
 static const char active_double_transport_store[] =
     "    jvs_tag[t] = JS_VAL_NUM; jvs_num[t] = v;";
 
-static const char active_variadic_float_transport_call[] =
-    "fprintf(f, \"%f\", * (float *) defaults[i].location);";
+static const char active_variadic_float_transport_argument[] =
+    "f, \"%f\", * (float *) defaults[i].location);";
 
 static const char active_linker_selector_call[] =
     "          selector(section, selector_context) == CTOOL_TRUE &&";
@@ -2152,7 +2152,7 @@ static int floating_transport_active_source_is_unchanged(
                     "load active Doom floating source") ||
       source.contents.data == NULL ||
       strstr((const char *)source.contents.data,
-             active_variadic_float_transport_call) == NULL) {
+             active_variadic_float_transport_argument) == NULL) {
     (void)fprintf(stderr,
                   "the active Doom variadic float call changed\n");
     return 0;
@@ -2306,10 +2306,11 @@ static int active_source_is_unchanged(ctool_job_t *job) {
     (void)fprintf(stderr, "the active linker cleanup path changed\n");
     return 0;
   }
-  path.text = ctool_string("/bin/cupidc_parse.c");
+  path.text = ctool_string("/kernel/lang/cupidc_parse.cc");
   (void)memset(&source, 0xa5, sizeof(source));
   status = ctool_job_load_source(job, &path, &source);
-  if (!check_status(status, CTOOL_OK, "load active CupidC source") ||
+  if (!check_status(status, CTOOL_OK,
+                    "load active private CupidC source") ||
       source.contents.data == NULL ||
       strstr((const char *)source.contents.data,
              active_initializer_success) == NULL) {

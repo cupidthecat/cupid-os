@@ -20209,3 +20209,198 @@ typedef declarators, broader tag-scope rules, and values beyond the private
 data section also remain open. Issue 31 stays open for that larger bootstrap
 work. No `.c` source was added, no active source was reduced to fit the
 toolchain, and `TempleOS/` remains untouched reference material.
+
+## 2026-08-03: Add private arrays, unsigned arithmetic, and CupidObj symbol source
+
+The next source-driven compiler pass closes two ordinary C gaps instead of
+rewriting the callers around them. Private CupidC now accepts several typedef
+declarators in one statement and retains a one-dimensional fixed-array shape
+through aliases. The shape works in automatic, global, static, persistent,
+record, and class declarations. Parameters decay to pointers, while `sizeof`
+still reports the complete array object. Alias chains, character arrays, and
+per-declarator pointer depth are covered. Diagnostics reject unsized and
+multidimensional array aliases, pointer-to-array syntax, extra dimensions,
+invalid return or cast use, trailing commas, and table exhaustion without
+leaking a partial typedef. ADR 0220 records that boundary.
+
+Unsigned `int` is now a represented private type rather than an alias that
+silently loses its arithmetic rules. The compiler preserves unsignedness
+through declarations, parameters, results, aliases, pointers, arrays, record
+fields, enum constants, unary expressions, and calls. Comparisons, division,
+remainder, right shift, compound division, and compound right shift select the
+proper signed or unsigned i386 operation after integer promotion. Converting
+the full `uint32_t` range to `float` or `double` no longer takes a signed path.
+Private conversion from floating point to unsigned remains a diagnosed gap.
+Private `%=` syntax also remains unsupported; Browser's JavaScript `%=` path
+is separate and still tested. ADR 0221 records the implemented set without
+claiming those two gaps.
+
+This type work lets Browser keep its array length and canonical index lanes as
+unsigned values. Array writes can now grow `length` through index
+4,294,967,294. The key 4,294,967,295 remains an ordinary property, as required
+by the JavaScript array-index boundary. The implementation uses normal CupidC
+operators and does not add arithmetic helper shims.
+
+A parallel object-tool pass adds `cupidobj ksyms-source SYMBOLS -o OUTPUT`.
+The command consumes the canonical text emitted by `cupiddis -n` or `nm`,
+accepts global, local, and weak text symbols, ignores undefined and `.L`
+entries, sorts by address with stable input order, and keeps the first name at
+duplicate addresses. It writes the same `0x4D59534B` symbol blob and C source
+layout as the Python host generator. Bad columns, bad i386 addresses, arena
+exhaustion, and output failure roll back the job so the same process can handle
+another request. A contract test assembles a real object with CupidASM, lists
+it with CupidDis, and feeds that text to CupidObj. ADR 0222 records the format
+and the deliberate ownership boundary.
+
+Review found one signed compound-shift defect after the broader unsigned suite
+was green. With an unsigned count, `int value = -8; value >>= count;` selected
+a logical shift because the compound token was missing from the operation-type
+selector. A new execution test first returned 1, then returned 0 after
+`>>=` and `<<=` were made to use the promoted left operand type. This is the
+reason the final rebuild follows the review rather than relying on the earlier
+candidate image.
+
+The broader IR check also uncovered a stale active-source guard. Its saved
+needle still expected Doom's floating `fprintf` call on one line, while commit
+`5faa158` had split the unchanged call across two lines. The isolated test
+reproduced the failure in 13.780 seconds. The guard now pins the variadic float
+argument rather than incidental line wrapping; the same test passed in 13.929
+seconds, and all 83 IR tests then passed in 14.477 seconds.
+
+CupidObj's larger source made the all-source object frontier report a generic
+determinism failure. Its two emitted objects were equal, but the old golden
+still described 43 functions. A new `self-host-frontier-cupidobj` selector
+cuts that check from the full 13-source frontier to the one changed tool. It
+failed in 20.175 seconds with 59 functions, 78,097 text bytes, a 98,536-byte
+object, and fingerprint `09c47daf`. Updating only those four source-derived
+values made the same byte-for-byte repeat check pass in 19.465 seconds.
+
+The second spec pass found four private type paths that the first suite had
+not isolated. `sizeof(holder.values)` returned 4 for an eight-byte array
+member. A record-element array lost its structure identity, so
+`sizeof(holder.words[0])` reported the enclosing record size and
+`holder.words[0].value` could not resolve the field. Both statement lvalue
+walks also stopped at the field index. They could not assign
+`holder.words[0].value` or the corresponding path from `holders[i]`. The
+member expression now keeps the checked complete array size and element
+structure index. One lvalue walker handles named records, record pointers,
+record-array elements, indexed record fields, pointer elements, scalar or
+pointer leaves, compound operations, and floating stores. The same test also
+found that a tagged structure typedef inherited the array count of its final
+field; structure parsing now clears that inner declarator shape before it
+publishes the outer alias.
+
+Three unsigned paths had similar source-order leaks. A conditional expression
+kept only its false arm's type, so moving `0xffffffffu` between the arms
+changed a high-bit comparison. `sizeof(int) - 5 > 1` used signed arithmetic
+instead of the unsigned i386 `size_t` result. Function returns did not retain
+their declared scalar type, so a `uint32_t` value returned as `float` or
+`double` crossed the wrong lane, while a floating expression returned as
+`uint32_t` compiled without the required diagnostic. Conditional parsing now
+uses both integer arms, `sizeof` publishes `TYPE_UINT`, and ordinary functions
+and class methods save and restore their declared result type while parsing a
+body. Return conversion reuses the checked scalar call conversion, including
+the floating-to-unsigned rejection and same-process recovery.
+
+The kernel binding audit then found 40 unsigned-word results still registered
+as signed: 38 explicit `uint32_t` declarations plus `size_t` and
+`swap_handle_t`. All now publish `TYPE_UINT`; `uint8_t` and `uint16_t` results
+retain integer promotion. The live 510-entry table contains 205 promoted
+integer, 40 unsigned-word, 25 `float`, 25 `double`, 19 character-pointer, five
+other-pointer, and 191 `void` results. The earlier 244/192 documentation was
+already stale because commit `5faa158` had changed `blockcache_sync` from
+`void` to `int`. The contract now derives and pins the live split and names
+`htonl` as a high-bit unsigned result.
+
+The tracked `.c` census found 17 files outside `TempleOS/` and none in the
+supported Cupid build graph. Seven are historical duplicates, three are
+superseded implementations, one is an unlinked runtime draft, and six are host
+tests or an ELF oracle. They were not renamed merely to improve the suffix
+count. All active Cupid-built C-family source already uses `.cc`; a suffix
+change will accompany real ownership when one of the remaining files enters
+that graph. Two object contracts did contain stale paths to the old parser
+duplicate, and now name `kernel/lang/cupidc_parse.cc`.
+
+The focused hosted checks passed before the final image rebuild:
+
+| Command | Result |
+|---|---|
+| `python -m unittest tests.test_private_cupidc_call_abi` | 120 tests in 14.502 seconds after the review regressions |
+| `python -m unittest tests.test_private_cupidc_kernel_binding_types` | 4 tests in 0.023 seconds |
+| `python -m unittest tests.test_browser_cupidc_numbers` | 20 tests in 0.114 seconds |
+| `python -m unittest tests.test_toolchain_cupidobj` | 15 tests in 7.648 seconds |
+| `python -m unittest tests.test_toolchain_cupidc_ir` | 83 tests in 14.477 seconds |
+| `python -m unittest tests.test_toolchain_cupidc_object` | 109 tests in 960.558 seconds |
+| native CupidObj contract, IR contract, and object contract modes | all requested modes passed; `active-leaf` and `static-data` reported `ok` |
+| `python -m unittest tests.test_gui_terminal_smoke` | 101 tests in 0.604 seconds; the post-build rerun passed in 0.676 seconds |
+
+The first normal image candidate passed in 639.6 seconds. A four-vCPU e1000
+private-image run then passed the exact Browser completion contract and strong
+SMP validator in 98.7 seconds. All four CPUs came online, every field in the
+26-field Browser marker was one, and CupidC returned with an empty stack. The
+38,248-byte serial log has SHA-256
+`484883e29769f77eaa69df304d5d8c1bf5b8fecb6ce90dd4f6ce2e820ec9b740`.
+One complete frontier-module test exceeded its 184-second command deadline
+without producing a failure, and a concurrent isolated cohort was stopped
+after five minutes. Those incomplete runs are not counted as passes; the
+normal build and private guest supply the active-source evidence here.
+
+The post-review `make -j4 all` rebuild passed in 557.2 seconds. These are the
+artifacts from that final source, rather than the earlier candidate:
+
+| Artifact | Bytes | SHA-256 |
+|---|---:|---|
+| `kernel/lang/cupidc.o` | 289,468 | `3ccbb6f67b9a4f23124dd43db91eceb491cf3bf0dbeb9274ad43b50ab20a90a3` |
+| `kernel/lang/cupidc_lex.o` | 50,100 | `8ef9a5f9ecca3bafd84d8f8d4c1af726f6ca622659e3301e9741d6f8f54fd753` |
+| `kernel/lang/cupidc_parse.o` | 378,844 | `a9dba5ffbaa2e84fa79701a6c31e8a23362710fab09b99f22d7437ff69919007` |
+| `bin/browser/js_interp.o` | 97,448 | `2d6acfe1d1c718c05dbd2f9412456590588dc284a7a8966d52e28b3847c2feb4` |
+| `bin/browser/main.o` | 36,212 | `630c32a46124ef71ae996c031c460ef5153f999cae8990595bdb147b5d408733` |
+| `kernel/cpu/ksyms_data.cc` | 379,312 | `45a112be18fc9edab1680b1c1622eeb2e2f6b3333e12652be3e0593a8f612f2a` |
+| `kernel/cpu/ksyms_data.o` | 114,836 | `f3ce6335bccc3d33418dd475685f46f2caed8e968fd649e3e0ca80d28748c67e` |
+| `kernel/kernel.elf` | 9,040,180 | `94cfbf4e2542fe053e9dd89c0af54af84480ca330a8a2e4efcdd05a060fbc601` |
+| `kernel/kernel.bin` | 8,832,452 | `ab8f13ee179185455d7f733c9e4c143d3fa16cd7636b9d25aaf18b0ac28c811d` |
+| `cupidos.img` | 209,715,200 | `5df2a12cc49cd621cdeb0e44156d273498891bcef790dcdb366d3d8833874597` |
+
+A fresh private copy of that exact image then passed the four-vCPU e1000
+Browser smoke in 87.6 seconds. ACPI found four CPUs and all four came online;
+RDRAND seeded the generator, e1000 obtained `10.0.2.15`, and the desktop and
+terminal opened. The ten expected parser diagnostics arrived before the exact
+26-field PASS marker, and CupidC returned with an empty stack. The 40,908-byte
+serial log has SHA-256
+`663aa3bfd49b4ce0c35e9e471d7266336a3c5e143281a7005537a476830b54bb`.
+The strong validator found no accepted panic, self-test failure, or
+stack-alignment marker.
+
+The final reviewed source completed the full checked i386 Linux bootstrap in
+662.6 seconds. Stage two equals stage three for 19 C objects, one startup
+object, and all five tools. The behavior matrix contains 11 success cases,
+seven failure cases, and five help cases. Its source snapshot is
+`26555c8a95721689f502fea47c52da8911d10307af3142d82b4da0a53d0bfba0`,
+and its build-plan digest is
+`59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`.
+CupidASM, CupidC, CupidDis, and CupidLD still match their checked seeds.
+CupidObj intentionally does not: both fixed-point stages produced a
+270,700-byte image with SHA-256
+`a8de7de19d1ffbec90f0603f0f796f4a03fa74b8181c62f0f395b22a52423d1d`.
+The 15,054-byte report has SHA-256
+`2a58f7c69b4f423f459b04b1553d029baf46570b9bb323bf144d0496d48a05c0`.
+
+A Windows-side audit run could not follow this worktree's WSL-format `.git`
+pointer and fell back to a directory walk. That draft incorrectly counted
+untracked scratch trees. It was discarded. Regenerating through the repository
+Git environment restored the tracked-file boundary: 718 active inputs, 449
+reachable transforms, 255 feature requirements, and 25 classified unreachable
+files. The active-source digest is
+`48a25995a6eb517807dca2f77234ed953ca7ae967845fad446c9a011d0941f75`.
+The 2,554,943-byte JSON has SHA-256
+`0db0b1b8bd77a9a11ba6a1e14a15c281d46cccc5055459f3705df373c1017837`,
+and the 12,136-byte summary has SHA-256
+`0d1ce1a07ffe3d4d17e84814f55872c3dc9f09f3ec436d1c5381595f076b704b`.
+Regeneration and the independent check passed together in 184.8 seconds.
+
+This source step does not yet move a build owner. The checked CupidObj seed
+predates `ksyms-source`, and the production kernel-symbol recipe still uses
+Python. Promotion and build-graph transfer therefore remain separate steps
+with their own fixed-point and boot evidence. Issue 31 stays open for the
+larger self-hosting mission, and `TempleOS/` remains untouched reference
+material.

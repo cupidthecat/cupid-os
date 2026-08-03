@@ -26,6 +26,19 @@ still participates in all 449 transforms because it launches the checked
 tools. ADRs 0201, 0203, and 0204 record the operation, seed promotion, and
 production transfer.
 
+Source-head CupidObj also accepts canonical CupidDis symbol text and emits the
+exact packed kernel-symbol `.cc` source. The fixed-point candidate exercises
+this command, useful failures, and recovery, while a real producer-to-consumer
+contract protects the text seam. The checked seed and normal recipe still use
+the earlier boundary, so Python remains the current source owner until a seed
+promotion and separate transfer. ADR 0222 records this pre-promotion state.
+
+All seventeen tracked `.c` files outside `TempleOS/` are outside the supported
+build roots. Seven are historical snapshots, three are superseded, six are
+host C test or oracle inputs, and one private runtime source is unlinked. No
+active Cupid-built source needs a `.cc` rename. The unlinked runtime must gain
+a compile and behavior contract before a rename can count as migration.
+
 Checked-seed CupidC represents GNU `returns_twice` and preserves live operands
 across supported direct calls. It rejects marked-function pointer conversion
 and any live-prefix site reachable from a returns-twice continuation. The
@@ -81,11 +94,14 @@ the boundary. This is another private JIT and AOT capability, so ownership
 counts do not change.
 
 The kernel binding table now preserves every declared result type. Its 510
-registrations split into 318 typed value results and 192 verified `void`
-results. A complete source-contract test prevents a non-void declaration from
-using the untyped macro and checks the exact Cupid type on every typed entry.
-This repairs private compiler semantics without moving a source file or
-adding a host dependency.
+registrations split into 319 typed value results and 191 verified `void`
+results. The value group contains 205 promoted integers, 40 unsigned words, 25
+`float`, 25 `double`, 19 character pointers, and five other pointers. Explicit
+`uint32_t`, `size_t`, and `swap_handle_t` results use the unsigned lane;
+`uint8_t` and `uint16_t` retain integer promotion. A complete source-contract
+test prevents a non-void declaration from using the untyped macro and checks
+the exact Cupid type on every typed entry. This repairs private compiler
+semantics without moving a source file or adding a host dependency.
 
 Private CupidC now updates scalar floating variables through all four prefix
 and postfix forms. The expression parser, statement shortcuts, and `for`
@@ -128,9 +144,9 @@ stores through that identity. Side-effecting member and index tests cover both
 new compound operators, while 1,100 plain writes prove stack balance. String
 interning reserves a complete slice before publishing runtime state, and a
 failed global install blocks queued scripts. Native function IDs survive a
-round trip through a user function. Canonical array writes grow `length`;
-direct length assignment and canonical indices outside the signed runtime lane
-fail explicitly, while 4,294,967,295 remains an ordinary property. Finite
+round trip through a user function. Canonical array writes grow the unsigned
+`length` lane through index 4,294,967,294. Direct length assignment fails
+explicitly, while 4,294,967,295 remains an ordinary property. Finite
 formatting covers large plain integers and small scientific values without a
 signed 32-bit narrowing. Ten malformed literal families receive specific
 diagnostics, and the next valid script proves recovery. The asset-free
@@ -165,6 +181,27 @@ starts at the record object, and the pointer form loads the pointee before it
 adds the field offset. Private execution writes through both forms without
 changing adjacent fields; an unknown member still fails during compilation.
 ADR 0219 records the boundary.
+
+Private typedef declarations now accept several value or pointer aliases and
+retain one-dimensional fixed-array shape per alias. Automatic, global,
+block-static, record, class, and persistent REPL objects receive the complete
+checked allocation, while function and method parameters decay to element
+pointers. Array members keep their complete `sizeof` result and record-element
+identity through direct and pointer access. One lvalue walk continues from an
+indexed array field to a record member, including when the outer record is
+itself selected from an array. This expands private source acceptance without
+moving a build owner. ADR 0220 records the boundary.
+
+Private four-byte unsigned values now survive objects, pointers, parameters,
+calls, enum symbols, unary and conditional expressions, `sizeof`, and scalar
+returns. Relations, division, remainder, and right shift use unsigned i386
+behavior. The complete `uint32_t` range converts correctly to `float` or
+`double`, including ordinary and method returns; a floating-to-unsigned return
+fails with the same focused diagnostic as other assignments. Forty kernel
+binding results publish this lane from their local `uint32_t`, `size_t`, or
+`swap_handle_t` declaration. Browser uses it for the complete ECMAScript array
+index and length range. This changes private semantics without moving a build
+owner. ADR 0221 records the compiler and Browser boundary.
 
 The five Browser tables require typed private CupidC storage and indexed
 access. Global, automatic, block-static, and persistent REPL `float` and

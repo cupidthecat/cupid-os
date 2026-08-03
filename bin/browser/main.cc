@@ -862,7 +862,7 @@ int    jfn_count;
  * singly-linked list through jp_next[].*/
 int    jobj_kind     [512];        /* 0=plain, 1=array */
 int    jobj_first_prop[512];
-int    jobj_arr_len  [512];
+unsigned int jobj_arr_len  [512];
 int    jobj_count;
 
 int    jp_key_off [4096];

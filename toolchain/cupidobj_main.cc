@@ -50,6 +50,7 @@ static void cupidobj_usage(FILE *stream) {
       "       cupidobj wrap-text INPUT -o OUTPUT "
       "[--identity NAME | --stem NAME] [--section NAME] [--readonly]\n"
       "       cupidobj flat INPUT -o OUTPUT\n"
+      "       cupidobj ksyms-source SYMBOLS -o OUTPUT\n"
       "       cupidobj install-source bin [--bin PATH...] "
       "[--headers PATH...] [--browser PATH...] -o OUTPUT\n"
       "       cupidobj install-source docs [--ctxt PATH...] "
@@ -101,6 +102,8 @@ static int cupidobj_parse_cli(int argc, char **argv, cupidobj_cli_t *cli) {
     cli->operation = CTOOL_OBJ_WRAP_TEXT;
   } else if (strcmp(argv[1], "flat") == 0) {
     cli->operation = CTOOL_OBJ_EXTRACT_FLAT;
+  } else if (strcmp(argv[1], "ksyms-source") == 0) {
+    cli->operation = CTOOL_OBJ_GENERATE_KSYMS_SOURCE;
   } else if (strcmp(argv[1], "install-source") == 0) {
     if (argc < 3) {
       return 0;
@@ -308,7 +311,8 @@ static int cupidobj_parse_cli(int argc, char **argv, cupidobj_cli_t *cli) {
         cli->section != (const char *)0 || cli->readonly == CTOOL_TRUE) {
       return 0;
     }
-  } else if (cli->operation == CTOOL_OBJ_EXTRACT_FLAT) {
+  } else if (cli->operation == CTOOL_OBJ_EXTRACT_FLAT ||
+             cli->operation == CTOOL_OBJ_GENERATE_KSYMS_SOURCE) {
     if (cli->identity != (const char *)0 || cli->stem != (const char *)0 ||
         cli->section != (const char *)0 || cli->readonly == CTOOL_TRUE) {
       return 0;

@@ -1005,6 +1005,300 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
+    def test_tagged_struct_typedef_declares_multiple_value_and_pointer_aliases(self):
+        result = self._compile_and_run(
+            """
+            typedef struct TaggedPair {
+              int left;
+              int right;
+            } TaggedPair, PairAlias, *TaggedPairPointer;
+
+            int pair_sum(TaggedPairPointer pair) {
+              return pair->left + pair->right;
+            }
+
+            int main() {
+              TaggedPair tagged;
+              PairAlias alias;
+              tagged.left = 5;
+              tagged.right = 7;
+              alias.left = 11;
+              alias.right = 13;
+              if (pair_sum(&tagged) != 12) return 1;
+              if (pair_sum(&alias) != 24) return 2;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_struct_typedef_keeps_each_declarator_pointer_depth(self):
+        result = self._compile_and_run(
+            """
+            typedef struct ReversePair {
+              int left;
+              int right;
+            } *ReversePairPointer, ReversePairValue;
+
+            int main() {
+              ReversePairValue value;
+              ReversePairPointer pointer = &value;
+              value.left = 17;
+              value.right = 19;
+              if (pointer->left != 17) return 1;
+              if (pointer->right != 19) return 2;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_fixed_array_typedef_allocates_and_indexes_an_automatic_object(self):
+        result = self._compile_and_run(
+            """
+            typedef int IntTriple[3];
+
+            int main() {
+              IntTriple values, others;
+              values[0] = 29;
+              values[1] = 31;
+              values[2] = 37;
+              others[0] = 41;
+              others[1] = 43;
+              others[2] = 47;
+              if (sizeof(values) != 12) return 1;
+              if (sizeof(others) != 12) return 2;
+              if (values[0] + values[1] + values[2] != 97) return 3;
+              return others[0] + others[1] + others[2] == 131 ? 0 : 4;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_sizeof_fixed_array_typedef_reports_the_complete_type_size(self):
+        result = self._compile_and_run(
+            """
+            typedef char SevenBytes[7];
+            typedef struct Word { int value; } TwoWords[2];
+
+            int main() {
+              SevenBytes bytes;
+              if (sizeof(SevenBytes) != 7) return 1;
+              if (sizeof(TwoWords) != 8) return 2;
+              if (sizeof(bytes) != 7) return 3;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_struct_array_typedef_allocates_a_complete_global_object(self):
+        result = self._compile_and_run(
+            """
+            typedef struct Cell {
+              int value;
+            } CellArray[2], Cell;
+
+            CellArray cells;
+
+            int main() {
+              Cell scalar;
+              cells[0].value = 41;
+              cells[1].value = 43;
+              scalar.value = 47;
+              if (sizeof(cells) != 8) return 1;
+              if (cells[0].value + cells[1].value != 84) return 2;
+              return scalar.value == 47 ? 0 : 3;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_fixed_array_typedef_keeps_its_shape_in_a_struct_field(self):
+        result = self._compile_and_run(
+            """
+            typedef int IntTriple[3];
+            typedef struct Holder {
+              int leading;
+              IntTriple values;
+              int trailing;
+            } Holder;
+
+            int main() {
+              Holder holder;
+              holder.leading = 53;
+              holder.values[0] = 59;
+              holder.values[1] = 61;
+              holder.values[2] = 67;
+              holder.trailing = 71;
+              if (sizeof(holder) != 20) return 1;
+              if (holder.leading != 53 || holder.trailing != 71) return 2;
+              return holder.values[0] + holder.values[1] +
+                         holder.values[2] == 187 ? 0 : 3;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_fixed_array_typedef_record_members_keep_complete_element_types(self):
+        result = self._compile_and_run(
+            """
+            typedef int Pair[2];
+            typedef struct Word {
+              int value;
+            } Words[2], Word;
+            typedef struct Holder {
+              Pair values;
+              Words words;
+            } Holder;
+
+            Holder holders[2];
+
+            int main() {
+              Holder holder;
+              Holder *pointer = &holder;
+              Holder *array_pointer = &holders[0];
+
+              holder.values[0] = 11;
+              pointer->values[1] = 13;
+              holder.words[0].value = 17;
+              pointer->words[1].value = 19;
+              holders[1].words[0].value = 23;
+              array_pointer[1].words[1].value = 29;
+
+              if (sizeof(holder.values) != 8) return 1;
+              if (sizeof(pointer->values) != 8) return 2;
+              if (sizeof(holder.words) != 8) return 3;
+              if (sizeof(holder.words[0]) != 4) return 4;
+              if (sizeof(pointer->words[1]) != 4) return 5;
+              if (holder.values[0] != 11 || pointer->values[1] != 13)
+                return 6;
+              if (holder.words[0].value != 17 ||
+                  pointer->words[1].value != 19)
+                return 7;
+              if (holders[1].words[0].value != 23 ||
+                  array_pointer[1].words[1].value != 29)
+                return 8;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_fixed_array_typedef_keeps_its_shape_in_a_standalone_struct(self):
+        result = self._compile_and_run(
+            """
+            typedef char BytePair[2];
+            struct Envelope {
+              int leading;
+              BytePair bytes;
+              int trailing;
+            };
+
+            int main() {
+              struct Envelope envelope;
+              envelope.leading = 107;
+              envelope.bytes[0] = 'O';
+              envelope.bytes[1] = 'S';
+              envelope.trailing = 109;
+              if (sizeof(envelope) != 12) return 1;
+              if (envelope.leading != 107 || envelope.trailing != 109) {
+                return 2;
+              }
+              return envelope.bytes[0] == 'O' &&
+                     envelope.bytes[1] == 'S' ? 0 : 3;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_fixed_array_typedef_keeps_its_shape_in_a_class_field(self):
+        result = self._compile_and_run(
+            """
+            typedef int IntPair[2];
+            class Packet {
+              int leading;
+              IntPair values;
+              int trailing;
+            };
+
+            int main() {
+              Packet packet;
+              packet.leading = 127;
+              packet.values[0] = 131;
+              packet.values[1] = 137;
+              packet.trailing = 139;
+              if (sizeof(packet) != 16) return 1;
+              if (packet.leading != 127 || packet.trailing != 139) return 2;
+              return packet.values[0] + packet.values[1] == 268 ? 0 : 3;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_fixed_array_typedef_alias_chain_allocates_block_static_storage(self):
+        result = self._compile_and_run(
+            """
+            typedef int IntPair[2];
+            typedef IntPair PairAlias;
+
+            int pair_sum() {
+              static PairAlias values;
+              values[0] = 73;
+              values[1] = 79;
+              if (sizeof(values) != 8) return -1;
+              return values[0] + values[1];
+            }
+
+            int main() {
+              return pair_sum() == 152 ? 0 : 1;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_fixed_array_typedef_parameter_decays_to_an_element_pointer(self):
+        result = self._compile_and_run(
+            """
+            typedef int IntTriple[3];
+
+            int sum_triple(IntTriple values) {
+              return values[0] + values[1] + values[2];
+            }
+
+            int main() {
+              IntTriple values;
+              values[0] = 83;
+              values[1] = 89;
+              values[2] = 97;
+              return sum_triple(values) == 269 ? 0 : 1;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_fixed_array_typedef_method_parameter_uses_the_same_decay(self):
+        result = self._compile_and_run(
+            """
+            typedef int IntPair[2];
+
+            class Accumulator {
+              int Sum(IntPair values) {
+                return values[0] + values[1];
+              }
+            };
+
+            int main() {
+              IntPair values;
+              Accumulator accumulator;
+              values[0] = 101;
+              values[1] = 103;
+              return accumulator.Sum(values) == 204 ? 0 : 1;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_address_of_record_fields_keeps_the_selected_storage(self):
         result = self._compile_and_run(
             """
@@ -1080,6 +1374,72 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertGreaterEqual(len(data), 8)
 
+    def test_repl_keeps_multiple_anonymous_struct_typedef_aliases(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-repl-multiple-typedef-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code_path, data_path = self._compile_repl(
+                Path(temporary),
+                (
+                    """
+                    typedef struct {
+                      int left;
+                      int right;
+                    } ReplPair, PairAlias, *ReplPairPointer;
+                    """,
+                    "ReplPair first;",
+                    "PairAlias second;",
+                    "ReplPairPointer pointer;",
+                ),
+            )
+            data = data_path.read_bytes() if data_path.exists() else b""
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(len(data), 20)
+
+    def test_repl_keeps_fixed_array_typedef_shape_for_later_units(self):
+        result = self._compile_repl_and_run(
+            (
+                "typedef char ByteBlock[5];",
+                "ByteBlock bytes;",
+                """
+                int main() {
+                  bytes[0] = 'C';
+                  bytes[4] = 'd';
+                  if (sizeof(bytes) != 5) return 1;
+                  if (bytes[0] != 'C') return 2;
+                  return bytes[4] == 'd' ? 0 : 3;
+                }
+                """,
+            )
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_repl_struct_field_keeps_a_fixed_array_typedef_shape(self):
+        result = self._compile_repl_and_run(
+            (
+                "typedef int ReplPair[2];",
+                "struct ReplHolder { int leading; ReplPair values; "
+                "int trailing; };",
+                "struct ReplHolder holder;",
+                """
+                int main() {
+                  holder.leading = 149;
+                  holder.values[0] = 151;
+                  holder.values[1] = 157;
+                  holder.trailing = 163;
+                  if (sizeof(holder) != 16) return 1;
+                  if (holder.leading != 149 || holder.trailing != 163) {
+                    return 2;
+                  }
+                  return holder.values[0] + holder.values[1] == 308 ? 0 : 3;
+                }
+                """,
+            )
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_repl_rolls_back_a_failed_definition_of_an_existing_tag(self):
         with tempfile.TemporaryDirectory(
             prefix="private-cupidc-repl-struct-rollback-",
@@ -1124,6 +1484,200 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             )
         self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
         self.assertIn("expected typedef alias name", result.stderr)
+
+    def test_multiple_typedef_aliases_report_capacity_and_allow_recovery(self):
+        aliases = ", ".join(f"Alias{index}" for index in range(17))
+        failing_source = f"typedef int {aliases};"
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-typedef-capacity-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            failure, _code_path, _data_path = self._compile(
+                root, failing_source
+            )
+            recovery, _code_path, _data_path = self._compile_after_failure(
+                root,
+                failing_source,
+                """
+                typedef struct Recovered { int value; }
+                    Recovered, *RecoveredPointer;
+                int main() {
+                  Recovered value;
+                  RecoveredPointer pointer = &value;
+                  pointer->value = 23;
+                  return value.value == 23 ? 0 : 1;
+                }
+                """,
+            )
+
+        self.assertEqual(failure.returncode, 2, failure.stdout + failure.stderr)
+        self.assertIn("too many typedef aliases", failure.stderr)
+        self.assertEqual(
+            recovery.returncode,
+            0,
+            recovery.stdout + recovery.stderr,
+        )
+
+    def test_multiple_typedef_aliases_reject_a_trailing_comma_and_recover(self):
+        failing_source = (
+            "typedef struct Broken { int value; } Broken,;"
+        )
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-typedef-trailing-comma-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            failure, _code_path, _data_path = self._compile(
+                root, failing_source
+            )
+            recovery, _code_path, _data_path = self._compile_after_failure(
+                root,
+                failing_source,
+                """
+                typedef struct { int value; } Value, *ValuePointer;
+                int main() {
+                  Value value;
+                  ValuePointer pointer = &value;
+                  pointer->value = 179;
+                  return value.value == 179 ? 0 : 1;
+                }
+                """,
+            )
+
+        self.assertEqual(failure.returncode, 2, failure.stdout + failure.stderr)
+        self.assertIn("expected typedef alias name", failure.stderr)
+        self.assertNotIn("unexpected token", failure.stderr)
+        self.assertEqual(
+            recovery.returncode,
+            0,
+            recovery.stdout + recovery.stderr,
+        )
+
+    def test_fixed_array_typedefs_report_invalid_declarators_and_recover(self):
+        cases = (
+            (
+                "zero",
+                "typedef int Empty[0];",
+                "array size must be positive",
+            ),
+            (
+                "unsized",
+                "typedef int Pending[];",
+                "typedef array size is required",
+            ),
+            (
+                "overflow",
+                "typedef int Huge[1073741824];",
+                "array allocation size overflow",
+            ),
+            (
+                "incomplete-struct",
+                "struct Pending; typedef struct Pending PendingArray[2];",
+                "array of incomplete struct type",
+            ),
+            (
+                "multidimensional",
+                "typedef int Matrix[2][3];",
+                "multidimensional typedef arrays are not supported",
+            ),
+            (
+                "pointer-to-array",
+                "typedef int Pair[2]; typedef Pair *PairPointer;",
+                "pointer to typedef array is not supported",
+            ),
+            (
+                "additional-dimension",
+                "typedef int Pair[2]; Pair matrix[3];",
+                "array declarator after typedef array is not supported",
+            ),
+        )
+
+        for name, source, diagnostic in cases:
+            with self.subTest(name=name), tempfile.TemporaryDirectory(
+                prefix=f"private-cupidc-array-typedef-{name}-",
+                ignore_cleanup_errors=True,
+            ) as temporary:
+                result, _code_path, _data_path = self._compile(
+                    Path(temporary), source
+                )
+                self.assertEqual(
+                    result.returncode,
+                    2,
+                    result.stdout + result.stderr,
+                )
+                self.assertIn(diagnostic, result.stderr)
+                self.assertNotIn("unexpected token", result.stderr)
+
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-array-typedef-recovery-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            recovery, _code_path, _data_path = self._compile_after_failure(
+                Path(temporary),
+                "typedef int Broken[0];",
+                """
+                typedef int Pair[2];
+                int main() {
+                  Pair values;
+                  values[0] = 167;
+                  values[1] = 173;
+                  return values[0] + values[1] == 340 ? 0 : 1;
+                }
+                """,
+            )
+        self.assertEqual(
+            recovery.returncode,
+            0,
+            recovery.stdout + recovery.stderr,
+        )
+
+    def test_fixed_array_typedefs_reject_unrepresented_type_uses(self):
+        cases = (
+            (
+                "function-return",
+                "typedef int Pair[2]; Pair broken() { return 0; }",
+                "function return type cannot be an array",
+            ),
+            (
+                "struct-function-return",
+                "typedef struct Word { int value; } Words[2]; "
+                "Words broken() { return 0; }",
+                "function return type cannot be an array",
+            ),
+            (
+                "method-return",
+                "typedef int Pair[2]; "
+                "class Broken { Pair Value() { return 0; } };",
+                "method return type cannot be an array",
+            ),
+            (
+                "cast-target",
+                "typedef int Pair[2]; int main() { return (Pair)7; }",
+                "cast target cannot be an array type",
+            ),
+            (
+                "new-target",
+                "typedef int Pair[2]; int main() { return new Pair; }",
+                "new does not support typedef array types",
+            ),
+        )
+
+        for name, source, diagnostic in cases:
+            with self.subTest(name=name), tempfile.TemporaryDirectory(
+                prefix=f"private-cupidc-array-typedef-use-{name}-",
+                ignore_cleanup_errors=True,
+            ) as temporary:
+                result, _code_path, _data_path = self._compile(
+                    Path(temporary), source
+                )
+                self.assertEqual(
+                    result.returncode,
+                    2,
+                    result.stdout + result.stderr,
+                )
+                self.assertIn(diagnostic, result.stderr)
+                self.assertNotIn("unexpected token", result.stderr)
 
     def test_tagged_struct_typedef_rejects_an_incomplete_value_field(self):
         with tempfile.TemporaryDirectory(
@@ -1430,6 +1984,317 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             bytes.fromhex(
                 "ffffff7f 00000080 00000000 00000080 ffffff7f"
             ),
+        )
+
+    def test_unsigned_enumerators_and_unary_results_keep_their_type(self):
+        result = self._compile_and_run(
+            """
+            enum RuntimeEdge { HighEnumerator = 0x80000000u };
+
+            int main() {
+              uint32_t high = 0x80000000u;
+              if (!(HighEnumerator > 1u)) return 1;
+              if ((double)HighEnumerator != 2147483648.0) return 2;
+              if (!(~0u > 1u)) return 3;
+              if (!(+high > 1u)) return 4;
+              if (!(-1u > 1u)) return 5;
+              if ((double)~0u != 4294967295.0) return 6;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_unsigned_relations_survive_local_and_parameter_loads(self):
+        result = self._compile_and_run(
+            """
+            typedef unsigned int RuntimeU32;
+
+            int compare_edges(RuntimeU32 high, RuntimeU32 low) {
+              if (!(high >= low)) return 1;
+              if (!(high > low)) return 2;
+              if (low >= high) return 3;
+              if (low > high) return 4;
+              if (!(low <= high)) return 5;
+              if (!(low < high)) return 6;
+              return 0;
+            }
+
+            int main() {
+              RuntimeU32 high = 0x80000000u;
+              uint32_t low = 1u;
+              return compare_edges(high, low);
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_unsigned_relations_survive_array_field_and_pointer_loads(self):
+        result = self._compile_and_run(
+            """
+            typedef unsigned int RuntimeU32;
+            typedef struct EdgeBox {
+              RuntimeU32 value;
+            } EdgeBox;
+
+            RuntimeU32 edge_values[2];
+
+            int pointer_is_above(RuntimeU32 *value, RuntimeU32 floor) {
+              return *value > floor;
+            }
+
+            int main() {
+              EdgeBox box;
+              edge_values[0] = 0x80000000u;
+              edge_values[1] = 0xffffffffu;
+              box.value = edge_values[1];
+              if (!(edge_values[0] >= 1u)) return 1;
+              if (!(box.value > edge_values[0])) return 2;
+              if (!pointer_is_above(&edge_values[0], 1u)) return 3;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_unsigned_division_remainder_and_right_shift_execute(self):
+        result = self._compile_and_run(
+            """
+            int main() {
+              uint32_t maximum = 0xffffffffu;
+              uint32_t high_bit = 0x80000000u;
+              uint32_t quotient = maximum;
+              uint32_t shifted = high_bit;
+
+              if (maximum / 2u != 2147483647u) return 1;
+              if (maximum % 2u != 1u) return 2;
+              if (high_bit >> 31u != 1u) return 3;
+
+              quotient /= 2u;
+              shifted >>= 31u;
+              if (quotient != 2147483647u) return 4;
+              if (shifted != 1u) return 5;
+
+              if (-9 / 2 != -4) return 6;
+              if (-9 >> 1 != -5) return 7;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_compound_right_shift_uses_the_promoted_left_operand_type(self):
+        result = self._compile_and_run(
+            """
+            int main() {
+              int negative = -8;
+              unsigned int unsigned_count = 1u;
+              unsigned int high_bit = 0x80000000u;
+              int signed_count = 31;
+
+              negative >>= unsigned_count;
+              if (negative != -4) return 1;
+
+              high_bit >>= signed_count;
+              if (high_bit != 1u) return 2;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_unsigned_values_convert_exactly_to_float_and_double(self):
+        result = self._compile_and_run(
+            """
+            double global_maximum_double = 0xffffffffu;
+            float global_high_float = 0x80000000u;
+
+            double take_double(double value) { return value; }
+            float take_float(float value) { return value; }
+            uint32_t return_maximum() { return 0xffffffffu; }
+
+            int main() {
+              uint32_t zero = 0u;
+              uint32_t below_sign = 0x7fffffffu;
+              uint32_t high_bit = 0x80000000u;
+              uint32_t maximum = return_maximum();
+              double zero_double = (double)zero;
+              double below_double = below_sign;
+              double high_double = (double)high_bit;
+              double maximum_double = take_double(maximum);
+              float high_float = (float)high_bit;
+              float maximum_float = take_float(maximum);
+
+              if (zero_double != 0.0) return 1;
+              if (below_double != 2147483647.0) return 2;
+              if (high_double != 2147483648.0) return 3;
+              if (maximum_double != 4294967295.0) return 4;
+              if (high_float != 2147483648.0f) return 5;
+              if (maximum_float != 4294967296.0f) return 6;
+              if (maximum + 0.25 != 4294967295.25) return 7;
+              if (0.25 + maximum != 4294967295.25) return 8;
+              if ((double)(maximum & 0x80000000u) != 2147483648.0)
+                return 9;
+              if ((double)(high_bit >> 1u) != 1073741824.0) return 10;
+              if ((double)-3 != -3.0) return 11;
+              if (global_maximum_double != 4294967295.0) return 12;
+              if (global_high_float != 2147483648.0f) return 13;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_unsigned_conditional_type_does_not_depend_on_arm_order(self):
+        result = self._compile_and_run(
+            """
+            int main() {
+              int choose_true = 1;
+              if (!((choose_true ? 0xffffffffu : 1) > 2)) return 1;
+              if (!((choose_true ? 1 : 0xffffffffu) < -1)) return 2;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_sizeof_produces_unsigned_size_t_arithmetic(self):
+        result = self._compile_and_run(
+            """
+            int main() {
+              return sizeof(int) - 5 > 1 ? 0 : 1;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_unsigned_function_and_method_returns_convert_to_float_lanes(self):
+        result = self._compile_and_run(
+            """
+            double maximum_as_double() { return 0xffffffffu; }
+            float high_as_float() { return 0x80000000u; }
+
+            class Converter {
+              double Maximum() { return 0xffffffffu; }
+              float High() { return 0x80000000u; }
+            };
+
+            int main() {
+              Converter converter;
+              Converter *pointer = &converter;
+              if (maximum_as_double() != 4294967295.0) return 1;
+              if (high_as_float() != 2147483648.0f) return 2;
+              if (converter.Maximum() != 4294967295.0) return 3;
+              if (pointer->High() != 2147483648.0f) return 4;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_invalid_unsigned_type_specifiers_report_and_recover(self):
+        cases = (
+            (
+                "floating type",
+                "unsigned double broken;",
+                "unsigned requires an integer type",
+            ),
+            (
+                "conflicting signs",
+                "signed unsigned int broken;",
+                "type cannot be both signed and unsigned",
+            ),
+        )
+        for name, source, diagnostic in cases:
+            with self.subTest(name=name), tempfile.TemporaryDirectory(
+                prefix=f"private-cupidc-unsigned-type-{name}-",
+                ignore_cleanup_errors=True,
+            ) as temporary:
+                result, _code_path, _data_path = self._compile(
+                    Path(temporary), source
+                )
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertIn(diagnostic, result.stderr)
+
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-unsigned-type-recovery-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            recovery, _code_path, _data_path = self._compile_after_failure(
+                root,
+                "unsigned double broken;",
+                """
+                int main() {
+                  uint32_t high = 0x80000000u;
+                  return high > 1u ? 0 : 1;
+                }
+                """,
+            )
+            self.assertEqual(
+                recovery.returncode,
+                0,
+                recovery.stdout + recovery.stderr,
+            )
+            run_result = self._run_i386(root, int(recovery.stdout.strip()))
+        self.assertEqual(
+            run_result.returncode,
+            0,
+            run_result.stdout + run_result.stderr,
+        )
+
+    def test_floating_to_unsigned_conversion_reports_and_recovers(self):
+        cases = (
+            "int main() { return (uint32_t)1.5; }",
+            "uint32_t invalid() { return 1.5; } int main() { return 0; }",
+            "uint32_t value = 1.5; int main() { return 0; }",
+            "int main() { uint32_t value = 1.5; return 0; }",
+            "int main() { uint32_t value; value = 1.5; return 0; }",
+            "int take(uint32_t value) { return value != 0u; } "
+            "int main() { return take(1.5); }",
+            "int main() { uint32_t value; uint32_t *pointer = &value; "
+            "*pointer = 1.5; return 0; }",
+            "int main() { uint32_t values[1]; values[0] = 1.5; return 0; }",
+        )
+        for source in cases:
+            with self.subTest(source=source), tempfile.TemporaryDirectory(
+                prefix="private-cupidc-float-to-unsigned-",
+                ignore_cleanup_errors=True,
+            ) as temporary:
+                result, _code_path, _data_path = self._compile(
+                    Path(temporary), source
+                )
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertIn(
+                "floating to unsigned conversion is not supported",
+                result.stderr,
+            )
+
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-float-to-unsigned-recovery-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            recovery, _code_path, _data_path = self._compile_after_failure(
+                root,
+                "uint32_t invalid() { return 1.5; } int main() { return 0; }",
+                """
+                int main() {
+                  uint32_t maximum = 0xffffffffu;
+                  return (double)maximum == 4294967295.0 ? 0 : 1;
+                }
+                """,
+            )
+            self.assertEqual(
+                recovery.returncode,
+                0,
+                recovery.stdout + recovery.stderr,
+            )
+            run_result = self._run_i386(root, int(recovery.stdout.strip()))
+        self.assertEqual(
+            run_result.returncode,
+            0,
+            run_result.stdout + run_result.stderr,
         )
 
     def test_enum_maximum_only_overflows_for_an_implicit_successor(self):
