@@ -20674,3 +20674,119 @@ and ADRs 0225 through 0227 record the compatibility boundaries. No active
 `.c` file changed build ownership, so no `.cc` rename was due. Issue 31 stays
 open for the wider self-hosting mission. `TempleOS/` remains untouched
 reference material.
+
+## 2026-08-04: Promote Cupid types and SHRD into the checked seed
+
+Capability revision `bd64a39d1b419df3fb3182c33869084f4bc09c2c` was
+committed and pushed before the new candidate was built. The transition
+finished in 618.9 seconds against the preceding checked seed. It froze the
+same 41-input source plan at SHA-256
+`206a8124bbbc084153827308581131945aa62272e025edfcd33db910026363b5`.
+All nineteen C objects, startup, and five tools matched between stages two and
+three. Both stages passed five help paths, eleven successful operations, and
+seven useful failures. CupidC, CupidASM, and CupidDis differed from the input
+seed, while CupidLD and CupidObj remained byte-identical. The 15,050-byte
+report has SHA-256
+`f633f186baea1cea07055d99b676a046c504bbadbf6169d080ba8a7b54c50188`.
+
+All five stage-three images were promoted as one trust unit:
+
+| Tool | Bytes | SHA-256 |
+|---|---:|---|
+| CupidASM | 445,616 | `1dc9061912f127d231d320940ba781781af663bde83852a613910394709ecc76` |
+| CupidC | 2,578,244 | `b652adc07442df04fa577fb7987598619cb573c5d932d639288ddddc939f622f` |
+| CupidDis | 379,648 | `a45fc4c57afd3bb02980e514d58c11588ba3a8bfa2f05ca348fe465cfdaf9749` |
+| CupidLD | 266,672 | `2bdb6ce6b04678bb89c6bb4f7afac7e152ce6c4a07c4e14e1b3aee0c899008ec` |
+| CupidObj | 270,700 | `a8de7de19d1ffbec90f0603f0f796f4a03fa74b8181c62f0f395b22a52423d1d` |
+
+The 5,440-byte manifest names the pushed revision and has SHA-256
+`7e7da98d2adddbf59fbd7c4da7af7375e08c10147b8c802a2d4a816161f647ea`.
+The build plan, producer flags, target ABI, and link orders are unchanged.
+
+The post-promotion reproof passed in 615.8 seconds. All five seed images
+matched stage two before the complete stage-two and stage-three comparison and
+behavior matrix passed again. The 15,047-byte report has SHA-256
+`fd94d1699f968d4ff730ad93e6950c0fcf256b018ac132de8d17d2d00eb91051`.
+
+A focused SHRD carriage test first failed because its source relied on
+implicit non-default address registers. CupidASM already requires explicit
+`a32` and `a16` prefixes for those overrides, matching active boot source. The
+corrected test passed in 1.311 seconds and retains exact bytes, canonical
+disassembly, invalid-count rejection, and output preservation.
+
+The first complete checked-seed module run completed every substantive gate
+but found the preceding source-snapshot digest in its final assertion. The
+current 41-input digest replaced that stale lock. The clean rerun passed all
+41 tests in 717.625 seconds, including another poisoned-host fixed point.
+
+The promoted seed then rebuilt the full 20-artifact Toolchain contract cohort
+in 2,710.4 seconds. All sixteen objects and fifteen executables matched between
+stages, the hosted runtime passed, and all 45 live inputs matched their frozen
+copies. The 18,231-byte cohort manifest has SHA-256
+`aec70359a82e63912c8f986c44a42331dec63b357cc68313ee4ecd57e6f55cf4`.
+Its recorded checked-seed manifest hash is
+`7e7da98d2adddbf59fbd7c4da7af7375e08c10147b8c802a2d4a816161f647ea`.
+Direct runs of the published contracts reported `cupid-types: ok` and
+`double-shift: ok`.
+
+The canonical active-build audit regenerated in 93.3 seconds, and its
+independent drift check passed in 94.5 seconds. It still records 719 active
+source inputs, 449 reachable transforms, 255 distinct feature requirements,
+and 25 unreachable source-like files. Its active-source digest is
+`62af2e41e3f4f7a95c0248c958a8b0404ed28f499a6dd4c7a2baf9d834e269ba`.
+The 12,196-byte summary has SHA-256
+`dff18237312b8edbd247e46f7ae379d96ec44629d368cff47a93de5a546c9527`.
+The 2,557,086-byte JSON audit has SHA-256
+`c16fc7d5b45e9960c2054bf06ddf6a6d8e3fb704d4dc311cb54202815c24159a`.
+
+The promoted seed completed the normal `make -j4 all` build in 922.8 seconds.
+All production CupidC, CupidASM, CupidDis, CupidLD, and CupidObj commands came
+from the verified manifest. The build regenerated the active objects, both
+kernel links, kernel-symbol source and object, ISO fixture, and disk image:
+
+| Artifact | Bytes | SHA-256 |
+|---|---:|---|
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `test_iso/hello.iso` | 61,440 | `40359c1cec72219f21e87ce71b31e621209036042440e1b38c5e59de157e0fb6` |
+| `kernel/kernel.elf.pass1` | 8,929,588 | `6026c29b025aeff88ec3536ece4973d0469800e3a327fac475846827e4404afc` |
+| `kernel/cpu/ksyms_data.cc` | 379,312 | `6c4472c3f772581f6b5319faa204eaa3484ebe0a2d88dcfb15f14600961bd986` |
+| `kernel/cpu/ksyms_data.o` | 114,836 | `2e33a15e64be9a9d48010e762381c67d3f7b01173cbb8e9294b09b324ac0e1a4` |
+| `kernel/kernel.elf` | 9,044,276 | `3d9c08d9d0fc0f385311428ee56eb54415c1f469074d7e2a9181779615523fe7` |
+| `kernel/kernel.bin` | 8,835,976 | `08b55c67c01b0590c4ed5c47b074b92c6636006376db241422f3be17c9505d57` |
+| `cupidos.img` | 209,715,200 | `11f95aae99c7dfc7d66381b69f8de6ea70fd1b389040a1fb939d1650640226f5` |
+
+A private four-vCPU e1000 frontier passed in 345.1 seconds. It exercised the
+fixed CupidC and CupidASM command set, cross-sector ISO reads, Browser's
+numeric self-test, SMP, RDRAND, crypto, USB HID reattachment, six EHCI storage
+lifetimes, and clean JIT stack completion. The 640 by 480 framebuffer changed
+96,557 pixels. AC97 produced 11,994,266 stereo frames at 44.1 kHz with peak
+25,600, and the PC speaker produced 77,137 stereo frames with peak 24,831. The
+113,876-byte serial log has SHA-256
+`75346112842fe30283d4a899a8c9100b370b3e52fe7704279fff7d3eabe08fa9`.
+
+A final focused test rerun used a package-style unittest name first. The
+repository's `tests` directory is not a Python package, so collection stopped
+before either test ran. Calling the file directly then selected an installed
+`tools` package because the repository root was absent from `sys.path`. The
+corrected command supplied the repository root through `PYTHONPATH`; the
+frozen-seed hash and checked-seed SHRD carriage tests both passed in 0.307
+seconds.
+
+Parallel standards and specification reviews found stale current-evidence
+paragraphs for the audit, Toolchain cohort, normal image, SHRD reproof, seed
+ADR, and SIMD frontend ownership. They also found three audit count locks that
+still expected the preceding totals. The documentation now uses the promoted
+evidence throughout, and the locks now expect 5,552 `sizeof`, 22,527 `return`,
+and 37,077 `if` occurrences. A first focused frontend rerun used a shortened
+class name and stopped during test selection. The exact two frontend tests then
+passed in 14.033 seconds. The audit generation and drift-rejection test passed
+in 273.541 seconds. Direct module-style Ruff calls could not start because the
+default WSL and Windows Python installations do not carry that module. The
+installed `ruff` executable passed on all four changed Python files. The
+complete 95-test frontend suite, whitespace, humanizer, seed, and audit checks
+pass. Both review streams finished with zero findings.
+
+ADR 0228 records the promotion. It changes no normal build owner and migrates
+no active `.c` file, so no `.cc` rename was due. Python and WSL remain open
+bootstrap dependencies. Issue 31 remains open, and `TempleOS/` remains
+untouched reference material.

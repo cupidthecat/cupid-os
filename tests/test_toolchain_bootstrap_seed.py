@@ -628,7 +628,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 hashlib.sha256(
                     frozen.tools["cupidc"].read_bytes()
                 ).hexdigest(),
-                "8d810739494123a3da1cba34f75f58c005e8796f2cb4e85ba57eead1578a1f4d",
+                "b652adc07442df04fa577fb7987598619cb573c5d932d639288ddddc939f622f",
             )
 
     def test_wsl_runner_uses_a_private_temporary_directory(self):
@@ -687,6 +687,95 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         self.assertIn("usage:", result.stdout.casefold())
         self.assertIn("cupidasm", result.stdout.casefold())
         self.assertEqual(result.stderr, "")
+
+    def test_checked_seed_carries_shrd_with_address_overrides(self):
+        if os.name == "nt" and shutil.which("wsl") is None:
+            self.skipTest("WSL is not available")
+        with tempfile.TemporaryDirectory(
+            prefix=".checked-seed-shrd-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            source = root / "shrd.asm"
+            output = root / "shrd.bin"
+            rejected_source = root / "invalid-shrd.asm"
+            rejected_output = root / "invalid-shrd.bin"
+            source.write_text(
+                "bits 16\n"
+                "a32 shrd dword [ebx + 4], esi, 31\n"
+                "bits 32\n"
+                "a16 shrd word [bx + si + 0x7f], dx, cl\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+            rejected_source.write_text(
+                "bits 32\nshrd eax, edi, dl\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+            rejected_output.write_bytes(b"sentinel")
+            frozen = freeze_seed_inputs(SEED_MANIFEST, root / "seed")
+            runner = ToolRunner(REPO_ROOT)
+
+            assembled = runner.run(
+                frozen.tools["cupidasm"],
+                ["-f", "bin", source, "-o", output],
+                60,
+            )
+            self.assertEqual(assembled.returncode, 0, assembled.stderr)
+            self.assertEqual(assembled.stdout, "")
+            self.assertEqual(assembled.stderr, "")
+            self.assertEqual(
+                output.read_bytes(),
+                bytes(
+                    [
+                        0x66,
+                        0x67,
+                        0x0F,
+                        0xAC,
+                        0x73,
+                        0x04,
+                        0x1F,
+                        0x66,
+                        0x67,
+                        0x0F,
+                        0xAD,
+                        0x50,
+                        0x7F,
+                    ]
+                ),
+            )
+
+            disassembled = runner.run(
+                frozen.tools["cupiddis"],
+                [
+                    "--raw",
+                    "--mode=16",
+                    "--range-at=7:32",
+                    "--base=0",
+                    output,
+                ],
+                60,
+            )
+            self.assertEqual(
+                disassembled.returncode, 0, disassembled.stderr
+            )
+            self.assertEqual(disassembled.stderr, "")
+            rendered = disassembled.stdout.casefold()
+            self.assertEqual(rendered.count("shrd"), 2)
+            self.assertIn("esi, 0x1f", rendered)
+            self.assertIn("dx, cl", rendered)
+
+            rejected = runner.run(
+                frozen.tools["cupidasm"],
+                ["-f", "bin", rejected_source, "-o", rejected_output],
+                60,
+            )
+            self.assertEqual(rejected.returncode, 1)
+            self.assertEqual(rejected.stdout, "")
+            self.assertIn(
+                "no x86 form matches the instruction", rejected.stderr
+            )
+            self.assertEqual(rejected_output.read_bytes(), b"sentinel")
 
     def test_checked_seed_carries_forward_x87_stack_subtraction(self):
         if os.name == "nt" and shutil.which("wsl") is None:
@@ -2413,7 +2502,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(report["status"], "pass")
             self.assertEqual(
                 report["seed_source_revision"],
-                "6f880cc3cf5cced72b81e0d66079aaca913d0a03",
+                "bd64a39d1b419df3fb3182c33869084f4bc09c2c",
             )
             self.assertNotIn("source_revision", report)
             self.assertEqual(
@@ -2448,11 +2537,11 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     "cupidobj",
                 },
             )
-            capability_snapshot = (
-                "26555c8a95721689f502fea47c52da8911d10307af3142d82b4da0a53d0bfba0"
+            promoted_snapshot = (
+                "206a8124bbbc084153827308581131945aa62272e025edfcd33db910026363b5"
             )
             self.assertEqual(
-                report["source_snapshot_sha256"], capability_snapshot
+                report["source_snapshot_sha256"], promoted_snapshot
             )
             self.assertEqual(
                 initial_matches,

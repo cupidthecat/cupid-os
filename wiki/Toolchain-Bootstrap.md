@@ -123,32 +123,27 @@ does not move a build owner or add a host dependency. ADR 0197 records it.
 
 The checked seed includes the complete 83-root Doom compiler frontier,
 current GNU entity metadata, the active x87 and SSE memory forms, descriptor
-and segment assembly, every represented assembly effect in `libm.cc`, the exact
-dglibc jump block, pointer-preserving static address casts, explicit `double`
-to `unsigned long long` conversion, exact naked IPI entries, and runtime
-floating truth. Its stage-three CupidC image is 2,574,032 bytes with SHA-256
-`8d810739494123a3da1cba34f75f58c005e8796f2cb4e85ba57eead1578a1f4d`.
-It came from revision `6f880cc3cf5cced72b81e0d66079aaca913d0a03`. It also
-carries the returns-twice direct-call boundary, the kernel-entry BSS clear
-with a nonzero page-aligned stack top, and all packed SSE2 statements in the
-active SIMD source. CupidASM and CupidDis in the checked seed retain the
-592-row shared x86 catalogue with forward stack subtraction. Source head has
-596 rows and adds canonical SHRD without changing the checked trust root yet.
-CupidDis carries typed raw code and data ranges. CupidObj carries both
-installation-source generation and transactional kernel-symbol source
-generation. Its 270,700-byte image has SHA-256
-`a8de7de19d1ffbec90f0603f0f796f4a03fa74b8181c62f0f395b22a52423d1d`.
-In the latest transition, all 19 C objects, startup, and five tool images
+and segment assembly, every represented assembly effect in `libm.cc`, the
+exact dglibc jump block, pointer-preserving static address casts, explicit
+`double` to `unsigned long long` conversion, exact naked IPI entries, runtime
+floating truth, and Cupid's native type spellings. Its stage-three CupidC image
+is 2,578,244 bytes with SHA-256
+`b652adc07442df04fa577fb7987598619cb573c5d932d639288ddddc939f622f`.
+It came from revision `bd64a39d1b419df3fb3182c33869084f4bc09c2c`. CupidASM
+and CupidDis carry the 596-row shared x86 catalogue with canonical SHRD and
+forward stack subtraction. CupidDis also carries typed raw code and data
+ranges. CupidObj carries both installation-source generation and transactional
+kernel-symbol source generation.
+
+In the latest transition, all nineteen C objects, startup, and five tool images
 matched between stage two and stage three. Both stages passed five help cases,
-eleven successful operations, and seven useful failures. Only CupidObj changed
-from the preceding seed; the other four tools stayed byte-identical. The 5,440-byte
-manifest has SHA-256
-`729cd702e34695cf9ee619d10446ce80838ed9a25a14efa856833b2bf37629f3`.
-The post-promotion rebuild reproduced all five checked seed images at stage two
-and repeated the complete fixed point in 759.4 seconds. Its 15,053-byte report
-has SHA-256
-`e44d6387ff1963814ba21dc000f6998cfc324851689addfc887b6260516cb0e9`.
-ADR 0223 records the promotion and both proofs.
+eleven successful operations, and seven useful failures. CupidC, CupidASM, and
+CupidDis changed from the preceding seed; CupidLD and CupidObj stayed
+byte-identical. The 5,440-byte manifest has SHA-256
+`7e7da98d2adddbf59fbd7c4da7af7375e08c10147b8c802a2d4a816161f647ea`.
+The 615.8-second post-promotion rebuild reproduced all five checked seed images
+at stage two and repeated the complete fixed point. ADR 0228 records the
+promotion and both proofs.
 
 The refreshed seed represents operand-free GNU assembly statements inside
 functions and emits exact PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT
@@ -200,7 +195,7 @@ the 16-bit DX port, the read/write ESI or EDI buffer, the read/write ECX
 count, and the INSW memory clobber. Scalar port I/O and the CLD plus REP word
 forms emit through the shared x86 model. The checked-seed C11 standalone sweep
 passes 157 of 159 active non-Doom headers; `scheduler.h` and `simd_intrin.h`
-remain exact C11-profile failures. Source head parses all 29 declarations in
+remain exact C11-profile failures. The checked seed parses all 29 declarations in
 unchanged `simd_intrin.h` under the Cupid profile. Its shared frontend now
 recognizes Cupid's sized scalar, Boolean, and vector type spellings directly.
 
@@ -435,7 +430,7 @@ parity. The normal Make recipes now run that checked command for all three
 outputs. `tools/hostbuild.py` is no longer a prerequisite or recipe owner for
 them, but it remains the parity oracle. ADR 0204 records the transfer, ADR
 0206 records the linked-symbol contract, and ADR 0208 records the earlier x87
-seed carriage. ADR 0213 records the current seed.
+seed carriage. ADR 0228 records the current seed.
 The checked seed, source head, and Python oracle also compare the full wrapped
 symbol name for every typed entry. Distinct paths that collapse to one symbol
 fail before publication. The exact same BMP may remain in both the docs and
@@ -526,12 +521,12 @@ through six leading `66` bytes and the fixed
 `2E 0F 1F 84 00 00 00 00 00` tail. The final scan has 1,901 fallback rows
 in 36 objects and renders 1,781 NOP rows. Other repeated prefixes remain
 invalid, and CupidASM cannot emit the redundant forms. Packed-integer SSE2
-is the next largest measured decoder gap. The checked seed has 592 catalogue
-rows, 244 canonical mnemonics, and fingerprint `F4420CB4`. Source head has
-596 rows, 245 canonical mnemonics, and fingerprint `DA15E97F`. Its four new
+is the next largest measured decoder gap. The checked seed and source head
+have 596 catalogue rows, 245 canonical mnemonics, and fingerprint `DA15E97F`.
+The four SHRD
 forms cover 16-bit and 32-bit SHRD with register or memory destinations and
 either an immediate byte or fixed CL count. Active checked-CupidC objects now
-decode their `shrd eax, edi, cl` sites directly. The latest checked form encodes
+decode their `shrd eax, edi, cl` sites directly. The forward x87 form encodes
 canonical `FSUB ST(1), ST(0)` as `DC E9` for corrected exponent range
 reduction. The four preceding x87 forms are 80-bit `FLD` and `FSTP`
 memory forms, i686
@@ -543,7 +538,7 @@ object proof fixes 104 BSS bytes, a 415-byte function with fingerprint
 `BF01CC71`, eight absolute relocations, and six symbols.
 Both compiler stages in the normal contract cohort rebuild the source
 catalogue. ADR 0203 records the checked seed, ADR 0207 records the subtraction
-form, and ADR 0226 records SHRD at source head.
+form, ADR 0226 records SHRD, and ADR 0228 records its seed carriage.
 
 The four-vCPU GUI runtime starts every discovered CPU, reaches e1000 or
 RTL8139 traffic,
@@ -712,23 +707,24 @@ A private `/bin/ls.cc` JIT boot from it passed in 49.8 seconds.
 The checked audit uses the canonical Windows Make branch and C locale on
 every host. Direct Linux builds test the separate Linux execution branch.
 
-The latest local normal build includes the transferred Toolchain work and
-current CupidObj collision checks. The complete Toolchain target passed in
-3,102.5 seconds. Its two stages matched sixteen objects and fifteen linked
+The latest local normal build uses the seed promoted from revision `bd64a39`.
+The complete Toolchain target passed in 2,710.4 seconds. Its two stages matched
+sixteen objects and fifteen linked
 executables, the hosted runtime passed, and all 20 published artifacts
 verified.
 The 18,231-byte contract manifest covers 45 inputs and has SHA-256
-`6aba176b437bbd7fa9a4f6b3cbc6dd0000875b216f8bae22c9b571f01f66858f`.
+`aec70359a82e63912c8f986c44a42331dec63b357cc68313ee4ecd57e6f55cf4`.
 
-The normal root build passed in 1,452.910 seconds. Its 8,719,780-byte final ELF
+The normal root build passed in 922.8 seconds. Its 9,044,276-byte final ELF
 has SHA-256
-`5a7a491a39372697accff9b678054b4bf84e2e68ffc3e882c5ef815d570cee06`;
-the 8,518,280-byte raw kernel has SHA-256
-`ecde61e586fb69bf091e3586c7c0a90d65588a9d7aa22ea6cf7d2f48dc341df3`.
+`3d9c08d9d0fc0f385311428ee56eb54415c1f469074d7e2a9181779615523fe7`;
+the 8,835,976-byte raw kernel has SHA-256
+`08b55c67c01b0590c4ed5c47b074b92c6636006376db241422f3be17c9505d57`.
 The 209,715,200-byte image has SHA-256
-`f488f54c023e6d1f7e9883be1f93f705fbdab4b1de3aab8a2b61b86f3863a085`.
-A private copy reached the desktop and terminal and completed `/bin/ls.cc`
-through the in-OS CupidC JIT in 54.025 seconds, with no panic marker.
+`11f95aae99c7dfc7d66381b69f8de6ea70fd1b389040a1fb939d1650640226f5`.
+A private four-vCPU e1000 frontier passed in 345.1 seconds. It covered the
+fixed in-OS Cupid commands, SMP, ISO, Browser, crypto, USB reattachment,
+graphics, audio, and clean JIT stack completion without a panic marker.
 
 The production Doom runtime proof uses private four-CPU images on e1000 and
 RTL8139. Both NICs pass the full asset-free frontier. Separate one-boot gates

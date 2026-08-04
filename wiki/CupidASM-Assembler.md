@@ -304,8 +304,9 @@ section .data
 ## Instruction Reference
 
 CupidASM uses the shared Cupid Toolchain x86 catalogue. Source head and the
-checked seed carry 592 forms, 244 canonical mnemonics, and 64 register names,
-with catalogue fingerprint `F4420CB4`. The newest form encodes
+checked seed carry 596 forms, 245 canonical mnemonics, and 64 register names,
+with catalogue fingerprint `DA15E97F`. Four forms cover canonical SHRD with
+immediate or fixed CL counts. The forward x87 form encodes
 `FSUB ST(1), ST(0)` as `DC E9`. The four preceding x87 forms encode and decode
 80-bit `FLD` and `FSTP`
 memory operands, i686 `FUCOMIP ST0, ST(i)`, and operand-free `FLDZ`. Both checked stages rebuild
@@ -315,8 +316,9 @@ memory sources in either mode. Common alias spellings assemble to the same
 bytes, while CupidDis prints canonical names. Three-operand `IMUL` accepts a
 16-bit or 32-bit register destination, a same-width register or memory source,
 and an immediate. CupidASM uses `6B /r` when the value fits a signed byte and
-`69 /r` otherwise. ADR 0207 records forward stack subtraction, and ADR 0208
-records its seed promotion.
+`69 /r` otherwise. ADR 0207 records forward stack subtraction, ADR 0208
+records its seed promotion, ADR 0226 records SHRD, and ADR 0228 records its
+current seed carriage.
 
 `fsub st1, st0` emits `DC E9` and computes `ST1 - ST0` into `ST1`.
 The second operand is fixed at `ST0`; reversing the registers is rejected.
