@@ -6,7 +6,7 @@ This file is generated deterministically by `tools/build_graph_audit.py` from th
 
 - Root Make target: `all`
 - Supplemental builds: `user:all`, `toolchain:all`
-- Active source inputs: 718
+- Active source inputs: 719
 - Unreachable source-like files: 25
 - Reachable output transforms: 449
 - Distinct feature requirements: 255
@@ -20,7 +20,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 
 | Language | Files |
 | --- | ---: |
-| `assembly` | 27 |
+| `assembly` | 28 |
 | `c_header` | 290 |
 | `cupid_c` | 401 |
 
@@ -55,8 +55,9 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_tls` | 13 | 6661 |
 | `kernel_usb` | 8 | 3518 |
 | `kernel_util` | 2 | 660 |
-| `toolchain_contract` | 16 | 144485 |
-| `toolchain_core` | 32 | 80758 |
+| `project_source` | 1 | 5 |
+| `toolchain_contract` | 16 | 145271 |
+| `toolchain_core` | 32 | 80953 |
 | `toolchain_host_adapter` | 2 | 266 |
 | `toolchain_kernel_adapter` | 2 | 530 |
 | `user_program` | 3 | 139 |
@@ -75,7 +76,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 
 | Tool interface | Reachable transforms |
 | --- | ---: |
-| `cupid_assembler` | 4 |
+| `cupid_assembler` | 5 |
 | `cupid_c_compiler` | 245 |
 | `cupid_disassembler` | 1 |
 | `cupid_linker` | 5 |
@@ -88,33 +89,33 @@ Generated C translation units are recorded as reachable build inputs but have no
 | --- | ---: | ---: |
 | `asm.addressing` | 6 | 133 |
 | `asm.delivery` | 1 | 22 |
-| `asm.directive` | 19 | 309 |
-| `asm.expression` | 2 | 12 |
+| `asm.directive` | 19 | 313 |
+| `asm.expression` | 2 | 13 |
 | `asm.instruction` | 91 | 1250 |
 | `asm.label` | 2 | 160 |
-| `asm.output` | 2 | 4 |
+| `asm.output` | 2 | 5 |
 | `asm.prefix` | 2 | 6 |
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 777 |
 | `asm.relocation` | 1 | 13 |
-| `c.control` | 12 | 79069 |
+| `c.control` | 12 | 79246 |
 | `c.declaration` | 1 | 28 |
-| `c.declarator` | 4 | 3672 |
-| `c.expression` | 2 | 5573 |
+| `c.declarator` | 4 | 3681 |
+| `c.expression` | 2 | 5588 |
 | `c.extension` | 19 | 416 |
-| `c.initializer` | 1 | 650 |
-| `c.preprocessor` | 18 | 6810 |
-| `c.qualifier` | 2 | 14939 |
-| `c.storage` | 4 | 9547 |
-| `c.type` | 15 | 49655 |
+| `c.initializer` | 1 | 653 |
+| `c.preprocessor` | 18 | 6811 |
+| `c.qualifier` | 2 | 15001 |
+| `c.storage` | 4 | 9568 |
+| `c.type` | 15 | 49688 |
 | `cupid_c.declaration` | 1 | 2 |
 | `cupid_c.delivery` | 2 | 129 |
 | `cupid_c.directive` | 1 | 1 |
 | `cupid_c.expression` | 2 | 4 |
 | `cupid_c.extension` | 1 | 9 |
 | `cupid_c.output` | 1 | 245 |
-| `cupid_c.storage` | 2 | 433 |
-| `cupid_c.type` | 12 | 174 |
+| `cupid_c.storage` | 2 | 457 |
+| `cupid_c.type` | 12 | 180 |
 
 The JSON companion records stable feature IDs, occurrence counts, files, and representative source locations.
 
@@ -140,22 +141,22 @@ It is also a declared Make prerequisite.
 | 1 | `host_runnable_toolchain_core` - Establish a host-runnable shared Cupid Toolchain core | 72 |
 | 2 | `elf32_relocatable_interchange` - Emit and consume deterministic ELF32 relocatable objects | 247 |
 | 3 | `shared_i386_abi_and_instruction_model` - Share one i386 ABI and instruction model | 66 |
-| 4 | `cupiddis_object_inspection` - Make CupidDis inspect raw and ELF32 relocatable output | 10 |
-| 5 | `cupidasm_source_controls_and_expressions` - Implement the active Cupid ASM directives and expression language | 27 |
-| 6 | `cupidasm_encoding_and_raw_parity` - Reach byte parity for boot and trampoline binaries | 15 |
+| 4 | `cupiddis_object_inspection` - Make CupidDis inspect raw and ELF32 relocatable output | 11 |
+| 5 | `cupidasm_source_controls_and_expressions` - Implement the active Cupid ASM directives and expression language | 28 |
+| 6 | `cupidasm_encoding_and_raw_parity` - Reach byte parity for boot and trampoline binaries | 16 |
 | 7 | `cupidasm_symbols_and_relocations` - Emit ELF32 sections, symbols, and i386 relocations | 4 |
 | 8 | `cupidc_preprocessor` - Implement the active C and Cupid C preprocessing contract | 549 |
 | 9 | `cupidc_c11_types_initializers_and_abi` - Implement freestanding C11 type, initializer, and cdecl semantics | 652 |
 | 10 | `cupidc_platform_extensions` - Implement required GNU attributes and extended inline assembly | 58 |
 | 11 | `cupidc_doom_compatibility` - Compile the complete Doom and compatibility cohort | 204 |
-| 12 | `cupid_mode_production_and_extensions` - Scale Cupid mode across embedded programs and browser fragments | 377 |
+| 12 | `cupid_mode_production_and_extensions` - Scale Cupid mode across embedded programs and browser fragments | 378 |
 
 ## Source-cohort migration order
 
 | Rank | Cohort step | Files | Rationale |
 | ---: | --- | ---: | --- |
 | 1 | `toolchain_sources` | 72 | Bootstrap the tools that transfer ownership to every later cohort. |
-| 2 | `boot_and_kernel_assembly` | 4 | Keep the four production transforms CupidASM-owned while retaining NASM only as an optional parity oracle. |
+| 2 | `boot_and_kernel_assembly` | 4 | Keep the four boot and kernel transforms plus the ISO lane fixture CupidASM-owned while retaining NASM only as an optional parity oracle. |
 | 3 | `kernel_and_drivers` | 279 | Move foundational strict C before vendored compatibility cohorts. |
 | 4 | `doom_and_vendored_c` | 204 | Preserve upstream behavior under a deliberate compatibility mode. |
 | 5 | `user_programs` | 4 | Keep the checked-seed CupidC and CupidLD user build reproducible on Linux and Windows, keep the native Windows oracle explicit, then stage its validated executables deliberately. |

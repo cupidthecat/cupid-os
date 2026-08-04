@@ -50,6 +50,8 @@ If `-o` is omitted, the output name is derived from the source file (e.g., `prog
 
 ### Types
 
+This table describes the private in-OS JIT, AOT, and REPL compiler.
+
 | Type | Size | Description |
 |------|------|-------------|
 | `int` | 32-bit | Signed integer |
@@ -69,6 +71,21 @@ If `-o` is omitted, the output name is derived from the source file (e.g., `prog
 | `char*` | 32-bit | Pointer to char |
 | `struct` | varies | User-defined composite type |
 | `struct*` | 32-bit | Pointer to struct |
+
+### Shared bootstrap frontend type spellings
+
+The shared frontend now gives Cupid's native spellings exact i386 type-graph
+identities in Cupid mode. `U0` is `void`. `U8`, `U16`, `U32`, and `U64` are
+unsigned integers of 1, 2, 4, and 8 bytes. `I8`, `I16`, `I32`, and `I64` are
+the matching signed types. `Bool` and `bool` are signed 4-byte `int` types.
+`float4` and `double2` are distinct 16-byte vectors aligned to 16 bytes.
+
+Strict C11 mode does not reserve those names. Existing C source may still use
+them as identifiers or typedef names. Invalid mixed specifiers fail at the
+second token, leave no partial type behind, and allow another parse in the
+same job. With the Cupid profile selected, unchanged
+`kernel/cpu/simd_intrin.h` publishes all 29 intrinsic bindings. ADR 0225
+records this boundary.
 
 ### Private typedef declarators
 
@@ -1091,9 +1108,11 @@ preserving ESI or EDI across the cdecl call.
 
 The i386 path emits `EC`, `EE`, `66 ED`, `66 EF`, `ED`, and `EF` for scalar
 port I/O. The string forms emit `FC F3 66 6D` and `FC F3 66 6F` through the
-shared x86 model. The checked-seed standalone sweep now passes 157 of 159
-active non-Doom headers; `scheduler.h` and `simd_intrin.h` remain explicit
-failures.
+shared x86 model. The checked-seed C11 standalone sweep passes 157 of 159
+active non-Doom headers; `scheduler.h` and `simd_intrin.h` remain exact
+C11-profile failures. Source head parses all 29 declarations in
+`simd_intrin.h` under the Cupid profile through the native type spellings
+described above.
 
 The refreshed checked seed carries this port-I/O support. The normal build
 uses it in the 155-source checked-in CupidC cohort. Earlier frontier evidence

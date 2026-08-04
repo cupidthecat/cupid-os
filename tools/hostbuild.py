@@ -2375,7 +2375,136 @@ def _publish_iso_image(
     return True
 
 
-def gen_big(out: Path) -> None:
+def _gen_big_with_seed(
+    seed_manifest: Path,
+    source: Path,
+    output: Path,
+    initial_output: bytes | None,
+    expected: bytes,
+) -> bool:
+    if _is_link_or_junction(source):
+        raise IsoAuthoringError(
+            f"generated ISO fixture source may not be a symbolic link or "
+            f"junction: {source}"
+        )
+    try:
+        manifest = seed_manifest.resolve(strict=True)
+        assembly = source.resolve(strict=True)
+    except OSError as error:
+        raise IsoAuthoringError(
+            f"checked big-fixture input cannot be resolved: {error}"
+        ) from error
+    if not manifest.is_file():
+        raise IsoAuthoringError(
+            f"checked seed manifest is not a regular file: {manifest}"
+        )
+    if not assembly.is_file():
+        raise IsoAuthoringError(
+            f"generated ISO fixture source is not a regular file: {assembly}"
+        )
+    if output in {manifest, assembly}:
+        raise IsoAuthoringError(
+            "generated ISO fixture output may not replace an input"
+        )
+    try:
+        manifest_payload = manifest.read_bytes()
+        source_payload = assembly.read_bytes()
+    except OSError as error:
+        raise IsoAuthoringError(
+            f"checked big-fixture input cannot be read: {error}"
+        ) from error
+
+    try:
+        with tempfile.TemporaryDirectory(
+            prefix=f".{output.name}.gen-big-",
+            dir=output.parent,
+        ) as temporary:
+            temporary_root = Path(temporary)
+            frozen_source = temporary_root / "input" / assembly.name
+            candidate = temporary_root / "output" / output.name
+            frozen_source.parent.mkdir()
+            candidate.parent.mkdir()
+            frozen_source.write_bytes(source_payload)
+            arguments = [
+                "-f",
+                "bin",
+                str(frozen_source),
+                "-o",
+                str(candidate),
+            ]
+            try:
+                proc = run_seed_tool(
+                    manifest,
+                    Path.cwd(),
+                    "cupidasm",
+                    arguments,
+                    timeout=60,
+                )
+            except BootstrapError as error:
+                raise IsoAuthoringError(
+                    f"checked CupidASM could not run: {error}"
+                ) from error
+            if proc.returncode != 0:
+                details = (proc.stderr or proc.stdout or "").strip()
+                suffix = f": {details}" if details else ""
+                raise IsoAuthoringError(
+                    f"checked CupidASM failed with status "
+                    f"{proc.returncode}{suffix}"
+                )
+            if _is_link_or_junction(candidate):
+                raise IsoAuthoringError(
+                    "checked CupidASM output may not be a symbolic link or "
+                    "junction"
+                )
+            try:
+                candidate_mode = candidate.lstat().st_mode
+            except FileNotFoundError as error:
+                raise IsoAuthoringError(
+                    "checked CupidASM reported success without big.bin"
+                ) from error
+            if not stat.S_ISREG(candidate_mode):
+                raise IsoAuthoringError(
+                    "checked CupidASM big.bin output is not a regular file"
+                )
+            candidate_payload = candidate.read_bytes()
+            if candidate_payload != expected:
+                raise IsoAuthoringError(
+                    "checked CupidASM big.bin differs from the 4096-byte "
+                    "fixture pattern"
+                )
+            if (
+                manifest.read_bytes() != manifest_payload
+                or assembly.read_bytes() != source_payload
+            ):
+                raise IsoAuthoringError(
+                    "checked big-fixture inputs changed while CupidASM ran"
+                )
+            if _read_iso_output(output) != initial_output:
+                raise IsoAuthoringError(
+                    "generated ISO fixture changed while writing big.bin"
+                )
+            if initial_output == candidate_payload:
+                return False
+            os.replace(candidate, output)
+    except IsoAuthoringError:
+        raise
+    except OSError as error:
+        raise IsoAuthoringError(
+            f"generated ISO fixture cannot be published: {output}: {error}"
+        ) from error
+    return True
+
+
+def gen_big(
+    out: Path,
+    *,
+    seed_manifest: Path | None = None,
+    source: Path | None = None,
+) -> None:
+    if (seed_manifest is None) != (source is None):
+        raise IsoAuthoringError(
+            "select both the checked seed manifest and CupidASM source"
+        )
     payload = bytes(i & 0xFF for i in range(4096))
     try:
         out.parent.mkdir(parents=True, exist_ok=True)
@@ -2387,6 +2516,17 @@ def gen_big(out: Path) -> None:
         raise IsoAuthoringError(
             f"generated ISO fixture cannot be prepared: {out}: {error}"
         ) from error
+    if seed_manifest is not None and source is not None:
+        changed = _gen_big_with_seed(
+            seed_manifest,
+            source,
+            output,
+            initial_output,
+            payload,
+        )
+        action = "Generated" if changed else "Reused"
+        print(f"[hostbuild] {action} {out} (4096 bytes)")
+        return
     if initial_output == payload:
         print(f"[hostbuild] Reused {out} (4096 bytes)")
         return
@@ -2550,6 +2690,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--demos", nargs="*", default=[])
 
     p = sub.add_parser("gen-big")
+    p.add_argument("--seed-manifest", type=Path)
+    p.add_argument("--source", type=Path)
     p.add_argument("out", type=Path)
 
     p = sub.add_parser("build-iso")
@@ -2635,7 +2777,11 @@ def main(argv: list[str] | None = None) -> int:
             return 1
     elif args.cmd == "gen-big":
         try:
-            gen_big(args.out)
+            gen_big(
+                args.out,
+                seed_manifest=args.seed_manifest,
+                source=args.source,
+            )
         except IsoAuthoringError as error:
             print(
                 f"[hostbuild] gen-big failed: {error}",

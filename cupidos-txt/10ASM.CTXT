@@ -29,7 +29,7 @@ Source architecture:
 - kernel/lang/as_elf.cc and .h: checked fixed-image to sectionless ET_EXEC bridge
 - toolchain/cupidasm_main.cc: hosted cupidasm command adapter
 
-The normal image runs CupidASM from the checked five-tool seed. It owns four
+The normal image runs CupidASM from the checked five-tool seed. It owns five
 production assembly transforms without first building a native hosted
 command. The same checked trust unit supplies CupidObj for 186 transforms,
 CupidLD for two links, and CupidDis for symbol inspection. Python verifies
@@ -38,6 +38,15 @@ through WSL. It checks the live seed cohort again after the command. Make
 passes wildcard-discovered output sources through $(sort ...) before
 generation and link, so Windows and Linux use the same root order regardless
 of host locale.
+
+The fifth transform builds test_iso/fixtures/big.bin from
+test_iso/big_pattern.asm. Its concise `times 4096 db $` statement emits the
+low byte of the current location, producing 00 through FF sixteen times.
+Hostbuild freezes the source and seed, checks the exact 4,096-byte candidate,
+and rechecks the live inputs before atomic publication. Python verifies the
+bytes but does not author them. NASM freezes `$` across this TIMES statement,
+so this fixture is the one production source exempt from optional NASM byte
+parity. The other active sources keep their NASM comparisons.
 
 Checked-seed CupidObj accepts:
   cupidobj ksyms-source SYMBOLS -o OUTPUT
@@ -216,9 +225,14 @@ repository paths without making the assembler depend on ambient host paths.
 CupidASM implements the cleanly expressible NASM-compatible surface required
 by active CupidOS sources; it does not claim unrestricted NASM compatibility.
 
-Source head and the checked seed have 592 x86 rows, 244 canonical mnemonics,
-and 64 register names. Their fingerprint is F4420CB4. The newest row encodes
-FSUB ST(1), ST(0) as DC E9. The four preceding x87 rows cover 80-bit
+The checked seed has 592 x86 rows, 244 canonical mnemonics, 64 register names,
+and fingerprint F4420CB4. Source head has 596 rows, 245 canonical mnemonics,
+64 register names, and fingerprint DA15E97F. Its four new rows cover 16-bit
+and 32-bit SHRD with register or memory destinations and either an immediate
+byte or fixed CL count. Both modes honor operand-size and address-size
+overrides. Active checked-CupidC objects now decode `shrd eax, edi, cl`
+directly. The latest checked row encodes FSUB ST(1), ST(0) as DC E9. The four
+preceding x87 rows cover 80-bit
 FLD and FSTP memory operands, i686 FUCOMIP ST0, ST(i), and operand-free FLDZ
 for automatic long double values and truth tests. ADR 0208 records the seed
 promotion. Active-source contracts
@@ -250,7 +264,7 @@ sources. Common families include:
 The checked i386 Linux seed carries all 592 shared x86 rows in CupidASM and
 CupidDis. The catalogue includes the IMUL and padding NOP families, FLDZ, and
 forward x87 stack subtraction. ADR 0208 records that form's seed carriage,
-and ADR 0213 records the current seed.
+ADR 0213 records the current seed, and ADR 0226 records SHRD at source head.
 
 Floating-point and SIMD coverage includes:
 - FPU state: FXSAVE, FXRSTOR, FINIT, FNINIT, FWAIT, LDMXCSR, STMXCSR

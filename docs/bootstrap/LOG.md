@@ -20536,3 +20536,141 @@ fixed-point source plan. Python remains the launcher and parity oracle, and
 Windows still uses WSL. No active `.c` source was migrated in this step, so no
 new `.cc` rename was due. Issue 31 remains open for the larger self-hosting
 mission, and `TempleOS/` remains untouched reference material.
+
+## 2026-08-03: Add Cupid types, SHRD, and a CupidASM ISO lane
+
+Three active-source gaps were addressed together because they exercise
+different shared toolchain seams.
+
+The shared declaration frontend now recognizes Cupid's native type spellings
+only in Cupid mode. `U0` maps to `void`; the `U` and `I` sized families map to
+the matching signed or unsigned target integers; `Bool` and `bool` share the
+signed `int` identity; and `float4` or `double2` map to distinct 16-byte vector
+types. Strict C11 still leaves those names available to ordinary declarations
+and typedefs. Invalid specifier combinations fail on the second token without
+publishing a partial type, and the same job can parse another source. The
+unchanged SIMD header publishes all 29 bindings under its Cupid profile. Its
+C11 parse remains one of the two deliberate failures in the 157-of-159
+checked-seed standalone sweep. ADR 0225 records the profile boundary.
+
+The shared x86 catalogue now includes canonical 16-bit and 32-bit SHRD forms
+with register or memory destinations and either an immediate byte or fixed CL
+count. Operand-size and address-size overrides work in both modes. Exact
+encoding, decoding, requested-form replay, every-byte truncation, invalid
+widths, sources, counts and prefixes, transactional output, and same-job
+recovery are covered. The catalogue grows from the checked seed's 592 forms,
+244 mnemonics, and `F4420CB4` fingerprint to 596 forms, 245 mnemonics, and
+`DA15E97F` at source head. CupidDis now renders the two measured active
+`ctool_buffer_put_le64` and `ctool_buffer_patch_le64` sites as
+`shrd eax, edi, cl`. Ten representative checked-CupidC objects have no true
+fallback data rows. ADR 0226 records the instruction boundary.
+
+The 4,096-byte ISO spanning fixture now comes from
+`test_iso/big_pattern.asm`. Checked CupidASM reevaluates `$` for each emission
+in `times 4096 db $`, producing bytes 00 through FF sixteen times. Hostbuild
+freezes the seed and source, compares the private candidate with an independent
+Python oracle, rechecks the live source, manifest, destination, and trust unit,
+then publishes atomically. An equal result keeps its timestamp. Tool failure,
+parity drift, source drift, or output drift leaves the previous destination
+untouched. The fixture has SHA-256
+`c8f5d0341d54d951a71b136e6e2afcb14d11ed8489a7ae126a8fee0df6ecf193`.
+NASM freezes `$` across this `TIMES` statement and emits zeros. A 256-byte
+explicit `dq` lane repeated sixteen times was tested as a workaround and
+rejected because it made the maintained source much worse solely for optional
+NASM parity. This fixture is the one explicit production-source parity
+exception; every other active source keeps its NASM comparison. ADR 0227
+records the ownership and publication boundary.
+
+The focused x86, CupidASM, and CupidDis group passed 38 tests with one existing
+`/dev/full` skip in 10.667 seconds. The hostbuild ISO group passed 23 tests
+with one existing skip, and the active CupidASM source group passed three more
+tests. Their combined rerun took 3.191 seconds. A forced Make rebuild produced
+the exact tracked lane and reused it on the next equal publication.
+
+Final review added exact `66 67` SHRD memory cases for 32-bit addressing in
+16-bit mode and 16-bit addressing in 32-bit mode. Both cases encode, decode,
+retain the memory registers, and replay byte for byte. The combined frontend,
+x86, CupidASM, and CupidDis rerun passed 132 tests with one existing platform
+skip in 19.64 seconds. The standards and specification reviews found no
+remaining issues after the exact source inventories and current graph counters
+were refreshed.
+
+The final canonical audit passed in 99.0 seconds. It records 719 active inputs: 28
+assembly files, 290 headers, and 401 Cupid C files. The graph still has 449
+reachable transforms, 255 feature requirements, and 25 classified unreachable
+files. CupidASM now participates in five transforms, while CupidC remains at
+245, CupidObj at 186, and Python at 449. The active-source digest is
+`ce9a06f7195247bb2794b0005173325c0577e5707e5ccfefe72318b5aabc91a4`.
+The 2,557,086-byte JSON has SHA-256
+`3da72ccadbd0f83e7382884435e5800ba3de342e24e32810726e29c5bebb382f`,
+and the 12,196-byte summary has SHA-256
+`df8d0ef264ee50a5b11254e01d67d972c7a5a16c2b1e1f5cc8ff796d344769e7`.
+
+The final independent audit check passed in 95.15 seconds. The full frontend suite
+passed all 95 tests in 22.932 seconds. The first complete 68-test graph run
+then exposed two stale expectations: the new source raised the `BITS` count
+from seven to eight, and the current C corpus has 5,546 `sizeof` occurrences
+across 169 files rather than 5,531. A second run exposed the matching `ORG`
+increase from two to three. An initial edit changed an identical assertion in
+the synthetic fixture test instead of the live-source test; that attempt made
+the two scopes disagree and was rejected. Function-specific edits restored the
+synthetic count of two and locked the live count at three. The final run passed
+all 68 graph tests in 966.986 seconds.
+
+The complete checked Toolchain cohort rebuilt and published 20 artifacts. An
+immediate `make -C toolchain all` verifier passed in 0.83 seconds. Its
+18,231-byte manifest has SHA-256
+`209dd15cbd8629f4638a7ec315c3ef651864e191d0ba0cc507efbf5fe40af6dc`.
+The published source-built CupidC image is 2,578,244 bytes. This cohort also
+contains the 445,616-byte CupidASM and 379,648-byte CupidDis images produced
+from the new catalogue.
+
+The complete normal build passed in 959.77 seconds. It used checked CupidASM
+for all five production transforms, regenerated the ISO image from the exact
+lane fixture, compiled the updated in-OS manuals, completed both kernel links,
+and published the image:
+
+| Artifact | Bytes | SHA-256 |
+|---|---:|---|
+| `test_iso/hello.iso` | 61,440 | `40359c1cec72219f21e87ce71b31e621209036042440e1b38c5e59de157e0fb6` |
+| `kernel/kernel.elf.pass1` | 8,929,588 | `1639add8afae12cf08ac516a75d6b053d17caf7962a058b7abebaf35c31b9b90` |
+| `kernel/cpu/ksyms_data.cc` | 379,312 | `6c4472c3f772581f6b5319faa204eaa3484ebe0a2d88dcfb15f14600961bd986` |
+| `kernel/kernel.elf` | 9,044,276 | `70c910e42ca2acc5276e878039d7c16d63c8872fcc24b26beaa826211ecf5325` |
+| `kernel/kernel.bin` | 8,836,036 | `4e82100918eb9d71d022fca0aff02f6ae18607e5a249b1ae4c5ddc2a8f296c14` |
+| `cupidos.img` | 209,715,200 | `ac4c24eff0106fcd7eb752b897a0f2c1c0f93cbbf693970a18e1dd96cf8dd086` |
+
+A private four-vCPU e1000 frontier passed in 353.79 seconds. It exercised the
+full fixed CupidC and CupidASM command set, the cross-sector ISO read and
+six-name directory contract, Browser's 26-field numeric self-test, SMP,
+RDRAND, crypto, USB HID reattachment, six EHCI storage lifetimes, and clean
+JIT stack completion. The framebuffer changed 94,253 pixels at 640 by 480.
+AC97 produced 12,329,735 stereo frames at 44.1 kHz with peak 25,600, and the
+PC speaker produced 76,760 stereo frames with peak 24,831. The 135,229-byte
+serial log has SHA-256
+`e963e5d54a13d5e068a36e3a5bbb6ab591f46c93aff6f8cbd40f08e7307c67c3`.
+
+The first standalone bootstrap command stopped safely in 0.43 seconds because
+its default output directory already held prior evidence. The existing proof
+was left untouched. A fresh private output then passed in 616.73 seconds. All
+19 C objects, startup, and five tools match between stages two and three, and
+both stages pass five help cases, eleven successful operations, and seven
+useful failures. The 41-input source snapshot has SHA-256
+`206a8124bbbc084153827308581131945aa62272e025edfcd33db910026363b5`.
+The 15,050-byte report has SHA-256
+`f633f186baea1cea07055d99b676a046c504bbadbf6169d080ba8a7b54c50188`.
+CupidC, CupidASM, and CupidDis intentionally differ from the current seed;
+CupidLD and CupidObj remain byte-identical. The stage-three tool hashes are:
+
+| Tool | Bytes | SHA-256 |
+|---|---:|---|
+| CupidASM | 445,616 | `1dc9061912f127d231d320940ba781781af663bde83852a613910394709ecc76` |
+| CupidC | 2,578,244 | `b652adc07442df04fa577fb7987598619cb573c5d932d639288ddddc939f622f` |
+| CupidDis | 379,648 | `a45fc4c57afd3bb02980e514d58c11588ba3a8bfa2f05ca348fe465cfdaf9749` |
+| CupidLD | 266,672 | `2bdb6ce6b04678bb89c6bb4f7afac7e152ce6c4a07c4e14e1b3aee0c899008ec` |
+| CupidObj | 270,700 | `a8de7de19d1ffbec90f0603f0f796f4a03fa74b8181c62f0f395b22a52423d1d` |
+
+No new design question was needed. Active source fixed each required behavior,
+and ADRs 0225 through 0227 record the compatibility boundaries. No active
+`.c` file changed build ownership, so no `.cc` rename was due. Issue 31 stays
+open for the wider self-hosting mission. `TempleOS/` remains untouched
+reference material.

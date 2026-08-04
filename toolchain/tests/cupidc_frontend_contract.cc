@@ -7751,8 +7751,8 @@ static int validate_toolchain_frontier(const char *host_root) {
        10331u, 162u, 124u, 0u, 0u},
       {"/toolchain/cupidld.cc", CTOOL_OK, 0u, 0u, 0u, "", 66u, 2064u,
        13347u, 267u, 146u, 0u, 1u},
-      {"/toolchain/cupidobj.cc", CTOOL_OK, 0u, 0u, 0u, "", 43u, 1138u,
-       8048u, 144u, 84u, 0u, 0u},
+      {"/toolchain/cupidobj.cc", CTOOL_OK, 0u, 0u, 0u, "", 59u, 1475u,
+       10216u, 196u, 112u, 0u, 0u},
       {"/toolchain/cupidc_type.cc", CTOOL_OK, 0u, 0u, 0u, "", 31u, 737u,
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.cc", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
@@ -7761,14 +7761,14 @@ static int validate_toolchain_frontier(const char *host_root) {
        67702u, 956u, 356u, 0u, 0u},
       {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 358u, 8916u,
        74933u, 1097u, 737u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 423u,
-       16580u, 109783u, 2492u, 1519u, 0u, 0u},
+      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 426u,
+       16698u, 110268u, 2498u, 1521u, 0u, 0u},
       {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 82u, 3054u,
        20124u, 338u, 190u, 0u, 0u},
       {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
        9457u, 143u, 70u, 0u, 1u},
-      {"/toolchain/x86.cc", CTOOL_OK, 0u, 0u, 0u, "", 60u, 1760u,
-       11855u, 180u, 16787u, 3u, 0u}};
+      {"/toolchain/x86.cc", CTOOL_OK, 0u, 0u, 0u, "", 60u, 1766u,
+       11903u, 180u, 16892u, 3u, 0u}};
   ctool_u32 index;
   int any_failed = 0;
   for (index = 0u; index < ARRAY_COUNT(cases); index++) {
@@ -33321,6 +33321,378 @@ static int run_comma_expressions(const char *host_root) {
   return failed;
 }
 
+typedef struct {
+  const char *name;
+  ctool_c_type_kind_t kind;
+  ctool_u32 size;
+  ctool_u32 alignment;
+  ctool_bool is_signed;
+} cupid_type_oracle_t;
+
+static int cupid_scalar_binding_matches(
+    const ctool_c_translation_unit_t *unit,
+    const cupid_type_oracle_t *oracle) {
+  const ctool_c_binding_t *binding = find_binding(unit, oracle->name);
+  const ctool_c_type_node_t *type =
+      binding == NULL ? NULL : type_node(unit, binding->type);
+  const ctool_c_type_layout_t *layout =
+      binding == NULL ? NULL : type_layout(unit, binding->type);
+  return binding != NULL && binding->kind == CTOOL_C_BINDING_OBJECT &&
+                 type != NULL && type->kind == oracle->kind &&
+                 type->qualifiers == 0u && layout != NULL &&
+                 layout->size == oracle->size &&
+                 layout->alignment == oracle->alignment &&
+                 layout->is_complete_object == CTOOL_TRUE &&
+                 layout->is_object == CTOOL_TRUE &&
+                 layout->is_integer == CTOOL_TRUE &&
+                 layout->is_signed == oracle->is_signed
+             ? 1
+             : 0;
+}
+
+static int cupid_vector_type_matches(
+    const ctool_c_translation_unit_t *unit, ctool_u32 type_index,
+    ctool_c_type_kind_t element_kind, ctool_u32 element_count) {
+  const ctool_c_type_node_t *type = type_node(unit, type_index);
+  const ctool_c_type_node_t *element =
+      type == NULL ? NULL : type_node(unit, type->referenced_type);
+  const ctool_c_type_layout_t *layout = type_layout(unit, type_index);
+  return type != NULL && type->kind == CTOOL_C_TYPE_VECTOR &&
+                 type->qualifiers == 0u &&
+                 type->element_count == element_count && element != NULL &&
+                 element->kind == element_kind &&
+                 element->qualifiers == 0u && layout != NULL &&
+                 layout->size == 16u && layout->alignment == 16u &&
+                 layout->is_complete_object == CTOOL_TRUE &&
+                 layout->is_object == CTOOL_TRUE &&
+                 layout->is_integer == CTOOL_FALSE
+             ? 1
+             : 0;
+}
+
+static int cupid_function_type_matches(
+    const ctool_c_translation_unit_t *unit, const char *name,
+    ctool_c_type_kind_t result_kind, ctool_u32 result_vector_lanes,
+    ctool_c_type_kind_t parameter_kind, ctool_u32 parameter_vector_lanes,
+    ctool_u32 parameter_count) {
+  const ctool_c_binding_t *binding = find_binding(unit, name);
+  const ctool_c_type_node_t *function =
+      binding == NULL ? NULL : type_node(unit, binding->type);
+  ctool_u32 index;
+  if (binding == NULL || binding->kind != CTOOL_C_BINDING_FUNCTION ||
+      binding->linkage != CTOOL_C_LINKAGE_EXTERNAL || function == NULL ||
+      function->kind != CTOOL_C_TYPE_FUNCTION ||
+      function->has_prototype != CTOOL_TRUE ||
+      function->variadic != CTOOL_FALSE ||
+      function->parameter_count != parameter_count ||
+      function->first_parameter > unit->graph.parameter_type_count ||
+      parameter_count >
+          unit->graph.parameter_type_count - function->first_parameter) {
+    return 0;
+  }
+  if (result_vector_lanes == 0u) {
+    const ctool_c_type_node_t *result =
+        type_node(unit, function->referenced_type);
+    if (result == NULL || result->kind != result_kind) {
+      return 0;
+    }
+  } else if (cupid_vector_type_matches(
+                 unit, function->referenced_type, result_kind,
+                 result_vector_lanes) == 0) {
+    return 0;
+  }
+  for (index = 0u; index < parameter_count; index++) {
+    ctool_u32 parameter_type =
+        unit->graph.parameter_types[function->first_parameter + index];
+    if (parameter_vector_lanes == 0u) {
+      const ctool_c_type_node_t *parameter = type_node(unit, parameter_type);
+      if (parameter == NULL || parameter->kind != parameter_kind) {
+        return 0;
+      }
+    } else if (cupid_vector_type_matches(
+                   unit, parameter_type, parameter_kind,
+                   parameter_vector_lanes) == 0) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int validate_cupid_builtin_type_unit(
+    const ctool_c_translation_unit_t *unit) {
+  static const cupid_type_oracle_t scalar_oracles[] = {
+      {"u8_value", CTOOL_C_TYPE_UNSIGNED_CHAR, 1u, 1u, CTOOL_FALSE},
+      {"u16_value", CTOOL_C_TYPE_UNSIGNED_SHORT, 2u, 2u, CTOOL_FALSE},
+      {"u32_value", CTOOL_C_TYPE_UNSIGNED_INT, 4u, 4u, CTOOL_FALSE},
+      {"u64_value", CTOOL_C_TYPE_UNSIGNED_LONG_LONG, 8u, 4u, CTOOL_FALSE},
+      {"i8_value", CTOOL_C_TYPE_SIGNED_CHAR, 1u, 1u, CTOOL_TRUE},
+      {"i16_value", CTOOL_C_TYPE_SIGNED_SHORT, 2u, 2u, CTOOL_TRUE},
+      {"i32_value", CTOOL_C_TYPE_SIGNED_INT, 4u, 4u, CTOOL_TRUE},
+      {"i64_value", CTOOL_C_TYPE_SIGNED_LONG_LONG, 8u, 4u, CTOOL_TRUE},
+      {"upper_bool_value", CTOOL_C_TYPE_SIGNED_INT, 4u, 4u, CTOOL_TRUE},
+      {"lower_bool_value", CTOOL_C_TYPE_SIGNED_INT, 4u, 4u, CTOOL_TRUE}};
+  const ctool_c_binding_t *no_value = find_binding(unit, "no_value");
+  const ctool_c_binding_t *float4_value =
+      find_binding(unit, "float4_value");
+  const ctool_c_binding_t *double2_value =
+      find_binding(unit, "double2_value");
+  const ctool_c_binding_t *native_u32 = find_binding(unit, "native_u32");
+  const ctool_c_binding_t *u32_value = find_binding(unit, "u32_value");
+  const ctool_c_binding_t *native_i32 = find_binding(unit, "native_i32");
+  const ctool_c_binding_t *i32_value = find_binding(unit, "i32_value");
+  const ctool_c_binding_t *upper_bool =
+      find_binding(unit, "upper_bool_value");
+  const ctool_c_binding_t *lower_bool =
+      find_binding(unit, "lower_bool_value");
+  const ctool_c_type_node_t *function =
+      no_value == NULL ? NULL : type_node(unit, no_value->type);
+  const ctool_c_type_node_t *result =
+      function == NULL ? NULL : type_node(unit, function->referenced_type);
+  ctool_u32 vector_count = 0u;
+  ctool_u32 index;
+
+  for (index = 0u; index < ARRAY_COUNT(scalar_oracles); index++) {
+    if (cupid_scalar_binding_matches(unit, &scalar_oracles[index]) == 0) {
+      return 1;
+    }
+  }
+  for (index = 0u; index < unit->graph.type_count; index++) {
+    if (unit->graph.types[index].kind == CTOOL_C_TYPE_VECTOR) {
+      vector_count++;
+    }
+  }
+  if (no_value == NULL || no_value->kind != CTOOL_C_BINDING_FUNCTION ||
+      function == NULL || function->kind != CTOOL_C_TYPE_FUNCTION ||
+      function->has_prototype != CTOOL_TRUE ||
+      function->parameter_count != 0u || result == NULL ||
+      result->kind != CTOOL_C_TYPE_VOID || float4_value == NULL ||
+      double2_value == NULL ||
+      cupid_vector_type_matches(unit, float4_value->type,
+                                CTOOL_C_TYPE_FLOAT, 4u) == 0 ||
+      cupid_vector_type_matches(unit, double2_value->type,
+                                CTOOL_C_TYPE_DOUBLE, 2u) == 0 ||
+      vector_count != 2u || native_u32 == NULL || u32_value == NULL ||
+      native_i32 == NULL || i32_value == NULL || upper_bool == NULL ||
+      lower_bool == NULL || native_u32->type != u32_value->type ||
+      native_i32->type != i32_value->type ||
+      i32_value->type != upper_bool->type ||
+      upper_bool->type != lower_bool->type) {
+    return 1;
+  }
+  return 0;
+}
+
+static int validate_cupid_simd_header_unit(
+    const ctool_c_translation_unit_t *unit) {
+  ctool_u32 index;
+  if (unit->binding_count != 29u || unit->object_definition_count != 0u ||
+      unit->function_definition_count != 0u) {
+    return 1;
+  }
+  for (index = 0u; index < unit->binding_count; index++) {
+    if (unit->bindings[index].kind != CTOOL_C_BINDING_FUNCTION ||
+        unit->bindings[index].linkage != CTOOL_C_LINKAGE_EXTERNAL) {
+      return 1;
+    }
+  }
+  return cupid_function_type_matches(
+             unit, "_mm_add_ps", CTOOL_C_TYPE_FLOAT, 4u,
+             CTOOL_C_TYPE_FLOAT, 4u, 2u) &&
+                 cupid_function_type_matches(
+                     unit, "_mm_set1_ps", CTOOL_C_TYPE_FLOAT, 4u,
+                     CTOOL_C_TYPE_FLOAT, 0u, 1u) &&
+                 cupid_function_type_matches(
+                     unit, "_mm_movemask_ps", CTOOL_C_TYPE_SIGNED_INT, 0u,
+                     CTOOL_C_TYPE_FLOAT, 4u, 1u) &&
+                 cupid_function_type_matches(
+                     unit, "_mm_add_pd", CTOOL_C_TYPE_DOUBLE, 2u,
+                     CTOOL_C_TYPE_DOUBLE, 2u, 2u) &&
+                 cupid_function_type_matches(
+                     unit, "_mm_set1_pd", CTOOL_C_TYPE_DOUBLE, 2u,
+                     CTOOL_C_TYPE_DOUBLE, 0u, 1u)
+             ? 0
+             : 1;
+}
+
+static int validate_c11_cupid_identifier_unit(
+    const ctool_c_translation_unit_t *unit) {
+  const ctool_c_binding_t *u0 = find_binding(unit, "U0");
+  const ctool_c_binding_t *u32 = find_binding(unit, "c11_u32");
+  const ctool_c_binding_t *i64 = find_binding(unit, "c11_i64");
+  const ctool_c_binding_t *upper_bool = find_binding(unit, "c11_Bool");
+  const ctool_c_binding_t *lower_bool = find_binding(unit, "c11_bool");
+  const ctool_c_binding_t *float4 = find_binding(unit, "c11_float4");
+  const ctool_c_binding_t *double2 = find_binding(unit, "c11_double2");
+  const ctool_c_type_node_t *u0_type =
+      u0 == NULL ? NULL : type_node(unit, u0->type);
+  const ctool_c_type_node_t *u32_type =
+      u32 == NULL ? NULL : type_node(unit, u32->type);
+  const ctool_c_type_node_t *i64_type =
+      i64 == NULL ? NULL : type_node(unit, i64->type);
+  const ctool_c_type_node_t *upper_bool_type =
+      upper_bool == NULL ? NULL : type_node(unit, upper_bool->type);
+  const ctool_c_type_node_t *lower_bool_type =
+      lower_bool == NULL ? NULL : type_node(unit, lower_bool->type);
+  const ctool_c_type_node_t *float4_type =
+      float4 == NULL ? NULL : type_node(unit, float4->type);
+  const ctool_c_type_node_t *double2_type =
+      double2 == NULL ? NULL : type_node(unit, double2->type);
+  return u0 != NULL && u0->kind == CTOOL_C_BINDING_OBJECT &&
+                 u0_type != NULL && u0_type->kind == CTOOL_C_TYPE_SIGNED_INT &&
+                 u32_type != NULL &&
+                 u32_type->kind == CTOOL_C_TYPE_UNSIGNED_INT &&
+                 i64_type != NULL &&
+                 i64_type->kind == CTOOL_C_TYPE_SIGNED_LONG_LONG &&
+                 upper_bool_type != NULL &&
+                 upper_bool_type->kind == CTOOL_C_TYPE_SIGNED_INT &&
+                 lower_bool_type != NULL &&
+                 lower_bool_type->kind == CTOOL_C_TYPE_SIGNED_INT &&
+                 float4_type != NULL &&
+                 float4_type->kind == CTOOL_C_TYPE_FLOAT &&
+                 double2_type != NULL &&
+                 double2_type->kind == CTOOL_C_TYPE_DOUBLE
+             ? 0
+             : 1;
+}
+
+static int run_cupid_types(const char *host_root) {
+  static const char source[] =
+      "U0 no_value(U0);\n"
+      "U8 u8_value;\n"
+      "U16 u16_value;\n"
+      "U32 u32_value;\n"
+      "U64 u64_value;\n"
+      "I8 i8_value;\n"
+      "I16 i16_value;\n"
+      "I32 i32_value;\n"
+      "I64 i64_value;\n"
+      "Bool upper_bool_value;\n"
+      "bool lower_bool_value;\n"
+      "float4 float4_value;\n"
+      "double2 double2_value;\n"
+      "unsigned int native_u32;\n"
+      "int native_i32;\n";
+  static const frontend_exact_failure_case_t failures[] = {
+      {{"unsigned plus Cupid type", "unsigned U32 bad;\n", CTOOL_ERR_INPUT,
+        CTOOL_C_PARSE_DIAG_DECLARATION_SPECIFIERS},
+       1u, 10u, "declaration combines a Cupid type with another base type"},
+      {{"Cupid type plus long", "U32 long bad;\n", CTOOL_ERR_INPUT,
+        CTOOL_C_PARSE_DIAG_DECLARATION_SPECIFIERS},
+       1u, 5u, "declaration combines a Cupid type with another base type"},
+      {{"vector plus scalar", "float4 double bad;\n", CTOOL_ERR_INPUT,
+        CTOOL_C_PARSE_DIAG_DECLARATION_SPECIFIERS},
+       1u, 8u, "declaration combines a Cupid type with another base type"},
+      {{"two Cupid integer types", "I64 U64 bad;\n", CTOOL_ERR_INPUT,
+        CTOOL_C_PARSE_DIAG_DECLARATION_SPECIFIERS},
+       1u, 5u, "declaration combines a Cupid type with another base type"},
+      {{"two Cupid Boolean spellings", "Bool bool bad;\n", CTOOL_ERR_INPUT,
+        CTOOL_C_PARSE_DIAG_DECLARATION_SPECIFIERS},
+       1u, 6u, "declaration combines a Cupid type with another base type"}};
+  static const frontend_exact_failure_case_t c11_bare_type = {
+      {"Cupid spelling is not a C11 type", "U64 value;\n", CTOOL_ERR_INPUT,
+       CTOOL_C_PARSE_DIAG_DECLARATION_SPECIFIERS},
+      1u, 1u, "declaration specifiers do not name a type"};
+  static const char c11_source[] =
+      "int U0;\n"
+      "typedef unsigned int U32;\n"
+      "typedef signed long long I64;\n"
+      "typedef int Bool;\n"
+      "typedef int bool;\n"
+      "typedef float float4;\n"
+      "typedef double double2;\n"
+      "U32 c11_u32;\n"
+      "I64 c11_i64;\n"
+      "Bool c11_Bool;\n"
+      "bool c11_bool;\n"
+      "float4 c11_float4;\n"
+      "double2 c11_double2;\n";
+  ctool_c_pp_include_root_t include_roots[ARRAY_COUNT(active_rows)];
+  ctool_c_pp_macro_action_t macro_actions[ARRAY_COUNT(active_rows)];
+  ctool_path_t forced_includes[ARRAY_COUNT(active_rows)];
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t recovered;
+  ctool_c_translation_unit_t c11_unit;
+  ctool_c_translation_unit_t header_unit;
+  const ctool_c_binding_t *recovered_binding;
+  const ctool_c_type_node_t *recovered_type;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "cupid-types", host_root,
+                             16u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.mode = CTOOL_C_PP_MODE_CUPID;
+  fixture.parse_request.mode = CTOOL_C_PP_MODE_CUPID;
+  if (parse_valid_fixture(&fixture, "/cupid-types.cc", source, &unit) != 0 ||
+      validate_cupid_builtin_type_unit(&unit) != 0) {
+    (void)fprintf(stderr, "cupid-types: builtin type graph differs\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failures); index++) {
+    if (expect_frontend_failure_at_message(
+            &fixture, &failures[index].failure,
+            "/cupid-type-failure.cc", failures[index].line,
+            failures[index].column, failures[index].message) != 0 ||
+        validate_cupid_builtin_type_unit(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  if (parse_valid_fixture(&fixture, "/cupid-type-recovery.cc",
+                          "U16 recovered_value;\n", &recovered) != 0) {
+    goto cleanup;
+  }
+  recovered_binding = find_binding(&recovered, "recovered_value");
+  recovered_type = recovered_binding == NULL
+                       ? NULL
+                       : type_node(&recovered, recovered_binding->type);
+  if (recovered_type == NULL ||
+      recovered_type->kind != CTOOL_C_TYPE_UNSIGNED_SHORT ||
+      validate_cupid_builtin_type_unit(&unit) != 0) {
+    (void)fprintf(stderr, "cupid-types: Cupid-mode recovery differs\n");
+    goto cleanup;
+  }
+
+  fixture.pp_request.mode = CTOOL_C_PP_MODE_C11;
+  fixture.parse_request.mode = CTOOL_C_PP_MODE_C11;
+  if (parse_valid_fixture(&fixture, "/c11-cupid-identifiers.c", c11_source,
+                          &c11_unit) != 0 ||
+      validate_c11_cupid_identifier_unit(&c11_unit) != 0 ||
+      expect_frontend_failure_at_message(
+          &fixture, &c11_bare_type.failure, "/c11-cupid-bare-type.c",
+          c11_bare_type.line, c11_bare_type.column,
+          c11_bare_type.message) != 0) {
+    (void)fprintf(stderr, "cupid-types: C11 identifier behavior differs\n");
+    goto cleanup;
+  }
+
+  if (build_kernel_profile(&fixture.pp_request, include_roots, macro_actions,
+                           forced_includes) != 0) {
+    goto cleanup;
+  }
+  fixture.pp_request.mode = CTOOL_C_PP_MODE_CUPID;
+  fixture.parse_request.mode = CTOOL_C_PP_MODE_CUPID;
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  if (parse_loaded_fixture(&fixture, "/kernel/cpu/simd_intrin.h", NULL, 0u,
+                           &header_unit) != 0 ||
+      validate_cupid_simd_header_unit(&header_unit) != 0) {
+    (void)fprintf(stderr,
+                  "cupid-types: unchanged SIMD header graph differs\n");
+    goto cleanup;
+  }
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("cupid-types: ok\n");
+  }
+  return failed;
+}
+
 int main(int argc, char **argv) {
   if (argc >= 4 && strcmp(argv[1], "header-sweep") == 0) {
     return run_header_sweep(argv[2], argc - 3, &argv[3]);
@@ -33378,7 +33750,8 @@ int main(int argc, char **argv) {
                    "doom-compatibility-pointers|"
                    "pointer-arithmetic|pointer-comparisons|"
                    "scalar-updates|"
-                   "function-specifiers|errors|scale|semantics|constants|"
+                   "function-specifiers|cupid-types|errors|scale|semantics|"
+                   "constants|"
                   "boundaries|"
                   "depth-declarator|depth-constant|depth-record "
                   "<repository-root>\n"
@@ -33616,6 +33989,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "function-specifiers") == 0) {
     return run_function_specifiers(argv[2]);
+  }
+  if (strcmp(argv[1], "cupid-types") == 0) {
+    return run_cupid_types(argv[2]);
   }
   if (strcmp(argv[1], "errors") == 0) {
     return run_errors(argv[2]);

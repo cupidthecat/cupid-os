@@ -227,6 +227,22 @@ typedef struct {
   ctool_u32 tag_mark;
 } cfront_block_scope_mark_t;
 
+typedef enum {
+  CFRONT_CUPID_TYPE_NONE = 0,
+  CFRONT_CUPID_TYPE_U0,
+  CFRONT_CUPID_TYPE_U8,
+  CFRONT_CUPID_TYPE_U16,
+  CFRONT_CUPID_TYPE_U32,
+  CFRONT_CUPID_TYPE_U64,
+  CFRONT_CUPID_TYPE_I8,
+  CFRONT_CUPID_TYPE_I16,
+  CFRONT_CUPID_TYPE_I32,
+  CFRONT_CUPID_TYPE_I64,
+  CFRONT_CUPID_TYPE_BOOL,
+  CFRONT_CUPID_TYPE_FLOAT4,
+  CFRONT_CUPID_TYPE_DOUBLE2
+} cfront_cupid_type_t;
+
 typedef struct {
   ctool_job_t *job;
   const ctool_c_pp_result_t *tape;
@@ -292,6 +308,8 @@ typedef struct {
   ctool_u32 active_function_tag_mark;
   ctool_bool in_function_body;
   ctool_u32 builtin_va_list_type;
+  ctool_u32 float4_type;
+  ctool_u32 double2_type;
   ctool_u32 scalar_types[CTOOL_C_TYPE_LONG_DOUBLE + 1u];
 } cfront_context_t;
 
@@ -721,6 +739,51 @@ static ctool_bool cfront_peek_is(const cfront_context_t *context,
   return cfront_token_is(cfront_peek(context), spelling);
 }
 
+static cfront_cupid_type_t cfront_cupid_type_specifier(
+    const cfront_context_t *context, const ctool_c_pp_token_t *token) {
+  if (context->request->mode != CTOOL_C_PP_MODE_CUPID) {
+    return CFRONT_CUPID_TYPE_NONE;
+  }
+  if (cfront_token_is(token, "U0") == CTOOL_TRUE) {
+    return CFRONT_CUPID_TYPE_U0;
+  }
+  if (cfront_token_is(token, "U8") == CTOOL_TRUE) {
+    return CFRONT_CUPID_TYPE_U8;
+  }
+  if (cfront_token_is(token, "U16") == CTOOL_TRUE) {
+    return CFRONT_CUPID_TYPE_U16;
+  }
+  if (cfront_token_is(token, "U32") == CTOOL_TRUE) {
+    return CFRONT_CUPID_TYPE_U32;
+  }
+  if (cfront_token_is(token, "U64") == CTOOL_TRUE) {
+    return CFRONT_CUPID_TYPE_U64;
+  }
+  if (cfront_token_is(token, "I8") == CTOOL_TRUE) {
+    return CFRONT_CUPID_TYPE_I8;
+  }
+  if (cfront_token_is(token, "I16") == CTOOL_TRUE) {
+    return CFRONT_CUPID_TYPE_I16;
+  }
+  if (cfront_token_is(token, "I32") == CTOOL_TRUE) {
+    return CFRONT_CUPID_TYPE_I32;
+  }
+  if (cfront_token_is(token, "I64") == CTOOL_TRUE) {
+    return CFRONT_CUPID_TYPE_I64;
+  }
+  if (cfront_token_is(token, "Bool") == CTOOL_TRUE ||
+      cfront_token_is(token, "bool") == CTOOL_TRUE) {
+    return CFRONT_CUPID_TYPE_BOOL;
+  }
+  if (cfront_token_is(token, "float4") == CTOOL_TRUE) {
+    return CFRONT_CUPID_TYPE_FLOAT4;
+  }
+  if (cfront_token_is(token, "double2") == CTOOL_TRUE) {
+    return CFRONT_CUPID_TYPE_DOUBLE2;
+  }
+  return CFRONT_CUPID_TYPE_NONE;
+}
+
 static ctool_bool cfront_reserved_identifier(
     const cfront_context_t *context, const ctool_c_pp_token_t *token) {
   static const char *const c11_keywords[] = {
@@ -942,6 +1005,76 @@ static ctool_status_t cfront_scalar_type(cfront_context_t *context,
     context->scalar_types[(ctool_u32)kind] = *type_out;
   }
   return status;
+}
+
+static ctool_status_t cfront_vector_type(
+    cfront_context_t *context, ctool_c_type_kind_t element_kind,
+    ctool_u32 element_count, const ctool_c_pp_token_t *token,
+    ctool_u32 *cached_type, ctool_u32 *type_out) {
+  ctool_c_type_node_t node;
+  ctool_u32 element_type;
+  ctool_status_t status;
+  if (*cached_type != CFRONT_NONE) {
+    *type_out = *cached_type;
+    return CTOOL_OK;
+  }
+  status = cfront_scalar_type(context, element_kind, token, &element_type);
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  cfront_node_init(&node, CTOOL_C_TYPE_VECTOR, token);
+  node.referenced_type = element_type;
+  node.element_count = element_count;
+  status = cfront_type_append(context, &node, type_out);
+  if (status == CTOOL_OK) {
+    *cached_type = *type_out;
+  }
+  return status;
+}
+
+static ctool_status_t cfront_cupid_type(
+    cfront_context_t *context, cfront_cupid_type_t cupid_type,
+    const ctool_c_pp_token_t *token, ctool_u32 *type_out) {
+  ctool_c_type_kind_t kind;
+  switch (cupid_type) {
+  case CFRONT_CUPID_TYPE_U0:
+    kind = CTOOL_C_TYPE_VOID;
+    break;
+  case CFRONT_CUPID_TYPE_U8:
+    kind = CTOOL_C_TYPE_UNSIGNED_CHAR;
+    break;
+  case CFRONT_CUPID_TYPE_U16:
+    kind = CTOOL_C_TYPE_UNSIGNED_SHORT;
+    break;
+  case CFRONT_CUPID_TYPE_U32:
+    kind = CTOOL_C_TYPE_UNSIGNED_INT;
+    break;
+  case CFRONT_CUPID_TYPE_U64:
+    kind = CTOOL_C_TYPE_UNSIGNED_LONG_LONG;
+    break;
+  case CFRONT_CUPID_TYPE_I8:
+    kind = CTOOL_C_TYPE_SIGNED_CHAR;
+    break;
+  case CFRONT_CUPID_TYPE_I16:
+    kind = CTOOL_C_TYPE_SIGNED_SHORT;
+    break;
+  case CFRONT_CUPID_TYPE_I32:
+  case CFRONT_CUPID_TYPE_BOOL:
+    kind = CTOOL_C_TYPE_SIGNED_INT;
+    break;
+  case CFRONT_CUPID_TYPE_I64:
+    kind = CTOOL_C_TYPE_SIGNED_LONG_LONG;
+    break;
+  case CFRONT_CUPID_TYPE_FLOAT4:
+    return cfront_vector_type(context, CTOOL_C_TYPE_FLOAT, 4u, token,
+                              &context->float4_type, type_out);
+  case CFRONT_CUPID_TYPE_DOUBLE2:
+    return cfront_vector_type(context, CTOOL_C_TYPE_DOUBLE, 2u, token,
+                              &context->double2_type, type_out);
+  default:
+    return CTOOL_ERR_INVALID_ARGUMENT;
+  }
+  return cfront_scalar_type(context, kind, token, type_out);
 }
 
 static ctool_status_t cfront_qualified_type(
@@ -5064,6 +5197,8 @@ static ctool_bool cfront_starts_declaration_specifier(
       cfront_token_is(token, "struct") == CTOOL_TRUE ||
       cfront_token_is(token, "union") == CTOOL_TRUE ||
       cfront_token_is(token, "enum") == CTOOL_TRUE ||
+      cfront_cupid_type_specifier(context, token) !=
+          CFRONT_CUPID_TYPE_NONE ||
       (context->request->mode == CTOOL_C_PP_MODE_CUPID &&
        cfront_token_is(token, "class") == CTOOL_TRUE)) {
     return CTOOL_TRUE;
@@ -25217,6 +25352,8 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
       context.scalar_types[index] = CFRONT_NONE;
     }
     context.builtin_va_list_type = CFRONT_NONE;
+    context.float4_type = CFRONT_NONE;
+    context.double2_type = CFRONT_NONE;
     context.active_function_binding = CFRONT_NONE;
     context.active_function_first_statement = CFRONT_NONE;
     context.active_function_binding_mark = CFRONT_NONE;
@@ -25288,6 +25425,7 @@ static ctool_status_t cfront_parse_specifiers(cfront_context_t *context,
   ctool_bool saw_float = CTOOL_FALSE;
   ctool_bool saw_double = CTOOL_FALSE;
   ctool_bool saw_builtin_va_list = CTOOL_FALSE;
+  ctool_bool saw_cupid_type = CTOOL_FALSE;
   ctool_bool saw_signed = CTOOL_FALSE;
   ctool_bool saw_unsigned = CTOOL_FALSE;
   ctool_status_t status;
@@ -25301,6 +25439,8 @@ static ctool_status_t cfront_parse_specifiers(cfront_context_t *context,
   }
   for (;;) {
     const ctool_c_pp_token_t *token = cfront_peek(context);
+    cfront_cupid_type_t cupid_type =
+        cfront_cupid_type_specifier(context, token);
     cfront_storage_t storage = CFRONT_STORAGE_NONE;
     ctool_u32 qualifier = 0u;
     ctool_u32 found_typedef;
@@ -25358,6 +25498,24 @@ static ctool_status_t cfront_parse_specifiers(cfront_context_t *context,
       (void)cfront_advance(context);
       continue;
     }
+    if (cupid_type != CFRONT_CUPID_TYPE_NONE) {
+      if (saw_base == CTOOL_TRUE || saw_scalar == CTOOL_TRUE ||
+          typedef_type != CFRONT_NONE) {
+        return cfront_emit_failure(
+            context, CTOOL_ERR_INPUT,
+            CTOOL_C_PARSE_DIAG_DECLARATION_SPECIFIERS, token,
+            "declaration combines a Cupid type with another base type");
+      }
+      status = cfront_cupid_type(context, cupid_type, token, &typedef_type);
+      if (status != CTOOL_OK) {
+        return cfront_storage_failure(context, status);
+      }
+      saw_any = CTOOL_TRUE;
+      saw_base = CTOOL_TRUE;
+      saw_cupid_type = CTOOL_TRUE;
+      (void)cfront_advance(context);
+      continue;
+    }
     if (cfront_token_is(token, "__builtin_va_list") == CTOOL_TRUE) {
       if (context->request->gnu_extensions == CTOOL_FALSE) {
         return cfront_emit_failure(
@@ -25370,7 +25528,9 @@ static ctool_status_t cfront_parse_specifiers(cfront_context_t *context,
         return cfront_emit_failure(
             context, CTOOL_ERR_INPUT,
             CTOOL_C_PARSE_DIAG_DECLARATION_SPECIFIERS, token,
-            "declaration has more than one base type");
+            saw_cupid_type == CTOOL_TRUE
+                ? "declaration combines a Cupid type with another base type"
+                : "declaration has more than one base type");
       }
       status = cfront_builtin_va_list_type(context, token, &typedef_type);
       if (status != CTOOL_OK) {
@@ -25477,7 +25637,9 @@ static ctool_status_t cfront_parse_specifiers(cfront_context_t *context,
         return cfront_emit_failure(
             context, CTOOL_ERR_INPUT,
             CTOOL_C_PARSE_DIAG_DECLARATION_SPECIFIERS, token,
-            "declaration has more than one base type");
+            saw_cupid_type == CTOOL_TRUE
+                ? "declaration combines a Cupid type with another base type"
+                : "declaration has more than one base type");
       }
       spec_out->block_tag_specifier_token = token;
       status = cfront_record_type(
@@ -25500,7 +25662,9 @@ static ctool_status_t cfront_parse_specifiers(cfront_context_t *context,
         return cfront_emit_failure(
             context, CTOOL_ERR_INPUT,
             CTOOL_C_PARSE_DIAG_DECLARATION_SPECIFIERS, token,
-            "declaration has more than one base type");
+            saw_cupid_type == CTOOL_TRUE
+                ? "declaration combines a Cupid type with another base type"
+                : "declaration has more than one base type");
       }
       spec_out->block_tag_specifier_token = token;
       {
@@ -25535,7 +25699,9 @@ static ctool_status_t cfront_parse_specifiers(cfront_context_t *context,
       return cfront_emit_failure(
           context, CTOOL_ERR_INPUT,
           CTOOL_C_PARSE_DIAG_DECLARATION_SPECIFIERS, token,
-          "declaration combines a typedef or tag with another base type");
+          saw_cupid_type == CTOOL_TRUE
+              ? "declaration combines a Cupid type with another base type"
+              : "declaration combines a typedef or tag with another base type");
     }
     saw_any = CTOOL_TRUE;
     saw_base = CTOOL_TRUE;

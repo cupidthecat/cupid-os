@@ -35,6 +35,7 @@ SOURCE_SUFFIXES = {
 # Linux builds cover the Linux execution branch.
 CANONICAL_MAKE_VARIABLES = ("OS=Windows_NT",)
 TOOL_MARKERS = (
+    ("gen-big --seed-manifest", "cupid_assembler"),
     ("mksyms --seed-manifest", "cupid_disassembler"),
     ("mksyms --seed-manifest", "cupid_object"),
     ("embed-jpeg --seed-manifest", "cupid_object"),
@@ -1287,6 +1288,12 @@ def _operation_for_recipe(
     inputs: list[str],
 ) -> str:
     joined = " ".join(recipe).lower()
+    if (
+        "gen-big" in joined
+        and "--seed-manifest" in joined
+        and "cupid_assembler" in tools
+    ):
+        return "assemble_flat_binary"
     if " mksyms " in f" {joined} " and "cupid_object" in tools:
         return "generate_ksyms_source"
     if any(
@@ -1712,7 +1719,7 @@ def _roadmap(
         (
             "boot_and_kernel_assembly",
             ("boot_assembly", "kernel_assembly"),
-            "Keep the four production transforms CupidASM-owned while retaining NASM only as an optional parity oracle.",
+            "Keep the four boot and kernel transforms plus the ISO lane fixture CupidASM-owned while retaining NASM only as an optional parity oracle.",
         ),
         (
             "kernel_and_drivers",

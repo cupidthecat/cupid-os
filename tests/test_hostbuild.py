@@ -788,6 +788,293 @@ class HostBuildIsoTests(unittest.TestCase):
                 first_big_time,
             )
 
+    def test_gen_big_uses_checked_cupidasm_and_reuses_equal_output(self):
+        with tempfile.TemporaryDirectory() as td:
+            work = Path(td)
+            manifest = work / "manifest.json"
+            source = work / "big_pattern.asm"
+            output = work / "big.bin"
+            manifest.write_bytes(b"checked manifest")
+            source_payload = (
+                REPO_ROOT / "test_iso" / "big_pattern.asm"
+            ).read_bytes()
+            source.write_bytes(source_payload)
+            expected = bytes(index & 0xFF for index in range(4096))
+            output.write_bytes(expected)
+            original_time = output.stat().st_mtime_ns - 1_000_000
+            os.utime(output, ns=(original_time, original_time))
+            calls = []
+
+            def run_seed(
+                manifest_path,
+                working_directory,
+                tool_name,
+                arguments,
+                *,
+                timeout,
+            ):
+                calls.append(
+                    (
+                        manifest_path,
+                        working_directory,
+                        tool_name,
+                        tuple(arguments),
+                        timeout,
+                    )
+                )
+                self.assertEqual(tool_name, "cupidasm")
+                self.assertEqual(arguments[:2], ["-f", "bin"])
+                frozen_source = Path(arguments[2])
+                candidate = Path(arguments[arguments.index("-o") + 1])
+                self.assertEqual(frozen_source.read_bytes(), source_payload)
+                candidate.write_bytes(expected)
+                return subprocess.CompletedProcess(arguments, 0, "", "")
+
+            stdout = io.StringIO()
+            with (
+                mock.patch(
+                    "tools.hostbuild.run_seed_tool",
+                    side_effect=run_seed,
+                ),
+                contextlib.redirect_stdout(stdout),
+            ):
+                status = hostbuild.main(
+                    [
+                        "gen-big",
+                        "--seed-manifest",
+                        str(manifest),
+                        "--source",
+                        str(source),
+                        str(output),
+                    ]
+                )
+
+            self.assertEqual(status, 0)
+            self.assertEqual(len(calls), 1)
+            self.assertEqual(output.read_bytes(), expected)
+            self.assertEqual(output.stat().st_mtime_ns, original_time)
+            self.assertIn("[hostbuild] Reused", stdout.getvalue())
+
+    def test_gen_big_preserves_output_when_checked_cupidasm_fails(self):
+        with tempfile.TemporaryDirectory() as td:
+            work = Path(td)
+            manifest = work / "manifest.json"
+            source = work / "big_pattern.asm"
+            output = work / "big.bin"
+            manifest.write_bytes(b"checked manifest")
+            source.write_bytes(
+                (REPO_ROOT / "test_iso" / "big_pattern.asm").read_bytes()
+            )
+            output.write_bytes(b"existing fixture")
+
+            def run_seed(
+                _manifest_path,
+                _working_directory,
+                _tool_name,
+                arguments,
+                *,
+                timeout,
+            ):
+                self.assertEqual(timeout, 60)
+                candidate = Path(arguments[arguments.index("-o") + 1])
+                candidate.write_bytes(b"partial candidate")
+                return subprocess.CompletedProcess(
+                    arguments,
+                    1,
+                    "",
+                    "bad TIMES expression",
+                )
+
+            diagnostic = io.StringIO()
+            with (
+                mock.patch(
+                    "tools.hostbuild.run_seed_tool",
+                    side_effect=run_seed,
+                ),
+                contextlib.redirect_stderr(diagnostic),
+            ):
+                status = hostbuild.main(
+                    [
+                        "gen-big",
+                        "--seed-manifest",
+                        str(manifest),
+                        "--source",
+                        str(source),
+                        str(output),
+                    ]
+                )
+
+            self.assertEqual(status, 1)
+            self.assertEqual(output.read_bytes(), b"existing fixture")
+            self.assertIn(
+                "checked CupidASM failed with status 1: "
+                "bad TIMES expression",
+                diagnostic.getvalue(),
+            )
+
+    def test_gen_big_rejects_cupid_assembler_parity_drift(self):
+        with tempfile.TemporaryDirectory() as td:
+            work = Path(td)
+            manifest = work / "manifest.json"
+            source = work / "big_pattern.asm"
+            output = work / "big.bin"
+            manifest.write_bytes(b"checked manifest")
+            source.write_bytes(
+                (REPO_ROOT / "test_iso" / "big_pattern.asm").read_bytes()
+            )
+            output.write_bytes(b"existing fixture")
+
+            def run_seed(
+                _manifest_path,
+                _working_directory,
+                _tool_name,
+                arguments,
+                *,
+                timeout,
+            ):
+                self.assertEqual(timeout, 60)
+                candidate = Path(arguments[arguments.index("-o") + 1])
+                candidate.write_bytes(b"\x00" * 4096)
+                return subprocess.CompletedProcess(arguments, 0, "", "")
+
+            diagnostic = io.StringIO()
+            with (
+                mock.patch(
+                    "tools.hostbuild.run_seed_tool",
+                    side_effect=run_seed,
+                ),
+                contextlib.redirect_stderr(diagnostic),
+            ):
+                status = hostbuild.main(
+                    [
+                        "gen-big",
+                        "--seed-manifest",
+                        str(manifest),
+                        "--source",
+                        str(source),
+                        str(output),
+                    ]
+                )
+
+            self.assertEqual(status, 1)
+            self.assertEqual(output.read_bytes(), b"existing fixture")
+            self.assertIn(
+                "checked CupidASM big.bin differs from the 4096-byte "
+                "fixture pattern",
+                diagnostic.getvalue(),
+            )
+
+    def test_gen_big_rejects_live_source_drift_and_preserves_output(self):
+        with tempfile.TemporaryDirectory() as td:
+            work = Path(td)
+            manifest = work / "manifest.json"
+            source = work / "big_pattern.asm"
+            output = work / "big.bin"
+            manifest.write_bytes(b"checked manifest")
+            source_payload = (
+                REPO_ROOT / "test_iso" / "big_pattern.asm"
+            ).read_bytes()
+            source.write_bytes(source_payload)
+            output.write_bytes(b"existing fixture")
+            expected = bytes(index & 0xFF for index in range(4096))
+
+            def run_seed(
+                _manifest_path,
+                _working_directory,
+                _tool_name,
+                arguments,
+                *,
+                timeout,
+            ):
+                self.assertEqual(timeout, 60)
+                candidate = Path(arguments[arguments.index("-o") + 1])
+                candidate.write_bytes(expected)
+                source.write_bytes(source_payload + b"; concurrent edit\n")
+                return subprocess.CompletedProcess(arguments, 0, "", "")
+
+            diagnostic = io.StringIO()
+            with (
+                mock.patch(
+                    "tools.hostbuild.run_seed_tool",
+                    side_effect=run_seed,
+                ),
+                contextlib.redirect_stderr(diagnostic),
+            ):
+                status = hostbuild.main(
+                    [
+                        "gen-big",
+                        "--seed-manifest",
+                        str(manifest),
+                        "--source",
+                        str(source),
+                        str(output),
+                    ]
+                )
+
+            self.assertEqual(status, 1)
+            self.assertEqual(output.read_bytes(), b"existing fixture")
+            self.assertEqual(
+                source.read_bytes(),
+                source_payload + b"; concurrent edit\n",
+            )
+            self.assertIn(
+                "checked big-fixture inputs changed while CupidASM ran",
+                diagnostic.getvalue(),
+            )
+
+    def test_gen_big_rejects_live_output_drift_without_overwriting_it(self):
+        with tempfile.TemporaryDirectory() as td:
+            work = Path(td)
+            manifest = work / "manifest.json"
+            source = work / "big_pattern.asm"
+            output = work / "big.bin"
+            manifest.write_bytes(b"checked manifest")
+            source.write_bytes(
+                (REPO_ROOT / "test_iso" / "big_pattern.asm").read_bytes()
+            )
+            output.write_bytes(b"existing fixture")
+            expected = bytes(index & 0xFF for index in range(4096))
+
+            def run_seed(
+                _manifest_path,
+                _working_directory,
+                _tool_name,
+                arguments,
+                *,
+                timeout,
+            ):
+                self.assertEqual(timeout, 60)
+                candidate = Path(arguments[arguments.index("-o") + 1])
+                candidate.write_bytes(expected)
+                output.write_bytes(b"concurrent publisher")
+                return subprocess.CompletedProcess(arguments, 0, "", "")
+
+            diagnostic = io.StringIO()
+            with (
+                mock.patch(
+                    "tools.hostbuild.run_seed_tool",
+                    side_effect=run_seed,
+                ),
+                contextlib.redirect_stderr(diagnostic),
+            ):
+                status = hostbuild.main(
+                    [
+                        "gen-big",
+                        "--seed-manifest",
+                        str(manifest),
+                        "--source",
+                        str(source),
+                        str(output),
+                    ]
+                )
+
+            self.assertEqual(status, 1)
+            self.assertEqual(output.read_bytes(), b"concurrent publisher")
+            self.assertIn(
+                "generated ISO fixture changed while writing big.bin",
+                diagnostic.getvalue(),
+            )
+
     def test_build_iso_reproduces_the_tracked_guest_fixture(self):
         with tempfile.TemporaryDirectory() as td:
             output = Path(td) / "hello.iso"

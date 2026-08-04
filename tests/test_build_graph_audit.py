@@ -506,7 +506,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     --tool cupiddis --
 
                 .PHONY: all
-                all: symbols.cc photo.o reader.txt
+                all: symbols.cc photo.o reader.txt big.bin
 
                 symbols.cc: kernel.elf
                 \t$(PYTHON) tools/hostbuild.py mksyms \
@@ -518,10 +518,16 @@ class BuildGraphAuditCliTests(unittest.TestCase):
 
                 reader.txt: kernel.elf
                 \t$(PYTHON) helper.py --reader $(CUPIDDIS) $< $@
+
+                big.bin: big_pattern.asm
+                \t$(PYTHON) tools/hostbuild.py gen-big \
+                    --seed-manifest seed/manifest.json \
+                    --source $< $@
                 """,
             )
             _write(root / "kernel.elf", "fixture\n")
             _write(root / "photo.jpg", "fixture\n")
+            _write(root / "big_pattern.asm", "times 4096 db $\n")
 
             output = root / "audit.json"
             result = subprocess.run(
@@ -562,6 +568,14 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(
                 transforms["reader.txt"]["tools"],
                 ["cupid_disassembler", "host_python"],
+            )
+            self.assertEqual(
+                transforms["big.bin"]["tools"],
+                ["cupid_assembler", "host_python"],
+            )
+            self.assertEqual(
+                transforms["big.bin"]["operation"],
+                "assemble_flat_binary",
             )
 
     def test_make_database_does_not_execute_recursive_recipes(self):
@@ -2080,8 +2094,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             audit = json.loads(output.read_text(encoding="utf-8"))
             features = {entry["id"]: entry for entry in audit["features"]}
             self.assertEqual(features["asm.addressing.memory"]["occurrences"], 101)
-            self.assertEqual(features["asm.directive.bits"]["occurrences"], 7)
-            self.assertEqual(features["asm.directive.org"]["occurrences"], 2)
+            self.assertEqual(features["asm.directive.bits"]["occurrences"], 8)
+            self.assertEqual(features["asm.directive.org"]["occurrences"], 3)
             transforms = {
                 entry["output"]: entry for entry in audit["build"]["transforms"]
             }
@@ -4608,7 +4622,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(
                 audit_payload["summary"],
                 {
-                    "active_sources": 718,
+                    "active_sources": 719,
                     "features": 255,
                     "transforms": 449,
                     "unreachable_sources": 25,
@@ -4619,7 +4633,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (5531, 169),
+                "c.expression.sizeof": (5546, 169),
                 "c.extension.builtin.offsetof": (12, 6),
                 "c.extension.gnu_alignof": (1, 1),
             }
@@ -4671,16 +4685,23 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ]
             self.assertEqual(
                 big_fixture_transform["tools"],
-                ["host_python"],
+                ["cupid_assembler", "host_python"],
             )
             self.assertEqual(
                 big_fixture_transform["operation"],
-                "generate_binary_fixture",
+                "assemble_flat_binary",
             )
             self.assertEqual(
                 set(big_fixture_transform["inputs"]),
                 {
                     "Makefile",
+                    "bootstrap/seeds/i386-linux/cupidasm.elf",
+                    "bootstrap/seeds/i386-linux/cupidc.elf",
+                    "bootstrap/seeds/i386-linux/cupiddis.elf",
+                    "bootstrap/seeds/i386-linux/cupidld.elf",
+                    "bootstrap/seeds/i386-linux/cupidobj.elf",
+                    "bootstrap/seeds/i386-linux/manifest.json",
+                    "test_iso/big_pattern.asm",
                     "tools/bootstrap_toolchain.py",
                     "tools/hostbuild.py",
                 },
@@ -5389,7 +5410,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             "bootstrap/seeds/i386-linux/cupidobj.elf",
         }
         expected_counts = {
-            "cupid_assembler": 4,
+            "cupid_assembler": 5,
             "cupid_object": 186,
             "cupid_linker": 2,
             "cupid_disassembler": 1,

@@ -28,6 +28,7 @@
 #define X86_FORM_FIXED_CL1 0x00040000u
 #define X86_FORM_INVALID_ENCODING 0x00080000u
 #define X86_FORM_DEFAULT_OPERAND_ONLY 0x00100000u
+#define X86_FORM_FIXED_CL2 0x00200000u
 
 typedef enum {
   X86_ISA_8086 = 0,
@@ -326,6 +327,7 @@ static const x86_mnemonic_name_t x86_mnemonic_names[] = {
   X86_MN_CANON("sgdt", CTOOL_X86_MN_SGDT),
   X86_MN_CANON("shl", CTOOL_X86_MN_SHL),
   X86_MN_CANON("shr", CTOOL_X86_MN_SHR),
+  X86_MN_CANON("shrd", CTOOL_X86_MN_SHRD),
   X86_MN_CANON("shufpd", CTOOL_X86_MN_SHUFPD),
   X86_MN_CANON("shufps", CTOOL_X86_MN_SHUFPS),
   X86_MN_CANON("sidt", CTOOL_X86_MN_SIDT),
@@ -1209,6 +1211,24 @@ static const x86_form_row_t x86_forms[] = {
   X86_SHIFT(CTOOL_X86_MN_RCR, 3u),
   X86_SHIFT(CTOOL_X86_MN_SHL, 4u),
   X86_SHIFT(CTOOL_X86_MN_SHR, 5u),
+  X86_FORM(CTOOL_X86_MN_SHRD, X86_MODE_BOTH, X86_ISA_386, 16u, 0u, 2u,
+           0x0fu, 0xacu, 0u, 0xffu, 3u, X86_OC_RM16, X86_OC_GPR16,
+           X86_OC_IMM8, X86_NO_OPERAND, 1, 0, X86_NO_DIGIT, 2, 8u,
+           CTOOL_X86_FIELD_IMMEDIATE, 0u),
+  X86_FORM(CTOOL_X86_MN_SHRD, X86_MODE_BOTH, X86_ISA_386, 32u, 0u, 2u,
+           0x0fu, 0xacu, 0u, 0xffu, 3u, X86_OC_RM32, X86_OC_GPR32,
+           X86_OC_IMM8, X86_NO_OPERAND, 1, 0, X86_NO_DIGIT, 2, 8u,
+           CTOOL_X86_FIELD_IMMEDIATE, 0u),
+  X86_FORM(CTOOL_X86_MN_SHRD, X86_MODE_BOTH, X86_ISA_386, 16u, 0u, 2u,
+           0x0fu, 0xadu, 0u, 0xffu, 3u, X86_OC_RM16, X86_OC_GPR16,
+           X86_OC_GPR8, X86_NO_OPERAND, 1, 0, X86_NO_DIGIT,
+           X86_NO_OPERAND, 0u, CTOOL_X86_FIELD_IMMEDIATE,
+           X86_FORM_FIXED_CL2),
+  X86_FORM(CTOOL_X86_MN_SHRD, X86_MODE_BOTH, X86_ISA_386, 32u, 0u, 2u,
+           0x0fu, 0xadu, 0u, 0xffu, 3u, X86_OC_RM32, X86_OC_GPR32,
+           X86_OC_GPR8, X86_NO_OPERAND, 1, 0, X86_NO_DIGIT,
+           X86_NO_OPERAND, 0u, CTOOL_X86_FIELD_IMMEDIATE,
+           X86_FORM_FIXED_CL2),
   X86_SHIFT(CTOOL_X86_MN_SAR, 7u),
   X86_RM_REG(CTOOL_X86_MN_TEST, 8u, 0x84u, 0u),
   X86_RM_REG(CTOOL_X86_MN_TEST, 16u, 0x85u, 0u),
@@ -1884,7 +1904,8 @@ ctool_status_t ctool_x86_validate_model(ctool_job_t *job) {
       X86_FORM_FIXED_SEG_FS | X86_FORM_FIXED_SEG_GS |
       X86_FORM_REGISTER_ONLY | X86_FORM_SEGMENT_DEST |
       X86_FORM_DECODE_ALIAS | X86_FORM_MOFFS | X86_FORM_FIXED_CL1 |
-      X86_FORM_INVALID_ENCODING | X86_FORM_DEFAULT_OPERAND_ONLY;
+      X86_FORM_INVALID_ENCODING | X86_FORM_DEFAULT_OPERAND_ONLY |
+      X86_FORM_FIXED_CL2;
   if (job == (ctool_job_t *)0) {
     return CTOOL_ERR_INVALID_ARGUMENT;
   }
@@ -2288,6 +2309,10 @@ static ctool_bool x86_form_matches(ctool_x86_mode_t mode,
   }
   if ((row->flags & X86_FORM_FIXED_CL1) != 0u &&
       instruction->operands[1].as.reg.index != 1u) {
+    return CTOOL_FALSE;
+  }
+  if ((row->flags & X86_FORM_FIXED_CL2) != 0u &&
+      instruction->operands[2].as.reg.index != 1u) {
     return CTOOL_FALSE;
   }
   if ((row->flags & X86_FORM_SEGMENT_DEST) != 0u &&
@@ -3332,6 +3357,9 @@ static void x86_decode_fixed_operands(const x86_form_row_t *row,
   }
   if ((row->flags & X86_FORM_FIXED_CL1) != 0u) {
     x86_decode_fixed_register(row, 1u, 1u, decoded);
+  }
+  if ((row->flags & X86_FORM_FIXED_CL2) != 0u) {
+    x86_decode_fixed_register(row, 2u, 1u, decoded);
   }
   if ((row->flags & X86_FORM_FIXED_SEG_ES) != 0u) {
     x86_decode_fixed_register(row, 0u, 0u, decoded);

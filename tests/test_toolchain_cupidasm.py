@@ -142,6 +142,78 @@ class CupidAsmCliTests(unittest.TestCase):
                 ),
             )
 
+    def test_cli_assembles_double_precision_right_shifts_in_both_modes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "shrd.asm"
+            output = root / "shrd.bin"
+            source.write_text(
+                "BITS 32\n"
+                "    shrd eax, edi, cl\n"
+                "    shrd dword [ebx + 4], esi, 7\n"
+                "BITS 16\n"
+                "    shrd ax, di, cl\n"
+                "    shrd dword [bx + si], esi, 0x1f\n",
+                encoding="utf-8",
+            )
+            result = subprocess.run(
+                [
+                    str(self.cli_path),
+                    "-f",
+                    "bin",
+                    str(source),
+                    "-o",
+                    str(output),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(
+                output.read_bytes(),
+                bytes.fromhex(
+                    "0f ad f8 0f ac 73 04 07 "
+                    "0f ad f8 66 0f ac 30 1f"
+                ),
+            )
+
+    def test_cli_rejects_invalid_double_precision_right_shift_operands(self):
+        cases = {
+            "width-mismatch": "shrd eax, di, cl",
+            "memory-source": "shrd eax, dword [edi], cl",
+            "wrong-count-register": "shrd eax, edi, dl",
+            "lock-prefix": "lock shrd eax, edi, cl",
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name, instruction in cases.items():
+                with self.subTest(name=name):
+                    source = root / f"{name}.asm"
+                    output = root / f"{name}.bin"
+                    source.write_text(
+                        f"BITS 32\n    {instruction}\n", encoding="utf-8"
+                    )
+                    result = subprocess.run(
+                        [
+                            str(self.cli_path),
+                            "-f",
+                            "bin",
+                            str(source),
+                            "-o",
+                            str(output),
+                        ],
+                        cwd=REPO_ROOT,
+                        text=True,
+                        capture_output=True,
+                    )
+                    self.assertEqual(result.returncode, 1)
+                    self.assertIn(
+                        "instruction has no supported x86 encoding",
+                        result.stderr,
+                    )
+                    self.assertFalse(output.exists())
+
     def test_cli_aligns_raw_addresses_and_elf32_sections(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

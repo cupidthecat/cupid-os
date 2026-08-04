@@ -1489,6 +1489,7 @@ test-user-cupidc-runtime: sync-user-runtime tools/gui_terminal_smoke.py
 # Test-only ISO - built from test_iso/fixtures/, mounted via
 # `mount /disk/hello.iso /iso` in the shell for feature17.
 ISO_FIXTURE_MANIFEST := test_iso/fixtures.manifest
+ISO_BIG_FIXTURE_SOURCE := test_iso/big_pattern.asm
 ISO_FIXTURE_RELATIVE := \
 	big.bin \
 	gen_big.sh \
@@ -1500,8 +1501,11 @@ ISO_FIXTURE_RELATIVE := \
 TEST_ISO_FIXTURES := $(sort test_iso/fixtures $(ISO_FIXTURE_MANIFEST) \
 	$(addprefix test_iso/fixtures/,$(ISO_FIXTURE_RELATIVE)))
 
-test_iso/fixtures/big.bin: tools/hostbuild.py tools/bootstrap_toolchain.py Makefile
-	$(PYTHON) tools/hostbuild.py gen-big $@
+test_iso/fixtures/big.bin: $(ISO_BIG_FIXTURE_SOURCE) tools/hostbuild.py \
+	tools/bootstrap_toolchain.py Makefile $(CUPIDASM_INPUTS)
+	$(PYTHON) tools/hostbuild.py gen-big \
+	  --seed-manifest $(BOOTSTRAP_SEED_MANIFEST) \
+	  --source $(ISO_BIG_FIXTURE_SOURCE) $@
 
 test_iso/hello.iso: $(TEST_ISO_FIXTURES) tools/hostbuild.py tools/bootstrap_toolchain.py Makefile
 	$(PYTHON) tools/hostbuild.py build-iso --fixtures test_iso/fixtures \

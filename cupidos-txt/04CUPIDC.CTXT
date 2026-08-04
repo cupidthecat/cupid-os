@@ -150,6 +150,22 @@ Current toolchain gaps:
   compilation and multi-file linking still need toolchain support.
 >endtree
 
+>h2 Shared Bootstrap Type Graph
+>tree open Shared Bootstrap Type Graph
+The shared CupidC frontend recognizes the native type spellings when it parses
+Cupid source:
+- U0 is void.
+- U8, U16, U32, and U64 are unsigned integers of 1, 2, 4, and 8 bytes.
+- I8, I16, I32, and I64 are the matching signed integers.
+- Bool and bool use the signed 4-byte int identity.
+- float4 and double2 are distinct 16-byte vector types with 16-byte alignment.
+
+Strict C11 mode leaves those names available to ordinary declarations and
+typedefs. A malformed mixed type reports the second specifier and leaves the
+parser ready for another source in the same job. Under the Cupid profile,
+unchanged kernel/cpu/simd_intrin.h publishes all 29 intrinsic bindings.
+>endtree
+
 >h2 Normal Build Ownership
 >tree open Normal Build Ownership
 The checked CupidC seed compiles 238 checked-in sources in the normal image
@@ -457,9 +473,11 @@ The emitter writes back the final pointer and count and preserves ESI or EDI
 across the cdecl call.
 
 The scalar forms emit EC, EE, 66 ED, 66 EF, ED, and EF. INSW and OUTSW emit
-FC F3 66 6D and FC F3 66 6F through the shared x86 model. The checked-seed
+FC F3 66 6D and FC F3 66 6F through the shared x86 model. The checked-seed C11
 standalone sweep passes 157 of 159 active non-Doom headers. scheduler.h and
-simd_intrin.h remain explicit failures.
+simd_intrin.h remain exact C11-profile failures. Source head parses all 29
+simd_intrin.h declarations under the Cupid profile through the shared native
+type graph.
 
 The checked seed carries this port-I/O capability. The normal build uses it in
 the 155-source checked-in CupidC cohort. It emits unchanged kernel/smp/acpi.cc
@@ -774,8 +792,10 @@ libm assembly effect, the exact dglibc jump block, pointer-preserving static
 address casts, exact naked IPI entries, the kernel-entry BSS clear with a
 nonzero page-aligned stack top, and the active packed SSE2 statements. It also
 carries runtime floating truth, conversion to _Bool, and the returns-twice
-direct-call boundary. CupidASM and CupidDis carry the 592-row shared x86
-catalogue with forward x87 stack subtraction. CupidDis also carries typed raw
+direct-call boundary. CupidASM and CupidDis in the checked seed carry the
+592-row shared x86 catalogue with forward x87 stack subtraction. Source head
+has 596 rows and adds canonical SHRD without changing the checked trust root
+yet. CupidDis also carries typed raw
 code and data ranges. CupidObj carries installation-source generation and
 transactional kernel-symbol source generation. The 270,700-byte image applies
 one overflow-safe 512-path request limit, preserves mixed home-asset order,

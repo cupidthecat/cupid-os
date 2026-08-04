@@ -181,7 +181,8 @@ static int run_model(void) {
       "movups",   "movzx",    "mul",      "mulps",    "or",
       "out",      "pop",      "popa",     "popfd",    "push",
       "pusha",    "pushfd",   "rdmsr",    "rdtsc",    "ret",
-      "retf",     "sgdt",     "shl",      "shr",      "sidt",
+      "retf",     "sgdt",     "shl",      "shr",      "shrd",
+      "sidt",
       "sldt",     "smsw",     "sqrtss",   "stc",      "sti",
       "stmxcsr",  "str",      "sub",      "syscall",  "sysenter",
       "sysexit",  "test",     "wbinvd",   "wrmsr",    "xadd",
@@ -234,9 +235,9 @@ static int run_model(void) {
     return 1;
   }
   info = ctool_x86_model_info();
-  if (!check_true(info.form_count == 592u && info.mnemonic_count == 244u &&
+  if (!check_true(info.form_count == 596u && info.mnemonic_count == 245u &&
                       info.register_count == 64u &&
-                      info.fingerprint == 0xf4420cb4u,
+                      info.fingerprint == 0xda15e97fu,
                   "model inventory")) {
     ctool_job_close(job);
     return 1;
@@ -841,6 +842,530 @@ static int run_immediate_imul(void) {
 
   ctool_job_close(job);
   (void)puts("immediate-imul: ok");
+  return 0;
+}
+
+static int run_double_shift(void) {
+  static const struct {
+    ctool_x86_mode_t mode;
+    ctool_u16 operand_bits;
+    ctool_bool memory_destination;
+    ctool_bool cl_count;
+    ctool_u8 source_index;
+    ctool_u8 bytes[5];
+    ctool_u8 size;
+    const char *name;
+  } cases[] = {
+      {CTOOL_X86_MODE_16, 16u, CTOOL_FALSE, CTOOL_FALSE, 7u,
+       {0x0fu, 0xacu, 0xf8u, 0x07u, 0u}, 4u,
+       "16-bit register SHRD immediate"},
+      {CTOOL_X86_MODE_16, 16u, CTOOL_FALSE, CTOOL_TRUE, 7u,
+       {0x0fu, 0xadu, 0xf8u, 0u, 0u}, 3u,
+       "16-bit register SHRD CL"},
+      {CTOOL_X86_MODE_16, 16u, CTOOL_TRUE, CTOOL_FALSE, 2u,
+       {0x0fu, 0xacu, 0x50u, 0x7fu, 0x07u}, 5u,
+       "16-bit memory SHRD immediate"},
+      {CTOOL_X86_MODE_16, 16u, CTOOL_TRUE, CTOOL_TRUE, 2u,
+       {0x0fu, 0xadu, 0x50u, 0x7fu, 0u}, 4u,
+       "16-bit memory SHRD CL"},
+      {CTOOL_X86_MODE_32, 32u, CTOOL_FALSE, CTOOL_FALSE, 7u,
+       {0x0fu, 0xacu, 0xf8u, 0x07u, 0u}, 4u,
+       "32-bit register SHRD immediate"},
+      {CTOOL_X86_MODE_32, 32u, CTOOL_FALSE, CTOOL_TRUE, 7u,
+       {0x0fu, 0xadu, 0xf8u, 0u, 0u}, 3u,
+       "32-bit register SHRD CL"},
+      {CTOOL_X86_MODE_32, 32u, CTOOL_TRUE, CTOOL_FALSE, 6u,
+       {0x0fu, 0xacu, 0x73u, 0x04u, 0x07u}, 5u,
+       "32-bit memory SHRD immediate"},
+      {CTOOL_X86_MODE_32, 32u, CTOOL_TRUE, CTOOL_TRUE, 6u,
+       {0x0fu, 0xadu, 0x73u, 0x04u, 0u}, 4u,
+       "32-bit memory SHRD CL"}};
+  static const ctool_u8 wide_memory16[] = {
+      0x66u, 0x0fu, 0xacu, 0x30u, 0x1fu};
+  static const ctool_u8 wide_address32_in_16[] = {
+      0x66u, 0x67u, 0x0fu, 0xacu, 0x73u, 0x04u, 0x1fu};
+  static const ctool_u8 narrow_register32[] = {
+      0x66u, 0x0fu, 0xadu, 0xf8u};
+  static const ctool_u8 narrow_address16_in_32[] = {
+      0x66u, 0x67u, 0x0fu, 0xadu, 0x50u, 0x7fu};
+  static const ctool_u8 active_stream[] = {
+      0x0fu, 0xadu, 0xf8u, 0x0fu, 0xadu, 0xf8u, 0xc3u};
+  static const ctool_u8 locked_active[] = {
+      0xf0u, 0x0fu, 0xadu, 0xf8u, 0xc3u};
+  ctool_host_adapter_t adapter;
+  ctool_job_t *job;
+  ctool_x86_instruction_t insn;
+  ctool_x86_encoding_t encoding;
+  ctool_x86_encoding_t replay;
+  ctool_x86_decoded_t decoded;
+  ctool_status_t status;
+  ctool_string_t canonical;
+  ctool_u32 case_index;
+  ctool_u32 cut;
+  if (!open_job(&adapter, &job)) {
+    return 1;
+  }
+
+  canonical = ctool_x86_mnemonic_name(CTOOL_X86_MN_SHRD);
+  if (!check_true(canonical.size == 4u &&
+                      memcmp(canonical.data, "shrd", 4u) == 0,
+                  "SHRD canonical mnemonic")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  for (case_index = 0u;
+       case_index < (ctool_u32)(sizeof(cases) / sizeof(cases[0]));
+       case_index++) {
+    ctool_x86_reg_class_t register_class =
+        cases[case_index].operand_bits == 16u ? CTOOL_X86_REG_GPR16
+                                             : CTOOL_X86_REG_GPR32;
+    insn = instruction(CTOOL_X86_MN_SHRD,
+                       cases[case_index].operand_bits,
+                       cases[case_index].operand_bits, 0u);
+    insn.operand_count = 3u;
+    if (cases[case_index].memory_destination == CTOOL_TRUE) {
+      if (cases[case_index].operand_bits == 16u) {
+        insn.operands[0] = memory_operand(
+            16u, 16u, reg(CTOOL_X86_REG_NONE, 0u),
+            reg(CTOOL_X86_REG_GPR16, 3u),
+            reg(CTOOL_X86_REG_GPR16, 6u), 1u, 0x7f, 8u);
+      } else {
+        insn.operands[0] = memory_operand(
+            32u, 32u, reg(CTOOL_X86_REG_NONE, 0u),
+            reg(CTOOL_X86_REG_GPR32, 3u),
+            reg(CTOOL_X86_REG_NONE, 0u), 1u, 4, 8u);
+      }
+    } else {
+      insn.operands[0] = register_operand(register_class, 0u);
+    }
+    insn.operands[1] = register_operand(
+        register_class, cases[case_index].source_index);
+    insn.operands[2] =
+        cases[case_index].cl_count == CTOOL_TRUE
+            ? register_operand(CTOOL_X86_REG_GPR8, 1u)
+            : value_operand(CTOOL_X86_OPERAND_IMMEDIATE,
+                            cases[case_index].operand_bits, 0u,
+                            constant(7u));
+    if (!encode(job, cases[case_index].mode, &insn, &encoding,
+                cases[case_index].name) ||
+        !bytes_equal(&encoding, cases[case_index].bytes,
+                     cases[case_index].size, cases[case_index].name)) {
+      ctool_job_close(job);
+      return 1;
+    }
+
+    status = ctool_x86_decode(
+        job, cases[case_index].mode,
+        ctool_bytes(cases[case_index].bytes,
+                    cases[case_index].size),
+        0u, &decoded);
+    if (!check_status(status, CTOOL_OK, cases[case_index].name) ||
+        !check_true(
+            decoded.kind == CTOOL_X86_DECODE_KNOWN &&
+                decoded.consumed == cases[case_index].size &&
+                decoded.instruction.mnemonic == CTOOL_X86_MN_SHRD &&
+                decoded.instruction.operand_bits ==
+                    cases[case_index].operand_bits &&
+                decoded.instruction.address_bits ==
+                    cases[case_index].operand_bits &&
+                decoded.instruction.operand_count == 3u &&
+                decoded.instruction.operands[0].kind ==
+                    (cases[case_index].memory_destination == CTOOL_TRUE
+                         ? CTOOL_X86_OPERAND_MEMORY
+                         : CTOOL_X86_OPERAND_REGISTER) &&
+                decoded.instruction.operands[1].kind ==
+                    CTOOL_X86_OPERAND_REGISTER &&
+                decoded.instruction.operands[1].as.reg.class_id ==
+                    register_class &&
+                decoded.instruction.operands[1].as.reg.index ==
+                    cases[case_index].source_index &&
+                decoded.instruction.operands[2].kind ==
+                    (cases[case_index].cl_count == CTOOL_TRUE
+                         ? CTOOL_X86_OPERAND_REGISTER
+                         : CTOOL_X86_OPERAND_IMMEDIATE) &&
+                (cases[case_index].cl_count == CTOOL_TRUE
+                     ? decoded.instruction.operands[2].as.reg.class_id ==
+                               CTOOL_X86_REG_GPR8 &&
+                           decoded.instruction.operands[2].as.reg.index == 1u &&
+                           decoded.encoding.field_count ==
+                               (cases[case_index].memory_destination ==
+                                        CTOOL_TRUE
+                                    ? 1u
+                                    : 0u)
+                     : decoded.instruction.operands[2].width_bits ==
+                               cases[case_index].operand_bits &&
+                           decoded.instruction.operands[2].encoding_bits == 8u &&
+                           decoded.instruction.operands[2].as.value.bits == 7u &&
+                           decoded.encoding.field_count ==
+                               (cases[case_index].memory_destination ==
+                                        CTOOL_TRUE
+                                    ? 2u
+                                    : 1u) &&
+                           decoded.encoding
+                                   .fields[decoded.encoding.field_count - 1u]
+                                   .kind ==
+                               CTOOL_X86_FIELD_IMMEDIATE &&
+                           decoded.encoding
+                                   .fields[decoded.encoding.field_count - 1u]
+                                   .operand_index == 2u &&
+                           decoded.encoding
+                                       .fields[decoded.encoding.field_count -
+                                               1u]
+                                       .byte_offset +
+                                   1u ==
+                               cases[case_index].size &&
+                           decoded.encoding
+                                   .fields[decoded.encoding.field_count - 1u]
+                                   .byte_width == 1u),
+            cases[case_index].name)) {
+      ctool_job_close(job);
+      return 1;
+    }
+    if (cases[case_index].memory_destination == CTOOL_TRUE) {
+      if (!check_true(
+              decoded.instruction.operands[0].width_bits ==
+                      cases[case_index].operand_bits &&
+                  decoded.instruction.operands[0].as.memory.address_bits ==
+                      cases[case_index].operand_bits &&
+                  decoded.instruction.operands[0]
+                          .as.memory.displacement.bits ==
+                      (cases[case_index].operand_bits == 16u ? 0x7fu : 4u),
+              cases[case_index].name)) {
+        ctool_job_close(job);
+        return 1;
+      }
+    } else if (!check_true(
+                   decoded.instruction.operands[0].as.reg.class_id ==
+                           register_class &&
+                       decoded.instruction.operands[0].as.reg.index == 0u,
+                   cases[case_index].name)) {
+      ctool_job_close(job);
+      return 1;
+    }
+    status = ctool_x86_encode(job, cases[case_index].mode,
+                              &decoded.instruction,
+                              decoded.encoding.form, &replay);
+    if (!check_status(status, CTOOL_OK, cases[case_index].name) ||
+        !bytes_equal(&replay, cases[case_index].bytes,
+                     cases[case_index].size, cases[case_index].name)) {
+      ctool_job_close(job);
+      return 1;
+    }
+  }
+
+  insn = instruction(CTOOL_X86_MN_SHRD, 32u, 16u, 0u);
+  insn.operand_count = 3u;
+  insn.operands[0] = memory_operand(
+      32u, 16u, reg(CTOOL_X86_REG_NONE, 0u),
+      reg(CTOOL_X86_REG_GPR16, 3u), reg(CTOOL_X86_REG_GPR16, 6u),
+      1u, 0, 0u);
+  insn.operands[1] = register_operand(CTOOL_X86_REG_GPR32, 6u);
+  insn.operands[2] = value_operand(
+      CTOOL_X86_OPERAND_IMMEDIATE, 32u, 0u, constant(0x1fu));
+  if (!encode(job, CTOOL_X86_MODE_16, &insn, &encoding,
+              "32-bit SHRD in 16-bit mode") ||
+      !bytes_equal(&encoding, wide_memory16,
+                   (ctool_u8)sizeof(wide_memory16),
+                   "32-bit SHRD in 16-bit mode bytes")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  status = ctool_x86_decode(
+      job, CTOOL_X86_MODE_16,
+      ctool_bytes(wide_memory16, (ctool_u32)sizeof(wide_memory16)),
+      0u, &decoded);
+  if (!check_status(status, CTOOL_OK,
+                     "32-bit SHRD in 16-bit mode decode") ||
+      !check_true(decoded.kind == CTOOL_X86_DECODE_KNOWN &&
+                      decoded.instruction.mnemonic == CTOOL_X86_MN_SHRD &&
+                      decoded.instruction.operand_bits == 32u &&
+                      decoded.instruction.address_bits == 16u &&
+                      decoded.instruction.operands[0].kind ==
+                          CTOOL_X86_OPERAND_MEMORY &&
+                      decoded.instruction.operands[1].as.reg.index == 6u &&
+                      decoded.instruction.operands[2].as.value.bits == 0x1fu,
+                  "32-bit SHRD in 16-bit mode semantics")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  insn = instruction(CTOOL_X86_MN_SHRD, 32u, 32u, 0u);
+  insn.operand_count = 3u;
+  insn.operands[0] = memory_operand(
+      32u, 32u, reg(CTOOL_X86_REG_NONE, 0u),
+      reg(CTOOL_X86_REG_GPR32, 3u), reg(CTOOL_X86_REG_NONE, 0u),
+      1u, 4, 8u);
+  insn.operands[1] = register_operand(CTOOL_X86_REG_GPR32, 6u);
+  insn.operands[2] = value_operand(
+      CTOOL_X86_OPERAND_IMMEDIATE, 32u, 0u, constant(0x1fu));
+  if (!encode(job, CTOOL_X86_MODE_16, &insn, &encoding,
+              "32-bit-address SHRD in 16-bit mode") ||
+      !bytes_equal(&encoding, wide_address32_in_16,
+                   (ctool_u8)sizeof(wide_address32_in_16),
+                   "32-bit-address SHRD in 16-bit mode bytes")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  status = ctool_x86_decode(
+      job, CTOOL_X86_MODE_16,
+      ctool_bytes(wide_address32_in_16,
+                  (ctool_u32)sizeof(wide_address32_in_16)),
+      0u, &decoded);
+  if (!check_status(status, CTOOL_OK,
+                    "32-bit-address SHRD in 16-bit mode decode") ||
+      !check_true(decoded.kind == CTOOL_X86_DECODE_KNOWN &&
+                      decoded.instruction.mnemonic == CTOOL_X86_MN_SHRD &&
+                      decoded.instruction.operand_bits == 32u &&
+                      decoded.instruction.address_bits == 32u &&
+                      decoded.instruction.operands[0].kind ==
+                          CTOOL_X86_OPERAND_MEMORY &&
+                      decoded.instruction.operands[0]
+                              .as.memory.address_bits == 32u &&
+                      decoded.instruction.operands[0]
+                              .as.memory.base.class_id ==
+                          CTOOL_X86_REG_GPR32 &&
+                      decoded.instruction.operands[0].as.memory.base.index ==
+                          3u &&
+                      decoded.instruction.operands[1].as.reg.index == 6u &&
+                      decoded.instruction.operands[2].as.value.bits == 0x1fu,
+                  "32-bit-address SHRD in 16-bit mode semantics")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  status = ctool_x86_encode(job, CTOOL_X86_MODE_16,
+                            &decoded.instruction,
+                            decoded.encoding.form, &replay);
+  if (!check_status(status, CTOOL_OK,
+                    "32-bit-address SHRD in 16-bit mode replay") ||
+      !bytes_equal(&replay, wide_address32_in_16,
+                   (ctool_u8)sizeof(wide_address32_in_16),
+                   "32-bit-address SHRD in 16-bit mode replay bytes")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  insn = instruction(CTOOL_X86_MN_SHRD, 16u, 32u, 0u);
+  insn.operand_count = 3u;
+  insn.operands[0] = register_operand(CTOOL_X86_REG_GPR16, 0u);
+  insn.operands[1] = register_operand(CTOOL_X86_REG_GPR16, 7u);
+  insn.operands[2] = register_operand(CTOOL_X86_REG_GPR8, 1u);
+  if (!encode(job, CTOOL_X86_MODE_32, &insn, &encoding,
+              "16-bit SHRD in 32-bit mode") ||
+      !bytes_equal(&encoding, narrow_register32,
+                   (ctool_u8)sizeof(narrow_register32),
+                   "16-bit SHRD in 32-bit mode bytes")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  status = ctool_x86_decode(
+      job, CTOOL_X86_MODE_32,
+      ctool_bytes(narrow_register32,
+                  (ctool_u32)sizeof(narrow_register32)),
+      0u, &decoded);
+  if (!check_status(status, CTOOL_OK,
+                     "16-bit SHRD in 32-bit mode decode") ||
+      !check_true(decoded.kind == CTOOL_X86_DECODE_KNOWN &&
+                      decoded.instruction.operand_bits == 16u &&
+                      decoded.instruction.address_bits == 32u &&
+                      decoded.instruction.operands[2].as.reg.index == 1u,
+                  "16-bit SHRD in 32-bit mode semantics")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  insn = instruction(CTOOL_X86_MN_SHRD, 16u, 16u, 0u);
+  insn.operand_count = 3u;
+  insn.operands[0] = memory_operand(
+      16u, 16u, reg(CTOOL_X86_REG_NONE, 0u),
+      reg(CTOOL_X86_REG_GPR16, 3u), reg(CTOOL_X86_REG_GPR16, 6u),
+      1u, 0x7f, 8u);
+  insn.operands[1] = register_operand(CTOOL_X86_REG_GPR16, 2u);
+  insn.operands[2] = register_operand(CTOOL_X86_REG_GPR8, 1u);
+  if (!encode(job, CTOOL_X86_MODE_32, &insn, &encoding,
+              "16-bit-address SHRD in 32-bit mode") ||
+      !bytes_equal(&encoding, narrow_address16_in_32,
+                   (ctool_u8)sizeof(narrow_address16_in_32),
+                   "16-bit-address SHRD in 32-bit mode bytes")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  status = ctool_x86_decode(
+      job, CTOOL_X86_MODE_32,
+      ctool_bytes(narrow_address16_in_32,
+                  (ctool_u32)sizeof(narrow_address16_in_32)),
+      0u, &decoded);
+  if (!check_status(status, CTOOL_OK,
+                    "16-bit-address SHRD in 32-bit mode decode") ||
+      !check_true(decoded.kind == CTOOL_X86_DECODE_KNOWN &&
+                      decoded.instruction.mnemonic == CTOOL_X86_MN_SHRD &&
+                      decoded.instruction.operand_bits == 16u &&
+                      decoded.instruction.address_bits == 16u &&
+                      decoded.instruction.operands[0].kind ==
+                          CTOOL_X86_OPERAND_MEMORY &&
+                      decoded.instruction.operands[0]
+                              .as.memory.address_bits == 16u &&
+                      decoded.instruction.operands[0]
+                              .as.memory.base.class_id ==
+                          CTOOL_X86_REG_GPR16 &&
+                      decoded.instruction.operands[0].as.memory.base.index ==
+                          3u &&
+                      decoded.instruction.operands[0]
+                              .as.memory.index.class_id ==
+                          CTOOL_X86_REG_GPR16 &&
+                      decoded.instruction.operands[0].as.memory.index.index ==
+                          6u &&
+                      decoded.instruction.operands[1].as.reg.index == 2u &&
+                      decoded.instruction.operands[2].as.reg.index == 1u,
+                  "16-bit-address SHRD in 32-bit mode semantics")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  status = ctool_x86_encode(job, CTOOL_X86_MODE_32,
+                            &decoded.instruction,
+                            decoded.encoding.form, &replay);
+  if (!check_status(status, CTOOL_OK,
+                    "16-bit-address SHRD in 32-bit mode replay") ||
+      !bytes_equal(&replay, narrow_address16_in_32,
+                   (ctool_u8)sizeof(narrow_address16_in_32),
+                   "16-bit-address SHRD in 32-bit mode replay bytes")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  for (cut = 1u; cut < (ctool_u32)sizeof(wide_memory16); cut++) {
+    status = ctool_x86_decode(
+        job, CTOOL_X86_MODE_16, ctool_bytes(wide_memory16, cut),
+        0u, &decoded);
+    if (!check_status(status, CTOOL_OK, "SHRD every-byte truncation") ||
+        !check_true(decoded.kind == CTOOL_X86_DECODE_TRUNCATED &&
+                        decoded.consumed == 0u &&
+                        decoded.encoding.size == cut &&
+                        memcmp(decoded.encoding.bytes, wide_memory16,
+                               (size_t)cut) == 0,
+                    "SHRD truncation retention")) {
+      ctool_job_close(job);
+      return 1;
+    }
+  }
+
+  insn = instruction(CTOOL_X86_MN_SHRD, 32u, 32u, 0u);
+  insn.operand_count = 3u;
+  insn.operands[0] = register_operand(CTOOL_X86_REG_GPR32, 0u);
+  insn.operands[1] = register_operand(CTOOL_X86_REG_GPR16, 7u);
+  insn.operands[2] = register_operand(CTOOL_X86_REG_GPR8, 1u);
+  (void)memset(&encoding, 0xa5, sizeof(encoding));
+  status = ctool_x86_encode(job, CTOOL_X86_MODE_32, &insn,
+                            CTOOL_X86_FORM_AUTO, &encoding);
+  if (!check_status(status, CTOOL_ERR_INPUT, "SHRD width mismatch") ||
+      !check_true(encoding_is_zero(&encoding),
+                  "SHRD width mismatch rollback")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  insn.operands[1] = memory_operand(
+      32u, 32u, reg(CTOOL_X86_REG_NONE, 0u),
+      reg(CTOOL_X86_REG_GPR32, 7u), reg(CTOOL_X86_REG_NONE, 0u),
+      1u, 0, 0u);
+  (void)memset(&encoding, 0xa5, sizeof(encoding));
+  status = ctool_x86_encode(job, CTOOL_X86_MODE_32, &insn,
+                            CTOOL_X86_FORM_AUTO, &encoding);
+  if (!check_status(status, CTOOL_ERR_INPUT, "SHRD memory source") ||
+      !check_true(encoding_is_zero(&encoding),
+                  "SHRD memory source rollback")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  insn.operands[1] = register_operand(CTOOL_X86_REG_GPR32, 7u);
+  insn.operands[2] = register_operand(CTOOL_X86_REG_GPR8, 2u);
+  (void)memset(&encoding, 0xa5, sizeof(encoding));
+  status = ctool_x86_encode(job, CTOOL_X86_MODE_32, &insn,
+                            CTOOL_X86_FORM_AUTO, &encoding);
+  if (!check_status(status, CTOOL_ERR_INPUT, "SHRD wrong count register") ||
+      !check_true(encoding_is_zero(&encoding),
+                  "SHRD wrong count register rollback")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  insn.operands[2] = value_operand(
+      CTOOL_X86_OPERAND_IMMEDIATE, 32u, 16u, constant(7u));
+  (void)memset(&encoding, 0xa5, sizeof(encoding));
+  status = ctool_x86_encode(job, CTOOL_X86_MODE_32, &insn,
+                            CTOOL_X86_FORM_AUTO, &encoding);
+  if (!check_status(status, CTOOL_ERR_INPUT,
+                    "SHRD serialized count width") ||
+      !check_true(encoding_is_zero(&encoding),
+                  "SHRD serialized count width rollback")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  insn.prefixes = CTOOL_X86_PREFIX_LOCK;
+  insn.operands[2] = register_operand(CTOOL_X86_REG_GPR8, 1u);
+  (void)memset(&encoding, 0xa5, sizeof(encoding));
+  status = ctool_x86_encode(job, CTOOL_X86_MODE_32, &insn,
+                            CTOOL_X86_FORM_AUTO, &encoding);
+  if (!check_status(status, CTOOL_ERR_INPUT, "locked SHRD") ||
+      !check_true(encoding_is_zero(&encoding), "locked SHRD rollback")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  insn.prefixes = 0u;
+  if (!encode(job, CTOOL_X86_MODE_32, &insn, &encoding,
+              "SHRD same-job encode recovery") ||
+      !bytes_equal(&encoding, active_stream, 3u,
+                   "SHRD same-job recovered bytes")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  status = ctool_x86_decode(
+      job, CTOOL_X86_MODE_32,
+      ctool_bytes(active_stream, (ctool_u32)sizeof(active_stream)),
+      3u, &decoded);
+  if (!check_status(status, CTOOL_OK, "second active SHRD decode") ||
+      !check_true(decoded.kind == CTOOL_X86_DECODE_KNOWN &&
+                      decoded.instruction.mnemonic == CTOOL_X86_MN_SHRD &&
+                      decoded.consumed == 3u &&
+                      decoded.instruction.operands[0].as.reg.index == 0u &&
+                      decoded.instruction.operands[1].as.reg.index == 7u &&
+                      decoded.instruction.operands[2].as.reg.index == 1u,
+                  "second active SHRD semantics")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  status = ctool_x86_decode(
+      job, CTOOL_X86_MODE_32,
+      ctool_bytes(locked_active, (ctool_u32)sizeof(locked_active)),
+      0u, &decoded);
+  if (!check_status(status, CTOOL_OK, "locked SHRD decode") ||
+      !check_true(decoded.kind == CTOOL_X86_DECODE_INVALID &&
+                      decoded.consumed == 1u &&
+                      decoded.encoding.size == 1u &&
+                      decoded.encoding.bytes[0] == 0xf0u,
+                  "locked SHRD invalid classification")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  status = ctool_x86_decode(
+      job, CTOOL_X86_MODE_32,
+      ctool_bytes(locked_active, (ctool_u32)sizeof(locked_active)),
+      1u, &decoded);
+  if (!check_status(status, CTOOL_OK, "post-lock SHRD recovery") ||
+      !check_true(decoded.kind == CTOOL_X86_DECODE_KNOWN &&
+                      decoded.instruction.mnemonic == CTOOL_X86_MN_SHRD &&
+                      decoded.consumed == 3u,
+                  "post-lock SHRD recovered decode")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  ctool_job_close(job);
+  (void)puts("double-shift: ok");
   return 0;
 }
 
@@ -3162,7 +3687,7 @@ static int run_errors(void) {
 int main(int argc, char **argv) {
   if (argc != 2) {
     (void)fprintf(stderr,
-                  "usage: x86-contract inventory|model|integer|conditional-moves|immediate-imul|padding-nops|clang-padding-nops|addressing|relocations|system-simd|active-surface|errors\n");
+                  "usage: x86-contract inventory|model|integer|conditional-moves|immediate-imul|double-shift|padding-nops|clang-padding-nops|addressing|relocations|system-simd|active-surface|errors\n");
     return 2;
   }
   if (strcmp(argv[1], "model") == 0) {
@@ -3179,6 +3704,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "immediate-imul") == 0) {
     return run_immediate_imul();
+  }
+  if (strcmp(argv[1], "double-shift") == 0) {
+    return run_double_shift();
   }
   if (strcmp(argv[1], "padding-nops") == 0) {
     return run_padding_nops();

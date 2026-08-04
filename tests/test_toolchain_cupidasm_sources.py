@@ -15,6 +15,14 @@ TOOLCHAIN_ROOT = REPO_ROOT / "toolchain"
 
 RAW_FIXTURES = (
     {
+        "name": "iso-big-pattern",
+        "source": REPO_ROOT / "test_iso" / "big_pattern.asm",
+        "size": 4096,
+        "sha256": "c8f5d0341d54d951a71b136e6e2afcb14d11ed8489a7ae126a8fee0df6ecf193",
+        # NASM freezes `$` across TIMES; CupidASM updates it per emission.
+        "nasm_oracle": False,
+    },
+    {
         "name": "boot",
         "source": REPO_ROOT / "boot" / "boot.asm",
         "size": 2560,
@@ -266,6 +274,14 @@ class CupidAsmActiveSourceTests(unittest.TestCase):
         self.assertTrue(output.is_file(), f"assembler did not create {output.name}")
         return output.read_bytes()
 
+    def test_nasm_oracle_exception_is_limited_to_cupid_owned_fixture(self):
+        exceptions = [
+            fixture["source"].relative_to(REPO_ROOT).as_posix()
+            for fixture in RAW_FIXTURES
+            if not fixture.get("nasm_oracle", True)
+        ]
+        self.assertEqual(exceptions, ["test_iso/big_pattern.asm"])
+
     def test_active_raw_sources_match_oracle_artifacts(self):
         with tempfile.TemporaryDirectory(prefix="cupidasm-active-raw-") as directory:
             root = Path(directory)
@@ -281,7 +297,10 @@ class CupidAsmActiveSourceTests(unittest.TestCase):
                     self.assertEqual(
                         hashlib.sha256(cupid).hexdigest(), fixture["sha256"]
                     )
-                    if self.nasm_command is not None:
+                    if (
+                        self.nasm_command is not None
+                        and fixture.get("nasm_oracle", True)
+                    ):
                         oracle = self._assemble(
                             self.nasm_command,
                             fixture["source"],

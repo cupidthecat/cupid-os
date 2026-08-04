@@ -131,8 +131,9 @@ floating truth. Its stage-three CupidC image is 2,574,032 bytes with SHA-256
 It came from revision `6f880cc3cf5cced72b81e0d66079aaca913d0a03`. It also
 carries the returns-twice direct-call boundary, the kernel-entry BSS clear
 with a nonzero page-aligned stack top, and all packed SSE2 statements in the
-active SIMD source. CupidASM and CupidDis retain the 592-row shared x86
-catalogue with forward stack subtraction.
+active SIMD source. CupidASM and CupidDis in the checked seed retain the
+592-row shared x86 catalogue with forward stack subtraction. Source head has
+596 rows and adds canonical SHRD without changing the checked trust root yet.
 CupidDis carries typed raw code and data ranges. CupidObj carries both
 installation-source generation and transactional kernel-symbol source
 generation. Its 270,700-byte image has SHA-256
@@ -197,9 +198,11 @@ The checked seed parses all eight helpers in unchanged
 `kernel/core/ports.h`. It retains the 8-, 16-, and 32-bit accumulator lanes,
 the 16-bit DX port, the read/write ESI or EDI buffer, the read/write ECX
 count, and the INSW memory clobber. Scalar port I/O and the CLD plus REP word
-forms emit through the shared x86 model. The checked-seed standalone sweep now
+forms emit through the shared x86 model. The checked-seed C11 standalone sweep
 passes 157 of 159 active non-Doom headers; `scheduler.h` and `simd_intrin.h`
-remain explicit failures.
+remain exact C11-profile failures. Source head parses all 29 declarations in
+unchanged `simd_intrin.h` under the Cupid profile. Its shared frontend now
+recognizes Cupid's sized scalar, Boolean, and vector type spellings directly.
 
 The checked seed retains GNU `noinline` and the exact
 `target("general-regs-only")` option on compatible file-scope function
@@ -523,9 +526,12 @@ through six leading `66` bytes and the fixed
 `2E 0F 1F 84 00 00 00 00 00` tail. The final scan has 1,901 fallback rows
 in 36 objects and renders 1,781 NOP rows. Other repeated prefixes remain
 invalid, and CupidASM cannot emit the redundant forms. Packed-integer SSE2
-is the next largest measured decoder gap. Source head has 592 catalogue rows,
-244 canonical mnemonics, and fingerprint `F4420CB4`. The checked seed carries
-the same model. Its newest form encodes
+is the next largest measured decoder gap. The checked seed has 592 catalogue
+rows, 244 canonical mnemonics, and fingerprint `F4420CB4`. Source head has
+596 rows, 245 canonical mnemonics, and fingerprint `DA15E97F`. Its four new
+forms cover 16-bit and 32-bit SHRD with register or memory destinations and
+either an immediate byte or fixed CL count. Active checked-CupidC objects now
+decode their `shrd eax, edi, cl` sites directly. The latest checked form encodes
 canonical `FSUB ST(1), ST(0)` as `DC E9` for corrected exponent range
 reduction. The four preceding x87 forms are 80-bit `FLD` and `FSTP`
 memory forms, i686
@@ -536,8 +542,8 @@ implicitly or explicitly zeroed non-atomic long-double leaves. The aggregate
 object proof fixes 104 BSS bytes, a 415-byte function with fingerprint
 `BF01CC71`, eight absolute relocations, and six symbols.
 Both compiler stages in the normal contract cohort rebuild the source
-catalogue. ADR 0203 records the checked seed, and ADR 0207 records the new
-subtraction form.
+catalogue. ADR 0203 records the checked seed, ADR 0207 records the subtraction
+form, and ADR 0226 records SHRD at source head.
 
 The four-vCPU GUI runtime starts every discovered CPU, reaches e1000 or
 RTL8139 traffic,
@@ -564,7 +570,7 @@ all 449 transforms. CupidC's total is 239 normal transforms plus three
 generated installation tables and the `hello.cc`, `ls.cc`, and `cat.cc`
 programs. The
 438-transform root image graph has no host C or recursive Make transform.
-Its four CupidASM, 186 CupidObj, two CupidLD, and one CupidDis transforms run
+Its five CupidASM, 186 CupidObj, two CupidLD, and one CupidDis transforms run
 from the manifest-checked five-tool seed. Native hosted commands remain
 explicit oracle targets. The runner rechecks the live seed cohort after each
 command, and Make passes wildcard-discovered output sources through
@@ -666,6 +672,14 @@ Function-pointer calls, kernel bindings, and calls without fixed parameter
 metadata retain source-width arguments. ADR 0210 records the first typed-array
 slice and the Browser path that requires it. ADR 0215 records the expanded
 private floating lvalue model.
+
+Checked CupidASM assembles the ISO spanning fixture from
+`test_iso/big_pattern.asm`. Hostbuild freezes that source and the checked seed,
+checks the exact 4,096-byte lane pattern, then rechecks the live inputs before
+atomic publication. Python is the verifier and publisher, not the byte author.
+NASM freezes `$` across this `TIMES` statement, so this fixture is the one
+explicit production-source exception to optional NASM byte parity. ADR 0227
+records the transfer.
 
 ISO test-fixture packaging no longer hides an external tool behind Python.
 `test_iso/fixtures.manifest` pins every directory and file. Make declares the

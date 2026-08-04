@@ -97,6 +97,10 @@ class CupidDisContractTests(unittest.TestCase):
         cls.object_path = Path(cls._fixture_directory.name) / "cupid.o"
         cls.raw_path = Path(cls._fixture_directory.name) / "boot.bin"
         cls.raw_path.write_bytes(bytes([0xB8, 0x34, 0x12, 0xC3]))
+        cls.shrd_path = Path(cls._fixture_directory.name) / "ctool-shrd.bin"
+        cls.shrd_path.write_bytes(
+            bytes([0x0F, 0xAD, 0xF8, 0x0F, 0xAD, 0xF8, 0xC3])
+        )
         cls.mixed_raw_path = (
             Path(cls._fixture_directory.name) / "mixed-mode.bin"
         )
@@ -264,6 +268,30 @@ class CupidDisContractTests(unittest.TestCase):
         self.assertEqual(decoded.returncode, 0, decoded.stderr)
         self.assertIn("00007C00", decoded.stdout)
         self.assertIn("mov ax, 0x1234", decoded.stdout)
+
+    def test_cli_decodes_active_ctool_double_precision_right_shifts(self):
+        decoded = subprocess.run(
+            [
+                str(self.cli_path),
+                "--raw",
+                "--mode=32",
+                "--base=0x1790",
+                str(self.shrd_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(decoded.returncode, 0, decoded.stderr)
+        self.assertIn(
+            "00001790:  0F AD F8  shrd eax, edi, cl", decoded.stdout
+        )
+        self.assertIn(
+            "00001793:  0F AD F8  shrd eax, edi, cl", decoded.stdout
+        )
+        self.assertIn("00001796:  C3  ret", decoded.stdout)
+        self.assertNotIn("db 0x0F", decoded.stdout)
+        self.assertNotIn("clc", decoded.stdout)
 
     def test_cli_raw_mode_changes_decode_one_flat_image(self):
         decoded = subprocess.run(
