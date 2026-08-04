@@ -2,8 +2,8 @@
  * gfx2d_transform.cc - 2D Affine Transform System for Cupid OS
  *
  * Provides a transform stack with translate/rotate/scale operations
- * using 16.16 fixed-point arithmetic. Transformed drawing re-samples
- * source pixels through the inverse matrix.
+ * using 16.16 fixed-point arithmetic. Transformed image and sprite drawing
+ * re-sample source pixels through the inverse matrix. Text moves its origin.
 */
 
 #include "gfx2d_transform.h"
@@ -179,39 +179,88 @@ void gfx2d_transform_point(int x, int y, int *out_x, int *out_y) {
  * original image/sprite.
 */
 
+static uint64_t mat_abs64(int64_t value) {
+    if (value < 0)
+        return (uint64_t)(-(value + 1)) + (uint64_t)1;
+    return (uint64_t)value;
+}
+
+/* Encode one inverse coefficient from a 16.16 source coefficient and the
+ * full 32.32 determinant. */
+static int mat_div_coeff(int64_t coefficient, int64_t determinant,
+                         int *result) {
+    uint64_t coefficient_abs;
+    uint64_t numerator_abs;
+    uint64_t denominator_abs;
+    uint64_t quotient;
+    uint64_t negative_limit =
+        (uint64_t)2147483647 + (uint64_t)1;
+    int negative;
+
+    if (!result || determinant == 0) return -1;
+
+    coefficient_abs = mat_abs64(coefficient);
+    if (coefficient_abs > negative_limit) return -1;
+    numerator_abs = coefficient_abs << (FP_SHIFT * 2);
+    denominator_abs = mat_abs64(determinant);
+    quotient = __udivdi3(numerator_abs, denominator_abs);
+    negative = (coefficient < 0) != (determinant < 0);
+
+    if (negative) {
+        if (quotient > negative_limit) return -1;
+        if (quotient == negative_limit)
+            *result = -2147483647 - 1;
+        else
+            *result = -(int)quotient;
+    } else {
+        if (quotient > (uint64_t)2147483647) return -1;
+        *result = (int)quotient;
+    }
+    return 0;
+}
+
+/* Preserve the existing fixed-point rounding for two products, but keep the
+ * shifted terms and their sum wide until the negated result is range-checked. */
+static int mat_inverse_translation(int inverse_a, int source_x,
+                                   int inverse_b, int source_y,
+                                   int *result) {
+    int64_t first =
+        ((int64_t)inverse_a * (int64_t)source_x) >> FP_SHIFT;
+    int64_t second =
+        ((int64_t)inverse_b * (int64_t)source_y) >> FP_SHIFT;
+    int64_t sum = first + second;
+    int64_t positive_limit = (int64_t)2147483647;
+    int64_t negative_input_limit = positive_limit + (int64_t)1;
+
+    if (!result || sum < -positive_limit || sum > negative_input_limit)
+        return -1;
+    if (sum == negative_input_limit)
+        *result = -2147483647 - 1;
+    else
+        *result = -(int)sum;
+    return 0;
+}
+
 /* Invert the current 2x2 + translation matrix */
 static int mat_invert(const g2d_mat_t *src, g2d_mat_t *inv) {
-    /* det = a*d - b*c  (in fixed-point) */
+    /* Products of two 16.16 values form the full 32.32 determinant. */
     int64_t det64 = (int64_t)src->m[0] * src->m[3] -
                     (int64_t)src->m[1] * src->m[2];
-    int det;
-    uint32_t det_abs;
-    uint64_t inv_det_mag;
 
-    if (det64 == 0) return -1;  /* Singular */
+    if (det64 == 0) return -1;
 
-    /* We need 1/det in fixed-point.
-     * inv_det = FP_ONE^2 / det (since det is already FP)*/
-    det = (int)det64;
-    det_abs = (det < 0) ? (uint32_t)(-(int64_t)det) : (uint32_t)det;
-    /* Use kernel-provided unsigned 64-bit division helper (no libgcc). */
-    inv_det_mag = __udivdi3((uint64_t)FP_ONE * (uint64_t)FP_ONE,
-                            (uint64_t)det_abs);
-    {
-        int inv_det = (int)inv_det_mag;
-        if (det < 0) inv_det = -inv_det;
-
-        inv->m[0] = FP_MUL(src->m[3], inv_det);
-        inv->m[1] = FP_MUL(-src->m[1], inv_det);
-        inv->m[2] = FP_MUL(-src->m[2], inv_det);
-        inv->m[3] = FP_MUL(src->m[0], inv_det);
-    }
+    if (mat_div_coeff((int64_t)src->m[3], det64, &inv->m[0]) < 0 ||
+        mat_div_coeff(-(int64_t)src->m[1], det64, &inv->m[1]) < 0 ||
+        mat_div_coeff(-(int64_t)src->m[2], det64, &inv->m[2]) < 0 ||
+        mat_div_coeff((int64_t)src->m[0], det64, &inv->m[3]) < 0)
+        return -1;
 
     /* Inverse translation: -inv([a,b;c,d]) * [tx;ty] */
-    inv->m[4] = -(FP_MUL(inv->m[0], src->m[4]) +
-                  FP_MUL(inv->m[1], src->m[5]));
-    inv->m[5] = -(FP_MUL(inv->m[2], src->m[4]) +
-                  FP_MUL(inv->m[3], src->m[5]));
+    if (mat_inverse_translation(inv->m[0], src->m[4],
+                                inv->m[1], src->m[5], &inv->m[4]) < 0 ||
+        mat_inverse_translation(inv->m[2], src->m[4],
+                                inv->m[3], src->m[5], &inv->m[5]) < 0)
+        return -1;
     return 0;
 }
 
@@ -346,7 +395,7 @@ void gfx2d_sprite_draw_transformed(int handle, int x, int y) {
 void gfx2d_text_transformed(int x, int y, const char *str,
                             uint32_t color, int font) {
     int ox, oy;
-    /* Simple transform: just move the origin */
+    /* Text keeps axis-aligned glyphs and transforms only the origin. */
     gfx2d_transform_point(x, y, &ox, &oy);
     gfx2d_text_ex(ox, oy, str, color, font, 0);
 }

@@ -48,10 +48,10 @@ binary32 and binary64 zero, subnormal, finite, infinite, quiet-NaN, and
 signaling-NaN payloads. The guest feature covers all six parser sites. ADR
 0193 records this private-compiler boundary.
 
-The private compiler's 510 kernel bindings now publish the same result type
-as their local function-pointer declarations. The table contains 205 promoted
-integer, 40 unsigned-word, 25 `float`, 25 `double`, 19 character-pointer, five
-other-pointer, and 191 `void` results. The unsigned group covers every
+The private compiler's 556 kernel bindings publish the same result type as
+their local function-pointer declarations. The table contains 208 promoted
+integer, 40 unsigned-word, 25 `float`, 25 `double`, 19 character-pointer,
+eight other-pointer, and 231 `void` results. The unsigned group covers every
 `uint32_t`, `size_t`, and `swap_handle_t` result, while `uint8_t` and
 `uint16_t` results keep their integer promotion. `BIND` is reserved for the
 `void` group, while `BIND_T`
@@ -91,11 +91,33 @@ The existing represented pointer-category rule is unchanged. The unchanged
 That file is an include fragment, while `/bin/notepad.cc` includes it and
 passes private AOT compilation. ADR 0230 records the rule and the corrected
 census interpretation.
+
 A parsed variadic tail widens `float` to `double` and promotes `char` to `int`.
 Function-pointer calls, kernel bindings, and calls without fixed parameter
 metadata keep their source-width slots. Character operands undergo integer
 promotion in ordinary integer arithmetic and use the integer SSE conversion
 path when paired with a floating operand or cast.
+
+The private AOT census covers every runnable embedded program.
+Forty-six bindings expose graphics effects, bitmap-font assets, transforms,
+GUI initialization, and themes already linked into the kernel. Three
+accessors return the addresses of the existing constant themes; the other 43
+registrations call their existing implementations directly. All 104 runnable
+top-level programs pass private AOT compilation. The fixed guest frontier
+also requires `gfxgui_test.cc` to produce an ELF image, finish all 260 frames,
+and return cleanly through private JIT. Serial checkpoints prove frame 0 and
+frame 240, while an unresolved native symbol or explicit fixture failure stops
+the gate immediately. Theme and BMP checks plus an exact custom-font pixel, an
+isolated blurred-surface pixel with unchanged screen state, and center and
+off-center transformed-image pixels make the setup markers meaningful. An
+off-origin point checks rotation and nonuniform scale, and popping the
+transform must restore identity. The affine inverse keeps the full 32.32
+determinant and inverse translation arithmetic in checked 64-bit form. It
+prevents the identity matrix from becoming a zero divisor, retains representable sub-word
+determinants and large scales, and rejects results that cannot fit. ADR 0233
+records this boundary. GodSong publishes a local settings-readiness line for
+the later interactive command, so its dialog keys do not depend on
+startup-only graphics diagnostics consumed by this workload.
 
 The first Browser number slice consumes those private floating capabilities
 directly. Its JavaScript lexer stores decimal integer, fraction, and exponent

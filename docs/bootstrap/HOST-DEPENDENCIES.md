@@ -122,12 +122,32 @@ the active instruction helper, while checked-seed CupidC produces the normal
 kernel object and the guest frontier executes each parser path. No host
 compiler, assembler, linker, or packaging dependency was added or retired.
 
-The in-kernel symbol boundary now has 319 value-returning bindings and 191
-verified `void` functions. Its value group contains 205 promoted integers, 40
-unsigned words, 25 `float`, 25 `double`, 19 character pointers, and five other
-pointers. Explicit `uint32_t`, `size_t`, and `swap_handle_t` results publish
-`TYPE_UINT`; narrow unsigned results retain integer promotion. This metadata is
-compiled into the checked-seed-owned kernel object.
+The in-kernel symbol boundary has 325 value-returning bindings and 231
+verified `void` functions. Its value group contains 208 promoted integers, 40
+unsigned words, 25 `float`, 25 `double`, 19 character pointers, and eight
+other pointers. Explicit `uint32_t`, `size_t`, and `swap_handle_t` results
+publish `TYPE_UINT`; narrow unsigned results retain integer promotion. This
+metadata is compiled into the checked-seed-owned kernel object.
+
+The 46 graphics and GUI bindings add no host dependency. All 43
+direct bindings target implementations already linked into the kernel. Three
+theme accessors expose existing constant objects by address. Checked-seed
+CupidC produces the normal kernel object, while the private compiler
+uses the completed table for embedded AOT and JIT work. The fixed runtime
+stores its disposable outputs in guest RamFS and does not need host storage or
+a HomeFS publication step. The affine inverse correction remains ordinary
+CupidC-owned kernel source and uses the existing `__udivdi3` runtime helper
+with local magnitude, sign, coefficient, and translation range handling. The
+test creates its theme, image, font, and surface through guest APIs, then reads
+exact font and filtered-surface pixels back through those APIs.
+GodSong's settings-readiness line is also guest serial output. It replaces a
+startup-only graphics diagnostic in the runtime harness without adding a
+host service or changing a build owner.
+
+One optional hosted oracle includes the production transform source and
+executes its inverse routine across determinant and overflow boundaries when a
+C++ compiler is available. It skips when none is installed. The normal build,
+checked-seed object build, and private QEMU gate do not invoke that compiler.
 
 The Browser number work keeps the existing ownership boundary. Its lexer, AST,
 and interpreter remain source-wrapped inputs compiled by private in-OS CupidC.

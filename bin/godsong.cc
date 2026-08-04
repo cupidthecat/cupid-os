@@ -59,6 +59,7 @@ void gs_settings_ui() {
   items[1] = "Normal";
   items[2] = "Complex";
 
+  serial_printf("[godsong] settings ready\n");
   c = popup_menu(220, 110, (void*)items, 3);
   if (c >= 0 && c <= 2) {
     gs_complexity = c;

@@ -738,6 +738,24 @@ A private four-vCPU e1000 frontier passed in 345.1 seconds. It covered the
 fixed in-OS Cupid commands, SMP, ISO, Browser, crypto, USB reattachment,
 graphics, audio, and clean JIT stack completion without a panic marker.
 
+The fixed frontier compiles `/bin/gfxgui_test.cc` to a private ELF image,
+then runs the source through private JIT. It requires the AOT write marker,
+setup, frame 0, frame 240, cleanup, and clean JIT completion. Any unresolved
+native symbol or explicit fixture failure stops the gate immediately. Theme
+and BMP checks plus an exact custom-font pixel, an isolated blurred-surface
+pixel with unchanged screen state, and center and off-center
+transformed-image pixels prevent a skipped API path from satisfying the
+markers. An off-origin rotation and scale point plus exact identity after
+popping the transform cover the linear matrix and stack. The 46 previously
+missing kernel bindings bring the source-driven private AOT census to all 104
+runnable top-level programs. Disposable test artifacts stay in RamFS. The
+affine inverse keeps the full 32.32 determinant and inverse translation
+arithmetic in checked 64-bit form. This fixes the identity zero divisor,
+preserves representable sub-word determinants and large scales, and rejects
+unrepresentable inverse words. GodSong publishes a local settings-readiness
+line for the later interactive command, so its dialog keys do not depend on
+startup-only graphics diagnostics. ADR 0233 records this boundary.
+
 The production Doom runtime proof uses private four-CPU images on e1000 and
 RTL8139. Both NICs pass the full asset-free frontier. Separate one-boot gates
 run two different missing-IWAD launches, require two returns to the shell, and

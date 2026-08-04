@@ -54,6 +54,9 @@ distinct native names. Those missing GUI bindings are a separate compiler
 frontier, not a cdecl conversion failure. The complete private call ABI module
 passes all 124 tests in 20.717 seconds.
 
+ADR 0233 later completes that separate binding frontier. This paragraph keeps
+the measured 103-of-104 checkpoint that identified it.
+
 ## Rejected alternatives
 
 Changing `ctxt_parse_action` to pointer parameters was rejected because the

@@ -181,14 +181,18 @@ typedef enum {{
   TYPE_FLOAT,
   TYPE_DOUBLE,
   TYPE_FLOAT4,
-  TYPE_DOUBLE2
+  TYPE_DOUBLE2,
+  TYPE_FLOAT_PTR,
+  TYPE_DOUBLE_PTR,
+  TYPE_UINT,
+  TYPE_UINT_PTR
 }} cc_type_t;
 
 {classifier}
 
 int main(void) {{
   int type;
-  for (type = TYPE_INT; type <= TYPE_DOUBLE2; type++)
+  for (type = TYPE_INT; type <= TYPE_UINT_PTR; type++)
     printf("%d\\n", cc_is_arithmetic_scalar_type((cc_type_t)type));
   return 0;
 }}
@@ -472,6 +476,10 @@ int main(void) {{
                 1,  # double
                 0,  # float4
                 0,  # double2
+                0,  # float pointer
+                0,  # double pointer
+                1,  # unsigned int
+                0,  # unsigned int pointer
             ),
         )
 

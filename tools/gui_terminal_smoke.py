@@ -98,6 +98,7 @@ NIC_RUNTIME_REJECTED_MARKERS = (
 )
 CUPIDC_COMPLETION_PATTERN = r"\[cupidc\] JIT execution complete"
 ASM_COMPLETION_PATTERN = r"\[asm\] JIT execution complete"
+GODSONG_SETTINGS_READY_PATTERN = r"^\[godsong\] settings ready\r?$"
 UNARY_TYPE_DIAGNOSTIC_LITERAL = (
     "[cupidc] error (line 1): "
     "unary sign requires an arithmetic scalar operand"
@@ -125,6 +126,7 @@ class TerminalCommand:
     allowed_failure_pattern: str | None = None
     allowed_failure_literal: str | None = None
     allowed_failure_context_pattern: str | None = None
+    timeout_seconds: float | None = None
 
 
 FRONTIER_RUNTIME_COMMANDS = (
@@ -231,6 +233,35 @@ FRONTIER_RUNTIME_COMMANDS = (
         ),
     ),
     TerminalCommand(
+        "ccc /bin/gfxgui_test.cc -o /gfxgui_test",
+        (
+            r"\[cupidc\] AOT compile: /bin/gfxgui_test\.cc -> "
+            r"/gfxgui_test"
+            r".*?\[cupidc\] Wrote ELF: /gfxgui_test "
+            r"\([1-9][0-9]* bytes code, [0-9]+ bytes data, "
+            r"entry=0x(?:0x)?[0-9A-Fa-f]+, "
+            r"total=[1-9][0-9]* bytes\)"
+        ),
+        timeout_seconds=180.0,
+    ),
+    TerminalCommand(
+        "/bin/gfxgui_test.cc",
+        (
+            r"\[cupidc\] JIT compile: /bin/gfxgui_test\.cc"
+            r".*?\[gfxgui_test\] init"
+            r".*?\[gfxgui_test\] assets ready"
+            r".*?\[gfxgui_test\] fullscreen"
+            r".*?\[gfxgui_test\] font ready"
+            r".*?\[gfxgui_test\] surface ready"
+            r".*?\[gfxgui_test\] transform ready"
+            r".*?\[gfxgui_test\] frame 0 done"
+            r".*?\[gfxgui_test\] frame 240 done"
+            r".*?\[gfxgui_test\] done"
+            rf".*?{CUPIDC_COMPLETION_PATTERN}"
+        ),
+        timeout_seconds=300.0,
+    ),
+    TerminalCommand(
         "dglibc_test",
         (
             r"\[cupidc\] JIT compile: /bin/dglibc_test\.cc"
@@ -322,7 +353,7 @@ FRONTIER_RUNTIME_COMMANDS = (
             rf".*?{CUPIDC_COMPLETION_PATTERN}"
         ),
         ("esc",) * 8,
-        r"\[gfx2d\] flip frame=2",
+        GODSONG_SETTINGS_READY_PATTERN,
         2.0,
     ),
 )
@@ -433,6 +464,7 @@ FRONTIER_RUNTIME_REJECTED_MARKERS = (
     "[SKIP] audiotest",
     "[FAIL] audiotest",
     "[FAIL] kbdsub",
+    "[cupidc] Unresolved symbol:",
     "[cupidc] error",
     "[asm] error",
     "[feature13-unary] FAIL",
@@ -454,6 +486,7 @@ FRONTIER_RUNTIME_REJECTED_MARKERS = (
     "FAIL feature17_iso",
     "FAIL feature18_swap",
     "[FAIL] dglibc",
+    "[gfxgui_test] FAIL",
     "[browser-js-number] FAIL",
     "extended SYS VFS calls: FAIL",
 ) + NIC_RUNTIME_REJECTED_MARKERS
@@ -1274,6 +1307,11 @@ def run_frontier_commands(
     cursor = start_offset
     data = read_log(log)
     for command_index, command in enumerate(FRONTIER_RUNTIME_COMMANDS):
+        command_timeout = (
+            command.timeout_seconds
+            if command.timeout_seconds is not None
+            else timeout
+        )
         for ch in command.text:
             send_key(monitor, key_name(ch), key_pause)
         send_key(monitor, "ret", key_pause)
@@ -1291,7 +1329,7 @@ def run_frontier_commands(
                     command.interaction_pattern,
                 ),
                 cursor,
-                timeout,
+                command_timeout,
             )
             if command.followup_settle_seconds > 0.0:
                 time.sleep(command.followup_settle_seconds)
@@ -1307,7 +1345,7 @@ def run_frontier_commands(
             log,
             command,
             cursor,
-            timeout,
+            command_timeout,
         )
         if command_index + 1 < len(FRONTIER_RUNTIME_COMMANDS):
             time.sleep(max(COMMAND_SETTLE_SECONDS, key_pause * 2.0))

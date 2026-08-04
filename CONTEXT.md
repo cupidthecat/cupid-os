@@ -420,13 +420,32 @@ diagnostic only once, inside the completed `feature13_double.cc` command
 slice. A stale, repeated, or out-of-context compiler error remains fatal. A
 host oracle compiles the active emitter helpers and interprets their exact
 bytes against binary32 and binary64 payloads. The kernel bridge publishes the
-declared result type of all 510 bindings: 319 return a value and 191 return
-`void`. The value group has 205 promoted integer, 40 unsigned-word, 25
-`float`, 25 `double`, 19 character-pointer, and five other pointer results.
-ADR 0189 records unary signs, ADR 0192 records scalar comparisons, ADR 0193
-records scalar truth and binding-result metadata, and ADR 0221 records the
-unsigned result split. ADR 0194 records floating variable updates. ADR 0198
-records mixed-width cdecl calls.
+declared result type of all 556 bindings: 325 return a value and 231 return
+`void`. The value group has 208 promoted integer, 40 unsigned-word, 25
+`float`, 25 `double`, 19 character-pointer, and eight other pointer results.
+Forty-six bindings for graphics effects, bitmap fonts, transforms, GUI
+modules, and themes complete private AOT compilation for all 104 runnable
+top-level programs. The fixed frontier first emits a private ELF, then runs all
+260 graphics-test frames through private JIT. Serial markers prove setup,
+frame 0, frame 240, cleanup, and JIT return. The gate treats any unresolved
+native symbol as an immediate failure. GodSong publishes a program-local
+settings-readiness line before its later interactive flow. The harness no
+longer waits for a startup-only graphics diagnostic consumed by the graphics
+test. Disposable theme, BMP, font, and AOT artifacts stay in RamFS rather than
+publishing HomeFS. The gate requires each
+asset, an exact custom-font pixel, an exact isolated blurred-surface pixel,
+unchanged screen state, and center and off-center transformed-image pixels.
+An off-origin point checks rotation and nonuniform scale, and popping the
+transform must restore identity. The affine inverse retains the
+full 32.32 determinant in signed 64-bit form while deriving each coefficient.
+Its translation products stay wide until their range check. This prevents
+identity transforms from reaching a zero divisor, retains representable
+sub-word determinants and large scales, and rejects unrepresentable results.
+ADR 0189 records unary signs, ADR 0192
+records scalar comparisons, ADR 0193 records scalar truth and binding-result
+metadata, and ADR 0221 records the unsigned result split. ADR 0194 records
+floating variable updates, ADR 0198 records mixed-width cdecl calls, and ADR
+0233 records the complete embedded-program binding frontier.
 _Avoid_: C mode, HolyC mode
 
 **Private CupidC floating lvalue**:

@@ -20937,3 +20937,150 @@ seed before the capability commit.
 ADRs 0229 through 0232 record these decisions. No active ordinary C source
 changed ownership, so no `.c` to `.cc` rename was due. `TempleOS/` remains
 untouched reference material.
+
+## 2026-08-04: Complete the private gfxgui binding frontier
+
+The preceding source census left one runnable top-level program outside the
+private compiler's AOT boundary. `/bin/gfxgui_test.cc` named 46 native
+graphics and GUI functions that were not registered with CupidC. The kernel
+already linked implementations for 43 names. Three small accessors now return
+the addresses of the existing Windows 95, dark-mode, and pastel theme
+constants.
+
+The private table grows from 510 to 556 registrations. Its 325 value results
+contain 208 promoted integers, 40 unsigned words, 25 `float` values, 25
+`double` values, 19 character pointers, and eight other pointers. The other
+231 entries return `void`. An exact source contract pins all 46 new names,
+parameter counts, and result types. A negative fixture rejects a theme
+accessor published through integer metadata.
+
+The fixed runtime sequence compiles `gfxgui_test.cc` to `/gfxgui_test` before
+running the source through JIT. It requires a nonempty AOT image, module
+initialization, fullscreen and surface setup, frame 0, frame 240, cleanup, and
+clean JIT completion. Any unresolved native symbol stops the command
+immediately. The AOT matcher accepts the guest's legacy doubled `0x` entry
+prefix but still requires nonzero code and total sizes. The AOT command has a
+180-second budget. The complete JIT workload has a 300-second budget based on
+the measured boot proof.
+
+The complete command sequence also gives GodSong its own settings boundary.
+`bin/godsong.cc` emits `[godsong] settings ready` immediately before the first
+popup. The harness waits for that line, settles for two seconds, and sends the
+eight Escape keys used to close the settings flow. A prior graphics command's
+frame diagnostics cannot release these keys.
+
+The program writes its disposable theme, BMP, and one-glyph font fixtures to
+root RamFS. It requires theme save and load, BMP creation and loading, font
+creation, loading, default selection, exact glyph rendering, and release. An
+isolated white surface pixel must become the exact expected gray after the box
+filter while a distinct screen sentinel remains unchanged. An explicit
+`[gfxgui_test] FAIL` line stops the command gate, including
+when the program starts outside GUI mode. Serial markers cover assets, the
+exact font and surface pixels, center and off-center transformed-image pixels,
+and every 24th frame. An off-origin point under a 90-degree rotation and
+nonuniform scale checks the linear matrix, and popping the transform must
+restore identity.
+
+Those markers exposed a real transform bug. The first storage-free runtime
+attempt reached `frame 0 begin` and stopped in transformed image drawing.
+`mat_invert()` formed a 32.32 determinant from two 16.16 products, then cast
+the 64-bit value directly to `int`. The identity determinant's low word is
+zero, so the following reciprocal reached `__udivdi3` with a zero divisor.
+The inverse now retains the complete signed 64-bit 32.32 determinant. It
+divides unsigned coefficient magnitudes scaled by `2^32` against the unsigned
+determinant magnitude, then applies an explicit sign and range check. This
+preserves positive and negative sub-word determinants and a valid 256x scale,
+while still rejecting a zero determinant or an inverse coefficient that
+cannot fit one matrix word. Both inverse translation products and their sum
+remain signed 64-bit values until a separate range check. The demo expresses
+its 3/2 scale and its direct translation edits with fixed-point operands.
+
+The focused binding module passes all six tests. The combined GUI and
+transform module passes 121 tests in 0.978 seconds. Negative cases remove each
+required AOT or JIT marker, inject an unresolved native symbol or explicit
+fixture failure, retain stale output, skip exact pixel and matrix probes, pass
+a raw integer to fixed-point division, withhold GodSong readiness, and leave
+the old graphics marker visible. A hosted executable includes the production
+transform source and calls its actual inverse routine for identity, a 256x
+scale, reflection, positive and negative sub-word determinants, the minimum
+signed coefficient and translation, a translation with both matrix products,
+singular input, coefficient overflow, and translation overflow in both
+directions. Checked-seed CupidC produces a 309,384-byte
+`kernel/lang/cupidc.o` with SHA-256
+`5acdf8d318130295b19393afc0b58d4ea2bdb2f33fd535502fa757e89d648ced`.
+It produces a 22,668-byte `kernel/gfx/gfx2d_transform.o` with SHA-256
+`3ff2634eddd45d584d693f0b2cc8b48af424c7de3ce7df1598f7d9ff57d7f493`.
+
+The first broader private-CupidC discovery run found five unrelated baseline
+fixture failures. Four hosted snippets copied a type enum that predated
+`TYPE_UINT` and `TYPE_UINT_PTR`. Another assertion expected the existing
+unsigned `is_gui_mode` result to be signed. Updating the fixtures to mirror
+the live enum and declared result repairs the tests without changing compiler
+behavior. The complete discovery passes all 143 tests in 22.438 seconds. Ruff
+accepts every changed Python file.
+
+The full four-job build passes in 649.851 seconds. The final artifacts are:
+
+| Artifact | Bytes | SHA-256 |
+|---|---:|---|
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `test_iso/hello.iso` | 61,440 | `40359c1cec72219f21e87ce71b31e621209036042440e1b38c5e59de157e0fb6` |
+| `kernel/kernel.elf.pass1` | 8,954,376 | `e7ea6a0eb3a9a5951ff99941f8ef523df12b59c0d38ed11ed2edf33fbd05fa93` |
+| `kernel/cpu/ksyms_data.cc` | 379,855 | `fda73e39a2e76470a916918edbdab71b02c3a6c5ff3eb0a5018086ca7a8ae058` |
+| `kernel/cpu/ksyms_data.o` | 115,000 | `fd56be375eb9b132ee9f4cd7fa8bd846c25dba6890aa3f5cad842eb648701399` |
+| `kernel/kernel.elf` | 9,069,064 | `4f2f75d4eb824bd9c311afed70eb9c33ad284d7e7533ab30cf40bc87dccfb86c` |
+| `kernel/kernel.bin` | 8,861,888 | `576e7535a18b241d7b776286cf6e15cdae063597feea00b47eae602d74280f43` |
+| `cupidos.img` | 209,715,200 | `6c13b2df62c8ce073b72989b799e7bd5a332c89f2ba02ad49166bd1300d246ef` |
+
+The private-image QEMU gate passes in 524.809 seconds. CupidC reports 9,829
+bytes of code, 1,124 bytes of data, and an 11,084-byte AOT ELF. JIT loads the
+generated 8x8 font and checks `(16,16) = 0xFFFFFF` for its custom glyph,
+`(4,4) = 0x1C1C1C` for the blurred surface, and `(4,4) = 0x123456` for the
+unchanged screen sentinel. The transformed image checks require
+`(460,150) = 0x808080` and `(484,150) = 0xBC809E`. The matrix maps `(2,3)` to
+`(91,104)`, maps `(0,0)` to `(468,154)` after direct translation, and returns
+to the exact identity after the pop. The workload reaches every 24-frame
+checkpoint through frame 240, then emits `done` and clean JIT completion.
+GodSong publishes its settings line, receives seed `1` and quarter value
+`200`, and also completes JIT. The harness reports 107,829 changed framebuffer
+pixels, 20,462,835 captured AC97 frames, and 73,303 captured PC speaker
+frames. The 149,061-byte serial log has SHA-256
+`05f53cfda52e965fe4d61b6d3e0ba7e206cca29088649381458da01f45f7d84b`.
+This closes the source-driven AOT census at all 104 runnable top-level
+programs. `bin/ctxt.cc` remains the include-only input and is not part of that
+runnable count.
+
+The canonical audit regenerates in 70.434 seconds and passes its independent
+check in 72.713 seconds. It records 719 active inputs, 449 transforms, 255
+feature requirements, and 25 unreachable source-like files. Its active source
+digest is `fc21e0e56dbdf6df21ac0a00fc8582c4d9b7d1caf035c5d00b6362d8d43b5420`.
+The 12,196-byte summary has SHA-256
+`75ec7a48d4dcbd158584373988905077d4818e5baff42aa182801070788f696e`.
+The 2,557,786-byte JSON audit has SHA-256
+`ee85df35b6600569836397a1f574ab253f712800812b3a8b26d06293aca20d27`.
+
+Several failed approaches clarified the boundary. Placing the AOT image under
+`/home` serialized a large seeded HomeFS. Moving only the ELF to RamFS left
+the source-created theme, BMP, and font files on HomeFS. A temporary batch of
+HomeFS calls reduced the number of publications, but one publication still
+dominated the timeout because of verbose FAT output. Moving all disposable
+fixtures to RamFS preserved the API work and removed persistence from this
+binding test. Raising the timeout did not fix the remaining stall; the frame
+markers identified the determinant defect instead.
+
+The first settled full QEMU run completed every graphics marker through frame
+240 and clean JIT return, then timed out after starting GodSong. Its
+148,270-byte log has SHA-256
+`2114938c3ba8b676826b39907e06b46a820b8a828fa9f864141056059f356bf3`.
+`gfx2d_flip()` prints the global frames 0, 1, and 2 only once. The preceding
+graphics workload had consumed all three, so GodSong could not reach the old
+`flip frame=2` interaction boundary. Moving GodSong earlier or raising its
+timeout would have preserved the hidden ordering dependency. The local
+settings-readiness marker fixes the boundary without removing either
+workload.
+
+The implementation changes no normal build owner and adds no host dependency.
+No active ordinary C source changed ownership, so no `.c` to `.cc` rename was
+due. ADR 0233 records the boundary. Issue 31 remains open for broader
+embedded-program behavior coverage and the remaining Cupid-mode language
+surface. `TempleOS/` remains untouched reference material.

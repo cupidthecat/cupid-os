@@ -99,15 +99,33 @@ truth-consuming parser site in the four-vCPU guest frontier. ADR 0193 records
 the boundary. This is another private JIT and AOT capability, so ownership
 counts do not change.
 
-The kernel binding table now preserves every declared result type. Its 510
-registrations split into 319 typed value results and 191 verified `void`
-results. The value group contains 205 promoted integers, 40 unsigned words, 25
-`float`, 25 `double`, 19 character pointers, and five other pointers. Explicit
-`uint32_t`, `size_t`, and `swap_handle_t` results use the unsigned lane;
+The kernel binding table preserves every declared result type. Its 556
+registrations split into 325 typed value results and 231 verified `void`
+results. The value group contains 208 promoted integers, 40 unsigned words,
+25 `float`, 25 `double`, 19 character pointers, and eight other pointers.
+Explicit `uint32_t`, `size_t`, and `swap_handle_t` results use the unsigned lane;
 `uint8_t` and `uint16_t` retain integer promotion. A complete source-contract
 test prevents a non-void declaration from using the untyped macro and checks
 the exact Cupid type on every typed entry. This repairs private compiler
 semantics without moving a source file or adding a host dependency.
+
+Forty-six of those registrations expose the linked graphics effects,
+bitmap-font assets, transforms, GUI initialization, and theme APIs required by
+`gfxgui_test.cc`. Three pointer-returning accessors expose existing constant
+themes; the other 43 entries call existing functions. The resulting census
+passes private AOT compilation for all 104 runnable top-level programs. The
+fixed guest frontier also runs the graphics test through private JIT and
+rejects an unresolved symbol before later output can hide it. It requires
+theme and BMP setup, an exact custom-font pixel, an isolated blurred-surface
+pixel with unchanged screen state, center and off-center transformed-image
+pixels, an off-origin rotation and scale point, identity after popping the
+transform, frame 240, cleanup, and JIT return. The affine inverse keeps the
+full 32.32 determinant and translation arithmetic in checked 64-bit form.
+Disposable test artifacts
+stay in RamFS. The later GodSong interaction waits for its own
+settings-readiness line instead of a startup-only graphics diagnostic consumed
+by the graphics workload. This changes no normal build owner or host
+dependency. ADR 0233 records the boundary.
 
 Private CupidC now updates scalar floating variables through all four prefix
 and postfix forms. The expression parser, statement shortcuts, and `for`

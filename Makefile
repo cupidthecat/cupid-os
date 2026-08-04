@@ -1066,10 +1066,13 @@ kernel/lang/cupidc.o: kernel/lang/cupidc.cc drivers/ata.h drivers/keyboard.h \
 	kernel/fs/blockdev.h kernel/fs/fat16.h kernel/fs/vfs.h \
 	kernel/fs/vfs_helpers.h kernel/gfx/bmp.h kernel/gfx/deflate.h \
 	kernel/gfx/fontsys.h kernel/gfx/gfx2d.h kernel/gfx/gfx2d_assets.h \
-	kernel/gfx/gfx2d_icons.h kernel/gfx/gfx2d_transform.h \
+	kernel/gfx/gfx2d_effects.h kernel/gfx/gfx2d_icons.h \
+	kernel/gfx/gfx2d_transform.h \
 	kernel/gfx/graphics.h kernel/gfx/jpeg.h kernel/gfx/png.h \
 	kernel/gui/ansi.h kernel/gui/clipboard.h kernel/gui/ctxt_image_worker.h \
 	kernel/gui/desktop.h kernel/gui/ed.h kernel/gui/gui.h \
+	kernel/gui/gui_containers.h kernel/gui/gui_events.h \
+	kernel/gui/gui_menus.h kernel/gui/gui_themes.h kernel/gui/gui_widgets.h \
 	kernel/lang/cupidc.h kernel/lang/dis.h kernel/lang/exec.h \
 	kernel/lang/shell.h kernel/lang/ssh_io.h kernel/mm/memory.h \
 	kernel/mm/swap.h kernel/network/arp.h kernel/network/dhcp.h \

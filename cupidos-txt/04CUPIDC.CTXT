@@ -1221,10 +1221,10 @@ integer promotion and use the scalar integer conversion path when mixed with
 floating values or explicitly cast. Fresh subscript metadata prevents a
 pointer result from inheriting an earlier array stride.
 
-The kernel binding table preserves each function's declared result. Its 319
-value-returning entries include 205 promoted integers, 40 unsigned words, 25
-float, 25 double, 19 character pointers, and five other pointers. The other
-191 entries return void. Conditions therefore use the value that a binding
+The kernel binding table preserves each function's declared result. Its 325
+value-returning entries include 208 promoted integers, 40 unsigned words, 25
+float, 25 double, 19 character pointers, and eight other pointers. The other
+231 entries return void. Conditions therefore use the value that a binding
 actually returns instead of stale expression state.
 
 Prefix and postfix ++ and -- work on scalar float and double variables.
@@ -1356,6 +1356,34 @@ Notepad integration:
 >h2 Graphics/Desktop Bindings
 >tree open Graphics/Desktop Bindings
 Available for GUI app and desktop-oriented workflows:
+
+The complete 46-name gfxgui cohort exposes effects, bitmap-font assets,
+affine transforms, GUI module initialization, and themes. All 104 runnable
+top-level programs now pass private AOT compilation. The fixed runtime gate
+first emits /gfxgui_test, then runs /bin/gfxgui_test.cc through private JIT.
+It requires setup, frame 0, frame 240, cleanup, and JIT completion. An
+unresolved native symbol fails the gate immediately. The test keeps its
+temporary theme, BMP, font, and ELF files in RamFS. Its transform path uses
+16.16 operands for the 3/2 scale and translation. It keeps the full 32.32
+determinant and inverse translation arithmetic in checked 64-bit form. The
+success path requires an exact generated-font pixel, an isolated filtered
+surface pixel with unchanged screen state, and center and off-center
+transformed-image pixels. It also checks an off-origin point after a 90-degree
+rotation and nonuniform scale, then proves that pop restores identity.
+
+Effects and assets:
+- gfx2d_blur_box, gfx2d_blur_gaussian, gfx2d_blur_motion
+- gfx2d_brightness, gfx2d_contrast, gfx2d_saturation, gfx2d_hue_shift
+- gfx2d_edges, gfx2d_emboss, gfx2d_posterize, gfx2d_noise
+- gfx2d_convolve_3x3, gfx2d_convolve_5x5
+- gfx2d_font_load, gfx2d_font_set_default, gfx2d_text_ex, gfx2d_font_free
+
+Transforms and themes:
+- gfx2d_push_transform, gfx2d_pop_transform, gfx2d_reset_transform
+- gfx2d_translate, gfx2d_rotate, gfx2d_scale
+- gfx2d_set_matrix, gfx2d_get_matrix, gfx2d_transform_point
+- ui_theme_set, ui_theme_reset_default, ui_theme_load, ui_theme_save
+- ui_theme_windows95, ui_theme_dark_mode, ui_theme_pastel_dream
 
 - gfx2d_text_wrap(x, y, w, str, color, font)
 - gfx2d_surface_blit_scaled(handle, x, y, w, h)

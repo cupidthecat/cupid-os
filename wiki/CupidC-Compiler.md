@@ -150,12 +150,25 @@ Integer and pointer conditions keep their existing EAX path. Void
 expressions, structures by value, `float4`, and `double2` fail with
 `truth test requires a scalar operand`.
 
-Kernel calls participate in the same type rules. Each of the 510 registered
-bindings carries its declared result type. The table contains 319 value calls
-and 191 `void` calls. Its values split into 205 promoted integers, 40 unsigned
-words, 25 `float`, 25 `double`, 19 character pointers, and five other pointers.
-A result from `input_dialog`, for example, can control an `if` without losing
-its integer type, while a high-bit `htonl` result keeps unsigned comparison.
+Kernel calls participate in the same type rules. Each of the 556 registered
+bindings carries its declared result type. The table contains 325 value calls
+and 231 `void` calls. Its values split into 208 promoted integers, 40 unsigned
+words, 25 `float`, 25 `double`, 19 character pointers, and eight other
+pointers. A result from `input_dialog`, for example, can control an `if`
+without losing its integer type, while a high-bit `htonl` result keeps
+unsigned comparison.
+
+The table includes the 46 effects, bitmap-font, transform, GUI, and theme
+bindings that were missing for `gfxgui_test.cc`. Three accessors return
+pointers to the built-in constant themes. The remaining entries call linked
+kernel implementations directly. All 104 runnable top-level programs pass
+private AOT compilation. The fixed guest frontier also emits the graphics
+test as an ELF and runs all 260 frames through private JIT. It requires an
+exact custom-font pixel, an isolated blurred-surface pixel with unchanged
+screen state, center and off-center transformed-image pixels, an off-origin
+rotation and scale point, identity after popping the transform, frame 240,
+cleanup, and clean JIT return. The later GodSong command waits for its own
+settings-readiness line instead of a startup-only graphics diagnostic.
 
 ### Floating variable updates
 
@@ -1935,10 +1948,10 @@ Source (.cc)
 
 | File | Lines | Role |
 |------|-------|------|
-| `cupidc.h` | 471 | Tokens, types, limits, compiler state, and public API |
-| `cupidc.cc` | 3,973 | JIT/AOT driver, preprocessor, kernel bindings, and state setup |
-| `cupidc_lex.cc` | 833 | Lexer for keywords, literals, operators, and delimiters |
-| `cupidc_parse.cc` | 8,220 | Recursive-descent parser and direct x86/SSE code generator |
+| `cupidc.h` | 487 | Tokens, types, limits, compiler state, and public API |
+| `cupidc.cc` | 4,147 | JIT/AOT driver, preprocessor, kernel bindings, and state setup |
+| `cupidc_lex.cc` | 1,325 | Lexer for keywords, literals, operators, and delimiters |
+| `cupidc_parse.cc` | 9,658 | Recursive-descent parser and direct x86/SSE code generator |
 | `cupidc_elf.cc` | 147 | Fixed-address ELF32 executable writer for AOT mode |
 
 ### Lexer

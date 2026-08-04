@@ -11,6 +11,7 @@ from tools import gui_terminal_smoke
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 JPEG_FIXTURE = REPO_ROOT / "test_iso" / "fixtures" / "jpeg_baseline_8x8.jpg"
+GFXGUI_SOURCE = REPO_ROOT / "bin" / "gfxgui_test.cc"
 
 
 def _smp_runtime_log():
@@ -156,6 +157,29 @@ def _frontier_command_outputs():
             "[cupidc] JIT execution complete\n"
         ),
         (
+            "[cupidc] AOT compile: /bin/gfxgui_test.cc -> "
+            "/gfxgui_test\n"
+            "Compiled: 4096 bytes code, 512 bytes data\n"
+            "[cupidc] Wrote ELF: /gfxgui_test "
+            "(4096 bytes code, 512 bytes data, entry=0x01100000, "
+            "total=8704 bytes)\n"
+            "Written to /gfxgui_test\n"
+        ),
+        (
+            "[cupidc] JIT compile: /bin/gfxgui_test.cc\n"
+            "[gfxgui_test] init\n"
+            "[gfxgui_test] assets ready\n"
+            "[gfxgui_test] fullscreen\n"
+            "[gfxgui_test] font ready\n"
+            "[gfxgui_test] surface ready\n"
+            "[gfxgui_test] transform ready\n"
+            "[gfxgui_test] frame 0 done\n"
+            "[gfx2d] flip frame=2\n"
+            "[gfxgui_test] frame 240 done\n"
+            "[gfxgui_test] done\n"
+            "[cupidc] JIT execution complete\n"
+        ),
+        (
             "[cupidc] JIT compile: /bin/dglibc_test.cc\n"
             "[PASS] dglibc snprintf\n"
             "[PASS] dglibc malloc/free\n"
@@ -223,7 +247,7 @@ def _frontier_command_outputs():
         (
             "[cupidc] JIT compile: /bin/godsong.cc\n"
             "[cupidc] Executing at 0x0x01100000\n"
-            "[gfx2d] flip frame=2\n"
+            "[godsong] settings ready\n"
             "[print_int] num=1 (0x0x00000001) gui_mode=1\n"
             "[print_int] num=200 (0x0x000000c8) gui_mode=1\n"
             "[cupidc] JIT execution complete\n"
@@ -1245,6 +1269,8 @@ class FrontierRuntimeContractTests(unittest.TestCase):
                 "/bin/feature15_libm.cc",
                 "/bin/feature17_iso.cc",
                 "/bin/feature18_swap.cc",
+                "ccc /bin/gfxgui_test.cc -o /gfxgui_test",
+                "/bin/gfxgui_test.cc",
                 "dglibc_test",
                 "doom",
                 "doom -iwad /disk/missing.wad",
@@ -1265,7 +1291,11 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             "waiting for USB Shift",
             commands[1].interaction_pattern,
         )
-        self.assertIn("flip frame=2", commands[-1].interaction_pattern)
+        self.assertEqual(
+            commands[-1].interaction_pattern,
+            gui_terminal_smoke.GODSONG_SETTINGS_READY_PATTERN,
+        )
+        self.assertNotIn("flip frame=2", commands[-1].interaction_pattern)
         self.assertEqual(commands[-1].followup_settle_seconds, 2.0)
 
         for command, sample in zip(commands, _frontier_command_outputs()):
@@ -1273,6 +1303,223 @@ class FrontierRuntimeContractTests(unittest.TestCase):
                 self.assertIsNotNone(
                     re.search(command.expected_pattern, sample, re.S | re.M)
                 )
+
+    def test_godsong_publishes_readiness_at_the_first_popup_boundary(self):
+        source = (REPO_ROOT / "bin" / "godsong.cc").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn(
+            'serial_printf("[godsong] settings ready\\n");\n'
+            "  c = popup_menu(220, 110, (void*)items, 3);",
+            source,
+        )
+
+    def test_gfxgui_frontier_requires_aot_and_runtime_evidence(self):
+        aot = _frontier_command(
+            "ccc /bin/gfxgui_test.cc -o /gfxgui_test"
+        )
+        aot_output = _frontier_command_output(aot.text)
+        self.assertIsNotNone(
+            re.search(aot.expected_pattern, aot_output, re.S | re.M)
+        )
+        self.assertIsNotNone(
+            re.search(
+                aot.expected_pattern,
+                aot_output.replace("entry=0x", "entry=0x0x"),
+                re.S | re.M,
+            )
+        )
+        for marker in (
+            "[cupidc] AOT compile: /bin/gfxgui_test.cc",
+            "[cupidc] Wrote ELF: /gfxgui_test",
+        ):
+            with self.subTest(command="AOT", marker=marker):
+                self.assertIsNone(
+                    re.search(
+                        aot.expected_pattern,
+                        aot_output.replace(marker, ""),
+                        re.S | re.M,
+                    )
+                )
+
+        runtime = _frontier_command("/bin/gfxgui_test.cc")
+        runtime_output = _frontier_command_output(runtime.text)
+        self.assertIsNotNone(
+            re.search(
+                runtime.expected_pattern,
+                runtime_output,
+                re.S | re.M,
+            )
+        )
+        for marker in (
+            "[gfxgui_test] init",
+            "[gfxgui_test] assets ready",
+            "[gfxgui_test] fullscreen",
+            "[gfxgui_test] font ready",
+            "[gfxgui_test] surface ready",
+            "[gfxgui_test] transform ready",
+            "[gfxgui_test] frame 0 done",
+            "[gfxgui_test] frame 240 done",
+            "[gfxgui_test] done",
+            "[cupidc] JIT execution complete",
+        ):
+            with self.subTest(command="runtime", marker=marker):
+                self.assertIsNone(
+                    re.search(
+                        runtime.expected_pattern,
+                        runtime_output.replace(marker, ""),
+                        re.S | re.M,
+                    )
+                )
+
+    def test_gfxgui_frontier_uses_a_workload_specific_timeout(self):
+        aot = _frontier_command(
+            "ccc /bin/gfxgui_test.cc -o /gfxgui_test"
+        )
+        runtime = _frontier_command("/bin/gfxgui_test.cc")
+        self.assertEqual(aot.timeout_seconds, 180.0)
+        self.assertEqual(runtime.timeout_seconds, 300.0)
+
+    def test_gfxgui_program_publishes_runtime_markers_to_serial(self):
+        source = GFXGUI_SOURCE.read_text(encoding="utf-8")
+        for marker in ("init", "done"):
+            with self.subTest(marker=marker):
+                self.assertIn(
+                    f'serial_printf("[gfxgui_test] {marker}\\n");',
+                    source,
+                )
+        for marker in (
+            "assets ready",
+            "fullscreen",
+            "font ready",
+            "surface ready",
+            "transform ready",
+            "frame %d begin",
+            "frame %d done",
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(f"[gfxgui_test] {marker}", source)
+        for path in (
+            "/gfxgui_test.theme",
+            "/gfxgui_test.bmp",
+            "/gfxgui_test.fnt",
+        ):
+            with self.subTest(path=path):
+                self.assertIn(path, source)
+        self.assertNotIn("/home/gfxgui_test", source)
+
+    def test_gfxgui_program_requires_each_runtime_asset(self):
+        source = GFXGUI_SOURCE.read_text(encoding="utf-8")
+        for operation in (
+            'ui_theme_save("/gfxgui_test.theme")',
+            'ui_theme_load("/gfxgui_test.theme")',
+            'make_test_bmp("/gfxgui_test.bmp")',
+            'gfx2d_image_load("/gfxgui_test.bmp")',
+            'make_test_font("/gfxgui_test.fnt")',
+            'gfx2d_font_load("/gfxgui_test.fnt")',
+            "gfx2d_surface_alloc(96, 96)",
+        ):
+            with self.subTest(operation=operation):
+                self.assertIn(operation, source)
+        self.assertIn("[gfxgui_test] FAIL", source)
+        self.assertIn("if (surf < 0)", source)
+
+    def test_gfxgui_program_checks_font_and_filtered_surface_pixels(self):
+        source = GFXGUI_SOURCE.read_text(encoding="utf-8")
+        self.assertIn("gfx2d_blend_mode(0);", source)
+        self.assertIn('gfx2d_text_ex(16, 16, "A",', source)
+        self.assertIn("glyph[0] = 0xFF;", source)
+        self.assertIn("gfx2d_getpixel(16, 16)", source)
+        self.assertIn("[gfxgui_test] FAIL font pixel", source)
+        self.assertIn("gfx2d_rect_fill(3, 3, 3, 3, 0x000000)", source)
+        self.assertIn("gfx2d_pixel(4, 4, 0xFFFFFF)", source)
+        self.assertIn("gfx2d_getpixel(4, 4)", source)
+        self.assertIn("0x001C1C1C", source)
+        self.assertIn("[gfxgui_test] FAIL surface blur pixel", source)
+        self.assertIn("gfx2d_pixel(4, 4, 0x123456)", source)
+        self.assertIn("0x00123456", source)
+        self.assertIn("[gfxgui_test] FAIL surface isolation", source)
+
+    def test_gfxgui_program_checks_linear_transform_and_stack_restore(self):
+        source = GFXGUI_SOURCE.read_text(encoding="utf-8")
+        self.assertIn("gfx2d_rotate(90);", source)
+        self.assertIn("gfx2d_transform_point(2, 3, &ox, &oy);", source)
+        self.assertIn("ox != 91 || oy != 104", source)
+        self.assertIn("[gfxgui_test] FAIL transform linear", source)
+        self.assertIn("[gfxgui_test] FAIL transform restore", source)
+        self.assertIn("gfx2d_getpixel(484, 150)", source)
+        self.assertIn("0x00BC809E", source)
+        self.assertIn("[gfxgui_test] FAIL transformed scale pixel", source)
+
+    def test_gfxgui_non_gui_mode_is_an_immediate_serial_failure(self):
+        source = GFXGUI_SOURCE.read_text(encoding="utf-8")
+        gui_guard = source.index("if (!is_gui_mode())")
+        next_block = source.index("\n  }", gui_guard)
+        self.assertIn(
+            "[gfxgui_test] FAIL requires GUI mode",
+            source[gui_guard:next_block],
+        )
+
+    def test_gfxgui_failure_marker_stops_the_command_gate_immediately(self):
+        marker = "[gfxgui_test] FAIL image load"
+        with tempfile.TemporaryDirectory() as temporary:
+            log = Path(temporary) / "serial.log"
+            log.write_text(marker + "\n", encoding="utf-8")
+            process = mock.Mock()
+            process.poll.return_value = None
+
+            with self.assertRaisesRegex(
+                gui_terminal_smoke.FrontierRuntimeContractError,
+                "saw failure marker.*gfxgui_test",
+            ):
+                gui_terminal_smoke.wait_frontier_command(
+                    process,
+                    log,
+                    _frontier_command("/bin/gfxgui_test.cc"),
+                    start_offset=0,
+                    timeout=0.1,
+                )
+
+    def test_command_sequence_applies_only_explicit_timeout_overrides(self):
+        commands = (
+            gui_terminal_smoke.TerminalCommand("a", "A"),
+            gui_terminal_smoke.TerminalCommand(
+                "b",
+                "B",
+                timeout_seconds=7.5,
+            ),
+        )
+        process = mock.Mock()
+        monitor = FakeMonitorSocket()
+
+        with (
+            tempfile.TemporaryDirectory() as temporary,
+            mock.patch.object(
+                gui_terminal_smoke,
+                "FRONTIER_RUNTIME_COMMANDS",
+                commands,
+            ),
+            mock.patch(
+                "tools.gui_terminal_smoke.wait_frontier_command",
+                side_effect=[(1, "A"), (2, "B")],
+            ) as wait_command,
+            mock.patch("tools.gui_terminal_smoke.send_key"),
+            mock.patch("tools.gui_terminal_smoke.time.sleep"),
+        ):
+            gui_terminal_smoke.run_frontier_commands(
+                process,
+                monitor,
+                Path(temporary) / "serial.log",
+                start_offset=0,
+                timeout=1.25,
+                key_pause=0.01,
+            )
+
+        self.assertEqual(
+            [call.args[4] for call in wait_command.call_args_list],
+            [1.25, 7.5],
+        )
 
     def test_doom_recovery_requires_both_failures_before_a_fresh_ls(self):
         commands = gui_terminal_smoke.FRONTIER_RUNTIME_COMMANDS
@@ -2157,7 +2404,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             monitor = SequencedMonitorSocket(
                 log,
                 _frontier_command_outputs(),
-                delayed_marker="[gfx2d] flip frame=2\n",
+                delayed_marker="[godsong] settings ready\n",
             )
             process = mock.Mock()
             process.poll.return_value = None
@@ -2196,6 +2443,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
         )
         self.assertIsNone(monitor.pending_tail)
         self.assertIn("[cupidc] JIT compile: /bin/godsong.cc", data)
+        self.assertIn("[gfx2d] flip frame=2", data)
         self.assertEqual(
             sleep.call_args_list.count(mock.call(1.0)),
             len(gui_terminal_smoke.FRONTIER_RUNTIME_COMMANDS) - 1,
@@ -2211,6 +2459,41 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             monitor.sent[-8:],
             [b"sendkey esc 300\n"] * 8,
         )
+
+    def test_godsong_interaction_rejects_an_earlier_graphics_marker(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            log = Path(temporary) / "serial.log"
+            log.write_text(
+                "[gfx2d] flip frame=2\n"
+                "[cupidc] JIT compile: /bin/godsong.cc\n",
+                encoding="utf-8",
+            )
+            process = mock.Mock()
+            process.poll.return_value = None
+            command = _frontier_command("godsong 1 200")
+            interaction = gui_terminal_smoke.TerminalCommand(
+                command.text,
+                command.interaction_pattern,
+            )
+
+            with (
+                mock.patch(
+                    "tools.gui_terminal_smoke.time.time",
+                    side_effect=(0.0, 0.0, 1.0),
+                ),
+                mock.patch("tools.gui_terminal_smoke.time.sleep"),
+                self.assertRaisesRegex(
+                    gui_terminal_smoke.FrontierRuntimeContractError,
+                    "timed out waiting",
+                ),
+            ):
+                gui_terminal_smoke.wait_frontier_command(
+                    process,
+                    log,
+                    interaction,
+                    start_offset=0,
+                    timeout=0.5,
+                )
 
     def test_doom_recovery_does_not_reuse_the_first_ls_completion(self):
         command_texts = [
@@ -2567,6 +2850,26 @@ class FrontierRuntimeContractTests(unittest.TestCase):
                     _frontier_command("ls"),
                     start_offset=0,
                     timeout=1.0,
+                )
+
+    def test_unresolved_guest_symbol_stops_the_command_gate_immediately(self):
+        marker = "[cupidc] Unresolved symbol: gfx2d_blur_box"
+        with tempfile.TemporaryDirectory() as temporary:
+            log = Path(temporary) / "serial.log"
+            log.write_text(marker + "\n", encoding="utf-8")
+            process = mock.Mock()
+            process.poll.return_value = None
+
+            with self.assertRaisesRegex(
+                gui_terminal_smoke.FrontierRuntimeContractError,
+                "saw failure marker.*Unresolved symbol",
+            ):
+                gui_terminal_smoke.wait_frontier_command(
+                    process,
+                    log,
+                    _frontier_command("ls"),
+                    start_offset=0,
+                    timeout=0.1,
                 )
 
     def test_missing_usb_image_stops_before_qemu_launch(self):

@@ -130,6 +130,22 @@ The unchanged `/bin/ctxt.cc` call reaches this coercion boundary. The file is
 an include fragment, and `/bin/notepad.cc` includes it completely and passes
 private AOT compilation.
 
+[ADR 0233](docs/adr/0233-complete-the-private-gfxgui-binding-frontier.md)
+records the completed embedded-program binding frontier. Forty-three bindings
+call existing graphics, font, transform, and GUI implementations directly.
+Three small accessors return the addresses of the existing constant themes.
+All 104 runnable top-level programs pass private AOT compilation. The fixed
+guest frontier compiles the graphics test to an ELF, then runs all 260 frames
+through private JIT. The gate requires theme and BMP setup, exact custom-font and
+isolated blurred-surface pixels, unchanged screen state, center and off-center
+transformed-image pixels, an off-origin rotation and scale result, frame 240,
+cleanup, and JIT return. The affine inverse keeps the full 32.32 determinant
+and inverse translation arithmetic in checked 64-bit form.
+This prevents a zero-divisor hang, retains representable sub-word determinants
+and large scales, and rejects inverse words that cannot fit. The later
+GodSong command uses its own settings-readiness marker, so its dialog keys do
+not depend on startup-only diagnostics consumed by the graphics workload.
+
 ## Feature demo quickstart
 
 After `make run`, these shell commands exercise the major subsystems:
@@ -1233,7 +1249,8 @@ cupid-os/
   drivers/               hardware drivers: ATA, keyboard, mouse,
                          PIT, RTC, serial, speaker, timer, VGA,
                          PCI, RTL8139, E1000
-  bin/                   105 runnable CupidC programs and 22 browser fragments
+  bin/                   104 runnable CupidC programs, one shared include,
+                         and 22 browser fragments
   demos/                 22 CupidASM demo/include programs
   user/                  example ELF user programs + cupid.h
   wiki/                  documentation (28 Markdown files)
@@ -1341,7 +1358,7 @@ Filesystem layout at runtime:
 | `gfx2d_effects.cc/.h` | Blur, sharpen, sepia, noise, color manipulation |
 | `gfx2d_icons.cc/.h` | Desktop icon registration, hit-testing, drag and drop |
 | `gfx2d_assets.cc/.h` | Texture loading and caching |
-| `gfx2d_transform.cc/.h` | Scale, rotate, skew, perspective |
+| `gfx2d_transform.cc/.h` | 2D affine translate, rotate, scale, matrix stack, and inverse sampling |
 | `font_8x8.cc/.h` | 8x8 bitmap font data and renderer |
 | `bmp.cc/.h` | BMP codec: 24-bit uncompressed read/write, 32bpp output |
 
@@ -1448,7 +1465,11 @@ The shell handles command parsing, pipelines, input/output redirection, backgrou
 
 ## Built-in programs (bin/)
 
-RamFS contains 105 top-level CupidC programs that the shell can run directly. It also contains 22 support modules under `bin/browser/*.cc`, which `browser.cc` includes rather than launching as separate programs.
+RamFS contains 105 top-level CupidC inputs. Of those, 104 are runnable
+programs. `ctxt.cc` is the shared include used by Notepad and does not define
+an entry point. RamFS also contains 22 support modules under
+`bin/browser/*.cc`, which `browser.cc` includes rather than launching as
+separate programs.
 
 | Category | Programs |
 |----------|---------|
@@ -1457,7 +1478,7 @@ RamFS contains 105 top-level CupidC programs that the shell can run directly. It
 | Process/system | date, kill, ps, reboot, spawn, sysinfo, time, yield |
 | Introspection/debug | cachestats, crashtest, logdump, loglevel, registers, stacktrace |
 | Memory tools | memcheck, memdump, memleak, memstats |
-| GUI/graphics apps | bgstudio, bmptest, browser, ctxt, fm, fontswitch, gfxdemo, gfxgui_test, gfxtest, notepad, paint, terminal |
+| GUI/graphics apps | bgstudio, bmptest, browser, fm, fontswitch, gfxdemo, gfxgui_test, gfxtest, notepad, paint, terminal |
 | Audio/speech/media | audiotest, doom, godsong, godspeak, volume |
 | CupidC language tests | cupidc_test1-5, feature1_types, feature2_top_level, feature3_class, feature4_forward_calls, feature5_print_builtin, feature6_exe, feature7_new_del, feature8_reg_noreg, feature9_abs_addr, feature10_repl, feature11_ternary |
 | FPU/SSE/libm tests | feature12_float, feature13_double, feature14_simd, feature15_libm, feature16_asm_fpu, fp_drill |

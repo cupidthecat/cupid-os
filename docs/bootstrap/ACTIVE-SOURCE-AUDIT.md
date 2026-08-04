@@ -31,10 +31,10 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `boot_assembly` | 1 | 298 |
 | `cupid_asm_demo` | 22 | 1466 |
 | `cupid_c_browser_fragment` | 22 | 15958 |
-| `cupid_c_program` | 105 | 19461 |
+| `cupid_c_program` | 105 | 19597 |
 | `cupid_c_runtime_header` | 2 | 286 |
 | `cupidasm` | 7 | 6851 |
-| `cupidc` | 8 | 15968 |
+| `cupidc` | 8 | 16142 |
 | `cupiddis` | 5 | 3010 |
 | `doom_port` | 7 | 3981 |
 | `driver` | 22 | 3861 |
@@ -46,7 +46,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_cpu` | 19 | 3347 |
 | `kernel_crypto` | 40 | 5149 |
 | `kernel_fs` | 27 | 7339 |
-| `kernel_gfx` | 28 | 12182 |
+| `kernel_gfx` | 28 | 12231 |
 | `kernel_gui` | 28 | 11971 |
 | `kernel_lang` | 20 | 10538 |
 | `kernel_mm` | 7 | 1302 |
@@ -98,16 +98,16 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 777 |
 | `asm.relocation` | 1 | 13 |
-| `c.control` | 12 | 79421 |
+| `c.control` | 12 | 79475 |
 | `c.declaration` | 1 | 28 |
-| `c.declarator` | 4 | 3685 |
+| `c.declarator` | 4 | 3731 |
 | `c.expression` | 2 | 5609 |
 | `c.extension` | 19 | 416 |
 | `c.initializer` | 1 | 653 |
-| `c.preprocessor` | 18 | 6811 |
-| `c.qualifier` | 2 | 15025 |
-| `c.storage` | 4 | 9581 |
-| `c.type` | 15 | 49745 |
+| `c.preprocessor` | 18 | 6817 |
+| `c.qualifier` | 2 | 15038 |
+| `c.storage` | 4 | 9587 |
+| `c.type` | 15 | 49930 |
 | `cupid_c.declaration` | 1 | 2 |
 | `cupid_c.delivery` | 2 | 129 |
 | `cupid_c.directive` | 1 | 1 |
@@ -208,7 +208,7 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `bootstrap_artifact_coverage` | `pass` | 425 linked objects; 432 declared artifacts; 0 missing |
 | `c_preprocessor_conditionals` | `pass` | 109 conditional expressions (105 #if, 4 #elif); 24 normalized expressions; 25 directive/expression pairs |
 | `c_preprocessor_cupid_exe` | `pass` | 1 Cupid #exe blocks (1 #, 0 %:); max conditional depth 0 |
-| `c_preprocessor_include_operands` | `pass` | 2402 C include operands (2167 quoted, 235 angle, 0 pp-token); 687 source files; max conditional depth 2 |
+| `c_preprocessor_include_operands` | `pass` | 2408 C include operands (2173 quoted, 235 angle, 0 pp-token); 687 source files; max conditional depth 2 |
 | `c_preprocessor_line_directives` | `pass` | 0 named #line directives (0 direct, 0 pp-token; 0 filename); 0 numeric markers; 687 source files; max conditional depth 0 |
 | `c_preprocessor_pragmas` | `pass` | 5 pragmas (1 once, 2 pack pushes, 2 pack pops); pack balanced: yes; max pack depth 1 |
 | `c_preprocessor_translation_units` | `pass` | 381 tracked + 4 generated translation units (KERNEL_I386=155, DOOM_COMPAT_I386=3, DOOM_TREE_I386=80, USER_I386=3, CUPID_RUNTIME=105, HOSTED_TOOLCHAIN_64=0, HOSTED_KERNEL_BRIDGE_64=0, HOSTED_I386_LINUX=31, HOSTED_I386_KERNEL_BRIDGE=2, HOSTED_I386_LINUX_GNU=2); 22 include-only, 2 non-root headers; 0 hosted deferred (0 external, 0 hermetic) |

@@ -243,14 +243,16 @@ typedef enum {{
   TYPE_FLOAT4,
   TYPE_DOUBLE2,
   TYPE_FLOAT_PTR,
-  TYPE_DOUBLE_PTR
+  TYPE_DOUBLE_PTR,
+  TYPE_UINT,
+  TYPE_UINT_PTR
 }} cc_type_t;
 
 {classifier}
 
 int main(void) {{
   int type;
-  for (type = TYPE_INT; type <= TYPE_DOUBLE_PTR; type++)
+  for (type = TYPE_INT; type <= TYPE_UINT_PTR; type++)
     printf("%d\\n", cc_is_scalar_truth_type((cc_type_t)type));
   return 0;
 }}
@@ -332,7 +334,9 @@ typedef enum {{
   TYPE_FLOAT4,
   TYPE_DOUBLE2,
   TYPE_FLOAT_PTR,
-  TYPE_DOUBLE_PTR
+  TYPE_DOUBLE_PTR,
+  TYPE_UINT,
+  TYPE_UINT_PTR
 }} cc_type_t;
 
 typedef struct {{
@@ -481,6 +485,8 @@ int main(void) {{
                 0,  # double2
                 1,  # float pointer
                 1,  # double pointer
+                1,  # unsigned int
+                1,  # unsigned int pointer
             ),
         )
 
@@ -496,20 +502,20 @@ int main(void) {{
     def test_active_control_bindings_publish_integer_results(self):
         source = BINDING_SOURCE.read_text(encoding="utf-8")
         bindings = (
-            ("is_gui_mode", "p_is_gui", 0),
-            ("gui_win_is_open", "p_gui_win_is_open", 1),
-            ("gui_win_can_draw", "p_gui_win_can_draw", 1),
-            ("gfx2d_should_quit", "p_gfx2d_should_quit", 0),
-            ("confirm_dialog", "p_confirm_dlg", 1),
-            ("input_dialog", "p_input_dlg", 3),
-            ("popup_menu", "p_popup_menu", 4),
+            ("is_gui_mode", "p_is_gui", 0, "TYPE_UINT"),
+            ("gui_win_is_open", "p_gui_win_is_open", 1, "TYPE_INT"),
+            ("gui_win_can_draw", "p_gui_win_can_draw", 1, "TYPE_INT"),
+            ("gfx2d_should_quit", "p_gfx2d_should_quit", 0, "TYPE_INT"),
+            ("confirm_dialog", "p_confirm_dlg", 1, "TYPE_INT"),
+            ("input_dialog", "p_input_dlg", 3, "TYPE_INT"),
+            ("popup_menu", "p_popup_menu", 4, "TYPE_INT"),
         )
-        for name, pointer, parameter_count in bindings:
+        for name, pointer, parameter_count, return_type in bindings:
             with self.subTest(binding=name):
                 self.assertIn(
                     (
                         f'BIND_T("{name}", {pointer}, '
-                        f"{parameter_count}, TYPE_INT);"
+                        f"{parameter_count}, {return_type});"
                     ),
                     source,
                 )

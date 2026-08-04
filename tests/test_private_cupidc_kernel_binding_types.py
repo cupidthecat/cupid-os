@@ -23,6 +23,86 @@ BIND_RE = re.compile(
     r"[ \t\r\n]*\);"
 )
 
+GFXGUI_BINDINGS = {
+    "gfx2d_effects_init": ("p_gfx2d_effects_init", 0, "TYPE_VOID"),
+    "gfx2d_blur_box": ("p_gfx2d_blur_box", 5, "TYPE_VOID"),
+    "gfx2d_blur_box_surface": (
+        "p_gfx2d_blur_box_surface",
+        2,
+        "TYPE_VOID",
+    ),
+    "gfx2d_blur_gaussian": (
+        "p_gfx2d_blur_gaussian",
+        5,
+        "TYPE_VOID",
+    ),
+    "gfx2d_blur_motion": ("p_gfx2d_blur_motion", 6, "TYPE_VOID"),
+    "gfx2d_brightness": ("p_gfx2d_brightness", 5, "TYPE_VOID"),
+    "gfx2d_contrast": ("p_gfx2d_contrast", 5, "TYPE_VOID"),
+    "gfx2d_saturation": ("p_gfx2d_saturation", 5, "TYPE_VOID"),
+    "gfx2d_hue_shift": ("p_gfx2d_hue_shift", 5, "TYPE_VOID"),
+    "gfx2d_tint_ex": ("p_gfx2d_tint_ex", 7, "TYPE_VOID"),
+    "gfx2d_edges": ("p_gfx2d_edges", 5, "TYPE_VOID"),
+    "gfx2d_emboss": ("p_gfx2d_emboss", 5, "TYPE_VOID"),
+    "gfx2d_posterize": ("p_gfx2d_posterize", 5, "TYPE_VOID"),
+    "gfx2d_convolve_3x3": ("p_gfx2d_convolve_3x3", 6, "TYPE_VOID"),
+    "gfx2d_convolve_5x5": ("p_gfx2d_convolve_5x5", 6, "TYPE_VOID"),
+    "gfx2d_chromatic_aberration": (
+        "p_gfx2d_chromatic_aberration",
+        5,
+        "TYPE_VOID",
+    ),
+    "gfx2d_scanlines_ex": ("p_gfx2d_scanlines_ex", 6, "TYPE_VOID"),
+    "gfx2d_noise": ("p_gfx2d_noise", 6, "TYPE_VOID"),
+    "gfx2d_assets_init": ("p_gfx2d_assets_init", 0, "TYPE_VOID"),
+    "gfx2d_font_load": ("p_gfx2d_font_load", 1, "TYPE_INT"),
+    "gfx2d_font_set_default": (
+        "p_gfx2d_font_set_default",
+        1,
+        "TYPE_VOID",
+    ),
+    "gfx2d_text_ex": ("p_gfx2d_text_ex", 6, "TYPE_VOID"),
+    "gfx2d_font_free": ("p_gfx2d_font_free", 1, "TYPE_VOID"),
+    "gfx2d_transform_init": ("p_gfx2d_transform_init", 0, "TYPE_VOID"),
+    "gfx2d_push_transform": ("p_gfx2d_push_transform", 0, "TYPE_VOID"),
+    "gfx2d_pop_transform": ("p_gfx2d_pop_transform", 0, "TYPE_VOID"),
+    "gfx2d_reset_transform": (
+        "p_gfx2d_reset_transform",
+        0,
+        "TYPE_VOID",
+    ),
+    "gfx2d_translate": ("p_gfx2d_translate", 2, "TYPE_VOID"),
+    "gfx2d_rotate": ("p_gfx2d_rotate", 1, "TYPE_VOID"),
+    "gfx2d_scale": ("p_gfx2d_scale", 2, "TYPE_VOID"),
+    "gfx2d_set_matrix": ("p_gfx2d_set_matrix", 1, "TYPE_VOID"),
+    "gfx2d_get_matrix": ("p_gfx2d_get_matrix", 1, "TYPE_VOID"),
+    "gfx2d_transform_point": (
+        "p_gfx2d_transform_point",
+        4,
+        "TYPE_VOID",
+    ),
+    "gfx2d_text_transformed": (
+        "p_gfx2d_text_transformed",
+        5,
+        "TYPE_VOID",
+    ),
+    "gui_widgets_init": ("p_gui_widgets_init", 0, "TYPE_VOID"),
+    "gui_containers_init": ("p_gui_containers_init", 0, "TYPE_VOID"),
+    "gui_menus_init": ("p_gui_menus_init", 0, "TYPE_VOID"),
+    "gui_events_init": ("p_gui_events_init", 0, "TYPE_VOID"),
+    "gui_themes_init": ("p_gui_themes_init", 0, "TYPE_VOID"),
+    "ui_theme_set": ("p_ui_theme_set", 1, "TYPE_VOID"),
+    "ui_theme_reset_default": (
+        "p_ui_theme_reset_default",
+        0,
+        "TYPE_VOID",
+    ),
+    "ui_theme_load": ("p_ui_theme_load", 1, "TYPE_INT"),
+    "ui_theme_save": ("p_ui_theme_save", 1, "TYPE_INT"),
+    "ui_theme_windows95": ("p_ui_theme_windows95", 0, "TYPE_PTR"),
+    "ui_theme_dark_mode": ("p_ui_theme_dark_mode", 0, "TYPE_PTR"),
+    "ui_theme_pastel_dream": ("p_ui_theme_pastel_dream", 0, "TYPE_PTR"),
+}
 
 def _registration_body(source):
     marker = "static void cc_register_kernel_bindings("
@@ -75,6 +155,7 @@ def _binding_contract(source):
         bindings[pointer] = {
             "macro": match.group("macro"),
             "name": match.group("name"),
+            "parameter_count": int(match.group("parameter_count")),
             "return_type": match.group("return_type"),
         }
 
@@ -124,7 +205,7 @@ class PrivateCupidCKernelBindingTypeTests(unittest.TestCase):
         declarations, bindings, violations = _binding_contract(source)
         self.assertEqual(violations, [])
         self.assertEqual(len(declarations), len(bindings))
-        self.assertEqual(len(bindings), 510)
+        self.assertEqual(len(bindings), 556)
         published_types = Counter(
             binding["return_type"]
             if binding["macro"] == "BIND_T"
@@ -135,13 +216,13 @@ class PrivateCupidCKernelBindingTypeTests(unittest.TestCase):
             published_types,
             Counter(
                 {
-                    "TYPE_INT": 205,
-                    "TYPE_VOID": 191,
+                    "TYPE_INT": 208,
+                    "TYPE_VOID": 231,
                     "TYPE_UINT": 40,
                     "TYPE_DOUBLE": 25,
                     "TYPE_FLOAT": 25,
                     "TYPE_CHAR_PTR": 19,
-                    "TYPE_PTR": 5,
+                    "TYPE_PTR": 8,
                 }
             ),
         )
@@ -155,9 +236,49 @@ class PrivateCupidCKernelBindingTypeTests(unittest.TestCase):
             {
                 "macro": "BIND_T",
                 "name": "htonl",
+                "parameter_count": 1,
                 "return_type": "TYPE_UINT",
             },
         )
+
+    def test_gfxgui_frontier_has_the_exact_native_binding_contract(self):
+        source = BINDING_SOURCE.read_text(encoding="utf-8")
+        declarations, bindings, violations = _binding_contract(source)
+        self.assertEqual(violations, [])
+        self.assertEqual(len(GFXGUI_BINDINGS), 46)
+
+        for name, (pointer, parameter_count, return_type) in (
+            GFXGUI_BINDINGS.items()
+        ):
+            with self.subTest(name=name):
+                self.assertIn(pointer, declarations)
+                self.assertIn(pointer, bindings)
+                binding = bindings[pointer]
+                self.assertEqual(binding["name"], name)
+                self.assertEqual(
+                    binding["parameter_count"],
+                    parameter_count,
+                )
+                self.assertEqual(
+                    binding["return_type"]
+                    if binding["macro"] == "BIND_T"
+                    else "TYPE_VOID",
+                    return_type,
+                )
+
+        for name in (
+            "ui_theme_windows95",
+            "ui_theme_dark_mode",
+            "ui_theme_pastel_dream",
+        ):
+            pointer = GFXGUI_BINDINGS[name][0]
+            with self.subTest(name=name):
+                self.assertEqual(bindings[pointer]["macro"], "BIND_T")
+                self.assertEqual(bindings[pointer]["return_type"], "TYPE_PTR")
+                self.assertEqual(
+                    re.sub(r"\s+", "", declarations[pointer]),
+                    "constui_theme_t*",
+                )
 
     def test_narrow_unsigned_results_keep_integer_promotion_metadata(self):
         source = BINDING_SOURCE.read_text(encoding="utf-8")
@@ -186,6 +307,19 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
         self.assertEqual(
             violations,
             ["bad_result: int declaration used untyped BIND"],
+        )
+
+    def test_theme_accessor_rejects_integer_result_metadata(self):
+        fixture = """
+static void cc_register_kernel_bindings(cc_state_t *cc) {
+  const ui_theme_t *(*p_bad)(void) = cc_ui_theme_windows95;
+  BIND_T("ui_theme_windows95", p_bad, 0, TYPE_INT);
+}
+"""
+        _declarations, _bindings, violations = _binding_contract(fixture)
+        self.assertEqual(
+            violations,
+            ["ui_theme_windows95: expected TYPE_PTR, got TYPE_INT"],
         )
 
 

@@ -8,6 +8,24 @@
 
 The library lives in `kernel/gfx/gfx2d.cc`, and `kernel/lang/cupidc.cc` registers its bindings. CupidC programs call `gfx2d_*` functions directly without imports.
 
+The private compiler exposes the 46 bindings that were missing for
+`gfxgui_test.cc`. They cover effects, bitmap-font assets, affine transforms,
+GUI module initialization, theme persistence, and three built-in theme
+accessors. The accessors return pointers to the existing constant theme
+objects. The other 43 bindings call their linked kernel implementations
+directly. All 104 runnable top-level programs pass private AOT compilation,
+and the fixed guest frontier also emits an ELF and completes all 260 frames
+through JIT. It requires an exact custom-font pixel, an isolated
+blurred-surface pixel with unchanged screen state, and center and off-center
+transformed-image pixels. An off-origin point checks a 90-degree rotation and
+nonuniform scale, and popping the transform must restore identity. The later
+GodSong command waits for its own settings-readiness line, not the startup-only
+graphics diagnostics consumed by this workload. The affine inverse retains
+the full 32.32 determinant and inverse translation arithmetic in checked
+64-bit form. This keeps the identity matrix and representable sub-word
+determinants invertible, accepts large determinants when their inverse words
+fit, and rejects unrepresentable coefficients or translations.
+
 **Target display:** 640x480, 32-bit XRGB/ARGB framebuffer (VBE/Bochs)
 
 **Color format:** `0xAARRGGBB` (unsigned int, alpha byte enables transparency)
@@ -165,6 +183,92 @@ void gfx2d_vignette(int strength);                         // darkens corners
 void gfx2d_pixelate(int x, int y, int w, int h, int block_size);
 void gfx2d_invert(int x, int y, int w, int h);
 void gfx2d_tint(int x, int y, int w, int h, unsigned int color, int alpha);
+```
+
+### Extended Filters
+
+These functions modify the selected screen or surface region in place.
+Convolution kernels contain 9 or 25 signed integer weights.
+
+```c
+void gfx2d_effects_init();
+void gfx2d_blur_box(int x, int y, int w, int h, int radius);
+void gfx2d_blur_box_surface(int surface, int radius);
+void gfx2d_blur_gaussian(int x, int y, int w, int h, int radius);
+void gfx2d_blur_motion(int x, int y, int w, int h, int angle, int distance);
+void gfx2d_brightness(int x, int y, int w, int h, int amount);
+void gfx2d_contrast(int x, int y, int w, int h, int amount);
+void gfx2d_saturation(int x, int y, int w, int h, int amount);
+void gfx2d_hue_shift(int x, int y, int w, int h, int degrees);
+void gfx2d_tint_ex(int x, int y, int w, int h,
+                   unsigned int color, int alpha, int mode);
+void gfx2d_edges(int x, int y, int w, int h, unsigned int color);
+void gfx2d_emboss(int x, int y, int w, int h, int angle);
+void gfx2d_posterize(int x, int y, int w, int h, int levels);
+void gfx2d_convolve_3x3(int x, int y, int w, int h,
+                        int kernel[9], int divisor);
+void gfx2d_convolve_5x5(int x, int y, int w, int h,
+                        int kernel[25], int divisor);
+void gfx2d_chromatic_aberration(int x, int y, int w, int h, int offset);
+void gfx2d_scanlines_ex(int x, int y, int w, int h, int alpha, int pattern);
+void gfx2d_noise(int x, int y, int w, int h,
+                 int intensity, unsigned int seed);
+```
+
+### Bitmap Font Assets
+
+```c
+void gfx2d_assets_init();
+int  gfx2d_font_load(char *path);
+void gfx2d_font_set_default(int handle);
+void gfx2d_text_ex(int x, int y, char *text, unsigned int color,
+                   int font_handle, int effects);
+void gfx2d_font_free(int handle);
+```
+
+### Affine Transform Stack
+
+The six matrix words store `a`, `b`, `c`, `d`, `tx`, and `ty` in Cupid's
+fixed-point format.
+
+```c
+void gfx2d_transform_init();
+void gfx2d_push_transform();
+void gfx2d_pop_transform();
+void gfx2d_reset_transform();
+void gfx2d_translate(int dx, int dy);
+void gfx2d_rotate(int angle);
+void gfx2d_scale(int sx, int sy);
+void gfx2d_set_matrix(int matrix[6]);
+void gfx2d_get_matrix(int matrix[6]);
+void gfx2d_transform_point(int x, int y, int *out_x, int *out_y);
+void gfx2d_image_draw_transformed(int handle, int x, int y);
+void gfx2d_sprite_draw_transformed(int handle, int x, int y);
+void gfx2d_text_transformed(int x, int y, char *text,
+                            unsigned int color, int font);
+```
+
+Image and sprite drawing resample through the inverse affine matrix. Text
+transforms its origin only; its glyphs remain axis-aligned.
+
+### GUI Modules and Themes
+
+The theme accessors return stable pointers to the kernel's constant theme
+objects. Pass one of those pointers to `ui_theme_set`.
+
+```c
+void gui_widgets_init();
+void gui_containers_init();
+void gui_menus_init();
+void gui_events_init();
+void gui_themes_init();
+void ui_theme_set(void *theme);
+void ui_theme_reset_default();
+int  ui_theme_load(char *path);
+int  ui_theme_save(char *path);
+void *ui_theme_windows95();
+void *ui_theme_dark_mode();
+void *ui_theme_pastel_dream();
 ```
 
 ### Win95-Style UI Helpers

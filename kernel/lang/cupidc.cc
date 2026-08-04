@@ -33,10 +33,16 @@
 #include "jpeg.h"
 #include "gfx2d.h"
 #include "gfx2d_assets.h"
+#include "gfx2d_effects.h"
 #include "gfx2d_icons.h"
 #include "gfx2d_transform.h"
 #include "graphics.h"
 #include "gui.h"
+#include "gui_containers.h"
+#include "gui_events.h"
+#include "gui_menus.h"
+#include "gui_themes.h"
+#include "gui_widgets.h"
 #include "kernel.h"
 #include "libm.h"
 #include "math.h"
@@ -1001,6 +1007,18 @@ static void cc_pci_enable_bus_master(int idx) {
 /* LAPIC ID returned as uint32 (driver returns uint8_t). */
 static uint32_t cc_lapic_get_id(void) { return (uint32_t)lapic_get_id(); }
 
+static const ui_theme_t *cc_ui_theme_windows95(void) {
+  return &UI_THEME_WINDOWS95;
+}
+
+static const ui_theme_t *cc_ui_theme_dark_mode(void) {
+  return &UI_THEME_DARK_MODE;
+}
+
+static const ui_theme_t *cc_ui_theme_pastel_dream(void) {
+  return &UI_THEME_PASTEL_DREAM;
+}
+
 /* Kernel Bindings Registration */
 
 static void cc_register_kernel_bindings(cc_state_t *cc) {
@@ -1814,6 +1832,162 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
 
   int (*p_gfx2d_text_height)(int) = gfx2d_text_height;
   BIND_T("gfx2d_text_height", p_gfx2d_text_height, 1, TYPE_INT);
+
+  /* gfx2d filters and post-processing */
+  void (*p_gfx2d_effects_init)(void) = gfx2d_effects_init;
+  BIND("gfx2d_effects_init", p_gfx2d_effects_init, 0);
+
+  void (*p_gfx2d_blur_box)(int, int, int, int, int) = gfx2d_blur_box;
+  BIND("gfx2d_blur_box", p_gfx2d_blur_box, 5);
+
+  void (*p_gfx2d_blur_box_surface)(int, int) = gfx2d_blur_box_surface;
+  BIND("gfx2d_blur_box_surface", p_gfx2d_blur_box_surface, 2);
+
+  void (*p_gfx2d_blur_gaussian)(int, int, int, int, int) =
+      gfx2d_blur_gaussian;
+  BIND("gfx2d_blur_gaussian", p_gfx2d_blur_gaussian, 5);
+
+  void (*p_gfx2d_blur_motion)(int, int, int, int, int, int) =
+      gfx2d_blur_motion;
+  BIND("gfx2d_blur_motion", p_gfx2d_blur_motion, 6);
+
+  void (*p_gfx2d_brightness)(int, int, int, int, int) = gfx2d_brightness;
+  BIND("gfx2d_brightness", p_gfx2d_brightness, 5);
+
+  void (*p_gfx2d_contrast)(int, int, int, int, int) = gfx2d_contrast;
+  BIND("gfx2d_contrast", p_gfx2d_contrast, 5);
+
+  void (*p_gfx2d_saturation)(int, int, int, int, int) = gfx2d_saturation;
+  BIND("gfx2d_saturation", p_gfx2d_saturation, 5);
+
+  void (*p_gfx2d_hue_shift)(int, int, int, int, int) = gfx2d_hue_shift;
+  BIND("gfx2d_hue_shift", p_gfx2d_hue_shift, 5);
+
+  void (*p_gfx2d_tint_ex)(int, int, int, int, uint32_t, int, int) =
+      gfx2d_tint_ex;
+  BIND("gfx2d_tint_ex", p_gfx2d_tint_ex, 7);
+
+  void (*p_gfx2d_edges)(int, int, int, int, uint32_t) = gfx2d_edges;
+  BIND("gfx2d_edges", p_gfx2d_edges, 5);
+
+  void (*p_gfx2d_emboss)(int, int, int, int, int) = gfx2d_emboss;
+  BIND("gfx2d_emboss", p_gfx2d_emboss, 5);
+
+  void (*p_gfx2d_posterize)(int, int, int, int, int) = gfx2d_posterize;
+  BIND("gfx2d_posterize", p_gfx2d_posterize, 5);
+
+  void (*p_gfx2d_convolve_3x3)(int, int, int, int, int *, int) =
+      gfx2d_convolve_3x3;
+  BIND("gfx2d_convolve_3x3", p_gfx2d_convolve_3x3, 6);
+
+  void (*p_gfx2d_convolve_5x5)(int, int, int, int, int *, int) =
+      gfx2d_convolve_5x5;
+  BIND("gfx2d_convolve_5x5", p_gfx2d_convolve_5x5, 6);
+
+  void (*p_gfx2d_chromatic_aberration)(int, int, int, int, int) =
+      gfx2d_chromatic_aberration;
+  BIND("gfx2d_chromatic_aberration", p_gfx2d_chromatic_aberration, 5);
+
+  void (*p_gfx2d_scanlines_ex)(int, int, int, int, int, int) =
+      gfx2d_scanlines_ex;
+  BIND("gfx2d_scanlines_ex", p_gfx2d_scanlines_ex, 6);
+
+  void (*p_gfx2d_noise)(int, int, int, int, int, uint32_t) = gfx2d_noise;
+  BIND("gfx2d_noise", p_gfx2d_noise, 6);
+
+  /* gfx2d assets and bitmap fonts */
+  void (*p_gfx2d_assets_init)(void) = gfx2d_assets_init;
+  BIND("gfx2d_assets_init", p_gfx2d_assets_init, 0);
+
+  int (*p_gfx2d_font_load)(const char *) = gfx2d_font_load;
+  BIND_T("gfx2d_font_load", p_gfx2d_font_load, 1, TYPE_INT);
+
+  void (*p_gfx2d_font_set_default)(int) = gfx2d_font_set_default;
+  BIND("gfx2d_font_set_default", p_gfx2d_font_set_default, 1);
+
+  void (*p_gfx2d_text_ex)(int, int, const char *, uint32_t, int, int) =
+      gfx2d_text_ex;
+  BIND("gfx2d_text_ex", p_gfx2d_text_ex, 6);
+
+  void (*p_gfx2d_font_free)(int) = gfx2d_font_free;
+  BIND("gfx2d_font_free", p_gfx2d_font_free, 1);
+
+  /* gfx2d affine transforms */
+  void (*p_gfx2d_transform_init)(void) = gfx2d_transform_init;
+  BIND("gfx2d_transform_init", p_gfx2d_transform_init, 0);
+
+  void (*p_gfx2d_push_transform)(void) = gfx2d_push_transform;
+  BIND("gfx2d_push_transform", p_gfx2d_push_transform, 0);
+
+  void (*p_gfx2d_pop_transform)(void) = gfx2d_pop_transform;
+  BIND("gfx2d_pop_transform", p_gfx2d_pop_transform, 0);
+
+  void (*p_gfx2d_reset_transform)(void) = gfx2d_reset_transform;
+  BIND("gfx2d_reset_transform", p_gfx2d_reset_transform, 0);
+
+  void (*p_gfx2d_translate)(int, int) = gfx2d_translate;
+  BIND("gfx2d_translate", p_gfx2d_translate, 2);
+
+  void (*p_gfx2d_rotate)(int) = gfx2d_rotate;
+  BIND("gfx2d_rotate", p_gfx2d_rotate, 1);
+
+  void (*p_gfx2d_scale)(int, int) = gfx2d_scale;
+  BIND("gfx2d_scale", p_gfx2d_scale, 2);
+
+  void (*p_gfx2d_set_matrix)(int *) = gfx2d_set_matrix;
+  BIND("gfx2d_set_matrix", p_gfx2d_set_matrix, 1);
+
+  void (*p_gfx2d_get_matrix)(int *) = gfx2d_get_matrix;
+  BIND("gfx2d_get_matrix", p_gfx2d_get_matrix, 1);
+
+  void (*p_gfx2d_transform_point)(int, int, int *, int *) =
+      gfx2d_transform_point;
+  BIND("gfx2d_transform_point", p_gfx2d_transform_point, 4);
+
+  void (*p_gfx2d_text_transformed)(int, int, const char *, uint32_t, int) =
+      gfx2d_text_transformed;
+  BIND("gfx2d_text_transformed", p_gfx2d_text_transformed, 5);
+
+  /* GUI module initialization */
+  void (*p_gui_widgets_init)(void) = gui_widgets_init;
+  BIND("gui_widgets_init", p_gui_widgets_init, 0);
+
+  void (*p_gui_containers_init)(void) = gui_containers_init;
+  BIND("gui_containers_init", p_gui_containers_init, 0);
+
+  void (*p_gui_menus_init)(void) = gui_menus_init;
+  BIND("gui_menus_init", p_gui_menus_init, 0);
+
+  void (*p_gui_events_init)(void) = gui_events_init;
+  BIND("gui_events_init", p_gui_events_init, 0);
+
+  /* GUI themes */
+  void (*p_gui_themes_init)(void) = gui_themes_init;
+  BIND("gui_themes_init", p_gui_themes_init, 0);
+
+  void (*p_ui_theme_set)(const ui_theme_t *) = ui_theme_set;
+  BIND("ui_theme_set", p_ui_theme_set, 1);
+
+  void (*p_ui_theme_reset_default)(void) = ui_theme_reset_default;
+  BIND("ui_theme_reset_default", p_ui_theme_reset_default, 0);
+
+  int (*p_ui_theme_load)(const char *) = ui_theme_load;
+  BIND_T("ui_theme_load", p_ui_theme_load, 1, TYPE_INT);
+
+  int (*p_ui_theme_save)(const char *) = ui_theme_save;
+  BIND_T("ui_theme_save", p_ui_theme_save, 1, TYPE_INT);
+
+  const ui_theme_t *(*p_ui_theme_windows95)(void) =
+      cc_ui_theme_windows95;
+  BIND_T("ui_theme_windows95", p_ui_theme_windows95, 0, TYPE_PTR);
+
+  const ui_theme_t *(*p_ui_theme_dark_mode)(void) =
+      cc_ui_theme_dark_mode;
+  BIND_T("ui_theme_dark_mode", p_ui_theme_dark_mode, 0, TYPE_PTR);
+
+  const ui_theme_t *(*p_ui_theme_pastel_dream)(void) =
+      cc_ui_theme_pastel_dream;
+  BIND_T("ui_theme_pastel_dream", p_ui_theme_pastel_dream, 0, TYPE_PTR);
 
   /* fontsys: TTF font system bindings (kernel-side JIT). */
   int (*p_fontsys_match)(const char *, int, int, int) = fontsys_match;

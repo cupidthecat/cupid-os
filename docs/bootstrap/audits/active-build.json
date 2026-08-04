@@ -34622,6 +34622,7 @@
           "kernel/gfx/fontsys.h",
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
+          "kernel/gfx/gfx2d_effects.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/graphics.h",
@@ -34633,6 +34634,11 @@
           "kernel/gui/desktop.h",
           "kernel/gui/ed.h",
           "kernel/gui/gui.h",
+          "kernel/gui/gui_containers.h",
+          "kernel/gui/gui_events.h",
+          "kernel/gui/gui_menus.h",
+          "kernel/gui/gui_themes.h",
+          "kernel/gui/gui_widgets.h",
           "kernel/lang/cupidc.h",
           "kernel/lang/dis.h",
           "kernel/lang/exec.h",
@@ -38138,10 +38144,10 @@
     "c_preprocessor_include_operands": {
       "digraph_marker_occurrences": 0,
       "direct_angle_occurrences": 235,
-      "direct_quoted_occurrences": 2167,
-      "include_occurrences": 2402,
+      "direct_quoted_occurrences": 2173,
+      "include_occurrences": 2408,
       "max_conditional_depth": 2,
-      "ordinary_marker_occurrences": 2402,
+      "ordinary_marker_occurrences": 2408,
       "pp_token_operand_occurrences": 0,
       "source_files": 687,
       "status": "pass"
@@ -42598,6 +42604,7 @@
         "bin/ed.cc",
         "bin/feature25.cc",
         "bin/fm.cc",
+        "bin/gfxgui_test.cc",
         "bin/grep.cc",
         "bin/head.cc",
         "bin/kill.cc",
@@ -42754,7 +42761,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.break",
-      "occurrences": 1936
+      "occurrences": 1937
     },
     {
       "category": "control",
@@ -43243,7 +43250,6 @@
         "bin/find.cc",
         "bin/fm.cc",
         "bin/fontswitch.cc",
-        "bin/gfxgui_test.cc",
         "bin/godsong.cc",
         "bin/grep.cc",
         "bin/head.cc",
@@ -43467,7 +43473,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.else",
-      "occurrences": 4731
+      "occurrences": 4733
     },
     {
       "category": "control",
@@ -44178,7 +44184,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 37152
+      "occurrences": 37175
     },
     {
       "category": "control",
@@ -44539,7 +44545,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 22574
+      "occurrences": 22602
     },
     {
       "category": "control",
@@ -45076,7 +45082,7 @@
         "user/cupid.h"
       ],
       "id": "c.declarator.function_pointer",
-      "occurrences": 953
+      "occurrences": 999
     },
     {
       "category": "declarator",
@@ -47958,7 +47964,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.preprocessor.include",
-      "occurrences": 2402
+      "occurrences": 2408
     },
     {
       "category": "preprocessor",
@@ -48509,7 +48515,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 14784
+      "occurrences": 14797
     },
     {
       "category": "qualifier",
@@ -49033,7 +49039,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.storage.static",
-      "occurrences": 8751
+      "occurrences": 8757
     },
     {
       "category": "type",
@@ -49462,7 +49468,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.char",
-      "occurrences": 8565
+      "occurrences": 8572
     },
     {
       "category": "type",
@@ -50207,7 +50213,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.int",
-      "occurrences": 21724
+      "occurrences": 21844
     },
     {
       "category": "type",
@@ -51701,7 +51707,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.void",
-      "occurrences": 14007
+      "occurrences": 14065
     },
     {
       "category": "declaration",
@@ -52605,11 +52611,11 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "63b4c8368e9dbd7cc8ccea3ef38fa3b9547b68f51346c1b87536cdc49da7342b",
+    "active_source_digest": "fc21e0e56dbdf6df21ac0a00fc8582c4d9b7d1caf035c5d00b6362d8d43b5420",
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "934b4c583c07b40512937b3ca5f8b9dc45c08497c1c091fb455f5b6c61cebac8"
+        "sha256": "f9cd8daa78b962c5b8b11ba068ae1e977b2c96e18a92043bdd1248fc37f3b481"
       },
       {
         "path": "user/Makefile",
@@ -55653,7 +55659,7 @@
       ],
       "cohort": "cupid_c_program",
       "features": [
-        "c.control.else",
+        "c.control.break",
         "c.control.if",
         "c.control.return",
         "c.control.while",
@@ -55665,12 +55671,12 @@
       ],
       "includes": [],
       "language": "cupid_c",
-      "lines": 216,
+      "lines": 351,
       "origin": "tracked",
       "path": "bin/gfxgui_test.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "45744781291963c6d7576e9daa0965256e3c1a2af417ade95bff1803fa1ef68b"
+      "sha256": "007aa6912c559568febca05e924af38ca542d8e7f757036d11c7582f8122d3ef"
     },
     {
       "build_owners": [
@@ -55720,12 +55726,12 @@
       ],
       "includes": [],
       "language": "cupid_c",
-      "lines": 445,
+      "lines": 446,
       "origin": "tracked",
       "path": "bin/godsong.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "85a1256f87648e78ab4adbdf11fee3dd5c14ebdfc11ef02b864666e6b65d3b25"
+      "sha256": "95af2c6cf436a69ecc3f0e9ca0a8fe7a1fe19a04c9e9499df34e4e9092e05ece"
     },
     {
       "build_owners": [
@@ -70948,12 +70954,12 @@
         "kernel/gfx/gfx2d_transform.h"
       ],
       "language": "cupid_c",
-      "lines": 352,
+      "lines": 401,
       "origin": "tracked",
       "path": "kernel/gfx/gfx2d_transform.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "39debc9f06f03d7b8f548af179cba2d7f3dc0bd7778779486df72c7df4d805d2"
+      "sha256": "731814ee66de19ff097eb95f6677dffb24818a5ef95c36201c80c525ed604f10"
     },
     {
       "build_owners": [
@@ -70984,7 +70990,7 @@
       "path": "kernel/gfx/gfx2d_transform.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "95f8ba1e6f5a346625682bc5b94e6df69029e76c2df16c492e5045209a93f104"
+      "sha256": "70c60748b21d1d2cb54252cf7f470cb61e3874f059ac8942952ebd4870bf25f1"
     },
     {
       "build_owners": [
@@ -72794,6 +72800,7 @@
         "kernel/gfx/fontsys.h",
         "kernel/gfx/gfx2d.h",
         "kernel/gfx/gfx2d_assets.h",
+        "kernel/gfx/gfx2d_effects.h",
         "kernel/gfx/gfx2d_icons.h",
         "kernel/gfx/gfx2d_transform.h",
         "kernel/gfx/graphics.h",
@@ -72805,6 +72812,11 @@
         "kernel/gui/desktop.h",
         "kernel/gui/ed.h",
         "kernel/gui/gui.h",
+        "kernel/gui/gui_containers.h",
+        "kernel/gui/gui_events.h",
+        "kernel/gui/gui_menus.h",
+        "kernel/gui/gui_themes.h",
+        "kernel/gui/gui_widgets.h",
         "kernel/lang/cupidc.h",
         "kernel/lang/exec.h",
         "kernel/lang/shell.h",
@@ -72827,12 +72839,12 @@
         "kernel/util/calendar.h"
       ],
       "language": "cupid_c",
-      "lines": 3973,
+      "lines": 4147,
       "origin": "tracked",
       "path": "kernel/lang/cupidc.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "93af39911c2cdaf66970320e3446d295f624b282fd02dd0fa4a378dce4d536ac"
+      "sha256": "0724957e694d34943b4dd2900472bc0b4ab25ebfaf2c813a19ff75991d39f9e6"
     },
     {
       "build_owners": [
