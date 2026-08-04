@@ -629,6 +629,114 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 34, result.stdout + result.stderr)
 
+    def test_fixed_integer_parameters_preserve_object_pointer_bits(self):
+        result = self._compile_and_run(
+            """
+            int write_outputs(int value_out_address, int text_out_address) {
+              int *value_out = value_out_address;
+              char *text_out = text_out_address;
+              *value_out = 37;
+              text_out[0] = 'O';
+              text_out[1] = 'S';
+              text_out[2] = 0;
+              return 0;
+            }
+
+            int main() {
+              int value = 0;
+              char text[3];
+              if (write_outputs(&value, text) != 0) return 1;
+              if (value != 37) return 2;
+              if (text[0] != 'O' || text[1] != 'S' || text[2] != 0) {
+                return 3;
+              }
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_fixed_unsigned_parameter_preserves_object_pointer_bits(self):
+        result = self._compile_and_run(
+            """
+            int write_output(unsigned int output_address) {
+              int *output = output_address;
+              *output = 41;
+              return 0;
+            }
+
+            int main() {
+              int value = 0;
+              if (write_output(&value) != 0) return 1;
+              return value == 41 ? 0 : 2;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_pointer_to_narrow_parameter_is_rejected_before_recovery(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-pointer-word-recovery-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code, _data = self._compile_after_failure(
+                root,
+                """
+                void consume_byte(char value) {
+                }
+
+                int invalid_call() {
+                  int value = 0;
+                  consume_byte(&value);
+                  return 0;
+                }
+                """,
+                """
+                int read_word(int address) {
+                  int *pointer = address;
+                  return *pointer;
+                }
+
+                int main() {
+                  int value = 43;
+                  return read_word(&value) == 43 ? 0 : 1;
+                }
+                """,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn(
+                "cdecl argument type does not match fixed parameter",
+                result.stderr,
+            )
+            entry_offset = int(result.stdout.strip())
+            runtime = self._run_i386(root, entry_offset)
+        self.assertEqual(runtime.returncode, 0, runtime.stdout + runtime.stderr)
+
+    def test_pointer_to_floating_parameter_is_rejected(self):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-pointer-float-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            result, _code, _data = self._compile(
+                Path(temporary),
+                """
+                void consume_float(float value) {
+                }
+
+                int main() {
+                  int value = 0;
+                  consume_float(&value);
+                  return 0;
+                }
+                """,
+            )
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertIn(
+            "cdecl argument type does not match fixed parameter",
+            result.stderr,
+        )
+
     def test_four_word_call_keeps_the_popup_menu_argument_order(self):
         result = self._compile_and_run(
             """

@@ -9,7 +9,8 @@ typedef enum {
   CTOOL_OBJ_WRAP_TEXT,
   CTOOL_OBJ_EXTRACT_FLAT,
   CTOOL_OBJ_GENERATE_INSTALL_SOURCE,
-  CTOOL_OBJ_GENERATE_KSYMS_SOURCE
+  CTOOL_OBJ_GENERATE_KSYMS_SOURCE,
+  CTOOL_OBJ_WRAP_JPEG
 } ctool_obj_operation_t;
 
 typedef enum {
@@ -84,14 +85,20 @@ ctool_status_t ctool_obj_transform(ctool_job_t *job,
  * canonical ELF32 ET_REL PROGBITS section with the exact requested bytes and
  * global start, end, and absolute size symbols.  WRAP_TEXT has the same
  * object model but canonicalizes CRLF pairs to LF; lone carriage returns are
- * retained.  EXTRACT_FLAT lays out initialized PT_LOAD bytes by physical
- * address, with a checked allocated-section fallback for executables without
- * load segments; BSS is excluded.
+ * retained.  WRAP_JPEG first validates one baseline or extended sequential
+ * SOF0/SOF1 frame, at least one scan, and a terminal EOI marker, then wraps
+ * the exact input bytes with the WRAP_BINARY object model.  Progressive and
+ * other unsupported frame types are rejected.  EXTRACT_FLAT lays out
+ * initialized PT_LOAD bytes by physical address, with a checked
+ * allocated-section fallback for executables without load segments; BSS is
+ * excluded.  WRAP_JPEG validation and emission are transactional at this
+ * transform boundary: failures retain no temporary arena storage, and the
+ * same job can be reused.
  *
  * Output must be empty.  Every failure preserves its pre-call bytes and fully
- * zeros result_out.  On success result bytes borrow output; extraction addresses
- * describe the half-open initialized range [base_address, end_address).
- * Equal requests and inputs produce byte-identical output.
+ * zeros result_out.  On success result bytes borrow output; extraction
+ * addresses describe the half-open initialized range [base_address,
+ * end_address).  Equal requests and inputs produce byte-identical output.
  *
  * GENERATE_INSTALL_SOURCE emits one of the bin, docs, or demos installation
  * tables from a typed path inventory.  Paths use repository-relative forward

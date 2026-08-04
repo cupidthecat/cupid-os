@@ -49,6 +49,8 @@ static void cupidobj_usage(FILE *stream) {
       "[--section NAME] [--readonly]\n"
       "       cupidobj wrap-text INPUT -o OUTPUT "
       "[--identity NAME | --stem NAME] [--section NAME] [--readonly]\n"
+      "       cupidobj wrap-jpeg INPUT -o OUTPUT "
+      "[--identity NAME | --stem NAME] [--section NAME] [--readonly]\n"
       "       cupidobj flat INPUT -o OUTPUT\n"
       "       cupidobj ksyms-source SYMBOLS -o OUTPUT\n"
       "       cupidobj install-source bin [--bin PATH...] "
@@ -60,7 +62,8 @@ static void cupidobj_usage(FILE *stream) {
 
 static ctool_bool cupidobj_is_wrap(ctool_obj_operation_t operation) {
   return operation == CTOOL_OBJ_WRAP_BINARY ||
-                 operation == CTOOL_OBJ_WRAP_TEXT
+                 operation == CTOOL_OBJ_WRAP_TEXT ||
+                 operation == CTOOL_OBJ_WRAP_JPEG
              ? CTOOL_TRUE
              : CTOOL_FALSE;
 }
@@ -100,6 +103,8 @@ static int cupidobj_parse_cli(int argc, char **argv, cupidobj_cli_t *cli) {
     cli->operation = CTOOL_OBJ_WRAP_BINARY;
   } else if (strcmp(argv[1], "wrap-text") == 0) {
     cli->operation = CTOOL_OBJ_WRAP_TEXT;
+  } else if (strcmp(argv[1], "wrap-jpeg") == 0) {
+    cli->operation = CTOOL_OBJ_WRAP_JPEG;
   } else if (strcmp(argv[1], "flat") == 0) {
     cli->operation = CTOOL_OBJ_EXTRACT_FLAT;
   } else if (strcmp(argv[1], "ksyms-source") == 0) {

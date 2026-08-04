@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidC Guide (.cc)
-Verified against source on: 2026-08-03
+Verified against source on: 2026-08-04
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -590,7 +590,10 @@ mixed represented integer and floating arithmetic. Unsigned four-byte input
 uses an exact split across the sign boundary. Unsigned-wide output splits
 around 2^32 and derives both words through 2^31-safe truncations. Non-atomic
 long double values use twelve-byte objects and x87 80-bit memory loads and
-stores. Automatic values use frame snapshots. Static-duration scalars, fixed
+stores. Bounded finite normal decimal tokens with an L suffix round an exact
+integer ratio to a 64-bit explicit significand with ties to even. The emitter
+writes that significand and the positive token's biased exponent as three
+exact snapshot words; unary minus supplies the sign. Automatic values use frame snapshots. Static-duration scalars, fixed
 arrays, and complete records may contain long-double leaves. Implicit
 initialization zeros the complete object; an explicit leaf accepts an integer
 constant expression equal to zero. Each leaf occupies twelve zero-filled BSS
@@ -608,8 +611,9 @@ is true for an unordered input. Runtime float, double, and automatic long
 double values work with unary !, &&, ||, the controlling operand of ?:, the
 conditions of if, while, do, and for, and conversion to _Bool. Both signed zeros are
 false; finite nonzero values, subnormals, infinities, and NaNs are true.
-Hexadecimal floating literals, long double literals, nonzero or floating
-static initializers, integer conversions involving long double other than
+Hexadecimal floating literals, binary32 and binary64 subnormal literals,
+hexadecimal or subnormal long-double literals, decimal ratios beyond the
+bounded parser, nonzero or floating static initializers, integer conversions involving long double other than
 _Bool, runtime conversion to unsigned four-byte integers, other
 floating-to-wide conversions, runtime mixed wide and floating arithmetic or
 conditional arms, increment and decrement, general SIMD value semantics,
@@ -744,7 +748,7 @@ The production wrapper emits the three separate compatibility roots. The
 explicit static string cast in doom_libc_stubs.cc and the dglibc jump block keep
 their source meaning. Two checked-seed compiles produce the same object for
 each root. All 83 sources use .cc and compile through the checked seed.
-The wrapper freezes the selected source and all 290 profile headers. Its
+The wrapper freezes the selected source and all 291 profile headers. Its
 input manifest fixes exact three-source and 80-source memberships and rejects
 source removal, header drift, symbolic links, and NTFS junctions. The wrapper
 also scans visible .c and .cc files beneath the Doom tree before and after
@@ -752,11 +756,16 @@ compilation. A legacy .c file or an unlisted .cc file fails the scan. The
 g_game.cc object keeps two R_386_32 static subobject relocations with addend
 4; direct-call R_386_PC32 relocations still require addend -4.
 
-Private four-CPU boots pass the full frontier with e1000 and RTL8139. Both
-NICs run two explicit missing-IWAD launches in one boot, require two returns
-to the shell, and then complete dglibc_test. This image carries no WAD, so
-these checks do not prove gameplay, game input or audio, menu save/load, or
-persistence across reboot.
+Earlier private four-CPU boots passed the full frontier with e1000 and
+RTL8139. Each NIC ran two explicit missing-IWAD launches in one boot, required
+two returns to the shell, and then completed dglibc_test. This image carries
+no WAD, so those checks did not prove gameplay, game input or audio, menu
+save/load, or persistence across reboot.
+The fixed asset-free frontier now runs doom, then
+doom -iwad /disk/missing.wad, requires the shell-return marker, and runs a
+fresh CupidC-built ls. This pins discovery guidance and explicit missing-file
+recovery without treating either launch as gameplay. ADR 0232 records the
+gate.
 
 Doom config and save paths use shared errno and checked dglibc streams. Known
 relative names resolve beneath /home/doom. Config parsing is bounded and each
@@ -805,6 +814,10 @@ packed symbol source from canonical CupidDis text. The 5,440-byte seed manifest
 has SHA-256
 7e7da98d2adddbf59fbd7c4da7af7375e08c10147b8c802a2d4a816161f647ea.
 ADR 0228 records the current five-tool promotion.
+Source-head CupidObj also validates sequential SOF0 and SOF1 marker streams in
+its wrap-jpeg command, then applies the ordinary byte-exact wrapper. The
+current checked seed and normal JPEG recipe predate that command. ADR 0231
+records the source capability and deferred transfer.
 The harness freezes the verified manifest and binaries and copies the exact
 bytes of 41 current inputs, including link.ld, into a private compiler root.
 The seed producer trio builds stage two below that root, and the stage-two trio
@@ -1199,7 +1212,9 @@ record fields, new, array parameters, and call ABI transport remain unsupported.
 Direct functions and methods with parsed fixed parameter types convert
 represented integer, char, float, and double arguments to the declared cdecl
 slot type. Represented pointer categories and integer null forms can fill a
-pointer slot. A parsed variadic tail widens float to double and promotes char
+pointer slot. A represented object pointer can fill a fixed int or unsigned
+int slot as one unchanged i386 word. Narrow and floating destinations remain
+rejected. A parsed variadic tail widens float to double and promotes char
 to int. Function-pointer calls, kernel bindings, and calls without fixed
 parameter metadata keep their source-width slots. Character operands undergo
 integer promotion and use the scalar integer conversion path when mixed with

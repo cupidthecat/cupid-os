@@ -7751,18 +7751,18 @@ static int validate_toolchain_frontier(const char *host_root) {
        10331u, 162u, 124u, 0u, 0u},
       {"/toolchain/cupidld.cc", CTOOL_OK, 0u, 0u, 0u, "", 66u, 2064u,
        13347u, 267u, 146u, 0u, 1u},
-      {"/toolchain/cupidobj.cc", CTOOL_OK, 0u, 0u, 0u, "", 59u, 1475u,
-       10216u, 196u, 112u, 0u, 0u},
+      {"/toolchain/cupidobj.cc", CTOOL_OK, 0u, 0u, 0u, "", 62u, 1652u,
+       11301u, 215u, 123u, 0u, 0u},
       {"/toolchain/cupidc_type.cc", CTOOL_OK, 0u, 0u, 0u, "", 31u, 737u,
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.cc", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
        25287u, 479u, 286u, 0u, 0u},
-      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 263u, 7274u,
-       67702u, 956u, 356u, 0u, 0u},
-      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 358u, 8916u,
-       74933u, 1097u, 737u, 0u, 0u},
+      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 263u, 7281u,
+       67825u, 957u, 357u, 0u, 0u},
+      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 359u, 8953u,
+       75214u, 1098u, 737u, 0u, 0u},
       {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 426u,
-       16698u, 110268u, 2498u, 1521u, 0u, 0u},
+       16715u, 110486u, 2501u, 1521u, 0u, 0u},
       {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 82u, 3054u,
        20124u, 338u, 190u, 0u, 0u},
       {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
@@ -26197,9 +26197,6 @@ static int run_floating_scalars(const char *host_root) {
       "  return local_table[0][index];\n"
       "}\n";
   static const frontend_failure_case_t failure_cases[] = {
-      {"long double literal",
-       "void bad(void) { (void)1.0L; }\n",
-       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
       {"hexadecimal floating literal",
        "double bad(void) { return 0x1.8p+1; }\n",
        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
@@ -26507,8 +26504,9 @@ static int validate_long_double_locals(
   ctool_u32 result_indirect_calls = 0u;
   ctool_u32 variadic_arguments = 0u;
   ctool_u32 long_double_returns = 0u;
+  ctool_u32 long_double_literals = 0u;
   ctool_u32 index;
-  if (unit == NULL || unit->function_definition_count != 8u ||
+  if (unit == NULL || unit->function_definition_count != 11u ||
       fixed_sink == CTOOL_C_AST_NONE ||
       variadic_sink == CTOOL_C_AST_NONE ||
       open_sink == CTOOL_C_AST_NONE ||
@@ -26562,7 +26560,15 @@ static int validate_long_double_locals(
   }
   for (index = 0u; index < unit->expression_count; index++) {
     const ctool_c_expression_t *expression = &unit->expressions[index];
-    if (floating_width_conversion_matches(
+    if (expression->kind == CTOOL_C_EXPRESSION_FLOATING_CONSTANT &&
+        expression->type == long_double_type &&
+        (((expression->integer_bits == 0x8000000000000000ull ||
+           expression->integer_bits == 0x8000000000000001ull) &&
+          expression->floating_high_bits == 0x3fffu) ||
+         (expression->integer_bits == 0xffffffffffffffffull &&
+          expression->floating_high_bits == 0x403eu))) {
+      long_double_literals++;
+    } else if (floating_width_conversion_matches(
             unit, expression, CTOOL_C_EXPRESSION_CAST,
             CTOOL_C_CONVERSION_NONE, CTOOL_C_TYPE_LONG_DOUBLE,
             CTOOL_C_TYPE_FLOAT)) {
@@ -26682,13 +26688,13 @@ static int validate_long_double_locals(
       void_indirect_calls != 2u || variadic_calls != 1u ||
       open_direct_calls != 1u || result_direct_calls != 1u ||
       result_indirect_calls != 1u || variadic_arguments != 1u ||
-      long_double_returns != 1u) {
+      long_double_returns != 4u || long_double_literals != 3u) {
     (void)fprintf(
         stderr,
         "long-double-locals: inventory differs: casts=%u/%u/%u "
         "initializers=%u/%u assignments=%u unary=%u/%u "
         "binary=%u/%u/%u/%u calls=%u/%u/%u/%u/%u/%u "
-        "va_arg=%u returns=%u\n",
+        "va_arg=%u returns=%u literals=%u\n",
         (unsigned int)widen_float, (unsigned int)widen_double,
         (unsigned int)narrow_double, (unsigned int)initializers,
         (unsigned int)zero_initializers, (unsigned int)assignments,
@@ -26701,7 +26707,8 @@ static int validate_long_double_locals(
         (unsigned int)result_direct_calls,
         (unsigned int)result_indirect_calls,
         (unsigned int)variadic_arguments,
-        (unsigned int)long_double_returns);
+        (unsigned int)long_double_returns,
+        (unsigned int)long_double_literals);
     return 1;
   }
   return 0;
@@ -26934,6 +26941,13 @@ static int run_floating_transport(const char *host_root) {
       "long double long_double_identity(long double value) {\n"
       "  return value;\n"
       "}\n"
+      "long double long_double_literal_one(void) { return 1.0L; }\n"
+      "long double long_double_literal_precise(void) {\n"
+      "  return 1.0000000000000000001L;\n"
+      "}\n"
+      "long double long_double_literal_maximum(void) {\n"
+      "  return 18446744073709551615e0L;\n"
+      "}\n"
       "void long_double_open_calls(long double value,\n"
       "                            long_double_open_callback callback) {\n"
       "  long_double_open_sink(value);\n"
@@ -27037,7 +27051,12 @@ static int run_floating_transport(const char *host_root) {
         "int bad(_Atomic float value) { if (value) return 1; return 0; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
        0u, 0u,
-       "atomic floating controlling expressions are outside this body slice"}};
+       "atomic floating controlling expressions are outside this body slice"},
+      {{"long double literal beyond bounded precision",
+        "long double bad(void) { return 1.00000000000000000001L; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       1u, 32u,
+       "decimal floating constant exceeds the supported precision"}};
   frontend_fixture_t fixture;
   ctool_c_translation_unit_t unit;
   ctool_c_translation_unit_t promotion_unit;

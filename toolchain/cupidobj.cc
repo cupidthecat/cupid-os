@@ -723,6 +723,249 @@ static ctool_status_t obj_extract_failure(
   return obj_emit_failure(job, source, status, code, column, message);
 }
 
+static ctool_bool obj_jpeg_frame_marker(ctool_u8 marker) {
+  switch (marker) {
+  case 0xc0u:
+  case 0xc1u:
+  case 0xc2u:
+  case 0xc3u:
+  case 0xc5u:
+  case 0xc6u:
+  case 0xc7u:
+  case 0xc9u:
+  case 0xcau:
+  case 0xcbu:
+  case 0xcdu:
+  case 0xceu:
+  case 0xcfu:
+    return CTOOL_TRUE;
+  default:
+    return CTOOL_FALSE;
+  }
+}
+
+static ctool_status_t obj_jpeg_marker_failure(
+    ctool_job_t *job, const ctool_source_t *source, ctool_status_t status,
+    ctool_u32 code, ctool_u32 column, const char *prefix, ctool_u8 marker,
+    const char *suffix) {
+  static const char digits[] = "0123456789abcdef";
+  char message[128];
+  ctool_string_t prefix_text = ctool_string(prefix);
+  ctool_string_t suffix_text = ctool_string(suffix);
+  ctool_u32 index;
+  ctool_u32 cursor = 0u;
+  if (prefix_text.size + suffix_text.size + 5u >
+      (ctool_u32)sizeof(message)) {
+    return obj_emit_failure(job, source, CTOOL_ERR_LIMIT,
+                            CTOOL_OBJ_DIAG_LIMIT, column,
+                            "CupidObj JPEG diagnostic is too long");
+  }
+  for (index = 0u; index < prefix_text.size; index++) {
+    message[cursor] = prefix_text.data[index];
+    cursor++;
+  }
+  message[cursor] = '0';
+  message[cursor + 1u] = 'x';
+  message[cursor + 2u] = digits[(marker >> 4u) & 0x0fu];
+  message[cursor + 3u] = digits[marker & 0x0fu];
+  cursor += 4u;
+  for (index = 0u; index < suffix_text.size; index++) {
+    message[cursor] = suffix_text.data[index];
+    cursor++;
+  }
+  message[cursor] = '\0';
+  return obj_emit_failure(job, source, status, code, column, message);
+}
+
+static ctool_status_t obj_validate_jpeg(ctool_job_t *job,
+                                         const ctool_source_t *source) {
+  ctool_bytes_t contents = source->contents;
+  ctool_u32 offset = 2u;
+  ctool_u32 frame_offset = 0u;
+  ctool_u8 frame_marker = 0u;
+  ctool_bool saw_scan = CTOOL_FALSE;
+  ctool_bool saw_eoi = CTOOL_FALSE;
+
+  if (contents.size < 2u || contents.data[0] != 0xffu ||
+      contents.data[1] != 0xd8u) {
+    return obj_emit_failure(job, source, CTOOL_ERR_INPUT,
+                            CTOOL_OBJ_DIAG_INVALID_INPUT, 0u,
+                            "JPEG input has no SOI marker");
+  }
+  while (offset < contents.size) {
+    ctool_u32 marker_offset = offset;
+    ctool_u32 segment_size;
+    ctool_u8 marker;
+    if (contents.data[offset] != 0xffu) {
+      return obj_emit_failure(
+          job, source, CTOOL_ERR_INPUT, CTOOL_OBJ_DIAG_INVALID_INPUT,
+          offset, "JPEG marker stream is malformed outside a scan");
+    }
+    while (offset < contents.size && contents.data[offset] == 0xffu) {
+      offset++;
+    }
+    if (offset >= contents.size) {
+      break;
+    }
+    marker = contents.data[offset];
+    offset++;
+    if (marker == 0x00u) {
+      return obj_emit_failure(
+          job, source, CTOOL_ERR_INPUT, CTOOL_OBJ_DIAG_INVALID_INPUT,
+          marker_offset,
+          "JPEG marker stream contains stuffed data before a scan");
+    }
+    if (marker == 0xd9u) {
+      saw_eoi = CTOOL_TRUE;
+      if (offset != contents.size) {
+        return obj_emit_failure(
+            job, source, CTOOL_ERR_INPUT, CTOOL_OBJ_DIAG_INVALID_INPUT,
+            offset, "JPEG input has trailing bytes after the EOI marker");
+      }
+      break;
+    }
+    if (marker == 0x01u || marker == 0xd8u ||
+        (marker >= 0xd0u && marker <= 0xd7u)) {
+      if (marker != 0x01u) {
+        return obj_jpeg_marker_failure(
+            job, source, CTOOL_ERR_INPUT, CTOOL_OBJ_DIAG_INVALID_INPUT,
+            marker_offset, "unexpected standalone JPEG marker ", marker,
+            "");
+      }
+      continue;
+    }
+    if (contents.size - offset < 2u) {
+      return obj_emit_failure(job, source, CTOOL_ERR_INPUT,
+                              CTOOL_OBJ_DIAG_INVALID_INPUT, marker_offset,
+                              "JPEG marker length is truncated");
+    }
+    segment_size = ((ctool_u32)contents.data[offset] << 8u) |
+                   (ctool_u32)contents.data[offset + 1u];
+    if (segment_size < 2u || segment_size > contents.size - offset) {
+      return obj_emit_failure(job, source, CTOOL_ERR_INPUT,
+                              CTOOL_OBJ_DIAG_INVALID_INPUT, marker_offset,
+                              "JPEG marker length is invalid");
+    }
+    if (obj_jpeg_frame_marker(marker) == CTOOL_TRUE) {
+      ctool_u32 component_count;
+      if (frame_marker != 0u) {
+        return obj_emit_failure(
+            job, source, CTOOL_ERR_INPUT, CTOOL_OBJ_DIAG_INVALID_INPUT,
+            marker_offset, "JPEG input contains more than one frame header");
+      }
+      if (segment_size < 8u) {
+        return obj_emit_failure(job, source, CTOOL_ERR_INPUT,
+                                CTOOL_OBJ_DIAG_INVALID_INPUT, marker_offset,
+                                "JPEG frame header is truncated");
+      }
+      component_count = (ctool_u32)contents.data[offset + 7u];
+      if (component_count == 0u ||
+          segment_size != 8u + 3u * component_count) {
+        return obj_emit_failure(
+            job, source, CTOOL_ERR_INPUT, CTOOL_OBJ_DIAG_INVALID_INPUT,
+            marker_offset,
+            "JPEG frame header has an invalid component table");
+      }
+      if (contents.data[offset + 2u] == 0u) {
+        return obj_emit_failure(
+            job, source, CTOOL_ERR_INPUT, CTOOL_OBJ_DIAG_INVALID_INPUT,
+            marker_offset,
+            "JPEG frame header has an invalid sample precision");
+      }
+      if ((contents.data[offset + 3u] == 0u &&
+           contents.data[offset + 4u] == 0u) ||
+          (contents.data[offset + 5u] == 0u &&
+           contents.data[offset + 6u] == 0u)) {
+        return obj_emit_failure(job, source, CTOOL_ERR_INPUT,
+                                CTOOL_OBJ_DIAG_INVALID_INPUT, marker_offset,
+                                "JPEG frame header has an invalid image size");
+      }
+      frame_marker = marker;
+      frame_offset = marker_offset;
+    }
+    if (marker == 0xdau) {
+      ctool_u32 scan_components;
+      if (frame_marker == 0u) {
+        return obj_emit_failure(job, source, CTOOL_ERR_INPUT,
+                                CTOOL_OBJ_DIAG_INVALID_INPUT, marker_offset,
+                                "JPEG scan appears before its frame header");
+      }
+      if (segment_size < 6u) {
+        return obj_emit_failure(job, source, CTOOL_ERR_INPUT,
+                                CTOOL_OBJ_DIAG_INVALID_INPUT, marker_offset,
+                                "JPEG scan header is truncated");
+      }
+      scan_components = (ctool_u32)contents.data[offset + 2u];
+      if (scan_components == 0u ||
+          segment_size != 6u + 2u * scan_components) {
+        return obj_emit_failure(
+            job, source, CTOOL_ERR_INPUT, CTOOL_OBJ_DIAG_INVALID_INPUT,
+            marker_offset,
+            "JPEG scan header has an invalid component table");
+      }
+      saw_scan = CTOOL_TRUE;
+      offset += segment_size;
+      while (offset < contents.size) {
+        ctool_u32 scan_marker_offset;
+        ctool_u8 scan_marker;
+        if (contents.data[offset] != 0xffu) {
+          offset++;
+          continue;
+        }
+        scan_marker_offset = offset;
+        while (offset < contents.size && contents.data[offset] == 0xffu) {
+          offset++;
+        }
+        if (offset >= contents.size) {
+          return obj_emit_failure(
+              job, source, CTOOL_ERR_INPUT, CTOOL_OBJ_DIAG_INVALID_INPUT,
+              scan_marker_offset,
+              "JPEG entropy data ends with a partial marker");
+        }
+        scan_marker = contents.data[offset];
+        offset++;
+        if (scan_marker == 0x00u ||
+            (scan_marker >= 0xd0u && scan_marker <= 0xd7u)) {
+          continue;
+        }
+        offset = scan_marker_offset;
+        break;
+      }
+      continue;
+    }
+    offset += segment_size;
+  }
+
+  if (frame_marker == 0xc2u) {
+    return obj_emit_failure(
+        job, source, CTOOL_ERR_UNSUPPORTED, CTOOL_OBJ_DIAG_UNSUPPORTED,
+        frame_offset,
+        "unsupported progressive JPEG frame; check in a baseline SOF0/SOF1 asset");
+  }
+  if (frame_marker != 0xc0u && frame_marker != 0xc1u) {
+    if (frame_marker == 0u) {
+      return obj_emit_failure(
+          job, source, CTOOL_ERR_INPUT, CTOOL_OBJ_DIAG_INVALID_INPUT, 0u,
+          "JPEG input has no supported SOF0/SOF1 frame");
+    }
+    return obj_jpeg_marker_failure(
+        job, source, CTOOL_ERR_UNSUPPORTED, CTOOL_OBJ_DIAG_UNSUPPORTED,
+        frame_offset, "unsupported JPEG frame marker ", frame_marker,
+        "; check in a baseline SOF0/SOF1 asset");
+  }
+  if (saw_scan == CTOOL_FALSE) {
+    return obj_emit_failure(job, source, CTOOL_ERR_INPUT,
+                            CTOOL_OBJ_DIAG_INVALID_INPUT, 0u,
+                            "JPEG input has no scan");
+  }
+  if (saw_eoi == CTOOL_FALSE) {
+    return obj_emit_failure(job, source, CTOOL_ERR_INPUT,
+                            CTOOL_OBJ_DIAG_INVALID_INPUT, 0u,
+                            "JPEG input has no EOI marker");
+  }
+  return CTOOL_OK;
+}
+
 static ctool_status_t obj_wrap(
     ctool_job_t *job, const ctool_obj_request_t *request,
     ctool_buffer_t *output, ctool_obj_result_t *result_out) {
@@ -771,6 +1014,13 @@ static ctool_status_t obj_wrap(
     return obj_emit_failure(job, request->input, CTOOL_ERR_INPUT,
                             CTOOL_OBJ_DIAG_SYMBOL_COLLISION, 0u,
                             "CupidObj wrapped symbol names collide");
+  }
+
+  if (request->operation == CTOOL_OBJ_WRAP_JPEG) {
+    status = obj_validate_jpeg(job, request->input);
+    if (status != CTOOL_OK) {
+      return status;
+    }
   }
 
   if (request->operation == CTOOL_OBJ_WRAP_TEXT) {
@@ -2128,7 +2378,8 @@ ctool_status_t ctool_obj_transform(ctool_job_t *job,
   }
   output_mark = ctool_buffer_mark(output);
   if (request->operation == CTOOL_OBJ_WRAP_BINARY ||
-      request->operation == CTOOL_OBJ_WRAP_TEXT) {
+      request->operation == CTOOL_OBJ_WRAP_TEXT ||
+      request->operation == CTOOL_OBJ_WRAP_JPEG) {
     status = obj_wrap(job, request, output, result_out);
   } else if (request->operation == CTOOL_OBJ_EXTRACT_FLAT) {
     status = obj_extract_flat(job, request, output, result_out);

@@ -4481,6 +4481,46 @@ static ctool_status_t cemit_x86_push_wide_constant_snapshot(
   return status;
 }
 
+static ctool_status_t cemit_x86_push_long_double_constant_snapshot(
+    cemit_context_t *context, ctool_u32 temporary_offset,
+    ctool_u64 significand, ctool_u32 biased_exponent) {
+  ctool_status_t status;
+  if (temporary_offset < 12u || temporary_offset > 0x7fffffffu ||
+      (temporary_offset & 3u) != 0u || biased_exponent > 0x7ffeu) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  status = cemit_x86_move_register_constant(
+      context, 0u, (ctool_u32)(significand & 0xffffffffu));
+  if (status == CTOOL_OK) {
+    status = cemit_x86_store_local_register(
+        context, temporary_offset, 0u, 0u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_move_register_constant(
+        context, 0u, (ctool_u32)(significand >> 32u));
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_store_local_register(
+        context, temporary_offset, 4u, 0u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_move_register_constant(
+        context, 0u, biased_exponent);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_store_local_register(
+        context, temporary_offset, 8u, 0u);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_lea_local(context, temporary_offset);
+  }
+  if (status == CTOOL_OK) {
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_PUSH, CTOOL_X86_REG_GPR32, 0u, 32u);
+  }
+  return status;
+}
+
 static ctool_status_t cemit_x86_push_wide_result_snapshot(
     cemit_context_t *context, ctool_u32 temporary_offset) {
   ctool_status_t status;
@@ -11854,6 +11894,10 @@ static ctool_status_t cemit_emit_ir_instruction(
       ir_instruction->argument_count != 0u) {
     return CTOOL_ERR_INTERNAL;
   }
+  if (ir_instruction->kind != CTOOL_C_IR_INSTRUCTION_FLOATING &&
+      ir_instruction->floating_high_bits != 0u) {
+    return CTOOL_ERR_INTERNAL;
+  }
   if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_ASSEMBLY) {
     return cemit_emit_assembly(
         context, ir_instruction, value_temporary_offset);
@@ -12884,7 +12928,8 @@ static ctool_status_t cemit_emit_ir_instruction(
             : (const ctool_c_type_layout_t *)0;
     if (type == (const ctool_c_type_node_t *)0 ||
         (type->kind != CTOOL_C_TYPE_FLOAT &&
-         type->kind != CTOOL_C_TYPE_DOUBLE) ||
+         type->kind != CTOOL_C_TYPE_DOUBLE &&
+         type->kind != CTOOL_C_TYPE_LONG_DOUBLE) ||
         layout == (const ctool_c_type_layout_t *)0 ||
         cemit_ir_type_is_floating_value(
             context, ir_instruction->type) == CTOOL_FALSE ||
@@ -12895,16 +12940,30 @@ static ctool_status_t cemit_emit_ir_instruction(
         ir_instruction->reference != CTOOL_C_AST_NONE ||
         (layout->size == 4u &&
          ir_instruction->integer_bits > 0xffffffffull) ||
-        (layout->size != 4u && layout->size != 8u)) {
+        (layout->size != 4u && layout->size != 8u &&
+         layout->size != 12u) ||
+        (layout->size != 12u &&
+         ir_instruction->floating_high_bits != 0u) ||
+        (layout->size == 12u &&
+         (ir_instruction->floating_high_bits > 0x7ffeu ||
+          (ir_instruction->floating_high_bits == 0u
+               ? ir_instruction->integer_bits != 0ull
+               : (ir_instruction->integer_bits &
+                  0x8000000000000000ull) == 0ull)))) {
       return CTOOL_ERR_INTERNAL;
     }
-    return layout->size == 4u
-               ? cemit_x86_push_integer(
-                     context,
-                     (ctool_u32)ir_instruction->integer_bits)
-               : cemit_x86_push_wide_constant_snapshot(
-                     context, value_temporary_offset,
-                     ir_instruction->integer_bits);
+    if (layout->size == 4u) {
+      return cemit_x86_push_integer(
+          context, (ctool_u32)ir_instruction->integer_bits);
+    }
+    if (layout->size == 8u) {
+      return cemit_x86_push_wide_constant_snapshot(
+          context, value_temporary_offset,
+          ir_instruction->integer_bits);
+    }
+    return cemit_x86_push_long_double_constant_snapshot(
+        context, value_temporary_offset, ir_instruction->integer_bits,
+        ir_instruction->floating_high_bits);
   }
   if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_CONVERT) {
     ctool_bool source_wide = cemit_ir_type_is_wide_integer(

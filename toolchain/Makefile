@@ -724,6 +724,7 @@ test: $(CONTRACT_MANIFEST) \
 	$(CUPIDOBJ_CONTRACT) wrap-basic
 	$(CUPIDOBJ_CONTRACT) wrap-model
 	$(CUPIDOBJ_CONTRACT) wrap-text
+	$(CUPIDOBJ_CONTRACT) wrap-jpeg
 	$(CUPIDOBJ_CONTRACT) extract-basic
 	$(CUPIDOBJ_CONTRACT) extract-fallback
 	$(CUPIDOBJ_CONTRACT) install-source

@@ -261,6 +261,27 @@ FRONTIER_RUNTIME_COMMANDS = (
         ),
     ),
     TerminalCommand(
+        "doom",
+        (
+            r"doom: no WAD found in /disk/wads/ or /home/doom/\."
+            r".*?try: doom -iwad /path/to/your\.wad"
+        ),
+    ),
+    TerminalCommand(
+        "doom -iwad /disk/missing.wad",
+        (
+            r"IWAD file '/disk/missing\.wad' not found!"
+            r".*?\[doom\] returned to shell"
+        ),
+    ),
+    TerminalCommand(
+        "ls",
+        (
+            r"\[cupidc\] JIT compile: /bin/ls\.cc"
+            rf".*?{CUPIDC_COMPLETION_PATTERN}"
+        ),
+    ),
+    TerminalCommand(
         "browser --selftest",
         (
             r"\[cupidc\] JIT compile: /bin/browser\.cc"

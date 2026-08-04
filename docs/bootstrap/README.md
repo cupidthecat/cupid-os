@@ -83,6 +83,14 @@ the cdecl word permutation, a known fixed call converts represented integer or
 `char` arguments to `float` or `double`, converts between the two floating
 widths, and truncates a floating value for an `int` or `char` parameter.
 Represented pointer categories and integer null forms can fill a pointer slot.
+A represented object pointer can fill a fixed `int` or `unsigned int` slot as
+one unchanged i386 word. Narrow and floating destinations remain rejected, so
+this is an address-transport rule rather than a general numeric conversion.
+The existing represented pointer-category rule is unchanged. The unchanged
+`/bin/ctxt.cc` call to `ctxt_parse_action` reaches this coercion boundary.
+That file is an include fragment, while `/bin/notepad.cc` includes it and
+passes private AOT compilation. ADR 0230 records the rule and the corrected
+census interpretation.
 A parsed variadic tail widens `float` to `double` and promotes `char` to `int`.
 Function-pointer calls, kernel bindings, and calls without fixed parameter
 metadata keep their source-width slots. Character operands undergo integer
@@ -262,7 +270,11 @@ four-byte input path stays exact across `0x80000000` by converting its upper
 truncated value into high and low words around exact powers of two.
 
 Non-atomic automatic `long double` objects use twelve-byte storage and x87
-80-bit memory forms. They support conversion among the three floating widths,
+80-bit memory forms. Bounded finite normal decimal `L` tokens round an exact
+integer ratio to a 64-bit explicit significand with ties to even. The frontend
+and Linear IR keep that significand and the positive token's biased exponent;
+the emitter writes three exact words to a twelve-byte snapshot before an
+80-bit load. They support conversion among the three floating widths,
 unary plus and minus, and addition, subtraction, multiplication, and division.
 Direct and indirect fixed, variadic, and unprototyped arguments occupy twelve
 cdecl bytes. Functions return a `long double` in x87 `ST0`, and direct or
@@ -280,8 +292,9 @@ unordered input. Runtime `float`, `double`, and automatic `long double` values
 also serve unary `!`, `&&`, `||`, the controlling operand of `?:`, the
 conditions of `if`, `while`, `do`, and `for`, and conversion to `_Bool`. Both signed zeros are false;
 finite nonzero values, subnormals, infinities, and NaNs are true. Hexadecimal
-floating literals, `long double` literals, nonzero or floating static
-long-double initializers, integer conversions involving `long double` other
+floating literals, binary32 and binary64 subnormal literals, hexadecimal or
+subnormal long-double literals, decimals beyond the bounded ratio parser,
+nonzero or floating static long-double initializers, integer conversions involving `long double` other
 than `_Bool`, runtime conversion to unsigned four-byte integers, other
 floating-to-wide conversions, increment and decrement, SIMD, floating atomics,
 and over-aligned floating objects remain open. ADR 0202 records the truth
@@ -307,6 +320,8 @@ records decimal scalar constants and integer conversion, ADR 0136 records
 static floating constant data, ADR 0137 records comparisons, ADR 0147 records
 static arithmetic, ADR 0170 records the unsigned-wide cast, and ADR 0196
 records the automatic `long double` slice.
+[ADR 0229](../adr/0229-emit-exact-decimal-long-double-literals.md) records
+the bounded decimal literal representation and exact object proof.
 
 The self-host source frontier first closed five requirements from unchanged Toolchain code. Supported structure snapshots retain nested union bytes, and a scalar member can be loaded from a returned structure snapshot. A direct four-byte literal zero can form a represented null function pointer. An object pointer can convert to a signed or unsigned eight-byte integer with a zero high word, and conversion back keeps the low word. Compatible static character and void pointers accept an ordinary string literal through parentheses and macro expansion. At that boundary, top-level union values, aggregate members from structure rvalues, nonzero function-pointer casts, function-pointer and wide-integer conversions, and arithmetic or explicit casts on static string addresses remained open. ADR 0081 records that earlier language boundary.
 
@@ -413,6 +428,14 @@ adds transactional kernel-symbol source generation. Its SHA-256 is
 `a8de7de19d1ffbec90f0603f0f796f4a03fa74b8181c62f0f395b22a52423d1d`.
 [ADR 0228](../adr/0228-promote-cupid-types-and-shrd-toolchain-seed.md)
 records the current transition and promotion.
+
+Source-head CupidObj also provides `wrap-jpeg`. It validates one sequential
+SOF0 or SOF1 frame, a scan, entropy stuffing and restart markers, and a
+terminal EOI before applying the byte-exact binary wrapper. Twenty-one useful
+rejections match the existing Python validator. The current checked seed
+predates this command, so the production JPEG recipe still uses Python for
+validation until a later seed promotion and ownership transfer. ADR 0231
+records the source capability.
 
 The post-promotion rebuild reproduced all five checked seed images at stage
 two and repeated the complete fixed point in 615.8 seconds. It used the same
@@ -944,7 +967,7 @@ shell-session envelope. ADR 0212 records the compiler boundary, ADR 0213 its
 checked-seed promotion, and ADR 0214 active adoption.
 
 The Doom production wrapper has exact three-source and 80-source allowlists.
-It freezes the selected source and all 290 `.h` and `.inc` inputs visible
+It freezes the selected source and all 291 `.h` and `.inc` inputs visible
 through the profiles' 20 include roots. The 69,366-byte input manifest has
 SHA-256
 `e77c8a0dc238b1a6f2257f273cf3367dba930c914e6a5806adf058621bbff4a4`.
@@ -973,18 +996,22 @@ will not replace an entry while a reader still owns it. A failed block-cache
 read cannot corrupt the identity of a dirty victim because new data is staged
 before publication. ADR 0211 records these storage rules.
 
-Private four-CPU e1000 and RTL8139 boots cover the complete runtime frontier.
-Each no-WAD boot returns from two consecutive missing-IWAD errors and then
-completes the expanded dglibc/storage diagnostic. Separate frontier boots pass
+Earlier private four-CPU e1000 and RTL8139 boots covered the complete runtime
+frontier. Each no-WAD boot returned from two consecutive missing-IWAD errors
+and then completed the expanded dglibc/storage diagnostic. Separate frontier boots passed
 after swap holds one FAT handle open; they also record framebuffer changes and
 both audio paths. The repository has no WAD, so gameplay, game input, game
 audio, menu-driven save/load, and persistence across reboot remain open. FAT
 publication ordering has source and guest coverage but no injected power-cut
 proof.
+The fixed asset-free command sequence now runs `doom`, an explicit
+`doom -iwad /disk/missing.wad`, requires the shell-return marker, and then
+runs a fresh CupidC-built `ls`. Its contracts prevent the earlier `ls`
+completion from satisfying the recovery check. ADR 0232 records this gate.
 
 The block-static object proof emits eleven exact local symbols, from `.LBS0.hex` through `.LBS10.unused`. Its sections contain 21 bytes of read-only data, 56 bytes of initialized writable data, and 4 bytes of zero-filled storage. Ten text, one read-only-data, and five data relocations are all direct `R_386_32` references with addend zero. The fixture covers shadowed names, unused and unreachable objects, aggregate and string initializers, linked and unresolved addresses, runtime reads and writes, and an unused eight-byte image. A referenced eight-byte block static now lowers through the wide snapshot path. Missing, out-of-range, mistyped, runtime-initialized, and constrained-output cases still fail transactionally. The unchanged `dis_hex_fixed` helper in `toolchain/cupiddis.cc` pins the active constant character array.
 
-All twelve shared hosted Toolchain implementation files parse completely. Each tuple reports definitions, statements, expressions, block bindings, and initializers: `ctool.cc` 65/1,012/5,981/133/33, `cupidasm.cc` 82/3,054/20,124/338/190, `cupidc_emit.cc` 358/8,916/74,933/1,097/737, `cupidc_frontend.cc` 426/16,698/110,268/2,498/1,521, `cupidc_ir.cc` 263/7,274/67,702/956/356, `cupidc_pp.cc` 143/3,932/25,287/479/286, `cupidc_type.cc` 31/737/5,487/85/43, `cupiddis.cc` 71/1,594/10,331/162/124, `cupidld.cc` 66/2,064/13,347/267/146, `cupidobj.cc` 59/1,475/10,216/196/112, `elf32.cc` 37/1,219/9,457/143/70, and `x86.cc` 60/1,766/11,903/180/16,892. The generated audit records the current lexical totals and source graph. They now belong to the actual i386 Linux profile and feed both the five-tool fixed point and the Cupid-built contract cohort.
+All twelve shared hosted Toolchain implementation files parse completely. Each tuple reports definitions, statements, expressions, block bindings, and initializers: `ctool.cc` 65/1,012/5,981/133/33, `cupidasm.cc` 82/3,054/20,124/338/190, `cupidc_emit.cc` 359/8,953/75,214/1,098/737, `cupidc_frontend.cc` 426/16,715/110,486/2,501/1,521, `cupidc_ir.cc` 263/7,281/67,825/957/357, `cupidc_pp.cc` 143/3,932/25,287/479/286, `cupidc_type.cc` 31/737/5,487/85/43, `cupiddis.cc` 71/1,594/10,331/162/124, `cupidld.cc` 66/2,064/13,347/267/146, `cupidobj.cc` 62/1,652/11,301/215/123, `elf32.cc` 37/1,219/9,457/143/70, and `x86.cc` 60/1,766/11,903/180/16,892. The generated audit records the current lexical totals and source graph. They now belong to the actual i386 Linux profile and feed both the five-tool fixed point and the Cupid-built contract cohort.
 
 The shared frontend treats C11 `<:` and `:>` spellings as canonical brackets across array declarators, subscripts, and the explicit unsupported `__builtin_offsetof` array-designator seam while leaving the immutable preprocessing tape's original token spelling untouched. Strict-C contracts cover mixed and full digraph forms plus malformed and non-pointer subscripts. Compound/update diagnostics distinguish valid but deferred floating `*=`, `/=`, `+=`, `-=`, and updates from invalid floating remainder, shift, bitwise, or aggregate compound/update operands. Compatible aggregate plain assignment is represented without weakening those constraints.
 
@@ -1091,8 +1118,10 @@ had rewritten differently on the two systems. The repository stores the
 equivalent sequential baseline bytes. Hostbuild accepts structurally checked
 SOF0 or SOF1 input, copies it exactly, and rejects progressive, unsupported,
 or malformed marker streams before checked CupidObj wraps the private
-snapshot. The root
-build no longer calls FFmpeg, `jpegtran`, `djpeg`, or `cjpeg`. The Linux
+snapshot. Source-head CupidObj now has an equivalent transactional
+`wrap-jpeg` operation, but the checked seed and production recipe have not yet
+moved to it. The root build no longer calls FFmpeg, `jpegtran`, `djpeg`, or
+`cjpeg`. The Linux
 kernel build passed in 607.7 seconds, and the Windows root build passed in
 341.6 seconds. All 430 frozen kernel artifacts match byte for byte.
 
@@ -1106,7 +1135,7 @@ records the complete artifact table, log identity, and layout headroom.
 The canonical active-source digest for this graph is
 `7caa739641b278914bdabea9686992a14b5f8ab22acac5f5a27a1884cd26b566`.
 
-External-inline policy now follows translation-unit finalization described by [ADR 0131](../adr/0131-finalize-c11-external-inline-definitions.md). The frontend recognizes external definitions across compatible declaration sets, preserves inherited internal linkage, and rejects an external-linkage inline declaration without a definition. Iterative memoized type relations normalize C qualifier spellings while retaining atomic parameter identity, distinguish strict typedef identity from compatibility, apply old-style/default-promotion rules, accept a 512-level derived pointer graph, and construct symbol-local immutable array/function composite types without corrupting shared typedefs. Transactional tests cover precise conflicts, lexical-scope duplicates and expiry, automatic and static initializer forests, explicit and tentative file definitions, binding addresses, scalar and aggregate return or assignment legality, recursive aggregate modifiability, pointer arithmetic and comparison constraints, conditional association and conversions, loop and switch constraints, direct jumps and label scope, compound/update constraints, malformed literals, unsupported local storage forms, ownership, deep syntax, constrained output, rollback, and recovery. Runtime expression values carry private integer-constant-expression form and value metadata. A represented zero expression, or that expression cast to non-atomic `void *`, becomes a null pointer constant. Comparisons, conditionals, returns, calls, assignments, and automatic initializers publish a destination-typed `CTOOL_C_CONVERSION_NULL_POINTER`; static explicit nulls publish `ZERO` records and discard their temporary expression AST. Comma expressions now evaluate left to right and retain the last operand, and known-true loops preserve non-fallthrough reachability. GNU `weak`, `section`, and `unused` attributes publish canonical entity metadata; exact output-only assembly can snapshot represented i386 register and EFLAGS state. The constant and body expression grammars remain intentionally partial, and namespace and member lookup remain linear. Chained designated paths, promoted anonymous members, duplicate overrides, positional union or Cupid class lists, static member-address constants outside the block-static symbol path, integer-routed and other unrepresented address casts, automatic bases, runtime offsets and subscripts, block declaration attributes, nested function definitions, computed goto and GNU label addresses, broader GNU assembly forms, hexadecimal and subnormal floating constants, long-double literals, nonzero or floating static long-double initializers, integer conversions involving long double other than `_Bool`, remaining integer and floating conversions, nonempty identifier-list definitions, non-scalar arguments without declared parameter types, aggregate variadic reads, block assertions, variable-length arrays and runtime `sizeof`, the remaining GNU attributes, complete Cupid extensions, complete AST and IR coverage, broader function code generation, full translation-unit emission, and production integration remain later work. The shared hosted path owns the 155-source strict non-Doom cohort, all 83 Doom roots, the generated kernel symbol translation, and the six checked generated-install or user translations; the private kernel compiler remains the embedded runtime JIT and AOT path. ADR 0196 adds block-static address initializers, earlier static `const` integer reuse, automatic `long double` transport, and zero-filled static long-double objects without claiming the broader forms. ADR 0199 adds non-atomic long-double comparisons. ADR 0202 adds floating truth, controlling operands, and conversion to `_Bool` at all three represented widths.
+External-inline policy now follows translation-unit finalization described by [ADR 0131](../adr/0131-finalize-c11-external-inline-definitions.md). The frontend recognizes external definitions across compatible declaration sets, preserves inherited internal linkage, and rejects an external-linkage inline declaration without a definition. Iterative memoized type relations normalize C qualifier spellings while retaining atomic parameter identity, distinguish strict typedef identity from compatibility, apply old-style/default-promotion rules, accept a 512-level derived pointer graph, and construct symbol-local immutable array/function composite types without corrupting shared typedefs. Transactional tests cover precise conflicts, lexical-scope duplicates and expiry, automatic and static initializer forests, explicit and tentative file definitions, binding addresses, scalar and aggregate return or assignment legality, recursive aggregate modifiability, pointer arithmetic and comparison constraints, conditional association and conversions, loop and switch constraints, direct jumps and label scope, compound/update constraints, malformed literals, unsupported local storage forms, ownership, deep syntax, constrained output, rollback, and recovery. Runtime expression values carry private integer-constant-expression form and value metadata. A represented zero expression, or that expression cast to non-atomic `void *`, becomes a null pointer constant. Comparisons, conditionals, returns, calls, assignments, and automatic initializers publish a destination-typed `CTOOL_C_CONVERSION_NULL_POINTER`; static explicit nulls publish `ZERO` records and discard their temporary expression AST. Comma expressions now evaluate left to right and retain the last operand, and known-true loops preserve non-fallthrough reachability. GNU `weak`, `section`, and `unused` attributes publish canonical entity metadata; exact output-only assembly can snapshot represented i386 register and EFLAGS state. The constant and body expression grammars remain intentionally partial, and namespace and member lookup remain linear. Chained designated paths, promoted anonymous members, duplicate overrides, positional union or Cupid class lists, static member-address constants outside the block-static symbol path, integer-routed and other unrepresented address casts, automatic bases, runtime offsets and subscripts, block declaration attributes, nested function definitions, computed goto and GNU label addresses, broader GNU assembly forms, hexadecimal floating constants, binary32 and binary64 subnormal literals, hexadecimal or subnormal long-double literals, long-double decimal ratios beyond the bounded parser, nonzero or floating static long-double initializers, integer conversions involving long double other than `_Bool`, remaining integer and floating conversions, nonempty identifier-list definitions, non-scalar arguments without declared parameter types, aggregate variadic reads, block assertions, variable-length arrays and runtime `sizeof`, the remaining GNU attributes, complete Cupid extensions, complete AST and IR coverage, broader function code generation, full translation-unit emission, and production integration remain later work. The shared hosted path owns the 155-source strict non-Doom cohort, all 83 Doom roots, the generated kernel symbol translation, and the six checked generated-install or user translations; the private kernel compiler remains the embedded runtime JIT and AOT path. ADR 0196 adds block-static address initializers, earlier static `const` integer reuse, automatic `long double` transport, and zero-filled static long-double objects without claiming the broader forms. ADR 0199 adds non-atomic long-double comparisons. ADR 0202 adds floating truth, controlling operands, and conversion to `_Bool` at all three represented widths.
 
 The latest local normal build completed in 922.8 seconds. Its 8,929,588-byte
 pass-one ELF has SHA-256
@@ -1415,7 +1444,7 @@ ELF32 object with SHA-256
 `84daa51a65d6970ae7a7918b05fe64b7676c39d3309264375e349cf0ae20d428`.
 The checked seed carries this capability, and the normal panic recipe uses it.
 
-The body operator ladder uses checked value/operator vectors and an iterative precedence reducer. A recursive wrapper per precedence tier was rejected after the established 256-deep nested-call contract exhausted the default Windows host stack before reaching its transactional syntax-limit diagnostic. The iterative reducer keeps binary chains bounded by job storage while calls, parentheses, unary nesting, and assignment continue to consume the explicit 256-level budget. A 4,096-operator flat addition oracle publishes 8,193 left-associated postorder expressions and 8,192 child references; a 256-byte output ceiling on the same source proves one limit diagnostic, complete arena/scratch rollback, tape and prior-result preservation, and same-job recovery. High-bit ordinary character bytes sign-extend into signed target `int`; compatible enum/integer assignment retains an explicit destination conversion; and freeze requires every assignment's `computation_type` to equal its result type. Valid decimal normal `float` and `double` constants now publish exact bits. Hexadecimal, subnormal, and `long double` constants and floating logical operands retain distinct unsupported diagnostics.
+The body operator ladder uses checked value/operator vectors and an iterative precedence reducer. A recursive wrapper per precedence tier was rejected after the established 256-deep nested-call contract exhausted the default Windows host stack before reaching its transactional syntax-limit diagnostic. The iterative reducer keeps binary chains bounded by job storage while calls, parentheses, unary nesting, and assignment continue to consume the explicit 256-level budget. A 4,096-operator flat addition oracle publishes 8,193 left-associated postorder expressions and 8,192 child references; a 256-byte output ceiling on the same source proves one limit diagnostic, complete arena/scratch rollback, tape and prior-result preservation, and same-job recovery. High-bit ordinary character bytes sign-extend into signed target `int`; compatible enum/integer assignment retains an explicit destination conversion; and freeze requires every assignment's `computation_type` to equal its result type. Valid decimal normal `float` and `double` constants publish exact target bits. Bounded decimal normal `long double` constants publish their exact 64-bit explicit significand and biased x87 exponent. Hexadecimal and subnormal floating constants, plus decimal ratios beyond the bounded parser, retain focused unsupported diagnostics.
 
 The call subset accepts fixed prototypes, direct or indirect variadic prototypes, and function types without prototypes. It applies the shared scalar or compatible aggregate assignment conversion to named parameters. Ellipsis arguments and every argument without a declared parameter type receive lvalue conversion, array and function decay, integer promotion, and `float` to `double` promotion as required before IR accepts four-byte integers and pointers, signed or unsigned eight-byte integers, `double`, or automatic `long double`. Aggregate transport at those call boundaries remains open. Lvalue conversion removes top-level `const`, `volatile`, and `_Atomic` from the result while retaining the qualified source child, and nested calls consume the shared 256-level syntax budget instead of recursing without a host-stack bound.
 

@@ -1177,6 +1177,8 @@ def _run_behavior_checks(
         _expect_status(help_result, 0, f"{tool_name} help")
         if not help_result.stdout or help_result.stderr:
             raise BootstrapError(f"{tool_name} help output differs")
+        if tool_name == "cupidobj" and "wrap-jpeg" not in help_result.stdout:
+            raise BootstrapError("cupidobj help omits wrap-jpeg")
 
     valid_source = behavior_root / "valid.c"
     invalid_source = behavior_root / "invalid.c"
@@ -1299,10 +1301,16 @@ def _run_behavior_checks(
     ):
         raise BootstrapError("CupidDis raw report differs")
 
-    asset = behavior_root / "asset.bin"
+    jpeg_payload = (
+        b"\xff\xd8"
+        b"\xff\xc0\x00\x0b\x08\x00\x01\x00\x01\x01\x01\x11\x00"
+        b"\xff\xda\x00\x08\x01\x01\x00\x00\x3f\x00"
+        b"\xff\xd9"
+    )
+    asset = behavior_root / "asset.jpg"
     stage_two_wrapped = behavior_root / "stage-two-wrapped.o"
     stage_three_wrapped = behavior_root / "stage-three-wrapped.o"
-    asset.write_bytes(b"Cupid fixed point\x00")
+    asset.write_bytes(jpeg_payload)
     wrap_result = _run_stage_pair(
         runner,
         stage_two,
@@ -1340,6 +1348,93 @@ def _run_behavior_checks(
     ):
         raise BootstrapError("CupidObj binary wrap differs")
     _validate_i386_relocatable(stage_two_wrapped)
+
+    stage_two_jpeg = behavior_root / "stage-two-jpeg.o"
+    stage_three_jpeg = behavior_root / "stage-three-jpeg.o"
+    jpeg_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupidobj",
+        [
+            "wrap-jpeg",
+            asset,
+            "--stem",
+            "fixed_point_asset",
+            "--section",
+            ".rodata",
+            "--readonly",
+            "-o",
+            stage_two_jpeg,
+        ],
+        [
+            "wrap-jpeg",
+            asset,
+            "--stem",
+            "fixed_point_asset",
+            "--section",
+            ".rodata",
+            "--readonly",
+            "-o",
+            stage_three_jpeg,
+        ],
+    )
+    _expect_status(jpeg_result, 0, "CupidObj JPEG wrap")
+    if (
+        jpeg_result.stdout
+        or jpeg_result.stderr
+        or stage_two_jpeg.read_bytes() != stage_three_jpeg.read_bytes()
+        or stage_two_jpeg.read_bytes() != stage_two_wrapped.read_bytes()
+    ):
+        raise BootstrapError("CupidObj JPEG wrap differs")
+    _validate_i386_relocatable(stage_two_jpeg)
+
+    progressive_asset = behavior_root / "progressive.jpg"
+    stage_two_jpeg_failure = behavior_root / "stage-two-jpeg-failure.o"
+    stage_three_jpeg_failure = behavior_root / "stage-three-jpeg-failure.o"
+    progressive_asset.write_bytes(
+        jpeg_payload[:3] + b"\xc2" + jpeg_payload[4:]
+    )
+    stage_two_jpeg_failure.write_bytes(sentinel)
+    stage_three_jpeg_failure.write_bytes(sentinel)
+    progressive_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupidobj",
+        [
+            "wrap-jpeg",
+            progressive_asset,
+            "--stem",
+            "fixed_point_asset",
+            "--section",
+            ".rodata",
+            "--readonly",
+            "-o",
+            stage_two_jpeg_failure,
+        ],
+        [
+            "wrap-jpeg",
+            progressive_asset,
+            "--stem",
+            "fixed_point_asset",
+            "--section",
+            ".rodata",
+            "--readonly",
+            "-o",
+            stage_three_jpeg_failure,
+        ],
+    )
+    _expect_status(progressive_result, 1, "CupidObj progressive JPEG")
+    if (
+        progressive_result.stdout
+        or "unsupported progressive JPEG frame; "
+        "check in a baseline SOF0/SOF1 asset"
+        not in progressive_result.stderr
+        or stage_two_jpeg_failure.read_bytes() != sentinel
+        or stage_three_jpeg_failure.read_bytes() != sentinel
+    ):
+        raise BootstrapError("CupidObj JPEG failure behavior differs")
 
     link_source = behavior_root / "start.asm"
     stage_two_link_object = behavior_root / "stage-two-start.o"
@@ -1741,9 +1836,9 @@ def _run_behavior_checks(
         raise BootstrapError("CupidObj missing-input behavior differs")
 
     return {
-        "failure_cases": 7,
+        "failure_cases": 8,
         "help_cases": 5,
-        "success_cases": 11,
+        "success_cases": 12,
     }
 
 

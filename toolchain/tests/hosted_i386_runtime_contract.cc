@@ -522,18 +522,21 @@ static unsigned int long_double_variadic_tail(int marker, ...) {
 static int long_double_contract(void) {
   long_double_result_callback callback = long_double_identity;
   long_double_result_box box;
+  floating_truth_long_box literal_box;
   static long double long_double_block_zero;
   static long double long_double_block_explicit_zero = 0;
   static long double long_double_block_array[2];
   static long_double_zero_record long_double_block_record = {
       0, 0, sizeof(float) - 4};
-  long double initial = (long double)1.5;
+  long double initial = 1.5L;
   long double direct;
   long double indirect;
-  long double lower = (long double)1.0;
-  long double higher = (long double)2.0;
-  long double zero = (long double)0.0;
-  long double negative_zero = (long double)-0.0;
+  long double lower = 1.0L;
+  long double higher = 2.0L;
+  long double zero = 0.0L;
+  long double negative_zero = -0.0L;
+  long double precise = 1.0000000000000000001L;
+  long double maximum_literal = 18446744073709551615e0L;
   long double quiet_nan;
   unsigned int comparison_index;
   unsigned int tail;
@@ -542,6 +545,20 @@ static int long_double_contract(void) {
       sizeof(long_double_file_array) != 24u ||
       sizeof(long_double_zero_record) != 28u) {
     return 701;
+  }
+  literal_box.value = precise;
+  if (literal_box.words.significand_low != 1u ||
+      literal_box.words.significand_high != 0x80000000u ||
+      literal_box.words.sign_exponent_padding != 0x00003fffu ||
+      !(precise > lower) || !(precise < higher)) {
+    return 721;
+  }
+  literal_box.value = maximum_literal;
+  if (literal_box.words.significand_low != 0xffffffffu ||
+      literal_box.words.significand_high != 0xffffffffu ||
+      literal_box.words.sign_exponent_padding != 0x0000403eu ||
+      !(maximum_literal > higher)) {
+    return 722;
   }
   box.value =
       (double)(long_double_file_array[0] +

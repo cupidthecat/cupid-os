@@ -53,8 +53,12 @@ values use frame snapshots. Static-duration scalars, fixed arrays, and
 complete records may contain long-double leaves. Implicit initialization
 zeros the complete object; an explicit leaf accepts an integer constant
 expression equal to zero. Each leaf contributes twelve zero-filled BSS bytes,
-and atomic leaves fail recursively without following pointers. The value-bearing ten bytes move
-through x87 80-bit `FLD` and `FSTP` memory forms in Cupid's shared x86
+and atomic leaves fail recursively without following pointers. Bounded finite
+normal decimal `L` tokens round an exact ratio to a 64-bit explicit
+significand with ties to even. The emitter writes that significand and the
+positive token's biased exponent into a twelve-byte snapshot; unary minus
+supplies the sign. The value-bearing ten bytes move through x87 80-bit `FLD`
+and `FSTP` memory forms in Cupid's shared x86
 catalogue. The hosted path converts among
 `float`, `double`, and `long double`, applies unary plus and minus, and
 evaluates addition, subtraction, multiplication, and division. Direct and
@@ -65,8 +69,9 @@ and leaves the cursor at the following four-byte slot. All six comparisons
 accept matching long-double values and mixed `float` or `double` inputs. The
 emitter loads right then left, executes `FUCOMIP ST0, ST1`, and discards the
 surviving x87 value. Signed zeros compare equal, and only `!=` is true for an
-unordered input. Long-double literals,
-nonzero and floating static initializers, and integer conversions
+unordered input. Hexadecimal or subnormal long-double literals, decimal
+ratios beyond the bounded parser, nonzero and floating static initializers,
+and integer conversions
 involving `long double` remain open.
 
 The static aggregate proof covers two 24-byte arrays and two 28-byte records.
@@ -236,8 +241,9 @@ Runtime `float`, `double`, and automatic `long double` values work with unary
 `!`, `&&`, `||`, the controlling operand of `?:`, the conditions of `if`,
 `while`, `do`, and `for`, and conversion to `_Bool`. Both signed zeros are false; finite nonzero values,
 subnormals, infinities, and NaNs are true. Increment or decrement,
-hexadecimal or subnormal floating constants, `long double` literals, nonzero
-or floating static long-double initializers, integer conversions involving
+hexadecimal floating constants, binary32 and binary64 subnormal constants,
+hexadecimal or subnormal long-double literals, decimal ratios beyond the
+bounded parser, nonzero or floating static long-double initializers, integer conversions involving
 `long double` other than `_Bool`, general SIMD value semantics, and atomic
 floating access remain unsupported. Twelve-byte direct
 and indirect fixed, variadic, and unprototyped arguments, function returns,
@@ -257,7 +263,9 @@ private ABI boundary.
 A direct function or method with parsed fixed parameter types converts
 represented integer, `char`, `float`, and `double` arguments to the declared
 slot type before cdecl layout. Represented pointer categories and integer null
-forms can fill a pointer slot. A parsed variadic tail widens `float` to `double`
+forms can fill a pointer slot. A represented object pointer can fill a fixed
+`int` or `unsigned int` slot as one unchanged i386 word. Narrow and floating
+destinations remain rejected. A parsed variadic tail widens `float` to `double`
 and promotes `char` to `int`. Function-pointer calls, kernel bindings, and
 calls without that metadata keep their source-width slots.
 

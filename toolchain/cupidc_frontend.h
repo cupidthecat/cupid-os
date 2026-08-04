@@ -511,12 +511,17 @@ typedef struct {
    * constant expression; CONSTANT_CONDITION_NONZERO records its truth value
    * and is valid only together with CONSTANT_CONDITION. */
   ctool_u32 semantic_flags;
-  /* INTEGER_CONSTANT and FLOATING_CONSTANT: target-width constant bit
-   * pattern. Integer types carry rank and sign. Floating types select the
-   * IEEE binary32 or binary64 representation.
+  /* INTEGER_CONSTANT and FLOATING_CONSTANT: low target-width constant bits.
+   * Integer types carry rank and sign. Float and double use the IEEE
+   * binary32 or binary64 representation. Long double uses the complete
+   * explicit 64-bit significand here and its biased exponent field below.
    * Integer constants include target-folded non-VLA layout queries.
    * ATOMIC_*: validated GNU memory-order value from zero through five. */
   ctool_u64 integer_bits;
+  /* FLOATING_CONSTANT with long-double type: the positive token's target
+   * x87 biased exponent in the low fifteen bits. A separate unary node
+   * represents a leading minus. Other expressions keep this zero. */
+  ctool_u32 floating_high_bits;
   /* STRING: decoded target bytes including the trailing null byte. */
   ctool_bytes_t string_bytes;
   /* Enumerators introduced by a type name in this expression. The slice
@@ -777,8 +782,9 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * qualification. A block-static pointer can also retain an earlier
  * block-static object's address through initializer metadata. Chained,
  * promoted, or overriding designators, union and Cupid class lists,
- * arithmetic or casts on static addresses, long-double literals and nonzero
- * or floating static long-double initializers, integer conversions involving
+ * arithmetic or casts on static addresses, hexadecimal or subnormal
+ * long-double literals, decimal ratios beyond the bounded parser, nonzero or
+ * floating static long-double initializers, integer conversions involving
  * long double, compound assignments, and updates,
  * universal-character or non-ordinary literals, non-scalar arguments without
  * declared parameter types, and Cupid #exe execution remain explicit

@@ -1,3 +1,5 @@
+import contextlib
+import io
 import os
 import shutil
 import struct
@@ -11,6 +13,21 @@ from tools import hostbuild
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 TOOLCHAIN_ROOT = REPO_ROOT / "toolchain"
+BASELINE_JPEG = (
+    b"\xff\xd8"
+    b"\xff\xc0\x00\x0b\x08\x00\x01\x00\x01\x01\x01\x11\x00"
+    b"\xff\xda\x00\x08\x01\x01\x00\x00\x3f\x00"
+    b"\xff\xd9"
+)
+ENTROPY_JPEG = (
+    BASELINE_JPEG[:-2]
+    + b"\x12\xff\x00\x34\xff\xd0\x56"
+    + BASELINE_JPEG[-2:]
+)
+
+
+def _jpeg_byte(payload, offset, value):
+    return payload[:offset] + bytes((value,)) + payload[offset + 1 :]
 
 
 def _host_compiler():
@@ -220,6 +237,230 @@ class CupidObjHostedCliTests(unittest.TestCase):
             )
             self.assertEqual(second.returncode, 0, second.stderr)
             self.assertEqual(duplicate.read_bytes(), output.read_bytes())
+
+    def test_wrap_jpeg_accepts_sof0_and_sof1_without_changing_payload(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            cases = (
+                ("sof0", BASELINE_JPEG),
+                ("sof1", _jpeg_byte(BASELINE_JPEG, 3, 0xC1)),
+                ("entropy", ENTROPY_JPEG),
+            )
+            for name, payload in cases:
+                with self.subTest(name=name):
+                    source = root / f"photo-{name}.jpg"
+                    output = root / f"photo-{name}.o"
+                    oracle = root / f"oracle-{name}.jpg"
+                    source.write_bytes(payload)
+                    with contextlib.redirect_stdout(io.StringIO()):
+                        hostbuild._prepare_baseline_jpeg(source, oracle)
+                    self.assertEqual(oracle.read_bytes(), payload)
+                    wrapped = subprocess.run(
+                        [
+                            str(self.cli),
+                            "wrap-jpeg",
+                            str(source),
+                            "--identity=photo.jpg",
+                            "-o",
+                            str(output),
+                        ],
+                        cwd=root,
+                        text=True,
+                        capture_output=True,
+                    )
+                    self.assertEqual(wrapped.returncode, 0, wrapped.stderr)
+                    image, sections, symbols = _elf32_sections_and_symbols(output)
+                    data = sections[".data"]
+                    self.assertEqual(
+                        image[data["offset"] : data["offset"] + data["size"]],
+                        payload,
+                    )
+                    self.assertEqual(
+                        symbols["_binary_photo_jpg_size"]["value"], len(payload)
+                    )
+
+    def test_wrap_jpeg_active_asset_matches_binary_wrap(self):
+        asset = REPO_ROOT / "file_example_JPG_1MB.jpg"
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            checked = root / "checked.o"
+            binary = root / "binary.o"
+            for operation, output in (
+                ("wrap-jpeg", checked),
+                ("wrap", binary),
+            ):
+                wrapped = subprocess.run(
+                    [
+                        str(self.cli),
+                        operation,
+                        str(asset),
+                        "--identity=file_example_JPG_1MB.jpg",
+                        "-o",
+                        str(output),
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                )
+                self.assertEqual(wrapped.returncode, 0, wrapped.stderr)
+            self.assertEqual(checked.read_bytes(), binary.read_bytes())
+
+    def test_wrap_jpeg_rejects_bad_frames_without_clobbering_and_recovers(self):
+        cases = (
+            (
+                "missing-soi",
+                _jpeg_byte(BASELINE_JPEG, 0, 0x00),
+                "JPEG input has no SOI marker",
+            ),
+            (
+                "malformed-marker-stream",
+                BASELINE_JPEG[:15] + b"\x01" + BASELINE_JPEG[15:],
+                "JPEG marker stream is malformed outside a scan",
+            ),
+            (
+                "stuffed-before-scan",
+                BASELINE_JPEG[:15] + b"\xff\x00" + BASELINE_JPEG[15:],
+                "JPEG marker stream contains stuffed data before a scan",
+            ),
+            (
+                "trailing-after-eoi",
+                BASELINE_JPEG + b"\x00",
+                "JPEG input has trailing bytes after the EOI marker",
+            ),
+            (
+                "standalone-marker",
+                BASELINE_JPEG[:15] + b"\xff\xd8" + BASELINE_JPEG[15:],
+                "unexpected standalone JPEG marker 0xd8",
+            ),
+            (
+                "truncated-marker-length",
+                b"\xff\xd8\xff\xdb\x00",
+                "JPEG marker length is truncated",
+            ),
+            (
+                "invalid-marker-length",
+                b"\xff\xd8\xff\xdb\x00\x01",
+                "JPEG marker length is invalid",
+            ),
+            (
+                "duplicate-frame",
+                BASELINE_JPEG[:15]
+                + BASELINE_JPEG[2:15]
+                + BASELINE_JPEG[15:],
+                "JPEG input contains more than one frame header",
+            ),
+            (
+                "truncated-frame",
+                _jpeg_byte(BASELINE_JPEG, 5, 0x07),
+                "JPEG frame header is truncated",
+            ),
+            (
+                "malformed-frame-components",
+                _jpeg_byte(BASELINE_JPEG, 5, 0x08),
+                "JPEG frame header has an invalid component table",
+            ),
+            (
+                "invalid-frame-precision",
+                _jpeg_byte(BASELINE_JPEG, 6, 0x00),
+                "JPEG frame header has an invalid sample precision",
+            ),
+            (
+                "invalid-frame-size",
+                _jpeg_byte(BASELINE_JPEG, 8, 0x00),
+                "JPEG frame header has an invalid image size",
+            ),
+            (
+                "scan-before-frame",
+                BASELINE_JPEG[:2] + BASELINE_JPEG[15:],
+                "JPEG scan appears before its frame header",
+            ),
+            (
+                "truncated-scan",
+                _jpeg_byte(BASELINE_JPEG, 18, 0x05),
+                "JPEG scan header is truncated",
+            ),
+            (
+                "malformed-scan-components",
+                _jpeg_byte(BASELINE_JPEG, 18, 0x06),
+                "JPEG scan header has an invalid component table",
+            ),
+            (
+                "partial-entropy-marker",
+                BASELINE_JPEG[:25] + b"\xff",
+                "JPEG entropy data ends with a partial marker",
+            ),
+            (
+                "progressive-frame",
+                _jpeg_byte(BASELINE_JPEG, 3, 0xC2),
+                "unsupported progressive JPEG frame; "
+                "check in a baseline SOF0/SOF1 asset",
+            ),
+            (
+                "missing-frame",
+                b"\xff\xd8\xff\xd9",
+                "JPEG input has no supported SOF0/SOF1 frame",
+            ),
+            (
+                "unsupported-frame",
+                _jpeg_byte(BASELINE_JPEG, 3, 0xC3),
+                "unsupported JPEG frame marker 0xc3; "
+                "check in a baseline SOF0/SOF1 asset",
+            ),
+            (
+                "missing-scan",
+                BASELINE_JPEG[:15] + BASELINE_JPEG[-2:],
+                "JPEG input has no scan",
+            ),
+            (
+                "missing-eoi",
+                BASELINE_JPEG[:-2],
+                "JPEG input has no EOI marker",
+            ),
+        )
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            source = root / "photo.jpg"
+            output = root / "photo.o"
+            for name, payload, message in cases:
+                with self.subTest(name=name):
+                    source.write_bytes(payload)
+                    output.write_bytes(b"existing object")
+                    oracle_output = root / "checked-baseline.jpg"
+                    with self.assertRaises(hostbuild.EmbedJpegError) as error:
+                        hostbuild._prepare_baseline_jpeg(source, oracle_output)
+                    self.assertEqual(str(error.exception), message)
+                    self.assertFalse(oracle_output.exists())
+                    wrapped = subprocess.run(
+                        [
+                            str(self.cli),
+                            "wrap-jpeg",
+                            str(source),
+                            "-o",
+                            str(output),
+                        ],
+                        cwd=root,
+                        text=True,
+                        capture_output=True,
+                    )
+                    self.assertEqual(wrapped.returncode, 1)
+                    self.assertIn(message, wrapped.stderr)
+                    self.assertEqual(output.read_bytes(), b"existing object")
+
+            source.write_bytes(BASELINE_JPEG)
+            recovered = subprocess.run(
+                [
+                    str(self.cli),
+                    "wrap-jpeg",
+                    str(source),
+                    "-o",
+                    str(output),
+                ],
+                cwd=root,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(recovered.returncode, 0, recovered.stderr)
+            self.assertNotEqual(output.read_bytes(), b"existing object")
 
     def test_install_source_demos_matches_python_oracle(self):
         with tempfile.TemporaryDirectory() as td:

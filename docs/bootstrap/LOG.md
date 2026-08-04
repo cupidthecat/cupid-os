@@ -20790,3 +20790,150 @@ ADR 0228 records the promotion. It changes no normal build owner and migrates
 no active `.c` file, so no `.cc` rename was due. Python and WSL remain open
 bootstrap dependencies. Issue 31 remains open, and `TempleOS/` remains
 untouched reference material.
+
+## 2026-08-04: Advance literal, object, private ABI, and Doom recovery frontiers
+
+Four source-driven capabilities moved together while keeping their ownership
+boundaries separate.
+
+Hosted CupidC now accepts bounded decimal `long double` literals that produce
+finite normal x87 values. The decimal converter rounds an exact unsigned
+integer ratio to a 64-bit explicit significand with ties to even. The
+frontend and Linear IR carry that significand with the positive token's
+biased exponent. The i386 emitter writes three deterministic words into a
+twelve-byte frame snapshot and loads it with `FLD m80`; unary minus keeps
+owning the sign.
+
+The exact object proof covers `1.0L`, `1.0000000000000000001L`, and
+`18446744073709551615e0L`. Their significand and exponent pairs are
+`8000000000000000/3fff`, `8000000000000001/3fff`, and
+`ffffffffffffffff/403e`. Each function is 48 text bytes, with structure
+fingerprints `B6E00F15`, `4E64F77E`, and `4BE471B9`. The expanded object has
+2,099 text bytes, 11 relocations, 19 symbols, and fingerprint `9D1CBEC8`.
+The static i386 runtime checks the extra significand bit, the upper accepted
+significand, ordinary values, and both signed zeros.
+
+The full hosted object module ran 109 tests. Its first run passed 107 and
+reported the two source-object locks changed by the new public metadata. The
+updated locks then passed their exact two-test rerun in 28.415 seconds.
+Focused frontend, IR, and object literal runs passed six tests, and the static
+runtime plus Cupid-built parity runs passed two tests in 35.751 seconds. A
+decimal beyond the bounded ratio parser receives a useful error, while forged
+exponent metadata fails at the frozen frontend, IR, and object boundaries.
+
+A rounding-carry fixture was investigated but could not be reached by any
+ratio accepted by the current unsigned 64-bit parser. The defensive carry
+branch remains for a later wider parser without claiming test coverage.
+Hexadecimal and subnormal long-double literals, wider decimal ratios, nonzero
+or floating static long-double initializers, and most integer conversions
+remain open.
+
+Private CupidC now permits a represented object pointer to fill a fixed
+`int` or `unsigned int` parameter as one unchanged i386 word. This covers the
+unchanged `ctxt_parse_action` convention without changing the active source.
+The rule stays at fixed-call coercion: narrow and floating destinations still
+fail, general pointer-to-integer expressions do not change, and the existing
+pointer-category rule remains intact. One positive runtime writes through
+both an `int *` and a `char *` carried by signed words. Another carries an
+`int *` through an unsigned word and writes through the recovered address.
+Negative and same-process recovery cases preserve the fixed-parameter
+diagnostic. The complete private call ABI module passes all 124 tests in
+20.717 seconds.
+
+The first source census treated `/bin/ctxt.cc` as a runnable program and
+waited through its allowance for an AOT serial message. That interpretation
+was wrong. The file is the one include fragment among the 105 embedded
+`bin/*.cc` inputs. A direct JIT parse reaches the expected no-entry result,
+and `/bin/notepad.cc`, which includes the complete fragment and supplies an
+entry point, passes private AOT compilation.
+
+The corrected fresh-image census compiles 103 of 104 runnable programs.
+Browser passes with 471,885 code bytes and 5,986,752 data bytes. Notepad
+passes with 114,607 code bytes and 501,807 data bytes. The only runnable
+failure is `/bin/gfxgui_test.cc`: it reports 49 unresolved references across
+46 distinct native names, starting with `gfx2d_blur_box` and ending with
+`gfx2d_font_free`. That result identifies missing GUI bindings as the next
+private compiler frontier.
+
+Source-head CupidObj adds transactional `wrap-jpeg` validation. It accepts
+one SOF0 or SOF1 frame, validates nonzero precision, dimensions, frame and
+scan component tables, accepts entropy stuffing and restart markers, and
+requires a terminal EOI without trailing bytes. Progressive and other frame
+types receive unsupported diagnostics. Malformed streams receive input
+diagnostics. The accepted bytes then use the ordinary binary wrapper without
+normalization.
+
+Three small valid forms match binary `wrap` byte for byte. The active
+800,393-byte repository JPEG also matches. Twenty-one useful failures agree
+with the Python validator, preserve command output, rewind library state, and
+recover in the same job. The nine CupidObj contract modes and the complete
+hosted CLI module pass. The checked seed still predates this command, so the
+normal JPEG recipe remains on its existing Python validation path until the
+next five-image seed transition.
+
+The fixed-point behavior harness now requires both newly built CupidObj
+stages to list `wrap-jpeg`, match ordinary `wrap` on a valid sequential
+fixture, reject its progressive variant, and preserve both existing outputs.
+The next transition therefore carries five help, twelve success, and eight
+failure cases. The current checked-seed report keeps its earlier five,
+eleven, and seven counts until promotion.
+
+The fixed four-vCPU frontier now runs default `doom`, explicit
+`doom -iwad /disk/missing.wad`, and a fresh CupidC-built `ls` after the Doom
+shell-return marker. The second `ls` has its own output window, so the first
+command's completion cannot satisfy recovery. The complete GUI terminal smoke
+module passes 103 tests in 2.571 seconds, including marker-removal failures
+and the stale-output rejection.
+
+Fresh e1000 and RTL8139 runs pass the complete fixed sequence. The e1000 run
+finishes in 370.5 seconds with 108,706 changed framebuffer pixels, 13,994,333
+AC97 frames at peak 25,600, and 75,720 PC-speaker frames at peak 32,398. The
+RTL8139 run finishes in 349.8 seconds with 87,996 changed pixels, 13,073,288
+AC97 frames at peak 25,600, and 74,410 PC-speaker frames at peak 31,970.
+Both also pass SMP, storage, graphics, audio, Browser, crypto, USB, and the
+in-OS compiler frontier without a panic. This checkout still has no approved
+IWAD, so gameplay, game input and audio, menu save and load, and reboot
+persistence remain open.
+
+A combined CupidObj, private call ABI, and GUI frontier run passes all 245
+tests in 29.747 seconds. Ruff passes on all seven changed Python files.
+
+The first complete 68-test build-graph run passed 67 cases and found one exact
+inventory lock. The new contracts raise active `sizeof` occurrences from
+5,552 to 5,567 while the 169-file membership stays fixed. After that lock was
+updated, the focused drift test reached its intended stale-audit rejection.
+The canonical audit then regenerated in 63.5 seconds, and its independent
+check passed in 66.8 seconds. It records 719 active inputs, 449 transforms,
+255 feature requirements, and 25 unreachable source-like files. Its active
+source digest is
+`63b4c8368e9dbd7cc8ccea3ef38fa3b9547b68f51346c1b87536cdc49da7342b`.
+The 12,196-byte summary has SHA-256
+`b2acdf12df0a3c387f7d0b9226fbe2ad521a27574b5443cf00cd4a1d18e20f14`.
+The 2,557,339-byte JSON audit has SHA-256
+`cf0b6f538a23d53a2f74ec52bddd89de04ec8cbbbbd95e570d434235c9bb83e3`.
+The clean complete audit module then passes all 68 tests in 867.574 seconds
+while the normal OS rebuild runs in parallel.
+
+The normal four-job build passes in 693.7 seconds. Checked-seed CupidC
+rebuilds every strict and Doom object, including the changed private parser
+and shared tool sources. Checked CupidASM, CupidObj, CupidDis, and CupidLD own
+their existing transforms, inspection, and both links. The final artifacts
+are:
+
+| Artifact | Bytes | SHA-256 |
+|---|---:|---|
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `test_iso/hello.iso` | 61,440 | `40359c1cec72219f21e87ce71b31e621209036042440e1b38c5e59de157e0fb6` |
+| `kernel/kernel.elf.pass1` | 8,929,588 | `8a478cbec1515cc5c4f1915d548dd2591d6301b2281bead00db38b0e22b9096f` |
+| `kernel/cpu/ksyms_data.cc` | 379,312 | `e3f76bbdd5873d4cca5227ed784a97fcd76ae5e11c5dc1acee84176420d2bf68` |
+| `kernel/cpu/ksyms_data.o` | 114,836 | `9b6b38a797b5847baa659da353383ef635f1befc97a737505e829b7961b7f03f` |
+| `kernel/kernel.elf` | 9,044,276 | `67f09e94b9ae77573d50c3c70c62b1bf4d197631446e1bbc99cb07c37c3bbf1b` |
+| `kernel/kernel.bin` | 8,838,212 | `1f60474349a51d3eb2865571bdd6e53d398e837a704f7bfbe1ae51b5ade3e2a2` |
+| `cupidos.img` | 209,715,200 | `e37bffd0bbc09f193c4146e7a4383094001658e80ccac7c26abeacd713184647` |
+
+`make verify-bootstrap-seed` also accepts the unchanged preceding five-tool
+seed before the capability commit.
+
+ADRs 0229 through 0232 record these decisions. No active ordinary C source
+changed ownership, so no `.c` to `.cc` rename was due. `TempleOS/` remains
+untouched reference material.

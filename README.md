@@ -80,6 +80,11 @@ Recent subsystem work is summarized below. Detailed pages live under `wiki/`, an
 - The vendored doomgeneric core lives under `kernel/doom/src/` with BSD and GPL-2 components. The platform shim sends `DG_DrawFrame` to the VBE back buffer, connects `DG_GetKey` to the raw-scancode subscriber ring, and implements `DG_SleepMs` and `DG_GetTicksMs` with the PIT. `dglibc` supplies the required heap, string, stdio, formatting, checked conversion, and nonlocal-exit routines. Sound effects go straight to the mixer, while music passes from MUS to MIDI, `midiopl`, Nuked-OPL3, and mixer slot 8. The shell command `doom` finds Freedoom WADs under `/disk/wads/`; `doom -iwad <path>` selects another IWAD. Savegames and `default.cfg` use temporary files and native VFS rename beneath `/home/doom/`. HomeFS reserves its FAT container, rejects corrupt or duplicate mounts, and can batch related mutations behind one checked publish. FAT16 publishes replacement and deletion state before releasing old storage, while failed cache reads leave the victim's identity intact. The asset-free `dglibc_test` exercises repeated quit and error sessions plus VFS, cache, FAT, and HomeFS failure boundaries. A staged WAD is still required for gameplay and menu-driven save/load proof.
 - A two-pass kernel link generates and embeds a `.ksyms` blob. The build freezes the pass-one kernel and checked seed, asks CupidDis for canonical symbol text, and gives that exact text to CupidObj for `.cc` generation. Python checks the result against an independent byte oracle, rejects live input drift, and publishes only a complete match. Checked-seed CupidC compiles the source. `kernel_panic` uses `ksym_lookup` and a frame-pointer walk to print `function_name+offset` for each return address. It prints raw addresses if the blob is missing or corrupt.
 
+The fixed no-IWAD frontier runs `doom`, then
+`doom -iwad /disk/missing.wad`, requires the shell-return marker, and runs a
+fresh CupidC-built `ls`. It pins discovery guidance and explicit missing-file
+recovery without claiming gameplay behavior. ADR 0232 records the fixed gate.
+
 Built-in CupidC smoke tests exercise each track: `feature12_float`,
 `feature13_double` (including exact decimal payloads, runtime unary signs, all
 six scalar floating comparisons, signed zero, NaN behavior, a type error, and
@@ -115,6 +120,15 @@ widths for later parameter offsets, methods place `self` first, and callers
 reclaim the complete outgoing area. `feature13_double.cc` now calls one
 `double, double, double, int` helper ten times instead of expanding its
 tolerance calculation at every call site.
+
+[ADR 0230](docs/adr/0230-carry-object-pointers-in-private-word-parameters.md)
+adds the source-driven object-address case. A fixed private `int` or
+`unsigned int` parameter can receive one represented object pointer word
+without changing its bits. Narrow and floating parameter types remain
+rejected, and the existing represented pointer-category rule is unchanged.
+The unchanged `/bin/ctxt.cc` call reaches this coercion boundary. The file is
+an include fragment, and `/bin/notepad.cc` includes it completely and passes
+private AOT compilation.
 
 ## Feature demo quickstart
 
@@ -438,6 +452,14 @@ records the capability, [ADR 0223](docs/adr/0223-promote-cupidobj-kernel-symbol-
 records seed carriage, and
 [ADR 0224](docs/adr/0224-transfer-kernel-symbol-source-to-cupidobj.md)
 records the production transfer.
+
+Source-head CupidObj also provides `wrap-jpeg`. It validates one sequential
+SOF0 or SOF1 frame, the scan structure, entropy stuffing and restart markers,
+and a terminal EOI, then applies the byte-exact binary wrapper. Three positive
+forms, the active repository image, and 21 useful rejections match the Python
+validator. The checked seed and production JPEG recipe still predate the
+command. [ADR 0231](docs/adr/0231-validate-sequential-jpeg-input-with-cupidobj.md)
+records the capability and the deferred transfer.
 
 Source-head CupidC now recognizes Cupid's sized scalar spellings and
 `float4` or `double2` as native type specifiers in Cupid mode. Source-head
@@ -849,7 +871,11 @@ The x87 transport model, SSE conversion oracle, and `UCOMISS` or `UCOMISD`
 comparison oracle check rounding, operand order, ordered values, signed zero,
 infinities, quiet and signaling NaNs, call alignment, and frame state.
 Non-atomic `long double` values use twelve-byte i386 objects and x87 80-bit
-memory operations. Automatic values use frame snapshots. Static-duration
+memory operations. Bounded finite normal decimal `L` tokens round an exact
+integer ratio to a 64-bit explicit significand with ties to even. The emitter
+writes that significand and the positive token's biased exponent as three
+exact snapshot words; unary minus supplies the sign. Automatic values use
+frame snapshots. Static-duration
 scalars, fixed arrays, and complete records may contain long-double leaves.
 Implicit initialization zeros the complete object; an explicit leaf accepts
 an integer constant expression equal to zero. Each leaf occupies twelve
@@ -867,12 +893,15 @@ only `!=` true for an unordered input. Runtime `float`, `double`, and
 automatic `long double` values also work with unary `!`, `&&`, `||`, the
 controlling operand of `?:`, the conditions of `if`, `while`, `do`, and
 `for`, and conversion to `_Bool`. Both signed zeros are false; finite nonzero values, subnormals,
-infinities, and NaNs are true. Hexadecimal and subnormal floating literals,
-`long double` literals, nonzero or floating static long-double initializers,
+infinities, and NaNs are true. Hexadecimal floating literals, binary32 and
+binary64 subnormal literals, hexadecimal or subnormal long-double literals,
+decimal ratios beyond the bounded parser, nonzero or floating static long-double initializers,
 integer conversions involving `long double` other than `_Bool`, conversion to
 unsigned four-byte integers, mixed integer and floating conditional arms,
 floating increment and decrement, SIMD values, floating atomics, and
-over-aligned emission remain open. ADR 0202 records the truth boundary.
+over-aligned emission remain open. ADR 0202 records the truth boundary, and
+[ADR 0229](docs/adr/0229-emit-exact-decimal-long-double-literals.md) records
+the decimal literal representation.
 
 Plain assignment, all ten compound assignments, and prefix or postfix increment and decrement now work for represented non-atomic bit fields in four-byte storage units. Linear IR keeps the selected member and evaluates the record address once. Partial fields preserve neighboring bits, and postfix updates retain the extracted old value through the store so width wrap does not change the result. Narrow unsigned fields promote to signed `int` when their values fit. A volatile 32-bit field uses one read and one direct store. An execution oracle proves that `states[(*index)++].value++` advances its side-effecting index exactly once. Partial volatile mutation, atomic bit-field access, and non-four-byte storage units remain open. The plain-assignment contracts still pin Doom's unchanged `colors[index].r = value` shape.
 
@@ -945,7 +974,7 @@ self-test adds two real quit cycles and two real error cycles, checking LIFO
 callbacks, error-only filtering, and cleanup between shell sessions. ADR 0214
 records the active boundary.
 
-The wrapper freezes each selected source and the complete 290-file header and
+The wrapper freezes each selected source and the complete 291-file header and
 include space for both profiles. Its content-addressed manifest fixes the
 three-source and 80-source memberships. The current 69,366-byte manifest has
 SHA-256
@@ -973,14 +1002,15 @@ read buffer before returning an error cannot relabel dirty victim bytes. These
 rules have source contracts and live guest checks. No injected power-cut test
 has been run.
 
-Private four-CPU boots exercise the full frontier on e1000 and RTL8139. On
-each adapter, two missing-IWAD launches return to the same shell before the
-expanded dglibc and storage test completes. Separate stateful frontier boots
-also pass after the swap program keeps one raw FAT handle open. The e1000 and
-RTL8139 frontier runs finish in 292.4 and 287.7 seconds, with framebuffer,
-AC97, and PC-speaker evidence. This checkout contains no WAD, so gameplay,
-game input or audio, menu-driven save/load, and persistence across reboot
-remain open.
+Earlier private four-CPU boots returned from two missing-IWAD launches on
+e1000 and RTL8139 before the expanded dglibc and storage test completed. The
+current fixed frontier runs Doom once with normal WAD discovery, once with an
+explicit missing path, checks the shell-return marker, and then runs a fresh
+CupidC-built `ls`. Both adapters passed that sequence with framebuffer, AC97,
+and PC-speaker evidence. Separate stateful frontier boots also passed after
+the swap program kept one raw FAT handle open. This checkout contains no WAD,
+so gameplay, game input or audio, menu-driven save/load, and persistence
+across reboot remain open.
 
 The five static i386 Linux tools have a checked bootstrap seed. Its manifest binds the exact binaries, source revision, target ABI, producer lineage, 19-source build plan, and five link orders before execution. The current cohort comes from revision `bd64a39d1b419df3fb3182c33869084f4bc09c2c`. CupidC is 2,578,244 bytes with SHA-256 `b652adc07442df04fa577fb7987598619cb573c5d932d639288ddddc939f622f`; it carries the Cupid built-in type boundary alongside the earlier Doom, kernel, floating, and ABI capabilities. CupidASM is 445,616 bytes with SHA-256 `1dc9061912f127d231d320940ba781781af663bde83852a613910394709ecc76`, and CupidDis is 379,648 bytes with SHA-256 `a45fc4c57afd3bb02980e514d58c11588ba3a8bfa2f05ca348fe465cfdaf9749`. Both carry the 596-row shared x86 catalogue with canonical SHRD. CupidLD and CupidObj remain byte-identical. The 5,440-byte manifest has SHA-256 `7e7da98d2adddbf59fbd7c4da7af7375e08c10147b8c802a2d4a816161f647ea`. [ADR 0228](docs/adr/0228-promote-cupid-types-and-shrd-toolchain-seed.md) records the current promotion.
 

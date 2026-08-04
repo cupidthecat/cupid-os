@@ -24162,6 +24162,84 @@ static int validate_long_double_local_object(
   return 1;
 }
 
+static int validate_long_double_literal_function(
+    ctool_job_t *job, const ctool_elf32_object_t *object,
+    const char *name, ctool_u32 low_word, ctool_u32 high_word,
+    ctool_u32 biased_exponent,
+    ctool_u32 expected_fingerprint) {
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_symbol_t *function = find_symbol(object, name);
+  const ctool_u32 expected_constants[3] = {
+      low_word, high_word, biased_exponent};
+  ctool_u32 constant_count = 0u;
+  ctool_u32 fld80 = 0u;
+  ctool_u32 cursor = 0u;
+  ctool_u32 fingerprint;
+  if (job == NULL || name == NULL ||
+      !wide_function_symbol_is_valid(object, text, function)) {
+    return 0;
+  }
+  while (cursor < function->size) {
+    ctool_x86_decoded_t decoded;
+    const ctool_x86_instruction_t *instruction;
+    ctool_bytes_t remaining = ctool_bytes(
+        text->contents.data + function->value + cursor,
+        function->size - cursor);
+    ctool_status_t status;
+    (void)memset(&decoded, 0xa5, sizeof(decoded));
+    status = ctool_x86_decode(job, CTOOL_X86_MODE_32, remaining, 0u,
+                              &decoded);
+    if (status != CTOOL_OK ||
+        decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+        decoded.consumed == 0u) {
+      (void)fprintf(stderr, "%s: decode failed at %u\n", name,
+                    (unsigned int)cursor);
+      return 0;
+    }
+    instruction = &decoded.instruction;
+    if (instruction->mnemonic == CTOOL_X86_MN_MOV &&
+        instruction->operand_count == 2u &&
+        instruction->operands[0].kind ==
+            CTOOL_X86_OPERAND_REGISTER &&
+        instruction->operands[0].as.reg.class_id ==
+            CTOOL_X86_REG_GPR32 &&
+        instruction->operands[0].as.reg.index == 0u &&
+        instruction->operands[1].kind ==
+            CTOOL_X86_OPERAND_IMMEDIATE &&
+        instruction->operands[1].as.value.kind ==
+            CTOOL_X86_VALUE_CONSTANT) {
+      if (constant_count >= 3u ||
+          instruction->operands[1].as.value.bits !=
+              expected_constants[constant_count]) {
+        return 0;
+      }
+      constant_count++;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_FLD &&
+               instruction->operand_count == 1u &&
+               instruction->operands[0].kind ==
+                   CTOOL_X86_OPERAND_MEMORY &&
+               instruction->operands[0].width_bits == 80u) {
+      fld80++;
+    }
+    cursor += decoded.consumed;
+  }
+  fingerprint = structure_text_fingerprint(
+      ctool_bytes(text->contents.data + function->value,
+                  function->size));
+  if (cursor != function->size || function->size != 48u ||
+      fingerprint != expected_fingerprint || constant_count != 3u ||
+      fld80 != 1u) {
+    (void)fprintf(
+        stderr,
+        "%s: literal object differs: size=%u fingerprint=%08x "
+        "constants=%u fld80=%u\n",
+        name, (unsigned int)function->size, (unsigned int)fingerprint,
+        (unsigned int)constant_count, (unsigned int)fld80);
+    return 0;
+  }
+  return 1;
+}
+
 typedef struct {
   const char *name;
   ctool_u32 size;
@@ -24305,11 +24383,11 @@ static int validate_long_double_call_object(
   if (job == NULL || object == NULL || text == NULL ||
       rel_text == NULL || sink == NULL || variadic_sink == NULL ||
       open_sink == NULL || identity == NULL ||
-      text->contents.size != 1955u ||
-      structure_text_fingerprint(text->contents) != 0x282ca98bu ||
+      text->contents.size != 2099u ||
+      structure_text_fingerprint(text->contents) != 0x9d1cbec8u ||
       text->relocation_count != 11u ||
       object->relocation_count != 11u ||
-      object->relocations == NULL || object->symbol_count != 16u) {
+      object->relocations == NULL || object->symbol_count != 19u) {
     (void)fprintf(
         stderr,
         "long-double-calls: object inventory differs: text=%u "
@@ -27899,12 +27977,28 @@ static int run_floating_scalar_object(const char *host_root) {
                    sizeof(*invalid_expressions));
   invalid_expressions[floating_constant].type =
       long_double_type;
+  invalid_expressions[floating_constant].integer_bits = 1ull;
   if (ctool_buffer_rewind(failure, 0u) != CTOOL_OK ||
       !expect_object_failure_preserves_unit(
           job, &invalid_unit, failure, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
           "CupidC IR lowering does not yet support this value type",
           "floating constant with long double type at object boundary")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count *
+                   sizeof(*invalid_expressions));
+  invalid_expressions[floating_constant].type = long_double_type;
+  invalid_expressions[floating_constant].integer_bits =
+      0x8000000000000000ull;
+  invalid_expressions[floating_constant].floating_high_bits = 0x8000u;
+  if (ctool_buffer_rewind(failure, 0u) != CTOOL_OK ||
+      !expect_object_failure_preserves_unit(
+          job, &invalid_unit, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "long double literal exponent metadata at object boundary")) {
     goto cleanup;
   }
   (void)memcpy(invalid_expressions, unit.expressions,
@@ -28314,6 +28408,13 @@ static int run_floating_transport_object(const char *host_root) {
       "long double long_double_identity(long double value) {\n"
       "  return value;\n"
       "}\n"
+      "long double long_double_literal_one(void) { return 1.0L; }\n"
+      "long double long_double_literal_precise(void) {\n"
+      "  return 1.0000000000000000001L;\n"
+      "}\n"
+      "long double long_double_literal_maximum(void) {\n"
+      "  return 18446744073709551615e0L;\n"
+      "}\n"
       "void long_double_open_calls(long double value,\n"
       "                            long_double_open_callback callback) {\n"
       "  long_double_open_sink(value);\n"
@@ -28527,6 +28628,15 @@ static int run_floating_transport_object(const char *host_root) {
                     "read long double local object") ||
       !validate_long_double_local_object(
           job, &long_double_object) ||
+      !validate_long_double_literal_function(
+          job, &long_double_object, "long_double_literal_one", 0u,
+          0x80000000u, 0x3fffu, 0xb6e00f15u) ||
+      !validate_long_double_literal_function(
+          job, &long_double_object, "long_double_literal_precise", 1u,
+          0x80000000u, 0x3fffu, 0x4e64f77eu) ||
+      !validate_long_double_literal_function(
+          job, &long_double_object, "long_double_literal_maximum",
+          0xffffffffu, 0xffffffffu, 0x403eu, 0x4be471b9u) ||
       !validate_long_double_call_object(
           job, &long_double_object) ||
       !validate_long_double_static_object(
@@ -29039,21 +29149,21 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.cc",           "/toolchain/x86.cc",
       "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
-      65u, 71u, 66u, 59u, 31u, 143u, 263u, 358u, 423u, 82u, 37u, 60u,
+      65u, 71u, 66u, 62u, 31u, 143u, 263u, 359u, 426u, 82u, 37u, 60u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
-      42118u, 78841u, 85252u, 78097u, 42212u,
-      190304u, 483289u, 558285u, 852466u, 146398u, 70368u, 80596u,
+      42118u, 78841u, 85252u, 85805u, 42212u,
+      190304u, 483769u, 559272u, 859606u, 146398u, 70368u, 80933u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
-      46720u, 91460u, 99772u, 98536u, 49484u,
-      226668u, 521304u, 627192u, 1013604u, 165728u, 79348u, 135136u,
+      46720u, 91460u, 99772u, 108316u, 49484u,
+      226668u, 521792u, 628308u, 1021884u, 165728u, 79348u, 135744u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x6a4e9e64u, 0x4ca44a27u,
-      0x09c47dafu, 0x999f97b7u, 0xb49d8eb9u,
-      0x9764d177u, 0xeab89c95u, 0xe4142458u, 0x74b56084u,
-      0x34558a49u, 0x398d41d3u, 0x8774de7du};
+      0xfa0fdf82u, 0x999f97b7u, 0xb49d8eb9u,
+      0x12585d91u, 0x796e931du, 0x92b4ffacu, 0xb175f9a8u,
+      0x34558a49u, 0xa7f3ffcdu, 0x8774de7du};
   ctool_u32 index;
   int all_matched = 1;
   if (first_index > past_last_index ||

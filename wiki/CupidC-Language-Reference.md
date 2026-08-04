@@ -167,7 +167,10 @@ call ABI transport remain unsupported.
 Direct functions and methods with parsed fixed parameter types convert each
 represented integer, `char`, `float`, or `double` argument to its declared
 cdecl slot type. Represented pointer categories and integer null forms can fill
-a pointer slot. A parsed variadic tail widens `float` to `double` and promotes
+a pointer slot. A represented object pointer can fill a fixed `int` or
+`unsigned int` slot as one unchanged i386 word. Narrow and floating
+destinations remain rejected, and the existing represented pointer-category
+rule is unchanged. A parsed variadic tail widens `float` to `double` and promotes
 `char` to `int`. Function-pointer calls, kernel bindings, and calls without
 fixed parameter metadata retain their source-width slots. Character operands
 undergo integer promotion in integer arithmetic and use the integer conversion
@@ -214,7 +217,10 @@ six comparisons work for matching or mixed floating widths, and only `!=`
 is true when either operand is NaN.
 
 Non-atomic `long double` values use twelve-byte objects with x87 80-bit memory
-transport. Automatic values use frame snapshots. Static-duration scalars,
+transport. Bounded finite normal decimal `L` tokens round an exact ratio to a
+64-bit explicit significand with ties to even. The emitter writes that
+significand and the positive token's biased exponent as three snapshot words;
+unary minus supplies the sign. Automatic values use frame snapshots. Static-duration scalars,
 fixed arrays, and complete records may contain long-double leaves. Implicit
 initialization zeros the complete object; an explicit leaf accepts an integer
 constant expression equal to zero. Each leaf occupies twelve zero-filled BSS
@@ -231,10 +237,13 @@ only `!=` is true when either input is NaN. Unary `!`, `&&`, `||`, the
 controlling operand of `?:`, the conditions of `if`, `while`, `do`, and `for`, and conversion to `_Bool`
 accept non-atomic `float`, `double`, and automatic `long double`. Both signed
 zeros are false; finite nonzero values, subnormals, infinities, and NaNs are
-true. Floating increment or decrement, hexadecimal or subnormal constants,
-`long double` literals, nonzero or floating static initializers, integer
+true. Floating increment or decrement, hexadecimal floating constants,
+binary32 and binary64 subnormal constants, hexadecimal or subnormal
+long-double constants, long-double decimals beyond the bounded ratio parser,
+nonzero or floating static initializers, integer
 conversions other than `_Bool`, SIMD, and atomic floating access remain
-unsupported. The in-kernel compiler has a separate, broader floating
+unsupported. [ADR 0229](../docs/adr/0229-emit-exact-decimal-long-double-literals.md)
+records the literal representation. The in-kernel compiler has a separate, broader floating
 and SIMD implementation.
 
 ## Checked-seed returns-twice calls

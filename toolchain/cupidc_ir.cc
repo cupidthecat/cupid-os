@@ -8023,6 +8023,10 @@ static ctool_status_t cir_lower_expression(cir_context_t *context,
         &expression->location,
         "CupidC IR lowering exceeded a configured resource limit");
   }
+  if (expression->kind != CTOOL_C_EXPRESSION_FLOATING_CONSTANT &&
+      expression->floating_high_bits != 0u) {
+    return cir_invalid_unit(context, &expression->location);
+  }
   if (expression->kind == CTOOL_C_EXPRESSION_PARAMETER) {
     ctool_u32 parameter_end;
     if (expression->child_count != 0u ||
@@ -8324,6 +8328,7 @@ static ctool_status_t cir_lower_expression(cir_context_t *context,
   if (expression->kind == CTOOL_C_EXPRESSION_FLOATING_CONSTANT) {
     const ctool_c_type_node_t *type =
         cir_unwrapped_type(context, expression->type);
+    ctool_u32 instruction_index = CTOOL_C_AST_NONE;
     if (expression->child_count != 0u ||
         expression->first_child != CTOOL_C_AST_NONE ||
         expression->operation !=
@@ -8333,11 +8338,20 @@ static ctool_status_t cir_lower_expression(cir_context_t *context,
         expression->reference != CTOOL_C_AST_NONE ||
         type == (const ctool_c_type_node_t *)0 ||
         (type->kind != CTOOL_C_TYPE_FLOAT &&
-         type->kind != CTOOL_C_TYPE_DOUBLE) ||
+         type->kind != CTOOL_C_TYPE_DOUBLE &&
+         type->kind != CTOOL_C_TYPE_LONG_DOUBLE) ||
         cir_type_is_floating_value(
             context, expression->type) == CTOOL_FALSE ||
         (type->kind == CTOOL_C_TYPE_FLOAT &&
-         expression->integer_bits > 0xffffffffull)) {
+         expression->integer_bits > 0xffffffffull) ||
+        (type->kind != CTOOL_C_TYPE_LONG_DOUBLE &&
+         expression->floating_high_bits != 0u) ||
+        (type->kind == CTOOL_C_TYPE_LONG_DOUBLE &&
+         (expression->floating_high_bits > 0x7ffeu ||
+          (expression->floating_high_bits == 0u
+               ? expression->integer_bits != 0ull
+               : (expression->integer_bits &
+                  0x8000000000000000ull) == 0ull)))) {
       return cir_emit_failure(
           context, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE, &expression->location,
@@ -8349,9 +8363,13 @@ static ctool_status_t cir_lower_expression(cir_context_t *context,
         CTOOL_C_EXPRESSION_OPERATOR_NONE,
         CTOOL_C_CONVERSION_NONE, CTOOL_C_AST_NONE,
         expression->integer_bits, &expression->location,
-        &expression->physical_location, (ctool_u32 *)0);
+        &expression->physical_location, &instruction_index);
     if (status != CTOOL_OK) {
       return status;
+    }
+    if (context->instructions != (ctool_c_ir_instruction_t *)0) {
+      context->instructions[instruction_index].floating_high_bits =
+          expression->floating_high_bits;
     }
     return cir_push(context, CIR_STACK_VALUE, expression->type);
   }

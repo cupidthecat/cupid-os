@@ -2158,6 +2158,9 @@ static int cc_coerce_cdecl_argument(cc_state_t *cc, cc_type_t target_type) {
              (cc_is_object_pointer_type(target_type) ||
               target_type == TYPE_FUNC_PTR)) {
     /* Represented pointers and integer null forms share a four-byte slot. */
+  } else if (cc_is_object_pointer_type(source_type) &&
+             (target_type == TYPE_INT || target_type == TYPE_UINT)) {
+    /* Cupid word parameters may carry represented object addresses. */
   } else {
     cc_error(cc, "cdecl argument type does not match fixed parameter");
     return 0;

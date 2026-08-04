@@ -28785,6 +28785,20 @@ static int run_floating_scalars(const char *host_root) {
   (void)memcpy(invalid_expressions, unit.expressions,
                (size_t)unit.expression_count *
                    sizeof(*invalid_expressions));
+  invalid_expressions[float_constant].type = long_double_type;
+  invalid_expressions[float_constant].integer_bits =
+      0x8000000000000000ull;
+  invalid_expressions[float_constant].floating_high_bits = 0x8000u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "long double literal with forged exponent metadata")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count *
+                   sizeof(*invalid_expressions));
   invalid_expressions[integer_to_floating].type =
       long_double_type;
   if (!expect_ir_failure_preserves_unit(
@@ -29153,10 +29167,11 @@ static int validate_long_double_local_ir(
   ctool_u32 result_indirect_calls = 0u;
   ctool_u32 variadic_arguments = 0u;
   ctool_u32 long_double_returns = 0u;
+  ctool_u32 long_double_literals = 0u;
   ctool_u32 index;
   if (unit == NULL || ir == NULL || ir->functions == NULL ||
-      ir->instructions == NULL || unit->function_definition_count != 7u ||
-      ir->function_count != 7u ||
+      ir->instructions == NULL || unit->function_definition_count != 10u ||
+      ir->function_count != 10u ||
       long_double_type == CTOOL_C_TYPE_NONE ||
       float_type == CTOOL_C_TYPE_NONE ||
       double_type == CTOOL_C_TYPE_NONE ||
@@ -29171,7 +29186,15 @@ static int validate_long_double_local_ir(
   }
   for (index = 0u; index < ir->instruction_count; index++) {
     const ctool_c_ir_instruction_t *instruction = &ir->instructions[index];
-    if (instruction->kind == CTOOL_C_IR_INSTRUCTION_LOAD &&
+    if (instruction->kind == CTOOL_C_IR_INSTRUCTION_FLOATING &&
+        instruction->type == long_double_type &&
+        (((instruction->integer_bits == 0x8000000000000000ull ||
+           instruction->integer_bits == 0x8000000000000001ull) &&
+          instruction->floating_high_bits == 0x3fffu) ||
+         (instruction->integer_bits == 0xffffffffffffffffull &&
+          instruction->floating_high_bits == 0x403eu))) {
+      long_double_literals++;
+    } else if (instruction->kind == CTOOL_C_IR_INSTRUCTION_LOAD &&
         instruction->type == long_double_type) {
       loads++;
     } else if (instruction->kind == CTOOL_C_IR_INSTRUCTION_STORE &&
@@ -29295,12 +29318,12 @@ static int validate_long_double_local_ir(
       void_indirect_calls != 2u || variadic_calls != 1u ||
       open_direct_calls != 1u || result_direct_calls != 1u ||
       result_indirect_calls != 1u || variadic_arguments != 1u ||
-      long_double_returns != 1u) {
+      long_double_returns != 4u || long_double_literals != 3u) {
     (void)fprintf(
         stderr,
         "long-double-locals: IR inventory differs: loads=%u stores=%u/%u "
         "casts=%u/%u/%u unary=%u/%u binary=%u/%u/%u/%u "
-        "calls=%u/%u/%u/%u/%u/%u va_arg=%u returns=%u\n",
+        "calls=%u/%u/%u/%u/%u/%u va_arg=%u returns=%u literals=%u\n",
         (unsigned int)loads, (unsigned int)stores,
         (unsigned int)store_values, (unsigned int)widen_float,
         (unsigned int)widen_double, (unsigned int)narrow_double,
@@ -29313,7 +29336,8 @@ static int validate_long_double_local_ir(
         (unsigned int)result_direct_calls,
         (unsigned int)result_indirect_calls,
         (unsigned int)variadic_arguments,
-        (unsigned int)long_double_returns);
+        (unsigned int)long_double_returns,
+        (unsigned int)long_double_literals);
     return 0;
   }
   return 1;
@@ -29534,6 +29558,13 @@ static int run_floating_transport(const char *host_root) {
       "}\n"
       "long double long_double_identity(long double value) {\n"
       "  return value;\n"
+      "}\n"
+      "long double long_double_literal_one(void) { return 1.0L; }\n"
+      "long double long_double_literal_precise(void) {\n"
+      "  return 1.0000000000000000001L;\n"
+      "}\n"
+      "long double long_double_literal_maximum(void) {\n"
+      "  return 18446744073709551615e0L;\n"
       "}\n"
       "void long_double_open_calls(long double value,\n"
       "                            long_double_open_callback callback) {\n"

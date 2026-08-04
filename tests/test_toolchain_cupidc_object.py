@@ -2389,6 +2389,12 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                 "int compiled_value(int argument) {\n"
                 "  return argument + HEADER_VALUE + COMMAND_VALUE +\n"
                 "         __SIZEOF_POINTER__;\n"
+                "}\n"
+                "long double compiled_long_double(void) {\n"
+                "  return 1.0000000000000000001L;\n"
+                "}\n"
+                "long double compiled_long_double_maximum(void) {\n"
+                "  return 18446744073709551615e0L;\n"
                 "}\n",
                 encoding="utf-8",
             )

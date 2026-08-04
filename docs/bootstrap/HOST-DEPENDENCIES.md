@@ -102,6 +102,12 @@ Linux kernel build passed in 607.7 seconds, and the Windows root build passed
 in 341.6 seconds. Their 430 frozen kernel artifacts match byte for byte. A
 fresh normal image passed a private `/bin/ls.cc` JIT boot in 49.8 seconds.
 
+Source-head CupidObj now provides the same validation in a transactional
+`wrap-jpeg` operation before applying its ordinary binary wrapper. The
+checked seed and production recipe predate that operation, so Python retains
+the current production acceptance decision until the next five-image seed
+promotion. ADR 0231 records this boundary.
+
 Private CupidC scalar comparisons change no build owner or host dependency.
 The in-kernel emitter now handles all six matching or mixed `float` and
 `double` relations with C's unordered behavior. Focused byte tests still use
@@ -164,7 +170,9 @@ calls. Callees use the same widths for parameter addresses, and callers clean
 the complete outgoing area. Direct functions and methods with parsed fixed
 parameter types convert represented integer, `char`, `float`, and `double`
 arguments to the declared slot type before the call. Represented pointer
-categories and integer null forms can fill a pointer slot. A parsed variadic
+categories and integer null forms can fill a pointer slot. A represented
+object pointer can fill a fixed `int` or `unsigned int` slot as one unchanged
+i386 word. Narrow and floating destinations remain rejected. A parsed variadic
 tail widens `float` to `double` and promotes `char` to `int`. Function-pointer
 calls, kernel bindings, and calls without parameter metadata keep their
 source-width slots. A focused host-built runtime remains an optional ABI oracle.
@@ -237,7 +245,7 @@ SIMD transfer, ADR 0181 records the final strict-root transfer, and ADR 0184
 records the 83-root Doom transfer.
 
 The Doom wrapper fixes exact three-source and 80-source allowlists and freezes
-the selected source with all 290 `.h` and `.inc` inputs visible through the
+the selected source with all 291 `.h` and `.inc` inputs visible through the
 two compiler profiles. It recursively checks visible `.c` and `.cc` files
 beneath the Doom tree before and after a compile. Its always-checked manifest
 detects source removal. A legacy `.c` file, an unlisted `.cc` file, header
@@ -255,11 +263,13 @@ storage lifetimes. The private-image gate loads and
 reaps the same external ELF program twice at `0x01C00000`, with lease release
 between the two runs.
 
-The Doom handoff uses the same four-CPU e1000 and RTL8139 frontier. A second
-private boot per NIC returns from two consecutive missing-IWAD launches, then
-runs the expanded dglibc and storage diagnostic. The stateful frontier also
-passes after swap keeps one FAT handle open. No host C tool participates. The
-checkout has no WAD, so gameplay remains outside this host-dependency proof.
+The Doom handoff uses the same four-CPU e1000 and RTL8139 frontier. Earlier
+private boots returned from two consecutive missing-IWAD launches. The fixed
+frontier now runs normal WAD discovery, an explicit missing path, the
+shell-return marker, and a fresh CupidC-built `ls` after Doom recovery. The
+stateful frontier also passes after swap keeps one FAT handle open. No host C
+tool participates. The checkout has no WAD, so gameplay remains outside this
+host-dependency proof.
 
 CupidC represents operand-free GNU assembly statements inside functions and
 emits their exact no-operand i386 instructions. The checked seed uses that
@@ -375,8 +385,9 @@ integer conversion through 64 bits use no host floating operation or math
 library. This path emits the unchanged Doom automap object. Automatic
 non-atomic `long double` values now use the shared x87 path for object
 transport, floating-width conversion, unary plus and minus, and addition,
-subtraction, multiplication, and division. Their 80-bit loads and stores come
-from Cupid's x86 model. Direct and indirect fixed, variadic, and unprototyped
+subtraction, multiplication, and division. Bounded finite normal decimal `L`
+tokens round an exact ratio to a 64-bit explicit significand and biased x87
+exponent. Their 80-bit loads and stores come from Cupid's x86 model. Direct and indirect fixed, variadic, and unprototyped
 arguments use twelve cdecl bytes. Functions return the value in x87 `ST0`,
 and direct or indirect callers store it in a twelve-byte snapshot.
 `va_arg(long double)` copies twelve bytes and leaves the cursor at the next
@@ -388,18 +399,16 @@ automatic `long double` values use Cupid-owned zero comparisons for unary `!`,
 `&&`, `||`, the controlling operand of `?:`, the conditions of `if`, `while`,
 `do`, and `for`, and conversion to `_Bool`. Both signed zeros are false; finite nonzero values,
 subnormals, infinities, and NaNs are true. Hexadecimal floating literals,
-`long double` literals, nonzero or floating static long-double initializers,
+binary32 and binary64 subnormal literals, hexadecimal or subnormal
+long-double literals, decimal ratios beyond the bounded parser, nonzero or floating static long-double initializers,
 integer conversions involving `long double` other than `_Bool`, runtime
 conversion to unsigned four-byte integers, mixed wide and floating runtime
 arithmetic or conditionals, and floating increment and decrement remain open.
 Matching or mixed-width floating
 conditional arms and the four arithmetic compound assignments retain their
 established x87 path. All six matching or mixed long-double comparisons use
-a balanced `FUCOMIP` sequence. Older detailed rows that list every floating literal,
-static floating initializer or arithmetic, comparison, or integer conversion as open are
-superseded by this boundary. ADR 0202 also supersedes older references that
-list runtime floating truth, controlling expressions, or `_Bool` conversion
-as host-owned or unsupported.
+a balanced `FUCOMIP` sequence. ADRs 0196, 0199, 0202, and 0229 record the
+current long-double, comparison, truth, and literal boundaries.
 
 The checked seed and source head have 596 x86 forms, 245 canonical mnemonics,
 64 registers, and fingerprint `DA15E97F`. Four forms cover canonical 16-bit
@@ -625,7 +634,7 @@ Counts are output transforms in the checked audit, not textual recipe occurrence
 | CupidASM | 4 owned transforms | Two production flat binaries and two production ELF32 `ET_REL` objects; the raw outputs are byte-identical to the optional NASM oracle and the objects match its code, symbol, alignment, and relocation semantics |
 | NASM | 0 production transforms | Optional active-source and ELF32 interoperability oracle only |
 | CupidLD | 5 owned transforms | Two script-driven kernel links plus three fixed-address user executables; owns `R_386_32`/`R_386_PC32`, weak/strong/common/script symbols, absolute COMMON alignment, relocation-aware merge entries, assertions, static ELF32 serialization, explicit unsupported allocated-section diagnostics, and the used `link.ld` subset |
-| CupidObj | 186 owned transforms | 172 canonical text-to-ELF wrappers, eight byte-exact binary-to-ELF wrappers, one Python-assisted JPEG wrapper, final initialized ELF-to-raw conversion, three installation-source generators, and one kernel-symbol source generator |
+| CupidObj | 186 owned transforms | 172 canonical text-to-ELF wrappers, eight byte-exact binary-to-ELF wrappers, one Python-assisted JPEG wrapper, final initialized ELF-to-raw conversion, three installation-source generators, and one kernel-symbol source generator. Source-head CupidObj also has a transactional `wrap-jpeg` operation, but the checked seed and production recipe predate it. |
 | CupidDis | 1 composite transform | Supplies 4,704 deterministic text-symbol rows through a checked private seed image; the current consumer becomes a 114,421-byte panic-backtrace blob; the host oracle remains optional |
 | Python | 449 transforms | Launches checked Cupid tools and handles remaining generation, input manifests, image packaging, and verification. It participates in four generated-source transforms because it launches or verifies checked CupidObj, not because it constructs their production source bytes |
 | Make recursion | 0 transforms | Native hosted CupidASM, CupidObj, CupidLD, and CupidDis targets remain available, but no supported root reaches them recursively |
@@ -832,7 +841,7 @@ The tracked `link.ld` is itself a compatibility contract. It uses `ENTRY`, `SECT
 
 ## Not host compilation
 
-ADRs 0065 through 0075 supersede older broad references to unsupported wide scalar values in the detailed evidence above. Constants, fixed call results, object access, initialization, plain assignment, all ten compound assignments, prefix and postfix update, declared parameters, named call arguments, signed and unsigned wide integer arguments in supported ellipsis and unprototyped calls, variadic reads, discard, return, addition, subtraction, multiplication, division, remainder, unary plus, unary minus, bitwise complement, shifts, AND, OR, XOR, comparisons, logical operators, conditions, signed and unsigned switch dispatch, explicit represented-to-wide casts, same-rank signed-to-unsigned conversion, GNU wide-enum promotion, and conversion to or from represented integer widths are represented. ADRs 0076, 0077, 0079, 0136, 0137, and 0147 add exact `float` and `double` transport, default-promoted open call positions, `va_arg(double)`, unary and binary runtime arithmetic, static constant data and arithmetic, and all six matching or mixed-width comparisons. ADR 0196 adds automatic non-atomic `long double` transport, floating-width conversion, unary plus and minus, all four arithmetic operators, twelve-byte direct and indirect fixed, variadic, and unprototyped arguments, function returns, direct and indirect call results, `va_arg(long double)`, and zero-filled `long double` leaves in twelve-byte file-scope or block-static scalars, fixed arrays, and complete records. ADR 0199 adds all six non-atomic matching or mixed long-double comparisons. ADR 0202 adds runtime truth, the controlling operand of `?:`, the conditions of `if`, `while`, `do`, and `for`, and conversion to `_Bool` at all three represented widths. Runtime mixed wide and floating arithmetic or conditional arms, floating increment and decrement, hexadecimal floating literals, `long double` literals, nonzero or floating static long-double initializers, integer conversions involving `long double` other than `_Bool`, runtime aggregate floating values, atomic access, and other unrepresented forms remain outside the current ABI slice.
+The current wide scalar boundary covers constants, fixed call results, object access, initialization, plain assignment, all ten compound assignments, prefix and postfix update, declared parameters, named call arguments, signed and unsigned wide integer arguments in supported ellipsis and unprototyped calls, variadic reads, discard, return, addition, subtraction, multiplication, division, remainder, unary plus, unary minus, bitwise complement, shifts, AND, OR, XOR, comparisons, logical operators, conditions, signed and unsigned switch dispatch, explicit represented-to-wide casts, same-rank signed-to-unsigned conversion, GNU wide-enum promotion, and conversion to or from represented integer widths are represented. ADRs 0076, 0077, 0079, 0136, 0137, and 0147 add exact `float` and `double` transport, default-promoted open call positions, `va_arg(double)`, unary and binary runtime arithmetic, static constant data and arithmetic, and all six matching or mixed-width comparisons. ADR 0196 adds automatic non-atomic `long double` transport, floating-width conversion, unary plus and minus, all four arithmetic operators, twelve-byte direct and indirect fixed, variadic, and unprototyped arguments, function returns, direct and indirect call results, `va_arg(long double)`, and zero-filled `long double` leaves in twelve-byte file-scope or block-static scalars, fixed arrays, and complete records. ADR 0199 adds all six non-atomic matching or mixed long-double comparisons. ADR 0202 adds runtime truth, the controlling operand of `?:`, the conditions of `if`, `while`, `do`, and `for`, and conversion to `_Bool` at all three represented widths. ADR 0229 adds bounded finite normal decimal long-double literals. Runtime mixed wide and floating arithmetic or conditional arms, floating increment and decrement, hexadecimal floating literals, binary32 and binary64 subnormal literals, hexadecimal or subnormal long-double literals, decimal ratios beyond the bounded parser, nonzero or floating static long-double initializers, integer conversions involving `long double` other than `_Bool`, runtime aggregate floating values, atomic access, and other unrepresented forms remain outside the current ABI slice.
 
 The wide-mutation proof expands shared semantics. Fifteen functions publish 225 exact IR instructions, and 17 emitted functions occupy 4,410 text bytes with fingerprint `4B337038`, 18 symbols including the null symbol, and no relocations. Decoder and execution checks cover all ten compound operators, signed and unsigned prefix or postfix update, postfix snapshot preservation, one-time indexed evaluation, volatile access, cdecl state, rollback, and deterministic recovery. Checked-seed CupidC uses this path for the `+=` and `&=` operations in X25519's `fe_carry`, and both checked stages build the focused contract. GCC or Clang provides only the optional native copy.
 

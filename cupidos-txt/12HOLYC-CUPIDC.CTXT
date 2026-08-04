@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 HolyC-Style CupidC Features
-Verified against source on: 2026-08-03
+Verified against source on: 2026-08-04
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -342,7 +342,12 @@ tolerance helper.
 Direct functions and methods with parsed fixed parameter types convert
 represented integer, char, float, and double arguments to the declared cdecl
 slot before the call. Represented pointer categories and integer null forms can
-fill a pointer slot. A parsed variadic tail widens float to double and promotes
+fill a pointer slot. A represented object pointer can fill a fixed int or
+unsigned int slot as one unchanged i386 word. Narrow and floating destinations
+remain rejected, and the existing represented pointer-category rule is
+unchanged. The unchanged /bin/ctxt.cc call to ctxt_parse_action reaches this
+coercion boundary. That file is an include fragment. /bin/notepad.cc includes
+it completely and passes private AOT compilation. A parsed variadic tail widens float to double and promotes
 char to int. Function-pointer calls, kernel bindings, and calls without fixed
 parameter metadata keep their source-width slots. Character operands undergo
 integer promotion and use the scalar integer conversion path when mixed with

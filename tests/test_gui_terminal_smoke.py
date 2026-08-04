@@ -183,6 +183,18 @@ def _frontier_command_outputs():
             "[cupidc] JIT execution complete\n"
         ),
         (
+            "doom: no WAD found in /disk/wads/ or /home/doom/.\n"
+            "       try: doom -iwad /path/to/your.wad\n"
+        ),
+        (
+            "IWAD file '/disk/missing.wad' not found!\n"
+            "[doom] returned to shell\n"
+        ),
+        (
+            "[cupidc] JIT compile: /bin/ls.cc\n"
+            "[cupidc] JIT execution complete\n"
+        ),
+        (
             "[cupidc] JIT compile: /bin/browser.cc\n"
             "[js] parse error: js: expected exponent digits\n"
             "[js] parse error: js: expected hexadecimal digits\n"
@@ -219,20 +231,24 @@ def _frontier_command_outputs():
     ]
 
 
-def _frontier_command(text):
-    return next(
+def _frontier_command(text, occurrence=0):
+    commands = [
         command
         for command in gui_terminal_smoke.FRONTIER_RUNTIME_COMMANDS
         if command.text == text
-    )
-
-
-def _frontier_command_output(text):
-    command_texts = [
-        command.text
-        for command in gui_terminal_smoke.FRONTIER_RUNTIME_COMMANDS
     ]
-    return _frontier_command_outputs()[command_texts.index(text)]
+    return commands[occurrence]
+
+
+def _frontier_command_output(text, occurrence=0):
+    command_indexes = [
+        index
+        for index, command in enumerate(
+            gui_terminal_smoke.FRONTIER_RUNTIME_COMMANDS
+        )
+        if command.text == text
+    ]
+    return _frontier_command_outputs()[command_indexes[occurrence]]
 
 
 def _write_ppm(path, width, height, pixels):
@@ -1230,6 +1246,9 @@ class FrontierRuntimeContractTests(unittest.TestCase):
                 "/bin/feature17_iso.cc",
                 "/bin/feature18_swap.cc",
                 "dglibc_test",
+                "doom",
+                "doom -iwad /disk/missing.wad",
+                "ls",
                 "browser --selftest",
                 "audiotest all",
                 "godsong 1 200",
@@ -1254,6 +1273,72 @@ class FrontierRuntimeContractTests(unittest.TestCase):
                 self.assertIsNotNone(
                     re.search(command.expected_pattern, sample, re.S | re.M)
                 )
+
+    def test_doom_recovery_requires_both_failures_before_a_fresh_ls(self):
+        commands = gui_terminal_smoke.FRONTIER_RUNTIME_COMMANDS
+        command_texts = [command.text for command in commands]
+        no_wad_index = command_texts.index("doom")
+        missing_iwad_index = command_texts.index(
+            "doom -iwad /disk/missing.wad"
+        )
+        ls_indexes = [
+            index
+            for index, text in enumerate(command_texts)
+            if text == "ls"
+        ]
+
+        self.assertEqual(len(ls_indexes), 2)
+        self.assertEqual(
+            [no_wad_index, missing_iwad_index, ls_indexes[1]],
+            [ls_indexes[1] - 2, ls_indexes[1] - 1, ls_indexes[1]],
+        )
+
+        no_wad = _frontier_command("doom")
+        no_wad_output = _frontier_command_output("doom")
+        for marker in (
+            "doom: no WAD found in /disk/wads/ or /home/doom/.",
+            "try: doom -iwad /path/to/your.wad",
+        ):
+            with self.subTest(command="doom", marker=marker):
+                self.assertIsNone(
+                    re.search(
+                        no_wad.expected_pattern,
+                        no_wad_output.replace(marker, ""),
+                        re.S | re.M,
+                    )
+                )
+
+        missing_iwad = _frontier_command(
+            "doom -iwad /disk/missing.wad"
+        )
+        missing_iwad_output = _frontier_command_output(
+            "doom -iwad /disk/missing.wad"
+        )
+        for marker in (
+            "IWAD file '/disk/missing.wad' not found!",
+            "[doom] returned to shell",
+        ):
+            with self.subTest(command="missing IWAD", marker=marker):
+                self.assertIsNone(
+                    re.search(
+                        missing_iwad.expected_pattern,
+                        missing_iwad_output.replace(marker, ""),
+                        re.S | re.M,
+                    )
+                )
+
+        post_doom_ls = _frontier_command("ls", occurrence=1)
+        post_doom_ls_output = _frontier_command_output(
+            "ls",
+            occurrence=1,
+        )
+        self.assertIsNotNone(
+            re.search(
+                post_doom_ls.expected_pattern,
+                post_doom_ls_output,
+                re.S | re.M,
+            )
+        )
 
     def test_dglibc_command_requires_every_filesystem_boundary(self):
         command = _frontier_command("dglibc_test")
@@ -2126,6 +2211,44 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             monitor.sent[-8:],
             [b"sendkey esc 300\n"] * 8,
         )
+
+    def test_doom_recovery_does_not_reuse_the_first_ls_completion(self):
+        command_texts = [
+            command.text
+            for command in gui_terminal_smoke.FRONTIER_RUNTIME_COMMANDS
+        ]
+        post_doom_ls_index = [
+            index
+            for index, text in enumerate(command_texts)
+            if text == "ls"
+        ][1]
+        command_outputs = _frontier_command_outputs()
+        command_outputs[post_doom_ls_index] = ""
+
+        with tempfile.TemporaryDirectory() as temporary:
+            log = Path(temporary) / "serial.log"
+            log.write_text("", encoding="utf-8")
+            monitor = SequencedMonitorSocket(log, command_outputs)
+            process = mock.Mock()
+            process.poll.return_value = 9
+
+            with (
+                mock.patch("tools.gui_terminal_smoke.time.sleep"),
+                self.assertRaisesRegex(
+                    gui_terminal_smoke.FrontierRuntimeContractError,
+                    "frontier command 'ls'.*QEMU exited with status 9",
+                ),
+            ):
+                gui_terminal_smoke.run_frontier_commands(
+                    process,
+                    monitor,
+                    log,
+                    start_offset=0,
+                    timeout=1.0,
+                    key_pause=0.01,
+                )
+
+        self.assertEqual(monitor.completed, post_doom_ls_index + 1)
 
     def test_syscall_demo_failure_cannot_pass_on_jit_completion(self):
         failed = _frontier_command_output(

@@ -185,6 +185,14 @@ outgoing area. SIMD and aggregate parameters still need a separate private
 ABI. `feature13_double.cc` exercises the represented path through ten calls
 to one `double, double, double, int` helper.
 
+A fixed `int` or `unsigned int` parameter may also receive a represented
+object pointer as one unchanged i386 word. Narrow and floating destinations
+remain rejected, and the existing represented pointer-category rule is
+unchanged. The unchanged `/bin/ctxt.cc` call to `ctxt_parse_action` reaches
+this coercion boundary. The file is an include fragment, and
+`/bin/notepad.cc` includes it completely and passes private AOT compilation.
+ADR 0230 records the rule and recovery contracts.
+
 ### Arrays
 
 Fixed-size arrays, both local (stack-allocated) and global (data section):
@@ -429,7 +437,10 @@ split across the sign boundary. The x87 transport model, SSE conversion
 oracle, and comparison execution oracle check rounding, operand order, signed
 zero, infinities, quiet and signaling NaNs, call alignment, and frame state.
 Non-atomic `long double` values now use twelve-byte target objects and x87
-80-bit memory loads and stores. Automatic values use frame snapshots.
+80-bit memory loads and stores. Bounded finite normal decimal `L` tokens
+round an exact integer ratio to a 64-bit explicit significand with ties to
+even. The emitter writes the significand and positive token's biased exponent
+as three exact snapshot words; unary minus supplies the sign. Automatic values use frame snapshots.
 Static-duration scalars, fixed arrays, and complete records may contain
 long-double leaves. Implicit initialization zeros the complete object; an
 explicit leaf accepts an integer constant expression equal to zero. Each leaf
@@ -447,11 +458,14 @@ matching long-double operands or a mixed `float` or `double` input. A balanced
 `&&`, `||`, the controlling operand of `?:`, the conditions of `if`, `while`,
 `do`, and `for`, and conversion to `_Bool`. Both signed zeros are false; finite nonzero values,
 subnormals, infinities, and NaNs are true. Hexadecimal floating literals,
-`long double` literals, nonzero or floating static long-double initializers,
+binary32 and binary64 subnormal literals, hexadecimal or subnormal
+long-double literals, decimals beyond the bounded ratio parser,
+nonzero or floating static long-double initializers,
 integer conversions involving `long double` other than `_Bool`, runtime
 conversion to unsigned four-byte integers, runtime mixed wide and floating
 arithmetic or conditional arms, floating increment and decrement, SIMD
 values, floating atomics, and over-aligned object emission remain unfinished.
+ADR 0229 records the exact decimal representation and object proof.
 
 Plain assignment, all ten compound assignments, and prefix and postfix update work for represented non-atomic integer bit fields when the declared storage unit is four bytes and fits inside the record. The compiler evaluates the record designator once and applies the target's integer-promotion rules before a compound operation. Partial fields preserve the other bits in their unit. Assignment, compound assignment, and prefix update return the stored lane after width truncation and signed extension, while postfix update returns the extracted old value. A 32-bit field uses the direct load and store path. Volatile 32-bit updates perform one read and one store. Partial volatile mutation, atomic fields, and other storage-unit sizes remain unsupported.
 
@@ -551,7 +565,7 @@ retains the explicit static string cast in `doom_libc_stubs.cc` and emits the ex
 `dg_setjmp` and `dg_longjmp` block through Cupid's x86 model. Two seed compiles
 produce byte-identical objects for all three roots. All 83 sources use `.cc`
 and the normal graph compiles them through the checked seed. The wrapper fixes
-the exact source memberships, freezes all 290 profile headers, and rechecks
+the exact source memberships, freezes all 291 profile headers, and rechecks
 the visible `.c` and `.cc` tree before publishing each object. A legacy `.c`
 file or unlisted `.cc` file fails the closed scan. The validator also accepts
 the two static-subobject `R_386_32` addends of 4 in `g_game.cc`, while
@@ -585,7 +599,9 @@ landings, then runs two quit and two error sessions to check callback order,
 filtering, and cleanup. ADR 0212 records the compiler boundary, ADR 0213 its
 checked-seed promotion, and ADR 0214 active adoption.
 
-Both supported NICs also pass two missing-IWAD launches in one shell and a
+Earlier gates passed two missing-IWAD launches in one shell on both supported
+NICs. The fixed frontier now passes normal discovery, an explicit missing
+path, the shell-return marker, and a fresh CupidC-built `ls`, followed by a
 separate stateful four-CPU frontier. The latter reaches the diagnostic after
 the swap feature has retained a FAT handle, so the handle-exhaustion check
 must account for live system state. This remains asset-free evidence, not a
@@ -666,7 +682,11 @@ baseline bytes.
 Hostbuild validates SOF0 or SOF1 input, copies it unchanged, rejects
 progressive, unsupported, or malformed frames, and asks checked CupidObj to
 wrap the private snapshot. This replaces the old host FFmpeg conversion. The
-first Windows and Linux comparison matched 426 of 430 kernel artifacts and
+source-head `wrap-jpeg` command now performs the same validation inside
+CupidObj and produces the ordinary binary wrapper bytes. The current checked
+seed and production recipe predate that command; ADR 0231 records the source
+capability and deferred transfer. The first Windows and Linux comparison
+matched 426 of 430 kernel artifacts and
 traced the other four to that conversion. The Linux kernel build passed in
 607.7 seconds, and the Windows root build passed in 341.6 seconds. All 430
 frozen kernel artifacts match byte for byte. A fresh 209,715,200-byte image
@@ -755,13 +775,16 @@ conversion across the sign boundary. Unsigned-wide output splits around 2^32
 and derives each word through a 2^31-safe truncation.
 
 Non-atomic `long double` values use x87 80-bit memory transport for
-floating-width conversions, unary plus and minus, all four arithmetic
+bounded finite normal decimal `L` tokens, floating-width conversions, unary
+plus and minus, all four arithmetic
 operators, twelve-byte direct and indirect fixed, variadic, and unprototyped
 arguments, function returns, direct and indirect call results, and
 `va_arg(long double)`. Static-duration arrays and records may contain the same
 implicitly or explicitly zeroed leaves. Runtime truth and conversion to
 `_Bool` cover all three represented floating widths. Hexadecimal floating
-literals, `long double` literals, nonzero or floating static initializers,
+literals, binary32 and binary64 subnormal literals, hexadecimal or subnormal
+long-double literals, decimal ratios beyond the bounded parser, nonzero or
+floating static initializers,
 integer conversions involving `long double` other than `_Bool`, runtime
 conversion to unsigned four-byte integers, other floating-to-wide conversions,
 runtime mixed wide and floating arithmetic or conditional arms, and floating
@@ -2099,13 +2122,16 @@ calls and supports `va_arg(double)`. Decimal constants, represented integer
 conversions, mixed integer and floating arithmetic, and comparisons use the
 public SSE path. Static initializers use the integer-only IEEE evaluator
 described above. Non-atomic `long double` values use x87 80-bit
-transport, floating-width conversions, unary plus and minus, all four
+transport for bounded finite normal decimal `L` tokens, floating-width
+conversions, unary plus and minus, all four
 arithmetic operators, twelve-byte direct and indirect fixed, variadic, and
 unprototyped arguments, function returns, direct and indirect call results,
 and `va_arg(long double)`. Runtime truth, structured conditions, and `_Bool`
 conversion cover `float`, `double`, and automatic `long double`. Runtime mixed
 wide and floating arithmetic or conditional arms, increment and decrement,
-hexadecimal floating literals, `long double` literals, nonzero or floating
+hexadecimal floating literals, binary32 and binary64 subnormal literals,
+hexadecimal or subnormal long-double literals, decimal ratios beyond the
+bounded parser, nonzero or floating
 static long-double initializers, integer conversions involving
 `long double` other than `_Bool`, and SIMD remain open in the hosted path.
 

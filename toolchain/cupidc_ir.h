@@ -127,8 +127,12 @@ typedef struct {
    * CTOOL_C_AST_NONE. */
   ctool_u32 reference;
   /* ATOMIC_* retain the validated GNU memory order from zero through five.
-   * Other instruction-specific uses are described above. */
+   * FLOATING carries the low 64 bits of its target representation. */
   ctool_u64 integer_bits;
+  /* FLOATING with long-double type carries the positive token's target x87
+   * biased exponent in the low fifteen bits. A UNARY instruction represents
+   * a leading minus. Other instructions keep this zero. */
+  ctool_u32 floating_high_bits;
   ctool_c_pp_location_t location;
   ctool_c_pp_location_t physical_location;
 } ctool_c_ir_instruction_t;

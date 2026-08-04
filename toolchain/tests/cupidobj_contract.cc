@@ -600,6 +600,297 @@ static int expect_failure(ctool_job_t *job, ctool_buffer_t *output,
   return 1;
 }
 
+static int expect_failure_message(ctool_job_t *job,
+                                  ctool_buffer_t *output,
+                                  const ctool_obj_request_t *request,
+                                  ctool_status_t expected_status,
+                                  ctool_u32 expected_code,
+                                  const char *expected_message,
+                                  const char *case_name) {
+  const ctool_diagnostic_t *diagnostic;
+  if (!expect_failure(job, output, request, expected_status, expected_code,
+                      0u, case_name)) {
+    return 0;
+  }
+  diagnostic =
+      ctool_job_diagnostic(job, ctool_job_diagnostic_count(job) - 1u);
+  if (diagnostic == (const ctool_diagnostic_t *)0 ||
+      !string_equal(diagnostic->message, expected_message)) {
+    (void)fprintf(stderr, "%s: diagnostic mismatch\n", case_name);
+    return 0;
+  }
+  return 1;
+}
+
+static int run_wrap_jpeg(void) {
+  enum { JPEG_REJECTION_COUNT = 21 };
+  static const ctool_u8 baseline[] = {
+      0xffu, 0xd8u, 0xffu, 0xc0u, 0x00u, 0x0bu, 0x08u,
+      0x00u, 0x01u, 0x00u, 0x01u, 0x01u, 0x01u, 0x11u,
+      0x00u, 0xffu, 0xdau, 0x00u, 0x08u, 0x01u, 0x01u,
+      0x00u, 0x00u, 0x3fu, 0x00u, 0xffu, 0xd9u};
+  static const char *const rejection_names[JPEG_REJECTION_COUNT] = {
+      "missing SOI",
+      "malformed marker stream",
+      "stuffed data before scan",
+      "trailing bytes after EOI",
+      "standalone marker",
+      "truncated marker length",
+      "invalid marker length",
+      "duplicate frame",
+      "truncated frame",
+      "invalid frame components",
+      "invalid frame precision",
+      "invalid frame size",
+      "scan before frame",
+      "truncated scan",
+      "invalid scan components",
+      "partial entropy marker",
+      "progressive frame",
+      "missing frame",
+      "unsupported frame",
+      "missing scan",
+      "missing EOI"};
+  static const char *const rejection_messages[JPEG_REJECTION_COUNT] = {
+      "JPEG input has no SOI marker",
+      "JPEG marker stream is malformed outside a scan",
+      "JPEG marker stream contains stuffed data before a scan",
+      "JPEG input has trailing bytes after the EOI marker",
+      "unexpected standalone JPEG marker 0xd8",
+      "JPEG marker length is truncated",
+      "JPEG marker length is invalid",
+      "JPEG input contains more than one frame header",
+      "JPEG frame header is truncated",
+      "JPEG frame header has an invalid component table",
+      "JPEG frame header has an invalid sample precision",
+      "JPEG frame header has an invalid image size",
+      "JPEG scan appears before its frame header",
+      "JPEG scan header is truncated",
+      "JPEG scan header has an invalid component table",
+      "JPEG entropy data ends with a partial marker",
+      "unsupported progressive JPEG frame; check in a baseline SOF0/SOF1 asset",
+      "JPEG input has no supported SOF0/SOF1 frame",
+      "unsupported JPEG frame marker 0xc3; check in a baseline SOF0/SOF1 asset",
+      "JPEG input has no scan",
+      "JPEG input has no EOI marker"};
+  ctool_u8 sof1[sizeof(baseline)];
+  ctool_u8 entropy[34];
+  const ctool_u8 *positive_bytes[3];
+  ctool_u32 positive_sizes[3];
+  ctool_u8 rejection_bytes[JPEG_REJECTION_COUNT][64];
+  ctool_u32 rejection_sizes[JPEG_REJECTION_COUNT];
+  ctool_status_t rejection_statuses[JPEG_REJECTION_COUNT];
+  ctool_u32 rejection_codes[JPEG_REJECTION_COUNT];
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_buffer_t *jpeg_output = (ctool_buffer_t *)0;
+  ctool_buffer_t *binary_output = (ctool_buffer_t *)0;
+  ctool_buffer_t *limited = (ctool_buffer_t *)0;
+  ctool_source_t source;
+  ctool_obj_request_t request;
+  ctool_obj_result_t jpeg_result;
+  ctool_obj_result_t binary_result;
+  ctool_arena_mark_t mark;
+  ctool_status_t status;
+  ctool_u32 case_index;
+  int ok = 1;
+
+  if (!open_job(&adapter, &config, &job)) {
+    return 1;
+  }
+  status = ctool_job_open_buffer(job, 64u, config.limits.output_bytes,
+                                 &jpeg_output);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 64u, config.limits.output_bytes,
+                                   &binary_output);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 1u, 5u, &limited);
+  }
+  if (status != CTOOL_OK) {
+    if (binary_output != (ctool_buffer_t *)0) {
+      ctool_buffer_close(binary_output);
+    }
+    if (jpeg_output != (ctool_buffer_t *)0) {
+      ctool_buffer_close(jpeg_output);
+    }
+    ctool_job_close(job);
+    return 1;
+  }
+
+  (void)memcpy(sof1, baseline, sizeof(baseline));
+  sof1[3] = 0xc1u;
+  (void)memcpy(entropy, baseline, 25u);
+  entropy[25] = 0x12u;
+  entropy[26] = 0xffu;
+  entropy[27] = 0x00u;
+  entropy[28] = 0x34u;
+  entropy[29] = 0xffu;
+  entropy[30] = 0xd0u;
+  entropy[31] = 0x56u;
+  (void)memcpy(entropy + 32u, baseline + 25u, 2u);
+  positive_bytes[0] = baseline;
+  positive_sizes[0] = (ctool_u32)sizeof(baseline);
+  positive_bytes[1] = sof1;
+  positive_sizes[1] = (ctool_u32)sizeof(sof1);
+  positive_bytes[2] = entropy;
+  positive_sizes[2] = (ctool_u32)sizeof(entropy);
+
+  (void)memset(rejection_bytes, 0, sizeof(rejection_bytes));
+  for (case_index = 0u; case_index < JPEG_REJECTION_COUNT; case_index++) {
+    (void)memcpy(rejection_bytes[case_index], baseline, sizeof(baseline));
+    rejection_sizes[case_index] = (ctool_u32)sizeof(baseline);
+    rejection_statuses[case_index] = CTOOL_ERR_INPUT;
+    rejection_codes[case_index] = CTOOL_OBJ_DIAG_INVALID_INPUT;
+  }
+  rejection_bytes[0][0] = 0x00u;
+  (void)memcpy(rejection_bytes[1], baseline, 15u);
+  rejection_bytes[1][15] = 0x01u;
+  (void)memcpy(rejection_bytes[1] + 16u, baseline + 15u, 12u);
+  rejection_sizes[1] = 28u;
+  (void)memcpy(rejection_bytes[2], baseline, 15u);
+  rejection_bytes[2][15] = 0xffu;
+  rejection_bytes[2][16] = 0x00u;
+  (void)memcpy(rejection_bytes[2] + 17u, baseline + 15u, 12u);
+  rejection_sizes[2] = 29u;
+  rejection_bytes[3][27] = 0x00u;
+  rejection_sizes[3] = 28u;
+  (void)memcpy(rejection_bytes[4], baseline, 15u);
+  rejection_bytes[4][15] = 0xffu;
+  rejection_bytes[4][16] = 0xd8u;
+  (void)memcpy(rejection_bytes[4] + 17u, baseline + 15u, 12u);
+  rejection_sizes[4] = 29u;
+  rejection_bytes[5][0] = 0xffu;
+  rejection_bytes[5][1] = 0xd8u;
+  rejection_bytes[5][2] = 0xffu;
+  rejection_bytes[5][3] = 0xdbu;
+  rejection_bytes[5][4] = 0x00u;
+  rejection_sizes[5] = 5u;
+  rejection_bytes[6][0] = 0xffu;
+  rejection_bytes[6][1] = 0xd8u;
+  rejection_bytes[6][2] = 0xffu;
+  rejection_bytes[6][3] = 0xdbu;
+  rejection_bytes[6][4] = 0x00u;
+  rejection_bytes[6][5] = 0x01u;
+  rejection_sizes[6] = 6u;
+  (void)memcpy(rejection_bytes[7], baseline, 15u);
+  (void)memcpy(rejection_bytes[7] + 15u, baseline + 2u, 13u);
+  (void)memcpy(rejection_bytes[7] + 28u, baseline + 15u, 12u);
+  rejection_sizes[7] = 40u;
+  rejection_bytes[8][5] = 0x07u;
+  rejection_bytes[9][5] = 0x08u;
+  rejection_bytes[10][6] = 0x00u;
+  rejection_bytes[11][8] = 0x00u;
+  (void)memcpy(rejection_bytes[12], baseline, 2u);
+  (void)memcpy(rejection_bytes[12] + 2u, baseline + 15u, 12u);
+  rejection_sizes[12] = 14u;
+  rejection_bytes[13][18] = 0x05u;
+  rejection_bytes[14][18] = 0x06u;
+  (void)memcpy(rejection_bytes[15], baseline, 25u);
+  rejection_bytes[15][25] = 0xffu;
+  rejection_sizes[15] = 26u;
+  rejection_bytes[16][3] = 0xc2u;
+  rejection_statuses[16] = CTOOL_ERR_UNSUPPORTED;
+  rejection_codes[16] = CTOOL_OBJ_DIAG_UNSUPPORTED;
+  rejection_bytes[17][0] = 0xffu;
+  rejection_bytes[17][1] = 0xd8u;
+  rejection_bytes[17][2] = 0xffu;
+  rejection_bytes[17][3] = 0xd9u;
+  rejection_sizes[17] = 4u;
+  rejection_bytes[18][3] = 0xc3u;
+  rejection_statuses[18] = CTOOL_ERR_UNSUPPORTED;
+  rejection_codes[18] = CTOOL_OBJ_DIAG_UNSUPPORTED;
+  (void)memcpy(rejection_bytes[19], baseline, 15u);
+  (void)memcpy(rejection_bytes[19] + 15u, baseline + 25u, 2u);
+  rejection_sizes[19] = 17u;
+  (void)memcpy(rejection_bytes[20], baseline, 25u);
+  rejection_sizes[20] = 25u;
+
+  source.path.text = ctool_string("/photo.jpg");
+  (void)memset(&request, 0, sizeof(request));
+  request.operation = CTOOL_OBJ_WRAP_JPEG;
+  request.input = &source;
+  request.as.wrap_binary.section_name = ctool_string(".data");
+  request.as.wrap_binary.section_flags =
+      CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_WRITE;
+  request.as.wrap_binary.section_alignment = 1u;
+  request.as.wrap_binary.start_symbol = ctool_string("photo_start");
+  request.as.wrap_binary.end_symbol = ctool_string("photo_end");
+  request.as.wrap_binary.size_symbol = ctool_string("photo_size");
+  mark = ctool_arena_mark(ctool_job_arena(job));
+
+  for (case_index = 0u; case_index < 3u; case_index++) {
+    source.contents =
+        ctool_bytes(positive_bytes[case_index], positive_sizes[case_index]);
+    status = ctool_obj_transform(job, &request, jpeg_output, &jpeg_result);
+    request.operation = CTOOL_OBJ_WRAP_BINARY;
+    if (status == CTOOL_OK) {
+      status = ctool_obj_transform(job, &request, binary_output,
+                                   &binary_result);
+    }
+    request.operation = CTOOL_OBJ_WRAP_JPEG;
+    if (status != CTOOL_OK || jpeg_result.bytes.size == 0u ||
+        jpeg_result.bytes.size != binary_result.bytes.size ||
+        memcmp(jpeg_result.bytes.data, binary_result.bytes.data,
+               (size_t)jpeg_result.bytes.size) != 0 ||
+        !arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job)))) {
+      (void)fprintf(stderr,
+                    "wrap-jpeg: positive case %u differs from binary wrap\n",
+                    case_index);
+      ok = 0;
+    }
+    ctool_buffer_clear(binary_output);
+    ctool_buffer_clear(jpeg_output);
+  }
+
+  for (case_index = 0u; case_index < JPEG_REJECTION_COUNT; case_index++) {
+    source.contents = ctool_bytes(rejection_bytes[case_index],
+                                  rejection_sizes[case_index]);
+    ok &= expect_failure_message(
+        job, jpeg_output, &request, rejection_statuses[case_index],
+        rejection_codes[case_index], rejection_messages[case_index],
+        rejection_names[case_index]);
+    if (!arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job)))) {
+      (void)fprintf(stderr, "%s: failure did not rewind the arena\n",
+                    rejection_names[case_index]);
+      ok = 0;
+    }
+    source.contents = ctool_bytes(baseline, (ctool_u32)sizeof(baseline));
+    if (ctool_obj_transform(job, &request, jpeg_output, &jpeg_result) !=
+            CTOOL_OK ||
+        jpeg_result.bytes.size == 0u ||
+        !arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job)))) {
+      (void)fprintf(stderr, "%s: same-job recovery failed\n",
+                    rejection_names[case_index]);
+      ok = 0;
+    }
+    ctool_buffer_clear(jpeg_output);
+  }
+
+  source.contents = ctool_bytes(baseline, (ctool_u32)sizeof(baseline));
+  ok &= expect_failure(job, limited, &request, CTOOL_ERR_LIMIT,
+                       CTOOL_OBJ_DIAG_LIMIT, 0u,
+                       "JPEG object output rollback");
+  if (!arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job)))) {
+    (void)fprintf(stderr, "wrap-jpeg: failure did not rewind the arena\n");
+    ok = 0;
+  }
+  if (ctool_obj_transform(job, &request, jpeg_output, &jpeg_result) !=
+          CTOOL_OK ||
+      jpeg_result.bytes.size == 0u ||
+      !arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job)))) {
+    (void)fprintf(stderr, "wrap-jpeg: output-limit recovery failed\n");
+    ok = 0;
+  }
+
+  ctool_buffer_close(limited);
+  ctool_buffer_close(binary_output);
+  ctool_buffer_close(jpeg_output);
+  ctool_job_close(job);
+  return ok != 0 ? 0 : 1;
+}
+
 static int run_install_source(void) {
   static const char expected[] =
       "/* Auto-generated -- do not edit. */\n"
@@ -1174,6 +1465,9 @@ int main(int argc, char **argv) {
   if (argc == 2 && strcmp(argv[1], "wrap-text") == 0) {
     return run_wrap_text();
   }
+  if (argc == 2 && strcmp(argv[1], "wrap-jpeg") == 0) {
+    return run_wrap_jpeg();
+  }
   if (argc == 2 && strcmp(argv[1], "extract-fallback") == 0) {
     return run_extract_fallback();
   }
@@ -1188,7 +1482,8 @@ int main(int argc, char **argv) {
   }
   (void)fprintf(stderr,
                 "usage: cupidobj-contract wrap-basic|wrap-model|"
-                "wrap-text|extract-basic|extract-fallback|install-source|"
+                "wrap-text|wrap-jpeg|extract-basic|extract-fallback|"
+                "install-source|"
                 "ksyms-source|errors\n");
   return 2;
 }

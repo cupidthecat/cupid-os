@@ -333,7 +333,7 @@ explicit static string cast in `doom_libc_stubs.cc` and emits the exact
 second checked-seed compile matches the first for all three objects. The
 normal graph owns all 83 roots through CupidC, and every source uses `.cc`.
 The wrapper fixes exact three-source and 80-source allowlists and freezes the
-complete 290-file header space. Its input manifest detects source removal,
+complete 291-file header space. Its input manifest detects source removal,
 while the wrapper recursively checks visible `.c` and `.cc` files and live
 bytes before publication. A legacy `.c` file, an unlisted `.cc` file, header
 drift, a symbolic link, or an NTFS junction fails closed. The 52,004-byte
@@ -582,6 +582,14 @@ addresses. Callees and caller cleanup use the same widths. This repairs guest
 JIT and AOT behavior without moving a build owner. ADR 0198 records the
 boundary.
 
+A fixed private `int` or `unsigned int` parameter can also receive a
+represented object pointer as one unchanged i386 word. Narrow and floating
+destinations remain rejected, and the existing represented pointer-category
+rule is unchanged. The unchanged `/bin/ctxt.cc` call to
+`ctxt_parse_action` exposed this coercion boundary. That file is an include
+fragment; `/bin/notepad.cc` includes it and passes private AOT compilation.
+ADR 0230 records the focused call and recovery contracts.
+
 The Browser's JavaScript runtime keeps decimal, hexadecimal, binary, and octal
 tokens in a binary64 lane and accepts separators between valid digits. Its
 primitive path covers whole-string numeric conversion with ECMAScript
@@ -704,6 +712,10 @@ for byte. The matching raw kernel is 8,490,228 bytes with SHA-256
 The fresh normal image has SHA-256
 `e815d2ef67f114a26181f0e2cbde85f892cdadd487f8d9cbee9715e720800b3e`.
 A private `/bin/ls.cc` JIT boot from it passed in 49.8 seconds.
+Source-head CupidObj now performs the same marker checks in its transactional
+`wrap-jpeg` operation before applying the ordinary byte-exact wrapper. The
+current checked seed and production recipe predate the command. ADR 0231
+records the capability and the required promotion boundary.
 The checked audit uses the canonical Windows Make branch and C locale on
 every host. Direct Linux builds test the separate Linux execution branch.
 
@@ -734,6 +746,10 @@ same storage diagnostic after the swap feature has kept one FAT handle open,
 then completes the framebuffer, audio, speaker, desktop, terminal, and in-OS
 CupidC checks. The checkout has no WAD, so this evidence stops before gameplay,
 game input and audio, menu-driven save/load, and reboot persistence.
+The fixed frontier command sequence now adds `doom`, an explicit
+`doom -iwad /disk/missing.wad`, the shell-return marker, and a fresh
+CupidC-built `ls`. This makes the no-IWAD recovery reproducible in the normal
+frontier without treating it as gameplay proof. ADR 0232 records the gate.
 
 ### GNU named assembly operands
 
