@@ -8,11 +8,11 @@ stable shape, then covers the Linux branch with direct build tests.
 language graph contains 28 assembly inputs, 290 headers, and 401 Cupid C
 files. No ordinary C translation unit remains in a supported root. The
 active-source digest is
-`cfb0e1dcd276154a4db5c2747ed092581874a54cd4c9fb379f204e3c10f8253e`.
-The 2,557,786-byte audit JSON has SHA-256
-`0bec92831496d809bd9773ef94f6f5a3bb98a678d4a1c22001ba601df4fc2eaa`,
+`b6a340db80dfb5d95eaf429b386aa8f5f6a359091e1f7b879ca38f72f7b6de02`.
+The 2,558,331-byte audit JSON has SHA-256
+`4a24cfe4755bfe61f1898f69333d95b2e7e89c23b4e33342e65875b35f2427de`,
 and the 12,196-byte summary has SHA-256
-`bbe13eed982c61327a8299ecfd35ccd4d57bb40ad712a379ad24e51f1d713a97`.
+`caa636e630cb9b55c9be633c31b45ad1385d2bde3d8cdba2d228eaae694e567f`.
 The checked Windows Clang/LLVM and Linux GCC/binutils baselines at
 revision `1e079d1` predate the current CupidC ownership and remain historical
 oracle evidence.
@@ -40,6 +40,13 @@ runner checks that trust unit before and after each command. Make passes
 discovered output paths through `$(sort ...)` before generation and link, so
 the Windows and Linux branches consume one canonical source order. ADR 0238
 records the disk-image transfer.
+
+Source-head CupidObj now reproduces the complete tracked ISO fixture through
+`iso-fixture`. The operation owns deterministic ECMA-119 and Rock Ridge byte
+layout, but this source commit does not change a supported-root owner. The
+checked seed predates the command, and Python remains the production writer,
+tree freezer, drift checker, and publisher until the seed and recipe move in
+separate green commits. ADR 0239 records the capability.
 
 CupidASM participates in five production transforms. The fifth assembles
 `test_iso/fixtures/big.bin` from `test_iso/big_pattern.asm` through the checked

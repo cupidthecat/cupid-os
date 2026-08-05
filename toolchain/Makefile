@@ -730,6 +730,7 @@ test: $(CONTRACT_MANIFEST) \
 	$(CUPIDOBJ_CONTRACT) install-source
 	$(CUPIDOBJ_CONTRACT) ksyms-source
 	$(CUPIDOBJ_CONTRACT) disk-template
+	$(CUPIDOBJ_CONTRACT) iso-fixture
 	$(CUPIDOBJ_CONTRACT) errors
 	$(CUPIDLD_CONTRACT) fixed-basic
 	$(CUPIDLD_CONTRACT) fixed-layout

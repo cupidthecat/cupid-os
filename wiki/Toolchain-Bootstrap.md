@@ -750,6 +750,16 @@ image SHA-256
 `d1bfab4aed1f2116768ceed3e301fb14ffe2a36418eb4d4ebdf1108097cb2b05`.
 Its private four-CPU JIT boot passed in 66.8 seconds.
 
+Source-head CupidObj now adds `iso-fixture` after that checked promotion. The
+freestanding operation consumes a manifest and typed logical inventory rather
+than walking a host directory. It reproduces the tracked 61,440-byte
+ECMA-119 and `RRIP_1991A` image exactly, including both path-table byte orders,
+fixed metadata, block-contained directories, the forward continuation, and
+the absence of `ST` fields. Eleven core selectors and all 31 hosted CupidObj
+tests pass. The current seed still reports 5/13/9 and does not recognize the
+new command, so production ownership has not moved. ADR 0239 records this
+source capability.
+
 The checked audit uses the canonical Windows Make branch and C locale on
 every host. Direct Linux builds test the separate Linux execution branch.
 

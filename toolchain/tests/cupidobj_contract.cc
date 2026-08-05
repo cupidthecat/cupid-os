@@ -30,6 +30,18 @@ static ctool_u32 read_le32(const ctool_u8 *bytes, ctool_u32 offset) {
          ((ctool_u32)bytes[offset + 3u] << 24u);
 }
 
+static ctool_u16 read_be16(const ctool_u8 *bytes, ctool_u32 offset) {
+  return (ctool_u16)(((ctool_u16)bytes[offset] << 8u) |
+                     (ctool_u16)bytes[offset + 1u]);
+}
+
+static ctool_u32 read_be32(const ctool_u8 *bytes, ctool_u32 offset) {
+  return ((ctool_u32)bytes[offset] << 24u) |
+         ((ctool_u32)bytes[offset + 1u] << 16u) |
+         ((ctool_u32)bytes[offset + 2u] << 8u) |
+         (ctool_u32)bytes[offset + 3u];
+}
+
 static int byte_range_is_zero(const ctool_u8 *bytes, ctool_u32 begin,
                               ctool_u32 end) {
   ctool_u32 index;
@@ -1633,6 +1645,428 @@ static int run_disk_template(void) {
   return ok != 0 ? 0 : 1;
 }
 
+static int iso_fixture_layout(const ctool_obj_result_t *result) {
+  const ctool_u32 block = 2048u;
+  const ctool_u8 *bytes = result->bytes.data;
+  const ctool_u32 descriptor = 16u * block;
+  const ctool_u32 root = 20u * block;
+  const ctool_u32 sub = 21u * block;
+  if (bytes == (const ctool_u8 *)0 || result->bytes.size != 25u * block ||
+      result->base_address != 0u || result->end_address != 0u) {
+    (void)fprintf(stderr, "iso-fixture: result shape differs\n");
+    return 0;
+  }
+  if (memcmp(bytes + descriptor, "\x01" "CD001\x01", 7u) != 0 ||
+      memcmp(bytes + descriptor + 40u, "CUPID_OS_TEST", 13u) != 0 ||
+      read_le32(bytes, descriptor + 80u) != 25u ||
+      read_be32(bytes, descriptor + 84u) != 25u ||
+      read_le32(bytes, descriptor + 132u) != 22u ||
+      read_be32(bytes, descriptor + 136u) != 22u ||
+      read_le32(bytes, descriptor + 140u) != 18u ||
+      read_be32(bytes, descriptor + 148u) != 19u ||
+      read_le32(bytes, descriptor + 158u) != 20u ||
+      read_be32(bytes, descriptor + 162u) != 20u ||
+      read_le32(bytes, descriptor + 166u) != block ||
+      read_be32(bytes, descriptor + 170u) != block ||
+      memcmp(bytes + 17u * block, "\xff" "CD001\x01", 7u) != 0) {
+    (void)fprintf(stderr, "iso-fixture: descriptor layout differs\n");
+    return 0;
+  }
+  if (bytes[18u * block] != 1u ||
+      read_le32(bytes, 18u * block + 2u) != 20u ||
+      read_le16(bytes, 18u * block + 6u) != 1u ||
+      bytes[18u * block + 10u] != 3u ||
+      read_le32(bytes, 18u * block + 12u) != 21u ||
+      read_le16(bytes, 18u * block + 16u) != 1u ||
+      memcmp(bytes + 18u * block + 18u, "SUB", 3u) != 0) {
+    (void)fprintf(stderr, "iso-fixture: little path table differs\n");
+    return 0;
+  }
+  if (bytes[19u * block] != 1u ||
+      read_be32(bytes, 19u * block + 2u) != 20u ||
+      read_be16(bytes, 19u * block + 6u) != 1u ||
+      bytes[19u * block + 10u] != 3u ||
+      read_be32(bytes, 19u * block + 12u) != 21u ||
+      read_be16(bytes, 19u * block + 16u) != 1u ||
+      memcmp(bytes + 19u * block + 18u, "SUB", 3u) != 0) {
+    (void)fprintf(stderr, "iso-fixture: big path table differs\n");
+    return 0;
+  }
+  if (memcmp(bytes + root + 34u, "SP\x07\x01\xbe\xef\x00", 7u) != 0 ||
+      memcmp(bytes + root + 103u, "CE\x1c\x01", 4u) != 0 ||
+      read_le32(bytes, root + 107u) != 22u ||
+      read_le32(bytes, root + 123u) != 237u ||
+      memcmp(bytes + root + 228u + 33u, "EMPTY.;1", 8u) != 0 ||
+      memcmp(bytes + root + 342u + 33u, "HELLO.TXT;1", 11u) != 0 ||
+      memcmp(bytes + root + 462u + 33u, "SUB", 3u) != 0 ||
+      memcmp(bytes + sub + 192u + 33u, "NESTED.BIN;1", 12u) != 0) {
+    (void)fprintf(stderr, "iso-fixture: directory records differ\n");
+    return 0;
+  }
+  if (memcmp(bytes + 22u * block, "ER\xed\x01", 4u) != 0 ||
+      memcmp(bytes + 23u * block, "hello", 5u) != 0 ||
+      memcmp(bytes + 24u * block, "nest", 4u) != 0) {
+    (void)fprintf(stderr, "iso-fixture: continuation or files differ\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int run_iso_fixture(void) {
+  static const char manifest_bytes[] =
+      "empty\nhello.txt\nsub\nsub/nested.bin\n";
+  static const char reordered_manifest_bytes[] =
+      "sub/nested.bin\r\nsub\r\nhello.txt\r\nempty\r\n";
+  static const char orphan_manifest[] = "lost/file.bin\n";
+  static const char collision_manifest[] = "A\na\n";
+  static const char file_parent_manifest[] = "parent\nparent/child\n";
+  static const char wide_manifest[] = "wide.bin\n";
+  static const char missing_typed_manifest[] =
+      "empty\nhello.txt\nsub\n";
+  static const char extra_manifest[] =
+      "empty\nhello.txt\nsub\nsub/nested.bin\nextra\n";
+  static const char long_component[] =
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  static const ctool_u8 hello_bytes[] = {'h', 'e', 'l', 'l', 'o'};
+  static const ctool_u8 nested_bytes[] = {'n', 'e', 's', 't'};
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_buffer_t *first = (ctool_buffer_t *)0;
+  ctool_buffer_t *second = (ctool_buffer_t *)0;
+  ctool_buffer_t *limited = (ctool_buffer_t *)0;
+  ctool_source_t manifest;
+  ctool_source_t hello;
+  ctool_source_t nested;
+  ctool_source_t empty;
+  ctool_source_t invalid_source;
+  ctool_source_t wide_source;
+  ctool_obj_iso_fixture_entry_t entries[4];
+  ctool_obj_iso_fixture_entry_t reordered[4];
+  ctool_obj_iso_fixture_entry_t orphan;
+  ctool_obj_iso_fixture_entry_t collisions[2];
+  ctool_obj_iso_fixture_entry_t file_parent[2];
+  ctool_obj_iso_fixture_entry_t wide_entry;
+  ctool_obj_request_t request;
+  ctool_obj_result_t first_result;
+  ctool_obj_result_t second_result;
+  ctool_arena_mark_t mark;
+  ctool_arena_mark_t before_fill;
+  ctool_arena_mark_t full_mark;
+  ctool_status_t status;
+  void *arena_fill = (void *)0;
+  int ok = 1;
+
+  if (!open_job(&adapter, &config, &job)) {
+    return 1;
+  }
+  status = ctool_job_open_buffer(job, 64u, config.limits.output_bytes, &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 64u, config.limits.output_bytes,
+                                   &second);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 64u, 25u * 2048u - 1u, &limited);
+  }
+  if (status != CTOOL_OK) {
+    if (limited != (ctool_buffer_t *)0) {
+      ctool_buffer_close(limited);
+    }
+    if (second != (ctool_buffer_t *)0) {
+      ctool_buffer_close(second);
+    }
+    if (first != (ctool_buffer_t *)0) {
+      ctool_buffer_close(first);
+    }
+    ctool_job_close(job);
+    return 1;
+  }
+
+  manifest.path.text = ctool_string("/fixtures.manifest");
+  manifest.contents = ctool_bytes(manifest_bytes,
+                                  (ctool_u32)sizeof(manifest_bytes) - 1u);
+  hello.path.text = ctool_string("/hello.txt");
+  hello.contents = ctool_bytes(hello_bytes, (ctool_u32)sizeof(hello_bytes));
+  nested.path.text = ctool_string("/nested.bin");
+  nested.contents =
+      ctool_bytes(nested_bytes, (ctool_u32)sizeof(nested_bytes));
+  empty.path.text = ctool_string("/empty");
+  empty.contents = ctool_bytes((const void *)0, 0u);
+
+  entries[0].path = ctool_string("sub/nested.bin");
+  entries[0].kind = CTOOL_OBJ_ISO_FIXTURE_FILE;
+  entries[0].source = &nested;
+  entries[1].path = ctool_string("empty");
+  entries[1].kind = CTOOL_OBJ_ISO_FIXTURE_FILE;
+  entries[1].source = &empty;
+  entries[2].path = ctool_string("sub");
+  entries[2].kind = CTOOL_OBJ_ISO_FIXTURE_DIRECTORY;
+  entries[2].source = (const ctool_source_t *)0;
+  entries[3].path = ctool_string("hello.txt");
+  entries[3].kind = CTOOL_OBJ_ISO_FIXTURE_FILE;
+  entries[3].source = &hello;
+  reordered[0] = entries[3];
+  reordered[1] = entries[2];
+  reordered[2] = entries[1];
+  reordered[3] = entries[0];
+
+  (void)memset(&request, 0, sizeof(request));
+  request.operation = CTOOL_OBJ_BUILD_ISO_FIXTURE;
+  request.input = &manifest;
+  request.as.iso_fixture.entries = entries;
+  request.as.iso_fixture.entry_count = 4u;
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_obj_transform(job, &request, first, &first_result);
+  if (status != CTOOL_OK ||
+      !arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) ||
+      !iso_fixture_layout(&first_result)) {
+    (void)fprintf(stderr, "iso-fixture: first transform failed\n");
+    ok = 0;
+  }
+  request.as.iso_fixture.entries = reordered;
+  manifest.contents = ctool_bytes(
+      reordered_manifest_bytes,
+      (ctool_u32)sizeof(reordered_manifest_bytes) - 1u);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_obj_transform(job, &request, second, &second_result);
+  if (status != CTOOL_OK ||
+      !arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) ||
+      first_result.bytes.size != second_result.bytes.size ||
+      memcmp(first_result.bytes.data, second_result.bytes.data,
+             (size_t)first_result.bytes.size) != 0) {
+    (void)fprintf(stderr, "iso-fixture: reordered inventory differs\n");
+    ok = 0;
+  }
+
+  {
+    char boundary_paths[512][5];
+    ctool_u8 boundary_manifest[512u * 5u];
+    ctool_obj_iso_fixture_entry_t boundary_entries[512];
+    ctool_u32 index;
+    for (index = 0u; index < 512u; index++) {
+      boundary_paths[index][0] = 'd';
+      boundary_paths[index][1] =
+          (char)('0' + (char)((index / 100u) % 10u));
+      boundary_paths[index][2] =
+          (char)('0' + (char)((index / 10u) % 10u));
+      boundary_paths[index][3] = (char)('0' + (char)(index % 10u));
+      boundary_paths[index][4] = '\0';
+      (void)memcpy(boundary_manifest + index * 5u,
+                   boundary_paths[index], 4u);
+      boundary_manifest[index * 5u + 4u] = (ctool_u8)'\n';
+      boundary_entries[index].path = ctool_string(boundary_paths[index]);
+      boundary_entries[index].kind = CTOOL_OBJ_ISO_FIXTURE_DIRECTORY;
+      boundary_entries[index].source = (const ctool_source_t *)0;
+    }
+    ctool_buffer_clear(second);
+    manifest.contents = ctool_bytes(boundary_manifest,
+                                    (ctool_u32)sizeof(boundary_manifest));
+    request.as.iso_fixture.entries = boundary_entries;
+    request.as.iso_fixture.entry_count = 512u;
+    mark = ctool_arena_mark(ctool_job_arena(job));
+    status = ctool_obj_transform(job, &request, second, &second_result);
+    if (status != CTOOL_OK ||
+        !arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) ||
+        second_result.bytes.size % 2048u != 0u) {
+      (void)fprintf(stderr,
+                    "iso-fixture: complete entry boundary failed\n");
+      ok = 0;
+    }
+  }
+
+  ctool_buffer_clear(second);
+  request.as.iso_fixture.entries = entries;
+  request.as.iso_fixture.entry_count = 4u;
+  manifest.contents = ctool_bytes(manifest_bytes,
+                                  (ctool_u32)sizeof(manifest_bytes) - 1u);
+  ok &= expect_rewound_failure(job, limited, &request, CTOOL_ERR_LIMIT,
+                               CTOOL_OBJ_DIAG_LIMIT,
+                               "iso-fixture output limit");
+
+  manifest.contents = ctool_bytes(orphan_manifest,
+                                  (ctool_u32)sizeof(orphan_manifest) - 1u);
+  orphan.path = ctool_string("lost/file.bin");
+  orphan.kind = CTOOL_OBJ_ISO_FIXTURE_FILE;
+  orphan.source = &nested;
+  request.as.iso_fixture.entries = &orphan;
+  request.as.iso_fixture.entry_count = 1u;
+  ok &= expect_rewound_failure(job, limited, &request, CTOOL_ERR_INPUT,
+                               CTOOL_OBJ_DIAG_INVALID_INPUT,
+                               "iso-fixture missing parent");
+
+  manifest.contents =
+      ctool_bytes(collision_manifest,
+                  (ctool_u32)sizeof(collision_manifest) - 1u);
+  collisions[0].path = ctool_string("A");
+  collisions[0].kind = CTOOL_OBJ_ISO_FIXTURE_FILE;
+  collisions[0].source = &empty;
+  collisions[1].path = ctool_string("a");
+  collisions[1].kind = CTOOL_OBJ_ISO_FIXTURE_FILE;
+  collisions[1].source = &empty;
+  request.as.iso_fixture.entries = collisions;
+  request.as.iso_fixture.entry_count = 2u;
+  ok &= expect_rewound_failure(job, limited, &request, CTOOL_ERR_INPUT,
+                               CTOOL_OBJ_DIAG_SYMBOL_COLLISION,
+                               "iso-fixture case collision");
+
+  request.as.iso_fixture.entries = (const ctool_obj_iso_fixture_entry_t *)0;
+  request.as.iso_fixture.entry_count = 1u;
+  ok &= expect_rewound_failure(job, limited, &request,
+                               CTOOL_ERR_INVALID_ARGUMENT,
+                               CTOOL_OBJ_DIAG_INVALID_REQUEST,
+                               "iso-fixture missing inventory");
+  request.as.iso_fixture.entries = entries;
+  request.as.iso_fixture.entry_count = 0u;
+  ok &= expect_rewound_failure(job, limited, &request,
+                               CTOOL_ERR_INVALID_ARGUMENT,
+                               CTOOL_OBJ_DIAG_INVALID_REQUEST,
+                               "iso-fixture empty inventory");
+  request.as.iso_fixture.entry_count = 513u;
+  ok &= expect_rewound_failure(job, limited, &request, CTOOL_ERR_LIMIT,
+                               CTOOL_OBJ_DIAG_LIMIT,
+                               "iso-fixture entry limit");
+
+  request.as.iso_fixture.entry_count = 4u;
+  entries[0].kind = (ctool_obj_iso_fixture_kind_t)0;
+  ok &= expect_rewound_failure(job, limited, &request,
+                               CTOOL_ERR_INVALID_ARGUMENT,
+                               CTOOL_OBJ_DIAG_INVALID_REQUEST,
+                               "iso-fixture invalid entry kind");
+  entries[0].kind = CTOOL_OBJ_ISO_FIXTURE_FILE;
+  entries[0].source = (const ctool_source_t *)0;
+  ok &= expect_rewound_failure(job, limited, &request,
+                               CTOOL_ERR_INVALID_ARGUMENT,
+                               CTOOL_OBJ_DIAG_INVALID_REQUEST,
+                               "iso-fixture file source required");
+  entries[0].source = &nested;
+  entries[2].source = &empty;
+  ok &= expect_rewound_failure(job, limited, &request,
+                               CTOOL_ERR_INVALID_ARGUMENT,
+                               CTOOL_OBJ_DIAG_INVALID_REQUEST,
+                               "iso-fixture directory source forbidden");
+  entries[2].source = (const ctool_source_t *)0;
+  invalid_source.path.text = ctool_string("/invalid.bin");
+  invalid_source.contents = ctool_bytes((const void *)0, 1u);
+  entries[0].source = &invalid_source;
+  ok &= expect_rewound_failure(job, limited, &request,
+                               CTOOL_ERR_INVALID_ARGUMENT,
+                               CTOOL_OBJ_DIAG_INVALID_INPUT,
+                               "iso-fixture invalid file bytes");
+  entries[0].source = &nested;
+
+  entries[2].path = ctool_string("/absolute");
+  ok &= expect_rewound_failure(job, limited, &request, CTOOL_ERR_INPUT,
+                               CTOOL_OBJ_DIAG_INVALID_INPUT,
+                               "iso-fixture absolute path");
+  entries[2].path = ctool_string("double//slash");
+  ok &= expect_rewound_failure(job, limited, &request, CTOOL_ERR_INPUT,
+                               CTOOL_OBJ_DIAG_INVALID_INPUT,
+                               "iso-fixture empty component");
+  entries[2].path = ctool_string("back\\slash");
+  ok &= expect_rewound_failure(job, limited, &request, CTOOL_ERR_INPUT,
+                               CTOOL_OBJ_DIAG_INVALID_INPUT,
+                               "iso-fixture native separator");
+  entries[2].path = ctool_string("parent/../escape");
+  ok &= expect_rewound_failure(job, limited, &request, CTOOL_ERR_INPUT,
+                               CTOOL_OBJ_DIAG_INVALID_INPUT,
+                               "iso-fixture traversal path");
+  entries[2].path = ctool_string("white space");
+  ok &= expect_rewound_failure(job, limited, &request, CTOOL_ERR_INPUT,
+                               CTOOL_OBJ_DIAG_INVALID_INPUT,
+                               "iso-fixture whitespace path");
+  entries[2].path = ctool_string(long_component);
+  ok &= expect_rewound_failure(job, limited, &request, CTOOL_ERR_INPUT,
+                               CTOOL_OBJ_DIAG_INVALID_INPUT,
+                               "iso-fixture component limit");
+  entries[2].path = ctool_string("a/b/c/d/e/f/g/h");
+  ok &= expect_rewound_failure(job, limited, &request, CTOOL_ERR_INPUT,
+                               CTOOL_OBJ_DIAG_INVALID_INPUT,
+                               "iso-fixture hierarchy limit");
+  entries[2].path = ctool_string("sub");
+
+  manifest.contents = ctool_bytes(
+      missing_typed_manifest,
+      (ctool_u32)sizeof(missing_typed_manifest) - 1u);
+  ok &= expect_rewound_failure(job, limited, &request, CTOOL_ERR_INPUT,
+                               CTOOL_OBJ_DIAG_INVALID_INPUT,
+                               "iso-fixture typed entry missing manifest");
+  manifest.contents = ctool_bytes(extra_manifest,
+                                  (ctool_u32)sizeof(extra_manifest) - 1u);
+  ok &= expect_rewound_failure(job, limited, &request, CTOOL_ERR_INPUT,
+                               CTOOL_OBJ_DIAG_INVALID_INPUT,
+                               "iso-fixture manifest entry missing input");
+
+  manifest.contents = ctool_bytes(
+      file_parent_manifest,
+      (ctool_u32)sizeof(file_parent_manifest) - 1u);
+  file_parent[0].path = ctool_string("parent");
+  file_parent[0].kind = CTOOL_OBJ_ISO_FIXTURE_FILE;
+  file_parent[0].source = &empty;
+  file_parent[1].path = ctool_string("parent/child");
+  file_parent[1].kind = CTOOL_OBJ_ISO_FIXTURE_FILE;
+  file_parent[1].source = &empty;
+  request.as.iso_fixture.entries = file_parent;
+  request.as.iso_fixture.entry_count = 2u;
+  ok &= expect_rewound_failure(job, limited, &request, CTOOL_ERR_INPUT,
+                               CTOOL_OBJ_DIAG_INVALID_INPUT,
+                               "iso-fixture file parent");
+
+  manifest.contents =
+      ctool_bytes(wide_manifest, (ctool_u32)sizeof(wide_manifest) - 1u);
+  wide_source.path.text = ctool_string("/wide.bin");
+  wide_source.contents = ctool_bytes((const void *)1, 0xffffffffu);
+  wide_entry.path = ctool_string("wide.bin");
+  wide_entry.kind = CTOOL_OBJ_ISO_FIXTURE_FILE;
+  wide_entry.source = &wide_source;
+  request.as.iso_fixture.entries = &wide_entry;
+  request.as.iso_fixture.entry_count = 1u;
+  ok &= expect_rewound_failure(job, limited, &request, CTOOL_ERR_OVERFLOW,
+                               CTOOL_OBJ_DIAG_LIMIT,
+                               "iso-fixture i386 output overflow");
+
+  manifest.contents = ctool_bytes(manifest_bytes,
+                                  (ctool_u32)sizeof(manifest_bytes) - 1u);
+  request.as.iso_fixture.entries = entries;
+  request.as.iso_fixture.entry_count = 4u;
+  before_fill = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_arena_alloc(ctool_job_arena(job),
+                             config.limits.arena_bytes, 1u, &arena_fill);
+  full_mark = ctool_arena_mark(ctool_job_arena(job));
+  if (status != CTOOL_OK || arena_fill == (void *)0) {
+    (void)fprintf(stderr, "iso-fixture: arena-limit setup failed\n");
+    ok = 0;
+  } else {
+    ok &= expect_rewound_failure(job, limited, &request, CTOOL_ERR_LIMIT,
+                                 CTOOL_OBJ_DIAG_LIMIT,
+                                 "iso-fixture arena limit");
+    if (!arena_marks_equal(full_mark,
+                           ctool_arena_mark(ctool_job_arena(job)))) {
+      (void)fprintf(stderr, "iso-fixture: arena failure did not rewind\n");
+      ok = 0;
+    }
+    if (ctool_arena_rewind(ctool_job_arena(job), before_fill) != CTOOL_OK) {
+      (void)fprintf(stderr, "iso-fixture: arena recovery setup failed\n");
+      ok = 0;
+    }
+  }
+  ctool_buffer_clear(second);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_obj_transform(job, &request, second, &second_result);
+  if (status != CTOOL_OK ||
+      !arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) ||
+      !iso_fixture_layout(&second_result)) {
+    (void)fprintf(stderr, "iso-fixture: same-job recovery failed\n");
+    ok = 0;
+  }
+
+  ctool_buffer_close(limited);
+  ctool_buffer_close(second);
+  ctool_buffer_close(first);
+  ctool_job_close(job);
+  return ok != 0 ? 0 : 1;
+}
+
 static int run_errors(void) {
   static const ctool_u8 payload[] = {1u, 2u, 3u};
   static const ctool_u8 text_payload[] = {'x', '\r', '\n', 'y'};
@@ -1852,10 +2286,13 @@ int main(int argc, char **argv) {
   if (argc == 2 && strcmp(argv[1], "disk-template") == 0) {
     return run_disk_template();
   }
+  if (argc == 2 && strcmp(argv[1], "iso-fixture") == 0) {
+    return run_iso_fixture();
+  }
   (void)fprintf(stderr,
                  "usage: cupidobj-contract wrap-basic|wrap-model|"
                  "wrap-text|wrap-jpeg|extract-basic|extract-fallback|"
                  "install-source|"
-                 "ksyms-source|disk-template|errors\n");
+                 "ksyms-source|disk-template|iso-fixture|errors\n");
   return 2;
 }

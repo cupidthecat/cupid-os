@@ -258,6 +258,198 @@ class CupidObjHostedCliTests(unittest.TestCase):
             capture_output=True,
         )
 
+    def _run_iso_fixture(self, root, manifest, entries, output):
+        command = [str(self.cli), "iso-fixture", str(manifest)]
+        for kind, logical, native in entries:
+            command.extend([f"--{kind}", logical])
+            if native is not None:
+                command.append(str(native))
+        command.extend(["-o", str(output)])
+        return subprocess.run(
+            command,
+            cwd=root,
+            text=True,
+            capture_output=True,
+        )
+
+    @staticmethod
+    def _active_iso_entries():
+        fixtures = REPO_ROOT / "test_iso" / "fixtures"
+        return [
+            ("file", "big.bin", fixtures / "big.bin"),
+            ("file", "gen_big.sh", fixtures / "gen_big.sh"),
+            (
+                "file",
+                "jpeg_baseline_8x8.jpg",
+                fixtures / "jpeg_baseline_8x8.jpg",
+            ),
+            (
+                "file",
+                "long_named_file.txt",
+                fixtures / "long_named_file.txt",
+            ),
+            ("file", "readme.txt", fixtures / "readme.txt"),
+            ("directory", "sub", None),
+            ("file", "sub/nested.txt", fixtures / "sub" / "nested.txt"),
+        ]
+
+    def test_iso_fixture_matches_tracked_image_exactly(self):
+        with tempfile.TemporaryDirectory() as td:
+            output = Path(td) / "hello.iso"
+            generated = self._run_iso_fixture(
+                REPO_ROOT,
+                REPO_ROOT / "test_iso" / "fixtures.manifest",
+                self._active_iso_entries(),
+                output,
+            )
+            self.assertEqual(generated.returncode, 0, generated.stderr)
+            self.assertEqual(
+                output.read_bytes(),
+                (REPO_ROOT / "test_iso" / "hello.iso").read_bytes(),
+            )
+
+    def test_iso_fixture_entry_argument_order_does_not_change_output(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            first = root / "first.iso"
+            second = root / "second.iso"
+            manifest = REPO_ROOT / "test_iso" / "fixtures.manifest"
+            entries = self._active_iso_entries()
+            generated_first = self._run_iso_fixture(
+                root,
+                manifest,
+                entries,
+                first,
+            )
+            self.assertEqual(
+                generated_first.returncode,
+                0,
+                generated_first.stderr,
+            )
+            generated_second = self._run_iso_fixture(
+                root,
+                manifest,
+                list(reversed(entries)),
+                second,
+            )
+            self.assertEqual(
+                generated_second.returncode,
+                0,
+                generated_second.stderr,
+            )
+            self.assertEqual(second.read_bytes(), first.read_bytes())
+
+    def test_iso_fixture_identifier_collisions_match_python_in_both_orders(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            fixtures = root / "fixtures"
+            fixtures.mkdir()
+            dashed = fixtures / "a-b.txt"
+            underscored = fixtures / "a_b.txt"
+            dashed.write_bytes(b"dash")
+            underscored.write_bytes(b"underscore")
+            manifest = root / "fixtures.manifest"
+            manifest.write_text("a-b.txt\na_b.txt\n", encoding="ascii")
+            expected = root / "python.iso"
+            first = root / "first.iso"
+            second = root / "second.iso"
+            hostbuild.build_iso(fixtures, expected, manifest)
+            entries = [
+                ("file", "a-b.txt", dashed),
+                ("file", "a_b.txt", underscored),
+            ]
+            generated_first = self._run_iso_fixture(
+                root,
+                manifest,
+                entries,
+                first,
+            )
+            self.assertEqual(
+                generated_first.returncode,
+                0,
+                generated_first.stderr,
+            )
+            generated_second = self._run_iso_fixture(
+                root,
+                manifest,
+                list(reversed(entries)),
+                second,
+            )
+            self.assertEqual(
+                generated_second.returncode,
+                0,
+                generated_second.stderr,
+            )
+            self.assertEqual(first.read_bytes(), expected.read_bytes())
+            self.assertEqual(second.read_bytes(), expected.read_bytes())
+            self.assertIn(b"A_B.TXT;1", first.read_bytes())
+            self.assertIn(b"A_B_1.TXT;1", first.read_bytes())
+
+    def test_iso_fixture_accepts_the_complete_512_entry_boundary(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            manifest = root / "fixtures.manifest"
+            output = root / "boundary.iso"
+            names = [f"d{index:03d}" for index in range(512)]
+            manifest.write_text("\n".join(names) + "\n", encoding="ascii")
+            generated = self._run_iso_fixture(
+                root,
+                manifest,
+                [("directory", name, None) for name in names],
+                output,
+            )
+            self.assertEqual(generated.returncode, 0, generated.stderr)
+            self.assertEqual(generated.stdout, "")
+            self.assertEqual(generated.stderr, "")
+            image = output.read_bytes()
+            self.assertEqual(image[16 * 2048 : 16 * 2048 + 7], b"\x01CD001\x01")
+            self.assertEqual(len(image) % 2048, 0)
+
+    def test_iso_fixture_failures_are_useful_and_preserve_existing_output(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            manifest = root / "fixtures.manifest"
+            source = root / "payload.bin"
+            output = root / "hello.iso"
+            source.write_bytes(b"payload")
+            output.write_bytes(b"existing image")
+
+            manifest.write_text("lost/payload.bin\n", encoding="ascii")
+            missing_parent = self._run_iso_fixture(
+                root,
+                manifest,
+                [("file", "lost/payload.bin", source)],
+                output,
+            )
+            self.assertNotEqual(missing_parent.returncode, 0)
+            self.assertIn("directory parent", missing_parent.stderr)
+            self.assertEqual(output.read_bytes(), b"existing image")
+
+            manifest.write_text("payload.bin\n", encoding="ascii")
+            missing_source = self._run_iso_fixture(
+                root,
+                manifest,
+                [("file", "payload.bin", root / "missing.bin")],
+                output,
+            )
+            self.assertNotEqual(missing_source.returncode, 0)
+            self.assertIn("cannot load", missing_source.stderr)
+            self.assertIn("missing.bin", missing_source.stderr)
+            self.assertEqual(output.read_bytes(), b"existing image")
+
+            too_many = self._run_iso_fixture(
+                root,
+                manifest,
+                [
+                    ("directory", f"directory{index:03d}", None)
+                    for index in range(513)
+                ],
+                output,
+            )
+            self.assertEqual(too_many.returncode, 2)
+            self.assertIn("usage: cupidobj", too_many.stderr)
+            self.assertEqual(output.read_bytes(), b"existing image")
+
     def test_wrap_relative_input_uses_gnu_binary_identity(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)

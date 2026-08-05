@@ -55,6 +55,13 @@ bytes but does not author them. NASM freezes `$` across this TIMES statement,
 so this fixture is the one production source exempt from optional NASM byte
 parity. The other active sources keep their NASM comparisons.
 
+Source-head CupidObj can author the enclosing ECMA-119 and Rock Ridge image
+through `iso-fixture`, while CupidASM continues to own the 4,096-byte spanning
+file. The checked seed does not carry the new CupidObj command yet, so Python
+still builds the production image. CupidASM remains at five production
+transforms. A later ISO handoff will move one Python-only output to CupidObj
+without changing assembler ownership.
+
 Checked-seed CupidObj accepts:
   cupidobj ksyms-source SYMBOLS -o OUTPUT
 It reads canonical CupidDis text and emits the exact packed kernel-symbol .cc

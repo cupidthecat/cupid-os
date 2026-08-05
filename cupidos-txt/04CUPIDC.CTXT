@@ -835,6 +835,14 @@ image, Python keeps the FAT partition and applies only the prefix before it.
 Python then stages frozen files, checks live inputs and output for changes,
 and publishes the full image atomically. ADR 0236 records the source command,
 ADR 0237 records seed carriage, and ADR 0238 records production ownership.
+
+Source-head CupidObj also accepts `iso-fixture`. The core consumes an ASCII
+manifest and a typed list of logical directories and loaded files, then writes
+the complete deterministic ECMA-119 and Rock Ridge fixture. Its output matches
+the tracked 61,440-byte image exactly. The current checked seed still has the
+5/13/9 behavior matrix and does not recognize this command, so Python remains
+the production ISO author until promotion and recipe handoff. ADR 0239 records
+the source boundary.
 The harness freezes the verified manifest and binaries and copies the exact
 bytes of 41 current inputs, including link.ld, into a private compiler root.
 The seed producer trio builds stage two below that root, and the stage-two trio

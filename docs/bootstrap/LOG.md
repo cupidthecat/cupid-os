@@ -21550,3 +21550,84 @@ The normal build produced the following artifacts before the image transaction:
 
 No ordinary C or assembly source changed ownership, so no `.c` to `.cc`
 rename is due. `TempleOS/` remains untouched reference material.
+
+## 2026-08-05: Author deterministic ISO fixtures in source-head CupidObj
+
+CupidObj now has a freestanding `CTOOL_OBJ_BUILD_ISO_FIXTURE` operation and a
+hosted `iso-fixture` command. The operation takes the fixture manifest as its
+primary ASCII input and receives a separate typed inventory of logical
+directories and loaded files. Native paths remain in the adapter, so private
+snapshot locations cannot change guest names or enter the image.
+
+The core validates exact manifest membership, portable relative paths,
+case-insensitive uniqueness, represented parent directories, file and
+directory kinds, loaded source views, the eight-level hierarchy, and a
+512-entry limit. It assigns uppercase 8.3 identifiers deterministically,
+numbers directories breadth first, orders file extents by logical path, and
+uses checked 64-bit layout arithmetic before publishing i386 offsets. Each
+directory keeps one sorted child-index slice for sizing and emission, so the
+accepted 512-entry request does not repeat cubic rank scans. The
+writer emits the complete zeroed system area, primary and terminating volume
+descriptors, both path-table byte orders, block-contained directories, fixed
+read-only Rock Ridge metadata, one forward continuation, and contiguous file
+contents. It retains the tracked fixture's deliberate lack of `ST` fields.
+
+The first direct selector gate failed before dispatch because the operation
+was still unsupported. After the implementation, all eleven strict native
+CupidObj selectors pass. The focused contract covers a nested 25-block image,
+reordered entries, CRLF manifests, descriptor and extent layout, manifest
+drift, path and parent errors, case collisions, bad source views, count,
+depth, arena, output, and arithmetic limits, rollback, and same-job recovery.
+
+All 31 hosted CupidObj tests pass in 10.066 seconds. The hosted command matches
+the complete tracked image byte for byte and produces the same result when its
+seven typed entries are reversed. The 61,440-byte image retains SHA-256
+`40359c1cec72219f21e87ce71b31e621209036042440e1b38c5e59de157e0fb6`.
+Missing parents and native sources produce useful diagnostics, and a
+513-entry invocation fails without replacing the output sentinel.
+The suite also accepts all 512 entries, compares an 8.3 collision pair with
+the Python writer in both orders, and checks both path-table byte orders in
+the freestanding contract.
+
+The checked seed CupidC compiles all three changed roots. `cupidobj.cc`
+produces a 170,440-byte object with SHA-256
+`d149e0fbf10a8f7a45969df72d5da07b26da741f2e01c52b51b3655bd923327c`.
+The hosted adapter produces 37,804 bytes with SHA-256
+`922e080c8e480581e271488573e2f0415dfda73edefd04444b62724759d6bc60`,
+and the contract produces 129,496 bytes with SHA-256
+`22caab70a7fab9886bb02375b1485788b3822ef15ec0921e0b09d1315aa21fa5`.
+All 95 hosted CupidC frontend tests pass after the exact source-shape and
+active lexical locks were refreshed.
+
+These checks ran from native Windows PowerShell. The checked static i386 seed
+commands used WSL through `tools/bootstrap_toolchain.py`.
+
+| Command | Result |
+|---|---|
+| `make -C toolchain build/cupidobj-contract.exe` | PASS under the repository's strict C11 warning flags. |
+| Run `wrap-basic`, `wrap-model`, `wrap-text`, `wrap-jpeg`, `extract-basic`, `extract-fallback`, `install-source`, `ksyms-source`, `disk-template`, `iso-fixture`, and `errors` through `toolchain/build/cupidobj-contract.exe` | PASS for all eleven selectors; the ISO selector completed in 0.026 seconds with its 512-entry case. |
+| `python -m unittest tests.test_toolchain_cupidobj` | PASS: 31 tests in 8.359 seconds. |
+| `python -m unittest tests.test_toolchain_cupidc_frontend` | PASS: 95 tests in 13.141 seconds. |
+| `python tools/bootstrap_toolchain.py run --manifest bootstrap/seeds/i386-linux/manifest.json --root . --tool cupidc -- --root . -c SOURCE -I /toolchain --include-angle /toolchain/hosted/i386-linux/include -o OUTPUT`, once for each changed root | PASS for `cupidobj.cc`, `cupidobj_main.cc`, and `tests/cupidobj_contract.cc`. |
+| `make -C toolchain BUILD_DIR=.codex-iso-source-0239 all` | PASS in 2,764.533 seconds. The checked build published 20 artifacts from 45 frozen inputs, proved byte-identical stage-two and stage-three objects and executables, and passed the hosted runtime. Its 18,232-byte manifest has SHA-256 `8cd0ea08454d9d672e6890e040fce85ba02b2c101c21599aa3933b0d89eee202`, source snapshot SHA-256 `bac03a6d2b36dff48983221aae209a6688b408232b5d5373b6c2128082228a66`, and seed-manifest SHA-256 `019c77d53ddaf64a382962e1d9588a60046b75a7661f70beb0da7510945f35d0`. |
+| `python tools/cupidc_toolchain_contracts.py run --root . --executable toolchain/.codex-iso-source-0239/cupidc-contracts/cupidobj-contract.elf -- iso-fixture` | PASS in 0.698 seconds through the published Cupid-built contract. |
+| `make bootstrap-audit` | PASS in 62.0 seconds. The source digest is `b6a340db80dfb5d95eaf429b386aa8f5f6a359091e1f7b879ca38f72f7b6de02`. The 2,558,331-byte JSON has SHA-256 `4a24cfe4755bfe61f1898f69333d95b2e7e89c23b4e33342e65875b35f2427de`; the 12,196-byte summary has SHA-256 `caa636e630cb9b55c9be633c31b45ad1385d2bde3d8cdba2d228eaae694e567f`. |
+| `make check-bootstrap-audit` | PASS in 60.937 seconds against the regenerated files. |
+| `python -m unittest tests.test_build_graph_audit` | PASS: all 68 tests in 591.606 seconds. The earlier five-minute attempt ended at its command watchdog without an assertion; this complete rerun is the recorded result. |
+
+Filesystem traversal in the freestanding operation was rejected because it
+would mix host safety policy with a deterministic format transform. Moving
+the whole image into CupidASM was also rejected: CupidASM correctly owns the
+spanning file, while volume descriptors, path tables, directory records, and
+Rock Ridge layout belong to CupidObj.
+
+This is a source-head capability. The current checked seed still reports the
+5/13/9 behavior matrix and does not recognize `iso-fixture`. The normal build
+therefore keeps Python as the ISO author until a complete five-tool promotion
+and a guarded production handoff. The graph remains at 719 active inputs, 449
+transforms, 255 feature records, and 25 accounted unreachable files. CupidObj
+still participates in 187 transforms, 436 root outputs have a Cupid owner,
+and the ISO image plus Doom input manifest remain the two Python-only root
+outputs. No ordinary C or assembly source changes ownership, so no `.c` to
+`.cc` rename is due. `TempleOS/` remains untouched reference material. ADR
+0239 records the decision.

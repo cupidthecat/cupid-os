@@ -671,6 +671,14 @@ cases. Their stage directories,
 behavior evidence, and report are published together only after the complete
 gate passes.
 
+The source head extends CupidObj beyond that seed with a bounded
+`iso-fixture` operation. Checked-seed CupidC compiles the changed core,
+adapter, and contract roots, and the hosted command reproduces the exact
+61,440-byte repository image from its manifest and typed logical inventory.
+The existing seed does not expose the command yet, so its five-tool hashes and
+5/13/9 behavior matrix remain the current trust boundary. ADR 0239 records the
+source capability before promotion.
+
 The normal Toolchain build snapshots 45 contract inputs, including the
 Toolchain Makefile and both Python control modules, reproduces that exact
 inventory under a private root, and uses both rebuilt stages for all fourteen

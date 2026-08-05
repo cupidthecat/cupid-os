@@ -1,5 +1,5 @@
 >h1 ISO9660 Read-Only Mount
-Verified against source on: 2026-08-03
+Verified against source on: 2026-08-05
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -29,6 +29,11 @@ filesystems at arbitrary mount points.
    then writes it to the FAT16 disk image as `/hello.iso`. No external ISO
    author is needed.
    Cupid OS exposes that file as `/disk/hello.iso`.
+
+   Source-head CupidObj can reproduce the same complete image through its
+   `iso-fixture` command. The checked seed does not carry that command yet, so
+   this host workflow continues to use Python until seed promotion and the
+   guarded publisher handoff.
 
 2. Boot CupidOS (`make run`).
 
@@ -92,6 +97,7 @@ Source files:
   kernel/fs/iso9660_vfs.cc       VFS mount/open/read/readdir adapter
   test_iso/big_pattern.asm       CupidASM source for the spanning read lane
   tools/hostbuild.py             verifier, publisher, and ISO image author
+  toolchain/cupidobj.cc          source-head deterministic ISO byte writer
 >endtree
 
 >h2 Testing
@@ -102,6 +108,10 @@ Source files:
   `test_iso/hello.iso`      byte-reproducible tracked image.
   `make sync-iso`           rebuilds hello.iso and syncs into the FAT partition.
   `bin/feature17_iso.cc`    checks all 6 root names, reads, and mount reuse.
+
+The source-head CupidObj tests compare the command output with the complete
+61,440-byte tracked image, reverse the typed input order, and check useful
+manifest, source, and request failures without replacing an old output.
 
 The spanning lane is bytes 00 through FF repeated sixteen times. Hostbuild
 freezes the CupidASM source and seed, verifies the candidate independently,

@@ -11,7 +11,8 @@ typedef enum {
   CTOOL_OBJ_GENERATE_INSTALL_SOURCE,
   CTOOL_OBJ_GENERATE_KSYMS_SOURCE,
   CTOOL_OBJ_WRAP_JPEG,
-  CTOOL_OBJ_BUILD_DISK_TEMPLATE
+  CTOOL_OBJ_BUILD_DISK_TEMPLATE,
+  CTOOL_OBJ_BUILD_ISO_FIXTURE
 } ctool_obj_operation_t;
 
 typedef enum {
@@ -53,6 +54,22 @@ typedef struct {
   ctool_u32 fat_start_lba;
 } ctool_obj_disk_template_request_t;
 
+typedef enum {
+  CTOOL_OBJ_ISO_FIXTURE_DIRECTORY = 1,
+  CTOOL_OBJ_ISO_FIXTURE_FILE
+} ctool_obj_iso_fixture_kind_t;
+
+typedef struct {
+  ctool_string_t path;
+  ctool_obj_iso_fixture_kind_t kind;
+  const ctool_source_t *source;
+} ctool_obj_iso_fixture_entry_t;
+
+typedef struct {
+  const ctool_obj_iso_fixture_entry_t *entries;
+  ctool_u32 entry_count;
+} ctool_obj_iso_fixture_request_t;
+
 typedef struct {
   ctool_obj_operation_t operation;
   const ctool_source_t *input;
@@ -60,6 +77,7 @@ typedef struct {
     ctool_obj_wrap_binary_request_t wrap_binary;
     ctool_obj_install_source_request_t install_source;
     ctool_obj_disk_template_request_t disk_template;
+    ctool_obj_iso_fixture_request_t iso_fixture;
   } as;
 } ctool_obj_request_t;
 
@@ -143,5 +161,23 @@ ctool_status_t ctool_obj_transform(ctool_job_t *job,
  * disk positions rather than load addresses.  Its source views are borrowed
  * for the call, equal inputs produce byte-identical output, and every failure
  * follows the transform-wide output and result rollback contract above. */
+
+/* BUILD_ISO_FIXTURE consumes an ASCII manifest as input and a borrowed flat
+ * inventory of logical directories and loaded files.  Every manifest path
+ * must have one exact entry, every parent directory must be represented, and
+ * names use the repository fixture's portable ASCII spelling.  The operation
+ * emits the complete deterministic ECMA-119 image with fixed RRIP_1991A SP,
+ * PX, TF, NM, CE, and ER records.  Both path-table byte orders, breadth-first
+ * directory numbering, identifier collision suffixes, block boundaries,
+ * fixed UTC dates, and contiguous file extents are part of the byte contract.
+ * The root continuation follows every directory stream, and ST terminators
+ * are intentionally absent.
+ *
+ * At most 512 entries are accepted.  Directory entries borrow only their
+ * logical path; file entries also borrow a loaded source.  Native path safety,
+ * freezing, parity checks, and publication remain caller responsibilities.
+ * Equal logical inventories and file bytes produce byte-identical output.
+ * Result addresses remain zero, and failures follow the transform-wide
+ * output, result, and arena rollback contract. */
 
 #endif

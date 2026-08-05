@@ -836,6 +836,10 @@ code. Checked CupidASM now assembles `big.bin` from
 `test_iso/big_pattern.asm`. Python freezes the inputs, checks the exact
 4,096-byte candidate, and publishes it atomically. Another Python transform
 packages the frozen fixture tree as deterministic ISO9660/Rock Ridge bytes.
+Source-head CupidObj can now build the same complete image through
+`iso-fixture` from the checked manifest and an explicit typed inventory. The
+current seed does not carry the command, so Python remains the production
+image author until the seed promotion and guarded recipe handoff are complete.
 `test_iso/fixtures.manifest` pins every directory and file without asking Make
 to recurse through an unchecked path. Make declares the same portable paths
 explicitly, and a checked test prevents that prerequisite list from drifting
@@ -843,6 +847,8 @@ away from the manifest. Raw manifest text never enters Make grammar. The graph
 records the manifest, fixture root, every declared member, writer, imported
 bootstrap helper, and Makefile. ISO authoring does not probe or launch an
 external command.
+[ADR 0239](docs/adr/0239-author-deterministic-iso-fixtures-with-cupidobj.md)
+records the source capability and its exact tracked-image contract.
 The runner checks the live five-tool cohort again after every command. Make
 passes every wildcard-discovered output list through `$(sort ...)` before
 generation or link, so Windows and Linux do not inherit different link order
