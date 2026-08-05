@@ -55,10 +55,10 @@ bytes but does not author them. NASM freezes `$` across this TIMES statement,
 so this fixture is the one production source exempt from optional NASM byte
 parity. The other active sources keep their NASM comparisons.
 
-Source-head CupidObj can author the enclosing ECMA-119 and Rock Ridge image
+Checked-seed CupidObj can author the enclosing ECMA-119 and Rock Ridge image
 through `iso-fixture`, while CupidASM continues to own the 4,096-byte spanning
-file. The checked seed does not carry the new CupidObj command yet, so Python
-still builds the production image. CupidASM remains at five production
+file. Python still builds the production image until the guarded handoff.
+CupidASM remains at five production
 transforms. A later ISO handoff will move one Python-only output to CupidObj
 without changing assembler ownership.
 
@@ -181,8 +181,8 @@ Checked CupidASM assembles stage-two startup there, then the stage-two
 assembler produces byte-identical stage-three startup below the same root.
 The harness checks both the private and live closures at each stage and
 behavior boundary. The complete seed build also compares all 19 C objects and
-five linked tools and runs 21 behavior checks. All evidence is published
-together only after the gate passes.
+five linked tools and runs the complete 5/14/10 behavior matrix. All evidence
+is published together only after the gate passes.
 
 make verify-bootstrap-seed validates the files without executing them.
 make bootstrap-from-seed performs the staged build. Windows runs the static

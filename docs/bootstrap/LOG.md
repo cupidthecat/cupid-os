@@ -21631,3 +21631,71 @@ and the ISO image plus Doom input manifest remain the two Python-only root
 outputs. No ordinary C or assembly source changes ownership, so no `.c` to
 `.cc` rename is due. `TempleOS/` remains untouched reference material. ADR
 0239 records the decision.
+
+## 2026-08-05: Carry iso-fixture in the checked seed
+
+The source capability was committed and pushed as
+`5452538ff42efe21e20d2e243cc76cacdbd05b92` before promotion. A direct
+checked-seed test first failed at option parsing because the preceding
+CupidObj usage did not list `iso-fixture`. That red case separated source
+support from seed carriage.
+
+The fixed-point harness now requires both rebuilt CupidObj stages to list the
+command, build one exact seven-entry nested image, and preserve an existing
+output when a file's parent directory is missing. The 59,392-byte behavior
+image has SHA-256
+`1b733dd65ee099c2499802302f486d2716de8afda8bd2fa9f44ff0a7d0699dd4`.
+The complete matrix grows from 5/13/9 to five help cases, fourteen successful
+operations, and ten useful failures.
+
+The transition ran with `CC`, `CXX`, `CPP`, `HOSTCC`, `HOSTCXX`, `ASM`, `LD`,
+`AR`, `NM`, and `OBJCOPY` set to commands that could not run. It completed in
+674.3 seconds and froze 41 source inputs with SHA-256
+`bac03a6d2b36dff48983221aae209a6688b408232b5d5373b6c2128082228a66`.
+All 19 C object pairs, startup, and five tool images match between stage two
+and stage three. CupidObj differs from the preceding seed; CupidASM, CupidC,
+CupidDis, and CupidLD match. The 15,058-byte transition report has SHA-256
+`c40f5a8d8fb7bc63d237e2fd07636e0c10c9e69196d1ac684927eb9e8551ee39`.
+
+All five stage-three images were promoted as one cohort:
+
+| Tool | Bytes | SHA-256 |
+|---|---:|---|
+| CupidASM | 445,616 | `1dc9061912f127d231d320940ba781781af663bde83852a613910394709ecc76` |
+| CupidC | 2,582,400 | `03084115bcacb1987db5513c8a8be9b7d884029b03ab4b212bf40d997871ae79` |
+| CupidDis | 379,648 | `a45fc4c57afd3bb02980e514d58c11588ba3a8bfa2f05ca348fe465cfdaf9749` |
+| CupidLD | 266,672 | `2bdb6ce6b04678bb89c6bb4f7afac7e152ce6c4a07c4e14e1b3aee0c899008ec` |
+| CupidObj | 350,348 | `394c7bcfe04baf3f032a9b85ce8d908268dde9ec6527840665bc77e4b2d02b14` |
+
+The 5,440-byte manifest has SHA-256
+`5a27d7a4a65637da413756a6c154bf44ac0879c7d941881fbd3b995733a805a8`.
+It retains build-plan SHA-256
+`59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`.
+`make verify-bootstrap-seed` accepts the promoted manifest and all five static
+ELF32 images. The direct seed test now reproduces the tracked 61,440-byte ISO
+with SHA-256
+`40359c1cec72219f21e87ce71b31e621209036042440e1b38c5e59de157e0fb6`.
+It rejects `lost/payload.bin` without a represented `lost` directory and
+leaves the old output sentinel intact.
+
+An independent post-promotion bootstrap used the same poisoned environment
+and passed in 675.6 seconds. Every promoted seed image matches stage two, and
+stage two matches stage three across the complete 5/14/10 behavior matrix.
+Its 15,057-byte report has SHA-256
+`29ad7ce56f2311855feb96a387c3d77859a39b07dcc90d2ea0e93cfe532444f0`.
+The complete checked-seed module passed all 44 tests in 750.771 seconds,
+including another full fixed point and the direct ISO carriage test.
+
+The canonical audit regenerated in 58.4 seconds, and its stale check passed in
+59.0 seconds. Its source digest remains
+`b6a340db80dfb5d95eaf429b386aa8f5f6a359091e1f7b879ca38f72f7b6de02`.
+The 2,558,331-byte JSON has SHA-256
+`3463c86f1bbb8158ab2ee84d50612a37580b187ebaae8f1a3c2a9cbc80d9e246`,
+and the 12,196-byte summary has SHA-256
+`caa636e630cb9b55c9be633c31b45ad1385d2bde3d8cdba2d228eaae694e567f`.
+The complete 68-test graph-audit module passes in 560.234 seconds.
+
+This promotion changes no normal-build owner. Python remains the production
+ISO author until the guarded publisher handoff. No ordinary C or assembly
+source changes ownership, so no `.c` to `.cc` rename is due. `TempleOS/`
+remains untouched reference material. ADR 0240 records the cohort decision.

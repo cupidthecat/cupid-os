@@ -849,6 +849,89 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(failed_output.read_bytes(), b"sentinel")
 
+    def test_checked_seed_builds_iso_fixture_and_preserves_failed_output(self):
+        if os.name == "nt" and shutil.which("wsl") is None:
+            self.skipTest("WSL is not available")
+        with tempfile.TemporaryDirectory(
+            prefix=".checked-seed-iso-fixture-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            fixtures = REPO_ROOT / "test_iso" / "fixtures"
+            manifest = REPO_ROOT / "test_iso" / "fixtures.manifest"
+            output = root / "hello.iso"
+            failed_manifest = root / "failed.manifest"
+            failed_source = root / "payload.bin"
+            failed_output = root / "failed.iso"
+            failed_manifest.write_text(
+                "lost/payload.bin\n", encoding="ascii", newline="\n"
+            )
+            failed_source.write_bytes(b"payload")
+            failed_output.write_bytes(b"sentinel")
+            frozen = freeze_seed_inputs(SEED_MANIFEST, root / "seed")
+            runner = ToolRunner(REPO_ROOT)
+
+            generated = runner.run(
+                frozen.tools["cupidobj"],
+                [
+                    "iso-fixture",
+                    manifest,
+                    "--file",
+                    "big.bin",
+                    fixtures / "big.bin",
+                    "--file",
+                    "gen_big.sh",
+                    fixtures / "gen_big.sh",
+                    "--file",
+                    "jpeg_baseline_8x8.jpg",
+                    fixtures / "jpeg_baseline_8x8.jpg",
+                    "--file",
+                    "long_named_file.txt",
+                    fixtures / "long_named_file.txt",
+                    "--file",
+                    "readme.txt",
+                    fixtures / "readme.txt",
+                    "--directory",
+                    "sub",
+                    "--file",
+                    "sub/nested.txt",
+                    fixtures / "sub" / "nested.txt",
+                    "-o",
+                    output,
+                ],
+                60,
+            )
+            self.assertEqual(generated.returncode, 0, generated.stderr)
+            self.assertEqual(generated.stdout, "")
+            self.assertEqual(generated.stderr, "")
+            image = output.read_bytes()
+            self.assertEqual(len(image), 61440)
+            self.assertEqual(
+                hashlib.sha256(image).hexdigest(),
+                "40359c1cec72219f21e87ce71b31e621209036042440e1b38c5e59de157e0fb6",
+            )
+            self.assertEqual(
+                image,
+                (REPO_ROOT / "test_iso" / "hello.iso").read_bytes(),
+            )
+
+            rejected = runner.run(
+                frozen.tools["cupidobj"],
+                [
+                    "iso-fixture",
+                    failed_manifest,
+                    "--file",
+                    "lost/payload.bin",
+                    failed_source,
+                    "-o",
+                    failed_output,
+                ],
+                60,
+            )
+            self.assertEqual(rejected.returncode, 1)
+            self.assertEqual(rejected.stdout, "")
+            self.assertIn("directory parent", rejected.stderr)
+            self.assertEqual(failed_output.read_bytes(), b"sentinel")
+
     def test_checked_seed_carries_shrd_with_address_overrides(self):
         if os.name == "nt" and shutil.which("wsl") is None:
             self.skipTest("WSL is not available")
@@ -2709,7 +2792,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(report["status"], "pass")
             self.assertEqual(
                 report["seed_source_revision"],
-                "ba385f763742a77be6952457b0d5c0fb323cfc4f",
+                "5452538ff42efe21e20d2e243cc76cacdbd05b92",
             )
             self.assertNotIn("source_revision", report)
             self.assertEqual(
@@ -2728,9 +2811,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["behavior"],
                 {
-                    "failure_cases": 9,
+                    "failure_cases": 10,
                     "help_cases": 5,
-                    "success_cases": 13,
+                    "success_cases": 14,
                 },
             )
             initial_matches = report["initial_seed_matches_stage_two"]
@@ -2745,7 +2828,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 },
             )
             promoted_snapshot = (
-                "21a45c2358abf649f0e5e25cebceed320fc1055906cf7c59e40f4ac03baff6c4"
+                "bac03a6d2b36dff48983221aae209a6688b408232b5d5373b6c2128082228a66"
             )
             self.assertEqual(
                 report["source_snapshot_sha256"], promoted_snapshot

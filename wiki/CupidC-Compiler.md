@@ -639,7 +639,7 @@ The five static i386 Linux tools have a checked seed. The manifest binds their
 hashes, sizes, target ABI, source revision, producer lineage, 19-source plan,
 and five link orders. The current CupidC image is the 2,582,400-byte
 stage-three output from revision
-`ba385f763742a77be6952457b0d5c0fb323cfc4f`, with SHA-256
+`5452538ff42efe21e20d2e243cc76cacdbd05b92`, with SHA-256
 `03084115bcacb1987db5513c8a8be9b7d884029b03ab4b212bf40d997871ae79`.
 It retains the complete 83-root Doom frontier, GNU entity metadata, x87 and
 SSE forms, descriptor and segment assembly, the `libm.cc` effects, the dglibc
@@ -648,17 +648,18 @@ kernel-entry BSS clear, and packed SSE2 statements. It also carries runtime
 floating truth, bounded decimal `long double` constants, the returns-twice
 call boundary, and Cupid's native type spellings. The same seed carries the
 596-row SHRD-capable x86 catalogue with forward x87 stack subtraction and
-typed CupidDis raw ranges. Its 295,712-byte CupidObj image has SHA-256
-`be5385d8666a625844cb1be5611bd307fa865ca6cf1d50b4e836dfdb3ba45efc`
+typed CupidDis raw ranges. Its 350,348-byte CupidObj image has SHA-256
+`394c7bcfe04baf3f032a9b85ce8d908268dde9ec6527840665bc77e4b2d02b14`
 and carries the complete installation-source bounds, ordering, and
 wrapped-symbol contract, transactional kernel-symbol source generation,
-sequential-JPEG validation, and pristine disk-template construction.
+sequential-JPEG validation, pristine disk-template construction, and
+deterministic ISO fixture authoring.
 Its plan uses `.cc` for all 19 C roots and has
 SHA-256
 `59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`.
 The 5,440-byte manifest has SHA-256
-`019c77d53ddaf64a382962e1d9588a60046b75a7661f70beb0da7510945f35d0`.
-ADR 0237 records the current promotion.
+`5a27d7a4a65637da413756a6c154bf44ac0879c7d941881fbd3b995733a805a8`.
+ADR 0240 records the current promotion.
 
 The bootstrap copies the 41-input source closure into a private compiler root.
 Both rebuilt stages compile from that root, and the harness checks the private
@@ -666,18 +667,16 @@ and live closures at each stage and behavior boundary. The latest transition's
 stage two and stage three contain the same five tool images. CupidObj differs
 from the preceding seed; CupidASM, CupidC, CupidDis, and CupidLD remain
 byte-identical. The two rebuilt stages match every C and startup object and
-agree on all five help paths, thirteen successful operations, and nine failure
+agree on all five help paths, fourteen successful operations, and ten failure
 cases. Their stage directories,
 behavior evidence, and report are published together only after the complete
 gate passes.
 
-The source head extends CupidObj beyond that seed with a bounded
-`iso-fixture` operation. Checked-seed CupidC compiles the changed core,
-adapter, and contract roots, and the hosted command reproduces the exact
-61,440-byte repository image from its manifest and typed logical inventory.
-The existing seed does not expose the command yet, so its five-tool hashes and
-5/13/9 behavior matrix remain the current trust boundary. ADR 0239 records the
-source capability before promotion.
+The checked seed now carries CupidObj's bounded `iso-fixture` operation. Its
+hosted command reproduces the exact 61,440-byte repository image from the
+manifest and typed logical inventory. Both rebuilt stages exercise the command
+and its preserved-output failure in the 5/14/10 behavior matrix. ADR 0239
+records the source capability, and ADR 0240 records the promotion.
 
 The normal Toolchain build snapshots 45 contract inputs, including the
 Toolchain Makefile and both Python control modules, reproduces that exact
@@ -686,15 +685,17 @@ contract programs and the runtime probe. It compares sixteen new objects and
 fifteen linked executables. Every invocation verifies its named artifact, the
 complete cohort, both source inventories, and the checked seed manifest. The
 seed manifest is captured once for its digest, decoded data, schema checks, and
-build plan. The source-current isolated gate passed in 3,363.6 seconds.
+build plan. The ISO source-capability cohort passed in 2,764.533 seconds.
 Stage-two and stage-three objects and executables match, the hosted runtime
 passes, and all 20 published artifacts verify. Its 18,232-byte manifest has
 SHA-256
-`edca1f86f063c5b8b967508a06ddf19f97ea79da674e08d9c952eabe68485568`.
+`8cd0ea08454d9d672e6890e040fce85ba02b2c101c21599aa3933b0d89eee202`.
 The manifest records all 45 inputs, the 41-file source snapshot with SHA-256
-`21a45c2358abf649f0e5e25cebceed320fc1055906cf7c59e40f4ac03baff6c4`,
+`bac03a6d2b36dff48983221aae209a6688b408232b5d5373b6c2128082228a66`,
 and the checked seed with SHA-256
 `019c77d53ddaf64a382962e1d9588a60046b75a7661f70beb0da7510945f35d0`.
+That cohort predates the seed promotion; the post-promotion bootstrap proves
+the promoted trust unit independently.
 See [Toolchain Bootstrap](Toolchain-Bootstrap) for the commands and report
 layout. Native contract runners and hosted development commands are explicit
 host-built oracles; normal OS and Toolchain artifacts do not depend on them.

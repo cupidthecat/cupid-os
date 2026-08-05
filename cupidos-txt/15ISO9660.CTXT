@@ -30,10 +30,9 @@ filesystems at arbitrary mount points.
    author is needed.
    Cupid OS exposes that file as `/disk/hello.iso`.
 
-   Source-head CupidObj can reproduce the same complete image through its
-   `iso-fixture` command. The checked seed does not carry that command yet, so
-   this host workflow continues to use Python until seed promotion and the
-   guarded publisher handoff.
+   Checked-seed CupidObj can reproduce the same complete image through its
+   `iso-fixture` command. This host workflow continues to use Python until the
+   guarded publisher runs CupidObj first and checks an independent render.
 
 2. Boot CupidOS (`make run`).
 
@@ -97,7 +96,7 @@ Source files:
   kernel/fs/iso9660_vfs.cc       VFS mount/open/read/readdir adapter
   test_iso/big_pattern.asm       CupidASM source for the spanning read lane
   tools/hostbuild.py             verifier, publisher, and ISO image author
-  toolchain/cupidobj.cc          source-head deterministic ISO byte writer
+  toolchain/cupidobj.cc          deterministic ISO byte writer
 >endtree
 
 >h2 Testing
@@ -109,9 +108,11 @@ Source files:
   `make sync-iso`           rebuilds hello.iso and syncs into the FAT partition.
   `bin/feature17_iso.cc`    checks all 6 root names, reads, and mount reuse.
 
-The source-head CupidObj tests compare the command output with the complete
+The CupidObj tests compare the command output with the complete
 61,440-byte tracked image, reverse the typed input order, and check useful
 manifest, source, and request failures without replacing an old output.
+The checked-seed suite repeats the exact image and rollback paths in both
+fixed-point stages. ADR 0240 records seed carriage.
 
 The spanning lane is bytes 00 through FF repeated sixteen times. Hostbuild
 freezes the CupidASM source and seed, verifies the candidate independently,

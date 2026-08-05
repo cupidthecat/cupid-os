@@ -52649,11 +52649,11 @@
       },
       {
         "path": "tools/bootstrap_toolchain.py",
-        "sha256": "d9dce993a05f5db69ddb5808bca21367d7fad9d7c968d2046865f61c726d54c4"
+        "sha256": "15e7f982644fc75dec62c2b3c8c893f6e6023bf6829b96c6c52dc152f7bfa111"
       },
       {
         "path": "bootstrap/seeds/i386-linux/manifest.json",
-        "sha256": "019c77d53ddaf64a382962e1d9588a60046b75a7661f70beb0da7510945f35d0"
+        "sha256": "5a27d7a4a65637da413756a6c154bf44ac0879c7d941881fbd3b995733a805a8"
       },
       {
         "path": "tools/cupidc_production_compile.py",

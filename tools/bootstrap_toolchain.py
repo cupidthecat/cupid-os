@@ -20,7 +20,7 @@ from typing import Sequence
 
 
 SEED_SCHEMA = "cupid.bootstrap-seed.v1"
-SEED_SOURCE_REVISION = "ba385f763742a77be6952457b0d5c0fb323cfc4f"
+SEED_SOURCE_REVISION = "5452538ff42efe21e20d2e243cc76cacdbd05b92"
 TOOL_NAMES = ("cupidasm", "cupiddis", "cupidld", "cupidobj", "cupidc")
 TOOL_DISPLAY_NAMES = {
     "cupidasm": "CupidASM",
@@ -1178,7 +1178,11 @@ def _run_behavior_checks(
         if not help_result.stdout or help_result.stderr:
             raise BootstrapError(f"{tool_name} help output differs")
         if tool_name == "cupidobj":
-            for operation in ("wrap-jpeg", "disk-template"):
+            for operation in (
+                "wrap-jpeg",
+                "disk-template",
+                "iso-fixture",
+            ):
                 if operation not in help_result.stdout:
                     raise BootstrapError(
                         f"cupidobj help omits {operation}"
@@ -1514,6 +1518,111 @@ def _run_behavior_checks(
         or stage_three_template_failure.read_bytes() != sentinel
     ):
         raise BootstrapError("CupidObj disk-template failure differs")
+
+    iso_manifest = behavior_root / "iso-fixture.manifest"
+    iso_alpha = behavior_root / "iso-alpha.bin"
+    iso_empty = behavior_root / "iso-empty.bin"
+    iso_long_name = behavior_root / "iso-long-name.bin"
+    iso_nested = behavior_root / "iso-nested.bin"
+    iso_value = behavior_root / "iso-value.bin"
+    stage_two_iso = behavior_root / "stage-two-iso-fixture.iso"
+    stage_three_iso = behavior_root / "stage-three-iso-fixture.iso"
+    iso_manifest.write_text(
+        "alpha.txt\n"
+        "empty.bin\n"
+        "long_named_file.txt\n"
+        "sub\n"
+        "sub/nested.txt\n"
+        "sub/nested\n"
+        "sub/nested/value.bin\n",
+        encoding="ascii",
+        newline="\n",
+    )
+    iso_alpha.write_bytes(b"Cupid ISO fixed point\n")
+    iso_empty.write_bytes(b"")
+    iso_long_name.write_bytes(b"long logical name\n")
+    iso_nested.write_bytes(b"nested\n")
+    iso_value.write_bytes(
+        bytes((index * 29 + 7) & 0xFF for index in range(4096))
+    )
+    iso_arguments: list[str | Path] = [
+        "iso-fixture",
+        iso_manifest,
+        "--file",
+        "alpha.txt",
+        iso_alpha,
+        "--file",
+        "empty.bin",
+        iso_empty,
+        "--file",
+        "long_named_file.txt",
+        iso_long_name,
+        "--directory",
+        "sub",
+        "--file",
+        "sub/nested.txt",
+        iso_nested,
+        "--directory",
+        "sub/nested",
+        "--file",
+        "sub/nested/value.bin",
+        iso_value,
+    ]
+    iso_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupidobj",
+        [*iso_arguments, "-o", stage_two_iso],
+        [*iso_arguments, "-o", stage_three_iso],
+    )
+    _expect_status(iso_result, 0, "CupidObj ISO fixture")
+    stage_two_iso_bytes = stage_two_iso.read_bytes()
+    if (
+        iso_result.stdout
+        or iso_result.stderr
+        or stage_three_iso.read_bytes() != stage_two_iso_bytes
+        or len(stage_two_iso_bytes) != 59392
+        or hashlib.sha256(stage_two_iso_bytes).hexdigest()
+        != "1b733dd65ee099c2499802302f486d2716de8afda8bd2fa9f44ff0a7d0699dd4"
+    ):
+        raise BootstrapError("CupidObj ISO fixture differs")
+
+    missing_parent_manifest = behavior_root / "missing-parent.manifest"
+    missing_parent_source = behavior_root / "missing-parent.bin"
+    stage_two_iso_failure = behavior_root / "stage-two-iso-failure.iso"
+    stage_three_iso_failure = behavior_root / "stage-three-iso-failure.iso"
+    missing_parent_manifest.write_text(
+        "lost/payload.bin\n", encoding="ascii", newline="\n"
+    )
+    missing_parent_source.write_bytes(b"payload")
+    stage_two_iso_failure.write_bytes(sentinel)
+    stage_three_iso_failure.write_bytes(sentinel)
+    missing_parent_arguments: list[str | Path] = [
+        "iso-fixture",
+        missing_parent_manifest,
+        "--file",
+        "lost/payload.bin",
+        missing_parent_source,
+    ]
+    missing_parent_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupidobj",
+        [*missing_parent_arguments, "-o", stage_two_iso_failure],
+        [*missing_parent_arguments, "-o", stage_three_iso_failure],
+    )
+    _expect_status(
+        missing_parent_result, 1, "CupidObj missing ISO parent"
+    )
+    if (
+        missing_parent_result.stdout
+        or "directory parent" not in missing_parent_result.stderr
+        or stage_two_iso_failure.read_bytes() != sentinel
+        or stage_three_iso_failure.read_bytes() != sentinel
+    ):
+        raise BootstrapError("CupidObj ISO failure behavior differs")
 
     link_source = behavior_root / "start.asm"
     stage_two_link_object = behavior_root / "stage-two-start.o"
@@ -1915,9 +2024,9 @@ def _run_behavior_checks(
         raise BootstrapError("CupidObj missing-input behavior differs")
 
     return {
-        "failure_cases": 9,
+        "failure_cases": 10,
         "help_cases": 5,
-        "success_cases": 13,
+        "success_cases": 14,
     }
 
 

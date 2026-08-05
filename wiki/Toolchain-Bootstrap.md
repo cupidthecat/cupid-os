@@ -63,10 +63,10 @@ tools. The stage-two producer trio repeats the build for stage three below the
 same root.
 
 The gate compares all 19 C objects, both startup objects, and all five linked
-images. It also runs five help checks, thirteen successful operations, and nine
+images. It also runs five help checks, fourteen successful operations, and ten
 failure cases across compilation, assembly, disassembly, symbol inspection and
-source generation, linking, JPEG validation, disk-template construction,
-wrapping, and flattening. The
+source generation, linking, JPEG validation, disk-template and ISO fixture
+construction, wrapping, and flattening. The
 harness rehashes both
 the private closure and the live closure before stage two, after each stage,
 and after the behavior suite. A live edit that is made and restored during a
@@ -131,26 +131,26 @@ exact dglibc jump block, pointer-preserving static address casts, explicit
 floating truth, bounded decimal `long double` constants, and Cupid's native
 type spellings. Its stage-three CupidC image is 2,582,400 bytes with SHA-256
 `03084115bcacb1987db5513c8a8be9b7d884029b03ab4b212bf40d997871ae79`.
-It came from revision `ba385f763742a77be6952457b0d5c0fb323cfc4f`. CupidASM
+It came from revision `5452538ff42efe21e20d2e243cc76cacdbd05b92`. CupidASM
 and CupidDis carry the 596-row shared x86 catalogue with canonical SHRD and
 forward stack subtraction. CupidDis also carries typed raw code and data
 ranges. CupidObj carries installation-source generation, transactional
 kernel-symbol source generation, transactional sequential-JPEG validation,
-and pristine disk-template construction.
+pristine disk-template construction, and deterministic ISO fixture authoring.
 
 In the latest transition, all nineteen C objects, startup, and five tool images
 matched between stage two and stage three. Both stages passed five help cases,
-thirteen successful operations, and nine useful failures. CupidObj changed
+fourteen successful operations, and ten useful failures. CupidObj changed
 from the preceding seed; CupidASM, CupidC, CupidDis, and CupidLD stayed
 byte-identical. The 5,440-byte manifest has SHA-256
-`019c77d53ddaf64a382962e1d9588a60046b75a7661f70beb0da7510945f35d0`.
-The 831.8-second post-promotion rebuild reproduced all five seed images at
-stage two and repeated the complete fixed point. Its 15,056-byte report has
+`5a27d7a4a65637da413756a6c154bf44ac0879c7d941881fbd3b995733a805a8`.
+The 675.6-second post-promotion rebuild reproduced all five seed images at
+stage two and repeated the complete fixed point. Its 15,057-byte report has
 SHA-256
-`60f24c8c77c81d3771263f102808607e7dcf92b4043cbc9a26c5307f08e0a276`.
-The complete checked-seed module passes all 43 tests in 922.204 seconds,
-including another full fixed point and the decimal `long double`, JPEG, and
-disk-template carriage checks. ADR 0237 records the promotion and fixed-point
+`29ad7ce56f2311855feb96a387c3d77859a39b07dcc90d2ea0e93cfe532444f0`.
+The complete checked-seed module passes all 44 tests in 750.771 seconds,
+including another full fixed point and the decimal `long double`, JPEG, disk,
+and ISO carriage checks. ADR 0240 records the promotion and fixed-point
 evidence.
 
 The refreshed seed represents operand-free GNU assembly statements inside
@@ -750,29 +750,32 @@ image SHA-256
 `d1bfab4aed1f2116768ceed3e301fb14ffe2a36418eb4d4ebdf1108097cb2b05`.
 Its private four-CPU JIT boot passed in 66.8 seconds.
 
-Source-head CupidObj now adds `iso-fixture` after that checked promotion. The
+Checked-seed CupidObj now carries `iso-fixture`. The
 freestanding operation consumes a manifest and typed logical inventory rather
 than walking a host directory. It reproduces the tracked 61,440-byte
 ECMA-119 and `RRIP_1991A` image exactly, including both path-table byte orders,
 fixed metadata, block-contained directories, the forward continuation, and
 the absence of `ST` fields. Eleven core selectors and all 31 hosted CupidObj
-tests pass. The current seed still reports 5/13/9 and does not recognize the
-new command, so production ownership has not moved. ADR 0239 records this
-source capability.
+tests pass. The fixed-point gate exercises the command and its rollback path
+in the 5/14/10 behavior matrix. Production ownership has not moved yet. ADR
+0239 records the source capability, and ADR 0240 records seed carriage.
 
 The checked audit uses the canonical Windows Make branch and C locale on
 every host. Direct Linux builds test the separate Linux execution branch.
 
-The latest checked seed comes from revision `cd07b0b`.
-The source-current isolated Toolchain target passed in 3,363.6 seconds. Its
+The latest checked seed comes from revision
+`5452538ff42efe21e20d2e243cc76cacdbd05b92`.
+The ISO source-capability Toolchain cohort passed in 2,764.533 seconds. Its
 two stages matched sixteen objects and fifteen linked executables, the hosted
 runtime passed, and all 20 published artifacts verified. The 18,232-byte
 contract manifest covers 45 inputs and has SHA-256
-`edca1f86f063c5b8b967508a06ddf19f97ea79da674e08d9c952eabe68485568`.
+`8cd0ea08454d9d672e6890e040fce85ba02b2c101c21599aa3933b0d89eee202`.
 It records seed manifest
 `019c77d53ddaf64a382962e1d9588a60046b75a7661f70beb0da7510945f35d0`
 and source snapshot
-`21a45c2358abf649f0e5e25cebceed320fc1055906cf7c59e40f4ac03baff6c4`.
+`bac03a6d2b36dff48983221aae209a6688b408232b5d5373b6c2128082228a66`.
+This cohort predates the seed promotion; the independent 675.6-second reproof
+above validates the promoted trust unit.
 The manifest also records equality across 19 C objects, one startup object,
 and five rebuilt tool images.
 

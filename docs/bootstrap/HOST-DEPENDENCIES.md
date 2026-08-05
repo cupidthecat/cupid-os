@@ -41,12 +41,12 @@ discovered output paths through `$(sort ...)` before generation and link, so
 the Windows and Linux branches consume one canonical source order. ADR 0238
 records the disk-image transfer.
 
-Source-head CupidObj now reproduces the complete tracked ISO fixture through
+Checked-seed CupidObj now reproduces the complete tracked ISO fixture through
 `iso-fixture`. The operation owns deterministic ECMA-119 and Rock Ridge byte
-layout, but this source commit does not change a supported-root owner. The
-checked seed predates the command, and Python remains the production writer,
-tree freezer, drift checker, and publisher until the seed and recipe move in
-separate green commits. ADR 0239 records the capability.
+layout, but seed carriage does not change a supported-root owner. Python
+remains the production writer, tree freezer, drift checker, and publisher
+until the guarded recipe handoff. ADR 0239 records the source capability, and
+ADR 0240 records seed carriage.
 
 CupidASM participates in five production transforms. The fifth assembles
 `test_iso/fixtures/big.bin` from `test_iso/big_pattern.asm` through the checked
@@ -584,20 +584,20 @@ The five static commands share one complete checked-seed gate. The manifest
 binds the exact executables, source revision, target ABI, producer lineage,
 19-source build plan, startup, and five link orders. The current seed contains
 the stage-three images from revision
-`ba385f763742a77be6952457b0d5c0fb323cfc4f`. CupidC is 2,582,400 bytes
+`5452538ff42efe21e20d2e243cc76cacdbd05b92`. CupidC is 2,582,400 bytes
 with SHA-256
 `03084115bcacb1987db5513c8a8be9b7d884029b03ab4b212bf40d997871ae79`
 and carries bounded decimal `long double` constants alongside the earlier
-compiler capabilities. CupidObj is 295,712 bytes with SHA-256
-`be5385d8666a625844cb1be5611bd307fa865ca6cf1d50b4e836dfdb3ba45efc`
-and carries transactional sequential-JPEG validation plus pristine disk
-template construction. CupidASM, CupidDis, and
+compiler capabilities. CupidObj is 350,348 bytes with SHA-256
+`394c7bcfe04baf3f032a9b85ce8d908268dde9ec6527840665bc77e4b2d02b14`
+and carries transactional sequential-JPEG validation plus pristine disk and
+ISO fixture construction. CupidASM, CupidDis, and
 CupidLD remain byte-identical to the preceding cohort. The 5,440-byte manifest
 has SHA-256
-`019c77d53ddaf64a382962e1d9588a60046b75a7661f70beb0da7510945f35d0`.
+`5a27d7a4a65637da413756a6c154bf44ac0879c7d941881fbd3b995733a805a8`.
 The post-promotion reproof matches every seed image to stage two, then matches
-all nineteen C objects, startup, five tools, and five help, thirteen success,
-and nine failure cases between stages two and three. ADR 0237 records the
+all nineteen C objects, startup, five tools, and five help, fourteen success,
+and ten failure cases between stages two and three. ADR 0240 records the
 promotion.
 
 The harness copies the exact 41-input source closure into a private compiler root. Checked CupidC compiles the stage-two union there, checked CupidASM assembles startup, and checked CupidLD links all five tools. The stage-two producer trio repeats that work for stage three below the same root. Both the private closure and the live closure are checked before the first stage, after each stage, and after behavior checks. In the post-promotion reproof, every seed image matched stage two; every C object, startup object, and linked image also matched across the stages. Both stages executed the positive and failure cases for every command. The two stages, behavior evidence, and report are published together only after success. The normal Toolchain target then uses both static stages to build its contract cohort without external code generation. Native contracts and hosted development commands remain explicit host-built oracles; normal OS and Toolchain artifacts do not depend on them.

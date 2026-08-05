@@ -216,7 +216,7 @@ The guarded recipe built a fresh 209,715,200-byte image with SHA-256 `8ad90a9110
 _Avoid_: complete disk owner, complete FAT staging, standalone image publisher
 
 **Repository ISO fixture author**:
-Checked CupidASM authors the 4,096-byte spanning lane from `test_iso/big_pattern.asm`; hostbuild checks the exact candidate and publishes it atomically. The deterministic ECMA-119 and `RRIP_1991A` writer in `tools/hostbuild.py` still authors the complete production image. Source-head CupidObj now has an `iso-fixture` operation that reproduces the same tracked bytes from an ASCII manifest and a typed inventory of loaded files and logical directories. The checked seed does not carry that command yet. `test_iso/fixtures.manifest` fixes the repository fixture membership before the writer freezes the regular-file tree. Make declares the same seven portable paths explicitly, and a checked test prevents that safe prerequisite list from drifting away from the manifest. Both writers emit a primary volume descriptor, both path-table byte orders, identifier-sorted block-bounded directories, a forward SUSP continuation, fixed UTC metadata, and contiguous file extents. Rock Ridge `NM` records retain guest names drawn from the portable letter, digit, dot, underscore, and dash alphabet, capped at 127 bytes. `PX` and `TF` records carry fixed read-only metadata for other readers; Cupid OS ignores them. Source-head CupidObj rejects missing or undeclared logical entries, unsafe names, case-only collisions, bad parent graphs, and more than eight directory levels. Hostbuild remains responsible for native-path safety, input freezing, aliases, special files, live drift, and atomic production publication. The tracked 61,440-byte fixture rebuilds without `mkisofs`, `genisoimage`, or `xorrisofs`. ADR 0191 records the image boundary, ADR 0227 records the lane fixture boundary, and ADR 0239 records the CupidObj source capability.
+Checked CupidASM authors the 4,096-byte spanning lane from `test_iso/big_pattern.asm`; hostbuild checks the exact candidate and publishes it atomically. The deterministic ECMA-119 and `RRIP_1991A` writer in `tools/hostbuild.py` still authors the complete production image. Checked-seed CupidObj now carries an `iso-fixture` operation that reproduces the same tracked bytes from an ASCII manifest and a typed inventory of loaded files and logical directories. `test_iso/fixtures.manifest` fixes the repository fixture membership before the writer freezes the regular-file tree. Make declares the same seven portable paths explicitly, and a checked test prevents that safe prerequisite list from drifting away from the manifest. Both writers emit a primary volume descriptor, both path-table byte orders, identifier-sorted block-bounded directories, a forward SUSP continuation, fixed UTC metadata, and contiguous file extents. Rock Ridge `NM` records retain guest names drawn from the portable letter, digit, dot, underscore, and dash alphabet, capped at 127 bytes. `PX` and `TF` records carry fixed read-only metadata for other readers; Cupid OS ignores them. CupidObj rejects missing or undeclared logical entries, unsafe names, case-only collisions, bad parent graphs, and more than eight directory levels. Hostbuild remains responsible for native-path safety, input freezing, aliases, special files, live drift, and atomic production publication. Python remains the production ISO author until that guarded handoff runs checked CupidObj first and verifies an independent render. The tracked 61,440-byte fixture rebuilds without `mkisofs`, `genisoimage`, or `xorrisofs`. ADR 0191 records the image boundary, ADR 0227 records the lane fixture boundary, ADR 0239 records the CupidObj source capability, and ADR 0240 records seed carriage.
 _Avoid_: general optical-disc mastering, bootable ISO, Joliet author, guest ISO reader
 
 **Production external-program cohort**:
@@ -682,23 +682,23 @@ The manifest-bound set of static CupidC, CupidASM, CupidDis, CupidLD, and
 CupidObj executables under `bootstrap/seeds/i386-linux/`. Verification binds
 their hashes, sizes, ELF properties, target ABI, producer lineage, source
 revision, and exact 19-source build plan before execution. The current seed
-comes from revision `ba385f763742a77be6952457b0d5c0fb323cfc4f`. CupidC is
+comes from revision `5452538ff42efe21e20d2e243cc76cacdbd05b92`. CupidC is
 2,582,400 bytes with SHA-256
 `03084115bcacb1987db5513c8a8be9b7d884029b03ab4b212bf40d997871ae79`.
-CupidObj is 295,712 bytes with SHA-256
-`be5385d8666a625844cb1be5611bd307fa865ca6cf1d50b4e836dfdb3ba45efc`.
+CupidObj is 350,348 bytes with SHA-256
+`394c7bcfe04baf3f032a9b85ce8d908268dde9ec6527840665bc77e4b2d02b14`.
 CupidASM, CupidDis, and CupidLD remain byte-identical to the preceding cohort.
 The 5,440-byte manifest has SHA-256
-`019c77d53ddaf64a382962e1d9588a60046b75a7661f70beb0da7510945f35d0`.
+`5a27d7a4a65637da413756a6c154bf44ac0879c7d941881fbd3b995733a805a8`.
 The seed carries bounded decimal `long double` constants, transactional
-sequential-JPEG validation, pristine disk-template construction, Cupid's
-native type spellings, and the 596-row
+sequential-JPEG validation, pristine disk-template and ISO fixture
+construction, Cupid's native type spellings, and the 596-row
 SHRD-capable x86 catalogue. Its post-promotion reproof matches all five seed
 images to stage two, then matches all nineteen C objects, startup, five tools,
-and the 5/13/9 behavior matrix between stages two and three. The frozen
+and the 5/14/10 behavior matrix between stages two and three. The frozen
 41-input digest is
-`21a45c2358abf649f0e5e25cebceed320fc1055906cf7c59e40f4ac03baff6c4`.
-ADR 0237 records this promotion.
+`bac03a6d2b36dff48983221aae209a6688b408232b5d5373b6c2128082228a66`.
+ADR 0240 records this promotion.
 _Avoid_: current normal-build toolchain, native Windows seed, unverified binary cache
 
 **Frozen fixed-point source closure**:

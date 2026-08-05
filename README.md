@@ -836,10 +836,10 @@ code. Checked CupidASM now assembles `big.bin` from
 `test_iso/big_pattern.asm`. Python freezes the inputs, checks the exact
 4,096-byte candidate, and publishes it atomically. Another Python transform
 packages the frozen fixture tree as deterministic ISO9660/Rock Ridge bytes.
-Source-head CupidObj can now build the same complete image through
-`iso-fixture` from the checked manifest and an explicit typed inventory. The
-current seed does not carry the command, so Python remains the production
-image author until the seed promotion and guarded recipe handoff are complete.
+Checked-seed CupidObj can build the same complete image through `iso-fixture`
+from the checked manifest and an explicit typed inventory. Python remains the
+production image author until the guarded recipe handoff runs CupidObj first,
+checks an independent Python render, and publishes the frozen result safely.
 `test_iso/fixtures.manifest` pins every directory and file without asking Make
 to recurse through an unchecked path. Make declares the same portable paths
 explicitly, and a checked test prevents that prerequisite list from drifting
@@ -848,7 +848,9 @@ records the manifest, fixture root, every declared member, writer, imported
 bootstrap helper, and Makefile. ISO authoring does not probe or launch an
 external command.
 [ADR 0239](docs/adr/0239-author-deterministic-iso-fixtures-with-cupidobj.md)
-records the source capability and its exact tracked-image contract.
+records the source capability and its exact tracked-image contract. [ADR
+0240](docs/adr/0240-promote-iso-fixture-toolchain-seed.md) records carriage in
+the checked five-tool seed.
 The runner checks the live five-tool cohort again after every command. Make
 passes every wildcard-discovered output list through `$(sort ...)` before
 generation or link, so Windows and Linux do not inherit different link order
@@ -1079,19 +1081,19 @@ The five static i386 Linux tools have a checked bootstrap seed. Its manifest
 binds the exact binaries, source revision, target ABI, producer lineage,
 19-source build plan, and five link orders before execution. The current
 cohort comes from revision
-`ba385f763742a77be6952457b0d5c0fb323cfc4f`. CupidC is 2,582,400 bytes
+`5452538ff42efe21e20d2e243cc76cacdbd05b92`. CupidC is 2,582,400 bytes
 with SHA-256
 `03084115bcacb1987db5513c8a8be9b7d884029b03ab4b212bf40d997871ae79`.
 It carries bounded decimal `long double` constants alongside the earlier
-Doom, kernel, floating, ABI, and Cupid type capabilities. CupidObj is 295,712
+Doom, kernel, floating, ABI, and Cupid type capabilities. CupidObj is 350,348
 bytes with SHA-256
-`be5385d8666a625844cb1be5611bd307fa865ca6cf1d50b4e836dfdb3ba45efc`
-and carries transactional sequential-JPEG validation plus pristine disk
-template construction. CupidASM, CupidDis, and
+`394c7bcfe04baf3f032a9b85ce8d908268dde9ec6527840665bc77e4b2d02b14`
+and carries transactional sequential-JPEG validation plus pristine disk and
+ISO fixture construction. CupidASM, CupidDis, and
 CupidLD remain byte-identical to the preceding cohort. The 5,440-byte
 manifest has SHA-256
-`019c77d53ddaf64a382962e1d9588a60046b75a7661f70beb0da7510945f35d0`.
-[ADR 0237](docs/adr/0237-promote-disk-template-toolchain-seed.md)
+`5a27d7a4a65637da413756a6c154bf44ac0879c7d941881fbd3b995733a805a8`.
+[ADR 0240](docs/adr/0240-promote-iso-fixture-toolchain-seed.md)
 records the current promotion.
 
 The harness pins the build plan independently and freezes the verified manifest and binaries. It also copies the exact bytes of all 41 source inputs, including `link.ld`, into a private compiler root. Seed CupidC, CupidASM, and CupidLD build stage two below that root, then the stage-two producer trio repeats the work for stage three. The harness rehashes both the private closure and the live closure before the first stage, after each stage, and after the behavior suite. A live edit that is made and restored during a compile cannot change the bytes consumed by either stage.
@@ -1100,7 +1102,7 @@ The comparison covers all 19 C objects, independently assembled startup
 objects, and the linked CupidC, CupidASM, CupidDis, CupidLD, and CupidObj
 images. Every artifact matches byte for byte with host code-generator commands
 poisoned, including all five checked seed images against stage two. Both
-stages also agree on five help paths, thirteen successful operations, and nine
+stages also agree on five help paths, fourteen successful operations, and ten
 useful failures. The requested output stays empty while those checks run.
 Both stages, the behavior evidence, and `bootstrap-report.json` appear
 together only after complete success. Run `make verify-bootstrap-seed` for
