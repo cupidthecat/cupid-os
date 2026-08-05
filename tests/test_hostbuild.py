@@ -2715,6 +2715,67 @@ class HostBuildAssetTests(unittest.TestCase):
             )
             self.assertEqual(out.read_bytes(), b"existing object")
 
+    def test_embed_jpeg_reports_python_oracle_write_failure(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            manifest = root / "manifest.json"
+            src = root / "photo.jpg"
+            out = root / "photo.jpg.o"
+            manifest.write_bytes(b"checked manifest")
+            src.write_bytes(BASELINE_JPEG)
+            out.write_bytes(b"existing object")
+            diagnostic = io.StringIO()
+            write_bytes = Path.write_bytes
+
+            def run_seed(
+                _manifest,
+                _working_directory,
+                _tool_name,
+                arguments,
+                **_kwargs,
+            ):
+                Path(arguments[-1]).write_bytes(b"checked object")
+                return subprocess.CompletedProcess(
+                    ["cupidobj", *arguments], 0, "", ""
+                )
+
+            def guarded_write(path, payload):
+                if path.name == "asset.python-oracle.jpg":
+                    raise OSError("oracle copy denied")
+                return write_bytes(path, payload)
+
+            with (
+                mock.patch(
+                    "tools.hostbuild.run_seed_tool",
+                    side_effect=run_seed,
+                ),
+                mock.patch(
+                    "pathlib.Path.write_bytes",
+                    new=guarded_write,
+                ),
+                contextlib.redirect_stderr(diagnostic),
+            ):
+                status = hostbuild.main(
+                    [
+                        "embed-jpeg",
+                        "--seed-manifest",
+                        str(manifest),
+                        str(src),
+                        str(out),
+                    ]
+                )
+
+            self.assertEqual(status, 1)
+            self.assertIn(
+                "Python JPEG oracle could not write its private copy",
+                diagnostic.getvalue(),
+            )
+            self.assertNotIn(
+                "JPEG acceptance differs",
+                diagnostic.getvalue(),
+            )
+            self.assertEqual(out.read_bytes(), b"existing object")
+
     def test_embed_jpeg_rejects_python_oracle_byte_drift(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
@@ -2912,6 +2973,50 @@ class HostBuildAssetTests(unittest.TestCase):
                         )
                     self.assertEqual(status, 1)
                     self.assertIn(expected, diagnostic.getvalue())
+
+    def test_embed_jpeg_rejects_missing_and_non_file_inputs_before_cupidobj(
+        self,
+    ):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            manifest = root / "manifest.json"
+            missing = root / "missing.jpg"
+            directory = root / "directory.jpg"
+            out = root / "photo.jpg.o"
+            manifest.write_bytes(b"checked manifest")
+            directory.mkdir()
+
+            cases = (
+                (missing, "checked JPEG path cannot be resolved"),
+                (directory, "JPEG input is not a file"),
+            )
+            for source, expected in cases:
+                with self.subTest(source=source.name):
+                    out.write_bytes(b"existing object")
+                    diagnostic = io.StringIO()
+                    with (
+                        mock.patch(
+                            "tools.hostbuild.run_seed_tool",
+                            side_effect=AssertionError(
+                                "CupidObj must not run for an unsafe input"
+                            ),
+                        ),
+                        contextlib.redirect_stderr(diagnostic),
+                    ):
+                        status = hostbuild.main(
+                            [
+                                "embed-jpeg",
+                                "--seed-manifest",
+                                str(manifest),
+                                str(source),
+                                str(out),
+                            ]
+                        )
+                    self.assertEqual(status, 1)
+                    self.assertIn(expected, diagnostic.getvalue())
+                    self.assertEqual(
+                        out.read_bytes(), b"existing object"
+                    )
 
     def test_embed_jpeg_rejects_a_symbolic_output_before_cupidobj(self):
         with tempfile.TemporaryDirectory() as td:

@@ -29,8 +29,10 @@ bytes exactly. A disagreement rejects the candidate as a parity failure.
 
 Recheck the live seed manifest and source bytes before publishing the checked
 candidate with `os.replace`. A tool failure, missing or symbolic-link
-candidate, Python disagreement, byte drift, live-input drift, or publication
-error leaves the preceding object unchanged.
+candidate, Python disagreement, failed private oracle copy, byte drift,
+live-input drift, or publication error leaves the preceding object unchanged.
+Report an oracle write failure as an I/O problem rather than an acceptance
+disagreement.
 
 Keep the explicit native `--object-tool` route as a Python-first development
 oracle. The normal Make rules and audit attribution remain unchanged: CupidObj
@@ -40,14 +42,17 @@ transforms.
 
 ## Evidence
 
-The focused JPEG asset class passed all 14 tests after first failing nine
-ownership cases against the Python-first implementation. The cases cover exact
-tool, oracle, and publication order; the private source snapshot; original
-identity; checked-tool failures; progressive and malformed rejection; Python
-acceptance disagreement; oracle byte drift; seed and source drift; missing and
-symbolic-link candidates; unsafe inputs and outputs; and publication rollback.
+The focused JPEG asset class passes all 16 tests. The original transfer first
+failed nine ownership cases against the Python-first implementation. A later
+negative test exposed the misleading oracle-write diagnostic before the
+implementation distinguished it from a semantic mismatch. The cases cover
+exact tool, oracle, and publication order; the private source snapshot;
+original identity; checked-tool failures; progressive and malformed rejection;
+Python acceptance disagreement; oracle copy and byte failures; seed and source
+drift; missing and non-file inputs; missing and symbolic-link candidates;
+unsafe outputs; and publication rollback.
 
-The complete hostbuild module passed 59 tests with one host-filesystem skip.
+The complete hostbuild module passed 61 tests with one host-filesystem skip.
 The complete CupidObj module passed 18 tests, including the active JPEG and 21
 malformed-input contracts. The checked-seed JPEG carriage test also passed.
 

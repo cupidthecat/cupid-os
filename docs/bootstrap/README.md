@@ -469,6 +469,8 @@ rejections match the existing Python validator. The production JPEG recipe
 now runs checked `wrap-jpeg` first on a private snapshot and accepts only a
 regular, non-symbolic candidate. Python then checks the same frozen bytes for
 acceptance and byte parity, rechecks live inputs, and publishes atomically.
+The coordinator distinguishes a validator disagreement from a failed private
+oracle copy, and neither failure replaces an existing object.
 ADR 0231 records the source capability, ADR 0234 records seed carriage, and
 ADR 0235 records the production transfer.
 

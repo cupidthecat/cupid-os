@@ -479,6 +479,9 @@ validator. The production JPEG recipe now runs checked `wrap-jpeg` first on a
 private source snapshot. It accepts only a regular, non-symbolic object. Python
 then checks the same frozen bytes independently, requires exact byte parity,
 rechecks the manifest and live input, and publishes the candidate atomically.
+An oracle rejection is reported as an acceptance mismatch. A failed private
+oracle copy is reported separately as an I/O error and leaves the old object
+in place.
 [ADR 0231](docs/adr/0231-validate-sequential-jpeg-input-with-cupidobj.md)
 records the capability, and
 [ADR 0234](docs/adr/0234-promote-long-double-and-jpeg-toolchain-seed.md)

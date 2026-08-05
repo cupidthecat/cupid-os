@@ -21270,3 +21270,34 @@ assertion failure, exception, or triple-fault marker.
 
 No ordinary C or assembly source changed ownership, so no `.c` to `.cc`
 rename was due. `TempleOS/` remained untouched reference material.
+
+## 2026-08-04: Separate JPEG oracle I/O failures from parity failures
+
+A follow-up negative test showed that the checked JPEG path described a failed
+write to its private Python-oracle copy as an acceptance disagreement. The
+copy step now raises a distinct internal error. Hostbuild reports the I/O
+failure directly and preserves the preceding object, while a genuine validator
+rejection keeps the acceptance-mismatch diagnostic.
+
+Two focused cases close the review gap. One forces the private oracle write to
+fail after CupidObj succeeds. The other rejects a missing input and a directory
+before CupidObj can run. The asset class first failed the new diagnostic case,
+then passed all 16 tests in 0.160 seconds. The complete hostbuild module passed
+61 tests in 1.025 seconds with one expected filesystem skip. Ruff accepted the
+changed implementation and tests.
+
+`make check-bootstrap-audit` reproduced the checked graph in 68.3 seconds.
+The four-job root build then passed in 587.9 seconds. The final ELF is
+9,069,064 bytes with SHA-256
+`65d8af7467ff3f44cedea7d52aa374ef21f0fce29cf9f1ee1072bc640da67b18`;
+the flattened kernel is 8,862,680 bytes with SHA-256
+`7f9c3d4318afb9bb85775eda6490a316c5c79e128821b9aa8d0de8472686d211`.
+The 209,715,200-byte image has SHA-256
+`074572c51282527980bef3aed029789bc319a74b2aa4175e2a04602988a052e3`.
+The JPEG object remains byte-identical at 800,860 bytes with SHA-256
+`74ab86d88302c90385bb0b858632b0d6c4ac983d6be28c976dd1a3a348204b3e`.
+
+The Make graph and generated audit are unchanged. CupidObj remains the JPEG
+acceptance and object owner, while Python remains the parity and publication
+coordinator. No ordinary C or assembly source changed ownership, so no `.c`
+to `.cc` rename is due. `TempleOS/` remains untouched reference material.

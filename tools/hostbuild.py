@@ -39,6 +39,10 @@ class EmbedJpegError(RuntimeError):
     """A JPEG asset could not be wrapped safely."""
 
 
+class EmbedJpegCopyError(EmbedJpegError):
+    """A validated JPEG could not be copied to private storage."""
+
+
 class IsoAuthoringError(RuntimeError):
     """A deterministic ISO fixture could not be authored safely."""
 
@@ -1098,7 +1102,7 @@ def _prepare_baseline_jpeg(src: Path, tmp: Path) -> None:
     try:
         tmp.write_bytes(payload)
     except OSError as error:
-        raise EmbedJpegError(
+        raise EmbedJpegCopyError(
             f"checked JPEG copy cannot be written: {tmp}: {error}"
         ) from error
     print(f"[hostbuild] JPEG baseline embed {src}")
@@ -1186,6 +1190,11 @@ def _embed_jpeg_with_seed(
                 )
             try:
                 _prepare_baseline_jpeg(frozen_jpeg, oracle_jpeg)
+            except EmbedJpegCopyError as error:
+                raise EmbedJpegError(
+                    "Python JPEG oracle could not write its private copy: "
+                    f"{error}"
+                ) from error
             except EmbedJpegError as error:
                 raise EmbedJpegError(
                     "checked CupidObj JPEG acceptance differs from the "

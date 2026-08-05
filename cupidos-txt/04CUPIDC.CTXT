@@ -820,7 +820,9 @@ Checked-seed CupidObj validates sequential SOF0 and SOF1 marker streams in its
 wrap-jpeg command, then applies the ordinary byte-exact wrapper. The normal
 JPEG recipe runs that checked command first on a private source snapshot.
 Python checks accepted bytes independently, rechecks the live inputs, and
-publishes only a regular complete object. ADR 0231 records the source
+publishes only a regular complete object. A failed private oracle copy is
+reported separately from an acceptance mismatch, and neither replaces the
+old object. ADR 0231 records the source
 capability, ADR 0234 records seed carriage, and ADR 0235 records the transfer.
 The harness freezes the verified manifest and binaries and copies the exact
 bytes of 41 current inputs, including link.ld, into a private compiler root.

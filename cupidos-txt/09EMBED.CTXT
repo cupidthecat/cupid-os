@@ -91,7 +91,9 @@ docs_programs_gen.cc. It also embeds new top-level .bmp, .png, .jpg, and .jpeg
 files, which the boot path installs under /home with their original names.
 Checked CupidObj accepts sequential SOF0 or SOF1 JPEG files and rejects
 progressive, unsupported, or malformed input. Python checks accepted bytes
-independently before the object is published.
+independently before the object is published. A failed private oracle copy
+and an acceptance mismatch are reported separately; either failure keeps the
+old object.
 
 bin_programs_gen.cc likewise finds new .cc files under bin/.
 

@@ -713,8 +713,9 @@ freezes the exact source and gives the private snapshot to checked CupidObj
 `wrap-jpeg`. CupidObj validates and wraps sequential SOF0 or SOF1 input and
 rejects progressive, unsupported, or malformed marker streams. Python then
 checks the accepted snapshot independently, requires unchanged bytes, rechecks
-live inputs, and publishes atomically. FFmpeg, `jpegtran`, `djpeg`, and `cjpeg` are no longer root
-dependencies. The Linux kernel build passed in 607.7 seconds, and the Windows
+live inputs, and publishes atomically. A validator disagreement is distinct
+from a failed private oracle copy; either one preserves the prior object.
+FFmpeg, `jpegtran`, `djpeg`, and `cjpeg` are no longer root dependencies. The Linux kernel build passed in 607.7 seconds, and the Windows
 root build passed in 341.6 seconds. All 430 frozen kernel artifacts match byte
 for byte. The matching raw kernel is 8,490,228 bytes with SHA-256
 `53770a93658e757d25f5aeab9d3e434d4a3be2a1dc3fbe4b19869e5bf9820a06`.
