@@ -301,10 +301,10 @@ generator. `llvm-nm` is an optional comparison oracle:
 choco install llvm
 ```
 
-`mtools` is no longer required for the normal build; the Makefile uses
-`tools/hostbuild.py` to create and update the FAT16 image on both platforms.
-Checked-seed CupidObj can build the pristine prefix of that image, but the
-normal recipe has not adopted the operation yet.
+`mtools` is no longer required for the normal build. The Makefile asks
+checked-seed CupidObj to author the pristine FAT16 disk prefix, while
+`tools/hostbuild.py` preserves existing files, stages payloads, verifies the
+template, and publishes the complete image on both platforms.
 The same helper now authors the tracked ISO9660 test fixture, so `mkisofs`,
 `genisoimage`, and `xorrisofs` are not build prerequisites.
 NASM is also not required; install it only to run the optional
@@ -495,13 +495,25 @@ kernel, image-sector count, and FAT partition LBA, it writes the exact MBR,
 boot reserve, kernel lane, FAT16 boot sector, two empty FATs, and root
 directory used for a new Cupid disk. The output stops before cluster 2. This
 keeps the active result at 10,697,216 bytes and leaves persistent filesystem
-updates to the image publisher. The command and Python layout code share a
-tested escape from repeating FAT-size calculations. The normal `cupidos.img`
-recipe still uses the Python author until a separate production handoff.
+updates to the image publisher. The normal `cupidos.img` recipe runs the
+checked command first on frozen inputs and requires byte parity with a private
+Python oracle. A fresh image consumes the full template. A reused image takes
+only the bytes before the FAT partition, so its files survive. Python stages
+frozen payloads, checks input and output drift, and replaces the image only
+after the complete candidate is ready. A per-image lock rejects overlapping
+hostbuild publishers.
 [ADR 0236](docs/adr/0236-build-the-pristine-disk-template-with-cupidobj.md)
 records the source capability, and
 [ADR 0237](docs/adr/0237-promote-disk-template-toolchain-seed.md) records seed
-carriage.
+carriage. [ADR 0238](docs/adr/0238-publish-normal-disk-images-from-cupidobj-templates.md)
+records the production handoff.
+The guarded recipe built a fresh 209,715,200-byte image with SHA-256
+`8ad90a91103bf48d1e8d1e20b1b3dee48122ed1e4059b3f94cce7d750c262f16`.
+A private four-CPU `/bin/ls.cc` JIT boot passed from that image.
+The source-current rebuild then preserved the existing FAT data and produced
+image SHA-256
+`d1bfab4aed1f2116768ceed3e301fb14ffe2a36418eb4d4ebdf1108097cb2b05`.
+Its private four-CPU JIT boot also passed.
 
 Checked-seed CupidC recognizes Cupid's sized scalar spellings and `float4` or
 `double2` as native type specifiers in Cupid mode. Checked-seed CupidASM and
@@ -792,7 +804,7 @@ Poisoned-host checks cover all 238 checked-in normal CupidC recipes through
 the strict and Doom gates. They fail if a CupidC-owned object reaches Clang or
 GCC. They pass against the renamed graph. Across the three supported build
 roots, the audit records 449 transforms. CupidC participates in 245, CupidObj
-participates in 186 transforms, CupidASM participates in five, Python
+participates in 187 transforms, CupidASM participates in five, Python
 participates in all 449, and no normal transform invokes a host C compiler.
 The Toolchain root now builds its fourteen `.cc` contracts twice with
 stage-two and stage-three CupidC, compares the static i386 executables, and

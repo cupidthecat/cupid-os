@@ -250,8 +250,8 @@ execution. The contract inventory now has 45 inputs, including the Toolchain
 Makefile and both Python modules that construct or verify the cohort. The
 manifest digest, decoded data, schema checks, and build plan
 come from one captured byte sequence. The 438-transform normal image has no
-host C or recursive Make transform. Its
-CupidASM, CupidObj, CupidLD, and CupidDis commands run from the checked seed.
+host C or recursive Make transform. Its five CupidASM, 187 CupidObj, two
+CupidLD, and one CupidDis commands run from the checked seed.
 
 The normal build compiles kernel/gfx/jpeg.cc and
 kernel/gfx/glyph_raster.cc through the checked seed. Their closed header sets
@@ -824,13 +824,17 @@ publishes only a regular complete object. A failed private oracle copy is
 reported separately from an acceptance mismatch, and neither replaces the
 old object. ADR 0231 records the source
 capability, ADR 0234 records seed carriage, and ADR 0235 records the transfer.
-Checked-seed CupidObj also has a disk-template command. It writes the MBR,
-boot reserve, kernel at LBA 5, FAT16 boot sector, two empty FATs, and root
-directory, then stops before cluster 2. The active result is 10,697,216 bytes.
-Compact and active byte parity, repeating FAT-size recovery, overlap, limits,
-rollback, and reuse are checked. The normal image builder does not use this
-operation yet. ADR 0236 records the source boundary, and ADR 0237 records seed
-carriage.
+The normal Make image target runs checked-seed CupidObj disk-template on private
+boot and kernel copies. The command writes the MBR, boot reserve, kernel at
+LBA 5, FAT16 boot sector, two empty FATs, and root directory, then stops before
+cluster 2. The active result is 10,697,216 bytes.
+
+Python builds an independent layout oracle and requires exact byte parity.
+It extends the complete template for a fresh image. For a valid persistent
+image, Python keeps the FAT partition and applies only the prefix before it.
+Python then stages frozen files, checks live inputs and output for changes,
+and publishes the full image atomically. ADR 0236 records the source command,
+ADR 0237 records seed carriage, and ADR 0238 records production ownership.
 The harness freezes the verified manifest and binaries and copies the exact
 bytes of 41 current inputs, including link.ld, into a private compiler root.
 The seed producer trio builds stage two below that root, and the stage-two trio

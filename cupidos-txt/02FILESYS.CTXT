@@ -160,11 +160,17 @@ The command search order in kernel/lang/shell.cc includes /home/bin/<cmd> and
 >tree open Copying Data Into The Image
 Host-side FAT helpers still target the raw FAT partition inside cupidos.img.
 
-Checked-seed CupidObj can build the pristine image prefix through the empty
-FAT16 root directory. It places the kernel at LBA 5 and stops before cluster
-2, leaving existing-file preservation and later FAT changes to hostbuild. The
-normal image path does not consume the command until the guarded publisher
-handoff. ADR 0237 records seed carriage.
+The normal Make image path runs checked-seed CupidObj disk-template on private
+bootloader and kernel copies. CupidObj writes the pristine prefix through the
+empty FAT16 root directory, with the kernel at LBA 5. Python builds an
+independent layout oracle from the same frozen inputs and requires byte parity.
+
+For a fresh, invalid, or force-formatted disk, Python extends the complete
+template to the requested image size. For a valid persistent disk, it copies
+the old image and replaces only the bytes before the FAT partition. Python
+then stages frozen files, checks for live input or output changes, and
+publishes the complete image with an atomic replacement. ADR 0238 records
+this production boundary.
 
 Mapping reminder:
 - FAT root ::/ is mounted directly at /disk

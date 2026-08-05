@@ -678,13 +678,15 @@ contract programs and the runtime probe. It compares sixteen new objects and
 fifteen linked executables. Every invocation verifies its named artifact, the
 complete cohort, both source inventories, and the checked seed manifest. The
 seed manifest is captured once for its digest, decoded data, schema checks, and
-build plan. The last completed isolated gate predates the current seed and
-passed in 2,986.264 seconds. Stage-two
-and stage-three objects and executables match, the hosted runtime passes, and
-all 20 published artifacts verify. Its 18,231-byte manifest has SHA-256
-`1c2f81f25eb0ee8c09b4ccdd789dfd22aa8765cef86bf7d8b14762d48e6a468e`.
-That manifest is retained as preceding-seed evidence, not as the current
-promotion result.
+build plan. The source-current isolated gate passed in 3,363.6 seconds.
+Stage-two and stage-three objects and executables match, the hosted runtime
+passes, and all 20 published artifacts verify. Its 18,232-byte manifest has
+SHA-256
+`edca1f86f063c5b8b967508a06ddf19f97ea79da674e08d9c952eabe68485568`.
+The manifest records all 45 inputs, the 41-file source snapshot with SHA-256
+`21a45c2358abf649f0e5e25cebceed320fc1055906cf7c59e40f4ac03baff6c4`,
+and the checked seed with SHA-256
+`019c77d53ddaf64a382962e1d9588a60046b75a7661f70beb0da7510945f35d0`.
 See [Toolchain Bootstrap](Toolchain-Bootstrap) for the commands and report
 layout. Native contract runners and hosted development commands are explicit
 host-built oracles; normal OS and Toolchain artifacts do not depend on them.

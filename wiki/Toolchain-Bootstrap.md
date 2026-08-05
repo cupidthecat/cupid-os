@@ -574,7 +574,7 @@ all 449 transforms. CupidC's total is 239 normal transforms plus three
 generated installation tables and the `hello.cc`, `ls.cc`, and `cat.cc`
 programs. The
 438-transform root image graph has no host C or recursive Make transform.
-Its five CupidASM, 186 CupidObj, two CupidLD, and one CupidDis transforms run
+Its five CupidASM, 187 CupidObj, two CupidLD, and one CupidDis transforms run
 from the manifest-checked five-tool seed. Native hosted commands remain
 explicit oracle targets. The runner rechecks the live seed cohort after each
 command, and Make passes wildcard-discovered output sources through
@@ -726,31 +726,45 @@ A private `/bin/ls.cc` JIT boot from it passed in 49.8 seconds.
 ADR 0231 records the CupidObj capability, ADR 0234 records seed carriage, and
 ADR 0235 records the production acceptance transfer.
 
-Checked-seed CupidObj includes `disk-template`. The command takes the boot
-image, raw kernel, total sector count, and FAT partition LBA. It produces the
+The normal image target runs checked-seed CupidObj `disk-template` before
+Python begins disk composition. The command consumes private boot and kernel
+copies, the total sector count, and the FAT partition LBA. It writes the
 deterministic prefix from the MBR through the empty FAT16 root directory, with
 the kernel at LBA 5. The active prefix is 10,697,216 bytes, so CupidObj does
-not need to allocate the complete 200 MiB disk. Compact and active parity,
-repeating FAT-size recovery, bad geometry, overlap, limits, rollback, and
-same-job reuse are covered. The checked seed carries the command, while the
-normal image builder still uses the Python path. ADR 0236 records the source
-boundary, and ADR 0237 records seed carriage.
+not need a full 200 MiB command buffer.
+
+Python builds an independent layout oracle from the same frozen inputs and
+requires byte parity. It extends a fresh template to the requested image size,
+or copies a valid persistent image and replaces only the prefix before the FAT
+partition. Python also stages frozen files, checks the seed and live paths for
+changes, and publishes the complete candidate atomically. CupidObj's 187
+normal transforms include `disk-template`. ADR 0236 records the
+command, ADR 0237 records seed carriage, and [ADR 0238](../docs/adr/0238-publish-normal-disk-images-from-cupidobj-templates.md)
+records production ownership.
+
+The guarded normal recipe built a fresh 209,715,200-byte image with SHA-256
+`8ad90a91103bf48d1e8d1e20b1b3dee48122ed1e4059b3f94cce7d750c262f16`.
+A private four-CPU `/bin/ls.cc` JIT boot passed from that image in 61.9 seconds.
+The source-current rebuild then preserved the existing FAT data and produced
+image SHA-256
+`d1bfab4aed1f2116768ceed3e301fb14ffe2a36418eb4d4ebdf1108097cb2b05`.
+Its private four-CPU JIT boot passed in 66.8 seconds.
+
 The checked audit uses the canonical Windows Make branch and C locale on
 every host. Direct Linux builds test the separate Linux execution branch.
 
-The latest checked seed comes from revision `ba385f7`.
-The last completed isolated Toolchain target predates that seed and passed in
-2,986.264 seconds. Its two
-stages matched sixteen objects and fifteen linked executables, the hosted
-runtime passed, and all 20 published artifacts verified. The 18,231-byte
+The latest checked seed comes from revision `cd07b0b`.
+The source-current isolated Toolchain target passed in 3,363.6 seconds. Its
+two stages matched sixteen objects and fifteen linked executables, the hosted
+runtime passed, and all 20 published artifacts verified. The 18,232-byte
 contract manifest covers 45 inputs and has SHA-256
-`1c2f81f25eb0ee8c09b4ccdd789dfd22aa8765cef86bf7d8b14762d48e6a468e`.
+`edca1f86f063c5b8b967508a06ddf19f97ea79da674e08d9c952eabe68485568`.
 It records seed manifest
-`1302d48c541850b5248df05d07a8f4d7a68fe070dd6118edadbecd280b309ad1`
+`019c77d53ddaf64a382962e1d9588a60046b75a7661f70beb0da7510945f35d0`
 and source snapshot
-`2d2a3253a9559a7e450d3f8755bc66ca2f5e0136d41045c7aeea04949a8d177d`.
-Those fields remain preceding-seed evidence until the promoted cohort
-publishes its own manifest.
+`21a45c2358abf649f0e5e25cebceed320fc1055906cf7c59e40f4ac03baff6c4`.
+The manifest also records equality across 19 C objects, one startup object,
+and five rebuilt tool images.
 
 The normal root build passed in 605.631 seconds. Its 9,069,064-byte final ELF
 has SHA-256

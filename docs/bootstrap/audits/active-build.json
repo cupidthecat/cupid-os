@@ -3654,14 +3654,28 @@
         "inputs": [
           "boot/boot.bin",
           "kernel/kernel.bin",
-          "test_iso/hello.iso"
+          "test_iso/hello.iso",
+          "tools/hostbuild.py",
+          "Makefile",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "package_disk_image",
         "output": "cupidos.img",
         "recipe": [
-          "$(PYTHON) tools/hostbuild.py image --image $(OS_IMAGE) --bootloader $(BOOTLOADER) --kernel $(KERNEL) --hdd-mb $(HDD_MB) --fat-start-lba $(FAT_START_LBA) --stage test_iso/hello.iso:/hello.iso --wads $(WAD_SRCS)"
+          "$(PYTHON) tools/hostbuild.py image \\",
+          "--seed-manifest $(BOOTSTRAP_SEED_MANIFEST) \\",
+          "--image $(OS_IMAGE) --bootloader $(BOOTLOADER) --kernel $(KERNEL) \\",
+          "--hdd-mb $(HDD_MB) --fat-start-lba $(FAT_START_LBA) \\",
+          "--stage test_iso/hello.iso:/hello.iso --wads $(WAD_SRCS)"
         ],
         "tools": [
+          "cupid_object",
           "host_python"
         ]
       },
@@ -52615,7 +52629,7 @@
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "f9cd8daa78b962c5b8b11ba068ae1e977b2c96e18a92043bdd1248fc37f3b481"
+        "sha256": "5e933b1a56099b85c5060e608395e57623658794027a7ba1baf5a97792bca697"
       },
       {
         "path": "user/Makefile",
@@ -52660,7 +52674,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "10787ede28fee59b14d6809747450a83834fe322d79745a32db31f95dc339ab5"
+      "sha256": "40198e0e2b9eb170eaf635d8a528d5ce568ee1f6579a011eba685023b6d4b07e"
     },
     "text_hash_policy": "canonical_lf"
   },

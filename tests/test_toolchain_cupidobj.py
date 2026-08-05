@@ -46,22 +46,15 @@ def _python_disk_template(
     image_sectors,
     fat_start_lba,
 ):
-    bytes_per_megabyte = 1024 * 1024
-    image_bytes = image_sectors * hostbuild.SECTOR_SIZE
-    if image_bytes % bytes_per_megabyte != 0:
-        raise AssertionError("disk-template oracle requires a whole MiB image")
-    with contextlib.redirect_stdout(io.StringIO()):
-        hostbuild.create_or_update_image(
-            image=output,
-            bootloader=boot,
-            kernel=kernel,
-            hdd_mb=image_bytes // bytes_per_megabyte,
-            fat_start_lba=fat_start_lba,
-            stage_files=[],
-            force_format=True,
-        )
-    with output.open("r+b") as image:
-        image.truncate(_disk_template_size(image_sectors, fat_start_lba))
+    written = hostbuild._write_pristine_disk_template(
+        output,
+        boot,
+        kernel,
+        image_sectors,
+        fat_start_lba,
+    )
+    if written != _disk_template_size(image_sectors, fat_start_lba):
+        raise AssertionError("disk-template oracle produced the wrong size")
 
 
 def _jpeg_byte(payload, offset, value):

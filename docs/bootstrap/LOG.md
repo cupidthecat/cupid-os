@@ -21446,7 +21446,8 @@ The complete checked-seed module passed all 43 tests in 922.204 seconds.
 The first isolated Toolchain-cohort run reached the end of the stage-three
 contract compilation, but its one-hour outer command watchdog stopped the
 controller before publication. No cohort manifest was replaced, so that run
-does not count as promotion evidence. A retry uses a longer watchdog.
+does not count as promotion evidence. The successful retry is recorded with
+the production handoff below.
 
 The canonical audit regenerated in 81.2 seconds, and its independent stale
 check passed in 107.0 seconds. The census remains 719 active inputs, 449
@@ -21476,3 +21477,76 @@ The normal image remains Python-owned until the next guarded publisher
 handoff. No ordinary C or assembly source changes ownership in this promotion,
 so no `.c` to `.cc` rename is due. `TempleOS/` remains untouched reference
 material. ADR 0237 records the cohort decision.
+
+## 2026-08-05: Publish normal images from checked CupidObj templates
+
+The normal Make image recipe now passes the checked seed manifest to
+`hostbuild.py image`. Hostbuild freezes the bootloader, kernel, and present
+stage inputs, then runs checked CupidObj first. CupidObj writes the pristine
+disk template in a private directory. Python builds an independent oracle from
+the same frozen bootloader and kernel and requires exact byte parity before it
+continues.
+
+Fresh and reused disks take separate composition paths. A fresh disk starts
+with the complete checked template, which Python extends to the requested
+image size before staging guest files. A reused disk starts with a private copy
+of the captured output and receives only the checked bytes before the FAT
+partition. Its FAT boot sector, allocation tables, root directory, and stored
+files remain intact.
+
+Python still owns persistence, staging, extension, and the publication
+transaction. It verifies the checked manifest and all five tool hashes,
+freezes each present input, records missing optional inputs, and detects live
+input or output drift before publication. Symbolic links, junctions,
+nonregular paths, and output hard-link aliases fail before replacement. A
+cross-process lock derived from the resolved output path rejects overlapping
+hostbuild publishers. Malformed FAT16 geometry prevents reuse, and a corrupt file chain
+rejects staging. Successful work reaches the live path only through atomic
+`os.replace`.
+
+Four review failures tightened the publisher before the production proof. The
+first alias check called file-identity APIs for an optional stage that did not
+exist, which broke the documented skip behavior. Missing paths now use exact
+path comparison without an identity lookup. The first reuse check accepted a
+plausible boot sector without proving its partition size, FAT capacity, or
+cluster range; reuse now validates the complete active geometry, and a bounded
+chain walk rejects loops and out-of-range clusters. A private candidate named
+after the public image collided with arbitrary output basenames, so private
+composition now always uses `output/image.img`. Finally, the first lock test
+opened both handles in one interpreter. The retained test holds the lock in
+the parent and proves that a child process cannot acquire the same resolved
+output lock.
+
+The ownership census moves one root transform from Python-only construction to
+CupidObj. CupidObj now participates in 187 transforms. The root graph has 436
+Cupid-owned transforms instead of 435, and the Python-only output count falls
+from three to two. The ISO image and Doom input manifest are the remaining
+Python-only root outputs. ADR 0238 records the production boundary.
+
+The production build, boot smoke, and audit all pass:
+
+| Gate | Evidence |
+|---|---|
+| Fresh normal build | `make OS_IMAGE=build/disk-template-cutover.img WAD_SRCS= -j4 all` passed in 672.0 seconds. The fresh 209,715,200-byte image has SHA-256 `8ad90a91103bf48d1e8d1e20b1b3dee48122ed1e4059b3f94cce7d750c262f16`. |
+| Fresh-image four-vCPU boot | The private-image `tools/gui_terminal_smoke.py` gate ran `/bin/ls.cc` with `--smp 4 --cpu max --verify-smp-runtime` and passed in 61.9 seconds. Its 31,989-byte serial log has SHA-256 `005a25a49b217dc3c7cfe0a788b0dd6cdda85ad12227946a7c464c8330af0ba0` and no panic, fatal, assertion, exception, or triple-fault marker. |
+| Source-current reuse build | The same normal target rebuilt after the CTXT updates and passed in 616.648 seconds. Hostbuild reported `Reused build\disk-template-cutover.img (preserving FAT data)`. The final 209,715,200-byte image has SHA-256 `d1bfab4aed1f2116768ceed3e301fb14ffe2a36418eb4d4ebdf1108097cb2b05`. |
+| Source-current four-vCPU boot | The same private `/bin/ls.cc` gate passed in 66.8 seconds. Its 31,764-byte serial log has SHA-256 `41ed1a20ba7dbfed4965a777e655d495fc8c9ba44d7099fd4ce73ca78838d0fb` and no panic, fatal, assertion, exception, or triple-fault marker. |
+| Active-source audit | `make bootstrap-audit` passed in 79.129 seconds, and the final `make check-bootstrap-audit` passed in 78.012 seconds. The 2,558,331-byte JSON has SHA-256 `557d7cbd3a2fda246d3c5469489a934daaf1513a238fce49e1497f80d5a00b96`; the 12,196-byte summary has SHA-256 `e8563f7b1059d0c16743ec2da75f661b9d4f7463c349261cbb7ecdcce59a68ed`; the source digest is `cfb0e1dcd276154a4db5c2747ed092581874a54cd4c9fb379f204e3c10f8253e`. |
+| Host-build tests | All 86 tests passed in 13.320 seconds with one expected case-only-filesystem skip. The image class covers a real checked-seed template, fresh and persistent composition, rollback, drift, aliases, malformed FAT geometry and chains, and a cross-process publication lock. |
+| Hosted CupidObj tests | All 26 tests passed in 12.856 seconds, including compact and active template parity, repeatability, FAT-size-cycle recovery, kernel-boundary acceptance, useful failures, and rollback. |
+| Source-current Toolchain cohort | The retry after the documented one-hour watchdog passed in 3,363.6 seconds and published 20 verified artifacts. Stage two and stage three match across 19 C objects, one startup object, five tool images, and all linked contract executables. The hosted runtime passed, live inputs stayed equal to their frozen copies, and the checked CupidObj `disk-template` selector passed in 0.975 seconds. The 18,232-byte manifest has SHA-256 `edca1f86f063c5b8b967508a06ddf19f97ea79da674e08d9c952eabe68485568`. It records 45 inputs, seed SHA-256 `019c77d53ddaf64a382962e1d9588a60046b75a7661f70beb0da7510945f35d0`, and source snapshot SHA-256 `21a45c2358abf649f0e5e25cebceed320fc1055906cf7c59e40f4ac03baff6c4`. |
+
+The normal build produced the following artifacts before the image transaction:
+
+| Artifact | Bytes | SHA-256 |
+|---|---:|---|
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `test_iso/hello.iso` | 61,440 | `40359c1cec72219f21e87ce71b31e621209036042440e1b38c5e59de157e0fb6` |
+| `kernel/kernel.elf.pass1` | 8,958,472 | `45680a37adf77be0f578d3050720b6d9a588d47e188e78b7b211cf7e3dc60bbb` |
+| `kernel/cpu/ksyms_data.cc` | 379,855 | `fda73e39a2e76470a916918edbdab71b02c3a6c5ff3eb0a5018086ca7a8ae058` |
+| `kernel/cpu/ksyms_data.o` | 115,000 | `fd56be375eb9b132ee9f4cd7fa8bd846c25dba6890aa3f5cad842eb648701399` |
+| `kernel/kernel.elf` | 9,073,160 | `491d1508c6d4d136ba0f4cdd4ce46bcf5f57cd59d5c5a55122be0de845701bc8` |
+| `kernel/kernel.bin` | 8,864,628 | `2d513785a0c9245e11a682a4e3e09550deee52ad451f5d3b26a7445bf51e79bd` |
+
+No ordinary C or assembly source changed ownership, so no `.c` to `.cc`
+rename is due. `TempleOS/` remains untouched reference material.

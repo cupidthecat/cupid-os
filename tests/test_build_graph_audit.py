@@ -506,7 +506,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     --tool cupiddis --
 
                 .PHONY: all
-                all: symbols.cc photo.o reader.txt big.bin
+                all: symbols.cc photo.o reader.txt big.bin cupidos.img
 
                 symbols.cc: kernel.elf
                 \t$(PYTHON) tools/hostbuild.py mksyms \
@@ -523,11 +523,22 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 \t$(PYTHON) tools/hostbuild.py gen-big \
                     --seed-manifest seed/manifest.json \
                     --source $< $@
+
+                cupidos.img: boot.bin kernel.bin hello.iso
+                \t$(PYTHON) tools/hostbuild.py image \
+                    --seed-manifest seed/manifest.json \
+                    --image $@ --bootloader boot.bin \
+                    --kernel kernel.bin --hdd-mb 200 \
+                    --fat-start-lba 20480 \
+                    --stage hello.iso:/hello.iso
                 """,
             )
             _write(root / "kernel.elf", "fixture\n")
             _write(root / "photo.jpg", "fixture\n")
             _write(root / "big_pattern.asm", "times 4096 db $\n")
+            _write(root / "boot.bin", "fixture\n")
+            _write(root / "kernel.bin", "fixture\n")
+            _write(root / "hello.iso", "fixture\n")
 
             output = root / "audit.json"
             result = subprocess.run(
@@ -576,6 +587,14 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(
                 transforms["big.bin"]["operation"],
                 "assemble_flat_binary",
+            )
+            self.assertEqual(
+                transforms["cupidos.img"]["tools"],
+                ["cupid_object", "host_python"],
+            )
+            self.assertEqual(
+                transforms["cupidos.img"]["operation"],
+                "package_disk_image",
             )
 
     def test_make_database_does_not_execute_recursive_recipes(self):
@@ -5409,9 +5428,39 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             "bootstrap/seeds/i386-linux/cupidld.elf",
             "bootstrap/seeds/i386-linux/cupidobj.elf",
         }
+        system_image_transform = next(
+            transform
+            for transform in audit["build"]["transforms"]
+            if transform["output"] == "cupidos.img"
+        )
+        self.assertEqual(
+            system_image_transform["tools"],
+            ["cupid_object", "host_python"],
+        )
+        self.assertEqual(
+            system_image_transform["operation"],
+            "package_disk_image",
+        )
+        self.assertEqual(
+            set(system_image_transform["inputs"]),
+            {
+                "Makefile",
+                "boot/boot.bin",
+                "bootstrap/seeds/i386-linux/cupidasm.elf",
+                "bootstrap/seeds/i386-linux/cupidc.elf",
+                "bootstrap/seeds/i386-linux/cupiddis.elf",
+                "bootstrap/seeds/i386-linux/cupidld.elf",
+                "bootstrap/seeds/i386-linux/cupidobj.elf",
+                "bootstrap/seeds/i386-linux/manifest.json",
+                "kernel/kernel.bin",
+                "test_iso/hello.iso",
+                "tools/bootstrap_toolchain.py",
+                "tools/hostbuild.py",
+            },
+        )
         expected_counts = {
             "cupid_assembler": 5,
-            "cupid_object": 186,
+            "cupid_object": 187,
             "cupid_linker": 2,
             "cupid_disassembler": 1,
         }
@@ -5433,6 +5482,31 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                         seed_inputs.issubset(transform["inputs"]),
                         transform["output"],
                     )
+        cupid_tools = {
+            "cupid_c_compiler",
+            "cupid_assembler",
+            "cupid_object",
+            "cupid_linker",
+            "cupid_disassembler",
+        }
+        cupid_owned = [
+            transform
+            for transform in audit["build"]["transforms"]
+            if cupid_tools.intersection(transform["tools"])
+        ]
+        python_only = sorted(
+            transform["output"]
+            for transform in audit["build"]["transforms"]
+            if not cupid_tools.intersection(transform["tools"])
+        )
+        self.assertEqual(len(cupid_owned), 436)
+        self.assertEqual(
+            python_only,
+            [
+                "build/bootstrap/doom-cupidc-inputs.json",
+                "test_iso/hello.iso",
+            ],
+        )
         self.assertFalse(
             any(
                 transform["operation"] == "recursive_make"

@@ -1356,8 +1356,13 @@ $(KERNEL): kernel/kernel.elf $(CUPIDOBJ_INPUTS)
 	$(CUPIDOBJ) flat $< -o $(KERNEL)
 
 # Create HDD image: MBR + Stage2 + kernel area + FAT16 partition (size via HDD_MB, default 200MB)
-$(OS_IMAGE): $(BOOTLOADER) $(KERNEL) test_iso/hello.iso
-	$(PYTHON) tools/hostbuild.py image --image $(OS_IMAGE) --bootloader $(BOOTLOADER) --kernel $(KERNEL) --hdd-mb $(HDD_MB) --fat-start-lba $(FAT_START_LBA) --stage test_iso/hello.iso:/hello.iso --wads $(WAD_SRCS)
+$(OS_IMAGE): $(BOOTLOADER) $(KERNEL) test_iso/hello.iso tools/hostbuild.py \
+	$(CHECKED_SEED_INPUTS)
+	$(PYTHON) tools/hostbuild.py image \
+		--seed-manifest $(BOOTSTRAP_SEED_MANIFEST) \
+		--image $(OS_IMAGE) --bootloader $(BOOTLOADER) --kernel $(KERNEL) \
+		--hdd-mb $(HDD_MB) --fat-start-lba $(FAT_START_LBA) \
+		--stage test_iso/hello.iso:/hello.iso --wads $(WAD_SRCS)
 
 # Common QEMU flags for CupidOS. USB HCs (UHCI + EHCI) + HID devices
 # let the P4 USB stack enumerate on boot. Add -device usb-storage + -drive

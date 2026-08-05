@@ -8,6 +8,7 @@ can run under Linux shells and native Windows GNU Make.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import os
 import re
 import shutil
@@ -20,9 +21,17 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
 try:
-    from tools.bootstrap_toolchain import BootstrapError, run_seed_tool
+    from tools.bootstrap_toolchain import (
+        BootstrapError,
+        run_seed_tool,
+        verify_seed_inputs,
+    )
 except ModuleNotFoundError:
-    from bootstrap_toolchain import BootstrapError, run_seed_tool
+    from bootstrap_toolchain import (
+        BootstrapError,
+        run_seed_tool,
+        verify_seed_inputs,
+    )
 
 
 SECTOR_SIZE = 512
@@ -51,10 +60,22 @@ class InstallSourceGenerationError(RuntimeError):
     """An installation table could not be generated safely."""
 
 
+class DiskImageError(RuntimeError):
+    """A persistent disk image could not be published safely."""
+
+
 @dataclass(frozen=True)
 class StageFile:
     source: Path
     dest: str
+
+
+@dataclass(frozen=True)
+class _DiskFileSnapshot:
+    requested: Path
+    resolved: Path
+    size: int
+    sha256: str
 
 
 @dataclass(frozen=True)
@@ -176,18 +197,49 @@ def _valid_existing_image(image: Path, hdd_mb: int, fat_start_lba: int) -> bool:
     if not info:
         return False
     ptype, start, sectors = info
-    if ptype not in FAT16_TYPES or start != fat_start_lba or sectors == 0:
+    image_sectors = expected_size // SECTOR_SIZE
+    partition_sectors = image_sectors - fat_start_lba
+    if (
+        ptype not in FAT16_TYPES
+        or start != fat_start_lba
+        or sectors != partition_sectors
+    ):
         return False
     with image.open("rb") as f:
         f.seek(fat_start_lba * SECTOR_SIZE)
         bpb = f.read(SECTOR_SIZE)
-    return (
-        len(bpb) == SECTOR_SIZE
-        and bpb[510:512] == b"\x55\xaa"
-        and struct.unpack_from("<H", bpb, 11)[0] == SECTOR_SIZE
-        and bpb[16] in (1, 2)
-        and struct.unpack_from("<H", bpb, 22)[0] > 0
+    if len(bpb) != SECTOR_SIZE or bpb[510:512] != b"\x55\xaa":
+        return False
+    bytes_per_sector = struct.unpack_from("<H", bpb, 11)[0]
+    sectors_per_cluster = bpb[13]
+    reserved_sectors = struct.unpack_from("<H", bpb, 14)[0]
+    num_fats = bpb[16]
+    root_entries = struct.unpack_from("<H", bpb, 17)[0]
+    total_sectors = struct.unpack_from("<H", bpb, 19)[0]
+    if total_sectors == 0:
+        total_sectors = struct.unpack_from("<I", bpb, 32)[0]
+    sectors_per_fat = struct.unpack_from("<H", bpb, 22)[0]
+    hidden_sectors = struct.unpack_from("<I", bpb, 28)[0]
+    if (
+        bytes_per_sector != SECTOR_SIZE
+        or sectors_per_cluster not in (1, 2, 4, 8, 16, 32, 64)
+        or reserved_sectors == 0
+        or num_fats not in (1, 2)
+        or root_entries == 0
+        or total_sectors != partition_sectors
+        or sectors_per_fat == 0
+        or hidden_sectors != fat_start_lba
+    ):
+        return False
+    root_dir_sectors = _ceil_div(root_entries * 32, SECTOR_SIZE)
+    data_start = (
+        reserved_sectors + num_fats * sectors_per_fat + root_dir_sectors
     )
+    if data_start >= total_sectors:
+        return False
+    cluster_count = (total_sectors - data_start) // sectors_per_cluster
+    fat_entries = sectors_per_fat * SECTOR_SIZE // 2
+    return 4085 <= cluster_count < 65525 and cluster_count + 2 <= fat_entries
 
 
 def _write_mbr(f, bootloader: bytes, fat_start_lba: int, partition_sectors: int) -> None:
@@ -341,10 +393,14 @@ class Fat16Image:
         raise OSError("FAT16 partition is full")
 
     def _free_chain(self, cluster: int) -> None:
+        remaining = self.cluster_count
         while 2 <= cluster < FAT16_EOC_MIN:
+            if cluster >= self.cluster_count + 2 or remaining == 0:
+                raise ValueError("FAT16 file chain is corrupt")
             nxt = self._read_fat(cluster)
             self._write_fat(cluster, 0)
             cluster = nxt
+            remaining -= 1
 
     @staticmethod
     def _short_name(component: str) -> bytes:
@@ -506,6 +562,312 @@ class Fat16Image:
         self.f.flush()
 
 
+def _disk_is_link_or_junction(path: Path, description: str) -> bool:
+    try:
+        if path.is_symlink():
+            return True
+        is_junction = getattr(os.path, "isjunction", None)
+        if is_junction is not None and is_junction(path):
+            return True
+        try:
+            status = path.lstat()
+        except FileNotFoundError:
+            return False
+        reparse_point = getattr(
+            stat,
+            "FILE_ATTRIBUTE_REPARSE_POINT",
+            0x0400,
+        )
+        return bool(
+            getattr(status, "st_file_attributes", 0) & reparse_point
+        )
+    except OSError as error:
+        raise DiskImageError(
+            f"{description} cannot be inspected: {path}: {error}"
+        ) from error
+
+
+def _disk_absolute(path: Path) -> Path:
+    return Path(os.path.abspath(os.fspath(path)))
+
+
+def _resolve_disk_regular(path: Path, description: str) -> Path:
+    requested = _disk_absolute(path)
+    if _disk_is_link_or_junction(requested, description):
+        raise DiskImageError(
+            f"{description} may not be a symbolic link or junction: "
+            f"{requested}"
+        )
+    try:
+        resolved = requested.resolve(strict=True)
+        mode = resolved.lstat().st_mode
+    except OSError as error:
+        raise DiskImageError(
+            f"{description} cannot be resolved: {requested}: {error}"
+        ) from error
+    if not stat.S_ISREG(mode):
+        raise DiskImageError(
+            f"{description} is not a regular file: {resolved}"
+        )
+    return resolved
+
+
+def _capture_disk_file(
+    path: Path,
+    description: str,
+    *,
+    frozen: Path | None = None,
+) -> _DiskFileSnapshot:
+    requested = _disk_absolute(path)
+    resolved = _resolve_disk_regular(requested, description)
+    digest = hashlib.sha256()
+    size = 0
+    destination = None
+    try:
+        if frozen is not None:
+            frozen.parent.mkdir(parents=True, exist_ok=True)
+            destination = frozen.open("xb")
+        with resolved.open("rb") as source:
+            before = os.fstat(source.fileno())
+            while True:
+                block = source.read(1024 * 1024)
+                if not block:
+                    break
+                digest.update(block)
+                size += len(block)
+                if destination is not None:
+                    destination.write(block)
+            after = os.fstat(source.fileno())
+        if (
+            before.st_size != after.st_size
+            or before.st_mtime_ns != after.st_mtime_ns
+            or before.st_size != size
+        ):
+            raise DiskImageError(
+                f"{description} changed while it was being frozen"
+            )
+        if destination is not None:
+            destination.flush()
+            os.fsync(destination.fileno())
+    except DiskImageError:
+        raise
+    except OSError as error:
+        raise DiskImageError(
+            f"{description} cannot be read: {resolved}: {error}"
+        ) from error
+    finally:
+        if destination is not None:
+            destination.close()
+    return _DiskFileSnapshot(
+        requested=requested,
+        resolved=resolved,
+        size=size,
+        sha256=digest.hexdigest(),
+    )
+
+
+def _require_disk_file_unchanged(
+    snapshot: _DiskFileSnapshot,
+    description: str,
+) -> None:
+    current = _capture_disk_file(snapshot.requested, description)
+    if (
+        current.resolved != snapshot.resolved
+        or current.size != snapshot.size
+        or current.sha256 != snapshot.sha256
+    ):
+        raise DiskImageError(
+            f"{description} changed while authoring the disk image"
+        )
+
+
+def _disk_output_path(image: Path) -> Path:
+    requested = _disk_absolute(image)
+    try:
+        requested.parent.mkdir(parents=True, exist_ok=True)
+        parent = requested.parent.resolve(strict=True)
+    except OSError as error:
+        raise DiskImageError(
+            f"disk image directory cannot be prepared: "
+            f"{requested.parent}: {error}"
+        ) from error
+    output = parent / requested.name
+    if _disk_is_link_or_junction(output, "disk image output"):
+        raise DiskImageError(
+            f"disk image output may not be a symbolic link or junction: "
+            f"{output}"
+        )
+    try:
+        mode = output.lstat().st_mode
+    except FileNotFoundError:
+        return output
+    except OSError as error:
+        raise DiskImageError(
+            f"disk image output cannot be inspected: {output}: {error}"
+        ) from error
+    if not stat.S_ISREG(mode):
+        raise DiskImageError(
+            f"disk image output is not a regular file: {output}"
+        )
+    return output
+
+
+def _disk_paths_alias(output: Path, input_path: Path) -> bool:
+    if output == input_path:
+        return True
+    if not output.exists() or not input_path.exists():
+        return False
+    try:
+        return os.path.samefile(output, input_path)
+    except FileNotFoundError:
+        return False
+    except OSError as error:
+        raise DiskImageError(
+            f"disk image path identity cannot be checked: "
+            f"{input_path}: {error}"
+        ) from error
+
+
+def _acquire_disk_publication_lock(output: Path) -> tuple[object, str]:
+    lock_name = hashlib.sha256(
+        str(output).casefold().encode("utf-8")
+    ).hexdigest()
+    lock_root = Path(tempfile.gettempdir()) / "cupid-hostbuild-locks"
+    try:
+        lock_root.mkdir(mode=0o700, parents=True, exist_ok=True)
+        stream = (lock_root / f"{lock_name}.lock").open("a+b")
+        stream.seek(0, os.SEEK_END)
+        if stream.tell() == 0:
+            stream.write(b"\0")
+            stream.flush()
+            os.fsync(stream.fileno())
+        stream.seek(0)
+        if os.name == "nt":
+            import msvcrt
+
+            msvcrt.locking(stream.fileno(), msvcrt.LK_NBLCK, 1)
+            platform = "windows"
+        else:
+            import fcntl
+
+            fcntl.flock(stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            platform = "posix"
+    except (ImportError, OSError) as error:
+        try:
+            stream.close()
+        except (NameError, OSError):
+            pass
+        raise DiskImageError(
+            f"another hostbuild publisher is active for {output}, or its "
+            f"publication lock is unavailable: {error}"
+        ) from error
+    return stream, platform
+
+
+def _release_disk_publication_lock(lock: tuple[object, str]) -> None:
+    stream, platform = lock
+    try:
+        stream.seek(0)
+        if platform == "windows":
+            import msvcrt
+
+            msvcrt.locking(stream.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            import fcntl
+
+            fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
+    except (ImportError, OSError):
+        pass
+    finally:
+        try:
+            stream.close()
+        except OSError:
+            pass
+
+
+def _disk_template_length(layout: FatLayout, fat_start_lba: int) -> int:
+    data_start = (
+        layout.reserved_sectors
+        + layout.num_fats * layout.sectors_per_fat
+        + layout.root_dir_sectors
+    )
+    return (fat_start_lba + data_start) * SECTOR_SIZE
+
+
+def _write_pristine_disk_template(
+    output: Path,
+    bootloader: Path,
+    kernel: Path,
+    image_sectors: int,
+    fat_start_lba: int,
+) -> int:
+    if fat_start_lba <= 5:
+        raise ValueError(
+            "FAT partition must start after bootloader and kernel area"
+        )
+    if fat_start_lba >= image_sectors:
+        raise ValueError("FAT partition start is beyond image size")
+    boot = bootloader.read_bytes()
+    if len(boot) < 5 * SECTOR_SIZE:
+        raise ValueError(
+            f"{bootloader} is too small; expected at least 5 sectors"
+        )
+    kernel_size = kernel.stat().st_size
+    fat_start_bytes = fat_start_lba * SECTOR_SIZE
+    if 5 * SECTOR_SIZE + kernel_size > fat_start_bytes:
+        raise ValueError(
+            f"{kernel} ({kernel_size} bytes) overlaps FAT partition at "
+            f"LBA {fat_start_lba}"
+        )
+    partition_sectors = image_sectors - fat_start_lba
+    layout = _choose_layout(partition_sectors)
+    with output.open("xb") as stream:
+        _write_mbr(stream, boot, fat_start_lba, partition_sectors)
+        stream.seek(SECTOR_SIZE)
+        stream.write(boot[SECTOR_SIZE : 5 * SECTOR_SIZE])
+        stream.seek(5 * SECTOR_SIZE)
+        with kernel.open("rb") as kernel_stream:
+            shutil.copyfileobj(kernel_stream, stream)
+        _write_fat16_filesystem(stream, fat_start_lba, layout)
+        stream.flush()
+        os.fsync(stream.fileno())
+    return _disk_template_length(layout, fat_start_lba)
+
+
+def _copy_disk_prefix(source, destination, length: int) -> None:
+    remaining = length
+    while remaining:
+        block = source.read(min(1024 * 1024, remaining))
+        if not block:
+            raise DiskImageError(
+                "checked CupidObj disk template ended before the FAT boundary"
+            )
+        destination.write(block)
+        remaining -= len(block)
+
+
+def _require_disk_output_unchanged(
+    output: Path,
+    initial: _DiskFileSnapshot | None,
+) -> None:
+    if initial is None:
+        if output.exists() or _disk_is_link_or_junction(
+            output, "disk image output"
+        ):
+            raise DiskImageError(
+                "disk image output appeared while authoring the image"
+            )
+        return
+    current = _capture_disk_file(output, "disk image output")
+    if (
+        current.size != initial.size
+        or current.sha256 != initial.sha256
+    ):
+        raise DiskImageError(
+            "disk image output changed while authoring the image"
+        )
+
+
 def create_or_update_image(
     image: Path,
     bootloader: Path,
@@ -514,57 +876,306 @@ def create_or_update_image(
     fat_start_lba: int,
     stage_files: list[StageFile],
     force_format: bool,
+    *,
+    seed_manifest: Path,
 ) -> None:
-    image_sectors = hdd_mb * 1024 * 1024 // SECTOR_SIZE
-    if fat_start_lba <= 5:
-        raise ValueError("FAT partition must start after bootloader and kernel area")
-    if fat_start_lba >= image_sectors:
-        raise ValueError("FAT partition start is beyond image size")
+    try:
+        image_bytes = hdd_mb * 1024 * 1024
+        if hdd_mb <= 0 or image_bytes % SECTOR_SIZE:
+            raise DiskImageError("disk image size must be positive")
+        image_sectors = image_bytes // SECTOR_SIZE
+        if fat_start_lba <= 5:
+            raise DiskImageError(
+                "FAT partition must start after bootloader and kernel area"
+            )
+        if fat_start_lba >= image_sectors:
+            raise DiskImageError("FAT partition start is beyond image size")
+        layout = _choose_layout(image_sectors - fat_start_lba)
+        template_length = _disk_template_length(layout, fat_start_lba)
+        fat_start_bytes = fat_start_lba * SECTOR_SIZE
 
-    boot = bootloader.read_bytes()
-    if len(boot) < 5 * SECTOR_SIZE:
-        raise ValueError(f"{bootloader} is too small; expected at least 5 sectors")
-    kernel_size = kernel.stat().st_size
-    kernel_end = 5 * SECTOR_SIZE + kernel_size
-    fat_start_bytes = fat_start_lba * SECTOR_SIZE
-    if kernel_end > fat_start_bytes:
-        raise ValueError(
-            f"{kernel} ({kernel_size} bytes) overlaps FAT partition at LBA {fat_start_lba}"
+        output = _disk_output_path(image)
+        manifest = _resolve_disk_regular(
+            seed_manifest, "checked seed manifest"
         )
+        try:
+            checked_seed = verify_seed_inputs(manifest)
+        except BootstrapError as error:
+            raise DiskImageError(
+                f"checked seed could not be verified: {error}"
+            ) from error
+        seed_paths = [manifest, *checked_seed.tools.values()]
+        seed_snapshots = [
+            _capture_disk_file(
+                path,
+                "checked seed manifest"
+                if path == manifest
+                else f"checked seed artifact {path.name}",
+            )
+            for path in seed_paths
+        ]
 
-    partition_sectors = image_sectors - fat_start_lba
-    layout = _choose_layout(partition_sectors)
-    recreate = force_format or not _valid_existing_image(image, hdd_mb, fat_start_lba)
+        boot = _resolve_disk_regular(bootloader, "bootloader input")
+        kernel_input = _resolve_disk_regular(kernel, "kernel input")
+        present_stages: list[tuple[StageFile, Path]] = []
+        missing_stages: list[StageFile] = []
+        for stage in stage_files:
+            requested = _disk_absolute(stage.source)
+            if _disk_is_link_or_junction(requested, "stage input"):
+                raise DiskImageError(
+                    "stage input may not be a symbolic link or junction: "
+                    f"{requested}"
+                )
+            if requested.exists():
+                present_stages.append(
+                    (
+                        stage,
+                        _resolve_disk_regular(requested, "stage input"),
+                    )
+                )
+            else:
+                missing_stages.append(
+                    StageFile(requested, stage.dest)
+                )
 
-    if recreate:
-        if image.exists():
-            image.unlink()
-        with image.open("wb") as f:
-            f.truncate(image_sectors * SECTOR_SIZE)
-            _write_mbr(f, boot, fat_start_lba, partition_sectors)
-            _write_fat16_filesystem(f, fat_start_lba, layout)
-        print(f"[hostbuild] Created {image} ({hdd_mb}MB FAT16 at LBA {fat_start_lba})")
-    else:
-        print(f"[hostbuild] Reusing existing image {image} (preserving FAT data)")
+        aliased_inputs = [
+            *seed_paths,
+            boot,
+            kernel_input,
+            *(path for _, path in present_stages),
+            *(stage.source for stage in missing_stages),
+        ]
+        if any(_disk_paths_alias(output, path) for path in aliased_inputs):
+            raise DiskImageError("disk image output may not replace an input")
 
-    with image.open("r+b") as f:
-        _write_mbr(f, boot, fat_start_lba, partition_sectors)
-        f.seek(SECTOR_SIZE)
-        f.write(boot[SECTOR_SIZE : 5 * SECTOR_SIZE])
-        f.seek(5 * SECTOR_SIZE)
-        f.write(b"\x00" * (fat_start_bytes - 5 * SECTOR_SIZE))
-        f.seek(5 * SECTOR_SIZE)
-        with kernel.open("rb") as kf:
-            shutil.copyfileobj(kf, f)
+        publication_lock = _acquire_disk_publication_lock(output)
+        try:
+            with tempfile.TemporaryDirectory(
+                prefix=f".{output.name}.image-",
+                dir=output.parent,
+            ) as temporary:
+                private = Path(temporary)
+                frozen_boot = private / "input" / "boot.bin"
+                frozen_kernel = private / "input" / "kernel.bin"
+                boot_snapshot = _capture_disk_file(
+                    bootloader,
+                    "bootloader input",
+                    frozen=frozen_boot,
+                )
+                kernel_snapshot = _capture_disk_file(
+                    kernel,
+                    "kernel input",
+                    frozen=frozen_kernel,
+                )
+                if kernel_snapshot.size + 5 * SECTOR_SIZE > fat_start_bytes:
+                    raise DiskImageError(
+                        f"{kernel} ({kernel_snapshot.size} bytes) overlaps "
+                        f"FAT partition at LBA {fat_start_lba}"
+                    )
 
-    if stage_files:
-        with Fat16Image(image, fat_start_lba) as fat:
-            for sf in stage_files:
-                if sf.source.exists():
-                    fat.write_file(sf.dest, sf.source.read_bytes())
-                    print(f"[hostbuild] Staged {sf.source} -> {image}:{sf.dest}")
+                frozen_stages: list[
+                    tuple[StageFile, _DiskFileSnapshot, Path]
+                ] = []
+                for index, (stage, _) in enumerate(present_stages):
+                    frozen_stage = (
+                        private / "input" / "stage" / f"{index:04d}.bin"
+                    )
+                    snapshot = _capture_disk_file(
+                        stage.source,
+                        "stage input",
+                        frozen=frozen_stage,
+                    )
+                    frozen_stages.append((stage, snapshot, frozen_stage))
+
+                existing_copy = private / "existing.img"
+                initial_output: _DiskFileSnapshot | None = None
+                if output.exists():
+                    try:
+                        output_size = output.stat().st_size
+                    except OSError as error:
+                        raise DiskImageError(
+                            f"disk image output cannot be inspected: "
+                            f"{output}: {error}"
+                        ) from error
+                    initial_output = _capture_disk_file(
+                        output,
+                        "disk image output",
+                        frozen=existing_copy
+                        if output_size == image_bytes
+                        else None,
+                    )
+                reuse = (
+                    not force_format
+                    and initial_output is not None
+                    and initial_output.size == image_bytes
+                    and _valid_existing_image(
+                        existing_copy, hdd_mb, fat_start_lba
+                    )
+                )
+
+                checked_template = private / "checked-template.img"
+                arguments = (
+                    "disk-template",
+                    frozen_boot,
+                    "--kernel",
+                    frozen_kernel,
+                    "--image-sectors",
+                    str(image_sectors),
+                    "--fat-start-lba",
+                    str(fat_start_lba),
+                    "-o",
+                    checked_template,
+                )
+                try:
+                    generated = run_seed_tool(
+                        manifest,
+                        private,
+                        "cupidobj",
+                        arguments,
+                        timeout=60,
+                    )
+                except BootstrapError as error:
+                    raise DiskImageError(
+                        f"checked CupidObj could not run: {error}"
+                    ) from error
+                if generated.returncode != 0:
+                    details = (
+                        generated.stderr or generated.stdout or ""
+                    ).strip()
+                    suffix = f": {details}" if details else ""
+                    raise DiskImageError(
+                        "checked CupidObj failed with status "
+                        f"{generated.returncode}{suffix}"
+                    )
+                if _disk_is_link_or_junction(
+                    checked_template, "checked CupidObj disk template"
+                ):
+                    raise DiskImageError(
+                        "checked CupidObj disk template may not be a "
+                        "symbolic link or junction"
+                    )
+                checked_snapshot = _capture_disk_file(
+                    checked_template,
+                    "checked CupidObj disk template",
+                )
+                if checked_snapshot.size != template_length:
+                    raise DiskImageError(
+                        "checked CupidObj disk template has the wrong size: "
+                        f"expected {template_length}, found "
+                        f"{checked_snapshot.size}"
+                    )
+
+                oracle = private / "python-template.img"
+                oracle_length = _write_pristine_disk_template(
+                    oracle,
+                    frozen_boot,
+                    frozen_kernel,
+                    image_sectors,
+                    fat_start_lba,
+                )
+                oracle_snapshot = _capture_disk_file(
+                    oracle, "Python disk-template oracle"
+                )
+                if (
+                    oracle_length != template_length
+                    or oracle_snapshot.size != checked_snapshot.size
+                    or oracle_snapshot.sha256 != checked_snapshot.sha256
+                ):
+                    raise DiskImageError(
+                        "checked CupidObj disk template differs from the "
+                        "Python oracle"
+                    )
+
+                candidate = private / "output" / "image.img"
+                candidate.parent.mkdir()
+                if reuse:
+                    shutil.copyfile(existing_copy, candidate)
+                    with checked_template.open("rb") as source, candidate.open(
+                        "r+b"
+                    ) as destination:
+                        _copy_disk_prefix(
+                            source, destination, fat_start_bytes
+                        )
                 else:
-                    print(f"[hostbuild] Skipping missing stage file {sf.source}")
+                    shutil.copyfile(checked_template, candidate)
+                    with candidate.open("r+b") as destination:
+                        destination.truncate(image_bytes)
+
+                if frozen_stages:
+                    with Fat16Image(candidate, fat_start_lba) as fat:
+                        for stage, _, frozen_stage in frozen_stages:
+                            fat.write_file(
+                                stage.dest,
+                                frozen_stage.read_bytes(),
+                            )
+                with candidate.open("r+b") as stream:
+                    stream.flush()
+                    os.fsync(stream.fileno())
+
+                for snapshot in seed_snapshots:
+                    description = (
+                        "checked seed manifest"
+                        if snapshot.resolved == manifest
+                        else f"checked seed artifact "
+                        f"{snapshot.resolved.name}"
+                    )
+                    _require_disk_file_unchanged(snapshot, description)
+                try:
+                    current_seed = verify_seed_inputs(manifest)
+                except BootstrapError as error:
+                    raise DiskImageError(
+                        "checked seed inputs changed while authoring the "
+                        f"disk image: {error}"
+                    ) from error
+                if current_seed.manifest_sha256 != checked_seed.manifest_sha256:
+                    raise DiskImageError(
+                        "checked seed manifest changed while authoring the "
+                        "disk image"
+                    )
+                _require_disk_file_unchanged(
+                    boot_snapshot, "bootloader input"
+                )
+                _require_disk_file_unchanged(
+                    kernel_snapshot, "kernel input"
+                )
+                for _, snapshot, _ in frozen_stages:
+                    _require_disk_file_unchanged(snapshot, "stage input")
+                for stage in missing_stages:
+                    if stage.source.exists() or _disk_is_link_or_junction(
+                        stage.source, "missing stage input"
+                    ):
+                        raise DiskImageError(
+                            "missing stage input appeared while authoring "
+                            f"the disk image: {stage.source}"
+                        )
+                _require_disk_output_unchanged(output, initial_output)
+                os.replace(candidate, output)
+        except DiskImageError:
+            raise
+        except OSError as error:
+            raise DiskImageError(
+                f"disk image could not be published: {output}: {error}"
+            ) from error
+        finally:
+            _release_disk_publication_lock(publication_lock)
+        action = "Reused" if reuse else "Created"
+        suffix = " (preserving FAT data)" if reuse else (
+            f" ({hdd_mb}MB FAT16 at LBA {fat_start_lba})"
+        )
+        print(f"[hostbuild] {action} {image}{suffix}")
+        for stage, _, _ in frozen_stages:
+            print(
+                f"[hostbuild] Staged {stage.source} -> "
+                f"{image}:{stage.dest}"
+            )
+        for stage in missing_stages:
+            print(f"[hostbuild] Skipping missing stage file {stage.source}")
+    except DiskImageError:
+        raise
+    except BootstrapError as error:
+        raise DiskImageError(f"checked seed could not be used: {error}") from error
+    except (OSError, ValueError) as error:
+        raise DiskImageError(f"disk image could not be authored: {error}") from error
 
 
 def _wad_dest(path: Path, index: int) -> str:
@@ -2664,6 +3275,7 @@ def main(argv: list[str] | None = None) -> int:
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     p = sub.add_parser("image")
+    p.add_argument("--seed-manifest", type=Path, required=True)
     p.add_argument("--image", type=Path, required=True)
     p.add_argument("--bootloader", type=Path, required=True)
     p.add_argument("--kernel", type=Path, required=True)
@@ -2735,15 +3347,20 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "image":
         stages = list(args.stage)
         stages += [StageFile(path, _wad_dest(path, i + 1)) for i, path in enumerate(args.wads or [])]
-        create_or_update_image(
-            args.image,
-            args.bootloader,
-            args.kernel,
-            args.hdd_mb,
-            args.fat_start_lba,
-            stages,
-            args.force_format,
-        )
+        try:
+            create_or_update_image(
+                args.image,
+                args.bootloader,
+                args.kernel,
+                args.hdd_mb,
+                args.fat_start_lba,
+                stages,
+                args.force_format,
+                seed_manifest=args.seed_manifest,
+            )
+        except DiskImageError as error:
+            print(f"[hostbuild] image failed: {error}", file=sys.stderr)
+            return 1
     elif args.cmd == "stage":
         stage_files(args.image, args.fat_start_lba, args.stage)
     elif args.cmd == "stage-wads":
