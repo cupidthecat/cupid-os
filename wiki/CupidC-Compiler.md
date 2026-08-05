@@ -676,7 +676,10 @@ The checked seed now carries CupidObj's bounded `iso-fixture` operation. Its
 hosted command reproduces the exact 61,440-byte repository image from the
 manifest and typed logical inventory. Both rebuilt stages exercise the command
 and its preserved-output failure in the 5/14/10 behavior matrix. ADR 0239
-records the source capability, and ADR 0240 records the promotion.
+records the source capability, and ADR 0240 records the promotion. The normal
+ISO recipe now runs that checked image as its first byte author, with Python
+retained as the independent renderer and guarded publisher; ADR 0241 records
+that handoff.
 
 The normal Toolchain build snapshots 45 contract inputs, including the
 Toolchain Makefile and both Python control modules, reproduces that exact

@@ -31,7 +31,7 @@ Source architecture:
 
 The normal image runs CupidASM from the checked five-tool seed. It owns five
 production assembly transforms without first building a native hosted
-command. The same checked trust unit supplies CupidObj for 187 transforms,
+command. The same checked trust unit supplies CupidObj for 188 transforms,
 CupidLD for two links, and CupidDis for symbol inspection. Python verifies
 and freezes all five images before each command; Windows executes them
 through WSL. It checks the live seed cohort again after the command. Make
@@ -39,7 +39,7 @@ passes wildcard-discovered output sources through $(sort ...) before
 generation and link, so Windows and Linux use the same root order regardless
 of host locale.
 
-CupidObj's 187 normal transforms include the disk-template operation. Checked
+CupidObj's 188 normal transforms include the disk-template and ISO operations. Checked
 CupidObj authors the pristine FAT16 prefix from private boot and kernel copies.
 Python renders an independent oracle and requires byte parity. It then
 extends fresh images, preserves the FAT partition when reusing a valid image,
@@ -55,12 +55,12 @@ bytes but does not author them. NASM freezes `$` across this TIMES statement,
 so this fixture is the one production source exempt from optional NASM byte
 parity. The other active sources keep their NASM comparisons.
 
-Checked-seed CupidObj can author the enclosing ECMA-119 and Rock Ridge image
+Checked-seed CupidObj authors the enclosing ECMA-119 and Rock Ridge image
 through `iso-fixture`, while CupidASM continues to own the 4,096-byte spanning
-file. Python still builds the production image until the guarded handoff.
-CupidASM remains at five production
-transforms. A later ISO handoff will move one Python-only output to CupidObj
-without changing assembler ownership.
+file. Python freezes the typed inventory, compares an independent render, and
+publishes under a per-output lock. CupidASM remains at five production
+transforms; the ISO handoff changes no assembler owner. ADR 0241 records the
+image transfer.
 
 Checked-seed CupidObj accepts:
   cupidobj ksyms-source SYMBOLS -o OUTPUT

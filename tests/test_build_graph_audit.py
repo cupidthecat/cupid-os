@@ -524,6 +524,12 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     --seed-manifest seed/manifest.json \
                     --source $< $@
 
+                hello.iso: fixtures fixtures.manifest
+                \t$(PYTHON) tools/hostbuild.py build-iso \
+                    --seed-manifest seed/manifest.json \
+                    --fixtures fixtures --manifest fixtures.manifest \
+                    --out $@
+
                 cupidos.img: boot.bin kernel.bin hello.iso
                 \t$(PYTHON) tools/hostbuild.py image \
                     --seed-manifest seed/manifest.json \
@@ -538,7 +544,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             _write(root / "big_pattern.asm", "times 4096 db $\n")
             _write(root / "boot.bin", "fixture\n")
             _write(root / "kernel.bin", "fixture\n")
-            _write(root / "hello.iso", "fixture\n")
+            _write(root / "fixtures" / "readme.txt", "fixture\n")
+            _write(root / "fixtures.manifest", "readme.txt\n")
 
             output = root / "audit.json"
             result = subprocess.run(
@@ -587,6 +594,14 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(
                 transforms["big.bin"]["operation"],
                 "assemble_flat_binary",
+            )
+            self.assertEqual(
+                transforms["hello.iso"]["tools"],
+                ["cupid_object", "host_python"],
+            )
+            self.assertEqual(
+                transforms["hello.iso"]["operation"],
+                "package_iso9660_image",
             )
             self.assertEqual(
                 transforms["cupidos.img"]["tools"],
@@ -4677,7 +4692,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 for transform in audit_payload["build"]["transforms"]
             }
             iso_transform = root_transform_by_output["test_iso/hello.iso"]
-            self.assertEqual(iso_transform["tools"], ["host_python"])
+            self.assertEqual(
+                iso_transform["tools"],
+                ["cupid_object", "host_python"],
+            )
             self.assertEqual(
                 iso_transform["operation"],
                 "package_iso9660_image",
@@ -4686,6 +4704,12 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 set(iso_transform["inputs"]),
                 {
                     "Makefile",
+                    "bootstrap/seeds/i386-linux/cupidasm.elf",
+                    "bootstrap/seeds/i386-linux/cupidc.elf",
+                    "bootstrap/seeds/i386-linux/cupiddis.elf",
+                    "bootstrap/seeds/i386-linux/cupidld.elf",
+                    "bootstrap/seeds/i386-linux/cupidobj.elf",
+                    "bootstrap/seeds/i386-linux/manifest.json",
                     "tools/bootstrap_toolchain.py",
                     "tools/hostbuild.py",
                     "test_iso/fixtures",
@@ -5460,7 +5484,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         )
         expected_counts = {
             "cupid_assembler": 5,
-            "cupid_object": 187,
+            "cupid_object": 188,
             "cupid_linker": 2,
             "cupid_disassembler": 1,
         }
@@ -5499,12 +5523,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             for transform in audit["build"]["transforms"]
             if not cupid_tools.intersection(transform["tools"])
         )
-        self.assertEqual(len(cupid_owned), 436)
+        self.assertEqual(len(cupid_owned), 437)
         self.assertEqual(
             python_only,
             [
                 "build/bootstrap/doom-cupidc-inputs.json",
-                "test_iso/hello.iso",
             ],
         )
         self.assertFalse(
@@ -5545,6 +5568,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         )
         self.assertIn(
             "--manifest $(ISO_FIXTURE_MANIFEST)",
+            makefile,
+        )
+        self.assertIn(
+            "--seed-manifest $(BOOTSTRAP_SEED_MANIFEST)",
             makefile,
         )
         for variable in (

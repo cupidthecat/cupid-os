@@ -804,8 +804,10 @@ Poisoned-host checks cover all 238 checked-in normal CupidC recipes through
 the strict and Doom gates. They fail if a CupidC-owned object reaches Clang or
 GCC. They pass against the renamed graph. Across the three supported build
 roots, the audit records 449 transforms. CupidC participates in 245, CupidObj
-participates in 187 transforms, CupidASM participates in five, Python
+participates in 188 transforms, CupidASM participates in five, Python
 participates in all 449, and no normal transform invokes a host C compiler.
+Cupid tools own 437 of the 438 root outputs; only the Doom input manifest is
+Python-only.
 The Toolchain root now builds its fourteen `.cc` contracts twice with
 stage-two and stage-three CupidC, compares the static i386 executables, and
 publishes the cohort together. The publisher accepts only a dedicated
@@ -834,23 +836,31 @@ CupidLD, and CupidDis commands run from the checked seed. One
 Python transform checks the external program syscall ABI and produces no OS
 code. Checked CupidASM now assembles `big.bin` from
 `test_iso/big_pattern.asm`. Python freezes the inputs, checks the exact
-4,096-byte candidate, and publishes it atomically. Another Python transform
-packages the frozen fixture tree as deterministic ISO9660/Rock Ridge bytes.
-Checked-seed CupidObj can build the same complete image through `iso-fixture`
-from the checked manifest and an explicit typed inventory. Python remains the
-production image author until the guarded recipe handoff runs CupidObj first,
-checks an independent Python render, and publishes the frozen result safely.
+4,096-byte candidate, and publishes it atomically. The ISO transform freezes
+the fixture tree and asks checked-seed CupidObj to build the deterministic
+ISO9660/Rock Ridge bytes through `iso-fixture` from the checked manifest and
+an explicit typed inventory. Python renders the same snapshot independently
+and requires exact parity before publication. It also owns native-path checks,
+drift detection, the per-output lock, and atomic replacement.
 `test_iso/fixtures.manifest` pins every directory and file without asking Make
 to recurse through an unchecked path. Make declares the same portable paths
 explicitly, and a checked test prevents that prerequisite list from drifting
 away from the manifest. Raw manifest text never enters Make grammar. The graph
 records the manifest, fixture root, every declared member, writer, imported
-bootstrap helper, and Makefile. ISO authoring does not probe or launch an
-external command.
+bootstrap helper, and Makefile. ISO authoring does not probe for or launch an
+external ISO utility.
 [ADR 0239](docs/adr/0239-author-deterministic-iso-fixtures-with-cupidobj.md)
 records the source capability and its exact tracked-image contract. [ADR
 0240](docs/adr/0240-promote-iso-fixture-toolchain-seed.md) records carriage in
-the checked five-tool seed.
+the checked five-tool seed. [ADR
+0241](docs/adr/0241-publish-normal-iso-fixtures-with-cupidobj.md) records the
+production handoff.
+The source-current normal build completed in 502.232 seconds and produced a
+209,715,200-byte image with SHA-256
+`3f8c84cea61e5e8bfc4e6a5fc09a030a4d6451d258a4ca2ea6486a923d1d08e3`.
+A private four-vCPU e1000 frontier passed from that image in 496.479 seconds,
+including the exact ISO directory, spanning-read, JPEG, mount-lifetime, final
+pass, and CupidC JIT markers.
 The runner checks the live five-tool cohort again after every command. Make
 passes every wildcard-discovered output list through `$(sort ...)` before
 generation or link, so Windows and Linux do not inherit different link order

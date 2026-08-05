@@ -2454,6 +2454,172 @@ def _reject_iso_output_alias(
             )
 
 
+def _iso_paths_alias(output: Path, input_path: Path) -> bool:
+    if output == input_path:
+        return True
+    if not output.exists() or not input_path.exists():
+        return False
+    try:
+        return os.path.samefile(output, input_path)
+    except FileNotFoundError:
+        return False
+    except OSError as error:
+        raise IsoAuthoringError(
+            f"ISO path identity cannot be checked: {input_path}: {error}"
+        ) from error
+
+
+def _resolve_checked_iso_seed(seed_manifest: Path):
+    if _is_link_or_junction(seed_manifest):
+        raise IsoAuthoringError(
+            "checked seed manifest may not be a symbolic link or junction: "
+            f"{seed_manifest}"
+        )
+    try:
+        manifest = seed_manifest.resolve(strict=True)
+        mode = manifest.lstat().st_mode
+    except OSError as error:
+        raise IsoAuthoringError(
+            f"checked seed manifest cannot be resolved: "
+            f"{seed_manifest}: {error}"
+        ) from error
+    if not stat.S_ISREG(mode):
+        raise IsoAuthoringError(
+            f"checked seed manifest is not a regular file: {manifest}"
+        )
+    try:
+        checked_seed = verify_seed_inputs(manifest)
+    except BootstrapError as error:
+        raise IsoAuthoringError(
+            f"checked seed could not be verified: {error}"
+        ) from error
+    return manifest, checked_seed
+
+
+def _verify_checked_iso_seed(
+    manifest: Path,
+    expected_manifest_sha256: str,
+) -> None:
+    try:
+        current_seed = verify_seed_inputs(manifest)
+    except BootstrapError as error:
+        raise IsoAuthoringError(
+            "checked seed inputs changed while authoring the ISO image: "
+            f"{error}"
+        ) from error
+    if current_seed.manifest_sha256 != expected_manifest_sha256:
+        raise IsoAuthoringError(
+            "checked seed inputs changed while authoring the ISO image: "
+            "manifest content differs"
+        )
+
+
+def _acquire_iso_publication_lock(output: Path) -> tuple[object, str]:
+    try:
+        return _acquire_disk_publication_lock(output)
+    except DiskImageError as error:
+        raise IsoAuthoringError(str(error)) from error
+
+
+def _iso_snapshot_inventory(snapshot: _IsoSource) -> list[_IsoSource]:
+    inventory: list[_IsoSource] = []
+    pending = list(snapshot.children)
+    while pending:
+        source = pending.pop()
+        inventory.append(source)
+        pending.extend(source.children)
+    return sorted(
+        inventory,
+        key=lambda source: (
+            source.relative.lower(),
+            source.relative,
+        ),
+    )
+
+
+def _write_private_iso_file(path: Path, payload: bytes) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("xb") as stream:
+        stream.write(payload)
+        stream.flush()
+        os.fsync(stream.fileno())
+
+
+def _run_checked_iso_author(
+    *,
+    seed_manifest: Path,
+    snapshot: _IsoSource,
+    manifest: _IsoManifest,
+) -> bytes:
+    try:
+        with tempfile.TemporaryDirectory(
+            prefix=".cupid-iso-author-",
+        ) as temporary:
+            private = Path(temporary)
+            inventory = _iso_snapshot_inventory(snapshot)
+            native_files: dict[str, Path] = {}
+            file_index = 0
+            for source in inventory:
+                if source.is_directory:
+                    continue
+                native = private / "inputs" / f"{file_index:04d}.bin"
+                _write_private_iso_file(native, source.data or b"")
+                native_files[source.relative] = native
+                file_index += 1
+
+            frozen_manifest = private / "fixtures.manifest"
+            _write_private_iso_file(frozen_manifest, manifest.payload)
+            checked_output = private / "checked.iso"
+            arguments: list[str | Path] = [
+                "iso-fixture",
+                frozen_manifest,
+            ]
+            for source in inventory:
+                arguments.extend(
+                    ("--directory", source.relative)
+                    if source.is_directory
+                    else (
+                        "--file",
+                        source.relative,
+                        native_files[source.relative],
+                    )
+                )
+            arguments.extend(("-o", checked_output))
+            try:
+                generated = run_seed_tool(
+                    seed_manifest,
+                    private,
+                    "cupidobj",
+                    arguments,
+                    timeout=60,
+                )
+            except BootstrapError as error:
+                raise IsoAuthoringError(
+                    f"checked CupidObj could not run: {error}"
+                ) from error
+            if generated.returncode != 0:
+                details = (
+                    generated.stderr or generated.stdout or ""
+                ).strip()
+                suffix = f": {details}" if details else ""
+                raise IsoAuthoringError(
+                    "checked CupidObj failed with status "
+                    f"{generated.returncode}{suffix}"
+                )
+            checked_image = _read_iso_output(checked_output)
+            if checked_image is None:
+                raise IsoAuthoringError(
+                    "checked CupidObj reported success without an ISO image"
+                )
+            return checked_image
+    except IsoAuthoringError:
+        raise
+    except OSError as error:
+        raise IsoAuthoringError(
+            f"checked CupidObj ISO workspace failed: {error}"
+        ) from error
+
+
 def _iso_sanitize_identifier(value: str) -> str:
     identifier = "".join(
         character if character in "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"
@@ -2972,11 +3138,20 @@ def _publish_iso_image(
     initial_output: bytes | None,
     image: bytes,
     manifest: _IsoManifest | None,
+    seed_manifest: Path | None = None,
+    seed_manifest_sha256: str | None = None,
 ) -> bool:
+    if (seed_manifest is None) != (seed_manifest_sha256 is None):
+        raise AssertionError("checked ISO seed evidence is incomplete")
     if initial_output == image:
         _verify_iso_snapshot(fixtures, snapshot)
         if manifest is not None:
             _verify_iso_manifest(manifest)
+        if seed_manifest is not None and seed_manifest_sha256 is not None:
+            _verify_checked_iso_seed(
+                seed_manifest,
+                seed_manifest_sha256,
+            )
         if _read_iso_output(output) != initial_output:
             raise IsoAuthoringError(
                 "ISO output changed while authoring the image"
@@ -2996,6 +3171,11 @@ def _publish_iso_image(
             _verify_iso_snapshot(fixtures, snapshot)
             if manifest is not None:
                 _verify_iso_manifest(manifest)
+            if seed_manifest is not None and seed_manifest_sha256 is not None:
+                _verify_checked_iso_seed(
+                    seed_manifest,
+                    seed_manifest_sha256,
+                )
             if _read_iso_output(output) != initial_output:
                 raise IsoAuthoringError(
                     "ISO output changed while authoring the image"
@@ -3194,7 +3374,39 @@ def build_iso(
     fixtures: Path,
     out: Path,
     manifest: Path | None = None,
+    *,
+    seed_manifest: Path | None = None,
 ) -> None:
+    checked_seed = None
+    checked_seed_manifest = None
+    if seed_manifest is not None:
+        checked_seed_manifest, checked_seed = _resolve_checked_iso_seed(
+            seed_manifest
+        )
+        try:
+            requested_output = out.resolve(strict=False)
+        except OSError as error:
+            raise IsoAuthoringError(
+                f"ISO output cannot be resolved: {out}: {error}"
+            ) from error
+        seed_paths = [
+            checked_seed_manifest,
+            *checked_seed.tools.values(),
+        ]
+        if any(
+            _iso_paths_alias(requested_output, path)
+            for path in seed_paths
+        ):
+            raise IsoAuthoringError(
+                "ISO output may not replace a checked seed input"
+            )
+        if _path_is_within(
+            requested_output,
+            checked_seed_manifest.parent,
+        ):
+            raise IsoAuthoringError(
+                "ISO output may not be inside the checked seed directory"
+            )
     fixture_root, output = _resolve_iso_paths(fixtures, out)
     try:
         snapshot = _snapshot_iso_tree(fixture_root)
@@ -3212,17 +3424,57 @@ def build_iso(
                 raise IsoAuthoringError(
                     "ISO output may not alias the fixture manifest"
                 )
+        if checked_seed_manifest is not None:
+            if checked_manifest is None:
+                raise IsoAuthoringError(
+                    "checked CupidObj ISO authoring requires a fixture "
+                    "manifest"
+                )
+            seed_paths = [
+                checked_seed_manifest,
+                *checked_seed.tools.values(),
+            ]
+            if any(
+                _iso_paths_alias(output, path) for path in seed_paths
+            ):
+                raise IsoAuthoringError(
+                    "ISO output may not replace a checked seed input"
+                )
         _reject_iso_output_alias(fixture_root, snapshot, output)
-        initial_output = _read_iso_output(output)
-        image = _render_iso_image(snapshot)
-        changed = _publish_iso_image(
-            fixtures=fixture_root,
-            snapshot=snapshot,
-            output=output,
-            initial_output=initial_output,
-            image=image,
-            manifest=checked_manifest,
-        )
+        publication_lock = _acquire_iso_publication_lock(output)
+        try:
+            initial_output = _read_iso_output(output)
+            if checked_seed_manifest is not None:
+                checked_image = _run_checked_iso_author(
+                    seed_manifest=checked_seed_manifest,
+                    snapshot=snapshot,
+                    manifest=checked_manifest,
+                )
+                oracle_image = _render_iso_image(snapshot)
+                if checked_image != oracle_image:
+                    raise IsoAuthoringError(
+                        "checked CupidObj ISO fixture differs from the "
+                        "Python oracle"
+                    )
+                image = checked_image
+            else:
+                image = _render_iso_image(snapshot)
+            changed = _publish_iso_image(
+                fixtures=fixture_root,
+                snapshot=snapshot,
+                output=output,
+                initial_output=initial_output,
+                image=image,
+                manifest=checked_manifest,
+                seed_manifest=checked_seed_manifest,
+                seed_manifest_sha256=(
+                    checked_seed.manifest_sha256
+                    if checked_seed is not None
+                    else None
+                ),
+            )
+        finally:
+            _release_disk_publication_lock(publication_lock)
     except IsoAuthoringError:
         raise
     except OSError as error:
@@ -3331,8 +3583,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("out", type=Path)
 
     p = sub.add_parser("build-iso")
+    p.add_argument("--seed-manifest", type=Path, required=True)
     p.add_argument("--fixtures", type=Path, required=True)
-    p.add_argument("--manifest", type=Path)
+    p.add_argument("--manifest", type=Path, required=True)
     p.add_argument("--out", type=Path, required=True)
 
     p = sub.add_parser("usb-image")
@@ -3431,7 +3684,12 @@ def main(argv: list[str] | None = None) -> int:
             return 1
     elif args.cmd == "build-iso":
         try:
-            build_iso(args.fixtures, args.out, args.manifest)
+            build_iso(
+                args.fixtures,
+                args.out,
+                args.manifest,
+                seed_manifest=args.seed_manifest,
+            )
         except IsoAuthoringError as error:
             print(
                 f"[hostbuild] build-iso failed: {error}",

@@ -37017,16 +37017,25 @@
           "test_iso/fixtures/sub",
           "test_iso/fixtures/sub/nested.txt",
           "tools/hostbuild.py",
+          "Makefile",
           "tools/bootstrap_toolchain.py",
-          "Makefile"
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
         ],
         "operation": "package_iso9660_image",
         "output": "test_iso/hello.iso",
         "recipe": [
-          "$(PYTHON) tools/hostbuild.py build-iso --fixtures test_iso/fixtures \\",
-          "--manifest $(ISO_FIXTURE_MANIFEST) --out test_iso/hello.iso"
+          "$(PYTHON) tools/hostbuild.py build-iso \\",
+          "--seed-manifest $(BOOTSTRAP_SEED_MANIFEST) \\",
+          "--fixtures test_iso/fixtures --manifest $(ISO_FIXTURE_MANIFEST) \\",
+          "--out test_iso/hello.iso"
         ],
         "tools": [
+          "cupid_object",
           "host_python"
         ]
       },
@@ -52629,7 +52638,7 @@
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "5e933b1a56099b85c5060e608395e57623658794027a7ba1baf5a97792bca697"
+        "sha256": "cb81bf39c1cc5d8076852e34ae72c8216b9cf466b8a0b3bd9759853a7e0e702e"
       },
       {
         "path": "user/Makefile",
@@ -52674,7 +52683,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "40198e0e2b9eb170eaf635d8a528d5ce568ee1f6579a011eba685023b6d4b07e"
+      "sha256": "ac22981b00fc867bac935a9c9bfacaca44868da6ceda9b5055229a4a425d1aa2"
     },
     "text_hash_policy": "canonical_lf"
   },

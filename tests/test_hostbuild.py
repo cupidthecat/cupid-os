@@ -2258,6 +2258,346 @@ class HostBuildIsoTests(unittest.TestCase):
                 hostbuild.build_iso(fixtures, output, manifest)
             self.assertEqual(output.read_bytes(), original)
 
+    def test_build_iso_runs_checked_cupidobj_before_the_python_oracle(self):
+        with tempfile.TemporaryDirectory() as td:
+            work = Path(td)
+            fixtures = work / "fixtures"
+            manifest = work / "fixtures.manifest"
+            output = work / "checked.iso"
+            self._write_fixture_tree(fixtures)
+            self._write_fixture_manifest(manifest, fixtures)
+            manifest_payload = manifest.read_bytes()
+            expected = hostbuild._render_iso_image(
+                hostbuild._snapshot_iso_tree(fixtures)
+            )
+            state = {"checked": False}
+
+            def run_checked(
+                manifest_path,
+                working_directory,
+                tool_name,
+                arguments,
+                timeout,
+            ):
+                command = [str(argument) for argument in arguments]
+                self.assertEqual(Path(manifest_path), SEED_MANIFEST)
+                private = Path(working_directory).resolve()
+                self.assertFalse(private.is_relative_to(output.parent))
+                self.assertEqual(tool_name, "cupidobj")
+                self.assertEqual(timeout, 60)
+                self.assertEqual(command[0], "iso-fixture")
+                frozen_manifest = Path(command[1])
+                self.assertTrue(frozen_manifest.is_relative_to(private))
+                self.assertNotEqual(frozen_manifest, manifest)
+                self.assertEqual(
+                    frozen_manifest.read_bytes(), manifest_payload
+                )
+
+                entries = {}
+                index = 2
+                while command[index] != "-o":
+                    option = command[index]
+                    logical = command[index + 1]
+                    if option == "--directory":
+                        entries[logical] = None
+                        index += 2
+                    else:
+                        self.assertEqual(option, "--file")
+                        native = Path(command[index + 2])
+                        self.assertTrue(native.is_relative_to(private))
+                        self.assertEqual(native.parent, private / "inputs")
+                        self.assertRegex(native.name, r"^[0-9]{4}\.bin$")
+                        self.assertNotEqual(
+                            native,
+                            fixtures / Path(logical),
+                        )
+                        self.assertEqual(
+                            native.read_bytes(),
+                            (fixtures / Path(logical)).read_bytes(),
+                        )
+                        entries[logical] = native
+                        index += 3
+                self.assertEqual(
+                    set(entries), set(manifest.read_text().splitlines())
+                )
+                candidate = Path(command[index + 1])
+                self.assertTrue(candidate.is_relative_to(private))
+                candidate.write_bytes(expected)
+                state["checked"] = True
+                return subprocess.CompletedProcess(
+                    command, 0, "", ""
+                )
+
+            original_render = hostbuild._render_iso_image
+            with (
+                mock.patch(
+                    "tools.hostbuild.run_seed_tool",
+                    side_effect=run_checked,
+                ),
+                mock.patch(
+                    "tools.hostbuild._render_iso_image",
+                    side_effect=lambda snapshot: (
+                        self.assertTrue(state["checked"])
+                        or original_render(snapshot)
+                    ),
+                ),
+                contextlib.redirect_stdout(io.StringIO()),
+            ):
+                hostbuild.build_iso(
+                    fixtures,
+                    output,
+                    manifest,
+                    seed_manifest=SEED_MANIFEST,
+                )
+
+            self.assertTrue(state["checked"])
+            self.assertEqual(output.read_bytes(), expected)
+
+    def test_build_iso_rejects_checked_failure_and_oracle_mismatch(self):
+        with tempfile.TemporaryDirectory() as td:
+            work = Path(td)
+            fixtures = work / "fixtures"
+            manifest = work / "fixtures.manifest"
+            output = work / "checked.iso"
+            self._write_fixture_tree(fixtures)
+            self._write_fixture_manifest(manifest, fixtures)
+            output.write_bytes(b"existing image")
+
+            failure = subprocess.CompletedProcess(
+                ["cupidobj", "iso-fixture"],
+                7,
+                "",
+                "checked failure",
+            )
+            with (
+                mock.patch(
+                    "tools.hostbuild.run_seed_tool",
+                    return_value=failure,
+                ),
+                self.assertRaisesRegex(
+                    hostbuild.IsoAuthoringError,
+                    "checked CupidObj failed with status 7: checked failure",
+                ),
+            ):
+                hostbuild.build_iso(
+                    fixtures,
+                    output,
+                    manifest,
+                    seed_manifest=SEED_MANIFEST,
+                )
+            self.assertEqual(output.read_bytes(), b"existing image")
+
+            successful_without_output = subprocess.CompletedProcess(
+                ["cupidobj", "iso-fixture"],
+                0,
+                "",
+                "",
+            )
+            with (
+                mock.patch(
+                    "tools.hostbuild.run_seed_tool",
+                    return_value=successful_without_output,
+                ),
+                self.assertRaisesRegex(
+                    hostbuild.IsoAuthoringError,
+                    "reported success without an ISO image",
+                ),
+            ):
+                hostbuild.build_iso(
+                    fixtures,
+                    output,
+                    manifest,
+                    seed_manifest=SEED_MANIFEST,
+                )
+            self.assertEqual(output.read_bytes(), b"existing image")
+
+            def make_directory_candidate(
+                _manifest,
+                _working_directory,
+                _tool_name,
+                arguments,
+                timeout,
+            ):
+                self.assertEqual(timeout, 60)
+                command = [str(argument) for argument in arguments]
+                Path(command[-1]).mkdir()
+                return subprocess.CompletedProcess(command, 0, "", "")
+
+            with (
+                mock.patch(
+                    "tools.hostbuild.run_seed_tool",
+                    side_effect=make_directory_candidate,
+                ),
+                self.assertRaisesRegex(
+                    hostbuild.IsoAuthoringError,
+                    r"not a regular file: .*checked\.iso",
+                ),
+            ):
+                hostbuild.build_iso(
+                    fixtures,
+                    output,
+                    manifest,
+                    seed_manifest=SEED_MANIFEST,
+                )
+            self.assertEqual(output.read_bytes(), b"existing image")
+
+            def write_wrong_candidate(
+                _manifest,
+                _working_directory,
+                _tool_name,
+                arguments,
+                timeout,
+            ):
+                self.assertEqual(timeout, 60)
+                command = [str(argument) for argument in arguments]
+                Path(command[-1]).write_bytes(b"wrong image")
+                return subprocess.CompletedProcess(command, 0, "", "")
+
+            with (
+                mock.patch(
+                    "tools.hostbuild.run_seed_tool",
+                    side_effect=write_wrong_candidate,
+                ),
+                self.assertRaisesRegex(
+                    hostbuild.IsoAuthoringError,
+                    "checked CupidObj ISO fixture differs from the Python oracle",
+                ),
+            ):
+                hostbuild.build_iso(
+                    fixtures,
+                    output,
+                    manifest,
+                    seed_manifest=SEED_MANIFEST,
+                )
+            self.assertEqual(output.read_bytes(), b"existing image")
+
+    def test_build_iso_rejects_checked_seed_drift_and_output_alias(self):
+        with tempfile.TemporaryDirectory() as td:
+            work = Path(td)
+            fixtures = work / "fixtures"
+            manifest = work / "fixtures.manifest"
+            output = work / "checked.iso"
+            seed = work / "seed"
+            self._write_fixture_tree(fixtures)
+            self._write_fixture_manifest(manifest, fixtures)
+            shutil.copytree(SEED_MANIFEST.parent, seed)
+            seed_manifest = seed / "manifest.json"
+            original_seed_manifest = seed_manifest.read_bytes()
+            output.write_bytes(b"existing image")
+            expected = hostbuild._render_iso_image(
+                hostbuild._snapshot_iso_tree(fixtures)
+            )
+
+            def write_then_drift_seed(
+                _manifest,
+                _working_directory,
+                _tool_name,
+                arguments,
+                timeout,
+            ):
+                self.assertEqual(timeout, 60)
+                command = [str(argument) for argument in arguments]
+                Path(command[-1]).write_bytes(expected)
+                seed_manifest.write_bytes(original_seed_manifest + b" ")
+                return subprocess.CompletedProcess(command, 0, "", "")
+
+            with (
+                mock.patch(
+                    "tools.hostbuild.run_seed_tool",
+                    side_effect=write_then_drift_seed,
+                ),
+                self.assertRaisesRegex(
+                    hostbuild.IsoAuthoringError,
+                    "checked seed inputs changed while authoring the ISO image",
+                ),
+            ):
+                hostbuild.build_iso(
+                    fixtures,
+                    output,
+                    manifest,
+                    seed_manifest=seed_manifest,
+                )
+            self.assertEqual(output.read_bytes(), b"existing image")
+
+            seed_manifest.write_bytes(original_seed_manifest)
+            with self.assertRaisesRegex(
+                hostbuild.IsoAuthoringError,
+                "ISO output may not replace a checked seed input",
+            ):
+                hostbuild.build_iso(
+                    fixtures,
+                    seed_manifest,
+                    manifest,
+                    seed_manifest=seed_manifest,
+                )
+
+            nested_output = seed / "unlisted" / "payload.elf"
+            with self.assertRaisesRegex(
+                hostbuild.IsoAuthoringError,
+                "ISO output may not be inside the checked seed directory",
+            ):
+                hostbuild.build_iso(
+                    fixtures,
+                    nested_output,
+                    manifest,
+                    seed_manifest=seed_manifest,
+                )
+            self.assertFalse(nested_output.parent.exists())
+            hostbuild.verify_seed_inputs(seed_manifest)
+
+            tool = seed / "cupidobj.elf"
+            tool_alias = work / "tool-alias.iso"
+            os.link(tool, tool_alias)
+            with self.assertRaisesRegex(
+                hostbuild.IsoAuthoringError,
+                "ISO output may not replace a checked seed input",
+            ):
+                hostbuild.build_iso(
+                    fixtures,
+                    tool_alias,
+                    manifest,
+                    seed_manifest=seed_manifest,
+                )
+            self.assertTrue(os.path.samefile(tool_alias, tool))
+
+    def test_build_iso_rejects_a_second_publisher_before_cupidobj(self):
+        with tempfile.TemporaryDirectory() as td:
+            work = Path(td)
+            fixtures = work / "fixtures"
+            manifest = work / "fixtures.manifest"
+            output = work / "checked.iso"
+            self._write_fixture_tree(fixtures)
+            self._write_fixture_manifest(manifest, fixtures)
+            output.write_bytes(b"existing image")
+            original_timestamp = output.stat().st_mtime_ns
+            publication_lock = hostbuild._acquire_iso_publication_lock(
+                output.resolve()
+            )
+            try:
+                with (
+                    mock.patch(
+                        "tools.hostbuild.run_seed_tool",
+                        side_effect=AssertionError(
+                            "CupidObj must not run for a second publisher"
+                        ),
+                    ),
+                    self.assertRaisesRegex(
+                        hostbuild.IsoAuthoringError,
+                        "another hostbuild publisher is active",
+                    ),
+                ):
+                    hostbuild.build_iso(
+                        fixtures,
+                        output,
+                        manifest,
+                        seed_manifest=SEED_MANIFEST,
+                    )
+            finally:
+                hostbuild._release_disk_publication_lock(publication_lock)
+
+            self.assertEqual(output.read_bytes(), b"existing image")
+            self.assertEqual(output.stat().st_mtime_ns, original_timestamp)
+
     def test_build_iso_rejects_manifest_drift_before_publication(self):
         with tempfile.TemporaryDirectory() as td:
             work = Path(td)
@@ -2686,16 +3026,29 @@ class HostBuildIsoTests(unittest.TestCase):
     def test_build_iso_reproduces_the_tracked_guest_fixture(self):
         with tempfile.TemporaryDirectory() as td:
             output = Path(td) / "hello.iso"
-            with contextlib.redirect_stdout(io.StringIO()):
-                hostbuild.build_iso(
-                    REPO_ROOT / "test_iso" / "fixtures",
-                    output,
-                    REPO_ROOT / "test_iso" / "fixtures.manifest",
+            tracked = (REPO_ROOT / "test_iso" / "hello.iso").read_bytes()
+            output.write_bytes(tracked)
+            original_timestamp = output.stat().st_mtime_ns - 1_000_000
+            os.utime(output, ns=(original_timestamp, original_timestamp))
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                status = hostbuild.main(
+                    [
+                        "build-iso",
+                        "--seed-manifest",
+                        str(SEED_MANIFEST),
+                        "--fixtures",
+                        str(REPO_ROOT / "test_iso" / "fixtures"),
+                        "--manifest",
+                        str(REPO_ROOT / "test_iso" / "fixtures.manifest"),
+                        "--out",
+                        str(output),
+                    ]
                 )
-            self.assertEqual(
-                output.read_bytes(),
-                (REPO_ROOT / "test_iso" / "hello.iso").read_bytes(),
-            )
+            self.assertEqual(status, 0)
+            self.assertEqual(output.read_bytes(), tracked)
+            self.assertEqual(output.stat().st_mtime_ns, original_timestamp)
+            self.assertIn("[hostbuild] Reused", stdout.getvalue())
 
     def test_build_iso_rejects_source_drift_before_publication(self):
         with tempfile.TemporaryDirectory() as td:
@@ -2970,8 +3323,12 @@ class HostBuildIsoTests(unittest.TestCase):
                 status = hostbuild.main(
                     [
                         "build-iso",
+                        "--seed-manifest",
+                        str(SEED_MANIFEST),
                         "--fixtures",
                         str(Path(td) / "missing"),
+                        "--manifest",
+                        str(Path(td) / "fixtures.manifest"),
                         "--out",
                         str(Path(td) / "hello.iso"),
                     ]

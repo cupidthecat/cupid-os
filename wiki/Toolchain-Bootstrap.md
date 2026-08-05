@@ -574,9 +574,10 @@ all 449 transforms. CupidC's total is 239 normal transforms plus three
 generated installation tables and the `hello.cc`, `ls.cc`, and `cat.cc`
 programs. The
 438-transform root image graph has no host C or recursive Make transform.
-Its five CupidASM, 187 CupidObj, two CupidLD, and one CupidDis transforms run
+Its five CupidASM, 188 CupidObj, two CupidLD, and one CupidDis transforms run
 from the manifest-checked five-tool seed. Native hosted commands remain
-explicit oracle targets. The runner rechecks the live seed cohort after each
+explicit oracle targets. Cupid tools own 437 root outputs; only the Doom input
+manifest remains Python-only. The runner rechecks the live seed cohort after each
 command, and Make passes wildcard-discovered output sources through
 `$(sort ...)` before generation or link. Windows and Linux therefore consume
 the same root order across host locales.
@@ -737,7 +738,7 @@ Python builds an independent layout oracle from the same frozen inputs and
 requires byte parity. It extends a fresh template to the requested image size,
 or copies a valid persistent image and replaces only the prefix before the FAT
 partition. Python also stages frozen files, checks the seed and live paths for
-changes, and publishes the complete candidate atomically. CupidObj's 187
+changes, and publishes the complete candidate atomically. CupidObj's 188
 normal transforms include `disk-template`. ADR 0236 records the
 command, ADR 0237 records seed carriage, and [ADR 0238](../docs/adr/0238-publish-normal-disk-images-from-cupidobj-templates.md)
 records production ownership.
@@ -757,8 +758,11 @@ ECMA-119 and `RRIP_1991A` image exactly, including both path-table byte orders,
 fixed metadata, block-contained directories, the forward continuation, and
 the absence of `ST` fields. Eleven core selectors and all 31 hosted CupidObj
 tests pass. The fixed-point gate exercises the command and its rollback path
-in the 5/14/10 behavior matrix. Production ownership has not moved yet. ADR
-0239 records the source capability, and ADR 0240 records seed carriage.
+in the 5/14/10 behavior matrix. The normal recipe freezes the typed inventory,
+runs this checked command first, and accepts the image only after an
+independent Python render agrees. Python retains path safety, drift checks,
+locking, and atomic publication. ADR 0239 records the source capability, ADR
+0240 records seed carriage, and ADR 0241 records production ownership.
 
 The checked audit uses the canonical Windows Make branch and C locale on
 every host. Direct Linux builds test the separate Linux execution branch.

@@ -21699,3 +21699,88 @@ This promotion changes no normal-build owner. Python remains the production
 ISO author until the guarded publisher handoff. No ordinary C or assembly
 source changes ownership, so no `.c` to `.cc` rename is due. `TempleOS/`
 remains untouched reference material. ADR 0240 records the cohort decision.
+
+## 2026-08-05: Transfer the normal ISO fixture to checked CupidObj
+
+The normal `test_iso/hello.iso` recipe now runs checked CupidObj
+`iso-fixture` as its first byte author. Make binds the recipe to the fixture
+manifest, every declared member, the bootstrap runner, the seed manifest, and
+all five seed images. The command-line path requires both manifests.
+
+Hostbuild resolves and verifies the full seed before it prepares an output
+directory. It rejects aliases to any seed file and refuses every output below
+the seed directory. The fixture tree and manifest are captured once. Regular
+file bytes move to a secure temporary workspace under ordinal names, while
+their logical guest paths remain separate arguments to CupidObj. The checked
+candidate must be a regular complete image and must match Python's independent
+render of the same snapshot. Hostbuild then rechecks the seed, fixture tree,
+manifest, and output before preserving an identical file or replacing it
+atomically. A lock keyed by the resolved output rejects a second cooperating
+publisher.
+
+The first focused production test failed with an unexpected
+`seed_manifest` argument, which established the old Python-only boundary. Two
+review findings changed the initial implementation before it could land. The
+first classifier revision labeled the newly composite recipe as a generic
+object transform because its CupidObj branch ran before the ISO operation
+check. The final classifier handles `build-iso` first, and a small synthetic
+test locks the operation. The first publisher also accepted a new output under
+the seed directory because that path did not yet alias a listed file. Such an
+output could appear after the final verification and invalidate the trust
+unit. The final path rejects the whole seed directory before creating an
+output parent. Checked-author scratch moved out of the destination directory,
+and the ISO path adopted the disk publisher's cross-process lock.
+
+Useful failure cases preserve the prior image when CupidObj fails, reports
+success without a file, creates a directory instead of a file, disagrees with
+the Python renderer, or observes seed drift. The path also rejects fixture and
+manifest drift, output drift, a hard-link alias to a seed tool, a nested output
+under the seed directory, and a competing publisher. A checked byte-identical
+run still executes CupidObj but keeps the old timestamp.
+
+| Command | Result |
+|---|---|
+| `python -m unittest -v tests.test_hostbuild` | PASS: 90 tests in 10.214 seconds, with one expected case-collision skip. |
+| `python -m unittest -v tests.test_build_graph_audit` | PASS: 68 tests in 561.462 seconds. |
+| `ruff check tools/hostbuild.py tests/test_hostbuild.py tools/build_graph_audit.py tests/test_build_graph_audit.py` | PASS. |
+| `python -m py_compile tools/hostbuild.py tools/build_graph_audit.py tests/test_hostbuild.py tests/test_build_graph_audit.py` | PASS. |
+| `make test_iso/hello.iso` | PASS in 2.109 seconds. Checked CupidASM and CupidObj both ran through the promoted seed, and the tracked output was reused. |
+| `make bootstrap-audit` | PASS in 58.012 seconds. |
+| `make check-bootstrap-audit` | PASS in 58.515 seconds. |
+| `make OS_IMAGE=build/iso-cupidobj-cutover.img WAD_SRCS= -j4 all test_usb_partitioned.img` | PASS in 502.232 seconds. |
+| `make verify-bootstrap-seed` | PASS for all five static i386 Linux tools after the image build. |
+| `python tools/gui_terminal_smoke.py --image build/iso-cupidobj-cutover.img --nic e1000 --smp 4 --cpu max --verify-smp-runtime --verify-frontier-runtime --private-image --timeout 300 --log tests/iso-cupidobj-cutover-e1000.log` | PASS in 496.479 seconds. |
+
+The audit still contains 719 active language inputs, 449 transforms, 255
+feature records, and 25 accounted unreachable files. CupidObj participation
+rises from 187 to 188. Of 438 root outputs, 437 now have a Cupid tool owner;
+the Doom input manifest is the only Python-only output. Python remains a
+participant in all 449 transforms because it launches checked tools and owns
+the host safety work. The 2,558,748-byte JSON has SHA-256
+`a588d3e4ffc59891d3526a6a3d57cbc895f2be1e43d902787c981823471d797c`,
+and the 12,196-byte summary has SHA-256
+`cffff93104e890b2a7f62abf4d0003ba6a51ba10a6f4eb63e8228136b549178a`.
+
+The normal build produced these source-current artifacts:
+
+| Artifact | Bytes | SHA-256 |
+|---|---:|---|
+| `test_iso/hello.iso` | 61,440 | `40359c1cec72219f21e87ce71b31e621209036042440e1b38c5e59de157e0fb6` |
+| `kernel/kernel.elf.pass1` | 8,958,472 | `19064718db3bd6dda48dd20ce3e8959ffa5c9889badb7292d7d5582d8127f9d0` |
+| `kernel/kernel.elf` | 9,073,160 | `682a763ff76176b793acba62bded93beeb3b81927291b69a7e60f38785666144` |
+| `kernel/kernel.bin` | 8,866,544 | `6ea425106ef9e45a814b5bf6c0f88055572a5e9462b6614ade2504bd9e8be38e` |
+| `build/iso-cupidobj-cutover.img` | 209,715,200 | `3f8c84cea61e5e8bfc4e6a5fc09a030a4d6451d258a4ca2ea6486a923d1d08e3` |
+| `test_usb_partitioned.img` | 33,554,432 | `057e0c86874090c99095f0558e9fa604bd7f1929f4da357da2c1baca949bb2bb` |
+
+The private four-vCPU e1000 log is 111,548 bytes with SHA-256
+`7a396b57e758044ceca8cbd7deb2fdff3f9b9786632794a243710f36e12c7c02`.
+It reaches `PASS feature17_readdir names=6 long=long_named_file.txt`,
+`PASS feature17_iso`, and the following CupidC JIT completion marker without a
+panic, fatal, assertion, exception, or triple-fault marker.
+
+CupidObj now owns the deterministic ISO bytes. Python still owns native-path
+safety, snapshots, the independent render, drift checks, locking, and atomic
+publication. Removing that orchestration and the Windows WSL execution bridge
+remains open. No C or assembly source changes ownership in this handoff, so no
+`.c` to `.cc` rename is due. `TempleOS/` remains untouched reference material.
+ADR 0241 records the decision.

@@ -250,7 +250,7 @@ execution. The contract inventory now has 45 inputs, including the Toolchain
 Makefile and both Python modules that construct or verify the cohort. The
 manifest digest, decoded data, schema checks, and build plan
 come from one captured byte sequence. The 438-transform normal image has no
-host C or recursive Make transform. Its five CupidASM, 187 CupidObj, two
+host C or recursive Make transform. Its five CupidASM, 188 CupidObj, two
 CupidLD, and one CupidDis commands run from the checked seed.
 
 The normal build compiles kernel/gfx/jpeg.cc and
@@ -841,9 +841,11 @@ Checked-seed CupidObj also accepts `iso-fixture`. The core consumes an ASCII
 manifest and a typed list of logical directories and loaded files, then writes
 the complete deterministic ECMA-119 and Rock Ridge fixture. Its output matches
 the tracked 61,440-byte image exactly. The fixed-point gate exercises the
-command and its rollback path in the 5/14/10 behavior matrix. Python remains
-the production ISO author until the guarded recipe handoff. ADR 0239 records
-the source boundary, and ADR 0240 records seed carriage.
+command and its rollback path in the 5/14/10 behavior matrix. The normal
+recipe now runs that checked command first on frozen ordinal file snapshots.
+Python compares an independent render, rechecks live state, and publishes
+under a per-output lock. ADR 0239 records the source boundary, ADR 0240 records
+seed carriage, and ADR 0241 records production ownership.
 The harness freezes the verified manifest and binaries and copies the exact
 bytes of 41 current inputs, including link.ld, into a private compiler root.
 The seed producer trio builds stage two below that root, and the stage-two trio

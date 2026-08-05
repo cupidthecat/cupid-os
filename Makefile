@@ -1515,9 +1515,12 @@ test_iso/fixtures/big.bin: $(ISO_BIG_FIXTURE_SOURCE) tools/hostbuild.py \
 	  --seed-manifest $(BOOTSTRAP_SEED_MANIFEST) \
 	  --source $(ISO_BIG_FIXTURE_SOURCE) $@
 
-test_iso/hello.iso: $(TEST_ISO_FIXTURES) tools/hostbuild.py tools/bootstrap_toolchain.py Makefile
-	$(PYTHON) tools/hostbuild.py build-iso --fixtures test_iso/fixtures \
-	  --manifest $(ISO_FIXTURE_MANIFEST) --out test_iso/hello.iso
+test_iso/hello.iso: $(TEST_ISO_FIXTURES) tools/hostbuild.py \
+	$(CHECKED_SEED_INPUTS)
+	$(PYTHON) tools/hostbuild.py build-iso \
+	  --seed-manifest $(BOOTSTRAP_SEED_MANIFEST) \
+	  --fixtures test_iso/fixtures --manifest $(ISO_FIXTURE_MANIFEST) \
+	  --out test_iso/hello.iso
 
 sync-iso: $(OS_IMAGE) test_iso/hello.iso
 	$(PYTHON) tools/hostbuild.py stage --image $(OS_IMAGE) --fat-start-lba $(FAT_START_LBA) test_iso/hello.iso:/hello.iso

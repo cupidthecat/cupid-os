@@ -35,6 +35,7 @@ SOURCE_SUFFIXES = {
 # Linux builds cover the Linux execution branch.
 CANONICAL_MAKE_VARIABLES = ("OS=Windows_NT",)
 TOOL_MARKERS = (
+    ("build-iso --seed-manifest", "cupid_object"),
     ("image --seed-manifest", "cupid_object"),
     ("gen-big --seed-manifest", "cupid_assembler"),
     ("mksyms --seed-manifest", "cupid_disassembler"),
@@ -1289,6 +1290,8 @@ def _operation_for_recipe(
     inputs: list[str],
 ) -> str:
     joined = " ".join(recipe).lower()
+    if "hostbuild.py build-iso " in joined:
+        return "package_iso9660_image"
     if "hostbuild.py image " in joined:
         return "package_disk_image"
     if (
@@ -1343,8 +1346,6 @@ def _operation_for_recipe(
             return "extract_raw_binary"
         return "transform_object"
     if "host_python" in tools:
-        if "hostbuild.py build-iso " in joined:
-            return "package_iso9660_image"
         if " mksyms " in joined or (
             " gen-" in joined
             and output.lower().endswith((".c", ".cc"))
