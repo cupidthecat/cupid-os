@@ -25,15 +25,15 @@
       "file": "cupidobj.elf",
       "name": "cupidobj",
       "producer": false,
-      "sha256": "a8de7de19d1ffbec90f0603f0f796f4a03fa74b8181c62f0f395b22a52423d1d",
-      "size": 270700
+      "sha256": "8975f1f106bd144a2467e98ab3e972c83105d3db7e305703bcc8bd3eda9b983f",
+      "size": 279004
     },
     {
       "file": "cupidc.elf",
       "name": "cupidc",
       "producer": true,
-      "sha256": "b652adc07442df04fa577fb7987598619cb573c5d932d639288ddddc939f622f",
-      "size": 2578244
+      "sha256": "03084115bcacb1987db5513c8a8be9b7d884029b03ab4b212bf40d997871ae79",
+      "size": 2582400
     }
   ],
   "build_plan": {
@@ -212,7 +212,7 @@
       "link": "stage-two CupidLD from the checked-seed bootstrap"
     },
     "seed_generation": "stage-three",
-    "source_revision": "bd64a39d1b419df3fb3182c33869084f4bc09c2c"
+    "source_revision": "c31f062fc67c78b553919c2600dd953d252cb58b"
   },
   "schema": "cupid.bootstrap-seed.v1",
   "target": {

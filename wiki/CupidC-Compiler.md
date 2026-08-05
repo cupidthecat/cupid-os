@@ -637,37 +637,37 @@ ADR 0211 records the storage boundary.
 
 The five static i386 Linux tools have a checked seed. The manifest binds their
 hashes, sizes, target ABI, source revision, producer lineage, 19-source plan,
-and five link orders. The current CupidC image is the 2,578,244-byte
+and five link orders. The current CupidC image is the 2,582,400-byte
 stage-three output from revision
-`bd64a39d1b419df3fb3182c33869084f4bc09c2c`, with SHA-256
-`b652adc07442df04fa577fb7987598619cb573c5d932d639288ddddc939f622f`.
+`c31f062fc67c78b553919c2600dd953d252cb58b`, with SHA-256
+`03084115bcacb1987db5513c8a8be9b7d884029b03ab4b212bf40d997871ae79`.
 It retains the complete 83-root Doom frontier, GNU entity metadata, x87 and
 SSE forms, descriptor and segment assembly, the `libm.cc` effects, the dglibc
 jump block, pointer-preserving static address casts, naked IPI entries, the
 kernel-entry BSS clear, and packed SSE2 statements. It also carries runtime
-floating truth, the returns-twice call boundary, and Cupid's native type
-spellings. The same seed carries the 596-row SHRD-capable x86 catalogue with
-forward x87 stack subtraction and typed
-CupidDis raw ranges. Its 270,700-byte CupidObj image has SHA-256
-`a8de7de19d1ffbec90f0603f0f796f4a03fa74b8181c62f0f395b22a52423d1d`
+floating truth, bounded decimal `long double` constants, the returns-twice
+call boundary, and Cupid's native type spellings. The same seed carries the
+596-row SHRD-capable x86 catalogue with forward x87 stack subtraction and
+typed CupidDis raw ranges. Its 279,004-byte CupidObj image has SHA-256
+`8975f1f106bd144a2467e98ab3e972c83105d3db7e305703bcc8bd3eda9b983f`
 and carries the complete installation-source bounds, ordering, and
-wrapped-symbol contract plus transactional kernel-symbol source generation.
+wrapped-symbol contract, transactional kernel-symbol source generation, and
+sequential-JPEG validation.
 Its plan uses `.cc` for all 19 C roots and has
 SHA-256
 `59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`.
 The 5,440-byte manifest has SHA-256
-`7e7da98d2adddbf59fbd7c4da7af7375e08c10147b8c802a2d4a816161f647ea`.
-ADR 0228 records the current promotion.
+`1302d48c541850b5248df05d07a8f4d7a68fe070dd6118edadbecd280b309ad1`.
+ADR 0234 records the current promotion.
 
 The bootstrap copies the 41-input source closure into a private compiler root.
 Both rebuilt stages compile from that root, and the harness checks the private
 and live closures at each stage and behavior boundary. The latest transition's
-stage two and stage three contain the same five tool images. CupidC, CupidASM,
-and CupidDis differ from the preceding seed; CupidLD and CupidObj remain
-byte-identical. The 615.8-second post-promotion reproof reproduced all five
-checked seed images at stage two. The two rebuilt
-stages also match every C and startup object and agree on all five help paths,
-eleven successful operations, and seven failure cases. Their stage directories,
+stage two and stage three contain the same five tool images. CupidC and
+CupidObj differ from the preceding seed; CupidASM, CupidDis, and CupidLD remain
+byte-identical. The two rebuilt stages match every C and startup object and
+agree on all five help paths, twelve successful operations, and eight failure
+cases. Their stage directories,
 behavior evidence, and report are published together only after the complete
 gate passes.
 
@@ -678,11 +678,10 @@ contract programs and the runtime probe. It compares sixteen new objects and
 fifteen linked executables. Every invocation verifies its named artifact, the
 complete cohort, both source inventories, and the checked seed manifest. The
 seed manifest is captured once for its digest, decoded data, schema checks, and
-build plan. The current gate passed in 2,710.4 seconds. Stage-two and
-stage-three objects and executables match, the hosted runtime passes, and all
-20 published artifacts verify. Its 18,231-byte
-manifest has SHA-256
-`aec70359a82e63912c8f986c44a42331dec63b357cc68313ee4ecd57e6f55cf4`.
+build plan. The current isolated gate passed in 2,986.264 seconds. Stage-two
+and stage-three objects and executables match, the hosted runtime passes, and
+all 20 published artifacts verify. Its 18,231-byte manifest has SHA-256
+`1c2f81f25eb0ee8c09b4ccdd789dfd22aa8765cef86bf7d8b14762d48e6a468e`.
 See [Toolchain Bootstrap](Toolchain-Bootstrap) for the commands and report
 layout. Native contract runners and hosted development commands are explicit
 host-built oracles; normal OS and Toolchain artifacts do not depend on them.
@@ -695,10 +694,11 @@ baseline bytes.
 Hostbuild validates SOF0 or SOF1 input, copies it unchanged, rejects
 progressive, unsupported, or malformed frames, and asks checked CupidObj to
 wrap the private snapshot. This replaces the old host FFmpeg conversion. The
-source-head `wrap-jpeg` command now performs the same validation inside
-CupidObj and produces the ordinary binary wrapper bytes. The current checked
-seed and production recipe predate that command; ADR 0231 records the source
-capability and deferred transfer. The first Windows and Linux comparison
+checked-seed `wrap-jpeg` command performs the same validation inside CupidObj
+and produces the ordinary binary wrapper bytes. The production recipe retains
+the Python validator until its separate ownership transfer. ADR 0231 records
+the source capability, and ADR 0234 records seed carriage. The first Windows
+and Linux comparison
 matched 426 of 430 kernel artifacts and
 traced the other four to that conversion. The Linux kernel build passed in
 607.7 seconds, and the Windows root build passed in 341.6 seconds. All 430

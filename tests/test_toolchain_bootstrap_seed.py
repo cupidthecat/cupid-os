@@ -628,7 +628,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 hashlib.sha256(
                     frozen.tools["cupidc"].read_bytes()
                 ).hexdigest(),
-                "b652adc07442df04fa577fb7987598619cb573c5d932d639288ddddc939f622f",
+                "03084115bcacb1987db5513c8a8be9b7d884029b03ab4b212bf40d997871ae79",
             )
 
     def test_wsl_runner_uses_a_private_temporary_directory(self):
@@ -687,6 +687,96 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         self.assertIn("usage:", result.stdout.casefold())
         self.assertIn("cupidasm", result.stdout.casefold())
         self.assertEqual(result.stderr, "")
+
+    def test_checked_seed_wraps_jpeg_and_preserves_failed_output(self):
+        if os.name == "nt" and shutil.which("wsl") is None:
+            self.skipTest("WSL is not available")
+        baseline_jpeg = (
+            b"\xff\xd8"
+            b"\xff\xc0\x00\x0b\x08\x00\x01\x00\x01\x01\x01\x11\x00"
+            b"\xff\xda\x00\x08\x01\x01\x00\x00\x3f\x00"
+            b"\xff\xd9"
+        )
+        with tempfile.TemporaryDirectory(
+            prefix=".checked-seed-jpeg-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            source = root / "asset.jpg"
+            progressive_source = root / "progressive.jpg"
+            wrapped_output = root / "wrapped.o"
+            jpeg_output = root / "jpeg.o"
+            failed_output = root / "progressive.o"
+            source.write_bytes(baseline_jpeg)
+            progressive_source.write_bytes(
+                baseline_jpeg[:3] + b"\xc2" + baseline_jpeg[4:]
+            )
+            failed_output.write_bytes(b"sentinel")
+            frozen = freeze_seed_inputs(SEED_MANIFEST, root / "seed")
+            runner = ToolRunner(REPO_ROOT)
+            object_options = [
+                "--stem",
+                "fixed_point_asset",
+                "--section",
+                ".rodata",
+                "--readonly",
+            ]
+
+            wrapped = runner.run(
+                frozen.tools["cupidobj"],
+                [
+                    "wrap",
+                    source,
+                    *object_options,
+                    "-o",
+                    wrapped_output,
+                ],
+                60,
+            )
+            self.assertEqual(wrapped.returncode, 0, wrapped.stderr)
+            self.assertEqual(wrapped.stdout, "")
+            self.assertEqual(wrapped.stderr, "")
+
+            checked = runner.run(
+                frozen.tools["cupidobj"],
+                [
+                    "wrap-jpeg",
+                    source,
+                    *object_options,
+                    "-o",
+                    jpeg_output,
+                ],
+                60,
+            )
+            self.assertEqual(checked.returncode, 0, checked.stderr)
+            self.assertEqual(checked.stdout, "")
+            self.assertEqual(checked.stderr, "")
+            self.assertEqual(
+                jpeg_output.read_bytes(), wrapped_output.read_bytes()
+            )
+            self.assertEqual(
+                hashlib.sha256(jpeg_output.read_bytes()).hexdigest(),
+                "a4950b4f13759a63540da33f08b584e804b6fb4f98afaa97a82e3d0a9191c35a",
+            )
+
+            rejected = runner.run(
+                frozen.tools["cupidobj"],
+                [
+                    "wrap-jpeg",
+                    progressive_source,
+                    *object_options,
+                    "-o",
+                    failed_output,
+                ],
+                60,
+            )
+            self.assertEqual(rejected.returncode, 1)
+            self.assertEqual(rejected.stdout, "")
+            self.assertIn(
+                "unsupported progressive JPEG frame; "
+                "check in a baseline SOF0/SOF1 asset",
+                rejected.stderr,
+            )
+            self.assertEqual(failed_output.read_bytes(), b"sentinel")
 
     def test_checked_seed_carries_shrd_with_address_overrides(self):
         if os.name == "nt" and shutil.which("wsl") is None:
@@ -1063,6 +1153,10 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             "  if (!(narrow_nan && extended.value) ||\n"
             "      wide_negative_zero) return 7;\n"
             "  if ((wide_nan ? 11 : 13) != 11) return 8;\n"
+            "  extended.value = 1.0000000000000000001L;\n"
+            "  if (extended.words.significand_low != 1u ||\n"
+            "      extended.words.significand_high != 0x80000000u ||\n"
+            "      extended.words.sign_exponent_padding != 0x3fffu) return 9;\n"
             "  return 0;\n"
             "}\n"
         )
@@ -1079,6 +1173,10 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         )
         atomic_source_text = (
             "int bad(_Atomic float value) { return !value; }\n"
+        )
+        precise_literal_failure_text = (
+            "long double bad(void) { "
+            "return 1.00000000000000000001L; }\n"
         )
         with tempfile.TemporaryDirectory(
             prefix=".checked-seed-floating-truth-", dir=REPO_ROOT
@@ -1171,6 +1269,44 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 atomic_result.stderr,
             )
             self.assertEqual(atomic_object.read_bytes(), b"sentinel")
+
+            precise_literal_failure = root / "too-precise.cc"
+            precise_literal_output = root / "too-precise.o"
+            precise_literal_failure.write_text(
+                precise_literal_failure_text,
+                encoding="utf-8",
+                newline="\n",
+            )
+            precise_literal_output.write_bytes(b"sentinel")
+            precise_literal_result = runner.run(
+                frozen.tools["cupidc"],
+                [
+                    "--root",
+                    REPO_ROOT,
+                    "--gnu",
+                    "--freestanding",
+                    "-c",
+                    "/"
+                    + precise_literal_failure.relative_to(
+                        REPO_ROOT
+                    ).as_posix(),
+                    "-o",
+                    "/"
+                    + precise_literal_output.relative_to(
+                        REPO_ROOT
+                    ).as_posix(),
+                ],
+                180,
+            )
+            self.assertEqual(precise_literal_result.returncode, 1)
+            self.assertEqual(precise_literal_result.stdout, "")
+            self.assertIn(
+                "decimal floating constant exceeds the supported precision",
+                precise_literal_result.stderr,
+            )
+            self.assertEqual(
+                precise_literal_output.read_bytes(), b"sentinel"
+            )
 
     def test_checked_seed_disassembles_typed_raw_ranges_and_legacy_modes(
         self,
@@ -2502,7 +2638,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(report["status"], "pass")
             self.assertEqual(
                 report["seed_source_revision"],
-                "bd64a39d1b419df3fb3182c33869084f4bc09c2c",
+                "c31f062fc67c78b553919c2600dd953d252cb58b",
             )
             self.assertNotIn("source_revision", report)
             self.assertEqual(
@@ -2521,9 +2657,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["behavior"],
                 {
-                    "failure_cases": 7,
+                    "failure_cases": 8,
                     "help_cases": 5,
-                    "success_cases": 11,
+                    "success_cases": 12,
                 },
             )
             initial_matches = report["initial_seed_matches_stage_two"]
@@ -2538,7 +2674,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 },
             )
             promoted_snapshot = (
-                "206a8124bbbc084153827308581131945aa62272e025edfcd33db910026363b5"
+                "2d2a3253a9559a7e450d3f8755bc66ca2f5e0136d41045c7aeea04949a8d177d"
             )
             self.assertEqual(
                 report["source_snapshot_sha256"], promoted_snapshot

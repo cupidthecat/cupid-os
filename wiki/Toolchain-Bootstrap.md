@@ -63,9 +63,10 @@ tools. The stage-two producer trio repeats the build for stage three below the
 same root.
 
 The gate compares all 19 C objects, both startup objects, and all five linked
-images. It also runs five help checks, eleven successful operations, and seven
+images. It also runs five help checks, twelve successful operations, and eight
 failure cases across compilation, assembly, disassembly, symbol inspection and
-source generation, linking, wrapping, and flattening. The harness rehashes both
+source generation, linking, JPEG validation, wrapping, and flattening. The
+harness rehashes both
 the private closure and the live closure before stage two, after each stage,
 and after the behavior suite. A live edit that is made and restored during a
 compile cannot change the captured compiler input.
@@ -126,24 +127,30 @@ current GNU entity metadata, the active x87 and SSE memory forms, descriptor
 and segment assembly, every represented assembly effect in `libm.cc`, the
 exact dglibc jump block, pointer-preserving static address casts, explicit
 `double` to `unsigned long long` conversion, exact naked IPI entries, runtime
-floating truth, and Cupid's native type spellings. Its stage-three CupidC image
-is 2,578,244 bytes with SHA-256
-`b652adc07442df04fa577fb7987598619cb573c5d932d639288ddddc939f622f`.
-It came from revision `bd64a39d1b419df3fb3182c33869084f4bc09c2c`. CupidASM
+floating truth, bounded decimal `long double` constants, and Cupid's native
+type spellings. Its stage-three CupidC image is 2,582,400 bytes with SHA-256
+`03084115bcacb1987db5513c8a8be9b7d884029b03ab4b212bf40d997871ae79`.
+It came from revision `c31f062fc67c78b553919c2600dd953d252cb58b`. CupidASM
 and CupidDis carry the 596-row shared x86 catalogue with canonical SHRD and
 forward stack subtraction. CupidDis also carries typed raw code and data
-ranges. CupidObj carries both installation-source generation and transactional
-kernel-symbol source generation.
+ranges. CupidObj carries installation-source generation, transactional
+kernel-symbol source generation, and transactional sequential-JPEG
+validation.
 
 In the latest transition, all nineteen C objects, startup, and five tool images
 matched between stage two and stage three. Both stages passed five help cases,
-eleven successful operations, and seven useful failures. CupidC, CupidASM, and
-CupidDis changed from the preceding seed; CupidLD and CupidObj stayed
+twelve successful operations, and eight useful failures. CupidC and CupidObj
+changed from the preceding seed; CupidASM, CupidDis, and CupidLD stayed
 byte-identical. The 5,440-byte manifest has SHA-256
-`7e7da98d2adddbf59fbd7c4da7af7375e08c10147b8c802a2d4a816161f647ea`.
-The 615.8-second post-promotion rebuild reproduced all five checked seed images
-at stage two and repeated the complete fixed point. ADR 0228 records the
-promotion and both proofs.
+`1302d48c541850b5248df05d07a8f4d7a68fe070dd6118edadbecd280b309ad1`.
+The 774.524-second post-promotion rebuild reproduced all five seed images at
+stage two and repeated the complete fixed point. Its 15,055-byte report has
+SHA-256
+`405abd7b5ceecf05037521e63fb8744cf5a474ea70c23b990055c64f641cc0a1`.
+The complete checked-seed module passes all 42 tests in 841.721 seconds,
+including another full fixed point and the new decimal `long double` and JPEG
+carriage checks.
+ADR 0234 records the promotion and fixed-point evidence.
 
 The refreshed seed represents operand-free GNU assembly statements inside
 functions and emits exact PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT
@@ -430,7 +437,8 @@ parity. The normal Make recipes now run that checked command for all three
 outputs. `tools/hostbuild.py` is no longer a prerequisite or recipe owner for
 them, but it remains the parity oracle. ADR 0204 records the transfer, ADR
 0206 records the linked-symbol contract, and ADR 0208 records the earlier x87
-seed carriage. ADR 0228 records the current seed.
+seed carriage. ADR 0228 records the first SHRD-carrying seed, and ADR 0234
+records the current seed.
 The checked seed, source head, and Python oracle also compare the full wrapped
 symbol name for every typed entry. Distinct paths that collapse to one symbol
 fail before publication. The exact same BMP may remain in both the docs and
@@ -712,31 +720,43 @@ for byte. The matching raw kernel is 8,490,228 bytes with SHA-256
 The fresh normal image has SHA-256
 `e815d2ef67f114a26181f0e2cbde85f892cdadd487f8d9cbee9715e720800b3e`.
 A private `/bin/ls.cc` JIT boot from it passed in 49.8 seconds.
-Source-head CupidObj now performs the same marker checks in its transactional
+Checked-seed CupidObj performs the same marker checks in its transactional
 `wrap-jpeg` operation before applying the ordinary byte-exact wrapper. The
-current checked seed and production recipe predate the command. ADR 0231
-records the capability and the required promotion boundary.
+production recipe retains Python validation until its separate ownership
+transfer. ADR 0231 records the capability, and ADR 0234 records seed carriage.
 The checked audit uses the canonical Windows Make branch and C locale on
 every host. Direct Linux builds test the separate Linux execution branch.
 
-The latest local normal build uses the seed promoted from revision `bd64a39`.
-The complete Toolchain target passed in 2,710.4 seconds. Its two stages matched
-sixteen objects and fifteen linked
-executables, the hosted runtime passed, and all 20 published artifacts
-verified.
-The 18,231-byte contract manifest covers 45 inputs and has SHA-256
-`aec70359a82e63912c8f986c44a42331dec63b357cc68313ee4ecd57e6f55cf4`.
+The latest local normal build uses the seed promoted from revision `c31f062`.
+An isolated complete Toolchain target passed in 2,986.264 seconds. Its two
+stages matched sixteen objects and fifteen linked executables, the hosted
+runtime passed, and all 20 published artifacts verified. The 18,231-byte
+contract manifest covers 45 inputs and has SHA-256
+`1c2f81f25eb0ee8c09b4ccdd789dfd22aa8765cef86bf7d8b14762d48e6a468e`.
+It records seed manifest
+`1302d48c541850b5248df05d07a8f4d7a68fe070dd6118edadbecd280b309ad1`
+and source snapshot
+`2d2a3253a9559a7e450d3f8755bc66ca2f5e0136d41045c7aeea04949a8d177d`.
 
-The normal root build passed in 922.8 seconds. Its 9,044,276-byte final ELF
+The normal root build passed in 630.967 seconds. Its 9,069,064-byte final ELF
 has SHA-256
-`3d9c08d9d0fc0f385311428ee56eb54415c1f469074d7e2a9181779615523fe7`;
-the 8,835,976-byte raw kernel has SHA-256
-`08b55c67c01b0590c4ed5c47b074b92c6636006376db241422f3be17c9505d57`.
+`2f013bf9a3bc7a7ee986b7a0c8c817e7f0b09873473da0c6ce0bdb5efb16aed9`;
+the 8,862,144-byte raw kernel has SHA-256
+`95a92bac021cdc091df2ca5a5139ccc52e4cf5421e4e9a3565a4be96573d0917`.
 The 209,715,200-byte image has SHA-256
-`11f95aae99c7dfc7d66381b69f8de6ea70fd1b389040a1fb939d1650640226f5`.
-A private four-vCPU e1000 frontier passed in 345.1 seconds. It covered the
-fixed in-OS Cupid commands, SMP, ISO, Browser, crypto, USB reattachment,
-graphics, audio, and clean JIT stack completion without a panic marker.
+`f375ae4bf09bdc76e5e9e19863ed7ea86e3bccebf31fb4a1ccb070b783845bb0`.
+
+Fresh private-image four-vCPU runs pass the complete frontier with both
+supported NICs. The e1000 run finishes in 547.392 seconds with 70,618 changed
+pixels, 21,445,838 AC97 frames, and 77,080 PC-speaker frames. Its 149,777-byte
+log has SHA-256
+`b1b22080e09b6d3e4c75a62cddb1bbb4b7f9ac6557a716469c6b231cba41777b`.
+The RTL8139 run finishes in 541.995 seconds with 90,589 changed pixels,
+21,140,546 AC97 frames, and 77,337 PC-speaker frames. Its 154,222-byte log has
+SHA-256
+`2bd4b6c3bf0019e404c7140b4776e4311ffec82f63f8fd42fbcff947f12b777d`.
+Neither log contains a panic, fatal error, assertion failure, exception, or
+triple-fault marker.
 
 The fixed frontier compiles `/bin/gfxgui_test.cc` to a private ELF image,
 then runs the source through private JIT. It requires the AOT write marker,

@@ -21084,3 +21084,111 @@ No active ordinary C source changed ownership, so no `.c` to `.cc` rename was
 due. ADR 0233 records the boundary. Issue 31 remains open for broader
 embedded-program behavior coverage and the remaining Cupid-mode language
 surface. `TempleOS/` remains untouched reference material.
+
+## 2026-08-04: Promote long-double and JPEG support into the checked seed
+
+Capability revision `c31f062fc67c78b553919c2600dd953d252cb58b` was
+committed and pushed before the candidate was built. The transition completed
+in 737.17 seconds against the preceding checked seed. Its 41-input source
+snapshot has SHA-256
+`2d2a3253a9559a7e450d3f8755bc66ca2f5e0136d41045c7aeea04949a8d177d`.
+All nineteen C objects, startup, and five tools matched between stages two and
+three. Both stages passed five help cases, twelve successful operations, and
+eight useful failures. CupidC and CupidObj differed from the input seed;
+CupidASM, CupidDis, and CupidLD remained byte-identical. The 15,057-byte
+transition report has SHA-256
+`d45a0b4c5afb4feb06216d3f2da5aad7f084912d7a291798296e81c57fef5132`.
+
+All five stage-three images were promoted as one trust unit:
+
+| Tool | Bytes | SHA-256 |
+|---|---:|---|
+| CupidASM | 445,616 | `1dc9061912f127d231d320940ba781781af663bde83852a613910394709ecc76` |
+| CupidC | 2,582,400 | `03084115bcacb1987db5513c8a8be9b7d884029b03ab4b212bf40d997871ae79` |
+| CupidDis | 379,648 | `a45fc4c57afd3bb02980e514d58c11588ba3a8bfa2f05ca348fe465cfdaf9749` |
+| CupidLD | 266,672 | `2bdb6ce6b04678bb89c6bb4f7afac7e152ce6c4a07c4e14e1b3aee0c899008ec` |
+| CupidObj | 279,004 | `8975f1f106bd144a2467e98ab3e972c83105d3db7e305703bcc8bd3eda9b983f` |
+
+The 5,440-byte manifest has SHA-256
+`1302d48c541850b5248df05d07a8f4d7a68fe070dd6118edadbecd280b309ad1`.
+`make verify-bootstrap-seed` accepts the manifest and every static ELF32
+image. The build plan remains unchanged at SHA-256
+`59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`.
+
+An independent post-promotion rebuild ran with both host code-generator
+commands poisoned. It completed in 774.524 seconds. Every seed image matched
+stage two before the same nineteen C objects, startup object, five tools, and
+5/12/8 behavior matrix matched between stages two and three. A separate hash
+walk compared all 25 stage artifacts directly. The 15,055-byte report has
+SHA-256
+`405abd7b5ceecf05037521e63fb8744cf5a474ea70c23b990055c64f641cc0a1`.
+
+The focused decimal `long double` and JPEG carriage tests passed in 5.892
+seconds. They checked the exact one-bit rounding result, excessive-precision
+rejection, byte-identical ordinary and JPEG wrapping, progressive-frame
+rejection, and output preservation. The complete checked-seed module passed
+all 42 tests in 841.721 seconds, including another full poisoned-host fixed
+point.
+
+The final canonical audit regenerated in 99.997 seconds and passed its
+independent check in 92.096 seconds. The census remains 719 active inputs,
+449 transforms, 255 feature requirements, and 25 unreachable source-like
+files. The active source digest remains
+`fc21e0e56dbdf6df21ac0a00fc8582c4d9b7d1caf035c5d00b6362d8d43b5420`.
+The 12,196-byte summary remains byte-identical with SHA-256
+`75ec7a48d4dcbd158584373988905077d4818e5baff42aa182801070788f696e`.
+The 2,557,786-byte JSON audit has SHA-256
+`c4f12bf6ebcc056878b238654d6636830a8735847adce18656fdc64ffb317311`.
+The complete audit module then passed all 68 tests in 939.059 seconds under
+the concurrent Toolchain and OS build load.
+
+The first promoted-seed Toolchain cohort build ran concurrently with the OS
+builds, audits, and two QEMU frontiers. It completed the checked bootstrap,
+compiled `kernel/lang/as_elf.cc`, and compiled thirteen of the fourteen
+stage-two contract sources. The 900-second compile timeout then expired on
+`toolchain/tests/cupidc_object_contract.cc`. The command stopped after a total
+of 2,349.228 seconds without publishing a new cohort. The existing old-seed
+cohort remained intact and is not promotion evidence.
+
+The isolated retry passed in 2,986.264 seconds. All sixteen stage-two objects
+matched stage three, as did all fifteen linked executables. The hosted runtime
+passed, the live inputs still matched the frozen build, and all 20 published
+artifacts verified. The 18,231-byte cohort manifest has SHA-256
+`1c2f81f25eb0ee8c09b4ccdd789dfd22aa8765cef86bf7d8b14762d48e6a468e`.
+It records the current 5,440-byte seed manifest, the unchanged build plan, and
+the 41-file source snapshot. Only the isolated result counts as promotion
+evidence. The contended run remains recorded as a failed attempt.
+
+The final four-job root build completed in 630.967 seconds. It rebuilt the
+complete checked kernel cohort, embedded the updated in-OS manuals, performed
+both CupidLD links and the CupidDis-to-CupidObj symbol handoff, flattened the
+kernel through CupidObj, and staged the disk image. The partitioned USB image
+also verified as an up-to-date requested target.
+
+| Artifact | Bytes | SHA-256 |
+|---|---:|---|
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `test_iso/hello.iso` | 61,440 | `40359c1cec72219f21e87ce71b31e621209036042440e1b38c5e59de157e0fb6` |
+| `kernel/kernel.elf.pass1` | 8,954,376 | `afdc2f028c92c13689ff77a8f37aab6329e82fa00ed9fca78d76b2d56c56cefb` |
+| `kernel/cpu/ksyms_data.cc` | 379,855 | `fda73e39a2e76470a916918edbdab71b02c3a6c5ff3eb0a5018086ca7a8ae058` |
+| `kernel/cpu/ksyms_data.o` | 115,000 | `fd56be375eb9b132ee9f4cd7fa8bd846c25dba6890aa3f5cad842eb648701399` |
+| `kernel/kernel.elf` | 9,069,064 | `2f013bf9a3bc7a7ee986b7a0c8c817e7f0b09873473da0c6ce0bdb5efb16aed9` |
+| `kernel/kernel.bin` | 8,862,144 | `95a92bac021cdc091df2ca5a5139ccc52e4cf5421e4e9a3565a4be96573d0917` |
+| `cupidos.img` | 209,715,200 | `f375ae4bf09bdc76e5e9e19863ed7ea86e3bccebf31fb4a1ccb070b783845bb0` |
+| `test_usb_partitioned.img` | 33,554,432 | `057e0c86874090c99095f0558e9fa604bd7f1929f4da357da2c1baca949bb2bb` |
+
+The promoted seed leaves the JPEG object byte-identical at 800,860 bytes with
+SHA-256
+`74ab86d88302c90385bb0b858632b0d6c4ac983d6be28c976dd1a3a348204b3e`.
+
+Fresh private-image four-vCPU boots passed the complete runtime frontier from
+that final image. The e1000 run completed in 547.392 seconds with 70,618
+changed pixels, 21,445,838 AC97 frames at peak 25,600, and 77,080 PC-speaker
+frames at peak 30,925. Its 149,777-byte log has SHA-256
+`b1b22080e09b6d3e4c75a62cddb1bbb4b7f9ac6557a716469c6b231cba41777b`.
+The RTL8139 run completed in 541.995 seconds with 90,589 changed pixels,
+21,140,546 AC97 frames at peak 25,600, and 77,337 PC-speaker frames at peak
+31,795. Its 154,222-byte log has SHA-256
+`2bd4b6c3bf0019e404c7140b4776e4311ffec82f63f8fd42fbcff947f12b777d`.
+Both logs contain the required frontier markers and no panic, fatal error,
+assertion failure, exception, or triple-fault marker.

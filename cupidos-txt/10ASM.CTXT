@@ -262,7 +262,8 @@ sources. Common families include:
 The checked i386 Linux seed carries all 596 shared x86 rows in CupidASM and
 CupidDis. The catalogue includes the IMUL and padding NOP families, FLDZ,
 forward x87 stack subtraction, and SHRD. ADR 0208 records the x87 form's seed
-carriage, and ADR 0228 records the current seed promotion.
+carriage, and ADR 0228 records the first SHRD seed promotion. ADR 0234 records
+the current checked seed.
 
 Floating-point and SIMD coverage includes:
 - FPU state: FXSAVE, FXRSTOR, FINIT, FNINIT, FWAIT, LDMXCSR, STMXCSR

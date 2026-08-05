@@ -317,8 +317,8 @@ bytes, while CupidDis prints canonical names. Three-operand `IMUL` accepts a
 16-bit or 32-bit register destination, a same-width register or memory source,
 and an immediate. CupidASM uses `6B /r` when the value fits a signed byte and
 `69 /r` otherwise. ADR 0207 records forward stack subtraction, ADR 0208
-records its seed promotion, ADR 0226 records SHRD, and ADR 0228 records its
-current seed carriage.
+records its seed promotion, ADR 0226 records SHRD, and ADR 0228 records
+SHRD's first seed carriage. ADR 0234 records the current checked seed.
 
 `fsub st1, st0` emits `DC E9` and computes `ST1 - ST0` into `ST1`.
 The second operand is fixed at `ST0`; reversing the registers is rejected.

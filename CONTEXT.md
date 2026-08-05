@@ -598,12 +598,12 @@ _Avoid_: host linker
 The Cupid Toolchain object and binary transformation utility. `wrap` keeps
 binary input unchanged, while `wrap-text` converts CRLF pairs to LF before it
 builds an ELF32 object. A lone carriage return remains part of the input. Its
-source-head `wrap-jpeg` operation validates one sequential SOF0 or SOF1 frame,
+checked-seed `wrap-jpeg` operation validates one sequential SOF0 or SOF1 frame,
 at least one scan, entropy stuffing and restart markers, and a terminal EOI,
 then uses the ordinary binary wrapper without changing the input bytes.
 Progressive, unsupported, and malformed frames fail transactionally. The
-current checked seed predates this operation, so production JPEG validation
-has not moved yet. Its typed `install-source` operation emits the bin, docs,
+production recipe retains Python validation until its separate ownership
+transfer. Its typed `install-source` operation emits the bin, docs,
 or demos installation
 table from a validated repository path inventory. The checked seed rejects
 more than 512 paths across all request lists before mode dispatch, accumulates that
@@ -667,7 +667,26 @@ A checked-in Cupid Toolchain executable that starts a bootstrap without an exter
 _Avoid_: oracle toolchain
 
 **Checked i386 Linux bootstrap seed**:
-The manifest-bound set of static CupidC, CupidASM, CupidDis, CupidLD, and CupidObj executables under `bootstrap/seeds/i386-linux/`. Verification binds their hashes, sizes, ELF properties, target ABI, producer lineage, source revision, and exact 19-source build plan before execution. The current seed comes from revision `bd64a39d1b419df3fb3182c33869084f4bc09c2c`. CupidC is 2,578,244 bytes with SHA-256 `b652adc07442df04fa577fb7987598619cb573c5d932d639288ddddc939f622f`. CupidASM is 445,616 bytes with SHA-256 `1dc9061912f127d231d320940ba781781af663bde83852a613910394709ecc76`; CupidDis is 379,648 bytes with SHA-256 `a45fc4c57afd3bb02980e514d58c11588ba3a8bfa2f05ca348fe465cfdaf9749`. CupidLD and CupidObj remain byte-identical. The 5,440-byte manifest has SHA-256 `7e7da98d2adddbf59fbd7c4da7af7375e08c10147b8c802a2d4a816161f647ea`. The seed carries Cupid's sized scalar, Boolean, and vector type spellings plus the 596-row SHRD-capable x86 catalogue. Its post-promotion reproof matches all five seed images to stage two, then matches all nineteen C objects, startup, five tools, and the 5/11/7 behavior matrix between stages two and three. The frozen 41-input digest is `206a8124bbbc084153827308581131945aa62272e025edfcd33db910026363b5`. ADR 0228 records this promotion.
+The manifest-bound set of static CupidC, CupidASM, CupidDis, CupidLD, and
+CupidObj executables under `bootstrap/seeds/i386-linux/`. Verification binds
+their hashes, sizes, ELF properties, target ABI, producer lineage, source
+revision, and exact 19-source build plan before execution. The current seed
+comes from revision `c31f062fc67c78b553919c2600dd953d252cb58b`. CupidC is
+2,582,400 bytes with SHA-256
+`03084115bcacb1987db5513c8a8be9b7d884029b03ab4b212bf40d997871ae79`.
+CupidObj is 279,004 bytes with SHA-256
+`8975f1f106bd144a2467e98ab3e972c83105d3db7e305703bcc8bd3eda9b983f`.
+CupidASM, CupidDis, and CupidLD remain byte-identical to the preceding cohort.
+The 5,440-byte manifest has SHA-256
+`1302d48c541850b5248df05d07a8f4d7a68fe070dd6118edadbecd280b309ad1`.
+The seed carries bounded decimal `long double` constants, transactional
+sequential-JPEG validation, Cupid's native type spellings, and the 596-row
+SHRD-capable x86 catalogue. Its post-promotion reproof matches all five seed
+images to stage two, then matches all nineteen C objects, startup, five tools,
+and the 5/12/8 behavior matrix between stages two and three. The frozen
+41-input digest is
+`2d2a3253a9559a7e450d3f8755bc66ca2f5e0136d41045c7aeea04949a8d177d`.
+ADR 0234 records this promotion.
 _Avoid_: current normal-build toolchain, native Windows seed, unverified binary cache
 
 **Frozen fixed-point source closure**:
