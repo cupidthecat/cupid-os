@@ -89,8 +89,9 @@ Makefile variable definitions:
 The next build finds new .CTXT files in cupidos-txt/ through
 docs_programs_gen.cc. It also embeds new top-level .bmp, .png, .jpg, and .jpeg
 files, which the boot path installs under /home with their original names.
-JPEG files are normalized to baseline JPEG while embedding so progressive
-source files still load in the current in-kernel decoder.
+Checked CupidObj accepts sequential SOF0 or SOF1 JPEG files and rejects
+progressive, unsupported, or malformed input. Python checks accepted bytes
+independently before the object is published.
 
 bin_programs_gen.cc likewise finds new .cc files under bin/.
 
@@ -193,8 +194,9 @@ For asm demos used in docs:
 For image assets used in docs:
 - Put BMP, PNG, JPG, or JPEG files at the repo root
 - Rebuild so /home/<same filename> is available to >sprite, >image, and >img
-- Top-level JPG/JPEG sources may be progressive; the build embeds baseline
-  JPEG bytes under the same /home filename
+- Top-level JPG/JPEG sources must use sequential SOF0 or SOF1 encoding
+- Progressive, unsupported, or malformed input stops the build with a useful
+  diagnostic and leaves the previous object unchanged
 >endtree
 
 >h2 See Also

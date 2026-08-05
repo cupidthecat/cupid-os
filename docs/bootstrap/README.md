@@ -466,8 +466,11 @@ Checked-seed CupidObj provides `wrap-jpeg`. It validates one sequential
 SOF0 or SOF1 frame, a scan, entropy stuffing and restart markers, and a
 terminal EOI before applying the byte-exact binary wrapper. Twenty-one useful
 rejections match the existing Python validator. The production JPEG recipe
-still uses Python for validation until its separate ownership transfer. ADR
-0231 records the source capability, and ADR 0234 records seed carriage.
+now runs checked `wrap-jpeg` first on a private snapshot and accepts only a
+regular, non-symbolic candidate. Python then checks the same frozen bytes for
+acceptance and byte parity, rechecks live inputs, and publishes atomically.
+ADR 0231 records the source capability, ADR 0234 records seed carriage, and
+ADR 0235 records the production transfer.
 
 The post-promotion rebuild reproduced all five checked seed images at stage
 two and repeated the complete fixed point in 774.524 seconds. It used the same
@@ -1147,11 +1150,11 @@ read, JPEG, mount-lifetime, graphics, audio, network, SMP, and USB checks.
 An initial Windows and Linux comparison matched 426 of 430 kernel artifacts.
 The only differing input object wrapped a progressive JPEG that host FFmpeg
 had rewritten differently on the two systems. The repository stores the
-equivalent sequential baseline bytes. Hostbuild accepts structurally checked
-SOF0 or SOF1 input, copies it exactly, and rejects progressive, unsupported,
-or malformed marker streams before checked CupidObj wraps the private
-snapshot. Checked-seed CupidObj has an equivalent transactional `wrap-jpeg`
-operation, but the production recipe has not yet moved to it. The root build
+equivalent sequential baseline bytes. Hostbuild freezes the source and runs
+checked CupidObj `wrap-jpeg` first. CupidObj accepts only sequential SOF0 or
+SOF1 input, copies it exactly, and rejects progressive, unsupported, or
+malformed marker streams. Python then checks accepted bytes independently and
+controls atomic publication. The root build
 no longer calls FFmpeg, `jpegtran`, `djpeg`, or
 `cjpeg`. The Linux
 kernel build passed in 607.7 seconds, and the Windows root build passed in
@@ -1165,19 +1168,24 @@ A private `/bin/ls.cc` JIT boot from it passed in 49.8 seconds. ADR 0190
 records the complete artifact table, log identity, and layout headroom.
 
 The canonical active-source digest for this graph is
-`7caa739641b278914bdabea9686992a14b5f8ab22acac5f5a27a1884cd26b566`.
+`fc21e0e56dbdf6df21ac0a00fc8582c4d9b7d1caf035c5d00b6362d8d43b5420`.
 
 External-inline policy now follows translation-unit finalization described by [ADR 0131](../adr/0131-finalize-c11-external-inline-definitions.md). The frontend recognizes external definitions across compatible declaration sets, preserves inherited internal linkage, and rejects an external-linkage inline declaration without a definition. Iterative memoized type relations normalize C qualifier spellings while retaining atomic parameter identity, distinguish strict typedef identity from compatibility, apply old-style/default-promotion rules, accept a 512-level derived pointer graph, and construct symbol-local immutable array/function composite types without corrupting shared typedefs. Transactional tests cover precise conflicts, lexical-scope duplicates and expiry, automatic and static initializer forests, explicit and tentative file definitions, binding addresses, scalar and aggregate return or assignment legality, recursive aggregate modifiability, pointer arithmetic and comparison constraints, conditional association and conversions, loop and switch constraints, direct jumps and label scope, compound/update constraints, malformed literals, unsupported local storage forms, ownership, deep syntax, constrained output, rollback, and recovery. Runtime expression values carry private integer-constant-expression form and value metadata. A represented zero expression, or that expression cast to non-atomic `void *`, becomes a null pointer constant. Comparisons, conditionals, returns, calls, assignments, and automatic initializers publish a destination-typed `CTOOL_C_CONVERSION_NULL_POINTER`; static explicit nulls publish `ZERO` records and discard their temporary expression AST. Comma expressions now evaluate left to right and retain the last operand, and known-true loops preserve non-fallthrough reachability. GNU `weak`, `section`, and `unused` attributes publish canonical entity metadata; exact output-only assembly can snapshot represented i386 register and EFLAGS state. The constant and body expression grammars remain intentionally partial, and namespace and member lookup remain linear. Chained designated paths, promoted anonymous members, duplicate overrides, positional union or Cupid class lists, static member-address constants outside the block-static symbol path, integer-routed and other unrepresented address casts, automatic bases, runtime offsets and subscripts, block declaration attributes, nested function definitions, computed goto and GNU label addresses, broader GNU assembly forms, hexadecimal floating constants, binary32 and binary64 subnormal literals, hexadecimal or subnormal long-double literals, long-double decimal ratios beyond the bounded parser, nonzero or floating static long-double initializers, integer conversions involving long double other than `_Bool`, remaining integer and floating conversions, nonempty identifier-list definitions, non-scalar arguments without declared parameter types, aggregate variadic reads, block assertions, variable-length arrays and runtime `sizeof`, the remaining GNU attributes, complete Cupid extensions, complete AST and IR coverage, broader function code generation, full translation-unit emission, and production integration remain later work. The shared hosted path owns the 155-source strict non-Doom cohort, all 83 Doom roots, the generated kernel symbol translation, and the six checked generated-install or user translations; the private kernel compiler remains the embedded runtime JIT and AOT path. ADR 0196 adds block-static address initializers, earlier static `const` integer reuse, automatic `long double` transport, and zero-filled static long-double objects without claiming the broader forms. ADR 0199 adds non-atomic long-double comparisons. ADR 0202 adds floating truth, controlling operands, and conversion to `_Bool` at all three represented widths.
 
-The latest local normal build completed in 630.967 seconds. Its 8,954,376-byte
+The latest local normal build completed in 605.631 seconds. Its 8,954,376-byte
 pass-one ELF has SHA-256
-`afdc2f028c92c13689ff77a8f37aab6329e82fa00ed9fca78d76b2d56c56cefb`;
+`8349266533b9e3e6c01e03d2928544a6dafbdb9619d126c1805f563f8efdb76e`;
 the 9,069,064-byte final ELF has SHA-256
-`2f013bf9a3bc7a7ee986b7a0c8c817e7f0b09873473da0c6ce0bdb5efb16aed9`.
-CupidObj flattened it to an 8,862,144-byte kernel with SHA-256
-`95a92bac021cdc091df2ca5a5139ccc52e4cf5421e4e9a3565a4be96573d0917`.
+`c1f48fe9383d4c210bb36ab6c4ab7007abf238bad6a3fc50bf0823b18918d944`.
+CupidObj flattened it to an 8,862,444-byte kernel with SHA-256
+`7b8abed8182c644040fb7fdb1263a4d83cad8635322350baa0c93248f2e94280`.
 The 209,715,200-byte image has SHA-256
-`f375ae4bf09bdc76e5e9e19863ed7ea86e3bccebf31fb4a1ccb070b783845bb0`.
+`c71fd7f5a03a4e55f4de45e6b93d4284375fb5600f4df3cda62b7f4043c33b33`.
+
+Fresh private-image four-vCPU boots pass the complete frontier with both
+supported NICs. e1000 passes in 545.151 seconds, and RTL8139 passes in 536.668
+seconds. Both runs capture non-silent AC97 and PC-speaker output and contain no
+panic, fatal error, assertion failure, exception, or triple-fault marker.
 
 The earlier static `const` integer rule is a narrow Cupid C extension rather
 than an ISO C integer constant expression. It preserves the unchanged

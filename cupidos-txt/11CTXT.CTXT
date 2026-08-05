@@ -93,9 +93,9 @@ links stay links; only explicit image tags fetch pixels.
 Add a | web: action only when the image itself should also be clickable.
 
 Top-level image files ending in .bmp, .png, .jpg, or .jpeg are embedded at
-build time and installed into /home at boot. Build embeds .jpg/.jpeg files as
-baseline JPEG bytes, so progressive source JPEGs can still render through the
-current kernel JPEG decoder. This manual set currently ships /home/snail.bmp,
+build time and installed into /home at boot. JPG and JPEG files must use
+sequential SOF0 or SOF1 encoding. The build rejects progressive, unsupported,
+or malformed input instead of converting it. This manual set currently ships /home/snail.bmp,
 /home/test.png, and /home/file_example_JPG_1MB.jpg. image.bmp also remains
 embedded at /docs/image.bmp for older examples.
 >endtree

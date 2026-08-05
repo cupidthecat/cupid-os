@@ -709,10 +709,11 @@ The first direct comparison matched 426 of 430 kernel artifacts. The remaining
 four were one JPEG object and the three outputs that consumed it. Host FFmpeg
 had rewritten the tracked progressive image differently on Windows and Linux.
 The repository stores the accepted sequential baseline bytes. Hostbuild
-validates and copies structurally checked SOF0 or SOF1 input, rejects
-progressive, unsupported, or malformed marker streams, and gives the exact
-private snapshot to
-checked CupidObj. FFmpeg, `jpegtran`, `djpeg`, and `cjpeg` are no longer root
+freezes the exact source and gives the private snapshot to checked CupidObj
+`wrap-jpeg`. CupidObj validates and wraps sequential SOF0 or SOF1 input and
+rejects progressive, unsupported, or malformed marker streams. Python then
+checks the accepted snapshot independently, requires unchanged bytes, rechecks
+live inputs, and publishes atomically. FFmpeg, `jpegtran`, `djpeg`, and `cjpeg` are no longer root
 dependencies. The Linux kernel build passed in 607.7 seconds, and the Windows
 root build passed in 341.6 seconds. All 430 frozen kernel artifacts match byte
 for byte. The matching raw kernel is 8,490,228 bytes with SHA-256
@@ -720,10 +721,8 @@ for byte. The matching raw kernel is 8,490,228 bytes with SHA-256
 The fresh normal image has SHA-256
 `e815d2ef67f114a26181f0e2cbde85f892cdadd487f8d9cbee9715e720800b3e`.
 A private `/bin/ls.cc` JIT boot from it passed in 49.8 seconds.
-Checked-seed CupidObj performs the same marker checks in its transactional
-`wrap-jpeg` operation before applying the ordinary byte-exact wrapper. The
-production recipe retains Python validation until its separate ownership
-transfer. ADR 0231 records the capability, and ADR 0234 records seed carriage.
+ADR 0231 records the CupidObj capability, ADR 0234 records seed carriage, and
+ADR 0235 records the production acceptance transfer.
 The checked audit uses the canonical Windows Make branch and C locale on
 every host. Direct Linux builds test the separate Linux execution branch.
 
@@ -738,23 +737,23 @@ It records seed manifest
 and source snapshot
 `2d2a3253a9559a7e450d3f8755bc66ca2f5e0136d41045c7aeea04949a8d177d`.
 
-The normal root build passed in 630.967 seconds. Its 9,069,064-byte final ELF
+The normal root build passed in 605.631 seconds. Its 9,069,064-byte final ELF
 has SHA-256
-`2f013bf9a3bc7a7ee986b7a0c8c817e7f0b09873473da0c6ce0bdb5efb16aed9`;
-the 8,862,144-byte raw kernel has SHA-256
-`95a92bac021cdc091df2ca5a5139ccc52e4cf5421e4e9a3565a4be96573d0917`.
+`c1f48fe9383d4c210bb36ab6c4ab7007abf238bad6a3fc50bf0823b18918d944`;
+the 8,862,444-byte raw kernel has SHA-256
+`7b8abed8182c644040fb7fdb1263a4d83cad8635322350baa0c93248f2e94280`.
 The 209,715,200-byte image has SHA-256
-`f375ae4bf09bdc76e5e9e19863ed7ea86e3bccebf31fb4a1ccb070b783845bb0`.
+`c71fd7f5a03a4e55f4de45e6b93d4284375fb5600f4df3cda62b7f4043c33b33`.
 
 Fresh private-image four-vCPU runs pass the complete frontier with both
-supported NICs. The e1000 run finishes in 547.392 seconds with 70,618 changed
-pixels, 21,445,838 AC97 frames, and 77,080 PC-speaker frames. Its 149,777-byte
+supported NICs. The e1000 run finishes in 545.151 seconds with 94,495 changed
+pixels, 21,537,672 AC97 frames, and 76,810 PC-speaker frames. Its 147,159-byte
 log has SHA-256
-`b1b22080e09b6d3e4c75a62cddb1bbb4b7f9ac6557a716469c6b231cba41777b`.
-The RTL8139 run finishes in 541.995 seconds with 90,589 changed pixels,
-21,140,546 AC97 frames, and 77,337 PC-speaker frames. Its 154,222-byte log has
+`183971318a33ff4ac5aebf7bf80e2ad606a65a435d34fca6bc84c4a1063fba22`.
+The RTL8139 run finishes in 536.668 seconds with 100,166 changed pixels,
+21,064,744 AC97 frames, and 79,268 PC-speaker frames. Its 136,003-byte log has
 SHA-256
-`2bd4b6c3bf0019e404c7140b4776e4311ffec82f63f8fd42fbcff947f12b777d`.
+`372164df1e8cf93a5f780da3b1da2f2b03113fdfba61c5ceda13c2c59a367353`.
 Neither log contains a panic, fatal error, assertion failure, exception, or
 triple-fault marker.
 

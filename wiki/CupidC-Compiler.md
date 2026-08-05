@@ -691,13 +691,13 @@ five-tool seed. The runner verifies the live trust unit again after each
 command, and Make passes wildcard-discovered output lists through `$(sort ...)`
 before generation or link. The repository's runtime JPEG contains sequential
 baseline bytes.
-Hostbuild validates SOF0 or SOF1 input, copies it unchanged, rejects
-progressive, unsupported, or malformed frames, and asks checked CupidObj to
-wrap the private snapshot. This replaces the old host FFmpeg conversion. The
-checked-seed `wrap-jpeg` command performs the same validation inside CupidObj
-and produces the ordinary binary wrapper bytes. The production recipe retains
-the Python validator until its separate ownership transfer. ADR 0231 records
-the source capability, and ADR 0234 records seed carriage. The first Windows
+Hostbuild freezes the input and asks checked CupidObj `wrap-jpeg` to validate
+and wrap the private snapshot. This replaces the old host FFmpeg conversion.
+Progressive, unsupported, and malformed frames fail before any candidate is
+published. Python checks CupidObj's accepted snapshot independently, requires
+the same bytes, rechecks live inputs, and publishes atomically. ADR 0231
+records the source capability, ADR 0234 records seed carriage, and ADR 0235
+records the production transfer. The first Windows
 and Linux comparison
 matched 426 of 430 kernel artifacts and
 traced the other four to that conversion. The Linux kernel build passed in

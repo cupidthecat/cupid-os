@@ -21192,3 +21192,81 @@ The RTL8139 run completed in 541.995 seconds with 90,589 changed pixels,
 `2bd4b6c3bf0019e404c7140b4776e4311ffec82f63f8fd42fbcff947f12b777d`.
 Both logs contain the required frontier markers and no panic, fatal error,
 assertion failure, exception, or triple-fault marker.
+
+## 2026-08-04: Transfer normal JPEG acceptance to CupidObj
+
+The normal `embed-jpeg --seed-manifest` path now freezes the source and runs
+checked CupidObj `wrap-jpeg` before Python examines the marker stream. CupidObj
+validates and wraps the private snapshot under the original source identity.
+The publisher accepts only a regular, non-symbolic candidate.
+
+After CupidObj succeeds, Python runs its independent validator against the
+same frozen bytes. It must accept the input and reproduce the captured payload
+exactly. The publisher then rechecks the live seed manifest and source before
+an atomic replacement. Tool failure, a missing or symbolic-link candidate,
+Python disagreement, oracle byte drift, live-input drift, and publication
+failure all leave the preceding object untouched. The optional native object-tool path
+keeps its Python-first behavior as a development oracle.
+
+The focused asset class first failed nine ownership tests against the old
+Python-first order. After the transfer, all 14 tests passed in 0.145 seconds.
+The complete hostbuild module passed 59 tests in 6.113 seconds with one
+host-filesystem skip. The full CupidObj module passed all 18 tests in 8.645
+seconds, and the checked-seed JPEG carriage test passed in 2.094 seconds.
+Ruff accepted both changed Python files.
+
+The real normal recipe rebuilt `file_example_JPG_1MB.jpg.o` through the
+promoted seed. The object remains 800,860 bytes with SHA-256
+`74ab86d88302c90385bb0b858632b0d6c4ac983d6be28c976dd1a3a348204b3e`.
+No Make recipe or audit attribution changed. CupidObj remains the object owner,
+and Python remains responsible for snapshots, parity, drift detection, and
+atomic publication. ADR 0235 records the boundary.
+
+The canonical audit regenerated in 62.634 seconds and passed its independent
+check in 63.923 seconds. The census remains 719 active inputs, 449 transforms,
+255 feature requirements, and 25 accounted unreachable files. The 12,196-byte
+summary remains byte-identical with SHA-256
+`75ec7a48d4dcbd158584373988905077d4818e5baff42aa182801070788f696e`.
+The 2,557,786-byte JSON audit also remains byte-identical with SHA-256
+`c4f12bf6ebcc056878b238654d6636830a8735847adce18656fdc64ffb317311`.
+
+The embedded manuals previously claimed that progressive top-level JPEG files
+were converted during the build. That text predated the byte-fixed sequential
+asset policy. It now states the actual behavior: sequential SOF0 or SOF1 input
+is accepted, while progressive, unsupported, or malformed input stops the
+build without replacing the old object.
+
+The complete 68-test audit module passed in 754.071 seconds. Its 25,428-byte
+log has SHA-256
+`fdbfe8d582618c317c6975235318298665944eb2b45f8388a67d22836f7ce35c`.
+
+The fresh four-job root and partitioned-USB build passed in 605.631 seconds.
+The new checked order is visible in the normal JPEG recipe before the rest of
+the kernel build completes.
+
+| Artifact | Bytes | SHA-256 |
+|---|---:|---|
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `test_iso/hello.iso` | 61,440 | `40359c1cec72219f21e87ce71b31e621209036042440e1b38c5e59de157e0fb6` |
+| `kernel/kernel.elf.pass1` | 8,954,376 | `8349266533b9e3e6c01e03d2928544a6dafbdb9619d126c1805f563f8efdb76e` |
+| `kernel/cpu/ksyms_data.cc` | 379,855 | `fda73e39a2e76470a916918edbdab71b02c3a6c5ff3eb0a5018086ca7a8ae058` |
+| `kernel/cpu/ksyms_data.o` | 115,000 | `fd56be375eb9b132ee9f4cd7fa8bd846c25dba6890aa3f5cad842eb648701399` |
+| `kernel/kernel.elf` | 9,069,064 | `c1f48fe9383d4c210bb36ab6c4ab7007abf238bad6a3fc50bf0823b18918d944` |
+| `kernel/kernel.bin` | 8,862,444 | `7b8abed8182c644040fb7fdb1263a4d83cad8635322350baa0c93248f2e94280` |
+| `cupidos.img` | 209,715,200 | `c71fd7f5a03a4e55f4de45e6b93d4284375fb5600f4df3cda62b7f4043c33b33` |
+| `test_usb_partitioned.img` | 33,554,432 | `057e0c86874090c99095f0558e9fa604bd7f1929f4da357da2c1baca949bb2bb` |
+
+Fresh private-image four-vCPU boots passed the complete runtime frontier with
+both supported NICs. The e1000 run completed in 545.151 seconds with 94,495
+changed pixels, 21,537,672 AC97 frames at peak 25,600, and 76,810 PC-speaker
+frames at peak 29,079. Its 147,159-byte log has SHA-256
+`183971318a33ff4ac5aebf7bf80e2ad606a65a435d34fca6bc84c4a1063fba22`.
+The RTL8139 run completed in 536.668 seconds with 100,166 changed pixels,
+21,064,744 AC97 frames at peak 25,600, and 79,268 PC-speaker frames at peak
+31,363. Its 136,003-byte log has SHA-256
+`372164df1e8cf93a5f780da3b1da2f2b03113fdfba61c5ceda13c2c59a367353`.
+Both logs contain the required frontier markers and no panic, fatal error,
+assertion failure, exception, or triple-fault marker.
+
+No ordinary C or assembly source changed ownership, so no `.c` to `.cc`
+rename was due. `TempleOS/` remained untouched reference material.

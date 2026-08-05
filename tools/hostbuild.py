@@ -1149,13 +1149,12 @@ def _embed_jpeg_with_seed(
         ) as temporary:
             temporary_root = Path(temporary)
             frozen_jpeg = temporary_root / "input.jpg"
-            baseline = temporary_root / "asset.baseline.jpg"
+            oracle_jpeg = temporary_root / "asset.python-oracle.jpg"
             wrapped = temporary_root / output.name
             frozen_jpeg.write_bytes(jpeg_payload)
-            _prepare_baseline_jpeg(frozen_jpeg, baseline)
             arguments = [
-                "wrap",
-                str(baseline),
+                "wrap-jpeg",
+                str(frozen_jpeg),
                 "--identity",
                 str(src),
                 "-o",
@@ -1180,9 +1179,21 @@ def _embed_jpeg_with_seed(
                     f"checked CupidObj failed with status "
                     f"{proc.returncode}{suffix}"
                 )
-            if not wrapped.is_file():
+            if wrapped.is_symlink() or not wrapped.is_file():
                 raise EmbedJpegError(
-                    "checked CupidObj reported success without an object"
+                    "checked CupidObj reported success without a regular "
+                    "object"
+                )
+            try:
+                _prepare_baseline_jpeg(frozen_jpeg, oracle_jpeg)
+            except EmbedJpegError as error:
+                raise EmbedJpegError(
+                    "checked CupidObj JPEG acceptance differs from the "
+                    f"Python oracle: {error}"
+                ) from error
+            if oracle_jpeg.read_bytes() != jpeg_payload:
+                raise EmbedJpegError(
+                    "Python JPEG oracle changed the frozen input bytes"
                 )
             if (
                 manifest.read_bytes() != manifest_payload

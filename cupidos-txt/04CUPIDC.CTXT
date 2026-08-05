@@ -818,8 +818,10 @@ has SHA-256
 ADR 0234 records the current five-tool promotion.
 Checked-seed CupidObj validates sequential SOF0 and SOF1 marker streams in its
 wrap-jpeg command, then applies the ordinary byte-exact wrapper. The normal
-JPEG recipe retains Python validation until its separate ownership transfer.
-ADR 0231 records the source capability, and ADR 0234 records seed carriage.
+JPEG recipe runs that checked command first on a private source snapshot.
+Python checks accepted bytes independently, rechecks the live inputs, and
+publishes only a regular complete object. ADR 0231 records the source
+capability, ADR 0234 records seed carriage, and ADR 0235 records the transfer.
 The harness freezes the verified manifest and binaries and copies the exact
 bytes of 41 current inputs, including link.ld, into a private compiler root.
 The seed producer trio builds stage two below that root, and the stage-two trio

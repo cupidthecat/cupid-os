@@ -475,12 +475,15 @@ Checked-seed CupidObj provides `wrap-jpeg`. It validates one sequential
 SOF0 or SOF1 frame, the scan structure, entropy stuffing and restart markers,
 and a terminal EOI, then applies the byte-exact binary wrapper. Three positive
 forms, the active repository image, and 21 useful rejections match the Python
-validator. The production JPEG recipe retains Python validation until its
-separate ownership transfer.
+validator. The production JPEG recipe now runs checked `wrap-jpeg` first on a
+private source snapshot. It accepts only a regular, non-symbolic object. Python
+then checks the same frozen bytes independently, requires exact byte parity,
+rechecks the manifest and live input, and publishes the candidate atomically.
 [ADR 0231](docs/adr/0231-validate-sequential-jpeg-input-with-cupidobj.md)
 records the capability, and
 [ADR 0234](docs/adr/0234-promote-long-double-and-jpeg-toolchain-seed.md)
-records seed carriage.
+records seed carriage. [ADR 0235](docs/adr/0235-transfer-jpeg-acceptance-to-cupidobj.md)
+records the production transfer.
 
 Checked-seed CupidC recognizes Cupid's sized scalar spellings and `float4` or
 `double2` as native type specifiers in Cupid mode. Checked-seed CupidASM and
@@ -817,23 +820,26 @@ from host locale.
 The first direct host comparison matched 426 of 430 kernel artifacts and
 traced all four differences to one JPEG object. Host FFmpeg had rewritten the
 tracked progressive image differently on Windows and Linux. The repository
-stores the accepted sequential baseline bytes. Hostbuild validates and
-copies exact SOF0 or SOF1 input, rejects progressive, unsupported, or malformed
-frames, and gives the private snapshot to checked CupidObj. The root build no
-longer calls FFmpeg, `jpegtran`, `djpeg`, or `cjpeg`. The Linux kernel build
+stores the accepted sequential baseline bytes. Hostbuild freezes the exact
+input and gives the private snapshot to checked CupidObj `wrap-jpeg`, which
+rejects progressive, unsupported, or malformed frames. Python checks accepted
+input through an independent parity path and controls publication. The root
+build no longer calls FFmpeg, `jpegtran`, `djpeg`, or `cjpeg`. The Linux kernel build
 passed in 607.7 seconds, and the Windows root build passed in 341.6 seconds.
 All 430 frozen kernel artifacts match byte for byte.
 
-The current raw kernel is 8,518,280 bytes with SHA-256
-`ecde61e586fb69bf091e3586c7c0a90d65588a9d7aa22ea6cf7d2f48dc341df3`.
-The 209,715,200-byte normal image produced by the current root build has
-SHA-256
-`f488f54c023e6d1f7e9883be1f93f705fbdab4b1de3aab8a2b61b86f3863a085`.
+The current root build passed in 605.631 seconds. Its 9,069,064-byte final ELF
+has SHA-256
+`c1f48fe9383d4c210bb36ab6c4ab7007abf238bad6a3fc50bf0823b18918d944`.
+CupidObj flattened it to an 8,862,444-byte raw kernel with SHA-256
+`7b8abed8182c644040fb7fdb1263a4d83cad8635322350baa0c93248f2e94280`.
+The 209,715,200-byte normal image has SHA-256
+`c71fd7f5a03a4e55f4de45e6b93d4284375fb5600f4df3cda62b7f4043c33b33`.
 The kernel bytes match the image from the 2,560-byte boot boundary. This is a
 preboot digest; guest filesystem writes intentionally change the image. The
-current image passed a private `/bin/ls.cc` JIT boot in 54.025 seconds without
-a panic marker. Its 27,839-byte log has SHA-256
-`631670b29e91ffe195e343a3cb957e995776b9860efb441f51ffdee4d443d55f`.
+current image passed the complete private four-vCPU frontier with e1000 in
+545.151 seconds and RTL8139 in 536.668 seconds. Both logs contain no panic,
+fatal error, assertion failure, exception, or triple-fault marker.
 The CupidC transforms are 238 checked-in normal roots, the generated kernel
 symbol table, three generated installation tables, and three example
 programs. The renamed graph passes both CupidLD links and CupidObj flattening.
