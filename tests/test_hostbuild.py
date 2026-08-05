@@ -205,6 +205,14 @@ def _inspect_iso(image):
 
 
 class HostBuildImageTests(unittest.TestCase):
+    def test_layout_advances_after_a_fat_size_cycle(self):
+        layout = hostbuild._choose_layout(8288)
+
+        self.assertEqual(layout.sectors_per_cluster, 2)
+        self.assertEqual(layout.sectors_per_fat, 17)
+        self.assertEqual(layout.data_sectors, 8221)
+        self.assertEqual(layout.cluster_count, 4110)
+
     def test_image_create_stages_file_and_preserves_existing_fat(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)

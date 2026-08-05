@@ -709,6 +709,13 @@ requires byte parity, rejects live drift, and controls atomic publication.
 ADR 0231 records the capability, ADR 0234 records seed carriage, and ADR 0235
 records production ownership.
 
+Source-head CupidObj also emits the pristine disk prefix through the empty
+FAT16 root directory. Compact and active layouts match the Python author byte
+for byte, and both implementations escape a repeated FAT-size state by trying
+the next cluster size. The command covers invalid geometry, kernel overlap,
+output limits, rollback, and recovery. The current seed and normal image do
+not use this operation yet. ADR 0236 records the capability.
+
 | Capability | Status | Baseline evidence and gap |
 | --- | --- | --- |
 | Platform-neutral job, arena, buffer, path, source, and diagnostics core | Observed/Partial | One freestanding implementation passes hosted public-contract tests and compiles into the i386 kernel through real libc and heap/VFS adapters. DEBUG boot self-tests exercise checked invocation, allocation/path/output behavior, VFS commit/cleanup, missing-input translation, and real CupidASM include resolution. Hosted and kernel CupidDis/CupidASM, hosted CupidObj/CupidLD, and hosted CupidC preprocessing, declaration, type/layout, IR, and object operations consume the job interface. Their published arrays and diagnostics remain valid across transactional scratch rewind. The production kernel CupidC frontend has not migrated to these seams. |

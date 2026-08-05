@@ -21301,3 +21301,104 @@ The Make graph and generated audit are unchanged. CupidObj remains the JPEG
 acceptance and object owner, while Python remains the parity and publication
 coordinator. No ordinary C or assembly source changed ownership, so no `.c`
 to `.cc` rename is due. `TempleOS/` remains untouched reference material.
+
+## 2026-08-04: Add the CupidObj disk-template boundary
+
+The remaining Python-only root outputs are the Doom input manifest, the ISO
+fixture, and `cupidos.img`. The disk investigation split the normal image work
+into two parts. A new image begins with a deterministic MBR, boot reserve,
+kernel lane, FAT16 boot sector, two pristine FATs, and an empty root directory.
+Reusing an image and staging files are stateful filesystem operations. The
+first part is now a CupidObj transform; the second remains with hostbuild.
+
+The hosted command suite first recorded 13 expected failures because
+`disk-template` was absent. The freestanding contract recorded 14 compile
+errors at the missing request type and operation. The implemented command
+takes the boot image, raw kernel, image-sector count, and FAT start LBA. It
+places the kernel at LBA 5 and emits only through the byte before cluster 2.
+The active 200 MiB geometry therefore produces 10,697,216 bytes instead of a
+full 209,715,200-byte command result.
+
+The compact 4,208-sector fixture is 38,400 bytes with SHA-256
+`a1784fde1833c6cd24f49dff105ff8a70de5b9e619dd8883b4d92d597f241501`.
+The active fixture matches Python byte for byte. Positive tests also cover
+deterministic repeats and a kernel ending exactly at the FAT boundary.
+Negative tests cover malformed numeric arguments, short and missing inputs,
+partition bounds, a FAT16-ineligible partition, kernel overlap, an i386 size
+overflow, constrained output, output preservation, arena rewind, and same-job
+recovery. The overlap diagnostic points to the kernel input.
+
+Review found a partition of 8,288 sectors that made Python alternate between
+32-sector and 33-sector FATs forever. CupidObj and hostbuild now remember FAT
+sizes tried for one cluster width, abandon a repeated state, and select the
+valid two-sector cluster layout with a 17-sector FAT. The same review found a
+kernel-byte diagnostic attributed to the boot source; the two inputs now keep
+their own diagnostic paths.
+
+All 26 hosted CupidObj tests pass in 9.003 seconds. The complete 62-test
+hostbuild module passes in 1.379 seconds with one expected filesystem skip.
+All ten CupidObj core selectors pass under the repository's strict C11 warning
+flags, including the new disk selector. Ruff accepts the five affected Python
+files. The staged behavior harness now requires five help checks, thirteen
+successful operations, and nine failures from both newly built stages.
+
+The full checked Toolchain cohort passed in 3,247.6 seconds. Stage-two and
+stage-three objects and executables match, the hosted runtime passed, and all
+20 artifacts published and verified. The Cupid-built i386 disk selector then
+passed. The 18,232-byte cohort manifest has SHA-256
+`d2de5422db6e22cd5bb5317980b1a4a7557b06803100ca3c0d71cf40d789c2d2`.
+
+The isolated poisoned-host fixed point passed in 714.7 seconds. Its report
+records 41 source inputs, source snapshot
+`21a45c2358abf649f0e5e25cebceed320fc1055906cf7c59e40f4ac03baff6c4`,
+all 19 C object pairs, startup, five tool pairs, and the 5/13/9 behavior
+matrix. CupidASM, CupidC, CupidDis, and CupidLD match the current seed;
+CupidObj alone differs. The 15,057-byte report has SHA-256
+`9b13bc6b98075ed872e48470334fea412914ed71be92fb2aa61070b73858413d`.
+The 295,712-byte stage-three CupidObj candidate has SHA-256
+`be5385d8666a625844cb1be5611bd307fa865ca6cf1d50b4e836dfdb3ba45efc`.
+
+The complete checked-seed module repeated the transition and passed all 42
+tests in 799.104 seconds. The canonical audit regenerated in 69.4 seconds,
+and its independent stale check passed in 71.0 seconds. The census remains
+719 active inputs, 449 transforms, 255 feature requirements, and 25 accounted
+unreachable files. The active-source digest is now
+`cfb0e1dcd276154a4db5c2747ed092581874a54cd4c9fb379f204e3c10f8253e`.
+The 12,196-byte summary has SHA-256
+`bbe13eed982c61327a8299ecfd35ccd4d57bb40ad712a379ad24e51f1d713a97`;
+the 2,557,786-byte JSON audit has SHA-256
+`65bb4ac1e6977151d243ff58178047ae58788377362cda0ed2af8bdc0ed41ed4`.
+
+The final four-job root and partitioned-USB build passed in 626.2 seconds.
+The normal image recipe reused its existing FAT filesystem, as designed. A
+separately named image was force-formatted from the same final boot and kernel
+bytes so the changed layout chooser also received a fresh-disk acceptance
+gate.
+
+| Artifact | Bytes | SHA-256 |
+|---|---:|---|
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `test_iso/hello.iso` | 61,440 | `40359c1cec72219f21e87ce71b31e621209036042440e1b38c5e59de157e0fb6` |
+| `kernel/kernel.elf.pass1` | 8,954,376 | `d73535f40003ecc8e391b930868a291a5c2eaac61add367430b9bf9c0ca987c3` |
+| `kernel/cpu/ksyms_data.cc` | 379,855 | `fda73e39a2e76470a916918edbdab71b02c3a6c5ff3eb0a5018086ca7a8ae058` |
+| `kernel/cpu/ksyms_data.o` | 115,000 | `fd56be375eb9b132ee9f4cd7fa8bd846c25dba6890aa3f5cad842eb648701399` |
+| `kernel/kernel.elf` | 9,069,064 | `fcd689a7e20904e6ad320dd156f73849e615917fe16cf9583dac2aa2441d76db` |
+| `kernel/kernel.bin` | 8,863,452 | `0bed982de6aaa6efbc8ed18c7dad743303f292de21d03fb0481f26c09cfee6d4` |
+| reused `cupidos.img` | 209,715,200 | `82e77f43dad22a0e08a934a907ab88f6390f1733c441be3d02fd76c69ce68e84` |
+| fresh review image | 209,715,200 | `f84f78eb59c76d3d2d9661ca9ae7bb6b3030305f83ed115f09846ab5ba3694cb` |
+| `test_usb_partitioned.img` | 33,554,432 | `057e0c86874090c99095f0558e9fa604bd7f1929f4da357da2c1baca949bb2bb` |
+
+The fresh image passed a four-vCPU private QEMU smoke in 63.0 seconds. RDRAND
+seeded the CSPRNG, the desktop and e1000 initialized, and `/bin/ls.cc`
+completed through the in-OS CupidC JIT. The 33,070-byte serial log has
+SHA-256
+`fa9f1650965e31b0d362049c89fdd49bb77116f7df00762c2995747b094280f1`
+and contains no panic, fatal, assertion, exception, or triple-fault marker.
+
+This is a source-head capability. The current checked seed still reports the
+5/12/8 matrix and does not recognize `disk-template`; the normal image remains
+Python-owned until seed promotion and a guarded publisher cutover. The graph
+count and construction owner do not change here. The embedded documentation
+does refresh normal build bytes. No ordinary C or assembly source changed
+ownership, so no `.c` to `.cc` rename is due. `TempleOS/` remains untouched
+reference material. ADR 0236 records the decision.

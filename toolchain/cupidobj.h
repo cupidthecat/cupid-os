@@ -10,7 +10,8 @@ typedef enum {
   CTOOL_OBJ_EXTRACT_FLAT,
   CTOOL_OBJ_GENERATE_INSTALL_SOURCE,
   CTOOL_OBJ_GENERATE_KSYMS_SOURCE,
-  CTOOL_OBJ_WRAP_JPEG
+  CTOOL_OBJ_WRAP_JPEG,
+  CTOOL_OBJ_BUILD_DISK_TEMPLATE
 } ctool_obj_operation_t;
 
 typedef enum {
@@ -47,11 +48,18 @@ typedef struct {
 } ctool_obj_install_source_request_t;
 
 typedef struct {
+  const ctool_source_t *kernel;
+  ctool_u32 image_sectors;
+  ctool_u32 fat_start_lba;
+} ctool_obj_disk_template_request_t;
+
+typedef struct {
   ctool_obj_operation_t operation;
   const ctool_source_t *input;
   union {
     ctool_obj_wrap_binary_request_t wrap_binary;
     ctool_obj_install_source_request_t install_source;
+    ctool_obj_disk_template_request_t disk_template;
   } as;
 } ctool_obj_request_t;
 
@@ -117,5 +125,23 @@ ctool_status_t ctool_obj_transform(ctool_job_t *job,
  * emits the kernel's word-packed .ksyms C source.  Undefined and non-text
  * rows are ignored.  Malformed rows, addresses outside i386, an empty text
  * symbol set, allocation limits, and output limits fail before publication. */
+
+/* BUILD_DISK_TEMPLATE consumes the five-sector Cupid boot image as input and
+ * one separately loaded raw kernel source.  The request supplies the complete
+ * image size and FAT16 partition start in 512-byte sectors.  The operation
+ * patches one active type-0x06 MBR entry, copies stage two, places the kernel
+ * at LBA 5, and zero-fills the remaining pre-partition reserve.  It then emits
+ * the canonical CUPIDOS FAT16 boot sector, two pristine FATs, and the empty
+ * 512-entry root directory.  Output ends immediately before FAT cluster 2;
+ * the caller extends the full image and owns later filesystem mutations.
+ *
+ * The boot image must contain at least five sectors.  The FAT partition must
+ * begin after LBA 5 and within the image, the kernel must end at or before the
+ * partition boundary, and the partition must admit a FAT16 cluster count.
+ * All byte and sector calculations are checked before narrowing to i386.
+ * BUILD_DISK_TEMPLATE leaves result addresses zero because its offsets are
+ * disk positions rather than load addresses.  Its source views are borrowed
+ * for the call, equal inputs produce byte-identical output, and every failure
+ * follows the transform-wide output and result rollback contract above. */
 
 #endif

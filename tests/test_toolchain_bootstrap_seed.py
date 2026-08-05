@@ -2657,9 +2657,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["behavior"],
                 {
-                    "failure_cases": 8,
+                    "failure_cases": 9,
                     "help_cases": 5,
-                    "success_cases": 12,
+                    "success_cases": 13,
                 },
             )
             initial_matches = report["initial_seed_matches_stage_two"]
@@ -2673,11 +2673,11 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     "cupidobj",
                 },
             )
-            promoted_snapshot = (
-                "2d2a3253a9559a7e450d3f8755bc66ca2f5e0136d41045c7aeea04949a8d177d"
+            transition_snapshot = (
+                "21a45c2358abf649f0e5e25cebceed320fc1055906cf7c59e40f4ac03baff6c4"
             )
             self.assertEqual(
-                report["source_snapshot_sha256"], promoted_snapshot
+                report["source_snapshot_sha256"], transition_snapshot
             )
             self.assertEqual(
                 initial_matches,
@@ -2686,7 +2686,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     "cupidc": True,
                     "cupiddis": True,
                     "cupidld": True,
-                    "cupidobj": True,
+                    "cupidobj": False,
                 },
             )
             self.assertEqual(report["source_inputs"]["count"], 41)

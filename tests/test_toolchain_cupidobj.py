@@ -1,4 +1,5 @@
 import contextlib
+import filecmp
 import io
 import os
 import shutil
@@ -24,6 +25,43 @@ ENTROPY_JPEG = (
     + b"\x12\xff\x00\x34\xff\xd0\x56"
     + BASELINE_JPEG[-2:]
 )
+ACTIVE_IMAGE_SECTORS = 200 * 1024 * 1024 // hostbuild.SECTOR_SIZE
+ACTIVE_FAT_START_LBA = 20480
+
+
+def _disk_template_size(image_sectors, fat_start_lba):
+    layout = hostbuild._choose_layout(image_sectors - fat_start_lba)
+    data_start = (
+        layout.reserved_sectors
+        + layout.num_fats * layout.sectors_per_fat
+        + layout.root_dir_sectors
+    )
+    return (fat_start_lba + data_start) * hostbuild.SECTOR_SIZE
+
+
+def _python_disk_template(
+    output,
+    boot,
+    kernel,
+    image_sectors,
+    fat_start_lba,
+):
+    bytes_per_megabyte = 1024 * 1024
+    image_bytes = image_sectors * hostbuild.SECTOR_SIZE
+    if image_bytes % bytes_per_megabyte != 0:
+        raise AssertionError("disk-template oracle requires a whole MiB image")
+    with contextlib.redirect_stdout(io.StringIO()):
+        hostbuild.create_or_update_image(
+            image=output,
+            bootloader=boot,
+            kernel=kernel,
+            hdd_mb=image_bytes // bytes_per_megabyte,
+            fat_start_lba=fat_start_lba,
+            stage_files=[],
+            force_format=True,
+        )
+    with output.open("r+b") as image:
+        image.truncate(_disk_template_size(image_sectors, fat_start_lba))
 
 
 def _jpeg_byte(payload, offset, value):
@@ -198,6 +236,34 @@ class CupidObjHostedCliTests(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls._build_directory.cleanup()
+
+    def _run_disk_template(
+        self,
+        root,
+        boot,
+        kernel,
+        output,
+        image_sectors,
+        fat_start_lba,
+    ):
+        return subprocess.run(
+            [
+                str(self.cli),
+                "disk-template",
+                str(boot),
+                "--kernel",
+                str(kernel),
+                "--image-sectors",
+                str(image_sectors),
+                "--fat-start-lba",
+                str(fat_start_lba),
+                "-o",
+                str(output),
+            ],
+            cwd=root,
+            text=True,
+            capture_output=True,
+        )
 
     def test_wrap_relative_input_uses_gnu_binary_identity(self):
         with tempfile.TemporaryDirectory() as td:
@@ -461,6 +527,349 @@ class CupidObjHostedCliTests(unittest.TestCase):
             )
             self.assertEqual(recovered.returncode, 0, recovered.stderr)
             self.assertNotEqual(output.read_bytes(), b"existing object")
+
+    def test_disk_template_matches_python_layout_for_small_geometry_and_repeats(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            boot = root / "boot.bin"
+            kernel = root / "kernel.bin"
+            expected = root / "expected.img"
+            first = root / "first.img"
+            second = root / "second.img"
+            image_sectors = 8192
+            fat_start_lba = 16
+            boot.write_bytes(
+                bytes(
+                    (index * 37 + 11) & 0xFF
+                    for index in range(5 * hostbuild.SECTOR_SIZE)
+                )
+            )
+            kernel.write_bytes(
+                bytes((index * 13 + 5) & 0xFF for index in range(4097))
+            )
+
+            for output in (first, second):
+                generated = self._run_disk_template(
+                    root,
+                    boot,
+                    kernel,
+                    output,
+                    image_sectors,
+                    fat_start_lba,
+                )
+                self.assertEqual(generated.returncode, 0, generated.stderr)
+                self.assertEqual(generated.stdout, "")
+                self.assertEqual(generated.stderr, "")
+
+            _python_disk_template(
+                expected,
+                boot,
+                kernel,
+                image_sectors,
+                fat_start_lba,
+            )
+            self.assertTrue(filecmp.cmp(first, expected, shallow=False))
+            self.assertTrue(filecmp.cmp(second, expected, shallow=False))
+
+    def test_disk_template_matches_python_layout_for_active_geometry(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            boot = root / "boot.bin"
+            kernel = root / "kernel.bin"
+            expected = root / "expected.img"
+            output = root / "actual.img"
+            boot.write_bytes(
+                bytes(
+                    (index * 29 + 7) & 0xFF
+                    for index in range(5 * hostbuild.SECTOR_SIZE)
+                )
+            )
+            kernel.write_bytes(
+                b"Cupid kernel\0"
+                + bytes(
+                    (index * 17 + 3) & 0xFF
+                    for index in range(1024 * 1024 + 37)
+                )
+            )
+
+            generated = self._run_disk_template(
+                root,
+                boot,
+                kernel,
+                output,
+                ACTIVE_IMAGE_SECTORS,
+                ACTIVE_FAT_START_LBA,
+            )
+            self.assertEqual(generated.returncode, 0, generated.stderr)
+            self.assertEqual(generated.stdout, "")
+            self.assertEqual(generated.stderr, "")
+
+            _python_disk_template(
+                expected,
+                boot,
+                kernel,
+                ACTIVE_IMAGE_SECTORS,
+                ACTIVE_FAT_START_LBA,
+            )
+            self.assertEqual(
+                output.stat().st_size,
+                _disk_template_size(
+                    ACTIVE_IMAGE_SECTORS,
+                    ACTIVE_FAT_START_LBA,
+                ),
+            )
+            self.assertTrue(filecmp.cmp(output, expected, shallow=False))
+
+    def test_disk_template_accepts_kernel_ending_at_fat_boundary(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            boot = root / "boot.bin"
+            kernel = root / "kernel.bin"
+            output = root / "disk.img"
+            image_sectors = 4208
+            fat_start_lba = 8
+            boot.write_bytes(b"B" * (5 * hostbuild.SECTOR_SIZE))
+            kernel.write_bytes(
+                b"K" * ((fat_start_lba - 5) * hostbuild.SECTOR_SIZE)
+            )
+
+            generated = self._run_disk_template(
+                root,
+                boot,
+                kernel,
+                output,
+                image_sectors,
+                fat_start_lba,
+            )
+
+            self.assertEqual(generated.returncode, 0, generated.stderr)
+            payload = output.read_bytes()
+            self.assertEqual(
+                payload[
+                    5 * hostbuild.SECTOR_SIZE :
+                    fat_start_lba * hostbuild.SECTOR_SIZE
+                ],
+                kernel.read_bytes(),
+            )
+            self.assertEqual(
+                payload[fat_start_lba * hostbuild.SECTOR_SIZE],
+                0xEB,
+            )
+
+    def test_disk_template_advances_after_a_fat_size_cycle(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            boot = root / "boot.bin"
+            kernel = root / "kernel.bin"
+            output = root / "disk.img"
+            image_sectors = 8304
+            fat_start_lba = 16
+            boot.write_bytes(b"B" * (5 * hostbuild.SECTOR_SIZE))
+            kernel.write_bytes(b"Cupid")
+
+            generated = self._run_disk_template(
+                root,
+                boot,
+                kernel,
+                output,
+                image_sectors,
+                fat_start_lba,
+            )
+
+            self.assertEqual(generated.returncode, 0, generated.stderr)
+            self.assertEqual(generated.stdout, "")
+            self.assertEqual(generated.stderr, "")
+            layout = hostbuild._choose_layout(
+                image_sectors - fat_start_lba
+            )
+            expected_size = (
+                fat_start_lba
+                + layout.reserved_sectors
+                + layout.num_fats * layout.sectors_per_fat
+                + layout.root_dir_sectors
+            ) * hostbuild.SECTOR_SIZE
+            payload = output.read_bytes()
+            bpb_offset = fat_start_lba * hostbuild.SECTOR_SIZE
+            self.assertEqual(len(payload), expected_size)
+            self.assertEqual(payload[bpb_offset + 13], 2)
+            self.assertEqual(
+                struct.unpack_from("<H", payload, bpb_offset + 22)[0],
+                17,
+            )
+
+    def test_disk_template_rejects_bad_numbers_without_clobbering_output(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            boot = root / "boot.bin"
+            kernel = root / "kernel.bin"
+            output = root / "disk.img"
+            boot.write_bytes(b"B" * (5 * hostbuild.SECTOR_SIZE))
+            kernel.write_bytes(b"kernel")
+            cases = (
+                ("image-text", "not-a-number", "8192"),
+                ("image-overflow", "4294967296", "8192"),
+                ("fat-text", "8192", "not-a-number"),
+                ("fat-negative", "8192", "-1"),
+            )
+
+            for name, image_sectors, fat_start_lba in cases:
+                with self.subTest(name=name):
+                    output.write_bytes(b"existing disk image")
+                    rejected = self._run_disk_template(
+                        root,
+                        boot,
+                        kernel,
+                        output,
+                        image_sectors,
+                        fat_start_lba,
+                    )
+                    self.assertEqual(rejected.returncode, 2)
+                    self.assertEqual(rejected.stdout, "")
+                    self.assertIn("usage: cupidobj", rejected.stderr)
+                    self.assertIn("--image-sectors", rejected.stderr)
+                    self.assertIn("--fat-start-lba", rejected.stderr)
+                    self.assertEqual(
+                        output.read_bytes(), b"existing disk image"
+                    )
+
+    def test_disk_template_rejects_invalid_geometry_without_clobbering_output(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            boot = root / "boot.bin"
+            kernel = root / "kernel.bin"
+            output = root / "disk.img"
+            cases = (
+                (
+                    "short-boot",
+                    5 * hostbuild.SECTOR_SIZE - 1,
+                    64,
+                    8192,
+                    16,
+                    "expected at least 5 sectors",
+                ),
+                (
+                    "reserved-area",
+                    5 * hostbuild.SECTOR_SIZE,
+                    64,
+                    8192,
+                    5,
+                    "FAT partition must start after bootloader and kernel area",
+                ),
+                (
+                    "partition-past-image",
+                    5 * hostbuild.SECTOR_SIZE,
+                    64,
+                    8192,
+                    8192,
+                    "FAT partition start is beyond image size",
+                ),
+                (
+                    "kernel-overlap",
+                    5 * hostbuild.SECTOR_SIZE,
+                    6000,
+                    8192,
+                    16,
+                    "overlaps FAT partition at LBA 16",
+                ),
+                (
+                    "fat16-too-small",
+                    5 * hostbuild.SECTOR_SIZE,
+                    64,
+                    4096,
+                    16,
+                    "cannot make FAT16 layout",
+                ),
+            )
+
+            for (
+                name,
+                boot_size,
+                kernel_size,
+                image_sectors,
+                fat_start_lba,
+                message,
+            ) in cases:
+                with self.subTest(name=name):
+                    boot.write_bytes(b"B" * boot_size)
+                    kernel.write_bytes(b"K" * kernel_size)
+                    output.write_bytes(b"existing disk image")
+                    rejected = self._run_disk_template(
+                        root,
+                        boot,
+                        kernel,
+                        output,
+                        image_sectors,
+                        fat_start_lba,
+                    )
+                    self.assertEqual(rejected.returncode, 1)
+                    self.assertEqual(rejected.stdout, "")
+                    self.assertIn(message, rejected.stderr)
+                    if name == "kernel-overlap":
+                        self.assertIn(kernel.as_posix(), rejected.stderr)
+                    self.assertEqual(
+                        output.read_bytes(), b"existing disk image"
+                    )
+
+    def test_disk_template_rejects_i386_size_overflow_without_clobbering_output(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            boot = root / "boot.bin"
+            kernel = root / "kernel.bin"
+            output = root / "disk.img"
+            boot.write_bytes(b"B" * (5 * hostbuild.SECTOR_SIZE))
+            kernel.write_bytes(b"kernel")
+            output.write_bytes(b"existing disk image")
+
+            rejected = self._run_disk_template(
+                root,
+                boot,
+                kernel,
+                output,
+                8392808,
+                8388608,
+            )
+
+            self.assertEqual(rejected.returncode, 1)
+            self.assertEqual(rejected.stdout, "")
+            self.assertIn(
+                "CupidObj disk template size overflows i386",
+                rejected.stderr,
+            )
+            self.assertEqual(output.read_bytes(), b"existing disk image")
+
+    def test_disk_template_reports_missing_inputs_without_clobbering_output(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            boot = root / "boot.bin"
+            kernel = root / "kernel.bin"
+            output = root / "disk.img"
+            boot.write_bytes(b"B" * (5 * hostbuild.SECTOR_SIZE))
+            kernel.write_bytes(b"kernel")
+            missing_boot = root / "missing-boot.bin"
+            missing_kernel = root / "missing-kernel.bin"
+
+            for name, boot_path, kernel_path, missing in (
+                ("boot", missing_boot, kernel, missing_boot),
+                ("kernel", boot, missing_kernel, missing_kernel),
+            ):
+                with self.subTest(name=name):
+                    output.write_bytes(b"existing disk image")
+                    rejected = self._run_disk_template(
+                        root,
+                        boot_path,
+                        kernel_path,
+                        output,
+                        8192,
+                        16,
+                    )
+                    self.assertEqual(rejected.returncode, 1)
+                    self.assertEqual(rejected.stdout, "")
+                    self.assertIn("cannot load", rejected.stderr)
+                    self.assertIn(missing.name, rejected.stderr)
+                    self.assertIn("not_found", rejected.stderr)
+                    self.assertEqual(
+                        output.read_bytes(), b"existing disk image"
+                    )
 
     def test_install_source_demos_matches_python_oracle(self):
         with tempfile.TemporaryDirectory() as td:

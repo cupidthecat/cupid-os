@@ -303,6 +303,8 @@ choco install llvm
 
 `mtools` is no longer required for the normal build; the Makefile uses
 `tools/hostbuild.py` to create and update the FAT16 image on both platforms.
+Source-head CupidObj can build the pristine prefix of that image, but the
+checked seed has not carried the operation into the normal recipe yet.
 The same helper now authors the tracked ISO9660 test fixture, so `mkisofs`,
 `genisoimage`, and `xorrisofs` are not build prerequisites.
 NASM is also not required; install it only to run the optional
@@ -487,6 +489,17 @@ records the capability, and
 [ADR 0234](docs/adr/0234-promote-long-double-and-jpeg-toolchain-seed.md)
 records seed carriage. [ADR 0235](docs/adr/0235-transfer-jpeg-acceptance-to-cupidobj.md)
 records the production transfer.
+
+Source-head CupidObj also provides `disk-template`. Given the boot image,
+kernel, image-sector count, and FAT partition LBA, it writes the exact MBR,
+boot reserve, kernel lane, FAT16 boot sector, two empty FATs, and root
+directory used for a new Cupid disk. The output stops before cluster 2. This
+keeps the active result at 10,697,216 bytes and leaves persistent filesystem
+updates to the image publisher. The command and Python layout code share a
+tested escape from repeating FAT-size calculations. The checked seed and
+normal `cupidos.img` recipe still use the Python author until promotion and a
+separate production handoff. [ADR 0236](docs/adr/0236-build-the-pristine-disk-template-with-cupidobj.md)
+records the source capability.
 
 Checked-seed CupidC recognizes Cupid's sized scalar spellings and `float4` or
 `double2` as native type specifiers in Cupid mode. Checked-seed CupidASM and

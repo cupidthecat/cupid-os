@@ -1177,8 +1177,12 @@ def _run_behavior_checks(
         _expect_status(help_result, 0, f"{tool_name} help")
         if not help_result.stdout or help_result.stderr:
             raise BootstrapError(f"{tool_name} help output differs")
-        if tool_name == "cupidobj" and "wrap-jpeg" not in help_result.stdout:
-            raise BootstrapError("cupidobj help omits wrap-jpeg")
+        if tool_name == "cupidobj":
+            for operation in ("wrap-jpeg", "disk-template"):
+                if operation not in help_result.stdout:
+                    raise BootstrapError(
+                        f"cupidobj help omits {operation}"
+                    )
 
     valid_source = behavior_root / "valid.c"
     invalid_source = behavior_root / "invalid.c"
@@ -1435,6 +1439,81 @@ def _run_behavior_checks(
         or stage_three_jpeg_failure.read_bytes() != sentinel
     ):
         raise BootstrapError("CupidObj JPEG failure behavior differs")
+
+    disk_boot = behavior_root / "disk-boot.bin"
+    disk_kernel = behavior_root / "disk-kernel.bin"
+    stage_two_template = behavior_root / "stage-two-disk-template.bin"
+    stage_three_template = behavior_root / "stage-three-disk-template.bin"
+    disk_boot.write_bytes(
+        bytes((index * 37 + 11) & 0xFF for index in range(5 * 512))
+    )
+    disk_kernel.write_bytes(b"CUPID-OS")
+    disk_arguments: list[str | Path] = [
+        "disk-template",
+        disk_boot,
+        "--kernel",
+        disk_kernel,
+        "--image-sectors",
+        "4208",
+        "--fat-start-lba",
+        "8",
+    ]
+    disk_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupidobj",
+        [*disk_arguments, "-o", stage_two_template],
+        [*disk_arguments, "-o", stage_three_template],
+    )
+    _expect_status(disk_result, 0, "CupidObj disk template")
+    stage_two_template_bytes = stage_two_template.read_bytes()
+    if (
+        disk_result.stdout
+        or disk_result.stderr
+        or stage_three_template.read_bytes() != stage_two_template_bytes
+        or len(stage_two_template_bytes) != 38400
+        or hashlib.sha256(stage_two_template_bytes).hexdigest()
+        != "a1784fde1833c6cd24f49dff105ff8a70de5b9e619dd8883b4d92d597f241501"
+    ):
+        raise BootstrapError("CupidObj disk template differs")
+
+    overlapping_kernel = behavior_root / "overlapping-kernel.bin"
+    stage_two_template_failure = (
+        behavior_root / "stage-two-disk-template-failure.bin"
+    )
+    stage_three_template_failure = (
+        behavior_root / "stage-three-disk-template-failure.bin"
+    )
+    overlapping_kernel.write_bytes(b"K" * (3 * 512 + 1))
+    stage_two_template_failure.write_bytes(sentinel)
+    stage_three_template_failure.write_bytes(sentinel)
+    overlapping_arguments: list[str | Path] = [
+        "disk-template",
+        disk_boot,
+        "--kernel",
+        overlapping_kernel,
+        "--image-sectors",
+        "4208",
+        "--fat-start-lba",
+        "8",
+    ]
+    overlap_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupidobj",
+        [*overlapping_arguments, "-o", stage_two_template_failure],
+        [*overlapping_arguments, "-o", stage_three_template_failure],
+    )
+    _expect_status(overlap_result, 1, "CupidObj overlapping kernel")
+    if (
+        overlap_result.stdout
+        or "overlaps FAT partition at LBA 8" not in overlap_result.stderr
+        or stage_two_template_failure.read_bytes() != sentinel
+        or stage_three_template_failure.read_bytes() != sentinel
+    ):
+        raise BootstrapError("CupidObj disk-template failure differs")
 
     link_source = behavior_root / "start.asm"
     stage_two_link_object = behavior_root / "stage-two-start.o"
@@ -1836,9 +1915,9 @@ def _run_behavior_checks(
         raise BootstrapError("CupidObj missing-input behavior differs")
 
     return {
-        "failure_cases": 8,
+        "failure_cases": 9,
         "help_cases": 5,
-        "success_cases": 12,
+        "success_cases": 13,
     }
 
 

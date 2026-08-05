@@ -18,6 +18,29 @@ static void write_le32(ctool_u8 *bytes, ctool_u32 offset, ctool_u32 value) {
   bytes[offset + 3u] = (ctool_u8)((value >> 24u) & 0xffu);
 }
 
+static ctool_u16 read_le16(const ctool_u8 *bytes, ctool_u32 offset) {
+  return (ctool_u16)((ctool_u16)bytes[offset] |
+                     (ctool_u16)((ctool_u16)bytes[offset + 1u] << 8u));
+}
+
+static ctool_u32 read_le32(const ctool_u8 *bytes, ctool_u32 offset) {
+  return (ctool_u32)bytes[offset] |
+         ((ctool_u32)bytes[offset + 1u] << 8u) |
+         ((ctool_u32)bytes[offset + 2u] << 16u) |
+         ((ctool_u32)bytes[offset + 3u] << 24u);
+}
+
+static int byte_range_is_zero(const ctool_u8 *bytes, ctool_u32 begin,
+                              ctool_u32 end) {
+  ctool_u32 index;
+  for (index = begin; index < end; index++) {
+    if (bytes[index] != 0u) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
 static ctool_u32 build_segment_exec(ctool_u8 *bytes, ctool_u32 capacity) {
   const ctool_u32 image_size = 165u;
   ctool_u32 header;
@@ -595,6 +618,23 @@ static int expect_failure(ctool_job_t *job, ctool_buffer_t *output,
       ctool_job_diagnostic(job, ctool_job_diagnostic_count(job) - 1u)->code !=
           expected_code) {
     (void)fprintf(stderr, "%s: failure contract mismatch\n", case_name);
+    return 0;
+  }
+  return 1;
+}
+
+static int expect_rewound_failure(ctool_job_t *job, ctool_buffer_t *output,
+                                  const ctool_obj_request_t *request,
+                                  ctool_status_t expected_status,
+                                  ctool_u32 expected_code,
+                                  const char *case_name) {
+  ctool_arena_mark_t mark = ctool_arena_mark(ctool_job_arena(job));
+  if (!expect_failure(job, output, request, expected_status, expected_code, 0u,
+                      case_name)) {
+    return 0;
+  }
+  if (!arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job)))) {
+    (void)fprintf(stderr, "%s: failure did not rewind the arena\n", case_name);
     return 0;
   }
   return 1;
@@ -1264,6 +1304,335 @@ static int run_ksyms_source(void) {
   return ok != 0 ? 0 : 1;
 }
 
+static int disk_template_small_layout(const ctool_obj_result_t *result,
+                                      const ctool_u8 *boot,
+                                      ctool_bytes_t kernel) {
+  const ctool_u8 *bytes = result->bytes.data;
+  const ctool_u8 *bpb;
+  if (bytes == (const ctool_u8 *)0 || result->bytes.size != 38400u ||
+      result->base_address != 0u || result->end_address != 0u) {
+    (void)fprintf(stderr, "disk-template: small result shape differs\n");
+    return 0;
+  }
+  if (memcmp(bytes, boot, 446u) != 0 || bytes[446u] != 0x80u ||
+      bytes[447u] != 0xfeu || bytes[448u] != 0xffu ||
+      bytes[449u] != 0xffu || bytes[450u] != 0x06u ||
+      bytes[451u] != 0xfeu || bytes[452u] != 0xffu ||
+      bytes[453u] != 0xffu || read_le32(bytes, 454u) != 8u ||
+      read_le32(bytes, 458u) != 4200u ||
+      !byte_range_is_zero(bytes, 462u, 510u) || bytes[510u] != 0x55u ||
+      bytes[511u] != 0xaau) {
+    (void)fprintf(stderr, "disk-template: small MBR differs\n");
+    return 0;
+  }
+  if (memcmp(bytes + 512u, boot + 512u, 2048u) != 0 ||
+      memcmp(bytes + 2560u, kernel.data, (size_t)kernel.size) != 0 ||
+      !byte_range_is_zero(bytes, 2560u + kernel.size, 4096u)) {
+    (void)fprintf(stderr, "disk-template: boot or kernel lane differs\n");
+    return 0;
+  }
+
+  bpb = bytes + 4096u;
+  if (bpb[0] != 0xebu || bpb[1] != 0x3cu || bpb[2] != 0x90u ||
+      memcmp(bpb + 3u, "CUPIDOS ", 8u) != 0 ||
+      read_le16(bpb, 11u) != 512u || bpb[13u] != 1u ||
+      read_le16(bpb, 14u) != 1u || bpb[16u] != 2u ||
+      read_le16(bpb, 17u) != 512u || read_le16(bpb, 19u) != 4200u ||
+      bpb[21u] != 0xf8u || read_le16(bpb, 22u) != 17u ||
+      read_le16(bpb, 24u) != 63u || read_le16(bpb, 26u) != 255u ||
+      read_le32(bpb, 28u) != 8u || read_le32(bpb, 32u) != 0u ||
+      bpb[36u] != 0x80u || bpb[38u] != 0x29u ||
+      read_le32(bpb, 39u) != 0x0c001d05u ||
+      memcmp(bpb + 43u, "CUPIDOS    ", 11u) != 0 ||
+      memcmp(bpb + 54u, "FAT16   ", 8u) != 0 ||
+      !byte_range_is_zero(bpb, 62u, 510u) || bpb[510u] != 0x55u ||
+      bpb[511u] != 0xaau) {
+    (void)fprintf(stderr, "disk-template: small FAT16 BPB differs\n");
+    return 0;
+  }
+  if (memcmp(bytes + 4608u, "\xf8\xff\xff\xff", 4u) != 0 ||
+      !byte_range_is_zero(bytes, 4612u, 13312u) ||
+      memcmp(bytes + 13312u, "\xf8\xff\xff\xff", 4u) != 0 ||
+      !byte_range_is_zero(bytes, 13316u, 22016u) ||
+      !byte_range_is_zero(bytes, 22016u, 38400u)) {
+    (void)fprintf(stderr, "disk-template: small FAT/root layout differs\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int disk_template_active_layout(const ctool_obj_result_t *result,
+                                       ctool_u32 kernel_size) {
+  const ctool_u8 *bytes = result->bytes.data;
+  const ctool_u8 *bpb;
+  if (bytes == (const ctool_u8 *)0 || result->bytes.size != 10697216u ||
+      result->base_address != 0u || result->end_address != 0u) {
+    (void)fprintf(stderr, "disk-template: active result shape differs\n");
+    return 0;
+  }
+  if (read_le32(bytes, 454u) != 20480u ||
+      read_le32(bytes, 458u) != 389120u ||
+      !byte_range_is_zero(bytes, 2560u + kernel_size, 10485760u)) {
+    (void)fprintf(stderr, "disk-template: active MBR/kernel lane differs\n");
+    return 0;
+  }
+  bpb = bytes + 10485760u;
+  if (read_le16(bpb, 11u) != 512u || bpb[13u] != 8u ||
+      read_le16(bpb, 14u) != 1u || bpb[16u] != 2u ||
+      read_le16(bpb, 17u) != 512u || read_le16(bpb, 19u) != 0u ||
+      read_le16(bpb, 22u) != 190u || read_le32(bpb, 28u) != 20480u ||
+      read_le32(bpb, 32u) != 389120u || bpb[510u] != 0x55u ||
+      bpb[511u] != 0xaau) {
+    (void)fprintf(stderr, "disk-template: active FAT16 geometry differs\n");
+    return 0;
+  }
+  if (memcmp(bytes + 10486272u, "\xf8\xff\xff\xff", 4u) != 0 ||
+      !byte_range_is_zero(bytes, 10486276u, 10583552u) ||
+      memcmp(bytes + 10583552u, "\xf8\xff\xff\xff", 4u) != 0 ||
+      !byte_range_is_zero(bytes, 10583556u, 10680832u) ||
+      !byte_range_is_zero(bytes, 10680832u, 10697216u)) {
+    (void)fprintf(stderr, "disk-template: active FAT/root layout differs\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int run_disk_template(void) {
+  enum {
+    DISK_SECTOR_BYTES = 512,
+    DISK_BOOT_SECTORS = 5,
+    SMALL_IMAGE_SECTORS = 4208,
+    SMALL_FAT_START_LBA = 8,
+    ACTIVE_IMAGE_SECTORS = 409600,
+    ACTIVE_FAT_START_LBA = 20480
+  };
+  static const ctool_u8 kernel_bytes[] = {0x43u, 0x55u, 0x50u, 0x49u,
+                                         0x44u, 0x2du, 0x4fu, 0x53u};
+  ctool_u8 boot[DISK_BOOT_SECTORS * DISK_SECTOR_BYTES];
+  ctool_u8 overlapping_kernel[3u * DISK_SECTOR_BYTES + 1u];
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_buffer_t *first = (ctool_buffer_t *)0;
+  ctool_buffer_t *repeat = (ctool_buffer_t *)0;
+  ctool_buffer_t *active = (ctool_buffer_t *)0;
+  ctool_buffer_t *limited = (ctool_buffer_t *)0;
+  ctool_source_t boot_source;
+  ctool_source_t kernel_source;
+  ctool_source_t overlap_source;
+  const ctool_diagnostic_t *diagnostic;
+  ctool_obj_request_t request;
+  ctool_obj_disk_template_request_t *disk_request;
+  ctool_obj_result_t first_result;
+  ctool_obj_result_t repeat_result;
+  ctool_obj_result_t active_result;
+  ctool_obj_result_t recovery_result;
+  ctool_arena_mark_t mark;
+  ctool_status_t status;
+  ctool_u32 index;
+  int have_first = 0;
+  int have_repeat = 0;
+  int ok = 1;
+
+  for (index = 0u; index < (ctool_u32)sizeof(boot); index++) {
+    boot[index] = (ctool_u8)((index * 37u + 11u) & 0xffu);
+  }
+  (void)memset(overlapping_kernel, 0x6bu, sizeof(overlapping_kernel));
+  if (!open_job(&adapter, &config, &job)) {
+    return 1;
+  }
+  status = ctool_job_open_buffer(job, 64u, config.limits.output_bytes, &first);
+  if (status == CTOOL_OK) {
+    status =
+        ctool_job_open_buffer(job, 64u, config.limits.output_bytes, &repeat);
+  }
+  if (status == CTOOL_OK) {
+    status =
+        ctool_job_open_buffer(job, 64u, config.limits.output_bytes, &active);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 64u, 38399u, &limited);
+  }
+  if (status != CTOOL_OK) {
+    if (limited != (ctool_buffer_t *)0) {
+      ctool_buffer_close(limited);
+    }
+    if (active != (ctool_buffer_t *)0) {
+      ctool_buffer_close(active);
+    }
+    if (repeat != (ctool_buffer_t *)0) {
+      ctool_buffer_close(repeat);
+    }
+    if (first != (ctool_buffer_t *)0) {
+      ctool_buffer_close(first);
+    }
+    ctool_job_close(job);
+    return 1;
+  }
+
+  boot_source.path.text = ctool_string("/boot.bin");
+  boot_source.contents = ctool_bytes(boot, (ctool_u32)sizeof(boot));
+  kernel_source.path.text = ctool_string("/kernel.bin");
+  kernel_source.contents =
+      ctool_bytes(kernel_bytes, (ctool_u32)sizeof(kernel_bytes));
+  overlap_source.path.text = ctool_string("/overlap-kernel.bin");
+  overlap_source.contents = ctool_bytes(
+      overlapping_kernel, (ctool_u32)sizeof(overlapping_kernel));
+  (void)memset(&request, 0, sizeof(request));
+  request.operation = CTOOL_OBJ_BUILD_DISK_TEMPLATE;
+  request.input = &boot_source;
+  disk_request = &request.as.disk_template;
+  disk_request->kernel = &kernel_source;
+  disk_request->image_sectors = SMALL_IMAGE_SECTORS;
+  disk_request->fat_start_lba = SMALL_FAT_START_LBA;
+
+  (void)memset(&first_result, 0, sizeof(first_result));
+  (void)memset(&repeat_result, 0, sizeof(repeat_result));
+  (void)memset(&active_result, 0, sizeof(active_result));
+  (void)memset(&recovery_result, 0, sizeof(recovery_result));
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_obj_transform(job, &request, first, &first_result);
+  if (status != CTOOL_OK ||
+      !arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) ||
+      first_result.bytes.data != ctool_buffer_view(first).data ||
+      first_result.bytes.size != ctool_buffer_view(first).size ||
+      !disk_template_small_layout(&first_result, boot,
+                                  kernel_source.contents)) {
+    (void)fprintf(stderr, "disk-template: small transform failed\n");
+    ok = 0;
+  } else {
+    have_first = 1;
+  }
+
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_obj_transform(job, &request, repeat, &repeat_result);
+  if (status != CTOOL_OK ||
+      !arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) ||
+      have_first == 0 ||
+      first_result.bytes.size != repeat_result.bytes.size ||
+      memcmp(first_result.bytes.data, repeat_result.bytes.data,
+             (size_t)first_result.bytes.size) != 0) {
+    (void)fprintf(stderr, "disk-template: deterministic repeat differs\n");
+    ok = 0;
+  } else {
+    have_repeat = 1;
+  }
+
+  disk_request->image_sectors = ACTIVE_IMAGE_SECTORS;
+  disk_request->fat_start_lba = ACTIVE_FAT_START_LBA;
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_obj_transform(job, &request, active, &active_result);
+  if (status != CTOOL_OK ||
+      !arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) ||
+      active_result.bytes.data != ctool_buffer_view(active).data ||
+      active_result.bytes.size != ctool_buffer_view(active).size ||
+      !disk_template_active_layout(&active_result,
+                                   kernel_source.contents.size)) {
+    (void)fprintf(stderr, "disk-template: active transform failed\n");
+    ok = 0;
+  }
+
+  ctool_buffer_clear(active);
+  disk_request->image_sectors = 8304u;
+  disk_request->fat_start_lba = 16u;
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_obj_transform(job, &request, active, &active_result);
+  if (status != CTOOL_OK ||
+      !arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) ||
+      active_result.bytes.data != ctool_buffer_view(active).data ||
+      active_result.bytes.size != 42496u ||
+      active_result.bytes.data[16u * DISK_SECTOR_BYTES + 13u] != 2u ||
+      read_le16(active_result.bytes.data + 16u * DISK_SECTOR_BYTES, 22u) !=
+          17u) {
+    (void)fprintf(stderr,
+                  "disk-template: FAT-size cycle recovery differs\n");
+    ok = 0;
+  }
+
+  ctool_buffer_clear(active);
+  overlap_source.contents = ctool_bytes(
+      overlapping_kernel, (ctool_u32)sizeof(overlapping_kernel) - 1u);
+  disk_request->image_sectors = SMALL_IMAGE_SECTORS;
+  disk_request->fat_start_lba = SMALL_FAT_START_LBA;
+  disk_request->kernel = &overlap_source;
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_obj_transform(job, &request, active, &active_result);
+  if (status != CTOOL_OK ||
+      !arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) ||
+      !disk_template_small_layout(&active_result, boot,
+                                  overlap_source.contents)) {
+    (void)fprintf(stderr,
+                  "disk-template: exact kernel boundary failed\n");
+    ok = 0;
+  }
+  overlap_source.contents = ctool_bytes(
+      overlapping_kernel, (ctool_u32)sizeof(overlapping_kernel));
+  disk_request->kernel = &kernel_source;
+
+  ctool_buffer_clear(first);
+  disk_request->image_sectors = SMALL_IMAGE_SECTORS;
+  disk_request->fat_start_lba = SMALL_FAT_START_LBA;
+  boot_source.contents =
+      ctool_bytes(boot, (ctool_u32)sizeof(boot) - 1u);
+  ok &= expect_rewound_failure(job, first, &request, CTOOL_ERR_INPUT,
+                               CTOOL_OBJ_DIAG_INVALID_INPUT,
+                               "disk-template short boot");
+  boot_source.contents = ctool_bytes(boot, (ctool_u32)sizeof(boot));
+
+  disk_request->image_sectors = 100u;
+  ok &= expect_rewound_failure(job, first, &request, CTOOL_ERR_INPUT,
+                               CTOOL_OBJ_DIAG_INVALID_INPUT,
+                               "disk-template bad geometry");
+  disk_request->image_sectors = SMALL_IMAGE_SECTORS;
+
+  disk_request->kernel = &overlap_source;
+  ok &= expect_rewound_failure(job, first, &request, CTOOL_ERR_INPUT,
+                               CTOOL_OBJ_DIAG_OVERLAP,
+                               "disk-template kernel overlap");
+  diagnostic = ctool_job_diagnostic(
+      job, ctool_job_diagnostic_count(job) - 1u);
+  if (diagnostic == (const ctool_diagnostic_t *)0 ||
+      !string_equal(diagnostic->path, "/overlap-kernel.bin")) {
+    (void)fprintf(stderr,
+                  "disk-template: kernel overlap path differs\n");
+    ok = 0;
+  }
+  disk_request->kernel = &kernel_source;
+
+  ok &= expect_rewound_failure(job, limited, &request, CTOOL_ERR_LIMIT,
+                               CTOOL_OBJ_DIAG_LIMIT,
+                               "disk-template output limit");
+
+  disk_request->image_sectors = 8392808u;
+  disk_request->fat_start_lba = 8388608u;
+  ok &= expect_rewound_failure(job, first, &request, CTOOL_ERR_OVERFLOW,
+                               CTOOL_OBJ_DIAG_LIMIT,
+                               "disk-template i386 size overflow");
+  disk_request->image_sectors = SMALL_IMAGE_SECTORS;
+  disk_request->fat_start_lba = SMALL_FAT_START_LBA;
+
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_obj_transform(job, &request, first, &recovery_result);
+  if (status != CTOOL_OK ||
+      !arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) ||
+      !disk_template_small_layout(&recovery_result, boot,
+                                  kernel_source.contents) ||
+      have_repeat == 0 ||
+      recovery_result.bytes.size != repeat_result.bytes.size ||
+      memcmp(recovery_result.bytes.data, repeat_result.bytes.data,
+             (size_t)recovery_result.bytes.size) != 0) {
+    (void)fprintf(stderr, "disk-template: same-job recovery failed\n");
+    ok = 0;
+  }
+
+  ctool_buffer_close(limited);
+  ctool_buffer_close(active);
+  ctool_buffer_close(repeat);
+  ctool_buffer_close(first);
+  ctool_job_close(job);
+  return ok != 0 ? 0 : 1;
+}
+
 static int run_errors(void) {
   static const ctool_u8 payload[] = {1u, 2u, 3u};
   static const ctool_u8 text_payload[] = {'x', '\r', '\n', 'y'};
@@ -1480,10 +1849,13 @@ int main(int argc, char **argv) {
   if (argc == 2 && strcmp(argv[1], "ksyms-source") == 0) {
     return run_ksyms_source();
   }
+  if (argc == 2 && strcmp(argv[1], "disk-template") == 0) {
+    return run_disk_template();
+  }
   (void)fprintf(stderr,
-                "usage: cupidobj-contract wrap-basic|wrap-model|"
-                "wrap-text|wrap-jpeg|extract-basic|extract-fallback|"
-                "install-source|"
-                "ksyms-source|errors\n");
+                 "usage: cupidobj-contract wrap-basic|wrap-model|"
+                 "wrap-text|wrap-jpeg|extract-basic|extract-fallback|"
+                 "install-source|"
+                 "ksyms-source|disk-template|errors\n");
   return 2;
 }

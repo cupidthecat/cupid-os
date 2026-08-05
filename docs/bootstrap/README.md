@@ -474,6 +474,18 @@ oracle copy, and neither failure replaces an existing object.
 ADR 0231 records the source capability, ADR 0234 records seed carriage, and
 ADR 0235 records the production transfer.
 
+Source-head CupidObj now has a transactional `disk-template` command. It
+accepts the boot image, raw kernel, complete image size, and FAT partition
+start, then emits the MBR through the empty FAT16 root directory. The kernel
+starts at LBA 5 and the result ends before cluster 2. The active geometry
+produces 10,697,216 bytes, which fits the existing command limit without
+materializing the complete 200 MiB disk. Exact compact and active layouts,
+repeating FAT-size recovery, invalid geometry, overlap, output limits,
+rollback, and same-job reuse are covered. The fixed-point behavior matrix for
+the next transition is 5/13/9. The current checked seed and normal image path
+remain at 5/12/8 and Python ownership until promotion. ADR 0236 records the
+boundary.
+
 The post-promotion rebuild reproduced all five checked seed images at stage
 two and repeated the complete fixed point in 774.524 seconds. It used the same
 source snapshot, comparisons, and 5/12/8 behavior matrix. Its 15,055-byte
@@ -1170,7 +1182,7 @@ A private `/bin/ls.cc` JIT boot from it passed in 49.8 seconds. ADR 0190
 records the complete artifact table, log identity, and layout headroom.
 
 The canonical active-source digest for this graph is
-`fc21e0e56dbdf6df21ac0a00fc8582c4d9b7d1caf035c5d00b6362d8d43b5420`.
+`cfb0e1dcd276154a4db5c2747ed092581874a54cd4c9fb379f204e3c10f8253e`.
 
 External-inline policy now follows translation-unit finalization described by [ADR 0131](../adr/0131-finalize-c11-external-inline-definitions.md). The frontend recognizes external definitions across compatible declaration sets, preserves inherited internal linkage, and rejects an external-linkage inline declaration without a definition. Iterative memoized type relations normalize C qualifier spellings while retaining atomic parameter identity, distinguish strict typedef identity from compatibility, apply old-style/default-promotion rules, accept a 512-level derived pointer graph, and construct symbol-local immutable array/function composite types without corrupting shared typedefs. Transactional tests cover precise conflicts, lexical-scope duplicates and expiry, automatic and static initializer forests, explicit and tentative file definitions, binding addresses, scalar and aggregate return or assignment legality, recursive aggregate modifiability, pointer arithmetic and comparison constraints, conditional association and conversions, loop and switch constraints, direct jumps and label scope, compound/update constraints, malformed literals, unsupported local storage forms, ownership, deep syntax, constrained output, rollback, and recovery. Runtime expression values carry private integer-constant-expression form and value metadata. A represented zero expression, or that expression cast to non-atomic `void *`, becomes a null pointer constant. Comparisons, conditionals, returns, calls, assignments, and automatic initializers publish a destination-typed `CTOOL_C_CONVERSION_NULL_POINTER`; static explicit nulls publish `ZERO` records and discard their temporary expression AST. Comma expressions now evaluate left to right and retain the last operand, and known-true loops preserve non-fallthrough reachability. GNU `weak`, `section`, and `unused` attributes publish canonical entity metadata; exact output-only assembly can snapshot represented i386 register and EFLAGS state. The constant and body expression grammars remain intentionally partial, and namespace and member lookup remain linear. Chained designated paths, promoted anonymous members, duplicate overrides, positional union or Cupid class lists, static member-address constants outside the block-static symbol path, integer-routed and other unrepresented address casts, automatic bases, runtime offsets and subscripts, block declaration attributes, nested function definitions, computed goto and GNU label addresses, broader GNU assembly forms, hexadecimal floating constants, binary32 and binary64 subnormal literals, hexadecimal or subnormal long-double literals, long-double decimal ratios beyond the bounded parser, nonzero or floating static long-double initializers, integer conversions involving long double other than `_Bool`, remaining integer and floating conversions, nonempty identifier-list definitions, non-scalar arguments without declared parameter types, aggregate variadic reads, block assertions, variable-length arrays and runtime `sizeof`, the remaining GNU attributes, complete Cupid extensions, complete AST and IR coverage, broader function code generation, full translation-unit emission, and production integration remain later work. The shared hosted path owns the 155-source strict non-Doom cohort, all 83 Doom roots, the generated kernel symbol translation, and the six checked generated-install or user translations; the private kernel compiler remains the embedded runtime JIT and AOT path. ADR 0196 adds block-static address initializers, earlier static `const` integer reuse, automatic `long double` transport, and zero-filled static long-double objects without claiming the broader forms. ADR 0199 adds non-atomic long-double comparisons. ADR 0202 adds floating truth, controlling operands, and conversion to `_Bool` at all three represented widths.
 

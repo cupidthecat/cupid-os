@@ -21,6 +21,7 @@ typedef struct {
   ctool_obj_operation_t operation;
   const char *input;
   const char *output;
+  const char *kernel;
   const char *identity;
   const char *stem;
   const char *section;
@@ -39,7 +40,11 @@ typedef struct {
   const char *const *demo_paths;
   ctool_u32 demo_count;
   ctool_obj_install_source_kind_t install_kind;
+  ctool_u32 image_sectors;
+  ctool_u32 fat_start_lba;
   ctool_bool readonly;
+  ctool_bool have_image_sectors;
+  ctool_bool have_fat_start_lba;
 } cupidobj_cli_t;
 
 static void cupidobj_usage(FILE *stream) {
@@ -53,6 +58,8 @@ static void cupidobj_usage(FILE *stream) {
       "[--identity NAME | --stem NAME] [--section NAME] [--readonly]\n"
       "       cupidobj flat INPUT -o OUTPUT\n"
       "       cupidobj ksyms-source SYMBOLS -o OUTPUT\n"
+      "       cupidobj disk-template BOOT --kernel KERNEL "
+      "--image-sectors SECTORS --fat-start-lba LBA -o OUTPUT\n"
       "       cupidobj install-source bin [--bin PATH...] "
       "[--headers PATH...] [--browser PATH...] -o OUTPUT\n"
       "       cupidobj install-source docs [--ctxt PATH...] "
@@ -88,6 +95,29 @@ static int cupidobj_take_value(int argc, char **argv, int *index,
   return 0;
 }
 
+static ctool_bool cupidobj_parse_u32(const char *text,
+                                     ctool_u32 *value_out) {
+  ctool_u32 value = 0u;
+  size_t index;
+  if (text == (const char *)0 || text[0] == '\0' ||
+      value_out == (ctool_u32 *)0) {
+    return CTOOL_FALSE;
+  }
+  for (index = 0u; text[index] != '\0'; index++) {
+    ctool_u32 digit;
+    if (text[index] < '0' || text[index] > '9') {
+      return CTOOL_FALSE;
+    }
+    digit = (ctool_u32)((unsigned char)text[index] - (unsigned char)'0');
+    if (value > (0xffffffffu - digit) / 10u) {
+      return CTOOL_FALSE;
+    }
+    value = value * 10u + digit;
+  }
+  *value_out = value;
+  return CTOOL_TRUE;
+}
+
 static int cupidobj_parse_cli(int argc, char **argv, cupidobj_cli_t *cli) {
   int index;
   ctool_bool have_readonly = CTOOL_FALSE;
@@ -109,6 +139,8 @@ static int cupidobj_parse_cli(int argc, char **argv, cupidobj_cli_t *cli) {
     cli->operation = CTOOL_OBJ_EXTRACT_FLAT;
   } else if (strcmp(argv[1], "ksyms-source") == 0) {
     cli->operation = CTOOL_OBJ_GENERATE_KSYMS_SOURCE;
+  } else if (strcmp(argv[1], "disk-template") == 0) {
+    cli->operation = CTOOL_OBJ_BUILD_DISK_TEMPLATE;
   } else if (strcmp(argv[1], "install-source") == 0) {
     if (argc < 3) {
       return 0;
@@ -234,6 +266,38 @@ static int cupidobj_parse_cli(int argc, char **argv, cupidobj_cli_t *cli) {
       cli->output = value;
       continue;
     }
+    taken = cupidobj_take_value(argc, argv, &index, argument, "--kernel",
+                                &value);
+    if (taken != 0) {
+      if (taken < 0 || cli->operation != CTOOL_OBJ_BUILD_DISK_TEMPLATE ||
+          cli->kernel != (const char *)0 || value[0] == '\0') {
+        return 0;
+      }
+      cli->kernel = value;
+      continue;
+    }
+    taken = cupidobj_take_value(argc, argv, &index, argument,
+                                "--image-sectors", &value);
+    if (taken != 0) {
+      if (taken < 0 || cli->operation != CTOOL_OBJ_BUILD_DISK_TEMPLATE ||
+          cli->have_image_sectors == CTOOL_TRUE ||
+          cupidobj_parse_u32(value, &cli->image_sectors) == CTOOL_FALSE) {
+        return 0;
+      }
+      cli->have_image_sectors = CTOOL_TRUE;
+      continue;
+    }
+    taken = cupidobj_take_value(argc, argv, &index, argument,
+                                "--fat-start-lba", &value);
+    if (taken != 0) {
+      if (taken < 0 || cli->operation != CTOOL_OBJ_BUILD_DISK_TEMPLATE ||
+          cli->have_fat_start_lba == CTOOL_TRUE ||
+          cupidobj_parse_u32(value, &cli->fat_start_lba) == CTOOL_FALSE) {
+        return 0;
+      }
+      cli->have_fat_start_lba = CTOOL_TRUE;
+      continue;
+    }
     taken = cupidobj_take_value(argc, argv, &index, argument, "--identity",
                                 &value);
     if (taken != 0) {
@@ -311,13 +375,20 @@ static int cupidobj_parse_cli(int argc, char **argv, cupidobj_cli_t *cli) {
   if (cli->input == (const char *)0 || cli->output == (const char *)0) {
     return 0;
   }
+  if (cli->operation == CTOOL_OBJ_BUILD_DISK_TEMPLATE &&
+      (cli->kernel == (const char *)0 ||
+       cli->have_image_sectors == CTOOL_FALSE ||
+       cli->have_fat_start_lba == CTOOL_FALSE)) {
+    return 0;
+  }
   if (cli->operation == CTOOL_OBJ_GENERATE_INSTALL_SOURCE) {
     if (cli->identity != (const char *)0 || cli->stem != (const char *)0 ||
         cli->section != (const char *)0 || cli->readonly == CTOOL_TRUE) {
       return 0;
     }
   } else if (cli->operation == CTOOL_OBJ_EXTRACT_FLAT ||
-             cli->operation == CTOOL_OBJ_GENERATE_KSYMS_SOURCE) {
+             cli->operation == CTOOL_OBJ_GENERATE_KSYMS_SOURCE ||
+             cli->operation == CTOOL_OBJ_BUILD_DISK_TEMPLATE) {
     if (cli->identity != (const char *)0 || cli->stem != (const char *)0 ||
         cli->section != (const char *)0 || cli->readonly == CTOOL_TRUE) {
       return 0;
@@ -515,6 +586,10 @@ static char *cupidobj_symbol(const char *stem, const char *suffix) {
 typedef struct {
   ctool_obj_request_t request;
   ctool_obj_result_t result;
+  ctool_string_t kernel_path;
+  ctool_source_t kernel;
+  ctool_bool body_started;
+  ctool_bool kernel_loaded;
 } cupidobj_invocation_context_t;
 
 static ctool_status_t cupidobj_invoke_body(ctool_invocation_t *invocation,
@@ -525,7 +600,29 @@ static ctool_status_t cupidobj_invoke_body(ctool_invocation_t *invocation,
       context == (cupidobj_invocation_context_t *)0) {
     return CTOOL_ERR_INVALID_ARGUMENT;
   }
+  context->body_started = CTOOL_TRUE;
   context->request.input = invocation->input;
+  if (context->request.operation == CTOOL_OBJ_BUILD_DISK_TEMPLATE) {
+    ctool_path_t root;
+    ctool_path_t path;
+    const ctool_limits_t *limits = ctool_job_limits(invocation->job);
+    ctool_status_t status =
+        ctool_path_root(ctool_job_arena(invocation->job), &root);
+    if (status == CTOOL_OK) {
+      status = ctool_path_resolve(ctool_job_arena(invocation->job), &root,
+                                  context->kernel_path, limits->path_bytes,
+                                  &path);
+    }
+    if (status == CTOOL_OK) {
+      status = ctool_job_load_source(invocation->job, &path,
+                                     &context->kernel);
+    }
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    context->kernel_loaded = CTOOL_TRUE;
+    context->request.as.disk_template.kernel = &context->kernel;
+  }
   return ctool_obj_transform(invocation->job, &context->request,
                              invocation->output, &context->result);
 }
@@ -539,6 +636,7 @@ int main(int argc, char **argv) {
   ctool_invocation_result_t invocation_result;
   cupidobj_invocation_context_t context;
   char *logical_input = (char *)0;
+  char *logical_kernel = (char *)0;
   char *logical_output = (char *)0;
   char *stem = (char *)0;
   char *start_symbol = (char *)0;
@@ -576,9 +674,15 @@ int main(int argc, char **argv) {
     }
   }
   logical_input = cupidobj_logical_path(cli.input);
+  if (cli.operation == CTOOL_OBJ_BUILD_DISK_TEMPLATE) {
+    logical_kernel = cupidobj_logical_path(cli.kernel);
+  }
   logical_output = cupidobj_logical_path(cli.output);
-  if (logical_input == (char *)0 || logical_output == (char *)0) {
-    (void)fprintf(stderr, "cupidobj: invalid input or output path\n");
+  if (logical_input == (char *)0 || logical_output == (char *)0 ||
+      (cli.operation == CTOOL_OBJ_BUILD_DISK_TEMPLATE &&
+       logical_kernel == (char *)0)) {
+    (void)fprintf(stderr,
+                  "cupidobj: invalid input, kernel, or output path\n");
     goto done;
   }
   limits.source_bytes = CUPIDOBJ_HOST_SOURCE_BYTES;
@@ -597,6 +701,11 @@ int main(int argc, char **argv) {
   }
   (void)memset(&context, 0, sizeof(context));
   context.request.operation = cli.operation;
+  if (cli.operation == CTOOL_OBJ_BUILD_DISK_TEMPLATE) {
+    context.kernel_path = ctool_string(logical_kernel);
+    context.request.as.disk_template.image_sectors = cli.image_sectors;
+    context.request.as.disk_template.fat_start_lba = cli.fat_start_lba;
+  }
   if (cupidobj_is_wrap(cli.operation) == CTOOL_TRUE) {
     context.request.as.wrap_binary.section_name = ctool_string(cli.section);
     context.request.as.wrap_binary.section_flags = CTOOL_ELF32_SHF_ALLOC;
@@ -694,6 +803,11 @@ int main(int argc, char **argv) {
   if (status != CTOOL_OK) {
     if (invocation_result.diagnostic_count != 0u) {
       /* ctool_invoke has already rendered the ordered diagnostics. */
+    } else if (cli.operation == CTOOL_OBJ_BUILD_DISK_TEMPLATE &&
+               context.body_started == CTOOL_TRUE &&
+               context.kernel_loaded == CTOOL_FALSE) {
+      (void)fprintf(stderr, "cupidobj: cannot load %s (%s)\n", cli.kernel,
+                    ctool_status_name(invocation_result.body_status));
     } else if (invocation_result.body_status == CTOOL_ERR_NOT_FOUND) {
       (void)fprintf(stderr, "cupidobj: cannot load %s (%s)\n", cli.input,
                     ctool_status_name(invocation_result.body_status));
@@ -718,6 +832,7 @@ done:
   free(bin_paths);
   free(demo_paths);
   free(logical_output);
+  free(logical_kernel);
   free(logical_input);
   free(size_symbol);
   free(end_symbol);

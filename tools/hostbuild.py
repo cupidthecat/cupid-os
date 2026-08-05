@@ -126,7 +126,11 @@ def _choose_layout(partition_sectors: int) -> FatLayout:
 
     for spc in (1, 2, 4, 8, 16, 32, 64):
         sectors_per_fat = 1
+        seen_fat_sizes: set[int] = set()
         while True:
+            if sectors_per_fat in seen_fat_sizes:
+                break
+            seen_fat_sizes.add(sectors_per_fat)
             data_sectors = partition_sectors - reserved - root_dir_sectors - num_fats * sectors_per_fat
             if data_sectors <= 0:
                 break

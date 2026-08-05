@@ -824,6 +824,12 @@ publishes only a regular complete object. A failed private oracle copy is
 reported separately from an acceptance mismatch, and neither replaces the
 old object. ADR 0231 records the source
 capability, ADR 0234 records seed carriage, and ADR 0235 records the transfer.
+Source-head CupidObj also has a disk-template command. It writes the MBR,
+boot reserve, kernel at LBA 5, FAT16 boot sector, two empty FATs, and root
+directory, then stops before cluster 2. The active result is 10,697,216 bytes.
+Compact and active byte parity, repeating FAT-size recovery, overlap, limits,
+rollback, and reuse are checked. The current seed and normal image builder do
+not use this operation yet. ADR 0236 records the source boundary.
 The harness freezes the verified manifest and binaries and copies the exact
 bytes of 41 current inputs, including link.ld, into a private compiler root.
 The seed producer trio builds stage two below that root, and the stage-two trio

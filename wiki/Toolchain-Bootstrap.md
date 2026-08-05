@@ -724,6 +724,15 @@ The fresh normal image has SHA-256
 A private `/bin/ls.cc` JIT boot from it passed in 49.8 seconds.
 ADR 0231 records the CupidObj capability, ADR 0234 records seed carriage, and
 ADR 0235 records the production acceptance transfer.
+
+Source-head CupidObj now includes `disk-template`. The command takes the boot
+image, raw kernel, total sector count, and FAT partition LBA. It produces the
+deterministic prefix from the MBR through the empty FAT16 root directory, with
+the kernel at LBA 5. The active prefix is 10,697,216 bytes, so CupidObj does
+not need to allocate the complete 200 MiB disk. Compact and active parity,
+repeating FAT-size recovery, bad geometry, overlap, limits, rollback, and
+same-job reuse are covered. The current checked seed and normal image builder
+still use the Python path. ADR 0236 records this source boundary.
 The checked audit uses the canonical Windows Make branch and C locale on
 every host. Direct Linux builds test the separate Linux execution branch.
 
