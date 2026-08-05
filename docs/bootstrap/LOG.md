@@ -21402,3 +21402,77 @@ count and construction owner do not change here. The embedded documentation
 does refresh normal build bytes. No ordinary C or assembly source changed
 ownership, so no `.c` to `.cc` rename is due. `TempleOS/` remains untouched
 reference material. ADR 0236 records the decision.
+
+## 2026-08-05: Carry disk-template in the checked seed
+
+The source capability was committed and pushed as
+`ba385f763742a77be6952457b0d5c0fb323cfc4f` before promotion. A direct
+checked-seed test first failed at option parsing because the preceding
+CupidObj usage did not list `disk-template`. The failure showed that the
+source-head tests did not cover seed carriage.
+
+The transition completed in 726.5 seconds with host C and linker commands
+outside the generation path. Its 41 frozen source inputs have SHA-256
+`21a45c2358abf649f0e5e25cebceed320fc1055906cf7c59e40f4ac03baff6c4`.
+All 19 C object pairs, startup, and five tool images match between stage two
+and stage three. Both stages pass five help cases, thirteen successes, and
+nine useful failures. CupidObj differs from the preceding seed; the other four
+images are byte-identical. The 15,057-byte transition report has SHA-256
+`9b13bc6b98075ed872e48470334fea412914ed71be92fb2aa61070b73858413d`.
+
+| Tool | Bytes | SHA-256 |
+|---|---:|---|
+| CupidASM | 445,616 | `1dc9061912f127d231d320940ba781781af663bde83852a613910394709ecc76` |
+| CupidC | 2,582,400 | `03084115bcacb1987db5513c8a8be9b7d884029b03ab4b212bf40d997871ae79` |
+| CupidDis | 379,648 | `a45fc4c57afd3bb02980e514d58c11588ba3a8bfa2f05ca348fe465cfdaf9749` |
+| CupidLD | 266,672 | `2bdb6ce6b04678bb89c6bb4f7afac7e152ce6c4a07c4e14e1b3aee0c899008ec` |
+| CupidObj | 295,712 | `be5385d8666a625844cb1be5611bd307fa865ca6cf1d50b4e836dfdb3ba45efc` |
+
+The 5,440-byte manifest binds all five images to the pushed source revision
+and has SHA-256
+`019c77d53ddaf64a382962e1d9588a60046b75a7661f70beb0da7510945f35d0`.
+The build plan remains unchanged at SHA-256
+`59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`.
+Seed verification and the direct carriage test pass. The direct test reproduces
+the exact 38,400-byte compact template, rejects an overlapping kernel, and
+preserves the old output.
+
+An independent post-promotion rebuild passed in 831.8 seconds. Every seed
+image matches stage two, and stage two again matches stage three across the
+complete 5/13/9 behavior matrix. Its 15,056-byte report has SHA-256
+`60f24c8c77c81d3771263f102808607e7dcf92b4043cbc9a26c5307f08e0a276`.
+The complete checked-seed module passed all 43 tests in 922.204 seconds.
+
+The first isolated Toolchain-cohort run reached the end of the stage-three
+contract compilation, but its one-hour outer command watchdog stopped the
+controller before publication. No cohort manifest was replaced, so that run
+does not count as promotion evidence. A retry uses a longer watchdog.
+
+The canonical audit regenerated in 81.2 seconds, and its independent stale
+check passed in 107.0 seconds. The census remains 719 active inputs, 449
+transforms, 255 feature requirements, and 25 accounted unreachable files.
+The active-source digest remains
+`cfb0e1dcd276154a4db5c2747ed092581874a54cd4c9fb379f204e3c10f8253e`.
+The 12,196-byte summary has SHA-256
+`bbe13eed982c61327a8299ecfd35ccd4d57bb40ad712a379ad24e51f1d713a97`;
+the 2,557,786-byte JSON audit has SHA-256
+`0bec92831496d809bd9773ef94f6f5a3bb98a678d4a1c22001ba601df4fc2eaa`.
+
+The promoted seed completed the normal four-job OS and partitioned-USB build.
+Its final boot image is 2,560 bytes with SHA-256
+`46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3`.
+The 8,863,576-byte kernel binary has SHA-256
+`812650e14616da6a4d41848f9cc909a4e65d5de80c00e102fc9685bd88d2eea1`,
+and the 209,715,200-byte disk image has SHA-256
+`142b2ebf17bbcabb22aec63911768b21ef292d776423fbb0c5898ec05bfad118`.
+A four-vCPU private boot passed in 68.4 seconds. The desktop, SMP runtime, and
+network driver initialized before `/bin/ls.cc` completed through the in-OS
+CupidC JIT. The 37,762-byte serial log has SHA-256
+`cb70eb25ee70803c0b729cd58e3bce168f16fb1124a21d191165dc816e258192`
+and contains no panic, fatal, assertion, exception, or triple-fault marker.
+
+Checked-seed CupidObj now carries the deterministic pristine-template command.
+The normal image remains Python-owned until the next guarded publisher
+handoff. No ordinary C or assembly source changes ownership in this promotion,
+so no `.c` to `.cc` rename is due. `TempleOS/` remains untouched reference
+material. ADR 0237 records the cohort decision.

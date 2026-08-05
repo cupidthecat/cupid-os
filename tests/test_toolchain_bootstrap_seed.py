@@ -778,6 +778,77 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(failed_output.read_bytes(), b"sentinel")
 
+    def test_checked_seed_builds_disk_template_and_preserves_failed_output(self):
+        if os.name == "nt" and shutil.which("wsl") is None:
+            self.skipTest("WSL is not available")
+        with tempfile.TemporaryDirectory(
+            prefix=".checked-seed-disk-template-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            boot = root / "boot.bin"
+            kernel = root / "kernel.bin"
+            overlapping_kernel = root / "overlapping-kernel.bin"
+            output = root / "template.bin"
+            failed_output = root / "failed-template.bin"
+            boot.write_bytes(
+                bytes((index * 37 + 11) & 0xFF for index in range(5 * 512))
+            )
+            kernel.write_bytes(b"CUPID-OS")
+            overlapping_kernel.write_bytes(b"K" * (3 * 512 + 1))
+            failed_output.write_bytes(b"sentinel")
+            frozen = freeze_seed_inputs(SEED_MANIFEST, root / "seed")
+            runner = ToolRunner(REPO_ROOT)
+
+            generated = runner.run(
+                frozen.tools["cupidobj"],
+                [
+                    "disk-template",
+                    boot,
+                    "--kernel",
+                    kernel,
+                    "--image-sectors",
+                    "4208",
+                    "--fat-start-lba",
+                    "8",
+                    "-o",
+                    output,
+                ],
+                60,
+            )
+            self.assertEqual(generated.returncode, 0, generated.stderr)
+            self.assertEqual(generated.stdout, "")
+            self.assertEqual(generated.stderr, "")
+            template = output.read_bytes()
+            self.assertEqual(len(template), 38400)
+            self.assertEqual(
+                hashlib.sha256(template).hexdigest(),
+                "a1784fde1833c6cd24f49dff105ff8a70de5b9e619dd8883b4d92d597f241501",
+            )
+
+            rejected = runner.run(
+                frozen.tools["cupidobj"],
+                [
+                    "disk-template",
+                    boot,
+                    "--kernel",
+                    overlapping_kernel,
+                    "--image-sectors",
+                    "4208",
+                    "--fat-start-lba",
+                    "8",
+                    "-o",
+                    failed_output,
+                ],
+                60,
+            )
+            self.assertEqual(rejected.returncode, 1)
+            self.assertEqual(rejected.stdout, "")
+            self.assertIn(
+                "overlaps FAT partition at LBA 8",
+                rejected.stderr,
+            )
+            self.assertEqual(failed_output.read_bytes(), b"sentinel")
+
     def test_checked_seed_carries_shrd_with_address_overrides(self):
         if os.name == "nt" and shutil.which("wsl") is None:
             self.skipTest("WSL is not available")
@@ -2638,7 +2709,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(report["status"], "pass")
             self.assertEqual(
                 report["seed_source_revision"],
-                "c31f062fc67c78b553919c2600dd953d252cb58b",
+                "ba385f763742a77be6952457b0d5c0fb323cfc4f",
             )
             self.assertNotIn("source_revision", report)
             self.assertEqual(
@@ -2673,11 +2744,11 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     "cupidobj",
                 },
             )
-            transition_snapshot = (
+            promoted_snapshot = (
                 "21a45c2358abf649f0e5e25cebceed320fc1055906cf7c59e40f4ac03baff6c4"
             )
             self.assertEqual(
-                report["source_snapshot_sha256"], transition_snapshot
+                report["source_snapshot_sha256"], promoted_snapshot
             )
             self.assertEqual(
                 initial_matches,
@@ -2686,7 +2757,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     "cupidc": True,
                     "cupiddis": True,
                     "cupidld": True,
-                    "cupidobj": False,
+                    "cupidobj": True,
                 },
             )
             self.assertEqual(report["source_inputs"]["count"], 41)

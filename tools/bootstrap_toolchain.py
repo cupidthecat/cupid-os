@@ -20,7 +20,7 @@ from typing import Sequence
 
 
 SEED_SCHEMA = "cupid.bootstrap-seed.v1"
-SEED_SOURCE_REVISION = "c31f062fc67c78b553919c2600dd953d252cb58b"
+SEED_SOURCE_REVISION = "ba385f763742a77be6952457b0d5c0fb323cfc4f"
 TOOL_NAMES = ("cupidasm", "cupiddis", "cupidld", "cupidobj", "cupidc")
 TOOL_DISPLAY_NAMES = {
     "cupidasm": "CupidASM",

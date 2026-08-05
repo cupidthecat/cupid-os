@@ -210,9 +210,9 @@ _Avoid_: every generated C file, Python-free generation, kernel source cohort
 The root image transforms owned by CupidASM, CupidObj, CupidLD, and CupidDis. The normal graph verifies and freezes the manifest-bound five-tool seed before each command, then checks the live trust unit again after the command. It contains five CupidASM transforms, 186 CupidObj transforms, two CupidLD links, and one CupidDis inspection. The fifth CupidASM transform assembles the ISO spanning fixture from checked-in CupidASM source. Python verifies its exact byte lane and controls publication. The CupidObj total includes the three installation-source generators and the kernel-symbol source generator. Python supplies orchestration and parity checks, and Windows uses WSL, but no native hosted Cupid executable is reachable from root `all`. Make applies `$(sort ...)` to every wildcard-discovered output list, so generators and links receive the same order under Windows and Linux host locales. The repository stores its runtime JPEG as a sequential SOF0 frame. Hostbuild freezes its exact bytes and asks checked CupidObj `wrap-jpeg` to validate and wrap the private snapshot under the original source identity. Only after CupidObj succeeds does Python run an independent validator against the same snapshot, require byte parity, recheck the live manifest and input, and publish a regular candidate atomically. A validator disagreement and a failed private oracle copy have distinct diagnostics, and both preserve the old object. FFmpeg, `jpegtran`, `djpeg`, and `cjpeg` do not participate. The first cross-host comparison matched 426 of 430 kernel artifacts and traced all four remaining differences to the old host JPEG conversion. After the replacement, a 607.7-second Linux kernel build and a 341.6-second Windows root build produced all 430 frozen kernel artifacts byte for byte. A fresh normal image then passed a private `/bin/ls.cc` JIT boot in 49.8 seconds. Native commands remain explicit development and oracle targets. ADR 0190 records the root tool handoff, ADR 0204 records installation-source ownership, ADR 0224 records kernel-symbol source ownership, ADR 0227 records the fixture transfer, and ADR 0235 records the JPEG acceptance transfer.
 _Avoid_: native fixed point, Python-free build, hosted Toolchain contract cohort
 
-**Source-head CupidObj disk template**:
-The transactional `disk-template` operation builds the deterministic prefix of a new Cupid disk. It writes the MBR, stage two, the raw kernel at LBA 5, the zeroed reserve, the FAT16 boot sector, two pristine FATs, and the empty root directory. The result ends before cluster 2, so the active 200 MiB geometry needs a 10,697,216-byte result instead of a 209,715,200-byte command buffer. CupidObj and the Python oracle both move to the next cluster size when FAT sizing repeats a prior state. Positive contracts pin the compact and active layouts byte for byte; useful failures cover malformed options, missing inputs, invalid geometry, overlap, output limits, rollback, and recovery. The checked seed and normal image recipe do not use this operation yet. ADR 0236 records the capability.
-_Avoid_: production disk owner, complete FAT staging, checked-seed capability
+**Checked-seed CupidObj disk template**:
+The transactional `disk-template` operation builds the deterministic prefix of a new Cupid disk. It writes the MBR, stage two, the raw kernel at LBA 5, the zeroed reserve, the FAT16 boot sector, two pristine FATs, and the empty root directory. The result ends before cluster 2, so the active 200 MiB geometry needs a 10,697,216-byte result instead of a 209,715,200-byte command buffer. CupidObj and the Python oracle both move to the next cluster size when FAT sizing repeats a prior state. Positive contracts pin the compact and active layouts byte for byte; useful failures cover malformed options, missing inputs, invalid geometry, overlap, output limits, rollback, and recovery. The checked seed carries the command, while the normal image recipe remains Python-owned until its guarded publisher handoff. ADR 0236 records the capability, and ADR 0237 records seed carriage.
+_Avoid_: production disk owner, complete FAT staging, normal image recipe
 
 **Repository ISO fixture author**:
 Checked CupidASM authors the 4,096-byte spanning lane from `test_iso/big_pattern.asm`; hostbuild checks the exact candidate and publishes it atomically. The deterministic ECMA-119 and `RRIP_1991A` writer in `tools/hostbuild.py` authors the complete image. `test_iso/fixtures.manifest` fixes the repository fixture membership before the writer freezes the regular-file tree. Make declares the same seven portable paths explicitly, and a checked test prevents that safe prerequisite list from drifting away from the manifest. The writer emits a primary volume descriptor, both path-table byte orders, identifier-sorted block-bounded directories, a forward SUSP continuation, fixed UTC metadata, and contiguous file extents, then rechecks the manifest and tree before atomic publication. Rock Ridge `NM` records retain guest names drawn from the portable letter, digit, dot, underscore, and dash alphabet, capped at 127 bytes. `PX` and `TF` records carry fixed read-only metadata for other readers; Cupid OS ignores them. Undeclared or missing paths, more than eight directory levels, symbolic links, NTFS junctions and other reparse points, hard-linked outputs, special files, case-only name collisions, unsafe output paths, and live manifest, input, or output drift fail without replacing an existing image. The tracked 61,440-byte fixture rebuilds without `mkisofs`, `genisoimage`, or `xorrisofs`. ADR 0191 records the image boundary, and ADR 0227 records the lane fixture boundary.
@@ -622,11 +622,11 @@ writes a table. Distinct paths that normalize to one symbol fail, while the
 exact same BMP path may appear once in the docs list and once in the home list
 because both entries use one wrapped object. The Python oracle enforces the
 same rule. ADR 0206 records its promotion.
-Source head also provides `disk-template`. It emits the deterministic prefix
+Checked-seed CupidObj also provides `disk-template`. It emits the deterministic prefix
 of a new Cupid disk through the empty FAT16 root directory, places the kernel
-at LBA 5, and leaves later filesystem mutations to its caller. The checked
-seed and normal image path still use the earlier Python author until promotion
-and production cutover. ADR 0236 records this boundary.
+at LBA 5, and leaves later filesystem mutations to its caller. The normal
+image path still uses the Python author until production cutover. ADR 0236
+records the source boundary, and ADR 0237 records seed carriage.
 _Avoid_: objcopy
 
 **Installation source table**:
@@ -680,22 +680,23 @@ The manifest-bound set of static CupidC, CupidASM, CupidDis, CupidLD, and
 CupidObj executables under `bootstrap/seeds/i386-linux/`. Verification binds
 their hashes, sizes, ELF properties, target ABI, producer lineage, source
 revision, and exact 19-source build plan before execution. The current seed
-comes from revision `c31f062fc67c78b553919c2600dd953d252cb58b`. CupidC is
+comes from revision `ba385f763742a77be6952457b0d5c0fb323cfc4f`. CupidC is
 2,582,400 bytes with SHA-256
 `03084115bcacb1987db5513c8a8be9b7d884029b03ab4b212bf40d997871ae79`.
-CupidObj is 279,004 bytes with SHA-256
-`8975f1f106bd144a2467e98ab3e972c83105d3db7e305703bcc8bd3eda9b983f`.
+CupidObj is 295,712 bytes with SHA-256
+`be5385d8666a625844cb1be5611bd307fa865ca6cf1d50b4e836dfdb3ba45efc`.
 CupidASM, CupidDis, and CupidLD remain byte-identical to the preceding cohort.
 The 5,440-byte manifest has SHA-256
-`1302d48c541850b5248df05d07a8f4d7a68fe070dd6118edadbecd280b309ad1`.
+`019c77d53ddaf64a382962e1d9588a60046b75a7661f70beb0da7510945f35d0`.
 The seed carries bounded decimal `long double` constants, transactional
-sequential-JPEG validation, Cupid's native type spellings, and the 596-row
+sequential-JPEG validation, pristine disk-template construction, Cupid's
+native type spellings, and the 596-row
 SHRD-capable x86 catalogue. Its post-promotion reproof matches all five seed
 images to stage two, then matches all nineteen C objects, startup, five tools,
-and the 5/12/8 behavior matrix between stages two and three. The frozen
+and the 5/13/9 behavior matrix between stages two and three. The frozen
 41-input digest is
-`2d2a3253a9559a7e450d3f8755bc66ca2f5e0136d41045c7aeea04949a8d177d`.
-ADR 0234 records this promotion.
+`21a45c2358abf649f0e5e25cebceed320fc1055906cf7c59e40f4ac03baff6c4`.
+ADR 0237 records this promotion.
 _Avoid_: current normal-build toolchain, native Windows seed, unverified binary cache
 
 **Frozen fixed-point source closure**:

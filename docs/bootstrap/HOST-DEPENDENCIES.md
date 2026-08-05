@@ -8,11 +8,11 @@ stable shape, then covers the Linux branch with direct build tests.
 language graph contains 28 assembly inputs, 290 headers, and 401 Cupid C
 files. No ordinary C translation unit remains in a supported root. The
 active-source digest is
-`62af2e41e3f4f7a95c0248c958a8b0404ed28f499a6dd4c7a2baf9d834e269ba`.
-The 2,557,086-byte audit JSON has SHA-256
-`c16fc7d5b45e9960c2054bf06ddf6a6d8e3fb704d4dc311cb54202815c24159a`,
+`cfb0e1dcd276154a4db5c2747ed092581874a54cd4c9fb379f204e3c10f8253e`.
+The 2,557,786-byte audit JSON has SHA-256
+`0bec92831496d809bd9773ef94f6f5a3bb98a678d4a1c22001ba601df4fc2eaa`,
 and the 12,196-byte summary has SHA-256
-`dff18237312b8edbd247e46f7ae379d96ec44629d368cff47a93de5a546c9527`.
+`bbe13eed982c61327a8299ecfd35ccd4d57bb40ad712a379ad24e51f1d713a97`.
 The checked Windows Clang/LLVM and Linux GCC/binutils baselines at
 revision `1e079d1` predate the current CupidC ownership and remain historical
 oracle evidence.
@@ -575,19 +575,20 @@ The five static commands share one complete checked-seed gate. The manifest
 binds the exact executables, source revision, target ABI, producer lineage,
 19-source build plan, startup, and five link orders. The current seed contains
 the stage-three images from revision
-`c31f062fc67c78b553919c2600dd953d252cb58b`. CupidC is 2,582,400 bytes
+`ba385f763742a77be6952457b0d5c0fb323cfc4f`. CupidC is 2,582,400 bytes
 with SHA-256
 `03084115bcacb1987db5513c8a8be9b7d884029b03ab4b212bf40d997871ae79`
 and carries bounded decimal `long double` constants alongside the earlier
-compiler capabilities. CupidObj is 279,004 bytes with SHA-256
-`8975f1f106bd144a2467e98ab3e972c83105d3db7e305703bcc8bd3eda9b983f`
-and carries transactional sequential-JPEG validation. CupidASM, CupidDis, and
+compiler capabilities. CupidObj is 295,712 bytes with SHA-256
+`be5385d8666a625844cb1be5611bd307fa865ca6cf1d50b4e836dfdb3ba45efc`
+and carries transactional sequential-JPEG validation plus pristine disk
+template construction. CupidASM, CupidDis, and
 CupidLD remain byte-identical to the preceding cohort. The 5,440-byte manifest
 has SHA-256
-`1302d48c541850b5248df05d07a8f4d7a68fe070dd6118edadbecd280b309ad1`.
+`019c77d53ddaf64a382962e1d9588a60046b75a7661f70beb0da7510945f35d0`.
 The post-promotion reproof matches every seed image to stage two, then matches
-all nineteen C objects, startup, five tools, and five help, twelve success, and
-eight failure cases between stages two and three. ADR 0234 records the
+all nineteen C objects, startup, five tools, and five help, thirteen success,
+and nine failure cases between stages two and three. ADR 0237 records the
 promotion.
 
 The harness copies the exact 41-input source closure into a private compiler root. Checked CupidC compiles the stage-two union there, checked CupidASM assembles startup, and checked CupidLD links all five tools. The stage-two producer trio repeats that work for stage three below the same root. Both the private closure and the live closure are checked before the first stage, after each stage, and after behavior checks. In the post-promotion reproof, every seed image matched stage two; every C object, startup object, and linked image also matched across the stages. Both stages executed the positive and failure cases for every command. The two stages, behavior evidence, and report are published together only after success. The normal Toolchain target then uses both static stages to build its contract cohort without external code generation. Native contracts and hosted development commands remain explicit host-built oracles; normal OS and Toolchain artifacts do not depend on them.
@@ -672,7 +673,7 @@ Counts are output transforms in the checked audit, not textual recipe occurrence
 | NASM | 0 production transforms | Optional active-source and ELF32 interoperability oracle only |
 | CupidLD | 5 owned transforms | Two script-driven kernel links plus three fixed-address user executables; owns `R_386_32`/`R_386_PC32`, weak/strong/common/script symbols, absolute COMMON alignment, relocation-aware merge entries, assertions, static ELF32 serialization, explicit unsupported allocated-section diagnostics, and the used `link.ld` subset |
 | CupidObj | 186 owned transforms | 172 canonical text-to-ELF wrappers, eight byte-exact binary-to-ELF wrappers, one checked `wrap-jpeg` transform with Python parity and publication checks, final initialized ELF-to-raw conversion, three installation-source generators, and one kernel-symbol source generator. |
-| CupidObj source head | 0 production transforms | `disk-template` emits the MBR, boot reserve, kernel lane, FAT16 metadata, pristine FATs, and empty root directory. Seed promotion and the guarded image publisher remain before production ownership. |
+| Checked-seed CupidObj capability | 0 production transforms | `disk-template` emits the MBR, boot reserve, kernel lane, FAT16 metadata, pristine FATs, and empty root directory. The guarded image publisher remains before production ownership. |
 | CupidDis | 1 composite transform | Supplies 4,704 deterministic text-symbol rows through a checked private seed image; the current consumer becomes a 114,421-byte panic-backtrace blob; the host oracle remains optional |
 | Python | 449 transforms | Launches checked Cupid tools and handles remaining generation, input manifests, image packaging, and verification. It participates in four generated-source transforms because it launches or verifies checked CupidObj, not because it constructs their production source bytes |
 | Make recursion | 0 transforms | Native hosted CupidASM, CupidObj, CupidLD, and CupidDis targets remain available, but no supported root reaches them recursively |

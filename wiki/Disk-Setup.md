@@ -29,12 +29,11 @@ The normal build and host-copy flow uses `tools/hostbuild.py` and works on
 Linux and native Windows with Python 3. `mtools` is optional for manual FAT16
 inspection/copying.
 
-The CupidObj source tree can now build the pristine part of this layout with
-`disk-template`, from the MBR through the empty FAT16 root directory. That
-command is not in the current checked seed, so `make` still uses the Python
-image author. Existing FAT files, file staging, drift checks, and safe image
-publication remain Python responsibilities until the later production
-handoff.
+Checked-seed CupidObj can build the pristine part of this layout with
+`disk-template`, from the MBR through the empty FAT16 root directory. The
+normal `make` path still uses the Python image author. Existing FAT files,
+file staging, drift checks, and safe image publication remain Python
+responsibilities until the guarded production handoff.
 
 The alternate loop-mount method is Linux/WSL-only and needs root/sudo access:
 
