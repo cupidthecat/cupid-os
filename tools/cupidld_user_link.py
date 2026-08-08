@@ -18,6 +18,7 @@ try:
         BootstrapError,
         ToolRunner,
         freeze_seed_inputs,
+        run_seed_tool,
     )
     from tools.cupidc_kernel_compile import validate_i386_relocatable
     from tools.native_user_toolchain import (
@@ -26,7 +27,12 @@ try:
         capture_native_tool,
     )
 except ModuleNotFoundError:
-    from bootstrap_toolchain import BootstrapError, ToolRunner, freeze_seed_inputs
+    from bootstrap_toolchain import (
+        BootstrapError,
+        ToolRunner,
+        freeze_seed_inputs,
+        run_seed_tool,
+    )
     from cupidc_kernel_compile import validate_i386_relocatable
     from native_user_toolchain import (
         NativeToolError,
@@ -351,16 +357,6 @@ def link_user_program(
                     / "i386-linux"
                     / "manifest.json"
                 )
-                try:
-                    active_runner = (
-                        runner
-                        if runner is not None
-                        else ToolRunner(root)
-                    )
-                except BootstrapError as error:
-                    raise UserLinkError(
-                        f"checked seed runner is unavailable: {error}"
-                    ) from error
                 seed_directory = Path(
                     stack.enter_context(
                         tempfile.TemporaryDirectory(
@@ -376,11 +372,7 @@ def link_user_program(
                     raise UserLinkError(
                         f"checked seed verification failed: {error}"
                     ) from error
-                linker = seed_inputs.tools.get("cupidld")
-                if linker is None:
-                    raise UserLinkError(
-                        "checked seed verification did not return CupidLD"
-                    )
+                active_runner = runner
 
             temporary = stack.enter_context(
                 tempfile.TemporaryDirectory(
@@ -411,7 +403,32 @@ def link_user_program(
                 temporary_input,
             )
             try:
-                result = active_runner.run(linker, arguments, timeout)
+                if native_snapshot is not None:
+                    result = active_runner.run(
+                        linker, arguments, timeout
+                    )
+                else:
+                    result = run_seed_tool(
+                        manifest_path,
+                        root,
+                        "cupidld",
+                        arguments,
+                        timeout=timeout,
+                        frozen_seed=seed_inputs,
+                        runner=active_runner,
+                    )
+            except BootstrapError as error:
+                if isinstance(error.__cause__, subprocess.TimeoutExpired):
+                    raise UserLinkError(
+                        f"CupidLD timed out after {timeout} seconds for "
+                        f"{source.name}"
+                    ) from error
+                if isinstance(error.__cause__, OSError):
+                    raise UserLinkError(
+                        f"CupidLD could not run for {source.name}: "
+                        f"{error.__cause__}"
+                    ) from error
+                raise UserLinkError(str(error)) from error
             except subprocess.TimeoutExpired as error:
                 raise UserLinkError(
                     f"CupidLD timed out after {timeout} seconds for "

@@ -921,6 +921,7 @@ def run_seed_tool(
     *,
     timeout: int = 300,
     frozen_seed: SeedInputs | None = None,
+    runner: ToolRunner | None = None,
 ) -> subprocess.CompletedProcess[str]:
     """Run one checked-seed tool from a new or caller-owned frozen capture."""
     if tool_name not in TOOL_NAMES:
@@ -944,10 +945,15 @@ def run_seed_tool(
     display_name = TOOL_DISPLAY_NAMES[tool_name]
 
     def run_frozen(seed_inputs: SeedInputs) -> subprocess.CompletedProcess[str]:
-        executable = seed_inputs.tools[tool_name]
-        runner = ToolRunner(root)
         try:
-            result = runner.run(executable, arguments, timeout)
+            executable = seed_inputs.tools[tool_name]
+        except KeyError as error:
+            raise BootstrapError(
+                f"frozen seed has no tool named {tool_name}"
+            ) from error
+        active_runner = runner if runner is not None else ToolRunner(root)
+        try:
+            result = active_runner.run(executable, arguments, timeout)
         except subprocess.TimeoutExpired as error:
             unit = "second" if timeout == 1 else "seconds"
             raise BootstrapError(

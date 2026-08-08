@@ -12,20 +12,15 @@ from tools import cupidc_production_compile as production_compile
 class InspectingCompilerExecutor:
     def __init__(self, root, live_source, live_header):
         self.root = root
-        self.compiler_root = str(root)
         self.live_source = live_source
         self.live_header = live_header
         self.observed_source = None
         self.observed_header = None
         self.mapped_roots = []
 
-    def compiler_root_for(self, path):
-        resolved = path.resolve()
-        self.mapped_roots.append(resolved)
-        return str(resolved)
-
     def run(self, executable, arguments, timeout):
         compiler_root = Path(arguments[arguments.index("--root") + 1])
+        self.mapped_roots.append(compiler_root)
         logical_source = arguments[arguments.index("-c") + 1]
         logical_output = arguments[arguments.index("-o") + 1]
 
@@ -87,6 +82,13 @@ class ProductionCompileFreezeTests(unittest.TestCase):
             production_compile,
             "freeze_seed_inputs",
             return_value=self.seed_inputs,
+        ), mock.patch.object(
+            production_compile,
+            "run_seed_tool",
+            side_effect=lambda _manifest, _root, tool, arguments,
+            *, timeout, frozen_seed, runner: runner.run(
+                frozen_seed.tools[tool], arguments, timeout
+            ),
         ):
             production_compile.compile_production_source(
                 self.root,

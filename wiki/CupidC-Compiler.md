@@ -718,10 +718,12 @@ layout. Native contract runners and hosted development commands are explicit
 host-built oracles; normal OS and Toolchain artifacts do not depend on them.
 
 Root image assembly, object, link, and inspection commands use that checked
-five-tool seed. The runner verifies the live trust unit again after each
-command, and Make passes wildcard-discovered output lists through `$(sort ...)`
-before generation or link. The repository's runtime JPEG contains sequential
-baseline bytes.
+five-tool seed. Checked production kernel, generated-install, and user CupidC
+calls plus checked user CupidLD links use the same runner with their existing
+frozen seed capture. The runner verifies the complete live trust unit again
+after each command, and Make passes wildcard-discovered output lists through
+`$(sort ...)` before generation or link. The repository's runtime JPEG
+contains sequential baseline bytes.
 Hostbuild freezes the input and asks checked CupidObj `wrap-jpeg` to validate
 and wrap the private snapshot. This replaces the old host FFmpeg conversion.
 Progressive, unsupported, and malformed frames fail before any candidate is
@@ -1023,7 +1025,7 @@ approved output directories for default and overridden `BUILD` paths. It uses
 no-follow POSIX descriptors or parent-relative Windows handles and checks the
 resolved output before releasing the directory pins. Empty-directory setup is
 no longer a separate graph transform. ADR 0245 records this publisher
-boundary.
+boundary. ADR 0246 records the shared checked-seed invocation.
 
 The checked seed decides C11 inline linkage from the complete file-scope
 declaration set. This covers the ordinary header declaration and inline

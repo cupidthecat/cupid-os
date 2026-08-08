@@ -6,12 +6,12 @@ import re
 import shutil
 import struct
 import subprocess
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
+from tools import bootstrap_toolchain
 from tools import cupidc_kernel_compile as kernel_compile
 
 
@@ -23,6 +23,21 @@ SEED_MANIFEST = (
     / "i386-linux"
     / "manifest.json"
 )
+
+
+def _run_captured_test_tool(
+    _manifest,
+    _working_directory,
+    tool_name,
+    arguments,
+    *,
+    timeout,
+    frozen_seed,
+    runner,
+):
+    if runner is None:
+        raise AssertionError("test fixture requires an injected runner")
+    return runner.run(frozen_seed.tools[tool_name], arguments, timeout)
 
 CRYPTO_SOURCES = (
     "kernel/crypto/aes.cc",
@@ -857,14 +872,10 @@ def _data_only_elf32_object(symbol_size=4):
 class FakeExecutor:
     def __init__(self, root, result=None, payload=None, events=None):
         self.root = root
-        self.compiler_root = "/native/repository"
         self.result = result or subprocess.CompletedProcess([], 0, "", "")
         self.payload = payload
         self.events = events if events is not None else []
         self.calls = []
-
-    def compiler_root_for(self, path):
-        return str(path)
 
     def run(self, executable, arguments, timeout):
         self.events.append("run")
@@ -971,60 +982,23 @@ class KernelCompileCommandTests(unittest.TestCase):
                     (REPO_ROOT / Path(source).with_suffix(".c")).exists()
                 )
 
-    def test_wsl_invocation_uses_a_private_staged_seed(self):
-        command = kernel_compile.build_wsl_invocation(
-            "/mnt/c/repository",
-            "/mnt/c/repository/bootstrap/seeds/i386-linux/cupidc.elf",
-            ("-c", "/kernel/crypto/ct.cc"),
+    def test_kernel_compiler_reuses_the_shared_checked_seed_runner(self):
+        self.assertIs(
+            kernel_compile.run_seed_tool,
+            bootstrap_toolchain.run_seed_tool,
         )
-        self.assertEqual(command[:4], ("wsl", "-e", "sh", "-c"))
-        self.assertIn("umask 077", command[4])
-        self.assertIn("mktemp -d", command[4])
-        self.assertIn('chmod 700 "$private"', command[4])
-        self.assertIn('trap \'rm -rf -- "$private"\'', command[4])
-        self.assertNotIn("$$", command[4])
-        self.assertEqual(command[6], "/mnt/c/repository")
-        self.assertEqual(
-            command[7],
-            "/mnt/c/repository/bootstrap/seeds/i386-linux/cupidc.elf",
+        self.assertIs(kernel_compile.ToolRunner, bootstrap_toolchain.ToolRunner)
+        self.assertFalse(hasattr(kernel_compile, "SeedExecutor"))
+        self.assertFalse(hasattr(kernel_compile, "build_wsl_invocation"))
+
+    def test_compile_arguments_preserve_a_host_root_path(self):
+        repository = Path("C:/repository").resolve()
+        command = kernel_compile.build_compile_arguments(
+            "/kernel/crypto/ct.cc",
+            "/build/cupid/ct.o",
+            repository,
         )
-        self.assertEqual(command[-2:], ("-c", "/kernel/crypto/ct.cc"))
-
-    def test_native_executor_runs_the_checked_seed_directly(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary).resolve()
-            seed = root / "cupidc.elf"
-            executor = kernel_compile.SeedExecutor.__new__(
-                kernel_compile.SeedExecutor
-            )
-            executor.root = root
-            executor.uses_wsl = False
-            executor.compiler_root = str(root)
-            completed = subprocess.CompletedProcess([], 0, "", "")
-
-            with mock.patch.object(
-                kernel_compile.subprocess,
-                "run",
-                return_value=completed,
-            ) as run:
-                result = executor.run(
-                    seed,
-                    ("-c", "/kernel/crypto/ct.cc"),
-                    17,
-                )
-
-            self.assertIs(result, completed)
-            run.assert_called_once_with(
-                [
-                    str(seed),
-                    "-c",
-                    "/kernel/crypto/ct.cc",
-                ],
-                cwd=root,
-                text=True,
-                capture_output=True,
-                timeout=17,
-            )
+        self.assertIs(command[-1], repository)
 
 
 class KernelCompileMakefileTests(unittest.TestCase):
@@ -1591,6 +1565,15 @@ class KernelCompileMakefileTests(unittest.TestCase):
 
 
 class KernelCompileOperationTests(unittest.TestCase):
+    def setUp(self):
+        patcher = mock.patch.object(
+            kernel_compile,
+            "run_seed_tool",
+            side_effect=_run_captured_test_tool,
+        )
+        self.run_seed_tool = patcher.start()
+        self.addCleanup(patcher.stop)
+
     def _root_fixture(self):
         temporary = tempfile.TemporaryDirectory()
         root = Path(temporary.name).resolve()
@@ -1711,10 +1694,120 @@ class KernelCompileOperationTests(unittest.TestCase):
         self.assertEqual(executor.calls[0][0].name, "cupidc.elf")
         arguments = executor.calls[0][1]
         self.assertEqual(arguments[0:2], ("-c", "/kernel/crypto/ct.cc"))
-        self.assertEqual(
-            arguments[arguments.index("--root") + 1],
-            "/native/repository",
+        compiler_root = arguments[arguments.index("--root") + 1]
+        self.assertIsInstance(compiler_root, Path)
+        self.assertTrue(compiler_root.is_absolute())
+        self.assertEqual(compiler_root, root)
+        self.run_seed_tool.assert_called_once()
+        self.assertEqual(self.run_seed_tool.call_args.args[:3], (
+            manifest,
+            root,
+            "cupidc",
+        ))
+        self.assertIs(
+            self.run_seed_tool.call_args.kwargs["runner"],
+            executor,
         )
+
+    def test_live_seed_drift_after_compile_preserves_the_existing_object(self):
+        temporary, root, source, _seed, _manifest, output = (
+            self._root_fixture()
+        )
+        self.addCleanup(temporary.cleanup)
+        copied_seed = root / "checked-seed"
+        shutil.copytree(SEED_MANIFEST.parent, copied_seed)
+        manifest = copied_seed / "manifest.json"
+        live_compiler = copied_seed / "cupidc.elf"
+        output.write_bytes(b"existing object")
+
+        class DriftingRunner(FakeExecutor):
+            def run(self, executable, arguments, timeout):
+                result = super().run(executable, arguments, timeout)
+                image = bytearray(live_compiler.read_bytes())
+                image[-1] ^= 0x01
+                live_compiler.write_bytes(image)
+                return result
+
+        runner = DriftingRunner(root, payload=_valid_elf32_object())
+        with (
+            mock.patch.object(
+                kernel_compile,
+                "run_seed_tool",
+                new=bootstrap_toolchain.run_seed_tool,
+            ),
+            self.assertRaisesRegex(
+                kernel_compile.KernelCompileError,
+                "checked seed inputs changed while CupidC ran: "
+                "SHA-256 differs for cupidc.elf",
+            ),
+        ):
+            kernel_compile.compile_kernel_source(
+                root,
+                source,
+                output,
+                manifest=manifest,
+                executor=runner,
+            )
+
+        self.assertEqual(len(runner.calls), 1)
+        self.assertNotEqual(runner.calls[0][0], live_compiler)
+        self.assertEqual(output.read_bytes(), b"existing object")
+
+    def test_checked_runner_failures_keep_kernel_source_context(self):
+        temporary, root, source, _seed, _manifest, output = (
+            self._root_fixture()
+        )
+        self.addCleanup(temporary.cleanup)
+        copied_seed = root / "checked-seed"
+        shutil.copytree(SEED_MANIFEST.parent, copied_seed)
+        manifest = copied_seed / "manifest.json"
+
+        class FailingRunner(FakeExecutor):
+            def __init__(self, repository, failure):
+                super().__init__(repository)
+                self.failure = failure
+
+            def run(self, executable, arguments, timeout):
+                self.calls.append((executable, tuple(arguments), timeout))
+                raise self.failure
+
+        cases = (
+            (
+                subprocess.TimeoutExpired(["cupidc"], 17),
+                "CupidC timed out after 17 seconds for "
+                "kernel/crypto/ct.cc",
+            ),
+            (
+                OSError("fixture launch failure"),
+                "CupidC could not run for kernel/crypto/ct.cc: "
+                "fixture launch failure",
+            ),
+        )
+        for failure, diagnostic in cases:
+            with self.subTest(diagnostic=diagnostic):
+                output.write_bytes(b"existing object")
+                runner = FailingRunner(root, failure)
+                with (
+                    mock.patch.object(
+                        kernel_compile,
+                        "run_seed_tool",
+                        new=bootstrap_toolchain.run_seed_tool,
+                    ),
+                    self.assertRaisesRegex(
+                        kernel_compile.KernelCompileError,
+                        re.escape(diagnostic),
+                    ),
+                ):
+                    kernel_compile.compile_kernel_source(
+                        root,
+                        source,
+                        output,
+                        manifest=manifest,
+                        executor=runner,
+                        timeout=17,
+                    )
+                self.assertEqual(len(runner.calls), 1)
+                self.assertEqual(output.read_bytes(), b"existing object")
 
     def test_unapproved_source_is_rejected_without_execution(self):
         temporary, root, _source, seed, manifest, output = self._root_fixture()

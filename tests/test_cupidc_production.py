@@ -11,6 +11,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
+from tools import bootstrap_toolchain
 from tools import build_graph_audit
 from tools import cupidc_production_compile as production_compile
 from tools import cupidc_production_frontier as production_frontier
@@ -18,6 +19,28 @@ from tools import cupidld_user_link as user_link
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+SEED_MANIFEST = (
+    REPO_ROOT
+    / "bootstrap"
+    / "seeds"
+    / "i386-linux"
+    / "manifest.json"
+)
+
+
+def _run_captured_test_tool(
+    _manifest,
+    _working_directory,
+    tool_name,
+    arguments,
+    *,
+    timeout,
+    frozen_seed,
+    runner,
+):
+    if runner is None:
+        raise AssertionError("test fixture requires an injected runner")
+    return runner.run(frozen_seed.tools[tool_name], arguments, timeout)
 
 
 def _align(value, alignment):
@@ -161,14 +184,10 @@ def _minimal_pe64_console_image():
 class FakeCompilerExecutor:
     def __init__(self, root, payload=None, result=None, mutate=None):
         self.root = root
-        self.compiler_root = "/repository"
         self.payload = payload
         self.result = result or subprocess.CompletedProcess([], 0, "", "")
         self.mutate = mutate
         self.calls = []
-
-    def compiler_root_for(self, path):
-        return str(path.resolve())
 
     def run(self, executable, arguments, timeout):
         self.calls.append((executable, tuple(arguments), timeout))
@@ -227,6 +246,13 @@ class ProductionCompileTests(unittest.TestCase):
         self.seed = self.root / "cupidc.elf"
         self.seed.write_bytes(b"seed")
         self.seed_inputs = SimpleNamespace(tools={"cupidc": self.seed})
+        patcher = mock.patch.object(
+            production_compile,
+            "run_seed_tool",
+            side_effect=_run_captured_test_tool,
+        )
+        self.run_seed_tool = patcher.start()
+        self.addCleanup(patcher.stop)
 
     def tearDown(self):
         self.temporary.cleanup()
@@ -576,8 +602,13 @@ class ProductionCompileTests(unittest.TestCase):
         )
         with (
             mock.patch.object(
-                production_compile, "SeedExecutor", return_value=executor
-            ),
+                production_compile,
+                "run_seed_tool",
+                side_effect=lambda _manifest, _root, _tool, arguments,
+                *, timeout, frozen_seed, runner: executor.run(
+                    frozen_seed.tools["cupidc"], arguments, timeout
+                ),
+            ) as run_seed,
             mock.patch.object(
                 production_compile,
                 "freeze_seed_inputs",
@@ -600,6 +631,7 @@ class ProductionCompileTests(unittest.TestCase):
 
         self.assertEqual(output.read_bytes(), _valid_elf32_object())
         self.assertEqual(len(executor.calls), 1)
+        run_seed.assert_called_once()
 
     def test_native_compile_uses_a_private_tool_snapshot_without_seed_access(self):
         output = self.root / "user/build/hello.o"
@@ -728,6 +760,104 @@ class ProductionCompileTests(unittest.TestCase):
                 )
         self.assertEqual(output.read_bytes(), b"previous object")
 
+    def test_live_seed_drift_after_compile_preserves_the_previous_object(self):
+        copied_seed = self.root / "bootstrap/seeds/i386-linux"
+        shutil.copytree(SEED_MANIFEST.parent, copied_seed)
+        manifest = copied_seed / "manifest.json"
+        live_compiler = copied_seed / "cupidc.elf"
+        output = self.root / "user/build/hello.o"
+        output.write_bytes(b"previous object")
+
+        def mutate_seed():
+            image = bytearray(live_compiler.read_bytes())
+            image[-1] ^= 0x01
+            live_compiler.write_bytes(image)
+
+        runner = FakeCompilerExecutor(
+            self.root,
+            payload=_valid_elf32_object(),
+            mutate=mutate_seed,
+        )
+        with (
+            mock.patch.object(
+                production_compile,
+                "run_seed_tool",
+                new=bootstrap_toolchain.run_seed_tool,
+            ),
+            self.assertRaisesRegex(
+                production_compile.ProductionCompileError,
+                "checked seed inputs changed while CupidC ran: "
+                "SHA-256 differs for cupidc.elf",
+            ),
+        ):
+            production_compile.compile_production_source(
+                self.root,
+                "user",
+                Path("user/examples/hello.cc"),
+                Path("user/build/hello.o"),
+                manifest=manifest,
+                executor=runner,
+            )
+
+        self.assertEqual(len(runner.calls), 1)
+        self.assertNotEqual(runner.calls[0][0], live_compiler)
+        compile_arguments = runner.calls[0][1]
+        compiler_root = compile_arguments[
+            compile_arguments.index("--root") + 1
+        ]
+        self.assertIsInstance(compiler_root, Path)
+        self.assertTrue(compiler_root.is_absolute())
+        self.assertEqual(output.read_bytes(), b"previous object")
+
+    def test_checked_runner_failures_keep_production_source_context(self):
+        copied_seed = self.root / "bootstrap/seeds/i386-linux"
+        shutil.copytree(SEED_MANIFEST.parent, copied_seed)
+        manifest = copied_seed / "manifest.json"
+        output = self.root / "user/build/hello.o"
+
+        cases = (
+            (
+                subprocess.TimeoutExpired(["cupidc"], 19),
+                "CupidC timed out after 19 seconds for "
+                "user/examples/hello.cc",
+            ),
+            (
+                OSError("fixture launch failure"),
+                "CupidC could not run for user/examples/hello.cc: "
+                "fixture launch failure",
+            ),
+        )
+        for failure, diagnostic in cases:
+            with self.subTest(diagnostic=diagnostic):
+                output.write_bytes(b"previous object")
+                runner = FakeCompilerExecutor(
+                    self.root,
+                    result=None,
+                )
+                runner.run = mock.Mock(side_effect=failure)
+                with (
+                    mock.patch.object(
+                        production_compile,
+                        "run_seed_tool",
+                        new=bootstrap_toolchain.run_seed_tool,
+                    ),
+                    self.assertRaisesRegex(
+                        production_compile.ProductionCompileError,
+                        re.escape(diagnostic),
+                    ),
+                ):
+                    production_compile.compile_production_source(
+                        self.root,
+                        "user",
+                        Path("user/examples/hello.cc"),
+                        Path("user/build/hello.o"),
+                        manifest=manifest,
+                        executor=runner,
+                        timeout=19,
+                    )
+                runner.run.assert_called_once()
+                self.assertEqual(output.read_bytes(), b"previous object")
+
     def test_input_change_during_compile_prevents_publication(self):
         output = self.root / "user/build/hello.o"
         output.write_bytes(b"previous object")
@@ -767,6 +897,13 @@ class UserLinkTests(unittest.TestCase):
         self.seed = self.root / "cupidld.elf"
         self.seed.write_bytes(b"seed")
         self.seed_inputs = SimpleNamespace(tools={"cupidld": self.seed})
+        patcher = mock.patch.object(
+            user_link,
+            "run_seed_tool",
+            side_effect=_run_captured_test_tool,
+        )
+        self.run_seed_tool = patcher.start()
+        self.addCleanup(patcher.stop)
 
     def tearDown(self):
         self.temporary.cleanup()
@@ -933,9 +1070,30 @@ class UserLinkTests(unittest.TestCase):
     def test_auto_mode_uses_the_checked_linker_on_windows(self):
         runner = FakeLinkRunner(payload=_valid_user_executable())
         windows_os = SimpleNamespace(name="nt", replace=os.replace)
+
+        def run_checked_link(
+            _manifest,
+            _root,
+            _tool,
+            arguments,
+            *,
+            timeout,
+            frozen_seed,
+            runner: object,
+        ):
+            self.assertIsNone(runner)
+            return checked_runner.run(
+                frozen_seed.tools["cupidld"], arguments, timeout
+            )
+
+        checked_runner = runner
         with (
             mock.patch.object(user_link, "os", windows_os),
-            mock.patch.object(user_link, "ToolRunner", return_value=runner),
+            mock.patch.object(
+                user_link,
+                "run_seed_tool",
+                side_effect=run_checked_link,
+            ) as run_seed,
             mock.patch.object(
                 user_link,
                 "freeze_seed_inputs",
@@ -957,6 +1115,7 @@ class UserLinkTests(unittest.TestCase):
 
         self.assertEqual(self.output.read_bytes(), _valid_user_executable())
         self.assertEqual(len(runner.calls), 1)
+        run_seed.assert_called_once()
 
     def test_native_link_uses_a_private_tool_snapshot_without_seed_access(self):
         native = self.root / "toolchain/build/cupidld.exe"
@@ -1068,6 +1227,97 @@ class UserLinkTests(unittest.TestCase):
                     runner=runner,
                 )
         self.assertEqual(self.output.read_bytes(), b"previous executable")
+
+    def test_live_seed_drift_after_link_preserves_the_previous_executable(self):
+        copied_seed = self.root / "bootstrap/seeds/i386-linux"
+        shutil.copytree(SEED_MANIFEST.parent, copied_seed)
+        manifest = copied_seed / "manifest.json"
+        live_linker = copied_seed / "cupidld.elf"
+        self.output.write_bytes(b"previous executable")
+
+        def mutate_seed():
+            image = bytearray(live_linker.read_bytes())
+            image[-1] ^= 0x01
+            live_linker.write_bytes(image)
+
+        runner = FakeLinkRunner(
+            payload=_valid_user_executable(),
+            mutate=mutate_seed,
+        )
+        with (
+            mock.patch.object(
+                user_link,
+                "run_seed_tool",
+                new=bootstrap_toolchain.run_seed_tool,
+            ),
+            self.assertRaisesRegex(
+                user_link.UserLinkError,
+                "checked seed inputs changed while CupidLD ran: "
+                "SHA-256 differs for cupidld.elf",
+            ),
+        ):
+            user_link.link_user_program(
+                self.root,
+                Path("user/build/hello.o"),
+                Path("user/build/hello"),
+                manifest=manifest,
+                runner=runner,
+            )
+
+        self.assertEqual(len(runner.calls), 1)
+        self.assertNotEqual(runner.calls[0][0], live_linker)
+        link_arguments = runner.calls[0][1]
+        link_output = link_arguments[link_arguments.index("-o") + 1]
+        link_input = link_arguments[-1]
+        self.assertIsInstance(link_output, Path)
+        self.assertTrue(link_output.is_absolute())
+        self.assertIsInstance(link_input, Path)
+        self.assertTrue(link_input.is_absolute())
+        self.assertEqual(self.output.read_bytes(), b"previous executable")
+
+    def test_checked_runner_failures_keep_link_input_context(self):
+        copied_seed = self.root / "bootstrap/seeds/i386-linux"
+        shutil.copytree(SEED_MANIFEST.parent, copied_seed)
+        manifest = copied_seed / "manifest.json"
+        cases = (
+            (
+                subprocess.TimeoutExpired(["cupidld"], 23),
+                "CupidLD timed out after 23 seconds for hello.o",
+            ),
+            (
+                OSError("fixture launch failure"),
+                "CupidLD could not run for hello.o: fixture launch failure",
+            ),
+        )
+        for failure, diagnostic in cases:
+            with self.subTest(diagnostic=diagnostic):
+                self.output.write_bytes(b"previous executable")
+                runner = mock.Mock()
+                runner.run.side_effect = failure
+                with (
+                    mock.patch.object(
+                        user_link,
+                        "run_seed_tool",
+                        new=bootstrap_toolchain.run_seed_tool,
+                    ),
+                    self.assertRaisesRegex(
+                        user_link.UserLinkError,
+                        re.escape(diagnostic),
+                    ),
+                ):
+                    user_link.link_user_program(
+                        self.root,
+                        Path("user/build/hello.o"),
+                        Path("user/build/hello"),
+                        manifest=manifest,
+                        runner=runner,
+                        timeout=23,
+                    )
+                runner.run.assert_called_once()
+                self.assertEqual(
+                    self.output.read_bytes(),
+                    b"previous executable",
+                )
 
     def test_link_rejects_a_changed_input_object(self):
         self.output.write_bytes(b"previous executable")

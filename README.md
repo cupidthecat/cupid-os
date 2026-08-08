@@ -425,7 +425,10 @@ success. The contract is version 5 with 103 fields in 412 bytes, a 136-byte
 directory entry, an 8-byte file status record, and 101 reviewed function
 providers. Both execution paths freeze their complete source and control
 inputs, validate the resulting ELF files, and publish only complete
-artifacts. Poisoned-host tests prove that the normal user build cannot fall
+artifacts. The checked user CupidC and CupidLD paths pass their existing
+five-tool capture to one runner. It verifies the complete live cohort after
+the private command returns. Drift detected by that check prevents
+publication. Poisoned-host tests prove that the normal user build cannot fall
 back to GCC, Clang, `ld`, or `cc`. The optional native drivers still need
 Clang and its Windows linker, so this is not a native Windows fixed point.
 `user/build/` contains local generated outputs and is ignored by Git.
@@ -861,16 +864,19 @@ records the source capability and its exact tracked-image contract. [ADR
 the checked five-tool seed. [ADR
 0241](docs/adr/0241-publish-normal-iso-fixtures-with-cupidobj.md) records the
 production handoff.
-The source-current normal build completed in 502.232 seconds and produced a
+The ADR 0241 production-handoff build completed in 502.232 seconds and produced a
 209,715,200-byte image with SHA-256
 `3f8c84cea61e5e8bfc4e6a5fc09a030a4d6451d258a4ca2ea6486a923d1d08e3`.
 A private four-vCPU e1000 frontier passed from that image in 496.479 seconds,
 including the exact ISO directory, spanning-read, JPEG, mount-lifetime, final
 pass, and CupidC JIT markers.
-The runner checks the live five-tool cohort again after every command. Make
-passes every wildcard-discovered output list through `$(sort ...)` before
-generation or link, so Windows and Linux do not inherit different link order
-from host locale.
+One runner owns direct Linux execution, WSL staging on Windows, and the
+post-run live five-tool check for root commands, checked production CupidC,
+and checked user CupidLD. Make passes every wildcard-discovered output list
+through `$(sort ...)` before generation or link, so Windows and Linux do not
+inherit different link order from host locale.
+[ADR 0246](docs/adr/0246-use-one-checked-seed-runner-for-production-tool-calls.md)
+records the shared invocation boundary.
 The first direct host comparison matched 426 of 430 kernel artifacts and
 traced all four differences to one JPEG object. Host FFmpeg had rewritten the
 tracked progressive image differently on Windows and Linux. The repository
@@ -1207,7 +1213,7 @@ invokes a host C compiler.
 
 [ADR 0123](docs/adr/0123-transfer-gnu-assembly-frontier-to-cupidc.md) records the eight-root and generated-symbol production transfer.
 
-[ADR 0124](docs/adr/0124-name-production-cupidc-sources-consistently.md) records the 111-root `.cc` naming transfer. ADR 0126 completes the five shared Toolchain roots. [ADR 0127](docs/adr/0127-lock-the-external-program-syscall-abi.md) records the external syscall contract, [ADR 0130](docs/adr/0130-run-user-cupid-tools-natively-on-windows.md) records the optional native Windows user-tool path, [ADR 0133](docs/adr/0133-freeze-user-abi-inputs-and-isolate-runtime-boots.md) records the ABI snapshot and private guest checks, [ADR 0188](docs/adr/0188-run-the-windows-user-build-from-the-checked-seed.md) makes the checked seed the normal Windows user path, and [ADR 0190](docs/adr/0190-run-root-cupid-tools-from-the-checked-seed.md) moves the root assembler, object, linker, and disassembler commands to the same checked trust unit.
+[ADR 0124](docs/adr/0124-name-production-cupidc-sources-consistently.md) records the 111-root `.cc` naming transfer. ADR 0126 completes the five shared Toolchain roots. [ADR 0127](docs/adr/0127-lock-the-external-program-syscall-abi.md) records the external syscall contract, [ADR 0130](docs/adr/0130-run-user-cupid-tools-natively-on-windows.md) records the optional native Windows user-tool path, [ADR 0133](docs/adr/0133-freeze-user-abi-inputs-and-isolate-runtime-boots.md) records the ABI snapshot and private guest checks, [ADR 0188](docs/adr/0188-run-the-windows-user-build-from-the-checked-seed.md) makes the checked seed the normal Windows user path, [ADR 0190](docs/adr/0190-run-root-cupid-tools-from-the-checked-seed.md) moves the root assembler, object, linker, and disassembler commands to the same checked trust unit, and [ADR 0246](docs/adr/0246-use-one-checked-seed-runner-for-production-tool-calls.md) applies that invocation contract to checked production CupidC and checked user CupidLD.
 
 [ADR 0125](docs/adr/0125-represent-decimal-floating-scalars.md) records decimal binary32 and binary64 constants, represented integer conversions, and mixed scalar arithmetic. [ADR 0126](docs/adr/0126-name-fixed-point-sources-consistently.md) records the complete 19-source fixed-point rename and old-seed proof. [ADR 0129](docs/adr/0129-refresh-seed-and-transfer-cupidc-lexer.md) records the promoted seed and the lexer handoff.
 

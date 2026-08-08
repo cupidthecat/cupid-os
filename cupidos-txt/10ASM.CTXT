@@ -34,10 +34,12 @@ production assembly transforms without first building a native hosted
 command. The same checked trust unit supplies CupidObj for 189 transforms,
 CupidLD for two links, and CupidDis for symbol inspection. Python verifies
 and freezes all five images before each command; Windows executes them
-through WSL. It checks the live seed cohort again after the command. Make
-passes wildcard-discovered output sources through $(sort ...) before
-generation and link, so Windows and Linux use the same root order regardless
-of host locale.
+through WSL. The same runner executes checked production kernel,
+generated-install, and user CupidC plus checked user CupidLD from caller-owned
+frozen captures. It checks the complete live seed cohort again after each
+command. Make passes wildcard-discovered output sources through $(sort ...)
+before generation and link, so Windows and Linux use the same root order
+regardless of host locale. ADR 0246 records this checked invocation boundary.
 
 CupidObj's 189 normal transforms include the disk-template, ISO, and guarded
 profile-manifest operations. Checked CupidObj authors the pristine FAT16

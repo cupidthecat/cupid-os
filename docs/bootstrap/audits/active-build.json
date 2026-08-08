@@ -52660,7 +52660,7 @@
       },
       {
         "path": "tools/cupidc_kernel_compile.py",
-        "sha256": "d0f852e9b9c5955db1c545bc1e7968c952e9e3c34b9abfd69d47c39c974b63a0"
+        "sha256": "f68228e5deff85e1d80c21264e03eeee4e4398a942a73d5e8ba69026be3222f6"
       },
       {
         "path": "tools/kernel_cupidc_frontier.py",
@@ -52668,7 +52668,7 @@
       },
       {
         "path": "tools/bootstrap_toolchain.py",
-        "sha256": "af5d3380bbd729b523dcb89dd96dfa4768f0f6ecc7b1a07a4a39598c5c02260a"
+        "sha256": "1572b79bfb7e2df3b1678cb0fda7db490015089544200a5a6fb395d27dfa5ffb"
       },
       {
         "path": "bootstrap/seeds/i386-linux/manifest.json",
@@ -52676,7 +52676,7 @@
       },
       {
         "path": "tools/cupidc_production_compile.py",
-        "sha256": "890b8cc4c9892a95e157438219f48699b51e999043e2ae352ad9e05675ed6b16"
+        "sha256": "4d95d01e74943ff1fc0b6e6c532b29ec7e90a7774c96a6f3dc09f82ddc1a0793"
       },
       {
         "path": "tools/cupidc_production_frontier.py",
@@ -52684,7 +52684,7 @@
       },
       {
         "path": "tools/cupidld_user_link.py",
-        "sha256": "d88c54efd151c26cf8da6945c588c1c38cab65e1f47fd27795616e01f768d6df"
+        "sha256": "b890c6379ec46d8b9e907f27d331ae1e39b1b4a42fcb3664ae4a4cfe0364696c"
       },
       {
         "path": "tools/native_user_toolchain.py",
@@ -52693,7 +52693,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "f962a2a1e3c5f999a08f3ed7504c7d75abcd143c239c21f48020ea94bd779b83"
+      "sha256": "21009cc20db7cdedff17a4d5f566abe5c8950d7e3cf324a18ea3b35487d2a564"
     },
     "text_hash_policy": "canonical_lf"
   },

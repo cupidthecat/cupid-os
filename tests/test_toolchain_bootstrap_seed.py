@@ -2118,6 +2118,122 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                         ("--help",),
                     )
 
+    def test_checked_seed_run_uses_an_injected_runner_and_rechecks_the_seed(
+        self,
+    ):
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-bootstrap-injected-runner-"
+        ) as temporary:
+            copied_seed = Path(temporary) / "i386-linux"
+            shutil.copytree(SEED_MANIFEST.parent, copied_seed)
+            live_assembler = copied_seed / "cupidasm.elf"
+
+            class DriftingRunner:
+                def __init__(self):
+                    self.calls = []
+
+                def run(self, executable, arguments, timeout):
+                    self.calls.append(
+                        (executable, tuple(arguments), timeout)
+                    )
+                    image = bytearray(live_assembler.read_bytes())
+                    image[-1] ^= 0x01
+                    live_assembler.write_bytes(image)
+                    return subprocess.CompletedProcess(
+                        ["cupidasm", "--help"],
+                        0,
+                        "usage: cupidasm\n",
+                        "",
+                    )
+
+            runner = DriftingRunner()
+            with self.assertRaisesRegex(
+                BootstrapError,
+                "checked seed inputs changed while CupidASM ran: "
+                "SHA-256 differs for cupidasm.elf",
+            ):
+                run_seed_tool(
+                    copied_seed / "manifest.json",
+                    REPO_ROOT,
+                    "cupidasm",
+                    ("--help",),
+                    timeout=12,
+                    runner=runner,
+                )
+
+            self.assertEqual(len(runner.calls), 1)
+            executable, arguments, timeout = runner.calls[0]
+            self.assertNotEqual(executable, live_assembler)
+            self.assertEqual(executable.name, "cupidasm.elf")
+            self.assertEqual(arguments, ("--help",))
+            self.assertEqual(timeout, 12)
+
+    def test_checked_seed_run_rechecks_unselected_seed_tools(self):
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-bootstrap-cohort-drift-"
+        ) as temporary:
+            copied_seed = Path(temporary) / "i386-linux"
+            shutil.copytree(SEED_MANIFEST.parent, copied_seed)
+            live_linker = copied_seed / "cupidld.elf"
+
+            class DriftingRunner:
+                def run(self, _executable, _arguments, _timeout):
+                    image = bytearray(live_linker.read_bytes())
+                    image[-1] ^= 0x01
+                    live_linker.write_bytes(image)
+                    return subprocess.CompletedProcess(
+                        ["cupidasm", "--help"],
+                        0,
+                        "usage: cupidasm\n",
+                        "",
+                    )
+
+            with self.assertRaisesRegex(
+                BootstrapError,
+                "checked seed inputs changed while CupidASM ran: "
+                "SHA-256 differs for cupidld.elf",
+            ):
+                run_seed_tool(
+                    copied_seed / "manifest.json",
+                    REPO_ROOT,
+                    "cupidasm",
+                    ("--help",),
+                    runner=DriftingRunner(),
+                )
+
+    def test_checked_seed_run_rejects_live_manifest_byte_drift(self):
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-bootstrap-manifest-drift-"
+        ) as temporary:
+            copied_seed = Path(temporary) / "i386-linux"
+            shutil.copytree(SEED_MANIFEST.parent, copied_seed)
+            live_manifest = copied_seed / "manifest.json"
+
+            class DriftingRunner:
+                def run(self, _executable, _arguments, _timeout):
+                    live_manifest.write_bytes(
+                        live_manifest.read_bytes() + b"\n"
+                    )
+                    return subprocess.CompletedProcess(
+                        ["cupidasm", "--help"],
+                        0,
+                        "usage: cupidasm\n",
+                        "",
+                    )
+
+            with self.assertRaisesRegex(
+                BootstrapError,
+                "checked seed inputs changed while CupidASM ran: "
+                "manifest content differs",
+            ):
+                run_seed_tool(
+                    live_manifest,
+                    REPO_ROOT,
+                    "cupidasm",
+                    ("--help",),
+                    runner=DriftingRunner(),
+                )
+
     def test_checked_seed_run_uses_the_supplied_frozen_capture(self):
         with tempfile.TemporaryDirectory(
             prefix="cupid-bootstrap-run-frozen-"

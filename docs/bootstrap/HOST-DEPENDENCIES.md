@@ -10,7 +10,7 @@ files. No ordinary C translation unit remains in a supported root. The
 active-source digest is
 `69f8f0b9bc264f338f445781f92792b24e91f0d641950d3b57f55f74841ae46e`.
 The 2,565,353-byte audit JSON has SHA-256
-`571cd015cd56c1c0d0ec00b109ab2591dc463a1f8e497ff905745c27d031e306`,
+`51ace6a254ee3b7234eea1d7839d26ded488e93708c097d446173a453dfb4c4c`,
 and the 12,197-byte summary has SHA-256
 `3562338bc156774b3dcbfcd32d13ae1114b2c582cd12827669af2fe9dc03dce5`.
 The checked Windows Clang/LLVM and Linux GCC/binutils baselines at
@@ -34,18 +34,23 @@ the normal disk-image template, ISO fixture, and Doom profile manifest. Python
 participates in all 447 transforms as the checked-tool launcher and host-side
 safety, parity, and publication layer. Every one of the 438 root outputs has a
 Cupid tool owner, so no root output is Python-only. No recursive Make
-transform remains. The checked user compiler and Toolchain contract publisher
-create their own output directories. On POSIX, the compiler requires
-`dir_fd`, `O_DIRECTORY`, and `O_NOFOLLOW` support. On Windows, it uses
+transform remains. One Python runner owns direct Linux execution and WSL
+staging on Windows. It also owns the live post-run seed check for root tools,
+checked production CupidC, and checked user CupidLD. Each wrapper
+supplies the five-tool capture it already froze. Drift detected by the
+post-run check prevents publication. The checked user compiler and Toolchain
+contract publisher create their own output directories. On POSIX, the compiler
+requires `dir_fd`, `O_DIRECTORY`, and `O_NOFOLLOW` support. On Windows, it uses
 parent-relative directory handles and rejects reparse points. The pins remain
 open through the final resolved-output check. Three Python-only verification
 or orchestration transforms remain outside the normal root. Root `all` runs
-CupidASM, CupidObj, CupidLD, and CupidDis from the checked five-tool seed. The
-runner checks that trust unit before and after each command. Make passes
-discovered output paths through `$(sort ...)` before generation and link, so
-the Windows and Linux branches consume one canonical source order. ADR 0238
+CupidASM, CupidObj, CupidLD, and CupidDis from the checked five-tool seed.
+Make passes discovered output paths through `$(sort ...)` before generation
+and link, so the Windows and Linux branches consume one canonical source
+order. ADR 0238
 records the disk-image transfer, and ADR 0245 records the publisher-owned
-directory boundary.
+directory boundary. ADR 0246 records the shared invocation boundary. Python
+and WSL remain required host-control components.
 
 Checked-seed CupidObj now authors the complete tracked ISO fixture through
 `iso-fixture`. Python remains the tree freezer, independent renderer, native

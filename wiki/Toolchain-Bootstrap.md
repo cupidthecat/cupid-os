@@ -432,15 +432,17 @@ and strong four-vCPU runtime gates with both NICs.
 
 Checked-seed CupidObj generates three installation tables, and checked-seed
 CupidC compiles them. CupidC also compiles the three example external ELF
-programs. All six use `.cc` source
-names. The generated tables keep the kernel profile. `hello.cc`, `ls.cc`, and
-`cat.cc` use the closed user profile and CupidLD link. Linux runs the checked
-seed directly, while Windows runs it through WSL. Both wrappers freeze their
-source and control inputs, validate every ELF result, and replace an artifact
-only after the operation succeeds. The default frontier tracks 23 checked-seed
-inputs. An explicit 46-input Windows frontier runs private native hosted
-CupidC and CupidLD snapshots and requires all six files to match checked-seed
-output.
+programs. All six source files use `.cc` names. The generated tables keep the
+kernel profile. `hello.cc`, `ls.cc`, and `cat.cc` use the closed user profile
+and CupidLD link. Linux runs the checked
+seed directly, while Windows runs it through WSL. The compiler and linker
+freeze their complete input and control sets and pass the same frozen
+five-tool capture to the shared runner. It verifies the complete live cohort
+after CupidC or CupidLD returns. Both wrappers validate every ELF result and
+replace an artifact only after the operation succeeds. The default frontier
+tracks 23 checked-seed inputs. An explicit 46-input Windows frontier runs
+private native hosted CupidC and CupidLD snapshots. It requires all six files
+to match checked-seed output.
 
 CupidObj now implements the bin, docs, and demos table formats through its
 public `install-source` command. It keeps caller order, validates the path
@@ -588,21 +590,23 @@ Across the root and supplemental builds, the current audit assigns 245
 transforms to CupidC and none to a host C compiler. Python participates in
 all 447 transforms. CupidC's total is 239 normal transforms plus three
 generated installation tables and the `hello.cc`, `ls.cc`, and `cat.cc`
-programs. The
-438-transform root image graph has no host C or recursive Make transform.
-Its five CupidASM, 189 CupidObj, two CupidLD, and one CupidDis transforms run
-from the manifest-checked five-tool seed. Native hosted commands remain
+programs. The 438-transform root image graph has no host C or recursive Make
+transform. Its five CupidASM, 189 CupidObj, two CupidLD, and one CupidDis
+transforms run from the manifest-checked five-tool seed. Native hosted commands remain
 explicit oracle targets. Every one of the 438 root outputs has a Cupid owner,
-so no root output is Python-only. The runner rechecks the live seed cohort after each
-command, and Make passes wildcard-discovered output sources through
-`$(sort ...)` before generation or link. Windows and Linux therefore consume
-the same root order across host locales.
+so no root output is Python-only. The same runner handles root commands.
+Checked production CupidC and checked user CupidLD pass it their caller-owned
+frozen captures. It rechecks the complete live seed cohort after each command.
+Make passes wildcard-discovered output sources through `$(sort ...)`
+before generation or link. Windows and Linux therefore consume the same root
+order across host locales.
 ADR 0190 records the root handoff, and ADR 0196 records the Toolchain contract
 handoff. The user compiler and Toolchain contract publisher create their own
 output directories. The compiler pins each POSIX or Windows directory
 component during preparation and rejects links, junctions, and a changed
 resolved path. Three Python-only supplemental verification or orchestration
-outputs remain. ADR 0245 records that graph boundary.
+outputs remain. ADR 0245 records that graph boundary. ADR 0246 records the
+shared invocation and post-run five-image check.
 
 The separate private in-kernel CupidC compiler now uses one scalar cdecl
 layout for direct, function-pointer, and method calls. Represented scalars and

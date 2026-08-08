@@ -3661,6 +3661,727 @@ def _scan_build_features(
                 )
 
 
+_CHECKED_SEED_RUNNER_FILES = (
+    "tools/bootstrap_toolchain.py",
+    "tools/cupidc_kernel_compile.py",
+    "tools/cupidc_production_compile.py",
+    "tools/cupidld_user_link.py",
+)
+
+
+def _is_checked_seed_runner_production_root(root: Path) -> bool:
+    return all(
+        (root / relative).is_file()
+        for relative in (
+            "Makefile",
+            "toolchain/cupidobj.cc",
+            "bootstrap/seeds/i386-linux/manifest.json",
+        )
+    ) and all(
+        (root / relative).is_dir()
+        for relative in (
+            "kernel/doom/src",
+            "user/examples",
+        )
+    )
+
+
+def _read_checked_seed_runner_module(
+    root: Path,
+    relative: str,
+) -> ast.Module:
+    path = root / relative
+    try:
+        return ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    except (OSError, SyntaxError) as error:
+        raise AuditError(
+            f"checked-seed runner contract file is unavailable: {relative}: "
+            f"{error}"
+        ) from error
+
+
+def _checked_seed_function(
+    tree: ast.Module,
+    name: str,
+    relative: str,
+) -> ast.FunctionDef:
+    functions = [
+        node
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == name
+    ]
+    if len(functions) != 1:
+        raise AuditError(
+            f"checked-seed runner contract changed in {relative}: "
+            f"expected one {name} function"
+        )
+    function = functions[0]
+    if function.decorator_list or any(
+        isinstance(node, (ast.Yield, ast.YieldFrom))
+        for node in ast.walk(function)
+    ):
+        raise AuditError(
+            f"checked-seed runner contract changed in {relative}: "
+            f"{name} is decorated or yields instead of running directly"
+        )
+    return function
+
+
+def _validate_shared_seed_runner(
+    tree: ast.Module,
+    relative: str,
+) -> None:
+    function = _checked_seed_function(tree, "run_seed_tool", relative)
+    provider_rebindings = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Name)
+        and isinstance(node.ctx, (ast.Store, ast.Del))
+        and node.id == "run_seed_tool"
+    ]
+    provider_namespace_mutations = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and (
+            (
+                isinstance(node.func, ast.Name)
+                and node.func.id
+                in {
+                    "globals",
+                    "locals",
+                    "exec",
+                    "eval",
+                    "setattr",
+                    "delattr",
+                    "__import__",
+                }
+            )
+            or (
+                isinstance(node.func, ast.Attribute)
+                and node.func.attr
+                in {"__setitem__", "__setattr__", "__delitem__"}
+            )
+        )
+    ]
+    if provider_rebindings or provider_namespace_mutations:
+        raise AuditError(
+            "checked-seed runner contract changed: exported runner authority "
+            "is rebound dynamically"
+        )
+    keyword_defaults = {
+        argument.arg: default
+        for argument, default in zip(
+            function.args.kwonlyargs,
+            function.args.kw_defaults,
+            strict=True,
+        )
+    }
+    runner_default = keyword_defaults.get("runner")
+    if not (
+        isinstance(runner_default, ast.Constant)
+        and runner_default.value is None
+    ):
+        raise AuditError(
+            "checked-seed runner contract changed: runner is not one "
+            "optional keyword-only injection"
+        )
+
+    nested = [
+        statement
+        for statement in function.body
+        if isinstance(statement, ast.FunctionDef)
+        and statement.name == "run_frozen"
+    ]
+    if len(nested) != 1:
+        raise AuditError(
+            "checked-seed runner contract changed: frozen execution helper "
+            "is not unique"
+        )
+    run_frozen = nested[0]
+    if run_frozen.decorator_list or any(
+        isinstance(node, (ast.Yield, ast.YieldFrom))
+        for node in ast.walk(run_frozen)
+    ):
+        raise AuditError(
+            "checked-seed runner contract changed: frozen execution helper "
+            "is decorated or yields"
+        )
+    body = run_frozen.body
+    returns = [
+        node for node in ast.walk(run_frozen) if isinstance(node, ast.Return)
+    ]
+    if len(returns) != 1 or returns[0] not in body:
+        raise AuditError(
+            "checked-seed runner contract changed: frozen execution has an "
+            "alternate return path"
+        )
+    run_parents = {
+        child: parent
+        for parent in ast.walk(run_frozen)
+        for child in ast.iter_child_nodes(parent)
+    }
+    seed_input_names = [
+        node
+        for node in ast.walk(run_frozen)
+        if isinstance(node, ast.Name) and node.id == "seed_inputs"
+    ]
+    seed_input_load_parents = sorted(
+        ast.unparse(run_parents[node])
+        for node in seed_input_names
+        if isinstance(node.ctx, ast.Load)
+    )
+    if seed_input_load_parents != [
+        "seed_inputs.manifest_sha256",
+        "seed_inputs.tools",
+    ] or any(
+        isinstance(node.ctx, (ast.Store, ast.Del)) for node in seed_input_names
+    ):
+        raise AuditError(
+            "checked-seed runner contract changed: frozen seed capture is "
+            "read or mutated outside its executable and manifest checks"
+        )
+
+    tool_runs = [
+        node
+        for node in ast.walk(function)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "run"
+    ]
+    if (
+        len(tool_runs) != 1
+        or ast.unparse(tool_runs[0].func) != "active_runner.run"
+    ):
+        raise AuditError(
+            "checked-seed runner contract changed: frozen dispatch has an "
+            "unchecked tool execution path"
+        )
+
+    frozen_branches = [
+        statement
+        for statement in function.body
+        if isinstance(statement, ast.If)
+        and ast.unparse(statement.test) == "frozen_seed is not None"
+    ]
+    if not (
+        len(frozen_branches) == 1
+        and not frozen_branches[0].orelse
+        and len(frozen_branches[0].body) == 1
+        and isinstance(frozen_branches[0].body[0], ast.Return)
+        and ast.unparse(frozen_branches[0].body[0].value)
+        == "run_frozen(frozen_seed)"
+    ):
+        raise AuditError(
+            "checked-seed runner contract changed: supplied frozen capture "
+            "does not enter the checked helper directly"
+        )
+    frozen_calls = [
+        node
+        for node in ast.walk(function)
+        if isinstance(node, ast.Call)
+        and ast.unparse(node.func) == "run_frozen"
+    ]
+    if sorted(ast.unparse(call) for call in frozen_calls) != [
+        "run_frozen(freeze_seed_inputs(manifest_path, Path(temporary)))",
+        "run_frozen(frozen_seed)",
+    ]:
+        raise AuditError(
+            "checked-seed runner contract changed: frozen capture dispatch "
+            "has another route"
+        )
+    fallback_paths = [
+        statement
+        for statement in function.body
+        if isinstance(statement, ast.With)
+        and len(statement.items) == 1
+        and ast.unparse(statement.items[0].context_expr).startswith(
+            "tempfile.TemporaryDirectory("
+        )
+    ]
+    if not (
+        len(fallback_paths) == 1
+        and len(fallback_paths[0].body) == 1
+        and isinstance(fallback_paths[0].body[0], ast.Return)
+        and ast.unparse(fallback_paths[0].body[0].value)
+        == "run_frozen(freeze_seed_inputs(manifest_path, Path(temporary)))"
+    ):
+        raise AuditError(
+            "checked-seed runner contract changed: new seed capture does not "
+            "enter the checked helper directly"
+        )
+
+    def store_count(name: str) -> int:
+        return sum(
+            isinstance(node, ast.Name)
+            and isinstance(node.ctx, ast.Store)
+            and node.id == name
+            for node in ast.walk(run_frozen)
+        )
+
+    for name in ("executable", "active_runner", "result", "live_seed"):
+        if store_count(name) != 1:
+            raise AuditError(
+                "checked-seed runner contract changed: "
+                f"{name} is not one immutable execution binding"
+            )
+
+    def direct_index(predicate) -> int:
+        matches = [
+            index
+            for index, statement in enumerate(body)
+            if predicate(statement)
+        ]
+        if len(matches) != 1:
+            raise AuditError(
+                "checked-seed runner contract changed: execution and live "
+                "cohort checks are not one ordered path"
+            )
+        return matches[0]
+
+    executable_index = direct_index(
+        lambda statement: isinstance(statement, ast.Try)
+        and len(statement.body) == 1
+        and ast.unparse(statement.body[0])
+        == "executable = seed_inputs.tools[tool_name]"
+    )
+    runner_index = direct_index(
+        lambda statement: isinstance(statement, ast.Assign)
+        and ast.unparse(statement)
+        == "active_runner = runner if runner is not None else ToolRunner(root)"
+    )
+    execution_index = direct_index(
+        lambda statement: isinstance(statement, ast.Try)
+        and len(statement.body) == 1
+        and ast.unparse(statement.body[0])
+        == "result = active_runner.run(executable, arguments, timeout)"
+    )
+    live_index = direct_index(
+        lambda statement: isinstance(statement, ast.Try)
+        and len(statement.body) == 1
+        and ast.unparse(statement.body[0])
+        == "live_seed = _load_seed_inputs(manifest_path, None)"
+    )
+    comparison_index = direct_index(
+        lambda statement: isinstance(statement, ast.If)
+        and ast.unparse(statement.test)
+        == "live_seed.manifest_sha256 != seed_inputs.manifest_sha256"
+        and not statement.orelse
+        and len(statement.body) == 1
+        and isinstance(statement.body[0], ast.Raise)
+        and isinstance(statement.body[0].exc, ast.Call)
+        and ast.unparse(statement.body[0].exc.func) == "BootstrapError"
+    )
+    return_index = direct_index(
+        lambda statement: isinstance(statement, ast.Return)
+        and ast.unparse(statement.value) == "result"
+    )
+    for checked_try in (body[execution_index], body[live_index]):
+        if any(
+            not handler.body or not isinstance(handler.body[-1], ast.Raise)
+            for handler in checked_try.handlers
+        ):
+            raise AuditError(
+                "checked-seed runner contract changed: execution or live "
+                "cohort failure does not raise"
+            )
+    if not (
+        executable_index
+        < runner_index
+        < execution_index
+        < live_index
+        < comparison_index
+        < return_index
+    ):
+        raise AuditError(
+            "checked-seed runner contract changed: live cohort validation "
+            "does not precede success"
+        )
+
+
+def _validate_checked_seed_wrapper(
+    tree: ast.Module,
+    relative: str,
+    function_name: str,
+    tool_name: str,
+    runner_name: str,
+    publication_call: str,
+    native_split: bool,
+) -> None:
+    dynamic_namespace_calls = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and (
+            (
+                isinstance(node.func, ast.Name)
+                and node.func.id
+                in {
+                    "globals",
+                    "locals",
+                    "exec",
+                    "eval",
+                    "setattr",
+                    "delattr",
+                    "__import__",
+                }
+            )
+            or (
+                isinstance(node.func, ast.Attribute)
+                and node.func.attr
+                in {"__setitem__", "__setattr__", "__delitem__"}
+            )
+        )
+    ]
+    expected_imports = ["bootstrap_toolchain", "tools.bootstrap_toolchain"]
+
+    def imported_modules(name: str) -> list[str | None]:
+        return [
+            node.module
+            for node in ast.walk(tree)
+            if isinstance(node, ast.ImportFrom)
+            for imported in node.names
+            if imported.name == name and imported.asname is None
+        ]
+
+    protected_names = {"run_seed_tool", "freeze_seed_inputs"}
+    protected_rebindings = [
+        node
+        for node in ast.walk(tree)
+        if (
+            isinstance(node, ast.Name)
+            and isinstance(node.ctx, (ast.Store, ast.Del))
+            and node.id in protected_names
+        )
+        or (
+            isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+            and node.name in protected_names
+        )
+    ]
+    if (
+        sorted(imported_modules("run_seed_tool")) != expected_imports
+        or sorted(imported_modules("freeze_seed_inputs")) != expected_imports
+        or protected_rebindings
+        or dynamic_namespace_calls
+    ):
+        raise AuditError(
+            f"checked-seed runner contract changed in {relative}: "
+            "seed capture or runner is not the shared imported authority"
+        )
+    function = _checked_seed_function(tree, function_name, relative)
+    if any(
+        isinstance(node, (ast.Return, ast.Yield, ast.YieldFrom))
+        for node in ast.walk(function)
+    ):
+        raise AuditError(
+            f"checked-seed runner contract changed in {relative}: "
+            "production wrapper has an early return or generator yield"
+        )
+    calls = [
+        node
+        for node in ast.walk(function)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "run_seed_tool"
+    ]
+    if len(calls) != 1:
+        raise AuditError(
+            f"checked-seed runner contract changed in {relative}: "
+            f"{function_name} does not delegate exactly once"
+        )
+    call = calls[0]
+    expected_arguments = ["manifest_path", "root", repr(tool_name), "arguments"]
+    if [ast.unparse(argument) for argument in call.args] != expected_arguments:
+        raise AuditError(
+            f"checked-seed runner contract changed in {relative}: "
+            "tool invocation arguments differ"
+        )
+    keywords = {
+        keyword.arg: ast.unparse(keyword.value)
+        for keyword in call.keywords
+        if keyword.arg is not None
+    }
+    if keywords != {
+        "timeout": "timeout",
+        "frozen_seed": "seed_inputs",
+        "runner": runner_name,
+    }:
+        raise AuditError(
+            f"checked-seed runner contract changed in {relative}: "
+            "caller-owned capture or runner forwarding differs"
+        )
+
+    parents = {
+        child: parent
+        for parent in ast.walk(function)
+        for child in ast.iter_child_nodes(parent)
+    }
+    assignment = parents.get(call)
+    if not (
+        isinstance(assignment, ast.Assign)
+        and len(assignment.targets) == 1
+        and ast.unparse(assignment.targets[0]) == "result"
+    ):
+        raise AuditError(
+            f"checked-seed runner contract changed in {relative}: "
+            "checked result is not the accepted tool result"
+        )
+
+    result_store_count = sum(
+        isinstance(node, ast.Name)
+        and isinstance(node.ctx, ast.Store)
+        and node.id == "result"
+        for node in ast.walk(function)
+    )
+    expected_result_stores = 2 if native_split else 1
+    if result_store_count != expected_result_stores:
+        raise AuditError(
+            f"checked-seed runner contract changed in {relative}: "
+            "tool result has an unchecked replacement binding"
+        )
+
+    execution_try: ast.Try | None = None
+    if native_split:
+        branch = parents.get(assignment)
+        if not (
+            isinstance(branch, ast.If)
+            and ast.unparse(branch.test) == "native_snapshot is not None"
+            and assignment in branch.orelse
+        ):
+            raise AuditError(
+                f"checked-seed runner contract changed in {relative}: "
+                "native and checked execution paths are not distinct"
+            )
+        branch_parent = parents.get(branch)
+        if not (
+            isinstance(branch_parent, ast.Try)
+            and branch in branch_parent.body
+        ):
+            raise AuditError(
+                f"checked-seed runner contract changed in {relative}: "
+                "checked execution is nested below another control path"
+            )
+        execution_try = branch_parent
+    else:
+        assignment_parent = parents.get(assignment)
+        if not (
+            isinstance(assignment_parent, ast.Try)
+            and assignment in assignment_parent.body
+        ):
+            raise AuditError(
+                f"checked-seed runner contract changed in {relative}: "
+                "checked execution is not the direct kernel execution path"
+            )
+        execution_try = assignment_parent
+
+    current = parents.get(execution_try)
+    while current is not None and current is not function:
+        if isinstance(
+            current,
+            (
+                ast.If,
+                ast.For,
+                ast.AsyncFor,
+                ast.While,
+                ast.Match,
+                ast.ExceptHandler,
+                ast.Lambda,
+                ast.FunctionDef,
+                ast.AsyncFunctionDef,
+            ),
+        ):
+            raise AuditError(
+                f"checked-seed runner contract changed in {relative}: "
+                "checked execution is conditionally unreachable"
+            )
+        current = parents.get(current)
+
+    freeze_calls = [
+        node
+        for node in ast.walk(function)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "freeze_seed_inputs"
+    ]
+    publication_calls = [
+        node
+        for node in ast.walk(function)
+        if isinstance(node, ast.Call)
+        and ast.unparse(node.func) == publication_call
+    ]
+    publication_references = [
+        node
+        for node in ast.walk(function)
+        if isinstance(node, (ast.Name, ast.Attribute))
+        and ast.unparse(node) == publication_call
+    ]
+    alternate_publications = [
+        node
+        for node in ast.walk(function)
+        if isinstance(node, ast.Call)
+        and node not in publication_calls
+        and ast.unparse(node) != "temporary_input.write_bytes(source_payload)"
+        and (
+            (
+                isinstance(node.func, ast.Name)
+                and node.func.id == "open"
+            )
+            or (
+                isinstance(node.func, ast.Attribute)
+                and node.func.attr
+                in {
+                    "replace",
+                    "rename",
+                    "move",
+                    "copy",
+                    "copy2",
+                    "copyfile",
+                    "write",
+                    "write_bytes",
+                    "write_text",
+                    "writelines",
+                    "link",
+                    "symlink",
+                    "hardlink_to",
+                    "symlink_to",
+                    "touch",
+                }
+            )
+        )
+    ]
+    seed_store_count = sum(
+        isinstance(node, ast.Name)
+        and isinstance(node.ctx, ast.Store)
+        and node.id == "seed_inputs"
+        for node in ast.walk(function)
+    )
+    seed_loads = [
+        node
+        for node in ast.walk(function)
+        if isinstance(node, ast.Name)
+        and isinstance(node.ctx, ast.Load)
+        and node.id == "seed_inputs"
+    ]
+    freeze_assignment = (
+        parents.get(freeze_calls[0]) if len(freeze_calls) == 1 else None
+    )
+    if (
+        len(freeze_calls) != 1
+        or not isinstance(freeze_assignment, ast.Assign)
+        or len(freeze_assignment.targets) != 1
+        or ast.unparse(freeze_assignment.targets[0]) != "seed_inputs"
+        or seed_store_count != 1
+        or len(seed_loads) != 1
+        or not isinstance(parents.get(seed_loads[0]), ast.keyword)
+        or parents[seed_loads[0]].arg != "frozen_seed"
+        or len(publication_calls) != 1
+        or len(publication_references) != 1
+        or publication_references[0] is not publication_calls[0].func
+        or alternate_publications
+        or not freeze_calls[0].lineno < call.lineno < publication_calls[0].lineno
+    ):
+        raise AuditError(
+            f"checked-seed runner contract changed in {relative}: "
+            "freeze, execution, and publication order differs"
+        )
+
+    publication_expression = parents.get(publication_calls[0])
+    if not (
+        isinstance(publication_expression, ast.Expr)
+        and publication_expression.value is publication_calls[0]
+    ):
+        raise AuditError(
+            f"checked-seed runner contract changed in {relative}: "
+            "publication is not one direct statement"
+        )
+    for checked_try in (
+        node for node in ast.walk(function) if isinstance(node, ast.Try)
+    ):
+        if any(
+            not handler.body or not isinstance(handler.body[-1], ast.Raise)
+            for handler in checked_try.handlers
+        ):
+            raise AuditError(
+                f"checked-seed runner contract changed in {relative}: "
+                "production wrapper suppresses a transaction failure"
+            )
+    child: ast.AST = publication_expression
+    current = parents.get(child)
+    while current is not None and current is not function:
+        if isinstance(current, ast.Try) and child not in current.body:
+            raise AuditError(
+                f"checked-seed runner contract changed in {relative}: "
+                "publication is outside the successful try body"
+            )
+        if isinstance(
+            current,
+            (
+                ast.If,
+                ast.For,
+                ast.AsyncFor,
+                ast.While,
+                ast.Match,
+                ast.ExceptHandler,
+                ast.Lambda,
+                ast.FunctionDef,
+                ast.AsyncFunctionDef,
+            ),
+        ):
+            raise AuditError(
+                f"checked-seed runner contract changed in {relative}: "
+                "publication is conditionally reachable"
+            )
+        child = current
+        current = parents.get(current)
+
+
+def _validate_checked_seed_runner_contract(root: Path) -> None:
+    missing = [
+        relative
+        for relative in _CHECKED_SEED_RUNNER_FILES
+        if not (root / relative).is_file()
+    ]
+    if missing:
+        raise AuditError(
+            f"checked-seed runner contract files are missing: {missing!r}"
+        )
+    trees = {
+        relative: _read_checked_seed_runner_module(root, relative)
+        for relative in _CHECKED_SEED_RUNNER_FILES
+    }
+    _validate_shared_seed_runner(
+        trees["tools/bootstrap_toolchain.py"],
+        "tools/bootstrap_toolchain.py",
+    )
+    _validate_checked_seed_wrapper(
+        trees["tools/cupidc_kernel_compile.py"],
+        "tools/cupidc_kernel_compile.py",
+        "compile_kernel_source",
+        "cupidc",
+        "executor",
+        "_replace_with_retry",
+        False,
+    )
+    _validate_checked_seed_wrapper(
+        trees["tools/cupidc_production_compile.py"],
+        "tools/cupidc_production_compile.py",
+        "compile_production_source",
+        "cupidc",
+        "active_executor",
+        "os.replace",
+        True,
+    )
+    _validate_checked_seed_wrapper(
+        trees["tools/cupidld_user_link.py"],
+        "tools/cupidld_user_link.py",
+        "link_user_program",
+        "cupidld",
+        "active_runner",
+        "os.replace",
+        True,
+    )
+
+
 def build_audit(
     root: Path,
     make: str,
@@ -3668,6 +4389,8 @@ def build_audit(
     supplemental_builds: list[tuple[str, str]] | None = None,
 ) -> dict[str, object]:
     root = root.resolve()
+    if _is_checked_seed_runner_production_root(root):
+        _validate_checked_seed_runner_contract(root)
     root_model = _collect_build_model(root, make, target, ".")
     supplemental_models = [
         _collect_build_model(root, make, supplemental_target, directory)

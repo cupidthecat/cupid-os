@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 
 from tools import cupidc_kernel_compile as kernel_compile
-from tools.bootstrap_toolchain import freeze_seed_inputs
+from tools.bootstrap_toolchain import freeze_seed_inputs, run_seed_tool
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -83,7 +83,6 @@ class KernelFpuCodeGenerationContractTests(unittest.TestCase):
                 "849abae24d9f210aa69d64ed8c8a5cb",
             )
 
-            executor = kernel_compile.SeedExecutor(REPO_ROOT)
             with tempfile.TemporaryDirectory(
                 prefix="cupid-fpu-disassembler-"
             ) as seed_directory:
@@ -91,13 +90,16 @@ class KernelFpuCodeGenerationContractTests(unittest.TestCase):
                     SEED_MANIFEST,
                     Path(seed_directory),
                 )
-                result = executor.run(
-                    seed.tools["cupiddis"],
+                result = run_seed_tool(
+                    SEED_MANIFEST,
+                    REPO_ROOT,
+                    "cupiddis",
                     (
                         "--disassemble",
-                        executor.compiler_root_for(object_path),
+                        object_path.resolve(),
                     ),
-                    kernel_compile.DEFAULT_TIMEOUT_SECONDS,
+                    timeout=kernel_compile.DEFAULT_TIMEOUT_SECONDS,
+                    frozen_seed=seed,
                 )
             self.assertEqual(
                 result.returncode,

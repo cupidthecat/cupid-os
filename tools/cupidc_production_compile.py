@@ -16,11 +16,14 @@ from pathlib import Path
 from typing import Sequence
 
 try:
-    from tools.bootstrap_toolchain import BootstrapError, freeze_seed_inputs
+    from tools.bootstrap_toolchain import (
+        BootstrapError,
+        ToolRunner,
+        freeze_seed_inputs,
+        run_seed_tool,
+    )
     from tools.cupidc_kernel_compile import (
         KERNEL_I386_ARGUMENTS,
-        KernelCompileError,
-        SeedExecutor,
         validate_i386_relocatable,
     )
     from tools.native_user_toolchain import (
@@ -29,11 +32,14 @@ try:
         capture_native_tool,
     )
 except ModuleNotFoundError:
-    from bootstrap_toolchain import BootstrapError, freeze_seed_inputs
+    from bootstrap_toolchain import (
+        BootstrapError,
+        ToolRunner,
+        freeze_seed_inputs,
+        run_seed_tool,
+    )
     from cupidc_kernel_compile import (
         KERNEL_I386_ARGUMENTS,
-        KernelCompileError,
-        SeedExecutor,
         validate_i386_relocatable,
     )
     from native_user_toolchain import (
@@ -128,8 +134,8 @@ def build_compile_arguments(
     cohort: str,
     logical_source: str,
     logical_output: str,
-    compiler_root: str,
-) -> tuple[str, ...]:
+    compiler_root: str | Path,
+) -> tuple[str | Path, ...]:
     return (
         "-c",
         logical_source,
@@ -600,16 +606,6 @@ def _write_frozen_closure(
         target.write_bytes(payload)
 
 
-def _compiler_root_for(
-    executor: SeedExecutor | NativeToolExecutor,
-    path: Path,
-) -> str:
-    mapper = getattr(executor, "compiler_root_for", None)
-    if callable(mapper):
-        return str(mapper(path))
-    return str(path.resolve())
-
-
 def compile_production_source(
     root: Path,
     cohort: str,
@@ -619,7 +615,7 @@ def compile_production_source(
     manifest: Path | None = None,
     native_compiler: Path | None = None,
     tool_mode: str = "auto",
-    executor: SeedExecutor | NativeToolExecutor | None = None,
+    executor: ToolRunner | NativeToolExecutor | None = None,
     timeout: int = DEFAULT_TIMEOUT_SECONDS,
 ) -> None:
     """Compile one approved source and publish its object atomically."""
@@ -704,16 +700,6 @@ def compile_production_source(
                     / "i386-linux"
                     / "manifest.json"
                 )
-                try:
-                    active_executor = (
-                        executor
-                        if executor is not None
-                        else SeedExecutor(root)
-                    )
-                except KernelCompileError as error:
-                    raise ProductionCompileError(
-                        f"checked seed executor is unavailable: {error}"
-                    ) from error
                 seed_directory = Path(
                     stack.enter_context(
                         tempfile.TemporaryDirectory(
@@ -729,11 +715,7 @@ def compile_production_source(
                     raise ProductionCompileError(
                         f"checked seed verification failed: {error}"
                     ) from error
-                compiler = seed_inputs.tools.get("cupidc")
-                if compiler is None:
-                    raise ProductionCompileError(
-                        "checked seed verification did not return CupidC"
-                    )
+                active_executor = executor
 
             temporary = stack.enter_context(
                 tempfile.TemporaryDirectory(
@@ -750,12 +732,35 @@ def compile_production_source(
                 cohort,
                 logical_source,
                 logical_temporary,
-                _compiler_root_for(active_executor, frozen_root),
+                frozen_root.resolve(),
             )
             try:
-                result = active_executor.run(
-                    compiler, arguments, timeout
-                )
+                if native_snapshot is not None:
+                    result = active_executor.run(
+                        compiler, arguments, timeout
+                    )
+                else:
+                    result = run_seed_tool(
+                        manifest_path,
+                        root,
+                        "cupidc",
+                        arguments,
+                        timeout=timeout,
+                        frozen_seed=seed_inputs,
+                        runner=active_executor,
+                    )
+            except BootstrapError as error:
+                if isinstance(error.__cause__, subprocess.TimeoutExpired):
+                    raise ProductionCompileError(
+                        f"CupidC timed out after {timeout} seconds for "
+                        f"{logical_source.lstrip('/')}"
+                    ) from error
+                if isinstance(error.__cause__, OSError):
+                    raise ProductionCompileError(
+                        f"CupidC could not run for "
+                        f"{logical_source.lstrip('/')}: {error.__cause__}"
+                    ) from error
+                raise ProductionCompileError(str(error)) from error
             except subprocess.TimeoutExpired as error:
                 raise ProductionCompileError(
                     f"CupidC timed out after {timeout} seconds for "

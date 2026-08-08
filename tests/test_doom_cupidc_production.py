@@ -18,6 +18,7 @@ from tools import cupidc_kernel_compile as kernel_compile
 from tests.test_cupidc_kernel_compile import (
     FakeExecutor,
     SEED_MANIFEST,
+    _run_captured_test_tool,
     _valid_elf32_object,
 )
 
@@ -832,10 +833,17 @@ class DoomCupidCProductionTests(unittest.TestCase):
                 return super().run(executable, arguments, timeout)
 
         executor = ClosureExecutor(root, payload=_valid_elf32_object())
-        with mock.patch.object(
-            kernel_compile,
-            "freeze_seed_inputs",
-            side_effect=self._freeze_seed(seed),
+        with (
+            mock.patch.object(
+                kernel_compile,
+                "freeze_seed_inputs",
+                side_effect=self._freeze_seed(seed),
+            ),
+            mock.patch.object(
+                kernel_compile,
+                "run_seed_tool",
+                side_effect=_run_captured_test_tool,
+            ),
         ):
             kernel_compile.compile_kernel_source(
                 root,
@@ -876,10 +884,17 @@ class DoomCupidCProductionTests(unittest.TestCase):
                 return super().run(executable, arguments, timeout)
 
         executor = DriftingExecutor(root, payload=_valid_elf32_object())
-        with mock.patch.object(
-            kernel_compile,
-            "freeze_seed_inputs",
-            side_effect=self._freeze_seed(seed),
+        with (
+            mock.patch.object(
+                kernel_compile,
+                "freeze_seed_inputs",
+                side_effect=self._freeze_seed(seed),
+            ),
+            mock.patch.object(
+                kernel_compile,
+                "run_seed_tool",
+                side_effect=_run_captured_test_tool,
+            ),
         ):
             with self.assertRaisesRegex(
                 kernel_compile.KernelCompileError,
@@ -912,10 +927,17 @@ class DoomCupidCProductionTests(unittest.TestCase):
                 return super().run(executable, arguments, timeout)
 
         executor = AddingExecutor(root, payload=_valid_elf32_object())
-        with mock.patch.object(
-            kernel_compile,
-            "freeze_seed_inputs",
-            side_effect=self._freeze_seed(seed),
+        with (
+            mock.patch.object(
+                kernel_compile,
+                "freeze_seed_inputs",
+                side_effect=self._freeze_seed(seed),
+            ),
+            mock.patch.object(
+                kernel_compile,
+                "run_seed_tool",
+                side_effect=_run_captured_test_tool,
+            ),
         ):
             with self.assertRaisesRegex(
                 kernel_compile.KernelCompileError,
@@ -948,10 +970,17 @@ class DoomCupidCProductionTests(unittest.TestCase):
                 return super().run(executable, arguments, timeout)
 
         executor = AddingExecutor(root, payload=_valid_elf32_object())
-        with mock.patch.object(
-            kernel_compile,
-            "freeze_seed_inputs",
-            side_effect=self._freeze_seed(seed),
+        with (
+            mock.patch.object(
+                kernel_compile,
+                "freeze_seed_inputs",
+                side_effect=self._freeze_seed(seed),
+            ),
+            mock.patch.object(
+                kernel_compile,
+                "run_seed_tool",
+                side_effect=_run_captured_test_tool,
+            ),
         ):
             with self.assertRaisesRegex(
                 kernel_compile.KernelCompileError,

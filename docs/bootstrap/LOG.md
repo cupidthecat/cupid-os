@@ -22132,3 +22132,98 @@ separate hardening task.
 No ordinary C or assembly source changes ownership, so no `.c` to `.cc`
 rename is due. `TempleOS/` remains untouched reference material. ADR 0245
 records the decision.
+
+## 2026-08-08: Use one checked-seed runner for production tool calls
+
+Root Cupid tools already ran through a shared checked-seed path. The production
+kernel compiler carried a second Linux and WSL executor, the generated-install
+and user compiler imported that executor, and the user linker called its runner
+directly. Those paths froze private tool images, but they did not all reload the
+complete live five-tool cohort after the command returned.
+
+An initial four-test gate exposed the gap in 0.387 seconds. `run_seed_tool`
+rejected an injected runner, while the kernel compiler, user compiler, and user
+linker each accepted a successful private command after a live seed member
+changed. The completed gate rejects that drift and preserves each existing
+output.
+
+`run_seed_tool` now accepts an optional runner and an existing frozen
+`SeedInputs` capture. It selects the requested image only from that capture.
+Linux runs the image directly; Windows stages it through WSL with `ToolRunner`.
+After either command returns, `run_seed_tool` reloads the public manifest and
+all five images. A different raw manifest or image rejects the result before
+the caller accepts it. The checked
+branches of the kernel compiler, generated-install and user compiler, and user
+linker pass the capture they already own. Native Windows oracle paths remain
+separate and keep their native snapshot checks.
+
+Host filesystem operands now enter `ToolRunner` as absolute `Path` values, so
+one implementation owns Windows-to-WSL translation. Logical Cupid paths such
+as `/kernel/...`, `/.output/...`, and `/user` remain strings. Each wrapper keeps
+its own immutable input capture, object or executable validation, drift checks,
+and atomic publication. Timeout and launch failures on checked paths retain
+the source or input name used by the previous diagnostics.
+
+The first audit draft counted source markers. Adversarial mutations showed that
+dead calls, a non-raising manifest comparison, a rebound or mutated seed
+capture, an unchecked outer dispatch, exception-only publication, an early
+return, and a shadowed runner or freezer could all leave those markers in
+place. Further mutations used a module-namespace replacement, a decorator, a
+generator yield, and an early publication alias. The final audit reads the AST
+and requires one imported runner authority, direct, reachable execution, the
+exact caller-owned capture, two approved frozen-seed reads, the ordered live
+reload and raising comparison, and one reachable publication call. The audit
+identifies the production root from stable build inputs rather than mutable
+domain prose, so a documentation edit cannot disable the gate.
+
+| Check | Result |
+| --- | --- |
+| Initial shared-runner red gate | Expected failure: three assertions and one API error across four tests in 0.387 seconds. |
+| Focused shared-runner green gate | PASS: all four tests in 0.560 seconds. |
+| Focused audit mutation and root-identity gate | PASS: 25 fail-closed mutations plus the stable-root check in 4.641 seconds. |
+| `python -m unittest -v tests.test_cupidc_kernel_compile` | PASS: all 34 tests in 91.876 seconds. |
+| `python -m unittest -v tests.test_cupidc_production` on Windows | PASS: all 53 tests in 30.361 seconds. |
+| `python -m unittest -v tests.test_cupidc_production` under WSL | PASS: all 53 tests in 77.510 seconds. |
+| `python -m unittest -v tests.test_cupidc_production_compile_freeze` | PASS: all three tests in 0.050 seconds. |
+| `python -m unittest -v tests.test_doom_cupidc_production` | PASS: 41 tests in 46.890 seconds with one platform-specific skip. |
+| `python -m unittest -v tests.test_freestanding_codegen` | PASS: all four tests in 4.908 seconds. |
+| `python -m unittest -v tests.test_toolchain_bootstrap_seed` | PASS: all 49 tests in 903.145 seconds. |
+| `python -m unittest -v tests.test_build_graph_audit` | PASS: all 75 tests in 640.680 seconds. |
+| `make verify-bootstrap-seed` | PASS in 0.312 seconds for all five checked images. |
+| `make bootstrap-audit` | PASS in 64.205 seconds. |
+| `make check-bootstrap-audit` | PASS in 64.645 seconds. |
+| `make all` | PASS in 1,584.955 seconds, then again in 1,509.787 seconds after the documentation changes. Both runs produced identical bytes. |
+| `make -C user all` | PASS in 5.954 seconds through checked CupidC and CupidLD. |
+| Private `ls` boot smoke | PASS in 47.666 seconds against the final image bytes. CupidC compiled `/bin/ls.cc` to 911 bytes of code and 71 bytes of data, then completed JIT execution. The 27,819-byte log has SHA-256 `15dbac4b481fbfcecb23979fe0ca11b1cbfafd3894c07350ae203e6dffffbe40`. |
+| Python bytecode and Ruff | PASS for all changed Python modules and tests. |
+
+The regenerated audit retains 719 active inputs, 447 transforms, 255 feature
+records, and 25 accounted unreachable files. The root, user, and Toolchain
+roots contain 438, seven, and two transforms. CupidC participates in 245,
+CupidASM in five, CupidObj in 189, CupidLD in five, CupidDis in one, and Python
+in all 447. The three Python-only supplemental outputs remain
+`user/test-syscall-abi`, `toolchain/all`, and
+`toolchain/build/cupidc-contracts/manifest.json`.
+
+The active-source digest remains
+`69f8f0b9bc264f338f445781f92792b24e91f0d641950d3b57f55f74841ae46e`.
+The 2,565,353-byte JSON has SHA-256
+`51ace6a254ee3b7234eea1d7839d26ded488e93708c097d446173a453dfb4c4c`.
+The unchanged 12,197-byte summary has SHA-256
+`3562338bc156774b3dcbfcd32d13ae1114b2c582cd12827669af2fe9dc03dce5`.
+
+The normal build artifacts are:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.elf` | 9,077,256 | `b776e84adfe060afe2a2fec69a8a817c6af90c258199b6db91ac845bf640a355` |
+| `kernel/kernel.bin` | 8,869,076 | `309c590836f191e261769b9417917facc7e09b90fdc2759decd4e874f342d1ab` |
+| `cupidos.img` | 209,715,200 | `7abb6c8734f15852962435f9cf201548d1ffd746596186df9b9522e0884bad66` |
+
+This change moves no build artifact to a new owner. Python still participates
+in all 447 supported transforms as the launcher and host-side safety, parity,
+and publication layer. Windows still runs the checked Linux seed through WSL.
+A native Windows runtime and checked native seed remain open. No ordinary C or
+assembly source changes ownership, so no `.c` to `.cc` rename is due.
+`TempleOS/` remains untouched reference material. ADR 0246 records the shared
+invocation boundary.

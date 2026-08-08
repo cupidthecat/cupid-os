@@ -8,7 +8,6 @@ import errno
 import hashlib
 import json
 import os
-import shutil
 import stat
 import struct
 import subprocess
@@ -22,7 +21,7 @@ from typing import Sequence
 try:
     from tools.bootstrap_toolchain import (
         BootstrapError,
-        WSL_PRIVATE_RUN_SCRIPT,
+        ToolRunner,
         freeze_seed_inputs,
         run_seed_tool,
         verify_seed_inputs,
@@ -30,7 +29,7 @@ try:
 except ModuleNotFoundError:
     from bootstrap_toolchain import (
         BootstrapError,
-        WSL_PRIVATE_RUN_SCRIPT,
+        ToolRunner,
         freeze_seed_inputs,
         run_seed_tool,
         verify_seed_inputs,
@@ -653,10 +652,10 @@ def _replace_with_retry(source: Path, destination: Path) -> None:
 def build_compile_arguments(
     logical_source: str,
     logical_output: str,
-    compiler_root: str,
+    compiler_root: str | Path,
     *,
     profile: str = "kernel",
-) -> tuple[str, ...]:
+) -> tuple[str | Path, ...]:
     """Build one complete, fixed production CupidC argument vector."""
     try:
         profile_arguments = COMPILER_PROFILE_ARGUMENTS[profile]
@@ -673,94 +672,6 @@ def build_compile_arguments(
         "--root",
         compiler_root,
     )
-
-
-def build_wsl_invocation(
-    linux_root: str,
-    linux_seed: str,
-    arguments: Sequence[str],
-) -> tuple[str, ...]:
-    """Build a WSL command that runs a private copy of the checked seed."""
-    return (
-        "wsl",
-        "-e",
-        "sh",
-        "-c",
-        WSL_PRIVATE_RUN_SCRIPT,
-        "sh",
-        linux_root,
-        linux_seed,
-        *arguments,
-    )
-
-
-class SeedExecutor:
-    """Run the static Linux seed natively or through private WSL staging."""
-
-    def __init__(self, root: Path):
-        self.root = root.resolve()
-        self.uses_wsl = os.name == "nt"
-        if self.uses_wsl:
-            if shutil.which("wsl") is None:
-                raise KernelCompileError(
-                    "WSL is required to run the checked i386 Linux seed"
-                )
-            self.compiler_root = self._wsl_path(self.root)
-        else:
-            self.compiler_root = str(self.root)
-
-    @staticmethod
-    def _wsl_path(path: Path) -> str:
-        try:
-            result = subprocess.run(
-                ["wsl", "-e", "wslpath", "-a", str(path.resolve())],
-                text=True,
-                capture_output=True,
-            )
-        except OSError as error:
-            raise KernelCompileError(
-                f"WSL could not translate {path}: {error}"
-            ) from error
-        if result.returncode != 0 or not result.stdout.strip():
-            details = result.stderr.strip() or f"status {result.returncode}"
-            raise KernelCompileError(
-                f"WSL could not translate {path}: {details}"
-            )
-        return result.stdout.strip()
-
-    def compiler_root_for(self, path: Path) -> str:
-        """Return a CupidC root path for an arbitrary captured source tree."""
-        resolved = path.resolve()
-        if self.uses_wsl:
-            return self._wsl_path(resolved)
-        return str(resolved)
-
-    def run(
-        self,
-        executable: Path,
-        arguments: Sequence[str],
-        timeout: int,
-    ) -> subprocess.CompletedProcess[str]:
-        if not self.uses_wsl:
-            return subprocess.run(
-                [str(executable), *arguments],
-                cwd=self.root,
-                text=True,
-                capture_output=True,
-                timeout=timeout,
-            )
-
-        command = build_wsl_invocation(
-            self.compiler_root,
-            self._wsl_path(executable),
-            arguments,
-        )
-        return subprocess.run(
-            command,
-            text=True,
-            capture_output=True,
-            timeout=timeout,
-        )
 
 
 def _read_bytes(path: Path) -> bytes:
@@ -2123,20 +2034,13 @@ def _write_kernel_inputs(
         target.write_bytes(payload)
 
 
-def _compiler_root_for(executor: SeedExecutor, path: Path) -> str:
-    mapper = getattr(executor, "compiler_root_for", None)
-    if callable(mapper):
-        return str(mapper(path))
-    return str(path.resolve())
-
-
 def compile_kernel_source(
     root: Path,
     source: Path,
     output: Path,
     *,
     manifest: Path | None = None,
-    executor: SeedExecutor | None = None,
+    executor: ToolRunner | None = None,
     timeout: int | None = None,
     profile: str = "kernel",
 ) -> None:
@@ -2172,7 +2076,6 @@ def compile_kernel_source(
         / "i386-linux"
         / "manifest.json"
     )
-    active_executor = executor if executor is not None else SeedExecutor(root)
     try:
         with tempfile.TemporaryDirectory(
             prefix="cupidc-kernel-seed-"
@@ -2185,12 +2088,6 @@ def compile_kernel_source(
                 raise KernelCompileError(
                     f"checked seed verification failed: {error}"
                 ) from error
-            seed = seed_inputs.tools.get("cupidc")
-            if seed is None:
-                raise KernelCompileError(
-                    "checked seed verification did not return CupidC"
-                )
-
             with tempfile.TemporaryDirectory(
                 prefix=f".{output.name}.cupidc-",
                 dir=output.parent,
@@ -2207,16 +2104,13 @@ def compile_kernel_source(
                     )
                     temporary_output.parent.mkdir()
                     logical_temporary = f"/.output/{output.name}"
-                    compiler_root = _compiler_root_for(
-                        active_executor,
-                        temporary_root,
-                    )
+                    compiler_root = temporary_root.resolve()
                 else:
                     temporary_output = temporary_root / output.name
                     logical_temporary = (
                         "/" + temporary_output.relative_to(root).as_posix()
                     )
-                    compiler_root = active_executor.compiler_root
+                    compiler_root = root
                 arguments = build_compile_arguments(
                     logical_source,
                     logical_temporary,
@@ -2224,17 +2118,28 @@ def compile_kernel_source(
                     profile=profile,
                 )
                 try:
-                    result = active_executor.run(seed, arguments, timeout)
-                except subprocess.TimeoutExpired as error:
-                    raise KernelCompileError(
-                        f"CupidC timed out after {timeout} seconds for "
-                        f"{logical_source.lstrip('/')}"
-                    ) from error
-                except OSError as error:
-                    raise KernelCompileError(
-                        f"CupidC could not run for "
-                        f"{logical_source.lstrip('/')}: {error}"
-                    ) from error
+                    result = run_seed_tool(
+                        manifest_path,
+                        root,
+                        "cupidc",
+                        arguments,
+                        timeout=timeout,
+                        frozen_seed=seed_inputs,
+                        runner=executor,
+                    )
+                except BootstrapError as error:
+                    if isinstance(error.__cause__, subprocess.TimeoutExpired):
+                        raise KernelCompileError(
+                            f"CupidC timed out after {timeout} seconds for "
+                            f"{logical_source.lstrip('/')}"
+                        ) from error
+                    if isinstance(error.__cause__, OSError):
+                        raise KernelCompileError(
+                            f"CupidC could not run for "
+                            f"{logical_source.lstrip('/')}: "
+                            f"{error.__cause__}"
+                        ) from error
+                    raise KernelCompileError(str(error)) from error
                 if result.returncode != 0:
                     details = (result.stderr or "").strip()
                     if not details:

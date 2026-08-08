@@ -3498,6 +3498,367 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                         changed
                     )
 
+    def test_checked_seed_runner_contract_rejects_drift(self):
+        module = _load_audit_module()
+        module._validate_checked_seed_runner_contract(REPO_ROOT)
+        sources = {
+            relative: (REPO_ROOT / relative).read_text(encoding="utf-8")
+            for relative in module._CHECKED_SEED_RUNNER_FILES
+        }
+        mutations = (
+            (
+                "optional runner removed",
+                "tools/bootstrap_toolchain.py",
+                "runner: ToolRunner | None = None,",
+                "runner: ToolRunner | None = ToolRunner,",
+            ),
+            (
+                "live cohort not reloaded",
+                "tools/bootstrap_toolchain.py",
+                "live_seed = _load_seed_inputs(manifest_path, None)",
+                "live_seed = _load_seed_inputs(manifest_path, seed_inputs)",
+            ),
+            (
+                "kernel runner not forwarded",
+                "tools/cupidc_kernel_compile.py",
+                "                        runner=executor,",
+                "                        runner=None,",
+            ),
+            (
+                "production capture not forwarded",
+                "tools/cupidc_production_compile.py",
+                "                        frozen_seed=seed_inputs,",
+                "                        frozen_seed=None,",
+            ),
+            (
+                "linker selection changed",
+                "tools/cupidld_user_link.py",
+                '                        "cupidld",',
+                '                        "cupidc",',
+            ),
+            (
+                "injected runner left as a dead marker",
+                "tools/bootstrap_toolchain.py",
+                "            result = active_runner.run("
+                "executable, arguments, timeout)",
+                "            if False:\n"
+                "                active_runner.run("
+                "executable, arguments, timeout)\n"
+                "            result = ToolRunner(root).run("
+                "executable, arguments, timeout)",
+            ),
+            (
+                "live seed reload left as a dead marker",
+                "tools/bootstrap_toolchain.py",
+                "            live_seed = _load_seed_inputs("
+                "manifest_path, None)",
+                "            if False:\n"
+                "                _load_seed_inputs(manifest_path, None)\n"
+                "            live_seed = seed_inputs",
+            ),
+            (
+                "manifest mismatch does not raise",
+                "tools/bootstrap_toolchain.py",
+                "            raise BootstrapError(\n"
+                "                f\"checked seed inputs changed while "
+                "{display_name} ran: \"\n"
+                "                \"manifest content differs\"\n"
+                "            )",
+                "            pass",
+            ),
+            (
+                "frozen seed rebound from live inputs",
+                "tools/cupidc_kernel_compile.py",
+                "                try:\n"
+                "                    result = run_seed_tool(\n"
+                "                        manifest_path,\n"
+                "                        root,\n"
+                "                        \"cupidc\",",
+                "                seed_inputs = verify_seed_inputs("
+                "manifest_path)\n"
+                "                try:\n"
+                "                    result = run_seed_tool(\n"
+                "                        manifest_path,\n"
+                "                        root,\n"
+                "                        \"cupidc\",",
+            ),
+            (
+                "kernel delegation left in dead code",
+                "tools/cupidc_kernel_compile.py",
+                "                    result = run_seed_tool(\n"
+                "                        manifest_path,\n"
+                "                        root,\n"
+                "                        \"cupidc\",\n"
+                "                        arguments,\n"
+                "                        timeout=timeout,\n"
+                "                        frozen_seed=seed_inputs,\n"
+                "                        runner=executor,\n"
+                "                    )",
+                "                    if False:\n"
+                "                        result = run_seed_tool(\n"
+                "                            manifest_path,\n"
+                "                            root,\n"
+                "                            \"cupidc\",\n"
+                "                            arguments,\n"
+                "                            timeout=timeout,\n"
+                "                            frozen_seed=seed_inputs,\n"
+                "                            runner=executor,\n"
+                "                        )\n"
+                "                    result = (\n"
+                "                        executor\n"
+                "                        if executor is not None\n"
+                "                        else ToolRunner(root)\n"
+                "                    ).run(\n"
+                "                        seed_inputs.tools[\"cupidc\"],\n"
+                "                        arguments,\n"
+                "                        timeout,\n"
+                "                    )",
+            ),
+            (
+                "outer frozen dispatch bypasses checked helper",
+                "tools/bootstrap_toolchain.py",
+                "    if frozen_seed is not None:\n"
+                "        return run_frozen(frozen_seed)",
+                "    if frozen_seed is not None:\n"
+                "        return (\n"
+                "            runner\n"
+                "            if runner is not None\n"
+                "            else ToolRunner(root)\n"
+                "        ).run(\n"
+                "            frozen_seed.tools[tool_name],\n"
+                "            arguments,\n"
+                "            timeout,\n"
+                "        )",
+            ),
+            (
+                "frozen seed tool map mutated in place",
+                "tools/cupidc_kernel_compile.py",
+                "                try:\n"
+                "                    result = run_seed_tool(\n"
+                "                        manifest_path,\n"
+                "                        root,\n"
+                "                        \"cupidc\",",
+                "                seed_inputs.tools[\"cupidc\"] = (\n"
+                "                    verify_seed_inputs("
+                "manifest_path).tools[\"cupidc\"]\n"
+                "                )\n"
+                "                try:\n"
+                "                    result = run_seed_tool(\n"
+                "                        manifest_path,\n"
+                "                        root,\n"
+                "                        \"cupidc\",",
+            ),
+            (
+                "publication moved into an exception handler",
+                "tools/cupidc_kernel_compile.py",
+                "                _replace_with_retry("
+                "temporary_output, output)",
+                "                try:\n"
+                "                    pass\n"
+                "                except Exception:\n"
+                "                    _replace_with_retry("
+                "temporary_output, output)",
+            ),
+            (
+                "wrapper returns before checked execution",
+                "tools/cupidc_kernel_compile.py",
+                '    """Compile one approved source and atomically publish '
+                'a checked object."""',
+                '    """Compile one approved source and atomically publish '
+                'a checked object."""\n'
+                "    return",
+            ),
+            (
+                "shared runner shadowed by a local unchecked adapter",
+                "tools/cupidc_kernel_compile.py",
+                "                try:\n"
+                "                    result = run_seed_tool(\n"
+                "                        manifest_path,\n"
+                "                        root,\n"
+                "                        \"cupidc\",",
+                "                run_seed_tool = lambda manifest_path, "
+                "root, tool, arguments, **kwargs: (\n"
+                "                    executor\n"
+                "                    if executor is not None\n"
+                "                    else ToolRunner(root)\n"
+                "                ).run(\n"
+                "                    kwargs[\"frozen_seed\"].tools[tool],\n"
+                "                    arguments,\n"
+                "                    kwargs[\"timeout\"],\n"
+                "                )\n"
+                "                try:\n"
+                "                    result = run_seed_tool(\n"
+                "                        manifest_path,\n"
+                "                        root,\n"
+                "                        \"cupidc\",",
+            ),
+            (
+                "shared runner replaced through the module namespace",
+                "tools/cupidc_kernel_compile.py",
+                "                try:\n"
+                "                    result = run_seed_tool(\n"
+                "                        manifest_path,\n"
+                "                        root,\n"
+                "                        \"cupidc\",",
+                "                globals().__setitem__(\n"
+                "                    \"run_seed_tool\",\n"
+                "                    lambda manifest_path, root, tool, "
+                "arguments, **kwargs: (\n"
+                "                        executor\n"
+                "                        if executor is not None\n"
+                "                        else ToolRunner(root)\n"
+                "                    ).run(\n"
+                "                        kwargs[\"frozen_seed\"].tools[tool],\n"
+                "                        arguments,\n"
+                "                        kwargs[\"timeout\"],\n"
+                "                    ),\n"
+                "                )\n"
+                "                try:\n"
+                "                    result = run_seed_tool(\n"
+                "                        manifest_path,\n"
+                "                        root,\n"
+                "                        \"cupidc\",",
+            ),
+            (
+                "frozen tool map replaced from the live seed",
+                "tools/bootstrap_toolchain.py",
+                "    def run_frozen(seed_inputs: SeedInputs) -> "
+                "subprocess.CompletedProcess[str]:\n"
+                "        try:\n"
+                "            executable = seed_inputs.tools[tool_name]",
+                "    def run_frozen(seed_inputs: SeedInputs) -> "
+                "subprocess.CompletedProcess[str]:\n"
+                "        seed_inputs.tools[tool_name] = "
+                "_load_seed_inputs(\n"
+                "            manifest_path, None\n"
+                "        ).tools[tool_name]\n"
+                "        try:\n"
+                "            executable = seed_inputs.tools[tool_name]",
+            ),
+            (
+                "wrapper converted into an inert generator",
+                "tools/cupidc_kernel_compile.py",
+                '    """Compile one approved source and atomically publish '
+                'a checked object."""',
+                '    """Compile one approved source and atomically publish '
+                'a checked object."""\n'
+                "    if False:\n"
+                "        yield None",
+            ),
+            (
+                "shared runner replaced by a decorator",
+                "tools/bootstrap_toolchain.py",
+                "def run_seed_tool(\n",
+                "@unchecked_run_seed_tool\n"
+                "def run_seed_tool(\n",
+            ),
+            (
+                "candidate published through an early alias",
+                "tools/cupidc_kernel_compile.py",
+                "                    raise KernelCompileError(str(error)) "
+                "from error\n"
+                "                if result.returncode != 0:",
+                "                    raise KernelCompileError(str(error)) "
+                "from error\n"
+                "                publish_unchecked = _replace_with_retry\n"
+                "                publish_unchecked(temporary_output, output)\n"
+                "                if result.returncode != 0:",
+            ),
+            (
+                "live seed reload failure returns tool success",
+                "tools/bootstrap_toolchain.py",
+                "        except BootstrapError as error:\n"
+                "            raise BootstrapError(\n"
+                "                f\"checked seed inputs changed while \"\n"
+                "                f\"{display_name} ran: {error}\"\n"
+                "            ) from error",
+                "        except BootstrapError:\n"
+                "            return result",
+            ),
+            (
+                "seed freezer shadowed by a live verifier",
+                "tools/cupidc_kernel_compile.py",
+                "            try:\n"
+                "                seed_inputs = freeze_seed_inputs(\n"
+                "                    manifest_path, Path(seed_temporary)\n"
+                "                )",
+                "            freeze_seed_inputs = lambda manifest_path, "
+                "directory: verify_seed_inputs(manifest_path)\n"
+                "            try:\n"
+                "                seed_inputs = freeze_seed_inputs(\n"
+                "                    manifest_path, Path(seed_temporary)\n"
+                "                )",
+            ),
+            (
+                "exported runner rebound after its checked definition",
+                "tools/bootstrap_toolchain.py",
+                "\n\ndef _build_stage(\n",
+                "\n\nrun_seed_tool = unchecked_seed_tool\n\n\n"
+                "def _build_stage(\n",
+            ),
+            (
+                "candidate published through Path.replace before validation",
+                "tools/cupidc_kernel_compile.py",
+                "                    raise KernelCompileError(str(error)) "
+                "from error\n"
+                "                if result.returncode != 0:",
+                "                    raise KernelCompileError(str(error)) "
+                "from error\n"
+                "                temporary_output.replace(output)\n"
+                "                if result.returncode != 0:",
+            ),
+            (
+                "outer transaction handler suppresses failure",
+                "tools/cupidc_kernel_compile.py",
+                "    except OSError as error:\n"
+                "        raise KernelCompileError(\n"
+                "            f\"could not publish kernel object {output}: "
+                "{error}\"\n"
+                "        ) from error",
+                "    except BaseException:\n"
+                "        pass",
+            ),
+        )
+        for name, relative, old, new in mutations:
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as td:
+                root = Path(td)
+                for source_relative, source in sources.items():
+                    changed = source
+                    if source_relative == relative:
+                        self.assertEqual(source.count(old), 1)
+                        changed = source.replace(old, new, 1)
+                    _write(root / source_relative, changed)
+                with self.assertRaisesRegex(
+                    module.AuditError,
+                    r"checked-seed runner contract changed",
+                ):
+                    module._validate_checked_seed_runner_contract(root)
+
+    def test_checked_seed_runner_production_identity_uses_build_inputs(self):
+        module = _load_audit_module()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for relative in (
+                "Makefile",
+                "toolchain/cupidobj.cc",
+                "bootstrap/seeds/i386-linux/manifest.json",
+            ):
+                _write(root / relative, "fixture\n")
+            for relative in ("kernel/doom/src", "user/examples"):
+                (root / relative).mkdir(parents=True)
+            _write(root / "CONTEXT.md", "# mutable documentation\n")
+            self.assertTrue(
+                module._is_checked_seed_runner_production_root(root)
+            )
+            (root / "CONTEXT.md").unlink()
+            self.assertTrue(
+                module._is_checked_seed_runner_production_root(root)
+            )
+            (root / "Makefile").unlink()
+            self.assertFalse(
+                module._is_checked_seed_runner_production_root(root)
+            )
+
     def test_cupidobj_profile_manifest_wrapper_rejects_drift(self):
         module = _load_audit_module()
         source = (

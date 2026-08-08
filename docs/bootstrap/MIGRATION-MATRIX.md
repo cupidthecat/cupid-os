@@ -4,9 +4,13 @@
 
 Root `all` now runs CupidASM, CupidObj, CupidLD, and CupidDis from the
 manifest-bound five-tool seed. The checked runner freezes the full trust unit
-for each command and checks the live cohort again afterward. Make passes every
-wildcard-discovered output source through `$(sort ...)` before generation or
-link, giving Windows and Linux the same root order regardless of host locale.
+for each command and checks the live cohort again afterward. Checked
+production kernel, generated-install, and user CupidC calls plus checked user
+CupidLD links use the same runner with the capture their wrapper already
+froze. Drift detected by the post-run check rejects the result before
+publication. Make passes every wildcard-discovered output source through
+`$(sort ...)` before generation or link, giving Windows and Linux the same
+root order regardless of host locale.
 Native hosted commands remain explicit oracle targets, but none is reachable
 from a supported root. The three-root audit has 447 transforms, no recursive
 Make transform, 447 Python participants, 245 CupidC participants, and no host
@@ -15,11 +19,11 @@ compiler stages to compile and link all fourteen `.cc` Toolchain contracts.
 CupidObj participates in 189 transforms, including three installation-source
 generators, the kernel-symbol source generator, the normal disk-image
 template, repository ISO fixture, and Doom profile manifest. Every one of the
-438 root outputs has a Cupid tool owner, so no root output is Python-only. ADR 0190 records
-the root handoff, ADR 0196 records the contract handoff, ADR 0238 records the
-disk-image transfer, ADR 0241 records the ISO transfer, ADR 0244 records the
-profile-manifest transfer, and ADR 0245 records publisher-owned output
-directories.
+438 root outputs has a Cupid tool owner, so no root output is Python-only.
+ADR 0190 records the root handoff, and ADR 0196 records the contract handoff.
+ADR 0238 records the disk-image transfer, ADR 0241 records the ISO transfer, ADR
+0244 records the profile-manifest transfer, ADR 0245 records publisher-owned
+output directories, and ADR 0246 records the shared invocation boundary.
 
 Checked-seed CupidObj also has a bounded `iso-fixture` operation. It matches the
 tracked ECMA-119 and `RRIP_1991A` bytes from a manifest and typed input
@@ -824,6 +828,12 @@ and its private four-vCPU JIT boot passed in 66.8 seconds.
 | Toolchain self-hosting | Checked seeds rebuild host tools; stage 2 and stage 3 outputs are byte-identical on Windows and Linux | A checked static i386 Linux seed rebuilds one 19-source union, fresh startup, and all five tools from a private captured source root. The stage-two producer trio repeats the work below the same root. The harness rehashes the private and live closures after each stage and after behavior checks, then publishes one complete evidence bundle. All 19 C object pairs, startup objects, and CupidC, CupidASM, CupidDis, CupidLD, and CupidObj images match. Both stages agree on five help paths, fifteen successful operations, and thirteen failures, including CupidObj kernel-symbol source generation, JPEG validation, disk-template construction, ISO fixture authoring, profile-manifest authoring, and malformed-input rollback. Linux runs the seed directly. Windows uses WSL for the seed bootstrap and the normal user build. Native hosted CupidC and CupidLD remain an optional oracle, depend on Clang, and do not establish a Windows fixed point. |
 | Normal-build cutover | Make invokes CupidC, CupidASM, CupidLD, CupidObj, and CupidDis without GCC/Clang/NASM/LLVM/binutils | In progress: the 438-transform root image graph assigns 242 transforms to CupidC, five to CupidASM, 189 to CupidObj, two to CupidLD, and one to CupidDis, with no host C or recursive Make transform. Every root output has a Cupid tool owner, so no root output is Python-only. Across all three supported graphs, CupidC owns 245 transforms and no transform invokes a host C compiler. Python participates in all 447 transforms as the checked-tool launcher and host-side safety, parity, and publication layer. The user compiler and Toolchain contract publisher create their output directories, so only three supplemental verification or orchestration outputs remain Python-only. The three installation-source transforms, kernel-symbol source transform, pristine disk-image template, deterministic ISO fixture, and Doom profile manifest belong to checked CupidObj. Python retains FAT reuse, file staging, native-path safety, drift checks, locking, and atomic publication. ADR 0204, ADR 0224, ADR 0238, ADR 0241, ADR 0244, and ADR 0245 record those transfers and the directory boundary. The poisoned-host build passes. A 607.7-second Linux kernel build and a 341.6-second Windows root build produced the same 430 frozen kernel artifacts. The 8,579,824-byte pass-one ELF has SHA-256 `2350b1a4f32c674d386ca50d4be4f6be8308082291f2852cfecfde4ba151b4df`; the 8,690,416-byte final ELF has SHA-256 `80b23fbd198f4aa9ec030ac69526b2d612c49e6d6328cfa01af9a0ef6217d8bb`; and the 8,490,228-byte raw kernel has SHA-256 `53770a93658e757d25f5aeab9d3e434d4a3be2a1dc3fbe4b19869e5bf9820a06`. The fresh 209,715,200-byte normal image has SHA-256 `e815d2ef67f114a26181f0e2cbde85f892cdadd487f8d9cbee9715e720800b3e`. A private `/bin/ls.cc` JIT boot from it passed in 49.8 seconds. Native hosted binaries still need GCC or Clang when explicitly requested as development oracles. Windows runs checked i386 programs through WSL until a native checked seed exists. Checked CupidASM authors the spanning ISO lane, and checked CupidObj authors the enclosing image and Doom profile manifest before Python parity and guarded publication. ADR 0227 records the lane transfer, ADR 0241 records the image transfer, ADR 0244 records the profile-manifest transfer, and ADR 0245 records publisher-owned directories. |
 
+The normal cutover uses one checked invocation for root tools, checked
+production CupidC, and checked user CupidLD. Each production wrapper keeps its
+source and output transaction but delegates private seed execution and the
+live five-image recheck to `run_seed_tool`. ADR 0246 records this
+control-plane consolidation.
+
 For the publisher-owned directory boundary, the user compiler opens every
 POSIX or Windows component relative to a pinned parent and checks the resolved
 output before releasing those pins. Directory preparation therefore stays
@@ -840,7 +850,7 @@ manifest to CupidObj authorship through a guarded Python host transaction.
 ADR 0242 records the source capability, ADR 0243 records seed carriage, and
 ADR 0244 records the normal publication boundary.
 
-The source-current ISO ownership build completed in 502.232 seconds. Its
+The ADR 0241 production-handoff build completed in 502.232 seconds. Its
 private 209,715,200-byte image has SHA-256
 `3f8c84cea61e5e8bfc4e6a5fc09a030a4d6451d258a4ca2ea6486a923d1d08e3`.
 The complete private four-vCPU e1000 frontier passed in 496.479 seconds and

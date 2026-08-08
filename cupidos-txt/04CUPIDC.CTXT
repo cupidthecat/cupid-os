@@ -257,7 +257,11 @@ so empty-directory setup is not a separate transform. The compiler pins every
 POSIX or Windows directory component during preparation and rejects links,
 junctions, and a changed resolved path before releasing those pins. Three
 supplemental verification or orchestration outputs remain Python-only. ADR
-0245 records this boundary.
+0245 records this boundary. Checked production kernel, generated-install, and
+user CupidC calls plus checked user CupidLD links pass their frozen five-tool
+capture to the same checked runner. It rechecks the live manifest and every
+seed image after the private command returns. ADR 0246 records this invocation
+boundary.
 
 The normal build compiles kernel/gfx/jpeg.cc and
 kernel/gfx/glyph_raster.cc through the checked seed. Their closed header sets
@@ -1046,10 +1050,12 @@ atomic, indirect, and non-integer cases remain rejected.
 
 The shared path builds 238 checked-in normal kernel, driver, Doom, and
 toolchain objects. It also owns the generated kernel symbol source as the
-239th normal CupidC transform. All 239 normal sources use .cc. The checked seed also
-compiles the three generated installation tables and the three example ELF
-programs. Checked CupidLD links those example programs. The normal Toolchain
-cohort is Cupid-built. A host compiler is used only for explicit native
+239th normal CupidC transform. All 239 normal sources use .cc. The checked
+seed also compiles the three generated installation tables and three example
+ELF programs. Checked CupidLD links those example programs. These checked
+compiler and linker calls share the root tool runner. Drift detected by the
+post-run seed check rejects their output. The normal Toolchain cohort is
+Cupid-built. A host compiler is used only for explicit native
 oracles and development commands, while the private in-kernel CupidC compiler
 handles embedded runtime compilation.
 
