@@ -72,19 +72,16 @@ USER_SOURCES := $(addprefix examples/,$(addsuffix .cc,$(PROGRAMS)))
 USER_OBJECTS := $(addprefix $(BUILD)/,$(addsuffix .o,$(PROGRAMS)))
 BOOTSTRAP_ARTIFACTS := $(addprefix $(BUILD)/,$(PROGRAMS))
 
-all: test-syscall-abi $(BUILD) $(BOOTSTRAP_ARTIFACTS)
+all: test-syscall-abi $(BOOTSTRAP_ARTIFACTS)
 
 .PRECIOUS: $(USER_OBJECTS) $(BOOTSTRAP_ARTIFACTS)
 .SECONDARY: $(USER_OBJECTS)
-
-$(BUILD):
-	$(PYTHON) -c "from pathlib import Path; Path(r'$@').mkdir(parents=True, exist_ok=True)"
 
 $(BUILD)/%: $(BUILD)/%.o $(CUPIDLD_USER_LINK_INPUTS) Makefile
 	$(CUPIDLD_USER_LINK) --input user/$< --output user/$@ \
 		--text-address $(USER_TEXT_ADDRESS) --entry _start
 
-$(BUILD)/%.o: examples/%.cc cupid.h $(CUPIDC_PRODUCTION_COMPILE_INPUTS) Makefile | $(BUILD) test-syscall-abi
+$(BUILD)/%.o: examples/%.cc cupid.h $(CUPIDC_PRODUCTION_COMPILE_INPUTS) Makefile | test-syscall-abi
 	$(CUPIDC_PRODUCTION_COMPILE) --source user/$< --output user/$@
 
 test-syscall-abi: $(USER_SYSCALL_ABI_INPUTS) Makefile

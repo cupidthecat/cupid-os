@@ -803,11 +803,17 @@ header closure.
 Poisoned-host checks cover all 238 checked-in normal CupidC recipes through
 the strict and Doom gates. They fail if a CupidC-owned object reaches Clang or
 GCC. They pass against the renamed graph. Across the three supported build
-roots, the audit records 449 transforms. CupidC participates in 245, CupidObj
+roots, the audit records 447 transforms. CupidC participates in 245, CupidObj
 participates in 189 transforms, CupidASM participates in five, Python
-participates in all 449, and no normal transform invokes a host C compiler.
+participates in all 447, and no normal transform invokes a host C compiler.
 Every one of the 438 root outputs has at least one Cupid tool owner, so no root
-output is Python-only.
+output is Python-only. The checked user compiler and Toolchain contract
+publisher create their own output directories. The compiler walks POSIX paths
+through no-follow directory descriptors and Windows paths through
+parent-relative directory handles, then checks the resolved output while the
+parents remain pinned. Three Python-only verification or orchestration
+transforms remain across the supplemental roots. ADR 0245 records that
+publisher-owned directory boundary.
 The Toolchain root now builds its fourteen `.cc` contracts twice with
 stage-two and stage-three CupidC, compares the static i386 executables, and
 publishes the cohort together. The publisher accepts only a dedicated

@@ -586,7 +586,7 @@ trust-validation claim.
 
 Across the root and supplemental builds, the current audit assigns 245
 transforms to CupidC and none to a host C compiler. Python participates in
-all 449 transforms. CupidC's total is 239 normal transforms plus three
+all 447 transforms. CupidC's total is 239 normal transforms plus three
 generated installation tables and the `hello.cc`, `ls.cc`, and `cat.cc`
 programs. The
 438-transform root image graph has no host C or recursive Make transform.
@@ -598,7 +598,11 @@ command, and Make passes wildcard-discovered output sources through
 `$(sort ...)` before generation or link. Windows and Linux therefore consume
 the same root order across host locales.
 ADR 0190 records the root handoff, and ADR 0196 records the Toolchain contract
-handoff.
+handoff. The user compiler and Toolchain contract publisher create their own
+output directories. The compiler pins each POSIX or Windows directory
+component during preparation and rejects links, junctions, and a changed
+resolved path. Three Python-only supplemental verification or orchestration
+outputs remain. ADR 0245 records that graph boundary.
 
 The separate private in-kernel CupidC compiler now uses one scalar cdecl
 layout for direct, function-pointer, and method calls. Represented scalars and

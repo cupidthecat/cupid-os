@@ -8,7 +8,7 @@ This file is generated deterministically by `tools/build_graph_audit.py` from th
 - Supplemental builds: `user:all`, `toolchain:all`
 - Active source inputs: 719
 - Unreachable source-like files: 25
-- Reachable output transforms: 449
+- Reachable output transforms: 447
 - Distinct feature requirements: 255
 - Make conditionals use the canonical `OS=Windows_NT` graph and the C locale fixes wildcard order on every host. Direct Linux build tests cover the Linux execution branch.
 - The `TempleOS/` reference tree is excluded.
@@ -69,8 +69,8 @@ Generated C translation units are recorded as reachable build inputs but have no
 | Directory | Root target | Transforms | Include paths |
 | --- | --- | ---: | ---: |
 | `.` | `all` | 438 | 20 |
-| `user` | `all` | 8 | 0 |
-| `toolchain` | `all` | 3 | 2 |
+| `user` | `all` | 7 | 0 |
+| `toolchain` | `all` | 2 | 2 |
 
 ## Current output ownership
 
@@ -81,7 +81,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `cupid_disassembler` | 1 |
 | `cupid_linker` | 5 |
 | `cupid_object` | 189 |
-| `host_python` | 449 |
+| `host_python` | 447 |
 
 ## Feature inventory
 

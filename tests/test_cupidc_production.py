@@ -289,14 +289,292 @@ class ProductionCompileTests(unittest.TestCase):
         self.assertEqual(output.read_bytes(), _valid_elf32_object())
         self.assertEqual(len(executor.calls), 1)
 
-    def test_auto_mode_uses_the_checked_seed_on_windows(self):
+    def test_checked_compile_creates_the_approved_user_build_directory(self):
+        build = self.root / "user/build"
+        shutil.rmtree(build)
+        output = build / "hello.o"
+        executor = FakeCompilerExecutor(
+            self.root, payload=_valid_elf32_object()
+        )
+
+        with mock.patch.object(
+            production_compile,
+            "freeze_seed_inputs",
+            return_value=self.seed_inputs,
+        ):
+            production_compile.compile_production_source(
+                self.root,
+                "user",
+                Path("user/examples/hello.cc"),
+                Path("user/build/hello.o"),
+                executor=executor,
+            )
+
+        self.assertTrue(build.is_dir())
+        self.assertEqual(output.read_bytes(), _valid_elf32_object())
+        self.assertEqual(len(executor.calls), 1)
+
+    def test_checked_compile_rejects_a_non_directory_user_build_path(self):
+        build = self.root / "user/build"
+        shutil.rmtree(build)
+        build.write_bytes(b"not a directory")
+
+        with self.assertRaisesRegex(
+            production_compile.ProductionCompileError,
+            "output directory is not a repository directory",
+        ):
+            production_compile.compile_production_source(
+                self.root,
+                "user",
+                Path("user/examples/hello.cc"),
+                Path("user/build/hello.o"),
+                executor=FakeCompilerExecutor(
+                    self.root, payload=_valid_elf32_object()
+                ),
+            )
+
+        self.assertEqual(build.read_bytes(), b"not a directory")
+
+    def test_checked_compile_rejects_an_aliased_user_build_path(self):
+        real_build = self.root / "user/real-build"
+        real_build.mkdir()
+        alias = self.root / "user/alias-build"
+        try:
+            alias.symlink_to(real_build, target_is_directory=True)
+        except (NotImplementedError, OSError) as error:
+            self.skipTest(f"directory symlinks are unavailable: {error}")
+
+        with self.assertRaisesRegex(
+            production_compile.ProductionCompileError,
+            "output directory is not a repository directory",
+        ):
+            production_compile.compile_production_source(
+                self.root,
+                "user",
+                Path("user/examples/hello.cc"),
+                Path("user/alias-build/hello.o"),
+                executor=FakeCompilerExecutor(
+                    self.root, payload=_valid_elf32_object()
+                ),
+            )
+
+        self.assertFalse((real_build / "hello.o").exists())
+
+    def test_checked_compile_rejects_a_redirected_resolved_output(self):
+        redirected = self.root / "user/other-build/hello.o"
+        executor = FakeCompilerExecutor(
+            self.root, payload=_valid_elf32_object()
+        )
+
+        with (
+            mock.patch.object(
+                production_compile,
+                "_output_path",
+                return_value=redirected,
+            ),
+            self.assertRaisesRegex(
+                production_compile.ProductionCompileError,
+                "directory changed while preparing output",
+            ),
+        ):
+            production_compile.compile_production_source(
+                self.root,
+                "user",
+                Path("user/examples/hello.cc"),
+                Path("user/build/hello.o"),
+                executor=executor,
+            )
+
+        self.assertEqual(executor.calls, [])
+
+    def test_directory_replacement_cannot_redirect_nested_creation(self):
+        user = self.root / "user"
+        moved_user = self.root / "user-original"
+        race = {"triggered": False, "blocked": False}
+        executor = FakeCompilerExecutor(
+            self.root, payload=_valid_elf32_object()
+        )
+
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-user-output-outside-"
+        ) as outside_temporary:
+            outside = Path(outside_temporary).resolve()
+            if os.name == "nt":
+                original_open = (
+                    production_compile._open_or_create_windows_directory
+                )
+
+                def racing_open(parent_handle, name, stack):
+                    if not race["triggered"] and name == "missing":
+                        race["triggered"] = True
+                        try:
+                            user.rename(moved_user)
+                        except OSError:
+                            race["blocked"] = True
+                        else:
+                            user.symlink_to(
+                                outside, target_is_directory=True
+                            )
+                    return original_open(parent_handle, name, stack)
+
+                patcher = mock.patch.object(
+                    production_compile,
+                    "_open_or_create_windows_directory",
+                    racing_open,
+                )
+            else:
+                original_mkdir = os.mkdir
+
+                def racing_mkdir(path, mode=0o777, *, dir_fd=None):
+                    if (
+                        not race["triggered"]
+                        and path == "missing"
+                        and dir_fd is not None
+                    ):
+                        race["triggered"] = True
+                        user.rename(moved_user)
+                        user.symlink_to(outside, target_is_directory=True)
+                    original_mkdir(path, mode, dir_fd=dir_fd)
+
+                patcher = mock.patch.object(
+                    production_compile.os,
+                    "mkdir",
+                    racing_mkdir,
+                )
+
+            try:
+                failed_closed = False
+                with (
+                    patcher,
+                    mock.patch.object(
+                        production_compile,
+                        "freeze_seed_inputs",
+                        return_value=self.seed_inputs,
+                    ),
+                ):
+                    try:
+                        production_compile.compile_production_source(
+                            self.root,
+                            "user",
+                            Path("user/examples/hello.cc"),
+                            Path("user/missing/nested/hello.o"),
+                            executor=executor,
+                        )
+                    except production_compile.ProductionCompileError:
+                        failed_closed = True
+                self.assertTrue(race["triggered"])
+                self.assertFalse((outside / "missing").exists())
+                if os.name == "nt":
+                    self.assertTrue(race["blocked"])
+                    self.assertFalse(failed_closed)
+                    self.assertEqual(len(executor.calls), 1)
+                else:
+                    self.assertTrue(failed_closed)
+                    self.assertEqual(executor.calls, [])
+            finally:
+                if user.is_symlink():
+                    user.unlink()
+                if moved_user.exists() and not user.exists():
+                    moved_user.rename(user)
+
+    def test_rejected_output_does_not_create_user_directories(self):
+        build = self.root / "user/build"
+        shutil.rmtree(build)
+        rejected_parent = self.root / "user/missing/nested"
+
+        with self.assertRaisesRegex(
+            production_compile.ProductionCompileError,
+            "approved output pair",
+        ):
+            production_compile.compile_production_source(
+                self.root,
+                "user",
+                Path("user/examples/hello.cc"),
+                Path("user/missing/nested/cat.o"),
+                executor=FakeCompilerExecutor(
+                    self.root, payload=_valid_elf32_object()
+                ),
+            )
+
+        self.assertFalse(build.exists())
+        self.assertFalse(rejected_parent.exists())
+        self.assertFalse((self.root / "user/missing").exists())
+
+    def test_invalid_compile_mode_does_not_create_user_directories(self):
+        build = self.root / "user/build"
+        shutil.rmtree(build)
+
+        with self.assertRaisesRegex(
+            production_compile.ProductionCompileError,
+            "unknown production compiler mode",
+        ):
+            production_compile.compile_production_source(
+                self.root,
+                "user",
+                Path("user/examples/hello.cc"),
+                Path("user/build/hello.o"),
+                tool_mode="unknown",
+                executor=FakeCompilerExecutor(
+                    self.root, payload=_valid_elf32_object()
+                ),
+            )
+
+        self.assertFalse(build.exists())
+
+    def test_checked_compile_creates_a_one_level_build_override(self):
+        build = self.root / "user/alternate-build"
+        output = build / "hello.o"
+        executor = FakeCompilerExecutor(
+            self.root, payload=_valid_elf32_object()
+        )
+
+        with mock.patch.object(
+            production_compile,
+            "freeze_seed_inputs",
+            return_value=self.seed_inputs,
+        ):
+            production_compile.compile_production_source(
+                self.root,
+                "user",
+                Path("user/examples/hello.cc"),
+                Path("user/alternate-build/hello.o"),
+                executor=executor,
+            )
+
+        self.assertTrue(build.is_dir())
+        self.assertEqual(output.read_bytes(), _valid_elf32_object())
+        self.assertEqual(len(executor.calls), 1)
+
+    def test_checked_compile_creates_a_nested_build_override(self):
+        build = self.root / "user/alternate/nested-build"
+        output = build / "hello.o"
+        executor = FakeCompilerExecutor(
+            self.root, payload=_valid_elf32_object()
+        )
+
+        with mock.patch.object(
+            production_compile,
+            "freeze_seed_inputs",
+            return_value=self.seed_inputs,
+        ):
+            production_compile.compile_production_source(
+                self.root,
+                "user",
+                Path("user/examples/hello.cc"),
+                Path("user/alternate/nested-build/hello.o"),
+                executor=executor,
+            )
+
+        self.assertTrue(build.is_dir())
+        self.assertEqual(output.read_bytes(), _valid_elf32_object())
+        self.assertEqual(len(executor.calls), 1)
+
+    def test_auto_mode_uses_checked_seed_without_a_native_compiler(self):
         output = self.root / "user/build/hello.o"
         executor = FakeCompilerExecutor(
             self.root, payload=_valid_elf32_object()
         )
-        windows_os = SimpleNamespace(name="nt", replace=os.replace)
         with (
-            mock.patch.object(production_compile, "os", windows_os),
             mock.patch.object(
                 production_compile, "SeedExecutor", return_value=executor
             ),
@@ -1101,6 +1379,7 @@ class ProductionBuildContractTests(unittest.TestCase):
             for model in (root_model, user_model)
             for transform in model.transforms
         }
+        self.assertNotIn("user/build", transforms)
         for name in ("bin", "docs", "demos"):
             output = f"kernel/util/{name}_programs_gen.o"
             transform = transforms[output]
@@ -1146,9 +1425,10 @@ class ProductionBuildContractTests(unittest.TestCase):
             logical,
         )
         self.assertIn(
-            "all: test-syscall-abi $(BUILD) $(BOOTSTRAP_ARTIFACTS)",
-            logical,
+            "all: test-syscall-abi $(BOOTSTRAP_ARTIFACTS)", logical
         )
+        self.assertNotRegex(makefile, r"(?m)^\$\(BUILD\):$")
+        self.assertNotIn("| $(BUILD) test-syscall-abi", logical)
         self.assertNotIn("NATIVE_USER_TOOL_GATE", makefile)
         self.assertNotIn("USER_FRONTIER_COMPARISON", makefile)
         self.assertIn(
@@ -1173,6 +1453,18 @@ class ProductionBuildContractTests(unittest.TestCase):
         )
         for seed in ("cupidc.elf", "cupidld.elf", "manifest.json"):
             self.assertIn(seed, makefile)
+
+    def test_toolchain_contract_publisher_owns_its_output_parent(self):
+        makefile = (REPO_ROOT / "toolchain/Makefile").read_text(
+            encoding="utf-8"
+        )
+        logical = makefile.replace("\\\n", " ")
+        manifest_rule = logical.split("$(CONTRACT_MANIFEST):", 1)[1].split(
+            "\n\n", 1
+        )[0]
+
+        self.assertIn("cupidc_toolchain_contracts.py build", manifest_rule)
+        self.assertNotIn("| $(BUILD_DIR)", manifest_rule)
 
     def test_generated_install_tables_use_checked_cupidc_and_cc_paths(self):
         makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")

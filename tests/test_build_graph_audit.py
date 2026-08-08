@@ -5041,7 +5041,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 {
                     "active_sources": 719,
                     "features": 255,
-                    "transforms": 449,
+                    "transforms": 447,
                     "unreachable_sources": 25,
                 },
             )
@@ -5576,7 +5576,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 {
                     "cupid_c_compiler": 245,
                     "host_c_compiler": 0,
-                    "host_python": 449,
+                    "host_python": 447,
                 },
             )
 
@@ -5702,11 +5702,12 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 for build in audit_payload["supplemental_builds"]
                 if build["directory"] == "toolchain"
             )
-            self.assertEqual(len(toolchain_build["transforms"]), 3)
+            self.assertEqual(len(toolchain_build["transforms"]), 2)
             toolchain_transform_by_output = {
                 transform["output"]: transform
                 for transform in toolchain_build["transforms"]
             }
+            self.assertNotIn("toolchain/build", toolchain_transform_by_output)
             contract_verifier = toolchain_transform_by_output[
                 "toolchain/all"
             ]

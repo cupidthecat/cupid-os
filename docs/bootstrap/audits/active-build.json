@@ -52652,11 +52652,11 @@
       },
       {
         "path": "user/Makefile",
-        "sha256": "35f7e084b0a7a3e4c5aaf1e76b1f6ef1076362f0fde4d2c938547e5d790dc327"
+        "sha256": "773d4d824a6ef987812d4feb633ab2940051ef8689c558cd098981dce7f07316"
       },
       {
         "path": "toolchain/Makefile",
-        "sha256": "8b98498181b1cd4204d490b5dbb6983d6c1f16ce943979eb204c1a20e7f36133"
+        "sha256": "bbb54abd3b11adb255057e00fea7bd75da8b175d435fa1ff35dd7c21b489c041"
       },
       {
         "path": "tools/cupidc_kernel_compile.py",
@@ -52676,7 +52676,7 @@
       },
       {
         "path": "tools/cupidc_production_compile.py",
-        "sha256": "0c8eb4463d7b2ee157deae589110e543e5c5656cfc6ee7a799fe1c554cd26120"
+        "sha256": "890b8cc4c9892a95e157438219f48699b51e999043e2ae352ad9e05675ed6b16"
       },
       {
         "path": "tools/cupidc_production_frontier.py",
@@ -79246,7 +79246,7 @@
   "summary": {
     "active_sources": 719,
     "features": 255,
-    "transforms": 449,
+    "transforms": 447,
     "unreachable_sources": 25
   },
   "supplemental_builds": [
@@ -79256,17 +79256,6 @@
       "include_search_paths": [],
       "root_target": "all",
       "transforms": [
-        {
-          "inputs": [],
-          "operation": "host_orchestration",
-          "output": "user/build",
-          "recipe": [
-            "$(PYTHON) -c \"from pathlib import Path; Path(r'$@').mkdir(parents=True, exist_ok=True)\""
-          ],
-          "tools": [
-            "host_python"
-          ]
-        },
         {
           "inputs": [
             "user/build/cat.o",
@@ -79308,7 +79297,6 @@
             "bootstrap/seeds/i386-linux/cupidld.elf",
             "bootstrap/seeds/i386-linux/cupidobj.elf",
             "user/Makefile",
-            "user/build",
             "user/test-syscall-abi"
           ],
           "operation": "compile_c_to_elf32_object",
@@ -79362,7 +79350,6 @@
             "bootstrap/seeds/i386-linux/cupidld.elf",
             "bootstrap/seeds/i386-linux/cupidobj.elf",
             "user/Makefile",
-            "user/build",
             "user/test-syscall-abi"
           ],
           "operation": "compile_c_to_elf32_object",
@@ -79416,7 +79403,6 @@
             "bootstrap/seeds/i386-linux/cupidld.elf",
             "bootstrap/seeds/i386-linux/cupidobj.elf",
             "user/Makefile",
-            "user/build",
             "user/test-syscall-abi"
           ],
           "operation": "compile_c_to_elf32_object",
@@ -79469,17 +79455,6 @@
           "recipe": [
             "$(PYTHON) ../tools/cupidc_toolchain_contracts.py verify \\",
             "--root .. --output $(CONTRACT_DIR)"
-          ],
-          "tools": [
-            "host_python"
-          ]
-        },
-        {
-          "inputs": [],
-          "operation": "host_orchestration",
-          "output": "toolchain/build",
-          "recipe": [
-            "$(PYTHON) -c \"from pathlib import Path; Path(r'$@').mkdir(parents=True, exist_ok=True)\""
           ],
           "tools": [
             "host_python"
@@ -79558,8 +79533,7 @@
             "toolchain/tests/cupidc_kernel_simd_fixture.h",
             "kernel/lang/as_elf.cc",
             "kernel/lang/as_elf.h",
-            "toolchain/Makefile",
-            "toolchain/build"
+            "toolchain/Makefile"
           ],
           "operation": "host_orchestration",
           "output": "toolchain/build/cupidc-contracts/manifest.json",

@@ -22063,3 +22063,72 @@ tool launcher and host-side safety, parity, and publication layer.
 No ordinary C or assembly source changes ownership, so no `.c` to `.cc`
 rename is due. `TempleOS/` remains untouched reference material. ADR 0244
 records the production handoff.
+
+## 2026-08-08: Move output-directory setup into artifact publishers
+
+The `user:all` and `toolchain:all` graphs each carried a Python transform that
+only created an empty build directory. The artifact publishers already owned
+validation and transactional publication, so the directory-only nodes split
+one artifact across two owners without producing OS bytes.
+
+The user Makefile no longer creates `$(BUILD)` or orders object compilation
+after that target. The checked user compiler validates the source and output
+pair before changing the filesystem. POSIX opens each component with
+`O_DIRECTORY | O_NOFOLLOW` and creates children relative to the pinned parent
+descriptor. Windows opens children relative to pinned directory handles with
+`NtCreateFile` under `OBJ_DONT_REPARSE` and rejects reparse points. The
+compiler keeps every descriptor or handle through its final lexical and
+resolved output comparison. Default, alternate, nested, and pre-created
+frontier build directories remain valid.
+
+The first implementation allowed only a missing one-level build directory.
+That would have narrowed the existing nested `BUILD` override, so a red
+nested-path test rejected the design. The final helper preserves the full
+override. A second draft checked each component by pathname before creating
+the next one. A race test replaced `user/` after its check and made that draft
+create a directory outside the repository. Parent-relative creation through
+pinned descriptors or handles closed that window. A mismatched output
+basename or invalid compiler mode fails before any directory is created.
+
+The Toolchain contract publisher already validates its dedicated output and
+creates its parent before opening the private workspace. Its manifest rule no
+longer depends on the redundant `toolchain/build` directory target. The
+general target remains available to optional native-oracle rules.
+
+| Check | Result |
+|---|---|
+| User directory red tests | PASS after the missing nested `BUILD` case rejected the one-level guard and the replacement race rejected pathname-only creation. Windows blocks the parent rename while its handle is pinned. POSIX creates below the opened directory and rejects the changed public path before CupidC runs. |
+| `python -m unittest -v tests.test_cupidc_production` on Windows | PASS: all 49 tests in 28.286 seconds, including invalid-mode rollback, output aliases, redirected resolution, the directory-replacement race, and the real poisoned-host alternate-build gate. |
+| `python -m unittest -v tests.test_cupidc_production` under WSL | PASS: all 49 tests in 72.331 seconds, including the POSIX descriptor-relative race path. |
+| `python -m unittest -v tests.test_cupidc_toolchain_contracts` | PASS: all 32 tests in 2.576 seconds. The injected bootstrap failure leaves the publisher-created parent but no partial cohort. |
+| `python -m unittest -v tests.test_build_graph_audit` | PASS: all 73 tests in 611.219 seconds. |
+| `make verify-bootstrap-seed` | PASS for all five checked tools. |
+| `make bootstrap-audit` | PASS in 64.373 seconds. |
+| `make check-bootstrap-audit` | PASS in 62.135 seconds. |
+| Python bytecode and Ruff | PASS for the changed Python modules and tests. |
+
+The regenerated graph contains 719 active inputs, 447 transforms, 255 feature
+records, and 25 accounted unreachable files. The root, user, and Toolchain
+roots contain 438, seven, and two transforms. Python participates in all 447.
+The three Python-only outputs are `user/test-syscall-abi`, `toolchain/all`,
+and `toolchain/build/cupidc-contracts/manifest.json`. The two removed
+directory nodes reduce Python-only transforms from five to three.
+
+The active-source digest remains
+`69f8f0b9bc264f338f445781f92792b24e91f0d641950d3b57f55f74841ae46e`.
+The 2,565,353-byte JSON has SHA-256
+`571cd015cd56c1c0d0ec00b109ab2591dc463a1f8e497ff905745c27d031e306`.
+The 12,197-byte summary has SHA-256
+`3562338bc156774b3dcbfcd32d13ae1114b2c582cd12827669af2fe9dc03dce5`.
+
+Cupid ownership does not change. CupidC participates in 245 transforms,
+CupidASM in five, CupidObj in 189, CupidLD in five, and CupidDis in one. Every
+one of the 438 root outputs still has a Cupid owner. Python and WSL remain in
+the host control plane. The directory pins close after the resolved-output
+check. The user compiler does not yet pin its output directory identity across
+the complete compiler run; publication-time parent replacement remains a
+separate hardening task.
+
+No ordinary C or assembly source changes ownership, so no `.c` to `.cc`
+rename is due. `TempleOS/` remains untouched reference material. ADR 0245
+records the decision.

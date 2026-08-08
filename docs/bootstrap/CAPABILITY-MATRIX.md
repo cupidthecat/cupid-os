@@ -9,7 +9,7 @@ The matrix uses these statuses:
 
 The capability requirements below are backed by `ACTIVE-SOURCE-AUDIT.md` and
 `audits/active-build.json`: 719 active language inputs across root, user, and
-hosted Toolchain build roots, 255 stable feature IDs, 449 output transforms,
+hosted Toolchain build roots, 255 stable feature IDs, 447 output transforms,
 and an explicit i386 ILP32/cdecl/ELF32 contract. The language split is 28
 assembly files, 290 C headers, and 401 Cupid C files. No ordinary C
 translation unit remains in a supported root. Lexical counts are discovery
@@ -32,7 +32,7 @@ CupidObj participates in 189 transforms. Its total includes the three
 installation-source generators, the kernel-symbol source generator, the
 normal disk image, repository ISO fixture, and Doom profile manifest. Every
 one of the 438 root outputs has a Cupid tool owner, so no root output is
-Python-only. Host Python remains present in all 449 transforms as the
+Python-only. Host Python remains present in all 447 transforms as the
 checked-tool launcher and host-side safety, parity, and publication layer. For
 the normal disk image, Python builds an
 independent oracle, composes the image around the checked CupidObj template,
@@ -41,7 +41,12 @@ typed inventory, checks CupidObj's bytes against its own renderer, rejects
 drift or competing publishers, and replaces the output atomically. ADR 0204
 records the installation-table transfer, ADR 0224 records the kernel-symbol
 transfer, ADR 0238 records the disk-image transfer, and ADR 0241 records the
-ISO transfer. ADR 0244 records the profile-manifest transfer.
+ISO transfer. ADR 0244 records the profile-manifest transfer. The user and
+Toolchain publishers create their output directories. The user compiler pins
+each POSIX or Windows directory component during preparation and rejects a
+link, junction, or changed resolved path before releasing those pins. Three
+Python-only supplemental verification or orchestration transforms remain.
+ADR 0245 records that graph boundary.
 The source-current normal build completed in 502.232 seconds and produced a
 209,715,200-byte image with SHA-256
 `3f8c84cea61e5e8bfc4e6a5fc09a030a4d6451d258a4ca2ea6486a923d1d08e3`.
@@ -139,7 +144,7 @@ membership and byte drift without changing its timestamp on an unchanged
 scan.
 
 CupidC participates in 245 transforms, and no supported transform invokes a
-host C compiler. Host Python participates in 449 transforms, including all
+host C compiler. Host Python participates in 447 transforms, including all
 checked root tool launches, the external-program ABI check, the Toolchain
 contract cohort, and two ISO fixture operations. The graph has no recursive
 Make transform. The runner checks the complete live seed before and after

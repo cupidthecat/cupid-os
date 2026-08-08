@@ -4,15 +4,15 @@ The deterministic active-source audit records three supported build roots:
 root `all`, `user:all`, and `toolchain:all`. It evaluates Make conditionals
 with `OS=Windows_NT` and `LC_ALL=C` on every host so the checked graph has one
 stable shape, then covers the Linux branch with direct build tests.
-`audits/active-build.json` owns the current 719-input/449-transform graph. The
+`audits/active-build.json` owns the current 719-input/447-transform graph. The
 language graph contains 28 assembly inputs, 290 headers, and 401 Cupid C
 files. No ordinary C translation unit remains in a supported root. The
 active-source digest is
 `69f8f0b9bc264f338f445781f92792b24e91f0d641950d3b57f55f74841ae46e`.
-The 2,566,111-byte audit JSON has SHA-256
-`9e8dc28b6b0b6ba611b53d8bbe67930495d4cfc6bb509b1333d3da0082c23289`,
+The 2,565,353-byte audit JSON has SHA-256
+`571cd015cd56c1c0d0ec00b109ab2591dc463a1f8e497ff905745c27d031e306`,
 and the 12,197-byte summary has SHA-256
-`2bb3d92e713fa98ab5c2c6cb9ad0f2beb212f00c73a6623d71a3bd170a003f0e`.
+`3562338bc156774b3dcbfcd32d13ae1114b2c582cd12827669af2fe9dc03dce5`.
 The checked Windows Clang/LLVM and Linux GCC/binutils baselines at
 revision `1e079d1` predate the current CupidC ownership and remain historical
 oracle evidence.
@@ -31,15 +31,21 @@ for the other six CupidC transforms. The host C compiler owns no transform in
 a supported root. CupidObj participates in 189 transforms, including the
 three installation-source generators, the kernel-symbol source generator, and
 the normal disk-image template, ISO fixture, and Doom profile manifest. Python
-participates in all 449 transforms as the checked-tool launcher and host-side
+participates in all 447 transforms as the checked-tool launcher and host-side
 safety, parity, and publication layer. Every one of the 438 root outputs has a
 Cupid tool owner, so no root output is Python-only. No recursive Make
-transform remains. Root `all` runs
+transform remains. The checked user compiler and Toolchain contract publisher
+create their own output directories. On POSIX, the compiler requires
+`dir_fd`, `O_DIRECTORY`, and `O_NOFOLLOW` support. On Windows, it uses
+parent-relative directory handles and rejects reparse points. The pins remain
+open through the final resolved-output check. Three Python-only verification
+or orchestration transforms remain outside the normal root. Root `all` runs
 CupidASM, CupidObj, CupidLD, and CupidDis from the checked five-tool seed. The
 runner checks that trust unit before and after each command. Make passes
 discovered output paths through `$(sort ...)` before generation and link, so
 the Windows and Linux branches consume one canonical source order. ADR 0238
-records the disk-image transfer.
+records the disk-image transfer, and ADR 0245 records the publisher-owned
+directory boundary.
 
 Checked-seed CupidObj now authors the complete tracked ISO fixture through
 `iso-fixture`. Python remains the tree freezer, independent renderer, native
@@ -72,7 +78,7 @@ files and the Python oracle, and the public operation fails transactionally on
 malformed, duplicate, mixed, or oversized lists. Each Make recipe depends on
 `$(CUPIDOBJ_INPUTS)`. `tools/hostbuild.py` is no longer a prerequisite or
 recipe owner for these outputs, though it remains their oracle and keeps its
-other roles. Python still participates in all 449 transforms because the
+other roles. Python still participates in all 447 transforms because the
 checked-seed runner uses it to launch CupidObj. ADRs 0201, 0203, and 0204
 record the operation, its first seed promotion, and the ownership transfer.
 ADRs 0205 and 0206 record the request-boundary and linked-symbol corrections.
@@ -696,7 +702,7 @@ Counts are output transforms in the checked audit, not textual recipe occurrence
 | Checked-seed CupidObj ISO path | Included in the 189 CupidObj transforms | `iso-fixture` authors the complete deterministic ECMA-119 and Rock Ridge image before Python compares an independent render and publishes under a per-output lock. |
 | Checked-seed CupidObj profile path | Included in the 189 CupidObj transforms | `profile-manifest` authors the canonical Doom profile JSON from a frozen `CUPROF1` snapshot before Python checks an independent oracle and publishes under an adjacent no-follow lock. |
 | CupidDis | 1 composite transform | Supplies 4,704 deterministic text-symbol rows through a checked private seed image; the current consumer becomes a 114,421-byte panic-backtrace blob; the host oracle remains optional |
-| Python | 449 transforms | Launches checked Cupid tools and retains host discovery, safety, parity, drift detection, locking, publication, and mutable image work. No root output is Python-only. The disk image, ISO image, and Doom profile manifest are composite transforms because checked CupidObj authors their deterministic bytes first. |
+| Python | 447 transforms | Launches checked Cupid tools and retains host discovery, safety, parity, drift detection, locking, publication, and mutable image work. No root output is Python-only. Three supplemental verification or orchestration outputs remain Python-only. The disk image, ISO image, and Doom profile manifest are composite transforms because checked CupidObj authors their deterministic bytes first. |
 | Make recursion | 0 transforms | Native hosted CupidASM, CupidObj, CupidLD, and CupidDis targets remain available, but no supported root reaches them recursively |
 
 The normal Make image recipe passes the checked seed manifest to

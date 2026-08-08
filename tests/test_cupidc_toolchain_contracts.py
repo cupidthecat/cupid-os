@@ -358,6 +358,46 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             self.assertIn("--gnu", runtime_arguments)
             self.assertNotIn("--gnu", strict_arguments)
 
+    def test_build_creates_its_missing_output_parent_before_bootstrap(self):
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-contract-output-parent-"
+        ) as temporary:
+            root = Path(temporary).resolve()
+            (root / "toolchain").mkdir()
+            manifest = root / "manifest.json"
+            manifest.write_text("{}\n", encoding="ascii")
+            output = root / "toolchain/build/cupidc-contracts"
+
+            with (
+                mock.patch.object(
+                    cupidc_toolchain_contracts,
+                    "_contract_input_paths",
+                    return_value=(),
+                ),
+                mock.patch.object(
+                    cupidc_toolchain_contracts,
+                    "_snapshot_inputs",
+                    return_value={},
+                ),
+                mock.patch.object(
+                    cupidc_toolchain_contracts,
+                    "bootstrap_from_seed",
+                    side_effect=cupidc_toolchain_contracts.BootstrapError(
+                        "injected stop"
+                    ),
+                ),
+            ):
+                with self.assertRaisesRegex(
+                    cupidc_toolchain_contracts.ContractError,
+                    "checked bootstrap failed: injected stop",
+                ):
+                    cupidc_toolchain_contracts.build_contracts(
+                        root, manifest, output
+                    )
+
+            self.assertTrue(output.parent.is_dir())
+            self.assertFalse(output.exists())
+
     def test_contract_object_comparison_checks_exact_stage_bytes(self):
         with tempfile.TemporaryDirectory(
             prefix="cupid-contract-object-comparison-"

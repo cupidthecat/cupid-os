@@ -474,7 +474,12 @@ production transfer. The later Doom profile handoff raises CupidObj to 189
 transforms. Every one of the 438 root outputs has a Cupid owner, so no root
 output is Python-only. [ADR
 0244](../adr/0244-publish-the-doom-profile-manifest-with-checked-cupidobj.md)
-records the current boundary.
+records that byte-ownership boundary. [ADR
+0245](../adr/0245-let-artifact-publishers-create-output-directories.md)
+records why artifact publishers also create their output directories. The
+user compiler prepares them through pinned, parent-relative, no-follow
+directory identities and checks the resolved output before releasing those
+pins.
 
 Checked-seed CupidObj provides `wrap-jpeg`. It validates one sequential
 SOF0 or SOF1 frame, a scan, entropy stuffing and restart markers, and a
@@ -1189,23 +1194,29 @@ maps `U0`, the signed and unsigned sized integer spellings, `Bool`, `bool`,
 treat those spellings as ordinary identifiers. The graph contains 719 active
 language inputs: 28 assembly files, 290 headers, and 401 Cupid C files. No
 ordinary C translation unit remains in the supported roots. It records 255
-feature IDs, 449 transforms, and 25 accounted unreachable files. The preprocessor
+feature IDs, 447 transforms, and 25 accounted unreachable files. The preprocessor
 inventory covers 687 files and 2,402 include occurrences, split into 2,167
 quoted and 235 angle forms.
 
 The final active-source digest is
 `69f8f0b9bc264f338f445781f92792b24e91f0d641950d3b57f55f74841ae46e`.
-The 2,566,111-byte audit JSON has SHA-256
-`9e8dc28b6b0b6ba611b53d8bbe67930495d4cfc6bb509b1333d3da0082c23289`,
+The 2,565,353-byte audit JSON has SHA-256
+`571cd015cd56c1c0d0ec00b109ab2591dc463a1f8e497ff905745c27d031e306`,
 and the 12,197-byte summary has SHA-256
-`2bb3d92e713fa98ab5c2c6cb9ad0f2beb212f00c73a6623d71a3bd170a003f0e`.
+`3562338bc156774b3dcbfcd32d13ae1114b2c582cd12827669af2fe9dc03dce5`.
 
 Across the three supported roots, CupidC participates in 245 transforms and
-CupidObj participates in 189 transforms. Python participates in all 449 as
+CupidObj participates in 189 transforms. Python participates in all 447 as
 the checked-tool launcher and host-side safety, parity, and publication layer.
 No transform invokes a host C compiler, and no recursive Make transform
-remains. The kernel-symbol source is classified as `generate_ksyms_source`
-with CupidDis, CupidObj, and Python participants. The Doom profile delivery is
+remains. The user and Toolchain artifact publishers create their required
+output directories. The user compiler uses POSIX `dir_fd` operations or
+parent-relative Windows handles and rejects links, junctions, and a changed
+resolved path before releasing the directory pins. Three Python-only
+verification or orchestration transforms remain in the supplemental roots.
+The kernel-symbol source is classified
+as `generate_ksyms_source` with CupidDis, CupidObj, and Python participants.
+The Doom profile delivery is
 classified as `generate_profile_manifest` with CupidObj and Python
 participants. Every one of the 438 root outputs has a Cupid tool owner, so no
 root output is Python-only. The graph runs
@@ -1215,7 +1226,8 @@ every host; direct Linux builds cover the Linux execution branch. The public
 runner rechecks the live five-tool trust unit after every command.
 Output-bearing wildcard lists pass through Make's `$(sort ...)` before
 generators or link order consume them. ADR 0190 records the root tool handoff,
-and ADR 0196 removes host C from the normal Toolchain root.
+ADR 0196 removes host C from the normal Toolchain root, and ADR 0245 records
+publisher-owned output directories.
 
 The two ISO fixture transforms are now explicit. `gen-big` freezes
 `test_iso/big_pattern.asm` and the checked seed, asks CupidASM to assemble a

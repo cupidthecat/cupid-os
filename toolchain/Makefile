@@ -401,7 +401,7 @@ $(CONTRACT_MANIFEST): ../tools/cupidc_toolchain_contracts.py \
 	../tools/bootstrap_toolchain.py $(CUPIDC_CONTRACT_SEED) \
 	../link.ld \
 	$(CUPIDC_HOSTED_I386_CLOSURE) $(CUPIDC_CONTRACT_SOURCES) \
-	$(CUPIDC_CONTRACT_SUPPORT) Makefile | $(BUILD_DIR)
+	$(CUPIDC_CONTRACT_SUPPORT) Makefile
 	$(PYTHON) ../tools/cupidc_toolchain_contracts.py build \
 		--root .. --manifest ../bootstrap/seeds/i386-linux/manifest.json \
 		--output $(CONTRACT_DIR)

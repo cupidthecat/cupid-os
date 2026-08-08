@@ -233,7 +233,7 @@ The pass-one and final kernels project the same text symbols at the same
 addresses.
 
 Across root and supplemental builds, the ownership audit reports 245 CupidC
-transforms and no host C transform. Host Python participates in all 449
+transforms and no host C transform. Host Python participates in all 447
 transforms. The normal Toolchain build uses checked static i386 tools for its
 contract cohort; native contract binaries are optional oracles. The
 publisher accepts only a dedicated cupidc-contracts directory inside the
@@ -251,7 +251,13 @@ Makefile and both Python modules that construct or verify the cohort. The
 manifest digest, decoded data, schema checks, and build plan
 come from one captured byte sequence. The 438-transform normal image has no
 host C or recursive Make transform. Its five CupidASM, 189 CupidObj, two
-CupidLD, and one CupidDis commands run from the checked seed.
+CupidLD, and one CupidDis commands run from the checked seed. The user
+compiler and Toolchain contract publisher create their own output directories,
+so empty-directory setup is not a separate transform. The compiler pins every
+POSIX or Windows directory component during preparation and rejects links,
+junctions, and a changed resolved path before releasing those pins. Three
+supplemental verification or orchestration outputs remain Python-only. ADR
+0245 records this boundary.
 
 The normal build compiles kernel/gfx/jpeg.cc and
 kernel/gfx/glyph_raster.cc through the checked seed. Their closed header sets

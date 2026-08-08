@@ -4,8 +4,10 @@
 from __future__ import annotations
 
 import argparse
+import ctypes
 import hashlib
 import os
+import stat
 import subprocess
 import sys
 import tempfile
@@ -75,6 +77,39 @@ GENERATED_INCLUDE_CLOSURE = (
 
 DEFAULT_TIMEOUT_SECONDS = 180
 TOOL_MODES = ("auto", "checked-seed", "native-windows")
+_HOST_IS_WINDOWS = os.name == "nt"
+_POSIX_DIRECTORY_WALK_SUPPORTED = (
+    getattr(os, "O_DIRECTORY", 0) != 0
+    and getattr(os, "O_NOFOLLOW", 0) != 0
+    and os.open in os.supports_dir_fd
+    and os.mkdir in os.supports_dir_fd
+)
+_WINDOWS_SYNCHRONIZE = 0x00100000
+_WINDOWS_FILE_READ_ATTRIBUTES = 0x0080
+_WINDOWS_FILE_TRAVERSE = 0x0020
+_WINDOWS_DIRECTORY_ACCESS = (
+    _WINDOWS_SYNCHRONIZE
+    | _WINDOWS_FILE_READ_ATTRIBUTES
+    | _WINDOWS_FILE_TRAVERSE
+)
+_WINDOWS_FILE_SHARE_READ = 0x0001
+_WINDOWS_FILE_SHARE_WRITE = 0x0002
+_WINDOWS_DIRECTORY_SHARE = (
+    _WINDOWS_FILE_SHARE_READ | _WINDOWS_FILE_SHARE_WRITE
+)
+_WINDOWS_OPEN_EXISTING = 3
+_WINDOWS_FILE_OPEN_IF = 3
+_WINDOWS_FILE_ATTRIBUTE_DIRECTORY = 0x0010
+_WINDOWS_FILE_ATTRIBUTE_REPARSE_POINT = 0x0400
+_WINDOWS_FILE_FLAG_BACKUP_SEMANTICS = 0x02000000
+_WINDOWS_FILE_FLAG_OPEN_REPARSE_POINT = 0x00200000
+_WINDOWS_FILE_DIRECTORY_FILE = 0x00000001
+_WINDOWS_FILE_SYNCHRONOUS_IO_NONALERT = 0x00000020
+_WINDOWS_OBJECT_CASE_INSENSITIVE = 0x0040
+_WINDOWS_OBJECT_DONT_REPARSE = 0x1000
+_WINDOWS_FILE_ATTRIBUTE_TAG_INFO_CLASS = 9
+_WINDOWS_ERROR_DIRECTORY = 267
+_WINDOWS_ERROR_REPARSE_POINT_ENCOUNTERED = 4395
 
 
 class ProductionCompileError(RuntimeError):
@@ -169,6 +204,324 @@ def _output_path(root: Path, output: Path) -> Path:
     if resolved.suffix != ".o":
         raise ProductionCompileError("compiler output must use the .o suffix")
     return resolved
+
+
+def _pin_posix_directory(
+    path: str | Path,
+    stack: ExitStack,
+    *,
+    parent_fd: int | None = None,
+) -> int:
+    directory_flag = getattr(os, "O_DIRECTORY", 0)
+    no_follow_flag = getattr(os, "O_NOFOLLOW", 0)
+    if not _POSIX_DIRECTORY_WALK_SUPPORTED:
+        raise ProductionCompileError(
+            "this host cannot safely prepare user output directories"
+        )
+    try:
+        descriptor = os.open(
+            path,
+            os.O_RDONLY | directory_flag | no_follow_flag,
+            dir_fd=parent_fd,
+        )
+    except OSError as error:
+        raise ProductionCompileError(
+            "approved user output directory is not a repository directory"
+        ) from error
+    stack.callback(os.close, descriptor)
+    try:
+        mode = os.fstat(descriptor).st_mode
+    except OSError as error:
+        raise ProductionCompileError(
+            f"approved user output directory cannot be inspected: {error}"
+        ) from error
+    if not stat.S_ISDIR(mode):
+        raise ProductionCompileError(
+            "approved user output directory is not a repository directory"
+        )
+    return descriptor
+
+
+def _prepare_posix_user_directories(
+    root: Path,
+    parts: Sequence[str],
+    stack: ExitStack,
+) -> None:
+    if not _POSIX_DIRECTORY_WALK_SUPPORTED:
+        raise ProductionCompileError(
+            "this host cannot safely prepare user output directories"
+        )
+    parent_fd = _pin_posix_directory(root, stack)
+    for part in parts:
+        try:
+            child_fd = _pin_posix_directory(
+                part, stack, parent_fd=parent_fd
+            )
+        except ProductionCompileError as open_error:
+            cause = open_error.__cause__
+            if not isinstance(cause, FileNotFoundError):
+                raise
+            try:
+                os.mkdir(part, dir_fd=parent_fd)
+            except FileExistsError:
+                pass
+            except OSError as error:
+                raise ProductionCompileError(
+                    "approved user output directory cannot be created: "
+                    f"{error}"
+                ) from error
+            child_fd = _pin_posix_directory(
+                part, stack, parent_fd=parent_fd
+            )
+        parent_fd = child_fd
+
+
+def _windows_directory_api():
+    from ctypes import wintypes
+
+    class FileAttributeTagInfo(ctypes.Structure):
+        _fields_ = (
+            ("attributes", wintypes.DWORD),
+            ("reparse_tag", wintypes.DWORD),
+        )
+
+    class UnicodeString(ctypes.Structure):
+        _fields_ = (
+            ("length", wintypes.USHORT),
+            ("maximum_length", wintypes.USHORT),
+            ("buffer", wintypes.LPWSTR),
+        )
+
+    class ObjectAttributes(ctypes.Structure):
+        _fields_ = (
+            ("length", wintypes.ULONG),
+            ("root_directory", wintypes.HANDLE),
+            ("object_name", ctypes.POINTER(UnicodeString)),
+            ("attributes", wintypes.ULONG),
+            ("security_descriptor", wintypes.LPVOID),
+            ("security_quality_of_service", wintypes.LPVOID),
+        )
+
+    class IoStatusBlock(ctypes.Structure):
+        _fields_ = (
+            ("status", wintypes.LONG),
+            ("information", ctypes.c_size_t),
+        )
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.CreateFileW.argtypes = (
+        wintypes.LPCWSTR,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.LPVOID,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.HANDLE,
+    )
+    kernel32.CreateFileW.restype = wintypes.HANDLE
+    kernel32.GetFileInformationByHandleEx.argtypes = (
+        wintypes.HANDLE,
+        ctypes.c_int,
+        wintypes.LPVOID,
+        wintypes.DWORD,
+    )
+    kernel32.GetFileInformationByHandleEx.restype = wintypes.BOOL
+    kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
+    kernel32.CloseHandle.restype = wintypes.BOOL
+    ntdll = ctypes.WinDLL("ntdll", use_last_error=True)
+    ntdll.NtCreateFile.argtypes = (
+        ctypes.POINTER(wintypes.HANDLE),
+        wintypes.DWORD,
+        ctypes.POINTER(ObjectAttributes),
+        ctypes.POINTER(IoStatusBlock),
+        wintypes.LPVOID,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.LPVOID,
+        wintypes.DWORD,
+    )
+    ntdll.NtCreateFile.restype = wintypes.LONG
+    ntdll.RtlNtStatusToDosError.argtypes = (wintypes.LONG,)
+    ntdll.RtlNtStatusToDosError.restype = wintypes.ULONG
+    return (
+        kernel32,
+        ntdll,
+        FileAttributeTagInfo,
+        UnicodeString,
+        ObjectAttributes,
+        IoStatusBlock,
+    )
+
+
+def _validate_windows_directory_handle(
+    kernel32,
+    info_type,
+    handle,
+) -> None:
+    information = info_type()
+    if not kernel32.GetFileInformationByHandleEx(
+        handle,
+        _WINDOWS_FILE_ATTRIBUTE_TAG_INFO_CLASS,
+        ctypes.byref(information),
+        ctypes.sizeof(information),
+    ):
+        error_code = ctypes.get_last_error()
+        raise ProductionCompileError(
+            "approved user output directory cannot be inspected"
+        ) from ctypes.WinError(error_code)
+    if (
+        not information.attributes & _WINDOWS_FILE_ATTRIBUTE_DIRECTORY
+        or information.attributes & _WINDOWS_FILE_ATTRIBUTE_REPARSE_POINT
+    ):
+        raise ProductionCompileError(
+            "approved user output directory is not a repository directory"
+        )
+
+
+def _pin_windows_directory(path: Path, stack: ExitStack):
+    kernel32, _, info_type, _, _, _ = _windows_directory_api()
+    handle = kernel32.CreateFileW(
+        str(path),
+        _WINDOWS_DIRECTORY_ACCESS,
+        _WINDOWS_DIRECTORY_SHARE,
+        None,
+        _WINDOWS_OPEN_EXISTING,
+        (
+            _WINDOWS_FILE_FLAG_BACKUP_SEMANTICS
+            | _WINDOWS_FILE_FLAG_OPEN_REPARSE_POINT
+        ),
+        None,
+    )
+    invalid_handle = ctypes.c_void_p(-1).value
+    if handle == invalid_handle:
+        error_code = ctypes.get_last_error()
+        raise ProductionCompileError(
+            "approved user output directory is not a repository directory"
+        ) from ctypes.WinError(error_code, str(path))
+    try:
+        _validate_windows_directory_handle(kernel32, info_type, handle)
+    except BaseException:
+        kernel32.CloseHandle(handle)
+        raise
+    stack.callback(kernel32.CloseHandle, handle)
+    return handle
+
+
+def _open_or_create_windows_directory(
+    parent_handle,
+    name: str,
+    stack: ExitStack,
+):
+    (
+        kernel32,
+        ntdll,
+        info_type,
+        unicode_type,
+        attributes_type,
+        status_type,
+    ) = _windows_directory_api()
+    name_buffer = ctypes.create_unicode_buffer(name)
+    encoded_length = len(name.encode("utf-16-le"))
+    object_name = unicode_type(
+        encoded_length,
+        encoded_length + 2,
+        ctypes.cast(name_buffer, ctypes.c_wchar_p),
+    )
+    attributes = attributes_type(
+        ctypes.sizeof(attributes_type),
+        parent_handle,
+        ctypes.pointer(object_name),
+        _WINDOWS_OBJECT_CASE_INSENSITIVE | _WINDOWS_OBJECT_DONT_REPARSE,
+        None,
+        None,
+    )
+    status_block = status_type()
+    handle = ctypes.c_void_p()
+    status = ntdll.NtCreateFile(
+        ctypes.byref(handle),
+        _WINDOWS_DIRECTORY_ACCESS,
+        ctypes.byref(attributes),
+        ctypes.byref(status_block),
+        None,
+        0,
+        _WINDOWS_DIRECTORY_SHARE,
+        _WINDOWS_FILE_OPEN_IF,
+        _WINDOWS_FILE_DIRECTORY_FILE
+        | _WINDOWS_FILE_SYNCHRONOUS_IO_NONALERT,
+        None,
+        0,
+    )
+    if status < 0:
+        error_code = ntdll.RtlNtStatusToDosError(status)
+        if error_code in (
+            _WINDOWS_ERROR_DIRECTORY,
+            _WINDOWS_ERROR_REPARSE_POINT_ENCOUNTERED,
+        ):
+            raise ProductionCompileError(
+                "approved user output directory is not a repository directory"
+            ) from ctypes.WinError(error_code, name)
+        raise ProductionCompileError(
+            "approved user output directory cannot be created: "
+            f"{ctypes.FormatError(error_code)}"
+        ) from ctypes.WinError(error_code, name)
+    opened_handle = handle.value
+    try:
+        _validate_windows_directory_handle(
+            kernel32, info_type, opened_handle
+        )
+    except BaseException:
+        kernel32.CloseHandle(opened_handle)
+        raise
+    stack.callback(kernel32.CloseHandle, opened_handle)
+    return opened_handle
+
+
+def _prepare_windows_user_directories(
+    root: Path,
+    parts: Sequence[str],
+    stack: ExitStack,
+) -> None:
+    parent_handle = _pin_windows_directory(root, stack)
+    for part in parts:
+        parent_handle = _open_or_create_windows_directory(
+            parent_handle, part, stack
+        )
+
+
+def _prepare_user_output_directory(
+    root: Path,
+    source: Path,
+    output: Path,
+    stack: ExitStack,
+) -> Path:
+    candidate = output if output.is_absolute() else root / output
+    requested = Path(os.path.abspath(candidate))
+    try:
+        relative = requested.relative_to(root)
+    except ValueError as error:
+        raise ProductionCompileError(
+            f"output must stay inside the repository: {output}"
+        ) from error
+    if (
+        len(relative.parts) < 3
+        or relative.parts[0] != "user"
+        or relative.parts[1] == "examples"
+        or requested.name != f"{source.stem}.o"
+    ):
+        raise ProductionCompileError(
+            "source and output do not form an approved output pair: "
+            f"{source.relative_to(root).as_posix()} -> "
+            f"{relative.as_posix()}"
+        )
+
+    directory_parts = relative.parts[:-1]
+    if _HOST_IS_WINDOWS:
+        _prepare_windows_user_directories(root, directory_parts, stack)
+    else:
+        _prepare_posix_user_directories(root, directory_parts, stack)
+    return requested
 
 
 def _validate_output_binding(
@@ -272,10 +625,6 @@ def compile_production_source(
     """Compile one approved source and publish its object atomically."""
     root = _root_path(root)
     source, logical_source = _approved_source(root, cohort, source)
-    output = _output_path(root, output)
-    _validate_output_binding(root, cohort, source, output)
-    if source == output:
-        raise ProductionCompileError("output may not replace its source")
     if timeout <= 0:
         raise ProductionCompileError("compiler timeout must be positive")
     if tool_mode not in TOOL_MODES:
@@ -300,6 +649,21 @@ def compile_production_source(
         raise ProductionCompileError(
             "native Windows compilation is limited to the user cohort"
         )
+
+    requested_output = None
+    with ExitStack() as output_directory_pins:
+        if cohort == "user":
+            requested_output = _prepare_user_output_directory(
+                root, source, output, output_directory_pins
+            )
+        output = _output_path(root, output)
+        if requested_output is not None and output != requested_output:
+            raise ProductionCompileError(
+                "approved user output directory changed while preparing output"
+            )
+    _validate_output_binding(root, cohort, source, output)
+    if source == output:
+        raise ProductionCompileError("output may not replace its source")
 
     closure = _closure_paths(root, cohort, source)
     captured = _capture(closure)

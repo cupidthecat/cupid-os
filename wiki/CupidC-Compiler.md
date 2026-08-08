@@ -1014,11 +1014,16 @@ SMP, all 62 crypto checks, e1000 traffic, the desktop, terminal, and CupidC
 execution at `0x01100000`. A separate gate loads and reaps the same
 external program twice at `0x01C00000`. ADR 0124 records the exact build and
 runtime evidence. No supported transform invokes a host C compiler. Python
-participates in all 449 transforms across the three audited roots, and CupidC
+participates in all 447 transforms across the three audited roots, and CupidC
 participates in 245. Root `all` runs CupidC, CupidASM, CupidObj, CupidLD, and
 CupidDis from the manifest-checked seed; `toolchain:all` uses the rebuilt
 static tools for its contract cohort. The private in-kernel CupidC compiler
-still handles embedded runtime compilation.
+still handles embedded runtime compilation. The checked user compiler creates
+approved output directories for default and overridden `BUILD` paths. It uses
+no-follow POSIX descriptors or parent-relative Windows handles and checks the
+resolved output before releasing the directory pins. Empty-directory setup is
+no longer a separate graph transform. ADR 0245 records this publisher
+boundary.
 
 The checked seed decides C11 inline linkage from the complete file-scope
 declaration set. This covers the ordinary header declaration and inline
