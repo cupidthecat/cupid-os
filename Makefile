@@ -1073,6 +1073,7 @@ kernel/lang/cupidc.o: kernel/lang/cupidc.cc drivers/ata.h drivers/keyboard.h \
 	kernel/gui/desktop.h kernel/gui/ed.h kernel/gui/gui.h \
 	kernel/gui/gui_containers.h kernel/gui/gui_events.h \
 	kernel/gui/gui_menus.h kernel/gui/gui_themes.h kernel/gui/gui_widgets.h \
+	kernel/gui/ui.h \
 	kernel/lang/cupidc.h kernel/lang/dis.h kernel/lang/exec.h \
 	kernel/lang/shell.h kernel/lang/ssh_io.h kernel/mm/memory.h \
 	kernel/mm/swap.h kernel/network/arp.h kernel/network/dhcp.h \

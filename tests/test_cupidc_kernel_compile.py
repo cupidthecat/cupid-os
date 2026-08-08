@@ -1370,6 +1370,7 @@ class KernelCompileMakefileTests(unittest.TestCase):
                     *recursive_includes(source),
                     "$(CUPIDC_KERNEL_COMPILE_INPUTS)",
                 },
+                source,
             )
         self.assertIn(
             "kernel/usb/usb_hc.h",

@@ -21954,3 +21954,28 @@ participates in 188 transforms, Cupid tools still own 437 of 438 root outputs,
 and Python remains the active Doom manifest author. No C or assembly source
 changes ownership, so no `.c` to `.cc` rename is due. `TempleOS/` remains
 untouched reference material. ADR 0243 records the promotion.
+
+## 2026-08-08: Declare CupidC's complete GUI header closure
+
+`kernel/lang/cupidc.cc` reaches `kernel/gui/ui.h` through
+`gui_containers.h`, `gui_events.h`, `gui_menus.h`, and `gui_widgets.h`. Its
+Make rule listed those four direct headers but omitted the shared transitive
+header. Because the checked CupidC wrapper freezes the declared closure, that
+omission could leave `kernel/lang/cupidc.o` unchanged after an edit to `ui.h`.
+
+The rule now declares `kernel/gui/ui.h`. The Make dependency set matches the
+recursive include closure recorded by the active-source audit. The regression
+test also names the source whose closure differs, so future failures identify
+the affected rule directly.
+
+| Check | Result |
+|---|---|
+| Exact checked-CupidC Make cohort test | PASS. |
+| `python -m unittest -v tests.test_cupidc_kernel_compile` | PASS: all 32 tests in 90.833 seconds. |
+| `make bootstrap-audit` | PASS in 61.5 seconds. The 2,558,778-byte JSON has SHA-256 `3c740d604e05e96dd88599339f83239ba15ae7c1db5138489fc018965a5eedcc`. |
+| `make check-bootstrap-audit` | PASS in 64.3 seconds. |
+
+The active-language digest remains
+`69f8f0b9bc264f338f445781f92792b24e91f0d641950d3b57f55f74841ae46e`.
+No C or assembly source changes ownership, so no source rename is due.
+`TempleOS/` remains untouched reference material.

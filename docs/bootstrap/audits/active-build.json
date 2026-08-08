@@ -34653,6 +34653,7 @@
           "kernel/gui/gui_menus.h",
           "kernel/gui/gui_themes.h",
           "kernel/gui/gui_widgets.h",
+          "kernel/gui/ui.h",
           "kernel/lang/cupidc.h",
           "kernel/lang/dis.h",
           "kernel/lang/exec.h",
@@ -52638,7 +52639,7 @@
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "cb81bf39c1cc5d8076852e34ae72c8216b9cf466b8a0b3bd9759853a7e0e702e"
+        "sha256": "19bdf34a8b38268f2ea8ae8519856964b8f15f077eb9112bcede83ca40c6b30c"
       },
       {
         "path": "user/Makefile",
