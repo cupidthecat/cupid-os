@@ -596,8 +596,22 @@ padding occupies memory without occupying the file.
 _Avoid_: loader-provided alignment, placing an object first as an alignment guarantee, NASM escape
 
 **CupidLD**:
-The Cupid Toolchain linker.
-_Avoid_: host linker
+The Cupid Toolchain linker. Its source-head CLI publishes complete ELF and PE
+images through an adjacent candidate created with exclusive-create semantics
+and one filesystem replacement call. After closing the candidate, it reopens
+the file and checks its size and contents before replacement. On POSIX,
+CupidLD requests mode `0777`; the process umask may remove any permission bits.
+This path requires a caller-controlled, stable output directory and does not
+lock or pin the destination.
+_Avoid_: host linker, guarded multi-process publisher, crash-durable publication
+
+**Fixed-layout PE32 image**:
+A deterministic, import-free i386 PE32 console image serialized by CupidLD for
+one prescribed memory layout. It exists only in source head; it is neither a
+checked Windows seed nor proof that a Cupid-built tool runs on Windows.
+Empty output categories are omitted from the section table. Writable
+executable input is outside the profile and fails transactionally.
+_Avoid_: general PE linker, native Windows fixed point, checked Windows seed
 
 **CupidObj**:
 The Cupid Toolchain object and binary transformation utility. `wrap` keeps

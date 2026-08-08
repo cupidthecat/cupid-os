@@ -29922,6 +29922,7 @@ static int link_host_tool(
   (void)memset(&request, 0, sizeof(request));
   request.objects = objects;
   request.object_count = object_count;
+  request.image_kind = CTOOL_LD_IMAGE_ELF32;
   request.layout.kind = CTOOL_LD_LAYOUT_FIXED_TEXT;
   request.layout.as.fixed_text.base_address = 0x08048000u;
   request.layout.as.fixed_text.entry_symbol = ctool_string("_start");
@@ -30449,6 +30450,7 @@ static int run_self_host_link_ctool_host(const char *host_root,
   (void)memset(&link_request, 0, sizeof(link_request));
   link_request.objects = objects;
   link_request.object_count = 4u;
+  link_request.image_kind = CTOOL_LD_IMAGE_ELF32;
   link_request.layout.kind = CTOOL_LD_LAYOUT_FIXED_TEXT;
   link_request.layout.as.fixed_text.base_address = 0x08048000u;
   link_request.layout.as.fixed_text.entry_symbol = ctool_string("_start");

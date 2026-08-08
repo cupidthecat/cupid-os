@@ -9,14 +9,38 @@
 
 #if defined(_WIN32)
 #include <direct.h>
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
 #else
 #include <unistd.h>
+#if !defined(CUPID_HOSTED_I386_LINUX_ABI_H)
+#include <fcntl.h>
+#endif
 #endif
 
 #define CUPIDLD_HOST_SOURCE_BYTES 67108864u
 #define CUPIDLD_HOST_OUTPUT_BYTES 67108864u
 #define CUPIDLD_HOST_ARENA_BYTES 268435456u
 #define CUPIDLD_HOST_IMAGE_SPAN 67108864u
+#define CUPIDLD_PUBLICATION_ATTEMPTS 4096u
+#define CUPIDLD_PUBLICATION_VERIFY_BYTES 4096u
+
+#if defined(CUPID_HOSTED_I386_LINUX_ABI_H)
+#define CUPIDLD_LINUX_SYS_WRITE 4
+#define CUPIDLD_LINUX_SYS_OPEN 5
+#define CUPIDLD_LINUX_SYS_CLOSE 6
+#define CUPIDLD_LINUX_SYS_UNLINK 10
+#define CUPIDLD_LINUX_SYS_RENAME 38
+#define CUPIDLD_LINUX_O_WRONLY 1
+#define CUPIDLD_LINUX_O_CREAT 64
+#define CUPIDLD_LINUX_O_EXCL 128
+
+int cupid_linux_syscall1(int number, unsigned int first);
+int cupid_linux_syscall2(int number, unsigned int first,
+                         unsigned int second);
+int cupid_linux_syscall3(int number, unsigned int first,
+                         unsigned int second, unsigned int third);
+#endif
 
 typedef struct {
   const char *machine;
@@ -29,11 +53,299 @@ typedef struct {
   ctool_u32 object_count;
 } cupidld_cli_t;
 
+typedef struct {
+#if defined(_WIN32)
+  HANDLE handle;
+#else
+  int descriptor;
+#endif
+} cupidld_publication_file_t;
+
+typedef struct {
+  ctool_status_t (*open_exclusive)(const char *path,
+                                   cupidld_publication_file_t *file_out);
+  ctool_status_t (*write_all)(cupidld_publication_file_t *file,
+                              ctool_bytes_t contents);
+  ctool_status_t (*close)(cupidld_publication_file_t *file);
+  ctool_status_t (*verify)(const char *candidate, ctool_bytes_t contents);
+  ctool_status_t (*replace)(const char *candidate,
+                            const char *destination);
+  void (*discard)(const char *candidate);
+} cupidld_publication_ops_t;
+
+#if defined(CUPID_HOSTED_I386_LINUX_ABI_H)
+static ctool_bool cupidld_linux_syscall_failed(int result) {
+  return result < 0 && result >= -4095 ? CTOOL_TRUE : CTOOL_FALSE;
+}
+#endif
+
+static ctool_status_t cupidld_publication_open(
+    const char *path, cupidld_publication_file_t *file_out) {
+  if (path == (const char *)0 || file_out == (cupidld_publication_file_t *)0) {
+    return CTOOL_ERR_INVALID_ARGUMENT;
+  }
+#if defined(_WIN32)
+  file_out->handle = CreateFileA(path, GENERIC_WRITE, 0, (LPSECURITY_ATTRIBUTES)0,
+                                 CREATE_NEW, FILE_ATTRIBUTE_NORMAL, (HANDLE)0);
+  return file_out->handle == INVALID_HANDLE_VALUE ? CTOOL_ERR_IO : CTOOL_OK;
+#elif defined(CUPID_HOSTED_I386_LINUX_ABI_H)
+  file_out->descriptor = cupid_linux_syscall3(
+      CUPIDLD_LINUX_SYS_OPEN, (unsigned int)path,
+      CUPIDLD_LINUX_O_WRONLY | CUPIDLD_LINUX_O_CREAT |
+          CUPIDLD_LINUX_O_EXCL,
+      511u);
+  return cupidld_linux_syscall_failed(file_out->descriptor) == CTOOL_TRUE
+             ? CTOOL_ERR_IO
+             : CTOOL_OK;
+#else
+  file_out->descriptor = open(path, O_WRONLY | O_CREAT | O_EXCL, 0777);
+  return file_out->descriptor < 0 ? CTOOL_ERR_IO : CTOOL_OK;
+#endif
+}
+
+static ctool_status_t cupidld_publication_verify(
+    const char *candidate, ctool_bytes_t contents) {
+  ctool_u8 buffer[CUPIDLD_PUBLICATION_VERIFY_BYTES];
+  FILE *file;
+  long file_size;
+  ctool_u32 total = 0u;
+  ctool_status_t status = CTOOL_OK;
+  if (candidate == (const char *)0 ||
+      (contents.data == (const ctool_u8 *)0 && contents.size != 0u)) {
+    return CTOOL_ERR_INVALID_ARGUMENT;
+  }
+#if defined(_WIN32)
+  file = (FILE *)0;
+  if (fopen_s(&file, candidate, "rb") != 0) {
+    file = (FILE *)0;
+  }
+#else
+  file = fopen(candidate, "rb");
+#endif
+  if (file == (FILE *)0) {
+    return CTOOL_ERR_IO;
+  }
+  if (fseek(file, 0l, SEEK_END) != 0) {
+    status = CTOOL_ERR_IO;
+  }
+  file_size = status == CTOOL_OK ? ftell(file) : -1l;
+  if (file_size < 0l || (unsigned long)file_size != contents.size) {
+    status = CTOOL_ERR_IO;
+  }
+  if (status == CTOOL_OK && fseek(file, 0l, 0) != 0) {
+    status = CTOOL_ERR_IO;
+  }
+  while (status == CTOOL_OK && total < contents.size) {
+    ctool_u32 remaining = contents.size - total;
+    ctool_u32 request =
+        remaining < CUPIDLD_PUBLICATION_VERIFY_BYTES
+            ? remaining
+            : CUPIDLD_PUBLICATION_VERIFY_BYTES;
+    size_t count = fread(buffer, 1u, (size_t)request, file);
+    if (count != (size_t)request ||
+        memcmp(buffer, contents.data + total, count) != 0) {
+      status = CTOOL_ERR_IO;
+    } else {
+      total += request;
+    }
+  }
+  if (fclose(file) != 0) {
+    status = CTOOL_ERR_IO;
+  }
+  return status;
+}
+
+static ctool_status_t cupidld_publication_write_all(
+    cupidld_publication_file_t *file, ctool_bytes_t contents) {
+  ctool_u32 total = 0u;
+  if (file == (cupidld_publication_file_t *)0 ||
+      (contents.data == (const ctool_u8 *)0 && contents.size != 0u)) {
+    return CTOOL_ERR_INVALID_ARGUMENT;
+  }
+  while (total < contents.size) {
+    ctool_u32 remaining = contents.size - total;
+#if defined(_WIN32)
+    DWORD written = 0u;
+    if (WriteFile(file->handle, contents.data + total, (DWORD)remaining,
+                  &written, (LPOVERLAPPED)0) == 0 ||
+        written == 0u || written > (DWORD)remaining) {
+      return CTOOL_ERR_IO;
+    }
+    total += (ctool_u32)written;
+#elif defined(CUPID_HOSTED_I386_LINUX_ABI_H)
+    int written = cupid_linux_syscall3(
+        CUPIDLD_LINUX_SYS_WRITE, (unsigned int)file->descriptor,
+        (unsigned int)(contents.data + total), (unsigned int)remaining);
+    if (cupidld_linux_syscall_failed(written) == CTOOL_TRUE || written == 0 ||
+        (unsigned int)written > remaining) {
+      return CTOOL_ERR_IO;
+    }
+    total += (ctool_u32)(unsigned int)written;
+#else
+    ssize_t written = write(file->descriptor, contents.data + total,
+                            (size_t)remaining);
+    if (written <= (ssize_t)0 || (size_t)written > (size_t)remaining) {
+      return CTOOL_ERR_IO;
+    }
+    total += (ctool_u32)(size_t)written;
+#endif
+  }
+  return CTOOL_OK;
+}
+
+static ctool_status_t cupidld_publication_close(
+    cupidld_publication_file_t *file) {
+  if (file == (cupidld_publication_file_t *)0) {
+    return CTOOL_ERR_INVALID_ARGUMENT;
+  }
+#if defined(_WIN32)
+  {
+    BOOL flushed = FlushFileBuffers(file->handle);
+    BOOL closed = CloseHandle(file->handle);
+    file->handle = INVALID_HANDLE_VALUE;
+    return flushed != 0 && closed != 0 ? CTOOL_OK : CTOOL_ERR_IO;
+  }
+#elif defined(CUPID_HOSTED_I386_LINUX_ABI_H)
+  {
+    int result = cupid_linux_syscall1(
+        CUPIDLD_LINUX_SYS_CLOSE, (unsigned int)file->descriptor);
+    file->descriptor = -1;
+    return cupidld_linux_syscall_failed(result) == CTOOL_TRUE
+               ? CTOOL_ERR_IO
+               : CTOOL_OK;
+  }
+#else
+  {
+    int result = close(file->descriptor);
+    file->descriptor = -1;
+    return result == 0 ? CTOOL_OK : CTOOL_ERR_IO;
+  }
+#endif
+}
+
+static ctool_status_t cupidld_publication_replace(
+    const char *candidate, const char *destination) {
+#if defined(_WIN32)
+  return MoveFileExA(candidate, destination,
+                     MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) != 0
+             ? CTOOL_OK
+             : CTOOL_ERR_IO;
+#elif defined(CUPID_HOSTED_I386_LINUX_ABI_H)
+  int result = cupid_linux_syscall2(
+      CUPIDLD_LINUX_SYS_RENAME, (unsigned int)candidate,
+      (unsigned int)destination);
+  return cupidld_linux_syscall_failed(result) == CTOOL_TRUE ? CTOOL_ERR_IO
+                                                            : CTOOL_OK;
+#else
+  return rename(candidate, destination) == 0 ? CTOOL_OK : CTOOL_ERR_IO;
+#endif
+}
+
+static void cupidld_publication_discard(const char *candidate) {
+#if defined(_WIN32)
+  (void)DeleteFileA(candidate);
+#elif defined(CUPID_HOSTED_I386_LINUX_ABI_H)
+  (void)cupid_linux_syscall1(CUPIDLD_LINUX_SYS_UNLINK,
+                             (unsigned int)candidate);
+#else
+  (void)unlink(candidate);
+#endif
+}
+
+static ctool_status_t cupidld_publish_output_with_ops(
+    const char *destination, ctool_bytes_t contents,
+    const cupidld_publication_ops_t *ops) {
+  static const char suffix[] = ".cupid-tmp-00000000";
+  static const char digits[] = "0123456789abcdef";
+  size_t destination_size;
+  size_t candidate_size;
+  size_t digit_start;
+  char *candidate;
+  cupidld_publication_file_t file;
+  ctool_u32 attempt;
+  ctool_bool opened = CTOOL_FALSE;
+  ctool_status_t status = CTOOL_ERR_IO;
+  if (destination == (const char *)0 || destination[0] == '\0' ||
+      (contents.data == (const ctool_u8 *)0 && contents.size != 0u) ||
+      ops == (const cupidld_publication_ops_t *)0 ||
+      ops->open_exclusive == (ctool_status_t (*)(
+                                   const char *,
+                                   cupidld_publication_file_t *))0 ||
+      ops->write_all == (ctool_status_t (*)(cupidld_publication_file_t *,
+                                            ctool_bytes_t))0 ||
+      ops->close == (ctool_status_t (*)(cupidld_publication_file_t *))0 ||
+      ops->verify ==
+          (ctool_status_t (*)(const char *, ctool_bytes_t))0 ||
+      ops->replace ==
+          (ctool_status_t (*)(const char *, const char *))0 ||
+      ops->discard == (void (*)(const char *))0) {
+    return CTOOL_ERR_INVALID_ARGUMENT;
+  }
+  destination_size = strlen(destination);
+  if (destination_size > (size_t)-1 - sizeof(suffix)) {
+    return CTOOL_ERR_OVERFLOW;
+  }
+  candidate_size = destination_size + sizeof(suffix) - 1u;
+  candidate = (char *)malloc(candidate_size + 1u);
+  if (candidate == (char *)0) {
+    return CTOOL_ERR_NO_MEMORY;
+  }
+  (void)memcpy(candidate, destination, destination_size);
+  (void)memcpy(candidate + destination_size, suffix, sizeof(suffix));
+  digit_start = candidate_size - 8u;
+  for (attempt = 0u; attempt < CUPIDLD_PUBLICATION_ATTEMPTS; attempt++) {
+    ctool_u32 value = attempt;
+    ctool_u32 digit;
+    for (digit = 0u; digit < 8u; digit++) {
+      candidate[digit_start + 7u - digit] = digits[value & 15u];
+      value >>= 4u;
+    }
+    status = ops->open_exclusive(candidate, &file);
+    if (status == CTOOL_OK) {
+      opened = CTOOL_TRUE;
+      break;
+    }
+  }
+  if (opened == CTOOL_FALSE) {
+    free(candidate);
+    return status;
+  }
+  status = ops->write_all(&file, contents);
+  {
+    ctool_status_t close_status = ops->close(&file);
+    if (status == CTOOL_OK) {
+      status = close_status;
+    }
+  }
+  if (status == CTOOL_OK) {
+    status = ops->verify(candidate, contents);
+  }
+  if (status == CTOOL_OK) {
+    status = ops->replace(candidate, destination);
+  }
+  if (status != CTOOL_OK) {
+    ops->discard(candidate);
+  }
+  free(candidate);
+  return status;
+}
+
+static ctool_status_t cupidld_publish_output(const char *destination,
+                                             ctool_bytes_t contents) {
+  static const cupidld_publication_ops_t ops = {
+      cupidld_publication_open, cupidld_publication_write_all,
+      cupidld_publication_close, cupidld_publication_verify,
+      cupidld_publication_replace, cupidld_publication_discard};
+  return cupidld_publish_output_with_ops(destination, contents, &ops);
+}
+
 static void cupidld_usage(FILE *stream) {
   (void)fprintf(
       stream,
       "usage: cupidld -m elf_i386 -T SCRIPT -o OUTPUT OBJECT...\n"
       "       cupidld -m elf_i386 --text-address ADDRESS --entry SYMBOL "
+      "-o OUTPUT OBJECT...\n"
+      "       cupidld -m i386pe --text-address 0x00401000 --entry SYMBOL "
       "-o OUTPUT OBJECT...\n");
 }
 
@@ -160,12 +472,15 @@ static int cupidld_parse_cli(int argc, char **argv, cupidld_cli_t *cli) {
     cli->object_count++;
   }
   if (cli->machine == (const char *)0 ||
-      strcmp(cli->machine, "elf_i386") != 0 ||
+      (strcmp(cli->machine, "elf_i386") != 0 &&
+       strcmp(cli->machine, "i386pe") != 0) ||
       cli->output == (const char *)0 || cli->object_count == 0u) {
     return 0;
   }
   if (cli->script != (const char *)0) {
-    if (cli->have_text_address == CTOOL_TRUE || cli->entry != (const char *)0) {
+    if (strcmp(cli->machine, "i386pe") == 0 ||
+        cli->have_text_address == CTOOL_TRUE ||
+        cli->entry != (const char *)0) {
       return 0;
     }
   } else if (cli->have_text_address == CTOOL_FALSE ||
@@ -503,6 +818,9 @@ int main(int argc, char **argv) {
   (void)memset(&request, 0, sizeof(request));
   request.objects = objects;
   request.object_count = cli.object_count;
+  request.image_kind = strcmp(cli.machine, "i386pe") == 0
+                           ? CTOOL_LD_IMAGE_PE32_FIXED
+                           : CTOOL_LD_IMAGE_ELF32;
   request.maximum_image_span = CUPIDLD_HOST_IMAGE_SPAN;
   if (cli.script != (const char *)0) {
     request.layout.kind = CTOOL_LD_LAYOUT_SCRIPT;
@@ -515,7 +833,8 @@ int main(int argc, char **argv) {
   (void)memset(&result, 0, sizeof(result));
   status = ctool_ld_link(job, &request, output, &result);
   if (status == CTOOL_OK) {
-    status = ctool_job_write(job, &output_path, ctool_buffer_view(output));
+    status = cupidld_publish_output(native_paths[output_native_index],
+                                    ctool_buffer_view(output));
   }
   if (status != CTOOL_OK) {
     if (ctool_job_diagnostic_count(job) != 0u) {

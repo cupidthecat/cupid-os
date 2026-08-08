@@ -5368,10 +5368,16 @@ def _cupid_toolchain_fixed_point_contract(
 ) -> dict[str, object]:
     test_path = root / "tests" / "test_toolchain_cupidc_object.py"
     driver_path = root / "toolchain" / "cupidc_main.cc"
+    linker_header_path = root / "toolchain" / "cupidld.h"
+    linker_cli_path = root / "toolchain" / "cupidld_main.cc"
+    linker_core_path = root / "toolchain" / "cupidld.cc"
     bootstrap_path = root / "tools" / "bootstrap_toolchain.py"
     try:
         test_source = test_path.read_text(encoding="utf-8")
         driver_source = driver_path.read_text(encoding="utf-8")
+        linker_header_source = linker_header_path.read_text(encoding="utf-8")
+        linker_cli_source = linker_cli_path.read_text(encoding="utf-8")
+        linker_core_source = linker_core_path.read_text(encoding="utf-8")
         bootstrap_source = bootstrap_path.read_text(encoding="utf-8")
         test_tree = ast.parse(test_source, filename=str(test_path))
         bootstrap_tree = ast.parse(
@@ -5381,6 +5387,1085 @@ def _cupid_toolchain_fixed_point_contract(
         raise AuditError(
             "Cupid Toolchain fixed-point contract is unavailable"
         ) from exc
+
+    def active_c_source(source: str) -> str:
+        source = _mask_c_comments_preserve_literals(source)
+        lines = source.splitlines(keepends=True)
+        disabled_depth = 0
+        active: list[str] = []
+        for line in lines:
+            directive = re.match(
+                r"^\s*#\s*(if|ifdef|ifndef|endif)\b(.*)$", line
+            )
+            starts_disabled = (
+                disabled_depth == 0
+                and directive is not None
+                and directive.group(1) == "if"
+                and re.fullmatch(
+                    r"\s*(?:0|\(\s*0\s*\))\s*",
+                    directive.group(2),
+                )
+                is not None
+            )
+            if disabled_depth != 0 or starts_disabled:
+                active.append(
+                    "".join("\n" if char == "\n" else " " for char in line)
+                )
+            else:
+                active.append(line)
+            if starts_disabled:
+                disabled_depth = 1
+            elif disabled_depth != 0 and directive is not None:
+                if directive.group(1) in {"if", "ifdef", "ifndef"}:
+                    disabled_depth += 1
+                elif directive.group(1) == "endif":
+                    disabled_depth -= 1
+        if disabled_depth != 0:
+            raise AuditError(
+                "Cupid Toolchain fixed-point PE32 source contract differs: "
+                "a disabled preprocessor block is not closed"
+            )
+        return "".join(active)
+
+    def sequence_positions(
+        tokens: tuple[str, ...], expected: tuple[str, ...]
+    ) -> list[int]:
+        width = len(expected)
+        return [
+            index
+            for index in range(len(tokens) - width + 1)
+            if tokens[index : index + width] == expected
+        ]
+
+    def brace_depth(tokens: tuple[str, ...], end: int) -> int:
+        depth = 0
+        for token in tokens[:end]:
+            if token == "{":
+                depth += 1
+            elif token == "}":
+                depth -= 1
+        return depth
+
+    def c_tokens(source: str, path: Path) -> tuple[str, ...]:
+        return _normalize_c_preprocessing_tokens(source, str(path), 1)
+
+    def c_function_tokens(
+        source: str,
+        path: Path,
+        signature: str,
+    ) -> tuple[str, ...] | None:
+        structure = _mask_c_noncode(source)
+        matches = list(re.finditer(signature, structure, flags=re.MULTILINE))
+        if len(matches) != 1:
+            return None
+        opening = structure.find("{", matches[0].start(), matches[0].end())
+        if opening < 0:
+            return None
+        depth = 0
+        closing = -1
+        for index in range(opening, len(structure)):
+            if structure[index] == "{":
+                depth += 1
+            elif structure[index] == "}":
+                depth -= 1
+                if depth == 0:
+                    closing = index
+                    break
+        if closing < 0:
+            return None
+        return c_tokens(source[opening + 1 : closing], path)
+
+    linker_header_active = active_c_source(linker_header_source)
+    linker_cli_active = active_c_source(linker_cli_source)
+    linker_core_active = active_c_source(linker_core_source)
+    image_enum_matches = re.findall(
+        r"\btypedef\s+enum\s*\{([^{}]*)\}\s*"
+        r"ctool_ld_image_kind_t\s*;",
+        linker_header_active,
+        flags=re.DOTALL,
+    )
+    request_matches = re.findall(
+        r"\btypedef\s+struct\s*\{([^{}]*)\}\s*ctool_ld_request_t\s*;",
+        linker_header_active,
+        flags=re.DOTALL,
+    )
+    publication_ops_matches = re.findall(
+        r"\btypedef\s+struct\s*\{([^{}]*)\}\s*"
+        r"cupidld_publication_ops_t\s*;",
+        linker_cli_active,
+        flags=re.DOTALL,
+    )
+    expected_image_enum = (
+        "CTOOL_LD_IMAGE_ELF32",
+        "=",
+        "0",
+        ",",
+        "CTOOL_LD_IMAGE_PE32_FIXED",
+    )
+    expected_request_member = (
+        "ctool_ld_image_kind_t",
+        "image_kind",
+        ";",
+    )
+    expected_verifier_member = (
+        "ctool_status_t",
+        "(",
+        "*",
+        "verify",
+        ")",
+        "(",
+        "const",
+        "char",
+        "*",
+        "candidate",
+        ",",
+        "ctool_bytes_t",
+        "contents",
+        ")",
+        ";",
+    )
+    if (
+        len(image_enum_matches) != 1
+        or c_tokens(image_enum_matches[0], linker_header_path)
+        != expected_image_enum
+        or len(request_matches) != 1
+        or len(
+            sequence_positions(
+                c_tokens(request_matches[0], linker_header_path),
+                expected_request_member,
+            )
+        )
+        != 1
+    ):
+        raise AuditError(
+            "Cupid Toolchain fixed-point PE32 source contract differs: "
+            "the public image kind or request member is absent"
+        )
+    if (
+        len(publication_ops_matches) != 1
+        or len(
+            sequence_positions(
+                c_tokens(publication_ops_matches[0], linker_cli_path),
+                expected_verifier_member,
+            )
+        )
+        != 1
+    ):
+        raise AuditError(
+            "Cupid Toolchain fixed-point PE32 source contract differs: "
+            "the publication verifier operation is absent"
+        )
+
+    parse_tokens = c_function_tokens(
+        linker_cli_active,
+        linker_cli_path,
+        r"\bstatic\s+int\s+cupidld_parse_cli\s*\([^;{}]*\)\s*\{",
+    )
+    main_tokens = c_function_tokens(
+        linker_cli_active,
+        linker_cli_path,
+        r"\bint\s+main\s*\([^;{}]*\)\s*\{",
+    )
+    publication_tokens = c_function_tokens(
+        linker_cli_active,
+        linker_cli_path,
+        r"\bstatic\s+ctool_status_t\s+cupidld_publish_output_with_ops\s*"
+        r"\([^;{}]*\)\s*\{",
+    )
+    verifier_tokens = c_function_tokens(
+        linker_cli_active,
+        linker_cli_path,
+        r"\bstatic\s+ctool_status_t\s+cupidld_publication_verify\s*"
+        r"\([^;{}]*\)\s*\{",
+    )
+    publication_wrapper_tokens = c_function_tokens(
+        linker_cli_active,
+        linker_cli_path,
+        r"\bstatic\s+ctool_status_t\s+cupidld_publish_output\s*"
+        r"\([^;{}]*\)\s*\{",
+    )
+    accepted_machine = (
+        "strcmp",
+        "(",
+        "cli",
+        "->",
+        "machine",
+        ",",
+        '"elf_i386"',
+        ")",
+        "!=",
+        "0",
+        "&&",
+        "strcmp",
+        "(",
+        "cli",
+        "->",
+        "machine",
+        ",",
+        '"i386pe"',
+        ")",
+        "!=",
+        "0",
+    )
+    rejected_script = (
+        "strcmp",
+        "(",
+        "cli",
+        "->",
+        "machine",
+        ",",
+        '"i386pe"',
+        ")",
+        "==",
+        "0",
+        "||",
+        "cli",
+        "->",
+        "have_text_address",
+        "==",
+        "CTOOL_TRUE",
+        "||",
+        "cli",
+        "->",
+        "entry",
+        "!=",
+        "(",
+        "const",
+        "char",
+        "*",
+        ")",
+        "0",
+    )
+    image_kind_assignment = (
+        "request",
+        ".",
+        "image_kind",
+        "=",
+        "strcmp",
+        "(",
+        "cli",
+        ".",
+        "machine",
+        ",",
+        '"i386pe"',
+        ")",
+        "==",
+        "0",
+        "?",
+        "CTOOL_LD_IMAGE_PE32_FIXED",
+        ":",
+        "CTOOL_LD_IMAGE_ELF32",
+        ";",
+    )
+    link_call = (
+        "ctool_ld_link",
+        "(",
+        "job",
+        ",",
+        "&",
+        "request",
+        ",",
+        "output",
+        ",",
+        "&",
+        "result",
+        ")",
+    )
+    publication_dispatch = (
+        "status",
+        "=",
+        "ctool_ld_link",
+        "(",
+        "job",
+        ",",
+        "&",
+        "request",
+        ",",
+        "output",
+        ",",
+        "&",
+        "result",
+        ")",
+        ";",
+        "if",
+        "(",
+        "status",
+        "==",
+        "CTOOL_OK",
+        ")",
+        "{",
+        "status",
+        "=",
+        "cupidld_publish_output",
+        "(",
+        "native_paths",
+        "[",
+        "output_native_index",
+        "]",
+        ",",
+        "ctool_buffer_view",
+        "(",
+        "output",
+        ")",
+        ")",
+        ";",
+        "}",
+    )
+    accepted_machine_positions = (
+        sequence_positions(parse_tokens, accepted_machine)
+        if parse_tokens is not None
+        else []
+    )
+    rejected_script_positions = (
+        sequence_positions(parse_tokens, rejected_script)
+        if parse_tokens is not None
+        else []
+    )
+    parse_is_exact = (
+        parse_tokens is not None
+        and len(accepted_machine_positions) == 1
+        and brace_depth(parse_tokens, accepted_machine_positions[0]) == 0
+        and len(rejected_script_positions) == 1
+        and brace_depth(parse_tokens, rejected_script_positions[0]) == 1
+    )
+    assignment_positions = (
+        sequence_positions(main_tokens, image_kind_assignment)
+        if main_tokens is not None
+        else []
+    )
+    link_positions = (
+        sequence_positions(main_tokens, link_call)
+        if main_tokens is not None
+        else []
+    )
+    publication_positions = (
+        sequence_positions(main_tokens, publication_dispatch)
+        if main_tokens is not None
+        else []
+    )
+    if (
+        not parse_is_exact
+        or len(assignment_positions) != 1
+        or len(link_positions) != 1
+        or len(publication_positions) != 1
+        or assignment_positions[0] >= link_positions[0]
+        or brace_depth(main_tokens, assignment_positions[0]) != 0
+        or brace_depth(main_tokens, publication_positions[0]) != 0
+    ):
+        raise AuditError(
+            "Cupid Toolchain fixed-point PE32 source contract differs: "
+            "the i386pe parser, request dispatch, or publication is absent"
+        )
+
+    publication_write = (
+        "status",
+        "=",
+        "ops",
+        "->",
+        "write_all",
+        "(",
+        "&",
+        "file",
+        ",",
+        "contents",
+        ")",
+        ";",
+    )
+    publication_close = (
+        "ctool_status_t",
+        "close_status",
+        "=",
+        "ops",
+        "->",
+        "close",
+        "(",
+        "&",
+        "file",
+        ")",
+        ";",
+    )
+    publication_verify = (
+        "if",
+        "(",
+        "status",
+        "==",
+        "CTOOL_OK",
+        ")",
+        "{",
+        "status",
+        "=",
+        "ops",
+        "->",
+        "verify",
+        "(",
+        "candidate",
+        ",",
+        "contents",
+        ")",
+        ";",
+        "}",
+    )
+    publication_replace = (
+        "if",
+        "(",
+        "status",
+        "==",
+        "CTOOL_OK",
+        ")",
+        "{",
+        "status",
+        "=",
+        "ops",
+        "->",
+        "replace",
+        "(",
+        "candidate",
+        ",",
+        "destination",
+        ")",
+        ";",
+        "}",
+    )
+    publication_discard = (
+        "if",
+        "(",
+        "status",
+        "!=",
+        "CTOOL_OK",
+        ")",
+        "{",
+        "ops",
+        "->",
+        "discard",
+        "(",
+        "candidate",
+        ")",
+        ";",
+        "}",
+    )
+    publication_wrapper = (
+        "static",
+        "const",
+        "cupidld_publication_ops_t",
+        "ops",
+        "=",
+        "{",
+        "cupidld_publication_open",
+        ",",
+        "cupidld_publication_write_all",
+        ",",
+        "cupidld_publication_close",
+        ",",
+        "cupidld_publication_verify",
+        ",",
+        "cupidld_publication_replace",
+        ",",
+        "cupidld_publication_discard",
+        "}",
+        ";",
+        "return",
+        "cupidld_publish_output_with_ops",
+        "(",
+        "destination",
+        ",",
+        "contents",
+        ",",
+        "&",
+        "ops",
+        ")",
+        ";",
+    )
+    publication_sequences = (
+        publication_write,
+        publication_close,
+        publication_verify,
+        publication_replace,
+        publication_discard,
+    )
+    publication_sequence_positions = (
+        [
+            sequence_positions(publication_tokens, sequence)
+            for sequence in publication_sequences
+        ]
+        if publication_tokens is not None
+        else []
+    )
+    publication_order = (
+        [positions[0] for positions in publication_sequence_positions]
+        if len(publication_sequence_positions) == len(publication_sequences)
+        and all(len(positions) == 1 for positions in publication_sequence_positions)
+        else []
+    )
+    verifier_size_check = (
+        "file_size",
+        "<",
+        "0l",
+        "||",
+        "(",
+        "unsigned",
+        "long",
+        ")",
+        "file_size",
+        "!=",
+        "contents",
+        ".",
+        "size",
+    )
+    verifier_read = (
+        "fread",
+        "(",
+        "buffer",
+        ",",
+        "1u",
+        ",",
+        "(",
+        "size_t",
+        ")",
+        "request",
+        ",",
+        "file",
+        ")",
+    )
+    verifier_compare = (
+        "memcmp",
+        "(",
+        "buffer",
+        ",",
+        "contents",
+        ".",
+        "data",
+        "+",
+        "total",
+        ",",
+        "count",
+        ")",
+        "!=",
+        "0",
+    )
+    verifier_close = (
+        "if",
+        "(",
+        "fclose",
+        "(",
+        "file",
+        ")",
+        "!=",
+        "0",
+        ")",
+        "{",
+        "status",
+        "=",
+        "CTOOL_ERR_IO",
+        ";",
+        "}",
+        "return",
+        "status",
+        ";",
+    )
+    verifier_requirements = (
+        verifier_size_check,
+        verifier_read,
+        verifier_compare,
+        verifier_close,
+    )
+    verifier_positions = (
+        [
+            sequence_positions(verifier_tokens, requirement)
+            for requirement in verifier_requirements
+        ]
+        if verifier_tokens is not None
+        else []
+    )
+    verifier_order = (
+        [positions[0] for positions in verifier_positions]
+        if len(verifier_positions) == len(verifier_requirements)
+        and all(len(positions) == 1 for positions in verifier_positions)
+        else []
+    )
+    verifier_top_level_returns = (
+        [
+            index
+            for index, token in enumerate(verifier_tokens)
+            if token == "return" and brace_depth(verifier_tokens, index) == 0
+        ]
+        if verifier_tokens is not None
+        else []
+    )
+    publication_top_level_returns = (
+        [
+            index
+            for index, token in enumerate(publication_tokens)
+            if token == "return"
+            and brace_depth(publication_tokens, index) == 0
+        ]
+        if publication_tokens is not None
+        else []
+    )
+    verified_replace_positions = (
+        sequence_positions(
+            publication_tokens,
+            publication_verify + publication_replace,
+        )
+        if publication_tokens is not None
+        else []
+    )
+    wrapper_positions = (
+        sequence_positions(publication_wrapper_tokens, publication_wrapper)
+        if publication_wrapper_tokens is not None
+        else []
+    )
+    if (
+        publication_tokens is None
+        or publication_order != sorted(publication_order)
+        or len(publication_order) != len(publication_sequences)
+        or brace_depth(publication_tokens, publication_order[0]) != 0
+        or brace_depth(publication_tokens, publication_order[1]) != 1
+        or any(
+            brace_depth(publication_tokens, position) != 0
+            for position in publication_order[2:]
+        )
+        or len(verified_replace_positions) != 1
+        or brace_depth(publication_tokens, verified_replace_positions[0]) != 0
+        or len(publication_top_level_returns) != 1
+        or publication_tokens[
+            publication_top_level_returns[0] :
+            publication_top_level_returns[0] + 3
+        ]
+        != ("return", "status", ";")
+        or len(sequence_positions(publication_tokens, ("ops", "->", "verify")))
+        != 2
+        or len(
+            sequence_positions(publication_tokens, ("ops", "->", "replace"))
+        )
+        != 2
+        or len(verifier_positions) != len(verifier_requirements)
+        or any(len(positions) != 1 for positions in verifier_positions)
+        or verifier_order != sorted(verifier_order)
+        or len(verifier_order) != len(verifier_requirements)
+        or [brace_depth(verifier_tokens, position) for position in verifier_order]
+        != [0, 1, 1, 0]
+        or len(verifier_top_level_returns) != 1
+        or verifier_tokens[
+            verifier_top_level_returns[0] : verifier_top_level_returns[0] + 3
+        ]
+        != ("return", "status", ";")
+        or verifier_tokens.count("CTOOL_OK") != 4
+        or len(wrapper_positions) != 1
+        or brace_depth(publication_wrapper_tokens, wrapper_positions[0]) != 0
+        or re.findall(
+            r"\bcupidld_publication_verify\b",
+            _mask_c_noncode(linker_cli_active),
+        ).count("cupidld_publication_verify")
+        != 2
+        or re.findall(
+            r"\bcupidld_publication_replace\b",
+            _mask_c_noncode(linker_cli_active),
+        ).count("cupidld_publication_replace")
+        != 2
+    ):
+        raise AuditError(
+            "Cupid Toolchain fixed-point PE32 source contract differs: "
+            "publication does not verify the candidate before replacement"
+        )
+
+    serializer_tokens = c_function_tokens(
+        linker_core_active,
+        linker_core_path,
+        r"\bstatic\s+ctool_status_t\s+ld_serialize_pe32_fixed\s*"
+        r"\([^;{}]*\)\s*\{",
+    )
+    linker_tokens = c_function_tokens(
+        linker_core_active,
+        linker_core_path,
+        r"\bctool_status_t\s+ctool_ld_link\s*\([^;{}]*\)\s*\{",
+    )
+    serializer_requirements = (
+        (
+            "link",
+            "->",
+            "request",
+            "->",
+            "layout",
+            ".",
+            "kind",
+            "!=",
+            "CTOOL_LD_LAYOUT_FIXED_TEXT",
+        ),
+        (
+            "link",
+            "->",
+            "request",
+            "->",
+            "layout",
+            ".",
+            "as",
+            ".",
+            "fixed_text",
+            ".",
+            "base_address",
+            "!=",
+            "LD_PE_TEXT_ADDRESS",
+        ),
+        ('"CupidLD PE32 requires text address 0x00401000"',),
+        ("ld_put_pe32_dos_header", "(", "output", ")"),
+        ("ld_put_pe32_optional_header", "(",),
+        ("ld_put_pe32_section_header", "(",),
+        (
+            "result_out",
+            "->",
+            "bytes",
+            "=",
+            "ctool_buffer_view",
+            "(",
+            "output",
+            ")",
+            ".",
+            "size",
+            ";",
+        ),
+    )
+    emitted_count_initialization = (
+        "ctool_u32",
+        "emitted_section_count",
+        "=",
+        "0u",
+        ";",
+    )
+    emitted_count_loop = (
+        "for",
+        "(",
+        "index",
+        "=",
+        "0u",
+        ";",
+        "index",
+        "<",
+        "link",
+        "->",
+        "output_count",
+        ";",
+        "index",
+        "++",
+        ")",
+        "{",
+        "if",
+        "(",
+        "link",
+        "->",
+        "outputs",
+        "[",
+        "index",
+        "]",
+        ".",
+        "size",
+        "!=",
+        "0u",
+        ")",
+        "{",
+        "emitted_section_count",
+        "++",
+        ";",
+        "}",
+        "}",
+    )
+    emitted_count_guard = (
+        "if",
+        "(",
+        "emitted_section_count",
+        "==",
+        "0u",
+        "||",
+        "emitted_section_count",
+        ">",
+        "4u",
+        ")",
+    )
+    emitted_header_overflow = (
+        "ld_multiply_overflows",
+        "(",
+        "emitted_section_count",
+        ",",
+        "LD_PE_SECTION_HEADER_SIZE",
+        ")",
+        "==",
+        "CTOOL_TRUE",
+    )
+    emitted_header_extent = (
+        "headers_end",
+        "=",
+        "LD_PE_DOS_HEADER_SIZE",
+        "+",
+        "LD_PE_SIGNATURE_SIZE",
+        "+",
+        "LD_PE_COFF_HEADER_SIZE",
+        "+",
+        "LD_PE_OPTIONAL_HEADER_SIZE",
+        "+",
+        "emitted_section_count",
+        "*",
+        "LD_PE_SECTION_HEADER_SIZE",
+        ";",
+    )
+    zero_size_layout_skip = (
+        "if",
+        "(",
+        "section",
+        "->",
+        "size",
+        "==",
+        "0u",
+        ")",
+        "{",
+        "if",
+        "(",
+        "section",
+        "->",
+        "file_size",
+        "!=",
+        "0u",
+        ")",
+        "{",
+        "status",
+        "=",
+        "CTOOL_ERR_INTERNAL",
+        ";",
+        "goto",
+        "done",
+        ";",
+        "}",
+        "section",
+        "->",
+        "file_offset",
+        "=",
+        "0u",
+        ";",
+        "continue",
+        ";",
+        "}",
+    )
+    emitted_overlap_check = (
+        "if",
+        "(",
+        "have_previous_section",
+        "==",
+        "CTOOL_TRUE",
+        "&&",
+        "section",
+        "->",
+        "address",
+        "<",
+        "previous_section_end",
+        ")",
+        "{",
+        "status",
+        "=",
+        "CTOOL_ERR_INPUT",
+        ";",
+        "goto",
+        "done",
+        ";",
+        "}",
+        "previous_section_end",
+        "=",
+        "end",
+        ";",
+        "have_previous_section",
+        "=",
+        "CTOOL_TRUE",
+        ";",
+    )
+    emitted_coff_count = (
+        "ctool_buffer_put_le16",
+        "(",
+        "output",
+        ",",
+        "(",
+        "ctool_u16",
+        ")",
+        "emitted_section_count",
+        ")",
+    )
+    zero_size_header_skip = (
+        "if",
+        "(",
+        "section",
+        "->",
+        "size",
+        "==",
+        "0u",
+        ")",
+        "{",
+        "continue",
+        ";",
+        "}",
+    )
+    emitted_result_count = (
+        "result_out",
+        "->",
+        "output_section_count",
+        "=",
+        "emitted_section_count",
+        ";",
+    )
+    emitted_section_requirements = (
+        emitted_count_initialization,
+        emitted_count_loop,
+        emitted_count_guard,
+        emitted_header_overflow,
+        emitted_header_extent,
+        zero_size_layout_skip,
+        emitted_overlap_check,
+        emitted_coff_count,
+        zero_size_header_skip,
+        emitted_result_count,
+    )
+    request_validation = (
+        "request",
+        "->",
+        "image_kind",
+        "!=",
+        "CTOOL_LD_IMAGE_ELF32",
+        "&&",
+        "request",
+        "->",
+        "image_kind",
+        "!=",
+        "CTOOL_LD_IMAGE_PE32_FIXED",
+    )
+    serializer_dispatch = (
+        "if",
+        "(",
+        "request",
+        "->",
+        "image_kind",
+        "==",
+        "CTOOL_LD_IMAGE_PE32_FIXED",
+        ")",
+        "{",
+        "status",
+        "=",
+        "ld_serialize_pe32_fixed",
+        "(",
+        "&",
+        "link",
+        ",",
+        "output",
+        ",",
+        "&",
+        "result",
+        ")",
+        ";",
+        "}",
+        "else",
+        "{",
+        "status",
+        "=",
+        "ld_serialize_elf32_exec",
+        "(",
+        "&",
+        "link",
+        ",",
+        "output",
+        ",",
+        "&",
+        "result",
+        ")",
+        ";",
+        "}",
+    )
+    serialization_guard = (
+        "if",
+        "(",
+        "status",
+        "==",
+        "CTOOL_OK",
+        ")",
+        "{",
+        "phase",
+        "=",
+        '"CupidLD executable serialization failed"',
+        ";",
+        *serializer_dispatch,
+        "}",
+    )
+    core_identifiers = re.findall(
+        r"\b[A-Za-z_][A-Za-z0-9_]*\b", _mask_c_noncode(linker_core_active)
+    )
+    serializer_is_exact = serializer_tokens is not None and all(
+        len(sequence_positions(serializer_tokens, requirement)) == 1
+        for requirement in serializer_requirements
+    )
+    emitted_section_positions = (
+        [
+            sequence_positions(serializer_tokens, requirement)
+            for requirement in emitted_section_requirements
+        ]
+        if serializer_tokens is not None
+        else []
+    )
+    emitted_section_order = (
+        [positions[0] for positions in emitted_section_positions]
+        if len(emitted_section_positions) == len(emitted_section_requirements)
+        and all(len(positions) == 1 for positions in emitted_section_positions)
+        else []
+    )
+    emitted_sections_are_exact = (
+        serializer_tokens is not None
+        and emitted_section_order == sorted(emitted_section_order)
+        and len(emitted_section_order) == len(emitted_section_requirements)
+        and [
+            brace_depth(serializer_tokens, position)
+            for position in emitted_section_order
+        ]
+        == [0, 0, 0, 0, 0, 1, 1, 1, 1, 1]
+        and serializer_tokens.count("emitted_section_count") == 9
+        and len(
+            sequence_positions(
+                serializer_tokens,
+                (
+                    "emitted_section_count",
+                    "*",
+                    "LD_PE_SECTION_HEADER_SIZE",
+                ),
+            )
+        )
+        == 2
+        and len(
+            sequence_positions(
+                serializer_tokens,
+                ("result_out", "->", "output_section_count"),
+            )
+        )
+        == 1
+    )
+    validation_positions = (
+        sequence_positions(linker_tokens, request_validation)
+        if linker_tokens is not None
+        else []
+    )
+    serialization_positions = (
+        sequence_positions(linker_tokens, serialization_guard)
+        if linker_tokens is not None
+        else []
+    )
+    dispatch_is_exact = (
+        linker_tokens is not None
+        and len(validation_positions) == 1
+        and brace_depth(linker_tokens, validation_positions[0]) == 0
+        and len(serialization_positions) == 1
+        and brace_depth(linker_tokens, serialization_positions[0]) == 0
+        and core_identifiers.count("ld_serialize_pe32_fixed") == 2
+        and core_identifiers.count("CTOOL_LD_IMAGE_PE32_FIXED") == 2
+    )
+    if (
+        not serializer_is_exact
+        or not emitted_sections_are_exact
+        or not dispatch_is_exact
+    ):
+        raise AuditError(
+            "Cupid Toolchain fixed-point PE32 source contract differs: "
+            "the fixed serializer, emitted sections, or dispatch differ"
+        )
 
     assignments: dict[str, object] = {}
     for node in test_tree.body:
@@ -5653,9 +6738,9 @@ def _cupid_toolchain_fixed_point_contract(
         and node.name == "_run_behavior_checks"
     ]
     expected_behavior_matrix = {
-        "failure_cases": 13,
+        "failure_cases": 14,
         "help_cases": 5,
-        "success_cases": 15,
+        "success_cases": 16,
     }
     expected_profile_failures = {
         "truncated": "snapshot is truncated",
@@ -5906,6 +6991,665 @@ def _cupid_toolchain_fixed_point_contract(
             "the failure loop does not diagnose and preserve both outputs"
         )
 
+    def named_stage_pair(name: str) -> tuple[int, ast.Call] | None:
+        matches = [
+            (index, statement.value)
+            for index, statement in enumerate(behavior_function.body)
+            if isinstance(statement, ast.Assign)
+            and len(statement.targets) == 1
+            and isinstance(statement.targets[0], ast.Name)
+            and statement.targets[0].id == name
+            and isinstance(statement.value, ast.Call)
+            and isinstance(statement.value.func, ast.Name)
+            and statement.value.func.id == "_run_stage_pair"
+        ]
+        return matches[0] if len(matches) == 1 else None
+
+    def named_status(name: str, expected: int, label: str) -> int | None:
+        matches = [
+            index
+            for index, statement in enumerate(behavior_function.body)
+            if isinstance(statement, ast.Expr)
+            and isinstance(statement.value, ast.Call)
+            and isinstance(statement.value.func, ast.Name)
+            and statement.value.func.id == "_expect_status"
+            and len(statement.value.args) == 3
+            and not statement.value.keywords
+            and isinstance(statement.value.args[0], ast.Name)
+            and statement.value.args[0].id == name
+            and isinstance(statement.value.args[1], ast.Constant)
+            and statement.value.args[1].value == expected
+            and isinstance(statement.value.args[2], ast.Constant)
+            and statement.value.args[2].value == label
+        ]
+        return matches[0] if len(matches) == 1 else None
+
+    def command_shape(command: ast.expr) -> tuple[object, ...] | None:
+        if not isinstance(command, (ast.List, ast.Tuple)):
+            return None
+        tokens: list[object] = []
+        for token in command.elts:
+            if isinstance(token, ast.Constant) and isinstance(token.value, str):
+                tokens.append(("literal", token.value))
+            elif isinstance(token, ast.Name):
+                tokens.append(("name", token.id))
+            else:
+                return None
+        return tuple(tokens)
+
+    def stage_pair_commands(
+        call: ast.Call,
+    ) -> tuple[tuple[object, ...], tuple[object, ...]] | None:
+        if (
+            len(call.args) != 6
+            or call.keywords
+            or not isinstance(call.args[0], ast.Name)
+            or call.args[0].id != "runner"
+            or not isinstance(call.args[1], ast.Name)
+            or call.args[1].id != "stage_two"
+            or not isinstance(call.args[2], ast.Name)
+            or call.args[2].id != "stage_three"
+            or not isinstance(call.args[3], ast.Constant)
+            or call.args[3].value != "cupidld"
+        ):
+            return None
+        stage_two_command = command_shape(call.args[4])
+        stage_three_command = command_shape(call.args[5])
+        if stage_two_command is None or stage_three_command is None:
+            return None
+        return stage_two_command, stage_three_command
+
+    def expected_pe32_command(
+        text_address: str, output: str, link_object: str
+    ) -> tuple[object, ...]:
+        return (
+            ("literal", "-m"),
+            ("literal", "i386pe"),
+            ("literal", "--text-address"),
+            ("literal", text_address),
+            ("literal", "--entry"),
+            ("literal", "_start"),
+            ("literal", "-o"),
+            ("name", output),
+            ("name", link_object),
+        )
+
+    def read_bytes_receiver(node: ast.expr) -> str | None:
+        if (
+            isinstance(node, ast.Call)
+            and not node.args
+            and not node.keywords
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "read_bytes"
+            and isinstance(node.func.value, ast.Name)
+        ):
+            return node.func.value.id
+        return None
+
+    def result_attributes(test: ast.expr, result_name: str) -> set[str]:
+        return {
+            node.attr
+            for node in ast.walk(test)
+            if isinstance(node, ast.Attribute)
+            and isinstance(node.value, ast.Name)
+            and node.value.id == result_name
+        }
+
+    pe32_positive = named_stage_pair("pe32_result")
+    pe32_positive_status = named_status(
+        "pe32_result", 0, "CupidLD PE32 fixed image"
+    )
+    pe32_failure = named_stage_pair("invalid_pe32_result")
+    pe32_failure_status = named_status(
+        "invalid_pe32_result", 1, "CupidLD invalid PE32 text address"
+    )
+    if (
+        pe32_positive is None
+        or pe32_positive_status is None
+        or pe32_failure is None
+        or pe32_failure_status is None
+        or pe32_positive[0] >= pe32_positive_status
+        or pe32_failure[0] >= pe32_failure_status
+    ):
+        raise AuditError(
+            "Cupid Toolchain fixed-point PE32 behavior differs: "
+            "the paired success or failure is absent"
+        )
+    positive_commands = stage_pair_commands(pe32_positive[1])
+    failure_commands = stage_pair_commands(pe32_failure[1])
+    expected_positive_commands = (
+        expected_pe32_command(
+            "0x00401000", "stage_two_pe32", "stage_two_link_object"
+        ),
+        expected_pe32_command(
+            "0x00401000", "stage_three_pe32", "stage_three_link_object"
+        ),
+    )
+    expected_failure_commands = (
+        expected_pe32_command(
+            "0x00402000",
+            "stage_two_pe32_failure",
+            "stage_two_link_object",
+        ),
+        expected_pe32_command(
+            "0x00402000",
+            "stage_three_pe32_failure",
+            "stage_three_link_object",
+        ),
+    )
+    if (
+        positive_commands != expected_positive_commands
+        or failure_commands != expected_failure_commands
+    ):
+        raise AuditError(
+            "Cupid Toolchain fixed-point PE32 behavior differs: "
+            "the staged commands do not retain the fixed PE32 profile"
+        )
+    positive_checks = [
+        (index, statement)
+        for index, statement in enumerate(behavior_function.body)
+        if index > pe32_positive_status
+        if isinstance(statement, ast.If)
+        and any(
+            isinstance(node, ast.Name) and node.id == "pe32_result"
+            for node in ast.walk(statement.test)
+        )
+    ]
+    positive_byte_comparisons = (
+        [
+            (
+                read_bytes_receiver(node.left),
+                read_bytes_receiver(node.comparators[0]),
+            )
+            for node in ast.walk(positive_checks[0][1].test)
+            if isinstance(node, ast.Compare)
+            and len(node.ops) == 1
+            and isinstance(node.ops[0], ast.NotEq)
+            and len(node.comparators) == 1
+            and read_bytes_receiver(node.left) is not None
+            and read_bytes_receiver(node.comparators[0]) is not None
+        ]
+        if len(positive_checks) == 1
+        else []
+    )
+    positive_result_attributes = (
+        result_attributes(positive_checks[0][1].test, "pe32_result")
+        if len(positive_checks) == 1
+        else set()
+    )
+    validators = [
+        (index, statement.value)
+        for index, statement in enumerate(behavior_function.body)
+        if isinstance(statement, ast.Expr)
+        and isinstance(statement.value, ast.Call)
+        and isinstance(statement.value.func, ast.Name)
+        and statement.value.func.id == "_validate_static_i386_pe32"
+    ]
+    parser_functions = [
+        statement
+        for statement in bootstrap_tree.body
+        if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and statement.name == "_validate_static_i386_pe32"
+    ]
+
+    def expression_shape(source: str) -> str:
+        return ast.dump(
+            ast.parse(source, mode="eval").body,
+            include_attributes=False,
+        )
+
+    def node_shape(node: ast.AST) -> str:
+        return ast.dump(node, include_attributes=False)
+
+    def immediate_raise_messages(node: ast.If) -> set[str]:
+        return {
+            child.value
+            for statement in node.body
+            if isinstance(statement, ast.Raise)
+            for child in ast.walk(statement)
+            if isinstance(child, ast.Constant)
+            and isinstance(child.value, str)
+        }
+
+    def guarded_terms(message: str) -> frozenset[str] | None:
+        if len(parser_functions) != 1:
+            return None
+        matches: list[frozenset[str]] = []
+        for node in ast.walk(parser_functions[0]):
+            if not isinstance(node, ast.If) or not any(
+                message in candidate
+                for candidate in immediate_raise_messages(node)
+            ):
+                continue
+            terms = (
+                node.test.values
+                if isinstance(node.test, ast.BoolOp)
+                and isinstance(node.test.op, ast.Or)
+                else (node.test,)
+            )
+            matches.append(frozenset(node_shape(term) for term in terms))
+        return matches[0] if len(matches) == 1 else None
+
+    expected_guard_terms = {
+        "noncanonical DOS stub": (
+            "data[:len(_FIXED_PE32_DOS_STUB)] "
+            "!= _FIXED_PE32_DOS_STUB",
+        ),
+        "no PE signature": (
+            "data[pe_offset:pe_offset + 4] != b'PE\\0\\0'",
+        ),
+        "invalid PE32 COFF header": (
+            "machine != 0x014C",
+            "section_count == 0",
+            "section_count > 4",
+            "timestamp != 0",
+            "symbol_table != 0",
+            "symbol_count != 0",
+            "optional_size != 0x00E0",
+            "characteristics != 0x0103",
+        ),
+        "is not PE32": (
+            "read_u16(optional_offset, 'PE32 magic') != 0x010B",
+        ),
+        "invalid PE32 image layout": (
+            "linker_major != 0",
+            "linker_minor != 0",
+            "image_base != 0x00400000",
+            "section_alignment != 0x1000",
+            "file_alignment != 0x0200",
+            "read_u16(optional_offset + 40, "
+            "'PE32 OS major version') != 6",
+            "read_u16(optional_offset + 42, "
+            "'PE32 OS minor version') != 0",
+            "read_u16(optional_offset + 44, "
+            "'PE32 image major version') != 0",
+            "read_u16(optional_offset + 46, "
+            "'PE32 image minor version') != 0",
+            "read_u16(optional_offset + 48, "
+            "'PE32 subsystem major version') != 6",
+            "read_u16(optional_offset + 50, "
+            "'PE32 subsystem minor version') != 0",
+            "read_u32(optional_offset + 52, 'PE32 Win32 version') != 0",
+            "image_size == 0",
+            "image_size % section_alignment != 0",
+            "headers_size == 0",
+            "headers_size % file_alignment != 0",
+            "headers_size > len(data)",
+            "checksum != 0",
+            "subsystem != 3",
+            "dll_characteristics != 0x0100",
+            "stack_reserve != 0x00100000",
+            "stack_commit != 0x00001000",
+            "heap_reserve != 0x00100000",
+            "heap_commit != 0x00001000",
+            "loader_flags != 0",
+            "directory_count != 16",
+            "expected_entry < image_base",
+            "entry_rva != expected_entry - image_base",
+        ),
+        "unexpected PE32 data directory": (
+            "read_u32(offset, 'PE32 directory RVA') != 0",
+            "read_u32(offset + 4, 'PE32 directory size') != 0",
+        ),
+        "noncanonical PE32 header extent": (
+            "headers_size != expected_headers_size",
+            "any(data[section_table_end:headers_size])",
+        ),
+        "invalid PE32 section profile": (
+            "expected is None",
+            "expected[0] <= previous_section_rank",
+            "section_characteristics != expected[1]",
+            "raw_name != name.encode('ascii').ljust(8, b'\\0')",
+            "read_u32(offset + 24, 'PE32 relocation offset') != 0",
+            "read_u32(offset + 28, 'PE32 line offset') != 0",
+            "read_u16(offset + 32, 'PE32 relocation count') != 0",
+            "read_u16(offset + 34, 'PE32 line count') != 0",
+        ),
+        "has an empty PE32 section": (
+            "virtual_size == 0",
+        ),
+        "noncanonical PE32 section address": (
+            "virtual_address != expected_virtual_address",
+        ),
+        "PE32 section outside its image": (
+            "virtual_end > image_size",
+        ),
+        "invalid PE32 file section": (
+            "name == '.bss'",
+            "raw_offset != expected_raw_offset",
+            "raw_offset < headers_size",
+            "raw_size != expected_section_raw_size",
+            "virtual_size > raw_size",
+        ),
+        "nonzero PE32 section padding": (
+            "any(data[raw_offset + virtual_size:raw_offset + raw_size])",
+        ),
+        "invalid empty PE32 section": (
+            "raw_offset != 0",
+            "name != '.bss'",
+        ),
+        "invalid PE32 image extent": (
+            "previous_section_rank < 0",
+            "expected_raw_offset != len(data)",
+            "expected_image_size != image_size",
+            "code_size != expected_code_size",
+            "initialized_size != expected_initialized_size",
+            "uninitialized_size != expected_uninitialized_size",
+            "base_of_code != expected_base_of_code",
+            "base_of_data != expected_base_of_data",
+        ),
+        "entry is not file-backed PE32 executable code": (
+            "not entry_is_file_backed_executable",
+        ),
+    }
+    parser_guards_match = all(
+        guarded_terms(message)
+        == frozenset(expression_shape(term) for term in terms)
+        for message, terms in expected_guard_terms.items()
+    )
+
+    def assignment_shapes(name: str) -> list[str]:
+        if len(parser_functions) != 1:
+            return []
+        return [
+            node_shape(node.value)
+            for node in ast.walk(parser_functions[0])
+            if isinstance(node, ast.Assign)
+            and len(node.targets) == 1
+            and isinstance(node.targets[0], ast.Name)
+            and node.targets[0].id == name
+        ]
+
+    expected_field_assignments = {
+        "data": "path.read_bytes()",
+        "pe_offset": "read_u32(0x3C, 'DOS PE offset')",
+        "optional_offset": "pe_offset + 24",
+        "linker_major": "data[optional_offset + 2]",
+        "linker_minor": "data[optional_offset + 3]",
+        "code_size": "read_u32(optional_offset + 4, 'PE32 code size')",
+        "initialized_size": (
+            "read_u32(optional_offset + 8, 'PE32 initialized data size')"
+        ),
+        "uninitialized_size": (
+            "read_u32(optional_offset + 12, 'PE32 uninitialized data size')"
+        ),
+        "entry_rva": "read_u32(optional_offset + 16, 'PE32 entry RVA')",
+        "base_of_code": "read_u32(optional_offset + 20, 'PE32 code base')",
+        "base_of_data": "read_u32(optional_offset + 24, 'PE32 data base')",
+        "image_base": "read_u32(optional_offset + 28, 'PE32 image base')",
+        "section_alignment": (
+            "read_u32(optional_offset + 32, 'PE32 section alignment')"
+        ),
+        "file_alignment": (
+            "read_u32(optional_offset + 36, 'PE32 file alignment')"
+        ),
+        "image_size": "read_u32(optional_offset + 56, 'PE32 image size')",
+        "headers_size": "read_u32(optional_offset + 60, 'PE32 header size')",
+        "checksum": "read_u32(optional_offset + 64, 'PE32 checksum')",
+        "subsystem": "read_u16(optional_offset + 68, 'PE32 subsystem')",
+        "dll_characteristics": (
+            "read_u16(optional_offset + 70, 'PE32 DLL characteristics')"
+        ),
+        "stack_reserve": (
+            "read_u32(optional_offset + 72, 'PE32 stack reserve')"
+        ),
+        "stack_commit": (
+            "read_u32(optional_offset + 76, 'PE32 stack commit')"
+        ),
+        "heap_reserve": (
+            "read_u32(optional_offset + 80, 'PE32 heap reserve')"
+        ),
+        "heap_commit": "read_u32(optional_offset + 84, 'PE32 heap commit')",
+        "loader_flags": "read_u32(optional_offset + 88, 'PE32 loader flags')",
+        "directory_count": (
+            "read_u32(optional_offset + 92, 'PE32 directory count')"
+        ),
+        "section_offset": "optional_offset + optional_size",
+        "section_table_end": "section_offset + section_count * 40",
+        "expected_headers_size": (
+            "(section_table_end + file_alignment - 1) "
+            "// file_alignment * file_alignment"
+        ),
+        "section_characteristics": (
+            "read_u32(offset + 36, 'PE32 section characteristics')"
+        ),
+        "expected_section_raw_size": (
+            "(virtual_size + file_alignment - 1) "
+            "// file_alignment * file_alignment"
+        ),
+        "expected_image_size": (
+            "(greatest_virtual_end + section_alignment - 1) "
+            "// section_alignment * section_alignment"
+        ),
+    }
+    parser_fields_match = all(
+        assignment_shapes(name) == [expression_shape(expression)]
+        for name, expression in expected_field_assignments.items()
+    )
+
+    expected_sections_values: list[object] = []
+    if len(parser_functions) == 1:
+        for node in ast.walk(parser_functions[0]):
+            if (
+                isinstance(node, ast.Assign)
+                and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name)
+                and node.targets[0].id == "expected_sections"
+            ):
+                try:
+                    expected_sections_values.append(ast.literal_eval(node.value))
+                except (TypeError, ValueError):
+                    expected_sections_values.append(None)
+
+    expected_dos_stub = bytes.fromhex(
+        "4d5a90000300000004000000ffff0000"
+        "b8000000000000004000000000000000"
+        "00000000000000000000000000000000"
+        "00000000000000000000000080000000"
+        "0e1fba0e00b409cd21b8014ccd215468"
+        "69732070726f6772616d2063616e6e6f"
+        "742062652072756e20696e20444f5320"
+        "6d6f64652e0d0d0a2400000000000000"
+    )
+    dos_stub_values: list[bytes | None] = []
+    for node in bootstrap_tree.body:
+        if (
+            not isinstance(node, ast.Assign)
+            or len(node.targets) != 1
+            or not isinstance(node.targets[0], ast.Name)
+            or node.targets[0].id != "_FIXED_PE32_DOS_STUB"
+            or not isinstance(node.value, ast.Call)
+            or node.value.keywords
+            or len(node.value.args) != 1
+            or not isinstance(node.value.func, ast.Attribute)
+            or node.value.func.attr != "fromhex"
+            or not isinstance(node.value.func.value, ast.Name)
+            or node.value.func.value.id != "bytes"
+            or not isinstance(node.value.args[0], ast.Constant)
+            or not isinstance(node.value.args[0].value, str)
+        ):
+            continue
+        try:
+            dos_stub_values.append(bytes.fromhex(node.value.args[0].value))
+        except ValueError:
+            dos_stub_values.append(None)
+
+    parser_reads_image = (
+        any(
+            read_bytes_receiver(node) == "path"
+            for node in ast.walk(parser_functions[0])
+            if isinstance(node, ast.Call)
+        )
+        if len(parser_functions) == 1
+        else False
+    )
+    parser_unpack_shapes = (
+        {
+            node_shape(node)
+            for node in ast.walk(parser_functions[0])
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "struct"
+            and node.func.attr == "unpack_from"
+        }
+        if len(parser_functions) == 1
+        else set()
+    )
+    expected_unpack_shapes = {
+        expression_shape("struct.unpack_from('<H', data, offset)"),
+        expression_shape("struct.unpack_from('<I', data, offset)"),
+        expression_shape(
+            "struct.unpack_from('<HHIIIHH', data, pe_offset + 4)"
+        ),
+        expression_shape("struct.unpack_from('<IIII', data, offset + 8)"),
+    }
+    dos_range_indices = (
+        [
+            index
+            for index, statement in enumerate(parser_functions[0].body)
+            if isinstance(statement, ast.Expr)
+            and node_shape(statement.value)
+            == expression_shape(
+                "require_range(0, len(_FIXED_PE32_DOS_STUB), 'DOS header')"
+            )
+        ]
+        if len(parser_functions) == 1
+        else []
+    )
+    dos_guard_indices = (
+        [
+            index
+            for index, statement in enumerate(parser_functions[0].body)
+            if isinstance(statement, ast.If)
+            and any(
+                "noncanonical DOS stub" in message
+                for message in immediate_raise_messages(statement)
+            )
+        ]
+        if len(parser_functions) == 1
+        else []
+    )
+    if (
+        positive_byte_comparisons
+        != [("stage_two_pe32", "stage_three_pe32")]
+        or positive_result_attributes != {"stdout", "stderr"}
+        or len(validators) != 1
+        or len(positive_checks) != 1
+        or not (
+            pe32_positive_status
+            < positive_checks[0][0]
+            < validators[0][0]
+            < pe32_failure[0]
+        )
+        or len(validators[0][1].args) != 2
+        or validators[0][1].keywords
+        or not isinstance(validators[0][1].args[0], ast.Name)
+        or validators[0][1].args[0].id != "stage_two_pe32"
+        or not isinstance(validators[0][1].args[1], ast.Constant)
+        or validators[0][1].args[1].value != 0x00401000
+        or len(parser_functions) != 1
+        or not parser_reads_image
+        or parser_unpack_shapes != expected_unpack_shapes
+        or not parser_fields_match
+        or not parser_guards_match
+        or expected_sections_values
+        != [
+            {
+                ".text": (0, 0x60000020),
+                ".rodata": (1, 0x40000040),
+                ".data": (2, 0xC0000040),
+                ".bss": (3, 0xC0000080),
+            }
+        ]
+        or dos_stub_values != [expected_dos_stub]
+        or len(dos_range_indices) != 1
+        or len(dos_guard_indices) != 1
+        or dos_range_indices[0] >= dos_guard_indices[0]
+    ):
+        raise AuditError(
+            "Cupid Toolchain fixed-point PE32 behavior differs: "
+            "the staged bytes or independent parser are not checked"
+        )
+    sentinel_writes = [
+        statement.value.func.value.id
+        for index, statement in enumerate(behavior_function.body)
+        if index < pe32_failure[0]
+        and isinstance(statement, ast.Expr)
+        and isinstance(statement.value, ast.Call)
+        and not statement.value.keywords
+        and len(statement.value.args) == 1
+        and isinstance(statement.value.args[0], ast.Name)
+        and statement.value.args[0].id == "sentinel"
+        and isinstance(statement.value.func, ast.Attribute)
+        and statement.value.func.attr == "write_bytes"
+        and isinstance(statement.value.func.value, ast.Name)
+        and statement.value.func.value.id
+        in {"stage_two_pe32_failure", "stage_three_pe32_failure"}
+    ]
+    failure_checks = [
+        statement
+        for index, statement in enumerate(behavior_function.body)
+        if index > pe32_failure_status
+        if isinstance(statement, ast.If)
+        and any(
+            isinstance(node, ast.Name) and node.id == "invalid_pe32_result"
+            for node in ast.walk(statement.test)
+        )
+    ]
+    failure_sentinel_checks = (
+        {
+            read_bytes_receiver(node.left)
+            for node in ast.walk(failure_checks[0].test)
+            if isinstance(node, ast.Compare)
+            and len(node.ops) == 1
+            and isinstance(node.ops[0], ast.NotEq)
+            and len(node.comparators) == 1
+            and isinstance(node.comparators[0], ast.Name)
+            and node.comparators[0].id == "sentinel"
+            and read_bytes_receiver(node.left) is not None
+        }
+        if len(failure_checks) == 1
+        else set()
+    )
+    failure_result_attributes = (
+        result_attributes(failure_checks[0].test, "invalid_pe32_result")
+        if len(failure_checks) == 1
+        else set()
+    )
+    failure_diagnostic_checks = (
+        [
+            node
+            for node in ast.walk(failure_checks[0].test)
+            if isinstance(node, ast.Compare)
+            and len(node.ops) == 1
+            and isinstance(node.ops[0], ast.NotIn)
+            and len(node.comparators) == 1
+            and isinstance(node.left, ast.Constant)
+            and node.left.value
+            == "CupidLD PE32 requires text address 0x00401000"
+            and isinstance(node.comparators[0], ast.Attribute)
+            and node.comparators[0].attr == "stderr"
+            and isinstance(node.comparators[0].value, ast.Name)
+            and node.comparators[0].value.id == "invalid_pe32_result"
+        ]
+        if len(failure_checks) == 1
+        else []
+    )
+    if (
+        sentinel_writes
+        != ["stage_two_pe32_failure", "stage_three_pe32_failure"]
+        or failure_sentinel_checks
+        != {"stage_two_pe32_failure", "stage_three_pe32_failure"}
+        or failure_result_attributes != {"stdout", "stderr"}
+        or len(failure_diagnostic_checks) != 1
+        or bootstrap_source.count('"cupidld help omits i386pe"') != 1
+    ):
+        raise AuditError(
+            "Cupid Toolchain fixed-point PE32 behavior differs: "
+            "the semantic failure does not diagnose and preserve both outputs"
+        )
+
     required_bootstrap_fragments = (
         "def freeze_source_inputs(",
         "destination = snapshot_root / name",
@@ -5983,8 +7727,9 @@ def _cupid_toolchain_fixed_point_contract(
         "compared_startup_objects": 1,
         "compared_tool_images": len(expected_toolchain_links),
         "help_cases": len(expected_toolchain_links),
-        "success_behavior_cases": 15,
-        "failure_behavior_cases": 13,
+        "success_behavior_cases": 16,
+        "failure_behavior_cases": 14,
+        "source_head_capabilities": ["cupidld.pe32_fixed_image"],
         "stages": ["generation-one", "stage-two", "stage-three"],
         "checked_seed_source_root": "private-captured",
         "checked_seed_source_boundary_checks": 4,

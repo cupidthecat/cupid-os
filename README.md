@@ -877,6 +877,28 @@ through `$(sort ...)` before generation or link, so Windows and Linux do not
 inherit different link order from host locale.
 [ADR 0246](docs/adr/0246-use-one-checked-seed-runner-for-production-tool-calls.md)
 records the shared invocation boundary.
+Source-head CupidLD also accepts `-m i386pe` for one deterministic i386 PE32
+layout. Under image base `0x00400000`, it places `.text` at RVA `0x1000`, then
+lays out nonempty read-only, writable, and BSS sections in order on page
+boundaries. Empty output categories do not get PE section headers.
+It writes no imports or base relocations and keeps the existing ELF path
+unchanged. Writable executable input is rejected instead of becoming an RWX
+section. The source-head fixed point checks this link and its rejected-layout
+diagnostic at both stages. Its behavior matrix is 5/16/14. The promoted Linux
+seed remains at 5/15/13 and does not carry this command. No PE image is executed
+or used by a normal build, so this is not a native Windows runtime or fixed
+point. The ownership census does not change.
+[ADR 0247](docs/adr/0247-serialize-fixed-layout-pe32-images-with-cupidld.md)
+records the format boundary.
+
+The source-head CupidLD CLI publishes both ELF and PE output. It creates a
+candidate beside the destination with exclusive-create semantics, writes and
+closes it, then reopens the file and checks its size and contents before one
+replacement call. Write, close, verification, or replacement errors preserve
+an existing destination and trigger a cleanup attempt. On POSIX, CupidLD
+requests mode `0777`; the process umask may remove any permission bits. The
+directory must remain under the caller's control; this standalone path has no
+destination lock, directory pin, or crash-durability guarantee.
 The first direct host comparison matched 426 of 430 kernel artifacts and
 traced all four differences to one JPEG object. Host FFmpeg had rewritten the
 tracked progressive image differently on Windows and Linux. The repository
@@ -888,30 +910,38 @@ build no longer calls FFmpeg, `jpegtran`, `djpeg`, or `cjpeg`. The Linux kernel 
 passed in 607.7 seconds, and the Windows root build passed in 341.6 seconds.
 All 430 frozen kernel artifacts match byte for byte.
 
-The current root build passed in 605.631 seconds. Its 9,069,064-byte final ELF
+The latest root build passed in 1,738.517 seconds. Its 9,077,256-byte final ELF
 has SHA-256
-`c1f48fe9383d4c210bb36ab6c4ab7007abf238bad6a3fc50bf0823b18918d944`.
-CupidObj flattened it to an 8,862,444-byte raw kernel with SHA-256
-`7b8abed8182c644040fb7fdb1263a4d83cad8635322350baa0c93248f2e94280`.
+`b759382524029149661b7f52233730bdee4758c56af84d643090dd147808a0a5`.
+CupidObj flattened it to an 8,871,472-byte raw kernel with SHA-256
+`3545265b59b95f858af4d93e8196624fa3991b02f49c6df1e1cae38608b88781`.
 The 209,715,200-byte normal image has SHA-256
+`aa9f5e0dedefe6f7e243d0e0c67448db1448aaa1960204b1f77efd82202f17b3`.
+A private one-vCPU `/bin/ls.cc` smoke from that image passed in 49.997
+seconds. Its 27,819-byte log has SHA-256
+`0ebac3fa2e8efae4264897aeb6581f01fc88668db7c3e8317e3beef956ff0f77`
+and records 911 bytes of JIT code, 71 bytes of data, and completed execution.
+This smoke checks the existing ELF path; it does not execute a PE image.
+
+The earlier [ADR 0235](docs/adr/0235-transfer-jpeg-acceptance-to-cupidobj.md)
+checkpoint used a 209,715,200-byte image with SHA-256
 `c71fd7f5a03a4e55f4de45e6b93d4284375fb5600f4df3cda62b7f4043c33b33`.
-The kernel bytes match the image from the 2,560-byte boot boundary. This is a
-preboot digest; guest filesystem writes intentionally change the image. The
-current image passed the complete private four-vCPU frontier with e1000 in
-545.151 seconds and RTL8139 in 536.668 seconds. Both logs contain no panic,
-fatal error, assertion failure, exception, or triple-fault marker.
+It remains the complete private four-vCPU dual-NIC frontier: e1000 passed in
+545.151 seconds and RTL8139 passed in 536.668 seconds. Both historical logs
+contain no panic, fatal error, assertion failure, exception, or triple-fault
+marker.
 The CupidC transforms are 238 checked-in normal roots, the generated kernel
 symbol table, three generated installation tables, and three example
 programs. The renamed graph passes both CupidLD links and CupidObj flattening.
-The current clean-image runtime checkpoint
-includes the transferred lexer, Nuked OPL3, FPU, per-CPU, and SMP roots in the
-complete checked frontier. Four-vCPU GUI runs pass with both supported
-NICs and reach SMP
+That historical clean-image runtime checkpoint
+included the transferred lexer, Nuked OPL3, FPU, per-CPU, and SMP roots in the
+complete checked frontier. Four-vCPU GUI runs passed with both supported
+NICs and reached SMP
 startup, RDRAND, all 62 crypto checks, USB storage, the desktop, terminal,
 audio playback, the glyph path, a checked 8-by-8 JPEG decode, and in-OS CupidC
 execution at `0x01100000`. A separate smoke
-loads the same external ELF program twice at `0x01C00000`; process cleanup
-releases the first arena lease before the second load. ADR 0124 records
+loaded the same external ELF program twice at `0x01C00000`; process cleanup
+released the first arena lease before the second load. ADR 0124 records
 the first renamed graph's exact hashes, byte counts, timing, and runtime log.
 ADR 0126 records the fixed-point naming proof.
 

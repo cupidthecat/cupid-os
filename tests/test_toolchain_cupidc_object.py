@@ -10,6 +10,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from tools.cupidc_kernel_compile import validate_i386_relocatable_bytes
+from tools.bootstrap_toolchain import _validate_static_i386_pe32
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -4567,6 +4568,46 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                 0x00600000,
             )
 
+            stage_two_pe32 = root / "stage-two-fixed.exe"
+            stage_three_pe32 = root / "stage-three-fixed.exe"
+            stage_two_pe32_run, _stage_three_pe32_run = run_stage_pair(
+                "cupidld",
+                [
+                    "-m",
+                    "i386pe",
+                    "--text-address",
+                    "0x00401000",
+                    "--entry",
+                    "_start",
+                    "-o",
+                    stage_two_pe32,
+                    stage_two_link_object,
+                ],
+                [
+                    "-m",
+                    "i386pe",
+                    "--text-address",
+                    "0x00401000",
+                    "--entry",
+                    "_start",
+                    "-o",
+                    stage_three_pe32,
+                    stage_three_link_object,
+                ],
+            )
+            self.assertEqual(
+                stage_two_pe32_run.returncode,
+                0,
+                stage_two_pe32_run.stderr,
+            )
+            self.assertEqual(stage_two_pe32_run.stdout, "")
+            self.assertEqual(stage_two_pe32_run.stderr, "")
+            self.assertEqual(
+                stage_three_pe32.read_bytes(),
+                stage_two_pe32.read_bytes(),
+            )
+            _validate_static_i386_pe32(stage_two_pe32, 0x00401000)
+
             stage_two_nm, _stage_three_nm = run_stage_pair(
                 "cupiddis",
                 ["--nm", stage_two_linked],
@@ -4834,6 +4875,49 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             )
             stage_two_link_failure.write_bytes(failure_sentinel)
             stage_three_link_failure.write_bytes(failure_sentinel)
+
+            stage_two_pe32_failure = root / "stage-two-invalid-pe32.exe"
+            stage_three_pe32_failure = root / "stage-three-invalid-pe32.exe"
+            stage_two_pe32_failure.write_bytes(failure_sentinel)
+            stage_three_pe32_failure.write_bytes(failure_sentinel)
+            invalid_pe32_run, _invalid_pe32_stage_three = run_stage_pair(
+                "cupidld",
+                [
+                    "-m",
+                    "i386pe",
+                    "--text-address",
+                    "0x00402000",
+                    "--entry",
+                    "_start",
+                    "-o",
+                    stage_two_pe32_failure,
+                    stage_two_link_object,
+                ],
+                [
+                    "-m",
+                    "i386pe",
+                    "--text-address",
+                    "0x00402000",
+                    "--entry",
+                    "_start",
+                    "-o",
+                    stage_three_pe32_failure,
+                    stage_three_link_object,
+                ],
+            )
+            self.assertEqual(invalid_pe32_run.returncode, 1)
+            self.assertEqual(invalid_pe32_run.stdout, "")
+            self.assertIn(
+                "CupidLD PE32 requires text address 0x00401000",
+                invalid_pe32_run.stderr,
+            )
+            self.assertEqual(
+                stage_two_pe32_failure.read_bytes(), failure_sentinel
+            )
+            self.assertEqual(
+                stage_three_pe32_failure.read_bytes(), failure_sentinel
+            )
+
             malformed_link_run, _malformed_link_stage_three = run_stage_pair(
                 "cupidld",
                 [

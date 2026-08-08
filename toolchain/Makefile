@@ -735,6 +735,7 @@ test: $(CONTRACT_MANIFEST) \
 	$(CUPIDOBJ_CONTRACT) errors
 	$(CUPIDLD_CONTRACT) fixed-basic
 	$(CUPIDLD_CONTRACT) fixed-layout
+	$(CUPIDLD_CONTRACT) pe32-fixed
 	$(CUPIDLD_CONTRACT) merge-symbols
 	$(CUPIDLD_CONTRACT) merge-addends
 	$(CUPIDLD_CONTRACT) script-layout

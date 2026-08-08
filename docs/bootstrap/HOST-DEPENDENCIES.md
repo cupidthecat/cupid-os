@@ -8,11 +8,11 @@ stable shape, then covers the Linux branch with direct build tests.
 language graph contains 28 assembly inputs, 290 headers, and 401 Cupid C
 files. No ordinary C translation unit remains in a supported root. The
 active-source digest is
-`69f8f0b9bc264f338f445781f92792b24e91f0d641950d3b57f55f74841ae46e`.
-The 2,565,353-byte audit JSON has SHA-256
-`51ace6a254ee3b7234eea1d7839d26ded488e93708c097d446173a453dfb4c4c`,
+`3ccfc3161018c2569873255aca8b86a581a5cd36ec6c016669ae95935727ac47`.
+The 2,569,536-byte audit JSON has SHA-256
+`d4861b90f1403e65531ba0c0bb1d25d2041f9d5e4905da2df9c32dadec0c4b15`,
 and the 12,197-byte summary has SHA-256
-`3562338bc156774b3dcbfcd32d13ae1114b2c582cd12827669af2fe9dc03dce5`.
+`00fa7c7d15ac3274eda9076df24ac477aa7a019c62ed13d88e126fa0207f470f`.
 The checked Windows Clang/LLVM and Linux GCC/binutils baselines at
 revision `1e079d1` predate the current CupidC ownership and remain historical
 oracle evidence.
@@ -51,6 +51,22 @@ order. ADR 0238
 records the disk-image transfer, and ADR 0245 records the publisher-owned
 directory boundary. ADR 0246 records the shared invocation boundary. Python
 and WSL remain required host-control components.
+
+Source-head CupidLD can serialize one deterministic, import-free i386 PE32
+layout without calling a host linker. This does not remove a host dependency
+yet. The checked seed does not carry the command, no generated PE image has
+been run, and Cupid OS has no Windows runtime or native checked seed. Windows
+therefore continues to use WSL for every checked path listed here. The normal
+graph remains at 447 transforms with the same owners. ADR 0247 records the
+source-only serializer boundary.
+
+Source-head CupidLD publishes ELF and PE output with native file operations. It
+creates an adjacent candidate with exclusive-create semantics, writes and
+closes it, reopens the file, checks its size and contents, then replaces the
+destination. This adds no host code generator. On POSIX, CupidLD requests mode
+`0777`; the process umask may remove any permission bits. The operation still
+depends on a caller-controlled stable directory and does not provide a
+destination lock, directory pin, or crash-durability guarantee.
 
 Checked-seed CupidObj now authors the complete tracked ISO fixture through
 `iso-fixture`. Python remains the tree freezer, independent renderer, native
@@ -650,7 +666,7 @@ records the ownership transfer.
 | GCC with i386/multilib support | Builds optional native Toolchain contracts and commands on Linux | Not required by root `all`, `user:all`, or `toolchain:all`; required only for explicit native oracle and development targets | Retain only as an optional oracle or bootstrap escape hatch |
 | Clang with i386 target support | Builds optional native Toolchain contracts and commands on Windows, including the native CupidC and CupidLD user oracle | Not required by root `all`, `user:all`, or `toolchain:all`; required only for explicit native comparison and development targets | Retain only as an optional oracle or bootstrap escape hatch |
 | NASM | Optional comparison oracle for the four boot and kernel CupidASM parity tests and the shared ELF32 reader | Not required by root `all`, `user:all`, `toolchain:all`, or baseline preflight; `make nasm-assembly-oracle` uses it when installed. The ISO lane fixture is excluded because NASM freezes `$` across its `TIMES` statement | Retain only as an optional oracle/bootstrap escape hatch |
-| Host linker backend (`ld`, `ld.lld`, `lld-link`, or platform equivalent) | No direct i386 OS, user, or normal Toolchain link recipe remains. CupidLD owns those outputs. A host compiler still invokes a native linker for optional oracle and development commands, while standalone ELF linkers remain comparison tools. Canonical Windows LLD links use `/Brepro` so hosted PE timestamps cannot invalidate same-host evidence | Not required by root `all`, `user:all`, or `toolchain:all`; required only by optional native targets | Retain only as an optional oracle or escape hatch |
+| Host linker backend (`ld`, `ld.lld`, `lld-link`, or platform equivalent) | No direct i386 OS, user, or normal Toolchain link recipe remains. CupidLD owns those outputs. Source-head CupidLD can serialize one fixed, import-free i386 PE32 layout, but it does not yet build or run a native Windows tool. A host compiler still invokes a native linker for optional oracle and development commands, while standalone ELF linkers remain comparison tools. Canonical Windows LLD links use `/Brepro` so hosted PE timestamps cannot invalidate same-host evidence | Not required by root `all`, `user:all`, or `toolchain:all`; required only by optional native targets | Retain only as an optional oracle or escape hatch until a Cupid-built Windows runtime and checked native seed replace it |
 | GNU `objcopy` / `llvm-objcopy` | No role in the normal build; tracked legacy/oracle helpers may still invoke it manually, and the checked `6731dd6` evidence fingerprints the then-installed oracle | Not required for root `all`, `user:all`, `toolchain:all`, or new `bootstrap-baseline` captures | Retain only as an optional comparison/maintenance utility; CupidObj owns the production transformations |
 | GNU `nm` / `llvm-nm` | Optional comparison oracle for CupidDis's numeric symbol view and historical baseline evidence | Not required by root `all`, `user:all`, `toolchain:all`, or baseline preflight; configured through `NM` only for optional oracle probes/tests | Retain only as an optional comparison/maintenance utility; CupidDis owns production kernel-symbol inspection |
 | Hosted C runtime/libc | Backs only the explicit native oracle and development adapters. The normal five-tool build and fifteen-executable contract cohort use Cupid's checked i386 Linux declarations and repository runtime | Not required by root `all`, `user:all`, or `toolchain:all`; required only by native oracle and development targets. The repository runtime is intentionally narrow and is not a general libc or a Windows runtime | Retain only for optional native oracle and development seams; it must not own normal preprocessing, parsing, type/layout semantics, code generation, object, assembly, link, or inspection behavior |

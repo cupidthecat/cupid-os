@@ -8,6 +8,11 @@ typedef enum {
   CTOOL_LD_LAYOUT_FIXED_TEXT
 } ctool_ld_layout_kind_t;
 
+typedef enum {
+  CTOOL_LD_IMAGE_ELF32 = 0,
+  CTOOL_LD_IMAGE_PE32_FIXED
+} ctool_ld_image_kind_t;
+
 typedef struct {
   ctool_u32 base_address;
   ctool_string_t entry_symbol;
@@ -24,6 +29,7 @@ typedef struct {
 typedef struct {
   const ctool_source_t *objects;
   ctool_u32 object_count;
+  ctool_ld_image_kind_t image_kind;
   ctool_ld_layout_t layout;
   ctool_u32 maximum_image_span;
 } ctool_ld_request_t;
@@ -61,8 +67,8 @@ ctool_status_t ctool_ld_link(ctool_job_t *job,
                              ctool_ld_result_t *result_out);
 
 /* Object images, layout source, and request strings are borrowed for the
- * call.  Output must be empty.  Success returns a deterministic static i386
- * ET_EXEC; every failure restores the original empty output and zeros the
- * result. */
+ * call.  Output must be empty.  Success returns the requested deterministic
+ * static i386 image.  Every failure restores the original empty output and
+ * zeros the result. */
 
 #endif

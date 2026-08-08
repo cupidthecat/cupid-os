@@ -799,6 +799,24 @@ CupidASM, CupidDis, CupidLD, and CupidObj image matches byte for byte. Both
 stages also agree on all five help paths, fifteen successful operations, and
 thirteen failure cases.
 
+That 5/15/13 proof describes the promoted Linux seed. Source-head CupidLD
+includes one deterministic fixed-layout i386 PE32 link and one rejected-layout
+case. The current source proof is 5/16/14. Stage two and stage three produce
+the same PE bytes, while only CupidLD differs from the promoted seed. The image
+omits empty output categories from its section table, has no imports or base
+relocations, rejects writable executable input, and is checked structurally
+without being run. It is not a Windows runtime or native seed. Normal-build
+ownership does not change.
+
+The rebuilt source-head CupidLD images publish both ELF and PE output through a
+candidate beside the destination, created with exclusive-create semantics.
+They write and close the candidate, then reopen the file and check its size and
+contents before one replacement call. Injected write, close, verification, and
+replacement errors preserve a sentinel destination; cleanup is attempted but
+not guaranteed. On POSIX, CupidLD requests mode 0777; the process umask may
+remove any permission bits. The directory must remain stable under the
+caller's control, and the standalone CLI does not lock or pin the output path.
+
 The repository carries those exact five images as a checked i386 Linux seed.
 Its manifest binds their hashes, sizes, target ABI, source revision, producer
 lineage, exact source plan, startup, and five link orders before execution.
@@ -863,7 +881,7 @@ Checked-seed CupidObj also accepts `profile-manifest`. The command reads one
 bounded CUPROF1 snapshot containing the two Doom profile memberships and the
 exact bytes of all 291 captured headers. It checks portable path identity,
 computes SHA-256 internally, sorts the logical sets, and writes the canonical
-69,366-byte JSON. The source-current five-tool fixed point passes a 5/15/13
+69,366-byte JSON. Its promotion fixed point passed a 5/15/13
 behavior matrix with padding, repeated-block, unsafe-path, case-collision,
 rollback, and recovery coverage. The checked seed carries this command, and
 the normal recipe passes that seed manifest. The wrapper derives the

@@ -9,6 +9,15 @@
 #define LD_PROGRAM_HEADER_SIZE 32u
 #define LD_SECTION_HEADER_SIZE 40u
 #define LD_SYMBOL_SIZE 16u
+#define LD_PE_DOS_HEADER_SIZE 128u
+#define LD_PE_SIGNATURE_SIZE 4u
+#define LD_PE_COFF_HEADER_SIZE 20u
+#define LD_PE_OPTIONAL_HEADER_SIZE 224u
+#define LD_PE_SECTION_HEADER_SIZE 40u
+#define LD_PE_IMAGE_BASE 0x00400000u
+#define LD_PE_TEXT_ADDRESS 0x00401000u
+#define LD_PE_SECTION_ALIGNMENT 0x00001000u
+#define LD_PE_FILE_ALIGNMENT 0x00000200u
 #define LD_SHT_NULL 0u
 #define LD_SHT_SYMTAB 2u
 #define LD_SHT_STRTAB 3u
@@ -77,6 +86,14 @@ typedef struct {
   ctool_u32 type;
   ctool_u32 visibility;
 } ld_global_t;
+
+typedef struct {
+  ctool_u32 entry;
+  ctool_u32 load_address;
+  ctool_u32 loaded_end;
+  ctool_u32 memory_end;
+  ctool_u32 resolved_symbol_count;
+} ld_image_summary_t;
 
 typedef struct {
   ctool_job_t *job;
@@ -1796,9 +1813,9 @@ static ctool_status_t ld_find_entry(ld_context_t *link,
   return CTOOL_OK;
 }
 
-static ctool_status_t ld_serialize_exec(ld_context_t *link,
-                                        ctool_buffer_t *output,
-                                        ctool_ld_result_t *result_out) {
+static ctool_status_t ld_serialize_elf32_exec(ld_context_t *link,
+                                              ctool_buffer_t *output,
+                                              ctool_ld_result_t *result_out) {
   ctool_buffer_t *symtab = (ctool_buffer_t *)0;
   ctool_buffer_t *strtab = (ctool_buffer_t *)0;
   ctool_buffer_t *shstrtab = (ctool_buffer_t *)0;
@@ -2089,6 +2106,548 @@ done:
   }
   if (symtab != (ctool_buffer_t *)0) {
     ctool_buffer_close(symtab);
+  }
+  return status;
+}
+
+static ctool_status_t ld_count_resolved_symbols(
+    ld_context_t *link, ctool_u32 *symbol_count_out) {
+  ctool_u32 symbol_count = 0u;
+  ctool_u32 object_index;
+  for (object_index = 0u; object_index < link->object_count; object_index++) {
+    const ld_object_t *object = &link->objects[object_index];
+    ctool_u32 symbol_index;
+    for (symbol_index = 1u; symbol_index < object->object.symbol_count;
+         symbol_index++) {
+      const ctool_elf32_symbol_t *symbol =
+          &object->object.symbols[symbol_index];
+      ctool_u32 value;
+      ctool_u32 output_index;
+      ctool_status_t status;
+      if (symbol->binding != CTOOL_ELF32_BIND_LOCAL ||
+          (symbol->type != CTOOL_ELF32_SYMBOL_FUNCTION &&
+           symbol->type != CTOOL_ELF32_SYMBOL_NOTYPE) ||
+          symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED) {
+        continue;
+      }
+      status = ld_defined_symbol_value(link, object_index, symbol_index,
+                                       &value, &output_index);
+      if (status == CTOOL_ERR_NOT_FOUND) {
+        continue;
+      }
+      if (status != CTOOL_OK) {
+        return status;
+      }
+      if (symbol->type == CTOOL_ELF32_SYMBOL_NOTYPE &&
+          (link->outputs[output_index].flags &
+           CTOOL_ELF32_SHF_EXECINSTR) == 0u) {
+        continue;
+      }
+      if (symbol_count == LD_U32_MAX) {
+        return CTOOL_ERR_OVERFLOW;
+      }
+      symbol_count++;
+    }
+  }
+  {
+    ctool_u32 global_index;
+    for (global_index = 0u; global_index < link->global_count;
+         global_index++) {
+      const ld_global_t *global = &link->globals[global_index];
+      if (global->rank == LD_DEFINITION_NONE ||
+          global->value_ready == CTOOL_FALSE) {
+        continue;
+      }
+      if (symbol_count == LD_U32_MAX) {
+        return CTOOL_ERR_OVERFLOW;
+      }
+      symbol_count++;
+    }
+  }
+  *symbol_count_out = symbol_count;
+  return CTOOL_OK;
+}
+
+static ctool_status_t ld_put_pe32_dos_header(ctool_buffer_t *output) {
+  static const ctool_u8 stub[LD_PE_DOS_HEADER_SIZE] = {
+      0x4du, 0x5au, 0x90u, 0x00u, 0x03u, 0x00u, 0x00u, 0x00u,
+      0x04u, 0x00u, 0x00u, 0x00u, 0xffu, 0xffu, 0x00u, 0x00u,
+      0xb8u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u,
+      0x40u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u,
+      0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u,
+      0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u,
+      0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u,
+      0x00u, 0x00u, 0x00u, 0x00u, 0x80u, 0x00u, 0x00u, 0x00u,
+      0x0eu, 0x1fu, 0xbau, 0x0eu, 0x00u, 0xb4u, 0x09u, 0xcdu,
+      0x21u, 0xb8u, 0x01u, 0x4cu, 0xcdu, 0x21u, 0x54u, 0x68u,
+      0x69u, 0x73u, 0x20u, 0x70u, 0x72u, 0x6fu, 0x67u, 0x72u,
+      0x61u, 0x6du, 0x20u, 0x63u, 0x61u, 0x6eu, 0x6eu, 0x6fu,
+      0x74u, 0x20u, 0x62u, 0x65u, 0x20u, 0x72u, 0x75u, 0x6eu,
+      0x20u, 0x69u, 0x6eu, 0x20u, 0x44u, 0x4fu, 0x53u, 0x20u,
+      0x6du, 0x6fu, 0x64u, 0x65u, 0x2eu, 0x0du, 0x0du, 0x0au,
+      0x24u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u};
+  return ctool_buffer_append(output,
+                             ctool_bytes(stub, LD_PE_DOS_HEADER_SIZE));
+}
+
+static ctool_status_t ld_put_pe32_optional_header(
+    ctool_buffer_t *output, ctool_u32 code_size,
+    ctool_u32 initialized_size, ctool_u32 uninitialized_size,
+    ctool_u32 entry_rva, ctool_u32 base_of_code, ctool_u32 base_of_data,
+    ctool_u32 image_size, ctool_u32 headers_size) {
+  ctool_u32 directory;
+  ctool_status_t status = ctool_buffer_put_le16(output, 0x010bu);
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_u8(output, 0u);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_u8(output, 0u);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_le32(output, code_size);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_le32(output, initialized_size);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_le32(output, uninitialized_size);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_le32(output, entry_rva);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_le32(output, base_of_code);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_le32(output, base_of_data);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_le32(output, LD_PE_IMAGE_BASE);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_le32(output, LD_PE_SECTION_ALIGNMENT);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_le32(output, LD_PE_FILE_ALIGNMENT);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_le16(output, 6u);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_le16(output, 0u);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_le16(output, 0u);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_le16(output, 0u);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_le16(output, 6u);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_le16(output, 0u);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_le32(output, 0u);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_le32(output, image_size);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_le32(output, headers_size);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_le32(output, 0u);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_le16(output, 3u);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_le16(output, 0x0100u);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_le32(output, 0x00100000u);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_le32(output, 0x00001000u);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_le32(output, 0x00100000u);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_le32(output, 0x00001000u);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_le32(output, 0u);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_le32(output, 16u);
+  }
+  for (directory = 0u; status == CTOOL_OK && directory < 16u;
+       directory++) {
+    status = ctool_buffer_put_le32(output, 0u);
+    if (status == CTOOL_OK) {
+      status = ctool_buffer_put_le32(output, 0u);
+    }
+  }
+  return status;
+}
+
+static ctool_u32 ld_pe32_section_characteristics(
+    const ld_output_section_t *section) {
+  if ((section->flags & CTOOL_ELF32_SHF_EXECINSTR) != 0u) {
+    ctool_u32 characteristics = 0x60000020u;
+    if ((section->flags & CTOOL_ELF32_SHF_WRITE) != 0u) {
+      characteristics |= 0x80000000u;
+    }
+    return characteristics;
+  }
+  if (section->type == (ctool_u32)CTOOL_ELF32_SHT_NOBITS) {
+    return 0xc0000080u;
+  }
+  return (section->flags & CTOOL_ELF32_SHF_WRITE) != 0u
+             ? 0xc0000040u
+             : 0x40000040u;
+}
+
+static ctool_status_t ld_put_pe32_section_header(
+    ctool_buffer_t *output, const ld_output_section_t *section,
+    ctool_u32 virtual_address, ctool_u32 raw_size) {
+  ctool_status_t status;
+  if (section->name.data == (const char *)0 || section->name.size == 0u ||
+      section->name.size > 8u) {
+    return CTOOL_ERR_INPUT;
+  }
+  status = ctool_buffer_append(
+      output, ctool_bytes(section->name.data, section->name.size));
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_fill(output, 0u, 8u - section->name.size);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_le32(output, section->size);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_le32(output, virtual_address);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_le32(output, raw_size);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_le32(output, section->file_offset);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_le32(output, 0u);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_le32(output, 0u);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_le16(output, 0u);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_le16(output, 0u);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_le32(
+        output, ld_pe32_section_characteristics(section));
+  }
+  return status;
+}
+
+static ctool_status_t ld_serialize_pe32_fixed(
+    ld_context_t *link, ctool_buffer_t *output,
+    ctool_ld_result_t *result_out) {
+  ld_image_summary_t summary;
+  ctool_u32 headers_end;
+  ctool_u32 headers_size;
+  ctool_u32 cursor;
+  ctool_u32 code_size = 0u;
+  ctool_u32 initialized_size = 0u;
+  ctool_u32 uninitialized_size = 0u;
+  ctool_u32 base_of_code = 0u;
+  ctool_u32 base_of_data = 0u;
+  ctool_u32 emitted_section_count = 0u;
+  ctool_u32 image_size;
+  ctool_u32 entry_rva;
+  ctool_u32 index;
+  ctool_u32 previous_section_end = 0u;
+  ctool_bool have_previous_section = CTOOL_FALSE;
+  ctool_u32 diagnostics_before = ctool_job_diagnostic_count(link->job);
+  const char *failure_phase = "CupidLD PE32 entry validation failed";
+  ctool_status_t status;
+  ld_zero(&summary, (ctool_u32)sizeof(summary));
+  if (link->request->layout.kind != CTOOL_LD_LAYOUT_FIXED_TEXT) {
+    return ld_diagnostic(link->job, CTOOL_LD_DIAG_BAD_LAYOUT,
+                         ctool_string(""), 0u, 0u,
+                         "CupidLD PE32 requires fixed text layout",
+                         CTOOL_ERR_INPUT);
+  }
+  if (link->request->layout.as.fixed_text.base_address !=
+      LD_PE_TEXT_ADDRESS) {
+    return ld_diagnostic(
+        link->job, CTOOL_LD_DIAG_BAD_LAYOUT, ctool_string(""), 0u, 0u,
+        "CupidLD PE32 requires text address 0x00401000", CTOOL_ERR_INPUT);
+  }
+  for (index = 0u; index < link->output_count; index++) {
+    if (link->outputs[index].size != 0u) {
+      emitted_section_count++;
+    }
+  }
+  if (emitted_section_count == 0u || emitted_section_count > 4u) {
+    return ld_diagnostic(link->job, CTOOL_LD_DIAG_BAD_LAYOUT,
+                         ctool_string(""), 0u, 0u,
+                         "CupidLD PE32 section count is invalid",
+                         CTOOL_ERR_INPUT);
+  }
+  status = ld_find_entry(link, &summary.entry);
+  if (status != CTOOL_OK) {
+    goto done;
+  }
+  if (summary.entry < LD_PE_IMAGE_BASE) {
+    status = CTOOL_ERR_OVERFLOW;
+    goto done;
+  }
+  entry_rva = summary.entry - LD_PE_IMAGE_BASE;
+  failure_phase = "CupidLD PE32 symbol counting failed";
+  status = ld_count_resolved_symbols(link, &summary.resolved_symbol_count);
+  if (status != CTOOL_OK) {
+    goto done;
+  }
+  if (ld_multiply_overflows(emitted_section_count,
+                            LD_PE_SECTION_HEADER_SIZE) == CTOOL_TRUE ||
+      ld_add_overflows(LD_PE_DOS_HEADER_SIZE + LD_PE_SIGNATURE_SIZE +
+                           LD_PE_COFF_HEADER_SIZE +
+                           LD_PE_OPTIONAL_HEADER_SIZE,
+                       emitted_section_count * LD_PE_SECTION_HEADER_SIZE) ==
+          CTOOL_TRUE) {
+    status = CTOOL_ERR_OVERFLOW;
+    goto done;
+  }
+  headers_end = LD_PE_DOS_HEADER_SIZE + LD_PE_SIGNATURE_SIZE +
+                LD_PE_COFF_HEADER_SIZE + LD_PE_OPTIONAL_HEADER_SIZE +
+                emitted_section_count * LD_PE_SECTION_HEADER_SIZE;
+  status = ld_align_value(headers_end, LD_PE_FILE_ALIGNMENT, &headers_size);
+  if (status != CTOOL_OK) {
+    goto done;
+  }
+  cursor = headers_size;
+  summary.load_address = LD_U32_MAX;
+  failure_phase = "CupidLD PE32 section layout failed";
+  for (index = 0u; index < link->output_count; index++) {
+    ld_output_section_t *section = &link->outputs[index];
+    ctool_u32 virtual_address;
+    ctool_u32 end;
+    ctool_u32 raw_size = 0u;
+    if (section->size == 0u) {
+      if (section->file_size != 0u) {
+        status = CTOOL_ERR_INTERNAL;
+        goto done;
+      }
+      section->file_offset = 0u;
+      continue;
+    }
+    if ((section->flags & CTOOL_ELF32_SHF_EXECINSTR) != 0u &&
+        (section->flags & CTOOL_ELF32_SHF_WRITE) != 0u) {
+      status = ld_diagnostic(
+          link->job, CTOOL_LD_DIAG_BAD_LAYOUT, ctool_string(""), 0u, 0u,
+          "CupidLD PE32 rejects writable executable sections",
+          CTOOL_ERR_INPUT);
+      goto done;
+    }
+    if (section->address < LD_PE_TEXT_ADDRESS ||
+        (section->address & (LD_PE_SECTION_ALIGNMENT - 1u)) != 0u ||
+        ld_add_overflows(section->address, section->size) == CTOOL_TRUE) {
+      status = CTOOL_ERR_OVERFLOW;
+      goto done;
+    }
+    virtual_address = section->address - LD_PE_IMAGE_BASE;
+    end = section->address + section->size;
+    if (have_previous_section == CTOOL_TRUE &&
+        section->address < previous_section_end) {
+      status = CTOOL_ERR_INPUT;
+      goto done;
+    }
+    previous_section_end = end;
+    have_previous_section = CTOOL_TRUE;
+    if (section->address < summary.load_address) {
+      summary.load_address = section->address;
+    }
+    if (end > summary.memory_end) {
+      summary.memory_end = end;
+    }
+    if (section->type == (ctool_u32)CTOOL_ELF32_SHT_PROGBITS) {
+      if (section->file_size > section->size) {
+        status = CTOOL_ERR_INTERNAL;
+        goto done;
+      }
+      status = ld_align_value(section->file_size, LD_PE_FILE_ALIGNMENT,
+                              &raw_size);
+      if (status != CTOOL_OK || ld_add_overflows(cursor, raw_size) ==
+                                    CTOOL_TRUE) {
+        status = CTOOL_ERR_OVERFLOW;
+        goto done;
+      }
+      section->file_offset = raw_size == 0u ? 0u : cursor;
+      cursor += raw_size;
+      if (end > summary.loaded_end) {
+        summary.loaded_end = end;
+      }
+      if ((section->flags & CTOOL_ELF32_SHF_EXECINSTR) != 0u) {
+        if (ld_add_overflows(code_size, raw_size) == CTOOL_TRUE) {
+          status = CTOOL_ERR_OVERFLOW;
+          goto done;
+        }
+        code_size += raw_size;
+        if (base_of_code == 0u) {
+          base_of_code = virtual_address;
+        }
+      } else {
+        if (ld_add_overflows(initialized_size, raw_size) == CTOOL_TRUE) {
+          status = CTOOL_ERR_OVERFLOW;
+          goto done;
+        }
+        initialized_size += raw_size;
+        if (base_of_data == 0u) {
+          base_of_data = virtual_address;
+        }
+      }
+    } else if (section->type == (ctool_u32)CTOOL_ELF32_SHT_NOBITS) {
+      section->file_offset = 0u;
+      if (ld_add_overflows(uninitialized_size, section->size) == CTOOL_TRUE) {
+        status = CTOOL_ERR_OVERFLOW;
+        goto done;
+      }
+      uninitialized_size += section->size;
+      if (base_of_data == 0u) {
+        base_of_data = virtual_address;
+      }
+    } else {
+      status = CTOOL_ERR_UNSUPPORTED;
+      goto done;
+    }
+  }
+  if (summary.load_address == LD_U32_MAX ||
+      summary.memory_end <= LD_PE_IMAGE_BASE || base_of_code == 0u) {
+    status = CTOOL_ERR_INPUT;
+    goto done;
+  }
+  status = ld_align_value(summary.memory_end - LD_PE_IMAGE_BASE,
+                          LD_PE_SECTION_ALIGNMENT, &image_size);
+  if (status != CTOOL_OK) {
+    goto done;
+  }
+  if (image_size > link->request->maximum_image_span) {
+    status = ld_diagnostic(
+        link->job, CTOOL_LD_DIAG_LIMIT, ctool_string(""), 0u, 0u,
+        "CupidLD PE32 image exceeds the requested maximum span",
+        CTOOL_ERR_LIMIT);
+    goto done;
+  }
+  failure_phase = "CupidLD PE32 image header write failed";
+  status = ld_put_pe32_dos_header(output);
+  if (status == CTOOL_OK) {
+    static const ctool_u8 signature[LD_PE_SIGNATURE_SIZE] = {
+        (ctool_u8)'P', (ctool_u8)'E', 0u, 0u};
+    status = ctool_buffer_append(
+        output, ctool_bytes(signature, LD_PE_SIGNATURE_SIZE));
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_le16(output, 0x014cu);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_le16(output,
+                                   (ctool_u16)emitted_section_count);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_le32(output, 0u);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_le32(output, 0u);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_le32(output, 0u);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_le16(output,
+                                   (ctool_u16)LD_PE_OPTIONAL_HEADER_SIZE);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_buffer_put_le16(output, 0x0103u);
+  }
+  if (status == CTOOL_OK) {
+    status = ld_put_pe32_optional_header(
+        output, code_size, initialized_size, uninitialized_size, entry_rva,
+        base_of_code, base_of_data, image_size, headers_size);
+  }
+  failure_phase = "CupidLD PE32 section header write failed";
+  for (index = 0u; status == CTOOL_OK && index < link->output_count;
+       index++) {
+    const ld_output_section_t *section = &link->outputs[index];
+    ctool_u32 raw_size = 0u;
+    if (section->size == 0u) {
+      continue;
+    }
+    if (section->type == (ctool_u32)CTOOL_ELF32_SHT_PROGBITS) {
+      status = ld_align_value(section->file_size, LD_PE_FILE_ALIGNMENT,
+                              &raw_size);
+    }
+    if (status == CTOOL_OK) {
+      status = ld_put_pe32_section_header(
+          output, section, section->address - LD_PE_IMAGE_BASE, raw_size);
+    }
+  }
+  if (status == CTOOL_OK) {
+    status = ld_buffer_pad_to(output, headers_size);
+  }
+  failure_phase = "CupidLD PE32 section data write failed";
+  for (index = 0u; status == CTOOL_OK && index < link->output_count;
+       index++) {
+    const ld_output_section_t *section = &link->outputs[index];
+    if (section->type == (ctool_u32)CTOOL_ELF32_SHT_PROGBITS &&
+        section->file_size != 0u) {
+      ctool_bytes_t payload = ctool_buffer_view(link->payload);
+      ctool_u32 raw_end;
+      ctool_u32 raw_size;
+      status = ld_align_value(section->file_size, LD_PE_FILE_ALIGNMENT,
+                              &raw_size);
+      if (status == CTOOL_OK) {
+        status = ld_buffer_pad_to(output, section->file_offset);
+      }
+      if (status == CTOOL_OK) {
+        status = ctool_buffer_append(
+            output,
+            ctool_bytes(payload.data + section->staging_offset,
+                        section->file_size));
+      }
+      if (status == CTOOL_OK &&
+          ld_add_overflows(section->file_offset, raw_size) == CTOOL_FALSE) {
+        raw_end = section->file_offset + raw_size;
+        status = ld_buffer_pad_to(output, raw_end);
+      } else if (status == CTOOL_OK) {
+        status = CTOOL_ERR_OVERFLOW;
+      }
+    }
+  }
+  if (status == CTOOL_OK) {
+    result_out->bytes = ctool_buffer_view(output).size;
+    result_out->entry = summary.entry;
+    result_out->load_address = summary.load_address;
+    result_out->loaded_end = summary.loaded_end;
+    result_out->memory_end = summary.memory_end;
+    result_out->output_section_count = emitted_section_count;
+    result_out->resolved_symbol_count = summary.resolved_symbol_count;
+    result_out->applied_relocation_count = link->applied_relocations;
+  }
+
+done:
+  if (status != CTOOL_OK &&
+      ctool_job_diagnostic_count(link->job) == diagnostics_before) {
+    ctool_u32 code = status == CTOOL_ERR_OVERFLOW
+                         ? CTOOL_LD_DIAG_OVERFLOW
+                         : CTOOL_LD_DIAG_LIMIT;
+    (void)ld_diagnostic(link->job, code, ctool_string(""), 0u, 0u,
+                        failure_phase, status);
   }
   return status;
 }
@@ -2809,7 +3368,10 @@ ctool_status_t ctool_ld_link(ctool_job_t *job,
   }
   if (request->objects == (const ctool_source_t *)0 ||
       request->object_count == 0u || request->maximum_image_span == 0u ||
-      request->layout.kind > CTOOL_LD_LAYOUT_FIXED_TEXT) {
+      (request->image_kind != CTOOL_LD_IMAGE_ELF32 &&
+       request->image_kind != CTOOL_LD_IMAGE_PE32_FIXED) ||
+      (request->layout.kind != CTOOL_LD_LAYOUT_SCRIPT &&
+       request->layout.kind != CTOOL_LD_LAYOUT_FIXED_TEXT)) {
     return ld_diagnostic(job, CTOOL_LD_DIAG_INVALID_REQUEST,
                          ctool_string(""), 0u, 0u,
                          "CupidLD request is invalid",
@@ -2870,7 +3432,11 @@ ctool_status_t ctool_ld_link(ctool_job_t *job,
   }
   if (status == CTOOL_OK) {
     phase = "CupidLD executable serialization failed";
-    status = ld_serialize_exec(&link, output, &result);
+    if (request->image_kind == CTOOL_LD_IMAGE_PE32_FIXED) {
+      status = ld_serialize_pe32_fixed(&link, output, &result);
+    } else {
+      status = ld_serialize_elf32_exec(&link, output, &result);
+    }
   }
   if (status != CTOOL_OK &&
       ctool_job_diagnostic_count(job) == diagnostics_before) {

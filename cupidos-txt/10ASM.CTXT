@@ -177,6 +177,25 @@ raw and ELF32 assembly, disassembly, symbol listing, fixed-address and scripted
 linking, binary and canonical-text wrapping, executable flattening, help, and
 useful failures.
 
+Source-head CupidLD also links ordered static i386 objects into one fixed-layout
+PE32 console image. Image base is 0x00400000, and text begins at RVA 0x1000.
+Nonempty read-only, writable, and BSS sections follow in that order at the next
+page boundary. Empty output categories do not get PE section headers. The
+image has no imports or base relocations. Writable executable input is
+rejected. Both rebuilt stages produce the same PE bytes
+and agree on a rejected layout. The source-head behavior matrix is 5/16/14.
+The promoted Linux seed remains at 5/15/13 and does not carry this command.
+The PE image is validated but not run or used by the normal build.
+
+Source-head CupidLD uses an adjacent candidate created with exclusive-create
+semantics for both ELF and PE output. It writes and closes the candidate, then
+reopens the file and checks its size and contents before one replacement call.
+Injected write, close, verification, and replacement errors preserve an
+existing destination. Cleanup is attempted but not guaranteed. On POSIX,
+CupidLD requests mode 0777; the process umask may remove any permission bits.
+The directory must remain stable under the caller's control, and the CLI does
+not lock or pin the output path.
+
 The checked i386 Linux seed includes CupidASM. Its manifest binds the exact
 assembler image to the target ABI, source revision, producer lineage, source
 plan, and link order. The bootstrap freezes the verified manifest and binaries

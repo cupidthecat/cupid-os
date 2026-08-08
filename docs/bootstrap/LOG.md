@@ -22227,3 +22227,108 @@ A native Windows runtime and checked native seed remain open. No ordinary C or
 assembly source changes ownership, so no `.c` to `.cc` rename is due.
 `TempleOS/` remains untouched reference material. ADR 0246 records the shared
 invocation boundary.
+
+## 2026-08-08: Serialize fixed-layout PE32 images with CupidLD
+
+The checked Toolchain seed is a static i386 Linux cohort, and Windows still
+runs it through WSL. CupidLD already owned symbol resolution, relocation, and
+fixed layout for ordered i386 ELF32 objects. This change keeps that link engine
+and adds a deterministic PE32 serializer instead of introducing a second host
+linker.
+
+Source-head CupidLD accepts `-m i386pe` with the fixed text address
+`0x00401000`. It writes an image at base `0x00400000`, with `.text` at RVA
+`0x1000`, nonempty `.rodata`, `.data`, and `.bss` groups on later `0x1000`
+boundaries, and `0x0200` file alignment. Empty output groups are omitted from
+the PE section table. The i386 console profile uses a
+canonical DOS stub, zero timestamp and checksum fields, OS and subsystem
+versions 6.0, subsystem 3, NX compatibility, and sixteen empty data
+directories. It has no imports or base relocations. The entry must lie in
+file-backed executable bytes, and writable executable input fails before
+publication.
+
+The source-head CupidLD CLI publishes ELF and PE output. It creates an adjacent
+candidate with exclusive-create semantics, writes and closes the
+candidate file, reopens it, checks its size and contents against the linker
+buffer, and closes the verification read before one replacement call. A
+partial-write error, close error, verification mismatch, or replacement error
+preserves an existing destination. CupidLD attempts to remove a failed
+candidate, but cleanup failure is not reported. Candidate-name search is
+bounded to 4,096 attempts. On POSIX, CupidLD requests mode `0777`; the process
+umask may remove any permission bits.
+
+The previous `ctool_job_write` path opened the destination with truncation, so
+a publication failure could destroy the old file. The source audit requires the
+real verifier to check size and contents, propagate its close status, and run
+before replacement. Mutations that bypass or weaken those steps fail, as does
+a mutation that restores the direct write. The static i386 build uses its Linux
+syscall boundary for the same path, so publication adds neither Python nor a
+host linker. The directory must remain under the caller's control for one
+command. The CLI does not lock or pin the destination and does not claim crash
+durability. The publisher remains private to `cupidld_main.cc`; the
+freestanding linker core still returns a transactional memory buffer.
+
+The first independent bootstrap parser checked broad PE layout but did not pin
+every field or extent. Mutation review showed that it accepted a truncated
+`SizeOfImage`, raw data overlapping the headers, writable code, a nonzero
+checksum, a different subsystem, changed padding, and an oversized raw `.text`
+extent. The final parser checks the complete fixed header, ordered section
+profiles, permissions, alignments, padding, raw and virtual extents, and entry
+coverage. It verifies that an empty middle output group is omitted rather than
+sharing the next section's RVA. Error contracts reject negative values for the
+image-kind and layout-kind enums, malformed input, an invalid fixed address,
+and writable executable input while preserving prior output.
+
+The source-head fixed point adds one successful PE link and one rejected-layout
+case. Both rebuilt stages produce the same PE bytes and the same useful
+diagnostic, giving a 5/16/14 behavior matrix. The promoted seed remains at its
+historical 5/15/13 matrix. Only source-head CupidLD differs from that seed; the
+other four tool images remain byte-identical.
+
+| Check | Result |
+| --- | --- |
+| Hosted CupidLD module | PASS: all ten tests in 3.228 seconds on Windows and 3.705 seconds under WSL. Coverage includes the four-section and empty-middle fixtures, deterministic repeats, selector errors, malformed input, writable-code rejection, candidate substitution, bounded occupied-name exhaustion, rollback, and same-process recovery. |
+| Native CupidLD contract | PASS: all seven selectors, including `pe32-fixed` and `errors`, in 0.049 seconds. |
+| `make test-toolchain-fixed-point` | PASS: the complete source-head stage-two and stage-three proof in 757.141 seconds. |
+| `make bootstrap-from-seed BOOTSTRAP_SEED_OUTPUT=.codex-pe32-source-0247-final3` | PASS in 838.053 seconds. All 19 C object pairs, startup, and five tool pairs match; behavior is 5/16/14. |
+| `python -m unittest -v tests.test_toolchain_bootstrap_seed` | PASS: all 50 tests in 901.358 seconds. |
+| `python -m unittest -v tests.test_build_graph_audit` | PASS: all 75 tests in 808.833 seconds. |
+| `make verify-bootstrap-seed` | PASS for all five unchanged promoted images. |
+| `make bootstrap-audit` | PASS in 68.392 seconds. |
+| `make check-bootstrap-audit` | PASS in 92.535 seconds on the final tree. |
+| `make -C user BUILD=.codex-user-pe32-final all` | PASS in 5.615 seconds. A fresh private directory receives `hello`, `ls`, and `cat` through checked CupidC and CupidLD. |
+| `make -C toolchain all` | PASS in 2,836.013 seconds. Stage two and stage three match, the hosted runtime passes, and all 20 checked contract artifacts publish together. |
+| `make all` | PASS in 1,738.517 seconds through the normal checked ELF path. |
+| Private `/bin/ls.cc` boot smoke | PASS in 49.997 seconds. The log records 911 bytes of JIT code, 71 bytes of data, and completed execution. |
+| LLVM format check | PASS: `llvm-readobj` identifies the retained image as i386 PE32 with the fixed entry, base, alignments, executable read-only `.text`, and empty data directories. |
+| Python bytecode and Ruff | PASS for the changed Python modules and tests. |
+
+The retained proof artifacts are:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| 41-input source snapshot | 41 inputs | `7b6b40b666acc599f758065e2be4fc7824823618d0ffd46350450699eb980dcb` |
+| Source build plan | 19 C roots | `59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc` |
+| Stage-two and stage-three `cupidld.elf` | 287,804 | `f2a126d57072e268b13cd0ab36f7b1067e586d85cae987afcfd148a961410b87` |
+| Stage-two and stage-three fixed PE32 image | 1,024 | `656526add2a4703dbb9bdce21fe00e93ff2ac7b2d4a87d6514c87b5bc17d6fb5` |
+| `bootstrap-report.json` | 15,060 | `c7ac36eeedce0aa4c2db75bfbd1a29eefd6ad064aa0ece779b7489b98c2fb3ab` |
+| Active-build audit JSON | 2,569,536 | `d4861b90f1403e65531ba0c0bb1d25d2041f9d5e4905da2df9c32dadec0c4b15` |
+| Active-build audit summary | 12,197 | `00fa7c7d15ac3274eda9076df24ac477aa7a019c62ed13d88e126fa0207f470f` |
+| `kernel/kernel.elf` | 9,077,256 | `b759382524029149661b7f52233730bdee4758c56af84d643090dd147808a0a5` |
+| `kernel/kernel.bin` | 8,871,472 | `3545265b59b95f858af4d93e8196624fa3991b02f49c6df1e1cae38608b88781` |
+| `cupidos.img` | 209,715,200 | `aa9f5e0dedefe6f7e243d0e0c67448db1448aaa1960204b1f77efd82202f17b3` |
+| Private boot log | 27,819 | `0ebac3fa2e8efae4264897aeb6581f01fc88668db7c3e8317e3beef956ff0f77` |
+
+The audit records `cupidld.pe32_fixed_image` as a source-head capability. It
+retains 719 active inputs, 447 transforms, 255 feature records, and 25
+accounted unreachable files. CupidC participates in 245 transforms, CupidASM
+in five, CupidObj in 189, CupidLD in five, CupidDis in one, and Python in all
+447. Every one of the 438 root outputs keeps a Cupid owner. The three
+Python-only supplemental outputs remain unchanged.
+
+PE32 serialization is a format capability, not a native Windows bootstrap. A
+Cupid-built Windows runtime, imports, runtime relocation, seed carriage,
+broader PE or COFF support, and native execution remain open. No ordinary C
+or assembly source changes ownership, so no `.c` to `.cc` rename is due.
+`TempleOS/` remains untouched reference material. ADR 0247 records the
+boundary.

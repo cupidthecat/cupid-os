@@ -583,6 +583,278 @@ def _validate_static_i386_elf(path: Path, expected_entry: int) -> None:
     )
 
 
+_FIXED_PE32_DOS_STUB = bytes.fromhex(
+    "4d5a90000300000004000000ffff0000"
+    "b8000000000000004000000000000000"
+    "00000000000000000000000000000000"
+    "00000000000000000000000080000000"
+    "0e1fba0e00b409cd21b8014ccd215468"
+    "69732070726f6772616d2063616e6e6f"
+    "742062652072756e20696e20444f5320"
+    "6d6f64652e0d0d0a2400000000000000"
+)
+
+
+def _validate_static_i386_pe32(path: Path, expected_entry: int) -> None:
+    data = path.read_bytes()
+
+    def require_range(offset: int, size: int, label: str) -> None:
+        if offset < 0 or size < 0 or offset > len(data) - size:
+            raise BootstrapError(f"{path.name} has a truncated {label}")
+
+    def read_u16(offset: int, label: str) -> int:
+        require_range(offset, 2, label)
+        return struct.unpack_from("<H", data, offset)[0]
+
+    def read_u32(offset: int, label: str) -> int:
+        require_range(offset, 4, label)
+        return struct.unpack_from("<I", data, offset)[0]
+
+    require_range(0, len(_FIXED_PE32_DOS_STUB), "DOS header")
+    if data[: len(_FIXED_PE32_DOS_STUB)] != _FIXED_PE32_DOS_STUB:
+        raise BootstrapError(f"{path.name} has a noncanonical DOS stub")
+    pe_offset = read_u32(0x3C, "DOS PE offset")
+    require_range(pe_offset, 24, "PE and COFF headers")
+    if data[pe_offset : pe_offset + 4] != b"PE\0\0":
+        raise BootstrapError(f"{path.name} has no PE signature")
+    (
+        machine,
+        section_count,
+        timestamp,
+        symbol_table,
+        symbol_count,
+        optional_size,
+        characteristics,
+    ) = struct.unpack_from("<HHIIIHH", data, pe_offset + 4)
+    if (
+        machine != 0x014C
+        or section_count == 0
+        or section_count > 4
+        or timestamp != 0
+        or symbol_table != 0
+        or symbol_count != 0
+        or optional_size != 0x00E0
+        or characteristics != 0x0103
+    ):
+        raise BootstrapError(f"{path.name} has an invalid PE32 COFF header")
+    optional_offset = pe_offset + 24
+    require_range(optional_offset, optional_size, "PE32 optional header")
+    if read_u16(optional_offset, "PE32 magic") != 0x010B:
+        raise BootstrapError(f"{path.name} is not PE32")
+    linker_major = data[optional_offset + 2]
+    linker_minor = data[optional_offset + 3]
+    code_size = read_u32(optional_offset + 4, "PE32 code size")
+    initialized_size = read_u32(
+        optional_offset + 8, "PE32 initialized data size"
+    )
+    uninitialized_size = read_u32(
+        optional_offset + 12, "PE32 uninitialized data size"
+    )
+    entry_rva = read_u32(optional_offset + 16, "PE32 entry RVA")
+    base_of_code = read_u32(optional_offset + 20, "PE32 code base")
+    base_of_data = read_u32(optional_offset + 24, "PE32 data base")
+    image_base = read_u32(optional_offset + 28, "PE32 image base")
+    section_alignment = read_u32(
+        optional_offset + 32, "PE32 section alignment"
+    )
+    file_alignment = read_u32(
+        optional_offset + 36, "PE32 file alignment"
+    )
+    image_size = read_u32(optional_offset + 56, "PE32 image size")
+    headers_size = read_u32(optional_offset + 60, "PE32 header size")
+    checksum = read_u32(optional_offset + 64, "PE32 checksum")
+    subsystem = read_u16(optional_offset + 68, "PE32 subsystem")
+    dll_characteristics = read_u16(
+        optional_offset + 70, "PE32 DLL characteristics"
+    )
+    stack_reserve = read_u32(optional_offset + 72, "PE32 stack reserve")
+    stack_commit = read_u32(optional_offset + 76, "PE32 stack commit")
+    heap_reserve = read_u32(optional_offset + 80, "PE32 heap reserve")
+    heap_commit = read_u32(optional_offset + 84, "PE32 heap commit")
+    loader_flags = read_u32(optional_offset + 88, "PE32 loader flags")
+    directory_count = read_u32(
+        optional_offset + 92, "PE32 directory count"
+    )
+    if (
+        linker_major != 0
+        or linker_minor != 0
+        or image_base != 0x00400000
+        or section_alignment != 0x1000
+        or file_alignment != 0x0200
+        or read_u16(optional_offset + 40, "PE32 OS major version") != 6
+        or read_u16(optional_offset + 42, "PE32 OS minor version") != 0
+        or read_u16(optional_offset + 44, "PE32 image major version") != 0
+        or read_u16(optional_offset + 46, "PE32 image minor version") != 0
+        or read_u16(optional_offset + 48, "PE32 subsystem major version")
+        != 6
+        or read_u16(optional_offset + 50, "PE32 subsystem minor version")
+        != 0
+        or read_u32(optional_offset + 52, "PE32 Win32 version") != 0
+        or image_size == 0
+        or image_size % section_alignment != 0
+        or headers_size == 0
+        or headers_size % file_alignment != 0
+        or headers_size > len(data)
+        or checksum != 0
+        or subsystem != 3
+        or dll_characteristics != 0x0100
+        or stack_reserve != 0x00100000
+        or stack_commit != 0x00001000
+        or heap_reserve != 0x00100000
+        or heap_commit != 0x00001000
+        or loader_flags != 0
+        or directory_count != 16
+        or expected_entry < image_base
+        or entry_rva != expected_entry - image_base
+    ):
+        raise BootstrapError(f"{path.name} has an invalid PE32 image layout")
+    for directory in range(directory_count):
+        offset = optional_offset + 96 + directory * 8
+        if read_u32(offset, "PE32 directory RVA") != 0 or read_u32(
+            offset + 4, "PE32 directory size"
+        ) != 0:
+            raise BootstrapError(
+                f"{path.name} has an unexpected PE32 data directory"
+            )
+    section_offset = optional_offset + optional_size
+    require_range(
+        section_offset, section_count * 40, "PE32 section table"
+    )
+    section_table_end = section_offset + section_count * 40
+    expected_headers_size = (
+        (section_table_end + file_alignment - 1)
+        // file_alignment
+        * file_alignment
+    )
+    if headers_size != expected_headers_size or any(
+        data[section_table_end:headers_size]
+    ):
+        raise BootstrapError(
+            f"{path.name} has a noncanonical PE32 header extent"
+        )
+    expected_sections = {
+        ".text": (0, 0x60000020),
+        ".rodata": (1, 0x40000040),
+        ".data": (2, 0xC0000040),
+        ".bss": (3, 0xC0000080),
+    }
+    entry_is_file_backed_executable = False
+    previous_section_rank = -1
+    expected_virtual_address = section_alignment
+    expected_raw_offset = headers_size
+    greatest_virtual_end = headers_size
+    expected_code_size = 0
+    expected_initialized_size = 0
+    expected_uninitialized_size = 0
+    expected_base_of_code = 0
+    expected_base_of_data = 0
+    for index in range(section_count):
+        offset = section_offset + index * 40
+        raw_name = data[offset : offset + 8]
+        name = raw_name.split(b"\0", 1)[0].decode("ascii", errors="replace")
+        virtual_size, virtual_address, raw_size, raw_offset = (
+            struct.unpack_from("<IIII", data, offset + 8)
+        )
+        section_characteristics = read_u32(
+            offset + 36, "PE32 section characteristics"
+        )
+        expected = expected_sections.get(name)
+        if (
+            expected is None
+            or expected[0] <= previous_section_rank
+            or section_characteristics != expected[1]
+            or raw_name != name.encode("ascii").ljust(8, b"\0")
+            or read_u32(offset + 24, "PE32 relocation offset") != 0
+            or read_u32(offset + 28, "PE32 line offset") != 0
+            or read_u16(offset + 32, "PE32 relocation count") != 0
+            or read_u16(offset + 34, "PE32 line count") != 0
+        ):
+            raise BootstrapError(
+                f"{path.name} has an invalid PE32 section profile"
+            )
+        previous_section_rank = expected[0]
+        if virtual_size == 0:
+            raise BootstrapError(f"{path.name} has an empty PE32 section")
+        if virtual_address != expected_virtual_address:
+            raise BootstrapError(
+                f"{path.name} has a noncanonical PE32 section address"
+            )
+        virtual_end = virtual_address + virtual_size
+        if virtual_end > image_size:
+            raise BootstrapError(
+                f"{path.name} has a PE32 section outside its image"
+            )
+        greatest_virtual_end = max(greatest_virtual_end, virtual_end)
+        expected_virtual_address = (
+            (virtual_address + virtual_size + section_alignment - 1)
+            // section_alignment
+            * section_alignment
+        )
+        if raw_size != 0:
+            expected_section_raw_size = (
+                (virtual_size + file_alignment - 1)
+                // file_alignment
+                * file_alignment
+            )
+            if (
+                name == ".bss"
+                or raw_offset != expected_raw_offset
+                or raw_offset < headers_size
+                or raw_size != expected_section_raw_size
+                or virtual_size > raw_size
+            ):
+                raise BootstrapError(
+                    f"{path.name} has an invalid PE32 file section"
+                )
+            require_range(raw_offset, raw_size, "PE32 section data")
+            if any(data[raw_offset + virtual_size : raw_offset + raw_size]):
+                raise BootstrapError(
+                    f"{path.name} has nonzero PE32 section padding"
+                )
+            expected_raw_offset = raw_offset + raw_size
+        elif raw_offset != 0 or name != ".bss":
+            raise BootstrapError(
+                f"{path.name} has an invalid empty PE32 section"
+            )
+        if name == ".text":
+            expected_code_size += raw_size
+            expected_base_of_code = virtual_address
+        elif name == ".bss":
+            expected_uninitialized_size += virtual_size
+            if expected_base_of_data == 0:
+                expected_base_of_data = virtual_address
+        else:
+            expected_initialized_size += raw_size
+            if expected_base_of_data == 0:
+                expected_base_of_data = virtual_address
+        if (
+            section_characteristics & 0x20000000
+            and entry_rva >= virtual_address
+            and entry_rva - virtual_address < min(virtual_size, raw_size)
+        ):
+            entry_is_file_backed_executable = True
+    expected_image_size = (
+        (greatest_virtual_end + section_alignment - 1)
+        // section_alignment
+        * section_alignment
+    )
+    if (
+        previous_section_rank < 0
+        or expected_raw_offset != len(data)
+        or expected_image_size != image_size
+        or code_size != expected_code_size
+        or initialized_size != expected_initialized_size
+        or uninitialized_size != expected_uninitialized_size
+        or base_of_code != expected_base_of_code
+        or base_of_data != expected_base_of_data
+    ):
+        raise BootstrapError(f"{path.name} has an invalid PE32 image extent")
+    if not entry_is_file_backed_executable:
+        raise BootstrapError(
+            f"{path.name} entry is not file-backed PE32 executable code"
+        )
+
+
 def _validate_i386_relocatable(path: Path) -> None:
     data = path.read_bytes()
     if len(data) < 52 or data[:7] != b"\x7fELF\x01\x01\x01":
@@ -1236,6 +1508,8 @@ def _run_behavior_checks(
                     raise BootstrapError(
                         f"cupidobj help omits {operation}"
                     )
+        if tool_name == "cupidld" and "i386pe" not in help_result.stdout:
+            raise BootstrapError("cupidld help omits i386pe")
 
     valid_source = behavior_root / "valid.c"
     invalid_source = behavior_root / "invalid.c"
@@ -1900,6 +2174,49 @@ def _run_behavior_checks(
         raise BootstrapError("CupidLD fixed-address output differs")
     _validate_static_i386_elf(stage_two_linked, 0x00600000)
 
+    stage_two_pe32 = behavior_root / "stage-two-fixed.exe"
+    stage_three_pe32 = behavior_root / "stage-three-fixed.exe"
+    pe32_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupidld",
+        [
+            "-m",
+            "i386pe",
+            "--text-address",
+            "0x00401000",
+            "--entry",
+            "_start",
+            "-o",
+            stage_two_pe32,
+            stage_two_link_object,
+        ],
+        [
+            "-m",
+            "i386pe",
+            "--text-address",
+            "0x00401000",
+            "--entry",
+            "_start",
+            "-o",
+            stage_three_pe32,
+            stage_three_link_object,
+        ],
+    )
+    _expect_status(pe32_result, 0, "CupidLD PE32 fixed image")
+    if (
+        pe32_result.stdout
+        or pe32_result.stderr
+        or stage_two_pe32.read_bytes()
+        != stage_three_pe32.read_bytes()
+    ):
+        raise BootstrapError("CupidLD PE32 fixed-image output differs")
+    _validate_static_i386_pe32(
+        stage_two_pe32,
+        0x00401000,
+    )
+
     symbol_result = _run_stage_pair(
         runner,
         stage_two,
@@ -2149,6 +2466,50 @@ def _run_behavior_checks(
     ):
         raise BootstrapError("CupidDis malformed-input behavior differs")
 
+    stage_two_pe32_failure = behavior_root / "stage-two-invalid-pe32.exe"
+    stage_three_pe32_failure = behavior_root / "stage-three-invalid-pe32.exe"
+    stage_two_pe32_failure.write_bytes(sentinel)
+    stage_three_pe32_failure.write_bytes(sentinel)
+    invalid_pe32_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupidld",
+        [
+            "-m",
+            "i386pe",
+            "--text-address",
+            "0x00402000",
+            "--entry",
+            "_start",
+            "-o",
+            stage_two_pe32_failure,
+            stage_two_link_object,
+        ],
+        [
+            "-m",
+            "i386pe",
+            "--text-address",
+            "0x00402000",
+            "--entry",
+            "_start",
+            "-o",
+            stage_three_pe32_failure,
+            stage_three_link_object,
+        ],
+    )
+    _expect_status(
+        invalid_pe32_result, 1, "CupidLD invalid PE32 text address"
+    )
+    if (
+        invalid_pe32_result.stdout
+        or "CupidLD PE32 requires text address 0x00401000"
+        not in invalid_pe32_result.stderr
+        or stage_two_pe32_failure.read_bytes() != sentinel
+        or stage_three_pe32_failure.read_bytes() != sentinel
+    ):
+        raise BootstrapError("CupidLD PE32 failure behavior differs")
+
     stage_two_link_failure = behavior_root / "stage-two-link-failure.elf"
     stage_three_link_failure = behavior_root / "stage-three-link-failure.elf"
     stage_two_link_failure.write_bytes(sentinel)
@@ -2226,9 +2587,9 @@ def _run_behavior_checks(
         raise BootstrapError("CupidObj missing-input behavior differs")
 
     return {
-        "failure_cases": 13,
+        "failure_cases": 14,
         "help_cases": 5,
-        "success_cases": 15,
+        "success_cases": 16,
     }
 
 

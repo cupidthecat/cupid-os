@@ -1,5 +1,6 @@
 import os
 import shutil
+import stat
 import struct
 import subprocess
 import tempfile
@@ -61,6 +62,216 @@ def _build_cli(build: Path):
     return output
 
 
+def _build_publication_harness(build: Path):
+    suffix = ".exe" if os.name == "nt" else ""
+    source = build / "cupidld-publication-harness.c"
+    output = build / ("cupidld-publication-harness" + suffix)
+    source.write_text(
+        r'''
+#define main cupidld_embedded_main
+int cupidld_embedded_main(int argc, char **argv);
+#include "cupidld_main.cc"
+#undef main
+
+enum {
+  FAULT_NONE = 0,
+  FAULT_SHORT_WRITE = 1,
+  FAULT_CLOSE = 2,
+  FAULT_REPLACE = 3,
+  FAULT_SUBSTITUTE = 4
+};
+
+static ctool_u8 fake_destination[64];
+static ctool_u8 fake_candidate[64];
+static ctool_u32 fake_destination_size;
+static ctool_u32 fake_candidate_size;
+static int fake_fault;
+static int fake_discard_count;
+static ctool_u32 fake_open_failures;
+static ctool_u32 fake_open_count;
+
+static void fake_set_destination(const char *text) {
+  fake_destination_size = (ctool_u32)strlen(text);
+  (void)memcpy(fake_destination, text, fake_destination_size);
+  fake_candidate_size = 0u;
+  fake_discard_count = 0;
+  fake_open_failures = 0u;
+  fake_open_count = 0u;
+}
+
+static int fake_destination_is(const char *text) {
+  size_t size = strlen(text);
+  return size == (size_t)fake_destination_size &&
+         memcmp(fake_destination, text, size) == 0;
+}
+
+static ctool_status_t fake_open(
+    const char *path, cupidld_publication_file_t *file_out) {
+  if (path == (const char *)0 || strstr(path, ".cupid-tmp-") == (char *)0 ||
+      file_out == (cupidld_publication_file_t *)0) {
+    return CTOOL_ERR_INVALID_ARGUMENT;
+  }
+  fake_open_count++;
+  if (fake_open_failures != 0u) {
+    fake_open_failures--;
+    return CTOOL_ERR_IO;
+  }
+  (void)memset(file_out, 0, sizeof(*file_out));
+  fake_candidate_size = 0u;
+  return CTOOL_OK;
+}
+
+static ctool_status_t fake_write(
+    cupidld_publication_file_t *file, ctool_bytes_t contents) {
+  (void)file;
+  if (contents.size > (ctool_u32)sizeof(fake_candidate)) {
+    return CTOOL_ERR_LIMIT;
+  }
+  if (fake_fault == FAULT_SHORT_WRITE) {
+    if (contents.size != 0u) {
+      fake_candidate[0] = contents.data[0];
+      fake_candidate_size = 1u;
+    }
+    return CTOOL_ERR_IO;
+  }
+  if (contents.size != 0u) {
+    (void)memcpy(fake_candidate, contents.data, contents.size);
+  }
+  fake_candidate_size = contents.size;
+  return CTOOL_OK;
+}
+
+static ctool_status_t fake_close(cupidld_publication_file_t *file) {
+  (void)file;
+  return fake_fault == FAULT_CLOSE ? CTOOL_ERR_IO : CTOOL_OK;
+}
+
+static ctool_status_t fake_verify(
+    const char *candidate, ctool_bytes_t contents) {
+  (void)candidate;
+  if (fake_fault == FAULT_SUBSTITUTE && fake_candidate_size != 0u) {
+    fake_candidate[0] ^= 0xffu;
+  }
+  if (fake_candidate_size != contents.size ||
+      (contents.size != 0u &&
+       memcmp(fake_candidate, contents.data, contents.size) != 0)) {
+    return CTOOL_ERR_IO;
+  }
+  return CTOOL_OK;
+}
+
+static ctool_status_t fake_replace(const char *candidate,
+                                   const char *destination) {
+  (void)candidate;
+  (void)destination;
+  if (fake_fault == FAULT_REPLACE) {
+    return CTOOL_ERR_IO;
+  }
+  (void)memcpy(fake_destination, fake_candidate, fake_candidate_size);
+  fake_destination_size = fake_candidate_size;
+  fake_candidate_size = 0u;
+  return CTOOL_OK;
+}
+
+static void fake_discard(const char *candidate) {
+  (void)candidate;
+  fake_candidate_size = 0u;
+  fake_discard_count++;
+}
+
+static int expect_failed_publication(
+    int fault, ctool_bytes_t replacement,
+    const cupidld_publication_ops_t *ops) {
+  ctool_status_t status;
+  fake_set_destination("sentinel");
+  fake_fault = fault;
+  status = cupidld_publish_output_with_ops(
+      "output.exe", replacement, ops);
+  return status == CTOOL_ERR_IO && fake_destination_is("sentinel") != 0 &&
+         fake_candidate_size == 0u && fake_discard_count == 1;
+}
+
+int main(void) {
+  static const ctool_u8 replacement_data[] = "replacement";
+  static const cupidld_publication_ops_t ops = {
+      fake_open, fake_write, fake_close, fake_verify, fake_replace,
+      fake_discard};
+  ctool_bytes_t replacement;
+  ctool_status_t status;
+  replacement.data = replacement_data;
+  replacement.size = (ctool_u32)(sizeof(replacement_data) - 1u);
+  if (expect_failed_publication(FAULT_SHORT_WRITE, replacement, &ops) == 0 ||
+      expect_failed_publication(FAULT_CLOSE, replacement, &ops) == 0 ||
+      expect_failed_publication(FAULT_SUBSTITUTE, replacement, &ops) == 0 ||
+      expect_failed_publication(FAULT_REPLACE, replacement, &ops) == 0) {
+    return 1;
+  }
+  fake_set_destination("sentinel");
+  fake_fault = FAULT_NONE;
+  fake_open_failures = 2u;
+  status = cupidld_publish_output_with_ops(
+      "output.exe", replacement, &ops);
+  if (status != CTOOL_OK || fake_destination_is("replacement") == 0 ||
+      fake_candidate_size != 0u || fake_discard_count != 0) {
+    return 1;
+  }
+  if (fake_open_count != 3u) {
+    return 1;
+  }
+  fake_set_destination("sentinel");
+  fake_open_failures = CUPIDLD_PUBLICATION_ATTEMPTS;
+  status = cupidld_publish_output_with_ops(
+      "output.exe", replacement, &ops);
+  if (status != CTOOL_ERR_IO || fake_destination_is("sentinel") == 0 ||
+      fake_open_count != CUPIDLD_PUBLICATION_ATTEMPTS ||
+      fake_discard_count != 0) {
+    return 1;
+  }
+  (void)puts("atomic-publication: ok");
+  return 0;
+}
+''',
+        encoding="utf-8",
+    )
+    command = [
+        _host_compiler(),
+        "-I",
+        str(TOOLCHAIN_ROOT),
+        "-std=c11",
+        "-O2",
+        "-pedantic",
+        "-Werror",
+        "-Wall",
+        "-Wextra",
+        "-Wshadow",
+        "-Wpointer-arith",
+        "-Wcast-qual",
+        "-Wstrict-prototypes",
+        "-Wmissing-prototypes",
+        "-Wconversion",
+        "-Wsign-conversion",
+        "-x",
+        "c",
+        str(TOOLCHAIN_ROOT / "ctool.cc"),
+        str(TOOLCHAIN_ROOT / "ctool_host.cc"),
+        str(TOOLCHAIN_ROOT / "elf32.cc"),
+        str(TOOLCHAIN_ROOT / "cupidld.cc"),
+        str(source),
+        "-o",
+        str(output),
+    ]
+    result = subprocess.run(
+        command, cwd=REPO_ROOT, text=True, capture_output=True
+    )
+    if result.returncode != 0:
+        raise AssertionError(
+            "CupidLD publication harness build failed\n"
+            + result.stdout
+            + result.stderr
+        )
+    return output
+
+
 def _compile_i386(source: Path, output: Path):
     compiler = shutil.which("clang") or shutil.which("gcc")
     if compiler is None:
@@ -116,6 +327,159 @@ def _elf_header_and_sections(path: Path):
     return image, file_type, machine, entry, sections
 
 
+_CANONICAL_DOS_STUB = bytes.fromhex(
+    "4d5a90000300000004000000ffff0000"
+    "b8000000000000004000000000000000"
+    "00000000000000000000000000000000"
+    "00000000000000000000000080000000"
+    "0e1fba0e00b409cd21b8014ccd215468"
+    "69732070726f6772616d2063616e6e6f"
+    "742062652072756e20696e20444f5320"
+    "6d6f64652e0d0d0a2400000000000000"
+)
+
+
+def _pe32_header_and_sections(path: Path):
+    image = path.read_bytes()
+
+    def require_range(offset, size, label):
+        if offset < 0 or size < 0 or offset > len(image) - size:
+            raise AssertionError(f"{label} is outside the PE image")
+
+    def read_u16(offset, label):
+        require_range(offset, 2, label)
+        return struct.unpack_from("<H", image, offset)[0]
+
+    def read_u32(offset, label):
+        require_range(offset, 4, label)
+        return struct.unpack_from("<I", image, offset)[0]
+
+    require_range(0, 64, "DOS header")
+    if image[0:2] != b"MZ":
+        raise AssertionError("linked output has no DOS MZ signature")
+    pe_offset = read_u32(0x3C, "DOS PE offset")
+    require_range(pe_offset, 24, "PE signature and COFF header")
+    if image[pe_offset : pe_offset + 4] != b"PE\0\0":
+        raise AssertionError("linked output has no PE signature")
+
+    coff_values = struct.unpack_from("<HHIIIHH", image, pe_offset + 4)
+    coff = {
+        "machine": coff_values[0],
+        "section_count": coff_values[1],
+        "timestamp": coff_values[2],
+        "symbol_table": coff_values[3],
+        "symbol_count": coff_values[4],
+        "optional_size": coff_values[5],
+        "characteristics": coff_values[6],
+    }
+    optional_offset = pe_offset + 24
+    require_range(optional_offset, coff["optional_size"], "optional header")
+    optional = {
+        "magic": read_u16(optional_offset, "optional-header magic"),
+        "linker_major": image[optional_offset + 2],
+        "linker_minor": image[optional_offset + 3],
+        "code_size": read_u32(optional_offset + 4, "code size"),
+        "initialized_size": read_u32(
+            optional_offset + 8, "initialized-data size"
+        ),
+        "uninitialized_size": read_u32(
+            optional_offset + 12, "uninitialized-data size"
+        ),
+        "entry_rva": read_u32(optional_offset + 16, "entry RVA"),
+        "code_rva": read_u32(optional_offset + 20, "code RVA"),
+        "data_rva": read_u32(optional_offset + 24, "data RVA"),
+        "image_base": read_u32(optional_offset + 28, "image base"),
+        "section_alignment": read_u32(
+            optional_offset + 32, "section alignment"
+        ),
+        "file_alignment": read_u32(
+            optional_offset + 36, "file alignment"
+        ),
+        "os_version": (
+            read_u16(optional_offset + 40, "major OS version"),
+            read_u16(optional_offset + 42, "minor OS version"),
+        ),
+        "image_version": (
+            read_u16(optional_offset + 44, "major image version"),
+            read_u16(optional_offset + 46, "minor image version"),
+        ),
+        "subsystem_version": (
+            read_u16(optional_offset + 48, "major subsystem version"),
+            read_u16(optional_offset + 50, "minor subsystem version"),
+        ),
+        "win32_version": read_u32(
+            optional_offset + 52, "Win32 version"
+        ),
+        "image_size": read_u32(optional_offset + 56, "image size"),
+        "headers_size": read_u32(optional_offset + 60, "headers size"),
+        "checksum": read_u32(optional_offset + 64, "checksum"),
+        "subsystem": read_u16(optional_offset + 68, "subsystem"),
+        "dll_characteristics": read_u16(
+            optional_offset + 70, "DLL characteristics"
+        ),
+        "stack_reserve": read_u32(
+            optional_offset + 72, "stack reserve"
+        ),
+        "stack_commit": read_u32(optional_offset + 76, "stack commit"),
+        "heap_reserve": read_u32(optional_offset + 80, "heap reserve"),
+        "heap_commit": read_u32(optional_offset + 84, "heap commit"),
+        "loader_flags": read_u32(optional_offset + 88, "loader flags"),
+        "directory_count": read_u32(
+            optional_offset + 92, "data-directory count"
+        ),
+    }
+    directory_offset = optional_offset + 96
+    if optional["directory_count"] > 16:
+        raise AssertionError("PE32 data-directory count exceeds the header")
+    directories = []
+    for index in range(optional["directory_count"]):
+        offset = directory_offset + index * 8
+        require_range(offset, 8, f"data directory {index}")
+        directories.append(struct.unpack_from("<II", image, offset))
+
+    section_offset = optional_offset + coff["optional_size"]
+    require_range(
+        section_offset,
+        coff["section_count"] * 40,
+        "section table",
+    )
+    sections = {}
+    section_order = []
+    for index in range(coff["section_count"]):
+        offset = section_offset + index * 40
+        name_bytes = image[offset : offset + 8]
+        try:
+            name = name_bytes.split(b"\0", 1)[0].decode("ascii")
+        except UnicodeDecodeError as error:
+            raise AssertionError(
+                f"section {index} name is not ASCII"
+            ) from error
+        values = struct.unpack_from("<IIIIIIHHI", image, offset + 8)
+        section = {
+            "virtual_size": values[0],
+            "rva": values[1],
+            "raw_size": values[2],
+            "raw_offset": values[3],
+            "relocation_offset": values[4],
+            "line_offset": values[5],
+            "relocation_count": values[6],
+            "line_count": values[7],
+            "characteristics": values[8],
+        }
+        if name in sections:
+            raise AssertionError(f"duplicate PE section name: {name}")
+        if section["raw_size"]:
+            require_range(
+                section["raw_offset"],
+                section["raw_size"],
+                f"{name} raw payload",
+            )
+        sections[name] = section
+        section_order.append(name)
+
+    return image, pe_offset, coff, optional, directories, section_order, sections
+
+
 class CupidLdHostedCliTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -126,11 +490,22 @@ class CupidLdHostedCliTests(unittest.TestCase):
             prefix=".cupidld-cli-fixture-", dir=TOOLCHAIN_ROOT
         )
         cls.cli = _build_cli(Path(cls._build_directory.name))
+        cls.publication_harness = _build_publication_harness(
+            Path(cls._build_directory.name)
+        )
         cls.fixture_root = Path(cls._fixture_directory.name)
         cls.source = cls.fixture_root / "entry.s"
         cls.object = cls.fixture_root / "entry.o"
         cls.helper_source = cls.fixture_root / "helper.s"
         cls.helper_object = cls.fixture_root / "helper.o"
+        cls.pe_source = cls.fixture_root / "pe_entry.s"
+        cls.pe_object = cls.fixture_root / "pe_entry.o"
+        cls.pe_empty_middle_source = cls.fixture_root / "pe_empty_middle.s"
+        cls.pe_empty_middle_object = cls.fixture_root / "pe_empty_middle.o"
+        cls.pe_wx_source = cls.fixture_root / "pe_wx_entry.s"
+        cls.pe_wx_object = cls.fixture_root / "pe_wx_entry.o"
+        cls.pe_data_entry_source = cls.fixture_root / "pe_data_entry.s"
+        cls.pe_data_entry_object = cls.fixture_root / "pe_data_entry.o"
         cls.oversize_source = cls.fixture_root / "oversize.s"
         cls.oversize_object = cls.fixture_root / "oversize.o"
         cls.source.write_text(
@@ -158,6 +533,70 @@ class CupidLdHostedCliTests(unittest.TestCase):
             encoding="utf-8",
         )
         _compile_i386(cls.helper_source, cls.helper_object)
+        cls.pe_source.write_text(
+            '.section .text.start,"ax",@progbits\n'
+            ".globl _start\n"
+            ".type _start,@function\n"
+            "_start:\n"
+            "  movl $message, %eax\n"
+            "  movl $writable_value, %edx\n"
+            "  movl $scratch, %ecx\n"
+            "  call helper\n"
+            "  ret\n"
+            ".size _start, .-_start\n"
+            '.section .rodata,"a",@progbits\n'
+            "  .balign 4\n"
+            "message:\n"
+            "  .long 0x12345678\n"
+            '.section .data,"aw",@progbits\n'
+            "  .balign 4\n"
+            "writable_value:\n"
+            "  .long 0x89abcdef\n"
+            '.section .bss,"aw",@nobits\n'
+            "  .balign 16\n"
+            "scratch:\n"
+            "  .skip 16\n",
+            encoding="utf-8",
+        )
+        _compile_i386(cls.pe_source, cls.pe_object)
+        cls.pe_empty_middle_source.write_text(
+            '.section .text.start,"ax",@progbits\n'
+            ".globl _start\n"
+            ".type _start,@function\n"
+            "_start:\n"
+            "  movl $middle_value, %eax\n"
+            "  ret\n"
+            ".size _start, .-_start\n"
+            '.section .rodata,"a",@progbits\n'
+            '.section .data,"aw",@progbits\n'
+            ".globl middle_value\n"
+            ".type middle_value,@object\n"
+            "middle_value:\n"
+            "  .long 0x12345678\n"
+            ".size middle_value, .-middle_value\n",
+            encoding="utf-8",
+        )
+        _compile_i386(cls.pe_empty_middle_source, cls.pe_empty_middle_object)
+        cls.pe_wx_source.write_text(
+            '.section .text.start,"awx",@progbits\n'
+            ".globl _start\n"
+            ".type _start,@function\n"
+            "_start:\n"
+            "  ret\n"
+            ".size _start, .-_start\n",
+            encoding="utf-8",
+        )
+        _compile_i386(cls.pe_wx_source, cls.pe_wx_object)
+        cls.pe_data_entry_source.write_text(
+            '.section .data,"aw",@progbits\n'
+            ".globl _start\n"
+            ".type _start,@object\n"
+            "_start:\n"
+            "  .long 0\n"
+            ".size _start, .-_start\n",
+            encoding="utf-8",
+        )
+        _compile_i386(cls.pe_data_entry_source, cls.pe_data_entry_object)
         cls.oversize_source.write_text(
             '.section .text.start,"ax",@progbits\n'
             ".globl _start\n"
@@ -229,6 +668,377 @@ class CupidLdHostedCliTests(unittest.TestCase):
         self.assertEqual((file_type, machine, entry), (2, 3, 0x00D00000))
         self.assertEqual(sections[".text"]["address"], 0x00D00000)
         self.assertGreater(sections[".rodata"]["address"], 0x00D00000)
+
+    def test_i386pe_writes_one_deterministic_import_free_fixed_image(self):
+        first = self.fixture_root / "fixed-first.exe"
+        second = self.fixture_root / "fixed-second.exe"
+
+        def link(output):
+            return subprocess.run(
+                [
+                    str(self.cli),
+                    "-m",
+                    "i386pe",
+                    "--text-address",
+                    "0x00401000",
+                    "--entry",
+                    "_start",
+                    "-o",
+                    str(output),
+                    str(self.pe_object),
+                    str(self.helper_object),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+
+        first.write_bytes(b"sentinel")
+        first_result = link(first)
+        second_result = link(second)
+        self.assertEqual(first_result.returncode, 0, first_result.stderr)
+        self.assertEqual(second_result.returncode, 0, second_result.stderr)
+        self.assertEqual(first.read_bytes(), second.read_bytes())
+        if os.name != "nt":
+            self.assertNotEqual(first.stat().st_mode & stat.S_IXUSR, 0)
+            self.assertNotEqual(second.stat().st_mode & stat.S_IXUSR, 0)
+        self.assertEqual(
+            list(self.fixture_root.glob("*.cupid-tmp-*")), []
+        )
+
+        (
+            image,
+            pe_offset,
+            coff,
+            optional,
+            directories,
+            section_order,
+            sections,
+        ) = _pe32_header_and_sections(first)
+        self.assertEqual(image[:0x80], _CANONICAL_DOS_STUB)
+        self.assertEqual(pe_offset, 0x80)
+        self.assertEqual(
+            coff,
+            {
+                "machine": 0x014C,
+                "section_count": 4,
+                "timestamp": 0,
+                "symbol_table": 0,
+                "symbol_count": 0,
+                "optional_size": 0x00E0,
+                "characteristics": 0x0103,
+            },
+        )
+        self.assertEqual(
+            optional,
+            {
+                "magic": 0x010B,
+                "linker_major": 0,
+                "linker_minor": 0,
+                "code_size": 0x0200,
+                "initialized_size": 0x0400,
+                "uninitialized_size": 16,
+                "entry_rva": 0x1000,
+                "code_rva": 0x1000,
+                "data_rva": 0x2000,
+                "image_base": 0x00400000,
+                "section_alignment": 0x1000,
+                "file_alignment": 0x0200,
+                "os_version": (6, 0),
+                "image_version": (0, 0),
+                "subsystem_version": (6, 0),
+                "win32_version": 0,
+                "image_size": 0x5000,
+                "headers_size": 0x0400,
+                "checksum": 0,
+                "subsystem": 3,
+                "dll_characteristics": 0x0100,
+                "stack_reserve": 0x00100000,
+                "stack_commit": 0x00001000,
+                "heap_reserve": 0x00100000,
+                "heap_commit": 0x00001000,
+                "loader_flags": 0,
+                "directory_count": 16,
+            },
+        )
+        self.assertEqual(directories, [(0, 0)] * 16)
+        self.assertEqual(
+            section_order,
+            [".text", ".rodata", ".data", ".bss"],
+        )
+        expected_sections = {
+            ".text": (25, 0x1000, 0x0200, 0x0400, 0x60000020),
+            ".rodata": (4, 0x2000, 0x0200, 0x0600, 0x40000040),
+            ".data": (4, 0x3000, 0x0200, 0x0800, 0xC0000040),
+            ".bss": (16, 0x4000, 0, 0, 0xC0000080),
+        }
+        for name, expected in expected_sections.items():
+            section = sections[name]
+            self.assertEqual(
+                (
+                    section["virtual_size"],
+                    section["rva"],
+                    section["raw_size"],
+                    section["raw_offset"],
+                    section["characteristics"],
+                ),
+                expected,
+            )
+            self.assertEqual(section["relocation_offset"], 0)
+            self.assertEqual(section["line_offset"], 0)
+            self.assertEqual(section["relocation_count"], 0)
+            self.assertEqual(section["line_count"], 0)
+
+        text = sections[".text"]
+        text_offset = text["raw_offset"]
+        self.assertEqual(image[text_offset], 0xB8)
+        self.assertEqual(
+            struct.unpack_from("<I", image, text_offset + 1)[0],
+            0x00402000,
+        )
+        self.assertEqual(image[text_offset + 5], 0xBA)
+        self.assertEqual(
+            struct.unpack_from("<I", image, text_offset + 6)[0],
+            0x00403000,
+        )
+        self.assertEqual(image[text_offset + 10], 0xB9)
+        self.assertEqual(
+            struct.unpack_from("<I", image, text_offset + 11)[0],
+            0x00404000,
+        )
+        for name in (".text", ".rodata", ".data"):
+            section = sections[name]
+            padding = image[
+                section["raw_offset"] + section["virtual_size"] :
+                section["raw_offset"] + section["raw_size"]
+            ]
+            self.assertEqual(padding, b"\0" * len(padding))
+        self.assertEqual(len(image), 0x0A00)
+
+    def test_i386pe_omits_empty_sections_without_reusing_an_rva(self):
+        elf_output = self.fixture_root / "empty-middle.elf"
+        elf_result = subprocess.run(
+            [
+                str(self.cli),
+                "-m",
+                "elf_i386",
+                "--text-address",
+                "0x00401000",
+                "--entry",
+                "_start",
+                "-o",
+                str(elf_output),
+                str(self.pe_empty_middle_object),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(elf_result.returncode, 0, elf_result.stderr)
+        _, _, _, _, elf_sections = _elf_header_and_sections(elf_output)
+        self.assertEqual(elf_sections[".rodata"]["size"], 0)
+        self.assertEqual(
+            elf_sections[".rodata"]["address"],
+            elf_sections[".data"]["address"],
+        )
+
+        output = self.fixture_root / "empty-middle.exe"
+        output.write_bytes(b"sentinel")
+        result = subprocess.run(
+            [
+                str(self.cli),
+                "-m",
+                "i386pe",
+                "--text-address",
+                "0x00401000",
+                "--entry",
+                "_start",
+                "-o",
+                str(output),
+                str(self.pe_empty_middle_object),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        (
+            image,
+            _,
+            coff,
+            optional,
+            _,
+            section_order,
+            sections,
+        ) = _pe32_header_and_sections(output)
+        self.assertEqual(
+            len({section["rva"] for section in sections.values()}),
+            len(sections),
+            "PE section headers must not reuse an RVA",
+        )
+        self.assertEqual(coff["section_count"], 2)
+        self.assertEqual(section_order, [".text", ".data"])
+        self.assertEqual(
+            {
+                name: (
+                    section["virtual_size"],
+                    section["rva"],
+                    section["raw_size"],
+                    section["raw_offset"],
+                    section["characteristics"],
+                )
+                for name, section in sections.items()
+            },
+            {
+                ".text": (6, 0x1000, 0x0200, 0x0200, 0x60000020),
+                ".data": (4, 0x2000, 0x0200, 0x0400, 0xC0000040),
+            },
+        )
+        self.assertEqual(optional["code_size"], 0x0200)
+        self.assertEqual(optional["initialized_size"], 0x0200)
+        self.assertEqual(optional["uninitialized_size"], 0)
+        self.assertEqual(optional["entry_rva"], 0x1000)
+        self.assertEqual(optional["code_rva"], 0x1000)
+        self.assertEqual(optional["data_rva"], 0x2000)
+        self.assertEqual(optional["image_size"], 0x3000)
+        self.assertEqual(optional["headers_size"], 0x0200)
+        text = sections[".text"]
+        self.assertEqual(image[text["raw_offset"]], 0xB8)
+        self.assertEqual(
+            struct.unpack_from("<I", image, text["raw_offset"] + 1)[0],
+            0x00402000,
+        )
+        data = sections[".data"]
+        self.assertEqual(
+            image[data["raw_offset"] : data["raw_offset"] + 4],
+            bytes.fromhex("78563412"),
+        )
+        self.assertEqual(len(image), 0x0600)
+        self.assertEqual(
+            list(output.parent.glob(output.name + ".cupid-tmp-*")),
+            [],
+        )
+
+    def test_i386pe_reports_selector_mistakes_without_touching_output(self):
+        cases = (
+            (
+                "linker scripts are not a PE fixed-layout selector",
+                [
+                    "-m",
+                    "i386pe",
+                    "-T",
+                    str(self.script),
+                    "--text-address",
+                    "0x00401000",
+                    "--entry",
+                    "_start",
+                ],
+            ),
+            (
+                "the text address is required",
+                ["-m", "i386pe", "--entry", "_start"],
+            ),
+            (
+                "the entry symbol is required",
+                [
+                    "-m",
+                    "i386pe",
+                    "--text-address",
+                    "0x00401000",
+                ],
+            ),
+        )
+        for index, (label, selector) in enumerate(cases):
+            with self.subTest(label=label):
+                output = self.fixture_root / f"pe-usage-{index}.exe"
+                output.write_bytes(b"sentinel")
+                result = subprocess.run(
+                    [
+                        str(self.cli),
+                        *selector,
+                        "-o",
+                        str(output),
+                        str(self.pe_object),
+                        str(self.helper_object),
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                )
+                self.assertEqual(result.returncode, 2)
+                self.assertIn("usage: cupidld", result.stderr)
+                self.assertIn("i386pe", result.stderr)
+                self.assertEqual(output.read_bytes(), b"sentinel")
+
+    def test_atomic_publication_preserves_output_and_recovers(self):
+        result = subprocess.run(
+            [str(self.publication_harness)],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "atomic-publication: ok\n")
+
+    def test_i386pe_link_failures_keep_the_previous_executable(self):
+        malformed = self.fixture_root / "malformed-pe-input.o"
+        malformed.write_bytes(b"\x7fELF")
+        cases = (
+            (
+                "a noncanonical image base",
+                "0x00402000",
+                self.pe_object,
+                ("PE32", "0x00401000"),
+            ),
+            (
+                "a malformed object",
+                "0x00401000",
+                malformed,
+                ("ELF32 header is truncated",),
+            ),
+            (
+                "writable executable code",
+                "0x00401000",
+                self.pe_wx_object,
+                ("PE32 rejects writable executable sections",),
+            ),
+            (
+                "entry outside file-backed executable code",
+                "0x00401000",
+                self.pe_data_entry_object,
+                ("CupidLD entry is not file-backed executable code",),
+            ),
+        )
+        for index, (label, address, source, messages) in enumerate(cases):
+            with self.subTest(label=label):
+                output = self.fixture_root / f"pe-failure-{index}.exe"
+                output.write_bytes(b"sentinel")
+                result = subprocess.run(
+                    [
+                        str(self.cli),
+                        "-m",
+                        "i386pe",
+                        "--text-address",
+                        address,
+                        "--entry",
+                        "_start",
+                        "-o",
+                        str(output),
+                        str(source),
+                        str(self.helper_object),
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                )
+                self.assertEqual(result.returncode, 1)
+                for message in messages:
+                    self.assertIn(message, result.stderr)
+                self.assertEqual(output.read_bytes(), b"sentinel")
+                self.assertEqual(
+                    list(output.parent.glob(output.name + ".cupid-tmp-*")),
+                    [],
+                )
 
     def test_production_script_rejects_an_image_that_reaches_the_kernel_stack(self):
         output = self.fixture_root / "stack-overlap.elf"

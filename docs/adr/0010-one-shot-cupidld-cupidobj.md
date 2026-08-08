@@ -11,3 +11,8 @@ Merge and string flags describe one homogeneous entry domain and require a truth
 Relocations through a merge-section `STT_SECTION` symbol map the combined input offset `S+A`, because the addend selects a byte in that input section. Relocations through named object/function symbols first map `S` and then apply `A`, preserving ordinary ELF semantics when merge interning reorders neighboring entries. The full kernel corpus and a minimized `C,B,A` contract pin this distinction.
 
 Linker-script `ASSERT` diagnostics preserve the supplied script message in the job-owned diagnostic store. Replacing it with generic text was rejected because the source-owned size/overlap contract must remain actionable when a build fails.
+
+ADR 0247 extends the same one-shot link operation with a fixed-layout PE32
+serializer. ELF32 remains the default for zero-initialized requests. The new
+format selector does not expose layout, symbol, relocation, or serialization
+internals.

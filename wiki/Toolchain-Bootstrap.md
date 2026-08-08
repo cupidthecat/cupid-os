@@ -111,6 +111,27 @@ Linux host `.text` measurements differ by 22.73 percent for the same revision,
 so neither measurement can define that gate. Linker capacity checks remain
 separate.
 
+Source-head CupidLD serializes one deterministic fixed-layout i386 PE32
+console image. The format uses image base `0x00400000`, places `.text` at RVA
+`0x1000`, and lays out each nonempty later section category at the next page
+boundary. Empty output categories do not get PE section headers. It has no
+imports or base relocations, and writable executable input is rejected.
+The source-head fixed point checks the image and one useful layout failure at
+both stages. Its behavior matrix is 5/16/14. The promoted Linux seed
+retains its 5/15/13 proof and does not carry the command. No PE image is
+executed or used by the normal build, and Windows still needs WSL for checked
+tool execution. [ADR 0247](../docs/adr/0247-serialize-fixed-layout-pe32-images-with-cupidld.md)
+records the source-only format boundary.
+
+The source-head CLI stages both ELF and PE images in an adjacent candidate
+created with exclusive-create semantics. It writes and closes the candidate,
+then reopens the file and checks its size and contents before replacing the
+destination. Fault injection preserves an old destination across partial-write,
+close, verification, and replacement errors. On POSIX, CupidLD requests mode
+`0777`; the process umask may remove any permission bits. The directory must
+remain stable under the caller's control; this standalone path has no
+destination lock or directory pin.
+
 The production boot source assembles to an exact 2,560-byte image with SHA-256
 `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3`.
 CupidASM and the optional NASM oracle produce the same bytes for the current
@@ -358,8 +379,8 @@ SHA-256
 `47ba35158cac0a7df253a0056235223e62fee24df74701800f88763e588611c2`.
 Checked-seed CupidObj reproduces that manifest through `profile-manifest`. The
 command reads one bounded `CUPROF1` snapshot, hashes the 291 captured headers,
-and emits canonical JSON for both profiles. The source-current five-tool
-rebuild matches stage two and stage three across a 5/15/13 behavior matrix,
+and emits canonical JSON for both profiles. The profile-manifest promotion
+rebuild matched stage two and stage three across a 5/15/13 behavior matrix,
 including SHA padding boundaries, unsafe paths, case collisions, and preserved
 failure output. The normal wrapper derives the snapshot and independent Python
 oracle from one stable capture, runs CupidObj from the exact frozen seed, and
@@ -808,25 +829,33 @@ above validates the promoted trust unit.
 The manifest also records equality across 19 C objects, one startup object,
 and five rebuilt tool images.
 
-The normal root build passed in 605.631 seconds. Its 9,069,064-byte final ELF
-has SHA-256
-`c1f48fe9383d4c210bb36ab6c4ab7007abf238bad6a3fc50bf0823b18918d944`;
-the 8,862,444-byte raw kernel has SHA-256
-`7b8abed8182c644040fb7fdb1263a4d83cad8635322350baa0c93248f2e94280`.
+The latest normal root build passed in 1,738.517 seconds. Its 9,077,256-byte
+final ELF has SHA-256
+`b759382524029149661b7f52233730bdee4758c56af84d643090dd147808a0a5`;
+the 8,871,472-byte raw kernel has SHA-256
+`3545265b59b95f858af4d93e8196624fa3991b02f49c6df1e1cae38608b88781`.
 The 209,715,200-byte image has SHA-256
-`c71fd7f5a03a4e55f4de45e6b93d4284375fb5600f4df3cda62b7f4043c33b33`.
+`aa9f5e0dedefe6f7e243d0e0c67448db1448aaa1960204b1f77efd82202f17b3`.
+A private one-vCPU `/bin/ls.cc` smoke passed from that image in 49.997 seconds.
+Its 27,819-byte log has SHA-256
+`0ebac3fa2e8efae4264897aeb6581f01fc88668db7c3e8317e3beef956ff0f77`
+and records 911 bytes of JIT code, 71 bytes of data, and completed execution.
+This smoke checks the existing ELF path; it does not execute a PE image.
 
-Fresh private-image four-vCPU runs pass the complete frontier with both
-supported NICs. The e1000 run finishes in 545.151 seconds with 94,495 changed
-pixels, 21,537,672 AC97 frames, and 76,810 PC-speaker frames. Its 147,159-byte
-log has SHA-256
+The earlier [ADR 0235](../docs/adr/0235-transfer-jpeg-acceptance-to-cupidobj.md)
+checkpoint used a 209,715,200-byte image with SHA-256
+`c71fd7f5a03a4e55f4de45e6b93d4284375fb5600f4df3cda62b7f4043c33b33`.
+Its private four-vCPU runs covered the complete frontier with both supported
+NICs. The e1000 run finished in 545.151 seconds with 94,495 changed pixels,
+21,537,672 AC97 frames, and 76,810 PC-speaker frames. Its 147,159-byte log has
+SHA-256
 `183971318a33ff4ac5aebf7bf80e2ad606a65a435d34fca6bc84c4a1063fba22`.
-The RTL8139 run finishes in 536.668 seconds with 100,166 changed pixels,
+The RTL8139 run finished in 536.668 seconds with 100,166 changed pixels,
 21,064,744 AC97 frames, and 79,268 PC-speaker frames. Its 136,003-byte log has
 SHA-256
 `372164df1e8cf93a5f780da3b1da2f2b03113fdfba61c5ceda13c2c59a367353`.
-Neither log contains a panic, fatal error, assertion failure, exception, or
-triple-fault marker.
+Neither historical log contains a panic, fatal error, assertion failure,
+exception, or triple-fault marker.
 
 The fixed frontier compiles `/bin/gfxgui_test.cc` to a private ELF image,
 then runs the source through private JIT. It requires the AOT write marker,

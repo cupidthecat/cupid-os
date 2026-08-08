@@ -5,6 +5,7 @@ import json
 import os
 import shutil
 import subprocess
+import struct
 import sys
 import tempfile
 import unittest
@@ -18,6 +19,7 @@ from tools.bootstrap_toolchain import (
     ToolRunner,
     WSL_PRIVATE_RUN_SCRIPT,
     _profile_snapshot_payload,
+    _validate_static_i386_pe32,
     bootstrap_from_seed,
     capture_source_snapshot,
     freeze_source_inputs,
@@ -43,6 +45,123 @@ SEED_MANIFEST = (
 
 
 class ToolchainBootstrapSeedCliTests(unittest.TestCase):
+    @staticmethod
+    def _minimal_pe32() -> bytearray:
+        image = bytearray(0x400)
+        image[:0x80] = bytes.fromhex(
+            "4d5a90000300000004000000ffff0000"
+            "b8000000000000004000000000000000"
+            "00000000000000000000000000000000"
+            "00000000000000000000000080000000"
+            "0e1fba0e00b409cd21b8014ccd215468"
+            "69732070726f6772616d2063616e6e6f"
+            "742062652072756e20696e20444f5320"
+            "6d6f64652e0d0d0a2400000000000000"
+        )
+        image[0x80:0x84] = b"PE\0\0"
+        struct.pack_into(
+            "<HHIIIHH",
+            image,
+            0x84,
+            0x014C,
+            1,
+            0,
+            0,
+            0,
+            0x00E0,
+            0x0103,
+        )
+        optional = 0x98
+        struct.pack_into("<H", image, optional, 0x010B)
+        struct.pack_into("<I", image, optional + 4, 0x200)
+        struct.pack_into("<I", image, optional + 16, 0x1000)
+        struct.pack_into("<I", image, optional + 20, 0x1000)
+        struct.pack_into("<I", image, optional + 28, 0x00400000)
+        struct.pack_into("<I", image, optional + 32, 0x1000)
+        struct.pack_into("<I", image, optional + 36, 0x200)
+        struct.pack_into("<HH", image, optional + 40, 6, 0)
+        struct.pack_into("<HH", image, optional + 48, 6, 0)
+        struct.pack_into("<I", image, optional + 56, 0x2000)
+        struct.pack_into("<I", image, optional + 60, 0x200)
+        struct.pack_into("<H", image, optional + 68, 3)
+        struct.pack_into("<H", image, optional + 70, 0x0100)
+        struct.pack_into("<IIII", image, optional + 72, 0x100000, 0x1000, 0x100000, 0x1000)
+        struct.pack_into("<I", image, optional + 92, 16)
+        section = optional + 0xE0
+        image[section : section + 8] = b".text\0\0\0"
+        struct.pack_into("<IIII", image, section + 8, 1, 0x1000, 0x200, 0x200)
+        struct.pack_into("<I", image, section + 36, 0x60000020)
+        image[0x200] = 0xC3
+        return image
+
+    def test_pe32_fixed_point_validator_rejects_false_layouts(self):
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-bootstrap-pe32-"
+        ) as temporary:
+            image_path = Path(temporary) / "fixed.exe"
+            valid = self._minimal_pe32()
+            image_path.write_bytes(valid)
+            _validate_static_i386_pe32(image_path, 0x00401000)
+
+            empty_rodata = bytearray(valid)
+            struct.pack_into("<H", empty_rodata, 0x86, 2)
+            struct.pack_into("<I", empty_rodata, 0x98 + 24, 0x2000)
+            empty_rodata[0x1A0:0x1A8] = b".rodata\0"
+            struct.pack_into(
+                "<IIII", empty_rodata, 0x1A8, 0, 0x2000, 0, 0
+            )
+            struct.pack_into("<I", empty_rodata, 0x1A0 + 36, 0x40000040)
+            image_path.write_bytes(empty_rodata)
+            with self.assertRaisesRegex(
+                BootstrapError, "empty PE32 section"
+            ):
+                _validate_static_i386_pe32(image_path, 0x00401000)
+
+            oversized_raw = bytearray(valid)
+            struct.pack_into("<I", oversized_raw, 0x98 + 4, 0x2000)
+            struct.pack_into("<I", oversized_raw, 0x178 + 16, 0x2000)
+            oversized_raw.extend(b"\0" * 0x1E00)
+            image_path.write_bytes(oversized_raw)
+            with self.assertRaises(BootstrapError):
+                _validate_static_i386_pe32(image_path, 0x00401000)
+
+            mutations = (
+                ("short image extent", "<I", 0x98 + 56, 0x1000),
+                ("raw data overlaps headers", "<I", 0x178 + 20, 0),
+                (
+                    "writable executable section",
+                    "<I",
+                    0x178 + 36,
+                    0xE0000020,
+                ),
+                ("nonzero checksum", "<I", 0x98 + 64, 1),
+                ("wrong subsystem", "<H", 0x98 + 68, 2),
+                ("nonzero relocation pointer", "<I", 0x178 + 24, 1),
+            )
+            for label, encoding, offset, value in mutations:
+                with self.subTest(label=label):
+                    mutated = bytearray(valid)
+                    struct.pack_into(encoding, mutated, offset, value)
+                    image_path.write_bytes(mutated)
+                    with self.assertRaises(BootstrapError):
+                        _validate_static_i386_pe32(
+                            image_path, 0x00401000
+                        )
+
+            for label, offset in (
+                ("changed DOS stub", 2),
+                ("nonzero header padding", 0x1A0),
+                ("nonzero section padding", 0x201),
+            ):
+                with self.subTest(label=label):
+                    mutated = bytearray(valid)
+                    mutated[offset] = 1
+                    image_path.write_bytes(mutated)
+                    with self.assertRaises(BootstrapError):
+                        _validate_static_i386_pe32(
+                            image_path, 0x00401000
+                        )
+
     def _write_tiny_source_root(
         self, source_root: Path
     ) -> tuple[dict[str, object], Path]:
@@ -3074,9 +3193,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["behavior"],
                 {
-                    "failure_cases": 13,
+                    "failure_cases": 14,
                     "help_cases": 5,
-                    "success_cases": 15,
+                    "success_cases": 16,
                 },
             )
             initial_matches = report["initial_seed_matches_stage_two"]
@@ -3091,7 +3210,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 },
             )
             source_head_snapshot = (
-                "bbbeb2b9f1532c9e7574ec47bb05c428f308fa430cf5fafe33b6222488b1ea33"
+                "7b6b40b666acc599f758065e2be4fc7824823618d0ffd46350450699eb980dcb"
             )
             self.assertEqual(
                 report["source_snapshot_sha256"], source_head_snapshot
@@ -3102,7 +3221,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     "cupidasm": True,
                     "cupidc": True,
                     "cupiddis": True,
-                    "cupidld": True,
+                    "cupidld": False,
                     "cupidobj": True,
                 },
             )

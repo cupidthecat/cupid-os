@@ -2020,11 +2020,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             contract = json.loads(output.read_text(encoding="utf-8"))[
                 "contracts"
             ]["c_preprocessor_conditionals"]
-            self.assertEqual(contract["if_occurrences"], 105)
-            self.assertEqual(contract["elif_occurrences"], 4)
-            self.assertEqual(contract["expression_occurrences"], 109)
-            self.assertEqual(contract["unique_expressions"], 24)
-            self.assertEqual(contract["directive_expression_pairs"], 25)
+            self.assertEqual(contract["if_occurrences"], 115)
+            self.assertEqual(contract["elif_occurrences"], 9)
+            self.assertEqual(contract["expression_occurrences"], 124)
+            self.assertEqual(contract["unique_expressions"], 26)
+            self.assertEqual(contract["directive_expression_pairs"], 28)
             self.assertTrue(
                 all(
                     not item["path"].casefold().startswith("templeos/")
@@ -2051,6 +2051,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(
                 {expression: values[2] for expression, values in manifest.items()},
                 {
+                    "! defined ( CUPID_HOSTED_I386_LINUX_ABI_H )": 1,
                     "! defined ( _WIN32 ) && ! defined ( __MACOSX__ ) && "
                     "! defined ( __DJGPP__ )": 1,
                     "! defined ( __SIZEOF_POINTER__ ) || "
@@ -2075,6 +2076,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "defined ( _WIN32 )": 0,
                     "defined ( _WIN32 ) && ! defined ( _WIN32_WCE )": 0,
                     "defined ( _WIN32 ) || defined ( __DJGPP__ )": 0,
+                    "defined ( CUPID_HOSTED_I386_LINUX_ABI_H )": 0,
                     "defined ( __DJGPP__ )": 0,
                     "defined ( __MACOSX__ )": 0,
                     "defined ( __SIZEOF_POINTER__ ) && "
@@ -2581,9 +2583,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 contract,
             )
             self.assertEqual(contract["source_files"], 687)
-            self.assertEqual(contract["include_occurrences"], 2408)
+            self.assertEqual(contract["include_occurrences"], 2410)
             self.assertEqual(contract["direct_quoted_occurrences"], 2173)
-            self.assertEqual(contract["direct_angle_occurrences"], 235)
+            self.assertEqual(contract["direct_angle_occurrences"], 237)
             self.assertEqual(contract["pp_token_operand_occurrences"], 0)
 
     def test_inventory_detects_link_inputs_missing_from_artifact_manifest(self):
@@ -4364,8 +4366,12 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         module = _load_audit_module()
         contract = module._cupid_toolchain_fixed_point_contract(REPO_ROOT)
         self.assertEqual(contract["help_cases"], 5)
-        self.assertEqual(contract["success_behavior_cases"], 15)
-        self.assertEqual(contract["failure_behavior_cases"], 13)
+        self.assertEqual(contract["success_behavior_cases"], 16)
+        self.assertEqual(contract["failure_behavior_cases"], 14)
+        self.assertEqual(
+            contract["source_head_capabilities"],
+            ["cupidld.pe32_fixed_image"],
+        )
         driver = (REPO_ROOT / "toolchain" / "cupidc_main.cc").read_text(
             encoding="utf-8"
         )
@@ -4375,6 +4381,57 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         bootstrap = (
             REPO_ROOT / "tools" / "bootstrap_toolchain.py"
         ).read_text(encoding="utf-8")
+        linker_header = (REPO_ROOT / "toolchain" / "cupidld.h").read_text(
+            encoding="utf-8"
+        )
+        linker_cli = (
+            REPO_ROOT / "toolchain" / "cupidld_main.cc"
+        ).read_text(encoding="utf-8")
+        linker_core = (REPO_ROOT / "toolchain" / "cupidld.cc").read_text(
+            encoding="utf-8"
+        )
+        verifier_start = linker_cli.index(
+            "static ctool_status_t cupidld_publication_verify("
+        )
+        verifier_end = linker_cli.index(
+            "\nstatic ctool_status_t cupidld_publication_write_all(",
+            verifier_start,
+        )
+        verifier_feature = linker_cli[verifier_start:verifier_end]
+        publication_verify_guard = (
+            "  if (status == CTOOL_OK) {\n"
+            "    status = ops->verify(candidate, contents);\n"
+            "  }\n"
+        )
+        publication_replace_guard = (
+            "  if (status == CTOOL_OK) {\n"
+            "    status = ops->replace(candidate, destination);\n"
+            "  }\n"
+        )
+        verifier_close_tail = (
+            "  if (fclose(file) != 0) {\n"
+            "    status = CTOOL_ERR_IO;\n"
+            "  }\n"
+            "  return status;\n"
+        )
+        serializer_start = linker_core.index(
+            "static ctool_status_t ld_serialize_pe32_fixed("
+        )
+        serializer_end = linker_core.index(
+            "\nstatic ctool_bool ld_name_start(", serializer_start
+        )
+        serializer_feature = linker_core[serializer_start:serializer_end]
+        core_dispatch_start = linker_core.index(
+            '  if (status == CTOOL_OK) {\n'
+            '    phase = "CupidLD executable serialization failed";\n'
+            "    if (request->image_kind == CTOOL_LD_IMAGE_PE32_FIXED) {\n"
+        )
+        core_dispatch_end = linker_core.index(
+            "\n  if (status != CTOOL_OK &&", core_dispatch_start
+        )
+        core_dispatch_feature = linker_core[
+            core_dispatch_start:core_dispatch_end
+        ]
         mutations = {
             "angle root widened": (
                 "driver",
@@ -4535,11 +4592,390 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "!= sentinel\n",
                 r"fixed-point profile behavior differs",
             ),
-            "profile failure count becomes stale": (
+            "PE32 positive stops comparing stages": (
                 "bootstrap",
-                '        "failure_cases": 13,\n',
-                '        "failure_cases": 11,\n',
+                "    pe32_result = _run_stage_pair(\n",
+                "    pe32_result = _run_one_stage(\n",
+                r"fixed-point PE32 behavior differs",
+            ),
+            "PE32 positive loses its output mode": (
+                "bootstrap",
+                '            "i386pe",\n'
+                '            "--text-address",\n'
+                '            "0x00401000",\n',
+                '            "elf_i386",\n'
+                '            "--text-address",\n'
+                '            "0x00401000",\n',
+                r"fixed-point PE32 behavior differs",
+            ),
+            "PE32 positive compares the first output twice": (
+                "bootstrap",
+                "        or stage_two_pe32.read_bytes()\n"
+                "        != stage_three_pe32.read_bytes()\n",
+                "        or stage_two_pe32.read_bytes()\n"
+                "        != stage_two_pe32.read_bytes()\n",
+                r"fixed-point PE32 behavior differs",
+            ),
+            "PE32 staged parser disappears": (
+                "bootstrap",
+                "    _validate_static_i386_pe32(\n",
+                "    _skip_static_i386_pe32_validation(\n",
+                r"fixed-point PE32 behavior differs",
+            ),
+            "PE32 staged parser stops reading the image": (
+                "bootstrap",
+                "def _validate_static_i386_pe32("
+                "path: Path, expected_entry: int) -> None:\n"
+                "    data = path.read_bytes()\n",
+                "def _validate_static_i386_pe32("
+                "path: Path, expected_entry: int) -> None:\n"
+                '    data = b""\n',
+                r"fixed-point PE32 behavior differs",
+            ),
+            "PE32 staged parser accepts a changed DOS stub": (
+                "bootstrap",
+                '    "4d5a90000300000004000000ffff0000"\n',
+                '    "4d5a91000300000004000000ffff0000"\n',
+                r"fixed-point PE32 behavior differs",
+            ),
+            "PE32 staged parser reads the checksum from the wrong field": (
+                "bootstrap",
+                "    checksum = read_u32("
+                "optional_offset + 64, \"PE32 checksum\")\n",
+                "    checksum = read_u32("
+                "optional_offset + 60, \"PE32 checksum\")\n",
+                r"fixed-point PE32 behavior differs",
+            ),
+            "PE32 staged parser allows writable read-only data": (
+                "bootstrap",
+                '        ".rodata": (1, 0x40000040),\n',
+                '        ".rodata": (1, 0xC0000040),\n',
+                r"fixed-point PE32 behavior differs",
+            ),
+            "PE32 staged parser drops the empty-section guard": (
+                "bootstrap",
+                "        if virtual_size == 0:\n"
+                "            raise BootstrapError("
+                'f"{path.name} has an empty PE32 section")\n',
+                "",
+                r"fixed-point PE32 behavior differs",
+            ),
+            "PE32 staged parser guards only empty BSS": (
+                "bootstrap",
+                "        if virtual_size == 0:\n"
+                "            raise BootstrapError("
+                'f"{path.name} has an empty PE32 section")\n',
+                '        if virtual_size == 0 and name == ".bss":\n'
+                "            raise BootstrapError("
+                'f"{path.name} has an empty PE32 section")\n',
+                r"fixed-point PE32 behavior differs",
+            ),
+            "PE32 staged parser skips the first header padding byte": (
+                "bootstrap",
+                "        data[section_table_end:headers_size]\n",
+                "        data[section_table_end + 1:headers_size]\n",
+                r"fixed-point PE32 behavior differs",
+            ),
+            "PE32 staged parser skips the first section padding byte": (
+                "bootstrap",
+                "            if any(data[raw_offset + virtual_size "
+                ": raw_offset + raw_size]):\n",
+                "            if any(data[raw_offset + virtual_size + 1 "
+                ": raw_offset + raw_size]):\n",
+                r"fixed-point PE32 behavior differs",
+            ),
+            "PE32 staged parser weakens the final file extent": (
+                "bootstrap",
+                "        or expected_raw_offset != len(data)\n",
+                "        or expected_raw_offset > len(data)\n",
+                r"fixed-point PE32 behavior differs",
+            ),
+            "PE32 staged parser expects the wrong entry": (
+                "bootstrap",
+                "    _validate_static_i386_pe32(\n"
+                "        stage_two_pe32,\n"
+                "        0x00401000,\n"
+                "    )\n",
+                "    _validate_static_i386_pe32(\n"
+                "        stage_two_pe32,\n"
+                "        0x00402000,\n"
+                "    )\n",
+                r"fixed-point PE32 behavior differs",
+            ),
+            "PE32 failure stops comparing stages": (
+                "bootstrap",
+                "    invalid_pe32_result = _run_stage_pair(\n",
+                "    invalid_pe32_result = _run_one_stage(\n",
+                r"fixed-point PE32 behavior differs",
+            ),
+            "PE32 failure skips the second sentinel setup": (
+                "bootstrap",
+                "    stage_three_pe32_failure.write_bytes(sentinel)\n",
+                "    stage_two_pe32_failure.write_bytes(sentinel)\n",
+                r"fixed-point PE32 behavior differs",
+            ),
+            "PE32 failure uses the accepted text address": (
+                "bootstrap",
+                '            "i386pe",\n'
+                '            "--text-address",\n'
+                '            "0x00402000",\n',
+                '            "i386pe",\n'
+                '            "--text-address",\n'
+                '            "0x00401000",\n',
+                r"fixed-point PE32 behavior differs",
+            ),
+            "PE32 failure loses its diagnostic": (
+                "bootstrap",
+                '        or "CupidLD PE32 requires text address 0x00401000"\n',
+                '        or "CupidLD PE32 text address differs"\n',
+                r"fixed-point PE32 behavior differs",
+            ),
+            "PE32 failure stops preserving the second output": (
+                "bootstrap",
+                "        or stage_three_pe32_failure.read_bytes() "
+                "!= sentinel\n",
+                "        or stage_two_pe32_failure.read_bytes() "
+                "!= sentinel\n",
+                r"fixed-point PE32 behavior differs",
+            ),
+            "PE32 success count becomes stale": (
+                "bootstrap",
+                '        "success_cases": 16,\n',
+                '        "success_cases": 15,\n',
                 r"fixed-point behavior matrix differs",
+            ),
+            "PE32 failure count becomes stale": (
+                "bootstrap",
+                '        "failure_cases": 14,\n',
+                '        "failure_cases": 13,\n',
+                r"fixed-point behavior matrix differs",
+            ),
+            "PE32 public enum is only a near match": (
+                "linker_header",
+                "  CTOOL_LD_IMAGE_PE32_FIXED\n"
+                "} ctool_ld_image_kind_t;\n",
+                "  CTOOL_LD_IMAGE_PE32_FIXEDS\n"
+                "} ctool_ld_image_kind_t;\n",
+                r"fixed-point PE32 source contract differs",
+            ),
+            "PE32 request member is only a near match": (
+                "linker_header",
+                "  ctool_ld_image_kind_t image_kind;\n",
+                "  ctool_ld_image_kind_t image_kinds;\n",
+                r"fixed-point PE32 source contract differs",
+            ),
+            "PE32 CLI selector is only a near match": (
+                "linker_cli",
+                '      (strcmp(cli->machine, "elf_i386") != 0 &&\n'
+                '       strcmp(cli->machine, "i386pe") != 0) ||\n',
+                '      (strcmp(cli->machine, "elf_i386") != 0 &&\n'
+                '       strcmp(cli->machine, "i386pex") != 0) ||\n',
+                r"fixed-point PE32 source contract differs",
+            ),
+            "PE32 CLI dispatch survives only as a comment": (
+                "linker_cli",
+                "  request.image_kind = strcmp(cli.machine, \"i386pe\") == 0\n"
+                "                           ? CTOOL_LD_IMAGE_PE32_FIXED\n"
+                "                           : CTOOL_LD_IMAGE_ELF32;\n",
+                "  /* request.image_kind = "
+                "strcmp(cli.machine, \"i386pe\") == 0\n"
+                "                           ? CTOOL_LD_IMAGE_PE32_FIXED\n"
+                "                           : CTOOL_LD_IMAGE_ELF32; */\n"
+                "  request.image_kind = CTOOL_LD_IMAGE_ELF32;\n",
+                r"fixed-point PE32 source contract differs",
+            ),
+            "PE32 CLI bypasses atomic publication": (
+                "linker_cli",
+                "    status = cupidld_publish_output("
+                "native_paths[output_native_index],\n"
+                "                                    ctool_buffer_view(output));\n",
+                "    status = ctool_job_write(job, &output_path,\n"
+                "                             ctool_buffer_view(output));\n",
+                r"fixed-point PE32 source contract differs",
+            ),
+            "PE32 publication replaces without verification": (
+                "linker_cli",
+                publication_verify_guard,
+                "",
+                r"fixed-point PE32 source contract differs",
+            ),
+            "PE32 publication verifies after replacement": (
+                "linker_cli",
+                publication_verify_guard + publication_replace_guard,
+                publication_replace_guard + publication_verify_guard,
+                r"fixed-point PE32 source contract differs",
+            ),
+            "PE32 publication clears verification failure": (
+                "linker_cli",
+                publication_verify_guard + publication_replace_guard,
+                publication_verify_guard
+                + "  status = CTOOL_OK;\n"
+                + publication_replace_guard,
+                r"fixed-point PE32 source contract differs",
+            ),
+            "PE32 publisher returns before verification": (
+                "linker_cli",
+                publication_verify_guard,
+                "  return status;\n" + publication_verify_guard,
+                r"fixed-point PE32 source contract differs",
+            ),
+            "PE32 publisher directly replaces before verification": (
+                "linker_cli",
+                publication_verify_guard,
+                "  return cupidld_publication_replace("
+                "candidate, destination);\n"
+                + publication_verify_guard,
+                r"fixed-point PE32 source contract differs",
+            ),
+            "PE32 publication verifier accepts every candidate": (
+                "linker_cli",
+                verifier_feature,
+                "static ctool_status_t cupidld_publication_verify(\n"
+                "    const char *candidate, ctool_bytes_t contents) {\n"
+                "  (void)candidate;\n"
+                "  (void)contents;\n"
+                "  return CTOOL_OK;\n"
+                "}\n",
+                r"fixed-point PE32 source contract differs",
+            ),
+            "PE32 publication verifier clears every failure": (
+                "linker_cli",
+                verifier_close_tail,
+                verifier_close_tail.replace(
+                    "  return status;\n",
+                    "  status = CTOOL_OK;\n  return status;\n",
+                ),
+                r"fixed-point PE32 source contract differs",
+            ),
+            "PE32 publication wrapper calls replace directly": (
+                "linker_cli",
+                "  return cupidld_publish_output_with_ops("
+                "destination, contents, &ops);\n",
+                "  return cupidld_publication_replace("
+                "destination, destination);\n",
+                r"fixed-point PE32 source contract differs",
+            ),
+            "PE32 pre-count includes empty sections": (
+                "linker_core",
+                "    if (link->outputs[index].size != 0u) {\n"
+                "      emitted_section_count++;\n"
+                "    }\n",
+                "    if (link->outputs[index].size == 0u) {\n"
+                "      emitted_section_count++;\n"
+                "    }\n",
+                r"fixed-point PE32 source contract differs",
+            ),
+            "PE32 pre-count is overwritten before use": (
+                "linker_core",
+                "    }\n"
+                "  }\n"
+                "  if (emitted_section_count == 0u || "
+                "emitted_section_count > 4u) {\n",
+                "    }\n"
+                "  }\n"
+                "  emitted_section_count = link->output_count;\n"
+                "  if (emitted_section_count == 0u || "
+                "emitted_section_count > 4u) {\n",
+                r"fixed-point PE32 source contract differs",
+            ),
+            "PE32 header extent includes empty sections": (
+                "linker_core",
+                "  headers_end = LD_PE_DOS_HEADER_SIZE + LD_PE_SIGNATURE_SIZE +\n"
+                "                LD_PE_COFF_HEADER_SIZE + "
+                "LD_PE_OPTIONAL_HEADER_SIZE +\n"
+                "                emitted_section_count * "
+                "LD_PE_SECTION_HEADER_SIZE;\n",
+                "  headers_end = LD_PE_DOS_HEADER_SIZE + LD_PE_SIGNATURE_SIZE +\n"
+                "                LD_PE_COFF_HEADER_SIZE + "
+                "LD_PE_OPTIONAL_HEADER_SIZE +\n"
+                "                link->output_count * "
+                "LD_PE_SECTION_HEADER_SIZE;\n",
+                r"fixed-point PE32 source contract differs",
+            ),
+            "PE32 empty section accepts file bytes": (
+                "linker_core",
+                "    if (section->size == 0u) {\n"
+                "      if (section->file_size != 0u) {\n",
+                "    if (section->size == 0u) {\n"
+                "      if (section->file_size == 0u) {\n",
+                r"fixed-point PE32 source contract differs",
+            ),
+            "PE32 empty layout section is not skipped": (
+                "linker_core",
+                "      section->file_offset = 0u;\n"
+                "      continue;\n"
+                "    }\n"
+                "    if ((section->flags & CTOOL_ELF32_SHF_EXECINSTR) != 0u",
+                "      section->file_offset = 0u;\n"
+                "    }\n"
+                "    if ((section->flags & CTOOL_ELF32_SHF_EXECINSTR) != 0u",
+                r"fixed-point PE32 source contract differs",
+            ),
+            "PE32 emitted overlap check is disabled": (
+                "linker_core",
+                "    if (have_previous_section == CTOOL_TRUE &&\n"
+                "        section->address < previous_section_end) {\n",
+                "    if (have_previous_section == CTOOL_FALSE &&\n"
+                "        section->address < previous_section_end) {\n",
+                r"fixed-point PE32 source contract differs",
+            ),
+            "PE32 COFF count includes empty sections": (
+                "linker_core",
+                "    status = ctool_buffer_put_le16(output,\n"
+                "                                   (ctool_u16)"
+                "emitted_section_count);\n",
+                "    status = ctool_buffer_put_le16(output,\n"
+                "                                   (ctool_u16)"
+                "link->output_count);\n",
+                r"fixed-point PE32 source contract differs",
+            ),
+            "PE32 empty section reaches header emission": (
+                "linker_core",
+                "    if (section->size == 0u) {\n"
+                "      continue;\n"
+                "    }\n"
+                "    if (section->type == "
+                "(ctool_u32)CTOOL_ELF32_SHT_PROGBITS) {\n",
+                "    if (section->size == 0u) {\n"
+                "      section->file_offset = 0u;\n"
+                "    }\n"
+                "    if (section->type == "
+                "(ctool_u32)CTOOL_ELF32_SHT_PROGBITS) {\n",
+                r"fixed-point PE32 source contract differs",
+            ),
+            "PE32 result reports all output sections": (
+                "linker_core",
+                "    result_out->output_section_count = "
+                "emitted_section_count;\n",
+                "    result_out->output_section_count = link->output_count;\n",
+                r"fixed-point PE32 source contract differs",
+            ),
+            "PE32 core serializer is removed wholesale": (
+                "linker_core",
+                serializer_feature,
+                "",
+                r"fixed-point PE32 source contract differs",
+            ),
+            "PE32 core serializer survives only under if zero": (
+                "linker_core",
+                serializer_feature,
+                "#if 0\n" + serializer_feature + "\n#endif",
+                r"fixed-point PE32 source contract differs",
+            ),
+            "PE32 core dispatch is unreachable": (
+                "linker_core",
+                "    if (request->image_kind == CTOOL_LD_IMAGE_PE32_FIXED) {\n",
+                "    if (CTOOL_FALSE &&\n"
+                "        request->image_kind == CTOOL_LD_IMAGE_PE32_FIXED) {\n",
+                r"fixed-point PE32 source contract differs",
+            ),
+            "PE32 core dispatch survives only in a dead block": (
+                "linker_core",
+                core_dispatch_feature,
+                "  if (CTOOL_FALSE) {\n"
+                + textwrap.indent(core_dispatch_feature, "  ")
+                + "\n  }",
+                r"fixed-point PE32 source contract differs",
             ),
             "checked source closure is not frozen": (
                 "bootstrap",
@@ -4634,27 +5070,54 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 bootstrap_target = (
                     root / "tools" / "bootstrap_toolchain.py"
                 )
+                linker_header_target = root / "toolchain" / "cupidld.h"
+                linker_cli_target = root / "toolchain" / "cupidld_main.cc"
+                linker_core_target = root / "toolchain" / "cupidld.cc"
                 driver_target.parent.mkdir(parents=True)
                 test_target.parent.mkdir(parents=True)
                 bootstrap_target.parent.mkdir(parents=True)
                 driver_payload = driver
                 test_payload = test
                 bootstrap_payload = bootstrap
+                linker_header_payload = linker_header
+                linker_cli_payload = linker_cli
+                linker_core_payload = linker_core
                 if target_name == "driver":
                     driver_payload = driver_payload.replace(old, new, 1)
                     self.assertNotEqual(driver_payload, driver)
                 elif target_name == "test":
                     test_payload = test_payload.replace(old, new, 1)
                     self.assertNotEqual(test_payload, test)
-                else:
+                elif target_name == "bootstrap":
                     bootstrap_payload = bootstrap_payload.replace(
                         old, new, 1
                     )
                     self.assertNotEqual(bootstrap_payload, bootstrap)
+                elif target_name == "linker_header":
+                    linker_header_payload = linker_header_payload.replace(
+                        old, new, 1
+                    )
+                    self.assertNotEqual(linker_header_payload, linker_header)
+                elif target_name == "linker_cli":
+                    linker_cli_payload = linker_cli_payload.replace(old, new, 1)
+                    self.assertNotEqual(linker_cli_payload, linker_cli)
+                else:
+                    self.assertEqual(target_name, "linker_core")
+                    linker_core_payload = linker_core_payload.replace(old, new, 1)
+                    self.assertNotEqual(linker_core_payload, linker_core)
                 driver_target.write_text(driver_payload, encoding="utf-8")
                 test_target.write_text(test_payload, encoding="utf-8")
                 bootstrap_target.write_text(
                     bootstrap_payload, encoding="utf-8"
+                )
+                linker_header_target.write_text(
+                    linker_header_payload, encoding="utf-8"
+                )
+                linker_cli_target.write_text(
+                    linker_cli_payload, encoding="utf-8"
+                )
+                linker_core_target.write_text(
+                    linker_core_payload, encoding="utf-8"
                 )
                 with self.assertRaisesRegex(module.AuditError, message):
                     module._cupid_toolchain_fixed_point_contract(root)
@@ -5411,7 +5874,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (5635, 169),
+                "c.expression.sizeof": (5655, 169),
                 "c.extension.builtin.offsetof": (12, 6),
                 "c.extension.gnu_alignof": (1, 1),
             }

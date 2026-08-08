@@ -46,8 +46,26 @@ make test-user-native-windows-equivalence
 
 The normal Windows build runs the checked seed through WSL and does not
 prepare native drivers. The separate comparison command builds those drivers
-with Clang and its native linker. A Cupid-built Windows runtime and PE or COFF
-executable output remain open.
+with Clang and its native linker. Source-head CupidLD accepts `-m i386pe` for
+ordered static i386 ELF32 objects. It serializes one deterministic,
+fixed-layout PE32 console image at image base `0x00400000`, with `.text` at RVA
+`0x1000`, each nonempty later section category at the next `0x1000` boundary,
+and file alignment `0x200`. Empty output categories do not get PE section
+headers. The image has neither imports nor base
+relocations. Writable executable input is rejected. The checked seed does not
+carry this command, and no generated PE image has been run. A Cupid-built
+Windows runtime, seed carriage, and the PE features that runtime needs remain
+open. See
+[ADR 0247](../docs/adr/0247-serialize-fixed-layout-pe32-images-with-cupidld.md).
+
+The source-head CLI uses an adjacent-candidate publisher for ELF and PE images.
+It creates the candidate with exclusive-create semantics, writes and closes it,
+then reopens the file and checks its size and contents against the linker
+buffer. A failed write, close, verification, or replacement preserves an
+existing destination. Cleanup is attempted but not guaranteed. On POSIX,
+CupidLD requests mode `0777`; the process umask may remove any permission bits.
+The directory must remain stable under the caller's control; the CLI does not
+lock or pin the path.
 
 ### 3. Deploy to Disk
 

@@ -677,14 +677,31 @@ ADR 0243 records the current promotion.
 
 The bootstrap copies the 41-input source closure into a private compiler root.
 Both rebuilt stages compile from that root, and the harness checks the private
-and live closures at each stage and behavior boundary. The latest transition's
-stage two and stage three contain the same five tool images. CupidObj differs
-from the preceding seed; CupidASM, CupidC, CupidDis, and CupidLD remain
-byte-identical. The two rebuilt stages match every C and startup object and
-agree on all five help paths, fifteen successful operations, and thirteen failure
-cases. Their stage directories,
-behavior evidence, and report are published together only after the complete
-gate passes.
+and live closures at each stage and behavior boundary. The profile-manifest
+seed transition's stage two and stage three contain the same five tool images.
+CupidObj differs from the preceding seed; CupidASM, CupidC, CupidDis, and
+CupidLD remain byte-identical. The two rebuilt stages match every C and startup
+object and agree on all five help paths, fifteen successful operations, and
+thirteen failure cases. Their stage directories, behavior evidence, and report
+are published together only after the complete gate passes.
+
+Source-head CupidLD includes a deterministic fixed-layout i386 PE32 serializer.
+That proof uses the same 19 C objects, startup, and five rebuilt tools. It
+includes one successful PE link and one rejected-layout case, so its matrix is
+5/16/14. Only CupidLD differs from the promoted seed. The PE image is validated
+structurally. The image has no imports or base relocations. No generated image
+is executed, carried in the seed, or used by the normal build, so this does not
+establish a Windows runtime or native fixed point. ADR 0247 records this source
+boundary.
+
+Those rebuilt CupidLD images publish ELF and PE output through an adjacent
+candidate created with exclusive-create semantics. They write and close the
+candidate, reopen the file, check its size and contents, and close the
+verification read before one replacement call. The hosted fault harness
+preserves a sentinel destination across partial-write, close, verification, and
+replacement errors. On POSIX, CupidLD requests mode `0777`; the process umask
+may remove any permission bits. The directory must remain stable under the
+caller's control; the publisher has no destination lock or directory pin.
 
 The checked seed now carries CupidObj's bounded `iso-fixture` operation. Its
 hosted command reproduces the exact 61,440-byte repository image from the
