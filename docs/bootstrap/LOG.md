@@ -21979,3 +21979,87 @@ The active-language digest remains
 `69f8f0b9bc264f338f445781f92792b24e91f0d641950d3b57f55f74841ae46e`.
 No C or assembly source changes ownership, so no source rename is due.
 `TempleOS/` remains untouched reference material.
+
+## 2026-08-08: Publish the Doom profile manifest with checked CupidObj
+
+The normal Doom profile-manifest target passes the checked five-tool seed and
+depends on its complete trust unit. The wrapper captures the exact source
+memberships and 291 distinct header files once, then derives the bounded
+`CUPROF1` snapshot and an independent Python JSON oracle from that capture.
+It verifies and freezes the seed before running CupidObj from those exact
+frozen files. CupidObj writes the private candidate first, so Python no longer
+authors the production bytes.
+
+The host transaction stays in Python. It resolves the output inside the
+repository, captures the output directory, and takes an adjacent no-follow
+lock before reading the existing output or profile inputs. Lock files,
+candidates, and outputs must be regular, single-link files. The publisher
+rejects aliases with the seed or profile inputs. It requires a successful
+CupidObj result, an unchanged snapshot, exact oracle parity, a stable live
+seed, stable profile membership and bytes, and an unchanged output path.
+Every replacement retry checks the candidate, output, and directory again.
+Identical bytes keep their timestamp. Changed bytes publish with one atomic
+replacement.
+
+Review changed four parts of the first cut. The original runner could have
+verified one seed capture and executed a later one, so `run_seed_tool` now
+accepts the caller's already frozen trust unit while retaining its final live
+check. A predictable shared temporary lock directory could follow hostile
+links, so the final design uses a verified lock beside the resolved output.
+The first audit copied Make's header globs and counted source markers without
+checking control flow. The final audit derives the recursive include closure
+from the wrapper's profile tuples, matches recipe tokens exactly, and checks
+the publisher's ordered AST. It also requires the delivery for a production
+root even if its Make rule disappears. A Linux directory-swap test initially
+reported a missing snapshot after the old parent moved; rechecking the parent
+immediately after CupidObj returns now reports the directory-identity failure
+at the boundary that caused it.
+
+The active snapshot is 796,337 bytes with SHA-256
+`2c22f2dd26a9fdcc41d5972b91c863d103c564c04f74860a0fc500d1fe684941`.
+Checked CupidObj reproduces the 69,366-byte JSON file with SHA-256
+`47ba35158cac0a7df253a0056235223e62fee24df74701800f88763e588611c2`.
+Running the real Make target reported `unchanged`, preserved the timestamp,
+and retained that hash.
+
+| Check | Result |
+|---|---|
+| `python -m unittest -v tests.test_doom_cupidc_production` on Windows | PASS: 41 tests in 42.510 seconds, with the POSIX directory-rename case skipped because Windows keeps the lock open. |
+| The same production module on Linux | PASS: 41 tests, with only the Windows junction case skipped. |
+| `python -m unittest -v tests.test_toolchain_bootstrap_seed` | PASS: all 46 tests in 853.126 seconds. |
+| `python -m unittest -v tests.test_cupidc_kernel_compile` | PASS: all 32 tests in 92.658 seconds. |
+| `python -m unittest -v tests.test_build_graph_audit` | PASS: all 73 tests in 630.147 seconds, including nested-header, whole-feature rollback, reordered-check, dead-marker, and near-match mutations. |
+| `make verify-bootstrap-seed` | PASS for all five static ELF32 tools. |
+| `make build/bootstrap/doom-cupidc-inputs.json` | PASS in 4.7 seconds; bytes, hash, and timestamp stayed unchanged. |
+| `make bootstrap-audit` | PASS in 61.084 seconds. The 2,566,111-byte JSON has SHA-256 `9e8dc28b6b0b6ba611b53d8bbe67930495d4cfc6bb509b1333d3da0082c23289`. |
+| `make check-bootstrap-audit` | PASS in 60.909 seconds. The 12,197-byte summary has SHA-256 `2bb3d92e713fa98ab5c2c6cb9ad0f2beb212f00c73a6623d71a3bd170a003f0e`. |
+| Complete normal `make all` | PASS in 1,537 seconds. The working image reused its existing FAT data and staged the checked ISO. |
+| Private-image `gui_terminal_smoke.py --command ls` | PASS in 49.080 seconds. The 27,819-byte serial log has SHA-256 `8d75f89996654d2d11fff625ad83dcc3d9043e89319db46b9cf04dc78e6e67b9`. |
+| Python bytecode, Ruff, and `git diff --check` | PASS for every changed Python file and the complete patch. |
+
+The completed normal build produced these current artifacts:
+
+| Artifact | Bytes | SHA-256 |
+|---|---:|---|
+| `kernel/kernel.elf.pass1` | 8,962,568 | `713ebbe178be67e007566bbd921a04c4a7886699696ca6b2d964dce4566f7db0` |
+| `kernel/kernel.elf` | 9,077,256 | `22369a3596fb2378035866a925353063abe1648ce26b1eca5f2ef0a522800bb1` |
+| `kernel/kernel.bin` | 8,868,028 | `aed237d545ab0add0e953fd16b2a3d542d3c9df7f2cc9e56c53cfa1ab6c30ff0` |
+| `cupidos.img` | 209,715,200 | `752aa93fee4d981d298cb3e481b5472ebd3cf4b1d3a0af49e2d2b5154190cd3b` |
+
+An optional second `make all` probe began the root's normal broad rebuild
+instead of becoming a short no-op. It was stopped after the completed build
+had already supplied the image proof and is not counted as verification.
+Existing outputs remain valid because the compiler and generator wrappers
+publish from private candidates with atomic replacement.
+
+The graph remains at 719 active inputs, 449 transforms, 255 feature records,
+and 25 accounted unreachable files. The profile delivery has 300 exact inputs
+and is classified as `generate_profile_manifest` with `cupid_object` and
+`host_python` participants. CupidObj rises from 188 to 189 transforms. Every
+one of the 438 root outputs has a Cupid tool owner, so no root output is
+Python-only. Python still participates in all 449 transforms as the checked
+tool launcher and host-side safety, parity, and publication layer.
+
+No ordinary C or assembly source changes ownership, so no `.c` to `.cc`
+rename is due. `TempleOS/` remains untouched reference material. ADR 0244
+records the production handoff.

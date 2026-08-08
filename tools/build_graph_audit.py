@@ -79,6 +79,34 @@ CUPIDC_KERNEL_CONTROL_FILES = (
     "tools/bootstrap_toolchain.py",
     "bootstrap/seeds/i386-linux/manifest.json",
 )
+_CUPIDOBJ_PROFILE_MANIFEST_OUTPUT = (
+    "build/bootstrap/doom-cupidc-inputs.json"
+)
+_CUPIDOBJ_PROFILE_MANIFEST_RECIPE = [
+    "$(PYTHON) tools/cupidc_kernel_compile.py --root . \\",
+    "--manifest $(BOOTSTRAP_SEED_MANIFEST) \\",
+    "--write-profile-input-manifest $@",
+]
+_CUPIDOBJ_PROFILE_MANIFEST_CONTROL_INPUTS = (
+    "Makefile",
+    "tools/bootstrap_toolchain.py",
+    "bootstrap/seeds/i386-linux/manifest.json",
+    "bootstrap/seeds/i386-linux/cupidasm.elf",
+    "bootstrap/seeds/i386-linux/cupidc.elf",
+    "bootstrap/seeds/i386-linux/cupiddis.elf",
+    "bootstrap/seeds/i386-linux/cupidld.elf",
+    "bootstrap/seeds/i386-linux/cupidobj.elf",
+    "tools/cupidc_kernel_compile.py",
+)
+_CUPIDOBJ_PROFILE_MANIFEST_PRODUCTION_FILES = (
+    "tools/cupidc_kernel_compile.py",
+    "toolchain/cupidobj.cc",
+    "CONTEXT.md",
+    "docs/bootstrap/README.md",
+)
+_CUPIDOBJ_PROFILE_MANIFEST_PRODUCTION_DIRECTORIES = (
+    "kernel/doom/src",
+)
 CUPIDC_PRODUCTION_CONTROL_FILES = (
     "tools/cupidc_production_compile.py",
     "tools/cupidc_production_frontier.py",
@@ -1230,13 +1258,20 @@ def _include_closure(
     return includes_by_source
 
 
-def _tools_for_recipe(recipe: list[str]) -> list[str]:
-    joined = " ".join(
+def _recipe_tokens(recipe: list[str]) -> list[str]:
+    return [
         token
         for token in "\n".join(recipe).split()
         if token != "\\"
-    )
+    ]
+
+
+def _tools_for_recipe(recipe: list[str]) -> list[str]:
+    tokens = _recipe_tokens(recipe)
+    joined = " ".join(tokens)
     tools = []
+    if "--write-profile-input-manifest" in tokens:
+        tools.append("cupid_object")
     for marker, tool in TOOL_MARKERS:
         if marker in joined and tool not in tools:
             tools.append(tool)
@@ -1290,6 +1325,12 @@ def _operation_for_recipe(
     inputs: list[str],
 ) -> str:
     joined = " ".join(recipe).lower()
+    if (
+        "cupid_object" in tools
+        and "--write-profile-input-manifest"
+        in (token.lower() for token in _recipe_tokens(recipe))
+    ):
+        return "generate_profile_manifest"
     if "hostbuild.py build-iso " in joined:
         return "package_iso9660_image"
     if "hostbuild.py image " in joined:
@@ -3633,6 +3674,10 @@ def build_audit(
         for directory, supplemental_target in (supplemental_builds or [])
     ]
     models = [root_model, *supplemental_models]
+    _validate_cupidobj_profile_manifest_delivery(
+        root,
+        root_model.transforms,
+    )
     _validate_cupidc_kernel_compile_make_binding(
         root,
         make,
@@ -5529,6 +5574,676 @@ def _validate_native_user_tools_transform(
             "native Windows user-tool prerequisite differs from its checked "
             "recursive build contract"
         )
+
+
+def _read_cupidc_kernel_wrapper(root: Path) -> tuple[str, ast.Module]:
+    wrapper = root / "tools" / "cupidc_kernel_compile.py"
+    try:
+        source = wrapper.read_text(encoding="utf-8")
+        return source, ast.parse(source, filename=str(wrapper))
+    except (OSError, SyntaxError) as error:
+        raise AuditError(
+            f"CupidObj profile manifest wrapper is unavailable: {error}"
+        ) from error
+
+
+def _cupidobj_profile_argument_sets(
+    tree: ast.Module,
+) -> dict[str, tuple[str, ...]]:
+    profile_names = (
+        "DOOM_COMPAT_I386_ARGUMENTS",
+        "DOOM_TREE_I386_ARGUMENTS",
+    )
+    arguments: dict[str, tuple[str, ...]] = {}
+    for statement in tree.body:
+        if not isinstance(statement, ast.Assign) or len(statement.targets) != 1:
+            continue
+        target = statement.targets[0]
+        if not isinstance(target, ast.Name) or target.id not in profile_names:
+            continue
+        if target.id in arguments or not isinstance(statement.value, ast.Tuple):
+            raise AuditError(
+                "CupidObj profile manifest wrapper profile declarations "
+                f"changed: {target.id} is not one literal tuple"
+            )
+        expanded: list[str] = []
+        for item in statement.value.elts:
+            if isinstance(item, ast.Constant) and isinstance(item.value, str):
+                expanded.append(item.value)
+                continue
+            if (
+                isinstance(item, ast.Starred)
+                and isinstance(item.value, ast.Name)
+                and item.value.id in arguments
+            ):
+                expanded.extend(arguments[item.value.id])
+                continue
+            raise AuditError(
+                "CupidObj profile manifest wrapper profile declarations "
+                f"changed: {target.id} contains a dynamic argument"
+            )
+        arguments[target.id] = tuple(expanded)
+    missing = [name for name in profile_names if name not in arguments]
+    if missing:
+        raise AuditError(
+            "CupidObj profile manifest wrapper profile declarations "
+            f"changed: missing {missing!r}"
+        )
+    return arguments
+
+
+def _cupidobj_profile_include_roots(
+    root: Path,
+    tree: ast.Module,
+) -> tuple[Path, ...]:
+    try:
+        resolved_root = root.resolve(strict=True)
+    except OSError as error:
+        raise AuditError(
+            f"CupidObj profile manifest root is unavailable: {error}"
+        ) from error
+    include_names = set()
+    for profile, arguments in _cupidobj_profile_argument_sets(tree).items():
+        for index, argument in enumerate(arguments):
+            if argument != "-I":
+                continue
+            if index + 1 == len(arguments):
+                raise AuditError(
+                    "CupidObj profile manifest wrapper profile declarations "
+                    f"changed: {profile} ends with -I"
+                )
+            include_name = arguments[index + 1]
+            normalized = posixpath.normpath(include_name)
+            if (
+                not include_name.startswith("/")
+                or "\\" in include_name
+                or normalized != include_name
+                or include_name == "/"
+            ):
+                raise AuditError(
+                    "CupidObj profile manifest wrapper has an invalid "
+                    f"include root: {include_name!r}"
+                )
+            include_names.add(include_name[1:])
+
+    include_roots = []
+    for include_name in sorted(include_names):
+        include_root = resolved_root / include_name
+        try:
+            resolved_include = include_root.resolve(strict=True)
+            resolved_include.relative_to(resolved_root)
+        except (OSError, ValueError) as error:
+            raise AuditError(
+                "CupidObj profile manifest include root is unavailable: "
+                f"/{include_name}"
+            ) from error
+        if not resolved_include.is_dir():
+            raise AuditError(
+                "CupidObj profile manifest include root is not a directory: "
+                f"/{include_name}"
+            )
+        include_roots.append(resolved_include)
+    return tuple(include_roots)
+
+
+def _path_is_link_or_junction(path: Path) -> bool:
+    if path.is_symlink():
+        return True
+    isjunction = getattr(os.path, "isjunction", None)
+    return bool(isjunction is not None and isjunction(path))
+
+
+def _cupidobj_profile_manifest_expected_inputs(root: Path) -> list[str]:
+    _source, tree = _read_cupidc_kernel_wrapper(root)
+    resolved_root = root.resolve(strict=True)
+    profile_inputs = set()
+    try:
+        for include_root in _cupidobj_profile_include_roots(root, tree):
+            for path in include_root.rglob("*"):
+                relative_parts = path.relative_to(include_root).parts
+                if any(part.startswith(".") for part in relative_parts):
+                    continue
+                if _path_is_link_or_junction(path):
+                    raise AuditError(
+                        "CupidObj profile manifest input may not be a link "
+                        f"or junction: {path.relative_to(resolved_root).as_posix()}"
+                    )
+                if not path.is_file() or path.suffix not in {".h", ".inc"}:
+                    continue
+                try:
+                    relative = path.resolve(strict=True).relative_to(
+                        resolved_root
+                    )
+                except (OSError, ValueError) as error:
+                    raise AuditError(
+                        "CupidObj profile manifest input escapes the "
+                        f"repository: {path}"
+                    ) from error
+                profile_inputs.add(relative.as_posix())
+    except OSError as error:
+        raise AuditError(
+            f"CupidObj profile manifest inputs are unavailable: {error}"
+        ) from error
+    return [
+        *sorted(profile_inputs),
+        *_CUPIDOBJ_PROFILE_MANIFEST_CONTROL_INPUTS,
+    ]
+
+
+def _normalized_make_lines(source: str) -> list[str]:
+    logical_source = re.sub(r"\\\r?\n[ \t]*", " ", source)
+    return [
+        " ".join(line.split())
+        for line in logical_source.splitlines()
+        if line.strip()
+    ]
+
+
+def _is_cupidobj_profile_manifest_production_root(root: Path) -> bool:
+    return (
+        all(
+            (root / relative).is_file()
+            for relative in _CUPIDOBJ_PROFILE_MANIFEST_PRODUCTION_FILES
+        )
+        and all(
+            (root / relative).is_dir()
+            for relative in _CUPIDOBJ_PROFILE_MANIFEST_PRODUCTION_DIRECTORIES
+        )
+    )
+
+
+def _validate_cupidobj_profile_manifest_make_source(source: str) -> None:
+    lines = _normalized_make_lines(source)
+    required_lines = (
+        "DOOM_CUPIDC_INPUT_MANIFEST := "
+        "build/bootstrap/doom-cupidc-inputs.json",
+        "$(DOOM_CUPIDC_INPUT_MANIFEST): FORCE $(DOOM_CUPIDC_HEADERS) "
+        "$(CHECKED_SEED_INPUTS) tools/cupidc_kernel_compile.py",
+        "$(PYTHON) tools/cupidc_kernel_compile.py --root . "
+        "--manifest $(BOOTSTRAP_SEED_MANIFEST) "
+        "--write-profile-input-manifest $@",
+    )
+    changed = [line for line in required_lines if lines.count(line) != 1]
+    if changed:
+        raise AuditError(
+            "CupidObj profile manifest Make contract changed; expected one "
+            f"copy of each line: {changed!r}"
+        )
+
+
+def _cupidobj_wrapper_structure_error(detail: str) -> None:
+    raise AuditError(
+        f"CupidObj profile manifest wrapper structure changed: {detail}"
+    )
+
+
+def _single_cupidobj_wrapper_node(
+    publisher: ast.AST,
+    node_type: type[ast.AST],
+    source: str,
+    description: str,
+) -> ast.AST:
+    matches = [
+        node
+        for node in ast.walk(publisher)
+        if isinstance(node, node_type) and ast.unparse(node) == source
+    ]
+    if len(matches) != 1:
+        _cupidobj_wrapper_structure_error(
+            f"expected one {description}, found {len(matches)}"
+        )
+    return matches[0]
+
+
+def _cupidobj_wrapper_nodes(
+    publisher: ast.AST,
+    node_type: type[ast.AST],
+    source: str,
+    description: str,
+    count: int,
+) -> list[ast.AST]:
+    matches = [
+        node
+        for node in ast.walk(publisher)
+        if isinstance(node, node_type) and ast.unparse(node) == source
+    ]
+    if len(matches) != count:
+        _cupidobj_wrapper_structure_error(
+            f"expected {count} {description}, found {len(matches)}"
+        )
+    return sorted(
+        matches,
+        key=lambda node: (node.lineno, node.col_offset),
+    )
+
+
+def _single_cupidobj_wrapper_if(
+    publisher: ast.AST,
+    condition: str,
+    description: str,
+) -> ast.If:
+    matches = [
+        node
+        for node in ast.walk(publisher)
+        if isinstance(node, ast.If) and ast.unparse(node.test) == condition
+    ]
+    if len(matches) != 1:
+        _cupidobj_wrapper_structure_error(
+            f"expected one {description}, found {len(matches)}"
+        )
+    return matches[0]
+
+
+def _ast_contains(parent: ast.AST, child: ast.AST) -> bool:
+    return any(node is child for node in ast.walk(parent))
+
+
+def _ast_statements_contain(
+    statements: list[ast.stmt],
+    child: ast.AST,
+) -> bool:
+    return any(_ast_contains(statement, child) for statement in statements)
+
+
+def _ast_node_is_statically_dead(
+    node: ast.AST,
+    publisher: ast.AST,
+    parents: dict[ast.AST, ast.AST],
+) -> bool:
+    current = node
+    while current is not publisher and current in parents:
+        parent = parents[current]
+        if isinstance(
+            parent,
+            (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda),
+        ) and parent is not publisher:
+            return True
+        if isinstance(parent, ast.If) and isinstance(
+            parent.test,
+            ast.Constant,
+        ) and isinstance(parent.test.value, bool):
+            if (
+                not parent.test.value
+                and current in parent.body
+                or parent.test.value
+                and current in parent.orelse
+            ):
+                return True
+        if (
+            isinstance(parent, ast.While)
+            and isinstance(parent.test, ast.Constant)
+            and parent.test.value is False
+            and current in parent.body
+        ):
+            return True
+        current = parent
+    return False
+
+
+def _if_raises_kernel_compile_error(statement: ast.AST) -> bool:
+    if not isinstance(statement, ast.If) or len(statement.body) != 1:
+        return False
+    raised = statement.body[0]
+    return (
+        isinstance(raised, ast.Raise)
+        and isinstance(raised.exc, ast.Call)
+        and isinstance(raised.exc.func, ast.Name)
+        and raised.exc.func.id == "KernelCompileError"
+    )
+
+
+def _if_returns_false(statement: ast.AST) -> bool:
+    if not isinstance(statement, ast.If) or len(statement.body) != 1:
+        return False
+    returned = statement.body[0]
+    return (
+        isinstance(returned, ast.Return)
+        and isinstance(returned.value, ast.Constant)
+        and returned.value.value is False
+    )
+
+
+def _validate_cupidobj_profile_manifest_wrapper(root: Path) -> None:
+    _source, tree = _read_cupidc_kernel_wrapper(root)
+    functions = [
+        node
+        for node in tree.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and node.name == "write_profile_input_manifest"
+    ]
+    if len(functions) != 1:
+        _cupidobj_wrapper_structure_error(
+            f"expected one publisher, found {len(functions)}"
+        )
+    publisher = functions[0]
+
+    output_directory = _single_cupidobj_wrapper_node(
+        publisher,
+        ast.Assign,
+        "output_directory = _capture_profile_directory(resolved.parent, "
+        "'profile output directory')",
+        "output-directory capture",
+    )
+    publication_lock = _single_cupidobj_wrapper_node(
+        publisher,
+        ast.Assign,
+        "publication_lock = _acquire_profile_manifest_lock(resolved)",
+        "publication lock",
+    )
+    checked_seed = _single_cupidobj_wrapper_node(
+        publisher,
+        ast.Assign,
+        "checked_seed = verify_seed_inputs(manifest_path)",
+        "initial checked-seed verification",
+    )
+    capture = _single_cupidobj_wrapper_node(
+        publisher,
+        ast.Assign,
+        "capture = _capture_profile_inputs(root)",
+        "profile-input capture",
+    )
+    document = _single_cupidobj_wrapper_node(
+        publisher,
+        ast.Call,
+        "_profile_input_document(root, capture)",
+        "Python oracle document",
+    )
+    frozen_seed = _single_cupidobj_wrapper_node(
+        publisher,
+        ast.Assign,
+        "frozen_seed = freeze_seed_inputs(manifest_path, private / "
+        "'checked-seed')",
+        "private checked-seed freeze",
+    )
+    frozen_seed_check = _single_cupidobj_wrapper_if(
+        publisher,
+        "frozen_seed.manifest_sha256 != checked_seed.manifest_sha256",
+        "frozen-seed identity gate",
+    )
+    snapshot = _single_cupidobj_wrapper_node(
+        publisher,
+        ast.Assign,
+        "snapshot_payload = _profile_snapshot_bytes(root, capture)",
+        "profile snapshot",
+    )
+    snapshot_capture = _single_cupidobj_wrapper_node(
+        publisher,
+        ast.Assign,
+        "snapshot_capture = _capture_profile_file(snapshot, 'CupidObj "
+        "profile snapshot')",
+        "profile-snapshot capture",
+    )
+    arguments = _single_cupidobj_wrapper_node(
+        publisher,
+        ast.AnnAssign,
+        "arguments: tuple[str | Path, ...] = ('profile-manifest', "
+        "snapshot.resolve(), '-o', candidate.resolve(strict=False))",
+        "CupidObj profile-manifest argument vector",
+    )
+    seed_run = _single_cupidobj_wrapper_node(
+        publisher,
+        ast.Assign,
+        "result = run_seed_tool(manifest_path, private, 'cupidobj', "
+        "arguments, timeout=60, frozen_seed=frozen_seed)",
+        "checked CupidObj invocation",
+    )
+    snapshot_recheck = _single_cupidobj_wrapper_node(
+        publisher,
+        ast.Expr,
+        "_require_profile_file_unchanged(snapshot_capture, 'CupidObj "
+        "profile snapshot')",
+        "profile-snapshot recheck",
+    )
+    checked_output = _single_cupidobj_wrapper_node(
+        publisher,
+        ast.Assign,
+        "checked_output = _capture_profile_file(candidate, 'checked "
+        "CupidObj profile manifest output')",
+        "CupidObj candidate capture",
+    )
+    candidate_capture = _single_cupidobj_wrapper_node(
+        publisher,
+        ast.Assign,
+        "candidate_capture = checked_output",
+        "verified candidate selection",
+    )
+    parity_gate = _single_cupidobj_wrapper_if(
+        publisher,
+        "candidate_capture.payload != oracle_payload",
+        "CupidObj/Python parity gate",
+    )
+    live_seed = _single_cupidobj_wrapper_node(
+        publisher,
+        ast.Assign,
+        "live_seed = verify_seed_inputs(manifest_path)",
+        "live checked-seed verification",
+    )
+    live_seed_check = _single_cupidobj_wrapper_if(
+        publisher,
+        "live_seed.manifest_sha256 != checked_seed.manifest_sha256",
+        "live checked-seed identity gate",
+    )
+    profile_recheck = _single_cupidobj_wrapper_node(
+        publisher,
+        ast.Expr,
+        "_require_profile_inputs_unchanged(root, capture)",
+        "live profile-input recheck",
+    )
+    directory_rechecks = _cupidobj_wrapper_nodes(
+        publisher,
+        ast.Expr,
+        "_require_profile_directory_unchanged(output_directory)",
+        "output-directory rechecks",
+        3,
+    )
+    output_recheck = _single_cupidobj_wrapper_node(
+        publisher,
+        ast.Expr,
+        "_require_profile_output_unchanged(resolved, initial_output)",
+        "live output recheck",
+    )
+    unchanged_gate = _single_cupidobj_wrapper_if(
+        publisher,
+        "initial_output is not None and initial_output.payload == "
+        "candidate_capture.payload",
+        "unchanged-output gate",
+    )
+    publication = _single_cupidobj_wrapper_node(
+        publisher,
+        ast.Expr,
+        "_replace_profile_candidate_with_retry(candidate_capture, resolved, "
+        "initial_output, output_directory)",
+        "checked candidate publication",
+    )
+    release = _single_cupidobj_wrapper_node(
+        publisher,
+        ast.Expr,
+        "_release_profile_manifest_lock(publication_lock)",
+        "publication-lock release",
+    )
+    checked_branch = _single_cupidobj_wrapper_if(
+        publisher,
+        "manifest_path is not None",
+        "checked-seed branch",
+    )
+    manifest_branch = _single_cupidobj_wrapper_if(
+        publisher,
+        "manifest_path is None",
+        "checked CupidObj branch",
+    )
+
+    parents = {
+        child: parent
+        for parent in ast.walk(publisher)
+        for child in ast.iter_child_nodes(parent)
+    }
+    ordered_nodes = (
+        output_directory,
+        publication_lock,
+        directory_rechecks[0],
+        checked_seed,
+        capture,
+        document,
+        frozen_seed,
+        frozen_seed_check,
+        snapshot,
+        snapshot_capture,
+        arguments,
+        seed_run,
+        directory_rechecks[1],
+        snapshot_recheck,
+        checked_output,
+        candidate_capture,
+        parity_gate,
+        live_seed,
+        live_seed_check,
+        profile_recheck,
+        directory_rechecks[2],
+        output_recheck,
+        unchanged_gate,
+        publication,
+        release,
+    )
+    if any(
+        _ast_node_is_statically_dead(node, publisher, parents)
+        for node in ordered_nodes
+    ):
+        _cupidobj_wrapper_structure_error(
+            "a required safety step is in statically dead code"
+        )
+    locations = [
+        (node.lineno, node.col_offset) for node in ordered_nodes
+    ]
+    if locations != sorted(locations) or len(set(locations)) != len(locations):
+        _cupidobj_wrapper_structure_error(
+            "the safety steps are not in their checked order"
+        )
+
+    outer_tries = [
+        statement
+        for statement in publisher.body
+        if isinstance(statement, ast.Try)
+        and _ast_statements_contain(statement.finalbody, release)
+    ]
+    temporary_scopes = [
+        node
+        for node in ast.walk(publisher)
+        if isinstance(node, ast.With)
+        and any(
+            ast.unparse(item.context_expr)
+            == "tempfile.TemporaryDirectory(prefix=f'.{resolved.name}.profile-', "
+            "dir=resolved.parent)"
+            for item in node.items
+        )
+    ]
+    if len(outer_tries) != 1 or len(temporary_scopes) != 1:
+        _cupidobj_wrapper_structure_error(
+            "the publication try/finally or private workspace changed"
+        )
+    outer_try = outer_tries[0]
+    temporary_scope = temporary_scopes[0]
+    if (
+        output_directory not in publisher.body
+        or publication_lock not in publisher.body
+        or directory_rechecks[0] not in outer_try.body
+        or checked_branch not in outer_try.body
+        or temporary_scope not in outer_try.body
+        or release not in outer_try.finalbody
+        or not _ast_statements_contain(checked_branch.body, checked_seed)
+        or manifest_branch not in temporary_scope.body
+        or not _ast_statements_contain(
+            manifest_branch.orelse,
+            seed_run,
+        )
+        or not all(
+            _ast_statements_contain(manifest_branch.orelse, node)
+            for node in (
+                frozen_seed,
+                frozen_seed_check,
+                snapshot,
+                snapshot_capture,
+                arguments,
+                directory_rechecks[1],
+                snapshot_recheck,
+                checked_output,
+                candidate_capture,
+                parity_gate,
+                live_seed,
+                live_seed_check,
+            )
+        )
+        or not all(
+            node in temporary_scope.body
+            for node in (
+                profile_recheck,
+                directory_rechecks[2],
+                output_recheck,
+                unchanged_gate,
+                publication,
+            )
+        )
+    ):
+        _cupidobj_wrapper_structure_error(
+            "a safety step moved outside its checked control-flow scope"
+        )
+    if not all(
+        _if_raises_kernel_compile_error(node)
+        for node in (frozen_seed_check, parity_gate, live_seed_check)
+    ) or not _if_returns_false(unchanged_gate):
+        _cupidobj_wrapper_structure_error(
+            "a safety gate no longer stops or preserves publication"
+        )
+
+
+def _validate_cupidobj_profile_manifest_delivery(
+    root: Path,
+    transforms: list[dict[str, object]],
+) -> None:
+    makefile = root / "Makefile"
+    try:
+        make_source = makefile.read_text(encoding="utf-8")
+    except OSError as error:
+        raise AuditError(f"could not read root Makefile: {error}") from error
+    deliveries = [
+        transform
+        for transform in transforms
+        if transform.get("output") == _CUPIDOBJ_PROFILE_MANIFEST_OUTPUT
+    ]
+    if not deliveries and not _is_cupidobj_profile_manifest_production_root(
+        root
+    ):
+        return
+
+    _validate_cupidobj_profile_manifest_make_source(make_source)
+    if len(deliveries) != 1:
+        raise AuditError(
+            "CupidObj profile manifest delivery must appear exactly once; "
+            f"found {len(deliveries)}"
+        )
+    delivery = deliveries[0]
+    if (
+        delivery.get("operation") != "generate_profile_manifest"
+        or delivery.get("tools") != ["cupid_object", "host_python"]
+        or delivery.get("recipe") != _CUPIDOBJ_PROFILE_MANIFEST_RECIPE
+    ):
+        raise AuditError(
+            "CupidObj profile manifest delivery differs from its checked "
+            "operation, tools, or recipe"
+        )
+    expected_inputs = _cupidobj_profile_manifest_expected_inputs(root)
+    inputs = delivery.get("inputs")
+    if inputs != expected_inputs:
+        actual_inputs = inputs if isinstance(inputs, list) else []
+        missing = [path for path in expected_inputs if path not in actual_inputs]
+        unexpected = [
+            path for path in actual_inputs if path not in expected_inputs
+        ]
+        raise AuditError(
+            "CupidObj profile manifest inputs changed; "
+            f"missing={missing!r}, unexpected={unexpected!r}, "
+            f"order_changed={not missing and not unexpected}"
+        )
+    _validate_cupidobj_profile_manifest_wrapper(root)
 
 
 _CUPIDOBJ_INSTALL_SOURCE_DELIVERIES = {

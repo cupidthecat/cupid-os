@@ -3250,6 +3250,334 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ],
         )
 
+    def test_cupidobj_profile_manifest_is_a_checked_generator(self):
+        module = _load_audit_module()
+        target = module._CUPIDOBJ_PROFILE_MANIFEST_OUTPUT
+        expected_inputs = module._cupidobj_profile_manifest_expected_inputs(
+            REPO_ROOT
+        )
+        delivery = module._build_transforms(
+            ".",
+            {target},
+            {
+                target: module.MakeRule(
+                    prerequisites=expected_inputs,
+                    recipe=list(module._CUPIDOBJ_PROFILE_MANIFEST_RECIPE),
+                )
+            },
+        )[0]
+
+        self.assertEqual(delivery["operation"], "generate_profile_manifest")
+        self.assertEqual(delivery["tools"], ["cupid_object", "host_python"])
+        self.assertEqual(delivery["inputs"], expected_inputs)
+        module._validate_cupidobj_profile_manifest_delivery(
+            REPO_ROOT,
+            [delivery],
+        )
+
+        seed_inputs = {
+            "Makefile",
+            "tools/bootstrap_toolchain.py",
+            "bootstrap/seeds/i386-linux/manifest.json",
+            "bootstrap/seeds/i386-linux/cupidasm.elf",
+            "bootstrap/seeds/i386-linux/cupidc.elf",
+            "bootstrap/seeds/i386-linux/cupiddis.elf",
+            "bootstrap/seeds/i386-linux/cupidld.elf",
+            "bootstrap/seeds/i386-linux/cupidobj.elf",
+        }
+        self.assertTrue(seed_inputs.issubset(delivery["inputs"]))
+
+        changes = {
+            "missing delivery": [],
+            "wrong output": [{**delivery, "output": "build/profile.json"}],
+            "wrong operation": [
+                {**delivery, "operation": "host_orchestration"}
+            ],
+            "wrong tools": [{**delivery, "tools": ["host_python"]}],
+            "changed recipe": [
+                {
+                    **delivery,
+                    "recipe": [
+                        "$(PYTHON) tools/cupidc_kernel_compile.py --root . \\",
+                        "--write-profile-input-manifest $@",
+                    ],
+                }
+            ],
+            "missing seed": [
+                {
+                    **delivery,
+                    "inputs": [
+                        path
+                        for path in delivery["inputs"]
+                        if path
+                        != "bootstrap/seeds/i386-linux/cupidobj.elf"
+                    ],
+                }
+            ],
+            "missing profile input": [
+                {
+                    **delivery,
+                    "inputs": [
+                        path
+                        for path in delivery["inputs"]
+                        if path != "kernel/doom/src/doom.h"
+                    ],
+                }
+            ],
+            "unexpected input": [
+                {
+                    **delivery,
+                    "inputs": [*delivery["inputs"], "build/untracked.input"],
+                }
+            ],
+        }
+        for name, changed in changes.items():
+            with self.subTest(name=name), self.assertRaisesRegex(
+                module.AuditError,
+                r"CupidObj profile manifest",
+            ):
+                module._validate_cupidobj_profile_manifest_delivery(
+                    REPO_ROOT,
+                    changed,
+                )
+
+        near_match = module._build_transforms(
+            ".",
+            {target},
+            {
+                target: module.MakeRule(
+                    prerequisites=expected_inputs,
+                    recipe=[
+                        "$(PYTHON) tools/cupidc_kernel_compile.py --root . "
+                        "--write-profile-input-manifests $@"
+                    ],
+                )
+            },
+        )[0]
+        self.assertNotEqual(
+            near_match["operation"],
+            "generate_profile_manifest",
+        )
+        self.assertEqual(near_match["operation"], "host_orchestration")
+        self.assertEqual(near_match["tools"], ["host_python"])
+
+    def test_cupidobj_profile_manifest_tracks_nested_profile_headers(self):
+        module = _load_audit_module()
+        wrapper_source = (
+            REPO_ROOT / "tools" / "cupidc_kernel_compile.py"
+        ).read_text(encoding="utf-8")
+        current_inputs = module._cupidobj_profile_manifest_expected_inputs(
+            REPO_ROOT
+        )
+
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            for relative in current_inputs:
+                if Path(relative).suffix in {".h", ".inc"}:
+                    (root / relative).parent.mkdir(parents=True, exist_ok=True)
+            _write(
+                root / "tools" / "cupidc_kernel_compile.py",
+                wrapper_source,
+            )
+            _write(root / "toolchain" / "cupidobj.cc", "// fixture\n")
+            nested_header = (
+                "kernel/doom/src/include_stubs/sys/nested/profile.h"
+            )
+            _write(root / nested_header, "#define PROFILE_NESTED 1\n")
+            _write(
+                root / "Makefile",
+                """
+                CUPIDC_KERNEL_COMPILE := $(PYTHON) tools/cupidc_kernel_compile.py --root .
+                KERNEL=kernel/kernel.bin
+                OS_IMAGE=cupidos.img
+                DOOM_CUPIDC_INPUT_MANIFEST := build/bootstrap/doom-cupidc-inputs.json
+                $(DOOM_CUPIDC_INPUT_MANIFEST): FORCE $(DOOM_CUPIDC_HEADERS) \
+                    $(CHECKED_SEED_INPUTS) tools/cupidc_kernel_compile.py
+                \t$(PYTHON) tools/cupidc_kernel_compile.py --root . \
+                \t\t--manifest $(BOOTSTRAP_SEED_MANIFEST) \
+                \t\t--write-profile-input-manifest $@
+                """,
+            )
+
+            expected_inputs = (
+                module._cupidobj_profile_manifest_expected_inputs(root)
+            )
+            self.assertIn(nested_header, expected_inputs)
+            delivery = {
+                "output": module._CUPIDOBJ_PROFILE_MANIFEST_OUTPUT,
+                "operation": "generate_profile_manifest",
+                "tools": ["cupid_object", "host_python"],
+                "recipe": list(module._CUPIDOBJ_PROFILE_MANIFEST_RECIPE),
+                "inputs": [
+                    path for path in expected_inputs if path != nested_header
+                ],
+            }
+            with self.assertRaisesRegex(
+                module.AuditError,
+                rf"CupidObj profile manifest inputs changed.*{re.escape(nested_header)}",
+            ):
+                module._validate_cupidobj_profile_manifest_delivery(
+                    root,
+                    [delivery],
+                )
+
+    def test_cupidobj_profile_manifest_cannot_disappear_from_production_root(
+        self,
+    ):
+        module = _load_audit_module()
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _write(root / "Makefile", ".PHONY: all\nall:\n")
+            module._validate_cupidobj_profile_manifest_delivery(root, [])
+
+            _write(
+                root / "Makefile",
+                """
+                CUPIDC_KERNEL_COMPILE := $(PYTHON) tools/cupidc_kernel_compile.py --root .
+                KERNEL=kernel/renamed.bin
+                OS_IMAGE=cupidos.img
+                .PHONY: all
+                all:
+                """,
+            )
+            _write(
+                root / "tools" / "cupidc_kernel_compile.py",
+                "# production wrapper fixture\n",
+            )
+            _write(root / "toolchain" / "cupidobj.cc", "// fixture\n")
+            _write(root / "CONTEXT.md", "# Cupid OS\n")
+            _write(
+                root / "docs" / "bootstrap" / "README.md",
+                "# Bootstrap\n",
+            )
+            (root / "kernel" / "doom" / "src").mkdir(
+                parents=True,
+                exist_ok=True,
+            )
+
+            with self.assertRaisesRegex(
+                module.AuditError,
+                r"CupidObj profile manifest Make contract changed",
+            ):
+                module._validate_cupidobj_profile_manifest_delivery(root, [])
+
+    def test_cupidobj_profile_manifest_make_contract_rejects_drift(self):
+        module = _load_audit_module()
+        source = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
+        mutations = {
+            "renamed output": (
+                "DOOM_CUPIDC_INPUT_MANIFEST := "
+                "build/bootstrap/doom-cupidc-inputs.json",
+                "DOOM_CUPIDC_INPUT_MANIFEST := build/bootstrap/doom-inputs.json",
+            ),
+            "unchecked prerequisites": (
+                "$(CHECKED_SEED_INPUTS) tools/cupidc_kernel_compile.py",
+                "tools/cupidc_kernel_compile.py",
+            ),
+            "unpinned seed manifest": (
+                "$(PYTHON) tools/cupidc_kernel_compile.py --root . \\\n"
+                "\t\t--manifest $(BOOTSTRAP_SEED_MANIFEST) \\",
+                "$(PYTHON) tools/cupidc_kernel_compile.py --root . \\\n"
+                "\t\t--manifest bootstrap/unchecked.json \\",
+            ),
+            "different publisher mode": (
+                "--write-profile-input-manifest $@",
+                "--write-input-manifest $@",
+            ),
+        }
+        module._validate_cupidobj_profile_manifest_make_source(source)
+        for name, (old, new) in mutations.items():
+            with self.subTest(name=name):
+                self.assertEqual(source.count(old), 1)
+                changed = source.replace(old, new, 1)
+                with self.assertRaisesRegex(
+                    module.AuditError,
+                    r"CupidObj profile manifest Make contract changed",
+                ):
+                    module._validate_cupidobj_profile_manifest_make_source(
+                        changed
+                    )
+
+    def test_cupidobj_profile_manifest_wrapper_rejects_drift(self):
+        module = _load_audit_module()
+        source = (
+            REPO_ROOT / "tools" / "cupidc_kernel_compile.py"
+        ).read_text(encoding="utf-8")
+        start = source.index("def write_profile_input_manifest(")
+        end = source.index("\ndef ", start + 4)
+        publisher = source[start:end]
+        mutations = {
+            "no publication lock": (
+                "publication_lock = _acquire_profile_manifest_lock(resolved)",
+                "publication_lock = None",
+            ),
+            "unchecked seed": (
+                "checked_seed = verify_seed_inputs(manifest_path)",
+                "checked_seed = load_seed_inputs(manifest_path)",
+            ),
+            "live seed not rechecked": (
+                "live_seed = verify_seed_inputs(manifest_path)",
+                "live_seed = checked_seed",
+            ),
+            "wrong checked tool": ('"cupidobj",', '"cupidasm",'),
+            "no parity gate": (
+                "candidate_capture.payload != oracle_payload",
+                "candidate_capture.payload == oracle_payload",
+            ),
+            "live profile not rechecked": (
+                "_require_profile_inputs_unchanged(root, capture)",
+                "pass  # profile inputs were not rechecked",
+            ),
+            "output not rechecked": (
+                "_require_profile_output_unchanged(resolved, initial_output)",
+                "pass  # output was not rechecked",
+            ),
+            "non-atomic publication": (
+                "_replace_profile_candidate_with_retry(",
+                "_replace_profile_candidate_without_checks(",
+            ),
+            "reordered live checks": (
+                "            _require_profile_inputs_unchanged(root, capture)\n"
+                "            _require_profile_directory_unchanged(output_directory)\n"
+                "            _require_profile_output_unchanged(resolved, initial_output)",
+                "            _require_profile_output_unchanged(resolved, initial_output)\n"
+                "            _require_profile_directory_unchanged(output_directory)\n"
+                "            _require_profile_inputs_unchanged(root, capture)",
+            ),
+            "late post-tool directory recheck": (
+                "                _require_profile_directory_unchanged(output_directory)\n"
+                "                _require_profile_file_unchanged(\n"
+                "                    snapshot_capture,\n"
+                '                    "CupidObj profile snapshot",\n'
+                "                )",
+                "                _require_profile_file_unchanged(\n"
+                "                    snapshot_capture,\n"
+                '                    "CupidObj profile snapshot",\n'
+                "                )\n"
+                "                _require_profile_directory_unchanged(output_directory)",
+            ),
+            "dead checked-tool marker": (
+                "                    result = run_seed_tool(",
+                '                    "result = run_seed_tool("\n'
+                "                    result = run_unchecked_tool(",
+            ),
+        }
+        module._validate_cupidobj_profile_manifest_wrapper(REPO_ROOT)
+        for name, (old, new) in mutations.items():
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as td:
+                self.assertEqual(publisher.count(old), 1)
+                changed_publisher = publisher.replace(old, new, 1)
+                root = Path(td)
+                _write(
+                    root / "tools" / "cupidc_kernel_compile.py",
+                    source[:start] + changed_publisher + source[end:],
+                )
+                with self.assertRaisesRegex(
+                    module.AuditError,
+                    r"CupidObj profile manifest wrapper .* changed",
+                ):
+                    module._validate_cupidobj_profile_manifest_wrapper(root)
+
     def test_cupidobj_install_source_is_a_checked_delivery_generator(self):
         module = _load_audit_module()
         audit = json.loads(ACTIVE_BUILD_MANIFEST.read_text(encoding="utf-8"))
@@ -5537,9 +5865,23 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "tools/hostbuild.py",
             },
         )
+        profile_manifest_transform = next(
+            transform
+            for transform in audit["build"]["transforms"]
+            if transform["output"]
+            == "build/bootstrap/doom-cupidc-inputs.json"
+        )
+        self.assertEqual(
+            profile_manifest_transform["operation"],
+            "generate_profile_manifest",
+        )
+        self.assertEqual(
+            profile_manifest_transform["tools"],
+            ["cupid_object", "host_python"],
+        )
         expected_counts = {
             "cupid_assembler": 5,
-            "cupid_object": 188,
+            "cupid_object": 189,
             "cupid_linker": 2,
             "cupid_disassembler": 1,
         }
@@ -5578,13 +5920,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             for transform in audit["build"]["transforms"]
             if not cupid_tools.intersection(transform["tools"])
         )
-        self.assertEqual(len(cupid_owned), 437)
-        self.assertEqual(
-            python_only,
-            [
-                "build/bootstrap/doom-cupidc-inputs.json",
-            ],
-        )
+        self.assertEqual(len(cupid_owned), 438)
+        self.assertEqual(python_only, [])
         self.assertFalse(
             any(
                 transform["operation"] == "recursive_make"

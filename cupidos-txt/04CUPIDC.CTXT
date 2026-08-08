@@ -250,7 +250,7 @@ execution. The contract inventory now has 45 inputs, including the Toolchain
 Makefile and both Python modules that construct or verify the cohort. The
 manifest digest, decoded data, schema checks, and build plan
 come from one captured byte sequence. The 438-transform normal image has no
-host C or recursive Make transform. Its five CupidASM, 188 CupidObj, two
+host C or recursive Make transform. Its five CupidASM, 189 CupidObj, two
 CupidLD, and one CupidDis commands run from the checked seed.
 
 The normal build compiles kernel/gfx/jpeg.cc and
@@ -855,10 +855,15 @@ exact bytes of all 291 captured headers. It checks portable path identity,
 computes SHA-256 internally, sorts the logical sets, and writes the canonical
 69,366-byte JSON. The source-current five-tool fixed point passes a 5/15/13
 behavior matrix with padding, repeated-block, unsafe-path, case-collision,
-rollback, and recovery coverage. The checked seed carries this command, but
-the normal recipe has not adopted it, so Python remains the active manifest
-author. ADR 0242 records the source boundary, and ADR 0243 records seed
-carriage.
+rollback, and recovery coverage. The checked seed carries this command, and
+the normal recipe passes that seed manifest. The wrapper derives the
+snapshot and independent Python oracle from one stable capture, runs CupidObj
+from the exact frozen seed, and requires byte parity. Under an adjacent
+no-follow lock, it rechecks the seed, live inputs, candidate, output directory,
+and existing output. Identical bytes retain their timestamp, while changed
+bytes publish atomically. CupidObj authors the production bytes, and Python
+retains the host transaction. ADR 0242 records the source boundary, ADR 0243
+records seed carriage, and ADR 0244 records production ownership.
 
 The harness freezes the verified manifest and binaries and copies the exact
 bytes of 41 current inputs, including link.ld, into a private compiler root.

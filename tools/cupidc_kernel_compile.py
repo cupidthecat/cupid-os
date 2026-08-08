@@ -9,11 +9,13 @@ import hashlib
 import json
 import os
 import shutil
+import stat
 import struct
 import subprocess
 import sys
 import tempfile
 import time
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Sequence
 
@@ -22,12 +24,16 @@ try:
         BootstrapError,
         WSL_PRIVATE_RUN_SCRIPT,
         freeze_seed_inputs,
+        run_seed_tool,
+        verify_seed_inputs,
     )
 except ModuleNotFoundError:
     from bootstrap_toolchain import (
         BootstrapError,
         WSL_PRIVATE_RUN_SCRIPT,
         freeze_seed_inputs,
+        run_seed_tool,
+        verify_seed_inputs,
     )
 
 
@@ -580,10 +586,42 @@ COMPILER_PROFILE_ARGUMENTS = {
 DEFAULT_TIMEOUT_SECONDS = 180
 GENERATED_KERNEL_TIMEOUT_SECONDS = 600
 PUBLISH_RETRY_DELAYS_SECONDS = (0.05, 0.1, 0.2, 0.4, 0.8)
+PROFILE_MANIFEST_SCHEMA = "cupid.doom-profile-inputs.v1"
+PROFILE_SNAPSHOT_MAGIC = b"CUPROF1\0"
+
+
+@dataclass(frozen=True)
+class _ProfileInputCapture:
+    source_membership: tuple[Path, ...]
+    profiles: tuple[
+        tuple[str, tuple[Path, ...], tuple[Path, ...]],
+        ...,
+    ]
+    inputs: tuple[tuple[Path, bytes], ...]
+
+
+@dataclass(frozen=True)
+class _ProfileFileCapture:
+    path: Path
+    resolved: Path
+    device: int
+    inode: int
+    links: int
+    size: int
+    modified_ns: int
+    payload: bytes
+
+
+@dataclass(frozen=True)
+class _ProfileDirectoryCapture:
+    path: Path
+    resolved: Path
+    device: int
+    inode: int
 
 
 class KernelCompileError(RuntimeError):
-    """A checked kernel compilation could not publish an object."""
+    """A checked CupidC production operation could not publish its output."""
 
 
 def _retryable_publish_error(error: OSError) -> bool:
@@ -1272,128 +1310,791 @@ def _kernel_input_paths(
     return tuple(paths)
 
 
-def _profile_input_manifest(root: Path) -> dict[str, object]:
+def _capture_profile_inputs(root: Path) -> _ProfileInputCapture:
     source_membership = _doom_source_membership(root)
-    profile_header_paths = {
-        profile: _profile_header_paths(root, profile)
+    profiles = tuple(
+        (
+            profile,
+            _profile_header_paths(root, profile),
+            _profile_source_paths(root, profile),
+        )
         for profile in ("doom-compat", "doom-tree")
-    }
-    profile_source_paths = {
-        profile: _profile_source_paths(root, profile)
-        for profile in profile_header_paths
-    }
-    paths = tuple(
+    )
+    input_paths = tuple(
         sorted(
             {
                 path
-                for members in profile_header_paths.values()
-                for path in members
+                for _profile, headers, _sources in profiles
+                for path in headers
             }
         )
     )
-    captured = _capture_kernel_inputs(paths)
-    repeated_header_paths = {
-        profile: _profile_header_paths(root, profile)
-        for profile in profile_header_paths
-    }
-    repeated_source_paths = {
-        profile: _profile_source_paths(root, profile)
-        for profile in profile_source_paths
-    }
+    captured = _capture_kernel_inputs(input_paths)
+    capture = _ProfileInputCapture(
+        source_membership=source_membership,
+        profiles=profiles,
+        inputs=tuple((path, captured[path]) for path in input_paths),
+    )
+    _require_profile_inputs_unchanged(root, capture)
+    return capture
+
+
+def _require_profile_inputs_unchanged(
+    root: Path,
+    capture: _ProfileInputCapture,
+) -> None:
+    repeated_profiles = tuple(
+        (
+            profile,
+            _profile_header_paths(root, profile),
+            _profile_source_paths(root, profile),
+        )
+        for profile, _headers, _sources in capture.profiles
+    )
     if (
-        _doom_source_membership(root) != source_membership
-        or repeated_header_paths != profile_header_paths
-        or repeated_source_paths != profile_source_paths
+        _doom_source_membership(root) != capture.source_membership
+        or repeated_profiles != capture.profiles
     ):
         raise KernelCompileError(
             "Doom profile input membership changed while writing its manifest"
         )
-    if _capture_kernel_inputs(paths) != captured:
+    paths = tuple(path for path, _payload in capture.inputs)
+    if _capture_kernel_inputs(paths) != dict(capture.inputs):
         raise KernelCompileError(
             "Doom profile input bytes changed while writing its manifest"
         )
 
-    relative_names = {
-        path: path.relative_to(root).as_posix() for path in paths
+
+def _profile_input_document(
+    root: Path,
+    capture: _ProfileInputCapture,
+) -> dict[str, object]:
+    relative_inputs = {
+        path: path.relative_to(root).as_posix()
+        for path, _payload in capture.inputs
     }
     return {
-        "schema": "cupid.doom-profile-inputs.v1",
+        "schema": PROFILE_MANIFEST_SCHEMA,
         "profiles": {
             profile: [
-                relative_names[path] for path in members
+                path.relative_to(root).as_posix() for path in headers
             ]
-            for profile, members in profile_header_paths.items()
+            for profile, headers, _sources in capture.profiles
         },
         "sources": {
             profile: [
-                path.relative_to(root).as_posix() for path in members
+                path.relative_to(root).as_posix() for path in sources
             ]
-            for profile, members in profile_source_paths.items()
+            for profile, _headers, sources in capture.profiles
         },
         "inputs": [
             {
-                "path": relative_names[path],
-                "bytes": len(captured[path]),
-                "sha256": hashlib.sha256(captured[path]).hexdigest(),
+                "path": relative_inputs[path],
+                "bytes": len(payload),
+                "sha256": hashlib.sha256(payload).hexdigest(),
             }
-            for path in paths
+            for path, payload in capture.inputs
         ],
     }
 
 
-def write_profile_input_manifest(root: Path, output: Path) -> bool:
-    """Write the Doom profile input manifest when its content has changed."""
-    root = _root_path(root)
+def _profile_snapshot_bytes(
+    root: Path,
+    capture: _ProfileInputCapture,
+) -> bytes:
+    snapshot = bytearray(PROFILE_SNAPSHOT_MAGIC)
+
+    def append_u32(value: int, label: str) -> None:
+        if value < 0 or value > 0xFFFFFFFF:
+            raise KernelCompileError(
+                f"CupidObj profile snapshot {label} exceeds u32"
+            )
+        snapshot.extend(struct.pack("<I", value))
+
+    def append_bytes(value: bytes, label: str) -> None:
+        append_u32(len(value), f"{label} length")
+        snapshot.extend(value)
+
+    def append_text(value: str, label: str) -> None:
+        try:
+            encoded = value.encode("ascii")
+        except UnicodeEncodeError as error:
+            raise KernelCompileError(
+                f"CupidObj profile snapshot {label} is not portable ASCII"
+            ) from error
+        append_bytes(encoded, label)
+
+    append_text(PROFILE_MANIFEST_SCHEMA, "schema")
+    append_u32(len(capture.profiles), "profile count")
+    for profile, headers, sources in capture.profiles:
+        append_text(profile, "profile name")
+        append_u32(len(headers), "header count")
+        for path in headers:
+            append_text(
+                path.relative_to(root).as_posix(),
+                "header path",
+            )
+        append_u32(len(sources), "source count")
+        for path in sources:
+            append_text(
+                path.relative_to(root).as_posix(),
+                "source path",
+            )
+    append_u32(len(capture.inputs), "input count")
+    for path, payload in capture.inputs:
+        append_text(path.relative_to(root).as_posix(), "input path")
+        append_bytes(payload, "input bytes")
+    return bytes(snapshot)
+
+
+def _profile_input_manifest(root: Path) -> dict[str, object]:
+    """Return the Python oracle for one stable Doom profile capture."""
+    capture = _capture_profile_inputs(root)
+    return _profile_input_document(root, capture)
+
+
+def _profile_manifest_output_path(root: Path, output: Path) -> Path:
     candidate = output if output.is_absolute() else root / output
-    if candidate.is_symlink():
-        raise KernelCompileError("profile input manifest may not be a symlink")
+    requested = Path(os.path.abspath(os.fspath(candidate)))
     try:
-        parent = candidate.parent.resolve(strict=False)
-        resolved = (parent / candidate.name).resolve(strict=False)
-        resolved.relative_to(root)
-    except (OSError, ValueError) as error:
+        relative = requested.relative_to(root)
+    except ValueError as error:
         raise KernelCompileError(
             f"profile input manifest must stay inside repository root: {output}"
         ) from error
-    if resolved.suffix != ".json":
+    if not relative.parts or requested == root:
+        raise KernelCompileError(
+            "profile input manifest must name a file inside the repository"
+        )
+    if requested.suffix != ".json":
         raise KernelCompileError(
             "profile input manifest must use the .json suffix"
         )
+
+    current = root
+    for part in relative.parts[:-1]:
+        current /= part
+        if _is_link_like(current):
+            raise KernelCompileError(
+                "profile input manifest directory may not be a link or "
+                f"junction: {current}"
+            )
+        try:
+            mode = current.lstat().st_mode
+        except FileNotFoundError:
+            break
+        except OSError as error:
+            raise KernelCompileError(
+                f"profile input manifest directory cannot be inspected: "
+                f"{current}: {error}"
+            ) from error
+        if not stat.S_ISDIR(mode):
+            raise KernelCompileError(
+                f"profile input manifest directory is not a directory: "
+                f"{current}"
+            )
     try:
-        parent.mkdir(parents=True, exist_ok=True)
+        requested.parent.mkdir(parents=True, exist_ok=True)
+        current = root
+        for part in relative.parts[:-1]:
+            current /= part
+            if _is_link_like(current):
+                raise KernelCompileError(
+                    "profile input manifest directory may not be a link or "
+                    f"junction: {current}"
+                )
+            if not stat.S_ISDIR(current.lstat().st_mode):
+                raise KernelCompileError(
+                    "profile input manifest directory is not a directory: "
+                    f"{current}"
+                )
+        parent = requested.parent.resolve(strict=True)
+        parent.relative_to(root)
+    except KernelCompileError:
+        raise
+    except (OSError, ValueError) as error:
+        raise KernelCompileError(
+            f"could not prepare profile input manifest directory "
+            f"{requested.parent}: {error}"
+        ) from error
+    resolved = parent / requested.name
+    if _is_link_like(resolved):
+        raise KernelCompileError(
+            "profile input manifest may not be a link or junction"
+        )
+    try:
+        mode = resolved.lstat().st_mode
+    except FileNotFoundError:
+        return resolved
     except OSError as error:
         raise KernelCompileError(
-            f"could not create profile input manifest directory {parent}: "
-            f"{error}"
+            f"profile input manifest cannot be inspected: {resolved}: {error}"
         ) from error
-    payload = (
-        json.dumps(
-            _profile_input_manifest(root),
-            indent=2,
-            sort_keys=True,
+    if not stat.S_ISREG(mode):
+        raise KernelCompileError(
+            f"profile input manifest is not a regular file: {resolved}"
         )
-        + "\n"
-    ).encode("utf-8")
+    return resolved
+
+
+def _profile_seed_manifest_path(manifest: Path) -> Path:
+    requested = Path(os.path.abspath(os.fspath(manifest)))
+    if _is_link_like(requested):
+        raise KernelCompileError(
+            "checked seed manifest may not be a link or junction"
+        )
     try:
-        if resolved.is_file() and resolved.read_bytes() == payload:
-            return False
-        with tempfile.NamedTemporaryFile(
-            prefix=f".{resolved.name}.",
-            suffix=".tmp",
-            dir=parent,
-            delete=False,
-        ) as temporary:
-            temporary_path = Path(temporary.name)
-            temporary.write(payload)
+        resolved = requested.resolve(strict=True)
+        mode = resolved.lstat().st_mode
+    except OSError as error:
+        raise KernelCompileError(
+            f"checked seed manifest cannot be resolved: {requested}: {error}"
+        ) from error
+    if not stat.S_ISREG(mode):
+        raise KernelCompileError(
+            f"checked seed manifest is not a regular file: {resolved}"
+        )
+    return resolved
+
+
+def _profile_paths_alias(first: Path, second: Path) -> bool:
+    if os.path.normcase(str(first)) == os.path.normcase(str(second)):
+        return True
+    if not first.exists() or not second.exists():
+        return False
+    try:
+        return os.path.samefile(first, second)
+    except FileNotFoundError:
+        return False
+    except OSError as error:
+        raise KernelCompileError(
+            f"profile manifest path identity cannot be checked: "
+            f"{first}, {second}: {error}"
+        ) from error
+
+
+def _capture_profile_file(
+    path: Path,
+    label: str,
+    *,
+    allow_missing: bool = False,
+) -> _ProfileFileCapture | None:
+    if _is_link_like(path):
+        raise KernelCompileError(
+            f"{label} may not be a link or junction: {path}"
+        )
+    try:
+        status = path.lstat()
+    except FileNotFoundError:
+        if allow_missing:
+            return None
+        raise KernelCompileError(f"{label} is missing: {path}") from None
+    except OSError as error:
+        raise KernelCompileError(
+            f"{label} cannot be inspected: {path}: {error}"
+        ) from error
+    if not stat.S_ISREG(status.st_mode):
+        raise KernelCompileError(
+            f"{label} is not a regular file: {path}"
+        )
+    if status.st_nlink != 1:
+        raise KernelCompileError(
+            f"{label} may not be a hard link: {path}"
+        )
+    try:
+        with path.open("rb") as stream:
+            before = os.fstat(stream.fileno())
+            payload = stream.read()
+            after = os.fstat(stream.fileno())
+        resolved = path.resolve(strict=True)
+        final_status = path.lstat()
+    except OSError as error:
+        raise KernelCompileError(
+            f"{label} cannot be read: {path}: {error}"
+        ) from error
+    stable_fields = (
+        "st_dev",
+        "st_ino",
+        "st_nlink",
+        "st_size",
+        "st_mtime_ns",
+    )
+    if (
+        status.st_dev != before.st_dev
+        or status.st_ino != before.st_ino
+        or any(
+            getattr(before, field) != getattr(after, field)
+            for field in stable_fields
+        )
+        or any(
+            getattr(after, field) != getattr(final_status, field)
+            for field in stable_fields
+        )
+        or not stat.S_ISREG(final_status.st_mode)
+        or len(payload) != after.st_size
+        or after.st_nlink != 1
+        or _is_link_like(path)
+    ):
+        raise KernelCompileError(f"{label} changed while it was being read")
+    return _ProfileFileCapture(
+        path=path,
+        resolved=resolved,
+        device=after.st_dev,
+        inode=after.st_ino,
+        links=after.st_nlink,
+        size=after.st_size,
+        modified_ns=after.st_mtime_ns,
+        payload=payload,
+    )
+
+
+def _capture_profile_directory(
+    path: Path,
+    label: str,
+) -> _ProfileDirectoryCapture:
+    if _is_link_like(path):
+        raise KernelCompileError(
+            f"{label} may not be a link or junction: {path}"
+        )
+    try:
+        before = path.lstat()
+        resolved = path.resolve(strict=True)
+        after = path.lstat()
+    except OSError as error:
+        raise KernelCompileError(
+            f"{label} cannot be inspected: {path}: {error}"
+        ) from error
+    if not stat.S_ISDIR(before.st_mode) or not stat.S_ISDIR(after.st_mode):
+        raise KernelCompileError(f"{label} is not a directory: {path}")
+    if (
+        before.st_dev != after.st_dev
+        or before.st_ino != after.st_ino
+        or _is_link_like(path)
+    ):
+        raise KernelCompileError(f"{label} changed while it was inspected")
+    return _ProfileDirectoryCapture(
+        path=path,
+        resolved=resolved,
+        device=after.st_dev,
+        inode=after.st_ino,
+    )
+
+
+def _require_profile_directory_unchanged(
+    initial: _ProfileDirectoryCapture,
+) -> None:
+    current = _capture_profile_directory(initial.path, "profile output directory")
+    if (
+        current.resolved != initial.resolved
+        or current.device != initial.device
+        or current.inode != initial.inode
+    ):
+        raise KernelCompileError(
+            "profile input manifest directory changed while authoring the "
+            "profile manifest"
+        )
+
+
+def _require_profile_output_unchanged(
+    output: Path,
+    initial: _ProfileFileCapture | None,
+) -> None:
+    current = _capture_profile_file(
+        output,
+        "profile input manifest output",
+        allow_missing=True,
+    )
+    if initial is None:
+        if current is not None:
+            raise KernelCompileError(
+                "profile input manifest output appeared while authoring the "
+                "profile manifest"
+            )
+        return
+    if current is None:
+        raise KernelCompileError(
+            "profile input manifest output disappeared while authoring the "
+            "profile manifest"
+        )
+    if (
+        current.resolved != initial.resolved
+        or current.device != initial.device
+        or current.inode != initial.inode
+        or current.links != initial.links
+        or current.size != initial.size
+        or current.modified_ns != initial.modified_ns
+        or current.payload != initial.payload
+    ):
+        raise KernelCompileError(
+            "profile input manifest output changed while authoring the "
+            "profile manifest"
+        )
+
+
+def _require_profile_file_unchanged(
+    initial: _ProfileFileCapture,
+    label: str,
+) -> None:
+    current = _capture_profile_file(initial.path, label)
+    if current != initial:
+        raise KernelCompileError(f"{label} changed after validation")
+
+
+def _write_private_profile_file(path: Path, payload: bytes) -> None:
+    with path.open("xb") as stream:
+        stream.write(payload)
+        stream.flush()
+        os.fsync(stream.fileno())
+
+
+def _acquire_profile_manifest_lock(output: Path) -> tuple[object, str]:
+    lock_name = hashlib.sha256(
+        str(output).casefold().encode("utf-8")
+    ).hexdigest()
+    lock_path = output.parent / f".cupid-profile-{lock_name}.lock"
+    descriptor = None
+    stream = None
+    try:
+        if _is_link_like(lock_path):
+            raise OSError(errno.ELOOP, "publication lock is link-like")
+        flags = os.O_RDWR | os.O_CREAT
+        flags |= getattr(os, "O_BINARY", 0)
+        flags |= getattr(os, "O_CLOEXEC", 0)
+        flags |= getattr(os, "O_NOFOLLOW", 0)
+        descriptor = os.open(lock_path, flags, 0o600)
+        stream = os.fdopen(descriptor, "r+b", buffering=0)
+        descriptor = None
+        path_status = lock_path.lstat()
+        file_status = os.fstat(stream.fileno())
+        if (
+            not stat.S_ISREG(path_status.st_mode)
+            or not stat.S_ISREG(file_status.st_mode)
+            or path_status.st_dev != file_status.st_dev
+            or path_status.st_ino != file_status.st_ino
+            or file_status.st_nlink != 1
+            or _is_link_like(lock_path)
+        ):
+            raise OSError(
+                errno.EPERM,
+                "publication lock is not one private regular file",
+            )
+        effective_user = getattr(os, "geteuid", None)
+        if (
+            effective_user is not None
+            and file_status.st_uid != effective_user()
+        ):
+            raise OSError(
+                errno.EACCES,
+                "publication lock belongs to another user",
+            )
+        change_mode = getattr(os, "fchmod", None)
+        if change_mode is not None:
+            change_mode(stream.fileno(), 0o600)
+        stream.seek(0, os.SEEK_END)
+        if stream.tell() == 0:
+            stream.write(b"\0")
+            stream.flush()
+            os.fsync(stream.fileno())
+        stream.seek(0)
+        if os.name == "nt":
+            import msvcrt
+
+            msvcrt.locking(stream.fileno(), msvcrt.LK_NBLCK, 1)
+            platform = "windows"
+        else:
+            import fcntl
+
+            fcntl.flock(stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            platform = "posix"
+    except (ImportError, OSError) as error:
+        if descriptor is not None:
+            try:
+                os.close(descriptor)
+            except OSError:
+                pass
+        if stream is not None:
+            try:
+                stream.close()
+            except OSError:
+                pass
+        raise KernelCompileError(
+            f"another profile manifest publisher is active for {output}, "
+            f"or its publication lock is unavailable: {error}"
+        ) from error
+    return stream, platform
+
+
+def _release_profile_manifest_lock(lock: tuple[object, str]) -> None:
+    stream, platform = lock
+    try:
+        stream.seek(0)
+        if platform == "windows":
+            import msvcrt
+
+            msvcrt.locking(stream.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            import fcntl
+
+            fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
+    except (ImportError, OSError):
+        pass
+    finally:
         try:
-            _replace_with_retry(temporary_path, resolved)
-        finally:
-            if temporary_path.exists():
-                temporary_path.unlink()
+            stream.close()
+        except OSError:
+            pass
+
+
+def _replace_profile_candidate_with_retry(
+    candidate: _ProfileFileCapture,
+    output: Path,
+    initial_output: _ProfileFileCapture | None,
+    output_directory: _ProfileDirectoryCapture,
+) -> None:
+    publish_error = None
+    for attempt in range(len(PUBLISH_RETRY_DELAYS_SECONDS) + 1):
+        _require_profile_directory_unchanged(output_directory)
+        _require_profile_file_unchanged(
+            candidate,
+            "checked CupidObj profile manifest output",
+        )
+        _require_profile_output_unchanged(output, initial_output)
+        try:
+            os.replace(candidate.path, output)
+        except OSError as error:
+            publish_error = error
+            if (
+                not _retryable_publish_error(error)
+                or attempt == len(PUBLISH_RETRY_DELAYS_SECONDS)
+            ):
+                break
+            time.sleep(PUBLISH_RETRY_DELAYS_SECONDS[attempt])
+            continue
+        _require_profile_directory_unchanged(output_directory)
+        published = _capture_profile_file(
+            output,
+            "published profile input manifest",
+        )
+        if published is None or published.payload != candidate.payload:
+            raise KernelCompileError(
+                "published profile input manifest differs from its checked "
+                "candidate"
+            )
+        return
+    raise publish_error
+
+
+def _profile_capture_paths(
+    capture: _ProfileInputCapture,
+) -> tuple[Path, ...]:
+    paths = set(capture.source_membership)
+    paths.update(path for path, _payload in capture.inputs)
+    for _profile, headers, sources in capture.profiles:
+        paths.update(headers)
+        paths.update(sources)
+    return tuple(sorted(paths))
+
+
+def write_profile_input_manifest(
+    root: Path,
+    output: Path,
+    *,
+    manifest: Path | None = None,
+) -> bool:
+    """Publish one stable Doom profile manifest when its bytes change."""
+    root = _root_path(root)
+    resolved = _profile_manifest_output_path(root, output)
+    output_directory = _capture_profile_directory(
+        resolved.parent,
+        "profile output directory",
+    )
+    publication_lock = _acquire_profile_manifest_lock(resolved)
+    try:
+        _require_profile_directory_unchanged(output_directory)
+        initial_output = _capture_profile_file(
+            resolved,
+            "profile input manifest output",
+            allow_missing=True,
+        )
+        manifest_path = (
+            _profile_seed_manifest_path(manifest)
+            if manifest is not None
+            else None
+        )
+        checked_seed = None
+        if manifest_path is not None:
+            if _profile_paths_alias(resolved, manifest_path):
+                raise KernelCompileError(
+                    "profile input manifest output may not replace the "
+                    "checked seed manifest"
+                )
+            try:
+                checked_seed = verify_seed_inputs(manifest_path)
+            except BootstrapError as error:
+                raise KernelCompileError(
+                    f"checked seed verification failed: {error}"
+                ) from error
+            for name, path in checked_seed.tools.items():
+                if _profile_paths_alias(resolved, path):
+                    raise KernelCompileError(
+                        "profile input manifest output may not replace "
+                        f"checked seed tool {name}"
+                    )
+
+        capture = _capture_profile_inputs(root)
+        for path in _profile_capture_paths(capture):
+            if _profile_paths_alias(resolved, path):
+                raise KernelCompileError(
+                    "profile input manifest output may not replace a Doom "
+                    f"profile input: {path.relative_to(root).as_posix()}"
+                )
+        oracle_payload = (
+            json.dumps(
+                _profile_input_document(root, capture),
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n"
+        ).encode("utf-8")
+
+        with tempfile.TemporaryDirectory(
+            prefix=f".{resolved.name}.profile-",
+            dir=resolved.parent,
+        ) as temporary:
+            private = Path(temporary).resolve()
+            candidate = private / "profile-manifest.json"
+            if manifest_path is None:
+                _write_private_profile_file(candidate, oracle_payload)
+                candidate_capture = _capture_profile_file(
+                    candidate,
+                    "Python profile manifest candidate",
+                )
+                if candidate_capture is None:
+                    raise KernelCompileError(
+                        "Python profile manifest candidate is missing"
+                    )
+            else:
+                try:
+                    frozen_seed = freeze_seed_inputs(
+                        manifest_path,
+                        private / "checked-seed",
+                    )
+                except BootstrapError as error:
+                    raise KernelCompileError(
+                        f"checked seed could not be frozen: {error}"
+                    ) from error
+                if (
+                    frozen_seed.manifest_sha256
+                    != checked_seed.manifest_sha256
+                ):
+                    raise KernelCompileError(
+                        "checked seed changed before CupidObj execution"
+                    )
+                snapshot = private / "profile-inputs.cuprof"
+                snapshot_payload = _profile_snapshot_bytes(root, capture)
+                _write_private_profile_file(snapshot, snapshot_payload)
+                snapshot_capture = _capture_profile_file(
+                    snapshot,
+                    "CupidObj profile snapshot",
+                )
+                if snapshot_capture is None:
+                    raise KernelCompileError(
+                        "CupidObj profile snapshot is missing"
+                    )
+                arguments: tuple[str | Path, ...] = (
+                    "profile-manifest",
+                    snapshot.resolve(),
+                    "-o",
+                    candidate.resolve(strict=False),
+                )
+                try:
+                    result = run_seed_tool(
+                        manifest_path,
+                        private,
+                        "cupidobj",
+                        arguments,
+                        timeout=60,
+                        frozen_seed=frozen_seed,
+                    )
+                except BootstrapError as error:
+                    raise KernelCompileError(
+                        f"checked CupidObj could not run: {error}"
+                    ) from error
+                if result.returncode != 0:
+                    details = (result.stderr or result.stdout or "").strip()
+                    suffix = f": {details}" if details else ""
+                    raise KernelCompileError(
+                        "checked CupidObj failed with status "
+                        f"{result.returncode}{suffix}"
+                    )
+                _require_profile_directory_unchanged(output_directory)
+                _require_profile_file_unchanged(
+                    snapshot_capture,
+                    "CupidObj profile snapshot",
+                )
+                checked_output = _capture_profile_file(
+                    candidate,
+                    "checked CupidObj profile manifest output",
+                )
+                if checked_output is None:
+                    raise KernelCompileError(
+                        "checked CupidObj profile manifest output is missing"
+                    )
+                for path in (
+                    snapshot,
+                    manifest_path,
+                    resolved,
+                    *frozen_seed.tools.values(),
+                ):
+                    if _profile_paths_alias(candidate, path):
+                        raise KernelCompileError(
+                            "checked CupidObj profile manifest output aliases "
+                            f"an input: {path}"
+                        )
+                candidate_capture = checked_output
+                if candidate_capture.payload != oracle_payload:
+                    raise KernelCompileError(
+                        "checked CupidObj profile manifest differs from the "
+                        "Python oracle"
+                    )
+                try:
+                    live_seed = verify_seed_inputs(manifest_path)
+                except BootstrapError as error:
+                    raise KernelCompileError(
+                        "checked seed inputs changed while authoring the "
+                        f"profile manifest: {error}"
+                    ) from error
+                if (
+                    live_seed.manifest_sha256
+                    != checked_seed.manifest_sha256
+                ):
+                    raise KernelCompileError(
+                        "checked seed manifest changed while authoring the "
+                        "profile manifest"
+                    )
+
+            _require_profile_inputs_unchanged(root, capture)
+            _require_profile_directory_unchanged(output_directory)
+            _require_profile_output_unchanged(resolved, initial_output)
+            if (
+                initial_output is not None
+                and initial_output.payload == candidate_capture.payload
+            ):
+                return False
+            _replace_profile_candidate_with_retry(
+                candidate_capture,
+                resolved,
+                initial_output,
+                output_directory,
+            )
+    except KernelCompileError:
+        raise
     except OSError as error:
         raise KernelCompileError(
             f"could not publish profile input manifest {resolved}: {error}"
         ) from error
+    finally:
+        _release_profile_manifest_lock(publication_lock)
     return True
 
 
@@ -1636,16 +2337,17 @@ def main(argv: list[str] | None = None) -> int:
             changed = write_profile_input_manifest(
                 arguments.root,
                 arguments.write_profile_input_manifest,
+                manifest=arguments.manifest,
             )
         except KernelCompileError as error:
             print(
-                f"CupidC profile input manifest failed: {error}",
+                f"Doom profile input manifest failed: {error}",
                 file=sys.stderr,
             )
             return 1
         status = "updated" if changed else "unchanged"
         print(
-            "CupidC profile input manifest "
+            "Doom profile input manifest "
             f"{status}: {arguments.write_profile_input_manifest}"
         )
         return 0

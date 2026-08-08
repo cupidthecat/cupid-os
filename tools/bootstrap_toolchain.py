@@ -920,8 +920,9 @@ def run_seed_tool(
     arguments: Sequence[str | Path],
     *,
     timeout: int = 300,
+    frozen_seed: SeedInputs | None = None,
 ) -> subprocess.CompletedProcess[str]:
-    """Verify, freeze, and run one checked-seed tool."""
+    """Run one checked-seed tool from a new or caller-owned frozen capture."""
     if tool_name not in TOOL_NAMES:
         raise BootstrapError(
             f"checked seed has no tool named {tool_name}"
@@ -941,13 +942,8 @@ def run_seed_tool(
         )
 
     display_name = TOOL_DISPLAY_NAMES[tool_name]
-    with tempfile.TemporaryDirectory(
-        prefix=f"cupid-{tool_name}-seed-"
-    ) as temporary:
-        seed_inputs = freeze_seed_inputs(
-            manifest_path,
-            Path(temporary),
-        )
+
+    def run_frozen(seed_inputs: SeedInputs) -> subprocess.CompletedProcess[str]:
         executable = seed_inputs.tools[tool_name]
         runner = ToolRunner(root)
         try:
@@ -974,6 +970,18 @@ def run_seed_tool(
                 "manifest content differs"
             )
         return result
+
+    if frozen_seed is not None:
+        return run_frozen(frozen_seed)
+    with tempfile.TemporaryDirectory(
+        prefix=f"cupid-{tool_name}-seed-"
+    ) as temporary:
+        return run_frozen(
+            freeze_seed_inputs(
+                manifest_path,
+                Path(temporary),
+            )
+        )
 
 
 def _build_stage(

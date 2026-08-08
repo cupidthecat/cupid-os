@@ -468,11 +468,13 @@ checked manifest and fixture bytes under private ordinal filenames, runs
 checked CupidObj `iso-fixture` first, and compares the complete result with an
 independent Python render. It rechecks the seed and live inputs, rejects output
 aliases and concurrent publishers, and replaces only a regular complete
-candidate. CupidObj now participates in 188 transforms, and 437 of the 438
-root outputs have a Cupid owner. The Doom input manifest is the only
-Python-only root output. [ADR
-0241](../adr/0241-publish-normal-iso-fixtures-with-cupidobj.md) records the
-production transfer.
+candidate. [ADR
+0241](../adr/0241-publish-normal-iso-fixtures-with-cupidobj.md) records that
+production transfer. The later Doom profile handoff raises CupidObj to 189
+transforms. Every one of the 438 root outputs has a Cupid owner, so no root
+output is Python-only. [ADR
+0244](../adr/0244-publish-the-doom-profile-manifest-with-checked-cupidobj.md)
+records the current boundary.
 
 Checked-seed CupidObj provides `wrap-jpeg`. It validates one sequential
 SOF0 or SOF1 frame, a scan, entropy stuffing and restart markers, and a
@@ -1084,9 +1086,16 @@ headers, 665 profile memberships, and 956 encoded path records. CupidObj sorts
 the logical names, computes every SHA-256 field from the captured bytes, and
 matches the Python oracle. Its poisoned-host source proof matches all 19 C
 objects, startup, and five tools between stage two and stage three, then
-passes a 5/15/13 behavior matrix. The normal target remains Python-authored
-until guarded publication is complete. ADR 0242 records the source boundary,
-and ADR 0243 records seed carriage.
+passes a 5/15/13 behavior matrix. The normal target passes the checked seed
+manifest. The wrapper derives the `CUPROF1` snapshot and independent Python
+oracle from one stable capture, then runs CupidObj from the exact frozen seed.
+It requires byte parity and rechecks the seed, live inputs, candidate, output
+directory, and existing output under an adjacent no-follow lock. Identical
+bytes retain their timestamp; changed bytes publish atomically. CupidObj
+authors the production bytes, while Python retains discovery, native-path
+checks, freezing, parity, drift detection, locking, and publication. ADR 0242
+records the source boundary, ADR 0243 records seed carriage, and ADR 0244
+records production ownership.
 The wrapper recursively checks visible `.c` and `.cc` files beneath the Doom
 tree before and after each compile. It rejects a legacy `.c` file, an
 unlisted `.cc` file, a missing root, header membership or byte changes,
@@ -1186,18 +1195,20 @@ quoted and 235 angle forms.
 
 The final active-source digest is
 `69f8f0b9bc264f338f445781f92792b24e91f0d641950d3b57f55f74841ae46e`.
-The 2,558,749-byte audit JSON has SHA-256
-`f091427ffc79ca25a7d1af099a1969918deab6fe1e89a293823dacd31afbb8cf`,
+The 2,566,111-byte audit JSON has SHA-256
+`9e8dc28b6b0b6ba611b53d8bbe67930495d4cfc6bb509b1333d3da0082c23289`,
 and the 12,197-byte summary has SHA-256
-`79297d07726d21a45b0f234677b00026f00da973755af31013ce8d7940325787`.
+`2bb3d92e713fa98ab5c2c6cb9ad0f2beb212f00c73a6623d71a3bd170a003f0e`.
 
 Across the three supported roots, CupidC participates in 245 transforms and
-CupidObj participates in 188 transforms. Python participates in all 449
-because it runs the checked-seed commands. No transform invokes a host C
-compiler, and no recursive Make transform remains. The kernel-symbol source is
-classified as `generate_ksyms_source` with CupidDis, CupidObj, and Python
-participants. The 438-transform root
-image graph has 437 Cupid-owned transforms and one Python-only output. It runs
+CupidObj participates in 189 transforms. Python participates in all 449 as
+the checked-tool launcher and host-side safety, parity, and publication layer.
+No transform invokes a host C compiler, and no recursive Make transform
+remains. The kernel-symbol source is classified as `generate_ksyms_source`
+with CupidDis, CupidObj, and Python participants. The Doom profile delivery is
+classified as `generate_profile_manifest` with CupidObj and Python
+participants. Every one of the 438 root outputs has a Cupid tool owner, so no
+root output is Python-only. The graph runs
 CupidASM, CupidObj, CupidLD, and CupidDis from the checked seed. The audit
 evaluates Make conditionals with the canonical Windows branch and C locale on
 every host; direct Linux builds cover the Linux execution branch. The public
@@ -1579,7 +1590,7 @@ The body operator ladder uses checked value/operator vectors and an iterative pr
 
 The call subset accepts fixed prototypes, direct or indirect variadic prototypes, and function types without prototypes. It applies the shared scalar or compatible aggregate assignment conversion to named parameters. Ellipsis arguments and every argument without a declared parameter type receive lvalue conversion, array and function decay, integer promotion, and `float` to `double` promotion as required before IR accepts four-byte integers and pointers, signed or unsigned eight-byte integers, `double`, or automatic `long double`. Aggregate transport at those call boundaries remains open. Lvalue conversion removes top-level `const`, `volatile`, and `_Atomic` from the result while retaining the qualified source child, and nested calls consume the shared 256-level syntax budget instead of recursing without a host-stack bound.
 
-[CupidDis](../adr/0008-typed-cupiddis-inspection-report.md) is fully shared between its native CLI and kernel adapters. Raw input accepts one explicit 16-bit or 32-bit mode or an ordered borrowed range map whose kinds are code16, code32, and data. The hosted CLI spells typed transitions as `--range-at OFFSET:16|32|data` and keeps `--mode-at OFFSET:16|32` for code-only maps. Code ranges use the shared decoder. Data ranges produce bounded `db` rows without entering it. A public integration test assembles the active SMP trampoline and checks code in `[0x000, 0x01f)` and `[0x210, 0x254)`, with data in `[0x01f, 0x210)` and `[0x254, 0x1000)`. ADR 0080 records the original mode map, and ADR 0200 records its typed extension. The shared x86 catalogue carries all sixteen i686 `CMOVcc` conditions in 16-bit and 32-bit widths, with same-width register or memory sources. CupidASM accepts fourteen conventional alias spellings, and CupidDis always renders the canonical condition. The catalogue also carries the complete 16-bit and 32-bit three-operand `IMUL` family. It uses `69 /r` for a full immediate and `6B /r` for a sign-extended byte, with register or memory sources in either mode. The checked seed and source head carry canonical 16-bit and 32-bit SHRD with register or memory destinations and either an immediate byte or fixed CL count. Both modes honor operand-size and address-size overrides. Active checked-CupidC objects now decode their `shrd eax, edi, cl` sites directly instead of producing fallback data rows. Ordinary compiler padding shares the same authority: plain `90`, `66 90`, and word or doubleword `0F 1F /0` register and memory forms encode and decode under the usual operand-size, address-size, and segment rules. A private 32-bit recognizer accepts only the five measured Clang padding strings with two through six `66` prefixes and the exact `2E 0F 1F 84 00 00 00 00 00` tail. The decoded form is automatic, so CupidASM and the encoder cannot request redundant prefixes. Other duplicate prefixes remain invalid. The checked seed and source head carry 596 rows, 245 canonical mnemonics, 64 registers, and fingerprint `DA15E97F`. ADR 0226 records SHRD, and ADR 0228 records its seed carriage. One freestanding CupidASM implementation produces raw, ELF32 relocatable, and fixed-image artifacts for both its hosted CLI and the in-kernel JIT/AOT commands; it owns five production assembly transforms as well as runtime demo assembly. CupidObj is a producing participant in 188 normal-build outputs: 172 canonical text wraps, eight byte-exact binary wraps, one Python-assisted JPEG wrapper, one Python-coordinated disk image, one Python-guarded ISO fixture, the flat kernel image, three installation-source generators, and the kernel-symbol source generator. ADR 0084 records the text and binary boundary, ADR 0204 records the installation-source transfer, ADR 0224 records the kernel-symbol transfer, ADR 0227 records the ISO lane fixture transfer, ADR 0238 records the disk-image transfer, and ADR 0241 records ISO production ownership. CupidLD owns the two-pass kernel link and all three separate user-program links. No standalone host assembler, ELF linker, `objcopy`, or symbol-reader command produces an OS or user artifact. CupidDis owns the normal two-pass kernel's symbol extraction through its deterministic `-n` view; the checked pass-one kernel produces a 114,421-byte blob. Checked CupidObj serializes the generated Cupid C source, while Python verifies the bytes independently. Root `all` runs all four production Cupid commands from the checked seed. The host C compiler and native linker remain confined to explicit native oracle and development commands. The checked static i386 CupidC command participates in all 245 active C transforms through the Python/WSL wrapper. It also executes the three user translations, while checked CupidLD executes their three links. The optional native Windows drivers remain byte-exact oracles and still depend on Clang and its Windows linker. NASM and GNU/LLVM `nm` remain optional oracle tooling only. ADR 0190 records the root handoff. Checked revision `1e079d1` independently reproduces the 447-artifact root/user/toolchain cohort on Windows Clang/LLVM and Linux GCC/binutils; it predates the hosted preprocessor and active-corpus contracts.
+[CupidDis](../adr/0008-typed-cupiddis-inspection-report.md) is fully shared between its native CLI and kernel adapters. Raw input accepts one explicit 16-bit or 32-bit mode or an ordered borrowed range map whose kinds are code16, code32, and data. The hosted CLI spells typed transitions as `--range-at OFFSET:16|32|data` and keeps `--mode-at OFFSET:16|32` for code-only maps. Code ranges use the shared decoder. Data ranges produce bounded `db` rows without entering it. A public integration test assembles the active SMP trampoline and checks code in `[0x000, 0x01f)` and `[0x210, 0x254)`, with data in `[0x01f, 0x210)` and `[0x254, 0x1000)`. ADR 0080 records the original mode map, and ADR 0200 records its typed extension. The shared x86 catalogue carries all sixteen i686 `CMOVcc` conditions in 16-bit and 32-bit widths, with same-width register or memory sources. CupidASM accepts fourteen conventional alias spellings, and CupidDis always renders the canonical condition. The catalogue also carries the complete 16-bit and 32-bit three-operand `IMUL` family. It uses `69 /r` for a full immediate and `6B /r` for a sign-extended byte, with register or memory sources in either mode. The checked seed and source head carry canonical 16-bit and 32-bit SHRD with register or memory destinations and either an immediate byte or fixed CL count. Both modes honor operand-size and address-size overrides. Active checked-CupidC objects now decode their `shrd eax, edi, cl` sites directly instead of producing fallback data rows. Ordinary compiler padding shares the same authority: plain `90`, `66 90`, and word or doubleword `0F 1F /0` register and memory forms encode and decode under the usual operand-size, address-size, and segment rules. A private 32-bit recognizer accepts only the five measured Clang padding strings with two through six `66` prefixes and the exact `2E 0F 1F 84 00 00 00 00 00` tail. The decoded form is automatic, so CupidASM and the encoder cannot request redundant prefixes. Other duplicate prefixes remain invalid. The checked seed and source head carry 596 rows, 245 canonical mnemonics, 64 registers, and fingerprint `DA15E97F`. ADR 0226 records SHRD, and ADR 0228 records its seed carriage. One freestanding CupidASM implementation produces raw, ELF32 relocatable, and fixed-image artifacts for both its hosted CLI and the in-kernel JIT/AOT commands; it owns five production assembly transforms as well as runtime demo assembly. CupidObj is a producing participant in 189 normal-build outputs: 172 canonical text wraps, eight byte-exact binary wraps, one Python-assisted JPEG wrapper, one Python-coordinated disk image, one Python-guarded ISO fixture, one Python-guarded Doom profile manifest, the flat kernel image, three installation-source generators, and the kernel-symbol source generator. ADR 0084 records the text and binary boundary, ADR 0204 records the installation-source transfer, ADR 0224 records the kernel-symbol transfer, ADR 0227 records the ISO lane fixture transfer, ADR 0238 records the disk-image transfer, ADR 0241 records ISO production ownership, and ADR 0244 records profile-manifest production ownership. CupidLD owns the two-pass kernel link and all three separate user-program links. No standalone host assembler, ELF linker, `objcopy`, or symbol-reader command produces an OS or user artifact. CupidDis owns the normal two-pass kernel's symbol extraction through its deterministic `-n` view; the checked pass-one kernel produces a 114,421-byte blob. Checked CupidObj serializes the generated Cupid C source, while Python verifies the bytes independently. Root `all` runs all four production Cupid commands from the checked seed. The host C compiler and native linker remain confined to explicit native oracle and development commands. The checked static i386 CupidC command participates in all 245 active C transforms through the Python/WSL wrapper. It also executes the three user translations, while checked CupidLD executes their three links. The optional native Windows drivers remain byte-exact oracles and still depend on Clang and its Windows linker. NASM and GNU/LLVM `nm` remain optional oracle tooling only. ADR 0190 records the root handoff. Checked revision `1e079d1` independently reproduces the 447-artifact root/user/toolchain cohort on Windows Clang/LLVM and Linux GCC/binutils; it predates the hosted preprocessor and active-corpus contracts.
 
 The trampoline intervals above are half-open: code occupies
 `[0x000, 0x01f)` and `[0x210, 0x254)`, while data occupies

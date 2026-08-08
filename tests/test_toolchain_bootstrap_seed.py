@@ -2118,6 +2118,49 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                         ("--help",),
                     )
 
+    def test_checked_seed_run_uses_the_supplied_frozen_capture(self):
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-bootstrap-run-frozen-"
+        ) as temporary:
+            root = Path(temporary)
+            copied_seed = root / "i386-linux"
+            shutil.copytree(SEED_MANIFEST.parent, copied_seed)
+            frozen = freeze_seed_inputs(
+                copied_seed / "manifest.json",
+                root / "frozen",
+            )
+            completed = subprocess.CompletedProcess(
+                ["cupidasm", "--help"],
+                0,
+                "usage: cupidasm\n",
+                "",
+            )
+            with (
+                mock.patch(
+                    "tools.bootstrap_toolchain.ToolRunner"
+                ) as runner_type,
+                mock.patch(
+                    "tools.bootstrap_toolchain.freeze_seed_inputs"
+                ) as freeze_inputs,
+            ):
+                runner_type.return_value.run.return_value = completed
+                result = run_seed_tool(
+                    copied_seed / "manifest.json",
+                    REPO_ROOT,
+                    "cupidasm",
+                    ("--help",),
+                    timeout=12,
+                    frozen_seed=frozen,
+                )
+
+            self.assertIs(result, completed)
+            freeze_inputs.assert_not_called()
+            runner_type.return_value.run.assert_called_once_with(
+                frozen.tools["cupidasm"],
+                ("--help",),
+                12,
+            )
+
     def test_checked_seed_run_maps_timeout_and_invalid_requests(self):
         with mock.patch(
             "tools.bootstrap_toolchain.ToolRunner"

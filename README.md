@@ -804,10 +804,10 @@ Poisoned-host checks cover all 238 checked-in normal CupidC recipes through
 the strict and Doom gates. They fail if a CupidC-owned object reaches Clang or
 GCC. They pass against the renamed graph. Across the three supported build
 roots, the audit records 449 transforms. CupidC participates in 245, CupidObj
-participates in 188 transforms, CupidASM participates in five, Python
+participates in 189 transforms, CupidASM participates in five, Python
 participates in all 449, and no normal transform invokes a host C compiler.
-Cupid tools own 437 of the 438 root outputs; only the Doom input manifest is
-Python-only.
+Every one of the 438 root outputs has at least one Cupid tool owner, so no root
+output is Python-only.
 The Toolchain root now builds its fourteen `.cc` contracts twice with
 stage-two and stage-three CupidC, compares the static i386 executables, and
 publishes the cohort together. The publisher accepts only a dedicated
@@ -1054,15 +1054,22 @@ include space for both profiles. Its content-addressed manifest fixes the
 three-source and 80-source memberships. The current 69,366-byte manifest has
 SHA-256
 `47ba35158cac0a7df253a0056235223e62fee24df74701800f88763e588611c2`.
-Source-head CupidObj can reproduce that file through `profile-manifest`. It
+Checked-seed CupidObj produces that file through `profile-manifest`. It
 consumes one bounded `CUPROF1` snapshot, sorts the two profile inventories by
 unsigned ASCII order, and hashes all 291 captured headers with its own SHA-256
 implementation. The 796,337-byte active snapshot contains 665 memberships
-and 956 encoded path records. The checked seed carries the command, while
-the normal publisher still uses Python. [ADR 0242](docs/adr/0242-author-deterministic-profile-manifests-with-cupidobj.md)
-records the format and source-head proof, and
-[ADR 0243](docs/adr/0243-promote-profile-manifest-toolchain-seed.md) records
-seed carriage.
+and 956 encoded path records. The normal Make target passes the checked seed
+manifest. The wrapper derives both the snapshot and an independent Python JSON
+oracle from one stable capture, then runs CupidObj from the exact frozen seed.
+It requires byte parity and rechecks the seed, profile inputs, candidate,
+output directory, and existing output under an adjacent no-follow lock.
+Identical bytes retain their timestamp; changed bytes publish atomically.
+CupidObj authors the production bytes, while Python retains discovery,
+native-path checks, freezing, parity, drift detection, locking, and
+publication. [ADR 0242](docs/adr/0242-author-deterministic-profile-manifests-with-cupidobj.md)
+records the format, [ADR 0243](docs/adr/0243-promote-profile-manifest-toolchain-seed.md)
+records seed carriage, and [ADR 0244](docs/adr/0244-publish-the-doom-profile-manifest-with-checked-cupidobj.md)
+records production ownership.
 It scans the visible Doom tree before
 and after every compile. A legacy `.c` file, an unlisted `.cc` file, a missing
 root, header membership or byte drift, a symbolic link, or an NTFS junction

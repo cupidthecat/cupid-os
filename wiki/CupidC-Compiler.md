@@ -592,14 +592,19 @@ Repeated compatibility compiles also reproduce the 17,084-byte libc-stub and
 SHA-256
 `47ba35158cac0a7df253a0056235223e62fee24df74701800f88763e588611c2`.
 
-Source-head CupidObj now carries the deterministic `profile-manifest`
+Checked-seed CupidObj carries the deterministic `profile-manifest`
 operation. CupidC compiles its freestanding SHA-256, bounded `CUPROF1` parser,
 portable identity checks, canonical sorter, and JSON emitter into a
 220,508-byte object. The poisoned-host rebuild matches all stage-two and
 stage-three objects and tools, and both stages pass five help cases, fifteen
-successful operations, and thirteen useful failures. The checked seed carries
-this command, while Python remains the normal manifest author. ADR 0242
-records the source capability, and ADR 0243 records seed carriage.
+successful operations, and thirteen useful failures. The normal wrapper
+derives its snapshot and independent Python oracle from one stable capture,
+runs CupidObj from the exact frozen seed, and requires byte parity. It rechecks
+the seed, profile inputs, candidate, output directory, and existing output
+under an adjacent no-follow lock. Identical bytes retain their timestamp;
+changed bytes publish atomically. CupidObj authors the production bytes, while
+Python retains the host transaction. ADR 0242 records the source capability,
+ADR 0243 records seed carriage, and ADR 0244 records production ownership.
 
 Active dglibc uses the corrected form. Its 31-byte `dg_setjmp` saves the
 caller's post-return `ESP + 4` and is declared `returns_twice`; `dg_longjmp`,

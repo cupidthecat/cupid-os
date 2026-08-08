@@ -682,9 +682,10 @@ DOOM_CUPIDC_INPUT_MANIFEST := build/bootstrap/doom-cupidc-inputs.json
 
 # FORCE makes the profile scan run on every build. The writer retains the
 # manifest timestamp unless header membership or content has changed.
-$(DOOM_CUPIDC_INPUT_MANIFEST): FORCE $(DOOM_CUPIDC_HEADERS) Makefile \
-	tools/cupidc_kernel_compile.py
+$(DOOM_CUPIDC_INPUT_MANIFEST): FORCE $(DOOM_CUPIDC_HEADERS) \
+	$(CHECKED_SEED_INPUTS) tools/cupidc_kernel_compile.py
 	$(PYTHON) tools/cupidc_kernel_compile.py --root . \
+		--manifest $(BOOTSTRAP_SEED_MANIFEST) \
 		--write-profile-input-manifest $@
 
 # dglibc: DOOM libc shim (heap/string/stdio/fmt/setjmp)

@@ -356,14 +356,20 @@ Repeated compatibility compiles also reproduce the 17,084-byte libc-stub and
 10,352-byte platform objects. The 69,366-byte closed profile manifest has
 SHA-256
 `47ba35158cac0a7df253a0056235223e62fee24df74701800f88763e588611c2`.
-Source-head CupidObj reproduces that manifest through `profile-manifest`. The
+Checked-seed CupidObj reproduces that manifest through `profile-manifest`. The
 command reads one bounded `CUPROF1` snapshot, hashes the 291 captured headers,
 and emits canonical JSON for both profiles. The source-current five-tool
 rebuild matches stage two and stage three across a 5/15/13 behavior matrix,
 including SHA padding boundaries, unsafe paths, case collisions, and preserved
-failure output. The checked seed carries this command, while the normal
-publisher still uses Python. ADR 0242 records the format boundary, and ADR
-0243 records seed carriage.
+failure output. The normal wrapper derives the snapshot and independent Python
+oracle from one stable capture, runs CupidObj from the exact frozen seed, and
+requires byte parity. Under an adjacent no-follow lock, it rechecks the seed,
+profile inputs, candidate, output directory, and existing output, then retains
+identical bytes and their timestamp or publishes atomically. CupidObj authors
+the production bytes; Python retains discovery, native-path checks, freezing,
+parity, drift detection, locking, and publication. ADR 0242 records the format
+boundary, ADR 0243 records seed carriage, and ADR 0244 records production
+ownership.
 Full IWAD gameplay remains a separate runtime gate.
 
 Checked-seed CupidC represents GNU `returns_twice` on file-scope function
@@ -584,10 +590,10 @@ all 449 transforms. CupidC's total is 239 normal transforms plus three
 generated installation tables and the `hello.cc`, `ls.cc`, and `cat.cc`
 programs. The
 438-transform root image graph has no host C or recursive Make transform.
-Its five CupidASM, 188 CupidObj, two CupidLD, and one CupidDis transforms run
+Its five CupidASM, 189 CupidObj, two CupidLD, and one CupidDis transforms run
 from the manifest-checked five-tool seed. Native hosted commands remain
-explicit oracle targets. Cupid tools own 437 root outputs; only the Doom input
-manifest remains Python-only. The runner rechecks the live seed cohort after each
+explicit oracle targets. Every one of the 438 root outputs has a Cupid owner,
+so no root output is Python-only. The runner rechecks the live seed cohort after each
 command, and Make passes wildcard-discovered output sources through
 `$(sort ...)` before generation or link. Windows and Linux therefore consume
 the same root order across host locales.
@@ -748,8 +754,9 @@ Python builds an independent layout oracle from the same frozen inputs and
 requires byte parity. It extends a fresh template to the requested image size,
 or copies a valid persistent image and replaces only the prefix before the FAT
 partition. Python also stages frozen files, checks the seed and live paths for
-changes, and publishes the complete candidate atomically. CupidObj's 188
-normal transforms include `disk-template`. ADR 0236 records the
+changes, and publishes the complete candidate atomically. CupidObj's 189
+normal transforms include `disk-template`, `iso-fixture`, and the guarded Doom
+profile manifest. ADR 0236 records the
 command, ADR 0237 records seed carriage, and [ADR 0238](../docs/adr/0238-publish-normal-disk-images-from-cupidobj-templates.md)
 records production ownership.
 
