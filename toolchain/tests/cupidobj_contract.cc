@@ -18,6 +18,127 @@ static void write_le32(ctool_u8 *bytes, ctool_u32 offset, ctool_u32 value) {
   bytes[offset + 3u] = (ctool_u8)((value >> 24u) & 0xffu);
 }
 
+static int profile_snapshot_put_bytes(ctool_u8 *bytes, ctool_u32 capacity,
+                                      ctool_u32 *size,
+                                      const ctool_u8 *value,
+                                      ctool_u32 value_size) {
+  ctool_u32 index;
+  if (*size > capacity || capacity - *size < 4u ||
+      value_size > capacity - *size - 4u) {
+    return 0;
+  }
+  write_le32(bytes, *size, value_size);
+  *size += 4u;
+  for (index = 0u; index < value_size; index++) {
+    bytes[*size + index] = value[index];
+  }
+  *size += value_size;
+  return 1;
+}
+
+static int profile_snapshot_put_string(ctool_u8 *bytes,
+                                       ctool_u32 capacity,
+                                       ctool_u32 *size,
+                                       const char *value) {
+  ctool_string_t string = ctool_string(value);
+  return profile_snapshot_put_bytes(
+      bytes, capacity, size, (const ctool_u8 *)(const void *)string.data,
+      string.size);
+}
+
+static int profile_snapshot_put_u32(ctool_u8 *bytes, ctool_u32 capacity,
+                                    ctool_u32 *size, ctool_u32 value) {
+  if (*size > capacity || capacity - *size < 4u) {
+    return 0;
+  }
+  write_le32(bytes, *size, value);
+  *size += 4u;
+  return 1;
+}
+
+static ctool_u32 build_profile_snapshot(ctool_u8 *bytes,
+                                        ctool_u32 capacity,
+                                        int reverse) {
+  static const ctool_u8 magic[8] = {
+      (ctool_u8)'C', (ctool_u8)'U', (ctool_u8)'P', (ctool_u8)'R',
+      (ctool_u8)'O', (ctool_u8)'F', (ctool_u8)'1', 0u};
+  static const ctool_u8 abc[] = {(ctool_u8)'a', (ctool_u8)'b',
+                                 (ctool_u8)'c'};
+  static const ctool_u8 zed[] = {(ctool_u8)'z', (ctool_u8)'\n'};
+  ctool_u32 size = 0u;
+  ctool_u32 index;
+  if (capacity < 8u) {
+    return 0u;
+  }
+  for (index = 0u; index < 8u; index++) {
+    bytes[index] = magic[index];
+  }
+  size = 8u;
+  if (!profile_snapshot_put_string(bytes, capacity, &size,
+                                   "cupid.doom-profile-inputs.v1") ||
+      !profile_snapshot_put_u32(bytes, capacity, &size, 2u)) {
+    return 0u;
+  }
+  if (reverse) {
+    if (!profile_snapshot_put_string(bytes, capacity, &size, "doom-tree") ||
+        !profile_snapshot_put_u32(bytes, capacity, &size, 2u) ||
+        !profile_snapshot_put_string(bytes, capacity, &size, "z.h") ||
+        !profile_snapshot_put_string(bytes, capacity, &size, "a.h") ||
+        !profile_snapshot_put_u32(bytes, capacity, &size, 2u) ||
+        !profile_snapshot_put_string(bytes, capacity, &size,
+                                     "kernel/doom/z.cc") ||
+        !profile_snapshot_put_string(bytes, capacity, &size,
+                                     "kernel/doom/a.cc") ||
+        !profile_snapshot_put_string(bytes, capacity, &size, "doom-compat") ||
+        !profile_snapshot_put_u32(bytes, capacity, &size, 1u) ||
+        !profile_snapshot_put_string(bytes, capacity, &size, "a.h") ||
+        !profile_snapshot_put_u32(bytes, capacity, &size, 1u) ||
+        !profile_snapshot_put_string(bytes, capacity, &size,
+                                     "kernel/doom/d.cc")) {
+      return 0u;
+    }
+  } else {
+    if (!profile_snapshot_put_string(bytes, capacity, &size, "doom-compat") ||
+        !profile_snapshot_put_u32(bytes, capacity, &size, 1u) ||
+        !profile_snapshot_put_string(bytes, capacity, &size, "a.h") ||
+        !profile_snapshot_put_u32(bytes, capacity, &size, 1u) ||
+        !profile_snapshot_put_string(bytes, capacity, &size,
+                                     "kernel/doom/d.cc") ||
+        !profile_snapshot_put_string(bytes, capacity, &size, "doom-tree") ||
+        !profile_snapshot_put_u32(bytes, capacity, &size, 2u) ||
+        !profile_snapshot_put_string(bytes, capacity, &size, "a.h") ||
+        !profile_snapshot_put_string(bytes, capacity, &size, "z.h") ||
+        !profile_snapshot_put_u32(bytes, capacity, &size, 2u) ||
+        !profile_snapshot_put_string(bytes, capacity, &size,
+                                     "kernel/doom/a.cc") ||
+        !profile_snapshot_put_string(bytes, capacity, &size,
+                                     "kernel/doom/z.cc")) {
+      return 0u;
+    }
+  }
+  if (!profile_snapshot_put_u32(bytes, capacity, &size, 2u)) {
+    return 0u;
+  }
+  if (reverse) {
+    if (!profile_snapshot_put_string(bytes, capacity, &size, "z.h") ||
+        !profile_snapshot_put_bytes(bytes, capacity, &size, zed,
+                                    (ctool_u32)sizeof(zed)) ||
+        !profile_snapshot_put_string(bytes, capacity, &size, "a.h") ||
+        !profile_snapshot_put_bytes(bytes, capacity, &size, abc,
+                                    (ctool_u32)sizeof(abc))) {
+      return 0u;
+    }
+  } else if (!profile_snapshot_put_string(bytes, capacity, &size, "a.h") ||
+             !profile_snapshot_put_bytes(bytes, capacity, &size, abc,
+                                         (ctool_u32)sizeof(abc)) ||
+             !profile_snapshot_put_string(bytes, capacity, &size, "z.h") ||
+             !profile_snapshot_put_bytes(bytes, capacity, &size, zed,
+                                         (ctool_u32)sizeof(zed))) {
+    return 0u;
+  }
+  return size;
+}
+
 static ctool_u16 read_le16(const ctool_u8 *bytes, ctool_u32 offset) {
   return (ctool_u16)((ctool_u16)bytes[offset] |
                      (ctool_u16)((ctool_u16)bytes[offset + 1u] << 8u));
@@ -2067,6 +2188,175 @@ static int run_iso_fixture(void) {
   return ok != 0 ? 0 : 1;
 }
 
+static int run_profile_manifest(void) {
+  static const char expected[] =
+      "{\n"
+      "  \"inputs\": [\n"
+      "    {\n"
+      "      \"bytes\": 3,\n"
+      "      \"path\": \"a.h\",\n"
+      "      \"sha256\": "
+      "\"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad\"\n"
+      "    },\n"
+      "    {\n"
+      "      \"bytes\": 2,\n"
+      "      \"path\": \"z.h\",\n"
+      "      \"sha256\": "
+      "\"c865f6c5ab8d1b0bcd383a5e1e3879d22681c96bf462c269b7581d523fbe70ab\"\n"
+      "    }\n"
+      "  ],\n"
+      "  \"profiles\": {\n"
+      "    \"doom-compat\": [\n"
+      "      \"a.h\"\n"
+      "    ],\n"
+      "    \"doom-tree\": [\n"
+      "      \"a.h\",\n"
+      "      \"z.h\"\n"
+      "    ]\n"
+      "  },\n"
+      "  \"schema\": \"cupid.doom-profile-inputs.v1\",\n"
+      "  \"sources\": {\n"
+      "    \"doom-compat\": [\n"
+      "      \"kernel/doom/d.cc\"\n"
+      "    ],\n"
+      "    \"doom-tree\": [\n"
+      "      \"kernel/doom/a.cc\",\n"
+      "      \"kernel/doom/z.cc\"\n"
+      "    ]\n"
+      "  }\n"
+      "}\n";
+  ctool_u8 snapshot[512];
+  ctool_u8 reordered[512];
+  ctool_u32 snapshot_size = build_profile_snapshot(
+      snapshot, (ctool_u32)sizeof(snapshot), 0);
+  ctool_u32 reordered_size = build_profile_snapshot(
+      reordered, (ctool_u32)sizeof(reordered), 1);
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_buffer_t *first = (ctool_buffer_t *)0;
+  ctool_buffer_t *second = (ctool_buffer_t *)0;
+  ctool_buffer_t *limited = (ctool_buffer_t *)0;
+  ctool_source_t source;
+  ctool_obj_request_t request;
+  ctool_obj_result_t first_result;
+  ctool_obj_result_t second_result;
+  ctool_arena_mark_t mark;
+  ctool_arena_mark_t before_fill;
+  ctool_arena_mark_t full_mark;
+  void *arena_fill = (void *)0;
+  ctool_status_t status;
+  int ok = 1;
+  if (snapshot_size == 0u || reordered_size == 0u ||
+      !open_job(&adapter, &config, &job)) {
+    return 1;
+  }
+  status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                 &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                   &second);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 1u, 64u, &limited);
+  }
+  if (status != CTOOL_OK) {
+    if (second != (ctool_buffer_t *)0) {
+      ctool_buffer_close(second);
+    }
+    if (first != (ctool_buffer_t *)0) {
+      ctool_buffer_close(first);
+    }
+    ctool_job_close(job);
+    return 1;
+  }
+  source.path.text = ctool_string("/profile.snapshot");
+  source.contents = ctool_bytes(snapshot, snapshot_size);
+  (void)memset(&request, 0, sizeof(request));
+  request.operation = CTOOL_OBJ_GENERATE_PROFILE_MANIFEST;
+  request.input = &source;
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_obj_transform(job, &request, first, &first_result);
+  if (status != CTOOL_OK ||
+      !arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) ||
+      first_result.bytes.size != (ctool_u32)sizeof(expected) - 1u ||
+      memcmp(first_result.bytes.data, expected, sizeof(expected) - 1u) != 0) {
+    (void)fprintf(stderr, "profile-manifest: exact output failed\n");
+    ok = 0;
+  }
+  source.contents = ctool_bytes(reordered, reordered_size);
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_obj_transform(job, &request, second, &second_result);
+  if (status != CTOOL_OK ||
+      !arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) ||
+      first_result.bytes.size != second_result.bytes.size ||
+      memcmp(first_result.bytes.data, second_result.bytes.data,
+             (size_t)first_result.bytes.size) != 0) {
+    (void)fprintf(stderr, "profile-manifest: reordered snapshot differs\n");
+    ok = 0;
+  }
+
+  ctool_buffer_clear(first);
+  source.contents = ctool_bytes(snapshot, snapshot_size);
+  snapshot[0] = (ctool_u8)'X';
+  ok &= expect_rewound_failure(job, first, &request, CTOOL_ERR_INPUT,
+                               CTOOL_OBJ_DIAG_INVALID_INPUT,
+                               "profile-manifest magic");
+  snapshot[0] = (ctool_u8)'C';
+  source.contents = ctool_bytes(snapshot, snapshot_size - 1u);
+  ok &= expect_rewound_failure(job, first, &request, CTOOL_ERR_INPUT,
+                               CTOOL_OBJ_DIAG_INVALID_INPUT,
+                               "profile-manifest truncation");
+  source.contents = ctool_bytes(snapshot, snapshot_size);
+  ok &= expect_rewound_failure(job, limited, &request, CTOOL_ERR_LIMIT,
+                               CTOOL_OBJ_DIAG_LIMIT,
+                               "profile-manifest output limit");
+
+  source.contents = ctool_bytes((const void *)0, 1u);
+  ok &= expect_rewound_failure(job, first, &request,
+                               CTOOL_ERR_INVALID_ARGUMENT,
+                               CTOOL_OBJ_DIAG_INVALID_INPUT,
+                               "profile-manifest invalid bytes");
+  source.contents = ctool_bytes(snapshot, snapshot_size);
+
+  before_fill = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_arena_alloc(ctool_job_arena(job), config.limits.arena_bytes,
+                             1u, &arena_fill);
+  full_mark = ctool_arena_mark(ctool_job_arena(job));
+  if (status != CTOOL_OK || arena_fill == (void *)0) {
+    (void)fprintf(stderr, "profile-manifest: arena setup failed\n");
+    ok = 0;
+  } else {
+    ok &= expect_rewound_failure(job, first, &request, CTOOL_ERR_LIMIT,
+                                 CTOOL_OBJ_DIAG_LIMIT,
+                                 "profile-manifest arena limit");
+    if (!arena_marks_equal(full_mark,
+                           ctool_arena_mark(ctool_job_arena(job)))) {
+      (void)fprintf(stderr,
+                    "profile-manifest: arena failure did not rewind\n");
+      ok = 0;
+    }
+    if (ctool_arena_rewind(ctool_job_arena(job), before_fill) != CTOOL_OK) {
+      (void)fprintf(stderr, "profile-manifest: arena recovery setup failed\n");
+      ok = 0;
+    }
+  }
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  status = ctool_obj_transform(job, &request, first, &second_result);
+  if (status != CTOOL_OK ||
+      !arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job))) ||
+      second_result.bytes.size != (ctool_u32)sizeof(expected) - 1u) {
+    (void)fprintf(stderr, "profile-manifest: same-job recovery failed\n");
+    ok = 0;
+  }
+
+  ctool_buffer_close(limited);
+  ctool_buffer_close(second);
+  ctool_buffer_close(first);
+  ctool_job_close(job);
+  return ok != 0 ? 0 : 1;
+}
+
 static int run_errors(void) {
   static const ctool_u8 payload[] = {1u, 2u, 3u};
   static const ctool_u8 text_payload[] = {'x', '\r', '\n', 'y'};
@@ -2289,10 +2579,14 @@ int main(int argc, char **argv) {
   if (argc == 2 && strcmp(argv[1], "iso-fixture") == 0) {
     return run_iso_fixture();
   }
+  if (argc == 2 && strcmp(argv[1], "profile-manifest") == 0) {
+    return run_profile_manifest();
+  }
   (void)fprintf(stderr,
                  "usage: cupidobj-contract wrap-basic|wrap-model|"
                  "wrap-text|wrap-jpeg|extract-basic|extract-fallback|"
                  "install-source|"
-                 "ksyms-source|disk-template|iso-fixture|errors\n");
+                 "ksyms-source|disk-template|iso-fixture|profile-manifest|"
+                 "errors\n");
   return 2;
 }

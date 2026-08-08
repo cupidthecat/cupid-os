@@ -354,7 +354,7 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
         feature = next(
             item for item in audit["features"] if item["id"] == "c.control.return"
         )
-        self.assertEqual(feature["occurrences"], 22737)
+        self.assertEqual(feature["occurrences"], 22840)
 
     def test_active_for_statement_inventory_is_drift_gated(self):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
@@ -362,7 +362,7 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
         feature = next(
             item for item in audit["features"] if item["id"] == "c.control.for"
         )
-        self.assertEqual(feature["occurrences"], 4109)
+        self.assertEqual(feature["occurrences"], 4155)
 
     def test_active_while_statement_inventory_is_drift_gated(self):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
@@ -370,7 +370,7 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
         feature = next(
             item for item in audit["features"] if item["id"] == "c.control.while"
         )
-        self.assertEqual(feature["occurrences"], 2755)
+        self.assertEqual(feature["occurrences"], 2762)
         self.assertEqual(len(feature["files"]), 262)
 
     def test_active_do_statement_inventory_is_drift_gated(self):
@@ -397,9 +397,9 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
         audit = json.loads(audit_path.read_text(encoding="utf-8"))
         features = {item["id"]: item for item in audit["features"]}
-        self.assertEqual(features["c.control.if"]["occurrences"], 37374)
+        self.assertEqual(features["c.control.if"]["occurrences"], 37496)
         self.assertEqual(len(features["c.control.if"]["files"]), 366)
-        self.assertEqual(features["c.control.else"]["occurrences"], 4747)
+        self.assertEqual(features["c.control.else"]["occurrences"], 4754)
         self.assertEqual(len(features["c.control.else"]["files"]), 277)
 
     def test_active_goto_inventory_is_drift_gated(self):

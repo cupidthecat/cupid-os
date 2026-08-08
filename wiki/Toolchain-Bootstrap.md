@@ -353,7 +353,14 @@ source produces a 93,332-byte object with SHA-256
 Repeated compatibility compiles also reproduce the 17,084-byte libc-stub and
 10,352-byte platform objects. The 69,366-byte closed profile manifest has
 SHA-256
-`e77c8a0dc238b1a6f2257f273cf3367dba930c914e6a5806adf058621bbff4a4`.
+`47ba35158cac0a7df253a0056235223e62fee24df74701800f88763e588611c2`.
+Source-head CupidObj reproduces that manifest through `profile-manifest`. The
+command reads one bounded `CUPROF1` snapshot, hashes the 291 captured headers,
+and emits canonical JSON for both profiles. The source-current five-tool
+rebuild matches stage two and stage three across a 5/15/13 behavior matrix,
+including SHA padding boundaries, unsafe paths, case collisions, and preserved
+failure output. The promoted seed and normal publisher do not use this command
+yet. ADR 0242 records the format boundary.
 Full IWAD gameplay remains a separate runtime gate.
 
 Checked-seed CupidC represents GNU `returns_twice` on file-scope function

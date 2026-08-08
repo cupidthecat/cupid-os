@@ -459,7 +459,7 @@ lists and aggregate arguments without declared parameter types remain open.
 
 The object operation now consumes static roots owned by file definitions and block bindings. Block-static declarations emit no runtime initializer instructions. Their `LOCAL_ADDRESS` identities map to local ELF symbols and `R_386_32` relocations instead of automatic frame slots. File objects retain first placement, block statics follow in absolute binding order, and functions come afterward.
 
-The generated active-source audit records the current lexical totals and build graph. All twelve hermetic hosted Toolchain implementation gates parse completely. Each five-number tuple reports definitions, statements, expressions, block bindings, and initializers. The largest compiler units are `cupidc_pp.cc` at 143/3,932/25,287/479/286, `cupidc_ir.cc` at 263/7,281/67,825/957/357, `cupidc_emit.cc` at 359/8,953/75,214/1,098/737, and `cupidc_frontend.cc` at 426/16,715/110,486/2,501/1,521. The same gate includes source-head `cupidobj.cc` at 62/1,652/11,301/215/123 plus unchanged `cupidasm.cc`, `elf32.cc`, and `x86.cc`.
+The generated active-source audit records the current lexical totals and build graph. All twelve hermetic hosted Toolchain implementation gates parse completely. Each five-number tuple reports definitions, statements, expressions, block bindings, and initializers. The largest compiler units are `cupidc_pp.cc` at 143/3,932/25,287/479/286, `cupidc_ir.cc` at 263/7,281/67,825/957/357, `cupidc_emit.cc` at 359/8,953/75,214/1,098/737, and `cupidc_frontend.cc` at 426/16,715/110,486/2,501/1,521. The same gate includes source-head `cupidobj.cc` at 140/3,451/23,768/532/452 plus unchanged `cupidasm.cc`, `elf32.cc`, and `x86.cc`.
 
 The deterministic object frontier contains those twelve implementation files plus `kernel/lang/as_elf.cc`. Hosted CupidC copies nested union storage inside supported structures, loads scalar members from structure rvalues, accepts a direct four-byte literal zero as a function-pointer null, converts object pointers to and from signed or unsigned eight-byte integers, and retains parenthesized or explicitly pointer-cast static string and binding addresses. In the detailed rows below, broad references to unsupported union values mean a union used directly as a value; nested union bytes inside a structure are represented. Checked four-byte i386 Linux profiles cover every C source in the static tool closure. Repository startup and runtime code link complete CupidC-built CupidC, CupidASM, CupidDis, CupidLD, and CupidObj commands. The checked seed carries those five images and their exact plan into a clean staged build. Linux and WSL behavior checks cover both compared stages. CupidC owns all 239 normal C transforms: 156 strict or generated roots and 83 Doom roots, all named `.cc`. The supported graph has no ordinary C translation unit and no host-C transform. Optimization, Host Python and WSL removal, a native Windows fixed point, IWAD-backed gameplay, and an approved output-quality gate remain open.
 
@@ -747,6 +747,18 @@ rollback, and recovery. The normal recipe runs that checked operation first,
 then accepts its bytes only after an independent Python render agrees. ADR
 0239 records the source capability, ADR 0240 records seed carriage, and ADR
 0241 records production ownership.
+
+Source-head CupidObj also accepts `profile-manifest`. One bounded `CUPROF1`
+snapshot carries profile membership and the raw bytes of each captured header.
+CupidObj validates portable identities, hashes the bytes with its freestanding
+SHA-256 implementation, sorts the logical sets, and emits the current
+69,366-byte Doom profile JSON exactly. The complete 512-input and
+2,048-membership boundary, SHA padding and repeated-block cases, useful
+diagnostics, rollback, and same-job recovery have hosted and freestanding
+coverage. The 5/15/13 source-head fixed point passes with host code generators
+poisoned. The promoted seed does not carry this command, and the normal recipe
+has not adopted it, so the production transform count does not change. ADR
+0242 records the boundary.
 
 | Capability | Status | Baseline evidence and gap |
 | --- | --- | --- |

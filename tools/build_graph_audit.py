@@ -4606,6 +4606,9 @@ def _cupid_toolchain_fixed_point_contract(
         driver_source = driver_path.read_text(encoding="utf-8")
         bootstrap_source = bootstrap_path.read_text(encoding="utf-8")
         test_tree = ast.parse(test_source, filename=str(test_path))
+        bootstrap_tree = ast.parse(
+            bootstrap_source, filename=str(bootstrap_path)
+        )
     except (OSError, SyntaxError) as exc:
         raise AuditError(
             "Cupid Toolchain fixed-point contract is unavailable"
@@ -4875,6 +4878,266 @@ def _cupid_toolchain_fixed_point_contract(
             f"{missing_test_fragments!r}"
         )
 
+    behavior_functions = [
+        node
+        for node in bootstrap_tree.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and node.name == "_run_behavior_checks"
+    ]
+    expected_behavior_matrix = {
+        "failure_cases": 13,
+        "help_cases": 5,
+        "success_cases": 15,
+    }
+    expected_profile_failures = {
+        "truncated": "snapshot is truncated",
+        "unsafe-path": "repository path is invalid",
+        "case-collision": "header path has a case collision",
+    }
+    if len(behavior_functions) != 1:
+        raise AuditError(
+            "Cupid Toolchain fixed-point profile behavior differs: "
+            "_run_behavior_checks is not unique"
+        )
+    behavior_function = behavior_functions[0]
+    positive_profile_result: tuple[str, int] | None = None
+    positive_profile_status: tuple[str, int, int] | None = None
+    profile_failure_matrix: dict[str, str] | None = None
+    profile_failure_loop: ast.For | None = None
+    behavior_returns: list[object] = []
+    for index, statement in enumerate(behavior_function.body):
+        if isinstance(statement, ast.Assign) and len(statement.targets) == 1:
+            target = statement.targets[0]
+            call = statement.value
+            if (
+                isinstance(target, ast.Name)
+                and isinstance(call, ast.Call)
+                and isinstance(call.func, ast.Name)
+                and call.func.id == "_run_stage_pair"
+            ):
+                string_arguments = [
+                    node.value
+                    for node in ast.walk(call)
+                    if isinstance(node, ast.Constant)
+                    and isinstance(node.value, str)
+                ]
+                if "profile-manifest" in string_arguments:
+                    if (
+                        string_arguments.count("profile-manifest") != 2
+                        or string_arguments.count("cupidobj") != 1
+                    ):
+                        raise AuditError(
+                            "Cupid Toolchain fixed-point profile behavior "
+                            "differs: a profile case does not run both stages"
+                        )
+                    if positive_profile_result is not None:
+                        raise AuditError(
+                            "Cupid Toolchain fixed-point profile behavior "
+                            "differs: the positive stage pair is not unique"
+                        )
+                    positive_profile_result = (target.id, index)
+            if (
+                isinstance(target, ast.Name)
+                and target.id == "profile_failure_cases"
+            ):
+                if not isinstance(statement.value, (ast.Tuple, ast.List)):
+                    profile_failure_matrix = None
+                    continue
+                parsed_failures: dict[str, str] = {}
+                for entry in statement.value.elts:
+                    if not isinstance(entry, (ast.Tuple, ast.List)):
+                        parsed_failures = {}
+                        break
+                    if len(entry.elts) != 3:
+                        parsed_failures = {}
+                        break
+                    name = entry.elts[0]
+                    diagnostic = entry.elts[2]
+                    if (
+                        not isinstance(name, ast.Constant)
+                        or not isinstance(name.value, str)
+                        or not isinstance(diagnostic, ast.Constant)
+                        or not isinstance(diagnostic.value, str)
+                        or name.value in parsed_failures
+                    ):
+                        parsed_failures = {}
+                        break
+                    parsed_failures[name.value] = diagnostic.value
+                profile_failure_matrix = parsed_failures
+        if (
+            isinstance(statement, ast.Expr)
+            and isinstance(statement.value, ast.Call)
+            and isinstance(statement.value.func, ast.Name)
+            and statement.value.func.id == "_expect_status"
+            and len(statement.value.args) >= 3
+        ):
+            result, status, label = statement.value.args[:3]
+            if (
+                isinstance(result, ast.Name)
+                and isinstance(status, ast.Constant)
+                and isinstance(status.value, int)
+                and isinstance(label, ast.Constant)
+                and isinstance(label.value, str)
+                and label.value == "CupidObj profile manifest"
+            ):
+                positive_profile_status = (
+                    result.id,
+                    status.value,
+                    index,
+                )
+        if (
+            isinstance(statement, ast.For)
+            and isinstance(statement.iter, ast.Name)
+            and statement.iter.id == "profile_failure_cases"
+        ):
+            if profile_failure_loop is not None:
+                raise AuditError(
+                    "Cupid Toolchain fixed-point profile behavior differs: "
+                    "the profile failure loop is not unique"
+                )
+            profile_failure_loop = statement
+        if isinstance(statement, ast.Return):
+            try:
+                behavior_returns.append(ast.literal_eval(statement.value))
+            except (TypeError, ValueError):
+                behavior_returns.append(None)
+
+    if behavior_returns != [expected_behavior_matrix]:
+        raise AuditError(
+            "Cupid Toolchain fixed-point behavior matrix differs: "
+            f"expected {expected_behavior_matrix!r}"
+        )
+    if profile_failure_matrix != expected_profile_failures:
+        raise AuditError(
+            "Cupid Toolchain fixed-point profile behavior differs: "
+            "the profile failure matrix is incomplete"
+        )
+    if positive_profile_result is None or positive_profile_status is None:
+        raise AuditError(
+            "Cupid Toolchain fixed-point profile behavior differs: "
+            "the positive profile stage pair is absent"
+        )
+    result_name, stage_pair_index = positive_profile_result
+    status_result, positive_status, status_index = positive_profile_status
+    positive_checks = [
+        statement
+        for statement in behavior_function.body[status_index + 1:]
+        if isinstance(statement, ast.If)
+    ]
+    positive_read_names = (
+        {
+            node.func.value.id
+            for node in ast.walk(positive_checks[0].test)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "read_bytes"
+            and isinstance(node.func.value, ast.Name)
+        }
+        if positive_checks
+        else set()
+    )
+    if (
+        status_result != result_name
+        or positive_status != 0
+        or stage_pair_index >= status_index
+        or not positive_checks
+        or len(positive_read_names) < 2
+    ):
+        raise AuditError(
+            "Cupid Toolchain fixed-point profile behavior differs: "
+            "the positive case does not compare both staged outputs"
+        )
+    if profile_failure_loop is None:
+        raise AuditError(
+            "Cupid Toolchain fixed-point profile behavior differs: "
+            "the profile failure loop is absent"
+        )
+    loop_target_names = [
+        node.id
+        for node in (
+            profile_failure_loop.target.elts
+            if isinstance(profile_failure_loop.target, (ast.Tuple, ast.List))
+            else []
+        )
+        if isinstance(node, ast.Name)
+    ]
+    failure_stage_pairs: list[tuple[str, ast.Call]] = []
+    failure_statuses: list[tuple[str, int]] = []
+    failure_checks = [
+        node for node in profile_failure_loop.body if isinstance(node, ast.If)
+    ]
+    for node in ast.walk(profile_failure_loop):
+        if (
+            isinstance(node, ast.Assign)
+            and len(node.targets) == 1
+            and isinstance(node.targets[0], ast.Name)
+            and isinstance(node.value, ast.Call)
+            and isinstance(node.value.func, ast.Name)
+            and node.value.func.id == "_run_stage_pair"
+        ):
+            string_arguments = [
+                child.value
+                for child in ast.walk(node.value)
+                if isinstance(child, ast.Constant)
+                and isinstance(child.value, str)
+            ]
+            if "profile-manifest" in string_arguments:
+                if (
+                    string_arguments.count("profile-manifest") != 2
+                    or string_arguments.count("cupidobj") != 1
+                ):
+                    raise AuditError(
+                        "Cupid Toolchain fixed-point profile behavior differs: "
+                        "the failure loop does not run both stages"
+                    )
+                failure_stage_pairs.append(
+                    (node.targets[0].id, node.value)
+                )
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "_expect_status"
+            and len(node.args) >= 2
+            and isinstance(node.args[0], ast.Name)
+            and isinstance(node.args[1], ast.Constant)
+            and isinstance(node.args[1].value, int)
+        ):
+            failure_statuses.append((node.args[0].id, node.args[1].value))
+    if (
+        len(loop_target_names) != 3
+        or len(failure_stage_pairs) != 1
+        or failure_statuses != [(failure_stage_pairs[0][0], 1)]
+        or len(failure_checks) != 1
+    ):
+        raise AuditError(
+            "Cupid Toolchain fixed-point profile behavior differs: "
+            "the failure cases are not one checked stage pair"
+        )
+    failure_check = failure_checks[0].test
+    read_names = {
+        node.func.value.id
+        for node in ast.walk(failure_check)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "read_bytes"
+        and isinstance(node.func.value, ast.Name)
+    }
+    sentinel_count = sum(
+        1
+        for node in ast.walk(failure_check)
+        if isinstance(node, ast.Name) and node.id == "sentinel"
+    )
+    diagnostic_count = sum(
+        1
+        for node in ast.walk(failure_check)
+        if isinstance(node, ast.Name) and node.id == loop_target_names[2]
+    )
+    if len(read_names) < 2 or sentinel_count < 2 or diagnostic_count < 1:
+        raise AuditError(
+            "Cupid Toolchain fixed-point profile behavior differs: "
+            "the failure loop does not diagnose and preserve both outputs"
+        )
+
     required_bootstrap_fragments = (
         "def freeze_source_inputs(",
         "destination = snapshot_root / name",
@@ -4952,8 +5215,8 @@ def _cupid_toolchain_fixed_point_contract(
         "compared_startup_objects": 1,
         "compared_tool_images": len(expected_toolchain_links),
         "help_cases": len(expected_toolchain_links),
-        "success_behavior_cases": 11,
-        "failure_behavior_cases": 7,
+        "success_behavior_cases": 15,
+        "failure_behavior_cases": 13,
         "stages": ["generation-one", "stage-two", "stage-three"],
         "checked_seed_source_root": "private-captured",
         "checked_seed_source_boundary_checks": 4,

@@ -21784,3 +21784,109 @@ publication. Removing that orchestration and the Windows WSL execution bridge
 remains open. No C or assembly source changes ownership in this handoff, so no
 `.c` to `.cc` rename is due. `TempleOS/` remains untouched reference material.
 ADR 0241 records the decision.
+
+## 2026-08-08: Add profile-manifest authoring to source-head CupidObj
+
+The Doom build's content-addressed profile manifest was the last root output
+without a Cupid tool author. This step gives CupidObj the deterministic format
+operation while leaving the checked seed and normal publisher unchanged.
+
+`cupidobj profile-manifest SNAPSHOT -o OUTPUT` consumes one `CUPROF1` binary
+envelope. Little-endian 32-bit lengths frame the schema, profile names, header
+and source membership, captured header paths, and raw header bytes. The public
+limits are 16 profiles, 512 rows per list, 512 captured inputs, 2,048 combined
+membership references, 127 schema bytes, 63 profile-name bytes, and 1,024 path
+bytes. This avoids the active inventory's Windows command-line cost and leaves
+filesystem policy outside the freestanding transform.
+
+CupidObj validates portable repository paths, duplicates, case-only aliases,
+exact header-to-input membership, unused captured inputs, complete envelope
+consumption, and every count before allocation. Folded heap sorting keeps
+portable identity checks predictable at the public maximum. Sorted input
+lookup replaces the earlier quadratic membership scan. The command computes
+SHA-256 from frozen input bytes and emits the same indented, key-sorted JSON as
+the Python oracle. Failures preserve the output, zero the result, rewind arena
+storage, and allow the same job to recover.
+
+The live `doom-compat` and `doom-tree` profiles contain 291 headers each and 3
+or 80 sources. Their 291 distinct headers contain 767,913 bytes. The complete
+inventory has 665 membership references and 956 encoded path records. The
+canonical 796,337-byte snapshot has SHA-256
+`2c22f2dd26a9fdcc41d5972b91c863d103c564c04f74860a0fc500d1fe684941`.
+CupidObj and Python agree on a 69,366-byte JSON file with SHA-256
+`47ba35158cac0a7df253a0056235223e62fee24df74701800f88763e588611c2`.
+
+The first source-head fixed point passed with one small positive hash case and
+one truncation failure. Review found that a stable CupidC miscompile in SHA
+padding, repeated full-block hashing, or semantic validation could survive
+that gate. The final behavior proof covers input lengths 0, 3, 55, 56, 63, 64,
+65, and 129, plus truncation, an unsafe path, a case-only header collision, and
+sentinel preservation in both stages. Review also found that the original
+portable case scan could perform billions of byte comparisons at the stated
+maximum. Folded heap sorting and binary lookup fixed the portable identity and
+membership checks. The last review pass then caught exact-order insertion
+sorts in the canonical-output path. Exact-order heap sorting closed that
+remaining quadratic case before the capability was committed.
+
+The first complete frontend rerun exposed five stale lexical inventory locks:
+`return`, `for`, `while`, `if`, and `else`. The regenerated audit already held
+the new counts. The final exact-order sort change brings them to 22,840
+returns, 4,155 `for` statements, 2,762 `while` statements, 37,496 `if`
+statements, and 4,754 `else` branches. The tests were
+corrected to match that checked inventory, and the next complete run passed
+all 95 cases.
+
+The first complete fixed-point unittest then reached its final transition
+check and found one stale expectation: it still required the old seed's
+CupidObj image to match source head. The rebuilt CupidObj must differ until
+promotion, while the other four images remain equal. The assertion now locks
+that deliberate one-tool difference without weakening the stage-two versus
+stage-three proof.
+
+The poisoned-host bootstrap completed in 904.2 seconds. All 19 C object pairs,
+startup, and five tool images match between stage two and stage three. Its
+source snapshot has SHA-256
+`bbbeb2b9f1532c9e7574ec47bb05c428f308fa430cf5fafe33b6222488b1ea33`.
+The 15,058-byte report has SHA-256
+`6ef11227e3976131a45c270742559a05221d3e8627cd927a0201cbb9b844dc7d`
+and records five help cases, fifteen successes, and thirteen failures. Running
+stage-three CupidObj directly reproduced the staged 1,809-byte manifest with
+SHA-256
+`fb8fd21ec547a9649514af57d7660f5ecfd30ffad650e8c6ee4ed9535effedfc`.
+The 392,688-byte stage-three CupidObj image has SHA-256
+`7137ad601a7c22178112fbf08163b36ff2064807caa99962df97d7ae7ae62f2b`.
+
+Checked-seed CupidC compiles the three changed C roots:
+
+| Object | Bytes | SHA-256 |
+|---|---:|---|
+| `cupidobj.o` | 220,508 | `b878a621e47ccd3da2656432569cbe16e9b0dac2cbeb0359d02aebb7e6603062` |
+| `cupidobj-main.o` | 38,120 | `4e26e024be9aafe92763714502cf8aaf5beac21404550e7cc8c31e3dd7ed9133` |
+| `cupidobj-contract.o` | 145,256 | `b29a64873e44b719435a7e5946f0d7bb0d3291a642b6e86e1fba821424e80ec4` |
+
+The source frontier records `cupidobj.cc` at 140 functions, 3,451 statements,
+23,768 expressions, 532 block bindings, and 452 initializers. Its exact CupidC
+object frontier has 183,181 text bytes, 220,508 total bytes, and fingerprint
+`90f1448f`.
+
+| Command | Result |
+|---|---|
+| `make -C toolchain build/cupidobj-contract.exe` and `toolchain/build/cupidobj-contract.exe profile-manifest` | PASS under strict C11 warnings; exact output, reorder, invalid-view, output-limit, arena-limit, rollback, and same-job recovery checks pass. |
+| `python -m unittest -v tests.test_toolchain_cupidobj` | PASS: all 36 tests. |
+| `python -m unittest -v tests.test_toolchain_cupidc_frontend` | PASS: all 95 tests in 14.382 seconds. |
+| Three `bootstrap_toolchain.py run --tool cupidc` compiles | PASS in 63.8 seconds for the core, hosted adapter, and contract roots. |
+| Poisoned-host `bootstrap_toolchain.py bootstrap` | PASS in 904.2 seconds; stage two equals stage three through the 5/15/13 behavior matrix. |
+| Complete fixed-point unittest | PASS in 903.842 seconds, including the expected pre-promotion CupidObj mismatch. |
+| Direct stage-three `cupidobj.elf profile-manifest` | PASS with byte parity against the staged expected file. |
+| `python -m unittest -v tests.test_build_graph_audit` | PASS: all 68 tests in 782.460 seconds, including fail-closed mutations for every new behavior edge. |
+| Ruff and Python bytecode checks for the changed Python modules | PASS. |
+| `make bootstrap-audit` | PASS in 60.9 seconds. The source digest is `69f8f0b9bc264f338f445781f92792b24e91f0d641950d3b57f55f74841ae46e`. The 2,558,749-byte JSON has SHA-256 `a50d71d53034800e1a143a355fd78e0fad422b3763362c5445bbc87e039d02c6`; the 12,197-byte summary has SHA-256 `79297d07726d21a45b0f234677b00026f00da973755af31013ce8d7940325787`. |
+| `make check-bootstrap-audit` | PASS in 84.6 seconds against the regenerated files. |
+
+The graph remains at 719 active inputs, 449 transforms, 255 feature records,
+and 25 accounted unreachable files. CupidObj still participates in 188
+transforms, and Cupid tools still own 437 of 438 root outputs. Python remains
+the active Doom manifest author until a complete five-tool promotion and a
+guarded production handoff. No C or assembly source changes ownership, so no
+`.c` to `.cc` rename is due. `TempleOS/` remains untouched reference material.
+ADR 0242 records the decision.

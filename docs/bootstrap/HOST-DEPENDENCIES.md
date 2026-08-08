@@ -8,11 +8,11 @@ stable shape, then covers the Linux branch with direct build tests.
 language graph contains 28 assembly inputs, 290 headers, and 401 Cupid C
 files. No ordinary C translation unit remains in a supported root. The
 active-source digest is
-`b6a340db80dfb5d95eaf429b386aa8f5f6a359091e1f7b879ca38f72f7b6de02`.
-The 2,558,748-byte audit JSON has SHA-256
-`a588d3e4ffc59891d3526a6a3d57cbc895f2be1e43d902787c981823471d797c`,
-and the 12,196-byte summary has SHA-256
-`cffff93104e890b2a7f62abf4d0003ba6a51ba10a6f4eb63e8228136b549178a`.
+`69f8f0b9bc264f338f445781f92792b24e91f0d641950d3b57f55f74841ae46e`.
+The 2,558,749-byte audit JSON has SHA-256
+`a50d71d53034800e1a143a355fd78e0fad422b3763362c5445bbc87e039d02c6`,
+and the 12,197-byte summary has SHA-256
+`79297d07726d21a45b0f234677b00026f00da973755af31013ce8d7940325787`.
 The checked Windows Clang/LLVM and Linux GCC/binutils baselines at
 revision `1e079d1` predate the current CupidC ownership and remain historical
 oracle evidence.
@@ -46,6 +46,15 @@ Checked-seed CupidObj now authors the complete tracked ISO fixture through
 path checker, drift checker, and guarded publisher. ADR 0239 records the
 source capability, ADR 0240 records seed carriage, and ADR 0241 records the
 production handoff.
+
+Source-head CupidObj can also author the Doom profile manifest through
+`profile-manifest`. The freestanding command accepts one bounded binary
+snapshot, computes the header hashes, and emits canonical JSON. The current
+checked seed does not carry it, and the normal recipe still uses Python for
+that one output. This capability therefore adds no host dependency and moves
+no production owner yet. Python continues to own discovery, native path
+safety, freezing, parity, drift checks, locking, and publication. ADR 0242
+records the source boundary.
 
 CupidASM participates in five production transforms. The fifth assembles
 `test_iso/fixtures/big.bin` from `test_iso/big_pattern.asm` through the checked

@@ -846,6 +846,17 @@ recipe now runs that checked command first on frozen ordinal file snapshots.
 Python compares an independent render, rechecks live state, and publishes
 under a per-output lock. ADR 0239 records the source boundary, ADR 0240 records
 seed carriage, and ADR 0241 records production ownership.
+
+Source-head CupidObj also accepts `profile-manifest`. The command reads one
+bounded CUPROF1 snapshot containing the two Doom profile memberships and the
+exact bytes of all 291 captured headers. It checks portable path identity,
+computes SHA-256 internally, sorts the logical sets, and writes the canonical
+69,366-byte JSON. The source-current five-tool fixed point passes a 5/15/13
+behavior matrix with padding, repeated-block, unsafe-path, case-collision,
+rollback, and recovery coverage. The promoted seed does not carry this
+command, and the normal recipe has not adopted it, so Python remains the
+active manifest author. ADR 0242 records the source boundary.
+
 The harness freezes the verified manifest and binaries and copies the exact
 bytes of 41 current inputs, including link.ld, into a private compiler root.
 The seed producer trio builds stage two below that root, and the stage-two trio

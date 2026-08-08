@@ -1053,7 +1053,15 @@ The wrapper freezes each selected source and the complete 291-file header and
 include space for both profiles. Its content-addressed manifest fixes the
 three-source and 80-source memberships. The current 69,366-byte manifest has
 SHA-256
-`e77c8a0dc238b1a6f2257f273cf3367dba930c914e6a5806adf058621bbff4a4`.
+`47ba35158cac0a7df253a0056235223e62fee24df74701800f88763e588611c2`.
+Source-head CupidObj can reproduce that file through `profile-manifest`. It
+consumes one bounded `CUPROF1` snapshot, sorts the two profile inventories by
+unsigned ASCII order, and hashes all 291 captured headers with its own SHA-256
+implementation. The 796,337-byte active snapshot contains 665 memberships
+and 956 encoded path records. The promoted seed does not carry this command,
+and the normal publisher still uses Python. Seed carriage and production
+transfer are the next two boundaries. [ADR 0242](docs/adr/0242-author-deterministic-profile-manifests-with-cupidobj.md)
+records the format and source-head proof.
 It scans the visible Doom tree before
 and after every compile. A legacy `.c` file, an unlisted `.cc` file, a missing
 root, header membership or byte drift, a symbolic link, or an NTFS junction

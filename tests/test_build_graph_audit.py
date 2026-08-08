@@ -3673,7 +3673,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
 
     def test_cupid_toolchain_fixed_point_contract_fails_closed(self):
         module = _load_audit_module()
-        module._cupid_toolchain_fixed_point_contract(REPO_ROOT)
+        contract = module._cupid_toolchain_fixed_point_contract(REPO_ROOT)
+        self.assertEqual(contract["help_cases"], 5)
+        self.assertEqual(contract["success_behavior_cases"], 15)
+        self.assertEqual(contract["failure_behavior_cases"], 13)
         driver = (REPO_ROOT / "toolchain" / "cupidc_main.cc").read_text(
             encoding="utf-8"
         )
@@ -3796,6 +3799,58 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "                stage_two_help, _stage_three_help = "
                 "run_stage_pair(",
                 r"fixed-point staged comparison differs",
+            ),
+            "profile positive stops comparing stages": (
+                "bootstrap",
+                "    profile_result = _run_stage_pair(\n",
+                "    profile_result = _run_one_stage(\n",
+                r"fixed-point profile behavior differs",
+            ),
+            "truncated profile failure disappears": (
+                "bootstrap",
+                '        ("truncated", profile_payload[:-1], '
+                '"snapshot is truncated"),\n',
+                '        ("short-input", profile_payload[:-1], '
+                '"snapshot is truncated"),\n',
+                r"fixed-point profile behavior differs",
+            ),
+            "unsafe profile failure disappears": (
+                "bootstrap",
+                '            "unsafe-path",\n',
+                '            "invalid-path",\n',
+                r"fixed-point profile behavior differs",
+            ),
+            "profile case collision failure disappears": (
+                "bootstrap",
+                '            "case-collision",\n',
+                '            "case-mismatch",\n',
+                r"fixed-point profile behavior differs",
+            ),
+            "profile failures stop comparing stages": (
+                "bootstrap",
+                "        failure_result = _run_stage_pair(\n",
+                "        failure_result = _run_one_stage(\n",
+                r"fixed-point profile behavior differs",
+            ),
+            "profile failures stop checking diagnostics": (
+                "bootstrap",
+                "            or failure_message not in failure_result.stderr\n",
+                "            or failure_result.stderr == \"\"\n",
+                r"fixed-point profile behavior differs",
+            ),
+            "profile failures stop preserving the second output": (
+                "bootstrap",
+                "            or stage_three_profile_failure.read_bytes() "
+                "!= sentinel\n",
+                "            or stage_two_profile_failure.read_bytes() "
+                "!= sentinel\n",
+                r"fixed-point profile behavior differs",
+            ),
+            "profile failure count becomes stale": (
+                "bootstrap",
+                '        "failure_cases": 13,\n',
+                '        "failure_cases": 11,\n',
+                r"fixed-point behavior matrix differs",
             ),
             "checked source closure is not frozen": (
                 "bootstrap",
@@ -4667,7 +4722,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (5615, 169),
+                "c.expression.sizeof": (5635, 169),
                 "c.extension.builtin.offsetof": (12, 6),
                 "c.extension.gnu_alignof": (1, 1),
             }

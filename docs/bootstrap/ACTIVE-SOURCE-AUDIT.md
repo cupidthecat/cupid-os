@@ -56,8 +56,8 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_usb` | 8 | 3518 |
 | `kernel_util` | 2 | 660 |
 | `project_source` | 1 | 5 |
-| `toolchain_contract` | 16 | 146670 |
-| `toolchain_core` | 32 | 83168 |
+| `toolchain_contract` | 16 | 146964 |
+| `toolchain_core` | 32 | 84310 |
 | `toolchain_host_adapter` | 2 | 266 |
 | `toolchain_kernel_adapter` | 2 | 530 |
 | `user_program` | 3 | 139 |
@@ -98,16 +98,16 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 777 |
 | `asm.relocation` | 1 | 13 |
-| `c.control` | 12 | 79910 |
+| `c.control` | 12 | 80196 |
 | `c.declaration` | 1 | 28 |
-| `c.declarator` | 4 | 3747 |
-| `c.expression` | 2 | 5657 |
+| `c.declarator` | 4 | 3751 |
+| `c.expression` | 2 | 5677 |
 | `c.extension` | 19 | 416 |
 | `c.initializer` | 1 | 653 |
-| `c.preprocessor` | 18 | 6831 |
-| `c.qualifier` | 2 | 15176 |
-| `c.storage` | 4 | 9667 |
-| `c.type` | 15 | 50093 |
+| `c.preprocessor` | 18 | 6838 |
+| `c.qualifier` | 2 | 15208 |
+| `c.storage` | 4 | 9712 |
+| `c.type` | 15 | 50149 |
 | `cupid_c.declaration` | 1 | 2 |
 | `cupid_c.delivery` | 2 | 129 |
 | `cupid_c.directive` | 1 | 1 |
@@ -212,7 +212,7 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `c_preprocessor_line_directives` | `pass` | 0 named #line directives (0 direct, 0 pp-token; 0 filename); 0 numeric markers; 687 source files; max conditional depth 0 |
 | `c_preprocessor_pragmas` | `pass` | 5 pragmas (1 once, 2 pack pushes, 2 pack pops); pack balanced: yes; max pack depth 1 |
 | `c_preprocessor_translation_units` | `pass` | 381 tracked + 4 generated translation units (KERNEL_I386=155, DOOM_COMPAT_I386=3, DOOM_TREE_I386=80, USER_I386=3, CUPID_RUNTIME=105, HOSTED_TOOLCHAIN_64=0, HOSTED_KERNEL_BRIDGE_64=0, HOSTED_I386_LINUX=31, HOSTED_I386_KERNEL_BRIDGE=2, HOSTED_I386_LINUX_GNU=2); 22 include-only, 2 non-root headers; 0 hosted deferred (0 external, 0 hermetic) |
-| `cupid_toolchain_fixed_point` | `pass` | 19 tool C sources (18 strict, 1 GNU); 5 tools (cupidasm=8, cupiddis=8, cupidld=7, cupidobj=7, cupidc=12); 19 C objects and 1 startup object compared across stages; 5 tool images; 11 success and 7 failure cases; i386-linux |
+| `cupid_toolchain_fixed_point` | `pass` | 19 tool C sources (18 strict, 1 GNU); 5 tools (cupidasm=8, cupiddis=8, cupidld=7, cupidobj=7, cupidc=12); 19 C objects and 1 startup object compared across stages; 5 tool images; 15 success and 13 failure cases; i386-linux |
 
 ## Interpretation limits
 

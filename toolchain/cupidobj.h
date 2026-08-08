@@ -4,6 +4,14 @@
 #include "ctool.h"
 #include "elf32.h"
 
+#define CTOOL_OBJ_PROFILE_MAGIC_BYTES 8u
+#define CTOOL_OBJ_PROFILE_SCHEMA_BYTES 127u
+#define CTOOL_OBJ_PROFILE_NAME_BYTES 63u
+#define CTOOL_OBJ_PROFILE_PATH_BYTES 1024u
+#define CTOOL_OBJ_PROFILE_LIMIT 16u
+#define CTOOL_OBJ_PROFILE_INPUT_LIMIT 512u
+#define CTOOL_OBJ_PROFILE_REFERENCE_LIMIT 2048u
+
 typedef enum {
   CTOOL_OBJ_WRAP_BINARY = 1,
   CTOOL_OBJ_WRAP_TEXT,
@@ -12,7 +20,8 @@ typedef enum {
   CTOOL_OBJ_GENERATE_KSYMS_SOURCE,
   CTOOL_OBJ_WRAP_JPEG,
   CTOOL_OBJ_BUILD_DISK_TEMPLATE,
-  CTOOL_OBJ_BUILD_ISO_FIXTURE
+  CTOOL_OBJ_BUILD_ISO_FIXTURE,
+  CTOOL_OBJ_GENERATE_PROFILE_MANIFEST
 } ctool_obj_operation_t;
 
 typedef enum {
@@ -179,5 +188,38 @@ ctool_status_t ctool_obj_transform(ctool_job_t *job,
  * Equal logical inventories and file bytes produce byte-identical output.
  * Result addresses remain zero, and failures follow the transform-wide
  * output, result, and arena rollback contract. */
+
+/* GENERATE_PROFILE_MANIFEST consumes one bounded binary snapshot.  The
+ * little-endian CUPROF1 envelope carries a schema name, named profiles with
+ * header and source membership, and the exact bytes of every captured header
+ * input.  CupidObj validates safe repository-relative ASCII paths, exact
+ * header-to-input membership, unique names, portable case identity, bounded
+ * counts, and complete consumption of the envelope.  It then emits canonical
+ * indented JSON, sorts every named set, and records each input's size and
+ * SHA-256 digest.
+ *
+ * The wire grammar is:
+ *
+ *   "CUPROF1\0", bytes(schema), u32(profile_count),
+ *   repeated profile_count times {
+ *     bytes(name), u32(header_count), repeated bytes(header),
+ *     u32(source_count), repeated bytes(source)
+ *   },
+ *   u32(input_count), repeated input_count times {
+ *     bytes(path), bytes(contents)
+ *   }
+ *
+ * `u32` is little-endian.  `bytes(value)` is a u32 byte count followed by the
+ * exact bytes.  The public PROFILE constants cap the schema, names, paths,
+ * profiles, each membership list, captured inputs, and the combined header
+ * plus source references.  Source rows carry membership only; input rows hold
+ * the header bytes that CupidObj hashes.
+ *
+ * The snapshot is the complete deterministic input.  Native filesystem
+ * discovery, freezing, parity checks, and publication remain caller
+ * responsibilities.  Equivalent typed snapshots produce byte-identical
+ * output regardless of profile, membership, or input order.  Result addresses
+ * remain zero, and failures follow the transform-wide output, result, and
+ * arena rollback contract. */
 
 #endif

@@ -1157,6 +1157,40 @@ def _expect_status(
         )
 
 
+def _profile_snapshot_payload(
+    schema: str,
+    profiles: Sequence[tuple[str, Sequence[str], Sequence[str]]],
+    inputs: Sequence[tuple[str, bytes]],
+) -> bytes:
+    payload = bytearray(b"CUPROF1\0")
+
+    def append_u32(value: int) -> None:
+        payload.extend(struct.pack("<I", value))
+
+    def append_bytes(value: bytes) -> None:
+        append_u32(len(value))
+        payload.extend(value)
+
+    def append_text(value: str) -> None:
+        append_bytes(value.encode("ascii"))
+
+    append_text(schema)
+    append_u32(len(profiles))
+    for name, headers, sources in profiles:
+        append_text(name)
+        append_u32(len(headers))
+        for path in headers:
+            append_text(path)
+        append_u32(len(sources))
+        for path in sources:
+            append_text(path)
+    append_u32(len(inputs))
+    for path, contents in inputs:
+        append_text(path)
+        append_bytes(contents)
+    return bytes(payload)
+
+
 def _run_behavior_checks(
     runner: ToolRunner,
     source_root: Path,
@@ -1182,6 +1216,7 @@ def _run_behavior_checks(
                 "wrap-jpeg",
                 "disk-template",
                 "iso-fixture",
+                "profile-manifest",
             ):
                 if operation not in help_result.stdout:
                     raise BootstrapError(
@@ -1624,6 +1659,159 @@ def _run_behavior_checks(
     ):
         raise BootstrapError("CupidObj ISO failure behavior differs")
 
+    profile_snapshot = behavior_root / "profile-manifest.snapshot"
+    stage_two_profile = behavior_root / "stage-two-profile-manifest.json"
+    stage_three_profile = behavior_root / "stage-three-profile-manifest.json"
+    profile_schema = "cupid.doom-profile-inputs.v1"
+    profile_sizes = (129, 0, 65, 3, 64, 55, 63, 56)
+    profile_inputs = tuple(
+        (
+            f"hash/length-{size:03d}.h",
+            bytes(index % 251 for index in range(size)),
+        )
+        for size in profile_sizes
+    )
+    profile_headers = tuple(path for path, _contents in profile_inputs)
+    profile_membership = (
+        (
+            "doom-tree",
+            profile_headers,
+            ("kernel/doom/z.cc", "kernel/doom/a.cc"),
+        ),
+        (
+            "doom-compat",
+            profile_headers[::2],
+            ("kernel/doom/d.cc",),
+        ),
+    )
+    profile_payload = _profile_snapshot_payload(
+        profile_schema,
+        profile_membership,
+        profile_inputs,
+    )
+    profile_snapshot.write_bytes(profile_payload)
+    profile_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupidobj",
+        ["profile-manifest", profile_snapshot, "-o", stage_two_profile],
+        ["profile-manifest", profile_snapshot, "-o", stage_three_profile],
+    )
+    _expect_status(profile_result, 0, "CupidObj profile manifest")
+    expected_profile = (
+        json.dumps(
+            {
+                "schema": profile_schema,
+                "profiles": {
+                    name: sorted(headers)
+                    for name, headers, _sources in profile_membership
+                },
+                "sources": {
+                    name: sorted(sources)
+                    for name, _headers, sources in profile_membership
+                },
+                "inputs": [
+                    {
+                        "path": path,
+                        "bytes": len(contents),
+                        "sha256": hashlib.sha256(contents).hexdigest(),
+                    }
+                    for path, contents in sorted(profile_inputs)
+                ],
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n"
+    ).encode("ascii")
+    if (
+        profile_result.stdout
+        or profile_result.stderr
+        or stage_two_profile.read_bytes() != expected_profile
+        or stage_three_profile.read_bytes() != expected_profile
+    ):
+        raise BootstrapError("CupidObj profile manifest differs")
+
+    profile_failure_cases = (
+        ("truncated", profile_payload[:-1], "snapshot is truncated"),
+        (
+            "unsafe-path",
+            _profile_snapshot_payload(
+                profile_schema,
+                (
+                    (
+                        "doom-tree",
+                        ("../unsafe.h",),
+                        ("kernel/doom/a.cc",),
+                    ),
+                ),
+                (("../unsafe.h", b"unsafe"),),
+            ),
+            "repository path is invalid",
+        ),
+        (
+            "case-collision",
+            _profile_snapshot_payload(
+                profile_schema,
+                (
+                    (
+                        "doom-tree",
+                        ("a.h", "A.h"),
+                        ("kernel/doom/a.cc",),
+                    ),
+                ),
+                (("a.h", b"a"),),
+            ),
+            "header path has a case collision",
+        ),
+    )
+    for failure_name, failure_payload, failure_message in profile_failure_cases:
+        failure_snapshot = behavior_root / f"{failure_name}-profile.snapshot"
+        stage_two_profile_failure = (
+            behavior_root
+            / f"stage-two-{failure_name}-profile-manifest-failure.json"
+        )
+        stage_three_profile_failure = (
+            behavior_root
+            / f"stage-three-{failure_name}-profile-manifest-failure.json"
+        )
+        failure_snapshot.write_bytes(failure_payload)
+        stage_two_profile_failure.write_bytes(sentinel)
+        stage_three_profile_failure.write_bytes(sentinel)
+        failure_result = _run_stage_pair(
+            runner,
+            stage_two,
+            stage_three,
+            "cupidobj",
+            [
+                "profile-manifest",
+                failure_snapshot,
+                "-o",
+                stage_two_profile_failure,
+            ],
+            [
+                "profile-manifest",
+                failure_snapshot,
+                "-o",
+                stage_three_profile_failure,
+            ],
+        )
+        _expect_status(
+            failure_result,
+            1,
+            f"CupidObj {failure_name} profile manifest",
+        )
+        if (
+            failure_result.stdout
+            or failure_message not in failure_result.stderr
+            or stage_two_profile_failure.read_bytes() != sentinel
+            or stage_three_profile_failure.read_bytes() != sentinel
+        ):
+            raise BootstrapError(
+                f"CupidObj {failure_name} profile failure differs"
+            )
+
     link_source = behavior_root / "start.asm"
     stage_two_link_object = behavior_root / "stage-two-start.o"
     stage_three_link_object = behavior_root / "stage-three-start.o"
@@ -2024,9 +2212,9 @@ def _run_behavior_checks(
         raise BootstrapError("CupidObj missing-input behavior differs")
 
     return {
-        "failure_cases": 10,
+        "failure_cases": 13,
         "help_cases": 5,
-        "success_cases": 14,
+        "success_cases": 15,
     }
 
 

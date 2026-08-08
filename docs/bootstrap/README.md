@@ -1076,7 +1076,16 @@ The Doom production wrapper has exact three-source and 80-source allowlists.
 It freezes the selected source and all 291 `.h` and `.inc` inputs visible
 through the profiles' 20 include roots. The 69,366-byte input manifest has
 SHA-256
-`e77c8a0dc238b1a6f2257f273cf3367dba930c914e6a5806adf058621bbff4a4`.
+`47ba35158cac0a7df253a0056235223e62fee24df74701800f88763e588611c2`.
+Source-head CupidObj accepts `profile-manifest` and produces those exact bytes
+from a bounded `CUPROF1` envelope. The live snapshot holds 291 captured
+headers, 665 profile memberships, and 956 encoded path records. CupidObj sorts
+the logical names, computes every SHA-256 field from the captured bytes, and
+matches the Python oracle. Its poisoned-host source proof matches all 19 C
+objects, startup, and five tools between stage two and stage three, then
+passes a 5/15/13 behavior matrix. The promoted seed remains at 5/14/10 and the
+normal target remains Python-authored until carriage and guarded publication
+are complete. ADR 0242 records this source boundary.
 The wrapper recursively checks visible `.c` and `.cc` files beneath the Doom
 tree before and after each compile. It rejects a legacy `.c` file, an
 unlisted `.cc` file, a missing root, header membership or byte changes,
@@ -1117,7 +1126,7 @@ completion from satisfying the recovery check. ADR 0232 records this gate.
 
 The block-static object proof emits eleven exact local symbols, from `.LBS0.hex` through `.LBS10.unused`. Its sections contain 21 bytes of read-only data, 56 bytes of initialized writable data, and 4 bytes of zero-filled storage. Ten text, one read-only-data, and five data relocations are all direct `R_386_32` references with addend zero. The fixture covers shadowed names, unused and unreachable objects, aggregate and string initializers, linked and unresolved addresses, runtime reads and writes, and an unused eight-byte image. A referenced eight-byte block static now lowers through the wide snapshot path. Missing, out-of-range, mistyped, runtime-initialized, and constrained-output cases still fail transactionally. The unchanged `dis_hex_fixed` helper in `toolchain/cupiddis.cc` pins the active constant character array.
 
-All twelve shared hosted Toolchain implementation files parse completely. Each tuple reports definitions, statements, expressions, block bindings, and initializers: `ctool.cc` 65/1,012/5,981/133/33, `cupidasm.cc` 82/3,054/20,124/338/190, `cupidc_emit.cc` 359/8,953/75,214/1,098/737, `cupidc_frontend.cc` 426/16,715/110,486/2,501/1,521, `cupidc_ir.cc` 263/7,281/67,825/957/357, `cupidc_pp.cc` 143/3,932/25,287/479/286, `cupidc_type.cc` 31/737/5,487/85/43, `cupiddis.cc` 71/1,594/10,331/162/124, `cupidld.cc` 66/2,064/13,347/267/146, `cupidobj.cc` 62/1,652/11,301/215/123, `elf32.cc` 37/1,219/9,457/143/70, and `x86.cc` 60/1,766/11,903/180/16,892. The generated audit records the current lexical totals and source graph. They now belong to the actual i386 Linux profile and feed both the five-tool fixed point and the Cupid-built contract cohort.
+All twelve shared hosted Toolchain implementation files parse completely. Each tuple reports definitions, statements, expressions, block bindings, and initializers: `ctool.cc` 65/1,012/5,981/133/33, `cupidasm.cc` 82/3,054/20,124/338/190, `cupidc_emit.cc` 359/8,953/75,214/1,098/737, `cupidc_frontend.cc` 426/16,715/110,486/2,501/1,521, `cupidc_ir.cc` 263/7,281/67,825/957/357, `cupidc_pp.cc` 143/3,932/25,287/479/286, `cupidc_type.cc` 31/737/5,487/85/43, `cupiddis.cc` 71/1,594/10,331/162/124, `cupidld.cc` 66/2,064/13,347/267/146, `cupidobj.cc` 140/3,451/23,768/532/452, `elf32.cc` 37/1,219/9,457/143/70, and `x86.cc` 60/1,766/11,903/180/16,892. The generated audit records the current lexical totals and source graph. They now belong to the actual i386 Linux profile and feed both the five-tool fixed point and the Cupid-built contract cohort.
 
 The shared frontend treats C11 `<:` and `:>` spellings as canonical brackets across array declarators, subscripts, and the explicit unsupported `__builtin_offsetof` array-designator seam while leaving the immutable preprocessing tape's original token spelling untouched. Strict-C contracts cover mixed and full digraph forms plus malformed and non-pointer subscripts. Compound/update diagnostics distinguish valid but deferred floating `*=`, `/=`, `+=`, `-=`, and updates from invalid floating remainder, shift, bitwise, or aggregate compound/update operands. Compatible aggregate plain assignment is represented without weakening those constraints.
 
@@ -1175,11 +1184,11 @@ inventory covers 687 files and 2,402 include occurrences, split into 2,167
 quoted and 235 angle forms.
 
 The final active-source digest is
-`b6a340db80dfb5d95eaf429b386aa8f5f6a359091e1f7b879ca38f72f7b6de02`.
-The 2,558,748-byte audit JSON has SHA-256
-`a588d3e4ffc59891d3526a6a3d57cbc895f2be1e43d902787c981823471d797c`,
-and the 12,196-byte summary has SHA-256
-`cffff93104e890b2a7f62abf4d0003ba6a51ba10a6f4eb63e8228136b549178a`.
+`69f8f0b9bc264f338f445781f92792b24e91f0d641950d3b57f55f74841ae46e`.
+The 2,558,749-byte audit JSON has SHA-256
+`a50d71d53034800e1a143a355fd78e0fad422b3763362c5445bbc87e039d02c6`,
+and the 12,197-byte summary has SHA-256
+`79297d07726d21a45b0f234677b00026f00da973755af31013ce8d7940325787`.
 
 Across the three supported roots, CupidC participates in 245 transforms and
 CupidObj participates in 188 transforms. Python participates in all 449

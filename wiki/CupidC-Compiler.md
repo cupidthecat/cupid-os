@@ -590,7 +590,16 @@ The 67,155-byte dglibc source produces a 93,332-byte object with SHA-256
 Repeated compatibility compiles also reproduce the 17,084-byte libc-stub and
 10,352-byte platform objects. The 69,366-byte closed profile manifest has
 SHA-256
-`e77c8a0dc238b1a6f2257f273cf3367dba930c914e6a5806adf058621bbff4a4`.
+`47ba35158cac0a7df253a0056235223e62fee24df74701800f88763e588611c2`.
+
+Source-head CupidObj now carries the deterministic `profile-manifest`
+operation. CupidC compiles its freestanding SHA-256, bounded `CUPROF1` parser,
+portable identity checks, canonical sorter, and JSON emitter into a
+220,508-byte object. The poisoned-host rebuild matches all stage-two and
+stage-three objects and tools, and both stages pass five help cases, fifteen
+successful operations, and thirteen useful failures. The promoted seed does
+not carry this command, so Python remains the normal manifest author.
+ADR 0242 records the source capability.
 
 Active dglibc uses the corrected form. Its 31-byte `dg_setjmp` saves the
 caller's post-return `ESP + 4` and is declared `returns_twice`; `dg_longjmp`,
