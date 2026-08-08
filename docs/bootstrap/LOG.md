@@ -21878,6 +21878,7 @@ object frontier has 183,181 text bytes, 220,508 total bytes, and fingerprint
 | Poisoned-host `bootstrap_toolchain.py bootstrap` | PASS in 904.2 seconds; stage two equals stage three through the 5/15/13 behavior matrix. |
 | Complete fixed-point unittest | PASS in 903.842 seconds, including the expected pre-promotion CupidObj mismatch. |
 | Direct stage-three `cupidobj.elf profile-manifest` | PASS with byte parity against the staged expected file. |
+| Normal Toolchain contract cohort and published `profile-manifest` selector | PASS in 3,109.2 seconds. Both stages match 16 objects and 15 linked executables, the hosted runtime passes, and all 20 artifacts verify. The 18,232-byte manifest has SHA-256 `00cc1b7332203e8fd780a9c5ffa592bd05e41fc5d48a8ca3cba0b22e1662c3ba`. |
 | `python -m unittest -v tests.test_build_graph_audit` | PASS: all 68 tests in 782.460 seconds, including fail-closed mutations for every new behavior edge. |
 | Ruff and Python bytecode checks for the changed Python modules | PASS. |
 | `make bootstrap-audit` | PASS in 60.9 seconds. The source digest is `69f8f0b9bc264f338f445781f92792b24e91f0d641950d3b57f55f74841ae46e`. The 2,558,749-byte JSON has SHA-256 `a50d71d53034800e1a143a355fd78e0fad422b3763362c5445bbc87e039d02c6`; the 12,197-byte summary has SHA-256 `79297d07726d21a45b0f234677b00026f00da973755af31013ce8d7940325787`. |
@@ -21890,3 +21891,66 @@ the active Doom manifest author until a complete five-tool promotion and a
 guarded production handoff. No C or assembly source changes ownership, so no
 `.c` to `.cc` rename is due. `TempleOS/` remains untouched reference material.
 ADR 0242 records the decision.
+
+## 2026-08-08: Carry profile-manifest authoring in the checked seed
+
+The five-tool seed now comes from source revision
+`aeef93513e6ac899c933a09e4cacf05ef8b047df`. The promotion moves CupidObj's
+bounded `profile-manifest` command into the checked trust unit without changing
+the normal Doom publisher.
+
+All five stage-three images were promoted as one cohort:
+
+| Tool | Bytes | SHA-256 |
+|---|---:|---|
+| CupidASM | 445,616 | `1dc9061912f127d231d320940ba781781af663bde83852a613910394709ecc76` |
+| CupidC | 2,582,400 | `03084115bcacb1987db5513c8a8be9b7d884029b03ab4b212bf40d997871ae79` |
+| CupidDis | 379,648 | `a45fc4c57afd3bb02980e514d58c11588ba3a8bfa2f05ca348fe465cfdaf9749` |
+| CupidLD | 266,672 | `2bdb6ce6b04678bb89c6bb4f7afac7e152ce6c4a07c4e14e1b3aee0c899008ec` |
+| CupidObj | 392,688 | `7137ad601a7c22178112fbf08163b36ff2064807caa99962df97d7ae7ae62f2b` |
+
+CupidObj is the only changed image. The other four rebuilt files match the
+preceding seed byte for byte. The insertion-ordered 5,440-byte manifest has
+SHA-256
+`bbc989d7008507a2961a5f940875270fb48b68bf7afb993f5774d70aea17fe91`.
+The 19-source plan stays at SHA-256
+`59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`.
+
+Before promotion, the direct checked-seed test stopped at option parsing and
+left no manifest. After promotion, it writes the exact 647-byte JSON with
+SHA-256
+`3a33b2d2fd28187ae7b9538c7e068706c8d1fd6677b7d9b134547cd4626b230d`,
+rejects an unsafe path, and preserves the old `sentinel` bytes. `make
+verify-bootstrap-seed` accepts all five static ELF32 images and their manifest.
+
+The source-capability Toolchain contract cohort completed before promotion in
+3,109.2 seconds. Both checked stages matched 16 objects and 15 linked
+executables, the hosted runtime passed, and all 20 artifacts verified. Its
+18,232-byte manifest has SHA-256
+`00cc1b7332203e8fd780a9c5ffa592bd05e41fc5d48a8ca3cba0b22e1662c3ba`,
+and the published CupidObj contract's `profile-manifest` selector passes.
+
+The independent post-promotion rebuild completed in 794.6 seconds with every
+host code-generator command poisoned. All five seed images match stage two,
+and every one of the 19 C objects, startup, and five tools matches between
+stage two and stage three. Both stages pass the 5/15/13 behavior matrix. The
+15,057-byte report has SHA-256
+`a62c62addd00decb2e656c24e3281e40bcc635dd82eead235d6187ee861f5a7c`.
+The complete checked-seed module passed all 45 tests in 868.426 seconds.
+
+The active graph regenerated in 71.5 seconds. It remains at 719 active inputs,
+449 transforms, 255 feature records, and 25 accounted unreachable files. The
+active-source digest stays
+`69f8f0b9bc264f338f445781f92792b24e91f0d641950d3b57f55f74841ae46e`.
+The 2,558,749-byte JSON has SHA-256
+`f091427ffc79ca25a7d1af099a1969918deab6fe1e89a293823dacd31afbb8cf`,
+and the unchanged 12,197-byte summary has SHA-256
+`79297d07726d21a45b0f234677b00026f00da973755af31013ce8d7940325787`.
+The independent stale check passed in 69.2 seconds, and all 68 graph-audit
+tests passed in 606.756 seconds.
+
+This seed promotion does not change the normal graph. CupidObj still
+participates in 188 transforms, Cupid tools still own 437 of 438 root outputs,
+and Python remains the active Doom manifest author. No C or assembly source
+changes ownership, so no `.c` to `.cc` rename is due. `TempleOS/` remains
+untouched reference material. ADR 0243 records the promotion.

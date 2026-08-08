@@ -194,7 +194,7 @@ The 155 checked-in normal-build translation units owned by checked-seed CupidC, 
 _Avoid_: all kernel C, compiler-head frontier, checked seed alone
 
 **Production Doom cohort**:
-The 83 `.cc` Doom and Cupid platform translation units built by checked-seed CupidC in the normal image. Three sources use the exact `DOOM_COMPAT_I386` profile; the sound adapter and 79 Doom-tree sources use `DOOM_TREE_I386`. The checked wrapper freezes the selected source and all 291 `.h` and `.inc` inputs visible through the profiles' 20 include roots. It recursively scans visible `.c` and `.cc` files beneath `kernel/doom` before and after compilation. An always-checked manifest fixes both source memberships and every header hash without changing its timestamp when the content is unchanged. A legacy `.c` file, an unlisted `.cc` file, a missing root, added or removed headers, byte drift, symbolic links, and NTFS junctions fail before object publication. The active dglibc source is 67,155 bytes and produces a 93,332-byte object with SHA-256 `e2496b01c93a7858a0c035b53aea0ad834d95d2be3f7ae49574d1759ebec34d6`. The 69,366-byte closed profile manifest has SHA-256 `47ba35158cac0a7df253a0056235223e62fee24df74701800f88763e588611c2`. Source-head CupidObj can author those bytes from one bounded `CUPROF1` snapshot and hashes the captured headers itself. The promoted seed and normal publisher do not use that command yet. Asset-free runtime checks cover active nonlocal exit, repeated quit and error cleanup, production config helpers with test-only files, native rename and copy boundaries, block-cache failure handling, RamFS limits, FAT collision, read, handle, busy-replacement, and 8.3 behavior, HomeFS ownership, depth, and batched publication, no-WAD recovery, shell survival, and the full stateful four-CPU frontier on e1000 and RTL8139. Gameplay remains a separate IWAD-backed boundary. ADR 0184 records ownership, ADR 0211 the storage bridge, ADR 0214 the shell-session lifecycle, and ADR 0242 the CupidObj format boundary.
+The 83 `.cc` Doom and Cupid platform translation units built by checked-seed CupidC in the normal image. Three sources use the exact `DOOM_COMPAT_I386` profile; the sound adapter and 79 Doom-tree sources use `DOOM_TREE_I386`. The checked wrapper freezes the selected source and all 291 `.h` and `.inc` inputs visible through the profiles' 20 include roots. It recursively scans visible `.c` and `.cc` files beneath `kernel/doom` before and after compilation. An always-checked manifest fixes both source memberships and every header hash without changing its timestamp when the content is unchanged. A legacy `.c` file, an unlisted `.cc` file, a missing root, added or removed headers, byte drift, symbolic links, and NTFS junctions fail before object publication. The active dglibc source is 67,155 bytes and produces a 93,332-byte object with SHA-256 `e2496b01c93a7858a0c035b53aea0ad834d95d2be3f7ae49574d1759ebec34d6`. The 69,366-byte closed profile manifest has SHA-256 `47ba35158cac0a7df253a0056235223e62fee24df74701800f88763e588611c2`. Checked-seed CupidObj can author those bytes from one bounded `CUPROF1` snapshot and hashes the captured headers itself. The normal publisher still uses Python; moving that production boundary is the next step. Asset-free runtime checks cover active nonlocal exit, repeated quit and error cleanup, production config helpers with test-only files, native rename and copy boundaries, block-cache failure handling, RamFS limits, FAT collision, read, handle, busy-replacement, and 8.3 behavior, HomeFS ownership, depth, and batched publication, no-WAD recovery, shell survival, and the full stateful four-CPU frontier on e1000 and RTL8139. Gameplay remains a separate IWAD-backed boundary. ADR 0184 records ownership, ADR 0211 the storage bridge, ADR 0214 the shell-session lifecycle, ADR 0242 the CupidObj format boundary, and ADR 0243 its seed carriage.
 _Avoid_: compiler-head Doom frontier, claiming WAD runtime behavior from asset-free tests, host-built Doom cohort
 
 The fixed asset-free frontier invokes the default Doom search, an explicit
@@ -682,23 +682,23 @@ The manifest-bound set of static CupidC, CupidASM, CupidDis, CupidLD, and
 CupidObj executables under `bootstrap/seeds/i386-linux/`. Verification binds
 their hashes, sizes, ELF properties, target ABI, producer lineage, source
 revision, and exact 19-source build plan before execution. The current seed
-comes from revision `5452538ff42efe21e20d2e243cc76cacdbd05b92`. CupidC is
+comes from revision `aeef93513e6ac899c933a09e4cacf05ef8b047df`. CupidC is
 2,582,400 bytes with SHA-256
 `03084115bcacb1987db5513c8a8be9b7d884029b03ab4b212bf40d997871ae79`.
-CupidObj is 350,348 bytes with SHA-256
-`394c7bcfe04baf3f032a9b85ce8d908268dde9ec6527840665bc77e4b2d02b14`.
+CupidObj is 392,688 bytes with SHA-256
+`7137ad601a7c22178112fbf08163b36ff2064807caa99962df97d7ae7ae62f2b`.
 CupidASM, CupidDis, and CupidLD remain byte-identical to the preceding cohort.
 The 5,440-byte manifest has SHA-256
-`5a27d7a4a65637da413756a6c154bf44ac0879c7d941881fbd3b995733a805a8`.
+`bbc989d7008507a2961a5f940875270fb48b68bf7afb993f5774d70aea17fe91`.
 The seed carries bounded decimal `long double` constants, transactional
-sequential-JPEG validation, pristine disk-template and ISO fixture
-construction, Cupid's native type spellings, and the 596-row
+sequential-JPEG validation, pristine disk-template, ISO fixture, and
+profile-manifest construction, Cupid's native type spellings, and the 596-row
 SHRD-capable x86 catalogue. Its post-promotion reproof matches all five seed
 images to stage two, then matches all nineteen C objects, startup, five tools,
-and the 5/14/10 behavior matrix between stages two and three. The frozen
+and the 5/15/13 behavior matrix between stages two and three. The frozen
 41-input digest is
-`bac03a6d2b36dff48983221aae209a6688b408232b5d5373b6c2128082228a66`.
-ADR 0240 records this promotion.
+`bbbeb2b9f1532c9e7574ec47bb05c428f308fa430cf5fafe33b6222488b1ea33`.
+ADR 0243 records this promotion.
 _Avoid_: current normal-build toolchain, native Windows seed, unverified binary cache
 
 **Frozen fixed-point source closure**:

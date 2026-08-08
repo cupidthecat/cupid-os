@@ -75,7 +75,7 @@ and keep the same bytes. The recipes depend on the complete checked-seed trust
 unit.
 The Python generator remains a byte-parity oracle but no longer owns these
 production sources. ADR 0204 records the transfer, and ADR 0206 records the
-first seed with the linked-symbol collision checks. ADR 0234 records the
+first seed with the linked-symbol collision checks. ADR 0243 records the
 current checked seed.
 
 Makefile variable definitions:

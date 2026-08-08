@@ -181,7 +181,7 @@ Checked CupidASM assembles stage-two startup there, then the stage-two
 assembler produces byte-identical stage-three startup below the same root.
 The harness checks both the private and live closures at each stage and
 behavior boundary. The complete seed build also compares all 19 C objects and
-five linked tools and runs the complete 5/14/10 behavior matrix. All evidence
+five linked tools and runs the complete 5/15/13 behavior matrix. All evidence
 is published together only after the gate passes.
 
 make verify-bootstrap-seed validates the files without executing them.
@@ -276,7 +276,7 @@ sources. Common families include:
 The checked i386 Linux seed carries all 596 shared x86 rows in CupidASM and
 CupidDis. The catalogue includes the IMUL and padding NOP families, FLDZ,
 forward x87 stack subtraction, and SHRD. ADR 0208 records the x87 form's seed
-carriage, and ADR 0228 records the first SHRD seed promotion. ADR 0234 records
+carriage, and ADR 0228 records the first SHRD seed promotion. ADR 0243 records
 the current checked seed.
 
 Floating-point and SIMD coverage includes:

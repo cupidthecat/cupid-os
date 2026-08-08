@@ -108,6 +108,17 @@ sentinel preservation in both stages. A direct stage-three run reproduced the
 The stage-three CupidObj image is 392,688 bytes with SHA-256
 `7137ad601a7c22178112fbf08163b36ff2064807caa99962df97d7ae7ae62f2b`.
 
+The normal Toolchain contract cohort then completed in 3,109.2 seconds. Its
+two checked stages matched 16 objects and 15 linked executables, the hosted
+runtime passed, and all 20 published artifacts verified. The 18,232-byte
+manifest covers 45 inputs and has SHA-256
+`00cc1b7332203e8fd780a9c5ffa592bd05e41fc5d48a8ca3cba0b22e1662c3ba`.
+It records the source snapshot above and the pre-promotion 5,440-byte seed
+manifest at SHA-256
+`5a27d7a4a65637da413756a6c154bf44ac0879c7d941881fbd3b995733a805a8`.
+Running the published CupidObj contract's `profile-manifest` selector also
+passes.
+
 The graph audit now fails closed if the positive stage pair, any of the three
 profile failures, either diagnostic check, either sentinel check, or the
 5/15/13 count changes. All 68 graph-audit tests pass in 782.460 seconds.

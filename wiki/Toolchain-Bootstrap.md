@@ -63,10 +63,10 @@ tools. The stage-two producer trio repeats the build for stage three below the
 same root.
 
 The gate compares all 19 C objects, both startup objects, and all five linked
-images. It also runs five help checks, fourteen successful operations, and ten
-failure cases across compilation, assembly, disassembly, symbol inspection and
-source generation, linking, JPEG validation, disk-template and ISO fixture
-construction, wrapping, and flattening. The
+images. It also runs five help checks, fifteen successful operations, and
+thirteen failure cases across compilation, assembly, disassembly, symbol
+inspection and source generation, linking, `profile-manifest` authoring, JPEG
+validation, disk-template and ISO fixture construction, wrapping, and flattening. The
 harness rehashes both
 the private closure and the live closure before stage two, after each stage,
 and after the behavior suite. A live edit that is made and restored during a
@@ -131,27 +131,29 @@ exact dglibc jump block, pointer-preserving static address casts, explicit
 floating truth, bounded decimal `long double` constants, and Cupid's native
 type spellings. Its stage-three CupidC image is 2,582,400 bytes with SHA-256
 `03084115bcacb1987db5513c8a8be9b7d884029b03ab4b212bf40d997871ae79`.
-It came from revision `5452538ff42efe21e20d2e243cc76cacdbd05b92`. CupidASM
+It came from revision `aeef93513e6ac899c933a09e4cacf05ef8b047df`. CupidASM
 and CupidDis carry the 596-row shared x86 catalogue with canonical SHRD and
 forward stack subtraction. CupidDis also carries typed raw code and data
-ranges. CupidObj carries installation-source generation, transactional
-kernel-symbol source generation, transactional sequential-JPEG validation,
-pristine disk-template construction, and deterministic ISO fixture authoring.
+ranges. The 392,688-byte CupidObj image has SHA-256
+`7137ad601a7c22178112fbf08163b36ff2064807caa99962df97d7ae7ae62f2b`.
+It carries installation-source generation, transactional kernel-symbol source
+generation, transactional sequential-JPEG validation, pristine disk-template
+construction, deterministic ISO fixture authoring, and `profile-manifest` authoring.
 
 In the latest transition, all nineteen C objects, startup, and five tool images
 matched between stage two and stage three. Both stages passed five help cases,
-fourteen successful operations, and ten useful failures. CupidObj changed
+fifteen successful operations, and thirteen useful failures. CupidObj changed
 from the preceding seed; CupidASM, CupidC, CupidDis, and CupidLD stayed
 byte-identical. The 5,440-byte manifest has SHA-256
-`5a27d7a4a65637da413756a6c154bf44ac0879c7d941881fbd3b995733a805a8`.
-The 675.6-second post-promotion rebuild reproduced all five seed images at
+`bbc989d7008507a2961a5f940875270fb48b68bf7afb993f5774d70aea17fe91`.
+The 794.6-second post-promotion rebuild reproduced all five seed images at
 stage two and repeated the complete fixed point. Its 15,057-byte report has
 SHA-256
-`29ad7ce56f2311855feb96a387c3d77859a39b07dcc90d2ea0e93cfe532444f0`.
-The complete checked-seed module passes all 44 tests in 750.771 seconds,
+`a62c62addd00decb2e656c24e3281e40bcc635dd82eead235d6187ee861f5a7c`.
+The complete checked-seed module passes all 45 tests in 868.426 seconds,
 including another full fixed point and the decimal `long double`, JPEG, disk,
-and ISO carriage checks. ADR 0240 records the promotion and fixed-point
-evidence.
+ISO, and `profile-manifest` carriage checks. ADR 0243 records the promotion
+and fixed-point evidence.
 
 The refreshed seed represents operand-free GNU assembly statements inside
 functions and emits exact PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT
@@ -359,8 +361,9 @@ command reads one bounded `CUPROF1` snapshot, hashes the 291 captured headers,
 and emits canonical JSON for both profiles. The source-current five-tool
 rebuild matches stage two and stage three across a 5/15/13 behavior matrix,
 including SHA padding boundaries, unsafe paths, case collisions, and preserved
-failure output. The promoted seed and normal publisher do not use this command
-yet. ADR 0242 records the format boundary.
+failure output. The checked seed carries this command, while the normal
+publisher still uses Python. ADR 0242 records the format boundary, and ADR
+0243 records seed carriage.
 Full IWAD gameplay remains a separate runtime gate.
 
 Checked-seed CupidC represents GNU `returns_twice` on file-scope function
@@ -765,7 +768,7 @@ ECMA-119 and `RRIP_1991A` image exactly, including both path-table byte orders,
 fixed metadata, block-contained directories, the forward continuation, and
 the absence of `ST` fields. Eleven core selectors and all 31 hosted CupidObj
 tests pass. The fixed-point gate exercises the command and its rollback path
-in the 5/14/10 behavior matrix. The normal recipe freezes the typed inventory,
+in the 5/15/13 behavior matrix. The normal recipe freezes the typed inventory,
 runs this checked command first, and accepts the image only after an
 independent Python render agrees. Python retains path safety, drift checks,
 locking, and atomic publication. ADR 0239 records the source capability, ADR
@@ -775,7 +778,7 @@ The checked audit uses the canonical Windows Make branch and C locale on
 every host. Direct Linux builds test the separate Linux execution branch.
 
 The latest checked seed comes from revision
-`5452538ff42efe21e20d2e243cc76cacdbd05b92`.
+`aeef93513e6ac899c933a09e4cacf05ef8b047df`.
 The ISO source-capability Toolchain cohort passed in 2,764.533 seconds. Its
 two stages matched sixteen objects and fifteen linked executables, the hosted
 runtime passed, and all 20 published artifacts verified. The 18,232-byte
@@ -785,7 +788,7 @@ It records seed manifest
 `019c77d53ddaf64a382962e1d9588a60046b75a7661f70beb0da7510945f35d0`
 and source snapshot
 `bac03a6d2b36dff48983221aae209a6688b408232b5d5373b6c2128082228a66`.
-This cohort predates the seed promotion; the independent 675.6-second reproof
+This cohort predates the seed promotion; the independent 794.6-second reproof
 above validates the promoted trust unit.
 The manifest also records equality across 19 C objects, one startup object,
 and five rebuilt tool images.

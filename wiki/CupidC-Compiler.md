@@ -597,9 +597,9 @@ operation. CupidC compiles its freestanding SHA-256, bounded `CUPROF1` parser,
 portable identity checks, canonical sorter, and JSON emitter into a
 220,508-byte object. The poisoned-host rebuild matches all stage-two and
 stage-three objects and tools, and both stages pass five help cases, fifteen
-successful operations, and thirteen useful failures. The promoted seed does
-not carry this command, so Python remains the normal manifest author.
-ADR 0242 records the source capability.
+successful operations, and thirteen useful failures. The checked seed carries
+this command, while Python remains the normal manifest author. ADR 0242
+records the source capability, and ADR 0243 records seed carriage.
 
 Active dglibc uses the corrected form. Its 31-byte `dg_setjmp` saves the
 caller's post-return `ESP + 4` and is declared `returns_twice`; `dg_longjmp`,
@@ -648,7 +648,7 @@ The five static i386 Linux tools have a checked seed. The manifest binds their
 hashes, sizes, target ABI, source revision, producer lineage, 19-source plan,
 and five link orders. The current CupidC image is the 2,582,400-byte
 stage-three output from revision
-`5452538ff42efe21e20d2e243cc76cacdbd05b92`, with SHA-256
+`aeef93513e6ac899c933a09e4cacf05ef8b047df`, with SHA-256
 `03084115bcacb1987db5513c8a8be9b7d884029b03ab4b212bf40d997871ae79`.
 It retains the complete 83-root Doom frontier, GNU entity metadata, x87 and
 SSE forms, descriptor and segment assembly, the `libm.cc` effects, the dglibc
@@ -657,18 +657,18 @@ kernel-entry BSS clear, and packed SSE2 statements. It also carries runtime
 floating truth, bounded decimal `long double` constants, the returns-twice
 call boundary, and Cupid's native type spellings. The same seed carries the
 596-row SHRD-capable x86 catalogue with forward x87 stack subtraction and
-typed CupidDis raw ranges. Its 350,348-byte CupidObj image has SHA-256
-`394c7bcfe04baf3f032a9b85ce8d908268dde9ec6527840665bc77e4b2d02b14`
+typed CupidDis raw ranges. Its 392,688-byte CupidObj image has SHA-256
+`7137ad601a7c22178112fbf08163b36ff2064807caa99962df97d7ae7ae62f2b`
 and carries the complete installation-source bounds, ordering, and
 wrapped-symbol contract, transactional kernel-symbol source generation,
-sequential-JPEG validation, pristine disk-template construction, and
-deterministic ISO fixture authoring.
+sequential-JPEG validation, pristine disk-template construction, deterministic
+ISO fixture authoring, and deterministic `profile-manifest` authoring.
 Its plan uses `.cc` for all 19 C roots and has
 SHA-256
 `59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`.
 The 5,440-byte manifest has SHA-256
-`5a27d7a4a65637da413756a6c154bf44ac0879c7d941881fbd3b995733a805a8`.
-ADR 0240 records the current promotion.
+`bbc989d7008507a2961a5f940875270fb48b68bf7afb993f5774d70aea17fe91`.
+ADR 0243 records the current promotion.
 
 The bootstrap copies the 41-input source closure into a private compiler root.
 Both rebuilt stages compile from that root, and the harness checks the private
@@ -676,7 +676,7 @@ and live closures at each stage and behavior boundary. The latest transition's
 stage two and stage three contain the same five tool images. CupidObj differs
 from the preceding seed; CupidASM, CupidC, CupidDis, and CupidLD remain
 byte-identical. The two rebuilt stages match every C and startup object and
-agree on all five help paths, fourteen successful operations, and ten failure
+agree on all five help paths, fifteen successful operations, and thirteen failure
 cases. Their stage directories,
 behavior evidence, and report are published together only after the complete
 gate passes.
@@ -684,7 +684,7 @@ gate passes.
 The checked seed now carries CupidObj's bounded `iso-fixture` operation. Its
 hosted command reproduces the exact 61,440-byte repository image from the
 manifest and typed logical inventory. Both rebuilt stages exercise the command
-and its preserved-output failure in the 5/14/10 behavior matrix. ADR 0239
+and its preserved-output failure in the 5/15/13 behavior matrix. ADR 0239
 records the source capability, and ADR 0240 records the promotion. The normal
 ISO recipe now runs that checked image as its first byte author, with Python
 retained as the independent renderer and guarded publisher; ADR 0241 records

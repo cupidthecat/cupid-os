@@ -17,6 +17,7 @@ from tools.bootstrap_toolchain import (
     Stage,
     ToolRunner,
     WSL_PRIVATE_RUN_SCRIPT,
+    _profile_snapshot_payload,
     bootstrap_from_seed,
     capture_source_snapshot,
     freeze_source_inputs,
@@ -930,6 +931,109 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(rejected.returncode, 1)
             self.assertEqual(rejected.stdout, "")
             self.assertIn("directory parent", rejected.stderr)
+            self.assertEqual(failed_output.read_bytes(), b"sentinel")
+
+    def test_checked_seed_builds_profile_manifest_and_preserves_failed_output(
+        self,
+    ):
+        if os.name == "nt" and shutil.which("wsl") is None:
+            self.skipTest("WSL is not available")
+        with tempfile.TemporaryDirectory(
+            prefix=".checked-seed-profile-manifest-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            snapshot = root / "profile.snapshot"
+            output = root / "profile.json"
+            failed_snapshot = root / "failed.snapshot"
+            failed_output = root / "failed.json"
+            schema = "cupid.profile-inputs.v1"
+            inputs = (
+                ("headers/empty.h", b""),
+                ("headers/repeated.h", bytes(range(129))),
+            )
+            profiles = (
+                (
+                    "profile-tree",
+                    tuple(path for path, _contents in inputs),
+                    ("sources/tree.cc",),
+                ),
+                (
+                    "profile-compat",
+                    ("headers/repeated.h",),
+                    ("sources/compat.cc",),
+                ),
+            )
+            snapshot.write_bytes(
+                _profile_snapshot_payload(schema, profiles, inputs)
+            )
+            failed_snapshot.write_bytes(
+                _profile_snapshot_payload(
+                    schema,
+                    (
+                        (
+                            "profile-tree",
+                            ("../unsafe.h",),
+                            ("sources/tree.cc",),
+                        ),
+                    ),
+                    (("../unsafe.h", b"unsafe"),),
+                )
+            )
+            failed_output.write_bytes(b"sentinel")
+            frozen = freeze_seed_inputs(SEED_MANIFEST, root / "seed")
+            runner = ToolRunner(REPO_ROOT)
+
+            generated = runner.run(
+                frozen.tools["cupidobj"],
+                ["profile-manifest", snapshot, "-o", output],
+                60,
+            )
+            self.assertEqual(generated.returncode, 0, generated.stderr)
+            self.assertEqual(generated.stdout, "")
+            self.assertEqual(generated.stderr, "")
+            expected = (
+                json.dumps(
+                    {
+                        "schema": schema,
+                        "profiles": {
+                            name: sorted(headers)
+                            for name, headers, _sources in profiles
+                        },
+                        "sources": {
+                            name: sorted(sources)
+                            for name, _headers, sources in profiles
+                        },
+                        "inputs": [
+                            {
+                                "path": path,
+                                "bytes": len(contents),
+                                "sha256": hashlib.sha256(
+                                    contents
+                                ).hexdigest(),
+                            }
+                            for path, contents in sorted(inputs)
+                        ],
+                    },
+                    indent=2,
+                    sort_keys=True,
+                )
+                + "\n"
+            ).encode("ascii")
+            self.assertEqual(output.read_bytes(), expected)
+
+            rejected = runner.run(
+                frozen.tools["cupidobj"],
+                [
+                    "profile-manifest",
+                    failed_snapshot,
+                    "-o",
+                    failed_output,
+                ],
+                60,
+            )
+            self.assertEqual(rejected.returncode, 1)
+            self.assertEqual(rejected.stdout, "")
+            self.assertIn("repository path is invalid", rejected.stderr)
             self.assertEqual(failed_output.read_bytes(), b"sentinel")
 
     def test_checked_seed_carries_shrd_with_address_overrides(self):
@@ -2792,7 +2896,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(report["status"], "pass")
             self.assertEqual(
                 report["seed_source_revision"],
-                "5452538ff42efe21e20d2e243cc76cacdbd05b92",
+                "aeef93513e6ac899c933a09e4cacf05ef8b047df",
             )
             self.assertNotIn("source_revision", report)
             self.assertEqual(
@@ -2840,7 +2944,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     "cupidc": True,
                     "cupiddis": True,
                     "cupidld": True,
-                    "cupidobj": False,
+                    "cupidobj": True,
                 },
             )
             self.assertEqual(report["source_inputs"]["count"], 41)
