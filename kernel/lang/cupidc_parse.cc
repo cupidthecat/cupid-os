@@ -17,6 +17,8 @@
 #include "kernel.h"
 #include "string.h"
 
+static cc_type_t cc_last_expr_type;
+
 /* x86 Machine Code Emission Helpers */
 
 /* Emit a single byte */
@@ -674,6 +676,45 @@ static void emit_cvttsd2si(cc_state_t *cc, int xmm) {
   emit8(cc, (uint8_t)(0xC0 | (0 << 3) | (xmm & 7)));
 }
 
+/* Convert a scalar floating value in XMM0 to one unsigned i386 word.
+ * Values below 2^31 fit the signed truncation instruction directly. For the
+ * upper half, subtract the exact scalar value 2^31, truncate the remainder,
+ * and restore bit 31. C defines this conversion for values in (-1, 2^32). */
+static void emit_cvtfp_to_ui32(cc_state_t *cc, int is_double) {
+  uint32_t lower_half_patch;
+  uint32_t done_patch;
+
+  emit_mov_eax_imm(cc, 0x40000000u);
+  if (is_double)
+    emit_cvtsi2sd(cc, 1);
+  else
+    emit_cvtsi2ss(cc, 1);
+  emit_sse_scalar_op(cc, is_double, 0x58, 1, 1); /* xmm1 = 2^31 */
+
+  if (is_double)
+    emit8(cc, 0x66);
+  emit8(cc, 0x0F);
+  emit8(cc, 0x2E);
+  emit8(cc, 0xC1); /* ucomiss/ucomisd xmm0, xmm1 */
+  lower_half_patch = emit_jcc_placeholder(cc, 0x82); /* jb */
+
+  emit_sse_scalar_op(cc, is_double, 0x5C, 0, 1);
+  if (is_double)
+    emit_cvttsd2si(cc, 0);
+  else
+    emit_cvttss2si(cc, 0);
+  emit8(cc, 0x35); /* xor eax, 0x80000000 */
+  emit32(cc, 0x80000000u);
+  done_patch = emit_jmp_placeholder(cc);
+
+  patch_jump(cc, lower_half_patch);
+  if (is_double)
+    emit_cvttsd2si(cc, 0);
+  else
+    emit_cvttss2si(cc, 0);
+  patch_jump(cc, done_patch);
+}
+
 /* CVTSS2SD xmm_dst, xmm_src - float to double (scalar, in XMM). */
 static void emit_cvtss2sd(cc_state_t *cc, int xmm_dst, int xmm_src) {
   emit8(cc, 0xF3);
@@ -747,6 +788,17 @@ static double cc_numeric_initializer_value(cc_token_t token, int negate) {
   return negate ? -(double)token.int_value : (double)token.int_value;
 }
 
+static uint32_t cc_numeric_initializer_unsigned_value(cc_token_t token,
+                                                       int negate) {
+  double number = cc_numeric_initializer_value(token, negate);
+  if (!(number > -1.0) || !(number < 4294967296.0))
+    return 0u;
+  if (number < 2147483648.0)
+    return (uint32_t)(int32_t)number;
+  return 0x80000000u +
+         (uint32_t)(int32_t)(number - 2147483648.0);
+}
+
 /* Error Handling */
 
 static void cc_error(cc_state_t *cc, const char *msg) {
@@ -806,15 +858,28 @@ static void cc_error(cc_state_t *cc, const char *msg) {
   cc->error_msg[i] = '\0';
 }
 
-static int cc_validate_unsigned_conversion(cc_state_t *cc,
-                                           cc_type_t target_type,
-                                           cc_type_t source_type) {
+static int cc_coerce_unsigned_conversion(cc_state_t *cc,
+                                         cc_type_t target_type,
+                                         cc_type_t source_type) {
   if (target_type == TYPE_UINT &&
       (source_type == TYPE_FLOAT || source_type == TYPE_DOUBLE)) {
-    cc_error(cc, "floating to unsigned conversion is not supported");
-    return 0;
+    emit_cvtfp_to_ui32(cc, source_type == TYPE_DOUBLE);
+    cc_last_expr_type = TYPE_UINT;
   }
   return 1;
+}
+
+static int cc_coerce_unsigned_assignment(cc_state_t *cc,
+                                         cc_type_t target_type,
+                                         cc_type_t source_type,
+                                         cc_token_type_t operation) {
+  if (target_type == TYPE_UINT && operation != CC_TOK_EQ &&
+      (source_type == TYPE_FLOAT || source_type == TYPE_DOUBLE)) {
+    cc_error(cc,
+             "floating compound assignment to unsigned is not supported");
+    return 0;
+  }
+  return cc_coerce_unsigned_conversion(cc, target_type, source_type);
 }
 
 /* Arguments are evaluated and pushed from left to right. This leaves their
@@ -1088,7 +1153,6 @@ static int cc_is_type_or_typedef(cc_state_t *cc, cc_token_t tok) {
 }
 
 /* Track what kind of value the last expression produced */
-static cc_type_t cc_last_expr_type;
 static int cc_last_expr_struct_index; /* which struct, if TYPE_STRUCT */
 static int cc_last_expr_indirect_lvalue;
 /* Inner-dimension stride for 3D-array expressions. When > 0, the
@@ -2124,8 +2188,9 @@ static int cc_coerce_cdecl_argument(cc_state_t *cc, cc_type_t target_type) {
   }
   if (source_type == target_type)
     return 1;
-  if (!cc_validate_unsigned_conversion(cc, target_type, source_type))
-    return 0;
+  if (target_type == TYPE_UINT &&
+      (source_type == TYPE_FLOAT || source_type == TYPE_DOUBLE))
+    return cc_coerce_unsigned_conversion(cc, target_type, source_type);
   if ((source_type == TYPE_INT || source_type == TYPE_UINT ||
        source_type == TYPE_CHAR) &&
       target_type == TYPE_FLOAT) {
@@ -3831,9 +3896,23 @@ static void cc_parse_primary(cc_state_t *cc) {
        * the same EAX representation as integers after byte loads, so their
        * FP conversions use the scalar integer CVT instructions too. */
       if (src_type != cast_type) {
-        if (!cc_validate_unsigned_conversion(cc, cast_type, src_type))
+        if (cast_type == TYPE_UINT &&
+            (src_type == TYPE_FLOAT || src_type == TYPE_DOUBLE)) {
+          if (!cc_coerce_unsigned_conversion(cc, cast_type, src_type))
+            break;
+        } else if (cast_type == TYPE_UINT &&
+                   src_type != TYPE_INT && src_type != TYPE_CHAR &&
+                   !cc_is_object_pointer_type(src_type) &&
+                   src_type != TYPE_FUNC_PTR) {
+          cc_error(cc,
+                   "conversion to unsigned requires a scalar word or floating value");
           break;
-        if ((src_type == TYPE_INT || src_type == TYPE_UINT ||
+        } else if ((src_type == TYPE_FLOAT || src_type == TYPE_DOUBLE) &&
+                   (cc_is_object_pointer_type(cast_type) ||
+                    cast_type == TYPE_FUNC_PTR)) {
+          cc_error(cc, "floating to pointer conversion is not supported");
+          break;
+        } else if ((src_type == TYPE_INT || src_type == TYPE_UINT ||
              src_type == TYPE_CHAR) &&
             cast_type == TYPE_FLOAT) {
           cc_emit_integer_to_fp(cc, src_type, cast_type, 0);
@@ -4828,9 +4907,9 @@ static void cc_parse_expression(cc_state_t *cc, int min_prec) {
 
 static int cc_is_assignment_op(cc_token_type_t t) {
   return t == CC_TOK_EQ || t == CC_TOK_PLUSEQ || t == CC_TOK_MINUSEQ ||
-         t == CC_TOK_STAREQ || t == CC_TOK_SLASHEQ || t == CC_TOK_ANDEQ ||
-         t == CC_TOK_OREQ || t == CC_TOK_XOREQ || t == CC_TOK_SHLEQ ||
-         t == CC_TOK_SHREQ;
+         t == CC_TOK_STAREQ || t == CC_TOK_SLASHEQ ||
+         t == CC_TOK_PERCENTEQ || t == CC_TOK_ANDEQ || t == CC_TOK_OREQ ||
+         t == CC_TOK_XOREQ || t == CC_TOK_SHLEQ || t == CC_TOK_SHREQ;
 }
 
 static void cc_emit_compound_from_rhs_old(cc_state_t *cc, cc_token_type_t op,
@@ -4874,6 +4953,24 @@ static void cc_emit_compound_from_rhs_old(cc_state_t *cc, cc_token_type_t op,
       emit8(cc, 0xF7);
       emit8(cc, 0xF9); /* idiv ecx */
     }
+    break;
+  case CC_TOK_PERCENTEQ:
+    emit8(cc, 0x89);
+    emit8(cc, 0xC1); /* mov ecx, eax */
+    emit8(cc, 0x89);
+    emit8(cc, 0xD8); /* mov eax, ebx */
+    if (is_unsigned) {
+      emit8(cc, 0x31);
+      emit8(cc, 0xD2); /* xor edx, edx */
+      emit8(cc, 0xF7);
+      emit8(cc, 0xF1); /* div ecx */
+    } else {
+      emit8(cc, 0x99); /* cdq */
+      emit8(cc, 0xF7);
+      emit8(cc, 0xF9); /* idiv ecx */
+    }
+    emit8(cc, 0x89);
+    emit8(cc, 0xD0); /* mov eax, edx */
     break;
   case CC_TOK_ANDEQ:
     emit8(cc, 0x21);
@@ -5000,7 +5097,9 @@ static int cc_finish_indirect_assignment(cc_state_t *cc,
     uint8_t op_byte = 0;
 
     if (op != CC_TOK_EQ && !is_compound) {
-      cc_error(cc, fp_operator_error);
+      cc_error(cc, op == CC_TOK_PERCENTEQ
+                       ? "remainder compound assignment requires an integer lvalue"
+                       : fp_operator_error);
       return 0;
     }
 
@@ -5055,8 +5154,8 @@ static int cc_finish_indirect_assignment(cc_state_t *cc,
   }
 
   cc_parse_expression(cc, 1);
-  if (!cc_validate_unsigned_conversion(cc, object_type,
-                                       cc_last_expr_type))
+  if (!cc_coerce_unsigned_assignment(cc, object_type,
+                                     cc_last_expr_type, op))
     return 0;
   if (op != CC_TOK_EQ) {
     cc_type_t operation_type = cc_integer_operation_type(
@@ -5082,8 +5181,8 @@ static void cc_parse_assignment(cc_state_t *cc, const char *name) {
   cc_token_t op = cc_next(cc); /* consume =, +=, etc. */
 
   cc_parse_expression(cc, 1);
-  if (!cc_validate_unsigned_conversion(cc, sym->type,
-                                       cc_last_expr_type))
+  if (!cc_coerce_unsigned_assignment(cc, sym->type,
+                                     cc_last_expr_type, op.type))
     return;
 
   /* SIMD assignment path - MOVUPS xmm0 to the 16-byte destination.
@@ -5176,7 +5275,9 @@ static void cc_parse_assignment(cc_state_t *cc, const char *name) {
                           op.type == CC_TOK_STAREQ ||
                           op.type == CC_TOK_SLASHEQ);
     if (op.type != CC_TOK_EQ && !is_compound_fp) {
-      cc_error(cc, "bitwise/shift compound assignment not valid on FP types");
+      cc_error(cc, op.type == CC_TOK_PERCENTEQ
+                       ? "remainder compound assignment requires an integer lvalue"
+                       : "bitwise/shift compound assignment not valid on FP types");
       return;
     }
     /* Coerce RHS into the destination's FP type when possible. */
@@ -5678,8 +5779,8 @@ static void cc_parse_subscript_assignment(cc_state_t *cc, const char *name) {
 
   cc_parse_expression(cc, 1);
 
-  if (!cc_validate_unsigned_conversion(cc, elem_type,
-                                       cc_last_expr_type))
+  if (!cc_coerce_unsigned_assignment(cc, elem_type,
+                                     cc_last_expr_type, assign_op.type))
     return;
 
   if (assign_op.type != CC_TOK_EQ) {
@@ -6368,8 +6469,8 @@ static void cc_parse_static_local_declaration(cc_state_t *cc, cc_type_t type) {
         return;
     } else {
       cc_parse_expression(cc, 1);
-      if (!cc_validate_unsigned_conversion(cc, type,
-                                           cc_last_expr_type))
+      if (!cc_coerce_unsigned_conversion(cc, type,
+                                         cc_last_expr_type))
         return;
       if (sym) {
         if (type == TYPE_FLOAT || type == TYPE_DOUBLE) {
@@ -6701,8 +6802,8 @@ static void cc_parse_declaration(cc_state_t *cc, cc_type_t type) {
   if (cc_peek(cc).type == CC_TOK_EQ) {
     cc_next(cc); /* consume '=' */
     cc_parse_expression(cc, 1);
-    if (!cc_validate_unsigned_conversion(cc, type,
-                                         cc_last_expr_type))
+    if (!cc_coerce_unsigned_conversion(cc, type,
+                                       cc_last_expr_type))
       return;
     if (type == TYPE_FLOAT) {
       /* Coerce initializer into float if needed. */
@@ -6782,8 +6883,8 @@ static void cc_parse_declaration(cc_state_t *cc, cc_type_t type) {
     if (cc_peek(cc).type == CC_TOK_EQ) {
       cc_next(cc);
       cc_parse_expression(cc, 1);
-      if (!cc_validate_unsigned_conversion(cc, type,
-                                           cc_last_expr_type))
+      if (!cc_coerce_unsigned_conversion(cc, type,
+                                         cc_last_expr_type))
         return;
       emit_store_local(cc, next_local_slot);
     } else {
@@ -8797,9 +8898,12 @@ void cc_parse_program(cc_state_t *cc) {
                 val = cc_next(cc);
               }
               if (gtype == TYPE_UINT && val.type == CC_TOK_FLIT) {
-                cc_error(cc,
-                         "floating to unsigned conversion is not supported");
-                break;
+                uint32_t v =
+                    cc_numeric_initializer_unsigned_value(val, negate);
+                cc->data[addr_off] = (uint8_t)(v & 0xFF);
+                cc->data[addr_off + 1] = (uint8_t)((v >> 8) & 0xFF);
+                cc->data[addr_off + 2] = (uint8_t)((v >> 16) & 0xFF);
+                cc->data[addr_off + 3] = (uint8_t)((v >> 24) & 0xFF);
               } else if ((gtype == TYPE_FLOAT || gtype == TYPE_DOUBLE) &&
                   (val.type == CC_TOK_NUMBER ||
                    val.type == CC_TOK_CHAR_LIT ||
@@ -9539,9 +9643,12 @@ void cc_parse_repl_line(cc_state_t *cc, int *is_expr) {
             val = cc_next(cc);
           }
           if (gtype == TYPE_UINT && val.type == CC_TOK_FLIT) {
-            cc_error(cc,
-                     "floating to unsigned conversion is not supported");
-            return;
+            uint32_t v =
+                cc_numeric_initializer_unsigned_value(val, negate);
+            cc->data[addr_off] = (uint8_t)(v & 0xFF);
+            cc->data[addr_off + 1] = (uint8_t)((v >> 8) & 0xFF);
+            cc->data[addr_off + 2] = (uint8_t)((v >> 16) & 0xFF);
+            cc->data[addr_off + 3] = (uint8_t)((v >> 24) & 0xFF);
           } else if ((gtype == TYPE_FLOAT || gtype == TYPE_DOUBLE) &&
               (val.type == CC_TOK_NUMBER || val.type == CC_TOK_CHAR_LIT ||
                val.type == CC_TOK_FLIT)) {

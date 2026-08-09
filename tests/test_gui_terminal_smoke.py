@@ -118,6 +118,8 @@ def _frontier_command_outputs():
             "for=3 zero=0x80000000 nan=2\n"
             "[feature13-lvalue] PASS array=42 pointer=13 "
             "record=26 sizes=56 unevaluated=1\n"
+            "[feature13-unsigned] PASS conversions=4 "
+            "remainders=2 once=1\n"
             "[feature13-literal] PASS double=2 float=2 edge=3\n"
             "[feature13-call] PASS checks=10\n"
             "PASS feature13_double\n"
@@ -1951,6 +1953,52 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             "record->bias *= 2.0",
             "sizeof(matrix[index++])",
             "sizeof(cube[0])",
+        ):
+            with self.subTest(expression=expression):
+                self.assertIn(expression, source)
+
+    def test_feature13_requires_unsigned_word_runtime_evidence(self):
+        command = _frontier_command("/bin/feature13_double.cc")
+        expected = command.expected_pattern
+        sample = _frontier_command_output("/bin/feature13_double.cc")
+        marker = (
+            "[feature13-unsigned] PASS conversions=4 "
+            "remainders=2 once=1\n"
+        )
+
+        self.assertIsNone(
+            re.search(
+                expected,
+                sample.replace(marker, ""),
+                re.S | re.M,
+            )
+        )
+        for failure in (
+            "[feature13-unsigned-convert] FAIL",
+            "[feature13-unsigned-remainder] FAIL",
+        ):
+            self.assertIn(
+                failure,
+                gui_terminal_smoke.FRONTIER_RUNTIME_REJECTED_MARKERS,
+            )
+
+        source = (
+            REPO_ROOT / "bin" / "feature13_double.cc"
+        ).read_text(encoding="utf-8")
+        for expression in (
+            "float unsigned_float_below = 2147483520.0f",
+            "float unsigned_float_above = 2147483904.0f",
+            "double unsigned_double_below = 2147483647.75",
+            "double unsigned_double_above = 4294967295.75",
+            "(uint32_t)unsigned_float_below",
+            "(uint32_t)unsigned_double_below",
+            "signed_remainder %= 6",
+            (
+                "feature13_unsigned_values["
+                "feature13_unsigned_next_index()] %= 7"
+            ),
+            "feature13_unsigned_index_calls == 1",
+            "[feature13-unsigned] PASS conversions=4 remainders=2 once=1",
         ):
             with self.subTest(expression=expression):
                 self.assertIn(expression, source)

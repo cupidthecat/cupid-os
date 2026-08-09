@@ -45,19 +45,23 @@ instruction.
 
 Decimal constants, represented integer conversions, mixed
 integer-and-floating arithmetic, and all six comparisons use the shared SSE
-path. A mixed floating comparison uses `double`; only `!=` is true for an
-unordered NaN input.
+path. Runtime `float` and `double` values convert to represented unsigned
+targets through four bytes. Binary32 widens exactly to binary64, and a
+four-byte result splits at 2^31 before signed truncation. A mixed floating
+comparison uses `double`; only `!=` is true for an unordered NaN input. ADR
+0250 records the unsigned-output rule.
 
 Non-atomic `long double` values now use twelve-byte target objects. Automatic
 values use frame snapshots. Static-duration scalars, fixed arrays, and
 complete records may contain long-double leaves. Implicit initialization
-zeros the complete object; an explicit leaf accepts an integer constant
-expression equal to zero. Each leaf contributes twelve zero-filled BSS bytes,
-and atomic leaves fail recursively without following pointers. Bounded finite
+zeros the complete object. An explicit leaf accepts an integer constant
+expression equal to zero or a bounded decimal `L` literal with parentheses
+and unary signs. The emitter writes the ten exact x87 value bytes, clears the
+two padding bytes, and selects `.bss`, `.data`, or `.rodata` from the payload
+and qualifiers. Atomic leaves fail recursively without following pointers. Bounded finite
 normal decimal `L` tokens round an exact ratio to a 64-bit explicit
 significand with ties to even. The emitter writes that significand and the
-positive token's biased exponent into a twelve-byte snapshot; unary minus
-supplies the sign. The value-bearing ten bytes move through x87 80-bit `FLD`
+16-bit sign and exponent into a twelve-byte snapshot. The value-bearing ten bytes move through x87 80-bit `FLD`
 and `FSTP` memory forms in Cupid's shared x86
 catalogue. The hosted path converts among
 `float`, `double`, and `long double`, applies unary plus and minus, and
@@ -70,15 +74,17 @@ accept matching long-double values and mixed `float` or `double` inputs. The
 emitter loads right then left, executes `FUCOMIP ST0, ST1`, and discards the
 surviving x87 value. Signed zeros compare equal, and only `!=` is true for an
 unordered input. Hexadecimal or subnormal long-double literals, decimal
-ratios beyond the bounded parser, nonzero and floating static initializers,
-and integer conversions
+ratios beyond the bounded parser, static long-double arithmetic, comparison,
+truth, conditional selection, and width conversion, nonzero integer static
+initializers, and integer conversions
 involving `long double` remain open.
 
-The static aggregate proof covers two 24-byte arrays and two 28-byte records.
-They occupy 104 BSS bytes, and their 415-byte access function has fingerprint
-`BF01CC71`, eight absolute relocations, and six symbols. The hosted i386
-runtime checks the initial zero state and then moves 1.5 through file and
-block members.
+The static scalar and aggregate proofs cover both scopes, mutable and const
+objects, positive and negative values, both signed zeros, the largest accepted
+bounded literal, exact section placement, symbols, padding, malformed
+metadata, recovery, and deterministic repeated emission. The hosted i386
+runtime reads the three target words for every payload. ADR 0251 records this
+static-data boundary.
 
 The checked i386 Linux seed at ADR 0138 carries static floating constant data
 and this complete comparison path.
@@ -243,7 +249,8 @@ Runtime `float`, `double`, and automatic `long double` values work with unary
 subnormals, infinities, and NaNs are true. Increment or decrement,
 hexadecimal floating constants, binary32 and binary64 subnormal constants,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
-bounded parser, nonzero or floating static long-double initializers, integer conversions involving
+bounded parser, static long-double computation and width conversion, nonzero
+integer static initializers, integer conversions involving
 `long double` other than `_Bool`, general SIMD value semantics, and atomic
 floating access remain unsupported. Twelve-byte direct
 and indirect fixed, variadic, and unprototyped arguments, function returns,
@@ -321,6 +328,15 @@ compile error.
 `(int)3.7` -> 3 (truncating). `(float)5` -> 5.0. A `char` uses the same
 integer-to-floating conversion path. `(double)1.5f` widens. Casts lower to
 CVTSI2SS/CVTTSS2SI/CVTSS2SD/etc.
+
+Private CupidC also converts `float` and `double` to an unsigned 32-bit word
+for values in C's defined interval. Its lower path truncates directly. Its
+upper path subtracts 2^31 and restores bit 31 after truncation. Values outside
+`(-1, 2^32)` have no promised result. ADR 0249 records that private path. The
+feature-13 guest checks four conversion values around the split, signed and
+unsigned `%=` results, and one evaluation of a side-effecting destination. The
+required marker is `[feature13-unsigned] PASS conversions=4 remainders=2
+once=1`.
 
 ### Element access
 

@@ -92,22 +92,24 @@ applies that rule to both arms instead of inheriting the final arm's type, and
 `sizeof` has the unsigned `size_t` result required by the i386 ABI.
 
 Comparisons use unsigned conditions. Division and remainder use unsigned
-division, and right shift is logical. The same rules cover `/=` and `>>=`.
-Shift assignment takes its signedness from the promoted left operand, not the
-count. Unary plus, minus, and complement retain the unsigned result type, as
-do unsigned enum constants. Private `%=` syntax is not represented yet.
+division, and right shift is logical. The same rules cover `/=`, `%=`, and
+`>>=` while evaluating the destination once. Shift assignment takes its
+signedness from the promoted left operand, not the count. Unary plus, minus,
+and complement retain the unsigned result type, as do unsigned enum constants.
 
 Conversion from unsigned 32-bit values to `float` or `double` is exact before
 the destination width rounds. Values on both sides of `0x80000000` work in
 casts, initialization, assignment, arguments, ordinary or method returns,
 results, and mixed arithmetic. The 40 kernel bindings declared with
 `uint32_t`, `size_t`, or `swap_handle_t` results publish the same unsigned
-lane; narrower unsigned results keep integer promotion. Runtime conversion
-from `float` or `double` to unsigned 32-bit values remains unsupported and
-reports `floating to unsigned conversion is not supported`, including when a
-function tries to return a floating expression as unsigned.
+lane; narrower unsigned results keep integer promotion. Scalar `float` and
+`double` values in C's defined interval convert back to unsigned 32-bit values
+through casts, initialization, plain assignment, fixed arguments, and
+returns. The implementation splits at 2^31 so the upper half does not enter a
+signed truncation outside its range.
 [ADR 0221](../docs/adr/0221-preserve-private-unsigned-int-semantics.md)
-records the runtime rules.
+records the original runtime rules. [ADR 0249](../docs/adr/0249-complete-private-unsigned-word-conversions-and-remainder-assignment.md)
+records `%=` and floating input.
 
 ## In-kernel floating rules
 
@@ -210,8 +212,9 @@ evaluated once. A source `float` passed through an ellipsis or a function type
 without a prototype is promoted to `double`.
 
 The hosted path accepts decimal floating constants and converts between
-represented integer and floating widths, apart from unsigned four-byte
-results. Conversion from any represented floating width to `_Bool` follows
+represented integer and floating widths. Runtime `float` and `double` values
+convert to represented unsigned four-byte results across C's defined range.
+Conversion from any represented floating width to `_Bool` follows
 C scalar truth rules. Mixed integer-and-floating arithmetic is represented. All
 six comparisons work for matching or mixed floating widths, and only `!=`
 is true when either operand is NaN.
@@ -222,9 +225,11 @@ transport. Bounded finite normal decimal `L` tokens round an exact ratio to a
 significand and the positive token's biased exponent as three snapshot words;
 unary minus supplies the sign. Automatic values use frame snapshots. Static-duration scalars,
 fixed arrays, and complete records may contain long-double leaves. Implicit
-initialization zeros the complete object; an explicit leaf accepts an integer
-constant expression equal to zero. Each leaf occupies twelve zero-filled BSS
-bytes, and atomic leaves fail recursively without following pointers. Casts among `float`,
+initialization zeros the complete object. An explicit leaf accepts an integer
+constant expression equal to zero or a bounded decimal `L` literal with
+parentheses and unary signs. Each leaf has ten exact x87 value bytes and two
+zero padding bytes, and it uses `.bss`, `.data`, or `.rodata` according to its
+payload and qualifiers. Atomic leaves fail recursively without following pointers. Casts among `float`,
 `double`, and `long double`, unary plus and minus, and `+`, `-`, `*`, and `/`
 work for represented values.
 Direct and indirect fixed, variadic, and unprototyped arguments occupy twelve
@@ -240,10 +245,13 @@ zeros are false; finite nonzero values, subnormals, infinities, and NaNs are
 true. Floating increment or decrement, hexadecimal floating constants,
 binary32 and binary64 subnormal constants, hexadecimal or subnormal
 long-double constants, long-double decimals beyond the bounded ratio parser,
-nonzero or floating static initializers, integer
+static long-double arithmetic, comparison, truth, conditional selection, and
+width conversion, nonzero integer static initializers, integer
 conversions other than `_Bool`, SIMD, and atomic floating access remain
 unsupported. [ADR 0229](../docs/adr/0229-emit-exact-decimal-long-double-literals.md)
-records the literal representation. The in-kernel compiler has a separate, broader floating
+records the literal representation. ADR 0250 records runtime unsigned
+four-byte conversion, and ADR 0251 records static long-double data. The
+in-kernel compiler has a separate, broader floating
 and SIMD implementation.
 
 ## Checked-seed returns-twice calls

@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 FPU + SSE2 + CupidC Float/Double
-Verified against source on: 2026-08-04
+Verified against source on: 2026-08-09
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -60,13 +60,18 @@ instruction.
 Decimal constants, represented integer conversions, mixed integer-and-floating
 arithmetic, and all six comparisons use the shared SSE path. A mixed floating
 comparison uses double, and only != is true for an unordered NaN input.
+Runtime float and double values convert to represented unsigned four-byte
+targets across C's defined range. Binary32 widens exactly, and the result path
+splits at 2^31 before signed truncation. ADR 0250 records this rule.
 
 Non-atomic long double values use twelve-byte target objects. Automatic values
 use frame snapshots. Static-duration scalars, fixed arrays, and complete
 records may contain long-double leaves. Implicit initialization zeros the
-complete object; an explicit leaf accepts an integer constant expression
-equal to zero. Each leaf occupies twelve zero-filled BSS bytes, and atomic
-leaves fail recursively without following pointers. Bounded finite normal
+complete object. An explicit leaf accepts an integer constant expression
+equal to zero or a bounded decimal L literal with parentheses and unary
+signs. The emitter writes ten exact x87 value bytes, clears both padding
+bytes, and selects .bss, .data, or .rodata from the payload and qualifiers.
+Atomic leaves fail recursively without following pointers. Bounded finite normal
 decimal L tokens round an exact ratio to a 64-bit explicit significand with
 ties to even. The emitter writes that significand and the positive token's
 biased exponent into a twelve-byte snapshot; unary minus supplies the sign.
@@ -81,14 +86,16 @@ comparisons accept matching long-double values and mixed float or double
 inputs. The emitter loads right then left, uses FUCOMIP ST0, ST1, and discards
 the surviving x87 value. Signed zeros compare equal, and only != is true for
 an unordered input. Hexadecimal or subnormal long-double literals, decimal
-ratios beyond the bounded parser, nonzero or floating static initializers,
-and integer conversions involving long double remain open.
+ratios beyond the bounded parser, static long-double arithmetic, comparison,
+truth, conditional selection, and width conversion, nonzero integer static
+initializers, and integer conversions involving long double remain open.
 
-The static aggregate proof covers two 24-byte arrays and two 28-byte records
-in 104 BSS bytes. Its 415-byte access function has fingerprint BF01CC71,
-eight absolute relocations, and six symbols. The hosted i386 runtime checks
-every initial zero leaf and marker, then moves 1.5 through file and block
-members.
+The static scalar and aggregate proofs cover both scopes, mutable and const
+objects, positive and negative values, both signed zeros, the largest accepted
+bounded literal, exact section placement, symbols, padding, malformed
+metadata, recovery, and deterministic repeated emission. The hosted i386
+runtime reads all three target words for every payload. ADR 0251 records this
+static-data boundary.
 
 The checked i386 Linux seed now carries static floating constant data and this
 complete comparison path. The normal build uses them in kernel/gfx/jpeg.cc
@@ -235,7 +242,8 @@ for, and conversion to _Bool. Both signed zeros are false; finite nonzero values
 subnormals, infinities, and NaNs are true. Increment and decrement,
 hexadecimal floating constants, binary32 and binary64 subnormal constants,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
-bounded parser, nonzero or floating static long-double initializers, integer conversions involving long
+bounded parser, static long-double computation and width conversion, nonzero
+integer static initializers, integer conversions involving long
 double other than _Bool, general SIMD value semantics, and atomic floating
 access remain outside this shared path. Twelve-byte direct and
 indirect fixed, variadic, and unprototyped arguments, function returns, direct

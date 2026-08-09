@@ -68,7 +68,7 @@ Recent subsystem work is summarized below. Detailed pages live under `wiki/`, an
 - Private CupidC joins adjacent C string tokens directly in the data section for automatic expressions, file-scope initializers, and persistent REPL declarations. Each token remains capped at 1,023 decoded bytes, while the joined string can use the remaining 8 MiB data budget. Overlong tokens and joined-data exhaustion fail with focused diagnostics instead of truncating the source.
 - Private CupidC accepts both anonymous and tagged structure typedefs. The typedef table keeps the record identity through alias chains and pointer aliases, so `.` and `->` retain the correct layout in file and persistent REPL source. Address expressions now select the field itself for both `&record.field` and `&pointer->field`; the pointer form loads the pointed-to record before adding the field offset. Fixed array products, cumulative record layout, final alignment, REPL data reservations, and cumulative local frames now fail before signed overflow. Constant integer expressions check signed arithmetic and retain `uint32_t` wrap when an operand is unsigned. A failed REPL line restores complete record definitions, including an older forward tag that the rejected line tried to fill. ADR 0219 records this boundary.
 - Private CupidC accepts comma-separated typedef declarators and keeps each value or pointer alias distinct. One-dimensional fixed-array aliases retain complete storage and `sizeof` through automatic, global, block-static, record, class, and persistent REPL declarations; function and method parameters use C array decay. Array members keep their complete object size and record-element identity through direct or pointer access, including indexed assignment inside an array of records. Unsupported compound array declarators fail explicitly instead of becoming scalar objects. ADR 0220 records this boundary.
-- Private CupidC preserves unsigned 32-bit runtime types through objects, pointers, calls, enums, unary operations, conditionals, comparisons, division, remainder, right shift, `sizeof`, and scalar returns; `/=` and `>>=` use the same rules. Shift assignment takes its signedness from the promoted left operand, not the count. It converts the complete `uint32_t` range exactly to `double` and correctly rounded `float`, including ordinary and method returns. Forty kernel bindings with `uint32_t`, `size_t`, or `swap_handle_t` results now publish that unsigned type. The Browser stores array length in the same lane, accepts canonical indices through 4,294,967,294, and treats 4,294,967,295 as an ordinary property. Private `%=` syntax remains open. ADR 0221 records the compiler and Browser boundary.
+- Private CupidC preserves unsigned 32-bit runtime types through objects, pointers, calls, enums, unary operations, conditionals, comparisons, division, remainder, right shift, `sizeof`, and scalar returns. `/=`, `%=`, and `>>=` use the same signedness rules while evaluating each destination once. It converts the complete `uint32_t` range exactly to `double` and correctly rounded `float`, including ordinary and method returns. Values in C's defined interval convert from `float` or `double` to an unsigned word through casts, initialization, assignment, arguments, and returns. Forty kernel bindings with `uint32_t`, `size_t`, or `swap_handle_t` results publish that unsigned type. The Browser stores array length in the same lane, accepts canonical indices through 4,294,967,294, and treats 4,294,967,295 as an ordinary property. ADR 0221 records the original type boundary, and ADR 0249 records the two completed operations. The feature-13 guest checks four conversion boundaries, signed and high-bit unsigned `%=` results, and one evaluation of a side-effecting destination. Its required boot marker is `[feature13-unsigned] PASS conversions=4 remainders=2 once=1`.
 - Private `float4` and `double2` values support matching packed arithmetic and one-dimensional fixed arrays in global, local, block-static, and persistent REPL storage. Array access uses unaligned-safe 16-byte moves, supports plain and arithmetic compound assignment, and preserves lane values. Direct arithmetic uses a stable machine operand order, while minimum and maximum intrinsics retain their defined NaN and signed-zero behavior. The feature-14 guest check covers the active forms.
 - The TCP/IP stack supports RTL8139 and E1000 devices, ARP, IPv4, ICMP, UDP, a client and server subset of RFC 793 TCP, DHCP with static fallback, DNS with a 16-entry TTL cache, and a 32-slot BSD socket table shared by the shell and CupidC. TCP uses per-socket stop-and-wait retransmission with exponential backoff, advertises the actual receive-buffer space, and collects abandoned half-open connections. IPv4 fragments outgoing packets and keeps four reassembly slots for datagrams up to about 64 KB.
 - The in-tree TLS 1.2 and 1.3 client implements ChaCha20-Poly1305 and AES-128-GCM records, X25519 and P-256 ECDHE, ECDSA-P256, RSA-PKCS1v15 and RSA-PSS verification, HKDF, SHA-256, HMAC, ASN.1/DER parsing, and X.509 v3 parsing with hostname, time, and best-effort chain checks against an embedded Mozilla CA bundle. The chain checker is still lenient when it cannot find a root or implement a signature algorithm. A boot self-test runs RFC vectors. `curl`, `wget`, and the shell browser use this implementation for HTTPS.
@@ -924,18 +924,19 @@ build no longer calls FFmpeg, `jpegtran`, `djpeg`, or `cjpeg`. The Linux kernel 
 passed in 607.7 seconds, and the Windows root build passed in 341.6 seconds.
 All 430 frozen kernel artifacts match byte for byte.
 
-The latest root build passed in 1,738.517 seconds. Its 9,077,256-byte final ELF
+The latest root build passed in 1,482 seconds. Its 9,089,676-byte final ELF
 has SHA-256
-`b759382524029149661b7f52233730bdee4758c56af84d643090dd147808a0a5`.
-CupidObj flattened it to an 8,871,472-byte raw kernel with SHA-256
-`3545265b59b95f858af4d93e8196624fa3991b02f49c6df1e1cae38608b88781`.
+`fe3f04f89287237440136bab88ad4436e43202a36a0325dd02b5e5270d08eef0`.
+CupidObj flattened it to an 8,883,276-byte raw kernel with SHA-256
+`6604b7a366a83ff3f0062e434f2d64bc3726e23d7fd6f2720f9d65636a56cad1`.
 The 209,715,200-byte normal image has SHA-256
-`aa9f5e0dedefe6f7e243d0e0c67448db1448aaa1960204b1f77efd82202f17b3`.
-A private one-vCPU `/bin/ls.cc` smoke from that image passed in 49.997
-seconds. Its 27,819-byte log has SHA-256
-`0ebac3fa2e8efae4264897aeb6581f01fc88668db7c3e8317e3beef956ff0f77`
-and records 911 bytes of JIT code, 71 bytes of data, and completed execution.
-This smoke checks the existing ELF path; it does not execute a PE image.
+`d64b4fd5b31a814c1fb3bd5c08c187bcba5cd0ac4e35bd42d5de86813853663f`.
+A private four-vCPU e1000 boot ran `/bin/feature13_double.cc` from that image
+in 66.7 seconds. It observed the unsigned conversion and remainder marker,
+the program pass line, and clean JIT completion. Its 34,908-byte log has
+SHA-256
+`0aed6bf022bdb3b9a5c689b64473e2e6da7dfddfd4e7bec9956c03a7189da596`.
+This boot checks the existing ELF path; it does not execute a PE image.
 
 The earlier [ADR 0235](docs/adr/0235-transfer-jpeg-acceptance-to-cupidobj.md)
 checkpoint used a 209,715,200-byte image with SHA-256
@@ -993,25 +994,26 @@ Static-duration scalar and aggregate leaves accept decimal
 floating constants with parentheses and unary signs. Assignment conversion
 between `float` and `double` is rounded with integer-only target arithmetic,
 and exact binary32 or binary64 bytes reach `.rodata`, `.data`, or `.bss`.
-Represented integer-to-floating conversions,
-floating-to-signed conversions, floating-to-unsigned byte or word
-conversions, the explicit `double` to unsigned-wide cast, and mixed integer
-and floating arithmetic use the SSE object path. Unsigned four-byte input
-uses an exact split across the sign boundary.
+Represented integer-to-floating conversions, floating-to-signed conversions,
+floating-to-unsigned conversions through four-byte targets, the explicit
+`double` to unsigned-wide cast, and mixed integer and floating arithmetic use
+the SSE object path. Unsigned four-byte input and output use exact splits
+across the sign boundary. ADR 0250 records runtime `float` and `double`
+conversion to represented unsigned four-byte targets.
 The x87 transport model, SSE conversion oracle, and `UCOMISS` or `UCOMISD`
 comparison oracle check rounding, operand order, ordered values, signed zero,
 infinities, quiet and signaling NaNs, call alignment, and frame state.
 Non-atomic `long double` values use twelve-byte i386 objects and x87 80-bit
 memory operations. Bounded finite normal decimal `L` tokens round an exact
 integer ratio to a 64-bit explicit significand with ties to even. The emitter
-writes that significand and the positive token's biased exponent as three
-exact snapshot words; unary minus supplies the sign. Automatic values use
-frame snapshots. Static-duration
-scalars, fixed arrays, and complete records may contain long-double leaves.
-Implicit initialization zeros the complete object; an explicit leaf accepts
-an integer constant expression equal to zero. Each leaf occupies twelve
-zero-filled BSS bytes, and atomic leaves fail recursively without following
-pointers. The represented slice covers floating-width conversion,
+writes that significand and the 16-bit sign and exponent as three exact
+words; the last two object bytes stay zero. Automatic values use frame
+snapshots. Static-duration scalars, fixed arrays, and complete records may
+contain long-double leaves. A leaf accepts implicit zero, an integer constant
+expression equal to zero, or a bounded decimal `L` literal with parentheses
+and unary signs. An all-zero payload uses `.bss`; mutable nonzero values use
+`.data`, and const nonzero values use `.rodata`. Atomic leaves fail
+recursively without following pointers. The represented slice covers floating-width conversion,
 unary plus and minus, all four arithmetic operators, function returns, and
 direct or indirect call results. Fixed, ellipsis, and unprototyped arguments
 occupy twelve cdecl bytes. `va_arg(long double)` copies the same width and
@@ -1026,13 +1028,14 @@ controlling operand of `?:`, the conditions of `if`, `while`, `do`, and
 `for`, and conversion to `_Bool`. Both signed zeros are false; finite nonzero values, subnormals,
 infinities, and NaNs are true. Hexadecimal floating literals, binary32 and
 binary64 subnormal literals, hexadecimal or subnormal long-double literals,
-decimal ratios beyond the bounded parser, nonzero or floating static long-double initializers,
-integer conversions involving `long double` other than `_Bool`, conversion to
-unsigned four-byte integers, mixed integer and floating conditional arms,
+decimal ratios beyond the bounded parser, static long-double arithmetic,
+comparisons, truth, conditionals, or width conversions, nonzero integer
+static initializers, integer conversions involving `long double` other than `_Bool`, mixed integer and floating conditional arms,
 floating increment and decrement, SIMD values, floating atomics, and
 over-aligned emission remain open. ADR 0202 records the truth boundary, and
 [ADR 0229](docs/adr/0229-emit-exact-decimal-long-double-literals.md) records
-the decimal literal representation.
+the decimal literal representation. ADR 0251 records exact static
+long-double data.
 
 Plain assignment, all ten compound assignments, and prefix or postfix increment and decrement now work for represented non-atomic bit fields in four-byte storage units. Linear IR keeps the selected member and evaluates the record address once. Partial fields preserve neighboring bits, and postfix updates retain the extracted old value through the store so width wrap does not change the result. Narrow unsigned fields promote to signed `int` when their values fit. A volatile 32-bit field uses one read and one direct store. An execution oracle proves that `states[(*index)++].value++` advances its side-effecting index exactly once. Partial volatile mutation, atomic bit-field access, and non-four-byte storage units remain open. The plain-assignment contracts still pin Doom's unchanged `colors[index].r = value` shape.
 

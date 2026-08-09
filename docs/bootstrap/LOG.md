@@ -22465,3 +22465,173 @@ still uses the checked Linux seed. Issue #32 therefore remains open.
 No production source changes owner in this step, so no `.c` to `.cc` rename is
 due. `TempleOS/` remains untouched reference material. ADR 0248 records the
 format, relocation, runtime, and validation decisions.
+
+## 2026-08-09: Finish unsigned-word operations and exact static long-double data
+
+This checkpoint closes two ordinary unsigned-word operations in private
+CupidC and carries the matching floating conversion through hosted CupidC. It
+also extends hosted static data from zero-only `long double` leaves to exact
+x87 payloads. No build owner changes, and no source was reduced to fit either
+compiler.
+
+Private CupidC now converts scalar `float` and `double` values to `uint32_t`
+through casts, file and block-static initialization, automatic
+initialization, direct and indirect assignment, array and record fields,
+fixed arguments, and returns. One emitter handles both widths. It compares
+the source with the exact scalar value 2^31, truncates the lower half with the
+signed i386 instruction, and subtracts 2^31 before truncating and restoring
+bit 31 in the upper half. The language promises a result only in C's defined
+interval, `(-1, 2^32)`. Literal initialization uses a bounded target split so
+the compiler never asks the host to perform an undefined floating-to-integer
+cast.
+
+The private lexer now has a distinct `%=` token. Compound assignment keeps
+the existing saved destination, which means a pointer, index, or member base
+is evaluated once. Signed values use `CDQ` and `IDIV`; unsigned values clear
+EDX and use `DIV`. Locals, globals, pointer targets, arrays, and direct or
+pointer record fields share the rule. Floating targets receive a focused
+integer-remainder diagnostic, and a failed request leaves the next request
+usable.
+
+`/bin/feature13_double.cc` exercises both changes in the running OS. Four
+conversions cross 2^31 at binary32 and binary64 widths. Signed remainder uses
+`-29 % 6`, and an unsigned high-bit value uses a function call as its array
+index. The boot gate requires this line and rejects separate conversion and
+remainder failure markers:
+
+```text
+[feature13-unsigned] PASS conversions=4 remainders=2 once=1
+```
+
+Hosted CupidC now accepts runtime `float` and `double` conversion to
+represented unsigned targets through four bytes. The frontend records normal
+assignment or cast conversion, Linear IR validates the semantic width and
+layout, and the object emitter uses its existing checked unsigned-word helper.
+A binary32 value first widens exactly with `CVTSS2SD`; both widths then split
+at 2^31. The four-byte path covers i386 `unsigned int`, `unsigned long`,
+typedef aliases, and compatible unsigned-layout enums. Existing signed,
+narrow, Boolean, and explicit double-to-unsigned-wide paths keep their prior
+rules.
+
+Static-duration non-atomic `long double` scalars, fixed arrays, and complete
+records now accept bounded finite normal decimal `L` literals with
+parentheses and unary signs. The initializer carries the 64-bit explicit
+significand and a separate 16-bit x87 sign and biased exponent. Frontend
+freeze, Linear IR, and the emitter validate their own inputs. They reject
+reserved exponents, a missing explicit integer bit, malformed zero, high
+metadata on other initializer kinds, and partial publication after a forged
+unit.
+
+The emitter writes the eight significand bytes, two sign and exponent bytes,
+and two zero padding bytes. Positive zero in writable storage uses `.bss`.
+Mutable nonzero values and negative zero use `.data`; const nonzero values use
+`.rodata`. The object and Cupid-built runtime contracts cover `1.0L`, the
+next represented value above one, the largest accepted bounded value,
+`-1.0L`, and both signed zeros in scalar and aggregate storage. Static
+long-double arithmetic, comparison, truth, conditional selection, width
+conversion, nonzero integer initialization, hexadecimal and subnormal
+literals, and atomics remain outside this boundary.
+
+CupidDis did not need another opcode patch. A source-head build decoded 377
+current ELF objects from the kernel, programs, drivers, Toolchain, and user
+outputs. None failed and none produced a true `db 0x` fallback row. The active
+SIMD object already uses the shared encodings for `MOVD`, `MOVDQU`, `MOVNTDQ`,
+`PSHUFD`, the represented `PUNPCK` forms, `PMULLW`, `PADDW`, `PSRLW`,
+`PACKUSWB`, `PXOR`, and `PADDUSB`. Adding an unobserved packed-SSE2 form would
+not have reduced an active fallback, so the decoder stayed unchanged.
+
+The first focused runs gave useful red signals:
+
+- The private remainder selection failed all three tests because the lexer
+  returned ordinary `%` before the token existed.
+- The hosted frontend rejected the new unsigned conversion at
+  `/floating-scalars.c:93:59`; the matching IR and object selectors failed at
+  the same semantic boundary.
+- The first static long-double frontend run rejected `1.0L` at
+  `/long-double-locals.c:7:49` with `CTB000007`.
+- The first static long-double object run expected 19 symbols and found 25,
+  which confirmed that the six new objects reached emission.
+
+Two broad suites then caught stale integration locks rather than production
+failures. The hosted frontend's branch and file totals changed with the new
+semantic paths. Its lock now records 427 functions. The object self-host
+frontier now records 264 IR functions, 360 emitter functions, and 427
+frontend functions with their new text sizes, object sizes, and fingerprints.
+The build-graph audit also found the source-wide `sizeof` occurrence total had
+moved to 5,712. Each corrected selector passed before the longer final reruns.
+The final standards review compared the generated audit directly with its
+frontend drift locks and found six newer control totals from the completed
+source tree. The test now pins 22,994 returns, 4,191 `for` statements, 1,724
+case labels, 37,848 `if` statements, 4,786 `else` clauses, and 2,933 `goto`
+statements. The unchanged `while`, `do`, `switch`, default-label, and file
+totals still match.
+
+The checks completed before publication were:
+
+| Check | Result |
+| --- | --- |
+| Eight private CupidC modules | PASS: all 149 tests in 17.775 seconds. |
+| GUI terminal contracts | PASS: all 116 tests in 0.544 seconds. |
+| Hosted CupidC frontend suite | PASS: all 95 tests in 13.369 seconds after the final generated audit locks were corrected. |
+| Hosted CupidC IR suite | PASS: all 83 tests in 12.737 seconds. |
+| Hosted CupidC object suite, first broad run | 108 of 109 passed in 1,014.502 seconds. The only failure was the stale self-host size and fingerprint lock; its corrected selector then passed in 26.469 seconds. |
+| Hosted CupidC object suite, final broad run | PASS: all 109 tests in 1,019.309 seconds. |
+| Private kernel compile contracts | PASS: all 34 tests in 93.249 seconds. |
+| Build-graph audit, first broad run | 74 of 75 passed in 618.480 seconds. The only failure was the stale `sizeof` total; its corrected selector then passed in 186.056 seconds. |
+| Build-graph audit, final broad run | PASS: all 75 tests in 739.887 seconds. |
+| CupidC Toolchain contract plan | PASS: all 32 tests in 4.087 seconds. |
+| CupidDis and shared x86 contracts | PASS: all 29 tests in 5.048 seconds, with one existing platform skip. |
+| USB source and ownership contracts | PASS: all 44 tests in 0.865 seconds. These contracts do not execute the hardware halt sequence. |
+| Panic-log detector contracts | PASS: both focused tests in 0.001 seconds. They verify rejection of a captured panic, not UHCI register behavior. |
+| Changed Python bytecode compilation | PASS. |
+| `make bootstrap-audit` | PASS in 61.6 seconds. The generated audit has 721 active inputs, 447 transforms, 255 feature requirements, and 25 accounted unreachable files. |
+| `make check-bootstrap-audit` | PASS again in 61.2 seconds on the final reviewed tree. |
+| `make -C toolchain all` | PASS in 2,939.4 seconds. Stage two and stage three rebuilt all five tools and every contract artifact byte for byte, the hosted runtime passed, live inputs matched, and all 20 artifacts published together. |
+| `make all` | PASS in 1,482 seconds through the normal checked ELF image path. |
+| Focused four-vCPU e1000 feature-13 boot | PASS in 66.7 seconds. The guest produced the new marker, `PASS feature13_double`, and clean JIT completion. |
+
+The normal-build and focused runtime artifacts are:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.elf` | 9,089,676 | `fe3f04f89287237440136bab88ad4436e43202a36a0325dd02b5e5270d08eef0` |
+| `kernel/kernel.bin` | 8,883,276 | `6604b7a366a83ff3f0062e434f2d64bc3726e23d7fd6f2720f9d65636a56cad1` |
+| `cupidos.img` | 209,715,200 | `d64b4fd5b31a814c1fb3bd5c08c187bcba5cd0ac4e35bd42d5de86813853663f` |
+| Toolchain contract manifest | 18,826 | `ded5d17d62d24f959e8a19136411518dc61805f7966b0060ccf723957bd2dfae` |
+| Active-build audit JSON | 2,574,680 | `cd5ac8967d7da7349ce222591ea29b3d468909e2bd95d34354d1a494c6c7ca4b` |
+| Active-build audit summary | 12,218 | `741121de37e9775aaf6a87ed99b3756865c4856ca3acaa3c0cc06cfec33855fa` |
+| Focused feature-13 boot log | 34,908 | `0aed6bf022bdb3b9a5c689b64473e2e6da7dfddfd4e7bec9956c03a7189da596` |
+
+The complete e1000 frontier observed the new marker and clean feature-13 JIT
+completion on both attempts, then failed later in unchanged subsystems. The
+first run reached the graphics gate and reported `uhci: DMA ownership could
+not be revoked after transfer` at guest uptime 913.300 seconds. The retry
+passed graphics and reached the dglibc HomeFS publication before ending at a
+kernel panic banner. The focused boot isolates the changed guest path and is
+green; the repeated later USB or storage panic is recorded without claiming a
+complete frontier pass.
+
+There is no fast deterministic test for the exact UHCI halt failure.
+`uhci_stop_schedule` is static and talks directly to `inw`, `outw`, and
+`timer_delay_us`; the existing USB tests do not supply a mocked controller.
+An earlier bootstrap run in this log also reached an EHCI DMA-ownership panic
+after repeated keyboard input attempts. The changed compiler paths therefore
+have no demonstrated causal ownership of this runtime class, although an
+indirect timing effect cannot be excluded without a repeatable old-versus-new
+loop. No speculative USB change was made.
+
+No design question needed a user decision. C's defined conversion interval,
+the existing unsigned-word helper, the saved private lvalue model, and the
+established twelve-byte i386 x87 layout fixed the behavior. ADR 0249 records
+the private compiler boundary, ADR 0250 records hosted unsigned conversion,
+and ADR 0251 records exact static long-double data.
+
+Issues #25 and #31 remain open. Hosted aggregate ABI work, static
+long-double computation and conversion, other C11 gaps, and complete behavior
+coverage for every embedded Cupid program still remain. The checked seed can
+compile the changed Toolchain sources and reach a source-head fixed point, but
+it does not yet carry these compiler behaviors as promoted seed commands.
+Windows still reaches the checked Linux tools through WSL, Python still owns
+orchestration and publication checks, and the normal image still uses the
+checked seed. No production source changes owner, so no `.c` to `.cc` rename
+is due. `TempleOS/` remains untouched reference material.

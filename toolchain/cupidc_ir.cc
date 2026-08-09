@@ -3924,7 +3924,8 @@ static ctool_bool cir_floating_conversion_is_valid(
                     context, target_type) == CTOOL_TRUE &&
                 (target->kind == CTOOL_C_TYPE_BOOL ||
                  (source->kind != CTOOL_C_TYPE_LONG_DOUBLE &&
-                  (layout->is_signed == CTOOL_TRUE || layout->size < 4u))) &&
+                  (layout->is_signed == CTOOL_TRUE ||
+                   layout->size <= 4u))) &&
                 (conversion == CTOOL_C_CONVERSION_NONE ||
                  conversion == CTOOL_C_CONVERSION_ASSIGNMENT)
             ? CTOOL_TRUE
@@ -9552,6 +9553,23 @@ static ctool_status_t cir_validate_implicit_function_binding(
   return CTOOL_OK;
 }
 
+static ctool_bool cir_static_long_double_payload_is_valid(
+    ctool_u64 significand, ctool_u32 high_bits) {
+  ctool_u32 exponent;
+  if ((high_bits & 0xffff0000u) != 0u) {
+    return CTOOL_FALSE;
+  }
+  exponent = high_bits & 0x7fffu;
+  if (exponent == 0u) {
+    return significand == 0ull ? CTOOL_TRUE : CTOOL_FALSE;
+  }
+  if (exponent == 0x7fffu ||
+      (significand & 0x8000000000000000ull) == 0ull) {
+    return CTOOL_FALSE;
+  }
+  return CTOOL_TRUE;
+}
+
 static ctool_bool cir_static_floating_initializer_is_valid(
     const cir_context_t *context,
     const ctool_c_initializer_t *initializer) {
@@ -9568,8 +9586,15 @@ static ctool_bool cir_static_floating_initializer_is_valid(
   layout = &context->unit->layout.types[initializer->type];
   if (((qualifiers | floating->qualifiers) & CTOOL_C_QUAL_ATOMIC) != 0u ||
       !((floating->kind == CTOOL_C_TYPE_FLOAT && layout->size == 4u &&
-         (initializer->integer_bits & 0xffffffff00000000ull) == 0ull) ||
-        (floating->kind == CTOOL_C_TYPE_DOUBLE && layout->size == 8u)) ||
+         (initializer->integer_bits & 0xffffffff00000000ull) == 0ull &&
+         initializer->floating_high_bits == 0u) ||
+        (floating->kind == CTOOL_C_TYPE_DOUBLE && layout->size == 8u &&
+         initializer->floating_high_bits == 0u) ||
+        (floating->kind == CTOOL_C_TYPE_LONG_DOUBLE &&
+         layout->size == 12u &&
+         cir_static_long_double_payload_is_valid(
+             initializer->integer_bits,
+             initializer->floating_high_bits) == CTOOL_TRUE)) ||
       initializer->expression != CTOOL_C_AST_NONE ||
       initializer->string_bytes.data != (const ctool_u8 *)0 ||
       initializer->string_bytes.size != 0u ||
@@ -9594,6 +9619,10 @@ static ctool_status_t cir_validate_static_floating_initializer_forest(
                             (const ctool_c_pp_location_t *)0);
   }
   initializer = &context->unit->initializers[initializer_index];
+  if (initializer->kind != CTOOL_C_INITIALIZER_FLOATING &&
+      initializer->floating_high_bits != 0u) {
+    return cir_invalid_unit(context, &initializer->location);
+  }
   if (initializer->kind == CTOOL_C_INITIALIZER_FLOATING &&
       cir_static_floating_initializer_is_valid(
           context, initializer) == CTOOL_FALSE) {
@@ -13136,6 +13165,15 @@ static ctool_status_t cir_validate_initializer_ownership(
     const ctool_c_initializer_t *initializer =
         &context->unit->initializers[index];
     ctool_u32 child_offset;
+    if ((initializer->kind == CTOOL_C_INITIALIZER_FLOATING &&
+         cir_static_floating_initializer_is_valid(
+             context, initializer) == CTOOL_FALSE) ||
+        (initializer->kind != CTOOL_C_INITIALIZER_FLOATING &&
+         initializer->floating_high_bits != 0u)) {
+      invalid_location = &initializer->location;
+      valid = CTOOL_FALSE;
+      break;
+    }
     if (initializer->kind != CTOOL_C_INITIALIZER_LIST) {
       continue;
     }

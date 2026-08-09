@@ -1084,9 +1084,17 @@ cc_token_t cc_lex_next(cc_state_t *cc) {
     break;
 
   case '%':
-    tok.type = CC_TOK_PERCENT;
-    tok.text[0] = '%';
-    tok.text[1] = '\0';
+    if (cc_peek_char(cc) == '=') {
+      cc_next_char(cc);
+      tok.type = CC_TOK_PERCENTEQ;
+      tok.text[0] = '%';
+      tok.text[1] = '=';
+      tok.text[2] = '\0';
+    } else {
+      tok.type = CC_TOK_PERCENT;
+      tok.text[0] = '%';
+      tok.text[1] = '\0';
+    }
     break;
 
   case '=':

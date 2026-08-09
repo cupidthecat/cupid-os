@@ -217,8 +217,13 @@ typedef struct {
    * object's root or a leaf in an automatic LIST. Other kinds use AST_NONE. */
   ctool_u32 expression;
   /* INTEGER: target-width converted value bits. FLOATING: target-width
-   * IEEE binary32 or binary64 bits. */
+   * IEEE binary32 or binary64 bits, or the complete explicit 64-bit
+   * significand of an x87 long-double value. */
   ctool_u64 integer_bits;
+  /* FLOATING with long-double type: the target x87 sign and biased exponent
+   * in the low sixteen bits. Other initializer kinds and floating widths
+   * keep this zero. */
+  ctool_u32 floating_high_bits;
   /* STRING: effective character bytes copied into the target array. The
    * target type supplies any remaining semantic zero initialization.
    * ADDRESS with a STRING base: bytes of the static literal object,

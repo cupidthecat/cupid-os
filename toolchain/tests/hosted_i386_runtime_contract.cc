@@ -478,9 +478,32 @@ static unsigned int long_double_capture_count;
 static long double long_double_file_zero;
 static long double long_double_file_explicit_zero =
     sizeof(float) - 4;
+static const long double long_double_file_one = (+1.0L);
+static long double long_double_file_precise =
+    1.0000000000000000001L;
+static long double long_double_file_negative_zero = -0.0L;
+static long double long_double_file_positive_zero = +0.0L;
 static long double long_double_file_array[2];
 static long_double_zero_record long_double_file_record = {
     0, 0, sizeof(float) - 4};
+static long double long_double_file_initialized_array[2] = {
+    +1.0L, -0.0L};
+static long_double_zero_record long_double_file_initialized_record = {
+    1.0000000000000000001L, 7u, -1.0L};
+
+static int long_double_payload_matches(
+    long double value, unsigned int significand_low,
+    unsigned int significand_high,
+    unsigned int sign_exponent_padding) {
+  floating_truth_long_box box;
+  box.value = value;
+  return box.words.significand_low == significand_low &&
+                 box.words.significand_high == significand_high &&
+                 box.words.sign_exponent_padding ==
+                     sign_exponent_padding
+             ? 1
+             : 0;
+}
 
 static long double long_double_identity(long double value) {
   return value;
@@ -525,9 +548,16 @@ static int long_double_contract(void) {
   floating_truth_long_box literal_box;
   static long double long_double_block_zero;
   static long double long_double_block_explicit_zero = 0;
+  static long double long_double_block_maximum =
+      18446744073709551615e0L;
+  static long double long_double_block_negative_one = -1.0L;
   static long double long_double_block_array[2];
   static long_double_zero_record long_double_block_record = {
       0, 0, sizeof(float) - 4};
+  static long double long_double_block_initialized_array[2] = {
+      18446744073709551615e0L, +0.0L};
+  static long_double_zero_record long_double_block_initialized_record = {
+      -0.0L, 9u, +1.0L};
   long double initial = 1.5L;
   long double direct;
   long double indirect;
@@ -559,6 +589,53 @@ static int long_double_contract(void) {
       literal_box.words.sign_exponent_padding != 0x0000403eu ||
       !(maximum_literal > higher)) {
     return 722;
+  }
+  if (!long_double_payload_matches(
+          long_double_file_one, 0u, 0x80000000u, 0x00003fffu) ||
+      !long_double_payload_matches(
+          long_double_file_precise, 1u, 0x80000000u, 0x00003fffu)) {
+    return 723;
+  }
+  if (!long_double_payload_matches(
+          long_double_file_negative_zero, 0u, 0u, 0x00008000u) ||
+      !long_double_payload_matches(
+          long_double_file_positive_zero, 0u, 0u, 0u) ||
+      !long_double_payload_matches(
+          long_double_block_maximum, 0xffffffffu, 0xffffffffu,
+          0x0000403eu) ||
+      !long_double_payload_matches(
+          long_double_block_negative_one, 0u, 0x80000000u,
+          0x0000bfffu)) {
+    return 724;
+  }
+  if (!long_double_payload_matches(
+          long_double_file_initialized_array[0], 0u,
+          0x80000000u, 0x00003fffu) ||
+      !long_double_payload_matches(
+          long_double_file_initialized_array[1], 0u, 0u,
+          0x00008000u) ||
+      !long_double_payload_matches(
+          long_double_file_initialized_record.first, 1u,
+          0x80000000u, 0x00003fffu) ||
+      long_double_file_initialized_record.marker != 7u ||
+      !long_double_payload_matches(
+          long_double_file_initialized_record.second, 0u,
+          0x80000000u, 0x0000bfffu)) {
+    return 725;
+  }
+  if (!long_double_payload_matches(
+          long_double_block_initialized_array[0], 0xffffffffu,
+          0xffffffffu, 0x0000403eu) ||
+      !long_double_payload_matches(
+          long_double_block_initialized_array[1], 0u, 0u, 0u) ||
+      !long_double_payload_matches(
+          long_double_block_initialized_record.first, 0u, 0u,
+          0x00008000u) ||
+      long_double_block_initialized_record.marker != 9u ||
+      !long_double_payload_matches(
+          long_double_block_initialized_record.second, 0u,
+          0x80000000u, 0x00003fffu)) {
+    return 726;
   }
   box.value =
       (double)(long_double_file_array[0] +

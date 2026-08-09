@@ -1761,6 +1761,67 @@ static ctool_u32 find_block_binding(const ctool_c_translation_unit_t *unit,
   return CTOOL_C_AST_NONE;
 }
 
+static ctool_u32 find_object_initializer(
+    const ctool_c_translation_unit_t *unit, const char *name) {
+  ctool_u32 binding = find_binding(unit, name);
+  ctool_u32 index;
+  if (binding == CTOOL_C_AST_NONE) {
+    return CTOOL_C_AST_NONE;
+  }
+  for (index = 0u; index < unit->object_definition_count; index++) {
+    if (unit->object_definitions[index].binding == binding) {
+      return unit->object_definitions[index].initializer;
+    }
+  }
+  return CTOOL_C_AST_NONE;
+}
+
+static ctool_u32 find_initializer_child(
+    const ctool_c_translation_unit_t *unit, ctool_u32 root,
+    ctool_u32 offset) {
+  const ctool_c_initializer_t *initializer;
+  if (root >= unit->initializer_count) {
+    return CTOOL_C_AST_NONE;
+  }
+  initializer = &unit->initializers[root];
+  if (initializer->kind != CTOOL_C_INITIALIZER_LIST ||
+      offset >= initializer->element_count ||
+      initializer->first_element > unit->initializer_element_count ||
+      initializer->element_count >
+          unit->initializer_element_count - initializer->first_element) {
+    return CTOOL_C_AST_NONE;
+  }
+  return unit
+      ->initializer_elements[initializer->first_element + offset]
+      .initializer;
+}
+
+static int static_floating_initializer_matches(
+    const ctool_c_translation_unit_t *unit, ctool_u32 initializer,
+    ctool_u64 significand, ctool_u32 high_bits) {
+  return initializer < unit->initializer_count &&
+                 unit->initializers[initializer].kind ==
+                     CTOOL_C_INITIALIZER_FLOATING &&
+                 unit->initializers[initializer].integer_bits ==
+                     significand &&
+                 unit->initializers[initializer].floating_high_bits ==
+                     high_bits
+             ? 1
+             : 0;
+}
+
+static int static_integer_initializer_matches(
+    const ctool_c_translation_unit_t *unit, ctool_u32 initializer,
+    ctool_u64 bits) {
+  return initializer < unit->initializer_count &&
+                 unit->initializers[initializer].kind ==
+                     CTOOL_C_INITIALIZER_INTEGER &&
+                 unit->initializers[initializer].integer_bits == bits &&
+                 unit->initializers[initializer].floating_high_bits == 0u
+             ? 1
+             : 0;
+}
+
 static ctool_u32 find_member(const ctool_c_translation_unit_t *unit,
                              const char *name) {
   ctool_u32 index;
@@ -28098,11 +28159,12 @@ static int validate_floating_scalar_ir(
       0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u};
   ctool_u32 integer_to_floating[3] = {0u, 0u, 0u};
   ctool_u32 floating_to_integer[2] = {0u, 0u};
+  ctool_u32 floating_to_unsigned[4] = {0u, 0u, 0u, 0u};
   ctool_u32 floating_to_unsigned_wide = 0u;
   ctool_u32 index;
   if (unit == NULL || ir == NULL ||
-      unit->function_definition_count != 15u ||
-      ir->function_count != 15u ||
+      unit->function_definition_count != 19u ||
+      ir->function_count != 19u ||
       signed_int == CTOOL_C_TYPE_NONE ||
       unsigned_int == CTOOL_C_TYPE_NONE ||
       unsigned_wide == CTOOL_C_TYPE_NONE ||
@@ -28364,6 +28426,17 @@ static int validate_floating_scalar_ir(
                  CTOOL_C_CONVERSION_NONE) {
         floating_to_integer[1]++;
       }
+    } else if ((instruction->input_type == float_type ||
+                instruction->input_type == double_type) &&
+               instruction->type == unsigned_int) {
+      ctool_u32 source_offset =
+          instruction->input_type == double_type ? 1u : 0u;
+      if (instruction->conversion ==
+          CTOOL_C_CONVERSION_ASSIGNMENT) {
+        floating_to_unsigned[source_offset]++;
+      } else if (instruction->conversion == CTOOL_C_CONVERSION_NONE) {
+        floating_to_unsigned[2u + source_offset]++;
+      }
     } else if (instruction->input_type == double_type &&
                instruction->type == unsigned_wide &&
                instruction->conversion == CTOOL_C_CONVERSION_NONE) {
@@ -28406,6 +28479,10 @@ static int validate_floating_scalar_ir(
                  integer_to_floating[2] == 1u &&
                  floating_to_integer[0] == 1u &&
                  floating_to_integer[1] == 1u &&
+                 floating_to_unsigned[0] == 1u &&
+                 floating_to_unsigned[1] == 1u &&
+                 floating_to_unsigned[2] == 1u &&
+                 floating_to_unsigned[3] == 1u &&
                  floating_to_unsigned_wide == 1u
              ? 1
              : 0;
@@ -28508,6 +28585,12 @@ static int run_floating_scalars(const char *host_root) {
       "float cast_from_uint(unsigned int value) { return (float)value; }\n"
       "int assign_from_float(float value) { return value; }\n"
       "int cast_from_double(double value) { return (int)value; }\n"
+      "unsigned int assign_uint_from_float(float value) { return value; }\n"
+      "unsigned int assign_uint_from_double(double value) { return value; }\n"
+      "unsigned int cast_float_to_uint(float value) { "
+      "return (unsigned int)value; }\n"
+      "unsigned int cast_double_to_uint(double value) { "
+      "return (unsigned int)value; }\n"
       "unsigned long long cast_double_to_unsigned_wide(double value) { "
       "return (unsigned long long)value; }\n"
       "double mixed_add(int left, double right) { return left + right; }\n"
@@ -28534,7 +28617,7 @@ static int run_floating_scalars(const char *host_root) {
   ctool_c_ir_unit_t repeat_ir;
   ctool_u32 float_constant = CTOOL_C_AST_NONE;
   ctool_u32 integer_to_floating = CTOOL_C_AST_NONE;
-  ctool_u32 floating_to_integer = CTOOL_C_AST_NONE;
+  ctool_u32 floating_to_unsigned = CTOOL_C_AST_NONE;
   ctool_u32 floating_to_unsigned_wide = CTOOL_C_AST_NONE;
   ctool_u32 signed_int;
   ctool_u32 signed_wide;
@@ -28741,8 +28824,8 @@ static int run_floating_scalars(const char *host_root) {
             CTOOL_C_CONVERSION_ASSIGNMENT &&
         child < unit.expression_count &&
         unit.expressions[child].type == float_type &&
-        expression->type == signed_int) {
-      floating_to_integer = index;
+        expression->type == unsigned_int) {
+      floating_to_unsigned = index;
     }
     if (expression->kind == CTOOL_C_EXPRESSION_CAST &&
         expression->conversion == CTOOL_C_CONVERSION_NONE &&
@@ -28754,7 +28837,7 @@ static int run_floating_scalars(const char *host_root) {
   }
   if (float_constant == CTOOL_C_AST_NONE ||
       integer_to_floating == CTOOL_C_AST_NONE ||
-      floating_to_integer == CTOOL_C_AST_NONE ||
+      floating_to_unsigned == CTOOL_C_AST_NONE ||
       floating_to_unsigned_wide == CTOOL_C_AST_NONE) {
     goto cleanup;
   }
@@ -28811,13 +28894,13 @@ static int run_floating_scalars(const char *host_root) {
   (void)memcpy(invalid_expressions, unit.expressions,
                (size_t)unit.expression_count *
                    sizeof(*invalid_expressions));
-  invalid_expressions[floating_to_integer].type =
-      unsigned_int;
+  invalid_expressions[floating_to_unsigned].conversion =
+      CTOOL_C_CONVERSION_FLOAT_PROMOTION;
   if (!expect_ir_failure_preserves_unit(
-          job, &invalid_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION,
-          "CupidC IR lowering does not yet support this conversion",
-          "floating to unsigned 32-bit conversion")) {
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "floating to unsigned conversion with promotion metadata")) {
     goto cleanup;
   }
   (void)memcpy(invalid_expressions, unit.expressions,
@@ -29524,11 +29607,35 @@ static int run_floating_transport(const char *host_root) {
       "typedef void (*long_double_callback)(long double);\n"
       "typedef void (*long_double_open_callback)();\n"
       "typedef long double (*long_double_result_callback)(long double);\n"
+      "struct long_double_record {\n"
+      "  long double first;\n"
+      "  unsigned int marker;\n"
+      "  long double second;\n"
+      "};\n"
+      "static const long double long_double_file_one = (+1.0L);\n"
+      "static long double long_double_file_precise = "
+      "1.0000000000000000001L;\n"
+      "static long double long_double_file_negative_zero = -0.0L;\n"
+      "static long double long_double_file_positive_zero = +0.0L;\n"
+      "static double static_double_high_bits_guard = 1.0;\n"
+      "static long double long_double_file_array[2] = {1.0L, -0.0L};\n"
+      "static struct long_double_record long_double_file_record = {\n"
+      "  1.0000000000000000001L, 7u, -1.0L\n"
+      "};\n"
       "void long_double_sink(long double value);\n"
       "void long_double_variadic_sink(int marker, ...);\n"
       "void long_double_open_sink();\n"
       "long double long_double_identity(long double value);\n"
       "double long_double_locals(float narrow, double wide) {\n"
+      "  static long double long_double_block_maximum = "
+      "18446744073709551615e0L;\n"
+      "  static long double long_double_block_positive_zero = +0.0L;\n"
+      "  static long double long_double_block_array[2] = {\n"
+      "    18446744073709551615e0L, +0.0L\n"
+      "  };\n"
+      "  static struct long_double_record long_double_block_record = {\n"
+      "    -0.0L, 9u, +1.0L\n"
+      "  };\n"
       "  long double left = (long double)narrow;\n"
       "  long double right = (long double)wide;\n"
       "  left = +left;\n"
@@ -29593,12 +29700,25 @@ static int run_floating_transport(const char *host_root) {
   ctool_c_ir_unit_t long_double_ir;
   ctool_c_type_node_t *invalid_types = NULL;
   ctool_c_expression_t *invalid_promotion_expressions = NULL;
+  ctool_c_initializer_t *invalid_initializers = NULL;
   ctool_status_t status;
   ctool_u32 diagnostic_count;
   ctool_u32 fixed_sink;
   ctool_u32 function_type;
   ctool_u32 invalid_promotion_target;
   ctool_u32 promotion_expression = CTOOL_C_AST_NONE;
+  ctool_u32 long_double_file_one;
+  ctool_u32 long_double_file_precise;
+  ctool_u32 long_double_file_negative_zero;
+  ctool_u32 long_double_file_positive_zero;
+  ctool_u32 static_double_high_bits_guard;
+  ctool_u32 long_double_file_array;
+  ctool_u32 long_double_file_record;
+  ctool_u32 long_double_block_maximum;
+  ctool_u32 long_double_block_positive_zero;
+  ctool_u32 long_double_block_array;
+  ctool_u32 long_double_block_record;
+  ctool_u32 long_double_block_binding;
   ctool_u32 index;
   uint64_t unit_hash;
   uint64_t ir_hash;
@@ -29622,6 +29742,120 @@ static int run_floating_transport(const char *host_root) {
           job, &condition_unit, "floating truth boundary baseline")) {
     goto cleanup;
   }
+  long_double_file_one =
+      find_object_initializer(&long_double_unit, "long_double_file_one");
+  long_double_file_precise = find_object_initializer(
+      &long_double_unit, "long_double_file_precise");
+  long_double_file_negative_zero = find_object_initializer(
+      &long_double_unit, "long_double_file_negative_zero");
+  long_double_file_positive_zero = find_object_initializer(
+      &long_double_unit, "long_double_file_positive_zero");
+  static_double_high_bits_guard = find_object_initializer(
+      &long_double_unit, "static_double_high_bits_guard");
+  long_double_file_array = find_object_initializer(
+      &long_double_unit, "long_double_file_array");
+  long_double_file_record = find_object_initializer(
+      &long_double_unit, "long_double_file_record");
+  long_double_block_binding =
+      find_block_binding(&long_double_unit, "long_double_block_maximum");
+  long_double_block_maximum =
+      long_double_block_binding < long_double_unit.block_binding_count
+          ? long_double_unit.block_bindings[long_double_block_binding]
+                .initializer
+          : CTOOL_C_AST_NONE;
+  long_double_block_binding = find_block_binding(
+      &long_double_unit, "long_double_block_positive_zero");
+  long_double_block_positive_zero =
+      long_double_block_binding < long_double_unit.block_binding_count
+          ? long_double_unit.block_bindings[long_double_block_binding]
+                .initializer
+          : CTOOL_C_AST_NONE;
+  long_double_block_binding =
+      find_block_binding(&long_double_unit, "long_double_block_array");
+  long_double_block_array =
+      long_double_block_binding < long_double_unit.block_binding_count
+          ? long_double_unit.block_bindings[long_double_block_binding]
+                .initializer
+          : CTOOL_C_AST_NONE;
+  long_double_block_binding =
+      find_block_binding(&long_double_unit, "long_double_block_record");
+  long_double_block_record =
+      long_double_block_binding < long_double_unit.block_binding_count
+          ? long_double_unit.block_bindings[long_double_block_binding]
+                .initializer
+          : CTOOL_C_AST_NONE;
+  if (!static_floating_initializer_matches(
+          &long_double_unit, long_double_file_one,
+          0x8000000000000000ull, 0x3fffu) ||
+      !static_floating_initializer_matches(
+          &long_double_unit, long_double_file_precise,
+          0x8000000000000001ull, 0x3fffu) ||
+      !static_floating_initializer_matches(
+          &long_double_unit, long_double_file_negative_zero,
+          0ull, 0x8000u) ||
+      !static_floating_initializer_matches(
+          &long_double_unit, long_double_file_positive_zero, 0ull, 0u) ||
+      !static_floating_initializer_matches(
+          &long_double_unit, static_double_high_bits_guard,
+          0x3ff0000000000000ull, 0u) ||
+      !static_floating_initializer_matches(
+          &long_double_unit,
+          find_initializer_child(
+              &long_double_unit, long_double_file_array, 0u),
+          0x8000000000000000ull, 0x3fffu) ||
+      !static_floating_initializer_matches(
+          &long_double_unit,
+          find_initializer_child(
+              &long_double_unit, long_double_file_array, 1u),
+          0ull, 0x8000u) ||
+      !static_floating_initializer_matches(
+          &long_double_unit,
+          find_initializer_child(
+              &long_double_unit, long_double_file_record, 0u),
+          0x8000000000000001ull, 0x3fffu) ||
+      !static_integer_initializer_matches(
+          &long_double_unit,
+          find_initializer_child(
+              &long_double_unit, long_double_file_record, 1u),
+          7ull) ||
+      !static_floating_initializer_matches(
+          &long_double_unit,
+          find_initializer_child(
+              &long_double_unit, long_double_file_record, 2u),
+          0x8000000000000000ull, 0xbfffu) ||
+      !static_floating_initializer_matches(
+          &long_double_unit, long_double_block_maximum,
+          0xffffffffffffffffull, 0x403eu) ||
+      !static_floating_initializer_matches(
+          &long_double_unit, long_double_block_positive_zero, 0ull, 0u) ||
+      !static_floating_initializer_matches(
+          &long_double_unit,
+          find_initializer_child(
+              &long_double_unit, long_double_block_array, 0u),
+          0xffffffffffffffffull, 0x403eu) ||
+      !static_floating_initializer_matches(
+          &long_double_unit,
+          find_initializer_child(
+              &long_double_unit, long_double_block_array, 1u),
+          0ull, 0u) ||
+      !static_floating_initializer_matches(
+          &long_double_unit,
+          find_initializer_child(
+              &long_double_unit, long_double_block_record, 0u),
+          0ull, 0x8000u) ||
+      !static_integer_initializer_matches(
+          &long_double_unit,
+          find_initializer_child(
+              &long_double_unit, long_double_block_record, 1u),
+          9ull) ||
+      !static_floating_initializer_matches(
+          &long_double_unit,
+          find_initializer_child(
+              &long_double_unit, long_double_block_record, 2u),
+          0x8000000000000000ull, 0x3fffu)) {
+    (void)fprintf(stderr, "long double static initializer metadata differs\n");
+    goto cleanup;
+  }
   diagnostic_count = ctool_job_diagnostic_count(job);
   status = ctool_c_lower_ir(job, &long_double_unit, &long_double_ir);
   if (!check_status(status, CTOOL_OK, "long double local lowering") ||
@@ -29629,6 +29863,119 @@ static int run_floating_transport(const char *host_root) {
       !validate_long_double_local_ir(
           &long_double_unit, &long_double_ir)) {
     (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  if (long_double_unit.initializer_count == 0u ||
+      sizeof(*invalid_initializers) >
+          SIZE_MAX / (size_t)long_double_unit.initializer_count) {
+    goto cleanup;
+  }
+  invalid_initializers = (ctool_c_initializer_t *)malloc(
+      (size_t)long_double_unit.initializer_count *
+      sizeof(*invalid_initializers));
+  if (invalid_initializers == NULL) {
+    goto cleanup;
+  }
+  invalid_unit = long_double_unit;
+  invalid_unit.initializers = invalid_initializers;
+  (void)memcpy(
+      invalid_initializers, long_double_unit.initializers,
+      (size_t)long_double_unit.initializer_count *
+          sizeof(*invalid_initializers));
+  invalid_initializers[static_double_high_bits_guard]
+      .floating_high_bits = 1u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "static double initializer with forged high bits") ||
+      !expect_ir_success_preserves_unit(
+          job, &long_double_unit,
+          "static double high-bit metadata recovery")) {
+    goto cleanup;
+  }
+  (void)memcpy(
+      invalid_initializers, long_double_unit.initializers,
+      (size_t)long_double_unit.initializer_count *
+          sizeof(*invalid_initializers));
+  invalid_initializers[long_double_file_one].floating_high_bits =
+      0x7fffu;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "static long double initializer with reserved exponent") ||
+      !expect_ir_success_preserves_unit(
+          job, &long_double_unit,
+          "static long double reserved-exponent recovery")) {
+    goto cleanup;
+  }
+  (void)memcpy(
+      invalid_initializers, long_double_unit.initializers,
+      (size_t)long_double_unit.initializer_count *
+          sizeof(*invalid_initializers));
+  invalid_initializers[long_double_file_one].floating_high_bits = 0u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "static long double initializer with zero exponent and "
+          "nonzero significand") ||
+      !expect_ir_success_preserves_unit(
+          job, &long_double_unit,
+          "static long double zero-exponent recovery")) {
+    goto cleanup;
+  }
+  (void)memcpy(
+      invalid_initializers, long_double_unit.initializers,
+      (size_t)long_double_unit.initializer_count *
+          sizeof(*invalid_initializers));
+  invalid_initializers[long_double_file_one].integer_bits =
+      0x7fffffffffffffffull;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "static long double initializer without explicit integer bit") ||
+      !expect_ir_success_preserves_unit(
+          job, &long_double_unit,
+          "static long double explicit-bit recovery")) {
+    goto cleanup;
+  }
+  (void)memcpy(
+      invalid_initializers, long_double_unit.initializers,
+      (size_t)long_double_unit.initializer_count *
+          sizeof(*invalid_initializers));
+  invalid_initializers[long_double_file_one].floating_high_bits |=
+      0x00010000u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "static long double initializer with metadata above 16 bits") ||
+      !expect_ir_success_preserves_unit(
+          job, &long_double_unit,
+          "static long double high-metadata recovery")) {
+    goto cleanup;
+  }
+  index = find_initializer_child(
+      &long_double_unit, long_double_file_record, 1u);
+  if (index >= long_double_unit.initializer_count) {
+    goto cleanup;
+  }
+  (void)memcpy(
+      invalid_initializers, long_double_unit.initializers,
+      (size_t)long_double_unit.initializer_count *
+          sizeof(*invalid_initializers));
+  invalid_initializers[index].floating_high_bits = 0x8000u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "static integer initializer with forged floating high bits") ||
+      !expect_ir_success_preserves_unit(
+          job, &long_double_unit,
+          "static nonfloating high-bit metadata recovery")) {
     goto cleanup;
   }
   unit_hash = unit_fingerprint(&unit);
@@ -29758,6 +30105,7 @@ static int run_floating_transport(const char *host_root) {
   passed = 1;
 
 cleanup:
+  free(invalid_initializers);
   free(invalid_promotion_expressions);
   free(invalid_types);
   if (limited_job != NULL) {

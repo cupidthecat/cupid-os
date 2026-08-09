@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidC Guide (.cc)
-Verified against source on: 2026-08-04
+Verified against source on: 2026-08-09
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -115,11 +115,12 @@ Supported core features include:
   wraps modulo 2^32
 - private unsigned 32-bit objects, pointers, parameters, returns, fields,
   arrays, enums, conditional arms, sizeof results, comparisons, division,
-  remainder, and shifts retain unsigned semantics; /= and >>= use the same
-  rules, while private %= syntax remains open
+  remainder, and shifts retain unsigned semantics; /=, %=, and >>= use the
+  same rules and evaluate the destination once
 - unsigned 32-bit values convert exactly to float or double across the sign
-  boundary, including function and method returns; float or double to unsigned
-  32-bit remains unsupported
+  boundary, including function and method returns; values in C's defined
+  interval convert back from float or double through casts, initialization,
+  assignment, fixed arguments, and returns
 - all 40 uint32_t, size_t, and swap_handle_t kernel results publish the private
   unsigned lane; uint8_t and uint16_t results remain integer-promoted
 - the private compiler accepts __attribute__((...)) compatibility spellings
@@ -595,10 +596,10 @@ signed or unsigned integers through 64 bits can feed that evaluator. It rounds
 after each operation at the expression width, preserves signed zero, and
 writes the final bits to read-only, writable, or zero-filled storage. The IR
 and SSE path cover represented runtime integer-to-floating conversions,
-floating-to-signed conversions, floating-to-unsigned byte or word
-conversions, an explicit non-atomic double to unsigned long long cast, and
-mixed represented integer and floating arithmetic. Unsigned four-byte input
-uses an exact split across the sign boundary. Unsigned-wide output splits
+floating-to-signed conversions, floating-to-unsigned conversions through
+represented four-byte targets, an explicit non-atomic double to unsigned long
+long cast, and mixed represented integer and floating arithmetic. Unsigned
+four-byte input and output use exact splits across the sign boundary. Unsigned-wide output splits
 around 2^32 and derives both words through 2^31-safe truncations. Non-atomic
 long double values use twelve-byte objects and x87 80-bit memory loads and
 stores. Bounded finite normal decimal tokens with an L suffix round an exact
@@ -606,9 +607,10 @@ integer ratio to a 64-bit explicit significand with ties to even. The emitter
 writes that significand and the positive token's biased exponent as three
 exact snapshot words; unary minus supplies the sign. Automatic values use frame snapshots. Static-duration scalars, fixed
 arrays, and complete records may contain long-double leaves. Implicit
-initialization zeros the complete object; an explicit leaf accepts an integer
-constant expression equal to zero. Each leaf occupies twelve zero-filled BSS
-bytes, and atomic leaves fail recursively without following pointers. The
+initialization zeros the complete object. An explicit leaf accepts an integer
+constant expression equal to zero or a bounded decimal L literal with
+parentheses and unary signs. Exact payloads and zero padding reach .bss,
+.data, or .rodata. Atomic leaves fail recursively without following pointers. The
 shared path converts among float, double, and long double, applies unary plus
 and minus, and supports +, -, *, and /. Direct and
 indirect fixed, variadic, and unprototyped arguments occupy twelve cdecl
@@ -624,8 +626,9 @@ conditions of if, while, do, and for, and conversion to _Bool. Both signed zeros
 false; finite nonzero values, subnormals, infinities, and NaNs are true.
 Hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
-bounded parser, nonzero or floating static initializers, integer conversions involving long double other than
-_Bool, runtime conversion to unsigned four-byte integers, other
+bounded parser, static long-double computation and width conversion, nonzero
+integer static initializers, integer conversions involving long double other than
+_Bool, other
 floating-to-wide conversions, runtime mixed wide and floating arithmetic or
 conditional arms, increment and decrement, general SIMD value semantics,
 floating atomic access, and over-aligned object emission remain unfinished.
@@ -634,11 +637,11 @@ assembly forms have their own checked path. Matching or mixed-width floating
 conditional arms and the four arithmetic compound assignments keep their
 established x87 path.
 
-The exact static aggregate proof covers two 24-byte arrays and two 28-byte
-records in 104 BSS bytes. Its 415-byte access function has fingerprint
-BF01CC71, eight absolute relocations, and six symbols. The hosted i386 runtime
-checks every initial zero leaf and marker, then moves 1.5 through file and
-block members.
+The static scalar and aggregate proofs cover both scopes, mutable and const
+objects, signed zero, the largest accepted bounded literal, exact sections,
+symbols, padding, malformed metadata, recovery, and deterministic repeated
+emission. The hosted i386 runtime reads all three target words for every
+payload. ADR 0251 records this static-data boundary.
 
 Plain assignment, all ten compound assignments, and prefix and postfix update
 work for non-atomic integer bit fields whose declared storage unit is four

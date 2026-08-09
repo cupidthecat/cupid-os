@@ -1958,6 +1958,23 @@ static ctool_bool cemit_bytes_are_zero(ctool_bytes_t bytes) {
   return CTOOL_TRUE;
 }
 
+static ctool_bool cemit_static_long_double_payload_is_valid(
+    ctool_u64 significand, ctool_u32 high_bits) {
+  ctool_u32 exponent;
+  if ((high_bits & 0xffff0000u) != 0u) {
+    return CTOOL_FALSE;
+  }
+  exponent = high_bits & 0x7fffu;
+  if (exponent == 0u) {
+    return significand == 0ull ? CTOOL_TRUE : CTOOL_FALSE;
+  }
+  if (exponent == 0x7fffu ||
+      (significand & 0x8000000000000000ull) == 0ull) {
+    return CTOOL_FALSE;
+  }
+  return CTOOL_TRUE;
+}
+
 static ctool_status_t cemit_index_initializers(cemit_context_t *context) {
   ctool_u32 element_cursor = 0u;
   ctool_u32 index;
@@ -1967,6 +1984,10 @@ static ctool_status_t cemit_index_initializers(cemit_context_t *context) {
     ctool_bool is_zero = CTOOL_FALSE;
     ctool_u32 edge_index;
     if (initializer->type >= context->unit->graph.type_count) {
+      return cemit_invalid_unit(context, &initializer->location);
+    }
+    if (initializer->kind != CTOOL_C_INITIALIZER_FLOATING &&
+        initializer->floating_high_bits != 0u) {
       return cemit_invalid_unit(context, &initializer->location);
     }
     if (initializer->kind == CTOOL_C_INITIALIZER_EXPRESSION) {
@@ -2003,9 +2024,16 @@ static ctool_status_t cemit_index_initializers(cemit_context_t *context) {
           !((floating->kind == CTOOL_C_TYPE_FLOAT &&
              layout->size == 4u &&
              (initializer->integer_bits &
-              0xffffffff00000000ull) == 0ull) ||
+              0xffffffff00000000ull) == 0ull &&
+             initializer->floating_high_bits == 0u) ||
             (floating->kind == CTOOL_C_TYPE_DOUBLE &&
-             layout->size == 8u)) ||
+             layout->size == 8u &&
+             initializer->floating_high_bits == 0u) ||
+            (floating->kind == CTOOL_C_TYPE_LONG_DOUBLE &&
+             layout->size == 12u &&
+             cemit_static_long_double_payload_is_valid(
+                 initializer->integer_bits,
+                 initializer->floating_high_bits) == CTOOL_TRUE)) ||
           initializer->expression != CTOOL_C_AST_NONE ||
           initializer->string_bytes.data != (const ctool_u8 *)0 ||
           initializer->string_bytes.size != 0u ||
@@ -2017,8 +2045,10 @@ static ctool_status_t cemit_index_initializers(cemit_context_t *context) {
           initializer->element_count != 0u) {
         return cemit_invalid_unit(context, &initializer->location);
       }
-      is_zero =
-          initializer->integer_bits == 0u ? CTOOL_TRUE : CTOOL_FALSE;
+      is_zero = initializer->integer_bits == 0u &&
+                        initializer->floating_high_bits == 0u
+                    ? CTOOL_TRUE
+                    : CTOOL_FALSE;
     } else if (initializer->kind == CTOOL_C_INITIALIZER_STRING) {
       if (initializer->string_bytes.data == (const ctool_u8 *)0 &&
           initializer->string_bytes.size != 0u) {
@@ -2935,8 +2965,22 @@ static ctool_status_t cemit_encode_initializer(
                                initializer->integer_bits);
   }
   if (initializer->kind == CTOOL_C_INITIALIZER_FLOATING) {
-    return cemit_patch_integer(context, section, offset, layout->size,
-                               initializer->integer_bits);
+    if (layout->size == 12u) {
+      if (cemit_add_overflows(offset, 8u) == CTOOL_TRUE) {
+        return cemit_invalid_unit(context, &initializer->location);
+      }
+      status = cemit_patch_integer(
+          context, section, offset, 8u, initializer->integer_bits);
+      if (status != CTOOL_OK) {
+        return status;
+      }
+      return cemit_patch_integer(
+          context, section, offset + 8u, 2u,
+          initializer->floating_high_bits);
+    }
+    return cemit_patch_integer(
+        context, section, offset, layout->size,
+        initializer->integer_bits);
   }
   if (initializer->kind == CTOOL_C_INITIALIZER_STRING) {
     buffer = cemit_section_buffer(context, section);
@@ -6329,7 +6373,7 @@ static ctool_bool cemit_ir_floating_conversion_is_valid(
                 (target->kind == CTOOL_C_TYPE_BOOL ||
                  (source->kind != CTOOL_C_TYPE_LONG_DOUBLE &&
                   (layout->is_signed == CTOOL_TRUE ||
-                   layout->size < 4u))) &&
+                   layout->size <= 4u))) &&
                 (conversion == CTOOL_C_CONVERSION_NONE ||
                  conversion == CTOOL_C_CONVERSION_ASSIGNMENT)
             ? CTOOL_TRUE
@@ -7303,6 +7347,7 @@ static ctool_status_t cemit_x86_convert_floating_to_integer(
       cemit_unwrapped_type(context, source_type);
   const ctool_c_type_node_t *target =
       cemit_unwrapped_type(context, target_type);
+  const ctool_c_type_layout_t *target_layout;
   ctool_x86_mnemonic_t conversion;
   ctool_status_t status;
   if (source == (const ctool_c_type_node_t *)0 ||
@@ -7326,8 +7371,28 @@ static ctool_status_t cemit_x86_convert_floating_to_integer(
     return cemit_x86_convert_double_to_unsigned_wide(
         context, source_type, temporary_offset);
   }
+  target_layout = &context->unit->layout.types[target_type];
   status = cemit_x86_load_floating_xmm_stack_value(
       context, source_type, 0u);
+  if (status == CTOOL_OK && target_layout->size == 4u &&
+      target_layout->is_signed == CTOOL_FALSE) {
+    if (source->kind == CTOOL_C_TYPE_FLOAT) {
+      status = cemit_x86_two_registers(
+          context, CTOOL_X86_MN_CVTSS2SD,
+          CTOOL_X86_REG_XMM, 0u,
+          CTOOL_X86_REG_XMM, 0u, 64u);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_truncate_double_to_u32(
+          context, 0u, 0u);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_one_register(
+          context, CTOOL_X86_MN_PUSH,
+          CTOOL_X86_REG_GPR32, 0u, 32u);
+    }
+    return status;
+  }
   conversion =
       source->kind == CTOOL_C_TYPE_FLOAT
           ? CTOOL_X86_MN_CVTTSS2SI

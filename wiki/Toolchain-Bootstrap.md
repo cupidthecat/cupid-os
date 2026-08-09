@@ -582,8 +582,13 @@ A private decoder exception then recognizes 568 exact Clang forms with two
 through six leading `66` bytes and the fixed
 `2E 0F 1F 84 00 00 00 00 00` tail. The final scan has 1,901 fallback rows
 in 36 objects and renders 1,781 NOP rows. Other repeated prefixes remain
-invalid, and CupidASM cannot emit the redundant forms. Packed-integer SSE2
-is the next largest measured decoder gap. The checked seed and source head
+invalid, and CupidASM cannot emit the redundant forms. That historical
+host-built census ranked packed-integer SSE2 next. A fresh source-head
+CupidDis scan covered 377 active ELF objects across the kernel, programs,
+drivers, Toolchain, and user build. Every object decoded, and none produced a
+true `db 0x` fallback row. The active SIMD object already uses the shared
+model for its packed SSE2 instructions, so the investigation added no
+speculative opcode. The checked seed and source head
 have 596 catalogue rows, 245 canonical mnemonics, and fingerprint `DA15E97F`.
 The four SHRD
 forms cover 16-bit and 32-bit SHRD with register or memory destinations and
@@ -595,9 +600,12 @@ memory forms, i686
 `FUCOMIP ST0, ST(i)`, and operand-free `FLDZ`, used by represented `long
 double` values. File-scope and
 block-static scalars, fixed arrays, and complete records may contain
-implicitly or explicitly zeroed non-atomic long-double leaves. The aggregate
-object proof fixes 104 BSS bytes, a 415-byte function with fingerprint
-`BF01CC71`, eight absolute relocations, and six symbols.
+non-atomic long-double leaves initialized with zero or a bounded decimal `L`
+literal. Exact payloads and padding reach `.bss`, `.data`, or `.rodata`. The
+scalar and aggregate proofs cover both scopes, signed zero, const and mutable
+objects, section placement, symbols, malformed metadata, recovery, and
+deterministic repeated emission. The hosted runtime reads each target payload
+word. ADR 0251 records the static-data boundary.
 Both compiler stages in the normal contract cohort rebuild the source
 catalogue. ADR 0203 records the checked seed, ADR 0207 records the subtraction
 form, ADR 0226 records SHRD, and ADR 0228 records its seed carriage.
@@ -843,18 +851,19 @@ above validates the promoted trust unit.
 The manifest also records equality across 19 C objects, one startup object,
 and five rebuilt tool images.
 
-The latest normal root build passed in 1,738.517 seconds. Its 9,077,256-byte
+The latest normal root build passed in 1,482 seconds. Its 9,089,676-byte
 final ELF has SHA-256
-`b759382524029149661b7f52233730bdee4758c56af84d643090dd147808a0a5`;
-the 8,871,472-byte raw kernel has SHA-256
-`3545265b59b95f858af4d93e8196624fa3991b02f49c6df1e1cae38608b88781`.
+`fe3f04f89287237440136bab88ad4436e43202a36a0325dd02b5e5270d08eef0`;
+the 8,883,276-byte raw kernel has SHA-256
+`6604b7a366a83ff3f0062e434f2d64bc3726e23d7fd6f2720f9d65636a56cad1`.
 The 209,715,200-byte image has SHA-256
-`aa9f5e0dedefe6f7e243d0e0c67448db1448aaa1960204b1f77efd82202f17b3`.
-A private one-vCPU `/bin/ls.cc` smoke passed from that image in 49.997 seconds.
-Its 27,819-byte log has SHA-256
-`0ebac3fa2e8efae4264897aeb6581f01fc88668db7c3e8317e3beef956ff0f77`
-and records 911 bytes of JIT code, 71 bytes of data, and completed execution.
-This smoke checks the existing ELF path; it does not execute a PE image.
+`d64b4fd5b31a814c1fb3bd5c08c187bcba5cd0ac4e35bd42d5de86813853663f`.
+A private four-vCPU e1000 boot ran `/bin/feature13_double.cc` from that image
+in 66.7 seconds. It observed the unsigned conversion and remainder marker,
+the program pass line, and clean JIT completion. Its 34,908-byte log has
+SHA-256
+`0aed6bf022bdb3b9a5c689b64473e2e6da7dfddfd4e7bec9956c03a7189da596`.
+This boot checks the existing ELF path; it does not execute a PE image.
 
 The earlier [ADR 0235](../docs/adr/0235-transfer-jpeg-acceptance-to-cupidobj.md)
 checkpoint used a 209,715,200-byte image with SHA-256

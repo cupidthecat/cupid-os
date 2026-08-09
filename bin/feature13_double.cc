@@ -5,6 +5,8 @@
 float feature13_update_global_float;
 double feature13_update_global_double;
 float feature13_lvalue_global[2][3];
+uint32_t feature13_unsigned_values[2];
+int feature13_unsigned_index_calls;
 
 struct feature13_record {
     float gain;
@@ -14,6 +16,11 @@ struct feature13_record {
 
 float *feature13_lvalue_row() {
     return &feature13_lvalue_global[1][0];
+}
+
+int feature13_unsigned_next_index() {
+    feature13_unsigned_index_calls += 1;
+    return 1;
 }
 
 int feature13_within(double actual, double expected, double scale,
@@ -271,6 +278,54 @@ void main() {
                       lvalue_record_score, lvalue_size_score,
                       lvalue_unevaluated);
     }
+
+    /* Cross the unsigned-word sign boundary at both floating widths. The
+     * remainder target uses a function call as its index, so the stored
+     * count proves that compound assignment evaluates the target once. */
+    float unsigned_float_below = 2147483520.0f;
+    float unsigned_float_above = 2147483904.0f;
+    double unsigned_double_below = 2147483647.75;
+    double unsigned_double_above = 4294967295.75;
+    uint32_t unsigned_from_float_below =
+        (uint32_t)unsigned_float_below;
+    uint32_t unsigned_from_float_above = unsigned_float_above;
+    uint32_t unsigned_from_double_below =
+        (uint32_t)unsigned_double_below;
+    uint32_t unsigned_from_double_above;
+    unsigned_from_double_above = unsigned_double_above;
+
+    int unsigned_conversion_ok =
+        unsigned_from_float_below == 0x7fffff80u &&
+        unsigned_from_float_above == 0x80000100u &&
+        unsigned_from_double_below == 0x7fffffffu &&
+        unsigned_from_double_above == 0xffffffffu;
+    if (!unsigned_conversion_ok) {
+        serial_printf("[feature13-unsigned-convert] FAIL float-low=%x float-high=%x double-low=%x double-high=%x\n",
+                      unsigned_from_float_below,
+                      unsigned_from_float_above,
+                      unsigned_from_double_below,
+                      unsigned_from_double_above);
+        ok = 0;
+    }
+
+    int signed_remainder = -29;
+    feature13_unsigned_index_calls = 0;
+    feature13_unsigned_values[1] = 0xfffffffeu;
+    signed_remainder %= 6;
+    feature13_unsigned_values[feature13_unsigned_next_index()] %= 7;
+    int unsigned_remainder_ok =
+        signed_remainder == -5 &&
+        feature13_unsigned_values[1] == 2u &&
+        feature13_unsigned_index_calls == 1;
+    if (!unsigned_remainder_ok) {
+        serial_printf("[feature13-unsigned-remainder] FAIL signed=%d unsigned=%x once=%d\n",
+                      signed_remainder, feature13_unsigned_values[1],
+                      feature13_unsigned_index_calls);
+        ok = 0;
+    }
+
+    if (unsigned_conversion_ok && unsigned_remainder_ok)
+        serial_printf("[feature13-unsigned] PASS conversions=4 remainders=2 once=1\n");
 
     /* Decimal tokens round directly to their target IEEE widths. Check the
      * original 0.75 failure, halfway ties, and exponent edges by payload. */

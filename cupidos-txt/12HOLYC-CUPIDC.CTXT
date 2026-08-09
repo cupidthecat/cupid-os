@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 HolyC-Style CupidC Features
-Verified against source on: 2026-08-04
+Verified against source on: 2026-08-09
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -287,6 +287,11 @@ so negative zero and payload bits stay exact. Other operand types fail with a
 clear diagnostic, and the next REPL expression can still compile.
 The boot frontier accepts that deliberate diagnostic only during the
 feature13_double check. A stale or repeated copy still fails the run.
+The same guest checks four float or double to unsigned-word conversions on
+both sides of 2^31, signed and high-bit unsigned %=, and one evaluation of a
+side-effecting array destination. The boot gate requires
+[feature13-unsigned] PASS conversions=4 remainders=2 once=1 and rejects the
+separate conversion and remainder failure markers.
 
 All six float and double comparisons return a normalized int. Matching
 widths compare directly, while a mixed pair compares as double. Signed zero
@@ -411,10 +416,12 @@ continue after the index, including when the outer record came from an array.
 
 Unsigned 32-bit values keep their type through objects, calls, conditional
 arms, sizeof, scalar returns, and conversion to float or double. Comparisons,
-division, remainder, and right shift use unsigned i386 behavior. Forty kernel
+division, remainder, and right shift use unsigned i386 behavior. /=, %=, and
+>>= keep that rule and evaluate their destination once. Values in C's defined
+interval convert back from float or double through casts, initialization,
+assignment, fixed arguments, and returns. Forty kernel
 bindings with uint32_t, size_t, or swap_handle_t results publish that lane;
-narrower unsigned results keep integer promotion. A floating expression cannot
-be returned as unsigned until that conversion is represented.
+narrower unsigned results keep integer promotion.
 
 [Run feature12_float](shell:feature12_float)
 [Run feature13_double](shell:feature13_double)

@@ -2276,6 +2276,139 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
+    def test_remainder_assignment_preserves_signedness_and_lvalue_identity(self):
+        result = self._compile_and_run(
+            """
+            int global_signed = -31;
+            uint32_t global_unsigned = 0xfffffffeu;
+            int pointer_target = -23;
+            int pointer_calls;
+            int index_calls;
+            int divisor_calls;
+
+            struct Pair {
+              int signed_value;
+              uint32_t unsigned_value;
+            };
+
+            struct Pair primary_record;
+            struct Pair secondary_record;
+            struct Pair *selected_record;
+
+            int *select_pointer_target() {
+              pointer_calls += 1;
+              return &pointer_target;
+            }
+
+            int next_index() {
+              index_calls += 1;
+              return 1;
+            }
+
+            int next_divisor() {
+              divisor_calls += 1;
+              return 4;
+            }
+
+            int retarget_record() {
+              selected_record = &secondary_record;
+              return 6;
+            }
+
+            int main() {
+              int signed_local = -17;
+              uint32_t unsigned_local = 0xffffffffu;
+              uint32_t unsigned_pointer_target = 0x80000005u;
+              uint32_t *unsigned_pointer = &unsigned_pointer_target;
+              int signed_values[2];
+              uint32_t unsigned_values[2];
+
+              signed_values[1] = -19;
+              unsigned_values[0] = 0xfffffffeu;
+              primary_record.signed_value = -29;
+              primary_record.unsigned_value = 0x80000001u;
+              secondary_record.signed_value = 88;
+              selected_record = &primary_record;
+
+              global_signed %= 7;
+              global_unsigned %= 7;
+              signed_local %= 5;
+              unsigned_local %= 10;
+              *select_pointer_target() %= 6;
+              *unsigned_pointer %= 4;
+              signed_values[next_index()] %= next_divisor();
+              unsigned_values[0] %= 16;
+              primary_record.unsigned_value %= 7;
+              selected_record->signed_value %= retarget_record();
+
+              if (global_signed != -3) return 1;
+              if (global_unsigned != 2u) return 2;
+              if (signed_local != -2) return 3;
+              if (unsigned_local != 5u) return 4;
+              if (pointer_target != -5 || pointer_calls != 1) return 5;
+              if (unsigned_pointer_target != 1u) return 6;
+              if (signed_values[1] != -3) return 7;
+              if (index_calls != 1 || divisor_calls != 1) return 8;
+              if (unsigned_values[0] != 14u) return 9;
+              if (primary_record.unsigned_value != 3u) return 10;
+              if (primary_record.signed_value != -5) return 11;
+              if (secondary_record.signed_value != 88) return 12;
+              if (selected_record != &secondary_record) return 13;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_floating_remainder_assignment_reports_and_recovers(self):
+        failing_source = """
+            int main() {
+              float value = 5.0f;
+              value %= 2;
+              return 0;
+            }
+        """
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-remainder-assignment-recovery-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            failure, _code_path, _data_path = self._compile(
+                root, failing_source
+            )
+            self.assertEqual(
+                failure.returncode,
+                2,
+                failure.stdout + failure.stderr,
+            )
+            self.assertIn(
+                "remainder compound assignment requires an integer lvalue",
+                failure.stderr,
+            )
+
+            recovery, _code_path, _data_path = self._compile_after_failure(
+                root,
+                failing_source,
+                """
+                int main() {
+                  uint32_t value = 0xffffffffu;
+                  value %= 10u;
+                  return value == 5u ? 0 : 1;
+                }
+                """,
+            )
+            self.assertEqual(
+                recovery.returncode,
+                0,
+                recovery.stdout + recovery.stderr,
+            )
+            run_result = self._run_i386(root, int(recovery.stdout.strip()))
+        self.assertEqual(
+            run_result.returncode,
+            0,
+            run_result.stdout + run_result.stderr,
+        )
+
     def test_unsigned_function_and_method_returns_convert_to_float_lanes(self):
         result = self._compile_and_run(
             """
@@ -2294,6 +2427,59 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
               if (high_as_float() != 2147483648.0f) return 2;
               if (converter.Maximum() != 4294967295.0) return 3;
               if (pointer->High() != 2147483648.0f) return 4;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_floating_values_convert_to_unsigned_words_across_runtime_forms(self):
+        result = self._compile_and_run(
+            """
+            uint32_t global_from_float = 4294967040.0f;
+            uint32_t global_from_double = 4294967295.9999995;
+
+            uint32_t take_unsigned(uint32_t value) { return value; }
+            uint32_t return_unsigned() { return 2147483648.75; }
+            uint32_t block_static_unsigned() {
+              static uint32_t value = 4294967295.75;
+              return value;
+            }
+
+            struct Box { uint32_t value; };
+
+            int main() {
+              uint32_t cast_negative = (uint32_t)-0.9999999999999999;
+              uint32_t cast_low = (uint32_t)2147483647.9999998;
+              uint32_t initialized_high = 2147483648.75;
+              uint32_t assigned_maximum;
+              uint32_t pointed_value = 1u;
+              uint32_t *pointer = &pointed_value;
+              uint32_t values[3];
+              struct Box box;
+
+              assigned_maximum = 4294967295.9999995;
+              *pointer = -0.75f;
+              values[0] = 0.99999994f;
+              values[1] = 2147483904.0f;
+              values[2] = 4294967040.0f;
+              box.value = 2147483649.75;
+
+              if (cast_negative != 0u) return 1;
+              if (cast_low != 0x7fffffffu) return 2;
+              if (initialized_high != 0x80000000u) return 3;
+              if (assigned_maximum != 0xffffffffu) return 4;
+              if (pointed_value != 0u) return 5;
+              if (values[0] != 0u) return 6;
+              if (values[1] != 0x80000100u) return 7;
+              if (values[2] != 0xffffff00u) return 8;
+              if (box.value != 0x80000001u) return 9;
+              if (take_unsigned(4294967295.75) != 0xffffffffu) return 10;
+              if (return_unsigned() != 0x80000000u) return 11;
+              if (block_static_unsigned() != 0xffffffffu) return 12;
+              if (global_from_float != 0xffffff00u) return 13;
+              if (global_from_double != 0xffffffffu) return 14;
+              if ((uint32_t)-0.0 != 0u) return 15;
               return 0;
             }
             """
@@ -2351,32 +2537,34 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             run_result.stdout + run_result.stderr,
         )
 
-    def test_floating_to_unsigned_conversion_reports_and_recovers(self):
+    def test_unsupported_floating_to_word_forms_report_and_recover(self):
         cases = (
-            "int main() { return (uint32_t)1.5; }",
-            "uint32_t invalid() { return 1.5; } int main() { return 0; }",
-            "uint32_t value = 1.5; int main() { return 0; }",
-            "int main() { uint32_t value = 1.5; return 0; }",
-            "int main() { uint32_t value; value = 1.5; return 0; }",
-            "int take(uint32_t value) { return value != 0u; } "
-            "int main() { return take(1.5); }",
-            "int main() { uint32_t value; uint32_t *pointer = &value; "
-            "*pointer = 1.5; return 0; }",
-            "int main() { uint32_t values[1]; values[0] = 1.5; return 0; }",
+            (
+                "compound assignment",
+                "int main() { uint32_t value = 3u; value *= 0.5; return 0; }",
+                "floating compound assignment to unsigned is not supported",
+            ),
+            (
+                "pointer target",
+                "int main() { uint32_t *value = (uint32_t *)1.5; return 0; }",
+                "floating to pointer conversion is not supported",
+            ),
+            (
+                "vector source",
+                "int main() { double2 value; return (uint32_t)value; }",
+                "conversion to unsigned requires a scalar word or floating value",
+            ),
         )
-        for source in cases:
-            with self.subTest(source=source), tempfile.TemporaryDirectory(
-                prefix="private-cupidc-float-to-unsigned-",
+        for name, source, diagnostic in cases:
+            with self.subTest(name=name), tempfile.TemporaryDirectory(
+                prefix="private-cupidc-float-to-word-form-",
                 ignore_cleanup_errors=True,
             ) as temporary:
                 result, _code_path, _data_path = self._compile(
                     Path(temporary), source
                 )
             self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
-            self.assertIn(
-                "floating to unsigned conversion is not supported",
-                result.stderr,
-            )
+            self.assertIn(diagnostic, result.stderr)
 
         with tempfile.TemporaryDirectory(
             prefix="private-cupidc-float-to-unsigned-recovery-",
@@ -2385,11 +2573,11 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             root = Path(temporary)
             recovery, _code_path, _data_path = self._compile_after_failure(
                 root,
-                "uint32_t invalid() { return 1.5; } int main() { return 0; }",
+                "int main() { uint32_t value = 3u; value *= 0.5; return 0; }",
                 """
                 int main() {
-                  uint32_t maximum = 0xffffffffu;
-                  return (double)maximum == 4294967295.0 ? 0 : 1;
+                  uint32_t maximum = 4294967295.9999995;
+                  return maximum == 0xffffffffu ? 0 : 1;
                 }
                 """,
             )

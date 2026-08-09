@@ -10452,10 +10452,8 @@ static ctool_status_t cfront_apply_assignment_conversion(
           source_integer.width <= 32u) ||
          (source_is_floating == CTOOL_TRUE &&
           target_is_integer == CTOOL_TRUE &&
-          ((target_integer.kind == CTOOL_C_TYPE_BOOL) ||
-           (target_integer.width <= 32u &&
-            (target_integer.is_unsigned == CTOOL_FALSE ||
-             target_integer.width < 32u))))) &&
+          (target_integer.kind == CTOOL_C_TYPE_BOOL ||
+           target_integer.width <= 32u))) &&
         (target_integer.kind == CTOOL_C_TYPE_BOOL ||
          target_node.kind == CTOOL_C_TYPE_FLOAT ||
          target_node.kind == CTOOL_C_TYPE_DOUBLE ||
@@ -11521,9 +11519,7 @@ static ctool_status_t cfront_apply_cast(
                   target_integer == CTOOL_TRUE &&
                   target_integer_info.kind != CTOOL_C_TYPE_BOOL &&
                   (context->static_initializer_depth != 0u ||
-                   (target_integer_info.width <= 32u &&
-                    (target_integer_info.is_unsigned == CTOOL_FALSE ||
-                     target_integer_info.width < 32u)) ||
+                   target_integer_info.width <= 32u ||
                    (source.kind == CTOOL_C_TYPE_DOUBLE &&
                     target.kind == CTOOL_C_TYPE_UNSIGNED_LONG_LONG &&
                     target_integer_info.width == 64u &&
@@ -18142,6 +18138,7 @@ typedef struct {
   cfront_integer_t integer;
   ctool_c_type_kind_t floating_kind;
   ctool_u64 floating_bits;
+  ctool_u32 floating_high_bits;
 } cfront_static_scalar_t;
 
 typedef struct {
@@ -18153,6 +18150,22 @@ typedef struct {
   ctool_i32 exponent;
   ctool_u64 significand;
 } cfront_static_floating_t;
+
+static ctool_bool cfront_static_long_double_payload_is_valid(
+    ctool_u64 significand, ctool_u32 high_bits) {
+  ctool_u32 exponent;
+  if ((high_bits & 0xffff0000u) != 0u) {
+    return CTOOL_FALSE;
+  }
+  exponent = high_bits & 0x7fffu;
+  if (exponent == 0u) {
+    return significand == 0ull ? CTOOL_TRUE : CTOOL_FALSE;
+  }
+  return exponent <= 0x7ffeu &&
+                 (significand & 0x8000000000000000ull) != 0ull
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
 
 static ctool_bool cfront_static_floating_format(
     ctool_c_type_kind_t kind, ctool_u32 *precision_out,
@@ -18803,6 +18816,12 @@ static ctool_status_t cfront_static_scalar_truth(
     return CTOOL_OK;
   }
   if (value->kind == CFRONT_STATIC_SCALAR_FLOATING) {
+    if (value->floating_kind == CTOOL_C_TYPE_LONG_DOUBLE) {
+      return cfront_emit_location_failure(
+          context, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION, location,
+          "static long-double truth conversion is outside this constant-data slice");
+    }
     cfront_static_floating_t floating;
     ctool_status_t status = cfront_static_decode_floating(
         context, value->floating_kind, value->floating_bits,
@@ -18992,6 +19011,13 @@ static ctool_status_t cfront_convert_static_scalar(
       value->integer =
           cfront_integer_convert_to_type(value->integer, &target_integer);
     } else if (value->kind == CFRONT_STATIC_SCALAR_FLOATING) {
+      if (value->floating_kind == CTOOL_C_TYPE_LONG_DOUBLE) {
+        return cfront_emit_location_failure(
+            context, CTOOL_ERR_UNSUPPORTED,
+            CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION, location,
+            "static long-double-to-integer conversion is outside this "
+            "constant-data slice");
+      }
       status = cfront_static_floating_to_integer(
           context, value->floating_kind, value->floating_bits,
           &target_integer, location, &value->integer);
@@ -19006,13 +19032,32 @@ static ctool_status_t cfront_convert_static_scalar(
     *matched_out = CTOOL_TRUE;
     return CTOOL_OK;
   }
+  if (target.kind == CTOOL_C_TYPE_LONG_DOUBLE) {
+    if (value->kind == CFRONT_STATIC_SCALAR_FLOATING &&
+        value->floating_kind == CTOOL_C_TYPE_LONG_DOUBLE) {
+      *matched_out = CTOOL_TRUE;
+      return CTOOL_OK;
+    }
+    return cfront_emit_location_failure(
+        context, CTOOL_ERR_UNSUPPORTED,
+        CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION, location,
+        "static conversion to long double is outside this constant-data slice");
+  }
   if (target.kind == CTOOL_C_TYPE_FLOAT ||
       target.kind == CTOOL_C_TYPE_DOUBLE) {
     ctool_u64 bits;
+    if (value->kind == CFRONT_STATIC_SCALAR_FLOATING &&
+        value->floating_kind == CTOOL_C_TYPE_LONG_DOUBLE) {
+      return cfront_emit_location_failure(
+          context, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION, location,
+          "static long-double width conversion is outside this constant-data slice");
+    }
     if (value->kind == CFRONT_STATIC_SCALAR_INTEGER) {
       status = cfront_static_integer_to_floating(
           context, &value->integer, target.kind, location, &bits);
-    } else if (value->kind == CFRONT_STATIC_SCALAR_FLOATING) {
+    } else if (value->kind == CFRONT_STATIC_SCALAR_FLOATING &&
+               value->floating_kind != CTOOL_C_TYPE_LONG_DOUBLE) {
       status = cfront_convert_static_floating_bits(
           context, value->floating_kind, value->floating_bits,
           target.kind, &bits);
@@ -19172,7 +19217,8 @@ static ctool_status_t cfront_evaluate_static_scalar(
       return cfront_storage_failure(context, status);
     }
     if ((source.kind != CTOOL_C_TYPE_FLOAT &&
-         source.kind != CTOOL_C_TYPE_DOUBLE) ||
+         source.kind != CTOOL_C_TYPE_DOUBLE &&
+         source.kind != CTOOL_C_TYPE_LONG_DOUBLE) ||
         ((source_qualifiers | source.qualifiers) &
          CTOOL_C_QUAL_ATOMIC) != 0u) {
       return cfront_emit_location_failure(
@@ -19180,15 +19226,34 @@ static ctool_status_t cfront_evaluate_static_scalar(
           &expression.location,
           "static floating constant metadata is invalid");
     }
-    status = cfront_static_decode_floating(
-        context, source.kind, expression.integer_bits,
-        &expression.location, &decoded);
-    if (status != CTOOL_OK) {
-      return status;
+    if (source.kind == CTOOL_C_TYPE_LONG_DOUBLE) {
+      if (cfront_static_long_double_payload_is_valid(
+              expression.integer_bits,
+              expression.floating_high_bits) == CTOOL_FALSE ||
+          (expression.floating_high_bits & 0x8000u) != 0u) {
+        return cfront_emit_location_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            &expression.location,
+            "static long-double constant metadata is invalid");
+      }
+    } else {
+      if (expression.floating_high_bits != 0u) {
+        return cfront_emit_location_failure(
+            context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+            &expression.location,
+            "static floating constant metadata is invalid");
+      }
+      status = cfront_static_decode_floating(
+          context, source.kind, expression.integer_bits,
+          &expression.location, &decoded);
+      if (status != CTOOL_OK) {
+        return status;
+      }
     }
     value_out->kind = CFRONT_STATIC_SCALAR_FLOATING;
     value_out->floating_kind = source.kind;
     value_out->floating_bits = expression.integer_bits;
+    value_out->floating_high_bits = expression.floating_high_bits;
     *matched_out = CTOOL_TRUE;
     return CTOOL_OK;
   }
@@ -19262,10 +19327,14 @@ static ctool_status_t cfront_evaluate_static_scalar(
     } else if (expression.operation ==
         CTOOL_C_EXPRESSION_OPERATOR_UNARY_NEGATE) {
       if (value_out->kind == CFRONT_STATIC_SCALAR_FLOATING) {
-        value_out->floating_bits ^=
-            value_out->floating_kind == CTOOL_C_TYPE_FLOAT
-                ? 0x0000000080000000ull
-                : 0x8000000000000000ull;
+        if (value_out->floating_kind == CTOOL_C_TYPE_LONG_DOUBLE) {
+          value_out->floating_high_bits ^= 0x8000u;
+        } else {
+          value_out->floating_bits ^=
+              value_out->floating_kind == CTOOL_C_TYPE_FLOAT
+                  ? 0x0000000080000000ull
+                  : 0x8000000000000000ull;
+        }
       } else if (value_out->kind == CFRONT_STATIC_SCALAR_INTEGER) {
         if (cfront_integer_unsigned(value_out->integer.kind) ==
                 CTOOL_FALSE &&
@@ -19369,6 +19438,14 @@ static ctool_status_t cfront_evaluate_static_scalar(
         left.floating_kind == right.floating_kind) {
       ctool_u64 bits;
       ctool_bool comparison_result;
+      if (left.floating_kind == CTOOL_C_TYPE_LONG_DOUBLE) {
+        return cfront_emit_location_failure(
+            context, CTOOL_ERR_UNSUPPORTED,
+            CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION,
+            &expression.location,
+            "static long-double arithmetic and comparison are outside "
+            "this constant-data slice");
+      }
       if (expression.operation ==
               CTOOL_C_EXPRESSION_OPERATOR_LESS ||
           expression.operation ==
@@ -19490,15 +19567,26 @@ static ctool_status_t cfront_evaluate_static_scalar(
     if (status != CTOOL_OK) {
       return status;
     }
-    return cfront_evaluate_static_scalar(
+    status = cfront_evaluate_static_scalar(
         context, selected, depth + 1u, current_location,
         value_out, matched_out);
+    if (status == CTOOL_OK && *matched_out == CTOOL_TRUE &&
+        value_out->kind == CFRONT_STATIC_SCALAR_FLOATING &&
+        value_out->floating_kind == CTOOL_C_TYPE_LONG_DOUBLE) {
+      return cfront_emit_location_failure(
+          context, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION,
+          &expression.location,
+          "static long-double conditional selection is outside this "
+          "constant-data slice");
+    }
+    return status;
   }
   return CTOOL_OK;
 }
 
 static ctool_bool cfront_static_initializer_has_floating_syntax(
-    const cfront_context_t *context) {
+    const cfront_context_t *context, ctool_bool literals_only) {
   ctool_u32 position = context->position;
   ctool_u32 depth = 0u;
   while (position < context->tape->token_count) {
@@ -19508,11 +19596,13 @@ static ctool_bool cfront_static_initializer_has_floating_syntax(
         cfront_body_floating_constant(token->spelling) == CTOOL_TRUE) {
       return CTOOL_TRUE;
     }
-    if (cfront_token_is(token, "float") == CTOOL_TRUE ||
-        cfront_token_is(token, "double") == CTOOL_TRUE) {
+    if (literals_only == CTOOL_FALSE &&
+        (cfront_token_is(token, "float") == CTOOL_TRUE ||
+         cfront_token_is(token, "double") == CTOOL_TRUE)) {
       return CTOOL_TRUE;
     }
-    if (token->kind == CTOOL_C_PP_TOKEN_IDENTIFIER) {
+    if (literals_only == CTOOL_FALSE &&
+        token->kind == CTOOL_C_PP_TOKEN_IDENTIFIER) {
       ctool_u32 type;
       ctool_u32 base;
       ctool_u32 qualifiers;
@@ -19617,7 +19707,8 @@ static ctool_status_t cfront_parse_static_scalar_expression(
         context, &initializer, initializer_out);
   } else if (status == CTOOL_OK &&
              (target.kind == CTOOL_C_TYPE_FLOAT ||
-              target.kind == CTOOL_C_TYPE_DOUBLE) &&
+              target.kind == CTOOL_C_TYPE_DOUBLE ||
+              target.kind == CTOOL_C_TYPE_LONG_DOUBLE) &&
              scalar.kind == CFRONT_STATIC_SCALAR_FLOATING &&
              scalar.floating_kind == target.kind) {
     ctool_c_initializer_t initializer;
@@ -19625,6 +19716,7 @@ static ctool_status_t cfront_parse_static_scalar_expression(
         &initializer, CTOOL_C_INITIALIZER_FLOATING, target_type,
         value_token);
     initializer.integer_bits = scalar.floating_bits;
+    initializer.floating_high_bits = scalar.floating_high_bits;
     status = cfront_append_initializer(
         context, &initializer, initializer_out);
   } else if (status == CTOOL_OK) {
@@ -19877,6 +19969,12 @@ static ctool_status_t cfront_parse_static_initializer(
         target.kind == CTOOL_C_TYPE_DOUBLE ||
         target.kind == CTOOL_C_TYPE_LONG_DOUBLE) {
       if (target.kind == CTOOL_C_TYPE_LONG_DOUBLE) {
+        if (cfront_static_initializer_has_floating_syntax(
+                context, CTOOL_TRUE) ==
+            CTOOL_TRUE) {
+          return cfront_parse_static_scalar_expression(
+              context, *object_type_io, value_token, initializer_out);
+        }
         context->static_initializer_depth++;
         status = cfront_parse_constant_conditional(context, &value);
         context->static_initializer_depth--;
@@ -19930,7 +20028,8 @@ static ctool_status_t cfront_parse_static_initializer(
         CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION, value_token,
         "static initializer requires a constant expression");
   }
-  if (cfront_static_initializer_has_floating_syntax(context) ==
+  if (cfront_static_initializer_has_floating_syntax(
+          context, CTOOL_FALSE) ==
       CTOOL_TRUE) {
     return cfront_parse_static_scalar_expression(
         context, *object_type_io, value_token, initializer_out);
@@ -23734,6 +23833,10 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
     ctool_bool valid = initializer->type < context->types.count
                            ? CTOOL_TRUE
                            : CTOOL_FALSE;
+    if (initializer->kind != CTOOL_C_INITIALIZER_FLOATING &&
+        initializer->floating_high_bits != 0u) {
+      valid = CTOOL_FALSE;
+    }
     if ((initializer->first_block_binding == CTOOL_C_AST_NONE &&
          initializer->block_binding_count != 0u) ||
         (initializer->first_block_binding != CTOOL_C_AST_NONE &&
@@ -23808,16 +23911,24 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
       (void)floating_base;
       valid = status == CTOOL_OK &&
                       (floating.kind == CTOOL_C_TYPE_FLOAT ||
-                       floating.kind == CTOOL_C_TYPE_DOUBLE) &&
+                       floating.kind == CTOOL_C_TYPE_DOUBLE ||
+                       floating.kind == CTOOL_C_TYPE_LONG_DOUBLE) &&
                       ((floating_qualifiers | floating.qualifiers) &
                        CTOOL_C_QUAL_ATOMIC) == 0u &&
                       initializer->expression == CTOOL_C_AST_NONE &&
                       no_string == CTOOL_TRUE &&
                       no_address == CTOOL_TRUE &&
                       no_elements == CTOOL_TRUE &&
-                      (floating.kind != CTOOL_C_TYPE_FLOAT ||
-                       (initializer->integer_bits &
-                        0xffffffff00000000ull) == 0ull)
+                      ((floating.kind == CTOOL_C_TYPE_FLOAT &&
+                        initializer->floating_high_bits == 0u &&
+                        (initializer->integer_bits &
+                         0xffffffff00000000ull) == 0ull) ||
+                       (floating.kind == CTOOL_C_TYPE_DOUBLE &&
+                        initializer->floating_high_bits == 0u) ||
+                       (floating.kind == CTOOL_C_TYPE_LONG_DOUBLE &&
+                        cfront_static_long_double_payload_is_valid(
+                            initializer->integer_bits,
+                            initializer->floating_high_bits) == CTOOL_TRUE))
                   ? CTOOL_TRUE
                   : CTOOL_FALSE;
     } else if (valid == CTOOL_TRUE &&

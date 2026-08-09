@@ -182,6 +182,8 @@ FRONTIER_RUNTIME_COMMANDS = (
             r"for=3 zero=0x80000000 nan=2"
             r".*?\[feature13-lvalue\] PASS array=42 pointer=13 "
             r"record=26 sizes=56 unevaluated=1"
+            r".*?\[feature13-unsigned\] PASS conversions=4 "
+            r"remainders=2 once=1"
             r".*?\[feature13-literal\] PASS double=2 float=2 edge=3"
             r".*?\[feature13-call\] PASS checks=10"
             rf".*?PASS feature13_double.*?{CUPIDC_COMPLETION_PATTERN}"
@@ -472,6 +474,8 @@ FRONTIER_RUNTIME_REJECTED_MARKERS = (
     "[feature13-truth] FAIL",
     "[feature13-update] FAIL",
     "[feature13-lvalue] FAIL",
+    "[feature13-unsigned-convert] FAIL",
+    "[feature13-unsigned-remainder] FAIL",
     "[feature13-literal] FAIL",
     "[feature13-call] FAIL",
     "FAIL feature13_double",
