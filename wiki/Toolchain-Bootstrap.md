@@ -266,6 +266,12 @@ The normal build owns the root through the checked wrapper. A typed policy
 decodes `fpu_init_cpu()`, rejects helper calls and floating work before the
 CR4 write, and requires `FNINIT` before one 32-bit memory `LDMXCSR`.
 
+Compiler head extends the state-memory input seam with exact `fldcw %0` and
+one addressable, non-atomic 16-bit integer `m` input. GNU semantics make the
+no-output statement volatile even when the keyword is omitted. Linear IR
+evaluates the address once, and the emitter produces `D9 /5` through EAX. The
+checked seed does not carry this form yet.
+
 The checked seed represents the exact volatile EFLAGS restore in
 `simd_cpu_has_cpuid()`. One 32-bit `r` input and one `cc` clobber reach
 Linear IR as checked public metadata. The emitter produces `POP EAX`,
@@ -607,8 +613,13 @@ literal. Exact payloads and padding reach `.bss`, `.data`, or `.rodata`. The
 scalar and aggregate proofs cover both scopes, signed zero, const and mutable
 objects, section placement, symbols, malformed metadata, recovery, and
 deterministic repeated emission. The hosted runtime reads each target payload
-word. ADR 0251 records the static-data boundary, and ADR 0252 records the
-source-head x87 integer forms needed by later long-double integer conversion.
+word. Compiler head now converts between runtime `long double` and every
+signed or unsigned i386 integer width. The unsigned 64-bit correction and
+every long-double-to-integer conversion restore the control word they save.
+Other integer-to-long-double conversions do not change it. A 12-case runtime
+matrix covers every valid precision and rounding combination. ADR
+0251 records the static-data boundary, ADR 0252 records the source-head x87
+integer forms, and ADR 0253 records runtime conversion.
 Both compiler stages in the normal contract cohort rebuild the source
 catalogue. ADR 0203 records the checked seed, ADR 0207 records the subtraction
 form, ADR 0226 records SHRD, ADR 0228 records its seed carriage, and ADR 0252

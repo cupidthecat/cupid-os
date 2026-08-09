@@ -22664,3 +22664,104 @@ This step changes no production owner and adds no host dependency. It gives
 the hosted compiler a shared instruction seam for the next runtime
 long-double integer conversion step. The compiler does not consume the forms
 yet, and the checked seed still predates them. ADR 0252 records the boundary.
+
+## 2026-08-09: Convert between runtime integers and long double
+
+### Decision and implementation
+
+Compiler-head CupidC now converts between non-atomic runtime `long double`
+values and signed or unsigned integers at 8, 16, 32, and 64 bits. Casts use
+the ordinary conversion marker. Initializers, assignments, arguments, and
+returns use assignment conversion. The existing floating truth path still
+owns conversion to `_Bool`. Mixed integer and floating arithmetic,
+comparisons, and conditional arms remain outside this slice.
+
+The emitter presents every integer input to x87 as a signed 64-bit memory
+value. Narrow values are extended first. Signed 64-bit values reuse their
+existing two-word snapshots. An unsigned 64-bit value with bit 63 set is
+loaded as signed, then corrected with exact `2^64`. The correction is built
+from signed `2^62` and two x87 doublings.
+
+The unsigned correction must not inherit a reduced x87 precision. Compiler
+head therefore saves the caller's complete control word, selects 64-bit x87
+precision while retaining the caller's rounding mode, performs the exact
+correction, and restores the saved word before the final store. The
+long-double-to-unsigned-64 path uses the same scope around its `2^63`
+comparison and upper-half subtraction. Every long-double-to-integer
+conversion then saves the caller's control word separately, selects
+truncate mode for `FISTP`, restores that copy, and canonicalizes the target
+width. Defined unsigned values split at `2^63`; C leaves NaN, infinity, and
+out-of-range results undefined.
+
+Automatic twelve-byte `long double` snapshots now clear both padding bytes
+before `FSTP m80`. Reusing a frame slot can no longer leak stale padding into
+deterministic object or runtime checks.
+
+The runtime matrix needed a supported way to install a nondefault x87
+control word. CupidC now accepts the exact GNU assembly input `fldcw %0` with
+one addressable, non-atomic 16-bit integer `m` operand and no outputs or
+clobbers. GNU semantics make the no-output statement volatile even if the
+source omits that keyword. Frontend, Linear IR, and emission share this
+state-memory input boundary with `ldmxcsr %0`. The shared x86 model emits the
+16-bit `D9 /5` form through EAX.
+
+### Failed runs and corrections
+
+The first frontend contract stopped at the former integer and long-double
+cast diagnostic. Linear IR rejected the same conversion next, and the first
+runtime build reached the unimplemented emitter boundary. Once emission was
+present, the runtime exposed stale bytes in the two-byte padding of an
+automatic long-double snapshot. Clearing that padding fixed the deterministic
+payload check.
+
+A later review found that the upper-half unsigned corrections still ran at
+the caller's x87 precision. Reduced precision rounded values such as
+`UINT64_MAX` before the final 80-bit store. A 12-case control-word matrix
+crossing the three valid precision modes with nearest, down, up, and chop
+reproduced the defect. The scoped 64-bit precision change fixed it without
+changing the caller's rounding mode or exception masks.
+
+The first `fldcw %0` runtime probe failed because the GNU memory-input path
+accepted only a 32-bit integer. Generalizing the existing state-memory input
+boundary admitted the 16-bit form. The next run reached Linear IR and found
+the same 32-bit assumption in assembly lowering. The shared width classifier
+removed both assumptions. A proposed frontend negative also failed because
+a no-output GNU assembly statement is implicitly volatile; the contract now
+records that language rule instead of rejecting valid source.
+
+Static integer and long-double conversion was not folded into this runtime
+change. It needs exact constant-value decoding and packing, not host
+floating-point arithmetic, and remains the next constant-evaluation step.
+
+### Test evidence
+
+Executed on native Windows PowerShell. Cupid-built runtime tests run the
+resulting i386 Linux program through the repository's supported Linux path.
+
+| Check | Result |
+| --- | --- |
+| Focused FLDCW frontend contract | PASS: 1 test in 11.676 seconds. |
+| Focused FLDCW Linear IR contract | PASS: 1 test in 14.041 seconds. |
+| Focused FLDCW object contract | PASS: 1 test in 21.677 seconds. The decoder found exact `D9 28`. |
+| Focused hosted integer and long-double runtime | PASS: 1 test in 29.996 seconds. The 12 control-word cases covered both sides of `2^63`, `UINT64_MAX`, exact control restoration, signed truncation, and narrow truncation. |
+| Complete frontend suite | PASS: all 95 tests in 11.708 seconds after the regenerated audit exposed and corrected four stale control-inventory locks. |
+| Complete Linear IR suite | PASS: all 83 tests in 11.740 seconds. |
+| Focused self-host object frontier | PASS in 29.062 seconds after updating the three exact source-head locks. |
+| Complete object suite | PASS: all 109 tests in 1,142.174 seconds; exit code 0, with 0 failures, 0 errors, and 0 skips. |
+| Active-source audit regeneration and stale check | PASS: regeneration took 66.125 seconds, and the final post-build stale check took 86 seconds. The digest is `f47c3c68e164ff05d5e0cdd5daef618a7160fb5ddd93bee4c8dc8e6e49e97a11`. The audit records 721 active inputs, 25 accounted unreachable files, 447 transforms, 255 feature requirements, and 81,077 occurrences across 12 C control features. |
+| `make -C toolchain all` | PASS in 3,140 seconds. Checked-seed bootstrap completed; stage two and stage three matched; the hosted runtime passed; frozen inputs remained unchanged; and all 20 artifacts published and verified. The 18,826-byte manifest has SHA-256 `c54b93bd607e710ba13f32bff7b39ddbd2db66b388b1b1c2a6976f983a4acbd1`. |
+| `make all` | PASS in 1,444.7 seconds. CupidASM, CupidC, CupidLD, and CupidObj completed the normal image path without diagnostics. The 9,093,772-byte ELF has SHA-256 `974abfa333ec21b430e5d33aecb379209e65aaee9489ea839e7984fcdbf2c2a8`; the 8,885,540-byte flat kernel has SHA-256 `2de89e74c873969c59745df46733dfcb9a2888cd607c6a6a868accb4a08fee13`; and the 209,715,200-byte image has SHA-256 `b8bb7170975141b38e6d136b22ebf736571389f70457c65e5a1443d3d253a489`. |
+| Private four-CPU e1000 boot smoke | PASS in 66.429 seconds. All four CPUs, the FPU smoke, all 62 TLS checks, e1000, the desktop, and the terminal came online. `/bin/feature13_double.cc` compiled, printed its PASS marker, and completed JIT execution. The 38,060-byte log has SHA-256 `67650acbcfb0b110ce90c098cc0aa8d58a75c48bcf96a1bf3326d33f458ecbb8`. |
+
+### Current boundary
+
+No design question needed a user decision. The i386 ABI, C's defined
+conversion interval, and the existing x87 snapshot model fixed the runtime
+behavior. ADR 0253 records the decision.
+
+The checked seed predates the conversion and `fldcw %0` support. The normal
+image therefore cannot depend on either capability until a later verified
+seed promotion. No production source changes owner, so no `.c` to `.cc`
+rename is due. Issue #25 remains open for static long-double computation and
+conversion, mixed integer and floating operations, the remaining C11 gaps,
+and staged self-hosting. `TempleOS/` remains untouched reference material.

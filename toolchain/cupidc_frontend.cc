@@ -10373,6 +10373,7 @@ static ctool_status_t cfront_apply_assignment_conversion(
   ctool_bool source_is_complete = CTOOL_FALSE;
   ctool_bool same = CTOOL_FALSE;
   ctool_bool compatible = CTOOL_FALSE;
+  ctool_bool integer_floating_conversion = CTOOL_FALSE;
   ctool_u32 original_source_type = value->type;
   ctool_status_t status = cfront_apply_default_conversion(context, value);
   if (status != CTOOL_OK) {
@@ -10447,18 +10448,26 @@ static ctool_status_t cfront_apply_assignment_conversion(
     if (status != CTOOL_OK) {
       return cfront_storage_failure(context, status);
     }
-    if (((target_is_floating == CTOOL_TRUE &&
-          source_is_integer == CTOOL_TRUE &&
-          source_integer.width <= 32u) ||
-         (source_is_floating == CTOOL_TRUE &&
-          target_is_integer == CTOOL_TRUE &&
-          (target_integer.kind == CTOOL_C_TYPE_BOOL ||
-           target_integer.width <= 32u))) &&
-        (target_integer.kind == CTOOL_C_TYPE_BOOL ||
-         target_node.kind == CTOOL_C_TYPE_FLOAT ||
-         target_node.kind == CTOOL_C_TYPE_DOUBLE ||
-         source_node.kind == CTOOL_C_TYPE_FLOAT ||
-         source_node.kind == CTOOL_C_TYPE_DOUBLE) &&
+    integer_floating_conversion =
+        (((target_is_floating == CTOOL_TRUE &&
+           source_is_integer == CTOOL_TRUE &&
+           source_integer.width <= 32u) ||
+          (source_is_floating == CTOOL_TRUE &&
+           target_is_integer == CTOOL_TRUE &&
+           (target_integer.kind == CTOOL_C_TYPE_BOOL ||
+            target_integer.width <= 32u))) &&
+         (target_integer.kind == CTOOL_C_TYPE_BOOL ||
+          target_node.kind == CTOOL_C_TYPE_FLOAT ||
+          target_node.kind == CTOOL_C_TYPE_DOUBLE ||
+          source_node.kind == CTOOL_C_TYPE_FLOAT ||
+          source_node.kind == CTOOL_C_TYPE_DOUBLE)) ||
+                (target_node.kind == CTOOL_C_TYPE_LONG_DOUBLE &&
+                 source_is_integer == CTOOL_TRUE) ||
+                (source_node.kind == CTOOL_C_TYPE_LONG_DOUBLE &&
+                 target_is_integer == CTOOL_TRUE)
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
+    if (integer_floating_conversion == CTOOL_TRUE &&
         ((target_qualifiers | target_node.qualifiers |
           original_source_qualifiers |
           original_source_node.qualifiers) &
@@ -11495,17 +11504,14 @@ static ctool_status_t cfront_apply_cast(
                   source.kind == CTOOL_C_TYPE_LONG_DOUBLE
               ? CTOOL_TRUE
               : CTOOL_FALSE;
-      ctool_bool source_narrow_floating =
-          source.kind == CTOOL_C_TYPE_FLOAT ||
-                  source.kind == CTOOL_C_TYPE_DOUBLE
-              ? CTOOL_TRUE
-              : CTOOL_FALSE;
       ctool_bool integer_to_floating =
-          (target.kind == CTOOL_C_TYPE_FLOAT ||
-           target.kind == CTOOL_C_TYPE_DOUBLE) &&
-                  source_integer == CTOOL_TRUE &&
-                  (source_integer_info.width <= 32u ||
-                   context->static_initializer_depth != 0u)
+          ((target.kind == CTOOL_C_TYPE_FLOAT ||
+            target.kind == CTOOL_C_TYPE_DOUBLE) &&
+                   source_integer == CTOOL_TRUE &&
+                   (source_integer_info.width <= 32u ||
+                    context->static_initializer_depth != 0u)) ||
+                  (target.kind == CTOOL_C_TYPE_LONG_DOUBLE &&
+                   source_integer == CTOOL_TRUE)
               ? CTOOL_TRUE
               : CTOOL_FALSE;
       ctool_bool floating_to_boolean =
@@ -11515,15 +11521,17 @@ static ctool_status_t cfront_apply_cast(
               ? CTOOL_TRUE
               : CTOOL_FALSE;
       ctool_bool floating_to_integer =
-          source_narrow_floating == CTOOL_TRUE &&
-                  target_integer == CTOOL_TRUE &&
+          target_integer == CTOOL_TRUE &&
                   target_integer_info.kind != CTOOL_C_TYPE_BOOL &&
-                  (context->static_initializer_depth != 0u ||
-                   target_integer_info.width <= 32u ||
-                   (source.kind == CTOOL_C_TYPE_DOUBLE &&
-                    target.kind == CTOOL_C_TYPE_UNSIGNED_LONG_LONG &&
-                    target_integer_info.width == 64u &&
-                    target_integer_info.is_unsigned == CTOOL_TRUE))
+                  ((source.kind == CTOOL_C_TYPE_LONG_DOUBLE) ||
+                   ((source.kind == CTOOL_C_TYPE_FLOAT ||
+                     source.kind == CTOOL_C_TYPE_DOUBLE) &&
+                    (context->static_initializer_depth != 0u ||
+                     target_integer_info.width <= 32u ||
+                     (source.kind == CTOOL_C_TYPE_DOUBLE &&
+                      target.kind == CTOOL_C_TYPE_UNSIGNED_LONG_LONG &&
+                      target_integer_info.width == 64u &&
+                      target_integer_info.is_unsigned == CTOOL_TRUE))))
               ? CTOOL_TRUE
               : CTOOL_FALSE;
       if ((integer_to_floating == CTOOL_TRUE ||
@@ -14552,6 +14560,18 @@ static ctool_bool cfront_independent_assembly_input(
   return CTOOL_TRUE;
 }
 
+static ctool_u32 cfront_state_memory_input_width(
+    ctool_string_t template_text) {
+  if (cfront_string_literal(
+          template_text, "fldcw %0") == CTOOL_TRUE) {
+    return 16u;
+  }
+  return cfront_string_literal(
+             template_text, "ldmxcsr %0") == CTOOL_TRUE
+             ? 32u
+             : 0u;
+}
+
 static ctool_status_t cfront_find_fixed_assembly_output(
     cfront_context_t *context, ctool_u32 first_operand,
     ctool_u32 output_count, ctool_u32 fixed_register,
@@ -14633,6 +14653,8 @@ static ctool_status_t cfront_parse_assembly_input(
       descriptor_kind == CFRONT_DESCRIPTOR_TABLE_ASSEMBLY_LOAD_GS
           ? CTOOL_TRUE
           : CTOOL_FALSE;
+  ctool_u32 state_memory_input_width =
+      cfront_state_memory_input_width(template_text);
   ctool_c_type_layout_t input_layout;
   ctool_u32 fixed_register = 0u;
   ctool_u32 source_input_base;
@@ -14876,6 +14898,9 @@ static ctool_status_t cfront_parse_assembly_input(
         : (movss_kind == CFRONT_MOVSS_MEMORY_ROUND_TRIP ||
          movss_kind == CFRONT_MOVSS_MEMORY_LOAD)
             ? input_node.kind != CTOOL_C_TYPE_FLOAT
+        : state_memory_input_width != 0u
+            ? input_is_integer == CTOOL_FALSE ||
+                  input_integer.width != state_memory_input_width
             : input_is_floating == CTOOL_FALSE &&
                   (input_is_integer == CTOOL_FALSE ||
                    input_integer.width != 32u)) ||
@@ -14913,6 +14938,12 @@ static ctool_status_t cfront_parse_assembly_input(
                 movss_kind == CFRONT_MOVSS_MEMORY_LOAD
             ? "GNU MOVSS assembly m input requires an addressable "
               "non-atomic float lvalue"
+        : state_memory_input_width == 16u
+            ? "GNU FLDCW assembly m input requires an addressable "
+              "non-atomic 16-bit integer lvalue"
+        : state_memory_input_width == 32u
+            ? "GNU LDMXCSR assembly m input requires an addressable "
+              "non-atomic 32-bit integer lvalue"
             : "GNU inline assembly m input requires an addressable "
               "non-atomic 32-bit integer lvalue");
   }
@@ -15345,21 +15376,21 @@ static ctool_status_t cfront_validate_fxsave_assembly(
   return CTOOL_OK;
 }
 
-static ctool_status_t cfront_validate_ldmxcsr_assembly(
+static ctool_status_t cfront_validate_state_memory_input_assembly(
     cfront_context_t *context, const ctool_c_pp_token_t *keyword,
     const ctool_c_assembly_t *assembly) {
   ctool_c_assembly_operand_t operand;
   cfront_integer_type_t integer;
   ctool_bool is_integer = CTOOL_FALSE;
-  ctool_bool exact_template = cfront_string_literal(
-      assembly->template_text, "ldmxcsr %0");
+  ctool_u32 expected_width =
+      cfront_state_memory_input_width(assembly->template_text);
   ctool_u32 input;
   ctool_status_t status;
   if (assembly->first_operand >
       context->assembly_operands.count) {
     return cfront_storage_failure(context, CTOOL_ERR_INTERNAL);
   }
-  if (exact_template == CTOOL_FALSE) {
+  if (expected_width == 0u) {
     if (cfront_movss_memory_template_kind(
             assembly->template_text) != CFRONT_MOVSS_MEMORY_NONE ||
         cfront_x87_memory_template(
@@ -15394,7 +15425,9 @@ static ctool_status_t cfront_validate_ldmxcsr_assembly(
     return cfront_emit_failure(
         context, CTOOL_ERR_UNSUPPORTED,
         CTOOL_C_PARSE_DIAG_STATEMENT, keyword,
-        "GNU LDMXCSR assembly requires one volatile m 32-bit integer input");
+        expected_width == 16u
+            ? "GNU FLDCW assembly requires one volatile m 16-bit integer input"
+            : "GNU LDMXCSR assembly requires one volatile m 32-bit integer input");
   }
   status = cfront_vector_get(
       &context->assembly_operands, assembly->first_operand, &operand);
@@ -15410,11 +15443,13 @@ static ctool_status_t cfront_validate_ldmxcsr_assembly(
   if (cfront_string_literal(
           operand.constraint, "m") == CTOOL_FALSE ||
       operand.matching_output != CTOOL_C_AST_NONE ||
-      is_integer == CTOOL_FALSE || integer.width != 32u) {
+      is_integer == CTOOL_FALSE || integer.width != expected_width) {
     return cfront_emit_failure(
         context, CTOOL_ERR_UNSUPPORTED,
         CTOOL_C_PARSE_DIAG_STATEMENT, keyword,
-        "GNU LDMXCSR assembly requires one volatile m 32-bit integer input");
+        expected_width == 16u
+            ? "GNU FLDCW assembly requires one volatile m 16-bit integer input"
+            : "GNU LDMXCSR assembly requires one volatile m 32-bit integer input");
   }
   return CTOOL_OK;
 }
@@ -16679,7 +16714,7 @@ static ctool_status_t cfront_parse_gnu_assembly_statement(
         context, keyword, &assembly);
   }
   if (status == CTOOL_OK) {
-    status = cfront_validate_ldmxcsr_assembly(
+    status = cfront_validate_state_memory_input_assembly(
         context, keyword, &assembly);
   }
   if (status == CTOOL_OK) {

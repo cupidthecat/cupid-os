@@ -7757,18 +7757,18 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.cc", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
        25287u, 479u, 286u, 0u, 0u},
-      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 264u, 7302u,
-       67987u, 958u, 357u, 0u, 0u},
-      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 360u, 8993u,
-       75510u, 1100u, 737u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 427u,
-       16769u, 110929u, 2502u, 1521u, 0u, 0u},
+      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 265u, 7312u,
+       68114u, 960u, 359u, 0u, 0u},
+      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 366u, 9234u,
+       77133u, 1122u, 748u, 0u, 0u},
+      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 428u,
+       16776u, 111050u, 2503u, 1522u, 0u, 0u},
       {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 82u, 3054u,
        20124u, 338u, 190u, 0u, 0u},
       {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
        9457u, 143u, 70u, 0u, 1u},
       {"/toolchain/x86.cc", CTOOL_OK, 0u, 0u, 0u, "", 60u, 1766u,
-       11903u, 180u, 16892u, 3u, 0u}};
+       11903u, 180u, 17052u, 3u, 0u}};
   ctool_u32 index;
   int any_failed = 0;
   for (index = 0u; index < ARRAY_COUNT(cases); index++) {
@@ -16881,12 +16881,6 @@ static int run_pointer_expressions(const char *host_root) {
         "struct value { int member; }; int bad(int value) { return (struct value)value; }\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
        0u, 0u, "cast destination must have scalar or void type"},
-      {{"long double to unsigned 32-bit cast",
-        "unsigned int bad(long double value) { return (unsigned int)value; }\n",
-        CTOOL_ERR_UNSUPPORTED,
-        CTOOL_C_PARSE_DIAG_EXPRESSION},
-       0u, 0u,
-       "floating to unsigned 32-bit conversion is outside this expression slice"},
       {{"sizeof incomplete expression",
         "struct pending; unsigned int bad(struct pending *value) { return sizeof(*value); }\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
@@ -25049,10 +25043,6 @@ static int run_floating_truth(const char *host_root) {
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
        0u, 0u,
        "floating assignment conversion is outside this body slice"},
-      {{"long double integer conversion remains separate",
-        "int bad(long double value) { return (int)value; }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       0u, 0u, "floating cast is outside this expression slice"},
       {{"aggregate logical operand",
         "struct pair { int first; int second; }; "
         "int bad(struct pair value) { return !value; }\n",
@@ -25120,9 +25110,19 @@ static int floating_width_conversion_matches(
 
 static int validate_floating_conversions(
     const ctool_c_translation_unit_t *unit) {
+  static const ctool_c_type_kind_t signed_integer_kinds[] = {
+      CTOOL_C_TYPE_SIGNED_CHAR, CTOOL_C_TYPE_SIGNED_SHORT,
+      CTOOL_C_TYPE_SIGNED_INT, CTOOL_C_TYPE_SIGNED_LONG_LONG};
+  static const ctool_c_type_kind_t unsigned_integer_kinds[] = {
+      CTOOL_C_TYPE_UNSIGNED_CHAR, CTOOL_C_TYPE_UNSIGNED_SHORT,
+      CTOOL_C_TYPE_UNSIGNED_INT, CTOOL_C_TYPE_UNSIGNED_LONG_LONG};
   ctool_u32 casts[2] = {0u, 0u};
   ctool_u32 same_casts[2] = {0u, 0u};
   ctool_u32 assignments[2] = {0u, 0u};
+  ctool_u32 integer_to_long_double_casts[4] = {0u, 0u, 0u, 0u};
+  ctool_u32 integer_to_long_double_assignments[4] = {0u, 0u, 0u, 0u};
+  ctool_u32 long_double_to_integer_casts[4] = {0u, 0u, 0u, 0u};
+  ctool_u32 long_double_to_integer_assignments[4] = {0u, 0u, 0u, 0u};
   ctool_u32 usual_widenings = 0u;
   ctool_u32 mixed_binary[4] = {0u, 0u, 0u, 0u};
   ctool_u32 float_conditionals = 0u;
@@ -25135,7 +25135,7 @@ static int validate_floating_conversions(
   ctool_u32 double_computations = 0u;
   ctool_u32 index;
 
-  if (unit == NULL || unit->function_definition_count != 27u) {
+  if (unit == NULL || unit->function_definition_count != 43u) {
     return 1;
   }
   for (index = 0u; index < unit->expression_count; index++) {
@@ -25178,6 +25178,35 @@ static int validate_floating_conversions(
                    CTOOL_C_CONVERSION_USUAL_ARITHMETIC,
                    CTOOL_C_TYPE_DOUBLE, CTOOL_C_TYPE_FLOAT)) {
       usual_widenings++;
+    }
+    for (ctool_u32 integer_index = 0u; integer_index < 4u;
+         integer_index++) {
+      if (floating_width_conversion_matches(
+              unit, expression, CTOOL_C_EXPRESSION_CAST,
+              CTOOL_C_CONVERSION_NONE, CTOOL_C_TYPE_LONG_DOUBLE,
+              signed_integer_kinds[integer_index])) {
+        integer_to_long_double_casts[integer_index]++;
+      }
+      if (floating_width_conversion_matches(
+              unit, expression, CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION,
+              CTOOL_C_CONVERSION_ASSIGNMENT, CTOOL_C_TYPE_LONG_DOUBLE,
+              unsigned_integer_kinds[integer_index])) {
+        integer_to_long_double_assignments[integer_index]++;
+      }
+      if (floating_width_conversion_matches(
+              unit, expression, CTOOL_C_EXPRESSION_CAST,
+              CTOOL_C_CONVERSION_NONE,
+              signed_integer_kinds[integer_index],
+              CTOOL_C_TYPE_LONG_DOUBLE)) {
+        long_double_to_integer_casts[integer_index]++;
+      }
+      if (floating_width_conversion_matches(
+              unit, expression, CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION,
+              CTOOL_C_CONVERSION_ASSIGNMENT,
+              unsigned_integer_kinds[integer_index],
+              CTOOL_C_TYPE_LONG_DOUBLE)) {
+        long_double_to_integer_assignments[integer_index]++;
+      }
     }
 
     if (expression->kind == CTOOL_C_EXPRESSION_BINARY) {
@@ -25324,6 +25353,23 @@ static int validate_floating_conversions(
         (unsigned int)double_computations);
     return 1;
   }
+  for (index = 0u; index < 4u; index++) {
+    if (integer_to_long_double_casts[index] != 1u ||
+        integer_to_long_double_assignments[index] != 1u ||
+        long_double_to_integer_casts[index] != 1u ||
+        long_double_to_integer_assignments[index] != 1u) {
+      (void)fprintf(
+          stderr,
+          "floating-conversions: integer/long-double inventory differs at "
+          "width %u: to=%u/%u from=%u/%u\n",
+          (unsigned int)index,
+          (unsigned int)integer_to_long_double_casts[index],
+          (unsigned int)integer_to_long_double_assignments[index],
+          (unsigned int)long_double_to_integer_casts[index],
+          (unsigned int)long_double_to_integer_assignments[index]);
+      return 1;
+    }
+  }
   return 0;
 }
 
@@ -25357,18 +25403,29 @@ static int run_floating_conversions(const char *host_root) {
       "float mixed_add_assign(float *left, double right) { return *left += right; }\n"
       "double mixed_subtract_assign(double *left, float right) { return *left -= right; }\n"
       "float mixed_multiply_assign(float *left, double right) { return *left *= right; }\n"
-      "double mixed_divide_assign(double *left, float right) { return *left /= right; }\n";
+      "double mixed_divide_assign(double *left, float right) { return *left /= right; }\n"
+      "long double long_from_signed_char(signed char value) { return (long double)value; }\n"
+      "long double long_from_unsigned_char(unsigned char value) { long double result = value; return result; }\n"
+      "long double long_from_signed_short(short value) { return (long double)value; }\n"
+      "long double long_from_unsigned_short(unsigned short value) { long double result = value; return result; }\n"
+      "long double long_from_signed_int(int value) { return (long double)value; }\n"
+      "long double long_from_unsigned_int(unsigned int value) { long double result = value; return result; }\n"
+      "long double long_from_signed_wide(long long value) { return (long double)value; }\n"
+      "long double long_from_unsigned_wide(unsigned long long value) { long double result = value; return result; }\n"
+      "signed char signed_char_from_long(long double value) { return (signed char)value; }\n"
+      "unsigned char unsigned_char_from_long(long double value) { unsigned char result = value; return result; }\n"
+      "short signed_short_from_long(long double value) { return (short)value; }\n"
+      "unsigned short unsigned_short_from_long(long double value) { unsigned short result = value; return result; }\n"
+      "int signed_int_from_long(long double value) { return (int)value; }\n"
+      "unsigned int unsigned_int_from_long(long double value) { unsigned int result = value; return result; }\n"
+      "long long signed_wide_from_long(long double value) { return (long long)value; }\n"
+      "unsigned long long unsigned_wide_from_long(long double value) { unsigned long long result = value; return result; }\n";
   static const frontend_exact_failure_case_t failure_cases[] = {
       {{"wide integer to floating assignment",
         "double bad(long long value) { return value; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
        0u, 0u,
        "floating assignment conversion is outside this body slice"},
-      {{"long double to unsigned integer assignment",
-        "unsigned int bad(long double value) { return value; }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       0u, 0u,
-       "floating to unsigned 32-bit conversion is outside this body slice"},
       {{"wide integer to floating cast",
         "double bad(long long value) { return (double)value; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
@@ -25384,6 +25441,20 @@ static int run_floating_conversions(const char *host_root) {
        "floating assignment conversion is outside this body slice"},
       {{"atomic floating assignment target",
         "void bad(float value) { _Atomic double result; result = value; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "floating assignment conversions are outside this body slice"},
+      {{"atomic long double cast target",
+        "long double bad(int value) { return (_Atomic long double)value; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "floating cast is outside this expression slice"},
+      {{"atomic long double assignment source",
+        "int bad(_Atomic long double value) { return value; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "floating assignment conversion is outside this body slice"},
+      {{"atomic long double assignment target",
+        "void bad(int value) { _Atomic long double result; result = value; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
        0u, 0u,
        "floating assignment conversions are outside this body slice"},
@@ -26257,13 +26328,6 @@ static int run_floating_scalars(const char *host_root) {
        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
       {"atomic double to unsigned int assignment conversion",
        "unsigned int bad(_Atomic double value) { return value; }\n",
-       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-      {"long double to unsigned int cast",
-       "unsigned int bad(long double value) { "
-       "return (unsigned int)value; }\n",
-       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-      {"long double to unsigned int assignment conversion",
-       "unsigned int bad(long double value) { return value; }\n",
        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
       {"implicit double to unsigned wide conversion",
        "unsigned long long bad(double value) { return value; }\n",
@@ -28761,7 +28825,20 @@ cleanup:
 
 static int validate_ldmxcsr_memory_input_unit(
     const ctool_c_translation_unit_t *unit) {
-  static const ctool_u32 lines[] = {3u, 5u};
+  static const char *const templates[] = {
+      "ldmxcsr %0", "ldmxcsr %0", "fldcw %0", "fldcw %0",
+      "fldcw %0"};
+  static const ctool_c_type_kind_t kinds[] = {
+      CTOOL_C_TYPE_UNSIGNED_INT, CTOOL_C_TYPE_UNSIGNED_INT,
+      CTOOL_C_TYPE_UNSIGNED_SHORT, CTOOL_C_TYPE_UNSIGNED_SHORT,
+      CTOOL_C_TYPE_UNSIGNED_SHORT};
+  static const ctool_u32 qualifiers[] = {
+      0u, CTOOL_C_QUAL_CONST | CTOOL_C_QUAL_VOLATILE,
+      CTOOL_C_QUAL_CONST,
+      CTOOL_C_QUAL_CONST | CTOOL_C_QUAL_VOLATILE,
+      CTOOL_C_QUAL_CONST | CTOOL_C_QUAL_VOLATILE};
+  static const ctool_u32 widths[] = {4u, 4u, 2u, 2u, 2u};
+  static const ctool_u32 lines[] = {5u, 7u, 9u, 11u, 13u};
   ctool_u32 assembly_statement_count = 0u;
   ctool_u32 index;
 
@@ -28776,8 +28853,9 @@ static int validate_ldmxcsr_memory_input_unit(
     const ctool_c_assembly_t *assembly = &unit->assemblies[index];
     const ctool_c_assembly_operand_t *operand =
         &unit->assembly_operands[index];
+    ctool_u32 type_qualifiers = 0u;
     if (operand->type >= unit->layout.type_count ||
-        string_equal(assembly->template_text, "ldmxcsr %0") == 0 ||
+        string_equal(assembly->template_text, templates[index]) == 0 ||
         assembly->flags != CTOOL_C_ASSEMBLY_VOLATILE ||
         assembly->first_operand != index ||
         assembly->output_count != 0u ||
@@ -28788,7 +28866,10 @@ static int validate_ldmxcsr_memory_input_unit(
         operand->matching_output != CTOOL_C_AST_NONE ||
         unit->layout.types[operand->type].is_integer != CTOOL_TRUE ||
         unit->layout.types[operand->type].is_complete_object != CTOOL_TRUE ||
-        unit->layout.types[operand->type].size != 4u ||
+        unit->layout.types[operand->type].size != widths[index] ||
+        underlying_type_kind(
+            unit, operand->type, &type_qualifiers) != kinds[index] ||
+        type_qualifiers != qualifiers[index] ||
         dual_location_matches(
             &assembly->location, &assembly->physical_location,
             "/ldmxcsr-memory-input.c", lines[index]) == 0 ||
@@ -28816,31 +28897,39 @@ static int validate_ldmxcsr_memory_input_unit(
 static int run_ldmxcsr_memory_input(const char *host_root) {
   static const char source[] =
       "typedef unsigned int u32;\n"
+      "typedef unsigned short u16;\n"
+      "const volatile u16 *next_control(void);\n"
       "void load_local(void) { u32 mxcsr = 0x1f80u;\n"
       "  __asm__ volatile(\"ldmxcsr %0\" : : \"m\"(mxcsr)); }\n"
       "void load_indirect(const volatile u32 *mxcsr) {\n"
-      "  __asm__ volatile(\"ldmxcsr %0\" : : \"m\"(*mxcsr)); }\n";
+      "  __asm__ volatile(\"ldmxcsr %0\" : : \"m\"(*mxcsr)); }\n"
+      "void load_control_local(void) { const u16 control = 0x037fu;\n"
+      "  __asm__(\"fldcw %0\" : : \"m\"(control)); }\n"
+      "void load_control_indirect(const volatile u16 *control) {\n"
+      "  __asm__ volatile(\"fldcw %0\" : : \"m\"(*control)); }\n"
+      "void load_control_call(void) {\n"
+      "  __asm__ volatile(\"fldcw %0\" : : \"m\"(*next_control())); }\n";
   static const frontend_exact_failure_case_t failure_cases[] = {
       {{"byte LDMXCSR input",
         "void bad(unsigned char value) { "
         "__asm__ volatile(\"ldmxcsr %0\" : : \"m\"(value)); }\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
        0u, 0u,
-       "GNU inline assembly m input requires an addressable non-atomic "
+       "GNU LDMXCSR assembly m input requires an addressable non-atomic "
        "32-bit integer lvalue"},
       {{"wide LDMXCSR input",
         "void bad(unsigned long long value) { "
         "__asm__ volatile(\"ldmxcsr %0\" : : \"m\"(value)); }\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
        0u, 0u,
-       "GNU inline assembly m input requires an addressable non-atomic "
+       "GNU LDMXCSR assembly m input requires an addressable non-atomic "
        "32-bit integer lvalue"},
       {{"rvalue LDMXCSR input",
         "void bad(unsigned value) { "
         "__asm__ volatile(\"ldmxcsr %0\" : : \"m\"(value + 1u)); }\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
        0u, 0u,
-       "GNU inline assembly m input requires an addressable non-atomic "
+       "GNU LDMXCSR assembly m input requires an addressable non-atomic "
        "32-bit integer lvalue"},
       {{"bit-field LDMXCSR input",
         "struct bits { unsigned value : 16; }; "
@@ -28848,21 +28937,21 @@ static int run_ldmxcsr_memory_input(const char *host_root) {
         "__asm__ volatile(\"ldmxcsr %0\" : : \"m\"(bits->value)); }\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
        0u, 0u,
-       "GNU inline assembly m input requires an addressable non-atomic "
+       "GNU LDMXCSR assembly m input requires an addressable non-atomic "
        "32-bit integer lvalue"},
       {{"register LDMXCSR input",
         "void bad(void) { register unsigned value = 0u; "
         "__asm__ volatile(\"ldmxcsr %0\" : : \"m\"(value)); }\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
        0u, 0u,
-       "GNU inline assembly m input requires an addressable non-atomic "
+       "GNU LDMXCSR assembly m input requires an addressable non-atomic "
        "32-bit integer lvalue"},
       {{"atomic LDMXCSR input",
         "void bad(_Atomic unsigned *value) { "
         "__asm__ volatile(\"ldmxcsr %0\" : : \"m\"(*value)); }\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
        0u, 0u,
-       "GNU inline assembly m input requires an addressable non-atomic "
+       "GNU LDMXCSR assembly m input requires an addressable non-atomic "
        "32-bit integer lvalue"},
       {{"unsupported memory-input template",
         "void bad(unsigned value) { "
@@ -28882,7 +28971,69 @@ static int run_ldmxcsr_memory_input(const char *host_root) {
         "\"memory\"); }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
        0u, 0u,
-       "GNU LDMXCSR assembly requires one volatile m 32-bit integer input"}};
+       "GNU LDMXCSR assembly requires one volatile m 32-bit integer input"},
+      {{"byte FLDCW input",
+        "void bad(unsigned char value) { "
+        "__asm__ volatile(\"fldcw %0\" : : \"m\"(value)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU FLDCW assembly m input requires an addressable non-atomic "
+       "16-bit integer lvalue"},
+      {{"32-bit FLDCW input",
+        "void bad(unsigned value) { "
+        "__asm__ volatile(\"fldcw %0\" : : \"m\"(value)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU FLDCW assembly m input requires an addressable non-atomic "
+       "16-bit integer lvalue"},
+      {{"FLDCW input from an rvalue",
+        "void bad(unsigned short value) { "
+        "__asm__ volatile(\"fldcw %0\" : : \"m\"(value + 0u)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU FLDCW assembly m input requires an addressable non-atomic "
+       "16-bit integer lvalue"},
+      {{"FLDCW input from a bit-field",
+        "struct bits { unsigned value : 16; }; "
+        "void bad(struct bits *bits) { "
+        "__asm__ volatile(\"fldcw %0\" : : \"m\"(bits->value)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU FLDCW assembly m input requires an addressable non-atomic "
+       "16-bit integer lvalue"},
+      {{"FLDCW input from a register object",
+        "void bad(void) { register unsigned short control = 0u; "
+        "__asm__ volatile(\"fldcw %0\" : : \"m\"(control)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU FLDCW assembly m input requires an addressable non-atomic "
+       "16-bit integer lvalue"},
+      {{"atomic FLDCW input",
+        "void bad(_Atomic unsigned short *control) { "
+        "__asm__ volatile(\"fldcw %0\" : : \"m\"(*control)); }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU FLDCW assembly m input requires an addressable non-atomic "
+       "16-bit integer lvalue"},
+      {{"register constraint on FLDCW",
+        "void bad(unsigned short *control) { "
+        "__asm__ volatile(\"fldcw %0\" : : \"r\"(control)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU FLDCW assembly requires one volatile m 16-bit integer input"},
+      {{"FLDCW output instead of input",
+        "void bad(unsigned short control) { "
+        "__asm__ volatile(\"fldcw %0\" : \"=m\"(control)); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU FLDCW assembly requires one volatile m 16-bit integer input"},
+      {{"clobbered FLDCW input",
+        "void bad(unsigned short control) { "
+        "__asm__ volatile(\"fldcw %0\" : : \"m\"(control) : "
+        "\"memory\"); }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_STATEMENT},
+       0u, 0u,
+       "GNU FLDCW assembly requires one volatile m 16-bit integer input"}};
   frontend_fixture_t fixture;
   ctool_c_translation_unit_t unit;
   ctool_u32 index;

@@ -1731,18 +1731,30 @@ static ctool_bool cir_descriptor_table_assembly_metadata_is_valid(
                    context, operand);
 }
 
-static ctool_bool cir_ldmxcsr_assembly_metadata_is_valid(
+static ctool_u32 cir_state_memory_input_width(
+    ctool_string_t template_text) {
+  if (cir_string_equal(
+          template_text, ctool_string("fldcw %0")) == CTOOL_TRUE) {
+    return 16u;
+  }
+  return cir_string_equal(
+             template_text, ctool_string("ldmxcsr %0")) == CTOOL_TRUE
+             ? 32u
+             : 0u;
+}
+
+static ctool_bool cir_state_memory_input_assembly_metadata_is_valid(
     const cir_context_t *context,
     const ctool_c_assembly_t *assembly) {
   const ctool_c_assembly_operand_t *operand;
-  ctool_bool exact_template = cir_string_equal(
-      assembly->template_text, ctool_string("ldmxcsr %0"));
+  ctool_u32 expected_width =
+      cir_state_memory_input_width(assembly->template_text);
   ctool_u32 input;
   if (assembly->first_operand >
       context->unit->assembly_operand_count) {
     return CTOOL_FALSE;
   }
-  if (exact_template == CTOOL_FALSE) {
+  if (expected_width == 0u) {
     if (cir_movss_memory_template_kind(
             assembly->template_text) != CIR_MOVSS_MEMORY_NONE ||
         cir_x87_memory_template(
@@ -1794,7 +1806,8 @@ static ctool_bool cir_ldmxcsr_assembly_metadata_is_valid(
                      CTOOL_TRUE &&
                  context->unit->layout.types[operand->type]
                          .is_complete_object == CTOOL_TRUE &&
-                 context->unit->layout.types[operand->type].size == 4u &&
+                 context->unit->layout.types[operand->type].size ==
+                     expected_width / 8u &&
                  cir_type_has_atomic_qualification(
                      context, operand->type) == CTOOL_FALSE
              ? CTOOL_TRUE
@@ -2028,7 +2041,7 @@ static ctool_status_t cir_validate_assembly_slices(
             context, assembly) == CTOOL_FALSE) {
       return cir_invalid_unit(context, &assembly->location);
     }
-    if (cir_ldmxcsr_assembly_metadata_is_valid(
+    if (cir_state_memory_input_assembly_metadata_is_valid(
             context, assembly) == CTOOL_FALSE) {
       return cir_invalid_unit(context, &assembly->location);
     }
@@ -3918,14 +3931,22 @@ static ctool_bool cir_floating_conversion_is_valid(
         target_type < context->unit->layout.type_count
             ? &context->unit->layout.types[target_type]
             : (const ctool_c_type_layout_t *)0;
+    ctool_bool long_double_conversion =
+        source->kind == CTOOL_C_TYPE_LONG_DOUBLE &&
+                cir_type_is_value_integer(context, target_type) ==
+                    CTOOL_TRUE &&
+                   (conversion == CTOOL_C_CONVERSION_NONE ||
+                    conversion == CTOOL_C_CONVERSION_ASSIGNMENT)
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
     ctool_bool represented_conversion =
         layout != (const ctool_c_type_layout_t *)0 &&
+                source->kind != CTOOL_C_TYPE_LONG_DOUBLE &&
                 cir_type_is_represented_integer(
                     context, target_type) == CTOOL_TRUE &&
                 (target->kind == CTOOL_C_TYPE_BOOL ||
-                 (source->kind != CTOOL_C_TYPE_LONG_DOUBLE &&
-                  (layout->is_signed == CTOOL_TRUE ||
-                   layout->size <= 4u))) &&
+                 layout->is_signed == CTOOL_TRUE ||
+                 layout->size <= 4u) &&
                 (conversion == CTOOL_C_CONVERSION_NONE ||
                  conversion == CTOOL_C_CONVERSION_ASSIGNMENT)
             ? CTOOL_TRUE
@@ -3939,16 +3960,23 @@ static ctool_bool cir_floating_conversion_is_valid(
                 conversion == CTOOL_C_CONVERSION_NONE
             ? CTOOL_TRUE
             : CTOOL_FALSE;
-    return represented_conversion == CTOOL_TRUE ||
+    return long_double_conversion == CTOOL_TRUE ||
+                   represented_conversion == CTOOL_TRUE ||
                    unsigned_wide_conversion == CTOOL_TRUE
                ? CTOOL_TRUE
                : CTOOL_FALSE;
   }
   if (source_floating == CTOOL_FALSE &&
       target_floating == CTOOL_TRUE) {
+    if (target->kind == CTOOL_C_TYPE_LONG_DOUBLE) {
+      return cir_type_is_value_integer(context, source_type) == CTOOL_TRUE &&
+                     (conversion == CTOOL_C_CONVERSION_NONE ||
+                      conversion == CTOOL_C_CONVERSION_ASSIGNMENT)
+                 ? CTOOL_TRUE
+                 : CTOOL_FALSE;
+    }
     return cir_type_is_represented_integer(
                context, source_type) == CTOOL_TRUE &&
-                   target->kind != CTOOL_C_TYPE_LONG_DOUBLE &&
                    context->unit->layout.types[source_type].size <= 4u &&
                    (conversion == CTOOL_C_CONVERSION_NONE ||
                     conversion == CTOOL_C_CONVERSION_ASSIGNMENT ||
@@ -10160,6 +10188,8 @@ static ctool_status_t cir_lower_assembly_statement(
           descriptor_kind == CIR_DESCRIPTOR_TABLE_ASSEMBLY_LOAD_GS
               ? CTOOL_TRUE
               : CTOOL_FALSE;
+      ctool_u32 state_memory_input_width =
+          cir_state_memory_input_width(assembly->template_text);
       ctool_bool valid_memory_input = CTOOL_FALSE;
       ctool_u32 input_size;
       if ((memory_input == CTOOL_TRUE &&
@@ -10192,6 +10222,10 @@ static ctool_status_t cir_lower_assembly_statement(
                       ? input_size == 4u &&
                             cir_movss_memory_operand_is_float(
                                 context, operand, CTOOL_FALSE) == CTOOL_TRUE
+                : state_memory_input_width != 0u
+                      ? input_size == state_memory_input_width / 8u &&
+                            cir_type_is_represented_integer(
+                                context, operand->type) == CTOOL_TRUE
                       : input_size == 4u &&
                             cir_type_is_represented_integer(
                                 context, operand->type) == CTOOL_TRUE;

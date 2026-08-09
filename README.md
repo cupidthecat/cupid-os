@@ -603,6 +603,11 @@ through its separate contracts.
 It also accepts the exact volatile `ldmxcsr %0` form with one
 addressable, non-atomic 32-bit integer `m` input. Linear IR evaluates the
 object address once, and the shared x86 model emits `0F AE 10` at `[EAX]`.
+Compiler head accepts the matching state-control form `fldcw %0` with one
+addressable, non-atomic 16-bit integer `m` input. GNU semantics make this
+no-output statement volatile even when the keyword is omitted. Linear IR
+evaluates the address once, and the emitter produces `D9 /5` at `[EAX]`. The
+checked seed does not carry this form yet.
 It also accepts the exact volatile MOVSS round trip in `fpu_boot_smoke()` and
 the matching one-way load and store forms. Each form keeps a typed `float`
 memory address and requires the `xmm0` clobber. The shared x86 model emits
@@ -1026,16 +1031,24 @@ only `!=` true for an unordered input. Runtime `float`, `double`, and
 automatic `long double` values also work with unary `!`, `&&`, `||`, the
 controlling operand of `?:`, the conditions of `if`, `while`, `do`, and
 `for`, and conversion to `_Bool`. Both signed zeros are false; finite nonzero values, subnormals,
-infinities, and NaNs are true. Hexadecimal floating literals, binary32 and
+infinities, and NaNs are true. Runtime casts, assignments, arguments, and
+returns convert between `long double` and signed or unsigned integers at 8,
+16, 32, and 64 bits. The emitter uses `FILD` for input and temporarily selects
+64-bit x87 precision for the exact unsigned 64-bit correction. It retains the
+caller's rounding mode and restores its saved control word before the final
+store. Floating-to-integer conversion saves the caller's control word
+separately, selects truncate mode for `FISTP`, and restores that copy.
+Hexadecimal floating literals, binary32 and
 binary64 subnormal literals, hexadecimal or subnormal long-double literals,
 decimal ratios beyond the bounded parser, static long-double arithmetic,
-comparisons, truth, conditionals, or width conversions, nonzero integer
-static initializers, integer conversions involving `long double` other than `_Bool`, mixed integer and floating conditional arms,
+comparisons, truth, conditionals, width conversions, or integer conversions,
+nonzero integer static initializers, mixed integer and floating conditional arms,
 floating increment and decrement, SIMD values, floating atomics, and
 over-aligned emission remain open. ADR 0202 records the truth boundary, and
 [ADR 0229](docs/adr/0229-emit-exact-decimal-long-double-literals.md) records
 the decimal literal representation. ADR 0251 records exact static
-long-double data.
+long-double data, and ADR 0253 records runtime conversions between
+`long double` and integers.
 
 Plain assignment, all ten compound assignments, and prefix or postfix increment and decrement now work for represented non-atomic bit fields in four-byte storage units. Linear IR keeps the selected member and evaluates the record address once. Partial fields preserve neighboring bits, and postfix updates retain the extracted old value through the store so width wrap does not change the result. Narrow unsigned fields promote to signed `int` when their values fit. A volatile 32-bit field uses one read and one direct store. An execution oracle proves that `states[(*index)++].value++` advances its side-effecting index exactly once. Partial volatile mutation, atomic bit-field access, and non-four-byte storage units remain open. The plain-assignment contracts still pin Doom's unchanged `colors[index].r = value` shape.
 

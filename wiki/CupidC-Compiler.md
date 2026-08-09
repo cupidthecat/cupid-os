@@ -477,17 +477,24 @@ matching long-double operands or a mixed `float` or `double` input. A balanced
 `float`, `double`, and automatic `long double` values work with unary `!`,
 `&&`, `||`, the controlling operand of `?:`, the conditions of `if`, `while`,
 `do`, and `for`, and conversion to `_Bool`. Both signed zeros are false; finite nonzero values,
-subnormals, infinities, and NaNs are true. Hexadecimal floating literals,
+subnormals, infinities, and NaNs are true. Runtime conversions between
+`long double` and signed or unsigned integers cover every i386 width. The
+emitter restores the complete x87 control word after truncating integer
+output. Unsigned 64-bit corrections use 64-bit x87 precision while retaining
+the caller's rounding mode, then restore the saved word before the result
+store.
+Hexadecimal floating literals,
 binary32 and binary64 subnormal literals, hexadecimal or subnormal
 long-double literals, decimals beyond the bounded ratio parser,
-static long-double arithmetic, comparison, truth, conditional selection, and
-width conversion, nonzero integer static initializers,
-integer conversions involving `long double` other than `_Bool`, runtime mixed wide and floating
+static long-double arithmetic, comparison, truth, conditional selection,
+floating-width conversion, and integer conversion, nonzero integer static
+initializers, runtime mixed integer and floating
 arithmetic or conditional arms, floating increment and decrement, SIMD
 values, floating atomics, and over-aligned object emission remain unfinished.
 ADR 0229 records the exact decimal representation and automatic object proof.
 ADR 0250 records runtime conversion to unsigned four-byte targets. ADR 0251
-records exact static long-double data.
+records exact static long-double data. ADR 0253 records runtime conversions
+between `long double` and integers.
 
 Plain assignment, all ten compound assignments, and prefix and postfix update work for represented non-atomic integer bit fields when the declared storage unit is four bytes and fits inside the record. The compiler evaluates the record designator once and applies the target's integer-promotion rules before a compound operation. Partial fields preserve the other bits in their unit. Assignment, compound assignment, and prefix update return the stored lane after width truncation and signed extension, while postfix update returns the extracted old value. A 32-bit field uses the direct load and store path. Volatile 32-bit updates perform one read and one store. Partial volatile mutation, atomic fields, and other storage-unit sizes remain unsupported.
 
@@ -862,9 +869,9 @@ and conversion to `_Bool` cover all three represented floating widths.
 Hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
 bounded parser, static long-double arithmetic, comparison, truth, conditional
-selection, and width conversion, nonzero integer static initializers, integer
-conversions involving `long double` other than `_Bool`, other
-floating-to-wide conversions, runtime mixed wide and floating arithmetic or
+selection, width conversion, and integer conversion, nonzero integer static
+initializers, other
+floating-to-wide conversions, runtime mixed integer and floating arithmetic or
 conditional arms, and floating increment and decrement remain unsupported.
 Matching or mixed-width floating conditional arms and the four arithmetic
 compound assignments keep their established x87 path.
@@ -888,6 +895,11 @@ its own typed contract.
 The checked seed accepts the exact volatile `ldmxcsr %0` form with one
 addressable, non-atomic 32-bit integer `m` input. Linear IR evaluates its
 address once, and the shared x86 model emits `0F AE 10` at `[EAX]`.
+Compiler head accepts exact `fldcw %0` through the same state-memory input
+seam. It requires one addressable, non-atomic 16-bit integer `m` input. GNU
+semantics make the no-output statement volatile even when the keyword is
+omitted. Linear IR evaluates the address once, and the emitter produces
+`D9 /5` at `[EAX]`. The checked seed does not carry this form yet.
 It also accepts the exact MOVSS float-memory round trip in
 `fpu_boot_smoke()` and the matching one-way load and store. Each form
 requires the `xmm0` clobber, evaluates each object address once, and emits
@@ -2215,9 +2227,10 @@ conversion cover `float`, `double`, and automatic `long double`. Runtime mixed
 wide and floating arithmetic or conditional arms, increment and decrement,
 hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
-bounded parser, nonzero or floating
-static long-double initializers, integer conversions involving
-`long double` other than `_Bool`, and SIMD remain open in the hosted path.
+bounded parser, static long-double computation and conversion, nonzero
+integer static initializers, and SIMD remain open in the
+hosted path. Runtime integer conversions involving `long double` cover all
+signed and unsigned i386 widths.
 
 ---
 

@@ -27823,10 +27823,26 @@ static int validate_floating_conversion_ir(
       0u, 1u, 0u, 1u, 1u, 1u, 1u, 1u, 1u};
   ctool_u32 float_type = find_plain_type_kind(unit, CTOOL_C_TYPE_FLOAT);
   ctool_u32 double_type = find_plain_type_kind(unit, CTOOL_C_TYPE_DOUBLE);
+  ctool_u32 long_double_type =
+      find_plain_type_kind(unit, CTOOL_C_TYPE_LONG_DOUBLE);
+  ctool_u32 signed_integer_types[4] = {
+      find_plain_type_kind(unit, CTOOL_C_TYPE_SIGNED_CHAR),
+      find_plain_type_kind(unit, CTOOL_C_TYPE_SIGNED_SHORT),
+      find_plain_type_kind(unit, CTOOL_C_TYPE_SIGNED_INT),
+      find_plain_type_kind(unit, CTOOL_C_TYPE_SIGNED_LONG_LONG)};
+  ctool_u32 unsigned_integer_types[4] = {
+      find_plain_type_kind(unit, CTOOL_C_TYPE_UNSIGNED_CHAR),
+      find_plain_type_kind(unit, CTOOL_C_TYPE_UNSIGNED_SHORT),
+      find_plain_type_kind(unit, CTOOL_C_TYPE_UNSIGNED_INT),
+      find_plain_type_kind(unit, CTOOL_C_TYPE_UNSIGNED_LONG_LONG)};
   ctool_u32 next_float = find_binding(unit, "next_float");
   ctool_u32 casts[2] = {0u, 0u};
   ctool_u32 same_casts[2] = {0u, 0u};
   ctool_u32 assignments[2] = {0u, 0u};
+  ctool_u32 integer_to_long_double_casts[4] = {0u, 0u, 0u, 0u};
+  ctool_u32 integer_to_long_double_assignments[4] = {0u, 0u, 0u, 0u};
+  ctool_u32 long_double_to_integer_casts[4] = {0u, 0u, 0u, 0u};
+  ctool_u32 long_double_to_integer_assignments[4] = {0u, 0u, 0u, 0u};
   ctool_u32 usual_widenings = 0u;
   ctool_u32 binary_operations[4] = {0u, 0u, 0u, 0u};
   ctool_u32 conditional_branches = 0u;
@@ -27837,9 +27853,10 @@ static int validate_floating_conversion_ir(
   if (unit == NULL || ir == NULL || ir->functions == NULL ||
       ir->instructions == NULL || float_type == CTOOL_C_TYPE_NONE ||
       double_type == CTOOL_C_TYPE_NONE ||
+      long_double_type == CTOOL_C_TYPE_NONE ||
       next_float == CTOOL_C_AST_NONE ||
-      unit->function_definition_count != 28u ||
-      ir->function_count != 28u) {
+      unit->function_definition_count != 44u ||
+      ir->function_count != 44u) {
     return 0;
   }
   for (index = 0u; index < ir->instruction_count; index++) {
@@ -27876,6 +27893,30 @@ static int validate_floating_conversion_ir(
                  instruction->input_type == float_type &&
                  instruction->type == double_type) {
         usual_widenings++;
+      }
+      for (ctool_u32 integer_index = 0u; integer_index < 4u;
+           integer_index++) {
+        if (instruction->conversion == CTOOL_C_CONVERSION_NONE &&
+            instruction->input_type == signed_integer_types[integer_index] &&
+            instruction->type == long_double_type) {
+          integer_to_long_double_casts[integer_index]++;
+        }
+        if (instruction->conversion == CTOOL_C_CONVERSION_ASSIGNMENT &&
+            instruction->input_type ==
+                unsigned_integer_types[integer_index] &&
+            instruction->type == long_double_type) {
+          integer_to_long_double_assignments[integer_index]++;
+        }
+        if (instruction->conversion == CTOOL_C_CONVERSION_NONE &&
+            instruction->input_type == long_double_type &&
+            instruction->type == signed_integer_types[integer_index]) {
+          long_double_to_integer_casts[integer_index]++;
+        }
+        if (instruction->conversion == CTOOL_C_CONVERSION_ASSIGNMENT &&
+            instruction->input_type == long_double_type &&
+            instruction->type == unsigned_integer_types[integer_index]) {
+          long_double_to_integer_assignments[integer_index]++;
+        }
       }
     } else if (instruction->kind == CTOOL_C_IR_INSTRUCTION_BINARY &&
                instruction->type == instruction->input_type &&
@@ -27933,6 +27974,23 @@ static int validate_floating_conversion_ir(
         (unsigned int)conditional_branches);
     return 0;
   }
+  for (index = 0u; index < 4u; index++) {
+    if (integer_to_long_double_casts[index] != 1u ||
+        integer_to_long_double_assignments[index] != 1u ||
+        long_double_to_integer_casts[index] != 1u ||
+        long_double_to_integer_assignments[index] != 1u) {
+      (void)fprintf(
+          stderr,
+          "floating-conversions: integer/long-double IR inventory differs "
+          "at width %u: to=%u/%u from=%u/%u\n",
+          (unsigned int)index,
+          (unsigned int)integer_to_long_double_casts[index],
+          (unsigned int)integer_to_long_double_assignments[index],
+          (unsigned int)long_double_to_integer_casts[index],
+          (unsigned int)long_double_to_integer_assignments[index]);
+      return 0;
+    }
+  }
   for (index = 0u; index < compound_count; index++) {
     ctool_u32 result_type =
         result_is_double[index] != 0u ? double_type : float_type;
@@ -27989,7 +28047,23 @@ static int run_floating_conversions(const char *host_root) {
       "double mixed_subtract_assign(double *left, float right) { return *left -= right; }\n"
       "float mixed_multiply_assign(float *left, double right) { return *left *= right; }\n"
       "double mixed_divide_assign(double *left, float right) { return *left /= right; }\n"
-      "float side_effect_add(double right) { return *next_float() += right; }\n";
+      "float side_effect_add(double right) { return *next_float() += right; }\n"
+      "long double long_from_signed_char(signed char value) { return (long double)value; }\n"
+      "long double long_from_unsigned_char(unsigned char value) { long double result = value; return result; }\n"
+      "long double long_from_signed_short(short value) { return (long double)value; }\n"
+      "long double long_from_unsigned_short(unsigned short value) { long double result = value; return result; }\n"
+      "long double long_from_signed_int(int value) { return (long double)value; }\n"
+      "long double long_from_unsigned_int(unsigned int value) { long double result = value; return result; }\n"
+      "long double long_from_signed_wide(long long value) { return (long double)value; }\n"
+      "long double long_from_unsigned_wide(unsigned long long value) { long double result = value; return result; }\n"
+      "signed char signed_char_from_long(long double value) { return (signed char)value; }\n"
+      "unsigned char unsigned_char_from_long(long double value) { unsigned char result = value; return result; }\n"
+      "short signed_short_from_long(long double value) { return (short)value; }\n"
+      "unsigned short unsigned_short_from_long(long double value) { unsigned short result = value; return result; }\n"
+      "int signed_int_from_long(long double value) { return (int)value; }\n"
+      "unsigned int unsigned_int_from_long(long double value) { unsigned int result = value; return result; }\n"
+      "long long signed_wide_from_long(long double value) { return (long long)value; }\n"
+      "unsigned long long unsigned_wide_from_long(long double value) { unsigned long long result = value; return result; }\n";
   ctool_host_adapter_t adapter;
   ctool_host_adapter_t limited_adapter;
   ctool_job_config_t config;
@@ -28884,11 +28958,27 @@ static int run_floating_scalars(const char *host_root) {
                    sizeof(*invalid_expressions));
   invalid_expressions[integer_to_floating].type =
       long_double_type;
+  invalid_expressions[integer_to_floating].conversion =
+      CTOOL_C_CONVERSION_QUALIFICATION;
   if (!expect_ir_failure_preserves_unit(
           job, &invalid_unit, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION,
           "CupidC IR lowering does not yet support this conversion",
-          "integer to long double conversion metadata")) {
+          "qualified integer to long double conversion metadata")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count *
+                   sizeof(*invalid_expressions));
+  invalid_expressions[integer_to_floating].type =
+      long_double_type;
+  invalid_expressions[integer_to_floating].conversion =
+      CTOOL_C_CONVERSION_USUAL_ARITHMETIC;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION,
+          "CupidC IR lowering does not yet support this conversion",
+          "usual integer to long double conversion metadata")) {
     goto cleanup;
   }
   (void)memcpy(invalid_expressions, unit.expressions,
@@ -32586,7 +32676,9 @@ cleanup:
 
 static const char ldmxcsr_memory_input_source[] =
     "typedef unsigned int u32;\n"
+    "typedef unsigned short u16;\n"
     "u32 *next_mxcsr(void);\n"
+    "const volatile u16 *next_control(void);\n"
     "void load_parameter(u32 *state) {\n"
     "  __asm__ volatile(\"ldmxcsr %0\" : : \"m\"(*state));\n"
     "}\n"
@@ -32596,23 +32688,45 @@ static const char ldmxcsr_memory_input_source[] =
     "void dead_load(u32 *state) {\n"
     "  return;\n"
     "  __asm__ volatile(\"ldmxcsr %0\" : : \"m\"(*state));\n"
+    "}\n"
+    "void load_control_parameter(const volatile u16 *control) {\n"
+    "  __asm__ volatile(\"fldcw %0\" : : \"m\"(*control));\n"
+    "}\n"
+    "void load_control_call(void) {\n"
+    "  __asm__ volatile(\"fldcw %0\" : : \"m\"(*next_control()));\n"
     "}\n";
 
 static int ldmxcsr_memory_input_ir_matches(
     const ctool_c_translation_unit_t *unit,
     const ctool_c_ir_unit_t *ir) {
-  static const ctool_u32 expected_depths[] = {1u, 1u, 0u};
+  static const char *const templates[] = {
+      "ldmxcsr %0", "ldmxcsr %0", "ldmxcsr %0", "fldcw %0",
+      "fldcw %0"};
+  static const ctool_u32 expected_widths[] = {4u, 4u, 4u, 2u, 2u};
+  static const ctool_u32 expected_depths[] = {1u, 1u, 0u, 1u, 1u};
+  const ctool_u32 expected_count =
+      (ctool_u32)(sizeof(templates) / sizeof(templates[0]));
+  ctool_u32 next_mxcsr;
+  ctool_u32 next_control;
   ctool_u32 function_index;
-  if (unit == NULL || ir == NULL ||
-      unit->assembly_count != 3u ||
-      unit->assembly_operand_count != 3u ||
+  if (unit == NULL || ir == NULL) {
+    return 0;
+  }
+  next_mxcsr = find_binding(unit, "next_mxcsr");
+  next_control = find_binding(unit, "next_control");
+  if (next_mxcsr == CTOOL_C_AST_NONE ||
+      next_control == CTOOL_C_AST_NONE ||
+      unit->function_definition_count != expected_count ||
+      unit->assembly_count != expected_count ||
+      unit->assembly_operand_count != expected_count ||
       unit->assemblies == NULL || unit->assembly_operands == NULL ||
-      unit->layout.types == NULL ||
-      ir->function_count != 3u ||
+      unit->expressions == NULL || unit->layout.types == NULL ||
+      ir->function_count != expected_count ||
       ir->functions == NULL || ir->instructions == NULL) {
     return 0;
   }
-  for (function_index = 0u; function_index < 3u; function_index++) {
+  for (function_index = 0u;
+       function_index < expected_count; function_index++) {
     const ctool_c_assembly_t *assembly =
         &unit->assemblies[function_index];
     const ctool_c_assembly_operand_t *operand =
@@ -32622,8 +32736,16 @@ static int ldmxcsr_memory_input_ir_matches(
     ctool_u32 assembly_instruction = CTOOL_C_AST_NONE;
     ctool_u32 assembly_count = 0u;
     ctool_u32 call_count = 0u;
+    ctool_u32 dereference_count = 0u;
+    ctool_u32 expected_call =
+        function_index == 1u
+            ? next_mxcsr
+            : function_index == 4u
+                  ? next_control
+                  : CTOOL_C_AST_NONE;
     ctool_u32 offset;
-    if (string_equal(assembly->template_text, "ldmxcsr %0") == 0 ||
+    if (string_equal(
+            assembly->template_text, templates[function_index]) == 0 ||
         assembly->flags != CTOOL_C_ASSEMBLY_VOLATILE ||
         assembly->first_operand != function_index ||
         assembly->output_count != 0u ||
@@ -32631,8 +32753,13 @@ static int ldmxcsr_memory_input_ir_matches(
         string_equal(operand->constraint, "m") == 0 ||
         operand->matching_output != CTOOL_C_AST_NONE ||
         operand->type >= unit->layout.type_count ||
-        unit->layout.types[operand->type].size != 4u ||
+        operand->expression >= unit->expression_count ||
+        unit->expressions[operand->expression].type != operand->type ||
+        unit->layout.types[operand->type].size !=
+            expected_widths[function_index] ||
         unit->layout.types[operand->type].is_integer != CTOOL_TRUE ||
+        unit->layout.types[operand->type].is_object != CTOOL_TRUE ||
+        unit->layout.types[operand->type].is_complete_object != CTOOL_TRUE ||
         function->first_instruction > ir->instruction_count ||
         function->instruction_count >
             ir->instruction_count - function->first_instruction ||
@@ -32645,7 +32772,13 @@ static int ldmxcsr_memory_input_ir_matches(
       const ctool_c_ir_instruction_t *instruction =
           &ir->instructions[instruction_index];
       if (instruction->kind == CTOOL_C_IR_INSTRUCTION_CALL_DIRECT) {
+        if (instruction->reference != expected_call) {
+          return 0;
+        }
         call_count++;
+      }
+      if (instruction->kind == CTOOL_C_IR_INSTRUCTION_DEREFERENCE) {
+        dereference_count++;
       }
       if (instruction->kind == CTOOL_C_IR_INSTRUCTION_ASSEMBLY) {
         if (!inline_assembly_instruction_matches(
@@ -32657,8 +32790,9 @@ static int ldmxcsr_memory_input_ir_matches(
         assembly_count++;
       }
     }
-    if ((function_index == 0u &&
+    if (((function_index == 0u || function_index == 3u) &&
          (assembly_count != 1u || call_count != 0u ||
+          dereference_count != 1u ||
           assembly_instruction < function->first_instruction + 3u ||
           ir->instructions[assembly_instruction - 3u].kind !=
               CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS ||
@@ -32666,15 +32800,18 @@ static int ldmxcsr_memory_input_ir_matches(
               CTOOL_C_IR_INSTRUCTION_LOAD ||
           ir->instructions[assembly_instruction - 1u].kind !=
               CTOOL_C_IR_INSTRUCTION_DEREFERENCE)) ||
-        (function_index == 1u &&
+        ((function_index == 1u || function_index == 4u) &&
          (assembly_count != 1u || call_count != 1u ||
+          dereference_count != 1u ||
           assembly_instruction < function->first_instruction + 2u ||
           ir->instructions[assembly_instruction - 2u].kind !=
               CTOOL_C_IR_INSTRUCTION_CALL_DIRECT ||
           ir->instructions[assembly_instruction - 1u].kind !=
               CTOOL_C_IR_INSTRUCTION_DEREFERENCE)) ||
         (function_index == 2u &&
-         (assembly_count != 0u || call_count != 0u))) {
+         (assembly_count != 0u || call_count != 0u ||
+          dereference_count != 0u)) ||
+        (expected_call == CTOOL_C_AST_NONE && call_count != 0u)) {
       return 0;
     }
   }
@@ -32692,8 +32829,9 @@ static int run_ldmxcsr_memory_input(const char *host_root) {
   ctool_c_ir_unit_t first_ir;
   ctool_c_ir_unit_t repeat_ir;
   ctool_c_ir_unit_t recovered_ir;
-  ctool_c_assembly_t assemblies[3];
-  ctool_c_assembly_operand_t operands[3];
+  ctool_c_assembly_t assemblies[5];
+  ctool_c_assembly_operand_t operands[5];
+  ctool_c_type_node_t *types = NULL;
   ctool_c_type_layout_t *layouts = NULL;
   ctool_u32 diagnostic_count;
   uint64_t unit_hash;
@@ -32735,9 +32873,14 @@ static int run_ldmxcsr_memory_input(const char *host_root) {
         stderr, "ldmxcsr-memory-input: repeated lowering differs\n");
     goto cleanup;
   }
-  if (unit.assembly_count != 3u ||
-      unit.assembly_operand_count != 3u ||
-      unit.layout.types == NULL ||
+  if (unit.assembly_count !=
+          (ctool_u32)(sizeof(assemblies) / sizeof(assemblies[0])) ||
+      unit.assembly_operand_count !=
+          (ctool_u32)(sizeof(operands) / sizeof(operands[0])) ||
+      unit.graph.type_count == 0u || unit.layout.type_count == 0u ||
+      unit.graph.types == NULL || unit.layout.types == NULL ||
+      unit.assembly_operands[4].type >= unit.graph.type_count ||
+      sizeof(*types) > SIZE_MAX / (size_t)unit.graph.type_count ||
       sizeof(*layouts) > SIZE_MAX / (size_t)unit.layout.type_count) {
     goto cleanup;
   }
@@ -32747,14 +32890,14 @@ static int run_ldmxcsr_memory_input(const char *host_root) {
   invalid_unit.assemblies = assemblies;
   invalid_unit.assembly_operands = operands;
 
-  operands[0].matching_output = 0u;
+  operands[3].matching_output = 0u;
   if (!expect_ir_failure_preserves_unit(
           job, &invalid_unit, CTOOL_ERR_INPUT,
           CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
-          "LDMXCSR memory input marked as matching")) {
+          "FLDCW memory input marked as matching")) {
     goto cleanup;
   }
-  operands[0] = unit.assembly_operands[0];
+  operands[3] = unit.assembly_operands[3];
 
   operands[0].constraint = ctool_string("r");
   if (!expect_ir_failure_preserves_unit(
@@ -32765,23 +32908,23 @@ static int run_ldmxcsr_memory_input(const char *host_root) {
   }
   operands[0] = unit.assembly_operands[0];
 
-  assemblies[0].template_text = ctool_string("nop");
+  assemblies[4].template_text = ctool_string("nop");
   if (!expect_ir_failure_preserves_unit(
           job, &invalid_unit, CTOOL_ERR_INPUT,
           CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
-          "memory input on an unrelated template")) {
+          "FLDCW memory input on an unrelated template")) {
     goto cleanup;
   }
-  assemblies[0] = unit.assemblies[0];
+  assemblies[4] = unit.assemblies[4];
 
-  assemblies[0].flags &= ~CTOOL_C_ASSEMBLY_VOLATILE;
+  assemblies[3].flags &= ~CTOOL_C_ASSEMBLY_VOLATILE;
   if (!expect_ir_failure_preserves_unit(
           job, &invalid_unit, CTOOL_ERR_INPUT,
           CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
-          "MOVSS missing volatile flag")) {
+          "FLDCW missing volatile flag")) {
     goto cleanup;
   }
-  assemblies[0] = unit.assemblies[0];
+  assemblies[3] = unit.assemblies[3];
 
   assemblies[0].flags |= CTOOL_C_ASSEMBLY_MEMORY_CLOBBER;
   if (!expect_ir_failure_preserves_unit(
@@ -32802,19 +32945,44 @@ static int run_ldmxcsr_memory_input(const char *host_root) {
   }
   operands[2] = unit.assembly_operands[2];
 
+  types = (ctool_c_type_node_t *)malloc(
+      (size_t)unit.graph.type_count * sizeof(*types));
   layouts = (ctool_c_type_layout_t *)malloc(
       (size_t)unit.layout.type_count * sizeof(*layouts));
-  if (layouts == NULL) {
+  if (types == NULL || layouts == NULL) {
     goto cleanup;
   }
+  (void)memcpy(types, unit.graph.types,
+               (size_t)unit.graph.type_count * sizeof(*types));
   (void)memcpy(layouts, unit.layout.types,
                (size_t)unit.layout.type_count * sizeof(*layouts));
+
+  types[unit.assembly_operands[4].type].qualifiers |=
+      CTOOL_C_QUAL_ATOMIC;
+  invalid_unit.graph.types = types;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "atomic FLDCW memory input")) {
+    goto cleanup;
+  }
+  invalid_unit.graph.types = unit.graph.types;
+
   layouts[unit.assembly_operands[0].type].size = 2u;
   invalid_unit.layout.types = layouts;
   if (!expect_ir_failure_preserves_unit(
           job, &invalid_unit, CTOOL_ERR_INPUT,
           CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
           "forged LDMXCSR input layout")) {
+    goto cleanup;
+  }
+  layouts[unit.assembly_operands[0].type] =
+      unit.layout.types[unit.assembly_operands[0].type];
+  layouts[unit.assembly_operands[3].type].size = 4u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged FLDCW input layout")) {
     goto cleanup;
   }
   invalid_unit.layout.types = unit.layout.types;
@@ -32834,6 +33002,7 @@ static int run_ldmxcsr_memory_input(const char *host_root) {
   passed = 1;
 
 cleanup:
+  free(types);
   free(layouts);
   if (job != NULL) {
     ctool_job_close(job);

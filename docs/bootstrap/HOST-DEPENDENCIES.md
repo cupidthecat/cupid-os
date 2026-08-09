@@ -473,19 +473,26 @@ chooses `.bss`, `.data`, or `.rodata` from the payload and qualifiers. Runtime `
 automatic `long double` values use Cupid-owned zero comparisons for unary `!`,
 `&&`, `||`, the controlling operand of `?:`, the conditions of `if`, `while`,
 `do`, and `for`, and conversion to `_Bool`. Both signed zeros are false; finite nonzero values,
-subnormals, infinities, and NaNs are true. Hexadecimal floating literals,
+subnormals, infinities, and NaNs are true. Runtime casts, assignments,
+arguments, and returns convert between `long double` and signed or unsigned
+integers at 8, 16, 32, and 64 bits. Integer output restores the x87 control
+word after truncation. Unsigned 64-bit corrections temporarily use 64-bit
+x87 precision, retain the caller's rounding mode, and restore the complete
+saved control word. Hexadecimal floating literals,
 binary32 and binary64 subnormal literals, hexadecimal or subnormal
 long-double literals, decimal ratios beyond the bounded parser, static
-long-double computation and width conversion, nonzero integer static
-initializers, integer conversions involving `long double` other than `_Bool`, mixed wide and floating runtime
+long-double computation, floating-width conversion, and integer conversion,
+nonzero integer
+static initializers, mixed integer and floating runtime
 arithmetic or conditionals, and floating increment and decrement remain open.
 Matching or mixed-width floating
 conditional arms and the four arithmetic compound assignments retain their
 established x87 path. All six matching or mixed long-double comparisons use
 a balanced `FUCOMIP` sequence. ADRs 0196, 0199, 0202, and 0229 record the
 current long-double, comparison, truth, and literal boundaries. ADR 0250
-records runtime conversion to unsigned four-byte targets, and ADR 0251 records
-static long-double data.
+records runtime conversion to unsigned four-byte targets, ADR 0251 records
+static long-double data, and ADR 0253 records runtime conversions between
+`long double` and integers.
 
 The checked seed has 596 x86 forms, 245 canonical mnemonics, 64 registers, and
 fingerprint `DA15E97F`. Source head has 602 forms, 247 canonical mnemonics,
@@ -802,6 +809,12 @@ addresses, the remaining GNU surface, hexadecimal floating literals, the
 remaining `long double` forms, and broader self-hosting. The private kernel
 compiler continues to own embedded runtime JIT and AOT compilation.
 
+Compiler head accepts exact `fldcw %0` with one addressable, non-atomic
+16-bit integer `m` input. GNU semantics make the no-output statement volatile
+even without that keyword. Frontend, Linear IR, and object contracts
+share this state-memory input seam with `ldmxcsr %0`. The checked seed does
+not carry the FLDCW form yet, so production source cannot depend on it.
+
 Checked-seed `noinline` and `target("general-regs-only")` semantics narrow
 that GNU gap without changing the dependency count. The seed also accepts
 the exact LDMXCSR memory input at line 28, all three MOVSS
@@ -952,7 +965,36 @@ The tracked `link.ld` is itself a compatibility contract. It uses `ENTRY`, `SECT
 
 ## Not host compilation
 
-The current wide scalar boundary covers constants, fixed call results, object access, initialization, plain assignment, all ten compound assignments, prefix and postfix update, declared parameters, named call arguments, signed and unsigned wide integer arguments in supported ellipsis and unprototyped calls, variadic reads, discard, return, addition, subtraction, multiplication, division, remainder, unary plus, unary minus, bitwise complement, shifts, AND, OR, XOR, comparisons, logical operators, conditions, signed and unsigned switch dispatch, explicit represented-to-wide casts, same-rank signed-to-unsigned conversion, GNU wide-enum promotion, and conversion to or from represented integer widths are represented. ADRs 0076, 0077, 0079, 0136, 0137, and 0147 add exact `float` and `double` transport, default-promoted open call positions, `va_arg(double)`, unary and binary runtime arithmetic, static constant data and arithmetic, and all six matching or mixed-width comparisons. ADR 0196 adds automatic non-atomic `long double` transport, floating-width conversion, unary plus and minus, all four arithmetic operators, twelve-byte direct and indirect fixed, variadic, and unprototyped arguments, function returns, direct and indirect call results, `va_arg(long double)`, and zero-filled `long double` leaves in twelve-byte file-scope or block-static scalars, fixed arrays, and complete records. ADR 0199 adds all six non-atomic matching or mixed long-double comparisons. ADR 0202 adds runtime truth, the controlling operand of `?:`, the conditions of `if`, `while`, `do`, and `for`, and conversion to `_Bool` at all three represented widths. ADR 0229 adds bounded finite normal decimal long-double literals. ADR 0250 adds runtime conversion from `float` and `double` to unsigned four-byte targets. ADR 0251 carries bounded decimal literals into exact static scalar and aggregate data. Runtime mixed wide and floating arithmetic or conditional arms, floating increment and decrement, hexadecimal floating literals, binary32 and binary64 subnormal literals, hexadecimal or subnormal long-double literals, decimal ratios beyond the bounded parser, static long-double computation and width conversion, nonzero integer static initializers, integer conversions involving `long double` other than `_Bool`, runtime aggregate floating values, atomic access, and other unrepresented forms remain outside the current ABI slice.
+The current wide scalar boundary represents constants, fixed call results,
+object access, initialization, assignment and update, declared parameters,
+named arguments, supported variadic and unprototyped arguments, variadic
+reads, return and discard, integer arithmetic, bitwise operations, shifts,
+comparisons, logical operators, conditions, switch dispatch, casts,
+same-rank signed-to-unsigned conversion, GNU wide-enum promotion, and
+conversion to or from represented integer widths.
+
+ADRs 0076, 0077, 0079, 0136, 0137, and 0147 add exact `float` and `double`
+transport, default-promoted open call positions, `va_arg(double)`, runtime
+arithmetic, static constant data and arithmetic, and all six matching or
+mixed-width comparisons. ADR 0196 adds automatic non-atomic `long double`
+transport, floating-width conversion, unary and binary arithmetic,
+twelve-byte arguments, returns, call results, `va_arg(long double)`, and
+zero-filled static leaves in scalars, fixed arrays, and complete records. ADR
+0199 adds all six matching or mixed long-double comparisons. ADR 0202 adds
+runtime truth, controlling expressions, and conversion to `_Bool`. ADR 0229
+adds bounded finite normal decimal long-double literals. ADR 0250 adds runtime
+conversion from `float` and `double` to unsigned four-byte targets. ADR 0251
+carries bounded decimal literals into exact static scalar and aggregate data.
+ADR 0253 adds runtime conversion between `long double` and every signed or
+unsigned i386 integer width.
+
+Runtime mixed integer and floating arithmetic or conditional arms, floating
+increment and decrement, hexadecimal floating literals, binary32 and
+binary64 subnormal literals, hexadecimal or subnormal long-double literals,
+decimal ratios beyond the bounded parser, static long-double computation,
+floating-width conversion, and integer conversion, nonzero integer static
+initializers, runtime aggregate floating values, atomic access, and other
+unrepresented forms remain outside the current ABI slice.
 
 The wide-mutation proof expands shared semantics. Fifteen functions publish 225 exact IR instructions, and 17 emitted functions occupy 4,410 text bytes with fingerprint `4B337038`, 18 symbols including the null symbol, and no relocations. Decoder and execution checks cover all ten compound operators, signed and unsigned prefix or postfix update, postfix snapshot preservation, one-time indexed evaluation, volatile access, cdecl state, rollback, and deterministic recovery. Checked-seed CupidC uses this path for the `+=` and `&=` operations in X25519's `fe_carry`, and both checked stages build the focused contract. GCC or Clang provides only the optional native copy.
 

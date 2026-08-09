@@ -624,12 +624,16 @@ is true for an unordered input. Runtime float, double, and automatic long
 double values work with unary !, &&, ||, the controlling operand of ?:, the
 conditions of if, while, do, and for, and conversion to _Bool. Both signed zeros are
 false; finite nonzero values, subnormals, infinities, and NaNs are true.
+Runtime casts, assignments, arguments, and returns convert long double to and
+from signed or unsigned 8-bit, 16-bit, 32-bit, and 64-bit integers.
+Unsigned 64-bit corrections temporarily select 64-bit x87 precision, retain
+the caller's rounding mode, and restore the complete control word before the
+result store.
 Hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
-bounded parser, static long-double computation and width conversion, nonzero
-integer static initializers, integer conversions involving long double other than
-_Bool, other
-floating-to-wide conversions, runtime mixed wide and floating arithmetic or
+bounded parser, static long-double computation, floating-width conversion,
+and integer conversion, nonzero integer static
+initializers, other floating-to-wide conversions, runtime mixed integer and floating arithmetic or
 conditional arms, increment and decrement, general SIMD value semantics,
 floating atomic access, and over-aligned object emission remain unfinished.
 The exact production SIMD
@@ -1120,7 +1124,14 @@ It also accepts the exact volatile x87 sine block in stress_sin.
 It keeps one modifiable double =m output and one addressable double m input,
 permits no clobbers, and evaluates both addresses once in output-then-input
 order. The shared model emits FLD, FSIN, and FSTP through EAX with balanced
-x87 depth and no frame temporary. The normal build compiles
+x87 depth and no frame temporary.
+Compiler head accepts exact fldcw %0 through the same state-memory input
+seam. It requires one addressable, non-atomic 16-bit integer m input. GNU
+semantics make the no-output statement volatile even without that keyword.
+The emitter produces D9 /5 at [EAX]. The checked seed does not carry this
+form yet.
+
+The normal build compiles
 kernel/cpu/fpu.cc through the checked wrapper. Two checked compiles produce
 the same validated 6,620-byte object with SHA-256
 14c3ea232b7d4455ceabd561c69293cc5849abae24d9f210aa69d64ed8c8a5cb.

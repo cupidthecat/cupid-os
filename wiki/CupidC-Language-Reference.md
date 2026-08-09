@@ -242,15 +242,22 @@ only `!=` is true when either input is NaN. Unary `!`, `&&`, `||`, the
 controlling operand of `?:`, the conditions of `if`, `while`, `do`, and `for`, and conversion to `_Bool`
 accept non-atomic `float`, `double`, and automatic `long double`. Both signed
 zeros are false; finite nonzero values, subnormals, infinities, and NaNs are
-true. Floating increment or decrement, hexadecimal floating constants,
+true. Runtime casts, assignments, arguments, and returns convert between
+`long double` and signed or unsigned 8, 16, 32, and 64-bit integers. The
+unsigned 64-bit correction uses 64-bit x87 precision without changing the
+caller's rounding mode and restores the complete control word. Floating
+increment or decrement, hexadecimal floating constants,
 binary32 and binary64 subnormal constants, hexadecimal or subnormal
 long-double constants, long-double decimals beyond the bounded ratio parser,
-static long-double arithmetic, comparison, truth, conditional selection, and
-width conversion, nonzero integer static initializers, integer
-conversions other than `_Bool`, SIMD, and atomic floating access remain
+static long-double arithmetic, comparison, truth, conditional selection,
+floating-width conversion, and integer conversion, nonzero integer static
+initializers, SIMD, and
+atomic floating access remain
 unsupported. [ADR 0229](../docs/adr/0229-emit-exact-decimal-long-double-literals.md)
 records the literal representation. ADR 0250 records runtime unsigned
-four-byte conversion, and ADR 0251 records static long-double data. The
+four-byte conversion, ADR 0251 records static long-double data, and ADR 0253
+records runtime conversion between `long double` and every signed or
+unsigned i386 integer width. The
 in-kernel compiler has a separate, broader floating
 and SIMD implementation.
 

@@ -490,6 +490,28 @@ static long double long_double_file_initialized_array[2] = {
     +1.0L, -0.0L};
 static long_double_zero_record long_double_file_initialized_record = {
     1.0000000000000000001L, 7u, -1.0L};
+static const uint64_t long_double_u64_matrix_integers[6] = {
+    UINT64_C(9223372036854775807),
+    UINT64_C(9223372036854775808),
+    UINT64_C(9223372036854775809),
+    UINT64_C(9223372586610589697),
+    UINT64_C(18446744073709551614),
+    UINT64_C(18446744073709551615)};
+static const long double long_double_u64_matrix_floating[6] = {
+    9223372036854775807e0L,
+    9223372036854775808e0L,
+    9223372036854775809e0L,
+    9223372586610589697e0L,
+    18446744073709551614e0L,
+    18446744073709551615e0L};
+static const unsigned int long_double_u64_matrix_low[6] = {
+    0xfffffffeu, 0u, 1u, 1u, 0xfffffffeu, 0xffffffffu};
+static const unsigned int long_double_u64_matrix_high[6] = {
+    0xffffffffu, 0x80000000u, 0x80000000u,
+    0x80000080u, 0xffffffffu, 0xffffffffu};
+static const unsigned int long_double_u64_matrix_sign_exponent[6] = {
+    0x0000403du, 0x0000403eu, 0x0000403eu,
+    0x0000403eu, 0x0000403eu, 0x0000403eu};
 
 static int long_double_payload_matches(
     long double value, unsigned int significand_low,
@@ -505,8 +527,70 @@ static int long_double_payload_matches(
              : 0;
 }
 
+static uint16_t x87_read_control_word(void) {
+  uint16_t control;
+  __asm__ volatile("fnstcw %0" : "=m"(control));
+  return control;
+}
+
+static void x87_load_control_word(uint16_t control) {
+  __asm__ volatile("fldcw %0" : : "m"(control));
+}
+
 static long double long_double_identity(long double value) {
   return value;
+}
+
+static long double long_double_from_signed_wide(int64_t value) {
+  return value;
+}
+
+static long double long_double_from_unsigned_wide(uint64_t value) {
+  return (long double)value;
+}
+
+static int64_t signed_wide_from_long_double(long double value) {
+  return value;
+}
+
+static uint64_t unsigned_wide_from_long_double(long double value) {
+  return (uint64_t)value;
+}
+
+static int64_t signed_wide_identity(int64_t value) {
+  return value;
+}
+
+static uint64_t unsigned_wide_identity(uint64_t value) {
+  return value;
+}
+
+typedef enum long_double_signed_enum {
+  LONG_DOUBLE_SIGNED_ENUM_NEGATIVE = -3
+} long_double_signed_enum;
+
+typedef enum long_double_unsigned_wide_enum {
+  LONG_DOUBLE_UNSIGNED_WIDE_ENUM_MAX = 0xffffffffffffffffull
+} long_double_unsigned_wide_enum;
+
+static long double long_double_from_signed_enum(
+    long_double_signed_enum value) {
+  return value;
+}
+
+static long double long_double_from_unsigned_wide_enum(
+    long_double_unsigned_wide_enum value) {
+  return value;
+}
+
+static long_double_signed_enum signed_enum_from_long_double(
+    long double value) {
+  return (long_double_signed_enum)value;
+}
+
+static long_double_unsigned_wide_enum unsigned_wide_enum_from_long_double(
+    long double value) {
+  return (long_double_unsigned_wide_enum)value;
 }
 
 static void long_double_capture(long double value) {
@@ -527,6 +611,261 @@ static void long_double_open_calls(
 
 static void long_double_open_direct(long double value) {
   long_double_capture(value);
+}
+
+static int long_double_integer_conversion_contract(void) {
+  floating_truth_float_box rounded;
+  long double converted;
+  long double rounding_probe;
+  uint16_t x87_status;
+  int8_t signed_narrow = -128;
+  uint8_t unsigned_narrow = 255u;
+  int16_t signed_short = -32768;
+  uint16_t unsigned_short = 65535u;
+  int32_t signed_int = (-2147483647 - 1);
+  uint32_t unsigned_int = 4294967295u;
+  int64_t signed_wide = -INT64_C(9223372036854775807) - 1;
+  uint64_t unsigned_wide = UINT64_MAX;
+
+  converted = signed_narrow;
+  if (!long_double_payload_matches(
+          converted, 0u, 0x80000000u, 0x0000c006u)) {
+    return 727;
+  }
+  converted = (long double)unsigned_narrow;
+  if (!long_double_payload_matches(
+          converted, 0u, 0xff000000u, 0x00004006u)) {
+    return 728;
+  }
+  converted = signed_short;
+  if (!long_double_payload_matches(
+          converted, 0u, 0x80000000u, 0x0000c00eu)) {
+    return 729;
+  }
+  converted = (long double)unsigned_short;
+  if (!long_double_payload_matches(
+          converted, 0u, 0xffff0000u, 0x0000400eu)) {
+    return 730;
+  }
+  converted = signed_int;
+  if (!long_double_payload_matches(
+          converted, 0u, 0x80000000u, 0x0000c01eu)) {
+    return 731;
+  }
+  converted = (long double)unsigned_int;
+  if (!long_double_payload_matches(
+          converted, 0u, 0xffffffffu, 0x0000401eu)) {
+    return 732;
+  }
+  converted = long_double_from_signed_wide(signed_wide);
+  if (!long_double_payload_matches(
+          converted, 0u, 0x80000000u, 0x0000c03eu)) {
+    return 733;
+  }
+  signed_wide = INT64_C(9223372036854775807);
+  converted = long_double_from_signed_wide(signed_wide);
+  if (!long_double_payload_matches(
+          converted, 0xfffffffeu, 0xffffffffu, 0x0000403du)) {
+    return 740;
+  }
+  converted = (_Bool)1;
+  if (!long_double_payload_matches(
+          converted, 0u, 0x80000000u, 0x00003fffu)) {
+    return 741;
+  }
+  converted = long_double_from_unsigned_wide(unsigned_wide);
+  if (!long_double_payload_matches(
+          converted, 0xffffffffu, 0xffffffffu, 0x0000403eu)) {
+    return 734;
+  }
+  converted = long_double_identity(unsigned_wide);
+  if (!long_double_payload_matches(
+          converted, 0xffffffffu, 0xffffffffu, 0x0000403eu)) {
+    return 748;
+  }
+  converted = long_double_from_signed_enum(
+      LONG_DOUBLE_SIGNED_ENUM_NEGATIVE);
+  if (!long_double_payload_matches(
+          converted, 0u, 0xc0000000u, 0x0000c000u)) {
+    return 742;
+  }
+  converted = long_double_from_unsigned_wide_enum(
+      (long_double_unsigned_wide_enum)unsigned_wide);
+  if (!long_double_payload_matches(
+          converted, 0xffffffffu, 0xffffffffu, 0x0000403eu)) {
+    return 743;
+  }
+  unsigned_wide = UINT64_C(9223372036854775807);
+  converted = long_double_from_unsigned_wide(unsigned_wide);
+  if (!long_double_payload_matches(
+          converted, 0xfffffffeu, 0xffffffffu, 0x0000403du)) {
+    return 751;
+  }
+
+  signed_narrow = (int8_t)-127.875L;
+  unsigned_narrow = 255.875L;
+  signed_short = (int16_t)-32767.875L;
+  unsigned_short = 65535.875L;
+  signed_int = (int32_t)-2147483647.875L;
+  unsigned_int = 4294967295.875L;
+  if (signed_narrow != -127 || unsigned_narrow != 255u ||
+      signed_short != -32767 || unsigned_short != 65535u ||
+      signed_int != -2147483647 || unsigned_int != 4294967295u ||
+      (uint32_t)-0.75L != 0u) {
+    return 735;
+  }
+
+  signed_wide = signed_wide_from_long_double(
+      -4611686018427387903e0L - 0.5L);
+  if (signed_wide != -INT64_C(4611686018427387903)) {
+    return 736;
+  }
+  signed_wide = signed_wide_from_long_double(
+      -9223372036854775808e0L);
+  if (signed_wide != -INT64_C(9223372036854775807) - 1) {
+    return 746;
+  }
+  signed_wide = signed_wide_from_long_double(
+      9223372036854775807e0L);
+  if (signed_wide != INT64_C(9223372036854775807)) {
+    return 747;
+  }
+  unsigned_wide = unsigned_wide_from_long_double(
+      9223372036854775807e0L);
+  if (unsigned_wide != UINT64_C(9223372036854775807)) {
+    return 752;
+  }
+  __asm__ volatile("fninit");
+  unsigned_wide = unsigned_wide_from_long_double(
+      9223372036854775808e0L);
+  __asm__ volatile("fnstsw %0" : "=m"(x87_status));
+  if (unsigned_wide != UINT64_C(9223372036854775808)) {
+    return 737;
+  }
+  if ((x87_status & 1u) != 0u) {
+    return 753;
+  }
+  unsigned_wide = unsigned_wide_from_long_double(
+      18446744073709551615e0L);
+  if (unsigned_wide != UINT64_MAX) {
+    return 738;
+  }
+  if (signed_enum_from_long_double(-3.75L) !=
+      LONG_DOUBLE_SIGNED_ENUM_NEGATIVE) {
+    return 744;
+  }
+  if ((uint64_t)unsigned_wide_enum_from_long_double(
+          18446744073709551615e0L) != UINT64_MAX) {
+    return 745;
+  }
+  signed_wide = signed_wide_identity(-42.75L);
+  if (signed_wide != -42) {
+    return 749;
+  }
+  unsigned_wide = unsigned_wide_identity(
+      18446744073709551615e0L);
+  if (unsigned_wide != UINT64_MAX) {
+    return 750;
+  }
+
+  signed_int = (int32_t)42.75L;
+  rounding_probe = long_double_identity(
+      1.0L + 3.0L / 33554432.0L);
+  rounded.value = (float)rounding_probe;
+  if (signed_int != 42 || rounded.bits != 0x3f800001u) {
+    return 739;
+  }
+
+  {
+    uint16_t original_control = x87_read_control_word();
+    uint16_t observed_control = original_control;
+    unsigned int precision_index;
+    unsigned int rounding_index;
+    unsigned int control_index;
+    unsigned int value_index;
+    int probe_result = 0;
+
+    for (precision_index = 0u;
+         precision_index < 3u && probe_result == 0;
+         precision_index++) {
+      unsigned int precision_bits =
+          precision_index == 0u
+              ? 0u
+              : (precision_index == 1u ? 0x0200u : 0x0300u);
+      for (rounding_index = 0u;
+           rounding_index < 4u && probe_result == 0;
+           rounding_index++) {
+        uint16_t probe_control = (uint16_t)(
+            ((original_control | 0x003fu) & 0xf0ffu) |
+            precision_bits | (rounding_index << 10u));
+        control_index = precision_index * 4u + rounding_index;
+        x87_load_control_word(probe_control);
+        observed_control = x87_read_control_word();
+        if (observed_control != probe_control) {
+          probe_result = 800 + (int)(control_index * 32u);
+        }
+
+        for (value_index = 0u;
+             value_index < 6u && probe_result == 0;
+             value_index++) {
+          int case_base =
+              801 + (int)(control_index * 32u + value_index * 4u);
+          converted = long_double_from_unsigned_wide(
+              long_double_u64_matrix_integers[value_index]);
+          observed_control = x87_read_control_word();
+          if (!long_double_payload_matches(
+                  converted,
+                  long_double_u64_matrix_low[value_index],
+                  long_double_u64_matrix_high[value_index],
+                  long_double_u64_matrix_sign_exponent[value_index])) {
+            probe_result = case_base;
+          } else if (observed_control != probe_control) {
+            probe_result = case_base + 1;
+          }
+          if (probe_result == 0) {
+            unsigned_wide = unsigned_wide_from_long_double(
+                long_double_u64_matrix_floating[value_index]);
+            observed_control = x87_read_control_word();
+            if (unsigned_wide !=
+                long_double_u64_matrix_integers[value_index]) {
+              probe_result = case_base + 2;
+            } else if (observed_control != probe_control) {
+              probe_result = case_base + 3;
+            }
+          }
+        }
+
+        if (probe_result == 0) {
+          signed_wide = signed_wide_from_long_double(-42.75L);
+          observed_control = x87_read_control_word();
+          if (signed_wide != -42) {
+            probe_result = 825 + (int)(control_index * 32u);
+          } else if (observed_control != probe_control) {
+            probe_result = 826 + (int)(control_index * 32u);
+          }
+        }
+        if (probe_result == 0) {
+          signed_narrow = (int8_t)-127.875L;
+          observed_control = x87_read_control_word();
+          if (signed_narrow != -127) {
+            probe_result = 827 + (int)(control_index * 32u);
+          } else if (observed_control != probe_control) {
+            probe_result = 828 + (int)(control_index * 32u);
+          }
+        }
+      }
+    }
+
+    x87_load_control_word(original_control);
+    observed_control = x87_read_control_word();
+    if (observed_control != original_control) {
+      return 1200;
+    }
+    if (probe_result != 0) {
+      return probe_result;
+    }
+  }
+  return 0;
 }
 
 static unsigned int long_double_variadic_tail(int marker, ...) {
@@ -873,6 +1212,9 @@ int runtime_contract_run(int argc, char **argv) {
   }
   if (result == 0) {
     result = long_double_contract();
+  }
+  if (result == 0) {
+    result = long_double_integer_conversion_contract();
   }
   if (result == 0) {
     result = stdio_contract();

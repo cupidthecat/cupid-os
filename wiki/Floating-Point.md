@@ -73,11 +73,15 @@ and leaves the cursor at the following four-byte slot. All six comparisons
 accept matching long-double values and mixed `float` or `double` inputs. The
 emitter loads right then left, executes `FUCOMIP ST0, ST1`, and discards the
 surviving x87 value. Signed zeros compare equal, and only `!=` is true for an
-unordered input. Hexadecimal or subnormal long-double literals, decimal
+unordered input. Runtime casts, assignments, arguments, and returns convert
+between `long double` and signed or unsigned integers at 8, 16, 32, and
+64 bits. The integer-output path restores the x87 control word after
+truncation toward zero. Unsigned 64-bit corrections temporarily select
+64-bit x87 precision, preserve the caller's rounding mode, and restore the
+complete saved word before the final store. Hexadecimal or subnormal long-double literals, decimal
 ratios beyond the bounded parser, static long-double arithmetic, comparison,
-truth, conditional selection, and width conversion, nonzero integer static
-initializers, and integer conversions
-involving `long double` remain open.
+truth, conditional selection, width conversion, integer conversion, and
+nonzero integer static initializers remain open.
 
 The static scalar and aggregate proofs cover both scopes, mutable and const
 objects, positive and negative values, both signed zeros, the largest accepted
@@ -101,6 +105,11 @@ load and `F3 0F 11 00` for the store through EAX. It also accepts the exact
 volatile x87 block in `stress_sin()`. The statement has one `double` output,
 one `double` input, and no clobbers. It emits `FLD`, `FSIN`, and `FSTP`
 through the shared encoder, with balanced x87 depth and no frame temporary.
+Compiler head also accepts exact `fldcw %0` with one addressable, non-atomic
+16-bit integer memory input. GNU semantics make the no-output statement
+volatile even when the keyword is omitted. Linear IR evaluates the address
+once, and the emitter produces `D9 /5` through EAX. The checked seed does not
+carry this state-control input yet.
 The earlier compiler proof used `kernel/cpu/fpu.c`. The unchanged
 implementation is now `kernel/cpu/fpu.cc`, a checked CupidC production root.
 Two checked compiles produce the same validated 6,620-byte object with
@@ -249,9 +258,9 @@ Runtime `float`, `double`, and automatic `long double` values work with unary
 subnormals, infinities, and NaNs are true. Increment or decrement,
 hexadecimal floating constants, binary32 and binary64 subnormal constants,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
-bounded parser, static long-double computation and width conversion, nonzero
-integer static initializers, integer conversions involving
-`long double` other than `_Bool`, general SIMD value semantics, and atomic
+bounded parser, static long-double computation, width conversion, and integer
+conversion, nonzero integer static initializers, general SIMD value semantics,
+and atomic
 floating access remain unsupported. Twelve-byte direct
 and indirect fixed, variadic, and unprototyped arguments, function returns,
 direct and indirect call results, and `va_arg(long double)` use the represented

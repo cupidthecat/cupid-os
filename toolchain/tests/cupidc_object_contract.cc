@@ -24138,8 +24138,8 @@ static int validate_long_double_local_object(
   fingerprint = structure_text_fingerprint(
       ctool_bytes(text->contents.data + function->value,
                   function->size));
-  if (cursor != function->size || function->size != 753u ||
-      fingerprint != 0x82a5f459u ||
+  if (cursor != function->size || function->size != 830u ||
+      fingerprint != 0x16fde78cu ||
       fld32 != 1u || fld64 != 2u || fld80 != 10u ||
       fstp64 != 1u || fstp80 != 7u ||
       fchs != 1u || faddp != 1u || fsubp != 1u ||
@@ -24366,7 +24366,7 @@ static int validate_long_double_call_object(
        0u, 0u, 0u, 1u, 0u, 1u},
       {"long_double_open_calls", 176u, 0xa3c2bf25u,
        2u, 1u, 1u, 4u, 2u, 6u},
-      {"long_double_call_results", 278u, 0x69385492u,
+      {"long_double_call_results", 300u, 0xfa304910u,
        2u, 1u, 1u, 7u, 2u, 9u}};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   const ctool_elf32_section_t *rel_text =
@@ -24380,11 +24380,12 @@ static int validate_long_double_call_object(
   const ctool_elf32_symbol_t *identity =
       find_symbol(object, "long_double_identity");
   ctool_u32 index;
+  int all_matched = 1;
   if (job == NULL || object == NULL || text == NULL ||
       rel_text == NULL || sink == NULL || variadic_sink == NULL ||
       open_sink == NULL || identity == NULL ||
-      text->contents.size != 2099u ||
-      structure_text_fingerprint(text->contents) != 0x9d1cbec8u ||
+      text->contents.size != 2209u ||
+      structure_text_fingerprint(text->contents) != 0x3d82b57cu ||
       text->relocation_count != 11u ||
       object->relocation_count != 11u ||
       object->relocations == NULL || object->symbol_count != 25u) {
@@ -24428,10 +24429,10 @@ static int validate_long_double_call_object(
             job, object, text,
             find_symbol(object, functions[index].name),
             &functions[index])) {
-      return 0;
+      all_matched = 0;
     }
   }
-  return 1;
+  return all_matched;
 }
 
 static int long_double_payload_matches(
@@ -24716,7 +24717,7 @@ static int validate_long_double_static_object(
   fingerprint = structure_text_fingerprint(
       ctool_bytes(text->contents.data + function->value,
                   function->size));
-  if (function->size != 214u || fingerprint != 0x5b39c697u ||
+  if (function->size != 225u || fingerprint != 0xb308850au ||
       file_zero_relocations != 1u ||
       explicit_zero_relocations != 1u ||
       block_zero_relocations != 2u ||
@@ -24945,7 +24946,7 @@ static int validate_long_double_static_aggregate_object(
       ctool_bytes(text->contents.data + function->value,
                   function->size));
   if (text->contents.size != function->size ||
-      function->size != 415u || fingerprint != 0xbf01cc71u ||
+      function->size != 448u || fingerprint != 0x058200a6u ||
       text->relocation_count != 8u ||
       object->relocation_count != 8u ||
       object->symbol_count != 10u ||
@@ -25612,8 +25613,8 @@ static int validate_floating_comparison_object(
   const ctool_elf32_section_t *bss = find_section(object, ".bss");
   ctool_u32 index;
   if (job == NULL || object == NULL || text == NULL ||
-      text->contents.data == NULL || text->contents.size != 2861u ||
-      structure_text_fingerprint(text->contents) != 0x76d70ca0u ||
+      text->contents.data == NULL || text->contents.size != 2927u ||
+      structure_text_fingerprint(text->contents) != 0xabb6b4c0u ||
       (bss != NULL && bss->size != 0u) ||
       object->symbol_count != 31u || object->relocation_count != 0u) {
     (void)fprintf(
@@ -28318,12 +28319,29 @@ static int run_floating_scalar_object(const char *host_root) {
                    sizeof(*invalid_expressions));
   invalid_expressions[integer_to_floating].type =
       long_double_type;
+  invalid_expressions[integer_to_floating].conversion =
+      CTOOL_C_CONVERSION_QUALIFICATION;
   if (ctool_buffer_rewind(failure, 0u) != CTOOL_OK ||
       !expect_object_failure_preserves_unit(
           job, &invalid_unit, failure, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION,
           "CupidC IR lowering does not yet support this conversion",
-          "integer to long double conversion at object boundary")) {
+          "qualified integer to long double conversion at object boundary")) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count *
+                   sizeof(*invalid_expressions));
+  invalid_expressions[integer_to_floating].type =
+      long_double_type;
+  invalid_expressions[integer_to_floating].conversion =
+      CTOOL_C_CONVERSION_USUAL_ARITHMETIC;
+  if (ctool_buffer_rewind(failure, 0u) != CTOOL_OK ||
+      !expect_object_failure_preserves_unit(
+          job, &invalid_unit, failure, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION,
+          "CupidC IR lowering does not yet support this conversion",
+          "usual integer to long double conversion at object boundary")) {
     goto cleanup;
   }
   (void)memcpy(invalid_expressions, unit.expressions,
@@ -29637,21 +29655,21 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.cc",           "/toolchain/x86.cc",
       "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
-      65u, 71u, 82u, 140u, 31u, 143u, 264u, 360u, 427u, 82u, 37u, 60u,
+      65u, 71u, 82u, 140u, 31u, 143u, 265u, 366u, 428u, 82u, 37u, 60u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 78841u, 118477u, 183181u, 42212u,
-      190304u, 485194u, 561822u, 864047u, 146398u, 70368u, 80933u,
+      190304u, 486526u, 574128u, 865286u, 146398u, 70368u, 80933u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 91460u, 137444u, 220508u, 49484u,
-      226668u, 523300u, 630992u, 1027276u, 165728u, 79348u, 135744u,
+      226668u, 524784u, 644300u, 1029064u, 165728u, 79348u, 136164u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x6a4e9e64u, 0xae15dc9eu,
       0x90f1448fu, 0x999f97b7u, 0xb49d8eb9u,
-      0x75bea286u, 0xd617c69au, 0x6afbefc0u, 0xb175f9a8u,
-      0x34558a49u, 0xa7f3ffcdu, 0x8774de7du};
+      0xfa10679au, 0x4a968c97u, 0x9df3cef4u, 0x9f35cab4u,
+      0x34558a49u, 0x6b4b77aeu, 0x8774de7du};
   ctool_u32 index;
   int all_matched = 1;
   if (first_index > past_last_index ||
@@ -33994,27 +34012,23 @@ cleanup:
   return 1;
 }
 
-static int validate_ldmxcsr_memory_input_function(
+static int validate_control_memory_input_function(
     ctool_job_t *job, const ctool_elf32_section_t *text,
-    const ctool_elf32_symbol_t *symbol) {
-  static const ctool_u8 function_bytes[] = {
-      0x55u, 0x89u, 0xe5u,
-      0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u,
-      0x58u, 0x8bu, 0x00u, 0x50u,
-      0x58u, 0x0fu, 0xaeu, 0x10u,
-      0xc9u, 0xc3u};
-  static const ctool_u8 ldmxcsr_bytes[] = {
-      0x0fu, 0xaeu, 0x10u};
+    const ctool_elf32_symbol_t *symbol,
+    ctool_x86_mnemonic_t mnemonic, ctool_u16 width_bits,
+    ctool_bytes_t function_bytes, ctool_bytes_t instruction_bytes) {
   ctool_u32 cursor = 0u;
-  ctool_u32 ldmxcsr_count = 0u;
+  ctool_u32 instruction_count = 0u;
   if (job == NULL || text == NULL || symbol == NULL ||
+      function_bytes.data == NULL || instruction_bytes.data == NULL ||
+      function_bytes.size == 0u || instruction_bytes.size == 0u ||
       symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
       symbol->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
       symbol->value > text->contents.size ||
       symbol->size > text->contents.size - symbol->value ||
-      symbol->size != (ctool_u32)sizeof(function_bytes) ||
-      memcmp(text->contents.data + symbol->value, function_bytes,
-             sizeof(function_bytes)) != 0) {
+      symbol->size != function_bytes.size ||
+      memcmp(text->contents.data + symbol->value, function_bytes.data,
+             (size_t)function_bytes.size) != 0) {
     return 0;
   }
   while (cursor < symbol->size) {
@@ -34031,16 +34045,16 @@ static int validate_ldmxcsr_memory_input_function(
         decoded.consumed == 0u) {
       return 0;
     }
-    if (decoded.instruction.mnemonic == CTOOL_X86_MN_LDMXCSR) {
+    if (decoded.instruction.mnemonic == mnemonic) {
       const ctool_x86_operand_t *operand;
       const ctool_x86_memory_t *memory;
       if (decoded.instruction.operand_count != 1u ||
           decoded.instruction.operands[0].kind !=
               CTOOL_X86_OPERAND_MEMORY ||
-          decoded.instruction.operands[0].width_bits != 32u ||
-          decoded.consumed != (ctool_u32)sizeof(ldmxcsr_bytes) ||
-          memcmp(remaining.data, ldmxcsr_bytes,
-                 sizeof(ldmxcsr_bytes)) != 0) {
+          decoded.instruction.operands[0].width_bits != width_bits ||
+          decoded.consumed != instruction_bytes.size ||
+          memcmp(remaining.data, instruction_bytes.data,
+                 (size_t)instruction_bytes.size) != 0) {
         return 0;
       }
       operand = &decoded.instruction.operands[0];
@@ -34052,26 +34066,59 @@ static int validate_ldmxcsr_memory_input_function(
           memory->index.class_id != CTOOL_X86_REG_NONE ||
           memory->scale != 1u ||
           memory->displacement.kind != CTOOL_X86_VALUE_CONSTANT ||
-          memory->displacement.bits != 0u) {
+          memory->displacement.bits != 0u ||
+          memory->displacement.addend != 0) {
         return 0;
       }
-      ldmxcsr_count++;
+      instruction_count++;
     }
     cursor += decoded.consumed;
   }
-  return cursor == symbol->size && ldmxcsr_count == 1u ? 1 : 0;
+  return cursor == symbol->size && instruction_count == 1u ? 1 : 0;
 }
 
-static int validate_ldmxcsr_memory_input_object(
+static int validate_control_memory_input_object(
     ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const ctool_u8 ldmxcsr_function_bytes[] = {
+      0x55u, 0x89u, 0xe5u,
+      0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u,
+      0x58u, 0x8bu, 0x00u, 0x50u,
+      0x58u, 0x0fu, 0xaeu, 0x10u,
+      0xc9u, 0xc3u};
+  static const ctool_u8 fldcw_function_bytes[] = {
+      0x55u, 0x89u, 0xe5u,
+      0x8du, 0x85u, 0x08u, 0x00u, 0x00u, 0x00u, 0x50u,
+      0x58u, 0x8bu, 0x00u, 0x50u,
+      0x58u, 0xd9u, 0x28u,
+      0xc9u, 0xc3u};
+  static const ctool_u8 ldmxcsr_bytes[] = {
+      0x0fu, 0xaeu, 0x10u};
+  static const ctool_u8 fldcw_bytes[] = {0xd9u, 0x28u};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   if (text == NULL || text->contents.data == NULL ||
       object->relocation_count != 0u ||
-      !validate_ldmxcsr_memory_input_function(
-          job, text, find_symbol(object, "load_const")) ||
-      !validate_ldmxcsr_memory_input_function(
-          job, text, find_symbol(object, "load_volatile"))) {
-    (void)fprintf(stderr, "LDMXCSR memory-input object differs\n");
+      !validate_control_memory_input_function(
+          job, text, find_symbol(object, "load_const"),
+          CTOOL_X86_MN_LDMXCSR, 32u,
+          ctool_bytes(ldmxcsr_function_bytes,
+                      (ctool_u32)sizeof(ldmxcsr_function_bytes)),
+          ctool_bytes(ldmxcsr_bytes,
+                      (ctool_u32)sizeof(ldmxcsr_bytes))) ||
+      !validate_control_memory_input_function(
+          job, text, find_symbol(object, "load_volatile"),
+          CTOOL_X86_MN_LDMXCSR, 32u,
+          ctool_bytes(ldmxcsr_function_bytes,
+                      (ctool_u32)sizeof(ldmxcsr_function_bytes)),
+          ctool_bytes(ldmxcsr_bytes,
+                      (ctool_u32)sizeof(ldmxcsr_bytes))) ||
+      !validate_control_memory_input_function(
+          job, text, find_symbol(object, "load_control_word"),
+          CTOOL_X86_MN_FLDCW, 16u,
+          ctool_bytes(fldcw_function_bytes,
+                      (ctool_u32)sizeof(fldcw_function_bytes)),
+          ctool_bytes(fldcw_bytes,
+                      (ctool_u32)sizeof(fldcw_bytes)))) {
+    (void)fprintf(stderr, "control memory-input object differs\n");
     return 0;
   }
   return 1;
@@ -34080,11 +34127,15 @@ static int validate_ldmxcsr_memory_input_object(
 static int run_ldmxcsr_memory_input_object(const char *host_root) {
   static const char source[] =
       "typedef unsigned int u32;\n"
+      "typedef unsigned short uint16_t;\n"
       "void load_const(const u32 *state) {\n"
       "  __asm__ volatile(\"ldmxcsr %0\" : : \"m\"(*state));\n"
       "}\n"
       "void load_volatile(volatile u32 *state) {\n"
       "  __asm__ volatile(\"ldmxcsr %0\" : : \"m\"(*state));\n"
+      "}\n"
+      "void load_control_word(const uint16_t *control) {\n"
+      "  __asm__ volatile(\"fldcw %0\" : : \"m\"(*control));\n"
       "}\n";
   static const char invalid_message[] =
       "CupidC IR lowering received an invalid translation unit";
@@ -34096,8 +34147,8 @@ static int run_ldmxcsr_memory_input_object(const char *host_root) {
   ctool_buffer_t *failure = NULL;
   ctool_c_translation_unit_t unit;
   ctool_c_translation_unit_t mutant;
-  ctool_c_assembly_t mutant_assemblies[2];
-  ctool_c_assembly_operand_t mutant_operands[2];
+  ctool_c_assembly_t mutant_assemblies[3];
+  ctool_c_assembly_operand_t mutant_operands[3];
   ctool_c_type_layout_t *mutant_layouts = NULL;
   unit_snapshot_t snapshot;
   ctool_source_t object_source;
@@ -34114,11 +34165,11 @@ static int run_ldmxcsr_memory_input_object(const char *host_root) {
       !parse_source_mode(
           job, "/ldmxcsr-memory-input-object.c", source,
           CTOOL_TRUE, &unit) ||
-      unit.function_definition_count != 2u ||
-      unit.assembly_count != 2u ||
-      unit.assembly_operand_count != 2u ||
+      unit.function_definition_count != 3u ||
+      unit.assembly_count != 3u ||
+      unit.assembly_operand_count != 3u ||
       !take_unit_snapshot(&unit, &snapshot)) {
-    (void)fprintf(stderr, "LDMXCSR memory-input object setup failed\n");
+    (void)fprintf(stderr, "control memory-input object setup failed\n");
     goto cleanup;
   }
   status = ctool_job_open_buffer(
@@ -34132,11 +34183,11 @@ static int run_ldmxcsr_memory_input_object(const char *host_root) {
         job, 1024u, config.limits.output_bytes, &failure);
   }
   if (!check_status(
-          status, CTOOL_OK, "LDMXCSR memory-input buffers") ||
+          status, CTOOL_OK, "control memory-input buffers") ||
       !expect_object_success_preserves_unit(
-          job, &unit, first, "first LDMXCSR memory-input object") ||
+          job, &unit, first, "first control memory-input object") ||
       !expect_object_success_preserves_unit(
-          job, &unit, second, "repeat LDMXCSR memory-input object")) {
+          job, &unit, second, "repeat control memory-input object")) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
@@ -34147,7 +34198,7 @@ static int run_ldmxcsr_memory_input_object(const char *host_root) {
              (size_t)first_bytes.size) != 0 ||
       unit_snapshot_matches(&snapshot, &unit) == 0) {
     (void)fprintf(
-        stderr, "LDMXCSR memory-input object is not deterministic\n");
+        stderr, "control memory-input object is not deterministic\n");
     goto cleanup;
   }
   object_source.path.text =
@@ -34156,18 +34207,18 @@ static int run_ldmxcsr_memory_input_object(const char *host_root) {
   (void)memset(&object, 0xa5, sizeof(object));
   status = ctool_elf32_read(job, &object_source, &object);
   if (!check_status(
-          status, CTOOL_OK, "read LDMXCSR memory-input object") ||
-      !validate_ldmxcsr_memory_input_object(job, &object)) {
+          status, CTOOL_OK, "read control memory-input object") ||
+      !validate_control_memory_input_object(job, &object)) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
-  if (second_bytes.size != 400u ||
-      find_section(&object, ".text")->contents.size != 40u ||
-      object.section_count != 5u || object.symbol_count != 3u ||
+  if (second_bytes.size != 456u ||
+      find_section(&object, ".text")->contents.size != 59u ||
+      object.section_count != 5u || object.symbol_count != 4u ||
       object.relocation_count != 0u) {
     (void)fprintf(
         stderr,
-        "ldmxcsr-memory-input: object metrics differ: object=%u text=%u "
+        "control-memory-input: object metrics differ: object=%u text=%u "
         "sections=%u symbols=%u relocations=%u\n",
         (unsigned int)second_bytes.size,
         (unsigned int)find_section(&object, ".text")->contents.size,
@@ -34207,6 +34258,28 @@ static int run_ldmxcsr_memory_input_object(const char *host_root) {
   }
   mutant_assemblies[0] = unit.assemblies[0];
 
+  mutant_assemblies[2].template_text = ctool_string("fldcw 2(%0)");
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged FLDCW displacement") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_assemblies[2] = unit.assemblies[2];
+
+  mutant_assemblies[2].flags |= CTOOL_C_ASSEMBLY_MEMORY_CLOBBER;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged FLDCW clobber") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_assemblies[2] = unit.assemblies[2];
+
   mutant_operands[0].constraint = ctool_string("r");
   if (!expect_object_failure(
           job, &mutant, failure, CTOOL_ERR_INPUT,
@@ -34217,6 +34290,17 @@ static int run_ldmxcsr_memory_input_object(const char *host_root) {
     goto cleanup;
   }
   mutant_operands[0] = unit.assembly_operands[0];
+
+  mutant_operands[2].matching_output = 0u;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged FLDCW matching input") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
+  mutant_operands[2] = unit.assembly_operands[2];
 
   if (unit.layout.type_count != 0u &&
       sizeof(*mutant_layouts) >
@@ -34241,10 +34325,22 @@ static int run_ldmxcsr_memory_input_object(const char *host_root) {
       ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
     goto cleanup;
   }
+  mutant_layouts[unit.assembly_operands[0].type] =
+      unit.layout.types[unit.assembly_operands[0].type];
+
+  mutant_layouts[unit.assembly_operands[2].type].size = 4u;
+  if (!expect_object_failure(
+          job, &mutant, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT, invalid_message,
+          "forged FLDCW input layout") ||
+      unit_snapshot_matches(&snapshot, &unit) == 0 ||
+      ctool_buffer_rewind(failure, 0u) != CTOOL_OK) {
+    goto cleanup;
+  }
   mutant.layout.types = unit.layout.types;
 
   if (!expect_object_success_preserves_unit(
-          job, &unit, failure, "LDMXCSR memory-input recovery")) {
+          job, &unit, failure, "control memory-input recovery")) {
     goto cleanup;
   }
   recovered_bytes = ctool_buffer_view(failure);
@@ -34253,7 +34349,7 @@ static int run_ldmxcsr_memory_input_object(const char *host_root) {
              (size_t)first_bytes.size) != 0 ||
       unit_snapshot_matches(&snapshot, &unit) == 0) {
     (void)fprintf(
-        stderr, "LDMXCSR memory-input recovery object differs\n");
+        stderr, "control memory-input recovery object differs\n");
     goto cleanup;
   }
   passed = 1;

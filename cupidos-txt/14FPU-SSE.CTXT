@@ -79,9 +79,15 @@ The value-bearing ten bytes move through x87 80-bit FLD and FSTP memory forms in
 path converts among float, double, and long double, applies unary plus and
 minus, and evaluates +, -, *, and /.
 Source-head CupidASM and CupidDis also share signed x87 integer memory forms.
-FILD and FISTP accept 16-bit, 32-bit, and 64-bit operands. These rows prepare
-the hosted compiler for exact runtime integer conversion, but the compiler
-does not consume them yet and the checked seed does not carry them.
+FILD and FISTP accept 16-bit, 32-bit, and 64-bit operands. Compiler head uses
+the 64-bit forms for runtime conversion at every i386 integer width. It
+presents input as signed 64-bit memory, adds exact 2^64 for an unsigned 64-bit
+value with bit 63 set, and canonicalizes the 64-bit FISTP result to the target
+width. The unsigned correction temporarily selects 64-bit x87 precision,
+keeps the caller's rounding mode, and restores the complete saved control
+word before the final store. Integer output saves and restores that word
+around truncation toward zero. The checked seed
+does not carry this compiler path yet.
 Direct and indirect fixed, variadic, and unprototyped arguments occupy twelve
 cdecl bytes. Functions return the value in x87 ST0, and direct or indirect
 callers store it in a twelve-byte snapshot. va_arg(long double) copies twelve
@@ -91,8 +97,8 @@ inputs. The emitter loads right then left, uses FUCOMIP ST0, ST1, and discards
 the surviving x87 value. Signed zeros compare equal, and only != is true for
 an unordered input. Hexadecimal or subnormal long-double literals, decimal
 ratios beyond the bounded parser, static long-double arithmetic, comparison,
-truth, conditional selection, and width conversion, nonzero integer static
-initializers, and integer conversions involving long double remain open.
+truth, conditional selection, width conversion, integer conversion, and
+nonzero integer static initializers remain open.
 
 The static scalar and aggregate proofs cover both scopes, mutable and const
 objects, positive and negative values, both signed zeros, the largest accepted
@@ -117,7 +123,12 @@ xmm0 clobber and emits F3 0F 10 00 or F3 0F 11 00 through EAX. The unchanged
 stress_sin x87 block is also represented. It keeps one double output and one
 double input, permits no clobbers, and emits FLD, FSIN, and FSTP through the
 shared x86 model. The x87 stack returns to its original depth and no frame
-temporary is used. The earlier compiler proof used kernel/cpu/fpu.c. The
+temporary is used. Compiler head also accepts exact fldcw %0 with one
+addressable, non-atomic 16-bit integer memory input. GNU semantics make the
+no-output statement volatile even without that keyword. The emitter produces
+D9 /5 through EAX. The checked seed does not carry this form yet.
+
+The earlier compiler proof used kernel/cpu/fpu.c. The
 unchanged implementation is now kernel/cpu/fpu.cc, a checked CupidC production
 root. Two checked compiles produce the same validated 6,620-byte object with
 SHA-256
@@ -246,9 +257,10 @@ for, and conversion to _Bool. Both signed zeros are false; finite nonzero values
 subnormals, infinities, and NaNs are true. Increment and decrement,
 hexadecimal floating constants, binary32 and binary64 subnormal constants,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
-bounded parser, static long-double computation and width conversion, nonzero
-integer static initializers, integer conversions involving long
-double other than _Bool, general SIMD value semantics, and atomic floating
+bounded parser, static long-double computation, floating-width conversion,
+and integer
+conversion, nonzero integer static initializers, general SIMD value semantics,
+and atomic floating
 access remain outside this shared path. Twelve-byte direct and
 indirect fixed, variadic, and unprototyped arguments, function returns, direct
 and indirect call results, and va_arg(long double) use the represented

@@ -56,8 +56,8 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_usb` | 8 | 3518 |
 | `kernel_util` | 2 | 660 |
 | `project_source` | 1 | 5 |
-| `toolchain_contract` | 17 | 148878 |
-| `toolchain_core` | 33 | 86097 |
+| `toolchain_contract` | 17 | 149636 |
+| `toolchain_core` | 33 | 86527 |
 | `toolchain_host_adapter` | 2 | 266 |
 | `toolchain_kernel_adapter` | 2 | 530 |
 | `user_program` | 3 | 139 |
@@ -98,16 +98,16 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 801 |
 | `asm.relocation` | 1 | 17 |
-| `c.control` | 12 | 80861 |
+| `c.control` | 12 | 81077 |
 | `c.declaration` | 1 | 28 |
-| `c.declarator` | 4 | 3770 |
-| `c.expression` | 2 | 5760 |
-| `c.extension` | 19 | 416 |
+| `c.declarator` | 4 | 3780 |
+| `c.expression` | 2 | 5773 |
+| `c.extension` | 19 | 420 |
 | `c.initializer` | 1 | 654 |
 | `c.preprocessor` | 18 | 6895 |
-| `c.qualifier` | 2 | 15365 |
-| `c.storage` | 4 | 9791 |
-| `c.type` | 15 | 50411 |
+| `c.qualifier` | 2 | 15387 |
+| `c.storage` | 4 | 9827 |
+| `c.type` | 15 | 50505 |
 | `cupid_c.declaration` | 1 | 2 |
 | `cupid_c.delivery` | 2 | 129 |
 | `cupid_c.directive` | 1 | 1 |
@@ -140,14 +140,14 @@ It is also a declared Make prerequisite.
 | ---: | --- | ---: |
 | 1 | `host_runnable_toolchain_core` - Establish a host-runnable shared Cupid Toolchain core | 74 |
 | 2 | `elf32_relocatable_interchange` - Emit and consume deterministic ELF32 relocatable objects | 247 |
-| 3 | `shared_i386_abi_and_instruction_model` - Share one i386 ABI and instruction model | 67 |
+| 3 | `shared_i386_abi_and_instruction_model` - Share one i386 ABI and instruction model | 68 |
 | 4 | `cupiddis_object_inspection` - Make CupidDis inspect raw and ELF32 relocatable output | 12 |
 | 5 | `cupidasm_source_controls_and_expressions` - Implement the active Cupid ASM directives and expression language | 29 |
 | 6 | `cupidasm_encoding_and_raw_parity` - Reach byte parity for boot and trampoline binaries | 17 |
 | 7 | `cupidasm_symbols_and_relocations` - Emit ELF32 sections, symbols, and i386 relocations | 5 |
 | 8 | `cupidc_preprocessor` - Implement the active C and Cupid C preprocessing contract | 549 |
 | 9 | `cupidc_c11_types_initializers_and_abi` - Implement freestanding C11 type, initializer, and cdecl semantics | 653 |
-| 10 | `cupidc_platform_extensions` - Implement required GNU attributes and extended inline assembly | 58 |
+| 10 | `cupidc_platform_extensions` - Implement required GNU attributes and extended inline assembly | 59 |
 | 11 | `cupidc_doom_compatibility` - Compile the complete Doom and compatibility cohort | 204 |
 | 12 | `cupid_mode_production_and_extensions` - Scale Cupid mode across embedded programs and browser fragments | 378 |
 
