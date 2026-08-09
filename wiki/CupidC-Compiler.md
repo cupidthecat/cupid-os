@@ -512,13 +512,13 @@ nested level, and rejects removing the nested `const`.
 
 An external array may omit its bound when its element type is complete. The shared IR can take that linked object's address, decay it to the compatible element pointer, apply the element scale, and continue through member access. The array remains incomplete, so it cannot be loaded as a value or used as if its storage size were known.
 
-The exact hosted gate checks 33 strict C11 roots and two GNU-enabled runtime
-roots under the four-byte i386 Linux target. It covers the 19-source tool
+The exact hosted gate checks 34 strict C11 roots and two GNU-enabled runtime
+roots under four-byte i386 targets. It covers the 19-source tool
 union, `kernel/lang/as_elf.cc`, the runtime implementation and probe, and all
-fourteen Toolchain contracts. `HOSTED_I386_LINUX` owns the 31 strict roots
-that can include only the Toolchain tree and the angle-only hosted
-declarations. The GNU profile is limited to the runtime implementation and
-probe.
+fifteen Toolchain contract sources. `HOSTED_I386_LINUX` owns 31 strict Linux
+roots that can include only the Toolchain tree and the angle-only hosted
+declarations. `FREESTANDING_I386` owns the headerless Windows command probe.
+The GNU profile is limited to the runtime implementation and probe.
 `HOSTED_I386_KERNEL_BRIDGE` owns the assembler ELF adapter and its contract,
 which may also include `/kernel/lang`. The retired 64-bit hosted audit
 profiles have no active roots.
@@ -532,8 +532,8 @@ source trees, files, and symbolic links remain untouched. The initial,
 private, and newly discovered contract inventories must match exactly, which
 catches added or removed inputs and restored edits that changed a copied
 file. Every run derives its cohort from the requested executable, requires a
-named manifest artifact, and verifies the complete cohort, live 45-input
-contract set, checked seed manifest, and 41-file fixed-point source inventory
+named manifest artifact, and verifies the complete cohort, live 47-input
+contract set, checked seed manifest, and 43-file fixed-point source inventory
 before execution. The contract set includes the Toolchain Makefile and both
 Python control modules. Seed-manifest hashing, JSON decoding, schema validation, and
 build-plan use share one captured byte sequence.
@@ -675,7 +675,7 @@ The 5,440-byte manifest has SHA-256
 `bbc989d7008507a2961a5f940875270fb48b68bf7afb993f5774d70aea17fe91`.
 ADR 0243 records the current promotion.
 
-The bootstrap copies the 41-input source closure into a private compiler root.
+The bootstrap copies the 43-input source closure into a private compiler root.
 Both rebuilt stages compile from that root, and the harness checks the private
 and live closures at each stage and behavior boundary. The profile-manifest
 seed transition's stage two and stage three contain the same five tool images.
@@ -685,14 +685,19 @@ object and agree on all five help paths, fifteen successful operations, and
 thirteen failure cases. Their stage directories, behavior evidence, and report
 are published together only after the complete gate passes.
 
-Source-head CupidLD includes a deterministic fixed-layout i386 PE32 serializer.
-That proof uses the same 19 C objects, startup, and five rebuilt tools. It
-includes one successful PE link and one rejected-layout case, so its matrix is
-5/16/14. Only CupidLD differs from the promoted seed. The PE image is validated
-structurally. The image has no imports or base relocations. No generated image
-is executed, carried in the seed, or used by the normal build, so this does not
-establish a Windows runtime or native fixed point. ADR 0247 records this source
-boundary.
+Source-head CupidLD includes deterministic fixed-layout i386 PE32 serialization
+and canonical imports. That proof uses the same rebuilt tools, plus a
+repository Windows startup and a headerless freestanding CupidC contract.
+Both CupidC stages emit the same object, and both CupidLD stages link the same
+imported image. Windows validates and runs the stage-two image, checks its
+exact marker and empty stderr, and requires exit 37. The source-head matrix is
+5/17/15. Import ordering uses an in-place heap, name imports stay below the
+PE32 high-bit boundary, and the independent validator reconstructs the exact
+`.idata` cursor. The bootstrap report retains both stages' object and image
+hashes and the observed Windows result. The checked seed does not carry
+imports, and the normal build does not use PE output, so native five-tool
+execution and seed carriage remain open.
+ADRs 0247 and 0248 record these boundaries.
 
 Those rebuilt CupidLD images publish ELF and PE output through an adjacent
 candidate created with exclusive-create semantics. They write and close the
@@ -712,8 +717,9 @@ ISO recipe now runs that checked image as its first byte author, with Python
 retained as the independent renderer and guarded publisher; ADR 0241 records
 that handoff.
 
-The normal Toolchain build snapshots 45 contract inputs, including the
-Toolchain Makefile and both Python control modules, reproduces that exact
+The normal Toolchain build snapshots 47 contract inputs, including the
+Windows startup and runtime probe, the Toolchain Makefile, and both Python
+control modules, then reproduces that exact
 inventory under a private root, and uses both rebuilt stages for all fourteen
 contract programs and the runtime probe. It compares sixteen new objects and
 fifteen linked executables. Every invocation verifies its named artifact, the
@@ -724,10 +730,8 @@ Stage-two and stage-three objects and executables match, the hosted runtime
 passes, and all 20 published artifacts verify. Its 18,232-byte manifest has
 SHA-256
 `8cd0ea08454d9d672e6890e040fce85ba02b2c101c21599aa3933b0d89eee202`.
-The manifest records all 45 inputs, the 41-file source snapshot with SHA-256
-`bac03a6d2b36dff48983221aae209a6688b408232b5d5373b6c2128082228a66`,
-and the checked seed with SHA-256
-`019c77d53ddaf64a382962e1d9588a60046b75a7661f70beb0da7510945f35d0`.
+The manifest records all 47 inputs, the 43-file source snapshot, and the
+checked seed. Current hashes are retained in the bootstrap log.
 That cohort predates the seed promotion; the post-promotion bootstrap proves
 the promoted trust unit independently.
 See [Toolchain Bootstrap](Toolchain-Bootstrap) for the commands and report

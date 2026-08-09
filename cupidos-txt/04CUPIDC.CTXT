@@ -244,10 +244,11 @@ Initial, private, and newly discovered contract inventories must match exactly,
 which catches additions, removals, and restored edits that changed a copied
 input. Every run derives the cohort from its requested executable, requires a
 named manifest artifact, and verifies the manifest, target, fixed-point
-record, filenames, sizes, artifact hashes, 45 contract input hashes, the
-checked seed manifest, and the 41-file fixed-point source inventory before
-execution. The contract inventory now has 45 inputs, including the Toolchain
-Makefile and both Python modules that construct or verify the cohort. The
+record, filenames, sizes, artifact hashes, 47 contract input hashes, the
+checked seed manifest, and the 43-file fixed-point source inventory before
+execution. The contract inventory now has 47 inputs, including the Windows
+startup and runtime probe, the Toolchain Makefile, and both Python modules
+that construct or verify the cohort. The
 manifest digest, decoded data, schema checks, and build plan
 come from one captured byte sequence. The 438-transform normal image has no
 host C or recursive Make transform. Its five CupidASM, 189 CupidObj, two
@@ -707,18 +708,19 @@ Pointer qualification accepts the safe char ** to char *const * conversion.
 It rejects char ** to const char ** because that would add a qualifier at an
 unsafe nested level. It also rejects removing the nested const.
 
-The exact hosted gate covers 33 strict C11 roots and two GNU-enabled runtime
-roots under the checked i386 Linux profile. It includes the 19-source tool
+The exact hosted gate covers 34 strict C11 roots and two GNU-enabled runtime
+roots under checked four-byte i386 profiles. It includes the 19-source tool
 union, kernel/lang/as_elf.cc, the runtime implementation and probe, and all
-fourteen Toolchain contracts. Thirty-one strict roots use only the Toolchain
-and hosted declaration roots. The assembler ELF adapter and its contract use
-a separate two-root bridge that can also include /kernel/lang. The GNU profile
-is limited to the runtime implementation and probe. The old 64-bit hosted
-profiles have no roots. Stage-two and stage-three CupidC compile every
-contract, CupidLD links the static executables, and the checked cohort rejects
-a byte difference in any of sixteen new objects or fifteen executables. Test
-programs stay outside the 19-source fixed-point plan because they do not
-contribute to a tool image.
+fifteen Toolchain contract sources. Thirty-one strict Linux roots use only
+the Toolchain and hosted declaration roots. The headerless Windows command
+probe uses the separate FREESTANDING_I386 profile. The assembler ELF adapter
+and its contract use a separate two-root bridge that can also include
+/kernel/lang. The GNU profile is limited to the runtime implementation and
+probe. The old 64-bit hosted profiles have no roots. Stage-two and stage-three
+CupidC compile every contract, CupidLD links the static executables, and the
+checked cohort rejects a byte difference in any of sixteen new objects or
+fifteen executables. Test programs stay outside the 19-source fixed-point plan
+because they do not contribute to a tool image.
 
 The repository runtime supplies the checked file, heap, memory, string, errno,
 getcwd, fixed-width integer, and formatted-output interfaces used by the five
@@ -800,12 +802,18 @@ stages also agree on all five help paths, fifteen successful operations, and
 thirteen failure cases.
 
 That 5/15/13 proof describes the promoted Linux seed. Source-head CupidLD
-includes one deterministic fixed-layout i386 PE32 link and one rejected-layout
-case. The current source proof is 5/16/14. Stage two and stage three produce
-the same PE bytes, while only CupidLD differs from the promoted seed. The image
-omits empty output categories from its section table, has no imports or base
-relocations, rejects writable executable input, and is checked structurally
-without being run. It is not a Windows runtime or native seed. Normal-build
+adds deterministic fixed-layout i386 PE32 imports. Both CupidASM stages
+assemble the Windows entry, both freestanding CupidC stages compile its main,
+and both CupidLD stages produce identical images. The current source proof is
+5/17/15. The image omits empty output categories, keeps base relocations empty,
+and stores canonical descriptors and IAT cells in writable .idata. Imported
+slots require zero-addend absolute relocations. Import ordering uses an
+in-place heap, repeated slots do not require a second scan, and name imports
+stay below the PE32 high-bit boundary. The validator reconstructs the exact
+.idata cursor. Windows validates and runs the stage-two image, requires its
+exact stdout marker and empty stderr, and checks exit 37. The report retains
+both object and image pairs and the observed Windows result. The checked seed
+does not carry this path, so it is not a native five-tool seed. Normal-build
 ownership does not change.
 
 The rebuilt source-head CupidLD images publish both ELF and PE output through a
@@ -894,7 +902,8 @@ retains the host transaction. ADR 0242 records the source boundary, ADR 0243
 records seed carriage, and ADR 0244 records production ownership.
 
 The harness freezes the verified manifest and binaries and copies the exact
-bytes of 41 current inputs, including link.ld, into a private compiler root.
+bytes of 43 current inputs, including link.ld and the two Windows probe
+sources, into a private compiler root.
 The seed producer trio builds stage two below that root, and the stage-two trio
 builds stage three there. The private and live closures are checked before the
 first stage, after each stage, and after the behavior checks. All 19 C objects,

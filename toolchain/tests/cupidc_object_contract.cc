@@ -29149,18 +29149,18 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.cc",           "/toolchain/x86.cc",
       "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
-      65u, 71u, 66u, 140u, 31u, 143u, 263u, 359u, 426u, 82u, 37u, 60u,
+      65u, 71u, 82u, 140u, 31u, 143u, 263u, 359u, 426u, 82u, 37u, 60u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
-      42118u, 78841u, 85252u, 183181u, 42212u,
+      42118u, 78841u, 118477u, 183181u, 42212u,
       190304u, 483769u, 559272u, 859606u, 146398u, 70368u, 80933u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
-      46720u, 91460u, 99772u, 220508u, 49484u,
+      46720u, 91460u, 137444u, 220508u, 49484u,
       226668u, 521792u, 628308u, 1021884u, 165728u, 79348u, 135744u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
-      0x6bff5a25u, 0x6a4e9e64u, 0x4ca44a27u,
+      0x6bff5a25u, 0x6a4e9e64u, 0xae15dc9eu,
       0x90f1448fu, 0x999f97b7u, 0xb49d8eb9u,
       0x12585d91u, 0x796e931du, 0x92b4ffacu, 0xb175f9a8u,
       0x34558a49u, 0xa7f3ffcdu, 0x8774de7du};
@@ -29814,7 +29814,9 @@ static int link_result_is_empty(const ctool_ld_result_t *result) {
                  result->memory_end == 0u &&
                  result->output_section_count == 0u &&
                  result->resolved_symbol_count == 0u &&
-                 result->applied_relocation_count == 0u
+                 result->applied_relocation_count == 0u &&
+                 result->imported_symbol_count == 0u &&
+                 result->imported_library_count == 0u
              ? 1
              : 0;
 }
@@ -29844,6 +29846,8 @@ static int linked_host_tool_is_complete(
       result->output_section_count == 0u ||
       result->resolved_symbol_count == 0u ||
       result->applied_relocation_count == 0u ||
+      result->imported_symbol_count != 0u ||
+      result->imported_library_count != 0u ||
       image.entry_point != result->entry ||
       image.program_header_count == 0u ||
       image.section_count <= result->output_section_count ||
@@ -30489,6 +30493,8 @@ static int run_self_host_link_ctool_host(const char *host_root,
       failure_result.output_section_count != 0u ||
       failure_result.resolved_symbol_count != 0u ||
       failure_result.applied_relocation_count != 0u ||
+      failure_result.imported_symbol_count != 0u ||
+      failure_result.imported_library_count != 0u ||
       ctool_job_diagnostic_count(job) != 1u || diagnostic == NULL ||
       diagnostic->code != CTOOL_LD_DIAG_UNDEFINED_SYMBOL ||
       string_equal(diagnostic->path, "/toolchain/ctool_host.o") == 0 ||
@@ -30535,6 +30541,8 @@ static int run_self_host_link_ctool_host(const char *host_root,
       first_result.output_section_count != 4u ||
       first_result.resolved_symbol_count != 24u ||
       first_result.applied_relocation_count != 45u ||
+      first_result.imported_symbol_count != 0u ||
+      first_result.imported_library_count != 0u ||
       executable.program_header_count != 5u ||
       executable.section_count != 8u || executable.symbol_count != 25u ||
       executable.relocation_count != 0u ||

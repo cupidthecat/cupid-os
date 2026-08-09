@@ -4,15 +4,15 @@ The deterministic active-source audit records three supported build roots:
 root `all`, `user:all`, and `toolchain:all`. It evaluates Make conditionals
 with `OS=Windows_NT` and `LC_ALL=C` on every host so the checked graph has one
 stable shape, then covers the Linux branch with direct build tests.
-`audits/active-build.json` owns the current 719-input/447-transform graph. The
-language graph contains 28 assembly inputs, 290 headers, and 401 Cupid C
+`audits/active-build.json` owns the current 721-input/447-transform graph. The
+language graph contains 29 assembly inputs, 290 headers, and 402 Cupid C
 files. No ordinary C translation unit remains in a supported root. The
 active-source digest is
-`3ccfc3161018c2569873255aca8b86a581a5cd36ec6c016669ae95935727ac47`.
-The 2,569,536-byte audit JSON has SHA-256
-`d4861b90f1403e65531ba0c0bb1d25d2041f9d5e4905da2df9c32dadec0c4b15`,
-and the 12,197-byte summary has SHA-256
-`00fa7c7d15ac3274eda9076df24ac477aa7a019c62ed13d88e126fa0207f470f`.
+`6643bdb848320e56a0c37091a463efeedd326a8ce9ee82e0cc400172d5c180e7`.
+The 2,574,680-byte audit JSON has SHA-256
+`cf4e12785dbb41a3c59bbbe5a93b57261ee4418de2eb895771be3b857bd63eff`,
+and the 12,218-byte summary has SHA-256
+`35db6363db6bf51950670a7cb7f48af62a47abbbbf630b3f8c3d02063785ce5a`.
 The checked Windows Clang/LLVM and Linux GCC/binutils baselines at
 revision `1e079d1` predate the current CupidC ownership and remain historical
 oracle evidence.
@@ -52,13 +52,17 @@ records the disk-image transfer, and ADR 0245 records the publisher-owned
 directory boundary. ADR 0246 records the shared invocation boundary. Python
 and WSL remain required host-control components.
 
-Source-head CupidLD can serialize one deterministic, import-free i386 PE32
-layout without calling a host linker. This does not remove a host dependency
-yet. The checked seed does not carry the command, no generated PE image has
-been run, and Cupid OS has no Windows runtime or native checked seed. Windows
-therefore continues to use WSL for every checked path listed here. The normal
-graph remains at 447 transforms with the same owners. ADR 0247 records the
-source-only serializer boundary.
+Source-head CupidC, CupidASM, and CupidLD can build one deterministic imported
+i386 PE32 command without a host compiler, assembler, linker, import library,
+or C runtime. Windows loads that command directly and checks its exact stdout,
+empty stderr, and exit 37. The bootstrap report retains those observations and
+both stages' object and image hashes. This does not remove a normal-build
+dependency yet.
+The checked seed does not carry the import path, and the five tool drivers do
+not have a complete Windows runtime. Windows therefore continues to use WSL
+for every checked producer path listed here. The normal graph remains at 447
+transforms with the same owners. ADR 0247 records PE32 serialization, and ADR
+0248 records imports and the loader probe.
 
 Source-head CupidLD publishes ELF and PE output with native file operations. It
 creates an adjacent candidate with exclusive-create semantics, writes and
@@ -265,9 +269,10 @@ existing destination must already verify as a complete cohort. Arbitrary
 directories, source trees, files, and symbolic links are rejected without
 modification. Exact initial, private, and newly discovered contract
 inventories catch added or removed inputs and restored edits that changed a
-copied file. The manifest binds a 45-input contract inventory, including the
-Toolchain Makefile and both Python control modules. It separately binds the
-checked seed and 41-file fixed-point source inventory. Each run derives its
+copied file. The manifest binds a 47-input contract inventory, including the
+Windows startup and runtime probe, the Toolchain Makefile, and both Python
+control modules. It separately binds the
+checked seed and 43-file fixed-point source inventory. Each run derives its
 cohort from the requested executable and verifies all artifact hashes and both
 live inventories. Hashing, decoding,
 schema validation, and build-plan use all consume one captured seed-manifest
@@ -637,7 +642,7 @@ all nineteen C objects, startup, five tools, and five help, fifteen success,
 and thirteen failure cases between stages two and three. ADR 0243 records the
 promotion.
 
-The harness copies the exact 41-input source closure into a private compiler root. Checked CupidC compiles the stage-two union there, checked CupidASM assembles startup, and checked CupidLD links all five tools. The stage-two producer trio repeats that work for stage three below the same root. Both the private closure and the live closure are checked before the first stage, after each stage, and after behavior checks. In the post-promotion reproof, every seed image matched stage two; every C object, startup object, and linked image also matched across the stages. Both stages executed the positive and failure cases for every command. The two stages, behavior evidence, and report are published together only after success. The normal Toolchain target then uses both static stages to build its contract cohort without external code generation. Native contracts and hosted development commands remain explicit host-built oracles; normal OS and Toolchain artifacts do not depend on them.
+The harness copies the exact 43-input source closure into a private compiler root. Checked CupidC compiles the stage-two union there, checked CupidASM assembles startup, and checked CupidLD links all five tools. The closure also holds the Windows startup and runtime probe. The stage-two producer trio repeats that work for stage three below the same root. Both the private closure and the live closure are checked before the first stage, after each stage, and after behavior checks. Both stages execute the positive and failure cases for every command, then build matching imported Windows objects and images. On Windows, the harness validates and runs the image before it publishes evidence. The two stages, behavior evidence, and report are published together only after success. The normal Toolchain target then uses both static Linux stages to build its contract cohort without external code generation. Native contracts and hosted development commands remain explicit host-built oracles; normal OS and Toolchain artifacts do not depend on them.
 
 Two active-source fragments anchor the wide call requirement. `toolchain/tests/cupidc_object_contract.cc::decode_function` passes the signed `long long` branch target to `fprintf`. `toolchain/tests/cupidc_frontend_contract.cc::validate_file_object_finalization_storage_limit` passes three `unsigned long long` byte counts to `fprintf`. The guards cover those call fragments only. The complete `.cc` contract programs now compile in both checked stages, while the focused guards still identify why the capability is required. No active-source guard covers a wide `va_arg` or an unprototyped wide call, so those paths have focused ABI fixture evidence only. The neighboring `variadic-callees`, `old-style-empty-functions`, `wide-returns`, and `floating-transport` modes remain part of the full gate. The `js_push_num` guard covers its declaration and assignment lines only, not the full browser interpreter function.
 
@@ -666,10 +671,10 @@ records the ownership transfer.
 | GCC with i386/multilib support | Builds optional native Toolchain contracts and commands on Linux | Not required by root `all`, `user:all`, or `toolchain:all`; required only for explicit native oracle and development targets | Retain only as an optional oracle or bootstrap escape hatch |
 | Clang with i386 target support | Builds optional native Toolchain contracts and commands on Windows, including the native CupidC and CupidLD user oracle | Not required by root `all`, `user:all`, or `toolchain:all`; required only for explicit native comparison and development targets | Retain only as an optional oracle or bootstrap escape hatch |
 | NASM | Optional comparison oracle for the four boot and kernel CupidASM parity tests and the shared ELF32 reader | Not required by root `all`, `user:all`, `toolchain:all`, or baseline preflight; `make nasm-assembly-oracle` uses it when installed. The ISO lane fixture is excluded because NASM freezes `$` across its `TIMES` statement | Retain only as an optional oracle/bootstrap escape hatch |
-| Host linker backend (`ld`, `ld.lld`, `lld-link`, or platform equivalent) | No direct i386 OS, user, or normal Toolchain link recipe remains. CupidLD owns those outputs. Source-head CupidLD can serialize one fixed, import-free i386 PE32 layout, but it does not yet build or run a native Windows tool. A host compiler still invokes a native linker for optional oracle and development commands, while standalone ELF linkers remain comparison tools. Canonical Windows LLD links use `/Brepro` so hosted PE timestamps cannot invalidate same-host evidence | Not required by root `all`, `user:all`, or `toolchain:all`; required only by optional native targets | Retain only as an optional oracle or escape hatch until a Cupid-built Windows runtime and checked native seed replace it |
+| Host linker backend (`ld`, `ld.lld`, `lld-link`, or platform equivalent) | No direct i386 OS, user, or normal Toolchain link recipe remains. CupidLD owns those outputs. Source-head CupidLD also builds deterministic imports and links one command that Windows runs directly. A host compiler still invokes a native linker for optional oracle and development commands, while standalone ELF linkers remain comparison tools. Canonical Windows LLD links use `/Brepro` so hosted PE timestamps cannot invalidate same-host evidence | Not required by root `all`, `user:all`, `toolchain:all`, or the source-head Windows loader probe; required only by optional native targets | Retain only as an optional oracle or escape hatch until all five tools have a complete Cupid-built Windows runtime and checked native seed |
 | GNU `objcopy` / `llvm-objcopy` | No role in the normal build; tracked legacy/oracle helpers may still invoke it manually, and the checked `6731dd6` evidence fingerprints the then-installed oracle | Not required for root `all`, `user:all`, `toolchain:all`, or new `bootstrap-baseline` captures | Retain only as an optional comparison/maintenance utility; CupidObj owns the production transformations |
 | GNU `nm` / `llvm-nm` | Optional comparison oracle for CupidDis's numeric symbol view and historical baseline evidence | Not required by root `all`, `user:all`, `toolchain:all`, or baseline preflight; configured through `NM` only for optional oracle probes/tests | Retain only as an optional comparison/maintenance utility; CupidDis owns production kernel-symbol inspection |
-| Hosted C runtime/libc | Backs only the explicit native oracle and development adapters. The normal five-tool build and fifteen-executable contract cohort use Cupid's checked i386 Linux declarations and repository runtime | Not required by root `all`, `user:all`, or `toolchain:all`; required only by native oracle and development targets. The repository runtime is intentionally narrow and is not a general libc or a Windows runtime | Retain only for optional native oracle and development seams; it must not own normal preprocessing, parsing, type/layout semantics, code generation, object, assembly, link, or inspection behavior |
+| Hosted C runtime/libc | Backs only the explicit native oracle and development adapters. The normal five-tool build and fifteen-executable contract cohort use Cupid's checked i386 Linux declarations and repository runtime. The Windows loader probe is freestanding and calls three kernel APIs through a CupidASM bridge | Not required by root `all`, `user:all`, `toolchain:all`, or the Windows loader probe; required only by native oracle and development targets. The repository Windows bridge is intentionally narrow and is not a general libc | Retain only for optional native oracle and development seams; it must not own normal preprocessing, parsing, type/layout semantics, code generation, object, assembly, link, or inspection behavior |
 | GNU Make | Declares the root, user, and toolchain-contract build graphs and invokes tools | Required; the graph uses portable ordinary/stamp targets rather than GNU Make 4.3 grouped-target syntax | May remain as host orchestration; it must invoke Cupid code-producing tools on the normal path |
 | Python 3 | Launches the checked seed for all 438 Cupid-owned root transforms plus six external-program compile and link operations; coordinates and verifies kernel-symbol generation; parity-checks accepted JPEG, ISO, and profile-manifest bytes; builds the independent disk-template, ISO, and profile oracles; preserves existing FAT contents and stages files; validates, locks, and atomically publishes outputs; builds fixtures; drives QEMU tests; and verifies the external-program syscall ABI | Required | May remain for tests and packaging, but removing it from the staged fixed point and checked-tool launch path is the open Python-free bootstrap gate |
 | WSL on Windows | Runs the checked static i386 Linux seed for 438 root CupidC, CupidASM, CupidObj, CupidLD, and CupidDis transforms, six external-program compile and link operations, and the staged Toolchain bootstrap | Required for those paths on Windows; native Linux runs the seed directly | Remove it when a checked native Cupid toolchain or an equivalent Cupid-owned execution path is available |
@@ -882,10 +887,11 @@ the next entry before further recursion, and restores both counters after a
 failed REPL evaluation. This changes embedded JIT safety without retiring or
 adding a host dependency.
 
-The hosted preprocessor contract runs 381 tracked profile executions through
+The hosted preprocessor contract runs 382 tracked profile executions through
 the repository file adapter. This covers 238 root-kernel and Doom C inputs,
-three user inputs, 105 Cupid programs, 31 ordinary strict hosted i386 roots,
-two strict hosted i386 kernel-bridge roots, and two GNU runtime roots. Only
+three user inputs, 105 Cupid programs, 31 strict hosted i386 Linux roots, one
+freestanding i386 Windows root, two strict hosted i386 kernel-bridge roots,
+and two GNU runtime roots. Only
 `kernel/lang/as_elf.cc` and its Toolchain contract receive `/kernel/lang` as
 an include root. A separate target materializes and checks four generated
 kernel C inputs through the existing generators and first-pass link. The

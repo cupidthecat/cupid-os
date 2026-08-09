@@ -4608,6 +4608,181 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             )
             _validate_static_i386_pe32(stage_two_pe32, 0x00401000)
 
+            windows_start_source = (
+                REPO_ROOT / "toolchain/hosted/i386-windows/start.asm"
+            )
+            windows_contract_source = (
+                REPO_ROOT
+                / "toolchain/tests/hosted_i386_windows_contract.cc"
+            )
+            local_windows_contract = root / "windows-contract.cc"
+            local_windows_contract.write_bytes(
+                windows_contract_source.read_bytes()
+            )
+            stage_two_windows_start = root / "stage-two-windows-start.o"
+            stage_three_windows_start = root / "stage-three-windows-start.o"
+            windows_assembly_run, _stage_three_windows_assembly = (
+                run_stage_pair(
+                    "cupidasm",
+                    [
+                        "-f",
+                        "elf32",
+                        windows_start_source,
+                        "-o",
+                        stage_two_windows_start,
+                    ],
+                    [
+                        "-f",
+                        "elf32",
+                        windows_start_source,
+                        "-o",
+                        stage_three_windows_start,
+                    ],
+                )
+            )
+            self.assertEqual(
+                windows_assembly_run.returncode,
+                0,
+                windows_assembly_run.stderr,
+            )
+            self.assertEqual(windows_assembly_run.stdout, "")
+            self.assertEqual(windows_assembly_run.stderr, "")
+            self.assertEqual(
+                stage_three_windows_start.read_bytes(),
+                stage_two_windows_start.read_bytes(),
+            )
+
+            stage_two_windows_contract = (
+                root / "stage-two-windows-contract.o"
+            )
+            stage_three_windows_contract = (
+                root / "stage-three-windows-contract.o"
+            )
+            windows_compile_arguments = [
+                "--root",
+                root,
+                "--freestanding",
+                "-c",
+                "/windows-contract.cc",
+            ]
+            stage_two_windows_compile = self.run_cupid_linux_tool(
+                stage_two_tools["cupidc"],
+                [
+                    *windows_compile_arguments,
+                    "-o",
+                    "/stage-two-windows-contract.o",
+                ],
+                timeout=60,
+            )
+            stage_three_windows_compile = self.run_cupid_linux_tool(
+                stage_three_tools["cupidc"],
+                [
+                    *windows_compile_arguments,
+                    "-o",
+                    "/stage-three-windows-contract.o",
+                ],
+                timeout=60,
+            )
+            self.assertEqual(
+                stage_two_windows_compile.returncode,
+                0,
+                stage_two_windows_compile.stderr,
+            )
+            self.assertEqual(stage_two_windows_compile.stdout, "")
+            self.assertEqual(stage_two_windows_compile.stderr, "")
+            self.assertEqual(
+                stage_three_windows_compile.returncode,
+                stage_two_windows_compile.returncode,
+                stage_three_windows_compile.stderr,
+            )
+            self.assertEqual(stage_three_windows_compile.stdout, "")
+            self.assertEqual(stage_three_windows_compile.stderr, "")
+            self.assertEqual(
+                stage_three_windows_contract.read_bytes(),
+                stage_two_windows_contract.read_bytes(),
+            )
+
+            imports = (
+                "__imp_WriteFile=KERNEL32.dll:WriteFile",
+                "__imp_ExitProcess=KERNEL32.dll:ExitProcess",
+                "__imp_GetStdHandle=KERNEL32.dll:GetStdHandle",
+            )
+            stage_two_windows_image = root / "stage-two-windows.exe"
+            stage_three_windows_image = root / "stage-three-windows.exe"
+            windows_link_run, _stage_three_windows_link = run_stage_pair(
+                "cupidld",
+                [
+                    "-m",
+                    "i386pe",
+                    "--text-address",
+                    "0x00401000",
+                    "--entry",
+                    "_start",
+                    "--import",
+                    imports[0],
+                    "--import",
+                    imports[1],
+                    "--import",
+                    imports[2],
+                    "-o",
+                    stage_two_windows_image,
+                    stage_two_windows_start,
+                    stage_two_windows_contract,
+                ],
+                [
+                    "-m",
+                    "i386pe",
+                    "--text-address",
+                    "0x00401000",
+                    "--entry",
+                    "_start",
+                    "--import",
+                    imports[2],
+                    "--import",
+                    imports[0],
+                    "--import",
+                    imports[1],
+                    "-o",
+                    stage_three_windows_image,
+                    stage_three_windows_start,
+                    stage_three_windows_contract,
+                ],
+            )
+            self.assertEqual(
+                windows_link_run.returncode,
+                0,
+                windows_link_run.stderr,
+            )
+            self.assertEqual(windows_link_run.stdout, "")
+            self.assertEqual(windows_link_run.stderr, "")
+            self.assertEqual(
+                stage_three_windows_image.read_bytes(),
+                stage_two_windows_image.read_bytes(),
+            )
+            _validate_static_i386_pe32(
+                stage_two_windows_image,
+                0x00401000,
+                (
+                    (
+                        "KERNEL32.dll",
+                        ("ExitProcess", "GetStdHandle", "WriteFile"),
+                    ),
+                ),
+            )
+            if os.name == "nt":
+                native_windows_run = subprocess.run(
+                    [str(stage_two_windows_image)],
+                    cwd=REPO_ROOT,
+                    capture_output=True,
+                    timeout=10,
+                )
+                self.assertEqual(native_windows_run.returncode, 37)
+                self.assertEqual(
+                    native_windows_run.stdout,
+                    b"Cupid-built Windows runtime: ok\n",
+                )
+                self.assertEqual(native_windows_run.stderr, b"")
+
             stage_two_nm, _stage_three_nm = run_stage_pair(
                 "cupiddis",
                 ["--nm", stage_two_linked],
@@ -4916,6 +5091,108 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             )
             self.assertEqual(
                 stage_three_pe32_failure.read_bytes(), failure_sentinel
+            )
+
+            invalid_import_source = root / "fixed-point-invalid-import.asm"
+            invalid_import_source.write_text(
+                "BITS 32\n"
+                "extern __imp_ExitProcess\n"
+                "global _start\n"
+                "section .text\n"
+                "_start:\n"
+                "    call __imp_ExitProcess\n"
+                "    ret\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+            stage_two_invalid_import_object = (
+                root / "stage-two-invalid-import.o"
+            )
+            stage_three_invalid_import_object = (
+                root / "stage-three-invalid-import.o"
+            )
+            invalid_import_assembly_run, _stage_three_invalid_assembly = (
+                run_stage_pair(
+                    "cupidasm",
+                    [
+                        "-f",
+                        "elf32",
+                        invalid_import_source,
+                        "-o",
+                        stage_two_invalid_import_object,
+                    ],
+                    [
+                        "-f",
+                        "elf32",
+                        invalid_import_source,
+                        "-o",
+                        stage_three_invalid_import_object,
+                    ],
+                )
+            )
+            self.assertEqual(
+                invalid_import_assembly_run.returncode,
+                0,
+                invalid_import_assembly_run.stderr,
+            )
+            self.assertEqual(
+                stage_three_invalid_import_object.read_bytes(),
+                stage_two_invalid_import_object.read_bytes(),
+            )
+            invalid_import_object = root / "invalid-import.o"
+            invalid_import_object.write_bytes(
+                stage_two_invalid_import_object.read_bytes()
+            )
+            stage_two_invalid_import_image = (
+                root / "stage-two-invalid-import.exe"
+            )
+            stage_three_invalid_import_image = (
+                root / "stage-three-invalid-import.exe"
+            )
+            stage_two_invalid_import_image.write_bytes(failure_sentinel)
+            stage_three_invalid_import_image.write_bytes(failure_sentinel)
+            invalid_import_run, _stage_three_invalid_import = run_stage_pair(
+                "cupidld",
+                [
+                    "-m",
+                    "i386pe",
+                    "--text-address",
+                    "0x00401000",
+                    "--entry",
+                    "_start",
+                    "--import",
+                    "__imp_ExitProcess=KERNEL32.dll:ExitProcess",
+                    "-o",
+                    stage_two_invalid_import_image,
+                    invalid_import_object,
+                ],
+                [
+                    "-m",
+                    "i386pe",
+                    "--text-address",
+                    "0x00401000",
+                    "--entry",
+                    "_start",
+                    "--import",
+                    "__imp_ExitProcess=KERNEL32.dll:ExitProcess",
+                    "-o",
+                    stage_three_invalid_import_image,
+                    invalid_import_object,
+                ],
+            )
+            self.assertEqual(invalid_import_run.returncode, 1)
+            self.assertEqual(invalid_import_run.stdout, "")
+            self.assertIn(
+                "IAT symbols require an absolute zero-addend relocation",
+                invalid_import_run.stderr,
+            )
+            self.assertEqual(
+                stage_two_invalid_import_image.read_bytes(),
+                failure_sentinel,
+            )
+            self.assertEqual(
+                stage_three_invalid_import_image.read_bytes(),
+                failure_sentinel,
             )
 
             malformed_link_run, _malformed_link_stage_three = run_stage_pair(

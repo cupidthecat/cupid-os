@@ -27,10 +27,18 @@ typedef struct {
 } ctool_ld_layout_t;
 
 typedef struct {
+  ctool_string_t symbol_name;
+  ctool_string_t library_name;
+  ctool_string_t procedure_name;
+} ctool_ld_pe32_import_t;
+
+typedef struct {
   const ctool_source_t *objects;
   ctool_u32 object_count;
   ctool_ld_image_kind_t image_kind;
   ctool_ld_layout_t layout;
+  const ctool_ld_pe32_import_t *pe32_imports;
+  ctool_u32 pe32_import_count;
   ctool_u32 maximum_image_span;
 } ctool_ld_request_t;
 
@@ -43,6 +51,8 @@ typedef struct {
   ctool_u32 output_section_count;
   ctool_u32 resolved_symbol_count;
   ctool_u32 applied_relocation_count;
+  ctool_u32 imported_symbol_count;
+  ctool_u32 imported_library_count;
 } ctool_ld_result_t;
 
 typedef enum {
@@ -58,7 +68,8 @@ typedef enum {
   CTOOL_LD_DIAG_OVERFLOW = 0x0700000au,
   CTOOL_LD_DIAG_BAD_ENTRY = 0x0700000bu,
   CTOOL_LD_DIAG_ASSERTION_FAILED = 0x0700000cu,
-  CTOOL_LD_DIAG_LIMIT = 0x0700000du
+  CTOOL_LD_DIAG_LIMIT = 0x0700000du,
+  CTOOL_LD_DIAG_BAD_IMPORT = 0x0700000eu
 } ctool_ld_diag_code_t;
 
 ctool_status_t ctool_ld_link(ctool_job_t *job,
@@ -66,9 +77,11 @@ ctool_status_t ctool_ld_link(ctool_job_t *job,
                              ctool_buffer_t *output,
                              ctool_ld_result_t *result_out);
 
-/* Object images, layout source, and request strings are borrowed for the
- * call.  Output must be empty.  Success returns the requested deterministic
- * static i386 image.  Every failure restores the original empty output and
- * zeros the result. */
+/* Object images, layout source, request strings, and import records are
+ * borrowed for the call.  A PE32 import symbol names its writable IAT slot,
+ * so assembly can use an ordinary absolute memory operand to call it.
+ * Output must be empty.  Success returns the requested deterministic static
+ * i386 image.  Every failure restores the original empty output and zeros
+ * the result. */
 
 #endif

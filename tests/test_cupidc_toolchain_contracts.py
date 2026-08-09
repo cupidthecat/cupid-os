@@ -144,7 +144,9 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             "kernel/lang/as_elf.cc",
             "kernel/lang/as_elf.h",
             "toolchain/tests/hosted_i386_runtime_contract.cc",
-        } | set(cupidc_toolchain_contracts.CONTRACT_CONTROL_INPUTS)
+        } | set(cupidc_toolchain_contracts.CONTRACT_CONTROL_INPUTS) | set(
+            cupidc_toolchain_contracts.WINDOWS_RUNTIME_INPUTS
+        )
         for logical_path in sorted(logical_paths):
             path = root / logical_path
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -282,9 +284,13 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             cupidc_toolchain_contracts._contract_input_paths(root),
         )
 
-        self.assertEqual(len(inputs), 45)
+        self.assertEqual(len(inputs), 47)
         self.assertTrue(
             set(cupidc_toolchain_contracts.CONTRACT_CONTROL_INPUTS)
+            <= set(inputs)
+        )
+        self.assertTrue(
+            set(cupidc_toolchain_contracts.WINDOWS_RUNTIME_INPUTS)
             <= set(inputs)
         )
 
@@ -751,7 +757,8 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
 
     def test_run_rejects_backdated_control_input_drift_before_execution(self):
         for logical_path in (
-            cupidc_toolchain_contracts.CONTRACT_CONTROL_INPUTS
+            *cupidc_toolchain_contracts.CONTRACT_CONTROL_INPUTS,
+            *cupidc_toolchain_contracts.WINDOWS_RUNTIME_INPUTS,
         ):
             with self.subTest(input=logical_path), tempfile.TemporaryDirectory(
                 prefix="cupid-contract-control-drift-"

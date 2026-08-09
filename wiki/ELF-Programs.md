@@ -51,12 +51,24 @@ ordered static i386 ELF32 objects. It serializes one deterministic,
 fixed-layout PE32 console image at image base `0x00400000`, with `.text` at RVA
 `0x1000`, each nonempty later section category at the next `0x1000` boundary,
 and file alignment `0x200`. Empty output categories do not get PE section
-headers. The image has neither imports nor base
-relocations. Writable executable input is rejected. The checked seed does not
-carry this command, and no generated PE image has been run. A Cupid-built
-Windows runtime, seed carriage, and the PE features that runtime needs remain
-open. See
-[ADR 0247](../docs/adr/0247-serialize-fixed-layout-pe32-images-with-cupidld.md).
+headers. Repeatable import options add canonical `.idata` descriptors, lookup
+tables, IAT cells, and names. Imported slots require zero-addend absolute
+relocations, and the image has no base relocations. Writable executable input
+is rejected. CupidLD orders imports with an in-place heap, rejects a repeated
+slot without rescanning prior records, and keeps name imports below the PE32
+high-bit boundary. The independent validator reconstructs the exact `.idata`
+cursor instead of accepting an equivalent but noncanonical layout.
+
+Source-head CupidASM, freestanding CupidC, and CupidLD build a small command
+that imports `GetStdHandle`, `WriteFile`, and `ExitProcess`. Windows runs the
+validated image, checks its exact stdout marker and empty stderr, and requires
+exit 37. The bootstrap report retains the observed result and both stages'
+object and image hashes. The checked seed does not carry this command, so the normal user build
+still runs the Linux tools through WSL. A complete Windows runtime, native
+five-tool seed, and production adoption remain open. See [ADR
+0247](../docs/adr/0247-serialize-fixed-layout-pe32-images-with-cupidld.md) and
+[ADR
+0248](../docs/adr/0248-link-deterministic-pe32-imports-and-run-a-cupid-built-windows-command.md).
 
 The source-head CLI uses an adjacent-candidate publisher for ELF and PE images.
 It creates the candidate with exclusive-create semantics, writes and closes it,

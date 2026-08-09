@@ -354,14 +354,16 @@ Object-pointer interchange and narrower or wider integer forms still fail
 with a feature diagnostic. ADR 0113 records the current boundary.
 
 The exact frontend gate checks the whole hosted source frontier at its real
-i386 Linux ABI. It has 33 strict C11 roots and two GNU runtime roots.
-`HOSTED_I386_LINUX` owns the 31 ordinary strict roots, which search only the
-Toolchain tree and the angle-only hosted declarations. The GNU profile owns
-the runtime implementation and its behavior probe.
+target ABI. It has 34 strict C11 roots and two GNU runtime roots.
+`HOSTED_I386_LINUX` owns 31 strict Linux roots, which search only the
+Toolchain tree and the angle-only hosted declarations. `FREESTANDING_I386`
+owns the headerless Windows command probe. The GNU profile owns the runtime
+implementation and its behavior probe.
 `HOSTED_I386_KERNEL_BRIDGE` owns `kernel/lang/as_elf.cc` and its Toolchain
 contract, the two roots that may also include `/kernel/lang`. The full set
 contains the 19-source static tool union, runtime implementation and probe,
-and all fourteen Toolchain contracts. The retired `HOSTED_TOOLCHAIN_64` and
+and all fifteen Toolchain contract sources. The retired
+`HOSTED_TOOLCHAIN_64` and
 `HOSTED_KERNEL_BRIDGE_64` profiles have no active roots.
 Stage-two and stage-three CupidC compile every contract, CupidLD links each
 static executable, and the harness rejects a byte difference in any of the
@@ -373,8 +375,8 @@ modification. The initial contract snapshot, private copy, and newly discovered
 live contract inventory must match in membership and hashes. This catches additions,
 removals, and a transient edit copied before its live source is restored.
 Every run derives the cohort from its requested executable, requires a named
-manifest artifact, and verifies all artifact hashes, the live 45-input
-contract set, the checked seed manifest, and the 41-file fixed-point source
+manifest artifact, and verifies all artifact hashes, the live 47-input
+contract set, the checked seed manifest, and the 43-file fixed-point source
 inventory before execution. The contract set includes the Toolchain Makefile
 and both Python modules that construct or verify the cohort. The seed manifest is read once for hashing,
 decoding, schema validation, and build-plan use. A concurrent replacement
@@ -563,23 +565,34 @@ Source-head CupidLD accepts this fixed-layout command:
 cupidld -m i386pe --text-address 0x00401000 --entry _start -o OUTPUT OBJECT...
 ```
 
-It uses the existing static i386 link operation, then serializes an import-free
-PE32 console image at image base `0x00400000`. `.text` starts at RVA `0x1000`.
+It uses the existing static i386 link operation, then serializes a PE32 console
+image at image base `0x00400000`. `.text` starts at RVA `0x1000`.
 Nonempty `.rodata`, `.data`, and `.bss` sections follow in that order at the
 next `0x1000` boundary. Empty output categories do not get PE section headers.
-File alignment is `0x200`. An independent parser in the
-bootstrap harness checks the PE headers, section bounds and permissions,
-alignments, entry point, and empty data directories. Writable executable input
-fails instead of producing an RWX section. The harness does not execute the
-image.
+File alignment is `0x200`. Repeatable
+`--import IAT_SYMBOL=LIBRARY:PROCEDURE` options append one canonical,
+writable `.idata` section. Directory 1 covers its descriptors, directory 12
+covers the contiguous IAT, and the other directories remain zero. Imported
+slots accept only known, zero-addend `R_386_32` references. A direct call is
+rejected before publication. CupidLD uses an in-place heap to order imports
+and tracks selected slots without a second quadratic scan. Name imports and
+the complete fixed image must stay within the two-gibibyte PE32 name-RVA
+range.
 
-The source-head fixed point contains one successful PE32 link and one useful
-layout failure, so its matrix is 5/16/14. Stage two and stage three produce the
-same PE bytes. Only the source-head CupidLD image differs from the promoted
-seed; the other four images remain byte-identical. The checked seed
-and its historical 5/15/13 proof do not change. PE32 is not a normal-build
-output, a native runtime, or a checked Windows seed, so the 447-transform
-ownership census also stays unchanged. ADR 0247 records this source boundary.
+The source-head proof assembles the Windows entry with both CupidASM stages,
+compiles its headerless `main` with both freestanding CupidC stages, and links
+both objects with both CupidLD stages. The object and image pairs match. An
+independent parser reconstructs the exact `.idata` cursor and confines every
+descriptor, thunk, string, and directory extent to that section. On Windows,
+the validated stage-two image prints the exact marker, writes no stderr, and
+returns 37 before the ten-second timeout. The report retains those observed
+streams and return code, the exact imports, and hashes for both object and
+image pairs.
+
+The matrix is now 5/17/15. The checked seed and its historical 5/15/13 proof
+do not change. PE32 is not a normal-build output or a checked Windows seed, so
+the 447-transform ownership census also stays unchanged. ADR 0247 records the
+format boundary. ADR 0248 records the import and Windows loader boundary.
 
 The source-head CLI uses an adjacent-candidate publisher for both ELF and PE
 output. It creates the candidate with exclusive-create semantics, writes and
@@ -609,7 +622,7 @@ GCC or Clang is used only by the explicit `native-oracles` and hosted
 development targets.
 ADR 0184 moves the 83 Doom roots out of host ownership.
 
-The checked-seed bootstrap copies the exact bytes of its 41 source inputs into
+The checked-seed bootstrap copies the exact bytes of its 43 source inputs into
 a private compiler root before it starts either stage. CupidC receives that
 root through `--root`, and both stage directories and the behavior workspace
 stay below it. The harness rehashes the private closure and the live closure
@@ -1204,15 +1217,15 @@ object, function, and variadic macros, C11 conditionals and predefined macros,
 guarded traversal, canonical once identity, pack metadata, and typed Cupid
 `#exe` markers. Checked manifests classify all 2,410 include operands as
 2,173 direct quoted plus 237 direct angle forms with zero macro operands
-across 687 active C-family inputs. The generated manifest drives 381 tracked
-profile runs under ten profiles plus four generated kernel roots. The
+across 688 active C-family inputs. The generated manifest drives 382 tracked
+profile runs under eleven profiles plus four generated kernel roots. The
 profile counts are 155 kernel, three Doom compatibility, 80 Doom tree, three
-user, 105 Cupid programs, 31 strict hosted i386 Linux, two hosted i386 kernel
-bridge, and two GNU hosted i386 Linux runtime roots. Both 64-bit hosted profiles
-now have zero roots.
+user, 105 Cupid programs, 31 strict hosted i386 Linux, one freestanding i386
+Windows probe, two hosted i386 kernel bridge, and two GNU hosted i386 Linux
+runtime roots. Both 64-bit hosted profiles now have zero roots.
 
 The `toolchain:all` target bootstraps both checked compiler stages, builds
-fourteen Toolchain contracts and the runtime probe as static i386 ELF files,
+fourteen Linux Toolchain contracts and the runtime probe as static i386 ELF files,
 compares the two generations, and publishes the contracts with five refreshed
 tools and a manifest. The audit also keeps 22 browser fragments under
 `bin/browser.cc` and two delivered headers without an invented standalone
@@ -1231,19 +1244,19 @@ The [audit-derived active-source gate](./ACTIVE-SOURCE-AUDIT.md) passes 157 of
 29 declarations in `simd_intrin.h` under the Cupid profile. That mode now
 maps `U0`, the signed and unsigned sized integer spellings, `Bool`, `bool`,
 `float4`, and `double2` directly into the shared type graph. C11 continues to
-treat those spellings as ordinary identifiers. The graph contains 719 active
-language inputs: 28 assembly files, 290 headers, and 401 Cupid C files. No
+treat those spellings as ordinary identifiers. The graph contains 721 active
+language inputs: 29 assembly files, 290 headers, and 402 Cupid C files. No
 ordinary C translation unit remains in the supported roots. It records 255
 feature IDs, 447 transforms, and 25 accounted unreachable files. The preprocessor
-inventory covers 687 files and 2,410 include occurrences, split into 2,173
+inventory covers 688 files and 2,410 include occurrences, split into 2,173
 quoted and 237 angle forms.
 
 The active-source digest is
-`3ccfc3161018c2569873255aca8b86a581a5cd36ec6c016669ae95935727ac47`.
-The 2,569,536-byte audit JSON has SHA-256
-`d4861b90f1403e65531ba0c0bb1d25d2041f9d5e4905da2df9c32dadec0c4b15`,
-and the 12,197-byte summary has SHA-256
-`00fa7c7d15ac3274eda9076df24ac477aa7a019c62ed13d88e126fa0207f470f`.
+`6643bdb848320e56a0c37091a463efeedd326a8ce9ee82e0cc400172d5c180e7`.
+The 2,574,680-byte audit JSON has SHA-256
+`cf4e12785dbb41a3c59bbbe5a93b57261ee4418de2eb895771be3b857bd63eff`,
+and the 12,218-byte summary has SHA-256
+`35db6363db6bf51950670a7cb7f48af62a47abbbbf630b3f8c3d02063785ce5a`.
 
 Across the three supported roots, CupidC participates in 245 transforms and
 CupidObj participates in 189 transforms. Python participates in all 447 as

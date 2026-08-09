@@ -60,6 +60,10 @@ CONTRACT_CONTROL_INPUTS = (
     "tools/bootstrap_toolchain.py",
     "tools/cupidc_toolchain_contracts.py",
 )
+WINDOWS_RUNTIME_INPUTS = (
+    "toolchain/hosted/i386-windows/start.asm",
+    "toolchain/tests/hosted_i386_windows_contract.cc",
+)
 CONTRACT_LINK_OBJECT_KEYS = frozenset(
     {
         name
@@ -305,6 +309,7 @@ def _contract_input_paths(root: Path) -> tuple[Path, ...]:
         root / plan.source for plan in CONTRACT_PLANS
     }
     paths.update(root / path for path in CONTRACT_CONTROL_INPUTS)
+    paths.update(root / path for path in WINDOWS_RUNTIME_INPUTS)
     paths.add(root / "toolchain/tests/hosted_i386_runtime_contract.cc")
     paths.add(root / "kernel/lang/as_elf.cc")
     paths.add(root / "kernel/lang/as_elf.h")

@@ -181,7 +181,7 @@ A complete Cupid C `struct` carried by value through Linear IR. One abstract sta
 _Avoid_: aggregate scalar, borrowed object address
 
 **Hosted source frontier**:
-The unchanged implementation and contract files that hosted CupidC can preprocess, parse, lower, and emit as deterministic i386 ELF32 objects. The current target-profile gate contains 33 strict C11 roots and two GNU-enabled runtime roots. `HOSTED_I386_LINUX` owns 31 ordinary requests, while `HOSTED_I386_KERNEL_BRIDGE` owns the two requests that may include `/kernel/lang`. The GNU profile owns the runtime implementation and its behavior probe. Together they cover the complete 19-source static tool union, `kernel/lang/as_elf.cc`, and all fourteen Toolchain contracts. The retired `HOSTED_TOOLCHAIN_64` and `HOSTED_KERNEL_BRIDGE_64` names have no active roots. Non-atomic `long double` uses twelve-byte objects for arithmetic, floating-width conversion, all six matching or mixed floating comparisons, fixed and unprototyped arguments, variadic calls and reads, function returns, and direct or indirect call results. Bounded finite normal decimal `L` tokens produce exact x87 values. Static-duration scalars and long-double leaves inside fixed arrays or complete records may use implicit or integer-constant zero initialization. Hexadecimal or subnormal long-double literals, decimal ratios beyond the bounded parser, nonzero and floating static initializers, and integer conversions involving `long double` remain open. The checked cohort requires byte identity for sixteen newly compiled objects and fifteen linked executables. Complete CupidC-emitted closures for CupidC, CupidASM, CupidDis, CupidLD, and CupidObj link with CupidASM startup and the hosted i386 Linux runtime, then run real behavior checks on Linux or through WSL. Its initial, frozen, and newly discovered contract inventories must match exactly. Publication accepts only a dedicated verified `cupidc-contracts` destination, and every contract run verifies the named artifact, complete cohort, current 45-input contract set, checked seed manifest, and 41-file fixed-point source inventory before execution. The 45 inputs include the Toolchain Makefile and both Python modules that construct or verify the cohort, so restored timestamps cannot hide control-plane drift. Manifest hashing, parsing, and validation use one captured byte sequence so a concurrent replacement cannot mix provenance from different reads. Link plans also reject an unknown object key before the first compiler process starts.
+The unchanged implementation and contract files that hosted CupidC can preprocess, parse, lower, and emit as deterministic i386 ELF32 objects. The current target-profile gate contains 34 strict C11 roots and two GNU-enabled runtime roots. `HOSTED_I386_LINUX` owns 31 Linux requests, `FREESTANDING_I386` owns the headerless Windows command probe, and `HOSTED_I386_KERNEL_BRIDGE` owns the two requests that may include `/kernel/lang`. The GNU profile owns the runtime implementation and its behavior probe. Together they cover the complete 19-source static tool union, `kernel/lang/as_elf.cc`, and all fifteen Toolchain contract sources. The retired `HOSTED_TOOLCHAIN_64` and `HOSTED_KERNEL_BRIDGE_64` names have no active roots. Non-atomic `long double` uses twelve-byte objects for arithmetic, floating-width conversion, all six matching or mixed floating comparisons, fixed and unprototyped arguments, variadic calls and reads, function returns, and direct or indirect call results. Bounded finite normal decimal `L` tokens produce exact x87 values. Static-duration scalars and long-double leaves inside fixed arrays or complete records may use implicit or integer-constant zero initialization. Hexadecimal or subnormal long-double literals, decimal ratios beyond the bounded parser, nonzero and floating static initializers, and integer conversions involving `long double` remain open. The checked cohort requires byte identity for sixteen newly compiled objects and fifteen linked executables. Complete CupidC-emitted closures for CupidC, CupidASM, CupidDis, CupidLD, and CupidObj link with CupidASM startup and the hosted i386 Linux runtime, then run real behavior checks on Linux or through WSL. Its initial, frozen, and newly discovered contract inventories must match exactly. Publication accepts only a dedicated verified `cupidc-contracts` destination, and every contract run verifies the named artifact, complete cohort, current 47-input contract set, checked seed manifest, and 43-file fixed-point source inventory before execution. The 47 inputs include the Windows startup and runtime probe, the Toolchain Makefile, and both Python modules that construct or verify the cohort, so restored timestamps cannot hide control-plane drift. Manifest hashing, parsing, and validation use one captured byte sequence so a concurrent replacement cannot mix provenance from different reads. Link plans also reject an unknown object key before the first compiler process starts.
 _Avoid_: self-hosted toolchain, completed source cohort
 
 
@@ -224,7 +224,7 @@ The `hello.cc`, `ls.cc`, and `cat.cc` examples compiled by CupidC and linked by 
 _Avoid_: every external program, hosted GCC examples, user-mode isolation
 
 **Hosted i386 ABI profile**:
-The deterministic hosted C request used to compile an i386 Linux tool closure. It searches `/toolchain` for quoted and angle includes and the checked i386 Linux declaration set for angle includes only, defines `__SIZEOF_POINTER__` as four, and leaves `_WIN32` undefined. Only `kernel/lang/as_elf.cc` and `toolchain/tests/cupidasm_kernel_elf_contract.cc` also search `/kernel/lang`; the other 31 strict roots cannot see that directory. The CupidC command represents those roots with `-I` and `--include-angle` in caller order. Repeatable `-include` options represent preprocessing inputs that run in order before the primary source. Tool sources use strict C11. The hosted runtime implementation and behavior probe enable CupidC's GNU variadic built-ins.
+The deterministic hosted C request used to compile an i386 Linux tool closure. It searches `/toolchain` for quoted and angle includes and the checked i386 Linux declaration set for angle includes only, defines `__SIZEOF_POINTER__` as four, and leaves `_WIN32` undefined. Only `kernel/lang/as_elf.cc` and `toolchain/tests/cupidasm_kernel_elf_contract.cc` also search `/kernel/lang`; the other 31 Linux strict roots cannot see that directory. The headerless Windows probe uses the separate `FREESTANDING_I386` profile. The CupidC command represents these roots with `-I` and `--include-angle` in caller order. Repeatable `-include` options represent preprocessing inputs that run in order before the primary source. Tool sources use strict C11. The hosted runtime implementation and behavior probe enable CupidC's GNU variadic built-ins.
 _Avoid_: `HOSTED_TOOLCHAIN_64`, vendored libc, host system headers
 
 **Hosted i386 Linux runtime**:
@@ -602,16 +602,27 @@ and one filesystem replacement call. After closing the candidate, it reopens
 the file and checks its size and contents before replacement. On POSIX,
 CupidLD requests mode `0777`; the process umask may remove any permission bits.
 This path requires a caller-controlled, stable output directory and does not
-lock or pin the destination.
+lock or pin the destination. Its fixed PE32 profile accepts named DLL imports,
+builds `.idata`, binds IAT slot symbols, and rejects any imported reference
+that is not a zero-addend absolute relocation.
 _Avoid_: host linker, guarded multi-process publisher, crash-durable publication
 
 **Fixed-layout PE32 image**:
-A deterministic, import-free i386 PE32 console image serialized by CupidLD for
-one prescribed memory layout. It exists only in source head; it is neither a
-checked Windows seed nor proof that a Cupid-built tool runs on Windows.
-Empty output categories are omitted from the section table. Writable
-executable input is outside the profile and fails transactionally.
+A deterministic i386 PE32 console image serialized by CupidLD for one
+prescribed memory layout. It may be import-free or carry a canonical `.idata`
+section with import and IAT directories. Empty output categories are omitted
+from the section table. Writable executable input is outside the profile and
+fails transactionally. This profile exists only in source head and is not a
+checked Windows seed or a native five-tool fixed point.
 _Avoid_: general PE linker, native Windows fixed point, checked Windows seed
+
+**Cupid-built Windows runtime probe**:
+A freestanding i386 command compiled by source-head CupidC, assembled by
+CupidASM, linked with three `KERNEL32.dll` imports by CupidLD, and loaded
+directly by Windows. It prints a fixed marker and exits with status 37. The
+checked producers remain static i386 Linux programs executed through WSL, so
+the probe proves the Windows loader boundary rather than a native bootstrap.
+_Avoid_: host-built Windows oracle, native Toolchain fixed point, Windows seed
 
 **CupidObj**:
 The Cupid Toolchain object and binary transformation utility. `wrap` keeps
@@ -720,7 +731,12 @@ One tool call launched from a private capture of the manifest-bound five-tool se
 _Avoid_: live-seed execution, verified executable alone, native oracle command
 
 **Frozen fixed-point source closure**:
-The exact 41 source inputs copied into one private compiler root before a checked-seed bootstrap runs. Both stages and their behavior checks consume that root. The harness rehashes the private and live closures at each boundary, then publishes the two stages, behavior evidence, and report as one complete directory only after every gate passes.
+The exact 43 source inputs copied into one private compiler root before a
+checked-seed bootstrap runs. The closure includes the Windows startup and
+runtime probe. Both stages and their behavior checks consume that root. The
+harness rehashes the private and live closures at each boundary, then publishes
+the two stages, behavior evidence, and report as one complete directory only
+after every gate passes.
 _Avoid_: live source root, source hash alone, public staging directory
 
 **Bootstrap stage**:

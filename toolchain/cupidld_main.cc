@@ -51,6 +51,8 @@ typedef struct {
   ctool_bool have_text_address;
   const char **objects;
   ctool_u32 object_count;
+  const char **imports;
+  ctool_u32 import_count;
 } cupidld_cli_t;
 
 typedef struct {
@@ -346,7 +348,7 @@ static void cupidld_usage(FILE *stream) {
       "       cupidld -m elf_i386 --text-address ADDRESS --entry SYMBOL "
       "-o OUTPUT OBJECT...\n"
       "       cupidld -m i386pe --text-address 0x00401000 --entry SYMBOL "
-      "-o OUTPUT OBJECT...\n");
+      "[--import IAT_SYMBOL=LIBRARY:PROCEDURE]... -o OUTPUT OBJECT...\n");
 }
 
 static int cupidld_take_value(int argc, char **argv, int *index,
@@ -408,9 +410,11 @@ static int cupidld_parse_u32(const char *text, ctool_u32 *value_out) {
 
 static int cupidld_parse_cli(int argc, char **argv, cupidld_cli_t *cli) {
   const char **objects = cli->objects;
+  const char **imports = cli->imports;
   int index;
   (void)memset(cli, 0, sizeof(*cli));
   cli->objects = objects;
+  cli->imports = imports;
   if (argc == 2 &&
       (strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "-h") == 0)) {
     return -1;
@@ -465,6 +469,16 @@ static int cupidld_parse_cli(int argc, char **argv, cupidld_cli_t *cli) {
       cli->entry = value;
       continue;
     }
+    taken = cupidld_take_value(argc, argv, &index, argument, "--import",
+                               &value);
+    if (taken != 0) {
+      if (taken < 0 || value[0] == '\0') {
+        return 0;
+      }
+      cli->imports[cli->import_count] = value;
+      cli->import_count++;
+      continue;
+    }
     if (argument[0] == '-') {
       return 0;
     }
@@ -487,6 +501,43 @@ static int cupidld_parse_cli(int argc, char **argv, cupidld_cli_t *cli) {
              cli->entry == (const char *)0) {
     return 0;
   }
+  if (cli->import_count != 0u && strcmp(cli->machine, "i386pe") != 0) {
+    return 0;
+  }
+  return 1;
+}
+
+static int cupidld_parse_import(const char *text,
+                                ctool_ld_pe32_import_t *import_out) {
+  const char *equals;
+  const char *colon;
+  size_t symbol_size;
+  size_t library_size;
+  size_t procedure_size;
+  if (text == (const char *)0 ||
+      import_out == (ctool_ld_pe32_import_t *)0) {
+    return 0;
+  }
+  equals = strchr(text, '=');
+  colon = equals == (const char *)0 ? (const char *)0
+                                    : strchr(equals + 1, ':');
+  if (equals == (const char *)0 || colon == (const char *)0 ||
+      equals == text || colon == equals + 1 || colon[1] == '\0') {
+    return 0;
+  }
+  symbol_size = (size_t)(equals - text);
+  library_size = (size_t)(colon - equals - 1);
+  procedure_size = strlen(colon + 1);
+  if (symbol_size > 4294967295u || library_size > 4294967295u ||
+      procedure_size > 4294967295u) {
+    return 0;
+  }
+  import_out->symbol_name.data = text;
+  import_out->symbol_name.size = (ctool_u32)symbol_size;
+  import_out->library_name.data = equals + 1;
+  import_out->library_name.size = (ctool_u32)library_size;
+  import_out->procedure_name.data = colon + 1;
+  import_out->procedure_name.size = (ctool_u32)procedure_size;
   return 1;
 }
 
@@ -670,6 +721,7 @@ static void cupidld_free_paths(char **paths, ctool_u32 count) {
 int main(int argc, char **argv) {
   cupidld_cli_t cli;
   const char **cli_objects;
+  const char **cli_imports;
   char *working_directory = (char *)0;
   char **native_paths = (char **)0;
   ctool_u32 native_path_count;
@@ -682,6 +734,7 @@ int main(int argc, char **argv) {
   ctool_job_t *job = (ctool_job_t *)0;
   ctool_path_t logical_root;
   ctool_source_t *objects = (ctool_source_t *)0;
+  ctool_ld_pe32_import_t *imports = (ctool_ld_pe32_import_t *)0;
   ctool_source_t script;
   ctool_path_t path;
   ctool_path_t output_path;
@@ -695,22 +748,49 @@ int main(int argc, char **argv) {
 
   cli_objects = (const char **)calloc((size_t)(argc > 0 ? argc : 1),
                                       sizeof(const char *));
-  if (cli_objects == (const char **)0) {
+  cli_imports = (const char **)calloc((size_t)(argc > 0 ? argc : 1),
+                                      sizeof(const char *));
+  if (cli_objects == (const char **)0 ||
+      cli_imports == (const char **)0) {
     (void)fprintf(stderr, "cupidld: argument allocation failed\n");
+    free(cli_imports);
+    free(cli_objects);
     return 1;
   }
   (void)memset(&cli, 0, sizeof(cli));
   cli.objects = cli_objects;
+  cli.imports = cli_imports;
   parsed = cupidld_parse_cli(argc, argv, &cli);
   if (parsed < 0) {
     cupidld_usage(stdout);
+    free(cli_imports);
     free(cli_objects);
     return 0;
   }
   if (parsed == 0) {
     cupidld_usage(stderr);
+    free(cli_imports);
     free(cli_objects);
     return 2;
+  }
+  if (cli.import_count != 0u) {
+    imports = (ctool_ld_pe32_import_t *)calloc(
+        (size_t)cli.import_count, sizeof(ctool_ld_pe32_import_t));
+    if (imports == (ctool_ld_pe32_import_t *)0) {
+      (void)fprintf(stderr, "cupidld: import allocation failed\n");
+      free(cli_imports);
+      free(cli_objects);
+      return 1;
+    }
+    for (index = 0u; index < cli.import_count; index++) {
+      if (cupidld_parse_import(cli.imports[index], &imports[index]) == 0) {
+        cupidld_usage(stderr);
+        free(imports);
+        free(cli_imports);
+        free(cli_objects);
+        return 2;
+      }
+    }
   }
   native_path_count = cli.object_count + 1u;
   if (cli.script != (const char *)0) {
@@ -821,6 +901,8 @@ int main(int argc, char **argv) {
   request.image_kind = strcmp(cli.machine, "i386pe") == 0
                            ? CTOOL_LD_IMAGE_PE32_FIXED
                            : CTOOL_LD_IMAGE_ELF32;
+  request.pe32_imports = imports;
+  request.pe32_import_count = cli.import_count;
   request.maximum_image_span = CUPIDLD_HOST_IMAGE_SPAN;
   if (cli.script != (const char *)0) {
     request.layout.kind = CTOOL_LD_LAYOUT_SCRIPT;
@@ -858,6 +940,8 @@ done:
   cupidld_free_paths(native_paths, native_path_count);
   free(working_directory);
   free(objects);
+  free(imports);
+  free(cli_imports);
   free(cli_objects);
   return exit_code;
 }

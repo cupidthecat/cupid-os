@@ -18,6 +18,9 @@
 #define LD_PE_TEXT_ADDRESS 0x00401000u
 #define LD_PE_SECTION_ALIGNMENT 0x00001000u
 #define LD_PE_FILE_ALIGNMENT 0x00000200u
+#define LD_PE_IMPORT_DIRECTORY 1u
+#define LD_PE_IAT_DIRECTORY 12u
+#define LD_PE_NAME_RVA_LIMIT 0x80000000u
 #define LD_SHT_NULL 0u
 #define LD_SHT_SYMTAB 2u
 #define LD_SHT_STRTAB 3u
@@ -64,13 +67,31 @@ typedef enum {
   LD_DEFINITION_WEAK = 1,
   LD_DEFINITION_COMMON = 2,
   LD_DEFINITION_STRONG = 3,
-  LD_DEFINITION_SCRIPT = 4
+  LD_DEFINITION_SCRIPT = 4,
+  LD_DEFINITION_IMPORT = 5
 } ld_definition_rank_t;
+
+typedef struct {
+  const ctool_ld_pe32_import_t *request;
+  ctool_u32 global_index;
+  ctool_u32 hint_name_offset;
+  ctool_u32 iat_offset;
+} ld_pe32_import_t;
+
+typedef struct {
+  ctool_string_t name;
+  ctool_u32 first_import;
+  ctool_u32 import_count;
+  ctool_u32 lookup_offset;
+  ctool_u32 iat_offset;
+  ctool_u32 name_offset;
+} ld_pe32_library_t;
 
 typedef struct {
   ctool_string_t name;
   ld_definition_rank_t rank;
   ctool_bool required;
+  ctool_bool import_selected;
   ctool_bool value_ready;
   ctool_bool script_symbol;
   ctool_u32 first_object;
@@ -121,6 +142,14 @@ typedef struct {
   ctool_u32 last_output;
   ctool_string_t entry_symbol;
   ctool_u32 applied_relocations;
+  ld_pe32_import_t *pe32_imports;
+  ctool_u32 pe32_import_count;
+  ld_pe32_library_t *pe32_libraries;
+  ctool_u32 pe32_library_count;
+  ctool_u32 pe32_import_directory_rva;
+  ctool_u32 pe32_import_directory_size;
+  ctool_u32 pe32_iat_directory_rva;
+  ctool_u32 pe32_iat_directory_size;
 } ld_context_t;
 
 typedef enum {
@@ -218,6 +247,59 @@ static ctool_bool ld_string_equal(ctool_string_t left,
   }
   for (index = 0u; index < left.size; index++) {
     if (left.data[index] != right.data[index]) {
+      return CTOOL_FALSE;
+    }
+  }
+  return CTOOL_TRUE;
+}
+
+static ctool_u8 ld_ascii_fold(ctool_u8 value) {
+  return value >= (ctool_u8)'A' && value <= (ctool_u8)'Z'
+             ? (ctool_u8)(value + ((ctool_u8)'a' - (ctool_u8)'A'))
+             : value;
+}
+
+static ctool_i32 ld_string_compare(ctool_string_t left,
+                                   ctool_string_t right,
+                                   ctool_bool fold_ascii) {
+  ctool_u32 shared = left.size < right.size ? left.size : right.size;
+  ctool_u32 index;
+  for (index = 0u; index < shared; index++) {
+    ctool_u8 left_byte = (ctool_u8)left.data[index];
+    ctool_u8 right_byte = (ctool_u8)right.data[index];
+    if (fold_ascii == CTOOL_TRUE) {
+      left_byte = ld_ascii_fold(left_byte);
+      right_byte = ld_ascii_fold(right_byte);
+    }
+    if (left_byte < right_byte) {
+      return -1;
+    }
+    if (left_byte > right_byte) {
+      return 1;
+    }
+  }
+  if (left.size < right.size) {
+    return -1;
+  }
+  if (left.size > right.size) {
+    return 1;
+  }
+  return 0;
+}
+
+static ctool_bool ld_pe32_string_valid(ctool_string_t value,
+                                       ctool_bool library_name) {
+  ctool_u32 index;
+  if (value.data == (const char *)0 || value.size == 0u ||
+      value.size > 65533u) {
+    return CTOOL_FALSE;
+  }
+  for (index = 0u; index < value.size; index++) {
+    ctool_u8 byte = (ctool_u8)value.data[index];
+    if (byte < 0x21u || byte > 0x7eu ||
+        (library_name == CTOOL_TRUE &&
+         (byte == (ctool_u8)'/' || byte == (ctool_u8)'\\' ||
+          byte == (ctool_u8)':'))) {
       return CTOOL_FALSE;
     }
   }
@@ -1297,6 +1379,402 @@ static ctool_status_t ld_finalize_globals(ld_context_t *link) {
   return CTOOL_OK;
 }
 
+static ctool_i32 ld_pe32_import_compare(
+    const ctool_ld_pe32_import_t *left,
+    const ctool_ld_pe32_import_t *right) {
+  ctool_i32 order = ld_string_compare(left->library_name,
+                                      right->library_name, CTOOL_TRUE);
+  if (order == 0) {
+    order = ld_string_compare(left->procedure_name,
+                              right->procedure_name, CTOOL_FALSE);
+  }
+  if (order == 0) {
+    order = ld_string_compare(left->symbol_name,
+                              right->symbol_name, CTOOL_FALSE);
+  }
+  if (order == 0) {
+    order = ld_string_compare(left->library_name,
+                              right->library_name, CTOOL_FALSE);
+  }
+  return order;
+}
+
+static void ld_pe32_import_swap(ld_pe32_import_t *left,
+                                ld_pe32_import_t *right) {
+  ld_pe32_import_t temporary = *left;
+  *left = *right;
+  *right = temporary;
+}
+
+static void ld_pe32_import_sift_down(ld_pe32_import_t *imports,
+                                     ctool_u32 root,
+                                     ctool_u32 count) {
+  for (;;) {
+    ctool_u32 child;
+    ctool_u32 selected;
+    if (root >= count / 2u) {
+      return;
+    }
+    child = root * 2u + 1u;
+    selected = root;
+    if (ld_pe32_import_compare(imports[selected].request,
+                               imports[child].request) < 0) {
+      selected = child;
+    }
+    if (child + 1u < count &&
+        ld_pe32_import_compare(imports[selected].request,
+                               imports[child + 1u].request) < 0) {
+      selected = child + 1u;
+    }
+    if (selected == root) {
+      return;
+    }
+    ld_pe32_import_swap(&imports[root], &imports[selected]);
+    root = selected;
+  }
+}
+
+static void ld_pe32_import_sort(ld_pe32_import_t *imports,
+                                ctool_u32 count) {
+  ctool_u32 start = count / 2u;
+  ctool_u32 end = count;
+  while (start != 0u) {
+    start--;
+    ld_pe32_import_sift_down(imports, start, count);
+  }
+  while (end > 1u) {
+    ld_pe32_import_swap(&imports[0], &imports[end - 1u]);
+    end--;
+    ld_pe32_import_sift_down(imports, 0u, end);
+  }
+}
+
+static ctool_status_t ld_pe32_import_error(ld_context_t *link,
+                                           ctool_u32 import_index,
+                                           const char *message) {
+  return ld_diagnostic(link->job, CTOOL_LD_DIAG_BAD_IMPORT,
+                       ctool_string(""), 0u, import_index, message,
+                       CTOOL_ERR_INPUT);
+}
+
+static ctool_status_t ld_pe32_align_import_payload(
+    ld_context_t *link, ctool_u32 base, ctool_u32 alignment,
+    ctool_u32 *offset_out) {
+  ctool_u32 size = ctool_buffer_view(link->payload).size;
+  ctool_u32 relative;
+  ctool_u32 aligned;
+  ctool_status_t status;
+  if (size < base) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  relative = size - base;
+  status = ld_align_value(relative, alignment, &aligned);
+  if (status == CTOOL_OK && aligned != relative) {
+    status = ctool_buffer_fill(link->payload, 0u, aligned - relative);
+  }
+  if (status == CTOOL_OK) {
+    *offset_out = aligned;
+  }
+  return status;
+}
+
+static ctool_status_t ld_prepare_pe32_imports(ld_context_t *link) {
+  ctool_u32 import_count = link->request->pe32_import_count;
+  ctool_u32 library_count = 0u;
+  ctool_u32 index;
+  ctool_u32 output_index;
+  ctool_u32 address = LD_PE_TEXT_ADDRESS;
+  ctool_u32 staging_offset;
+  ctool_u32 descriptor_size;
+  ctool_u32 import_payload_size;
+  ld_output_section_t *section;
+  ctool_status_t status;
+  if (import_count == 0u) {
+    return CTOOL_OK;
+  }
+  if (link->request->image_kind != CTOOL_LD_IMAGE_PE32_FIXED ||
+      link->request->layout.kind != CTOOL_LD_LAYOUT_FIXED_TEXT) {
+    return ld_pe32_import_error(
+        link, 0u, "CupidLD imports require the fixed PE32 image profile");
+  }
+  status = ld_alloc_array(link->arena, import_count,
+                          (ctool_u32)sizeof(ld_pe32_import_t),
+                          (void **)&link->pe32_imports);
+  if (status == CTOOL_OK) {
+    status = ld_alloc_array(link->arena, import_count,
+                            (ctool_u32)sizeof(ld_pe32_library_t),
+                            (void **)&link->pe32_libraries);
+  }
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  link->pe32_import_count = import_count;
+  for (index = 0u; index < import_count; index++) {
+    const ctool_ld_pe32_import_t *request =
+        &link->request->pe32_imports[index];
+    if (ld_pe32_string_valid(request->symbol_name, CTOOL_FALSE) ==
+            CTOOL_FALSE ||
+        ld_pe32_string_valid(request->library_name, CTOOL_TRUE) ==
+            CTOOL_FALSE ||
+        ld_pe32_string_valid(request->procedure_name, CTOOL_FALSE) ==
+            CTOOL_FALSE) {
+      return ld_pe32_import_error(
+          link, index, "CupidLD PE32 import names are invalid");
+    }
+    link->pe32_imports[index].request = request;
+  }
+  ld_pe32_import_sort(link->pe32_imports, import_count);
+  for (index = 0u; index < import_count; index++) {
+    const ctool_ld_pe32_import_t *request =
+        link->pe32_imports[index].request;
+    ctool_u32 global_index;
+    ld_global_t *global;
+    if (index != 0u) {
+      const ctool_ld_pe32_import_t *previous =
+          link->pe32_imports[index - 1u].request;
+      if (ld_string_compare(previous->library_name, request->library_name,
+                            CTOOL_TRUE) == 0 &&
+          ld_string_equal(previous->library_name,
+                          request->library_name) == CTOOL_FALSE) {
+        return ld_pe32_import_error(
+            link, index,
+            "CupidLD PE32 imports use inconsistent library spelling");
+      }
+      if (ld_string_equal(previous->library_name,
+                          request->library_name) == CTOOL_TRUE &&
+          ld_string_equal(previous->procedure_name,
+                          request->procedure_name) == CTOOL_TRUE) {
+        return ld_pe32_import_error(
+            link, index,
+            "CupidLD PE32 imports contain the same procedure twice");
+      }
+      if (ld_string_equal(previous->symbol_name,
+                          request->symbol_name) == CTOOL_TRUE) {
+        return ld_pe32_import_error(
+            link, index,
+            "CupidLD PE32 imports contain the same IAT symbol twice");
+      }
+    }
+    status = ld_find_global(link, request->symbol_name, CTOOL_FALSE,
+                            &global_index);
+    if (status != CTOOL_OK) {
+      return ld_pe32_import_error(
+          link, index,
+          "CupidLD PE32 import does not match an undefined symbol");
+    }
+    global = &link->globals[global_index];
+    if (global->import_selected == CTOOL_TRUE) {
+      return ld_pe32_import_error(
+          link, index,
+          "CupidLD PE32 imports contain the same IAT symbol twice");
+    }
+    if (global->rank != LD_DEFINITION_NONE ||
+        global->required == CTOOL_FALSE) {
+      return ld_pe32_import_error(
+          link, index,
+          "CupidLD PE32 import symbol is unused or already defined");
+    }
+    global->import_selected = CTOOL_TRUE;
+    link->pe32_imports[index].global_index = global_index;
+    if (index == 0u ||
+        ld_string_compare(
+            link->pe32_imports[index - 1u].request->library_name,
+            request->library_name, CTOOL_TRUE) != 0) {
+      ld_pe32_library_t *library =
+          &link->pe32_libraries[library_count];
+      library->name = request->library_name;
+      library->first_import = index;
+      library_count++;
+    }
+    link->pe32_libraries[library_count - 1u].import_count++;
+  }
+  link->pe32_library_count = library_count;
+  for (index = 0u; index < link->output_count; index++) {
+    const ld_output_section_t *existing = &link->outputs[index];
+    ctool_u32 end;
+    if (ld_add_overflows(existing->address, existing->size) == CTOOL_TRUE) {
+      return CTOOL_ERR_OVERFLOW;
+    }
+    end = existing->address + existing->size;
+    if (end > address) {
+      address = end;
+    }
+  }
+  status = ld_align_value(address, LD_PE_SECTION_ALIGNMENT, &address);
+  if (status == CTOOL_OK) {
+    status = ld_begin_output(link, ctool_string(".idata"), address,
+                             &output_index);
+  }
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  section = &link->outputs[output_index];
+  section->type = (ctool_u32)CTOOL_ELF32_SHT_PROGBITS;
+  section->flags = CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_WRITE;
+  section->alignment = 4u;
+  staging_offset = ctool_buffer_view(link->payload).size;
+  section->staging_offset = staging_offset;
+  if (ld_add_overflows(library_count, 1u) == CTOOL_TRUE ||
+      ld_multiply_overflows(library_count + 1u, 20u) == CTOOL_TRUE) {
+    return CTOOL_ERR_OVERFLOW;
+  }
+  descriptor_size = (library_count + 1u) * 20u;
+  status = ctool_buffer_fill(link->payload, 0u, descriptor_size);
+  for (index = 0u; status == CTOOL_OK && index < library_count; index++) {
+    ld_pe32_library_t *library = &link->pe32_libraries[index];
+    ctool_u32 thunk_count = library->import_count + 1u;
+    status = ld_pe32_align_import_payload(
+        link, staging_offset, 4u, &library->lookup_offset);
+    if (status == CTOOL_OK &&
+        ld_multiply_overflows(thunk_count, 4u) == CTOOL_FALSE) {
+      status = ctool_buffer_fill(link->payload, 0u, thunk_count * 4u);
+    } else if (status == CTOOL_OK) {
+      status = CTOOL_ERR_OVERFLOW;
+    }
+  }
+  for (index = 0u; status == CTOOL_OK && index < library_count; index++) {
+    ld_pe32_library_t *library = &link->pe32_libraries[index];
+    ctool_u32 thunk_count = library->import_count + 1u;
+    status = ld_pe32_align_import_payload(
+        link, staging_offset, 4u, &library->iat_offset);
+    if (status == CTOOL_OK &&
+        ld_multiply_overflows(thunk_count, 4u) == CTOOL_FALSE) {
+      status = ctool_buffer_fill(link->payload, 0u, thunk_count * 4u);
+    } else if (status == CTOOL_OK) {
+      status = CTOOL_ERR_OVERFLOW;
+    }
+  }
+  for (index = 0u; status == CTOOL_OK && index < library_count; index++) {
+    ld_pe32_library_t *library = &link->pe32_libraries[index];
+    ctool_u8 terminator = 0u;
+    library->name_offset =
+        ctool_buffer_view(link->payload).size - staging_offset;
+    status = ctool_buffer_append(
+        link->payload,
+        ctool_bytes(library->name.data, library->name.size));
+    if (status == CTOOL_OK) {
+      status = ctool_buffer_append(link->payload,
+                                   ctool_bytes(&terminator, 1u));
+    }
+  }
+  for (index = 0u; status == CTOOL_OK && index < import_count; index++) {
+    const ctool_ld_pe32_import_t *request =
+        link->pe32_imports[index].request;
+    ctool_u8 terminator = 0u;
+    status = ld_pe32_align_import_payload(
+        link, staging_offset, 2u,
+        &link->pe32_imports[index].hint_name_offset);
+    if (status == CTOOL_OK) {
+      status = ctool_buffer_put_le16(link->payload, 0u);
+    }
+    if (status == CTOOL_OK) {
+      status = ctool_buffer_append(
+          link->payload,
+          ctool_bytes(request->procedure_name.data,
+                      request->procedure_name.size));
+    }
+    if (status == CTOOL_OK) {
+      status = ctool_buffer_append(link->payload,
+                                   ctool_bytes(&terminator, 1u));
+    }
+  }
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  import_payload_size =
+      ctool_buffer_view(link->payload).size - staging_offset;
+  if (address < LD_PE_IMAGE_BASE ||
+      address - LD_PE_IMAGE_BASE >= LD_PE_NAME_RVA_LIMIT ||
+      import_payload_size >
+          LD_PE_NAME_RVA_LIMIT - (address - LD_PE_IMAGE_BASE)) {
+    return ld_pe32_import_error(
+        link, 0u, "CupidLD PE32 import table exceeds the name RVA range");
+  }
+  for (index = 0u; index < library_count; index++) {
+    ld_pe32_library_t *library = &link->pe32_libraries[index];
+    ctool_u32 library_rva;
+    ctool_u32 lookup_rva;
+    ctool_u32 iat_rva;
+    ctool_u32 local;
+    if (address < LD_PE_IMAGE_BASE ||
+        ld_add_overflows(address - LD_PE_IMAGE_BASE,
+                         library->name_offset) == CTOOL_TRUE ||
+        ld_add_overflows(address - LD_PE_IMAGE_BASE,
+                         library->lookup_offset) == CTOOL_TRUE ||
+        ld_add_overflows(address - LD_PE_IMAGE_BASE,
+                         library->iat_offset) == CTOOL_TRUE) {
+      return CTOOL_ERR_OVERFLOW;
+    }
+    library_rva = address - LD_PE_IMAGE_BASE + library->name_offset;
+    lookup_rva = address - LD_PE_IMAGE_BASE + library->lookup_offset;
+    iat_rva = address - LD_PE_IMAGE_BASE + library->iat_offset;
+    status = ctool_buffer_patch_le32(
+        link->payload, staging_offset + index * 20u, lookup_rva);
+    if (status == CTOOL_OK) {
+      status = ctool_buffer_patch_le32(
+          link->payload, staging_offset + index * 20u + 12u, library_rva);
+    }
+    if (status == CTOOL_OK) {
+      status = ctool_buffer_patch_le32(
+          link->payload, staging_offset + index * 20u + 16u, iat_rva);
+    }
+    for (local = 0u; status == CTOOL_OK &&
+                     local < library->import_count; local++) {
+      ctool_u32 import_index = library->first_import + local;
+      ld_pe32_import_t *import = &link->pe32_imports[import_index];
+      ld_global_t *global = &link->globals[import->global_index];
+      ctool_u32 hint_rva;
+      import->iat_offset = library->iat_offset + local * 4u;
+      if (ld_add_overflows(address - LD_PE_IMAGE_BASE,
+                           import->hint_name_offset) == CTOOL_TRUE ||
+          ld_add_overflows(address, import->iat_offset) == CTOOL_TRUE) {
+        return CTOOL_ERR_OVERFLOW;
+      }
+      hint_rva = address - LD_PE_IMAGE_BASE + import->hint_name_offset;
+      if (hint_rva >= LD_PE_NAME_RVA_LIMIT) {
+        return ld_pe32_import_error(
+            link, import_index,
+            "CupidLD PE32 import thunk has the ordinal flag set");
+      }
+      status = ctool_buffer_patch_le32(
+          link->payload,
+          staging_offset + library->lookup_offset + local * 4u,
+          hint_rva);
+      if (status == CTOOL_OK) {
+        status = ctool_buffer_patch_le32(
+            link->payload,
+            staging_offset + library->iat_offset + local * 4u,
+            hint_rva);
+      }
+      global->rank = LD_DEFINITION_IMPORT;
+      global->value_ready = CTOOL_TRUE;
+      global->value = address + import->iat_offset;
+      global->output_index = output_index;
+      global->size = 4u;
+      global->binding = CTOOL_ELF32_BIND_GLOBAL;
+      global->type = CTOOL_ELF32_SYMBOL_OBJECT;
+      global->visibility = CTOOL_ELF32_VIS_DEFAULT;
+    }
+    if (status != CTOOL_OK) {
+      return status;
+    }
+  }
+  section->size = import_payload_size;
+  section->file_size = section->size;
+  link->pe32_import_directory_rva = address - LD_PE_IMAGE_BASE;
+  link->pe32_import_directory_size = descriptor_size;
+  link->pe32_iat_directory_rva =
+      address - LD_PE_IMAGE_BASE + link->pe32_libraries[0].iat_offset;
+  {
+    const ld_pe32_library_t *last =
+        &link->pe32_libraries[library_count - 1u];
+    ctool_u32 end = last->iat_offset + (last->import_count + 1u) * 4u;
+    link->pe32_iat_directory_size =
+        end - link->pe32_libraries[0].iat_offset;
+  }
+  return CTOOL_OK;
+}
+
 static ctool_status_t ld_symbol_value(ld_context_t *link,
                                       ctool_u32 object_index,
                                       ctool_u32 symbol_index,
@@ -1442,6 +1920,30 @@ static ctool_status_t ld_apply_relocations(ld_context_t *link) {
                              relocation_index,
                              "CupidLD relocation type is unsupported",
                              CTOOL_ERR_UNSUPPORTED);
+      }
+      if (relocation->symbol_file_index >= object->object.symbol_count) {
+        return CTOOL_ERR_INPUT;
+      }
+      {
+        const ctool_elf32_symbol_t *reference =
+            &object->object.symbols[relocation->symbol_file_index];
+        if (reference->binding != CTOOL_ELF32_BIND_LOCAL) {
+          ctool_u32 global_index;
+          status = ld_find_global(link, reference->name, CTOOL_FALSE,
+                                  &global_index);
+          if (status != CTOOL_OK) {
+            return CTOOL_ERR_INTERNAL;
+          }
+          if (link->globals[global_index].rank == LD_DEFINITION_IMPORT &&
+              (relocation->type != CTOOL_ELF32_R_386_32 ||
+               relocation->addend != 0)) {
+            return ld_diagnostic(
+                link->job, CTOOL_LD_DIAG_BAD_IMPORT,
+                object->source->path.text, 0u, relocation_index,
+                "CupidLD IAT symbols require an absolute zero-addend relocation",
+                CTOOL_ERR_INPUT);
+          }
+        }
       }
       if (relocation->offset > target->size ||
           target->size - relocation->offset < 4u) {
@@ -2191,7 +2693,7 @@ static ctool_status_t ld_put_pe32_dos_header(ctool_buffer_t *output) {
 }
 
 static ctool_status_t ld_put_pe32_optional_header(
-    ctool_buffer_t *output, ctool_u32 code_size,
+    const ld_context_t *link, ctool_buffer_t *output, ctool_u32 code_size,
     ctool_u32 initialized_size, ctool_u32 uninitialized_size,
     ctool_u32 entry_rva, ctool_u32 base_of_code, ctool_u32 base_of_data,
     ctool_u32 image_size, ctool_u32 headers_size) {
@@ -2286,9 +2788,18 @@ static ctool_status_t ld_put_pe32_optional_header(
   }
   for (directory = 0u; status == CTOOL_OK && directory < 16u;
        directory++) {
-    status = ctool_buffer_put_le32(output, 0u);
+    ctool_u32 rva = 0u;
+    ctool_u32 size = 0u;
+    if (directory == LD_PE_IMPORT_DIRECTORY) {
+      rva = link->pe32_import_directory_rva;
+      size = link->pe32_import_directory_size;
+    } else if (directory == LD_PE_IAT_DIRECTORY) {
+      rva = link->pe32_iat_directory_rva;
+      size = link->pe32_iat_directory_size;
+    }
+    status = ctool_buffer_put_le32(output, rva);
     if (status == CTOOL_OK) {
-      status = ctool_buffer_put_le32(output, 0u);
+      status = ctool_buffer_put_le32(output, size);
     }
   }
   return status;
@@ -2394,7 +2905,7 @@ static ctool_status_t ld_serialize_pe32_fixed(
       emitted_section_count++;
     }
   }
-  if (emitted_section_count == 0u || emitted_section_count > 4u) {
+  if (emitted_section_count == 0u || emitted_section_count > 5u) {
     return ld_diagnostic(link->job, CTOOL_LD_DIAG_BAD_LAYOUT,
                          ctool_string(""), 0u, 0u,
                          "CupidLD PE32 section count is invalid",
@@ -2544,6 +3055,13 @@ static ctool_status_t ld_serialize_pe32_fixed(
         CTOOL_ERR_LIMIT);
     goto done;
   }
+  if (image_size > LD_PE_NAME_RVA_LIMIT) {
+    status = ld_diagnostic(
+        link->job, CTOOL_LD_DIAG_LIMIT, ctool_string(""), 0u, 0u,
+        "CupidLD PE32 image exceeds the 2 GiB RVA range",
+        CTOOL_ERR_LIMIT);
+    goto done;
+  }
   failure_phase = "CupidLD PE32 image header write failed";
   status = ld_put_pe32_dos_header(output);
   if (status == CTOOL_OK) {
@@ -2577,7 +3095,7 @@ static ctool_status_t ld_serialize_pe32_fixed(
   }
   if (status == CTOOL_OK) {
     status = ld_put_pe32_optional_header(
-        output, code_size, initialized_size, uninitialized_size, entry_rva,
+        link, output, code_size, initialized_size, uninitialized_size, entry_rva,
         base_of_code, base_of_data, image_size, headers_size);
   }
   failure_phase = "CupidLD PE32 section header write failed";
@@ -2638,6 +3156,8 @@ static ctool_status_t ld_serialize_pe32_fixed(
     result_out->output_section_count = emitted_section_count;
     result_out->resolved_symbol_count = summary.resolved_symbol_count;
     result_out->applied_relocation_count = link->applied_relocations;
+    result_out->imported_symbol_count = link->pe32_import_count;
+    result_out->imported_library_count = link->pe32_library_count;
   }
 
 done:
@@ -3368,6 +3888,8 @@ ctool_status_t ctool_ld_link(ctool_job_t *job,
   }
   if (request->objects == (const ctool_source_t *)0 ||
       request->object_count == 0u || request->maximum_image_span == 0u ||
+      (request->pe32_import_count != 0u &&
+       request->pe32_imports == (const ctool_ld_pe32_import_t *)0) ||
       (request->image_kind != CTOOL_LD_IMAGE_ELF32 &&
        request->image_kind != CTOOL_LD_IMAGE_PE32_FIXED) ||
       (request->layout.kind != CTOOL_LD_LAYOUT_SCRIPT &&
@@ -3421,6 +3943,10 @@ ctool_status_t ctool_ld_link(ctool_job_t *job,
   if (status == CTOOL_OK) {
     phase = "CupidLD unmatched-section validation failed";
     status = ld_reject_unmatched_allocated(&link);
+  }
+  if (status == CTOOL_OK) {
+    phase = "CupidLD PE32 import construction failed";
+    status = ld_prepare_pe32_imports(&link);
   }
   if (status == CTOOL_OK) {
     phase = "CupidLD final symbol resolution failed";

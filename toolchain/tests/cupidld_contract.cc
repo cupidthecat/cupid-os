@@ -19,21 +19,31 @@ static ctool_u32 read_le32(const ctool_u8 *bytes, ctool_u32 offset) {
          ((ctool_u32)bytes[offset + 3u] << 24u);
 }
 
-static int open_job(ctool_host_adapter_t *adapter,
-                    ctool_job_config_t *config, ctool_job_t **job) {
+static int open_job_with_output_limit(ctool_host_adapter_t *adapter,
+                                      ctool_job_config_t *config,
+                                      ctool_job_t **job,
+                                      ctool_u32 output_bytes) {
+  ctool_limits_t limits = ctool_default_limits();
   ctool_status_t status = ctool_host_adapter_init(adapter, ".");
   if (status != CTOOL_OK) {
     (void)fprintf(stderr, "host adapter init: %s\n",
                   ctool_status_name(status));
     return 0;
   }
-  *config = ctool_host_job_config(adapter, ctool_default_limits());
+  limits.output_bytes = output_bytes;
+  *config = ctool_host_job_config(adapter, limits);
   status = ctool_job_open(config, job);
   if (status != CTOOL_OK) {
     (void)fprintf(stderr, "job open: %s\n", ctool_status_name(status));
     return 0;
   }
   return 1;
+}
+
+static int open_job(ctool_host_adapter_t *adapter,
+                    ctool_job_config_t *config, ctool_job_t **job) {
+  return open_job_with_output_limit(
+      adapter, config, job, ctool_default_limits().output_bytes);
 }
 
 static int run_fixed_basic(void) {
@@ -110,6 +120,7 @@ static int run_fixed_basic(void) {
 
   object_source.path.text = ctool_string("/start.o");
   object_source.contents = ctool_buffer_view(object_buffer);
+  (void)memset(&request, 0, sizeof(request));
   request.objects = &object_source;
   request.object_count = 1u;
   request.image_kind = CTOOL_LD_IMAGE_ELF32;
@@ -309,6 +320,7 @@ static int run_fixed_layout(void) {
   }
   object_source.path.text = ctool_string("/layout.o");
   object_source.contents = ctool_buffer_view(object_buffer);
+  (void)memset(&request, 0, sizeof(request));
   request.objects = &object_source;
   request.object_count = 1u;
   request.image_kind = CTOOL_LD_IMAGE_ELF32;
@@ -526,6 +538,7 @@ static int run_pe32_fixed(void) {
   }
   object_source.path.text = ctool_string("/pe-layout.o");
   object_source.contents = ctool_buffer_view(object_buffer);
+  (void)memset(&request, 0, sizeof(request));
   request.objects = &object_source;
   request.object_count = 1u;
   request.image_kind = CTOOL_LD_IMAGE_PE32_FIXED;
@@ -544,7 +557,9 @@ static int run_pe32_fixed(void) {
       result.memory_end != 0x00404010u ||
       result.output_section_count != 4u ||
       result.resolved_symbol_count != 2u ||
-      result.applied_relocation_count != 1u || image.data[0] != 0x4du ||
+      result.applied_relocation_count != 1u ||
+      result.imported_symbol_count != 0u ||
+      result.imported_library_count != 0u || image.data[0] != 0x4du ||
       image.data[1] != 0x5au || read_le32(image.data, 0x3cu) != 0x80u ||
       read_le32(image.data, 0x80u) != 0x00004550u ||
       read_le16(image.data, 0x84u) != 0x014cu ||
@@ -690,6 +705,271 @@ cleanup:
   return passed != 0 ? 0 : 1;
 }
 
+static int run_pe32_imports(void) {
+  static const ctool_u8 text[] = {0xffu, 0x15u, 0u, 0u,
+                                  0u,    0u,    0xc3u};
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_buffer_t *object_buffer = (ctool_buffer_t *)0;
+  ctool_buffer_t *output = (ctool_buffer_t *)0;
+  ctool_buffer_t *repeat_output = (ctool_buffer_t *)0;
+  ctool_buffer_t *failure_output = (ctool_buffer_t *)0;
+  ctool_elf32_section_spec_t sections[2];
+  ctool_elf32_symbol_spec_t symbols[2];
+  ctool_elf32_relocation_spec_t relocation;
+  ctool_elf32_object_spec_t object_spec;
+  ctool_source_t object_source;
+  ctool_ld_pe32_import_t import;
+  ctool_ld_pe32_import_t duplicate_imports[2];
+  ctool_ld_request_t request;
+  ctool_ld_result_t result;
+  ctool_ld_result_t repeat_result;
+  ctool_ld_result_t recovery_result;
+  ctool_bytes_t image;
+  ctool_arena_mark_t mark;
+  ctool_status_t status;
+  int passed = 0;
+  if (!open_job_with_output_limit(&adapter, &config, &job, 0xffffffffu)) {
+    return 1;
+  }
+  status = ctool_job_open_buffer(job, 256u, config.limits.output_bytes,
+                                 &object_buffer);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 256u, config.limits.output_bytes,
+                                   &output);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 256u, config.limits.output_bytes,
+                                   &repeat_output);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 256u, config.limits.output_bytes,
+                                   &failure_output);
+  }
+  if (status != CTOOL_OK) {
+    (void)fprintf(stderr, "PE32 import buffer setup failed: %s\n",
+                  ctool_status_name(status));
+    goto cleanup;
+  }
+  (void)memset(sections, 0, sizeof(sections));
+  sections[0].name = ctool_string(".text");
+  sections[0].type = CTOOL_ELF32_SHT_PROGBITS;
+  sections[0].flags = CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_EXECINSTR;
+  sections[0].alignment = 16u;
+  sections[0].size = (ctool_u32)sizeof(text);
+  sections[0].contents = ctool_bytes(text, (ctool_u32)sizeof(text));
+  (void)memset(symbols, 0, sizeof(symbols));
+  symbols[0].name = ctool_string("_start");
+  symbols[0].binding = CTOOL_ELF32_BIND_GLOBAL;
+  symbols[0].type = CTOOL_ELF32_SYMBOL_FUNCTION;
+  symbols[0].visibility = CTOOL_ELF32_VIS_DEFAULT;
+  symbols[0].placement = CTOOL_ELF32_SYMBOL_DEFINED;
+  symbols[0].section = 0u;
+  symbols[0].size = (ctool_u32)sizeof(text);
+  symbols[1].name = ctool_string("__imp_ExitProcess");
+  symbols[1].binding = CTOOL_ELF32_BIND_GLOBAL;
+  symbols[1].type = CTOOL_ELF32_SYMBOL_NOTYPE;
+  symbols[1].visibility = CTOOL_ELF32_VIS_DEFAULT;
+  symbols[1].placement = CTOOL_ELF32_SYMBOL_UNDEFINED;
+  symbols[1].section = CTOOL_ELF32_NO_SECTION;
+  (void)memset(&relocation, 0, sizeof(relocation));
+  relocation.target_section = 0u;
+  relocation.offset = 2u;
+  relocation.symbol = 1u;
+  relocation.type = CTOOL_ELF32_R_386_32;
+  (void)memset(&object_spec, 0, sizeof(object_spec));
+  object_spec.sections = sections;
+  object_spec.section_count = 1u;
+  object_spec.symbols = symbols;
+  object_spec.symbol_count = 2u;
+  object_spec.relocations = &relocation;
+  object_spec.relocation_count = 1u;
+  status = ctool_elf32_write(job, &object_spec, object_buffer);
+  if (status != CTOOL_OK) {
+    (void)fprintf(stderr, "PE32 import fixture write failed: %s\n",
+                  ctool_status_name(status));
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/pe-import.o");
+  object_source.contents = ctool_buffer_view(object_buffer);
+  import.symbol_name = ctool_string("__imp_ExitProcess");
+  import.library_name = ctool_string("KERNEL32.dll");
+  import.procedure_name = ctool_string("ExitProcess");
+  (void)memset(&request, 0, sizeof(request));
+  request.objects = &object_source;
+  request.object_count = 1u;
+  request.image_kind = CTOOL_LD_IMAGE_PE32_FIXED;
+  request.layout.kind = CTOOL_LD_LAYOUT_FIXED_TEXT;
+  request.layout.as.fixed_text.base_address = 0x00401000u;
+  request.layout.as.fixed_text.entry_symbol = ctool_string("_start");
+  request.pe32_imports = &import;
+  request.pe32_import_count = 1u;
+  request.maximum_image_span = 0x00003000u;
+  mark = ctool_arena_mark(ctool_job_arena(job));
+  (void)memset(&result, 0xa5, sizeof(result));
+  status = ctool_ld_link(job, &request, output, &result);
+  image = ctool_buffer_view(output);
+  if (status != CTOOL_OK || image.size != 0x0600u ||
+      result.bytes != image.size || result.entry != 0x00401000u ||
+      result.load_address != 0x00401000u ||
+      result.loaded_end != 0x00402054u ||
+      result.memory_end != 0x00402054u ||
+      result.output_section_count != 2u ||
+      result.resolved_symbol_count != 2u ||
+      result.applied_relocation_count != 1u ||
+      result.imported_symbol_count != 1u ||
+      result.imported_library_count != 1u ||
+      read_le16(image.data, 0x86u) != 2u ||
+      read_le32(image.data, 0xd0u) != 0x3000u ||
+      read_le32(image.data, 0x100u) != 0x2000u ||
+      read_le32(image.data, 0x104u) != 0x28u ||
+      read_le32(image.data, 0x158u) != 0x2030u ||
+      read_le32(image.data, 0x15cu) != 8u ||
+      read_le32(image.data, 0x202u) != 0x00402030u ||
+      memcmp(image.data + 0x1a0u, ".idata", 6u) != 0 ||
+      read_le32(image.data, 0x1a8u) != 0x54u ||
+      read_le32(image.data, 0x1acu) != 0x2000u ||
+      read_le32(image.data, 0x1b0u) != 0x200u ||
+      read_le32(image.data, 0x1b4u) != 0x400u ||
+      read_le32(image.data, 0x1c4u) != 0xc0000040u ||
+      read_le32(image.data, 0x400u) != 0x2028u ||
+      read_le32(image.data, 0x40cu) != 0x2038u ||
+      read_le32(image.data, 0x410u) != 0x2030u ||
+      read_le32(image.data, 0x428u) != 0x2046u ||
+      read_le32(image.data, 0x42cu) != 0u ||
+      read_le32(image.data, 0x430u) != 0x2046u ||
+      read_le32(image.data, 0x434u) != 0u ||
+      memcmp(image.data + 0x438u, "KERNEL32.dll", 12u) != 0 ||
+      image.data[0x444u] != 0u ||
+      read_le16(image.data, 0x446u) != 0u ||
+      memcmp(image.data + 0x448u, "ExitProcess", 11u) != 0 ||
+      image.data[0x453u] != 0u) {
+    (void)fprintf(stderr, "PE32 import image differs (status=%s)\n",
+                  ctool_status_name(status));
+    goto cleanup;
+  }
+  (void)memset(&repeat_result, 0xa5, sizeof(repeat_result));
+  status = ctool_ld_link(job, &request, repeat_output, &repeat_result);
+  if (status != CTOOL_OK ||
+      memcmp(&result, &repeat_result, sizeof(result)) != 0 ||
+      ctool_buffer_view(repeat_output).size != image.size ||
+      memcmp(ctool_buffer_view(repeat_output).data, image.data,
+             image.size) != 0) {
+    (void)fprintf(stderr, "PE32 import output is not deterministic\n");
+    goto cleanup;
+  }
+  request.pe32_imports = (const ctool_ld_pe32_import_t *)0;
+  if (!expect_link_failure(job, &request, failure_output,
+                           CTOOL_ERR_INVALID_ARGUMENT,
+                           CTOOL_LD_DIAG_INVALID_REQUEST,
+                           "PE32 missing import array")) {
+    goto cleanup;
+  }
+  request.pe32_imports = &import;
+  request.maximum_image_span = 0x00002000u;
+  if (!expect_link_failure(job, &request, failure_output, CTOOL_ERR_LIMIT,
+                           CTOOL_LD_DIAG_LIMIT,
+                           "PE32 imported image span")) {
+    goto cleanup;
+  }
+  request.maximum_image_span = 0x00003000u;
+  import.library_name = ctool_string("KERNEL32/evil.dll");
+  if (!expect_link_failure(job, &request, failure_output, CTOOL_ERR_INPUT,
+                           CTOOL_LD_DIAG_BAD_IMPORT,
+                           "PE32 unsafe import name")) {
+    goto cleanup;
+  }
+  import.library_name = ctool_string("KERNEL32.dll");
+  duplicate_imports[0] = import;
+  duplicate_imports[1] = import;
+  request.pe32_imports = duplicate_imports;
+  request.pe32_import_count = 2u;
+  if (!expect_link_failure(job, &request, failure_output, CTOOL_ERR_INPUT,
+                           CTOOL_LD_DIAG_BAD_IMPORT,
+                           "PE32 duplicate import")) {
+    goto cleanup;
+  }
+  request.image_kind = CTOOL_LD_IMAGE_ELF32;
+  request.pe32_imports = &import;
+  request.pe32_import_count = 1u;
+  if (!expect_link_failure(job, &request, failure_output, CTOOL_ERR_INPUT,
+                           CTOOL_LD_DIAG_BAD_IMPORT,
+                           "non-PE import")) {
+    goto cleanup;
+  }
+  request.image_kind = CTOOL_LD_IMAGE_PE32_FIXED;
+  sections[1].name = ctool_string(".bss");
+  sections[1].type = CTOOL_ELF32_SHT_NOBITS;
+  sections[1].flags = CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_WRITE;
+  sections[1].alignment = 4096u;
+  sections[1].size = 0x7fffe000u;
+  object_spec.section_count = 2u;
+  ctool_buffer_clear(object_buffer);
+  status = ctool_elf32_write(job, &object_spec, object_buffer);
+  object_source.contents = ctool_buffer_view(object_buffer);
+  request.maximum_image_span = 0xffffffffu;
+  if (status != CTOOL_OK ||
+      !expect_link_failure(job, &request, failure_output, CTOOL_ERR_INPUT,
+                           CTOOL_LD_DIAG_BAD_IMPORT,
+                           "PE32 import ordinal RVA")) {
+    goto cleanup;
+  }
+  object_spec.section_count = 1u;
+  request.maximum_image_span = 0x00003000u;
+  relocation.addend = 4;
+  ctool_buffer_clear(object_buffer);
+  status = ctool_elf32_write(job, &object_spec, object_buffer);
+  object_source.contents = ctool_buffer_view(object_buffer);
+  if (status != CTOOL_OK ||
+      !expect_link_failure(job, &request, failure_output, CTOOL_ERR_INPUT,
+                           CTOOL_LD_DIAG_BAD_IMPORT,
+                           "PE32 nonzero import addend")) {
+    goto cleanup;
+  }
+  relocation.addend = 0;
+  ctool_buffer_clear(object_buffer);
+  status = ctool_elf32_write(job, &object_spec, object_buffer);
+  object_source.contents = ctool_buffer_view(object_buffer);
+  if (status != CTOOL_OK) {
+    (void)fprintf(stderr, "PE32 import recovery fixture write failed: %s\n",
+                  ctool_status_name(status));
+    goto cleanup;
+  }
+  status = ctool_ld_link(job, &request, failure_output, &recovery_result);
+  if (status != CTOOL_OK ||
+      memcmp(&result, &recovery_result, sizeof(result)) != 0 ||
+      ctool_buffer_view(failure_output).size != image.size ||
+      memcmp(ctool_buffer_view(failure_output).data, image.data,
+             image.size) != 0 ||
+      !arena_marks_equal(mark, ctool_arena_mark(ctool_job_arena(job)))) {
+    (void)fprintf(stderr, "PE32 import recovery differs\n");
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  if (failure_output != (ctool_buffer_t *)0) {
+    ctool_buffer_close(failure_output);
+  }
+  if (repeat_output != (ctool_buffer_t *)0) {
+    ctool_buffer_close(repeat_output);
+  }
+  if (output != (ctool_buffer_t *)0) {
+    ctool_buffer_close(output);
+  }
+  if (object_buffer != (ctool_buffer_t *)0) {
+    ctool_buffer_close(object_buffer);
+  }
+  if (job != (ctool_job_t *)0) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("pe32-imports: ok");
+  }
+  return passed != 0 ? 0 : 1;
+}
+
 static const ctool_elf32_symbol_t *find_linked_symbol(
     const ctool_elf32_object_t *object, const char *name) {
   ctool_string_t expected = ctool_string(name);
@@ -735,7 +1015,8 @@ static void write_le32(ctool_u8 *bytes, ctool_u32 offset, ctool_u32 value) {
 }
 
 static int result_is_zero(const ctool_ld_result_t *result) {
-  static const ctool_ld_result_t zero = {0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u};
+  static const ctool_ld_result_t zero = {
+      0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u};
   return memcmp(result, &zero, sizeof(zero)) == 0;
 }
 
@@ -813,6 +1094,7 @@ static int expect_repeated_failure_recovery(
     ctool_job_close(job);
     return 0;
   }
+  (void)memset(&request, 0, sizeof(request));
   request.objects = unresolved_source;
   request.object_count = 1u;
   request.image_kind = CTOOL_LD_IMAGE_ELF32;
@@ -1111,6 +1393,7 @@ static int run_merge_symbols(void) {
   sources[0].contents = ctool_buffer_view(first_buffer);
   sources[1].path.text = ctool_string("/second.o");
   sources[1].contents = ctool_buffer_view(second_buffer);
+  (void)memset(&request, 0, sizeof(request));
   request.objects = sources;
   request.object_count = 2u;
   request.image_kind = CTOOL_LD_IMAGE_ELF32;
@@ -1352,6 +1635,7 @@ static int run_merge_addends(void) {
 
   object_source.path.text = ctool_string("/merge-addend.o");
   object_source.contents = ctool_buffer_view(object_buffer);
+  (void)memset(&request, 0, sizeof(request));
   request.objects = &object_source;
   request.object_count = 1u;
   request.image_kind = CTOOL_LD_IMAGE_ELF32;
@@ -1561,6 +1845,7 @@ static int run_script_layout(void) {
   script_source.path.text = ctool_string("/link.ld");
   script_source.contents =
       ctool_bytes(script_text, (ctool_u32)(sizeof(script_text) - 1u));
+  (void)memset(&request, 0, sizeof(request));
   request.objects = &object_source;
   request.object_count = 1u;
   request.image_kind = CTOOL_LD_IMAGE_ELF32;
@@ -1773,6 +2058,7 @@ static int run_errors(void) {
   valid_sources[1].path.text = ctool_string("/duplicate.o");
   unresolved_source.path.text = ctool_string("/unresolved.o");
   unresolved_source.contents = ctool_buffer_view(unresolved_buffer);
+  (void)memset(&request, 0, sizeof(request));
   request.objects = valid_sources;
   request.object_count = 2u;
   request.image_kind = CTOOL_LD_IMAGE_ELF32;
@@ -2035,6 +2321,7 @@ static int run_real_script(int argc, char **argv, ctool_bool write_output) {
   } else {
     output = (ctool_buffer_t *)0;
   }
+  (void)memset(&request, 0, sizeof(request));
   request.objects = objects;
   request.object_count = object_count;
   request.image_kind = CTOOL_LD_IMAGE_ELF32;
@@ -2206,6 +2493,9 @@ int main(int argc, char **argv) {
   if (argc == 2 && strcmp(argv[1], "pe32-fixed") == 0) {
     return run_pe32_fixed();
   }
+  if (argc == 2 && strcmp(argv[1], "pe32-imports") == 0) {
+    return run_pe32_imports();
+  }
   if (argc == 2 && strcmp(argv[1], "merge-symbols") == 0) {
     return run_merge_symbols();
   }
@@ -2226,7 +2516,8 @@ int main(int argc, char **argv) {
   }
   (void)fprintf(stderr,
                 "usage: cupidld-contract fixed-basic|fixed-layout|"
-                "pe32-fixed|merge-symbols|merge-addends|script-layout|errors|"
+                "pe32-fixed|pe32-imports|merge-symbols|merge-addends|"
+                "script-layout|errors|"
                 "real-script ROOT SCRIPT OBJECT...|"
                 "real-script-write ROOT SCRIPT OUTPUT OBJECT...\n");
   return 2;

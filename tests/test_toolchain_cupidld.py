@@ -506,6 +506,18 @@ class CupidLdHostedCliTests(unittest.TestCase):
         cls.pe_wx_object = cls.fixture_root / "pe_wx_entry.o"
         cls.pe_data_entry_source = cls.fixture_root / "pe_data_entry.s"
         cls.pe_data_entry_object = cls.fixture_root / "pe_data_entry.o"
+        cls.pe_import_source = cls.fixture_root / "pe_import_entry.s"
+        cls.pe_import_object = cls.fixture_root / "pe_import_entry.o"
+        cls.pe_direct_import_source = cls.fixture_root / "pe_direct_import.s"
+        cls.pe_direct_import_object = cls.fixture_root / "pe_direct_import.o"
+        cls.pe_nonzero_import_source = (
+            cls.fixture_root / "pe_nonzero_import.s"
+        )
+        cls.pe_nonzero_import_object = (
+            cls.fixture_root / "pe_nonzero_import.o"
+        )
+        cls.pe_multi_import_source = cls.fixture_root / "pe_multi_import.s"
+        cls.pe_multi_import_object = cls.fixture_root / "pe_multi_import.o"
         cls.oversize_source = cls.fixture_root / "oversize.s"
         cls.oversize_object = cls.fixture_root / "oversize.o"
         cls.source.write_text(
@@ -597,6 +609,89 @@ class CupidLdHostedCliTests(unittest.TestCase):
             encoding="utf-8",
         )
         _compile_i386(cls.pe_data_entry_source, cls.pe_data_entry_object)
+        cls.pe_import_source.write_text(
+            '.section .text.start,"ax",@progbits\n'
+            ".globl _start\n"
+            ".type _start,@function\n"
+            ".extern __imp_ExitProcess\n"
+            ".extern __imp_GetStdHandle\n"
+            ".extern __imp_WriteFile\n"
+            "_start:\n"
+            "  pushl $-11\n"
+            "  call *__imp_GetStdHandle\n"
+            "  movl %eax, %ebx\n"
+            "  pushl $0\n"
+            "  pushl $written\n"
+            "  pushl $message_end-message\n"
+            "  pushl $message\n"
+            "  pushl %ebx\n"
+            "  call *__imp_WriteFile\n"
+            "  pushl $37\n"
+            "  call *__imp_ExitProcess\n"
+            "  hlt\n"
+            ".size _start, .-_start\n"
+            '.section .rodata,"a",@progbits\n'
+            "message:\n"
+            '.ascii "Cupid PE32 import runtime: ok\\n"\n'
+            "message_end:\n"
+            '.section .bss,"aw",@nobits\n'
+            "  .balign 4\n"
+            "written:\n"
+            "  .skip 4\n",
+            encoding="utf-8",
+        )
+        _compile_i386(cls.pe_import_source, cls.pe_import_object)
+        cls.pe_direct_import_source.write_text(
+            '.section .text.start,"ax",@progbits\n'
+            ".globl _start\n"
+            ".type _start,@function\n"
+            ".extern __imp_ExitProcess\n"
+            "_start:\n"
+            "  call __imp_ExitProcess\n"
+            "  ret\n"
+            ".size _start, .-_start\n",
+            encoding="utf-8",
+        )
+        _compile_i386(
+            cls.pe_direct_import_source, cls.pe_direct_import_object
+        )
+        cls.pe_nonzero_import_source.write_text(
+            '.section .text.start,"ax",@progbits\n'
+            ".globl _start\n"
+            ".type _start,@function\n"
+            ".extern __imp_ExitProcess\n"
+            "_start:\n"
+            "  ret\n"
+            ".size _start, .-_start\n"
+            '.section .data,"aw",@progbits\n'
+            "  .long __imp_ExitProcess+4\n",
+            encoding="utf-8",
+        )
+        _compile_i386(
+            cls.pe_nonzero_import_source, cls.pe_nonzero_import_object
+        )
+        cls.pe_multi_import_source.write_text(
+            '.section .text.start,"ax",@progbits\n'
+            ".globl _start\n"
+            ".type _start,@function\n"
+            ".extern __imp_ExitProcess\n"
+            ".extern __imp_MessageBoxA\n"
+            "_start:\n"
+            "  ret\n"
+            ".size _start, .-_start\n"
+            '.section .rodata,"a",@progbits\n'
+            "  .byte 0x5a\n"
+            '.section .data,"aw",@progbits\n'
+            "  .long __imp_MessageBoxA\n"
+            "  .long __imp_ExitProcess\n"
+            '.section .bss,"aw",@nobits\n'
+            "  .balign 4\n"
+            "  .skip 4\n",
+            encoding="utf-8",
+        )
+        _compile_i386(
+            cls.pe_multi_import_source, cls.pe_multi_import_object
+        )
         cls.oversize_source.write_text(
             '.section .text.start,"ax",@progbits\n'
             ".globl _start\n"
@@ -814,6 +909,337 @@ class CupidLdHostedCliTests(unittest.TestCase):
             ]
             self.assertEqual(padding, b"\0" * len(padding))
         self.assertEqual(len(image), 0x0A00)
+
+    def test_i386pe_builds_canonical_imports_and_runs_the_image(self):
+        first = self.fixture_root / "import-first.exe"
+        second = self.fixture_root / "import-second.exe"
+        import_arguments = [
+            "--import",
+            "__imp_WriteFile=KERNEL32.dll:WriteFile",
+            "--import",
+            "__imp_ExitProcess=KERNEL32.dll:ExitProcess",
+            "--import",
+            "__imp_GetStdHandle=KERNEL32.dll:GetStdHandle",
+        ]
+
+        def link(output, arguments):
+            return subprocess.run(
+                [
+                    str(self.cli),
+                    "-m",
+                    "i386pe",
+                    "--text-address",
+                    "0x00401000",
+                    "--entry",
+                    "_start",
+                    *arguments,
+                    "-o",
+                    str(output),
+                    str(self.pe_import_object),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+
+        first_result = link(first, import_arguments)
+        second_result = link(
+            second,
+            import_arguments[4:] + import_arguments[:4],
+        )
+        self.assertEqual(first_result.returncode, 0, first_result.stderr)
+        self.assertEqual(second_result.returncode, 0, second_result.stderr)
+        self.assertEqual(first.read_bytes(), second.read_bytes())
+
+        image, _, coff, optional, directories, section_order, sections = (
+            _pe32_header_and_sections(first)
+        )
+        self.assertEqual(coff["section_count"], 4)
+        self.assertEqual(section_order, [".text", ".rodata", ".bss", ".idata"])
+        self.assertEqual(optional["image_size"], 0x5000)
+        self.assertEqual(directories[1], (0x4000, 0x28))
+        self.assertEqual(directories[12], (0x4038, 0x10))
+        idata = sections[".idata"]
+        self.assertEqual(idata["rva"], 0x4000)
+        self.assertEqual(idata["virtual_size"], 0x80)
+        self.assertEqual(idata["characteristics"], 0xC0000040)
+        payload = idata["raw_offset"]
+        self.assertEqual(
+            struct.unpack_from("<IIIII", image, payload),
+            (0x4028, 0, 0, 0x4048, 0x4038),
+        )
+        self.assertEqual(image[payload + 20 : payload + 40], b"\0" * 20)
+        expected_thunks = (0x4056, 0x4064, 0x4074, 0)
+        self.assertEqual(struct.unpack_from("<IIII", image, payload + 0x28), expected_thunks)
+        self.assertEqual(struct.unpack_from("<IIII", image, payload + 0x38), expected_thunks)
+        self.assertEqual(image[payload + 0x48 : payload + 0x55], b"KERNEL32.dll\0")
+        self.assertEqual(image[payload + 0x56 : payload + 0x64], b"\0\0ExitProcess\0")
+        self.assertEqual(image[payload + 0x64 : payload + 0x73], b"\0\0GetStdHandle\0")
+        self.assertEqual(image[payload + 0x74 : payload + 0x80], b"\0\0WriteFile\0")
+
+        if os.name == "nt":
+            native = subprocess.run(
+                [str(first)], cwd=REPO_ROOT, capture_output=True, timeout=10
+            )
+            self.assertEqual(native.returncode, 37, native.stderr)
+            self.assertEqual(native.stderr, b"")
+            self.assertEqual(
+                native.stdout, b"Cupid PE32 import runtime: ok\n"
+            )
+
+    def test_i386pe_rejects_invalid_import_contracts_without_publication(self):
+        base = [
+            "-m",
+            "i386pe",
+            "--text-address",
+            "0x00401000",
+            "--entry",
+            "_start",
+        ]
+        cases = (
+            (
+                "malformed import selector",
+                base + ["--import", "missing-separators"],
+                "usage:",
+            ),
+            (
+                "imports are PE32 only",
+                [
+                    "-m",
+                    "elf_i386",
+                    "--text-address",
+                    "0x00401000",
+                    "--entry",
+                    "_start",
+                    "--import",
+                    "__imp_WriteFile=KERNEL32.dll:WriteFile",
+                ],
+                "usage:",
+            ),
+            (
+                "unsafe library name",
+                base
+                + [
+                    "--import",
+                    "__imp_WriteFile=KERNEL32/evil.dll:WriteFile",
+                ],
+                "import names are invalid",
+            ),
+            (
+                "duplicate IAT symbol",
+                base
+                + [
+                    "--import",
+                    "__imp_WriteFile=KERNEL32.dll:WriteFile",
+                    "--import",
+                    "__imp_WriteFile=KERNEL32.dll:ExitProcess",
+                ],
+                "same IAT symbol twice",
+            ),
+            (
+                "nonadjacent duplicate IAT symbol",
+                base
+                + [
+                    "--import",
+                    "__imp_WriteFile=ADVAPI32.dll:RegCloseKey",
+                    "--import",
+                    "__imp_GetStdHandle=KERNEL32.dll:GetStdHandle",
+                    "--import",
+                    "__imp_WriteFile=USER32.dll:MessageBoxA",
+                ],
+                "same IAT symbol twice",
+            ),
+            (
+                "duplicate imported procedure",
+                base
+                + [
+                    "--import",
+                    "__imp_WriteFile=KERNEL32.dll:WriteFile",
+                    "--import",
+                    "__imp_GetStdHandle=KERNEL32.dll:WriteFile",
+                ],
+                "same procedure twice",
+            ),
+            (
+                "inconsistent library spelling",
+                base
+                + [
+                    "--import",
+                    "__imp_WriteFile=KERNEL32.dll:WriteFile",
+                    "--import",
+                    "__imp_GetStdHandle=kernel32.DLL:GetStdHandle",
+                ],
+                "inconsistent library spelling",
+            ),
+            (
+                "unused import symbol",
+                base
+                + [
+                    "--import",
+                    "__imp_Missing=KERNEL32.dll:WriteFile",
+                ],
+                "does not match an undefined symbol",
+            ),
+            (
+                "already defined import symbol",
+                base
+                + ["--import", "_start=KERNEL32.dll:ExitProcess"],
+                "unused or already defined",
+            ),
+        )
+        for index, (label, selector, message) in enumerate(cases):
+            with self.subTest(label=label):
+                output = self.fixture_root / f"bad-import-{index}.exe"
+                output.write_bytes(b"sentinel")
+                result = subprocess.run(
+                    [
+                        str(self.cli),
+                        *selector,
+                        "-o",
+                        str(output),
+                        str(self.pe_import_object),
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                )
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(message, result.stderr)
+                self.assertEqual(output.read_bytes(), b"sentinel")
+                self.assertEqual(
+                    list(output.parent.glob(output.name + ".cupid-tmp-*")),
+                    [],
+                )
+
+    def test_i386pe_canonicalizes_two_libraries_with_all_five_sections(self):
+        output = self.fixture_root / "multi-library.exe"
+        result = subprocess.run(
+            [
+                str(self.cli),
+                "-m",
+                "i386pe",
+                "--text-address",
+                "0x00401000",
+                "--entry",
+                "_start",
+                "--import",
+                "__imp_MessageBoxA=USER32.dll:MessageBoxA",
+                "--import",
+                "__imp_ExitProcess=KERNEL32.dll:ExitProcess",
+                "-o",
+                str(output),
+                str(self.pe_multi_import_object),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        image, _, coff, optional, directories, section_order, sections = (
+            _pe32_header_and_sections(output)
+        )
+        self.assertEqual(coff["section_count"], 5)
+        self.assertEqual(
+            section_order,
+            [".text", ".rodata", ".data", ".bss", ".idata"],
+        )
+        self.assertEqual(optional["image_size"], 0x6000)
+        self.assertEqual(directories[1], (0x5000, 0x3C))
+        self.assertEqual(directories[12], (0x504C, 0x10))
+        self.assertEqual(
+            image[sections[".data"]["raw_offset"] :
+                  sections[".data"]["raw_offset"] + 8],
+            struct.pack("<II", 0x00405054, 0x0040504C),
+        )
+        payload = sections[".idata"]["raw_offset"]
+        self.assertEqual(
+            struct.unpack_from("<IIIII", image, payload),
+            (0x503C, 0, 0, 0x505C, 0x504C),
+        )
+        self.assertEqual(
+            struct.unpack_from("<IIIII", image, payload + 20),
+            (0x5044, 0, 0, 0x5069, 0x5054),
+        )
+        self.assertEqual(image[payload + 40 : payload + 60], b"\0" * 20)
+        self.assertEqual(
+            struct.unpack_from("<IIIIIIII", image, payload + 0x3C),
+            (0x5074, 0, 0x5082, 0, 0x5074, 0, 0x5082, 0),
+        )
+        self.assertEqual(
+            image[payload + 0x5C : payload + 0x69], b"KERNEL32.dll\0"
+        )
+        self.assertEqual(
+            image[payload + 0x69 : payload + 0x74], b"USER32.dll\0"
+        )
+        self.assertEqual(
+            image[payload + 0x74 : payload + 0x82],
+            b"\0\0ExitProcess\0",
+        )
+        self.assertEqual(
+            image[payload + 0x82 : payload + 0x90],
+            b"\0\0MessageBoxA\0",
+        )
+
+    def test_i386pe_rejects_a_direct_call_to_an_iat_slot(self):
+        output = self.fixture_root / "direct-import.exe"
+        output.write_bytes(b"sentinel")
+        result = subprocess.run(
+            [
+                str(self.cli),
+                "-m",
+                "i386pe",
+                "--text-address",
+                "0x00401000",
+                "--entry",
+                "_start",
+                "--import",
+                "__imp_ExitProcess=KERNEL32.dll:ExitProcess",
+                "-o",
+                str(output),
+                str(self.pe_direct_import_object),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(
+            "IAT symbols require an absolute zero-addend relocation",
+            result.stderr,
+        )
+        self.assertEqual(output.read_bytes(), b"sentinel")
+
+    def test_i386pe_rejects_a_nonzero_iat_addend(self):
+        output = self.fixture_root / "nonzero-import.exe"
+        output.write_bytes(b"sentinel")
+        result = subprocess.run(
+            [
+                str(self.cli),
+                "-m",
+                "i386pe",
+                "--text-address",
+                "0x00401000",
+                "--entry",
+                "_start",
+                "--import",
+                "__imp_ExitProcess=KERNEL32.dll:ExitProcess",
+                "-o",
+                str(output),
+                str(self.pe_nonzero_import_object),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(
+            "IAT symbols require an absolute zero-addend relocation",
+            result.stderr,
+        )
+        self.assertEqual(output.read_bytes(), b"sentinel")
+        self.assertEqual(
+            list(output.parent.glob(output.name + ".cupid-tmp-*")), []
+        )
 
     def test_i386pe_omits_empty_sections_without_reusing_an_rva(self):
         elf_output = self.fixture_root / "empty-middle.elf"

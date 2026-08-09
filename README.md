@@ -828,10 +828,11 @@ private, and live contract inventories must match exactly, including
 membership and hashes, so additions, removals, and a transient edit copied
 before its live source is restored all fail. Normal build and test entry points derive
 the cohort from each requested executable, require a named manifest artifact,
-and verify the complete artifact inventory, the 45 contract inputs, the
-41-file fixed-point source inventory, and the checked seed manifest before
-execution. The contract inventory includes the Toolchain Makefile and both
-Python modules that build or verify the cohort. A plan with an unknown
+and verify the complete artifact inventory, the 47 contract inputs, the
+43-file fixed-point source inventory, and the checked seed manifest before
+execution. The contract inventory includes the Windows startup and runtime
+probe, the Toolchain Makefile, and both Python modules that build or verify
+the cohort. A plan with an unknown
 link-object key fails validation before the first compiler process starts.
 Native contract binaries remain available only through
 `make -C toolchain native-oracles`.
@@ -881,15 +882,28 @@ Source-head CupidLD also accepts `-m i386pe` for one deterministic i386 PE32
 layout. Under image base `0x00400000`, it places `.text` at RVA `0x1000`, then
 lays out nonempty read-only, writable, and BSS sections in order on page
 boundaries. Empty output categories do not get PE section headers.
-It writes no imports or base relocations and keeps the existing ELF path
-unchanged. Writable executable input is rejected instead of becoming an RWX
-section. The source-head fixed point checks this link and its rejected-layout
-diagnostic at both stages. Its behavior matrix is 5/16/14. The promoted Linux
-seed remains at 5/15/13 and does not carry this command. No PE image is executed
-or used by a normal build, so this is not a native Windows runtime or fixed
+It can also append a canonical writable `.idata` section from repeatable
+`--import IAT_SYMBOL=LIBRARY:PROCEDURE` options. Imported slots accept only
+zero-addend absolute relocations, so a direct call into the IAT fails instead
+of jumping into data. Import ordering uses an in-place heap, and name imports
+cannot cross the PE32 high-bit boundary. The repository Windows entry code calls
+`GetStdHandle`, `WriteFile`, and `ExitProcess` through those slots. CupidASM
+assembles it, freestanding CupidC compiles its `main`, CupidLD links the PE,
+and Windows checks the exact marker, empty stderr, and exit status 37.
+
+Both rebuilt stages produce identical assembly objects, C objects, and PE
+bytes. The source-head matrix is 5/17/15, and the frozen closure contains 43
+inputs. The independent validator reconstructs the exact `.idata` layout, and
+the bootstrap report retains both object and image pairs plus the observed
+Windows return code and streams. The promoted Linux seed remains at 5/15/13
+and does not carry imports.
+The producers still run through WSL on Windows, and no PE tool is used by a
+normal build, so this is a loader proof rather than a native Toolchain fixed
 point. The ownership census does not change.
 [ADR 0247](docs/adr/0247-serialize-fixed-layout-pe32-images-with-cupidld.md)
-records the format boundary.
+records the format boundary. [ADR
+0248](docs/adr/0248-link-deterministic-pe32-imports-and-run-a-cupid-built-windows-command.md)
+records the import and loader boundary.
 
 The source-head CupidLD CLI publishes both ELF and PE output. It creates a
 candidate beside the destination with exclusive-create semantics, writes and
@@ -1027,10 +1041,12 @@ The hosted path also carries complete fixed-size structures with alignment up to
 The shared value path copies nested union storage inside a supported structure and reads a scalar member directly from a returned structure snapshot. A direct four-byte integer literal zero may be cast to a represented function pointer. Represented function pointers may also cast to another function-pointer type or to and from a represented 32-bit integer without changing target bits. Explicit conversions between an object pointer and a signed or unsigned eight-byte integer use the wide snapshot path: widening writes a zero high word, and narrowing keeps the low word. Outside the explicit Doom compatibility profile, object-pointer and function-pointer interchange remains outside this boundary. Function-pointer and wide-integer conversions, top-level union parameters or results, and aggregate members selected from structure rvalues also remain open. Static compatible character and void pointers accept an ordinary string literal hidden behind parentheses or a macro. Pointer qualification accepts the safe `char **` to `char *const *` conversion. It rejects `char **` to `const char **`, which would add a qualifier at an unsafe nested level, and rejects removing the nested `const`.
 
 The exact hosted gate checks every source at its real i386 Linux ABI. It
-contains 33 strict C11 roots and two GNU-enabled runtime roots: the 19-source
+contains 34 strict C11 roots and two GNU-enabled runtime roots: the 19-source
 static tool union, `kernel/lang/as_elf.cc`, the runtime implementation and
-probe, and all fourteen Toolchain contracts. Thirty-one strict roots use only
-the Toolchain and hosted declaration roots. The assembler ELF adapter and its
+probe, fourteen Linux Toolchain contracts, and the Windows command contract.
+Thirty-one strict Linux roots use only the Toolchain and hosted declaration
+roots. The headerless Windows command contract uses the separate
+`FREESTANDING_I386` profile. The assembler ELF adapter and its
 contract form a two-root bridge that can also include `/kernel/lang`; no other
 hosted source gets that wider search path. The GNU profile is limited to the
 runtime implementation and probe. The former 64-bit hosted profiles are empty.
@@ -1164,24 +1180,24 @@ manifest has SHA-256
 [ADR 0243](docs/adr/0243-promote-profile-manifest-toolchain-seed.md)
 records the current promotion.
 
-The harness pins the build plan independently and freezes the verified manifest and binaries. It also copies the exact bytes of all 41 source inputs, including `link.ld`, into a private compiler root. Seed CupidC, CupidASM, and CupidLD build stage two below that root, then the stage-two producer trio repeats the work for stage three. The harness rehashes both the private closure and the live closure before the first stage, after each stage, and after the behavior suite. A live edit that is made and restored during a compile cannot change the bytes consumed by either stage.
+The harness pins the build plan independently and freezes the verified manifest and binaries. It also copies the exact bytes of all 43 source inputs, including `link.ld` and both Windows probe sources, into a private compiler root. Seed CupidC, CupidASM, and CupidLD build stage two below that root, then the stage-two producer trio repeats the work for stage three. The harness rehashes both the private closure and the live closure before the first stage, after each stage, and after the behavior suite. A live edit that is made and restored during a compile cannot change the bytes consumed by either stage.
 
 The comparison covers all 19 C objects, independently assembled startup
 objects, and the linked CupidC, CupidASM, CupidDis, CupidLD, and CupidObj
 images. Every artifact matches byte for byte with host code-generator commands
 poisoned, including all five checked seed images against stage two. Both
-stages also agree on five help paths, fifteen successful operations, and
-thirteen useful failures. The requested output stays empty while those checks run.
+stages also agree on five help paths, seventeen successful operations, and
+fifteen useful failures. The requested output stays empty while those checks run.
 Both stages, the behavior evidence, and `bootstrap-report.json` appear
 together only after complete success. Run `make verify-bootstrap-seed` for
 validation or `make bootstrap-from-seed` for the complete rebuild. The normal
 Toolchain build then uses those two compiler stages for fourteen contract
 programs and the runtime probe. It compares all sixteen new objects and
 fifteen linked executables. Its private contract tree must reproduce the
-initial 45-file inventory exactly, including the Toolchain Makefile and both
+initial 47-file inventory exactly, including the Toolchain Makefile and both
 Python control modules, and each live check discovers the set again before
 comparing hashes. The public manifest also records the checked build plan,
-seed manifest, and complete 41-file fixed-point source inventory.
+seed manifest, and complete 43-file fixed-point source inventory.
 Seed-manifest hashing, decoding, and validation use one captured byte
 sequence. A replacement during verification cannot pair one digest with
 another read's build plan. Every run recomputes both source inventories before

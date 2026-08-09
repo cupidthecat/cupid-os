@@ -240,6 +240,14 @@ _C_PP_PROFILE_ROWS = (
         compatibility_pointer_conversions="CTOOL_FALSE",
     ),
     CPreprocessorProfile(
+        name="FREESTANDING_I386",
+        mode="CTOOL_C_PP_MODE_C11",
+        gnu_extensions="CTOOL_FALSE",
+        hosted_environment="CTOOL_FALSE",
+        implicit_function_declarations="CTOOL_FALSE",
+        compatibility_pointer_conversions="CTOOL_FALSE",
+    ),
+    CPreprocessorProfile(
         name="CUPID_RUNTIME",
         mode="CTOOL_C_PP_MODE_CUPID",
         gnu_extensions="CTOOL_FALSE",
@@ -330,6 +338,7 @@ _C_PP_ACTIVE_COUNTS = {
     "DOOM_COMPAT_I386": 3,
     "DOOM_TREE_I386": 80,
     "USER_I386": 3,
+    "FREESTANDING_I386": 1,
     "CUPID_RUNTIME": 105,
     "HOSTED_TOOLCHAIN_64": 0,
     "HOSTED_KERNEL_BRIDGE_64": 0,
@@ -376,6 +385,7 @@ _C_PP_TOOLCHAIN_CONTRACT_CASES = (
     "/toolchain/tests/cupidld_contract.cc",
     "/toolchain/tests/cupidobj_contract.cc",
     "/toolchain/tests/elf32_contract.cc",
+    "/toolchain/tests/hosted_i386_windows_contract.cc",
     "/toolchain/tests/x86_contract.cc",
 )
 _C_PP_GENERATED_KERNEL_CASES = (
@@ -5175,6 +5185,7 @@ def _c_preprocessor_profile_configuration() -> tuple[
             )
     macros.extend(
         (
+            ("FREESTANDING_I386", "__SIZEOF_POINTER__", "4"),
             ("HOSTED_TOOLCHAIN_64", "__SIZEOF_POINTER__", "8"),
             ("HOSTED_KERNEL_BRIDGE_64", "__SIZEOF_POINTER__", "8"),
             ("HOSTED_I386_LINUX", "__SIZEOF_POINTER__", "4"),
@@ -5372,6 +5383,9 @@ def _cupid_toolchain_fixed_point_contract(
     linker_cli_path = root / "toolchain" / "cupidld_main.cc"
     linker_core_path = root / "toolchain" / "cupidld.cc"
     bootstrap_path = root / "tools" / "bootstrap_toolchain.py"
+    contract_publisher_path = (
+        root / "tools" / "cupidc_toolchain_contracts.py"
+    )
     try:
         test_source = test_path.read_text(encoding="utf-8")
         driver_source = driver_path.read_text(encoding="utf-8")
@@ -5379,9 +5393,16 @@ def _cupid_toolchain_fixed_point_contract(
         linker_cli_source = linker_cli_path.read_text(encoding="utf-8")
         linker_core_source = linker_core_path.read_text(encoding="utf-8")
         bootstrap_source = bootstrap_path.read_text(encoding="utf-8")
+        contract_publisher_source = contract_publisher_path.read_text(
+            encoding="utf-8"
+        )
         test_tree = ast.parse(test_source, filename=str(test_path))
         bootstrap_tree = ast.parse(
             bootstrap_source, filename=str(bootstrap_path)
+        )
+        contract_publisher_tree = ast.parse(
+            contract_publisher_source,
+            filename=str(contract_publisher_path),
         )
     except (OSError, SyntaxError) as exc:
         raise AuditError(
@@ -5478,6 +5499,9 @@ def _cupid_toolchain_fixed_point_contract(
     linker_header_active = active_c_source(linker_header_source)
     linker_cli_active = active_c_source(linker_cli_source)
     linker_core_active = active_c_source(linker_core_source)
+    linker_core_preprocessing_tokens = c_tokens(
+        linker_core_active, linker_core_path
+    )
     image_enum_matches = re.findall(
         r"\btypedef\s+enum\s*\{([^{}]*)\}\s*"
         r"ctool_ld_image_kind_t\s*;",
@@ -5486,6 +5510,17 @@ def _cupid_toolchain_fixed_point_contract(
     )
     request_matches = re.findall(
         r"\btypedef\s+struct\s*\{([^{}]*)\}\s*ctool_ld_request_t\s*;",
+        linker_header_active,
+        flags=re.DOTALL,
+    )
+    import_matches = re.findall(
+        r"\btypedef\s+struct\s*\{([^{}]*)\}\s*"
+        r"ctool_ld_pe32_import_t\s*;",
+        linker_header_active,
+        flags=re.DOTALL,
+    )
+    result_matches = re.findall(
+        r"\btypedef\s+struct\s*\{([^{}]*)\}\s*ctool_ld_result_t\s*;",
         linker_header_active,
         flags=re.DOTALL,
     )
@@ -5507,6 +5542,31 @@ def _cupid_toolchain_fixed_point_contract(
         "image_kind",
         ";",
     )
+    expected_import_members = (
+        "ctool_string_t",
+        "symbol_name",
+        ";",
+        "ctool_string_t",
+        "library_name",
+        ";",
+        "ctool_string_t",
+        "procedure_name",
+        ";",
+    )
+    expected_import_request_members = (
+        (
+            "const",
+            "ctool_ld_pe32_import_t",
+            "*",
+            "pe32_imports",
+            ";",
+        ),
+        ("ctool_u32", "pe32_import_count", ";"),
+    )
+    expected_import_result_members = (
+        ("ctool_u32", "imported_symbol_count", ";"),
+        ("ctool_u32", "imported_library_count", ";"),
+    )
     expected_verifier_member = (
         "ctool_status_t",
         "(",
@@ -5524,6 +5584,16 @@ def _cupid_toolchain_fixed_point_contract(
         ")",
         ";",
     )
+    request_tokens = (
+        c_tokens(request_matches[0], linker_header_path)
+        if len(request_matches) == 1
+        else ()
+    )
+    result_tokens = (
+        c_tokens(result_matches[0], linker_header_path)
+        if len(result_matches) == 1
+        else ()
+    )
     if (
         len(image_enum_matches) != 1
         or c_tokens(image_enum_matches[0], linker_header_path)
@@ -5531,15 +5601,28 @@ def _cupid_toolchain_fixed_point_contract(
         or len(request_matches) != 1
         or len(
             sequence_positions(
-                c_tokens(request_matches[0], linker_header_path),
+                request_tokens,
                 expected_request_member,
             )
         )
         != 1
+        or len(import_matches) != 1
+        or c_tokens(import_matches[0], linker_header_path)
+        != expected_import_members
+        or any(
+            len(sequence_positions(request_tokens, member)) != 1
+            for member in expected_import_request_members
+        )
+        or len(result_matches) != 1
+        or any(
+            len(sequence_positions(result_tokens, member)) != 1
+            for member in expected_import_result_members
+        )
+        or linker_header_active.count("CTOOL_LD_DIAG_BAD_IMPORT") != 1
     ):
         raise AuditError(
             "Cupid Toolchain fixed-point PE32 source contract differs: "
-            "the public image kind or request member is absent"
+            "the public image, import, request, or result contract is absent"
         )
     if (
         len(publication_ops_matches) != 1
@@ -5560,6 +5643,11 @@ def _cupid_toolchain_fixed_point_contract(
         linker_cli_active,
         linker_cli_path,
         r"\bstatic\s+int\s+cupidld_parse_cli\s*\([^;{}]*\)\s*\{",
+    )
+    import_parse_tokens = c_function_tokens(
+        linker_cli_active,
+        linker_cli_path,
+        r"\bstatic\s+int\s+cupidld_parse_import\s*\([^;{}]*\)\s*\{",
     )
     main_tokens = c_function_tokens(
         linker_cli_active,
@@ -5743,18 +5831,63 @@ def _cupid_toolchain_fixed_point_contract(
         if main_tokens is not None
         else []
     )
+    import_request_assignment = (
+        "request",
+        ".",
+        "pe32_imports",
+        "=",
+        "imports",
+        ";",
+        "request",
+        ".",
+        "pe32_import_count",
+        "=",
+        "cli",
+        ".",
+        "import_count",
+        ";",
+    )
+    import_assignment_positions = (
+        sequence_positions(main_tokens, import_request_assignment)
+        if main_tokens is not None
+        else []
+    )
+    required_cli_import_fragments = (
+        "--import IAT_SYMBOL=LIBRARY:PROCEDURE",
+        'cupidld_take_value(argc, argv, &index, argument, "--import",',
+        "cli->imports[cli->import_count] = value;",
+        "cli->import_count++;",
+        "if (cli->import_count != 0u && "
+        'strcmp(cli->machine, "i386pe") != 0)',
+        "equals = strchr(text, '=');",
+        ": strchr(equals + 1, ':');",
+        "import_out->symbol_name.data = text;",
+        "import_out->library_name.data = equals + 1;",
+        "import_out->procedure_name.data = colon + 1;",
+        "cupidld_parse_import(cli.imports[index], &imports[index]) == 0",
+    )
+    missing_cli_import_fragments = [
+        fragment
+        for fragment in required_cli_import_fragments
+        if linker_cli_active.count(fragment) != 1
+    ]
     if (
         not parse_is_exact
+        or import_parse_tokens is None
+        or missing_cli_import_fragments
         or len(assignment_positions) != 1
+        or len(import_assignment_positions) != 1
         or len(link_positions) != 1
         or len(publication_positions) != 1
         or assignment_positions[0] >= link_positions[0]
+        or import_assignment_positions[0] >= link_positions[0]
         or brace_depth(main_tokens, assignment_positions[0]) != 0
+        or brace_depth(main_tokens, import_assignment_positions[0]) != 0
         or brace_depth(main_tokens, publication_positions[0]) != 0
     ):
         raise AuditError(
             "Cupid Toolchain fixed-point PE32 source contract differs: "
-            "the i386pe parser, request dispatch, or publication is absent"
+            "the i386pe parser, import dispatch, or publication is absent"
         )
 
     publication_write = (
@@ -6079,6 +6212,43 @@ def _cupid_toolchain_fixed_point_contract(
         linker_core_path,
         r"\bctool_status_t\s+ctool_ld_link\s*\([^;{}]*\)\s*\{",
     )
+    image_rva_limit_guard = (
+        "if",
+        "(",
+        "image_size",
+        ">",
+        "LD_PE_NAME_RVA_LIMIT",
+        ")",
+        "{",
+        "status",
+        "=",
+        "ld_diagnostic",
+        "(",
+        "link",
+        "->",
+        "job",
+        ",",
+        "CTOOL_LD_DIAG_LIMIT",
+        ",",
+        "ctool_string",
+        "(",
+        '""',
+        ")",
+        ",",
+        "0u",
+        ",",
+        "0u",
+        ",",
+        '"CupidLD PE32 image exceeds the 2 GiB RVA range"',
+        ",",
+        "CTOOL_ERR_LIMIT",
+        ")",
+        ";",
+        "goto",
+        "done",
+        ";",
+        "}",
+    )
     serializer_requirements = (
         (
             "link",
@@ -6107,6 +6277,7 @@ def _cupid_toolchain_fixed_point_contract(
             "LD_PE_TEXT_ADDRESS",
         ),
         ('"CupidLD PE32 requires text address 0x00401000"',),
+        image_rva_limit_guard,
         ("ld_put_pe32_dos_header", "(", "output", ")"),
         ("ld_put_pe32_optional_header", "(",),
         ("ld_put_pe32_section_header", "(",),
@@ -6177,7 +6348,7 @@ def _cupid_toolchain_fixed_point_contract(
         "||",
         "emitted_section_count",
         ">",
-        "4u",
+        "5u",
         ")",
     )
     emitted_header_overflow = (
@@ -6455,7 +6626,7 @@ def _cupid_toolchain_fixed_point_contract(
         and len(serialization_positions) == 1
         and brace_depth(linker_tokens, serialization_positions[0]) == 0
         and core_identifiers.count("ld_serialize_pe32_fixed") == 2
-        and core_identifiers.count("CTOOL_LD_IMAGE_PE32_FIXED") == 2
+        and core_identifiers.count("CTOOL_LD_IMAGE_PE32_FIXED") == 3
     )
     if (
         not serializer_is_exact
@@ -6465,6 +6636,259 @@ def _cupid_toolchain_fixed_point_contract(
         raise AuditError(
             "Cupid Toolchain fixed-point PE32 source contract differs: "
             "the fixed serializer, emitted sections, or dispatch differ"
+        )
+
+    import_builder_tokens = c_function_tokens(
+        linker_core_active,
+        linker_core_path,
+        r"\bstatic\s+ctool_status_t\s+ld_prepare_pe32_imports\s*"
+        r"\([^;{}]*\)\s*\{",
+    )
+    import_compare_tokens = c_function_tokens(
+        linker_core_active,
+        linker_core_path,
+        r"\bstatic\s+ctool_i32\s+ld_pe32_import_compare\s*"
+        r"\([^;{}]*\)\s*\{",
+    )
+    relocation_tokens = c_function_tokens(
+        linker_core_active,
+        linker_core_path,
+        r"\bstatic\s+ctool_status_t\s+ld_apply_relocations\s*"
+        r"\([^;{}]*\)\s*\{",
+    )
+    optional_header_tokens = c_function_tokens(
+        linker_core_active,
+        linker_core_path,
+        r"\bstatic\s+ctool_status_t\s+ld_put_pe32_optional_header\s*"
+        r"\([^;{}]*\)\s*\{",
+    )
+    import_pipeline = (
+        (
+            "status",
+            "=",
+            "ld_prepare_pe32_imports",
+            "(",
+            "&",
+            "link",
+            ")",
+            ";",
+        ),
+        (
+            "status",
+            "=",
+            "ld_finalize_globals",
+            "(",
+            "&",
+            "link",
+            ")",
+            ";",
+        ),
+        (
+            "status",
+            "=",
+            "ld_apply_relocations",
+            "(",
+            "&",
+            "link",
+            ")",
+            ";",
+        ),
+    )
+    import_pipeline_positions = (
+        [sequence_positions(linker_tokens, step) for step in import_pipeline]
+        if linker_tokens is not None
+        else []
+    )
+    import_pipeline_order = (
+        [positions[0] for positions in import_pipeline_positions]
+        if len(import_pipeline_positions) == len(import_pipeline)
+        and all(len(positions) == 1 for positions in import_pipeline_positions)
+        else []
+    )
+    import_sort_call = (
+        "ld_pe32_import_sort",
+        "(",
+        "link",
+        "->",
+        "pe32_imports",
+        ",",
+        "import_count",
+        ")",
+        ";",
+    )
+    import_sort_positions = (
+        sequence_positions(import_builder_tokens, import_sort_call)
+        if import_builder_tokens is not None
+        else []
+    )
+    import_duplicate_guard = (
+        "if",
+        "(",
+        "global",
+        "->",
+        "import_selected",
+        "==",
+        "CTOOL_TRUE",
+        ")",
+        "{",
+        "return",
+        "ld_pe32_import_error",
+        "(",
+        "link",
+        ",",
+        "index",
+        ",",
+        '"CupidLD PE32 imports contain the same IAT symbol twice"',
+        ")",
+        ";",
+        "}",
+    )
+    import_duplicate_guard_positions = (
+        sequence_positions(import_builder_tokens, import_duplicate_guard)
+        if import_builder_tokens is not None
+        else []
+    )
+    import_selected_assignment = (
+        "global",
+        "->",
+        "import_selected",
+        "=",
+        "CTOOL_TRUE",
+        ";",
+    )
+    import_selected_assignment_positions = (
+        sequence_positions(import_builder_tokens, import_selected_assignment)
+        if import_builder_tokens is not None
+        else []
+    )
+    name_rva_limit_definition = (
+        "#",
+        "define",
+        "LD_PE_NAME_RVA_LIMIT",
+        "0x80000000u",
+    )
+    name_rva_limit_definition_positions = sequence_positions(
+        linker_core_preprocessing_tokens, name_rva_limit_definition
+    )
+    import_table_rva_guard = (
+        "if",
+        "(",
+        "address",
+        "<",
+        "LD_PE_IMAGE_BASE",
+        "||",
+        "address",
+        "-",
+        "LD_PE_IMAGE_BASE",
+        ">=",
+        "LD_PE_NAME_RVA_LIMIT",
+        "||",
+        "import_payload_size",
+        ">",
+        "LD_PE_NAME_RVA_LIMIT",
+        "-",
+        "(",
+        "address",
+        "-",
+        "LD_PE_IMAGE_BASE",
+        ")",
+        ")",
+        "{",
+        "return",
+        "ld_pe32_import_error",
+        "(",
+        "link",
+        ",",
+        "0u",
+        ",",
+        '"CupidLD PE32 import table exceeds the name RVA range"',
+        ")",
+        ";",
+        "}",
+    )
+    import_table_rva_guard_positions = (
+        sequence_positions(import_builder_tokens, import_table_rva_guard)
+        if import_builder_tokens is not None
+        else []
+    )
+    import_thunk_rva_guard = (
+        "if",
+        "(",
+        "hint_rva",
+        ">=",
+        "LD_PE_NAME_RVA_LIMIT",
+        ")",
+        "{",
+        "return",
+        "ld_pe32_import_error",
+        "(",
+        "link",
+        ",",
+        "import_index",
+        ",",
+        '"CupidLD PE32 import thunk has the ordinal flag set"',
+        ")",
+        ";",
+        "}",
+    )
+    import_thunk_rva_guard_positions = (
+        sequence_positions(import_builder_tokens, import_thunk_rva_guard)
+        if import_builder_tokens is not None
+        else []
+    )
+    required_core_import_fragments = (
+        "request->pe32_import_count != 0u &&",
+        "request->pe32_imports == "
+        "(const ctool_ld_pe32_import_t *)0",
+        "CupidLD imports require the fixed PE32 image profile",
+        'ld_begin_output(link, ctool_string(".idata"), address,',
+        "section->flags = CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_WRITE;",
+        "global->rank = LD_DEFINITION_IMPORT;",
+        "global->value = address + import->iat_offset;",
+        "link->pe32_import_directory_size = descriptor_size;",
+        "link->pe32_iat_directory_rva =",
+        "link->globals[global_index].rank == LD_DEFINITION_IMPORT &&",
+        "relocation->type != CTOOL_ELF32_R_386_32 ||",
+        "relocation->addend != 0",
+        "CupidLD IAT symbols require an absolute zero-addend relocation",
+        "if (directory == LD_PE_IMPORT_DIRECTORY)",
+        "else if (directory == LD_PE_IAT_DIRECTORY)",
+        "result_out->imported_symbol_count = link->pe32_import_count;",
+        "result_out->imported_library_count = link->pe32_library_count;",
+        "CupidLD PE32 imports use inconsistent library spelling",
+        "CupidLD PE32 imports contain the same IAT symbol twice",
+        "CupidLD PE32 imports contain the same procedure twice",
+    )
+    missing_core_import_fragments = [
+        fragment
+        for fragment in required_core_import_fragments
+        if linker_core_active.count(fragment) < 1
+    ]
+    if (
+        import_builder_tokens is None
+        or import_compare_tokens is None
+        or relocation_tokens is None
+        or optional_header_tokens is None
+        or missing_core_import_fragments
+        or len(import_sort_positions) != 1
+        or len(import_duplicate_guard_positions) != 1
+        or len(import_selected_assignment_positions) != 1
+        or len(name_rva_limit_definition_positions) != 1
+        or len(import_table_rva_guard_positions) != 1
+        or len(import_thunk_rva_guard_positions) != 1
+        or import_duplicate_guard_positions[0]
+        >= import_selected_assignment_positions[0]
+        or import_pipeline_order != sorted(import_pipeline_order)
+        or len(import_pipeline_order) != len(import_pipeline)
+        or any(
+            brace_depth(linker_tokens, position) != 1
+            for position in import_pipeline_order
+        )
+    ):
+        raise AuditError(
+            "Cupid Toolchain fixed-point PE32 import contract differs: "
+            "canonical construction, relocation safety, or staged dispatch "
+            "is absent"
         )
 
     assignments: dict[str, object] = {}
@@ -6738,9 +7162,9 @@ def _cupid_toolchain_fixed_point_contract(
         and node.name == "_run_behavior_checks"
     ]
     expected_behavior_matrix = {
-        "failure_cases": 14,
+        "failure_cases": 15,
         "help_cases": 5,
-        "success_cases": 16,
+        "success_cases": 17,
     }
     expected_profile_failures = {
         "truncated": "snapshot is truncated",
@@ -6753,6 +7177,9 @@ def _cupid_toolchain_fixed_point_contract(
             "_run_behavior_checks is not unique"
         )
     behavior_function = behavior_functions[0]
+    behavior_source = (
+        ast.get_source_segment(bootstrap_source, behavior_function) or ""
+    )
     positive_profile_result: tuple[str, int] | None = None
     positive_profile_status: tuple[str, int, int] | None = None
     profile_failure_matrix: dict[str, str] | None = None
@@ -7103,6 +7530,53 @@ def _cupid_toolchain_fixed_point_contract(
     pe32_failure_status = named_status(
         "invalid_pe32_result", 1, "CupidLD invalid PE32 text address"
     )
+    windows_assembly = named_stage_pair("windows_assembly_result")
+    windows_assembly_status = named_status(
+        "windows_assembly_result", 0, "CupidASM Windows startup"
+    )
+    windows_compile = named_stage_pair("windows_compile_result")
+    windows_compile_status = named_status(
+        "windows_compile_result", 0, "CupidC Windows runtime contract"
+    )
+    windows_link = named_stage_pair("windows_link_result")
+    windows_link_status = named_status(
+        "windows_link_result", 0, "CupidLD imported Windows image"
+    )
+    invalid_import_assembly = named_stage_pair(
+        "invalid_import_assembly_result"
+    )
+    invalid_import_assembly_status = named_status(
+        "invalid_import_assembly_result",
+        0,
+        "CupidASM invalid import fixture",
+    )
+    invalid_import = named_stage_pair("invalid_import_result")
+    invalid_import_status = named_status(
+        "invalid_import_result", 1, "CupidLD direct IAT call"
+    )
+    windows_stage_pairs = (
+        (windows_assembly, windows_assembly_status, "cupidasm"),
+        (windows_compile, windows_compile_status, "cupidc"),
+        (windows_link, windows_link_status, "cupidld"),
+        (
+            invalid_import_assembly,
+            invalid_import_assembly_status,
+            "cupidasm",
+        ),
+        (invalid_import, invalid_import_status, "cupidld"),
+    )
+    windows_stage_order = [
+        pair[0]
+        for pair, status, _tool in windows_stage_pairs
+        if pair is not None and status is not None and pair[0] < status
+    ]
+    windows_stage_tools_match = all(
+        pair is not None
+        and len(pair[1].args) == 6
+        and isinstance(pair[1].args[3], ast.Constant)
+        and pair[1].args[3].value == tool
+        for pair, _status, tool in windows_stage_pairs
+    )
     if (
         pe32_positive is None
         or pe32_positive_status is None
@@ -7110,10 +7584,46 @@ def _cupid_toolchain_fixed_point_contract(
         or pe32_failure_status is None
         or pe32_positive[0] >= pe32_positive_status
         or pe32_failure[0] >= pe32_failure_status
+        or len(windows_stage_order) != len(windows_stage_pairs)
+        or windows_stage_order != sorted(windows_stage_order)
+        or not windows_stage_tools_match
     ):
         raise AuditError(
             "Cupid Toolchain fixed-point PE32 behavior differs: "
-            "the paired success or failure is absent"
+            "the paired image, Windows runtime, or failure proof is absent"
+        )
+    def final_command_name(command: ast.expr) -> str | None:
+        if (
+            isinstance(command, (ast.List, ast.Tuple))
+            and command.elts
+            and isinstance(command.elts[-1], ast.Name)
+        ):
+            return command.elts[-1].id
+        return None
+
+    invalid_import_assembly_object_names = tuple(
+        final_command_name(call.args[argument_index])
+        for call in (invalid_import_assembly[1],)
+        for argument_index in (4, 5)
+        if len(call.args) == 6
+    )
+    invalid_import_link_object_names = tuple(
+        final_command_name(invalid_import[1].args[argument_index])
+        for argument_index in (4, 5)
+        if len(invalid_import[1].args) == 6
+    )
+    if (
+        invalid_import_assembly_object_names
+        != (
+            "stage_two_invalid_import_object",
+            "stage_three_invalid_import_object",
+        )
+        or invalid_import_link_object_names
+        != ("invalid_import_object", "invalid_import_object")
+    ):
+        raise AuditError(
+            "Cupid Toolchain fixed-point PE32 behavior differs: "
+            "the direct-IAT object pair or stable diagnostic path differs"
         )
     positive_commands = stage_pair_commands(pe32_positive[1])
     failure_commands = stage_pair_commands(pe32_failure[1])
@@ -7191,6 +7701,24 @@ def _cupid_toolchain_fixed_point_contract(
         if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef))
         and statement.name == "_validate_static_i386_pe32"
     ]
+    parser_source = (
+        ast.get_source_segment(bootstrap_source, parser_functions[0]) or ""
+        if len(parser_functions) == 1
+        else ""
+    )
+    required_import_parser_fragments = (
+        ') = sections[".idata"]',
+        "relative_rva = rva - idata_virtual_address",
+        "size <= idata_raw_size - relative_rva",
+        "size <= idata_virtual_size - relative_rva",
+        "idata_raw_offset + relative_rva",
+        "idata_raw_offset\n"
+        "                    + min(idata_raw_size, idata_virtual_size)",
+    )
+    import_parser_is_confined = all(
+        parser_source.count(fragment) == 1
+        for fragment in required_import_parser_fragments
+    ) and "for section in sections.values()" not in parser_source
 
     def expression_shape(source: str) -> str:
         return ast.dump(
@@ -7241,7 +7769,7 @@ def _cupid_toolchain_fixed_point_contract(
         "invalid PE32 COFF header": (
             "machine != 0x014C",
             "section_count == 0",
-            "section_count > 4",
+            "section_count > (5 if has_imports else 4)",
             "timestamp != 0",
             "symbol_table != 0",
             "symbol_count != 0",
@@ -7288,8 +7816,12 @@ def _cupid_toolchain_fixed_point_contract(
             "entry_rva != expected_entry - image_base",
         ),
         "unexpected PE32 data directory": (
-            "read_u32(offset, 'PE32 directory RVA') != 0",
-            "read_u32(offset + 4, 'PE32 directory size') != 0",
+            "directory not in ((1, 12) if has_imports else ()) "
+            "and entry != (0, 0)",
+        ),
+        "omits its PE32 import directories": (
+            "has_imports and (directories[1] == (0, 0) "
+            "or directories[12] == (0, 0))",
         ),
         "noncanonical PE32 header extent": (
             "headers_size != expected_headers_size",
@@ -7340,6 +7872,59 @@ def _cupid_toolchain_fixed_point_contract(
         ),
         "entry is not file-backed PE32 executable code": (
             "not entry_is_file_backed_executable",
+        ),
+        "omits its PE32 import section": (
+            "'.idata' not in sections",
+        ),
+        "noncanonical PE32 import directory": (
+            "import_rva != idata_virtual_address",
+            "import_size != expected_import_size",
+        ),
+        "stateful PE32 import descriptor": (
+            "timestamp != 0",
+            "forwarder != 0",
+        ),
+        "noncanonical PE32 import lookup layout": (
+            "lookup_rva != idata_virtual_address + cursor",
+        ),
+        "noncanonical PE32 import address layout": (
+            "iat_rva != idata_virtual_address + cursor",
+        ),
+        "noncanonical PE32 import name layout": (
+            "name_rva != idata_virtual_address + cursor",
+        ),
+        "unexpected PE32 import library": (
+            "rva_string(name_rva, 'import library') != library",
+            "data[library_offset:library_offset + len(encoded_library)] "
+            "!= encoded_library",
+        ),
+        "unexpected PE32 import procedure": (
+            "lookup != expected_hint_rva",
+            "iat != lookup",
+            "read_u16(hint_offset, 'PE32 import hint') != 0",
+            "data[hint_offset + 2:hint_offset + 2 + "
+            "len(encoded_procedure)] != encoded_procedure",
+            "rva_string(expected_hint_rva + 2, 'import procedure') "
+            "!= procedure",
+        ),
+        "unterminated PE32 import thunk table": (
+            "read_u32(lookup_offset + len(procedures) * 4, "
+            "'PE32 import lookup terminator') != 0",
+            "read_u32(iat_offset + len(procedures) * 4, "
+            "'PE32 import address terminator') != 0",
+        ),
+        "has nonzero PE32 import alignment": (
+            "data[alignment_offset] != 0",
+        ),
+        "has no null PE32 import descriptor": (
+            "any(data[descriptor_offset + len(expected_imports) * 20:"
+            "descriptor_offset + (len(expected_imports) + 1) * 20])",
+        ),
+        "noncanonical PE32 import section extent": (
+            "cursor != idata_virtual_size",
+        ),
+        "noncanonical PE32 IAT directory": (
+            "directories[12] != (first_iat, iat_end - first_iat)",
         ),
     }
     parser_guards_match = all(
@@ -7503,6 +8088,10 @@ def _cupid_toolchain_fixed_point_contract(
             "struct.unpack_from('<HHIIIHH', data, pe_offset + 4)"
         ),
         expression_shape("struct.unpack_from('<IIII', data, offset + 8)"),
+        expression_shape(
+            "struct.unpack_from('<IIIII', data, "
+            "descriptor_offset + library_index * 20)"
+        ),
     }
     dos_range_indices = (
         [
@@ -7530,25 +8119,117 @@ def _cupid_toolchain_fixed_point_contract(
         if len(parser_functions) == 1
         else []
     )
+    validators_by_image = {
+        validator.args[0].id: (index, validator)
+        for index, validator in validators
+        if validator.args
+        and isinstance(validator.args[0], ast.Name)
+    }
+    fixed_validator = validators_by_image.get("stage_two_pe32")
+    import_validator = validators_by_image.get("stage_two_windows_image")
+    try:
+        import_expectation = (
+            ast.literal_eval(import_validator[1].args[2])
+            if import_validator is not None
+            and len(import_validator[1].args) == 3
+            else None
+        )
+    except (TypeError, ValueError):
+        import_expectation = None
+    native_windows_indices = [
+        index
+        for index, statement in enumerate(behavior_function.body)
+        if isinstance(statement, ast.If)
+        and node_shape(statement.test)
+        == expression_shape("os.name == 'nt'")
+    ]
+    required_windows_behavior_fragments = (
+        "toolchain/hosted/i386-windows/start.asm",
+        "toolchain/tests/hosted_i386_windows_contract.cc",
+        "windows_assembly_result = _run_stage_pair(",
+        "windows_compile_result = _run_stage_pair(",
+        '"--freestanding",',
+        "windows_link_result = _run_stage_pair(",
+        '("__imp_ExitProcess", "KERNEL32.dll", "ExitProcess")',
+        '("__imp_GetStdHandle", "KERNEL32.dll", "GetStdHandle")',
+        '("__imp_WriteFile", "KERNEL32.dll", "WriteFile")',
+        "windows_import_selectors = tuple(",
+        'f"{slot}={library}:{procedure}"',
+        "stage_two_windows_start.read_bytes()\n"
+        "        != stage_three_windows_start.read_bytes()",
+        "stage_two_windows_contract.read_bytes()\n"
+        "        != stage_three_windows_contract.read_bytes()",
+        "stage_two_windows_image.read_bytes()\n"
+        "        != stage_three_windows_image.read_bytes()",
+        "[str(stage_two_windows_image)]",
+        "capture_output=True",
+        "timeout=10",
+        "native_result.returncode != 37",
+        'native_result.stdout != b"Cupid-built Windows runtime: ok\\n"',
+        "or native_result.stderr",
+        'windows_loader: dict[str, object] = {"status": "not-run"}',
+        '"return_code": native_result.returncode',
+        'evidence_out["windows_runtime"] = {',
+        '"artifacts": _artifact_inventory(',
+        '"library": library',
+        '"procedure": procedure',
+        '"slot": slot',
+        '"loader": windows_loader',
+        "invalid_import_assembly_result = _run_stage_pair(",
+        "call __imp_ExitProcess\\n",
+        "stage_two_invalid_import_object.read_bytes()\n"
+        "        != stage_three_invalid_import_object.read_bytes()",
+        "invalid_import_object.write_bytes(\n"
+        "        stage_two_invalid_import_object.read_bytes()\n"
+        "    )",
+        "invalid_import_result = _run_stage_pair(",
+        "stage_two_invalid_import_image.write_bytes(sentinel)",
+        "stage_three_invalid_import_image.write_bytes(sentinel)",
+        "IAT symbols require an absolute zero-addend relocation",
+        "stage_two_invalid_import_image.read_bytes() != sentinel",
+        "stage_three_invalid_import_image.read_bytes() != sentinel",
+    )
+    missing_windows_behavior_fragments = [
+        fragment
+        for fragment in required_windows_behavior_fragments
+        if behavior_source.count(fragment) != 1
+    ]
     if (
         positive_byte_comparisons
         != [("stage_two_pe32", "stage_three_pe32")]
         or positive_result_attributes != {"stdout", "stderr"}
-        or len(validators) != 1
+        or len(validators) != 2
         or len(positive_checks) != 1
+        or fixed_validator is None
+        or import_validator is None
         or not (
             pe32_positive_status
             < positive_checks[0][0]
-            < validators[0][0]
+            < fixed_validator[0]
+            < import_validator[0]
             < pe32_failure[0]
         )
-        or len(validators[0][1].args) != 2
-        or validators[0][1].keywords
-        or not isinstance(validators[0][1].args[0], ast.Name)
-        or validators[0][1].args[0].id != "stage_two_pe32"
-        or not isinstance(validators[0][1].args[1], ast.Constant)
-        or validators[0][1].args[1].value != 0x00401000
+        or len(fixed_validator[1].args) != 2
+        or fixed_validator[1].keywords
+        or not isinstance(fixed_validator[1].args[1], ast.Constant)
+        or fixed_validator[1].args[1].value != 0x00401000
+        or import_validator[1].keywords
+        or not isinstance(import_validator[1].args[1], ast.Constant)
+        or import_validator[1].args[1].value != 0x00401000
+        or import_expectation
+        != ((
+            "KERNEL32.dll",
+            ("ExitProcess", "GetStdHandle", "WriteFile"),
+        ),)
+        or missing_windows_behavior_fragments
+        or len(native_windows_indices) != 1
+        or not (
+            import_validator[0]
+            < native_windows_indices[0]
+            < invalid_import[0]
+        )
         or len(parser_functions) != 1
+        or not import_parser_is_confined
         or not parser_reads_image
         or parser_unpack_shapes != expected_unpack_shapes
         or not parser_fields_match
@@ -7662,11 +8343,17 @@ def _cupid_toolchain_fixed_point_contract(
         "runner = ToolRunner(private_source_root)",
         'private_source_root / "stage-two",',
         'private_source_root / "stage-three",',
+        "behavior_evidence: dict[str, object] = {}",
         "behavior = _run_behavior_checks(\n"
         "            runner,\n"
         "            private_source_root,\n"
         "            private_source_root,",
+        "            behavior_evidence,\n"
+        "        )",
+        'windows_runtime = behavior_evidence.get("windows_runtime")',
         'report_path = private_source_root / "bootstrap-report.json"',
+        '"windows_loader": windows_loader,',
+        '"windows_runtime": windows_runtime,',
         'publication_root = private_workspace / "publication"',
         "for name in BOOTSTRAP_PUBLICATION_NAMES:",
         "(private_source_root / name).replace(",
@@ -7677,11 +8364,74 @@ def _cupid_toolchain_fixed_point_contract(
         for fragment in required_bootstrap_fragments
         if bootstrap_source.count(fragment) != 1
     ]
+    source_input_functions = [
+        statement
+        for statement in bootstrap_tree.body
+        if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and statement.name == "_source_input_paths"
+    ]
+    source_input_strings = (
+        [
+            node.value
+            for node in ast.walk(source_input_functions[0])
+            if isinstance(node, ast.Constant)
+            and isinstance(node.value, str)
+        ]
+        if len(source_input_functions) == 1
+        else []
+    )
+    required_windows_source_inputs = (
+        "toolchain/hosted/i386-windows/start.asm",
+        "toolchain/tests/hosted_i386_windows_contract.cc",
+    )
+    windows_source_inputs_are_exact = all(
+        source_input_strings.count(path) == 1
+        for path in required_windows_source_inputs
+    )
+    publisher_windows_values: list[object] = []
+    for statement in contract_publisher_tree.body:
+        if (
+            isinstance(statement, ast.Assign)
+            and len(statement.targets) == 1
+            and isinstance(statement.targets[0], ast.Name)
+            and statement.targets[0].id == "WINDOWS_RUNTIME_INPUTS"
+        ):
+            try:
+                publisher_windows_values.append(ast.literal_eval(statement.value))
+            except (TypeError, ValueError):
+                publisher_windows_values.append(None)
+    publisher_input_functions = [
+        statement
+        for statement in contract_publisher_tree.body
+        if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and statement.name == "_contract_input_paths"
+    ]
+    expected_publisher_call = ast.dump(
+        ast.parse(
+            "paths.update(root / path for path in WINDOWS_RUNTIME_INPUTS)",
+            mode="exec",
+        ).body[0],
+        include_attributes=False,
+    )
+    publisher_windows_calls = (
+        [
+            node
+            for node in ast.walk(publisher_input_functions[0])
+            if isinstance(node, ast.Expr)
+            and ast.dump(node, include_attributes=False)
+            == expected_publisher_call
+        ]
+        if len(publisher_input_functions) == 1
+        else []
+    )
     boundary_fragment = (
         "require_source_closures(source_inputs, source_root, plan)"
     )
     if (
         missing_bootstrap_fragments
+        or not windows_source_inputs_are_exact
+        or publisher_windows_values != [required_windows_source_inputs]
+        or len(publisher_windows_calls) != 1
         or bootstrap_source.count(boundary_fragment) != 4
     ):
         raise AuditError(
@@ -7727,9 +8477,14 @@ def _cupid_toolchain_fixed_point_contract(
         "compared_startup_objects": 1,
         "compared_tool_images": len(expected_toolchain_links),
         "help_cases": len(expected_toolchain_links),
-        "success_behavior_cases": 16,
-        "failure_behavior_cases": 14,
-        "source_head_capabilities": ["cupidld.pe32_fixed_image"],
+        "success_behavior_cases": 17,
+        "failure_behavior_cases": 15,
+        "contract_manifest_inputs": 47,
+        "source_head_capabilities": [
+            "cupidld.pe32_fixed_image",
+            "cupidld.pe32_imports",
+            "cupid.windows_runtime_probe",
+        ],
         "stages": ["generation-one", "stage-two", "stage-three"],
         "checked_seed_source_root": "private-captured",
         "checked_seed_source_boundary_checks": 4,
@@ -9047,6 +9802,7 @@ def _c_preprocessor_active_cases_manifest(
                     "bootstrap/seeds/i386-linux/cupidobj.elf",
                     "link.ld",
                     "toolchain/hosted/i386-linux/start.asm",
+                    "toolchain/hosted/i386-windows/start.asm",
                     "toolchain/Makefile",
                     "tools/bootstrap_toolchain.py",
                     "tools/cupidc_toolchain_contracts.py",
@@ -9093,7 +9849,12 @@ def _c_preprocessor_active_cases_manifest(
                         path
                         for path in _C_PP_TOOLCHAIN_CONTRACT_CASES
                         if path not in _C_PP_HOSTED_BRIDGE_CASES
+                        and path
+                        != "/toolchain/tests/hosted_i386_windows_contract.cc"
                     )
+                )
+                active_by_profile["FREESTANDING_I386"].append(
+                    "/toolchain/tests/hosted_i386_windows_contract.cc"
                 )
                 active_by_profile["HOSTED_I386_KERNEL_BRIDGE"].extend(
                     sorted(_C_PP_HOSTED_BRIDGE_CASES)

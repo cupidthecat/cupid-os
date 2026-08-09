@@ -16,3 +16,8 @@ ADR 0247 extends the same one-shot link operation with a fixed-layout PE32
 serializer. ELF32 remains the default for zero-initialized requests. The new
 format selector does not expose layout, symbol, relocation, or serialization
 internals.
+
+ADR 0248 adds deterministic PE32 import records to that request. CupidLD keeps
+`.idata` layout, IAT binding, directory emission, and import-relocation checks
+private. Callers name the slot, library, and export without constructing a PE
+table or retaining linker state.

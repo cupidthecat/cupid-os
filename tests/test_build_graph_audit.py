@@ -1665,7 +1665,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             contract = generated["contracts"][
                 "c_preprocessor_line_directives"
             ]
-            self.assertEqual(contract["source_files"], 687)
+            self.assertEqual(contract["source_files"], 688)
             self.assertEqual(contract["named_line_occurrences"], 0)
             self.assertEqual(contract["direct_line_occurrences"], 0)
             self.assertEqual(contract["pp_token_line_occurrences"], 0)
@@ -1686,7 +1686,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertIn(
                 "`c_preprocessor_line_directives` | `pass` | "
                 "0 named #line directives (0 direct, 0 pp-token; 0 filename); "
-                "0 numeric markers; 687 source files; max conditional depth 0",
+                "0 numeric markers; 688 source files; max conditional depth 0",
                 summary.read_text(encoding="utf-8"),
             )
 
@@ -2582,7 +2582,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 checked["contracts"]["c_preprocessor_include_operands"],
                 contract,
             )
-            self.assertEqual(contract["source_files"], 687)
+            self.assertEqual(contract["source_files"], 688)
             self.assertEqual(contract["include_occurrences"], 2410)
             self.assertEqual(contract["direct_quoted_occurrences"], 2173)
             self.assertEqual(contract["direct_angle_occurrences"], 237)
@@ -3127,6 +3127,14 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "CTOOL_FALSE",
                 ),
                 (
+                    "FREESTANDING_I386",
+                    "CTOOL_C_PP_MODE_C11",
+                    "CTOOL_FALSE",
+                    "CTOOL_FALSE",
+                    "CTOOL_FALSE",
+                    "CTOOL_FALSE",
+                ),
+                (
                     "CUPID_RUNTIME",
                     "CTOOL_C_PP_MODE_CUPID",
                     "CTOOL_FALSE",
@@ -3184,6 +3192,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "DOOM_COMPAT_I386": 3,
                 "DOOM_TREE_I386": 80,
                 "USER_I386": 3,
+                "FREESTANDING_I386": 1,
                 "CUPID_RUNTIME": 105,
                 "HOSTED_TOOLCHAIN_64": 0,
                 "HOSTED_KERNEL_BRIDGE_64": 0,
@@ -3192,7 +3201,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "HOSTED_I386_LINUX_GNU": 2,
             },
         )
-        self.assertEqual(len(active), 381)
+        self.assertEqual(len(active), 382)
         for expected in (
             ("KERNEL_I386", "/kernel/core/kernel.cc"),
             ("KERNEL_I386", "/kernel/audio/memio.cc"),
@@ -3201,6 +3210,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ("DOOM_TREE_I386", "/kernel/doom/i_sound_cupidos.cc"),
             ("DOOM_TREE_I386", "/kernel/doom/src/d_main.cc"),
             ("USER_I386", "/user/examples/hello.cc"),
+            (
+                "FREESTANDING_I386",
+                "/toolchain/tests/hosted_i386_windows_contract.cc",
+            ),
             ("CUPID_RUNTIME", "/bin/browser.cc"),
             ("HOSTED_I386_LINUX", "/toolchain/ctool.cc"),
             ("HOSTED_I386_LINUX", "/toolchain/cupidc_emit.cc"),
@@ -4206,6 +4219,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "/kernel/doom/src/include_stubs",
             ],
             "USER_I386": ["/user"],
+            "FREESTANDING_I386": [],
             "CUPID_RUNTIME": [],
             "HOSTED_TOOLCHAIN_64": ["/toolchain"],
             "HOSTED_KERNEL_BRIDGE_64": ["/toolchain", "/kernel/lang"],
@@ -4279,6 +4293,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 ("DOOM_PORT_CUPIDOS", "1"),
             ],
             "USER_I386": common_macros,
+            "FREESTANDING_I386": [("__SIZEOF_POINTER__", "4")],
             "CUPID_RUNTIME": [],
             "HOSTED_TOOLCHAIN_64": [("__SIZEOF_POINTER__", "8")],
             "HOSTED_KERNEL_BRIDGE_64": [("__SIZEOF_POINTER__", "8")],
@@ -4366,11 +4381,16 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         module = _load_audit_module()
         contract = module._cupid_toolchain_fixed_point_contract(REPO_ROOT)
         self.assertEqual(contract["help_cases"], 5)
-        self.assertEqual(contract["success_behavior_cases"], 16)
-        self.assertEqual(contract["failure_behavior_cases"], 14)
+        self.assertEqual(contract["success_behavior_cases"], 17)
+        self.assertEqual(contract["failure_behavior_cases"], 15)
+        self.assertEqual(contract["contract_manifest_inputs"], 47)
         self.assertEqual(
             contract["source_head_capabilities"],
-            ["cupidld.pe32_fixed_image"],
+            [
+                "cupidld.pe32_fixed_image",
+                "cupidld.pe32_imports",
+                "cupid.windows_runtime_probe",
+            ],
         )
         driver = (REPO_ROOT / "toolchain" / "cupidc_main.cc").read_text(
             encoding="utf-8"
@@ -4380,6 +4400,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
         bootstrap = (
             REPO_ROOT / "tools" / "bootstrap_toolchain.py"
+        ).read_text(encoding="utf-8")
+        contract_publisher = (
+            REPO_ROOT / "tools" / "cupidc_toolchain_contracts.py"
         ).read_text(encoding="utf-8")
         linker_header = (REPO_ROOT / "toolchain" / "cupidld.h").read_text(
             encoding="utf-8"
@@ -4624,12 +4647,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "PE32 staged parser stops reading the image": (
                 "bootstrap",
-                "def _validate_static_i386_pe32("
-                "path: Path, expected_entry: int) -> None:\n"
-                "    data = path.read_bytes()\n",
-                "def _validate_static_i386_pe32("
-                "path: Path, expected_entry: int) -> None:\n"
-                '    data = b""\n',
+                "    data = path.read_bytes()\n"
+                "    has_imports = bool(expected_imports)\n",
+                '    data = b""\n'
+                "    has_imports = bool(expected_imports)\n",
                 r"fixed-point PE32 behavior differs",
             ),
             "PE32 staged parser accepts a changed DOS stub": (
@@ -4702,6 +4723,24 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "    )\n",
                 r"fixed-point PE32 behavior differs",
             ),
+            "PE32 import parser resolves outside idata": (
+                "bootstrap",
+                "        ) = sections[\".idata\"]\n",
+                "        ) = sections[\".text\"]\n",
+                r"fixed-point PE32 behavior differs",
+            ),
+            "PE32 import parser accepts a displaced lookup table": (
+                "bootstrap",
+                "            if lookup_rva != idata_virtual_address + cursor:\n",
+                "            if False:\n",
+                r"fixed-point PE32 behavior differs",
+            ),
+            "PE32 import parser accepts trailing payload": (
+                "bootstrap",
+                "        if cursor != idata_virtual_size:\n",
+                "        if cursor > idata_virtual_size:\n",
+                r"fixed-point PE32 behavior differs",
+            ),
             "PE32 failure stops comparing stages": (
                 "bootstrap",
                 "    invalid_pe32_result = _run_stage_pair(\n",
@@ -4740,15 +4779,114 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "PE32 success count becomes stale": (
                 "bootstrap",
+                '        "success_cases": 17,\n',
                 '        "success_cases": 16,\n',
-                '        "success_cases": 15,\n',
                 r"fixed-point behavior matrix differs",
             ),
             "PE32 failure count becomes stale": (
                 "bootstrap",
+                '        "failure_cases": 15,\n',
                 '        "failure_cases": 14,\n',
-                '        "failure_cases": 13,\n',
                 r"fixed-point behavior matrix differs",
+            ),
+            "PE32 import source leaves the frozen closure": (
+                "bootstrap",
+                'source_root / "toolchain/hosted/i386-windows/start.asm"',
+                'source_root / "toolchain/hosted/i386-linux/start.asm"',
+                r"fixed-point source freeze differs",
+            ),
+            "PE32 Windows startup leaves the contract manifest": (
+                "contract_publisher",
+                '    "toolchain/hosted/i386-windows/start.asm",\n',
+                '    "toolchain/hosted/i386-linux/start.asm",\n',
+                r"fixed-point source freeze differs",
+            ),
+            "PE32 Windows assembly stops comparing stages": (
+                "bootstrap",
+                "    windows_assembly_result = _run_stage_pair(\n",
+                "    windows_assembly_result = _run_one_stage(\n",
+                r"fixed-point PE32 behavior differs",
+            ),
+            "PE32 Windows compile loses freestanding mode": (
+                "bootstrap",
+                '        "--freestanding",\n',
+                '        "--gnu",\n',
+                r"fixed-point PE32 behavior differs",
+            ),
+            "PE32 Windows link stops comparing stages": (
+                "bootstrap",
+                "    windows_link_result = _run_stage_pair(\n",
+                "    windows_link_result = _run_one_stage(\n",
+                r"fixed-point PE32 behavior differs",
+            ),
+            "PE32 imported image skips validation": (
+                "bootstrap",
+                "    _validate_static_i386_pe32(\n"
+                "        stage_two_windows_image,\n",
+                "    _skip_static_i386_pe32_validation(\n"
+                "        stage_two_windows_image,\n",
+                r"fixed-point PE32 behavior differs",
+            ),
+            "PE32 native probe loses its timeout": (
+                "bootstrap",
+                "                timeout=10,\n",
+                "                timeout=None,\n",
+                r"fixed-point PE32 behavior differs",
+            ),
+            "PE32 native probe accepts stderr": (
+                "bootstrap",
+                "            or native_result.stderr\n",
+                "            or False\n",
+                r"fixed-point PE32 behavior differs",
+            ),
+            "PE32 direct IAT failure stops comparing stages": (
+                "bootstrap",
+                "    invalid_import_result = _run_stage_pair(\n",
+                "    invalid_import_result = _run_one_stage(\n",
+                r"fixed-point PE32 behavior differs",
+            ),
+            "PE32 direct IAT failure loses its diagnostic": (
+                "bootstrap",
+                '        or "IAT symbols require an absolute '
+                'zero-addend relocation"\n',
+                '        or "IAT relocation differs"\n',
+                r"fixed-point PE32 behavior differs",
+            ),
+            "PE32 direct IAT failure loses the second sentinel": (
+                "bootstrap",
+                "        or stage_three_invalid_import_image.read_bytes() "
+                "!= sentinel\n",
+                "        or stage_two_invalid_import_image.read_bytes() "
+                "!= sentinel\n",
+                r"fixed-point PE32 behavior differs",
+            ),
+            "PE32 direct IAT fixture collapses assembler outputs": (
+                "bootstrap",
+                "            stage_three_invalid_import_object,\n"
+                "        ],\n"
+                "    )\n"
+                "    _expect_status(\n"
+                "        invalid_import_assembly_result, 0,",
+                "            stage_two_invalid_import_object,\n"
+                "        ],\n"
+                "    )\n"
+                "    _expect_status(\n"
+                "        invalid_import_assembly_result, 0,",
+                r"fixed-point PE32 behavior differs",
+            ),
+            "PE32 direct IAT failure uses a stage-specific input": (
+                "bootstrap",
+                "            invalid_import_object,\n"
+                "        ],\n"
+                "    )\n"
+                "    _expect_status(\n"
+                "        invalid_import_result, 1,",
+                "            stage_three_invalid_import_object,\n"
+                "        ],\n"
+                "    )\n"
+                "    _expect_status(\n"
+                "        invalid_import_result, 1,",
+                r"fixed-point PE32 behavior differs",
             ),
             "PE32 public enum is only a near match": (
                 "linker_header",
@@ -4762,6 +4900,26 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "linker_header",
                 "  ctool_ld_image_kind_t image_kind;\n",
                 "  ctool_ld_image_kind_t image_kinds;\n",
+                r"fixed-point PE32 source contract differs",
+            ),
+            "PE32 import request member is only a near match": (
+                "linker_header",
+                "  const ctool_ld_pe32_import_t *pe32_imports;\n",
+                "  const ctool_ld_pe32_import_t *pe32_import_records;\n",
+                r"fixed-point PE32 source contract differs",
+            ),
+            "PE32 CLI import selector is only a near match": (
+                "linker_cli",
+                '    taken = cupidld_take_value(argc, argv, &index, '
+                'argument, "--import",\n',
+                '    taken = cupidld_take_value(argc, argv, &index, '
+                'argument, "--imports",\n',
+                r"fixed-point PE32 source contract differs",
+            ),
+            "PE32 CLI drops import request threading": (
+                "linker_cli",
+                "  request.pe32_import_count = cli.import_count;\n",
+                "  request.pe32_import_count = 0u;\n",
                 r"fixed-point PE32 source contract differs",
             ),
             "PE32 CLI selector is only a near match": (
@@ -4870,12 +5028,12 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "    }\n"
                 "  }\n"
                 "  if (emitted_section_count == 0u || "
-                "emitted_section_count > 4u) {\n",
+                "emitted_section_count > 5u) {\n",
                 "    }\n"
                 "  }\n"
                 "  emitted_section_count = link->output_count;\n"
                 "  if (emitted_section_count == 0u || "
-                "emitted_section_count > 4u) {\n",
+                "emitted_section_count > 5u) {\n",
                 r"fixed-point PE32 source contract differs",
             ),
             "PE32 header extent includes empty sections": (
@@ -4968,6 +5126,83 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "    if (CTOOL_FALSE &&\n"
                 "        request->image_kind == CTOOL_LD_IMAGE_PE32_FIXED) {\n",
                 r"fixed-point PE32 source contract differs",
+            ),
+            "PE32 image loses its two-GiB RVA guard": (
+                "linker_core",
+                "  if (image_size > LD_PE_NAME_RVA_LIMIT) {\n",
+                "  if (image_size == 0u) {\n",
+                r"fixed-point PE32 source contract differs",
+            ),
+            "PE32 import construction is skipped": (
+                "linker_core",
+                "    status = ld_prepare_pe32_imports(&link);\n",
+                "    status = CTOOL_OK;\n",
+                r"fixed-point PE32 import contract differs",
+            ),
+            "PE32 name-RVA ceiling is widened": (
+                "linker_core",
+                "#define LD_PE_NAME_RVA_LIMIT 0x80000000u\n",
+                "#define LD_PE_NAME_RVA_LIMIT 0xffffffffu\n",
+                r"fixed-point PE32 import contract differs",
+            ),
+            "PE32 import construction skips canonical sorting": (
+                "linker_core",
+                "  ld_pe32_import_sort(link->pe32_imports, import_count);\n",
+                "  (void)import_count;\n",
+                r"fixed-point PE32 import contract differs",
+            ),
+            "PE32 import construction disables duplicate selection guard": (
+                "linker_core",
+                "    if (global->import_selected == CTOOL_TRUE) {\n",
+                "    if (CTOOL_FALSE) {\n",
+                r"fixed-point PE32 import contract differs",
+            ),
+            "PE32 import construction stops recording selected symbols": (
+                "linker_core",
+                "    global->import_selected = CTOOL_TRUE;\n",
+                "    global->import_selected = CTOOL_FALSE;\n",
+                r"fixed-point PE32 import contract differs",
+            ),
+            "PE32 import table may start at the name-RVA ceiling": (
+                "linker_core",
+                "      address - LD_PE_IMAGE_BASE >= LD_PE_NAME_RVA_LIMIT ||\n",
+                "      address - LD_PE_IMAGE_BASE > LD_PE_NAME_RVA_LIMIT ||\n",
+                r"fixed-point PE32 import contract differs",
+            ),
+            "PE32 import payload may cross the name-RVA ceiling": (
+                "linker_core",
+                "      import_payload_size >\n"
+                "          LD_PE_NAME_RVA_LIMIT - "
+                "(address - LD_PE_IMAGE_BASE)) {\n",
+                "      import_payload_size ==\n"
+                "          LD_PE_NAME_RVA_LIMIT - "
+                "(address - LD_PE_IMAGE_BASE)) {\n",
+                r"fixed-point PE32 import contract differs",
+            ),
+            "PE32 name thunk may set the ordinal flag": (
+                "linker_core",
+                "      if (hint_rva >= LD_PE_NAME_RVA_LIMIT) {\n",
+                "      if (hint_rva > LD_PE_NAME_RVA_LIMIT) {\n",
+                r"fixed-point PE32 import contract differs",
+            ),
+            "PE32 import section loses write permission": (
+                "linker_core",
+                "  section->flags = CTOOL_ELF32_SHF_ALLOC | "
+                "CTOOL_ELF32_SHF_WRITE;\n",
+                "  section->flags = CTOOL_ELF32_SHF_ALLOC;\n",
+                r"fixed-point PE32 import contract differs",
+            ),
+            "PE32 IAT permits a nonzero addend": (
+                "linker_core",
+                "               relocation->addend != 0)) {\n",
+                "               relocation->addend == 0)) {\n",
+                r"fixed-point PE32 import contract differs",
+            ),
+            "PE32 IAT directory aliases the import directory": (
+                "linker_core",
+                "    } else if (directory == LD_PE_IAT_DIRECTORY) {\n",
+                "    } else if (directory == LD_PE_IMPORT_DIRECTORY) {\n",
+                r"fixed-point PE32 import contract differs",
             ),
             "PE32 core dispatch survives only in a dead block": (
                 "linker_core",
@@ -5070,6 +5305,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 bootstrap_target = (
                     root / "tools" / "bootstrap_toolchain.py"
                 )
+                contract_publisher_target = (
+                    root / "tools" / "cupidc_toolchain_contracts.py"
+                )
                 linker_header_target = root / "toolchain" / "cupidld.h"
                 linker_cli_target = root / "toolchain" / "cupidld_main.cc"
                 linker_core_target = root / "toolchain" / "cupidld.cc"
@@ -5079,6 +5317,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 driver_payload = driver
                 test_payload = test
                 bootstrap_payload = bootstrap
+                contract_publisher_payload = contract_publisher
                 linker_header_payload = linker_header
                 linker_cli_payload = linker_cli
                 linker_core_payload = linker_core
@@ -5093,6 +5332,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                         old, new, 1
                     )
                     self.assertNotEqual(bootstrap_payload, bootstrap)
+                elif target_name == "contract_publisher":
+                    contract_publisher_payload = (
+                        contract_publisher_payload.replace(old, new, 1)
+                    )
+                    self.assertNotEqual(
+                        contract_publisher_payload, contract_publisher
+                    )
                 elif target_name == "linker_header":
                     linker_header_payload = linker_header_payload.replace(
                         old, new, 1
@@ -5109,6 +5355,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 test_target.write_text(test_payload, encoding="utf-8")
                 bootstrap_target.write_text(
                     bootstrap_payload, encoding="utf-8"
+                )
+                contract_publisher_target.write_text(
+                    contract_publisher_payload, encoding="utf-8"
                 )
                 linker_header_target.write_text(
                     linker_header_payload, encoding="utf-8"
@@ -5196,6 +5445,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "bootstrap/seeds/i386-linux/cupidobj.elf",
                     "link.ld",
                     "toolchain/hosted/i386-linux/start.asm",
+                    "toolchain/hosted/i386-windows/start.asm",
                     "toolchain/Makefile",
                     "tools/bootstrap_toolchain.py",
                     "tools/cupidc_toolchain_contracts.py",
@@ -5790,9 +6040,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 },
                 {
                     "status": "pass",
-                    "tracked_translation_units": 381,
+                    "tracked_translation_units": 382,
                     "generated_translation_units": 4,
-                    "total_translation_units": 385,
+                    "total_translation_units": 386,
                     "include_only_fragments": 22,
                     "delivered_non_root_headers": 2,
                     "deferred_hosted_translation_units": 0,
@@ -5814,6 +6064,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     ("DOOM_COMPAT_I386", 3, 0),
                     ("DOOM_TREE_I386", 80, 0),
                     ("USER_I386", 3, 0),
+                    ("FREESTANDING_I386", 1, 0),
                     ("CUPID_RUNTIME", 105, 0),
                     ("HOSTED_TOOLCHAIN_64", 0, 0),
                     ("HOSTED_KERNEL_BRIDGE_64", 0, 0),
@@ -5833,6 +6084,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "DOOM_COMPAT_I386": True,
                     "DOOM_TREE_I386": True,
                     "USER_I386": False,
+                    "FREESTANDING_I386": False,
                     "CUPID_RUNTIME": False,
                     "HOSTED_TOOLCHAIN_64": False,
                     "HOSTED_KERNEL_BRIDGE_64": False,
@@ -5852,6 +6104,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "DOOM_COMPAT_I386": True,
                     "DOOM_TREE_I386": True,
                     "USER_I386": False,
+                    "FREESTANDING_I386": False,
                     "CUPID_RUNTIME": False,
                     "HOSTED_TOOLCHAIN_64": False,
                     "HOSTED_KERNEL_BRIDGE_64": False,
@@ -5863,7 +6116,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(
                 audit_payload["summary"],
                 {
-                    "active_sources": 719,
+                    "active_sources": 721,
                     "features": 255,
                     "transforms": 447,
                     "unreachable_sources": 25,
@@ -5874,7 +6127,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (5655, 169),
+                "c.expression.sizeof": (5681, 170),
                 "c.extension.builtin.offsetof": (12, 6),
                 "c.extension.gnu_alignof": (1, 1),
             }
@@ -6409,7 +6662,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 for cohort in audit_payload["roadmap"]["source_cohort_order"]
                 if cohort["id"] == "toolchain_sources"
             )
-            self.assertEqual(toolchain_cohort["source_count"], 72)
+            self.assertEqual(toolchain_cohort["source_count"], 74)
             user_program_cohort = next(
                 cohort
                 for cohort in audit_payload["roadmap"]["source_cohort_order"]
@@ -6468,6 +6721,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     ("toolchain_core", "CupidC"),
                 "toolchain/hosted/i386-linux/start.asm":
                     ("toolchain_core", None),
+                "toolchain/hosted/i386-windows/start.asm":
+                    ("toolchain_core", None),
                 "toolchain/tests/core_contract.cc":
                     ("toolchain_contract", "CupidC"),
                 "toolchain/tests/cupidasm_contract.cc":
@@ -6497,6 +6752,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "toolchain/tests/x86_contract.cc":
                     ("toolchain_contract", "CupidC"),
                 "toolchain/tests/hosted_i386_runtime_contract.cc":
+                    ("toolchain_contract", "CupidC"),
+                "toolchain/tests/hosted_i386_windows_contract.cc":
                     ("toolchain_contract", "CupidC"),
             }
             for path, (cohort, runtime_owner) in frontend_sources.items():
@@ -6557,8 +6814,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             for input_path in (
                 "toolchain/hosted/i386-linux/runtime.cc",
                 "toolchain/hosted/i386-linux/start.asm",
+                "toolchain/hosted/i386-windows/start.asm",
                 "link.ld",
                 "toolchain/tests/hosted_i386_runtime_contract.cc",
+                "toolchain/tests/hosted_i386_windows_contract.cc",
                 "toolchain/cupidc_main.cc",
                 "toolchain/tests/cupidc_object_contract.cc",
                 "tools/cupidc_toolchain_contracts.py",
@@ -6576,7 +6835,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             )
             self.assertIn(
                 "`c_preprocessor_translation_units` | `pass` | "
-                "381 tracked + 4 generated",
+                "382 tracked + 4 generated",
                 summary.read_text(encoding="utf-8"),
             )
             audit_payload["build"]["transforms"].append(

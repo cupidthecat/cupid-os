@@ -22332,3 +22332,136 @@ broader PE or COFF support, and native execution remain open. No ordinary C
 or assembly source changes ownership, so no `.c` to `.cc` rename is due.
 `TempleOS/` remains untouched reference material. ADR 0247 records the
 boundary.
+
+## 2026-08-09: Link imports and run a Cupid-built Windows command
+
+ADR 0247 stopped at an import-free PE32 image. This step keeps that layout
+byte-compatible and gives source-head CupidLD ownership of a canonical import
+table. A repeatable `--import IAT_SYMBOL=LIBRARY:PROCEDURE` option carries the
+same records as the public linker request.
+
+CupidLD sorts imports in place with a heap. It orders library names without
+case, then orders procedure and slot names by their exact bytes. The selected
+global symbol records that it already owns an import, so duplicate slots are
+rejected in linear time even when another library separates them in sorted
+order. The linker also rejects mixed spellings of one library, duplicate
+library and procedure pairs, invalid names, unused slots, defined slots, and
+slots without a strong reference.
+
+The serializer appends one writable, non-executable `.idata` section after the
+ordinary fixed sections. It writes descriptors, lookup tables, one contiguous
+IAT, DLL names, and aligned hint and name records. Import directory 1 and IAT
+directory 12 describe those exact bytes. Every other data directory remains
+zero. Name thunks reserve their high bit for ordinals, so the linker rejects an
+import table at or above RVA `0x80000000` and rejects an image that exceeds the
+two-gibibyte name-RVA range.
+
+An imported symbol names its four-byte IAT cell. Only a known zero-addend
+`R_386_32` relocation may reference that cell. CupidASM emits the accepted
+`FF 15` form for `call dword [__imp_WriteFile]`. CupidLD rejects a direct
+`R_386_PC32` call and an absolute relocation with a nonzero addend. A failed
+link restores the output buffer, clears every result field, and preserves an
+existing destination.
+
+The repository now has a small Windows runtime at
+`toolchain/hosted/i386-windows/start.asm`. It calls a headerless, freestanding
+Cupid C contract, writes through `GetStdHandle` and `WriteFile`, and returns
+through `ExitProcess`. Both rebuilt CupidASM stages assemble the entry code,
+both CupidC stages compile the contract, and both CupidLD stages link the same
+PE image. Windows must observe this exact result:
+
+```text
+stdout: Cupid-built Windows runtime: ok\n
+stderr: empty
+exit status: 37
+```
+
+The independent PE parser confines every import RVA to `.idata` and rebuilds
+the producer's exact cursor through descriptors, thunks, strings, alignment,
+and final extent. Its strict import-free mode remains unchanged. The frozen
+source closure grows from 41 to 43 files, and the Toolchain contract manifest
+tracks 47 inputs. The active preprocessing corpus now classifies 31 roots as
+`HOSTED_I386_LINUX`, one Windows probe as `FREESTANDING_I386`, and two bridge
+roots separately. Its 382 executions use eleven profiles.
+
+Several early versions failed useful checks before this boundary was accepted:
+
+- The first import parser allowed directory and thunk RVAs to resolve through
+  any file-backed section. The final parser confines them to `.idata` and
+  accepts only the producer's exact canonical cursor.
+- The first direct-call negative reused one object path for both stages, so the
+  later assembler could overwrite the earlier result. Each stage now produces
+  and compares a separate negative object before the stable fixture is used.
+- The Windows contract was first counted as a hosted Linux root. Compiling it
+  with `--freestanding` exposed the profile error and created the separate
+  `FREESTANDING_I386` classification.
+- The active corpus still expected ten profiles and 381 executions. The native
+  corpus check caught both stale totals before publication.
+- The first complete object-module replay still pinned CupidLD's import-free
+  self-host frontier. It expected 66 functions and a 99,772-byte object. The
+  import-capable source produces 82 functions and a deterministic 137,444-byte
+  object with text fingerprint `ae15dc9e`. Updating that independent record
+  turned the 108-of-109 red run into a complete pass.
+- The audit initially expected the validator's old `last_iat_end` expression.
+  Its corrected `iat_end` contract and new mutations now pin the sort call,
+  duplicate state, image limit, and thunk high-bit checks.
+- A cleanup generated import selectors from one structured tuple but left one
+  `imports[1]` reference in the direct-call failure path. The retained v3
+  bootstrap stopped with no publication. The corrected v4 bootstrap completed
+  the full fixed point and Windows loader check.
+
+The final checks were:
+
+| Check | Result |
+| --- | --- |
+| `python -m py_compile tools/bootstrap_toolchain.py tools/build_graph_audit.py tests/test_toolchain_bootstrap_seed.py tests/test_build_graph_audit.py` | PASS. |
+| `python -m unittest -v tests.test_toolchain_cupidld` | PASS: all 15 tests in 3.570 seconds. |
+| `python -m unittest -v tests.test_cupidc_toolchain_contracts` | PASS: all 32 tests. |
+| `make bootstrap-audit` followed by `make check-bootstrap-audit` | PASS in 122.6 seconds combined on the final tree. |
+| `python -m unittest -v tests.test_build_graph_audit` | PASS: all 75 tests in 762.795 seconds. |
+| Focused checked-seed fixed point | PASS in 816.224 seconds. |
+| Retained checked-seed bootstrap | PASS in 817.1 seconds with behavior matrix 5/17/15 and native Windows execution. |
+| `python -m unittest -v tests.test_toolchain_bootstrap_seed` | PASS: all 51 tests in 855.867 seconds. |
+| `python -m unittest -v tests.test_toolchain_cupidc_object` | PASS: all 109 tests in 1,016.424 seconds after the stale frontier produced an expected 108-of-109 red run. |
+| `make -C toolchain all` | PASS in 2,930.6 seconds. All 20 contract artifacts published together from the final inputs. |
+| `make all` | PASS in 1,477 seconds through the normal checked ELF path. |
+| Private `/bin/ls.cc` GUI boot smoke | PASS in 48.7 seconds. CupidC compiled the command in Cupid OS, completed JIT execution, and produced no panic. |
+
+The retained fixed-point evidence is:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| 43-input source snapshot | 43 inputs | `a935a43ff3709613fb7c3af05af8a27edaa56a98e4c37018ca0984ae57d489d7` |
+| Source build plan | 19 C roots | `59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc` |
+| Stage-two and stage-three `cupidasm.elf` | 445,616 | `1dc9061912f127d231d320940ba781781af663bde83852a613910394709ecc76` |
+| Stage-two and stage-three `cupidc.elf` | 2,582,400 | `03084115bcacb1987db5513c8a8be9b7d884029b03ab4b212bf40d997871ae79` |
+| Stage-two and stage-three `cupiddis.elf` | 379,648 | `a45fc4c57afd3bb02980e514d58c11588ba3a8bfa2f05ca348fe465cfdaf9749` |
+| Stage-two and stage-three `cupidld.elf` | 312,792 | `9561d6f7170472cd6dccd87d4988fdd2b23a138966cbe4940a9ffb062eab481d` |
+| Stage-two and stage-three `cupidobj.elf` | 392,688 | `7137ad601a7c22178112fbf08163b36ff2064807caa99962df97d7ae7ae62f2b` |
+| Stage-two and stage-three Windows C object | 684 | `9780af665f6f428005c595a3cd1a2507f4e757291bbf99f588d19d90c79bf21a` |
+| Stage-two and stage-three Windows startup object | 704 | `5a27d2ac0c2f0f669ac1ff8b437bb735aebaf5dd09f64e77f2f5021db61fe978` |
+| Stage-two and stage-three imported PE image | 2,048 | `c83ac4a301d82b26527ccd87ec8c020e44c72f7c09a0b228a83e743846a4ca1c` |
+| `bootstrap-report.json` | 17,033 | `0df4e89e1b7eeed904a8dc06d3e9142355c53501cc2a75d130c810fe54753f2f` |
+| Toolchain contract manifest | 18,826 | `80592dce6725a5e22a90448f6e2d938ad68a920c5ce417b121075b76075259be` |
+| Active-build audit JSON | 2,574,680 | `cf4e12785dbb41a3c59bbbe5a93b57261ee4418de2eb895771be3b857bd63eff` |
+| Active-build audit summary | 12,218 | `35db6363db6bf51950670a7cb7f48af62a47abbbbf630b3f8c3d02063785ce5a` |
+
+The final normal-build artifacts are:
+
+| Artifact | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.elf` | 9,081,352 | `1ad27ad5320599d2d04da6967f8c9199a9013819f48ff1e0508e3eb99f6531e7` |
+| `kernel/kernel.bin` | 8,873,948 | `a7573644bdc1ea4038bfa0cb325b24fb1648111b4f14e71e6d2e68d8033a706c` |
+| `cupidos.img` | 209,715,200 | `e1df53222cb56e6a496b784b78b8ad7e4bdb17c5f46171fa5cac063289a941ca` |
+| Private boot log | 27,819 | `e8206a684287106fea3f841cb21b43d0fc8543a6fbe48d187c02ac51843168b5` |
+
+This is a Windows loader proof, not a native Windows Toolchain fixed point.
+The checked producers are still i386 Linux executables reached through WSL,
+the promoted seed does not contain the new import-capable CupidLD, and Python
+still controls freezing, validation, comparison, and publication. CupidDis and
+CupidObj are not yet Cupid-built Windows commands, and the normal OS build
+still uses the checked Linux seed. Issue #32 therefore remains open.
+
+No production source changes owner in this step, so no `.c` to `.cc` rename is
+due. `TempleOS/` remains untouched reference material. ADR 0248 records the
+format, relocation, runtime, and validation decisions.

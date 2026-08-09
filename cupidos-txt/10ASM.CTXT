@@ -181,11 +181,22 @@ Source-head CupidLD also links ordered static i386 objects into one fixed-layout
 PE32 console image. Image base is 0x00400000, and text begins at RVA 0x1000.
 Nonempty read-only, writable, and BSS sections follow in that order at the next
 page boundary. Empty output categories do not get PE section headers. The
-image has no imports or base relocations. Writable executable input is
-rejected. Both rebuilt stages produce the same PE bytes
-and agree on a rejected layout. The source-head behavior matrix is 5/16/14.
-The promoted Linux seed remains at 5/15/13 and does not carry this command.
-The PE image is validated but not run or used by the normal build.
+image has no base relocations. Repeatable import options add canonical
+descriptors, lookup tables, IAT cells, and strings in writable .idata.
+CupidLD orders imports with an in-place heap, rejects repeated slots without a
+second scan over earlier requests, and keeps name imports below the PE32
+high-bit boundary. Writable executable input is rejected.
+
+The Windows entry uses `call dword [__imp_Name]`. CupidASM emits FF 15 with a
+known, zero-addend R_386_32 relocation. CupidLD binds it to the IAT cell. A
+direct call emits R_386_PC32 and fails before publication. Both rebuilt
+assemblers produce the same Windows startup object. Both CupidC stages compile
+the same freestanding main, and both CupidLD stages produce the same PE bytes.
+Windows validates and runs the image, checks its exact stdout and empty stderr,
+and requires exit 37. The validator reconstructs the exact .idata layout, and
+the report retains both object and image pairs plus the observed Windows
+result. The source-head behavior matrix is 5/17/15. The promoted Linux seed
+remains at 5/15/13 and does not carry this command.
 
 Source-head CupidLD uses an adjacent candidate created with exclusive-create
 semantics for both ELF and PE output. It writes and closes the candidate, then
@@ -199,7 +210,8 @@ not lock or pin the output path.
 The checked i386 Linux seed includes CupidASM. Its manifest binds the exact
 assembler image to the target ABI, source revision, producer lineage, source
 plan, and link order. The bootstrap freezes the verified manifest and binaries
-and copies its 41-input source closure, including link.ld, into a private root.
+and copies its 43-input source closure, including link.ld and the Windows
+startup and runtime probe, into a private root.
 Checked CupidASM assembles stage-two startup there, then the stage-two
 assembler produces byte-identical stage-three startup below the same root.
 The harness checks both the private and live closures at each stage and

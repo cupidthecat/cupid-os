@@ -20,12 +20,13 @@ and the repository runtime, and Linux or WSL runs the result. The normal
 Toolchain target also owns fourteen `.cc` contract programs. Stage-two and
 stage-three CupidC compile them at the checked i386 ABI, CupidLD links each
 one against matching stage objects, and the harness requires all sixteen new
-objects and fifteen executables to match across stages. It freezes 45
+objects and fifteen executables to match across stages. It freezes 47
 contract inputs and reconstructs that exact inventory under a private source
-root. That inventory includes the Toolchain Makefile and both Python modules
+root. That inventory includes the Windows startup and runtime probe, the
+Toolchain Makefile, and both Python modules
 that construct or verify the cohort. Newly discovered contract inventories catch additions, removals, and a
 transient edit copied before the live file is restored. The public manifest
-also binds the checked seed, build plan, and 41-file fixed-point source
+also binds the checked seed, build plan, and 43-file fixed-point source
 inventory. Verify and run reconstruct both inventories before execution.
 Hashing, JSON decoding, schema checks, and build-plan use share one captured
 seed-manifest byte sequence. Replacing the file during validation cannot mix
@@ -55,12 +56,12 @@ This command validates the seed without executing it.
 make bootstrap-from-seed
 ```
 
-The full command reads all 41 current source inputs once: 19 C sources,
-startup, 20 project headers, and `link.ld`. It copies those exact bytes into a
-private compiler root. Checked CupidC compiles stage two below that root,
-checked CupidASM assembles its startup, and checked CupidLD links all five
-tools. The stage-two producer trio repeats the build for stage three below the
-same root.
+The full command reads all 43 current source inputs once: 19 tool C sources,
+two startup sources, 20 project headers, `link.ld`, and the freestanding
+Windows C probe. It copies those exact bytes into a private compiler root.
+Checked CupidC compiles stage two below that root, checked CupidASM assembles
+its startup, and checked CupidLD links all five tools. The stage-two producer
+trio repeats the build for stage three below the same root.
 
 The gate compares all 19 C objects, both startup objects, and all five linked
 images. It also runs five help checks, fifteen successful operations, and
@@ -114,14 +115,27 @@ separate.
 Source-head CupidLD serializes one deterministic fixed-layout i386 PE32
 console image. The format uses image base `0x00400000`, places `.text` at RVA
 `0x1000`, and lays out each nonempty later section category at the next page
-boundary. Empty output categories do not get PE section headers. It has no
-imports or base relocations, and writable executable input is rejected.
-The source-head fixed point checks the image and one useful layout failure at
-both stages. Its behavior matrix is 5/16/14. The promoted Linux seed
-retains its 5/15/13 proof and does not carry the command. No PE image is
-executed or used by the normal build, and Windows still needs WSL for checked
-tool execution. [ADR 0247](../docs/adr/0247-serialize-fixed-layout-pe32-images-with-cupidld.md)
-records the source-only format boundary.
+boundary. Empty output categories do not get PE section headers. Repeatable
+import options append canonical descriptors, lookup tables, IAT cells, and
+strings in writable `.idata`. The image has no base relocations, and writable
+executable input is rejected. Imported slots require zero-addend absolute
+relocations. Import ordering uses an in-place heap, repeated slots are tracked
+through symbol resolution, and name imports stay below the PE32 high-bit
+boundary.
+
+Both rebuilt CupidASM stages assemble the Windows entry, both CupidC stages
+compile its freestanding `main`, and both CupidLD stages produce identical PE
+bytes. An independent parser reconstructs the exact `.idata` layout before
+Windows runs the stage-two image. The loader check requires the exact stdout
+marker, empty stderr, exit 37, and a ten-second timeout. The report retains the
+observed result and hashes for both object and image pairs. The source-head
+matrix is 5/17/15.
+The promoted Linux seed retains its 5/15/13 proof and does not carry imports,
+so Windows still needs WSL for checked tool production. [ADR
+0247](../docs/adr/0247-serialize-fixed-layout-pe32-images-with-cupidld.md)
+records the format boundary. [ADR
+0248](../docs/adr/0248-link-deterministic-pe32-imports-and-run-a-cupid-built-windows-command.md)
+records imports and direct loader execution.
 
 The source-head CLI stages both ELF and PE images in an adjacent candidate
 created with exclusive-create semantics. It writes and closes the candidate,

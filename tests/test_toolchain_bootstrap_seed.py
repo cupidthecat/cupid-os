@@ -94,6 +94,59 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         image[0x200] = 0xC3
         return image
 
+    @classmethod
+    def _minimal_import_pe32(cls) -> bytearray:
+        image = cls._minimal_pe32()
+        image.extend(b"\0" * 0x200)
+        optional = 0x98
+        struct.pack_into("<H", image, 0x86, 2)
+        struct.pack_into("<I", image, optional + 8, 0x200)
+        struct.pack_into("<I", image, optional + 24, 0x2000)
+        struct.pack_into("<I", image, optional + 56, 0x3000)
+        struct.pack_into("<II", image, optional + 96 + 8, 0x2000, 0x28)
+        struct.pack_into(
+            "<II", image, optional + 96 + 12 * 8, 0x2030, 8
+        )
+        section = 0x1A0
+        image[section : section + 8] = b".idata\0\0"
+        struct.pack_into(
+            "<IIII", image, section + 8, 0x54, 0x2000, 0x200, 0x400
+        )
+        struct.pack_into("<I", image, section + 36, 0xC0000040)
+        struct.pack_into("<IIIII", image, 0x400, 0x2028, 0, 0, 0x2038, 0x2030)
+        struct.pack_into("<II", image, 0x428, 0x2046, 0)
+        struct.pack_into("<II", image, 0x430, 0x2046, 0)
+        image[0x438:0x445] = b"KERNEL32.dll\0"
+        image[0x446:0x454] = b"\0\0ExitProcess\0"
+        return image
+
+    @classmethod
+    def _minimal_two_library_import_pe32(cls) -> bytearray:
+        image = cls._minimal_import_pe32()
+        optional = 0x98
+        section = 0x1A0
+        struct.pack_into("<I", image, section + 8, 0x90)
+        struct.pack_into("<II", image, optional + 96 + 8, 0x2000, 0x3C)
+        struct.pack_into(
+            "<II", image, optional + 96 + 12 * 8, 0x204C, 0x10
+        )
+        image[0x400:0x490] = b"\0" * 0x90
+        struct.pack_into(
+            "<IIIII", image, 0x400, 0x203C, 0, 0, 0x205C, 0x204C
+        )
+        struct.pack_into(
+            "<IIIII", image, 0x414, 0x2044, 0, 0, 0x2069, 0x2054
+        )
+        struct.pack_into("<II", image, 0x43C, 0x2074, 0)
+        struct.pack_into("<II", image, 0x444, 0x2082, 0)
+        struct.pack_into("<II", image, 0x44C, 0x2074, 0)
+        struct.pack_into("<II", image, 0x454, 0x2082, 0)
+        image[0x45C:0x469] = b"KERNEL32.dll\0"
+        image[0x469:0x474] = b"USER32.dll\0"
+        image[0x474:0x482] = b"\0\0ExitProcess\0"
+        image[0x482:0x490] = b"\0\0MessageBoxA\0"
+        return image
+
     def test_pe32_fixed_point_validator_rejects_false_layouts(self):
         with tempfile.TemporaryDirectory(
             prefix="cupid-bootstrap-pe32-"
@@ -162,6 +215,124 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                             image_path, 0x00401000
                         )
 
+    def test_pe32_import_validator_rejects_corrupt_tables(self):
+        expected = (("KERNEL32.dll", ("ExitProcess",)),)
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-bootstrap-pe32-import-"
+        ) as temporary:
+            image_path = Path(temporary) / "import.exe"
+            valid = self._minimal_import_pe32()
+            image_path.write_bytes(valid)
+            _validate_static_i386_pe32(
+                image_path, 0x00401000, expected
+            )
+
+            mutations = (
+                ("short import directory", "<I", 0x104, 20),
+                ("stateful descriptor", "<I", 0x404, 1),
+                ("IAT differs from ILT", "<I", 0x430, 0x2048),
+                ("nonzero import hint", "<H", 0x446, 1),
+                ("missing null descriptor", "<I", 0x414, 1),
+                ("wrong IAT extent", "<I", 0x15C, 4),
+            )
+            for label, encoding, offset, value in mutations:
+                with self.subTest(label=label):
+                    mutated = bytearray(valid)
+                    struct.pack_into(encoding, mutated, offset, value)
+                    image_path.write_bytes(mutated)
+                    with self.assertRaises(BootstrapError):
+                        _validate_static_i386_pe32(
+                            image_path, 0x00401000, expected
+                        )
+
+            unterminated_library = bytearray(valid)
+            unterminated_library[0x438:0x454] = b"A" * 0x1C
+            image_path.write_bytes(unterminated_library)
+            with self.assertRaisesRegex(
+                BootstrapError, "unterminated import library"
+            ):
+                _validate_static_i386_pe32(
+                    image_path,
+                    0x00401000,
+                    expected,
+                )
+
+            aliased_lookup = bytearray(valid)
+            struct.pack_into("<I", aliased_lookup, 0x400, 0x2030)
+            image_path.write_bytes(aliased_lookup)
+            with self.assertRaisesRegex(
+                BootstrapError, "noncanonical PE32 import lookup layout"
+            ):
+                _validate_static_i386_pe32(
+                    image_path, 0x00401000, expected
+                )
+
+            nonzero_alignment = bytearray(valid)
+            nonzero_alignment[0x445] = 1
+            image_path.write_bytes(nonzero_alignment)
+            with self.assertRaisesRegex(
+                BootstrapError, "nonzero PE32 import alignment"
+            ):
+                _validate_static_i386_pe32(
+                    image_path, 0x00401000, expected
+                )
+
+            extended_imports = bytearray(valid)
+            struct.pack_into("<I", extended_imports, 0x1A8, 0x58)
+            image_path.write_bytes(extended_imports)
+            with self.assertRaisesRegex(
+                BootstrapError, "noncanonical PE32 import section extent"
+            ):
+                _validate_static_i386_pe32(
+                    image_path, 0x00401000, expected
+                )
+
+            displaced_lookup = bytearray(valid)
+            struct.pack_into("<I", displaced_lookup, 0x180, 8)
+            displaced_lookup[0x200:0x208] = valid[0x428:0x430]
+            struct.pack_into("<I", displaced_lookup, 0x400, 0x1000)
+            image_path.write_bytes(displaced_lookup)
+            with self.assertRaisesRegex(
+                BootstrapError, "noncanonical PE32 import lookup layout"
+            ):
+                _validate_static_i386_pe32(
+                    image_path, 0x00401000, expected
+                )
+
+            displaced_descriptors = bytearray(valid)
+            displaced_descriptors[0x480:0x4A8] = valid[0x400:0x428]
+            struct.pack_into("<I", displaced_descriptors, 0x100, 0x2080)
+            struct.pack_into("<I", displaced_descriptors, 0x1A8, 0xA8)
+            image_path.write_bytes(displaced_descriptors)
+            with self.assertRaisesRegex(
+                BootstrapError, "noncanonical PE32 import directory"
+            ):
+                _validate_static_i386_pe32(
+                    image_path, 0x00401000, expected
+                )
+
+            two_library_expected = (
+                ("KERNEL32.dll", ("ExitProcess",)),
+                ("USER32.dll", ("MessageBoxA",)),
+            )
+            two_library = self._minimal_two_library_import_pe32()
+            image_path.write_bytes(two_library)
+            _validate_static_i386_pe32(
+                image_path, 0x00401000, two_library_expected
+            )
+            gapped_iat = bytearray(two_library)
+            struct.pack_into("<I", gapped_iat, 0x424, 0x2090)
+            gapped_iat[0x490:0x498] = two_library[0x454:0x45C]
+            struct.pack_into("<I", gapped_iat, 0x15C, 0x4C)
+            struct.pack_into("<I", gapped_iat, 0x1A8, 0x98)
+            image_path.write_bytes(gapped_iat)
+            with self.assertRaisesRegex(
+                BootstrapError, "noncanonical PE32 import address layout"
+            ):
+                _validate_static_i386_pe32(
+                    image_path, 0x00401000, two_library_expected
+                )
+
     def _write_tiny_source_root(
         self, source_root: Path
     ) -> tuple[dict[str, object], Path]:
@@ -186,6 +357,19 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         )
         (toolchain / "hosted" / "i386-linux" / "start.asm").write_text(
             "bits 32\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        windows = toolchain / "hosted" / "i386-windows"
+        windows.mkdir(parents=True)
+        (windows / "start.asm").write_text(
+            "bits 32\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        (toolchain / "tests").mkdir()
+        (toolchain / "tests" / "hosted_i386_windows_contract.cc").write_text(
+            "int main(void) { return 0; }\n",
             encoding="utf-8",
             newline="\n",
         )
@@ -219,6 +403,13 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             linker_script = source_root / "link.ld"
             source.write_text("int tiny(void) { return 1; }\n")
             startup.write_text("bits 32\n")
+            windows = toolchain / "hosted" / "i386-windows"
+            windows.mkdir(parents=True)
+            (windows / "start.asm").write_text("bits 32\n")
+            (toolchain / "tests").mkdir()
+            (
+                toolchain / "tests" / "hosted_i386_windows_contract.cc"
+            ).write_text("int main(void) { return 0; }\n")
             (toolchain / "tiny.h").write_text("int tiny(void);\n")
             linker_script.write_text("SECTIONS {}\n")
             plan = {
@@ -3193,10 +3384,78 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["behavior"],
                 {
-                    "failure_cases": 14,
+                    "failure_cases": 15,
                     "help_cases": 5,
-                    "success_cases": 16,
+                    "success_cases": 17,
                 },
+            )
+            self.assertEqual(
+                report["host_execution"],
+                {
+                    "windows_loader": (
+                        {
+                            "return_code": 37,
+                            "status": "pass",
+                            "stderr": "",
+                            "stdout": (
+                                "Cupid-built Windows runtime: ok\n"
+                            ),
+                        }
+                        if os.name == "nt"
+                        else {"status": "not-run"}
+                    )
+                },
+            )
+            windows_runtime = report["windows_runtime"]
+            windows_artifacts = windows_runtime["artifacts"]
+            self.assertEqual(
+                set(windows_artifacts),
+                {
+                    "stage-three-contract",
+                    "stage-three-image",
+                    "stage-three-start",
+                    "stage-two-contract",
+                    "stage-two-image",
+                    "stage-two-start",
+                },
+            )
+            for pair in ("contract", "image", "start"):
+                self.assertEqual(
+                    windows_artifacts[f"stage-two-{pair}"],
+                    windows_artifacts[f"stage-three-{pair}"],
+                )
+            self.assertEqual(
+                windows_artifacts["stage-two-image"],
+                {
+                    "sha256": (
+                        "c83ac4a301d82b26527ccd87ec8c020e44c72f7c09a0b228a83e743846a4ca1c"
+                    ),
+                    "size": 2048,
+                },
+            )
+            self.assertEqual(
+                windows_runtime["imports"],
+                [
+                    {
+                        "library": "KERNEL32.dll",
+                        "procedure": "ExitProcess",
+                        "slot": "__imp_ExitProcess",
+                    },
+                    {
+                        "library": "KERNEL32.dll",
+                        "procedure": "GetStdHandle",
+                        "slot": "__imp_GetStdHandle",
+                    },
+                    {
+                        "library": "KERNEL32.dll",
+                        "procedure": "WriteFile",
+                        "slot": "__imp_WriteFile",
+                    },
+                ],
+            )
+            self.assertEqual(
+                windows_runtime["loader"],
+                report["host_execution"]["windows_loader"],
             )
             initial_matches = report["initial_seed_matches_stage_two"]
             self.assertEqual(
@@ -3210,7 +3469,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 },
             )
             source_head_snapshot = (
-                "7b6b40b666acc599f758065e2be4fc7824823618d0ffd46350450699eb980dcb"
+                "a935a43ff3709613fb7c3af05af8a27edaa56a98e4c37018ca0984ae57d489d7"
             )
             self.assertEqual(
                 report["source_snapshot_sha256"], source_head_snapshot
@@ -3225,7 +3484,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     "cupidobj": True,
                 },
             )
-            self.assertEqual(report["source_inputs"]["count"], 41)
+            self.assertEqual(report["source_inputs"]["count"], 43)
             self.assertEqual(
                 len(report["source_inputs"]["sha256"]),
                 64,
@@ -3236,7 +3495,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 len(report["source_inputs"]["files"]),
-                41,
+                43,
             )
             for tool_name in (
                 "cupidasm",

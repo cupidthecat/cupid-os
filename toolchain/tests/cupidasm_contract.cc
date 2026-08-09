@@ -410,16 +410,19 @@ static int run_object_basic(void) {
   static const char source_text[] =
       "[BITS 32]\n"
       "extern target\n"
+      "extern slot\n"
       "global entry\n"
       "section .text\n"
       "entry:\n"
       " call target\n"
       " mov eax, [value]\n"
+      " call dword [slot]\n"
       " ret 4\n"
       "section .data\n"
       "value: dd entry\n";
   static const ctool_u8 expected_text[] = {
       0xe8u, 0xfcu, 0xffu, 0xffu, 0xffu, 0xa1u,
+      0x00u, 0x00u, 0x00u, 0x00u, 0xffu, 0x15u,
       0x00u, 0x00u, 0x00u, 0x00u, 0xc2u, 0x04u, 0x00u};
   static const ctool_u8 expected_data[] = {0u, 0u, 0u, 0u};
   ctool_host_adapter_t adapter;
@@ -436,6 +439,7 @@ static int run_object_basic(void) {
   const ctool_elf32_symbol_t *entry;
   const ctool_elf32_symbol_t *value;
   const ctool_elf32_symbol_t *target;
+  const ctool_elf32_symbol_t *slot;
   ctool_bytes_t bytes;
   ctool_status_t status;
 
@@ -475,6 +479,7 @@ static int run_object_basic(void) {
   entry = find_symbol(&object, "entry");
   value = find_symbol(&object, "value");
   target = find_symbol(&object, "target");
+  slot = find_symbol(&object, "slot");
   if (!check_status(status, CTOOL_OK, "basic ELF32 object assembly") ||
       result.artifact != CTOOL_ASM_ARTIFACT_ELF32_REL ||
       result.bytes.data != bytes.data || result.bytes.size != bytes.size ||
@@ -519,14 +524,18 @@ static int run_object_basic(void) {
       target->binding != CTOOL_ELF32_BIND_GLOBAL ||
       target->placement != CTOOL_ELF32_SYMBOL_UNDEFINED ||
       target->section_file_index != CTOOL_ELF32_NO_SECTION ||
-      target->value != 0u) {
+      target->value != 0u || slot == (const ctool_elf32_symbol_t *)0 ||
+      slot->binding != CTOOL_ELF32_BIND_GLOBAL ||
+      slot->placement != CTOOL_ELF32_SYMBOL_UNDEFINED ||
+      slot->section_file_index != CTOOL_ELF32_NO_SECTION ||
+      slot->value != 0u) {
     (void)fprintf(stderr, "basic ELF32 object symbols differ\n");
     ctool_buffer_close(output);
     ctool_job_close(job);
     return 1;
   }
-  if (object.relocation_count != 3u || text->relocation_first != 0u ||
-      text->relocation_count != 2u || data->relocation_first != 2u ||
+  if (object.relocation_count != 4u || text->relocation_first != 0u ||
+      text->relocation_count != 3u || data->relocation_first != 3u ||
       data->relocation_count != 1u ||
       object.relocations[0].target_section_file_index != text->file_index ||
       object.relocations[0].offset != 1u ||
@@ -540,12 +549,18 @@ static int run_object_basic(void) {
       object.relocations[1].type != CTOOL_ELF32_R_386_32 ||
       object.relocations[1].addend_known == CTOOL_FALSE ||
       object.relocations[1].addend != 0 ||
-      object.relocations[2].target_section_file_index != data->file_index ||
-      object.relocations[2].offset != 0u ||
-      object.relocations[2].symbol_file_index != entry->file_index ||
+      object.relocations[2].target_section_file_index != text->file_index ||
+      object.relocations[2].offset != 12u ||
+      object.relocations[2].symbol_file_index != slot->file_index ||
       object.relocations[2].type != CTOOL_ELF32_R_386_32 ||
       object.relocations[2].addend_known == CTOOL_FALSE ||
-      object.relocations[2].addend != 0) {
+      object.relocations[2].addend != 0 ||
+      object.relocations[3].target_section_file_index != data->file_index ||
+      object.relocations[3].offset != 0u ||
+      object.relocations[3].symbol_file_index != entry->file_index ||
+      object.relocations[3].type != CTOOL_ELF32_R_386_32 ||
+      object.relocations[3].addend_known == CTOOL_FALSE ||
+      object.relocations[3].addend != 0) {
     (void)fprintf(stderr, "basic ELF32 object relocations differ\n");
     ctool_buffer_close(output);
     ctool_job_close(job);

@@ -30,6 +30,25 @@ ELF programs are started as external processes and receive the syscall table
 pointer as the first argument to _start.
 >endtree
 
+>h2 Source-Head Windows Image Proof
+>tree open Source-Head Windows Image Proof
+Source-head CupidLD also serializes one fixed-layout i386 PE32 console image.
+It can build canonical import descriptors, lookup tables, IAT cells, and names
+in writable .idata. Imported slots accept only known, zero-addend absolute
+relocations. CupidLD orders imports with an in-place heap and keeps name
+imports below the PE32 high-bit boundary. The fixed image has no
+base-relocation table. The independent validator reconstructs the exact
+.idata cursor and rejects equivalent but noncanonical layouts.
+
+CupidASM assembles the repository Windows entry, and freestanding CupidC
+compiles its headerless main. CupidLD links GetStdHandle, WriteFile, and
+ExitProcess imports. Windows validates and runs the image, requires the exact
+stdout marker, empty stderr, and exit 37. The bootstrap report retains the
+observed result and both stages' object and image hashes. The checked seed does
+not carry this path, so normal ELF program builds still use the static i386
+Linux tools.
+>endtree
+
 >h2 Entry Point
 >tree open Entry Point
 Use the wrapper header:

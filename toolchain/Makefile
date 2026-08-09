@@ -103,6 +103,8 @@ CUPIDC_HOSTED_I386_HEADERS := hosted/i386-linux/include/cupid_host_abi.h \
 CUPIDC_HOSTED_I386_RUNTIME := hosted/i386-linux/runtime.cc \
                               hosted/i386-linux/start.asm \
                               tests/hosted_i386_runtime_contract.cc
+CUPIDC_HOSTED_I386_WINDOWS_RUNTIME := hosted/i386-windows/start.asm \
+                                      tests/hosted_i386_windows_contract.cc
 CUPIDC_HOSTED_I386_CLOSURE := ctool.cc ctool.h ctool_host.cc ctool_host.h \
                               elf32.cc elf32.h x86.cc x86.h \
                               cupidc_pp.cc cupidc_pp.h \
@@ -401,7 +403,7 @@ $(CONTRACT_MANIFEST): ../tools/cupidc_toolchain_contracts.py \
 	../tools/bootstrap_toolchain.py $(CUPIDC_CONTRACT_SEED) \
 	../link.ld \
 	$(CUPIDC_HOSTED_I386_CLOSURE) $(CUPIDC_CONTRACT_SOURCES) \
-	$(CUPIDC_CONTRACT_SUPPORT) Makefile
+	$(CUPIDC_CONTRACT_SUPPORT) $(CUPIDC_HOSTED_I386_WINDOWS_RUNTIME) Makefile
 	$(PYTHON) ../tools/cupidc_toolchain_contracts.py build \
 		--root .. --manifest ../bootstrap/seeds/i386-linux/manifest.json \
 		--output $(CONTRACT_DIR)
@@ -736,6 +738,7 @@ test: $(CONTRACT_MANIFEST) \
 	$(CUPIDLD_CONTRACT) fixed-basic
 	$(CUPIDLD_CONTRACT) fixed-layout
 	$(CUPIDLD_CONTRACT) pe32-fixed
+	$(CUPIDLD_CONTRACT) pe32-imports
 	$(CUPIDLD_CONTRACT) merge-symbols
 	$(CUPIDLD_CONTRACT) merge-addends
 	$(CUPIDLD_CONTRACT) script-layout

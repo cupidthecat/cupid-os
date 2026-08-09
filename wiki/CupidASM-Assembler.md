@@ -187,7 +187,7 @@ scripted linking, binary and canonical-text wrapping, executable flattening,
 help, and useful failures.
 
 The checked i386 Linux seed includes CupidASM and binds it to the complete
-toolchain build plan. The bootstrap copies all 41 source inputs into a private
+toolchain build plan. The bootstrap copies all 43 source inputs into a private
 root. Checked CupidASM assembles stage-two startup there, and the stage-two
 assembler produces the byte-identical stage-three startup below the same root.
 The private and live closures are checked after each stage and after behavior
@@ -196,7 +196,15 @@ together only after the full gate passes. See
 [Toolchain Bootstrap](Toolchain-Bootstrap) for the manifest and staged build.
 Normal Cupid OS C roots and Toolchain contracts now use checked CupidC.
 A host compiler remains only for explicit native oracles and hosted
-development commands. A native Windows fixed point is still open.
+development commands.
+
+Source-head CupidASM also assembles the repository Windows entry. An imported
+call such as `call dword [__imp_WriteFile]` emits `FF 15` with one known,
+zero-addend `R_386_32` relocation. CupidLD binds that operand to its IAT cell.
+A direct call emits `R_386_PC32` and fails at link time. An absolute import
+reference with a nonzero addend also fails, so an input cannot address past
+the IAT cell. Both rebuilt assemblers produce identical Windows startup
+objects. A native Windows five-tool fixed point is still open.
 
 ### Function Example
 

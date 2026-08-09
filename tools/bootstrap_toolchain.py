@@ -321,6 +321,12 @@ def _source_input_paths(
     startup = str(plan["startup"])
     paths.append(source_root / startup.lstrip("/"))
     paths.append(source_root / "link.ld")
+    paths.append(
+        source_root / "toolchain/hosted/i386-windows/start.asm"
+    )
+    paths.append(
+        source_root / "toolchain/tests/hosted_i386_windows_contract.cc"
+    )
 
     paths.extend(sorted((source_root / "toolchain").glob("*.h")))
     paths.extend(
@@ -595,8 +601,13 @@ _FIXED_PE32_DOS_STUB = bytes.fromhex(
 )
 
 
-def _validate_static_i386_pe32(path: Path, expected_entry: int) -> None:
+def _validate_static_i386_pe32(
+    path: Path,
+    expected_entry: int,
+    expected_imports: Sequence[tuple[str, Sequence[str]]] = (),
+) -> None:
     data = path.read_bytes()
+    has_imports = bool(expected_imports)
 
     def require_range(offset: int, size: int, label: str) -> None:
         if offset < 0 or size < 0 or offset > len(data) - size:
@@ -629,7 +640,7 @@ def _validate_static_i386_pe32(path: Path, expected_entry: int) -> None:
     if (
         machine != 0x014C
         or section_count == 0
-        or section_count > 4
+        or section_count > (5 if has_imports else 4)
         or timestamp != 0
         or symbol_table != 0
         or symbol_count != 0
@@ -708,14 +719,23 @@ def _validate_static_i386_pe32(path: Path, expected_entry: int) -> None:
         or entry_rva != expected_entry - image_base
     ):
         raise BootstrapError(f"{path.name} has an invalid PE32 image layout")
+    directories = []
     for directory in range(directory_count):
         offset = optional_offset + 96 + directory * 8
-        if read_u32(offset, "PE32 directory RVA") != 0 or read_u32(
-            offset + 4, "PE32 directory size"
-        ) != 0:
+        entry = (
+            read_u32(offset, "PE32 directory RVA"),
+            read_u32(offset + 4, "PE32 directory size"),
+        )
+        directories.append(entry)
+        if directory not in ((1, 12) if has_imports else ()) and entry != (
+            0,
+            0,
+        ):
             raise BootstrapError(
                 f"{path.name} has an unexpected PE32 data directory"
             )
+    if has_imports and (directories[1] == (0, 0) or directories[12] == (0, 0)):
+        raise BootstrapError(f"{path.name} omits its PE32 import directories")
     section_offset = optional_offset + optional_size
     require_range(
         section_offset, section_count * 40, "PE32 section table"
@@ -738,6 +758,8 @@ def _validate_static_i386_pe32(path: Path, expected_entry: int) -> None:
         ".data": (2, 0xC0000040),
         ".bss": (3, 0xC0000080),
     }
+    if has_imports:
+        expected_sections[".idata"] = (4, 0xC0000040)
     entry_is_file_backed_executable = False
     previous_section_rank = -1
     expected_virtual_address = section_alignment
@@ -748,12 +770,19 @@ def _validate_static_i386_pe32(path: Path, expected_entry: int) -> None:
     expected_uninitialized_size = 0
     expected_base_of_code = 0
     expected_base_of_data = 0
+    sections = {}
     for index in range(section_count):
         offset = section_offset + index * 40
         raw_name = data[offset : offset + 8]
         name = raw_name.split(b"\0", 1)[0].decode("ascii", errors="replace")
         virtual_size, virtual_address, raw_size, raw_offset = (
             struct.unpack_from("<IIII", data, offset + 8)
+        )
+        sections[name] = (
+            virtual_address,
+            virtual_size,
+            raw_offset,
+            raw_size,
         )
         section_characteristics = read_u32(
             offset + 36, "PE32 section characteristics"
@@ -853,6 +882,212 @@ def _validate_static_i386_pe32(path: Path, expected_entry: int) -> None:
         raise BootstrapError(
             f"{path.name} entry is not file-backed PE32 executable code"
         )
+    if has_imports:
+        if ".idata" not in sections:
+            raise BootstrapError(f"{path.name} omits its PE32 import section")
+
+        (
+            idata_virtual_address,
+            idata_virtual_size,
+            idata_raw_offset,
+            idata_raw_size,
+        ) = sections[".idata"]
+
+        def rva_extent(
+            rva: int, size: int, label: str
+        ) -> tuple[int, int]:
+            relative_rva = rva - idata_virtual_address
+            if (
+                idata_raw_size
+                and relative_rva >= 0
+                and size <= idata_raw_size - relative_rva
+                and size <= idata_virtual_size - relative_rva
+            ):
+                return (
+                    idata_raw_offset + relative_rva,
+                    idata_raw_offset
+                    + min(idata_raw_size, idata_virtual_size),
+                )
+            raise BootstrapError(f"{path.name} has an invalid {label} RVA")
+
+        def rva_offset(rva: int, size: int, label: str) -> int:
+            return rva_extent(rva, size, label)[0]
+
+        def rva_string(rva: int, label: str) -> str:
+            offset, section_end = rva_extent(rva, 1, label)
+            end = data.find(b"\0", offset, section_end)
+            if end < 0:
+                raise BootstrapError(
+                    f"{path.name} has an unterminated {label}"
+                )
+            try:
+                return data[offset:end].decode("ascii")
+            except UnicodeDecodeError as error:
+                raise BootstrapError(
+                    f"{path.name} has a non-ASCII {label}"
+                ) from error
+
+        import_rva, import_size = directories[1]
+        expected_import_size = (len(expected_imports) + 1) * 20
+        if (
+            import_rva != idata_virtual_address
+            or import_size != expected_import_size
+        ):
+            raise BootstrapError(
+                f"{path.name} has a noncanonical PE32 import directory"
+            )
+        descriptor_offset = rva_offset(
+            import_rva, expected_import_size, "import directory"
+        )
+        descriptors: list[tuple[int, int, int]] = []
+        for library_index, (library, procedures) in enumerate(
+            expected_imports
+        ):
+            descriptor = struct.unpack_from(
+                "<IIIII", data, descriptor_offset + library_index * 20
+            )
+            lookup_rva, timestamp, forwarder, name_rva, iat_rva = descriptor
+            if timestamp != 0 or forwarder != 0:
+                raise BootstrapError(
+                    f"{path.name} has a stateful PE32 import descriptor"
+                )
+            descriptors.append((lookup_rva, name_rva, iat_rva))
+
+        if any(
+            data[
+                descriptor_offset + len(expected_imports) * 20 :
+                descriptor_offset + (len(expected_imports) + 1) * 20
+            ]
+        ):
+            raise BootstrapError(
+                f"{path.name} has no null PE32 import descriptor"
+            )
+
+        cursor = expected_import_size
+        lookup_offsets: list[int] = []
+        for (lookup_rva, _name_rva, _iat_rva), (
+            _library,
+            procedures,
+        ) in zip(descriptors, expected_imports):
+            thunk_size = (len(procedures) + 1) * 4
+            if lookup_rva != idata_virtual_address + cursor:
+                raise BootstrapError(
+                    f"{path.name} has a noncanonical PE32 import lookup layout"
+                )
+            lookup_offsets.append(
+                rva_offset(lookup_rva, thunk_size, "import lookup table")
+            )
+            cursor += thunk_size
+
+        first_iat = idata_virtual_address + cursor
+        iat_offsets: list[int] = []
+        for (_lookup_rva, _name_rva, iat_rva), (
+            _library,
+            procedures,
+        ) in zip(descriptors, expected_imports):
+            thunk_size = (len(procedures) + 1) * 4
+            if iat_rva != idata_virtual_address + cursor:
+                raise BootstrapError(
+                    f"{path.name} has a noncanonical PE32 import address layout"
+                )
+            iat_offsets.append(
+                rva_offset(iat_rva, thunk_size, "import address table")
+            )
+            cursor += thunk_size
+        iat_end = idata_virtual_address + cursor
+
+        for (_lookup_rva, name_rva, _iat_rva), (
+            library,
+            _procedures,
+        ) in zip(descriptors, expected_imports):
+            encoded_library = library.encode("ascii") + b"\0"
+            if name_rva != idata_virtual_address + cursor:
+                raise BootstrapError(
+                    f"{path.name} has a noncanonical PE32 import name layout"
+                )
+            library_offset = rva_offset(
+                name_rva, len(encoded_library), "import library"
+            )
+            if rva_string(name_rva, "import library") != library or data[
+                library_offset : library_offset + len(encoded_library)
+            ] != encoded_library:
+                raise BootstrapError(
+                    f"{path.name} has an unexpected PE32 import library"
+                )
+            cursor += len(encoded_library)
+
+        for library_index, (_library, procedures) in enumerate(
+            expected_imports
+        ):
+            lookup_offset = lookup_offsets[library_index]
+            iat_offset = iat_offsets[library_index]
+            for procedure_index, procedure in enumerate(procedures):
+                lookup = read_u32(
+                    lookup_offset + procedure_index * 4,
+                    "PE32 import lookup entry",
+                )
+                iat = read_u32(
+                    iat_offset + procedure_index * 4,
+                    "PE32 import address entry",
+                )
+                if cursor & 1:
+                    alignment_offset = rva_offset(
+                        idata_virtual_address + cursor,
+                        1,
+                        "import name alignment",
+                    )
+                    if data[alignment_offset] != 0:
+                        raise BootstrapError(
+                            f"{path.name} has nonzero PE32 import alignment"
+                        )
+                    cursor += 1
+                expected_hint_rva = idata_virtual_address + cursor
+                encoded_procedure = procedure.encode("ascii") + b"\0"
+                hint_offset = rva_offset(
+                    expected_hint_rva,
+                    2 + len(encoded_procedure),
+                    "import hint and name",
+                )
+                if (
+                    lookup != expected_hint_rva
+                    or iat != lookup
+                    or read_u16(hint_offset, "PE32 import hint") != 0
+                    or data[
+                        hint_offset + 2 :
+                        hint_offset + 2 + len(encoded_procedure)
+                    ]
+                    != encoded_procedure
+                    or rva_string(expected_hint_rva + 2, "import procedure")
+                    != procedure
+                ):
+                    raise BootstrapError(
+                        f"{path.name} has an unexpected PE32 import procedure"
+                    )
+                cursor += 2 + len(encoded_procedure)
+            if (
+                read_u32(
+                    lookup_offset + len(procedures) * 4,
+                    "PE32 import lookup terminator",
+                )
+                != 0
+                or read_u32(
+                    iat_offset + len(procedures) * 4,
+                    "PE32 import address terminator",
+                )
+                != 0
+            ):
+                raise BootstrapError(
+                    f"{path.name} has an unterminated PE32 import thunk table"
+                )
+
+        if cursor != idata_virtual_size:
+            raise BootstrapError(
+                f"{path.name} has a noncanonical PE32 import section extent"
+            )
+        if directories[12] != (first_iat, iat_end - first_iat):
+            raise BootstrapError(
+                f"{path.name} has a noncanonical PE32 IAT directory"
+            )
 
 
 def _validate_i386_relocatable(path: Path) -> None:
@@ -1483,6 +1718,7 @@ def _run_behavior_checks(
     output_root: Path,
     stage_two: Stage,
     stage_three: Stage,
+    evidence_out: dict[str, object] | None = None,
 ) -> dict[str, int]:
     behavior_root = output_root / "behavior"
     behavior_root.mkdir()
@@ -2217,6 +2453,269 @@ def _run_behavior_checks(
         0x00401000,
     )
 
+    windows_start = source_root / "toolchain/hosted/i386-windows/start.asm"
+    windows_contract = (
+        source_root / "toolchain/tests/hosted_i386_windows_contract.cc"
+    )
+    stage_two_windows_start = behavior_root / "stage-two-windows-start.o"
+    stage_three_windows_start = behavior_root / "stage-three-windows-start.o"
+    windows_assembly_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupidasm",
+        ["-f", "elf32", windows_start, "-o", stage_two_windows_start],
+        ["-f", "elf32", windows_start, "-o", stage_three_windows_start],
+    )
+    _expect_status(
+        windows_assembly_result, 0, "CupidASM Windows startup"
+    )
+    if (
+        windows_assembly_result.stdout
+        or windows_assembly_result.stderr
+        or stage_two_windows_start.read_bytes()
+        != stage_three_windows_start.read_bytes()
+    ):
+        raise BootstrapError("CupidASM Windows startup output differs")
+    _validate_i386_relocatable(stage_two_windows_start)
+
+    local_windows_contract = behavior_root / "windows-contract.cc"
+    local_windows_contract.write_bytes(windows_contract.read_bytes())
+    stage_two_windows_contract = behavior_root / "stage-two-windows-contract.o"
+    stage_three_windows_contract = behavior_root / "stage-three-windows-contract.o"
+    windows_compiler_arguments: list[str | Path] = [
+        "--root",
+        behavior_root,
+        "--freestanding",
+        "-c",
+        "/windows-contract.cc",
+    ]
+    windows_compile_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupidc",
+        [
+            *windows_compiler_arguments,
+            "-o",
+            "/stage-two-windows-contract.o",
+        ],
+        [
+            *windows_compiler_arguments,
+            "-o",
+            "/stage-three-windows-contract.o",
+        ],
+    )
+    _expect_status(
+        windows_compile_result, 0, "CupidC Windows runtime contract"
+    )
+    if (
+        windows_compile_result.stdout
+        or windows_compile_result.stderr
+        or stage_two_windows_contract.read_bytes()
+        != stage_three_windows_contract.read_bytes()
+    ):
+        raise BootstrapError("CupidC Windows runtime object differs")
+    _validate_i386_relocatable(stage_two_windows_contract)
+
+    windows_imports = (
+        ("__imp_ExitProcess", "KERNEL32.dll", "ExitProcess"),
+        ("__imp_GetStdHandle", "KERNEL32.dll", "GetStdHandle"),
+        ("__imp_WriteFile", "KERNEL32.dll", "WriteFile"),
+    )
+    windows_import_selectors = tuple(
+        f"{slot}={library}:{procedure}"
+        for slot, library, procedure in windows_imports
+    )
+    stage_two_windows_image = behavior_root / "stage-two-windows.exe"
+    stage_three_windows_image = behavior_root / "stage-three-windows.exe"
+    windows_link_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupidld",
+        [
+            "-m",
+            "i386pe",
+            "--text-address",
+            "0x00401000",
+            "--entry",
+            "_start",
+            "--import",
+            windows_import_selectors[2],
+            "--import",
+            windows_import_selectors[0],
+            "--import",
+            windows_import_selectors[1],
+            "-o",
+            stage_two_windows_image,
+            stage_two_windows_start,
+            stage_two_windows_contract,
+        ],
+        [
+            "-m",
+            "i386pe",
+            "--text-address",
+            "0x00401000",
+            "--entry",
+            "_start",
+            "--import",
+            windows_import_selectors[1],
+            "--import",
+            windows_import_selectors[2],
+            "--import",
+            windows_import_selectors[0],
+            "-o",
+            stage_three_windows_image,
+            stage_three_windows_start,
+            stage_three_windows_contract,
+        ],
+    )
+    _expect_status(
+        windows_link_result, 0, "CupidLD imported Windows image"
+    )
+    if (
+        windows_link_result.stdout
+        or windows_link_result.stderr
+        or stage_two_windows_image.read_bytes()
+        != stage_three_windows_image.read_bytes()
+    ):
+        raise BootstrapError("Cupid-built Windows image differs")
+    _validate_static_i386_pe32(
+        stage_two_windows_image,
+        0x00401000,
+        (("KERNEL32.dll", ("ExitProcess", "GetStdHandle", "WriteFile")),),
+    )
+    windows_loader: dict[str, object] = {"status": "not-run"}
+    if os.name == "nt":
+        try:
+            native_result = subprocess.run(
+                [str(stage_two_windows_image)],
+                cwd=source_root,
+                capture_output=True,
+                timeout=10,
+            )
+        except (OSError, subprocess.TimeoutExpired) as error:
+            raise BootstrapError(
+                f"Cupid-built Windows image could not run: {error}"
+            ) from error
+        if (
+            native_result.returncode != 37
+            or native_result.stdout != b"Cupid-built Windows runtime: ok\n"
+            or native_result.stderr
+        ):
+            raise BootstrapError("Cupid-built Windows runtime differs")
+        windows_loader = {
+            "return_code": native_result.returncode,
+            "status": "pass",
+            "stderr": native_result.stderr.decode("ascii"),
+            "stdout": native_result.stdout.decode("ascii"),
+        }
+
+    invalid_import_source = behavior_root / "invalid-import.asm"
+    invalid_import_source.write_text(
+        "BITS 32\n"
+        "extern __imp_ExitProcess\n"
+        "global _start\n"
+        "section .text\n"
+        "_start:\n"
+        "    call __imp_ExitProcess\n"
+        "    ret\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    stage_two_invalid_import_object = (
+        behavior_root / "stage-two-invalid-import.o"
+    )
+    stage_three_invalid_import_object = (
+        behavior_root / "stage-three-invalid-import.o"
+    )
+    invalid_import_assembly_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupidasm",
+        [
+            "-f",
+            "elf32",
+            invalid_import_source,
+            "-o",
+            stage_two_invalid_import_object,
+        ],
+        [
+            "-f",
+            "elf32",
+            invalid_import_source,
+            "-o",
+            stage_three_invalid_import_object,
+        ],
+    )
+    _expect_status(
+        invalid_import_assembly_result, 0, "CupidASM invalid import fixture"
+    )
+    if (
+        invalid_import_assembly_result.stdout
+        or invalid_import_assembly_result.stderr
+        or stage_two_invalid_import_object.read_bytes()
+        != stage_three_invalid_import_object.read_bytes()
+    ):
+        raise BootstrapError("CupidASM invalid import fixture differs")
+    invalid_import_object = behavior_root / "invalid-import.o"
+    invalid_import_object.write_bytes(
+        stage_two_invalid_import_object.read_bytes()
+    )
+    stage_two_invalid_import_image = (
+        behavior_root / "stage-two-invalid-import.exe"
+    )
+    stage_three_invalid_import_image = (
+        behavior_root / "stage-three-invalid-import.exe"
+    )
+    stage_two_invalid_import_image.write_bytes(sentinel)
+    stage_three_invalid_import_image.write_bytes(sentinel)
+    invalid_import_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupidld",
+        [
+            "-m",
+            "i386pe",
+            "--text-address",
+            "0x00401000",
+            "--entry",
+            "_start",
+            "--import",
+            windows_import_selectors[0],
+            "-o",
+            stage_two_invalid_import_image,
+            invalid_import_object,
+        ],
+        [
+            "-m",
+            "i386pe",
+            "--text-address",
+            "0x00401000",
+            "--entry",
+            "_start",
+            "--import",
+            windows_import_selectors[0],
+            "-o",
+            stage_three_invalid_import_image,
+            invalid_import_object,
+        ],
+    )
+    _expect_status(
+        invalid_import_result, 1, "CupidLD direct IAT call"
+    )
+    if (
+        invalid_import_result.stdout
+        or "IAT symbols require an absolute zero-addend relocation"
+        not in invalid_import_result.stderr
+        or stage_two_invalid_import_image.read_bytes() != sentinel
+        or stage_three_invalid_import_image.read_bytes() != sentinel
+    ):
+        raise BootstrapError("CupidLD import failure behavior differs")
+
     symbol_result = _run_stage_pair(
         runner,
         stage_two,
@@ -2228,6 +2727,29 @@ def _run_behavior_checks(
     _expect_status(symbol_result, 0, "CupidDis symbol listing")
     if " T _start\n" not in symbol_result.stdout or symbol_result.stderr:
         raise BootstrapError("CupidDis symbol listing differs")
+
+    if evidence_out is not None:
+        evidence_out["windows_runtime"] = {
+            "artifacts": _artifact_inventory(
+                {
+                    "stage-three-contract": stage_three_windows_contract,
+                    "stage-three-image": stage_three_windows_image,
+                    "stage-three-start": stage_three_windows_start,
+                    "stage-two-contract": stage_two_windows_contract,
+                    "stage-two-image": stage_two_windows_image,
+                    "stage-two-start": stage_two_windows_start,
+                }
+            ),
+            "imports": [
+                {
+                    "library": library,
+                    "procedure": procedure,
+                    "slot": slot,
+                }
+                for slot, library, procedure in windows_imports
+            ],
+            "loader": windows_loader,
+        }
 
     ksyms_symbols = behavior_root / "kernel.symbols"
     stage_two_ksyms = behavior_root / "stage-two-ksyms.cc"
@@ -2587,9 +3109,9 @@ def _run_behavior_checks(
         raise BootstrapError("CupidObj missing-input behavior differs")
 
     return {
-        "failure_cases": 14,
+        "failure_cases": 15,
         "help_cases": 5,
-        "success_cases": 16,
+        "success_cases": 17,
     }
 
 
@@ -2758,14 +3280,25 @@ def _bootstrap_from_frozen_seed(
         comparisons = _compare_stages(
             stage_two, stage_three, source_names
         )
+        behavior_evidence: dict[str, object] = {}
         behavior = _run_behavior_checks(
             runner,
             private_source_root,
             private_source_root,
             stage_two,
             stage_three,
+            behavior_evidence,
         )
         require_source_closures(source_inputs, source_root, plan)
+        windows_runtime = behavior_evidence.get("windows_runtime")
+        if not isinstance(windows_runtime, dict):
+            raise BootstrapError("Windows runtime evidence is absent")
+        windows_runtime_artifacts = windows_runtime.get("artifacts")
+        windows_loader = windows_runtime.get("loader")
+        if not isinstance(windows_runtime_artifacts, dict) or not isinstance(
+            windows_loader, dict
+        ):
+            raise BootstrapError("Windows runtime evidence is malformed")
         seed_matches_stage_two = {
             name: seed_tools[name].read_bytes()
             == stage_two.tools[name].read_bytes()
@@ -2775,6 +3308,9 @@ def _bootstrap_from_frozen_seed(
             "behavior": behavior,
             "build_plan_sha256": manifest["build_plan_sha256"],
             "comparisons": comparisons,
+            "host_execution": {
+                "windows_loader": windows_loader,
+            },
             "initial_seed_matches_stage_two": seed_matches_stage_two,
             "platform": runner.platform_name,
             "schema": REPORT_SCHEMA,
@@ -2802,6 +3338,7 @@ def _bootstrap_from_frozen_seed(
             },
             "status": "pass",
             "target": EXPECTED_TARGET,
+            "windows_runtime": windows_runtime,
         }
         encoded_report = (
             json.dumps(
