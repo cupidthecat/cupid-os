@@ -169,9 +169,9 @@ static int run_model(void) {
       "adc",      "add",      "addps",    "addss",    "and",
       "bswap",    "call",     "clc",      "cld",      "cli",
       "clts",     "cmp",      "cmpxchg",  "cpuid",    "dec",
-      "div",      "finit",    "fld",      "fldz",     "fninit",
-      "fsin",
-      "fstp",     "fwait",    "fxrstor",  "fxsave",   "hlt",
+      "div",      "finit",    "fild",     "fistp",    "fld",
+      "fldz",     "fninit",   "fsin",     "fstp",     "fwait",
+      "fxrstor",  "fxsave",   "hlt",
       "in",       "inc",      "int",      "invd",     "invlpg",
       "iret",     "iretd",    "jb",       "jbe",      "jc",
       "je",       "jge",      "jl",       "jle",      "jmp",
@@ -235,9 +235,9 @@ static int run_model(void) {
     return 1;
   }
   info = ctool_x86_model_info();
-  if (!check_true(info.form_count == 596u && info.mnemonic_count == 245u &&
+  if (!check_true(info.form_count == 602u && info.mnemonic_count == 247u &&
                       info.register_count == 64u &&
-                      info.fingerprint == 0xda15e97fu,
+                      info.fingerprint == 0x64429699u,
                   "model inventory")) {
     ctool_job_close(job);
     return 1;
@@ -2687,6 +2687,20 @@ static int run_relocations(void) {
 }
 
 static int run_system_simd(void) {
+  typedef struct {
+    ctool_x86_mnemonic_t mnemonic;
+    ctool_u16 width_bits;
+    ctool_u8 bytes[2];
+    const char *name;
+  } x87_integer_memory_vector_t;
+  static const x87_integer_memory_vector_t x87_integer_vectors[] = {
+      {CTOOL_X86_MN_FILD, 16u, {0xdfu, 0x00u}, "fild word"},
+      {CTOOL_X86_MN_FILD, 32u, {0xdbu, 0x00u}, "fild dword"},
+      {CTOOL_X86_MN_FILD, 64u, {0xdfu, 0x28u}, "fild qword"},
+      {CTOOL_X86_MN_FISTP, 16u, {0xdfu, 0x18u}, "fistp word"},
+      {CTOOL_X86_MN_FISTP, 32u, {0xdbu, 0x18u}, "fistp dword"},
+      {CTOOL_X86_MN_FISTP, 64u, {0xdfu, 0x38u}, "fistp qword"},
+  };
   static const ctool_u8 cr_bytes[] = {0x0fu, 0x22u, 0xc0u};
   static const ctool_u8 fldz_bytes[] = {0xd9u, 0xeeu};
   static const ctool_u8 fsub_st1_st0_bytes[] = {0xdcu, 0xe9u};
@@ -2701,6 +2715,7 @@ static int run_system_simd(void) {
   ctool_x86_encoding_t encoding;
   ctool_x86_decoded_t decoded;
   ctool_status_t status;
+  ctool_u32 index;
   if (!open_job(&adapter, &job)) {
     return 1;
   }
@@ -2778,6 +2793,71 @@ static int run_system_simd(void) {
                       decoded.instruction.mnemonic == CTOOL_X86_MN_FLDZ &&
                       decoded.instruction.operand_count == 0u,
                   "fldz decode semantics")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(x87_integer_vectors) /
+                           sizeof(x87_integer_vectors[0]));
+       index++) {
+    const x87_integer_memory_vector_t *vector =
+        &x87_integer_vectors[index];
+    insn = instruction(vector->mnemonic, 32u, 32u, 0u);
+    insn.operand_count = 1u;
+    insn.operands[0] = memory_operand(
+        vector->width_bits, 32u, reg(CTOOL_X86_REG_NONE, 0u),
+        reg(CTOOL_X86_REG_GPR32, 0u), reg(CTOOL_X86_REG_NONE, 0u),
+        1u, 0, 0u);
+    if (!encode(job, CTOOL_X86_MODE_32, &insn, &encoding, vector->name) ||
+        !bytes_equal(&encoding, vector->bytes,
+                     (ctool_u8)sizeof(vector->bytes), vector->name)) {
+      ctool_job_close(job);
+      return 1;
+    }
+    status = ctool_x86_decode(
+        job, CTOOL_X86_MODE_32,
+        ctool_bytes(vector->bytes, (ctool_u32)sizeof(vector->bytes)), 0u,
+        &decoded);
+    if (!check_status(status, CTOOL_OK, vector->name) ||
+        !check_true(decoded.kind == CTOOL_X86_DECODE_KNOWN &&
+                        decoded.instruction.mnemonic == vector->mnemonic &&
+                        decoded.instruction.operand_count == 1u &&
+                        decoded.instruction.operands[0].kind ==
+                            CTOOL_X86_OPERAND_MEMORY &&
+                        decoded.instruction.operands[0].width_bits ==
+                            vector->width_bits,
+                    vector->name)) {
+      ctool_job_close(job);
+      return 1;
+    }
+  }
+
+  insn = instruction(CTOOL_X86_MN_FILD, 32u, 32u, 0u);
+  insn.operand_count = 1u;
+  insn.operands[0] = register_operand(CTOOL_X86_REG_GPR32, 0u);
+  (void)memset(&encoding, 0xa5, sizeof(encoding));
+  status = ctool_x86_encode(job, CTOOL_X86_MODE_32, &insn,
+                            CTOOL_X86_FORM_AUTO, &encoding);
+  if (!check_status(status, CTOOL_ERR_INPUT, "fild register operand") ||
+      !check_true(encoding_is_zero(&encoding),
+                  "fild register operand zeroed output")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  insn = instruction(CTOOL_X86_MN_FISTP, 32u, 32u, 0u);
+  insn.operand_count = 1u;
+  insn.operands[0] = memory_operand(
+      80u, 32u, reg(CTOOL_X86_REG_NONE, 0u),
+      reg(CTOOL_X86_REG_GPR32, 0u), reg(CTOOL_X86_REG_NONE, 0u),
+      1u, 0, 0u);
+  (void)memset(&encoding, 0xa5, sizeof(encoding));
+  status = ctool_x86_encode(job, CTOOL_X86_MODE_32, &insn,
+                            CTOOL_X86_FORM_AUTO, &encoding);
+  if (!check_status(status, CTOOL_ERR_INPUT, "fistp tword operand") ||
+      !check_true(encoding_is_zero(&encoding),
+                  "fistp tword operand zeroed output")) {
     ctool_job_close(job);
     return 1;
   }

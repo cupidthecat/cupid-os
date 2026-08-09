@@ -588,8 +588,10 @@ CupidDis scan covered 377 active ELF objects across the kernel, programs,
 drivers, Toolchain, and user build. Every object decoded, and none produced a
 true `db 0x` fallback row. The active SIMD object already uses the shared
 model for its packed SSE2 instructions, so the investigation added no
-speculative opcode. The checked seed and source head
-have 596 catalogue rows, 245 canonical mnemonics, and fingerprint `DA15E97F`.
+speculative opcode. The checked seed has 596 catalogue rows, 245 canonical
+mnemonics, and fingerprint `DA15E97F`. Source head has 602 rows, 247 canonical
+mnemonics, and fingerprint `64429699`. Six source-head rows encode signed x87
+`FILD` and `FISTP` memory operands at 16, 32, and 64 bits.
 The four SHRD
 forms cover 16-bit and 32-bit SHRD with register or memory destinations and
 either an immediate byte or fixed CL count. Active checked-CupidC objects now
@@ -605,10 +607,12 @@ literal. Exact payloads and padding reach `.bss`, `.data`, or `.rodata`. The
 scalar and aggregate proofs cover both scopes, signed zero, const and mutable
 objects, section placement, symbols, malformed metadata, recovery, and
 deterministic repeated emission. The hosted runtime reads each target payload
-word. ADR 0251 records the static-data boundary.
+word. ADR 0251 records the static-data boundary, and ADR 0252 records the
+source-head x87 integer forms needed by later long-double integer conversion.
 Both compiler stages in the normal contract cohort rebuild the source
 catalogue. ADR 0203 records the checked seed, ADR 0207 records the subtraction
-form, ADR 0226 records SHRD, and ADR 0228 records its seed carriage.
+form, ADR 0226 records SHRD, ADR 0228 records its seed carriage, and ADR 0252
+records the source-head x87 integer forms.
 
 The four-vCPU GUI runtime starts every discovered CPU, reaches e1000 or
 RTL8139 traffic,

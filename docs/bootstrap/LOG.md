@@ -22635,3 +22635,32 @@ Windows still reaches the checked Linux tools through WSL, Python still owns
 orchestration and publication checks, and the normal image still uses the
 checked seed. No production source changes owner, so no `.c` to `.cc` rename
 is due. `TempleOS/` remains untouched reference material.
+
+## 2026-08-09: Share signed x87 integer memory forms
+
+The source-head x86 catalogue now carries `FILD` and `FISTP` for signed
+16-bit, 32-bit, and 64-bit memory operands. CupidASM and CupidDis use the same
+six rows as the encoder and decoder. Register, byte, and 80-bit memory forms
+fail without publishing output.
+
+The first shared-model test failed to compile because the two mnemonic values
+did not exist. The first public CLI run reported both spellings as unknown.
+After the catalogue change, source head has 602 forms, 247 canonical
+mnemonics, 64 registers, and fingerprint `64429699`. The checked seed remains
+at 596 forms, 245 canonical mnemonics, and fingerprint `DA15E97F`.
+
+| Check | Result |
+| --- | --- |
+| Shared x86 contract | PASS: all 13 tests; the final rerun completed in 1.424 seconds. |
+| New x87 integer CLI contract | PASS: both tests in 2.664 seconds. |
+| Existing x87 comparison CLI contract | PASS: all 3 tests in 2.671 seconds. |
+| Broader CupidASM contract | PASS: all 9 tests in 2.843 seconds. |
+| Broader CupidDis contract | PASS: 15 tests in 4.980 seconds, with one existing platform skip. |
+| Active-source audit regeneration | PASS on the final source in 62.1 seconds. The source digest is `66210cfbe68b876cf1a0e314a7602a8b78f7093b9c68ad064dff0d4ce59d263c`. |
+| Active-source stale check | PASS on the final source in 61.9 seconds. |
+| Focused active-manifest drift contract | PASS in 185.098 seconds with the updated `sizeof` inventory. |
+
+This step changes no production owner and adds no host dependency. It gives
+the hosted compiler a shared instruction seam for the next runtime
+long-double integer conversion step. The compiler does not consume the forms
+yet, and the checked seed still predates them. ADR 0252 records the boundary.

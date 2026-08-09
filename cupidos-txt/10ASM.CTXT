@@ -275,7 +275,10 @@ CupidASM implements the cleanly expressible NASM-compatible surface required
 by active CupidOS sources; it does not claim unrestricted NASM compatibility.
 
 The checked seed has 596 x86 rows, 245 canonical mnemonics, 64 register names,
-and fingerprint DA15E97F. Its four SHRD rows cover 16-bit and 32-bit register
+and fingerprint DA15E97F. Source head has 602 rows, 247 canonical mnemonics,
+and fingerprint 64429699. Its six new rows cover signed x87 FILD and FISTP
+memory operands at 16, 32, and 64 bits. Register, byte, and 80-bit memory forms
+are rejected without output. The seed's four SHRD rows cover 16-bit and 32-bit register
 or memory destinations with either an immediate byte or fixed CL count. Both
 modes honor operand-size and address-size overrides. Active checked-CupidC
 objects decode `shrd eax, edi, cl` directly. The latest preceding row encodes
@@ -309,16 +312,19 @@ sources. Common families include:
 - sized memory inc/dec and reserve directives
 
 The checked i386 Linux seed carries all 596 shared x86 rows in CupidASM and
-CupidDis. The catalogue includes the IMUL and padding NOP families, FLDZ,
-forward x87 stack subtraction, and SHRD. ADR 0208 records the x87 form's seed
-carriage, and ADR 0228 records the first SHRD seed promotion. ADR 0243 records
-the current checked seed.
+CupidDis. The source-head tools build the 602-row catalogue, including FILD
+and FISTP. The seed catalogue includes the IMUL and padding NOP families,
+FLDZ, forward x87 stack subtraction, and SHRD. ADR 0208 records the x87 form's
+seed carriage, and ADR 0228 records the first SHRD seed promotion. ADR 0243
+records the current checked seed, and ADR 0252 records the source-head x87
+integer forms.
 
 Floating-point and SIMD coverage includes:
 - FPU state: FXSAVE, FXRSTOR, FINIT, FNINIT, FWAIT, LDMXCSR, STMXCSR
 - SSE scalar (23): MOVSS/SD, ADDSS/SD, and more
 - SSE packed (24): MOVAPS/UPS, ADDPS/PD, SHUFPS, CMPPS, and more
-- x87 (27): FLD, FLDZ, FUCOMIP, FSIN, FPATAN, F2XM1, FYL2X, and more
+- x87 (29 at source head): FILD, FISTP, FLD, FLDZ, FUCOMIP, FSIN, FPATAN,
+  F2XM1, FYL2X, and more
 - Register tokens: XMM0-7 and ST0-7
 
 FSUB ST1, ST0 emits DC E9 and stores ST1 - ST0 in ST1. ST0 is the fixed

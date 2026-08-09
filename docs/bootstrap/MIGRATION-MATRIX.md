@@ -709,13 +709,16 @@ ADR 0202 supersedes any older row below that lists runtime floating truth,
 controlling expressions, or conversion to `_Bool` as unsupported. The shared
 frontend, Linear IR, and i386 emitter own those operations for non-atomic
 `float`, `double`, and automatic `long double` values.
-The checked seed and source head have 596 x86 forms, 245 canonical mnemonics,
-64 registers, and fingerprint `DA15E97F`. Four forms cover canonical SHRD. The
-forward x87 row encodes `FSUB ST(1), ST(0)` as `DC E9`. This supersedes older
-counts below. ADR 0203 records seed carriage for `FLDZ` and the three preceding
-x87 forms, ADR 0208 records forward-subtraction carriage, ADR 0226 records
-SHRD, ADR 0228 records SHRD's first seed carriage, and ADR 0234 records the
-current checked seed.
+The checked seed has 596 x86 forms, 245 canonical mnemonics, 64 registers, and
+fingerprint `DA15E97F`. Source head has 602 forms, 247 canonical mnemonics,
+and fingerprint `64429699`. Six source-head rows cover signed x87 `FILD` and
+`FISTP` memory operands at 16, 32, and 64 bits. Four forms cover canonical
+SHRD. The forward x87 row encodes `FSUB ST(1), ST(0)` as `DC E9`. This
+supersedes older counts below. ADR 0203 records seed carriage for `FLDZ` and
+the three preceding x87 forms, ADR 0208 records forward-subtraction carriage,
+and ADR 0226 records SHRD. ADR 0228 records SHRD's first seed carriage, ADR
+0243 records the current checked seed, and ADR 0252 records the source-head
+x87 integer forms.
 
 | Source or artifact cohort | Owner/path when recorded | Fixed-point owner/path | Status and next proof |
 | --- | --- | --- | --- |

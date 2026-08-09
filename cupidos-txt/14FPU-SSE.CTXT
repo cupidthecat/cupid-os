@@ -78,6 +78,10 @@ biased exponent into a twelve-byte snapshot; unary minus supplies the sign.
 The value-bearing ten bytes move through x87 80-bit FLD and FSTP memory forms in Cupid's shared x86 catalogue. The hosted
 path converts among float, double, and long double, applies unary plus and
 minus, and evaluates +, -, *, and /.
+Source-head CupidASM and CupidDis also share signed x87 integer memory forms.
+FILD and FISTP accept 16-bit, 32-bit, and 64-bit operands. These rows prepare
+the hosted compiler for exact runtime integer conversion, but the compiler
+does not consume them yet and the checked seed does not carry them.
 Direct and indirect fixed, variadic, and unprototyped arguments occupy twelve
 cdecl bytes. Functions return the value in x87 ST0, and direct or indirect
 callers store it in a twelve-byte snapshot. va_arg(long double) copies twelve
