@@ -1,6 +1,7 @@
 #include "ctool.h"
 #include "ctool_host.h"
 #include "cupidc_frontend.h"
+#include "cupidc_static_long_double_integer_fixture.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -7757,12 +7758,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.cc", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
        25287u, 479u, 286u, 0u, 0u},
-      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 265u, 7312u,
-       68114u, 960u, 359u, 0u, 0u},
+      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 269u, 7496u,
+       69333u, 989u, 362u, 0u, 0u},
       {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 366u, 9234u,
        77133u, 1122u, 748u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 428u,
-       16776u, 111050u, 2503u, 1522u, 0u, 0u},
+      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 430u,
+       16826u, 111432u, 2510u, 1532u, 0u, 0u},
       {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 82u, 3054u,
        20124u, 338u, 190u, 0u, 0u},
       {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
@@ -25573,7 +25574,9 @@ static int initializer_is_static_long_double(
                  initializer->address_reference == CTOOL_C_AST_NONE &&
                  initializer->address_addend == 0 &&
                  initializer->first_element == CTOOL_C_AST_NONE &&
-                 initializer->element_count == 0u
+                 initializer->element_count == 0u &&
+                 initializer->first_block_binding == CTOOL_C_AST_NONE &&
+                 initializer->block_binding_count == 0u
              ? 1
              : 0;
 }
@@ -25589,6 +25592,7 @@ static int initializer_is_static_integer_kind(
                      expected_kind &&
                  initializer->expression == CTOOL_C_AST_NONE &&
                  initializer->integer_bits == expected_bits &&
+                 initializer->floating_high_bits == 0u &&
                  initializer->string_bytes.data == NULL &&
                  initializer->string_bytes.size == 0u &&
                  initializer->address_kind ==
@@ -25596,7 +25600,9 @@ static int initializer_is_static_integer_kind(
                  initializer->address_reference == CTOOL_C_AST_NONE &&
                  initializer->address_addend == 0 &&
                  initializer->first_element == CTOOL_C_AST_NONE &&
-                 initializer->element_count == 0u
+                 initializer->element_count == 0u &&
+                 initializer->first_block_binding == CTOOL_C_AST_NONE &&
+                 initializer->block_binding_count == 0u
              ? 1
              : 0;
 }
@@ -27075,6 +27081,249 @@ static int validate_long_double_static_aggregates(
   return 0;
 }
 
+static int initializer_is_exact_static_scalar(
+    const ctool_c_initializer_t *initializer,
+    ctool_c_initializer_kind_t expected_kind, ctool_u32 expected_type,
+    ctool_u64 expected_bits, ctool_u32 expected_high_bits) {
+  return initializer != NULL && initializer->kind == expected_kind &&
+                 initializer->type == expected_type &&
+                 initializer->expression == CTOOL_C_AST_NONE &&
+                 initializer->integer_bits == expected_bits &&
+                 initializer->floating_high_bits == expected_high_bits &&
+                 initializer->string_bytes.data == NULL &&
+                 initializer->string_bytes.size == 0u &&
+                 initializer->address_kind ==
+                     CTOOL_C_INITIALIZER_ADDRESS_NONE &&
+                 initializer->address_reference == CTOOL_C_AST_NONE &&
+                 initializer->address_addend == 0 &&
+                 initializer->first_element == CTOOL_C_AST_NONE &&
+                 initializer->element_count == 0u &&
+                 initializer->first_block_binding == CTOOL_C_AST_NONE &&
+                 initializer->block_binding_count == 0u
+             ? 1
+             : 0;
+}
+
+static int initializer_is_exact_static_list(
+    const ctool_c_initializer_t *initializer, ctool_u32 expected_type,
+    ctool_u32 expected_count) {
+  return initializer != NULL &&
+                 initializer->kind == CTOOL_C_INITIALIZER_LIST &&
+                 initializer->type == expected_type &&
+                 initializer->expression == CTOOL_C_AST_NONE &&
+                 initializer->integer_bits == 0ull &&
+                 initializer->floating_high_bits == 0u &&
+                 initializer->string_bytes.data == NULL &&
+                 initializer->string_bytes.size == 0u &&
+                 initializer->address_kind ==
+                     CTOOL_C_INITIALIZER_ADDRESS_NONE &&
+                 initializer->address_reference == CTOOL_C_AST_NONE &&
+                 initializer->address_addend == 0 &&
+                 initializer->first_element != CTOOL_C_AST_NONE &&
+                 initializer->element_count == expected_count &&
+                 initializer->first_block_binding == CTOOL_C_AST_NONE &&
+                 initializer->block_binding_count == 0u
+             ? 1
+             : 0;
+}
+
+static int validate_static_long_double_integer_initializers(
+    const ctool_c_translation_unit_t *unit) {
+  const ctool_c_object_definition_t *from_integers =
+      find_object_definition(
+          unit, "cupidc_static_integer_to_long_double_file");
+  const ctool_c_object_definition_t *to_integers =
+      find_object_definition(
+          unit, "cupidc_static_long_double_to_integer_file");
+  const ctool_c_block_binding_t *block_from_integer =
+      find_block_binding(
+          unit, "cupidc_static_integer_to_long_double_block");
+  const ctool_c_block_binding_t *block_to_integer =
+      find_block_binding(
+          unit, "cupidc_static_long_double_to_integer_block");
+  const ctool_c_function_definition_t *function =
+      find_function_definition(
+          unit, "cupidc_static_long_double_integer_block_probe");
+  const ctool_c_initializer_t *from_root =
+      from_integers == NULL
+          ? NULL
+          : initializer_node(unit, from_integers->initializer);
+  const ctool_c_initializer_t *to_root =
+      to_integers == NULL
+          ? NULL
+          : initializer_node(unit, to_integers->initializer);
+  const ctool_c_initializer_t *block_from_initializer =
+      block_from_integer == NULL
+          ? NULL
+          : initializer_node(unit, block_from_integer->initializer);
+  const ctool_c_initializer_t *block_to_initializer =
+      block_to_integer == NULL
+          ? NULL
+          : initializer_node(unit, block_to_integer->initializer);
+  const ctool_c_type_node_t *array =
+      from_integers == NULL
+          ? NULL
+          : unwrapped_type_node(unit, from_integers->declared_type);
+  const ctool_c_type_node_t *record =
+      to_integers == NULL
+          ? NULL
+          : unwrapped_type_node(unit, to_integers->declared_type);
+  ctool_u32 array_element_qualifiers = 0u;
+  ctool_u32 record_qualifiers = 0u;
+  ctool_u32 block_from_qualifiers = 0u;
+  ctool_u32 block_to_qualifiers = 0u;
+  ctool_u32 first_declaration =
+      function == NULL
+          ? CTOOL_C_AST_NONE
+          : compound_statement_child(unit, function->body, 0u);
+  ctool_u32 second_declaration =
+      function == NULL
+          ? CTOOL_C_AST_NONE
+          : compound_statement_child(unit, function->body, 1u);
+  const ctool_c_statement_t *body =
+      function == NULL || function->body >= unit->statement_count
+          ? NULL
+          : &unit->statements[function->body];
+  const ctool_c_statement_t *first_declaration_statement =
+      first_declaration >= unit->statement_count
+          ? NULL
+          : &unit->statements[first_declaration];
+  const ctool_c_statement_t *second_declaration_statement =
+      second_declaration >= unit->statement_count
+          ? NULL
+          : &unit->statements[second_declaration];
+  ctool_u32 index;
+
+  if (unit == NULL || unit->object_definition_count != 2u ||
+      unit->block_binding_count != 2u ||
+      unit->function_definition_count != 1u ||
+      unit->initializer_count != 38u ||
+      unit->initializer_element_count != 34u || from_integers == NULL ||
+      to_integers == NULL || block_from_integer == NULL ||
+      block_to_integer == NULL || function == NULL || array == NULL ||
+      array->kind != CTOOL_C_TYPE_ARRAY ||
+      array->array_bound_kind != CTOOL_C_ARRAY_FIXED ||
+      array->element_count !=
+          ARRAY_COUNT(cupidc_static_integer_to_long_double_oracles) ||
+      underlying_type_kind(
+          unit, array->referenced_type,
+          &array_element_qualifiers) != CTOOL_C_TYPE_LONG_DOUBLE ||
+      array_element_qualifiers != CTOOL_C_QUAL_CONST || record == NULL ||
+      underlying_type_kind(
+          unit, to_integers->declared_type,
+          &record_qualifiers) != CTOOL_C_TYPE_RECORD ||
+      record_qualifiers != CTOOL_C_QUAL_CONST ||
+      record->member_count !=
+          ARRAY_COUNT(cupidc_static_long_double_to_integer_oracles) ||
+      record->first_member > unit->graph.member_count ||
+      record->member_count >
+          unit->graph.member_count - record->first_member ||
+      from_integers->storage != CTOOL_C_STORAGE_STATIC ||
+      from_integers->kind != CTOOL_C_OBJECT_DEFINITION_EXPLICIT ||
+      to_integers->storage != CTOOL_C_STORAGE_STATIC ||
+      to_integers->kind != CTOOL_C_OBJECT_DEFINITION_EXPLICIT ||
+      initializer_is_exact_static_list(
+          from_root, from_integers->declared_type,
+          ARRAY_COUNT(cupidc_static_integer_to_long_double_oracles)) == 0 ||
+      initializer_is_exact_static_list(
+          to_root, to_integers->declared_type,
+          ARRAY_COUNT(cupidc_static_long_double_to_integer_oracles)) == 0 ||
+      function->first_block_binding != 0u ||
+      function->block_binding_count != 0u || body == NULL ||
+      body->kind != CTOOL_C_STATEMENT_COMPOUND || body->child_count != 2u ||
+      first_declaration_statement == NULL ||
+      first_declaration_statement->kind != CTOOL_C_STATEMENT_DECLARATION ||
+      first_declaration_statement->first_block_binding != 0u ||
+      first_declaration_statement->block_binding_count != 1u ||
+      second_declaration_statement == NULL ||
+      second_declaration_statement->kind != CTOOL_C_STATEMENT_DECLARATION ||
+      second_declaration_statement->first_block_binding != 1u ||
+      second_declaration_statement->block_binding_count != 1u ||
+      block_from_integer->kind != CTOOL_C_BINDING_OBJECT ||
+      block_from_integer->storage != CTOOL_C_STORAGE_STATIC ||
+      block_from_integer->linkage_binding != CTOOL_C_AST_NONE ||
+      underlying_type_kind(
+          unit, block_from_integer->type,
+          &block_from_qualifiers) != CTOOL_C_TYPE_LONG_DOUBLE ||
+      block_from_qualifiers != CTOOL_C_QUAL_CONST ||
+      initializer_is_exact_static_scalar(
+          block_from_initializer, CTOOL_C_INITIALIZER_FLOATING,
+          block_from_integer->type, 0xfffffffffffffffeull, 0x403du) == 0 ||
+      block_to_integer->kind != CTOOL_C_BINDING_OBJECT ||
+      block_to_integer->storage != CTOOL_C_STORAGE_STATIC ||
+      block_to_integer->linkage_binding != CTOOL_C_AST_NONE ||
+      underlying_type_kind(
+          unit, block_to_integer->type,
+          &block_to_qualifiers) != CTOOL_C_TYPE_UNSIGNED_LONG_LONG ||
+      block_to_qualifiers != CTOOL_C_QUAL_CONST ||
+      initializer_is_exact_static_scalar(
+          block_to_initializer, CTOOL_C_INITIALIZER_INTEGER,
+          block_to_integer->type, 0x8000000000000000ull, 0u) == 0) {
+    (void)fprintf(
+        stderr,
+        "floating-transport: static integer conversion container graph "
+        "differs\n");
+    return 1;
+  }
+
+  for (index = 0u;
+       index < ARRAY_COUNT(cupidc_static_integer_to_long_double_oracles);
+       index++) {
+    const cupidc_static_integer_to_long_double_oracle_t *oracle =
+        &cupidc_static_integer_to_long_double_oracles[index];
+    const ctool_c_initializer_t *initializer =
+        initializer_list_child(unit, from_root, index, index);
+    if (initializer_is_exact_static_scalar(
+            initializer, oracle->initializer_kind,
+            array->referenced_type, oracle->significand,
+            oracle->high_bits) == 0) {
+      (void)fprintf(
+          stderr,
+          "floating-transport: integer-to-long-double static leaf %u "
+          "differs\n",
+          (unsigned int)index);
+      return 1;
+    }
+  }
+
+  for (index = 0u;
+       index < ARRAY_COUNT(cupidc_static_long_double_to_integer_oracles);
+       index++) {
+    const cupidc_static_long_double_to_integer_oracle_t *oracle =
+        &cupidc_static_long_double_to_integer_oracles[index];
+    const ctool_c_record_member_t *member =
+        &unit->graph.members[record->first_member + index];
+    const ctool_c_type_node_t *member_type =
+        unwrapped_type_node(unit, member->type);
+    const ctool_c_initializer_t *initializer =
+        initializer_list_child(
+            unit, to_root, index, record->first_member + index);
+    ctool_u32 qualifiers = 0u;
+    ctool_u32 enum_qualifiers = 0u;
+    if (underlying_type_kind(unit, member->type, &qualifiers) !=
+            oracle->type_kind ||
+        qualifiers != oracle->qualifiers ||
+        initializer_is_exact_static_scalar(
+            initializer, CTOOL_C_INITIALIZER_INTEGER, member->type,
+            oracle->bits, 0u) == 0 ||
+        (oracle->enum_compatible_kind != (ctool_c_type_kind_t)0 &&
+         (member_type == NULL ||
+          member_type->kind != CTOOL_C_TYPE_ENUM ||
+          underlying_type_kind(
+              unit, member_type->referenced_type,
+              &enum_qualifiers) != oracle->enum_compatible_kind ||
+          enum_qualifiers != 0u))) {
+      (void)fprintf(
+          stderr,
+          "floating-transport: long-double-to-integer static leaf %u "
+          "differs\n",
+          (unsigned int)index);
+      return 1;
+    }
+  }
+  return 0;
+}
+
 static int run_floating_transport(const char *host_root) {
   static const char promotion_source[] =
       "typedef void (*variadic_callback)(int, ...);\n"
@@ -27263,12 +27512,6 @@ static int run_floating_transport(const char *host_root) {
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
        1u, 39u,
        "floating assignment conversion is outside this body slice"},
-      {{"nonzero static long double initializer",
-        "static long double bad = 1;\n",
-        CTOOL_ERR_UNSUPPORTED,
-        CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
-       1u, 26u,
-       "static long double initialization currently requires zero"},
       {{"static long double arithmetic",
         "static long double bad = 1.0L + 2.0L;\n",
         CTOOL_ERR_UNSUPPORTED,
@@ -27325,13 +27568,62 @@ static int run_floating_transport(const char *host_root) {
        1u, 26u,
        "static conversion to long double is outside this constant-data "
        "slice"},
-      {{"static long double to integer conversion",
-        "static int bad = 1.0L;\n",
+      {{"static long double above signed character range",
+        "static signed char bad = 128.0L;\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       1u, 26u,
+       "static floating-to-integer conversion exceeds its destination "
+       "range"},
+      {{"static long double below signed character range",
+        "static signed char bad = -129.0L;\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       1u, 26u,
+       "static floating-to-integer conversion exceeds its destination "
+       "range"},
+      {{"negative static long double to unsigned short",
+        "static unsigned short bad = -1.0L;\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       1u, 29u,
+       "static floating-to-integer conversion exceeds its destination "
+       "range"},
+      {{"static long double above unsigned short range",
+        "static unsigned short bad = 65536.0L;\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       1u, 29u,
+       "static floating-to-integer conversion exceeds its destination "
+       "range"},
+      {{"static long double above signed wide range",
+        "static signed long long bad = 9223372036854775808e0L;\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       1u, 31u,
+       "static floating-to-integer conversion exceeds its destination "
+       "range"},
+      {{"static long double below signed wide range",
+        "static signed long long bad = -9223372036854775809e0L;\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       1u, 31u,
+       "static floating-to-integer conversion exceeds its destination "
+       "range"},
+      {{"negative static long double to unsigned wide",
+        "static unsigned long long bad = -1.0L;\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       1u, 33u,
+       "static floating-to-integer conversion exceeds its destination "
+       "range"},
+      {{"static binary64 above unsigned wide range",
+        "static unsigned long long bad = "
+        "4294967296.0 * 4294967296.0;\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       1u, 33u,
+       "static floating-to-integer conversion exceeds its destination "
+       "range"},
+      {{"atomic integer target for static long double",
+        "static _Atomic unsigned long long bad = 1.0L;\n",
         CTOOL_ERR_UNSUPPORTED,
         CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
-       1u, 18u,
-       "static long-double-to-integer conversion is outside this "
-       "constant-data slice"},
+       1u, 41u,
+       "atomic static scalar conversion is outside this constant-data "
+       "slice"},
       {{"static hexadecimal long double initializer",
         "static long double bad = 0x1p0L;\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
@@ -27408,6 +27700,7 @@ static int run_floating_transport(const char *host_root) {
   ctool_c_translation_unit_t promotion_unit;
   ctool_c_translation_unit_t long_double_unit;
   ctool_c_translation_unit_t long_double_aggregate_unit;
+  ctool_c_translation_unit_t static_conversion_unit;
   ctool_c_translation_unit_t atomic_pointer_unit;
   ctool_u32 index;
   int failed = 1;
@@ -27433,6 +27726,12 @@ static int run_floating_transport(const char *host_root) {
           &long_double_aggregate_unit) != 0 ||
       validate_long_double_static_aggregates(
           &long_double_aggregate_unit) != 0 ||
+      parse_valid_fixture(
+          &fixture, "/static-long-double-integer-initializers.c",
+          cupidc_static_long_double_integer_source,
+          &static_conversion_unit) != 0 ||
+      validate_static_long_double_integer_initializers(
+          &static_conversion_unit) != 0 ||
       parse_valid_fixture(&fixture, "/long-double-atomic-pointer.c",
                           atomic_pointer_source, &atomic_pointer_unit) != 0 ||
       atomic_pointer_unit.object_definition_count != 1u ||
@@ -27451,7 +27750,9 @@ static int run_floating_transport(const char *host_root) {
         validate_float_default_promotions(&promotion_unit) != 0 ||
         validate_long_double_locals(&long_double_unit) != 0 ||
         validate_long_double_static_aggregates(
-            &long_double_aggregate_unit) != 0) {
+            &long_double_aggregate_unit) != 0 ||
+        validate_static_long_double_integer_initializers(
+            &static_conversion_unit) != 0) {
       goto cleanup;
     }
   }

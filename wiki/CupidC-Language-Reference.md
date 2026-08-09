@@ -223,15 +223,16 @@ Non-atomic `long double` values use twelve-byte objects with x87 80-bit memory
 transport. Bounded finite normal decimal `L` tokens round an exact ratio to a
 64-bit explicit significand with ties to even. The emitter writes that
 significand and the positive token's biased exponent as three snapshot words;
-unary minus supplies the sign. Automatic values use frame snapshots. Static-duration scalars,
-fixed arrays, and complete records may contain long-double leaves. Implicit
-initialization zeros the complete object. An explicit leaf accepts an integer
-constant expression equal to zero or a bounded decimal `L` literal with
-parentheses and unary signs. Each leaf has ten exact x87 value bytes and two
+unary minus supplies the sign. Automatic values use frame snapshots.
+Static-duration scalars, fixed arrays, and complete records may contain
+long-double leaves. Implicit initialization zeros the complete object. An
+explicit leaf accepts a represented integer constant expression or a bounded
+decimal `L` literal with parentheses and unary signs. Each leaf has ten exact
+x87 value bytes and two
 zero padding bytes, and it uses `.bss`, `.data`, or `.rodata` according to its
-payload and qualifiers. Atomic leaves fail recursively without following pointers. Casts among `float`,
-`double`, and `long double`, unary plus and minus, and `+`, `-`, `*`, and `/`
-work for represented values.
+payload and qualifiers. Atomic leaves fail recursively without following
+pointers. Casts among `float`, `double`, and `long double`, unary plus and
+minus, and `+`, `-`, `*`, and `/` work for represented values.
 Direct and indirect fixed, variadic, and unprototyped arguments occupy twelve
 cdecl bytes. Functions return the value in x87 `ST0`, and direct or indirect
 callers store it in a twelve-byte snapshot. `va_arg(long double)` copies
@@ -239,27 +240,36 @@ twelve bytes and leaves the cursor at the following four-byte slot. Matching
 long-double operands and mixed `float` or `double` inputs support all six
 comparisons. The balanced `FUCOMIP` path preserves C unordered behavior, so
 only `!=` is true when either input is NaN. Unary `!`, `&&`, `||`, the
-controlling operand of `?:`, the conditions of `if`, `while`, `do`, and `for`, and conversion to `_Bool`
-accept non-atomic `float`, `double`, and automatic `long double`. Both signed
-zeros are false; finite nonzero values, subnormals, infinities, and NaNs are
-true. Runtime casts, assignments, arguments, and returns convert between
-`long double` and signed or unsigned 8, 16, 32, and 64-bit integers. The
-unsigned 64-bit correction uses 64-bit x87 precision without changing the
-caller's rounding mode and restores the complete control word. Floating
-increment or decrement, hexadecimal floating constants,
-binary32 and binary64 subnormal constants, hexadecimal or subnormal
+controlling operand of `?:`, the conditions of `if`, `while`, `do`, and `for`,
+and conversion to `_Bool` accept non-atomic `float`, `double`, and automatic
+`long double`. Both signed zeros are false; finite nonzero values, subnormals,
+infinities, and NaNs are true. Runtime casts, assignments, arguments, and
+returns convert between `long double` and signed or unsigned 8, 16, 32, and
+64-bit integers. The unsigned 64-bit correction uses 64-bit x87 precision
+without changing the
+caller's rounding mode and restores the complete control word. Static
+initializer conversion covers `_Bool`, plain `char`, each signed or unsigned
+i386 integer width, and an enum whose compatible integer type has the
+represented target layout. Integer input packs exactly into the 64-bit x87
+significand. For integer destinations other than `_Bool`, long-double input
+discards fractional bits toward zero before its range is checked. A value in
+`(-1, 0)` therefore becomes unsigned zero. `_Bool` tests the original floating
+value: both signed zeros become false, and every represented finite nonzero
+value becomes true. In particular, `-0.5L` becomes true for `_Bool` but zero
+for an unsigned integer, because numeric truncation does not precede the
+Boolean truth test. Floating increment or decrement, hexadecimal floating
+constants, binary32 and binary64 subnormal constants, hexadecimal or subnormal
 long-double constants, long-double decimals beyond the bounded ratio parser,
-static long-double arithmetic, comparison, truth, conditional selection,
-floating-width conversion, and integer conversion, nonzero integer static
-initializers, SIMD, and
-atomic floating access remain
-unsupported. [ADR 0229](../docs/adr/0229-emit-exact-decimal-long-double-literals.md)
+static long-double arithmetic, comparison, truth and logical operators,
+conditional selection, floating-width conversion, SIMD, and atomic floating
+access remain unsupported.
+[ADR 0229](../docs/adr/0229-emit-exact-decimal-long-double-literals.md)
 records the literal representation. ADR 0250 records runtime unsigned
 four-byte conversion, ADR 0251 records static long-double data, and ADR 0253
 records runtime conversion between `long double` and every signed or
-unsigned i386 integer width. The
-in-kernel compiler has a separate, broader floating
-and SIMD implementation.
+unsigned i386 integer width. ADR 0254 records static initializer conversion.
+The in-kernel compiler has a separate, broader floating and SIMD
+implementation.
 
 ## Checked-seed returns-twice calls
 

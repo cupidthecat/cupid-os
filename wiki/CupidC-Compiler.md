@@ -461,14 +461,14 @@ even. The emitter writes the significand and positive token's biased exponent
 as three exact snapshot words. Automatic values use frame snapshots.
 Static-duration scalars, fixed arrays, and complete records may contain
 long-double leaves. Implicit initialization zeros the complete object; an
-explicit leaf accepts an integer constant expression equal to zero or a
+explicit leaf accepts a represented integer constant expression or a
 bounded decimal `L` literal with parentheses and unary signs. The ten x87
 value bytes stay exact, the two padding bytes are zero, and the object uses
 `.bss`, `.data`, or `.rodata` according to its payload and qualifiers. Atomic
-leaves fail recursively without following pointers. Conversions among `float`, `double`, and `long double`, unary plus
-and minus, and addition, subtraction, multiplication, and division work on
-that path. Direct and indirect
-fixed, variadic, and unprototyped arguments occupy twelve cdecl bytes.
+leaves fail recursively without following pointers. Conversions among `float`,
+`double`, and `long double`, unary plus and minus, and addition, subtraction,
+multiplication, and division work on that path. Direct and indirect fixed,
+variadic, and unprototyped arguments occupy twelve cdecl bytes.
 Functions return the value in x87 `ST0`, and direct or indirect callers store
 it in a twelve-byte snapshot. `va_arg(long double)` copies twelve bytes and
 leaves the cursor at the following four-byte slot. All six comparisons accept
@@ -476,25 +476,47 @@ matching long-double operands or a mixed `float` or `double` input. A balanced
 `FUCOMIP` sequence preserves signed-zero and unordered behavior. Runtime
 `float`, `double`, and automatic `long double` values work with unary `!`,
 `&&`, `||`, the controlling operand of `?:`, the conditions of `if`, `while`,
-`do`, and `for`, and conversion to `_Bool`. Both signed zeros are false; finite nonzero values,
-subnormals, infinities, and NaNs are true. Runtime conversions between
+`do`, and `for`, and conversion to `_Bool`. Both signed zeros are false; finite
+nonzero values, subnormals, infinities, and NaNs are true. Runtime conversions between
 `long double` and signed or unsigned integers cover every i386 width. The
 emitter restores the complete x87 control word after truncating integer
 output. Unsigned 64-bit corrections use 64-bit x87 precision while retaining
 the caller's rounding mode, then restore the saved word before the result
 store.
-Hexadecimal floating literals,
-binary32 and binary64 subnormal literals, hexadecimal or subnormal
-long-double literals, decimals beyond the bounded ratio parser,
-static long-double arithmetic, comparison, truth, conditional selection,
-floating-width conversion, and integer conversion, nonzero integer static
-initializers, runtime mixed integer and floating
-arithmetic or conditional arms, floating increment and decrement, SIMD
-values, floating atomics, and over-aligned object emission remain unfinished.
+Static initializer conversion covers `_Bool`, plain `char`, each signed or
+unsigned i386 integer width, and an enum whose compatible integer type has the
+represented target layout. For a nonzero magnitude `M` with bit width `w`, the
+frontend publishes significand `M << (64 - w)`. It writes exponent
+`0x3fff + w - 1` and the source sign into the high word. For integer
+destinations other than `_Bool`, the reverse path truncates the decoded x87
+significand toward zero before the range check. `_Bool` tests the original
+floating value: both signed zeros are false, and every represented finite
+nonzero value is true. The shared fixture converts `-0.5L` to both targets, so
+it becomes true for `_Bool` but zero for an unsigned integer. Integer-valued
+zero keeps a `ZERO` initializer record. Linear IR requires each unwrapped
+primitive base to have a recognized standard integer kind with Cupid's
+canonical target size, signedness, and alignment. The declared wrapper must
+match its unwrapped base on size, signedness, integer, object, and completeness
+flags. An enum's compatible type must also have a recognized standard integer
+kind. The enum, its unwrapped base, and its compatible type must agree on those
+five fields and on alignment. A `QUALIFIED` node copies referenced alignment
+unless it introduces `_Atomic`. An atomic introduction at any layer raises
+alignment to at least the target atomic alignment. An `ALIGNED` node
+requires an explicit, nonzero power-of-two alignment and may lower the
+referenced alignment. `_Bool` has one payload bit; other kinds use their full
+target width. The same check runs during whole-unit initializer ownership and
+block-static declaration lowering. Hexadecimal floating literals, binary32
+and binary64 subnormal literals, hexadecimal or subnormal long-double
+literals, decimals beyond the bounded ratio parser, static long-double
+arithmetic, comparison, truth and logical operators, conditional selection,
+and floating-width conversion, runtime mixed integer and floating arithmetic
+or conditional arms, floating increment and decrement, SIMD values, floating
+atomics, and over-aligned object emission remain unfinished.
 ADR 0229 records the exact decimal representation and automatic object proof.
 ADR 0250 records runtime conversion to unsigned four-byte targets. ADR 0251
 records exact static long-double data. ADR 0253 records runtime conversions
-between `long double` and integers.
+between `long double` and integers. ADR 0254 records static initializer
+conversion.
 
 Plain assignment, all ten compound assignments, and prefix and postfix update work for represented non-atomic integer bit fields when the declared storage unit is four bytes and fits inside the record. The compiler evaluates the record designator once and applies the target's integer-promotion rules before a compound operation. Partial fields preserve the other bits in their unit. Assignment, compound assignment, and prefix update return the stored lane after width truncation and signed extension, while postfix update returns the extracted old value. A 32-bit field uses the direct load and store path. Volatile 32-bit updates perform one read and one store. Partial volatile mutation, atomic fields, and other storage-unit sizes remain unsupported.
 
@@ -863,15 +885,15 @@ plus and minus, all four arithmetic
 operators, twelve-byte direct and indirect fixed, variadic, and unprototyped
 arguments, function returns, direct and indirect call results, and
 `va_arg(long double)`. Static-duration scalars, arrays, and complete records
-accept implicit zero, an integer constant expression equal to zero, or a
+accept implicit zero, a represented integer constant expression, or a
 bounded decimal `L` literal with parentheses and unary signs. Runtime truth
 and conversion to `_Bool` cover all three represented floating widths.
 Hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
-bounded parser, static long-double arithmetic, comparison, truth, conditional
-selection, width conversion, and integer conversion, nonzero integer static
-initializers, other
-floating-to-wide conversions, runtime mixed integer and floating arithmetic or
+bounded parser, static long-double arithmetic, comparison, truth and logical
+operators, conditional selection, and width conversion, other
+floating-to-wide conversions, runtime
+mixed integer and floating arithmetic or
 conditional arms, and floating increment and decrement remain unsupported.
 Matching or mixed-width floating conditional arms and the four arithmetic
 compound assignments keep their established x87 path.
@@ -881,9 +903,11 @@ represented value above one, the largest bounded literal, signed zero, and
 `-1.0L`. It checks scalar and aggregate leaves at file and block scope,
 section placement, symbol offsets, two zero padding bytes, and deterministic
 repeated emission. The hosted i386 runtime reads all three target words for
-every payload. `sizeof(float) - 4` remains the accepted zero integer constant
-expression. A nonzero integer initializer still receives a focused error.
-ADR 0251 records this boundary.
+every literal payload. A shared conversion fixture covers every represented
+integer kind, signed and unsigned enums, both signed 64-bit endpoints,
+`ULLONG_MAX`, and the `_Bool` and unsigned results of `-0.5L`.
+`sizeof(float) - 4` keeps the accepted `ZERO` record. ADR 0251 records the
+static-data boundary, and ADR 0254 records conversion.
 
 The checked seed retains GNU `noinline` and
 `target("general-regs-only")` on canonical file-scope functions.
@@ -1229,7 +1253,7 @@ preserving ESI or EDI across the cdecl call.
 
 The i386 path emits `EC`, `EE`, `66 ED`, `66 EF`, `ED`, and `EF` for scalar
 port I/O. The string forms emit `FC F3 66 6D` and `FC F3 66 6F` through the
-shared x86 model. The checked-seed C11 standalone sweep passes 157 of 159
+shared x86 model. The checked-seed C11 standalone sweep passes 158 of 160
 active non-Doom headers; `scheduler.h` and `simd_intrin.h` remain exact
 C11-profile failures. The checked seed parses all 29 declarations in
 `simd_intrin.h` under the Cupid profile through the native type spellings
@@ -2227,10 +2251,10 @@ conversion cover `float`, `double`, and automatic `long double`. Runtime mixed
 wide and floating arithmetic or conditional arms, increment and decrement,
 hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
-bounded parser, static long-double computation and conversion, nonzero
-integer static initializers, and SIMD remain open in the
-hosted path. Runtime integer conversions involving `long double` cover all
-signed and unsigned i386 widths.
+bounded parser, static long-double arithmetic, comparison, truth and logical
+operators, conditional selection, floating-width conversion, and SIMD remain
+open in the hosted path. Runtime integer conversions involving `long double`
+cover all signed and unsigned i386 widths.
 
 ---
 

@@ -3,6 +3,7 @@
 #include "cupidc_frontend.h"
 #include "cupidc_ir.h"
 #include "cupidc_pp.h"
+#include "cupidc_static_long_double_integer_fixture.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -29634,6 +29635,482 @@ cleanup:
   return result;
 }
 
+static const ctool_c_type_node_t *static_fixture_type_node(
+    const ctool_c_translation_unit_t *unit, ctool_u32 type) {
+  return unit != NULL && type < unit->graph.type_count
+             ? &unit->graph.types[type]
+             : NULL;
+}
+
+static const ctool_c_type_node_t *static_fixture_unwrapped_type(
+    const ctool_c_translation_unit_t *unit, ctool_u32 type,
+    ctool_u32 *qualifiers_out) {
+  const ctool_c_type_node_t *node = static_fixture_type_node(unit, type);
+  ctool_u32 qualifiers = 0u;
+  ctool_u32 traversed = 0u;
+  while (node != NULL &&
+         (node->kind == CTOOL_C_TYPE_QUALIFIED ||
+          node->kind == CTOOL_C_TYPE_ALIGNED)) {
+    qualifiers |= node->qualifiers;
+    node = static_fixture_type_node(unit, node->referenced_type);
+    if (traversed++ >= unit->graph.type_count) {
+      node = NULL;
+      break;
+    }
+  }
+  if (qualifiers_out != NULL) {
+    *qualifiers_out = qualifiers;
+  }
+  return node;
+}
+
+static const ctool_c_type_node_t *static_fixture_find_wrapper(
+    const ctool_c_translation_unit_t *unit, ctool_u32 type,
+    ctool_c_type_kind_t kind) {
+  ctool_u32 traversed = 0u;
+  while (type < unit->graph.type_count) {
+    const ctool_c_type_node_t *node = &unit->graph.types[type];
+    if (node->kind == kind) {
+      return node;
+    }
+    if (node->kind != CTOOL_C_TYPE_ALIGNED &&
+        node->kind != CTOOL_C_TYPE_QUALIFIED) {
+      break;
+    }
+    type = node->referenced_type;
+    if (traversed++ >= unit->graph.type_count) {
+      break;
+    }
+  }
+  return NULL;
+}
+
+static const ctool_c_object_definition_t *static_fixture_object_definition(
+    const ctool_c_translation_unit_t *unit, const char *name) {
+  ctool_u32 binding = find_binding(unit, name);
+  ctool_u32 index;
+  if (binding == CTOOL_C_AST_NONE) {
+    return NULL;
+  }
+  for (index = 0u; index < unit->object_definition_count; index++) {
+    if (unit->object_definitions[index].binding == binding) {
+      return &unit->object_definitions[index];
+    }
+  }
+  return NULL;
+}
+
+static const ctool_c_function_definition_t *static_fixture_function_definition(
+    const ctool_c_translation_unit_t *unit, const char *name) {
+  ctool_u32 binding = find_binding(unit, name);
+  ctool_u32 index;
+  if (binding == CTOOL_C_AST_NONE) {
+    return NULL;
+  }
+  for (index = 0u; index < unit->function_definition_count; index++) {
+    if (unit->function_definitions[index].binding == binding) {
+      return &unit->function_definitions[index];
+    }
+  }
+  return NULL;
+}
+
+static const ctool_c_initializer_t *static_fixture_initializer(
+    const ctool_c_translation_unit_t *unit, ctool_u32 initializer) {
+  return unit != NULL && initializer < unit->initializer_count
+             ? &unit->initializers[initializer]
+             : NULL;
+}
+
+static int static_fixture_scalar_initializer_matches(
+    const ctool_c_initializer_t *initializer,
+    ctool_c_initializer_kind_t expected_kind, ctool_u32 expected_type,
+    ctool_u64 expected_bits, ctool_u32 expected_high_bits) {
+  return initializer != NULL && initializer->kind == expected_kind &&
+                 initializer->type == expected_type &&
+                 initializer->expression == CTOOL_C_AST_NONE &&
+                 initializer->integer_bits == expected_bits &&
+                 initializer->floating_high_bits == expected_high_bits &&
+                 initializer->string_bytes.data == NULL &&
+                 initializer->string_bytes.size == 0u &&
+                 initializer->address_kind ==
+                     CTOOL_C_INITIALIZER_ADDRESS_NONE &&
+                 initializer->address_reference == CTOOL_C_AST_NONE &&
+                 initializer->address_addend == 0 &&
+                 initializer->first_element == CTOOL_C_AST_NONE &&
+                 initializer->element_count == 0u &&
+                 initializer->first_block_binding == CTOOL_C_AST_NONE &&
+                 initializer->block_binding_count == 0u
+             ? 1
+             : 0;
+}
+
+static int static_fixture_list_initializer_matches(
+    const ctool_c_initializer_t *initializer, ctool_u32 expected_type,
+    ctool_u32 expected_first_element, ctool_u32 expected_count) {
+  return initializer != NULL &&
+                 initializer->kind == CTOOL_C_INITIALIZER_LIST &&
+                 initializer->type == expected_type &&
+                 initializer->expression == CTOOL_C_AST_NONE &&
+                 initializer->integer_bits == 0ull &&
+                 initializer->floating_high_bits == 0u &&
+                 initializer->string_bytes.data == NULL &&
+                 initializer->string_bytes.size == 0u &&
+                 initializer->address_kind ==
+                     CTOOL_C_INITIALIZER_ADDRESS_NONE &&
+                 initializer->address_reference == CTOOL_C_AST_NONE &&
+                 initializer->address_addend == 0 &&
+                 initializer->first_element == expected_first_element &&
+                 initializer->element_count == expected_count &&
+                 initializer->first_block_binding == CTOOL_C_AST_NONE &&
+                 initializer->block_binding_count == 0u
+             ? 1
+             : 0;
+}
+
+static const ctool_c_initializer_t *static_fixture_list_child(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_initializer_t *list, ctool_u32 offset,
+    ctool_u32 expected_subobject, ctool_u32 expected_initializer) {
+  const ctool_c_initializer_element_t *edge;
+  if (list == NULL || list->kind != CTOOL_C_INITIALIZER_LIST ||
+      offset >= list->element_count ||
+      list->first_element > unit->initializer_element_count ||
+      list->element_count >
+          unit->initializer_element_count - list->first_element) {
+    return NULL;
+  }
+  edge = &unit->initializer_elements[list->first_element + offset];
+  return edge->subobject == expected_subobject &&
+                 edge->initializer == expected_initializer
+             ? static_fixture_initializer(unit, edge->initializer)
+             : NULL;
+}
+
+static int static_long_double_integer_forest_matches(
+    const ctool_c_translation_unit_t *unit) {
+  const ctool_u32 from_count =
+      (ctool_u32)(sizeof(cupidc_static_integer_to_long_double_oracles) /
+                  sizeof(cupidc_static_integer_to_long_double_oracles[0]));
+  const ctool_u32 to_count =
+      (ctool_u32)(sizeof(cupidc_static_long_double_to_integer_oracles) /
+                  sizeof(cupidc_static_long_double_to_integer_oracles[0]));
+  const ctool_c_object_definition_t *from_integers =
+      static_fixture_object_definition(
+          unit, "cupidc_static_integer_to_long_double_file");
+  const ctool_c_object_definition_t *to_integers =
+      static_fixture_object_definition(
+          unit, "cupidc_static_long_double_to_integer_file");
+  ctool_u32 block_from_index = find_block_binding(
+      unit, "cupidc_static_integer_to_long_double_block");
+  ctool_u32 block_to_index = find_block_binding(
+      unit, "cupidc_static_long_double_to_integer_block");
+  const ctool_c_block_binding_t *block_from_integer =
+      block_from_index < unit->block_binding_count
+          ? &unit->block_bindings[block_from_index]
+          : NULL;
+  const ctool_c_block_binding_t *block_to_integer =
+      block_to_index < unit->block_binding_count
+          ? &unit->block_bindings[block_to_index]
+          : NULL;
+  const ctool_c_function_definition_t *function =
+      static_fixture_function_definition(
+          unit, "cupidc_static_long_double_integer_block_probe");
+  const ctool_c_initializer_t *from_root =
+      from_integers == NULL
+          ? NULL
+          : static_fixture_initializer(unit, from_integers->initializer);
+  const ctool_c_initializer_t *to_root =
+      to_integers == NULL
+          ? NULL
+          : static_fixture_initializer(unit, to_integers->initializer);
+  const ctool_c_initializer_t *block_from_initializer =
+      block_from_integer == NULL
+          ? NULL
+          : static_fixture_initializer(unit, block_from_integer->initializer);
+  const ctool_c_initializer_t *block_to_initializer =
+      block_to_integer == NULL
+          ? NULL
+          : static_fixture_initializer(unit, block_to_integer->initializer);
+  const ctool_c_type_node_t *array =
+      from_integers == NULL
+          ? NULL
+          : static_fixture_unwrapped_type(
+                unit, from_integers->declared_type, NULL);
+  const ctool_c_type_node_t *record =
+      to_integers == NULL
+          ? NULL
+          : static_fixture_unwrapped_type(
+                unit, to_integers->declared_type, NULL);
+  ctool_u32 array_element_qualifiers = 0u;
+  ctool_u32 record_qualifiers = 0u;
+  ctool_u32 block_from_qualifiers = 0u;
+  ctool_u32 block_to_qualifiers = 0u;
+  ctool_u32 first_declaration = CTOOL_C_AST_NONE;
+  ctool_u32 second_declaration = CTOOL_C_AST_NONE;
+  const ctool_c_statement_t *body = NULL;
+  const ctool_c_statement_t *first_declaration_statement = NULL;
+  const ctool_c_statement_t *second_declaration_statement = NULL;
+  ctool_u32 index;
+
+  if (unit == NULL || unit->object_definition_count != 2u ||
+      unit->block_binding_count != 2u ||
+      unit->function_definition_count != 1u ||
+      unit->initializer_count != 38u ||
+      unit->initializer_element_count != 34u || from_count != 15u ||
+      to_count != 19u || from_integers == NULL || to_integers == NULL ||
+      block_from_integer == NULL || block_to_integer == NULL ||
+      function == NULL || array == NULL ||
+      array->kind != CTOOL_C_TYPE_ARRAY ||
+      array->array_bound_kind != CTOOL_C_ARRAY_FIXED ||
+      array->element_count != from_count || record == NULL ||
+      record->kind != CTOOL_C_TYPE_RECORD ||
+      record->member_count != to_count ||
+      record->first_member > unit->graph.member_count ||
+      record->member_count >
+          unit->graph.member_count - record->first_member ||
+      static_fixture_unwrapped_type(
+          unit, array->referenced_type,
+          &array_element_qualifiers) == NULL ||
+      static_fixture_unwrapped_type(
+          unit, array->referenced_type,
+          &array_element_qualifiers)->kind != CTOOL_C_TYPE_LONG_DOUBLE ||
+      array_element_qualifiers != CTOOL_C_QUAL_CONST ||
+      static_fixture_unwrapped_type(
+          unit, to_integers->declared_type,
+          &record_qualifiers) != record ||
+      record_qualifiers != CTOOL_C_QUAL_CONST ||
+      from_integers->storage != CTOOL_C_STORAGE_STATIC ||
+      from_integers->kind != CTOOL_C_OBJECT_DEFINITION_EXPLICIT ||
+      from_integers->initializer != 15u ||
+      to_integers->storage != CTOOL_C_STORAGE_STATIC ||
+      to_integers->kind != CTOOL_C_OBJECT_DEFINITION_EXPLICIT ||
+      to_integers->initializer != 35u ||
+      static_fixture_list_initializer_matches(
+          from_root, from_integers->declared_type, 0u, from_count) == 0 ||
+      static_fixture_list_initializer_matches(
+          to_root, to_integers->declared_type, 15u, to_count) == 0 ||
+      block_from_index != 0u || block_to_index != 1u ||
+      block_from_integer->kind != CTOOL_C_BINDING_OBJECT ||
+      block_from_integer->storage != CTOOL_C_STORAGE_STATIC ||
+      block_from_integer->linkage_binding != CTOOL_C_AST_NONE ||
+      block_from_integer->initializer != 36u ||
+      static_fixture_unwrapped_type(
+          unit, block_from_integer->type,
+          &block_from_qualifiers) == NULL ||
+      static_fixture_unwrapped_type(
+          unit, block_from_integer->type,
+          &block_from_qualifiers)->kind != CTOOL_C_TYPE_LONG_DOUBLE ||
+      block_from_qualifiers != CTOOL_C_QUAL_CONST ||
+      static_fixture_scalar_initializer_matches(
+          block_from_initializer, CTOOL_C_INITIALIZER_FLOATING,
+          block_from_integer->type, 0xfffffffffffffffeull, 0x403du) == 0 ||
+      block_to_integer->kind != CTOOL_C_BINDING_OBJECT ||
+      block_to_integer->storage != CTOOL_C_STORAGE_STATIC ||
+      block_to_integer->linkage_binding != CTOOL_C_AST_NONE ||
+      block_to_integer->initializer != 37u ||
+      static_fixture_unwrapped_type(
+          unit, block_to_integer->type,
+          &block_to_qualifiers) == NULL ||
+      static_fixture_unwrapped_type(
+          unit, block_to_integer->type,
+          &block_to_qualifiers)->kind !=
+          CTOOL_C_TYPE_UNSIGNED_LONG_LONG ||
+      block_to_qualifiers != CTOOL_C_QUAL_CONST ||
+      static_fixture_scalar_initializer_matches(
+          block_to_initializer, CTOOL_C_INITIALIZER_INTEGER,
+          block_to_integer->type, 0x8000000000000000ull, 0u) == 0) {
+    (void)fprintf(
+        stderr,
+        "floating-transport: static integer conversion forest differs\n");
+    return 0;
+  }
+
+  if (function->body >= unit->statement_count) {
+    (void)fprintf(
+        stderr,
+        "floating-transport: static integer conversion body differs\n");
+    return 0;
+  }
+  body = &unit->statements[function->body];
+  if (body->kind != CTOOL_C_STATEMENT_COMPOUND ||
+      body->child_count != 2u ||
+      body->first_child > unit->statement_child_count ||
+      body->child_count >
+          unit->statement_child_count - body->first_child) {
+    (void)fprintf(
+        stderr,
+        "floating-transport: static integer conversion body differs\n");
+    return 0;
+  }
+  first_declaration = unit->statement_children[body->first_child];
+  second_declaration = unit->statement_children[body->first_child + 1u];
+  first_declaration_statement =
+      first_declaration < unit->statement_count
+          ? &unit->statements[first_declaration]
+          : NULL;
+  second_declaration_statement =
+      second_declaration < unit->statement_count
+          ? &unit->statements[second_declaration]
+          : NULL;
+  if (function->first_block_binding != 0u ||
+      function->block_binding_count != 0u ||
+      first_declaration_statement == NULL ||
+      first_declaration_statement->kind != CTOOL_C_STATEMENT_DECLARATION ||
+      first_declaration_statement->first_block_binding != block_from_index ||
+      first_declaration_statement->block_binding_count != 1u ||
+      second_declaration_statement == NULL ||
+      second_declaration_statement->kind != CTOOL_C_STATEMENT_DECLARATION ||
+      second_declaration_statement->first_block_binding != block_to_index ||
+      second_declaration_statement->block_binding_count != 1u) {
+    (void)fprintf(
+        stderr,
+        "floating-transport: static integer conversion block ownership "
+        "differs\n");
+    return 0;
+  }
+
+  for (index = 0u; index < from_count; index++) {
+    const cupidc_static_integer_to_long_double_oracle_t *oracle =
+        &cupidc_static_integer_to_long_double_oracles[index];
+    const ctool_c_initializer_t *initializer =
+        static_fixture_list_child(
+            unit, from_root, index, index, index);
+    if (static_fixture_scalar_initializer_matches(
+            initializer, oracle->initializer_kind,
+            array->referenced_type, oracle->significand,
+            oracle->high_bits) == 0) {
+      (void)fprintf(
+          stderr,
+          "floating-transport: integer-to-long-double static leaf %u "
+          "differs\n",
+          (unsigned int)index);
+      return 0;
+    }
+  }
+
+  for (index = 0u; index < to_count; index++) {
+    const cupidc_static_long_double_to_integer_oracle_t *oracle =
+        &cupidc_static_long_double_to_integer_oracles[index];
+    const ctool_c_record_member_t *member =
+        &unit->graph.members[record->first_member + index];
+    ctool_u32 qualifiers = 0u;
+    ctool_u32 enum_qualifiers = 0u;
+    const ctool_c_type_node_t *member_type =
+        static_fixture_unwrapped_type(unit, member->type, &qualifiers);
+    const ctool_c_initializer_t *initializer =
+        static_fixture_list_child(
+            unit, to_root, index, record->first_member + index,
+            16u + index);
+    if (member_type == NULL || member_type->kind != oracle->type_kind ||
+        qualifiers != oracle->qualifiers ||
+        static_fixture_scalar_initializer_matches(
+            initializer, CTOOL_C_INITIALIZER_INTEGER, member->type,
+            oracle->bits, 0u) == 0 ||
+        (oracle->enum_compatible_kind != (ctool_c_type_kind_t)0 &&
+         (member_type->kind != CTOOL_C_TYPE_ENUM ||
+          static_fixture_unwrapped_type(
+              unit, member_type->referenced_type,
+              &enum_qualifiers) == NULL ||
+          static_fixture_unwrapped_type(
+              unit, member_type->referenced_type,
+              &enum_qualifiers)->kind != oracle->enum_compatible_kind ||
+          enum_qualifiers != 0u))) {
+      (void)fprintf(
+          stderr,
+          "floating-transport: long-double-to-integer static leaf %u "
+          "differs\n",
+          (unsigned int)index);
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int static_long_double_integer_ir_matches(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir) {
+  const ctool_c_function_definition_t *definition =
+      static_fixture_function_definition(
+          unit, "cupidc_static_long_double_integer_block_probe");
+  const ctool_c_ir_function_t *function;
+  const ctool_c_ir_instruction_t *instruction;
+  if (definition == NULL || ir == NULL || ir->file_assembly_count != 0u ||
+      ir->function_count != 1u || ir->instruction_count != 1u ||
+      ir->argument_type_count != 0u || ir->functions == NULL ||
+      ir->instructions == NULL) {
+    (void)fprintf(
+        stderr,
+        "floating-transport: static integer conversion IR inventory "
+        "differs\n");
+    return 0;
+  }
+  function = &ir->functions[0];
+  instruction = &ir->instructions[0];
+  if (function->binding != definition->binding ||
+      function->declared_type != definition->declared_type ||
+      function->first_instruction != 0u ||
+      function->instruction_count != 1u ||
+      function->maximum_stack_depth != 0u ||
+      function->section_name.size != 0u ||
+      instruction->kind != CTOOL_C_IR_INSTRUCTION_RETURN_VOID ||
+      instruction->type != CTOOL_C_TYPE_NONE ||
+      instruction->input_type != CTOOL_C_TYPE_NONE ||
+      instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+      instruction->conversion != CTOOL_C_CONVERSION_NONE ||
+      instruction->argument_count != 0u ||
+      instruction->first_argument_type != CTOOL_C_AST_NONE ||
+      instruction->reference != CTOOL_C_AST_NONE ||
+      instruction->integer_bits != 0ull ||
+      instruction->floating_high_bits != 0u ||
+      string_equal(instruction->location.path,
+                   "/static-long-double-integer.c") == 0 ||
+      string_equal(instruction->physical_location.path,
+                   "/static-long-double-integer.c") == 0) {
+    (void)fprintf(
+        stderr,
+        "floating-transport: static integer conversion emitted runtime "
+        "work\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int expect_static_long_double_integer_ir_success(
+    ctool_job_t *job, const ctool_c_translation_unit_t *unit,
+    const char *context) {
+  ctool_c_ir_unit_t ir;
+  ctool_u32 diagnostic_count = ctool_job_diagnostic_count(job);
+  uint64_t fingerprint = unit_fingerprint(unit);
+  ctool_status_t status;
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, unit, &ir);
+  if (!check_status(status, CTOOL_OK, context) ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(unit) != fingerprint ||
+      static_long_double_integer_forest_matches(unit) == 0 ||
+      static_long_double_integer_ir_matches(unit, &ir) == 0) {
+    (void)fprintf(stderr, "%s: success transaction differs\n", context);
+    return 0;
+  }
+  return 1;
+}
+
+static int expect_static_long_double_integer_mutation_rejected(
+    ctool_job_t *job, const ctool_c_translation_unit_t *invalid_unit,
+    const ctool_c_translation_unit_t *clean_unit, const char *context,
+    const char *recovery_context) {
+  return expect_ir_failure_preserves_unit(
+             job, invalid_unit, CTOOL_ERR_INPUT,
+             CTOOL_C_IR_DIAG_INVALID_UNIT,
+             "CupidC IR lowering received an invalid translation unit",
+             context) &&
+                 expect_static_long_double_integer_ir_success(
+                     job, clean_unit, recovery_context)
+             ? 1
+             : 0;
+}
+
 static int run_floating_transport(const char *host_root) {
   static const char source[] =
       "typedef __builtin_va_list va_list;\n"
@@ -29692,6 +30169,18 @@ static int run_floating_transport(const char *host_root) {
       "  (void)(condition ? condition : condition);\n"
       "  if (condition) return;\n"
       "}\n";
+  static const char atomic_integer_source[] =
+      "typedef unsigned int static_raised_integer_type "
+      "__attribute__((aligned(16)));\n"
+      "typedef unsigned int static_lowered_integer_type "
+      "__attribute__((aligned(1)));\n"
+      "static _Atomic unsigned long long "
+      "static_atomic_integer_guard = 3ull;\n"
+      "static const static_raised_integer_type "
+      "static_raised_integer_guard = 5u;\n"
+      "static const static_lowered_integer_type "
+      "static_lowered_integer_guard = 7u;\n"
+      "void static_atomic_integer_probe(void) {}\n";
   static const char long_double_source[] =
       "typedef __builtin_va_list va_list;\n"
       "typedef void (*long_double_callback)(long double);\n"
@@ -29708,6 +30197,7 @@ static int run_floating_transport(const char *host_root) {
       "static long double long_double_file_negative_zero = -0.0L;\n"
       "static long double long_double_file_positive_zero = +0.0L;\n"
       "static double static_double_high_bits_guard = 1.0;\n"
+      "static unsigned char static_narrow_integer_guard = 7u;\n"
       "static long double long_double_file_array[2] = {1.0L, -0.0L};\n"
       "static struct long_double_record long_double_file_record = {\n"
       "  1.0000000000000000001L, 7u, -1.0L\n"
@@ -29781,16 +30271,22 @@ static int run_floating_transport(const char *host_root) {
   ctool_job_t *limited_job = NULL;
   ctool_c_translation_unit_t unit;
   ctool_c_translation_unit_t condition_unit;
+  ctool_c_translation_unit_t atomic_integer_unit;
   ctool_c_translation_unit_t long_double_unit;
+  ctool_c_translation_unit_t static_integer_unit;
   ctool_c_translation_unit_t invalid_unit;
+  ctool_c_translation_unit_t invalid_static_integer_unit;
   ctool_c_translation_unit_t invalid_promotion_unit;
   ctool_c_ir_unit_t ir;
   ctool_c_ir_unit_t repeat_ir;
   ctool_c_ir_unit_t recovered_ir;
   ctool_c_ir_unit_t long_double_ir;
   ctool_c_type_node_t *invalid_types = NULL;
+  ctool_c_type_node_t *invalid_static_integer_types = NULL;
+  ctool_c_type_layout_t *invalid_static_integer_layouts = NULL;
   ctool_c_expression_t *invalid_promotion_expressions = NULL;
   ctool_c_initializer_t *invalid_initializers = NULL;
+  ctool_c_initializer_t *invalid_static_integer_initializers = NULL;
   ctool_status_t status;
   ctool_u32 diagnostic_count;
   ctool_u32 fixed_sink;
@@ -29802,6 +30298,8 @@ static int run_floating_transport(const char *host_root) {
   ctool_u32 long_double_file_negative_zero;
   ctool_u32 long_double_file_positive_zero;
   ctool_u32 static_double_high_bits_guard;
+  ctool_u32 static_narrow_integer_guard;
+  ctool_u32 static_integer_guard;
   ctool_u32 long_double_file_array;
   ctool_u32 long_double_file_record;
   ctool_u32 long_double_block_maximum;
@@ -29809,12 +30307,47 @@ static int run_floating_transport(const char *host_root) {
   ctool_u32 long_double_block_array;
   ctool_u32 long_double_block_record;
   ctool_u32 long_double_block_binding;
+  ctool_u32 double_type;
+  ctool_u32 long_double_type;
+  ctool_u32 static_integer_from_root;
+  ctool_u32 static_integer_to_root;
+  ctool_u32 static_integer_floating_guard;
+  ctool_u32 static_integer_bool_guard;
+  ctool_u32 static_integer_standard_guard;
+  ctool_u32 static_integer_signed_enum_guard;
+  ctool_u32 static_integer_unsigned_enum_guard;
+  ctool_u32 static_integer_standard_type;
+  ctool_u32 static_integer_standard_base;
+  ctool_u32 static_integer_signed_enum_declared_type;
+  ctool_u32 static_integer_signed_enum_base;
+  ctool_u32 static_integer_signed_enum_compatible_type;
+  ctool_u32 static_integer_signed_enum_compatible_base;
+  ctool_u32 static_integer_unsigned_enum_base;
+  ctool_u32 static_integer_long_double_type;
+  ctool_u32 static_integer_unsigned_int_type;
+  ctool_u32 static_integer_signed_wide_type;
+  ctool_u32 atomic_integer_guard;
+  ctool_u32 raised_integer_guard;
+  ctool_u32 lowered_integer_guard;
+  ctool_u32 atomic_integer_base = CTOOL_C_TYPE_NONE;
+  ctool_u32 atomic_integer_qualifiers = 0u;
+  ctool_u32 raised_integer_qualifiers = 0u;
+  ctool_u32 lowered_integer_qualifiers = 0u;
+  const ctool_c_type_node_t *atomic_integer_type;
+  const ctool_c_type_node_t *raised_integer_type;
+  const ctool_c_type_node_t *lowered_integer_type;
+  const ctool_c_type_node_t *raised_integer_aligned_type;
+  const ctool_c_type_node_t *lowered_integer_aligned_type;
+  const ctool_c_type_node_t *static_integer_signed_enum_type;
+  const ctool_c_type_node_t *static_integer_unsigned_enum_type;
   ctool_u32 index;
   uint64_t unit_hash;
   uint64_t ir_hash;
   int passed = 0;
 
   (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&atomic_integer_unit, 0, sizeof(atomic_integer_unit));
+  (void)memset(&static_integer_unit, 0, sizeof(static_integer_unit));
   (void)memset(&ir, 0xa5, sizeof(ir));
   (void)memset(&repeat_ir, 0xa5, sizeof(repeat_ir));
   (void)memset(&recovered_ir, 0xa5, sizeof(recovered_ir));
@@ -29825,11 +30358,546 @@ static int run_floating_transport(const char *host_root) {
                          &unit) ||
       !parse_source_mode(job, "/floating-truth-boundary.c",
                          condition_source, CTOOL_TRUE, &condition_unit) ||
+      !parse_source_mode(job, "/static-atomic-integer.c",
+                         atomic_integer_source, CTOOL_TRUE,
+                         &atomic_integer_unit) ||
       !parse_source_mode(job, "/long-double-locals.c",
                          long_double_source, CTOOL_TRUE,
                          &long_double_unit) ||
+      !parse_source_mode(
+          job, "/static-long-double-integer.c",
+          cupidc_static_long_double_integer_source, CTOOL_TRUE,
+          &static_integer_unit) ||
       !expect_ir_success_preserves_unit(
-          job, &condition_unit, "floating truth boundary baseline")) {
+          job, &condition_unit, "floating truth boundary baseline") ||
+      static_long_double_integer_forest_matches(
+          &static_integer_unit) == 0 ||
+      !expect_static_long_double_integer_ir_success(
+          job, &static_integer_unit,
+          "static integer conversion baseline")) {
+    goto cleanup;
+  }
+  atomic_integer_guard = find_object_initializer(
+      &atomic_integer_unit, "static_atomic_integer_guard");
+  raised_integer_guard = find_object_initializer(
+      &atomic_integer_unit, "static_raised_integer_guard");
+  lowered_integer_guard = find_object_initializer(
+      &atomic_integer_unit, "static_lowered_integer_guard");
+  atomic_integer_type =
+      atomic_integer_guard < atomic_integer_unit.initializer_count
+          ? static_fixture_unwrapped_type(
+                &atomic_integer_unit,
+                atomic_integer_unit.initializers[atomic_integer_guard].type,
+                &atomic_integer_qualifiers)
+          : NULL;
+  raised_integer_type =
+      raised_integer_guard < atomic_integer_unit.initializer_count
+          ? static_fixture_unwrapped_type(
+                &atomic_integer_unit,
+                atomic_integer_unit.initializers[raised_integer_guard].type,
+                &raised_integer_qualifiers)
+          : NULL;
+  lowered_integer_type =
+      lowered_integer_guard < atomic_integer_unit.initializer_count
+          ? static_fixture_unwrapped_type(
+                &atomic_integer_unit,
+                atomic_integer_unit.initializers[lowered_integer_guard].type,
+                &lowered_integer_qualifiers)
+          : NULL;
+  if (atomic_integer_type != NULL) {
+    atomic_integer_base =
+        (ctool_u32)(atomic_integer_type - atomic_integer_unit.graph.types);
+  }
+  raised_integer_aligned_type =
+      raised_integer_guard < atomic_integer_unit.initializer_count
+          ? static_fixture_find_wrapper(
+                &atomic_integer_unit,
+                atomic_integer_unit.initializers[raised_integer_guard].type,
+                CTOOL_C_TYPE_ALIGNED)
+          : NULL;
+  lowered_integer_aligned_type =
+      lowered_integer_guard < atomic_integer_unit.initializer_count
+          ? static_fixture_find_wrapper(
+                &atomic_integer_unit,
+                atomic_integer_unit.initializers[lowered_integer_guard].type,
+                CTOOL_C_TYPE_ALIGNED)
+          : NULL;
+  if (atomic_integer_guard >= atomic_integer_unit.initializer_count ||
+      raised_integer_guard >= atomic_integer_unit.initializer_count ||
+      lowered_integer_guard >= atomic_integer_unit.initializer_count ||
+      !static_fixture_scalar_initializer_matches(
+          &atomic_integer_unit.initializers[atomic_integer_guard],
+          CTOOL_C_INITIALIZER_INTEGER,
+          atomic_integer_unit.initializers[atomic_integer_guard].type,
+          3ull, 0u) ||
+      atomic_integer_type == NULL ||
+      atomic_integer_type->kind != CTOOL_C_TYPE_UNSIGNED_LONG_LONG ||
+      atomic_integer_base >= atomic_integer_unit.layout.type_count ||
+      (atomic_integer_qualifiers | atomic_integer_type->qualifiers) !=
+          CTOOL_C_QUAL_ATOMIC ||
+      atomic_integer_unit
+              .layout.types[atomic_integer_unit
+                                .initializers[atomic_integer_guard]
+                                .type]
+              .alignment != 8u ||
+      atomic_integer_unit.layout.types[atomic_integer_base].alignment != 4u ||
+      !static_fixture_scalar_initializer_matches(
+          &atomic_integer_unit.initializers[raised_integer_guard],
+          CTOOL_C_INITIALIZER_INTEGER,
+          atomic_integer_unit.initializers[raised_integer_guard].type,
+          5ull, 0u) ||
+      raised_integer_type == NULL ||
+      raised_integer_type->kind != CTOOL_C_TYPE_UNSIGNED_INT ||
+      raised_integer_aligned_type == NULL ||
+      raised_integer_aligned_type->explicit_alignment != 16u ||
+      raised_integer_qualifiers != CTOOL_C_QUAL_CONST ||
+      atomic_integer_unit.layout
+              .types[atomic_integer_unit
+                         .initializers[raised_integer_guard]
+                         .type]
+              .alignment != 16u ||
+      !static_fixture_scalar_initializer_matches(
+          &atomic_integer_unit.initializers[lowered_integer_guard],
+          CTOOL_C_INITIALIZER_INTEGER,
+          atomic_integer_unit.initializers[lowered_integer_guard].type,
+          7ull, 0u) ||
+      lowered_integer_type == NULL ||
+      lowered_integer_type->kind != CTOOL_C_TYPE_UNSIGNED_INT ||
+      lowered_integer_aligned_type == NULL ||
+      lowered_integer_aligned_type->explicit_alignment != 1u ||
+      lowered_integer_qualifiers != CTOOL_C_QUAL_CONST ||
+      atomic_integer_unit.layout
+              .types[atomic_integer_unit
+                         .initializers[lowered_integer_guard]
+                         .type]
+              .alignment != 1u ||
+      !expect_ir_success_preserves_unit(
+          job, &atomic_integer_unit,
+          "nonzero static atomic integer baseline")) {
+    (void)fprintf(
+        stderr,
+        "floating-transport: static atomic integer fixture differs\n");
+    goto cleanup;
+  }
+  static_integer_from_root = find_object_initializer(
+      &static_integer_unit,
+      "cupidc_static_integer_to_long_double_file");
+  static_integer_to_root = find_object_initializer(
+      &static_integer_unit,
+      "cupidc_static_long_double_to_integer_file");
+  static_integer_floating_guard = find_initializer_child(
+      &static_integer_unit, static_integer_from_root, 1u);
+  static_integer_bool_guard = find_initializer_child(
+      &static_integer_unit, static_integer_to_root, 0u);
+  static_integer_standard_guard = find_initializer_child(
+      &static_integer_unit, static_integer_to_root, 9u);
+  static_integer_standard_type =
+      static_integer_standard_guard < static_integer_unit.initializer_count
+          ? static_integer_unit
+                .initializers[static_integer_standard_guard]
+                .type
+          : CTOOL_C_TYPE_NONE;
+  static_integer_signed_enum_guard = find_initializer_child(
+      &static_integer_unit, static_integer_to_root,
+      (ctool_u32)(sizeof(cupidc_static_long_double_to_integer_oracles) /
+                  sizeof(cupidc_static_long_double_to_integer_oracles[0])) -
+          2u);
+  static_integer_unsigned_enum_guard = find_initializer_child(
+      &static_integer_unit, static_integer_to_root,
+      (ctool_u32)(sizeof(cupidc_static_long_double_to_integer_oracles) /
+                  sizeof(cupidc_static_long_double_to_integer_oracles[0])) -
+          1u);
+  static_integer_signed_enum_declared_type =
+      static_integer_signed_enum_guard < static_integer_unit.initializer_count
+          ? static_integer_unit
+                .initializers[static_integer_signed_enum_guard]
+                .type
+          : CTOOL_C_TYPE_NONE;
+  static_integer_standard_base = CTOOL_C_TYPE_NONE;
+  static_integer_signed_enum_base = CTOOL_C_TYPE_NONE;
+  static_integer_signed_enum_compatible_type = CTOOL_C_TYPE_NONE;
+  static_integer_signed_enum_compatible_base = CTOOL_C_TYPE_NONE;
+  static_integer_unsigned_enum_base = CTOOL_C_TYPE_NONE;
+  (void)compatibility_unwrapped_type(
+      &static_integer_unit,
+      static_integer_standard_guard < static_integer_unit.initializer_count
+          ? static_integer_unit
+                .initializers[static_integer_standard_guard]
+                .type
+          : CTOOL_C_TYPE_NONE,
+      &static_integer_standard_base);
+  static_integer_signed_enum_type = compatibility_unwrapped_type(
+      &static_integer_unit,
+      static_integer_signed_enum_guard <
+              static_integer_unit.initializer_count
+          ? static_integer_unit
+                .initializers[static_integer_signed_enum_guard]
+                .type
+          : CTOOL_C_TYPE_NONE,
+      &static_integer_signed_enum_base);
+  if (static_integer_signed_enum_type != NULL &&
+      static_integer_signed_enum_type->kind == CTOOL_C_TYPE_ENUM) {
+    static_integer_signed_enum_compatible_type =
+        static_integer_signed_enum_type->referenced_type;
+    (void)compatibility_unwrapped_type(
+        &static_integer_unit,
+        static_integer_signed_enum_compatible_type,
+        &static_integer_signed_enum_compatible_base);
+  }
+  static_integer_unsigned_enum_type = compatibility_unwrapped_type(
+      &static_integer_unit,
+      static_integer_unsigned_enum_guard <
+              static_integer_unit.initializer_count
+          ? static_integer_unit
+                .initializers[static_integer_unsigned_enum_guard]
+                .type
+          : CTOOL_C_TYPE_NONE,
+      &static_integer_unsigned_enum_base);
+  static_integer_long_double_type = find_plain_type_kind(
+      &static_integer_unit, CTOOL_C_TYPE_LONG_DOUBLE);
+  static_integer_unsigned_int_type = find_plain_type_kind(
+      &static_integer_unit, CTOOL_C_TYPE_UNSIGNED_INT);
+  static_integer_signed_wide_type = find_plain_type_kind(
+      &static_integer_unit, CTOOL_C_TYPE_SIGNED_LONG_LONG);
+  if (static_integer_floating_guard >=
+          static_integer_unit.initializer_count ||
+      static_integer_bool_guard >= static_integer_unit.initializer_count ||
+      static_integer_standard_guard >=
+          static_integer_unit.initializer_count ||
+      static_integer_signed_enum_guard >=
+          static_integer_unit.initializer_count ||
+      static_integer_unsigned_enum_guard >=
+          static_integer_unit.initializer_count ||
+      static_integer_standard_base >= static_integer_unit.graph.type_count ||
+      static_integer_standard_type >= static_integer_unit.graph.type_count ||
+      static_integer_signed_enum_declared_type >=
+          static_integer_unit.graph.type_count ||
+      static_integer_signed_enum_base >=
+          static_integer_unit.graph.type_count ||
+      static_integer_signed_enum_compatible_type >=
+          static_integer_unit.graph.type_count ||
+      static_integer_signed_enum_compatible_base >=
+          static_integer_unit.graph.type_count ||
+      static_integer_unsigned_enum_base >=
+          static_integer_unit.graph.type_count ||
+      static_integer_signed_enum_type == NULL ||
+      static_integer_signed_enum_type->kind != CTOOL_C_TYPE_ENUM ||
+      static_integer_unsigned_enum_type == NULL ||
+      static_integer_unsigned_enum_type->kind != CTOOL_C_TYPE_ENUM ||
+      static_integer_long_double_type >=
+          static_integer_unit.graph.type_count ||
+      static_integer_unsigned_int_type >=
+          static_integer_unit.graph.type_count ||
+      static_integer_signed_wide_type >=
+          static_integer_unit.graph.type_count) {
+    (void)fprintf(
+        stderr,
+        "floating-transport: static integer conversion mutation fixture "
+        "differs\n");
+    goto cleanup;
+  }
+  if (static_integer_unit.initializer_count == 0u ||
+      static_integer_unit.graph.type_count == 0u ||
+      sizeof(*invalid_static_integer_initializers) >
+          SIZE_MAX / (size_t)static_integer_unit.initializer_count ||
+      sizeof(*invalid_static_integer_types) >
+          SIZE_MAX / (size_t)static_integer_unit.graph.type_count ||
+      sizeof(*invalid_static_integer_layouts) >
+          SIZE_MAX / (size_t)static_integer_unit.layout.type_count) {
+    goto cleanup;
+  }
+  invalid_static_integer_initializers =
+      (ctool_c_initializer_t *)malloc(
+          (size_t)static_integer_unit.initializer_count *
+          sizeof(*invalid_static_integer_initializers));
+  invalid_static_integer_types =
+      (ctool_c_type_node_t *)malloc(
+          (size_t)static_integer_unit.graph.type_count *
+          sizeof(*invalid_static_integer_types));
+  invalid_static_integer_layouts =
+      (ctool_c_type_layout_t *)malloc(
+          (size_t)static_integer_unit.layout.type_count *
+          sizeof(*invalid_static_integer_layouts));
+  if (invalid_static_integer_initializers == NULL ||
+      invalid_static_integer_types == NULL ||
+      invalid_static_integer_layouts == NULL) {
+    goto cleanup;
+  }
+  invalid_static_integer_unit = static_integer_unit;
+  invalid_static_integer_unit.initializers =
+      invalid_static_integer_initializers;
+  invalid_static_integer_unit.graph.types = invalid_static_integer_types;
+  invalid_static_integer_unit.layout.types = invalid_static_integer_layouts;
+  (void)memcpy(invalid_static_integer_types,
+               static_integer_unit.graph.types,
+               (size_t)static_integer_unit.graph.type_count *
+                   sizeof(*invalid_static_integer_types));
+  (void)memcpy(invalid_static_integer_layouts,
+               static_integer_unit.layout.types,
+               (size_t)static_integer_unit.layout.type_count *
+                   sizeof(*invalid_static_integer_layouts));
+
+  (void)memcpy(
+      invalid_static_integer_initializers,
+      static_integer_unit.initializers,
+      (size_t)static_integer_unit.initializer_count *
+          sizeof(*invalid_static_integer_initializers));
+  invalid_static_integer_initializers[static_integer_floating_guard]
+      .floating_high_bits = 0x7fffu;
+  if (!expect_static_long_double_integer_mutation_rejected(
+          job, &invalid_static_integer_unit, &static_integer_unit,
+          "static conversion x87 payload with reserved exponent",
+          "static conversion reserved-exponent recovery")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(
+      invalid_static_integer_initializers,
+      static_integer_unit.initializers,
+      (size_t)static_integer_unit.initializer_count *
+          sizeof(*invalid_static_integer_initializers));
+  invalid_static_integer_initializers[static_integer_floating_guard]
+      .floating_high_bits = 0u;
+  if (!expect_static_long_double_integer_mutation_rejected(
+          job, &invalid_static_integer_unit, &static_integer_unit,
+          "static conversion x87 payload with zero exponent and nonzero "
+          "significand",
+          "static conversion zero-exponent recovery")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(
+      invalid_static_integer_initializers,
+      static_integer_unit.initializers,
+      (size_t)static_integer_unit.initializer_count *
+          sizeof(*invalid_static_integer_initializers));
+  invalid_static_integer_initializers[static_integer_floating_guard]
+      .integer_bits = 0x7fffffffffffffffull;
+  if (!expect_static_long_double_integer_mutation_rejected(
+          job, &invalid_static_integer_unit, &static_integer_unit,
+          "static conversion x87 payload without its explicit integer bit",
+          "static conversion explicit-bit recovery")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(
+      invalid_static_integer_initializers,
+      static_integer_unit.initializers,
+      (size_t)static_integer_unit.initializer_count *
+          sizeof(*invalid_static_integer_initializers));
+  invalid_static_integer_initializers[static_integer_floating_guard]
+      .floating_high_bits |= 0x00010000u;
+  if (!expect_static_long_double_integer_mutation_rejected(
+          job, &invalid_static_integer_unit, &static_integer_unit,
+          "static conversion x87 payload with metadata above 16 bits",
+          "static conversion high-metadata recovery")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(
+      invalid_static_integer_initializers,
+      static_integer_unit.initializers,
+      (size_t)static_integer_unit.initializer_count *
+          sizeof(*invalid_static_integer_initializers));
+  (void)memcpy(invalid_static_integer_types,
+               static_integer_unit.graph.types,
+               (size_t)static_integer_unit.graph.type_count *
+                   sizeof(*invalid_static_integer_types));
+  invalid_static_integer_initializers[static_integer_bool_guard]
+      .integer_bits = 2ull;
+  if (!expect_static_long_double_integer_mutation_rejected(
+          job, &invalid_static_integer_unit, &static_integer_unit,
+          "static _Bool integer initializer outside one bit",
+          "static _Bool integer initializer recovery")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(
+      invalid_static_integer_initializers,
+      static_integer_unit.initializers,
+      (size_t)static_integer_unit.initializer_count *
+          sizeof(*invalid_static_integer_initializers));
+  (void)memcpy(invalid_static_integer_types,
+               static_integer_unit.graph.types,
+               (size_t)static_integer_unit.graph.type_count *
+                   sizeof(*invalid_static_integer_types));
+  invalid_static_integer_types[static_integer_standard_base].kind =
+      CTOOL_C_TYPE_LONG_DOUBLE;
+  if (!expect_static_long_double_integer_mutation_rejected(
+          job, &invalid_static_integer_unit, &static_integer_unit,
+          "static integer node with a noninteger kind",
+          "static integer node kind recovery")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(
+      invalid_static_integer_initializers,
+      static_integer_unit.initializers,
+      (size_t)static_integer_unit.initializer_count *
+          sizeof(*invalid_static_integer_initializers));
+  (void)memcpy(invalid_static_integer_types,
+               static_integer_unit.graph.types,
+               (size_t)static_integer_unit.graph.type_count *
+                   sizeof(*invalid_static_integer_types));
+  invalid_static_integer_types[static_integer_signed_enum_base]
+      .referenced_type = static_integer_long_double_type;
+  if (!expect_static_long_double_integer_mutation_rejected(
+          job, &invalid_static_integer_unit, &static_integer_unit,
+          "static signed enum with a long-double compatible type",
+          "static signed enum compatible-type recovery")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(
+      invalid_static_integer_initializers,
+      static_integer_unit.initializers,
+      (size_t)static_integer_unit.initializer_count *
+          sizeof(*invalid_static_integer_initializers));
+  (void)memcpy(invalid_static_integer_types,
+               static_integer_unit.graph.types,
+               (size_t)static_integer_unit.graph.type_count *
+                   sizeof(*invalid_static_integer_types));
+  invalid_static_integer_types[static_integer_unsigned_enum_base]
+      .referenced_type = static_integer_long_double_type;
+  if (!expect_static_long_double_integer_mutation_rejected(
+          job, &invalid_static_integer_unit, &static_integer_unit,
+          "static unsigned enum with a long-double compatible type",
+          "static unsigned enum compatible-type recovery")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(
+      invalid_static_integer_initializers,
+      static_integer_unit.initializers,
+      (size_t)static_integer_unit.initializer_count *
+          sizeof(*invalid_static_integer_initializers));
+  (void)memcpy(invalid_static_integer_types,
+               static_integer_unit.graph.types,
+               (size_t)static_integer_unit.graph.type_count *
+                   sizeof(*invalid_static_integer_types));
+  invalid_static_integer_types[static_integer_signed_enum_base]
+      .referenced_type = static_integer_unsigned_int_type;
+  if (!expect_static_long_double_integer_mutation_rejected(
+          job, &invalid_static_integer_unit, &static_integer_unit,
+          "static enum with a differently signed compatible type",
+          "static enum compatible-signedness recovery")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(
+      invalid_static_integer_initializers,
+      static_integer_unit.initializers,
+      (size_t)static_integer_unit.initializer_count *
+          sizeof(*invalid_static_integer_initializers));
+  (void)memcpy(invalid_static_integer_types,
+               static_integer_unit.graph.types,
+               (size_t)static_integer_unit.graph.type_count *
+                   sizeof(*invalid_static_integer_types));
+  invalid_static_integer_types[static_integer_signed_enum_base]
+      .referenced_type = static_integer_signed_wide_type;
+  if (!expect_static_long_double_integer_mutation_rejected(
+          job, &invalid_static_integer_unit, &static_integer_unit,
+          "static enum with a differently sized compatible type",
+          "static enum compatible-width recovery")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(
+      invalid_static_integer_initializers,
+      static_integer_unit.initializers,
+      (size_t)static_integer_unit.initializer_count *
+          sizeof(*invalid_static_integer_initializers));
+  (void)memcpy(invalid_static_integer_types,
+               static_integer_unit.graph.types,
+               (size_t)static_integer_unit.graph.type_count *
+                   sizeof(*invalid_static_integer_types));
+  (void)memcpy(invalid_static_integer_layouts,
+               static_integer_unit.layout.types,
+               (size_t)static_integer_unit.layout.type_count *
+                   sizeof(*invalid_static_integer_layouts));
+  invalid_static_integer_layouts[static_integer_standard_base].alignment =
+      8u;
+  if (!expect_static_long_double_integer_mutation_rejected(
+          job, &invalid_static_integer_unit, &static_integer_unit,
+          "static primitive integer with noncanonical base alignment",
+          "static primitive base-alignment recovery")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(invalid_static_integer_layouts,
+               static_integer_unit.layout.types,
+               (size_t)static_integer_unit.layout.type_count *
+                   sizeof(*invalid_static_integer_layouts));
+  invalid_static_integer_layouts[static_integer_standard_type].alignment =
+      8u;
+  if (!expect_static_long_double_integer_mutation_rejected(
+          job, &invalid_static_integer_unit, &static_integer_unit,
+          "static const integer with forged wrapper alignment",
+          "static integer wrapper-alignment recovery")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(invalid_static_integer_layouts,
+               static_integer_unit.layout.types,
+               (size_t)static_integer_unit.layout.type_count *
+                   sizeof(*invalid_static_integer_layouts));
+  invalid_static_integer_layouts[static_integer_signed_enum_base].alignment =
+      8u;
+  if (!expect_static_long_double_integer_mutation_rejected(
+          job, &invalid_static_integer_unit, &static_integer_unit,
+          "static enum with forged base alignment",
+          "static enum base-alignment recovery")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(invalid_static_integer_layouts,
+               static_integer_unit.layout.types,
+               (size_t)static_integer_unit.layout.type_count *
+                   sizeof(*invalid_static_integer_layouts));
+  invalid_static_integer_layouts[
+      static_integer_signed_enum_type->referenced_type]
+      .alignment = 8u;
+  if (!expect_static_long_double_integer_mutation_rejected(
+          job, &invalid_static_integer_unit, &static_integer_unit,
+          "static enum with forged compatible-type alignment",
+          "static enum compatible-alignment recovery")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(invalid_static_integer_layouts,
+               static_integer_unit.layout.types,
+               (size_t)static_integer_unit.layout.type_count *
+                   sizeof(*invalid_static_integer_layouts));
+  invalid_static_integer_layouts[static_integer_standard_type].alignment =
+      8u;
+  invalid_static_integer_layouts[static_integer_standard_base].alignment =
+      8u;
+  if (!expect_static_long_double_integer_mutation_rejected(
+          job, &invalid_static_integer_unit, &static_integer_unit,
+          "static primitive chain with uniformly forged alignment",
+          "static primitive chain-alignment recovery")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(invalid_static_integer_layouts,
+               static_integer_unit.layout.types,
+               (size_t)static_integer_unit.layout.type_count *
+                   sizeof(*invalid_static_integer_layouts));
+  invalid_static_integer_layouts[static_integer_signed_enum_declared_type]
+      .alignment = 8u;
+  invalid_static_integer_layouts[static_integer_signed_enum_base].alignment =
+      8u;
+  invalid_static_integer_layouts[static_integer_signed_enum_compatible_type]
+      .alignment = 8u;
+  invalid_static_integer_layouts[static_integer_signed_enum_compatible_base]
+      .alignment = 8u;
+  if (!expect_static_long_double_integer_mutation_rejected(
+          job, &invalid_static_integer_unit, &static_integer_unit,
+          "static enum chain with uniformly forged alignment",
+          "static enum chain-alignment recovery") ||
+      !expect_ir_success_preserves_unit(
+          job, &atomic_integer_unit,
+          "nonzero static atomic integer recovery after mutations")) {
     goto cleanup;
   }
   long_double_file_one =
@@ -29842,6 +30910,8 @@ static int run_floating_transport(const char *host_root) {
       &long_double_unit, "long_double_file_positive_zero");
   static_double_high_bits_guard = find_object_initializer(
       &long_double_unit, "static_double_high_bits_guard");
+  static_narrow_integer_guard = find_object_initializer(
+      &long_double_unit, "static_narrow_integer_guard");
   long_double_file_array = find_object_initializer(
       &long_double_unit, "long_double_file_array");
   long_double_file_record = find_object_initializer(
@@ -29874,6 +30944,12 @@ static int run_floating_transport(const char *host_root) {
           ? long_double_unit.block_bindings[long_double_block_binding]
                 .initializer
           : CTOOL_C_AST_NONE;
+  static_integer_guard = find_initializer_child(
+      &long_double_unit, long_double_file_record, 1u);
+  double_type = find_plain_type_kind(
+      &long_double_unit, CTOOL_C_TYPE_DOUBLE);
+  long_double_type = find_plain_type_kind(
+      &long_double_unit, CTOOL_C_TYPE_LONG_DOUBLE);
   if (!static_floating_initializer_matches(
           &long_double_unit, long_double_file_one,
           0x8000000000000000ull, 0x3fffu) ||
@@ -29888,6 +30964,8 @@ static int run_floating_transport(const char *host_root) {
       !static_floating_initializer_matches(
           &long_double_unit, static_double_high_bits_guard,
           0x3ff0000000000000ull, 0u) ||
+      !static_integer_initializer_matches(
+          &long_double_unit, static_narrow_integer_guard, 7ull) ||
       !static_floating_initializer_matches(
           &long_double_unit,
           find_initializer_child(
@@ -29942,7 +31020,10 @@ static int run_floating_transport(const char *host_root) {
           &long_double_unit,
           find_initializer_child(
               &long_double_unit, long_double_block_record, 2u),
-          0x8000000000000000ull, 0x3fffu)) {
+          0x8000000000000000ull, 0x3fffu) ||
+      static_integer_guard >= long_double_unit.initializer_count ||
+      double_type == CTOOL_C_TYPE_NONE ||
+      long_double_type == CTOOL_C_TYPE_NONE) {
     (void)fprintf(stderr, "long double static initializer metadata differs\n");
     goto cleanup;
   }
@@ -30048,24 +31129,140 @@ static int run_floating_transport(const char *host_root) {
           "static long double high-metadata recovery")) {
     goto cleanup;
   }
-  index = find_initializer_child(
-      &long_double_unit, long_double_file_record, 1u);
-  if (index >= long_double_unit.initializer_count) {
-    goto cleanup;
-  }
+
   (void)memcpy(
       invalid_initializers, long_double_unit.initializers,
       (size_t)long_double_unit.initializer_count *
           sizeof(*invalid_initializers));
-  invalid_initializers[index].floating_high_bits = 0x8000u;
+  invalid_initializers[static_integer_guard].type = double_type;
   if (!expect_ir_failure_preserves_unit(
           job, &invalid_unit, CTOOL_ERR_INPUT,
           CTOOL_C_IR_DIAG_INVALID_UNIT,
           "CupidC IR lowering received an invalid translation unit",
-          "static integer initializer with forged floating high bits") ||
+          "ordinary integer initializer with double destination type") ||
       !expect_ir_success_preserves_unit(
           job, &long_double_unit,
-          "static nonfloating high-bit metadata recovery")) {
+          "ordinary integer double-type recovery")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(
+      invalid_initializers, long_double_unit.initializers,
+      (size_t)long_double_unit.initializer_count *
+          sizeof(*invalid_initializers));
+  invalid_initializers[static_integer_guard].type = long_double_type;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "ordinary integer initializer with long double destination type") ||
+      !expect_ir_success_preserves_unit(
+          job, &long_double_unit,
+          "ordinary integer long-double-type recovery")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(
+      invalid_initializers, long_double_unit.initializers,
+      (size_t)long_double_unit.initializer_count *
+          sizeof(*invalid_initializers));
+  invalid_initializers[static_narrow_integer_guard].integer_bits |=
+      0x100ull;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "ordinary narrow integer initializer with out-of-width bits") ||
+      !expect_ir_success_preserves_unit(
+          job, &long_double_unit,
+          "ordinary narrow integer width recovery")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(
+      invalid_initializers, long_double_unit.initializers,
+      (size_t)long_double_unit.initializer_count *
+          sizeof(*invalid_initializers));
+  invalid_initializers[static_integer_guard].floating_high_bits = 0x8000u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "ordinary integer initializer with forged floating high bits") ||
+      !expect_ir_success_preserves_unit(
+          job, &long_double_unit,
+          "ordinary integer floating-high-bits recovery")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(
+      invalid_initializers, long_double_unit.initializers,
+      (size_t)long_double_unit.initializer_count *
+          sizeof(*invalid_initializers));
+  invalid_initializers[static_integer_guard].expression = 0u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "ordinary integer initializer with expression metadata") ||
+      !expect_ir_success_preserves_unit(
+          job, &long_double_unit,
+          "ordinary integer expression-metadata recovery")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(
+      invalid_initializers, long_double_unit.initializers,
+      (size_t)long_double_unit.initializer_count *
+          sizeof(*invalid_initializers));
+  invalid_initializers[static_integer_guard].string_bytes.data =
+      (const ctool_u8 *)source;
+  invalid_initializers[static_integer_guard].string_bytes.size = 1u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "ordinary integer initializer with string metadata") ||
+      !expect_ir_success_preserves_unit(
+          job, &long_double_unit,
+          "ordinary integer string-metadata recovery")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(
+      invalid_initializers, long_double_unit.initializers,
+      (size_t)long_double_unit.initializer_count *
+          sizeof(*invalid_initializers));
+  invalid_initializers[static_integer_guard].address_kind =
+      CTOOL_C_INITIALIZER_ADDRESS_BINDING;
+  invalid_initializers[static_integer_guard].address_reference =
+      find_binding(&long_double_unit, "long_double_file_one");
+  invalid_initializers[static_integer_guard].address_addend = 1;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "ordinary integer initializer with address metadata") ||
+      !expect_ir_success_preserves_unit(
+          job, &long_double_unit,
+          "ordinary integer address-metadata recovery")) {
+    goto cleanup;
+  }
+
+  (void)memcpy(
+      invalid_initializers, long_double_unit.initializers,
+      (size_t)long_double_unit.initializer_count *
+          sizeof(*invalid_initializers));
+  invalid_initializers[static_integer_guard].first_element = 0u;
+  invalid_initializers[static_integer_guard].element_count = 1u;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "ordinary integer initializer with list metadata") ||
+      !expect_ir_success_preserves_unit(
+          job, &long_double_unit,
+          "ordinary integer list-metadata recovery")) {
     goto cleanup;
   }
   unit_hash = unit_fingerprint(&unit);
@@ -30195,6 +31392,9 @@ static int run_floating_transport(const char *host_root) {
   passed = 1;
 
 cleanup:
+  free(invalid_static_integer_layouts);
+  free(invalid_static_integer_types);
+  free(invalid_static_integer_initializers);
   free(invalid_initializers);
   free(invalid_promotion_expressions);
   free(invalid_types);

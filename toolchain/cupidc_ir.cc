@@ -9598,6 +9598,276 @@ static ctool_bool cir_static_long_double_payload_is_valid(
   return CTOOL_TRUE;
 }
 
+static ctool_bool cir_static_integer_representation_matches(
+    const ctool_c_type_layout_t *left,
+    const ctool_c_type_layout_t *right) {
+  return left->size == right->size &&
+                 left->is_complete_object == right->is_complete_object &&
+                 left->is_object == right->is_object &&
+                 left->is_integer == right->is_integer &&
+                 left->is_signed == right->is_signed
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
+static ctool_bool cir_static_integer_wrapper_alignment_is_valid(
+    const cir_context_t *context, ctool_u32 type, ctool_u32 base,
+    ctool_u32 atomic_alignment) {
+  ctool_u32 atomic_nodes = 0u;
+  ctool_u32 scan = type;
+  ctool_u32 traversed = 0u;
+  for (;;) {
+    const ctool_c_type_node_t *node;
+    if (scan >= context->unit->graph.type_count ||
+        scan >= context->unit->layout.type_count) {
+      return CTOOL_FALSE;
+    }
+    node = &context->unit->graph.types[scan];
+    if ((node->qualifiers & CTOOL_C_QUAL_ATOMIC) != 0u) {
+      atomic_nodes++;
+    }
+    if (scan == base) {
+      break;
+    }
+    if ((node->kind != CTOOL_C_TYPE_ALIGNED &&
+         node->kind != CTOOL_C_TYPE_QUALIFIED) ||
+        node->referenced_type >= context->unit->graph.type_count ||
+        node->referenced_type >= context->unit->layout.type_count ||
+        traversed++ >= context->unit->graph.type_count) {
+      return CTOOL_FALSE;
+    }
+    scan = node->referenced_type;
+  }
+  traversed = 0u;
+  while (type != base) {
+    const ctool_c_type_layout_t *layout;
+    const ctool_c_type_layout_t *referenced_layout;
+    const ctool_c_type_node_t *node;
+    ctool_u32 expected_alignment;
+    ctool_bool introduces_atomic;
+    if (type >= context->unit->graph.type_count ||
+        type >= context->unit->layout.type_count) {
+      return CTOOL_FALSE;
+    }
+    node = &context->unit->graph.types[type];
+    if ((node->kind != CTOOL_C_TYPE_ALIGNED &&
+         node->kind != CTOOL_C_TYPE_QUALIFIED) ||
+        node->referenced_type >= context->unit->graph.type_count ||
+        node->referenced_type >= context->unit->layout.type_count) {
+      return CTOOL_FALSE;
+    }
+    layout = &context->unit->layout.types[type];
+    referenced_layout =
+        &context->unit->layout.types[node->referenced_type];
+    if (cir_static_integer_representation_matches(
+            layout, referenced_layout) == CTOOL_FALSE) {
+      return CTOOL_FALSE;
+    }
+    if ((node->qualifiers & CTOOL_C_QUAL_ATOMIC) != 0u) {
+      if (atomic_nodes == 0u) {
+        return CTOOL_FALSE;
+      }
+      atomic_nodes--;
+    }
+    introduces_atomic =
+        (node->qualifiers & CTOOL_C_QUAL_ATOMIC) != 0u &&
+                atomic_nodes == 0u
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
+    if (node->kind == CTOOL_C_TYPE_ALIGNED) {
+      if (node->explicit_alignment == 0u ||
+          (node->explicit_alignment &
+           (node->explicit_alignment - 1u)) != 0u) {
+        return CTOOL_FALSE;
+      }
+      expected_alignment = node->explicit_alignment;
+    } else {
+      expected_alignment = referenced_layout->alignment;
+    }
+    if (introduces_atomic == CTOOL_TRUE &&
+        atomic_alignment > expected_alignment) {
+      expected_alignment = atomic_alignment;
+    }
+    if (layout->alignment != expected_alignment) {
+      return CTOOL_FALSE;
+    }
+    type = node->referenced_type;
+    if (traversed++ >= context->unit->graph.type_count) {
+      return CTOOL_FALSE;
+    }
+  }
+  return CTOOL_TRUE;
+}
+
+static ctool_bool cir_static_standard_integer_width(
+    const cir_context_t *context, ctool_u32 type,
+    ctool_u32 *width_out) {
+  const ctool_c_type_layout_t *base_layout;
+  const ctool_c_type_layout_t *layout;
+  const ctool_c_type_node_t *integer;
+  ctool_u32 base;
+  ctool_u32 qualifiers;
+  ctool_u32 alignment;
+  ctool_u32 atomic_alignment;
+  ctool_u32 base_alignment;
+  ctool_u32 size;
+  ctool_bool signed_value;
+  if (type >= context->unit->layout.type_count ||
+      cir_underlying_type(
+          context, type, &base, &qualifiers, &integer) == CTOOL_FALSE ||
+      base >= context->unit->layout.type_count) {
+    return CTOOL_FALSE;
+  }
+  (void)qualifiers;
+  switch (integer->kind) {
+  case CTOOL_C_TYPE_BOOL:
+    size = 1u;
+    alignment = 1u;
+    signed_value = CTOOL_FALSE;
+    break;
+  case CTOOL_C_TYPE_CHAR:
+  case CTOOL_C_TYPE_SIGNED_CHAR:
+    size = 1u;
+    alignment = 1u;
+    signed_value = CTOOL_TRUE;
+    break;
+  case CTOOL_C_TYPE_UNSIGNED_CHAR:
+    size = 1u;
+    alignment = 1u;
+    signed_value = CTOOL_FALSE;
+    break;
+  case CTOOL_C_TYPE_SIGNED_SHORT:
+    size = 2u;
+    alignment = 2u;
+    signed_value = CTOOL_TRUE;
+    break;
+  case CTOOL_C_TYPE_UNSIGNED_SHORT:
+    size = 2u;
+    alignment = 2u;
+    signed_value = CTOOL_FALSE;
+    break;
+  case CTOOL_C_TYPE_SIGNED_INT:
+  case CTOOL_C_TYPE_SIGNED_LONG:
+    size = 4u;
+    alignment = 4u;
+    signed_value = CTOOL_TRUE;
+    break;
+  case CTOOL_C_TYPE_UNSIGNED_INT:
+  case CTOOL_C_TYPE_UNSIGNED_LONG:
+    size = 4u;
+    alignment = 4u;
+    signed_value = CTOOL_FALSE;
+    break;
+  case CTOOL_C_TYPE_SIGNED_LONG_LONG:
+    size = 8u;
+    alignment = 4u;
+    signed_value = CTOOL_TRUE;
+    break;
+  case CTOOL_C_TYPE_UNSIGNED_LONG_LONG:
+    size = 8u;
+    alignment = 4u;
+    signed_value = CTOOL_FALSE;
+    break;
+  default:
+    return CTOOL_FALSE;
+  }
+  layout = &context->unit->layout.types[type];
+  base_layout = &context->unit->layout.types[base];
+  atomic_alignment = size == 8u ? 8u : alignment;
+  base_alignment = alignment;
+  if ((integer->qualifiers & CTOOL_C_QUAL_ATOMIC) != 0u &&
+      atomic_alignment > base_alignment) {
+    base_alignment = atomic_alignment;
+  }
+  if (cir_type_is_value_integer(context, type) == CTOOL_FALSE ||
+      cir_type_is_value_integer(context, base) == CTOOL_FALSE ||
+      cir_static_integer_representation_matches(
+          layout, base_layout) == CTOOL_FALSE ||
+      base_layout->size != size ||
+      base_layout->alignment != base_alignment ||
+      base_layout->is_signed != signed_value ||
+      cir_static_integer_wrapper_alignment_is_valid(
+          context, type, base, atomic_alignment) == CTOOL_FALSE) {
+    return CTOOL_FALSE;
+  }
+  *width_out = integer->kind == CTOOL_C_TYPE_BOOL ? 1u : size * 8u;
+  return CTOOL_TRUE;
+}
+
+static ctool_bool cir_static_integer_initializer_is_valid(
+    const cir_context_t *context,
+    const ctool_c_initializer_t *initializer) {
+  const ctool_c_type_layout_t *base_layout;
+  const ctool_c_type_layout_t *compatible_layout;
+  const ctool_c_type_layout_t *layout;
+  const ctool_c_type_node_t *integer;
+  ctool_u32 base;
+  ctool_u32 qualifiers;
+  ctool_u32 atomic_alignment;
+  ctool_u32 base_alignment;
+  ctool_u32 width;
+  ctool_u64 mask;
+  if (initializer->kind != CTOOL_C_INITIALIZER_INTEGER ||
+      initializer->type >= context->unit->layout.type_count ||
+      cir_underlying_type(
+          context, initializer->type, &base, &qualifiers,
+          &integer) == CTOOL_FALSE ||
+      base >= context->unit->layout.type_count) {
+    return CTOOL_FALSE;
+  }
+  (void)qualifiers;
+  layout = &context->unit->layout.types[initializer->type];
+  if (integer->kind == CTOOL_C_TYPE_ENUM) {
+    if (integer->referenced_type >= context->unit->layout.type_count ||
+        cir_static_standard_integer_width(
+            context, integer->referenced_type, &width) == CTOOL_FALSE ||
+        cir_type_is_value_integer(
+            context, initializer->type) == CTOOL_FALSE ||
+        cir_type_is_value_integer(context, base) == CTOOL_FALSE) {
+      return CTOOL_FALSE;
+    }
+    base_layout = &context->unit->layout.types[base];
+    compatible_layout =
+        &context->unit->layout.types[integer->referenced_type];
+    atomic_alignment = width == 64u
+                           ? 8u
+                           : compatible_layout->alignment;
+    base_alignment = compatible_layout->alignment;
+    if ((integer->qualifiers & CTOOL_C_QUAL_ATOMIC) != 0u &&
+        atomic_alignment > base_alignment) {
+      base_alignment = atomic_alignment;
+    }
+    if (cir_static_integer_representation_matches(
+            layout, base_layout) == CTOOL_FALSE ||
+        cir_static_integer_representation_matches(
+            base_layout, compatible_layout) == CTOOL_FALSE ||
+        base_layout->alignment != base_alignment ||
+        cir_static_integer_wrapper_alignment_is_valid(
+            context, initializer->type, base,
+            atomic_alignment) == CTOOL_FALSE) {
+      return CTOOL_FALSE;
+    }
+  } else if (cir_static_standard_integer_width(
+                 context, initializer->type, &width) == CTOOL_FALSE) {
+    return CTOOL_FALSE;
+  }
+  mask = width == 64u ? ~(ctool_u64)0u
+                      : ((ctool_u64)1u << width) - 1u;
+  return initializer->expression == CTOOL_C_AST_NONE &&
+                 (initializer->integer_bits & ~mask) == 0ull &&
+                 initializer->floating_high_bits == 0u &&
+                 initializer->string_bytes.data == (const ctool_u8 *)0 &&
+                 initializer->string_bytes.size == 0u &&
+                 initializer->address_kind ==
+                     CTOOL_C_INITIALIZER_ADDRESS_NONE &&
+                 initializer->address_reference == CTOOL_C_AST_NONE &&
+                 initializer->address_addend == 0 &&
+                 initializer->first_element == CTOOL_C_AST_NONE &&
+                 initializer->element_count == 0u
+             ? CTOOL_TRUE
+             : CTOOL_FALSE;
+}
+
 static ctool_bool cir_static_floating_initializer_is_valid(
     const cir_context_t *context,
     const ctool_c_initializer_t *initializer) {
@@ -9636,7 +9906,7 @@ static ctool_bool cir_static_floating_initializer_is_valid(
   return CTOOL_TRUE;
 }
 
-static ctool_status_t cir_validate_static_floating_initializer_forest(
+static ctool_status_t cir_validate_static_scalar_initializer_forest(
     cir_context_t *context, ctool_u32 initializer_index,
     ctool_u32 depth) {
   const ctool_c_initializer_t *initializer;
@@ -9647,8 +9917,12 @@ static ctool_status_t cir_validate_static_floating_initializer_forest(
                             (const ctool_c_pp_location_t *)0);
   }
   initializer = &context->unit->initializers[initializer_index];
-  if (initializer->kind != CTOOL_C_INITIALIZER_FLOATING &&
-      initializer->floating_high_bits != 0u) {
+  if ((initializer->kind == CTOOL_C_INITIALIZER_INTEGER &&
+       cir_static_integer_initializer_is_valid(
+           context, initializer) == CTOOL_FALSE) ||
+      (initializer->kind != CTOOL_C_INITIALIZER_INTEGER &&
+       initializer->kind != CTOOL_C_INITIALIZER_FLOATING &&
+       initializer->floating_high_bits != 0u)) {
     return cir_invalid_unit(context, &initializer->location);
   }
   if (initializer->kind == CTOOL_C_INITIALIZER_FLOATING &&
@@ -9674,7 +9948,7 @@ static ctool_status_t cir_validate_static_floating_initializer_forest(
                                    child_offset]
             .initializer;
     ctool_status_t status =
-        cir_validate_static_floating_initializer_forest(
+        cir_validate_static_scalar_initializer_forest(
             context, child, depth + 1u);
     if (status != CTOOL_OK) {
       return status;
@@ -9856,7 +10130,7 @@ static ctool_status_t cir_lower_declaration(
           initializer->kind > CTOOL_C_INITIALIZER_FLOATING) {
         return cir_invalid_unit(context, &initializer->location);
       }
-      status = cir_validate_static_floating_initializer_forest(
+      status = cir_validate_static_scalar_initializer_forest(
           context, binding->initializer, 0u);
       if (status != CTOOL_OK) {
         return status;
@@ -13199,10 +13473,14 @@ static ctool_status_t cir_validate_initializer_ownership(
     const ctool_c_initializer_t *initializer =
         &context->unit->initializers[index];
     ctool_u32 child_offset;
-    if ((initializer->kind == CTOOL_C_INITIALIZER_FLOATING &&
+    if ((initializer->kind == CTOOL_C_INITIALIZER_INTEGER &&
+         cir_static_integer_initializer_is_valid(
+             context, initializer) == CTOOL_FALSE) ||
+        (initializer->kind == CTOOL_C_INITIALIZER_FLOATING &&
          cir_static_floating_initializer_is_valid(
              context, initializer) == CTOOL_FALSE) ||
-        (initializer->kind != CTOOL_C_INITIALIZER_FLOATING &&
+        (initializer->kind != CTOOL_C_INITIALIZER_INTEGER &&
+         initializer->kind != CTOOL_C_INITIALIZER_FLOATING &&
          initializer->floating_high_bits != 0u)) {
       invalid_location = &initializer->location;
       valid = CTOOL_FALSE;
@@ -13257,7 +13535,7 @@ static ctool_status_t cir_validate_initializer_ownership(
       valid = CTOOL_FALSE;
     } else {
       owners[root] = 1u;
-      status = cir_validate_static_floating_initializer_forest(
+      status = cir_validate_static_scalar_initializer_forest(
           context, root, 0u);
     }
   }

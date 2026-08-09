@@ -54,16 +54,17 @@ comparison uses `double`; only `!=` is true for an unordered NaN input. ADR
 Non-atomic `long double` values now use twelve-byte target objects. Automatic
 values use frame snapshots. Static-duration scalars, fixed arrays, and
 complete records may contain long-double leaves. Implicit initialization
-zeros the complete object. An explicit leaf accepts an integer constant
-expression equal to zero or a bounded decimal `L` literal with parentheses
+zeros the complete object. An explicit leaf accepts a represented integer
+constant expression or a bounded decimal `L` literal with parentheses
 and unary signs. The emitter writes the ten exact x87 value bytes, clears the
 two padding bytes, and selects `.bss`, `.data`, or `.rodata` from the payload
 and qualifiers. Atomic leaves fail recursively without following pointers. Bounded finite
-normal decimal `L` tokens round an exact ratio to a 64-bit explicit
-significand with ties to even. The emitter writes that significand and the
-16-bit sign and exponent into a twelve-byte snapshot. The value-bearing ten bytes move through x87 80-bit `FLD`
-and `FSTP` memory forms in Cupid's shared x86
-catalogue. The hosted path converts among
+and qualifiers. Atomic leaves fail recursively without following pointers.
+Bounded finite normal decimal `L` tokens round an exact ratio to a 64-bit
+explicit significand with ties to even. The emitter writes that significand
+and the 16-bit sign and exponent into a twelve-byte snapshot. The ten value
+bytes move through x87 80-bit `FLD` and `FSTP` memory forms in Cupid's shared
+x86 catalogue. The hosted path converts among
 `float`, `double`, and `long double`, applies unary plus and minus, and
 evaluates addition, subtraction, multiplication, and division. Direct and
 indirect fixed, variadic, and unprototyped arguments occupy twelve cdecl
@@ -78,17 +79,29 @@ between `long double` and signed or unsigned integers at 8, 16, 32, and
 64 bits. The integer-output path restores the x87 control word after
 truncation toward zero. Unsigned 64-bit corrections temporarily select
 64-bit x87 precision, preserve the caller's rounding mode, and restore the
-complete saved word before the final store. Hexadecimal or subnormal long-double literals, decimal
-ratios beyond the bounded parser, static long-double arithmetic, comparison,
-truth, conditional selection, width conversion, integer conversion, and
-nonzero integer static initializers remain open.
+complete saved word before the final store. Static initializer conversion
+covers `_Bool`, plain `char`, every signed or unsigned i386 integer width, and
+an enum whose compatible integer type has the represented target layout. For
+a nonzero magnitude `M` with bit width `w`, the x87 significand is
+`M << (64 - w)`. The high word is
+`(negative ? 0x8000 : 0) | (0x3fff + w - 1)`. The reverse path truncates the
+decoded significand toward zero before the range check for integer
+destinations other than `_Bool`. `_Bool` tests the original floating value:
+both signed zeros become false, and every represented finite nonzero value
+becomes true. The fixture converts `-0.5L` to both targets, producing true for
+`_Bool` and zero for an unsigned integer. Integer zero keeps `ZERO`
+metadata. Hexadecimal or subnormal long-double literals, decimal ratios beyond
+the bounded parser, static long-double arithmetic, comparison, truth and
+logical operators, conditional selection, and width conversion remain open.
 
 The static scalar and aggregate proofs cover both scopes, mutable and const
 objects, positive and negative values, both signed zeros, the largest accepted
 bounded literal, exact section placement, symbols, padding, malformed
 metadata, recovery, and deterministic repeated emission. The hosted i386
-runtime reads the three target words for every payload. ADR 0251 records this
-static-data boundary.
+runtime reads the three target words for every literal payload. The conversion
+fixture covers every integer kind, signed and unsigned enums, both signed
+64-bit endpoints, `ULLONG_MAX`, and both results of `-0.5L`. ADR 0251 records
+the static-data boundary, and ADR 0254 records conversion.
 
 The checked i386 Linux seed at ADR 0138 carries static floating constant data
 and this complete comparison path.
@@ -254,14 +267,14 @@ baseline JPEG. ADR 0139 records the production transfer.
 
 Runtime `float`, `double`, and automatic `long double` values work with unary
 `!`, `&&`, `||`, the controlling operand of `?:`, the conditions of `if`,
-`while`, `do`, and `for`, and conversion to `_Bool`. Both signed zeros are false; finite nonzero values,
-subnormals, infinities, and NaNs are true. Increment or decrement,
+`while`, `do`, and `for`, and conversion to `_Bool`. Both signed zeros are
+false; finite nonzero values, subnormals, infinities, and NaNs are true.
+Increment or decrement,
 hexadecimal floating constants, binary32 and binary64 subnormal constants,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
-bounded parser, static long-double computation, width conversion, and integer
-conversion, nonzero integer static initializers, general SIMD value semantics,
-and atomic
-floating access remain unsupported. Twelve-byte direct
+bounded parser, static long-double arithmetic, comparison, truth and logical
+operators, conditional selection, width conversion, general SIMD value
+semantics, and atomic floating access remain unsupported. Twelve-byte direct
 and indirect fixed, variadic, and unprototyped arguments, function returns,
 direct and indirect call results, and `va_arg(long double)` use the represented
 automatic `long double` path. The exact production SIMD assembly forms above

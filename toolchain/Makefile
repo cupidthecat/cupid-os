@@ -339,16 +339,19 @@ $(BUILD_DIR)/cupidc_type_contract.o: tests/cupidc_type_contract.cc \
 
 $(BUILD_DIR)/cupidc_frontend_contract.o: \
     tests/cupidc_frontend_contract.cc $(CUPIDC_PP_ACTIVE_CASES) \
+    tests/cupidc_static_long_double_integer_fixture.h \
     cupidc_frontend.h cupidc_type.h cupidc_pp.h ctool.h ctool_host.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
 $(BUILD_DIR)/cupidc_ir_contract.o: tests/cupidc_ir_contract.cc \
+    tests/cupidc_static_long_double_integer_fixture.h \
     cupidc_ir.h cupidc_frontend.h cupidc_type.h cupidc_pp.h \
     ctool.h ctool_host.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
 $(BUILD_DIR)/cupidc_object_contract.o: tests/cupidc_object_contract.cc \
     tests/cupidc_kernel_simd_fixture.h \
+    tests/cupidc_static_long_double_integer_fixture.h \
     cupidc_emit.h cupidc_ir.h cupidc_frontend.h cupidc_type.h cupidc_pp.h \
     cupidasm.h cupidld.h elf32.h x86.h ctool.h ctool_host.h \
     $(CUPIDC_HOSTED_I386_HEADERS) | $(BUILD_DIR)

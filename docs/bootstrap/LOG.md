@@ -22765,3 +22765,151 @@ seed promotion. No production source changes owner, so no `.c` to `.cc`
 rename is due. Issue #25 remains open for static long-double computation and
 conversion, mixed integer and floating operations, the remaining C11 gaps,
 and staged self-hosting. `TempleOS/` remains untouched reference material.
+
+## 2026-08-09: Convert static integers and `long double`
+
+### Decision and implementation
+
+Compiler-head CupidC now converts static initializer values between bounded
+finite `long double` and every represented value integer type. The integer
+side covers `_Bool`, plain `char`, signed and unsigned 8, 16, 32, and 64-bit
+types, plus an enum whose compatible integer type has one of those target
+layouts. The result keeps its exact destination type, enum identity, and
+qualifiers. Atomic destinations and atomic long-double sources still fail at
+this boundary.
+
+Integer-to-long-double conversion packs the i386 x87 payload directly. For a
+nonzero magnitude `M`, let `w = floor(log2(M)) + 1`. The explicit 64-bit
+significand is `M << (64 - w)`. The high word is
+`(negative ? 0x8000 : 0) | (0x3fff + w - 1)`. This is exact for every
+represented integer because the target significand has 64 bits. An
+integer-valued zero keeps `CTOOL_C_INITIALIZER_ZERO`; the outer assignment
+conversion does not replace it with a floating initializer.
+
+Long-double-to-integer conversion decodes the stored x87 payload without host
+floating arithmetic. Zero remains zero. For a finite normal value, the
+unbiased exponent is `E = (high & 0x7fff) - 0x3fff`, and `S` is the explicit
+64-bit significand. A negative `E` gives integral magnitude zero. Otherwise,
+`scale = E - 63`; a nonnegative scale uses a checked `S << scale`, while a
+negative scale uses `S >> -scale`. The shift discards the fractional part
+toward zero.
+
+For integer destinations other than `_Bool`, range checks happen after
+truncation. A signed `N`-bit destination accepts a positive magnitude through
+`2^(N - 1) - 1` and a negative magnitude through `2^(N - 1)`. An unsigned
+destination accepts a magnitude through `2^N - 1`. A negative source is valid
+for an unsigned destination only when truncation produces zero, so `-0.5L`
+becomes unsigned zero and `-1.0L` is out of range. `_Bool` tests the original
+floating value instead: both signed zeros are false, and every represented
+finite nonzero value is true.
+
+Linear IR now validates every static `CTOOL_C_INITIALIZER_INTEGER` leaf. After
+unwrapping the declared type to its base, both wrapper and base must be
+represented value integers with matching size, signedness, integer, object,
+and completeness flags. A primitive base must have a recognized standard
+integer kind with Cupid's canonical target size, signedness, and alignment.
+An enum's compatible type must also have a recognized standard integer kind.
+The enum, its unwrapped base, and its compatible type must agree on size,
+signedness, integer, object, and completeness flags, as well as alignment. A
+`QUALIFIED` node copies the referenced alignment unless it introduces
+`_Atomic`. An atomic introduction raises the result to at least the target
+atomic alignment. An
+`ALIGNED` node requires an explicit, nonzero power-of-two alignment and may
+lower the referenced alignment. The atomic minimum still applies when an
+aligned node introduces `_Atomic`. `_Bool` has one payload bit; every other
+accepted integer uses the full width fixed by its primitive or enum compatible
+kind. The stored bits must fit that width, the high word must be zero, and
+expression, string, address, and list metadata must be absent.
+The validator runs during whole-unit initializer ownership checks and
+block-static declaration lowering. A forged unit therefore fails before
+object emission. The object emitter needed no production change because the
+converted leaves reuse the existing exact integer and x87 writers.
+
+One shared fixture supplies 38 initializer nodes and 34 aggregate or
+block-static edges to the frontend, Linear IR, and object contracts. It covers
+both directions across all represented integer kinds. Endpoint leaves include
+`LLONG_MIN`, `LLONG_MAX`, `ULLONG_MAX`, `2^63` stored in an unsigned 64-bit
+object, both signed zeros, and two conversions of `-0.5L`. The negative fractional
+value becomes one for `_Bool` and zero for an unsigned integer. This pair proves
+that Boolean truth is tested before numeric truncation. The object contract
+checks exact little-endian bytes, x87 padding, section and symbol placement,
+repeat determinism, forged metadata rejection, and same-job recovery.
+
+### Failed runs and corrections
+
+The first focused frontend run stopped at the old diagnostic that allowed
+only an integer zero in a static long-double initializer. Once conversion was
+implemented, the fixture exposed two contract mistakes: each declaration
+statement owns its block static, while the enclosing function owns none, and
+an outer integer zero must remain a `ZERO` initializer. The contract also
+dropped an invalid negative for a qualified integer rvalue, replaced an
+unreachable unsigned overflow case with a reachable lower-bound case, and
+added `LLONG_MAX` and `-0.5L` endpoint leaves. Direct oversized decimal tokens
+stop at the bounded literal parser before conversion. The final positive
+64-bit overflow case multiplies two supported exact binary64 operands to form
+`2^64`, then reaches the destination range guard and recovers in the same job.
+
+The first focused Linear IR hardening run accepted a forged integer
+initializer whose destination was `double`. The shared integer-leaf validator
+closed that gap. An independent review then found that a forged primitive could
+claim integer layout while naming a noninteger kind, and that forged enum
+metadata could name the wrong compatible kind or representation. The hardened
+target-kind and representation checks closed that second hole. An earlier
+failing object run showed that forged integer metadata also needed rejection
+at the frozen-unit boundary. After the two endpoint leaves were added, the
+object fixture failed only because its isolated node and edge locks still
+described the smaller graph. Updating the exact locks restored the intended
+proof.
+
+A later review found that the representation validator still trusted forged
+alignment metadata. The final check now distinguishes ordinary qualification,
+explicit alignment, and atomic strengthening. Focused IR coverage includes
+explicit lowered alignment, explicit raised alignment, and atomic
+qualification that raises an eight-byte integer's four-byte base alignment to
+eight. The shared conversion fixture gained `-0.5L` and positive-zero Boolean
+leaves. Its exact locks now cover 38 initializer nodes and 34 aggregate or
+block-static edges.
+
+The complete 109-test object module passed in 937.324 seconds before the
+positive-zero leaf was added. That run remains useful baseline evidence, but
+it is not the final object proof for the 38-node fixture.
+
+A broader object run found one stale expectation. The static-definitions
+contract still expected the object-emission invalid-unit diagnostic for an
+invalid initializer type, but the hardened validator rejects that unit earlier
+with the IR-lowering invalid-unit diagnostic. The expectation was corrected
+before the final focused conversion checks.
+
+### Current boundary
+
+Static long-double arithmetic, comparison, truth and logical operators,
+conditional selection, and floating-width conversion remain unsupported.
+General static truth is still outside the boundary even though an explicit
+conversion to `_Bool` works. Hexadecimal and subnormal long-double constants,
+decimal ratios beyond the bounded parser, and atomic static conversion also
+remain open.
+
+The checked seed predates this capability, so production source cannot depend
+on it before a later verified seed promotion. No production source changes
+owner, and no `.c` to `.cc` rename is due. Issue #25 remains open. ADR 0254
+records the representation and validation rules.
+
+### Test evidence
+
+Executed on native Windows PowerShell. These checks use the final alignment
+and signed-zero fixture. The failed earlier object-module run is documented
+above.
+
+| Check | Result |
+| --- | --- |
+| Focused frontend static integer and long-double fixture | PASS: 1 test in 8.634 seconds of runner time. |
+| Focused Linear IR static integer and long-double fixture | PASS: 1 test in 10.789 seconds of runner time. |
+| Focused object static integer and long-double fixture | PASS: 1 test in 17.985 seconds of runner time. |
+| Complete frontend module | PASS: all 95 tests in 11.283 seconds of runner time and 11.434 seconds of wall time. |
+| Complete Linear IR module | PASS: all 83 tests in 11.891 seconds of runner time and 12.042 seconds of wall time. |
+| Complete object module | PASS: all 109 tests in 940.772 seconds of runner time and 940.957 seconds of wall time. |
+| Active-source audit regeneration | PASS in 60.616 seconds. The digest is `d155b419543faec5944ce066c1a29bdc614fe11d05f21871e9b246450d3b9e45`; the audit records 722 active inputs, 25 accounted unreachable files, 447 transforms, 255 requirements, and 81,455 occurrences across 12 C control features. |
+| Active-source audit stale check | PASS in 60.939 seconds. The Toolchain contract cohort contains 18 files and 152,542 checked-source lines; Toolchain core contains 33 files and 86,901 lines. |
+| Complete Toolchain proof | PASS in 2,916.145 seconds. Checked-seed bootstrap, stage two, stage three, byte identity, the hosted runtime, frozen-input verification, and publication and verification of 20 artifacts all passed. |
+| Normal OS build | PASS in 1,541.610 seconds. CupidASM, CupidC, CupidLD, and CupidObj produced the boot sector, kernel, deterministic ISO, and 200 MB disk image. |
+| Four-CPU e1000 boot smoke | PASS in 67.357 seconds. RDRAND, four online CPUs, all 62 TLS checks, the FPU smoke, e1000, and the ordered feature13 compile, PASS, and JIT completion markers were present. The 34,907-byte log has SHA-256 `9dbec1c15604ce90e3760002ab2c1e23c642a51b398e9b1a28db2a26f99bbcab`. |

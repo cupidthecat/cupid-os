@@ -5,6 +5,7 @@
 #include "cupidc_frontend.h"
 #include "cupidc_ir.h"
 #include "cupidc_pp.h"
+#include "cupidc_static_long_double_integer_fixture.h"
 #include "cupidld.h"
 #include "elf32.h"
 #include "x86.h"
@@ -1983,6 +1984,44 @@ static int expect_object_success_preserves_unit(
   }
   dispose_unit_snapshot(&snapshot);
   return matches;
+}
+
+static int expect_integer_initializer_rejection_and_recovery(
+    ctool_job_t *job, const ctool_c_translation_unit_t *forged_unit,
+    const ctool_c_translation_unit_t *valid_unit, ctool_buffer_t *scratch,
+    ctool_bytes_t expected, const char *context, int *validation_red) {
+  ctool_bytes_t recovered;
+  int rejected;
+  ctool_u32 attempt;
+  if (validation_red == NULL) {
+    return 0;
+  }
+  for (attempt = 0u; attempt < 2u; attempt++) {
+    rejected = expect_object_failure_preserves_unit(
+        job, forged_unit, scratch, CTOOL_ERR_INPUT,
+        CTOOL_C_IR_DIAG_INVALID_UNIT,
+        "CupidC IR lowering received an invalid translation unit", context);
+    if (rejected == 0) {
+      *validation_red = 1;
+    }
+    if (ctool_buffer_rewind(scratch, 0u) != CTOOL_OK ||
+        !expect_object_success_preserves_unit(
+            job, valid_unit, scratch,
+            "ordinary INTEGER initializer recovery")) {
+      return 0;
+    }
+    recovered = ctool_buffer_view(scratch);
+    if (recovered.size != expected.size ||
+        memcmp(recovered.data, expected.data,
+               (size_t)expected.size) != 0) {
+      (void)fprintf(stderr, "%s: recovery object differs\n", context);
+      return 0;
+    }
+    if (ctool_buffer_rewind(scratch, 0u) != CTOOL_OK) {
+      return 0;
+    }
+  }
+  return 1;
 }
 
 static int symbol_matches(const ctool_elf32_symbol_t *symbol,
@@ -6198,20 +6237,99 @@ static int validate_function_object(ctool_job_t *job,
              : 0;
 }
 
-static int validate_object(const ctool_elf32_object_t *object) {
+static int validate_nonzero_atomic_integer(
+    const ctool_c_translation_unit_t *unit) {
+  const ctool_c_binding_t *binding = NULL;
+  const ctool_c_object_definition_t *definition = NULL;
+  const ctool_c_initializer_t *initializer;
+  const ctool_c_type_node_t *type = NULL;
+  const ctool_c_type_layout_t *layout;
+  ctool_u32 qualifiers = 0u;
+  ctool_u32 type_index;
+  ctool_u32 index;
+  if (unit == NULL) {
+    return 0;
+  }
+  for (index = 0u; index < unit->binding_count; index++) {
+    if (string_equal(unit->bindings[index].name, "atomic_word") != 0) {
+      binding = &unit->bindings[index];
+      break;
+    }
+  }
+  if (binding == NULL) {
+    return 0;
+  }
+  for (index = 0u; index < unit->object_definition_count; index++) {
+    if (unit->object_definitions[index].binding ==
+        (ctool_u32)(binding - unit->bindings)) {
+      definition = &unit->object_definitions[index];
+      break;
+    }
+  }
+  if (definition == NULL || definition->declared_type != binding->type ||
+      definition->initializer >= unit->initializer_count ||
+      definition->declared_type >= unit->layout.type_count) {
+    return 0;
+  }
+  type_index = definition->declared_type;
+  for (index = 0u; index < unit->graph.type_count; index++) {
+    if (type_index >= unit->graph.type_count) {
+      return 0;
+    }
+    type = &unit->graph.types[type_index];
+    qualifiers |= type->qualifiers;
+    if (type->kind != CTOOL_C_TYPE_ALIGNED &&
+        type->kind != CTOOL_C_TYPE_QUALIFIED) {
+      break;
+    }
+    type_index = type->referenced_type;
+  }
+  if (type == NULL || type->kind != CTOOL_C_TYPE_UNSIGNED_INT ||
+      qualifiers != CTOOL_C_QUAL_ATOMIC) {
+    return 0;
+  }
+  layout = &unit->layout.types[definition->declared_type];
+  initializer = &unit->initializers[definition->initializer];
+  return layout->size == 4u && layout->alignment == 4u &&
+                 layout->is_complete_object == CTOOL_TRUE &&
+                 layout->is_object == CTOOL_TRUE &&
+                 layout->is_integer == CTOOL_TRUE &&
+                 layout->is_signed == CTOOL_FALSE &&
+                 initializer->kind == CTOOL_C_INITIALIZER_INTEGER &&
+                 initializer->type == definition->declared_type &&
+                 initializer->expression == CTOOL_C_AST_NONE &&
+                 initializer->integer_bits == 0x55667788ull &&
+                 initializer->floating_high_bits == 0u &&
+                 initializer->string_bytes.data == (const ctool_u8 *)0 &&
+                 initializer->string_bytes.size == 0u &&
+                 initializer->address_kind ==
+                     CTOOL_C_INITIALIZER_ADDRESS_NONE &&
+                 initializer->address_reference == CTOOL_C_AST_NONE &&
+                 initializer->address_addend == 0 &&
+                 initializer->first_element == CTOOL_C_AST_NONE &&
+                 initializer->element_count == 0u
+             ? 1
+             : 0;
+}
+
+static int validate_object(const ctool_c_translation_unit_t *unit,
+                           const ctool_elf32_object_t *object) {
   static const char *const section_names[] = {
       "", ".data", ".bss", ".rel.data", ".symtab", ".strtab", ".shstrtab"};
   static const char *const symbol_names[] = {
-      "",           "local_word", "hidden_zero",     "imported",
-      "callback",   "message",    "common_zero",     "imported_pointer",
-      "hook"};
+      "",         "local_word",       "atomic_word", "hidden_zero",
+      "imported", "callback",         "message",     "common_zero",
+      "imported_pointer", "hook"};
   static const ctool_u8 expected_data[] = {
-      0x44u, 0x33u, 0x22u, 0x11u, 0x6fu, 0x6bu, 0x00u, 0x00u,
-      0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u};
+      0x44u, 0x33u, 0x22u, 0x11u, 0x88u, 0x77u, 0x66u,
+      0x55u, 0x6fu, 0x6bu, 0x00u, 0x00u, 0x00u, 0x00u,
+      0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u};
   const ctool_elf32_section_t *data = find_section(object, ".data");
   const ctool_elf32_section_t *bss = find_section(object, ".bss");
   const ctool_elf32_section_t *rel_data = find_section(object, ".rel.data");
   const ctool_elf32_symbol_t *local_word = find_symbol(object, "local_word");
+  const ctool_elf32_symbol_t *atomic_word =
+      find_symbol(object, "atomic_word");
   const ctool_elf32_symbol_t *hidden_zero =
       find_symbol(object, "hidden_zero");
   const ctool_elf32_symbol_t *imported = find_symbol(object, "imported");
@@ -6227,7 +6345,7 @@ static int validate_object(const ctool_elf32_object_t *object) {
   if (object->file_type != CTOOL_ELF32_ET_REL || object->entry_point != 0u ||
       object->flags != 0u || object->program_header_count != 0u ||
       object->program_headers != (const ctool_elf32_program_header_t *)0 ||
-      object->section_count != 7u || object->symbol_count != 9u ||
+      object->section_count != 7u || object->symbol_count != 10u ||
       object->relocation_count != 2u) {
     (void)fprintf(stderr, "ELF32 object inventory differs\n");
     return 0;
@@ -6244,7 +6362,7 @@ static int validate_object(const ctool_elf32_object_t *object) {
       data == (const ctool_elf32_section_t *)0 ||
       data->type != CTOOL_ELF32_SHT_PROGBITS ||
       data->flags != (CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_WRITE) ||
-      data->alignment != 4u || data->entry_size != 0u || data->size != 16u ||
+      data->alignment != 4u || data->entry_size != 0u || data->size != 20u ||
       data->contents.size != (ctool_u32)sizeof(expected_data) ||
       memcmp(data->contents.data, expected_data, sizeof(expected_data)) != 0 ||
       data->relocation_first != 0u || data->relocation_count != 2u ||
@@ -6259,7 +6377,7 @@ static int validate_object(const ctool_elf32_object_t *object) {
     return 0;
   }
 
-  for (index = 0u; index < 9u; index++) {
+  for (index = 0u; index < 10u; index++) {
     if (object->symbols[index].file_index != index ||
         string_equal(object->symbols[index].name, symbol_names[index]) == 0) {
       (void)fprintf(stderr, "ELF32 symbol order differs at index %u\n", index);
@@ -6267,31 +6385,35 @@ static int validate_object(const ctool_elf32_object_t *object) {
     }
   }
   if (!symbol_matches(local_word, 1u, CTOOL_ELF32_BIND_LOCAL,
-                      CTOOL_ELF32_SYMBOL_OBJECT,
-                      CTOOL_ELF32_SYMBOL_DEFINED, data->file_index, 0u, 4u) ||
-      !symbol_matches(hidden_zero, 2u, CTOOL_ELF32_BIND_LOCAL,
-                      CTOOL_ELF32_SYMBOL_OBJECT,
-                      CTOOL_ELF32_SYMBOL_DEFINED, bss->file_index, 0u, 4u) ||
-      !symbol_matches(imported, 3u, CTOOL_ELF32_BIND_GLOBAL,
-                      CTOOL_ELF32_SYMBOL_OBJECT,
-                      CTOOL_ELF32_SYMBOL_UNDEFINED, CTOOL_ELF32_NO_SECTION, 0u,
-                      0u) ||
-      !symbol_matches(callback, 4u, CTOOL_ELF32_BIND_GLOBAL,
-                      CTOOL_ELF32_SYMBOL_FUNCTION,
-                      CTOOL_ELF32_SYMBOL_UNDEFINED, CTOOL_ELF32_NO_SECTION, 0u,
-                      0u) ||
-      !symbol_matches(message, 5u, CTOOL_ELF32_BIND_GLOBAL,
+                       CTOOL_ELF32_SYMBOL_OBJECT,
+                       CTOOL_ELF32_SYMBOL_DEFINED, data->file_index, 0u, 4u) ||
+      !symbol_matches(atomic_word, 2u, CTOOL_ELF32_BIND_LOCAL,
                       CTOOL_ELF32_SYMBOL_OBJECT,
                       CTOOL_ELF32_SYMBOL_DEFINED, data->file_index, 4u, 4u) ||
-      !symbol_matches(common_zero, 6u, CTOOL_ELF32_BIND_GLOBAL,
-                      CTOOL_ELF32_SYMBOL_OBJECT,
-                      CTOOL_ELF32_SYMBOL_DEFINED, bss->file_index, 4u, 4u) ||
-      !symbol_matches(imported_pointer, 7u, CTOOL_ELF32_BIND_GLOBAL,
-                      CTOOL_ELF32_SYMBOL_OBJECT,
-                      CTOOL_ELF32_SYMBOL_DEFINED, data->file_index, 8u, 4u) ||
-      !symbol_matches(hook, 8u, CTOOL_ELF32_BIND_GLOBAL,
-                      CTOOL_ELF32_SYMBOL_OBJECT,
-                      CTOOL_ELF32_SYMBOL_DEFINED, data->file_index, 12u, 4u)) {
+      !symbol_matches(hidden_zero, 3u, CTOOL_ELF32_BIND_LOCAL,
+                       CTOOL_ELF32_SYMBOL_OBJECT,
+                       CTOOL_ELF32_SYMBOL_DEFINED, bss->file_index, 0u, 4u) ||
+      !symbol_matches(imported, 4u, CTOOL_ELF32_BIND_GLOBAL,
+                       CTOOL_ELF32_SYMBOL_OBJECT,
+                       CTOOL_ELF32_SYMBOL_UNDEFINED, CTOOL_ELF32_NO_SECTION, 0u,
+                       0u) ||
+      !symbol_matches(callback, 5u, CTOOL_ELF32_BIND_GLOBAL,
+                       CTOOL_ELF32_SYMBOL_FUNCTION,
+                       CTOOL_ELF32_SYMBOL_UNDEFINED, CTOOL_ELF32_NO_SECTION, 0u,
+                       0u) ||
+      !symbol_matches(message, 6u, CTOOL_ELF32_BIND_GLOBAL,
+                       CTOOL_ELF32_SYMBOL_OBJECT,
+                       CTOOL_ELF32_SYMBOL_DEFINED, data->file_index, 8u, 4u) ||
+      !symbol_matches(common_zero, 7u, CTOOL_ELF32_BIND_GLOBAL,
+                       CTOOL_ELF32_SYMBOL_OBJECT,
+                       CTOOL_ELF32_SYMBOL_DEFINED, bss->file_index, 4u, 4u) ||
+      !symbol_matches(imported_pointer, 8u, CTOOL_ELF32_BIND_GLOBAL,
+                       CTOOL_ELF32_SYMBOL_OBJECT,
+                       CTOOL_ELF32_SYMBOL_DEFINED, data->file_index, 12u, 4u) ||
+      !symbol_matches(hook, 9u, CTOOL_ELF32_BIND_GLOBAL,
+                       CTOOL_ELF32_SYMBOL_OBJECT,
+                       CTOOL_ELF32_SYMBOL_DEFINED, data->file_index, 16u, 4u) ||
+      !validate_nonzero_atomic_integer(unit)) {
     (void)fprintf(stderr, "ELF32 symbol semantics differ\n");
     return 0;
   }
@@ -6307,7 +6429,7 @@ static int validate_object(const ctool_elf32_object_t *object) {
           rel_data->file_index ||
       object->relocations[0].entry_index != 0u ||
       object->relocations[0].target_section_file_index != data->file_index ||
-      object->relocations[0].offset != 8u ||
+      object->relocations[0].offset != 12u ||
       object->relocations[0].symbol_file_index != imported->file_index ||
       object->relocations[0].type != CTOOL_ELF32_R_386_32 ||
       object->relocations[0].addend_known != CTOOL_TRUE ||
@@ -6316,7 +6438,7 @@ static int validate_object(const ctool_elf32_object_t *object) {
           rel_data->file_index ||
       object->relocations[1].entry_index != 1u ||
       object->relocations[1].target_section_file_index != data->file_index ||
-      object->relocations[1].offset != 12u ||
+      object->relocations[1].offset != 16u ||
       object->relocations[1].symbol_file_index != callback->file_index ||
       object->relocations[1].type != CTOOL_ELF32_R_386_32 ||
       object->relocations[1].addend_known != CTOOL_TRUE ||
@@ -6834,6 +6956,7 @@ static int run_static_data(const char *host_root) {
       "extern int imported;\n"
       "extern void callback(void);\n"
       "static unsigned local_word = 0x11223344u;\n"
+      "static _Atomic unsigned atomic_word = 0x55667788u;\n"
       "char message[4] = \"ok\";\n"
       "static int hidden_zero;\n"
       "int common_zero;\n"
@@ -7581,8 +7704,8 @@ static int run_static_data(const char *host_root) {
   invalid_unit.initializers = invalid_initializers;
   if (!expect_object_failure(
           job, &invalid_unit, second, CTOOL_ERR_INPUT,
-          CTOOL_C_EMIT_DIAG_INVALID_UNIT,
-          "CupidC object emission received an invalid translation unit",
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
           "invalid initializer type") ||
       unit_snapshot_matches(&snapshot, &unit) == 0) {
     goto cleanup;
@@ -9150,7 +9273,7 @@ static int run_static_data(const char *host_root) {
   (void)memset(&object, 0xa5, sizeof(object));
   status = ctool_elf32_read(job, &object_source, &object);
   if (!check_status(status, CTOOL_OK, "read static object") ||
-      validate_object(&object) == 0 ||
+      validate_object(&unit, &object) == 0 ||
       unit_snapshot_matches(&snapshot, &unit) == 0) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
@@ -24530,6 +24653,463 @@ static ctool_u32 find_file_static_initializer(
   return CTOOL_C_AST_NONE;
 }
 
+static ctool_u32 find_initializer_child_at(
+    const ctool_c_translation_unit_t *unit, ctool_u32 initializer,
+    ctool_u32 child_offset) {
+  const ctool_c_initializer_t *parent;
+  ctool_u32 edge;
+  ctool_u32 child;
+  if (unit == NULL || initializer >= unit->initializer_count) {
+    return CTOOL_C_AST_NONE;
+  }
+  parent = &unit->initializers[initializer];
+  if (parent->kind != CTOOL_C_INITIALIZER_LIST ||
+      child_offset >= parent->element_count ||
+      parent->first_element > unit->initializer_element_count ||
+      parent->element_count >
+          unit->initializer_element_count - parent->first_element) {
+    return CTOOL_C_AST_NONE;
+  }
+  edge = parent->first_element + child_offset;
+  child = unit->initializer_elements[edge].initializer;
+  return child < unit->initializer_count ? child : CTOOL_C_AST_NONE;
+}
+
+static const ctool_c_object_definition_t *find_file_static_definition(
+    const ctool_c_translation_unit_t *unit, const char *name) {
+  ctool_u32 index;
+  if (unit == NULL || name == NULL) {
+    return NULL;
+  }
+  for (index = 0u; index < unit->object_definition_count; index++) {
+    const ctool_c_object_definition_t *definition =
+        &unit->object_definitions[index];
+    if (definition->binding < unit->binding_count &&
+        string_equal(unit->bindings[definition->binding].name, name) != 0) {
+      return definition;
+    }
+  }
+  return NULL;
+}
+
+static const ctool_c_block_binding_t *find_static_block_binding(
+    const ctool_c_translation_unit_t *unit, const char *name) {
+  ctool_u32 index;
+  if (unit == NULL || name == NULL) {
+    return NULL;
+  }
+  for (index = 0u; index < unit->block_binding_count; index++) {
+    const ctool_c_block_binding_t *binding = &unit->block_bindings[index];
+    if (binding->storage == CTOOL_C_STORAGE_STATIC &&
+        string_equal(binding->name, name) != 0) {
+      return binding;
+    }
+  }
+  return NULL;
+}
+
+static const ctool_c_type_node_t *object_unwrapped_type(
+    const ctool_c_translation_unit_t *unit, ctool_u32 type,
+    ctool_u32 *base_out, ctool_u32 *qualifiers_out) {
+  ctool_u32 qualifiers = 0u;
+  ctool_u32 depth;
+  if (unit == NULL) {
+    return NULL;
+  }
+  for (depth = 0u; depth < unit->graph.type_count; depth++) {
+    const ctool_c_type_node_t *node;
+    if (type >= unit->graph.type_count) {
+      return NULL;
+    }
+    node = &unit->graph.types[type];
+    qualifiers |= node->qualifiers;
+    if (node->kind != CTOOL_C_TYPE_ALIGNED &&
+        node->kind != CTOOL_C_TYPE_QUALIFIED) {
+      if (base_out != NULL) {
+        *base_out = type;
+      }
+      if (qualifiers_out != NULL) {
+        *qualifiers_out = qualifiers;
+      }
+      return node;
+    }
+    type = node->referenced_type;
+  }
+  return NULL;
+}
+
+static ctool_u32 object_aligned_offset(ctool_u32 offset,
+                                       ctool_u32 alignment) {
+  return (offset + alignment - 1u) & ~(alignment - 1u);
+}
+
+static int little_integer_payload_matches(
+    const ctool_elf32_section_t *section, ctool_u32 offset,
+    ctool_u32 size, ctool_u64 expected) {
+  ctool_u32 index;
+  if (section == NULL || size == 0u || size > 8u ||
+      offset > section->contents.size ||
+      size > section->contents.size - offset) {
+    return 0;
+  }
+  for (index = 0u; index < size; index++) {
+    if (section->contents.data[offset + index] !=
+        (ctool_u8)(expected >> (index * 8u))) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int validate_static_long_double_integer_object(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_elf32_object_t *object, ctool_bytes_t image) {
+  static const char *const section_names[] = {
+      "", ".text", ".rodata", ".symtab", ".strtab", ".shstrtab"};
+  static const char *const symbol_names[] = {
+      "",
+      "cupidc_static_integer_to_long_double_file",
+      "cupidc_static_long_double_to_integer_file",
+      ".LBS0.cupidc_static_integer_to_long_double_block",
+      ".LBS1.cupidc_static_long_double_to_integer_block",
+      "cupidc_static_long_double_integer_block_probe"};
+  const ctool_c_object_definition_t *from_integer_definition =
+      find_file_static_definition(
+          unit, "cupidc_static_integer_to_long_double_file");
+  const ctool_c_object_definition_t *to_integer_definition =
+      find_file_static_definition(
+          unit, "cupidc_static_long_double_to_integer_file");
+  const ctool_c_block_binding_t *block_from_integer =
+      find_static_block_binding(
+          unit, "cupidc_static_integer_to_long_double_block");
+  const ctool_c_block_binding_t *block_to_integer =
+      find_static_block_binding(
+          unit, "cupidc_static_long_double_to_integer_block");
+  const ctool_c_type_node_t *array;
+  const ctool_c_type_node_t *record;
+  const ctool_c_type_layout_t *array_layout;
+  const ctool_c_type_layout_t *record_layout;
+  const ctool_c_type_layout_t *long_double_layout;
+  const ctool_c_type_layout_t *block_to_layout;
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  const ctool_elf32_section_t *rodata = find_section(object, ".rodata");
+  const ctool_elf32_symbol_t *from_integer_symbol =
+      find_symbol(object, "cupidc_static_integer_to_long_double_file");
+  const ctool_elf32_symbol_t *to_integer_symbol =
+      find_symbol(object, "cupidc_static_long_double_to_integer_file");
+  const ctool_elf32_symbol_t *function_symbol = find_symbol(
+      object, "cupidc_static_long_double_integer_block_probe");
+  const ctool_elf32_symbol_t *block_from_symbol;
+  const ctool_elf32_symbol_t *block_to_symbol;
+  ctool_u32 array_base = CTOOL_C_TYPE_NONE;
+  ctool_u32 record_base = CTOOL_C_TYPE_NONE;
+  ctool_u32 long_double_base = CTOOL_C_TYPE_NONE;
+  ctool_u32 block_to_base = CTOOL_C_TYPE_NONE;
+  ctool_u32 qualifiers = 0u;
+  ctool_u32 expected_record_offset;
+  ctool_u32 expected_block_from_offset;
+  ctool_u32 expected_block_to_offset;
+  ctool_u32 expected_rodata_size;
+  ctool_u32 image_fingerprint = structure_text_fingerprint(image);
+  ctool_u32 text_fingerprint =
+      text == NULL ? 0u : structure_text_fingerprint(text->contents);
+  ctool_u32 rodata_fingerprint =
+      rodata == NULL ? 0u : structure_text_fingerprint(rodata->contents);
+  ctool_u32 index;
+  char block_from_name[96];
+  char block_to_name[96];
+
+  block_from_symbol = find_block_static_symbol(
+      unit, object, "cupidc_static_integer_to_long_double_block",
+      block_from_name, sizeof(block_from_name));
+  block_to_symbol = find_block_static_symbol(
+      unit, object, "cupidc_static_long_double_to_integer_block",
+      block_to_name, sizeof(block_to_name));
+  if (image.size != 940u || image_fingerprint != 0x15af8562u ||
+      text == NULL || text->size != 5u ||
+      text_fingerprint != 0x0821c03eu || rodata == NULL ||
+      rodata->size != 272u || rodata_fingerprint != 0x0b1e11f1u) {
+    (void)fprintf(
+        stderr,
+        "static integer conversion object locks differ: "
+        "image=%u/%08x text=%u/%08x rodata=%u/%08x "
+        "sections=%u symbols=%u relocations=%u\n",
+        (unsigned int)image.size, (unsigned int)image_fingerprint,
+        text == NULL ? 0u : (unsigned int)text->size,
+        (unsigned int)text_fingerprint,
+        rodata == NULL ? 0u : (unsigned int)rodata->size,
+        (unsigned int)rodata_fingerprint,
+        object == NULL ? 0u : (unsigned int)object->section_count,
+        object == NULL ? 0u : (unsigned int)object->symbol_count,
+        object == NULL ? 0u : (unsigned int)object->relocation_count);
+    if (object != NULL) {
+      for (index = 0u; index < object->section_count; index++) {
+        const ctool_elf32_section_t *section = &object->sections[index];
+        (void)fprintf(
+            stderr,
+            "static integer conversion section %u: %.*s "
+            "type=%u flags=%08x align=%u size=%u contents=%u\n",
+            (unsigned int)index, (int)section->name.size,
+            section->name.data, (unsigned int)section->type,
+            (unsigned int)section->flags, (unsigned int)section->alignment,
+            (unsigned int)section->size,
+            (unsigned int)section->contents.size);
+      }
+      for (index = 0u; index < object->symbol_count; index++) {
+        const ctool_elf32_symbol_t *symbol = &object->symbols[index];
+        (void)fprintf(
+            stderr,
+            "static integer conversion symbol %u: %.*s "
+            "binding=%u type=%u section=%u value=%u size=%u\n",
+            (unsigned int)index, (int)symbol->name.size,
+            symbol->name.data, (unsigned int)symbol->binding,
+            (unsigned int)symbol->type,
+            (unsigned int)symbol->section_file_index,
+            (unsigned int)symbol->value, (unsigned int)symbol->size);
+      }
+    }
+    return 0;
+  }
+  if (unit == NULL || object == NULL ||
+      from_integer_definition == NULL || to_integer_definition == NULL ||
+      block_from_integer == NULL || block_to_integer == NULL ||
+      from_integer_symbol == NULL || to_integer_symbol == NULL ||
+      block_from_symbol == NULL || block_to_symbol == NULL ||
+      function_symbol == NULL ||
+      from_integer_definition->declared_type >= unit->layout.type_count ||
+      to_integer_definition->declared_type >= unit->layout.type_count ||
+      block_from_integer->type >= unit->layout.type_count ||
+      block_to_integer->type >= unit->layout.type_count) {
+    return 0;
+  }
+  if (object->entry_point != 0u || object->flags != 0u ||
+      object->program_headers !=
+          (const ctool_elf32_program_header_t *)0 ||
+      object->section_count !=
+          (ctool_u32)(sizeof(section_names) / sizeof(section_names[0])) ||
+      object->symbol_count !=
+          (ctool_u32)(sizeof(symbol_names) / sizeof(symbol_names[0])) ||
+      object->symbol_table_section_file_index != 3u) {
+    return 0;
+  }
+  for (index = 0u; index < object->section_count; index++) {
+    if (object->sections[index].file_index != index ||
+        string_equal(object->sections[index].name,
+                     section_names[index]) == 0) {
+      return 0;
+    }
+  }
+  for (index = 0u; index < object->symbol_count; index++) {
+    if (object->symbols[index].file_index != index ||
+        string_equal(object->symbols[index].name,
+                     symbol_names[index]) == 0) {
+      return 0;
+    }
+  }
+  array = object_unwrapped_type(
+      unit, from_integer_definition->declared_type, &array_base,
+      &qualifiers);
+  if (array == NULL || array->kind != CTOOL_C_TYPE_ARRAY ||
+      array->element_count !=
+          (ctool_u32)(sizeof(cupidc_static_integer_to_long_double_oracles) /
+                      sizeof(cupidc_static_integer_to_long_double_oracles[0])) ||
+      array->referenced_type >= unit->layout.type_count) {
+    return 0;
+  }
+  record = object_unwrapped_type(
+      unit, to_integer_definition->declared_type, &record_base,
+      &qualifiers);
+  if (record == NULL || record->kind != CTOOL_C_TYPE_RECORD ||
+      record->member_count !=
+          (ctool_u32)(sizeof(cupidc_static_long_double_to_integer_oracles) /
+                      sizeof(cupidc_static_long_double_to_integer_oracles[0])) ||
+      record->first_member > unit->graph.member_count ||
+      record->member_count >
+          unit->graph.member_count - record->first_member ||
+      record->first_member > unit->layout.member_count ||
+      record->member_count >
+          unit->layout.member_count - record->first_member) {
+    return 0;
+  }
+  if (object_unwrapped_type(unit, array->referenced_type,
+                            &long_double_base, &qualifiers) == NULL ||
+      unit->graph.types[long_double_base].kind !=
+          CTOOL_C_TYPE_LONG_DOUBLE ||
+      object_unwrapped_type(unit, block_to_integer->type,
+                            &block_to_base, &qualifiers) == NULL ||
+      unit->graph.types[block_to_base].kind !=
+          CTOOL_C_TYPE_UNSIGNED_LONG_LONG) {
+    return 0;
+  }
+  array_layout = &unit->layout.types[from_integer_definition->declared_type];
+  record_layout = &unit->layout.types[to_integer_definition->declared_type];
+  long_double_layout = &unit->layout.types[array->referenced_type];
+  block_to_layout = &unit->layout.types[block_to_integer->type];
+  if (array_layout->size != 15u * 12u ||
+      long_double_layout->size != 12u ||
+      long_double_layout->alignment == 0u ||
+      record_layout->alignment == 0u || block_to_layout->alignment == 0u) {
+    return 0;
+  }
+  expected_record_offset = object_aligned_offset(
+      array_layout->size, record_layout->alignment);
+  expected_block_from_offset = object_aligned_offset(
+      expected_record_offset + record_layout->size,
+      long_double_layout->alignment);
+  expected_block_to_offset = object_aligned_offset(
+      expected_block_from_offset + long_double_layout->size,
+      block_to_layout->alignment);
+  expected_rodata_size =
+      expected_block_to_offset + block_to_layout->size;
+  if (object->file_type != CTOOL_ELF32_ET_REL ||
+      object->program_header_count != 0u || object->relocation_count != 0u ||
+      find_section(object, ".data") != NULL ||
+      find_section(object, ".bss") != NULL ||
+      find_section(object, ".rel.text") != NULL ||
+      find_section(object, ".rel.rodata") != NULL ||
+      text->type != CTOOL_ELF32_SHT_PROGBITS ||
+      text->flags != (CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_EXECINSTR) ||
+      text->alignment != 1u || text->entry_size != 0u ||
+      text->contents.size != 5u || text->relocation_count != 0u ||
+      rodata->type != CTOOL_ELF32_SHT_PROGBITS ||
+      rodata->flags != CTOOL_ELF32_SHF_ALLOC ||
+      rodata->alignment != 4u || rodata->entry_size != 0u ||
+      rodata->size != expected_rodata_size ||
+      rodata->contents.size != expected_rodata_size ||
+      rodata->relocation_count != 0u ||
+      object->sections[0].type != 0u || object->sections[0].flags != 0u ||
+      object->sections[0].alignment != 0u ||
+      object->sections[0].size != 0u ||
+      object->sections[0].contents.size != 0u ||
+      object->sections[3].type != 2u ||
+      object->sections[3].flags != 0u ||
+      object->sections[3].alignment != 4u ||
+      object->sections[3].entry_size != 16u ||
+      object->sections[3].size != 96u ||
+      object->sections[3].contents.size != 96u ||
+      object->sections[4].type != 3u ||
+      object->sections[4].flags != 0u ||
+      object->sections[4].alignment != 1u ||
+      object->sections[4].entry_size != 0u ||
+      object->sections[4].size != 229u ||
+      object->sections[4].contents.size != 229u ||
+      object->sections[5].type != 3u ||
+      object->sections[5].flags != 0u ||
+      object->sections[5].alignment != 1u ||
+      object->sections[5].entry_size != 0u ||
+      object->sections[5].size != 41u ||
+      object->sections[5].contents.size != 41u ||
+      object->symbols[0].binding != CTOOL_ELF32_BIND_LOCAL ||
+      object->symbols[0].type != CTOOL_ELF32_SYMBOL_NOTYPE ||
+      object->symbols[0].placement != CTOOL_ELF32_SYMBOL_UNDEFINED ||
+      object->symbols[0].section_file_index != CTOOL_ELF32_NO_SECTION ||
+      object->symbols[0].value != 0u || object->symbols[0].size != 0u) {
+    return 0;
+  }
+  if (from_integer_symbol->binding != CTOOL_ELF32_BIND_LOCAL ||
+      from_integer_symbol->type != CTOOL_ELF32_SYMBOL_OBJECT ||
+      from_integer_symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      from_integer_symbol->section_file_index != rodata->file_index ||
+      from_integer_symbol->value != 0u ||
+      from_integer_symbol->size != array_layout->size ||
+      to_integer_symbol->binding != CTOOL_ELF32_BIND_LOCAL ||
+      to_integer_symbol->type != CTOOL_ELF32_SYMBOL_OBJECT ||
+      to_integer_symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      to_integer_symbol->section_file_index != rodata->file_index ||
+      to_integer_symbol->value != expected_record_offset ||
+      to_integer_symbol->size != record_layout->size ||
+      block_from_symbol->binding != CTOOL_ELF32_BIND_LOCAL ||
+      block_from_symbol->type != CTOOL_ELF32_SYMBOL_OBJECT ||
+      block_from_symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      block_from_symbol->section_file_index != rodata->file_index ||
+      block_from_symbol->value != expected_block_from_offset ||
+      block_from_symbol->size != long_double_layout->size ||
+      block_to_symbol->binding != CTOOL_ELF32_BIND_LOCAL ||
+      block_to_symbol->type != CTOOL_ELF32_SYMBOL_OBJECT ||
+      block_to_symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      block_to_symbol->section_file_index != rodata->file_index ||
+      block_to_symbol->value != expected_block_to_offset ||
+      block_to_symbol->size != block_to_layout->size ||
+      function_symbol->binding != CTOOL_ELF32_BIND_GLOBAL ||
+      function_symbol->type != CTOOL_ELF32_SYMBOL_FUNCTION ||
+      function_symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+      function_symbol->section_file_index != text->file_index ||
+      function_symbol->value != 0u || function_symbol->size != text->size) {
+    return 0;
+  }
+  for (index = 0u;
+       index <
+           (ctool_u32)(sizeof(cupidc_static_integer_to_long_double_oracles) /
+                       sizeof(cupidc_static_integer_to_long_double_oracles[0]));
+       index++) {
+    const cupidc_static_integer_to_long_double_oracle_t *oracle =
+        &cupidc_static_integer_to_long_double_oracles[index];
+    if (!long_double_payload_matches(
+            rodata,
+            from_integer_symbol->value + index * long_double_layout->size,
+            oracle->significand, oracle->high_bits)) {
+      (void)fprintf(stderr,
+                    "static integer-to-long-double payload %u differs\n",
+                    (unsigned int)index);
+      return 0;
+    }
+  }
+  for (index = 0u;
+       index <
+           (ctool_u32)(sizeof(cupidc_static_long_double_to_integer_oracles) /
+                       sizeof(cupidc_static_long_double_to_integer_oracles[0]));
+       index++) {
+    const cupidc_static_long_double_to_integer_oracle_t *oracle =
+        &cupidc_static_long_double_to_integer_oracles[index];
+    const ctool_c_record_member_t *member =
+        &unit->graph.members[record->first_member + index];
+    const ctool_c_member_layout_t *member_layout =
+        &unit->layout.members[record->first_member + index];
+    const ctool_c_type_node_t *member_type;
+    ctool_u32 member_base = CTOOL_C_TYPE_NONE;
+    ctool_u32 member_qualifiers = 0u;
+    ctool_u32 enum_base = CTOOL_C_TYPE_NONE;
+    member_type = object_unwrapped_type(
+        unit, member->type, &member_base, &member_qualifiers);
+    if (member_type == NULL || member_type->kind != oracle->type_kind ||
+        member_qualifiers != oracle->qualifiers ||
+        member->type >= unit->layout.type_count ||
+        member_layout->size != unit->layout.types[member->type].size ||
+        member_layout->byte_offset > record_layout->size ||
+        member_layout->size >
+            record_layout->size - member_layout->byte_offset ||
+        !little_integer_payload_matches(
+            rodata,
+            to_integer_symbol->value + member_layout->byte_offset,
+            member_layout->size, oracle->bits)) {
+      (void)fprintf(stderr,
+                    "static long-double-to-integer payload %u differs\n",
+                    (unsigned int)index);
+      return 0;
+    }
+    if (oracle->enum_compatible_kind != (ctool_c_type_kind_t)0) {
+      const ctool_c_type_node_t *compatible;
+      if (member_type->kind != CTOOL_C_TYPE_ENUM) {
+        return 0;
+      }
+      compatible = object_unwrapped_type(
+          unit, member_type->referenced_type, &enum_base, &qualifiers);
+      if (compatible == NULL ||
+          compatible->kind != oracle->enum_compatible_kind) {
+        return 0;
+      }
+    }
+  }
+  if (!long_double_symbol_payload_matches(
+          rodata, block_from_symbol, 0xfffffffffffffffeull, 0x403du) ||
+      !little_integer_payload_matches(
+          rodata, block_to_symbol->value, block_to_symbol->size,
+          0x8000000000000000ull)) {
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_long_double_static_object(
     const ctool_c_translation_unit_t *unit,
     const ctool_elf32_object_t *object) {
@@ -28475,6 +29055,7 @@ cleanup:
 }
 
 static int run_floating_transport_object(const char *host_root) {
+  static const ctool_u8 forged_integer_string[] = {0x5au};
   static const char source_prefix[] =
       "typedef unsigned int u32;\n"
       "typedef __builtin_va_list va_list;\n"
@@ -28816,17 +29397,30 @@ static int run_floating_transport_object(const char *host_root) {
       (ctool_buffer_t *)0;
   ctool_buffer_t *long_double_aggregate_repeat_output =
       (ctool_buffer_t *)0;
+  ctool_buffer_t *static_integer_conversion_output =
+      (ctool_buffer_t *)0;
+  ctool_buffer_t *static_integer_conversion_repeat_output =
+      (ctool_buffer_t *)0;
   ctool_c_translation_unit_t unit;
   ctool_c_translation_unit_t long_double_unit;
   ctool_c_translation_unit_t long_double_aggregate_unit;
+  ctool_c_translation_unit_t static_integer_conversion_unit;
   ctool_c_translation_unit_t invalid_promotion_unit;
   ctool_c_translation_unit_t invalid_initializer_unit;
+  ctool_c_translation_unit_t invalid_integer_initializer_unit;
+  ctool_c_translation_unit_t invalid_static_integer_conversion_unit;
   ctool_c_expression_t *invalid_promotion_expressions = NULL;
   ctool_c_initializer_t *invalid_initializers = NULL;
+  ctool_c_initializer_t *invalid_integer_initializers = NULL;
+  ctool_c_initializer_t *invalid_static_integer_conversion_initializers =
+      NULL;
+  ctool_c_type_node_t *invalid_static_integer_conversion_types = NULL;
+  ctool_c_type_layout_t *invalid_static_integer_conversion_layouts = NULL;
   ctool_source_t object_source;
   ctool_elf32_object_t object;
   ctool_elf32_object_t long_double_object;
   ctool_elf32_object_t long_double_aggregate_object;
+  ctool_elf32_object_t static_integer_conversion_object;
   ctool_bytes_t first_bytes;
   ctool_bytes_t second_bytes;
   ctool_status_t status;
@@ -28834,7 +29428,29 @@ static int run_floating_transport_object(const char *host_root) {
   ctool_u32 invalid_promotion_target = CTOOL_C_TYPE_NONE;
   ctool_u32 long_double_file_one = CTOOL_C_AST_NONE;
   ctool_u32 long_double_file_zero = CTOOL_C_AST_NONE;
+  ctool_u32 ordinary_integer_initializer = CTOOL_C_AST_NONE;
+  ctool_u32 static_conversion_record_initializer = CTOOL_C_AST_NONE;
+  ctool_u32 static_boolean_initializer = CTOOL_C_AST_NONE;
+  ctool_u32 static_signed_short_initializer = CTOOL_C_AST_NONE;
+  ctool_u32 static_unsigned_int_initializer = CTOOL_C_AST_NONE;
+  ctool_u32 static_signed_enum_initializer = CTOOL_C_AST_NONE;
+  ctool_u32 static_unsigned_enum_initializer = CTOOL_C_AST_NONE;
+  ctool_u32 float_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 long_double_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 static_long_double_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 static_signed_short_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 static_unsigned_int_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 static_unsigned_int_declared_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 static_signed_enum_declared_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 static_signed_enum_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 static_unsigned_enum_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 static_signed_enum_compatible_declared_type =
+      CTOOL_C_TYPE_NONE;
+  ctool_u32 static_signed_enum_compatible_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 static_unsigned_enum_compatible_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 static_type_qualifiers = 0u;
   ctool_u32 index;
+  int integer_initializer_validation_red = 0;
   int passed = 0;
 
   (void)memcpy(source, source_prefix, sizeof(source_prefix) - 1u);
@@ -28851,6 +29467,10 @@ static int run_floating_transport_object(const char *host_root) {
           job, "/long-double-static-aggregates.c",
           long_double_aggregate_source, CTOOL_TRUE,
           &long_double_aggregate_unit) ||
+      !parse_source_mode(
+          job, "/static-long-double-integer.c",
+          cupidc_static_long_double_integer_source, CTOOL_TRUE,
+          &static_integer_conversion_unit) ||
       unit.function_definition_count != 43u) {
     (void)fprintf(stderr, "floating transport object setup failed\n");
     goto cleanup;
@@ -28874,6 +29494,252 @@ static int run_floating_transport_object(const char *host_root) {
   }
   invalid_initializer_unit = long_double_unit;
   invalid_initializer_unit.initializers = invalid_initializers;
+  for (index = 0u; index < long_double_aggregate_unit.graph.type_count;
+       index++) {
+    const ctool_c_type_node_t *type =
+        &long_double_aggregate_unit.graph.types[index];
+    if (type->qualifiers == 0u && type->kind == CTOOL_C_TYPE_FLOAT) {
+      float_type = index;
+    } else if (type->qualifiers == 0u &&
+               type->kind == CTOOL_C_TYPE_LONG_DOUBLE) {
+      long_double_type = index;
+    }
+  }
+  for (index = 0u; index < long_double_aggregate_unit.initializer_count;
+       index++) {
+    const ctool_c_initializer_t *initializer =
+        &long_double_aggregate_unit.initializers[index];
+    if (initializer->kind == CTOOL_C_INITIALIZER_INTEGER &&
+        initializer->type < long_double_aggregate_unit.graph.type_count &&
+        long_double_aggregate_unit.graph.types[initializer->type].kind ==
+            CTOOL_C_TYPE_UNSIGNED_INT &&
+        initializer->integer_bits == 7ull) {
+      ordinary_integer_initializer = index;
+      break;
+    }
+  }
+  if (float_type == CTOOL_C_TYPE_NONE ||
+      long_double_type == CTOOL_C_TYPE_NONE ||
+      ordinary_integer_initializer >=
+          long_double_aggregate_unit.initializer_count ||
+      long_double_aggregate_unit.layout
+              .types[long_double_aggregate_unit
+                         .initializers[ordinary_integer_initializer]
+                         .type]
+              .size != 4u ||
+      long_double_aggregate_unit
+              .initializers[ordinary_integer_initializer]
+              .expression != CTOOL_C_AST_NONE ||
+      long_double_aggregate_unit
+              .initializers[ordinary_integer_initializer]
+              .floating_high_bits != 0u ||
+      long_double_aggregate_unit
+              .initializers[ordinary_integer_initializer]
+              .string_bytes.data != (const ctool_u8 *)0 ||
+      long_double_aggregate_unit
+              .initializers[ordinary_integer_initializer]
+              .string_bytes.size != 0u ||
+      long_double_aggregate_unit
+              .initializers[ordinary_integer_initializer]
+              .address_kind != CTOOL_C_INITIALIZER_ADDRESS_NONE ||
+      long_double_aggregate_unit
+              .initializers[ordinary_integer_initializer]
+              .address_reference != CTOOL_C_AST_NONE ||
+      long_double_aggregate_unit
+              .initializers[ordinary_integer_initializer]
+              .address_addend != 0 ||
+      long_double_aggregate_unit
+              .initializers[ordinary_integer_initializer]
+              .first_element != CTOOL_C_AST_NONE ||
+      long_double_aggregate_unit
+              .initializers[ordinary_integer_initializer]
+              .element_count != 0u ||
+      sizeof(*invalid_integer_initializers) >
+          SIZE_MAX /
+              (size_t)long_double_aggregate_unit.initializer_count) {
+    (void)fprintf(stderr,
+                  "ordinary INTEGER initializer fixture differs\n");
+    goto cleanup;
+  }
+  invalid_integer_initializers = (ctool_c_initializer_t *)malloc(
+      (size_t)long_double_aggregate_unit.initializer_count *
+      sizeof(*invalid_integer_initializers));
+  if (invalid_integer_initializers == NULL) {
+    goto cleanup;
+  }
+  invalid_integer_initializer_unit = long_double_aggregate_unit;
+  invalid_integer_initializer_unit.initializers =
+      invalid_integer_initializers;
+  static_conversion_record_initializer = find_file_static_initializer(
+      &static_integer_conversion_unit,
+      "cupidc_static_long_double_to_integer_file");
+  static_boolean_initializer = find_initializer_child_at(
+      &static_integer_conversion_unit,
+      static_conversion_record_initializer, 3u);
+  static_signed_short_initializer = find_initializer_child_at(
+      &static_integer_conversion_unit,
+      static_conversion_record_initializer, 7u);
+  static_unsigned_int_initializer = find_initializer_child_at(
+      &static_integer_conversion_unit,
+      static_conversion_record_initializer, 10u);
+  static_unsigned_int_declared_type =
+      static_unsigned_int_initializer <
+              static_integer_conversion_unit.initializer_count
+          ? static_integer_conversion_unit
+                .initializers[static_unsigned_int_initializer]
+                .type
+          : CTOOL_C_TYPE_NONE;
+  static_signed_enum_initializer = find_initializer_child_at(
+      &static_integer_conversion_unit,
+      static_conversion_record_initializer, 17u);
+  static_signed_enum_declared_type =
+      static_signed_enum_initializer <
+              static_integer_conversion_unit.initializer_count
+          ? static_integer_conversion_unit
+                .initializers[static_signed_enum_initializer]
+                .type
+          : CTOOL_C_TYPE_NONE;
+  static_unsigned_enum_initializer = find_initializer_child_at(
+      &static_integer_conversion_unit,
+      static_conversion_record_initializer, 18u);
+  for (index = 0u;
+       index < static_integer_conversion_unit.graph.type_count; index++) {
+    const ctool_c_type_node_t *type =
+        &static_integer_conversion_unit.graph.types[index];
+    if (type->qualifiers == 0u &&
+        type->kind == CTOOL_C_TYPE_LONG_DOUBLE) {
+      static_long_double_type = index;
+      break;
+    }
+  }
+  if (static_boolean_initializer >=
+          static_integer_conversion_unit.initializer_count ||
+      static_signed_short_initializer >=
+          static_integer_conversion_unit.initializer_count ||
+      static_unsigned_int_initializer >=
+          static_integer_conversion_unit.initializer_count ||
+      static_unsigned_int_declared_type >=
+          static_integer_conversion_unit.graph.type_count ||
+      static_signed_enum_declared_type >=
+          static_integer_conversion_unit.graph.type_count ||
+      static_signed_enum_initializer >=
+          static_integer_conversion_unit.initializer_count ||
+      static_unsigned_enum_initializer >=
+          static_integer_conversion_unit.initializer_count ||
+      static_integer_conversion_unit.initializer_count == 0u ||
+      static_integer_conversion_unit.graph.type_count == 0u ||
+      static_long_double_type == CTOOL_C_TYPE_NONE ||
+      object_unwrapped_type(
+          &static_integer_conversion_unit,
+          static_integer_conversion_unit
+              .initializers[static_boolean_initializer]
+              .type,
+          &index, &static_type_qualifiers) == NULL ||
+      static_integer_conversion_unit.graph.types[index].kind !=
+          CTOOL_C_TYPE_BOOL ||
+      static_integer_conversion_unit
+              .initializers[static_boolean_initializer]
+              .kind != CTOOL_C_INITIALIZER_INTEGER ||
+      static_integer_conversion_unit
+              .initializers[static_boolean_initializer]
+              .integer_bits != 1ull ||
+      object_unwrapped_type(
+          &static_integer_conversion_unit,
+          static_integer_conversion_unit
+              .initializers[static_signed_short_initializer]
+              .type,
+          &static_signed_short_type, &static_type_qualifiers) == NULL ||
+      static_integer_conversion_unit
+              .graph.types[static_signed_short_type]
+              .kind != CTOOL_C_TYPE_SIGNED_SHORT ||
+      object_unwrapped_type(
+          &static_integer_conversion_unit,
+          static_integer_conversion_unit
+              .initializers[static_unsigned_int_initializer]
+              .type,
+          &static_unsigned_int_type, &static_type_qualifiers) == NULL ||
+      static_integer_conversion_unit
+              .graph.types[static_unsigned_int_type]
+              .kind != CTOOL_C_TYPE_UNSIGNED_INT ||
+      object_unwrapped_type(
+          &static_integer_conversion_unit,
+          static_integer_conversion_unit
+              .initializers[static_signed_enum_initializer]
+              .type,
+          &static_signed_enum_type, &static_type_qualifiers) == NULL ||
+      static_integer_conversion_unit
+              .graph.types[static_signed_enum_type]
+              .kind != CTOOL_C_TYPE_ENUM ||
+      (static_signed_enum_compatible_declared_type =
+           static_integer_conversion_unit
+               .graph.types[static_signed_enum_type]
+               .referenced_type) >=
+          static_integer_conversion_unit.graph.type_count ||
+      object_unwrapped_type(
+          &static_integer_conversion_unit,
+          static_signed_enum_compatible_declared_type,
+          &static_signed_enum_compatible_type,
+          &static_type_qualifiers) == NULL ||
+      static_integer_conversion_unit
+              .graph.types[static_signed_enum_compatible_type]
+              .kind != CTOOL_C_TYPE_SIGNED_INT ||
+      object_unwrapped_type(
+          &static_integer_conversion_unit,
+          static_integer_conversion_unit
+              .initializers[static_unsigned_enum_initializer]
+              .type,
+          &static_unsigned_enum_type, &static_type_qualifiers) == NULL ||
+      static_integer_conversion_unit
+              .graph.types[static_unsigned_enum_type]
+              .kind != CTOOL_C_TYPE_ENUM ||
+      object_unwrapped_type(
+          &static_integer_conversion_unit,
+          static_integer_conversion_unit
+              .graph.types[static_unsigned_enum_type]
+              .referenced_type,
+          &static_unsigned_enum_compatible_type,
+          &static_type_qualifiers) == NULL ||
+      static_integer_conversion_unit
+              .graph.types[static_unsigned_enum_compatible_type]
+              .kind != CTOOL_C_TYPE_UNSIGNED_LONG_LONG ||
+      sizeof(*invalid_static_integer_conversion_initializers) >
+          SIZE_MAX /
+              (size_t)static_integer_conversion_unit.initializer_count ||
+      sizeof(*invalid_static_integer_conversion_types) >
+          SIZE_MAX /
+              (size_t)static_integer_conversion_unit.graph.type_count ||
+      sizeof(*invalid_static_integer_conversion_layouts) >
+          SIZE_MAX /
+              (size_t)static_integer_conversion_unit.layout.type_count) {
+    (void)fprintf(
+        stderr,
+        "static INTEGER representation fixture differs\n");
+    goto cleanup;
+  }
+  invalid_static_integer_conversion_initializers =
+      (ctool_c_initializer_t *)malloc(
+          (size_t)static_integer_conversion_unit.initializer_count *
+          sizeof(*invalid_static_integer_conversion_initializers));
+  invalid_static_integer_conversion_types =
+      (ctool_c_type_node_t *)malloc(
+          (size_t)static_integer_conversion_unit.graph.type_count *
+          sizeof(*invalid_static_integer_conversion_types));
+  invalid_static_integer_conversion_layouts =
+      (ctool_c_type_layout_t *)malloc(
+          (size_t)static_integer_conversion_unit.layout.type_count *
+          sizeof(*invalid_static_integer_conversion_layouts));
+  if (invalid_static_integer_conversion_initializers == NULL ||
+      invalid_static_integer_conversion_types == NULL ||
+      invalid_static_integer_conversion_layouts == NULL) {
+    goto cleanup;
+  }
+  invalid_static_integer_conversion_unit = static_integer_conversion_unit;
+  invalid_static_integer_conversion_unit.initializers =
+      invalid_static_integer_conversion_initializers;
+  invalid_static_integer_conversion_unit.graph.types =
+      invalid_static_integer_conversion_types;
+  invalid_static_integer_conversion_unit.layout.types =
+      invalid_static_integer_conversion_layouts;
   for (index = 0u; index < unit.expression_count; index++) {
     const ctool_c_expression_t *expression = &unit.expressions[index];
     if (expression->kind == CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
@@ -28950,6 +29816,16 @@ static int run_floating_transport_object(const char *host_root) {
         job, 1024u, config.limits.output_bytes,
         &long_double_aggregate_repeat_output);
   }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes,
+        &static_integer_conversion_output);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes,
+        &static_integer_conversion_repeat_output);
+  }
   if (!check_status(status, CTOOL_OK, "floating transport buffers") ||
       !expect_object_success_preserves_unit(
           job, &unit, first, "first floating transport object") ||
@@ -28968,7 +29844,15 @@ static int run_floating_transport_object(const char *host_root) {
       !expect_object_success_preserves_unit(
           job, &long_double_aggregate_unit,
           long_double_aggregate_repeat_output,
-          "repeat long double static aggregate object")) {
+          "repeat long double static aggregate object") ||
+      !expect_object_success_preserves_unit(
+          job, &static_integer_conversion_unit,
+          static_integer_conversion_output,
+          "static long double integer conversion object") ||
+      !expect_object_success_preserves_unit(
+          job, &static_integer_conversion_unit,
+          static_integer_conversion_repeat_output,
+          "repeat static long double integer conversion object")) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
@@ -29063,6 +29947,340 @@ static int run_floating_transport_object(const char *host_root) {
           "high-metadata object recovery")) {
     goto cleanup;
   }
+  first_bytes = ctool_buffer_view(long_double_aggregate_output);
+  (void)memcpy(
+      invalid_integer_initializers,
+      long_double_aggregate_unit.initializers,
+      (size_t)long_double_aggregate_unit.initializer_count *
+          sizeof(*invalid_integer_initializers));
+  invalid_integer_initializers[ordinary_integer_initializer].type =
+      float_type;
+  if (!expect_integer_initializer_rejection_and_recovery(
+          job, &invalid_integer_initializer_unit,
+          &long_double_aggregate_unit, failure, first_bytes,
+          "ordinary INTEGER initializer with floating destination type",
+          &integer_initializer_validation_red)) {
+    goto cleanup;
+  }
+  (void)memcpy(
+      invalid_integer_initializers,
+      long_double_aggregate_unit.initializers,
+      (size_t)long_double_aggregate_unit.initializer_count *
+          sizeof(*invalid_integer_initializers));
+  invalid_integer_initializers[ordinary_integer_initializer].type =
+      long_double_type;
+  if (!expect_integer_initializer_rejection_and_recovery(
+          job, &invalid_integer_initializer_unit,
+          &long_double_aggregate_unit, failure, first_bytes,
+          "ordinary INTEGER initializer with long double destination type",
+          &integer_initializer_validation_red)) {
+    goto cleanup;
+  }
+  (void)memcpy(
+      invalid_integer_initializers,
+      long_double_aggregate_unit.initializers,
+      (size_t)long_double_aggregate_unit.initializer_count *
+          sizeof(*invalid_integer_initializers));
+  invalid_integer_initializers[ordinary_integer_initializer].integer_bits |=
+      0x0000000100000000ull;
+  if (!expect_integer_initializer_rejection_and_recovery(
+          job, &invalid_integer_initializer_unit,
+          &long_double_aggregate_unit, failure, first_bytes,
+          "ordinary INTEGER initializer with bits above its width",
+          &integer_initializer_validation_red)) {
+    goto cleanup;
+  }
+  (void)memcpy(
+      invalid_integer_initializers,
+      long_double_aggregate_unit.initializers,
+      (size_t)long_double_aggregate_unit.initializer_count *
+          sizeof(*invalid_integer_initializers));
+  invalid_integer_initializers[ordinary_integer_initializer]
+      .floating_high_bits = 1u;
+  if (!expect_integer_initializer_rejection_and_recovery(
+          job, &invalid_integer_initializer_unit,
+          &long_double_aggregate_unit, failure, first_bytes,
+          "ordinary INTEGER initializer with floating high bits",
+          &integer_initializer_validation_red)) {
+    goto cleanup;
+  }
+  (void)memcpy(
+      invalid_integer_initializers,
+      long_double_aggregate_unit.initializers,
+      (size_t)long_double_aggregate_unit.initializer_count *
+          sizeof(*invalid_integer_initializers));
+  invalid_integer_initializers[ordinary_integer_initializer].expression = 0u;
+  if (!expect_integer_initializer_rejection_and_recovery(
+          job, &invalid_integer_initializer_unit,
+          &long_double_aggregate_unit, failure, first_bytes,
+          "ordinary INTEGER initializer with expression metadata",
+          &integer_initializer_validation_red)) {
+    goto cleanup;
+  }
+  (void)memcpy(
+      invalid_integer_initializers,
+      long_double_aggregate_unit.initializers,
+      (size_t)long_double_aggregate_unit.initializer_count *
+          sizeof(*invalid_integer_initializers));
+  invalid_integer_initializers[ordinary_integer_initializer]
+      .string_bytes.data = forged_integer_string;
+  invalid_integer_initializers[ordinary_integer_initializer]
+      .string_bytes.size = (ctool_u32)sizeof(forged_integer_string);
+  if (!expect_integer_initializer_rejection_and_recovery(
+          job, &invalid_integer_initializer_unit,
+          &long_double_aggregate_unit, failure, first_bytes,
+          "ordinary INTEGER initializer with string metadata",
+          &integer_initializer_validation_red)) {
+    goto cleanup;
+  }
+  (void)memcpy(
+      invalid_integer_initializers,
+      long_double_aggregate_unit.initializers,
+      (size_t)long_double_aggregate_unit.initializer_count *
+          sizeof(*invalid_integer_initializers));
+  invalid_integer_initializers[ordinary_integer_initializer].address_kind =
+      CTOOL_C_INITIALIZER_ADDRESS_BINDING;
+  invalid_integer_initializers[ordinary_integer_initializer]
+      .address_reference = 0u;
+  invalid_integer_initializers[ordinary_integer_initializer].address_addend =
+      1;
+  if (!expect_integer_initializer_rejection_and_recovery(
+          job, &invalid_integer_initializer_unit,
+          &long_double_aggregate_unit, failure, first_bytes,
+          "ordinary INTEGER initializer with address metadata",
+          &integer_initializer_validation_red)) {
+    goto cleanup;
+  }
+  (void)memcpy(
+      invalid_integer_initializers,
+      long_double_aggregate_unit.initializers,
+      (size_t)long_double_aggregate_unit.initializer_count *
+          sizeof(*invalid_integer_initializers));
+  invalid_integer_initializers[ordinary_integer_initializer].first_element =
+      0u;
+  invalid_integer_initializers[ordinary_integer_initializer].element_count =
+      1u;
+  if (!expect_integer_initializer_rejection_and_recovery(
+          job, &invalid_integer_initializer_unit,
+          &long_double_aggregate_unit, failure, first_bytes,
+          "ordinary INTEGER initializer with list metadata",
+          &integer_initializer_validation_red)) {
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(static_integer_conversion_output);
+  (void)memcpy(
+      invalid_static_integer_conversion_layouts,
+      static_integer_conversion_unit.layout.types,
+      (size_t)static_integer_conversion_unit.layout.type_count *
+          sizeof(*invalid_static_integer_conversion_layouts));
+  (void)memcpy(
+      invalid_static_integer_conversion_initializers,
+      static_integer_conversion_unit.initializers,
+      (size_t)static_integer_conversion_unit.initializer_count *
+          sizeof(*invalid_static_integer_conversion_initializers));
+  (void)memcpy(
+      invalid_static_integer_conversion_types,
+      static_integer_conversion_unit.graph.types,
+      (size_t)static_integer_conversion_unit.graph.type_count *
+          sizeof(*invalid_static_integer_conversion_types));
+  invalid_static_integer_conversion_initializers[static_boolean_initializer]
+      .integer_bits = 2ull;
+  if (!expect_integer_initializer_rejection_and_recovery(
+          job, &invalid_static_integer_conversion_unit,
+          &static_integer_conversion_unit, failure, first_bytes,
+          "ordinary _Bool INTEGER initializer with noncanonical bits",
+          &integer_initializer_validation_red)) {
+    goto cleanup;
+  }
+  (void)memcpy(
+      invalid_static_integer_conversion_initializers,
+      static_integer_conversion_unit.initializers,
+      (size_t)static_integer_conversion_unit.initializer_count *
+          sizeof(*invalid_static_integer_conversion_initializers));
+  (void)memcpy(
+      invalid_static_integer_conversion_types,
+      static_integer_conversion_unit.graph.types,
+      (size_t)static_integer_conversion_unit.graph.type_count *
+          sizeof(*invalid_static_integer_conversion_types));
+  invalid_static_integer_conversion_types[static_signed_enum_type]
+      .referenced_type = static_long_double_type;
+  if (!expect_integer_initializer_rejection_and_recovery(
+          job, &invalid_static_integer_conversion_unit,
+          &static_integer_conversion_unit, failure, first_bytes,
+          "signed enum INTEGER initializer with long double compatible type",
+          &integer_initializer_validation_red)) {
+    goto cleanup;
+  }
+  (void)memcpy(
+      invalid_static_integer_conversion_initializers,
+      static_integer_conversion_unit.initializers,
+      (size_t)static_integer_conversion_unit.initializer_count *
+          sizeof(*invalid_static_integer_conversion_initializers));
+  (void)memcpy(
+      invalid_static_integer_conversion_types,
+      static_integer_conversion_unit.graph.types,
+      (size_t)static_integer_conversion_unit.graph.type_count *
+          sizeof(*invalid_static_integer_conversion_types));
+  invalid_static_integer_conversion_types[static_signed_enum_type]
+      .referenced_type = static_unsigned_int_type;
+  if (!expect_integer_initializer_rejection_and_recovery(
+          job, &invalid_static_integer_conversion_unit,
+          &static_integer_conversion_unit, failure, first_bytes,
+          "signed enum INTEGER initializer with unsigned compatible type",
+          &integer_initializer_validation_red)) {
+    goto cleanup;
+  }
+  (void)memcpy(
+      invalid_static_integer_conversion_initializers,
+      static_integer_conversion_unit.initializers,
+      (size_t)static_integer_conversion_unit.initializer_count *
+          sizeof(*invalid_static_integer_conversion_initializers));
+  (void)memcpy(
+      invalid_static_integer_conversion_types,
+      static_integer_conversion_unit.graph.types,
+      (size_t)static_integer_conversion_unit.graph.type_count *
+          sizeof(*invalid_static_integer_conversion_types));
+  invalid_static_integer_conversion_types[static_unsigned_enum_type]
+      .referenced_type = static_unsigned_int_type;
+  if (!expect_integer_initializer_rejection_and_recovery(
+          job, &invalid_static_integer_conversion_unit,
+          &static_integer_conversion_unit, failure, first_bytes,
+          "wide enum INTEGER initializer with narrow compatible type",
+          &integer_initializer_validation_red)) {
+    goto cleanup;
+  }
+  (void)memcpy(
+      invalid_static_integer_conversion_initializers,
+      static_integer_conversion_unit.initializers,
+      (size_t)static_integer_conversion_unit.initializer_count *
+          sizeof(*invalid_static_integer_conversion_initializers));
+  (void)memcpy(
+      invalid_static_integer_conversion_types,
+      static_integer_conversion_unit.graph.types,
+      (size_t)static_integer_conversion_unit.graph.type_count *
+          sizeof(*invalid_static_integer_conversion_types));
+  invalid_static_integer_conversion_types[static_unsigned_int_type].kind =
+      CTOOL_C_TYPE_SIGNED_INT;
+  if (!expect_integer_initializer_rejection_and_recovery(
+          job, &invalid_static_integer_conversion_unit,
+          &static_integer_conversion_unit, failure, first_bytes,
+          "primitive unsigned INTEGER initializer with signed type kind",
+          &integer_initializer_validation_red)) {
+    goto cleanup;
+  }
+  (void)memcpy(
+      invalid_static_integer_conversion_initializers,
+      static_integer_conversion_unit.initializers,
+      (size_t)static_integer_conversion_unit.initializer_count *
+          sizeof(*invalid_static_integer_conversion_initializers));
+  (void)memcpy(
+      invalid_static_integer_conversion_types,
+      static_integer_conversion_unit.graph.types,
+      (size_t)static_integer_conversion_unit.graph.type_count *
+          sizeof(*invalid_static_integer_conversion_types));
+  (void)memcpy(
+      invalid_static_integer_conversion_layouts,
+      static_integer_conversion_unit.layout.types,
+      (size_t)static_integer_conversion_unit.layout.type_count *
+          sizeof(*invalid_static_integer_conversion_layouts));
+  invalid_static_integer_conversion_layouts[static_unsigned_int_type]
+      .alignment = 8u;
+  if (!expect_integer_initializer_rejection_and_recovery(
+          job, &invalid_static_integer_conversion_unit,
+          &static_integer_conversion_unit, failure, first_bytes,
+          "primitive unsigned INTEGER initializer with forged base alignment",
+          &integer_initializer_validation_red)) {
+    goto cleanup;
+  }
+  (void)memcpy(
+      invalid_static_integer_conversion_layouts,
+      static_integer_conversion_unit.layout.types,
+      (size_t)static_integer_conversion_unit.layout.type_count *
+          sizeof(*invalid_static_integer_conversion_layouts));
+  invalid_static_integer_conversion_layouts[
+      static_unsigned_int_declared_type]
+      .alignment = 8u;
+  if (!expect_integer_initializer_rejection_and_recovery(
+          job, &invalid_static_integer_conversion_unit,
+          &static_integer_conversion_unit, failure, first_bytes,
+          "const unsigned INTEGER initializer with forged wrapper alignment",
+          &integer_initializer_validation_red)) {
+    goto cleanup;
+  }
+  (void)memcpy(
+      invalid_static_integer_conversion_layouts,
+      static_integer_conversion_unit.layout.types,
+      (size_t)static_integer_conversion_unit.layout.type_count *
+          sizeof(*invalid_static_integer_conversion_layouts));
+  invalid_static_integer_conversion_layouts[static_signed_enum_type]
+      .alignment = 8u;
+  if (!expect_integer_initializer_rejection_and_recovery(
+          job, &invalid_static_integer_conversion_unit,
+          &static_integer_conversion_unit, failure, first_bytes,
+          "signed enum INTEGER initializer with forged base alignment",
+          &integer_initializer_validation_red)) {
+    goto cleanup;
+  }
+  (void)memcpy(
+      invalid_static_integer_conversion_layouts,
+      static_integer_conversion_unit.layout.types,
+      (size_t)static_integer_conversion_unit.layout.type_count *
+          sizeof(*invalid_static_integer_conversion_layouts));
+  invalid_static_integer_conversion_layouts[
+      static_signed_enum_compatible_type]
+      .alignment = 8u;
+  if (!expect_integer_initializer_rejection_and_recovery(
+          job, &invalid_static_integer_conversion_unit,
+          &static_integer_conversion_unit, failure, first_bytes,
+          "signed enum INTEGER initializer with forged compatible alignment",
+          &integer_initializer_validation_red)) {
+    goto cleanup;
+  }
+  (void)memcpy(
+      invalid_static_integer_conversion_layouts,
+      static_integer_conversion_unit.layout.types,
+      (size_t)static_integer_conversion_unit.layout.type_count *
+          sizeof(*invalid_static_integer_conversion_layouts));
+  invalid_static_integer_conversion_layouts[
+      static_unsigned_int_declared_type]
+      .alignment = 8u;
+  invalid_static_integer_conversion_layouts[static_unsigned_int_type]
+      .alignment = 8u;
+  if (!expect_integer_initializer_rejection_and_recovery(
+          job, &invalid_static_integer_conversion_unit,
+          &static_integer_conversion_unit, failure, first_bytes,
+          "primitive INTEGER chain with uniformly forged alignment",
+          &integer_initializer_validation_red)) {
+    goto cleanup;
+  }
+  (void)memcpy(
+      invalid_static_integer_conversion_layouts,
+      static_integer_conversion_unit.layout.types,
+      (size_t)static_integer_conversion_unit.layout.type_count *
+          sizeof(*invalid_static_integer_conversion_layouts));
+  invalid_static_integer_conversion_layouts[static_signed_enum_declared_type]
+      .alignment = 8u;
+  invalid_static_integer_conversion_layouts[static_signed_enum_type]
+      .alignment = 8u;
+  invalid_static_integer_conversion_layouts[
+      static_signed_enum_compatible_declared_type]
+      .alignment = 8u;
+  invalid_static_integer_conversion_layouts[
+      static_signed_enum_compatible_type]
+      .alignment = 8u;
+  if (!expect_integer_initializer_rejection_and_recovery(
+          job, &invalid_static_integer_conversion_unit,
+          &static_integer_conversion_unit, failure, first_bytes,
+          "enum INTEGER chain with uniformly forged alignment",
+          &integer_initializer_validation_red)) {
+    goto cleanup;
+  }
+  if (integer_initializer_validation_red != 0) {
+    (void)fprintf(
+        stderr,
+        "ordinary INTEGER initializer validation remains incomplete\n");
+    goto cleanup;
+  }
   first_bytes = ctool_buffer_view(first);
   second_bytes = ctool_buffer_view(second);
   if (first_bytes.size != second_bytes.size ||
@@ -29087,6 +30305,36 @@ static int run_floating_transport_object(const char *host_root) {
              (size_t)first_bytes.size) != 0) {
     (void)fprintf(
         stderr, "long double aggregate objects are not deterministic\n");
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(static_integer_conversion_output);
+  second_bytes =
+      ctool_buffer_view(static_integer_conversion_repeat_output);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0) {
+    (void)fprintf(
+        stderr,
+        "static long double integer conversion objects are not deterministic\n");
+    goto cleanup;
+  }
+  object_source.path.text =
+      ctool_string("/static-long-double-integer.o");
+  object_source.contents = first_bytes;
+  (void)memset(
+      &static_integer_conversion_object, 0xa5,
+      sizeof(static_integer_conversion_object));
+  status = ctool_elf32_read(
+      job, &object_source, &static_integer_conversion_object);
+  if (!check_status(
+          status, CTOOL_OK,
+          "read static long double integer conversion object") ||
+      !validate_static_long_double_integer_object(
+          &static_integer_conversion_unit,
+          &static_integer_conversion_object, first_bytes)) {
+    (void)fprintf(
+        stderr, "static long double integer conversion object differs\n");
+    (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
   first_bytes = ctool_buffer_view(first);
@@ -29164,6 +30412,10 @@ static int run_floating_transport_object(const char *host_root) {
   passed = 1;
 
 cleanup:
+  free(invalid_static_integer_conversion_layouts);
+  free(invalid_static_integer_conversion_types);
+  free(invalid_static_integer_conversion_initializers);
+  free(invalid_integer_initializers);
   free(invalid_initializers);
   free(invalid_promotion_expressions);
   if (limited != (ctool_buffer_t *)0) {
@@ -29180,6 +30432,12 @@ cleanup:
   }
   if (long_double_aggregate_repeat_output != (ctool_buffer_t *)0) {
     ctool_buffer_close(long_double_aggregate_repeat_output);
+  }
+  if (static_integer_conversion_output != (ctool_buffer_t *)0) {
+    ctool_buffer_close(static_integer_conversion_output);
+  }
+  if (static_integer_conversion_repeat_output != (ctool_buffer_t *)0) {
+    ctool_buffer_close(static_integer_conversion_repeat_output);
   }
   if (failure != (ctool_buffer_t *)0) {
     ctool_buffer_close(failure);
@@ -29655,20 +30913,20 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.cc",           "/toolchain/x86.cc",
       "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
-      65u, 71u, 82u, 140u, 31u, 143u, 265u, 366u, 428u, 82u, 37u, 60u,
+      65u, 71u, 82u, 140u, 31u, 143u, 269u, 366u, 430u, 82u, 37u, 60u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 78841u, 118477u, 183181u, 42212u,
-      190304u, 486526u, 574128u, 865286u, 146398u, 70368u, 80933u,
+      190304u, 495395u, 574128u, 868569u, 146398u, 70368u, 80933u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 91460u, 137444u, 220508u, 49484u,
-      226668u, 524784u, 644300u, 1029064u, 165728u, 79348u, 136164u,
+      226668u, 534004u, 644300u, 1032532u, 165728u, 79348u, 136164u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x6a4e9e64u, 0xae15dc9eu,
       0x90f1448fu, 0x999f97b7u, 0xb49d8eb9u,
-      0xfa10679au, 0x4a968c97u, 0x9df3cef4u, 0x9f35cab4u,
+      0x68838a8eu, 0x4a968c97u, 0x9da02de5u, 0x9f35cab4u,
       0x34558a49u, 0x6b4b77aeu, 0x8774de7du};
   ctool_u32 index;
   int all_matched = 1;

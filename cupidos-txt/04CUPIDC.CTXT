@@ -486,7 +486,7 @@ across the cdecl call.
 
 The scalar forms emit EC, EE, 66 ED, 66 EF, ED, and EF. INSW and OUTSW emit
 FC F3 66 6D and FC F3 66 6F through the shared x86 model. The checked-seed C11
-standalone sweep passes 157 of 159 active non-Doom headers. scheduler.h and
+standalone sweep passes 158 of 160 active non-Doom headers. scheduler.h and
 simd_intrin.h remain exact C11-profile failures. The checked seed parses all 29
 simd_intrin.h declarations under the Cupid profile through the shared native
 type graph.
@@ -607,8 +607,8 @@ integer ratio to a 64-bit explicit significand with ties to even. The emitter
 writes that significand and the positive token's biased exponent as three
 exact snapshot words; unary minus supplies the sign. Automatic values use frame snapshots. Static-duration scalars, fixed
 arrays, and complete records may contain long-double leaves. Implicit
-initialization zeros the complete object. An explicit leaf accepts an integer
-constant expression equal to zero or a bounded decimal L literal with
+initialization zeros the complete object. An explicit leaf accepts a represented
+integer constant expression or a bounded decimal L literal with
 parentheses and unary signs. Exact payloads and zero padding reach .bss,
 .data, or .rodata. Atomic leaves fail recursively without following pointers. The
 shared path converts among float, double, and long double, applies unary plus
@@ -629,12 +629,34 @@ from signed or unsigned 8-bit, 16-bit, 32-bit, and 64-bit integers.
 Unsigned 64-bit corrections temporarily select 64-bit x87 precision, retain
 the caller's rounding mode, and restore the complete control word before the
 result store.
+Static initializer conversion covers _Bool, plain char, every signed or
+unsigned i386 integer width, and an enum whose compatible integer type has the
+represented target layout. For a nonzero magnitude M with bit width w, the
+x87 significand is M << (64 - w). The high word is
+(negative ? 0x8000 : 0) | (0x3fff + w - 1). Long-double input truncates toward
+zero before its range check for integer destinations other than _Bool.
+_Bool tests the original floating value: both signed zeros become false, and
+every represented finite nonzero value becomes true. The shared fixture
+converts -0.5L to both targets, producing true for _Bool and zero for an
+unsigned integer. Integer-valued zero keeps a CTOOL_C_INITIALIZER_ZERO record.
+Linear IR requires an unwrapped primitive base to have a recognized standard
+integer kind with the target's canonical size, signedness, and alignment. The
+declared wrapper must match its unwrapped base on size, signedness, integer,
+object, and completeness flags. An enum's compatible integer kind must be
+recognized. The enum, its unwrapped base, and its compatible type must agree on
+those five fields and on alignment. A QUALIFIED node copies referenced
+alignment unless it introduces _Atomic. An atomic introduction at any layer
+raises alignment to at least the target atomic alignment. An
+ALIGNED node requires an explicit, nonzero power-of-two alignment and may lower
+the referenced alignment. _Bool
+has one payload bit. The check runs during whole-unit initializer ownership
+and block-static declaration lowering.
 Hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
-bounded parser, static long-double computation, floating-width conversion,
-and integer conversion, nonzero integer static
-initializers, other floating-to-wide conversions, runtime mixed integer and floating arithmetic or
-conditional arms, increment and decrement, general SIMD value semantics,
+bounded parser, static long-double arithmetic, comparison, truth and logical
+operators, conditional selection, and floating-width conversion, other
+floating-to-wide conversions, runtime mixed integer and floating arithmetic
+or conditional arms, increment and decrement, general SIMD value semantics,
 floating atomic access, and over-aligned object emission remain unfinished.
 The exact production SIMD
 assembly forms have their own checked path. Matching or mixed-width floating
@@ -645,7 +667,10 @@ The static scalar and aggregate proofs cover both scopes, mutable and const
 objects, signed zero, the largest accepted bounded literal, exact sections,
 symbols, padding, malformed metadata, recovery, and deterministic repeated
 emission. The hosted i386 runtime reads all three target words for every
-payload. ADR 0251 records this static-data boundary.
+literal payload. The shared conversion fixture covers every integer kind,
+signed and unsigned enums, both signed 64-bit endpoints, ULLONG_MAX, and both
+the _Bool and unsigned results of -0.5L. ADR 0251 records the static-data
+boundary, and ADR 0254 records conversion.
 
 Plain assignment, all ten compound assignments, and prefix and postfix update
 work for non-atomic integer bit fields whose declared storage unit is four

@@ -239,7 +239,7 @@ The checked seed parses all eight helpers in unchanged
 the 16-bit DX port, the read/write ESI or EDI buffer, the read/write ECX
 count, and the INSW memory clobber. Scalar port I/O and the CLD plus REP word
 forms emit through the shared x86 model. The checked-seed C11 standalone sweep
-passes 157 of 159 active non-Doom headers; `scheduler.h` and `simd_intrin.h`
+passes 158 of 160 active non-Doom headers; `scheduler.h` and `simd_intrin.h`
 remain exact C11-profile failures. The checked seed parses all 29 declarations in
 unchanged `simd_intrin.h` under the Cupid profile. Its shared frontend now
 recognizes Cupid's sized scalar, Boolean, and vector type spellings directly.
@@ -608,8 +608,9 @@ memory forms, i686
 `FUCOMIP ST0, ST(i)`, and operand-free `FLDZ`, used by represented `long
 double` values. File-scope and
 block-static scalars, fixed arrays, and complete records may contain
-non-atomic long-double leaves initialized with zero or a bounded decimal `L`
-literal. Exact payloads and padding reach `.bss`, `.data`, or `.rodata`. The
+non-atomic long-double leaves initialized with a represented integer constant
+expression or a bounded decimal `L` literal. Exact payloads and padding reach
+`.bss`, `.data`, or `.rodata`. The
 scalar and aggregate proofs cover both scopes, signed zero, const and mutable
 objects, section placement, symbols, malformed metadata, recovery, and
 deterministic repeated emission. The hosted runtime reads each target payload
@@ -619,7 +620,28 @@ every long-double-to-integer conversion restore the control word they save.
 Other integer-to-long-double conversions do not change it. A 12-case runtime
 matrix covers every valid precision and rounding combination. ADR
 0251 records the static-data boundary, ADR 0252 records the source-head x87
-integer forms, and ADR 0253 records runtime conversion.
+integer forms, and ADR 0253 records runtime conversion. Compiler head also
+converts static initializers between bounded finite `long double` and every
+represented value integer and an enum whose compatible integer type has the
+represented target layout. It packs integer input into exact x87 metadata. For
+integer destinations other than `_Bool`, it truncates long-double input before
+the range check. `_Bool` tests the original floating value. The shared fixture
+converts `-0.5L` to both targets, producing true for `_Bool` and zero for an
+unsigned integer. Integer zero stays `ZERO`, and the initializer emits no
+runtime conversion work. Linear IR checks each `INTEGER` leaf against the
+standard target kind and representation tables. An unwrapped primitive base
+must have a recognized standard integer kind with its canonical target size,
+signedness, and alignment. Wrapper and base size, signedness, integer, object,
+and completeness flags must match. An enum's compatible integer kind must be
+recognized. The enum, its unwrapped base, and its compatible type must agree on
+those five fields and on alignment. A `QUALIFIED` node copies referenced
+alignment unless it introduces `_Atomic`. An atomic introduction at any layer
+raises alignment to at least the target atomic alignment. An
+`ALIGNED` node requires an explicit, nonzero power-of-two alignment and may
+lower the referenced alignment.
+`_Bool` has one payload bit.
+The check runs during whole-unit initializer ownership and block-static
+declaration lowering. ADR 0254 records this static conversion.
 Both compiler stages in the normal contract cohort rebuild the source
 catalogue. ADR 0203 records the checked seed, ADR 0207 records the subtraction
 form, ADR 0226 records SHRD, ADR 0228 records its seed carriage, and ADR 0252

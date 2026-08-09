@@ -797,7 +797,7 @@ contention. Runtime order arguments, pointer and eight-byte atomics, and HLE
 flags remain open. The checked seed carries all five operations and compiles
 the active EHCI fetch-or path.
 
-The checked-seed C11 standalone-header sweep passes 157 of 159 active non-Doom
+The checked-seed C11 standalone-header sweep passes 158 of 160 active non-Doom
 inputs. `scheduler.h` and `simd_intrin.h` remain explicit C11-profile failures.
 The checked seed parses all 29 declarations in `simd_intrin.h` under its proper
 Cupid profile, while `scheduler.h` still has an undefined historical array
@@ -1014,11 +1014,30 @@ integer ratio to a 64-bit explicit significand with ties to even. The emitter
 writes that significand and the 16-bit sign and exponent as three exact
 words; the last two object bytes stay zero. Automatic values use frame
 snapshots. Static-duration scalars, fixed arrays, and complete records may
-contain long-double leaves. A leaf accepts implicit zero, an integer constant
-expression equal to zero, or a bounded decimal `L` literal with parentheses
-and unary signs. An all-zero payload uses `.bss`; mutable nonzero values use
-`.data`, and const nonzero values use `.rodata`. Atomic leaves fail
-recursively without following pointers. The represented slice covers floating-width conversion,
+contain long-double leaves. A leaf accepts implicit zero, a represented
+integer constant expression, or a bounded decimal `L` literal with
+parentheses and unary signs. An all-zero payload uses `.bss`; mutable nonzero
+values use `.data`, and const nonzero values use `.rodata`. Atomic leaves fail
+recursively without following pointers. Static initializer conversion works
+between these values and `_Bool`, plain `char`, each signed or unsigned i386
+integer width, and an enum whose compatible integer type has the represented
+target layout. A nonzero integer is packed exactly into the 64-bit x87
+significand. For integer destinations other than `_Bool`, long-double input is
+truncated toward zero before its range is checked. `_Bool` instead tests the
+original floating value: both signed zeros become false, and every represented
+finite nonzero value becomes true. The fixture makes that ordering visible:
+`-0.5L` becomes true for `_Bool` but zero for an unsigned integer.
+Integer-valued zero keeps its existing `ZERO` initializer record.
+
+Linear IR also checks the integer type's target representation. A primitive
+base must use its canonical target size, signedness, and alignment. An enum,
+its unwrapped base, and its compatible integer type must agree on size,
+signedness, integer, object, and completeness flags, as well as alignment.
+A `QUALIFIED` wrapper copies the referenced alignment
+unless it introduces `_Atomic`. An atomic introduction at any layer raises
+alignment to at least the target atomic alignment. An `ALIGNED` wrapper
+requires an explicit, nonzero power-of-two alignment and may lower the
+referenced alignment. This represented slice covers floating-width conversion,
 unary plus and minus, all four arithmetic operators, function returns, and
 direct or indirect call results. Fixed, ellipsis, and unprototyped arguments
 occupy twelve cdecl bytes. `va_arg(long double)` copies the same width and
@@ -1030,25 +1049,28 @@ uses `FUCOMIP`, balances the x87 stack, treats signed zeros as equal, and makes
 only `!=` true for an unordered input. Runtime `float`, `double`, and
 automatic `long double` values also work with unary `!`, `&&`, `||`, the
 controlling operand of `?:`, the conditions of `if`, `while`, `do`, and
-`for`, and conversion to `_Bool`. Both signed zeros are false; finite nonzero values, subnormals,
-infinities, and NaNs are true. Runtime casts, assignments, arguments, and
-returns convert between `long double` and signed or unsigned integers at 8,
-16, 32, and 64 bits. The emitter uses `FILD` for input and temporarily selects
-64-bit x87 precision for the exact unsigned 64-bit correction. It retains the
-caller's rounding mode and restores its saved control word before the final
-store. Floating-to-integer conversion saves the caller's control word
+`for`, and conversion to `_Bool`. Both signed zeros are false; finite nonzero
+values, subnormals, infinities, and NaNs are true. Runtime casts, assignments,
+arguments, and returns convert between `long double` and signed or unsigned
+integers at 8, 16, 32, and 64 bits. The emitter uses `FILD` for input and
+temporarily selects 64-bit x87 precision for the exact unsigned 64-bit
+correction. It retains the caller's rounding mode and restores its saved
+control word before the final store. Floating-to-integer conversion saves the
+caller's control word
 separately, selects truncate mode for `FISTP`, and restores that copy.
-Hexadecimal floating literals, binary32 and
-binary64 subnormal literals, hexadecimal or subnormal long-double literals,
-decimal ratios beyond the bounded parser, static long-double arithmetic,
-comparisons, truth, conditionals, width conversions, or integer conversions,
-nonzero integer static initializers, mixed integer and floating conditional arms,
-floating increment and decrement, SIMD values, floating atomics, and
-over-aligned emission remain open. ADR 0202 records the truth boundary, and
+Hexadecimal floating literals, binary32 and binary64 subnormal literals,
+hexadecimal or subnormal long-double literals, decimal ratios beyond the
+bounded parser, static long-double arithmetic, comparisons, truth and logical
+operators, conditionals, or width conversions, mixed integer and floating
+conditional arms, floating increment and decrement, SIMD values, floating
+atomics, and over-aligned emission remain open. ADR 0202 records the truth
+boundary, and
 [ADR 0229](docs/adr/0229-emit-exact-decimal-long-double-literals.md) records
 the decimal literal representation. ADR 0251 records exact static
 long-double data, and ADR 0253 records runtime conversions between
 `long double` and integers.
+[ADR 0254](docs/adr/0254-convert-static-integers-and-long-double.md) records
+static initializer conversion.
 
 Plain assignment, all ten compound assignments, and prefix or postfix increment and decrement now work for represented non-atomic bit fields in four-byte storage units. Linear IR keeps the selected member and evaluates the record address once. Partial fields preserve neighboring bits, and postfix updates retain the extracted old value through the store so width wrap does not change the result. Narrow unsigned fields promote to signed `int` when their values fit. A volatile 32-bit field uses one read and one direct store. An execution oracle proves that `states[(*index)++].value++` advances its side-effecting index exactly once. Partial volatile mutation, atomic bit-field access, and non-four-byte storage units remain open. The plain-assignment contracts still pin Doom's unchanged `colors[index].r = value` shape.
 
