@@ -699,18 +699,20 @@ ADR 0211 records the storage boundary.
 
 The five static i386 Linux tools have a checked seed. The manifest binds their
 hashes, sizes, target ABI, source revision, producer lineage, 19-source plan,
-and five link orders. The current CupidC image is the 2,582,400-byte
+and five link orders. The current CupidC image is the 2,632,760-byte
 stage-three output from revision
-`aeef93513e6ac899c933a09e4cacf05ef8b047df`, with SHA-256
-`03084115bcacb1987db5513c8a8be9b7d884029b03ab4b212bf40d997871ae79`.
+`9115787311bf455b6eee19e7742cc83aa252e7c8`, with SHA-256
+`bfe4b9581302439ae35dac340c3f3e38812a2ce7b0ce54a8af1e04731cd077c1`.
 It retains the complete 83-root Doom frontier, GNU entity metadata, x87 and
 SSE forms, descriptor and segment assembly, the `libm.cc` effects, the dglibc
 jump block, pointer-preserving static address casts, naked IPI entries, the
 kernel-entry BSS clear, and packed SSE2 statements. It also carries runtime
-floating truth, bounded decimal `long double` constants, the returns-twice
-call boundary, and Cupid's native type spellings. The same seed carries the
-596-row SHRD-capable x86 catalogue with forward x87 stack subtraction and
-typed CupidDis raw ranges. Its 392,688-byte CupidObj image has SHA-256
+floating truth, runtime and static integer to `long double` conversion,
+canonical static x87 payloads, the returns-twice call boundary, and Cupid's
+native type spellings. The same seed carries the 602-row, 247-mnemonic x86
+catalogue with signed x87 integer forms and typed CupidDis raw ranges. Its
+CupidLD image carries deterministic PE32 imports. Its 392,688-byte CupidObj
+image has SHA-256
 `7137ad601a7c22178112fbf08163b36ff2064807caa99962df97d7ae7ae62f2b`
 and carries the complete installation-source bounds, ordering, and
 wrapped-symbol contract, transactional kernel-symbol source generation,
@@ -720,32 +722,31 @@ Its plan uses `.cc` for all 19 C roots and has
 SHA-256
 `59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`.
 The 5,440-byte manifest has SHA-256
-`bbc989d7008507a2961a5f940875270fb48b68bf7afb993f5774d70aea17fe91`.
-ADR 0243 records the current promotion.
+`8fd462648360d3c705e203fc771299007d590d1665a6c253781a4ee83c811c33`.
+ADR 0258 records the current promotion.
 
 The bootstrap copies the 43-input source closure into a private compiler root.
 Both rebuilt stages compile from that root, and the harness checks the private
 and live closures at each stage and behavior boundary. The profile-manifest
 seed transition's stage two and stage three contain the same five tool images.
-CupidObj differs from the preceding seed; CupidASM, CupidC, CupidDis, and
-CupidLD remain byte-identical. The two rebuilt stages match every C and startup
-object and agree on all five help paths, fifteen successful operations, and
-thirteen failure cases. Their stage directories, behavior evidence, and report
+CupidObj remains byte-identical to the preceding seed; CupidASM, CupidC,
+CupidDis, and CupidLD change. The two rebuilt stages match every C and startup
+object and agree on all five help paths, seventeen successful operations, and
+fifteen failure cases. Their stage directories, behavior evidence, and report
 are published together only after the complete gate passes.
 
-Source-head CupidLD includes deterministic fixed-layout i386 PE32 serialization
+Checked-seed CupidLD includes deterministic fixed-layout i386 PE32 serialization
 and canonical imports. That proof uses the same rebuilt tools, plus a
 repository Windows startup and a headerless freestanding CupidC contract.
 Both CupidC stages emit the same object, and both CupidLD stages link the same
 imported image. Windows validates and runs the stage-two image, checks its
-exact marker and empty stderr, and requires exit 37. The source-head matrix is
+exact marker and empty stderr, and requires exit 37. The checked-seed matrix is
 5/17/15. Import ordering uses an in-place heap, name imports stay below the
 PE32 high-bit boundary, and the independent validator reconstructs the exact
 `.idata` cursor. The bootstrap report retains both stages' object and image
-hashes and the observed Windows result. The checked seed does not carry
-imports, and the normal build does not use PE output, so native five-tool
-execution and seed carriage remain open.
-ADRs 0247 and 0248 record these boundaries.
+hashes and the observed Windows result. The normal build does not use PE
+output, so native five-tool execution remains open. ADRs 0247 and 0248 record
+the format and loader boundaries. ADR 0258 records seed carriage.
 
 Those rebuilt CupidLD images publish ELF and PE output through an adjacent
 candidate created with exclusive-create semantics. They write and close the
@@ -759,7 +760,7 @@ caller's control; the publisher has no destination lock or directory pin.
 The checked seed now carries CupidObj's bounded `iso-fixture` operation. Its
 hosted command reproduces the exact 61,440-byte repository image from the
 manifest and typed logical inventory. Both rebuilt stages exercise the command
-and its preserved-output failure in the 5/15/13 behavior matrix. ADR 0239
+and its preserved-output failure in the 5/17/15 behavior matrix. ADR 0239
 records the source capability, and ADR 0240 records the promotion. The normal
 ISO recipe now runs that checked image as its first byte author, with Python
 retained as the independent renderer and guarded publisher; ADR 0241 records
@@ -933,11 +934,11 @@ its own typed contract.
 The checked seed accepts the exact volatile `ldmxcsr %0` form with one
 addressable, non-atomic 32-bit integer `m` input. Linear IR evaluates its
 address once, and the shared x86 model emits `0F AE 10` at `[EAX]`.
-Compiler head accepts exact `fldcw %0` through the same state-memory input
+The checked seed accepts exact `fldcw %0` through the same state-memory input
 seam. It requires one addressable, non-atomic 16-bit integer `m` input. GNU
 semantics make the no-output statement volatile even when the keyword is
 omitted. Linear IR evaluates the address once, and the emitter produces
-`D9 /5` at `[EAX]`. The checked seed does not carry this form yet.
+`D9 /5` at `[EAX]`. ADR 0258 records checked-seed carriage.
 It also accepts the exact MOVSS float-memory round trip in
 `fpu_boot_smoke()` and the matching one-way load and store. Each form
 requires the `xmm0` clobber, evaluates each object address once, and emits

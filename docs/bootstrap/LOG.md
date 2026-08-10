@@ -23230,3 +23230,113 @@ Executed on native Windows PowerShell.
 | Final build after the embedded CTXT review | PASS: `make -j4 all` exited 0 in 696.600 seconds. The 9,106,192-byte `kernel/kernel.elf` has SHA-256 `c7a181cc9802aceb065ab3f77a7e9fb9a88ff03a2aeadcc2b607a8bb641a1236`; the 8,897,572-byte `kernel/kernel.bin` has SHA-256 `510eeaac96694ef007f92c4e7265d00d424c5d521cb060b1f25c6a2481e2267f`; and the 209,715,200-byte `cupidos.img` has SHA-256 `2702c2ad3e089a14b6beae339ac82d75cd4c3388481459a15ff4eb7981ce6ee5`. |
 | First final-image four-CPU e1000 attempt | FAIL after 62.771 seconds in the unchanged EHCI cleanup path, before feature-14 compilation. The 35,967-byte `.codex-feature14-matrix-rank-final.log` has SHA-256 `9850cd4586e81c2ee836865544f7f349b447675b17cd44353b87224322ca86ad`. |
 | Focused final-image feature-14 boot | PASS: exit 0 in 79.227 seconds. Lines 528 and 535 through 541 contain the compile marker, five feature markers, overall PASS, and JIT completion in order. The 28,209-byte `.codex-feature14-matrix-rank-final-v2.log` has SHA-256 `8ba77100b1738a8509caca58a7ebc6c5c99416bf33343304ad21583346df4157`. |
+
+## 2026-08-10: promote PE and x87 capabilities into the checked seed
+
+The checked static i386 Linux seed now comes from revision
+`9115787311bf455b6eee19e7742cc83aa252e7c8`. It carries deterministic PE32
+imports, the 602-row shared x86 catalogue, runtime and static integer to
+`long double` conversion, static long-double controls, and canonical x87
+special and subnormal payloads.
+
+### Transition
+
+The preceding seed rebuilt the 43-file source closure with all eleven
+conventional host code-generator variables set to commands that could not
+run. The same values were passed on the Make command line. All nineteen C
+object pairs, startup, and five tool images match between stage two and stage
+three. The old seed matches stage two only for CupidObj, which is the expected
+transition.
+
+The detached candidate command was:
+
+```text
+make bootstrap-from-seed BOOTSTRAP_SEED_OUTPUT=.codex-seed-promotion-91157873
+```
+
+| Tool | Bytes | SHA-256 | Matches preceding seed |
+| --- | ---: | --- | --- |
+| CupidASM | 445,616 | `fc4e3824d01364debbdfcb6a726e9594a6c68d7c1ed013ffbb2d7f78f05644f9` | no |
+| CupidC | 2,632,760 | `bfe4b9581302439ae35dac340c3f3e38812a2ce7b0ce54a8af1e04731cd077c1` | no |
+| CupidDis | 379,648 | `6f3425e7c1fb1e1274c945fdeb891347f1ef681c8b852aec783f4ecd1fa8acfe` | no |
+| CupidLD | 312,792 | `9561d6f7170472cd6dccd87d4988fdd2b23a138966cbe4940a9ffb062eab481d` | no |
+| CupidObj | 392,688 | `7137ad601a7c22178112fbf08163b36ff2064807caa99962df97d7ae7ae62f2b` | yes |
+
+The transition completed in 777.591 seconds. Its source snapshot has SHA-256
+`3619e7d508f55f5e91bf3fa79071fd2dcd818ec8e0281f03a1d9d48f0a7a3547`.
+The 17,036-byte report has SHA-256
+`2a4686775111ac2d14dfad8c12c189cb139a61589b120f133d0d8a5530a2403e`.
+Both stages pass five help cases, seventeen successful operations, and
+fifteen useful failures.
+
+The Windows artifact pairs also match. The 2,048-byte imported image has
+SHA-256
+`c83ac4a301d82b26527ccd87ec8c020e44c72f7c09a0b228a83e743846a4ca1c`.
+It imports `ExitProcess`, `GetStdHandle`, and `WriteFile` from `KERNEL32.dll`.
+Windows prints the expected marker, writes no stderr, and returns 37.
+
+### Direct carriage and reproof
+
+Before promotion, the direct x87 test failed on the old assembler's unknown
+`fild` mnemonic. The imported-PE test reached an old linker that accepted only
+ELF output. After promotion, both tests pass in 7.508 seconds. Their negative
+forms preserve sentinel outputs.
+
+The independent post-promotion rebuild completed in 794.659 seconds with the
+same host variables poisoned. Every seed image matches stage two. Stage two
+again matches stage three across the 19/1/5 artifact set, 5/17/15 behavior
+matrix, and Windows loader proof. Its 17,032-byte report has SHA-256
+`a518747e2e4701f8f75fae083bf38d1d1aa86207c13c34fb78fca3800de21fd6`.
+The command was:
+
+```text
+make bootstrap-from-seed BOOTSTRAP_SEED_OUTPUT=.codex-seed-reproof-91157873
+```
+
+### Audit lock correction
+
+The capability added two Toolchain headers and one internal long-double
+preprocessor guard. Regenerating the active-source audit moved the checked
+inventory to 723 active sources, 76 Toolchain sources, 5,895 `sizeof`
+occurrences, 690 preprocessor source files, and 27 conditional expressions.
+An audit run started while those locks were changing and kept four old values.
+A frozen rerun exposed two nested count locks, then passed all 75 tests after
+the measured values were recorded.
+
+### Current boundary
+
+The seed remains a static i386 Linux cohort. Windows executes it through WSL,
+and Python still coordinates the fixed point and normal artifact publication.
+A native Windows five-tool seed remains open. No normal source changes owner,
+no `.c` to `.cc` rename is due, and `TempleOS/` remains read-only reference
+material. ADR 0258 records the promotion.
+
+### Test evidence
+
+Executed on native Windows PowerShell.
+
+| Check | Result |
+| --- | --- |
+| Manifest and five static ELF images | PASS: `make verify-bootstrap-seed`. |
+| Direct x87 and imported-PE carriage | PASS: both tests in 7.508 seconds. |
+| Complete checked-seed module | PASS: all 53 tests in 1,064.113 seconds. |
+| Active-source audit generation and check | PASS in 145.729 seconds. |
+| Complete build-graph audit module | PASS: all 75 tests in 815.127 seconds; the 27,932-byte log has SHA-256 `a85e9f58d22b2631708e408a62f085d1dd75c35659dbce4bc461b161a332d953`. |
+| Complete Toolchain build | PASS in 3,397.047 seconds; all 20 artifacts published and verified. The 12,010-byte log has SHA-256 `b9f6611f6fdda1014b80d6045e6577834c079cffa20cab1b7685a822ecd8fac6`. |
+| Complete Toolchain replay | PASS in 3,289.464 seconds, including both self-host selectors and all 22 assembly demos. The 95,992-byte log has SHA-256 `ccdc557c43e48ca3b4f1d397eab8a97341ae1e6907378da7d945b2faa6556db3`. |
+| Post-promotion OS build | PASS: `make -j4 all test_usb_partitioned.img` rebuilt the normal kernel and disk image and confirmed the partitioned USB test image was current in 622.683 seconds. The 199,026-byte log has SHA-256 `cb329c31081a6429f9c2d6c383861909eb79f67b629e1d5d322436399ae8c98a`. |
+| Normal image | PASS: `kernel/kernel.elf` is 9,106,192 bytes with SHA-256 `51954fb43c093e1fd190867b024e6507fad38d1ced927cbd3112500a80c7ad92`; `kernel/kernel.bin` is 8,897,492 bytes with SHA-256 `3e76b91bf8394cd80435196c61c475d8909c475beb8ab6df80611de915b77981`; `cupidos.img` is 209,715,200 bytes with SHA-256 `a6d48c60cb9f3b0c7da2c9fc05ba29a2b194058dcdee8b1b38f015c0f490e102`. |
+| Final seed verification | PASS in 0.289 seconds: all five checked images match the manifest. |
+| Four-vCPU e1000 boot | PASS in 540.671 seconds. The 126,112-byte serial log has SHA-256 `7d409e0155b66803ee9cbd56249a3a274f08186386bc098ad111ed2949ee7faa`. |
+| Four-vCPU RTL8139 boot | PASS in 521.028 seconds. The 123,032-byte serial log has SHA-256 `ac77359d66e0e549804382ca4286ed8611c6779d24a628cc3aa4878f6f0dd5cb`. |
+| Poisoned promotion candidate | PASS: fixed point and Windows proof in 777.591 seconds. |
+| Poisoned post-promotion reproof | PASS: all seed matches true in 794.659 seconds. |
+
+The first captured Toolchain build stopped before a result was written. A
+second build finished before the native conditional-count lock was found, so
+it was not accepted as final evidence. The final build and replay above ran
+after the Python and native preprocessor locks agreed with the regenerated
+audit. Both boot runs used `--smp 4 --cpu max`, the private image, and the SMP
+and frontier-runtime checks. They covered the compiler frontier, GUI and
+browser paths, framebuffer, AC97 and PC-speaker audio, and JIT completion
+without a panic or fatal marker.

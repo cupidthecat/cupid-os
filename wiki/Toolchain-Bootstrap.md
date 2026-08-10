@@ -64,8 +64,8 @@ its startup, and checked CupidLD links all five tools. The stage-two producer
 trio repeats the build for stage three below the same root.
 
 The gate compares all 19 C objects, both startup objects, and all five linked
-images. It also runs five help checks, fifteen successful operations, and
-thirteen failure cases across compilation, assembly, disassembly, symbol
+images. It also runs five help checks, seventeen successful operations, and
+fifteen failure cases across compilation, assembly, disassembly, symbol
 inspection and source generation, linking, `profile-manifest` authoring, JPEG
 validation, disk-template and ISO fixture construction, wrapping, and flattening. The
 harness rehashes both
@@ -112,7 +112,7 @@ Linux host `.text` measurements differ by 22.73 percent for the same revision,
 so neither measurement can define that gate. Linker capacity checks remain
 separate.
 
-Source-head CupidLD serializes one deterministic fixed-layout i386 PE32
+Checked-seed CupidLD serializes one deterministic fixed-layout i386 PE32
 console image. The format uses image base `0x00400000`, places `.text` at RVA
 `0x1000`, and lays out each nonempty later section category at the next page
 boundary. Empty output categories do not get PE section headers. Repeatable
@@ -128,16 +128,17 @@ compile its freestanding `main`, and both CupidLD stages produce identical PE
 bytes. An independent parser reconstructs the exact `.idata` layout before
 Windows runs the stage-two image. The loader check requires the exact stdout
 marker, empty stderr, exit 37, and a ten-second timeout. The report retains the
-observed result and hashes for both object and image pairs. The source-head
-matrix is 5/17/15.
-The promoted Linux seed retains its 5/15/13 proof and does not carry imports,
-so Windows still needs WSL for checked tool production. [ADR
+observed result and hashes for both object and image pairs. The checked-seed
+matrix is 5/17/15. The promoted Linux seed carries imports, but Windows still
+needs WSL to execute its static i386 Linux producers. [ADR
 0247](../docs/adr/0247-serialize-fixed-layout-pe32-images-with-cupidld.md)
 records the format boundary. [ADR
 0248](../docs/adr/0248-link-deterministic-pe32-imports-and-run-a-cupid-built-windows-command.md)
-records imports and direct loader execution.
+records imports and direct loader execution. [ADR
+0258](../docs/adr/0258-promote-pe-and-x87-toolchain-seed.md) records seed
+carriage.
 
-The source-head CLI stages both ELF and PE images in an adjacent candidate
+The checked-seed CLI stages both ELF and PE images in an adjacent candidate
 created with exclusive-create semantics. It writes and closes the candidate,
 then reopens the file and checks its size and contents before replacing the
 destination. Fault injection preserves an old destination across partial-write,
@@ -163,13 +164,15 @@ current GNU entity metadata, the active x87 and SSE memory forms, descriptor
 and segment assembly, every represented assembly effect in `libm.cc`, the
 exact dglibc jump block, pointer-preserving static address casts, explicit
 `double` to `unsigned long long` conversion, exact naked IPI entries, runtime
-floating truth, bounded decimal `long double` constants, and Cupid's native
-type spellings. Its stage-three CupidC image is 2,582,400 bytes with SHA-256
-`03084115bcacb1987db5513c8a8be9b7d884029b03ab4b212bf40d997871ae79`.
-It came from revision `aeef93513e6ac899c933a09e4cacf05ef8b047df`. CupidASM
-and CupidDis carry the 596-row shared x86 catalogue with canonical SHRD and
-forward stack subtraction. CupidDis also carries typed raw code and data
-ranges. The 392,688-byte CupidObj image has SHA-256
+floating truth, runtime and static integer to `long double` conversion,
+canonical static x87 payloads, and Cupid's native type spellings. Its
+stage-three CupidC image is 2,632,760 bytes with SHA-256
+`bfe4b9581302439ae35dac340c3f3e38812a2ce7b0ce54a8af1e04731cd077c1`.
+It came from revision `9115787311bf455b6eee19e7742cc83aa252e7c8`.
+CupidASM and CupidDis carry the 602-row shared x86 catalogue with signed x87
+integer conversion forms. CupidLD carries deterministic PE32 imports.
+CupidDis also carries typed raw code and data ranges. The 392,688-byte
+CupidObj image has SHA-256
 `7137ad601a7c22178112fbf08163b36ff2064807caa99962df97d7ae7ae62f2b`.
 It carries installation-source generation, transactional kernel-symbol source
 generation, transactional sequential-JPEG validation, pristine disk-template
@@ -177,18 +180,16 @@ construction, deterministic ISO fixture authoring, and `profile-manifest` author
 
 In the latest transition, all nineteen C objects, startup, and five tool images
 matched between stage two and stage three. Both stages passed five help cases,
-fifteen successful operations, and thirteen useful failures. CupidObj changed
-from the preceding seed; CupidASM, CupidC, CupidDis, and CupidLD stayed
-byte-identical. The 5,440-byte manifest has SHA-256
-`bbc989d7008507a2961a5f940875270fb48b68bf7afb993f5774d70aea17fe91`.
-The 794.6-second post-promotion rebuild reproduced all five seed images at
-stage two and repeated the complete fixed point. Its 15,057-byte report has
+seventeen successful operations, and fifteen useful failures. CupidObj stays
+byte-identical to the preceding seed; CupidASM, CupidC, CupidDis, and CupidLD
+change. The 5,440-byte manifest has SHA-256
+`8fd462648360d3c705e203fc771299007d590d1665a6c253781a4ee83c811c33`.
+The 794.659-second post-promotion rebuild reproduced all five seed images at
+stage two and repeated the complete 5/17/15 fixed point. Its 17,032-byte
+report has
 SHA-256
-`a62c62addd00decb2e656c24e3281e40bcc635dd82eead235d6187ee861f5a7c`.
-The complete checked-seed module passes all 45 tests in 868.426 seconds,
-including another full fixed point and the decimal `long double`, JPEG, disk,
-ISO, and `profile-manifest` carriage checks. ADR 0243 records the promotion
-and fixed-point evidence.
+`a518747e2e4701f8f75fae083bf38d1d1aa86207c13c34fb78fca3800de21fd6`.
+ADR 0258 records the promotion and fixed-point evidence.
 
 The refreshed seed represents operand-free GNU assembly statements inside
 functions and emits exact PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT
@@ -266,11 +267,11 @@ The normal build owns the root through the checked wrapper. A typed policy
 decodes `fpu_init_cpu()`, rejects helper calls and floating work before the
 CR4 write, and requires `FNINIT` before one 32-bit memory `LDMXCSR`.
 
-Compiler head extends the state-memory input seam with exact `fldcw %0` and
+Checked-seed CupidC extends the state-memory input seam with exact `fldcw %0` and
 one addressable, non-atomic 16-bit integer `m` input. GNU semantics make the
 no-output statement volatile even when the keyword is omitted. Linear IR
-evaluates the address once, and the emitter produces `D9 /5` through EAX. The
-checked seed does not carry this form yet.
+evaluates the address once, and the emitter produces `D9 /5` through EAX. ADR
+0258 records checked-seed carriage.
 
 The checked seed represents the exact volatile EFLAGS restore in
 `simd_cpu_has_cpuid()`. One 32-bit `r` input and one `cc` clobber reach
@@ -400,7 +401,7 @@ SHA-256
 Checked-seed CupidObj reproduces that manifest through `profile-manifest`. The
 command reads one bounded `CUPROF1` snapshot, hashes the 291 captured headers,
 and emits canonical JSON for both profiles. The profile-manifest promotion
-rebuild matched stage two and stage three across a 5/15/13 behavior matrix,
+rebuild remains covered by the current 5/17/15 behavior matrix,
 including SHA padding boundaries, unsafe paths, case collisions, and preserved
 failure output. The normal wrapper derives the snapshot and independent Python
 oracle from one stable capture, runs CupidObj from the exact frozen seed, and
@@ -594,9 +595,8 @@ CupidDis scan covered 377 active ELF objects across the kernel, programs,
 drivers, Toolchain, and user build. Every object decoded, and none produced a
 true `db 0x` fallback row. The active SIMD object already uses the shared
 model for its packed SSE2 instructions, so the investigation added no
-speculative opcode. The checked seed has 596 catalogue rows, 245 canonical
-mnemonics, and fingerprint `DA15E97F`. Source head has 602 rows, 247 canonical
-mnemonics, and fingerprint `64429699`. Six source-head rows encode signed x87
+speculative opcode. The checked seed and source head have 602 catalogue rows,
+247 canonical mnemonics, and fingerprint `64429699`. Six rows encode signed x87
 `FILD` and `FISTP` memory operands at 16, 32, and 64 bits.
 The four SHRD
 forms cover 16-bit and 32-bit SHRD with register or memory destinations and
@@ -614,14 +614,15 @@ expression or a bounded decimal `L` literal. Exact payloads and padding reach
 scalar and aggregate proofs cover both scopes, signed zero, const and mutable
 objects, section placement, symbols, malformed metadata, recovery, and
 deterministic repeated emission. The hosted runtime reads each target payload
-word. Compiler head now converts between runtime `long double` and every
+word. Checked-seed CupidC converts between runtime `long double` and every
 signed or unsigned i386 integer width. The unsigned 64-bit correction and
 every long-double-to-integer conversion restore the control word they save.
 Other integer-to-long-double conversions do not change it. A 12-case runtime
 matrix covers every valid precision and rounding combination. ADR
-0251 records the static-data boundary, ADR 0252 records the source-head x87
-integer forms, and ADR 0253 records runtime conversion. Compiler head also
-converts static initializers between bounded finite `long double` and every
+0251 records the static-data boundary, ADR 0252 records the x87 integer forms,
+ADR 0253 records runtime conversion, and ADR 0258 records seed carriage. The
+checked compiler also converts static initializers between bounded finite
+`long double` and every
 represented value integer and an enum whose compatible integer type has the
 represented target layout. It packs integer input into exact x87 metadata. For
 integer destinations other than `_Bool`, it truncates long-double input before
@@ -643,7 +644,7 @@ lower the referenced alignment.
 The check runs during whole-unit initializer ownership and block-static
 declaration lowering. ADR 0254 records this static conversion.
 
-Compiler head also folds static long-double truth, all six comparisons,
+Checked-seed CupidC also folds static long-double truth, all six comparisons,
 short-circuit logic, conditional selection, and conversion to or from
 binary32 and binary64. One target-only decoder handles canonical x87 zero,
 subnormal, normal, infinity, and NaN classes while rejecting pseudo encodings.
@@ -656,8 +657,8 @@ control folding and finite conversion. ADR 0256 records the canonical classes
 and special-value conversion.
 Both compiler stages in the normal contract cohort rebuild the source
 catalogue. ADR 0203 records the checked seed, ADR 0207 records the subtraction
-form, ADR 0226 records SHRD, ADR 0228 records its seed carriage, and ADR 0252
-records the source-head x87 integer forms.
+form, ADR 0226 records SHRD, ADR 0228 records its seed carriage, ADR 0252
+records the x87 integer forms, and ADR 0258 records their seed carriage.
 
 The four-vCPU GUI runtime starts every discovered CPU, reaches e1000 or
 RTL8139 traffic,
@@ -879,7 +880,7 @@ ECMA-119 and `RRIP_1991A` image exactly, including both path-table byte orders,
 fixed metadata, block-contained directories, the forward continuation, and
 the absence of `ST` fields. Eleven core selectors and all 31 hosted CupidObj
 tests pass. The fixed-point gate exercises the command and its rollback path
-in the 5/15/13 behavior matrix. The normal recipe freezes the typed inventory,
+in the 5/17/15 behavior matrix. The normal recipe freezes the typed inventory,
 runs this checked command first, and accepts the image only after an
 independent Python render agrees. Python retains path safety, drift checks,
 locking, and atomic publication. ADR 0239 records the source capability, ADR
@@ -889,7 +890,7 @@ The checked audit uses the canonical Windows Make branch and C locale on
 every host. Direct Linux builds test the separate Linux execution branch.
 
 The latest checked seed comes from revision
-`aeef93513e6ac899c933a09e4cacf05ef8b047df`.
+`9115787311bf455b6eee19e7742cc83aa252e7c8`.
 The ISO source-capability Toolchain cohort passed in 2,764.533 seconds. Its
 two stages matched sixteen objects and fifteen linked executables, the hosted
 runtime passed, and all 20 published artifacts verified. The 18,232-byte

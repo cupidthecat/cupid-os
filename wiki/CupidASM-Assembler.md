@@ -198,7 +198,7 @@ Normal Cupid OS C roots and Toolchain contracts now use checked CupidC.
 A host compiler remains only for explicit native oracles and hosted
 development commands.
 
-Source-head CupidASM also assembles the repository Windows entry. An imported
+Checked-seed CupidASM also assembles the repository Windows entry. An imported
 call such as `call dword [__imp_WriteFile]` emits `FF 15` with one known,
 zero-addend `R_386_32` relocation. CupidLD binds that operand to its IAT cell.
 A direct call emits `R_386_PC32` and fails at link time. An absolute import
@@ -311,10 +311,9 @@ section .data
 
 ## Instruction Reference
 
-CupidASM uses the shared Cupid Toolchain x86 catalogue. The checked seed
-carries 596 forms, 245 canonical mnemonics, and 64 register names, with
-catalogue fingerprint `DA15E97F`. Source head carries 602 forms, 247 canonical
-mnemonics, and fingerprint `64429699`. Six source-head forms cover signed x87
+CupidASM uses the shared Cupid Toolchain x86 catalogue. The checked seed and
+source head carry 602 forms, 247 canonical mnemonics, and 64 register names,
+with catalogue fingerprint `64429699`. Six forms cover signed x87
 `FILD` and `FISTP` memory operands at 16, 32, and 64 bits. Four forms cover canonical SHRD with
 immediate or fixed CL counts. The forward x87 form encodes
 `FSUB ST(1), ST(0)` as `DC E9`. The four preceding x87 forms encode and decode
@@ -328,10 +327,10 @@ bytes, while CupidDis prints canonical names. Three-operand `IMUL` accepts a
 and an immediate. CupidASM uses `6B /r` when the value fits a signed byte and
 `69 /r` otherwise. ADR 0207 records forward stack subtraction, ADR 0208
 records its seed promotion, ADR 0226 records SHRD, and ADR 0228 records
-SHRD's first seed carriage. ADR 0243 records the current checked seed, and ADR
-0252 records the source-head x87 integer forms.
+SHRD's first seed carriage. ADR 0252 records the x87 integer forms, and ADR
+0258 records their checked-seed carriage.
 
-`fild` and `fistp` accept only signed integer memory operands. Source head
+`fild` and `fistp` accept only signed integer memory operands. The checked seed
 supports `word`, `dword`, and `qword` widths. Register, byte, and 80-bit memory
 operands fail before CupidASM publishes output. CupidDis renders the same
 canonical width spellings from the shared rows.

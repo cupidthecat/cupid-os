@@ -603,11 +603,10 @@ through its separate contracts.
 It also accepts the exact volatile `ldmxcsr %0` form with one
 addressable, non-atomic 32-bit integer `m` input. Linear IR evaluates the
 object address once, and the shared x86 model emits `0F AE 10` at `[EAX]`.
-Compiler head accepts the matching state-control form `fldcw %0` with one
+The checked compiler accepts the matching state-control form `fldcw %0` with one
 addressable, non-atomic 16-bit integer `m` input. GNU semantics make this
 no-output statement volatile even when the keyword is omitted. Linear IR
-evaluates the address once, and the emitter produces `D9 /5` at `[EAX]`. The
-checked seed does not carry this form yet.
+evaluates the address once, and the emitter produces `D9 /5` at `[EAX]`.
 It also accepts the exact volatile MOVSS round trip in `fpu_boot_smoke()` and
 the matching one-way load and store forms. Each form keeps a typed `float`
 memory address and requires the `xmm0` clobber. The shared x86 model emits
@@ -883,7 +882,7 @@ through `$(sort ...)` before generation or link, so Windows and Linux do not
 inherit different link order from host locale.
 [ADR 0246](docs/adr/0246-use-one-checked-seed-runner-for-production-tool-calls.md)
 records the shared invocation boundary.
-Source-head CupidLD also accepts `-m i386pe` for one deterministic i386 PE32
+Checked-seed CupidLD also accepts `-m i386pe` for one deterministic i386 PE32
 layout. Under image base `0x00400000`, it places `.text` at RVA `0x1000`, then
 lays out nonempty read-only, writable, and BSS sections in order on page
 boundaries. Empty output categories do not get PE section headers.
@@ -897,11 +896,10 @@ assembles it, freestanding CupidC compiles its `main`, CupidLD links the PE,
 and Windows checks the exact marker, empty stderr, and exit status 37.
 
 Both rebuilt stages produce identical assembly objects, C objects, and PE
-bytes. The source-head matrix is 5/17/15, and the frozen closure contains 43
+bytes. The checked-seed matrix is 5/17/15, and the frozen closure contains 43
 inputs. The independent validator reconstructs the exact `.idata` layout, and
 the bootstrap report retains both object and image pairs plus the observed
-Windows return code and streams. The promoted Linux seed remains at 5/15/13
-and does not carry imports.
+Windows return code and streams. The promoted Linux seed carries this path.
 The producers still run through WSL on Windows, and no PE tool is used by a
 normal build, so this is a loader proof rather than a native Toolchain fixed
 point. The ownership census does not change.
@@ -910,7 +908,7 @@ records the format boundary. [ADR
 0248](docs/adr/0248-link-deterministic-pe32-imports-and-run-a-cupid-built-windows-command.md)
 records the import and loader boundary.
 
-The source-head CupidLD CLI publishes both ELF and PE output. It creates a
+The checked-seed CupidLD CLI publishes both ELF and PE output. It creates a
 candidate beside the destination with exclusive-create semantics, writes and
 closes it, then reopens the file and checks its size and contents before one
 replacement call. Write, close, verification, or replacement errors preserve
@@ -1219,19 +1217,21 @@ The five static i386 Linux tools have a checked bootstrap seed. Its manifest
 binds the exact binaries, source revision, target ABI, producer lineage,
 19-source build plan, and five link orders before execution. The current
 cohort comes from revision
-`aeef93513e6ac899c933a09e4cacf05ef8b047df`. CupidC is 2,582,400 bytes
+`9115787311bf455b6eee19e7742cc83aa252e7c8`. CupidC is 2,632,760 bytes
 with SHA-256
-`03084115bcacb1987db5513c8a8be9b7d884029b03ab4b212bf40d997871ae79`.
-It carries bounded decimal `long double` constants alongside the earlier
-Doom, kernel, floating, ABI, and Cupid type capabilities. CupidObj is 392,688
+`bfe4b9581302439ae35dac340c3f3e38812a2ce7b0ce54a8af1e04731cd077c1`.
+It carries canonical static x87 payloads, runtime and static integer
+conversions, and the earlier Doom, kernel, floating, ABI, and Cupid type
+capabilities. CupidASM and CupidDis carry the 602-row, 247-mnemonic shared
+x86 catalogue. CupidLD carries deterministic PE32 output and imports.
+CupidObj is 392,688
 bytes with SHA-256
 `7137ad601a7c22178112fbf08163b36ff2064807caa99962df97d7ae7ae62f2b`
 and carries `profile-manifest` authoring, transactional sequential-JPEG
-validation, and pristine disk and ISO fixture construction. CupidASM,
-CupidDis, and CupidLD remain byte-identical to the preceding cohort. The 5,440-byte
+validation, and pristine disk and ISO fixture construction. The 5,440-byte
 manifest has SHA-256
-`bbc989d7008507a2961a5f940875270fb48b68bf7afb993f5774d70aea17fe91`.
-[ADR 0243](docs/adr/0243-promote-profile-manifest-toolchain-seed.md)
+`8fd462648360d3c705e203fc771299007d590d1665a6c253781a4ee83c811c33`.
+[ADR 0258](docs/adr/0258-promote-pe-and-x87-toolchain-seed.md)
 records the current promotion.
 
 The harness pins the build plan independently and freezes the verified manifest and binaries. It also copies the exact bytes of all 43 source inputs, including `link.ld` and both Windows probe sources, into a private compiler root. Seed CupidC, CupidASM, and CupidLD build stage two below that root, then the stage-two producer trio repeats the work for stage three. The harness rehashes both the private closure and the live closure before the first stage, after each stage, and after the behavior suite. A live edit that is made and restored during a compile cannot change the bytes consumed by either stage.
@@ -1649,7 +1649,7 @@ CupidScript (`cupidscript*.cc`) is a shell scripting language for `.cup` files:
 - Arrays, string operations
 - Calls shell commands and kernel functions directly
 
-CupidDis is the shared x86-32 disassembler and ELF inspector used by the hosted CLI and the kernel `dis` and `exec -d` adapters. Raw input accepts one 16-bit or 32-bit mode, or an ordered range map that classifies a flat image as 16-bit code, 32-bit code, or literal data. The hosted form is `cupiddis --raw --mode 16|32 [--range-at OFFSET:16|32|data]... --base ADDRESS FILE`; `--mode-at OFFSET:16|32` remains a code-only alias. CupidDis validates the ordered starts and source bounds. It sends code ranges to the shared x86 decoder and writes data ranges as `db` rows without decoding them. In the active 4,096-byte SMP trampoline map, code occupies `[0x000, 0x01f)` and `[0x210, 0x254)`; data occupies `[0x01f, 0x210)` and `[0x254, 0x1000)`. The shared x86 model covers all sixteen i686 conditional moves for 16-bit and 32-bit register or memory sources. It also covers three-operand `IMUL` with same-width register or memory sources, using `69 /r` for a full immediate and `6B /r` when the value fits a sign-extended byte. Ordinary compiler padding includes plain `90`, `66 90`, and word or doubleword `0F 1F /0` register and memory forms. A private 32-bit decoder exception recognizes the five exact Clang forms with two through six leading `66` bytes and the fixed `2E 0F 1F 84 00 00 00 00 00` tail. Other repeated prefixes remain invalid, and CupidASM cannot emit the redundant forms. CupidASM accepts the conditional-move aliases, chooses the shortest valid multiply encoding, and applies the current mode's default width to a memory NOP. The checked seed has 596 forms, 245 canonical mnemonics, and fingerprint `DA15E97F`. Source head has 602 forms, 247 canonical mnemonics, and fingerprint `64429699`. Its six new rows encode signed x87 `FILD` and `FISTP` memory operands at 16, 32, and 64 bits. The four SHRD rows cover canonical SHRD at both widths with immediate or fixed CL counts. The forward x87 form encodes canonical `FSUB ST(1), ST(0)` as `DC E9`, which lets CupidC represent the corrected GNU `fsubr %st, %st(1)` exponent range subtraction. The catalogue also includes `FUCOMIP ST0, ST(i)` for long-double comparisons and operand-free `FLDZ` for floating truth tests. ADR 0200 records the typed raw-range contract, ADR 0202 records `FLDZ` ownership, ADR 0203 records its first seed carriage, and ADR 0207 records forward x87 stack subtraction. ADR 0208 records that form's seed carriage, ADR 0226 records SHRD, ADR 0228 records SHRD's first seed carriage, ADR 0243 records the current checked seed, and ADR 0252 records the source-head x87 integer forms.
+CupidDis is the shared x86-32 disassembler and ELF inspector used by the hosted CLI and the kernel `dis` and `exec -d` adapters. Raw input accepts one 16-bit or 32-bit mode, or an ordered range map that classifies a flat image as 16-bit code, 32-bit code, or literal data. The hosted form is `cupiddis --raw --mode 16|32 [--range-at OFFSET:16|32|data]... --base ADDRESS FILE`; `--mode-at OFFSET:16|32` remains a code-only alias. CupidDis validates the ordered starts and source bounds. It sends code ranges to the shared x86 decoder and writes data ranges as `db` rows without decoding them. In the active 4,096-byte SMP trampoline map, code occupies `[0x000, 0x01f)` and `[0x210, 0x254)`; data occupies `[0x01f, 0x210)` and `[0x254, 0x1000)`. The shared x86 model covers all sixteen i686 conditional moves for 16-bit and 32-bit register or memory sources. It also covers three-operand `IMUL` with same-width register or memory sources, using `69 /r` for a full immediate and `6B /r` when the value fits a sign-extended byte. Ordinary compiler padding includes plain `90`, `66 90`, and word or doubleword `0F 1F /0` register and memory forms. A private 32-bit decoder exception recognizes the five exact Clang forms with two through six leading `66` bytes and the fixed `2E 0F 1F 84 00 00 00 00 00` tail. Other repeated prefixes remain invalid, and CupidASM cannot emit the redundant forms. CupidASM accepts the conditional-move aliases, chooses the shortest valid multiply encoding, and applies the current mode's default width to a memory NOP. The checked seed and source head have 602 forms, 247 canonical mnemonics, and fingerprint `64429699`. Six rows encode signed x87 `FILD` and `FISTP` memory operands at 16, 32, and 64 bits. The four SHRD rows cover canonical SHRD at both widths with immediate or fixed CL counts. The forward x87 form encodes canonical `FSUB ST(1), ST(0)` as `DC E9`, which lets CupidC represent the corrected GNU `fsubr %st, %st(1)` exponent range subtraction. The catalogue also includes `FUCOMIP ST0, ST(i)` for long-double comparisons and operand-free `FLDZ` for floating truth tests. ADR 0200 records the typed raw-range contract, ADR 0202 records `FLDZ` ownership, ADR 0203 records its first seed carriage, and ADR 0207 records forward x87 stack subtraction. ADR 0208 records that form's seed carriage, ADR 0226 records SHRD, ADR 0228 records SHRD's first seed carriage, ADR 0252 records the x87 integer forms, and ADR 0258 records their checked-seed carriage.
 
 ### Program execution
 

@@ -108,7 +108,8 @@ fixture covers every integer kind, signed and unsigned enums, both signed
 64-bit endpoints, `ULLONG_MAX`, and both results of `-0.5L`. ADR 0251 records
 the static-data boundary, ADR 0254 records integer conversion, and ADR 0255
 records static controls and finite width conversion. ADR 0256 records the
-canonical x87 decoder and special-value transport.
+canonical x87 decoder and special-value transport. ADR 0258 records
+checked-seed carriage of the current static frontier.
 
 The checked i386 Linux seed at ADR 0138 carries static floating constant data
 and this complete comparison path.
@@ -125,11 +126,11 @@ load and `F3 0F 11 00` for the store through EAX. It also accepts the exact
 volatile x87 block in `stress_sin()`. The statement has one `double` output,
 one `double` input, and no clobbers. It emits `FLD`, `FSIN`, and `FSTP`
 through the shared encoder, with balanced x87 depth and no frame temporary.
-Compiler head also accepts exact `fldcw %0` with one addressable, non-atomic
+The checked compiler also accepts exact `fldcw %0` with one addressable, non-atomic
 16-bit integer memory input. GNU semantics make the no-output statement
 volatile even when the keyword is omitted. Linear IR evaluates the address
-once, and the emitter produces `D9 /5` through EAX. The checked seed does not
-carry this state-control input yet.
+once, and the emitter produces `D9 /5` through EAX. ADR 0258 records
+checked-seed carriage.
 The earlier compiler proof used `kernel/cpu/fpu.c`. The unchanged
 implementation is now `kernel/cpu/fpu.cc`, a checked CupidC production root.
 Two checked compiles produce the same validated 6,620-byte object with

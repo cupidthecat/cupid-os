@@ -33,9 +33,10 @@ The rows work in 16-bit and 32-bit execution modes through the existing x87
 memory recipe. They accept only memory operands at the declared width. No
 CupidASM parser exception or CupidDis decoder callback is added.
 
-Source head now has 602 forms, 247 canonical mnemonics, 64 register names,
-and fingerprint `64429699`. The checked seed remains at 596 forms, 245
-canonical mnemonics, and fingerprint `DA15E97F` until a later promotion.
+At this decision, source head had 602 forms, 247 canonical mnemonics, 64
+register names, and fingerprint `64429699`. The checked seed still had 596
+forms, 245 canonical mnemonics, and fingerprint `DA15E97F`. ADR 0258 later
+promoted the 602-form catalogue.
 
 ## Evidence
 
@@ -74,6 +75,6 @@ forms in this decision. Runtime integer conversion involving `long double`
 remains open until the frontend, Linear IR, emitter, and execution contracts
 land together.
 
-No production source changes owner, so no `.c` to `.cc` rename is due. The
-checked seed still predates these forms. `TempleOS/` remains untouched
+No production source changes owner, so no `.c` to `.cc` rename is due. ADR
+0258 carries these forms in the checked seed. `TempleOS/` remains untouched
 reference material.

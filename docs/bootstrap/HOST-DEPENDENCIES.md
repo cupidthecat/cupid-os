@@ -52,19 +52,18 @@ records the disk-image transfer, and ADR 0245 records the publisher-owned
 directory boundary. ADR 0246 records the shared invocation boundary. Python
 and WSL remain required host-control components.
 
-Source-head CupidC, CupidASM, and CupidLD can build one deterministic imported
+Checked-seed CupidC, CupidASM, and CupidLD can build one deterministic imported
 i386 PE32 command without a host compiler, assembler, linker, import library,
 or C runtime. Windows loads that command directly and checks its exact stdout,
 empty stderr, and exit 37. The bootstrap report retains those observations and
 both stages' object and image hashes. This does not remove a normal-build
-dependency yet.
-The checked seed does not carry the import path, and the five tool drivers do
-not have a complete Windows runtime. Windows therefore continues to use WSL
+dependency yet. The five tool drivers do not have a complete Windows runtime.
+Windows therefore continues to use WSL
 for every checked producer path listed here. The normal graph remains at 447
-transforms with the same owners. ADR 0247 records PE32 serialization, and ADR
-0248 records imports and the loader probe.
+transforms with the same owners. ADR 0247 records PE32 serialization, ADR
+0248 records imports and the loader probe, and ADR 0258 records seed carriage.
 
-Source-head CupidLD publishes ELF and PE output with native file operations. It
+Checked-seed CupidLD publishes ELF and PE output with native file operations. It
 creates an adjacent candidate with exclusive-create semantics, writes and
 closes it, reopens the file, checks its size and contents, then replaces the
 destination. This adds no host code generator. On POSIX, CupidLD requests mode
@@ -520,17 +519,16 @@ and integers, ADR 0254 records static initializer conversion, ADR 0255
 records static controls and finite width conversion, and ADR 0256 records
 canonical x87 classes and special-value conversion.
 
-The checked seed has 596 x86 forms, 245 canonical mnemonics, 64 registers, and
-fingerprint `DA15E97F`. Source head has 602 forms, 247 canonical mnemonics,
-and fingerprint `64429699`. Six source-head rows cover signed x87 `FILD` and
+The checked seed and source head have 602 x86 forms, 247 canonical mnemonics,
+64 registers, and fingerprint `64429699`. Six rows cover signed x87 `FILD` and
 `FISTP` memory operands at 16, 32, and 64 bits. Four forms cover canonical
 16-bit and 32-bit SHRD with immediate or fixed CL counts. The forward x87
 `FSUB ST(1), ST(0)` form encodes as `DC E9`. ADR 0203 carries `FLDZ` and the
 three preceding x87 forms into the trust root, ADR 0208 carries forward stack
 subtraction, ADR 0226 records SHRD, ADR 0228 records SHRD's first seed
-carriage, ADR 0243 records the current checked seed, and ADR 0252 records the
-source-head x87 integer forms. These counts supersede older source-head
-references below.
+carriage, ADR 0252 records the x87 integer forms, and ADR 0258 records their
+checked-seed carriage. These counts supersede older source-head references
+below.
 
 The aggregate proof adds no host dependency. Checked-seed CupidC emits two
 24-byte arrays and two 28-byte records into 104 BSS bytes. A separate
@@ -668,20 +666,21 @@ The five static commands share one complete checked-seed gate. The manifest
 binds the exact executables, source revision, target ABI, producer lineage,
 19-source build plan, startup, and five link orders. The current seed contains
 the stage-three images from revision
-`aeef93513e6ac899c933a09e4cacf05ef8b047df`. CupidC is 2,582,400 bytes
+`9115787311bf455b6eee19e7742cc83aa252e7c8`. CupidC is 2,632,760 bytes
 with SHA-256
-`03084115bcacb1987db5513c8a8be9b7d884029b03ab4b212bf40d997871ae79`
-and carries bounded decimal `long double` constants alongside the earlier
-compiler capabilities. CupidObj is 392,688 bytes with SHA-256
+`bfe4b9581302439ae35dac340c3f3e38812a2ce7b0ce54a8af1e04731cd077c1`
+and carries canonical x87 payloads plus runtime and static integer conversion.
+CupidASM and CupidDis carry the 602-row shared x86 catalogue. CupidLD carries
+deterministic PE32 imports and the loader probe. CupidObj is 392,688 bytes
+with SHA-256
 `7137ad601a7c22178112fbf08163b36ff2064807caa99962df97d7ae7ae62f2b`
 and carries `profile-manifest` authoring, transactional sequential-JPEG
-validation, and pristine disk and ISO fixture construction. CupidASM,
-CupidDis, and CupidLD remain byte-identical to the preceding cohort. The 5,440-byte manifest
+validation, and pristine disk and ISO fixture construction. The 5,440-byte manifest
 has SHA-256
-`bbc989d7008507a2961a5f940875270fb48b68bf7afb993f5774d70aea17fe91`.
+`8fd462648360d3c705e203fc771299007d590d1665a6c253781a4ee83c811c33`.
 The post-promotion reproof matches every seed image to stage two, then matches
-all nineteen C objects, startup, five tools, and five help, fifteen success,
-and thirteen failure cases between stages two and three. ADR 0243 records the
+all nineteen C objects, startup, five tools, and five help, seventeen success,
+and fifteen failure cases between stages two and three. ADR 0258 records the
 promotion.
 
 The harness copies the exact 43-input source closure into a private compiler root. Checked CupidC compiles the stage-two union there, checked CupidASM assembles startup, and checked CupidLD links all five tools. The closure also holds the Windows startup and runtime probe. The stage-two producer trio repeats that work for stage three below the same root. Both the private closure and the live closure are checked before the first stage, after each stage, and after behavior checks. Both stages execute the positive and failure cases for every command, then build matching imported Windows objects and images. On Windows, the harness validates and runs the image before it publishes evidence. The two stages, behavior evidence, and report are published together only after success. The normal Toolchain target then uses both static Linux stages to build its contract cohort without external code generation. Native contracts and hosted development commands remain explicit host-built oracles; normal OS and Toolchain artifacts do not depend on them.
@@ -694,7 +693,7 @@ Automatic aggregate initializer lowering serves the CupidC-built desktop object.
 
 Runtime narrow string lowering serves production e1000 and desktop code. `STRING_LITERAL_ADDRESS` gives normal string expressions local `.rodata` symbols and absolute text relocations. `COPY_STRING` fills named automatic arrays, nested initializer leaves, and block-scope compound literals after their destinations have been zeroed. The unchanged automatic hexadecimal array in `drivers/serial.cc` retains a focused source guard. The normal contract path is Cupid-built; GCC or Clang and the native linker are optional oracles.
 
-Structure values serve the CupidC-built socket and desktop objects. CupidC copies complete supported structures through loads, stores, assignment results, conditional joins, expression initialization, discard, fixed direct and indirect calls, and returns. Instruction-owned frame slots hold snapshots and call results. The i386 call path places structure arguments inline in rounded four-byte spans and uses a hidden return pointer at `EBP + 8`; the callee returns that pointer through EAX and removes its slot with `RET 4`. The checked seed has a 596-form x86 catalogue with 245 mnemonics, 64 registers, and fingerprint `DA15E97F`. Source head has 602 forms, 247 mnemonics, and fingerprint `64429699`. The six new rows cover signed x87 `FILD` and `FISTP` memory operands at 16, 32, and 64 bits. The four SHRD forms encode canonical SHRD for both widths and count sources. The forward x87 form encodes canonical `FSUB ST(1), ST(0)` as `DC E9`. The four preceding x87 forms are 80-bit `FLD` and `FSTP` memory forms, i686 `FUCOMIP ST0, ST(i)`, and operand-free `FLDZ`. Both source-built contract stages rebuild the 602-form source catalogue. ADR 0203 records the preceding seed, ADR 0207 records the forward-subtraction boundary, ADR 0208 records its promotion, ADR 0226 records SHRD, ADR 0228 records SHRD's first seed carriage, ADR 0243 records the current checked seed, and ADR 0252 records the x87 integer forms. The model covers all sixteen i686 conditional moves in 16-bit and 32-bit widths, the complete 16-bit and 32-bit three-operand immediate `IMUL` family, ordinary `90`, `66 90`, and `0F 1F /0` padding, `RET imm16`, long-double comparison, and x87 zero materialization. A private decoder path accepts only five exact repeated-prefix Clang padding strings and creates no catalogue form. CupidASM accepts canonical and alias conditional-move spellings, chooses `6B /r` only for a signed-byte multiply constant, applies mode-sized defaults to memory NOPs, and rejects invalid operands or prefixes. It cannot request redundant prefixes. CupidDis renders stable canonical names and keeps conservative recovery around malformed bytes. The normal contracts are Cupid-built; GCC or Clang and the native linker provide optional oracle binaries.
+Structure values serve the CupidC-built socket and desktop objects. CupidC copies complete supported structures through loads, stores, assignment results, conditional joins, expression initialization, discard, fixed direct and indirect calls, and returns. Instruction-owned frame slots hold snapshots and call results. The i386 call path places structure arguments inline in rounded four-byte spans and uses a hidden return pointer at `EBP + 8`; the callee returns that pointer through EAX and removes its slot with `RET 4`. The checked seed and source head have a 602-form x86 catalogue with 247 mnemonics, 64 registers, and fingerprint `64429699`. Six rows cover signed x87 `FILD` and `FISTP` memory operands at 16, 32, and 64 bits. The four SHRD forms encode canonical SHRD for both widths and count sources. The forward x87 form encodes canonical `FSUB ST(1), ST(0)` as `DC E9`. The four preceding x87 forms are 80-bit `FLD` and `FSTP` memory forms, i686 `FUCOMIP ST0, ST(i)`, and operand-free `FLDZ`. Both source-built contract stages rebuild the 602-form source catalogue. ADR 0203 records the preceding seed, ADR 0207 records the forward-subtraction boundary, ADR 0208 records its promotion, ADR 0226 records SHRD, ADR 0228 records SHRD's first seed carriage, ADR 0252 records the x87 integer forms, and ADR 0258 records their checked-seed carriage. The model covers all sixteen i686 conditional moves in 16-bit and 32-bit widths, the complete 16-bit and 32-bit three-operand immediate `IMUL` family, ordinary `90`, `66 90`, and `0F 1F /0` padding, `RET imm16`, long-double comparison, and x87 zero materialization. A private decoder path accepts only five exact repeated-prefix Clang padding strings and creates no catalogue form. CupidASM accepts canonical and alias conditional-move spellings, chooses `6B /r` only for a signed-byte multiply constant, applies mode-sized defaults to memory NOPs, and rejects invalid operands or prefixes. It cannot request redundant prefixes. CupidDis renders stable canonical names and keeps conservative recovery around malformed bytes. The normal contracts are Cupid-built; GCC or Clang and the native linker provide optional oracle binaries.
 
 The private in-kernel CupidC emitter now sends `continue` in a `do` loop to the condition. The shared hosted path can emit static data and functions with canonical one-byte, two-byte, and four-byte integer values plus 32-bit integer arithmetic, signed and unsigned division and remainder, every integer relation, bitwise AND, OR, and XOR, all four integer unary operators, explicit casts among represented one-byte, two-byte, and four-byte integer types, both shift directions, both short-circuit logical operators, statement-level `if` with optional `else`, pre-test `while`, post-test `do`, `for` with expression or declaration initializers and optional iteration, nearest-loop `break` and `continue`, and multiple returns. It also covers fixed direct and indirect calls with four-byte argument slots and normalized narrow results, represented target-sized scalar locals and target-sized fixed automatic arrays and structures in supported compound statements, including the initializer-list subset, linked file-object loads, direct ordinary record-member loads, four-byte integer bit-field reads, value-preserving plain assignments, compound assignments and prefix or postfix updates for represented non-Boolean byte, word, and doubleword integers, and pointer compound assignments and updates, and discarded nonvoid values in deterministic ELF32 objects. The unchanged `section_map` and `children` arrays and their indexed uses drive automatic object storage. The unchanged `asm_lower`, `x86_class_width`, and `x86_set_memory_width` functions drive signed and unsigned byte and word loads, stores, promotions, conditions, and results. The unchanged `cemit_multiply_overflows`, `cemit_power_of_two`, `cfront_bool_valid`, `asm_branch_fits_i8`, and AES `rotw` helpers drive division, logic, comparisons, shifts, and bitwise OR. The unchanged `size++`, `capacity *= 2u`, and `value /= 10u` statements in `toolchain/ctool.cc` pin four-byte destination-preserving mutation. The complete unchanged `x86_put_u8` body and active decoder byte operations pin narrow mutation. Their 201-byte exact object proof contains four functions, one four-byte BSS object, six symbols, and one `R_386_32` relocation. The separate narrow-mutation object has eight functions in 878 exact text bytes, ten symbols, one byte of BSS, and one absolute relocation. The unchanged CPUID-toggle return statement drives XOR with its mask, comparison, and `bool` conversion. Its surrounding GNU inline assembly and broader statement sequence remain outside this hosted leaf slice. The unchanged memory `align_up` helper drives bitwise complement inside unsigned arithmetic and masking. The complete unchanged `dis_signed_bits` helper drives two comparisons, two conditional branches, three returns, complement, addition, an explicit unsigned-to-signed cast, and negation. Its deterministic object contains one 143-byte local function, 71 decoded instructions, two symbols, no relocations, and branch targets at byte offsets 53 and 111. The complete unchanged `syscall_sleep_ms` helper drives a pre-test loop. Its deterministic object contains one 94-byte local function, 43 decoded instructions, branch targets at byte offsets 92 and 20, and three direct-call relocations at offsets 11, 24, and 80. The unchanged Doom wipe tick loop drives a post-test loop. Its deterministic object contains one 125-byte local function, 59 decoded instructions, branch targets at byte offsets 123 and 6, and two direct-call relocations at offsets 14 and 78. The guarded `url_hash_hex` loop drives a `for` path, while unchanged statements in `cir_validate_initializer_ownership` drive loop control. Their combined deterministic object contains the 107-byte browser function and eight loop-control functions totaling 319 bytes. It has 426 text bytes, ten symbols including the null symbol, exact decoded branch targets, and no relocations. The active `cc_skip_brace_initializer` fragment drives logical not without claiming its complete function. The VGA setter drives a linked store, the timer getter drives an ordinary member at byte offset 8, and the Doom color source drives an eight-bit field at bit offset 16. Bit-field emission also covers signed extraction, a nonzero storage offset, and a full-width field. Local and unresolved external calls use `.rel.text` `R_386_PC32` relocations with addend `-4`; direct object addresses use `R_386_32` with addend zero. Member selection and field extraction do not change the base symbol or relocation addend. At that checkpoint, this work retired no host dependency, and GCC or Clang plus the native linker built the shared modules and contracts. Both checked compiler stages now build the complete contract cohort; native copies are optional oracles. All nine hosted Toolchain source gates parse completely, including `cupidc_ir.cc`, `cupidc_emit.cc`, and `cupidc_frontend.cc`.
 
@@ -713,7 +712,7 @@ records the ownership transfer.
 | GCC with i386/multilib support | Builds optional native Toolchain contracts and commands on Linux | Not required by root `all`, `user:all`, or `toolchain:all`; required only for explicit native oracle and development targets | Retain only as an optional oracle or bootstrap escape hatch |
 | Clang with i386 target support | Builds optional native Toolchain contracts and commands on Windows, including the native CupidC and CupidLD user oracle | Not required by root `all`, `user:all`, or `toolchain:all`; required only for explicit native comparison and development targets | Retain only as an optional oracle or bootstrap escape hatch |
 | NASM | Optional comparison oracle for the four boot and kernel CupidASM parity tests and the shared ELF32 reader | Not required by root `all`, `user:all`, `toolchain:all`, or baseline preflight; `make nasm-assembly-oracle` uses it when installed. The ISO lane fixture is excluded because NASM freezes `$` across its `TIMES` statement | Retain only as an optional oracle/bootstrap escape hatch |
-| Host linker backend (`ld`, `ld.lld`, `lld-link`, or platform equivalent) | No direct i386 OS, user, or normal Toolchain link recipe remains. CupidLD owns those outputs. Source-head CupidLD also builds deterministic imports and links one command that Windows runs directly. A host compiler still invokes a native linker for optional oracle and development commands, while standalone ELF linkers remain comparison tools. Canonical Windows LLD links use `/Brepro` so hosted PE timestamps cannot invalidate same-host evidence | Not required by root `all`, `user:all`, `toolchain:all`, or the source-head Windows loader probe; required only by optional native targets | Retain only as an optional oracle or escape hatch until all five tools have a complete Cupid-built Windows runtime and checked native seed |
+| Host linker backend (`ld`, `ld.lld`, `lld-link`, or platform equivalent) | No direct i386 OS, user, or normal Toolchain link recipe remains. CupidLD owns those outputs. Checked-seed CupidLD also builds deterministic imports and links one command that Windows runs directly. A host compiler still invokes a native linker for optional oracle and development commands, while standalone ELF linkers remain comparison tools. Canonical Windows LLD links use `/Brepro` so hosted PE timestamps cannot invalidate same-host evidence | Not required by root `all`, `user:all`, `toolchain:all`, or the checked-seed Windows loader probe; required only by optional native targets | Retain only as an optional oracle or escape hatch until all five tools have a complete Cupid-built Windows runtime and checked native seed |
 | GNU `objcopy` / `llvm-objcopy` | No role in the normal build; tracked legacy/oracle helpers may still invoke it manually, and the checked `6731dd6` evidence fingerprints the then-installed oracle | Not required for root `all`, `user:all`, `toolchain:all`, or new `bootstrap-baseline` captures | Retain only as an optional comparison/maintenance utility; CupidObj owns the production transformations |
 | GNU `nm` / `llvm-nm` | Optional comparison oracle for CupidDis's numeric symbol view and historical baseline evidence | Not required by root `all`, `user:all`, `toolchain:all`, or baseline preflight; configured through `NM` only for optional oracle probes/tests | Retain only as an optional comparison/maintenance utility; CupidDis owns production kernel-symbol inspection |
 | Hosted C runtime/libc | Backs only the explicit native oracle and development adapters. The normal five-tool build and fifteen-executable contract cohort use Cupid's checked i386 Linux declarations and repository runtime. The Windows loader probe is freestanding and calls three kernel APIs through a CupidASM bridge | Not required by root `all`, `user:all`, `toolchain:all`, or the Windows loader probe; required only by native oracle and development targets. The repository Windows bridge is intentionally narrow and is not a general libc | Retain only for optional native oracle and development seams; it must not own normal preprocessing, parsing, type/layout semantics, code generation, object, assembly, link, or inspection behavior |
@@ -850,11 +849,11 @@ addresses, the remaining GNU surface, hexadecimal floating literals, the
 remaining `long double` forms, and broader self-hosting. The private kernel
 compiler continues to own embedded runtime JIT and AOT compilation.
 
-Compiler head accepts exact `fldcw %0` with one addressable, non-atomic
+Checked-seed CupidC accepts exact `fldcw %0` with one addressable, non-atomic
 16-bit integer `m` input. GNU semantics make the no-output statement volatile
 even without that keyword. Frontend, Linear IR, and object contracts
-share this state-memory input seam with `ldmxcsr %0`. The checked seed does
-not carry the FLDCW form yet, so production source cannot depend on it.
+share this state-memory input seam with `ldmxcsr %0`. ADR 0258 records seed
+carriage. This narrows the language gap without removing a host dependency.
 
 Checked-seed `noinline` and `target("general-regs-only")` semantics narrow
 that GNU gap without changing the dependency count. The seed also accepts

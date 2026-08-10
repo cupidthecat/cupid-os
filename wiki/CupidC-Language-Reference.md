@@ -281,7 +281,8 @@ four-byte conversion, ADR 0251 records static long-double data, and ADR 0253
 records runtime conversion between `long double` and every signed or
 unsigned i386 integer width. ADR 0254 records static initializer conversion,
 ADR 0255 records static controls and finite width conversion, and ADR 0256
-records canonical x87 payloads and special-value conversion.
+records canonical x87 payloads and special-value conversion. ADR 0258 records
+checked-seed carriage.
 The in-kernel compiler has a separate, broader floating and SIMD
 implementation.
 

@@ -101,6 +101,6 @@ truth, comparison, and floating-width conversion. Static long-double
 arithmetic remains a separate step, but it can now produce special and gradual
 underflow results without crossing an invalid representation.
 
-The checked seed predates this capability until a later five-tool promotion.
-No production source changes owner, no host dependency is added, and no `.c`
-to `.cc` rename is due. `TempleOS/` remains read-only reference material.
+ADR 0258 carries this capability in the checked seed. No production source
+changes owner, no host dependency is added, and no `.c` to `.cc` rename is
+due. `TempleOS/` remains read-only reference material.

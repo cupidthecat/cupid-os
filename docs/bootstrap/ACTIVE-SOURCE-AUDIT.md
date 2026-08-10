@@ -31,10 +31,10 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `boot_assembly` | 1 | 298 |
 | `cupid_asm_demo` | 22 | 1466 |
 | `cupid_c_browser_fragment` | 22 | 15958 |
-| `cupid_c_program` | 105 | 19652 |
+| `cupid_c_program` | 105 | 19762 |
 | `cupid_c_runtime_header` | 2 | 286 |
 | `cupidasm` | 7 | 6851 |
-| `cupidc` | 8 | 16258 |
+| `cupidc` | 8 | 16353 |
 | `cupiddis` | 5 | 3010 |
 | `doom_port` | 7 | 3981 |
 | `driver` | 22 | 3861 |
@@ -56,8 +56,8 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_usb` | 8 | 3518 |
 | `kernel_util` | 2 | 660 |
 | `project_source` | 1 | 5 |
-| `toolchain_contract` | 19 | 154042 |
-| `toolchain_core` | 33 | 87018 |
+| `toolchain_contract` | 19 | 154329 |
+| `toolchain_core` | 33 | 87055 |
 | `toolchain_host_adapter` | 2 | 266 |
 | `toolchain_kernel_adapter` | 2 | 530 |
 | `user_program` | 3 | 139 |
@@ -98,16 +98,16 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 801 |
 | `asm.relocation` | 1 | 17 |
-| `c.control` | 12 | 81615 |
+| `c.control` | 12 | 81686 |
 | `c.declaration` | 1 | 28 |
-| `c.declarator` | 4 | 3802 |
-| `c.expression` | 2 | 5917 |
+| `c.declarator` | 4 | 3804 |
+| `c.expression` | 2 | 5937 |
 | `c.extension` | 19 | 420 |
-| `c.initializer` | 1 | 682 |
-| `c.preprocessor` | 18 | 6909 |
-| `c.qualifier` | 2 | 15681 |
-| `c.storage` | 4 | 9891 |
-| `c.type` | 15 | 50864 |
+| `c.initializer` | 1 | 687 |
+| `c.preprocessor` | 18 | 6919 |
+| `c.qualifier` | 2 | 15688 |
+| `c.storage` | 4 | 9903 |
+| `c.type` | 15 | 50916 |
 | `cupid_c.declaration` | 1 | 2 |
 | `cupid_c.delivery` | 2 | 129 |
 | `cupid_c.directive` | 1 | 1 |
@@ -115,7 +115,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `cupid_c.extension` | 1 | 9 |
 | `cupid_c.output` | 1 | 245 |
 | `cupid_c.storage` | 2 | 474 |
-| `cupid_c.type` | 12 | 180 |
+| `cupid_c.type` | 12 | 187 |
 
 The JSON companion records stable feature IDs, occurrence counts, files, and representative source locations.
 
@@ -206,7 +206,7 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | Contract | Status | Detail |
 | --- | --- | --- |
 | `bootstrap_artifact_coverage` | `pass` | 425 linked objects; 432 declared artifacts; 0 missing |
-| `c_preprocessor_conditionals` | `pass` | 124 conditional expressions (115 #if, 9 #elif); 26 normalized expressions; 28 directive/expression pairs |
+| `c_preprocessor_conditionals` | `pass` | 125 conditional expressions (116 #if, 9 #elif); 27 normalized expressions; 29 directive/expression pairs |
 | `c_preprocessor_cupid_exe` | `pass` | 1 Cupid #exe blocks (1 #, 0 %:); max conditional depth 0 |
 | `c_preprocessor_include_operands` | `pass` | 2418 C include operands (2181 quoted, 237 angle, 0 pp-token); 690 source files; max conditional depth 2 |
 | `c_preprocessor_line_directives` | `pass` | 0 named #line directives (0 direct, 0 pp-token; 0 filename); 0 numeric markers; 690 source files; max conditional depth 0 |

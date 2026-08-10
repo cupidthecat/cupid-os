@@ -78,8 +78,8 @@ biased exponent into a twelve-byte snapshot; unary minus supplies the sign.
 The value-bearing ten bytes move through x87 80-bit FLD and FSTP memory forms in Cupid's shared x86 catalogue. The hosted
 path converts among float, double, and long double, applies unary plus and
 minus, and evaluates +, -, *, and /.
-Source-head CupidASM and CupidDis also share signed x87 integer memory forms.
-FILD and FISTP accept 16-bit, 32-bit, and 64-bit operands. Compiler head uses
+Checked-seed CupidASM and CupidDis also share signed x87 integer memory forms.
+FILD and FISTP accept 16-bit, 32-bit, and 64-bit operands. Checked CupidC uses
 the 64-bit forms for runtime conversion at every i386 integer width. It
 presents input as signed 64-bit memory, adds exact 2^64 for an unsigned 64-bit
 value with bit 63 set, and canonicalizes the 64-bit FISTP result to the target
@@ -96,8 +96,8 @@ than _Bool.
 _Bool tests the original floating value: both signed zeros become false, and
 every represented finite nonzero value becomes true. The fixture converts
 -0.5L to both targets, producing true for _Bool and zero for an unsigned
-integer. Integer-valued zero keeps a CTOOL_C_INITIALIZER_ZERO record. The
-checked seed does not carry this compiler path yet.
+integer. Integer-valued zero keeps a CTOOL_C_INITIALIZER_ZERO record. ADR 0258
+records checked-seed carriage.
 Direct and indirect fixed, variadic, and unprototyped arguments occupy twelve
 cdecl bytes. Functions return the value in x87 ST0, and direct or indirect
 callers store it in a twelve-byte snapshot. va_arg(long double) copies twelve
@@ -142,10 +142,10 @@ xmm0 clobber and emits F3 0F 10 00 or F3 0F 11 00 through EAX. The unchanged
 stress_sin x87 block is also represented. It keeps one double output and one
 double input, permits no clobbers, and emits FLD, FSIN, and FSTP through the
 shared x86 model. The x87 stack returns to its original depth and no frame
-temporary is used. Compiler head also accepts exact fldcw %0 with one
+temporary is used. Checked-seed CupidC also accepts exact fldcw %0 with one
 addressable, non-atomic 16-bit integer memory input. GNU semantics make the
 no-output statement volatile even without that keyword. The emitter produces
-D9 /5 through EAX. The checked seed does not carry this form yet.
+D9 /5 through EAX. ADR 0258 records checked-seed carriage.
 
 The earlier compiler proof used kernel/cpu/fpu.c. The
 unchanged implementation is now kernel/cpu/fpu.cc, a checked CupidC production

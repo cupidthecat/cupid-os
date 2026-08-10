@@ -46,7 +46,7 @@ make test-user-native-windows-equivalence
 
 The normal Windows build runs the checked seed through WSL and does not
 prepare native drivers. The separate comparison command builds those drivers
-with Clang and its native linker. Source-head CupidLD accepts `-m i386pe` for
+with Clang and its native linker. Checked-seed CupidLD accepts `-m i386pe` for
 ordered static i386 ELF32 objects. It serializes one deterministic,
 fixed-layout PE32 console image at image base `0x00400000`, with `.text` at RVA
 `0x1000`, each nonempty later section category at the next `0x1000` boundary,
@@ -59,18 +59,19 @@ slot without rescanning prior records, and keeps name imports below the PE32
 high-bit boundary. The independent validator reconstructs the exact `.idata`
 cursor instead of accepting an equivalent but noncanonical layout.
 
-Source-head CupidASM, freestanding CupidC, and CupidLD build a small command
+Checked-seed CupidASM, freestanding CupidC, and CupidLD build a small command
 that imports `GetStdHandle`, `WriteFile`, and `ExitProcess`. Windows runs the
 validated image, checks its exact stdout marker and empty stderr, and requires
 exit 37. The bootstrap report retains the observed result and both stages'
-object and image hashes. The checked seed does not carry this command, so the normal user build
-still runs the Linux tools through WSL. A complete Windows runtime, native
+object and image hashes. The normal user build still runs the Linux tools
+through WSL. A complete Windows runtime, native
 five-tool seed, and production adoption remain open. See [ADR
 0247](../docs/adr/0247-serialize-fixed-layout-pe32-images-with-cupidld.md) and
 [ADR
 0248](../docs/adr/0248-link-deterministic-pe32-imports-and-run-a-cupid-built-windows-command.md).
+ADR 0258 records checked-seed carriage.
 
-The source-head CLI uses an adjacent-candidate publisher for ELF and PE images.
+The checked-seed CLI uses an adjacent-candidate publisher for ELF and PE images.
 It creates the candidate with exclusive-create semantics, writes and closes it,
 then reopens the file and checks its size and contents against the linker
 buffer. A failed write, close, verification, or replacement preserves an

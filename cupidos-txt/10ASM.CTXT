@@ -177,7 +177,7 @@ raw and ELF32 assembly, disassembly, symbol listing, fixed-address and scripted
 linking, binary and canonical-text wrapping, executable flattening, help, and
 useful failures.
 
-Source-head CupidLD also links ordered static i386 objects into one fixed-layout
+Checked-seed CupidLD also links ordered static i386 objects into one fixed-layout
 PE32 console image. Image base is 0x00400000, and text begins at RVA 0x1000.
 Nonempty read-only, writable, and BSS sections follow in that order at the next
 page boundary. Empty output categories do not get PE section headers. The
@@ -195,10 +195,10 @@ the same freestanding main, and both CupidLD stages produce the same PE bytes.
 Windows validates and runs the image, checks its exact stdout and empty stderr,
 and requires exit 37. The validator reconstructs the exact .idata layout, and
 the report retains both object and image pairs plus the observed Windows
-result. The source-head behavior matrix is 5/17/15. The promoted Linux seed
-remains at 5/15/13 and does not carry this command.
+result. The promoted Linux seed carries the 5/17/15 behavior matrix and this
+command.
 
-Source-head CupidLD uses an adjacent candidate created with exclusive-create
+Checked-seed CupidLD uses an adjacent candidate created with exclusive-create
 semantics for both ELF and PE output. It writes and closes the candidate, then
 reopens the file and checks its size and contents before one replacement call.
 Injected write, close, verification, and replacement errors preserve an
@@ -216,7 +216,7 @@ Checked CupidASM assembles stage-two startup there, then the stage-two
 assembler produces byte-identical stage-three startup below the same root.
 The harness checks both the private and live closures at each stage and
 behavior boundary. The complete seed build also compares all 19 C objects and
-five linked tools and runs the complete 5/15/13 behavior matrix. All evidence
+five linked tools and runs the complete 5/17/15 behavior matrix. All evidence
 is published together only after the gate passes.
 
 make verify-bootstrap-seed validates the files without executing them.
@@ -274,9 +274,8 @@ repository paths without making the assembler depend on ambient host paths.
 CupidASM implements the cleanly expressible NASM-compatible surface required
 by active CupidOS sources; it does not claim unrestricted NASM compatibility.
 
-The checked seed has 596 x86 rows, 245 canonical mnemonics, 64 register names,
-and fingerprint DA15E97F. Source head has 602 rows, 247 canonical mnemonics,
-and fingerprint 64429699. Its six new rows cover signed x87 FILD and FISTP
+The checked seed and source head have 602 x86 rows, 247 canonical mnemonics,
+64 register names, and fingerprint 64429699. Six rows cover signed x87 FILD and FISTP
 memory operands at 16, 32, and 64 bits. Register, byte, and 80-bit memory forms
 are rejected without output. The seed's four SHRD rows cover 16-bit and 32-bit register
 or memory destinations with either an immediate byte or fixed CL count. Both
@@ -311,19 +310,17 @@ sources. Common families include:
 - atomic helpers: bswap, xadd, cmpxchg, lock-prefixed memory operations
 - sized memory inc/dec and reserve directives
 
-The checked i386 Linux seed carries all 596 shared x86 rows in CupidASM and
-CupidDis. The source-head tools build the 602-row catalogue, including FILD
-and FISTP. The seed catalogue includes the IMUL and padding NOP families,
+The checked i386 Linux seed and source-head tools carry all 602 shared x86
+rows, including FILD and FISTP. The catalogue includes the IMUL and padding NOP families,
 FLDZ, forward x87 stack subtraction, and SHRD. ADR 0208 records the x87 form's
-seed carriage, and ADR 0228 records the first SHRD seed promotion. ADR 0243
-records the current checked seed, and ADR 0252 records the source-head x87
-integer forms.
+seed carriage, and ADR 0228 records the first SHRD seed promotion. ADR 0252
+records the x87 integer forms, and ADR 0258 records their checked-seed carriage.
 
 Floating-point and SIMD coverage includes:
 - FPU state: FXSAVE, FXRSTOR, FINIT, FNINIT, FWAIT, LDMXCSR, STMXCSR
 - SSE scalar (23): MOVSS/SD, ADDSS/SD, and more
 - SSE packed (24): MOVAPS/UPS, ADDPS/PD, SHUFPS, CMPPS, and more
-- x87 (29 at source head): FILD, FISTP, FLD, FLDZ, FUCOMIP, FSIN, FPATAN,
+- x87 (29 in the checked seed): FILD, FISTP, FLD, FLDZ, FUCOMIP, FSIN, FPATAN,
   F2XM1, FYL2X, and more
 - Register tokens: XMM0-7 and ST0-7
 

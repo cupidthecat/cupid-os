@@ -368,7 +368,7 @@ _Avoid_: fixed array, flexible array member, variable-length array
 
 **Represented GNU assembly statement**:
 A GNU-mode CupidC statement whose immutable frontend record owns a decoded template and a packed operand slice. Extended statements accept one to four typed integer register outputs, single-digit matching inputs, and the CSPRNG's RDTSC, CPUID, RDRAND, SETC, and tied NOP forms. The port-I/O subset adds width-preserving `a` and `d` inputs, 8-bit, 16-bit, or 32-bit `=a` outputs, and modifiable `+c`, `+S`, and `+D` operands. The checked seed retains the exact GNU `Nd` port constraint and selects its valid DX alternative for the active `inb` and `outb` templates. It accepts one `memory` clobber where the source requests it. One `=r` output may instead be a modifiable four-byte object or `void` pointer for the exact `mov %%gs:0, %0` per-CPU load. A separate output-only subset snapshots a 32-bit general register, ESP, EBP, `4(%ebp)`, or EFLAGS into one four-byte object; the EFLAGS form may finish with `cli`. Exact volatile `FNSTSW`, `FNSTCW`, and `STMXCSR` forms write one correctly sized integer lvalue through `=m`. The checked seed accepts an independent four-byte integer or data-pointer `r` input and an independent four-byte integer `c` input for exact CR0, CR2, CR3, and CR4 moves and RDMSR. The exact volatile `fxsave (%0)` form narrows its `r` input to a four-byte object or `void` pointer and retains one `memory` clobber. CupidC also captures the next instruction's address through the exact volatile `call 1f\n1: popl %0` form and one four-byte integer `=r` output. That form emits a zero-displacement call and immediate pop without a relocation. Function-body basic statements and extended statements with an empty output list own no operands and are implicitly volatile. An exact empty volatile extended template with one `memory` clobber and no operands remains an IR ordering point and emits no target bytes. Linear IR evaluates output addresses before input values, once each and in source order. The emitter preserves EBX and restores ESI or EDI after repeated string I/O. The checked seed also accepts the unchanged CPUID `a` input sharing the compatible `=a` output. Normal-build ownership remains a separate boundary.
-The checked seed also accepts the exact volatile `ldmxcsr %0` form with one addressable, non-atomic 32-bit integer `m` input. Linear IR retains the operand address, and the shared x86 model emits `0F AE 10` through EAX. Compiler head extends the same state-memory input seam with exact `fldcw %0` and one addressable, non-atomic 16-bit integer `m` input. A no-output GNU assembly statement is implicitly volatile. The emitter produces `D9 /5` through EAX. The checked seed does not carry `fldcw %0` yet.
+The checked seed also accepts the exact volatile `ldmxcsr %0` form with one addressable, non-atomic 32-bit integer `m` input. Linear IR retains the operand address, and the shared x86 model emits `0F AE 10` through EAX. The same checked compiler accepts exact `fldcw %0` and one addressable, non-atomic 16-bit integer `m` input. A no-output GNU assembly statement is implicitly volatile. The emitter produces `D9 /5` through EAX. ADR 0258 records seed carriage.
 The checked seed accepts the exact volatile MOVSS float-memory round trip used by `fpu_boot_smoke()`, plus its one-way load and store forms. Each form requires the `xmm0` clobber. Linear IR evaluates each object address once, and the shared x86 model emits `F3 0F 10 00` or `F3 0F 11 00` through EAX. It also accepts the exact volatile `fldl`, `fsin`, and `fstpl` block in `stress_sin()`. The normal build compiles `kernel/cpu/fpu.cc` through the frozen checked-seed wrapper. A typed production-object policy rejects helper calls and floating work before the CR4 write, requires `FNINIT` before a 32-bit memory `LDMXCSR`, and rejects any other floating work in `fpu_init_cpu()`. The four-vCPU runtime gate requires `[fpu] SSE2 enabled`, `[fpu] boot smoke ok`, and `FPU boot smoke passed`.
 _Avoid_: general GNU assembly support, host-assembler escape
 
@@ -395,7 +395,7 @@ _Avoid_: general x87 programs, reordered address evaluation, host-assembler esca
 **Represented GNU x87 exponent memory assembly**:
 The exact volatile statement in `libm_exp_impl()` with one modifiable, non-atomic `double` `=m` output, two addressable, non-atomic `double` `m` inputs in `x`, `log2e` order, and one `memory` clobber. Linear IR evaluates all three addresses once in source order. The i386 emitter runs the complete `exp2(x * log2(e))` pipeline through Cupid's shared x86 model. The focused function has 71 text bytes, no relocations, maximum x87 depth three, and balanced depth on return.
 
-Compiler head and the checked seed distinguish both aligned GNU spellings of the exponent range subtraction. Legacy `fsub %st, %st(1)` retains GNU's `DC E1` reverse-subtract meaning. Corrected `fsubr %st, %st(1)` emits canonical `FSUB ST(1), ST(0)` as `DC E9`, which computes `x - round(x)`. The checked seed has 596 forms, 245 canonical mnemonics, and fingerprint `DA15E97F`. Source head has 602 forms, 247 canonical mnemonics, and fingerprint `64429699`. Its six new rows cover signed x87 `FILD` and `FISTP` memory operands at 16, 32, and 64 bits. The four SHRD rows remain canonical at 16 and 32 bits with immediate or fixed CL counts. Active `libm.cc` uses the corrected subtraction spelling at all seven range-reduction sites. ADRs 0207 through 0209 record the exponent diagnosis, seed carriage, and runtime-tested source correction. ADR 0226 records SHRD, ADR 0228 records its seed carriage, and ADR 0252 records the source-head x87 integer forms.
+Compiler head and the checked seed distinguish both aligned GNU spellings of the exponent range subtraction. Legacy `fsub %st, %st(1)` retains GNU's `DC E1` reverse-subtract meaning. Corrected `fsubr %st, %st(1)` emits canonical `FSUB ST(1), ST(0)` as `DC E9`, which computes `x - round(x)`. Both carry 602 forms, 247 canonical mnemonics, and fingerprint `64429699`. Six rows cover signed x87 `FILD` and `FISTP` memory operands at 16, 32, and 64 bits. The four SHRD rows remain canonical at 16 and 32 bits with immediate or fixed CL counts. Active `libm.cc` uses the corrected subtraction spelling at all seven range-reduction sites. ADRs 0207 through 0209 record the exponent diagnosis, seed carriage, and runtime-tested source correction. ADR 0226 records SHRD, ADR 0228 records its seed carriage, ADR 0252 records the x87 integer forms, and ADR 0258 records their checked-seed carriage.
 _Avoid_: general x87 programs, host-assembler escape, changing the active libm algorithm
 
 **Represented GNU fabs file-scope assembly**:
@@ -707,7 +707,7 @@ padding occupies memory without occupying the file.
 _Avoid_: loader-provided alignment, placing an object first as an alignment guarantee, NASM escape
 
 **CupidLD**:
-The Cupid Toolchain linker. Its source-head CLI publishes complete ELF and PE
+The Cupid Toolchain linker. Its checked-seed CLI publishes complete ELF and PE
 images through an adjacent candidate created with exclusive-create semantics
 and one filesystem replacement call. After closing the candidate, it reopens
 the file and checks its size and contents before replacement. On POSIX,
@@ -723,12 +723,12 @@ A deterministic i386 PE32 console image serialized by CupidLD for one
 prescribed memory layout. It may be import-free or carry a canonical `.idata`
 section with import and IAT directories. Empty output categories are omitted
 from the section table. Writable executable input is outside the profile and
-fails transactionally. This profile exists only in source head and is not a
-checked Windows seed or a native five-tool fixed point.
+fails transactionally. The static i386 Linux seed carries this profile, but it
+is not a checked Windows seed or a native five-tool fixed point.
 _Avoid_: general PE linker, native Windows fixed point, checked Windows seed
 
 **Cupid-built Windows runtime probe**:
-A freestanding i386 command compiled by source-head CupidC, assembled by
+A freestanding i386 command compiled by checked-seed CupidC, assembled by
 CupidASM, linked with three `KERNEL32.dll` imports by CupidLD, and loaded
 directly by Windows. It prints a fixed marker and exits with status 37. The
 checked producers remain static i386 Linux programs executed through WSL, so
@@ -818,23 +818,29 @@ The manifest-bound set of static CupidC, CupidASM, CupidDis, CupidLD, and
 CupidObj executables under `bootstrap/seeds/i386-linux/`. Verification binds
 their hashes, sizes, ELF properties, target ABI, producer lineage, source
 revision, and exact 19-source build plan before execution. The current seed
-comes from revision `aeef93513e6ac899c933a09e4cacf05ef8b047df`. CupidC is
-2,582,400 bytes with SHA-256
-`03084115bcacb1987db5513c8a8be9b7d884029b03ab4b212bf40d997871ae79`.
+comes from revision `9115787311bf455b6eee19e7742cc83aa252e7c8`. CupidC is
+2,632,760 bytes with SHA-256
+`bfe4b9581302439ae35dac340c3f3e38812a2ce7b0ce54a8af1e04731cd077c1`.
+CupidASM is 445,616 bytes with SHA-256
+`fc4e3824d01364debbdfcb6a726e9594a6c68d7c1ed013ffbb2d7f78f05644f9`.
+CupidDis is 379,648 bytes with SHA-256
+`6f3425e7c1fb1e1274c945fdeb891347f1ef681c8b852aec783f4ecd1fa8acfe`.
+CupidLD is 312,792 bytes with SHA-256
+`9561d6f7170472cd6dccd87d4988fdd2b23a138966cbe4940a9ffb062eab481d`.
 CupidObj is 392,688 bytes with SHA-256
 `7137ad601a7c22178112fbf08163b36ff2064807caa99962df97d7ae7ae62f2b`.
-CupidASM, CupidDis, and CupidLD remain byte-identical to the preceding cohort.
 The 5,440-byte manifest has SHA-256
-`bbc989d7008507a2961a5f940875270fb48b68bf7afb993f5774d70aea17fe91`.
+`8fd462648360d3c705e203fc771299007d590d1665a6c253781a4ee83c811c33`.
 The seed carries bounded decimal `long double` constants, transactional
 sequential-JPEG validation, pristine disk-template, ISO fixture, and
-profile-manifest construction, Cupid's native type spellings, and the 596-row
-SHRD-capable x86 catalogue. Its post-promotion reproof matches all five seed
-images to stage two, then matches all nineteen C objects, startup, five tools,
-and the 5/15/13 behavior matrix between stages two and three. The frozen
-41-input digest is
-`bbbeb2b9f1532c9e7574ec47bb05c428f308fa430cf5fafe33b6222488b1ea33`.
-ADR 0243 records this promotion.
+profile-manifest construction. It also carries deterministic PE32 imports,
+signed x87 integer conversion forms, runtime and static integer to
+`long double` conversion, static long-double controls, canonical x87 zero,
+subnormal, normal, infinity, and NaN payloads, and the 602-row shared x86
+catalogue. Its fixed point covers nineteen C objects, startup, five tools,
+and the 5/17/15 behavior matrix. The frozen 43-input digest is
+`3619e7d508f55f5e91bf3fa79071fd2dcd818ec8e0281f03a1d9d48f0a7a3547`.
+ADR 0258 records this promotion.
 _Avoid_: current normal-build toolchain, native Windows seed, unverified binary cache
 
 **Checked-seed invocation**:

@@ -93,6 +93,7 @@ normal source owner, so no `.c` to `.cc` rename is due.
 Issue #25 remains open. Static long-double computation and conversion,
 integer conversions involving `long double`, hexadecimal and subnormal
 literals, atomics, aggregate ABI work, and other freestanding C11 gaps remain.
-The checked seed predates this capability and needs a later verified seed
-transition before normal production source can depend on it. `TempleOS/`
-remains untouched reference material.
+At this decision, the checked seed predated the capability and still needed a
+verified transition before normal production source could depend on it. ADR
+0258 later carried the exact static data path. `TempleOS/` remains untouched
+reference material.

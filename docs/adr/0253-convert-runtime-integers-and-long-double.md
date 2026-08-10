@@ -130,9 +130,8 @@ for them.
 ## Consequences
 
 Compiler-head CupidC now owns runtime integer conversion for automatic
-`long double` values across the complete i386 integer width set. The
-checked seed predates this capability, so a later verified seed promotion is
-still required before normal production source can depend on it.
+`long double` values across the complete i386 integer width set. ADR 0258
+carries this capability in the checked seed.
 
 No production source changes owner, and no `.c` to `.cc` rename is due.
 Issue #25 remains open for static long-double computation and conversion,

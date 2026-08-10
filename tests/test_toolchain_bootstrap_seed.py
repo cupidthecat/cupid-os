@@ -939,7 +939,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 hashlib.sha256(
                     frozen.tools["cupidc"].read_bytes()
                 ).hexdigest(),
-                "03084115bcacb1987db5513c8a8be9b7d884029b03ab4b212bf40d997871ae79",
+                "bfe4b9581302439ae35dac340c3f3e38812a2ce7b0ce54a8af1e04731cd077c1",
             )
 
     def test_wsl_runner_uses_a_private_temporary_directory(self):
@@ -1576,6 +1576,459 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             rendered = compiler_disassembly.stdout.casefold()
             self.assertEqual(rendered.count("fsub st1, st0"), 1)
             self.assertEqual(rendered.count("fsubr st1, st0"), 1)
+
+    def test_checked_seed_carries_x87_integer_and_long_double_frontier(self):
+        if os.name == "nt" and shutil.which("wsl") is None:
+            self.skipTest("WSL is not available")
+        with tempfile.TemporaryDirectory(
+            prefix=".checked-seed-x87-integer-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            assembly_source = root / "x87-integer.asm"
+            assembly_output = root / "x87-integer.bin"
+            compiler_source = root / "long-double-frontier.cc"
+            compiler_object = root / "long-double-frontier.o"
+            rejected_compiler_source = root / "invalid-long-double.cc"
+            rejected_compiler_output = root / "invalid-long-double.o"
+            startup_source = root / "start.asm"
+            startup_object = root / "start.o"
+            executable = root / "long-double-frontier.elf"
+            assembly_source.write_text(
+                "bits 32\n"
+                "fild word [eax]\n"
+                "fild dword [eax]\n"
+                "fild qword [eax]\n"
+                "fistp word [eax]\n"
+                "fistp dword [eax]\n"
+                "fistp qword [eax]\n"
+                "fldcw word [eax]\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+            compiler_source.write_text(
+                "static long double widened_specials[6] = {\n"
+                "  1.0f / 0.0f, -1.0f / 0.0f, 0.0f / 0.0f,\n"
+                "  1.0 / 0.0, -1.0 / 0.0, 0.0 / 0.0\n"
+                "};\n"
+                "static float narrowed_float_specials[3] = {\n"
+                "  (long double)(1.0 / 0.0),\n"
+                "  (long double)(-1.0 / 0.0),\n"
+                "  (long double)(0.0 / 0.0)\n"
+                "};\n"
+                "static double narrowed_double_specials[3] = {\n"
+                "  (long double)(1.0f / 0.0f),\n"
+                "  (long double)(-1.0f / 0.0f),\n"
+                "  (long double)(0.0f / 0.0f)\n"
+                "};\n"
+                "static int special_controls[11] = {\n"
+                "  !(long double)(1.0f / 0.0f),\n"
+                "  !(long double)(-1.0 / 0.0),\n"
+                "  !(long double)(0.0f / 0.0f),\n"
+                "  (long double)(1.0f / 0.0f) > 1.0L,\n"
+                "  (long double)(-1.0 / 0.0) < -1.0L,\n"
+                "  (long double)(0.0 / 0.0) < 0.0L,\n"
+                "  (long double)(0.0 / 0.0) <= 0.0L,\n"
+                "  (long double)(0.0 / 0.0) > 0.0L,\n"
+                "  (long double)(0.0 / 0.0) >= 0.0L,\n"
+                "  (long double)(0.0 / 0.0) == 0.0L,\n"
+                "  (long double)(0.0 / 0.0) != 0.0L\n"
+                "};\n"
+                "static long double converted_unsigned_max =\n"
+                "    18446744073709551615ull;\n"
+                "int seed_long_double_frontier(void) {\n"
+                "  const unsigned int *special_words =\n"
+                "      (const unsigned int *)widened_specials;\n"
+                "  const unsigned int *narrowed_float_words =\n"
+                "      (const unsigned int *)narrowed_float_specials;\n"
+                "  const unsigned int *narrowed_double_words =\n"
+                "      (const unsigned int *)narrowed_double_specials;\n"
+                "  const unsigned int *maximum_words =\n"
+                "      (const unsigned int *)&converted_unsigned_max;\n"
+                "  short narrow = -123;\n"
+                "  int word = -456789;\n"
+                "  long long wide = -1234567890123ll;\n"
+                "  unsigned long long unsigned_wide =\n"
+                "      18446744073709551615ull;\n"
+                "  long double narrow_extended = (long double)narrow;\n"
+                "  long double word_extended = (long double)word;\n"
+                "  long double wide_extended = (long double)wide;\n"
+                "  long double unsigned_extended =\n"
+                "      (long double)unsigned_wide;\n"
+                "  unsigned short control = 0x037fu;\n"
+                "  __asm__ volatile(\"fldcw %0\" : : \"m\"(control));\n"
+                "  if (special_words[0] != 0u ||\n"
+                "      special_words[1] != 0x80000000u ||\n"
+                "      special_words[2] != 0x00007fffu ||\n"
+                "      special_words[3] != 0u ||\n"
+                "      special_words[4] != 0x80000000u ||\n"
+                "      special_words[5] != 0x0000ffffu ||\n"
+                "      special_words[6] != 0u ||\n"
+                "      special_words[7] != 0xc0000000u ||\n"
+                "      special_words[8] != 0x00007fffu) return 1;\n"
+                "  if (special_words[9] != special_words[0] ||\n"
+                "      special_words[10] != special_words[1] ||\n"
+                "      special_words[11] != special_words[2] ||\n"
+                "      special_words[12] != special_words[3] ||\n"
+                "      special_words[13] != special_words[4] ||\n"
+                "      special_words[14] != special_words[5] ||\n"
+                "      special_words[15] != special_words[6] ||\n"
+                "      special_words[16] != special_words[7] ||\n"
+                "      special_words[17] != special_words[8]) return 2;\n"
+                "  if (narrowed_float_words[0] != 0x7f800000u ||\n"
+                "      narrowed_float_words[1] != 0xff800000u ||\n"
+                "      narrowed_float_words[2] != 0x7fc00000u) return 3;\n"
+                "  if (narrowed_double_words[0] != 0u ||\n"
+                "      narrowed_double_words[1] != 0x7ff00000u ||\n"
+                "      narrowed_double_words[2] != 0u ||\n"
+                "      narrowed_double_words[3] != 0xfff00000u ||\n"
+                "      narrowed_double_words[4] != 0u ||\n"
+                "      narrowed_double_words[5] != 0x7ff80000u) return 4;\n"
+                "  if (special_controls[0] != 0 ||\n"
+                "      special_controls[1] != 0 ||\n"
+                "      special_controls[2] != 0 ||\n"
+                "      special_controls[3] != 1 ||\n"
+                "      special_controls[4] != 1 ||\n"
+                "      special_controls[5] != 0 ||\n"
+                "      special_controls[6] != 0 ||\n"
+                "      special_controls[7] != 0 ||\n"
+                "      special_controls[8] != 0 ||\n"
+                "      special_controls[9] != 0 ||\n"
+                "      special_controls[10] != 1) return 5;\n"
+                "  if (maximum_words[0] != 0xffffffffu ||\n"
+                "      maximum_words[1] != 0xffffffffu ||\n"
+                "      maximum_words[2] != 0x0000403eu) return 6;\n"
+                "  if ((short)narrow_extended != narrow ||\n"
+                "      (int)word_extended != word ||\n"
+                "      (long long)wide_extended != wide ||\n"
+                "      (unsigned long long)unsigned_extended !=\n"
+                "          unsigned_wide) return 7;\n"
+                "  return 0;\n"
+                "}\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+            rejected_compiler_source.write_text(
+                "static long double bad =\n"
+                "    (long double)(1.0f / 0.0f) + 1.0L;\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+            rejected_compiler_output.write_bytes(b"sentinel")
+            startup_source.write_text(
+                "bits 32\n"
+                "section .text\n"
+                "global _start\n"
+                "extern seed_long_double_frontier\n"
+                "_start:\n"
+                "    call seed_long_double_frontier\n"
+                "    mov ebx, eax\n"
+                "    mov eax, 1\n"
+                "    int 0x80\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+            frozen = freeze_seed_inputs(SEED_MANIFEST, root / "seed")
+            runner = ToolRunner(REPO_ROOT)
+
+            assembled = runner.run(
+                frozen.tools["cupidasm"],
+                ["-f", "bin", assembly_source, "-o", assembly_output],
+                60,
+            )
+            self.assertEqual(assembled.returncode, 0, assembled.stderr)
+            self.assertEqual(assembled.stdout, "")
+            self.assertEqual(assembled.stderr, "")
+            self.assertEqual(
+                assembly_output.read_bytes(),
+                bytes.fromhex("df00db00df28df18db18df38d928"),
+            )
+
+            disassembled = runner.run(
+                frozen.tools["cupiddis"],
+                ["--raw", "--mode=32", "--base=0", assembly_output],
+                60,
+            )
+            self.assertEqual(
+                disassembled.returncode, 0, disassembled.stderr
+            )
+            self.assertEqual(disassembled.stderr, "")
+            rendered = disassembled.stdout.casefold()
+            for instruction in (
+                "fild word [eax]",
+                "fild dword [eax]",
+                "fild qword [eax]",
+                "fistp word [eax]",
+                "fistp dword [eax]",
+                "fistp qword [eax]",
+                "fldcw word [eax]",
+            ):
+                self.assertEqual(rendered.count(instruction), 1)
+
+            rejected_assembly_cases = (
+                ("fild-register", "fild eax"),
+                ("fistp-byte", "fistp byte [eax]"),
+                ("fldcw-dword", "fldcw dword [eax]"),
+            )
+            for label, instruction in rejected_assembly_cases:
+                rejected_source = root / f"invalid-{label}.asm"
+                rejected_output = root / f"invalid-{label}.bin"
+                rejected_source.write_text(
+                    f"bits 32\n{instruction}\n",
+                    encoding="utf-8",
+                    newline="\n",
+                )
+                rejected_output.write_bytes(b"sentinel")
+                rejected = runner.run(
+                    frozen.tools["cupidasm"],
+                    [
+                        "-f",
+                        "bin",
+                        rejected_source,
+                        "-o",
+                        rejected_output,
+                    ],
+                    60,
+                )
+                self.assertEqual(rejected.returncode, 1)
+                self.assertEqual(rejected.stdout, "")
+                self.assertIn(
+                    "no x86 form matches the instruction",
+                    rejected.stderr,
+                )
+                self.assertEqual(rejected_output.read_bytes(), b"sentinel")
+
+            compiled = runner.run(
+                frozen.tools["cupidc"],
+                [
+                    "--root",
+                    REPO_ROOT,
+                    "--gnu",
+                    "--freestanding",
+                    "-c",
+                    "/" + compiler_source.relative_to(REPO_ROOT).as_posix(),
+                    "-o",
+                    "/" + compiler_object.relative_to(REPO_ROOT).as_posix(),
+                ],
+                180,
+            )
+            self.assertEqual(compiled.returncode, 0, compiled.stderr)
+            self.assertEqual(compiled.stdout, "")
+            self.assertEqual(compiled.stderr, "")
+            self.assertIn(bytes.fromhex("d928"), compiler_object.read_bytes())
+
+            rejected_compile = runner.run(
+                frozen.tools["cupidc"],
+                [
+                    "--root",
+                    REPO_ROOT,
+                    "--gnu",
+                    "--freestanding",
+                    "-c",
+                    "/"
+                    + rejected_compiler_source.relative_to(
+                        REPO_ROOT
+                    ).as_posix(),
+                    "-o",
+                    "/"
+                    + rejected_compiler_output.relative_to(
+                        REPO_ROOT
+                    ).as_posix(),
+                ],
+                180,
+            )
+            self.assertEqual(rejected_compile.returncode, 1)
+            self.assertEqual(rejected_compile.stdout, "")
+            self.assertIn(
+                "static long-double arithmetic is outside this "
+                "constant-data slice",
+                rejected_compile.stderr,
+            )
+            self.assertEqual(
+                rejected_compiler_output.read_bytes(), b"sentinel"
+            )
+
+            assembled_start = runner.run(
+                frozen.tools["cupidasm"],
+                ["-f", "elf32", startup_source, "-o", startup_object],
+                60,
+            )
+            self.assertEqual(
+                assembled_start.returncode, 0, assembled_start.stderr
+            )
+            self.assertEqual(assembled_start.stdout, "")
+            self.assertEqual(assembled_start.stderr, "")
+            linked = runner.run(
+                frozen.tools["cupidld"],
+                [
+                    "-m",
+                    "elf_i386",
+                    "--text-address",
+                    "0x08048000",
+                    "--entry",
+                    "_start",
+                    "-o",
+                    executable,
+                    startup_object,
+                    compiler_object,
+                ],
+                180,
+            )
+            self.assertEqual(linked.returncode, 0, linked.stderr)
+            self.assertEqual(linked.stdout, "")
+            self.assertEqual(linked.stderr, "")
+            executed = runner.run(executable, [], 60)
+            self.assertEqual(executed.returncode, 0, executed.stderr)
+            self.assertEqual(executed.stdout, "")
+            self.assertEqual(executed.stderr, "")
+
+    def test_checked_seed_builds_and_runs_imported_pe32(self):
+        if os.name == "nt" and shutil.which("wsl") is None:
+            self.skipTest("WSL is not available")
+        with tempfile.TemporaryDirectory(
+            prefix=".checked-seed-imported-pe32-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            startup_source = (
+                REPO_ROOT / "toolchain/hosted/i386-windows/start.asm"
+            )
+            contract_source = (
+                REPO_ROOT
+                / "toolchain/tests/hosted_i386_windows_contract.cc"
+            )
+            startup_object = root / "start.o"
+            contract_object = root / "contract.o"
+            image = root / "runtime.exe"
+            invalid_source = root / "invalid-import.asm"
+            invalid_object = root / "invalid-import.o"
+            invalid_image = root / "invalid-import.exe"
+            invalid_source.write_text(
+                "bits 32\n"
+                "extern __imp_ExitProcess\n"
+                "global _start\n"
+                "section .text\n"
+                "_start:\n"
+                "    call __imp_ExitProcess\n"
+                "    ret\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+            invalid_image.write_bytes(b"sentinel")
+            frozen = freeze_seed_inputs(SEED_MANIFEST, root / "seed")
+            runner = ToolRunner(REPO_ROOT)
+
+            assembled = runner.run(
+                frozen.tools["cupidasm"],
+                ["-f", "elf32", startup_source, "-o", startup_object],
+                120,
+            )
+            self.assertEqual(assembled.returncode, 0, assembled.stderr)
+            self.assertEqual(assembled.stdout, "")
+            self.assertEqual(assembled.stderr, "")
+            compiled = runner.run(
+                frozen.tools["cupidc"],
+                [
+                    "--root",
+                    REPO_ROOT,
+                    "--freestanding",
+                    "-c",
+                    "/" + contract_source.relative_to(REPO_ROOT).as_posix(),
+                    "-o",
+                    "/" + contract_object.relative_to(REPO_ROOT).as_posix(),
+                ],
+                180,
+            )
+            self.assertEqual(compiled.returncode, 0, compiled.stderr)
+            self.assertEqual(compiled.stdout, "")
+            self.assertEqual(compiled.stderr, "")
+            imports = (
+                "__imp_WriteFile=KERNEL32.dll:WriteFile",
+                "__imp_ExitProcess=KERNEL32.dll:ExitProcess",
+                "__imp_GetStdHandle=KERNEL32.dll:GetStdHandle",
+            )
+            linked = runner.run(
+                frozen.tools["cupidld"],
+                [
+                    "-m",
+                    "i386pe",
+                    "--text-address",
+                    "0x00401000",
+                    "--entry",
+                    "_start",
+                    "--import",
+                    imports[0],
+                    "--import",
+                    imports[1],
+                    "--import",
+                    imports[2],
+                    "-o",
+                    image,
+                    startup_object,
+                    contract_object,
+                ],
+                180,
+            )
+            self.assertEqual(linked.returncode, 0, linked.stderr)
+            self.assertEqual(linked.stdout, "")
+            self.assertEqual(linked.stderr, "")
+            _validate_static_i386_pe32(
+                image,
+                0x00401000,
+                (
+                    (
+                        "KERNEL32.dll",
+                        ("ExitProcess", "GetStdHandle", "WriteFile"),
+                    ),
+                ),
+            )
+            if os.name == "nt":
+                executed = subprocess.run(
+                    [str(image)],
+                    cwd=REPO_ROOT,
+                    capture_output=True,
+                    timeout=10,
+                )
+                self.assertEqual(executed.returncode, 37)
+                self.assertEqual(
+                    executed.stdout, b"Cupid-built Windows runtime: ok\n"
+                )
+                self.assertEqual(executed.stderr, b"")
+
+            assembled_invalid = runner.run(
+                frozen.tools["cupidasm"],
+                ["-f", "elf32", invalid_source, "-o", invalid_object],
+                120,
+            )
+            self.assertEqual(
+                assembled_invalid.returncode,
+                0,
+                assembled_invalid.stderr,
+            )
+            self.assertEqual(assembled_invalid.stdout, "")
+            self.assertEqual(assembled_invalid.stderr, "")
+            rejected = runner.run(
+                frozen.tools["cupidld"],
+                [
+                    "-m",
+                    "i386pe",
+                    "--text-address",
+                    "0x00401000",
+                    "--entry",
+                    "_start",
+                    "--import",
+                    imports[1],
+                    "-o",
+                    invalid_image,
+                    invalid_object,
+                ],
+                180,
+            )
+            self.assertEqual(rejected.returncode, 1)
+            self.assertEqual(rejected.stdout, "")
+            self.assertIn(
+                "IAT symbols require an absolute zero-addend relocation",
+                rejected.stderr,
+            )
+            self.assertEqual(invalid_image.read_bytes(), b"sentinel")
 
     def test_checked_seed_preserves_returns_twice_call_operands(self):
         if os.name == "nt" and shutil.which("wsl") is None:
@@ -3328,8 +3781,20 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         ) as temporary:
             output = Path(temporary)
             environment = dict(os.environ)
-            environment["CC"] = "__host_c_compiler_must_not_run__"
-            environment["LD"] = "__host_linker_must_not_run__"
+            for name in (
+                "CC",
+                "CXX",
+                "CPP",
+                "HOSTCC",
+                "HOSTCXX",
+                "ASM",
+                "AS",
+                "LD",
+                "AR",
+                "NM",
+                "OBJCOPY",
+            ):
+                environment[name] = f"__cupid_host_{name}_must_not_run__"
             result = subprocess.run(
                 [
                     sys.executable,
@@ -3365,7 +3830,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(report["status"], "pass")
             self.assertEqual(
                 report["seed_source_revision"],
-                "aeef93513e6ac899c933a09e4cacf05ef8b047df",
+                "9115787311bf455b6eee19e7742cc83aa252e7c8",
             )
             self.assertNotIn("source_revision", report)
             self.assertEqual(
@@ -3469,7 +3934,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 },
             )
             source_head_snapshot = (
-                "a935a43ff3709613fb7c3af05af8a27edaa56a98e4c37018ca0984ae57d489d7"
+                "3619e7d508f55f5e91bf3fa79071fd2dcd818ec8e0281f03a1d9d48f0a7a3547"
             )
             self.assertEqual(
                 report["source_snapshot_sha256"], source_head_snapshot
@@ -3480,7 +3945,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     "cupidasm": True,
                     "cupidc": True,
                     "cupiddis": True,
-                    "cupidld": False,
+                    "cupidld": True,
                     "cupidobj": True,
                 },
             )

@@ -166,9 +166,8 @@ public boundaries.
 ## Consequences
 
 Compiler-head CupidC can now build exact static data for integer and
-long-double conversions without host floating behavior or runtime work. The
-checked seed predates this capability, so normal production source cannot
-depend on it until a later verified seed promotion.
+long-double conversions without host floating behavior or runtime work. ADR
+0258 carries this capability in the checked seed.
 
 No production source changes owner, and no `.c` to `.cc` rename is due.
 Issue #25 remains open for static long-double arithmetic, comparison, truth and
