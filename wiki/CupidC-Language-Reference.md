@@ -155,16 +155,20 @@ pointer-to-array types, and assignment through a pointer-valued floating field
 subscript remain unsupported.
 
 Matching `float4` or `double2` values support direct `+`, `-`, `*`, and `/`.
-One-dimensional fixed arrays of either vector type are supported as globals,
-locals, block statics, and persistent REPL declarations. Each element occupies
-16 bytes. Indexed plain assignment and `+=`, `-=`, `*=`, and `/=` use
-unaligned-safe packed moves and preserve lane access. Bounds and allocation
-sizes are checked before storage is reserved. Every direct operation keeps the
-written left value in the machine destination. MIN and MAX intrinsics keep the
-second input for NaN and equal signed-zero cases. A both-NaN ADD or MUL may
-carry either input payload, depending on the processor or emulator. SIMD
-pointers, multidimensional arrays, record fields, `new`, array parameters, and
-call ABI transport remain unsupported.
+Fixed arrays of either vector type may have one, two, or three dimensions as
+globals, locals, block statics, and persistent REPL declarations. Each vector
+leaf occupies 16 bytes. Declared rank is independent of byte stride, so a unit
+inner extent still needs its final subscript. Indexed plain assignment and
+`+=`, `-=`, `*=`, and `/=` use unaligned-safe packed moves and preserve lane
+access. Row and vector `sizeof` keep their complete sizes without evaluating an
+index. Bounds and allocation sizes are checked before storage is reserved.
+Every direct operation keeps the written left value in the machine destination.
+MIN and MAX intrinsics keep the second input for NaN and equal signed-zero
+cases. A both-NaN ADD or MUL may carry either input payload, depending on the
+processor or emulator. Incomplete rows are rejected rather than treated as
+untyped pointers. SIMD pointers, record fields, `new`, array parameters, row
+values, and call ABI transport remain unsupported. ADR 0257 records this
+boundary.
 
 Direct functions and methods with parsed fixed parameter types convert each
 represented integer, `char`, `float`, or `double` argument to its declared
@@ -261,19 +265,23 @@ Boolean truth test. Static long-double truth, all six comparisons,
 short-circuit logic, and conditional selection use the target representation.
 Finite binary32 and binary64 values widen exactly to x87, and represented
 finite long-double values narrow with round-to-nearest, ties-to-even packing.
-These expressions become static data and add no runtime IR.
+Binary32 and binary64 infinities keep their sign when widened. NaNs widen to
+one canonical quiet x87 payload. Canonical x87 infinities and NaNs narrow to
+the corresponding target infinity or quiet NaN. These expressions become
+static data and add no runtime IR.
 
 Floating increment or decrement, hexadecimal floating
 constants, binary32 and binary64 subnormal constants, hexadecimal or subnormal
 long-double constants, long-double decimals beyond the bounded ratio parser,
-static long-double arithmetic, widening infinity or NaN from `float` or
-`double` to `long double`, SIMD, and atomic floating access remain unsupported.
+static long-double arithmetic, SIMD, and atomic floating access remain
+unsupported.
 [ADR 0229](../docs/adr/0229-emit-exact-decimal-long-double-literals.md)
 records the literal representation. ADR 0250 records runtime unsigned
 four-byte conversion, ADR 0251 records static long-double data, and ADR 0253
 records runtime conversion between `long double` and every signed or
 unsigned i386 integer width. ADR 0254 records static initializer conversion,
-and ADR 0255 records static controls and finite width conversion.
+ADR 0255 records static controls and finite width conversion, and ADR 0256
+records canonical x87 payloads and special-value conversion.
 The in-kernel compiler has a separate, broader floating and SIMD
 implementation.
 

@@ -497,14 +497,17 @@ alignment. A `QUALIFIED` node copies referenced alignment unless it introduces
 the target atomic alignment. An `ALIGNED` node requires an explicit,
 nonzero power-of-two alignment and may lower the referenced alignment.
 Static long-double truth, all six comparisons, short-circuit logic,
-conditional selection, and finite conversion to or from binary32 and
-binary64 use the same target-only value model. The folded expressions become
-final initializer records and add no runtime IR. This work introduces no host
-floating operation or math-library dependency.
+conditional selection, and conversion to or from binary32 and binary64 use
+the same target-only value model. The shared payload rule accepts canonical
+x87 zero, subnormal, normal, infinity, and NaN encodings. Binary32 and
+binary64 infinities widen with their sign, while every source NaN widens to a
+canonical quiet x87 NaN. Narrowing produces target infinity or a canonical
+quiet NaN. The folded expressions become final initializer records and add no
+runtime IR. This work introduces no host floating operation or math-library
+dependency.
 Hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
-bounded parser, static long-double arithmetic, widening infinity or NaN from
-`float` or `double` to `long double`, mixed integer and floating runtime
+bounded parser, static long-double arithmetic, mixed integer and floating runtime
 arithmetic or conditionals,
 and floating increment and decrement remain open. Matching or mixed-width floating
 conditional arms and the four arithmetic compound assignments retain their
@@ -513,8 +516,9 @@ balanced `FUCOMIP` sequence. ADRs 0196, 0199, 0202, and 0229 record the current
 long-double, comparison, truth, and literal boundaries. ADR 0250 records
 runtime conversion to unsigned four-byte targets, ADR 0251 records static
 long-double data, ADR 0253 records runtime conversions between `long double`
-and integers, ADR 0254 records static initializer conversion, and ADR 0255
-records static controls and finite width conversion.
+and integers, ADR 0254 records static initializer conversion, ADR 0255
+records static controls and finite width conversion, and ADR 0256 records
+canonical x87 classes and special-value conversion.
 
 The checked seed has 596 x86 forms, 245 canonical mnemonics, 64 registers, and
 fingerprint `DA15E97F`. Source head has 602 forms, 247 canonical mnemonics,
@@ -1027,14 +1031,15 @@ unsigned i386 integer width. ADR 0254 adds target-only static initializer
 conversion for the same widths, `_Bool`, plain `char`, and enums whose
 compatible integer types have a represented target layout.
 ADR 0255 adds target-only static long-double truth, comparison, short-circuit
-logic, conditional selection, and finite conversion to or from binary32 and
-binary64.
+logic, conditional selection, and conversion to or from binary32 and
+binary64. ADR 0256 accepts canonical x87 zero, subnormal, normal, infinity,
+and NaN payloads and adds special-value conversion without host floating
+work.
 
 Runtime mixed integer and floating arithmetic or conditional arms, floating
 increment and decrement, hexadecimal floating literals, binary32 and
 binary64 subnormal literals, hexadecimal or subnormal long-double literals,
 decimal ratios beyond the bounded parser, static long-double arithmetic,
-widening infinity or NaN from `float` or `double` to `long double`, runtime
 aggregate floating values, atomic access, and other unrepresented forms remain
 outside the current ABI slice.
 

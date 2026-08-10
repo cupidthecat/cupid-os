@@ -2782,6 +2782,8 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             "[feature14-operator] PASS float=4 double=4",
             "[feature14-array] PASS global=2 local=2 static=2 "
             "sizeof=16 index=1",
+            "[feature14-matrix] PASS global=2 local=2 static=2 "
+            "sizes=8 index=6 unevaluated=2 canary=4",
             "[feature14-minmax] PASS nan=4 signed_zero=4",
             "[feature14-nan] PASS float_left=",
             "PASS feature14_simd",
@@ -3792,6 +3794,36 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
+    def test_repl_simd_matrices_keep_row_metadata_between_units(self):
+        result = self._compile_repl_and_run(
+            (
+                "float4 repl_matrix[2][3];",
+                "double2 repl_cube[2][2][1];",
+                "int repl_canary = 53;",
+                """
+                int verify_repl_vectors() {
+                  float4 float_seed = {2.0f, 4.0f, 6.0f, 8.0f};
+                  double2 double_seed = {3.0, 9.0};
+                  repl_matrix[1][2] = float_seed;
+                  repl_matrix[1][2] *= float_seed;
+                  repl_cube[1][0][0] = double_seed;
+                  repl_cube[1][0][0] += double_seed;
+                  if (repl_matrix[1][2].z != 36.0f) return 1;
+                  if (repl_cube[1][0][0].y != 18.0) return 2;
+                  if (sizeof(*repl_matrix) != 48) return 3;
+                  if (sizeof(**repl_matrix) != 16) return 4;
+                  if (sizeof(*repl_cube) != 32) return 5;
+                  if (sizeof(**repl_cube) != 16) return 6;
+                  if (sizeof(***repl_cube) != 16) return 7;
+                  if (repl_canary != 53) return 8;
+                  return 0;
+                }
+                """,
+                "verify_repl_vectors;",
+            )
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_simd_min_max_keep_second_operand_nan_and_zero_rules(self):
         result = self._compile_and_run(
             """
@@ -3887,6 +3919,7 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             ("global zero", "double values[0];"),
             ("global negative", "float values[1 - 2];"),
             ("global SIMD zero", "float4 values[0];"),
+            ("global SIMD zero inner bound", "float4 values[2][0];"),
             (
                 "local zero inner bound",
                 "int main() { double values[2][0]; return 0; }",
@@ -3911,6 +3944,10 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                 "local negative third bound",
                 "int main() { float values[2][2][1 - 2]; return 0; }",
             ),
+            (
+                "local SIMD negative third bound",
+                "int main() { double2 values[2][2][1 - 2]; return 0; }",
+            ),
         )
 
         for label, source in cases:
@@ -3932,6 +3969,14 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
         cases = (
             ("global double", "double values[268435456];"),
             ("global SIMD", "double2 values[134217728];"),
+            (
+                "global two dimensional SIMD",
+                "float4 values[32768][4096];",
+            ),
+            (
+                "block static three dimensional SIMD",
+                "int main() { static double2 values[4096][4096][8]; return 0; }",
+            ),
             (
                 "local float",
                 "int main() { float values[536870912]; return 0; }",
@@ -4113,19 +4158,233 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             result.stderr,
         )
 
-    def test_multidimensional_simd_array_has_a_useful_diagnostic(self):
-        with tempfile.TemporaryDirectory(
-            prefix="private-cupidc-simd-array-diagnostic-",
-            ignore_cleanup_errors=True,
-        ) as temporary:
-            result, _code, _data = self._compile(
-                Path(temporary),
-                """
-                float4 vectors[2][2];
-                """,
+    def test_two_dimensional_simd_arrays_keep_vector_rows(self):
+        result = self._compile_and_run(
+            """
+            int leading_canary = 31;
+            float4 vectors[2][2];
+            int trailing_canary = 37;
+            int sizeof_index_calls;
+
+            int next_sizeof_index() {
+              sizeof_index_calls += 1;
+              return 1;
+            }
+
+            int main() {
+              float4 seed = {1.0f, 2.0f, 3.0f, 4.0f};
+              vectors[1][0] = seed;
+              vectors[1][0] += seed;
+              if (vectors[1][0].x != 2.0f) return 1;
+              if (vectors[1][0].w != 8.0f) return 2;
+              if (vectors[0][1].z != 0.0f) return 3;
+              if (sizeof(*vectors) != 32) return 4;
+              if (sizeof(**vectors) != 16) return 5;
+              if (sizeof(vectors[next_sizeof_index()]) != 32) return 6;
+              if (sizeof(vectors[0][next_sizeof_index()]) != 16) return 7;
+              if (sizeof_index_calls != 0) return 8;
+              if (leading_canary != 31) return 9;
+              if (trailing_canary != 37) return 10;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_simd_matrices_cover_local_static_and_three_dimensional_storage(self):
+        result = self._compile_and_run(
+            """
+            float4 global_cube[2][2][2];
+            int global_canary = 41;
+            int outer_calls;
+            int middle_calls;
+            int inner_calls;
+
+            int next_outer() {
+              outer_calls += 1;
+              return 1;
+            }
+
+            int next_middle() {
+              middle_calls += 1;
+              return 0;
+            }
+
+            int next_inner() {
+              inner_calls += 1;
+              return 1;
+            }
+
+            int touch_static_cube() {
+              static double2 saved_cube[2][2][2];
+              double2 seed = {3.0, 9.0};
+              saved_cube[1][1][0] += seed;
+              if (saved_cube[1][1][0].x != 3.0) return 1;
+              if (saved_cube[1][1][0].y != 9.0) return 2;
+              if (sizeof(*saved_cube) != 64) return 3;
+              if (sizeof(**saved_cube) != 32) return 4;
+              if (sizeof(***saved_cube) != 16) return 5;
+              return 0;
+            }
+
+            int main() {
+              int leading_canary = 43;
+              double2 local_matrix[2][3];
+              int trailing_canary = 47;
+              float4 seed = {8.0f, 12.0f, 18.0f, 24.0f};
+              float4 step = {2.0f, 3.0f, 6.0f, 8.0f};
+              double2 local_seed = {20.0, 30.0};
+              double2 local_step = {4.0, 5.0};
+
+              global_cube[1][0][1] = seed;
+              global_cube[next_outer()][next_middle()][next_inner()] += step;
+              global_cube[1][0][1] -= step;
+              global_cube[1][0][1] *= step;
+              global_cube[1][0][1] /= step;
+              local_matrix[1][2] = local_seed;
+              local_matrix[1][2] += local_step;
+              local_matrix[1][2] -= local_step;
+              local_matrix[1][2] *= local_step;
+              local_matrix[1][2] /= local_step;
+
+              if (global_cube[next_outer()][next_middle()][next_inner()].x !=
+                  8.0f)
+                return 1;
+              if (outer_calls != 2 || middle_calls != 2 || inner_calls != 2)
+                return 2;
+              if (global_cube[1][0][1].w != 24.0f) return 3;
+              if (global_cube[0][1][1].z != 0.0f) return 4;
+              if (local_matrix[1][2].x != 20.0) return 5;
+              if (local_matrix[1][2].y != 30.0) return 6;
+              if (sizeof(*global_cube) != 64) return 7;
+              if (sizeof(**global_cube) != 32) return 8;
+              if (sizeof(***global_cube) != 16) return 9;
+              if (sizeof(*local_matrix) != 48) return 10;
+              if (sizeof(**local_matrix) != 16) return 11;
+              if (touch_static_cube() != 0) return 12;
+              if (leading_canary != 43 || trailing_canary != 47) return 13;
+              if (global_canary != 41) return 14;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_unit_inner_simd_dimensions_retain_array_rank(self):
+        result = self._compile_and_run(
+            """
+            float4 global_matrix[2][1];
+
+            int main() {
+              static float4 saved[2][1];
+              double2 local_cube[2][2][1];
+              float4 seed = {1.0f, 2.0f, 3.0f, 4.0f};
+              double2 wide = {5.0, 7.0};
+
+              global_matrix[1][0] = seed;
+              global_matrix[1][0] += seed;
+              saved[1][0] = seed;
+              local_cube[1][0][0] = wide;
+              local_cube[1][0][0] *= wide;
+
+              if (global_matrix[1][0].x != 2.0f) return 1;
+              if (global_matrix[1][0].w != 8.0f) return 2;
+              if (local_cube[1][0][0].x != 25.0) return 3;
+              if (local_cube[1][0][0].y != 49.0) return 4;
+              if (sizeof(*global_matrix) != 16) return 5;
+              if (sizeof(**global_matrix) != 16) return 6;
+              if (sizeof(global_matrix[0]) != 16) return 7;
+              if (sizeof((global_matrix[0])) != 16) return 8;
+              if (sizeof(*local_cube) != 32) return 9;
+              if (sizeof(**local_cube) != 16) return 10;
+              if (sizeof(***local_cube) != 16) return 11;
+              if (saved[1][0].x != 1.0f) return 12;
+              if (saved[1][0].w != 4.0f) return 13;
+              if (sizeof(*saved) != 16) return 14;
+              if (sizeof(**saved) != 16) return 15;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_simd_array_row_assignment_requires_every_subscript(self):
+        cases = (
+            "int main() { float4 values[2][2]; float4 value; "
+            "values[1] = value; return 0; }",
+            "int main() { float4 values[2][1]; float4 value; "
+            "values[1] = value; return 0; }",
+            "int main() { double2 values[2][2][2]; double2 value; "
+            "values[1][0] = value; return 0; }",
+            "int main() { double2 values[2][2][1]; double2 value; "
+            "values[1][0] = value; return 0; }",
+        )
+        for source in cases:
+            with self.subTest(source=source), tempfile.TemporaryDirectory(
+                prefix="private-cupidc-simd-array-row-assignment-",
+                ignore_cleanup_errors=True,
+            ) as temporary:
+                result, _code, _data = self._compile(Path(temporary), source)
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertIn(
+                "SIMD array assignment requires every subscript",
+                result.stderr,
             )
-        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
-        self.assertIn("SIMD arrays support one dimension", result.stderr)
+
+    def test_parenthesized_simd_rows_continue_subscript_chains(self):
+        result = self._compile_and_run(
+            """
+            float4 matrix[2][2];
+            double2 cube[2][2][2];
+
+            int main() {
+              float4 float_seed = {1.0f, 2.0f, 3.0f, 4.0f};
+              double2 double_seed = {5.0, 7.0};
+
+              matrix[1][0] = float_seed;
+              cube[1][0][1] = double_seed;
+
+              if ((matrix[1])[0].z != 3.0f) return 1;
+              if (((cube[1])[0])[1].y != 7.0) return 2;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_simd_array_rows_do_not_escape_as_untyped_pointers(self):
+        cases = (
+            "int main() { float4 values[2][2]; return values[0] + 2 != "
+            "values[1]; }",
+            "int main() { double2 values[2][2][2]; "
+            "return values[0][0] + 2 != values[0][1]; }",
+            "int main() { float4 values[2][2]; if (values[0]) return 1; "
+            "return 0; }",
+            "int main() { float4 values[2][2]; return !values[0]; }",
+            "int main() { float4 values[2][2]; return (int*)values[0] "
+            "!= 0; }",
+            "int main() { float4 values[2][2]; return (values[0]); }",
+            "int main() { float4 values[2][2]; return (values[0]) + 2 "
+            "!= values[1]; }",
+            "int consume_row(int value) { return value; } "
+            "int main() { float4 values[2][2]; "
+            "return consume_row((values[0])); }",
+            "int main() { float4 values[2][2]; return (int*)(values[0]) "
+            "!= 0; }",
+            "int main() { float4 values[2][2]; if ((values[0])) return 1; "
+            "return 0; }",
+        )
+        for source in cases:
+            with self.subTest(source=source), tempfile.TemporaryDirectory(
+                prefix="private-cupidc-simd-row-escape-",
+                ignore_cleanup_errors=True,
+            ) as temporary:
+                result, _code, _data = self._compile(Path(temporary), source)
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertIn(
+                "SIMD array row values are not supported",
+                result.stderr,
+            )
 
     def test_simd_operator_diagnostics_name_the_supported_boundary(self):
         cases = (

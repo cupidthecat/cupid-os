@@ -1,4 +1,6 @@
+#define CUPID_TOOLCHAIN_CUPIDC_STATIC_LONG_DOUBLE_INTERNAL
 #include "cupidc_emit.h"
+#undef CUPID_TOOLCHAIN_CUPIDC_STATIC_LONG_DOUBLE_INTERNAL
 
 #include "cupidc_ir.h"
 #include "elf32.h"
@@ -1958,23 +1960,6 @@ static ctool_bool cemit_bytes_are_zero(ctool_bytes_t bytes) {
   return CTOOL_TRUE;
 }
 
-static ctool_bool cemit_static_long_double_payload_is_valid(
-    ctool_u64 significand, ctool_u32 high_bits) {
-  ctool_u32 exponent;
-  if ((high_bits & 0xffff0000u) != 0u) {
-    return CTOOL_FALSE;
-  }
-  exponent = high_bits & 0x7fffu;
-  if (exponent == 0u) {
-    return significand == 0ull ? CTOOL_TRUE : CTOOL_FALSE;
-  }
-  if (exponent == 0x7fffu ||
-      (significand & 0x8000000000000000ull) == 0ull) {
-    return CTOOL_FALSE;
-  }
-  return CTOOL_TRUE;
-}
-
 static ctool_status_t cemit_index_initializers(cemit_context_t *context) {
   ctool_u32 element_cursor = 0u;
   ctool_u32 index;
@@ -2031,9 +2016,10 @@ static ctool_status_t cemit_index_initializers(cemit_context_t *context) {
              initializer->floating_high_bits == 0u) ||
             (floating->kind == CTOOL_C_TYPE_LONG_DOUBLE &&
              layout->size == 12u &&
-             cemit_static_long_double_payload_is_valid(
-                 initializer->integer_bits,
-                 initializer->floating_high_bits) == CTOOL_TRUE)) ||
+            cfront_decode_static_long_double_payload(
+                initializer->integer_bits,
+                initializer->floating_high_bits,
+                (cfront_static_long_double_decoded_t *)0) == CTOOL_TRUE)) ||
           initializer->expression != CTOOL_C_AST_NONE ||
           initializer->string_bytes.data != (const ctool_u8 *)0 ||
           initializer->string_bytes.size != 0u ||
@@ -4566,10 +4552,13 @@ static ctool_status_t cemit_x86_push_wide_constant_snapshot(
 
 static ctool_status_t cemit_x86_push_long_double_constant_snapshot(
     cemit_context_t *context, ctool_u32 temporary_offset,
-    ctool_u64 significand, ctool_u32 biased_exponent) {
+    ctool_u64 significand, ctool_u32 high_bits) {
   ctool_status_t status;
   if (temporary_offset < 12u || temporary_offset > 0x7fffffffu ||
-      (temporary_offset & 3u) != 0u || biased_exponent > 0x7ffeu) {
+      (temporary_offset & 3u) != 0u ||
+      cfront_decode_static_long_double_payload(
+          significand, high_bits,
+          (cfront_static_long_double_decoded_t *)0) == CTOOL_FALSE) {
     return CTOOL_ERR_INTERNAL;
   }
   status = cemit_x86_move_register_constant(
@@ -4588,7 +4577,7 @@ static ctool_status_t cemit_x86_push_long_double_constant_snapshot(
   }
   if (status == CTOOL_OK) {
     status = cemit_x86_move_register_constant(
-        context, 0u, biased_exponent);
+        context, 0u, high_bits);
   }
   if (status == CTOOL_OK) {
     status = cemit_x86_store_local_register(
@@ -13370,11 +13359,10 @@ static ctool_status_t cemit_emit_ir_instruction(
         (layout->size != 12u &&
          ir_instruction->floating_high_bits != 0u) ||
         (layout->size == 12u &&
-         (ir_instruction->floating_high_bits > 0x7ffeu ||
-          (ir_instruction->floating_high_bits == 0u
-               ? ir_instruction->integer_bits != 0ull
-               : (ir_instruction->integer_bits &
-                  0x8000000000000000ull) == 0ull)))) {
+         cfront_decode_static_long_double_payload(
+             ir_instruction->integer_bits,
+             ir_instruction->floating_high_bits,
+             (cfront_static_long_double_decoded_t *)0) == CTOOL_FALSE)) {
       return CTOOL_ERR_INTERNAL;
     }
     if (layout->size == 4u) {

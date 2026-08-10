@@ -130,6 +130,8 @@ def _frontier_command_outputs():
             "[feature14-operator] PASS float=4 double=4\n"
             "[feature14-array] PASS global=2 local=2 static=2 "
             "sizeof=16 index=1\n"
+            "[feature14-matrix] PASS global=2 local=2 static=2 "
+            "sizes=8 index=6 unevaluated=2 canary=4\n"
             "[feature14-minmax] PASS nan=4 signed_zero=4\n"
             "[feature14-nan] PASS float_left=4 float_right=0 "
             "double_left=4 double_right=0\n"
@@ -1741,7 +1743,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             ),
         )
 
-    def test_feature14_requires_operator_array_minmax_and_nan_evidence(self):
+    def test_feature14_requires_operator_array_matrix_minmax_and_nan_evidence(self):
         command = _frontier_command("/bin/feature14_simd.cc")
         expected = command.expected_pattern
         sample = _frontier_command_output("/bin/feature14_simd.cc")
@@ -1751,6 +1753,10 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             (
                 "[feature14-array] PASS global=2 local=2 static=2 "
                 "sizeof=16 index=1\n"
+            ),
+            (
+                "[feature14-matrix] PASS global=2 local=2 static=2 "
+                "sizes=8 index=6 unevaluated=2 canary=4\n"
             ),
             "[feature14-minmax] PASS nan=4 signed_zero=4\n",
             (
@@ -1771,6 +1777,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
         for failure in (
             "[feature14-operator] FAIL",
             "[feature14-array] FAIL",
+            "[feature14-matrix] FAIL",
             "[feature14-minmax] FAIL",
             "[feature14-nan] FAIL",
             "FAIL feature14_simd",
@@ -1786,10 +1793,17 @@ class FrontierRuntimeContractTests(unittest.TestCase):
         for spelling in (
             "float4 feature14_global_floats[3]",
             "double2 feature14_global_doubles[2]",
+            "float4 feature14_global_matrix[2][2]",
+            "double2 feature14_global_cube[2][2][2]",
             "direct_float = a + b",
             "direct_double = dv / dpos",
             "feature14_global_floats[1] += a",
             "saved_doubles[1].y",
+            "local_matrix[1][0] += b",
+            "saved_cube[1][1][0] /= local_step",
+            "feature14_global_cube[feature14_next_outer()]",
+            "feature14_global_cube[feature14_next_outer()][feature14_next_middle()]",
+            "sizeof(feature14_global_matrix[feature14_sizeof_index()])",
             "_mm_min_ps(edge_float_first, edge_float_second)",
             "_mm_max_pd(edge_double_first, edge_double_second)",
             "float_result = float_left + float_right",
@@ -1798,6 +1812,8 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             "double_result = _mm_mul_pd(double_left, double_right)",
             "[feature14-nan] PASS float_left=%d float_right=%d "
             "double_left=%d double_right=%d",
+            "[feature14-matrix] PASS global=2 local=2 static=2 "
+            "sizes=8 index=6 unevaluated=2 canary=4",
         ):
             self.assertIn(spelling, source)
 

@@ -242,6 +242,7 @@ typedef struct {
   int array_elem_size; /* element size for array subscript scaling */
   int array_object_size; /* complete fixed-array size before frame padding */
   cc_type_t array_elem_type; /* declared element type for fixed arrays */
+  int array_rank; /* number of fixed-array dimensions, from 1 through 3 */
   /* For 3D arrays: array_dim2 is the size in bytes that each element of
    * the SECOND subscript advances by. For 2D and 1D arrays it is 0.
    * Example: char foo[A][B][C] sets array_elem_size = B*C and array_dim2

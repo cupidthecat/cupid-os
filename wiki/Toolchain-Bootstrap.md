@@ -644,12 +644,16 @@ The check runs during whole-unit initializer ownership and block-static
 declaration lowering. ADR 0254 records this static conversion.
 
 Compiler head also folds static long-double truth, all six comparisons,
-short-circuit logic, conditional selection, and finite conversion to or from
-binary32 and binary64. One target-only decoder normalizes the represented
-formats. The final values stay in initializer records, so Linear IR publishes
-no runtime instruction for the shared fixture. Object contracts pin exact
-bytes, x87 padding, section and symbol order, deterministic repeat emission,
-and same-job recovery. ADR 0255 records this boundary.
+short-circuit logic, conditional selection, and conversion to or from
+binary32 and binary64. One target-only decoder handles canonical x87 zero,
+subnormal, normal, infinity, and NaN classes while rejecting pseudo encodings.
+Infinity keeps its sign during widening, and NaN uses one canonical quiet
+payload at each destination width. The final values stay in initializer
+records, so Linear IR publishes no runtime instruction for the shared fixture.
+Object contracts pin exact bytes, x87 padding, section and symbol order,
+deterministic repeat emission, and same-job recovery. ADR 0255 records static
+control folding and finite conversion. ADR 0256 records the canonical classes
+and special-value conversion.
 Both compiler stages in the normal contract cohort rebuild the source
 catalogue. ADR 0203 records the checked seed, ADR 0207 records the subtraction
 form, ADR 0226 records SHRD, ADR 0228 records its seed carriage, and ADR 0252
@@ -767,16 +771,20 @@ pointer-to-array types, and assignment through a
 pointer-valued floating field subscript remain unsupported.
 
 Private packed values now keep their type through matching `float4` or
-`double2` arithmetic and one-dimensional fixed arrays. Global, automatic,
-block-static, and persistent REPL arrays use checked 16-byte strides and
-unaligned-safe loads and stores. Indexed plain assignment and the four
-arithmetic compound assignments evaluate their destination once and preserve
-lane reads. Every direct operator keeps the written left value in the machine
-destination. MIN and MAX intrinsics preserve their second-operand NaN and
-signed-zero behavior. A both-NaN ADD or MUL may carry either input payload,
-depending on the processor or emulator. SIMD pointers, multidimensional
-arrays, record fields, `new`, array parameters, and call ABI transport remain
-unsupported. ADR 0216 records the boundary.
+`double2` arithmetic and fixed arrays with one, two, or three dimensions.
+Global, automatic, block-static, and persistent REPL arrays keep declared rank
+separately from checked byte strides, including when an inner extent is one.
+The final 16-byte vector leaf uses unaligned-safe loads and stores. Indexed
+plain assignment and the four arithmetic compound assignments evaluate every
+destination index once and preserve lane reads. Row and vector `sizeof` do not
+evaluate their indexes. Every direct operator keeps the written left value in
+the machine destination. MIN and MAX intrinsics preserve their second-operand
+NaN and signed-zero behavior. A both-NaN ADD or MUL may carry either input
+payload, depending on the processor or emulator. Incomplete rows are rejected
+rather than treated as untyped pointers. SIMD pointers, record fields, `new`,
+array parameters, row values, and call ABI transport remain unsupported. ADR
+0216 records the first fixed-array boundary, and ADR 0257 records
+multidimensional row descent.
 
 Private decimal literals now use a fixed 1536-bit integer workspace. CupidC
 forms the exact decimal ratio and rounds once to the selected binary32 or

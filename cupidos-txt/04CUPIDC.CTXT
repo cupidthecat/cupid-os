@@ -651,15 +651,17 @@ ALIGNED node requires an explicit, nonzero power-of-two alignment and may lower
 the referenced alignment. _Bool has one payload bit. The check runs during
 whole-unit initializer ownership and block-static declaration lowering.
 Static long-double truth, all six comparisons, short-circuit logic, and
-conditional selection use a shared target-only decoder. Finite binary32 and
-binary64 values widen exactly to x87, including a subnormal result produced by
-static binary32 arithmetic. Represented finite long-double values narrow with
-round-to-nearest, ties-to-even packing. Folded expressions add no runtime IR.
+conditional selection use a shared target-only decoder. It accepts canonical
+x87 zero, subnormal, normal, infinity, and NaN payloads while rejecting pseudo
+encodings. Finite binary32 and binary64 values widen exactly, including a
+subnormal result produced by static binary32 arithmetic. Infinity keeps its
+sign, and NaN becomes one quiet x87 payload. Narrowing uses round-to-nearest,
+ties-to-even packing for finite values and canonical special encodings. Folded
+expressions add no runtime IR.
 Hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
-bounded parser, static long-double arithmetic, widening infinity or NaN from
-float or double to long double, other floating-to-wide conversions, runtime
-mixed integer and floating
+bounded parser, static long-double arithmetic, other floating-to-wide
+conversions, runtime mixed integer and floating
 arithmetic or conditional arms, increment and decrement, general SIMD value
 semantics, floating atomic access, and over-aligned object emission remain
 unfinished.
@@ -676,7 +678,8 @@ literal payload. The shared conversion fixture covers every integer kind,
 signed and unsigned enums, both signed 64-bit endpoints, ULLONG_MAX, and both
 the _Bool and unsigned results of -0.5L. ADR 0251 records the static-data
 boundary, ADR 0254 records integer conversion, and ADR 0255 records static
-controls and finite width conversion.
+controls and finite width conversion. ADR 0256 records the canonical x87
+decoder and special-value transport.
 
 Plain assignment, all ten compound assignments, and prefix and postfix update
 work for non-atomic integer bit fields whose declared storage unit is four
@@ -1334,15 +1337,20 @@ storage is reserved. Deeper floating pointers, indirect floating updates,
 pointer-to-array types, and assignment through a
 pointer-valued floating field subscript remain unsupported.
 
-Matching float4 and double2 values support direct +, -, *, and /. Fixed
-one-dimensional arrays work in global, automatic, block-static, and persistent
-REPL storage with 16-byte elements and unaligned-safe packed loads and stores.
-Indexed assignment and +=, -=, *=, and /= retain the vector type and allow a
-following lane read. Every direct operator keeps the written left value in the
-machine destination. MIN and MAX intrinsics keep the second input for NaN and
-equal signed-zero cases. A both-NaN ADD or MUL may carry either input payload,
-depending on the processor or emulator. SIMD pointers, multidimensional arrays,
-record fields, new, array parameters, and call ABI transport remain unsupported.
+Matching float4 and double2 values support direct +, -, *, and /. Fixed arrays
+may have one, two, or three dimensions in global, automatic, block-static, and
+persistent REPL storage. Declared rank stays separate from byte stride, so a
+unit inner extent still needs its final subscript. Outer indexes scale by the
+complete remaining row or middle slice, and the 16-byte vector leaf uses an
+unaligned-safe access. Indexed assignment and +=, -=, *=, and /= retain the
+vector type, evaluate every index once, and allow a following lane read. Row
+and vector sizeof keep their complete size without evaluating an index. Every
+direct operator keeps the written left value in the machine destination. MIN
+and MAX intrinsics keep the second input for NaN and equal signed-zero cases. A
+both-NaN ADD or MUL may carry either input payload, depending on the processor
+or emulator. Incomplete row assignments and row expressions are rejected.
+SIMD pointers, record fields, new, array parameters, row values, and call ABI
+transport remain unsupported.
 
 Direct functions and methods with parsed fixed parameter types convert
 represented integer, char, float, and double arguments to the declared cdecl
@@ -1421,8 +1429,8 @@ truncated string.
 See also: bin/feature12_float.cc through bin/feature16_asm_fpu.cc.
 feature13_double checks decimal payloads, typed floating matrices, pointers,
 record fields, row-sized unevaluated sizeof, scalar calls, and libm.
-feature14_simd checks packed operators, fixed arrays, NaN handling, and SSE
-intrinsics. The
+feature14_simd checks packed operators, one-dimensional arrays, matrices,
+cubes, NaN handling, and SSE intrinsics. The
 Browser's binary64 token and AST tables use the fixed double-array path.
 See also: 14FPU-SSE.CTXT for full FPU/SSE reference.
 [Open FPU/SSE guide](open:14FPU-SSE.CTXT)

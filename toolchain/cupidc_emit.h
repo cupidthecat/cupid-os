@@ -51,8 +51,9 @@ ctool_status_t ctool_c_emit_object(
  * preserve the i386 low word in EAX and high word in EDX, and matching returns
  * restore the same register pair.
  * Non-atomic `long double` values use twelve-byte snapshots and 80-bit x87
- * loads and stores. Static-duration objects with implicit or integer-constant
- * zero initialization occupy twelve zero-filled bytes in BSS.
+ * loads and stores. Static-duration objects accept canonical x87 zero,
+ * subnormal, normal, infinity, and NaN payloads. Implicit or integer-constant
+ * positive zero occupies twelve zero-filled bytes in BSS.
  * Floating-width conversions, unary signs, and the four arithmetic operators
  * preserve one abstract value handle.
  * All six long-double comparisons use `FUCOMIP ST0, ST1`, discard the

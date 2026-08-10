@@ -250,12 +250,17 @@ floating field arrays. Deeper floating pointers, indirect floating updates,
 pointer-to-array types, and assignment through a
 pointer-valued floating field subscript remain unsupported.
 
-One-dimensional fixed `float4` and `double2` arrays use a 16-byte stride in
-global, local, block-static, and persistent REPL storage. Indexed access uses
-unaligned-safe packed moves, so automatic arrays do not depend on accidental
-stack alignment. Plain assignment and `+=`, `-=`, `*=`, and `/=` retain the
-vector type, evaluate the destination once, and allow `.x`, `.y`, `.z`, or
-`.w` lane access where the type permits it. Matching vectors also support
+Fixed `float4` and `double2` arrays with one, two, or three dimensions use a
+16-byte vector leaf in global, local, block-static, and persistent REPL
+storage. Declared rank remains separate from byte stride, so an inner extent of
+one cannot collapse a row into a vector leaf. Outer indexes scale by the
+complete remaining row or middle slice. The final access uses unaligned-safe
+packed moves, so automatic arrays do not depend on accidental stack alignment.
+Plain assignment and `+=`, `-=`, `*=`, and `/=` retain the vector type,
+evaluate every index once, and allow `.x`, `.y`, `.z`, or `.w` lane access
+where the type permits it. Row and vector `sizeof` keep their complete sizes
+without evaluating an index. Incomplete rows are rejected instead of escaping
+as untyped pointers. Matching vectors also support
 direct `+`, `-`, `*`, and `/` expressions. Every direct operation keeps the
 written left value in the machine destination. MIN and MAX intrinsics keep the
 second operand for NaN and equal signed-zero inputs. A both-NaN ADD or MUL may
@@ -506,13 +511,13 @@ requires an explicit, nonzero power-of-two alignment and may lower the
 referenced alignment. `_Bool` has one payload bit; other kinds use their full
 target width. The same check runs during whole-unit initializer ownership and
 block-static declaration lowering. Static long-double truth, all six
-comparisons, short-circuit logic, conditional selection, and finite
-floating-width conversion use a shared target-only decoder. They become final
-initializer records and add no runtime IR. Hexadecimal floating literals, binary32
-and binary64 subnormal literals, hexadecimal or subnormal long-double
-literals, decimals beyond the bounded ratio parser, static long-double
-arithmetic, widening infinity or NaN from `float` or `double` to `long double`,
-runtime mixed integer and
+comparisons, short-circuit logic, conditional selection, and floating-width
+conversion use a shared target-only decoder. It accepts canonical x87 zero,
+subnormal, normal, infinity, and NaN payloads and rejects pseudo encodings.
+Folded values become final initializer records and add no runtime IR.
+Hexadecimal floating literals, binary32 and binary64 subnormal literals,
+hexadecimal or subnormal long-double literals, decimals beyond the bounded
+ratio parser, static long-double arithmetic, runtime mixed integer and
 floating arithmetic or conditional arms, floating increment and decrement,
 SIMD values, floating atomics, and over-aligned object emission remain
 unfinished.
@@ -521,6 +526,7 @@ ADR 0250 records runtime conversion to unsigned four-byte targets. ADR 0251
 records exact static long-double data. ADR 0253 records runtime conversions
 between `long double` and integers. ADR 0254 records static initializer
 conversion. ADR 0255 records static controls and finite width conversion.
+ADR 0256 records canonical x87 classes and special floating-width conversion.
 
 Plain assignment, all ten compound assignments, and prefix and postfix update work for represented non-atomic integer bit fields when the declared storage unit is four bytes and fits inside the record. The compiler evaluates the record designator once and applies the target's integer-promotion rules before a compound operation. Partial fields preserve the other bits in their unit. Assignment, compound assignment, and prefix update return the stored lane after width truncation and signed extension, while postfix update returns the extracted old value. A 32-bit field uses the direct load and store path. Volatile 32-bit updates perform one read and one store. Partial volatile mutation, atomic fields, and other storage-unit sizes remain unsupported.
 
@@ -893,13 +899,13 @@ accept implicit zero, a represented integer constant expression, or a
 bounded decimal `L` literal with parentheses and unary signs. Runtime truth
 and conversion to `_Bool` cover all three represented floating widths.
 Static long-double truth, comparison, short-circuit logic, conditional
-selection, and finite conversion to or from binary32 and binary64 fold through
-the target representation and emit no runtime work.
+selection, and conversion to or from binary32 and binary64 fold through the
+target representation and emit no runtime work. Canonical x87 infinity and
+NaN cross the same path, and the decoder accepts canonical subnormal payloads.
 Hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
-bounded parser, static long-double arithmetic, widening infinity or NaN from
-`float` or `double` to `long double`, other floating-to-wide conversions,
-runtime mixed integer and
+bounded parser, static long-double arithmetic, other floating-to-wide
+conversions, runtime mixed integer and
 floating arithmetic or conditional arms, and floating increment and
 decrement remain unsupported.
 Matching or mixed-width floating conditional arms and the four arithmetic
@@ -2174,6 +2180,10 @@ decay, and unevaluated row sizes in the private compiler.
 matching packed arithmetic, one-dimensional fixed SIMD arrays, observable
 operand order, and the remaining private compiler boundary.
 
+[ADR 0257](../docs/adr/0257-descend-private-multidimensional-simd-arrays.md)
+records two-dimensional and three-dimensional SIMD storage, checked row
+descent, unevaluated row sizes, and complete-subscript assignment.
+
 [ADR 0217](../docs/adr/0217-round-private-decimal-literals-exactly.md) records
 the integer decimal converter, target-width rounding, token boundary, and
 diagnostic recovery.
@@ -2236,9 +2246,9 @@ When the parser encounters a call to an undefined function, it emits a placehold
 - Floating pointer depth greater than one, indirect floating `++` and `--`,
   pointer-to-array types, and assignment through a pointer-valued floating
   field subscript remain unsupported.
-- SIMD pointers, multidimensional SIMD arrays, SIMD record fields, allocation
-  with `new`, SIMD array parameters, and SIMD values crossing the private call
-  ABI remain unsupported.
+- SIMD pointers, SIMD record fields, allocation with `new`, SIMD array
+  parameters, row values, and SIMD values crossing the private call ABI remain
+  unsupported.
 
 The private compiler implements a broader runtime floating and SIMD language.
 The hosted self-hosting path converts between `float` and `double`, evaluates
@@ -2259,10 +2269,10 @@ conversion cover `float`, `double`, and automatic `long double`. Runtime mixed
 wide and floating arithmetic or conditional arms, increment and decrement,
 hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
-bounded parser, static long-double arithmetic, widening infinity or NaN from
-`float` or `double` to `long double`, and SIMD remain open in the hosted path.
+bounded parser, static long-double arithmetic, and SIMD remain open in the
+hosted path.
 Static long-double
-truth, comparisons, short-circuit logic, conditional selection, and finite
+truth, comparisons, short-circuit logic, conditional selection, and
 floating-width conversion fold into target data. Runtime integer conversions
 involving `long double` cover all signed and unsigned i386 widths.
 

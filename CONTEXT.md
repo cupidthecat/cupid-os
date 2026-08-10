@@ -88,12 +88,16 @@ both signed zeros are false, and every represented finite nonzero value is
 true.
 
 The static evaluator also folds long-double truth, all six comparisons,
-short-circuit logic, conditional selection, and finite conversion to or from
+short-circuit logic, conditional selection, and conversion to or from
 binary32 and binary64. One target-only decoder normalizes sign,
-classification, exponent, and significand. Finite widening produces exact x87
-payloads, including a binary32 subnormal result from static arithmetic.
-Narrowing rounds to nearest with ties to even. The final values become static
-initializer records and add no runtime IR.
+classification, exponent, and significand. It accepts canonical signed zero,
+subnormal, normal, infinity, and NaN payloads while rejecting x87 pseudo
+encodings. Finite widening produces exact x87 payloads, including a binary32
+subnormal result from static arithmetic. Infinity keeps its sign, and every
+source NaN becomes one canonical quiet x87 NaN. Narrowing rounds finite values
+to nearest with ties to even and emits target infinity or canonical quiet NaN
+for the special classes. The final values become static initializer records
+and add no runtime IR.
 
 Automatic literals use the same metadata in a twelve-byte snapshot and load
 it through the shared 80-bit path used for object access, assignment,
@@ -116,9 +120,9 @@ are true. Runtime casts, assignments, arguments, and returns convert between
 `long double` and signed or unsigned integers at 8, 16, 32, and 64 bits. The
 emitter uses `FILD` for integer input and restores the saved x87 control word
 after truncate-mode `FISTP` output. Hexadecimal or subnormal long-double
-literals, decimals beyond the bounded ratio parser, static long-double
-arithmetic, and widening infinity or NaN from `float` or `double` to
-`long double` remain outside this boundary.
+literals, decimals beyond the bounded ratio parser, and static long-double
+arithmetic remain outside this boundary. ADR 0256 records the canonical x87
+class and special-width conversion rules.
 The static fixture converts `-0.5L` to both `_Bool` and an unsigned integer. The results are one and zero respectively, proving that Boolean truth is checked before numeric truncation. Frozen IR also validates the target type representation. Primitive bases use their canonical target size, signedness, and alignment. An enum, its unwrapped base, and its compatible integer type agree on size, signedness, integer, object, and completeness flags, as well as alignment. A `QUALIFIED` node copies referenced alignment unless it introduces `_Atomic`. An atomic introduction at any layer raises alignment to at least the target atomic alignment. An `ALIGNED` node requires an explicit, nonzero power-of-two alignment and may lower the referenced alignment.
 Unsigned 64-bit corrections temporarily select 64-bit x87 precision while
 retaining the caller's rounding mode, then restore the saved control word
@@ -261,13 +265,14 @@ policy. Static conversion between those values and every represented integer
 width uses target-only packing. Integer outputs other than `_Bool` truncate
 toward zero before the range check, while `_Bool` tests the original floating
 value and integer-valued zero retains its zero initializer record. Static
-truth, comparisons, short-circuit logic, conditional selection, and finite
+truth, comparisons, short-circuit logic, conditional selection, and
 conversion to or from binary32 and binary64 use the same target-only value
-model. Runtime conversion between `long double` and every signed or unsigned
+model. The accepted x87 classes are signed zero, subnormal, normal, infinity,
+and NaN. Runtime conversion between `long double` and every signed or unsigned
 i386 integer width uses `FILD` and `FISTP`; integer output restores the caller's
 x87 control word. Hexadecimal or subnormal long-double literals, decimal ratios
-beyond the bounded parser, static long-double arithmetic, and widening infinity
-or NaN from `float` or `double` to `long double` remain open.
+beyond the bounded parser, and static long-double arithmetic remain open.
+ADR 0256 records the canonical x87 class rules.
 
 The checked cohort requires byte identity for every newly compiled object and
 linked executable. Complete CupidC-emitted closures for CupidC, CupidASM,
@@ -588,17 +593,21 @@ _Avoid_: host `strtod`, binary64-first conversion of an `f` literal
 
 **Private CupidC SIMD value**:
 A `float4` or `double2` value carried through direct packed arithmetic or a
-one-dimensional fixed array. Matching vectors support `+`, `-`, `*`, and `/`.
-Global, automatic, block-static, and persistent REPL arrays use 16-byte
-elements, unaligned-safe loads and stores, plain assignment, the four
-arithmetic compound assignments, lane reads, checked bounds, and `sizeof`.
+fixed array with as many as three dimensions. Matching vectors support `+`,
+`-`, `*`, and `/`. Global, automatic, block-static, and persistent REPL arrays
+use 16-byte leaves, checked row strides, unaligned-safe loads and stores, plain
+assignment, the four arithmetic compound assignments, lane reads, and typed
+row or vector `sizeof`. Declared rank is tracked separately from byte size, so
+unit inner extents keep their row identity. Every index is evaluated once
+except inside unevaluated `sizeof`.
 Direct arithmetic keeps the written left value in the machine destination.
 The SSE minimum and maximum intrinsics retain the second-operand rules for NaN
 and signed zero. A both-NaN ADD or MUL result may carry either input payload,
-depending on the processor or emulator. SIMD pointers, multidimensional
-arrays, record fields, allocation with `new`, and function-call ABI transport
-remain outside this boundary. ADR 0216 records the model.
-_Avoid_: untyped SIMD storage, reordered packed operands
+depending on the processor or emulator. SIMD pointers, record fields,
+allocation with `new`, array parameters, row values, and function-call ABI
+transport remain outside this boundary. ADR 0216 records the first fixed-array
+model; ADR 0257 records multidimensional row descent.
+_Avoid_: untyped SIMD storage, escaped row pointers, reordered packed operands
 
 **Browser JavaScript number lane**:
 The numeric path shared by the Browser's JavaScript lexer, AST, and

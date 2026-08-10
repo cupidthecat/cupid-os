@@ -23019,3 +23019,214 @@ Executed on native Windows PowerShell against the frozen compiler-head source.
 | Complete Toolchain proof | PASS in 3,146.419 seconds. Checked-seed bootstrap, stage two, stage three, byte identity, the hosted runtime, frozen-input verification, publication, and verification of 20 artifacts all passed. |
 | Normal OS build | PASS in 1,513.347 seconds. CupidASM, CupidC, CupidLD, and CupidObj produced the boot sector, object cohort, pass-one and final kernel, generated symbols, flattened kernel, deterministic ISO, and 200 MB image with `/hello.iso` staged. |
 | Four-CPU e1000 boot smoke | PASS in 67.788 seconds. RDRAND, four online CPUs, the FPU smoke, all 62 TLS checks, e1000 and DHCP, desktop and terminal startup, and exactly one ordered feature13 compile, final PASS, and JIT-completion sequence were present. All 25 rejected panic, storage, SMP, and NIC marker types were absent. The 35,988-byte log has SHA-256 `e4985b389f800e3b64816d7688e1b3a9e335b2423f945e4b428a2f55f9dbdd0e`. |
+
+## 2026-08-10: carry canonical static x87 payloads
+
+Compiler-head CupidC now carries canonical x87 zero, subnormal, normal,
+infinity, and NaN values through static evaluation, Linear IR, and object
+emission. Binary32 and binary64 infinity and NaN can widen to `long double`,
+and represented x87 special values can narrow again. The checked seed and
+normal production ownership remain unchanged until the next seed promotion.
+
+### Implementation
+
+The frontend, IR, and emitter use the same x87 class rule. Exponent zero
+requires a clear explicit integer bit and represents zero or a subnormal.
+Every nonzero exponent requires the explicit bit. Exponent `0x7fff` represents
+infinity when the significand is exactly `0x8000000000000000`; other accepted
+significands in that class are NaNs. Metadata above the low 16 bits is invalid.
+This rejects pseudo-denormals, unnormal values, and pseudo-special encodings.
+
+A private header-local decoder owns that rule. The frontend uses its decoded
+fields for static evaluation, while IR and object emission call the same code
+for validation. The frontend contract also calls it directly for raw x87
+subnormals that the current source grammar cannot spell. It pins the minimum,
+maximum, and negative subnormal normalization results and two malformed
+classes.
+
+The target-only decoder normalizes an accepted x87 subnormal before truth,
+comparison, or width conversion. Binary32 and binary64 infinities widen with
+their sign. A source NaN widens to the quiet significand
+`0xc000000000000000`. Narrowing emits the target infinity or canonical quiet
+NaN. Both infinities and NaNs are true. Infinity follows ordinary ordering,
+while every NaN comparison is unordered and only `!=` is true.
+
+The expanded control fixture contains nine objects, 84 initializer nodes, and
+75 initializer edges. It covers both source widths, both infinity signs, NaN,
+truth, ordered infinity comparisons, all six unordered relations, narrowing,
+exact x87 words, and final static data with no runtime IR. Object tests pin ten
+value bytes plus two zero padding bytes, deterministic repeat output,
+constrained-output rollback, and same-job recovery.
+
+The object contract also mutates a public floating-constant expression before
+lowering. Canonical zero, subnormal, positive and negative infinity, and quiet
+NaN payloads reach a `CTOOL_C_IR_INSTRUCTION_FLOATING` record and emit exact
+snapshots. Pseudo-denormal, unnormal, pseudo-infinity, pseudo-NaN, and
+high-metadata mutations fail without publishing partial output.
+
+### Corrections found during implementation
+
+The first validator change covered static initializer data but left a second
+emitter check on frozen floating instructions with the old finite-only rule.
+The instruction path now calls the shared emitter validator, and its snapshot
+helper performs the same check before writing any bytes.
+
+Older negative tests used canonical infinity or exponent-zero subnormal
+payloads as malformed input. Those cases now use genuine pseudo encodings.
+The object proof gained a positive raw-subnormal mutation because ordinary C
+source in this slice has no honest way to spell an x87 subnormal literal.
+
+An independent standards review found one more stale mutation in the separate
+`floating-scalars` selector. It changed a floating constant to the canonical
+minimum x87 subnormal and still expected rejection. The case now uses an
+exponent-`0x7fff` payload without its explicit integer bit. The transport and
+scalar selectors pass together after that correction.
+
+The same review found that raw x87 subnormal normalization was only exercised
+after the frontend. Moving the class logic into the shared decoder made that
+branch directly testable without adding source syntax or a public compiler
+API. The resulting source-shape changes were relocked to exact observed counts
+for the three hosted compiler files.
+
+The first complete object-module rerun passed 108 behavioral tests and stopped
+only at the self-host object inventory. The shared decoder changed the three
+expected compiler objects. The exact replacement tuples are IR
+`496846/535464/07337978`, emitter `577009/647196/a216be79`, and frontend
+`872630/1036852/909705d4`, where each tuple is text bytes, object bytes, and
+text fingerprint. The focused self-host selector passes after that lock-only
+calibration.
+
+### Current boundary
+
+Static long-double arithmetic remains open. Hexadecimal or subnormal
+long-double literals, decimal ratios beyond the bounded parser, atomic static
+conversion, and runtime mixed integer and floating conditionals also remain
+open. This capability adds no host floating operation or math-library
+dependency.
+
+The checked seed predates the change. No production source changes owner, no
+`.c` to `.cc` rename is due, and `TempleOS/` remains read-only reference
+material. Issue #25 remains open. ADR 0256 records the class and conversion
+rules.
+
+### Test evidence
+
+Executed on native Windows PowerShell against compiler-head source.
+
+| Check | Result |
+| --- | --- |
+| Complete frontend and Linear IR modules after shared-decoder review | PASS: all 178 tests in 38.705 seconds. |
+| Focused Linear IR and object selectors | PASS: both tests in 54.303 seconds. |
+| Standalone focused object selector | PASS: 1 test in 22.823 seconds. |
+| Frontend, Linear IR, object transport, and floating-scalar selectors after review | PASS: all 4 tests in 59.391 seconds. |
+| Shared-decoder frontend, Linear IR, object transport, and floating-scalar selectors | PASS: all 4 tests in 46.748 seconds. |
+| Self-host compiler-object frontier after exact lock calibration | PASS: 1 test in 27.999 seconds. |
+| Complete object module after lock calibration | PASS: all 109 tests in 1,126.052 seconds. |
+| Hosted-slice diff check | PASS. |
+
+## 2026-08-10: descend private multidimensional SIMD arrays
+
+Private CupidC now carries `float4` and `double2` leaves through
+two-dimensional and three-dimensional fixed arrays. The capability works in
+global, automatic, block-static, and persistent REPL storage without changing
+the existing packed arithmetic or one-dimensional array behavior.
+
+### Implementation
+
+The declaration paths for all four storage classes now pass SIMD matrices and
+cubes to the existing checked array-layout code. A vector remains 16 bytes.
+The first and second indexes scale by the complete remaining row or middle
+slice, and only the final subscript loads a vector with `MOVUPS`.
+
+Expression lowering retains the next stride, complete remaining object size,
+and SIMD leaf type after an outer subscript. Assignment lowering uses the same
+descent before plain or arithmetic compound stores. It evaluates each written
+index once. If the destination still names a row, compilation stops with
+`SIMD array assignment requires every subscript`.
+
+The existing dimension and storage checks remain in force. Zero or negative
+bounds fail before allocation, and row or complete-object multiplication must
+fit the private signed byte range. Unevaluated `sizeof` keeps row and vector
+sizes without running an index expression.
+
+Each symbol now stores its declared rank independently from its byte strides.
+That keeps a unit-sized inner dimension as a row even though its byte size
+matches one 16-byte vector. Read, assignment, and `sizeof` lowering decrement
+the same rank as they descend. An incomplete row expression is rejected rather
+than published as an ordinary pointer with the wrong arithmetic stride.
+Grouping parentheses may carry the row to a following subscript or `sizeof`,
+but do not turn it into a supported value.
+
+The feature-14 guest now covers global matrices, local matrices, block-static
+cubes, both SIMD widths, static zero initialization, plain and compound
+assignment, read and write index side effects, row sizes, and neighboring
+canaries. The runtime gate requires this marker in order:
+
+```text
+[feature14-matrix] PASS global=2 local=2 static=2 sizes=8 index=6 unevaluated=2 canary=4
+```
+
+### Failed runs and corrections
+
+The first positive test failed with the old one-dimensional declaration
+diagnostic. After removing that early guard, an incomplete-row negative still
+compiled and wrote the first vector in its row. Tracking the remaining SIMD
+row through assignment closed that gap and produced a focused error.
+
+The first row correction used remaining byte size to distinguish a row from a
+vector. Review found that `float4 values[2][1]` made those sizes equal. Review
+also found that an incomplete row could escape as an ordinary pointer and then
+use scalar pointer arithmetic. Explicit declared rank fixes both cases. New
+contracts cover unit inner dimensions in all four storage paths and reject row
+truth, arithmetic, and other value escapes.
+
+That rejection initially fired inside grouping parentheses before an outer
+subscript could consume the row. The corrected wrapper preserves the row only
+through nested grouping. Executing two-dimensional and three-dimensional
+parenthesized chains now pass, while grouped bare, binary, call, cast, and truth
+uses still fail with the row-value diagnostic.
+
+The first full build attempt reached four parallel Doom jobs while another
+toolchain slice was editing checked profile inputs. Those jobs reported live
+Doom-tree drift, as designed. A stable-tree build was restarted without
+weakening the profile or source checks.
+
+The first focused boot printed `[feature14-matrix] FAIL` while every older
+feature-14 marker passed. Its guest test read an untouched automatic cube and
+expected zero. C leaves automatic storage uninitialized, so the host harness's
+zeroed stack had hidden the mistake. The final guest reads an untouched
+block-static cube for the zero-initialization check. A rebuilt image then
+passes the matrix marker, the overall feature marker, and JIT completion in
+order.
+
+The first boot of the final rank-aware image used the stronger four-CPU SMP
+contract. It reached the desktop and terminal, then an unchanged EHCI cleanup
+path panicked with `DMA ownership could not be revoked after transfer` before
+the feature command completed. That 62.771-second run is retained as failed
+peripheral evidence, not as a SIMD result. A focused private-image retry used
+one CPU and a 0.10-second key pause. It completed the entire feature-14 marker
+sequence without a panic.
+
+### Current boundary
+
+Private SIMD pointers, record fields, allocation with `new`, array parameters,
+row values, and private call ABI transport remain open. This change moves no
+production owner and adds no host dependency. No `.c` to `.cc` rename is due,
+and `TempleOS/` remains read-only reference material. ADR 0257 records the
+row-descent model.
+
+### Test evidence
+
+Executed on native Windows PowerShell.
+
+| Check | Result |
+| --- | --- |
+| Private call and ABI module | PASS: all 133 tests in 20.882 seconds. |
+| GUI terminal smoke contracts | PASS: all 116 tests in 1.006 seconds. |
+| Complete private CupidC discovery | PASS: all 155 tests in 23.312 seconds. |
+| Ruff | PASS. |
+| Private-slice diff check | PASS. |
+| Rank-aware source and image build | PASS: `make -j4 all` exited 0 in 632.798 seconds. |
+| Final build after the embedded CTXT review | PASS: `make -j4 all` exited 0 in 696.600 seconds. The 9,106,192-byte `kernel/kernel.elf` has SHA-256 `c7a181cc9802aceb065ab3f77a7e9fb9a88ff03a2aeadcc2b607a8bb641a1236`; the 8,897,572-byte `kernel/kernel.bin` has SHA-256 `510eeaac96694ef007f92c4e7265d00d424c5d521cb060b1f25c6a2481e2267f`; and the 209,715,200-byte `cupidos.img` has SHA-256 `2702c2ad3e089a14b6beae339ac82d75cd4c3388481459a15ff4eb7981ce6ee5`. |
+| First final-image four-CPU e1000 attempt | FAIL after 62.771 seconds in the unchanged EHCI cleanup path, before feature-14 compilation. The 35,967-byte `.codex-feature14-matrix-rank-final.log` has SHA-256 `9850cd4586e81c2ee836865544f7f349b447675b17cd44353b87224322ca86ad`. |
+| Focused final-image feature-14 boot | PASS: exit 0 in 79.227 seconds. Lines 528 and 535 through 541 contain the compile marker, five feature markers, overall PASS, and JIT completion in order. The 28,209-byte `.codex-feature14-matrix-rank-final-v2.log` has SHA-256 `8ba77100b1738a8509caca58a7ebc6c5c99416bf33343304ad21583346df4157`. |

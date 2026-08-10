@@ -21,20 +21,30 @@ static const char cupidc_static_long_double_control_source[] =
     "typedef enum static_control_unsigned_enum {\n"
     "  STATIC_CONTROL_UNSIGNED_ENUM = 0xffffffffffffffffull\n"
     "} static_control_unsigned_enum_t;\n"
-    "static const long double static_float_to_long_double[7] = {\n"
+    "static const long double static_float_to_long_double[10] = {\n"
     "  1.5f, -0.0f, +0.0f, -2.5, +0.0, -0.0,\n"
-    "  (1e-19f * 1e-19f)\n"
+    "  (1e-19f * 1e-19f),\n"
+    "  (1.0f / 0.0f), (-1.0 / 0.0), (0.0f / 0.0f)\n"
     "};\n"
-    "static const float static_long_double_to_float[4] = {\n"
-    "  1.5L, +0.0L, -0.0L, 1.0000000000000000001L\n"
+    "static const float static_long_double_to_float[7] = {\n"
+    "  1.5L, +0.0L, -0.0L, 1.0000000000000000001L,\n"
+    "  (long double)(1.0f / 0.0f),\n"
+    "  (long double)(-1.0f / 0.0f),\n"
+    "  (long double)(0.0f / 0.0f)\n"
     "};\n"
-    "static const double static_long_double_to_double[4] = {\n"
-    "  -2.5L, +0.0L, -0.0L, 1.0000000000000000001L\n"
+    "static const double static_long_double_to_double[7] = {\n"
+    "  -2.5L, +0.0L, -0.0L, 1.0000000000000000001L,\n"
+    "  (long double)(1.0 / 0.0),\n"
+    "  (long double)(-1.0 / 0.0),\n"
+    "  (long double)(0.0 / 0.0)\n"
     "};\n"
-    "static const int static_long_double_truth[4] = {\n"
-    "  !+0.0L, !-0.0L, !+1.25L, !-1.25L\n"
+    "static const int static_long_double_truth[7] = {\n"
+    "  !+0.0L, !-0.0L, !+1.25L, !-1.25L,\n"
+    "  !(long double)(1.0f / 0.0f),\n"
+    "  !(long double)(-1.0f / 0.0f),\n"
+    "  !(long double)(0.0f / 0.0f)\n"
     "};\n"
-    "static const int static_long_double_comparisons[21] = {\n"
+    "static const int static_long_double_comparisons[31] = {\n"
     "  -2.0L < -1.0L,\n"
     "  2.0L <= 1.0L,\n"
     "  2.0L > 1.0L,\n"
@@ -55,7 +65,21 @@ static const char cupidc_static_long_double_control_source[] =
     "  9223372036854775807ll == 9223372036854775807e0L,\n"
     "  18446744073709551615ull == 18446744073709551615e0L,\n"
     "  STATIC_CONTROL_SIGNED_ENUM == -3.0L,\n"
-    "  18446744073709551615e0L == STATIC_CONTROL_UNSIGNED_ENUM\n"
+    "  18446744073709551615e0L == STATIC_CONTROL_UNSIGNED_ENUM,\n"
+    "  (long double)(1.0f / 0.0f) > 1.0L,\n"
+    "  (long double)(-1.0f / 0.0f) < -1.0L,\n"
+    "  (long double)(1.0f / 0.0f) ==\n"
+    "      (long double)(1.0 / 0.0),\n"
+    "  (long double)(-1.0f / 0.0f) !=\n"
+    "      (long double)(1.0 / 0.0),\n"
+    "  (long double)(0.0f / 0.0f) < 0.0L,\n"
+    "  (long double)(0.0f / 0.0f) <= 0.0L,\n"
+    "  (long double)(0.0f / 0.0f) > 0.0L,\n"
+    "  (long double)(0.0f / 0.0f) >= 0.0L,\n"
+    "  (long double)(0.0f / 0.0f) ==\n"
+    "      (long double)(0.0 / 0.0),\n"
+    "  (long double)(0.0f / 0.0f) !=\n"
+    "      (long double)(0.0 / 0.0)\n"
     "};\n"
     "static const int static_long_double_logic[6] = {\n"
     "  +1.0L && -2.0L,\n"
@@ -80,13 +104,15 @@ static const char cupidc_static_long_double_control_source[] =
     "    0 ? 1.0L : -0.0L;\n";
 
 static const ctool_u64 cupidc_static_long_double_control_truth_oracles[] = {
-    1ull, 1ull, 0ull, 0ull};
+    1ull, 1ull, 0ull, 0ull, 0ull, 0ull, 0ull};
 
 static const ctool_u64
     cupidc_static_long_double_control_comparison_oracles[] = {
         1ull, 0ull, 1ull, 0ull, 1ull, 0ull, 1ull,
         1ull, 1ull, 1ull, 1ull, 0ull, 1ull, 1ull,
-        1ull, 1ull, 1ull, 1ull, 1ull, 1ull, 1ull};
+        1ull, 1ull, 1ull, 1ull, 1ull, 1ull, 1ull,
+        1ull, 1ull, 1ull, 1ull, 0ull, 0ull, 0ull,
+        0ull, 0ull, 1ull};
 
 static const ctool_u64 cupidc_static_long_double_control_logic_oracles[] = {
     1ull, 0ull, 1ull, 1ull, 0ull, 1ull};
@@ -109,16 +135,21 @@ static const cupidc_static_long_double_control_floating_oracle_t
         {0xa000000000000000ull, 0xc000u},
         {0ull, 0u},
         {0ull, 0x8000u},
-        {0xd9c7dc0000000000ull, 0x3f80u}};
+        {0xd9c7dc0000000000ull, 0x3f80u},
+        {0x8000000000000000ull, 0x7fffu},
+        {0x8000000000000000ull, 0xffffu},
+        {0xc000000000000000ull, 0x7fffu}};
 
 static const ctool_u64
     cupidc_static_long_double_control_float_narrowing_oracles[] = {
-        0x3fc00000ull, 0ull, 0x80000000ull, 0x3f800000ull};
+        0x3fc00000ull, 0ull, 0x80000000ull, 0x3f800000ull,
+        0x7f800000ull, 0xff800000ull, 0x7fc00000ull};
 
 static const ctool_u64
     cupidc_static_long_double_control_double_narrowing_oracles[] = {
         0xc004000000000000ull, 0ull, 0x8000000000000000ull,
-        0x3ff0000000000000ull};
+        0x3ff0000000000000ull, 0x7ff0000000000000ull,
+        0xfff0000000000000ull, 0x7ff8000000000000ull};
 
 static const cupidc_static_long_double_control_scalar_oracle_t
     cupidc_static_long_double_control_zero_choice_oracles[] = {

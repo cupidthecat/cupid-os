@@ -1,6 +1,8 @@
 #include "ctool.h"
 #include "ctool_host.h"
+#define CUPID_TOOLCHAIN_CUPIDC_STATIC_LONG_DOUBLE_INTERNAL
 #include "cupidc_frontend.h"
+#undef CUPID_TOOLCHAIN_CUPIDC_STATIC_LONG_DOUBLE_INTERNAL
 #include "cupidc_static_long_double_control_fixture.h"
 #include "cupidc_static_long_double_integer_fixture.h"
 
@@ -7759,12 +7761,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.cc", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
        25287u, 479u, 286u, 0u, 0u},
-      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 269u, 7496u,
-       69333u, 989u, 362u, 0u, 0u},
-      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 366u, 9234u,
-       77133u, 1122u, 748u, 0u, 0u},
+      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 269u, 7528u,
+       69479u, 993u, 364u, 0u, 0u},
+      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 366u, 9266u,
+       77286u, 1126u, 750u, 0u, 0u},
       {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 435u,
-       16907u, 111857u, 2518u, 1534u, 0u, 0u},
+       16942u, 112034u, 2522u, 1536u, 0u, 0u},
       {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 82u, 3054u,
        20124u, 338u, 190u, 0u, 0u},
       {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
@@ -27453,10 +27455,10 @@ static int validate_static_long_double_scalar_initializers(
 
   if (unit->object_definition_count != 9u ||
       unit->function_definition_count != 0u ||
-      unit->block_binding_count != 0u || unit->initializer_count != 62u ||
+      unit->block_binding_count != 0u || unit->initializer_count != 84u ||
       ARRAY_COUNT(cupidc_static_long_double_control_zero_choice_oracles) !=
           2u ||
-      unit->initializer_element_count != 53u || truth_definition == NULL ||
+      unit->initializer_element_count != 75u || truth_definition == NULL ||
       comparison_definition == NULL || logic_definition == NULL ||
       choice_definition == NULL || widened_definition == NULL ||
       narrowed_float_definition == NULL ||
@@ -27748,6 +27750,49 @@ static int validate_static_long_double_scalar_initializers(
   return 0;
 }
 
+static int validate_raw_x87_subnormal_decoder(void) {
+  cfront_static_long_double_decoded_t decoded;
+  if (cfront_decode_static_long_double_payload(
+          1ull, 0u, &decoded) == CTOOL_FALSE ||
+      decoded.negative != CTOOL_FALSE || decoded.zero != CTOOL_FALSE ||
+      decoded.infinity != CTOOL_FALSE || decoded.nan != CTOOL_FALSE ||
+      decoded.exponent != -16445 ||
+      decoded.significand != 0x8000000000000000ull) {
+    (void)fprintf(stderr,
+                  "floating-transport: minimum x87 subnormal differs\n");
+    return 1;
+  }
+  if (cfront_decode_static_long_double_payload(
+          0x7fffffffffffffffull, 0u, &decoded) == CTOOL_FALSE ||
+      decoded.negative != CTOOL_FALSE || decoded.zero != CTOOL_FALSE ||
+      decoded.infinity != CTOOL_FALSE || decoded.nan != CTOOL_FALSE ||
+      decoded.exponent != -16383 ||
+      decoded.significand != 0xfffffffffffffffeull) {
+    (void)fprintf(stderr,
+                  "floating-transport: maximum x87 subnormal differs\n");
+    return 1;
+  }
+  if (cfront_decode_static_long_double_payload(
+          1ull, 0x8000u, &decoded) == CTOOL_FALSE ||
+      decoded.negative != CTOOL_TRUE || decoded.zero != CTOOL_FALSE ||
+      decoded.infinity != CTOOL_FALSE || decoded.nan != CTOOL_FALSE ||
+      decoded.exponent != -16445 ||
+      decoded.significand != 0x8000000000000000ull) {
+    (void)fprintf(stderr,
+                  "floating-transport: negative x87 subnormal differs\n");
+    return 1;
+  }
+  if (cfront_decode_static_long_double_payload(
+          0x8000000000000000ull, 0u, &decoded) != CTOOL_FALSE ||
+      cfront_decode_static_long_double_payload(
+          1ull, 0x7fffu, &decoded) != CTOOL_FALSE) {
+    (void)fprintf(stderr,
+                  "floating-transport: malformed x87 payload accepted\n");
+    return 1;
+  }
+  return 0;
+}
+
 static int run_floating_transport(const char *host_root) {
   static const char promotion_source[] =
       "typedef void (*variadic_callback)(int, ...);\n"
@@ -27960,18 +28005,6 @@ static int run_floating_transport(const char *host_root) {
         CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
        1u, 36u,
        "static long-double arithmetic is outside this constant-data slice"},
-      {{"static float infinity converted to long double",
-        "static long double bad = 1.0f / 0.0f;\n",
-        CTOOL_ERR_UNSUPPORTED,
-        CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
-       1u, 26u,
-       "static conversion to long double requires a finite source value"},
-      {{"static double NaN converted to long double",
-        "static long double bad = 0.0 / 0.0;\n",
-        CTOOL_ERR_UNSUPPORTED,
-        CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
-       1u, 26u,
-       "static conversion to long double requires a finite source value"},
       {{"static long double above signed character range",
         "static signed char bad = 128.0L;\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
@@ -28143,6 +28176,7 @@ static int run_floating_transport(const char *host_root) {
           &static_scalar_unit) != 0 ||
       validate_static_long_double_scalar_initializers(
           &static_scalar_unit) != 0 ||
+      validate_raw_x87_subnormal_decoder() != 0 ||
       parse_valid_fixture(&fixture, "/long-double-atomic-pointer.c",
                           atomic_pointer_source, &atomic_pointer_unit) != 0 ||
       atomic_pointer_unit.object_definition_count != 1u ||

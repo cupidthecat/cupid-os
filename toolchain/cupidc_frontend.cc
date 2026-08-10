@@ -1,4 +1,6 @@
+#define CUPID_TOOLCHAIN_CUPIDC_STATIC_LONG_DOUBLE_INTERNAL
 #include "cupidc_frontend.h"
+#undef CUPID_TOOLCHAIN_CUPIDC_STATIC_LONG_DOUBLE_INTERNAL
 
 #define CFRONT_U32_MAX 0xffffffffu
 #define CFRONT_NONE 0xffffffffu
@@ -18187,44 +18189,25 @@ typedef struct {
   ctool_u64 significand;
 } cfront_static_floating_t;
 
-static ctool_bool cfront_static_long_double_payload_is_valid(
-    ctool_u64 significand, ctool_u32 high_bits) {
-  ctool_u32 exponent;
-  if ((high_bits & 0xffff0000u) != 0u) {
-    return CTOOL_FALSE;
-  }
-  exponent = high_bits & 0x7fffu;
-  if (exponent == 0u) {
-    return significand == 0ull ? CTOOL_TRUE : CTOOL_FALSE;
-  }
-  return exponent <= 0x7ffeu &&
-                 (significand & 0x8000000000000000ull) != 0ull
-             ? CTOOL_TRUE
-             : CTOOL_FALSE;
-}
-
 static ctool_status_t cfront_static_decode_long_double(
     cfront_context_t *context, ctool_u64 significand,
     ctool_u32 high_bits, const ctool_c_pp_location_t *location,
     cfront_static_floating_t *value_out) {
-  ctool_u32 exponent;
+  cfront_static_long_double_decoded_t decoded;
   cfront_zero(value_out, (ctool_u32)sizeof(*value_out));
-  if (cfront_static_long_double_payload_is_valid(
-          significand, high_bits) == CTOOL_FALSE) {
+  if (cfront_decode_static_long_double_payload(
+          significand, high_bits, &decoded) == CTOOL_FALSE) {
     return cfront_emit_location_failure(
         context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
         location, "static long-double constant metadata is invalid");
   }
-  exponent = high_bits & 0x7fffu;
   value_out->kind = CTOOL_C_TYPE_LONG_DOUBLE;
-  value_out->negative =
-      (high_bits & 0x8000u) != 0u ? CTOOL_TRUE : CTOOL_FALSE;
-  if (exponent == 0u) {
-    value_out->zero = CTOOL_TRUE;
-    return CTOOL_OK;
-  }
-  value_out->exponent = (ctool_i32)exponent - 0x3fff;
-  value_out->significand = significand;
+  value_out->negative = decoded.negative;
+  value_out->zero = decoded.zero;
+  value_out->infinity = decoded.infinity;
+  value_out->nan = decoded.nan;
+  value_out->exponent = decoded.exponent;
+  value_out->significand = decoded.significand;
   return CTOOL_OK;
 }
 
@@ -19111,10 +19094,14 @@ static ctool_status_t cfront_static_floating_to_long_double(
     return status;
   }
   if (source.nan == CTOOL_TRUE || source.infinity == CTOOL_TRUE) {
-    return cfront_emit_location_failure(
-        context, CTOOL_ERR_UNSUPPORTED,
-        CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION, location,
-        "static conversion to long double requires a finite source value");
+    *significand_out =
+        source.nan == CTOOL_TRUE
+            ? 0xc000000000000000ull
+            : 0x8000000000000000ull;
+    *high_bits_out =
+        (source.negative == CTOOL_TRUE ? 0x8000u : 0u) |
+        0x7fffu;
+    return CTOOL_OK;
   }
   if (source.zero == CTOOL_TRUE) {
     *significand_out = 0ull;
@@ -19455,9 +19442,10 @@ static ctool_status_t cfront_evaluate_static_scalar(
           "static floating constant metadata is invalid");
     }
     if (source.kind == CTOOL_C_TYPE_LONG_DOUBLE) {
-      if (cfront_static_long_double_payload_is_valid(
+      if (cfront_decode_static_long_double_payload(
               expression.integer_bits,
-              expression.floating_high_bits) == CTOOL_FALSE ||
+              expression.floating_high_bits,
+              (cfront_static_long_double_decoded_t *)0) == CTOOL_FALSE ||
           (expression.floating_high_bits & 0x8000u) != 0u) {
         return cfront_emit_location_failure(
             context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
@@ -24169,9 +24157,11 @@ static ctool_status_t cfront_freeze(cfront_context_t *context,
                        (floating.kind == CTOOL_C_TYPE_DOUBLE &&
                         initializer->floating_high_bits == 0u) ||
                        (floating.kind == CTOOL_C_TYPE_LONG_DOUBLE &&
-                        cfront_static_long_double_payload_is_valid(
+                        cfront_decode_static_long_double_payload(
                             initializer->integer_bits,
-                            initializer->floating_high_bits) == CTOOL_TRUE))
+                            initializer->floating_high_bits,
+                            (cfront_static_long_double_decoded_t *)0) ==
+                            CTOOL_TRUE))
                   ? CTOOL_TRUE
                   : CTOOL_FALSE;
     } else if (valid == CTOOL_TRUE &&

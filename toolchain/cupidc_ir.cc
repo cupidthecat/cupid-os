@@ -1,4 +1,6 @@
+#define CUPID_TOOLCHAIN_CUPIDC_STATIC_LONG_DOUBLE_INTERNAL
 #include "cupidc_ir.h"
+#undef CUPID_TOOLCHAIN_CUPIDC_STATIC_LONG_DOUBLE_INTERNAL
 
 #define CIR_STACK_LIMIT (CTOOL_C_PARSE_NESTING_LIMIT + 1u)
 #define CIR_CONTROL_PATCH_BREAK 1u
@@ -8376,11 +8378,10 @@ static ctool_status_t cir_lower_expression(cir_context_t *context,
         (type->kind != CTOOL_C_TYPE_LONG_DOUBLE &&
          expression->floating_high_bits != 0u) ||
         (type->kind == CTOOL_C_TYPE_LONG_DOUBLE &&
-         (expression->floating_high_bits > 0x7ffeu ||
-          (expression->floating_high_bits == 0u
-               ? expression->integer_bits != 0ull
-               : (expression->integer_bits &
-                  0x8000000000000000ull) == 0ull)))) {
+         cfront_decode_static_long_double_payload(
+             expression->integer_bits,
+             expression->floating_high_bits,
+             (cfront_static_long_double_decoded_t *)0) == CTOOL_FALSE)) {
       return cir_emit_failure(
           context, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE, &expression->location,
@@ -9581,23 +9582,6 @@ static ctool_status_t cir_validate_implicit_function_binding(
   return CTOOL_OK;
 }
 
-static ctool_bool cir_static_long_double_payload_is_valid(
-    ctool_u64 significand, ctool_u32 high_bits) {
-  ctool_u32 exponent;
-  if ((high_bits & 0xffff0000u) != 0u) {
-    return CTOOL_FALSE;
-  }
-  exponent = high_bits & 0x7fffu;
-  if (exponent == 0u) {
-    return significand == 0ull ? CTOOL_TRUE : CTOOL_FALSE;
-  }
-  if (exponent == 0x7fffu ||
-      (significand & 0x8000000000000000ull) == 0ull) {
-    return CTOOL_FALSE;
-  }
-  return CTOOL_TRUE;
-}
-
 static ctool_bool cir_static_integer_representation_matches(
     const ctool_c_type_layout_t *left,
     const ctool_c_type_layout_t *right) {
@@ -9890,9 +9874,10 @@ static ctool_bool cir_static_floating_initializer_is_valid(
          initializer->floating_high_bits == 0u) ||
         (floating->kind == CTOOL_C_TYPE_LONG_DOUBLE &&
          layout->size == 12u &&
-         cir_static_long_double_payload_is_valid(
+         cfront_decode_static_long_double_payload(
              initializer->integer_bits,
-             initializer->floating_high_bits) == CTOOL_TRUE)) ||
+             initializer->floating_high_bits,
+             (cfront_static_long_double_decoded_t *)0) == CTOOL_TRUE)) ||
       initializer->expression != CTOOL_C_AST_NONE ||
       initializer->string_bytes.data != (const ctool_u8 *)0 ||
       initializer->string_bytes.size != 0u ||

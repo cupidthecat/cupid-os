@@ -5,6 +5,34 @@
 float4 feature14_global_floats[3];
 double2 feature14_global_doubles[2];
 int feature14_global_sentinel;
+int feature14_matrix_leading_canary = 59;
+float4 feature14_global_matrix[2][2];
+double2 feature14_global_cube[2][2][2];
+int feature14_matrix_trailing_canary = 61;
+int feature14_matrix_outer_calls;
+int feature14_matrix_middle_calls;
+int feature14_matrix_inner_calls;
+int feature14_matrix_sizeof_calls;
+
+int feature14_next_outer() {
+    feature14_matrix_outer_calls += 1;
+    return 1;
+}
+
+int feature14_next_middle() {
+    feature14_matrix_middle_calls += 1;
+    return 0;
+}
+
+int feature14_next_inner() {
+    feature14_matrix_inner_calls += 1;
+    return 1;
+}
+
+int feature14_sizeof_index() {
+    feature14_matrix_sizeof_calls += 1;
+    return 1;
+}
 
 int main() {
     int ok = 1;
@@ -355,6 +383,88 @@ int main() {
         serial_printf("[feature14-array] PASS global=2 local=2 static=2 sizeof=16 index=1\n");
     } else {
         serial_printf("[feature14-array] FAIL\n");
+        ok = 0;
+    }
+
+    int matrix_ok = 1;
+    int matrix_leading_canary = 67;
+    float4 local_matrix[2][2];
+    double2 local_cube[2][2][2];
+    static float4 saved_matrix[2][2];
+    static double2 saved_cube[2][2][2];
+    int matrix_trailing_canary = 71;
+    double2 local_step = {0.5, 0.5};
+
+    feature14_global_matrix[1][0] = a;
+    feature14_global_matrix[1][0] += b;
+    feature14_global_matrix[1][0] -= b;
+    feature14_global_matrix[1][0] *= b;
+    feature14_global_matrix[1][0] /= b;
+    feature14_global_cube[1][0][1] = dv;
+    feature14_global_cube[feature14_next_outer()][feature14_next_middle()]
+                         [feature14_next_inner()] += dpos;
+
+    local_matrix[1][0] = a;
+    local_matrix[1][0] += b;
+    local_cube[0][1][1] = dv;
+    local_cube[0][1][1] += local_step;
+    saved_matrix[0][1] = b;
+    saved_matrix[0][1] *= a;
+    saved_cube[1][1][0] = dv;
+    saved_cube[1][1][0] += local_step;
+    saved_cube[1][1][0] -= local_step;
+    saved_cube[1][1][0] *= local_step;
+    saved_cube[1][1][0] /= local_step;
+
+    if (feature14_global_matrix[1][0].x != 1.0f ||
+        feature14_global_matrix[1][0].w != 4.0f)
+        matrix_ok = 0;
+    if (feature14_global_cube[feature14_next_outer()][feature14_next_middle()]
+                             [feature14_next_inner()].x != 2.0)
+        matrix_ok = 0;
+    if (feature14_global_cube[1][0][1].x != 2.0 ||
+        feature14_global_cube[1][0][1].y != 4.5)
+        matrix_ok = 0;
+    if (local_matrix[1][0].x != 6.0f ||
+        local_matrix[1][0].w != 12.0f)
+        matrix_ok = 0;
+    if (local_cube[0][1][1].x != 2.0 ||
+        local_cube[0][1][1].y != 3.0)
+        matrix_ok = 0;
+    if (saved_matrix[0][1].x != 5.0f ||
+        saved_matrix[0][1].w != 32.0f)
+        matrix_ok = 0;
+    if (saved_cube[1][1][0].x != 1.5 ||
+        saved_cube[1][1][0].y != 2.5)
+        matrix_ok = 0;
+    if (sizeof(*feature14_global_matrix) != 32 ||
+        sizeof(**feature14_global_matrix) != 16 ||
+        sizeof(*feature14_global_cube) != 64 ||
+        sizeof(**feature14_global_cube) != 32 ||
+        sizeof(***feature14_global_cube) != 16)
+        matrix_ok = 0;
+    if (sizeof(feature14_global_matrix[feature14_sizeof_index()]) != 32 ||
+        sizeof(feature14_global_cube[0][feature14_sizeof_index()]) != 32 ||
+        sizeof(feature14_global_cube[0][0][0]) != 16)
+        matrix_ok = 0;
+    if (feature14_matrix_sizeof_calls != 0)
+        matrix_ok = 0;
+    if (feature14_matrix_outer_calls != 2 ||
+        feature14_matrix_middle_calls != 2 ||
+        feature14_matrix_inner_calls != 2)
+        matrix_ok = 0;
+    if (feature14_matrix_leading_canary != 59 ||
+        feature14_matrix_trailing_canary != 61 ||
+        matrix_leading_canary != 67 || matrix_trailing_canary != 71)
+        matrix_ok = 0;
+    if (feature14_global_matrix[0][1].z != 0.0f ||
+        saved_cube[0][0][0].y != 0.0)
+        matrix_ok = 0;
+
+    if (matrix_ok) {
+        serial_printf("[feature14-matrix] PASS global=2 local=2 static=2 sizes=8 index=6 unevaluated=2 canary=4\n");
+    } else {
+        serial_printf("[feature14-matrix] FAIL\n");
         ok = 0;
     }
 

@@ -106,12 +106,14 @@ comparisons accept matching long-double values and mixed float or double
 inputs. The emitter loads right then left, uses FUCOMIP ST0, ST1, and discards
 the surviving x87 value. Signed zeros compare equal, and only != is true for
 an unordered input. Static long-double truth, all six comparisons,
-short-circuit logic, conditional selection, and finite conversion to or from
-binary32 and binary64 use one target-only decoder. Finite widening keeps exact
-x87 bits, while narrowing rounds to nearest with ties to even. Folded results
-add no runtime IR. Hexadecimal or subnormal long-double literals, decimal
-ratios beyond the bounded parser, static long-double arithmetic, and widening
-infinity or NaN from float or double to long double remain open.
+short-circuit logic, conditional selection, and conversion to or from binary32
+and binary64 use one target-only decoder. It accepts canonical x87 zero,
+subnormal, normal, infinity, and NaN payloads while rejecting pseudo
+encodings. Finite widening keeps exact x87 bits. Infinity keeps its sign, and
+NaN becomes one quiet x87 payload. Narrowing uses ties-to-even rounding for
+finite values and canonical special encodings. Folded results add no runtime
+IR. Hexadecimal or subnormal long-double literals, decimal ratios beyond the
+bounded parser, and static long-double arithmetic remain open.
 
 The static scalar and aggregate proofs cover both scopes, mutable and const
 objects, positive and negative values, both signed zeros, the largest accepted
@@ -122,6 +124,7 @@ fixture covers every integer kind, signed and unsigned enums, both signed
 64-bit endpoints, ULLONG_MAX, and both the _Bool and unsigned results of
 -0.5L. ADR 0251 records the static-data boundary, ADR 0254 records integer
 conversion, and ADR 0255 records static controls and finite width conversion.
+ADR 0256 records the canonical x87 decoder and special-value transport.
 
 The checked i386 Linux seed now carries static floating constant data and this
 complete comparison path. The normal build uses them in kernel/gfx/jpeg.cc
@@ -273,11 +276,9 @@ for, and conversion to _Bool. Both signed zeros are false; finite nonzero
 values, subnormals, infinities, and NaNs are true. Increment and decrement,
 hexadecimal floating constants, binary32 and binary64 subnormal constants,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
-bounded parser, static long-double arithmetic, widening infinity or NaN from
-float or double to long double, general SIMD value semantics, and atomic
-floating access remain outside
-this shared path. Static controls and finite width conversion fold through the
-target representation.
+bounded parser, static long-double arithmetic, general SIMD value semantics,
+and atomic floating access remain outside this shared path. Static controls and
+floating-width conversion fold through the target representation.
 Twelve-byte direct and
 indirect fixed, variadic, and unprototyped arguments, function returns, direct
 and indirect call results, and va_arg(long double) use the represented
@@ -321,15 +322,19 @@ are checked before allocation. Deeper floating pointers, indirect floating
 updates, pointer-to-array types, and assignment through a
 pointer-valued floating field subscript remain unsupported.
 
-One-dimensional fixed float4 and double2 arrays use 16-byte elements in
-global, automatic, block-static, and persistent REPL storage. Indexed access
-uses unaligned-safe packed moves. Plain assignment and +=, -=, *=, and /=
-retain the vector type and allow lane extraction. Matching vectors support
-direct +, -, *, and /. Every direct operator keeps the written left value in
-the machine destination. MIN and MAX intrinsics keep the second input for NaN
-and equal signed-zero cases. A both-NaN ADD or MUL may carry either input
-payload, depending on the processor or emulator. SIMD pointers,
-multidimensional arrays, record fields, new, array parameters, and call ABI
+Matching float4 and double2 values support direct +, -, *, and /. Fixed arrays
+may have one, two, or three dimensions in global, automatic, block-static, and
+persistent REPL storage. Outer indexes keep checked row or middle-slice strides
+until the final 16-byte vector leaf, which uses unaligned-safe packed moves.
+Declared rank stays separate from byte stride, so a unit inner extent still
+needs its final subscript. Plain assignment and +=, -=, *=, and /= retain the
+vector type, evaluate every index once, and allow lane extraction. Row and
+vector sizeof keep their complete size without running an index. Every direct
+operator keeps the written left value in the machine destination. MIN and MAX
+intrinsics keep the second input for NaN and equal signed-zero cases. A
+both-NaN ADD or MUL may carry either input payload, depending on the processor
+or emulator. Incomplete row assignments and row expressions are rejected.
+SIMD pointers, record fields, new, array parameters, row values, and call ABI
 transport remain unsupported.
 
 >h3 Arithmetic
@@ -389,7 +394,8 @@ Register tokens: XMM0-7 and ST0-7.
 Test programs:
   `bin/feature12_float.cc`    scalar float arithmetic, casts, element access.
   `bin/feature13_double.cc`   decimal payloads, typed lvalues, calls, and libm.
-  `bin/feature14_simd.cc`     packed operators, arrays, NaNs, and intrinsics.
+  `bin/feature14_simd.cc`     packed operators, arrays, matrices, cubes, NaNs,
+                              and intrinsics.
   `bin/feature15_libm.cc`     29 fixed checks, including seven x87 range paths.
   `bin/feature16_asm_fpu.cc`  CupidC inline asm using SSE + x87.
   `bin/fp_drill.cc`           manual #XF provocation (panics kernel).

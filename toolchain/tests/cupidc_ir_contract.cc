@@ -28934,11 +28934,13 @@ static int run_floating_scalars(const char *host_root) {
                (size_t)unit.expression_count *
                    sizeof(*invalid_expressions));
   invalid_expressions[float_constant].type = long_double_type;
+  invalid_expressions[float_constant].integer_bits = 0ull;
+  invalid_expressions[float_constant].floating_high_bits = 0x7fffu;
   if (!expect_ir_failure_preserves_unit(
           job, &invalid_unit, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
           "CupidC IR lowering does not yet support this value type",
-          "floating literal with long double type")) {
+          "long double pseudo-special literal")) {
     goto cleanup;
   }
   (void)memcpy(invalid_expressions, unit.expressions,
@@ -28952,7 +28954,7 @@ static int run_floating_scalars(const char *host_root) {
           job, &invalid_unit, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
           "CupidC IR lowering does not yet support this value type",
-          "long double literal with forged exponent metadata")) {
+          "long double pseudo-denormal literal")) {
     goto cleanup;
   }
   (void)memcpy(invalid_expressions, unit.expressions,
@@ -30277,16 +30279,16 @@ static int static_long_double_control_forest_matches(
           : static_fixture_initializer(
                 unit, negative_zero_definition->initializer);
 
-  if (widening_count != 7u || float_narrowing_count != 4u ||
-      double_narrowing_count != 4u || truth_count != 4u ||
-      comparison_count != 21u || logic_count != 6u ||
+  if (widening_count != 10u || float_narrowing_count != 7u ||
+      double_narrowing_count != 7u || truth_count != 7u ||
+      comparison_count != 31u || logic_count != 6u ||
       choice_count != 7u || zero_choice_count != 2u ||
       unit->object_definition_count != 9u ||
       unit->object_definitions == NULL ||
       unit->function_definition_count != 0u ||
       unit->block_binding_count != 0u || unit->expression_count != 0u ||
-      unit->expression_child_count != 0u || unit->initializer_count != 62u ||
-      unit->initializer_element_count != 53u ||
+      unit->expression_child_count != 0u || unit->initializer_count != 84u ||
+      unit->initializer_element_count != 75u ||
       widened_definition != &unit->object_definitions[0] ||
       narrowed_float_definition != &unit->object_definitions[1] ||
       narrowed_double_definition != &unit->object_definitions[2] ||
@@ -30298,35 +30300,35 @@ static int static_long_double_control_forest_matches(
       negative_zero_definition != &unit->object_definitions[8] ||
       widened_definition->storage != CTOOL_C_STORAGE_STATIC ||
       widened_definition->kind != CTOOL_C_OBJECT_DEFINITION_EXPLICIT ||
-      widened_definition->initializer != 7u ||
+      widened_definition->initializer != 10u ||
       narrowed_float_definition->storage != CTOOL_C_STORAGE_STATIC ||
       narrowed_float_definition->kind !=
           CTOOL_C_OBJECT_DEFINITION_EXPLICIT ||
-      narrowed_float_definition->initializer != 12u ||
+      narrowed_float_definition->initializer != 18u ||
       narrowed_double_definition->storage != CTOOL_C_STORAGE_STATIC ||
       narrowed_double_definition->kind !=
           CTOOL_C_OBJECT_DEFINITION_EXPLICIT ||
-      narrowed_double_definition->initializer != 17u ||
+      narrowed_double_definition->initializer != 26u ||
       truth_definition->storage != CTOOL_C_STORAGE_STATIC ||
       truth_definition->kind != CTOOL_C_OBJECT_DEFINITION_EXPLICIT ||
-      truth_definition->initializer != 22u ||
+      truth_definition->initializer != 34u ||
       comparison_definition->storage != CTOOL_C_STORAGE_STATIC ||
       comparison_definition->kind != CTOOL_C_OBJECT_DEFINITION_EXPLICIT ||
-      comparison_definition->initializer != 44u ||
+      comparison_definition->initializer != 66u ||
       logic_definition->storage != CTOOL_C_STORAGE_STATIC ||
       logic_definition->kind != CTOOL_C_OBJECT_DEFINITION_EXPLICIT ||
-      logic_definition->initializer != 51u ||
+      logic_definition->initializer != 73u ||
       choice_definition->storage != CTOOL_C_STORAGE_STATIC ||
       choice_definition->kind != CTOOL_C_OBJECT_DEFINITION_EXPLICIT ||
-      choice_definition->initializer != 59u ||
+      choice_definition->initializer != 81u ||
       positive_zero_definition->storage != CTOOL_C_STORAGE_STATIC ||
       positive_zero_definition->kind !=
           CTOOL_C_OBJECT_DEFINITION_EXPLICIT ||
-      positive_zero_definition->initializer != 60u ||
+      positive_zero_definition->initializer != 82u ||
       negative_zero_definition->storage != CTOOL_C_STORAGE_STATIC ||
       negative_zero_definition->kind !=
           CTOOL_C_OBJECT_DEFINITION_EXPLICIT ||
-      negative_zero_definition->initializer != 61u ||
+      negative_zero_definition->initializer != 83u ||
       widened_array == NULL ||
       widened_array->kind != CTOOL_C_TYPE_ARRAY ||
       widened_array->array_bound_kind != CTOOL_C_ARRAY_FIXED ||
@@ -30433,21 +30435,21 @@ static int static_long_double_control_forest_matches(
           widening_count) == 0 ||
       static_fixture_list_initializer_matches(
           narrowed_float_root, narrowed_float_definition->declared_type,
-          7u, float_narrowing_count) == 0 ||
+          10u, float_narrowing_count) == 0 ||
       static_fixture_list_initializer_matches(
           narrowed_double_root, narrowed_double_definition->declared_type,
-          11u, double_narrowing_count) == 0 ||
+          17u, double_narrowing_count) == 0 ||
       static_fixture_list_initializer_matches(
-          truth_root, truth_definition->declared_type, 15u,
+          truth_root, truth_definition->declared_type, 24u,
           truth_count) == 0 ||
       static_fixture_list_initializer_matches(
-          comparison_root, comparison_definition->declared_type, 19u,
+          comparison_root, comparison_definition->declared_type, 31u,
           comparison_count) == 0 ||
       static_fixture_list_initializer_matches(
-          logic_root, logic_definition->declared_type, 40u,
+          logic_root, logic_definition->declared_type, 62u,
           logic_count) == 0 ||
       static_fixture_list_initializer_matches(
-          choice_root, choice_definition->declared_type, 46u,
+          choice_root, choice_definition->declared_type, 68u,
           choice_count) == 0) {
     (void)fprintf(
         stderr,
@@ -30473,7 +30475,7 @@ static int static_long_double_control_forest_matches(
   }
   for (index = 0u; index < float_narrowing_count; index++) {
     const ctool_c_initializer_t *initializer = static_fixture_list_child(
-        unit, narrowed_float_root, index, index, 8u + index);
+        unit, narrowed_float_root, index, index, 11u + index);
     if (static_fixture_scalar_initializer_matches(
             initializer, CTOOL_C_INITIALIZER_FLOATING,
             narrowed_float_array->referenced_type,
@@ -30488,7 +30490,7 @@ static int static_long_double_control_forest_matches(
   }
   for (index = 0u; index < double_narrowing_count; index++) {
     const ctool_c_initializer_t *initializer = static_fixture_list_child(
-        unit, narrowed_double_root, index, index, 13u + index);
+        unit, narrowed_double_root, index, index, 19u + index);
     if (static_fixture_scalar_initializer_matches(
             initializer, CTOOL_C_INITIALIZER_FLOATING,
             narrowed_double_array->referenced_type,
@@ -30503,7 +30505,7 @@ static int static_long_double_control_forest_matches(
   }
   for (index = 0u; index < truth_count; index++) {
     const ctool_c_initializer_t *initializer = static_fixture_list_child(
-        unit, truth_root, index, index, 18u + index);
+        unit, truth_root, index, index, 27u + index);
     if (static_fixture_scalar_initializer_matches(
             initializer, CTOOL_C_INITIALIZER_INTEGER,
             truth_array->referenced_type,
@@ -30518,7 +30520,7 @@ static int static_long_double_control_forest_matches(
   }
   for (index = 0u; index < comparison_count; index++) {
     const ctool_c_initializer_t *initializer = static_fixture_list_child(
-        unit, comparison_root, index, index, 23u + index);
+        unit, comparison_root, index, index, 35u + index);
     if (static_fixture_scalar_initializer_matches(
             initializer, CTOOL_C_INITIALIZER_INTEGER,
             comparison_array->referenced_type,
@@ -30533,7 +30535,7 @@ static int static_long_double_control_forest_matches(
   }
   for (index = 0u; index < logic_count; index++) {
     const ctool_c_initializer_t *initializer = static_fixture_list_child(
-        unit, logic_root, index, index, 45u + index);
+        unit, logic_root, index, index, 67u + index);
     if (static_fixture_scalar_initializer_matches(
             initializer, CTOOL_C_INITIALIZER_INTEGER,
             logic_array->referenced_type,
@@ -30550,7 +30552,7 @@ static int static_long_double_control_forest_matches(
     const cupidc_static_long_double_control_floating_oracle_t *oracle =
         &cupidc_static_long_double_control_choice_oracles[index];
     const ctool_c_initializer_t *initializer = static_fixture_list_child(
-        unit, choice_root, index, index, 52u + index);
+        unit, choice_root, index, index, 74u + index);
     if (static_fixture_scalar_initializer_matches(
             initializer, CTOOL_C_INITIALIZER_FLOATING,
             choice_array->referenced_type, oracle->bits,
@@ -31144,10 +31146,12 @@ static int run_floating_transport(const char *host_root) {
           sizeof(*invalid_static_integer_initializers));
   invalid_static_integer_initializers[static_integer_floating_guard]
       .floating_high_bits = 0x7fffu;
+  invalid_static_integer_initializers[static_integer_floating_guard]
+      .integer_bits = 0ull;
   if (!expect_static_long_double_integer_mutation_rejected(
           job, &invalid_static_integer_unit, &static_integer_unit,
-          "static conversion x87 payload with reserved exponent",
-          "static conversion reserved-exponent recovery")) {
+          "static conversion x87 pseudo-special payload",
+          "static conversion pseudo-special recovery")) {
     goto cleanup;
   }
 
@@ -31160,9 +31164,8 @@ static int run_floating_transport(const char *host_root) {
       .floating_high_bits = 0u;
   if (!expect_static_long_double_integer_mutation_rejected(
           job, &invalid_static_integer_unit, &static_integer_unit,
-          "static conversion x87 payload with zero exponent and nonzero "
-          "significand",
-          "static conversion zero-exponent recovery")) {
+          "static conversion x87 pseudo-denormal payload",
+          "static conversion pseudo-denormal recovery")) {
     goto cleanup;
   }
 
@@ -31571,14 +31574,29 @@ static int run_floating_transport(const char *host_root) {
           sizeof(*invalid_initializers));
   invalid_initializers[long_double_file_one].floating_high_bits =
       0x7fffu;
+  invalid_initializers[long_double_file_one].integer_bits = 0ull;
   if (!expect_ir_failure_preserves_unit(
           job, &invalid_unit, CTOOL_ERR_INPUT,
           CTOOL_C_IR_DIAG_INVALID_UNIT,
           "CupidC IR lowering received an invalid translation unit",
-          "static long double initializer with reserved exponent") ||
+          "static long double pseudo-special initializer") ||
       !expect_ir_success_preserves_unit(
           job, &long_double_unit,
-          "static long double reserved-exponent recovery")) {
+          "static long double pseudo-special recovery")) {
+    goto cleanup;
+  }
+  (void)memcpy(
+      invalid_initializers, long_double_unit.initializers,
+      (size_t)long_double_unit.initializer_count *
+          sizeof(*invalid_initializers));
+  invalid_initializers[long_double_file_one].floating_high_bits = 0u;
+  invalid_initializers[long_double_file_one].integer_bits = 1ull;
+  if (!expect_ir_success_preserves_unit(
+          job, &invalid_unit,
+          "canonical static long double subnormal initializer") ||
+      !expect_ir_success_preserves_unit(
+          job, &long_double_unit,
+          "static long double subnormal recovery")) {
     goto cleanup;
   }
   (void)memcpy(
@@ -31590,11 +31608,10 @@ static int run_floating_transport(const char *host_root) {
           job, &invalid_unit, CTOOL_ERR_INPUT,
           CTOOL_C_IR_DIAG_INVALID_UNIT,
           "CupidC IR lowering received an invalid translation unit",
-          "static long double initializer with zero exponent and "
-          "nonzero significand") ||
+          "static long double pseudo-denormal initializer") ||
       !expect_ir_success_preserves_unit(
           job, &long_double_unit,
-          "static long double zero-exponent recovery")) {
+          "static long double pseudo-denormal recovery")) {
     goto cleanup;
   }
   (void)memcpy(

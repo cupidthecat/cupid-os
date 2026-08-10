@@ -129,9 +129,10 @@ typedef struct {
   /* ATOMIC_* retain the validated GNU memory order from zero through five.
    * FLOATING carries the low 64 bits of its target representation. */
   ctool_u64 integer_bits;
-  /* FLOATING with long-double type carries the positive token's target x87
-   * biased exponent in the low fifteen bits. A UNARY instruction represents
-   * a leading minus. Other instructions keep this zero. */
+  /* FLOATING with long-double type carries the target x87 sign and biased
+   * exponent in the low sixteen bits. Canonical zero, subnormal, normal,
+   * infinity, and NaN payloads are represented. Other instructions keep this
+   * zero. */
   ctool_u32 floating_high_bits;
   ctool_c_pp_location_t location;
   ctool_c_pp_location_t physical_location;
@@ -405,8 +406,9 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * `long double` width. Runtime conversion between `long double` and every
  * represented signed or unsigned integer width uses typed CONVERT records.
  * The frontend folds static long-double truth, comparison, logic, conditional
- * selection, and finite floating-width conversion into final initializer
- * records, so those expressions add no runtime IR. Static long-double objects
+ * selection, and floating-width conversion into final initializer records,
+ * including canonical x87 infinity and NaN results, so those expressions add
+ * no runtime IR. Static long-double objects
  * use the same twelve-byte load and store path as automatic objects.
  * `float` and `double` values can also join through
  * conditional selection when the controlling value is an integer or pointer.

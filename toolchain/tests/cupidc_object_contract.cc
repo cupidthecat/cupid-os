@@ -24351,7 +24351,8 @@ static int validate_long_double_literal_function(
       ctool_bytes(text->contents.data + function->value,
                   function->size));
   if (cursor != function->size || function->size != 48u ||
-      fingerprint != expected_fingerprint || constant_count != 3u ||
+      (expected_fingerprint != 0u &&
+       fingerprint != expected_fingerprint) || constant_count != 3u ||
       fld80 != 1u) {
     (void)fprintf(
         stderr,
@@ -24652,6 +24653,53 @@ static ctool_u32 find_file_static_initializer(
     }
   }
   return CTOOL_C_AST_NONE;
+}
+
+static ctool_u32 find_single_return_expression(
+    const ctool_c_translation_unit_t *unit, const char *name) {
+  ctool_u32 binding = CTOOL_C_AST_NONE;
+  ctool_u32 definition = CTOOL_C_AST_NONE;
+  ctool_u32 body;
+  ctool_u32 statement;
+  ctool_u32 index;
+  if (unit == NULL || name == NULL) {
+    return CTOOL_C_AST_NONE;
+  }
+  for (index = 0u; index < unit->binding_count; index++) {
+    if (unit->bindings[index].kind == CTOOL_C_BINDING_FUNCTION &&
+        string_equal(unit->bindings[index].name, name) != 0) {
+      binding = index;
+      break;
+    }
+  }
+  for (index = 0u;
+       binding != CTOOL_C_AST_NONE &&
+       index < unit->function_definition_count;
+       index++) {
+    if (unit->function_definitions[index].binding == binding) {
+      definition = index;
+      break;
+    }
+  }
+  if (definition == CTOOL_C_AST_NONE) {
+    return CTOOL_C_AST_NONE;
+  }
+  body = unit->function_definitions[definition].body;
+  if (body >= unit->statement_count ||
+      unit->statements[body].kind != CTOOL_C_STATEMENT_COMPOUND ||
+      unit->statements[body].child_count != 1u ||
+      unit->statements[body].first_child >=
+          unit->statement_child_count) {
+    return CTOOL_C_AST_NONE;
+  }
+  statement =
+      unit->statement_children[unit->statements[body].first_child];
+  if (statement >= unit->statement_count ||
+      unit->statements[statement].kind != CTOOL_C_STATEMENT_RETURN ||
+      unit->statements[statement].expression >= unit->expression_count) {
+    return CTOOL_C_AST_NONE;
+  }
+  return unit->statements[statement].expression;
 }
 
 static ctool_u32 find_initializer_child_at(
@@ -25179,9 +25227,9 @@ static int validate_static_long_double_control_object(
       "static_long_double_positive_zero_choice",
       "static_long_double_negative_zero_choice"};
   static const ctool_u32 symbol_offsets[] = {
-      0u, 84u, 100u, 132u, 148u, 232u, 256u};
+      0u, 120u, 148u, 204u, 232u, 356u, 380u};
   static const ctool_u32 symbol_sizes[] = {
-      84u, 16u, 32u, 16u, 84u, 24u, 84u};
+      120u, 28u, 56u, 28u, 124u, 24u, 84u};
   const ctool_elf32_section_t *rodata = find_section(object, ".rodata");
   const ctool_elf32_section_t *data = find_section(object, ".data");
   const ctool_elf32_section_t *bss = find_section(object, ".bss");
@@ -25193,9 +25241,9 @@ static int validate_static_long_double_control_object(
   ctool_u32 rodata_fingerprint =
       rodata == NULL ? 0u : structure_text_fingerprint(rodata->contents);
   ctool_u32 index;
-  if (image.size != 1164u || image_fingerprint != 0x8af1050eu ||
-      rodata == NULL || rodata->size != 340u ||
-      rodata_fingerprint != 0x123d0bbdu) {
+  if (image.size != 1288u || image_fingerprint != 0x13d510bbu ||
+      rodata == NULL || rodata->size != 464u ||
+      rodata_fingerprint != 0xbfa4c04eu) {
     (void)fprintf(
         stderr,
         "static long double control object locks differ: "
@@ -25283,7 +25331,7 @@ static int validate_static_long_double_control_object(
       rodata->type != CTOOL_ELF32_SHT_PROGBITS ||
       rodata->flags != CTOOL_ELF32_SHF_ALLOC ||
       rodata->alignment != 4u || rodata->entry_size != 0u ||
-      rodata->size != 340u || rodata->contents.size != 340u ||
+      rodata->size != 464u || rodata->contents.size != 464u ||
       rodata->relocation_count != 0u ||
       data == NULL || data->type != CTOOL_ELF32_SHT_PROGBITS ||
       data->flags != (CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_WRITE) ||
@@ -29205,12 +29253,14 @@ static int run_floating_scalar_object(const char *host_root) {
   invalid_expressions[floating_constant].type =
       long_double_type;
   invalid_expressions[floating_constant].integer_bits = 1ull;
+  invalid_expressions[floating_constant].floating_high_bits = 0x7fffu;
   if (ctool_buffer_rewind(failure, 0u) != CTOOL_OK ||
       !expect_object_failure_preserves_unit(
           job, &invalid_unit, failure, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
           "CupidC IR lowering does not yet support this value type",
-          "floating constant with long double type at object boundary")) {
+          "floating constant with pseudo-special long double payload at "
+          "object boundary")) {
     goto cleanup;
   }
   (void)memcpy(invalid_expressions, unit.expressions,
@@ -29390,6 +29440,34 @@ cleanup:
 
 static int run_floating_transport_object(const char *host_root) {
   static const ctool_u8 forged_integer_string[] = {0x5au};
+  static const struct {
+    ctool_u64 significand;
+    ctool_u32 high_bits;
+    const char *name;
+  } canonical_instruction_payloads[] = {
+      {0ull, 0u, "canonical x87 zero instruction"},
+      {1ull, 0u, "canonical x87 subnormal instruction"},
+      {0x8000000000000000ull, 0x7fffu,
+       "canonical x87 positive infinity instruction"},
+      {0x8000000000000000ull, 0xffffu,
+       "canonical x87 negative infinity instruction"},
+      {0xc000000000000000ull, 0x7fffu,
+       "canonical x87 quiet NaN instruction"}};
+  static const struct {
+    ctool_u64 significand;
+    ctool_u32 high_bits;
+    const char *name;
+  } rejected_instruction_payloads[] = {
+      {0x8000000000000000ull, 0u,
+       "x87 pseudo-denormal instruction"},
+      {0x7fffffffffffffffull, 1u,
+       "x87 unnormal instruction"},
+      {0ull, 0x7fffu,
+       "x87 pseudo-infinity instruction"},
+      {0x4000000000000000ull, 0x7fffu,
+       "x87 pseudo-NaN instruction"},
+      {0x8000000000000000ull, 0x00013fffu,
+       "x87 instruction metadata above 16 bits"}};
   static const char source_prefix[] =
       "typedef unsigned int u32;\n"
       "typedef __builtin_va_list va_list;\n"
@@ -29717,12 +29795,13 @@ static int run_floating_transport_object(const char *host_root) {
       "                  long_double_file_record.second);\n"
       "}\n";
   static const char static_long_double_control_canonical_source[] =
-      "static const int static_long_double_truth[4] = {\n"
-      "  1, 1, 0, 0\n"
+      "static const int static_long_double_truth[7] = {\n"
+      "  1, 1, 0, 0, 0, 0, 0\n"
       "};\n"
-      "static const int static_long_double_comparisons[21] = {\n"
+      "static const int static_long_double_comparisons[31] = {\n"
       "  1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1,\n"
-      "  1, 1, 1, 1, 1, 1, 1\n"
+      "  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0,\n"
+      "  0, 0, 1\n"
       "};\n"
       "static const int static_long_double_logic[6] = {\n"
       "  1, 0, 1, 1, 0, 1\n"
@@ -29762,9 +29841,11 @@ static int run_floating_transport_object(const char *host_root) {
   ctool_c_translation_unit_t static_control_canonical_unit;
   ctool_c_translation_unit_t invalid_promotion_unit;
   ctool_c_translation_unit_t invalid_initializer_unit;
+  ctool_c_translation_unit_t invalid_instruction_unit;
   ctool_c_translation_unit_t invalid_integer_initializer_unit;
   ctool_c_translation_unit_t invalid_static_integer_conversion_unit;
   ctool_c_expression_t *invalid_promotion_expressions = NULL;
+  ctool_c_expression_t *invalid_instruction_expressions = NULL;
   ctool_c_initializer_t *invalid_initializers = NULL;
   ctool_c_initializer_t *invalid_integer_initializers = NULL;
   ctool_c_initializer_t *invalid_static_integer_conversion_initializers =
@@ -29782,6 +29863,7 @@ static int run_floating_transport_object(const char *host_root) {
   ctool_bytes_t second_bytes;
   ctool_status_t status;
   ctool_u32 promotion = CTOOL_C_AST_NONE;
+  ctool_u32 long_double_literal_expression = CTOOL_C_AST_NONE;
   ctool_u32 invalid_promotion_target = CTOOL_C_TYPE_NONE;
   ctool_u32 long_double_file_one = CTOOL_C_AST_NONE;
   ctool_u32 long_double_file_zero = CTOOL_C_AST_NONE;
@@ -29844,19 +29926,42 @@ static int run_floating_transport_object(const char *host_root) {
       &long_double_unit, "long_double_file_one");
   long_double_file_zero = find_file_static_initializer(
       &long_double_unit, "long_double_file_zero");
+  long_double_literal_expression = find_single_return_expression(
+      &long_double_unit, "long_double_literal_one");
   if (long_double_file_one >= long_double_unit.initializer_count ||
       long_double_file_zero >= long_double_unit.initializer_count ||
+      long_double_literal_expression >=
+          long_double_unit.expression_count ||
+      long_double_unit.expressions[long_double_literal_expression].kind !=
+          CTOOL_C_EXPRESSION_FLOATING_CONSTANT ||
+      long_double_unit
+              .expressions[long_double_literal_expression]
+              .integer_bits != 0x8000000000000000ull ||
+      long_double_unit
+              .expressions[long_double_literal_expression]
+              .floating_high_bits != 0x3fffu ||
       long_double_unit.initializer_count == 0u ||
       sizeof(*invalid_initializers) >
-          SIZE_MAX / (size_t)long_double_unit.initializer_count) {
+          SIZE_MAX / (size_t)long_double_unit.initializer_count ||
+      long_double_unit.expression_count == 0u ||
+      sizeof(*invalid_instruction_expressions) >
+          SIZE_MAX / (size_t)long_double_unit.expression_count) {
     goto cleanup;
   }
+  invalid_instruction_expressions =
+      (ctool_c_expression_t *)malloc(
+          (size_t)long_double_unit.expression_count *
+          sizeof(*invalid_instruction_expressions));
   invalid_initializers = (ctool_c_initializer_t *)malloc(
       (size_t)long_double_unit.initializer_count *
       sizeof(*invalid_initializers));
-  if (invalid_initializers == NULL) {
+  if (invalid_instruction_expressions == NULL ||
+      invalid_initializers == NULL) {
     goto cleanup;
   }
+  invalid_instruction_unit = long_double_unit;
+  invalid_instruction_unit.expressions =
+      invalid_instruction_expressions;
   invalid_initializer_unit = long_double_unit;
   invalid_initializer_unit.initializers = invalid_initializers;
   for (index = 0u; index < long_double_aggregate_unit.graph.type_count;
@@ -30253,6 +30358,77 @@ static int run_floating_transport_object(const char *host_root) {
           "floating promotion metadata at object boundary")) {
     goto cleanup;
   }
+  for (index = 0u;
+       index <
+           (ctool_u32)(sizeof(canonical_instruction_payloads) /
+                       sizeof(canonical_instruction_payloads[0]));
+       index++) {
+    const ctool_u64 significand =
+        canonical_instruction_payloads[index].significand;
+    (void)memcpy(
+        invalid_instruction_expressions,
+        long_double_unit.expressions,
+        (size_t)long_double_unit.expression_count *
+            sizeof(*invalid_instruction_expressions));
+    invalid_instruction_expressions[long_double_literal_expression]
+        .integer_bits = significand;
+    invalid_instruction_expressions[long_double_literal_expression]
+        .floating_high_bits =
+        canonical_instruction_payloads[index].high_bits;
+    if (ctool_buffer_rewind(long_double_repeat_output, 0u) != CTOOL_OK ||
+        !expect_object_success_preserves_unit(
+            job, &invalid_instruction_unit,
+            long_double_repeat_output,
+            canonical_instruction_payloads[index].name)) {
+      goto cleanup;
+    }
+    object_source.path.text =
+        ctool_string("/canonical-long-double-instruction.o");
+    object_source.contents =
+        ctool_buffer_view(long_double_repeat_output);
+    (void)memset(&object, 0xa5, sizeof(object));
+    status = ctool_elf32_read(job, &object_source, &object);
+    if (!check_status(
+            status, CTOOL_OK,
+            canonical_instruction_payloads[index].name) ||
+        !validate_long_double_literal_function(
+            job, &object, "long_double_literal_one",
+            (ctool_u32)significand,
+            (ctool_u32)(significand >> 32u),
+            canonical_instruction_payloads[index].high_bits, 0u)) {
+      goto cleanup;
+    }
+  }
+  for (index = 0u;
+       index <
+           (ctool_u32)(sizeof(rejected_instruction_payloads) /
+                       sizeof(rejected_instruction_payloads[0]));
+       index++) {
+    (void)memcpy(
+        invalid_instruction_expressions,
+        long_double_unit.expressions,
+        (size_t)long_double_unit.expression_count *
+            sizeof(*invalid_instruction_expressions));
+    invalid_instruction_expressions[long_double_literal_expression]
+        .integer_bits =
+        rejected_instruction_payloads[index].significand;
+    invalid_instruction_expressions[long_double_literal_expression]
+        .floating_high_bits =
+        rejected_instruction_payloads[index].high_bits;
+    if (ctool_buffer_rewind(failure, 0u) != CTOOL_OK ||
+        !expect_object_failure_preserves_unit(
+            job, &invalid_instruction_unit, failure,
+            CTOOL_ERR_UNSUPPORTED,
+            CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+            "CupidC IR lowering does not yet support this value type",
+            rejected_instruction_payloads[index].name) ||
+        ctool_buffer_rewind(long_double_repeat_output, 0u) != CTOOL_OK ||
+        !expect_object_success_preserves_unit(
+            job, &long_double_unit, long_double_repeat_output,
+            "long double instruction rejection recovery")) {
+      goto cleanup;
+    }
+  }
   (void)memcpy(
       invalid_initializers, long_double_unit.initializers,
       (size_t)long_double_unit.initializer_count *
@@ -30275,15 +30451,44 @@ static int run_floating_transport_object(const char *host_root) {
           sizeof(*invalid_initializers));
   invalid_initializers[long_double_file_one].floating_high_bits =
       0x7fffu;
+  invalid_initializers[long_double_file_one].integer_bits = 0ull;
   if (!expect_object_failure_preserves_unit(
           job, &invalid_initializer_unit, failure, CTOOL_ERR_INPUT,
           CTOOL_C_IR_DIAG_INVALID_UNIT,
           "CupidC IR lowering received an invalid translation unit",
-          "reserved long double exponent at object boundary") ||
+          "long double pseudo-special at object boundary") ||
       ctool_buffer_rewind(long_double_repeat_output, 0u) != CTOOL_OK ||
       !expect_object_success_preserves_unit(
           job, &long_double_unit, long_double_repeat_output,
-          "reserved-exponent object recovery")) {
+          "pseudo-special object recovery")) {
+    goto cleanup;
+  }
+  (void)memcpy(
+      invalid_initializers, long_double_unit.initializers,
+      (size_t)long_double_unit.initializer_count *
+          sizeof(*invalid_initializers));
+  invalid_initializers[long_double_file_one].floating_high_bits = 0u;
+  invalid_initializers[long_double_file_one].integer_bits = 1ull;
+  if (ctool_buffer_rewind(long_double_repeat_output, 0u) != CTOOL_OK ||
+      !expect_object_success_preserves_unit(
+          job, &invalid_initializer_unit, long_double_repeat_output,
+          "canonical long double subnormal object")) {
+    goto cleanup;
+  }
+  object_source.path.text =
+      ctool_string("/canonical-long-double-subnormal.o");
+  object_source.contents = ctool_buffer_view(long_double_repeat_output);
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  if (!check_status(status, CTOOL_OK,
+                    "read canonical long double subnormal object") ||
+      !long_double_symbol_payload_matches(
+          find_section(&object, ".rodata"),
+          find_symbol(&object, "long_double_file_one"), 1ull, 0u) ||
+      ctool_buffer_rewind(long_double_repeat_output, 0u) != CTOOL_OK ||
+      !expect_object_success_preserves_unit(
+          job, &long_double_unit, long_double_repeat_output,
+          "canonical long double subnormal recovery")) {
     goto cleanup;
   }
   (void)memcpy(
@@ -30295,12 +30500,11 @@ static int run_floating_transport_object(const char *host_root) {
           job, &invalid_initializer_unit, failure, CTOOL_ERR_INPUT,
           CTOOL_C_IR_DIAG_INVALID_UNIT,
           "CupidC IR lowering received an invalid translation unit",
-          "zero exponent with nonzero long double significand at "
-          "object boundary") ||
+          "long double pseudo-denormal at object boundary") ||
       ctool_buffer_rewind(long_double_repeat_output, 0u) != CTOOL_OK ||
       !expect_object_success_preserves_unit(
           job, &long_double_unit, long_double_repeat_output,
-          "zero-exponent object recovery")) {
+          "pseudo-denormal object recovery")) {
     goto cleanup;
   }
   (void)memcpy(
@@ -30867,6 +31071,7 @@ cleanup:
   free(invalid_static_integer_conversion_initializers);
   free(invalid_integer_initializers);
   free(invalid_initializers);
+  free(invalid_instruction_expressions);
   free(invalid_promotion_expressions);
   if (limited != (ctool_buffer_t *)0) {
     ctool_buffer_close(limited);
@@ -31376,16 +31581,16 @@ static int validate_active_self_host_frontier_objects(
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 78841u, 118477u, 183181u, 42212u,
-      190304u, 495395u, 574128u, 870978u, 146398u, 70368u, 80933u,
+      190304u, 496846u, 577009u, 872630u, 146398u, 70368u, 80933u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 91460u, 137444u, 220508u, 49484u,
-      226668u, 534004u, 644300u, 1035308u, 165728u, 79348u, 136164u,
+      226668u, 535464u, 647196u, 1036852u, 165728u, 79348u, 136164u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x6a4e9e64u, 0xae15dc9eu,
       0x90f1448fu, 0x999f97b7u, 0xb49d8eb9u,
-      0x68838a8eu, 0x4a968c97u, 0x70293b8du, 0x9f35cab4u,
+      0x07337978u, 0xa216be79u, 0x909705d4u, 0x9f35cab4u,
       0x34558a49u, 0x6b4b77aeu, 0x8774de7du};
   ctool_u32 index;
   int all_matched = 1;

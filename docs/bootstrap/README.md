@@ -150,22 +150,28 @@ field remain unsupported. Bitwise or shift compound assignment receives a
 specific diagnostic.
 
 Private `float4` and `double2` values now keep their vector type through
-matching `+`, `-`, `*`, and `/` expressions. One-dimensional fixed arrays work
-in global, automatic, block-static, and persistent REPL storage. Every element
-uses a 16-byte stride and unaligned-safe packed loads and stores. Plain
-assignment and the four arithmetic compound assignments evaluate the
-destination once. A following lane access retains the vector type, and
-`sizeof(*array)` returns 16. Bounds and allocation sizes are checked before
-storage is reserved.
+matching `+`, `-`, `*`, and `/` expressions. Fixed arrays with one, two, or
+three dimensions work in global, automatic, block-static, and persistent REPL
+storage. Each symbol keeps its declared rank separately from its byte strides,
+so an inner extent of one cannot turn a row into a vector leaf. Outer indexes
+use checked row or middle-slice strides until the final 16-byte vector leaf,
+which loads and stores through the existing unaligned-safe packed path. Plain
+assignment and the four arithmetic compound assignments evaluate every
+destination index once. A following lane access retains the vector type.
+Unevaluated `sizeof` reports the selected row or vector size without running
+its index. Bounds and allocation sizes are checked before storage is reserved.
 
 Packed arithmetic keeps the written left operand in the machine destination,
 including ADD and MUL. A byte contract fixes that instruction order. The
 minimum and maximum intrinsics keep x86's second-operand result for NaN and
 equal signed-zero inputs. A both-NaN ADD or MUL may carry either input payload,
 depending on the processor or emulator, so the runtime contract accepts only
-those two known payloads and reports which one appeared. SIMD pointer forms,
-multidimensional arrays, record fields, `new`, array parameters, and call ABI
-transport remain unsupported. ADR 0216 records this boundary.
+those two known payloads and reports which one appeared. An incomplete matrix
+or cube destination is rejected instead of writing the first vector in its
+row. An incomplete row expression is also rejected rather than escaping as an
+untyped pointer. SIMD pointer forms, record fields, `new`, array parameters,
+row values, and call ABI transport remain unsupported. ADR 0216 records the
+first fixed-array boundary, and ADR 0257 records multidimensional row descent.
 
 Private decimal floating tokens now enter a fixed 1536-bit integer converter.
 It forms the exact decimal ratio and rounds once to binary32 or binary64 using
@@ -331,11 +337,15 @@ and every represented finite nonzero value converts to true. The fixture
 converts `-0.5L` to both targets, producing true for `_Bool` and zero for an
 unsigned integer. Integer-valued zero keeps a `ZERO` initializer record. All
 static long-double truth, all six comparisons, short-circuit logic, and
-conditional selection are folded through one target-only decoder. Finite
-`float` and `double` values widen to exact x87 payloads, including represented
-subnormal results from static arithmetic. Finite long-double values narrow to
-binary32 or binary64 with round-to-nearest, ties-to-even packing. The result is
-final static data and adds no runtime IR. Runtime comparisons accept matching
+conditional selection are folded through one target-only decoder. The decoder
+accepts canonical signed zero, subnormal, normal, infinity, and NaN payloads
+and rejects x87 pseudo encodings. Finite `float` and `double` values widen to
+exact x87 payloads, including represented subnormal results from static
+arithmetic. Infinity keeps its sign, and a source NaN becomes one canonical
+quiet x87 NaN. Long-double values narrow to binary32 or binary64 with
+round-to-nearest, ties-to-even packing for finite values and canonical target
+encodings for infinity and NaN. The result is final static data and adds no
+runtime IR. Runtime comparisons accept matching
 long-double operands or a
 long-double value paired with `float` or `double`. The i386 emitter loads right
 then left, compares with `FUCOMIP ST0, ST1`, and removes
@@ -354,10 +364,10 @@ caller's control word separately, selects truncation toward zero for `FISTP`,
 and restores that copy. The unsigned 64-bit path splits at `2^63`.
 Hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimals beyond the bounded
-ratio parser, static long-double arithmetic, widening infinity or NaN from
-`float` or `double` to `long double`, other floating-to-wide conversions, increment and
-decrement, SIMD, floating atomics, and over-aligned floating objects remain
-open. ADR 0202 records the runtime truth boundary.
+ratio parser, static long-double arithmetic, other floating-to-wide
+conversions, increment and decrement, SIMD, floating atomics, and over-aligned
+floating objects remain open. ADR 0202 records the runtime truth boundary,
+and ADR 0256 records canonical static x87 classes.
 
 The static object proof covers exact `1.0L`, the next represented value above
 one, the largest accepted bounded literal, positive and negative zero, and
@@ -386,15 +396,16 @@ and checks aggregate markers.
 Integer-valued zero, including `sizeof(float) - 4`, keeps the established
 `ZERO` metadata.
 
-A second shared fixture covers static long-double control and finite width
-conversion. Its nine objects contain 62 initializer nodes and 53 list edges.
-The oracles pin signed-zero truth, all six predicates, same-exponent x87
-ordering, mixed integer and enum operands through `ULLONG_MAX`, short-circuit
-nonselection, selected conditional arms, exact binary32 and binary64
-conversion, and the widened result of a binary32 subnormal expression. Linear
-IR retains no expression or function for the folded forest. The object proof
-checks exact bytes, padding, section and symbol order, zero relocations,
-deterministic repeat emission, and same-job recovery after an output limit.
+A second shared fixture covers static long-double control, canonical x87
+payload classes, and floating-width conversion. Its nine objects contain 84
+initializer nodes and 75 list edges. The oracles pin signed-zero truth, all six
+predicates, same-exponent x87 ordering, mixed integer and enum operands through
+`ULLONG_MAX`, short-circuit nonselection, selected conditional arms, exact
+binary32 and binary64 conversion, infinity and NaN widening and narrowing, and
+the widened result of a binary32 subnormal expression. Linear IR retains no
+expression or function for the folded forest. The object proof checks exact
+bytes, padding, section and symbol order, zero relocations, deterministic
+repeat emission, and same-job recovery after an output limit.
 
 Decoder-driven oracles check width conversion, operand order, selected IEEE
 patterns, quiet and signaling NaNs, unsigned boundary values, call alignment,
@@ -1462,8 +1473,7 @@ block declaration attributes, nested function definitions, computed goto and
 GNU label addresses, broader GNU assembly forms, hexadecimal floating
 constants, binary32 and binary64 subnormal literals, hexadecimal or subnormal
 long-double literals, long-double decimal ratios beyond the bounded parser,
-static long-double arithmetic and widening infinity or NaN from `float` or
-`double` to `long double`, remaining integer and floating conversions, nonempty
+static long-double arithmetic, remaining integer and floating conversions, nonempty
 identifier-list definitions, non-scalar arguments without declared parameter
 types, aggregate variadic reads, block assertions, variable-length arrays and
 runtime `sizeof`, the remaining GNU attributes, complete Cupid extensions,
@@ -1483,7 +1493,8 @@ long-double data. ADR 0253 adds runtime conversion between `long double` and
 every signed or unsigned i386 integer width. ADR 0254 adds static initializer
 conversion between bounded finite `long double` and every represented value
 integer. ADR 0255 adds static long-double control folding and finite
-floating-width conversion.
+floating-width conversion. ADR 0256 defines the shared canonical x87 decoder
+and adds static infinity, NaN, and subnormal transport.
 
 The latest local normal build completed in 1,444.7 seconds. Its
 9,093,772-byte final ELF has SHA-256

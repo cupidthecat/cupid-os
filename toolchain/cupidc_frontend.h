@@ -3,6 +3,77 @@
 
 #include "cupidc_type.h"
 
+#if defined(CUPID_TOOLCHAIN_CUPIDC_STATIC_LONG_DOUBLE_INTERNAL)
+typedef struct {
+  ctool_bool negative;
+  ctool_bool zero;
+  ctool_bool infinity;
+  ctool_bool nan;
+  ctool_i32 exponent;
+  ctool_u64 significand;
+} cfront_static_long_double_decoded_t;
+
+static ctool_bool cfront_decode_static_long_double_payload(
+    ctool_u64 significand, ctool_u32 high_bits,
+    cfront_static_long_double_decoded_t *decoded_out) {
+  ctool_u32 exponent;
+  ctool_bool explicit_integer_bit;
+  if ((high_bits & 0xffff0000u) != 0u) {
+    return CTOOL_FALSE;
+  }
+  exponent = high_bits & 0x7fffu;
+  explicit_integer_bit =
+      (significand & 0x8000000000000000ull) != 0ull
+          ? CTOOL_TRUE
+          : CTOOL_FALSE;
+  if ((exponent == 0u && explicit_integer_bit == CTOOL_TRUE) ||
+      (exponent != 0u && explicit_integer_bit == CTOOL_FALSE)) {
+    return CTOOL_FALSE;
+  }
+  if (decoded_out == (cfront_static_long_double_decoded_t *)0) {
+    return CTOOL_TRUE;
+  }
+  decoded_out->negative =
+      (high_bits & 0x8000u) != 0u ? CTOOL_TRUE : CTOOL_FALSE;
+  decoded_out->zero = CTOOL_FALSE;
+  decoded_out->infinity = CTOOL_FALSE;
+  decoded_out->nan = CTOOL_FALSE;
+  decoded_out->exponent = 0;
+  decoded_out->significand = 0ull;
+  if (exponent == 0u) {
+    ctool_u32 width = 0u;
+    ctool_u32 shift;
+    ctool_u64 remaining = significand;
+    if (significand == 0ull) {
+      decoded_out->zero = CTOOL_TRUE;
+      return CTOOL_TRUE;
+    }
+    while (remaining != 0ull) {
+      width++;
+      remaining >>= 1u;
+    }
+    shift = 64u - width;
+    decoded_out->exponent = -16382 - (ctool_i32)shift;
+    decoded_out->significand = significand << shift;
+    return CTOOL_TRUE;
+  }
+  if (exponent == 0x7fffu) {
+    decoded_out->infinity =
+        significand == 0x8000000000000000ull
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
+    decoded_out->nan =
+        significand != 0x8000000000000000ull
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
+    return CTOOL_TRUE;
+  }
+  decoded_out->exponent = (ctool_i32)exponent - 0x3fff;
+  decoded_out->significand = significand;
+  return CTOOL_TRUE;
+}
+#endif
+
 /* Deterministic translation limit for recursively nested declaration syntax.
  * It exceeds the C11 minimum translation limits and converts adversarial
  * nesting into a transactional diagnostic instead of a host-stack failure. */
@@ -749,11 +820,12 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * conversion, unary signs, the four arithmetic operators, direct or indirect
  * fixed, variadic, and unprototyped calls, returns, and variadic reads.
  * Static-duration leaves accept bounded finite decimal long-double values and
- * conversion to or from represented integers and finite `float` or `double`
- * values. The static evaluator handles long-double truth, all six comparisons,
- * short-circuit logic, and conditional selection without host floating point.
- * Long-double arithmetic and widening infinity or NaN from `float` or
- * `double` to `long double` remain unsupported. An unnamed `float` argument
+ * conversion to or from represented integers, `float`, and `double`. Widening
+ * preserves signed zero and infinity and produces a canonical quiet x87 NaN.
+ * The static evaluator handles every canonical x87 class for truth, all six
+ * comparisons, short-circuit logic, and conditional selection without host
+ * floating point. Long-double arithmetic remains unsupported. An unnamed
+ * `float` argument
  * is promoted to `double`; existing unnamed `double` and `long double` values,
  * `va_arg(arguments, double)`, and `va_arg(arguments, long double)` are
  * represented. Runtime comparisons accept matching long-double operands and
@@ -792,8 +864,7 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * promoted, or overriding designators, union and Cupid class lists,
  * arithmetic or casts on static addresses, hexadecimal or subnormal
  * long-double literals, decimal ratios beyond the bounded parser, static
- * long-double arithmetic, widening infinity or NaN from `float` or `double`
- * to `long double`, compound assignments, and updates,
+ * long-double arithmetic, compound assignments, and updates,
  * universal-character or non-ordinary literals, non-scalar arguments without
  * declared parameter types, and Cupid #exe execution remain explicit
  * boundaries. Code generation and object emission consume the published
