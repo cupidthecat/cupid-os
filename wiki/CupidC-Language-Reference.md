@@ -257,17 +257,23 @@ discards fractional bits toward zero before its range is checked. A value in
 value: both signed zeros become false, and every represented finite nonzero
 value becomes true. In particular, `-0.5L` becomes true for `_Bool` but zero
 for an unsigned integer, because numeric truncation does not precede the
-Boolean truth test. Floating increment or decrement, hexadecimal floating
+Boolean truth test. Static long-double truth, all six comparisons,
+short-circuit logic, and conditional selection use the target representation.
+Finite binary32 and binary64 values widen exactly to x87, and represented
+finite long-double values narrow with round-to-nearest, ties-to-even packing.
+These expressions become static data and add no runtime IR.
+
+Floating increment or decrement, hexadecimal floating
 constants, binary32 and binary64 subnormal constants, hexadecimal or subnormal
 long-double constants, long-double decimals beyond the bounded ratio parser,
-static long-double arithmetic, comparison, truth and logical operators,
-conditional selection, floating-width conversion, SIMD, and atomic floating
-access remain unsupported.
+static long-double arithmetic, widening infinity or NaN from `float` or
+`double` to `long double`, SIMD, and atomic floating access remain unsupported.
 [ADR 0229](../docs/adr/0229-emit-exact-decimal-long-double-literals.md)
 records the literal representation. ADR 0250 records runtime unsigned
 four-byte conversion, ADR 0251 records static long-double data, and ADR 0253
 records runtime conversion between `long double` and every signed or
-unsigned i386 integer width. ADR 0254 records static initializer conversion.
+unsigned i386 integer width. ADR 0254 records static initializer conversion,
+and ADR 0255 records static controls and finite width conversion.
 The in-kernel compiler has a separate, broader floating and SIMD
 implementation.
 

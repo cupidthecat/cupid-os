@@ -105,10 +105,13 @@ bytes and leaves the cursor at the following four-byte slot. All six
 comparisons accept matching long-double values and mixed float or double
 inputs. The emitter loads right then left, uses FUCOMIP ST0, ST1, and discards
 the surviving x87 value. Signed zeros compare equal, and only != is true for
-an unordered input. Hexadecimal or subnormal long-double literals, decimal
-ratios beyond the bounded parser, static long-double arithmetic, comparison,
-truth and logical operators, conditional selection, and width conversion
-remain open.
+an unordered input. Static long-double truth, all six comparisons,
+short-circuit logic, conditional selection, and finite conversion to or from
+binary32 and binary64 use one target-only decoder. Finite widening keeps exact
+x87 bits, while narrowing rounds to nearest with ties to even. Folded results
+add no runtime IR. Hexadecimal or subnormal long-double literals, decimal
+ratios beyond the bounded parser, static long-double arithmetic, and widening
+infinity or NaN from float or double to long double remain open.
 
 The static scalar and aggregate proofs cover both scopes, mutable and const
 objects, positive and negative values, both signed zeros, the largest accepted
@@ -117,8 +120,8 @@ metadata, recovery, and deterministic repeated emission. The hosted i386
 runtime reads all three target words for every literal payload. The conversion
 fixture covers every integer kind, signed and unsigned enums, both signed
 64-bit endpoints, ULLONG_MAX, and both the _Bool and unsigned results of
--0.5L. ADR 0251 records the static-data boundary, and ADR 0254 records
-conversion.
+-0.5L. ADR 0251 records the static-data boundary, ADR 0254 records integer
+conversion, and ADR 0255 records static controls and finite width conversion.
 
 The checked i386 Linux seed now carries static floating constant data and this
 complete comparison path. The normal build uses them in kernel/gfx/jpeg.cc
@@ -270,9 +273,11 @@ for, and conversion to _Bool. Both signed zeros are false; finite nonzero
 values, subnormals, infinities, and NaNs are true. Increment and decrement,
 hexadecimal floating constants, binary32 and binary64 subnormal constants,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
-bounded parser, static long-double arithmetic, comparison, truth and logical
-operators, conditional selection, floating-width conversion, general SIMD
-value semantics, and atomic floating access remain outside this shared path.
+bounded parser, static long-double arithmetic, widening infinity or NaN from
+float or double to long double, general SIMD value semantics, and atomic
+floating access remain outside
+this shared path. Static controls and finite width conversion fold through the
+target representation.
 Twelve-byte direct and
 indirect fixed, variadic, and unprototyped arguments, function returns, direct
 and indirect call results, and va_arg(long double) use the represented

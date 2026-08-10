@@ -402,11 +402,12 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * shift, AND, OR, XOR, and all six comparisons. Floating BINARY records
  * support addition, subtraction, multiplication, division, and all six
  * comparisons after both operands reach the common `float`, `double`, or
- * `long double` width. Integer conversions involving `long double` remain
- * unsupported.
- * Implicitly zero-initialized and integer-zero file-scope or block-static
- * long-double objects use the same twelve-byte load and store path as
- * automatic objects.
+ * `long double` width. Runtime conversion between `long double` and every
+ * represented signed or unsigned integer width uses typed CONVERT records.
+ * The frontend folds static long-double truth, comparison, logic, conditional
+ * selection, and finite floating-width conversion into final initializer
+ * records, so those expressions add no runtime IR. Static long-double objects
+ * use the same twelve-byte load and store path as automatic objects.
  * `float` and `double` values can also join through
  * conditional selection when the controlling value is an integer or pointer.
  * UNARY records support plus,
@@ -417,8 +418,9 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * integer widening to eight bytes and explicit or assignment narrowing back
  * to a represented integer. They also support explicit and assignment
  * conversion among `float`, `double`, and `long double`, plus floating
- * widening for common arithmetic. They
- * also support the same-rank signed-to-unsigned usual arithmetic conversion
+ * widening for common arithmetic and conversion between `long double` and
+ * represented integer widths. They also support the same-rank
+ * signed-to-unsigned usual arithmetic conversion
  * and, in GNU mode, promotion of a wide enum to its exact compatible signed or
  * unsigned integer type. Boolean narrowing tests both source words. Boolean
  * integer mutation remains unsupported.

@@ -90,9 +90,13 @@ destinations other than `_Bool`. `_Bool` tests the original floating value:
 both signed zeros become false, and every represented finite nonzero value
 becomes true. The fixture converts `-0.5L` to both targets, producing true for
 `_Bool` and zero for an unsigned integer. Integer zero keeps `ZERO`
-metadata. Hexadecimal or subnormal long-double literals, decimal ratios beyond
-the bounded parser, static long-double arithmetic, comparison, truth and
-logical operators, conditional selection, and width conversion remain open.
+metadata. Static long-double truth, all six comparisons, short-circuit logic,
+and conditional selection use one target-only decoder. Finite binary32 and
+binary64 values widen exactly to x87, and represented finite long-double
+values narrow with round-to-nearest, ties-to-even packing. Folded results add
+no runtime IR. Hexadecimal or subnormal long-double literals, decimal ratios
+beyond the bounded parser, static long-double arithmetic, and widening infinity
+or NaN from `float` or `double` to `long double` remain open.
 
 The static scalar and aggregate proofs cover both scopes, mutable and const
 objects, positive and negative values, both signed zeros, the largest accepted
@@ -101,7 +105,8 @@ metadata, recovery, and deterministic repeated emission. The hosted i386
 runtime reads the three target words for every literal payload. The conversion
 fixture covers every integer kind, signed and unsigned enums, both signed
 64-bit endpoints, `ULLONG_MAX`, and both results of `-0.5L`. ADR 0251 records
-the static-data boundary, and ADR 0254 records conversion.
+the static-data boundary, ADR 0254 records integer conversion, and ADR 0255
+records static controls and finite width conversion.
 
 The checked i386 Linux seed at ADR 0138 carries static floating constant data
 and this complete comparison path.
@@ -272,9 +277,12 @@ false; finite nonzero values, subnormals, infinities, and NaNs are true.
 Increment or decrement,
 hexadecimal floating constants, binary32 and binary64 subnormal constants,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
-bounded parser, static long-double arithmetic, comparison, truth and logical
-operators, conditional selection, width conversion, general SIMD value
-semantics, and atomic floating access remain unsupported. Twelve-byte direct
+bounded parser, static long-double arithmetic, widening infinity or NaN from
+`float` or `double` to `long double`, general SIMD value semantics, and atomic
+floating access remain
+unsupported. Static truth, comparison, short-circuit logic, conditional
+selection, and finite width conversion fold through the target representation.
+Twelve-byte direct
 and indirect fixed, variadic, and unprototyped arguments, function returns,
 direct and indirect call results, and `va_arg(long double)` use the represented
 automatic `long double` path. The exact production SIMD assembly forms above

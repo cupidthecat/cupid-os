@@ -22913,3 +22913,109 @@ above.
 | Complete Toolchain proof | PASS in 2,916.145 seconds. Checked-seed bootstrap, stage two, stage three, byte identity, the hosted runtime, frozen-input verification, and publication and verification of 20 artifacts all passed. |
 | Normal OS build | PASS in 1,541.610 seconds. CupidASM, CupidC, CupidLD, and CupidObj produced the boot sector, kernel, deterministic ISO, and 200 MB disk image. |
 | Four-CPU e1000 boot smoke | PASS in 67.357 seconds. RDRAND, four online CPUs, all 62 TLS checks, the FPU smoke, e1000, and the ordered feature13 compile, PASS, and JIT completion markers were present. The 34,907-byte log has SHA-256 `9dbec1c15604ce90e3760002ab2c1e23c642a51b398e9b1a28db2a26f99bbcab`. |
+
+## 2026-08-09: fold static long-double controls
+
+Compiler-head CupidC now folds static long-double truth, all six comparisons,
+short-circuit logic, conditional selection, and finite conversion to or from
+binary32 and binary64. The checked seed and normal production ownership remain
+unchanged.
+
+### Implementation
+
+One private frontend decoder normalizes binary32, binary64, and the represented
+x87 value into a sign, classification, unbiased exponent, and significand.
+Truth and comparison use that seam. Magnitude comparison aligns the 24-bit,
+53-bit, or 64-bit significand to the same high bit after comparing exponents.
+The evaluator still requires equal typed operand kinds, so the frontend's
+usual-conversion nodes remain part of the contract.
+
+Both signed zeros are false. Signed zeros compare equal. NaN keeps the C
+unordered result: only `!=` is true. Static `&&` and `||` evaluate their right
+operand only when needed, and `?:` evaluates only its selected arm. Unsupported
+long-double arithmetic in an unselected branch is ignored; selecting that
+branch keeps the arithmetic diagnostic.
+
+Finite binary32 and binary64 values widen to exact x87 payloads. A normalized
+source significand moves into the 64-bit explicit x87 significand, and the
+unbiased exponent receives the x87 bias. The path preserves signed zero and
+includes binary32 subnormal results made by the existing static arithmetic
+evaluator. Infinity and NaN widening fail with a finite-source diagnostic.
+
+Represented finite long-double values narrow through the existing integer-only
+round-to-nearest, ties-to-even packer. Overflow, underflow, normal, subnormal,
+and signed-zero results follow the target binary32 or binary64 encoding.
+Mixed integer and enum comparisons or conditional arms reuse ADR 0254's exact
+integer-to-x87 conversion. The folded values become final initializer records,
+so Linear IR emits no runtime function or instruction for the fixture.
+
+The shared fixture contains nine objects, 62 initializer nodes, and 53 list
+edges. It covers all six predicates, same-exponent x87 significand ordering,
+positive ordering and the corresponding reversed ordering for negative
+values, mixed floating widths, represented integers
+and enums through `ULLONG_MAX`, selective logic and conditionals, and finite
+width conversion in both directions. The binary32 expression
+`(1e-19f * 1e-19f)` becomes a subnormal before widening to exact x87 payload
+`d9c7dc0000000000/3f80`.
+
+The object proof pins integer arrays, binary32 and binary64 bits, every x87
+payload and both padding bytes, section and symbol order, and zero relocations.
+Mutable selected positive zero is a `FLOATING` initializer stored in `.bss`;
+mutable selected negative zero keeps its sign bit in `.data`. The proof emits
+twice, checks byte identity, forces an output-limit failure, and verifies exact
+same-job recovery. A separately compiled already-folded source supplies an
+independent object comparison for the control results.
+
+### Failed runs and corrections
+
+The first focused frontend run failed in 10.765 seconds on the old static
+long-double truth diagnostic. After the control matrix was added, a second run
+failed in 10.503 seconds at mixed `1.25f < 1.5L`; the missing operation was the
+usual `float` to `long double` conversion, not comparison itself. A third run
+reached the infinity-widening negative and exposed the older generic diagnostic
+before the finite-source message was installed.
+
+An attempted `1e4000L` narrowing case failed in the bounded decimal parser
+with `CTB000010` before static conversion. The fixture keeps that parser
+boundary instead of replacing it with a smaller value. A test initially
+expected selected positive zero to use a `ZERO` initializer. Existing direct
+`+0.0L` behavior established `FLOATING/0/0`, so the test was corrected rather
+than changing production. Negative zero remains `FLOATING/0/0x8000`.
+
+The frontend source inventory and self-host object frontier changed as a
+direct result of the five new helpers and their control flow. Exact lock-only
+calibration updated the observed source counts and the frontend object tuple.
+No unrelated inventory or object fingerprint changed.
+
+### Current boundary
+
+Static long-double arithmetic remains unsupported. Infinity and NaN cannot
+widen to `long double` through this static path. Hexadecimal or subnormal
+long-double literals, decimal ratios beyond the bounded parser, atomic
+floating conversion, runtime mixed integer and floating conditional arms,
+and broader C11 work also remain open. The implementation adds no host
+floating or math-library dependency.
+
+The checked seed predates this capability, so production source cannot depend
+on it before a later verified seed promotion. No production source changes
+owner, and no `.c` to `.cc` rename is due. Issue #25 remains open. ADR 0255
+records the design.
+
+### Test evidence
+
+Executed on native Windows PowerShell against the frozen compiler-head source.
+
+| Check | Result |
+| --- | --- |
+| Focused frontend control fixture | PASS: 1 test in 14.781 seconds of runner time and 15.004 seconds of wall time. |
+| Focused Linear IR control fixture | PASS: 1 test in 18.267 seconds of runner time and 18.501 seconds of wall time. |
+| Focused object control fixture | PASS: 1 test in 27.509 seconds of runner time and 27.792 seconds of wall time. |
+| Complete frontend module | PASS: all 95 tests in 14.210 seconds of runner time and 14.457 seconds of wall time. The new fixture moved the exact active non-Doom header frontier to 159 passes and two expected failures across 161 headers. |
+| Complete Linear IR module | PASS: all 83 tests in 13.743 seconds of runner time and 13.932 seconds of wall time. |
+| Self-host frontend object frontier | PASS after one exact lock calibration: 1 test in 24.317 seconds of runner time and 24.508 seconds of wall time. The object contains 435 functions, 870,978 text bytes, 1,035,308 total bytes, and fingerprint `70293b8d`. |
+| Complete object module | PASS: all 109 tests in 1,031.116 seconds of runner time and 1,031.304 seconds of wall time. |
+| Active-source audit regeneration | PASS in 63.717 seconds. The digest is `e3cf93926ea6f531c37b4a3dcb09f85edab3cc1094abbc6e729aeaf55154674b`; the audit records 723 active inputs, 25 accounted unreachable files, 447 transforms, 255 requirements, and 81,615 occurrences across 12 C control features. |
+| Active-source audit stale check | PASS in 62.384 seconds. The Toolchain contract cohort contains 19 files and 154,042 checked-source lines; Toolchain core contains 33 files and 87,018 lines. |
+| Complete Toolchain proof | PASS in 3,146.419 seconds. Checked-seed bootstrap, stage two, stage three, byte identity, the hosted runtime, frozen-input verification, publication, and verification of 20 artifacts all passed. |
+| Normal OS build | PASS in 1,513.347 seconds. CupidASM, CupidC, CupidLD, and CupidObj produced the boot sector, object cohort, pass-one and final kernel, generated symbols, flattened kernel, deterministic ISO, and 200 MB image with `/hello.iso` staged. |
+| Four-CPU e1000 boot smoke | PASS in 67.788 seconds. RDRAND, four online CPUs, the FPU smoke, all 62 TLS checks, e1000 and DHCP, desktop and terminal startup, and exactly one ordered feature13 compile, final PASS, and JIT-completion sequence were present. All 25 rejected panic, storage, SMP, and NIC marker types were absent. The 35,988-byte log has SHA-256 `e4985b389f800e3b64816d7688e1b3a9e335b2423f945e4b428a2f55f9dbdd0e`. |

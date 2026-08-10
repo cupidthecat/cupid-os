@@ -797,7 +797,7 @@ contention. Runtime order arguments, pointer and eight-byte atomics, and HLE
 flags remain open. The checked seed carries all five operations and compiles
 the active EHCI fetch-or path.
 
-The checked-seed C11 standalone-header sweep passes 158 of 160 active non-Doom
+The checked-seed C11 standalone-header sweep passes 159 of 161 active non-Doom
 inputs. `scheduler.h` and `simd_intrin.h` remain explicit C11-profile failures.
 The checked seed parses all 29 declarations in `simd_intrin.h` under its proper
 Cupid profile, while `scheduler.h` still has an undefined historical array
@@ -1029,6 +1029,15 @@ finite nonzero value becomes true. The fixture makes that ordering visible:
 `-0.5L` becomes true for `_Bool` but zero for an unsigned integer.
 Integer-valued zero keeps its existing `ZERO` initializer record.
 
+The same target-only evaluator folds static long-double truth, all six
+comparisons, short-circuit logic, and the selected arm of a conditional.
+Mixed operands use the frontend's ordinary conversions, including represented
+integers and enums. Finite `float` and `double` values widen to exact x87
+payloads, including a binary32 subnormal produced by constant arithmetic.
+Represented finite long-double values narrow to binary32 or binary64 with
+round-to-nearest, ties-to-even packing. The folded expression leaves no
+runtime IR and uses the existing static-data writer.
+
 Linear IR also checks the integer type's target representation. A primitive
 base must use its canonical target size, signedness, and alignment. An enum,
 its unwrapped base, and its compatible integer type must agree on size,
@@ -1060,10 +1069,10 @@ caller's control word
 separately, selects truncate mode for `FISTP`, and restores that copy.
 Hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
-bounded parser, static long-double arithmetic, comparisons, truth and logical
-operators, conditionals, or width conversions, mixed integer and floating
-conditional arms, floating increment and decrement, SIMD values, floating
-atomics, and over-aligned emission remain open. ADR 0202 records the truth
+bounded parser, static long-double arithmetic, widening infinity or NaN from
+`float` or `double` to `long double`, runtime mixed integer and floating conditional
+arms, floating increment and decrement, SIMD values, floating atomics, and
+over-aligned emission remain open. ADR 0202 records the runtime truth
 boundary, and
 [ADR 0229](docs/adr/0229-emit-exact-decimal-long-double-literals.md) records
 the decimal literal representation. ADR 0251 records exact static
@@ -1071,6 +1080,8 @@ long-double data, and ADR 0253 records runtime conversions between
 `long double` and integers.
 [ADR 0254](docs/adr/0254-convert-static-integers-and-long-double.md) records
 static initializer conversion.
+[ADR 0255](docs/adr/0255-fold-static-long-double-controls.md) records static
+control expressions and finite floating-width conversion.
 
 Plain assignment, all ten compound assignments, and prefix or postfix increment and decrement now work for represented non-atomic bit fields in four-byte storage units. Linear IR keeps the selected member and evaluates the record address once. Partial fields preserve neighboring bits, and postfix updates retain the extracted old value through the store so width wrap does not change the result. Narrow unsigned fields promote to signed `int` when their values fit. A volatile 32-bit field uses one read and one direct store. An execution oracle proves that `states[(*index)++].value++` advances its side-effecting index exactly once. Partial volatile mutation, atomic bit-field access, and non-four-byte storage units remain open. The plain-assignment contracts still pin Doom's unchanged `colors[index].r = value` shape.
 

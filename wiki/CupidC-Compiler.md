@@ -505,18 +505,22 @@ alignment to at least the target atomic alignment. An `ALIGNED` node
 requires an explicit, nonzero power-of-two alignment and may lower the
 referenced alignment. `_Bool` has one payload bit; other kinds use their full
 target width. The same check runs during whole-unit initializer ownership and
-block-static declaration lowering. Hexadecimal floating literals, binary32
+block-static declaration lowering. Static long-double truth, all six
+comparisons, short-circuit logic, conditional selection, and finite
+floating-width conversion use a shared target-only decoder. They become final
+initializer records and add no runtime IR. Hexadecimal floating literals, binary32
 and binary64 subnormal literals, hexadecimal or subnormal long-double
 literals, decimals beyond the bounded ratio parser, static long-double
-arithmetic, comparison, truth and logical operators, conditional selection,
-and floating-width conversion, runtime mixed integer and floating arithmetic
-or conditional arms, floating increment and decrement, SIMD values, floating
-atomics, and over-aligned object emission remain unfinished.
+arithmetic, widening infinity or NaN from `float` or `double` to `long double`,
+runtime mixed integer and
+floating arithmetic or conditional arms, floating increment and decrement,
+SIMD values, floating atomics, and over-aligned object emission remain
+unfinished.
 ADR 0229 records the exact decimal representation and automatic object proof.
 ADR 0250 records runtime conversion to unsigned four-byte targets. ADR 0251
 records exact static long-double data. ADR 0253 records runtime conversions
 between `long double` and integers. ADR 0254 records static initializer
-conversion.
+conversion. ADR 0255 records static controls and finite width conversion.
 
 Plain assignment, all ten compound assignments, and prefix and postfix update work for represented non-atomic integer bit fields when the declared storage unit is four bytes and fits inside the record. The compiler evaluates the record designator once and applies the target's integer-promotion rules before a compound operation. Partial fields preserve the other bits in their unit. Assignment, compound assignment, and prefix update return the stored lane after width truncation and signed extension, while postfix update returns the extracted old value. A 32-bit field uses the direct load and store path. Volatile 32-bit updates perform one read and one store. Partial volatile mutation, atomic fields, and other storage-unit sizes remain unsupported.
 
@@ -888,13 +892,16 @@ arguments, function returns, direct and indirect call results, and
 accept implicit zero, a represented integer constant expression, or a
 bounded decimal `L` literal with parentheses and unary signs. Runtime truth
 and conversion to `_Bool` cover all three represented floating widths.
+Static long-double truth, comparison, short-circuit logic, conditional
+selection, and finite conversion to or from binary32 and binary64 fold through
+the target representation and emit no runtime work.
 Hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
-bounded parser, static long-double arithmetic, comparison, truth and logical
-operators, conditional selection, and width conversion, other
-floating-to-wide conversions, runtime
-mixed integer and floating arithmetic or
-conditional arms, and floating increment and decrement remain unsupported.
+bounded parser, static long-double arithmetic, widening infinity or NaN from
+`float` or `double` to `long double`, other floating-to-wide conversions,
+runtime mixed integer and
+floating arithmetic or conditional arms, and floating increment and
+decrement remain unsupported.
 Matching or mixed-width floating conditional arms and the four arithmetic
 compound assignments keep their established x87 path.
 
@@ -907,7 +914,8 @@ every literal payload. A shared conversion fixture covers every represented
 integer kind, signed and unsigned enums, both signed 64-bit endpoints,
 `ULLONG_MAX`, and the `_Bool` and unsigned results of `-0.5L`.
 `sizeof(float) - 4` keeps the accepted `ZERO` record. ADR 0251 records the
-static-data boundary, and ADR 0254 records conversion.
+static-data boundary, ADR 0254 records integer conversion, and ADR 0255 records
+static controls and finite width conversion.
 
 The checked seed retains GNU `noinline` and
 `target("general-regs-only")` on canonical file-scope functions.
@@ -1253,7 +1261,7 @@ preserving ESI or EDI across the cdecl call.
 
 The i386 path emits `EC`, `EE`, `66 ED`, `66 EF`, `ED`, and `EF` for scalar
 port I/O. The string forms emit `FC F3 66 6D` and `FC F3 66 6F` through the
-shared x86 model. The checked-seed C11 standalone sweep passes 158 of 160
+shared x86 model. The checked-seed C11 standalone sweep passes 159 of 161
 active non-Doom headers; `scheduler.h` and `simd_intrin.h` remain exact
 C11-profile failures. The checked seed parses all 29 declarations in
 `simd_intrin.h` under the Cupid profile through the native type spellings
@@ -2251,10 +2259,12 @@ conversion cover `float`, `double`, and automatic `long double`. Runtime mixed
 wide and floating arithmetic or conditional arms, increment and decrement,
 hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
-bounded parser, static long-double arithmetic, comparison, truth and logical
-operators, conditional selection, floating-width conversion, and SIMD remain
-open in the hosted path. Runtime integer conversions involving `long double`
-cover all signed and unsigned i386 widths.
+bounded parser, static long-double arithmetic, widening infinity or NaN from
+`float` or `double` to `long double`, and SIMD remain open in the hosted path.
+Static long-double
+truth, comparisons, short-circuit logic, conditional selection, and finite
+floating-width conversion fold into target data. Runtime integer conversions
+involving `long double` cover all signed and unsigned i386 widths.
 
 ---
 

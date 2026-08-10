@@ -239,7 +239,7 @@ The checked seed parses all eight helpers in unchanged
 the 16-bit DX port, the read/write ESI or EDI buffer, the read/write ECX
 count, and the INSW memory clobber. Scalar port I/O and the CLD plus REP word
 forms emit through the shared x86 model. The checked-seed C11 standalone sweep
-passes 158 of 160 active non-Doom headers; `scheduler.h` and `simd_intrin.h`
+passes 159 of 161 active non-Doom headers; `scheduler.h` and `simd_intrin.h`
 remain exact C11-profile failures. The checked seed parses all 29 declarations in
 unchanged `simd_intrin.h` under the Cupid profile. Its shared frontend now
 recognizes Cupid's sized scalar, Boolean, and vector type spellings directly.
@@ -642,6 +642,14 @@ lower the referenced alignment.
 `_Bool` has one payload bit.
 The check runs during whole-unit initializer ownership and block-static
 declaration lowering. ADR 0254 records this static conversion.
+
+Compiler head also folds static long-double truth, all six comparisons,
+short-circuit logic, conditional selection, and finite conversion to or from
+binary32 and binary64. One target-only decoder normalizes the represented
+formats. The final values stay in initializer records, so Linear IR publishes
+no runtime instruction for the shared fixture. Object contracts pin exact
+bytes, x87 padding, section and symbol order, deterministic repeat emission,
+and same-job recovery. ADR 0255 records this boundary.
 Both compiler stages in the normal contract cohort rebuild the source
 catalogue. ADR 0203 records the checked seed, ADR 0207 records the subtraction
 form, ADR 0226 records SHRD, ADR 0228 records its seed carriage, and ADR 0252

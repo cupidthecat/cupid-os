@@ -748,14 +748,17 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * values use the twelve-byte target type for assignment, floating-width
  * conversion, unary signs, the four arithmetic operators, direct or indirect
  * fixed, variadic, and unprototyped calls, returns, and variadic reads.
- * File-scope and block-static objects may use implicit zero initialization or
- * an integer constant expression equal to zero. An unnamed `float` argument
- * is promoted to `double`;
- * existing unnamed `double` and `long double` values, `va_arg(arguments,
- * double)`, and `va_arg(arguments, long double)` are represented. Runtime
- * comparisons accept matching long-double operands and mixed `float` or
- * `double` inputs. Integer conversions involving `long double` remain
- * unsupported.
+ * Static-duration leaves accept bounded finite decimal long-double values and
+ * conversion to or from represented integers and finite `float` or `double`
+ * values. The static evaluator handles long-double truth, all six comparisons,
+ * short-circuit logic, and conditional selection without host floating point.
+ * Long-double arithmetic and widening infinity or NaN from `float` or
+ * `double` to `long double` remain unsupported. An unnamed `float` argument
+ * is promoted to `double`; existing unnamed `double` and `long double` values,
+ * `va_arg(arguments, double)`, and `va_arg(arguments, long double)` are
+ * represented. Runtime comparisons accept matching long-double operands and
+ * mixed `float` or `double` inputs. Runtime conversion covers every represented
+ * signed and unsigned integer width in both directions.
  * integer expressions are typed without constant folding. Unevaluated query
  * operands are type-checked through the same grammar and leave no public AST
  * nodes. Floating updates remain an explicit deferred feature. Mixed integer
@@ -788,9 +791,9 @@ ctool_status_t ctool_c_parse(ctool_job_t *job,
  * block-static object's address through initializer metadata. Chained,
  * promoted, or overriding designators, union and Cupid class lists,
  * arithmetic or casts on static addresses, hexadecimal or subnormal
- * long-double literals, decimal ratios beyond the bounded parser, nonzero or
- * floating static long-double initializers, integer conversions involving
- * long double, compound assignments, and updates,
+ * long-double literals, decimal ratios beyond the bounded parser, static
+ * long-double arithmetic, widening infinity or NaN from `float` or `double`
+ * to `long double`, compound assignments, and updates,
  * universal-character or non-ordinary literals, non-scalar arguments without
  * declared parameter types, and Cupid #exe execution remain explicit
  * boundaries. Code generation and object emission consume the published

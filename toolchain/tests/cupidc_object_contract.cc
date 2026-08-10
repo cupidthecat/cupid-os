@@ -5,6 +5,7 @@
 #include "cupidc_frontend.h"
 #include "cupidc_ir.h"
 #include "cupidc_pp.h"
+#include "cupidc_static_long_double_control_fixture.h"
 #include "cupidc_static_long_double_integer_fixture.h"
 #include "cupidld.h"
 #include "elf32.h"
@@ -25110,6 +25111,339 @@ static int validate_static_long_double_integer_object(
   return 1;
 }
 
+static int static_control_symbol_payloads_match(
+    const ctool_elf32_object_t *actual,
+    const ctool_elf32_object_t *canonical) {
+  static const char *const symbol_names[] = {
+      "static_long_double_truth",
+      "static_long_double_comparisons",
+      "static_long_double_logic",
+      "static_long_double_choices"};
+  const ctool_elf32_section_t *actual_rodata =
+      find_section(actual, ".rodata");
+  const ctool_elf32_section_t *canonical_rodata =
+      find_section(canonical, ".rodata");
+  ctool_u32 index;
+  if (actual_rodata == NULL || canonical_rodata == NULL ||
+      canonical->relocation_count != 0u) {
+    return 0;
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(symbol_names) / sizeof(symbol_names[0]));
+       index++) {
+    const ctool_elf32_symbol_t *actual_symbol =
+        find_symbol(actual, symbol_names[index]);
+    const ctool_elf32_symbol_t *canonical_symbol =
+        find_symbol(canonical, symbol_names[index]);
+    if (actual_symbol == NULL || canonical_symbol == NULL ||
+        actual_symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+        canonical_symbol->placement != CTOOL_ELF32_SYMBOL_DEFINED ||
+        actual_symbol->section_file_index != actual_rodata->file_index ||
+        canonical_symbol->section_file_index !=
+            canonical_rodata->file_index ||
+        actual_symbol->size != canonical_symbol->size ||
+        actual_symbol->value > actual_rodata->contents.size ||
+        actual_symbol->size >
+            actual_rodata->contents.size - actual_symbol->value ||
+        canonical_symbol->value > canonical_rodata->contents.size ||
+        canonical_symbol->size >
+            canonical_rodata->contents.size - canonical_symbol->value ||
+        memcmp(actual_rodata->contents.data + actual_symbol->value,
+               canonical_rodata->contents.data + canonical_symbol->value,
+               (size_t)actual_symbol->size) != 0) {
+      (void)fprintf(stderr,
+                    "static long double control canonical payload %u "
+                    "differs\n",
+                    (unsigned int)index);
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int validate_static_long_double_control_object(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_elf32_object_t *object, ctool_bytes_t image) {
+  static const char *const section_names[] = {
+      "", ".rodata", ".data", ".bss", ".symtab", ".strtab",
+      ".shstrtab"};
+  static const char *const symbol_names[] = {
+      "",
+      "static_float_to_long_double",
+      "static_long_double_to_float",
+      "static_long_double_to_double",
+      "static_long_double_truth",
+      "static_long_double_comparisons",
+      "static_long_double_logic",
+      "static_long_double_choices",
+      "static_long_double_positive_zero_choice",
+      "static_long_double_negative_zero_choice"};
+  static const ctool_u32 symbol_offsets[] = {
+      0u, 84u, 100u, 132u, 148u, 232u, 256u};
+  static const ctool_u32 symbol_sizes[] = {
+      84u, 16u, 32u, 16u, 84u, 24u, 84u};
+  const ctool_elf32_section_t *rodata = find_section(object, ".rodata");
+  const ctool_elf32_section_t *data = find_section(object, ".data");
+  const ctool_elf32_section_t *bss = find_section(object, ".bss");
+  const ctool_elf32_symbol_t *positive_zero =
+      find_symbol(object, "static_long_double_positive_zero_choice");
+  const ctool_elf32_symbol_t *negative_zero =
+      find_symbol(object, "static_long_double_negative_zero_choice");
+  ctool_u32 image_fingerprint = structure_text_fingerprint(image);
+  ctool_u32 rodata_fingerprint =
+      rodata == NULL ? 0u : structure_text_fingerprint(rodata->contents);
+  ctool_u32 index;
+  if (image.size != 1164u || image_fingerprint != 0x8af1050eu ||
+      rodata == NULL || rodata->size != 340u ||
+      rodata_fingerprint != 0x123d0bbdu) {
+    (void)fprintf(
+        stderr,
+        "static long double control object locks differ: "
+        "image=%u/%08x rodata=%u/%08x data=%u bss=%u sections=%u "
+        "symbols=%u relocations=%u\n",
+        (unsigned int)image.size, (unsigned int)image_fingerprint,
+        rodata == NULL ? 0u : (unsigned int)rodata->size,
+        (unsigned int)rodata_fingerprint,
+        data == NULL ? 0u : (unsigned int)data->size,
+        bss == NULL ? 0u : (unsigned int)bss->size,
+        object == NULL ? 0u : (unsigned int)object->section_count,
+        object == NULL ? 0u : (unsigned int)object->symbol_count,
+        object == NULL ? 0u : (unsigned int)object->relocation_count);
+    if (object != NULL) {
+      for (index = 0u; index < object->section_count; index++) {
+        const ctool_elf32_section_t *section = &object->sections[index];
+        (void)fprintf(
+            stderr,
+            "static long double control section %u: %.*s "
+            "type=%u flags=%08x align=%u size=%u contents=%u\n",
+            (unsigned int)index, (int)section->name.size,
+            section->name.data, (unsigned int)section->type,
+            (unsigned int)section->flags, (unsigned int)section->alignment,
+            (unsigned int)section->size,
+            (unsigned int)section->contents.size);
+      }
+      for (index = 0u; index < object->symbol_count; index++) {
+        const ctool_elf32_symbol_t *symbol = &object->symbols[index];
+        (void)fprintf(
+            stderr,
+            "static long double control symbol %u: %.*s "
+            "binding=%u type=%u section=%u value=%u size=%u\n",
+            (unsigned int)index, (int)symbol->name.size,
+            symbol->name.data, (unsigned int)symbol->binding,
+            (unsigned int)symbol->type,
+            (unsigned int)symbol->section_file_index,
+            (unsigned int)symbol->value, (unsigned int)symbol->size);
+      }
+    }
+    return 0;
+  }
+  if (unit == NULL || object == NULL || unit->object_definition_count != 9u ||
+      unit->function_definition_count != 0u ||
+      object->file_type != CTOOL_ELF32_ET_REL || object->entry_point != 0u ||
+      object->flags != 0u || object->program_header_count != 0u ||
+      object->program_headers !=
+          (const ctool_elf32_program_header_t *)0 ||
+      object->section_count !=
+          (ctool_u32)(sizeof(section_names) / sizeof(section_names[0])) ||
+      object->symbol_count !=
+          (ctool_u32)(sizeof(symbol_names) / sizeof(symbol_names[0])) ||
+      object->relocation_count != 0u ||
+      object->symbol_table_section_file_index != 4u ||
+      find_section(object, ".text") != NULL ||
+      find_section(object, ".rel.rodata") != NULL ||
+      find_section(object, ".rel.data") != NULL) {
+    return 0;
+  }
+  for (index = 0u; index < object->section_count; index++) {
+    if (object->sections[index].file_index != index ||
+        string_equal(object->sections[index].name,
+                     section_names[index]) == 0) {
+      (void)fprintf(stderr,
+                    "static long double control section order differs at "
+                    "%u\n",
+                    (unsigned int)index);
+      return 0;
+    }
+  }
+  for (index = 0u; index < object->symbol_count; index++) {
+    if (object->symbols[index].file_index != index ||
+        string_equal(object->symbols[index].name,
+                     symbol_names[index]) == 0) {
+      (void)fprintf(stderr,
+                    "static long double control symbol order differs at "
+                    "%u\n",
+                    (unsigned int)index);
+      return 0;
+    }
+  }
+  if (object->sections[0].type != 0u || object->sections[0].flags != 0u ||
+      object->sections[0].alignment != 0u ||
+      object->sections[0].size != 0u ||
+      object->sections[0].contents.size != 0u ||
+      rodata->type != CTOOL_ELF32_SHT_PROGBITS ||
+      rodata->flags != CTOOL_ELF32_SHF_ALLOC ||
+      rodata->alignment != 4u || rodata->entry_size != 0u ||
+      rodata->size != 340u || rodata->contents.size != 340u ||
+      rodata->relocation_count != 0u ||
+      data == NULL || data->type != CTOOL_ELF32_SHT_PROGBITS ||
+      data->flags != (CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_WRITE) ||
+      data->alignment != 4u || data->entry_size != 0u ||
+      data->size != 12u || data->contents.size != 12u ||
+      data->relocation_count != 0u ||
+      bss == NULL || bss->type != CTOOL_ELF32_SHT_NOBITS ||
+      bss->flags != (CTOOL_ELF32_SHF_ALLOC | CTOOL_ELF32_SHF_WRITE) ||
+      bss->alignment != 4u || bss->entry_size != 0u ||
+      bss->size != 12u || bss->contents.size != 0u ||
+      bss->relocation_count != 0u ||
+      object->sections[4].type != 2u ||
+      object->sections[4].flags != 0u ||
+      object->sections[4].alignment != 4u ||
+      object->sections[4].entry_size != 16u ||
+      object->sections[4].size != 160u ||
+      object->sections[4].contents.size != 160u ||
+      object->sections[5].type != 3u ||
+      object->sections[5].flags != 0u ||
+      object->sections[5].alignment != 1u ||
+      object->sections[5].entry_size != 0u ||
+      object->sections[5].size != 274u ||
+      object->sections[5].contents.size != 274u ||
+      object->sections[6].type != 3u ||
+      object->sections[6].flags != 0u ||
+      object->sections[6].alignment != 1u ||
+      object->sections[6].entry_size != 0u ||
+      object->sections[6].size != 46u ||
+      object->sections[6].contents.size != 46u ||
+      object->symbols[0].binding != CTOOL_ELF32_BIND_LOCAL ||
+      object->symbols[0].type != CTOOL_ELF32_SYMBOL_NOTYPE ||
+      object->symbols[0].placement != CTOOL_ELF32_SYMBOL_UNDEFINED ||
+      object->symbols[0].section_file_index != CTOOL_ELF32_NO_SECTION ||
+      object->symbols[0].value != 0u || object->symbols[0].size != 0u) {
+    return 0;
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(symbol_offsets) /
+                           sizeof(symbol_offsets[0]));
+       index++) {
+    if (!symbol_matches(&object->symbols[index + 1u], index + 1u,
+                        CTOOL_ELF32_BIND_LOCAL,
+                        CTOOL_ELF32_SYMBOL_OBJECT,
+                        CTOOL_ELF32_SYMBOL_DEFINED, rodata->file_index,
+                        symbol_offsets[index], symbol_sizes[index])) {
+      (void)fprintf(stderr,
+                    "static long double control symbol layout differs at "
+                    "%u\n",
+                    (unsigned int)index);
+      return 0;
+    }
+  }
+  if (!symbol_matches(positive_zero, 8u, CTOOL_ELF32_BIND_LOCAL,
+                      CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, bss->file_index,
+                      0u, 12u) ||
+      !symbol_matches(negative_zero, 9u, CTOOL_ELF32_BIND_LOCAL,
+                      CTOOL_ELF32_SYMBOL_OBJECT,
+                      CTOOL_ELF32_SYMBOL_DEFINED, data->file_index,
+                      0u, 12u) ||
+      !long_double_symbol_payload_matches(
+          data, negative_zero, 0ull, 0x8000u)) {
+    (void)fprintf(
+        stderr, "static long double signed-zero placement differs\n");
+    return 0;
+  }
+  for (index = 0u;
+       index <
+           (ctool_u32)(sizeof(cupidc_static_long_double_control_widening_oracles) /
+                       sizeof(cupidc_static_long_double_control_widening_oracles[0]));
+       index++) {
+    const cupidc_static_long_double_control_floating_oracle_t *oracle =
+        &cupidc_static_long_double_control_widening_oracles[index];
+    if (!long_double_payload_matches(
+            rodata, symbol_offsets[0] + index * 12u,
+            oracle->bits, oracle->high_bits)) {
+      (void)fprintf(stderr,
+                    "static floating-to-long-double payload %u differs\n",
+                    (unsigned int)index);
+      return 0;
+    }
+  }
+  for (index = 0u;
+       index <
+           (ctool_u32)(sizeof(cupidc_static_long_double_control_float_narrowing_oracles) /
+                       sizeof(cupidc_static_long_double_control_float_narrowing_oracles[0]));
+       index++) {
+    if (!little_integer_payload_matches(
+            rodata, symbol_offsets[1] + index * 4u, 4u,
+            cupidc_static_long_double_control_float_narrowing_oracles[index])) {
+      (void)fprintf(stderr,
+                    "static long-double-to-float payload %u differs\n",
+                    (unsigned int)index);
+      return 0;
+    }
+  }
+  for (index = 0u;
+       index <
+           (ctool_u32)(sizeof(cupidc_static_long_double_control_double_narrowing_oracles) /
+                       sizeof(cupidc_static_long_double_control_double_narrowing_oracles[0]));
+       index++) {
+    if (!little_integer_payload_matches(
+            rodata, symbol_offsets[2] + index * 8u, 8u,
+            cupidc_static_long_double_control_double_narrowing_oracles[index])) {
+      (void)fprintf(stderr,
+                    "static long-double-to-double payload %u differs\n",
+                    (unsigned int)index);
+      return 0;
+    }
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(cupidc_static_long_double_control_truth_oracles) /
+                           sizeof(cupidc_static_long_double_control_truth_oracles[0]));
+       index++) {
+    if (!little_integer_payload_matches(
+            rodata, symbol_offsets[3] + index * 4u, 4u,
+            cupidc_static_long_double_control_truth_oracles[index])) {
+      return 0;
+    }
+  }
+  for (index = 0u;
+       index <
+           (ctool_u32)(sizeof(cupidc_static_long_double_control_comparison_oracles) /
+                       sizeof(cupidc_static_long_double_control_comparison_oracles[0]));
+       index++) {
+    if (!little_integer_payload_matches(
+            rodata, symbol_offsets[4] + index * 4u, 4u,
+            cupidc_static_long_double_control_comparison_oracles[index])) {
+      return 0;
+    }
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(cupidc_static_long_double_control_logic_oracles) /
+                           sizeof(cupidc_static_long_double_control_logic_oracles[0]));
+       index++) {
+    if (!little_integer_payload_matches(
+            rodata, symbol_offsets[5] + index * 4u, 4u,
+            cupidc_static_long_double_control_logic_oracles[index])) {
+      return 0;
+    }
+  }
+  for (index = 0u;
+       index <
+           (ctool_u32)(sizeof(cupidc_static_long_double_control_choice_oracles) /
+                       sizeof(cupidc_static_long_double_control_choice_oracles[0]));
+       index++) {
+    const cupidc_static_long_double_control_floating_oracle_t *oracle =
+        &cupidc_static_long_double_control_choice_oracles[index];
+    if (!long_double_payload_matches(
+            rodata, symbol_offsets[6] + index * 12u,
+            oracle->bits, oracle->high_bits)) {
+      (void)fprintf(stderr,
+                    "static long double conditional payload %u differs\n",
+                    (unsigned int)index);
+      return 0;
+    }
+  }
+  return 1;
+}
+
 static int validate_long_double_static_object(
     const ctool_c_translation_unit_t *unit,
     const ctool_elf32_object_t *object) {
@@ -29382,6 +29716,21 @@ static int run_floating_transport_object(const char *host_root) {
       "                  long_double_file_array[1] +\n"
       "                  long_double_file_record.second);\n"
       "}\n";
+  static const char static_long_double_control_canonical_source[] =
+      "static const int static_long_double_truth[4] = {\n"
+      "  1, 1, 0, 0\n"
+      "};\n"
+      "static const int static_long_double_comparisons[21] = {\n"
+      "  1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1,\n"
+      "  1, 1, 1, 1, 1, 1, 1\n"
+      "};\n"
+      "static const int static_long_double_logic[6] = {\n"
+      "  1, 0, 1, 1, 0, 1\n"
+      "};\n"
+      "static const long double static_long_double_choices[7] = {\n"
+      "  +2.0L, -2.0L, 1.0000000000000000001L,\n"
+      "  -0.0L, 1.5L, 3.0L, 18446744073709551615e0L\n"
+      "};\n";
   char source[sizeof(source_prefix) + sizeof(source_suffix) - 1u];
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
@@ -29401,10 +29750,16 @@ static int run_floating_transport_object(const char *host_root) {
       (ctool_buffer_t *)0;
   ctool_buffer_t *static_integer_conversion_repeat_output =
       (ctool_buffer_t *)0;
+  ctool_buffer_t *static_control_output = (ctool_buffer_t *)0;
+  ctool_buffer_t *static_control_repeat_output = (ctool_buffer_t *)0;
+  ctool_buffer_t *static_control_canonical_output =
+      (ctool_buffer_t *)0;
   ctool_c_translation_unit_t unit;
   ctool_c_translation_unit_t long_double_unit;
   ctool_c_translation_unit_t long_double_aggregate_unit;
   ctool_c_translation_unit_t static_integer_conversion_unit;
+  ctool_c_translation_unit_t static_control_unit;
+  ctool_c_translation_unit_t static_control_canonical_unit;
   ctool_c_translation_unit_t invalid_promotion_unit;
   ctool_c_translation_unit_t invalid_initializer_unit;
   ctool_c_translation_unit_t invalid_integer_initializer_unit;
@@ -29421,6 +29776,8 @@ static int run_floating_transport_object(const char *host_root) {
   ctool_elf32_object_t long_double_object;
   ctool_elf32_object_t long_double_aggregate_object;
   ctool_elf32_object_t static_integer_conversion_object;
+  ctool_elf32_object_t static_control_object;
+  ctool_elf32_object_t static_control_canonical_object;
   ctool_bytes_t first_bytes;
   ctool_bytes_t second_bytes;
   ctool_status_t status;
@@ -29471,6 +29828,14 @@ static int run_floating_transport_object(const char *host_root) {
           job, "/static-long-double-integer.c",
           cupidc_static_long_double_integer_source, CTOOL_TRUE,
           &static_integer_conversion_unit) ||
+      !parse_source_mode(
+          job, "/static-long-double-control.c",
+          cupidc_static_long_double_control_source, CTOOL_TRUE,
+          &static_control_unit) ||
+      !parse_source_mode(
+          job, "/static-long-double-control-canonical.c",
+          static_long_double_control_canonical_source, CTOOL_TRUE,
+          &static_control_canonical_unit) ||
       unit.function_definition_count != 43u) {
     (void)fprintf(stderr, "floating transport object setup failed\n");
     goto cleanup;
@@ -29826,6 +30191,21 @@ static int run_floating_transport_object(const char *host_root) {
         job, 1024u, config.limits.output_bytes,
         &static_integer_conversion_repeat_output);
   }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes,
+        &static_control_output);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes,
+        &static_control_repeat_output);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(
+        job, 1024u, config.limits.output_bytes,
+        &static_control_canonical_output);
+  }
   if (!check_status(status, CTOOL_OK, "floating transport buffers") ||
       !expect_object_success_preserves_unit(
           job, &unit, first, "first floating transport object") ||
@@ -29852,7 +30232,17 @@ static int run_floating_transport_object(const char *host_root) {
       !expect_object_success_preserves_unit(
           job, &static_integer_conversion_unit,
           static_integer_conversion_repeat_output,
-          "repeat static long double integer conversion object")) {
+          "repeat static long double integer conversion object") ||
+      !expect_object_success_preserves_unit(
+          job, &static_control_unit, static_control_output,
+          "static long double control object") ||
+      !expect_object_success_preserves_unit(
+          job, &static_control_unit, static_control_repeat_output,
+          "repeat static long double control object") ||
+      !expect_object_success_preserves_unit(
+          job, &static_control_canonical_unit,
+          static_control_canonical_output,
+          "canonical static long double control object")) {
     (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
@@ -30318,8 +30708,68 @@ static int run_floating_transport_object(const char *host_root) {
         "static long double integer conversion objects are not deterministic\n");
     goto cleanup;
   }
+  first_bytes = ctool_buffer_view(static_control_output);
+  second_bytes = ctool_buffer_view(static_control_repeat_output);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0) {
+    (void)fprintf(
+        stderr, "static long double control objects are not deterministic\n");
+    goto cleanup;
+  }
+  if (!expect_object_failure_preserves_unit(
+          job, &static_control_unit, limited, CTOOL_ERR_LIMIT,
+          CTOOL_C_EMIT_DIAG_LIMIT, NULL,
+          "limited static long double control object") ||
+      ctool_buffer_rewind(static_control_repeat_output, 0u) != CTOOL_OK ||
+      !expect_object_success_preserves_unit(
+          job, &static_control_unit, static_control_repeat_output,
+          "recovered static long double control object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  second_bytes = ctool_buffer_view(static_control_repeat_output);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0) {
+    (void)fprintf(
+        stderr, "static long double control recovery changed the output\n");
+    goto cleanup;
+  }
+  object_source.path.text =
+      ctool_string("/static-long-double-control.o");
+  object_source.contents = second_bytes;
+  (void)memset(
+      &static_control_object, 0xa5, sizeof(static_control_object));
+  status = ctool_elf32_read(job, &object_source, &static_control_object);
+  if (!check_status(status, CTOOL_OK,
+                    "read static long double control object") ||
+      !validate_static_long_double_control_object(
+          &static_control_unit, &static_control_object, second_bytes)) {
+    (void)fprintf(stderr, "static long double control object differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  object_source.path.text =
+      ctool_string("/static-long-double-control-canonical.o");
+  object_source.contents =
+      ctool_buffer_view(static_control_canonical_output);
+  (void)memset(&static_control_canonical_object, 0xa5,
+               sizeof(static_control_canonical_object));
+  status = ctool_elf32_read(
+      job, &object_source, &static_control_canonical_object);
+  if (!check_status(status, CTOOL_OK,
+                    "read canonical static long double control object") ||
+      !static_control_symbol_payloads_match(
+          &static_control_object, &static_control_canonical_object)) {
+    (void)fprintf(
+        stderr, "canonical static long double control object differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
   object_source.path.text =
       ctool_string("/static-long-double-integer.o");
+  first_bytes = ctool_buffer_view(static_integer_conversion_output);
   object_source.contents = first_bytes;
   (void)memset(
       &static_integer_conversion_object, 0xa5,
@@ -30438,6 +30888,15 @@ cleanup:
   }
   if (static_integer_conversion_repeat_output != (ctool_buffer_t *)0) {
     ctool_buffer_close(static_integer_conversion_repeat_output);
+  }
+  if (static_control_output != (ctool_buffer_t *)0) {
+    ctool_buffer_close(static_control_output);
+  }
+  if (static_control_repeat_output != (ctool_buffer_t *)0) {
+    ctool_buffer_close(static_control_repeat_output);
+  }
+  if (static_control_canonical_output != (ctool_buffer_t *)0) {
+    ctool_buffer_close(static_control_canonical_output);
   }
   if (failure != (ctool_buffer_t *)0) {
     ctool_buffer_close(failure);
@@ -30913,20 +31372,20 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.cc",           "/toolchain/x86.cc",
       "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
-      65u, 71u, 82u, 140u, 31u, 143u, 269u, 366u, 430u, 82u, 37u, 60u,
+      65u, 71u, 82u, 140u, 31u, 143u, 269u, 366u, 435u, 82u, 37u, 60u,
       5u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 78841u, 118477u, 183181u, 42212u,
-      190304u, 495395u, 574128u, 868569u, 146398u, 70368u, 80933u,
+      190304u, 495395u, 574128u, 870978u, 146398u, 70368u, 80933u,
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 91460u, 137444u, 220508u, 49484u,
-      226668u, 534004u, 644300u, 1032532u, 165728u, 79348u, 136164u,
+      226668u, 534004u, 644300u, 1035308u, 165728u, 79348u, 136164u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x6a4e9e64u, 0xae15dc9eu,
       0x90f1448fu, 0x999f97b7u, 0xb49d8eb9u,
-      0x68838a8eu, 0x4a968c97u, 0x9da02de5u, 0x9f35cab4u,
+      0x68838a8eu, 0x4a968c97u, 0x70293b8du, 0x9f35cab4u,
       0x34558a49u, 0x6b4b77aeu, 0x8774de7du};
   ctool_u32 index;
   int all_matched = 1;

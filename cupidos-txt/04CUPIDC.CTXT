@@ -486,7 +486,7 @@ across the cdecl call.
 
 The scalar forms emit EC, EE, 66 ED, 66 EF, ED, and EF. INSW and OUTSW emit
 FC F3 66 6D and FC F3 66 6F through the shared x86 model. The checked-seed C11
-standalone sweep passes 158 of 160 active non-Doom headers. scheduler.h and
+standalone sweep passes 159 of 161 active non-Doom headers. scheduler.h and
 simd_intrin.h remain exact C11-profile failures. The checked seed parses all 29
 simd_intrin.h declarations under the Cupid profile through the shared native
 type graph.
@@ -648,16 +648,21 @@ those five fields and on alignment. A QUALIFIED node copies referenced
 alignment unless it introduces _Atomic. An atomic introduction at any layer
 raises alignment to at least the target atomic alignment. An
 ALIGNED node requires an explicit, nonzero power-of-two alignment and may lower
-the referenced alignment. _Bool
-has one payload bit. The check runs during whole-unit initializer ownership
-and block-static declaration lowering.
+the referenced alignment. _Bool has one payload bit. The check runs during
+whole-unit initializer ownership and block-static declaration lowering.
+Static long-double truth, all six comparisons, short-circuit logic, and
+conditional selection use a shared target-only decoder. Finite binary32 and
+binary64 values widen exactly to x87, including a subnormal result produced by
+static binary32 arithmetic. Represented finite long-double values narrow with
+round-to-nearest, ties-to-even packing. Folded expressions add no runtime IR.
 Hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
-bounded parser, static long-double arithmetic, comparison, truth and logical
-operators, conditional selection, and floating-width conversion, other
-floating-to-wide conversions, runtime mixed integer and floating arithmetic
-or conditional arms, increment and decrement, general SIMD value semantics,
-floating atomic access, and over-aligned object emission remain unfinished.
+bounded parser, static long-double arithmetic, widening infinity or NaN from
+float or double to long double, other floating-to-wide conversions, runtime
+mixed integer and floating
+arithmetic or conditional arms, increment and decrement, general SIMD value
+semantics, floating atomic access, and over-aligned object emission remain
+unfinished.
 The exact production SIMD
 assembly forms have their own checked path. Matching or mixed-width floating
 conditional arms and the four arithmetic compound assignments keep their
@@ -670,7 +675,8 @@ emission. The hosted i386 runtime reads all three target words for every
 literal payload. The shared conversion fixture covers every integer kind,
 signed and unsigned enums, both signed 64-bit endpoints, ULLONG_MAX, and both
 the _Bool and unsigned results of -0.5L. ADR 0251 records the static-data
-boundary, and ADR 0254 records conversion.
+boundary, ADR 0254 records integer conversion, and ADR 0255 records static
+controls and finite width conversion.
 
 Plain assignment, all ten compound assignments, and prefix and postfix update
 work for non-atomic integer bit fields whose declared storage unit is four

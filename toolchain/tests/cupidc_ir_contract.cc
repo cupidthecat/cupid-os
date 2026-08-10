@@ -3,6 +3,7 @@
 #include "cupidc_frontend.h"
 #include "cupidc_ir.h"
 #include "cupidc_pp.h"
+#include "cupidc_static_long_double_control_fixture.h"
 #include "cupidc_static_long_double_integer_fixture.h"
 
 #include <stdint.h>
@@ -30111,6 +30112,494 @@ static int expect_static_long_double_integer_mutation_rejected(
              : 0;
 }
 
+static int static_long_double_control_forest_matches(
+    const ctool_c_translation_unit_t *unit) {
+  const ctool_u32 widening_count =
+      (ctool_u32)(
+          sizeof(cupidc_static_long_double_control_widening_oracles) /
+          sizeof(cupidc_static_long_double_control_widening_oracles[0]));
+  const ctool_u32 float_narrowing_count =
+      (ctool_u32)(
+          sizeof(
+              cupidc_static_long_double_control_float_narrowing_oracles) /
+          sizeof(
+              cupidc_static_long_double_control_float_narrowing_oracles[0]));
+  const ctool_u32 double_narrowing_count =
+      (ctool_u32)(
+          sizeof(
+              cupidc_static_long_double_control_double_narrowing_oracles) /
+          sizeof(
+              cupidc_static_long_double_control_double_narrowing_oracles[0]));
+  const ctool_u32 truth_count =
+      (ctool_u32)(sizeof(cupidc_static_long_double_control_truth_oracles) /
+                  sizeof(cupidc_static_long_double_control_truth_oracles[0]));
+  const ctool_u32 comparison_count =
+      (ctool_u32)(
+          sizeof(cupidc_static_long_double_control_comparison_oracles) /
+          sizeof(cupidc_static_long_double_control_comparison_oracles[0]));
+  const ctool_u32 logic_count =
+      (ctool_u32)(sizeof(cupidc_static_long_double_control_logic_oracles) /
+                  sizeof(cupidc_static_long_double_control_logic_oracles[0]));
+  const ctool_u32 choice_count =
+      (ctool_u32)(sizeof(cupidc_static_long_double_control_choice_oracles) /
+                  sizeof(cupidc_static_long_double_control_choice_oracles[0]));
+  const ctool_u32 zero_choice_count =
+      (ctool_u32)(
+          sizeof(cupidc_static_long_double_control_zero_choice_oracles) /
+          sizeof(cupidc_static_long_double_control_zero_choice_oracles[0]));
+  const ctool_c_object_definition_t *widened_definition;
+  const ctool_c_object_definition_t *narrowed_float_definition;
+  const ctool_c_object_definition_t *narrowed_double_definition;
+  const ctool_c_object_definition_t *truth_definition;
+  const ctool_c_object_definition_t *comparison_definition;
+  const ctool_c_object_definition_t *logic_definition;
+  const ctool_c_object_definition_t *choice_definition;
+  const ctool_c_object_definition_t *positive_zero_definition;
+  const ctool_c_object_definition_t *negative_zero_definition;
+  const ctool_c_type_node_t *widened_array;
+  const ctool_c_type_node_t *narrowed_float_array;
+  const ctool_c_type_node_t *narrowed_double_array;
+  const ctool_c_type_node_t *truth_array;
+  const ctool_c_type_node_t *comparison_array;
+  const ctool_c_type_node_t *logic_array;
+  const ctool_c_type_node_t *choice_array;
+  const ctool_c_initializer_t *widened_root;
+  const ctool_c_initializer_t *narrowed_float_root;
+  const ctool_c_initializer_t *narrowed_double_root;
+  const ctool_c_initializer_t *truth_root;
+  const ctool_c_initializer_t *comparison_root;
+  const ctool_c_initializer_t *logic_root;
+  const ctool_c_initializer_t *choice_root;
+  const ctool_c_initializer_t *positive_zero_root;
+  const ctool_c_initializer_t *negative_zero_root;
+  ctool_u32 widened_qualifiers = 0u;
+  ctool_u32 narrowed_float_qualifiers = 0u;
+  ctool_u32 narrowed_double_qualifiers = 0u;
+  ctool_u32 truth_qualifiers = 0u;
+  ctool_u32 comparison_qualifiers = 0u;
+  ctool_u32 logic_qualifiers = 0u;
+  ctool_u32 choice_qualifiers = 0u;
+  ctool_u32 positive_zero_qualifiers = 0u;
+  ctool_u32 negative_zero_qualifiers = 0u;
+  ctool_u32 index;
+
+  if (unit == NULL) {
+    return 0;
+  }
+  widened_definition = static_fixture_object_definition(
+      unit, "static_float_to_long_double");
+  narrowed_float_definition = static_fixture_object_definition(
+      unit, "static_long_double_to_float");
+  narrowed_double_definition = static_fixture_object_definition(
+      unit, "static_long_double_to_double");
+  truth_definition = static_fixture_object_definition(
+      unit, "static_long_double_truth");
+  comparison_definition = static_fixture_object_definition(
+      unit, "static_long_double_comparisons");
+  logic_definition = static_fixture_object_definition(
+      unit, "static_long_double_logic");
+  choice_definition = static_fixture_object_definition(
+      unit, "static_long_double_choices");
+  positive_zero_definition = static_fixture_object_definition(
+      unit, "static_long_double_positive_zero_choice");
+  negative_zero_definition = static_fixture_object_definition(
+      unit, "static_long_double_negative_zero_choice");
+  widened_array = widened_definition == NULL
+                       ? NULL
+                       : static_fixture_unwrapped_type(
+                             unit, widened_definition->declared_type, NULL);
+  narrowed_float_array =
+      narrowed_float_definition == NULL
+          ? NULL
+          : static_fixture_unwrapped_type(
+                unit, narrowed_float_definition->declared_type, NULL);
+  narrowed_double_array =
+      narrowed_double_definition == NULL
+          ? NULL
+          : static_fixture_unwrapped_type(
+                unit, narrowed_double_definition->declared_type, NULL);
+  truth_array = truth_definition == NULL
+                    ? NULL
+                    : static_fixture_unwrapped_type(
+                          unit, truth_definition->declared_type, NULL);
+  comparison_array =
+      comparison_definition == NULL
+          ? NULL
+          : static_fixture_unwrapped_type(
+                unit, comparison_definition->declared_type, NULL);
+  logic_array = logic_definition == NULL
+                    ? NULL
+                    : static_fixture_unwrapped_type(
+                          unit, logic_definition->declared_type, NULL);
+  choice_array = choice_definition == NULL
+                     ? NULL
+                     : static_fixture_unwrapped_type(
+                           unit, choice_definition->declared_type, NULL);
+  widened_root = widened_definition == NULL
+                     ? NULL
+                     : static_fixture_initializer(
+                           unit, widened_definition->initializer);
+  narrowed_float_root =
+      narrowed_float_definition == NULL
+          ? NULL
+          : static_fixture_initializer(
+                unit, narrowed_float_definition->initializer);
+  narrowed_double_root =
+      narrowed_double_definition == NULL
+          ? NULL
+          : static_fixture_initializer(
+                unit, narrowed_double_definition->initializer);
+  truth_root = truth_definition == NULL
+                   ? NULL
+                   : static_fixture_initializer(
+                         unit, truth_definition->initializer);
+  comparison_root =
+      comparison_definition == NULL
+          ? NULL
+          : static_fixture_initializer(
+                unit, comparison_definition->initializer);
+  logic_root = logic_definition == NULL
+                   ? NULL
+                   : static_fixture_initializer(
+                         unit, logic_definition->initializer);
+  choice_root = choice_definition == NULL
+                    ? NULL
+                    : static_fixture_initializer(
+                          unit, choice_definition->initializer);
+  positive_zero_root =
+      positive_zero_definition == NULL
+          ? NULL
+          : static_fixture_initializer(
+                unit, positive_zero_definition->initializer);
+  negative_zero_root =
+      negative_zero_definition == NULL
+          ? NULL
+          : static_fixture_initializer(
+                unit, negative_zero_definition->initializer);
+
+  if (widening_count != 7u || float_narrowing_count != 4u ||
+      double_narrowing_count != 4u || truth_count != 4u ||
+      comparison_count != 21u || logic_count != 6u ||
+      choice_count != 7u || zero_choice_count != 2u ||
+      unit->object_definition_count != 9u ||
+      unit->object_definitions == NULL ||
+      unit->function_definition_count != 0u ||
+      unit->block_binding_count != 0u || unit->expression_count != 0u ||
+      unit->expression_child_count != 0u || unit->initializer_count != 62u ||
+      unit->initializer_element_count != 53u ||
+      widened_definition != &unit->object_definitions[0] ||
+      narrowed_float_definition != &unit->object_definitions[1] ||
+      narrowed_double_definition != &unit->object_definitions[2] ||
+      truth_definition != &unit->object_definitions[3] ||
+      comparison_definition != &unit->object_definitions[4] ||
+      logic_definition != &unit->object_definitions[5] ||
+      choice_definition != &unit->object_definitions[6] ||
+      positive_zero_definition != &unit->object_definitions[7] ||
+      negative_zero_definition != &unit->object_definitions[8] ||
+      widened_definition->storage != CTOOL_C_STORAGE_STATIC ||
+      widened_definition->kind != CTOOL_C_OBJECT_DEFINITION_EXPLICIT ||
+      widened_definition->initializer != 7u ||
+      narrowed_float_definition->storage != CTOOL_C_STORAGE_STATIC ||
+      narrowed_float_definition->kind !=
+          CTOOL_C_OBJECT_DEFINITION_EXPLICIT ||
+      narrowed_float_definition->initializer != 12u ||
+      narrowed_double_definition->storage != CTOOL_C_STORAGE_STATIC ||
+      narrowed_double_definition->kind !=
+          CTOOL_C_OBJECT_DEFINITION_EXPLICIT ||
+      narrowed_double_definition->initializer != 17u ||
+      truth_definition->storage != CTOOL_C_STORAGE_STATIC ||
+      truth_definition->kind != CTOOL_C_OBJECT_DEFINITION_EXPLICIT ||
+      truth_definition->initializer != 22u ||
+      comparison_definition->storage != CTOOL_C_STORAGE_STATIC ||
+      comparison_definition->kind != CTOOL_C_OBJECT_DEFINITION_EXPLICIT ||
+      comparison_definition->initializer != 44u ||
+      logic_definition->storage != CTOOL_C_STORAGE_STATIC ||
+      logic_definition->kind != CTOOL_C_OBJECT_DEFINITION_EXPLICIT ||
+      logic_definition->initializer != 51u ||
+      choice_definition->storage != CTOOL_C_STORAGE_STATIC ||
+      choice_definition->kind != CTOOL_C_OBJECT_DEFINITION_EXPLICIT ||
+      choice_definition->initializer != 59u ||
+      positive_zero_definition->storage != CTOOL_C_STORAGE_STATIC ||
+      positive_zero_definition->kind !=
+          CTOOL_C_OBJECT_DEFINITION_EXPLICIT ||
+      positive_zero_definition->initializer != 60u ||
+      negative_zero_definition->storage != CTOOL_C_STORAGE_STATIC ||
+      negative_zero_definition->kind !=
+          CTOOL_C_OBJECT_DEFINITION_EXPLICIT ||
+      negative_zero_definition->initializer != 61u ||
+      widened_array == NULL ||
+      widened_array->kind != CTOOL_C_TYPE_ARRAY ||
+      widened_array->array_bound_kind != CTOOL_C_ARRAY_FIXED ||
+      widened_array->element_count != widening_count ||
+      static_fixture_unwrapped_type(
+          unit, widened_array->referenced_type,
+          &widened_qualifiers) == NULL ||
+      static_fixture_unwrapped_type(
+          unit, widened_array->referenced_type,
+          &widened_qualifiers)->kind != CTOOL_C_TYPE_LONG_DOUBLE ||
+      widened_qualifiers != CTOOL_C_QUAL_CONST ||
+      narrowed_float_array == NULL ||
+      narrowed_float_array->kind != CTOOL_C_TYPE_ARRAY ||
+      narrowed_float_array->array_bound_kind != CTOOL_C_ARRAY_FIXED ||
+      narrowed_float_array->element_count != float_narrowing_count ||
+      static_fixture_unwrapped_type(
+          unit, narrowed_float_array->referenced_type,
+          &narrowed_float_qualifiers) == NULL ||
+      static_fixture_unwrapped_type(
+          unit, narrowed_float_array->referenced_type,
+          &narrowed_float_qualifiers)->kind != CTOOL_C_TYPE_FLOAT ||
+      narrowed_float_qualifiers != CTOOL_C_QUAL_CONST ||
+      narrowed_double_array == NULL ||
+      narrowed_double_array->kind != CTOOL_C_TYPE_ARRAY ||
+      narrowed_double_array->array_bound_kind != CTOOL_C_ARRAY_FIXED ||
+      narrowed_double_array->element_count != double_narrowing_count ||
+      static_fixture_unwrapped_type(
+          unit, narrowed_double_array->referenced_type,
+          &narrowed_double_qualifiers) == NULL ||
+      static_fixture_unwrapped_type(
+          unit, narrowed_double_array->referenced_type,
+          &narrowed_double_qualifiers)->kind != CTOOL_C_TYPE_DOUBLE ||
+      narrowed_double_qualifiers != CTOOL_C_QUAL_CONST ||
+      truth_array == NULL || truth_array->kind != CTOOL_C_TYPE_ARRAY ||
+      truth_array->array_bound_kind != CTOOL_C_ARRAY_FIXED ||
+      truth_array->element_count != truth_count ||
+      static_fixture_unwrapped_type(
+          unit, truth_array->referenced_type,
+          &truth_qualifiers) == NULL ||
+      static_fixture_unwrapped_type(
+          unit, truth_array->referenced_type,
+          &truth_qualifiers)->kind != CTOOL_C_TYPE_SIGNED_INT ||
+      truth_qualifiers != CTOOL_C_QUAL_CONST || comparison_array == NULL ||
+      comparison_array->kind != CTOOL_C_TYPE_ARRAY ||
+      comparison_array->array_bound_kind != CTOOL_C_ARRAY_FIXED ||
+      comparison_array->element_count != comparison_count ||
+      static_fixture_unwrapped_type(
+          unit, comparison_array->referenced_type,
+          &comparison_qualifiers) == NULL ||
+      static_fixture_unwrapped_type(
+          unit, comparison_array->referenced_type,
+          &comparison_qualifiers)->kind != CTOOL_C_TYPE_SIGNED_INT ||
+      comparison_qualifiers != CTOOL_C_QUAL_CONST || logic_array == NULL ||
+      logic_array->kind != CTOOL_C_TYPE_ARRAY ||
+      logic_array->array_bound_kind != CTOOL_C_ARRAY_FIXED ||
+      logic_array->element_count != logic_count ||
+      static_fixture_unwrapped_type(
+          unit, logic_array->referenced_type,
+          &logic_qualifiers) == NULL ||
+      static_fixture_unwrapped_type(
+          unit, logic_array->referenced_type,
+          &logic_qualifiers)->kind != CTOOL_C_TYPE_SIGNED_INT ||
+      logic_qualifiers != CTOOL_C_QUAL_CONST || choice_array == NULL ||
+      choice_array->kind != CTOOL_C_TYPE_ARRAY ||
+      choice_array->array_bound_kind != CTOOL_C_ARRAY_FIXED ||
+      choice_array->element_count != choice_count ||
+      static_fixture_unwrapped_type(
+          unit, choice_array->referenced_type,
+          &choice_qualifiers) == NULL ||
+      static_fixture_unwrapped_type(
+          unit, choice_array->referenced_type,
+          &choice_qualifiers)->kind != CTOOL_C_TYPE_LONG_DOUBLE ||
+      choice_qualifiers != CTOOL_C_QUAL_CONST ||
+      static_fixture_unwrapped_type(
+          unit, positive_zero_definition->declared_type,
+          &positive_zero_qualifiers) == NULL ||
+      static_fixture_unwrapped_type(
+          unit, positive_zero_definition->declared_type,
+          &positive_zero_qualifiers)->kind != CTOOL_C_TYPE_LONG_DOUBLE ||
+      positive_zero_qualifiers != 0u ||
+      static_fixture_unwrapped_type(
+          unit, negative_zero_definition->declared_type,
+          &negative_zero_qualifiers) == NULL ||
+      static_fixture_unwrapped_type(
+          unit, negative_zero_definition->declared_type,
+          &negative_zero_qualifiers)->kind != CTOOL_C_TYPE_LONG_DOUBLE ||
+      negative_zero_qualifiers != 0u ||
+      static_fixture_scalar_initializer_matches(
+          positive_zero_root,
+          cupidc_static_long_double_control_zero_choice_oracles[0].kind,
+          positive_zero_definition->declared_type,
+          cupidc_static_long_double_control_zero_choice_oracles[0].bits,
+          cupidc_static_long_double_control_zero_choice_oracles[0]
+              .high_bits) == 0 ||
+      static_fixture_scalar_initializer_matches(
+          negative_zero_root,
+          cupidc_static_long_double_control_zero_choice_oracles[1].kind,
+          negative_zero_definition->declared_type,
+          cupidc_static_long_double_control_zero_choice_oracles[1].bits,
+          cupidc_static_long_double_control_zero_choice_oracles[1]
+              .high_bits) == 0 ||
+      static_fixture_list_initializer_matches(
+          widened_root, widened_definition->declared_type, 0u,
+          widening_count) == 0 ||
+      static_fixture_list_initializer_matches(
+          narrowed_float_root, narrowed_float_definition->declared_type,
+          7u, float_narrowing_count) == 0 ||
+      static_fixture_list_initializer_matches(
+          narrowed_double_root, narrowed_double_definition->declared_type,
+          11u, double_narrowing_count) == 0 ||
+      static_fixture_list_initializer_matches(
+          truth_root, truth_definition->declared_type, 15u,
+          truth_count) == 0 ||
+      static_fixture_list_initializer_matches(
+          comparison_root, comparison_definition->declared_type, 19u,
+          comparison_count) == 0 ||
+      static_fixture_list_initializer_matches(
+          logic_root, logic_definition->declared_type, 40u,
+          logic_count) == 0 ||
+      static_fixture_list_initializer_matches(
+          choice_root, choice_definition->declared_type, 46u,
+          choice_count) == 0) {
+    (void)fprintf(
+        stderr,
+        "floating-transport: static long-double control forest differs\n");
+    return 0;
+  }
+
+  for (index = 0u; index < widening_count; index++) {
+    const cupidc_static_long_double_control_floating_oracle_t *oracle =
+        &cupidc_static_long_double_control_widening_oracles[index];
+    const ctool_c_initializer_t *initializer = static_fixture_list_child(
+        unit, widened_root, index, index, index);
+    if (static_fixture_scalar_initializer_matches(
+            initializer, CTOOL_C_INITIALIZER_FLOATING,
+            widened_array->referenced_type, oracle->bits,
+            oracle->high_bits) == 0) {
+      (void)fprintf(
+          stderr,
+          "floating-transport: widened control leaf %u differs\n",
+          (unsigned int)index);
+      return 0;
+    }
+  }
+  for (index = 0u; index < float_narrowing_count; index++) {
+    const ctool_c_initializer_t *initializer = static_fixture_list_child(
+        unit, narrowed_float_root, index, index, 8u + index);
+    if (static_fixture_scalar_initializer_matches(
+            initializer, CTOOL_C_INITIALIZER_FLOATING,
+            narrowed_float_array->referenced_type,
+            cupidc_static_long_double_control_float_narrowing_oracles[index],
+            0u) == 0) {
+      (void)fprintf(
+          stderr,
+          "floating-transport: narrowed float control leaf %u differs\n",
+          (unsigned int)index);
+      return 0;
+    }
+  }
+  for (index = 0u; index < double_narrowing_count; index++) {
+    const ctool_c_initializer_t *initializer = static_fixture_list_child(
+        unit, narrowed_double_root, index, index, 13u + index);
+    if (static_fixture_scalar_initializer_matches(
+            initializer, CTOOL_C_INITIALIZER_FLOATING,
+            narrowed_double_array->referenced_type,
+            cupidc_static_long_double_control_double_narrowing_oracles[index],
+            0u) == 0) {
+      (void)fprintf(
+          stderr,
+          "floating-transport: narrowed double control leaf %u differs\n",
+          (unsigned int)index);
+      return 0;
+    }
+  }
+  for (index = 0u; index < truth_count; index++) {
+    const ctool_c_initializer_t *initializer = static_fixture_list_child(
+        unit, truth_root, index, index, 18u + index);
+    if (static_fixture_scalar_initializer_matches(
+            initializer, CTOOL_C_INITIALIZER_INTEGER,
+            truth_array->referenced_type,
+            cupidc_static_long_double_control_truth_oracles[index], 0u) ==
+        0) {
+      (void)fprintf(
+          stderr,
+          "floating-transport: truth control leaf %u differs\n",
+          (unsigned int)index);
+      return 0;
+    }
+  }
+  for (index = 0u; index < comparison_count; index++) {
+    const ctool_c_initializer_t *initializer = static_fixture_list_child(
+        unit, comparison_root, index, index, 23u + index);
+    if (static_fixture_scalar_initializer_matches(
+            initializer, CTOOL_C_INITIALIZER_INTEGER,
+            comparison_array->referenced_type,
+            cupidc_static_long_double_control_comparison_oracles[index],
+            0u) == 0) {
+      (void)fprintf(
+          stderr,
+          "floating-transport: comparison control leaf %u differs\n",
+          (unsigned int)index);
+      return 0;
+    }
+  }
+  for (index = 0u; index < logic_count; index++) {
+    const ctool_c_initializer_t *initializer = static_fixture_list_child(
+        unit, logic_root, index, index, 45u + index);
+    if (static_fixture_scalar_initializer_matches(
+            initializer, CTOOL_C_INITIALIZER_INTEGER,
+            logic_array->referenced_type,
+            cupidc_static_long_double_control_logic_oracles[index], 0u) ==
+        0) {
+      (void)fprintf(
+          stderr,
+          "floating-transport: logic control leaf %u differs\n",
+          (unsigned int)index);
+      return 0;
+    }
+  }
+  for (index = 0u; index < choice_count; index++) {
+    const cupidc_static_long_double_control_floating_oracle_t *oracle =
+        &cupidc_static_long_double_control_choice_oracles[index];
+    const ctool_c_initializer_t *initializer = static_fixture_list_child(
+        unit, choice_root, index, index, 52u + index);
+    if (static_fixture_scalar_initializer_matches(
+            initializer, CTOOL_C_INITIALIZER_FLOATING,
+            choice_array->referenced_type, oracle->bits,
+            oracle->high_bits) == 0) {
+      (void)fprintf(
+          stderr,
+          "floating-transport: choice control leaf %u differs\n",
+          (unsigned int)index);
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static int static_long_double_control_ir_matches(
+    const ctool_c_ir_unit_t *ir) {
+  if (ir == NULL || ir->file_assembly_count != 0u ||
+      ir->file_assemblies != NULL || ir->function_count != 0u ||
+      ir->functions != NULL || ir->instruction_count != 0u ||
+      ir->instructions != NULL || ir->argument_type_count != 0u ||
+      ir->argument_types != NULL) {
+    (void)fprintf(
+        stderr,
+        "floating-transport: static long-double control emitted runtime work\n");
+    return 0;
+  }
+  return 1;
+}
+
+static int expect_static_long_double_control_ir_success(
+    ctool_job_t *job, const ctool_c_translation_unit_t *unit,
+    const char *context) {
+  ctool_c_ir_unit_t ir;
+  ctool_u32 diagnostic_count = ctool_job_diagnostic_count(job);
+  uint64_t fingerprint = unit_fingerprint(unit);
+  ctool_status_t status;
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  status = ctool_c_lower_ir(job, unit, &ir);
+  if (!check_status(status, CTOOL_OK, context) ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(unit) != fingerprint ||
+      static_long_double_control_forest_matches(unit) == 0 ||
+      static_long_double_control_ir_matches(&ir) == 0) {
+    (void)fprintf(stderr, "%s: success transaction differs\n", context);
+    return 0;
+  }
+  return 1;
+}
+
 static int run_floating_transport(const char *host_root) {
   static const char source[] =
       "typedef __builtin_va_list va_list;\n"
@@ -30274,6 +30763,7 @@ static int run_floating_transport(const char *host_root) {
   ctool_c_translation_unit_t atomic_integer_unit;
   ctool_c_translation_unit_t long_double_unit;
   ctool_c_translation_unit_t static_integer_unit;
+  ctool_c_translation_unit_t static_control_unit;
   ctool_c_translation_unit_t invalid_unit;
   ctool_c_translation_unit_t invalid_static_integer_unit;
   ctool_c_translation_unit_t invalid_promotion_unit;
@@ -30348,6 +30838,7 @@ static int run_floating_transport(const char *host_root) {
   (void)memset(&unit, 0, sizeof(unit));
   (void)memset(&atomic_integer_unit, 0, sizeof(atomic_integer_unit));
   (void)memset(&static_integer_unit, 0, sizeof(static_integer_unit));
+  (void)memset(&static_control_unit, 0, sizeof(static_control_unit));
   (void)memset(&ir, 0xa5, sizeof(ir));
   (void)memset(&repeat_ir, 0xa5, sizeof(repeat_ir));
   (void)memset(&recovered_ir, 0xa5, sizeof(recovered_ir));
@@ -30368,13 +30859,22 @@ static int run_floating_transport(const char *host_root) {
           job, "/static-long-double-integer.c",
           cupidc_static_long_double_integer_source, CTOOL_TRUE,
           &static_integer_unit) ||
+      !parse_source_mode(
+          job, "/static-long-double-control.c",
+          cupidc_static_long_double_control_source, CTOOL_TRUE,
+          &static_control_unit) ||
       !expect_ir_success_preserves_unit(
           job, &condition_unit, "floating truth boundary baseline") ||
       static_long_double_integer_forest_matches(
           &static_integer_unit) == 0 ||
       !expect_static_long_double_integer_ir_success(
           job, &static_integer_unit,
-          "static integer conversion baseline")) {
+          "static integer conversion baseline") ||
+      static_long_double_control_forest_matches(
+          &static_control_unit) == 0 ||
+      !expect_static_long_double_control_ir_success(
+          job, &static_control_unit,
+          "static long-double control baseline")) {
     goto cleanup;
   }
   atomic_integer_guard = find_object_initializer(
