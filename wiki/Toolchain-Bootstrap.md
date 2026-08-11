@@ -569,6 +569,13 @@ user executables have no unsupported instruction fallback. The remaining
 measured gap comes from a legacy native-oracle kernel and Doom corpus, not an
 active host-owned build path.
 
+Source-head CupidDis turns that census into a typed policy with
+`--require-known FILE [FILE...]`. It counts known, unknown, invalid, and
+truncated instructions only in selected code regions, validates every input,
+and writes no listing. Both active CupidASM relocatable objects pass while
+ordinary output keeps their relocation symbols. The current checked seed and
+normal build have not adopted the policy yet.
+
 Raw inspection uses an ordered range map with 16-bit code, 32-bit code, and
 data kinds. Code ranges enter the shared decoder, while data ranges print as
 literal `db` rows. The active SMP trampoline test assembles the unchanged

@@ -159,6 +159,22 @@ rows. The caller is responsible for placing each code transition between
 instructions. The older `--mode-at OFFSET:16|32` spelling remains available
 when every range contains code.
 
+### Requiring complete code coverage
+
+Source-head CupidDis can validate one or more files without printing a
+disassembly:
+
+```text
+cupiddis --require-known FILE [FILE...]
+```
+
+Success means every selected code region decoded without an unknown, invalid,
+or truncated instruction. A failure names the input and reports known,
+unknown, invalid, and truncated counts. CupidDis continues through later
+inputs so one run reports the whole failing set. Declared raw data and
+non-executable ELF regions do not count. Ordinary rendering still accepts one
+file and keeps its existing output.
+
 ### Hosted i386 commands
 
 CupidC emits the unchanged C source closures for CupidC, CupidASM, CupidDis,

@@ -823,6 +823,13 @@ the x87 integer forms' first CupidC runtime use.
 | Emulator verification | QEMU plus Python test harnesses | Same, augmented with staged bootstrap and tool parity tests | Retained test dependency; stabilize the observed GUI-terminal flake |
 | `kernel/smp/smp.cc` naked IPI root | Checked-seed CupidC through the verified kernel wrapper | Native normal-build CupidC with no host execution bridge | Production-owned by CupidC. The two call wrappers have no C frame and keep one typed `R_386_PC32` relocation; the panic entry is a complete local halt loop. The earlier `.c` compiler proof produced an 8,444-byte object with SHA-256 `806509a6dd1ac7eb34b7ffcb67a1f8852950663a274145584d0260da76dcba54`. The production `.cc` object remains 8,444 bytes and has SHA-256 `bd3189b2a1a6d15728c559172f5d6acca0889103428085cec8cc1024742a22d1`; its existing `__FILE__` diagnostic accounts for the new hash. The wrapper, image, and four-vCPU dual-NIC runtime gates pass. ADR 0156 records the compiler boundary, and ADR 0167 records the transfer. |
 
+The source-head CupidDis row now has an enforceable code-quality policy as
+well as rendered inspection. `--require-known` validates multiple files with
+typed known, unknown, invalid, and truncated counts and excludes bytes that the
+caller or ELF metadata classifies as non-code. The current checked seed and
+normal graph have not adopted that policy, so this step moves no production
+owner. ADR 0262 records the boundary.
+
 ADR 0141 records `noinline` and
 `target("general-regs-only")` semantics. ADR 0156 adds exact naked IPI
 semantics. All three facts survive compatible

@@ -136,6 +136,101 @@ static const char *dis_raw_map_message(dis_raw_map_issue_t issue) {
   }
 }
 
+static ctool_status_t
+dis_summarize_region(ctool_job_t *job, ctool_bytes_t bytes,
+                     ctool_x86_mode_t mode,
+                     ctool_dis_decode_summary_t *summary) {
+  ctool_u32 offset = 0u;
+  while (offset < bytes.size) {
+    ctool_x86_decoded_t decoded;
+    ctool_status_t status = ctool_x86_decode(job, mode, bytes, offset,
+                                              &decoded);
+    if (status != CTOOL_OK) {
+      return status;
+    }
+    switch (decoded.kind) {
+    case CTOOL_X86_DECODE_KNOWN:
+      summary->known_count++;
+      break;
+    case CTOOL_X86_DECODE_UNKNOWN:
+      summary->unknown_count++;
+      break;
+    case CTOOL_X86_DECODE_INVALID:
+      summary->invalid_count++;
+      break;
+    case CTOOL_X86_DECODE_TRUNCATED:
+      summary->truncated_count++;
+      decoded.consumed = decoded.encoding.size;
+      break;
+    default:
+      return CTOOL_ERR_INTERNAL;
+    }
+    if (decoded.consumed == 0u || decoded.consumed > bytes.size - offset) {
+      return CTOOL_ERR_INTERNAL;
+    }
+    offset += (ctool_u32)decoded.consumed;
+  }
+  return CTOOL_OK;
+}
+
+static ctool_status_t dis_prepare_decode_summary(
+    ctool_job_t *job, ctool_dis_report_t *report) {
+  ctool_u32 index;
+  ctool_status_t status = CTOOL_OK;
+  if ((report->views & CTOOL_DIS_VIEW_DISASSEMBLY) == 0u) {
+    return CTOOL_OK;
+  }
+  if (report->input == CTOOL_DIS_INPUT_RAW) {
+    if (report->mode != CTOOL_DIS_RAW_RANGE_MAP) {
+      return dis_summarize_region(job, report->source->contents, report->mode,
+                                  &report->decode_summary);
+    }
+    for (index = 0u; status == CTOOL_OK && index < report->raw_range_count;
+         index++) {
+      ctool_u32 first = report->raw_ranges[index].offset;
+      ctool_u32 last = index + 1u < report->raw_range_count
+                           ? report->raw_ranges[index + 1u].offset
+                           : report->source->contents.size;
+      if (report->raw_ranges[index].kind == CTOOL_DIS_RAW_RANGE_DATA) {
+        continue;
+      }
+      status = dis_summarize_region(
+          job, ctool_bytes(report->source->contents.data + first, last - first),
+          dis_raw_range_mode(report->raw_ranges[index].kind),
+          &report->decode_summary);
+    }
+    return status;
+  }
+  if (report->elf32.file_type == CTOOL_ELF32_ET_EXEC) {
+    for (index = 0u;
+         status == CTOOL_OK && index < report->elf32.program_header_count;
+         index++) {
+      const ctool_elf32_program_header_t *program =
+          &report->elf32.program_headers[index];
+      if (program->type != CTOOL_ELF32_PT_LOAD ||
+          (program->flags & CTOOL_ELF32_PF_X) == 0u ||
+          program->contents.size == 0u) {
+        continue;
+      }
+      status = dis_summarize_region(job, program->contents, report->mode,
+                                    &report->decode_summary);
+    }
+    return status;
+  }
+  for (index = 0u; status == CTOOL_OK && index < report->elf32.section_count;
+       index++) {
+    const ctool_elf32_section_t *section = &report->elf32.sections[index];
+    if (section->type != CTOOL_ELF32_SHT_PROGBITS ||
+        (section->flags & CTOOL_ELF32_SHF_EXECINSTR) == 0u ||
+        section->contents.size == 0u) {
+      continue;
+    }
+    status = dis_summarize_region(job, section->contents, report->mode,
+                                  &report->decode_summary);
+  }
+  return status;
+}
+
 ctool_status_t ctool_dis_inspect(ctool_job_t *job,
                                   const ctool_source_t *source,
                                   const ctool_dis_request_t *request,
@@ -213,6 +308,9 @@ ctool_status_t ctool_dis_inspect(ctool_job_t *job,
     arena = ctool_job_arena(job);
     mark = ctool_arena_mark(arena);
     status = dis_prepare_raw_label_order(job, report_out);
+    if (status == CTOOL_OK) {
+      status = dis_prepare_decode_summary(job, report_out);
+    }
     if (status != CTOOL_OK) {
       (void)ctool_arena_rewind(arena, mark);
       dis_zero_report(report_out);
@@ -284,6 +382,9 @@ ctool_status_t ctool_dis_inspect(ctool_job_t *job,
   report_out->views = request->views;
   report_out->mode = CTOOL_X86_MODE_32;
   status = dis_prepare_report_orders(job, report_out);
+  if (status == CTOOL_OK) {
+    status = dis_prepare_decode_summary(job, report_out);
+  }
   if (status != CTOOL_OK) {
     (void)ctool_arena_rewind(arena, mark);
     dis_zero_report(report_out);

@@ -828,6 +828,10 @@ _Avoid_: a general repeated-prefix grammar, CupidASM output, a catalogue form
 An ordered set of borrowed byte ranges that classifies one flat image as 16-bit code, 32-bit code, or literal data. The first range starts at offset zero, and later starts increase within the source. CupidDis decodes code ranges and renders data ranges as `db` rows without entering the x86 decoder. The caller places code transitions at instruction boundaries.
 _Avoid_: raw mode map, automatic code or mode detection, one kind per retained instruction
 
+**Strict decode summary**:
+The typed CupidDis counts of known, unknown, invalid, and truncated instructions across selected code regions. Declared raw data and non-executable ELF regions do not enter the summary. The hosted strict policy accepts the summary only when its three fallback counts are zero.
+_Avoid_: searching rendered `db` rows, counting data as instructions, a replacement for ordinary disassembly output
+
 ### Bootstrap
 
 **Self-hosting**:

@@ -50,6 +50,15 @@ typedef struct {
   ctool_dis_raw_range_kind_t kind;
 } ctool_dis_raw_range_t;
 
+/* Counts cover code regions selected for disassembly.  Bytes in declared raw
+ * DATA ranges and non-executable ELF regions are not decoded or counted. */
+typedef struct {
+  ctool_u64 known_count;
+  ctool_u64 unknown_count;
+  ctool_u64 invalid_count;
+  ctool_u64 truncated_count;
+} ctool_dis_decode_summary_t;
+
 typedef struct {
   ctool_dis_input_t input;
   ctool_u32 views;
@@ -82,6 +91,7 @@ typedef struct {
   ctool_u32 relocation_order_count;
   const ctool_u32 *relocation_site_order;
   ctool_u32 relocation_site_order_count;
+  ctool_dis_decode_summary_t decode_summary;
 } ctool_dis_report_t;
 
 typedef enum {

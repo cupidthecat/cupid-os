@@ -145,6 +145,16 @@ as DB rows without decoding them. The caller places each code transition
 between instructions. The older --mode-at OFFSET:16|32 spelling remains
 available for code-only maps.
 
+Source-head CupidDis can validate one or more files without printing a
+listing:
+  cupiddis --require-known FILE [FILE...]
+
+Success means that every selected code region has zero unknown, invalid, and
+truncated instructions. A failure names its input and reports all four counts,
+including known instructions. CupidDis keeps checking later inputs. Declared
+raw data and non-executable ELF regions do not count. Ordinary rendering still
+accepts one file and keeps its existing output.
+
 The production boot source assembles to an exact 2,560-byte image with
 SHA-256 46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3.
 CupidASM and the optional NASM oracle produce the same bytes. This image sets

@@ -818,6 +818,15 @@ records production ownership, and ADR 0243 records the current image.
 | Host-runnable object inspector | Observed/Partial | `make -C toolchain all` publishes the static i386 Linux CupidDis built by the checked seed and verified fixed point. Static ELF input defaults to all implemented views; explicit header, section, symbol, relocation, disassembly, and address-sorted GNU-`nm`-compatible modes are available. The normal root build runs the checked static seed image for kernel symbol generation, with host `nm` retained only as an optional oracle. The current pass-one output supplies a 114,851-byte logical blob through canonical CupidDis text. CupidDis reads the same shared symbols from the final kernel without address drift. Checked CupidObj generates the packed translation, and the checked CupidC wrapper compiles it. The four-vCPU GUI and in-OS CupidC smokes pass with both supported NICs. Raw input requires an explicit base and initial mode. Repeated `--range-at OFFSET:16|32|data` options classify later ranges in the same flat image, while `--mode-at OFFSET:16|32` remains a code-only alias. Buffered stdout failures are detected at flush and produce a processing failure. The stage-two and stage-three static inspector images match byte for byte and agree on raw decode, symbol listing, missing input, and malformed ELF behavior under WSL. The normal contracts also use checked CupidC and CupidLD; only the optional native executable and oracle contract use a host compiler. Dynamic ELF and DWARF views remain open. |
 | Encoder/decoder parity tests | Observed/Partial | One catalogue now drives CupidASM and CupidDis plus both encoding directions. Checked manifests cover 187 active-ASM mode cases and 129 active-inline source-spelling/form rows; 159 additional focused/current-CupidC vectors exercise model boundaries. Every manifest vector decodes and re-encodes with its fingerprint-scoped form to identical bytes, and the assembler adds source-to-artifact parity over all 27 active files. Negative and every-byte truncation cases cover illegal prefixes/groups/registers, reserved PSRLW memory encoding, range failures, and transactional output. A generated every-form exhaustive corpus remains. |
 
+Source-head CupidDis now attaches typed known, unknown, invalid, and truncated
+instruction counts to an inspection report. Its `--require-known FILE
+[FILE...]` policy checks every selected code region, keeps standard output
+empty, and reports each failing path. Declared raw data and non-executable ELF
+regions are excluded. Both active CupidASM `ET_REL` objects pass this policy
+without losing their ordinary relocation render. This capability is not in the
+current checked seed and does not change a production owner. ADR 0262 records
+the source boundary.
+
 ## Shared object, linker, and bootstrap capabilities
 
 Checked-seed CupidObj provides transactional `wrap-jpeg` validation before its

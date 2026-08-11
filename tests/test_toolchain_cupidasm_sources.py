@@ -233,6 +233,7 @@ class CupidAsmActiveSourceTests(unittest.TestCase):
         relative_build = build_path.relative_to(TOOLCHAIN_ROOT).as_posix()
         suffix = ".exe" if os.name == "nt" else ""
         cls.cli_path = build_path / ("cupidasm" + suffix)
+        cls.dis_path = build_path / ("cupiddis" + suffix)
         result = subprocess.run(
             [
                 "make",
@@ -240,6 +241,7 @@ class CupidAsmActiveSourceTests(unittest.TestCase):
                 str(TOOLCHAIN_ROOT),
                 f"BUILD_DIR={relative_build}",
                 f"{relative_build}/cupidasm{suffix}",
+                f"{relative_build}/cupiddis{suffix}",
             ],
             cwd=REPO_ROOT,
             text=True,
@@ -314,10 +316,11 @@ class CupidAsmActiveSourceTests(unittest.TestCase):
             root = Path(directory)
             for fixture in OBJECT_FIXTURES:
                 with self.subTest(source=fixture["source"].relative_to(REPO_ROOT)):
+                    object_path = root / f"{fixture['name']}.cupid.o"
                     cupid_image = self._assemble(
                         (str(self.cli_path),),
                         fixture["source"],
-                        root / f"{fixture['name']}.cupid.o",
+                        object_path,
                         "elf32",
                     )
                     cupid = _parse_elf32_semantics(cupid_image)
@@ -345,6 +348,26 @@ class CupidAsmActiveSourceTests(unittest.TestCase):
                         fixture["placement_counts"],
                     )
                     self.assertEqual(cupid["relocations"], fixture["relocations"])
+
+                    inspected = subprocess.run(
+                        [str(self.dis_path), "--require-known", str(object_path)],
+                        cwd=REPO_ROOT,
+                        text=True,
+                        capture_output=True,
+                    )
+                    self.assertEqual(inspected.returncode, 0, inspected.stderr)
+                    self.assertEqual(inspected.stdout, "")
+
+                    rendered = subprocess.run(
+                        [str(self.dis_path), str(object_path)],
+                        cwd=REPO_ROOT,
+                        text=True,
+                        capture_output=True,
+                    )
+                    self.assertEqual(rendered.returncode, 0, rendered.stderr)
+                    self.assertIn("[disassembly .text]", rendered.stdout)
+                    for relocation in fixture["relocations"]:
+                        self.assertIn(relocation[4], rendered.stdout)
 
                     if self.nasm_command is not None:
                         oracle_image = self._assemble(

@@ -15,6 +15,7 @@ typedef struct {
   ctool_bool have_mode;
   ctool_bool have_base;
   ctool_bool have_views;
+  ctool_bool require_known;
   ctool_x86_mode_t mode;
   ctool_u32 base_address;
   ctool_u32 views;
@@ -22,6 +23,9 @@ typedef struct {
   ctool_u32 range_change_count;
   ctool_u32 range_capacity;
   const char *input;
+  const char **inputs;
+  ctool_u32 input_count;
+  ctool_u32 input_capacity;
 } cupiddis_cli_t;
 
 static void cupiddis_usage(FILE *stream) {
@@ -29,9 +33,15 @@ static void cupiddis_usage(FILE *stream) {
       stream,
       "usage: cupiddis [--headers] [--sections] [--symbols] "
       "[--relocations] [--disassemble] [--all] [--nm] FILE\n"
+      "       cupiddis --require-known [--headers] [--sections] "
+      "[--symbols] [--relocations] [--disassemble] [--all] "
+      "FILE [FILE...]\n"
       "       cupiddis --raw --mode 16|32 "
       "[--range-at OFFSET:16|32|data]... "
-      "[--mode-at OFFSET:16|32]... --base ADDRESS FILE\n");
+      "[--mode-at OFFSET:16|32]... --base ADDRESS FILE\n"
+      "       cupiddis --require-known --raw --mode 16|32 "
+      "[--range-at OFFSET:16|32|data]... "
+      "[--mode-at OFFSET:16|32]... --base ADDRESS FILE [FILE...]\n");
 }
 
 static int cupiddis_parse_u32_span(const char *text, size_t size,
@@ -136,7 +146,7 @@ static int cupiddis_parse_range_change(const char *text,
 }
 
 static int cupiddis_append_range_change(cupiddis_cli_t *cli,
-                                        ctool_dis_raw_range_t range) {
+                                         ctool_dis_raw_range_t range) {
   ctool_u32 required;
   if (cli->range_change_count > 4294967293u) {
     return 0;
@@ -169,6 +179,44 @@ static int cupiddis_append_range_change(cupiddis_cli_t *cli,
   }
   cli->raw_ranges[cli->range_change_count + 1u] = range;
   cli->range_change_count++;
+  return 1;
+}
+
+static int cupiddis_append_input(cupiddis_cli_t *cli, const char *input) {
+  ctool_u32 required;
+  if (cli->input_count == 4294967295u) {
+    return 0;
+  }
+  required = cli->input_count + 1u;
+  if (required > cli->input_capacity) {
+    ctool_u32 capacity =
+        cli->input_capacity == 0u ? 4u : cli->input_capacity;
+    const char **resized;
+    size_t allocation_size;
+    while (capacity < required) {
+      if (capacity > 2147483647u) {
+        capacity = required;
+        break;
+      }
+      capacity *= 2u;
+    }
+    allocation_size = (size_t)capacity * sizeof(*resized);
+    if (capacity != 0u &&
+        allocation_size / sizeof(*resized) != (size_t)capacity) {
+      return 0;
+    }
+    resized = (const char **)realloc(cli->inputs, allocation_size);
+    if (resized == (const char **)0) {
+      return 0;
+    }
+    cli->inputs = resized;
+    cli->input_capacity = capacity;
+  }
+  cli->inputs[cli->input_count] = input;
+  cli->input_count++;
+  if (cli->input == (const char *)0) {
+    cli->input = input;
+  }
   return 1;
 }
 
@@ -208,6 +256,10 @@ static int cupiddis_parse_cli(int argc, char **argv, cupiddis_cli_t *cli) {
     }
     if (strcmp(argument, "--nm") == 0 || strcmp(argument, "-n") == 0) {
       cli->nm = CTOOL_TRUE;
+      continue;
+    }
+    if (strcmp(argument, "--require-known") == 0) {
+      cli->require_known = CTOOL_TRUE;
       continue;
     }
     if (strcmp(argument, "--headers") == 0) {
@@ -285,12 +337,12 @@ static int cupiddis_parse_cli(int argc, char **argv, cupiddis_cli_t *cli) {
     if (argument[0] == '-') {
       return 0;
     }
-    if (cli->input != (const char *)0) {
+    if (cupiddis_append_input(cli, argument) == 0) {
       return 0;
     }
-    cli->input = argument;
   }
-  if (cli->input == (const char *)0) {
+  if (cli->input_count == 0u ||
+      (cli->require_known == CTOOL_FALSE && cli->input_count != 1u)) {
     return 0;
   }
   if (cli->raw == CTOOL_TRUE) {
@@ -312,7 +364,8 @@ static int cupiddis_parse_cli(int argc, char **argv, cupiddis_cli_t *cli) {
   } else {
     if (cli->have_mode == CTOOL_TRUE || cli->have_base == CTOOL_TRUE ||
         cli->range_change_count != 0u ||
-        (cli->nm == CTOOL_TRUE && cli->have_views == CTOOL_TRUE)) {
+        (cli->nm == CTOOL_TRUE && cli->have_views == CTOOL_TRUE) ||
+        (cli->nm == CTOOL_TRUE && cli->require_known == CTOOL_TRUE)) {
       return 0;
     }
     if (cli->nm == CTOOL_TRUE) {
@@ -320,6 +373,9 @@ static int cupiddis_parse_cli(int argc, char **argv, cupiddis_cli_t *cli) {
     } else if (cli->have_views == CTOOL_FALSE) {
       cli->views = CTOOL_DIS_VIEW_ALL;
     }
+  }
+  if (cli->require_known == CTOOL_TRUE) {
+    cli->views |= CTOOL_DIS_VIEW_DISASSEMBLY;
   }
   return 1;
 }
@@ -405,6 +461,104 @@ static int cupiddis_is_elf(ctool_bytes_t bytes) {
              : 0;
 }
 
+static void cupiddis_make_request(const cupiddis_cli_t *cli,
+                                   ctool_dis_request_t *request) {
+  (void)memset(request, 0, sizeof(*request));
+  request->input = cli->raw == CTOOL_TRUE ? CTOOL_DIS_INPUT_RAW
+                                          : CTOOL_DIS_INPUT_ELF32;
+  request->views = cli->views;
+  request->raw_mode = cli->range_change_count == 0u
+                          ? cli->mode
+                          : CTOOL_DIS_RAW_RANGE_MAP;
+  request->raw_base_address = cli->base_address;
+  if (cli->range_change_count != 0u) {
+    request->raw_ranges = cli->raw_ranges;
+    request->raw_range_count = cli->range_change_count + 1u;
+  }
+}
+
+static int cupiddis_check_known_input(const cupiddis_cli_t *cli,
+                                      const char *input) {
+  char *native_root = (char *)0;
+  const char *logical_name = (const char *)0;
+  ctool_host_adapter_t adapter;
+  ctool_limits_t limits = ctool_default_limits();
+  ctool_job_config_t config;
+  ctool_job_t *job = (ctool_job_t *)0;
+  ctool_path_t root;
+  ctool_path_t input_path;
+  ctool_source_t source;
+  ctool_dis_request_t request;
+  ctool_dis_report_t report;
+  ctool_status_t status;
+  int failed = 1;
+  if (!cupiddis_split_path(input, &native_root, &logical_name)) {
+    (void)fprintf(stderr, "cupiddis: %s: invalid input path\n", input);
+    return 1;
+  }
+  limits.source_bytes = CUPIDDIS_HOST_SOURCE_BYTES;
+  limits.arena_bytes = CUPIDDIS_HOST_ARENA_BYTES;
+  status = ctool_host_adapter_init(&adapter, native_root);
+  config = ctool_host_job_config(&adapter, limits);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open(&config, &job);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_path_root(ctool_job_arena(job), &root);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_path_resolve(ctool_job_arena(job), &root,
+                                ctool_string(logical_name), limits.path_bytes,
+                                &input_path);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_job_load_source(job, &input_path, &source);
+  }
+  if (status != CTOOL_OK) {
+    (void)fprintf(stderr, "cupiddis: cannot load %s (%s)\n", input,
+                  ctool_status_name(status));
+    goto done;
+  }
+  if (cli->raw == CTOOL_FALSE && !cupiddis_is_elf(source.contents)) {
+    (void)fprintf(stderr,
+                  "cupiddis: %s: input is not ELF32; raw input requires "
+                  "--raw\n",
+                  input);
+    goto done;
+  }
+  cupiddis_make_request(cli, &request);
+  status = ctool_dis_inspect(job, &source, &request, &report);
+  if (status != CTOOL_OK) {
+    (void)fprintf(stderr, "cupiddis: %s: inspection failed (%s)\n", input,
+                  ctool_status_name(status));
+    if (ctool_job_diagnostic_count(job) != 0u) {
+      (void)ctool_job_render_diagnostics(job);
+    }
+    goto done;
+  }
+  if (report.decode_summary.unknown_count != 0u ||
+      report.decode_summary.invalid_count != 0u ||
+      report.decode_summary.truncated_count != 0u) {
+    (void)fprintf(
+        stderr,
+        "cupiddis: %s: code check failed: %llu known, %llu unknown, "
+        "%llu invalid, %llu truncated\n",
+        input, (unsigned long long)report.decode_summary.known_count,
+        (unsigned long long)report.decode_summary.unknown_count,
+        (unsigned long long)report.decode_summary.invalid_count,
+        (unsigned long long)report.decode_summary.truncated_count);
+    goto done;
+  }
+  failed = 0;
+
+done:
+  if (job != (ctool_job_t *)0) {
+    ctool_job_close(job);
+  }
+  free(native_root);
+  return failed;
+}
+
 int main(int argc, char **argv) {
   cupiddis_cli_t cli;
   char *native_root = (char *)0;
@@ -425,16 +579,31 @@ int main(int argc, char **argv) {
   if (parsed < 0) {
     cupiddis_usage(stdout);
     free(cli.raw_ranges);
+    free(cli.inputs);
     return 0;
   }
   if (parsed == 0) {
     cupiddis_usage(stderr);
     free(cli.raw_ranges);
+    free(cli.inputs);
     return 2;
+  }
+  if (cli.require_known == CTOOL_TRUE) {
+    ctool_u32 index;
+    int failed = 0;
+    for (index = 0u; index < cli.input_count; index++) {
+      if (cupiddis_check_known_input(&cli, cli.inputs[index]) != 0) {
+        failed = 1;
+      }
+    }
+    free(cli.raw_ranges);
+    free(cli.inputs);
+    return failed;
   }
   if (!cupiddis_split_path(cli.input, &native_root, &logical_name)) {
     (void)fprintf(stderr, "cupiddis: invalid input path\n");
     free(cli.raw_ranges);
+    free(cli.inputs);
     return 1;
   }
   limits.source_bytes = CUPIDDIS_HOST_SOURCE_BYTES;
@@ -465,18 +634,7 @@ int main(int argc, char **argv) {
                   "cupiddis: input is not ELF32; raw input requires --raw\n");
     goto done;
   }
-  (void)memset(&request, 0, sizeof(request));
-  request.input = cli.raw == CTOOL_TRUE ? CTOOL_DIS_INPUT_RAW
-                                        : CTOOL_DIS_INPUT_ELF32;
-  request.views = cli.views;
-  request.raw_mode = cli.range_change_count == 0u
-                         ? cli.mode
-                         : CTOOL_DIS_RAW_RANGE_MAP;
-  request.raw_base_address = cli.base_address;
-  if (cli.range_change_count != 0u) {
-    request.raw_ranges = cli.raw_ranges;
-    request.raw_range_count = cli.range_change_count + 1u;
-  }
+  cupiddis_make_request(&cli, &request);
   status = ctool_dis_inspect(job, &source, &request, &report);
   output.context = stdout;
   output.write = cupiddis_stdout_write;
@@ -506,5 +664,6 @@ done:
   }
   free(native_root);
   free(cli.raw_ranges);
+  free(cli.inputs);
   return exit_code;
 }

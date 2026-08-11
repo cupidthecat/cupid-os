@@ -139,6 +139,24 @@ class CupidDisContractTests(unittest.TestCase):
         cls.not_elf_path.write_bytes(b"not elf")
         cls.bad_elf_path = Path(cls._fixture_directory.name) / "bad.elf"
         cls.bad_elf_path.write_bytes(b"\x7fELF")
+        cls.incomplete_code_path = (
+            Path(cls._fixture_directory.name) / "incomplete-code.bin"
+        )
+        cls.incomplete_code_path.write_bytes(
+            bytes.fromhex("90 0f ff c0 66 66 90 0f 0f ff 66 66 0f")
+        )
+        cls.clean_code_path = (
+            Path(cls._fixture_directory.name) / "clean-code.bin"
+        )
+        cls.clean_code_path.write_bytes(bytes.fromhex("90 c3"))
+        cls.bad_code_path = Path(cls._fixture_directory.name) / "bad-code.bin"
+        cls.bad_code_path.write_bytes(
+            bytes.fromhex("90 0f ff c0 66 66 90 0f")
+        )
+        cls.truncated_code_path = (
+            Path(cls._fixture_directory.name) / "truncated-code.bin"
+        )
+        cls.truncated_code_path.write_bytes(bytes.fromhex("90 0f"))
         cls.exec_path = Path(cls._fixture_directory.name) / "program.elf"
         executable = bytearray(90)
         executable[:7] = b"\x7fELF\x01\x01\x01"
@@ -209,6 +227,110 @@ class CupidDisContractTests(unittest.TestCase):
         self.assertIn("[program headers]", result.stdout)
         self.assertIn("[disassembly LOAD#0]", result.stdout)
         self.assertIn("mov eax, 0x12345678", result.stdout)
+
+    def test_cli_requires_every_code_region_to_decode_cleanly(self):
+        clean = subprocess.run(
+            [
+                str(self.cli_path),
+                "--require-known",
+                str(self.exec_path),
+                str(self.object_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(clean.returncode, 0, clean.stderr)
+        self.assertEqual(clean.stdout, "")
+        self.assertEqual(clean.stderr, "")
+
+        incomplete = subprocess.run(
+            [
+                str(self.cli_path),
+                "--require-known",
+                "--raw",
+                "--mode=32",
+                "--range-at=8:data",
+                "--base=0x407000",
+                str(self.incomplete_code_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(incomplete.returncode, 1)
+        self.assertEqual(incomplete.stdout, "")
+        self.assertIn(
+            f"{self.incomplete_code_path}: code check failed: "
+            "3 known, 1 unknown, 1 invalid, 1 truncated",
+            incomplete.stderr,
+        )
+
+        mixed = subprocess.run(
+            [
+                str(self.cli_path),
+                "--require-known",
+                "--raw",
+                "--mode=32",
+                "--base=0",
+                str(self.clean_code_path),
+                str(self.bad_code_path),
+                str(self.truncated_code_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(mixed.returncode, 1)
+        self.assertEqual(mixed.stdout, "")
+        self.assertIn(
+            f"{self.bad_code_path}: code check failed: "
+            "3 known, 1 unknown, 1 invalid, 1 truncated",
+            mixed.stderr,
+        )
+        self.assertIn(
+            f"{self.truncated_code_path}: code check failed: "
+            "1 known, 0 unknown, 0 invalid, 1 truncated",
+            mixed.stderr,
+        )
+        self.assertNotIn(
+            f"{self.clean_code_path}: code check failed", mixed.stderr
+        )
+
+        missing_path = Path(self._fixture_directory.name) / "missing-code.bin"
+        missing = subprocess.run(
+            [
+                str(self.cli_path),
+                "--require-known",
+                "--raw",
+                "--mode=32",
+                "--base=0",
+                str(self.clean_code_path),
+                str(missing_path),
+                str(self.truncated_code_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(missing.returncode, 1)
+        self.assertEqual(missing.stdout, "")
+        self.assertIn(str(missing_path), missing.stderr)
+        self.assertIn(
+            f"{self.truncated_code_path}: code check failed: "
+            "1 known, 0 unknown, 0 invalid, 1 truncated",
+            missing.stderr,
+        )
+
+        ordinary_multi = subprocess.run(
+            [str(self.cli_path), str(self.exec_path), str(self.object_path)],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(ordinary_multi.returncode, 2)
+        self.assertEqual(ordinary_multi.stdout, "")
+        self.assertIn("usage: cupiddis", ordinary_multi.stderr)
 
     def test_cli_explicit_view_and_nm_modes_are_deterministic(self):
         sections = subprocess.run(

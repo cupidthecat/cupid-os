@@ -351,6 +351,9 @@ static int run_raw(void) {
                                              0u,    0u,    0u};
   static const ctool_u8 recovery[] = {
       0xf0u, 0x0fu, 0x45u, 0xc1u, 0x0fu, 0x4fu};
+  static const ctool_u8 decode_summary[] = {
+      0x90u, 0x0fu, 0xffu, 0xc0u, 0x66u, 0x66u, 0x90u, 0x0fu,
+      0x0fu, 0xffu, 0x66u, 0x66u, 0x0fu};
   ctool_host_adapter_t adapter;
   ctool_job_t *job;
   ctool_source_t source;
@@ -360,6 +363,7 @@ static int run_raw(void) {
   ctool_dis_raw_range_t mixed_ranges[4];
   ctool_dis_raw_range_t invalid_ranges[3];
   ctool_dis_raw_range_t changed_ranges[4];
+  ctool_dis_raw_range_t summary_ranges[2];
   capture_t capture;
   capture_t repeat;
   ctool_status_t status;
@@ -1026,6 +1030,49 @@ static int run_raw(void) {
     return 1;
   }
 
+  summary_ranges[0].offset = 0u;
+  summary_ranges[0].kind = CTOOL_DIS_RAW_RANGE_CODE32;
+  summary_ranges[1].offset = 8u;
+  summary_ranges[1].kind = CTOOL_DIS_RAW_RANGE_DATA;
+  (void)memset(&capture, 0, sizeof(capture));
+  source.path.text = ctool_string("/decode-summary.bin");
+  source.contents =
+      ctool_bytes(decode_summary, (ctool_u32)sizeof(decode_summary));
+  request = raw_request(CTOOL_DIS_RAW_RANGE_MAP, 0x00407000u);
+  request.raw_ranges = summary_ranges;
+  request.raw_range_count = 2u;
+  status = ctool_dis_inspect(job, &source, &request, &report);
+  if (status == CTOOL_OK) {
+    status = ctool_dis_render(job, &report, CTOOL_DIS_TEXT_CUPID,
+                              capture_sink(&capture));
+  }
+  if (!check_status(status, CTOOL_OK, "typed decode summary") ||
+      report.decode_summary.known_count != 3u ||
+      report.decode_summary.unknown_count != 1u ||
+      report.decode_summary.invalid_count != 1u ||
+      report.decode_summary.truncated_count != 1u ||
+      !contains(&capture, "00407001:  0F  db 0x0F",
+                "unknown decode boundary") ||
+      !contains(&capture, "00407002:  FF C0  inc eax",
+                "unknown decode recovery") ||
+      !contains(&capture, "00407004:  66  db 0x66",
+                "invalid decode boundary") ||
+      !contains(&capture, "00407005:  66 90  nop",
+                "invalid decode recovery") ||
+      !contains(&capture, "00407007:  0F  db 0x0F",
+                "truncated decode boundary") ||
+      !contains(&capture, "00407008:  0F FF 66 66 0F",
+                "declared data rendering")) {
+    (void)fprintf(stderr,
+                  "decode summary differs: %llu/%llu/%llu/%llu\n",
+                  (unsigned long long)report.decode_summary.known_count,
+                  (unsigned long long)report.decode_summary.unknown_count,
+                  (unsigned long long)report.decode_summary.invalid_count,
+                  (unsigned long long)report.decode_summary.truncated_count);
+    ctool_job_close(job);
+    return 1;
+  }
+
   ctool_job_close(job);
   (void)puts("raw: ok");
   return 0;
@@ -1232,7 +1279,11 @@ static int run_object(void) {
     return 1;
   }
   if (report.elf32.section_count == 0u || report.elf32.symbol_count == 0u ||
-      report.elf32.relocation_count != 4u) {
+      report.elf32.relocation_count != 4u ||
+      report.decode_summary.known_count != 4u ||
+      report.decode_summary.unknown_count != 0u ||
+      report.decode_summary.invalid_count != 0u ||
+      report.decode_summary.truncated_count != 0u) {
     (void)fprintf(stderr, "typed object report is incomplete\n");
     ctool_buffer_close(object_bytes);
     ctool_job_close(job);
@@ -1278,7 +1329,11 @@ static int run_object(void) {
         header_report.symbol_order_count != 0u ||
         header_report.function_order_count != 0u ||
         header_report.relocation_order_count != 0u ||
-        header_report.relocation_site_order_count != 0u) {
+        header_report.relocation_site_order_count != 0u ||
+        header_report.decode_summary.known_count != 0u ||
+        header_report.decode_summary.unknown_count != 0u ||
+        header_report.decode_summary.invalid_count != 0u ||
+        header_report.decode_summary.truncated_count != 0u) {
       (void)fprintf(stderr, "header-only report built unused indexes\n");
       ctool_buffer_close(object_bytes);
       ctool_job_close(job);
@@ -1492,6 +1547,10 @@ static int run_exec(void) {
   if (!check_status(status, CTOOL_OK, "executable inspection") ||
       report.elf32.file_type != CTOOL_ELF32_ET_EXEC ||
       report.elf32.program_header_count != 2u ||
+      report.decode_summary.known_count != 2u ||
+      report.decode_summary.unknown_count != 0u ||
+      report.decode_summary.invalid_count != 0u ||
+      report.decode_summary.truncated_count != 0u ||
       !contains(&capture, "ELF32 EXEC i386", "executable header") ||
       !contains(&capture, "[program headers]", "program headers") ||
       !contains(&capture, "] GNU_STACK off=", "GNU stack header type") ||

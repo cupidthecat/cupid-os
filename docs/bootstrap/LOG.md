@@ -24084,3 +24084,30 @@ generation-stale rejection, remote kill, same-PID AOT graphics recovery,
 HomeFS and dglibc, browser and modal input, six USB storage lifetimes, AC97,
 and PC speaker output. Private-image execution left the source image hash
 unchanged and cleaned every owned QEMU process and new runtime directory.
+
+### Strict CupidDis source capability
+
+CupidDis reports typed known, unknown, invalid, and truncated instruction
+counts for selected code regions. The hosted `--require-known` policy accepts
+several inputs, checks all of them after individual load or decode failures,
+and writes no disassembly. Declared raw data and non-executable ELF regions do
+not enter the counts.
+
+The raw recovery fixture distinguishes an unknown `0F FF`, an invalid repeated
+prefix, and a terminal truncated `0F` while preserving the next instruction
+boundary where one exists. Relocatable and executable ELF fixtures pass their
+typed checks. The active CupidASM `isr.o` and `context_switch.o` outputs also
+pass, and their ordinary disassembly still retains every relocation symbol.
+
+The focused CupidDis and active CupidASM source modules pass 21 tests in 9.734
+seconds, with one unavailable optional oracle skipped. `git diff --check`
+passes. This source step changes no checked seed, normal transform, output
+owner, or boot artifact.
+
+The regenerated three-root audit keeps 727 active inputs, 255 feature IDs,
+449 transforms, and 25 accounted unreachable files. Its 2,610,127-byte JSON
+has SHA-256
+`abc4fa6a007d515764ac13a7cafabe84df98103bbea81bb94a80b7cfb5bd73e9`.
+The 12,219-byte Markdown summary has SHA-256
+`e6a4a506f88f9c7df4e604d2b9bc0f6d4337e343e6f81164a6cb84486f262e60`.
+Generation and the independent check pass in 70.622 and 68.861 seconds.

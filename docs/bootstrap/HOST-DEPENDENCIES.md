@@ -779,6 +779,13 @@ Counts are output transforms in the checked audit, not textual recipe occurrence
 | Python | 449 transforms | Launches checked Cupid tools and retains host discovery, safety, parity, drift detection, locking, publication, and mutable image work. No root output is Python-only. Three supplemental verification or orchestration outputs remain Python-only. The disk image, ISO image, and Doom profile manifest are composite transforms because checked CupidObj authors their deterministic bytes first. |
 | Make recursion | 0 transforms | Native hosted CupidASM, CupidObj, CupidLD, and CupidDis targets remain available, but no supported root reaches them recursively |
 
+Source-head CupidDis can now validate several inputs with
+`--require-known FILE [FILE...]`. The command accepts only code streams whose
+typed unknown, invalid, and truncated counts are zero. It excludes declared
+raw data and non-executable ELF regions, continues after an input failure, and
+does not publish rendered text. This adds no transform to the table above. The
+checked seed and normal graph will adopt the policy in a later promotion.
+
 The normal Make image recipe passes the checked seed manifest to
 `tools/hostbuild.py image`. Hostbuild freezes every input and snapshots the
 live output, then runs checked CupidObj before it builds an independent Python
