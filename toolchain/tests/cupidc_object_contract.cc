@@ -27713,6 +27713,156 @@ cleanup:
   return 1;
 }
 
+static int run_floating_update_object(const char *host_root) {
+  static const char source[] =
+      "typedef unsigned int u32;\n"
+      "typedef union { float value; u32 bits; } float_box;\n"
+      "typedef union { double value; struct { u32 low; u32 high; } words; } double_box;\n"
+      "typedef struct { float member; double values[2]; } update_record;\n"
+      "static float file_float;\n"
+      "static double file_double;\n"
+      "static update_record file_record;\n"
+      "static u32 designator_calls;\n"
+      "float float_from_bits(u32 bits) { float_box box; box.bits = bits; return box.value; }\n"
+      "u32 float_bits(float value) { float_box box; box.value = value; return box.bits; }\n"
+      "double double_from_words(u32 low, u32 high) { double_box box; box.words.low = low; box.words.high = high; return box.value; }\n"
+      "u32 double_low(double value) { double_box box; box.value = value; return box.words.low; }\n"
+      "u32 double_high(double value) { double_box box; box.value = value; return box.words.high; }\n"
+      "static float *next_member(void) { designator_calls++; return &file_record.member; }\n"
+      "u32 prefix_float(u32 bits) { float value = float_from_bits(bits); return float_bits(++value); }\n"
+      "u32 postfix_float(u32 bits) { float value = float_from_bits(bits); return float_bits(value--); }\n"
+      "u32 postfix_float_stored(u32 bits) { float value = float_from_bits(bits); value--; return float_bits(value); }\n"
+      "u32 prefix_double_high(u32 low, u32 high) { double value = double_from_words(low, high); return double_high(--value); }\n"
+      "u32 postfix_double_low(u32 low, u32 high) { double value = double_from_words(low, high); return double_low(value++); }\n"
+      "u32 postfix_double_high(u32 low, u32 high) { double value = double_from_words(low, high); return double_high(value++); }\n"
+      "u32 file_float_stored(u32 bits) { file_float = float_from_bits(bits); file_float++; return float_bits(file_float); }\n"
+      "u32 file_double_high(u32 low, u32 high) { file_double = double_from_words(low, high); return double_high(--file_double); }\n"
+      "u32 member_float(u32 bits) { file_record.member = float_from_bits(bits); return float_bits(++file_record.member); }\n"
+      "u32 indexed_double_high(u32 low, u32 high) { file_record.values[1] = double_from_words(low, high); file_record.values[1]--; return double_high(file_record.values[1]); }\n"
+      "u32 update_once(u32 bits) { u32 old; file_record.member = float_from_bits(bits); designator_calls = 0; old = float_bits((*next_member())++); return old ^ float_bits(file_record.member) ^ designator_calls; }\n";
+  static const ctool_u32 prefix_arguments[] = {0x3fa00000u};
+  static const ctool_u32 negative_zero_arguments[] = {0x80000000u};
+  static const ctool_u32 narrow_nan_arguments[] = {0x7fc12345u};
+  static const ctool_u32 postfix_arguments[] = {0u, 0x40120000u};
+  static const ctool_u32 wide_nan_arguments[] = {
+      0x89abcdefu, 0x7ff81234u};
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_buffer_t *first = NULL;
+  ctool_buffer_t *second = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_source_t object_source;
+  ctool_elf32_object_t object;
+  ctool_bytes_t first_bytes;
+  ctool_bytes_t second_bytes;
+  const ctool_elf32_section_t *text;
+  ctool_status_t status;
+  int passed = 0;
+
+  (void)memset(&unit, 0, sizeof(unit));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source_mode(job, "/floating-updates.c", source,
+                         CTOOL_TRUE, &unit)) {
+    goto cleanup;
+  }
+  status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                 &first);
+  if (status == CTOOL_OK) {
+    status = ctool_job_open_buffer(job, 1024u, config.limits.output_bytes,
+                                   &second);
+  }
+  if (!check_status(status, CTOOL_OK, "floating update buffers") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, first, "floating update object") ||
+      !expect_object_success_preserves_unit(
+          job, &unit, second, "repeat floating update object")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  first_bytes = ctool_buffer_view(first);
+  second_bytes = ctool_buffer_view(second);
+  if (first_bytes.size != second_bytes.size ||
+      memcmp(first_bytes.data, second_bytes.data,
+             (size_t)first_bytes.size) != 0) {
+    (void)fprintf(stderr, "floating update objects differ\n");
+    goto cleanup;
+  }
+  object_source.path.text = ctool_string("/floating-updates.o");
+  object_source.contents = first_bytes;
+  (void)memset(&object, 0xa5, sizeof(object));
+  status = ctool_elf32_read(job, &object_source, &object);
+  text = status == CTOOL_OK ? find_section(&object, ".text") : NULL;
+  if (!check_status(status, CTOOL_OK, "read floating update object") ||
+      text == NULL || text->contents.data == NULL ||
+      !wide_function_symbol_is_valid(
+          &object, text, find_symbol(&object, "prefix_float")) ||
+      !wide_function_symbol_is_valid(
+          &object, text, find_symbol(&object, "postfix_double_high")) ||
+      !expect_wide_oracle_low_result(
+          job, &object, text, "prefix_float", prefix_arguments, 1u,
+          0x40100000u, "float prefix increment") ||
+      !expect_wide_oracle_low_result(
+          job, &object, text, "postfix_float", prefix_arguments, 1u,
+          0x3fa00000u, "float postfix decrement result") ||
+      !expect_wide_oracle_low_result(
+          job, &object, text, "postfix_float_stored", prefix_arguments,
+          1u, 0x3e800000u, "float postfix decrement store") ||
+      !expect_wide_oracle_low_result(
+          job, &object, text, "postfix_float", negative_zero_arguments,
+          1u, 0x80000000u, "float postfix keeps negative zero") ||
+      !expect_wide_oracle_low_result(
+          job, &object, text, "postfix_float", narrow_nan_arguments, 1u,
+          0x7fc12345u, "float postfix keeps the NaN payload") ||
+      !expect_wide_oracle_low_result(
+          job, &object, text, "prefix_double_high", postfix_arguments, 2u,
+          0x400c0000u, "double prefix decrement") ||
+      !expect_wide_oracle_low_result(
+          job, &object, text, "postfix_double_high", postfix_arguments, 2u,
+          0x40120000u, "double postfix increment result") ||
+      !expect_wide_oracle_low_result(
+          job, &object, text, "postfix_double_low", wide_nan_arguments,
+          2u, 0x89abcdefu, "double postfix keeps the low NaN payload") ||
+      !expect_wide_oracle_low_result(
+          job, &object, text, "postfix_double_high", wide_nan_arguments,
+          2u, 0x7ff81234u, "double postfix keeps the high NaN payload") ||
+      !expect_wide_oracle_low_result(
+          job, &object, text, "file_float_stored", prefix_arguments, 1u,
+          0x40100000u, "file float update") ||
+      !expect_wide_oracle_low_result(
+          job, &object, text, "file_double_high", postfix_arguments, 2u,
+          0x400c0000u, "file double update") ||
+      !expect_wide_oracle_low_result(
+          job, &object, text, "member_float", prefix_arguments, 1u,
+          0x40100000u, "floating member update") ||
+      !expect_wide_oracle_low_result(
+          job, &object, text, "indexed_double_high", postfix_arguments,
+          2u, 0x400c0000u, "floating indexed update") ||
+      !expect_wide_oracle_low_result(
+          job, &object, text, "update_once", prefix_arguments, 1u,
+          0x7fb00001u, "floating update evaluates its lvalue once")) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  if (second != NULL) {
+    ctool_buffer_close(second);
+  }
+  if (first != NULL) {
+    ctool_buffer_close(first);
+  }
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("floating-updates: ok");
+    return 0;
+  }
+  return 1;
+}
+
 static int validate_floating_conversion_x87_inventory(
     ctool_job_t *job, const ctool_elf32_section_t *text) {
   ctool_u32 cursor = 0u;
@@ -51504,6 +51654,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "floating-arithmetic") == 0) {
     return run_floating_arithmetic_object(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "floating-updates") == 0) {
+    return run_floating_update_object(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "floating-comparisons") == 0) {
     return run_floating_comparison_object(argv[2]);
   }
@@ -51601,7 +51754,8 @@ int main(int argc, char **argv) {
                 "doom-implicit-functions|block-records|"
                 "variadic-callees|wide-variadics|"
                 "static-long-double-arithmetic|floating-transport|"
-                "floating-arithmetic|floating-comparisons|"
+                "floating-arithmetic|floating-updates|"
+                "floating-comparisons|"
                 "floating-truth|"
                 "floating-conversions|"
                 "floating-scalars|"

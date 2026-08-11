@@ -536,8 +536,8 @@ CupidDis evidence without duplicating ordinary text-mode output.
 Hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimals beyond the bounded
 ratio parser, runtime mixed integer and floating arithmetic or conditional
-arms, floating increment and decrement,
-SIMD values, floating atomics, and over-aligned object emission remain
+arms, atomic and `long double` updates, SIMD values, and over-aligned object
+emission remain
 unfinished.
 ADR 0229 records the exact decimal representation and automatic object proof.
 ADR 0250 records runtime conversion to unsigned four-byte targets. ADR 0251
@@ -2276,7 +2276,11 @@ The private compiler implements a broader runtime floating and SIMD language.
 The hosted self-hosting path converts between `float` and `double`, evaluates
 matching or mixed floating arithmetic and all six comparisons, selects
 matching or mixed floating conditional arms, and stores `+=`, `-=`, `*=`, and
-`/=` results at the left width. It also carries existing `double` values and
+`/=` results at the left width. Prefix and postfix `++` and `--` work on
+modifiable non-atomic lvalues. Each update evaluates its destination once and
+adds or subtracts exact-width `1.0`. A postfix expression returns the original
+raw payload, including negative-zero or NaN bits. It also carries existing
+`double` values and
 source `float` values promoted to `double` through ellipsis and unprototyped
 calls and supports `va_arg(double)`. Decimal constants, represented integer
 conversions, mixed integer and floating arithmetic, and comparisons use the
@@ -2288,7 +2292,8 @@ arithmetic operators, twelve-byte direct and indirect fixed, variadic, and
 unprototyped arguments, function returns, direct and indirect call results,
 and `va_arg(long double)`. Runtime truth, structured conditions, and `_Bool`
 conversion cover `float`, `double`, and automatic `long double`. Runtime mixed
-wide and floating arithmetic or conditional arms, increment and decrement,
+wide and floating arithmetic or conditional arms, atomic and `long double`
+updates,
 hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
 bounded parser and SIMD remain open in the hosted path. Static long-double

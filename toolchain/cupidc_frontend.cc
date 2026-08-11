@@ -12833,9 +12833,16 @@ static ctool_status_t cfront_validate_assignment_target(
        node.kind == CTOOL_C_TYPE_DOUBLE ||
        node.kind == CTOOL_C_TYPE_LONG_DOUBLE) &&
       form == CFRONT_ASSIGNMENT_UPDATE) {
+    if ((qualifiers & CTOOL_C_QUAL_ATOMIC) != 0u) {
       return cfront_emit_failure(
           context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
-          operator_token, "floating update is outside this body slice");
+          operator_token, "atomic floating-point updates are not supported");
+    }
+    if (node.kind == CTOOL_C_TYPE_LONG_DOUBLE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
+          operator_token, "long double updates are not supported");
+    }
   }
   if (is_integer == CTOOL_FALSE && node.kind != CTOOL_C_TYPE_POINTER &&
       node.kind != CTOOL_C_TYPE_FLOAT &&
@@ -12904,17 +12911,29 @@ static ctool_status_t cfront_apply_update(
                                     &qualifiers, &node);
     (void)base;
     (void)qualifiers;
-    if (status == CTOOL_OK && node.kind == CTOOL_C_TYPE_POINTER) {
+    if (status == CTOOL_OK &&
+        (node.kind == CTOOL_C_TYPE_FLOAT ||
+         node.kind == CTOOL_C_TYPE_DOUBLE)) {
+      status = cfront_scalar_type(context, node.kind, operator_token,
+                                  &computation_type);
+    } else if (status == CTOOL_OK && node.kind == CTOOL_C_TYPE_POINTER) {
       status = cfront_type_is_complete_object_now(
           context, node.referenced_type, &complete);
       computation_type = result_type;
     }
     if (status == CTOOL_OK &&
-        (node.kind != CTOOL_C_TYPE_POINTER || complete == CTOOL_FALSE)) {
+        node.kind == CTOOL_C_TYPE_POINTER && complete == CTOOL_FALSE) {
       return cfront_emit_failure(
           context, CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION,
           operator_token,
           "pointer update requires a pointer to a complete object type");
+    }
+    if (status == CTOOL_OK && node.kind != CTOOL_C_TYPE_POINTER &&
+        node.kind != CTOOL_C_TYPE_FLOAT &&
+        node.kind != CTOOL_C_TYPE_DOUBLE) {
+      return cfront_emit_failure(
+          context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
+          operator_token, "this update type is not supported");
     }
   }
   if (status != CTOOL_OK) {

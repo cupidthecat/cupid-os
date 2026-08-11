@@ -510,7 +510,7 @@ math-library dependency.
 Hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
 bounded parser, mixed integer and floating runtime arithmetic or conditionals,
-and floating increment and decrement remain open. Matching or mixed-width floating
+and atomic or long-double updates remain open. Matching or mixed-width floating
 conditional arms and the four arithmetic compound assignments retain their
 established x87 path. All six matching or mixed long-double comparisons use a
 balanced `FUCOMIP` sequence. ADRs 0196, 0199, 0202, and 0229 record the current
@@ -1050,8 +1050,12 @@ and NaN payloads and adds special-value conversion without host floating
 work. ADR 0260 adds integer-only static long-double `+`, `-`, `*`, and `/`
 with exact target rounding and no runtime IR.
 
-Runtime mixed integer and floating arithmetic or conditional arms, floating
-increment and decrement, hexadecimal floating literals, binary32 and
+ADR 0263 adds prefix and postfix update for modifiable non-atomic `float` and
+`double` lvalues. Linear IR evaluates the destination once, and the emitter
+returns the original payload for postfix forms after storing the replacement.
+
+Runtime mixed integer and floating arithmetic or conditional arms, atomic and
+long-double updates, hexadecimal floating literals, binary32 and
 binary64 subnormal literals, hexadecimal or subnormal long-double literals,
 decimal ratios beyond the bounded parser, aggregate floating values, atomic
 access, and other unrepresented forms remain

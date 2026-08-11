@@ -13210,6 +13210,72 @@ static ctool_status_t cemit_emit_ir_instruction(
     }
     return CTOOL_OK;
   }
+  if (ir_instruction->kind ==
+      CTOOL_C_IR_INSTRUCTION_STORE_OLD_VALUE) {
+    const ctool_c_type_node_t *value_type =
+        cemit_unwrapped_type(context, ir_instruction->type);
+    ctool_u32 value_size =
+        ir_instruction->type < context->unit->layout.type_count
+            ? context->unit->layout.types[ir_instruction->type].size
+            : 0u;
+    if (cemit_ir_scalar_types_match(
+            context, ir_instruction->type,
+            ir_instruction->input_type) == CTOOL_FALSE ||
+        cemit_ir_type_is_floating_value(
+            context, ir_instruction->type) == CTOOL_FALSE ||
+        cemit_type_has_atomic_qualification(
+            context, ir_instruction->type) == CTOOL_TRUE ||
+        cemit_type_has_atomic_qualification(
+            context, ir_instruction->input_type) == CTOOL_TRUE ||
+        value_type == (const ctool_c_type_node_t *)0 ||
+        (value_type->kind != CTOOL_C_TYPE_FLOAT &&
+         value_type->kind != CTOOL_C_TYPE_DOUBLE) ||
+        (value_size != 4u && value_size != 8u) ||
+        ir_instruction->operation != CTOOL_C_EXPRESSION_OPERATOR_NONE ||
+        ir_instruction->conversion != CTOOL_C_CONVERSION_NONE ||
+        ir_instruction->reference != CTOOL_C_AST_NONE ||
+        ir_instruction->integer_bits != 0u) {
+      return CTOOL_ERR_INTERNAL;
+    }
+    if (value_size == 8u) {
+      status = cemit_x86_one_register(
+          context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 2u, 32u);
+      if (status == CTOOL_OK) {
+        status = cemit_x86_one_register(
+            context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 1u, 32u);
+      }
+      if (status == CTOOL_OK) {
+        status = cemit_x86_one_register(
+            context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
+      }
+      if (status == CTOOL_OK) {
+        status = cemit_x86_one_register(
+            context, CTOOL_X86_MN_PUSH, CTOOL_X86_REG_GPR32, 1u, 32u);
+      }
+      if (status == CTOOL_OK) {
+        status = cemit_x86_copy_edx_to_eax(context, value_size);
+      }
+      return status;
+    }
+    status = cemit_x86_one_register(
+        context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 1u, 32u);
+    if (status == CTOOL_OK) {
+      status = cemit_x86_one_register(
+          context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 2u, 32u);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_one_register(
+          context, CTOOL_X86_MN_POP, CTOOL_X86_REG_GPR32, 0u, 32u);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_store_ecx_at_eax(context, ir_instruction->type);
+    }
+    if (status == CTOOL_OK) {
+      status = cemit_x86_one_register(
+          context, CTOOL_X86_MN_PUSH, CTOOL_X86_REG_GPR32, 2u, 32u);
+    }
+    return status;
+  }
   if (ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_STORE ||
       ir_instruction->kind == CTOOL_C_IR_INSTRUCTION_STORE_VALUE) {
     ctool_bool preserve_value =
@@ -14487,6 +14553,7 @@ static ctool_status_t cemit_ir_stack_effect(
       produced = 1u;
       break;
     case CTOOL_C_IR_INSTRUCTION_BIT_FIELD_STORE_OLD_VALUE:
+    case CTOOL_C_IR_INSTRUCTION_STORE_OLD_VALUE:
       consumed = 3u;
       produced = 1u;
       break;

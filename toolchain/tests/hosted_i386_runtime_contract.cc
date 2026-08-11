@@ -466,6 +466,118 @@ static int floating_truth_contract(void) {
   return 0;
 }
 
+typedef union {
+  float value;
+  unsigned int bits;
+} floating_update_float_box;
+
+typedef union {
+  double value;
+  struct {
+    unsigned int low;
+    unsigned int high;
+  } words;
+} floating_update_double_box;
+
+typedef struct {
+  float member;
+  double values[2];
+} floating_update_record;
+
+static float floating_update_file_float;
+static double floating_update_file_double;
+static floating_update_record floating_update_file_record;
+static unsigned int floating_update_designator_calls;
+
+static float *floating_update_member_slot(void) {
+  floating_update_designator_calls++;
+  return &floating_update_file_record.member;
+}
+
+static int floating_update_contract(void) {
+  floating_update_float_box float_box;
+  floating_update_double_box double_box;
+  float local_float;
+  float float_result;
+  double local_double;
+  double double_result;
+
+  local_float = 1.25f;
+  float_result = ++local_float;
+  if (local_float != 2.25f || float_result != 2.25f) {
+    return 760;
+  }
+  local_float = 1.25f;
+  float_result = local_float--;
+  if (local_float != 0.25f || float_result != 1.25f) {
+    return 761;
+  }
+  local_double = 4.5;
+  double_result = --local_double;
+  if (local_double != 3.5 || double_result != 3.5) {
+    return 762;
+  }
+  local_double = 4.5;
+  double_result = local_double++;
+  if (local_double != 5.5 || double_result != 4.5) {
+    return 763;
+  }
+
+  floating_update_file_float = 10.0f;
+  float_result = floating_update_file_float++;
+  floating_update_file_double = 10.0;
+  double_result = --floating_update_file_double;
+  if (floating_update_file_float != 11.0f || float_result != 10.0f ||
+      floating_update_file_double != 9.0 || double_result != 9.0) {
+    return 764;
+  }
+
+  floating_update_file_record.member = 6.0f;
+  float_result = ++floating_update_file_record.member;
+  floating_update_file_record.values[1] = 8.0;
+  double_result = floating_update_file_record.values[1]--;
+  if (floating_update_file_record.member != 7.0f ||
+      float_result != 7.0f ||
+      floating_update_file_record.values[1] != 7.0 ||
+      double_result != 8.0) {
+    return 765;
+  }
+
+  floating_update_designator_calls = 0u;
+  floating_update_file_record.member = 12.0f;
+  float_result = (*floating_update_member_slot())++;
+  if (floating_update_designator_calls != 1u ||
+      float_result != 12.0f ||
+      floating_update_file_record.member != 13.0f) {
+    return 766;
+  }
+
+  float_box.bits = 0x80000000u;
+  local_float = float_box.value;
+  float_result = local_float++;
+  float_box.value = float_result;
+  if (float_box.bits != 0x80000000u || local_float != 1.0f) {
+    return 767;
+  }
+  float_box.bits = 0x7fc12345u;
+  local_float = float_box.value;
+  float_result = local_float--;
+  float_box.value = float_result;
+  if (float_box.bits != 0x7fc12345u) {
+    return 768;
+  }
+  double_box.words.low = 0x89abcdefu;
+  double_box.words.high = 0x7ff81234u;
+  local_double = double_box.value;
+  double_result = local_double++;
+  double_box.value = double_result;
+  if (double_box.words.low != 0x89abcdefu ||
+      double_box.words.high != 0x7ff81234u) {
+    return 769;
+  }
+  return 0;
+}
+
 typedef struct {
   long double first;
   unsigned int marker;
@@ -1209,6 +1321,9 @@ int runtime_contract_run(int argc, char **argv) {
   }
   if (result == 0) {
     result = floating_truth_contract();
+  }
+  if (result == 0) {
+    result = floating_update_contract();
   }
   if (result == 0) {
     result = long_double_contract();

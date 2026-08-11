@@ -610,6 +610,7 @@ test: $(CONTRACT_MANIFEST) \
 	$(CUPIDC_IR_CONTRACT) floating-comparisons ..
 	$(CUPIDC_IR_CONTRACT) floating-conversions ..
 	$(CUPIDC_IR_CONTRACT) floating-truth ..
+	$(CUPIDC_IR_CONTRACT) floating-updates ..
 	$(CUPIDC_IR_CONTRACT) floating-scalars ..
 	$(CUPIDC_IR_CONTRACT) static-long-double-arithmetic ..
 	$(CUPIDC_IR_CONTRACT) inline-assembly ..
@@ -662,6 +663,7 @@ test: $(CONTRACT_MANIFEST) \
 	$(CUPIDC_OBJECT_CONTRACT) floating-comparisons ..
 	$(CUPIDC_OBJECT_CONTRACT) floating-conversions ..
 	$(CUPIDC_OBJECT_CONTRACT) floating-truth ..
+	$(CUPIDC_OBJECT_CONTRACT) floating-updates ..
 	$(CUPIDC_OBJECT_CONTRACT) floating-scalars ..
 	$(CUPIDC_OBJECT_CONTRACT) static-long-double-arithmetic ..
 	$(CUPIDC_OBJECT_CONTRACT) inline-assembly ..

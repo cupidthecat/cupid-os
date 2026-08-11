@@ -566,6 +566,12 @@ and conditional arms use double. The four arithmetic
 compound assignments compute at the common width, convert back to the left
 width, and evaluate their lvalue once.
 
+Prefix and postfix increment and decrement work on modifiable non-atomic float
+and double lvalues. The shared path evaluates the lvalue once and adds or
+subtracts exact-width 1.0. Prefix returns the stored value. Postfix returns the
+original raw payload, including signed-zero and NaN bits. Atomic floating and
+long double updates remain unsupported.
+
 Every changed x87 result is stored immediately at its C width. A float rounds
 into a fresh four-byte semantic slot. A double receives a fresh private
 eight-byte snapshot. The unchanged libm_tanh_impl expression
@@ -675,8 +681,8 @@ Hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
 bounded parser, other floating-to-wide conversions, runtime mixed integer and
 floating
-arithmetic or conditional arms, increment and decrement, general SIMD value
-semantics, floating atomic access, and over-aligned object emission remain
+arithmetic or conditional arms, atomic and long double updates, general SIMD
+value semantics, and over-aligned object emission remain
 unfinished.
 The exact production SIMD
 assembly forms have their own checked path. Matching or mixed-width floating

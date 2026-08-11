@@ -18358,6 +18358,17 @@ static int validate_scalar_update_unit(
       CTOOL_C_EXPRESSION_OPERATOR_PREFIX_DECREMENT,
       CTOOL_C_EXPRESSION_OPERATOR_POSTFIX_INCREMENT,
       CTOOL_C_EXPRESSION_OPERATOR_POSTFIX_DECREMENT};
+  static const char *const floating_update_names[] = {
+      "float_prefix_increment", "float_postfix_decrement",
+      "double_prefix_decrement", "double_postfix_increment"};
+  static const ctool_c_expression_operator_t floating_update_operations[] = {
+      CTOOL_C_EXPRESSION_OPERATOR_PREFIX_INCREMENT,
+      CTOOL_C_EXPRESSION_OPERATOR_POSTFIX_DECREMENT,
+      CTOOL_C_EXPRESSION_OPERATOR_PREFIX_DECREMENT,
+      CTOOL_C_EXPRESSION_OPERATOR_POSTFIX_INCREMENT};
+  static const ctool_c_type_kind_t floating_update_types[] = {
+      CTOOL_C_TYPE_FLOAT, CTOOL_C_TYPE_FLOAT,
+      CTOOL_C_TYPE_DOUBLE, CTOOL_C_TYPE_DOUBLE};
   const ctool_c_statement_t *statement =
       pointer_expression_statement(unit, "add_assign");
   const ctool_c_expression_t *assignment =
@@ -18370,7 +18381,7 @@ static int validate_scalar_update_unit(
   ctool_u32 call_count = 0u;
   ctool_u32 qualifiers;
   ctool_u32 index;
-  if (unit->function_definition_count != 26u || assignment == NULL ||
+  if (unit->function_definition_count != 30u || assignment == NULL ||
       assignment->kind != CTOOL_C_EXPRESSION_ASSIGNMENT ||
       assignment->operation != CTOOL_C_EXPRESSION_OPERATOR_ADD_ASSIGN ||
       assignment->child_count != 2u ||
@@ -18444,6 +18455,33 @@ static int validate_scalar_update_unit(
         unit->expressions[update_child].operation !=
             CTOOL_C_EXPRESSION_OPERATOR_DEREFERENCE) {
       (void)fprintf(stderr, "scalar-updates: update %u differs\n",
+                    (unsigned)index);
+      return 1;
+    }
+  }
+  for (index = 0u; index < ARRAY_COUNT(floating_update_names); index++) {
+    statement = find_single_return_statement(
+        unit, floating_update_names[index]);
+    assignment =
+        statement == NULL || statement->expression >= unit->expression_count
+            ? NULL
+            : &unit->expressions[statement->expression];
+    left = assignment == NULL
+               ? CTOOL_C_AST_NONE
+               : expression_child(unit, assignment, 0u);
+    if (assignment == NULL ||
+        assignment->kind != CTOOL_C_EXPRESSION_UPDATE ||
+        assignment->operation != floating_update_operations[index] ||
+        underlying_type_kind(unit, assignment->type, NULL) !=
+            floating_update_types[index] ||
+        underlying_type_kind(unit, assignment->computation_type, NULL) !=
+            floating_update_types[index] ||
+        left >= unit->expression_count ||
+        unit->expressions[left].kind != CTOOL_C_EXPRESSION_UNARY ||
+        unit->expressions[left].operation !=
+            CTOOL_C_EXPRESSION_OPERATOR_DEREFERENCE) {
+      (void)fprintf(stderr,
+                    "scalar-updates: floating update %u differs\n",
                     (unsigned)index);
       return 1;
     }
@@ -18676,6 +18714,10 @@ static int run_scalar_updates(const char *host_root) {
       "int prefix_decrement(int *value) { return --*value; }\n"
       "int postfix_increment(int *value) { return (*value)++; }\n"
       "int postfix_decrement(int *value) { return (*value)--; }\n"
+      "float float_prefix_increment(float *value) { return ++*value; }\n"
+      "float float_postfix_decrement(float *value) { return (*value)--; }\n"
+      "double double_prefix_decrement(double *value) { return --*value; }\n"
+      "double double_postfix_increment(double *value) { return (*value)++; }\n"
       "unsigned char narrow_postfix(unsigned char *value) { return (*value)++; }\n"
       "int *pointer_prefix(int **value) { return ++*value; }\n"
       "int *pointer_postfix(int **value) { return (*value)--; }\n"
@@ -18697,6 +18739,10 @@ static int run_scalar_updates(const char *host_root) {
       {{"postfix update of const object",
         "int bad(const int value) { return value++; }\n", CTOOL_ERR_INPUT,
         CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "assignment requires a modifiable lvalue"},
+      {{"floating update of const object",
+        "float bad(const float *value) { return (*value)++; }\n",
+        CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
        0u, 0u, "assignment requires a modifiable lvalue"},
       {{"postfix update of const pointer object",
         "int *bad(int *const pointer) { return pointer++; }\n",
@@ -18782,10 +18828,14 @@ static int run_scalar_updates(const char *host_root) {
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
        0u, 0u,
        "pointer compound assignment requires a pointer to a complete object type"},
-      {{"floating update boundary",
-        "void bad(float value) { value++; }\n",
+      {{"atomic floating update",
+        "void bad(_Atomic float *value) { (*value)++; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       0u, 0u, "floating update is outside this body slice"}};
+       0u, 0u, "atomic floating-point updates are not supported"},
+      {{"long double update",
+        "void bad(long double *value) { ++*value; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "long double updates are not supported"}};
   frontend_fixture_t fixture;
   ctool_c_translation_unit_t unit;
   ctool_u32 index;

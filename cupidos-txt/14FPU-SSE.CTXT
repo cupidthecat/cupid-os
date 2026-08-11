@@ -275,7 +275,11 @@ and PASS feature15_libm. ADR 0209 records the numerical correction.
 Runtime float, double, and automatic long double values work with unary !,
 &&, ||, the controlling operand of ?:, the conditions of if, while, do, and
 for, and conversion to _Bool. Both signed zeros are false; finite nonzero
-values, subnormals, infinities, and NaNs are true. Increment and decrement,
+values, subnormals, infinities, and NaNs are true. Source-head hosted CupidC
+accepts prefix and postfix increment and decrement on modifiable non-atomic
+float and double lvalues. It evaluates the lvalue once, stores the result after
+adding or subtracting exact-width 1.0, and returns the original raw payload for
+a postfix form. Atomic floating and long double updates,
 hexadecimal floating constants, binary32 and binary64 subnormal constants,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
 bounded parser, general SIMD value semantics, and atomic floating access remain

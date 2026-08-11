@@ -282,7 +282,11 @@ Runtime `float`, `double`, and automatic `long double` values work with unary
 `!`, `&&`, `||`, the controlling operand of `?:`, the conditions of `if`,
 `while`, `do`, and `for`, and conversion to `_Bool`. Both signed zeros are
 false; finite nonzero values, subnormals, infinities, and NaNs are true.
-Increment or decrement,
+Source-head hosted CupidC accepts prefix and postfix increment and decrement
+on modifiable non-atomic `float` and `double` lvalues. It evaluates the lvalue
+once and stores the result of adding or subtracting exact-width `1.0`.
+Postfix returns the original raw payload, including signed zero and NaN bits.
+Atomic floating and `long double` updates,
 hexadecimal floating constants, binary32 and binary64 subnormal constants,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
 bounded parser, general SIMD value semantics, and atomic floating access

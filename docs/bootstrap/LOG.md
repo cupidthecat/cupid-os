@@ -24111,3 +24111,37 @@ has SHA-256
 The 12,219-byte Markdown summary has SHA-256
 `e6a4a506f88f9c7df4e604d2b9bc0f6d4337e343e6f81164a6cb84486f262e60`.
 Generation and the independent check pass in 70.622 and 68.861 seconds.
+
+### Hosted floating scalar updates
+
+Hosted CupidC now accepts prefix and postfix increment and decrement for
+modifiable non-atomic `float` and `double` lvalues. Before this change, the
+frontend stopped the same active forms with
+`floating update is outside this body slice`. Atomic floating values and
+`long double` keep separate unsupported diagnostics.
+
+Linear IR evaluates the lvalue once and applies exact-width `1.0`. Prefix uses
+the existing value-preserving store. Postfix uses `STORE_OLD_VALUE` to store
+the replacement while returning the old raw `float` value or private `double`
+snapshot. This preserves negative zero and NaN payloads without reconstructing
+the old result.
+
+The object oracle covers locals, file objects, members, indexing, one
+side-effecting indirect designator, all four operator forms, stored results,
+negative zero, and NaN payloads at both widths. Repeated emission is
+byte-identical. A CupidC-compiled, CupidASM-assembled, and CupidLD-linked static
+i386 runtime runs under WSL and prints `runtime-ok`.
+
+The clean frontend, IR, and object entry points pass three focused tests in
+46.005 seconds. Neighboring floating arithmetic, wide mutation, and bit-field
+mutation selectors pass in the implementation worktree. The canonical
+Toolchain recipe invokes each new selector once. This source step does not
+promote the checked seed or move a production owner.
+
+The regenerated three-root audit keeps 727 active inputs, 255 feature IDs,
+449 transforms, and 25 accounted unreachable files. Its 2,610,127-byte JSON
+has SHA-256
+`33306ac91ea153f859621e99206456e40bdffc2df591620391d3ca5b36f2ddcd`.
+The 12,219-byte Markdown summary has SHA-256
+`296fe372feb1ab7e9633a52161b5b1f1aea79043620a6b99bffa94997bb3f8a8`.
+Generation and the independent check pass in 62.099 and 61.854 seconds.

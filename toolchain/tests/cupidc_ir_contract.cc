@@ -12,6 +12,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+static ctool_u32 find_plain_type_kind(
+    const ctool_c_translation_unit_t *unit, ctool_c_type_kind_t kind);
+
 static const char active_helper[] =
     "static ctool_bool cemit_add_overflows(ctool_u32 left, ctool_u32 right) {\n"
     "  return left > 0xffffffffu - right ? CTOOL_TRUE : CTOOL_FALSE;\n"
@@ -184,6 +187,10 @@ static const char integer_update_source[] =
     "unsigned int prefix_decrement(unsigned int value) { return --value; }\n"
     "int postfix_increment(int value) { return value++; }\n"
     "unsigned int postfix_decrement(unsigned int value) { return value--; }\n";
+
+static const char floating_update_source[] =
+    "float prefix_increment(float *value) { return ++*value; }\n"
+    "double postfix_increment(double *value) { return (*value)++; }\n";
 
 static const char integer_compound_source[] =
     "unsigned int all_compounds(unsigned int value, unsigned int right) {\n"
@@ -12007,6 +12014,169 @@ cleanup:
   }
   if (passed != 0) {
     (void)puts("integer-updates: ok");
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_floating_update_ir(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_ir_unit_t *ir) {
+  static const ctool_c_ir_instruction_kind_t prefix_kinds[] = {
+      CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_LOAD,
+      CTOOL_C_IR_INSTRUCTION_DEREFERENCE,
+      CTOOL_C_IR_INSTRUCTION_DUPLICATE_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_LOAD,
+      CTOOL_C_IR_INSTRUCTION_FLOATING,
+      CTOOL_C_IR_INSTRUCTION_BINARY,
+      CTOOL_C_IR_INSTRUCTION_STORE_VALUE,
+      CTOOL_C_IR_INSTRUCTION_RETURN_VALUE};
+  static const ctool_c_ir_instruction_kind_t postfix_kinds[] = {
+      CTOOL_C_IR_INSTRUCTION_PARAMETER_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_LOAD,
+      CTOOL_C_IR_INSTRUCTION_DEREFERENCE,
+      CTOOL_C_IR_INSTRUCTION_DUPLICATE_ADDRESS,
+      CTOOL_C_IR_INSTRUCTION_LOAD,
+      CTOOL_C_IR_INSTRUCTION_DUPLICATE_VALUE,
+      CTOOL_C_IR_INSTRUCTION_FLOATING,
+      CTOOL_C_IR_INSTRUCTION_BINARY,
+      CTOOL_C_IR_INSTRUCTION_STORE_OLD_VALUE,
+      CTOOL_C_IR_INSTRUCTION_RETURN_VALUE};
+  ctool_u32 float_type = find_plain_type_kind(unit, CTOOL_C_TYPE_FLOAT);
+  ctool_u32 double_type = find_plain_type_kind(unit, CTOOL_C_TYPE_DOUBLE);
+  ctool_u32 function_index;
+  if (unit == NULL || ir == NULL || float_type == CTOOL_C_TYPE_NONE ||
+      double_type == CTOOL_C_TYPE_NONE ||
+      unit->function_definition_count != 2u || ir->function_count != 2u ||
+      ir->instruction_count != 19u || ir->functions == NULL ||
+      ir->instructions == NULL) {
+    (void)fprintf(stderr, "floating update IR inventory differs\n");
+    return 0;
+  }
+  for (function_index = 0u; function_index < 2u; function_index++) {
+    const ctool_c_ir_function_t *function = &ir->functions[function_index];
+    const ctool_c_ir_instruction_t *instructions =
+        &ir->instructions[function->first_instruction];
+    const ctool_c_ir_instruction_kind_t *expected_kinds =
+        function_index == 0u ? prefix_kinds : postfix_kinds;
+    ctool_u32 expected_type = function_index == 0u ? float_type : double_type;
+    ctool_u32 expected_count = function_index == 0u ? 9u : 10u;
+    ctool_u32 constant_index = function_index == 0u ? 5u : 6u;
+    ctool_u32 binary_index = constant_index + 1u;
+    ctool_u32 store_index = binary_index + 1u;
+    ctool_u32 index;
+    if (function->first_instruction != (function_index == 0u ? 0u : 9u) ||
+        function->instruction_count != expected_count ||
+        function->maximum_stack_depth !=
+            (function_index == 0u ? 3u : 4u) ||
+        instructions[constant_index].type != expected_type ||
+        instructions[constant_index].input_type != CTOOL_C_TYPE_NONE ||
+        instructions[constant_index].integer_bits !=
+            (function_index == 0u ? 0x3f800000ull
+                                  : 0x3ff0000000000000ull) ||
+        instructions[binary_index].type != expected_type ||
+        instructions[binary_index].input_type != expected_type ||
+        instructions[binary_index].operation !=
+            CTOOL_C_EXPRESSION_OPERATOR_ADD ||
+        instructions[store_index].type != expected_type ||
+        instructions[store_index].input_type != expected_type) {
+      (void)fprintf(stderr, "floating update function %u differs\n",
+                    (unsigned)function_index);
+      return 0;
+    }
+    for (index = 0u; index < expected_count; index++) {
+      if (instructions[index].kind != expected_kinds[index] ||
+          !string_equal(instructions[index].location.path,
+                        "/floating-update.c") ||
+          !string_equal(instructions[index].physical_location.path,
+                        "/floating-update.c")) {
+        (void)fprintf(stderr,
+                      "floating update instruction %u:%u differs\n",
+                      (unsigned)function_index, (unsigned)index);
+        return 0;
+      }
+    }
+  }
+  return 1;
+}
+
+static int run_floating_updates(const char *host_root) {
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_expression_t *invalid_expressions = NULL;
+  ctool_c_ir_unit_t ir;
+  ctool_u32 diagnostic_count;
+  ctool_u32 double_type;
+  ctool_u32 float_type;
+  ctool_u32 float_update = CTOOL_C_AST_NONE;
+  ctool_u32 index;
+  ctool_status_t status;
+  uint64_t fingerprint;
+  int passed = 0;
+  (void)memset(&unit, 0, sizeof(unit));
+  (void)memset(&ir, 0xa5, sizeof(ir));
+  if (!open_job(host_root, &adapter, &config, &job) ||
+      !parse_source(job, "/floating-update.c", floating_update_source,
+                    &unit)) {
+    goto cleanup;
+  }
+  fingerprint = unit_fingerprint(&unit);
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  status = ctool_c_lower_ir(job, &unit, &ir);
+  if (!check_status(status, CTOOL_OK, "floating update lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(&unit) != fingerprint ||
+      !validate_floating_update_ir(&unit, &ir)) {
+    (void)ctool_job_render_diagnostics(job);
+    goto cleanup;
+  }
+  float_type = find_plain_type_kind(&unit, CTOOL_C_TYPE_FLOAT);
+  double_type = find_plain_type_kind(&unit, CTOOL_C_TYPE_DOUBLE);
+  if (float_type == CTOOL_C_TYPE_NONE || double_type == CTOOL_C_TYPE_NONE ||
+      unit.expression_count == 0u ||
+      sizeof(*invalid_expressions) >
+          SIZE_MAX / (size_t)unit.expression_count) {
+    goto cleanup;
+  }
+  for (index = 0u; index < unit.expression_count; index++) {
+    if (unit.expressions[index].kind == CTOOL_C_EXPRESSION_UPDATE &&
+        unit.expressions[index].type == float_type) {
+      float_update = index;
+      break;
+    }
+  }
+  invalid_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)unit.expression_count * sizeof(*invalid_expressions));
+  if (float_update == CTOOL_C_AST_NONE || invalid_expressions == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count * sizeof(*invalid_expressions));
+  invalid_expressions[float_update].computation_type = double_type;
+  invalid_unit = unit;
+  invalid_unit.expressions = invalid_expressions;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "floating update with mismatched computation type") ||
+      !expect_ir_success_preserves_unit(
+          job, &unit, "floating update metadata recovery")) {
+    goto cleanup;
+  }
+  passed = 1;
+
+cleanup:
+  free(invalid_expressions);
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (passed != 0) {
+    (void)puts("floating-updates: ok");
     return 0;
   }
   return 1;
@@ -42335,6 +42505,9 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "floating-truth") == 0) {
     return run_floating_truth(argv[2]);
   }
+  if (argc == 3 && strcmp(argv[1], "floating-updates") == 0) {
+    return run_floating_updates(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "floating-scalars") == 0) {
     return run_floating_scalars(argv[2]);
   }
@@ -42490,7 +42663,7 @@ int main(int argc, char **argv) {
                 "old-style-empty-functions|variadic-callees|wide-variadics|"
                 "floating-transport|floating-arithmetic|"
                 "floating-comparisons|floating-conversions|"
-                "floating-truth|"
+                "floating-truth|floating-updates|"
                 "floating-scalars|static-long-double-arithmetic|"
                 "block-records|"
                 "block-enums|bit-field-stores|bit-field-promotions|"

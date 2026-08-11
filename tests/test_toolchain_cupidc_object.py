@@ -1899,6 +1899,16 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "floating-truth: ok\n")
 
+    def test_floating_updates_emit_exact_stores_and_postfix_results(self):
+        result = subprocess.run(
+            [str(self.contract_path), "floating-updates", str(REPO_ROOT)],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "floating-updates: ok\n")
+
     def test_static_floating_arithmetic_emits_exact_constant_data(self):
         result = subprocess.run(
             [str(self.contract_path), "floating-scalars", str(REPO_ROOT)],

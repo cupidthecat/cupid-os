@@ -49,7 +49,8 @@ typedef enum {
   CTOOL_C_IR_INSTRUCTION_ATOMIC_EXCHANGE,
   CTOOL_C_IR_INSTRUCTION_ATOMIC_FETCH_ADD,
   CTOOL_C_IR_INSTRUCTION_ATOMIC_FETCH_OR,
-  CTOOL_C_IR_INSTRUCTION_FLOATING
+  CTOOL_C_IR_INSTRUCTION_FLOATING,
+  CTOOL_C_IR_INSTRUCTION_STORE_OLD_VALUE
 } ctool_c_ir_instruction_kind_t;
 
 typedef struct {
@@ -58,18 +59,19 @@ typedef struct {
    * instructions, aggregate LOAD, STORE, and ZERO_OBJECT use the object type.
    * FUNCTION_ADDRESS retains its function-designator type.
    * STRING_LITERAL_ADDRESS retains its character-array type.
-   * STORE_VALUE uses the assignment result type. Control instructions and
-   * DISCARD use CTOOL_C_TYPE_NONE, except RETURN_VALUE, which retains the
-   * result type. ASSEMBLY consumes its possibly empty frontend operand
+   * STORE_VALUE and STORE_OLD_VALUE use the assignment result type. Control
+   * instructions and DISCARD use CTOOL_C_TYPE_NONE, except RETURN_VALUE,
+   * which retains the result type. ASSEMBLY consumes its possibly empty
+   * frontend operand
    * slice and uses CTOOL_C_TYPE_NONE. ATOMIC_* retain the unqualified
    * integer object type; ATOMIC_STORE uses it for width even though it
    * produces no value. */
   ctool_u32 type;
   /* LOAD and CONVERT retain their source type. MEMBER_ADDRESS and
    * BIT_FIELD_LOAD, BIT_FIELD_STORE_VALUE, and
-   * BIT_FIELD_STORE_OLD_VALUE retain their record operand type. STORE and
-   * STORE_VALUE retain the stored value type. DISCARD retains its consumed
-   * value type.
+   * BIT_FIELD_STORE_OLD_VALUE retain their record operand type. STORE,
+   * STORE_VALUE, and STORE_OLD_VALUE retain the stored value type. DISCARD
+   * retains its consumed value type.
    * UNARY retains its operand type. BINARY retains its left operand type;
    * supported wide shifts validate their represented count before the
    * instruction is published. POINTER_BINARY retains its left operand type.
@@ -349,7 +351,10 @@ ctool_status_t ctool_c_lower_ir(ctool_job_t *job,
  * snapshot. STORE consumes the value on top of the stack and the destination
  * address below it, without producing a result. Structure STORE copies the
  * complete object. STORE_VALUE consumes the same pair and pushes the stored
- * scalar value or preserved structure snapshot. DISCARD consumes one value.
+ * scalar value or preserved structure snapshot. STORE_OLD_VALUE consumes an
+ * object address, its previously loaded scalar value, and a replacement
+ * value. It stores the replacement once and pushes the earlier value so a
+ * postfix update preserves its exact payload. DISCARD consumes one value.
  * An explicit cast to void evaluates its operand once and produces no result.
  * A represented integer, object pointer, function pointer, `float`, `double`,
  * `long double`, or supported structure operand emits DISCARD. A void operand

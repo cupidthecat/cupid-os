@@ -300,6 +300,14 @@ Wide values support addition, subtraction, multiplication, division, remainder, 
 
 Hosted CupidC carries `float` and `double` values through object access, automatic initialization, plain assignment, discard, fixed direct or indirect calls, parameters, call results, and returns. Explicit casts and assignment conversion work in both directions between the two widths. Unary plus and minus and binary addition, subtraction, multiplication, and division accept matching or mixed floating operands. Matching floating conditional arms keep their width; mixed arithmetic and conditional arms use `double`. The four arithmetic compound assignments compute at the common width, convert back to the left width, and evaluate their lvalue once. Every changed x87 result is immediately stored at its C width. A `float` rounds into a fresh four-byte semantic slot, while a `double` receives a fresh private eight-byte snapshot. The unchanged `libm_tanh_impl` body pins nested arithmetic with call-produced `double` values, and the complete following `float` helper slice pins the width conversions. The path also promotes `float` to `double` at ellipsis and unprototyped call positions. Calls use four-byte or eight-byte cdecl slots, floating returns use x87 `ST0`, and `va_arg(double)` advances by eight bytes.
 
+Source-head hosted CupidC also accepts prefix and postfix increment and
+decrement on modifiable non-atomic `float` and `double` lvalues. Linear IR
+evaluates the destination once and adds or subtracts an exact-width `1.0`.
+Prefix returns the stored value. A dedicated postfix store returns the old raw
+`float` or `double` snapshot, preserving negative zero and NaN payloads.
+Atomic floating and `long double` updates remain unsupported. ADR 0263 records
+the source boundary; the current checked seed does not carry it yet.
+
 Decimal `float` and `double` constants carry exact IEEE bits from the frontend
 into linear IR. The integer-only literal parser rounds once to nearest with
 ties to even. Static-duration scalar and aggregate leaves use a separate
@@ -388,8 +396,8 @@ caller's control word separately, selects truncation toward zero for `FISTP`,
 and restores that copy. The unsigned 64-bit path splits at `2^63`.
 Hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimals beyond the bounded
-ratio parser, other floating-to-wide conversions, increment and decrement,
-SIMD, floating atomics, and over-aligned
+ratio parser, other floating-to-wide conversions, atomic and long-double
+updates, SIMD, and over-aligned
 floating objects remain open. ADR 0202 records the runtime truth boundary,
 ADR 0256 records canonical static x87 classes, and ADR 0260 records static x87
 arithmetic.
