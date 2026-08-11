@@ -658,6 +658,12 @@ subnormal result produced by static binary32 arithmetic. Infinity keeps its
 sign, and NaN becomes one quiet x87 payload. Narrowing uses round-to-nearest,
 ties-to-even packing for finite values and canonical special encodings. Folded
 expressions add no runtime IR.
+Private runtime floating comparisons merge the parity flag with SETP or SETNP.
+Source-head CupidDis names both byte predicates from the shared catalogue,
+so the in-OS `dis` command stays aligned through the following AND, OR, and
+MOVZX instructions. In GUI mode, the shell keeps the listing in the terminal
+and mirrors it to serial after its ordinary sink and redirection checks.
+
 Hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
 bounded parser, static long-double arithmetic, other floating-to-wide

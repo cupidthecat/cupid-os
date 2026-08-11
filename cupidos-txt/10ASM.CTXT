@@ -274,10 +274,12 @@ repository paths without making the assembler depend on ambient host paths.
 CupidASM implements the cleanly expressible NASM-compatible surface required
 by active CupidOS sources; it does not claim unrestricted NASM compatibility.
 
-The checked seed and source head have 602 x86 rows, 247 canonical mnemonics,
-64 register names, and fingerprint 64429699. Six rows cover signed x87 FILD and FISTP
-memory operands at 16, 32, and 64 bits. Register, byte, and 80-bit memory forms
-are rejected without output. The seed's four SHRD rows cover 16-bit and 32-bit register
+The promoted seed has 602 x86 rows, 247 canonical mnemonics, 64 register names,
+and fingerprint 64429699. Source head has 604 rows, 249 canonical mnemonics,
+and fingerprint 55A8970F. The seed includes signed x87 FILD and FISTP memory
+operands at 16, 32, and 64 bits. Source head adds canonical SETP and SETNP byte
+predicates in 16-bit and 32-bit modes. FILD and FISTP register, byte-memory,
+and 80-bit memory forms are rejected without output. The seed's four SHRD rows cover 16-bit and 32-bit register
 or memory destinations with either an immediate byte or fixed CL count. Both
 modes honor operand-size and address-size overrides. Active checked-CupidC
 objects decode `shrd eax, edi, cl` directly. The latest preceding row encodes
@@ -301,6 +303,10 @@ sources. Common families include:
 - jcc aliases including parity aliases: jp/jpe and jnp/jpo
 - all sixteen i686 conditional moves with 16-bit or 32-bit register and memory
   sources, plus conventional aliases
+- SETP and SETNP with a byte register or memory destination; SETPE and SETPO
+  are not aliases in this source-driven slice
+- GUI-mode `dis` keeps its listing in the terminal and mirrors it to serial
+  after the shell's normal sink and redirection checks
 - three-operand IMUL with a 16-bit or 32-bit register destination, a
   same-width register or memory source, and either a full or signed-byte
   immediate
@@ -310,11 +316,14 @@ sources. Common families include:
 - atomic helpers: bswap, xadd, cmpxchg, lock-prefixed memory operations
 - sized memory inc/dec and reserve directives
 
-The checked i386 Linux seed and source-head tools carry all 602 shared x86
-rows, including FILD and FISTP. The catalogue includes the IMUL and padding NOP families,
-FLDZ, forward x87 stack subtraction, and SHRD. ADR 0208 records the x87 form's
-seed carriage, and ADR 0228 records the first SHRD seed promotion. ADR 0252
-records the x87 integer forms, and ADR 0258 records their checked-seed carriage.
+The promoted i386 Linux seed carries all 602 shared x86 rows in CupidASM and
+CupidDis, including FILD and FISTP. The source-head tools build the 604-row
+catalogue with SETP and SETNP. The seed catalogue also includes the IMUL and
+padding NOP families, FLDZ, forward x87 stack subtraction, and SHRD. ADR 0208
+records the x87 form's seed carriage, and ADR 0228 records the first SHRD seed
+promotion. ADR 0243
+records the preceding seed, ADR 0252 records the x87 integer forms, ADR 0258
+records the promoted seed, and ADR 0259 records the parity predicates.
 
 Floating-point and SIMD coverage includes:
 - FPU state: FXSAVE, FXRSTOR, FINIT, FNINIT, FWAIT, LDMXCSR, STMXCSR

@@ -133,6 +133,7 @@ static void *process_output_sink_ctx[MAX_PROCESSES + 1];
 
 static void shell_putchar(char c);
 static void shell_print(const char *s);
+static void shell_dis_print(const char *s);
 static void shell_gui_putchar(char c);
 static void shell_gui_print(const char *s);
 static void gui_exec_command(const char *input);
@@ -1178,8 +1179,10 @@ static void shell_gui_print_int(uint32_t num) {
 /*
  *  Output wrappers that route to GUI or text mode
 */
-static void shell_print(const char *s) {
-  if (s && shell_output_write_current(s, (uint32_t)strlen(s)))
+static void shell_route_print(const char *s, int mirror_gui_to_serial) {
+  if (!s)
+    return;
+  if (shell_output_write_current(s, (uint32_t)strlen(s)))
     return;
   if (redir_active && redir_buf) {
     while (*s && redir_len < REDIR_BUF_SIZE - 1) {
@@ -1189,9 +1192,19 @@ static void shell_print(const char *s) {
   }
   if (output_mode == SHELL_OUTPUT_GUI) {
     shell_gui_print(s);
+    if (mirror_gui_to_serial)
+      serial_write_string(s);
   } else {
     print(s);
   }
+}
+
+static void shell_print(const char *s) {
+  shell_route_print(s, 0);
+}
+
+static void shell_dis_print(const char *s) {
+  shell_route_print(s, 1);
 }
 
 static void shell_putchar(char c) {
@@ -1907,9 +1920,9 @@ static void shell_exec_cmd(const char *args) {
     const char *file = args + 3;
     shell_resolve_path(file, rpath);
     if (shell_ends_with(rpath, ".cc")) {
-      cupidc_dis(rpath, shell_print);
+      cupidc_dis(rpath, shell_dis_print);
     } else {
-      (void)dis_elf(rpath, shell_print);
+      (void)dis_elf(rpath, shell_dis_print);
     }
     return;
   }
@@ -2246,7 +2259,7 @@ static void shell_cc_cmd(const char *args) {
     char rpath[VFS_MAX_PATH];
     const char *file = args + 3;
     shell_resolve_path(file, rpath);
-    cupidc_dis(rpath, shell_print);
+    cupidc_dis(rpath, shell_dis_print);
     return;
   }
 
@@ -2505,9 +2518,9 @@ static void shell_dis_cmd(const char *args) {
   len = (int)strlen(rpath);
   if (len >= 3 && rpath[len - 3] == '.' && rpath[len - 2] == 'c' &&
       rpath[len - 1] == 'c') {
-    cupidc_dis(rpath, shell_print);
+    cupidc_dis(rpath, shell_dis_print);
   } else {
-    (void)dis_elf(rpath, shell_print);
+    (void)dis_elf(rpath, shell_dis_print);
   }
 }
 

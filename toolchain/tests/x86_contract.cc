@@ -188,8 +188,9 @@ static int run_model(void) {
       "sysexit",  "test",     "wbinvd",   "wrmsr",    "xadd",
       "xor",      "idiv",     "imul",     "lea",      "leave",
       "movsx",    "neg",      "nop",      "not",      "sar",
-      "sete",     "setne",    "setl",     "setg",     "setle",
-      "setge",    "xchg",     "addsd",    "addpd",    "andps",
+      "sete",     "setne",    "setnp",    "setp",     "setl",
+      "setg",     "setle",    "setge",    "xchg",     "addsd",
+      "addpd",    "andps",
       "andpd",    "cmpps",    "cvtps2dq", "cvtdq2ps", "cvtsd2si",
       "cvtss2si", "cvtsi2sd", "cvtsi2ss", "cvtsd2ss", "cvtss2sd",
       "divpd",    "divps",    "divsd",    "divss",    "maxps",
@@ -235,9 +236,9 @@ static int run_model(void) {
     return 1;
   }
   info = ctool_x86_model_info();
-  if (!check_true(info.form_count == 602u && info.mnemonic_count == 247u &&
+  if (!check_true(info.form_count == 604u && info.mnemonic_count == 249u &&
                       info.register_count == 64u &&
-                      info.fingerprint == 0x64429699u,
+                      info.fingerprint == 0x55a8970fu,
                   "model inventory")) {
     ctool_job_close(job);
     return 1;
@@ -2371,6 +2372,276 @@ static int run_conditional_moves(void) {
   return 0;
 }
 
+static int expect_parity_setcc_encode_failure(
+    ctool_job_t *job, const ctool_x86_instruction_t *insn,
+    const char *operation) {
+  ctool_x86_encoding_t encoding;
+  ctool_status_t status;
+  (void)memset(&encoding, 0xa5, sizeof(encoding));
+  status = ctool_x86_encode(job, CTOOL_X86_MODE_32, insn,
+                            CTOOL_X86_FORM_AUTO, &encoding);
+  return check_status(status, CTOOL_ERR_INPUT, operation) &&
+         check_true(encoding_is_zero(&encoding), operation);
+}
+
+static int run_parity_setcc(void) {
+  static const char *const names[] = {"setp", "setnp"};
+  static const char *const excluded_aliases[] = {"setpe", "setpo"};
+  static const ctool_u8 opcodes[] = {0x9au, 0x9bu};
+  static const ctool_u8 semantic_prefixes[] = {
+      CTOOL_X86_PREFIX_LOCK, CTOOL_X86_PREFIX_REP,
+      CTOOL_X86_PREFIX_REPNE};
+  static const ctool_u8 truncated_memory[] = {
+      0x67u, 0x0fu, 0x9au, 0x84u, 0x8bu,
+      0x78u, 0x56u, 0x34u, 0x12u};
+  static const ctool_u8 valid_setp[] = {0x0fu, 0x9au, 0xc2u};
+  ctool_host_adapter_t adapter;
+  ctool_job_t *job;
+  ctool_x86_mnemonic_t mnemonics[2];
+  ctool_x86_mnemonic_t excluded;
+  ctool_x86_instruction_t insn;
+  ctool_x86_encoding_t encoding;
+  ctool_x86_encoding_t replay;
+  ctool_x86_decoded_t decoded;
+  ctool_x86_form_t setp_form;
+  ctool_status_t status;
+  ctool_u32 mnemonic_index;
+  ctool_u32 alias_index;
+  ctool_u32 mode_index;
+  ctool_u32 operand_index;
+  ctool_u32 prefix_index;
+  ctool_u32 cut;
+  if (!open_job(&adapter, &job)) {
+    return 1;
+  }
+
+  for (mnemonic_index = 0u; mnemonic_index < 2u; mnemonic_index++) {
+    ctool_string_t canonical;
+    status = ctool_x86_mnemonic_from_name(
+        ctool_string(names[mnemonic_index]), &mnemonics[mnemonic_index]);
+    if (!check_status(status, CTOOL_OK, names[mnemonic_index])) {
+      ctool_job_close(job);
+      return 1;
+    }
+    canonical = ctool_x86_mnemonic_name(mnemonics[mnemonic_index]);
+    if (!check_true(canonical.size == strlen(names[mnemonic_index]) &&
+                        memcmp(canonical.data, names[mnemonic_index],
+                               canonical.size) == 0,
+                    "parity SETcc canonical name")) {
+      ctool_job_close(job);
+      return 1;
+    }
+  }
+
+  for (alias_index = 0u;
+       alias_index <
+       (ctool_u32)(sizeof(excluded_aliases) / sizeof(excluded_aliases[0]));
+       alias_index++) {
+    status = ctool_x86_mnemonic_from_name(
+        ctool_string(excluded_aliases[alias_index]), &excluded);
+    if (!check_status(status, CTOOL_ERR_NOT_FOUND,
+                      "parity SETcc excluded alias")) {
+      ctool_job_close(job);
+      return 1;
+    }
+  }
+
+  for (mnemonic_index = 0u; mnemonic_index < 2u; mnemonic_index++) {
+    for (mode_index = 0u; mode_index < 2u; mode_index++) {
+      ctool_x86_mode_t mode = mode_index == 0u ? CTOOL_X86_MODE_16
+                                               : CTOOL_X86_MODE_32;
+      for (operand_index = 0u; operand_index < 3u; operand_index++) {
+        ctool_u8 expected[10];
+        ctool_u8 expected_size = 0u;
+        ctool_u16 address_bits = mode == CTOOL_X86_MODE_16 ? 16u : 32u;
+        ctool_x86_operand_kind_t expected_kind =
+            operand_index == 0u ? CTOOL_X86_OPERAND_REGISTER
+                                : CTOOL_X86_OPERAND_MEMORY;
+        insn = instruction(mnemonics[mnemonic_index], 8u, address_bits, 0u);
+        insn.operand_count = 1u;
+        if (operand_index == 0u) {
+          insn.operands[0] = register_operand(CTOOL_X86_REG_GPR8, 2u);
+        } else if ((operand_index == 1u && mode == CTOOL_X86_MODE_16) ||
+                   (operand_index == 2u && mode == CTOOL_X86_MODE_32)) {
+          address_bits = 16u;
+          insn.address_bits = address_bits;
+          insn.operands[0] = memory_operand(
+              8u, address_bits, reg(CTOOL_X86_REG_NONE, 0u),
+              reg(CTOOL_X86_REG_GPR16, 3u),
+              reg(CTOOL_X86_REG_GPR16, 6u), 1u, 0x7f, 8u);
+        } else {
+          address_bits = 32u;
+          insn.address_bits = address_bits;
+          insn.operands[0] = memory_operand(
+              8u, address_bits, reg(CTOOL_X86_REG_NONE, 0u),
+              reg(CTOOL_X86_REG_GPR32, 3u),
+              reg(CTOOL_X86_REG_GPR32, 1u), 4u, 0x12345678, 32u);
+        }
+        if (operand_index != 0u &&
+            ((mode == CTOOL_X86_MODE_16 && address_bits == 32u) ||
+             (mode == CTOOL_X86_MODE_32 && address_bits == 16u))) {
+          expected[expected_size++] = 0x67u;
+        }
+        expected[expected_size++] = 0x0fu;
+        expected[expected_size++] = opcodes[mnemonic_index];
+        if (operand_index == 0u) {
+          expected[expected_size++] = 0xc2u;
+        } else if (address_bits == 16u) {
+          expected[expected_size++] = 0x40u;
+          expected[expected_size++] = 0x7fu;
+        } else {
+          expected[expected_size++] = 0x84u;
+          expected[expected_size++] = 0x8bu;
+          expected[expected_size++] = 0x78u;
+          expected[expected_size++] = 0x56u;
+          expected[expected_size++] = 0x34u;
+          expected[expected_size++] = 0x12u;
+        }
+        if (!encode(job, mode, &insn, &encoding, "parity SETcc encode") ||
+            !bytes_equal(&encoding, expected, expected_size,
+                         "parity SETcc exact bytes")) {
+          ctool_job_close(job);
+          return 1;
+        }
+        status = ctool_x86_decode(
+            job, mode, ctool_bytes(expected, expected_size), 0u, &decoded);
+        if (!check_status(status, CTOOL_OK, "parity SETcc decode") ||
+            !check_true(
+                decoded.kind == CTOOL_X86_DECODE_KNOWN &&
+                    decoded.consumed == expected_size &&
+                    decoded.instruction.mnemonic == mnemonics[mnemonic_index] &&
+                    decoded.instruction.operand_bits == 8u &&
+                    decoded.instruction.operand_count == 1u &&
+                    decoded.instruction.operands[0].kind == expected_kind &&
+                    decoded.encoding.form != CTOOL_X86_FORM_AUTO,
+                "parity SETcc decode semantics")) {
+          ctool_job_close(job);
+          return 1;
+        }
+        if (expected_kind == CTOOL_X86_OPERAND_REGISTER) {
+          if (!check_true(
+                  decoded.instruction.operands[0].as.reg.class_id ==
+                          CTOOL_X86_REG_GPR8 &&
+                      decoded.instruction.operands[0].as.reg.index == 2u,
+                  "parity SETcc register operand")) {
+            ctool_job_close(job);
+            return 1;
+          }
+        } else if (!check_true(
+                       decoded.instruction.operands[0].width_bits == 8u &&
+                           decoded.instruction.operands[0]
+                                   .as.memory.address_bits == address_bits,
+                       "parity SETcc memory operand")) {
+          ctool_job_close(job);
+          return 1;
+        }
+        status = ctool_x86_encode(job, mode, &decoded.instruction,
+                                  decoded.encoding.form, &replay);
+        if (!check_status(status, CTOOL_OK,
+                          "parity SETcc requested form") ||
+            !bytes_equal(&replay, expected, expected_size,
+                         "parity SETcc requested-form bytes")) {
+          ctool_job_close(job);
+          return 1;
+        }
+      }
+    }
+  }
+
+  insn = instruction(mnemonics[0], 32u, 32u, 0u);
+  insn.operand_count = 1u;
+  insn.operands[0] = register_operand(CTOOL_X86_REG_GPR32, 0u);
+  if (!expect_parity_setcc_encode_failure(
+          job, &insn, "parity SETcc non-byte register")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  insn = instruction(mnemonics[1], 8u, 32u, 0u);
+  insn.operand_count = 1u;
+  insn.operands[0] = value_operand(
+      CTOOL_X86_OPERAND_IMMEDIATE, 8u, 8u, constant(1u));
+  if (!expect_parity_setcc_encode_failure(
+          job, &insn, "parity SETcc immediate operand")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  insn.operand_count = 0u;
+  if (!expect_parity_setcc_encode_failure(
+          job, &insn, "parity SETcc missing operand")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  insn = instruction(mnemonics[0], 8u, 32u, 0u);
+  insn.operand_count = 1u;
+  insn.operands[0] = register_operand(CTOOL_X86_REG_GPR8, 2u);
+  for (prefix_index = 0u;
+       prefix_index <
+       (ctool_u32)(sizeof(semantic_prefixes) /
+                   sizeof(semantic_prefixes[0]));
+       prefix_index++) {
+    insn.prefixes = semantic_prefixes[prefix_index];
+    if (!expect_parity_setcc_encode_failure(
+            job, &insn, "parity SETcc semantic prefix")) {
+      ctool_job_close(job);
+      return 1;
+    }
+  }
+
+  for (cut = 1u; cut < (ctool_u32)sizeof(truncated_memory); cut++) {
+    status = ctool_x86_decode(
+        job, CTOOL_X86_MODE_16, ctool_bytes(truncated_memory, cut), 0u,
+        &decoded);
+    if (!check_status(status, CTOOL_OK,
+                      "parity SETcc every-byte truncation") ||
+        !check_true(decoded.kind == CTOOL_X86_DECODE_TRUNCATED &&
+                        decoded.consumed == 0u &&
+                        decoded.encoding.size == cut &&
+                        memcmp(decoded.encoding.bytes, truncated_memory,
+                               (size_t)cut) == 0,
+                    "parity SETcc truncation retention")) {
+      ctool_job_close(job);
+      return 1;
+    }
+  }
+
+  status = ctool_x86_decode(
+      job, CTOOL_X86_MODE_32,
+      ctool_bytes(valid_setp, (ctool_u32)sizeof(valid_setp)), 0u, &decoded);
+  if (!check_status(status, CTOOL_OK, "parity SETcc recovery decode") ||
+      !check_true(decoded.kind == CTOOL_X86_DECODE_KNOWN &&
+                      decoded.instruction.mnemonic == mnemonics[0],
+                  "parity SETcc recovered decode")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  setp_form = decoded.encoding.form;
+  insn = decoded.instruction;
+  insn.mnemonic = mnemonics[1];
+  (void)memset(&encoding, 0xa5, sizeof(encoding));
+  status = ctool_x86_encode(job, CTOOL_X86_MODE_32, &insn, setp_form,
+                            &encoding);
+  if (!check_status(status, CTOOL_ERR_INPUT,
+                    "parity SETcc mismatched requested form") ||
+      !check_true(encoding_is_zero(&encoding),
+                  "parity SETcc mismatched form rollback")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  status = ctool_x86_encode(job, CTOOL_X86_MODE_32,
+                            &decoded.instruction, setp_form, &encoding);
+  if (!check_status(status, CTOOL_OK,
+                    "parity SETcc same-job recovery") ||
+      !bytes_equal(&encoding, valid_setp, (ctool_u8)sizeof(valid_setp),
+                   "parity SETcc recovered exact bytes")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  ctool_job_close(job);
+  (void)puts("parity-setcc: ok");
+  return 0;
+}
+
 static int run_addressing(void) {
   static const ctool_u8 addr16_bytes[] = {0x8bu, 0x40u, 0x7fu};
   static const ctool_u8 sib_bytes[] = {0x8bu, 0x44u, 0x8bu, 0x10u};
@@ -3300,6 +3571,10 @@ static int run_active_surface(void) {
        {0x0fu, 0x94u, 0xc0u}},
       {"setne", CTOOL_X86_MODE_32, CTOOL_X86_MN_SETNE, 3u,
        {0x0fu, 0x95u, 0xc0u}},
+      {"setnp", CTOOL_X86_MODE_32, CTOOL_X86_MN_SETNP, 3u,
+       {0x0fu, 0x9bu, 0xc2u}},
+      {"setp", CTOOL_X86_MODE_32, CTOOL_X86_MN_SETP, 3u,
+       {0x0fu, 0x9au, 0xc2u}},
       {"setl", CTOOL_X86_MODE_32, CTOOL_X86_MN_SETL, 3u,
        {0x0fu, 0x9cu, 0xc0u}},
       {"setg", CTOOL_X86_MODE_32, CTOOL_X86_MN_SETG, 3u,
@@ -3767,7 +4042,7 @@ static int run_errors(void) {
 int main(int argc, char **argv) {
   if (argc != 2) {
     (void)fprintf(stderr,
-                  "usage: x86-contract inventory|model|integer|conditional-moves|immediate-imul|double-shift|padding-nops|clang-padding-nops|addressing|relocations|system-simd|active-surface|errors\n");
+                  "usage: x86-contract inventory|model|integer|conditional-moves|parity-setcc|immediate-imul|double-shift|padding-nops|clang-padding-nops|addressing|relocations|system-simd|active-surface|errors\n");
     return 2;
   }
   if (strcmp(argv[1], "model") == 0) {
@@ -3781,6 +4056,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "conditional-moves") == 0) {
     return run_conditional_moves();
+  }
+  if (strcmp(argv[1], "parity-setcc") == 0) {
+    return run_parity_setcc();
   }
   if (strcmp(argv[1], "immediate-imul") == 0) {
     return run_immediate_imul();

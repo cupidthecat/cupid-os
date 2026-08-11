@@ -527,14 +527,14 @@ expressions in source order. It also keeps all target bits through represented
 function-pointer casts and supports bounded output-only register and EFLAGS
 snapshots. The checked production wrapper now compiles the generated
 `kernel/cpu/ksyms_data.cc` root. The generator writes little-endian
-`unsigned int` words and records the logical 114,421-byte blob length
+`unsigned int` words and records the logical 114,851-byte blob length
 separately. Hostbuild freezes the pass-one kernel and checked seed, captures
 canonical text through checked CupidDis, and gives the exact text to checked
 CupidObj. Its independent Python renderer catches malformed text, missing
 output, byte mismatch, or live input drift before atomic publication. The
 checked compiler wrapper freezes that source and its header closure before it
-publishes the object. The word array ends with three zero pad bytes. The final
-kernel retains all 4,704 pass-one text-symbol address/name pairs. ADR 0224
+publishes the object. The word array ends with one zero pad byte. The final
+kernel retains all 4,718 pass-one text-symbol address/name pairs. ADR 0224
 records the generator handoff.
 
 The checked seed emits the exact volatile
@@ -595,9 +595,18 @@ CupidDis scan covered 377 active ELF objects across the kernel, programs,
 drivers, Toolchain, and user build. Every object decoded, and none produced a
 true `db 0x` fallback row. The active SIMD object already uses the shared
 model for its packed SSE2 instructions, so the investigation added no
-speculative opcode. The checked seed and source head have 602 catalogue rows,
-247 canonical mnemonics, and fingerprint `64429699`. Six rows encode signed x87
-`FILD` and `FISTP` memory operands at 16, 32, and 64 bits.
+speculative opcode. The promoted seed has 602 catalogue rows, 247 canonical
+mnemonics, and fingerprint `64429699`. Source head has 604 rows, 249 canonical
+mnemonics, and fingerprint `55A8970F`. The seed includes signed x87 `FILD` and
+`FISTP` memory operands at 16, 32, and 64 bits. Source head adds canonical
+`SETP` and `SETNP` byte predicates. They keep private CupidC's
+floating comparison and truth sequences aligned under CupidDis. The guest
+disassembles and executes the bounded `test_fpaug.cc` parity cases before it
+runs the full feature-13 behavior. GUI-mode listings stay visible in the
+terminal and are mirrored to serial after the ordinary sink and redirection
+checks, so the runtime proof reads production CupidDis output rather than a
+separate oracle.
+ADR 0258 records the 602-row seed, and ADR 0259 records the parity rows.
 The four SHRD
 forms cover 16-bit and 32-bit SHRD with register or memory destinations and
 either an immediate byte or fixed CL count. Active checked-CupidC objects now
@@ -620,9 +629,9 @@ every long-double-to-integer conversion restore the control word they save.
 Other integer-to-long-double conversions do not change it. A 12-case runtime
 matrix covers every valid precision and rounding combination. ADR
 0251 records the static-data boundary, ADR 0252 records the x87 integer forms,
-ADR 0253 records runtime conversion, and ADR 0258 records seed carriage. The
-checked compiler also converts static initializers between bounded finite
-`long double` and every
+ADR 0253 records runtime conversion, and ADR 0258 records seed carriage.
+Compiler head also converts static initializers between bounded finite `long
+double` and every
 represented value integer and an enum whose compatible integer type has the
 represented target layout. It packs integer input into exact x87 metadata. For
 integer destinations other than `_Bool`, it truncates long-double input before

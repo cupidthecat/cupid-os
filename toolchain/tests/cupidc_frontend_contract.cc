@@ -7772,7 +7772,7 @@ static int validate_toolchain_frontier(const char *host_root) {
       {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
        9457u, 143u, 70u, 0u, 1u},
       {"/toolchain/x86.cc", CTOOL_OK, 0u, 0u, 0u, "", 60u, 1766u,
-       11903u, 180u, 17052u, 3u, 0u}};
+       11903u, 180u, 17112u, 3u, 0u}};
   ctool_u32 index;
   int any_failed = 0;
   for (index = 0u; index < ARRAY_COUNT(cases); index++) {

@@ -395,7 +395,7 @@ _Avoid_: general x87 programs, reordered address evaluation, host-assembler esca
 **Represented GNU x87 exponent memory assembly**:
 The exact volatile statement in `libm_exp_impl()` with one modifiable, non-atomic `double` `=m` output, two addressable, non-atomic `double` `m` inputs in `x`, `log2e` order, and one `memory` clobber. Linear IR evaluates all three addresses once in source order. The i386 emitter runs the complete `exp2(x * log2(e))` pipeline through Cupid's shared x86 model. The focused function has 71 text bytes, no relocations, maximum x87 depth three, and balanced depth on return.
 
-Compiler head and the checked seed distinguish both aligned GNU spellings of the exponent range subtraction. Legacy `fsub %st, %st(1)` retains GNU's `DC E1` reverse-subtract meaning. Corrected `fsubr %st, %st(1)` emits canonical `FSUB ST(1), ST(0)` as `DC E9`, which computes `x - round(x)`. Both carry 602 forms, 247 canonical mnemonics, and fingerprint `64429699`. Six rows cover signed x87 `FILD` and `FISTP` memory operands at 16, 32, and 64 bits. The four SHRD rows remain canonical at 16 and 32 bits with immediate or fixed CL counts. Active `libm.cc` uses the corrected subtraction spelling at all seven range-reduction sites. ADRs 0207 through 0209 record the exponent diagnosis, seed carriage, and runtime-tested source correction. ADR 0226 records SHRD, ADR 0228 records its seed carriage, ADR 0252 records the x87 integer forms, and ADR 0258 records their checked-seed carriage.
+Compiler head and the checked seed distinguish both aligned GNU spellings of the exponent range subtraction. Legacy `fsub %st, %st(1)` retains GNU's `DC E1` reverse-subtract meaning. Corrected `fsubr %st, %st(1)` emits canonical `FSUB ST(1), ST(0)` as `DC E9`, which computes `x - round(x)`. The promoted seed has 602 forms, 247 canonical mnemonics, and fingerprint `64429699`. Source head has 604 forms, 249 canonical mnemonics, and fingerprint `55A8970F`. The seed includes signed x87 `FILD` and `FISTP` memory operands at 16, 32, and 64 bits. Source head adds canonical `SETP` and `SETNP` byte predicates. The four SHRD rows remain canonical at 16 and 32 bits with immediate or fixed CL counts. Active `libm.cc` uses the corrected subtraction spelling at all seven range-reduction sites. ADRs 0207 through 0209 record the exponent diagnosis, seed carriage, and runtime-tested source correction. ADR 0226 records SHRD, ADR 0228 records its seed carriage, ADR 0252 records the x87 integer forms, ADR 0258 records the promoted seed, and ADR 0259 records the parity predicates.
 _Avoid_: general x87 programs, host-assembler escape, changing the active libm algorithm
 
 **Represented GNU fabs file-scope assembly**:
@@ -786,6 +786,13 @@ _Avoid_: Cupid disassembler when naming the tool
 **Conditional move family**:
 The sixteen i686 `CMOVcc` operations represented by one shared x86 encoding and decoding rule. A canonical mnemonic names each condition, while conventional alternative spellings remain aliases.
 _Avoid_: conditional jump, `SETcc`, separate assembler and disassembler definitions
+
+**Parity SETcc pair**:
+The canonical `SETP` and `SETNP` byte predicates represented by the shared x86 model. Each accepts one byte register or memory destination in 16-bit or 32-bit mode. Private CupidC uses the pair to merge the parity flag into floating comparison and truth results, and CupidDis keeps those sequences aligned. The guest disassembles and executes the bounded `test_fpaug.cc` parity cases before running the full feature-13 behavior. `SETPE` and `SETPO` are outside this source-driven slice.
+In GUI mode, the shell keeps disassembly listings in the terminal and mirrors
+them to serial after the ordinary sink and redirection checks. The runtime
+gate therefore observes production CupidDis output without changing text mode.
+_Avoid_: the complete `SETcc` family, parity aliases, private decoder exception
 
 **Immediate multiply family**:
 The three-operand `IMUL` operation represented by the shared `69 /r` full-immediate and `6B /r` sign-extended-immediate encodings. Its destination is a 16-bit or 32-bit register, its source is a same-width register or memory operand, and the encoder chooses the shorter form only when the value fits a signed byte.

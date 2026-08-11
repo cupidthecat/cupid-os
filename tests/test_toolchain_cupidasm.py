@@ -214,6 +214,91 @@ class CupidAsmCliTests(unittest.TestCase):
                     )
                     self.assertFalse(output.exists())
 
+    def test_cli_assembles_parity_setcc_in_both_modes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "parity-setcc.asm"
+            output = root / "parity-setcc.bin"
+            source.write_text(
+                "BITS 16\n"
+                "    setp dl\n"
+                "    a32 setnp byte [ebx + ecx * 4 + 0x12345678]\n"
+                "BITS 32\n"
+                "    setnp dl\n"
+                "    a16 setp byte [bx + si + 0x7f]\n",
+                encoding="utf-8",
+            )
+            result = subprocess.run(
+                [
+                    str(self.cli_path),
+                    "-f",
+                    "bin",
+                    str(source),
+                    "-o",
+                    str(output),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(
+                output.read_bytes(),
+                bytes.fromhex(
+                    "0f 9a c2 67 0f 9b 84 8b 78 56 34 12 "
+                    "0f 9b c2 67 0f 9a 40 7f"
+                ),
+            )
+
+    def test_cli_rejects_invalid_parity_setcc_operands(self):
+        cases = {
+            "non-byte-register": (
+                "setp eax",
+                "instruction has no supported x86 encoding",
+            ),
+            "immediate": (
+                "setnp 1",
+                "instruction has no supported x86 encoding",
+            ),
+            "lock-prefix": (
+                "lock setp byte [eax]",
+                "instruction has no supported x86 encoding",
+            ),
+            "setpe-alias": (
+                "setpe dl",
+                "unknown Cupid ASM instruction mnemonic",
+            ),
+            "setpo-alias": (
+                "setpo dl",
+                "unknown Cupid ASM instruction mnemonic",
+            ),
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name, (instruction, diagnostic) in cases.items():
+                with self.subTest(name=name):
+                    source = root / f"{name}.asm"
+                    output = root / f"{name}.bin"
+                    source.write_text(
+                        f"BITS 32\n    {instruction}\n", encoding="utf-8"
+                    )
+                    result = subprocess.run(
+                        [
+                            str(self.cli_path),
+                            "-f",
+                            "bin",
+                            str(source),
+                            "-o",
+                            str(output),
+                        ],
+                        cwd=REPO_ROOT,
+                        text=True,
+                        capture_output=True,
+                    )
+                    self.assertEqual(result.returncode, 1)
+                    self.assertIn(diagnostic, result.stderr)
+                    self.assertFalse(output.exists())
+
     def test_cli_aligns_raw_addresses_and_elf32_sections(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

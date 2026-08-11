@@ -311,10 +311,12 @@ section .data
 
 ## Instruction Reference
 
-CupidASM uses the shared Cupid Toolchain x86 catalogue. The checked seed and
-source head carry 602 forms, 247 canonical mnemonics, and 64 register names,
-with catalogue fingerprint `64429699`. Six forms cover signed x87
-`FILD` and `FISTP` memory operands at 16, 32, and 64 bits. Four forms cover canonical SHRD with
+CupidASM uses the shared Cupid Toolchain x86 catalogue. The promoted seed
+carries 602 forms, 247 canonical mnemonics, and 64 register names, with
+catalogue fingerprint `64429699`. Source head carries 604 forms, 249 canonical
+mnemonics, and fingerprint `55A8970F`. The seed includes signed x87 `FILD` and
+`FISTP` memory operands at 16, 32, and 64 bits. Source head adds canonical
+`SETP` and `SETNP` byte predicates. Four forms cover canonical SHRD with
 immediate or fixed CL counts. The forward x87 form encodes
 `FSUB ST(1), ST(0)` as `DC E9`. The four preceding x87 forms encode and decode
 80-bit `FLD` and `FSTP`
@@ -327,8 +329,18 @@ bytes, while CupidDis prints canonical names. Three-operand `IMUL` accepts a
 and an immediate. CupidASM uses `6B /r` when the value fits a signed byte and
 `69 /r` otherwise. ADR 0207 records forward stack subtraction, ADR 0208
 records its seed promotion, ADR 0226 records SHRD, and ADR 0228 records
-SHRD's first seed carriage. ADR 0252 records the x87 integer forms, and ADR
-0258 records their checked-seed carriage.
+SHRD's first seed carriage. ADR 0243 records the preceding seed, ADR 0252
+records the x87 integer forms, ADR 0258 records the promoted seed, and ADR
+0259 records the parity predicates.
+
+`setp` and `setnp` accept one byte register or memory destination in either
+mode. They encode as `0F 9A /r` and `0F 9B /r`. Address-size overrides work
+through the ordinary byte-memory recipe. This source-driven slice does not
+add the `setpe` or `setpo` aliases. The guest disassembles and executes the
+bounded `test_fpaug.cc` parity cases before running the full feature-13
+comparison and truth behavior. The GUI shell also mirrors disassembly listings
+to serial after its normal sink and redirection checks, which makes production
+CupidDis output visible to the automated runtime proof.
 
 `fild` and `fistp` accept only signed integer memory operands. The checked seed
 supports `word`, `dword`, and `qword` widths. Register, byte, and 80-bit memory
@@ -415,6 +427,8 @@ spelling remains invalid.
 |-------------|-------------|---------|
 | `cmp` | Compare (sets flags) | `cmp eax, 0` |
 | `test` | Bitwise AND test (sets flags) | `test eax, eax` |
+| `setp` | Set byte when parity is set | `setp dl` |
+| `setnp` | Set byte when parity is clear | `setnp byte [eax]` |
 
 ### Control Flow
 

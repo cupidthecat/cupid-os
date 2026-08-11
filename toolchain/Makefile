@@ -702,6 +702,7 @@ test: $(CONTRACT_MANIFEST) \
 	$(X86_CONTRACT) model
 	$(X86_CONTRACT) integer
 	$(X86_CONTRACT) conditional-moves
+	$(X86_CONTRACT) parity-setcc
 	$(X86_CONTRACT) immediate-imul
 	$(X86_CONTRACT) padding-nops
 	$(X86_CONTRACT) clang-padding-nops

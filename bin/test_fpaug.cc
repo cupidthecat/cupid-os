@@ -1,7 +1,19 @@
 //help: Regression test for FP compound assignment
 //help: Usage: test_fpaug
-//help: Exercises +=, -=, *=, /= on float and double locals.
+//help: Exercises FP compound assignment, comparison, and scalar truth.
 //help: Reports PASS/FAIL via serial and console.
+
+int fpaug_equal(double left, double right) {
+    return left == right;
+}
+
+int fpaug_not_equal(double left, double right) {
+    return left != right;
+}
+
+int fpaug_truth(double value) {
+    return !!value;
+}
 
 void main() {
     int ok = 1;
@@ -53,6 +65,19 @@ void main() {
     if (e_check != 60) {
         serial_printf("[test_fpaug] FAIL double seq: got=%d expected=60\n", e_check);
         ok = 0;
+    }
+
+    double unordered = 0.0 / 0.0;
+    int equal = fpaug_equal(1.0, 1.0);
+    int unequal = fpaug_not_equal(unordered, unordered);
+    int truth = fpaug_truth(unordered);
+    if (equal != 1 || unequal != 1 || truth != 1) {
+        serial_printf("[test_fpaug-parity] FAIL equal=%d unequal=%d truth=%d\n",
+                      equal, unequal, truth);
+        ok = 0;
+    } else {
+        serial_printf("[test_fpaug-parity] PASS equal=%d unequal=%d truth=%d\n",
+                      equal, unequal, truth);
     }
 
     if (ok) {

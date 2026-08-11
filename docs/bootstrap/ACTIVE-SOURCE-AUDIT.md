@@ -31,7 +31,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `boot_assembly` | 1 | 298 |
 | `cupid_asm_demo` | 22 | 1466 |
 | `cupid_c_browser_fragment` | 22 | 15958 |
-| `cupid_c_program` | 105 | 19762 |
+| `cupid_c_program` | 105 | 19787 |
 | `cupid_c_runtime_header` | 2 | 286 |
 | `cupidasm` | 7 | 6851 |
 | `cupidc` | 8 | 16353 |
@@ -48,7 +48,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_fs` | 27 | 7339 |
 | `kernel_gfx` | 28 | 12231 |
 | `kernel_gui` | 28 | 11971 |
-| `kernel_lang` | 20 | 10538 |
+| `kernel_lang` | 20 | 10551 |
 | `kernel_mm` | 7 | 1302 |
 | `kernel_network` | 20 | 3629 |
 | `kernel_smp` | 14 | 1162 |
@@ -56,8 +56,8 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_usb` | 8 | 3518 |
 | `kernel_util` | 2 | 660 |
 | `project_source` | 1 | 5 |
-| `toolchain_contract` | 19 | 154329 |
-| `toolchain_core` | 33 | 87055 |
+| `toolchain_contract` | 19 | 154681 |
+| `toolchain_core` | 33 | 87060 |
 | `toolchain_host_adapter` | 2 | 266 |
 | `toolchain_kernel_adapter` | 2 | 530 |
 | `user_program` | 3 | 139 |
@@ -98,23 +98,23 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 801 |
 | `asm.relocation` | 1 | 17 |
-| `c.control` | 12 | 81686 |
+| `c.control` | 12 | 81756 |
 | `c.declaration` | 1 | 28 |
-| `c.declarator` | 4 | 3804 |
-| `c.expression` | 2 | 5937 |
+| `c.declarator` | 4 | 3811 |
+| `c.expression` | 2 | 5948 |
 | `c.extension` | 19 | 420 |
 | `c.initializer` | 1 | 687 |
 | `c.preprocessor` | 18 | 6919 |
-| `c.qualifier` | 2 | 15688 |
-| `c.storage` | 4 | 9903 |
-| `c.type` | 15 | 50916 |
+| `c.qualifier` | 2 | 15702 |
+| `c.storage` | 4 | 9915 |
+| `c.type` | 15 | 50950 |
 | `cupid_c.declaration` | 1 | 2 |
 | `cupid_c.delivery` | 2 | 129 |
 | `cupid_c.directive` | 1 | 1 |
 | `cupid_c.expression` | 2 | 4 |
 | `cupid_c.extension` | 1 | 9 |
 | `cupid_c.output` | 1 | 245 |
-| `cupid_c.storage` | 2 | 474 |
+| `cupid_c.storage` | 2 | 482 |
 | `cupid_c.type` | 12 | 187 |
 
 The JSON companion records stable feature IDs, occurrence counts, files, and representative source locations.

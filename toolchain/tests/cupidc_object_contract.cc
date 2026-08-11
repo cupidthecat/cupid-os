@@ -31585,13 +31585,13 @@ static int validate_active_self_host_frontier_objects(
       7982u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 91460u, 137444u, 220508u, 49484u,
-      226668u, 535464u, 647196u, 1036852u, 165728u, 79348u, 136164u,
+      226668u, 535464u, 647196u, 1036852u, 165728u, 79348u, 136372u,
       9164u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x6a4e9e64u, 0xae15dc9eu,
       0x90f1448fu, 0x999f97b7u, 0xb49d8eb9u,
-      0x07337978u, 0xa216be79u, 0x909705d4u, 0x9f35cab4u,
-      0x34558a49u, 0x6b4b77aeu, 0x8774de7du};
+      0x07337978u, 0xea36d975u, 0x909705d4u, 0x5780b602u,
+      0x34558a49u, 0x9aadd1b0u, 0x8774de7du};
   ctool_u32 index;
   int all_matched = 1;
   if (first_index > past_last_index ||
@@ -31622,6 +31622,8 @@ static int validate_active_self_host_frontier_objects(
     ctool_bytes_t second_bytes;
     ctool_status_t status;
     int failed = 1;
+    int inventory_matches = 0;
+    int outputs_match = 0;
     limits.arena_bytes = 256u * 1024u * 1024u;
     status = ctool_host_adapter_init(&adapter, host_root);
     if (status != CTOOL_OK) {
@@ -31684,24 +31686,34 @@ static int validate_active_self_host_frontier_objects(
             job, &unit, second, "repeat active self-host frontier object")) {
       first_bytes = ctool_buffer_view(first);
       second_bytes = ctool_buffer_view(second);
+      outputs_match =
+          first_bytes.size == second_bytes.size &&
+          memcmp(first_bytes.data, second_bytes.data,
+                 (size_t)first_bytes.size) == 0;
       object_source.path.text = ctool_string("/active-frontier.o");
       object_source.contents = first_bytes;
       (void)memset(&object, 0xa5, sizeof(object));
       status = ctool_elf32_read(job, &object_source, &object);
       text = status == CTOOL_OK ? find_section(&object, ".text") : NULL;
-      if (status == CTOOL_OK && text != NULL &&
+      inventory_matches =
+          status == CTOOL_OK && text != NULL &&
           unit.function_definition_count == expected_functions[index] &&
           text->contents.size == expected_text_sizes[index] &&
           first_bytes.size == expected_object_sizes[index] &&
           structure_text_fingerprint(text->contents) ==
-              expected_text_fingerprints[index] &&
-          first_bytes.size == second_bytes.size &&
-          memcmp(first_bytes.data, second_bytes.data,
-                 (size_t)first_bytes.size) == 0) {
+              expected_text_fingerprints[index];
+      if (outputs_match != 0 && inventory_matches != 0) {
         failed = 0;
       }
     }
     if (failed != 0) {
+      if (outputs_match == 0 && first != NULL && second != NULL) {
+        (void)fprintf(stderr,
+                      "%s: active self-host frontier object repeats differ: "
+                      "first=%u second=%u\n",
+                      paths[index], ctool_buffer_view(first).size,
+                      ctool_buffer_view(second).size);
+      }
       (void)fprintf(stderr,
                     "%s: active self-host frontier object differs: %s "
                     "functions=%u text=%u object=%u fingerprint=%08x\n",
@@ -33207,10 +33219,13 @@ static int run_self_host_frontier_object(const char *host_root) {
   second_bytes = ctool_buffer_view(second);
   if (first_bytes.size != second_bytes.size ||
       memcmp(first_bytes.data, second_bytes.data,
-             (size_t)first_bytes.size) != 0 ||
-      !validate_active_self_host_frontier_objects(
-          host_root, 0u, 13u)) {
+             (size_t)first_bytes.size) != 0) {
     (void)fprintf(stderr, "self-host frontier object is not deterministic\n");
+    goto cleanup;
+  }
+  if (!validate_active_self_host_frontier_objects(host_root, 0u, 13u)) {
+    (void)fprintf(stderr,
+                  "active self-host frontier object validation failed\n");
     goto cleanup;
   }
   passed = 1;

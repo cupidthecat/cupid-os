@@ -23340,3 +23340,151 @@ audit. Both boot runs used `--smp 4 --cpu max`, the private image, and the SMP
 and frontier-runtime checks. They covered the compiler frontier, GUI and
 browser paths, framebuffer, AC97 and PC-speaker audio, and JIT completion
 without a panic or fatal marker.
+
+## 2026-08-10: share the parity SETcc predicates
+
+The shared x86 catalogue carries canonical `SETP` and `SETNP` byte
+predicates. CupidASM assembles them through its ordinary instruction path, and
+CupidDis keeps private CupidC floating comparison and truth sequences aligned
+through the parity guard and following Boolean merge.
+
+### Investigation and decision
+
+Private CupidC already emits `0F 9B /r` for ordered guards and `0F 9A /r` for
+unordered guards. Before this change, CupidDis rendered the leading `0F` as a
+fallback byte, then treated the remaining bytes as `FWAIT` and an immediate
+`RET`. CupidASM rejected both mnemonics as unknown.
+
+The fix is two ordinary shared-model rows, not an adapter exception. Both forms
+accept one byte register or memory destination in 16-bit or 32-bit mode. The
+existing address recipe handles native and cross-size memory addresses.
+
+Only the active canonical names were added. `setpe` and `setpo` remain unknown
+and have negative contracts. This avoids claiming a complete SETcc alias
+surface before active source requires one.
+
+Source head measures 604 forms, 249 canonical mnemonics, 64 register names,
+and fingerprint `55A8970F`. The promoted seed has 602 forms, 247 canonical
+mnemonics, and fingerprint `64429699`. This isolated slice changes no seed
+image or manifest. ADR 0258 records that promoted baseline.
+
+### Red, green, and correction
+
+The first focused run failed all three consumer tests. The model returned
+`not_found` for `setp`, CupidASM diagnosed an unknown mnemonic, and CupidDis
+fell out of alignment at both parity opcodes. That red run completed in 6.746
+seconds.
+
+Adding the two rows made the same three tests pass in 7.576 seconds. Updating
+the old inventory lock was a separate red step: the contract reported the
+measured 604/249/64 and `55A8970F` values against the old 602/247/64 and
+`64429699` expectation. The focused eight-test model and adapter group then
+passed in 8.004 seconds.
+
+The first canonical-only alias check reused the live `setp` mnemonic slot as
+the output for an expected failed lookup. The lookup correctly cleared that
+slot, and the following encode check failed. A separate scratch output keeps
+the negative lookup from mutating the positive fixtures. The corrected six
+test group passed in 8.480 seconds.
+
+Default Ruff checking stopped on two existing `E402` diagnostics in
+`test_toolchain_cupiddis.py`. That module deliberately updates `sys.path`
+before importing its repository helpers. The changed Python set passes with
+`E402` excluded, and all five files compile through `py_compile`.
+
+### Guest contract
+
+The first GUI sequence ran `dis /bin/feature13_double.cc`. A contended
+600-second attempt did not reach the desktop. A clean 600-second attempt and a
+900-second attempt both booted normally, reached feature-13 parsing, and then
+expired without a listing on serial. They emitted no wrong instruction,
+fallback row, compiler diagnostic, panic, or runtime failure. Moving the same
+expressions into the smaller `test_fpaug.cc` source did not fix the timeout.
+The bounded source compiled, but the listing was still absent. That run ruled
+out source size as the cause.
+
+Code tracing found that all five shell disassembly calls used `shell_print`.
+In GUI mode, that callback writes to the terminal, while the smoke gate reads
+serial. A one-millisecond source contract failed on the missing route. The
+shell uses the same sink, redirection, GUI, and text routing for ordinary
+and disassembly output, with one difference: a GUI disassembly listing is also
+mirrored to serial. The focused contract passes, all 119 GUI contracts pass,
+and checked-seed CupidC compiles the changed shell object in 26.451 seconds.
+
+The command sequence still uses the bounded `test_fpaug.cc` regression. It
+requires `setnp dl`, `and al, dl`, `setp dl`, `or al, dl`, and the following
+`movzx eax, al` in order, then executes the parity checks. The full feature-13
+command follows with its broader comparison and truth proof. The rebuilt-image
+runtime gates pass on both production NICs.
+
+The frozen root build passed in 503.412 seconds. It produced a 114,851-byte
+logical symbol blob from 4,718 text symbols, a 115,264-byte packed object with
+SHA-256
+`a5eb7e848b156754dc87203e806411ed006694167b5a67dd8233d8ef9f71a65c`,
+an 8,900,124-byte kernel with SHA-256
+`ed9acc572058ef0dbd330a0384135a941b1babcb2a08ce2b1e96dc93551a3e33`,
+and a 209,715,200-byte image with SHA-256
+`f254205f377d2fd8b2e1c253007211dd1d116f2e026963f3606125cc1ac06487`.
+The build log is 192,348 bytes with SHA-256
+`5b93a63bf3b074bb6e1470420dda187ea43efed63be38d6eeeca454c4779f346`.
+
+The four-vCPU e1000 frontier passed in 517.701 seconds. Its 161,262-byte serial
+log has SHA-256
+`731c1bc170cba7d5c2d218af911285d9526b085c70fba780bbab3f3ec8a6a559`.
+The clean RTL8139 retry passed in 519.233 seconds; its 150,841-byte log has
+SHA-256
+`3c5b0be52bed3afb7cd83061d51f91ab72a51f80a0f712b90ba278ca39b91f97`.
+Both logs contain the canonical parity listing, compact parity PASS, full
+feature-13 PASS, and the rest of the fixed GUI, USB, filesystem, Doom,
+browser, network, and audio contract.
+
+An earlier RTL8139 run was excluded after concurrent serial output dropped the
+leading `[PAS` from one dglibc marker. The gate stopped instead of accepting
+the damaged line. The private QEMU tree and temporary images were removed, and
+the clean retry passed without weakening the pattern or changing product code.
+
+### Current boundary
+
+The change moves no production owner and removes no host dependency. It does
+not alter private CupidC, seed images, or the seed manifest. Issue #13 remains
+open for broader self-hosting and seed work, and issue #31 remains open for the
+private runtime. No `.c` to `.cc` rename is due. `TempleOS/` remains read-only
+reference material. ADR 0259 records the instruction boundary.
+
+### Test evidence
+
+The initial red and green slice tests ran on native Windows PowerShell against
+the isolated source worktree. The audit, integrated Toolchain, root-image, and
+dual-NIC gates ran against the stacked integration tree.
+
+| Check | Result |
+| --- | --- |
+| Initial shared-model, CupidASM, and CupidDis tests | FAIL: all 3 exposed the missing public mnemonic or decode path in 6.746 seconds. |
+| Same three tests after the catalogue rows | PASS: all 3 in 7.576 seconds. |
+| Inventory lock before calibration | FAIL: measured 604 forms, 249 canonical mnemonics, 64 registers, and fingerprint `55A8970F`. |
+| Focused shared model and adapter group | PASS: all 8 tests in 8.004 seconds. |
+| Canonical and alias-boundary group after correction | PASS: all 6 tests in 8.480 seconds. |
+| Broader x86, CupidASM, and CupidDis modules | PASS: 41 passed and one platform test was skipped in 10.903 seconds. |
+| Rebuilt CupidASM direct `raw-basic` and `errors` contracts | PASS under the strict warning build. |
+| GUI disassembly serial route before correction | FAIL: the focused source contract found no dedicated route in 0.001 seconds. |
+| GUI terminal smoke contracts after correction | PASS: all 119 tests in 0.419 seconds. |
+| Checked-seed shell object | PASS: `kernel/lang/shell.cc` compiled in 26.451 seconds. |
+| Combined x86, CupidASM, CupidDis, and GUI group | PASS: 160 passed and one platform test was skipped in 14.343 seconds. The 56,878-byte log has SHA-256 `af0e548e757004c655daa9783062bc0bc0037f5445a1ebe9f2fc9b44dd620002`. |
+| Active-source audit generation | PASS in 68.121 seconds: snapshot digest `5b2b2e935b3f90f9f147ad26b1604d80e6349cc6c797edaeafd86f72290dce68`. The 3,886-byte log has SHA-256 `bbd224afe525838d673bdeec0169f389e48f58065b6c762fb9d1ed472916ca92`. |
+| Active-source audit check | PASS in 67.952 seconds. The 3,894-byte log has SHA-256 `6a98699a202874d933c39a3a997749149146a42b68ddd0ebb78d51dad23e58ad`. An overlapping attempt exhausted host memory before comparison; the serial retry passed. |
+| Complete build-graph audit | PASS: all 75 tests in 776.306 seconds. The 13,617-byte log has SHA-256 `f2ce834dba35bd6da982d4b8101644b3fd9a06873e2eb1e169f0e3ad48888b79`. |
+| Complete Toolchain build | PASS in 3,397.047 seconds: stage-two and stage-three objects and executables matched, and all 20 artifacts were published and verified. The 12,010-byte log has SHA-256 `b9f6611f6fdda1014b80d6045e6577834c079cffa20cab1b7685a822ecd8fac6`. |
+| First canonical Toolchain replay | FAIL: the old `x86.cc` structural lock rejected the measured 60 functions, 1,766 statements, 11,903 expressions, 180 block bindings, 17,112 initializers, three object definitions, and no labels. |
+| Corrected structural lock | PASS: the focused selector completed in 10.662 seconds. |
+| Second canonical Toolchain replay | FAIL after 220 green selectors and the IR self-host frontier: the object frontier found stale `cupidc_emit.cc`, `cupidasm.cc`, and `x86.cc` locks. The 76,246-byte log has SHA-256 `370f814c4a6d630ed9505fecdf17f2c1648d8724981725ae54cd77186c199267`. |
+| Object-lock diagnosis | CONFIRMED: two isolated runs reproduced the same four lock changes in 1,129.656 and 1,104.977 seconds. Their byte-identical 1,570-byte logs have SHA-256 `effc6498954c93ff10c181af919a0c3bdf4125f3d422c5067d9419ea93dbf4cd`. |
+| Corrected object frontier | PASS in 25.939 seconds. The selector reached its repeated-buffer comparison. The 313-byte log has SHA-256 `9c049aad5af62ff4abb7341c3d014b107ee58a193337ef31b084d59ede7c8a03`. |
+| Interrupted canonical replay | EXCLUDED: the wrapper stopped during checked contract compilation, and the atomic builder discarded the partial cohort. |
+| Final canonical Toolchain replay | PASS in 6,218.713 seconds: both stages matched, hosted runtime passed, 20 artifacts published and verified, both self-host frontiers passed, and the remaining x86, assembler, disassembler, demo, object, and linker contracts completed. The 107,596-byte log has SHA-256 `f9ee398ae3d5054c2578f60c5d3c72cd17953ce5d6efe11a65d32536e7ab2456`. |
+| Frozen root image build | PASS in 503.412 seconds. |
+| Four-vCPU e1000 frontier | PASS in 517.701 seconds. |
+| First four-vCPU RTL8139 frontier | EXCLUDED: one dglibc serial marker lost four leading bytes; the gate refused it. |
+| Four-vCPU RTL8139 retry | PASS in 519.233 seconds. |
+| Default scoped Ruff | FAIL: two existing `E402` diagnostics at the repository-helper imports. |
+| Scoped Ruff with `E402` excluded | PASS. |
+| Changed Python syntax | PASS through `py_compile`. |

@@ -515,6 +515,16 @@ comparisons, short-circuit logic, conditional selection, and floating-width
 conversion use a shared target-only decoder. It accepts canonical x87 zero,
 subnormal, normal, infinity, and NaN payloads and rejects pseudo encodings.
 Folded values become final initializer records and add no runtime IR.
+Private runtime floating comparisons use `SETP` and `SETNP` when they merge
+the x86 parity flag into a normalized Boolean. Source-head CupidDis names
+both byte predicates from the shared catalogue, so a `dis` listing stays
+aligned through the following merge and `MOVZX` instructions. The guest uses
+the bounded `test_fpaug.cc` cases for inspection and execution, then retains
+feature 13 for the broader comparison and truth behavior. In GUI mode, the
+shell writes the listing to the terminal and mirrors it to serial only after
+the usual sink and redirection checks. That gives the runtime gate production
+CupidDis evidence without duplicating ordinary text-mode output.
+
 Hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimals beyond the bounded
 ratio parser, static long-double arithmetic, runtime mixed integer and
@@ -1088,8 +1098,8 @@ print `[fpu] SSE2 enabled`, `[fpu] boot smoke ok`, and
 `FPU boot smoke passed`, then finish
 `feature16_asm_fpu.cc`. Checked CupidObj generates the symbol source from
 canonical CupidDis text, while Python checks the bytes before publication. The
-current 114,421-byte logical blob uses little-endian `unsigned int` words with
-three trailing pad bytes.
+current 114,851-byte logical blob uses little-endian `unsigned int` words with
+one trailing pad byte.
 
 Forced poisoned-host builds cover every production wrapper recipe, and each
 recipe declares its exact recursive header closure. A valid data-only object

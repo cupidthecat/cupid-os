@@ -101,6 +101,15 @@ class CupidDisContractTests(unittest.TestCase):
         cls.shrd_path.write_bytes(
             bytes([0x0F, 0xAD, 0xF8, 0x0F, 0xAD, 0xF8, 0xC3])
         )
+        cls.parity_setcc_path = (
+            Path(cls._fixture_directory.name) / "cupidc-parity-setcc.bin"
+        )
+        cls.parity_setcc_path.write_bytes(
+            bytes.fromhex(
+                "0f 94 c0 0f 9b c2 20 d0 0f b6 c0 "
+                "0f 95 c0 0f 9a c2 08 d0 0f b6 c0 c3"
+            )
+        )
         cls.mixed_raw_path = (
             Path(cls._fixture_directory.name) / "mixed-mode.bin"
         )
@@ -292,6 +301,30 @@ class CupidDisContractTests(unittest.TestCase):
         self.assertIn("00001796:  C3  ret", decoded.stdout)
         self.assertNotIn("db 0x0F", decoded.stdout)
         self.assertNotIn("clc", decoded.stdout)
+
+    def test_cli_decodes_private_cupidc_parity_setcc_sequences(self):
+        decoded = subprocess.run(
+            [
+                str(self.cli_path),
+                "--raw",
+                "--mode=32",
+                "--base=0x1800",
+                str(self.parity_setcc_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(decoded.returncode, 0, decoded.stderr)
+        self.assertIn("00001803:  0F 9B C2  setnp dl", decoded.stdout)
+        self.assertIn("00001806:  20 D0  and al, dl", decoded.stdout)
+        self.assertIn("0000180E:  0F 9A C2  setp dl", decoded.stdout)
+        self.assertIn("00001811:  08 D0  or al, dl", decoded.stdout)
+        self.assertIn(
+            "00001813:  0F B6 C0  movzx eax, al", decoded.stdout
+        )
+        self.assertIn("00001816:  C3  ret", decoded.stdout)
+        self.assertNotIn("db 0x0F", decoded.stdout)
 
     def test_cli_raw_mode_changes_decode_one_flat_image(self):
         decoded = subprocess.run(

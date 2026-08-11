@@ -192,9 +192,13 @@ static int run_raw_basic(void) {
       "    dw 0xaa55\n"
       "    cmovne ax, cx\n"
       "    cmovnz eax, [bx + si + 0x7f]\n"
+      "    setp dl\n"
+      "    a32 setnp byte [ebx + ecx * 4 + 0x12345678]\n"
       "BITS 32\n"
       "    cmovg ax, [ebx + 0x7f]\n"
       "    cmovnle eax, ecx\n"
+      "    setnp dl\n"
+      "    a16 setp byte [bx + si + 0x7f]\n"
       "    cmovc eax, ecx\n"
       "    cmovnae eax, ecx\n"
       "    cmovnc eax, ecx\n"
@@ -233,8 +237,13 @@ static int run_raw_basic(void) {
       0x16u, 0x09u, 0x7cu, 0x00u, 0x55u, 0xaau,
       0x0fu, 0x45u, 0xc1u,
       0x66u, 0x0fu, 0x45u, 0x40u, 0x7fu,
+      0x0fu, 0x9au, 0xc2u,
+      0x67u, 0x0fu, 0x9bu, 0x84u, 0x8bu,
+      0x78u, 0x56u, 0x34u, 0x12u,
       0x66u, 0x0fu, 0x4fu, 0x43u, 0x7fu,
       0x0fu, 0x4fu, 0xc1u,
+      0x0fu, 0x9bu, 0xc2u,
+      0x67u, 0x0fu, 0x9au, 0x40u, 0x7fu,
       0x0fu, 0x42u, 0xc1u, 0x0fu, 0x42u, 0xc1u,
       0x0fu, 0x43u, 0xc1u, 0x0fu, 0x43u, 0xc1u,
       0x0fu, 0x44u, 0xc1u, 0x0fu, 0x46u, 0xc1u,
@@ -1621,6 +1630,27 @@ static int run_error_contracts(void) {
           "/cmov-repne.asm", "BITS 32\nrepne cmovne eax, ecx\n", &raw,
           CTOOL_ERR_INPUT, CTOOL_ASM_DIAG_ENCODING,
           "/cmov-repne.asm") ||
+      !expect_assembly_failure(
+          "parity SETcc non-byte register", config, "/setp-width.asm",
+          "BITS 32\nsetp eax\n", &raw, CTOOL_ERR_INPUT,
+          CTOOL_ASM_DIAG_ENCODING, "/setp-width.asm") ||
+      !expect_assembly_failure(
+          "parity SETcc immediate operand", config,
+          "/setnp-immediate.asm", "BITS 32\nsetnp 1\n", &raw,
+          CTOOL_ERR_INPUT, CTOOL_ASM_DIAG_ENCODING,
+          "/setnp-immediate.asm") ||
+      !expect_assembly_failure(
+          "parity SETcc lock prefix", config, "/setp-lock.asm",
+          "BITS 32\nlock setp byte [eax]\n", &raw, CTOOL_ERR_INPUT,
+          CTOOL_ASM_DIAG_ENCODING, "/setp-lock.asm") ||
+      !expect_assembly_failure(
+          "parity SETcc alternate spelling", config, "/setpe-alias.asm",
+          "BITS 32\nsetpe dl\n", &raw, CTOOL_ERR_INPUT,
+          CTOOL_ASM_DIAG_SYNTAX, "/setpe-alias.asm") ||
+      !expect_assembly_failure(
+          "parity SETcc alternate spelling", config, "/setpo-alias.asm",
+          "BITS 32\nsetpo dl\n", &raw, CTOOL_ERR_INPUT,
+          CTOOL_ASM_DIAG_SYNTAX, "/setpo-alias.asm") ||
       !expect_assembly_failure(
           "immediate IMUL memory destination", config,
           "/imul-memory-destination.asm",

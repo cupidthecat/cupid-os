@@ -291,6 +291,13 @@ automatic `long double` path. The exact production SIMD assembly forms above
 are a narrower checked path. The SSE details below describe the private
 in-kernel compiler.
 
+Private comparisons and truth tests merge the parity flag with `SETNP` or
+`SETP`. Source-head CupidDis recognizes both byte predicates, so
+`dis /bin/test_fpaug.cc` stays aligned through the following Boolean merge and
+`MOVZX`. The guest then executes those bounded parity checks before running the
+full feature-13 comparison and truth program. ADR 0259 records the shared
+instruction boundary.
+
 That private compiler now passes arbitrary mixtures of represented four-byte
 scalars and pointers with eight-byte `double` values. Direct,
 function-pointer, and method calls preserve left-to-right evaluation, arrange

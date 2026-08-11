@@ -301,6 +301,11 @@ static int run_raw(void) {
       "cmovg eax, ecx"};
   static const ctool_u8 conditional16[] = {
       0x0fu, 0x45u, 0xc1u, 0x66u, 0x0fu, 0x4fu, 0xc1u};
+  static const ctool_u8 parity_setcc[] = {
+      0x0fu, 0x94u, 0xc0u, 0x0fu, 0x9bu, 0xc2u,
+      0x20u, 0xd0u, 0x0fu, 0xb6u, 0xc0u,
+      0x0fu, 0x95u, 0xc0u, 0x0fu, 0x9au, 0xc2u,
+      0x08u, 0xd0u, 0x0fu, 0xb6u, 0xc0u, 0xc3u};
   static const ctool_u8 immediate_imul32[] = {
       0x69u, 0xc1u, 0x28u, 0x02u, 0x00u, 0x00u,
       0x6bu, 0xb4u, 0x8bu, 0x78u, 0x56u, 0x34u, 0x12u, 0xf9u,
@@ -448,6 +453,30 @@ static int run_raw(void) {
                 "16-bit conditional move") ||
       !contains(&capture, "cmovg eax, ecx",
                 "16-bit wide conditional move")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  (void)memset(&capture, 0, sizeof(capture));
+  source.path.text = ctool_string("/parity-setcc.bin");
+  source.contents = ctool_bytes(
+      parity_setcc, (ctool_u32)sizeof(parity_setcc));
+  request = raw_request(CTOOL_X86_MODE_32, 0x00401800u);
+  status = ctool_dis_inspect(job, &source, &request, &report);
+  if (status == CTOOL_OK) {
+    status = ctool_dis_render(job, &report, CTOOL_DIS_TEXT_CUPID,
+                              capture_sink(&capture));
+  }
+  if (!check_status(status, CTOOL_OK, "parity SETcc inspection") ||
+      !contains(&capture, "sete al", "parity SETcc equality predicate") ||
+      !contains(&capture, "setnp dl", "parity SETcc ordered guard") ||
+      !contains(&capture, "and al, dl", "parity SETcc ordered merge") ||
+      !contains(&capture, "setne al", "parity SETcc inequality predicate") ||
+      !contains(&capture, "setp dl", "parity SETcc unordered guard") ||
+      !contains(&capture, "or al, dl", "parity SETcc unordered merge") ||
+      !contains(&capture, "movzx eax, al", "parity SETcc normalization") ||
+      !contains(&capture, "ret", "parity SETcc following instruction") ||
+      strstr(capture.bytes, "db 0x0F") != (char *)0) {
     ctool_job_close(job);
     return 1;
   }

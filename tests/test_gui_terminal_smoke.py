@@ -105,6 +105,20 @@ def _frontier_command_outputs():
             "[asm] JIT execution complete\n"
         ),
         (
+            "01100120:  0F 9B C2  setnp dl\n"
+            "01100123:  20 D0  and al, dl\n"
+            "01100125:  0F B6 C0  movzx eax, al\n"
+            "01100210:  0F 9A C2  setp dl\n"
+            "01100213:  08 D0  or al, dl\n"
+            "01100215:  0F B6 C0  movzx eax, al\n"
+        ),
+        (
+            "[cupidc] JIT compile: /bin/test_fpaug.cc\n"
+            "[test_fpaug-parity] PASS equal=1 unequal=1 truth=1\n"
+            "PASS test_fpaug\n"
+            "[cupidc] JIT execution complete\n"
+        ),
+        (
             "[cupidc] JIT compile: /bin/feature13_double.cc\n"
             "[cupidc] error (line 1): "
             "unary sign requires an arithmetic scalar operand\n"
@@ -1268,6 +1282,8 @@ class FrontierRuntimeContractTests(unittest.TestCase):
                 "/bin/kbdsub_test.cc",
                 "/bin/date.cc +epoch",
                 "as /demos/syscall_vfs_extended_demo.asm",
+                "dis /bin/test_fpaug.cc",
+                "/bin/test_fpaug.cc",
                 "/bin/feature13_double.cc",
                 "/bin/feature14_simd.cc",
                 "/bin/feature15_libm.cc",
@@ -1307,6 +1323,99 @@ class FrontierRuntimeContractTests(unittest.TestCase):
                 self.assertIsNotNone(
                     re.search(command.expected_pattern, sample, re.S | re.M)
                 )
+
+    def test_gui_disassembly_mirrors_its_listing_to_serial(self):
+        source = (
+            REPO_ROOT / "kernel" / "lang" / "shell.cc"
+        ).read_text(encoding="utf-8")
+
+        router = re.search(
+            r"static void shell_route_print\(const char \*s,\s*"
+            r"int mirror_gui_to_serial\) \{(?P<body>.*?)\n\}",
+            source,
+            re.S,
+        )
+        self.assertIsNotNone(router)
+        body = router.group("body")
+        self.assertRegex(
+            body,
+            re.compile(
+                r"if \(shell_output_write_current\(s, \(uint32_t\)strlen\(s\)\)\)"
+                r"\s+return;\s+if \(redir_active && redir_buf\) \{.*?"
+                r"\s+return;\s+\}\s+if \(output_mode == SHELL_OUTPUT_GUI\)"
+                r" \{\s+shell_gui_print\(s\);\s+"
+                r"if \(mirror_gui_to_serial\)\s+serial_write_string\(s\);"
+                r"\s+\} else \{\s+print\(s\);\s+\}",
+                re.S,
+            ),
+        )
+        self.assertIn(
+            "static void shell_print(const char *s) {\n"
+            "  shell_route_print(s, 0);\n"
+            "}",
+            source,
+        )
+        self.assertIn(
+            "static void shell_dis_print(const char *s) {\n"
+            "  shell_route_print(s, 1);\n"
+            "}",
+            source,
+        )
+        self.assertEqual(
+            source.count("cupidc_dis(rpath, shell_dis_print);"),
+            3,
+        )
+        self.assertEqual(
+            source.count("dis_elf(rpath, shell_dis_print);"),
+            2,
+        )
+        self.assertNotIn("cupidc_dis(rpath, shell_print);", source)
+        self.assertNotIn("dis_elf(rpath, shell_print);", source)
+
+    def test_fpaug_disassembly_requires_canonical_parity_setcc(self):
+        command = _frontier_command("dis /bin/test_fpaug.cc")
+        sample = _frontier_command_output("dis /bin/test_fpaug.cc")
+
+        self.assertIsNotNone(
+            re.search(command.expected_pattern, sample, re.S | re.M)
+        )
+        for spelling in ("setnp dl", "and al, dl", "setp dl", "or al, dl"):
+            with self.subTest(spelling=spelling):
+                self.assertIsNone(
+                    re.search(
+                        command.expected_pattern,
+                        sample.replace(spelling, "db 0x0F"),
+                        re.S | re.M,
+                    )
+                )
+
+        source = (REPO_ROOT / "bin" / "test_fpaug.cc").read_text(
+            encoding="utf-8"
+        )
+        self.assertLess(len(source.encode("utf-8")), 4096)
+        for spelling in (
+            "int fpaug_equal(double left, double right)",
+            "int fpaug_not_equal(double left, double right)",
+            "int fpaug_truth(double value)",
+        ):
+            with self.subTest(spelling=spelling):
+                self.assertIn(spelling, source)
+
+    def test_fpaug_runtime_requires_parity_semantics(self):
+        command = _frontier_command("/bin/test_fpaug.cc")
+        sample = _frontier_command_output("/bin/test_fpaug.cc")
+
+        self.assertIsNotNone(
+            re.search(command.expected_pattern, sample, re.S | re.M)
+        )
+        self.assertIn(
+            "[test_fpaug-parity] FAIL",
+            gui_terminal_smoke.FRONTIER_RUNTIME_REJECTED_MARKERS,
+        )
+        self.assertIn(
+            "FAIL test_fpaug",
+            gui_terminal_smoke.FRONTIER_RUNTIME_REJECTED_MARKERS,
+        )
 
     def test_godsong_publishes_readiness_at_the_first_popup_boundary(self):
         source = (REPO_ROOT / "bin" / "godsong.cc").read_text(

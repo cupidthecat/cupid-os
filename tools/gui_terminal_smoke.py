@@ -168,6 +168,24 @@ FRONTIER_RUNTIME_COMMANDS = (
         ),
     ),
     TerminalCommand(
+        "dis /bin/test_fpaug.cc",
+        (
+            r"0F 9B C2  setnp dl"
+            r".*?20 D0  and al, dl"
+            r".*?0F 9A C2  setp dl"
+            r".*?08 D0  or al, dl"
+            r".*?0F B6 C0  movzx eax, al"
+        ),
+    ),
+    TerminalCommand(
+        "/bin/test_fpaug.cc",
+        (
+            r"\[cupidc\] JIT compile: /bin/test_fpaug\.cc"
+            r".*?\[test_fpaug-parity\] PASS equal=1 unequal=1 truth=1"
+            rf".*?PASS test_fpaug.*?{CUPIDC_COMPLETION_PATTERN}"
+        ),
+    ),
+    TerminalCommand(
         "/bin/feature13_double.cc",
         (
             FEATURE13_COMPILE_PATTERN
@@ -471,6 +489,8 @@ FRONTIER_RUNTIME_REJECTED_MARKERS = (
     "[cupidc] Unresolved symbol:",
     "[cupidc] error",
     "[asm] error",
+    "[test_fpaug-parity] FAIL",
+    "FAIL test_fpaug",
     "[feature13-unary] FAIL",
     "[feature13-compare] FAIL",
     "[feature13-truth] FAIL",
