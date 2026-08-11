@@ -733,6 +733,11 @@ s16 stereo @ 22050 Hz, 16 slots.
 
 CupidASM exposes the `gfx2d_*` surface, including:
 
+These calls use the same process-wide framebuffer and resource state as
+CupidC. Direct drawing must stay inside `gfx2d_fullscreen_enter` and
+`gfx2d_fullscreen_exit`, or inside a window paint scope. Borrowed surface,
+image, and font pointers remain valid only while that scope is held.
+
 | Group | Functions |
 |---|---|
 | Image slots | `gfx2d_image_load` / `_load_mem` / `_free` / `_draw` / `_draw_region` / `_draw_scaled` / `_draw_transformed` / `_get_pixel` / `_width` / `_height` |
@@ -750,12 +755,17 @@ CupidASM exposes the `gfx2d_*` surface, including:
 | `gui_win_is_open(wid)` | 1 if still alive |
 | `gui_win_focus(wid)` | Bring to focus |
 | `gui_win_can_draw(wid)` | 1 if app may draw this frame |
-| `gui_win_draw_frame(wid)` | Draw chrome, hide cursor for repaint |
+| `gui_win_draw_frame(wid)` | Begin the legacy frame scope; pair it with `gui_win_flip` |
 | `gui_win_content_x` / `_y` / `_w` / `_h(wid)` | Inner content rect |
 | `gui_win_begin_paint` / `_end_paint(wid)` | Compositor paint scope |
 | `gui_win_invalidate(wid)` / `_invalidate_rect(wid, x, y, w, h)` | Mark dirty |
 | `gui_win_present(wid)` / `_flip(wid)` | Present back-buffer |
 | `gui_win_poll_key(wid)` | Pop next key from this window's queue, -1 if empty |
+
+The retained `gui_win_begin_paint` and `gui_win_end_paint` pair is preferred.
+It selects the window surface and holds cross-process render ownership until
+the target and clip state have been restored. Process cleanup releases an
+abandoned fullscreen, retained, or legacy scope before PID reuse.
 
 ### libm
 

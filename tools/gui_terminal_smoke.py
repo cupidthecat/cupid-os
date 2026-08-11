@@ -9,6 +9,7 @@ Build a normal GUI image first (`make`), then run:
 from __future__ import annotations
 
 import argparse
+import gc
 import io
 import os
 import re
@@ -25,6 +26,8 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PANIC_RE = re.compile(r"KERNEL PANIC|Heap corruption|CORRUPTION detected")
+PANIC_REASON_RE = re.compile(r"(?m)^\[PANIC\][^\r\n]*")
+PANIC_REASON_GRACE_SECONDS = 1.0
 DEFAULT_SUCCESS_PATTERN = r"JIT execution complete"
 KEY_HOLD_MILLISECONDS = 300
 KEY_PAUSE_SECONDS = 0.35
@@ -98,7 +101,10 @@ NIC_RUNTIME_REJECTED_MARKERS = (
 )
 CUPIDC_COMPLETION_PATTERN = r"\[cupidc\] JIT execution complete"
 ASM_COMPLETION_PATTERN = r"\[asm\] JIT execution complete"
-GODSONG_SETTINGS_READY_PATTERN = r"^\[godsong\] settings ready\r?$"
+GODSONG_SETTINGS_READY_PATTERN = (
+    r"^\[godsong\] settings ready\r?$"
+    r".*?^\[gfx2d\] popup input ready\r?$"
+)
 UNARY_TYPE_DIAGNOSTIC_LITERAL = (
     "[cupidc] error (line 1): "
     "unary sign requires an arithmetic scalar operand"
@@ -127,6 +133,8 @@ class TerminalCommand:
     allowed_failure_literal: str | None = None
     allowed_failure_context_pattern: str | None = None
     timeout_seconds: float | None = None
+    capture_name: str | None = None
+    pid_from_capture: str | None = None
 
 
 FRONTIER_RUNTIME_COMMANDS = (
@@ -284,6 +292,73 @@ FRONTIER_RUNTIME_COMMANDS = (
         timeout_seconds=300.0,
     ),
     TerminalCommand(
+        "ccc /bin/gfxhandoff_exit.cc -o /gfxhandoff_exit",
+        (
+            r"\[cupidc\] AOT compile: /bin/gfxhandoff_exit\.cc -> "
+            r"/gfxhandoff_exit"
+            r".*?\[cupidc\] Wrote ELF: /gfxhandoff_exit "
+            r"\([1-9][0-9]* bytes code, [0-9]+ bytes data, "
+            r"entry=0x(?:0x)?[0-9A-Fa-f]+, "
+            r"total=[1-9][0-9]* bytes\)"
+        ),
+        timeout_seconds=180.0,
+    ),
+    TerminalCommand(
+        "ccc /bin/gfxhandoff_kill.cc -o /gfxhandoff_kill",
+        (
+            r"\[cupidc\] AOT compile: /bin/gfxhandoff_kill\.cc -> "
+            r"/gfxhandoff_kill"
+            r".*?\[cupidc\] Wrote ELF: /gfxhandoff_kill "
+            r"\([1-9][0-9]* bytes code, [0-9]+ bytes data, "
+            r"entry=0x(?:0x)?[0-9A-Fa-f]+, "
+            r"total=[1-9][0-9]* bytes\)"
+        ),
+        timeout_seconds=180.0,
+    ),
+    TerminalCommand(
+        "exec /gfxhandoff_exit",
+        (
+            r"\[elf\] Loaded /gfxhandoff_exit as PID (?P<pid>[1-9][0-9]*)"
+            r".*?\[PROCESS\] Delayed killer PID [1-9][0-9]* "
+            r"waiting for PID (?P=pid) reuse"
+            r".*?\[gfxhandoff_exit\] nested owner exiting"
+        ),
+        capture_name="gfx_owner_pid",
+    ),
+    TerminalCommand(
+        "exec /gfxhandoff_kill {pid}",
+        (
+            r"\[elf\] Loaded /gfxhandoff_kill as PID {pid}"
+            r"(?=.*?\[gfxhandoff_kill\] nested owner waiting for remote kill"
+            r".*?\[PROCESS\] Killing PID {pid} \"/gfxhandoff_kill\")"
+            r"(?=.*?\[PROCESS\] Delayed kill skipped stale PID {pid}"
+            r".*?\[PROCESS\] Killing PID {pid} \"/gfxhandoff_kill\")"
+            r"(?=.*?"
+            r"\[PROCESS\] Delayed killer PID [1-9][0-9]* "
+            r"targeting PID {pid} after 7000 ms"
+            r".*?\[PROCESS\] Killing PID {pid} \"/gfxhandoff_kill\")"
+            r".*?\[PROCESS\] Killing PID {pid} \"/gfxhandoff_kill\""
+        ),
+        pid_from_capture="gfx_owner_pid",
+    ),
+    TerminalCommand(
+        "exec /gfxgui_test",
+        (
+            r"\[elf\] Loaded /gfxgui_test as PID {pid}"
+            r".*?\[gfxgui_test\] init"
+            r".*?\[gfxgui_test\] assets ready"
+            r".*?\[gfxgui_test\] fullscreen"
+            r".*?\[gfxgui_test\] font ready"
+            r".*?\[gfxgui_test\] surface ready"
+            r".*?\[gfxgui_test\] transform ready"
+            r".*?\[gfxgui_test\] frame 0 done"
+            r".*?\[gfxgui_test\] frame 240 done"
+            r".*?\[gfxgui_test\] done"
+        ),
+        timeout_seconds=300.0,
+        pid_from_capture="gfx_owner_pid",
+    ),
+    TerminalCommand(
         "dglibc_test",
         (
             r"\[cupidc\] JIT compile: /bin/dglibc_test\.cc"
@@ -376,7 +451,6 @@ FRONTIER_RUNTIME_COMMANDS = (
         ),
         ("esc",) * 8,
         GODSONG_SETTINGS_READY_PATTERN,
-        2.0,
     ),
 )
 
@@ -514,6 +588,8 @@ FRONTIER_RUNTIME_REJECTED_MARKERS = (
     "FAIL feature18_swap",
     "[FAIL] dglibc",
     "[gfxgui_test] FAIL",
+    "[gfxhandoff_exit] FAIL",
+    "[gfxhandoff_kill] FAIL",
     "[browser-js-number] FAIL",
     "extended SYS VFS calls: FAIL",
 ) + NIC_RUNTIME_REJECTED_MARKERS
@@ -895,10 +971,46 @@ def free_tcp_port() -> int:
 
 
 def read_log(path: Path) -> str:
-    try:
-        return path.read_bytes().decode(errors="replace")
-    except FileNotFoundError:
+    for attempt in range(2):
+        try:
+            return path.read_bytes().decode(errors="replace")
+        except FileNotFoundError:
+            return ""
+        except MemoryError:
+            if attempt == 0:
+                gc.collect()
+                continue
+            try:
+                size = path.stat().st_size
+            except OSError:
+                size = -1
+            raise FrontierRuntimeContractError(
+                f"serial log allocation failed for {path} ({size} bytes)"
+            ) from None
+    raise AssertionError("unreachable serial-log retry state")
+
+
+def qemu_exit_diagnostic(proc: subprocess.Popen, capture) -> str:
+    """Return bounded QEMU output when the child has already exited."""
+    status = proc.poll()
+    if status is None:
         return ""
+    try:
+        capture.flush()
+        capture.seek(0, os.SEEK_END)
+        size = capture.tell()
+        capture.seek(max(0, size - 4000))
+        raw = capture.read()
+    except (OSError, ValueError):
+        raw = b""
+    if isinstance(raw, bytes):
+        message = raw.decode("utf-8", errors="replace").strip()
+    else:
+        message = str(raw).strip()
+    detail = f"QEMU exited with status {status}"
+    if message:
+        detail += f": {message}"
+    return detail
 
 
 def wait_log(proc: subprocess.Popen, log: Path, pattern: str, timeout: float) -> tuple[bool, str]:
@@ -1140,6 +1252,27 @@ def frontier_failure_marker(data: str) -> str | None:
     return None
 
 
+def settle_panic_serial(
+    proc: subprocess.Popen,
+    log: Path,
+    data: str,
+    timeout: float = PANIC_REASON_GRACE_SECONDS,
+) -> str:
+    """Give the panic formatter time to publish its serial reason."""
+    if "KERNEL PANIC" not in data or PANIC_REASON_RE.search(data):
+        return data
+
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if proc.poll() is not None:
+            break
+        time.sleep(0.05)
+        data = read_log(log)
+        if PANIC_REASON_RE.search(data):
+            break
+    return read_log(log)
+
+
 def _blank_frontier_spans(
     data: str,
     spans: list[tuple[int, int]],
@@ -1298,9 +1431,15 @@ def wait_frontier_command(
         )
         failure = frontier_failure_marker(checked_suffix)
         if failure is not None:
+            detail = ""
+            if failure == "KERNEL PANIC":
+                data = settle_panic_serial(proc, log, data)
+                reason = PANIC_REASON_RE.search(data[start_offset:])
+                if reason is not None:
+                    detail = f"; {reason.group(0)}"
             raise FrontierRuntimeContractError(
                 f"frontier command {command.text!r} saw failure marker: "
-                f"{failure}"
+                f"{failure}{detail}"
             )
 
         matched = compiled.search(suffix)
@@ -1322,6 +1461,38 @@ def wait_frontier_command(
     )
 
 
+def resolve_frontier_command(
+    command: TerminalCommand,
+    captures: dict[str, str],
+) -> TerminalCommand:
+    """Resolve one captured process ID into a later command and marker."""
+    if command.pid_from_capture is None:
+        return command
+    pid = captures.get(command.pid_from_capture)
+    if pid is None:
+        raise FrontierRuntimeContractError(
+            f"frontier command {command.text!r} needs missing capture "
+            f"{command.pid_from_capture!r}"
+        )
+    return TerminalCommand(
+        text=command.text.replace("{pid}", pid),
+        expected_pattern=command.expected_pattern.replace(
+            "{pid}", re.escape(pid)
+        ),
+        followup_keys=command.followup_keys,
+        interaction_pattern=command.interaction_pattern,
+        followup_settle_seconds=command.followup_settle_seconds,
+        allowed_failure_pattern=command.allowed_failure_pattern,
+        allowed_failure_literal=command.allowed_failure_literal,
+        allowed_failure_context_pattern=(
+            command.allowed_failure_context_pattern
+        ),
+        timeout_seconds=command.timeout_seconds,
+        capture_name=command.capture_name,
+        pid_from_capture=None,
+    )
+
+
 def run_frontier_commands(
     proc: subprocess.Popen,
     monitor: socket.socket,
@@ -1333,7 +1504,10 @@ def run_frontier_commands(
     """Run the fixed acceptance sequence, waiting after every command."""
     cursor = start_offset
     data = read_log(log)
-    for command_index, command in enumerate(FRONTIER_RUNTIME_COMMANDS):
+    captures: dict[str, str] = {}
+    for command_index, unresolved_command in enumerate(FRONTIER_RUNTIME_COMMANDS):
+        command = resolve_frontier_command(unresolved_command, captures)
+        command_start = cursor
         command_timeout = (
             command.timeout_seconds
             if command.timeout_seconds is not None
@@ -1374,6 +1548,16 @@ def run_frontier_commands(
             cursor,
             command_timeout,
         )
+        if command.capture_name is not None:
+            matched = re.compile(command.expected_pattern, re.S | re.M).search(
+                data[command_start:cursor]
+            )
+            if matched is None or "pid" not in matched.groupdict():
+                raise FrontierRuntimeContractError(
+                    f"frontier command {command.text!r} did not publish a "
+                    "named pid capture"
+                )
+            captures[command.capture_name] = matched.group("pid")
         if command_index + 1 < len(FRONTIER_RUNTIME_COMMANDS):
             time.sleep(max(COMMAND_SETTLE_SECONDS, key_pause * 2.0))
     return data
@@ -1801,17 +1985,22 @@ def _frontier_session(
     pcspk_audio_path: Path,
 ) -> int:
     monitor_port = free_tcp_port()
-    proc = subprocess.Popen(
-        qemu_args(
-            args,
-            monitor_port,
-            ac97_audio_path,
-            pcspk_audio_path,
-        ),
-        cwd=REPO_ROOT,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.STDOUT,
-    )
+    qemu_output = tempfile.TemporaryFile(mode="w+b")
+    try:
+        proc = subprocess.Popen(
+            qemu_args(
+                args,
+                monitor_port,
+                ac97_audio_path,
+                pcspk_audio_path,
+            ),
+            cwd=REPO_ROOT,
+            stdout=qemu_output,
+            stderr=subprocess.STDOUT,
+        )
+    except BaseException:
+        qemu_output.close()
+        raise
     mon: socket.socket | None = None
     last_data = ""
     try:
@@ -1822,8 +2011,10 @@ def _frontier_session(
             args.timeout,
         )
         if not ok:
+            detail = qemu_exit_diagnostic(proc, qemu_output)
             raise FrontierRuntimeContractError(
                 "GUI desktop did not boot before timeout"
+                + (f"; {detail}" if detail else "")
             )
 
         mon = connect_monitor(monitor_port, 10.0)
@@ -1932,6 +2123,7 @@ def _frontier_session(
         return 1
     finally:
         stop_qemu(proc, mon)
+        qemu_output.close()
 
 
 def run_frontier_runtime(args: argparse.Namespace) -> int:

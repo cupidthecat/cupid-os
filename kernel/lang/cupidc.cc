@@ -736,9 +736,6 @@ static int cc_gui_win_create(const char *title, int x, int y, int w, int h) {
       win->redraw = cc_terminal_window_redraw;
     }
   }
-  if (wid >= 0) {
-    (void)gui_draw_window(wid);
-  }
   return wid;
 }
 
@@ -813,16 +810,7 @@ static int cc_gui_win_present(int win_id) {
 }
 
 static void cc_gui_win_flip(int win_id) {
-  window_t *win = gui_get_window(win_id);
-  if (!win)
-    return;
-
-  /* Compatibility path for older immediate-mode hosted apps: cache the
-   * content they drew into the screen backbuffer into the retained
-   * per-window surface, then present through the compositor path.*/
-  (void)gui_cache_window_content(win_id);
-  (void)gui_invalidate_window(win_id);
-  (void)gui_present_windows();
+  (void)gui_end_legacy_frame(win_id);
 }
 
 static int cc_gui_win_can_draw(int win_id) {
@@ -843,11 +831,7 @@ static int cc_gui_win_draw_frame(int win_id) {
     return -1;
   if ((int)focused->id != win_id)
     return 0;
-  /* Hide the mouse cursor before the app draws its content so the app
-   * never paints over cursor pixels in the back buffer.  The cursor
-   * will be re-drawn in cc_gui_win_flip after the frame is complete.*/
-  mouse_restore_under_cursor();
-  return gui_draw_window(win_id);
+  return gui_begin_legacy_frame(win_id);
 }
 
 /* Shell buffer wrappers */
@@ -1296,6 +1280,10 @@ static void cc_register_kernel_bindings(cc_state_t *cc) {
 
   void (*p_process_kill)(uint32_t) = process_kill;
   BIND("process_kill", p_process_kill, 1);
+
+  uint32_t (*p_process_kill_after_ms)(uint32_t, uint32_t) =
+      process_kill_after_ms;
+  BIND_T("process_kill_after_ms", p_process_kill_after_ms, 2, TYPE_UINT);
 
   uint32_t (*p_spawn_test)(uint32_t) = cc_spawn_test;
   BIND_T("spawn_test", p_spawn_test, 1, TYPE_UINT);

@@ -134,17 +134,34 @@ private AOT compilation.
 records the completed embedded-program binding frontier. Forty-three bindings
 call existing graphics, font, transform, and GUI implementations directly.
 Three small accessors return the addresses of the existing constant themes.
-All 104 runnable top-level programs pass private AOT compilation. The fixed
-guest frontier compiles the graphics test to an ELF, then runs all 260 frames
-through private JIT. The gate requires theme and BMP setup, exact custom-font and
-isolated blurred-surface pixels, unchanged screen state, center and off-center
+All 106 runnable top-level programs pass private AOT compilation. The fixed
+guest frontier runs the graphics test through both AOT and JIT, then exercises
+nested fullscreen cleanup through voluntary exit and remote kill. The exit
+fixture arms a generation-bound delayed request before returning; after its
+PID is reused, that stale request must skip the replacement owner, whose own
+foreign helper then kills it. A third AOT graphics process must reuse the same
+PID and render. The gate requires theme and BMP setup, exact
+custom-font and isolated blurred-surface pixels, unchanged screen state,
+center and off-center
 transformed-image pixels, an off-origin rotation and scale result, frame 240,
 cleanup, and JIT return. The affine inverse keeps the full 32.32 determinant
 and inverse translation arithmetic in checked 64-bit form.
 This prevents a zero-divisor hang, retains representable sub-word determinants
 and large scales, and rejects inverse words that cannot fit. The later
-GodSong command uses its own settings-readiness marker, so its dialog keys do
-not depend on startup-only diagnostics consumed by the graphics workload.
+GodSong command waits for its settings line and the popup's post-acquisition
+input marker. Its dialog keys need neither a timed settle nor an earlier
+graphics diagnostic.
+
+[ADR 0261](docs/adr/0261-serialize-shared-graphics-ownership.md) records the
+cross-process graphics handoff. Desktop frames, retained windows, legacy
+window drawing, and fullscreen programs serialize access to the shared back
+buffer and gfx2d state. Process exit and remote kill release abandoned render
+ownership before PID reuse. Delayed foreign helpers capture a process lifetime
+generation, so an old request cannot kill a replacement in the same slot. Raw
+modal input uses the same writer for desktop
+keyboard pops and mouse-driven window mutations. Raw gfx2d drawing and
+borrowed resource pointers must stay inside a fullscreen or window-paint
+scope.
 
 ## Feature demo quickstart
 
@@ -796,7 +813,7 @@ contention. Runtime order arguments, pointer and eight-byte atomics, and HLE
 flags remain open. The checked seed carries all five operations and compiles
 the active EHCI fetch-or path.
 
-The checked-seed C11 standalone-header sweep passes 160 of 162 active non-Doom
+The checked-seed C11 standalone-header sweep passes 161 of 163 active non-Doom
 inputs. `scheduler.h` and `simd_intrin.h` remain explicit C11-profile failures.
 The checked seed parses all 29 declarations in `simd_intrin.h` under its proper
 Cupid profile, while `scheduler.h` still has an undefined historical array
@@ -810,10 +827,10 @@ header closure.
 Poisoned-host checks cover all 238 checked-in normal CupidC recipes through
 the strict and Doom gates. They fail if a CupidC-owned object reaches Clang or
 GCC. They pass against the renamed graph. Across the three supported build
-roots, the audit records 447 transforms. CupidC participates in 245, CupidObj
-participates in 189 transforms, CupidASM participates in five, Python
-participates in all 447, and no normal transform invokes a host C compiler.
-Every one of the 438 root outputs has at least one Cupid tool owner, so no root
+roots, the audit records 449 transforms. CupidC participates in 245, CupidObj
+participates in 191 transforms, CupidASM participates in five, Python
+participates in all 449, and no normal transform invokes a host C compiler.
+Every one of the 440 root outputs has at least one Cupid tool owner, so no root
 output is Python-only. The checked user compiler and Toolchain contract
 publisher create their own output directories. The compiler walks POSIX paths
 through no-follow directory descriptors and Windows paths through
@@ -844,7 +861,7 @@ The shared runtime formats signed and unsigned `long long` values, padded
 64-bit hexadecimal values, and precision-bounded strings. Those forms come
 from the unchanged contract diagnostics and are covered by the executable
 runtime probe.
-The 438-transform root image
+The 440-transform root image
 graph has no host C or recursive Make transform. Its CupidASM, CupidObj,
 CupidLD, and CupidDis commands run from the checked seed. One
 Python transform checks the external program syscall ABI and produces no OS
@@ -1485,7 +1502,7 @@ cupid-os/
   drivers/               hardware drivers: ATA, keyboard, mouse,
                          PIT, RTC, serial, speaker, timer, VGA,
                          PCI, RTL8139, E1000
-  bin/                   104 runnable CupidC programs, one shared include,
+  bin/                   106 runnable CupidC programs, one shared include,
                          and 22 browser fragments
   demos/                 22 CupidASM demo/include programs
   user/                  example ELF user programs + cupid.h
@@ -1705,7 +1722,7 @@ The shell handles command parsing, pipelines, input/output redirection, backgrou
 
 ## Built-in programs (bin/)
 
-RamFS contains 105 top-level CupidC inputs. Of those, 104 are runnable
+RamFS contains 106 top-level CupidC inputs. Of those, 105 are runnable
 programs. `ctxt.cc` is the shared include used by Notepad and does not define
 an entry point. RamFS also contains 22 support modules under
 `bin/browser/*.cc`, which `browser.cc` includes rather than launching as
@@ -1718,7 +1735,7 @@ separate programs.
 | Process/system | date, kill, ps, reboot, spawn, sysinfo, time, yield |
 | Introspection/debug | cachestats, crashtest, logdump, loglevel, registers, stacktrace |
 | Memory tools | memcheck, memdump, memleak, memstats |
-| GUI/graphics apps | bgstudio, bmptest, browser, fm, fontswitch, gfxdemo, gfxgui_test, gfxtest, notepad, paint, terminal |
+| GUI/graphics apps | bgstudio, bmptest, browser, fm, fontswitch, gfxdemo, gfxgui_test, gfxhandoff_exit, gfxhandoff_kill, gfxtest, notepad, paint, terminal |
 | Audio/speech/media | audiotest, doom, godsong, godspeak, volume |
 | CupidC language tests | cupidc_test1-5, feature1_types, feature2_top_level, feature3_class, feature4_forward_calls, feature5_print_builtin, feature6_exe, feature7_new_del, feature8_reg_noreg, feature9_abs_addr, feature10_repl, feature11_ternary |
 | FPU/SSE/libm tests | feature12_float, feature13_double, feature14_simd, feature15_libm, feature16_asm_fpu, fp_drill |

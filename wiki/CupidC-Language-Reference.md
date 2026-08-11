@@ -536,6 +536,7 @@ void main() { ac97_init(); ac97_smoke_sine(); }
 
 ```c
 // Load a PNG from disk and blit it to the screen.
+gfx2d_fullscreen_enter();
 uint8_t *bytes; int n = vfs_read_all("/img.png", &bytes);
 uint32_t *px; int w, h;
 if (png_decode_mem(bytes, n, &px, &w, &h) == 0) {
@@ -545,7 +546,13 @@ if (png_decode_mem(bytes, n, &px, &w, &h) == 0) {
     kfree(px);
 }
 kfree(bytes);
+gfx2d_fullscreen_exit();
 ```
+
+Raw gfx2d drawing and borrowed graphics-resource pointers require a
+fullscreen or retained-window paint scope. The shared render state is
+owner-tagged across processes, and process cleanup releases an abandoned
+scope before the PID is reused.
 
 #### Audio - MIDI / OPL3 synth
 - `midiopl_init(uint8_t *genmidi_lump, uint32_t lump_len)` - Parse Doom GENMIDI patches

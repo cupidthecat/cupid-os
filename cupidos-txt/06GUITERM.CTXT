@@ -113,6 +113,21 @@ The same routing lets interactive CupidC and CupidASM programs receive input
 inside the GUI terminal window.
 >endtree
 
+>h2 Graphics Ownership
+>tree open Graphics Ownership
+The terminal command runs JIT code in the terminal process while the desktop
+continues on another CPU. Direct graphics therefore use the same PID-tagged
+handoff as retained windows and the desktop compositor.
+
+Fullscreen entry waits for an in-flight desktop frame. A JIT return releases
+its render scopes, while process exit or remote kill releases them from the
+reaper before PID reuse. The frontier runs gfxgui_test through AOT and JIT,
+then exercises nested ownership through voluntary exit and a generation-bound
+remote kill. A stale delayed request must spare the reused PID before its own
+helper kills it, and the next AOT graphics run must reuse that PID and draw.
+Raw gfx2d calls must stay inside fullscreen or a window paint scope.
+>endtree
+
 >h2 GodSpeak Hotkey
 >tree open GodSpeak Hotkey
 F7 in the shell or GUI Terminal runs:

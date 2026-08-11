@@ -155,9 +155,9 @@ Integer and pointer conditions keep their existing EAX path. Void
 expressions, structures by value, `float4`, and `double2` fail with
 `truth test requires a scalar operand`.
 
-Kernel calls participate in the same type rules. Each of the 556 registered
-bindings carries its declared result type. The table contains 325 value calls
-and 231 `void` calls. Its values split into 208 promoted integers, 40 unsigned
+Kernel calls participate in the same type rules. Each of the 557 registered
+bindings carries its declared result type. The table contains 326 value calls
+and 231 `void` calls. Its values split into 208 promoted integers, 41 unsigned
 words, 25 `float`, 25 `double`, 19 character pointers, and eight other
 pointers. A result from `input_dialog`, for example, can control an `if`
 without losing its integer type, while a high-bit `htonl` result keeps
@@ -166,14 +166,18 @@ unsigned comparison.
 The table includes the 46 effects, bitmap-font, transform, GUI, and theme
 bindings that were missing for `gfxgui_test.cc`. Three accessors return
 pointers to the built-in constant themes. The remaining entries call linked
-kernel implementations directly. All 104 runnable top-level programs pass
-private AOT compilation. The fixed guest frontier also emits the graphics
-test as an ELF and runs all 260 frames through private JIT. It requires an
+kernel implementations directly. All 106 runnable top-level programs pass
+private AOT compilation. The fixed guest frontier runs the graphics test as
+both an ELF and private JIT program, then verifies nested-owner cleanup after
+voluntary exit and remote kill. A delayed request for the old lifetime must
+skip the reused PID before the replacement's helper kills it; the next ELF
+graphics run reuses that PID. It requires an
 exact custom-font pixel, an isolated blurred-surface pixel with unchanged
 screen state, center and off-center transformed-image pixels, an off-origin
 rotation and scale point, identity after popping the transform, frame 240,
 cleanup, and clean JIT return. The later GodSong command waits for its own
-settings-readiness line instead of a startup-only graphics diagnostic.
+settings line and the popup's post-acquisition input marker. It uses no timed
+settle or startup-only graphics diagnostic.
 
 ### Floating variable updates
 
@@ -1117,7 +1121,7 @@ SMP, all 62 crypto checks, e1000 traffic, the desktop, terminal, and CupidC
 execution at `0x01100000`. A separate gate loads and reaps the same
 external program twice at `0x01C00000`. ADR 0124 records the exact build and
 runtime evidence. No supported transform invokes a host C compiler. Python
-participates in all 447 transforms across the three audited roots, and CupidC
+participates in all 449 transforms across the three audited roots, and CupidC
 participates in 245. Root `all` runs CupidC, CupidASM, CupidObj, CupidLD, and
 CupidDis from the manifest-checked seed; `toolchain:all` uses the rebuilt
 static tools for its contract cohort. The private in-kernel CupidC compiler
@@ -1285,7 +1289,7 @@ preserving ESI or EDI across the cdecl call.
 
 The i386 path emits `EC`, `EE`, `66 ED`, `66 EF`, `ED`, and `EF` for scalar
 port I/O. The string forms emit `FC F3 66 6D` and `FC F3 66 6F` through the
-shared x86 model. The checked-seed C11 standalone sweep passes 160 of 162
+shared x86 model. The checked-seed C11 standalone sweep passes 161 of 163
 active non-Doom headers; `scheduler.h` and `simd_intrin.h` remain exact
 C11-profile failures. The checked seed parses all 29 declarations in
 `simd_intrin.h` under the Cupid profile through the native type spellings

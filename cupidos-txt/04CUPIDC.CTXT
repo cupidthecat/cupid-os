@@ -234,7 +234,7 @@ The pass-one and final kernels project the same text symbols at the same
 addresses.
 
 Across root and supplemental builds, the ownership audit reports 245 CupidC
-transforms and no host C transform. Host Python participates in all 447
+transforms and no host C transform. Host Python participates in all 449
 transforms. The normal Toolchain build uses checked static i386 tools for its
 contract cohort; native contract binaries are optional oracles. The
 publisher accepts only a dedicated cupidc-contracts directory inside the
@@ -251,8 +251,8 @@ execution. The contract inventory has 50 inputs, including the Windows
 startup and runtime probe, the Toolchain Makefile, and both Python modules
 that construct or verify the cohort. The
 manifest digest, decoded data, schema checks, and build plan
-come from one captured byte sequence. The 438-transform normal image has no
-host C or recursive Make transform. Its five CupidASM, 189 CupidObj, two
+come from one captured byte sequence. The 439-transform normal image has no
+host C or recursive Make transform. Its five CupidASM, 191 CupidObj, two
 CupidLD, and one CupidDis commands run from the checked seed. The user
 compiler and Toolchain contract publisher create their own output directories,
 so empty-directory setup is not a separate transform. The compiler pins every
@@ -486,7 +486,7 @@ across the cdecl call.
 
 The scalar forms emit EC, EE, 66 ED, 66 EF, ED, and EF. INSW and OUTSW emit
 FC F3 66 6D and FC F3 66 6F through the shared x86 model. The checked-seed C11
-standalone sweep passes 160 of 162 active non-Doom headers. scheduler.h and
+standalone sweep passes 161 of 163 active non-Doom headers. scheduler.h and
 simd_intrin.h remain exact C11-profile failures. The checked seed parses all 29
 simd_intrin.h declarations under the Cupid profile through the shared native
 type graph.
@@ -1379,7 +1379,7 @@ floating values or explicitly cast. Fresh subscript metadata prevents a
 pointer result from inheriting an earlier array stride.
 
 The kernel binding table preserves each function's declared result. Its 325
-value-returning entries include 208 promoted integers, 40 unsigned words, 25
+value-returning entries include 208 promoted integers, 41 unsigned words, 25
 float, 25 double, 19 character pointers, and eight other pointers. The other
 231 entries return void. Conditions therefore use the value that a binding
 actually returns instead of stale expression state.
@@ -1515,10 +1515,13 @@ Notepad integration:
 Available for GUI app and desktop-oriented workflows:
 
 The complete 46-name gfxgui cohort exposes effects, bitmap-font assets,
-affine transforms, GUI module initialization, and themes. All 104 runnable
-top-level programs now pass private AOT compilation. The fixed runtime gate
-first emits /gfxgui_test, then runs /bin/gfxgui_test.cc through private JIT.
-It requires setup, frame 0, frame 240, cleanup, and JIT completion. An
+affine transforms, GUI module initialization, and themes. All 106 runnable
+top-level programs pass private AOT compilation. The fixed runtime gate runs
+/gfxgui_test and /bin/gfxgui_test.cc, then exercises nested ownership through
+voluntary exit and remote kill. The old generation's request must skip the
+reused PID before the replacement's helper kills it; a final /gfxgui_test
+reuses that PID. It requires setup, frame 0, frame 240, cleanup, lifecycle
+recovery, and JIT completion. An
 unresolved native symbol fails the gate immediately. The test keeps its
 temporary theme, BMP, font, and ELF files in RamFS. Its transform path uses
 16.16 operands for the 3/2 scale and translation. It keeps the full 32.32
@@ -1527,6 +1530,21 @@ success path requires an exact generated-font pixel, an isolated filtered
 surface pixel with unchanged screen state, and center and off-center
 transformed-image pixels. It also checks an off-origin point after a 90-degree
 rotation and nonuniform scale, then proves that pop restores identity.
+
+The framebuffer and gfx2d render state are shared across processes.
+Fullscreen programs, retained window paint, the legacy frame pair, and the
+desktop compositor use one PID-tagged ownership handoff. Fullscreen entry
+waits for an in-flight desktop writer. Normal return, exit, and remote kill
+release abandoned ownership before PID reuse. Delayed kills also capture the
+target generation. Keep raw drawing and borrowed
+surface, image, or font pointers inside a fullscreen or window-paint scope.
+Fully published resource handles are not owner-tagged, so abrupt termination
+can still leak a finite pool slot. ADR 0261 records this boundary.
+
+Raw modal input uses the same writer. Desktop keyboard pops and mouse-driven
+window changes borrow it, while popups publish readiness only after acquiring
+it. GodSong's gate waits for that marker and each confirm consumes one
+terminal key.
 
 Effects and assets:
 - gfx2d_blur_box, gfx2d_blur_gaussian, gfx2d_blur_motion
@@ -1583,6 +1601,11 @@ Retained-surface paint/present flow (preferred):
   unbinds the active surface and marks the window content dirty
 - gui_win_present(window_id) -> int
   asks the compositor to present dirty hosted windows
+
+Legacy frame flow:
+- gui_win_draw_frame(window_id) begins one render scope
+- gui_win_flip(window_id) restores shared render state and ends that scope
+- do not mix retained and legacy scopes in one process
 
 Explicit invalidation helpers:
 - gui_win_invalidate(window_id) -> int

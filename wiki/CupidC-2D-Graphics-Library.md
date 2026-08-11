@@ -13,14 +13,18 @@ The private compiler exposes the 46 bindings that were missing for
 GUI module initialization, theme persistence, and three built-in theme
 accessors. The accessors return pointers to the existing constant theme
 objects. The other 43 bindings call their linked kernel implementations
-directly. All 104 runnable top-level programs pass private AOT compilation,
-and the fixed guest frontier also emits an ELF and completes all 260 frames
-through JIT. It requires an exact custom-font pixel, an isolated
+directly. All 106 runnable top-level programs pass private AOT compilation.
+The fixed guest frontier runs the graphics test through AOT and JIT, checks
+voluntary-exit recovery from nested fullscreen ownership, then reuses that PID
+for a second nested owner. The old generation's delayed request must skip it;
+a new foreign helper kills it, and a third AOT graphics run reuses the PID and
+renders. It requires an exact custom-font pixel, an isolated
 blurred-surface pixel with unchanged screen state, and center and off-center
 transformed-image pixels. An off-origin point checks a 90-degree rotation and
 nonuniform scale, and popping the transform must restore identity. The later
-GodSong command waits for its own settings-readiness line, not the startup-only
-graphics diagnostics consumed by this workload. The affine inverse retains
+GodSong command waits for its settings line and a popup marker printed after
+the popup owns the shared writer and raw keyboard queue. It does not rely on a
+timed delay or an earlier graphics diagnostic. The affine inverse retains
 the full 32.32 determinant and inverse translation arithmetic in checked
 64-bit form. This keeps the identity matrix and representable sub-word
 determinants invertible, accepts large determinants when their inverse words
@@ -379,13 +383,28 @@ void gfx2d_flood_fill(int x, int y, unsigned int color);
 
 ### Fullscreen Mode
 
-Fullscreen mode disables the desktop compositor and window manager, then gives the program direct access to the screen.
+Fullscreen mode waits for any in-flight desktop or retained-window writer,
+then gives the calling process exclusive access to the shared framebuffer and
+gfx2d state. Entry and exit are owner-tagged and may be nested by the same
+process. JIT return, process exit, and remote kill release abandoned
+ownership before the PID can be reused.
 
 ```c
 void gfx2d_fullscreen_enter();
 void gfx2d_fullscreen_exit();
 int  gfx2d_fullscreen_active();  // returns 1 if active
 ```
+
+Direct drawing, clip, blend, transform, sprite, surface, particle, image, and
+font calls share process-wide state. Keep them inside a fullscreen scope or a
+retained window paint scope. A pointer returned by `gfx2d_surface_data`,
+`gfx2d_image_data`, `fontsys_glyph`, or `fontsys_face_family` remains owned by
+its registry and is valid only while that outer scope is held.
+
+Windowed programs should pair `gui_win_begin_paint` with
+`gui_win_end_paint`, then call `gui_win_present`. The compatibility
+`gui_win_draw_frame` path must be paired with `gui_win_flip`; it holds the
+same writer ownership for the complete pair.
 
 ### Mouse Cursor
 
@@ -428,8 +447,8 @@ int gfx2d_file_dialog_save(char *start_path, char *default_name,
 **Example:**
 ```c
 void main() {
-    gfx2d_init();
     gfx2d_fullscreen_enter();
+    gfx2d_init();
 
     char path[128];
 
@@ -483,9 +502,11 @@ baseline JPEGs (SOF0/SOF1, 1- or 3-component, 4:4:4 / 4:2:2 / 4:2:0).
 uint8_t *bytes; int n = vfs_read_all("/img.png", &bytes);
 uint32_t *px; int w, h;
 if (png_decode_mem(bytes, n, &px, &w, &h) == 0) {
+    gfx2d_fullscreen_enter();
     for (int y = 0; y < h; y++)
         for (int x = 0; x < w; x++) gfx2d_pixel(x, y, px[y*w + x]);
     gfx2d_flip();
+    gfx2d_fullscreen_exit();
     kfree(px);
 }
 kfree(bytes);
@@ -528,10 +549,12 @@ the glyph helpers (`gfx2d_char` / `_char_scaled` / `_text_n` /
 Screenshot example:
 ```c
 void main() {
+    gfx2d_fullscreen_enter();
     // Capture the framebuffer as a BMP
     int *fb = 0;  // use gfx2d framebuffer
     // ... draw something first ...
     bmp_encode("/home/screen.bmp", fb, 640, 480);
+    gfx2d_fullscreen_exit();
     println("Screenshot saved!");
 }
 ```
@@ -539,8 +562,10 @@ void main() {
 Load and display example:
 ```c
 void main() {
+    gfx2d_fullscreen_enter();
     // Decode directly to screen
     int ret = bmp_decode_to_fb("/home/logo.bmp", 100, 100);
+    gfx2d_fullscreen_exit();
     if (ret < 0) {
         println("Failed to load BMP");
     }
@@ -550,6 +575,8 @@ void main() {
 ---
 
 ## Example: Retro Window
+
+Call this helper from an active fullscreen or retained-window paint scope.
 
 ```c
 // Draw a Win95-style window with gradient title bar
@@ -598,6 +625,9 @@ void draw_window(int x, int y, int w, int h, char *title) {
 - The sprite pool stores at most 32 handles in the kernel heap.
 - The surface pool stores at most eight handles. Each surface consumes `w*h*4` bytes of heap memory.
 - At most four particle systems may be active, with 64 particles per system and 8.8 fixed-point positions.
+- Resource slots are invalidated before their storage is freed. The pools do
+  not yet record the creating PID, so a process killed after allocation can
+  orphan a handle and eventually exhaust a finite pool.
 - Every pixel-writing path checks the global clipping rectangle.
 - `FONT_LARGE` scales the same 8x8 glyphs as `FONT_NORMAL` by two at draw time.
 - The `g2d_put()` helper applies blend modes to drawing operations.

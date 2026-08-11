@@ -56,7 +56,7 @@ void gui_widgets_init(void) {
 
 bool ui_draw_checkbox(ui_rect_t r, const char *label, bool checked,
                       bool enabled, int16_t mx, int16_t my, bool clicked) {
-    ui_theme_t *theme = ui_theme_get();
+    const ui_theme_t *theme = ui_theme_get();
     int box_size = 12;
     int16_t bx = r.x;
     int16_t by = (int16_t)(r.y + (int16_t)((r.h - (uint16_t)box_size) / 2));
@@ -95,7 +95,7 @@ bool ui_draw_checkbox(ui_rect_t r, const char *label, bool checked,
 
 bool ui_draw_radio(ui_rect_t r, const char *label, bool selected,
                    bool enabled, int16_t mx, int16_t my, bool clicked) {
-    ui_theme_t *theme = ui_theme_get();
+    const ui_theme_t *theme = ui_theme_get();
     int radius = 6;
     int16_t cx = (int16_t)(r.x + radius);
     int16_t cy = (int16_t)(r.y + (int16_t)(r.h / 2));
@@ -149,7 +149,7 @@ int ui_radio_group(ui_rect_t r, const char **labels, int count,
 bool ui_draw_dropdown(ui_rect_t r, const char **items, int count,
                       ui_dropdown_state_t *state, int16_t mx, int16_t my,
                       bool clicked) {
-    ui_theme_t *theme = ui_theme_get();
+    const ui_theme_t *theme = ui_theme_get();
     bool changed = false;
     int16_t arrow_w = 16;
     ui_rect_t btn_area;
@@ -253,7 +253,7 @@ int ui_listbox_hit(ui_rect_t r, int offset, int item_height, int count,
 bool ui_draw_listbox(ui_rect_t r, const char **items, int count,
                      ui_listbox_state_t *state, int16_t mx, int16_t my,
                      bool clicked, int scroll_delta) {
-    ui_theme_t *theme = ui_theme_get();
+    const ui_theme_t *theme = ui_theme_get();
     int item_h = FONT_H + 4;
     int visible;
     int i;
@@ -329,7 +329,7 @@ bool ui_draw_listbox(ui_rect_t r, const char **items, int count,
 
 int ui_draw_slider_h(ui_rect_t r, int value, int max, bool dragging,
                      int16_t mx, int16_t my) {
-    ui_theme_t *theme = ui_theme_get();
+    const ui_theme_t *theme = ui_theme_get();
     int track_h = 4;
     int thumb_w = 12;
     int thumb_h;
@@ -381,7 +381,7 @@ int ui_draw_slider_h(ui_rect_t r, int value, int max, bool dragging,
 
 int ui_draw_slider_v(ui_rect_t r, int value, int max, bool dragging,
                      int16_t mx, int16_t my) {
-    ui_theme_t *theme = ui_theme_get();
+    const ui_theme_t *theme = ui_theme_get();
     int track_w = 4;
     int thumb_h = 12;
     int track_x;
@@ -452,7 +452,7 @@ int ui_draw_slider_labeled(ui_rect_t r, const char *label, int value,
 /* Progress Bar */
 
 void ui_draw_progressbar(ui_rect_t r, int value, int max, bool show_text) {
-    ui_theme_t *theme = ui_theme_get();
+    const ui_theme_t *theme = ui_theme_get();
     ui_draw_progressbar_styled(r, value, max, theme->accent_primary, theme->button_shadow);
 
     if (show_text && max > 0) {
@@ -472,7 +472,7 @@ void ui_draw_progressbar(ui_rect_t r, int value, int max, bool show_text) {
 }
 
 void ui_draw_progressbar_indeterminate(ui_rect_t r, uint32_t tick) {
-    ui_theme_t *theme = ui_theme_get();
+    const ui_theme_t *theme = ui_theme_get();
     int bar_w = (int)r.w / 4;
     int cycle = (int)r.w + bar_w;
     int pos;
@@ -580,7 +580,7 @@ bool ui_draw_spinner(ui_rect_t r, ui_spinner_state_t *state,
 
 bool ui_draw_toggle(ui_rect_t r, bool on, bool enabled,
                     int16_t mx, int16_t my, bool clicked) {
-    ui_theme_t *theme = ui_theme_get();
+    const ui_theme_t *theme = ui_theme_get();
     int track_w = 36;
     int track_h = 18;
     int knob_r = 7;

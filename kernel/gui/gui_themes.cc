@@ -6,6 +6,8 @@
 */
 
 #include "gui_themes.h"
+#include "desktop.h"
+#include "gfx2d.h"
 #include "string.h"
 #include "memory.h"
 #include "vfs.h"
@@ -332,8 +334,11 @@ const ui_theme_t UI_THEME_VAPORWAVE = {
 
 static ui_theme_t g_active_theme;
 static ui_style_t g_active_style;
+static int g_themes_initialized = 0;
 
-void gui_themes_init(void) {
+static void gui_themes_init_locked(void) {
+    if (g_themes_initialized)
+        return;
     g_active_theme = UI_THEME_PASTEL_DREAM;
 
     g_active_style.window_shadow_offset = 2;
@@ -345,25 +350,53 @@ void gui_themes_init(void) {
     g_active_style.use_shadows          = true;
     g_active_style.use_animations       = false;
     g_active_style.animation_duration_ms = 200;
+    g_themes_initialized = 1;
 }
 
-void ui_theme_set(const ui_theme_t *theme) {
+void gui_themes_init(void) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    gui_themes_init_locked();
+    gfx2d_shared_writer_end(writer_lease);
+}
+
+static void ui_theme_set_locked(const ui_theme_t *theme) {
     if (theme) g_active_theme = *theme;
 }
 
-ui_theme_t *ui_theme_get(void) {
+void ui_theme_set(const ui_theme_t *theme) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    desktop_theme_changed();
+    ui_theme_set_locked(theme);
+    gfx2d_shared_writer_end(writer_lease);
+}
+
+const ui_theme_t *ui_theme_get(void) {
     return &g_active_theme;
 }
 
-void ui_theme_reset_default(void) {
+static void ui_theme_reset_default_locked(void) {
     g_active_theme = UI_THEME_PASTEL_DREAM;
 }
 
-void ui_style_set(const ui_style_t *style) {
+void ui_theme_reset_default(void) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    desktop_theme_changed();
+    ui_theme_reset_default_locked();
+    gfx2d_shared_writer_end(writer_lease);
+}
+
+static void ui_style_set_locked(const ui_style_t *style) {
     if (style) g_active_style = *style;
 }
 
-ui_style_t *ui_style_get(void) {
+void ui_style_set(const ui_style_t *style) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    desktop_theme_changed();
+    ui_style_set_locked(style);
+    gfx2d_shared_writer_end(writer_lease);
+}
+
+const ui_style_t *ui_style_get(void) {
     return &g_active_style;
 }
 
@@ -457,7 +490,7 @@ static const theme_field_t theme_fields[] = {
 
 #undef FIELD
 
-int ui_theme_load(const char *path) {
+static int ui_theme_load_locked(const char *path) {
     int fd;
     char buf[512];
     int bytes_read;
@@ -542,7 +575,15 @@ int ui_theme_load(const char *path) {
     return 0;
 }
 
-int ui_theme_save(const char *path) {
+int ui_theme_load(const char *path) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    desktop_theme_changed();
+    int result = ui_theme_load_locked(path);
+    gfx2d_shared_writer_end(writer_lease);
+    return result;
+}
+
+static int ui_theme_save_locked(const char *path) {
     int fd;
     char buf[1024];
     int pos = 0;
@@ -583,4 +624,11 @@ int ui_theme_save(const char *path) {
     vfs_close(fd);
 
     return 0;
+}
+
+int ui_theme_save(const char *path) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    int result = ui_theme_save_locked(path);
+    gfx2d_shared_writer_end(writer_lease);
+    return result;
 }

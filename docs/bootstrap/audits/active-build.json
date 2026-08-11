@@ -1806,6 +1806,50 @@
       },
       {
         "inputs": [
+          "bin/gfxhandoff_exit.cc",
+          "Makefile",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
+        ],
+        "operation": "wrap_text_as_elf32_relocatable",
+        "output": "bin/gfxhandoff_exit.o",
+        "recipe": [
+          "$(CUPIDOBJ) wrap-text $< -o $@"
+        ],
+        "tools": [
+          "cupid_object",
+          "host_python"
+        ]
+      },
+      {
+        "inputs": [
+          "bin/gfxhandoff_kill.cc",
+          "Makefile",
+          "tools/bootstrap_toolchain.py",
+          "bootstrap/seeds/i386-linux/manifest.json",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf"
+        ],
+        "operation": "wrap_text_as_elf32_relocatable",
+        "output": "bin/gfxhandoff_kill.o",
+        "recipe": [
+          "$(CUPIDOBJ) wrap-text $< -o $@"
+        ],
+        "tools": [
+          "cupid_object",
+          "host_python"
+        ]
+      },
+      {
+        "inputs": [
           "bin/gfxtest.cc",
           "Makefile",
           "tools/bootstrap_toolchain.py",
@@ -3129,6 +3173,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -4941,6 +4986,7 @@
           "kernel/fs/vfs.h",
           "kernel/gfx/fontsys.h",
           "kernel/gfx/gfx2d.h",
+          "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/graphics.h",
           "kernel/gui/clipboard.h",
           "kernel/gui/desktop.h",
@@ -5034,6 +5080,7 @@
           "kernel/core/types.h",
           "kernel/cpu/isr.h",
           "kernel/cpu/simd.h",
+          "kernel/gfx/gfx2d.h",
           "kernel/gui/gui.h",
           "kernel/lang/shell.h",
           "kernel/mm/memory.h",
@@ -6196,6 +6243,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -6514,6 +6562,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -6640,6 +6689,7 @@
           "drivers/serial.h",
           "drivers/timer.h",
           "kernel/fs/vfs.h",
+          "kernel/gfx/gfx2d.h",
           "kernel/usb/usb.h",
           "drivers/ata.h",
           "drivers/mouse.h",
@@ -6831,9 +6881,9 @@
           "kernel/gfx/deflate.h",
           "kernel/gfx/font_8x8.h",
           "kernel/gfx/fontsys.h",
-          "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -7153,6 +7203,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -7471,6 +7522,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -7790,6 +7842,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -8109,6 +8162,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -8428,6 +8482,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -8747,6 +8802,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -9066,6 +9122,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -9385,6 +9442,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -9704,6 +9762,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -10023,6 +10082,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -10342,6 +10402,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -10661,6 +10722,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -10980,6 +11042,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -11299,6 +11362,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -11618,6 +11682,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -11937,6 +12002,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -12256,6 +12322,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -12575,6 +12642,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -12894,6 +12962,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -13213,6 +13282,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -13532,6 +13602,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -13851,6 +13922,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -14170,6 +14242,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -14489,6 +14562,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -14808,6 +14882,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -15127,6 +15202,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -15446,6 +15522,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -15765,6 +15842,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -16084,6 +16162,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -16403,6 +16482,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -16722,6 +16802,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -17041,6 +17122,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -17360,6 +17442,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -17679,6 +17762,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -17998,6 +18082,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -18317,6 +18402,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -18636,6 +18722,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -18955,6 +19042,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -19274,6 +19362,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -19593,6 +19682,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -19912,6 +20002,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -20231,6 +20322,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -20550,6 +20642,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -20869,6 +20962,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -21188,6 +21282,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -21507,6 +21602,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -21826,6 +21922,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -22145,6 +22242,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -22464,6 +22562,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -22783,6 +22882,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -23102,6 +23202,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -23421,6 +23522,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -23740,6 +23842,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -24059,6 +24162,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -24378,6 +24482,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -24697,6 +24802,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -25016,6 +25122,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -25335,6 +25442,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -25654,6 +25762,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -25973,6 +26082,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -26292,6 +26402,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -26611,6 +26722,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -26930,6 +27042,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -27249,6 +27362,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -27568,6 +27682,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -27887,6 +28002,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -28206,6 +28322,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -28525,6 +28642,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -28844,6 +28962,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -29163,6 +29282,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -29482,6 +29602,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -29801,6 +29922,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -30120,6 +30242,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -30439,6 +30562,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -30758,6 +30882,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -31077,6 +31202,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -31396,6 +31522,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -31715,6 +31842,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -32034,6 +32162,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -32353,6 +32482,7 @@
           "kernel/gfx/gfx2d.h",
           "kernel/gfx/gfx2d_assets.h",
           "kernel/gfx/gfx2d_effects.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/gfx2d_icons.h",
           "kernel/gfx/gfx2d_transform.h",
           "kernel/gfx/glyph_raster.h",
@@ -33010,6 +33140,7 @@
           "kernel/gfx/font_8x8.h",
           "kernel/gfx/fontsys.h",
           "kernel/gfx/gfx2d.h",
+          "kernel/gfx/gfx2d_handoff.h",
           "kernel/gfx/graphics.h",
           "kernel/gui/desktop.h",
           "kernel/gui/gui.h",
@@ -33640,6 +33771,7 @@
           "kernel/core/string.h",
           "kernel/core/types.h",
           "kernel/fs/vfs.h",
+          "kernel/gfx/gfx2d.h",
           "kernel/gui/gui_themes.h",
           "kernel/mm/memory.h",
           "Makefile",
@@ -34009,6 +34141,8 @@
           "bin/fp_drill.o",
           "bin/gfxdemo.o",
           "bin/gfxgui_test.o",
+          "bin/gfxhandoff_exit.o",
+          "bin/gfxhandoff_kill.o",
           "bin/gfxtest.o",
           "bin/godsong.o",
           "bin/godspeak.o",
@@ -34456,6 +34590,8 @@
           "bin/fp_drill.o",
           "bin/gfxdemo.o",
           "bin/gfxgui_test.o",
+          "bin/gfxhandoff_exit.o",
+          "bin/gfxhandoff_kill.o",
           "bin/gfxtest.o",
           "bin/godsong.o",
           "bin/godspeak.o",
@@ -36814,6 +36950,8 @@
           "bin/fp_drill.cc",
           "bin/gfxdemo.cc",
           "bin/gfxgui_test.cc",
+          "bin/gfxhandoff_exit.cc",
+          "bin/gfxhandoff_kill.cc",
           "bin/gfxtest.cc",
           "bin/godsong.cc",
           "bin/godspeak.cc",
@@ -37438,8 +37576,8 @@
   },
   "contracts": {
     "bootstrap_artifact_coverage": {
-      "declared_artifacts": 432,
-      "linked_objects": 425,
+      "declared_artifacts": 434,
+      "linked_objects": 427,
       "missing_link_inputs": [],
       "status": "pass"
     },
@@ -38558,12 +38696,12 @@
     "c_preprocessor_include_operands": {
       "digraph_marker_occurrences": 0,
       "direct_angle_occurrences": 237,
-      "direct_quoted_occurrences": 2185,
-      "include_occurrences": 2422,
+      "direct_quoted_occurrences": 2196,
+      "include_occurrences": 2433,
       "max_conditional_depth": 2,
-      "ordinary_marker_occurrences": 2422,
+      "ordinary_marker_occurrences": 2433,
       "pp_token_operand_occurrences": 0,
-      "source_files": 691,
+      "source_files": 694,
       "status": "pass"
     },
     "c_preprocessor_line_directives": {
@@ -38576,7 +38714,7 @@
       "numeric_marker_occurrences": 0,
       "ordinary_marker_occurrences": 0,
       "pp_token_line_occurrences": 0,
-      "source_files": 691,
+      "source_files": 694,
       "status": "pass"
     },
     "c_preprocessor_pragmas": {
@@ -39108,7 +39246,7 @@
           "macro_actions": [],
           "mode": "CTOOL_C_PP_MODE_CUPID",
           "name": "CUPID_RUNTIME",
-          "tracked_translation_units": 105
+          "tracked_translation_units": 107
         },
         {
           "compatibility_pointer_conversions": false,
@@ -39247,8 +39385,8 @@
         }
       ],
       "status": "pass",
-      "total_translation_units": 386,
-      "tracked_translation_units": 382
+      "total_translation_units": 388,
+      "tracked_translation_units": 384
     },
     "cupid_toolchain_fixed_point": {
       "checked_seed_publication": "complete-bundle",
@@ -40250,7 +40388,7 @@
         "toolchain/hosted/i386-windows/start.asm"
       ],
       "id": "asm.instruction.call",
-      "occurrences": 197
+      "occurrences": 201
     },
     {
       "category": "instruction",
@@ -43240,7 +43378,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.break",
-      "occurrences": 1976
+      "occurrences": 1978
     },
     {
       "category": "control",
@@ -43503,7 +43641,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.continue",
-      "occurrences": 1195
+      "occurrences": 1203
     },
     {
       "category": "control",
@@ -43629,8 +43767,10 @@
         "kernel/doom/src/wi_stuff.cc",
         "kernel/doom/src/z_zone.cc",
         "kernel/gfx/deflate.cc",
+        "kernel/gfx/gfx2d.cc",
         "kernel/gfx/png.cc",
         "kernel/gui/ed.cc",
+        "kernel/gui/gui.cc",
         "kernel/lang/cupidc.cc",
         "kernel/lang/cupidc_parse.cc",
         "kernel/lang/cupidscript_runtime.cc",
@@ -43652,7 +43792,7 @@
         "toolchain/tests/hosted_i386_runtime_contract.cc"
       ],
       "id": "c.control.do",
-      "occurrences": 70
+      "occurrences": 82
     },
     {
       "category": "control",
@@ -43866,6 +44006,7 @@
         "kernel/gfx/gfx2d.cc",
         "kernel/gfx/gfx2d_assets.cc",
         "kernel/gfx/gfx2d_effects.cc",
+        "kernel/gfx/gfx2d_handoff.h",
         "kernel/gfx/gfx2d_icons.cc",
         "kernel/gfx/gfx2d_transform.cc",
         "kernel/gfx/glyph_raster.cc",
@@ -43953,7 +44094,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.else",
-      "occurrences": 4818
+      "occurrences": 4830
     },
     {
       "category": "control",
@@ -43994,6 +44135,7 @@
         "bin/browser/woff.cc",
         "bin/feature13_double.cc",
         "bin/feature25.cc",
+        "bin/gfxgui_test.cc",
         "drivers/ata.cc",
         "drivers/e1000.cc",
         "drivers/keyboard.cc",
@@ -44223,7 +44365,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.for",
-      "occurrences": 4273
+      "occurrences": 4277
     },
     {
       "category": "control",
@@ -44367,6 +44509,8 @@
         "bin/fontswitch.cc",
         "bin/gfxdemo.cc",
         "bin/gfxgui_test.cc",
+        "bin/gfxhandoff_exit.cc",
+        "bin/gfxhandoff_kill.cc",
         "bin/gfxtest.cc",
         "bin/godsong.cc",
         "bin/godspeak.cc",
@@ -44550,6 +44694,7 @@
         "kernel/gfx/gfx2d.cc",
         "kernel/gfx/gfx2d_assets.cc",
         "kernel/gfx/gfx2d_effects.cc",
+        "kernel/gfx/gfx2d_handoff.h",
         "kernel/gfx/gfx2d_icons.cc",
         "kernel/gfx/gfx2d_transform.cc",
         "kernel/gfx/glyph_raster.cc",
@@ -44666,7 +44811,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 38402
+      "occurrences": 38552
     },
     {
       "category": "control",
@@ -44743,6 +44888,8 @@
         "bin/fontswitch.cc",
         "bin/gfxdemo.cc",
         "bin/gfxgui_test.cc",
+        "bin/gfxhandoff_exit.cc",
+        "bin/gfxhandoff_kill.cc",
         "bin/gfxtest.cc",
         "bin/godsong.cc",
         "bin/godspeak.cc",
@@ -44915,6 +45062,7 @@
         "kernel/gfx/gfx2d.cc",
         "kernel/gfx/gfx2d_assets.cc",
         "kernel/gfx/gfx2d_effects.cc",
+        "kernel/gfx/gfx2d_handoff.h",
         "kernel/gfx/gfx2d_icons.cc",
         "kernel/gfx/gfx2d_transform.cc",
         "kernel/gfx/glyph_raster.cc",
@@ -45030,7 +45178,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 23346
+      "occurrences": 23513
     },
     {
       "category": "control",
@@ -45189,6 +45337,7 @@
         "bin/fontswitch.cc",
         "bin/gfxdemo.cc",
         "bin/gfxgui_test.cc",
+        "bin/gfxhandoff_kill.cc",
         "bin/gfxtest.cc",
         "bin/godsong.cc",
         "bin/godspeak.cc",
@@ -45411,23 +45560,23 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.while",
-      "occurrences": 2770
+      "occurrences": 2790
     },
     {
       "category": "declaration",
       "examples": [
         {
-          "line": 39,
+          "line": 42,
           "path": "kernel/core/process.cc",
           "text": "_Static_assert(__alignof__(((process_t *)0)->fp_state) >= 16,"
         },
         {
-          "line": 41,
+          "line": 44,
           "path": "kernel/core/process.cc",
           "text": "_Static_assert(sizeof(((process_t *)0)->fp_state) == 512,"
         },
         {
-          "line": 46,
+          "line": 49,
           "path": "kernel/core/process.cc",
           "text": "_Static_assert(__builtin_offsetof(process_t, context) +"
         }
@@ -45569,7 +45718,7 @@
         "user/cupid.h"
       ],
       "id": "c.declarator.function_pointer",
-      "occurrences": 1005
+      "occurrences": 1007
     },
     {
       "category": "declarator",
@@ -45953,7 +46102,7 @@
         "user/examples/cat.cc"
       ],
       "id": "c.expression.sizeof",
-      "occurrences": 5954
+      "occurrences": 5955
     },
     {
       "category": "extension",
@@ -45969,7 +46118,7 @@
           "text": "typedef struct __attribute__((packed, aligned(16))) {"
         },
         {
-          "line": 68,
+          "line": 71,
           "path": "kernel/core/process.cc",
           "text": "__attribute__((aligned(16)));"
         }
@@ -46127,7 +46276,7 @@
       "category": "extension",
       "examples": [
         {
-          "line": 82,
+          "line": 83,
           "path": "kernel/core/kernel.cc",
           "text": "void _start(void) __attribute__((section(\".text.start\")));"
         },
@@ -46241,17 +46390,17 @@
       "category": "extension",
       "examples": [
         {
-          "line": 46,
+          "line": 49,
           "path": "kernel/core/process.cc",
           "text": "_Static_assert(__builtin_offsetof(process_t, context) +"
         },
         {
-          "line": 47,
+          "line": 50,
           "path": "kernel/core/process.cc",
           "text": "__builtin_offsetof(cpu_context_t, esp) == 32,"
         },
         {
-          "line": 50,
+          "line": 53,
           "path": "kernel/core/process.cc",
           "text": "_Static_assert(__builtin_offsetof(process_t, context) +"
         }
@@ -46417,7 +46566,7 @@
       "category": "extension",
       "examples": [
         {
-          "line": 39,
+          "line": 42,
           "path": "kernel/core/process.cc",
           "text": "_Static_assert(__alignof__(((process_t *)0)->fp_state) >= 16,"
         }
@@ -46472,6 +46621,7 @@
         "kernel/doom/dglibc.cc",
         "kernel/doom/doomgeneric_cupidos.cc",
         "kernel/doom/i_sound_cupidos.cc",
+        "kernel/gfx/gfx2d.cc",
         "kernel/gui/desktop.cc",
         "kernel/lang/as.cc",
         "kernel/lang/cupidc.cc",
@@ -46491,7 +46641,7 @@
         "toolchain/tests/hosted_i386_runtime_contract.cc"
       ],
       "id": "c.extension.inline_assembly",
-      "occurrences": 222
+      "occurrences": 230
     },
     {
       "category": "initializer",
@@ -46824,6 +46974,7 @@
         "kernel/gfx/gfx2d_assets.h",
         "kernel/gfx/gfx2d_effects.cc",
         "kernel/gfx/gfx2d_effects.h",
+        "kernel/gfx/gfx2d_handoff.h",
         "kernel/gfx/gfx2d_icons.h",
         "kernel/gfx/gfx2d_transform.h",
         "kernel/gfx/glyph_raster.cc",
@@ -46984,7 +47135,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.define",
-      "occurrences": 3037
+      "occurrences": 3044
     },
     {
       "category": "preprocessor",
@@ -47308,6 +47459,7 @@
         "kernel/gfx/gfx2d.h",
         "kernel/gfx/gfx2d_assets.h",
         "kernel/gfx/gfx2d_effects.h",
+        "kernel/gfx/gfx2d_handoff.h",
         "kernel/gfx/gfx2d_icons.h",
         "kernel/gfx/gfx2d_transform.h",
         "kernel/gfx/glyph_raster.h",
@@ -47406,7 +47558,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.endif",
-      "occurrences": 520
+      "occurrences": 521
     },
     {
       "category": "preprocessor",
@@ -47853,6 +48005,7 @@
         "kernel/gfx/gfx2d.h",
         "kernel/gfx/gfx2d_assets.h",
         "kernel/gfx/gfx2d_effects.h",
+        "kernel/gfx/gfx2d_handoff.h",
         "kernel/gfx/gfx2d_icons.h",
         "kernel/gfx/gfx2d_transform.h",
         "kernel/gfx/glyph_raster.h",
@@ -47944,7 +48097,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.ifndef",
-      "occurrences": 303
+      "occurrences": 304
     },
     {
       "category": "preprocessor",
@@ -48272,6 +48425,7 @@
         "kernel/gfx/gfx2d_assets.h",
         "kernel/gfx/gfx2d_effects.cc",
         "kernel/gfx/gfx2d_effects.h",
+        "kernel/gfx/gfx2d_handoff.h",
         "kernel/gfx/gfx2d_icons.cc",
         "kernel/gfx/gfx2d_icons.h",
         "kernel/gfx/gfx2d_transform.cc",
@@ -48472,7 +48626,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.preprocessor.include",
-      "occurrences": 2422
+      "occurrences": 2433
     },
     {
       "category": "preprocessor",
@@ -48556,7 +48710,7 @@
           "text": "#define CONFIG_VARIABLE_GENERIC(name, type) \\"
         },
         {
-          "line": 417,
+          "line": 450,
           "path": "kernel/gui/gui_themes.cc",
           "text": "#define FIELD(n) { #n, (int)__builtin_offsetof(ui_theme_t, n) }"
         }
@@ -48849,6 +49003,7 @@
         "kernel/gfx/gfx2d.h",
         "kernel/gfx/gfx2d_assets.cc",
         "kernel/gfx/gfx2d_assets.h",
+        "kernel/gfx/gfx2d_handoff.h",
         "kernel/gfx/gfx2d_icons.cc",
         "kernel/gfx/gfx2d_icons.h",
         "kernel/gfx/gfx2d_transform.cc",
@@ -49029,7 +49184,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 15513
+      "occurrences": 15586
     },
     {
       "category": "qualifier",
@@ -49077,8 +49232,11 @@
         "kernel/doom/doomgeneric_cupidos.cc",
         "kernel/doom/i_sound_cupidos.cc",
         "kernel/fs/blockdev.cc",
+        "kernel/gfx/gfx2d.cc",
+        "kernel/gfx/gfx2d_handoff.h",
         "kernel/gui/ctxt_image_worker.cc",
         "kernel/gui/desktop.cc",
+        "kernel/gui/gui.cc",
         "kernel/lang/as.cc",
         "kernel/lang/cupidc.cc",
         "kernel/mm/memory.cc",
@@ -49106,7 +49264,7 @@
         "toolchain/tests/hosted_i386_runtime_contract.cc"
       ],
       "id": "c.qualifier.volatile",
-      "occurrences": 245
+      "occurrences": 259
     },
     {
       "category": "storage",
@@ -49268,6 +49426,7 @@
         "kernel/doom/doomgeneric_cupidos.cc",
         "kernel/doom/src/i_scale.cc",
         "kernel/doom/src/i_swap.h",
+        "kernel/gfx/gfx2d_handoff.h",
         "kernel/gfx/glyph_raster.cc",
         "kernel/mm/memory.cc",
         "kernel/smp/percpu.h",
@@ -49277,7 +49436,7 @@
         "user/cupid.h"
       ],
       "id": "c.storage.inline",
-      "occurrences": 115
+      "occurrences": 131
     },
     {
       "category": "storage",
@@ -49445,6 +49604,7 @@
         "kernel/gfx/gfx2d.cc",
         "kernel/gfx/gfx2d_assets.cc",
         "kernel/gfx/gfx2d_effects.cc",
+        "kernel/gfx/gfx2d_handoff.h",
         "kernel/gfx/gfx2d_icons.cc",
         "kernel/gfx/gfx2d_transform.cc",
         "kernel/gfx/glyph_raster.cc",
@@ -49559,7 +49719,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.storage.static",
-      "occurrences": 9123
+      "occurrences": 9273
     },
     {
       "category": "type",
@@ -49657,6 +49817,7 @@
         "bin/fm.cc",
         "bin/fontswitch.cc",
         "bin/gfxgui_test.cc",
+        "bin/gfxhandoff_kill.cc",
         "bin/godsong.cc",
         "bin/godspeak.cc",
         "bin/grep.cc",
@@ -49992,7 +50153,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.char",
-      "occurrences": 8753
+      "occurrences": 8787
     },
     {
       "category": "type",
@@ -50112,6 +50273,7 @@
         "kernel/doom/src/wi_stuff.cc",
         "kernel/doom/src/wi_stuff.h",
         "kernel/doom/src/z_zone.h",
+        "kernel/gfx/gfx2d_handoff.h",
         "kernel/gui/ansi.h",
         "kernel/gui/desktop.cc",
         "kernel/gui/gui_events.h",
@@ -50161,7 +50323,7 @@
         "toolchain/x86.h"
       ],
       "id": "c.type.enum",
-      "occurrences": 246
+      "occurrences": 247
     },
     {
       "category": "type",
@@ -50289,6 +50451,8 @@
         "bin/fp_drill.cc",
         "bin/gfxdemo.cc",
         "bin/gfxgui_test.cc",
+        "bin/gfxhandoff_exit.cc",
+        "bin/gfxhandoff_kill.cc",
         "bin/gfxtest.cc",
         "bin/godsong.cc",
         "bin/godspeak.cc",
@@ -50578,6 +50742,7 @@
         "kernel/gfx/gfx2d_assets.h",
         "kernel/gfx/gfx2d_effects.cc",
         "kernel/gfx/gfx2d_effects.h",
+        "kernel/gfx/gfx2d_handoff.h",
         "kernel/gfx/gfx2d_icons.cc",
         "kernel/gfx/gfx2d_icons.h",
         "kernel/gfx/gfx2d_transform.cc",
@@ -50739,7 +50904,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.int",
-      "occurrences": 22135
+      "occurrences": 22581
     },
     {
       "category": "type",
@@ -50974,6 +51139,7 @@
         "kernel/core/kernel.h",
         "kernel/core/panic.cc",
         "kernel/core/panic.h",
+        "kernel/core/process.cc",
         "kernel/core/process.h",
         "kernel/core/scheduler.h",
         "kernel/core/syscall.h",
@@ -51065,6 +51231,7 @@
         "kernel/gfx/gfx2d.cc",
         "kernel/gfx/gfx2d_assets.cc",
         "kernel/gfx/gfx2d_assets.h",
+        "kernel/gfx/gfx2d_handoff.h",
         "kernel/gfx/gfx2d_icons.h",
         "kernel/gfx/gfx2d_transform.cc",
         "kernel/gfx/jpeg.cc",
@@ -51181,7 +51348,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.struct",
-      "occurrences": 901
+      "occurrences": 904
     },
     {
       "category": "type",
@@ -51228,6 +51395,7 @@
         "kernel/audio/nuked_opl3.cc",
         "kernel/audio/nuked_opl3.h",
         "kernel/core/app_launch.h",
+        "kernel/core/process.cc",
         "kernel/core/process.h",
         "kernel/core/scheduler.h",
         "kernel/core/syscall.h",
@@ -51334,6 +51502,7 @@
         "kernel/gfx/gfx2d.cc",
         "kernel/gfx/gfx2d_assets.cc",
         "kernel/gfx/gfx2d_assets.h",
+        "kernel/gfx/gfx2d_handoff.h",
         "kernel/gfx/gfx2d_icons.h",
         "kernel/gfx/gfx2d_transform.cc",
         "kernel/gfx/jpeg.cc",
@@ -51452,7 +51621,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.typedef",
-      "occurrences": 977
+      "occurrences": 981
     },
     {
       "category": "type",
@@ -51737,6 +51906,8 @@
         "bin/fontswitch.cc",
         "bin/fp_drill.cc",
         "bin/gfxgui_test.cc",
+        "bin/gfxhandoff_exit.cc",
+        "bin/gfxhandoff_kill.cc",
         "bin/godsong.cc",
         "bin/godspeak.cc",
         "bin/grep.cc",
@@ -52067,6 +52238,7 @@
         "kernel/gfx/gfx2d_assets.h",
         "kernel/gfx/gfx2d_effects.cc",
         "kernel/gfx/gfx2d_effects.h",
+        "kernel/gfx/gfx2d_handoff.h",
         "kernel/gfx/gfx2d_icons.cc",
         "kernel/gfx/gfx2d_icons.h",
         "kernel/gfx/gfx2d_transform.cc",
@@ -52243,7 +52415,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.void",
-      "occurrences": 14468
+      "occurrences": 14592
     },
     {
       "category": "declaration",
@@ -52385,6 +52557,8 @@
         "bin/fp_drill.cc",
         "bin/gfxdemo.cc",
         "bin/gfxgui_test.cc",
+        "bin/gfxhandoff_exit.cc",
+        "bin/gfxhandoff_kill.cc",
         "bin/gfxtest.cc",
         "bin/godsong.cc",
         "bin/godspeak.cc",
@@ -52436,7 +52610,7 @@
         "bin/yield.cc"
       ],
       "id": "cupid_c.delivery.embedded_source",
-      "occurrences": 127
+      "occurrences": 129
     },
     {
       "category": "directive",
@@ -53147,11 +53321,11 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "f1ff17490ac8174ba91e2a0c645689bf531a083d89f6c3ca9eaee06a3f88af07",
+    "active_source_digest": "cd922f77e56905b4c1f45be64671d0dc26c8c2ad97c152a8e7598c5f3244b5d1",
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "c81927b97dbd876984244bf9eb3637500361460bd17fb2194d0949949dde9fc8"
+        "sha256": "7a0081f310f3d23ea0d34114d41b8378ede032f0d95765a4e9c67f8d7716042c"
       },
       {
         "path": "user/Makefile",
@@ -53163,7 +53337,7 @@
       },
       {
         "path": "tools/cupidc_kernel_compile.py",
-        "sha256": "f68228e5deff85e1d80c21264e03eeee4e4398a942a73d5e8ba69026be3222f6"
+        "sha256": "e255ee6d7c0aec9433f39c9c699419975f6a9dd8eba2b5db19fa4d8349bf134e"
       },
       {
         "path": "tools/kernel_cupidc_frontier.py",
@@ -53196,7 +53370,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "85e0dff0697bb1b1d6beeb675360548cb56ec32882da20695300c7ba3326c686"
+      "sha256": "90bdaabaaadc1aad326c95e78583c8eb7e5c2bd604e7fa7d996760d3ccce7eaf"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -53404,7 +53578,7 @@
           "demos/fs_syscalls.asm",
           "demos/hello.asm"
         ],
-        "source_count": 68,
+        "source_count": 69,
         "title": "Share one i386 ABI and instruction model"
       },
       {
@@ -53585,7 +53759,7 @@
           "bin/godspeak.cc",
           "bin/notepad.cc"
         ],
-        "source_count": 552,
+        "source_count": 553,
         "title": "Implement the active C and Cupid C preprocessing contract"
       },
       {
@@ -53631,7 +53805,7 @@
           "bin/browser/input.cc",
           "bin/browser/js_dom.cc"
         ],
-        "source_count": 656,
+        "source_count": 659,
         "title": "Implement freestanding C11 type, initializer, and cdecl semantics"
       },
       {
@@ -53667,7 +53841,7 @@
           "kernel/core/kernel.cc",
           "kernel/core/panic.cc"
         ],
-        "source_count": 59,
+        "source_count": 60,
         "title": "Implement required GNU attributes and extended inline assembly"
       },
       {
@@ -53742,7 +53916,7 @@
           "bin/browser/input.cc",
           "bin/browser/js_dom.cc"
         ],
-        "source_count": 378,
+        "source_count": 380,
         "title": "Scale Cupid mode across embedded programs and browser fragments"
       }
     ],
@@ -53827,7 +54001,7 @@
           "drivers/pit.h",
           "drivers/rtc.cc"
         ],
-        "source_count": 279
+        "source_count": 280
       },
       {
         "cohorts": [
@@ -53893,7 +54067,7 @@
           "bin/browser/input.cc",
           "bin/browser/js_dom.cc"
         ],
-        "source_count": 151
+        "source_count": 153
       }
     ]
   },
@@ -54033,12 +54207,12 @@
       ],
       "includes": [],
       "language": "cupid_c",
-      "lines": 157,
+      "lines": 159,
       "origin": "tracked",
       "path": "bin/bmptest.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "22cd73fad2ebf4ba9e8c973a7cffe5288bb7a96c35624bc7c33041656e3b7e95"
+      "sha256": "14fb9d3cbe90cc41cf85c501f430e59089a6c98722e46b82ba5bb875f88a9b8f"
     },
     {
       "build_owners": [
@@ -56198,6 +56372,7 @@
       "cohort": "cupid_c_program",
       "features": [
         "c.control.break",
+        "c.control.for",
         "c.control.if",
         "c.control.return",
         "c.control.while",
@@ -56209,12 +56384,64 @@
       ],
       "includes": [],
       "language": "cupid_c",
-      "lines": 351,
+      "lines": 360,
       "origin": "tracked",
       "path": "bin/gfxgui_test.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "007aa6912c559568febca05e924af38ca542d8e7f757036d11c7582f8122d3ef"
+      "sha256": "38202fbe22fb45ed4b081a45cea4eba531d6de9d396eb8b0455b21b781f4dcb6"
+    },
+    {
+      "build_owners": [
+        "cupid_object",
+        "host_python"
+      ],
+      "builds": [
+        "."
+      ],
+      "cohort": "cupid_c_program",
+      "features": [
+        "c.control.if",
+        "c.control.return",
+        "c.type.int",
+        "c.type.void",
+        "cupid_c.delivery.embedded_source"
+      ],
+      "includes": [],
+      "language": "cupid_c",
+      "lines": 21,
+      "origin": "tracked",
+      "path": "bin/gfxhandoff_exit.cc",
+      "reachability": "direct_build_input",
+      "runtime_owner": "CupidC",
+      "sha256": "6ed87435e40c1227be28f55518e2104686e2d7361f9711a19be047c3c9114275"
+    },
+    {
+      "build_owners": [
+        "cupid_object",
+        "host_python"
+      ],
+      "builds": [
+        "."
+      ],
+      "cohort": "cupid_c_program",
+      "features": [
+        "c.control.if",
+        "c.control.return",
+        "c.control.while",
+        "c.type.char",
+        "c.type.int",
+        "c.type.void",
+        "cupid_c.delivery.embedded_source"
+      ],
+      "includes": [],
+      "language": "cupid_c",
+      "lines": 34,
+      "origin": "tracked",
+      "path": "bin/gfxhandoff_kill.cc",
+      "reachability": "direct_build_input",
+      "runtime_owner": "CupidC",
+      "sha256": "c5fa854510e2209762bba6b7726872d0735b546d7bc3fc7fa78cb8b5c5a03a91"
     },
     {
       "build_owners": [
@@ -56813,7 +57040,7 @@
       "path": "bin/paint.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "1e7da82e2555066d369717c0ee4f5705437b6fe9990f238718017e3484b97534"
+      "sha256": "b0d5acdad3ee4d659fa56980b524936d5e0bf6f131a53eaffa0b21133fea93af"
     },
     {
       "build_owners": [
@@ -58234,12 +58461,12 @@
       ],
       "includes": [],
       "language": "assembly",
-      "lines": 111,
+      "lines": 115,
       "origin": "tracked",
       "path": "demos/parity_gfx2d.asm",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidASM",
-      "sha256": "b471b99d099b630cc99c1dc4e2bbf966f07c275984cc8fc4c6658115d606b62f"
+      "sha256": "aba3177cc32a79bc4c20b1224ea7c68e84feeeac55f52951ef70299124188013"
     },
     {
       "build_owners": [
@@ -60137,6 +60364,7 @@
         "kernel/fs/vfs.h",
         "kernel/gfx/fontsys.h",
         "kernel/gfx/gfx2d.h",
+        "kernel/gfx/gfx2d_assets.h",
         "kernel/gfx/graphics.h",
         "kernel/gui/clipboard.h",
         "kernel/gui/desktop.h",
@@ -60161,12 +60389,12 @@
         "kernel/usb/usb.h"
       ],
       "language": "cupid_c",
-      "lines": 950,
+      "lines": 952,
       "origin": "tracked",
       "path": "kernel/core/kernel.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "f882ac45e2fc9a41ce805a22a602fb4839293a755ef5fea3b7e21d159d5bbf83"
+      "sha256": "258bb51ea67e3159add45400c2652c2e1674dc61f788f747104a63353404a276"
     },
     {
       "build_owners": [
@@ -60361,17 +60589,22 @@
         "c.storage.static",
         "c.type.char",
         "c.type.int",
+        "c.type.struct",
+        "c.type.typedef",
         "c.type.void",
         "cupid_c.output.elf32_relocatable"
       ],
       "includes": [
         "drivers/serial.h",
+        "drivers/timer.h",
         "kernel/core/debug.h",
         "kernel/core/kernel.h",
         "kernel/core/process.h",
         "kernel/core/string.h",
         "kernel/core/types.h",
         "kernel/cpu/simd.h",
+        "kernel/gfx/gfx2d.h",
+        "kernel/gfx/gfx2d_icons.h",
         "kernel/gui/gui.h",
         "kernel/lang/shell.h",
         "kernel/mm/memory.h",
@@ -60380,12 +60613,12 @@
         "kernel/smp/smp.h"
       ],
       "language": "cupid_c",
-      "lines": 1077,
+      "lines": 1208,
       "origin": "tracked",
       "path": "kernel/core/process.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "a19026fae993abc00cf4df4186abfe6936e5384ba0c32f389b69027e95236d9f"
+      "sha256": "7a60a24e64e8e32ccc06a79ecca44542b5a7325b8adc47f6ac2b29d0a17eff72"
     },
     {
       "build_owners": [
@@ -60416,12 +60649,12 @@
         "kernel/core/types.h"
       ],
       "language": "c_header",
-      "lines": 294,
+      "lines": 307,
       "origin": "tracked",
       "path": "kernel/core/process.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "b269becdbca20c488440d1ba5908ab7b8c8c27a9f9b43a9b780140d0d0ffbc2f"
+      "sha256": "30adcad79a0a28c48ae4a310f338180fb7cbcd95d6c01e58e8e48734e9b2d913"
     },
     {
       "build_owners": [
@@ -62941,15 +63174,16 @@
         "kernel/doom/dglibc.h",
         "kernel/doom/doomgeneric_cupidos.h",
         "kernel/fs/vfs.h",
+        "kernel/gfx/gfx2d.h",
         "kernel/usb/usb.h"
       ],
       "language": "cupid_c",
-      "lines": 404,
+      "lines": 409,
       "origin": "tracked",
       "path": "kernel/doom/doomgeneric_cupidos.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "7cc4ef8beba2fdc4664f5c7a5c18a2ef42d3a2595e78b72eef8fc9801ff175ca"
+      "sha256": "13c9bdfe659443e227d9cec6a770e9bce26714fb83a62b2338d8b6a295d4e725"
     },
     {
       "build_owners": [
@@ -71295,12 +71529,12 @@
         "kernel/mm/memory.h"
       ],
       "language": "cupid_c",
-      "lines": 951,
+      "lines": 1130,
       "origin": "tracked",
       "path": "kernel/gfx/fontsys.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "a68cb14ed8ecf776bb5d23755467b0c7fc1c50becf4bc23c56b1ea28ecde37c9"
+      "sha256": "c8574bbb0c6da42d12c694ec2fe9a7759c83407a7af719fc19f9c1297c3e9aaf"
     },
     {
       "build_owners": [
@@ -71326,12 +71560,12 @@
         "kernel/core/types.h"
       ],
       "language": "c_header",
-      "lines": 155,
+      "lines": 158,
       "origin": "tracked",
       "path": "kernel/gfx/fontsys.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "d7a97ff63bc0783b9a2037b049365b006f5007571a9dc75f3edff7f99551449d"
+      "sha256": "7ab24aaa1f281e0c459b0712df5c20fb0b87ac119a2648bcc8630ad57507b615"
     },
     {
       "build_owners": [
@@ -71347,6 +71581,7 @@
         "c.control.case",
         "c.control.continue",
         "c.control.default",
+        "c.control.do",
         "c.control.else",
         "c.control.for",
         "c.control.if",
@@ -71354,9 +71589,11 @@
         "c.control.switch",
         "c.control.while",
         "c.expression.sizeof",
+        "c.extension.inline_assembly",
         "c.preprocessor.define",
         "c.preprocessor.include",
         "c.qualifier.const",
+        "c.qualifier.volatile",
         "c.storage.static",
         "c.type.char",
         "c.type.int",
@@ -71379,6 +71616,7 @@
         "kernel/gfx/font_8x8.h",
         "kernel/gfx/fontsys.h",
         "kernel/gfx/gfx2d.h",
+        "kernel/gfx/gfx2d_handoff.h",
         "kernel/gfx/graphics.h",
         "kernel/gui/desktop.h",
         "kernel/gui/gui.h",
@@ -71387,12 +71625,12 @@
         "kernel/mm/memory.h"
       ],
       "language": "cupid_c",
-      "lines": 4405,
+      "lines": 4760,
       "origin": "tracked",
       "path": "kernel/gfx/gfx2d.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "2530f2ba54515342bc224406819e4fd0cafdd1cea8d95690fe1607dfcbcfb85e"
+      "sha256": "fd7b87210cf07a382299f897ba3ea333d4d4b7880267f9f44edd1aa304462f0b"
     },
     {
       "build_owners": [
@@ -71418,12 +71656,12 @@
         "kernel/core/types.h"
       ],
       "language": "c_header",
-      "lines": 301,
+      "lines": 326,
       "origin": "tracked",
       "path": "kernel/gfx/gfx2d.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "2b936fb4f3549facc37006202e9c51f318fc910599d736097a8a6ee155de3619"
+      "sha256": "6286ff18cb8fa4d6ff566a9baf34ac104a7f29855bab24748bc88baa375a5f6a"
     },
     {
       "build_owners": [
@@ -71467,12 +71705,12 @@
         "kernel/mm/memory.h"
       ],
       "language": "cupid_c",
-      "lines": 592,
+      "lines": 711,
       "origin": "tracked",
       "path": "kernel/gfx/gfx2d_assets.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "912361f32e7ea0f31bbde8e86fb10fb3c4b155c044f4e2c321f0a39ea71ffe7c"
+      "sha256": "b4b7292737f5efc5071a567769b881ce33f0bf20528497aaf998939d452ee0eb"
     },
     {
       "build_owners": [
@@ -71500,12 +71738,12 @@
         "kernel/core/types.h"
       ],
       "language": "c_header",
-      "lines": 91,
+      "lines": 94,
       "origin": "tracked",
       "path": "kernel/gfx/gfx2d_assets.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "e03ed11ba878f5e2526405d8258e6670b679dce68c88602e10bb468c4e2b4ef5"
+      "sha256": "188b2fbea659bb4719be91f1fa3feb1e0dfb2c783313c9190a3adc8d36df1b71"
     },
     {
       "build_owners": [
@@ -71582,6 +71820,45 @@
     {
       "build_owners": [
         "cupid_c_compiler",
+        "cupid_object",
+        "host_python"
+      ],
+      "builds": [
+        "."
+      ],
+      "cohort": "kernel_gfx",
+      "features": [
+        "c.control.else",
+        "c.control.if",
+        "c.control.return",
+        "c.preprocessor.define",
+        "c.preprocessor.endif",
+        "c.preprocessor.ifndef",
+        "c.preprocessor.include",
+        "c.qualifier.const",
+        "c.qualifier.volatile",
+        "c.storage.inline",
+        "c.storage.static",
+        "c.type.enum",
+        "c.type.int",
+        "c.type.struct",
+        "c.type.typedef",
+        "c.type.void"
+      ],
+      "includes": [
+        "kernel/core/types.h"
+      ],
+      "language": "c_header",
+      "lines": 328,
+      "origin": "tracked",
+      "path": "kernel/gfx/gfx2d_handoff.h",
+      "reachability": "direct_build_input",
+      "runtime_owner": "CupidC",
+      "sha256": "e030424956425f155c689a53c0fed7bb6125acdccf55c923d1c65d4a9bddf06c"
+    },
+    {
+      "build_owners": [
+        "cupid_c_compiler",
         "host_python"
       ],
       "builds": [
@@ -71613,6 +71890,7 @@
       "includes": [
         "drivers/serial.h",
         "kernel/core/app_launch.h",
+        "kernel/core/process.h",
         "kernel/core/string.h",
         "kernel/fs/vfs.h",
         "kernel/gfx/gfx2d.h",
@@ -71620,12 +71898,12 @@
         "kernel/mm/memory.h"
       ],
       "language": "cupid_c",
-      "lines": 898,
+      "lines": 1225,
       "origin": "tracked",
       "path": "kernel/gfx/gfx2d_icons.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "e859b2feb94cc64f54d28a1100f82a86803815f3ee78379a6defdaf53bef0d4d"
+      "sha256": "15ba45d330b8fa2aab8b85a1bdee4e0d7e4220afdaeb4c51ffb6756ed7387abb"
     },
     {
       "build_owners": [
@@ -71654,12 +71932,12 @@
         "kernel/core/types.h"
       ],
       "language": "c_header",
-      "lines": 139,
+      "lines": 153,
       "origin": "tracked",
       "path": "kernel/gfx/gfx2d_icons.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "77701dfb1ba0eb666cd88dc3dcc2a03e3bf09ab036ba757555b6cef07eb699e3"
+      "sha256": "5d6a1af621bcd828e6528a177b48efb9e13aee63c2b37eeca1085929f8607d03"
     },
     {
       "build_owners": [
@@ -71695,12 +71973,12 @@
         "kernel/gfx/gfx2d_transform.h"
       ],
       "language": "cupid_c",
-      "lines": 401,
+      "lines": 487,
       "origin": "tracked",
       "path": "kernel/gfx/gfx2d_transform.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "731814ee66de19ff097eb95f6677dffb24818a5ef95c36201c80c525ed604f10"
+      "sha256": "ca3a1310d132282813c4731a878c057f28ba39e451caee50460537115c64e868"
     },
     {
       "build_owners": [
@@ -72358,12 +72636,12 @@
         "kernel/util/calendar.h"
       ],
       "language": "cupid_c",
-      "lines": 2951,
+      "lines": 3139,
       "origin": "tracked",
       "path": "kernel/gui/desktop.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "954cf5ced696e5c2f25089a0e0e7fca1cb543feab8c22a0bdf881a3fe7188123"
+      "sha256": "8e6e1d57d61b6123081145fc229874fd413a005009e727ffb2002e009e80041a"
     },
     {
       "build_owners": [
@@ -72395,12 +72673,12 @@
         "kernel/util/calendar.h"
       ],
       "language": "c_header",
-      "lines": 90,
+      "lines": 94,
       "origin": "tracked",
       "path": "kernel/gui/desktop.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "4ead5c954ab9fb862c56b29edfdd92b9f652674f5ab262cbfb6975ac7c5661c4"
+      "sha256": "04a00dde4953cd87151e7c92070e06cb898d7adda8947cf6e4655c5c8daaaf51"
     },
     {
       "build_owners": [
@@ -72497,6 +72775,7 @@
       "features": [
         "c.control.break",
         "c.control.continue",
+        "c.control.do",
         "c.control.else",
         "c.control.for",
         "c.control.if",
@@ -72506,6 +72785,7 @@
         "c.preprocessor.define",
         "c.preprocessor.include",
         "c.qualifier.const",
+        "c.qualifier.volatile",
         "c.storage.static",
         "c.type.char",
         "c.type.int",
@@ -72529,12 +72809,12 @@
         "kernel/smp/bkl.h"
       ],
       "language": "cupid_c",
-      "lines": 1039,
+      "lines": 1301,
       "origin": "tracked",
       "path": "kernel/gui/gui.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "45a43995fa57d426c09e4faf69a0486f77ed23203f716e31a1b0329453ecbd72"
+      "sha256": "7eb705180b15cfbcf79d356a64680ec6de615f8fa5d2da005c022634ce1de733"
     },
     {
       "build_owners": [
@@ -72563,12 +72843,12 @@
         "kernel/core/types.h"
       ],
       "language": "c_header",
-      "lines": 124,
+      "lines": 131,
       "origin": "tracked",
       "path": "kernel/gui/gui.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "8975d18ddd6cc36ac562d0f0324a878c8e3f6563e42a41a611be0a2fd5ad8197"
+      "sha256": "270ed9717f7df8fe3e4ffa0797a36f3d868504546c521c86c0a6bc6b1fa37899"
     },
     {
       "build_owners": [
@@ -72608,7 +72888,7 @@
       "path": "kernel/gui/gui_containers.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "c485731aafc01f13dff192ad836dfd0636e9db198743a366d026e70020dd724d"
+      "sha256": "447de7784d817b7d7ad69d669f460c901be390e2038885b8c223c7c1443ff577"
     },
     {
       "build_owners": [
@@ -72685,12 +72965,12 @@
         "kernel/mm/memory.h"
       ],
       "language": "cupid_c",
-      "lines": 745,
+      "lines": 749,
       "origin": "tracked",
       "path": "kernel/gui/gui_events.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "892d91f9bf3601933605d37e2ad6dd478fcc3f475fd931294ed86ac285989a71"
+      "sha256": "00b0bf71aeab1f010432f0c7d9774efca7f3aa03cbf66f4ffc05cf88d42c1ba7"
     },
     {
       "build_owners": [
@@ -72770,7 +73050,7 @@
       "path": "kernel/gui/gui_menus.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "581973026db3f6ef708cfa95b724c7cebd839ba71d7b8be80972fb09f6091c62"
+      "sha256": "3d88143858c83bff375347714d2f8f6286be683a18ccd48a798c9303f3bf7113"
     },
     {
       "build_owners": [
@@ -72845,16 +73125,18 @@
       "includes": [
         "kernel/core/string.h",
         "kernel/fs/vfs.h",
+        "kernel/gfx/gfx2d.h",
+        "kernel/gui/desktop.h",
         "kernel/gui/gui_themes.h",
         "kernel/mm/memory.h"
       ],
       "language": "cupid_c",
-      "lines": 586,
+      "lines": 634,
       "origin": "tracked",
       "path": "kernel/gui/gui_themes.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "0a84e40c95a12eb0eb08c6b547cf4965fb88694dce1110d510c62377fe8b1e90"
+      "sha256": "39b0364463ed9d0d1f2e31bde5f4a1b30a52a96cce481a853336daf19d0f0db4"
     },
     {
       "build_owners": [
@@ -72883,12 +73165,12 @@
         "kernel/core/types.h"
       ],
       "language": "c_header",
-      "lines": 101,
+      "lines": 103,
       "origin": "tracked",
       "path": "kernel/gui/gui_themes.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "107dc7615961b0df06a8066dbd2295fc1251ba1a096c4fb2646544960a3352b9"
+      "sha256": "871bc0d626f9d042deadfb5cced0a4a442cb2fb1bdb050ae246a99f46512b4f5"
     },
     {
       "build_owners": [
@@ -72931,7 +73213,7 @@
       "path": "kernel/gui/gui_widgets.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "67538dbc0f95b853bf2ffd7ea782e5c337358ea99464c19989ffacb4ec82f0e9"
+      "sha256": "90eafff5daced865ee14e65c8443cc6db2dfbcd50d12ef9a50e8ca01eacac914"
     },
     {
       "build_owners": [
@@ -73153,7 +73435,7 @@
       "path": "kernel/gui/ui.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "639440ad46fd841e711fcad5abeb80b879a2a2e139821cf80a7efb15c0ee1a0a"
+      "sha256": "1ae458a9873cd36c4cb943ee0ecb1b79451474771f20cd86123857a7a61afe2d"
     },
     {
       "build_owners": [
@@ -73303,12 +73585,12 @@
         "toolchain/cupidasm.h"
       ],
       "language": "cupid_c",
-      "lines": 1771,
+      "lines": 1768,
       "origin": "tracked",
       "path": "kernel/lang/as.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "ea95954795657c056e810678e80a1c7db4caea83a31f2aefad59098525c74906"
+      "sha256": "c4f88fbabdfd5dbb0c4fe3ef218324d3192eb874bac1892aa585380a26338500"
     },
     {
       "build_owners": [
@@ -73604,12 +73886,12 @@
         "kernel/util/calendar.h"
       ],
       "language": "cupid_c",
-      "lines": 4147,
+      "lines": 4135,
       "origin": "tracked",
       "path": "kernel/lang/cupidc.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "0724957e694d34943b4dd2900472bc0b4ab25ebfaf2c813a19ff75991d39f9e6"
+      "sha256": "1491e0a3a56ffbe050958cc6ce4cd5d0c904c40106b885105113ef9ac6afaf27"
     },
     {
       "build_owners": [
@@ -74666,6 +74948,7 @@
         "kernel/fs/fs.h",
         "kernel/fs/vfs.h",
         "kernel/gfx/gfx2d.h",
+        "kernel/gfx/gfx2d_icons.h",
         "kernel/gui/ansi.h",
         "kernel/gui/desktop.h",
         "kernel/gui/gui.h",
@@ -74693,12 +74976,12 @@
         "kernel/util/calendar.h"
       ],
       "language": "cupid_c",
-      "lines": 4531,
+      "lines": 4542,
       "origin": "tracked",
       "path": "kernel/lang/shell.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "337386bc72241c5a977a4cdf2e6a79ed0f27f291dbcecfbc06b8ce36174b538d"
+      "sha256": "a34449af872500386257d413c4b770e1f976a3af76f90f9083fe01ad75664a42"
     },
     {
       "build_owners": [
@@ -79951,9 +80234,9 @@
     }
   ],
   "summary": {
-    "active_sources": 724,
+    "active_sources": 727,
     "features": 255,
-    "transforms": 447,
+    "transforms": 449,
     "unreachable_sources": 25
   },
   "supplemental_builds": [
@@ -80306,7 +80589,7 @@
       "classification": "historical_copy",
       "duplicate_of": [],
       "language": "c",
-      "lines": 1955,
+      "lines": 1959,
       "path": "bin/cupidc.c",
       "reason": "diverged historical copy of an active implementation",
       "relations": [
@@ -80316,7 +80599,7 @@
           "path": "kernel/lang/cupidc.cc"
         }
       ],
-      "sha256": "f35cb13ae5d51813f1bdd15b0c644ea096ad0ecb5b1de87edb6202ef8eb58b5f"
+      "sha256": "a3ac1987ee53815c3a9a51302a3015b0cd02df4e59b44afd5da1da6e9419dc4e"
     },
     {
       "classification": "historical_copy",
@@ -80438,7 +80721,7 @@
       "classification": "superseded",
       "duplicate_of": [],
       "language": "cupid_c",
-      "lines": 622,
+      "lines": 627,
       "path": "demos/paint.cc",
       "reason": "replaced by the recorded active implementation",
       "relations": [
@@ -80448,7 +80731,7 @@
           "path": "bin/paint.cc"
         }
       ],
-      "sha256": "a7a265ac01164aeeb411a11d10e28c48c11cd76a1fd742104d29605385eb380a"
+      "sha256": "ea43bee3a1314ff140ae6044bd95c6363d1c7f572008e0b7c783861313a8fd77"
     },
     {
       "classification": "superseded",

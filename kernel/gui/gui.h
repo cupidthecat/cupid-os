@@ -9,6 +9,7 @@
 #define GUI_ERR_INVALID_ID   -3
 #define GUI_ERR_INVALID_ARGS -4
 #define GUI_ERR_CANCELLED    -5
+#define GUI_ERR_BUSY         -6
 
 #define WINDOW_FLAG_VISIBLE  0x01
 #define WINDOW_FLAG_FOCUSED  0x02
@@ -65,6 +66,8 @@ void      gui_init(void);
 int       gui_create_window(int16_t x, int16_t y, uint16_t w, uint16_t h,
                             const char *title);
 int       gui_destroy_window(int wid);
+/* Teardown for the current painter or a quiescent, unreused dead PID. */
+void      gui_release_process_paint(uint32_t owner_pid);
 int       gui_destroy_windows_by_owner(uint32_t owner_pid);
 int       gui_minimize_window(int wid);
 int       gui_restore_window(int wid);
@@ -72,6 +75,10 @@ bool      gui_is_minimized(int wid);
 
 /* Drawing */
 int       gui_draw_window(int wid);
+/* Compatibility frame pair for immediate-mode guests. The begin call keeps
+ * shared render ownership until the matching end caches and presents it. */
+int       gui_begin_legacy_frame(int wid);
+int       gui_end_legacy_frame(int wid);
 /* draw_shadows: pass true when the background was repainted (shadows must
  * be redrawn); pass false when only window content changed and no windows
  * moved (shadow pixels in back_buffer are already correct from prev frame).*/

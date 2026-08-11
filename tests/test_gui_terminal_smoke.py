@@ -1,4 +1,5 @@
 import hashlib
+import io
 import re
 import tempfile
 import unittest
@@ -198,6 +199,51 @@ def _frontier_command_outputs():
             "[cupidc] JIT execution complete\n"
         ),
         (
+            "[cupidc] AOT compile: /bin/gfxhandoff_exit.cc -> "
+            "/gfxhandoff_exit\n"
+            "Compiled: 1024 bytes code, 64 bytes data\n"
+            "[cupidc] Wrote ELF: /gfxhandoff_exit "
+            "(1024 bytes code, 64 bytes data, entry=0x01100000, "
+            "total=2048 bytes)\n"
+            "Written to /gfxhandoff_exit\n"
+        ),
+        (
+            "[cupidc] AOT compile: /bin/gfxhandoff_kill.cc -> "
+            "/gfxhandoff_kill\n"
+            "Compiled: 1024 bytes code, 64 bytes data\n"
+            "[cupidc] Wrote ELF: /gfxhandoff_kill "
+            "(1024 bytes code, 64 bytes data, entry=0x01100000, "
+            "total=2048 bytes)\n"
+            "Written to /gfxhandoff_kill\n"
+        ),
+        (
+            "[elf] Loaded /gfxhandoff_exit as PID 17 "
+            "(ELF32, 2048 bytes at 0x01100000)\n"
+            "[PROCESS] Delayed killer PID 18 waiting for PID 17 reuse\n"
+            "[gfxhandoff_exit] nested owner exiting\n"
+        ),
+        (
+            "[elf] Loaded /gfxhandoff_kill as PID 17 "
+            "(ELF32, 2048 bytes at 0x01100000)\n"
+            "[gfxhandoff_kill] nested owner waiting for remote kill\n"
+            "[PROCESS] Delayed killer PID 19 targeting PID 17 after 7000 ms\n"
+            "[PROCESS] Delayed kill skipped stale PID 17\n"
+            "[PROCESS] Killing PID 17 \"/gfxhandoff_kill\"\n"
+        ),
+        (
+            "[elf] Loaded /gfxgui_test as PID 17 "
+            "(ELF32, 8704 bytes at 0x01100000)\n"
+            "[gfxgui_test] init\n"
+            "[gfxgui_test] assets ready\n"
+            "[gfxgui_test] fullscreen\n"
+            "[gfxgui_test] font ready\n"
+            "[gfxgui_test] surface ready\n"
+            "[gfxgui_test] transform ready\n"
+            "[gfxgui_test] frame 0 done\n"
+            "[gfxgui_test] frame 240 done\n"
+            "[gfxgui_test] done\n"
+        ),
+        (
             "[cupidc] JIT compile: /bin/dglibc_test.cc\n"
             "[PASS] dglibc snprintf\n"
             "[PASS] dglibc malloc/free\n"
@@ -266,6 +312,7 @@ def _frontier_command_outputs():
             "[cupidc] JIT compile: /bin/godsong.cc\n"
             "[cupidc] Executing at 0x0x01100000\n"
             "[godsong] settings ready\n"
+            "[gfx2d] popup input ready\n"
             "[print_int] num=1 (0x0x00000001) gui_mode=1\n"
             "[print_int] num=200 (0x0x000000c8) gui_mode=1\n"
             "[cupidc] JIT execution complete\n"
@@ -506,6 +553,52 @@ class ReplugMonitorSocket(FakeMonitorSocket):
 
 
 class GuiTerminalInputTests(unittest.TestCase):
+    def test_read_log_retries_one_host_allocation_failure(self):
+        log = Path("serial.log")
+        with (
+            mock.patch.object(
+                Path,
+                "read_bytes",
+                side_effect=[MemoryError(), b"marker\n"],
+            ) as read_bytes,
+            mock.patch("tools.gui_terminal_smoke.gc.collect") as collect,
+        ):
+            data = gui_terminal_smoke.read_log(log)
+
+        self.assertEqual(data, "marker\n")
+        self.assertEqual(read_bytes.call_count, 2)
+        collect.assert_called_once_with()
+
+    def test_read_log_reports_a_persistent_host_allocation_failure(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            log = Path(temporary) / "serial.log"
+            log.write_bytes(b"marker")
+            with (
+                mock.patch.object(
+                    Path,
+                    "read_bytes",
+                    side_effect=MemoryError(),
+                ),
+                mock.patch("tools.gui_terminal_smoke.gc.collect"),
+                self.assertRaisesRegex(
+                    gui_terminal_smoke.FrontierRuntimeContractError,
+                    r"serial log allocation failed.*serial\.log.*6 bytes",
+                ),
+            ):
+                gui_terminal_smoke.read_log(log)
+
+    def test_qemu_launch_failure_reports_captured_output(self):
+        process = mock.Mock()
+        process.poll.return_value = 1
+        output = io.BytesIO(
+            b"qemu-system-i386: monitor socket address is already in use\n"
+        )
+
+        detail = gui_terminal_smoke.qemu_exit_diagnostic(process, output)
+
+        self.assertIn("QEMU exited with status 1", detail)
+        self.assertIn("monitor socket address is already in use", detail)
+
     def test_hmp_rejects_a_monitor_command_error(self):
         monitor = FakeMonitorSocket()
         monitor.recv = mock.Mock(
@@ -1291,6 +1384,11 @@ class FrontierRuntimeContractTests(unittest.TestCase):
                 "/bin/feature18_swap.cc",
                 "ccc /bin/gfxgui_test.cc -o /gfxgui_test",
                 "/bin/gfxgui_test.cc",
+                "ccc /bin/gfxhandoff_exit.cc -o /gfxhandoff_exit",
+                "ccc /bin/gfxhandoff_kill.cc -o /gfxhandoff_kill",
+                "exec /gfxhandoff_exit",
+                "exec /gfxhandoff_kill {pid}",
+                "exec /gfxgui_test",
                 "dglibc_test",
                 "doom",
                 "doom -iwad /disk/missing.wad",
@@ -1316,12 +1414,76 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             gui_terminal_smoke.GODSONG_SETTINGS_READY_PATTERN,
         )
         self.assertNotIn("flip frame=2", commands[-1].interaction_pattern)
-        self.assertEqual(commands[-1].followup_settle_seconds, 2.0)
+        self.assertEqual(commands[-1].followup_settle_seconds, 0.0)
+        exit_command = _frontier_command("exec /gfxhandoff_exit")
+        self.assertEqual(exit_command.capture_name, "gfx_owner_pid")
+        for text in (
+            "exec /gfxhandoff_kill {pid}",
+            "exec /gfxgui_test",
+        ):
+            self.assertEqual(
+                _frontier_command(text).pid_from_capture,
+                "gfx_owner_pid",
+            )
 
+        resolved = gui_terminal_smoke.resolve_frontier_command(
+            _frontier_command("exec /gfxhandoff_kill {pid}"),
+            {"gfx_owner_pid": "17"},
+        )
+        self.assertEqual(resolved.text, "exec /gfxhandoff_kill 17")
+        self.assertIn("targeting PID 17", resolved.expected_pattern)
+        stale_first_output = (
+            '[elf] Loaded /gfxhandoff_kill as PID 17 '
+            '(ELF32, 2048 bytes at 0x01100000)\n'
+            '[gfxhandoff_kill] nested owner waiting for remote kill\n'
+            '[PROCESS] Delayed kill skipped stale PID 17\n'
+            '[PROCESS] Delayed killer PID 19 targeting PID 17 after 7000 ms\n'
+            '[PROCESS] Killing PID 17 "/gfxhandoff_kill"\n'
+        )
+        self.assertIsNotNone(
+            re.search(
+                resolved.expected_pattern,
+                stale_first_output,
+                re.S | re.M,
+            )
+        )
+        stale_before_owner_output = (
+            '[elf] Loaded /gfxhandoff_kill as PID 17 '
+            '(ELF32, 2048 bytes at 0x01100000)\n'
+            '[PROCESS] Delayed kill skipped stale PID 17\n'
+            '[gfxhandoff_kill] nested owner waiting for remote kill\n'
+            '[PROCESS] Delayed killer PID 19 targeting PID 17 after 7000 ms\n'
+            '[PROCESS] Killing PID 17 "/gfxhandoff_kill"\n'
+        )
+        self.assertIsNotNone(
+            re.search(
+                resolved.expected_pattern,
+                stale_before_owner_output,
+                re.S | re.M,
+            )
+        )
+        with self.assertRaisesRegex(
+            gui_terminal_smoke.FrontierRuntimeContractError,
+            "needs missing capture",
+        ):
+            gui_terminal_smoke.resolve_frontier_command(
+                _frontier_command("exec /gfxhandoff_kill {pid}"),
+                {},
+            )
+
+        captures = {"gfx_owner_pid": "17"}
         for command, sample in zip(commands, _frontier_command_outputs()):
             with self.subTest(command=command.text):
+                resolved_command = gui_terminal_smoke.resolve_frontier_command(
+                    command,
+                    captures,
+                )
                 self.assertIsNotNone(
-                    re.search(command.expected_pattern, sample, re.S | re.M)
+                    re.search(
+                        resolved_command.expected_pattern,
+                        sample,
+                        re.S | re.M,
+                    )
                 )
 
     def test_gui_disassembly_mirrors_its_listing_to_serial(self):
@@ -1427,6 +1589,13 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             "  c = popup_menu(220, 110, (void*)items, 3);",
             source,
         )
+        popup = (REPO_ROOT / "kernel" / "gfx" / "gfx2d.cc").read_text(
+            encoding="utf-8"
+        ).split("int gfx2d_popup_menu(", 1)[1]
+        self.assertLess(
+            popup.index("gfx2d_shared_writer_begin()"),
+            popup.index('[gfx2d] popup input ready'),
+        )
 
     def test_gfxgui_frontier_requires_aot_and_runtime_evidence(self):
         aot = _frontier_command(
@@ -1486,13 +1655,29 @@ class FrontierRuntimeContractTests(unittest.TestCase):
                     )
                 )
 
+        external = gui_terminal_smoke.resolve_frontier_command(
+            _frontier_command("exec /gfxgui_test"),
+            {"gfx_owner_pid": "17"},
+        )
+        external_output = _frontier_command_output(external.text)
+        self.assertIsNotNone(
+            re.search(
+                external.expected_pattern,
+                external_output,
+                re.S | re.M,
+            )
+        )
+        self.assertIn("[elf] Loaded /gfxgui_test as PID", external_output)
+
     def test_gfxgui_frontier_uses_a_workload_specific_timeout(self):
         aot = _frontier_command(
             "ccc /bin/gfxgui_test.cc -o /gfxgui_test"
         )
         runtime = _frontier_command("/bin/gfxgui_test.cc")
+        external = _frontier_command("exec /gfxgui_test")
         self.assertEqual(aot.timeout_seconds, 180.0)
         self.assertEqual(runtime.timeout_seconds, 300.0)
+        self.assertEqual(external.timeout_seconds, 300.0)
 
     def test_gfxgui_program_publishes_runtime_markers_to_serial(self):
         source = GFXGUI_SOURCE.read_text(encoding="utf-8")
@@ -1585,6 +1770,38 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             with self.assertRaisesRegex(
                 gui_terminal_smoke.FrontierRuntimeContractError,
                 "saw failure marker.*gfxgui_test",
+            ):
+                gui_terminal_smoke.wait_frontier_command(
+                    process,
+                    log,
+                    _frontier_command("/bin/gfxgui_test.cc"),
+                    start_offset=0,
+                    timeout=0.1,
+                )
+
+    def test_kernel_panic_gate_waits_for_the_serial_reason(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            log = Path(temporary) / "serial.log"
+            log.write_text("KERNEL PANIC\n", encoding="utf-8")
+            process = mock.Mock()
+            process.poll.return_value = None
+
+            def publish_reason(_delay):
+                log.write_text(
+                    "KERNEL PANIC\n"
+                    "[PANIC] uhci: DMA revocation failed\n",
+                    encoding="utf-8",
+                )
+
+            with (
+                mock.patch(
+                    "tools.gui_terminal_smoke.time.sleep",
+                    side_effect=publish_reason,
+                ),
+                self.assertRaisesRegex(
+                    gui_terminal_smoke.FrontierRuntimeContractError,
+                    "KERNEL PANIC.*uhci: DMA revocation failed",
+                ),
             ):
                 gui_terminal_smoke.wait_frontier_command(
                     process,
@@ -2577,7 +2794,10 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             monitor = SequencedMonitorSocket(
                 log,
                 _frontier_command_outputs(),
-                delayed_marker="[godsong] settings ready\n",
+                delayed_marker=(
+                    "[godsong] settings ready\n"
+                    "[gfx2d] popup input ready\n"
+                ),
             )
             process = mock.Mock()
             process.poll.return_value = None
@@ -2621,10 +2841,7 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             sleep.call_args_list.count(mock.call(1.0)),
             len(gui_terminal_smoke.FRONTIER_RUNTIME_COMMANDS) - 1,
         )
-        self.assertEqual(
-            sleep.call_args_list.count(mock.call(2.0)),
-            1,
-        )
+        self.assertEqual(sleep.call_args_list.count(mock.call(2.0)), 0)
         sent = b"".join(monitor.sent)
         self.assertIn(b"sendkey shift-minus 300\n", sent)
         self.assertIn(b"sendkey dot 300\n", sent)

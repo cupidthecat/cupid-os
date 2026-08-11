@@ -41,6 +41,8 @@ class Gfx2DTransformContractTests(unittest.TestCase):
             }}
 
             void serial_printf(const char *, ...) {{}}
+            int gfx2d_shared_writer_begin(void) {{ return 1; }}
+            void gfx2d_shared_writer_end(int) {{}}
             uint64_t __udivdi3(uint64_t dividend, uint64_t divisor) {{
               return dividend / divisor;
             }}

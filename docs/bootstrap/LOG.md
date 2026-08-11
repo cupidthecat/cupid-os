@@ -23769,3 +23769,318 @@ SHA-256
 `c7b169764c54161074e8b8e7a3610167f7c693d8a5770ed111a9f79158dfffb6`.
 It contains 36 passing markers, no panic, and all six USB storage lifetimes.
 No checked seed, build owner, host dependency, or i386 ABI changes.
+
+## 2026-08-11: serialize shared graphics ownership across processes
+
+The four-CPU e1000 frontier exposed a real shared-rendering race. A terminal
+process entered fullscreen mode and wrote a white font pixel while an
+already-started desktop frame was still drawing the terminal title bar into
+the same back buffer. `gfxgui_test` then read the overwritten pixel and
+reported `[gfxgui_test] FAIL font pixel`. Three repetitions against the old
+image did not reproduce it. That negative timing evidence confirmed that a
+delay or coordinate change would not prove a repair.
+
+ADR 0261 records the resulting ownership model. Fullscreen, desktop frames,
+retained paint, retained presentation, legacy frame drawing, modal drawing,
+window-table mutation, and global graphics registries share one owner-token
+handoff. Fullscreen entry waits for an earlier writer to finish. Same-owner
+depth supports nested modal work, and final release restores the main target,
+clip, blend mode, and presentation state before opening the gate. JIT return,
+process exit, remote kill, and PID reuse all pass through owner cleanup.
+
+Review found several incomplete approaches before the boundary was sound. A
+frame-only lease missed an early desktop `continue` and deadlocked entry. A
+boolean request admitted two fullscreen callers. Presenter-only ownership
+missed the process-global target used during offscreen paint. A saved file
+dialog pointer and stride became invalid across a yield. Free-before-clear
+resource removal could publish freed storage after a remote kill. Each case
+became a positive or negative ownership contract before the implementation
+was extended.
+
+The final Spec review found one more mismatch: dead-owner cleanup paused on a
+busy handoff lock without a retry limit while the ADR promised bounded reaper
+work. The new contract failed on that exact path. Cleanup now spends at most
+4,096 handoff operations, returns a deferred result when the budget expires,
+and leaves the terminated PCB for the next scheduler reap. The seven-test
+ownership module then passed in 0.485 seconds. Its 3,640-byte log has SHA-256
+`99e822dba2b18e847e845432e68e456ef1270692c32ea1e2456d77f73290ec20`.
+The checked CupidC compile of `gfx2d.cc`, `desktop.cc`, `process.cc`, and
+`shell.cc` also passed in 48.602 seconds. Its 8,444-byte log has SHA-256
+`b740740e4a6939647d38e69bcc2280d94e7081d0f8cfe9da51897cc913d17527`.
+
+GodSong exposed the matching input boundary. Its raw popup competed with
+Desktop for the keyboard queue. Waiting two seconds after a program-local
+message only narrowed that race. Desktop key pops and mouse-driven window
+mutations now borrow the same writer ownership. The popup publishes
+`[gfx2d] popup input ready` only after it owns the queue boundary, and the
+frontier sends dialog keys only after that marker. Confirm dialogs stop after
+one terminal key so one queued Escape cannot answer several dialogs.
+
+At that checkpoint, the focused ownership, transform, GUI-smoke, and private
+binding group passed all 142 tests. Checked CupidC kernel compiles passed for
+`gfx2d.cc`, `desktop.cc`,
+`gui.cc`, and `uhci.cc`. The complete USB group passes all 45 tests, and the
+GUI-smoke module passes all 123 tests. Ruff and diff hygiene checks are clean.
+That 142-test log is 51,544 bytes with SHA-256
+`cf18a1f272d23553e327810ed25f3414b4fa7adfe925bf116c66275bf57e8391`.
+The final 45-test USB log is 16,248 bytes with SHA-256
+`eaaa2dd283e3aff9bc35fa9c3aef8023ddaa8ab91965a3d54a00d51d856f8a8c`.
+
+The first corrected graphics build passed in 589.837 seconds. Its e1000,
+four-CPU private-image frontier then passed in 707.595 seconds with all 60
+runtime markers and no panic. The first RTL8139 run found a separate USB
+controller defect rather than a graphics regression. It stopped after 88.642
+seconds with `[PANIC] uhci: DMA ownership could not be revoked after transfer`.
+The 34,494-byte log has SHA-256
+`51c5fd2cc0f1a70191068a937f40c8b2f5b7f01d02c24d42419b76110cd45cfd`.
+The preceding USB commit records its halt-state diagnosis, correction, and
+exact isolated build and boot evidence.
+
+A first launch of the corrected private image exited before serial boot and
+left an empty log. That was a host launch failure, not a guest diagnostic, but
+the harness had discarded QEMU output. The launcher now captures a bounded
+QEMU output tail and includes it with the exit status when boot fails. This
+keeps an early host failure distinct from a kernel failure.
+
+The corrected root build passed in 594.375 seconds. Its 191,322-byte log has
+SHA-256
+`28951af392860732f720d3df83d075113a711a64d024ca6e4345a679ce2eb3e0`.
+The resulting 8,926,620-byte kernel has SHA-256
+`8d906a98f06258c0e9b06f66b1361fbb74b2b75852ee245d1b5eb53c6a313750`.
+The canonical image recipe created a fresh 209,715,200-byte image with SHA-256
+`18b4159021550a846edb4d29c73ccb96901cec5bbd59cdc884336da476861b09`.
+
+Both exact corrected-image network frontiers pass with four CPUs and private
+image copies. RTL8139 passes in 733.092 seconds; its 137,362-byte log has
+SHA-256
+`313fd8037900cc1c1b1041c104bba1b158580ddbc49a1c94d335f57fe83917d1`.
+e1000 passes in 740.995 seconds; its 154,911-byte log has SHA-256
+`bfc8d746b93b5c0ce27c78b50fbd9b3a316448cb17b6de34112832445d7e0d45`.
+Each run reports 60 passing runtime markers, no panic, SMP 4/4, all 62 TLS
+checks, JIT and AOT graphics, nested-owner exit recovery, the GodSong modal
+chain, HomeFS and dglibc, network, USB detach and reattach, AC97, and PC
+speaker output.
+
+The frozen source audit retains 726 active inputs, 448 transforms, 29
+assembly files, 294 headers, and 403 Cupid C files. Its active-source digest
+is
+`cb017c3801fe4b01692b507ef78ef2593f0f277da2d0323df3212dae03eba685`.
+The 2,607,764-byte JSON has SHA-256
+`e7ca66237c0f15e81b6d52fd9ec72705caf5d35427b81dc10a26476c6e5b4f51`,
+and the 12,219-byte Markdown summary has SHA-256
+`f0f33483108a0cb21a33aef4d71106a482ad4bc64ce00793cd6ed501bff5425b`.
+Generation passed in 79.467 seconds. Its 7,820-byte log has SHA-256
+`9d33ecd54c6278e4d36c432d13139f8de0db4915f3840f0e6e20041bfa2948c4`.
+The independent audit check passed in 74.785 seconds. Its 7,836-byte log has
+SHA-256
+`8220c6e76b7a1264613ed2c0a2734a617ddd2a6e2f287c4ef9d182ae139d1944`.
+The first complete build-graph replay passed 74 tests and stopped on the one
+remaining line lock: adding the direct graphics include moved the active GNU
+`__alignof__` example in `process.cc` from line 39 to line 40. Its 29,442-byte
+log has SHA-256
+`722b98fdea9b3742e72834ea01b94088116742f2d4a1c7d578adbaa7f2922563`.
+The corrected selector passed in 193.518 seconds, and the final complete
+module passed all 75 tests in 699.501 seconds. The final 27,930-byte log has
+SHA-256
+`f66902d11cd7cad6f59f00ede29c1c3ec2d4c1656be87c33a930e7af0179478a`.
+The bounded cleanup moved the exact active `return` count from 23,451 to
+23,463 and the active `if` count from 38,511 to 38,521. The first focused
+five-selector replay failed only those two old locks in 13.571 seconds. Its
+5,364-byte log has SHA-256
+`923751766ba93a470be968aa68decb33901593ad99105128ac88370b0735f59e`.
+After calibration, all five selectors passed in 17.392 seconds. The
+2,684-byte green log has SHA-256
+`e4c9e4977fd1ab0ebd2c09cee7cd9d2aa368ce791e0ffdad9b718d749e3013e9`.
+The independently regenerated include and line-directive selectors also
+passed in 160.819 seconds. Their 1,642-byte log has SHA-256
+`089b2b6c24b1bb81909fd7be40aa30ff3ab532a8efcb537390c5f368303fc7ac`.
+
+The final frozen-tree `make -j4 all` passed in 657.452 seconds. Its
+199,466-byte log has SHA-256
+`8d918fa791bf4cf6d4af1f8b65585fbee2406608b137639d134304fca8bf5353`.
+It produced an 8,928,104-byte `kernel.bin` with SHA-256
+`0b572c481c9b0271ebcfdf5868d66376e4c489e0684a517e290800c28581da60`
+and a 9,139,324-byte `kernel.elf` with SHA-256
+`bcd127635f238f25fe21f6bcb8633c1bf28fcb3642ae758dda122e250648558b`.
+The canonical image recipe created a new 209,715,200-byte image at an absent
+path in 2.631 seconds. Its SHA-256 is
+`ff81681bec2d6770500cc2bbfe07840aec94c85430a314404699f1108add52fd`.
+
+The first e1000 run reached 36 passing markers with no panic, then the host
+Python process raised `MemoryError` while rereading its 173,155-byte serial
+log. Two thousand immediate reads of that same file succeeded, which ruled
+out a corrupt or oversized capture. The harness now retries one allocation
+failure after collection and reports the path and exact byte size if the
+second read fails. The two red/green contracts are 5,344 bytes with SHA-256
+`82025429a7fcc5614da91912e2a362e0f182a5ace7bcf87d2805411e111303ec`
+and 1,586 bytes with SHA-256
+`86a4cf78a02608cc3fd291572987feddbc9049435cdcc1780f792e8aa6ac05de`.
+
+The exact e1000 retry passed in 754.928 seconds. Its 147,875-byte serial log
+has SHA-256
+`91b5e3225ba28047402cbc9e30b8136e55bb0ad9946967ad23573a6ab9135ec9`.
+The final RTL8139 frontier, using the hardened reader, passed in 765.431
+seconds. Its 141,389-byte serial log has SHA-256
+`be75150d4560b912db69e9740eea1be0f038dfbfbb652837a5176213183151ab`.
+Each final run contains 36 explicit passing lines and no panic. Both cover
+SMP 4/4, all 62 TLS checks, JIT and AOT graphics, nested-owner exit recovery,
+the GodSong modal chain, HomeFS and dglibc, networking, six USB storage
+lifetimes, AC97, and PC speaker output. The fresh source image retained its
+original hash, and cleanup left no owned QEMU process or runtime directory.
+
+This slice does not alter the checked five-tool seed, an owner in the build
+graph, or the i386 ABI. Resource pools still lack creator PID metadata, so a
+process killed after publishing a handle can orphan that allocation. The
+invalidation order prevents a cross-owner use-after-free, while automatic
+reclamation remains separate work.
+
+### Final generation-reuse handshake and dual-NIC replay
+
+Review found that a shell-issued `kill` could never reach a process after it
+closed Desktop input by acquiring fullscreen ownership. A foreign helper made
+the kill reachable, but fixed delays were still the wrong lifetime contract.
+Five-, twenty-, and forty-five-second variants all fired before the target PID
+slot was reused. Their 74,779-, 70,309-, and 74,802-byte e1000 logs have
+SHA-256 values
+`ac6c9de0edbfddff4a54194abba3fd4a23bf4b43714b4a4b9f2f3c09a48ac243`,
+`31b788d1a5e72ac7093d0893096ac6276dabf5cd0d000dc26e307b23b22dcf5d`,
+and
+`8a8273044ef662fbaf50aa957fff2ed6a0f2a9f50764b620b258b3d3b9d5db3c`.
+The final PID-zero request captures the caller's generation and waits for a
+different generation in that exact slot. The replacement owner separately
+arms a seven-second helper for its own generation. The old helper must report
+the stale PID, while the new helper must kill the live owner.
+
+The first rebuilt boot stopped on the CupidASM binding census because the new
+`process_kill_after_ms` binding moved the production table from 631 to 632
+definitions. Its 27,525-byte log has SHA-256
+`737adcdb40f7e3d13f0ff8b1794f4f31b66dfe1cbfeb4f38540254c131091721`.
+A derived contract now compares the registered definitions with the self-test
+lock, and the corrected guest reports
+`CupidASM kernel adapter self-test passed (632 definitions)`.
+
+Two later guests completed the production exit, stale-generation, and live
+kill sequence, but their host matcher imposed an order on independent helper
+messages. One run logged the stale rejection after the holder marker and the
+other before it. The 68,347- and 69,650-byte diagnostic logs have SHA-256
+`1f6163c5166fbf096aff27c3e4e0ded6e991ef291665c5e96c9d099031c368ef`
+and
+`e0dec028ad5434599e80f6772088f27daeebb3edbd5f9287063a115e6f45aa01`.
+The matcher now requires replacement load, nested ownership, stale rejection,
+the current helper target, and the live kill before it advances, while
+accepting every legal scheduler interleaving. The focused contract failed on
+each previously unrepresented order before the matcher changed.
+
+The final focused ownership, transform, GUI-smoke, and private binding group
+passes all 143 tests in 1.892 seconds. Its 51,938-byte log has SHA-256
+`42aecd26ff815d952e40fd80b6f8367a0e1a5c2121d8391d78d7e7656e37d413`.
+The frozen production tree then completes `make -j4 all`; its 196,770-byte log
+spans 612.046 seconds and has SHA-256
+`e29232bbcccd36aa7af40d90e4b780c7922c113912dc10664781a1171ba1299a`.
+The build produces an 8,932,116-byte `kernel.bin` with SHA-256
+`a060db0038f9cd3e6f53b456eb8c98c2fc15fdbce4276de3e366200df14e53ab`
+and a 9,146,080-byte `kernel.elf` with SHA-256
+`02f03599f7cc88a4fc93b910bc7c9e7f40ac39fdf538fa8b028e44da2c699bab`.
+The 399,041-byte generated symbol source has SHA-256
+`4adc6a95d919dcb942e6cb81e4ede0344b4ed10a7bf83d03be29f9fba14d296f`.
+
+The canonical image recipe creates a new 209,715,200-byte image at an absent
+path in 9.746 seconds. Its SHA-256 is
+`dc6f8794858100ce3e576f20684b5bdff584afcb61a9103cb730962dfc83c2e3`.
+The four-CPU e1000 frontier passes in 802.312 seconds. Its 144,725-byte log has
+SHA-256
+`5f3f38f64eba386b2479d18ddb3d64bebf423d7d32e9fa584a665dd19e773633`.
+The four-CPU RTL8139 frontier passes in 763.474 seconds. Its 155,424-byte log
+has SHA-256
+`f868c00f84c98537ffed2f0b6be6eaefaee6d1fcf6ada48fb5e23a40f37abcef`.
+Each run records 36 passing lines, zero panics, SMP 4/4, all 62 TLS checks,
+the same-PID exit/kill/AOT sequence, HomeFS and dglibc, browser and modal input,
+six USB storage lifetimes, AC97, and PC speaker output. The source image keeps
+its original hash after both private-image runs.
+
+The final three-root audit records 727 active inputs, 255 feature IDs, 449
+transforms, and 25 accounted unreachable files. It contains 29 assembly files,
+294 headers, and 404 Cupid C files. The active-source digest is
+`cd922f77e56905b4c1f45be64671d0dc26c8c2ad97c152a8e7598c5f3244b5d1`.
+The 2,609,788-byte JSON has SHA-256
+`06cf46cac42ee67ceadcbd30d9b9c594166cd22bc2eb38538657709ead960f78`,
+and the 12,219-byte summary has SHA-256
+`d93a739c66779bc6dfdb2b71463ca85a85cc2ba22415ddff64afef5f0c6f7783`.
+Generation and its independent check pass in 65.185 and 69.647 seconds. Their
+7,866- and 7,882-byte logs have SHA-256
+`52fa47b7be6cfdcaba2bd9fd1777d387ecc0e83679e490f4d7bd450c7d3b50fc`
+and
+`a6fb8f47e67a4198a435164aea56dafe86ff7ae607c60e88872c19cb1bbda8b0`.
+
+This final handshake changes no checked seed, build owner, or i386 ABI.
+Fully published graphics handles still lack creator-PID reclamation, so an
+abruptly killed process can orphan a finite pool allocation without exposing
+freed storage to another owner.
+
+### Doc-frozen graphics-ownership validation
+
+The final source and documentation freeze kept the three-root audit at 727
+active inputs, 255 feature IDs, 449 transforms, and 25 accounted unreachable
+files. Audit generation passed in 65.322 seconds; its 7,866-byte log has
+SHA-256
+`52fa47b7be6cfdcaba2bd9fd1777d387ecc0e83679e490f4d7bd450c7d3b50fc`.
+The independent audit check passed in 66.903 seconds; its 7,882-byte log has
+SHA-256
+`a6fb8f47e67a4198a435164aea56dafe86ff7ae607c60e88872c19cb1bbda8b0`.
+The final audit files retain active-source digest
+`cd922f77e56905b4c1f45be64671d0dc26c8c2ad97c152a8e7598c5f3244b5d1`:
+the 2,609,788-byte JSON has SHA-256
+`06cf46cac42ee67ceadcbd30d9b9c594166cd22bc2eb38538657709ead960f78`,
+and the 12,219-byte Markdown summary has SHA-256
+`d93a739c66779bc6dfdb2b71463ca85a85cc2ba22415ddff64afef5f0c6f7783`.
+
+The complete build-graph module passed all 75 tests in 742.748 seconds. Its
+27,896-byte log has SHA-256
+`16ea7c209c75fb30d54756a883901fea06284ba43633e0e15f95f055e03b6595`.
+The Toolchain control-plane module passed all 32 tests in 4.314 seconds. Its
+13,486-byte log has SHA-256
+`cf338d685a77941ed23ecaa0440443a610bd84f2c6ac453e75769b77f443b446`.
+The focused 143-test graphics group and its
+`42aecd26ff815d952e40fd80b6f8367a0e1a5c2121d8391d78d7e7656e37d413`
+log remained green.
+
+The first doc-frozen `make -j4 all` attempt stopped after 262.361 seconds
+when WSL transiently failed to translate the workspace path during the
+parallel CupidObj wrap of `bin/feature10_repl.cc`. Its 68,650-byte log has
+SHA-256
+`b2050b13688595b791e633a557f4485e88f32a429fc8a26833e541921a276834`.
+The exact failed command then passed serially in 0.619 seconds and produced
+an 892-byte object with SHA-256
+`f389503b9104a18a49d2d0f10a4869baba858e2c5f9416466d719b8280094f1a`,
+so no source correction was warranted. Resuming the normal build passed in
+679.105 seconds. Its 191,814-byte log has SHA-256
+`b0728d65f2b252560d28a75029cd97aafec17cd4f47529a72a5a678c1598c080`.
+The final 8,932,116-byte `kernel.bin` has SHA-256
+`aae44ecacb10abe5fe1a44e07903b2f9fb7f051f5fa8dad614a9bde7b05f9347`,
+and the 9,146,080-byte `kernel.elf` has SHA-256
+`96910f5eb357315fc041dd40a5c2ff4e53466a8bde2f6e8dcdcc6b63cc46956c`.
+
+The canonical image recipe created a new 209,715,200-byte image at an absent
+path in 7.273 seconds. Its SHA-256 is
+`109b7683719f61ab37170917a3103fe308ba8d0f47dd7972ad5111ff7214c2cf`;
+the 564-byte creation log has SHA-256
+`59cb9024b458933bbc4fa490dbf01394b8d2e4206022cdcf01f668f213052115`.
+The exact-image, four-CPU e1000 frontier passed with exit status zero in
+804.237 seconds. Its 130,761-byte serial log has SHA-256
+`95f8990dc3fe1a63d75c25cdb03391717ec5b06d3904f167d42b251155de18e2`.
+
+The first RTL8139 wrapper used a fourteen-second shell timeout. The Python
+and QEMU children continued to the complete 36-marker, zero-panic serial
+frontier, but the detached monitor could not recover Python's numeric exit
+status. That 157,061-byte diagnostic log has SHA-256
+`53a0211076903f1d3c08ffbad24d904c0def8d739a3a64c04d54272d6348d51f`.
+A definitive replay under a durable wrapper passed with exit status zero in
+753.885 seconds. Its 139,253-byte serial log has SHA-256
+`7f90d44264b1f0635bb820d37ae497591b381f1ccc379c7c2276b7cd1fb94e8c`.
+
+Both definitive NIC runs contain 36 passing markers, no failure or panic,
+SMP 4/4, all 62 TLS checks, JIT graphics, voluntary nested-owner exit,
+generation-stale rejection, remote kill, same-PID AOT graphics recovery,
+HomeFS and dglibc, browser and modal input, six USB storage lifetimes, AC97,
+and PC speaker output. Private-image execution left the source image hash
+unchanged and cleaned every owned QEMU process and new runtime directory.

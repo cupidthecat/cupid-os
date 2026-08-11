@@ -339,7 +339,7 @@ _C_PP_ACTIVE_COUNTS = {
     "DOOM_TREE_I386": 80,
     "USER_I386": 3,
     "FREESTANDING_I386": 1,
-    "CUPID_RUNTIME": 105,
+    "CUPID_RUNTIME": 107,
     "HOSTED_TOOLCHAIN_64": 0,
     "HOSTED_KERNEL_BRIDGE_64": 0,
     "HOSTED_I386_LINUX": 31,
@@ -9631,7 +9631,7 @@ def _validate_cupidobj_install_source_delivery(
         }
         expected_headers = {"bin/fat16.h", "bin/shell.h"}
         content_valid = (
-            len(programs) == 105
+            len(programs) == 107
             and headers == expected_headers
             and len(browser) == 22
             and content_set == programs | headers | browser

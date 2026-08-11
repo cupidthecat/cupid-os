@@ -49,6 +49,7 @@
 #include "string.h"
 #include "graphics.h"
 #include "gfx2d.h"
+#include "gfx2d_assets.h"
 #include "fontsys.h"
 #include "gui.h"
 #include "gui_containers.h"
@@ -874,6 +875,7 @@ void kmain(void) {
     vga_init_vbe();          // Allocates back buffer and clears screen
     gfx_init();              // Initialize graphics primitives
     gfx2d_init();            // Initialize 2D graphics library
+    gfx2d_assets_init();     // Initialize shared image and bitmap-font pools
     fontsys_init();          // Register bundled TTF fonts + glyph cache
     if (fontsys_load_os_default_from_conf() == 0) {
         KINFO("fontsys: loaded /etc/font.conf default");

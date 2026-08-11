@@ -11,14 +11,43 @@
 #include "gfx2d.h"
 #include "string.h"
 #include "memory.h"
+#include "process.h"
 #include "vfs.h"
 #include "serial.h"
 
 static gfx2d_icon_t icons[GFX2D_MAX_ICONS];
 static int icon_count = 0;
+static char icon_label_views[MAX_PROCESSES + 1][GFX2D_ICON_LABEL_MAX];
+static char icon_path_views[MAX_PROCESSES + 1][GFX2D_ICON_PATH_MAX];
+static char icon_desc_views[MAX_PROCESSES + 1][GFX2D_ICON_DESC_MAX];
+static uint32_t icon_generation = 1u;
 
 static const char *ICON_CONFIG_PATH = "/home/.desktop_icons.conf";
 static const int ICON_LEFT_MARGIN = 20;
+
+static const char *copy_icon_view(char *view, int capacity,
+                                  const char *value) {
+    int i = 0;
+    if (!value)
+        value = "";
+    while (value[i] && i + 1 < capacity) {
+        view[i] = value[i];
+        i++;
+    }
+    view[i] = '\0';
+    return view;
+}
+
+static uint32_t icon_view_pid(void) {
+    uint32_t pid = process_get_current_pid();
+    return pid <= MAX_PROCESSES ? pid : 0;
+}
+
+static void gfx2d_icons_touch_locked(void) {
+    icon_generation++;
+    if (icon_generation == 0u)
+        icon_generation = 1u;
+}
 
 static int clamp_icon_x(int x) {
     if (x < ICON_LEFT_MARGIN) {
@@ -29,7 +58,7 @@ static int clamp_icon_x(int x) {
 
 /* Initialization */
 
-void gfx2d_icons_init(void) {
+static void gfx2d_icons_init_locked(void) {
     icon_count = 0;
     memset(icons, 0, sizeof(icons));
     serial_printf("[icons] Icon system initialized\n");
@@ -37,8 +66,9 @@ void gfx2d_icons_init(void) {
 
 /* Icon Registration */
 
-int gfx2d_icon_register(const char *label, const char *program_path,
-                        int x, int y) {
+static int gfx2d_icon_register_locked(const char *label,
+                                      const char *program_path,
+                                      int x, int y) {
     if (icon_count >= GFX2D_MAX_ICONS) {
         serial_printf("[icons] Max icons reached (%d)\n", GFX2D_MAX_ICONS);
         return -1;
@@ -84,7 +114,9 @@ int gfx2d_icon_register(const char *label, const char *program_path,
     ic->type = ICON_TYPE_APP;
     ic->color = 0x0080FF; /* Default blue */
     ic->custom_draw = 0;
+    ic->custom_draw_owner = 0u;
     ic->launch = 0;
+    ic->launch_owner = 0u;
     ic->selected = 0;
     ic->enabled = 1;
 
@@ -94,7 +126,7 @@ int gfx2d_icon_register(const char *label, const char *program_path,
     return icon_count++;
 }
 
-void gfx2d_icon_set_desc(int handle, const char *desc) {
+static void gfx2d_icon_set_desc_locked(int handle, const char *desc) {
     if (handle < 0 || handle >= icon_count) return;
     int i = 0;
     while (desc[i] && i < GFX2D_ICON_DESC_MAX - 1) {
@@ -104,39 +136,56 @@ void gfx2d_icon_set_desc(int handle, const char *desc) {
     icons[handle].description[i] = '\0';
 }
 
-void gfx2d_icon_set_type(int handle, int type) {
+static void gfx2d_icon_set_type_locked(int handle, int type) {
     if (handle < 0 || handle >= icon_count) return;
     icons[handle].type = type;
 }
 
-void gfx2d_icon_set_color(int handle, uint32_t color) {
+static void gfx2d_icon_set_color_locked(int handle, uint32_t color) {
     if (handle < 0 || handle >= icon_count) return;
     icons[handle].color = color;
 }
 
-void gfx2d_icon_set_custom_drawer(int handle, void (*drawer)(int, int)) {
+static void gfx2d_icon_set_custom_drawer_locked(
+    int handle,
+    void (*drawer)(int, int)
+) {
     if (handle < 0 || handle >= icon_count) return;
-    icons[handle].custom_draw = drawer;
-    icons[handle].type = ICON_TYPE_CUSTOM;
+    if (drawer) {
+        icons[handle].custom_draw_owner = process_get_current_pid() + 1u;
+        icons[handle].type = ICON_TYPE_CUSTOM;
+        icons[handle].custom_draw = drawer;
+    } else {
+        icons[handle].custom_draw = 0;
+        icons[handle].custom_draw_owner = 0u;
+    }
 }
 
-void gfx2d_icon_set_launch(int handle, void (*launch_fn)(void)) {
+static void gfx2d_icon_set_launch_locked(int handle, void (*launch_fn)(void)) {
     if (handle < 0 || handle >= icon_count) return;
-    icons[handle].launch = launch_fn;
+    if (launch_fn) {
+        icons[handle].launch_owner = process_get_current_pid() + 1u;
+        icons[handle].launch = launch_fn;
+    } else {
+        icons[handle].launch = 0;
+        icons[handle].launch_owner = 0u;
+    }
 }
 
-void (*gfx2d_icon_get_launch(int handle))(void) {
-    if (handle < 0 || handle >= icon_count) return 0;
-    return icons[handle].launch;
+static int gfx2d_icon_invoke_launch_locked(int handle) {
+    if (handle < 0 || handle >= icon_count || !icons[handle].launch)
+        return 0;
+    icons[handle].launch();
+    return 1;
 }
 
-void gfx2d_icon_set_pos(int handle, int x, int y) {
+static void gfx2d_icon_set_pos_locked(int handle, int x, int y) {
     if (handle < 0 || handle >= icon_count) return;
     icons[handle].x = clamp_icon_x(x);
     icons[handle].y = y;
 }
 
-void gfx2d_icon_snap_to_grid(int handle) {
+static void gfx2d_icon_snap_to_grid_locked(int handle) {
     if (handle < 0 || handle >= icon_count) return;
     gfx2d_icon_t *ic = &icons[handle];
     int rel_x = ic->x - ICON_LEFT_MARGIN;
@@ -146,32 +195,32 @@ void gfx2d_icon_snap_to_grid(int handle) {
     ic->y = (ic->y / GFX2D_ICON_GRID_SIZE) * GFX2D_ICON_GRID_SIZE + 10;
 }
 
-const char *gfx2d_icon_get_label(int handle) {
+static const char *gfx2d_icon_get_label_locked(int handle) {
     if (handle < 0 || handle >= icon_count) return "";
     return icons[handle].label;
 }
 
-const char *gfx2d_icon_get_path(int handle) {
+static const char *gfx2d_icon_get_path_locked(int handle) {
     if (handle < 0 || handle >= icon_count) return "";
     return icons[handle].program_path;
 }
 
-const char *gfx2d_icon_get_desc(int handle) {
+static const char *gfx2d_icon_get_desc_locked(int handle) {
     if (handle < 0 || handle >= icon_count) return "";
     return icons[handle].description;
 }
 
-int gfx2d_icon_get_x(int handle) {
+static int gfx2d_icon_get_x_locked(int handle) {
     if (handle < 0 || handle >= icon_count) return 0;
     return icons[handle].x;
 }
 
-int gfx2d_icon_get_y(int handle) {
+static int gfx2d_icon_get_y_locked(int handle) {
     if (handle < 0 || handle >= icon_count) return 0;
     return icons[handle].y;
 }
 
-void gfx2d_icon_select(int handle) {
+static void gfx2d_icon_select_locked(int handle) {
     /* Deselect all first */
     for (int i = 0; i < icon_count; i++)
         icons[i].selected = 0;
@@ -179,12 +228,12 @@ void gfx2d_icon_select(int handle) {
         icons[handle].selected = 1;
 }
 
-void gfx2d_icon_deselect_all(void) {
+static void gfx2d_icon_deselect_all_locked(void) {
     for (int i = 0; i < icon_count; i++)
         icons[i].selected = 0;
 }
 
-int gfx2d_icon_find_by_path(const char *path) {
+static int gfx2d_icon_find_by_path_locked(const char *path) {
     for (int i = 0; i < icon_count; i++) {
         if (icons[i].enabled && strcmp(icons[i].program_path, path) == 0)
             return i;
@@ -192,18 +241,60 @@ int gfx2d_icon_find_by_path(const char *path) {
     return -1;
 }
 
-void gfx2d_icon_unregister(int handle) {
+static void gfx2d_icon_unregister_locked(int handle) {
     if (handle < 0 || handle >= icon_count) return;
+    icons[handle].custom_draw = 0;
+    icons[handle].custom_draw_owner = 0u;
+    icons[handle].launch = 0;
+    icons[handle].launch_owner = 0u;
     icons[handle].enabled = 0;
 }
 
-int gfx2d_icon_count(void) {
+static int gfx2d_icons_release_process_callbacks_locked(uint32_t pid) {
+    uint32_t owner;
+    int changed = 0;
+    if (pid == 0u || pid > MAX_PROCESSES)
+        return 0;
+    owner = pid + 1u;
+    /* Invalidate any cached rendering before callback fields can change. */
+    gfx2d_icons_touch_locked();
+    for (int i = 0; i < icon_count; i++) {
+        if (icons[i].custom_draw_owner == owner) {
+            icons[i].custom_draw = 0;
+            icons[i].custom_draw_owner = 0u;
+            if (icons[i].type == ICON_TYPE_CUSTOM)
+                icons[i].type = ICON_TYPE_APP;
+            changed = 1;
+        }
+        if (icons[i].launch_owner == owner) {
+            icons[i].launch = 0;
+            icons[i].launch_owner = 0u;
+            changed = 1;
+        }
+    }
+    return changed;
+}
+
+static int gfx2d_icons_process_owns_callbacks_locked(uint32_t pid) {
+    uint32_t owner;
+    if (pid == 0u || pid > MAX_PROCESSES)
+        return 0;
+    owner = pid + 1u;
+    for (int i = 0; i < icon_count; i++) {
+        if (icons[i].custom_draw_owner == owner ||
+            icons[i].launch_owner == owner)
+            return 1;
+    }
+    return 0;
+}
+
+static int gfx2d_icon_count_locked(void) {
     return icon_count;
 }
 
 /* Hit Testing */
 
-int gfx2d_icon_at_pos(int x, int y) {
+static int gfx2d_icon_at_pos_locked(int x, int y) {
     for (int i = 0; i < icon_count; i++) {
         if (!icons[i].enabled) continue;
         gfx2d_icon_t *ic = &icons[i];
@@ -216,7 +307,7 @@ int gfx2d_icon_at_pos(int x, int y) {
     return -1;
 }
 
-int gfx2d_icons_handle_click(int x, int y) {
+static int gfx2d_icons_handle_click_locked(int x, int y) {
     int handle = gfx2d_icon_at_pos(x, y);
     if (handle >= 0) {
         gfx2d_icon_select(handle);
@@ -338,7 +429,12 @@ void gfx2d_draw_icon_default(int x, int y, int type, uint32_t color) {
     }
 }
 
-void gfx2d_icon_draw_named(const char *label, int x, int y, uint32_t color) {
+static void gfx2d_icon_draw_named_locked(
+    const char *label,
+    int x,
+    int y,
+    uint32_t color
+) {
     if (!label)
         return;
     for (int i = 0; i < icon_count; i++) {
@@ -396,7 +492,7 @@ static void draw_single_icon(gfx2d_icon_t *icon) {
                0xFFFFFF, 0);
 }
 
-void gfx2d_icons_draw_all(void) {
+static void gfx2d_icons_draw_all_locked(void) {
     for (int i = 0; i < icon_count; i++) {
         if (!icons[i].enabled) continue;
         draw_single_icon(&icons[i]);
@@ -678,7 +774,7 @@ done:
 
 /* Auto-Discovery: Scan /bin for icons */
 
-void gfx2d_icons_scan_bin(void) {
+static void gfx2d_icons_scan_bin_locked(void) {
     int fd = vfs_open("/bin", O_RDONLY);
     if (fd < 0) {
         serial_printf("[icons] Cannot open /bin for scanning\n");
@@ -750,7 +846,7 @@ void gfx2d_icons_scan_bin(void) {
 
 /* Persistence: Save/Load icon positions */
 
-void gfx2d_icons_save(void) {
+static void gfx2d_icons_save_locked(void) {
     int fd = vfs_open(ICON_CONFIG_PATH, O_WRONLY | O_CREAT | O_TRUNC);
     if (fd < 0) {
         serial_printf("[icons] Cannot save icon config\n");
@@ -823,7 +919,7 @@ void gfx2d_icons_save(void) {
     serial_printf("[icons] Saved %d icon positions\n", icon_count);
 }
 
-void gfx2d_icons_load(void) {
+static void gfx2d_icons_load_locked(void) {
     int fd = vfs_open(ICON_CONFIG_PATH, O_RDONLY);
     if (fd < 0) {
         /* Config file doesn't exist yet - that's fine */
@@ -895,4 +991,235 @@ void gfx2d_icons_load(void) {
         if (next) line = next + 1;
         else break;
     }
+}
+
+void gfx2d_icons_init(void) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    gfx2d_icons_touch_locked();
+    gfx2d_icons_init_locked();
+    gfx2d_shared_writer_end(writer_lease);
+}
+
+int gfx2d_icon_register(const char *label, const char *program_path,
+                        int x, int y) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    gfx2d_icons_touch_locked();
+    int result = gfx2d_icon_register_locked(label, program_path, x, y);
+    gfx2d_shared_writer_end(writer_lease);
+    return result;
+}
+
+void gfx2d_icon_set_desc(int handle, const char *desc) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    gfx2d_icon_set_desc_locked(handle, desc);
+    gfx2d_shared_writer_end(writer_lease);
+}
+
+void gfx2d_icon_set_type(int handle, int type) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    gfx2d_icons_touch_locked();
+    gfx2d_icon_set_type_locked(handle, type);
+    gfx2d_shared_writer_end(writer_lease);
+}
+
+void gfx2d_icon_set_color(int handle, uint32_t color) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    gfx2d_icons_touch_locked();
+    gfx2d_icon_set_color_locked(handle, color);
+    gfx2d_shared_writer_end(writer_lease);
+}
+
+void gfx2d_icon_set_custom_drawer(int handle, void (*drawer)(int, int)) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    gfx2d_icons_touch_locked();
+    gfx2d_icon_set_custom_drawer_locked(handle, drawer);
+    gfx2d_shared_writer_end(writer_lease);
+}
+
+void gfx2d_icon_set_launch(int handle, void (*launch_fn)(void)) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    gfx2d_icons_touch_locked();
+    gfx2d_icon_set_launch_locked(handle, launch_fn);
+    gfx2d_shared_writer_end(writer_lease);
+}
+
+int gfx2d_icon_invoke_launch(int handle) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    int result = gfx2d_icon_invoke_launch_locked(handle);
+    gfx2d_shared_writer_end(writer_lease);
+    return result;
+}
+
+void gfx2d_icon_set_pos(int handle, int x, int y) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    gfx2d_icons_touch_locked();
+    gfx2d_icon_set_pos_locked(handle, x, y);
+    gfx2d_shared_writer_end(writer_lease);
+}
+
+void gfx2d_icon_snap_to_grid(int handle) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    gfx2d_icons_touch_locked();
+    gfx2d_icon_snap_to_grid_locked(handle);
+    gfx2d_shared_writer_end(writer_lease);
+}
+
+const char *gfx2d_icon_get_label(int handle) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    uint32_t pid = icon_view_pid();
+    const char *result = copy_icon_view(
+        icon_label_views[pid],
+        GFX2D_ICON_LABEL_MAX,
+        gfx2d_icon_get_label_locked(handle)
+    );
+    gfx2d_shared_writer_end(writer_lease);
+    return result;
+}
+
+const char *gfx2d_icon_get_path(int handle) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    uint32_t pid = icon_view_pid();
+    const char *result = copy_icon_view(
+        icon_path_views[pid],
+        GFX2D_ICON_PATH_MAX,
+        gfx2d_icon_get_path_locked(handle)
+    );
+    gfx2d_shared_writer_end(writer_lease);
+    return result;
+}
+
+const char *gfx2d_icon_get_desc(int handle) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    uint32_t pid = icon_view_pid();
+    const char *result = copy_icon_view(
+        icon_desc_views[pid],
+        GFX2D_ICON_DESC_MAX,
+        gfx2d_icon_get_desc_locked(handle)
+    );
+    gfx2d_shared_writer_end(writer_lease);
+    return result;
+}
+
+int gfx2d_icon_get_x(int handle) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    int result = gfx2d_icon_get_x_locked(handle);
+    gfx2d_shared_writer_end(writer_lease);
+    return result;
+}
+
+int gfx2d_icon_get_y(int handle) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    int result = gfx2d_icon_get_y_locked(handle);
+    gfx2d_shared_writer_end(writer_lease);
+    return result;
+}
+
+void gfx2d_icon_select(int handle) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    gfx2d_icons_touch_locked();
+    gfx2d_icon_select_locked(handle);
+    gfx2d_shared_writer_end(writer_lease);
+}
+
+void gfx2d_icon_deselect_all(void) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    gfx2d_icons_touch_locked();
+    gfx2d_icon_deselect_all_locked();
+    gfx2d_shared_writer_end(writer_lease);
+}
+
+int gfx2d_icon_find_by_path(const char *path) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    int result = gfx2d_icon_find_by_path_locked(path);
+    gfx2d_shared_writer_end(writer_lease);
+    return result;
+}
+
+void gfx2d_icon_unregister(int handle) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    gfx2d_icons_touch_locked();
+    gfx2d_icon_unregister_locked(handle);
+    gfx2d_shared_writer_end(writer_lease);
+}
+
+int gfx2d_icon_count(void) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    int result = gfx2d_icon_count_locked();
+    gfx2d_shared_writer_end(writer_lease);
+    return result;
+}
+
+int gfx2d_icon_at_pos(int x, int y) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    int result = gfx2d_icon_at_pos_locked(x, y);
+    gfx2d_shared_writer_end(writer_lease);
+    return result;
+}
+
+int gfx2d_icons_handle_click(int x, int y) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    int result = gfx2d_icons_handle_click_locked(x, y);
+    gfx2d_shared_writer_end(writer_lease);
+    return result;
+}
+
+void gfx2d_icon_draw_named(const char *label, int x, int y, uint32_t color) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    gfx2d_icon_draw_named_locked(label, x, y, color);
+    gfx2d_shared_writer_end(writer_lease);
+}
+
+void gfx2d_icons_draw_all(void) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    gfx2d_icons_draw_all_locked();
+    gfx2d_shared_writer_end(writer_lease);
+}
+
+void gfx2d_icons_scan_bin(void) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    gfx2d_icons_touch_locked();
+    gfx2d_icons_scan_bin_locked();
+    gfx2d_shared_writer_end(writer_lease);
+}
+
+void gfx2d_icons_save(void) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    gfx2d_icons_save_locked();
+    gfx2d_shared_writer_end(writer_lease);
+}
+
+void gfx2d_icons_load(void) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    gfx2d_icons_touch_locked();
+    gfx2d_icons_load_locked();
+    gfx2d_shared_writer_end(writer_lease);
+}
+
+uint32_t gfx2d_icons_generation(void) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    uint32_t result = icon_generation;
+    gfx2d_shared_writer_end(writer_lease);
+    return result;
+}
+
+int gfx2d_icons_process_owns_callbacks(uint32_t pid) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    int result = gfx2d_icons_process_owns_callbacks_locked(pid);
+    gfx2d_shared_writer_end(writer_lease);
+    return result;
+}
+
+void gfx2d_icons_release_process_callbacks(uint32_t pid) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    (void)gfx2d_icons_release_process_callbacks_locked(pid);
+    gfx2d_shared_writer_end(writer_lease);
+}
+
+int gfx2d_icons_try_release_process_callbacks(uint32_t pid) {
+    int writer_lease = gfx2d_shared_writer_try_begin();
+    if (writer_lease == 0)
+        return 0;
+    (void)gfx2d_icons_release_process_callbacks_locked(pid);
+    gfx2d_shared_writer_end(writer_lease);
+    return 1;
 }

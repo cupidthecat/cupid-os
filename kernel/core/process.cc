@@ -26,11 +26,14 @@
 #include "debug.h"
 #include "shell.h"
 #include "gui.h"
+#include "gfx2d.h"
+#include "gfx2d_icons.h"
 #include "simd.h"
 #include "percpu.h"
 #include "bkl.h"
 #include "smp.h"
 #include "serial.h"
+#include "timer.h"
 
 extern void context_switch(process_t *old_proc, process_t *new_proc,
                            uint32_t resume_eflags);
@@ -73,6 +76,7 @@ static bool       scheduler_active     = false;
 static uint32_t   external_image_generation = 0;
 static uint32_t   external_image_owner_pid = 0;
 static uint32_t   next_external_image_generation = 0;
+static uint32_t   next_process_lifetime_generation = 0;
 
 static const char *state_names[] = {
     "READY",
@@ -88,6 +92,7 @@ static const char *domain_names[] = {
 };
 
 static void idle_process(void);
+static void process_delayed_kill_entry(uint32_t request_address);
 static uint32_t find_free_slot(void);
 static void process_reap_terminated_impl(void);
 static void process_reap_terminated(void);
@@ -129,6 +134,58 @@ static void idle_process(void) {
         kernel_check_reschedule();
         __asm__ volatile("sti; hlt");
     }
+}
+
+typedef struct {
+    uint32_t target_pid;
+    uint32_t target_generation;
+    uint32_t delay_ms;
+    uint32_t wait_for_reuse;
+} process_delayed_kill_request_t;
+
+static void process_kill_expected(uint32_t pid, uint32_t expected_generation);
+
+static bool process_pid_generation_changed(uint32_t pid,
+                                           uint32_t expected_generation) {
+    bool changed;
+    if (pid == 0u || pid > MAX_PROCESSES)
+        return false;
+    bkl_lock();
+    changed = process_table[pid - 1u].pid == pid &&
+              process_table[pid - 1u].lifetime_generation !=
+                  expected_generation;
+    bkl_unlock();
+    return changed;
+}
+
+static void process_delayed_kill_entry(uint32_t request_address) {
+    process_delayed_kill_request_t *request =
+        (process_delayed_kill_request_t *)request_address;
+    uint32_t target_pid;
+    uint32_t target_generation;
+    uint32_t delay_ms;
+    uint32_t wait_for_reuse;
+    uint32_t start_ms;
+    if (!request)
+        return;
+    target_pid = request->target_pid;
+    target_generation = request->target_generation;
+    delay_ms = request->delay_ms;
+    wait_for_reuse = request->wait_for_reuse;
+    kfree(request);
+
+    if (wait_for_reuse) {
+        while (!process_pid_generation_changed(target_pid,
+                                               target_generation))
+            process_yield();
+        process_kill_expected(target_pid, target_generation);
+        return;
+    }
+
+    start_ms = timer_get_uptime_ms();
+    while ((uint32_t)(timer_get_uptime_ms() - start_ms) < delay_ms)
+        process_yield();
+    process_kill_expected(target_pid, target_generation);
 }
 
 /*  *  find_free_slot
@@ -182,8 +239,18 @@ static bool process_cleanup_resources_locked(process_t *process) {
     }
 
     uint32_t dead_pid = process->pid;
+    int gui_cleanup_result;
+    gui_release_process_paint(dead_pid);
+    if (!gfx2d_try_release_process_ownership(dead_pid))
+        return false;
+    /* The image remains intact until callbacks have drained behind the
+     * writer gate and their persistent icon slots are cleared. */
+    if (!gfx2d_icons_try_release_process_callbacks(dead_pid))
+        return false;
     shell_jit_discard_by_owner(dead_pid);
-    gui_destroy_windows_by_owner(dead_pid);
+    gui_cleanup_result = gui_destroy_windows_by_owner(dead_pid);
+    if (gui_cleanup_result == GUI_ERR_BUSY)
+        return false;
 
     if (process->stack_base) {
         kfree(process->stack_base);
@@ -238,6 +305,7 @@ void process_init(void) {
     external_image_generation = 0;
     external_image_owner_pid = 0;
     next_external_image_generation = 0;
+    next_process_lifetime_generation = 0;
 
     uint32_t pid = process_create(idle_process, "idle", DEFAULT_STACK_SIZE);
     if (pid != 1) {
@@ -335,6 +403,10 @@ static uint32_t process_create_common_locked(void (*entry_point)(void),
         domain = PROCESS_DOMAIN_KERNEL;
     }
     p->domain     = domain;
+    next_process_lifetime_generation++;
+    if (next_process_lifetime_generation == 0u)
+        next_process_lifetime_generation++;
+    p->lifetime_generation = next_process_lifetime_generation;
 
     /* Copy name */
     if (name) {
@@ -576,7 +648,8 @@ uint32_t process_get_current_pid(void) {
 
 /*  *  process_kill
  **/
-void process_kill(uint32_t pid) {
+static void process_kill_expected(uint32_t pid,
+                                  uint32_t expected_generation) {
     if (pid == 0 || pid == 1) {
         KWARN("Cannot kill PID %u", pid);
         return;
@@ -609,9 +682,16 @@ void process_kill(uint32_t pid) {
     bkl_lock();
 
     process_t *p = &process_table[pid - 1];
-    if (p->pid == 0) {
+    if (p->pid == 0 ||
+        (expected_generation != 0u &&
+         p->lifetime_generation != expected_generation)) {
         bkl_unlock();
-        KWARN("PID %u does not exist", pid);
+        if (expected_generation != 0u) {
+            serial_printf("[PROCESS] Delayed kill skipped stale PID %u\n",
+                          pid);
+        } else {
+            KWARN("PID %u does not exist", pid);
+        }
         return;
     }
 
@@ -636,6 +716,56 @@ void process_kill(uint32_t pid) {
         (void)process_reclaim_locked(p);
         bkl_unlock();
     }
+}
+
+void process_kill(uint32_t pid) {
+    process_kill_expected(pid, 0u);
+}
+
+uint32_t process_kill_after_ms(uint32_t pid, uint32_t delay_ms) {
+    process_delayed_kill_request_t *request;
+    uint32_t target_generation;
+    uint32_t helper_pid;
+    uint32_t wait_for_reuse = pid == 0u ? 1u : 0u;
+    if (pid == 0u)
+        pid = process_get_current_pid();
+    if (pid <= 1u || pid > MAX_PROCESSES)
+        return 0u;
+    bkl_lock();
+    if (process_table[pid - 1u].pid != pid ||
+        process_table[pid - 1u].state == PROCESS_TERMINATED) {
+        bkl_unlock();
+        return 0u;
+    }
+    target_generation = process_table[pid - 1u].lifetime_generation;
+    bkl_unlock();
+    request = (process_delayed_kill_request_t *)kmalloc(sizeof(*request));
+    if (!request)
+        return 0u;
+    request->target_pid = pid;
+    request->target_generation = target_generation;
+    request->delay_ms = delay_ms;
+    request->wait_for_reuse = wait_for_reuse;
+    helper_pid = process_create_with_arg(
+        (void (*)(void))process_delayed_kill_entry,
+        "delayed-kill",
+        DEFAULT_STACK_SIZE,
+        (uint32_t)request
+    );
+    if (helper_pid == 0u) {
+        kfree(request);
+        return 0u;
+    }
+    if (wait_for_reuse) {
+        serial_printf("[PROCESS] Delayed killer PID %u waiting for PID %u "
+                      "reuse\n",
+                      helper_pid, pid);
+    } else {
+        serial_printf("[PROCESS] Delayed killer PID %u targeting PID %u "
+                      "after %u ms\n",
+                      helper_pid, pid, delay_ms);
+    }
+    return helper_pid;
 }
 
 /*  *  process_get_state - return state of a process by PID
@@ -942,6 +1072,7 @@ void schedule(void) {
     bkl_lock();
     if (cpu->bkl_depth == 1u) {
         (void)percpu_take_reschedule(cpu);
+        process_reap_terminated_impl();
     } else if (scheduler_active) {
         /* A direct yield/schedule inside an outer critical section cannot
          * switch safely.  Convert it to the same CPU-local request used by a

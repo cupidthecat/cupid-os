@@ -14,6 +14,7 @@
 
 #include "doomgeneric_cupidos.h"
 #include "dglibc.h"
+#include "gfx2d.h"
 #include "vga.h"
 #include "keyboard.h"
 #include "serial.h"
@@ -340,6 +341,7 @@ int doom_main(int argc, char **argv) {
         dg_disarm_exit();
         keyboard_unsubscribe();
         I_ResetExitState();
+        gfx2d_fullscreen_exit();
         serial_write_string("[doom] returned to shell\n");
         return 0;
     }
@@ -348,6 +350,7 @@ int doom_main(int argc, char **argv) {
      * (BKL save/restore in process_yield).  DOOM busy-waits on PIT-driven
      * timer in TryRunTics, so without IF=1 the wait spins forever.*/
     __asm__ volatile("sti");
+    gfx2d_fullscreen_enter();
 
     /* Wipe the framebuffer so leftover terminal/desktop pixels don't
      * leak through during DOOM frames where some columns (border, sky,
@@ -377,6 +380,7 @@ int doom_main(int argc, char **argv) {
         uint32_t *fb = vga_get_framebuffer();
         if (!fb) {
             serial_write_string("[doom] no back buffer for DG_ScreenBuffer\n");
+            gfx2d_fullscreen_exit();
             return 1;
         }
         int y_off = (VGA_GFX_HEIGHT - DG_RESY) / 2;
@@ -400,5 +404,6 @@ int doom_main(int argc, char **argv) {
 
     /* If the loop ever becomes finite, keep the normal shutdown path. */
     I_Quit();
+    gfx2d_fullscreen_exit();
     return 0;
 }

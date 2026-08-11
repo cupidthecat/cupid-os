@@ -205,7 +205,7 @@ class PrivateCupidCKernelBindingTypeTests(unittest.TestCase):
         declarations, bindings, violations = _binding_contract(source)
         self.assertEqual(violations, [])
         self.assertEqual(len(declarations), len(bindings))
-        self.assertEqual(len(bindings), 556)
+        self.assertEqual(len(bindings), 557)
         published_types = Counter(
             binding["return_type"]
             if binding["macro"] == "BIND_T"
@@ -218,7 +218,7 @@ class PrivateCupidCKernelBindingTypeTests(unittest.TestCase):
                 {
                     "TYPE_INT": 208,
                     "TYPE_VOID": 231,
-                    "TYPE_UINT": 40,
+                    "TYPE_UINT": 41,
                     "TYPE_DOUBLE": 25,
                     "TYPE_FLOAT": 25,
                     "TYPE_CHAR_PTR": 19,

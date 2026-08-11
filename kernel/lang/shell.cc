@@ -14,6 +14,7 @@
 #include "fat16.h"
 #include "fs.h"
 #include "gfx2d.h"
+#include "gfx2d_icons.h"
 #include "gui_themes.h"
 #include "kernel.h"
 #include "keyboard.h"
@@ -4038,6 +4039,7 @@ int shell_jit_program_start_regions(const char *name,
                                     uint32_t data_bytes) {
   uint32_t code_end;
   uint32_t data_end;
+  uint32_t current_pid = process_get_current_pid();
   if (code_address == 0u || code_bytes == 0u || data_address == 0u ||
       data_bytes == 0u || code_address > 0xffffffffu - code_bytes ||
       data_address > 0xffffffffu - data_bytes) {
@@ -4048,6 +4050,12 @@ int shell_jit_program_start_regions(const char *name,
   data_end = data_address + data_bytes;
   if (code_address < data_end && data_address < code_end) {
     serial_printf("[shell] JIT start rejected overlapping memory regions\n");
+    return 0;
+  }
+  if (jit_regions_active && jit_owner_pid == current_pid &&
+      (gfx2d_process_owns_render_state(current_pid) ||
+       gfx2d_icons_process_owns_callbacks(current_pid))) {
+    serial_printf("[shell] JIT start rejected nested graphics owner\n");
     return 0;
   }
 
@@ -4106,7 +4114,7 @@ int shell_jit_program_start_regions(const char *name,
   }
 
   /* Current process now owns the JIT region */
-  jit_owner_pid = process_get_current_pid();
+  jit_owner_pid = current_pid;
   jit_code_address = code_address;
   jit_code_bytes = code_bytes;
   jit_data_address = data_address;
@@ -4145,6 +4153,10 @@ int shell_jit_program_start(const char *name) {
 }
 
 void shell_jit_program_end(void) {
+  /* Callback pointers can refer into the JIT arena. Make them unreachable
+   * before a nested pop restores different code into that arena. */
+  gfx2d_icons_release_process_callbacks(process_get_current_pid());
+
   /* Pop previous JIT state if we nested */
   if (jit_stack_depth > 0) {
     jit_stack_depth--;
@@ -4198,10 +4210,9 @@ void shell_jit_program_end(void) {
     jit_program_name[0] = '\0';
   }
 
-  /* Defensive cleanup: fullscreen apps can bypass their own teardown paths. */
-  if (gfx2d_fullscreen_active()) {
-    gfx2d_fullscreen_exit();
-  }
+  /* A JIT can bypass both paint and fullscreen teardown on return. */
+  gui_release_process_paint(process_get_current_pid());
+  gfx2d_release_process_ownership(process_get_current_pid());
 }
 
 void shell_jit_program_suspend(void) {

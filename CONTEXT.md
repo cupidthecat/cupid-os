@@ -318,7 +318,7 @@ The ramfs program table, homefs document table, and CupidASM demo table. Checked
 _Avoid_: every generated C file, Python-free generation, kernel source cohort
 
 **Production checked-seed tool cohort**:
-The root image transforms owned by CupidASM, CupidObj, CupidLD, and CupidDis. The normal graph verifies and freezes the manifest-bound five-tool seed before each command, then checks the live trust unit again after the command. Checked production kernel, generated-install, and user CupidC calls plus checked user CupidLD links use that same invocation contract. Each wrapper supplies its existing frozen cohort, and the shared runner rejects manifest or image drift detected after the private tool returns. It contains five CupidASM transforms, 189 CupidObj transforms, two CupidLD links, and one CupidDis inspection. Every one of the 438 root outputs has a Cupid tool owner, so no root output is Python-only. The fifth CupidASM transform assembles the ISO spanning fixture from checked-in CupidASM source. Python verifies its exact byte lane and controls publication. The CupidObj total includes the three installation-source generators, kernel-symbol source generator, pristine disk-template author, repository ISO author, and guarded Doom profile-manifest author. Python supplies orchestration, safety, parity, and publication checks across all 447 transforms, and Windows uses WSL, but no native hosted Cupid executable is reachable from root `all`. The checked user compiler and Toolchain contract publisher create the output directories needed for their artifacts, so empty-directory setup is not a separate graph transform. The compiler pins every POSIX component with no-follow descriptors and every Windows component with parent-relative directory handles until its final resolved-output check. Make applies `$(sort ...)` to every wildcard-discovered output list, so generators and links receive the same order under Windows and Linux host locales. The repository stores its runtime JPEG as a sequential SOF0 frame. Hostbuild freezes its exact bytes and asks checked CupidObj `wrap-jpeg` to validate and wrap the private snapshot under the original source identity. Only after CupidObj succeeds does Python run an independent validator against the same snapshot, require byte parity, recheck the live manifest and input, and publish a regular candidate atomically. A validator disagreement and a failed private oracle copy have distinct diagnostics, and both preserve the old object. FFmpeg, `jpegtran`, `djpeg`, and `cjpeg` do not participate. The first cross-host comparison matched 426 of 430 kernel artifacts and traced all four remaining differences to the old host JPEG conversion. After the replacement, a 607.7-second Linux kernel build and a 341.6-second Windows root build produced all 430 frozen kernel artifacts byte for byte. A fresh normal image then passed a private `/bin/ls.cc` JIT boot in 49.8 seconds. Native commands remain explicit development and oracle targets. ADR 0190 records the root tool handoff, ADR 0204 records installation-source ownership, ADR 0224 records kernel-symbol source ownership, ADR 0227 records the fixture transfer, ADR 0235 records the JPEG acceptance transfer, ADR 0238 records disk-template production ownership, ADR 0241 records ISO production ownership, ADR 0244 records profile-manifest production ownership, ADR 0245 records publisher-owned output directories, and ADR 0246 records the shared invocation boundary.
+The root image transforms owned by CupidASM, CupidObj, CupidLD, and CupidDis. The normal graph verifies and freezes the manifest-bound five-tool seed before each command, then checks the live trust unit again after the command. Checked production kernel, generated-install, and user CupidC calls plus checked user CupidLD links use that same invocation contract. Each wrapper supplies its existing frozen cohort, and the shared runner rejects manifest or image drift detected after the private tool returns. It contains five CupidASM transforms, 191 CupidObj transforms, two CupidLD links, and one CupidDis inspection. Every one of the 440 root outputs has a Cupid tool owner, so no root output is Python-only. The fifth CupidASM transform assembles the ISO spanning fixture from checked-in CupidASM source. Python verifies its exact byte lane and controls publication. The CupidObj total includes the three installation-source generators, kernel-symbol source generator, pristine disk-template author, repository ISO author, and guarded Doom profile-manifest author. Python supplies orchestration, safety, parity, and publication checks across all 449 transforms, and Windows uses WSL, but no native hosted Cupid executable is reachable from root `all`. The checked user compiler and Toolchain contract publisher create the output directories needed for their artifacts, so empty-directory setup is not a separate graph transform. The compiler pins every POSIX component with no-follow descriptors and every Windows component with parent-relative directory handles until its final resolved-output check. Make applies `$(sort ...)` to every wildcard-discovered output list, so generators and links receive the same order under Windows and Linux host locales. The repository stores its runtime JPEG as a sequential SOF0 frame. Hostbuild freezes its exact bytes and asks checked CupidObj `wrap-jpeg` to validate and wrap the private snapshot under the original source identity. Only after CupidObj succeeds does Python run an independent validator against the same snapshot, require byte parity, recheck the live manifest and input, and publish a regular candidate atomically. A validator disagreement and a failed private oracle copy have distinct diagnostics, and both preserve the old object. FFmpeg, `jpegtran`, `djpeg`, and `cjpeg` do not participate. The first cross-host comparison matched 426 of 430 kernel artifacts and traced all four remaining differences to the old host JPEG conversion. After the replacement, a 607.7-second Linux kernel build and a 341.6-second Windows root build produced all 430 frozen kernel artifacts byte for byte. A fresh normal image then passed a private `/bin/ls.cc` JIT boot in 49.8 seconds. Native commands remain explicit development and oracle targets. ADR 0190 records the root tool handoff, ADR 0204 records installation-source ownership, ADR 0224 records kernel-symbol source ownership, ADR 0227 records the fixture transfer, ADR 0235 records the JPEG acceptance transfer, ADR 0238 records disk-template production ownership, ADR 0241 records ISO production ownership, ADR 0244 records profile-manifest production ownership, ADR 0245 records publisher-owned output directories, and ADR 0246 records the shared invocation boundary.
 _Avoid_: native fixed point, Python-free build, hosted Toolchain contract cohort
 
 **Production CupidObj disk template**:
@@ -536,19 +536,24 @@ diagnostic only once, inside the completed `feature13_double.cc` command
 slice. A stale, repeated, or out-of-context compiler error remains fatal. A
 host oracle compiles the active emitter helpers and interprets their exact
 bytes against binary32 and binary64 payloads. The kernel bridge publishes the
-declared result type of all 556 bindings: 325 return a value and 231 return
-`void`. The value group has 208 promoted integer, 40 unsigned-word, 25
+declared result type of all 557 bindings: 326 return a value and 231 return
+`void`. The value group has 208 promoted integer, 41 unsigned-word, 25
 `float`, 25 `double`, 19 character-pointer, and eight other pointer results.
 Forty-six bindings for graphics effects, bitmap fonts, transforms, GUI
-modules, and themes complete private AOT compilation for all 104 runnable
-top-level programs. The fixed frontier first emits a private ELF, then runs all
-260 graphics-test frames through private JIT. Serial markers prove setup,
+modules, and themes complete private AOT compilation for all 106 runnable
+top-level programs. The fixed frontier emits and runs the graphics test in
+both AOT and JIT forms, then runs nested-owner exit and remote-kill fixtures.
+The exit leaves a generation-bound delayed request; a replacement owner must
+survive that stale request, die to its own foreign helper, and yield the same
+PID to another AOT graphics process. It
+runs all 260 graphics-test frames through private JIT. Serial markers prove setup,
 frame 0, frame 240, cleanup, and JIT return. The gate treats any unresolved
-native symbol as an immediate failure. GodSong publishes a program-local
-settings-readiness line before its later interactive flow. The harness no
-longer waits for a startup-only graphics diagnostic consumed by the graphics
-test. Disposable theme, BMP, font, and AOT artifacts stay in RamFS rather than
-publishing HomeFS. The gate requires each
+native symbol as an immediate failure. GodSong publishes its settings line,
+then the popup publishes a second marker after it owns the shared writer and
+raw keyboard queue. The harness waits for both markers and uses no timing
+settle before sending dialog keys. Each confirm consumes one terminal key,
+leaving later keys for later dialogs. Disposable theme, BMP, font, and AOT
+artifacts stay in RamFS rather than publishing HomeFS. The gate requires each
 asset, an exact custom-font pixel, an exact isolated blurred-surface pixel,
 unchanged screen state, and center and off-center transformed-image pixels.
 An off-origin point checks rotation and nonuniform scale, and popping the
@@ -557,11 +562,20 @@ full 32.32 determinant in signed 64-bit form while deriving each coefficient.
 Its translation products stay wide until their range check. This prevents
 identity transforms from reaching a zero divisor, retains representable
 sub-word determinants and large scales, and rejects unrepresentable results.
+The framebuffer, active gfx2d target, clip, blend mode, transforms, and
+resource registries are shared across processes. Fullscreen, desktop,
+retained-paint, and legacy-frame paths serialize access with one owner-token
+handoff. A pending fullscreen request waits for earlier desktop work, while
+process reaping releases abandoned ownership before a PID is reused. Desktop
+keyboard pops and mouse-driven window mutations borrow the same writer while
+a raw modal owns input. Raw gfx2d calls and borrowed resource pointers require
+an outer render scope.
 ADR 0189 records unary signs, ADR 0192
 records scalar comparisons, ADR 0193 records scalar truth and binding-result
 metadata, and ADR 0221 records the unsigned result split. ADR 0194 records
 floating variable updates, ADR 0198 records mixed-width cdecl calls, and ADR
-0233 records the complete embedded-program binding frontier.
+0233 records the complete embedded-program binding frontier. ADR 0261 records
+the cross-process render ownership and process-exit cleanup model.
 _Avoid_: C mode, HolyC mode
 
 **Private CupidC floating lvalue**:

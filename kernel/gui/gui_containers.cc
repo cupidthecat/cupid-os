@@ -29,7 +29,7 @@ void gui_containers_init(void) {
 int ui_draw_tabbar(ui_rect_t r, const char **tab_labels, int count,
                    ui_tabbar_state_t *state, int16_t mx, int16_t my,
                    bool clicked) {
-    ui_theme_t *theme = ui_theme_get();
+    const ui_theme_t *theme = ui_theme_get();
     int i;
     int tab_x = (int)r.x;
     int new_active = -1;
@@ -104,7 +104,7 @@ void ui_tabs_init(ui_tabs_t *tabs, ui_rect_t r, int tab_height) {
 
 int ui_tabs_handle_input(ui_tabs_t *tabs, const char **labels, int count,
                          int16_t mx, int16_t my, bool clicked) {
-    ui_theme_t *theme = ui_theme_get();
+    const ui_theme_t *theme = ui_theme_get();
     ui_tabbar_state_t state;
     int result;
 
@@ -222,7 +222,7 @@ void ui_split_v(ui_rect_t r, ui_split_state_t *state,
 }
 
 void ui_draw_splitter_h(ui_rect_t r, int x, bool hover, bool dragging) {
-    ui_theme_t *theme = ui_theme_get();
+    const ui_theme_t *theme = ui_theme_get();
     /* 0x00B0B0C0: splitter-hover has no dedicated theme field; blended gray */
     uint32_t col = dragging ? theme->accent_primary :
                    (hover ? 0x00B0B0C0 : theme->button_shadow);
@@ -239,7 +239,7 @@ void ui_draw_splitter_h(ui_rect_t r, int x, bool hover, bool dragging) {
 }
 
 void ui_draw_splitter_v(ui_rect_t r, int y, bool hover, bool dragging) {
-    ui_theme_t *theme = ui_theme_get();
+    const ui_theme_t *theme = ui_theme_get();
     /* 0x00B0B0C0: splitter-hover has no dedicated theme field; blended gray */
     uint32_t col = dragging ? theme->accent_primary :
                    (hover ? 0x00B0B0C0 : theme->button_shadow);
@@ -399,7 +399,7 @@ int ui_tree_flatten(ui_tree_node_t *root, ui_tree_node_t **out, int max) {
 ui_tree_node_t *ui_draw_treeview(ui_rect_t r, ui_tree_node_t *root,
                                   ui_tree_state_t *state, int16_t mx,
                                   int16_t my, bool clicked) {
-    ui_theme_t *theme = ui_theme_get();
+    const ui_theme_t *theme = ui_theme_get();
     ui_tree_node_t *flat[128];
     int count, i;
     int visible;

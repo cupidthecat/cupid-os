@@ -31,7 +31,7 @@ Source architecture:
 
 The normal image runs CupidASM from the checked five-tool seed. It owns five
 production assembly transforms without first building a native hosted
-command. The same checked trust unit supplies CupidObj for 189 transforms,
+command. The same checked trust unit supplies CupidObj for 191 transforms,
 CupidLD for two links, and CupidDis for symbol inspection. Python verifies
 and freezes all five images before each command; Windows executes them
 through WSL. The same runner executes checked production kernel,
@@ -41,7 +41,7 @@ command. Make passes wildcard-discovered output sources through $(sort ...)
 before generation and link, so Windows and Linux use the same root order
 regardless of host locale. ADR 0246 records this checked invocation boundary.
 
-CupidObj's 189 normal transforms include the disk-template, ISO, and guarded
+CupidObj's 190 normal transforms include the disk-template, ISO, and guarded
 profile-manifest operations. Checked CupidObj authors the pristine FAT16
 prefix from private boot and kernel copies.
 Python renders an independent oracle and requires byte parity. It then
@@ -356,6 +356,13 @@ so asm programs can call into the OS directly. Examples from kernel/lang/as.cc:
 - mouse and keyboard helpers
 - graphics helpers
 - panic/debug helpers
+
+Direct gfx2d drawing uses process-wide render state. Pair
+gfx2d_fullscreen_enter with gfx2d_fullscreen_exit, or use the retained
+gui_win_begin_paint/gui_win_end_paint scope. The compatibility
+gui_win_draw_frame call must end with gui_win_flip. Process cleanup releases
+an abandoned scope before the PID is reused. The parity_gfx2d demo acquires
+fullscreen ownership before initializing and using its offscreen surface.
 
 The shell snapshots the explicit CupidASM code and data regions before a
 nested program starts and restores them afterward. CupidC and CupidASM may use

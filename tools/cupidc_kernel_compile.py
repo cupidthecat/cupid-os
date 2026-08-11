@@ -343,6 +343,7 @@ FROZEN_KERNEL_INPUT_CLOSURES = {
         "kernel/fs/vfs.h",
         "kernel/gfx/fontsys.h",
         "kernel/gfx/gfx2d.h",
+        "kernel/gfx/gfx2d_assets.h",
         "kernel/gfx/graphics.h",
         "kernel/gui/clipboard.h",
         "kernel/gui/desktop.h",

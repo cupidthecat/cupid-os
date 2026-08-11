@@ -132,6 +132,7 @@ int main() {
   int m[6];
   int ox = 0;
   int oy = 0;
+  int handoff = 0;
   int transform_failed = 0;
 
   println("[gfxgui_test] init");
@@ -146,7 +147,6 @@ int main() {
 
   /* Module init calls (bindings smoke test) */
   gfx2d_assets_init();
-  gfx2d_transform_init();
   gfx2d_effects_init();
   gui_widgets_init();
   gui_containers_init();
@@ -186,22 +186,31 @@ int main() {
     gfx2d_image_free(img);
     return 1;
   }
-  gfx2d_font_set_default(fnt);
   serial_printf("[gfxgui_test] assets ready\n");
 
-  gfx2d_fullscreen_enter();
-  serial_printf("[gfxgui_test] fullscreen\n");
-
-  gfx2d_blend_mode(0);
-  gfx2d_rect_fill(16, 16, 8, 8, 0x010203);
-  gfx2d_text_ex(16, 16, "A", 0xFFFFFF, -1, 0);
-  if ((gfx2d_getpixel(16, 16) & 0x00FFFFFF) != 0x00FFFFFF) {
-    serial_printf("[gfxgui_test] FAIL font pixel\n");
+  for (handoff = 0; handoff < 32; handoff++) {
+    gfx2d_fullscreen_enter();
+    gfx2d_blend_mode(0);
+    if (handoff == 0)
+      serial_printf("[gfxgui_test] fullscreen\n");
+    gfx2d_rect_fill(16, 16, 8, 8, 0x010203);
+    gfx2d_text_ex(16, 16, "A", 0xFFFFFF, fnt, 0);
+    px = gfx2d_getpixel(16, 16) & 0x00FFFFFF;
+    if (px != 0x00FFFFFF) {
+      serial_printf("[gfxgui_test] FAIL font pixel handoff=%d value=%x\n",
+                    handoff, px);
+      gfx2d_fullscreen_exit();
+      gfx2d_font_free(fnt);
+      gfx2d_image_free(img);
+      return 1;
+    }
     gfx2d_fullscreen_exit();
-    gfx2d_font_free(fnt);
-    gfx2d_image_free(img);
-    return 1;
+    yield();
   }
+  gfx2d_fullscreen_enter();
+  gfx2d_blend_mode(0);
+  gfx2d_transform_init();
+  gfx2d_font_set_default(fnt);
   serial_printf("[gfxgui_test] font ready\n");
 
   gfx2d_pixel(4, 4, 0x123456);

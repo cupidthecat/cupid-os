@@ -83,7 +83,9 @@ int fontsys_line_height (int face_id, int size_px);
  *   *out_bx      : x bearing (where glyph starts relative to pen-x).
  *   *out_by      : y bearing in pixels above baseline (positive = up).
  *   *out_advance : pen advance in pixels.
- * Returns -1 if face_id invalid, codepoint missing, or rasterizer fails.*/
+ * The alpha storage stays owned by the glyph cache. A caller that uses it
+ * after return must already hold a shared gfx2d writer lease. Returns -1 if
+ * face_id is invalid, the codepoint is missing, or rasterization fails.*/
 int fontsys_glyph(int face_id, int codepoint, int size_px,
                   const uint8_t **out_alpha,
                   int *out_w, int *out_h,
@@ -127,7 +129,8 @@ int fontsys_face_has_cp(int face_id, int codepoint);
  * `codepoint`. -1 when no registered face has it.*/
 int fontsys_find_face_with_cp(int codepoint);
 
-/* Diagnostics. */
+/* Diagnostics. fontsys_face_family returns registry-owned storage. Keep a
+ * shared gfx2d writer lease while retaining or reading that pointer. */
 int fontsys_face_count(void);
 const char *fontsys_face_family(int face_id);
 int fontsys_face_weight(int face_id);

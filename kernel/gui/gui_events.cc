@@ -25,6 +25,7 @@ typedef struct {
 } ui_event_slot_t;
 
 static ui_event_slot_t g_slots[MAX_WINDOWS + 1];
+static int g_events_initialized = 0;
 
 static ui_event_slot_t *ui_event_slot_for(window_t *win, bool create) {
     int target_id = win ? (int)win->id : 0;
@@ -65,6 +66,8 @@ static ui_event_slot_t *ui_event_slot_for(window_t *win, bool create) {
 
 void gui_events_init(void) {
     int i;
+    if (g_events_initialized)
+        return;
     for (i = 0; i < MAX_WINDOWS + 1; i++) {
         g_slots[i].win_id = -1;
         g_slots[i].handler_count = 0;
@@ -73,6 +76,7 @@ void gui_events_init(void) {
     }
     /* Reserve slot 0 for global/non-windowed dialogs. */
     g_slots[0].win_id = 0;
+    g_events_initialized = 1;
 }
 
 void ui_register_handler(window_t *win, ui_event_handler_t handler) {

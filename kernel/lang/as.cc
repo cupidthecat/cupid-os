@@ -74,7 +74,7 @@
 #include "cupidc.h"
 
 #define AS_MAX_DEFINITIONS 8192u
-#define AS_EXPECTED_DEFINITIONS 631u
+#define AS_EXPECTED_DEFINITIONS 632u
 
 typedef struct {
   ctool_asm_definition_t *definitions;
@@ -643,10 +643,7 @@ static int  as_gui_win_present(int wid) {
   return gui_present_windows();
 }
 static void as_gui_win_flip(int wid) {
-  if (!gui_get_window(wid)) return;
-  (void)gui_cache_window_content(wid);
-  (void)gui_invalidate_window(wid);
-  (void)gui_present_windows();
+  (void)gui_end_legacy_frame(wid);
 }
 static int as_gui_win_can_draw(int wid) {
   window_t *focused = gui_get_focused_window();
@@ -660,8 +657,7 @@ static int as_gui_win_draw_frame(int wid) {
   window_t *focused = gui_get_focused_window();
   if (!focused) return -1;
   if ((int)focused->id != wid) return 0;
-  mouse_restore_under_cursor();
-  return gui_draw_window(wid);
+  return gui_begin_legacy_frame(wid);
 }
 
 /* Shell buffer wrappers */
@@ -802,6 +798,7 @@ static void as_register_kernel_bindings(as_definition_builder_t *as,
   AS_BIND(as, "yield",        process_yield);
   AS_BIND(as, "getpid",       process_get_current_pid);
   AS_BIND(as, "kill",         process_kill);
+  AS_BIND(as, "process_kill_after_ms", process_kill_after_ms);
   AS_BIND(as, "sleep_ms",     timer_sleep_ms);
 
   /* Shell + exec */

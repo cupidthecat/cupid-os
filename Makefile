@@ -310,7 +310,8 @@ kernel/core/kernel.o: kernel/core/kernel.cc drivers/ata.h drivers/keyboard.h \
 	kernel/fs/blockdev.h kernel/fs/devfs.h kernel/fs/fat16.h \
 	kernel/fs/fat16_vfs.h kernel/fs/fs.h kernel/fs/homefs.h \
 	kernel/fs/iso9660_vfs.h kernel/fs/ramfs.h kernel/fs/vfs.h \
-	kernel/gfx/fontsys.h kernel/gfx/gfx2d.h kernel/gfx/graphics.h \
+	kernel/gfx/fontsys.h kernel/gfx/gfx2d.h kernel/gfx/gfx2d_assets.h \
+	kernel/gfx/graphics.h \
 	kernel/gui/clipboard.h kernel/gui/desktop.h kernel/gui/gui.h \
 	kernel/gui/gui_containers.h kernel/gui/gui_events.h \
 	kernel/gui/gui_menus.h kernel/gui/gui_themes.h kernel/gui/gui_widgets.h \
@@ -708,6 +709,7 @@ kernel/doom/doomgeneric_cupidos.o: kernel/doom/doomgeneric_cupidos.cc \
                                     drivers/serial.h \
                                     drivers/timer.h \
                                     kernel/fs/vfs.h \
+                                    kernel/gfx/gfx2d.h \
                                     kernel/usb/usb.h \
                                     $(DOOM_CUPIDC_HEADERS) \
                                     $(DOOM_CUPIDC_INPUT_MANIFEST) \
@@ -860,7 +862,7 @@ kernel/gui/ctxt_image_worker.o: kernel/gui/ctxt_image_worker.cc drivers/timer.h 
 kernel/core/process.o: kernel/core/process.cc drivers/serial.h \
 	kernel/core/debug.h kernel/core/kernel.h kernel/core/process.h \
 	kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h \
-	kernel/cpu/simd.h kernel/gui/gui.h kernel/lang/shell.h \
+	kernel/cpu/simd.h kernel/gfx/gfx2d.h kernel/gui/gui.h kernel/lang/shell.h \
 	kernel/mm/memory.h kernel/smp/bkl.h kernel/smp/percpu.h kernel/smp/smp.h \
 	$(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/core/process.cc --output kernel/core/process.o
@@ -1001,7 +1003,7 @@ kernel/fs/vfs_helpers.o: kernel/fs/vfs_helpers.cc kernel/core/string.h kernel/co
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/fs/vfs_helpers.cc --output kernel/fs/vfs_helpers.o
 
 # 2D graphics library (includes file dialog)
-kernel/gfx/gfx2d.o: kernel/gfx/gfx2d.cc drivers/keyboard.h drivers/mouse.h drivers/rtc.h drivers/serial.h drivers/timer.h drivers/vga.h kernel/core/kernel.h kernel/core/process.h kernel/core/string.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/cpu/simd.h kernel/fs/vfs.h kernel/gfx/font_8x8.h kernel/gfx/fontsys.h kernel/gfx/gfx2d.h kernel/gfx/graphics.h kernel/gui/desktop.h kernel/gui/gui.h kernel/gui/ui.h kernel/lang/shell.h kernel/mm/memory.h kernel/util/calendar.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+kernel/gfx/gfx2d.o: kernel/gfx/gfx2d.cc drivers/keyboard.h drivers/mouse.h drivers/rtc.h drivers/serial.h drivers/timer.h drivers/vga.h kernel/core/kernel.h kernel/core/process.h kernel/core/string.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/cpu/simd.h kernel/fs/vfs.h kernel/gfx/font_8x8.h kernel/gfx/fontsys.h kernel/gfx/gfx2d.h kernel/gfx/gfx2d_handoff.h kernel/gfx/graphics.h kernel/gui/desktop.h kernel/gui/gui.h kernel/gui/ui.h kernel/lang/shell.h kernel/mm/memory.h kernel/util/calendar.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/gfx/gfx2d.cc --output kernel/gfx/gfx2d.o
 
 # gfx2d subsystems
@@ -1031,7 +1033,7 @@ kernel/gui/gui_menus.o: kernel/gui/gui_menus.cc drivers/vga.h kernel/core/string
 kernel/gui/gui_events.o: kernel/gui/gui_events.cc drivers/vga.h kernel/core/string.h kernel/core/types.h kernel/gfx/font_8x8.h kernel/gfx/gfx2d.h kernel/gfx/graphics.h kernel/gui/gui.h kernel/gui/gui_events.h kernel/gui/ui.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/gui_events.cc --output kernel/gui/gui_events.o
 
-kernel/gui/gui_themes.o: kernel/gui/gui_themes.cc kernel/core/string.h kernel/core/types.h kernel/fs/vfs.h kernel/gui/gui_themes.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+kernel/gui/gui_themes.o: kernel/gui/gui_themes.cc kernel/core/string.h kernel/core/types.h kernel/fs/vfs.h kernel/gfx/gfx2d.h kernel/gui/gui_themes.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/gui_themes.cc --output kernel/gui/gui_themes.o
 
 # CupidC compiler

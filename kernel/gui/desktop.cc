@@ -79,6 +79,7 @@ static uint8_t workspace_cache_tile_use_bmp = 0u;
 static bool workspace_cache_has_bmp = false;
 static int desktop_icon_stamp = 1;
 static int workspace_cache_icon_stamp = 0;
+static uint32_t workspace_cache_registry_generation = 0u;
 static bool workspace_base_drawn_with_icons = false;
 
 static uint32_t *taskbar_base_cache = NULL; /* taskbar gradient + separator + brand */
@@ -109,6 +110,12 @@ static void desktop_invalidate_workspace_cache(void) {
 }
 
 static void desktop_invalidate_taskbar_cache(void) { taskbar_base_cache_valid = false; }
+
+void desktop_theme_changed(void) {
+  desktop_invalidate_taskbar_cache();
+  desktop_invalidate_workspace_cache();
+  gui_mark_all_dirty();
+}
 
 static void desktop_icons_changed(void) {
   desktop_icon_stamp++;
@@ -144,10 +151,8 @@ static void desktop_launch_icon_handle(int gfx_icon) {
 
   gfx2d_icon_select(gfx_icon);
   desktop_icons_changed();
-  void (*launch_fn)(void) = gfx2d_icon_get_launch(gfx_icon);
-  if (launch_fn) {
+  if (gfx2d_icon_invoke_launch(gfx_icon)) {
     serial_printf("[desktop] icon launch_fn handle=%d\n", gfx_icon);
-    launch_fn();
     return;
   }
 
@@ -196,7 +201,21 @@ static void desktop_show_icon_info(int gfx_icon) {
   }
 
   msg[p] = '\0';
-  gfx2d_message_dialog(msg);
+  if (gfx2d_desktop_render_begin()) {
+    gfx2d_message_dialog(msg);
+    gfx2d_desktop_render_end();
+  }
+}
+
+static int desktop_popup_menu_owned(int x, int y, const char **items,
+                                    int count) {
+  int selected;
+  if (!gfx2d_desktop_render_begin())
+    return -1;
+  mouse_restore_under_cursor();
+  selected = gfx2d_popup_menu(x, y, items, count);
+  gfx2d_desktop_render_end();
+  return selected;
 }
 
 static bool desktop_handle_global_shortcuts(const key_event_t *event,
@@ -477,6 +496,8 @@ static void desktop_bg_copy_path(char *dst, const char *src, int cap) {
 static int desktop_bg_apply_bmp(const char *path) {
   bmp_info_t info;
   uint32_t max_decode_size = (uint32_t)VGA_GFX_WIDTH * (uint32_t)TASKBAR_Y * 4u;
+  uint32_t *replacement;
+  uint32_t *old_pixels;
 
   if (!path || !path[0])
     return BMP_EINVAL;
@@ -487,21 +508,21 @@ static int desktop_bg_apply_bmp(const char *path) {
   if (info.width == 0 || info.height == 0 || info.data_size == 0)
     return BMP_EFORMAT;
 
-  if (!desktop_bg_bmp_scaled) {
-    desktop_bg_bmp_scaled =
-        (uint32_t *)kmalloc((uint32_t)VGA_GFX_WIDTH * (uint32_t)TASKBAR_Y * 4u);
-    if (!desktop_bg_bmp_scaled) {
-      return BMP_ENOMEM;
-    }
-  }
+  replacement =
+      (uint32_t *)kmalloc((uint32_t)VGA_GFX_WIDTH * (uint32_t)TASKBAR_Y * 4u);
+  if (!replacement)
+    return BMP_ENOMEM;
 
   if (info.data_size <= max_decode_size) {
     uint32_t *decoded = (uint32_t *)kmalloc(info.data_size);
-    if (!decoded)
+    if (!decoded) {
+      kfree(replacement);
       return BMP_ENOMEM;
+    }
 
     if (bmp_decode(path, decoded, info.data_size) != BMP_OK) {
       kfree(decoded);
+      kfree(replacement);
       return BMP_EFORMAT;
     }
 
@@ -509,7 +530,7 @@ static int desktop_bg_apply_bmp(const char *path) {
       uint32_t src_y = (y * info.height) / (uint32_t)TASKBAR_Y;
       if (src_y >= info.height)
         src_y = info.height - 1u;
-      uint32_t *dst_row = desktop_bg_bmp_scaled + y * (uint32_t)VGA_GFX_WIDTH;
+      uint32_t *dst_row = replacement + y * (uint32_t)VGA_GFX_WIDTH;
       uint32_t *src_row = decoded + src_y * info.width;
       for (uint32_t x = 0; x < (uint32_t)VGA_GFX_WIDTH; x++) {
         uint32_t src_x = (x * info.width) / (uint32_t)VGA_GFX_WIDTH;
@@ -523,11 +544,13 @@ static int desktop_bg_apply_bmp(const char *path) {
   } else {
     int surf = gfx2d_surface_alloc(VGA_GFX_WIDTH, TASKBAR_Y);
     if (surf < 0) {
+      kfree(replacement);
       return BMP_ENOMEM;
     }
 
     if (bmp_decode_to_surface_fit(path, surf, VGA_GFX_WIDTH, TASKBAR_Y) != BMP_OK) {
       gfx2d_surface_free(surf);
+      kfree(replacement);
       return BMP_EFORMAT;
     }
 
@@ -539,11 +562,12 @@ static int desktop_bg_apply_bmp(const char *path) {
       uint32_t *src = gfx2d_surface_data(surf, &sw, &sh);
       if (!src || sw < VGA_GFX_WIDTH || sh < TASKBAR_Y) {
         gfx2d_surface_free(surf);
+        kfree(replacement);
         return BMP_EFORMAT;
       }
       src_stride = (uint32_t)sw;
       for (uint32_t y = 0; y < (uint32_t)TASKBAR_Y; y++) {
-        memcpy(desktop_bg_bmp_scaled + y * (uint32_t)VGA_GFX_WIDTH,
+        memcpy(replacement + y * (uint32_t)VGA_GFX_WIDTH,
                src + y * src_stride,
                row_bytes);
       }
@@ -551,10 +575,23 @@ static int desktop_bg_apply_bmp(const char *path) {
     gfx2d_surface_free(surf);
   }
 
+  desktop_invalidate_workspace_cache();
+  old_pixels = desktop_bg_bmp_scaled;
+  desktop_bg_bmp_scaled = replacement;
   desktop_bg_copy_path(desktop_bg_bmp_path, path, VFS_MAX_PATH);
   desktop_bg_mode = DESKTOP_BG_BMP;
-  desktop_invalidate_workspace_cache();
+  if (old_pixels)
+    kfree(old_pixels);
   return BMP_OK;
+}
+
+static void desktop_release_tile_bmp_locked(void) {
+  uint32_t *old_pixels = desktop_tile_bmp_data;
+  desktop_tile_bmp_data = NULL;
+  desktop_tile_bmp_w = 0;
+  desktop_tile_bmp_h = 0;
+  if (old_pixels)
+    kfree(old_pixels);
 }
 
 static int desktop_bg_apply_tile_bmp(const char *path) {
@@ -566,6 +603,7 @@ static int desktop_bg_apply_tile_bmp(const char *path) {
   uint32_t *pixels;
   uint32_t pixel_count;
   uint32_t bytes;
+  uint32_t *old_pixels;
   const uint32_t max_tile_dim = 256u;
 
   if (!path || !path[0])
@@ -649,14 +687,16 @@ static int desktop_bg_apply_tile_bmp(const char *path) {
     gfx2d_surface_free(surf);
   }
 
-  if (desktop_tile_bmp_data)
-    kfree(desktop_tile_bmp_data);
-
-  desktop_tile_bmp_data = pixels;
+  desktop_invalidate_workspace_cache();
+  old_pixels = desktop_tile_bmp_data;
+  desktop_tile_bmp_data = NULL;
   desktop_tile_bmp_w = (int)tile_w;
   desktop_tile_bmp_h = (int)tile_h;
   desktop_bg_copy_path(desktop_tile_bmp_path, path, VFS_MAX_PATH);
   desktop_tile_use_bmp = 1;
+  desktop_tile_bmp_data = pixels;
+  if (old_pixels)
+    kfree(old_pixels);
   return BMP_OK;
 }
 
@@ -1059,12 +1099,7 @@ static void desktop_bg_load_config(void) {
     desktop_bg_copy_path(desktop_bg_bmp_path, bmp_path, VFS_MAX_PATH);
   }
 
-  if (desktop_tile_bmp_data) {
-    kfree(desktop_tile_bmp_data);
-    desktop_tile_bmp_data = NULL;
-    desktop_tile_bmp_w = 0;
-    desktop_tile_bmp_h = 0;
-  }
+  desktop_release_tile_bmp_locked();
 
   if (desktop_tile_use_bmp && desktop_tile_bmp_path[0]) {
     if (desktop_bg_apply_tile_bmp(desktop_tile_bmp_path) != BMP_OK) {
@@ -1289,20 +1324,30 @@ static void desktop_open_bg_settings_dialog(void) {
   desktop_bg_save_config();
 }
 
-void desktop_bg_set_mode_anim(void) {
+static void desktop_open_bg_settings_dialog_owned(void) {
+  if (!gfx2d_desktop_render_begin())
+    return;
+  desktop_open_bg_settings_dialog();
+  gfx2d_desktop_render_end();
+}
+
+static void desktop_bg_set_mode_anim_locked(void) {
   desktop_bg_mode = DESKTOP_BG_ANIM;
   desktop_invalidate_workspace_cache();
   desktop_bg_save_config();
 }
 
-void desktop_bg_set_mode_solid(uint32_t color) {
+static void desktop_bg_set_mode_solid_locked(uint32_t color) {
   desktop_bg_solid = color & 0x00FFFFFFu;
   desktop_bg_mode = DESKTOP_BG_SOLID;
   desktop_invalidate_workspace_cache();
   desktop_bg_save_config();
 }
 
-void desktop_bg_set_mode_gradient(uint32_t top_color, uint32_t bottom_color) {
+static void desktop_bg_set_mode_gradient_locked(
+    uint32_t top_color,
+    uint32_t bottom_color
+) {
   desktop_bg_grad_top = top_color & 0x00FFFFFFu;
   desktop_bg_grad_bottom = bottom_color & 0x00FFFFFFu;
   desktop_bg_mode = DESKTOP_BG_GRADIENT;
@@ -1310,7 +1355,11 @@ void desktop_bg_set_mode_gradient(uint32_t top_color, uint32_t bottom_color) {
   desktop_bg_save_config();
 }
 
-void desktop_bg_set_mode_tiled_pattern(int pattern, uint32_t fg, uint32_t bg) {
+static void desktop_bg_set_mode_tiled_pattern_locked(
+    int pattern,
+    uint32_t fg,
+    uint32_t bg
+) {
   if (pattern < DESKTOP_TILE_PATTERN_CHECKER)
     pattern = DESKTOP_TILE_PATTERN_CHECKER;
   if (pattern > DESKTOP_TILE_PATTERN_DOTS)
@@ -1325,7 +1374,7 @@ void desktop_bg_set_mode_tiled_pattern(int pattern, uint32_t fg, uint32_t bg) {
   desktop_bg_save_config();
 }
 
-int desktop_bg_set_mode_tiled_bmp(const char *path) {
+static int desktop_bg_set_mode_tiled_bmp_locked(const char *path) {
   int rc = desktop_bg_apply_tile_bmp(path);
   if (rc != BMP_OK)
     return rc;
@@ -1335,7 +1384,7 @@ int desktop_bg_set_mode_tiled_bmp(const char *path) {
   return BMP_OK;
 }
 
-int desktop_bg_set_mode_bmp(const char *path) {
+static int desktop_bg_set_mode_bmp_locked(const char *path) {
   int rc = desktop_bg_apply_bmp(path);
   if (rc != BMP_OK) {
     return rc;
@@ -1346,11 +1395,13 @@ int desktop_bg_set_mode_bmp(const char *path) {
   return BMP_OK;
 }
 
-int desktop_bg_get_mode(void) { return (int)desktop_bg_mode; }
+static int desktop_bg_get_mode_locked(void) { return (int)desktop_bg_mode; }
 
-uint32_t desktop_bg_get_solid_color(void) { return desktop_bg_solid & 0x00FFFFFFu; }
+static uint32_t desktop_bg_get_solid_color_locked(void) {
+  return desktop_bg_solid & 0x00FFFFFFu;
+}
 
-void desktop_bg_set_anim_theme(int theme) {
+static void desktop_bg_set_anim_theme_locked(int theme) {
   (void)theme;
   desktop_anim_theme = DESKTOP_ANIM_THEME_KITTY;
   desktop_bg_mode = DESKTOP_BG_ANIM;
@@ -1358,11 +1409,96 @@ void desktop_bg_set_anim_theme(int theme) {
   desktop_bg_save_config();
 }
 
-int desktop_bg_get_anim_theme(void) { return DESKTOP_ANIM_THEME_KITTY; }
+static int desktop_bg_get_anim_theme_locked(void) {
+  return DESKTOP_ANIM_THEME_KITTY;
+}
 
-int desktop_bg_get_tiled_pattern(void) { return (int)desktop_tile_pattern; }
+static int desktop_bg_get_tiled_pattern_locked(void) {
+  return (int)desktop_tile_pattern;
+}
 
-int desktop_bg_get_tiled_use_bmp(void) { return (int)desktop_tile_use_bmp; }
+static int desktop_bg_get_tiled_use_bmp_locked(void) {
+  return (int)desktop_tile_use_bmp;
+}
+
+void desktop_bg_set_mode_anim(void) {
+  int writer_lease = gfx2d_shared_writer_begin();
+  desktop_bg_set_mode_anim_locked();
+  gfx2d_shared_writer_end(writer_lease);
+}
+
+void desktop_bg_set_mode_solid(uint32_t color) {
+  int writer_lease = gfx2d_shared_writer_begin();
+  desktop_bg_set_mode_solid_locked(color);
+  gfx2d_shared_writer_end(writer_lease);
+}
+
+void desktop_bg_set_mode_gradient(uint32_t top_color, uint32_t bottom_color) {
+  int writer_lease = gfx2d_shared_writer_begin();
+  desktop_bg_set_mode_gradient_locked(top_color, bottom_color);
+  gfx2d_shared_writer_end(writer_lease);
+}
+
+void desktop_bg_set_mode_tiled_pattern(int pattern, uint32_t fg, uint32_t bg) {
+  int writer_lease = gfx2d_shared_writer_begin();
+  desktop_bg_set_mode_tiled_pattern_locked(pattern, fg, bg);
+  gfx2d_shared_writer_end(writer_lease);
+}
+
+int desktop_bg_set_mode_tiled_bmp(const char *path) {
+  int writer_lease = gfx2d_shared_writer_begin();
+  int result = desktop_bg_set_mode_tiled_bmp_locked(path);
+  gfx2d_shared_writer_end(writer_lease);
+  return result;
+}
+
+int desktop_bg_set_mode_bmp(const char *path) {
+  int writer_lease = gfx2d_shared_writer_begin();
+  int result = desktop_bg_set_mode_bmp_locked(path);
+  gfx2d_shared_writer_end(writer_lease);
+  return result;
+}
+
+int desktop_bg_get_mode(void) {
+  int writer_lease = gfx2d_shared_writer_begin();
+  int result = desktop_bg_get_mode_locked();
+  gfx2d_shared_writer_end(writer_lease);
+  return result;
+}
+
+uint32_t desktop_bg_get_solid_color(void) {
+  int writer_lease = gfx2d_shared_writer_begin();
+  uint32_t result = desktop_bg_get_solid_color_locked();
+  gfx2d_shared_writer_end(writer_lease);
+  return result;
+}
+
+void desktop_bg_set_anim_theme(int theme) {
+  int writer_lease = gfx2d_shared_writer_begin();
+  desktop_bg_set_anim_theme_locked(theme);
+  gfx2d_shared_writer_end(writer_lease);
+}
+
+int desktop_bg_get_anim_theme(void) {
+  int writer_lease = gfx2d_shared_writer_begin();
+  int result = desktop_bg_get_anim_theme_locked();
+  gfx2d_shared_writer_end(writer_lease);
+  return result;
+}
+
+int desktop_bg_get_tiled_pattern(void) {
+  int writer_lease = gfx2d_shared_writer_begin();
+  int result = desktop_bg_get_tiled_pattern_locked();
+  gfx2d_shared_writer_end(writer_lease);
+  return result;
+}
+
+int desktop_bg_get_tiled_use_bmp(void) {
+  int writer_lease = gfx2d_shared_writer_begin();
+  int result = desktop_bg_get_tiled_use_bmp_locked();
+  gfx2d_shared_writer_end(writer_lease);
+  return result;
+}
 
 void desktop_draw_background(void) {
   workspace_base_drawn_with_icons = false;
@@ -1375,6 +1511,7 @@ void desktop_draw_background(void) {
     bool has_tiled = (desktop_bg_mode == DESKTOP_BG_TILED);
     bool can_cache = (desktop_bg_mode == DESKTOP_BG_SOLID) || has_bmp ||
              has_grad || has_tiled;
+    uint32_t registry_generation = gfx2d_icons_generation();
 
     if (can_cache && !workspace_base_cache) {
       workspace_base_cache = (uint32_t *)kmalloc((uint32_t)workspace_bytes);
@@ -1391,7 +1528,9 @@ void desktop_draw_background(void) {
                          workspace_cache_tile_pattern == desktop_tile_pattern &&
                          workspace_cache_tile_use_bmp == desktop_tile_use_bmp &&
                          workspace_cache_has_bmp == has_bmp &&
-                         workspace_cache_icon_stamp == desktop_icon_stamp;
+                         workspace_cache_icon_stamp == desktop_icon_stamp &&
+                         workspace_cache_registry_generation ==
+                             registry_generation;
 
       if (!cache_match) {
         uint32_t *fb_build = vga_get_framebuffer();
@@ -1419,6 +1558,7 @@ void desktop_draw_background(void) {
         workspace_cache_tile_use_bmp = desktop_tile_use_bmp;
         workspace_cache_has_bmp = has_bmp;
         workspace_cache_icon_stamp = desktop_icon_stamp;
+        workspace_cache_registry_generation = registry_generation;
       }
 
       simd_memcpy(vga_get_framebuffer(), workspace_base_cache, (uint32_t)workspace_bytes);
@@ -1549,7 +1689,7 @@ static void desktop_draw_icon_hover_fx(void) {
 }
 
 static void desktop_draw_taskbar_base(void) {
-  ui_theme_t *theme = ui_theme_get();
+  const ui_theme_t *theme = ui_theme_get();
   uint32_t *fb = vga_get_framebuffer();
   uint32_t tb_bytes = (uint32_t)TASKBAR_HEIGHT * (uint32_t)VGA_GFX_WIDTH *
                       (uint32_t)sizeof(uint32_t);
@@ -1579,7 +1719,7 @@ static void desktop_draw_taskbar_base(void) {
 }
 
 void desktop_draw_taskbar(void) {
-  ui_theme_t *theme = ui_theme_get();
+  const ui_theme_t *theme = ui_theme_get();
   desktop_draw_taskbar_base();
 
   /* Window buttons starting at x=80 */
@@ -2124,10 +2264,23 @@ static bool calendar_handle_right_click(int16_t mx, int16_t my) {
   return true; /* consumed even if no day hit (inside calendar) */
 }
 
+static bool desktop_read_key_event(key_event_t *event) {
+  int writer_lease = gfx2d_shared_writer_try_begin();
+  bool available;
+  if (!writer_lease)
+    return false;
+  available = keyboard_read_event(event);
+  gfx2d_shared_writer_end(writer_lease);
+  return available;
+}
+
 void desktop_redraw_cycle(void) {
   bool needs_redraw = false;
   bool mouse_only = false; /* true if only mouse position changed */
   static bool cycle_has_first_render = false;
+
+  if (gfx2d_fullscreen_active() || gfx2d_desktop_writer_owned_by_other())
+    return;
 
   /* Process mouse */
   if (mouse.updated) {
@@ -2156,10 +2309,13 @@ void desktop_redraw_cycle(void) {
     /* Don't process clicks during blocking command */
   }
 
+  if (gfx2d_fullscreen_active() || gfx2d_desktop_writer_owned_by_other())
+    return;
+
   /* Process keyboard events (critical for JIT programs like ed) */
   {
     key_event_t event;
-    while (keyboard_read_event(&event)) {
+    while (desktop_read_key_event(&event)) {
       /* Escape closes calendar popup */
       if (event.scancode == 0x01 && event.pressed && cal_state.visible) {
         cal_state.visible = false;
@@ -2196,6 +2352,11 @@ void desktop_redraw_cycle(void) {
 
   bool any_dirty = gui_any_dirty();
 
+  if (!mouse_only && !needs_redraw && !any_dirty)
+    return;
+  if (!gfx2d_desktop_render_begin())
+    return;
+
   /* Fast path: cursor moved but nothing else changed - just update cursor.
    * Use mouse_mark_cursor_dirty() to only copy the ~10x10 px cursor region
    * to VRAM instead of the full 1.2MB back buffer.*/
@@ -2205,6 +2366,7 @@ void desktop_redraw_cycle(void) {
     mouse_save_under_cursor();
     mouse_draw_cursor();
     vga_flip();
+    gfx2d_desktop_render_end();
     return;
   }
 
@@ -2234,6 +2396,7 @@ void desktop_redraw_cycle(void) {
     vga_flip();
     cycle_has_first_render = true;
   }
+  gfx2d_desktop_render_end();
 }
 
 /* Minimized fullscreen app support
@@ -2257,6 +2420,10 @@ void desktop_run_minimized_loop(const char *app_name) {
     if (shell_jit_program_was_killed()) {
       serial_printf("[desktop] minimized app killed: %s\n", app_name);
       break;
+    }
+    if (gfx2d_fullscreen_active() || gfx2d_desktop_writer_owned_by_other()) {
+      process_yield();
+      continue;
     }
 
     /* Recalculate all minimized JIT button positions each frame
@@ -2343,9 +2510,8 @@ void desktop_run_minimized_loop(const char *app_name) {
           gui_hit_test_window(mouse.x, mouse.y) < 0) {
         int icon_menu_target = gfx2d_icon_at_pos(mouse.x, mouse.y);
         if (icon_menu_target >= 0) {
-          mouse_restore_under_cursor();
           const char *icon_menu[] = {"Open", "Info"};
-          int pick = gfx2d_popup_menu(mouse.x, mouse.y, icon_menu, 2);
+          int pick = desktop_popup_menu_owned(mouse.x, mouse.y, icon_menu, 2);
           if (pick == 0) {
             desktop_launch_icon_handle(icon_menu_target);
             needs_redraw = true;
@@ -2412,10 +2578,15 @@ void desktop_run_minimized_loop(const char *app_name) {
       prev_btns = btn;
     }
 
+    if (gfx2d_fullscreen_active() || gfx2d_desktop_writer_owned_by_other()) {
+      process_yield();
+      continue;
+    }
+
     /* Process keyboard */
     {
       key_event_t event;
-      while (keyboard_read_event(&event)) {
+      while (desktop_read_key_event(&event)) {
         if (desktop_handle_global_shortcuts(&event, NULL)) {
           needs_redraw = true;
           continue;
@@ -2450,6 +2621,10 @@ void desktop_run_minimized_loop(const char *app_name) {
 
     /* Render */
     if (needs_redraw || gui_any_dirty()) {
+      if (!gfx2d_desktop_render_begin()) {
+        process_yield();
+        continue;
+      }
       desktop_anim_tick++;
       desktop_draw_background();
       desktop_draw_icons();
@@ -2498,6 +2673,7 @@ void desktop_run_minimized_loop(const char *app_name) {
       vga_flip();
 
       needs_redraw = false;
+      gfx2d_desktop_render_end();
     }
 
     process_yield();
@@ -2546,7 +2722,7 @@ void desktop_run(void) {
      * Yield (not hlt) so the fullscreen app's process actually gets
      * scheduled - without yielding, desktop spins on hlt and the app
      * never gets CPU time, freezing its render loop / cursor.*/
-    if (gfx2d_fullscreen_active()) {
+    if (gfx2d_fullscreen_active() || gfx2d_desktop_writer_owned_by_other()) {
       process_yield();
       continue;
     }
@@ -2604,10 +2780,9 @@ void desktop_run(void) {
                  mouse.y < TASKBAR_Y &&
                  gui_hit_test_window(mouse.x, mouse.y) < 0) {
         int icon_menu_target = gfx2d_icon_at_pos(mouse.x, mouse.y);
-        mouse_restore_under_cursor();
         if (icon_menu_target >= 0) {
           const char *icon_menu[] = {"Open", "Info"};
-          int pick = gfx2d_popup_menu(mouse.x, mouse.y, icon_menu, 2);
+          int pick = desktop_popup_menu_owned(mouse.x, mouse.y, icon_menu, 2);
           if (pick == 0) {
             desktop_launch_icon_handle(icon_menu_target);
           } else if (pick == 1) {
@@ -2617,9 +2792,10 @@ void desktop_run(void) {
           const char *desktop_menu[] = {
               "Change Desktop Background"
           };
-          int pick = gfx2d_popup_menu(mouse.x, mouse.y, desktop_menu, 1);
+          int pick = desktop_popup_menu_owned(mouse.x, mouse.y,
+                                              desktop_menu, 1);
           if (pick == 0) {
-            desktop_open_bg_settings_dialog();
+            desktop_open_bg_settings_dialog_owned();
           }
         }
         force_full_repaint = true;
@@ -2702,10 +2878,15 @@ void desktop_run(void) {
 
     }
 
+    if (gfx2d_fullscreen_active() || gfx2d_desktop_writer_owned_by_other()) {
+      process_yield();
+      continue;
+    }
+
     /* Process keyboard */
     {
       key_event_t event;
-      while (keyboard_read_event(&event)) {
+      while (desktop_read_key_event(&event)) {
         if (desktop_handle_global_shortcuts(&event, &force_full_repaint)) {
           needs_redraw = true;
           continue;
@@ -2743,6 +2924,10 @@ void desktop_run(void) {
     /* Skip desktop rendering if a fullscreen gfx2d app is running.
      * Yield instead of hlt so fullscreen apps get CPU.*/
     if (gfx2d_fullscreen_active()) {
+      process_yield();
+      continue;
+    }
+    if (!gfx2d_desktop_render_begin()) {
       process_yield();
       continue;
     }
@@ -2808,6 +2993,7 @@ void desktop_run(void) {
       vga_flip();
       fps_frames++;
       needs_redraw = false;
+      gfx2d_desktop_render_end();
       continue;
     }
     if (needs_redraw || any_dirty) {
@@ -2937,6 +3123,8 @@ void desktop_run(void) {
 
       needs_redraw = false;
     }
+
+    gfx2d_desktop_render_end();
 
     /* Check for deferred reschedule (preemptive time slice) */
     kernel_check_reschedule();

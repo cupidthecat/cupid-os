@@ -32,7 +32,7 @@ static uint32_t ui_titlebar_text_color(uint32_t preferred,
 }
 
 static void ui_draw_3d_frame(ui_rect_t r, bool raised) {
-    ui_theme_t *theme = ui_theme_get();
+    const ui_theme_t *theme = ui_theme_get();
     uint32_t light = theme->button_highlight;
     uint32_t dark = theme->button_shadow;
 
@@ -152,7 +152,7 @@ void ui_draw_shadow(ui_rect_t r, uint32_t color, int16_t offset) {
 }
 
 void ui_draw_panel(ui_rect_t r, uint32_t bg, bool border_3d, bool raised) {
-    ui_theme_t *theme = ui_theme_get();
+    const ui_theme_t *theme = ui_theme_get();
     if (bg == 0) {
         bg = theme->window_bg;
     }
@@ -171,7 +171,7 @@ void ui_draw_panel(ui_rect_t r, uint32_t bg, bool border_3d, bool raised) {
 /* Button */
 
 void ui_draw_button(ui_rect_t r, const char *label, bool focused) {
-    ui_theme_t *theme = ui_theme_get();
+    const ui_theme_t *theme = ui_theme_get();
     /* Background + 3D raised edge */
     ui_draw_panel(r, theme->button_face, true, true);
 
@@ -216,7 +216,7 @@ void ui_draw_label(ui_rect_t r, const char *text, uint32_t color,
 /* Text field (sunken input box) */
 
 void ui_draw_textfield(ui_rect_t r, const char *text, int cursor_pos) {
-    ui_theme_t *theme = ui_theme_get();
+    const ui_theme_t *theme = ui_theme_get();
     /* Sunken background */
     ui_draw_panel(r, theme->input_bg, true, false);
 
@@ -283,7 +283,7 @@ void ui_draw_textfield(ui_rect_t r, const char *text, int cursor_pos) {
 /* Title bar */
 
 void ui_draw_titlebar(ui_rect_t r, const char *title, bool focused) {
-    ui_theme_t *theme = ui_theme_get();
+    const ui_theme_t *theme = ui_theme_get();
     uint32_t start = focused ? theme->titlebar_active_start
                              : theme->titlebar_inactive_start;
     uint32_t end = focused ? theme->titlebar_active_end
@@ -300,7 +300,7 @@ void ui_draw_titlebar(ui_rect_t r, const char *title, bool focused) {
 /* Vertical scrollbar */
 
 void ui_draw_vscrollbar(ui_rect_t r, int total, int visible, int offset) {
-    ui_theme_t *theme = ui_theme_get();
+    const ui_theme_t *theme = ui_theme_get();
     int rw = (int)r.w;
     int rh = (int)r.h;
 

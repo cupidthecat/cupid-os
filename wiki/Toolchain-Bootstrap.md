@@ -240,7 +240,7 @@ The checked seed parses all eight helpers in unchanged
 the 16-bit DX port, the read/write ESI or EDI buffer, the read/write ECX
 count, and the INSW memory clobber. Scalar port I/O and the CLD plus REP word
 forms emit through the shared x86 model. The checked-seed C11 standalone sweep
-passes 160 of 162 active non-Doom headers; `scheduler.h` and `simd_intrin.h`
+passes 161 of 163 active non-Doom headers; `scheduler.h` and `simd_intrin.h`
 remain exact C11-profile failures. The checked seed parses all 29 declarations in
 unchanged `simd_intrin.h` under the Cupid profile. Its shared frontend now
 recognizes Cupid's sized scalar, Boolean, and vector type spellings directly.
@@ -696,12 +696,12 @@ trust-validation claim.
 
 Across the root and supplemental builds, the current audit assigns 245
 transforms to CupidC and none to a host C compiler. Python participates in
-all 447 transforms. CupidC's total is 239 normal transforms plus three
+all 449 transforms. CupidC's total is 239 normal transforms plus three
 generated installation tables and the `hello.cc`, `ls.cc`, and `cat.cc`
-programs. The 438-transform root image graph has no host C or recursive Make
-transform. Its five CupidASM, 189 CupidObj, two CupidLD, and one CupidDis
+programs. The 440-transform root image graph has no host C or recursive Make
+transform. Its five CupidASM, 191 CupidObj, two CupidLD, and one CupidDis
 transforms run from the manifest-checked five-tool seed. Native hosted commands remain
-explicit oracle targets. Every one of the 438 root outputs has a Cupid owner,
+explicit oracle targets. Every one of the 440 root outputs has a Cupid owner,
 so no root output is Python-only. The same runner handles root commands.
 Checked production CupidC and checked user CupidLD pass it their caller-owned
 frozen captures. It rechecks the complete live seed cohort after each command.
@@ -874,7 +874,7 @@ Python builds an independent layout oracle from the same frozen inputs and
 requires byte parity. It extends a fresh template to the requested image size,
 or copies a valid persistent image and replaces only the prefix before the FAT
 partition. Python also stages frozen files, checks the seed and live paths for
-changes, and publishes the complete candidate atomically. CupidObj's 189
+changes, and publishes the complete candidate atomically. CupidObj's 190
 normal transforms include `disk-template`, `iso-fixture`, and the guarded Doom
 profile manifest. ADR 0236 records the
 command, ADR 0237 records seed carriage, and [ADR 0238](../docs/adr/0238-publish-normal-disk-images-from-cupidobj-templates.md)
@@ -950,22 +950,33 @@ Neither historical log contains a panic, fatal error, assertion failure,
 exception, or triple-fault marker.
 
 The fixed frontier compiles `/bin/gfxgui_test.cc` to a private ELF image,
-then runs the source through private JIT. It requires the AOT write marker,
-setup, frame 0, frame 240, cleanup, and clean JIT completion. Any unresolved
+runs that image, then runs the source through private JIT. It next runs a
+nested fullscreen owner that exits without explicit teardown and starts the
+AOT graphics image again. It requires the AOT write marker, setup, frame 0,
+frame 240, cleanup, process-exit recovery, and clean JIT completion. Any unresolved
 native symbol or explicit fixture failure stops the gate immediately. Theme
 and BMP checks plus an exact custom-font pixel, an isolated blurred-surface
 pixel with unchanged screen state, and center and off-center
 transformed-image pixels prevent a skipped API path from satisfying the
 markers. An off-origin rotation and scale point plus exact identity after
 popping the transform cover the linear matrix and stack. The 46 previously
-missing kernel bindings bring the source-driven private AOT census to all 104
+missing kernel bindings bring the source-driven private AOT census to all 105
 runnable top-level programs. Disposable test artifacts stay in RamFS. The
 affine inverse keeps the full 32.32 determinant and inverse translation
 arithmetic in checked 64-bit form. This fixes the identity zero divisor,
 preserves representable sub-word determinants and large scales, and rejects
-unrepresentable inverse words. GodSong publishes a local settings-readiness
-line for the later interactive command, so its dialog keys do not depend on
-startup-only graphics diagnostics. ADR 0233 records this boundary.
+unrepresentable inverse words. GodSong publishes a local settings line, then
+the popup publishes a marker after acquiring raw-input ownership. The harness
+uses neither a timed settle nor startup-only graphics diagnostics. ADR 0233
+records this boundary.
+
+ADR 0261 records the shared graphics ownership boundary. Desktop composition,
+retained and legacy window rendering, and fullscreen programs use one
+PID-tagged writer handoff. Fullscreen entry waits for earlier desktop work,
+and process reaping releases abandoned ownership before PID reuse. Raw gfx2d
+calls and borrowed resource pointers require an outer render scope. Published
+resource handles are not owner-tagged yet, so abrupt process death can still
+leak a finite pool slot.
 
 The production Doom runtime proof uses private four-CPU images on e1000 and
 RTL8139. Both NICs pass the full asset-free frontier. Separate one-boot gates

@@ -77,6 +77,7 @@ typedef struct {
                                 * 0xFFu = detached and safe to reap when
                                 * state is PROCESS_TERMINATED */
     uint8_t          last_cpu; /* last CPU that ran this process */
+    uint32_t         lifetime_generation; /* Changes on every slot reuse */
 } process_t;
 
 
@@ -192,6 +193,18 @@ uint32_t process_get_current_pid(void);
  * otherwise the quiescent reaper performs it later.  Cannot kill PID 1.
 */
 void process_kill(uint32_t pid);
+
+/**
+ * process_kill_after_ms - Schedule a foreign kernel helper to kill a PID
+ *
+ * The target can arm the foreign helper after acquiring graphics ownership,
+ * so teardown does not depend on Desktop input. An explicit PID is killed
+ * after delay_ms. PID zero selects the current process and makes the helper
+ * wait until that PID slot is reused, then exercise the stale-generation
+ * rejection without killing the replacement. Returns the helper PID, or zero
+ * when the request cannot be scheduled.
+ */
+uint32_t process_kill_after_ms(uint32_t pid, uint32_t delay_ms);
 
 /**
  * process_get_state - Get the state of a process by PID

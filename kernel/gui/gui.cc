@@ -26,6 +26,12 @@ static uint32_t next_id = 1;
 
 static drag_state_t drag = {false, false, -1, 0, 0, 0, 0, 0, 0};
 static int last_draw_first_index = -1;
+static volatile uint32_t gui_paint_owner_token = 0;
+static int gui_paint_window_id = -1;
+static int gui_paint_writer_lease = 0;
+static volatile uint32_t gui_legacy_owner_token = 0;
+static int gui_legacy_window_id = -1;
+static int gui_legacy_writer_lease = 0;
 
 #define RESIZE_GRIP_SIZE 12
 
@@ -82,6 +88,12 @@ void gui_init(void) {
   drag.dragging = false;
   drag.resizing = false;
   last_draw_first_index = -1;
+  __atomic_store_n(&gui_paint_owner_token, 0u, __ATOMIC_RELEASE);
+  gui_paint_window_id = -1;
+  gui_paint_writer_lease = 0;
+  __atomic_store_n(&gui_legacy_owner_token, 0u, __ATOMIC_RELEASE);
+  gui_legacy_window_id = -1;
+  gui_legacy_writer_lease = 0;
   memset(windows, 0, sizeof(windows));
   KINFO("GUI initialized (max %d windows)", MAX_WINDOWS);
 }
@@ -202,7 +214,7 @@ static void free_window_surface(window_t *win) {
 static int ensure_window_surface(window_t *win) {
   int cw;
   int ch;
-  ui_theme_t *theme;
+  const ui_theme_t *theme;
   int surf;
 
   if (!win)
@@ -230,6 +242,65 @@ static int ensure_window_surface(window_t *win) {
   gfx2d_surface_fill(surf, theme ? theme->window_bg : 0u);
   invalidate_window_full(win);
   return GUI_OK;
+}
+
+static int gui_shared_writer_begin(void) {
+  int lease;
+  do {
+    lease = gfx2d_shared_writer_try_begin();
+    if (!lease)
+      process_yield();
+  } while (!lease);
+  return lease;
+}
+
+static int gui_abandon_active_paint(uint32_t owner_token, int wid) {
+  int lease;
+  if (owner_token == 0u ||
+      __atomic_load_n(&gui_paint_owner_token, __ATOMIC_ACQUIRE) != owner_token)
+    return 0;
+  if (wid >= 0 && gui_paint_window_id != wid)
+    return 0;
+
+  lease = gui_paint_writer_lease;
+  gfx2d_surface_unset_active();
+  gfx2d_clip_clear();
+  gfx2d_blend_mode(GFX2D_BLEND_NORMAL);
+  gui_paint_window_id = -1;
+  gui_paint_writer_lease = 0;
+  __atomic_store_n(&gui_paint_owner_token, 0u, __ATOMIC_RELEASE);
+  return lease;
+}
+
+static int gui_abandon_legacy_frame(uint32_t owner_token, int wid) {
+  int lease;
+  if (owner_token == 0u ||
+      __atomic_load_n(&gui_legacy_owner_token, __ATOMIC_ACQUIRE) != owner_token)
+    return 0;
+  if (wid >= 0 && gui_legacy_window_id != wid)
+    return 0;
+
+  lease = gui_legacy_writer_lease;
+  gfx2d_surface_unset_active();
+  gfx2d_clip_clear();
+  gfx2d_blend_mode(GFX2D_BLEND_NORMAL);
+  gui_legacy_window_id = -1;
+  gui_legacy_writer_lease = 0;
+  __atomic_store_n(&gui_legacy_owner_token, 0u, __ATOMIC_RELEASE);
+  return lease;
+}
+
+static int gui_restore_legacy_render_state(uint32_t owner_token, int wid) {
+  if (owner_token == 0u ||
+      __atomic_load_n(&gui_legacy_owner_token, __ATOMIC_ACQUIRE) != owner_token)
+    return 0;
+  if (wid >= 0 && gui_legacy_window_id != wid)
+    return 0;
+
+  gfx2d_surface_unset_active();
+  gfx2d_clip_clear();
+  gfx2d_blend_mode(GFX2D_BLEND_NORMAL);
+  return gui_legacy_writer_lease;
 }
 
 static int gui_destroy_window_internal(int wid, bool force_close) {
@@ -279,8 +350,11 @@ static int gui_destroy_window_internal(int wid, bool force_close) {
 
 int gui_create_window(int16_t x, int16_t y, uint16_t w, uint16_t h,
                       const char *title) {
-  if (w < 40 || h < (uint16_t)(TITLEBAR_H + 8))
+  int writer_lease = gui_shared_writer_begin();
+  if (w < 40 || h < (uint16_t)(TITLEBAR_H + 8)) {
+    gfx2d_shared_writer_end(writer_lease);
     return GUI_ERR_INVALID_ARGS;
+  }
 
   if (x < (int16_t)(-(int16_t)w + 20))
     x = (int16_t)(-(int16_t)w + 20);
@@ -301,6 +375,7 @@ int gui_create_window(int16_t x, int16_t y, uint16_t w, uint16_t h,
 
   if (win_count >= MAX_WINDOWS) {
     KERROR("GUI: cannot create window, limit reached");
+    gfx2d_shared_writer_end(writer_lease);
     return GUI_ERR_TOO_MANY;
   }
 
@@ -338,16 +413,57 @@ int gui_create_window(int16_t x, int16_t y, uint16_t w, uint16_t h,
 
   KINFO("GUI: window %u created \"%s\" (%dx%d at %d,%d)", win->id, win->title,
         (int)w, (int)h, (int)x, (int)y);
-  return (int)win->id;
+  int result = (int)win->id;
+  gfx2d_shared_writer_end(writer_lease);
+  return result;
 }
 
 int gui_destroy_window(int wid) {
-  return gui_destroy_window_internal(wid, false);
+  uint32_t owner_token = process_get_current_pid() + 1u;
+  int writer_lease = gui_shared_writer_begin();
+  int paint_lease;
+  int result;
+
+  if (__atomic_load_n(&gui_paint_owner_token, __ATOMIC_ACQUIRE) != 0u) {
+    if (__atomic_load_n(&gui_paint_owner_token, __ATOMIC_ACQUIRE) != owner_token ||
+        gui_paint_window_id != wid) {
+      gfx2d_shared_writer_end(writer_lease);
+      return GUI_ERR_BUSY;
+    }
+    paint_lease = gui_abandon_active_paint(owner_token, wid);
+    gfx2d_shared_writer_end(paint_lease);
+  }
+  if (__atomic_load_n(&gui_legacy_owner_token, __ATOMIC_ACQUIRE) != 0u) {
+    if (__atomic_load_n(&gui_legacy_owner_token, __ATOMIC_ACQUIRE) != owner_token ||
+        gui_legacy_window_id != wid) {
+      gfx2d_shared_writer_end(writer_lease);
+      return GUI_ERR_BUSY;
+    }
+    paint_lease = gui_abandon_legacy_frame(owner_token, wid);
+    gfx2d_shared_writer_end(paint_lease);
+  }
+
+  result = gui_destroy_window_internal(wid, false);
+  gfx2d_shared_writer_end(writer_lease);
+  return result;
 }
 
 int gui_destroy_windows_by_owner(uint32_t owner_pid) {
+  int writer_lease;
   if (owner_pid == 0)
     return 0;
+
+  writer_lease = gfx2d_shared_writer_try_begin();
+  if (!writer_lease)
+    return GUI_ERR_BUSY;
+  if (__atomic_load_n(&gui_paint_owner_token, __ATOMIC_ACQUIRE) != 0u) {
+    gfx2d_shared_writer_end(writer_lease);
+    return GUI_ERR_BUSY;
+  }
+  if (__atomic_load_n(&gui_legacy_owner_token, __ATOMIC_ACQUIRE) != 0u) {
+    gfx2d_shared_writer_end(writer_lease);
+    return GUI_ERR_BUSY;
+  }
 
   int destroyed = 0;
   for (int i = 0; i < win_count;) {
@@ -360,15 +476,21 @@ int gui_destroy_windows_by_owner(uint32_t owner_pid) {
     }
     i++;
   }
+  gfx2d_shared_writer_end(writer_lease);
   return destroyed;
 }
 
 int gui_set_focus(int wid) {
+  int writer_lease = gui_shared_writer_begin();
   int idx = find_index(wid);
-  if (idx < 0)
+  if (idx < 0) {
+    gfx2d_shared_writer_end(writer_lease);
     return GUI_ERR_INVALID_ID;
-  if (!window_is_drawable(&windows[idx]))
+  }
+  if (!window_is_drawable(&windows[idx])) {
+    gfx2d_shared_writer_end(writer_lease);
     return GUI_ERR_INVALID_ARGS;
+  }
 
   /* Clear focused flag on all */
   for (int i = 0; i < win_count; i++) {
@@ -389,6 +511,7 @@ int gui_set_focus(int wid) {
 
   windows[win_count - 1].flags |= WINDOW_FLAG_FOCUSED;
   invalidate_window_full(&windows[win_count - 1]);
+  gfx2d_shared_writer_end(writer_lease);
   return GUI_OK;
 }
 
@@ -454,30 +577,65 @@ void gui_mark_all_dirty(void) {
 }
 
 int gui_begin_window_paint(int wid) {
+  uint32_t owner_token = process_get_current_pid() + 1u;
+  int writer_lease = gfx2d_shared_writer_try_begin();
+  if (!writer_lease)
+    return GUI_ERR_BUSY;
+  if (__atomic_load_n(&gui_paint_owner_token, __ATOMIC_ACQUIRE) != 0u ||
+      __atomic_load_n(&gui_legacy_owner_token, __ATOMIC_ACQUIRE) != 0u) {
+    gfx2d_shared_writer_end(writer_lease);
+    return GUI_ERR_BUSY;
+  }
+
   int idx = find_index(wid);
-  if (idx < 0)
+  if (idx < 0) {
+    gfx2d_shared_writer_end(writer_lease);
     return GUI_ERR_INVALID_ID;
-  if (!window_is_drawable(&windows[idx]))
+  }
+  if (!window_is_drawable(&windows[idx])) {
+    gfx2d_shared_writer_end(writer_lease);
     return GUI_ERR_INVALID_ARGS;
-  if (ensure_window_surface(&windows[idx]) != GUI_OK)
+  }
+  if (ensure_window_surface(&windows[idx]) != GUI_OK) {
+    gfx2d_shared_writer_end(writer_lease);
     return GUI_ERR_NO_MEMORY;
+  }
+  gui_paint_window_id = wid;
+  gui_paint_writer_lease = writer_lease;
+  __atomic_store_n(&gui_paint_owner_token, owner_token, __ATOMIC_RELEASE);
   gfx2d_surface_set_active(windows[idx].content_surface);
   gfx2d_clip_clear();
   return GUI_OK;
 }
 
 int gui_end_window_paint(int wid) {
+  uint32_t owner_token = process_get_current_pid() + 1u;
+  int writer_lease;
   int idx = find_index(wid);
   int cw;
   int ch;
-  if (idx < 0)
-    return GUI_ERR_INVALID_ID;
-  gfx2d_surface_unset_active();
-  if (window_content_metrics(&windows[idx], NULL, NULL, &cw, &ch)) {
+  int result = GUI_OK;
+
+  if (__atomic_load_n(&gui_paint_owner_token, __ATOMIC_ACQUIRE) != owner_token ||
+      gui_paint_window_id != wid)
+    return GUI_ERR_INVALID_ARGS;
+
+  writer_lease = gui_abandon_active_paint(owner_token, wid);
+  if (idx < 0) {
+    result = GUI_ERR_INVALID_ID;
+  } else if (window_content_metrics(&windows[idx], NULL, NULL, &cw, &ch)) {
     invalidate_window_rect_internal(&windows[idx], 1, TITLEBAR_H,
                                     cw, ch);
   }
-  return GUI_OK;
+  gfx2d_shared_writer_end(writer_lease);
+  return result;
+}
+
+void gui_release_process_paint(uint32_t owner_pid) {
+  if (owner_pid == 0u || owner_pid == 0xFFFFFFFFu)
+    return;
+  (void)gui_abandon_active_paint(owner_pid + 1u, -1);
+  (void)gui_abandon_legacy_frame(owner_pid + 1u, -1);
 }
 
 int gui_invalidate_window(int wid) {
@@ -501,10 +659,20 @@ int gui_invalidate_window_rect(int wid, int x, int y, int w, int h) {
 }
 
 int gui_present_windows(void) {
+  int writer_lease = gfx2d_shared_writer_try_begin();
+  if (!writer_lease)
+    return GUI_ERR_BUSY;
+  if (__atomic_load_n(&gui_paint_owner_token, __ATOMIC_ACQUIRE) != 0u) {
+    gfx2d_shared_writer_end(writer_lease);
+    return GUI_ERR_BUSY;
+  }
+
   bool any_dirty = gui_any_dirty();
 
-  if (!any_dirty)
+  if (!any_dirty) {
+    gfx2d_shared_writer_end(writer_lease);
     return GUI_OK;
+  }
 
   mouse_mark_cursor_dirty();
   mouse_restore_under_cursor();
@@ -513,10 +681,17 @@ int gui_present_windows(void) {
   mouse_save_under_cursor();
   mouse_draw_cursor();
   vga_flip();
+  gfx2d_shared_writer_end(writer_lease);
   return GUI_OK;
 }
 
 int gui_cache_window_content(int wid) {
+  int writer_lease = gui_shared_writer_begin();
+  if (__atomic_load_n(&gui_paint_owner_token, __ATOMIC_ACQUIRE) != 0u) {
+    gfx2d_shared_writer_end(writer_lease);
+    return GUI_ERR_BUSY;
+  }
+
   int idx = find_index(wid);
   int cx;
   int cy;
@@ -526,21 +701,31 @@ int gui_cache_window_content(int wid) {
   int surf_h;
   uint32_t *fb;
   uint32_t *dst;
-  if (idx < 0)
+  if (idx < 0) {
+    gfx2d_shared_writer_end(writer_lease);
     return GUI_ERR_INVALID_ID;
+  }
 
   window_t *win = &windows[idx];
-  if (!window_content_metrics(win, &cx, &cy, &cw, &ch))
+  if (!window_content_metrics(win, &cx, &cy, &cw, &ch)) {
+    gfx2d_shared_writer_end(writer_lease);
     return GUI_ERR_INVALID_ARGS;
-  if (cx < 0 || cy < 0 || cx + cw > VGA_GFX_WIDTH || cy + ch > VGA_GFX_HEIGHT)
+  }
+  if (cx < 0 || cy < 0 || cx + cw > VGA_GFX_WIDTH || cy + ch > VGA_GFX_HEIGHT) {
+    gfx2d_shared_writer_end(writer_lease);
     return GUI_ERR_INVALID_ARGS;
+  }
 
-  if (ensure_window_surface(win) != GUI_OK)
+  if (ensure_window_surface(win) != GUI_OK) {
+    gfx2d_shared_writer_end(writer_lease);
     return GUI_ERR_NO_MEMORY;
+  }
 
   dst = gfx2d_surface_data(win->content_surface, &surf_w, &surf_h);
-  if (!dst || surf_w != cw || surf_h != ch)
+  if (!dst || surf_w != cw || surf_h != ch) {
+    gfx2d_shared_writer_end(writer_lease);
     return GUI_ERR_INVALID_ARGS;
+  }
 
   fb = vga_get_framebuffer();
   for (int row = 0; row < ch; row++) {
@@ -549,6 +734,7 @@ int gui_cache_window_content(int wid) {
            (uint32_t)cw * 4u);
   }
 
+  gfx2d_shared_writer_end(writer_lease);
   return GUI_OK;
 }
 
@@ -620,7 +806,7 @@ bool gui_get_drag_invalidate_rect(int16_t *x, int16_t *y,
 
 
 static void draw_single_window_shadow(window_t *win) {
-  ui_style_t *style = ui_style_get();
+  const ui_style_t *style = ui_style_get();
   if (!style || !style->use_shadows)
     return;
 
@@ -630,7 +816,7 @@ static void draw_single_window_shadow(window_t *win) {
 }
 
 static void draw_single_window(window_t *win) {
-  ui_theme_t *theme = ui_theme_get();
+  const ui_theme_t *theme = ui_theme_get();
   bool focused = (win->flags & WINDOW_FLAG_FOCUSED) != 0;
   int wx = (int)win->x, wy = (int)win->y;
   int ww = (int)win->width;
@@ -721,12 +907,69 @@ static void draw_single_window(window_t *win) {
   clear_window_dirty_rect(win);
 }
 
-int gui_draw_window(int wid) {
+static int gui_draw_window_locked(int wid) {
   int idx = find_index(wid);
   if (idx < 0)
     return GUI_ERR_INVALID_ID;
   draw_single_window(&windows[idx]);
   return GUI_OK;
+}
+
+int gui_draw_window(int wid) {
+  int writer_lease = gui_shared_writer_begin();
+  int result = gui_draw_window_locked(wid);
+  gfx2d_shared_writer_end(writer_lease);
+  return result;
+}
+
+int gui_begin_legacy_frame(int wid) {
+  uint32_t owner_token = process_get_current_pid() + 1u;
+  int writer_lease = gfx2d_shared_writer_try_begin();
+  int idx;
+  if (!writer_lease)
+    return GUI_ERR_BUSY;
+  if (__atomic_load_n(&gui_paint_owner_token, __ATOMIC_ACQUIRE) != 0u ||
+      __atomic_load_n(&gui_legacy_owner_token, __ATOMIC_ACQUIRE) != 0u) {
+    gfx2d_shared_writer_end(writer_lease);
+    return GUI_ERR_BUSY;
+  }
+
+  idx = find_index(wid);
+  if (idx < 0) {
+    gfx2d_shared_writer_end(writer_lease);
+    return GUI_ERR_INVALID_ID;
+  }
+  if (!window_is_drawable(&windows[idx])) {
+    gfx2d_shared_writer_end(writer_lease);
+    return GUI_ERR_INVALID_ARGS;
+  }
+
+  gui_legacy_window_id = wid;
+  gui_legacy_writer_lease = writer_lease;
+  __atomic_store_n(&gui_legacy_owner_token, owner_token, __ATOMIC_RELEASE);
+  mouse_restore_under_cursor();
+  return gui_draw_window_locked(wid);
+}
+
+int gui_end_legacy_frame(int wid) {
+  uint32_t owner_token = process_get_current_pid() + 1u;
+  int writer_lease;
+  int result;
+
+  if (__atomic_load_n(&gui_legacy_owner_token, __ATOMIC_ACQUIRE) != owner_token ||
+      gui_legacy_window_id != wid)
+    return GUI_ERR_INVALID_ARGS;
+
+  if (!gui_restore_legacy_render_state(owner_token, wid))
+    return GUI_ERR_BUSY;
+  result = gui_cache_window_content(wid);
+  if (result == GUI_OK)
+    result = gui_invalidate_window(wid);
+  if (result == GUI_OK)
+    result = gui_present_windows();
+  writer_lease = gui_abandon_legacy_frame(owner_token, wid);
+  gfx2d_shared_writer_end(writer_lease);
+  return result;
 }
 
 void gui_mark_visible_rects(void) {
@@ -832,8 +1075,8 @@ int gui_hit_test_window(int16_t mx, int16_t my) {
   return -1;
 }
 
-void gui_handle_mouse(int16_t mx, int16_t my, uint8_t buttons,
-                      uint8_t prev_buttons) {
+static void gui_handle_mouse_locked(int16_t mx, int16_t my, uint8_t buttons,
+                                    uint8_t prev_buttons) {
   bool lmb_now = (buttons & 0x01) != 0;
   bool lmb_prev = (prev_buttons & 0x01) != 0;
   bool pressed = lmb_now && !lmb_prev;
@@ -982,6 +1225,13 @@ void gui_handle_mouse(int16_t mx, int16_t my, uint8_t buttons,
   }
 }
 
+void gui_handle_mouse(int16_t mx, int16_t my, uint8_t buttons,
+                      uint8_t prev_buttons) {
+  int writer_lease = gui_shared_writer_begin();
+  gui_handle_mouse_locked(mx, my, buttons, prev_buttons);
+  gfx2d_shared_writer_end(writer_lease);
+}
+
 void gui_handle_key(uint8_t scancode, char character) {
   window_t *focused = gui_get_focused_window();
   if (!focused)
@@ -996,12 +1246,17 @@ void gui_handle_key(uint8_t scancode, char character) {
 }
 
 int gui_minimize_window(int wid) {
+  int writer_lease = gui_shared_writer_begin();
   int idx = find_index(wid);
-  if (idx < 0)
+  if (idx < 0) {
+    gfx2d_shared_writer_end(writer_lease);
     return GUI_ERR_INVALID_ID;
+  }
 
-  if (windows[idx].flags & WINDOW_FLAG_MINIMIZED)
+  if (windows[idx].flags & WINDOW_FLAG_MINIMIZED) {
+    gfx2d_shared_writer_end(writer_lease);
     return GUI_OK;
+  }
 
   if (drag.dragging && drag.window_id == wid) {
     drag.dragging = false;
@@ -1016,19 +1271,26 @@ int gui_minimize_window(int wid) {
   gui_mark_all_dirty();
   sync_focus_to_top_drawable();
   layout_changed_flag = true;
+  gfx2d_shared_writer_end(writer_lease);
   return GUI_OK;
 }
 
 int gui_restore_window(int wid) {
+  int writer_lease = gui_shared_writer_begin();
+  int result;
   int idx = find_index(wid);
-  if (idx < 0)
+  if (idx < 0) {
+    gfx2d_shared_writer_end(writer_lease);
     return GUI_ERR_INVALID_ID;
+  }
 
   windows[idx].flags &= (uint8_t)~WINDOW_FLAG_MINIMIZED;
   windows[idx].flags |= WINDOW_FLAG_VISIBLE;
   invalidate_window_full(&windows[idx]);
   layout_changed_flag = true;
-  return gui_set_focus(wid);
+  result = gui_set_focus(wid);
+  gfx2d_shared_writer_end(writer_lease);
+  return result;
 }
 
 bool gui_is_minimized(int wid) {

@@ -1665,7 +1665,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             contract = generated["contracts"][
                 "c_preprocessor_line_directives"
             ]
-            self.assertEqual(contract["source_files"], 691)
+            self.assertEqual(contract["source_files"], 694)
             self.assertEqual(contract["named_line_occurrences"], 0)
             self.assertEqual(contract["direct_line_occurrences"], 0)
             self.assertEqual(contract["pp_token_line_occurrences"], 0)
@@ -1686,7 +1686,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertIn(
                 "`c_preprocessor_line_directives` | `pass` | "
                 "0 named #line directives (0 direct, 0 pp-token; 0 filename); "
-                "0 numeric markers; 691 source files; max conditional depth 0",
+                "0 numeric markers; 694 source files; max conditional depth 0",
                 summary.read_text(encoding="utf-8"),
             )
 
@@ -2583,9 +2583,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 checked["contracts"]["c_preprocessor_include_operands"],
                 contract,
             )
-            self.assertEqual(contract["source_files"], 691)
-            self.assertEqual(contract["include_occurrences"], 2422)
-            self.assertEqual(contract["direct_quoted_occurrences"], 2185)
+            self.assertEqual(contract["source_files"], 694)
+            self.assertEqual(contract["include_occurrences"], 2433)
+            self.assertEqual(contract["direct_quoted_occurrences"], 2196)
             self.assertEqual(contract["direct_angle_occurrences"], 237)
             self.assertEqual(contract["pp_token_operand_occurrences"], 0)
 
@@ -3194,7 +3194,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "DOOM_TREE_I386": 80,
                 "USER_I386": 3,
                 "FREESTANDING_I386": 1,
-                "CUPID_RUNTIME": 105,
+                "CUPID_RUNTIME": 107,
                 "HOSTED_TOOLCHAIN_64": 0,
                 "HOSTED_KERNEL_BRIDGE_64": 0,
                 "HOSTED_I386_LINUX": 31,
@@ -3202,7 +3202,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "HOSTED_I386_LINUX_GNU": 2,
             },
         )
-        self.assertEqual(len(active), 382)
+        self.assertEqual(len(active), 384)
         for expected in (
             ("KERNEL_I386", "/kernel/core/kernel.cc"),
             ("KERNEL_I386", "/kernel/audio/memio.cc"),
@@ -6041,9 +6041,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 },
                 {
                     "status": "pass",
-                    "tracked_translation_units": 382,
+                    "tracked_translation_units": 384,
                     "generated_translation_units": 4,
-                    "total_translation_units": 386,
+                    "total_translation_units": 388,
                     "include_only_fragments": 22,
                     "delivered_non_root_headers": 2,
                     "deferred_hosted_translation_units": 0,
@@ -6066,7 +6066,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     ("DOOM_TREE_I386", 80, 0),
                     ("USER_I386", 3, 0),
                     ("FREESTANDING_I386", 1, 0),
-                    ("CUPID_RUNTIME", 105, 0),
+                    ("CUPID_RUNTIME", 107, 0),
                     ("HOSTED_TOOLCHAIN_64", 0, 0),
                     ("HOSTED_KERNEL_BRIDGE_64", 0, 0),
                     ("HOSTED_I386_LINUX", 31, 0),
@@ -6117,9 +6117,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(
                 audit_payload["summary"],
                 {
-                    "active_sources": 724,
+                    "active_sources": 727,
                     "features": 255,
-                    "transforms": 447,
+                    "transforms": 449,
                     "unreachable_sources": 25,
                 },
             )
@@ -6128,7 +6128,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (5954, 170),
+                "c.expression.sizeof": (5955, 170),
                 "c.extension.builtin.offsetof": (12, 6),
                 "c.extension.gnu_alignof": (1, 1),
             }
@@ -6146,7 +6146,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 features["c.extension.gnu_alignof"]["examples"][0]["line"],
-                39,
+                42,
             )
             root_transform_by_output = {
                 transform["output"]: transform
@@ -6654,7 +6654,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 {
                     "cupid_c_compiler": 245,
                     "host_c_compiler": 0,
-                    "host_python": 447,
+                    "host_python": 449,
                 },
             )
 
@@ -6836,7 +6836,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             )
             self.assertIn(
                 "`c_preprocessor_translation_units` | `pass` | "
-                "382 tracked + 4 generated",
+                "384 tracked + 4 generated",
                 summary.read_text(encoding="utf-8"),
             )
             audit_payload["build"]["transforms"].append(
@@ -6966,7 +6966,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         )
         expected_counts = {
             "cupid_assembler": 5,
-            "cupid_object": 189,
+            "cupid_object": 191,
             "cupid_linker": 2,
             "cupid_disassembler": 1,
         }
@@ -7005,7 +7005,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             for transform in audit["build"]["transforms"]
             if not cupid_tools.intersection(transform["tools"])
         )
-        self.assertEqual(len(cupid_owned), 438)
+        self.assertEqual(len(cupid_owned), 440)
         self.assertEqual(python_only, [])
         self.assertFalse(
             any(

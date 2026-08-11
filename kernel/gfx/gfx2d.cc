@@ -7,6 +7,7 @@
 */
 
 #include "gfx2d.h"
+#include "gfx2d_handoff.h"
 #include "keyboard.h"
 #include "mouse.h"
 #include "serial.h"
@@ -26,6 +27,15 @@
 #include "vfs.h"
 
 static uint32_t *g2d_fb;
+static gfx2d_handoff_t g2d_handoff;
+
+#define GFX2D_PROCESS_RELEASE_RETRIES 4096u
+#define GFX2D_PROCESS_RELEASE_DEFERRED -2
+
+typedef struct {
+  uint32_t remaining;
+  int bounded;
+} gfx2d_release_budget_t;
 
 static int g2d_clip_active;
 static int g2d_clip_x, g2d_clip_y, g2d_clip_w, g2d_clip_h;
@@ -211,7 +221,7 @@ static uint32_t g2d_get(int x, int y) {
   return fb[(uint32_t)y * (uint32_t)w + (uint32_t)x];
 }
 
-void gfx2d_init(void) {
+static void gfx2d_init_locked(void) {
   int i;
   g2d_fb = vga_get_framebuffer();
   g2d_clip_active = 0;
@@ -245,6 +255,12 @@ void gfx2d_init(void) {
     g2d_psys_used[i] = 0;
   }
   serial_printf("[gfx2d] initialized\n");
+}
+
+void gfx2d_init(void) {
+  int writer_lease = gfx2d_shared_writer_begin();
+  gfx2d_init_locked();
+  gfx2d_shared_writer_end(writer_lease);
 }
 
 static int g2d_debug_frame = 0;
@@ -1280,13 +1296,18 @@ int gfx2d_sprite_load(const char *path) {
 }
 
 void gfx2d_sprite_free(int handle) {
+  uint32_t *old_data;
   if (handle < 0 || handle >= GFX2D_MAX_SPRITES)
     return;
   if (!g2d_sprite_used[handle])
     return;
-  kfree(g2d_sprite_data[handle]);
+  old_data = g2d_sprite_data[handle];
+  __atomic_store_n(&g2d_sprite_used[handle], 0, __ATOMIC_SEQ_CST);
   g2d_sprite_data[handle] = NULL;
-  g2d_sprite_used[handle] = 0;
+  g2d_sprite_w[handle] = 0;
+  g2d_sprite_h[handle] = 0;
+  if (old_data)
+    kfree(old_data);
 }
 
 void gfx2d_sprite_draw(int handle, int x, int y) {
@@ -1837,12 +1858,20 @@ int gfx2d_surface_alloc(int w, int h) {
 }
 
 void gfx2d_surface_free(int handle) {
+  uint32_t *old_data;
   if (handle < 0 || handle >= GFX2D_MAX_SURFACES)
     return;
-  if (g2d_surf_data[handle])
-    kfree(g2d_surf_data[handle]);
+  if (!g2d_surf_used[handle])
+    return;
+  old_data = g2d_surf_data[handle];
+  if (g2d_active_fb == old_data)
+    gfx2d_surface_unset_active();
+  __atomic_store_n(&g2d_surf_used[handle], 0, __ATOMIC_SEQ_CST);
   g2d_surf_data[handle] = NULL;
-  g2d_surf_used[handle] = 0;
+  g2d_surf_w[handle] = 0;
+  g2d_surf_h[handle] = 0;
+  if (old_data)
+    kfree(old_data);
 }
 
 void gfx2d_surface_fill(int handle, uint32_t color) {
@@ -2515,12 +2544,97 @@ void gfx2d_flood_fill(int x, int y, uint32_t color) {
   }
 }
 
-/* Fullscreen Mode (pauses desktop rendering) */
+/* Fullscreen mode owns the shared back buffer after desktop quiescence. */
 
-static int g2d_fullscreen_mode = 0;
+static uint32_t g2d_handoff_save_and_cli(void) {
+  uint32_t eflags;
+  __asm__ volatile("" ::: "memory");
+  __asm__ volatile("pushf; pop %0; cli" : "=r"(eflags));
+  __asm__ volatile("" ::: "memory");
+  return eflags;
+}
+
+static void g2d_handoff_restore_if(uint32_t eflags) {
+  __asm__ volatile("" ::: "memory");
+  if (eflags & (1u << 9))
+    __asm__ volatile("sti");
+  __asm__ volatile("" ::: "memory");
+}
+
+int gfx2d_desktop_render_begin(void) {
+  uint32_t eflags = g2d_handoff_save_and_cli();
+  int acquired = gfx2d_handoff_desktop_begin(
+      &g2d_handoff,
+      process_get_current_pid() + 1u
+  );
+  g2d_handoff_restore_if(eflags);
+  return acquired;
+}
+
+int gfx2d_shared_writer_try_begin(void) {
+  uint32_t eflags = g2d_handoff_save_and_cli();
+  int acquired = gfx2d_handoff_writer_begin(
+      &g2d_handoff,
+      process_get_current_pid() + 1u
+  );
+  g2d_handoff_restore_if(eflags);
+  return acquired;
+}
+
+int gfx2d_desktop_writer_owned_by_other(void) {
+  return gfx2d_handoff_desktop_owned_by_other(
+      &g2d_handoff,
+      process_get_current_pid() + 1u
+  );
+}
+
+void gfx2d_shared_writer_end(int lease) {
+  if (lease == GFX2D_HANDOFF_WRITER_DESKTOP)
+    gfx2d_desktop_render_end();
+}
+
+int gfx2d_shared_writer_begin(void) {
+  int lease;
+  do {
+    lease = gfx2d_shared_writer_try_begin();
+    if (lease == GFX2D_HANDOFF_WRITER_BUSY)
+      process_yield();
+  } while (lease == GFX2D_HANDOFF_WRITER_BUSY);
+  return lease;
+}
+
+void gfx2d_desktop_render_end(void) {
+  int released = gfx2d_handoff_desktop_end_owned(
+      &g2d_handoff,
+      process_get_current_pid() + 1u
+  );
+  if (released < 0)
+    serial_printf("[gfx2d] ignored desktop render end from non-owner\n");
+}
 
 void gfx2d_fullscreen_enter(void) {
-  g2d_fullscreen_mode = 1;
+  int acquired;
+  uint32_t eflags;
+  uint32_t owner = process_get_current_pid() + 1u;
+  do {
+    eflags = g2d_handoff_save_and_cli();
+    acquired = gfx2d_handoff_try_request_fullscreen(&g2d_handoff, owner);
+    g2d_handoff_restore_if(eflags);
+    if (!acquired)
+      process_yield();
+  } while (!acquired);
+  while (!gfx2d_handoff_desktop_quiescent(&g2d_handoff))
+    process_yield();
+  do {
+    eflags = g2d_handoff_save_and_cli();
+    acquired = gfx2d_handoff_try_mark_fullscreen_entered(
+        &g2d_handoff,
+        owner
+    );
+    g2d_handoff_restore_if(eflags);
+    if (!acquired)
+      process_yield();
+  } while (!acquired);
   g2d_last_flip_ms = 0;
   vga_set_vsync_wait(false);
   /* Refresh the framebuffer pointer in case it changed */
@@ -2528,28 +2642,207 @@ void gfx2d_fullscreen_enter(void) {
   serial_printf("[gfx2d] fullscreen mode entered (fb=%x)\n", (uint32_t)g2d_fb);
 }
 
-void gfx2d_fullscreen_exit(void) {
-  g2d_fullscreen_mode = 0;
-  g2d_last_flip_ms = 0;
-  vga_set_vsync_wait(true);
-  serial_printf("[gfx2d] fullscreen mode exited\n");
+static int gfx2d_release_budget_take(gfx2d_release_budget_t *budget) {
+  if (!budget || !budget->bounded)
+    return 1;
+  if (budget->remaining == 0u)
+    return 0;
+  budget->remaining--;
+  return 1;
 }
 
-int gfx2d_fullscreen_active(void) { return g2d_fullscreen_mode; }
+static void gfx2d_release_budget_pause(void) {
+  __asm__ volatile("pause");
+}
+
+static int gfx2d_fullscreen_release_token(
+    uint32_t owner,
+    int warn_non_owner,
+    gfx2d_release_budget_t *budget
+) {
+  int finished;
+  int released;
+  uint32_t eflags;
+  do {
+    if (!gfx2d_release_budget_take(budget))
+      return GFX2D_PROCESS_RELEASE_DEFERRED;
+    eflags = g2d_handoff_save_and_cli();
+    released = gfx2d_handoff_try_prepare_fullscreen_release(
+        &g2d_handoff,
+        owner
+    );
+    g2d_handoff_restore_if(eflags);
+    if (released == GFX2D_HANDOFF_RELEASE_BUSY)
+      gfx2d_release_budget_pause();
+  } while (released == GFX2D_HANDOFF_RELEASE_BUSY);
+  if (released == GFX2D_HANDOFF_RELEASE_NON_OWNER) {
+    if (warn_non_owner)
+      serial_printf("[gfx2d] ignored fullscreen exit from non-owner\n");
+    return released;
+  }
+  if (released == GFX2D_HANDOFF_RELEASE_ENTERED_FINAL) {
+    /* Restore process-global render state before the desktop gate opens. */
+    gfx2d_surface_unset_active();
+    gfx2d_clip_clear();
+    gfx2d_blend_mode(GFX2D_BLEND_NORMAL);
+    g2d_last_flip_ms = 0;
+    vga_set_vsync_wait(true);
+  }
+  if (
+      released == GFX2D_HANDOFF_RELEASE_ENTERED_FINAL
+      || released == GFX2D_HANDOFF_RELEASE_PENDING_FINAL
+  ) {
+    do {
+      if (!gfx2d_release_budget_take(budget))
+        return GFX2D_PROCESS_RELEASE_DEFERRED;
+      eflags = g2d_handoff_save_and_cli();
+      finished = gfx2d_handoff_try_finish_fullscreen_release(
+          &g2d_handoff,
+          owner
+      );
+      g2d_handoff_restore_if(eflags);
+      if (finished == GFX2D_HANDOFF_RELEASE_BUSY)
+        gfx2d_release_budget_pause();
+    } while (finished == GFX2D_HANDOFF_RELEASE_BUSY);
+    if (finished != GFX2D_HANDOFF_RELEASE_ENTERED_FINAL) {
+      serial_printf("[gfx2d] fullscreen release finalization failed\n");
+      return GFX2D_HANDOFF_RELEASE_NON_OWNER;
+    }
+    if (released == GFX2D_HANDOFF_RELEASE_ENTERED_FINAL)
+      serial_printf("[gfx2d] fullscreen mode exited\n");
+  }
+  return released;
+}
+
+static int gfx2d_fullscreen_release_token_all(
+    uint32_t owner,
+    gfx2d_release_budget_t *budget,
+    uint32_t *released_depth
+) {
+  uint32_t depth = 0u;
+  int released;
+  do {
+    released = gfx2d_fullscreen_release_token(owner, 0, budget);
+    if (released == GFX2D_PROCESS_RELEASE_DEFERRED)
+      return 0;
+    if (released > 0)
+      depth++;
+  } while (released == GFX2D_HANDOFF_RELEASE_NESTED);
+  if (released_depth)
+    *released_depth = depth;
+  return 1;
+}
+
+void gfx2d_fullscreen_exit(void) {
+  gfx2d_release_budget_t budget = {0u, 0};
+  (void)gfx2d_fullscreen_release_token(
+      process_get_current_pid() + 1u,
+      1,
+      &budget
+  );
+}
+
+uint32_t gfx2d_fullscreen_release_all(void) {
+  gfx2d_release_budget_t budget = {0u, 0};
+  uint32_t released_depth = 0u;
+  (void)gfx2d_fullscreen_release_token_all(
+      process_get_current_pid() + 1u,
+      &budget,
+      &released_depth
+  );
+  return released_depth;
+}
+
+static int gfx2d_release_process_ownership_with_budget(
+    uint32_t pid,
+    gfx2d_release_budget_t *budget
+) {
+  int owns_desktop;
+  int released;
+  uint32_t eflags;
+  uint32_t owner;
+  if (pid == 0u || pid == 0xFFFFFFFFu)
+    return 1;
+  owner = pid + 1u;
+  if (!gfx2d_fullscreen_release_token_all(owner, budget, NULL))
+    return 0;
+  do {
+    if (!gfx2d_release_budget_take(budget))
+      return 0;
+    eflags = g2d_handoff_save_and_cli();
+    owns_desktop = gfx2d_handoff_owner_has_desktop(&g2d_handoff, owner);
+    g2d_handoff_restore_if(eflags);
+    if (owns_desktop < 0)
+      gfx2d_release_budget_pause();
+  } while (owns_desktop < 0);
+  if (owns_desktop) {
+    /* Restore shared render state while the dead/current owner still gates it. */
+    gfx2d_surface_unset_active();
+    gfx2d_clip_clear();
+    gfx2d_blend_mode(GFX2D_BLEND_NORMAL);
+  }
+  do {
+    if (!gfx2d_release_budget_take(budget))
+      return 0;
+    eflags = g2d_handoff_save_and_cli();
+    released = gfx2d_handoff_desktop_end(&g2d_handoff, owner);
+    g2d_handoff_restore_if(eflags);
+    if (released == 0)
+      gfx2d_release_budget_pause();
+  } while (released == 0 || released == 1);
+  return 1;
+}
+
+void gfx2d_release_process_ownership(uint32_t pid) {
+  gfx2d_release_budget_t budget = {0u, 0};
+  (void)gfx2d_release_process_ownership_with_budget(pid, &budget);
+}
+
+int gfx2d_try_release_process_ownership(uint32_t pid) {
+  gfx2d_release_budget_t budget = {
+      GFX2D_PROCESS_RELEASE_RETRIES,
+      1,
+  };
+  return gfx2d_release_process_ownership_with_budget(pid, &budget);
+}
+
+int gfx2d_process_owns_render_state(uint32_t pid) {
+  int owns_state;
+  uint32_t eflags;
+  if (pid == 0u || pid == 0xFFFFFFFFu)
+    return 0;
+  do {
+    eflags = g2d_handoff_save_and_cli();
+    owns_state = gfx2d_handoff_owner_has_state(&g2d_handoff, pid + 1u);
+    g2d_handoff_restore_if(eflags);
+    if (owns_state < 0)
+      __asm__ volatile("pause");
+  } while (owns_state < 0);
+  return owns_state;
+}
+
+int gfx2d_fullscreen_active(void) {
+  return gfx2d_handoff_fullscreen_active(&g2d_handoff);
+}
 
 int gfx2d_should_quit(void) { return shell_jit_program_was_killed(); }
 
 void gfx2d_minimize(const char *app_name) {
-  /* Exit fullscreen so the desktop can render */
-  gfx2d_fullscreen_exit();
+  /* Release every nested lease so the desktop can render. */
+  uint32_t suspended_depth = gfx2d_fullscreen_release_all();
+  if (suspended_depth == 0u)
+    return;
   /* Suspend JIT input routing so keys go to the shell/desktop */
   shell_jit_program_suspend();
   /* Run the desktop with a taskbar button for this app */
   desktop_run_minimized_loop(app_name);
   /* Resume JIT input routing for the app */
   shell_jit_program_resume();
-  /* Re-enter fullscreen */
-  gfx2d_fullscreen_enter();
+  /* Restore the caller's original nesting depth. */
+  while (suspended_depth != 0u) {
+    suspended_depth--;
+    gfx2d_fullscreen_enter();
+  }
 }
 
 /* App Toolbar (title bar with close/minimize for fullscreen apps) */
@@ -3589,7 +3882,11 @@ static int fdlg_run_screen(fdlg_state_t *dlg) {
   int bw = (int)L.dialog.w + FDLG_BACKDROP_PAD * 2;
   int bh = (int)L.dialog.h + FDLG_BACKDROP_PAD * 2;
   uint32_t *backdrop = NULL;
-  uint32_t *fb = g2d_fb;
+  uint32_t *fb;
+  int writer_lease = gfx2d_shared_writer_begin();
+  int result = 0;
+
+  fb = g2d_fb;
 
   if (bx < 0) {
     bw += bx;
@@ -3664,13 +3961,13 @@ static int fdlg_run_screen(fdlg_state_t *dlg) {
 
   if (dlg->user_confirmed && dlg->input_len > 0) {
     fdlg_build_result_path(dlg, dlg->result_path);
-    return 1;
+    result = 1;
   }
-  return 0;
+  gfx2d_shared_writer_end(writer_lease);
+  return result;
 }
 
-static bool fdlg_window_modal_target(window_t **out_win,
-                                     int *out_cx, int *out_cy,
+static bool fdlg_window_modal_target(int *out_wid, uint32_t *out_owner,
                                      int *out_cw, int *out_ch) {
   window_t *win = gui_get_focused_window();
   int cw;
@@ -3686,12 +3983,10 @@ static bool fdlg_window_modal_target(window_t **out_win,
     return false;
   }
 
-  if (out_win)
-    *out_win = win;
-  if (out_cx)
-    *out_cx = (int)win->x + 1;
-  if (out_cy)
-    *out_cy = (int)win->y + TITLEBAR_H + WINDOW_CONTENT_TOP_PAD;
+  if (out_wid)
+    *out_wid = (int)win->id;
+  if (out_owner)
+    *out_owner = win->owner_pid;
   if (out_cw)
     *out_cw = cw;
   if (out_ch)
@@ -3699,8 +3994,8 @@ static bool fdlg_window_modal_target(window_t **out_win,
   return true;
 }
 
-static int fdlg_run_window(fdlg_state_t *dlg, window_t *win,
-                           int screen_cx, int screen_cy,
+static int fdlg_run_window(fdlg_state_t *dlg, int wid,
+                           uint32_t expected_owner,
                            int content_w, int content_h) {
   uint8_t prev_buttons = mouse.buttons;
   fdlg_layout_t L = fdlg_get_layout(dlg);
@@ -3710,8 +4005,10 @@ static int fdlg_run_window(fdlg_state_t *dlg, window_t *win,
   int bh = (int)L.dialog.h + FDLG_BACKDROP_PAD * 2;
   uint32_t *backdrop = NULL;
   uint32_t *surface_fb;
+  window_t *win;
   int stride;
   int height;
+  int paint_result;
 
   if (bx < 0) {
     bw += bx;
@@ -3726,14 +4023,26 @@ static int fdlg_run_window(fdlg_state_t *dlg, window_t *win,
   if (by + bh > content_h)
     bh = content_h - by;
 
-  if (gui_begin_window_paint((int)win->id) != GUI_OK)
+  do {
+    paint_result = gui_begin_window_paint(wid);
+    if (paint_result == GUI_ERR_BUSY)
+      process_yield();
+  } while (paint_result == GUI_ERR_BUSY);
+  if (paint_result != GUI_OK)
     return GUI_ERR_INVALID_ARGS;
 
+  win = gui_get_window(wid);
+  if (!win || win->owner_pid != expected_owner ||
+      (int)win->width - 2 != content_w ||
+      (int)win->height - TITLEBAR_H - WINDOW_CONTENT_BORDER != content_h) {
+    gui_end_window_paint(wid);
+    return GUI_ERR_INVALID_ARGS;
+  }
   surface_fb = gfx2d_get_active_fb();
   stride = gfx2d_width();
   height = gfx2d_height();
   if (!surface_fb || stride != content_w || height != content_h) {
-    gfx2d_surface_unset_active();
+    gui_end_window_paint(wid);
     return GUI_ERR_INVALID_ARGS;
   }
 
@@ -3742,9 +4051,24 @@ static int fdlg_run_window(fdlg_state_t *dlg, window_t *win,
     if (backdrop)
       fdlg_copy_region(backdrop, surface_fb, stride, bx, by, bw, bh);
   }
-  gfx2d_surface_unset_active();
+  gui_end_window_paint(wid);
 
   while (!dlg->done) {
+    paint_result = gui_begin_window_paint(wid);
+    if (paint_result == GUI_ERR_BUSY) {
+      process_yield();
+      continue;
+    }
+    if (paint_result != GUI_OK)
+      break;
+    win = gui_get_window(wid);
+    if (!win || win->owner_pid != expected_owner ||
+        (int)win->width - 2 != content_w ||
+        (int)win->height - TITLEBAR_H - WINDOW_CONTENT_BORDER != content_h) {
+      gui_end_window_paint(wid);
+      break;
+    }
+
     /* Read keys from the host window's per-window queue rather than the
      * global keyboard ring. The desktop loop routes key events into the
      * focused window's key_queue via gui_handle_key(); if we read the
@@ -3759,10 +4083,9 @@ static int fdlg_run_window(fdlg_state_t *dlg, window_t *win,
       if (dlg->done)
         break;
     }
-    if (dlg->done)
-      break;
-
-    {
+    if (!dlg->done) {
+      int screen_cx = (int)win->x + 1;
+      int screen_cy = (int)win->y + TITLEBAR_H + WINDOW_CONTENT_TOP_PAD;
       int16_t mx = (int16_t)(mouse.x - screen_cx);
       int16_t my = (int16_t)(mouse.y - screen_cy);
       uint8_t btns = mouse.buttons;
@@ -3771,35 +4094,52 @@ static int fdlg_run_window(fdlg_state_t *dlg, window_t *win,
       prev_buttons = btns;
     }
 
-    if (mouse.scroll_z != 0) {
+    if (!dlg->done && mouse.scroll_z != 0) {
       fdlg_handle_scroll(dlg, mouse.scroll_z);
       mouse.scroll_z = 0;
     }
 
-    if (gui_begin_window_paint((int)win->id) != GUI_OK)
-      break;
-    surface_fb = gfx2d_get_active_fb();
-    if (surface_fb && backdrop) {
-      fdlg_restore_region(surface_fb, stride, backdrop, bx, by, bw, bh);
+    if (!dlg->done) {
+      surface_fb = gfx2d_get_active_fb();
+      if (surface_fb && backdrop) {
+        fdlg_restore_region(surface_fb, stride, backdrop, bx, by, bw, bh);
+      }
+      fdlg_render(dlg);
     }
-    fdlg_render(dlg);
-    gui_end_window_paint((int)win->id);
-    gui_present_windows();
+    gui_end_window_paint(wid);
+    if (dlg->done)
+      break;
+    (void)gui_present_windows();
 
     process_yield();
   }
 
-  /* Drop any keys that arrived during the dialog so they don't replay
-   * into the host app's input handler after we return.*/
-  win->key_head = win->key_tail;
-
-  if (gui_begin_window_paint((int)win->id) == GUI_OK) {
+  do {
+    paint_result = gui_begin_window_paint(wid);
+    if (paint_result == GUI_ERR_BUSY)
+      process_yield();
+  } while (paint_result == GUI_ERR_BUSY);
+  if (paint_result == GUI_OK) {
+    win = gui_get_window(wid);
+    if (!win || win->owner_pid != expected_owner ||
+        (int)win->width - 2 != content_w ||
+        (int)win->height - TITLEBAR_H - WINDOW_CONTENT_BORDER != content_h) {
+      gui_end_window_paint(wid);
+      win = NULL;
+    }
+  } else {
+    win = NULL;
+  }
+  if (win) {
+    /* Drop keys that arrived during the dialog so they do not replay into
+     * the host app after the modal loop returns. */
+    win->key_head = win->key_tail;
     surface_fb = gfx2d_get_active_fb();
     if (surface_fb && backdrop) {
       fdlg_restore_region(surface_fb, stride, backdrop, bx, by, bw, bh);
     }
-    gui_end_window_paint((int)win->id);
-    gui_present_windows();
+    gui_end_window_paint(wid);
+    (void)gui_present_windows();
   }
 
   if (backdrop)
@@ -3813,18 +4153,20 @@ static int fdlg_run_window(fdlg_state_t *dlg, window_t *win,
 }
 
 static int fdlg_run(fdlg_state_t *dlg) {
-  window_t *win = NULL;
-  int cx = 0;
-  int cy = 0;
+  uint32_t owner = 0u;
+  int wid = -1;
   int cw = G2D_W;
   int ch = G2D_H;
+  int writer_lease = gfx2d_shared_writer_begin();
+  bool window_target = fdlg_window_modal_target(&wid, &owner, &cw, &ch);
+  gfx2d_shared_writer_end(writer_lease);
 
-  if (fdlg_window_modal_target(&win, &cx, &cy, &cw, &ch)) {
+  if (window_target) {
     dlg->viewport_x = 0;
     dlg->viewport_y = 0;
     dlg->viewport_w = (uint16_t)cw;
     dlg->viewport_h = (uint16_t)ch;
-    return fdlg_run_window(dlg, win, cx, cy, cw, ch);
+    return fdlg_run_window(dlg, wid, owner, cw, ch);
   }
 
   dlg->viewport_x = 0;
@@ -3916,6 +4258,8 @@ int gfx2d_file_dialog_save(const char *start_path, const char *default_name,
 int gfx2d_confirm_dialog(const char *message) {
   if (!message) return 0;
 
+  int writer_lease = gfx2d_shared_writer_begin();
+
   int sw = gfx2d_width();
   int sh = gfx2d_height();
   int16_t dw = 300, dh = 120;
@@ -3942,6 +4286,7 @@ int gfx2d_confirm_dialog(const char *message) {
       if (evt.character == 'n' || evt.character == 'N') result = 0;
       if (evt.scancode == FDLG_SC_ESCAPE) result = 0;
       if (evt.scancode == FDLG_SC_ENTER)  result = 1;
+      if (result >= 0) break;
     }
 
     /* Mouse */
@@ -3969,6 +4314,7 @@ int gfx2d_confirm_dialog(const char *message) {
     gfx2d_flip();
     process_yield();
   }
+  gfx2d_shared_writer_end(writer_lease);
   return result;
 }
 
@@ -3976,6 +4322,8 @@ int gfx2d_confirm_dialog(const char *message) {
 
 int gfx2d_input_dialog(const char *prompt, char *result, int maxlen) {
   if (!prompt || !result || maxlen <= 0) return 0;
+
+  int writer_lease = gfx2d_shared_writer_begin();
 
   int sw = gfx2d_width();
   int sh = gfx2d_height();
@@ -4053,9 +4401,9 @@ int gfx2d_input_dialog(const char *prompt, char *result, int maxlen) {
     int i = 0;
     while (i < input_len && i < maxlen - 1) { result[i] = input[i]; i++; }
     result[i] = '\0';
-    return 1;
   }
-  return 0;
+  gfx2d_shared_writer_end(writer_lease);
+  return confirmed && input_len > 0;
 }
 
 /* Message Dialog - modal OK dialog */
@@ -4130,6 +4478,8 @@ static int g2d_message_count_lines(const char *message, int max_chars) {
 
 void gfx2d_message_dialog(const char *message) {
   if (!message) return;
+
+  int writer_lease = gfx2d_shared_writer_begin();
 
   int sw = gfx2d_width();
   int sh = gfx2d_height();
@@ -4277,6 +4627,7 @@ void gfx2d_message_dialog(const char *message) {
     gfx2d_flip();
     process_yield();
   }
+  gfx2d_shared_writer_end(writer_lease);
 }
 
 /* Popup Menu - modal context menu, returns selected index or -1 */
@@ -4284,6 +4635,9 @@ void gfx2d_message_dialog(const char *message) {
 int gfx2d_popup_menu(int x, int y, const char **items, int count) {
   if (!items || count <= 0) return -1;
   if (count > 16) count = 16;
+
+  int writer_lease = gfx2d_shared_writer_begin();
+  serial_printf("[gfx2d] popup input ready\n");
 
   int item_h = 18;
   int pad = 4;
@@ -4375,6 +4729,7 @@ int gfx2d_popup_menu(int x, int y, const char **items, int count) {
     gfx2d_flip();
     process_yield();
   }
+  gfx2d_shared_writer_end(writer_lease);
   return selected;
 }
 

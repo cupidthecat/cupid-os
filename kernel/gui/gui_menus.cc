@@ -28,7 +28,7 @@ void gui_menus_init(void) {
 int ui_draw_menubar(ui_rect_t r, ui_menu_t *menus, int menu_count,
                     ui_menubar_state_t *state, int16_t mx, int16_t my,
                     bool clicked, bool released) {
-    ui_theme_t *theme = ui_theme_get();
+    const ui_theme_t *theme = ui_theme_get();
     int i, tx;
     int result = 0;
 
@@ -198,7 +198,7 @@ void ui_context_menu_show(ui_context_menu_state_t *state,
 int ui_draw_context_menu(ui_menu_item_t *items, int count,
                          ui_context_menu_state_t *state,
                          int16_t mx, int16_t my, bool clicked) {
-    ui_theme_t *theme = ui_theme_get();
+    const ui_theme_t *theme = ui_theme_get();
     int i, mw, mh, item_y, result;
 
     if (!state->visible) return 0;
@@ -313,7 +313,7 @@ void ui_context_menu_handle_input(ui_context_menu_state_t *state,
 int ui_draw_toolbar(ui_rect_t r, ui_toolbar_button_t *buttons, int count,
                     ui_toolbar_state_t *state, int16_t mx, int16_t my,
                     bool clicked) {
-    ui_theme_t *theme = ui_theme_get();
+    const ui_theme_t *theme = ui_theme_get();
     int i, bx, result;
 
     result = 0;
@@ -382,7 +382,7 @@ int ui_draw_toolbar(ui_rect_t r, ui_toolbar_button_t *buttons, int count,
 int ui_draw_toolbar_ex(ui_rect_t r, ui_toolbar_item_t *items, int count,
                        ui_toolbar_state_t *state, int16_t mx, int16_t my,
                        bool clicked) {
-    ui_theme_t *theme = ui_theme_get();
+    const ui_theme_t *theme = ui_theme_get();
     int i, bx, result;
 
     result = 0;
@@ -455,7 +455,7 @@ int ui_draw_toolbar_ex(ui_rect_t r, ui_toolbar_item_t *items, int count,
 
 void ui_draw_statusbar(ui_rect_t r, ui_statusbar_section_t *sections,
                        int count) {
-    ui_theme_t *theme = ui_theme_get();
+    const ui_theme_t *theme = ui_theme_get();
     int i, sx;
     int flex_count = 0;
     int fixed_total = 0;
@@ -504,7 +504,7 @@ void ui_draw_statusbar(ui_rect_t r, ui_statusbar_section_t *sections,
 }
 
 void ui_draw_statusbar_simple(ui_rect_t r, const char *text) {
-    ui_theme_t *theme = ui_theme_get();
+    const ui_theme_t *theme = ui_theme_get();
     gfx2d_rect_fill(r.x, r.y, (int)r.w, (int)r.h, theme->menu_bg);
     gfx2d_hline(r.x, r.y, (int)r.w, theme->window_border);
 
@@ -536,7 +536,7 @@ void ui_tooltip_update(ui_tooltip_state_t *state, const char *text,
 }
 
 void ui_draw_tooltip(ui_tooltip_state_t *state) {
-    ui_theme_t *theme = ui_theme_get();
+    const ui_theme_t *theme = ui_theme_get();
     int tw, th;
 
     if (!state->visible || !state->text) return;

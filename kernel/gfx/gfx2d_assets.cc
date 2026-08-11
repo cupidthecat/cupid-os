@@ -37,20 +37,33 @@ typedef struct {
 
 static g2d_font_t g2d_fonts[GFX2D_MAX_FONTS];
 static int g2d_default_font = -1;  /* -1 = use built-in 8x8 */
+static int g2d_assets_initialized = 0;
 
 /* Init */
 
-void gfx2d_assets_init(void) {
+static void gfx2d_assets_init_locked(void) {
     int i;
+    if (g2d_assets_initialized)
+        return;
     for (i = 0; i < GFX2D_MAX_IMAGES; i++) {
+        if (g2d_img_used[i])
+            continue;
         g2d_img_data[i] = NULL;
         g2d_img_used[i] = 0;
     }
     for (i = 0; i < GFX2D_MAX_FONTS; i++) {
+        if (g2d_fonts[i].used)
+            continue;
         g2d_fonts[i].used = 0;
         g2d_fonts[i].glyph_data = NULL;
     }
-    g2d_default_font = -1;
+    g2d_assets_initialized = 1;
+}
+
+void gfx2d_assets_init(void) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    gfx2d_assets_init_locked();
+    gfx2d_shared_writer_end(writer_lease);
 }
 
 /* Image loading: dispatches by file/buffer signature */
@@ -95,7 +108,7 @@ static int g2d_load_bmp_path(int slot, const char *path) {
     g2d_img_data[slot] = data;
     g2d_img_w[slot]    = (int)info.width;
     g2d_img_h[slot]    = (int)info.height;
-    g2d_img_used[slot] = 1;
+    __atomic_store_n(&g2d_img_used[slot], 1, __ATOMIC_RELEASE);
     return slot;
 }
 
@@ -149,7 +162,7 @@ static int g2d_load_bmp_mem(int slot, const uint8_t *buf, uint32_t len) {
     g2d_img_data[slot] = data;
     g2d_img_w[slot] = (int)width;
     g2d_img_h[slot] = (int)height;
-    g2d_img_used[slot] = 1;
+    __atomic_store_n(&g2d_img_used[slot], 1, __ATOMIC_RELEASE);
     return slot;
 }
 
@@ -164,7 +177,7 @@ static int g2d_load_png_mem(int slot, const uint8_t *buf, uint32_t len) {
     g2d_img_data[slot] = pix;
     g2d_img_w[slot]    = w;
     g2d_img_h[slot]    = h;
-    g2d_img_used[slot] = 1;
+    __atomic_store_n(&g2d_img_used[slot], 1, __ATOMIC_RELEASE);
     return slot;
 }
 
@@ -179,11 +192,11 @@ static int g2d_load_jpeg_mem(int slot, const uint8_t *buf, uint32_t len) {
     g2d_img_data[slot] = pix;
     g2d_img_w[slot]    = w;
     g2d_img_h[slot]    = h;
-    g2d_img_used[slot] = 1;
+    __atomic_store_n(&g2d_img_used[slot], 1, __ATOMIC_RELEASE);
     return slot;
 }
 
-int gfx2d_image_load(const char *path) {
+static int gfx2d_image_load_locked(const char *path) {
     int slot = g2d_alloc_slot();
     if (slot < 0) {
         serial_printf("[gfx2d_assets] image pool full\n");
@@ -233,7 +246,14 @@ int gfx2d_image_load(const char *path) {
     return rc;
 }
 
-int gfx2d_image_load_mem(const uint8_t *buf, uint32_t len) {
+int gfx2d_image_load(const char *path) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    int result = gfx2d_image_load_locked(path);
+    gfx2d_shared_writer_end(writer_lease);
+    return result;
+}
+
+static int gfx2d_image_load_mem_locked(const uint8_t *buf, uint32_t len) {
     if (!buf || len < 4) return -1;
     int slot = g2d_alloc_slot();
     if (slot < 0) return -1;
@@ -249,17 +269,32 @@ int gfx2d_image_load_mem(const uint8_t *buf, uint32_t len) {
     return -1;
 }
 
-void gfx2d_image_free(int handle) {
+int gfx2d_image_load_mem(const uint8_t *buf, uint32_t len) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    int result = gfx2d_image_load_mem_locked(buf, len);
+    gfx2d_shared_writer_end(writer_lease);
+    return result;
+}
+
+static void gfx2d_image_free_locked(int handle) {
+    uint32_t *old_data;
     if (handle < 0 || handle >= GFX2D_MAX_IMAGES)
         return;
     if (!g2d_img_used[handle])
         return;
-    kfree(g2d_img_data[handle]);
+    old_data = g2d_img_data[handle];
+    __atomic_store_n(&g2d_img_used[handle], 0, __ATOMIC_SEQ_CST);
     g2d_img_data[handle] = NULL;
-    g2d_img_used[handle] = 0;
+    kfree(old_data);
 }
 
-void gfx2d_image_draw(int handle, int x, int y) {
+void gfx2d_image_free(int handle) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    gfx2d_image_free_locked(handle);
+    gfx2d_shared_writer_end(writer_lease);
+}
+
+static void gfx2d_image_draw_locked(int handle, int x, int y) {
     int row, col;
     if (handle < 0 || handle >= GFX2D_MAX_IMAGES)
         return;
@@ -273,7 +308,14 @@ void gfx2d_image_draw(int handle, int x, int y) {
                         data[(uint32_t)row * (uint32_t)w + (uint32_t)col]);
 }
 
-void gfx2d_image_draw_scaled(int handle, int x, int y, int dw, int dh) {
+void gfx2d_image_draw(int handle, int x, int y) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    gfx2d_image_draw_locked(handle, x, y);
+    gfx2d_shared_writer_end(writer_lease);
+}
+
+static void gfx2d_image_draw_scaled_locked(int handle, int x, int y,
+                                           int dw, int dh) {
     int row, col;
     if (handle < 0 || handle >= GFX2D_MAX_IMAGES)
         return;
@@ -298,8 +340,14 @@ void gfx2d_image_draw_scaled(int handle, int x, int y, int dw, int dh) {
     }
 }
 
-void gfx2d_image_draw_region(int handle, int sx, int sy, int sw, int sh,
-                              int dx, int dy) {
+void gfx2d_image_draw_scaled(int handle, int x, int y, int dw, int dh) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    gfx2d_image_draw_scaled_locked(handle, x, y, dw, dh);
+    gfx2d_shared_writer_end(writer_lease);
+}
+
+static void gfx2d_image_draw_region_locked(int handle, int sx, int sy,
+                                           int sw, int sh, int dx, int dy) {
     int row, col;
     if (handle < 0 || handle >= GFX2D_MAX_IMAGES)
         return;
@@ -322,7 +370,14 @@ void gfx2d_image_draw_region(int handle, int sx, int sy, int sw, int sh,
                              (uint32_t)(sx + col)]);
 }
 
-int gfx2d_image_width(int handle) {
+void gfx2d_image_draw_region(int handle, int sx, int sy, int sw, int sh,
+                             int dx, int dy) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    gfx2d_image_draw_region_locked(handle, sx, sy, sw, sh, dx, dy);
+    gfx2d_shared_writer_end(writer_lease);
+}
+
+static int gfx2d_image_width_locked(int handle) {
     if (handle < 0 || handle >= GFX2D_MAX_IMAGES)
         return 0;
     if (!g2d_img_used[handle])
@@ -330,7 +385,14 @@ int gfx2d_image_width(int handle) {
     return g2d_img_w[handle];
 }
 
-int gfx2d_image_height(int handle) {
+int gfx2d_image_width(int handle) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    int result = gfx2d_image_width_locked(handle);
+    gfx2d_shared_writer_end(writer_lease);
+    return result;
+}
+
+static int gfx2d_image_height_locked(int handle) {
     if (handle < 0 || handle >= GFX2D_MAX_IMAGES)
         return 0;
     if (!g2d_img_used[handle])
@@ -338,7 +400,14 @@ int gfx2d_image_height(int handle) {
     return g2d_img_h[handle];
 }
 
-uint32_t gfx2d_image_get_pixel(int handle, int x, int y) {
+int gfx2d_image_height(int handle) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    int result = gfx2d_image_height_locked(handle);
+    gfx2d_shared_writer_end(writer_lease);
+    return result;
+}
+
+static uint32_t gfx2d_image_get_pixel_locked(int handle, int x, int y) {
     if (handle < 0 || handle >= GFX2D_MAX_IMAGES)
         return 0;
     if (!g2d_img_used[handle])
@@ -347,6 +416,13 @@ uint32_t gfx2d_image_get_pixel(int handle, int x, int y) {
     if (x < 0 || x >= w || y < 0 || y >= h)
         return 0;
     return g2d_img_data[handle][(uint32_t)y * (uint32_t)w + (uint32_t)x];
+}
+
+uint32_t gfx2d_image_get_pixel(int handle, int x, int y) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    uint32_t result = gfx2d_image_get_pixel_locked(handle, x, y);
+    gfx2d_shared_writer_end(writer_lease);
+    return result;
 }
 
 const uint32_t *gfx2d_image_data(int handle, int *w, int *h) {
@@ -369,7 +445,7 @@ const uint32_t *gfx2d_image_data(int handle, int *w, int *h) {
  * (same format as font_8x8, but variable size)
  */
 
-int gfx2d_font_load(const char *path) {
+static int gfx2d_font_load_locked(const char *path) {
     int i, fd;
     gfx2d_fnt_header_t hdr;
     int char_count;
@@ -445,7 +521,7 @@ int gfx2d_font_load(const char *path) {
     g2d_fonts[i].char_height = (int)hdr.char_height;
     g2d_fonts[i].first_char = (int)hdr.first_char;
     g2d_fonts[i].last_char = (int)hdr.last_char;
-    g2d_fonts[i].used = 1;
+    __atomic_store_n(&g2d_fonts[i].used, 1, __ATOMIC_RELEASE);
 
     serial_printf("[gfx2d_assets] font %d loaded: %dx%d, chars %d-%d from %s\n",
                   i, (int)hdr.char_width, (int)hdr.char_height,
@@ -453,26 +529,47 @@ int gfx2d_font_load(const char *path) {
     return i;
 }
 
-void gfx2d_font_free(int handle) {
+int gfx2d_font_load(const char *path) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    int result = gfx2d_font_load_locked(path);
+    gfx2d_shared_writer_end(writer_lease);
+    return result;
+}
+
+static void gfx2d_font_free_locked(int handle) {
+    uint8_t *old_glyph_data;
     if (handle < 0 || handle >= GFX2D_MAX_FONTS)
         return;
     if (!g2d_fonts[handle].used)
         return;
-    kfree(g2d_fonts[handle].glyph_data);
+    old_glyph_data = g2d_fonts[handle].glyph_data;
+    __atomic_store_n(&g2d_fonts[handle].used, 0, __ATOMIC_SEQ_CST);
     g2d_fonts[handle].glyph_data = NULL;
-    g2d_fonts[handle].used = 0;
     if (g2d_default_font == handle)
         g2d_default_font = -1;
+    kfree(old_glyph_data);
 }
 
-void gfx2d_font_set_default(int handle) {
+void gfx2d_font_free(int handle) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    gfx2d_font_free_locked(handle);
+    gfx2d_shared_writer_end(writer_lease);
+}
+
+static void gfx2d_font_set_default_locked(int handle) {
     if (handle >= 0 && handle < GFX2D_MAX_FONTS && g2d_fonts[handle].used)
         g2d_default_font = handle;
     else
         g2d_default_font = -1;
 }
 
-int gfx2d_font_text_width(int handle, const char *text) {
+void gfx2d_font_set_default(int handle) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    gfx2d_font_set_default_locked(handle);
+    gfx2d_shared_writer_end(writer_lease);
+}
+
+static int gfx2d_font_text_width_locked(int handle, const char *text) {
     int len;
     if (!text) return 0;
     len = (int)strlen(text);
@@ -482,10 +579,24 @@ int gfx2d_font_text_width(int handle, const char *text) {
     return len * FONT_W;
 }
 
-int gfx2d_font_text_height(int handle) {
+int gfx2d_font_text_width(int handle, const char *text) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    int result = gfx2d_font_text_width_locked(handle, text);
+    gfx2d_shared_writer_end(writer_lease);
+    return result;
+}
+
+static int gfx2d_font_text_height_locked(int handle) {
     if (handle >= 0 && handle < GFX2D_MAX_FONTS && g2d_fonts[handle].used)
         return g2d_fonts[handle].char_height;
     return FONT_H;
+}
+
+int gfx2d_font_text_height(int handle) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    int result = gfx2d_font_text_height_locked(handle);
+    gfx2d_shared_writer_end(writer_lease);
+    return result;
 }
 
 static void draw_custom_glyph(const g2d_font_t *fnt, int x, int y,
@@ -511,8 +622,9 @@ static void draw_custom_glyph(const g2d_font_t *fnt, int x, int y,
     }
 }
 
-void gfx2d_text_ex(int x, int y, const char *text, uint32_t color,
-                   int font_handle, int effects) {
+static void gfx2d_text_ex_locked(int x, int y, const char *text,
+                                 uint32_t color, int font_handle,
+                                 int effects) {
     int use_custom = 0;
     const g2d_font_t *fnt = NULL;
     int cw, ch;
@@ -589,4 +701,11 @@ void gfx2d_text_ex(int x, int y, const char *text, uint32_t color,
         int sw2 = len * cw;
         gfx2d_hline(x, sy2, sw2, color);
     }
+}
+
+void gfx2d_text_ex(int x, int y, const char *text, uint32_t color,
+                   int font_handle, int effects) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    gfx2d_text_ex_locked(x, y, text, color, font_handle, effects);
+    gfx2d_shared_writer_end(writer_lease);
 }

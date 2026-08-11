@@ -91,12 +91,18 @@ static int g2d_mat_sp = 0; /* stack pointer */
 
 /* Public API */
 
-void gfx2d_transform_init(void) {
+static void gfx2d_transform_init_locked(void) {
     mat_identity(&g2d_current_mat);
     g2d_mat_sp = 0;
 }
 
-void gfx2d_push_transform(void) {
+void gfx2d_transform_init(void) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    gfx2d_transform_init_locked();
+    gfx2d_shared_writer_end(writer_lease);
+}
+
+static void gfx2d_push_transform_locked(void) {
     if (g2d_mat_sp >= GFX2D_TRANSFORM_STACK_DEPTH) {
         serial_printf("[gfx2d_transform] stack overflow\n");
         return;
@@ -106,7 +112,13 @@ void gfx2d_push_transform(void) {
     g2d_mat_sp++;
 }
 
-void gfx2d_pop_transform(void) {
+void gfx2d_push_transform(void) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    gfx2d_push_transform_locked();
+    gfx2d_shared_writer_end(writer_lease);
+}
+
+static void gfx2d_pop_transform_locked(void) {
     if (g2d_mat_sp <= 0) {
         serial_printf("[gfx2d_transform] stack underflow\n");
         return;
@@ -116,11 +128,23 @@ void gfx2d_pop_transform(void) {
            sizeof(g2d_mat_t));
 }
 
-void gfx2d_reset_transform(void) {
+void gfx2d_pop_transform(void) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    gfx2d_pop_transform_locked();
+    gfx2d_shared_writer_end(writer_lease);
+}
+
+static void gfx2d_reset_transform_locked(void) {
     mat_identity(&g2d_current_mat);
 }
 
-void gfx2d_translate(int dx, int dy) {
+void gfx2d_reset_transform(void) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    gfx2d_reset_transform_locked();
+    gfx2d_shared_writer_end(writer_lease);
+}
+
+static void gfx2d_translate_locked(int dx, int dy) {
     g2d_mat_t t;
     mat_identity(&t);
     t.m[4] = INT_TO_FP(dx);
@@ -128,7 +152,13 @@ void gfx2d_translate(int dx, int dy) {
     mat_mul(&g2d_current_mat, &g2d_current_mat, &t);
 }
 
-void gfx2d_rotate(int angle) {
+void gfx2d_translate(int dx, int dy) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    gfx2d_translate_locked(dx, dy);
+    gfx2d_shared_writer_end(writer_lease);
+}
+
+static void gfx2d_rotate_locked(int angle) {
     int s = fp_sin(angle);
     int c = fp_cos(angle);
     g2d_mat_t r;
@@ -140,7 +170,13 @@ void gfx2d_rotate(int angle) {
     mat_mul(&g2d_current_mat, &g2d_current_mat, &r);
 }
 
-void gfx2d_scale(int sx, int sy) {
+void gfx2d_rotate(int angle) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    gfx2d_rotate_locked(angle);
+    gfx2d_shared_writer_end(writer_lease);
+}
+
+static void gfx2d_scale_locked(int sx, int sy) {
     g2d_mat_t s;
     mat_identity(&s);
     s.m[0] = sx;
@@ -148,21 +184,46 @@ void gfx2d_scale(int sx, int sy) {
     mat_mul(&g2d_current_mat, &g2d_current_mat, &s);
 }
 
-void gfx2d_rotate_around(int cx, int cy, int angle) {
-    gfx2d_translate(cx, cy);
-    gfx2d_rotate(angle);
-    gfx2d_translate(-cx, -cy);
+void gfx2d_scale(int sx, int sy) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    gfx2d_scale_locked(sx, sy);
+    gfx2d_shared_writer_end(writer_lease);
 }
 
-void gfx2d_set_matrix(int m[6]) {
+static void gfx2d_rotate_around_locked(int cx, int cy, int angle) {
+    gfx2d_translate_locked(cx, cy);
+    gfx2d_rotate_locked(angle);
+    gfx2d_translate_locked(-cx, -cy);
+}
+
+void gfx2d_rotate_around(int cx, int cy, int angle) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    gfx2d_rotate_around_locked(cx, cy, angle);
+    gfx2d_shared_writer_end(writer_lease);
+}
+
+static void gfx2d_set_matrix_locked(int m[6]) {
     memcpy(g2d_current_mat.m, m, 6 * sizeof(int));
 }
 
-void gfx2d_get_matrix(int m[6]) {
+void gfx2d_set_matrix(int m[6]) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    gfx2d_set_matrix_locked(m);
+    gfx2d_shared_writer_end(writer_lease);
+}
+
+static void gfx2d_get_matrix_locked(int m[6]) {
     memcpy(m, g2d_current_mat.m, 6 * sizeof(int));
 }
 
-void gfx2d_transform_point(int x, int y, int *out_x, int *out_y) {
+void gfx2d_get_matrix(int m[6]) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    gfx2d_get_matrix_locked(m);
+    gfx2d_shared_writer_end(writer_lease);
+}
+
+static void gfx2d_transform_point_locked(int x, int y,
+                                         int *out_x, int *out_y) {
     int fx = INT_TO_FP(x);
     int fy = INT_TO_FP(y);
     *out_x = FP_TO_INT(FP_MUL(g2d_current_mat.m[0], fx) +
@@ -171,6 +232,12 @@ void gfx2d_transform_point(int x, int y, int *out_x, int *out_y) {
     *out_y = FP_TO_INT(FP_MUL(g2d_current_mat.m[2], fx) +
                         FP_MUL(g2d_current_mat.m[3], fy) +
                         g2d_current_mat.m[5]);
+}
+
+void gfx2d_transform_point(int x, int y, int *out_x, int *out_y) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    gfx2d_transform_point_locked(x, y, out_x, out_y);
+    gfx2d_shared_writer_end(writer_lease);
 }
 
 /* Transformed drawing
@@ -264,7 +331,7 @@ static int mat_invert(const g2d_mat_t *src, g2d_mat_t *inv) {
     return 0;
 }
 
-void gfx2d_image_draw_transformed(int handle, int x, int y) {
+static void gfx2d_image_draw_transformed_locked(int handle, int x, int y) {
     int iw, ih;
     const uint32_t *img;
     g2d_mat_t inv;
@@ -282,11 +349,11 @@ void gfx2d_image_draw_transformed(int handle, int x, int y) {
         int tx, ty;
         int i;
 
-        gfx2d_transform_point(corners[0][0], corners[0][1], &bx0, &by0);
+        gfx2d_transform_point_locked(corners[0][0], corners[0][1], &bx0, &by0);
         bx1 = bx0;
         by1 = by0;
         for (i = 1; i < 4; i++) {
-            gfx2d_transform_point(corners[i][0], corners[i][1], &tx, &ty);
+            gfx2d_transform_point_locked(corners[i][0], corners[i][1], &tx, &ty);
             if (tx < bx0) bx0 = tx;
             if (tx > bx1) bx1 = tx;
             if (ty < by0) by0 = ty;
@@ -329,7 +396,13 @@ void gfx2d_image_draw_transformed(int handle, int x, int y) {
     }
 }
 
-void gfx2d_sprite_draw_transformed(int handle, int x, int y) {
+void gfx2d_image_draw_transformed(int handle, int x, int y) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    gfx2d_image_draw_transformed_locked(handle, x, y);
+    gfx2d_shared_writer_end(writer_lease);
+}
+
+static void gfx2d_sprite_draw_transformed_locked(int handle, int x, int y) {
     int sw, sh;
     g2d_mat_t inv;
     int bx0, by0, bx1, by1;
@@ -347,11 +420,11 @@ void gfx2d_sprite_draw_transformed(int handle, int x, int y) {
         int tx, ty;
         int i;
 
-        gfx2d_transform_point(corners[0][0], corners[0][1], &bx0, &by0);
+        gfx2d_transform_point_locked(corners[0][0], corners[0][1], &bx0, &by0);
         bx1 = bx0;
         by1 = by0;
         for (i = 1; i < 4; i++) {
-            gfx2d_transform_point(corners[i][0], corners[i][1], &tx, &ty);
+            gfx2d_transform_point_locked(corners[i][0], corners[i][1], &tx, &ty);
             if (tx < bx0) bx0 = tx;
             if (tx > bx1) bx1 = tx;
             if (ty < by0) by0 = ty;
@@ -392,10 +465,23 @@ void gfx2d_sprite_draw_transformed(int handle, int x, int y) {
     }
 }
 
-void gfx2d_text_transformed(int x, int y, const char *str,
-                            uint32_t color, int font) {
+void gfx2d_sprite_draw_transformed(int handle, int x, int y) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    gfx2d_sprite_draw_transformed_locked(handle, x, y);
+    gfx2d_shared_writer_end(writer_lease);
+}
+
+static void gfx2d_text_transformed_locked(int x, int y, const char *str,
+                                          uint32_t color, int font) {
     int ox, oy;
     /* Text keeps axis-aligned glyphs and transforms only the origin. */
-    gfx2d_transform_point(x, y, &ox, &oy);
+    gfx2d_transform_point_locked(x, y, &ox, &oy);
     gfx2d_text_ex(ox, oy, str, color, font, 0);
+}
+
+void gfx2d_text_transformed(int x, int y, const char *str,
+                            uint32_t color, int font) {
+    int writer_lease = gfx2d_shared_writer_begin();
+    gfx2d_text_transformed_locked(x, y, str, color, font);
+    gfx2d_shared_writer_end(writer_lease);
 }
