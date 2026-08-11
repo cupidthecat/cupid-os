@@ -20,7 +20,7 @@ and the repository runtime, and Linux or WSL runs the result. The normal
 Toolchain target also owns fourteen `.cc` contract programs. Stage-two and
 stage-three CupidC compile them at the checked i386 ABI, CupidLD links each
 one against matching stage objects, and the harness requires all sixteen new
-objects and fifteen executables to match across stages. It freezes 47
+objects and fifteen executables to match across stages. It freezes 50
 contract inputs and reconstructs that exact inventory under a private source
 root. That inventory includes the Windows startup and runtime probe, the
 Toolchain Makefile, and both Python modules
@@ -240,7 +240,7 @@ The checked seed parses all eight helpers in unchanged
 the 16-bit DX port, the read/write ESI or EDI buffer, the read/write ECX
 count, and the INSW memory clobber. Scalar port I/O and the CLD plus REP word
 forms emit through the shared x86 model. The checked-seed C11 standalone sweep
-passes 159 of 161 active non-Doom headers; `scheduler.h` and `simd_intrin.h`
+passes 160 of 162 active non-Doom headers; `scheduler.h` and `simd_intrin.h`
 remain exact C11-profile failures. The checked seed parses all 29 declarations in
 unchanged `simd_intrin.h` under the Cupid profile. Its shared frontend now
 recognizes Cupid's sized scalar, Boolean, and vector type spellings directly.
@@ -664,6 +664,12 @@ Object contracts pin exact bytes, x87 padding, section and symbol order,
 deterministic repeat emission, and same-job recovery. ADR 0255 records static
 control folding and finite conversion. ADR 0256 records the canonical classes
 and special-value conversion.
+Compiler head also folds static long-double `+`, `-`, `*`, and `/` with an
+unsigned 128-bit target packer. A shared 80-result fixture covers rounding,
+gradual underflow, finite limits, infinity, and NaN. Linear IR emits no runtime
+instruction, and the deterministic object proof checks all twelve bytes of
+every value. ADR 0260 records this source-head capability. The checked seed is
+not promoted by that decision.
 Both compiler stages in the normal contract cohort rebuild the source
 catalogue. ADR 0203 records the checked seed, ADR 0207 records the subtraction
 form, ADR 0226 records SHRD, ADR 0228 records its seed carriage, ADR 0252

@@ -1843,6 +1843,22 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "floating-transport: ok\n")
 
+    def test_static_long_double_arithmetic_emits_exact_x87_payloads(self):
+        result = subprocess.run(
+            [
+                str(self.contract_path),
+                "static-long-double-arithmetic",
+                str(REPO_ROOT),
+            ],
+            cwd=TOOLCHAIN_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            result.stdout, "static-long-double-arithmetic: ok\n"
+        )
+
     def test_floating_arithmetic_spills_each_x87_result(self):
         result = subprocess.run(
             [str(self.contract_path), "floating-arithmetic", str(REPO_ROOT)],

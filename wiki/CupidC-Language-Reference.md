@@ -270,19 +270,25 @@ one canonical quiet x87 payload. Canonical x87 infinities and NaNs narrow to
 the corresponding target infinity or quiet NaN. These expressions become
 static data and add no runtime IR.
 
+Static long-double addition, subtraction, multiplication, and division use
+integer-only 128-bit intermediates. Results round once to the i386 x87
+explicit significand with nearest-even rounding and gradual underflow.
+Overflow and invalid operations use the canonical special payloads. The
+folded result stays in the initializer forest and emits no runtime instruction.
+
 Floating increment or decrement, hexadecimal floating
 constants, binary32 and binary64 subnormal constants, hexadecimal or subnormal
 long-double constants, long-double decimals beyond the bounded ratio parser,
-static long-double arithmetic, SIMD, and atomic floating access remain
-unsupported.
+SIMD, and atomic floating access remain unsupported.
 [ADR 0229](../docs/adr/0229-emit-exact-decimal-long-double-literals.md)
 records the literal representation. ADR 0250 records runtime unsigned
 four-byte conversion, ADR 0251 records static long-double data, and ADR 0253
 records runtime conversion between `long double` and every signed or
 unsigned i386 integer width. ADR 0254 records static initializer conversion,
 ADR 0255 records static controls and finite width conversion, and ADR 0256
-records canonical x87 payloads and special-value conversion. ADR 0258 records
-checked-seed carriage.
+records canonical x87 payloads and special-value conversion.
+ADR 0258 records the promoted checked seed, which predates this arithmetic
+path. ADR 0260 records static long-double arithmetic.
 The in-kernel compiler has a separate, broader floating and SIMD
 implementation.
 

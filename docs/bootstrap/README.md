@@ -345,7 +345,15 @@ arithmetic. Infinity keeps its sign, and a source NaN becomes one canonical
 quiet x87 NaN. Long-double values narrow to binary32 or binary64 with
 round-to-nearest, ties-to-even packing for finite values and canonical target
 encodings for infinity and NaN. The result is final static data and adds no
-runtime IR. Runtime comparisons accept matching
+runtime IR. Static `long double` addition, subtraction, multiplication, and
+division use a separate unsigned 128-bit packer. It rounds exact intermediate
+values once to the 64-bit explicit significand, with nearest-even normal
+rounding and gradual underflow. The finite path covers the spacing change
+below powers of two, complete 64-by-64-bit products, and division guard and
+sticky bits. Special operations produce the canonical infinity or quiet NaN.
+Direct quiet NaN operands are checked on both sides of every operator. All 80
+shared payload oracles become final initializer records, so this
+arithmetic also adds no runtime instruction. Runtime comparisons accept matching
 long-double operands or a
 long-double value paired with `float` or `double`. The i386 emitter loads right
 then left, compares with `FUCOMIP ST0, ST1`, and removes
@@ -364,10 +372,11 @@ caller's control word separately, selects truncation toward zero for `FISTP`,
 and restores that copy. The unsigned 64-bit path splits at `2^63`.
 Hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimals beyond the bounded
-ratio parser, static long-double arithmetic, other floating-to-wide
-conversions, increment and decrement, SIMD, floating atomics, and over-aligned
+ratio parser, other floating-to-wide conversions, increment and decrement,
+SIMD, floating atomics, and over-aligned
 floating objects remain open. ADR 0202 records the runtime truth boundary,
-and ADR 0256 records canonical static x87 classes.
+ADR 0256 records canonical static x87 classes, and ADR 0260 records static x87
+arithmetic.
 
 The static object proof covers exact `1.0L`, the next represented value above
 one, the largest accepted bounded literal, positive and negative zero, and
@@ -406,6 +415,17 @@ the widened result of a binary32 subnormal expression. Linear IR retains no
 expression or function for the folded forest. The object proof checks exact
 bytes, padding, section and symbol order, zero relocations, deterministic
 repeat emission, and same-job recovery after an output limit.
+
+A third shared fixture covers static long-double arithmetic. Its five arrays
+contain 85 initializer nodes and 80 list edges. The exact payloads cover all
+four operators, nearest-even ties, cancellation, signed zero, gradual
+underflow, both finite boundaries, infinity, and canonical quiet NaN on
+either side of each operator. Linear IR publishes no runtime work. The
+1,540-byte ELF32 object holds 768 exact read-only bytes and 192 mutable bytes,
+has no `.text` section or relocation, and clears both padding bytes in every
+twelve-byte element. The contracts also
+check deterministic replay, a one-byte-short output, exact-fit emission, both
+malformed canonical-class seams, rollback, and same-job recovery.
 
 Decoder-driven oracles check width conversion, operand order, selected IEEE
 patterns, quiet and signaling NaNs, unsigned boundary values, call alignment,
@@ -456,7 +476,7 @@ modification. The initial contract snapshot, private copy, and newly discovered
 live contract inventory must match in membership and hashes. This catches additions,
 removals, and a transient edit copied before its live source is restored.
 Every run derives the cohort from its requested executable, requires a named
-manifest artifact, and verifies all artifact hashes, the live 47-input
+manifest artifact, and verifies all artifact hashes, the live 50-input
 contract set, the checked seed manifest, and the 43-file fixed-point source
 inventory before execution. The contract set includes the Toolchain Makefile
 and both Python modules that construct or verify the cohort. The seed manifest is read once for hashing,
@@ -1071,7 +1091,7 @@ UHCI input
 reattachment and six EHCI storage lifetimes. ADR 0109 records these lifetime
 and ownership rules.
 
-The checked-seed C11 standalone-header sweep passes 159 of 161 non-Doom
+The checked-seed C11 standalone-header sweep passes 160 of 162 non-Doom
 inputs. `scheduler.h` and `simd_intrin.h` remain exact C11-profile failures.
 The checked seed parses all 29 declarations in `simd_intrin.h` under the Cupid
 profile. Checked-seed CupidC still owns unchanged `kernel/smp/acpi.cc` and
@@ -1289,7 +1309,7 @@ All twelve shared hosted Toolchain implementation files parse completely.
 Each tuple reports definitions, statements, expressions, block bindings, and
 initializers: `ctool.cc` 65/1,012/5,981/133/33; `cupidasm.cc`
 82/3,054/20,124/338/190; `cupidc_emit.cc` 366/9,234/77,133/1,122/748;
-`cupidc_frontend.cc` 435/16,907/111,857/2,518/1,534; `cupidc_ir.cc`
+`cupidc_frontend.cc` 445/17,242/113,778/2,565/1,547; `cupidc_ir.cc`
 269/7,496/69,333/989/362; `cupidc_pp.cc` 143/3,932/25,287/479/286;
 `cupidc_type.cc` 31/737/5,487/85/43; `cupiddis.cc`
 71/1,594/10,331/162/124; `cupidld.cc` 82/2,875/18,200/369/337;
@@ -1318,9 +1338,9 @@ The preprocessing module owns translation-phase tokenization, ordered
 object, function, and variadic macros, C11 conditionals and predefined macros,
 `#line` locations, direct and macro-expanded includes, forced inputs,
 guarded traversal, canonical once identity, pack metadata, and typed Cupid
-`#exe` markers. Checked manifests classify all 2,418 include operands as
-2,181 direct quoted plus 237 direct angle forms with zero macro operands
-across 690 active C-family inputs. The generated manifest drives 382 tracked
+`#exe` markers. Checked manifests classify all 2,422 include operands as
+2,185 direct quoted plus 237 direct angle forms with zero macro operands
+across 691 active C-family inputs. The generated manifest drives 382 tracked
 profile runs under eleven profiles plus four generated kernel roots. The
 profile counts are 155 kernel, three Doom compatibility, 80 Doom tree, three
 user, 105 Cupid programs, 31 strict hosted i386 Linux, one freestanding i386
@@ -1341,25 +1361,25 @@ The hosted `ctool_c_parse` operation consumes the ADR 0012 tape directly and pub
 
 The unchanged `/kernel/fs/fat16.h` closure still reproduces every FAT layout oracle. Exact additional contracts parse unchanged `kernel.h`, `irq.h`, `cupidscript.h`, and `shell.h` and merge representative duplicate prototypes and typedefs once at the first declaration. GNU `packed`, `aligned`, and `noreturn` lists retain their semantic destinations, and compatibility keeps stronger alignment and `noreturn`. File- and record-scope `_Static_assert` use target integer evaluation, including conditional selection and fault suppression in unevaluated arms. Active-source fragments prove all 26 tracked assertions across `memory.h`, `percpu.h`, `exec.cc`, `process.cc`, and `syscall.cc`.
 
-The [audit-derived active-source gate](./ACTIVE-SOURCE-AUDIT.md) passes 159 of
-161 general non-Doom headers in the C11 profile; `scheduler.h` and
+The [audit-derived active-source gate](./ACTIVE-SOURCE-AUDIT.md) passes 160 of
+162 general non-Doom headers in the C11 profile; `scheduler.h` and
 `simd_intrin.h` retain exact expected failures there. The checked seed parses all
 29 declarations in `simd_intrin.h` under the Cupid profile. That mode now
 maps `U0`, the signed and unsigned sized integer spellings, `Bool`, `bool`,
 `float4`, and `double2` directly into the shared type graph. C11 continues to
-treat those spellings as ordinary identifiers. The graph contains 723 active
-language inputs: 29 assembly files, 292 headers, and 402 Cupid C files. No
+treat those spellings as ordinary identifiers. The graph contains 724 active
+language inputs: 29 assembly files, 293 headers, and 402 Cupid C files. No
 ordinary C translation unit remains in the supported roots. It records 255
 feature IDs, 447 transforms, and 25 accounted unreachable files. The preprocessor
-inventory covers 690 files and 2,418 include occurrences, split into 2,181
+inventory covers 691 files and 2,422 include occurrences, split into 2,185
 quoted and 237 angle forms.
 
 The active-source digest is
-`e3cf93926ea6f531c37b4a3dcb09f85edab3cc1094abbc6e729aeaf55154674b`.
-The 2,591,068-byte audit JSON has SHA-256
-`a309571233072c2951c351f1071b0c966a58550b99005ba7cd2dc02b31984379`,
+`8d62b831b5086b8fc99918644b1e04e12101167e74fde1d67cb623da5794b12a`.
+The 2,600,505-byte audit JSON has SHA-256
+`4e49b2d0c3965724c577c93ff29159fd8f611a57055a97a31a68cd887756374e`,
 and the 12,218-byte summary has SHA-256
-`153896f942896e9036c3499c2df0dd728ba7cf6bd54f994e9f2efad33ccff178`.
+`9b24b798076d3447d5446bc07e50f2c2126fbb4fb4e5dca2f073671dbc11f98f`.
 
 Across the three supported roots, CupidC participates in 245 transforms and
 CupidObj participates in 189 transforms. Python participates in all 447 as
@@ -1483,8 +1503,8 @@ block declaration attributes, nested function definitions, computed goto and
 GNU label addresses, broader GNU assembly forms, hexadecimal floating
 constants, binary32 and binary64 subnormal literals, hexadecimal or subnormal
 long-double literals, long-double decimal ratios beyond the bounded parser,
-static long-double arithmetic, remaining integer and floating conversions, nonempty
-identifier-list definitions, non-scalar arguments without declared parameter
+remaining integer and floating conversions, nonempty identifier-list
+definitions, non-scalar arguments without declared parameter
 types, aggregate variadic reads, block assertions, variable-length arrays and
 runtime `sizeof`, the remaining GNU attributes, complete Cupid extensions,
 complete AST and IR coverage, broader function code generation, full
@@ -1504,7 +1524,9 @@ every signed or unsigned i386 integer width. ADR 0254 adds static initializer
 conversion between bounded finite `long double` and every represented value
 integer. ADR 0255 adds static long-double control folding and finite
 floating-width conversion. ADR 0256 defines the shared canonical x87 decoder
-and adds static infinity, NaN, and subnormal transport.
+and adds static infinity, NaN, and subnormal transport. ADR 0260 adds
+integer-only static long-double arithmetic with exact x87 rounding and no
+runtime IR.
 
 The latest local normal build completed in 1,444.7 seconds. Its
 9,093,772-byte final ELF has SHA-256

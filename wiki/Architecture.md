@@ -144,7 +144,7 @@ source trees, files, and symbolic links remain untouched. Exact initial,
 private, and newly discovered contract inventories catch additions, removals,
 and restored edits that changed a copied input. Every contract run derives the
 cohort from its executable, requires a named manifest artifact, and verifies
-all artifact hashes, the current 47-input contract set, the checked seed
+all artifact hashes, the current 50-input contract set, the checked seed
 manifest, and the 43-file fixed-point source inventory before execution. The
 contract inventory includes the Windows startup and runtime probe, the
 Toolchain Makefile, and both Python control modules. One

@@ -119,10 +119,12 @@ signed zeros are false; finite nonzero values, subnormals, infinities, and NaNs
 are true. Runtime casts, assignments, arguments, and returns convert between
 `long double` and signed or unsigned integers at 8, 16, 32, and 64 bits. The
 emitter uses `FILD` for integer input and restores the saved x87 control word
-after truncate-mode `FISTP` output. Hexadecimal or subnormal long-double
-literals, decimals beyond the bounded ratio parser, and static long-double
-arithmetic remain outside this boundary. ADR 0256 records the canonical x87
-class and special-width conversion rules.
+after truncate-mode `FISTP` output. Static-duration addition, subtraction,
+multiplication, and division use target-only 128-bit integer arithmetic and
+round once to the x87 significand. Hexadecimal or subnormal long-double
+literals and decimals beyond the bounded ratio parser remain outside this
+boundary. ADR 0256 records the canonical x87 class and special-width
+conversion rules. ADR 0260 records the static arithmetic model.
 The static fixture converts `-0.5L` to both `_Bool` and an unsigned integer. The results are one and zero respectively, proving that Boolean truth is checked before numeric truncation. Frozen IR also validates the target type representation. Primitive bases use their canonical target size, signedness, and alignment. An enum, its unwrapped base, and its compatible integer type agree on size, signedness, integer, object, and completeness flags, as well as alignment. A `QUALIFIED` node copies referenced alignment unless it introduces `_Atomic`. An atomic introduction at any layer raises alignment to at least the target atomic alignment. An `ALIGNED` node requires an explicit, nonzero power-of-two alignment and may lower the referenced alignment.
 Unsigned 64-bit corrections temporarily select 64-bit x87 precision while
 retaining the caller's rounding mode, then restore the saved control word
@@ -268,11 +270,13 @@ value and integer-valued zero retains its zero initializer record. Static
 truth, comparisons, short-circuit logic, conditional selection, and
 conversion to or from binary32 and binary64 use the same target-only value
 model. The accepted x87 classes are signed zero, subnormal, normal, infinity,
-and NaN. Runtime conversion between `long double` and every signed or unsigned
-i386 integer width uses `FILD` and `FISTP`; integer output restores the caller's
-x87 control word. Hexadecimal or subnormal long-double literals, decimal ratios
-beyond the bounded parser, and static long-double arithmetic remain open.
-ADR 0256 records the canonical x87 class rules.
+and NaN. Static `+`, `-`, `*`, and `/` use unsigned 128-bit target arithmetic,
+round once to the explicit x87 significand, and produce final initializer data
+without runtime IR. Runtime conversion between `long double` and every signed
+or unsigned i386 integer width uses `FILD` and `FISTP`; integer output restores
+the caller's x87 control word. Hexadecimal or subnormal long-double literals
+and decimal ratios beyond the bounded parser remain open. ADR 0256 records the
+canonical x87 class rules, and ADR 0260 records the static arithmetic model.
 
 The checked cohort requires byte identity for every newly compiled object and
 linked executable. Complete CupidC-emitted closures for CupidC, CupidASM,

@@ -796,7 +796,7 @@ contention. Runtime order arguments, pointer and eight-byte atomics, and HLE
 flags remain open. The checked seed carries all five operations and compiles
 the active EHCI fetch-or path.
 
-The checked-seed C11 standalone-header sweep passes 159 of 161 active non-Doom
+The checked-seed C11 standalone-header sweep passes 160 of 162 active non-Doom
 inputs. `scheduler.h` and `simd_intrin.h` remain explicit C11-profile failures.
 The checked seed parses all 29 declarations in `simd_intrin.h` under its proper
 Cupid profile, while `scheduler.h` still has an undefined historical array
@@ -832,7 +832,7 @@ private, and live contract inventories must match exactly, including
 membership and hashes, so additions, removals, and a transient edit copied
 before its live source is restored all fail. Normal build and test entry points derive
 the cohort from each requested executable, require a named manifest artifact,
-and verify the complete artifact inventory, the 47 contract inputs, the
+and verify the complete artifact inventory, the 50 contract inputs, the
 43-file fixed-point source inventory, and the checked seed manifest before
 execution. The contract inventory includes the Windows startup and runtime
 probe, the Toolchain Makefile, and both Python modules that build or verify
@@ -1039,6 +1039,17 @@ target encodings for infinity and NaN. The shared decoder also accepts
 canonical x87 subnormals and rejects pseudo encodings. The folded expression
 leaves no runtime IR and uses the existing static-data writer.
 
+Static long-double `+`, `-`, `*`, and `/` use that same closed target
+representation. A separate unsigned 128-bit packer rounds exact intermediate
+values once to the 64-bit explicit significand, using nearest-even for normal
+and gradual-underflow results. Addition handles the spacing change below an
+exact power of two, multiplication keeps the full 64-by-64-bit product, and
+division carries guard and sticky information from an integer remainder loop.
+Overflow, division by zero, and invalid operations produce canonical x87
+infinity or quiet NaN as required. The complete static forest becomes
+initializer data and emits no runtime instruction. All twelve object bytes are
+checked, including the two zero padding bytes.
+
 Linear IR also checks the integer type's target representation. A primitive
 base must use its canonical target size, signedness, and alignment. An enum,
 its unwrapped base, and its compatible integer type must agree on size,
@@ -1070,9 +1081,8 @@ caller's control word
 separately, selects truncate mode for `FISTP`, and restores that copy.
 Hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
-bounded parser, static long-double arithmetic, runtime mixed integer and
-floating conditional arms, floating increment and decrement, SIMD values,
-floating atomics, and
+bounded parser, runtime mixed integer and floating conditional arms, floating
+increment and decrement, SIMD values, floating atomics, and
 over-aligned emission remain open. ADR 0202 records the runtime truth
 boundary, and
 [ADR 0229](docs/adr/0229-emit-exact-decimal-long-double-literals.md) records
@@ -1085,6 +1095,8 @@ static initializer conversion.
 control expressions and finite floating-width conversion.
 [ADR 0256](docs/adr/0256-accept-canonical-static-x87-payloads.md) records
 canonical x87 classes and special floating-width conversion.
+[ADR 0260](docs/adr/0260-fold-static-long-double-arithmetic.md) records the
+integer-only x87 arithmetic and rounding model.
 
 Plain assignment, all ten compound assignments, and prefix or postfix increment and decrement now work for represented non-atomic bit fields in four-byte storage units. Linear IR keeps the selected member and evaluates the record address once. Partial fields preserve neighboring bits, and postfix updates retain the extracted old value through the store so width wrap does not change the result. Narrow unsigned fields promote to signed `int` when their values fit. A volatile 32-bit field uses one read and one direct store. An execution oracle proves that `states[(*index)++].value++` advances its side-effecting index exactly once. Partial volatile mutation, atomic bit-field access, and non-four-byte storage units remain open. The plain-assignment contracts still pin Doom's unchanged `colors[index].r = value` shape.
 
@@ -1248,7 +1260,7 @@ validation or `make bootstrap-from-seed` for the complete rebuild. The normal
 Toolchain build then uses those two compiler stages for fourteen contract
 programs and the runtime probe. It compares all sixteen new objects and
 fifteen linked executables. Its private contract tree must reproduce the
-initial 47-file inventory exactly, including the Toolchain Makefile and both
+initial 50-file inventory exactly, including the Toolchain Makefile and both
 Python control modules, and each live check discovers the set again before
 comparing hashes. The public manifest also records the checked build plan,
 seed manifest, and complete 43-file fixed-point source inventory.

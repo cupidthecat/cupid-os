@@ -18327,6 +18327,104 @@ static ctool_u64 cfront_static_shift_right_jam_u128(
   return result | (discarded == CTOOL_TRUE ? 1ull : 0ull);
 }
 
+static ctool_i32 cfront_static_compare_u128(
+    cfront_u128_t left, cfront_u128_t right) {
+  if (left.high != right.high) {
+    return left.high < right.high ? -1 : 1;
+  }
+  if (left.low != right.low) {
+    return left.low < right.low ? -1 : 1;
+  }
+  return 0;
+}
+
+static cfront_u128_t cfront_static_add_u128(
+    cfront_u128_t left, cfront_u128_t right) {
+  cfront_u128_t result;
+  result.low = left.low + right.low;
+  result.high =
+      left.high + right.high +
+      (result.low < left.low ? 1ull : 0ull);
+  return result;
+}
+
+static cfront_u128_t cfront_static_subtract_u128(
+    cfront_u128_t left, cfront_u128_t right) {
+  cfront_u128_t result;
+  result.low = left.low - right.low;
+  result.high =
+      left.high - right.high -
+      (left.low < right.low ? 1ull : 0ull);
+  return result;
+}
+
+static ctool_u64 cfront_static_round_u128_to_u64(
+    cfront_u128_t value, ctool_u32 distance,
+    ctool_bool *carry_out) {
+  ctool_u64 quotient = 0ull;
+  ctool_bool guard = CTOOL_FALSE;
+  ctool_bool sticky = CTOOL_FALSE;
+  *carry_out = CTOOL_FALSE;
+  if (distance == 0u) {
+    return value.low;
+  }
+  if (distance < 64u) {
+    quotient =
+        (value.high << (64u - distance)) |
+        (value.low >> distance);
+    guard =
+        ((value.low >> (distance - 1u)) & 1ull) != 0ull
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
+    sticky =
+        (value.low & ((1ull << (distance - 1u)) - 1ull)) != 0ull
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
+  } else if (distance == 64u) {
+    quotient = value.high;
+    guard =
+        (value.low & 0x8000000000000000ull) != 0ull
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
+    sticky =
+        (value.low & 0x7fffffffffffffffull) != 0ull
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
+  } else if (distance < 128u) {
+    ctool_u32 high_distance = distance - 64u;
+    quotient = value.high >> high_distance;
+    guard =
+        ((value.high >> (high_distance - 1u)) & 1ull) != 0ull
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
+    sticky =
+        value.low != 0ull ||
+                (value.high &
+                 ((1ull << (high_distance - 1u)) - 1ull)) != 0ull
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
+  } else if (distance == 128u) {
+    guard =
+        (value.high & 0x8000000000000000ull) != 0ull
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
+    sticky =
+        value.low != 0ull ||
+                (value.high & 0x7fffffffffffffffull) != 0ull
+            ? CTOOL_TRUE
+            : CTOOL_FALSE;
+  }
+  if (guard == CTOOL_TRUE &&
+      (sticky == CTOOL_TRUE || (quotient & 1ull) != 0ull)) {
+    if (quotient == 0xffffffffffffffffull) {
+      *carry_out = CTOOL_TRUE;
+      return 0ull;
+    }
+    quotient++;
+  }
+  return quotient;
+}
+
 static ctool_status_t cfront_static_pack_rounded(
     cfront_context_t *context, ctool_c_type_kind_t kind,
     ctool_bool negative, ctool_i32 exponent, ctool_u64 extended,
@@ -18442,6 +18540,94 @@ static ctool_status_t cfront_static_pack_exact_u128(
       extended, location, bits_out);
 }
 
+static void cfront_static_long_double_special(
+    ctool_bool negative, ctool_bool nan,
+    ctool_u64 *significand_out, ctool_u32 *high_bits_out) {
+  *significand_out =
+      nan == CTOOL_TRUE ? 0xc000000000000000ull
+                        : 0x8000000000000000ull;
+  *high_bits_out =
+      (negative == CTOOL_TRUE ? 0x8000u : 0u) | 0x7fffu;
+}
+
+static void cfront_static_long_double_zero(
+    ctool_bool negative, ctool_u64 *significand_out,
+    ctool_u32 *high_bits_out) {
+  *significand_out = 0ull;
+  *high_bits_out = negative == CTOOL_TRUE ? 0x8000u : 0u;
+}
+
+static ctool_status_t cfront_static_pack_long_double_u128(
+    cfront_context_t *context, ctool_bool negative,
+    cfront_u128_t magnitude, ctool_i32 scale,
+    const ctool_c_pp_location_t *location,
+    ctool_u64 *significand_out, ctool_u32 *high_bits_out) {
+  ctool_u32 width = cfront_static_u128_width(magnitude);
+  ctool_i32 exponent;
+  ctool_i32 quantum_scale;
+  ctool_i32 distance;
+  ctool_u64 rounded;
+  ctool_bool carry = CTOOL_FALSE;
+  if (width == 0u) {
+    cfront_static_long_double_zero(
+        negative, significand_out, high_bits_out);
+    return CTOOL_OK;
+  }
+  exponent = scale + (ctool_i32)width - 1;
+  quantum_scale =
+      exponent >= -16382 ? exponent - 63 : -16445;
+  distance = quantum_scale - scale;
+  if (distance <= 0) {
+    ctool_u32 shift = (ctool_u32)(0 - distance);
+    if (magnitude.high != 0ull || shift >= 64u ||
+        cfront_u64_width(magnitude.low) > 64u - shift) {
+      return cfront_emit_location_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+          location,
+          "static long-double packing exceeded its integer workspace");
+    }
+    rounded = magnitude.low << shift;
+  } else {
+    rounded = cfront_static_round_u128_to_u64(
+        magnitude, (ctool_u32)distance, &carry);
+  }
+  if (carry == CTOOL_TRUE) {
+    rounded = 0x8000000000000000ull;
+    exponent++;
+  }
+  if (rounded == 0ull) {
+    cfront_static_long_double_zero(
+        negative, significand_out, high_bits_out);
+    return CTOOL_OK;
+  }
+  if (exponent > 16383) {
+    cfront_static_long_double_special(
+        negative, CTOOL_FALSE, significand_out, high_bits_out);
+    return CTOOL_OK;
+  }
+  if (exponent >= -16382) {
+    if ((rounded & 0x8000000000000000ull) == 0ull) {
+      return cfront_emit_location_failure(
+          context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+          location, "static long-double normal result is not normalized");
+    }
+    *significand_out = rounded;
+    *high_bits_out =
+        (negative == CTOOL_TRUE ? 0x8000u : 0u) |
+        (ctool_u32)(exponent + 0x3fff);
+    return CTOOL_OK;
+  }
+  if (rounded >= 0x8000000000000000ull) {
+    *significand_out = 0x8000000000000000ull;
+    *high_bits_out =
+        (negative == CTOOL_TRUE ? 0x8000u : 0u) | 1u;
+    return CTOOL_OK;
+  }
+  *significand_out = rounded;
+  *high_bits_out = negative == CTOOL_TRUE ? 0x8000u : 0u;
+  return CTOOL_OK;
+}
+
 static ctool_status_t cfront_static_decode_floating(
     cfront_context_t *context, ctool_c_type_kind_t kind,
     ctool_u64 bits, const ctool_c_pp_location_t *location,
@@ -18525,6 +18711,261 @@ static ctool_status_t cfront_static_decode_scalar_floating(
   return cfront_static_decode_floating(
       context, value->floating_kind, value->floating_bits,
       location, value_out);
+}
+
+static ctool_status_t cfront_static_add_long_double(
+    cfront_context_t *context, ctool_u64 left_significand,
+    ctool_u32 left_high_bits, ctool_u64 right_significand,
+    ctool_u32 right_high_bits, ctool_bool subtract,
+    const ctool_c_pp_location_t *location,
+    ctool_u64 *significand_out, ctool_u32 *high_bits_out) {
+  cfront_static_floating_t left;
+  cfront_static_floating_t right;
+  cfront_static_floating_t dominant;
+  cfront_static_floating_t smaller;
+  cfront_u128_t dominant_magnitude;
+  cfront_u128_t smaller_magnitude;
+  cfront_u128_t result;
+  ctool_u32 exponent_distance;
+  ctool_i32 magnitude_order;
+  ctool_bool result_negative;
+  ctool_status_t status = cfront_static_decode_long_double(
+      context, left_significand, left_high_bits, location, &left);
+  if (status == CTOOL_OK) {
+    status = cfront_static_decode_long_double(
+        context, right_significand, right_high_bits, location, &right);
+  }
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  if (subtract == CTOOL_TRUE) {
+    right.negative =
+        right.negative == CTOOL_TRUE ? CTOOL_FALSE : CTOOL_TRUE;
+  }
+  if (left.nan == CTOOL_TRUE || right.nan == CTOOL_TRUE ||
+      (left.infinity == CTOOL_TRUE && right.infinity == CTOOL_TRUE &&
+       left.negative != right.negative)) {
+    cfront_static_long_double_special(
+        CTOOL_FALSE, CTOOL_TRUE, significand_out, high_bits_out);
+    return CTOOL_OK;
+  }
+  if (left.infinity == CTOOL_TRUE) {
+    cfront_static_long_double_special(
+        left.negative, CTOOL_FALSE, significand_out, high_bits_out);
+    return CTOOL_OK;
+  }
+  if (right.infinity == CTOOL_TRUE) {
+    cfront_static_long_double_special(
+        right.negative, CTOOL_FALSE, significand_out, high_bits_out);
+    return CTOOL_OK;
+  }
+  if (left.zero == CTOOL_TRUE && right.zero == CTOOL_TRUE) {
+    cfront_static_long_double_zero(
+        left.negative == CTOOL_TRUE && right.negative == CTOOL_TRUE
+            ? CTOOL_TRUE
+            : CTOOL_FALSE,
+        significand_out, high_bits_out);
+    return CTOOL_OK;
+  }
+  if (left.zero == CTOOL_TRUE) {
+    cfront_u128_t magnitude;
+    magnitude.high = 0ull;
+    magnitude.low = right.significand;
+    return cfront_static_pack_long_double_u128(
+        context, right.negative, magnitude, right.exponent - 63,
+        location, significand_out, high_bits_out);
+  }
+  if (right.zero == CTOOL_TRUE) {
+    cfront_u128_t magnitude;
+    magnitude.high = 0ull;
+    magnitude.low = left.significand;
+    return cfront_static_pack_long_double_u128(
+        context, left.negative, magnitude, left.exponent - 63,
+        location, significand_out, high_bits_out);
+  }
+
+  magnitude_order =
+      left.exponent != right.exponent
+          ? (left.exponent < right.exponent ? -1 : 1)
+          : (left.significand == right.significand
+                 ? 0
+                 : (left.significand < right.significand ? -1 : 1));
+  if (magnitude_order >= 0) {
+    dominant = left;
+    smaller = right;
+  } else {
+    dominant = right;
+    smaller = left;
+  }
+  result_negative = dominant.negative;
+  exponent_distance =
+      (ctool_u32)(dominant.exponent - smaller.exponent);
+  if (exponent_distance > 64u) {
+    cfront_u128_t magnitude;
+    magnitude.high = 0ull;
+    magnitude.low = dominant.significand;
+    if (exponent_distance == 65u &&
+        dominant.negative != smaller.negative &&
+        dominant.significand == 0x8000000000000000ull &&
+        smaller.significand > 0x8000000000000000ull) {
+      magnitude.low = 0xffffffffffffffffull;
+      return cfront_static_pack_long_double_u128(
+          context, result_negative, magnitude,
+          dominant.exponent - 64, location,
+          significand_out, high_bits_out);
+    }
+    return cfront_static_pack_long_double_u128(
+        context, result_negative, magnitude, dominant.exponent - 63,
+        location, significand_out, high_bits_out);
+  }
+  if (cfront_u128_shifted_u64(
+          dominant.significand, exponent_distance,
+          &dominant_magnitude) == CTOOL_FALSE) {
+    return cfront_emit_location_failure(
+        context, CTOOL_ERR_INTERNAL, CTOOL_C_PARSE_DIAG_INTERNAL,
+        location,
+        "static long-double addition exceeded its integer workspace");
+  }
+  smaller_magnitude.high = 0ull;
+  smaller_magnitude.low = smaller.significand;
+  if (dominant.negative == smaller.negative) {
+    result = cfront_static_add_u128(
+        dominant_magnitude, smaller_magnitude);
+  } else if (cfront_static_compare_u128(
+                 dominant_magnitude, smaller_magnitude) >= 0) {
+    result = cfront_static_subtract_u128(
+        dominant_magnitude, smaller_magnitude);
+  } else {
+    result = cfront_static_subtract_u128(
+        smaller_magnitude, dominant_magnitude);
+    result_negative = smaller.negative;
+  }
+  if (result.high == 0ull && result.low == 0ull) {
+    result_negative = CTOOL_FALSE;
+  }
+  return cfront_static_pack_long_double_u128(
+      context, result_negative, result, smaller.exponent - 63,
+      location, significand_out, high_bits_out);
+}
+
+static ctool_status_t cfront_static_multiply_long_double(
+    cfront_context_t *context, ctool_u64 left_significand,
+    ctool_u32 left_high_bits, ctool_u64 right_significand,
+    ctool_u32 right_high_bits,
+    const ctool_c_pp_location_t *location,
+    ctool_u64 *significand_out, ctool_u32 *high_bits_out) {
+  cfront_static_floating_t left;
+  cfront_static_floating_t right;
+  ctool_bool negative;
+  cfront_u128_t product;
+  ctool_status_t status = cfront_static_decode_long_double(
+      context, left_significand, left_high_bits, location, &left);
+  if (status == CTOOL_OK) {
+    status = cfront_static_decode_long_double(
+        context, right_significand, right_high_bits, location, &right);
+  }
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  negative =
+      left.negative != right.negative ? CTOOL_TRUE : CTOOL_FALSE;
+  if (left.nan == CTOOL_TRUE || right.nan == CTOOL_TRUE ||
+      ((left.infinity == CTOOL_TRUE || right.infinity == CTOOL_TRUE) &&
+       (left.zero == CTOOL_TRUE || right.zero == CTOOL_TRUE))) {
+    cfront_static_long_double_special(
+        CTOOL_FALSE, CTOOL_TRUE, significand_out, high_bits_out);
+    return CTOOL_OK;
+  }
+  if (left.infinity == CTOOL_TRUE || right.infinity == CTOOL_TRUE) {
+    cfront_static_long_double_special(
+        negative, CTOOL_FALSE, significand_out, high_bits_out);
+    return CTOOL_OK;
+  }
+  if (left.zero == CTOOL_TRUE || right.zero == CTOOL_TRUE) {
+    cfront_static_long_double_zero(
+        negative, significand_out, high_bits_out);
+    return CTOOL_OK;
+  }
+  product = cfront_static_multiply_u64(
+      left.significand, right.significand);
+  return cfront_static_pack_long_double_u128(
+      context, negative, product,
+      left.exponent + right.exponent - 126,
+      location, significand_out, high_bits_out);
+}
+
+static ctool_status_t cfront_static_divide_long_double(
+    cfront_context_t *context, ctool_u64 left_significand,
+    ctool_u32 left_high_bits, ctool_u64 right_significand,
+    ctool_u32 right_high_bits,
+    const ctool_c_pp_location_t *location,
+    ctool_u64 *significand_out, ctool_u32 *high_bits_out) {
+  cfront_static_floating_t left;
+  cfront_static_floating_t right;
+  cfront_u128_t extended;
+  ctool_u64 remainder;
+  ctool_i32 exponent;
+  ctool_u32 bit_index;
+  ctool_bool negative;
+  ctool_status_t status = cfront_static_decode_long_double(
+      context, left_significand, left_high_bits, location, &left);
+  if (status == CTOOL_OK) {
+    status = cfront_static_decode_long_double(
+        context, right_significand, right_high_bits, location, &right);
+  }
+  if (status != CTOOL_OK) {
+    return status;
+  }
+  negative =
+      left.negative != right.negative ? CTOOL_TRUE : CTOOL_FALSE;
+  if (left.nan == CTOOL_TRUE || right.nan == CTOOL_TRUE ||
+      (left.zero == CTOOL_TRUE && right.zero == CTOOL_TRUE) ||
+      (left.infinity == CTOOL_TRUE && right.infinity == CTOOL_TRUE)) {
+    cfront_static_long_double_special(
+        CTOOL_FALSE, CTOOL_TRUE, significand_out, high_bits_out);
+    return CTOOL_OK;
+  }
+  if (left.infinity == CTOOL_TRUE || right.zero == CTOOL_TRUE) {
+    cfront_static_long_double_special(
+        negative, CTOOL_FALSE, significand_out, high_bits_out);
+    return CTOOL_OK;
+  }
+  if (left.zero == CTOOL_TRUE || right.infinity == CTOOL_TRUE) {
+    cfront_static_long_double_zero(
+        negative, significand_out, high_bits_out);
+    return CTOOL_OK;
+  }
+  exponent = left.exponent - right.exponent;
+  if (left.significand >= right.significand) {
+    remainder = left.significand - right.significand;
+  } else {
+    remainder =
+        left.significand -
+        (right.significand - left.significand);
+    exponent--;
+  }
+  extended.high = 0ull;
+  extended.low = 1ull;
+  for (bit_index = 0u; bit_index < 66u; bit_index++) {
+    ctool_u64 gap = right.significand - remainder;
+    ctool_u64 quotient_bit;
+    if (remainder >= gap) {
+      remainder -= gap;
+      quotient_bit = 1ull;
+    } else {
+      remainder *= 2ull;
+      quotient_bit = 0ull;
+    }
+    extended.high =
+        (extended.high << 1u) | (extended.low >> 63u);
+    extended.low = (extended.low << 1u) | quotient_bit;
+  }
+  if (remainder != 0ull) {
+    extended.low |= 1ull;
+  }
+  return cfront_static_pack_long_double_u128(
+      context, negative, extended, exponent - 66,
+      location, significand_out, high_bits_out);
 }
 
 static ctool_status_t cfront_static_add_floating(
@@ -19683,12 +20124,43 @@ static ctool_status_t cfront_evaluate_static_scalar(
         left.floating_kind == right.floating_kind) {
       ctool_u64 bits;
       if (left.floating_kind == CTOOL_C_TYPE_LONG_DOUBLE) {
-        return cfront_emit_location_failure(
-            context, CTOOL_ERR_UNSUPPORTED,
-            CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION,
-            &expression.location,
-            "static long-double arithmetic is outside this constant-data "
-            "slice");
+        ctool_u32 high_bits;
+        if (expression.operation ==
+                CTOOL_C_EXPRESSION_OPERATOR_ADD ||
+            expression.operation ==
+                CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT) {
+          status = cfront_static_add_long_double(
+              context, left.floating_bits, left.floating_high_bits,
+              right.floating_bits, right.floating_high_bits,
+              expression.operation ==
+                      CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT
+                  ? CTOOL_TRUE
+                  : CTOOL_FALSE,
+              &expression.location, &bits, &high_bits);
+        } else if (expression.operation ==
+                   CTOOL_C_EXPRESSION_OPERATOR_MULTIPLY) {
+          status = cfront_static_multiply_long_double(
+              context, left.floating_bits, left.floating_high_bits,
+              right.floating_bits, right.floating_high_bits,
+              &expression.location, &bits, &high_bits);
+        } else if (expression.operation ==
+                   CTOOL_C_EXPRESSION_OPERATOR_DIVIDE) {
+          status = cfront_static_divide_long_double(
+              context, left.floating_bits, left.floating_high_bits,
+              right.floating_bits, right.floating_high_bits,
+              &expression.location, &bits, &high_bits);
+        } else {
+          return CTOOL_OK;
+        }
+        if (status != CTOOL_OK) {
+          return status;
+        }
+        value_out->kind = CFRONT_STATIC_SCALAR_FLOATING;
+        value_out->floating_kind = CTOOL_C_TYPE_LONG_DOUBLE;
+        value_out->floating_bits = bits;
+        value_out->floating_high_bits = high_bits;
+        *matched_out = CTOOL_TRUE;
+        return CTOOL_OK;
       }
       if (expression.operation ==
               CTOOL_C_EXPRESSION_OPERATOR_ADD ||

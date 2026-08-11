@@ -8479,7 +8479,7 @@ def _cupid_toolchain_fixed_point_contract(
         "help_cases": len(expected_toolchain_links),
         "success_behavior_cases": 17,
         "failure_behavior_cases": 15,
-        "contract_manifest_inputs": 47,
+        "contract_manifest_inputs": 50,
         "source_head_capabilities": [
             "cupidld.pe32_fixed_image",
             "cupidld.pe32_imports",

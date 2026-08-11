@@ -515,6 +515,11 @@ comparisons, short-circuit logic, conditional selection, and floating-width
 conversion use a shared target-only decoder. It accepts canonical x87 zero,
 subnormal, normal, infinity, and NaN payloads and rejects pseudo encodings.
 Folded values become final initializer records and add no runtime IR.
+Compiler-head CupidC folds static long-double `+`, `-`, `*`, and `/` with a
+separate unsigned 128-bit target packer. It rounds once to the explicit x87
+significand, handles gradual underflow and canonical special results, and also
+leaves no runtime IR.
+
 Private runtime floating comparisons use `SETP` and `SETNP` when they merge
 the x86 parity flag into a normalized Boolean. Source-head CupidDis names
 both byte predicates from the shared catalogue, so a `dis` listing stays
@@ -524,11 +529,10 @@ feature 13 for the broader comparison and truth behavior. In GUI mode, the
 shell writes the listing to the terminal and mirrors it to serial only after
 the usual sink and redirection checks. That gives the runtime gate production
 CupidDis evidence without duplicating ordinary text-mode output.
-
 Hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimals beyond the bounded
-ratio parser, static long-double arithmetic, runtime mixed integer and
-floating arithmetic or conditional arms, floating increment and decrement,
+ratio parser, runtime mixed integer and floating arithmetic or conditional
+arms, floating increment and decrement,
 SIMD values, floating atomics, and over-aligned object emission remain
 unfinished.
 ADR 0229 records the exact decimal representation and automatic object proof.
@@ -537,6 +541,8 @@ records exact static long-double data. ADR 0253 records runtime conversions
 between `long double` and integers. ADR 0254 records static initializer
 conversion. ADR 0255 records static controls and finite width conversion.
 ADR 0256 records canonical x87 classes and special floating-width conversion.
+ADR 0259 records the shared parity predicates. ADR 0260 records static
+long-double arithmetic.
 
 Plain assignment, all ten compound assignments, and prefix and postfix update work for represented non-atomic integer bit fields when the declared storage unit is four bytes and fits inside the record. The compiler evaluates the record designator once and applies the target's integer-promotion rules before a compound operation. Partial fields preserve the other bits in their unit. Assignment, compound assignment, and prefix update return the stored lane after width truncation and signed extension, while postfix update returns the extracted old value. A 32-bit field uses the direct load and store path. Volatile 32-bit updates perform one read and one store. Partial volatile mutation, atomic fields, and other storage-unit sizes remain unsupported.
 
@@ -590,7 +596,7 @@ source trees, files, and symbolic links remain untouched. The initial,
 private, and newly discovered contract inventories must match exactly, which
 catches added or removed inputs and restored edits that changed a copied
 file. Every run derives its cohort from the requested executable, requires a
-named manifest artifact, and verifies the complete cohort, live 47-input
+named manifest artifact, and verifies the complete cohort, live 50-input
 contract set, checked seed manifest, and 43-file fixed-point source inventory
 before execution. The contract set includes the Toolchain Makefile and both
 Python control modules. Seed-manifest hashing, JSON decoding, schema validation, and
@@ -776,7 +782,7 @@ ISO recipe now runs that checked image as its first byte author, with Python
 retained as the independent renderer and guarded publisher; ADR 0241 records
 that handoff.
 
-The normal Toolchain build snapshots 47 contract inputs, including the
+The normal Toolchain build snapshots 50 contract inputs, including the
 Windows startup and runtime probe, the Toolchain Makefile, and both Python
 control modules, then reproduces that exact
 inventory under a private root, and uses both rebuilt stages for all fourteen
@@ -789,7 +795,7 @@ Stage-two and stage-three objects and executables match, the hosted runtime
 passes, and all 20 published artifacts verify. Its 18,232-byte manifest has
 SHA-256
 `8cd0ea08454d9d672e6890e040fce85ba02b2c101c21599aa3933b0d89eee202`.
-The manifest records all 47 inputs, the 43-file source snapshot, and the
+The manifest records all 50 inputs, the 43-file source snapshot, and the
 checked seed. Current hashes are retained in the bootstrap log.
 That cohort predates the seed promotion; the post-promotion bootstrap proves
 the promoted trust unit independently.
@@ -915,10 +921,11 @@ target representation and emit no runtime work. Canonical x87 infinity and
 NaN cross the same path, and the decoder accepts canonical subnormal payloads.
 Hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
-bounded parser, static long-double arithmetic, other floating-to-wide
-conversions, runtime mixed integer and
+bounded parser, other floating-to-wide conversions, runtime mixed integer and
 floating arithmetic or conditional arms, and floating increment and
 decrement remain unsupported.
+Static `+`, `-`, `*`, and `/` fold with integer-only x87 target arithmetic and
+produce final initializer data.
 Matching or mixed-width floating conditional arms and the four arithmetic
 compound assignments keep their established x87 path.
 
@@ -1278,7 +1285,7 @@ preserving ESI or EDI across the cdecl call.
 
 The i386 path emits `EC`, `EE`, `66 ED`, `66 EF`, `ED`, and `EF` for scalar
 port I/O. The string forms emit `FC F3 66 6D` and `FC F3 66 6F` through the
-shared x86 model. The checked-seed C11 standalone sweep passes 159 of 161
+shared x86 model. The checked-seed C11 standalone sweep passes 160 of 162
 active non-Doom headers; `scheduler.h` and `simd_intrin.h` remain exact
 C11-profile failures. The checked seed parses all 29 declarations in
 `simd_intrin.h` under the Cupid profile through the native type spellings
@@ -2280,8 +2287,8 @@ conversion cover `float`, `double`, and automatic `long double`. Runtime mixed
 wide and floating arithmetic or conditional arms, increment and decrement,
 hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
-bounded parser, static long-double arithmetic, and SIMD remain open in the
-hosted path.
+bounded parser and SIMD remain open in the hosted path. Static long-double
+arithmetic folds with integer-only 128-bit intermediates.
 Static long-double
 truth, comparisons, short-circuit logic, conditional selection, and
 floating-width conversion fold into target data. Runtime integer conversions

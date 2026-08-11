@@ -245,9 +245,9 @@ Initial, private, and newly discovered contract inventories must match exactly,
 which catches additions, removals, and restored edits that changed a copied
 input. Every run derives the cohort from its requested executable, requires a
 named manifest artifact, and verifies the manifest, target, fixed-point
-record, filenames, sizes, artifact hashes, 47 contract input hashes, the
+record, filenames, sizes, artifact hashes, 50 contract input hashes, the
 checked seed manifest, and the 43-file fixed-point source inventory before
-execution. The contract inventory now has 47 inputs, including the Windows
+execution. The contract inventory has 50 inputs, including the Windows
 startup and runtime probe, the Toolchain Makefile, and both Python modules
 that construct or verify the cohort. The
 manifest digest, decoded data, schema checks, and build plan
@@ -486,7 +486,7 @@ across the cdecl call.
 
 The scalar forms emit EC, EE, 66 ED, 66 EF, ED, and EF. INSW and OUTSW emit
 FC F3 66 6D and FC F3 66 6F through the shared x86 model. The checked-seed C11
-standalone sweep passes 159 of 161 active non-Doom headers. scheduler.h and
+standalone sweep passes 160 of 162 active non-Doom headers. scheduler.h and
 simd_intrin.h remain exact C11-profile failures. The checked seed parses all 29
 simd_intrin.h declarations under the Cupid profile through the shared native
 type graph.
@@ -658,16 +658,23 @@ subnormal result produced by static binary32 arithmetic. Infinity keeps its
 sign, and NaN becomes one quiet x87 payload. Narrowing uses round-to-nearest,
 ties-to-even packing for finite values and canonical special encodings. Folded
 expressions add no runtime IR.
+Compiler-head CupidC folds static long-double +, -, *, and / with unsigned
+128-bit target arithmetic. The packer rounds once to the explicit x87
+significand, handles gradual underflow, and returns canonical infinity or quiet
+NaN when required. These results also stay in the initializer forest and add no
+runtime instruction. ADR 0260 records this arithmetic model.
+
 Private runtime floating comparisons merge the parity flag with SETP or SETNP.
 Source-head CupidDis names both byte predicates from the shared catalogue,
 so the in-OS `dis` command stays aligned through the following AND, OR, and
 MOVZX instructions. In GUI mode, the shell keeps the listing in the terminal
 and mirrors it to serial after its ordinary sink and redirection checks.
+ADR 0259 records the shared parity predicates.
 
 Hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
-bounded parser, static long-double arithmetic, other floating-to-wide
-conversions, runtime mixed integer and floating
+bounded parser, other floating-to-wide conversions, runtime mixed integer and
+floating
 arithmetic or conditional arms, increment and decrement, general SIMD value
 semantics, floating atomic access, and over-aligned object emission remain
 unfinished.

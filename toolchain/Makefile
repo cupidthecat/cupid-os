@@ -339,12 +339,14 @@ $(BUILD_DIR)/cupidc_type_contract.o: tests/cupidc_type_contract.cc \
 
 $(BUILD_DIR)/cupidc_frontend_contract.o: \
     tests/cupidc_frontend_contract.cc $(CUPIDC_PP_ACTIVE_CASES) \
+    tests/cupidc_static_long_double_arithmetic_fixture.h \
     tests/cupidc_static_long_double_control_fixture.h \
     tests/cupidc_static_long_double_integer_fixture.h \
     cupidc_frontend.h cupidc_type.h cupidc_pp.h ctool.h ctool_host.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -x c -c $< -o $@
 
 $(BUILD_DIR)/cupidc_ir_contract.o: tests/cupidc_ir_contract.cc \
+    tests/cupidc_static_long_double_arithmetic_fixture.h \
     tests/cupidc_static_long_double_control_fixture.h \
     tests/cupidc_static_long_double_integer_fixture.h \
     cupidc_ir.h cupidc_frontend.h cupidc_type.h cupidc_pp.h \
@@ -353,6 +355,7 @@ $(BUILD_DIR)/cupidc_ir_contract.o: tests/cupidc_ir_contract.cc \
 
 $(BUILD_DIR)/cupidc_object_contract.o: tests/cupidc_object_contract.cc \
     tests/cupidc_kernel_simd_fixture.h \
+    tests/cupidc_static_long_double_arithmetic_fixture.h \
     tests/cupidc_static_long_double_control_fixture.h \
     tests/cupidc_static_long_double_integer_fixture.h \
     cupidc_emit.h cupidc_ir.h cupidc_frontend.h cupidc_type.h cupidc_pp.h \
@@ -524,6 +527,7 @@ test: $(CONTRACT_MANIFEST) \
 	$(CUPIDC_FRONTEND_CONTRACT) floating-conversions ..
 	$(CUPIDC_FRONTEND_CONTRACT) floating-truth ..
 	$(CUPIDC_FRONTEND_CONTRACT) floating-scalars ..
+	$(CUPIDC_FRONTEND_CONTRACT) static-long-double-arithmetic ..
 	$(CUPIDC_FRONTEND_CONTRACT) inline-assembly ..
 	$(CUPIDC_FRONTEND_CONTRACT) port-io-assembly ..
 	$(CUPIDC_FRONTEND_CONTRACT) privileged-register-assembly ..
@@ -607,6 +611,7 @@ test: $(CONTRACT_MANIFEST) \
 	$(CUPIDC_IR_CONTRACT) floating-conversions ..
 	$(CUPIDC_IR_CONTRACT) floating-truth ..
 	$(CUPIDC_IR_CONTRACT) floating-scalars ..
+	$(CUPIDC_IR_CONTRACT) static-long-double-arithmetic ..
 	$(CUPIDC_IR_CONTRACT) inline-assembly ..
 	$(CUPIDC_IR_CONTRACT) port-io-assembly ..
 	$(CUPIDC_IR_CONTRACT) privileged-register-assembly ..
@@ -658,6 +663,7 @@ test: $(CONTRACT_MANIFEST) \
 	$(CUPIDC_OBJECT_CONTRACT) floating-conversions ..
 	$(CUPIDC_OBJECT_CONTRACT) floating-truth ..
 	$(CUPIDC_OBJECT_CONTRACT) floating-scalars ..
+	$(CUPIDC_OBJECT_CONTRACT) static-long-double-arithmetic ..
 	$(CUPIDC_OBJECT_CONTRACT) inline-assembly ..
 	$(CUPIDC_OBJECT_CONTRACT) port-io-assembly ..
 	$(CUPIDC_OBJECT_CONTRACT) privileged-register-assembly ..

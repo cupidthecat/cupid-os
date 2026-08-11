@@ -3,6 +3,7 @@
 #define CUPID_TOOLCHAIN_CUPIDC_STATIC_LONG_DOUBLE_INTERNAL
 #include "cupidc_frontend.h"
 #undef CUPID_TOOLCHAIN_CUPIDC_STATIC_LONG_DOUBLE_INTERNAL
+#include "cupidc_static_long_double_arithmetic_fixture.h"
 #include "cupidc_static_long_double_control_fixture.h"
 #include "cupidc_static_long_double_integer_fixture.h"
 
@@ -7765,8 +7766,8 @@ static int validate_toolchain_frontier(const char *host_root) {
        69479u, 993u, 364u, 0u, 0u},
       {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 366u, 9266u,
        77286u, 1126u, 750u, 0u, 0u},
-      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 435u,
-       16942u, 112034u, 2522u, 1536u, 0u, 0u},
+      {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 445u,
+       17242u, 113778u, 2565u, 1547u, 0u, 0u},
       {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 82u, 3054u,
        20124u, 338u, 190u, 0u, 0u},
       {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
@@ -27793,6 +27794,325 @@ static int validate_raw_x87_subnormal_decoder(void) {
   return 0;
 }
 
+typedef struct {
+  const char *name;
+  const cupidc_static_long_double_arithmetic_oracle_t *oracles;
+  ctool_u32 oracle_count;
+  ctool_u32 qualifiers;
+} static_long_double_arithmetic_array_t;
+
+static int validate_static_long_double_arithmetic(
+    const ctool_c_translation_unit_t *unit) {
+  static const static_long_double_arithmetic_array_t arrays[] = {
+      {"static_long_double_add_subtract",
+       cupidc_static_long_double_add_subtract_oracles,
+       ARRAY_COUNT(cupidc_static_long_double_add_subtract_oracles),
+       CTOOL_C_QUAL_CONST},
+      {"static_long_double_multiply_divide",
+       cupidc_static_long_double_multiply_divide_oracles,
+       ARRAY_COUNT(cupidc_static_long_double_multiply_divide_oracles),
+       CTOOL_C_QUAL_CONST},
+      {"static_long_double_rounding",
+       cupidc_static_long_double_rounding_oracles,
+       ARRAY_COUNT(cupidc_static_long_double_rounding_oracles),
+       CTOOL_C_QUAL_CONST},
+      {"static_long_double_edges",
+       cupidc_static_long_double_edge_oracles,
+       ARRAY_COUNT(cupidc_static_long_double_edge_oracles),
+       CTOOL_C_QUAL_CONST},
+      {"static_long_double_specials",
+       cupidc_static_long_double_special_oracles,
+       ARRAY_COUNT(cupidc_static_long_double_special_oracles), 0u}};
+  ctool_u32 array_index;
+
+  if (unit == NULL || unit->object_definition_count != ARRAY_COUNT(arrays) ||
+      unit->function_definition_count != 0u ||
+      unit->block_binding_count != 0u || unit->initializer_count != 85u ||
+      unit->initializer_element_count != 80u) {
+    (void)fprintf(
+        stderr,
+        "static-long-double-arithmetic: graph counts differ: "
+        "objects=%u functions=%u blocks=%u initializers=%u edges=%u\n",
+        unit == NULL ? 0u : (unsigned int)unit->object_definition_count,
+        unit == NULL ? 0u : (unsigned int)unit->function_definition_count,
+        unit == NULL ? 0u : (unsigned int)unit->block_binding_count,
+        unit == NULL ? 0u : (unsigned int)unit->initializer_count,
+        unit == NULL ? 0u : (unsigned int)unit->initializer_element_count);
+    return 1;
+  }
+
+  for (array_index = 0u; array_index < ARRAY_COUNT(arrays); array_index++) {
+    const static_long_double_arithmetic_array_t *expected =
+        &arrays[array_index];
+    const ctool_c_object_definition_t *definition =
+        find_object_definition(unit, expected->name);
+    const ctool_c_type_node_t *array =
+        definition == NULL
+            ? NULL
+            : unwrapped_type_node(unit, definition->declared_type);
+    const ctool_c_initializer_t *root =
+        definition == NULL
+            ? NULL
+            : initializer_node(unit, definition->initializer);
+    ctool_u32 qualifiers = 0u;
+    ctool_u32 element_index;
+
+    if (definition == NULL ||
+        definition->kind != CTOOL_C_OBJECT_DEFINITION_EXPLICIT ||
+        definition->storage != CTOOL_C_STORAGE_STATIC || array == NULL ||
+        array->kind != CTOOL_C_TYPE_ARRAY ||
+        array->array_bound_kind != CTOOL_C_ARRAY_FIXED ||
+        array->element_count != expected->oracle_count ||
+        underlying_type_kind(unit, array->referenced_type, &qualifiers) !=
+            CTOOL_C_TYPE_LONG_DOUBLE ||
+        qualifiers != expected->qualifiers ||
+        initializer_is_exact_static_list(
+            root, definition->declared_type, expected->oracle_count) == 0) {
+      (void)fprintf(
+          stderr,
+          "static-long-double-arithmetic: array %s differs\n",
+          expected->name);
+      return 1;
+    }
+
+    for (element_index = 0u; element_index < expected->oracle_count;
+         element_index++) {
+      const cupidc_static_long_double_arithmetic_oracle_t *oracle =
+          &expected->oracles[element_index];
+      if (initializer_is_exact_static_scalar(
+              initializer_list_child(
+                  unit, root, element_index, element_index),
+              CTOOL_C_INITIALIZER_FLOATING, array->referenced_type,
+              oracle->significand, oracle->high_bits) == 0) {
+        (void)fprintf(
+            stderr,
+            "static-long-double-arithmetic: %s leaf %u differs: "
+            "expected=%llx/%x actual=%llx/%x\n",
+            expected->name, (unsigned int)element_index,
+            (unsigned long long)oracle->significand,
+            (unsigned int)oracle->high_bits,
+            (unsigned long long)(initializer_list_child(
+                unit, root, element_index, element_index) == NULL
+                    ? 0ull
+                    : initializer_list_child(
+                          unit, root, element_index, element_index)
+                          ->integer_bits),
+            (unsigned int)(initializer_list_child(
+                unit, root, element_index, element_index) == NULL
+                    ? 0u
+                    : initializer_list_child(
+                          unit, root, element_index, element_index)
+                          ->floating_high_bits));
+        return 1;
+      }
+    }
+  }
+  return 0;
+}
+
+static char *build_static_long_double_chain_source(
+    ctool_u32 operation_count) {
+  size_t capacity = 80u + (size_t)operation_count * 9u;
+  size_t used = 0u;
+  char *source = (char *)malloc(capacity);
+  ctool_u32 index;
+  if (source == NULL) {
+    return NULL;
+  }
+  source[0] = '\0';
+  if (append_scale_text(
+          source, capacity, &used,
+          "static long double chain_value = 1.0L") != 0) {
+    free(source);
+    return NULL;
+  }
+  for (index = 0u; index < operation_count; index++) {
+    if (append_scale_text(
+            source, capacity, &used, " + 1.0L") != 0) {
+      free(source);
+      return NULL;
+    }
+  }
+  if (append_scale_text(source, capacity, &used, ";\n") != 0) {
+    free(source);
+    return NULL;
+  }
+  return source;
+}
+
+static int validate_recovered_long_double_arithmetic(
+    const ctool_c_translation_unit_t *unit) {
+  const ctool_c_object_definition_t *definition =
+      unit == NULL
+          ? NULL
+          : find_object_definition(unit, "recovered_long_double_sum");
+  const ctool_c_initializer_t *initializer =
+      definition == NULL
+          ? NULL
+          : initializer_node(unit, definition->initializer);
+  ctool_u32 qualifiers = 0u;
+  return unit != NULL && unit->object_definition_count == 1u &&
+                 unit->function_definition_count == 0u &&
+                 unit->initializer_count == 1u && definition != NULL &&
+                 definition->kind == CTOOL_C_OBJECT_DEFINITION_EXPLICIT &&
+                 definition->storage == CTOOL_C_STORAGE_STATIC &&
+                 underlying_type_kind(
+                     unit, definition->declared_type, &qualifiers) ==
+                     CTOOL_C_TYPE_LONG_DOUBLE &&
+                 qualifiers == CTOOL_C_QUAL_CONST &&
+                 initializer_is_exact_static_scalar(
+                     initializer, CTOOL_C_INITIALIZER_FLOATING,
+                     definition->declared_type, 0xc000000000000000ull,
+                     0x4000u) != 0
+             ? 0
+             : 1;
+}
+
+static int run_static_long_double_arithmetic(const char *host_root) {
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"nonconstant long-double addition",
+        "long double input; static long double bad = input + 1.0L;\n",
+        CTOOL_ERR_UNSUPPORTED,
+        CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       1u, 45u,
+       "static scalar initializer requires constant arithmetic operands"},
+      {{"nonconstant long-double subtraction",
+        "long double input; static long double bad = input - 1.0L;\n",
+        CTOOL_ERR_UNSUPPORTED,
+        CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       1u, 45u,
+       "static scalar initializer requires constant arithmetic operands"},
+      {{"nonconstant long-double multiplication",
+        "long double input; static long double bad = input * 1.0L;\n",
+        CTOOL_ERR_UNSUPPORTED,
+        CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       1u, 45u,
+       "static scalar initializer requires constant arithmetic operands"},
+      {{"nonconstant long-double division",
+        "long double input; static long double bad = input / 1.0L;\n",
+        CTOOL_ERR_UNSUPPORTED,
+        CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
+       1u, 45u,
+       "static scalar initializer requires constant arithmetic operands"}};
+  frontend_fixture_t fixture;
+  frontend_fixture_t repeated_fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t repeated_unit;
+  ctool_c_translation_unit_t recovered_unit;
+  frontend_failure_case_t depth_case;
+  char *depth_source = NULL;
+  char *source = NULL;
+  size_t prefix_size =
+      sizeof(cupidc_static_long_double_arithmetic_source_prefix) - 1u;
+  size_t cases_size =
+      sizeof(cupidc_static_long_double_arithmetic_source_cases);
+  ctool_u32 index;
+  int repeated_open = 0;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "static-long-double-arithmetic",
+                             host_root, 64u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  source = (char *)malloc(prefix_size + cases_size);
+  if (source == NULL) {
+    (void)fprintf(
+        stderr,
+        "static-long-double-arithmetic: source allocation failed\n");
+    goto cleanup;
+  }
+  memcpy(source, cupidc_static_long_double_arithmetic_source_prefix,
+         prefix_size);
+  memcpy(source + prefix_size,
+         cupidc_static_long_double_arithmetic_source_cases, cases_size);
+  if (parse_valid_fixture(
+          &fixture, "/static-long-double-arithmetic.c",
+          source, &unit) != 0 ||
+      validate_static_long_double_arithmetic(&unit) != 0) {
+    goto cleanup;
+  }
+  if (begin_frontend_fixture(
+          &repeated_fixture, "static-long-double-arithmetic-repeat",
+          host_root, 64u * 1024u * 1024u) != 0) {
+    goto cleanup;
+  }
+  repeated_open = 1;
+  if (parse_valid_fixture(
+          &repeated_fixture,
+          "/static-long-double-arithmetic-repeat.c", source,
+          &repeated_unit) != 0 ||
+      validate_static_long_double_arithmetic(&repeated_unit) != 0) {
+    goto cleanup;
+  }
+  if (finish_frontend_fixture(&repeated_fixture) != 0) {
+    repeated_open = 0;
+    goto cleanup;
+  }
+  repeated_open = 0;
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case =
+        &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure,
+            "/static-long-double-arithmetic-failure.c",
+            test_case->line, test_case->column,
+            test_case->message) != 0 ||
+        validate_static_long_double_arithmetic(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  depth_source = build_static_long_double_chain_source(
+      CTOOL_C_PARSE_NESTING_LIMIT);
+  if (depth_source == NULL) {
+    (void)fprintf(
+        stderr,
+        "static-long-double-arithmetic: depth source allocation failed\n");
+    goto cleanup;
+  }
+  depth_case.name = "flat static long-double expression limit";
+  depth_case.source = depth_source;
+  depth_case.status = CTOOL_ERR_LIMIT;
+  depth_case.diagnostic_code = CTOOL_C_PARSE_DIAG_LIMIT;
+  if (expect_frontend_failure_at_message(
+          &fixture, &depth_case,
+          "/static-long-double-arithmetic-depth.c", 1u, 34u,
+          "static scalar expression exceeds the public nesting limit") !=
+          0 ||
+      validate_static_long_double_arithmetic(&unit) != 0) {
+    goto cleanup;
+  }
+  if (parse_valid_fixture(
+          &fixture, "/static-long-double-arithmetic-recovery.c",
+          "static const long double recovered_long_double_sum = "
+          "1.0L + 2.0L;\n",
+          &recovered_unit) != 0 ||
+      validate_recovered_long_double_arithmetic(&recovered_unit) != 0 ||
+      validate_static_long_double_arithmetic(&unit) != 0) {
+    (void)fprintf(
+        stderr,
+        "static-long-double-arithmetic: same-job recovery differs\n");
+    goto cleanup;
+  }
+  failed = 0;
+
+cleanup:
+  if (repeated_open != 0 &&
+      finish_frontend_fixture(&repeated_fixture) != 0) {
+    failed = 1;
+  }
+  free(depth_source);
+  free(source);
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("static-long-double-arithmetic: ok\n");
+  }
+  return failed;
+}
+
 static int run_floating_transport(const char *host_root) {
   static const char promotion_source[] =
       "typedef void (*variadic_callback)(int, ...);\n"
@@ -27981,30 +28301,6 @@ static int run_floating_transport(const char *host_root) {
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
        1u, 39u,
        "floating assignment conversion is outside this body slice"},
-      {{"static long double arithmetic",
-        "static long double bad = 1.0L + 2.0L;\n",
-        CTOOL_ERR_UNSUPPORTED,
-        CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
-       1u, 31u,
-       "static long-double arithmetic is outside this constant-data slice"},
-      {{"selected long double logical-and arithmetic",
-        "static int bad = 1.0L && (1.0L + 2.0L);\n",
-        CTOOL_ERR_UNSUPPORTED,
-        CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
-       1u, 32u,
-       "static long-double arithmetic is outside this constant-data slice"},
-      {{"selected long double logical-or arithmetic",
-        "static int bad = 0.0L || (1.0L + 2.0L);\n",
-        CTOOL_ERR_UNSUPPORTED,
-        CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
-       1u, 32u,
-       "static long-double arithmetic is outside this constant-data slice"},
-      {{"selected long double conditional arithmetic",
-        "static long double bad = 1 ? (1.0L + 2.0L) : 3.0L;\n",
-        CTOOL_ERR_UNSUPPORTED,
-        CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
-       1u, 36u,
-       "static long-double arithmetic is outside this constant-data slice"},
       {{"static long double above signed character range",
         "static signed char bad = 128.0L;\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_CONSTANT_EXPRESSION},
@@ -34909,7 +35205,7 @@ int main(int argc, char **argv) {
                    "wide-variadics|floating-transport|floating-arithmetic|"
                    "floating-comparisons|floating-conversions|"
                    "floating-truth|"
-                   "floating-scalars|"
+                   "floating-scalars|static-long-double-arithmetic|"
                    "variadic-callees|"
                    "atomic-builtins|"
                    "inline-assembly|port-io-assembly|"
@@ -35018,6 +35314,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "floating-scalars") == 0) {
     return run_floating_scalars(argv[2]);
+  }
+  if (strcmp(argv[1], "static-long-double-arithmetic") == 0) {
+    return run_static_long_double_arithmetic(argv[2]);
   }
   if (strcmp(argv[1], "variadic-callees") == 0) {
     return run_variadic_callees(argv[2]);

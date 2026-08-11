@@ -96,8 +96,11 @@ encodings. Finite binary32 and binary64 values widen exactly. Infinity keeps
 its sign, and NaN becomes one quiet x87 payload. Narrowing uses
 round-to-nearest, ties-to-even packing for finite values and canonical target
 encodings for infinity and NaN. Folded results add no runtime IR. Hexadecimal
-or subnormal long-double literals, decimal ratios beyond the bounded parser,
-and static long-double arithmetic remain open.
+or subnormal long-double literals and decimal ratios beyond the bounded parser
+remain open. Static `+`, `-`, `*`, and `/` use an unsigned 128-bit target
+packer. It rounds once to the explicit x87 significand, including gradual
+underflow, and emits canonical special values. The 80-result contract checks
+all twelve object bytes and proves that Linear IR publishes no runtime work.
 
 The static scalar and aggregate proofs cover both scopes, mutable and const
 objects, positive and negative values, both signed zeros, the largest accepted
@@ -108,8 +111,10 @@ fixture covers every integer kind, signed and unsigned enums, both signed
 64-bit endpoints, `ULLONG_MAX`, and both results of `-0.5L`. ADR 0251 records
 the static-data boundary, ADR 0254 records integer conversion, and ADR 0255
 records static controls and finite width conversion. ADR 0256 records the
-canonical x87 decoder and special-value transport. ADR 0258 records
-checked-seed carriage of the current static frontier.
+canonical x87 decoder and special-value transport. ADR 0260 records the
+static arithmetic and rounding model. ADR 0258 records checked-seed carriage
+of the earlier static frontier; the promoted seed predates the arithmetic
+path.
 
 The checked i386 Linux seed at ADR 0138 carries static floating constant data
 and this complete comparison path.
@@ -280,8 +285,8 @@ false; finite nonzero values, subnormals, infinities, and NaNs are true.
 Increment or decrement,
 hexadecimal floating constants, binary32 and binary64 subnormal constants,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
-bounded parser, static long-double arithmetic, general SIMD value semantics,
-and atomic floating access remain unsupported. Static truth, comparison,
+bounded parser, general SIMD value semantics, and atomic floating access
+remain unsupported. Static truth, comparison, arithmetic,
 short-circuit logic, conditional selection, and floating-width conversion fold
 through the target representation.
 Twelve-byte direct

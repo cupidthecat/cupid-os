@@ -112,8 +112,10 @@ subnormal, normal, infinity, and NaN payloads while rejecting pseudo
 encodings. Finite widening keeps exact x87 bits. Infinity keeps its sign, and
 NaN becomes one quiet x87 payload. Narrowing uses ties-to-even rounding for
 finite values and canonical special encodings. Folded results add no runtime
-IR. Hexadecimal or subnormal long-double literals, decimal ratios beyond the
-bounded parser, and static long-double arithmetic remain open.
+IR. Static long-double +, -, *, and / use unsigned 128-bit target arithmetic,
+round once with ties to even, and keep gradual underflow. Hexadecimal or
+subnormal long-double literals and decimal ratios beyond the bounded parser
+remain open.
 
 The static scalar and aggregate proofs cover both scopes, mutable and const
 objects, positive and negative values, both signed zeros, the largest accepted
@@ -276,18 +278,21 @@ for, and conversion to _Bool. Both signed zeros are false; finite nonzero
 values, subnormals, infinities, and NaNs are true. Increment and decrement,
 hexadecimal floating constants, binary32 and binary64 subnormal constants,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
-bounded parser, static long-double arithmetic, general SIMD value semantics,
-and atomic floating access remain outside this shared path. Static controls and
-floating-width conversion fold through the target representation.
+bounded parser, general SIMD value semantics, and atomic floating access remain
+outside this shared path. Compiler-head static controls, arithmetic, and
+floating-width conversion fold through the target representation. ADR 0260
+records the static arithmetic model.
 
 Private comparison and truth sequences use SETNP for an ordered guard and SETP
 for an unordered guard. Source-head CupidDis recognizes both byte
 predicates, so `dis /bin/test_fpaug.cc` stays aligned through the Boolean merge
 and normalization instructions. The guest executes those bounded parity checks
-before running the full feature-13 comparison and truth program. The checked
-seed still predates these two shared rows. In GUI mode, the listing remains in
-the terminal and is mirrored to serial after normal sink and redirection
-handling, which lets the runtime gate inspect production CupidDis output.
+before running the full feature-13 comparison and truth program. The promoted
+602-row, 247-mnemonic checked seed predates these two shared rows and the static
+arithmetic path. ADR 0258 records that seed, and ADR 0259 records the parity
+predicates. In GUI mode, the listing remains in the terminal and is mirrored
+to serial after normal sink and redirection handling, which lets the runtime
+gate inspect production CupidDis output.
 
 Twelve-byte direct and
 indirect fixed, variadic, and unprototyped arguments, function returns, direct

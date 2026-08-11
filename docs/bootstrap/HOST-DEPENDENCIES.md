@@ -4,15 +4,15 @@ The deterministic active-source audit records three supported build roots:
 root `all`, `user:all`, and `toolchain:all`. It evaluates Make conditionals
 with `OS=Windows_NT` and `LC_ALL=C` on every host so the checked graph has one
 stable shape, then covers the Linux branch with direct build tests.
-`audits/active-build.json` owns the current 723-input/447-transform graph. The
-language graph contains 29 assembly inputs, 292 headers, and 402 Cupid C
+`audits/active-build.json` owns the current 724-input/447-transform graph. The
+language graph contains 29 assembly inputs, 293 headers, and 402 Cupid C
 files. No ordinary C translation unit remains in a supported root. The
 active-source digest is
-`e3cf93926ea6f531c37b4a3dcb09f85edab3cc1094abbc6e729aeaf55154674b`.
-The 2,591,068-byte audit JSON has SHA-256
-`a309571233072c2951c351f1071b0c966a58550b99005ba7cd2dc02b31984379`,
+`8d62b831b5086b8fc99918644b1e04e12101167e74fde1d67cb623da5794b12a`.
+The 2,600,505-byte audit JSON has SHA-256
+`4e49b2d0c3965724c577c93ff29159fd8f611a57055a97a31a68cd887756374e`,
 and the 12,218-byte summary has SHA-256
-`153896f942896e9036c3499c2df0dd728ba7cf6bd54f994e9f2efad33ccff178`.
+`9b24b798076d3447d5446bc07e50f2c2126fbb4fb4e5dca2f073671dbc11f98f`.
 The checked Windows Clang/LLVM and Linux GCC/binutils baselines at
 revision `1e079d1` predate the current CupidC ownership and remain historical
 oracle evidence.
@@ -268,7 +268,7 @@ existing destination must already verify as a complete cohort. Arbitrary
 directories, source trees, files, and symbolic links are rejected without
 modification. Exact initial, private, and newly discovered contract
 inventories catch added or removed inputs and restored edits that changed a
-copied file. The manifest binds a 47-input contract inventory, including the
+copied file. The manifest binds a 50-input contract inventory, including the
 Windows startup and runtime probe, the Toolchain Makefile, and both Python
 control modules. It separately binds the
 checked seed and 43-file fixed-point source inventory. Each run derives its
@@ -502,12 +502,13 @@ x87 zero, subnormal, normal, infinity, and NaN encodings. Binary32 and
 binary64 infinities widen with their sign, while every source NaN widens to a
 canonical quiet x87 NaN. Narrowing produces target infinity or a canonical
 quiet NaN. The folded expressions become final initializer records and add no
-runtime IR. This work introduces no host floating operation or math-library
-dependency.
+runtime IR. Static `+`, `-`, `*`, and `/` use unsigned 128-bit target
+arithmetic with nearest-even rounding and gradual underflow. They also become
+final initializer records. This work introduces no host floating operation or
+math-library dependency.
 Hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
-bounded parser, static long-double arithmetic, mixed integer and floating runtime
-arithmetic or conditionals,
+bounded parser, mixed integer and floating runtime arithmetic or conditionals,
 and floating increment and decrement remain open. Matching or mixed-width floating
 conditional arms and the four arithmetic compound assignments retain their
 established x87 path. All six matching or mixed long-double comparisons use a
@@ -517,7 +518,8 @@ runtime conversion to unsigned four-byte targets, ADR 0251 records static
 long-double data, ADR 0253 records runtime conversions between `long double`
 and integers, ADR 0254 records static initializer conversion, ADR 0255
 records static controls and finite width conversion, and ADR 0256 records
-canonical x87 classes and special-value conversion.
+canonical x87 classes and special-value conversion. ADR 0260 records static
+long-double arithmetic.
 
 The promoted seed has 602 x86 forms, 247 canonical mnemonics, 64 registers,
 and fingerprint `64429699`. Source head has 604 forms, 249 canonical
@@ -828,7 +830,7 @@ File definitions and block-static bindings now share one object encoder. It plac
 
 The unchanged FAT16 and active-header contracts still pin layout,
 redeclaration, attributes, assertions, and lexical ownership. The checked-seed
-C11 standalone sweep passes 159 of 161 active non-Doom headers;
+C11 standalone sweep passes 160 of 162 active non-Doom headers;
 `scheduler.h` and `simd_intrin.h` retain exact C11-profile failures. The
 checked seed maps Cupid's sized scalar, Boolean, and vector spellings into the
 shared type graph and parses all 29 declarations in unchanged
@@ -840,7 +842,7 @@ reports definitions, statements, expressions, block bindings, and
 initializers. `cupidc_pp.cc` publishes 143/3,932/25,287/479/286;
 `cupidc_ir.cc` publishes 269/7,496/69,333/989/362;
 `cupidc_emit.cc` publishes 366/9,234/77,133/1,122/748; and
-`cupidc_frontend.cc` publishes 435/16,907/111,857/2,518/1,534. The generated
+`cupidc_frontend.cc` publishes 445/17,242/113,778/2,565/1,547. The generated
 audit records the current active-source totals and source graph.
 
 Checked stage-two and stage-three CupidC build the shared frontend, emitter,
@@ -1037,13 +1039,14 @@ ADR 0255 adds target-only static long-double truth, comparison, short-circuit
 logic, conditional selection, and conversion to or from binary32 and
 binary64. ADR 0256 accepts canonical x87 zero, subnormal, normal, infinity,
 and NaN payloads and adds special-value conversion without host floating
-work.
+work. ADR 0260 adds integer-only static long-double `+`, `-`, `*`, and `/`
+with exact target rounding and no runtime IR.
 
 Runtime mixed integer and floating arithmetic or conditional arms, floating
 increment and decrement, hexadecimal floating literals, binary32 and
 binary64 subnormal literals, hexadecimal or subnormal long-double literals,
-decimal ratios beyond the bounded parser, static long-double arithmetic,
-aggregate floating values, atomic access, and other unrepresented forms remain
+decimal ratios beyond the bounded parser, aggregate floating values, atomic
+access, and other unrepresented forms remain
 outside the current ABI slice.
 
 The wide-mutation proof expands shared semantics. Fifteen functions publish 225 exact IR instructions, and 17 emitted functions occupy 4,410 text bytes with fingerprint `4B337038`, 18 symbols including the null symbol, and no relocations. Decoder and execution checks cover all ten compound operators, signed and unsigned prefix or postfix update, postfix snapshot preservation, one-time indexed evaluation, volatile access, cdecl state, rollback, and deterministic recovery. Checked-seed CupidC uses this path for the `+=` and `&=` operations in X25519's `fe_carry`, and both checked stages build the focused contract. GCC or Clang provides only the optional native copy.

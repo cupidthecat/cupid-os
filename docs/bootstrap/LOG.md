@@ -23488,3 +23488,238 @@ dual-NIC gates ran against the stacked integration tree.
 | Default scoped Ruff | FAIL: two existing `E402` diagnostics at the repository-helper imports. |
 | Scoped Ruff with `E402` excluded | PASS. |
 | Changed Python syntax | PASS through `py_compile`. |
+
+## 2026-08-10: fold static long-double arithmetic
+
+CupidC evaluates static long-double `+`, `-`, `*`, and `/` with the i386
+x87 target representation. The implementation uses unsigned integer
+arithmetic throughout. It does not read the host floating-point format or
+rounding environment.
+
+### Implementation
+
+A separate 128-bit packer rounds an exact magnitude and binary scale to the
+64-bit explicit x87 significand. It uses round-to-nearest, ties-to-even,
+gradual underflow at the `2^-16445` subnormal quantum, and canonical infinity
+on overflow. The older binary32 and binary64 packer keeps its existing
+workspace and behavior.
+
+Addition and subtraction align exact significands through an exponent gap of
+64. The gap-65 case below a power of two accounts for the smaller spacing on
+the predecessor side. Multiplication keeps the full 64-by-64-bit product.
+Division generates 66 quotient bits, doubles the remainder without unsigned
+overflow, and jams any tail into a sticky bit before packing. Canonical zero,
+infinity, and NaN cases are classified before finite arithmetic.
+
+### Test-first findings
+
+The first fixture run stopped in preprocessing because a linear chain of
+exact-power macros exhausted the token workspace. All numeric cases and
+expected payloads were kept. A balanced power construction reduced expansion
+enough to reach the language boundary.
+
+That second red stopped at
+`/static-long-double-arithmetic.c:20:8` with `CTB000007` and
+`static long-double arithmetic is outside this constant-data slice.` The
+production change then stayed inside `toolchain/cupidc_frontend.cc`.
+
+The object contract initially used blank fingerprints so the first successful
+emission could report its reviewed layout. A later review found that invalid
+operations produced NaNs, but no direct quiet-NaN operand reached the four
+operator branches. Eight cases place the canonical quiet NaN on both
+sides of each operator. The resulting 1,540-byte ELF32 object has fingerprint
+`8bf3a10b`; its 768-byte `.rodata` section retains fingerprint `ca7e53bc`, and
+its 192-byte `.data` section has fingerprint `b2cac65f`.
+
+The first replay after that fixture change failed all three focused selectors
+at their old exact locks. The frontend reported 85 initializer nodes and 80
+list edges, Linear IR rejected the stale forest inventory, and the object
+contract reported the new sizes and fingerprints above. After those locks
+were reviewed and updated, the frontend, Linear IR, and object selectors
+passed all three tests in 43.140 seconds. The final review replay passed the
+same three selectors in 44.152 seconds.
+
+### Historical isolated evidence
+
+This evidence came from the isolated arithmetic worktree before the final
+parity and seed-promotion replays recorded above. It establishes the
+compiler-head capability without replacing those integrated results.
+
+One shared source drives the frontend, Linear IR, and object contracts. Its 80
+payload oracles cover finite arithmetic, ties, cancellation, normal and
+subnormal boundaries, signed underflow, overflow, infinity, division by zero,
+invalid operations, and direct quiet-NaN operands on either side of every
+operator. Frontend tests also reject one nonconstant operand for each operator,
+enforce the nesting limit, replay deterministically, and prove same-job
+recovery.
+
+Linear IR sees 85 final initializer nodes and 80 list edges, with no runtime
+function, instruction, argument type, or file assembly. Its initializer and
+runtime floating-instruction mutation tests reject pseudo-special payloads
+transactionally and then reproduce the original IR.
+
+The ELF32 proof reads every byte of all 80 twelve-byte values, including zero
+padding at bytes ten and eleven. It requires no `.text` section and no
+relocation. Repeated output is byte-identical. A one-byte-short buffer leaves
+no output, an exact-fit buffer reproduces the object, and both malformed-unit
+seams recover to the corresponding canonical object.
+
+The focused frontend, IR, and object arithmetic tests pass. The six-test
+regression group, which also includes the earlier static floating-control
+tests at all three boundaries, passes in 49.143 seconds.
+
+The first complete frontend, Linear IR, and object replay passed 288 of 290
+tests in 1,126.003 seconds. The two failures were exact frontier locks for the
+intentionally expanded frontend, not arithmetic or determinism failures. The
+reviewed source lock is 445 definitions, 17,242 statements, 113,778
+expressions, 2,565 block bindings, and 1,547 initializers. The corresponding
+self-host object contains 445 functions, 893,359 text bytes, and 1,058,536
+total bytes, with text fingerprint `851f24d7`. No neighboring source or object
+frontier changed.
+
+Both corrected selectors then reported `ok`. Their combined runner hit a
+Windows cleanup error because the completed frontend contract executable was
+briefly still open. The frontend selector passed alone in 11.497 seconds, and
+the leftover temporary build directory was removed after the process had
+closed. This was harness cleanup noise, not a product or contract failure.
+
+The final complete replay passed all 290 frontend, Linear IR, and object tests
+in 1,074.555 seconds. It includes the staged self-host and fixed-point checks.
+
+An isolated `make -C toolchain test` replay rebuilt the checked cohort. Both
+compiler stages compiled and linked every tool and contract input, their
+objects and executables matched byte for byte, the hosted runtime passed, and
+the publisher verified all 20 artifacts against the live inputs. The native
+selector list then reached `conditional-active` and stopped at its old total
+lock. This work started from revision `9115787311bf455b6eee19e7742cc83aa252e7c8`,
+which predates the separate conditional-manifest calibration, so that stop is
+not an arithmetic or fixed-point failure. The partial replay took 3,464.4
+seconds. The three new selectors also ran through the published checked
+frontend, Linear IR, and object artifacts and each reported `ok` in 39.1
+seconds. A final host-built replay of those three selectors passed all three
+tests in 54.415 seconds after the Make dependency update.
+
+The shared arithmetic header is an explicit Make prerequisite for all
+three contract objects. Its include guard uses `#ifndef`, while the active
+conditional-expression manifest counts only `#if` and `#elif`. It therefore
+adds no expression row and changes none of that manifest's five totals. At
+that isolated checkpoint, the ordinary generated active-build audit still
+needed to record the new tracked input when the source was integrated.
+
+### Integrated evidence
+
+The arithmetic source was applied after the parity-predicate change and seed
+promotion. The focused frontend, Linear IR, and object selectors passed all
+three tests in 53.492 seconds. The first complete 290-test replay reached and
+passed every arithmetic, IR, object, compiler-reproduction, and fixed-point
+case. Five lexical frontier tests failed because they still read the previous
+generated audit. Their old values were not accepted as new locks.
+
+Audit regeneration produced 724 active inputs, 293 headers, 255 feature IDs,
+447 transforms, and 25 accounted unreachable source-like files. Its
+authoritative lexical totals are 23,346 `return`, 4,273 `for`, 2,770 `while`,
+38,402 `if`, 4,818 `else`, and 3,040 `goto` occurrences. An independent scan
+of 720 tracked inputs reproduced every total and file count with no normalized
+source-hash mismatch. The five focused frontier selectors passed in 17.380
+seconds after those locks were updated.
+
+The new header raised the standalone non-Doom frontier to 162 inputs. The
+checked seed passes 160 and retains the same exact failures in `scheduler.h`
+and `simd_intrin.h`. A complete replay after the lexical calibration passed
+289 tests and found only the old 161-header lock. The corrected header
+selector passed in 13.817 seconds. The final frontend, Linear IR, and object
+replay passed all 290 tests in 1,142.370 seconds. Its 56,264-byte log has
+SHA-256
+`c651955e8da869590f171e2f503b5093323d7e798269348af4c32df562552c26`.
+
+The contract input sweep also exposed an older 47-file lock. The automatic
+`toolchain/tests/*.h` inventory contains 50 files after the kernel SIMD,
+static long-double control, and arithmetic support headers. The control-plane
+module passes all 32 tests in 4.111 seconds. Its 6,397-byte log has SHA-256
+`c3e6423955336c0ddaca01deb2a61aaedcdf2e2171d139f089a7872d4573d288`.
+
+The fixture and its three contract consumers add four quoted includes. The
+checked include contract therefore covers 2,422 direct operands across 691
+C-family inputs: 2,185 quoted and 237 angle forms, with no macro operand. The
+line-directive contract covers the same 691 inputs and retains zero directives
+and markers. The first complete build-graph replay passed 73 tests and exposed
+only those two old source-count locks. A focused retry found one additional
+Markdown expectation for the same 690-to-691 change. After that text lock was
+corrected, the complete build-graph replay passed all 75 tests in 800.415
+seconds. Its 13,617-byte log has SHA-256
+`8795ac62c4ede93e9b6056a35bb5efb9becd70f1abbe7a4122203da7c6729a56`.
+
+The final audit has active-source digest
+`8d62b831b5086b8fc99918644b1e04e12101167e74fde1d67cb623da5794b12a`.
+Its 2,600,505-byte JSON has SHA-256
+`4e49b2d0c3965724c577c93ff29159fd8f611a57055a97a31a68cd887756374e`.
+The 12,218-byte Markdown summary has SHA-256
+`9b24b798076d3447d5446bc07e50f2c2126fbb4fb4e5dca2f073671dbc11f98f`.
+Generation passed in 73.964 seconds, and the independent check passed in
+69.264 seconds.
+
+The canonical `make -C toolchain test` replay passed in 6,624.611 seconds.
+Checked-seed bootstrap completed before both compiler stages rebuilt and
+linked the contract cohort. Stage-two and stage-three artifacts matched, the
+hosted runtime passed, and the publisher verified all 20 artifacts. Both
+self-host frontiers, hosted adapters, profile-error contracts, the C host
+link, and the complete tool-link replay passed. The 54,080-byte log contains
+296 explicit passing cases, no Make error, and no failed status. Its SHA-256
+is `bd1fb693cfe4d9216791d62581024f339981842fd3a9853eb3046650466ca65e`.
+`make verify-bootstrap-seed` also passed for all five installed tools. No seed
+image or manifest changed in this slice.
+
+Independent arithmetic review found no specification defect. Exact-integer
+and rational models matched 120,000 addition or subtraction cases, 80,000
+multiplication cases, 80,000 division cases, and one million raw 64-by-64
+products.
+
+The final `make -j4 all` run passed in 585.218 seconds. Its 192,344-byte log
+has SHA-256
+`a5bde7ac4655a80fb5d034c5a05a26f63aa07dc7ba13d39e1b47cd047f256b7d`.
+The build produced the following artifacts:
+
+| Artifact | Size | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.bin` | 8,900,764 bytes | `6c6d378dcc54a9ac191dacb0624693874e8b4334a611c278ec27a7d119960c0f` |
+| `kernel/kernel.elf` | 9,110,352 bytes | `6406261ff463dc8dd9039ac4e31e47ab9e88eff5403ad3eb59adbf0a51061765` |
+| `cupidos.img` | 209,715,200 bytes | `115dbdc1d79f9916585a487b51e30bf728e955fbd02cb6199b66849da79ea2b5` |
+
+The first four-vCPU e1000 frontier attempt used a private copy of the existing
+image. It stopped after 390.819 seconds when one unclassified kernel panic
+appeared during the HomeFS stress write. The 101,628-byte log has SHA-256
+`be2c2189b0fed9a6581fa82e18bfd23766418f4f4ab6b14b76233a06e2827c50`.
+The FAT, cache, and HomeFS paths return write errors instead of panicking, and
+the panic began concurrently with their progress output. A focused replay on
+the same image completed the 1,341,939-byte, 328-cluster publication in
+74.855 seconds. Its 111,315-byte log has SHA-256
+`c427cd2dfa9c1dd07920e707a5a66cc43640a14be634556b1bc5785a165849eb`.
+
+The canonical image recipe then created a new 209,715,200-byte image at an
+absent path from the rebuilt bootloader and kernel. The image has SHA-256
+`685d4ccaf54b1ee991cc3efa3487402857c06b2b7375d496edeece569f59f38d`.
+Its exact e1000, four-vCPU frontier smoke passed in 542.796 seconds. All four
+CPUs came online; all 62 TLS checks passed; the floating-point, SIMD, libm,
+image, swap, graphics, HomeFS, USB replug, and audio paths completed; and the
+log contains no panic. The 160,300-byte log has SHA-256
+`58ec2b8fc729c8b171c7e74cd4a8b952ce2aa936f3225f708f6feef7e6c97e52`.
+The private-image run left both source images unchanged.
+
+A final replay against the existing image did not reproduce the panic. It
+stopped after 260.535 seconds when `gfxgui_test` missed its immediate white
+font-pixel check after entering fullscreen mode. The 67,905-byte log has
+SHA-256
+`bc4ef3fc1cb84ac965dab1dfc2dc54284e9bcc2a611e0fdf30c309839bd71e24`.
+That same graphics check passed in the first attempt and in the complete
+fresh-image run. The two excluded attempts are retained as separate runtime
+flakiness evidence rather than being attributed to the long-double fold.
+
+### Current boundary
+
+This is a compiler-head capability. The checked seed is not rebuilt or
+promoted here, so the existing 602-form, 247-mnemonic, 64-register catalogue
+with fingerprint `64429699` remains the seed baseline. Runtime long-double
+arithmetic, broader literal syntax, atomics, and the remaining mixed runtime
+conversions stay open. No build owner or host dependency changes, no `.c` to
+`.cc` rename is due, and `TempleOS/` remains reference-only. ADR 0260 records
+the numerical model.

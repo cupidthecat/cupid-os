@@ -3,6 +3,7 @@
 #include "cupidc_frontend.h"
 #include "cupidc_ir.h"
 #include "cupidc_pp.h"
+#include "cupidc_static_long_double_arithmetic_fixture.h"
 #include "cupidc_static_long_double_control_fixture.h"
 #include "cupidc_static_long_double_integer_fixture.h"
 
@@ -1908,6 +1909,22 @@ static int open_job(const char *host_root, ctool_host_adapter_t *adapter,
   *config = ctool_host_job_config(adapter, ctool_default_limits());
   status = ctool_job_open(config, job_out);
   return check_status(status, CTOOL_OK, "job open");
+}
+
+static int open_arena_job(const char *host_root,
+                          ctool_u32 arena_bytes,
+                          ctool_host_adapter_t *adapter,
+                          ctool_job_config_t *config,
+                          ctool_job_t **job_out) {
+  ctool_limits_t limits = ctool_default_limits();
+  ctool_status_t status = ctool_host_adapter_init(adapter, host_root);
+  if (!check_status(status, CTOOL_OK, "large host adapter init")) {
+    return 0;
+  }
+  limits.arena_bytes = arena_bytes;
+  *config = ctool_host_job_config(adapter, limits);
+  status = ctool_job_open(config, job_out);
+  return check_status(status, CTOOL_OK, "large job open");
 }
 
 static int open_limited_job(const char *host_root,
@@ -30602,6 +30619,298 @@ static int expect_static_long_double_control_ir_success(
   return 1;
 }
 
+typedef struct {
+  const char *name;
+  const cupidc_static_long_double_arithmetic_oracle_t *oracles;
+  ctool_u32 count;
+} static_long_double_arithmetic_ir_array_t;
+
+static char *make_static_long_double_arithmetic_source(void) {
+  size_t prefix_size =
+      sizeof(cupidc_static_long_double_arithmetic_source_prefix) - 1u;
+  size_t cases_size =
+      sizeof(cupidc_static_long_double_arithmetic_source_cases);
+  char *source = (char *)malloc(prefix_size + cases_size);
+  if (source != NULL) {
+    (void)memcpy(
+        source, cupidc_static_long_double_arithmetic_source_prefix,
+        prefix_size);
+    (void)memcpy(
+        source + prefix_size,
+        cupidc_static_long_double_arithmetic_source_cases, cases_size);
+  }
+  return source;
+}
+
+static int static_long_double_arithmetic_forest_matches(
+    const ctool_c_translation_unit_t *unit) {
+  static const static_long_double_arithmetic_ir_array_t arrays[] = {
+      {"static_long_double_add_subtract",
+       cupidc_static_long_double_add_subtract_oracles,
+       (ctool_u32)(sizeof(
+                        cupidc_static_long_double_add_subtract_oracles) /
+                    sizeof(
+                        cupidc_static_long_double_add_subtract_oracles[0]))},
+      {"static_long_double_multiply_divide",
+       cupidc_static_long_double_multiply_divide_oracles,
+       (ctool_u32)(sizeof(
+                        cupidc_static_long_double_multiply_divide_oracles) /
+                    sizeof(
+                        cupidc_static_long_double_multiply_divide_oracles[0]))},
+      {"static_long_double_rounding",
+       cupidc_static_long_double_rounding_oracles,
+       (ctool_u32)(sizeof(cupidc_static_long_double_rounding_oracles) /
+                    sizeof(cupidc_static_long_double_rounding_oracles[0]))},
+      {"static_long_double_edges",
+       cupidc_static_long_double_edge_oracles,
+       (ctool_u32)(sizeof(cupidc_static_long_double_edge_oracles) /
+                    sizeof(cupidc_static_long_double_edge_oracles[0]))},
+      {"static_long_double_specials",
+       cupidc_static_long_double_special_oracles,
+       (ctool_u32)(sizeof(cupidc_static_long_double_special_oracles) /
+                    sizeof(cupidc_static_long_double_special_oracles[0]))}};
+  ctool_u32 array_index;
+  if (unit == NULL || unit->object_definition_count != 5u ||
+      unit->function_definition_count != 0u ||
+      unit->block_binding_count != 0u || unit->initializer_count != 85u ||
+      unit->initializer_element_count != 80u) {
+    (void)fprintf(
+        stderr,
+        "static-long-double-arithmetic: frontend forest inventory differs\n");
+    return 0;
+  }
+  for (array_index = 0u;
+       array_index <
+           (ctool_u32)(sizeof(arrays) / sizeof(arrays[0]));
+       array_index++) {
+    const static_long_double_arithmetic_ir_array_t *expected =
+        &arrays[array_index];
+    const ctool_c_object_definition_t *definition =
+        static_fixture_object_definition(unit, expected->name);
+    ctool_u32 root =
+        definition == NULL ? CTOOL_C_AST_NONE : definition->initializer;
+    ctool_u32 element_index;
+    if (definition == NULL || root >= unit->initializer_count ||
+        unit->initializers[root].kind != CTOOL_C_INITIALIZER_LIST ||
+        unit->initializers[root].element_count != expected->count) {
+      (void)fprintf(
+          stderr,
+          "static-long-double-arithmetic: %s container differs\n",
+          expected->name);
+      return 0;
+    }
+    for (element_index = 0u; element_index < expected->count;
+         element_index++) {
+      ctool_u32 initializer =
+          find_initializer_child(unit, root, element_index);
+      const cupidc_static_long_double_arithmetic_oracle_t *oracle =
+          &expected->oracles[element_index];
+      if (static_floating_initializer_matches(
+              unit, initializer, oracle->significand,
+              oracle->high_bits) == 0) {
+        (void)fprintf(
+            stderr,
+            "static-long-double-arithmetic: %s leaf %u differs\n",
+            expected->name, (unsigned int)element_index);
+        return 0;
+      }
+    }
+  }
+  return 1;
+}
+
+static int static_long_double_arithmetic_ir_matches(
+    const ctool_c_ir_unit_t *ir) {
+  return ir != NULL && ir->file_assembly_count == 0u &&
+                 ir->file_assemblies == NULL && ir->function_count == 0u &&
+                 ir->functions == NULL && ir->instruction_count == 0u &&
+                 ir->instructions == NULL &&
+                 ir->argument_type_count == 0u &&
+                 ir->argument_types == NULL
+             ? 1
+             : 0;
+}
+
+static int lower_static_long_double_arithmetic(
+    ctool_job_t *job, const ctool_c_translation_unit_t *unit,
+    ctool_c_ir_unit_t *ir_out, const char *context) {
+  ctool_u32 diagnostic_count = ctool_job_diagnostic_count(job);
+  uint64_t fingerprint = unit_fingerprint(unit);
+  ctool_status_t status;
+  (void)memset(ir_out, 0xa5, sizeof(*ir_out));
+  status = ctool_c_lower_ir(job, unit, ir_out);
+  if (!check_status(status, CTOOL_OK, context) ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      unit_fingerprint(unit) != fingerprint ||
+      static_long_double_arithmetic_forest_matches(unit) == 0 ||
+      static_long_double_arithmetic_ir_matches(ir_out) == 0) {
+    (void)fprintf(stderr, "%s: success transaction differs\n", context);
+    return 0;
+  }
+  return 1;
+}
+
+static int run_static_long_double_arithmetic(const char *host_root) {
+  static const char runtime_source[] =
+      "long double runtime_long_double_constant(void) { return 1.0L; }\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job = NULL;
+  ctool_c_translation_unit_t unit;
+  ctool_c_translation_unit_t invalid_unit;
+  ctool_c_translation_unit_t runtime_unit;
+  ctool_c_ir_unit_t first_ir;
+  ctool_c_ir_unit_t repeated_ir;
+  ctool_c_ir_unit_t runtime_ir;
+  ctool_c_ir_unit_t recovered_runtime_ir;
+  ctool_c_initializer_t *invalid_initializers = NULL;
+  ctool_c_expression_t *invalid_expressions = NULL;
+  char *source = NULL;
+  ctool_u32 root;
+  ctool_u32 leaf;
+  ctool_u32 expression_index;
+  ctool_u32 diagnostic_count;
+  uint64_t unit_hash;
+  uint64_t runtime_ir_hash;
+  ctool_status_t status;
+  int result = 1;
+
+  source = make_static_long_double_arithmetic_source();
+  if (source == NULL ||
+      !open_arena_job(host_root, 64u * 1024u * 1024u,
+                      &adapter, &config, &job) ||
+      !parse_source(job, "/static-long-double-arithmetic.c", source,
+                    &unit) ||
+      static_long_double_arithmetic_forest_matches(&unit) == 0) {
+    goto cleanup;
+  }
+  unit_hash = unit_fingerprint(&unit);
+  if (!lower_static_long_double_arithmetic(
+          job, &unit, &first_ir,
+          "static long-double arithmetic lowering") ||
+      !lower_static_long_double_arithmetic(
+          job, &unit, &repeated_ir,
+          "repeat static long-double arithmetic lowering") ||
+      unit_fingerprint(&unit) != unit_hash ||
+      ir_instruction_fingerprint(&first_ir) !=
+          ir_instruction_fingerprint(&repeated_ir)) {
+    (void)fprintf(
+        stderr,
+        "static-long-double-arithmetic: repeated lowering differs\n");
+    goto cleanup;
+  }
+
+  root = find_object_initializer(
+      &unit, "static_long_double_add_subtract");
+  leaf = find_initializer_child(&unit, root, 0u);
+  if (leaf >= unit.initializer_count || unit.initializer_count == 0u ||
+      sizeof(*invalid_initializers) >
+          SIZE_MAX / (size_t)unit.initializer_count) {
+    goto cleanup;
+  }
+  invalid_initializers = (ctool_c_initializer_t *)malloc(
+      (size_t)unit.initializer_count * sizeof(*invalid_initializers));
+  if (invalid_initializers == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(
+      invalid_initializers, unit.initializers,
+      (size_t)unit.initializer_count * sizeof(*invalid_initializers));
+  invalid_initializers[leaf].integer_bits = 0ull;
+  invalid_initializers[leaf].floating_high_bits = 0x7fffu;
+  invalid_unit = unit;
+  invalid_unit.initializers = invalid_initializers;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "static arithmetic pseudo-special initializer") ||
+      !lower_static_long_double_arithmetic(
+          job, &unit, &repeated_ir,
+          "static arithmetic initializer recovery")) {
+    goto cleanup;
+  }
+
+  if (!parse_source(job, "/runtime-long-double-constant.c",
+                    runtime_source, &runtime_unit)) {
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&runtime_ir, 0xa5, sizeof(runtime_ir));
+  status = ctool_c_lower_ir(job, &runtime_unit, &runtime_ir);
+  if (!check_status(status, CTOOL_OK,
+                    "runtime long-double constant lowering") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      runtime_ir.function_count != 1u ||
+      runtime_ir.instruction_count == 0u) {
+    goto cleanup;
+  }
+  runtime_ir_hash = ir_instruction_fingerprint(&runtime_ir);
+  for (expression_index = 0u;
+       expression_index < runtime_unit.expression_count;
+       expression_index++) {
+    if (runtime_unit.expressions[expression_index].kind ==
+        CTOOL_C_EXPRESSION_FLOATING_CONSTANT) {
+      break;
+    }
+  }
+  if (expression_index == runtime_unit.expression_count ||
+      runtime_unit.expression_count == 0u ||
+      sizeof(*invalid_expressions) >
+          SIZE_MAX / (size_t)runtime_unit.expression_count) {
+    goto cleanup;
+  }
+  invalid_expressions = (ctool_c_expression_t *)malloc(
+      (size_t)runtime_unit.expression_count *
+      sizeof(*invalid_expressions));
+  if (invalid_expressions == NULL) {
+    goto cleanup;
+  }
+  (void)memcpy(
+      invalid_expressions, runtime_unit.expressions,
+      (size_t)runtime_unit.expression_count *
+          sizeof(*invalid_expressions));
+  invalid_expressions[expression_index].integer_bits = 0ull;
+  invalid_expressions[expression_index].floating_high_bits = 0x7fffu;
+  invalid_unit = runtime_unit;
+  invalid_unit.expressions = invalid_expressions;
+  if (!expect_ir_failure_preserves_unit(
+          job, &invalid_unit, CTOOL_ERR_UNSUPPORTED,
+          CTOOL_C_IR_DIAG_UNSUPPORTED_TYPE,
+          "CupidC IR lowering does not yet support this value type",
+          "runtime x87 pseudo-special instruction")) {
+    goto cleanup;
+  }
+  diagnostic_count = ctool_job_diagnostic_count(job);
+  (void)memset(&recovered_runtime_ir, 0xa5,
+               sizeof(recovered_runtime_ir));
+  status = ctool_c_lower_ir(
+      job, &runtime_unit, &recovered_runtime_ir);
+  if (!check_status(status, CTOOL_OK,
+                    "runtime x87 instruction recovery") ||
+      ctool_job_diagnostic_count(job) != diagnostic_count ||
+      ir_instruction_fingerprint(&recovered_runtime_ir) !=
+          runtime_ir_hash) {
+    (void)fprintf(
+        stderr,
+        "static-long-double-arithmetic: runtime recovery differs\n");
+    goto cleanup;
+  }
+  result = 0;
+
+cleanup:
+  free(invalid_expressions);
+  free(invalid_initializers);
+  free(source);
+  if (job != NULL) {
+    ctool_job_close(job);
+  }
+  if (result == 0) {
+    (void)puts("static-long-double-arithmetic: ok");
+  }
+  return result;
+}
+
 static int run_floating_transport(const char *host_root) {
   static const char source[] =
       "typedef __builtin_va_list va_list;\n"
@@ -42029,6 +42338,10 @@ int main(int argc, char **argv) {
   if (argc == 3 && strcmp(argv[1], "floating-scalars") == 0) {
     return run_floating_scalars(argv[2]);
   }
+  if (argc == 3 &&
+      strcmp(argv[1], "static-long-double-arithmetic") == 0) {
+    return run_static_long_double_arithmetic(argv[2]);
+  }
   if (argc == 3 && strcmp(argv[1], "block-records") == 0) {
     return run_block_records(argv[2]);
   }
@@ -42178,7 +42491,7 @@ int main(int argc, char **argv) {
                 "floating-transport|floating-arithmetic|"
                 "floating-comparisons|floating-conversions|"
                 "floating-truth|"
-                "floating-scalars|"
+                "floating-scalars|static-long-double-arithmetic|"
                 "block-records|"
                 "block-enums|bit-field-stores|bit-field-promotions|"
                 "bit-field-mutations|"
