@@ -23723,3 +23723,49 @@ arithmetic, broader literal syntax, atomics, and the remaining mixed runtime
 conversions stay open. No build owner or host dependency changes, no `.c` to
 `.cc` rename is due, and `TempleOS/` remains reference-only. ADR 0260 records
 the numerical model.
+
+## 2026-08-11: preserve UHCI halt state during interrupt acknowledgement
+
+The four-CPU RTL8139 frontier exposed a panic while revoking UHCI DMA after a
+transfer. Increasing the halt timeout was rejected because the controller had
+already stopped. The interrupt handler acknowledged the complete USBSTS word,
+including read-only bit 5, `HCHalted`. QEMU clears write-one-to-clear status
+bits from the value written by the guest, so writing the observed halt bit
+erased the state that teardown was waiting to prove.
+
+The handler now writes only interrupt status bits zero through four. The
+read-only halt state remains observable while another CPU stops the schedule.
+The focused contract names all five write-clear bits and rejects any mask that
+includes `HCHalted`. ADR 0109 records the controller invariant and the failed
+timeout approach.
+
+All 45 USB tests pass in 0.891 seconds. Their 16,240-byte log has SHA-256
+`8e210c7ae0788c56e98ade3f5ca3e2726786aba6f1b587547193670ce42da5d0`.
+The source audit retains 724 inputs and 447 transforms. Its active-source
+digest is
+`f1ff17490ac8174ba91e2a0c645689bf531a083d89f6c3ca9eaee06a3f88af07`.
+The 2,600,505-byte JSON has SHA-256
+`8049bb8d04e1df6567135059931f8dc8020548c622b1146b0b9004a1f606c7b0`,
+and the 12,218-byte summary has SHA-256
+`12425923d187d62ad9a01c9acf36c23cc4914da1b2bcf65385ac7c15d31044a4`.
+Generation and its independent check pass in 72.980 and 100.679 seconds.
+
+The exact USB-only `make -j4 all` passes in 598.574 seconds. Its 197,854-byte
+log has SHA-256
+`8b9bf1084dbf97cce8e53e7611170d5fe489af3b3f15c252a54bbd5beda12f4e`.
+It produces an 8,900,876-byte `kernel.bin` with SHA-256
+`2e19c1e3e66cb821ea6619121dc57121eca385d1326edcec9bf9e37ae0635b79`
+and a 9,110,352-byte `kernel.elf` with SHA-256
+`f4717816d00fdf2f59592dfe1b4773245697927e1015dcdc0bcee5d094b3af86`.
+The resulting fresh 209,715,200-byte image has SHA-256
+`ebc021ef1c46127a57496d446e6a838ab7e4b0da3ced93e9f9fe8d6a4266dc42`.
+
+The first smoke wrapper stopped before QEMU because a clean worktree did not
+yet contain the declared USB image fixture. Building
+`test_usb_partitioned.img` through its Make target corrected that preflight
+failure without changing source. The actual RTL8139, four-CPU private-image
+frontier then passed in 555.146 seconds. Its 150,291-byte serial log has
+SHA-256
+`c7b169764c54161074e8b8e7a3610167f7c693d8a5770ed111a9f79158dfffb6`.
+It contains 36 passing markers, no panic, and all six USB storage lifetimes.
+No checked seed, build owner, host dependency, or i386 ABI changes.

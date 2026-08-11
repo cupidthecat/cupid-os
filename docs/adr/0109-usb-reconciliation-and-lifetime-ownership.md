@@ -27,6 +27,11 @@ EHCI and UHCI own fixed controller-local interrupt slots. A slot carries its act
 
 Both controllers prove that hardware no longer owns synchronous-transfer DMA before they free it. UHCI stops the schedule and observes halt. EHCI quiesces the asynchronous schedule or halts the controller and verifies the relevant state. A failed revocation leaves submission failed and takes the panic path rather than releasing memory still visible to hardware. EHCI only bypasses reset for a low-speed K-state attachment with no quarantined address. J-state proceeds through reset because it can also describe a high-speed-capable device. The controller verifies reset assertion and clearing, then checks that companion ownership latched before it reports handoff.
 
+The UHCI interrupt handler acknowledges only the five write-clear interrupt
+status bits. It never writes the read-only HCHalted bit back to USBSTS. This
+preserves the schedule-stop proof when an interrupt races transfer teardown
+on another CPU.
+
 The block registry reuses its first vacant slot and shortens the scan bound when trailing entries become vacant. `blkdev_count()` reports live registrations, while `blkdev_index_limit()` reports the exclusive sparse scan bound. A numeric index is a registration-scoped lease.
 
 `blkdev_get()` acquires a reference and every successful call requires one `blkdev_put()`. It returns `NULL` instead of wrapping a saturated reference count. The registry owns one reference while an entry is public. USB mass storage keeps its callbacks immutable. Each callback enters the command lock and checks the online state and USB device pointer before starting I/O. Disconnect marks the state offline under that lock, clears the USB pointer, and unregisters the public entry. Cached references then fail I/O safely. If unregister fails, the driver restores its online state and USB pointer so removal can retry. The final returned reference invokes the driver's release callback and frees the mass-storage state.
@@ -42,6 +47,7 @@ The block registry reuses its first vacant slot and shortens the scan bound when
 - A successful interrupt cancellation means the caller may release its transfer buffer.
 - An interrupt callback runs without the controller submit lock.
 - A controller does not free transfer DMA until it has proved quiescence.
+- UHCI interrupt acknowledgement cannot clear the observed halt state.
 - A disconnected mass-storage pointer remains safe to call and reports I/O failure.
 - A failed mass-storage unregister restores the attached online state.
 - A block-device index can name a different device after unregistration.
@@ -62,13 +68,18 @@ Holding the controller submit lock while a callback runs was rejected. The callb
 
 Returning from cancellation while DMA or a callback remains in flight was rejected. The caller uses successful cancellation as the boundary for freeing its buffer and related driver state.
 
+Increasing the UHCI halt timeout was rejected after the four-CPU RTL8139
+frontier exposed a panic. The controller had already stopped. Its IRQ handler
+could acknowledge the whole USBSTS word and erase HCHalted from the emulator's
+status register. Waiting longer could not restore that lost proof.
+
 Freeing mass-storage state at disconnect was rejected. Existing block-device pointers can outlive the public registration and need a defined offline result. Rewriting callback pointers during disconnect was also rejected because a reader could race the rewrite. Immutable callbacks and the command lock provide one ownership boundary.
 
 ## Evidence
 
 `tests/usb_reconciliation_runtime.c` executes the core's durable queue, reentrant producer, retry, quarantine, address reuse, removal, hub acknowledgement, probe retry, fallback, rejection, and companion-handoff paths. Its quarantined-handoff case requires the controller's reset proof. `tests/test_usb_reconciliation_runtime.py` checks that fixture and source-level contracts. `tests/usb_interrupt_ownership_contract.c` and `tests/test_usb_interrupt_ownership.py` cover generation claims, cancellation, callback ordering, and slot reuse for both controllers. `tests/test_usb_interrupt_cancel.py`, `tests/test_usb_poll_serialization.py`, and `tests/test_usb_port_reset.py` keep the cancellation, single-poller, and verified-reset contracts explicit. `tests/test_blockdev_slot_reuse.py` exercises repeated registration, removal, sparse counts, saturated references, and concurrent unregister during logging through the real block-device code. `tests/usb_msc_lifetime_contract.c` holds a reference across disconnect, checks offline I/O, proves rollback after a failed unregister, and proves release on the final put.
 
-All 44 USB tests and all 62 GUI gate tests pass. Four-vCPU QEMU gates with e1000 and RTL8139 each detach and reattach the UHCI keyboard and mouse, require fresh input after reattachment, and cycle the EHCI disk through six storage lifetimes. The gates also reject controller errors, failed device additions, panic markers, and stale I/O after removal.
+All 45 USB tests and all 62 GUI gate tests pass. Four-vCPU QEMU gates with e1000 and RTL8139 each detach and reattach the UHCI keyboard and mouse, require fresh input after reattachment, and cycle the EHCI disk through six storage lifetimes. The gates also reject controller errors, failed device additions, panic markers, and stale I/O after removal.
 
 The implementation lives in `kernel/usb/usb.c`, `kernel/usb/usb_hub.c`, `kernel/usb/usb_hc.h`, `kernel/usb/ehci.c`, `kernel/usb/uhci.c`, `kernel/usb/usb_msc.c`, `kernel/fs/blockdev.c`, and `kernel/fs/blockdev.h`.
 

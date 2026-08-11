@@ -25,7 +25,12 @@
 
 #define UHCI_STS_INT      (1u << 0)
 #define UHCI_STS_ERR      (1u << 1)
+#define UHCI_STS_RESUME   (1u << 2)
+#define UHCI_STS_HSE      (1u << 3)
+#define UHCI_STS_HCPE     (1u << 4)
 #define UHCI_STS_HALTED   (1u << 5)
+#define UHCI_STS_W1C (UHCI_STS_INT | UHCI_STS_ERR | UHCI_STS_RESUME | \
+                      UHCI_STS_HSE | UHCI_STS_HCPE)
 
 #define UHCI_PORT_CONNECT     (1u << 0)
 #define UHCI_PORT_CONNECT_CH  (1u << 1)
@@ -461,7 +466,11 @@ static usb_port_reset_result_t uhci_port_reset(
 static void uhci_irq_handler_fn(usb_hc_t *hc) {
     uhci_ctrl_t *c = hc->driver_data;
     uint16_t sts = inw(c->io_base + UHCI_USBSTS);
-    outw(c->io_base + UHCI_USBSTS, sts);
+    /* HCHalted is read-only state, not an interrupt acknowledgement. */
+    outw(
+        c->io_base + UHCI_USBSTS,
+        (uint16_t)(sts & UHCI_STS_W1C)
+    );
     (void)sts;
 }
 void uhci_poll_interrupts(void);

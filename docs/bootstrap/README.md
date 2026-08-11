@@ -1375,11 +1375,11 @@ inventory covers 691 files and 2,422 include occurrences, split into 2,185
 quoted and 237 angle forms.
 
 The active-source digest is
-`8d62b831b5086b8fc99918644b1e04e12101167e74fde1d67cb623da5794b12a`.
+`f1ff17490ac8174ba91e2a0c645689bf531a083d89f6c3ca9eaee06a3f88af07`.
 The 2,600,505-byte audit JSON has SHA-256
-`4e49b2d0c3965724c577c93ff29159fd8f611a57055a97a31a68cd887756374e`,
+`8049bb8d04e1df6567135059931f8dc8020548c622b1146b0b9004a1f606c7b0`,
 and the 12,218-byte summary has SHA-256
-`9b24b798076d3447d5446bc07e50f2c2126fbb4fb4e5dca2f073671dbc11f98f`.
+`12425923d187d62ad9a01c9acf36c23cc4914da1b2bcf65385ac7c15d31044a4`.
 
 Across the three supported roots, CupidC participates in 245 transforms and
 CupidObj participates in 189 transforms. Python participates in all 447 as

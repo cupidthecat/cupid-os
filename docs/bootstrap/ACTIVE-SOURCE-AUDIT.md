@@ -53,7 +53,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_network` | 20 | 3629 |
 | `kernel_smp` | 14 | 1162 |
 | `kernel_tls` | 13 | 6661 |
-| `kernel_usb` | 8 | 3518 |
+| `kernel_usb` | 8 | 3527 |
 | `kernel_util` | 2 | 660 |
 | `project_source` | 1 | 5 |
 | `toolchain_contract` | 20 | 155999 |
@@ -104,7 +104,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `c.expression` | 2 | 5996 |
 | `c.extension` | 19 | 420 |
 | `c.initializer` | 1 | 687 |
-| `c.preprocessor` | 18 | 6926 |
+| `c.preprocessor` | 18 | 6930 |
 | `c.qualifier` | 2 | 15758 |
 | `c.storage` | 4 | 9953 |
 | `c.type` | 15 | 51098 |

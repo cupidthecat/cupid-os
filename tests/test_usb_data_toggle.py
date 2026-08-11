@@ -98,7 +98,7 @@ class UsbDataToggleContractTests(unittest.TestCase):
             self.assertIn("volatile uint32_t submit_lock;", source)
             self.assertIn(f"{prefix}_submit_lock(c);", source)
             self.assertIn(
-                f"__atomic_store_n(&c->submit_lock, 0u, "
+                "__atomic_store_n(&c->submit_lock, 0u, "
                 "__ATOMIC_RELEASE);",
                 source,
             )
@@ -144,6 +144,35 @@ class UsbDataToggleContractTests(unittest.TestCase):
         self.assertLess(
             teardown.index("kfree(td_raw[i])"),
             teardown.index("uhci_restore_schedule(c, saved_command)"),
+        )
+
+    def test_uhci_irq_acknowledges_only_write_clear_status_bits(self):
+        writable = re.search(
+            r"#define UHCI_STS_W1C\s+\((.*?)\)",
+            self.uhci,
+            re.S,
+        )
+        self.assertIsNotNone(writable)
+        for status in (
+            "UHCI_STS_INT",
+            "UHCI_STS_ERR",
+            "UHCI_STS_RESUME",
+            "UHCI_STS_HSE",
+            "UHCI_STS_HCPE",
+        ):
+            self.assertIn(status, writable.group(1))
+        self.assertNotIn("UHCI_STS_HALTED", writable.group(1))
+
+        irq = re.search(
+            r"static void uhci_irq_handler_fn\(usb_hc_t \*hc\) \{.*?\n\}",
+            self.uhci,
+            re.S,
+        )
+        self.assertIsNotNone(irq)
+        self.assertIn("sts & UHCI_STS_W1C", irq.group(0))
+        self.assertNotIn(
+            "outw(c->io_base + UHCI_USBSTS, sts);",
+            irq.group(0),
         )
 
     def test_multi_packet_parity_is_not_assumed_to_flip_once(self):

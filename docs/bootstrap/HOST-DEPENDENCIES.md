@@ -8,11 +8,11 @@ stable shape, then covers the Linux branch with direct build tests.
 language graph contains 29 assembly inputs, 293 headers, and 402 Cupid C
 files. No ordinary C translation unit remains in a supported root. The
 active-source digest is
-`8d62b831b5086b8fc99918644b1e04e12101167e74fde1d67cb623da5794b12a`.
+`f1ff17490ac8174ba91e2a0c645689bf531a083d89f6c3ca9eaee06a3f88af07`.
 The 2,600,505-byte audit JSON has SHA-256
-`4e49b2d0c3965724c577c93ff29159fd8f611a57055a97a31a68cd887756374e`,
+`8049bb8d04e1df6567135059931f8dc8020548c622b1146b0b9004a1f606c7b0`,
 and the 12,218-byte summary has SHA-256
-`9b24b798076d3447d5446bc07e50f2c2126fbb4fb4e5dca2f073671dbc11f98f`.
+`12425923d187d62ad9a01c9acf36c23cc4914da1b2bcf65385ac7c15d31044a4`.
 The checked Windows Clang/LLVM and Linux GCC/binutils baselines at
 revision `1e079d1` predate the current CupidC ownership and remain historical
 oracle evidence.
