@@ -186,6 +186,9 @@ class CupidDisContractTests(unittest.TestCase):
     def test_raw_16_and_32_bit_decode_and_recovery(self):
         self.run_contract("raw")
 
+    def test_prepared_decoder_is_reused_across_indexed_inspections(self):
+        self.run_contract("indexed")
+
     def test_relocatable_object_report_and_relocation_overlay(self):
         self.run_contract("object")
 
@@ -331,6 +334,34 @@ class CupidDisContractTests(unittest.TestCase):
         self.assertEqual(ordinary_multi.returncode, 2)
         self.assertEqual(ordinary_multi.stdout, "")
         self.assertIn("usage: cupiddis", ordinary_multi.stderr)
+
+    def test_cli_prepares_one_decoder_for_the_whole_strict_batch(self):
+        source = (TOOLCHAIN_ROOT / "cupiddis_main.cc").read_text(
+            encoding="utf-8"
+        )
+        strict_start = source.index("if (cli.require_known == CTOOL_TRUE)")
+        strict_end = source.index("free(cli.raw_ranges);", strict_start)
+        strict_branch = source[strict_start:strict_end]
+
+        self.assertEqual(
+            strict_branch.count("ctool_x86_decoder_prepare("), 1
+        )
+        prepare = strict_branch.index("ctool_x86_decoder_prepare(")
+        loop = strict_branch.index(
+            "for (index = 0u; index < cli.input_count; index++)"
+        )
+        reuse = strict_branch.index(
+            "cupiddis_check_known_input(&cli, decoder,"
+        )
+        self.assertLess(prepare, loop)
+        self.assertLess(loop, reuse)
+
+        helper_start = source.index("static int cupiddis_check_known_input(")
+        helper_end = source.index("\nint main(", helper_start)
+        helper = source[helper_start:helper_end]
+        self.assertIn(
+            "ctool_dis_inspect_indexed(job, decoder,", helper
+        )
 
     def test_cli_explicit_view_and_nm_modes_are_deterministic(self):
         sections = subprocess.run(

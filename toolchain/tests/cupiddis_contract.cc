@@ -259,6 +259,83 @@ static ctool_dis_request_t raw_request(ctool_x86_mode_t mode,
   return request;
 }
 
+static int summaries_equal(const ctool_dis_decode_summary_t *left,
+                           const ctool_dis_decode_summary_t *right) {
+  return left->known_count == right->known_count &&
+                 left->unknown_count == right->unknown_count &&
+                 left->invalid_count == right->invalid_count &&
+                 left->truncated_count == right->truncated_count
+             ? 1
+             : 0;
+}
+
+static int run_indexed(void) {
+  static const ctool_u8 clean[] = {0x90u, 0xc3u};
+  static const ctool_u8 mixed[] = {
+      0x90u, 0x0fu, 0xffu, 0xc0u, 0x66u, 0x66u, 0x90u, 0x0fu};
+  static const struct {
+    const char *path;
+    const ctool_u8 *bytes;
+    ctool_u32 size;
+  } inputs[] = {
+      {"/clean.bin", clean, (ctool_u32)sizeof(clean)},
+      {"/mixed.bin", mixed, (ctool_u32)sizeof(mixed)}};
+  ctool_host_adapter_t owner_adapter;
+  ctool_host_adapter_t caller_adapter;
+  ctool_job_t *owner_job;
+  ctool_job_t *caller_job;
+  const ctool_x86_decoder_t *decoder;
+  ctool_dis_request_t request = raw_request(CTOOL_X86_MODE_32, 0u);
+  ctool_dis_report_t exhaustive;
+  ctool_dis_report_t indexed;
+  ctool_source_t source;
+  ctool_status_t status;
+  ctool_u32 input;
+  if (!open_job(&owner_adapter, &owner_job)) {
+    return 1;
+  }
+  status = ctool_x86_decoder_prepare(owner_job, &decoder);
+  if (!check_status(status, CTOOL_OK, "indexed inspector decoder prepare") ||
+      !open_job(&caller_adapter, &caller_job)) {
+    ctool_job_close(owner_job);
+    return 1;
+  }
+  for (input = 0u;
+       input < (ctool_u32)(sizeof(inputs) / sizeof(inputs[0])); input++) {
+    source.path.text = ctool_string(inputs[input].path);
+    source.contents = ctool_bytes(inputs[input].bytes, inputs[input].size);
+    status = ctool_dis_inspect(caller_job, &source, &request, &exhaustive);
+    if (status == CTOOL_OK) {
+      status = ctool_dis_inspect_indexed(
+          caller_job, decoder, &source, &request, &indexed);
+    }
+    if (!check_status(status, CTOOL_OK, "indexed inspector reuse") ||
+        !summaries_equal(&exhaustive.decode_summary,
+                         &indexed.decode_summary)) {
+      (void)fprintf(stderr, "indexed inspector summary differs for %s\n",
+                    inputs[input].path);
+      ctool_job_close(caller_job);
+      ctool_job_close(owner_job);
+      return 1;
+    }
+  }
+  (void)memset(&indexed, 0xa5, sizeof(indexed));
+  status = ctool_dis_inspect_indexed(
+      caller_job, (const ctool_x86_decoder_t *)0, &source, &request,
+      &indexed);
+  if (!check_status(status, CTOOL_ERR_INVALID_ARGUMENT,
+                    "indexed inspector null decoder") ||
+      !is_zeroed(&indexed, sizeof(indexed))) {
+    ctool_job_close(caller_job);
+    ctool_job_close(owner_job);
+    return 1;
+  }
+  ctool_job_close(caller_job);
+  ctool_job_close(owner_job);
+  (void)puts("indexed: ok");
+  return 0;
+}
+
 static void put_le16(ctool_u8 *bytes, ctool_u32 offset, ctool_u16 value) {
   bytes[offset] = (ctool_u8)(value & 0xffu);
   bytes[offset + 1u] = (ctool_u8)((value >> 8u) & 0xffu);
@@ -1772,6 +1849,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "raw") == 0) {
     return run_raw();
+  }
+  if (strcmp(argv[1], "indexed") == 0) {
+    return run_indexed();
   }
   if (strcmp(argv[1], "object") == 0) {
     return run_object();

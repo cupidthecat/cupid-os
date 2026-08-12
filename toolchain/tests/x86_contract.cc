@@ -156,6 +156,224 @@ static int decoded_is_zero(const ctool_x86_decoded_t *decoded) {
   return 1;
 }
 
+static ctool_status_t exhaustive_decode(
+    ctool_job_t *job, ctool_x86_mode_t mode, ctool_bytes_t bytes,
+    ctool_u32 address, ctool_x86_decoded_t *decoded_out) {
+  return ctool_x86_decode(job, mode, bytes, address, decoded_out);
+}
+
+static ctool_status_t decode_with_index_equivalence(
+    ctool_job_t *job, ctool_x86_mode_t mode, ctool_bytes_t bytes,
+    ctool_u32 address, ctool_x86_decoded_t *decoded_out) {
+  ctool_arena_t *arena;
+  ctool_arena_mark_t mark;
+  const ctool_x86_decoder_t *decoder = (const ctool_x86_decoder_t *)0;
+  ctool_x86_decoded_t exhaustive;
+  ctool_x86_decoded_t indexed;
+  ctool_status_t prepare_status;
+  ctool_status_t exhaustive_status;
+  ctool_status_t indexed_status;
+  ctool_status_t rewind_status;
+  if (job == (ctool_job_t *)0) {
+    return exhaustive_decode(job, mode, bytes, address, decoded_out);
+  }
+  arena = ctool_job_arena(job);
+  mark = ctool_arena_mark(arena);
+  prepare_status = ctool_x86_decoder_prepare(job, &decoder);
+  if (prepare_status != CTOOL_OK) {
+    (void)fprintf(
+        stderr,
+        "x86 decoder preparation failed during equivalence check\n");
+    return prepare_status;
+  }
+  (void)memset(&exhaustive, 0xa5, sizeof(exhaustive));
+  (void)memset(&indexed, 0xa5, sizeof(indexed));
+  exhaustive_status = exhaustive_decode(
+      job, mode, bytes, address,
+      decoded_out == (ctool_x86_decoded_t *)0 ? (ctool_x86_decoded_t *)0
+                                               : &exhaustive);
+  indexed_status = ctool_x86_decode_indexed(
+      job, decoder, mode, bytes, address,
+      decoded_out == (ctool_x86_decoded_t *)0 ? (ctool_x86_decoded_t *)0
+                                               : &indexed);
+  if (exhaustive_status != indexed_status ||
+      (decoded_out != (ctool_x86_decoded_t *)0 &&
+       memcmp(&exhaustive, &indexed, sizeof(exhaustive)) != 0)) {
+    (void)fprintf(
+        stderr,
+        "prepared x86 decoder diverged from exhaustive decode\n");
+    (void)ctool_arena_rewind(arena, mark);
+    return CTOOL_ERR_INTERNAL;
+  }
+  if (decoded_out != (ctool_x86_decoded_t *)0) {
+    *decoded_out = exhaustive;
+  }
+  rewind_status = ctool_arena_rewind(arena, mark);
+  return rewind_status == CTOOL_OK ? exhaustive_status : rewind_status;
+}
+
+#define ctool_x86_decode decode_with_index_equivalence
+
+static int compare_prepared_decode(
+    ctool_job_t *job, const ctool_x86_decoder_t *decoder,
+    ctool_x86_mode_t mode, ctool_bytes_t bytes, ctool_u32 address,
+    const char *operation) {
+  ctool_x86_decoded_t exhaustive;
+  ctool_x86_decoded_t indexed;
+  ctool_status_t exhaustive_status =
+      exhaustive_decode(job, mode, bytes, address, &exhaustive);
+  ctool_status_t indexed_status =
+      ctool_x86_decode_indexed(job, decoder, mode, bytes, address, &indexed);
+  if (exhaustive_status != indexed_status ||
+      memcmp(&exhaustive, &indexed, sizeof(exhaustive)) != 0) {
+    (void)fprintf(stderr, "%s: prepared decode mismatch\n", operation);
+    return 0;
+  }
+  return 1;
+}
+
+static int run_decoder_index(void) {
+  ctool_host_adapter_t owner_adapter;
+  ctool_host_adapter_t caller_adapter;
+  ctool_host_adapter_t limited_adapter;
+  ctool_job_t *owner_job;
+  ctool_job_t *caller_job;
+  ctool_job_t *limited_job;
+  const ctool_x86_decoder_t *decoder =
+      (const ctool_x86_decoder_t *)(const void *)1;
+  ctool_limits_t limited_limits = ctool_default_limits();
+  ctool_job_config_t limited_config;
+  ctool_x86_decoded_t decoded;
+  ctool_u8 bytes[CTOOL_X86_MAX_INSTRUCTION_BYTES];
+  void *recovery = (void *)0;
+  ctool_status_t status;
+  ctool_u32 mode_index;
+  ctool_u32 opcode;
+  ctool_u32 index;
+  static const ctool_x86_mode_t modes[] = {
+      CTOOL_X86_MODE_16, CTOOL_X86_MODE_32};
+
+  status = ctool_x86_decoder_prepare((ctool_job_t *)0, &decoder);
+  if (!check_status(status, CTOOL_ERR_INVALID_ARGUMENT,
+                    "decoder prepare null job") ||
+      !check_true(decoder == (const ctool_x86_decoder_t *)0,
+                  "decoder prepare null job clears output") ||
+      !open_job(&owner_adapter, &owner_job)) {
+    return 1;
+  }
+  status = ctool_x86_decoder_prepare(
+      owner_job, (const ctool_x86_decoder_t **)0);
+  if (!check_status(status, CTOOL_ERR_INVALID_ARGUMENT,
+                    "decoder prepare null output")) {
+    ctool_job_close(owner_job);
+    return 1;
+  }
+  status = ctool_x86_decoder_prepare(owner_job, &decoder);
+  if (!check_status(status, CTOOL_OK, "decoder prepare") ||
+      !check_true(decoder != (const ctool_x86_decoder_t *)0,
+                  "decoder prepare output") ||
+      !open_job(&caller_adapter, &caller_job)) {
+    ctool_job_close(owner_job);
+    return 1;
+  }
+
+  for (index = 0u; index < CTOOL_X86_MAX_INSTRUCTION_BYTES; index++) {
+    bytes[index] = 0u;
+  }
+  bytes[1] = 0xc0u;
+  for (mode_index = 0u;
+       mode_index < (ctool_u32)(sizeof(modes) / sizeof(modes[0]));
+       mode_index++) {
+    for (opcode = 0u; opcode < 256u; opcode++) {
+      bytes[0] = (ctool_u8)opcode;
+      if (!compare_prepared_decode(
+              caller_job, decoder, modes[mode_index],
+              ctool_bytes(bytes, CTOOL_X86_MAX_INSTRUCTION_BYTES), 0u,
+              "first-opcode bucket")) {
+        ctool_job_close(caller_job);
+        ctool_job_close(owner_job);
+        return 1;
+      }
+    }
+    bytes[0] = 0x0fu;
+    for (opcode = 0u; opcode < 256u; opcode++) {
+      bytes[1] = (ctool_u8)opcode;
+      bytes[2] = 0xc0u;
+      if (!compare_prepared_decode(
+              caller_job, decoder, modes[mode_index],
+              ctool_bytes(bytes, CTOOL_X86_MAX_INSTRUCTION_BYTES), 0u,
+              "two-byte opcode bucket")) {
+        ctool_job_close(caller_job);
+        ctool_job_close(owner_job);
+        return 1;
+      }
+    }
+  }
+  bytes[0] = 0x90u;
+  (void)memset(&decoded, 0xa5, sizeof(decoded));
+  status = ctool_x86_decode_indexed(
+      caller_job, (const ctool_x86_decoder_t *)0, CTOOL_X86_MODE_32,
+      ctool_bytes(bytes, 1u), 0u, &decoded);
+  if (!check_status(status, CTOOL_ERR_INVALID_ARGUMENT,
+                    "indexed decode null decoder") ||
+      !check_true(decoded_is_zero(&decoded),
+                  "indexed decode null decoder zeroes output")) {
+    ctool_job_close(caller_job);
+    ctool_job_close(owner_job);
+    return 1;
+  }
+  (void)memset(&decoded, 0xa5, sizeof(decoded));
+  status = ctool_x86_decode_indexed(
+      caller_job, decoder, (ctool_x86_mode_t)64,
+      ctool_bytes(bytes, 1u), 0u, &decoded);
+  if (!check_status(status, CTOOL_ERR_INVALID_ARGUMENT,
+                    "indexed decode invalid mode") ||
+      !check_true(decoded_is_zero(&decoded),
+                  "indexed decode invalid mode zeroes output") ||
+      !check_status(ctool_x86_decode_indexed(
+                        caller_job, decoder, CTOOL_X86_MODE_32,
+                        ctool_bytes(bytes, 1u), 0u,
+                        (ctool_x86_decoded_t *)0),
+                    CTOOL_ERR_INVALID_ARGUMENT,
+                    "indexed decode null output")) {
+    ctool_job_close(caller_job);
+    ctool_job_close(owner_job);
+    return 1;
+  }
+  ctool_job_close(caller_job);
+
+  limited_limits.arena_block_bytes = 64u;
+  limited_limits.arena_bytes = 64u;
+  status = ctool_host_adapter_init(&limited_adapter, ".");
+  limited_config = ctool_host_job_config(&limited_adapter, limited_limits);
+  if (!check_status(status, CTOOL_OK, "limited host adapter init") ||
+      !check_status(ctool_job_open(&limited_config, &limited_job), CTOOL_OK,
+                    "limited job open")) {
+    ctool_job_close(owner_job);
+    return 1;
+  }
+  decoder = (const ctool_x86_decoder_t *)(const void *)1;
+  status = ctool_x86_decoder_prepare(limited_job, &decoder);
+  if (!check_status(status, CTOOL_ERR_LIMIT, "decoder prepare limit") ||
+      !check_true(decoder == (const ctool_x86_decoder_t *)0,
+                  "decoder prepare limit clears output") ||
+      !check_true(ctool_job_diagnostic_count(limited_job) == 1u &&
+                      ctool_job_diagnostic(limited_job, 0u)->code ==
+                          CTOOL_X86_DIAG_LIMIT,
+                  "decoder prepare limit diagnostic") ||
+      !check_status(ctool_arena_alloc(ctool_job_arena(limited_job), 32u, 4u,
+                                      &recovery),
+                    CTOOL_OK, "decoder prepare limit rewinds arena")) {
+    ctool_job_close(limited_job);
+    ctool_job_close(owner_job);
+    return 1;
+  }
+  ctool_job_close(limited_job);
+  ctool_job_close(owner_job);
+  (void)printf("decoder-index: ok\n");
+  return 0;
+}
+
 static int encode(ctool_job_t *job, ctool_x86_mode_t mode,
                   const ctool_x86_instruction_t *insn,
                   ctool_x86_encoding_t *encoding, const char *operation) {
@@ -3687,7 +3905,7 @@ static int run_active_surface(void) {
   }
   if (!check_true(
           (ctool_u32)(sizeof(source_cases) / sizeof(source_cases[0])) ==
-              187u,
+              189u,
           "active source manifest inventory") ||
       !check_true(
           (ctool_u32)(sizeof(inline_cases) / sizeof(inline_cases[0])) ==
@@ -4042,7 +4260,7 @@ static int run_errors(void) {
 int main(int argc, char **argv) {
   if (argc != 2) {
     (void)fprintf(stderr,
-                  "usage: x86-contract inventory|model|integer|conditional-moves|parity-setcc|immediate-imul|double-shift|padding-nops|clang-padding-nops|addressing|relocations|system-simd|active-surface|errors\n");
+                  "usage: x86-contract inventory|model|decoder-index|integer|conditional-moves|parity-setcc|immediate-imul|double-shift|padding-nops|clang-padding-nops|addressing|relocations|system-simd|active-surface|errors\n");
     return 2;
   }
   if (strcmp(argv[1], "model") == 0) {
@@ -4050,6 +4268,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "inventory") == 0) {
     return run_inventory();
+  }
+  if (strcmp(argv[1], "decoder-index") == 0) {
+    return run_decoder_index();
   }
   if (strcmp(argv[1], "integer") == 0) {
     return run_integer();

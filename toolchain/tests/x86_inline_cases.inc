@@ -1,7 +1,7 @@
 /*
  * Checked active C/Cupid C inline-assembly surface.
  *
- * Inventory: 208 active inline-assembly sites, 96 source instruction
+ * Inventory: 230 active inline-assembly sites, 96 source instruction
  * spellings, and 129 manually audited mode-32 source-spelling/form rows.
  * Repeated templates collapse only when spelling, operand direction, and
  * width are identical; source aliases, constraint alternatives, and REP's
@@ -48,7 +48,7 @@ X86_ACTIVE_CASE("inline:fstp:st1", CTOOL_X86_MODE_32, CTOOL_X86_MN_FSTP, 2u, {0x
 X86_ACTIVE_CASE("inline:fstp:m32", CTOOL_X86_MODE_32, CTOOL_X86_MN_FSTP, 2u, {0xd9u, 0x18u})
 X86_ACTIVE_CASE("inline:fstpl:m64", CTOOL_X86_MODE_32, CTOOL_X86_MN_FSTP, 2u, {0xddu, 0x18u})
 X86_ACTIVE_CASE("inline:fstps:m32", CTOOL_X86_MODE_32, CTOOL_X86_MN_FSTP, 2u, {0xd9u, 0x18u})
-X86_ACTIVE_CASE("inline:fsub:%st,%st(1)->fsubr", CTOOL_X86_MODE_32, CTOOL_X86_MN_FSUBR, 2u, {0xdcu, 0xe1u})
+X86_ACTIVE_CASE("inline:fsubr:%st,%st(1)->fsub", CTOOL_X86_MODE_32, CTOOL_X86_MN_FSUB, 2u, {0xdcu, 0xe9u})
 X86_ACTIVE_CASE("inline:fxch:st1", CTOOL_X86_MODE_32, CTOOL_X86_MN_FXCH, 2u, {0xd9u, 0xc9u})
 X86_ACTIVE_CASE("inline:fxsave:m512", CTOOL_X86_MODE_32, CTOOL_X86_MN_FXSAVE, 3u, {0x0fu, 0xaeu, 0x00u})
 X86_ACTIVE_CASE("inline:fyl2x", CTOOL_X86_MODE_32, CTOOL_X86_MN_FYL2X, 2u, {0xd9u, 0xf1u})

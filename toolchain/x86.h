@@ -250,6 +250,8 @@ typedef struct {
   ctool_u8 consumed;
 } ctool_x86_decoded_t;
 
+typedef struct ctool_x86_decoder ctool_x86_decoder_t;
+
 typedef struct {
   ctool_u32 form_count;
   ctool_u32 mnemonic_count;
@@ -285,6 +287,12 @@ ctool_status_t ctool_x86_encode(ctool_job_t *job, ctool_x86_mode_t mode,
 ctool_status_t ctool_x86_decode(ctool_job_t *job, ctool_x86_mode_t mode,
                                  ctool_bytes_t bytes, ctool_u32 address,
                                  ctool_x86_decoded_t *decoded_out);
+ctool_status_t ctool_x86_decoder_prepare(
+    ctool_job_t *job, const ctool_x86_decoder_t **decoder_out);
+ctool_status_t ctool_x86_decode_indexed(
+    ctool_job_t *job, const ctool_x86_decoder_t *decoder,
+    ctool_x86_mode_t mode, ctool_bytes_t bytes, ctool_u32 address,
+    ctool_x86_decoded_t *decoded_out);
 
 /* Instruction/operand inputs are borrowed for a call.  Encoded and decoded
  * values are self-contained.  Raw decode fields never claim relocation
@@ -293,6 +301,8 @@ ctool_status_t ctool_x86_decode(ctool_job_t *job, ctool_x86_mode_t mode,
  * canonical encoding.  Repeated prefixes from one legacy prefix group are
  * classified as invalid, except for documented exact decode-only compiler
  * padding forms.  Those private forms report CTOOL_X86_FORM_AUTO and cannot
- * be requested from the encoder. */
+ * be requested from the encoder.  A prepared decoder is immutable,
+ * arena-owned, and valid until its preparing arena is rewound or closed.  It
+ * may be shared by callers that keep that arena alive. */
 
 #endif

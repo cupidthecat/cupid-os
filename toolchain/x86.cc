@@ -30,6 +30,8 @@
 #define X86_FORM_DEFAULT_OPERAND_ONLY 0x00100000u
 #define X86_FORM_FIXED_CL2 0x00200000u
 
+#define X86_DECODER_MAGIC 0x58383644u
+
 typedef enum {
   X86_ISA_8086 = 0,
   X86_ISA_386,
@@ -111,6 +113,14 @@ typedef struct {
   ctool_x86_reg_t reg;
   ctool_bool canonical;
 } x86_register_name_t;
+
+struct ctool_x86_decoder {
+  ctool_u32 magic;
+  ctool_u32 form_count;
+  ctool_u32 entry_count;
+  const ctool_u32 *bucket_offsets;
+  const ctool_x86_form_t *forms;
+};
 
 #define X86_MN_CANON(text, value) \
   { (text), (ctool_u8)(sizeof(text) - 1u), (value), CTOOL_TRUE }
@@ -1718,6 +1728,103 @@ static ctool_status_t x86_emit_error(ctool_job_t *job, ctool_u32 code,
   diagnostic.message = ctool_string(message);
   emit_status = ctool_job_emit(job, &diagnostic);
   return emit_status == CTOOL_OK ? status : emit_status;
+}
+
+static ctool_u32 x86_decoder_row_bucket_count(const x86_form_row_t *row) {
+  if (row->opcode_length == 1u && row->final_opcode_mask == 0xf8u) {
+    return (row->opcode[0] & 0x07u) == 0u ? 8u : 0u;
+  }
+  return 1u;
+}
+
+static ctool_u8 x86_decoder_row_bucket(const x86_form_row_t *row,
+                                        ctool_u32 variant) {
+  return row->opcode_length == 1u && row->final_opcode_mask == 0xf8u
+             ? (ctool_u8)((ctool_u32)row->opcode[0] + variant)
+             : row->opcode[0];
+}
+
+ctool_status_t ctool_x86_decoder_prepare(
+    ctool_job_t *job, const ctool_x86_decoder_t **decoder_out) {
+  ctool_arena_t *arena;
+  ctool_arena_mark_t mark;
+  ctool_x86_decoder_t *decoder = (ctool_x86_decoder_t *)0;
+  ctool_u32 *bucket_offsets = (ctool_u32 *)0;
+  ctool_x86_form_t *forms = (ctool_x86_form_t *)0;
+  ctool_u32 counts[256];
+  ctool_u32 cursors[256];
+  ctool_u32 entry_count = 0u;
+  ctool_u32 index;
+  ctool_status_t status;
+  if (decoder_out != (const ctool_x86_decoder_t **)0) {
+    *decoder_out = (const ctool_x86_decoder_t *)0;
+  }
+  if (job == (ctool_job_t *)0 ||
+      decoder_out == (const ctool_x86_decoder_t **)0) {
+    return CTOOL_ERR_INVALID_ARGUMENT;
+  }
+  for (index = 0u; index < 256u; index++) {
+    counts[index] = 0u;
+    cursors[index] = 0u;
+  }
+  for (index = 0u; index < x86_array_count_forms(); index++) {
+    ctool_u32 variant_count =
+        x86_decoder_row_bucket_count(&x86_forms[index]);
+    ctool_u32 variant;
+    if (entry_count > 0xffffffffu - variant_count) {
+      return x86_emit_error(job, CTOOL_X86_DIAG_LIMIT,
+                            "x86 decoder index size overflows",
+                            CTOOL_ERR_OVERFLOW);
+    }
+    entry_count += variant_count;
+    for (variant = 0u; variant < variant_count; variant++) {
+      ctool_u8 bucket =
+          x86_decoder_row_bucket(&x86_forms[index], variant);
+      counts[bucket]++;
+    }
+  }
+  arena = ctool_job_arena(job);
+  mark = ctool_arena_mark(arena);
+  status = ctool_arena_alloc_zero(
+      arena, 1u, (ctool_u32)sizeof(*decoder),
+      (ctool_u32)sizeof(void *), (void **)&decoder);
+  if (status == CTOOL_OK) {
+    status = ctool_arena_alloc_zero(
+        arena, 257u, (ctool_u32)sizeof(ctool_u32),
+        (ctool_u32)sizeof(ctool_u32), (void **)&bucket_offsets);
+  }
+  if (status == CTOOL_OK) {
+    status = ctool_arena_alloc_zero(
+        arena, entry_count, (ctool_u32)sizeof(ctool_x86_form_t),
+        (ctool_u32)sizeof(ctool_x86_form_t), (void **)&forms);
+  }
+  if (status != CTOOL_OK) {
+    (void)ctool_arena_rewind(arena, mark);
+    return x86_emit_error(job, CTOOL_X86_DIAG_LIMIT,
+                          "x86 decoder index storage limit exceeded", status);
+  }
+  for (index = 0u; index < 256u; index++) {
+    bucket_offsets[index + 1u] = bucket_offsets[index] + counts[index];
+    cursors[index] = bucket_offsets[index];
+  }
+  for (index = 0u; index < x86_array_count_forms(); index++) {
+    ctool_u32 variant_count =
+        x86_decoder_row_bucket_count(&x86_forms[index]);
+    ctool_u32 variant;
+    for (variant = 0u; variant < variant_count; variant++) {
+      ctool_u8 bucket =
+          x86_decoder_row_bucket(&x86_forms[index], variant);
+      forms[cursors[bucket]] = index + 1u;
+      cursors[bucket]++;
+    }
+  }
+  decoder->magic = X86_DECODER_MAGIC;
+  decoder->form_count = x86_array_count_forms();
+  decoder->entry_count = entry_count;
+  decoder->bucket_offsets = bucket_offsets;
+  decoder->forms = forms;
+  *decoder_out = decoder;
+  return CTOOL_OK;
 }
 
 ctool_status_t ctool_x86_mnemonic_from_name(ctool_string_t name,
@@ -3952,10 +4059,13 @@ static ctool_bool x86_decode_clang_padding_nop(
   return CTOOL_TRUE;
 }
 
-ctool_status_t ctool_x86_decode(ctool_job_t *job, ctool_x86_mode_t mode,
-                                 ctool_bytes_t bytes, ctool_u32 address,
-                                 ctool_x86_decoded_t *decoded_out) {
+static ctool_status_t x86_decode_impl(
+    ctool_job_t *job, const ctool_x86_decoder_t *decoder,
+    ctool_x86_mode_t mode, ctool_bytes_t bytes, ctool_u32 address,
+    ctool_x86_decoded_t *decoded_out) {
   x86_decoded_prefixes_t prefixes;
+  ctool_u32 first = 0u;
+  ctool_u32 end = x86_array_count_forms();
   ctool_u32 index;
   ctool_bool saw_truncated = CTOOL_FALSE;
   ctool_bool saw_invalid = CTOOL_FALSE;
@@ -3969,6 +4079,14 @@ ctool_status_t ctool_x86_decode(ctool_job_t *job, ctool_x86_mode_t mode,
   if (job == (ctool_job_t *)0 || x86_mode_mask(mode) == 0u ||
       (bytes.data == (const ctool_u8 *)0 && bytes.size != 0u) ||
       address >= bytes.size) {
+    return CTOOL_ERR_INVALID_ARGUMENT;
+  }
+  if (decoder != (const ctool_x86_decoder_t *)0 &&
+      (decoder->magic != X86_DECODER_MAGIC ||
+       decoder->form_count != x86_array_count_forms() ||
+       decoder->bucket_offsets == (const ctool_u32 *)0 ||
+       decoder->forms == (const ctool_x86_form_t *)0 ||
+       decoder->bucket_offsets[256] != decoder->entry_count)) {
     return CTOOL_ERR_INVALID_ARGUMENT;
   }
   if (x86_decode_clang_padding_nop(mode, bytes, address, decoded_out) ==
@@ -3989,18 +4107,28 @@ ctool_status_t ctool_x86_decode(ctool_job_t *job, ctool_x86_mode_t mode,
     x86_copy_available(bytes, address, &decoded_out->encoding);
     return CTOOL_OK;
   }
-  for (index = 0u; index < x86_array_count_forms(); index++) {
+  if (decoder != (const ctool_x86_decoder_t *)0) {
+    ctool_u8 opcode = bytes.data[prefixes.opcode_offset];
+    first = decoder->bucket_offsets[opcode];
+    end = decoder->bucket_offsets[(ctool_u32)opcode + 1u];
+  }
+  for (index = first; index < end; index++) {
     ctool_x86_decoded_t candidate;
     x86_parse_result_t result;
-    if ((x86_forms[index].modes & x86_mode_mask(mode)) == 0u) {
+    ctool_u32 form_index =
+        decoder == (const ctool_x86_decoder_t *)0
+            ? index
+            : decoder->forms[index] - 1u;
+    if ((x86_forms[form_index].modes & x86_mode_mask(mode)) == 0u) {
       continue;
     }
     x86_zero_decoded(&candidate);
     result = x86_decode_row(bytes, address, mode, &prefixes,
-                            &x86_forms[index], index + 1u, &candidate);
+                            &x86_forms[form_index], form_index + 1u,
+                            &candidate);
     if (result == X86_PARSE_OK) {
       ctool_bool candidate_is_alias =
-          (x86_forms[index].flags & X86_FORM_DECODE_ALIAS) != 0u
+          (x86_forms[form_index].flags & X86_FORM_DECODE_ALIAS) != 0u
               ? CTOOL_TRUE
               : CTOOL_FALSE;
       if (has_best == CTOOL_FALSE || candidate.encoding.size > best.encoding.size ||
@@ -4040,4 +4168,24 @@ ctool_status_t ctool_x86_decode(ctool_job_t *job, ctool_x86_mode_t mode,
   decoded_out->encoding.size = 1u;
   decoded_out->encoding.bytes[0] = bytes.data[address];
   return CTOOL_OK;
+}
+
+ctool_status_t ctool_x86_decode(ctool_job_t *job, ctool_x86_mode_t mode,
+                                 ctool_bytes_t bytes, ctool_u32 address,
+                                 ctool_x86_decoded_t *decoded_out) {
+  return x86_decode_impl(job, (const ctool_x86_decoder_t *)0, mode, bytes,
+                         address, decoded_out);
+}
+
+ctool_status_t ctool_x86_decode_indexed(
+    ctool_job_t *job, const ctool_x86_decoder_t *decoder,
+    ctool_x86_mode_t mode, ctool_bytes_t bytes, ctool_u32 address,
+    ctool_x86_decoded_t *decoded_out) {
+  if (decoder == (const ctool_x86_decoder_t *)0) {
+    if (decoded_out != (ctool_x86_decoded_t *)0) {
+      x86_zero_decoded(decoded_out);
+    }
+    return CTOOL_ERR_INVALID_ARGUMENT;
+  }
+  return x86_decode_impl(job, decoder, mode, bytes, address, decoded_out);
 }

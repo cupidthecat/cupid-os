@@ -71,6 +71,9 @@ class ToolchainX86ContractTests(unittest.TestCase):
             "fingerprint=55A8970F\n",
         )
 
+    def test_prepared_decoder_is_equivalent_reusable_and_transactional(self):
+        self.run_contract("decoder-index")
+
     def test_integer_encoding_decoding_and_relocation_fields(self):
         self.run_contract("integer")
 

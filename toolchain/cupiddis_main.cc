@@ -478,7 +478,8 @@ static void cupiddis_make_request(const cupiddis_cli_t *cli,
 }
 
 static int cupiddis_check_known_input(const cupiddis_cli_t *cli,
-                                      const char *input) {
+                                       const ctool_x86_decoder_t *decoder,
+                                       const char *input) {
   char *native_root = (char *)0;
   const char *logical_name = (const char *)0;
   ctool_host_adapter_t adapter;
@@ -527,7 +528,8 @@ static int cupiddis_check_known_input(const cupiddis_cli_t *cli,
     goto done;
   }
   cupiddis_make_request(cli, &request);
-  status = ctool_dis_inspect(job, &source, &request, &report);
+  status = ctool_dis_inspect_indexed(job, decoder, &source, &request,
+                                     &report);
   if (status != CTOOL_OK) {
     (void)fprintf(stderr, "cupiddis: %s: inspection failed (%s)\n", input,
                   ctool_status_name(status));
@@ -589,12 +591,33 @@ int main(int argc, char **argv) {
     return 2;
   }
   if (cli.require_known == CTOOL_TRUE) {
+    const ctool_x86_decoder_t *decoder =
+        (const ctool_x86_decoder_t *)0;
     ctool_u32 index;
     int failed = 0;
-    for (index = 0u; index < cli.input_count; index++) {
-      if (cupiddis_check_known_input(&cli, cli.inputs[index]) != 0) {
-        failed = 1;
+    limits.arena_bytes = CUPIDDIS_HOST_ARENA_BYTES;
+    status = ctool_host_adapter_init(&adapter, ".");
+    config = ctool_host_job_config(&adapter, limits);
+    if (status == CTOOL_OK) {
+      status = ctool_job_open(&config, &job);
+    }
+    if (status == CTOOL_OK) {
+      status = ctool_x86_decoder_prepare(job, &decoder);
+    }
+    if (status != CTOOL_OK) {
+      (void)fprintf(stderr, "cupiddis: cannot prepare x86 decoder (%s)\n",
+                    ctool_status_name(status));
+      failed = 1;
+    } else {
+      for (index = 0u; index < cli.input_count; index++) {
+        if (cupiddis_check_known_input(&cli, decoder, cli.inputs[index]) !=
+            0) {
+          failed = 1;
+        }
       }
+    }
+    if (job != (ctool_job_t *)0) {
+      ctool_job_close(job);
     }
     free(cli.raw_ranges);
     free(cli.inputs);

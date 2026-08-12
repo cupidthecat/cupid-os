@@ -104,6 +104,10 @@ ctool_status_t ctool_dis_inspect(ctool_job_t *job,
                                   const ctool_source_t *source,
                                   const ctool_dis_request_t *request,
                                   ctool_dis_report_t *report_out);
+ctool_status_t ctool_dis_inspect_indexed(
+    ctool_job_t *job, const ctool_x86_decoder_t *decoder,
+    const ctool_source_t *source, const ctool_dis_request_t *request,
+    ctool_dis_report_t *report_out);
 ctool_status_t ctool_dis_render(ctool_job_t *job,
                                  const ctool_dis_report_t *report,
                                  ctool_dis_text_t text,
@@ -118,7 +122,8 @@ ctool_status_t ctool_dis_render(ctool_job_t *job,
  * ctool_dis_render.
  *
  * Inspection failures zero report_out and rewind allocations made by the
- * operation.  Rendering is streaming and deterministic; a failing output
- * adapter may already have accepted an earlier prefix. */
+ * operation.  Indexed inspection borrows an immutable prepared decoder that
+ * must outlive the call.  Rendering is streaming and deterministic; a failing
+ * output adapter may already have accepted an earlier prefix. */
 
 #endif
