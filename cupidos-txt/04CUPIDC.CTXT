@@ -245,25 +245,39 @@ Initial, private, and newly discovered contract inventories must match exactly,
 which catches additions, removals, and restored edits that changed a copied
 input. Every run derives the cohort from its requested executable, requires a
 named manifest artifact, and verifies the manifest, target, fixed-point
-record, filenames, sizes, artifact hashes, 50 contract input hashes, the
+record, filenames, sizes, artifact hashes, 58 contract input hashes, the
 checked seed manifest, and the 43-file fixed-point source inventory before
-execution. The contract inventory has 50 inputs, including the Windows
-startup and runtime probe, the Toolchain Makefile, and both Python modules
-that construct or verify the cohort. The
+execution. The contract inventory has 58 inputs, including the Windows
+startup and runtime probe, the user syscall ABI contract and its six
+declarations, the Toolchain Makefile, the publisher, and the independent
+Python ABI oracle. The
 manifest digest, decoded data, schema checks, and build plan
-come from one captured byte sequence. The 439-transform normal image has no
+come from one captured byte sequence. The 440-transform normal image has no
 host C or recursive Make transform. Its five CupidASM, 191 CupidObj, two
 CupidLD, and one CupidDis commands run from the checked seed. The user
 compiler and Toolchain contract publisher create their own output directories,
 so empty-directory setup is not a separate transform. The compiler pins every
 POSIX or Windows directory component during preparation and rejects links,
-junctions, and a changed resolved path before releasing those pins. Three
-supplemental verification or orchestration outputs remain Python-only. ADR
-0245 records this boundary. Checked production kernel, generated-install, and
+junctions, and a changed resolved path before releasing those pins. Two
+supplemental verification or orchestration outputs remain Python-only. The
+user ABI output instead runs a Cupid-built contract and an independent Python
+oracle. ADR 0245 records the directory boundary, and ADR 0264 records the ABI
+transfer. Checked production kernel, generated-install, and
 user CupidC calls plus checked user CupidLD links pass their frozen five-tool
 capture to the same checked runner. It rechecks the live manifest and every
 seed image after the private command returns. ADR 0246 records this invocation
 boundary.
+
+The user syscall ABI check is one of the staged Toolchain contracts. Both
+rebuilt CupidC stages compile it, CupidLD links it, and the publisher requires
+matching objects and executables. It snapshots and rereads six declarations,
+then checks version 5, 103 fields, 412 table bytes, the public scalar types and
+constants, both VFS record layouts, and all 101 providers. Its fingerprints
+must match the independent Python oracle over the same private six-file
+snapshot. The executable runs from a private copy of the verified publication,
+and the coordinator rechecks the live cohort and source inputs afterward. The
+complete publication contains sixteen contract executables and five tools, for
+21 artifacts.
 
 The normal build compiles kernel/gfx/jpeg.cc and
 kernel/gfx/glyph_raster.cc through the checked seed. Their closed header sets
@@ -768,18 +782,18 @@ Pointer qualification accepts the safe char ** to char *const * conversion.
 It rejects char ** to const char ** because that would add a qualifier at an
 unsafe nested level. It also rejects removing the nested const.
 
-The exact hosted gate covers 34 strict C11 roots and two GNU-enabled runtime
+The exact hosted gate covers 35 strict C11 roots and two GNU-enabled runtime
 roots under checked four-byte i386 profiles. It includes the 19-source tool
 union, kernel/lang/as_elf.cc, the runtime implementation and probe, and all
-fifteen Toolchain contract sources. Thirty-one strict Linux roots use only
+sixteen Toolchain contract sources. Thirty-two strict Linux roots use only
 the Toolchain and hosted declaration roots. The headerless Windows command
 probe uses the separate FREESTANDING_I386 profile. The assembler ELF adapter
 and its contract use a separate two-root bridge that can also include
 /kernel/lang. The GNU profile is limited to the runtime implementation and
 probe. The old 64-bit hosted profiles have no roots. Stage-two and stage-three
 CupidC compile every contract, CupidLD links the static executables, and the
-checked cohort rejects a byte difference in any of sixteen new objects or
-fifteen executables. Test programs stay outside the 19-source fixed-point plan
+checked cohort rejects a byte difference in any of seventeen new objects or
+sixteen executables. Test programs stay outside the 19-source fixed-point plan
 because they do not contribute to a tool image.
 
 The repository runtime supplies the checked file, heap, memory, string, errno,

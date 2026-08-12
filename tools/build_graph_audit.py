@@ -60,18 +60,138 @@ TOOL_MARKERS = (
     ("$(LD)", "host_linker"),
     ("$(OBJCOPY)", "host_object_copy"),
     ("$(NM)", "host_symbol_reader"),
+    ("$(USER_SYSCALL_ABI)", "cupid_c_contract"),
     ("$(USER_SYSCALL_ABI)", "host_python"),
     ("$(PYTHON)", "host_python"),
     ("$(MAKE)", "make"),
 )
-USER_SYSCALL_ABI_AUDIT_INPUTS = (
-    "tools/user_syscall_abi.py",
+USER_SYSCALL_ABI_SOURCE_INPUTS = (
     "kernel/core/types.h",
     "kernel/core/syscall.h",
     "kernel/core/syscall.cc",
     "kernel/fs/vfs.h",
     "kernel/network/socket.h",
     "user/cupid.h",
+)
+USER_SYSCALL_ABI_PUBLICATION_INPUTS = (
+    "kernel/core/syscall.cc",
+    "kernel/core/syscall.h",
+    "kernel/core/types.h",
+    "kernel/fs/vfs.h",
+    "kernel/lang/as_elf.cc",
+    "kernel/lang/as_elf.h",
+    "kernel/network/socket.h",
+    "toolchain/Makefile",
+    "toolchain/ctool.h",
+    "toolchain/ctool_host.h",
+    "toolchain/cupidasm.h",
+    "toolchain/cupidc_emit.h",
+    "toolchain/cupidc_frontend.h",
+    "toolchain/cupidc_ir.h",
+    "toolchain/cupidc_pp.h",
+    "toolchain/cupidc_type.h",
+    "toolchain/cupiddis.h",
+    "toolchain/cupidld.h",
+    "toolchain/cupidobj.h",
+    "toolchain/elf32.h",
+    "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+    "toolchain/hosted/i386-linux/include/errno.h",
+    "toolchain/hosted/i386-linux/include/stdint.h",
+    "toolchain/hosted/i386-linux/include/stdio.h",
+    "toolchain/hosted/i386-linux/include/stdlib.h",
+    "toolchain/hosted/i386-linux/include/string.h",
+    "toolchain/hosted/i386-linux/include/unistd.h",
+    "toolchain/hosted/i386-windows/start.asm",
+    "toolchain/tests/core_contract.cc",
+    "toolchain/tests/cupidasm_contract.cc",
+    "toolchain/tests/cupidasm_demos_contract.cc",
+    "toolchain/tests/cupidasm_kernel_elf_contract.cc",
+    "toolchain/tests/cupidc_frontend_contract.cc",
+    "toolchain/tests/cupidc_ir_contract.cc",
+    "toolchain/tests/cupidc_kernel_simd_fixture.h",
+    "toolchain/tests/cupidc_object_contract.cc",
+    "toolchain/tests/cupidc_pp_active_cases.inc",
+    "toolchain/tests/cupidc_pp_conditional_cases.inc",
+    "toolchain/tests/cupidc_pp_contract.cc",
+    "toolchain/tests/cupidc_static_long_double_arithmetic_fixture.h",
+    "toolchain/tests/cupidc_static_long_double_control_fixture.h",
+    "toolchain/tests/cupidc_static_long_double_integer_fixture.h",
+    "toolchain/tests/cupidc_type_contract.cc",
+    "toolchain/tests/cupiddis_contract.cc",
+    "toolchain/tests/cupidld_contract.cc",
+    "toolchain/tests/cupidobj_contract.cc",
+    "toolchain/tests/elf32_contract.cc",
+    "toolchain/tests/hosted_i386_runtime_contract.cc",
+    "toolchain/tests/hosted_i386_windows_contract.cc",
+    "toolchain/tests/user_syscall_abi_contract.cc",
+    "toolchain/tests/x86_active_cases.inc",
+    "toolchain/tests/x86_contract.cc",
+    "toolchain/tests/x86_inline_cases.inc",
+    "toolchain/x86.h",
+    "tools/bootstrap_toolchain.py",
+    "tools/cupidc_toolchain_contracts.py",
+    "tools/user_syscall_abi.py",
+    "user/cupid.h",
+)
+USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS = (
+    "link.ld",
+    "toolchain/ctool.cc",
+    "toolchain/ctool.h",
+    "toolchain/ctool_host.cc",
+    "toolchain/ctool_host.h",
+    "toolchain/cupidasm.cc",
+    "toolchain/cupidasm.h",
+    "toolchain/cupidasm_main.cc",
+    "toolchain/cupidc_emit.cc",
+    "toolchain/cupidc_emit.h",
+    "toolchain/cupidc_frontend.cc",
+    "toolchain/cupidc_frontend.h",
+    "toolchain/cupidc_ir.cc",
+    "toolchain/cupidc_ir.h",
+    "toolchain/cupidc_main.cc",
+    "toolchain/cupidc_pp.cc",
+    "toolchain/cupidc_pp.h",
+    "toolchain/cupidc_type.cc",
+    "toolchain/cupidc_type.h",
+    "toolchain/cupiddis.cc",
+    "toolchain/cupiddis.h",
+    "toolchain/cupiddis_main.cc",
+    "toolchain/cupidld.cc",
+    "toolchain/cupidld.h",
+    "toolchain/cupidld_main.cc",
+    "toolchain/cupidobj.cc",
+    "toolchain/cupidobj.h",
+    "toolchain/cupidobj_main.cc",
+    "toolchain/elf32.cc",
+    "toolchain/elf32.h",
+    "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+    "toolchain/hosted/i386-linux/include/errno.h",
+    "toolchain/hosted/i386-linux/include/stdint.h",
+    "toolchain/hosted/i386-linux/include/stdio.h",
+    "toolchain/hosted/i386-linux/include/stdlib.h",
+    "toolchain/hosted/i386-linux/include/string.h",
+    "toolchain/hosted/i386-linux/include/unistd.h",
+    "toolchain/hosted/i386-linux/runtime.cc",
+    "toolchain/hosted/i386-linux/start.asm",
+    "toolchain/hosted/i386-windows/start.asm",
+    "toolchain/tests/hosted_i386_windows_contract.cc",
+    "toolchain/x86.cc",
+    "toolchain/x86.h",
+)
+USER_SYSCALL_ABI_CHECKED_SEED_INPUTS = (
+    "bootstrap/seeds/i386-linux/manifest.json",
+    "bootstrap/seeds/i386-linux/cupidasm.elf",
+    "bootstrap/seeds/i386-linux/cupidc.elf",
+    "bootstrap/seeds/i386-linux/cupiddis.elf",
+    "bootstrap/seeds/i386-linux/cupidld.elf",
+    "bootstrap/seeds/i386-linux/cupidobj.elf",
+)
+USER_SYSCALL_ABI_AUDIT_INPUTS = tuple(
+    sorted(
+        set(USER_SYSCALL_ABI_PUBLICATION_INPUTS)
+        | set(USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS)
+        | set(USER_SYSCALL_ABI_CHECKED_SEED_INPUTS)
+    )
 )
 CUPIDC_KERNEL_CONTROL_FILES = (
     "tools/cupidc_kernel_compile.py",
@@ -342,7 +462,7 @@ _C_PP_ACTIVE_COUNTS = {
     "CUPID_RUNTIME": 107,
     "HOSTED_TOOLCHAIN_64": 0,
     "HOSTED_KERNEL_BRIDGE_64": 0,
-    "HOSTED_I386_LINUX": 31,
+    "HOSTED_I386_LINUX": 32,
     "HOSTED_I386_KERNEL_BRIDGE": 2,
     "HOSTED_I386_LINUX_GNU": 2,
 }
@@ -386,6 +506,7 @@ _C_PP_TOOLCHAIN_CONTRACT_CASES = (
     "/toolchain/tests/cupidobj_contract.cc",
     "/toolchain/tests/elf32_contract.cc",
     "/toolchain/tests/hosted_i386_windows_contract.cc",
+    "/toolchain/tests/user_syscall_abi_contract.cc",
     "/toolchain/tests/x86_contract.cc",
 )
 _C_PP_GENERATED_KERNEL_CASES = (
@@ -1353,11 +1474,15 @@ def _operation_for_recipe(
         return "assemble_flat_binary"
     if " mksyms " in f" {joined} " and "cupid_object" in tools:
         return "generate_ksyms_source"
-    if any(
-        posixpath.normpath(path.replace("\\", "/")).endswith(
-            "tools/user_syscall_abi.py"
+    if (
+        posixpath.basename(output.replace("\\", "/"))
+        == "test-syscall-abi"
+        and any(
+            posixpath.normpath(path.replace("\\", "/")).endswith(
+                "tools/user_syscall_abi.py"
+            )
+            for path in inputs
         )
-        for path in inputs
     ):
         return "verify_user_syscall_abi"
     if "host_c_compiler" in tools or "cupid_c_compiler" in tools:
@@ -8384,11 +8509,20 @@ def _cupid_toolchain_fixed_point_contract(
         "toolchain/hosted/i386-windows/start.asm",
         "toolchain/tests/hosted_i386_windows_contract.cc",
     )
+    required_user_abi_inputs = (
+        "kernel/core/types.h",
+        "kernel/core/syscall.h",
+        "kernel/core/syscall.cc",
+        "kernel/fs/vfs.h",
+        "kernel/network/socket.h",
+        "user/cupid.h",
+    )
     windows_source_inputs_are_exact = all(
         source_input_strings.count(path) == 1
         for path in required_windows_source_inputs
     )
     publisher_windows_values: list[object] = []
+    publisher_user_abi_values: list[object] = []
     for statement in contract_publisher_tree.body:
         if (
             isinstance(statement, ast.Assign)
@@ -8400,6 +8534,18 @@ def _cupid_toolchain_fixed_point_contract(
                 publisher_windows_values.append(ast.literal_eval(statement.value))
             except (TypeError, ValueError):
                 publisher_windows_values.append(None)
+        if (
+            isinstance(statement, ast.Assign)
+            and len(statement.targets) == 1
+            and isinstance(statement.targets[0], ast.Name)
+            and statement.targets[0].id == "USER_SYSCALL_ABI_INPUTS"
+        ):
+            try:
+                publisher_user_abi_values.append(
+                    ast.literal_eval(statement.value)
+                )
+            except (TypeError, ValueError):
+                publisher_user_abi_values.append(None)
     publisher_input_functions = [
         statement
         for statement in contract_publisher_tree.body
@@ -8409,6 +8555,13 @@ def _cupid_toolchain_fixed_point_contract(
     expected_publisher_call = ast.dump(
         ast.parse(
             "paths.update(root / path for path in WINDOWS_RUNTIME_INPUTS)",
+            mode="exec",
+        ).body[0],
+        include_attributes=False,
+    )
+    expected_user_abi_call = ast.dump(
+        ast.parse(
+            "paths.update(root / path for path in USER_SYSCALL_ABI_INPUTS)",
             mode="exec",
         ).body[0],
         include_attributes=False,
@@ -8424,6 +8577,17 @@ def _cupid_toolchain_fixed_point_contract(
         if len(publisher_input_functions) == 1
         else []
     )
+    publisher_user_abi_calls = (
+        [
+            node
+            for node in ast.walk(publisher_input_functions[0])
+            if isinstance(node, ast.Expr)
+            and ast.dump(node, include_attributes=False)
+            == expected_user_abi_call
+        ]
+        if len(publisher_input_functions) == 1
+        else []
+    )
     boundary_fragment = (
         "require_source_closures(source_inputs, source_root, plan)"
     )
@@ -8431,7 +8595,9 @@ def _cupid_toolchain_fixed_point_contract(
         missing_bootstrap_fragments
         or not windows_source_inputs_are_exact
         or publisher_windows_values != [required_windows_source_inputs]
+        or publisher_user_abi_values != [required_user_abi_inputs]
         or len(publisher_windows_calls) != 1
+        or len(publisher_user_abi_calls) != 1
         or bootstrap_source.count(boundary_fragment) != 4
     ):
         raise AuditError(
@@ -8479,7 +8645,7 @@ def _cupid_toolchain_fixed_point_contract(
         "help_cases": len(expected_toolchain_links),
         "success_behavior_cases": 17,
         "failure_behavior_cases": 15,
-        "contract_manifest_inputs": 50,
+        "contract_manifest_inputs": 58,
         "source_head_capabilities": [
             "cupidld.pe32_fixed_image",
             "cupidld.pe32_imports",
@@ -8749,7 +8915,7 @@ def _validate_user_syscall_abi_transform(
         directory != "user"
         or transform.get("output") != "user/test-syscall-abi"
         or transform.get("operation") != "verify_user_syscall_abi"
-        or transform.get("tools") != ["host_python"]
+        or transform.get("tools") != ["cupid_c_contract", "host_python"]
     ):
         raise AuditError(
             "user syscall ABI verifier differs from its checked "
@@ -8757,8 +8923,17 @@ def _validate_user_syscall_abi_transform(
         )
     inputs = transform.get("inputs")
     if inputs != expected_inputs:
+        actual_inputs = (
+            inputs
+            if isinstance(inputs, list)
+            and all(isinstance(path, str) for path in inputs)
+            else []
+        )
+        missing = sorted(set(expected_inputs) - set(actual_inputs))
+        unexpected = sorted(set(actual_inputs) - set(expected_inputs))
         raise AuditError(
             "user syscall ABI verifier inputs changed; "
+            f"missing={missing!r}, unexpected={unexpected!r}; "
             f"expected={expected_inputs!r}, actual={inputs!r}"
         )
     recipe = transform.get("recipe")
@@ -9782,6 +9957,7 @@ def _c_preprocessor_active_cases_manifest(
                     _c_preprocessor_logical_path(path)
                     for path in inputs
                     if _language(path) in {"c", "cupid_c"}
+                    and path not in USER_SYSCALL_ABI_SOURCE_INPUTS
                 ]
                 expected_closure = (
                     _C_PP_HOSTED_I386_STRICT_CASES
@@ -9793,7 +9969,7 @@ def _c_preprocessor_active_cases_manifest(
                     closure_roots,
                     expected_closure,
                 )
-                required_inputs = {
+                required_inputs = set(USER_SYSCALL_ABI_AUDIT_INPUTS) | {
                     "bootstrap/seeds/i386-linux/manifest.json",
                     "bootstrap/seeds/i386-linux/cupidasm.elf",
                     "bootstrap/seeds/i386-linux/cupidc.elf",

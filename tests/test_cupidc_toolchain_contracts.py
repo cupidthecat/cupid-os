@@ -29,6 +29,7 @@ EXPECTED_CONTRACTS = {
     "cupidobj",
     "elf32",
     "x86",
+    "user-syscall-abi",
 }
 
 
@@ -146,6 +147,8 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             "toolchain/tests/hosted_i386_runtime_contract.cc",
         } | set(cupidc_toolchain_contracts.CONTRACT_CONTROL_INPUTS) | set(
             cupidc_toolchain_contracts.WINDOWS_RUNTIME_INPUTS
+        ) | set(
+            cupidc_toolchain_contracts.USER_SYSCALL_ABI_INPUTS
         )
         for logical_path in sorted(logical_paths):
             path = root / logical_path
@@ -284,13 +287,17 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             cupidc_toolchain_contracts._contract_input_paths(root),
         )
 
-        self.assertEqual(len(inputs), 50)
+        self.assertEqual(len(inputs), 58)
         self.assertTrue(
             set(cupidc_toolchain_contracts.CONTRACT_CONTROL_INPUTS)
             <= set(inputs)
         )
         self.assertTrue(
             set(cupidc_toolchain_contracts.WINDOWS_RUNTIME_INPUTS)
+            <= set(inputs)
+        )
+        self.assertTrue(
+            set(cupidc_toolchain_contracts.USER_SYSCALL_ABI_INPUTS)
             <= set(inputs)
         )
 
@@ -1035,9 +1042,190 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             runner_type.assert_called_once_with(
                 (root / "toolchain").resolve()
             )
-            runner_type.return_value.run.assert_called_once_with(
-                executable.resolve(), ("foundations",), 45
+            frozen_executable = runner_type.return_value.run.call_args.args[0]
+            self.assertEqual(frozen_executable.name, executable.name)
+            self.assertNotEqual(frozen_executable, executable.resolve())
+            self.assertFalse(frozen_executable.exists())
+            self.assertEqual(
+                runner_type.return_value.run.call_args.args[1:],
+                (("foundations",), 45),
             )
+
+    def test_user_abi_operation_compares_the_cupid_report_with_the_oracle(self):
+        root = Path("contract-root").resolve()
+        output = root / "toolchain/build/cupidc-contracts"
+        contract_report = {
+            "schema": "cupid.user-syscall-abi.v1",
+            "field_count": 103,
+            "table_size": 412,
+        }
+        completed = subprocess.CompletedProcess(
+            ["user-syscall-abi-contract.elf"],
+            0,
+            json.dumps(contract_report) + "\n",
+            "",
+        )
+        publication_report = {"status": "pass"}
+
+        with mock.patch.object(
+            cupidc_toolchain_contracts,
+            "ensure_contracts",
+            return_value=publication_report,
+        ) as ensure, mock.patch.object(
+            cupidc_toolchain_contracts,
+            "_freeze_user_syscall_abi_inputs",
+        ) as freeze, mock.patch.object(
+            cupidc_toolchain_contracts,
+            "run_published_contract",
+            return_value=completed,
+        ) as run, mock.patch.object(
+            cupidc_toolchain_contracts,
+            "check_syscall_abi",
+            return_value=contract_report,
+        ) as oracle, mock.patch.object(
+            cupidc_toolchain_contracts,
+            "verify_publication_inputs",
+        ) as verify_inputs, mock.patch.object(
+            cupidc_toolchain_contracts,
+            "verify_publication",
+            return_value=publication_report,
+        ):
+            checked = cupidc_toolchain_contracts.run_user_syscall_abi(
+                root,
+                root / "bootstrap/seeds/i386-linux/manifest.json",
+                output,
+                workers=3,
+                timeout=45,
+            )
+
+        self.assertEqual(checked, contract_report)
+        ensure.assert_called_once()
+        snapshot = freeze.call_args.args[1]
+        freeze.assert_called_once_with(root, snapshot, publication_report)
+        run.assert_called_once_with(
+            root,
+            output / "user-syscall-abi-contract.elf",
+            ("check-snapshot", snapshot, root),
+            45,
+            publication_report,
+        )
+        oracle.assert_called_once_with(snapshot)
+        verify_inputs.assert_called_once_with(root, publication_report)
+
+    def test_ensure_reuses_a_current_contract_cohort(self):
+        root = Path("contract-root").resolve()
+        manifest = root / "bootstrap/seeds/i386-linux/manifest.json"
+        output = root / "toolchain/build/cupidc-contracts"
+        report = {"status": "pass"}
+
+        with mock.patch.object(
+            Path, "exists", return_value=True
+        ), mock.patch.object(
+            Path, "is_dir", return_value=True
+        ), mock.patch.object(
+            cupidc_toolchain_contracts,
+            "_resolve_manifest",
+            return_value=(manifest, "bootstrap/seeds/i386-linux/manifest.json"),
+        ), mock.patch.object(
+            cupidc_toolchain_contracts,
+            "_validate_output_target",
+            return_value=output,
+        ), mock.patch.object(
+            cupidc_toolchain_contracts,
+            "verify_publication",
+            return_value=report,
+        ) as verify, mock.patch.object(
+            cupidc_toolchain_contracts,
+            "verify_publication_inputs",
+        ) as verify_inputs, mock.patch.object(
+            cupidc_toolchain_contracts,
+            "_require_report_manifest",
+        ) as require_manifest, mock.patch.object(
+            cupidc_toolchain_contracts, "build_contracts"
+        ) as build:
+            checked = cupidc_toolchain_contracts.ensure_contracts(
+                root, manifest, output, workers=3
+            )
+
+        self.assertIs(checked, report)
+        verify.assert_called_once_with(output)
+        verify_inputs.assert_called_once_with(root, report)
+        require_manifest.assert_called_once_with(
+            report,
+            manifest,
+            "bootstrap/seeds/i386-linux/manifest.json",
+        )
+        build.assert_not_called()
+
+    def test_user_abi_operation_rejects_oracle_disagreement(self):
+        root = Path("contract-root").resolve()
+        output = root / "toolchain/build/cupidc-contracts"
+        completed = subprocess.CompletedProcess(
+            ["user-syscall-abi-contract.elf"],
+            0,
+            '{"field_count": 103}\n',
+            "",
+        )
+        with mock.patch.object(
+            cupidc_toolchain_contracts,
+            "ensure_contracts",
+            return_value={"status": "pass"},
+        ), mock.patch.object(
+            cupidc_toolchain_contracts,
+            "_freeze_user_syscall_abi_inputs",
+        ), mock.patch.object(
+            cupidc_toolchain_contracts,
+            "run_published_contract",
+            return_value=completed,
+        ), mock.patch.object(
+            cupidc_toolchain_contracts,
+            "check_syscall_abi",
+            return_value={"field_count": 102},
+        ), self.assertRaisesRegex(
+            cupidc_toolchain_contracts.ContractError,
+            "differs from the independent oracle",
+        ):
+            cupidc_toolchain_contracts.run_user_syscall_abi(
+                root,
+                root / "bootstrap/seeds/i386-linux/manifest.json",
+                output,
+            )
+
+    def test_run_uses_frozen_bytes_and_rejects_live_replacement(self):
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-contract-run-replacement-"
+        ) as temporary:
+            root = Path(temporary)
+            inputs, bootstrap = self._write_verified_source_root(root)
+            output = root / "toolchain/build/cupidc-contracts"
+            self._write_publication(output)
+            self._bind_publication_inputs(output, inputs)
+            self._bind_publication_bootstrap(output, bootstrap)
+            executable = output / "core-contract.elf"
+            original = executable.read_bytes()
+
+            def replace_live(frozen, arguments, timeout):
+                self.assertEqual(frozen.read_bytes(), original)
+                executable.write_bytes(b"replacement")
+                return subprocess.CompletedProcess(
+                    [str(frozen)], 0, "ok\n", ""
+                )
+
+            with mock.patch.object(
+                cupidc_toolchain_contracts, "ToolRunner"
+            ) as runner_type, mock.patch.object(
+                cupidc_toolchain_contracts,
+                "verify_seed_inputs",
+                return_value=self._verified_seed_inputs(root),
+            ):
+                runner_type.return_value.run.side_effect = replace_live
+                with self.assertRaisesRegex(
+                    cupidc_toolchain_contracts.ContractError,
+                    "changed while contract ran",
+                ):
+                    cupidc_toolchain_contracts.run_published_contract(
+                        root, executable, (), 45
+                    )
 
     def test_run_rejects_arbitrary_and_unpublished_executables(self):
         with tempfile.TemporaryDirectory(

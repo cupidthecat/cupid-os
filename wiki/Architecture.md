@@ -135,7 +135,7 @@ byte-identical and total 3,749,796 bytes. The combined graph keeps the ISO
 runtime fixture as an explicit image input. No strict checked-in kernel or
 driver root still uses the host compiler.
 
-The normal Toolchain root builds fourteen `.cc` contracts and the runtime
+The normal Toolchain root builds fifteen `.cc` contracts and the runtime
 probe with stage-two and stage-three CupidC. Its publisher accepts only a
 dedicated `cupidc-contracts` directory inside the source tree. It validates
 the target before work and again before promotion, and an existing
@@ -144,12 +144,17 @@ source trees, files, and symbolic links remain untouched. Exact initial,
 private, and newly discovered contract inventories catch additions, removals,
 and restored edits that changed a copied input. Every contract run derives the
 cohort from its executable, requires a named manifest artifact, and verifies
-all artifact hashes, the current 50-input contract set, the checked seed
+all artifact hashes, the current 58-input contract set, the checked seed
 manifest, and the 43-file fixed-point source inventory before execution. The
-contract inventory includes the Windows startup and runtime probe, the
-Toolchain Makefile, and both Python control modules. One
+contract inventory includes the Windows startup and runtime probe, the user
+syscall ABI contract and its six declarations, the Toolchain Makefile, the
+publisher, and the independent Python ABI oracle. One
 captured seed-manifest byte sequence supplies the digest, decoded data, schema
-checks, and build plan.
+checks, and build plan. Seventeen objects and sixteen executables must match
+across stages before the 21-artifact cohort can be published. Contract runs
+use a private copy of the verified cohort. The user ABI check also gives the
+Cupid contract and Python oracle one shared six-file snapshot, then rechecks
+the live publication and sources before success.
 Native contract binaries are optional oracles.
 
 Strong four-vCPU runtime checks pass with both NICs through SMP, RDRAND, all

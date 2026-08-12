@@ -152,9 +152,13 @@ VFS names may use 128 bytes and paths may use 512 bytes. cupid_dirent_t is
 136 bytes, with name at byte 0, size at byte 128, and type at byte 132.
 cupid_stat_t is 8 bytes, with size at byte 0 and type at byte 4.
 
-Before compiling a tracked example, the build captures the exact bytes of
-the six kernel and public declarations that define this ABI. It compares the
-reviewed i386 layout and rechecks every input before reporting success.
+Before compiling a tracked example, the build verifies or rebuilds the
+published static i386 contract. Its stage-two and stage-three CupidC objects
+and CupidLD-linked executables have already matched. The build runs the
+published contract, which captures and rereads the six kernel and public
+declarations and checks the reviewed table, scalar, constant, record, and
+provider rules. Python compares that report with an independent oracle and
+rechecks the publication inputs.
 >endtree
 
 >h2 Process Model

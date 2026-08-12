@@ -580,10 +580,10 @@ nested level, and rejects removing the nested `const`.
 
 An external array may omit its bound when its element type is complete. The shared IR can take that linked object's address, decay it to the compatible element pointer, apply the element scale, and continue through member access. The array remains incomplete, so it cannot be loaded as a value or used as if its storage size were known.
 
-The exact hosted gate checks 34 strict C11 roots and two GNU-enabled runtime
+The exact hosted gate checks 35 strict C11 roots and two GNU-enabled runtime
 roots under four-byte i386 targets. It covers the 19-source tool
 union, `kernel/lang/as_elf.cc`, the runtime implementation and probe, and all
-fifteen Toolchain contract sources. `HOSTED_I386_LINUX` owns 31 strict Linux
+sixteen Toolchain contract sources. `HOSTED_I386_LINUX` owns 32 strict Linux
 roots that can include only the Toolchain tree and the angle-only hosted
 declarations. `FREESTANDING_I386` owns the headerless Windows command probe.
 The GNU profile is limited to the runtime implementation and probe.
@@ -592,7 +592,7 @@ which may also include `/kernel/lang`. The retired 64-bit hosted audit
 profiles have no active roots.
 Stage-two and stage-three CupidC emit the contract objects, CupidLD links the
 static executables, and the harness rejects a cross-stage byte difference in
-any of the sixteen new objects or fifteen executables. Publication accepts
+any of the seventeen new objects or sixteen executables. Publication accepts
 only a dedicated `cupidc-contracts` directory inside the source tree and
 checks the target before work and again before promotion. An existing
 destination must already verify as a complete cohort. Arbitrary directories,
@@ -600,11 +600,15 @@ source trees, files, and symbolic links remain untouched. The initial,
 private, and newly discovered contract inventories must match exactly, which
 catches added or removed inputs and restored edits that changed a copied
 file. Every run derives its cohort from the requested executable, requires a
-named manifest artifact, and verifies the complete cohort, live 50-input
+named manifest artifact, and verifies the complete cohort, live 58-input
 contract set, checked seed manifest, and 43-file fixed-point source inventory
-before execution. The contract set includes the Toolchain Makefile and both
-Python control modules. Seed-manifest hashing, JSON decoding, schema validation, and
+before execution. The contract set includes the user syscall ABI contract and
+its six declarations, the Toolchain Makefile, the publisher, and the
+independent Python ABI oracle. Seed-manifest hashing, JSON decoding, schema validation, and
 build-plan use share one captured byte sequence.
+The runner copies the verified cohort before execution and rejects later live
+replacement. The user ABI contract and Python oracle inspect one shared
+six-file snapshot, while the contract also rereads the live source tree.
 The test programs stay outside the 19-source fixed-point plan because they do
 not contribute to a tool image.
 
@@ -786,12 +790,13 @@ ISO recipe now runs that checked image as its first byte author, with Python
 retained as the independent renderer and guarded publisher; ADR 0241 records
 that handoff.
 
-The normal Toolchain build snapshots 50 contract inputs, including the
-Windows startup and runtime probe, the Toolchain Makefile, and both Python
-control modules, then reproduces that exact
-inventory under a private root, and uses both rebuilt stages for all fourteen
-contract programs and the runtime probe. It compares sixteen new objects and
-fifteen linked executables. Every invocation verifies its named artifact, the
+The normal Toolchain build snapshots 58 contract inputs, including the
+Windows startup and runtime probe, the user syscall ABI contract and its six
+declarations, the Toolchain Makefile, the publisher, and the independent
+Python ABI oracle. It reproduces that exact inventory under a private root and
+uses both rebuilt stages for all fifteen contract programs and the runtime
+probe. It compares seventeen new objects and sixteen linked executables. Every
+invocation verifies its named artifact, the
 complete cohort, both source inventories, and the checked seed manifest. The
 seed manifest is captured once for its digest, decoded data, schema checks, and
 build plan. The ISO source-capability cohort passed in 2,764.533 seconds.

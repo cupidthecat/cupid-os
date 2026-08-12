@@ -836,13 +836,13 @@ output is Python-only. The checked user compiler and Toolchain contract
 publisher create their own output directories. The compiler walks POSIX paths
 through no-follow directory descriptors and Windows paths through
 parent-relative directory handles, then checks the resolved output while the
-parents remain pinned. Three Python-only verification or orchestration
+parents remain pinned. Two Python-only verification or orchestration
 transforms remain across the supplemental roots. ADR 0245 records that
 publisher-owned directory boundary.
-The Toolchain root now builds its fourteen `.cc` contracts twice with
-stage-two and stage-three CupidC, compares the static i386 executables, and
-publishes the cohort together. The publisher accepts only a dedicated
-`cupidc-contracts` directory inside the source tree. It validates the target
+The Toolchain root builds its fifteen `.cc` contracts twice with stage-two
+and stage-three CupidC, compares seventeen objects and sixteen static i386
+executables, and publishes 21 artifacts together. The publisher accepts only
+a dedicated `cupidc-contracts` directory inside the source tree. It validates the target
 before work and again before promotion, and an existing destination must
 already verify as a complete cohort. Arbitrary directories, source trees,
 files, and symbolic links are rejected without modification. The initial,
@@ -850,10 +850,11 @@ private, and live contract inventories must match exactly, including
 membership and hashes, so additions, removals, and a transient edit copied
 before its live source is restored all fail. Normal build and test entry points derive
 the cohort from each requested executable, require a named manifest artifact,
-and verify the complete artifact inventory, the 50 contract inputs, the
+and verify the complete artifact inventory, the 58 contract inputs, the
 43-file fixed-point source inventory, and the checked seed manifest before
 execution. The contract inventory includes the Windows startup and runtime
-probe, the Toolchain Makefile, and both Python modules that build or verify
+probe, the user syscall ABI contract and its six declaration inputs, the
+Toolchain Makefile, and the Python modules that build or independently verify
 the cohort. A plan with an unknown
 link-object key fails validation before the first compiler process starts.
 Native contract binaries remain available only through
@@ -864,9 +865,11 @@ from the unchanged contract diagnostics and are covered by the executable
 runtime probe.
 The 440-transform root image
 graph has no host C or recursive Make transform. Its CupidASM, CupidObj,
-CupidLD, and CupidDis commands run from the checked seed. One
-Python transform checks the external program syscall ABI and produces no OS
-code. Checked CupidASM now assembles `big.bin` from
+CupidLD, and CupidDis commands run from the checked seed. The external-program
+syscall ABI gate freezes a verified Cupid-built contract and one six-file
+snapshot, then compares its report with an independent Python oracle over the
+same bytes. It produces no OS code. Checked CupidASM now
+assembles `big.bin` from
 `test_iso/big_pattern.asm`. Python freezes the inputs, checks the exact
 4,096-byte candidate, and publishes it atomically. The ISO transform freezes
 the fixture tree and asks checked-seed CupidObj to build the deterministic
@@ -1123,10 +1126,10 @@ The hosted path also carries complete fixed-size structures with alignment up to
 The shared value path copies nested union storage inside a supported structure and reads a scalar member directly from a returned structure snapshot. A direct four-byte integer literal zero may be cast to a represented function pointer. Represented function pointers may also cast to another function-pointer type or to and from a represented 32-bit integer without changing target bits. Explicit conversions between an object pointer and a signed or unsigned eight-byte integer use the wide snapshot path: widening writes a zero high word, and narrowing keeps the low word. Outside the explicit Doom compatibility profile, object-pointer and function-pointer interchange remains outside this boundary. Function-pointer and wide-integer conversions, top-level union parameters or results, and aggregate members selected from structure rvalues also remain open. Static compatible character and void pointers accept an ordinary string literal hidden behind parentheses or a macro. Pointer qualification accepts the safe `char **` to `char *const *` conversion. It rejects `char **` to `const char **`, which would add a qualifier at an unsafe nested level, and rejects removing the nested `const`.
 
 The exact hosted gate checks every source at its real i386 Linux ABI. It
-contains 34 strict C11 roots and two GNU-enabled runtime roots: the 19-source
+contains 35 strict C11 roots and two GNU-enabled runtime roots: the 19-source
 static tool union, `kernel/lang/as_elf.cc`, the runtime implementation and
-probe, fourteen Linux Toolchain contracts, and the Windows command contract.
-Thirty-one strict Linux roots use only the Toolchain and hosted declaration
+probe, fifteen Linux Toolchain contracts, and the Windows command contract.
+Thirty-two strict Linux roots use only the Toolchain and hosted declaration
 roots. The headerless Windows command contract uses the separate
 `FREESTANDING_I386` profile. The assembler ELF adapter and its
 contract form a two-root bridge that can also include `/kernel/lang`; no other
@@ -1275,11 +1278,12 @@ fifteen useful failures. The requested output stays empty while those checks run
 Both stages, the behavior evidence, and `bootstrap-report.json` appear
 together only after complete success. Run `make verify-bootstrap-seed` for
 validation or `make bootstrap-from-seed` for the complete rebuild. The normal
-Toolchain build then uses those two compiler stages for fourteen contract
-programs and the runtime probe. It compares all sixteen new objects and
-fifteen linked executables. Its private contract tree must reproduce the
-initial 50-file inventory exactly, including the Toolchain Makefile and both
-Python control modules, and each live check discovers the set again before
+Toolchain build then uses those two compiler stages for fifteen contract
+programs and the runtime probe. It compares all seventeen new objects and
+sixteen linked executables. Its private contract tree must reproduce the
+initial 58-file inventory exactly, including the user ABI contract and its six
+declarations, the Toolchain Makefile, the publisher, and the independent
+Python oracle. Each live check discovers the set again before
 comparing hashes. The public manifest also records the checked build plan,
 seed manifest, and complete 43-file fixed-point source inventory.
 Seed-manifest hashing, decoding, and validation use one captured byte
@@ -1343,7 +1347,9 @@ invokes a host C compiler.
 
 [ADR 0123](docs/adr/0123-transfer-gnu-assembly-frontier-to-cupidc.md) records the eight-root and generated-symbol production transfer.
 
-[ADR 0124](docs/adr/0124-name-production-cupidc-sources-consistently.md) records the 111-root `.cc` naming transfer. ADR 0126 completes the five shared Toolchain roots. [ADR 0127](docs/adr/0127-lock-the-external-program-syscall-abi.md) records the external syscall contract, [ADR 0130](docs/adr/0130-run-user-cupid-tools-natively-on-windows.md) records the optional native Windows user-tool path, [ADR 0133](docs/adr/0133-freeze-user-abi-inputs-and-isolate-runtime-boots.md) records the ABI snapshot and private guest checks, [ADR 0188](docs/adr/0188-run-the-windows-user-build-from-the-checked-seed.md) makes the checked seed the normal Windows user path, [ADR 0190](docs/adr/0190-run-root-cupid-tools-from-the-checked-seed.md) moves the root assembler, object, linker, and disassembler commands to the same checked trust unit, and [ADR 0246](docs/adr/0246-use-one-checked-seed-runner-for-production-tool-calls.md) applies that invocation contract to checked production CupidC and checked user CupidLD.
+[ADR 0124](docs/adr/0124-name-production-cupidc-sources-consistently.md) records the 111-root `.cc` naming transfer. ADR 0126 completes the five shared Toolchain roots. [ADR 0127](docs/adr/0127-lock-the-external-program-syscall-abi.md) records the external syscall contract, [ADR 0130](docs/adr/0130-run-user-cupid-tools-natively-on-windows.md) records the optional native Windows user-tool path, [ADR 0133](docs/adr/0133-freeze-user-abi-inputs-and-isolate-runtime-boots.md) records the ABI snapshot and private guest checks, [ADR 0188](docs/adr/0188-run-the-windows-user-build-from-the-checked-seed.md) makes the checked seed the normal Windows user path, [ADR 0190](docs/adr/0190-run-root-cupid-tools-from-the-checked-seed.md) moves the root assembler, object, linker, and disassembler commands to the same checked trust unit, [ADR 0246](docs/adr/0246-use-one-checked-seed-runner-for-production-tool-calls.md) applies that invocation contract to checked production CupidC and checked user CupidLD.
+
+[ADR 0264](docs/adr/0264-run-the-user-abi-check-with-cupidc.md) moves the ABI rules into a staged CupidC contract while retaining Python as an independent oracle.
 
 [ADR 0125](docs/adr/0125-represent-decimal-floating-scalars.md) records decimal binary32 and binary64 constants, represented integer conversions, and mixed scalar arithmetic. [ADR 0126](docs/adr/0126-name-fixed-point-sources-consistently.md) records the complete 19-source fixed-point rename and old-seed proof. [ADR 0129](docs/adr/0129-refresh-seed-and-transfer-cupidc-lexer.md) records the promoted seed and the lexer handoff.
 

@@ -39,6 +39,14 @@ except ModuleNotFoundError:
         verify_seed_inputs,
     )
 
+try:
+    from tools.user_syscall_abi import (
+        UserSyscallAbiError,
+        check_syscall_abi,
+    )
+except ModuleNotFoundError:
+    from user_syscall_abi import UserSyscallAbiError, check_syscall_abi
+
 
 REPORT_SCHEMA = "cupid.toolchain-contracts.v2"
 TARGET_ENTRY = 0x08048000
@@ -59,10 +67,19 @@ CONTRACT_CONTROL_INPUTS = (
     "toolchain/Makefile",
     "tools/bootstrap_toolchain.py",
     "tools/cupidc_toolchain_contracts.py",
+    "tools/user_syscall_abi.py",
 )
 WINDOWS_RUNTIME_INPUTS = (
     "toolchain/hosted/i386-windows/start.asm",
     "toolchain/tests/hosted_i386_windows_contract.cc",
+)
+USER_SYSCALL_ABI_INPUTS = (
+    "kernel/core/types.h",
+    "kernel/core/syscall.h",
+    "kernel/core/syscall.cc",
+    "kernel/fs/vfs.h",
+    "kernel/network/socket.h",
+    "user/cupid.h",
 )
 CONTRACT_LINK_OBJECT_KEYS = frozenset(
     {
@@ -97,6 +114,11 @@ CONTRACT_PLANS = (
     ContractPlan(
         "core",
         "toolchain/tests/core_contract.cc",
+        ("start", "contract", "ctool_host", "ctool", "runtime"),
+    ),
+    ContractPlan(
+        "user-syscall-abi",
+        "toolchain/tests/user_syscall_abi_contract.cc",
         ("start", "contract", "ctool_host", "ctool", "runtime"),
     ),
     ContractPlan(
@@ -310,6 +332,7 @@ def _contract_input_paths(root: Path) -> tuple[Path, ...]:
     }
     paths.update(root / path for path in CONTRACT_CONTROL_INPUTS)
     paths.update(root / path for path in WINDOWS_RUNTIME_INPUTS)
+    paths.update(root / path for path in USER_SYSCALL_ABI_INPUTS)
     paths.add(root / "toolchain/tests/hosted_i386_runtime_contract.cc")
     paths.add(root / "kernel/lang/as_elf.cc")
     paths.add(root / "kernel/lang/as_elf.h")
@@ -959,6 +982,37 @@ def _validate_output_target(root: Path, output: Path) -> Path:
     return output
 
 
+def _resolve_manifest(root: Path, manifest: Path) -> tuple[Path, str]:
+    root = root.resolve()
+    if manifest.is_symlink():
+        raise ContractError("bootstrap seed manifest is a symlink")
+    try:
+        resolved = manifest.resolve(strict=True)
+        relative = resolved.relative_to(root).as_posix()
+    except (OSError, ValueError) as error:
+        raise ContractError(
+            "bootstrap seed manifest must stay inside the source root"
+        ) from error
+    if not resolved.is_file():
+        raise ContractError("bootstrap seed manifest is not a file")
+    return resolved, relative
+
+
+def _require_report_manifest(
+    report: dict[str, object], manifest: Path, logical_manifest: str
+) -> None:
+    bootstrap = _validate_bootstrap_record(report.get("bootstrap"))
+    seed_record = bootstrap.get("seed_manifest")
+    if (
+        not isinstance(seed_record, dict)
+        or seed_record.get("path") != logical_manifest
+        or seed_record.get("sha256") != _sha256(manifest)
+    ):
+        raise ContractError(
+            "published cohort belongs to a different bootstrap seed"
+        )
+
+
 def publish_directory(
     staging: Path,
     output: Path,
@@ -1030,15 +1084,7 @@ def build_contracts(
 ) -> dict[str, object]:
     validate_plans(CONTRACT_PLANS)
     root = root.resolve()
-    if manifest.is_symlink():
-        raise ContractError("bootstrap seed manifest is a symlink")
-    try:
-        manifest = manifest.resolve(strict=True)
-        manifest_relative = manifest.relative_to(root).as_posix()
-    except (OSError, ValueError) as error:
-        raise ContractError(
-            "bootstrap seed manifest must stay inside the source root"
-        ) from error
+    manifest, manifest_relative = _resolve_manifest(root, manifest)
     if workers < 1 or workers > 8:
         raise ContractError("contract worker count must be from 1 through 8")
     if not (root / "toolchain").is_dir():
@@ -1176,11 +1222,38 @@ def build_contracts(
         return report
 
 
+def ensure_contracts(
+    root: Path,
+    manifest: Path,
+    output: Path,
+    workers: int = 2,
+) -> dict[str, object]:
+    root = root.resolve()
+    if workers < 1 or workers > 8:
+        raise ContractError("contract worker count must be from 1 through 8")
+    if not (root / "toolchain").is_dir():
+        raise ContractError(f"source root has no toolchain: {root}")
+    manifest, manifest_relative = _resolve_manifest(root, manifest)
+    output = _validate_output_target(root, output)
+    if output.exists() or output.is_symlink():
+        report = verify_publication(output)
+        try:
+            verify_publication_inputs(root, report)
+            _require_report_manifest(report, manifest, manifest_relative)
+        except ContractError:
+            _announce("the published cohort is stale and will be rebuilt")
+        else:
+            _announce("the published cohort is current")
+            return report
+    return build_contracts(root, manifest, output, workers)
+
+
 def run_published_contract(
     root: Path,
     executable: Path,
-    arguments: Sequence[str],
+    arguments: Sequence[str | Path],
     timeout: int,
+    expected_report: dict[str, object] | None = None,
 ) -> subprocess.CompletedProcess[str]:
     root = root.resolve()
     executable = executable.resolve()
@@ -1192,10 +1265,158 @@ def run_published_contract(
         )
     cohort = executable.parent
     report = verify_publication(cohort)
+    if expected_report is not None and report != expected_report:
+        raise ContractError(
+            "published contract cohort changed before execution"
+        )
     verify_publication_inputs(root, report)
-    return ToolRunner(root / "toolchain").run(
-        executable, arguments, timeout
-    )
+    try:
+        with tempfile.TemporaryDirectory(
+            prefix=f".{cohort.name}-run-", dir=cohort.parent
+        ) as temporary:
+            frozen = Path(temporary)
+            for path in cohort.iterdir():
+                if path.is_symlink() or not path.is_file():
+                    raise ContractError(
+                        "published contract cohort changed while freezing"
+                    )
+                shutil.copyfile(path, frozen / path.name)
+            frozen_report = verify_publication(frozen)
+            if frozen_report != report:
+                raise ContractError(
+                    "published contract cohort changed while freezing"
+                )
+            result = ToolRunner(root / "toolchain").run(
+                frozen / executable.name, arguments, timeout
+            )
+    except (OSError, subprocess.TimeoutExpired, BootstrapError) as error:
+        raise ContractError(
+            f"published contract could not run: {error}"
+        ) from error
+    try:
+        live_report = verify_publication(cohort)
+        if live_report != report:
+            raise ContractError(
+                "published contract cohort changed while contract ran"
+            )
+        verify_publication_inputs(root, report)
+    except ContractError as error:
+        raise ContractError(
+            "published contract cohort changed while contract ran"
+        ) from error
+    return result
+
+
+def _freeze_user_syscall_abi_inputs(
+    root: Path,
+    destination: Path,
+    report: dict[str, object],
+) -> None:
+    root = root.resolve()
+    expected = report.get("inputs")
+    if not isinstance(expected, dict):
+        raise ContractError("published contract input inventory differs")
+    destination.mkdir(mode=0o700)
+    for logical_path in USER_SYSCALL_ABI_INPUTS:
+        digest = expected.get(logical_path)
+        if not isinstance(digest, str):
+            raise ContractError(
+                f"published cohort omits ABI input: {logical_path}"
+            )
+        source = root.joinpath(*PurePosixPath(logical_path).parts)
+        if source.is_symlink():
+            raise ContractError(
+                f"ABI input is a symlink: {logical_path}"
+            )
+        try:
+            resolved = source.resolve(strict=True)
+            resolved.relative_to(root)
+            data = resolved.read_bytes()
+        except (OSError, ValueError) as error:
+            raise ContractError(
+                f"ABI input is unavailable: {logical_path}"
+            ) from error
+        if not resolved.is_file() or hashlib.sha256(data).hexdigest() != digest:
+            raise ContractError(
+                f"ABI input differs from the publication: {logical_path}"
+            )
+        target = destination.joinpath(*PurePosixPath(logical_path).parts)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(data)
+    for logical_path in USER_SYSCALL_ABI_INPUTS:
+        digest = expected[logical_path]
+        if (
+            _sha256(root.joinpath(*PurePosixPath(logical_path).parts))
+            != digest
+            or _sha256(
+                destination.joinpath(*PurePosixPath(logical_path).parts)
+            )
+            != digest
+        ):
+            raise ContractError(
+                "ABI inputs changed while the shared snapshot was frozen"
+            )
+
+
+def run_user_syscall_abi(
+    root: Path,
+    manifest: Path,
+    output: Path,
+    workers: int = 2,
+    timeout: int = 60,
+) -> dict[str, object]:
+    root = root.resolve()
+    report = ensure_contracts(root, manifest, output, workers)
+    executable = output / "user-syscall-abi-contract.elf"
+    with tempfile.TemporaryDirectory(
+        prefix="cupid-user-syscall-abi-snapshot-"
+    ) as temporary:
+        snapshot = Path(temporary) / "source"
+        _freeze_user_syscall_abi_inputs(root, snapshot, report)
+        result = run_published_contract(
+            root,
+            executable,
+            ("check-snapshot", snapshot, root),
+            timeout,
+            report,
+        )
+        try:
+            oracle_report = check_syscall_abi(snapshot)
+        except UserSyscallAbiError as error:
+            raise ContractError(
+                f"independent user syscall ABI oracle failed: {error}"
+            ) from error
+    if result.returncode != 0 or result.stderr:
+        detail = (result.stderr or result.stdout).strip()
+        suffix = f": {detail}" if detail else ""
+        raise ContractError(
+            "Cupid-built user syscall ABI contract failed"
+            f" with status {result.returncode}{suffix}"
+        )
+    try:
+        contract_report = json.loads(result.stdout)
+    except (TypeError, json.JSONDecodeError) as error:
+        raise ContractError(
+            "Cupid-built user syscall ABI contract returned invalid JSON"
+        ) from error
+    if not isinstance(contract_report, dict):
+        raise ContractError(
+            "Cupid-built user syscall ABI contract returned a non-object"
+        )
+    if contract_report != oracle_report:
+        raise ContractError(
+            "Cupid-built user syscall ABI report differs from the "
+            "independent oracle"
+        )
+    try:
+        if verify_publication(output) != report:
+            raise ContractError("published contract cohort changed")
+        verify_publication_inputs(root, report)
+    except ContractError as error:
+        raise ContractError(
+            "published contract cohort changed while the ABI check ran"
+        ) from error
+    return contract_report
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -1210,6 +1431,21 @@ def _build_parser() -> argparse.ArgumentParser:
     build.add_argument("--manifest", required=True, type=Path)
     build.add_argument("--output", required=True, type=Path)
     build.add_argument("--workers", type=int, default=2)
+    ensure = subparsers.add_parser(
+        "ensure", help="build the checked cohort when it is not current"
+    )
+    ensure.add_argument("--root", required=True, type=Path)
+    ensure.add_argument("--manifest", required=True, type=Path)
+    ensure.add_argument("--output", required=True, type=Path)
+    ensure.add_argument("--workers", type=int, default=2)
+    user_abi = subparsers.add_parser(
+        "user-abi", help="check the user syscall ABI with the Cupid contract"
+    )
+    user_abi.add_argument("--root", required=True, type=Path)
+    user_abi.add_argument("--manifest", required=True, type=Path)
+    user_abi.add_argument("--output", required=True, type=Path)
+    user_abi.add_argument("--workers", type=int, default=2)
+    user_abi.add_argument("--timeout", type=int, default=60)
     run = subparsers.add_parser(
         "run", help="run one published static i386 contract"
     )
@@ -1245,6 +1481,28 @@ def main(argv: list[str] | None = None) -> int:
                 "CupidC toolchain contracts: ok "
                 f"({len(report['artifacts'])} artifacts)"
             )
+            return 0
+        if arguments.command == "ensure":
+            report = ensure_contracts(
+                arguments.root,
+                arguments.manifest,
+                arguments.output,
+                arguments.workers,
+            )
+            print(
+                "CupidC toolchain contracts: ready "
+                f"({len(report['artifacts'])} artifacts)"
+            )
+            return 0
+        if arguments.command == "user-abi":
+            report = run_user_syscall_abi(
+                arguments.root,
+                arguments.manifest,
+                arguments.output,
+                arguments.workers,
+                arguments.timeout,
+            )
+            print(json.dumps(report, sort_keys=True))
             return 0
         if arguments.command == "verify":
             report = verify_publication(arguments.output)

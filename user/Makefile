@@ -26,13 +26,119 @@ endif
 CUPIDC_PRODUCTION_COMPILE := $(PYTHON) ../tools/cupidc_production_compile.py \
 	--root .. --cohort user
 CUPIDLD_USER_LINK := $(PYTHON) ../tools/cupidld_user_link.py --root ..
-USER_SYSCALL_ABI := $(PYTHON) ../tools/user_syscall_abi.py --root ..
+USER_SYSCALL_ABI := $(PYTHON) ../tools/cupidc_toolchain_contracts.py \
+	user-abi --root .. \
+	--manifest ../bootstrap/seeds/i386-linux/manifest.json \
+	--output ../toolchain/build/cupidc-contracts
 CHECKED_SEED_INPUTS := ../bootstrap/seeds/i386-linux/manifest.json \
 	../bootstrap/seeds/i386-linux/cupidasm.elf \
 	../bootstrap/seeds/i386-linux/cupidc.elf \
 	../bootstrap/seeds/i386-linux/cupiddis.elf \
 	../bootstrap/seeds/i386-linux/cupidld.elf \
 	../bootstrap/seeds/i386-linux/cupidobj.elf
+USER_SYSCALL_ABI_PUBLICATION_INPUTS := \
+	../kernel/core/syscall.cc \
+	../kernel/core/syscall.h \
+	../kernel/core/types.h \
+	../kernel/fs/vfs.h \
+	../kernel/lang/as_elf.cc \
+	../kernel/lang/as_elf.h \
+	../kernel/network/socket.h \
+	../toolchain/Makefile \
+	../toolchain/ctool.h \
+	../toolchain/ctool_host.h \
+	../toolchain/cupidasm.h \
+	../toolchain/cupidc_emit.h \
+	../toolchain/cupidc_frontend.h \
+	../toolchain/cupidc_ir.h \
+	../toolchain/cupidc_pp.h \
+	../toolchain/cupidc_type.h \
+	../toolchain/cupiddis.h \
+	../toolchain/cupidld.h \
+	../toolchain/cupidobj.h \
+	../toolchain/elf32.h \
+	../toolchain/hosted/i386-linux/include/cupid_host_abi.h \
+	../toolchain/hosted/i386-linux/include/errno.h \
+	../toolchain/hosted/i386-linux/include/stdint.h \
+	../toolchain/hosted/i386-linux/include/stdio.h \
+	../toolchain/hosted/i386-linux/include/stdlib.h \
+	../toolchain/hosted/i386-linux/include/string.h \
+	../toolchain/hosted/i386-linux/include/unistd.h \
+	../toolchain/hosted/i386-windows/start.asm \
+	../toolchain/tests/core_contract.cc \
+	../toolchain/tests/cupidasm_contract.cc \
+	../toolchain/tests/cupidasm_demos_contract.cc \
+	../toolchain/tests/cupidasm_kernel_elf_contract.cc \
+	../toolchain/tests/cupidc_frontend_contract.cc \
+	../toolchain/tests/cupidc_ir_contract.cc \
+	../toolchain/tests/cupidc_kernel_simd_fixture.h \
+	../toolchain/tests/cupidc_object_contract.cc \
+	../toolchain/tests/cupidc_pp_active_cases.inc \
+	../toolchain/tests/cupidc_pp_conditional_cases.inc \
+	../toolchain/tests/cupidc_pp_contract.cc \
+	../toolchain/tests/cupidc_static_long_double_arithmetic_fixture.h \
+	../toolchain/tests/cupidc_static_long_double_control_fixture.h \
+	../toolchain/tests/cupidc_static_long_double_integer_fixture.h \
+	../toolchain/tests/cupidc_type_contract.cc \
+	../toolchain/tests/cupiddis_contract.cc \
+	../toolchain/tests/cupidld_contract.cc \
+	../toolchain/tests/cupidobj_contract.cc \
+	../toolchain/tests/elf32_contract.cc \
+	../toolchain/tests/hosted_i386_runtime_contract.cc \
+	../toolchain/tests/hosted_i386_windows_contract.cc \
+	../toolchain/tests/user_syscall_abi_contract.cc \
+	../toolchain/tests/x86_active_cases.inc \
+	../toolchain/tests/x86_contract.cc \
+	../toolchain/tests/x86_inline_cases.inc \
+	../toolchain/x86.h \
+	../tools/bootstrap_toolchain.py \
+	../tools/cupidc_toolchain_contracts.py \
+	../tools/user_syscall_abi.py \
+	cupid.h
+USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS := \
+	../link.ld \
+	../toolchain/ctool.cc \
+	../toolchain/ctool.h \
+	../toolchain/ctool_host.cc \
+	../toolchain/ctool_host.h \
+	../toolchain/cupidasm.cc \
+	../toolchain/cupidasm.h \
+	../toolchain/cupidasm_main.cc \
+	../toolchain/cupidc_emit.cc \
+	../toolchain/cupidc_emit.h \
+	../toolchain/cupidc_frontend.cc \
+	../toolchain/cupidc_frontend.h \
+	../toolchain/cupidc_ir.cc \
+	../toolchain/cupidc_ir.h \
+	../toolchain/cupidc_main.cc \
+	../toolchain/cupidc_pp.cc \
+	../toolchain/cupidc_pp.h \
+	../toolchain/cupidc_type.cc \
+	../toolchain/cupidc_type.h \
+	../toolchain/cupiddis.cc \
+	../toolchain/cupiddis.h \
+	../toolchain/cupiddis_main.cc \
+	../toolchain/cupidld.cc \
+	../toolchain/cupidld.h \
+	../toolchain/cupidld_main.cc \
+	../toolchain/cupidobj.cc \
+	../toolchain/cupidobj.h \
+	../toolchain/cupidobj_main.cc \
+	../toolchain/elf32.cc \
+	../toolchain/elf32.h \
+	../toolchain/hosted/i386-linux/include/cupid_host_abi.h \
+	../toolchain/hosted/i386-linux/include/errno.h \
+	../toolchain/hosted/i386-linux/include/stdint.h \
+	../toolchain/hosted/i386-linux/include/stdio.h \
+	../toolchain/hosted/i386-linux/include/stdlib.h \
+	../toolchain/hosted/i386-linux/include/string.h \
+	../toolchain/hosted/i386-linux/include/unistd.h \
+	../toolchain/hosted/i386-linux/runtime.cc \
+	../toolchain/hosted/i386-linux/start.asm \
+	../toolchain/hosted/i386-windows/start.asm \
+	../toolchain/tests/hosted_i386_windows_contract.cc \
+	../toolchain/x86.cc \
+	../toolchain/x86.h
 CUPIDC_PRODUCTION_COMPILE_INPUTS := \
 	../tools/cupidc_production_compile.py \
 	../tools/cupidc_kernel_compile.py \
@@ -44,13 +150,10 @@ CUPIDLD_USER_LINK_INPUTS := ../tools/cupidld_user_link.py \
 	../tools/native_user_toolchain.py \
 	../tools/bootstrap_toolchain.py \
 	$(CHECKED_SEED_INPUTS)
-USER_SYSCALL_ABI_INPUTS := ../tools/user_syscall_abi.py \
-	../kernel/core/types.h \
-	../kernel/core/syscall.h \
-	../kernel/core/syscall.cc \
-	../kernel/fs/vfs.h \
-	../kernel/network/socket.h \
-	cupid.h
+USER_SYSCALL_ABI_INPUTS := $(sort \
+	$(USER_SYSCALL_ABI_PUBLICATION_INPUTS) \
+	$(USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS) \
+	$(CHECKED_SEED_INPUTS))
 USER_FRONTIER_INPUTS := ../tools/cupidc_production_frontier.py \
 	$(CUPIDC_PRODUCTION_COMPILE_INPUTS) $(CUPIDLD_USER_LINK_INPUTS) \
 	$(USER_SYSCALL_ABI_INPUTS)

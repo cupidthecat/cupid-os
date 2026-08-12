@@ -41,6 +41,8 @@ CUPIDASM_KERNEL_ELF_CONTRACT_ARTIFACT := \
 	$(CONTRACT_DIR)/cupidasm-kernel-elf-contract.elf
 CUPIDOBJ_CONTRACT_ARTIFACT := $(CONTRACT_DIR)/cupidobj-contract.elf
 CUPIDLD_CONTRACT_ARTIFACT := $(CONTRACT_DIR)/cupidld-contract.elf
+USER_SYSCALL_ABI_CONTRACT_ARTIFACT := \
+	$(CONTRACT_DIR)/user-syscall-abi-contract.elf
 CONTRACT := $(CONTRACT_RUN) $(CONTRACT_ARTIFACT) --
 CUPIDC_PP_CONTRACT := \
 	$(CONTRACT_RUN) $(CUPIDC_PP_CONTRACT_ARTIFACT) --
@@ -68,6 +70,8 @@ CUPIDOBJ_CONTRACT := \
 	$(CONTRACT_RUN) $(CUPIDOBJ_CONTRACT_ARTIFACT) --
 CUPIDLD_CONTRACT := \
 	$(CONTRACT_RUN) $(CUPIDLD_CONTRACT_ARTIFACT) --
+USER_SYSCALL_ABI_CONTRACT := \
+	$(CONTRACT_RUN) $(USER_SYSCALL_ABI_CONTRACT_ARTIFACT) --
 NATIVE_CONTRACT := $(BUILD_DIR)/core-contract$(EXE)
 NATIVE_CUPIDC_PP_CONTRACT := $(BUILD_DIR)/cupidc-pp-contract$(EXE)
 NATIVE_CUPIDC_TYPE_CONTRACT := \
@@ -125,7 +129,11 @@ CUPIDC_CONTRACT_SOURCES := tests/core_contract.cc \
 	tests/x86_contract.cc tests/cupiddis_contract.cc \
 	tests/cupidasm_contract.cc tests/cupidasm_demos_contract.cc \
 	tests/cupidasm_kernel_elf_contract.cc tests/cupidobj_contract.cc \
-	tests/cupidld_contract.cc
+	tests/cupidld_contract.cc tests/user_syscall_abi_contract.cc
+USER_SYSCALL_ABI_INPUTS := ../tools/user_syscall_abi.py \
+	../kernel/core/types.h ../kernel/core/syscall.h \
+	../kernel/core/syscall.cc ../kernel/fs/vfs.h \
+	../kernel/network/socket.h ../user/cupid.h
 CUPIDC_CONTRACT_SUPPORT := $(wildcard tests/*.inc) \
 	$(wildcard tests/*.h) ../kernel/lang/as_elf.cc \
 	../kernel/lang/as_elf.h
@@ -148,7 +156,8 @@ CUPIDC_CONTRACT_ARTIFACTS := $(CONTRACT_ARTIFACT) \
 	$(X86_CONTRACT_ARTIFACT) $(CUPIDDIS_CONTRACT_ARTIFACT) \
 	$(CUPIDASM_CONTRACT_ARTIFACT) $(CUPIDASM_DEMOS_CONTRACT_ARTIFACT) \
 	$(CUPIDASM_KERNEL_ELF_CONTRACT_ARTIFACT) \
-	$(CUPIDOBJ_CONTRACT_ARTIFACT) $(CUPIDLD_CONTRACT_ARTIFACT)
+	$(CUPIDOBJ_CONTRACT_ARTIFACT) $(CUPIDLD_CONTRACT_ARTIFACT) \
+	$(USER_SYSCALL_ABI_CONTRACT_ARTIFACT)
 CUPIDDIS := $(BUILD_DIR)/cupiddis$(EXE)
 CUPIDASM := $(BUILD_DIR)/cupidasm$(EXE)
 CUPIDOBJ := $(BUILD_DIR)/cupidobj$(EXE)
@@ -412,7 +421,8 @@ $(CONTRACT_MANIFEST): ../tools/cupidc_toolchain_contracts.py \
 	../tools/bootstrap_toolchain.py $(CUPIDC_CONTRACT_SEED) \
 	../link.ld \
 	$(CUPIDC_HOSTED_I386_CLOSURE) $(CUPIDC_CONTRACT_SOURCES) \
-	$(CUPIDC_CONTRACT_SUPPORT) $(CUPIDC_HOSTED_I386_WINDOWS_RUNTIME) Makefile
+	$(CUPIDC_CONTRACT_SUPPORT) $(CUPIDC_HOSTED_I386_WINDOWS_RUNTIME) \
+	$(USER_SYSCALL_ABI_INPUTS) Makefile
 	$(PYTHON) ../tools/cupidc_toolchain_contracts.py build \
 		--root .. --manifest ../bootstrap/seeds/i386-linux/manifest.json \
 		--output $(CONTRACT_DIR)
@@ -465,6 +475,7 @@ test: $(CONTRACT_MANIFEST) \
 	$(CONTRACT) paths
 	$(CONTRACT) diagnostics
 	$(CONTRACT) limits
+	$(USER_SYSCALL_ABI_CONTRACT) check ..
 	$(CUPIDC_PP_CONTRACT) phases
 	$(CUPIDC_PP_CONTRACT) tokens
 	$(CUPIDC_PP_CONTRACT) errors

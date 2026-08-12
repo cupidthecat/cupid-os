@@ -503,6 +503,7 @@ CUPIDC_PP_ACTIVE_CASE(HOSTED_I386_LINUX, "/toolchain/tests/cupiddis_contract.cc"
 CUPIDC_PP_ACTIVE_CASE(HOSTED_I386_LINUX, "/toolchain/tests/cupidld_contract.cc")
 CUPIDC_PP_ACTIVE_CASE(HOSTED_I386_LINUX, "/toolchain/tests/cupidobj_contract.cc")
 CUPIDC_PP_ACTIVE_CASE(HOSTED_I386_LINUX, "/toolchain/tests/elf32_contract.cc")
+CUPIDC_PP_ACTIVE_CASE(HOSTED_I386_LINUX, "/toolchain/tests/user_syscall_abi_contract.cc")
 CUPIDC_PP_ACTIVE_CASE(HOSTED_I386_LINUX, "/toolchain/tests/x86_contract.cc")
 CUPIDC_PP_ACTIVE_CASE(HOSTED_I386_LINUX, "/toolchain/x86.cc")
 CUPIDC_PP_ACTIVE_CASE(HOSTED_I386_KERNEL_BRIDGE, "/kernel/lang/as_elf.cc")

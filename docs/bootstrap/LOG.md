@@ -24145,3 +24145,73 @@ has SHA-256
 The 12,219-byte Markdown summary has SHA-256
 `296fe372feb1ab7e9633a52161b5b1f1aea79043620a6b99bffa94997bb3f8a8`.
 Generation and the independent check pass in 62.099 and 61.854 seconds.
+
+### Cupid-built user syscall ABI contract
+
+The external-program ABI gate no longer relies on a Python-only statement of
+the rules. A new `.cc` contract snapshots and rereads the six kernel and public
+declarations, then checks version 5, 103 fields, the 412-byte table, public
+scalar types and constants, the directory and status layouts, and all 101
+providers. It emits the reviewed ABI fingerprint
+`3e4d31320b2f56d19d37796ef679d1abbb228de9f36c9520d2dd5ec430c3c0bc`
+and provider fingerprint
+`0a51ba85c93b0249215b05e54867fabe0e7206d7e58a7695911a6ecb060916f4`.
+
+The checked Toolchain plan builds the contract with stage-two and stage-three
+CupidC, compares both object and executable bytes, links with CupidLD, and
+publishes it with the cohort. The user gate verifies or rebuilds the
+publication, freezes the verified cohort, and runs the checked executable from
+that private copy. It freezes the six ABI inputs once so the Cupid contract and
+Python oracle inspect identical bytes. The contract rereads the live tree, and
+the coordinator rechecks the complete live publication and input inventory
+after execution. Concurrent replacement therefore fails closed. Python retains
+launch, path, mutation, and publication checks, but the active audit now
+records both
+`cupid_c_contract` and `host_python` as participants. Two supplemental outputs
+remain Python-only.
+
+The contract uses bounded storage: 1 MiB per source, 32,768 tokens, 128 fields
+or assignments, and 64 KiB per digest input. Oversized or malformed input
+fails with a focused diagnostic. The executable tests build the contract and
+hosted runtime with checked-seed CupidC, assemble startup with CupidASM, link
+with CupidLD, and run under WSL. Six cases cover the valid report plus field,
+scalar, constant, record-layout, provider, reread, and selector drift. The
+valid result matches the Python oracle. A coordinator regression replaces the
+live ELF during execution and proves that the private verified copy ran while
+the final live-publication check rejected the replacement.
+
+The focused ABI, publisher, and build-audit suite covers publication races,
+shared snapshots, and exact graph closure alongside the original cases. One
+regression came from a full-audit failure found during
+integration. The operation classifier had treated any transform that listed
+`tools/user_syscall_abi.py` as the ABI check. Once the Toolchain publisher
+froze that oracle as an input, its manifest was mislabelled. Classification
+now also requires the exact `test-syscall-abi` output. The user gate keeps its
+ABI operation, while the cohort manifest remains host orchestration.
+
+The regenerated audit has 728 active inputs, 405 Cupid C files, 255 feature
+IDs, 449 transforms, and 25 accounted unreachable files. It records 385
+tracked and four generated preprocessing roots, including 32 strict hosted
+i386 Linux roots. The user ABI transform declares 58 publication inputs, 43
+bootstrap sources, and six checked-seed files as an exact 85-path union. With
+`user/Makefile`, it has 86 typed inputs. Its 2,619,946-byte JSON has SHA-256
+`926647ec9aa122dbb4caecf1db1e073266bac375494ae2f82ace3e0d2711ca2b`.
+The 12,246-byte Markdown summary has SHA-256
+`03bb5422f68ebdc8372b6631fbe182db1101329b0c1c02633c6ff0739d11b3c5`.
+Generation and the independent drift check pass in 62.1 and 67.2 seconds.
+
+The fresh publication completed in 2,519.5 seconds. It contains fifteen
+regular contracts, sixteen compared executables including the runtime probe,
+seventeen compared objects, five tools, 21 published artifacts, and 58 frozen
+inputs. All stage-two and stage-three bytes match, the runtime probe passes,
+and every live input still matches its private snapshot. The 20,372-byte
+manifest has SHA-256
+`be2a6fd21a0d93721be1a0663780899ed089f23f034b1b7e75c88410f8a4890b`.
+Its 43-file Toolchain source snapshot has SHA-256
+`fd3860074ba02597da3a495b57a7af37cd194681f387b5af5a8040db3cd5fde5`.
+The 153,496-byte published ABI executable has SHA-256
+`4bb2a5caa2b4aeb92592df2af6b3c059ec94a2f1834c8c28075dcb92d536a3bb`.
+Independent publication verification passes, and the normal `user-abi`
+command confirms that the cohort is current before reproducing the reviewed
+JSON report. The older local 20-artifact directory remains untouched and is
+correctly rejected as an incomplete current cohort.

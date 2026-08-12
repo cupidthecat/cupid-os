@@ -190,9 +190,13 @@ The current table ABI is version 5. It has 103 four-byte fields and occupies
 412 bytes on i386. The first two fields carry the version and table size; the
 remaining 101 fields are kernel function pointers.
 
-Before compiling any tracked example, the build captures the exact bytes of
-the six kernel and public declarations that define this ABI. It compares the
-reviewed layout and rechecks every input before reporting success.
+Before compiling a tracked example, the build verifies or rebuilds the
+published static i386 contract. Its stage-two and stage-three CupidC objects
+and CupidLD-linked executables have already matched. The build then runs the
+published contract, which captures and rereads the six kernel and public
+declarations and checks the reviewed table, scalar, constant, record, and
+provider rules. Python compares that report with an independent oracle and
+rechecks the fixed-point publication inputs. ADR 0264 records the transfer.
 
 The public scalar types follow the i386 data model: `uint8_t` is one byte,
 `uint16_t` is two bytes, and `uint32_t`, `int32_t`, and `size_t` are four

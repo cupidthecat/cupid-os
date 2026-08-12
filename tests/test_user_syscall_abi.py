@@ -7,6 +7,12 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from tools.bootstrap_toolchain import (
+    BootstrapError,
+    ToolRunner,
+    freeze_seed_inputs,
+    run_seed_tool,
+)
 from tools import user_syscall_abi
 
 
@@ -280,13 +286,262 @@ class UserSyscallAbiTests(unittest.TestCase):
                 else f"../{relative}"
             )
             self.assertIn(make_path, logical)
-        self.assertIn(
-            "$(PYTHON) ../tools/user_syscall_abi.py --root ..",
+        self.assertRegex(
             logical,
+            r"\$\(PYTHON\) \.\./tools/cupidc_toolchain_contracts\.py\s+"
+            r"user-abi --root \.\.",
         )
+        self.assertIn(
+            "--output ../toolchain/build/cupidc-contracts", logical
+        )
+        self.assertIn(
+            "../toolchain/tests/user_syscall_abi_contract.cc", logical
+        )
+        self.assertIn("../tools/user_syscall_abi.py", logical)
         self.assertRegex(
             logical,
             r"(?m)^test-cupidc-frontier: all test-syscall-abi ",
+        )
+
+    def test_toolchain_contract_cohort_tracks_every_abi_input(self):
+        makefile = (
+            REPO_ROOT / "toolchain/Makefile"
+        ).read_text(encoding="utf-8")
+        logical = makefile.replace("\\\n", " ")
+
+        self.assertIn(
+            "$(USER_SYSCALL_ABI_INPUTS) Makefile", logical
+        )
+        self.assertIn("../tools/user_syscall_abi.py", logical)
+        for relative in user_syscall_abi.ABI_INPUTS:
+            self.assertIn(f"../{relative}", logical)
+
+
+class CupidBuiltUserSyscallAbiContractTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.contract_build = tempfile.TemporaryDirectory(
+            prefix=".checked-user-syscall-abi-", dir=REPO_ROOT
+        )
+        build = Path(cls.contract_build.name)
+        manifest = REPO_ROOT / "bootstrap/seeds/i386-linux/manifest.json"
+        cls.runner = ToolRunner(REPO_ROOT)
+        try:
+            cls.frozen_seed = freeze_seed_inputs(manifest, build / "seed")
+            contract_object = build / "contract.o"
+            runtime_object = build / "runtime.o"
+            start_object = build / "start.o"
+            cls.contract = build / "user-abi.elf"
+
+            def logical(path):
+                return "/" + path.relative_to(REPO_ROOT).as_posix()
+
+            commands = (
+                (
+                    "cupidc",
+                    (
+                        "--root",
+                        REPO_ROOT,
+                        "-c",
+                        "/toolchain/tests/user_syscall_abi_contract.cc",
+                        "-I",
+                        "/toolchain",
+                        "--include-angle",
+                        "/toolchain/hosted/i386-linux/include",
+                        "-o",
+                        logical(contract_object),
+                    ),
+                ),
+                (
+                    "cupidc",
+                    (
+                        "--root",
+                        REPO_ROOT,
+                        "--gnu",
+                        "-c",
+                        "/toolchain/hosted/i386-linux/runtime.cc",
+                        "-I",
+                        "/toolchain",
+                        "--include-angle",
+                        "/toolchain/hosted/i386-linux/include",
+                        "-o",
+                        logical(runtime_object),
+                    ),
+                ),
+                (
+                    "cupidasm",
+                    (
+                        "-f",
+                        "elf32",
+                        REPO_ROOT / "toolchain/hosted/i386-linux/start.asm",
+                        "-o",
+                        start_object,
+                    ),
+                ),
+                (
+                    "cupidld",
+                    (
+                        "-m",
+                        "elf_i386",
+                        "--text-address",
+                        "0x08048000",
+                        "--entry",
+                        "_start",
+                        "-o",
+                        cls.contract,
+                        start_object,
+                        contract_object,
+                        runtime_object,
+                    ),
+                ),
+            )
+            for tool_name, arguments in commands:
+                result = run_seed_tool(
+                    manifest,
+                    REPO_ROOT,
+                    tool_name,
+                    arguments,
+                    timeout=180,
+                    frozen_seed=cls.frozen_seed,
+                    runner=cls.runner,
+                )
+                if result.returncode != 0 or result.stdout or result.stderr:
+                    raise AssertionError(
+                        f"{tool_name} failed with status "
+                        f"{result.returncode}: "
+                        f"{(result.stderr + result.stdout)[-8000:]}"
+                    )
+        except (BootstrapError, OSError, AssertionError):
+            cls.contract_build.cleanup()
+            raise
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.contract_build.cleanup()
+
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.root = Path(self.temporary.name) / "snapshot"
+        self._copy_inputs(self.root)
+
+    def tearDown(self):
+        self.temporary.cleanup()
+
+    @staticmethod
+    def _copy_inputs(root):
+        for relative in user_syscall_abi.ABI_INPUTS:
+            target = root / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(REPO_ROOT / relative, target)
+
+    def _run(self, *arguments):
+        return self.runner.run(self.contract, arguments, 30)
+
+    def test_contract_report_matches_the_independent_python_oracle(self):
+        result = self._run("check", self.root)
+
+        self.assertEqual(
+            result.returncode,
+            0,
+            msg=(result.stderr + result.stdout)[-4000:],
+        )
+        contract_report = json.loads(result.stdout)
+        oracle_report = user_syscall_abi.check_syscall_abi(self.root)
+        self.assertEqual(contract_report, oracle_report)
+        self.assertEqual(contract_report["field_count"], 103)
+        self.assertEqual(contract_report["table_size"], 412)
+        self.assertEqual(
+            contract_report["abi_sha256"],
+            user_syscall_abi.EXPECTED_ABI_SHA256,
+        )
+        self.assertEqual(
+            contract_report["provider_sha256"],
+            user_syscall_abi.EXPECTED_PROVIDER_SHA256,
+        )
+
+    def test_contract_rejects_a_field_order_mutation(self):
+        header = self.root / "user/cupid.h"
+        source = header.read_text(encoding="utf-8").replace(
+            "    void (*print)(const char *str);\n"
+            "    void (*putchar)(char c);",
+            "    void (*putchar)(char c);\n"
+            "    void (*print)(const char *str);",
+        )
+        header.write_text(source, encoding="utf-8")
+
+        result = self._run("check", self.root)
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("syscall field 2 differs", result.stderr)
+        self.assertIn("kernel print", result.stderr)
+        self.assertIn("user putchar", result.stderr)
+
+    def test_contract_rejects_scalar_layout_and_constant_mutations(self):
+        header = self.root / "user/cupid.h"
+        source = header.read_text(encoding="utf-8").replace(
+            "typedef unsigned long      size_t;",
+            "typedef unsigned long long size_t;",
+        )
+        header.write_text(source, encoding="utf-8")
+        result = self._run("check", self.root)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("size_t differs", result.stderr)
+
+        self._copy_inputs(self.root)
+        header = self.root / "user/cupid.h"
+        source = header.read_text(encoding="utf-8").replace(
+            "#define SOCK_TCP       2",
+            "#define SOCK_TCP       3",
+        )
+        header.write_text(source, encoding="utf-8")
+        result = self._run("check", self.root)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("SOCK_TCP differs: kernel 2, user 3", result.stderr)
+
+    def test_contract_rejects_layout_and_provider_mutations(self):
+        header = self.root / "user/cupid.h"
+        source = header.read_text(encoding="utf-8").replace(
+            "    uint8_t  type;\n} cupid_dirent_t;",
+            "    uint16_t type;\n} cupid_dirent_t;",
+        )
+        header.write_text(source, encoding="utf-8")
+        result = self._run("check", self.root)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(
+            "cupid_dirent_t does not match vfs_dirent_t", result.stderr
+        )
+
+        self._copy_inputs(self.root)
+        implementation = self.root / "kernel/core/syscall.cc"
+        source = implementation.read_text(encoding="utf-8").replace(
+            "syscall_table.ntohs            = htons;",
+            "syscall_table.ntohs            = ntohs;",
+        )
+        implementation.write_text(source, encoding="utf-8")
+        result = self._run("check", self.root)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("syscall provider contract changed", result.stderr)
+
+    def test_contract_rereads_every_snapshot_before_success(self):
+        reread_root = Path(self.temporary.name) / "reread"
+        self._copy_inputs(reread_root)
+        changed = reread_root / "kernel/core/types.h"
+        changed.write_bytes(changed.read_bytes() + b"\n")
+
+        result = self._run("check-snapshot", self.root, reread_root)
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(
+            "ABI input changed while checking: kernel/core/types.h",
+            result.stderr,
+        )
+
+    def test_contract_rejects_an_unknown_selector(self):
+        result = self._run("unknown", self.root)
+
+        self.assertEqual(result.returncode, 2)
+        self.assertIn(
+            "usage: user-syscall-abi-contract check ROOT", result.stderr
         )
 
 

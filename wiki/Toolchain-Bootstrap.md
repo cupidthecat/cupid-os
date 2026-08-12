@@ -17,14 +17,14 @@ ELF files, and unexpected target metadata.
 The separate i386 runtime contract is not part of those 19 tool inputs. It
 uses `.cc` because CupidC compiles it, CupidLD links it with CupidASM startup
 and the repository runtime, and Linux or WSL runs the result. The normal
-Toolchain target also owns fourteen `.cc` contract programs. Stage-two and
+Toolchain target also owns fifteen `.cc` contract programs. Stage-two and
 stage-three CupidC compile them at the checked i386 ABI, CupidLD links each
-one against matching stage objects, and the harness requires all sixteen new
-objects and fifteen executables to match across stages. It freezes 50
+one against matching stage objects, and the harness requires all seventeen new
+objects and sixteen executables to match across stages. It freezes 58
 contract inputs and reconstructs that exact inventory under a private source
-root. That inventory includes the Windows startup and runtime probe, the
-Toolchain Makefile, and both Python modules
-that construct or verify the cohort. Newly discovered contract inventories catch additions, removals, and a
+root. That inventory includes the Windows startup and runtime probe, the user
+syscall ABI contract and its six declarations, the Toolchain Makefile, the
+publisher, and the independent Python ABI oracle. Newly discovered contract inventories catch additions, removals, and a
 transient edit copied before the live file is restored. The public manifest
 also binds the checked seed, build plan, and 43-file fixed-point source
 inventory. Verify and run reconstruct both inventories before execution.
@@ -35,9 +35,10 @@ publisher accepts only a dedicated `cupidc-contracts` directory inside the
 source tree. It validates that target before work and again before promotion,
 and an existing destination must already verify as a complete cohort.
 Arbitrary directories, source trees, files, and symbolic links remain
-untouched. It publishes all fifteen contracts, five refreshed tools, and a
-manifest together. ADR 0195 records the runtime probe rename, and ADR 0196
-records the complete transfer.
+untouched. It publishes all sixteen contract executables, five refreshed
+tools, and a manifest together. ADR 0195 records the runtime probe rename, ADR
+0196 records the complete transfer, and ADR 0264 records the ABI checker
+transfer.
 Every normal Toolchain run derives the cohort from its requested executable,
 requires a named manifest artifact, and verifies the target, fixed-point
 record, exact filenames, sizes, hashes, and current live input hashes before
@@ -719,9 +720,12 @@ ADR 0190 records the root handoff, and ADR 0196 records the Toolchain contract
 handoff. The user compiler and Toolchain contract publisher create their own
 output directories. The compiler pins each POSIX or Windows directory
 component during preparation and rejects links, junctions, and a changed
-resolved path. Three Python-only supplemental verification or orchestration
-outputs remain. ADR 0245 records that graph boundary. ADR 0246 records the
-shared invocation and post-run five-image check.
+resolved path. Two Python-only supplemental verification or orchestration
+outputs remain. The `user/test-syscall-abi` transform has Cupid-built contract
+and Python participants: the contract owns the layout rules, while Python checks
+an independent report and controls publication. ADR 0245 records the graph
+boundary, ADR 0246 records the shared invocation and post-run five-image
+check, and ADR 0264 records the ABI transfer.
 
 The separate private in-kernel CupidC compiler now uses one scalar cdecl
 layout for direct, function-pointer, and method calls. Represented scalars and

@@ -166,38 +166,182 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             module._validate_native_user_tools_transform("user", changed)
 
     def test_user_syscall_abi_verifier_is_a_first_class_transform(self):
+        make = shutil.which("make")
+        if make is None:
+            self.skipTest("GNU Make is unavailable")
         module = _load_audit_module()
-        local_inputs = [
-            "../tools/user_syscall_abi.py",
-            "../kernel/core/types.h",
-            "../kernel/core/syscall.h",
-            "../kernel/core/syscall.cc",
-            "../kernel/fs/vfs.h",
-            "../kernel/network/socket.h",
-            "cupid.h",
-            "Makefile",
-        ]
-        transform = module._build_transforms(
+        rules = module._parse_make_rules(
+            module._run_make_database(
+                REPO_ROOT / "user", make, "test-syscall-abi"
+            )
+        )
+        transforms = module._build_transforms(
             "user",
-            {"test-syscall-abi"},
-            {
-                "test-syscall-abi": module.MakeRule(
-                    prerequisites=local_inputs,
-                    recipe=["$(USER_SYSCALL_ABI)"],
-                )
-            },
+            module._reachable_rules(rules, "test-syscall-abi"),
+            rules,
+        )
+        transform = next(
+            item
+            for item in transforms
+            if item["output"] == "user/test-syscall-abi"
+        )
+        toolchain_rules = module._parse_make_rules(
+            module._run_make_database(
+                REPO_ROOT / "toolchain",
+                make,
+                "build/cupidc-contracts/manifest.json",
+            )
+        )
+        publication_transform = module._build_transforms(
+            "toolchain",
+            {"build/cupidc-contracts/manifest.json"},
+            toolchain_rules,
         )[0]
+        input_variables = module._read_evaluated_make_variables(
+            REPO_ROOT / "user",
+            make,
+            (
+                "USER_SYSCALL_ABI_PUBLICATION_INPUTS",
+                "USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS",
+                "CHECKED_SEED_INPUTS",
+            ),
+        )
+
+        def repo_inputs(variable):
+            return tuple(
+                sorted(
+                    module._prefix_repo_path("user", path)
+                    for path in input_variables[variable].split()
+                )
+            )
 
         self.assertEqual(transform["output"], "user/test-syscall-abi")
-        self.assertEqual(transform["tools"], ["host_python"])
+        self.assertEqual(
+            transform["tools"], ["cupid_c_contract", "host_python"]
+        )
         self.assertEqual(
             transform["operation"], "verify_user_syscall_abi"
+        )
+        self.assertEqual(
+            len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 58
+        )
+        self.assertEqual(
+            len(module.USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS), 43
+        )
+        self.assertEqual(
+            len(module.USER_SYSCALL_ABI_CHECKED_SEED_INPUTS), 6
+        )
+        self.assertEqual(
+            repo_inputs("USER_SYSCALL_ABI_PUBLICATION_INPUTS"),
+            module.USER_SYSCALL_ABI_PUBLICATION_INPUTS,
+        )
+        self.assertEqual(
+            repo_inputs("USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS"),
+            module.USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS,
+        )
+        self.assertEqual(
+            repo_inputs("CHECKED_SEED_INPUTS"),
+            tuple(sorted(module.USER_SYSCALL_ABI_CHECKED_SEED_INPUTS)),
+        )
+        self.assertEqual(len(module.USER_SYSCALL_ABI_AUDIT_INPUTS), 85)
+        self.assertEqual(
+            module.USER_SYSCALL_ABI_AUDIT_INPUTS,
+            tuple(
+                sorted(
+                    set(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS)
+                    | set(module.USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS)
+                    | set(module.USER_SYSCALL_ABI_CHECKED_SEED_INPUTS)
+                )
+            ),
         )
         self.assertEqual(
             transform["inputs"],
             [*module.USER_SYSCALL_ABI_AUDIT_INPUTS, "user/Makefile"],
         )
+        self.assertEqual(len(publication_transform["inputs"]), 85)
+        self.assertEqual(
+            set(transform["inputs"][:-1]),
+            set(publication_transform["inputs"]),
+        )
         module._validate_user_syscall_abi_transform("user", transform)
+
+    def test_syscall_abi_oracle_input_does_not_relabel_contract_publication(self):
+        module = _load_audit_module()
+        transform = module._build_transforms(
+            "toolchain",
+            {"build/cupidc-contracts/manifest.json"},
+            {
+                "build/cupidc-contracts/manifest.json": module.MakeRule(
+                    prerequisites=[
+                        "../tools/cupidc_toolchain_contracts.py",
+                        "../tools/user_syscall_abi.py",
+                        "tests/user_syscall_abi_contract.cc",
+                    ],
+                    recipe=[
+                        "$(PYTHON) ../tools/cupidc_toolchain_contracts.py "
+                        "build --root .. --manifest seed.json "
+                        "--output $(CONTRACT_DIR)"
+                    ],
+                )
+            },
+        )[0]
+
+        self.assertEqual(transform["tools"], ["host_python"])
+        self.assertEqual(transform["operation"], "host_orchestration")
+
+    def test_user_syscall_abi_verifier_rejects_missing_live_input(self):
+        module = _load_audit_module()
+        transform = {
+            "output": "user/test-syscall-abi",
+            "inputs": [
+                *module.USER_SYSCALL_ABI_AUDIT_INPUTS,
+                "user/Makefile",
+            ],
+            "tools": ["cupid_c_contract", "host_python"],
+            "operation": "verify_user_syscall_abi",
+            "recipe": ["$(USER_SYSCALL_ABI)"],
+        }
+        missing_path = "toolchain/cupidc_emit.cc"
+        changed = {
+            **transform,
+            "inputs": [
+                path for path in transform["inputs"] if path != missing_path
+            ],
+        }
+        with self.assertRaisesRegex(
+            module.AuditError,
+            r"user syscall ABI verifier inputs changed; "
+            r"missing=\['toolchain/cupidc_emit\.cc'\], unexpected=\[\]",
+        ):
+            module._validate_user_syscall_abi_transform("user", changed)
+
+    def test_user_syscall_abi_verifier_rejects_unexpected_live_input(self):
+        module = _load_audit_module()
+        transform = {
+            "output": "user/test-syscall-abi",
+            "inputs": [
+                *module.USER_SYSCALL_ABI_AUDIT_INPUTS,
+                "user/Makefile",
+            ],
+            "tools": ["cupid_c_contract", "host_python"],
+            "operation": "verify_user_syscall_abi",
+            "recipe": ["$(USER_SYSCALL_ABI)"],
+        }
+        unexpected_path = "user/unchecked-abi-input.h"
+        changed = {
+            **transform,
+            "inputs": [
+                *module.USER_SYSCALL_ABI_AUDIT_INPUTS,
+                unexpected_path,
+                "user/Makefile",
+            ],
+        }
+        with self.assertRaisesRegex(
+            module.AuditError,
+            r"user syscall ABI verifier inputs changed; missing=\[\], "
+            r"unexpected=\['user/unchecked-abi-input\.h'\]",
+        ):
+            module._validate_user_syscall_abi_transform("user", changed)
 
     def test_user_syscall_abi_verifier_rejects_contract_drift(self):
         module = _load_audit_module()
@@ -207,22 +351,18 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 *module.USER_SYSCALL_ABI_AUDIT_INPUTS,
                 "user/Makefile",
             ],
-            "tools": ["host_python"],
+            "tools": ["cupid_c_contract", "host_python"],
             "operation": "verify_user_syscall_abi",
             "recipe": ["$(USER_SYSCALL_ABI)"],
         }
         changes = {
-            "missing ABI input": {
-                **transform,
-                "inputs": transform["inputs"][:-2] + ["user/Makefile"],
-            },
             "wrong target": {
                 **transform,
                 "output": "user/check-abi",
             },
             "wrong tool": {
                 **transform,
-                "tools": ["host_shell"],
+                "tools": ["host_python"],
             },
             "wrong recipe": {
                 **transform,
@@ -1665,7 +1805,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             contract = generated["contracts"][
                 "c_preprocessor_line_directives"
             ]
-            self.assertEqual(contract["source_files"], 694)
+            self.assertEqual(contract["source_files"], 695)
             self.assertEqual(contract["named_line_occurrences"], 0)
             self.assertEqual(contract["direct_line_occurrences"], 0)
             self.assertEqual(contract["pp_token_line_occurrences"], 0)
@@ -1686,7 +1826,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertIn(
                 "`c_preprocessor_line_directives` | `pass` | "
                 "0 named #line directives (0 direct, 0 pp-token; 0 filename); "
-                "0 numeric markers; 694 source files; max conditional depth 0",
+                "0 numeric markers; 695 source files; max conditional depth 0",
                 summary.read_text(encoding="utf-8"),
             )
 
@@ -2583,10 +2723,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 checked["contracts"]["c_preprocessor_include_operands"],
                 contract,
             )
-            self.assertEqual(contract["source_files"], 694)
-            self.assertEqual(contract["include_occurrences"], 2433)
+            self.assertEqual(contract["source_files"], 695)
+            self.assertEqual(contract["include_occurrences"], 2437)
             self.assertEqual(contract["direct_quoted_occurrences"], 2196)
-            self.assertEqual(contract["direct_angle_occurrences"], 237)
+            self.assertEqual(contract["direct_angle_occurrences"], 241)
             self.assertEqual(contract["pp_token_operand_occurrences"], 0)
 
     def test_inventory_detects_link_inputs_missing_from_artifact_manifest(self):
@@ -3197,12 +3337,12 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "CUPID_RUNTIME": 107,
                 "HOSTED_TOOLCHAIN_64": 0,
                 "HOSTED_KERNEL_BRIDGE_64": 0,
-                "HOSTED_I386_LINUX": 31,
+                "HOSTED_I386_LINUX": 32,
                 "HOSTED_I386_KERNEL_BRIDGE": 2,
                 "HOSTED_I386_LINUX_GNU": 2,
             },
         )
-        self.assertEqual(len(active), 384)
+        self.assertEqual(len(active), 385)
         for expected in (
             ("KERNEL_I386", "/kernel/core/kernel.cc"),
             ("KERNEL_I386", "/kernel/audio/memio.cc"),
@@ -3226,6 +3366,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             (
                 "HOSTED_I386_LINUX",
                 "/toolchain/tests/cupidc_object_contract.cc",
+            ),
+            (
+                "HOSTED_I386_LINUX",
+                "/toolchain/tests/user_syscall_abi_contract.cc",
             ),
             (
                 "HOSTED_I386_LINUX_GNU",
@@ -4384,7 +4528,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         self.assertEqual(contract["help_cases"], 5)
         self.assertEqual(contract["success_behavior_cases"], 17)
         self.assertEqual(contract["failure_behavior_cases"], 15)
-        self.assertEqual(contract["contract_manifest_inputs"], 50)
+        self.assertEqual(contract["contract_manifest_inputs"], 58)
         self.assertEqual(
             contract["source_head_capabilities"],
             [
@@ -4800,6 +4944,12 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "contract_publisher",
                 '    "toolchain/hosted/i386-windows/start.asm",\n',
                 '    "toolchain/hosted/i386-linux/start.asm",\n',
+                r"fixed-point source freeze differs",
+            ),
+            "user ABI source leaves the contract manifest": (
+                "contract_publisher",
+                '    "user/cupid.h",\n',
+                '    "user/cupid-x.h",\n',
                 r"fixed-point source freeze differs",
             ),
             "PE32 Windows assembly stops comparing stages": (
@@ -5452,7 +5602,18 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "tools/cupidc_toolchain_contracts.py",
                 )
             )
-            if include_seed:
+            inputs.extend(
+                path
+                for path in module.USER_SYSCALL_ABI_AUDIT_INPUTS
+                if path not in inputs
+                and (
+                    include_seed
+                    or path != "bootstrap/seeds/i386-linux/cupidc.elf"
+                )
+            )
+            if include_seed and (
+                "bootstrap/seeds/i386-linux/cupidc.elf" not in inputs
+            ):
                 inputs.append("bootstrap/seeds/i386-linux/cupidc.elf")
             return {
                 "build": {"directory": ".", "transforms": []},
@@ -6041,9 +6202,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 },
                 {
                     "status": "pass",
-                    "tracked_translation_units": 384,
+                    "tracked_translation_units": 385,
                     "generated_translation_units": 4,
-                    "total_translation_units": 388,
+                    "total_translation_units": 389,
                     "include_only_fragments": 22,
                     "delivered_non_root_headers": 2,
                     "deferred_hosted_translation_units": 0,
@@ -6069,7 +6230,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     ("CUPID_RUNTIME", 107, 0),
                     ("HOSTED_TOOLCHAIN_64", 0, 0),
                     ("HOSTED_KERNEL_BRIDGE_64", 0, 0),
-                    ("HOSTED_I386_LINUX", 31, 0),
+                    ("HOSTED_I386_LINUX", 32, 0),
                     ("HOSTED_I386_KERNEL_BRIDGE", 2, 0),
                     ("HOSTED_I386_LINUX_GNU", 2, 0),
                 ],
@@ -6117,7 +6278,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(
                 audit_payload["summary"],
                 {
-                    "active_sources": 727,
+                    "active_sources": 728,
                     "features": 255,
                     "transforms": 449,
                     "unreachable_sources": 25,
@@ -6128,7 +6289,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (5955, 170),
+                "c.expression.sizeof": (5989, 171),
                 "c.extension.builtin.offsetof": (12, 6),
                 "c.extension.gnu_alignof": (1, 1),
             }
@@ -6663,7 +6824,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 for cohort in audit_payload["roadmap"]["source_cohort_order"]
                 if cohort["id"] == "toolchain_sources"
             )
-            self.assertEqual(toolchain_cohort["source_count"], 77)
+            self.assertEqual(toolchain_cohort["source_count"], 78)
             user_program_cohort = next(
                 cohort
                 for cohort in audit_payload["roadmap"]["source_cohort_order"]
@@ -6821,7 +6982,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "toolchain/tests/hosted_i386_windows_contract.cc",
                 "toolchain/cupidc_main.cc",
                 "toolchain/tests/cupidc_object_contract.cc",
+                "toolchain/tests/user_syscall_abi_contract.cc",
                 "tools/cupidc_toolchain_contracts.py",
+                "tools/user_syscall_abi.py",
+                "user/cupid.h",
                 "bootstrap/seeds/i386-linux/cupidc.elf",
             ):
                 with self.subTest(contract_input=input_path):
@@ -6836,7 +7000,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             )
             self.assertIn(
                 "`c_preprocessor_translation_units` | `pass` | "
-                "384 tracked + 4 generated",
+                "385 tracked + 4 generated",
                 summary.read_text(encoding="utf-8"),
             )
             audit_payload["build"]["transforms"].append(
