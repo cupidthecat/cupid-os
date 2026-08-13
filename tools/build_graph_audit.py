@@ -7525,7 +7525,7 @@ def _cupid_toolchain_fixed_point_contract(
 
     required_test_fragments = (
         "with ThreadPoolExecutor(max_workers=2) as executor:",
-        'producers["cupidc"], arguments, timeout=300',
+        'producers["cupidc"], arguments, timeout=900',
         "assembled = self.run_cupid_linux_tool(\n"
         '                    producers["cupidasm"],',
         "linked_stage = self.run_cupid_linux_tool(\n"

@@ -24832,3 +24832,25 @@ fixed-point unittest passed in 920.473 seconds. The 36 contract-plan tests
 passed in 6.473 seconds, and `make check-bootstrap-audit` reproduced the
 checked audit in 72.6 seconds. Python bytecode compilation and the scoped diff
 check passed with no TempleOS changes or changed `.c` files.
+
+## 2026-08-13: Expose Cupid mode through the hosted CupidC command
+
+The hosted frontend and preprocessor already understood Cupid vocabulary, but
+the public driver always selected C11. CupidC now accepts `--cupid` and passes
+the same language mode to both stages. GNU extensions remain a separate
+switch. Doom compatibility and Cupid mode are rejected together before the
+destination is opened because they describe different source profiles.
+
+Hosted and Cupid-built drivers produced identical ELF32 objects for a `U32`
+function and for both orders of `--cupid` with `--gnu`. They also compiled the
+unchanged `kernel/cpu/simd_intrin.h` declarations. Both conflicting option
+orders returned 2, emitted the same diagnostic and usage, and left a sentinel
+destination unchanged. The checked Linux seed compiled the changed driver
+twice to a 23,392-byte object with SHA-256
+`a71ec0ec1d19f852a6c6216399068ea10f53a29d48ca415091fa946c832e6312`.
+
+The public mode, option-order, and hosted/Cupid-built usage tests passed three
+cases in 34.752 seconds. The complete fixed-point contract now allows 900
+seconds for each large compiler source; the earlier 300-second limit expired
+while a healthy generation-one compiler processed `cupidc_frontend.cc`.
+ADR 0270 records the option boundary.

@@ -3532,7 +3532,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         usage = (
             "usage: cupidc -c INPUT -o OUTPUT [-I PATH] "
             "[--include-angle PATH] [-include FILE] [-D NAME[=VALUE]] "
-            "[-U NAME] [--gnu] [--doom-compat] [--freestanding] "
+            "[-U NAME] [--cupid] [--gnu] [--doom-compat] [--freestanding] "
             "[--root NATIVE_ROOT]\n"
         )
         with tempfile.TemporaryDirectory(
@@ -3709,7 +3709,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         usage = (
             "usage: cupidc -c INPUT -o OUTPUT [-I PATH] "
             "[--include-angle PATH] [-include FILE] [-D NAME[=VALUE]] "
-            "[-U NAME] [--gnu] [--doom-compat] [--freestanding] "
+            "[-U NAME] [--cupid] [--gnu] [--doom-compat] [--freestanding] "
             "[--root NATIVE_ROOT]\n"
         )
         with tempfile.TemporaryDirectory(
@@ -3845,7 +3845,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         usage = (
             "usage: cupidc -c INPUT -o OUTPUT [-I PATH] "
             "[--include-angle PATH] [-include FILE] [-D NAME[=VALUE]] "
-            "[-U NAME] [--gnu] [--doom-compat] [--freestanding] "
+            "[-U NAME] [--cupid] [--gnu] [--doom-compat] [--freestanding] "
             "[--root NATIVE_ROOT]\n"
         )
         hosted_help = subprocess.run(
@@ -3883,6 +3883,211 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(cupid_invalid.stdout, "")
         self.assertEqual(hosted_invalid.stderr, usage)
         self.assertEqual(cupid_invalid.stderr, usage)
+
+    def test_public_cupid_mode_compiles_native_types_with_both_drivers(self):
+        linked = self.build_cupid_tools()
+        self.assertEqual(linked.returncode, 0, linked.stderr)
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidc-public-cupid-mode-", dir=REPO_ROOT
+        ) as temp:
+            root = Path(temp)
+            (root / "native-types.cc").write_text(
+                "U32 cupid_add(U32 left, U32 right) {\n"
+                "  return left + right;\n"
+                "}\n",
+                encoding="utf-8",
+            )
+            common = [
+                "--root",
+                root,
+                "--cupid",
+                "-c",
+                "/native-types.cc",
+            ]
+            hosted = subprocess.run(
+                [
+                    str(self.hosted_cupidc_path),
+                    *[str(argument) for argument in common],
+                    "-o",
+                    "/hosted.o",
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+                timeout=60,
+            )
+            cupid = self.run_cupid_linux_tool(
+                self.cupid_cupidc_path,
+                [*common, "-o", "/cupid.o"],
+                timeout=60,
+            )
+            self.assertEqual(hosted.returncode, 0, hosted.stderr)
+            self.assertEqual(cupid.returncode, hosted.returncode, cupid.stderr)
+            self.assertEqual(hosted.stdout, "")
+            self.assertEqual(cupid.stdout, hosted.stdout)
+            self.assertEqual(hosted.stderr, "")
+            self.assertEqual(cupid.stderr, hosted.stderr)
+            hosted_bytes = (root / "hosted.o").read_bytes()
+            self.assertEqual((root / "cupid.o").read_bytes(), hosted_bytes)
+            validate_i386_relocatable_bytes(hosted_bytes)
+
+            logical_root = "/" + root.relative_to(REPO_ROOT).as_posix()
+            active_common = [
+                "--root",
+                REPO_ROOT,
+                "--cupid",
+                "-c",
+                "/kernel/cpu/simd_intrin.h",
+            ]
+            active_hosted = subprocess.run(
+                [
+                    str(self.hosted_cupidc_path),
+                    *[str(argument) for argument in active_common],
+                    "-o",
+                    logical_root + "/hosted-simd-intrin.o",
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+                timeout=60,
+            )
+            active_cupid = self.run_cupid_linux_tool(
+                self.cupid_cupidc_path,
+                [
+                    *active_common,
+                    "-o",
+                    logical_root + "/cupid-simd-intrin.o",
+                ],
+                timeout=60,
+            )
+            self.assertEqual(
+                active_hosted.returncode, 0, active_hosted.stderr
+            )
+            self.assertEqual(
+                active_cupid.returncode,
+                active_hosted.returncode,
+                active_cupid.stderr,
+            )
+            self.assertEqual(active_hosted.stdout, "")
+            self.assertEqual(active_cupid.stdout, active_hosted.stdout)
+            self.assertEqual(active_hosted.stderr, "")
+            self.assertEqual(active_cupid.stderr, active_hosted.stderr)
+            active_bytes = (root / "hosted-simd-intrin.o").read_bytes()
+            self.assertEqual(
+                (root / "cupid-simd-intrin.o").read_bytes(), active_bytes
+            )
+            validate_i386_relocatable_bytes(active_bytes)
+
+    def test_public_cupid_mode_has_ordered_extension_and_profile_rules(self):
+        linked = self.build_cupid_tools()
+        self.assertEqual(linked.returncode, 0, linked.stderr)
+        usage = (
+            "usage: cupidc -c INPUT -o OUTPUT [-I PATH] "
+            "[--include-angle PATH] [-include FILE] [-D NAME[=VALUE]] "
+            "[-U NAME] [--cupid] [--gnu] [--doom-compat] "
+            "[--freestanding] [--root NATIVE_ROOT]\n"
+        )
+        conflict = (
+            "cupidc: --cupid cannot be combined with --doom-compat\n"
+            + usage
+        )
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidc-public-cupid-options-", dir=REPO_ROOT
+        ) as temp:
+            root = Path(temp)
+            (root / "native-types.cc").write_text(
+                "U32 cupid_identity(U32 value) { return value; }\n",
+                encoding="utf-8",
+            )
+
+            def run_hosted(arguments):
+                return subprocess.run(
+                    [
+                        str(self.hosted_cupidc_path),
+                        *[str(argument) for argument in arguments],
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                    timeout=60,
+                )
+
+            drivers = (
+                ("hosted", run_hosted),
+                (
+                    "cupid-built",
+                    lambda arguments: self.run_cupid_linux_tool(
+                        self.cupid_cupidc_path, arguments, timeout=60
+                    ),
+                ),
+            )
+            successful_objects = []
+            for driver_name, run_driver in drivers:
+                for order_name, options in (
+                    ("cupid-then-gnu", ["--cupid", "--gnu"]),
+                    ("gnu-then-cupid", ["--gnu", "--cupid"]),
+                ):
+                    output_name = f"/{driver_name}-{order_name}.o"
+                    result = run_driver(
+                        [
+                            "--root",
+                            root,
+                            *options,
+                            "-c",
+                            "/native-types.cc",
+                            "-o",
+                            output_name,
+                        ]
+                    )
+                    with self.subTest(
+                        driver=driver_name, option_order=order_name
+                    ):
+                        self.assertEqual(result.returncode, 0, result.stderr)
+                        self.assertEqual(result.stdout, "")
+                        self.assertEqual(result.stderr, "")
+                    successful_objects.append(
+                        (root / output_name.lstrip("/")).read_bytes()
+                    )
+            self.assertTrue(successful_objects)
+            self.assertTrue(
+                all(
+                    image == successful_objects[0]
+                    for image in successful_objects[1:]
+                )
+            )
+
+            for driver_name, run_driver in drivers:
+                for order_name, options in (
+                    (
+                        "cupid-then-doom",
+                        ["--cupid", "--doom-compat"],
+                    ),
+                    (
+                        "doom-then-cupid",
+                        ["--doom-compat", "--cupid"],
+                    ),
+                ):
+                    output_name = f"{driver_name}-{order_name}.o"
+                    output = root / output_name
+                    output.write_bytes(b"sentinel")
+                    result = run_driver(
+                        [
+                            "--root",
+                            root,
+                            *options,
+                            "-c",
+                            "/native-types.cc",
+                            "-o",
+                            "/" + output_name,
+                        ]
+                    )
+                    with self.subTest(
+                        driver=driver_name, conflict_order=order_name
+                    ):
+                        self.assertEqual(result.returncode, 2, result.stderr)
+                        self.assertEqual(result.stdout, "")
+                        self.assertEqual(result.stderr, conflict)
+                        self.assertEqual(output.read_bytes(), b"sentinel")
 
     def test_hosted_cupidc_resolves_native_absolute_and_relative_paths(self):
         with tempfile.TemporaryDirectory(
@@ -4056,7 +4261,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         usage = (
             "usage: cupidc -c INPUT -o OUTPUT [-I PATH] "
             "[--include-angle PATH] [-include FILE] [-D NAME[=VALUE]] "
-            "[-U NAME] [--gnu] [--doom-compat] [--freestanding] "
+            "[-U NAME] [--cupid] [--gnu] [--doom-compat] [--freestanding] "
             "[--root NATIVE_ROOT]\n"
         )
         generation_one_tools = {
@@ -4099,7 +4304,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                     return (
                         case,
                         self.run_cupid_linux_tool(
-                            producers["cupidc"], arguments, timeout=300
+                            producers["cupidc"], arguments, timeout=900
                         ),
                     )
 
