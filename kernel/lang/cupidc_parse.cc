@@ -977,6 +977,32 @@ static cc_token_t cc_next(cc_state_t *cc) {
 
 static cc_token_t cc_peek(cc_state_t *cc) { return cc_lex_peek(cc); }
 
+typedef struct {
+  int pos;
+  int line;
+  cc_token_t cur;
+  cc_token_t peek_buf;
+  int has_peek;
+} cc_lexer_checkpoint_t;
+
+static void cc_checkpoint_lexer(cc_state_t *cc,
+                                cc_lexer_checkpoint_t *checkpoint) {
+  checkpoint->pos = cc->pos;
+  checkpoint->line = cc->line;
+  checkpoint->cur = cc->cur;
+  checkpoint->peek_buf = cc->peek_buf;
+  checkpoint->has_peek = cc->has_peek;
+}
+
+static void cc_restore_lexer(cc_state_t *cc,
+                             const cc_lexer_checkpoint_t *checkpoint) {
+  cc->pos = checkpoint->pos;
+  cc->line = checkpoint->line;
+  cc->cur = checkpoint->cur;
+  cc->peek_buf = checkpoint->peek_buf;
+  cc->has_peek = checkpoint->has_peek;
+}
+
 static int cc_expect(cc_state_t *cc, cc_token_type_t type) {
   cc_token_t tok = cc_next(cc);
   if (tok.type != type) {
@@ -1155,6 +1181,7 @@ static int cc_is_type_or_typedef(cc_state_t *cc, cc_token_t tok) {
 /* Track what kind of value the last expression produced */
 static int cc_last_expr_struct_index; /* which struct, if TYPE_STRUCT */
 static int cc_last_expr_indirect_lvalue;
+static cc_symbol_t *cc_last_expr_direct_lvalue_sym;
 /* Inner-dimension stride for 3D-array expressions. When > 0, the
  * current expression still has another dimension to index into and
  * cc_last_expr_elem_size is the FIRST stride (rows); cc_last_expr_dim2
@@ -2385,6 +2412,9 @@ static void emit_update_xmm0_scalar(cc_state_t *cc, int is_double,
   emit_sse_scalar_op(cc, is_double, decrement ? 0x5C : 0x58, 0, 1);
 }
 
+static int cc_emit_indirect_scalar_store(cc_state_t *cc,
+                                         cc_type_t object_type);
+
 /* Update a direct local, parameter, or global variable. A postfix floating
  * expression keeps its original payload in XMM2 while XMM0 is updated and
  * stored. The integer path uses the existing stack preservation. */
@@ -2458,6 +2488,38 @@ static int cc_emit_variable_update(cc_state_t *cc, cc_symbol_t *sym,
   }
 
   cc_last_expr_type = sym->type;
+  return 1;
+}
+
+/* Update a floating object whose evaluated address remains in EAX and whose
+ * current value is already in XMM0. The address is saved before the update
+ * helper uses EAX for the exact integer one. */
+static int cc_emit_indirect_floating_update(cc_state_t *cc,
+                                            cc_type_t object_type,
+                                            int decrement,
+                                            int preserve_old) {
+  int is_double;
+
+  if (object_type != TYPE_FLOAT && object_type != TYPE_DOUBLE) {
+    cc_error(cc, "indirect increment or decrement is not supported");
+    return 0;
+  }
+
+  is_double = object_type == TYPE_DOUBLE;
+  emit_push_eax(cc);
+  if (preserve_old)
+    emit_movaps_xmm_xmm(cc, 2, 0);
+  emit_update_xmm0_scalar(cc, is_double, decrement);
+  emit_pop_eax(cc);
+  if (!cc_emit_indirect_scalar_store(cc, object_type))
+    return 0;
+  if (preserve_old)
+    emit_movaps_xmm_xmm(cc, 0, 2);
+
+  cc_last_expr_type = object_type;
+  cc_last_expr_indirect_lvalue = 0;
+  cc_last_expr_direct_lvalue_sym = NULL;
+  cc_last_xmm = 0;
   return 1;
 }
 
@@ -3435,6 +3497,8 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
       cc_next(cc); /* consume '(' */
       cc_emit_intrinsic(cc, intr);
       cc_reset_expr_subscript_metadata();
+      cc_last_expr_direct_lvalue_sym = NULL;
+      cc_last_expr_indirect_lvalue = 0;
       return;
     }
     cc_next(cc); /* consume '(' */
@@ -3593,6 +3657,8 @@ static void cc_parse_ident_expr(cc_state_t *cc) {
     }
     cc_seed_pointer_subscript_metadata(cc, cc_last_expr_type,
                                        call_ret_struct_index);
+    cc_last_expr_direct_lvalue_sym = NULL;
+    cc_last_expr_indirect_lvalue = 0;
     return;
   }
 
@@ -3726,10 +3792,8 @@ static void cc_parse_primary(cc_state_t *cc) {
 
   cc_reset_expr_subscript_metadata();
   cc_last_expr_indirect_lvalue = 0;
+  cc_last_expr_direct_lvalue_sym = NULL;
   cc_token_t tok = cc_next(cc);
-  cc_symbol_t *postfix_lvalue_sym = NULL;
-  int postfix_lvalue_valid = 0;
-  int postfix_indirect_lvalue = 0;
   int address_of_array_element = 0;
   int address_of_member = 0;
 
@@ -3785,8 +3849,7 @@ static void cc_parse_primary(cc_state_t *cc) {
       if (sym && !sym->is_array && sym->type != TYPE_STRUCT &&
           (sym->kind == SYM_LOCAL || sym->kind == SYM_PARAM ||
            sym->kind == SYM_GLOBAL)) {
-        postfix_lvalue_sym = sym;
-        postfix_lvalue_valid = 1;
+        cc_last_expr_direct_lvalue_sym = sym;
       }
     }
     cc_parse_ident_expr(cc);
@@ -3904,6 +3967,7 @@ static void cc_parse_primary(cc_state_t *cc) {
     cc_last_expr_type = TYPE_UINT;
     cc_last_expr_struct_index = -1;
     cc_last_expr_indirect_lvalue = 0;
+    cc_last_expr_direct_lvalue_sym = NULL;
     cc_reset_expr_subscript_metadata();
     break;
   }
@@ -3976,6 +4040,8 @@ static void cc_parse_primary(cc_state_t *cc) {
       cc_seed_pointer_subscript_metadata(cc, cast_type, cast_si);
       cc_last_expr_type = cast_type;
       cc_last_expr_struct_index = cast_si;
+      cc_last_expr_direct_lvalue_sym = NULL;
+      cc_last_expr_indirect_lvalue = 0;
     } else {
       int saved_sizeof_simd_row_depth = cc_sizeof_simd_row_depth;
       int saved_grouped_simd_row_depth = cc_grouped_simd_row_depth;
@@ -4002,8 +4068,8 @@ static void cc_parse_primary(cc_state_t *cc) {
       return;
     }
     (void)cc_emit_indirect_scalar_load(cc, object_type);
-    postfix_indirect_lvalue = 1;
     cc_last_expr_indirect_lvalue = 1;
+    cc_last_expr_direct_lvalue_sym = NULL;
     break;
   }
 
@@ -4059,6 +4125,8 @@ static void cc_parse_primary(cc_state_t *cc) {
       cc_last_expr_type = cc_object_pointer_type(sym->type);
     }
     cc_last_expr_struct_index = sym->struct_index;
+    cc_last_expr_direct_lvalue_sym = NULL;
+    cc_last_expr_indirect_lvalue = 0;
     cc_last_expr_dim2 = (sym->is_array) ? sym->array_dim2 : 0;
     cc_last_expr_array_rank = sym->is_array ? sym->array_rank : 0;
     cc_last_expr_array_elem_type =
@@ -4100,6 +4168,8 @@ static void cc_parse_primary(cc_state_t *cc) {
     emit_movzx_eax_al(cc);
     cc_last_expr_type = TYPE_INT;
     cc_reset_expr_subscript_metadata();
+    cc_last_expr_direct_lvalue_sym = NULL;
+    cc_last_expr_indirect_lvalue = 0;
     break;
   }
 
@@ -4118,6 +4188,8 @@ static void cc_parse_primary(cc_state_t *cc) {
     emit8(cc, 0xD0); /* not eax */
     cc_last_expr_type = operand_type == TYPE_UINT ? TYPE_UINT : TYPE_INT;
     cc_reset_expr_subscript_metadata();
+    cc_last_expr_direct_lvalue_sym = NULL;
+    cc_last_expr_indirect_lvalue = 0;
     break;
   }
 
@@ -4156,6 +4228,8 @@ static void cc_parse_primary(cc_state_t *cc) {
       return;
     }
     cc_reset_expr_subscript_metadata();
+    cc_last_expr_direct_lvalue_sym = NULL;
+    cc_last_expr_indirect_lvalue = 0;
     break;
   }
 
@@ -4254,49 +4328,52 @@ static void cc_parse_primary(cc_state_t *cc) {
       cc_last_expr_elem_size = elem_size;
       cc_last_expr_array_elem_type = alloc_type;
     }
+    cc_last_expr_direct_lvalue_sym = NULL;
+    cc_last_expr_indirect_lvalue = 0;
 
     break;
   }
 
   case CC_TOK_PLUSPLUS: {
-    /* Pre-increment: ++var */
-    if (cc_peek(cc).type == CC_TOK_STAR) {
-      cc_error(cc, "indirect increment or decrement is not supported");
+    /* Prefix update parses one complete primary designator. Direct variables
+     * use their symbol path. A derived floating lvalue keeps its address in
+     * EAX until the indirect update helper saves it. */
+    cc_parse_primary(cc);
+    if (cc->error)
+      return;
+    if (cc_last_expr_indirect_lvalue) {
+      if (!cc_emit_indirect_floating_update(
+              cc, cc_last_expr_type, 0, 0))
+        return;
+    } else if (cc_last_expr_direct_lvalue_sym) {
+      if (!cc_emit_variable_update(
+              cc, cc_last_expr_direct_lvalue_sym, 0, 0))
+        return;
+      cc_last_expr_direct_lvalue_sym = NULL;
+    } else {
+      cc_error(cc, "increment or decrement requires a scalar variable");
       return;
     }
-    cc_token_t id = cc_next(cc);
-    if (id.type != CC_TOK_IDENT) {
-      cc_error(cc, "expected variable after ++");
-      return;
-    }
-    cc_symbol_t *sym = cc_sym_find(cc, id.text);
-    if (!sym) {
-      cc_error(cc, "undefined variable");
-      return;
-    }
-    if (!cc_emit_variable_update(cc, sym, 0, 0))
-      return;
     break;
   }
 
   case CC_TOK_MINUSMINUS: {
-    /* Pre-decrement: --var */
-    if (cc_peek(cc).type == CC_TOK_STAR) {
-      cc_error(cc, "indirect increment or decrement is not supported");
+    cc_parse_primary(cc);
+    if (cc->error)
+      return;
+    if (cc_last_expr_indirect_lvalue) {
+      if (!cc_emit_indirect_floating_update(
+              cc, cc_last_expr_type, 1, 0))
+        return;
+    } else if (cc_last_expr_direct_lvalue_sym) {
+      if (!cc_emit_variable_update(
+              cc, cc_last_expr_direct_lvalue_sym, 1, 0))
+        return;
+      cc_last_expr_direct_lvalue_sym = NULL;
+    } else {
+      cc_error(cc, "increment or decrement requires a scalar variable");
       return;
     }
-    cc_token_t id = cc_next(cc);
-    if (id.type != CC_TOK_IDENT) {
-      cc_error(cc, "expected variable after --");
-      return;
-    }
-    cc_symbol_t *sym = cc_sym_find(cc, id.text);
-    if (!sym) {
-      cc_error(cc, "undefined variable");
-      return;
-    }
-    if (!cc_emit_variable_update(cc, sym, 1, 0))
-      return;
     break;
   }
 
@@ -4314,7 +4391,8 @@ static void cc_parse_primary(cc_state_t *cc) {
     if (next.type == CC_TOK_DOT &&
         (cc_last_expr_type == TYPE_FLOAT4 ||
          cc_last_expr_type == TYPE_DOUBLE2)) {
-      postfix_lvalue_valid = 0;
+      cc_last_expr_direct_lvalue_sym = NULL;
+      cc_last_expr_indirect_lvalue = 0;
       if (!cc_extract_simd_lane(cc, cc_last_expr_type))
         return;
       continue;
@@ -4324,7 +4402,8 @@ static void cc_parse_primary(cc_state_t *cc) {
     if (next.type == CC_TOK_DOT || next.type == CC_TOK_ARROW) {
       if (cc_reject_incomplete_simd_row(cc))
         return;
-      postfix_lvalue_valid = 0;
+      cc_last_expr_direct_lvalue_sym = NULL;
+      cc_last_expr_indirect_lvalue = 0;
       cc_next(cc); /* consume . or -> */
       cc_token_t field_tok = cc_next(cc);
       if (field_tok.type != CC_TOK_IDENT) {
@@ -4449,6 +4528,8 @@ static void cc_parse_primary(cc_state_t *cc) {
             cc_last_xmm = 0;
           }
           cc_seed_pointer_subscript_metadata(cc, mret, mret_si);
+          cc_last_expr_direct_lvalue_sym = NULL;
+          cc_last_expr_indirect_lvalue = 0;
         }
         continue;
       }
@@ -4499,13 +4580,17 @@ static void cc_parse_primary(cc_state_t *cc) {
         cc_last_expr_type = TYPE_STRUCT_PTR;
         cc_last_expr_struct_index = field->struct_index;
       } else {
-        (void)cc_emit_indirect_scalar_load(cc, field->type);
+        if (!cc_emit_indirect_scalar_load(cc, field->type))
+          return;
+        if (field->type == TYPE_FLOAT || field->type == TYPE_DOUBLE)
+          cc_last_expr_indirect_lvalue = 1;
       }
       continue;
     }
 
     if (next.type == CC_TOK_LBRACK) {
-      postfix_lvalue_valid = 0;
+      cc_last_expr_direct_lvalue_sym = NULL;
+      cc_last_expr_indirect_lvalue = 0;
       /* Array subscript: expr[index] */
       cc_next(cc);
       cc_type_t base_type = cc_last_expr_type;
@@ -4539,6 +4624,8 @@ static void cc_parse_primary(cc_state_t *cc) {
       emit_pop_ebx(cc); /* pop base into ebx */
       emit8(cc, 0x01);
       emit8(cc, 0xD8); /* add eax, ebx */
+      cc_last_expr_direct_lvalue_sym = NULL;
+      cc_last_expr_indirect_lvalue = 0;
 
       /* Determine result type */
       if (base_type == TYPE_STRUCT_PTR) {
@@ -4587,6 +4674,8 @@ static void cc_parse_primary(cc_state_t *cc) {
           } else if (!cc_emit_indirect_scalar_load(
                          cc, base_array_elem_type)) {
             return;
+          } else {
+            cc_last_expr_indirect_lvalue = 1;
           }
         }
       } else if (base_array_elem_type == TYPE_FLOAT4 ||
@@ -4651,6 +4740,8 @@ static void cc_parse_primary(cc_state_t *cc) {
           cc_error(cc, "address of an array row is not supported");
           return;
         }
+        cc_last_expr_direct_lvalue_sym = NULL;
+        cc_last_expr_indirect_lvalue = 0;
         address_of_array_element = 0;
       }
       continue;
@@ -4660,15 +4751,26 @@ static void cc_parse_primary(cc_state_t *cc) {
       if (cc_reject_incomplete_simd_row(cc))
         return;
       cc_next(cc);
-      if (!postfix_lvalue_valid || !postfix_lvalue_sym) {
-        cc_error(cc, (postfix_indirect_lvalue ||
-                      cc_last_expr_indirect_lvalue)
+      if (!cc_last_expr_direct_lvalue_sym &&
+          cc_last_expr_indirect_lvalue &&
+          (cc_last_expr_type == TYPE_FLOAT ||
+           cc_last_expr_type == TYPE_DOUBLE)) {
+        if (!cc_emit_indirect_floating_update(
+                cc, cc_last_expr_type, 0, 1))
+          return;
+        break;
+      }
+      if (!cc_last_expr_direct_lvalue_sym) {
+        cc_error(cc, cc_last_expr_indirect_lvalue
                          ? "indirect increment or decrement is not supported"
                          : "increment or decrement requires a scalar variable");
         return;
       }
-      if (!cc_emit_variable_update(cc, postfix_lvalue_sym, 0, 1))
+      if (!cc_emit_variable_update(
+              cc, cc_last_expr_direct_lvalue_sym, 0, 1))
         return;
+      cc_last_expr_direct_lvalue_sym = NULL;
+      cc_last_expr_indirect_lvalue = 0;
       break;
     }
 
@@ -4676,15 +4778,26 @@ static void cc_parse_primary(cc_state_t *cc) {
       if (cc_reject_incomplete_simd_row(cc))
         return;
       cc_next(cc);
-      if (!postfix_lvalue_valid || !postfix_lvalue_sym) {
-        cc_error(cc, (postfix_indirect_lvalue ||
-                      cc_last_expr_indirect_lvalue)
+      if (!cc_last_expr_direct_lvalue_sym &&
+          cc_last_expr_indirect_lvalue &&
+          (cc_last_expr_type == TYPE_FLOAT ||
+           cc_last_expr_type == TYPE_DOUBLE)) {
+        if (!cc_emit_indirect_floating_update(
+                cc, cc_last_expr_type, 1, 1))
+          return;
+        break;
+      }
+      if (!cc_last_expr_direct_lvalue_sym) {
+        cc_error(cc, cc_last_expr_indirect_lvalue
                          ? "indirect increment or decrement is not supported"
                          : "increment or decrement requires a scalar variable");
         return;
       }
-      if (!cc_emit_variable_update(cc, postfix_lvalue_sym, 1, 1))
+      if (!cc_emit_variable_update(
+              cc, cc_last_expr_direct_lvalue_sym, 1, 1))
         return;
+      cc_last_expr_direct_lvalue_sym = NULL;
+      cc_last_expr_indirect_lvalue = 0;
       break;
     }
 
@@ -4735,6 +4848,9 @@ static void cc_parse_expression_impl(cc_state_t *cc, int min_prec) {
     int right_is_fp = (right_type == TYPE_FLOAT || right_type == TYPE_DOUBLE);
     int right_is_simd =
         (right_type == TYPE_FLOAT4 || right_type == TYPE_DOUBLE2);
+
+    cc_last_expr_direct_lvalue_sym = NULL;
+    cc_last_expr_indirect_lvalue = 0;
 
     /* A binary expression is a computed value, not the array object that a
      * subscript operand may have produced. */
@@ -4964,6 +5080,8 @@ static void cc_parse_expression_impl(cc_state_t *cc, int min_prec) {
      * a ? b : c ? d : e  => a ? b : (c ? d : e).*/
     cc_parse_expression(cc, 1);
     cc_type_t false_type = cc_last_expr_type;
+    cc_last_expr_direct_lvalue_sym = NULL;
+    cc_last_expr_indirect_lvalue = 0;
 
     /* End of ternary expression. */
     patch32(cc, jmp_off + 1, (uint32_t)(cc->code_pos - (jmp_off + 5)));
@@ -5142,6 +5260,7 @@ static int cc_emit_indirect_scalar_load(cc_state_t *cc,
     return 0;
   }
   cc_last_expr_type = object_type;
+  cc_last_expr_direct_lvalue_sym = NULL;
   cc_seed_pointer_subscript_metadata(cc, object_type, struct_index);
   return 1;
 }
@@ -5805,6 +5924,22 @@ static void cc_parse_subscript_assignment(cc_state_t *cc, const char *name) {
     cc_error(cc, is_simd
                      ? "SIMD array assignment requires every subscript"
                      : "array assignment requires every subscript");
+    return;
+  }
+
+  if (cc_peek(cc).type == CC_TOK_PLUSPLUS ||
+      cc_peek(cc).type == CC_TOK_MINUSMINUS) {
+    int decrement = cc_next(cc).type == CC_TOK_MINUSMINUS;
+    if (!is_fp) {
+      cc_error(cc, "indirect increment or decrement is not supported");
+      return;
+    }
+    if (!cc_emit_indirect_scalar_load(cc, elem_type))
+      return;
+    cc_last_expr_indirect_lvalue = 1;
+    if (!cc_emit_indirect_floating_update(
+            cc, elem_type, decrement, 0))
+      return;
     return;
   }
 
@@ -7097,14 +7232,13 @@ static void cc_parse_for_initializer(cc_state_t *cc) {
       /* declaration already consumed semicolon */
     } else {
       /* Expression statement */
+      cc_lexer_checkpoint_t checkpoint;
+      cc_checkpoint_lexer(cc, &checkpoint);
       cc_token_t id = cc_next(cc);
       if (id.type == CC_TOK_IDENT && cc_is_assignment_op(cc_peek(cc).type)) {
         cc_parse_assignment(cc, id.text);
       } else {
-        /* Put token back and parse as expression */
-        cc->has_peek = 1;
-        cc->peek_buf = cc->cur;
-        cc->cur = id;
+        cc_restore_lexer(cc, &checkpoint);
         cc_parse_expression(cc, 1);
       }
       cc_expect(cc, CC_TOK_SEMICOLON);
@@ -7116,6 +7250,8 @@ static void cc_parse_for_initializer(cc_state_t *cc) {
 
 static void cc_parse_for_increment(cc_state_t *cc) {
   if (cc_peek(cc).type != CC_TOK_RPAREN) {
+    cc_lexer_checkpoint_t checkpoint;
+    cc_checkpoint_lexer(cc, &checkpoint);
     cc_token_t id = cc_next(cc);
     if (id.type == CC_TOK_IDENT && cc_is_assignment_op(cc_peek(cc).type)) {
       cc_parse_assignment(cc, id.text);
@@ -7129,9 +7265,7 @@ static void cc_parse_for_increment(cc_state_t *cc) {
       cc_symbol_t *sym = cc_sym_find(cc, id.text);
       cc_emit_variable_update(cc, sym, 1, 0);
     } else {
-      cc->has_peek = 1;
-      cc->peek_buf = cc->cur;
-      cc->cur = id;
+      cc_restore_lexer(cc, &checkpoint);
       cc_parse_expression(cc, 1);
     }
   }
@@ -7768,6 +7902,23 @@ static void cc_parse_simple_statement(cc_state_t *cc) {
 
       /* Expect assignment operator */
       cc_token_t assign_op = cc_peek(cc);
+      if (assign_op.type == CC_TOK_PLUSPLUS ||
+          assign_op.type == CC_TOK_MINUSMINUS) {
+        int decrement = cc_next(cc).type == CC_TOK_MINUSMINUS;
+        if (ftype != TYPE_FLOAT && ftype != TYPE_DOUBLE) {
+          cc_error(cc,
+                   "indirect increment or decrement is not supported");
+          break;
+        }
+        if (!cc_emit_indirect_scalar_load(cc, ftype))
+          break;
+        cc_last_expr_indirect_lvalue = 1;
+        if (!cc_emit_indirect_floating_update(
+                cc, ftype, decrement, 0))
+          break;
+        cc_expect(cc, CC_TOK_SEMICOLON);
+        break;
+      }
       if (!cc_is_assignment_op(assign_op.type)) {
         if (ftype != TYPE_STRUCT)
           (void)cc_emit_indirect_scalar_load(cc, ftype);

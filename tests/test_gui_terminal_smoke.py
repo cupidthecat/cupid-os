@@ -131,6 +131,8 @@ def _frontier_command_outputs():
             "control=255 nan=1\n"
             "[feature13-update] PASS local=48 global=40 "
             "for=3 zero=0x80000000 nan=2\n"
+            "[feature13-indirect-update] PASS score=41 "
+            "once=3 zero=0x80000000\n"
             "[feature13-lvalue] PASS array=42 pointer=13 "
             "record=26 sizes=56 unevaluated=1\n"
             "[feature13-unsigned] PASS conversions=4 "
@@ -139,6 +141,22 @@ def _frontier_command_outputs():
             "[feature13-call] PASS checks=10\n"
             "PASS feature13_double\n"
             "[cupidc] JIT execution complete\n"
+        ),
+        (
+            "[cupidc] AOT compile: /bin/feature13_derived_aot.cc -> "
+            "/feature13_derived_aot\n"
+            "Compiled: 8192 bytes code, 256 bytes data\n"
+            "[cupidc] Wrote ELF: /feature13_derived_aot "
+            "(8192 bytes code, 256 bytes data, entry=0x01100000, "
+            "total=12288 bytes)\n"
+            "Written to /feature13_derived_aot\n"
+        ),
+        (
+            "[elf] Loaded /feature13_derived_aot as PID 11 "
+            "(ELF32, 12288 bytes at 0x01100000)\n"
+            "[feature13-derived-aot] PASS score=41 "
+            "once=2 zero=0x80000000\n"
+            '[PROCESS] PID 11 "/feature13_derived_aot" exiting\n'
         ),
         (
             "[cupidc] JIT compile: /bin/feature14_simd.cc\n"
@@ -1378,6 +1396,8 @@ class FrontierRuntimeContractTests(unittest.TestCase):
                 "dis /bin/test_fpaug.cc",
                 "/bin/test_fpaug.cc",
                 "/bin/feature13_double.cc",
+                "ccc /bin/feature13_derived_aot.cc -o /feature13_derived_aot",
+                "exec /feature13_derived_aot",
                 "/bin/feature14_simd.cc",
                 "/bin/feature15_libm.cc",
                 "/bin/feature17_iso.cc",
@@ -2244,11 +2264,11 @@ class FrontierRuntimeContractTests(unittest.TestCase):
             REPO_ROOT / "bin" / "feature13_double.cc"
         ).read_text(encoding="utf-8")
         for expression in (
-            "update_float_old = update_float++",
-            "update_float_new = ++update_float",
+            "update_float_old = (update_float)++",
+            "update_float_new = ++(update_float)",
             "update_float--;",
-            "update_double_old = update_double--",
-            "update_double_new = --update_double",
+            "update_double_old = ((update_double))--",
+            "update_double_new = --((update_double))",
             "update_double++;",
             "feature13_update_global_float++;",
             "--feature13_update_global_double;",
@@ -2298,6 +2318,73 @@ class FrontierRuntimeContractTests(unittest.TestCase):
         ):
             with self.subTest(expression=expression):
                 self.assertIn(expression, source)
+
+    def test_feature13_requires_indirect_floating_update_evidence(self):
+        command = _frontier_command("/bin/feature13_double.cc")
+        expected = command.expected_pattern
+        source = (
+            REPO_ROOT / "bin" / "feature13_double.cc"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn(r"\[feature13-indirect-update\] PASS", expected)
+        self.assertIn(
+            "[feature13-indirect-update] FAIL",
+            gui_terminal_smoke.FRONTIER_RUNTIME_REJECTED_MARKERS,
+        )
+        for expression in (
+            "(*feature13_indirect_float_pointer(&pointer_value))++",
+            "++indirect_values[feature13_indirect_index()]",
+            "feature13_indirect_record(&indirect_record)->bias--",
+            "*(int*)&pointer_old",
+        ):
+            with self.subTest(expression=expression):
+                self.assertIn(expression, source)
+
+    def test_feature13_requires_aot_and_external_update_evidence(self):
+        aot = _frontier_command(
+            "ccc /bin/feature13_derived_aot.cc -o /feature13_derived_aot"
+        )
+        aot_output = _frontier_command_output(aot.text)
+        external = _frontier_command("exec /feature13_derived_aot")
+        external_output = _frontier_command_output(external.text)
+        self.assertIn(
+            "[feature13-derived-aot] FAIL",
+            gui_terminal_smoke.FRONTIER_RUNTIME_REJECTED_MARKERS,
+        )
+
+        self.assertIsNotNone(
+            re.search(aot.expected_pattern, aot_output, re.S | re.M)
+        )
+        self.assertIsNotNone(
+            re.search(
+                external.expected_pattern,
+                external_output,
+                re.S | re.M,
+            )
+        )
+        for marker in (
+            "[elf] Loaded /feature13_derived_aot as PID",
+            "[feature13-derived-aot] PASS",
+            '[PROCESS] PID 11 "/feature13_derived_aot" exiting',
+        ):
+            with self.subTest(marker=marker):
+                self.assertIsNone(
+                    re.search(
+                        external.expected_pattern,
+                        external_output.replace(marker, ""),
+                        re.S | re.M,
+                    )
+                )
+        self.assertIsNone(
+            re.search(
+                external.expected_pattern,
+                external_output.replace(
+                    '[PROCESS] PID 11 "/feature13_derived_aot" exiting',
+                    '[PROCESS] PID 12 "/feature13_derived_aot" exiting',
+                ),
+                re.S | re.M,
+            )
+        )
 
     def test_feature13_requires_unsigned_word_runtime_evidence(self):
         command = _frontier_command("/bin/feature13_double.cc")
@@ -2698,9 +2785,10 @@ class FrontierRuntimeContractTests(unittest.TestCase):
 
     def test_system_image_tracks_the_iso_runtime_fixture(self):
         makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
+        logical_makefile = re.sub(r"\\\r?\n[ \t]*", " ", makefile)
         rule = re.search(
             r"^\$\(OS_IMAGE\): ([^\n]+)$",
-            makefile,
+            logical_makefile,
             re.MULTILINE,
         )
         self.assertIsNotNone(rule)

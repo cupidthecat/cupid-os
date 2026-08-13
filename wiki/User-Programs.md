@@ -126,6 +126,11 @@ decimal payloads, including halfway ties, a minimum subnormal, overflow, and
 signed zero. It also covers typed floating lvalues, mixed-width calls, and
 libm before reporting its overall result.
 
+`feature13_derived_aot` is the external executable check for derived floating
+updates. The runtime compiles it with `ccc`, loads it with `exec`, checks both
+one-evaluation counters and the stored values, and requires the loaded process
+to exit cleanly.
+
 ---
 
 ## Program Structure

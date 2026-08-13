@@ -107,7 +107,8 @@ Private JIT and AOT programs can use ordinary scalar floating lvalues across
 the supported array, pointer, parameter, and record forms without narrowing
 through integers. No build owner or host-tool dependency changes.
 
-This is not complete pointer or aggregate support. Deeper floating pointers,
-pointer-to-array types, indirect floating updates, fixed SIMD arrays, and the
+At this decision point, indirect floating updates were still open. ADR 0273
+supersedes that part by covering dereference, index, and record-field updates.
+Deeper floating pointers, pointer-to-array types, fixed SIMD arrays, and the
 pointer-valued field store boundary remain open. `TempleOS/` remains untouched
 reference material.

@@ -358,7 +358,7 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
         feature = next(
             item for item in audit["features"] if item["id"] == "c.control.return"
         )
-        self.assertEqual(feature["occurrences"], 23688)
+        self.assertEqual(feature["occurrences"], 23691)
 
     def test_active_for_statement_inventory_is_drift_gated(self):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
@@ -401,8 +401,8 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
         audit_path = REPO_ROOT / "docs/bootstrap/audits/active-build.json"
         audit = json.loads(audit_path.read_text(encoding="utf-8"))
         features = {item["id"]: item for item in audit["features"]}
-        self.assertEqual(features["c.control.if"]["occurrences"], 38889)
-        self.assertEqual(len(features["c.control.if"]["files"]), 371)
+        self.assertEqual(features["c.control.if"]["occurrences"], 38890)
+        self.assertEqual(len(features["c.control.if"]["files"]), 372)
         self.assertEqual(features["c.control.else"]["occurrences"], 4873)
         self.assertEqual(len(features["c.control.else"]["files"]), 279)
 
@@ -423,12 +423,14 @@ class ToolchainCupidCFrontendContractTests(unittest.TestCase):
             "bin/shell.h",
             "user/cupid.h",
             "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+            "toolchain/hosted/i386-linux/include/direct.h",
             "toolchain/hosted/i386-linux/include/errno.h",
             "toolchain/hosted/i386-linux/include/stdint.h",
             "toolchain/hosted/i386-linux/include/stdio.h",
             "toolchain/hosted/i386-linux/include/stdlib.h",
             "toolchain/hosted/i386-linux/include/string.h",
             "toolchain/hosted/i386-linux/include/unistd.h",
+            "toolchain/hosted/i386-linux/include/windows.h",
         }
         headers = sorted(
             "/" + source["path"]

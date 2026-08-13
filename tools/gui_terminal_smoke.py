@@ -206,6 +206,8 @@ FRONTIER_RUNTIME_COMMANDS = (
             r"control=255 nan=1"
             r".*?\[feature13-update\] PASS local=48 global=40 "
             r"for=3 zero=0x80000000 nan=2"
+            r".*?\[feature13-indirect-update\] PASS score=41 "
+            r"once=3 zero=0x80000000"
             r".*?\[feature13-lvalue\] PASS array=42 pointer=13 "
             r"record=26 sizes=56 unevaluated=1"
             r".*?\[feature13-unsigned\] PASS conversions=4 "
@@ -217,6 +219,30 @@ FRONTIER_RUNTIME_COMMANDS = (
         allowed_failure_pattern=UNARY_TYPE_DIAGNOSTIC_PATTERN,
         allowed_failure_literal=UNARY_TYPE_DIAGNOSTIC_LITERAL,
         allowed_failure_context_pattern=FEATURE13_COMPILE_PATTERN,
+    ),
+    TerminalCommand(
+        "ccc /bin/feature13_derived_aot.cc -o /feature13_derived_aot",
+        (
+            r"\[cupidc\] AOT compile: /bin/feature13_derived_aot\.cc -> "
+            r"/feature13_derived_aot"
+            r".*?\[cupidc\] Wrote ELF: /feature13_derived_aot "
+            r"\([1-9][0-9]* bytes code, [0-9]+ bytes data, "
+            r"entry=0x(?:0x)?[0-9A-Fa-f]+, "
+            r"total=[1-9][0-9]* bytes\)"
+        ),
+        timeout_seconds=180.0,
+    ),
+    TerminalCommand(
+        "exec /feature13_derived_aot",
+        (
+            r"\[elf\] Loaded /feature13_derived_aot as PID "
+            r"(?P<pid>[1-9][0-9]*)"
+            r".*?\[feature13-derived-aot\] PASS score=41 "
+            r"once=2 zero=0x80000000"
+            r".*?\[PROCESS\] PID (?P=pid) "
+            r'"/feature13_derived_aot" exiting'
+        ),
+        timeout_seconds=180.0,
     ),
     TerminalCommand(
         "/bin/feature14_simd.cc",
@@ -569,6 +595,8 @@ FRONTIER_RUNTIME_REJECTED_MARKERS = (
     "[feature13-compare] FAIL",
     "[feature13-truth] FAIL",
     "[feature13-update] FAIL",
+    "[feature13-indirect-update] FAIL",
+    "[feature13-derived-aot] FAIL",
     "[feature13-lvalue] FAIL",
     "[feature13-unsigned-convert] FAIL",
     "[feature13-unsigned-remainder] FAIL",

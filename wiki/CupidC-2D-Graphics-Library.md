@@ -13,7 +13,7 @@ The private compiler exposes the 46 bindings that were missing for
 GUI module initialization, theme persistence, and three built-in theme
 accessors. The accessors return pointers to the existing constant theme
 objects. The other 43 bindings call their linked kernel implementations
-directly. All 106 runnable top-level programs pass private AOT compilation.
+directly. All 107 runnable top-level programs pass private AOT compilation.
 The fixed guest frontier runs the graphics test through AOT and JIT, checks
 voluntary-exit recovery from nested fullscreen ownership, then reuses that PID
 for a second nested owner. The old generation's delayed request must skip it;

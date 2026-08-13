@@ -1805,7 +1805,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             contract = generated["contracts"][
                 "c_preprocessor_line_directives"
             ]
-            self.assertEqual(contract["source_files"], 700)
+            self.assertEqual(contract["source_files"], 701)
             self.assertEqual(contract["named_line_occurrences"], 0)
             self.assertEqual(contract["direct_line_occurrences"], 0)
             self.assertEqual(contract["pp_token_line_occurrences"], 0)
@@ -1826,7 +1826,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertIn(
                 "`c_preprocessor_line_directives` | `pass` | "
                 "0 named #line directives (0 direct, 0 pp-token; 0 filename); "
-                "0 numeric markers; 700 source files; max conditional depth 0",
+                "0 numeric markers; 701 source files; max conditional depth 0",
                 summary.read_text(encoding="utf-8"),
             )
 
@@ -2725,7 +2725,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 checked["contracts"]["c_preprocessor_include_operands"],
                 contract,
             )
-            self.assertEqual(contract["source_files"], 700)
+            self.assertEqual(contract["source_files"], 701)
             self.assertEqual(contract["include_occurrences"], 2450)
             self.assertEqual(contract["direct_quoted_occurrences"], 2197)
             self.assertEqual(contract["direct_angle_occurrences"], 253)
@@ -3344,7 +3344,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "DOOM_TREE_I386": 80,
                 "USER_I386": 3,
                 "FREESTANDING_I386": 1,
-                "CUPID_RUNTIME": 107,
+                "CUPID_RUNTIME": 108,
                 "HOSTED_TOOLCHAIN_64": 0,
                 "HOSTED_KERNEL_BRIDGE_64": 0,
                 "HOSTED_I386_LINUX": 33,
@@ -3353,7 +3353,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "HOSTED_I386_LINUX_GNU": 3,
             },
         )
-        self.assertEqual(len(active), 393)
+        self.assertEqual(len(active), 394)
         for expected in (
             ("KERNEL_I386", "/kernel/core/kernel.cc"),
             ("KERNEL_I386", "/kernel/audio/memio.cc"),
@@ -4132,6 +4132,20 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         audit = json.loads(ACTIVE_BUILD_MANIFEST.read_text(encoding="utf-8"))
         expected_content = module._cupidobj_install_source_expected_content(
             audit["build"]["transforms"]
+        )
+        bin_content = expected_content["kernel/util/bin_programs_gen.cc"]
+        self.assertIn("bin/feature13_derived_aot.cc", bin_content)
+        self.assertEqual(
+            len(
+                {
+                    path
+                    for path in bin_content
+                    if path.startswith("bin/")
+                    and path.count("/") == 1
+                    and path.endswith(".cc")
+                }
+            ),
+            108,
         )
         checked_inputs = [
             "Makefile",
@@ -6685,9 +6699,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 },
                 {
                     "status": "pass",
-                    "tracked_translation_units": 393,
+                    "tracked_translation_units": 394,
                     "generated_translation_units": 4,
-                    "total_translation_units": 397,
+                    "total_translation_units": 398,
                     "include_only_fragments": 22,
                     "delivered_non_root_headers": 2,
                     "deferred_hosted_translation_units": 0,
@@ -6710,7 +6724,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     ("DOOM_TREE_I386", 80, 0),
                     ("USER_I386", 3, 0),
                     ("FREESTANDING_I386", 1, 0),
-                    ("CUPID_RUNTIME", 107, 0),
+                    ("CUPID_RUNTIME", 108, 0),
                     ("HOSTED_TOOLCHAIN_64", 0, 0),
                     ("HOSTED_KERNEL_BRIDGE_64", 0, 0),
                     ("HOSTED_I386_LINUX", 33, 0),
@@ -6764,9 +6778,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(
                 audit_payload["summary"],
                 {
-                    "active_sources": 735,
+                    "active_sources": 736,
                     "features": 255,
-                    "transforms": 450,
+                    "transforms": 451,
                     "unreachable_sources": 25,
                 },
             )
@@ -7301,7 +7315,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 {
                     "cupid_c_compiler": 245,
                     "host_c_compiler": 0,
-                    "host_python": 450,
+                    "host_python": 451,
                 },
             )
 
@@ -7495,7 +7509,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             )
             self.assertIn(
                 "`c_preprocessor_translation_units` | `pass` | "
-                "393 tracked + 4 generated",
+                "394 tracked + 4 generated",
                 summary.read_text(encoding="utf-8"),
             )
             audit_payload["build"]["transforms"].append(
@@ -7930,7 +7944,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         )
         expected_counts = {
             "cupid_assembler": 5,
-            "cupid_object": 191,
+            "cupid_object": 192,
             "cupid_linker": 2,
             "cupid_disassembler": 2,
         }
@@ -8004,7 +8018,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "tools": ["host_python"],
             },
         )
-        self.assertEqual(len(cupid_owned), 440)
+        self.assertEqual(len(cupid_owned), 441)
         self.assertFalse(
             any(
                 transform["operation"] == "recursive_make"

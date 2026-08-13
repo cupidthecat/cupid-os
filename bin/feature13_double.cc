@@ -7,12 +7,31 @@ double feature13_update_global_double;
 float feature13_lvalue_global[2][3];
 uint32_t feature13_unsigned_values[2];
 int feature13_unsigned_index_calls;
+int feature13_indirect_pointer_calls;
+int feature13_indirect_index_calls;
+int feature13_indirect_record_calls;
 
 struct feature13_record {
     float gain;
     double bias;
     float taps[3];
 };
+
+float *feature13_indirect_float_pointer(float *value) {
+    feature13_indirect_pointer_calls += 1;
+    return value;
+}
+
+int feature13_indirect_index() {
+    feature13_indirect_index_calls += 1;
+    return 1;
+}
+
+struct feature13_record *feature13_indirect_record(
+        struct feature13_record *value) {
+    feature13_indirect_record_calls += 1;
+    return value;
+}
 
 float *feature13_lvalue_row() {
     return &feature13_lvalue_global[1][0];
@@ -163,13 +182,13 @@ void main() {
      * while storing an exact one-unit change. Cover local and global
      * variables, statement updates, and the for-increment shortcut. */
     float update_float = 1.25f;
-    float update_float_old = update_float++;
-    float update_float_new = ++update_float;
+    float update_float_old = (update_float)++;
+    float update_float_new = ++(update_float);
     update_float--;
 
     double update_double = 4.5;
-    double update_double_old = update_double--;
-    double update_double_new = --update_double;
+    double update_double_old = ((update_double))--;
+    double update_double_new = --((update_double));
     update_double++;
 
     int update_local_score =
@@ -215,6 +234,45 @@ void main() {
         serial_printf("[feature13-update] PASS local=%d global=%d for=%d zero=%x nan=%d\n",
                       update_local_score, update_global_score,
                       (int)update_for, update_zero_bits, update_nan_score);
+    }
+
+    /* Derived floating updates keep one evaluated address while postfix
+     * expressions return the original payload. */
+    float pointer_value = -0.0f;
+    float indirect_values[2];
+    struct feature13_record indirect_record;
+    indirect_values[1] = 2.25f;
+    indirect_record.bias = 6.5;
+    feature13_indirect_pointer_calls = 0;
+    feature13_indirect_index_calls = 0;
+    feature13_indirect_record_calls = 0;
+
+    float pointer_old =
+        (*feature13_indirect_float_pointer(&pointer_value))++;
+    float indexed_new = ++indirect_values[feature13_indirect_index()];
+    double member_old =
+        feature13_indirect_record(&indirect_record)->bias--;
+    int indirect_update_score =
+        (int)(pointer_value * 4.0f) +
+        (int)(indexed_new * 4.0f) +
+        (int)(indirect_record.bias * 2.0) +
+        (int)(member_old * 2.0);
+    int indirect_update_once =
+        feature13_indirect_pointer_calls +
+        feature13_indirect_index_calls +
+        feature13_indirect_record_calls;
+    int pointer_old_bits = *(int*)&pointer_old;
+
+    if (indirect_update_score != 41 || indirect_update_once != 3 ||
+        pointer_old_bits != (int)0x80000000) {
+        serial_printf("[feature13-indirect-update] FAIL score=%d once=%d zero=%x\n",
+                      indirect_update_score, indirect_update_once,
+                      pointer_old_bits);
+        ok = 0;
+    } else {
+        serial_printf("[feature13-indirect-update] PASS score=%d once=%d zero=%x\n",
+                      indirect_update_score, indirect_update_once,
+                      pointer_old_bits);
     }
 
     /* Keep floating widths attached to arrays, pointers, and record fields.

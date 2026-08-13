@@ -343,9 +343,11 @@ through address expressions, returns, function and method array parameters,
 dereference, subscripts, scaled direct pointer updates, and assignment.
 Structure and class objects, arrays, and pointers keep scalar floating fields
 and one-dimensional fixed floating field arrays. Bounds and dimension products
-are checked before allocation. Deeper floating pointers, indirect floating
-updates, pointer-to-array types, and assignment through a
-pointer-valued floating field subscript remain unsupported.
+are checked before allocation. Prefix and postfix updates work through a
+depth-one pointer, fixed-array index, or floating record field. The compiler
+evaluates each destination once and keeps the exact old payload for postfix.
+Deeper floating pointers, pointer-to-array types, assignment through a
+pointer-valued floating field subscript, and SIMD updates remain unsupported.
 
 Matching float4 and double2 values support direct +, -, *, and /. Fixed arrays
 may have one, two, or three dimensions in global, automatic, block-static, and
@@ -419,6 +421,8 @@ Register tokens: XMM0-7 and ST0-7.
 Test programs:
   `bin/feature12_float.cc`    scalar float arithmetic, casts, element access.
   `bin/feature13_double.cc`   decimal payloads, typed lvalues, calls, and libm.
+  `bin/feature13_derived_aot.cc`
+                              external AOT proof for derived floating updates.
   `bin/feature14_simd.cc`     packed operators, arrays, matrices, cubes, NaNs,
                               and intrinsics.
   `bin/feature15_libm.cc`     29 fixed checks, including seven x87 range paths.

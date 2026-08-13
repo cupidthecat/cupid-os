@@ -305,9 +305,11 @@ All kernel bindings carry their declared result type. The private compiler
 uses that metadata to keep returned integers, pointers, floats, and doubles
 in later expressions and conditions.
 
-Scalar float and double variables support prefix and postfix ++ and --.
-Postfix expressions return the old value, while all four forms store the
-one-unit update. The same path handles locals, parameters, and globals.
+Scalar float and double lvalues support prefix and postfix ++ and --.
+Postfix expressions return the old payload, while all four forms store the
+one-unit update. The same path handles locals, parameters, globals, pointer
+dereferences, fixed-array elements, and scalar fields reached through direct,
+pointer, or indexed-record members. The destination expression runs once.
 
 One-dimensional fixed float and double array symbols preserve their element
 type. Global, automatic, block-static, and persistent REPL arrays use
@@ -321,7 +323,7 @@ returns, array parameters, dereference, subscripts, scaled direct pointer
 updates, and assignment. Structure and class objects, arrays, and pointers
 retain scalar floating fields and one-dimensional fixed floating field arrays.
 Bounds and dimension products are checked before storage is reserved. Deeper
-floating pointers, indirect floating updates, pointer-to-array types, and
+floating pointers, pointer-to-array types, and
 assignment through a pointer-valued floating field subscript
 remain unsupported.
 

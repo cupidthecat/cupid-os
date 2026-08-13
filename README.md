@@ -64,6 +64,7 @@ Recent subsystem work is summarized below. Detailed pages live under `wiki/`, an
 - UHCI and EHCI share an IRQ dispatcher and provide enumeration, HID keyboard and mouse support, hubs up to depth 5, and BBB/SCSI mass storage beneath FAT16.
 - SMP supports up to 32 CPUs through ACPI/MP discovery and INIT-SIPI-SIPI startup. It uses per-CPU LAPIC timers, IOAPIC routing with the 8259 fully masked, a ticket-based big kernel lock, a shared run queue, and IPIs for rescheduling, cross-CPU calls, and panic broadcasts.
 - The private CupidC runtime carries scalar floating lvalues through depth-one pointers, two- and three-dimensional fixed arrays, function and method array parameters, and floating fields in structures and classes. Subscripts preserve row strides, direct pointer updates use the pointee width, and unevaluated `sizeof` keeps array-row sizes without running an index. The feature-13 guest check exercises the active forms.
+- Private CupidC accepts prefix and postfix floating updates through pointer, indexed, and record-member lvalues. It evaluates a derived address once, preserves the original raw payload for postfix results, and keeps direct lvalue identity through grouping parentheses. The feature-13 guest covers the JIT path, then compiles `feature13_derived_aot.cc`, loads the resulting ELF, checks its result, and waits for that process to exit. ADR 0273 records the saved-address and result rules.
 - Checked-seed hosted CupidC accepts prefix and postfix `++` and `--` on modifiable non-atomic `float` and `double` lvalues. It evaluates an indirect lvalue once, stores the value after adding or subtracting exact-width `1.0`, and returns the original raw payload for postfix forms. Atomic floating and `long double` updates remain explicit gaps. ADR 0263 records the hosted boundary, and ADR 0265 records checked-seed carriage.
 - Private CupidC converts decimal `float` and `double` literals with fixed-size integer arithmetic and rounds once to the requested IEEE width, with ties going to even. An `f` suffix goes straight to binary32, so it cannot acquire a binary64 double-rounding error. The converter covers subnormals, the finite limits, infinity, and signed zero. It accepts numeric tokens through 95 characters and keeps the first useful lexer diagnostic during parser recovery. Hexadecimal floating and `long double` literals remain open.
 - Private CupidC joins adjacent C string tokens directly in the data section for automatic expressions, file-scope initializers, and persistent REPL declarations. Each token remains capped at 1,023 decoded bytes, while the joined string can use the remaining 8 MiB data budget. Overlong tokens and joined-data exhaustion fail with focused diagnostics instead of truncating the source.
@@ -135,7 +136,7 @@ private AOT compilation.
 records the completed embedded-program binding frontier. Forty-three bindings
 call existing graphics, font, transform, and GUI implementations directly.
 Three small accessors return the addresses of the existing constant themes.
-All 106 runnable top-level programs pass private AOT compilation. The fixed
+All 107 runnable top-level programs pass private AOT compilation. The fixed
 guest frontier runs the graphics test through both AOT and JIT, then exercises
 nested fullscreen cleanup through voluntary exit and remote kill. The exit
 fixture arms a generation-bound delayed request before returning; after its
@@ -221,6 +222,7 @@ godspeak
 # 9) FPU + SSE float, libm, SIMD
 feature12_float
 feature13_double
+feature13_derived_aot
 feature14_simd
 feature15_libm
 feature16_asm_fpu
@@ -1663,7 +1665,7 @@ cupid-os/
   drivers/               hardware drivers: ATA, keyboard, mouse,
                          PIT, RTC, serial, speaker, timer, VGA,
                          PCI, RTL8139, E1000
-  bin/                   106 runnable CupidC programs, one shared include,
+  bin/                   107 runnable CupidC programs, one shared include,
                          and 22 browser fragments
   demos/                 22 CupidASM demo/include programs
   user/                  example ELF user programs + cupid.h
@@ -1890,7 +1892,7 @@ The shell handles command parsing, pipelines, input/output redirection, backgrou
 
 ## Built-in programs (bin/)
 
-RamFS contains 106 top-level CupidC inputs. Of those, 105 are runnable
+RamFS contains 108 top-level CupidC inputs. Of those, 107 are runnable
 programs. `ctxt.cc` is the shared include used by Notepad and does not define
 an entry point. RamFS also contains 22 support modules under
 `bin/browser/*.cc`, which `browser.cc` includes rather than launching as
@@ -1906,7 +1908,7 @@ separate programs.
 | GUI/graphics apps | bgstudio, bmptest, browser, fm, fontswitch, gfxdemo, gfxgui_test, gfxhandoff_exit, gfxhandoff_kill, gfxtest, notepad, paint, terminal |
 | Audio/speech/media | audiotest, doom, godsong, godspeak, volume |
 | CupidC language tests | cupidc_test1-5, feature1_types, feature2_top_level, feature3_class, feature4_forward_calls, feature5_print_builtin, feature6_exe, feature7_new_del, feature8_reg_noreg, feature9_abs_addr, feature10_repl, feature11_ternary |
-| FPU/SSE/libm tests | feature12_float, feature13_double, feature14_simd, feature15_libm, feature16_asm_fpu, fp_drill |
+| FPU/SSE/libm tests | feature12_float, feature13_double, feature13_derived_aot, feature14_simd, feature15_libm, feature16_asm_fpu, fp_drill |
 | Subsystem smoke tests | feature17_iso (ISO9660), feature18_swap (swap), feature19_usb (USB), feature20_smp (SMP), feature21_net (TCP client), feature22_net_server (TCP server), feature23_full_access, feature24_widetypes, feature25 |
 | Networking utilities | arp, curl, cupidfetch, ifconfig, netstat, ping, resolve, ssh, telnet, wget |
 | Text/documentation viewers | auto, bible, oracle |

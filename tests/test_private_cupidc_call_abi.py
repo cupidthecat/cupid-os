@@ -1,6 +1,7 @@
 import os
 import shlex
 import shutil
+import struct
 import subprocess
 import tempfile
 import textwrap
@@ -13,6 +14,7 @@ from tests.test_private_cupidc_float_truth_emitter import _compiler_command
 REPO_ROOT = Path(__file__).resolve().parents[1]
 LEXER_SOURCE = REPO_ROOT / "kernel" / "lang" / "cupidc_lex.cc"
 PARSER_SOURCE = REPO_ROOT / "kernel" / "lang" / "cupidc_parse.cc"
+ELF_SOURCE = REPO_ROOT / "kernel" / "lang" / "cupidc_elf.cc"
 KERNEL_LANG = REPO_ROOT / "kernel" / "lang"
 
 
@@ -100,6 +102,23 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             ),
             encoding="utf-8",
         )
+        (cls.driver_root / "vfs.h").write_text(
+            textwrap.dedent(
+                """
+                #ifndef CUPID_TEST_VFS_H
+                #define CUPID_TEST_VFS_H
+                #include <stdint.h>
+                #define O_WRONLY 0x0001
+                #define O_CREAT 0x0100
+                #define O_TRUNC 0x0200
+                int vfs_open(const char *path, uint32_t flags);
+                int vfs_close(int fd);
+                int vfs_write(int fd, const void *buffer, uint32_t count);
+                #endif
+                """
+            ),
+            encoding="utf-8",
+        )
         (cls.driver_root / "string.h").write_text(
             textwrap.dedent(
                 """
@@ -138,6 +157,33 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                   return malloc((size_t)bytes);
                 }
 
+                static FILE *aot_output;
+
+                int vfs_open(const char *path, uint32_t flags) {
+                  (void)flags;
+                  if (aot_output != NULL)
+                    return -1;
+                  aot_output = fopen(path, "wb");
+                  return aot_output != NULL ? 3 : -1;
+                }
+
+                int vfs_write(int fd, const void *buffer, uint32_t count) {
+                  size_t written;
+                  if (fd != 3 || aot_output == NULL)
+                    return -1;
+                  written = fwrite(buffer, 1u, (size_t)count, aot_output);
+                  return written == (size_t)count ? (int)written : -1;
+                }
+
+                int vfs_close(int fd) {
+                  int result;
+                  if (fd != 3 || aot_output == NULL)
+                    return -1;
+                  result = fclose(aot_output);
+                  aot_output = NULL;
+                  return result == 0 ? 0 : -1;
+                }
+
                 static void bind_kernel(cc_state_t *cc, const char *name,
                                         cc_type_t type, uint32_t address) {
                   cc_symbol_t *symbol =
@@ -163,7 +209,7 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                   bind_kernel(cc, "exp", TYPE_DOUBLE, 0x010010d0u);
                 }
 
-                static cc_state_t *new_compiler_state(void) {
+                static cc_state_t *new_compiler_state(int jit_mode) {
                   cc_state_t *cc = (cc_state_t *)calloc(1u, sizeof(*cc));
                   if (cc == NULL)
                     return NULL;
@@ -171,9 +217,11 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                   cc->data = (uint8_t *)calloc(1u, CC_MAX_DATA);
                   if (cc->code == NULL || cc->data == NULL)
                     return NULL;
-                  cc->code_base = CC_JIT_CODE_BASE;
-                  cc->data_base = CC_JIT_DATA_BASE;
-                  cc->jit_mode = 1;
+                  cc->code_base =
+                      jit_mode ? CC_JIT_CODE_BASE : CC_AOT_CODE_BASE;
+                  cc->data_base =
+                      jit_mode ? CC_JIT_DATA_BASE : CC_AOT_DATA_BASE;
+                  cc->jit_mode = jit_mode;
                   cc_sym_init(cc);
                   bind_feature13_kernels(cc);
                   return cc;
@@ -263,17 +311,23 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                       strcmp(argv[4], "--repl-rollback") == 0;
                   int recovery_mode =
                       argc == 5 && strcmp(argv[4], "--recover") == 0;
+                  int same_state_recovery_mode =
+                      argc == 5 &&
+                      strcmp(argv[4], "--recover-same-state") == 0;
+                  int aot_mode =
+                      argc == 5 && strcmp(argv[4], "--aot") == 0;
                   if (argc == 3 &&
                       strcmp(argv[1], "--check-number-boundary") == 0)
                     return check_numeric_token_boundary(argv[2]);
                   if (argc != 4 && !repl_mode && !repl_rollback_mode &&
-                      !recovery_mode)
+                      !recovery_mode && !same_state_recovery_mode &&
+                      !aot_mode)
                     return 64;
                   source = read_source(argv[1]);
-                  cc = new_compiler_state();
+                  cc = new_compiler_state(aot_mode ? 0 : 1);
                   if (source == NULL || cc == NULL)
                     return 65;
-                  if (recovery_mode) {
+                  if (recovery_mode || same_state_recovery_mode) {
                     char *retry_source = source;
                     while (*retry_source != 0 &&
                            (unsigned char)*retry_source != 30u)
@@ -286,9 +340,14 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                     cc_parse_program(cc);
                     if (!cc->error)
                       return 69;
-                    cc = new_compiler_state();
-                    if (cc == NULL)
-                      return 66;
+                    if (same_state_recovery_mode) {
+                      cc->error = 0;
+                      cc->error_msg[0] = 0;
+                    } else {
+                      cc = new_compiler_state(1);
+                      if (cc == NULL)
+                        return 66;
+                    }
                     cc_lex_init(cc, retry_source);
                     cc_parse_program(cc);
                   } else if (repl_mode || repl_rollback_mode) {
@@ -336,9 +395,13 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                     (void)fprintf(stderr, "%s", cc->error_msg);
                     return 2;
                   }
-                  if (!write_output(argv[2], cc->code, cc->code_pos) ||
-                      !write_output(argv[3], cc->data, cc->data_pos))
+                  if (aot_mode) {
+                    if (cc_write_elf(cc, argv[2]) != 0)
+                      return 67;
+                  } else if (!write_output(argv[2], cc->code, cc->code_pos) ||
+                             !write_output(argv[3], cc->data, cc->data_pos)) {
                     return 67;
+                  }
                   (void)printf("%u\\n", cc->entry_offset);
                   return 0;
                 }
@@ -362,6 +425,7 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                 str(KERNEL_LANG),
                 str(LEXER_SOURCE),
                 str(PARSER_SOURCE),
+                str(ELF_SOURCE),
                 str(harness),
                 "-o",
                 str(executable),
@@ -376,9 +440,9 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             raise AssertionError(result.stdout + result.stderr)
         return executable
 
-    def _compile(self, root, source, *, repl=False):
+    def _compile(self, root, source, *, repl=False, aot=False):
         source_path = root / "fixture.cc"
-        code_path = root / "code.bin"
+        code_path = root / ("program.elf" if aot else "code.bin")
         data_path = root / "data.bin"
         source_path.write_text(textwrap.dedent(source), encoding="utf-8")
         command = [
@@ -387,7 +451,9 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             str(code_path),
             str(data_path),
         ]
-        if repl:
+        if aot:
+            command.append("--aot")
+        elif repl:
             command.append("--repl")
         result = subprocess.run(
             command,
@@ -447,7 +513,9 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
         )
         return result, code_path, data_path
 
-    def _compile_after_failure(self, root, failing_source, retry_source):
+    def _compile_after_failure(
+        self, root, failing_source, retry_source, *, same_state=False
+    ):
         source_path = root / "fixture.cc"
         code_path = root / "code.bin"
         data_path = root / "data.bin"
@@ -463,7 +531,7 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                 str(source_path),
                 str(code_path),
                 str(data_path),
-                "--recover",
+                "--recover-same-state" if same_state else "--recover",
             ],
             cwd=REPO_ROOT,
             text=True,
@@ -571,13 +639,53 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             timeout=30,
         )
 
-    def _compile_and_run(self, source, repl=False):
+    def _extract_aot_segments(self, root, elf_path, entry_offset):
+        image = elf_path.read_bytes()
+        header_format = "<16sHHIIIIIHHHHHH"
+        program_header_format = "<IIIIIIII"
+        self.assertGreaterEqual(len(image), struct.calcsize(header_format))
+        header = struct.unpack_from(header_format, image)
+        self.assertEqual(header[0][:4], b"\x7fELF")
+        self.assertEqual(header[1:3], (2, 3))
+        self.assertEqual(header[4], 0x01100000 + entry_offset)
+        program_header_offset = header[5]
+        program_header_size = header[9]
+        program_header_count = header[10]
+        self.assertEqual(program_header_size, 32)
+        self.assertIn(program_header_count, (1, 2))
+
+        segments = {}
+        for index in range(program_header_count):
+            offset = program_header_offset + index * program_header_size
+            self.assertLessEqual(offset + program_header_size, len(image))
+            program_header = struct.unpack_from(
+                program_header_format, image, offset
+            )
+            self.assertEqual(program_header[0], 1)
+            file_offset = program_header[1]
+            virtual_address = program_header[2]
+            file_size = program_header[4]
+            memory_size = program_header[5]
+            self.assertGreaterEqual(memory_size, file_size)
+            self.assertLessEqual(file_offset + file_size, len(image))
+            segments[virtual_address] = image[
+                file_offset : file_offset + file_size
+            ]
+
+        self.assertIn(0x01100000, segments)
+        code_path = root / "code.bin"
+        data_path = root / "data.bin"
+        code_path.write_bytes(segments[0x01100000])
+        data_path.write_bytes(segments.get(0x01200000, b""))
+        return code_path, data_path
+
+    def _compile_and_run(self, source, repl=False, *, aot=False):
         with tempfile.TemporaryDirectory(
             prefix="private-cupidc-call-runtime-", ignore_cleanup_errors=True
         ) as temporary:
             root = Path(temporary)
-            compile_result, _code, _data = self._compile(
-                root, source, repl=repl
+            compile_result, code_path, _data = self._compile(
+                root, source, repl=repl, aot=aot
             )
             self.assertEqual(
                 compile_result.returncode,
@@ -585,6 +693,8 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                 compile_result.stdout + compile_result.stderr,
             )
             entry_offset = int(compile_result.stdout.strip())
+            if aot:
+                self._extract_aot_segments(root, code_path, entry_offset)
             return self._run_i386(root, entry_offset)
 
     def _compile_repl_and_run(self, units):
@@ -2771,6 +2881,19 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
             result.stdout + result.stderr,
         )
 
+    def test_feature13_derived_aot_source_executes_through_the_elf_path(self):
+        result = self._compile_and_run(
+            (
+                REPO_ROOT / "bin" / "feature13_derived_aot.cc"
+            ).read_text(encoding="utf-8"),
+            aot=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn(
+            "[feature13-derived-aot] PASS score=%d once=%d zero=%x",
+            result.stderr,
+        )
+
     def test_feature14_source_executes_through_the_private_simd_path(self):
         result = self._compile_and_run(
             (REPO_ROOT / "bin" / "feature14_simd.cc").read_text(
@@ -3498,22 +3621,287 @@ class PrivateCupidCCallAbiTests(unittest.TestCase):
                 result.stderr,
             )
 
-    def test_indirect_floating_updates_have_a_useful_diagnostic(self):
+    def test_invalid_derived_updates_report_useful_diagnostics(self):
         cases = (
-            "void probe(float *value) { ++*value; }",
-            "void probe(double *value) { (*value)--; }",
+            (
+                "void probe(int *value) { ++*value; }",
+                "indirect increment or decrement is not supported",
+            ),
+            (
+                "void probe(float value) { ++(1.0f + value); }",
+                "increment or decrement requires a scalar variable",
+            ),
+            (
+                "void probe(float value) { ++sizeof(value); }",
+                "increment or decrement requires a scalar variable",
+            ),
+            (
+                "void probe(int index) { float values[2]; ++&values[index]; }",
+                "increment or decrement requires a scalar variable",
+            ),
+            (
+                "void probe(int index) { float values[2][2]; ++values[index]; }",
+                "increment or decrement requires a scalar variable",
+            ),
         )
-        for source in cases:
+        for source, diagnostic in cases:
             with self.subTest(source=source), tempfile.TemporaryDirectory(
-                prefix="private-cupidc-indirect-floating-update-",
+                prefix="private-cupidc-derived-update-error-",
                 ignore_cleanup_errors=True,
             ) as temporary:
                 result, _code, _data = self._compile(Path(temporary), source)
             self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
-            self.assertIn(
-                "indirect increment or decrement is not supported",
-                result.stderr,
+            self.assertIn(diagnostic, result.stderr)
+
+    def test_rejected_derived_update_allows_recovery_in_the_same_compiler_state(
+        self,
+    ):
+        with tempfile.TemporaryDirectory(
+            prefix="private-cupidc-derived-update-recovery-",
+            ignore_cleanup_errors=True,
+        ) as temporary:
+            root = Path(temporary)
+            result, _code, _data = self._compile_after_failure(
+                root,
+                "void probe(int *value) { ++*value; }",
+                """
+                float value;
+
+                int main() {
+                  float *pointer = &value;
+                  value = 2.0f;
+                  return ++*pointer == 3.0f && value == 3.0f ? 0 : 1;
+                }
+                """,
+                same_state=True,
             )
+            self.assertEqual(
+                result.returncode, 0, result.stdout + result.stderr
+            )
+            run_result = self._run_i386(root, int(result.stdout.strip()))
+        self.assertEqual(
+            run_result.returncode,
+            0,
+            run_result.stdout + run_result.stderr,
+        )
+
+    def test_indirect_floating_updates_preserve_results_and_evaluate_once(self):
+        result = self._compile_and_run(
+            """
+            float pointed_float = -0.0f;
+            double pointed_double = 8.5;
+            int pointer_calls;
+
+            float *next_float_pointer() {
+              pointer_calls += 1;
+              return &pointed_float;
+            }
+
+            double *next_double_pointer() {
+              pointer_calls += 1;
+              return &pointed_double;
+            }
+
+            int main() {
+              float old_float = (*next_float_pointer())++;
+              double new_double = --*next_double_pointer();
+
+              if (pointer_calls != 2) return 1;
+              if (*(int *)&old_float != (int)0x80000000) return 2;
+              if (pointed_float != 1.0f) return 3;
+              if (new_double != 7.5) return 4;
+              if (pointed_double != 7.5) return 5;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_indexed_floating_updates_keep_the_selected_element(self):
+        result = self._compile_and_run(
+            """
+            float singles[2];
+            double doubles[2];
+            int index_calls;
+
+            int next_index() {
+              int result = index_calls;
+              index_calls += 1;
+              return result;
+            }
+
+            int main() {
+              singles[0] = 2.25f;
+              doubles[1] = 4.5;
+
+              float new_single = ++singles[next_index()];
+              double old_double = doubles[next_index()]--;
+
+              if (index_calls != 2) return 1;
+              if (new_single != 3.25f || singles[0] != 3.25f) return 2;
+              if (old_double != 4.5 || doubles[1] != 3.5) return 3;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_member_floating_updates_keep_the_selected_storage(self):
+        result = self._compile_and_run(
+            """
+            struct Sample {
+              float single;
+              double wide;
+              float taps[2];
+              double nan_value;
+            };
+
+            struct Sample sample;
+            int record_calls;
+            int index_calls;
+
+            struct Sample *next_sample() {
+              record_calls += 1;
+              return &sample;
+            }
+
+            int next_index() {
+              index_calls += 1;
+              return 1;
+            }
+
+            int main() {
+              int nan_words[2];
+              int *old_nan_words;
+              sample.single = 1.5f;
+              sample.wide = 4.25;
+              sample.taps[1] = -0.0f;
+              nan_words[0] = 0x12345678;
+              nan_words[1] = 0x7ff81234;
+              sample.nan_value = *(double *)nan_words;
+
+              float new_single = ++next_sample()->single;
+              double old_wide = sample.wide--;
+              float old_tap = sample.taps[next_index()]++;
+              double old_nan = sample.nan_value++;
+              old_nan_words = (int *)&old_nan;
+
+              if (record_calls != 1 || index_calls != 1) return 1;
+              if (new_single != 2.5f || sample.single != 2.5f) return 2;
+              if (old_wide != 4.25 || sample.wide != 3.25) return 3;
+              if (*(int *)&old_tap != (int)0x80000000) return 4;
+              if (sample.taps[1] != 1.0f) return 5;
+              if (old_nan_words[0] != 0x12345678 ||
+                  old_nan_words[1] != 0x7ff81234) return 6;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_indexed_record_updates_evaluate_each_index_once_in_both_modes(
+        self,
+    ):
+        source = """
+            struct Reading {
+              float single;
+              double wide;
+            };
+
+            struct Reading records[2];
+            int index_calls;
+
+            int next_index() {
+              index_calls += 1;
+              return 1;
+            }
+
+            int main() {
+              records[1].single = -0.0f;
+              records[1].wide = 6.25;
+
+              float new_single = ++records[next_index()].single;
+              if (index_calls != 1) return 1;
+              index_calls = 0;
+              double old_wide = records[next_index()].wide--;
+              if (index_calls != 1) return 2;
+
+              if (new_single != 1.0f) return 3;
+              if (records[1].single != 1.0f) return 4;
+              if (old_wide != 6.25 || records[1].wide != 5.25) return 5;
+              return 0;
+            }
+        """
+        for aot in (False, True):
+            with self.subTest(mode="aot" if aot else "jit"):
+                result = self._compile_and_run(source, aot=aot)
+                self.assertEqual(
+                    result.returncode,
+                    0,
+                    result.stdout + result.stderr,
+                )
+
+    def test_derived_floating_update_statements_use_the_same_lvalue_path(self):
+        result = self._compile_and_run(
+            """
+            struct Sample { double value; };
+
+            float values[1];
+            struct Sample sample;
+            int index_calls;
+            int initializer_calls;
+
+            int next_index() {
+              index_calls += 1;
+              return 0;
+            }
+
+            int begin_loop() {
+              initializer_calls += 1;
+              return 0;
+            }
+
+            int main() {
+              int loop_count = 0;
+              values[0] = 1.25f;
+              sample.value = 6.5;
+              values[next_index()]++;
+              --values[0];
+              values[0]--;
+              ++values[0];
+              sample.value--;
+              ++sample.value;
+              sample.value++;
+              --sample.value;
+              for (begin_loop(); loop_count < 2; values[0]++)
+                loop_count += 1;
+              if (initializer_calls != 1 || index_calls != 1 ||
+                  values[0] != 3.25f) return 1;
+              return sample.value == 6.5 ? 0 : 2;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_grouped_direct_floating_updates_keep_lvalue_identity(self):
+        result = self._compile_and_run(
+            """
+            int main() {
+              float single = 2.5f;
+              double wide = 6.5;
+              float old_single = (single)++;
+              double old_wide = ((wide))--;
+              float new_single = ++(single);
+              double new_wide = --((wide));
+
+              if (old_single != 2.5f || single != 4.5f) return 1;
+              if (old_wide != 6.5 || wide != 4.5) return 2;
+              if (new_single != 4.5f || new_wide != 4.5) return 3;
+              return 0;
+            }
+            """
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_floating_lvalue_failure_allows_same_process_recovery(self):
         with tempfile.TemporaryDirectory(

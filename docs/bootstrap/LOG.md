@@ -24833,6 +24833,83 @@ passed in 6.473 seconds, and `make check-bootstrap-audit` reproduced the
 checked audit in 72.6 seconds. Python bytecode compilation and the scoped diff
 check passed with no TempleOS changes or changed `.c` files.
 
+## 2026-08-13: Update private derived floating lvalues
+
+Private CupidC now accepts prefix and postfix `++` and `--` on typed `float`
+and `double` objects reached through a pointer dereference, fixed-array index,
+direct or pointer member, or member of an indexed record. Direct locals,
+parameters, and globals keep the earlier path. The expression parser,
+standalone statement shortcuts, and `for` increment path now share the same
+typed result rules.
+
+The parser records whether a modifiable lvalue names a direct symbol or keeps
+an evaluated address. A derived floating update saves that address once,
+retains the current value in XMM0, forms exact-width 1.0 in XMM1, and stores
+the SSE addition or subtraction through the saved address. Postfix copies the
+old payload to XMM2 before the arithmetic and restores it after the store.
+This preserves binary32 negative zero and binary64 NaN payload bits instead of
+trying to reconstruct the old value from the replacement.
+
+Prefix parsing now accepts a complete primary designator. Computed rvalues,
+casts, calls, `sizeof`, address-of, and incomplete array rows clear transient
+lvalue identity before an update can use it. A full lexer checkpoint replaces
+the old one-token rewind in `for` initializer and increment fallbacks. It
+restores the source cursor, line, current token, buffered lookahead, and
+lookahead state, so a call initializer and a derived update increment can be
+parsed again without losing tokens.
+
+Review found that postfix direct updates still consulted an older local
+symbol slot instead of the shared transient identity. That rejected a grouped
+direct lvalue such as `(value)++`. Both prefix and postfix paths now consume
+the same identity. A focused runtime test covers grouped `float` and `double`
+updates, and the active feature-13 JIT source uses grouped prefix and postfix
+forms without changing its expected score.
+
+The new tests were written against the private AOT and JIT seams before the
+parser change. They cover both widths and directions through pointer, index,
+and member designators, one-time evaluation, standalone statements, a `for`
+increment, exact postfix negative-zero and NaN payloads, and parser recovery.
+Useful failures cover an indirect integer update, a computed rvalue,
+`sizeof`, address-of, and an incomplete array row.
+
+`bin/feature13_double.cc` adds counted pointer, index, and record designators.
+The frontier now requires
+`[feature13-indirect-update] PASS score=41 once=3 zero=0x80000000` after the
+existing direct-update marker and rejects the corresponding failure marker.
+
+The first external-process smoke compiled all of `feature13_double.cc` and
+loaded the resulting ELF. It then trapped after that source called
+`repl_eval`, which starts another private-JIT evaluation from inside the AOT
+process. That nested execution is useful in the original in-kernel feature
+test, but it is unrelated to derived floating lvalues. The broad JIT test was
+left intact. A new active program, `bin/feature13_derived_aot.cc`, isolates the
+pointer and indexed-record cases for `ccc` and `exec`. Its pass marker records
+the score, the exact two index evaluations, and the raw negative-zero payload.
+The host contract also sends this source through the real private ELF writer
+and executes its loadable payload.
+
+### Focused evidence
+
+- `python -m unittest tests.test_private_cupidc_call_abi` passed 139 tests in
+  21.549 seconds. The three exact emitter tests passed in 0.586 seconds.
+- The feature-13 private source compile plus the scalar-update, typed-lvalue,
+  and indirect-update frontier contracts passed four tests in 0.482 seconds.
+- Ruff reported no findings in `tests/test_private_cupidc_call_abi.py`,
+  `tests/test_gui_terminal_smoke.py`, and `tools/gui_terminal_smoke.py`.
+- The scoped whitespace check passed for the implementation and test files.
+
+The wider `FrontierRuntimeContractTests` run passed all 74 tests in 0.697
+seconds. Review found that its system-image assertion read only the first
+physical line of a continued Make rule even though `test_iso/hello.iso` was
+already present. Joining continued lines fixed the contract without changing
+the build rule. Guest boot evidence appears in the final integration entry.
+
+Indirect integer updates, deeper floating pointers, pointer-to-array types,
+assignment through a pointer-valued floating field, and SIMD updates remain
+open. This capability moves no build owner and adds no host-tool dependency.
+No `.c` source entered the active build, so no rename was due. ADR 0273 records
+the saved-address and raw-postfix-value decision.
+
 ## 2026-08-13: Expose Cupid mode through the hosted CupidC command
 
 The hosted frontend and preprocessor already understood Cupid vocabulary, but

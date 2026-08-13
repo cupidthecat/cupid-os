@@ -186,6 +186,7 @@ bin/ed.o
 bin/feature10_repl.o
 bin/feature11_ternary.o
 bin/feature12_float.o
+bin/feature13_derived_aot.o
 bin/feature13_double.o
 bin/feature14_simd.o
 bin/feature15_libm.o

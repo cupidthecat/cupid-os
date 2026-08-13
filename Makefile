@@ -1267,7 +1267,8 @@ $(CUPIDDIS_BUILD): $(CUPIDDIS_SOURCES) | $(CUPIDLD_BUILD)
 
 # Generate bin_programs_gen.cc from every active bin/*.cc file.
 # This generates extern declarations + install function automatically.
-# To add a new CupidC program: just create bin/<name>.cc - that's it!
+# Adding bin/<name>.cc embeds it automatically. Refresh the checked source
+# census, strict-disassembly manifest, tests, and program documentation too.
 kernel/util/bin_programs_gen.cc: $(BIN_CC_SRCS) $(BIN_HDR_SRCS) \
 	$(BROWSER_SUB_SRCS) $(CUPIDOBJ_INPUTS)
 	$(CUPIDOBJ) install-source bin --bin $(BIN_CC_SRCS) --headers $(BIN_HDR_SRCS) --browser $(BROWSER_SUB_SRCS) -o $@
