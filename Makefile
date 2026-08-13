@@ -20,42 +20,44 @@ CC_TARGET ?=
 QEMU_AUDIODEV ?= alsa,id=speaker
 CLANG_COMPAT_CFLAGS ?=
 endif
-CUPIDC_KERNEL_COMPILE := $(PYTHON) tools/cupidc_kernel_compile.py --root .
+BOOTSTRAP_SEED_MANIFEST ?= bootstrap/seeds/i386-linux/manifest.json
+BOOTSTRAP_SEED_DIRECTORY := $(dir $(BOOTSTRAP_SEED_MANIFEST))
+ifeq ($(OS),Windows_NT)
+PRODUCTION_SEED_MANIFEST ?= bootstrap/seeds/i386-windows/manifest.json
+PRODUCTION_SEED_SUFFIX := exe
+else
+PRODUCTION_SEED_MANIFEST ?= bootstrap/seeds/i386-linux/manifest.json
+PRODUCTION_SEED_SUFFIX := elf
+endif
+PRODUCTION_SEED_DIRECTORY := $(dir $(PRODUCTION_SEED_MANIFEST))
+PRODUCTION_SEED_INPUTS := \
+	$(PRODUCTION_SEED_MANIFEST) \
+	$(PRODUCTION_SEED_DIRECTORY)cupidasm.$(PRODUCTION_SEED_SUFFIX) \
+	$(PRODUCTION_SEED_DIRECTORY)cupidc.$(PRODUCTION_SEED_SUFFIX) \
+	$(PRODUCTION_SEED_DIRECTORY)cupiddis.$(PRODUCTION_SEED_SUFFIX) \
+	$(PRODUCTION_SEED_DIRECTORY)cupidld.$(PRODUCTION_SEED_SUFFIX) \
+	$(PRODUCTION_SEED_DIRECTORY)cupidobj.$(PRODUCTION_SEED_SUFFIX)
+CUPIDC_KERNEL_COMPILE := $(PYTHON) tools/cupidc_kernel_compile.py --root . \
+	--manifest $(PRODUCTION_SEED_MANIFEST)
 CUPIDC_KERNEL_COMPILE_INPUTS := Makefile tools/cupidc_kernel_compile.py \
 	tools/kernel_cupidc_frontier.py tools/bootstrap_toolchain.py \
-	bootstrap/seeds/i386-linux/manifest.json \
-	bootstrap/seeds/i386-linux/cupidasm.elf \
-	bootstrap/seeds/i386-linux/cupidc.elf \
-	bootstrap/seeds/i386-linux/cupiddis.elf \
-	bootstrap/seeds/i386-linux/cupidld.elf \
-	bootstrap/seeds/i386-linux/cupidobj.elf
+	$(PRODUCTION_SEED_INPUTS)
 CUPIDC_PRODUCTION_COMPILE := $(PYTHON) \
-	tools/cupidc_production_compile.py --root . --cohort generated-install
+	tools/cupidc_production_compile.py --root . --cohort generated-install \
+	--manifest $(PRODUCTION_SEED_MANIFEST)
 CUPIDC_PRODUCTION_COMPILE_INPUTS := Makefile \
 	tools/cupidc_production_compile.py \
 	tools/cupidc_kernel_compile.py \
 	tools/native_user_toolchain.py \
 	tools/bootstrap_toolchain.py \
-	bootstrap/seeds/i386-linux/manifest.json \
-	bootstrap/seeds/i386-linux/cupidasm.elf \
-	bootstrap/seeds/i386-linux/cupidc.elf \
-	bootstrap/seeds/i386-linux/cupiddis.elf \
-	bootstrap/seeds/i386-linux/cupidld.elf \
-	bootstrap/seeds/i386-linux/cupidobj.elf
+	$(PRODUCTION_SEED_INPUTS)
 CUPIDC_PRODUCTION_FRONTIER_INPUTS := \
 	tools/cupidc_production_frontier.py tools/hostbuild.py \
 	$(CUPIDC_PRODUCTION_COMPILE_INPUTS)
-BOOTSTRAP_SEED_MANIFEST ?= bootstrap/seeds/i386-linux/manifest.json
-BOOTSTRAP_SEED_DIRECTORY := $(dir $(BOOTSTRAP_SEED_MANIFEST))
 CHECKED_SEED_INPUTS := Makefile tools/bootstrap_toolchain.py \
-	$(BOOTSTRAP_SEED_MANIFEST) \
-	$(BOOTSTRAP_SEED_DIRECTORY)cupidasm.elf \
-	$(BOOTSTRAP_SEED_DIRECTORY)cupidc.elf \
-	$(BOOTSTRAP_SEED_DIRECTORY)cupiddis.elf \
-	$(BOOTSTRAP_SEED_DIRECTORY)cupidld.elf \
-	$(BOOTSTRAP_SEED_DIRECTORY)cupidobj.elf
+	$(PRODUCTION_SEED_INPUTS)
 CHECKED_SEED_RUN := $(PYTHON) tools/bootstrap_toolchain.py run \
-	--manifest $(BOOTSTRAP_SEED_MANIFEST) --root .
+	--manifest $(PRODUCTION_SEED_MANIFEST) --root .
 CUPIDDIS_BUILD := toolchain/build/cupiddis$(HOST_EXE)
 CUPIDDIS ?= $(CHECKED_SEED_RUN) --tool cupiddis --
 CUPIDDIS_INPUTS ?= $(CHECKED_SEED_INPUTS)
@@ -431,8 +433,10 @@ drivers/pci.o: drivers/pci.cc drivers/pci.h drivers/serial.h \
 
 # AP trampoline raw binary blob (P5 SMP T8)
 kernel/smp_trampoline.bin: kernel/smp/smp_trampoline.S \
-	$(CUPIDASM_INPUTS)
-	$(CUPIDASM) -f bin -o $@ $<
+	tools/hostbuild.py $(CHECKED_SEED_INPUTS)
+	$(PYTHON) tools/hostbuild.py assemble-smp-trampoline \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root . \
+		--source $< --output $@
 
 kernel/smp/smp_trampoline.o: kernel/smp_trampoline.bin \
 	$(CUPIDOBJ_INPUTS)
@@ -694,7 +698,7 @@ DOOM_CUPIDC_INPUT_MANIFEST := build/bootstrap/doom-cupidc-inputs.json
 $(DOOM_CUPIDC_INPUT_MANIFEST): FORCE $(DOOM_CUPIDC_HEADERS) \
 	$(CHECKED_SEED_INPUTS) tools/cupidc_kernel_compile.py
 	$(PYTHON) tools/cupidc_kernel_compile.py --root . \
-		--manifest $(BOOTSTRAP_SEED_MANIFEST) \
+		--manifest $(PRODUCTION_SEED_MANIFEST) \
 		--write-profile-input-manifest $@
 
 # dglibc: DOOM libc shim (heap/string/stdio/fmt/setjmp)
@@ -876,10 +880,11 @@ kernel/gui/ctxt_image_worker.o: kernel/gui/ctxt_image_worker.cc drivers/timer.h 
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/ctxt_image_worker.cc --output kernel/gui/ctxt_image_worker.o
 
 # Process management and round-robin scheduler.
-kernel/core/process.o: kernel/core/process.cc drivers/serial.h \
+kernel/core/process.o: kernel/core/process.cc drivers/serial.h drivers/timer.h \
 	kernel/core/debug.h kernel/core/kernel.h kernel/core/process.h \
 	kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h \
-	kernel/cpu/simd.h kernel/gfx/gfx2d.h kernel/gui/gui.h kernel/lang/shell.h \
+	kernel/cpu/simd.h kernel/gfx/gfx2d.h kernel/gfx/gfx2d_icons.h \
+	kernel/gui/gui.h kernel/lang/shell.h \
 	kernel/mm/memory.h kernel/smp/bkl.h kernel/smp/percpu.h kernel/smp/smp.h \
 	$(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/core/process.cc --output kernel/core/process.o
@@ -1050,7 +1055,10 @@ kernel/gui/gui_menus.o: kernel/gui/gui_menus.cc drivers/vga.h kernel/core/string
 kernel/gui/gui_events.o: kernel/gui/gui_events.cc drivers/vga.h kernel/core/string.h kernel/core/types.h kernel/gfx/font_8x8.h kernel/gfx/gfx2d.h kernel/gfx/graphics.h kernel/gui/gui.h kernel/gui/gui_events.h kernel/gui/ui.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/gui_events.cc --output kernel/gui/gui_events.o
 
-kernel/gui/gui_themes.o: kernel/gui/gui_themes.cc kernel/core/string.h kernel/core/types.h kernel/fs/vfs.h kernel/gfx/gfx2d.h kernel/gui/gui_themes.h kernel/mm/memory.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+kernel/gui/gui_themes.o: kernel/gui/gui_themes.cc drivers/rtc.h drivers/vga.h \
+	kernel/core/string.h kernel/core/types.h kernel/fs/vfs.h \
+	kernel/gfx/gfx2d.h kernel/gui/desktop.h kernel/gui/gui_themes.h \
+	kernel/mm/memory.h kernel/util/calendar.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/gui_themes.cc --output kernel/gui/gui_themes.o
 
 # CupidC compiler
@@ -1330,11 +1338,11 @@ cupidos-txt/%.o: cupidos-txt/%.CTXT $(CUPIDOBJ_INPUTS)
 
 %.jpg.o: %.jpg tools/hostbuild.py $(CHECKED_SEED_INPUTS)
 	$(PYTHON) tools/hostbuild.py embed-jpeg \
-		--seed-manifest $(BOOTSTRAP_SEED_MANIFEST) $< $@
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) $< $@
 
 %.jpeg.o: %.jpeg tools/hostbuild.py $(CHECKED_SEED_INPUTS)
 	$(PYTHON) tools/hostbuild.py embed-jpeg \
-		--seed-manifest $(BOOTSTRAP_SEED_MANIFEST) $< $@
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) $< $@
 
 # Pattern rule: embed any system/fonts/*.ttf file with CupidObj.
 # Object exposes _binary_system_fonts_<name>_ttf_{start,end} symbols
@@ -1371,7 +1379,7 @@ kernel/kernel.elf.pass1: $(KERNEL_OBJS) link.ld $(CUPIDLD_INPUTS)
 kernel/cpu/ksyms_data.cc: kernel/kernel.elf.pass1 tools/hostbuild.py \
 	$(CHECKED_SEED_INPUTS)
 	$(PYTHON) tools/hostbuild.py mksyms \
-		--seed-manifest $(BOOTSTRAP_SEED_MANIFEST) $< $@
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) $< $@
 
 kernel/cpu/ksyms_data.o: kernel/cpu/ksyms_data.cc kernel/cpu/ksyms.h \
 	kernel/core/types.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
@@ -1385,7 +1393,7 @@ $(KERNEL): kernel/kernel.elf $(CUPIDDIS_PRODUCTION_INPUTS) \
 	$(CUPIDDIS_PRODUCTION_INPUT_MANIFEST) tools/hostbuild.py \
 	$(CUPIDDIS_INPUTS) $(CUPIDOBJ_INPUTS)
 	$(PYTHON) tools/hostbuild.py validate-code \
-		--seed-manifest $(BOOTSTRAP_SEED_MANIFEST) --root . \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root . \
 		--input-manifest $(CUPIDDIS_PRODUCTION_INPUT_MANIFEST) \
 		--output $(KERNEL)
 
@@ -1394,7 +1402,7 @@ $(OS_IMAGE): verify-artifact-sizes $(BOOTLOADER) $(KERNEL) \
 	test_iso/hello.iso tools/hostbuild.py \
 	$(CHECKED_SEED_INPUTS)
 	$(PYTHON) tools/hostbuild.py image \
-		--seed-manifest $(BOOTSTRAP_SEED_MANIFEST) \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) \
 		--image $(OS_IMAGE) --bootloader $(BOOTLOADER) --kernel $(KERNEL) \
 		--hdd-mb $(HDD_MB) --fat-start-lba $(FAT_START_LBA) \
 		--stage test_iso/hello.iso:/hello.iso --wads $(WAD_SRCS)
@@ -1547,13 +1555,13 @@ TEST_ISO_FIXTURES := $(sort test_iso/fixtures $(ISO_FIXTURE_MANIFEST) \
 test_iso/fixtures/big.bin: $(ISO_BIG_FIXTURE_SOURCE) tools/hostbuild.py \
 	tools/bootstrap_toolchain.py Makefile $(CUPIDASM_INPUTS)
 	$(PYTHON) tools/hostbuild.py gen-big \
-	  --seed-manifest $(BOOTSTRAP_SEED_MANIFEST) \
+	  --seed-manifest $(PRODUCTION_SEED_MANIFEST) \
 	  --source $(ISO_BIG_FIXTURE_SOURCE) $@
 
 test_iso/hello.iso: $(TEST_ISO_FIXTURES) tools/hostbuild.py \
 	$(CHECKED_SEED_INPUTS)
 	$(PYTHON) tools/hostbuild.py build-iso \
-	  --seed-manifest $(BOOTSTRAP_SEED_MANIFEST) \
+	  --seed-manifest $(PRODUCTION_SEED_MANIFEST) \
 	  --fixtures test_iso/fixtures --manifest $(ISO_FIXTURE_MANIFEST) \
 	  --out test_iso/hello.iso
 

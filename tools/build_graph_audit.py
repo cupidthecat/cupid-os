@@ -34,10 +34,28 @@ SOURCE_SUFFIXES = {
 # visible, while the C locale keeps Make wildcard ordering stable. Direct
 # Linux builds cover the Linux execution branch.
 CANONICAL_MAKE_VARIABLES = ("OS=Windows_NT",)
+LINUX_BOOTSTRAP_SEED_INPUTS = (
+    "bootstrap/seeds/i386-linux/manifest.json",
+    "bootstrap/seeds/i386-linux/cupidasm.elf",
+    "bootstrap/seeds/i386-linux/cupidc.elf",
+    "bootstrap/seeds/i386-linux/cupiddis.elf",
+    "bootstrap/seeds/i386-linux/cupidld.elf",
+    "bootstrap/seeds/i386-linux/cupidobj.elf",
+)
+WINDOWS_PRODUCTION_SEED_INPUTS = (
+    "bootstrap/seeds/i386-windows/manifest.json",
+    "bootstrap/seeds/i386-windows/cupidasm.exe",
+    "bootstrap/seeds/i386-windows/cupidc.exe",
+    "bootstrap/seeds/i386-windows/cupiddis.exe",
+    "bootstrap/seeds/i386-windows/cupidld.exe",
+    "bootstrap/seeds/i386-windows/cupidobj.exe",
+)
 TOOL_MARKERS = (
     ("build-iso --seed-manifest", "cupid_object"),
     ("image --seed-manifest", "cupid_object"),
     ("gen-big --seed-manifest", "cupid_assembler"),
+    ("assemble-smp-trampoline --seed-manifest", "cupid_assembler"),
+    ("assemble-smp-trampoline --seed-manifest", "cupid_disassembler"),
     ("validate-code --seed-manifest", "cupid_disassembler"),
     ("validate-code --seed-manifest", "cupid_object"),
     ("mksyms --seed-manifest", "cupid_disassembler"),
@@ -194,14 +212,7 @@ USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS = (
     "toolchain/x86.cc",
     "toolchain/x86.h",
 )
-USER_SYSCALL_ABI_CHECKED_SEED_INPUTS = (
-    "bootstrap/seeds/i386-linux/manifest.json",
-    "bootstrap/seeds/i386-linux/cupidasm.elf",
-    "bootstrap/seeds/i386-linux/cupidc.elf",
-    "bootstrap/seeds/i386-linux/cupiddis.elf",
-    "bootstrap/seeds/i386-linux/cupidld.elf",
-    "bootstrap/seeds/i386-linux/cupidobj.elf",
-)
+USER_SYSCALL_ABI_CHECKED_SEED_INPUTS = LINUX_BOOTSTRAP_SEED_INPUTS
 USER_SYSCALL_ABI_AUDIT_INPUTS = tuple(
     sorted(
         set(USER_SYSCALL_ABI_PUBLICATION_INPUTS)
@@ -213,25 +224,20 @@ CUPIDC_KERNEL_CONTROL_FILES = (
     "tools/cupidc_kernel_compile.py",
     "tools/kernel_cupidc_frontier.py",
     "tools/bootstrap_toolchain.py",
-    "bootstrap/seeds/i386-linux/manifest.json",
+    "bootstrap/seeds/i386-windows/manifest.json",
 )
 _CUPIDOBJ_PROFILE_MANIFEST_OUTPUT = (
     "build/bootstrap/doom-cupidc-inputs.json"
 )
 _CUPIDOBJ_PROFILE_MANIFEST_RECIPE = [
     "$(PYTHON) tools/cupidc_kernel_compile.py --root . \\",
-    "--manifest $(BOOTSTRAP_SEED_MANIFEST) \\",
+    "--manifest $(PRODUCTION_SEED_MANIFEST) \\",
     "--write-profile-input-manifest $@",
 ]
 _CUPIDOBJ_PROFILE_MANIFEST_CONTROL_INPUTS = (
     "Makefile",
     "tools/bootstrap_toolchain.py",
-    "bootstrap/seeds/i386-linux/manifest.json",
-    "bootstrap/seeds/i386-linux/cupidasm.elf",
-    "bootstrap/seeds/i386-linux/cupidc.elf",
-    "bootstrap/seeds/i386-linux/cupiddis.elf",
-    "bootstrap/seeds/i386-linux/cupidld.elf",
-    "bootstrap/seeds/i386-linux/cupidobj.elf",
+    *WINDOWS_PRODUCTION_SEED_INPUTS,
     "tools/cupidc_kernel_compile.py",
 )
 _CUPIDOBJ_PROFILE_MANIFEST_PRODUCTION_FILES = (
@@ -1125,7 +1131,11 @@ def _validate_cupidc_kernel_compile_make_binding(
     values = _read_evaluated_make_variables(
         root,
         make,
-        ("PYTHON", "CUPIDC_KERNEL_COMPILE"),
+        (
+            "PYTHON",
+            "CUPIDC_KERNEL_COMPILE",
+            "PRODUCTION_SEED_MANIFEST",
+        ),
     )
     try:
         python_tokens = shlex.split(values["PYTHON"])
@@ -1158,6 +1168,8 @@ def _validate_cupidc_kernel_compile_make_binding(
         "tools/cupidc_kernel_compile.py",
         "--root",
         ".",
+        "--manifest",
+        values["PRODUCTION_SEED_MANIFEST"],
     ]
     if wrapper_tokens != expected:
         raise AuditError(
@@ -1202,7 +1214,7 @@ def _validate_cupidc_production_make_bindings(
         if not uses_compile and not uses_link:
             continue
         make_root = root if model.directory == "." else root / model.directory
-        variables = ["PYTHON"]
+        variables = ["PYTHON", "PRODUCTION_SEED_MANIFEST"]
         if uses_compile:
             variables.append("CUPIDC_PRODUCTION_COMPILE")
         if uses_link:
@@ -1222,6 +1234,8 @@ def _validate_cupidc_production_make_bindings(
                 ".",
                 "--cohort",
                 "generated-install",
+                "--manifest",
+                values["PRODUCTION_SEED_MANIFEST"],
             ]
             if uses_link:
                 raise AuditError(
@@ -1235,6 +1249,8 @@ def _validate_cupidc_production_make_bindings(
                 "..",
                 "--cohort",
                 "user",
+                "--manifest",
+                values["PRODUCTION_SEED_MANIFEST"],
             ]
         else:
             raise AuditError(
@@ -1268,6 +1284,8 @@ def _validate_cupidc_production_make_bindings(
                 "../tools/cupidld_user_link.py",
                 "--root",
                 "..",
+                "--manifest",
+                values["PRODUCTION_SEED_MANIFEST"],
             ]
             try:
                 actual_link = shlex.split(values["CUPIDLD_USER_LINK"])
@@ -1508,6 +1526,12 @@ def _operation_for_recipe(
         and "cupid_object" in tools
     ):
         return "extract_raw_binary"
+    if (
+        "hostbuild.py assemble-smp-trampoline " in joined
+        and "cupid_assembler" in tools
+        and "cupid_disassembler" in tools
+    ):
+        return "assemble_flat_binary"
     if (
         "gen-big" in joined
         and "--seed-manifest" in joined
@@ -8237,6 +8261,12 @@ def _cupid_toolchain_fixed_point_contract(
         statement
         for statement in bootstrap_tree.body
         if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and statement.name == "_validate_static_i386_pe32_bytes"
+    ]
+    parser_wrappers = [
+        statement
+        for statement in bootstrap_tree.body
+        if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef))
         and statement.name == "_validate_static_i386_pe32"
     ]
     parser_source = (
@@ -9120,7 +9150,6 @@ def _cupid_toolchain_fixed_point_contract(
         ]
 
     expected_field_assignments = {
-        "data": "path.read_bytes()",
         "pe_offset": "read_u32(0x3C, 'DOS PE offset')",
         "optional_offset": "pe_offset + 24",
         "linker_major": "data[optional_offset + 2]",
@@ -9233,15 +9262,29 @@ def _cupid_toolchain_fixed_point_contract(
         except ValueError:
             dos_stub_values.append(None)
 
-    parser_reads_image = (
-        any(
-            read_bytes_receiver(node) == "path"
-            for node in ast.walk(parser_functions[0])
-            if isinstance(node, ast.Call)
+    parser_reads_image = False
+    if len(parser_wrappers) == 1:
+        wrapper_calls = [
+            node.value
+            for node in parser_wrappers[0].body
+            if isinstance(node, ast.Expr)
+            and isinstance(node.value, ast.Call)
+            and isinstance(node.value.func, ast.Name)
+            and node.value.func.id == "_validate_static_i386_pe32_bytes"
+        ]
+        parser_reads_image = (
+            len(wrapper_calls) == 1
+            and len(wrapper_calls[0].args) == 4
+            and not wrapper_calls[0].keywords
+            and node_shape(wrapper_calls[0].args[0])
+            == expression_shape("path.read_bytes()")
+            and node_shape(wrapper_calls[0].args[1])
+            == expression_shape("path.name")
+            and node_shape(wrapper_calls[0].args[2])
+            == expression_shape("expected_entry")
+            and node_shape(wrapper_calls[0].args[3])
+            == expression_shape("expected_imports")
         )
-        if len(parser_functions) == 1
-        else False
-    )
     parser_unpack_shapes = (
         {
             node_shape(node)
@@ -9485,6 +9528,7 @@ def _cupid_toolchain_fixed_point_contract(
             < invalid_import[0]
         )
         or len(parser_functions) != 1
+        or len(parser_wrappers) != 1
         or not import_parser_is_confined
         or not parser_reads_image
         or parser_unpack_shapes != expected_unpack_shapes
@@ -10322,7 +10366,7 @@ def _validate_cupidobj_profile_manifest_make_source(source: str) -> None:
         "$(DOOM_CUPIDC_INPUT_MANIFEST): FORCE $(DOOM_CUPIDC_HEADERS) "
         "$(CHECKED_SEED_INPUTS) tools/cupidc_kernel_compile.py",
         "$(PYTHON) tools/cupidc_kernel_compile.py --root . "
-        "--manifest $(BOOTSTRAP_SEED_MANIFEST) "
+        "--manifest $(PRODUCTION_SEED_MANIFEST) "
         "--write-profile-input-manifest $@",
     )
     changed = [line for line in required_lines if lines.count(line) != 1]
@@ -10927,12 +10971,7 @@ def _validate_cupidobj_install_source_delivery(
     required_inputs = {
         "Makefile",
         "tools/bootstrap_toolchain.py",
-        "bootstrap/seeds/i386-linux/manifest.json",
-        "bootstrap/seeds/i386-linux/cupidasm.elf",
-        "bootstrap/seeds/i386-linux/cupidc.elf",
-        "bootstrap/seeds/i386-linux/cupiddis.elf",
-        "bootstrap/seeds/i386-linux/cupidld.elf",
-        "bootstrap/seeds/i386-linux/cupidobj.elf",
+        *WINDOWS_PRODUCTION_SEED_INPUTS,
     }
     missing_inputs = sorted(required_inputs - set(inputs))
     if missing_inputs:

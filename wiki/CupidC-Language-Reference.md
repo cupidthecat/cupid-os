@@ -131,10 +131,12 @@ and SIMD vectors are rejected as truth operands.
 Pre-registered kernel calls retain their declared result type in later
 expressions. Only bindings whose functions return no value have type `void`.
 
-Scalar `float` and `double` variables accept prefix and postfix `++` and
-`--`. Prefix returns the updated value; postfix returns the old value after
-storing the update. Direct locals, parameters, and globals are supported.
-Arrays, aggregates, function pointers, and SIMD vectors are rejected.
+Scalar `float` and `double` lvalues accept prefix and postfix `++` and `--`.
+Prefix returns the updated value; postfix returns the exact old payload after
+storing the update. Direct locals, parameters, and globals work alongside
+pointer dereferences, array elements, and scalar fields reached through direct,
+pointer, or indexed-record members. The destination expression runs once.
+Whole arrays, aggregates, function pointers, and SIMD vectors are rejected.
 
 Fixed `float` and `double` arrays are supported with one, two, or three
 dimensions as globals, locals, block statics, and persistent REPL
@@ -150,9 +152,10 @@ parameters, dereference, subscripting, assignment, and arithmetic compound
 assignment. Direct pointer `++` and `--` advance by four or eight bytes.
 Structure and class objects, their arrays, and their pointers may contain
 scalar floating fields and one-dimensional fixed floating field arrays. Deeper
-floating pointers, indirect floating updates,
-pointer-to-array types, and assignment through a pointer-valued floating field
-subscript remain unsupported.
+floating pointers, pointer-to-array types, and assignment through a
+pointer-valued floating field subscript remain unsupported. Scalar floating
+updates through the represented dereference, index, and member paths are
+supported.
 
 Matching `float4` or `double2` values support direct `+`, `-`, `*`, and `/`.
 Fixed arrays of either vector type may have one, two, or three dimensions as
@@ -289,30 +292,33 @@ unsigned i386 integer width. ADR 0254 records static initializer conversion,
 ADR 0255 records static controls and finite width conversion, and ADR 0256
 records canonical x87 payloads and special-value conversion.
 ADR 0258 records the preceding checked seed. ADR 0260 records static
-long-double arithmetic, ADR 0263 records ordinary floating updates, and ADR
-0265 records their checked-seed carriage.
-The promoted seed carried both features through the frozen-document
-poisoned-host normal root rebuild in 1,018.548 seconds. The current 2,560-byte
-boot image has SHA-256
+long-double arithmetic, ADR 0263 records ordinary hosted floating updates, ADR
+0265 records their checked-seed carriage, and ADR 0273 records private derived
+floating updates.
+The checked native Windows seed carried both features through the
+source-current 2026-08-13 poisoned-host build. Its first invocation stopped at
+the 602.5-second command limit; the resumed build finished in 968.5 seconds,
+for 1,571.0 seconds of cumulative work. The current 2,560-byte boot image has
+SHA-256
 `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3`.
-The 9,044,032-byte pass-one ELF has SHA-256
-`659bd6485deb4e6a18a1efa0f575eb90f210fe5674e9e1257eeef2a4422ff21e`,
-the 9,166,912-byte final ELF has SHA-256
-`7caf5ad4bc721f10418c06be7cfd8d9568efc8378e7baf2c2f7a510ec49263a3`,
-and the 8,950,860-byte raw kernel has SHA-256
-`5f0c0becc1ba66a9d3e2eda15555fec39faedc98e2349ad3ee7b2d08775fe1a7`.
-A final poisoned-host `make -j2 all` passed with exit 0 in 1,022.190 seconds.
+The 9,056,612-byte pass-one ELF has SHA-256
+`e2f63b5cd9c4e2769b9d6bc893ab5cf778951b97aec954ece6cbac0cc429e92a`,
+the 9,179,492-byte final ELF has SHA-256
+`1bc06263dbf9849e6d2c594b6fb4be2a3f3b673c91f69d23a2d2e639b1f64776`,
+and the 8,962,776-byte raw kernel has SHA-256
+`3170aa71eafa656b1f6e23c918f1f472860f513c9c5cd0376d7d4f5f8a7d891c`.
 Its exact-size prerequisite accepted all nine artifacts before publishing the
 209,715,200-byte image with SHA-256
+`3b5dd6523a90d6ed0543a6ab2464892f3289b876654f9869f88db0901940b91e`.
+A four-vCPU RTL8139 frontier passed from this image in 820.7 seconds. Private
+CupidC emitted the broad indirect-update marker, compiled and loaded the
+dedicated external ELF as PID 4, emitted
+`[feature13-derived-aot] PASS score=41 once=2 zero=0x80000000`, and reported
+that same PID exiting. The full SMP, framebuffer, audio, USB detach/replug, and
+survival checks passed. The completed dual-NIC checkpoint immediately before
+this rebuild used image
+SHA-256
 `326844ca58c1f864a6b9a2480dfaeb5ed71ec3df22cdb46da17a6bb356e7e726`.
-The final four-vCPU E1000 and RTL8139 frontiers passed from this image. Both
-used the partitioned USB fixture, `--smp 4`, `--cpu max`, SMP and frontier
-runtime verification, a private image, and a 300-second phase timeout. E1000
-exited 0 in 725.058 seconds with 103,673 changed framebuffer pixels, 29,608,822
-AC97 frames at peak 25,600, and 76,784 PC speaker frames at peak 30,710.
-RTL8139 exited 0 in 725.406 seconds with 106,151 changed pixels, 29,601,879
-AC97 frames at peak 25,600, and 76,719 PC speaker frames at peak 31,501. Both
-used a 640 by 480 framebuffer, and the image hash remained unchanged.
 The earlier 1,057.969-second build and definitive four-vCPU E1000 and RTL8139
 boot frontiers remain pre-freeze evidence. Those boots passed with exits 0 in
 794.034 and 758.667 seconds.

@@ -159,6 +159,13 @@ rows. The caller is responsible for placing each code transition between
 instructions. The older `--mode-at OFFSET:16|32` spelling remains available
 when every range contains code.
 
+The normal SMP trampoline recipe uses this map as a publication gate.
+Hostbuild freezes the selected seed and source, asks CupidASM for a private
+4,096-byte candidate, and runs CupidDis with `--require-known`. The exact map
+is code16 `[0x000, 0x01f)`, data `[0x01f, 0x210)`, code32
+`[0x210, 0x254)`, and data `[0x254, 0x1000)`. Only a validated candidate may
+replace the prior output. ADR 0271 records the transaction.
+
 ### Requiring complete code coverage
 
 Checked-seed CupidDis can validate one or more files without printing a
@@ -174,10 +181,10 @@ unknown, invalid, and truncated counts. CupidDis continues through later
 inputs so one run reports the whole failing set. Declared raw data and
 non-executable ELF regions do not count. Ordinary rendering still accepts one
 file and keeps its existing output. The normal kernel path runs strict
-validation and flat extraction against one frozen cohort of all 427 audited
-root object outputs plus the pass-one and final kernel ELFs. Its 9,028-byte manifest lists those 429 unique
+validation and flat extraction against one frozen cohort of all 428 audited
+root object outputs plus the pass-one and final kernel ELFs. Its 9,056-byte manifest lists those 430 unique
 paths in graph order and has SHA-256
-`48bdef348f6575881b9808631173e7265abc9ea89dfb84d48de72b3d2304749e`.
+`07e0e0bf5cee4c1bf893305ef1dfd058400474d4af3dc3979c59f6e0195a0e2a`.
 An immutable first-opcode index preserves exhaustive selection, and the
 checked 128 KiB throughput contract passes within 30 seconds. ADR 0262 records
 the command, ADR 0266 records indexed decoding, and ADR 0265 records seed
@@ -190,7 +197,7 @@ final ELF with SHA-256
 8,946,332-byte raw kernel with SHA-256
 `4f5f2591d01bcc4007773844e9bfb8112a16dd17fbd178014cc2056fefaab67d`.
 The current hostbuild transaction freezes the selected seed manifest and all
-five artifacts, the 429-entry input manifest and cohort, and the existing
+five artifacts, the 430-entry input manifest and cohort, and the existing
 `kernel.bin` boundary. Checked CupidDis validates the private cohort before
 checked CupidObj flattens the frozen final ELF. Hostbuild rechecks live trust
 inputs and the output before parent-relative atomic publication. Every failure
@@ -200,28 +207,28 @@ focused hostbuild suites each passed 31 tests on Windows and in WSL;
 platform-specific cases were skipped on the opposite host. Moving private
 flatten extraction onto the shared pinned-path helper remains deferred
 maintenance.
-The frozen-document poisoned-host rebuild passed in 1,018.548 seconds. Its
-current artifacts supersede the pre-freeze identities above. The 2,560-byte
-`boot.bin` has SHA-256
+The source-current 2026-08-13 poisoned-host build completed through the checked
+native Windows execution seed. Its first invocation stopped at the 602.5-second
+command limit; the resumed build finished in 968.5 seconds, for 1,571.0 seconds
+of cumulative work. These artifacts supersede the earlier identities above.
+The 2,560-byte `boot.bin` has SHA-256
 `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3`.
-The 9,044,032-byte pass-one ELF has SHA-256
-`659bd6485deb4e6a18a1efa0f575eb90f210fe5674e9e1257eeef2a4422ff21e`,
-the 9,166,912-byte final ELF has SHA-256
-`7caf5ad4bc721f10418c06be7cfd8d9568efc8378e7baf2c2f7a510ec49263a3`,
-and the 8,950,860-byte raw kernel has SHA-256
-`5f0c0becc1ba66a9d3e2eda15555fec39faedc98e2349ad3ee7b2d08775fe1a7`.
-A final poisoned-host `make -j2 all` passed with exit 0 in 1,022.190 seconds.
+The 9,056,612-byte pass-one ELF has SHA-256
+`e2f63b5cd9c4e2769b9d6bc893ab5cf778951b97aec954ece6cbac0cc429e92a`,
+the 9,179,492-byte final ELF has SHA-256
+`1bc06263dbf9849e6d2c594b6fb4be2a3f3b673c91f69d23a2d2e639b1f64776`,
+and the 8,962,776-byte raw kernel has SHA-256
+`3170aa71eafa656b1f6e23c918f1f472860f513c9c5cd0376d7d4f5f8a7d891c`.
 The exact-size prerequisite accepted all nine artifacts before publishing the
 209,715,200-byte image with SHA-256
+`3b5dd6523a90d6ed0543a6ab2464892f3289b876654f9869f88db0901940b91e`.
+A four-vCPU RTL8139 frontier passed from this image in 820.7 seconds. Private
+CupidC emitted both feature-13 derived-update markers, compiled and loaded the
+dedicated external ELF as PID 4, and reported that same PID exiting. The full
+SMP, framebuffer, audio, USB detach/replug, and survival checks passed. The
+completed dual-NIC checkpoint immediately before this
+rebuild used image SHA-256
 `326844ca58c1f864a6b9a2480dfaeb5ed71ec3df22cdb46da17a6bb356e7e726`.
-The final four-vCPU E1000 and RTL8139 frontiers passed from this image. Both
-used the partitioned USB fixture, `--smp 4`, `--cpu max`, SMP and frontier
-runtime verification, a private image, and a 300-second phase timeout. E1000
-exited 0 in 725.058 seconds with 103,673 changed framebuffer pixels, 29,608,822
-AC97 frames at peak 25,600, and 76,784 PC speaker frames at peak 30,710.
-RTL8139 exited 0 in 725.406 seconds with 106,151 changed pixels, 29,601,879
-AC97 frames at peak 25,600, and 76,719 PC speaker frames at peak 31,501. Both
-used a 640 by 480 framebuffer, and the image hash remained unchanged.
 The definitive four-vCPU E1000 and RTL8139 boot frontiers remain pre-freeze
 runtime evidence. They passed
 with exits 0 in 794.034 and 758.667 seconds. Both passed SMP, frontier,
@@ -280,9 +287,11 @@ cdecl API bridges through both stages, plus four publication bridges for
 CupidLD. Those startup objects match, and CupidLD links all five native tool
 closures. Windows runs help plus a useful success and failure path for each
 tool. CupidDis also checks quoted raw-input parity, while CupidLD checks exact
-output, candidate collision, failure diagnostics, and cleanup. Checked Windows
-seed carriage remains open. ADR 0268 records the shared runtime, and ADR 0269
-records CupidLD publication.
+output, candidate collision, failure diagnostics, and cleanup. Those PE images
+now form the checked Windows execution seed used by output-bearing production
+recipes. The Linux seed remains the fixed-point root. ADR 0268 records the
+shared runtime, ADR 0269 records CupidLD publication, and ADR 0272 records
+checked carriage and production selection.
 
 ### Function Example
 

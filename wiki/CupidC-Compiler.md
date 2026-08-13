@@ -87,6 +87,17 @@ same job. With the Cupid profile selected, unchanged
 `kernel/cpu/simd_intrin.h` publishes all 29 intrinsic bindings. ADR 0225
 records this boundary.
 
+### Hosted driver language selection
+
+The hosted `cupidc` command accepts `--cupid` for source that uses the shared
+frontend's Cupid vocabulary. The switch selects Cupid mode in both the
+preprocessor and parser, so native integer and SIMD spellings work without a
+private test harness. `--gnu` remains an independent extension switch and may
+appear on either side of `--cupid`. Doom compatibility is a separate source
+profile and cannot be combined with Cupid mode. Without an explicit language
+switch, the hosted driver keeps its C11 default. ADR 0270 records this command
+boundary.
+
 ### Private typedef declarators
 
 Private JIT, AOT, and persistent REPL source accepts comma-separated value and
@@ -166,7 +177,7 @@ unsigned comparison.
 The table includes the 46 effects, bitmap-font, transform, GUI, and theme
 bindings that were missing for `gfxgui_test.cc`. Three accessors return
 pointers to the built-in constant themes. The remaining entries call linked
-kernel implementations directly. All 106 runnable top-level programs pass
+kernel implementations directly. All 107 runnable top-level programs pass
 private AOT compilation. The fixed guest frontier runs the graphics test as
 both an ELF and private JIT program, then verifies nested-owner cleanup after
 voluntary exit and remote kill. A delayed request for the old lifetime must
@@ -181,16 +192,21 @@ settle or startup-only graphics diagnostic.
 
 ### Floating variable updates
 
-Scalar `float` and `double` variables support prefix and postfix `++` and
-`--`. Each form adds or subtracts exactly 1.0 at the variable's own width.
-Prefix expressions return the stored value. Postfix expressions return the
-old payload, including a negative-zero or NaN payload, after storing the
-update.
+Scalar `float` and `double` lvalues support prefix and postfix `++` and `--`.
+Each form adds or subtracts exactly 1.0 at the operand's own width. Prefix
+expressions return the stored value. Postfix expressions return the exact old
+payload, including negative-zero and NaN bits, after storing the update.
 
-The same typed path handles locals, parameters, globals, standalone
-statements, and `for` increments. Arrays, structures, function pointers,
-`float4`, and `double2` fail with
-`increment or decrement requires a scalar variable`.
+The same typed path handles direct locals, parameters, and globals as well as
+pointer dereferences, fixed-array elements, direct and pointer members, and
+members of indexed records. A derived designator is evaluated once. The path
+also works in standalone statements and `for` increments. Aggregate values,
+incomplete array rows, function pointers, `float4`, and `double2` are not
+scalar update targets. The feature-13 gate requires
+`[feature13-indirect-update] PASS score=41 once=3 zero=0x80000000`, compiles
+`/bin/feature13_derived_aot.cc`, runs the resulting ELF, and requires
+`[feature13-derived-aot] PASS score=41 once=2 zero=0x80000000` before the same
+loaded PID exits.
 
 ### Mixed-width function calls
 
@@ -248,11 +264,13 @@ typed SSE access. Each subscript scales by the remaining row size, and
 `sizeof(array[index])` reports that row without evaluating the index.
 Depth-one floating pointers retain their pointee width through address
 expressions, returns, array-parameter decay, dereference, subscripting, direct
-pointer updates, and assignment. Structure and class objects, their arrays,
-and their pointers retain scalar floating fields and one-dimensional fixed
-floating field arrays. Deeper floating pointers, indirect floating updates,
-pointer-to-array types, and assignment through a
-pointer-valued floating field subscript remain unsupported.
+pointer updates, assignment, and floating increment or decrement. Structure
+and class objects, their arrays, and their pointers retain scalar floating
+fields and one-dimensional fixed floating field arrays. Pointer, index, and
+member updates evaluate the derived destination once, and postfix keeps the
+old raw payload. Deeper floating pointers, pointer-to-array types, and
+assignment through a pointer-valued floating field subscript remain
+unsupported.
 
 Fixed `float4` and `double2` arrays with one, two, or three dimensions use a
 16-byte vector leaf in global, local, block-static, and persistent REPL
@@ -641,9 +659,10 @@ Windows runs help plus a useful success and failure path for every tool, and
 CupidDis also checks quoted raw-input parity with the Linux tool. ADR 0268
 records the shared runtime, and ADR 0269 records CupidLD publication.
 
-The `cupidc` driver compiles one C11 input to an ELF32 object. It accepts
-definitions, undefinitions, forced inputs, GNU or freestanding mode, and
-ordered include roots. `-I` enables quoted and angle lookup;
+The `cupidc` driver compiles one input to an ELF32 object. C11 is the default;
+`--cupid` selects the Cupid language profile. It accepts definitions,
+undefinitions, forced inputs, GNU or freestanding mode, and ordered include
+roots. `-I` enables quoted and angle lookup;
 `--include-angle` enables angle lookup only. Repeatable `-include` options run
 before the primary source in caller order. These path options accept native
 paths or absolute logical paths under `--root`. A compile failure preserves
@@ -770,30 +789,32 @@ ADR 0265 records the current promotion.
 The bootstrap copies the 50-input source closure into a private compiler root.
 Both rebuilt stages compile from that root, and the harness checks the private
 and live closures at each stage and behavior boundary. The current seed
-transition's stage two and stage three contain the same five tool images.
-CupidObj and CupidLD remain byte-identical to the preceding seed. CupidASM,
-CupidC, and CupidDis change. The two rebuilt stages match every C and startup
+transition's stage two and stage three contain the same five tool images. The
+two rebuilt stages match every C and startup
 object and agree on all five help paths, eighteen successful operations, and
 sixteen failure cases. Their stage directories, behavior evidence, and report
 are published together only after the complete gate passes. The 50-input
 closure has SHA-256
-`76bb7c1cc63c44d29d0f062af0a714e1855632da7db13ff8652f6a897a2931a4`.
-The 38,162-byte report has SHA-256
-`d90cf63e19ed1b4af560e4c15660d0583a1591bccdaa75157432204a82079efd`.
-The proof passed in 902.792 seconds. The checked 128 KiB strict-decode case
-completed within its 30-second limit. ADR 0266 records the decoder index.
-An independent poisoned-host reproof passed in 766.9 seconds. All five seed
-images match stage two, and stage two matches stage three across the complete
-19/1/5 artifact set and 5/18/16 behavior matrix. Its 17,032-byte report has
+`5bfbca2cbe30f2fa4b638cbf462b306cc05dc50a4604fd887f89426dbe091e63`.
+The 38,164-byte report has SHA-256
+`3c63664f08e7bcdc639a88ca6ada6cf5143100eac966d748660b65d537b01e10`.
+The proof passed in 801.9 seconds. The checked 128 KiB strict-decode case
+completed within its 30-second limit. ADR 0266 records the decoder index. The
+older Linux seed matches stage two for CupidASM, CupidDis, and CupidObj;
+CupidC differs because of `--cupid`, and CupidLD differs because of the PE
+stack policy. Stage two matches stage three across the complete 19/1/5
+artifact set and 5/18/16 behavior matrix. All five matching native PEs form
+the checked Windows execution seed. An earlier poisoned-host reproof, before
+these two source changes, passed in 766.9 seconds. Its 17,032-byte report has
 SHA-256
 `736872f31d853fe5b2b67c25e7ec42a1893655074a1c653112def6d66fdeac87`.
 The normal kernel path runs strict checked-seed CupidDis and checked CupidObj
-flat extraction against one frozen cohort of all 427 audited root object
-outputs plus the pass-one and final kernel ELFs. Its 9,028-byte graph-ordered input manifest has SHA-256
-`48bdef348f6575881b9808631173e7265abc9ea89dfb84d48de72b3d2304749e`.
-The first separate gate passed in 185.526 seconds with empty streams and exit
+flat extraction against one frozen cohort of all 428 audited root object
+outputs plus the pass-one and final kernel ELFs. Its 9,056-byte graph-ordered input manifest has SHA-256
+`07e0e0bf5cee4c1bf893305ef1dfd058400474d4af3dc3979c59f6e0195a0e2a`.
+The first separate gate for the preceding 429-path cohort passed in 185.526 seconds with empty streams and exit
 0. The current hostbuild transaction freezes the selected seed manifest and
-all five artifacts, the 429-entry input manifest and cohort, and the existing
+all five artifacts, the 430-entry input manifest and cohort, and the existing
 `kernel.bin` boundary. Checked CupidDis validates the private cohort before
 checked CupidObj flattens the frozen final ELF. Hostbuild rechecks live trust
 inputs and the output before parent-relative atomic publication. Every failure
@@ -805,29 +826,29 @@ platform-specific cases were skipped on the opposite host. Moving private
 flatten extraction onto the shared pinned-path helper remains deferred
 maintenance.
 
-The frozen-document poisoned-host rebuild passed in 1,018.548 seconds. Its
-current outputs supersede the pre-freeze identities below. The 2,560-byte
-`boot.bin` has SHA-256
+The source-current 2026-08-13 poisoned-host build completed through the checked
+native Windows execution seed. Its first invocation stopped at the 602.5-second
+command limit; the resumed build finished in 968.5 seconds, for 1,571.0 seconds
+of cumulative work. These outputs supersede the earlier identities below. The
+2,560-byte `boot.bin` has SHA-256
 `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3`.
-The 9,044,032-byte pass-one ELF has SHA-256
-`659bd6485deb4e6a18a1efa0f575eb90f210fe5674e9e1257eeef2a4422ff21e`,
-the 9,166,912-byte final ELF has SHA-256
-`7caf5ad4bc721f10418c06be7cfd8d9568efc8378e7baf2c2f7a510ec49263a3`,
-and the 8,950,860-byte raw kernel has SHA-256
-`5f0c0becc1ba66a9d3e2eda15555fec39faedc98e2349ad3ee7b2d08775fe1a7`.
+The 9,056,612-byte pass-one ELF has SHA-256
+`e2f63b5cd9c4e2769b9d6bc893ab5cf778951b97aec954ece6cbac0cc429e92a`,
+the 9,179,492-byte final ELF has SHA-256
+`1bc06263dbf9849e6d2c594b6fb4be2a3f3b673c91f69d23a2d2e639b1f64776`,
+and the 8,962,776-byte raw kernel has SHA-256
+`3170aa71eafa656b1f6e23c918f1f472860f513c9c5cd0376d7d4f5f8a7d891c`.
 
-A final poisoned-host `make -j2 all` passed with exit 0 in 1,022.190 seconds.
 The exact-size prerequisite accepted all nine artifacts before publishing the
 209,715,200-byte image with SHA-256
+`3b5dd6523a90d6ed0543a6ab2464892f3289b876654f9869f88db0901940b91e`.
+A four-vCPU RTL8139 frontier passed from this image in 820.7 seconds. Private
+CupidC emitted both feature-13 derived-update markers, compiled and loaded the
+dedicated external ELF as PID 4, and reported that same PID exiting. The full
+SMP, framebuffer, audio, USB detach/replug, and survival checks passed. The
+completed dual-NIC checkpoint immediately before this
+rebuild used image SHA-256
 `326844ca58c1f864a6b9a2480dfaeb5ed71ec3df22cdb46da17a6bb356e7e726`.
-The final four-vCPU E1000 and RTL8139 frontiers passed from this image. Both
-used the partitioned USB fixture, `--smp 4`, `--cpu max`, SMP and frontier
-runtime verification, a private image, and a 300-second phase timeout. E1000
-exited 0 in 725.058 seconds with 103,673 changed framebuffer pixels, 29,608,822
-AC97 frames at peak 25,600, and 76,784 PC speaker frames at peak 30,710.
-RTL8139 exited 0 in 725.406 seconds with 106,151 changed pixels, 29,601,879
-AC97 frames at peak 25,600, and 76,719 PC speaker frames at peak 31,501. Both
-used a 640 by 480 framebuffer, and the image hash remained unchanged.
 
 A fresh build of hello, ls, and cat in a unique output directory passed in
 10.492 seconds. It reproduced the promoted frontier's six files:
@@ -862,16 +883,18 @@ exact marker and empty stderr, and requires exit 37. The checked-seed matrix is
 5/18/16. Import ordering uses an in-place heap, name imports stay below the
 PE32 high-bit boundary, and the independent validator reconstructs the exact
 `.idata` cursor. The bootstrap report retains both stages' object and image
-hashes and the observed Windows result. The normal build does not use PE
-output. Source head now links and runs complete native images for all five
+hashes and the observed Windows result. The first loader proof did not use PE
+output in the normal build. Source head then linked and ran complete native images for all five
 hosted tools through the same PE path. Both stages produce matching images,
 and Windows runs help plus useful success and failure cases for every tool.
 CupidDis also checks exact raw-report parity. CupidLD checks exact linked output,
-candidate collision, failure diagnostics, and cleanup. Checked Windows seed
-carriage remains open.
+candidate collision, failure diagnostics, and cleanup. Those images now form
+the checked Windows execution seed used by output-bearing production recipes.
+The cohort does not claim a native fixed point.
 ADRs 0247 and 0248 record the format and small loader boundaries, ADR 0258
 records seed carriage, ADR 0268 records the shared runtime, and ADR 0269
-records CupidLD publication.
+records CupidLD publication. ADR 0272 records native carriage and production
+selection.
 
 Those rebuilt CupidLD images publish ELF and PE output through an adjacent
 candidate created with exclusive-create semantics. They write and close the
@@ -1228,13 +1251,13 @@ SMP, all 62 crypto checks, e1000 traffic, the desktop, terminal, and CupidC
 execution at `0x01100000`. A separate gate loads and reaps the same
 external program twice at `0x01C00000`. ADR 0124 records the exact build and
 runtime evidence. No supported transform invokes a host C compiler. Python
-participates in all 450 transforms across the three audited roots, and CupidC
-participates in 245. CupidObj participates in 191, CupidASM in five, CupidLD in
-five, and CupidDis in two. Root `all` has 441 transforms, including 440
+participates in all 451 transforms across the three audited roots, and CupidC
+participates in 245. CupidObj participates in 192, CupidASM in five, CupidLD in
+five, and CupidDis in three. Root `all` has 442 transforms, including 441
 Cupid-owned artifact transforms and the Python-only size verifier. It runs
 CupidC, CupidASM, CupidObj, CupidLD, and CupidDis from the manifest-checked
 seed; `toolchain:all` uses the rebuilt static tools for its contract cohort.
-The final `make bootstrap-audit` passed in 64.780 seconds. The private
+The final `make bootstrap-audit` passed in 69.0 seconds. The private
 in-kernel CupidC compiler
 still handles embedded runtime compilation. The checked user compiler creates
 approved output directories for default and overridden `BUILD` paths. It uses
@@ -2309,6 +2332,10 @@ requires them.
 floating pointers, multidimensional arrays, record fields, array-parameter
 decay, and unevaluated row sizes in the private compiler.
 
+[ADR 0273](../docs/adr/0273-update-private-derived-floating-lvalues.md)
+records one-time destination evaluation and exact postfix results for pointer,
+index, and member floating updates in the private compiler.
+
 [ADR 0216](../docs/adr/0216-private-simd-arrays-and-operators.md) records
 matching packed arithmetic, one-dimensional fixed SIMD arrays, observable
 operand order, and the remaining private compiler boundary.
@@ -2376,9 +2403,10 @@ When the parser encounters a call to an undefined function, it emits a placehold
 - One decoded string token is limited to 1,023 bytes. Adjacent tokens can fill
   the private data section, but wide strings and literal pooling are not
   implemented.
-- Floating pointer depth greater than one, indirect floating `++` and `--`,
-  pointer-to-array types, and assignment through a pointer-valued floating
-  field subscript remain unsupported.
+- Floating pointer depth greater than one, pointer-to-array types, and
+  assignment through a pointer-valued floating field subscript remain
+  unsupported. Indirect integer `++` and `--` also remain outside the private
+  compiler boundary.
 - SIMD pointers, SIMD record fields, allocation with `new`, SIMD array
   parameters, row values, and SIMD values crossing the private call ABI remain
   unsupported.

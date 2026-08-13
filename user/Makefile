@@ -19,23 +19,36 @@
 
 ifeq ($(OS),Windows_NT)
 PYTHON ?= python
+PRODUCTION_SEED_MANIFEST ?= ../bootstrap/seeds/i386-windows/manifest.json
+PRODUCTION_SEED_SUFFIX := exe
 else
 PYTHON ?= python3
+PRODUCTION_SEED_MANIFEST ?= ../bootstrap/seeds/i386-linux/manifest.json
+PRODUCTION_SEED_SUFFIX := elf
 endif
 
-CUPIDC_PRODUCTION_COMPILE := $(PYTHON) ../tools/cupidc_production_compile.py \
-	--root .. --cohort user
-CUPIDLD_USER_LINK := $(PYTHON) ../tools/cupidld_user_link.py --root ..
-USER_SYSCALL_ABI := $(PYTHON) ../tools/cupidc_toolchain_contracts.py \
-	user-abi --root .. \
-	--manifest ../bootstrap/seeds/i386-linux/manifest.json \
-	--output ../toolchain/build/cupidc-contracts
-CHECKED_SEED_INPUTS := ../bootstrap/seeds/i386-linux/manifest.json \
+PRODUCTION_SEED_DIRECTORY := $(dir $(PRODUCTION_SEED_MANIFEST))
+CHECKED_SEED_INPUTS := $(PRODUCTION_SEED_MANIFEST) \
+	$(PRODUCTION_SEED_DIRECTORY)cupidasm.$(PRODUCTION_SEED_SUFFIX) \
+	$(PRODUCTION_SEED_DIRECTORY)cupidc.$(PRODUCTION_SEED_SUFFIX) \
+	$(PRODUCTION_SEED_DIRECTORY)cupiddis.$(PRODUCTION_SEED_SUFFIX) \
+	$(PRODUCTION_SEED_DIRECTORY)cupidld.$(PRODUCTION_SEED_SUFFIX) \
+	$(PRODUCTION_SEED_DIRECTORY)cupidobj.$(PRODUCTION_SEED_SUFFIX)
+BOOTSTRAP_SEED_MANIFEST := ../bootstrap/seeds/i386-linux/manifest.json
+BOOTSTRAP_SEED_INPUTS := $(BOOTSTRAP_SEED_MANIFEST) \
 	../bootstrap/seeds/i386-linux/cupidasm.elf \
 	../bootstrap/seeds/i386-linux/cupidc.elf \
 	../bootstrap/seeds/i386-linux/cupiddis.elf \
 	../bootstrap/seeds/i386-linux/cupidld.elf \
 	../bootstrap/seeds/i386-linux/cupidobj.elf
+CUPIDC_PRODUCTION_COMPILE := $(PYTHON) ../tools/cupidc_production_compile.py \
+	--root .. --cohort user --manifest $(PRODUCTION_SEED_MANIFEST)
+CUPIDLD_USER_LINK := $(PYTHON) ../tools/cupidld_user_link.py --root .. \
+	--manifest $(PRODUCTION_SEED_MANIFEST)
+USER_SYSCALL_ABI := $(PYTHON) ../tools/cupidc_toolchain_contracts.py \
+	user-abi --root .. \
+	--manifest $(BOOTSTRAP_SEED_MANIFEST) \
+	--output ../toolchain/build/cupidc-contracts
 USER_SYSCALL_ABI_PUBLICATION_INPUTS := \
 	../kernel/core/syscall.cc \
 	../kernel/core/syscall.h \
@@ -167,7 +180,7 @@ CUPIDLD_USER_LINK_INPUTS := ../tools/cupidld_user_link.py \
 USER_SYSCALL_ABI_INPUTS := $(sort \
 	$(USER_SYSCALL_ABI_PUBLICATION_INPUTS) \
 	$(USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS) \
-	$(CHECKED_SEED_INPUTS))
+	$(BOOTSTRAP_SEED_INPUTS))
 USER_FRONTIER_INPUTS := ../tools/cupidc_production_frontier.py \
 	$(CUPIDC_PRODUCTION_COMPILE_INPUTS) $(CUPIDLD_USER_LINK_INPUTS) \
 	$(USER_SYSCALL_ABI_INPUTS)

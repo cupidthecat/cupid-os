@@ -20,6 +20,7 @@ from typing import Sequence
 
 
 SEED_SCHEMA = "cupid.bootstrap-seed.v1"
+WINDOWS_SEED_SCHEMA = "cupid.execution-seed.v1"
 SEED_SOURCE_REVISION = "95f5bb6cfd0468bb8852c670ada849cb5bde79a7"
 TOOL_NAMES = ("cupidasm", "cupiddis", "cupidld", "cupidobj", "cupidc")
 TOOL_DISPLAY_NAMES = {
@@ -39,11 +40,76 @@ EXPECTED_TARGET = {
     "linkage": "static",
     "operating_system": "linux",
 }
+EXPECTED_WINDOWS_TARGET = {
+    "abi": "windows-stdcall-imports",
+    "architecture": "i386",
+    "byte_order": "little",
+    "entry": 0x00401000,
+    "linkage": "kernel32-imports",
+    "operating_system": "windows",
+    "pe_class": 32,
+}
 EXPECTED_PRODUCER_LINEAGE = {
     "assembly": "stage-two CupidASM from the checked-seed bootstrap",
     "c": "stage-two CupidC from the checked-seed bootstrap",
     "link": "stage-two CupidLD from the checked-seed bootstrap",
 }
+EXPECTED_WINDOWS_PRODUCER_LINEAGE = {
+    "assembly": "stage-three CupidASM from the checked i386 Linux bootstrap",
+    "c": "stage-three CupidC from the checked i386 Linux bootstrap",
+    "link": "stage-three CupidLD from the checked i386 Linux bootstrap",
+}
+WINDOWS_SEED_SOURCE_REVISION = (
+    "384c74d026b50e469f60dd7f6409f4b185df4ef7"
+)
+WINDOWS_SEED_SOURCE_SNAPSHOT_SHA256 = (
+    "5bfbca2cbe30f2fa4b638cbf462b306cc05dc50a4604fd887f89426dbe091e63"
+)
+WINDOWS_SEED_PARENT_MANIFEST_SHA256 = (
+    "5b46684d9977287f69a94473acbbf7c5302213ef98f9748482cba768ffca0be8"
+)
+WINDOWS_TOOL_IMPORTS = (
+    (
+        "KERNEL32.dll",
+        (
+            "CloseHandle",
+            "CreateFileA",
+            "ExitProcess",
+            "GetCommandLineA",
+            "GetCurrentDirectoryA",
+            "GetLastError",
+            "GetStdHandle",
+            "ReadFile",
+            "SetFilePointer",
+            "VirtualAlloc",
+            "VirtualFree",
+            "WriteFile",
+        ),
+    ),
+)
+WINDOWS_LINKER_IMPORTS = (
+    (
+        "KERNEL32.dll",
+        (
+            "CloseHandle",
+            "CreateFileA",
+            "DeleteFileA",
+            "ExitProcess",
+            "FlushFileBuffers",
+            "GetCommandLineA",
+            "GetCurrentDirectoryA",
+            "GetFullPathNameA",
+            "GetLastError",
+            "GetStdHandle",
+            "MoveFileExA",
+            "ReadFile",
+            "SetFilePointer",
+            "VirtualAlloc",
+            "VirtualFree",
+            "WriteFile",
+        ),
+    ),
+)
 EXPECTED_FIXED_POINT_COMMAND = "make bootstrap-from-seed"
 EXPECTED_INCLUDE_ARGUMENTS = (
     "-I",
@@ -168,15 +234,11 @@ class SourceInputs:
 
 
 class ToolRunner:
-    """Run static i386 Linux tools directly or through WSL."""
+    """Run checked i386 tools through their native host boundary."""
 
     def __init__(self, working_directory: Path):
         self.working_directory = working_directory.resolve()
         self.uses_wsl = os.name == "nt"
-        if self.uses_wsl and shutil.which("wsl") is None:
-            raise BootstrapError(
-                "WSL is required to run the i386 Linux seed on Windows"
-            )
 
     @property
     def platform_name(self) -> str:
@@ -207,7 +269,28 @@ class ToolRunner:
         arguments: Sequence[str | Path],
         timeout: int,
     ) -> subprocess.CompletedProcess[str]:
-        if self.uses_wsl:
+        try:
+            signature = executable.read_bytes()[:4]
+        except OSError as error:
+            raise BootstrapError(
+                f"cannot read checked tool {executable}: {error}"
+            ) from error
+        is_linux_elf = signature == b"\x7fELF"
+        is_windows_pe = signature[:2] == b"MZ"
+        if not is_linux_elf and not is_windows_pe:
+            raise BootstrapError(
+                f"checked tool has an unsupported executable format: "
+                f"{executable.name}"
+            )
+        if os.name != "nt" and is_windows_pe:
+            raise BootstrapError(
+                "the i386 Windows seed requires a Windows host"
+            )
+        if os.name == "nt" and is_linux_elf:
+            if shutil.which("wsl") is None:
+                raise BootstrapError(
+                    "WSL is required to run the i386 Linux seed on Windows"
+                )
             linux_executable = self._wsl_path(executable)
             linux_working_directory = self._wsl_path(
                 self.working_directory
@@ -619,17 +702,17 @@ _FIXED_PE32_DOS_STUB = bytes.fromhex(
 )
 
 
-def _validate_static_i386_pe32(
-    path: Path,
+def _validate_static_i386_pe32_bytes(
+    data: bytes,
+    name: str,
     expected_entry: int,
     expected_imports: Sequence[tuple[str, Sequence[str]]] = (),
 ) -> None:
-    data = path.read_bytes()
     has_imports = bool(expected_imports)
 
     def require_range(offset: int, size: int, label: str) -> None:
         if offset < 0 or size < 0 or offset > len(data) - size:
-            raise BootstrapError(f"{path.name} has a truncated {label}")
+            raise BootstrapError(f"{name} has a truncated {label}")
 
     def read_u16(offset: int, label: str) -> int:
         require_range(offset, 2, label)
@@ -641,11 +724,11 @@ def _validate_static_i386_pe32(
 
     require_range(0, len(_FIXED_PE32_DOS_STUB), "DOS header")
     if data[: len(_FIXED_PE32_DOS_STUB)] != _FIXED_PE32_DOS_STUB:
-        raise BootstrapError(f"{path.name} has a noncanonical DOS stub")
+        raise BootstrapError(f"{name} has a noncanonical DOS stub")
     pe_offset = read_u32(0x3C, "DOS PE offset")
     require_range(pe_offset, 24, "PE and COFF headers")
     if data[pe_offset : pe_offset + 4] != b"PE\0\0":
-        raise BootstrapError(f"{path.name} has no PE signature")
+        raise BootstrapError(f"{name} has no PE signature")
     (
         machine,
         section_count,
@@ -665,11 +748,11 @@ def _validate_static_i386_pe32(
         or optional_size != 0x00E0
         or characteristics != 0x0103
     ):
-        raise BootstrapError(f"{path.name} has an invalid PE32 COFF header")
+        raise BootstrapError(f"{name} has an invalid PE32 COFF header")
     optional_offset = pe_offset + 24
     require_range(optional_offset, optional_size, "PE32 optional header")
     if read_u16(optional_offset, "PE32 magic") != 0x010B:
-        raise BootstrapError(f"{path.name} is not PE32")
+        raise BootstrapError(f"{name} is not PE32")
     linker_major = data[optional_offset + 2]
     linker_minor = data[optional_offset + 3]
     code_size = read_u32(optional_offset + 4, "PE32 code size")
@@ -736,7 +819,7 @@ def _validate_static_i386_pe32(
         or expected_entry < image_base
         or entry_rva != expected_entry - image_base
     ):
-        raise BootstrapError(f"{path.name} has an invalid PE32 image layout")
+        raise BootstrapError(f"{name} has an invalid PE32 image layout")
     directories = []
     for directory in range(directory_count):
         offset = optional_offset + 96 + directory * 8
@@ -750,10 +833,10 @@ def _validate_static_i386_pe32(
             0,
         ):
             raise BootstrapError(
-                f"{path.name} has an unexpected PE32 data directory"
+                f"{name} has an unexpected PE32 data directory"
             )
     if has_imports and (directories[1] == (0, 0) or directories[12] == (0, 0)):
-        raise BootstrapError(f"{path.name} omits its PE32 import directories")
+        raise BootstrapError(f"{name} omits its PE32 import directories")
     section_offset = optional_offset + optional_size
     require_range(
         section_offset, section_count * 40, "PE32 section table"
@@ -768,7 +851,7 @@ def _validate_static_i386_pe32(
         data[section_table_end:headers_size]
     ):
         raise BootstrapError(
-            f"{path.name} has a noncanonical PE32 header extent"
+            f"{name} has a noncanonical PE32 header extent"
         )
     expected_sections = {
         ".text": (0, 0x60000020),
@@ -817,19 +900,19 @@ def _validate_static_i386_pe32(
             or read_u16(offset + 34, "PE32 line count") != 0
         ):
             raise BootstrapError(
-                f"{path.name} has an invalid PE32 section profile"
+                f"{name} has an invalid PE32 section profile"
             )
         previous_section_rank = expected[0]
         if virtual_size == 0:
-            raise BootstrapError(f"{path.name} has an empty PE32 section")
+            raise BootstrapError(f"{name} has an empty PE32 section")
         if virtual_address != expected_virtual_address:
             raise BootstrapError(
-                f"{path.name} has a noncanonical PE32 section address"
+                f"{name} has a noncanonical PE32 section address"
             )
         virtual_end = virtual_address + virtual_size
         if virtual_end > image_size:
             raise BootstrapError(
-                f"{path.name} has a PE32 section outside its image"
+                f"{name} has a PE32 section outside its image"
             )
         greatest_virtual_end = max(greatest_virtual_end, virtual_end)
         expected_virtual_address = (
@@ -851,17 +934,17 @@ def _validate_static_i386_pe32(
                 or virtual_size > raw_size
             ):
                 raise BootstrapError(
-                    f"{path.name} has an invalid PE32 file section"
+                    f"{name} has an invalid PE32 file section"
                 )
             require_range(raw_offset, raw_size, "PE32 section data")
             if any(data[raw_offset + virtual_size : raw_offset + raw_size]):
                 raise BootstrapError(
-                    f"{path.name} has nonzero PE32 section padding"
+                    f"{name} has nonzero PE32 section padding"
                 )
             expected_raw_offset = raw_offset + raw_size
         elif raw_offset != 0 or name != ".bss":
             raise BootstrapError(
-                f"{path.name} has an invalid empty PE32 section"
+                f"{name} has an invalid empty PE32 section"
             )
         if name == ".text":
             expected_code_size += raw_size
@@ -895,14 +978,14 @@ def _validate_static_i386_pe32(
         or base_of_code != expected_base_of_code
         or base_of_data != expected_base_of_data
     ):
-        raise BootstrapError(f"{path.name} has an invalid PE32 image extent")
+        raise BootstrapError(f"{name} has an invalid PE32 image extent")
     if not entry_is_file_backed_executable:
         raise BootstrapError(
-            f"{path.name} entry is not file-backed PE32 executable code"
+            f"{name} entry is not file-backed PE32 executable code"
         )
     if has_imports:
         if ".idata" not in sections:
-            raise BootstrapError(f"{path.name} omits its PE32 import section")
+            raise BootstrapError(f"{name} omits its PE32 import section")
 
         (
             idata_virtual_address,
@@ -926,7 +1009,7 @@ def _validate_static_i386_pe32(
                     idata_raw_offset
                     + min(idata_raw_size, idata_virtual_size),
                 )
-            raise BootstrapError(f"{path.name} has an invalid {label} RVA")
+            raise BootstrapError(f"{name} has an invalid {label} RVA")
 
         def rva_offset(rva: int, size: int, label: str) -> int:
             return rva_extent(rva, size, label)[0]
@@ -936,13 +1019,13 @@ def _validate_static_i386_pe32(
             end = data.find(b"\0", offset, section_end)
             if end < 0:
                 raise BootstrapError(
-                    f"{path.name} has an unterminated {label}"
+                    f"{name} has an unterminated {label}"
                 )
             try:
                 return data[offset:end].decode("ascii")
             except UnicodeDecodeError as error:
                 raise BootstrapError(
-                    f"{path.name} has a non-ASCII {label}"
+                    f"{name} has a non-ASCII {label}"
                 ) from error
 
         import_rva, import_size = directories[1]
@@ -952,7 +1035,7 @@ def _validate_static_i386_pe32(
             or import_size != expected_import_size
         ):
             raise BootstrapError(
-                f"{path.name} has a noncanonical PE32 import directory"
+                f"{name} has a noncanonical PE32 import directory"
             )
         descriptor_offset = rva_offset(
             import_rva, expected_import_size, "import directory"
@@ -967,7 +1050,7 @@ def _validate_static_i386_pe32(
             lookup_rva, timestamp, forwarder, name_rva, iat_rva = descriptor
             if timestamp != 0 or forwarder != 0:
                 raise BootstrapError(
-                    f"{path.name} has a stateful PE32 import descriptor"
+                    f"{name} has a stateful PE32 import descriptor"
                 )
             descriptors.append((lookup_rva, name_rva, iat_rva))
 
@@ -978,7 +1061,7 @@ def _validate_static_i386_pe32(
             ]
         ):
             raise BootstrapError(
-                f"{path.name} has no null PE32 import descriptor"
+                f"{name} has no null PE32 import descriptor"
             )
 
         cursor = expected_import_size
@@ -990,7 +1073,7 @@ def _validate_static_i386_pe32(
             thunk_size = (len(procedures) + 1) * 4
             if lookup_rva != idata_virtual_address + cursor:
                 raise BootstrapError(
-                    f"{path.name} has a noncanonical PE32 import lookup layout"
+                    f"{name} has a noncanonical PE32 import lookup layout"
                 )
             lookup_offsets.append(
                 rva_offset(lookup_rva, thunk_size, "import lookup table")
@@ -1006,7 +1089,7 @@ def _validate_static_i386_pe32(
             thunk_size = (len(procedures) + 1) * 4
             if iat_rva != idata_virtual_address + cursor:
                 raise BootstrapError(
-                    f"{path.name} has a noncanonical PE32 import address layout"
+                    f"{name} has a noncanonical PE32 import address layout"
                 )
             iat_offsets.append(
                 rva_offset(iat_rva, thunk_size, "import address table")
@@ -1021,7 +1104,7 @@ def _validate_static_i386_pe32(
             encoded_library = library.encode("ascii") + b"\0"
             if name_rva != idata_virtual_address + cursor:
                 raise BootstrapError(
-                    f"{path.name} has a noncanonical PE32 import name layout"
+                    f"{name} has a noncanonical PE32 import name layout"
                 )
             library_offset = rva_offset(
                 name_rva, len(encoded_library), "import library"
@@ -1030,7 +1113,7 @@ def _validate_static_i386_pe32(
                 library_offset : library_offset + len(encoded_library)
             ] != encoded_library:
                 raise BootstrapError(
-                    f"{path.name} has an unexpected PE32 import library"
+                    f"{name} has an unexpected PE32 import library"
                 )
             cursor += len(encoded_library)
 
@@ -1056,7 +1139,7 @@ def _validate_static_i386_pe32(
                     )
                     if data[alignment_offset] != 0:
                         raise BootstrapError(
-                            f"{path.name} has nonzero PE32 import alignment"
+                            f"{name} has nonzero PE32 import alignment"
                         )
                     cursor += 1
                 expected_hint_rva = idata_virtual_address + cursor
@@ -1079,7 +1162,7 @@ def _validate_static_i386_pe32(
                     != procedure
                 ):
                     raise BootstrapError(
-                        f"{path.name} has an unexpected PE32 import procedure"
+                        f"{name} has an unexpected PE32 import procedure"
                     )
                 cursor += 2 + len(encoded_procedure)
             if (
@@ -1095,17 +1178,27 @@ def _validate_static_i386_pe32(
                 != 0
             ):
                 raise BootstrapError(
-                    f"{path.name} has an unterminated PE32 import thunk table"
+                    f"{name} has an unterminated PE32 import thunk table"
                 )
 
         if cursor != idata_virtual_size:
             raise BootstrapError(
-                f"{path.name} has a noncanonical PE32 import section extent"
+                f"{name} has a noncanonical PE32 import section extent"
             )
         if directories[12] != (first_iat, iat_end - first_iat):
             raise BootstrapError(
-                f"{path.name} has a noncanonical PE32 IAT directory"
+                f"{name} has a noncanonical PE32 IAT directory"
             )
+
+
+def _validate_static_i386_pe32(
+    path: Path,
+    expected_entry: int,
+    expected_imports: Sequence[tuple[str, Sequence[str]]] = (),
+) -> None:
+    _validate_static_i386_pe32_bytes(
+        path.read_bytes(), path.name, expected_entry, expected_imports
+    )
 
 
 def _validate_i386_relocatable(path: Path) -> None:
@@ -1245,23 +1338,32 @@ def _verify_seed_manifest_data(
     seed_directory: Path,
     snapshot_directory: Path | None,
 ) -> dict[str, Path]:
+    schema = manifest.get("schema")
+    is_windows_seed = schema == WINDOWS_SEED_SCHEMA
     _require_exact_keys(
         manifest,
-        {
-            "artifacts",
-            "build_plan",
-            "build_plan_sha256",
-            "provenance",
-            "schema",
-            "target",
-        },
+        (
+            {"artifacts", "provenance", "schema", "target"}
+            if is_windows_seed
+            else {
+                "artifacts",
+                "build_plan",
+                "build_plan_sha256",
+                "provenance",
+                "schema",
+                "target",
+            }
+        ),
         "manifest",
     )
-    if manifest.get("schema") != SEED_SCHEMA:
+    if schema not in (SEED_SCHEMA, WINDOWS_SEED_SCHEMA):
         raise BootstrapError("manifest schema is unsupported")
+    expected_target = (
+        EXPECTED_WINDOWS_TARGET if is_windows_seed else EXPECTED_TARGET
+    )
     target = _require_object(manifest.get("target"), "target")
-    _require_exact_keys(target, set(EXPECTED_TARGET), "manifest target")
-    for field, expected in EXPECTED_TARGET.items():
+    _require_exact_keys(target, set(expected_target), "manifest target")
+    for field, expected in expected_target.items():
         actual = target.get(field)
         if type(actual) is not type(expected):
             raise BootstrapError(
@@ -1273,41 +1375,86 @@ def _verify_seed_manifest_data(
     provenance = _require_object(
         manifest.get("provenance"), "provenance"
     )
-    _require_exact_keys(
-        provenance,
-        {
-            "fixed_point_command",
-            "fixed_point_result",
-            "producer_lineage",
-            "seed_generation",
-            "source_revision",
-        },
-        "provenance",
-    )
-    revision = provenance.get("source_revision")
-    if revision != SEED_SOURCE_REVISION:
-        raise BootstrapError("source revision differs")
-    if provenance.get("seed_generation") != "stage-three":
-        raise BootstrapError("seed generation differs")
+    if is_windows_seed:
+        _require_exact_keys(
+            provenance,
+            {
+                "artifact_generation",
+                "fixed_point_command",
+                "fixed_point_result",
+                "parent_seed_manifest_sha256",
+                "parent_seed_source_revision",
+                "producer_lineage",
+                "source_input_count",
+                "source_revision",
+                "source_snapshot_sha256",
+            },
+            "provenance",
+        )
+        if provenance.get("artifact_generation") != (
+            "paired-stage-three-native-windows"
+        ):
+            raise BootstrapError("Windows seed generation differs")
+        if provenance.get("source_revision") != (
+            WINDOWS_SEED_SOURCE_REVISION
+        ):
+            raise BootstrapError("source revision differs")
+        if provenance.get("source_snapshot_sha256") != (
+            WINDOWS_SEED_SOURCE_SNAPSHOT_SHA256
+        ):
+            raise BootstrapError("source snapshot differs")
+        if provenance.get("source_input_count") != 50:
+            raise BootstrapError("source input count differs")
+        if provenance.get("parent_seed_source_revision") != (
+            SEED_SOURCE_REVISION
+        ):
+            raise BootstrapError("parent seed source revision differs")
+        if provenance.get("parent_seed_manifest_sha256") != (
+            WINDOWS_SEED_PARENT_MANIFEST_SHA256
+        ):
+            raise BootstrapError("parent seed manifest differs")
+        if provenance.get("producer_lineage") != (
+            EXPECTED_WINDOWS_PRODUCER_LINEAGE
+        ):
+            raise BootstrapError("producer lineage differs")
+    else:
+        _require_exact_keys(
+            provenance,
+            {
+                "fixed_point_command",
+                "fixed_point_result",
+                "producer_lineage",
+                "seed_generation",
+                "source_revision",
+            },
+            "provenance",
+        )
+        revision = provenance.get("source_revision")
+        if revision != SEED_SOURCE_REVISION:
+            raise BootstrapError("source revision differs")
+        if provenance.get("seed_generation") != "stage-three":
+            raise BootstrapError("seed generation differs")
+        if provenance.get("producer_lineage") != EXPECTED_PRODUCER_LINEAGE:
+            raise BootstrapError("producer lineage differs")
+
     if provenance.get("fixed_point_result") != "pass":
         raise BootstrapError("seed lacks passing fixed-point provenance")
     if provenance.get("fixed_point_command") != EXPECTED_FIXED_POINT_COMMAND:
         raise BootstrapError("fixed-point command differs")
-    if provenance.get("producer_lineage") != EXPECTED_PRODUCER_LINEAGE:
-        raise BootstrapError("producer lineage differs")
 
-    plan = _require_object(manifest.get("build_plan"), "build_plan")
-    if type(plan.get("workers")) is not int:
-        raise BootstrapError("build plan workers type differs")
-    expected_plan_digest = manifest.get("build_plan_sha256")
-    if (
-        not isinstance(expected_plan_digest, str)
-        or re.fullmatch(r"[0-9a-f]{64}", expected_plan_digest) is None
-    ):
-        raise BootstrapError("build plan SHA-256 is invalid")
-    if _build_plan_sha256(plan) != expected_plan_digest:
-        raise BootstrapError("build plan SHA-256 differs")
-    _validate_build_plan(manifest)
+    if not is_windows_seed:
+        plan = _require_object(manifest.get("build_plan"), "build_plan")
+        if type(plan.get("workers")) is not int:
+            raise BootstrapError("build plan workers type differs")
+        expected_plan_digest = manifest.get("build_plan_sha256")
+        if (
+            not isinstance(expected_plan_digest, str)
+            or re.fullmatch(r"[0-9a-f]{64}", expected_plan_digest) is None
+        ):
+            raise BootstrapError("build plan SHA-256 is invalid")
+        if _build_plan_sha256(plan) != expected_plan_digest:
+            raise BootstrapError("build plan SHA-256 differs")
+        _validate_build_plan(manifest)
     artifacts = _require_list(manifest.get("artifacts"), "artifacts")
     if len(artifacts) != len(TOOL_NAMES):
         raise BootstrapError("manifest must contain five tool artifacts")
@@ -1328,10 +1475,11 @@ def _verify_seed_manifest_data(
             raise BootstrapError(f"artifact {index} has an unknown tool name")
         if name in resolved:
             raise BootstrapError(f"tool artifact is duplicated: {name}")
+        expected_file_name = f"{name}{'.exe' if is_windows_seed else '.elf'}"
         if (
             not isinstance(file_name, str)
             or Path(file_name).name != file_name
-            or file_name != f"{name}.elf"
+            or file_name != expected_file_name
         ):
             raise BootstrapError(f"artifact path is invalid: {name}")
         if file_name in seen_files:
@@ -1370,9 +1518,22 @@ def _verify_seed_manifest_data(
         actual_digest = hashlib.sha256(data).hexdigest()
         if actual_digest != digest:
             raise BootstrapError(f"SHA-256 differs for {file_name}")
-        _validate_static_i386_elf_bytes(
-            data, file_name, EXPECTED_TARGET["entry"]
-        )
+        if is_windows_seed:
+            imports = (
+                WINDOWS_LINKER_IMPORTS
+                if name == "cupidld"
+                else WINDOWS_TOOL_IMPORTS
+            )
+            _validate_static_i386_pe32_bytes(
+                data,
+                file_name,
+                int(EXPECTED_WINDOWS_TARGET["entry"]),
+                imports,
+            )
+        else:
+            _validate_static_i386_elf_bytes(
+                data, file_name, int(EXPECTED_TARGET["entry"])
+            )
         if snapshot_directory is None:
             resolved_path = path
         else:
@@ -1390,9 +1551,17 @@ def _verify_seed_manifest_data(
         seen_files.add(file_name)
     if set(resolved) != set(TOOL_NAMES):
         raise BootstrapError("manifest tool set differs")
-    actual_elf_files = {path.name for path in seed_directory.glob("*.elf")}
-    if actual_elf_files != seen_files:
-        raise BootstrapError("seed directory contains an unlisted ELF file")
+    seed_suffix = ".exe" if is_windows_seed else ".elf"
+    actual_seed_files = {
+        path.name
+        for path in seed_directory.iterdir()
+        if path.suffix.casefold() == seed_suffix
+    }
+    if actual_seed_files != seen_files:
+        format_name = "PE32" if is_windows_seed else "ELF"
+        raise BootstrapError(
+            f"seed directory contains an unlisted {format_name} file"
+        )
     return resolved
 
 
@@ -2811,9 +2980,6 @@ def _run_behavior_checks(
             "stdout": native_result.stdout.decode("ascii"),
         }
 
-    windows_tool_runtime = (
-        source_root / "toolchain/hosted/i386-windows/runtime.cc"
-    )
     windows_tool_start = (
         source_root / "toolchain/hosted/i386-windows/tool_start.asm"
     )
@@ -4710,6 +4876,11 @@ def bootstrap_from_seed(
         seed_inputs = freeze_seed_inputs(
             manifest_path, Path(temporary)
         )
+        if seed_inputs.manifest.get("schema") != SEED_SCHEMA:
+            raise BootstrapError(
+                "the native Windows execution seed cannot drive the "
+                "Linux fixed-point bootstrap"
+            )
         return _bootstrap_from_frozen_seed(
             seed_inputs, source_root, output_root
         )
@@ -4747,8 +4918,13 @@ def main(argv: list[str] | None = None) -> int:
     arguments = _build_parser().parse_args(argv)
     try:
         if arguments.command == "verify":
-            tools = verify_seed_manifest(arguments.manifest)
-            print(f"checked i386 Linux seed: ok ({len(tools)} tools)")
+            seed = verify_seed_inputs(arguments.manifest)
+            target = _require_object(seed.manifest.get("target"), "target")
+            operating_system = str(target["operating_system"]).title()
+            print(
+                f"checked i386 {operating_system} seed: ok "
+                f"({len(seed.tools)} tools)"
+            )
             return 0
         if arguments.command == "bootstrap":
             bootstrap_from_seed(

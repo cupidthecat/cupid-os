@@ -1047,6 +1047,7 @@ class KernelCompileMakefileTests(unittest.TestCase):
                 "kernel/fs/vfs.h",
                 "kernel/gfx/fontsys.h",
                 "kernel/gfx/gfx2d.h",
+                "kernel/gfx/gfx2d_assets.h",
                 "kernel/gfx/graphics.h",
                 "kernel/gui/clipboard.h",
                 "kernel/gui/desktop.h",
@@ -1185,7 +1186,8 @@ class KernelCompileMakefileTests(unittest.TestCase):
         makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
         self.assertIn(
             "CUPIDC_KERNEL_COMPILE := $(PYTHON) "
-            "tools/cupidc_kernel_compile.py --root .",
+            "tools/cupidc_kernel_compile.py --root . \\\n"
+            "\t--manifest $(PRODUCTION_SEED_MANIFEST)",
             makefile,
         )
         expected_compile_inputs = {
@@ -1193,12 +1195,7 @@ class KernelCompileMakefileTests(unittest.TestCase):
             "tools/cupidc_kernel_compile.py",
             "tools/kernel_cupidc_frontier.py",
             "tools/bootstrap_toolchain.py",
-            "bootstrap/seeds/i386-linux/manifest.json",
-            "bootstrap/seeds/i386-linux/cupidasm.elf",
-            "bootstrap/seeds/i386-linux/cupidc.elf",
-            "bootstrap/seeds/i386-linux/cupiddis.elf",
-            "bootstrap/seeds/i386-linux/cupidld.elf",
-            "bootstrap/seeds/i386-linux/cupidobj.elf",
+            "$(PRODUCTION_SEED_INPUTS)",
         }
         compile_inputs_match = re.search(
             r"(?ms)^CUPIDC_KERNEL_COMPILE_INPUTS := (.+?)\n"
@@ -1210,6 +1207,27 @@ class KernelCompileMakefileTests(unittest.TestCase):
             compile_inputs_match.group(1).replace("\\\n", " ").split()
         )
         self.assertEqual(actual_compile_inputs, expected_compile_inputs)
+        production_inputs_match = re.search(
+            r"(?ms)^PRODUCTION_SEED_INPUTS := (.+?)\n"
+            r"(?=[A-Z][A-Z0-9_]*\s*[:?]?=)",
+            makefile,
+        )
+        self.assertIsNotNone(production_inputs_match)
+        self.assertEqual(
+            set(
+                production_inputs_match.group(1)
+                .replace("\\\n", " ")
+                .split()
+            ),
+            {
+                "$(PRODUCTION_SEED_MANIFEST)",
+                "$(PRODUCTION_SEED_DIRECTORY)cupidasm.$(PRODUCTION_SEED_SUFFIX)",
+                "$(PRODUCTION_SEED_DIRECTORY)cupidc.$(PRODUCTION_SEED_SUFFIX)",
+                "$(PRODUCTION_SEED_DIRECTORY)cupiddis.$(PRODUCTION_SEED_SUFFIX)",
+                "$(PRODUCTION_SEED_DIRECTORY)cupidld.$(PRODUCTION_SEED_SUFFIX)",
+                "$(PRODUCTION_SEED_DIRECTORY)cupidobj.$(PRODUCTION_SEED_SUFFIX)",
+            },
+        )
         recipe_pattern = re.compile(
             r"^\t\$\(CUPIDC_KERNEL_COMPILE\) --source (\S+) "
             r"--output (\S+)$",

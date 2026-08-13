@@ -32,6 +32,10 @@ from tools.bootstrap_toolchain import (
     run_seed_tool,
     verify_seed_inputs,
 )
+from tools.cupidc_kernel_compile import (
+    KERNEL_I386_ARGUMENTS,
+    validate_i386_relocatable_bytes,
+)
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -43,8 +47,15 @@ SEED_MANIFEST = (
     / "i386-linux"
     / "manifest.json"
 )
+WINDOWS_SEED_MANIFEST = (
+    REPO_ROOT
+    / "bootstrap"
+    / "seeds"
+    / "i386-windows"
+    / "manifest.json"
+)
 SOURCE_HEAD_SNAPSHOT_SHA256 = (
-    "76bb7c1cc63c44d29d0f062af0a714e1855632da7db13ff8652f6a897a2931a4"
+    "5bfbca2cbe30f2fa4b638cbf462b306cc05dc50a4604fd887f89426dbe091e63"
 )
 
 
@@ -89,7 +100,15 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         struct.pack_into("<I", image, optional + 60, 0x200)
         struct.pack_into("<H", image, optional + 68, 3)
         struct.pack_into("<H", image, optional + 70, 0x0100)
-        struct.pack_into("<IIII", image, optional + 72, 0x100000, 0x100000, 0x100000, 0x1000)
+        struct.pack_into(
+            "<IIII",
+            image,
+            optional + 72,
+            0x100000,
+            0x100000,
+            0x100000,
+            0x1000,
+        )
         struct.pack_into("<I", image, optional + 92, 16)
         section = optional + 0xE0
         image[section : section + 8] = b".text\0\0\0"
@@ -193,8 +212,8 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 ),
                 ("nonzero checksum", "<I", 0x98 + 64, 1),
                 ("wrong subsystem", "<H", 0x98 + 68, 2),
-                ("nonzero relocation pointer", "<I", 0x178 + 24, 1),
                 ("one-page stack commit", "<I", 0x98 + 76, 0x1000),
+                ("nonzero relocation pointer", "<I", 0x178 + 24, 1),
             )
             for label, encoding, offset, value in mutations:
                 with self.subTest(label=label):
@@ -511,6 +530,38 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     "build_plan_sha256"
                 ],
             )
+
+    def test_windows_seed_freeze_validates_the_captured_pe_bytes(self):
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-bootstrap-windows-capture-"
+        ) as temporary:
+            root = Path(temporary)
+            copied_seed = root / "seed"
+            shutil.copytree(WINDOWS_SEED_MANIFEST.parent, copied_seed)
+            tool_path = copied_seed / "cupiddis.exe"
+            original = tool_path.read_bytes()
+            original_read_bytes = Path.read_bytes
+            tool_reads = 0
+
+            def racing_read_bytes(path: Path) -> bytes:
+                nonlocal tool_reads
+                captured = original_read_bytes(path)
+                if path == tool_path:
+                    tool_reads += 1
+                    if tool_reads == 1:
+                        path.write_bytes(b"MZ")
+                return captured
+
+            with mock.patch.object(
+                Path, "read_bytes", racing_read_bytes
+            ):
+                seed = freeze_seed_inputs(
+                    copied_seed / "manifest.json", root / "private"
+                )
+
+            self.assertEqual(tool_reads, 1)
+            self.assertEqual(seed.tools["cupiddis"].read_bytes(), original)
+            self.assertEqual(tool_path.read_bytes(), b"MZ")
 
     def test_frozen_compiler_root_survives_a_live_change_and_restore(self):
         with tempfile.TemporaryDirectory(
@@ -1003,6 +1054,284 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             "checked i386 Linux seed: ok (5 tools)\n",
         )
         self.assertEqual(result.stderr, "")
+
+    def test_checked_i386_windows_seed_verifies(self):
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(BOOTSTRAP_TOOL),
+                "verify",
+                "--manifest",
+                str(WINDOWS_SEED_MANIFEST),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            result.stdout,
+            "checked i386 Windows seed: ok (5 tools)\n",
+        )
+        self.assertEqual(result.stderr, "")
+
+    @unittest.skipUnless(os.name == "nt", "native Windows seed")
+    def test_checked_i386_windows_seed_runs_without_wsl(self):
+        with mock.patch(
+            "tools.bootstrap_toolchain.shutil.which",
+            side_effect=AssertionError("native seed must not probe WSL"),
+        ):
+            result = run_seed_tool(
+                WINDOWS_SEED_MANIFEST,
+                REPO_ROOT,
+                "cupiddis",
+                ("--help",),
+                timeout=60,
+            )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("usage:", result.stdout.casefold())
+        self.assertIn("cupiddis", result.stdout.casefold())
+        self.assertEqual(result.stderr, "")
+
+    @unittest.skipUnless(os.name == "nt", "native Windows seed")
+    def test_checked_i386_windows_seed_runs_all_tool_boundaries(self):
+        with mock.patch(
+            "tools.bootstrap_toolchain.shutil.which",
+            side_effect=AssertionError("native seed must not probe WSL"),
+        ):
+            for tool in (
+                "cupidasm",
+                "cupiddis",
+                "cupidld",
+                "cupidobj",
+                "cupidc",
+            ):
+                with self.subTest(tool=tool, case="help"):
+                    result = run_seed_tool(
+                        WINDOWS_SEED_MANIFEST,
+                        REPO_ROOT,
+                        tool,
+                        ("--help",),
+                        timeout=60,
+                    )
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertIn("usage:", result.stdout.casefold())
+                    self.assertEqual(result.stderr, "")
+                with self.subTest(tool=tool, case="failure"):
+                    result = run_seed_tool(
+                        WINDOWS_SEED_MANIFEST,
+                        REPO_ROOT,
+                        tool,
+                        ("--definitely-invalid-option",),
+                        timeout=60,
+                    )
+                    self.assertEqual(result.returncode, 2)
+                    self.assertIn("usage:", result.stderr.casefold())
+
+    @unittest.skipUnless(os.name == "nt", "native Windows seed")
+    def test_checked_i386_windows_cupidc_compiles_large_frame_source(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".checked-seed-windows-large-frame-", dir=REPO_ROOT
+        ) as temporary:
+            outputs = {
+                "windows": Path(temporary) / "keyboard-windows.o",
+                "linux": Path(temporary) / "keyboard-linux.o",
+            }
+            manifests = {
+                "windows": WINDOWS_SEED_MANIFEST,
+                "linux": SEED_MANIFEST,
+            }
+            for platform, manifest in manifests.items():
+                with self.subTest(platform=platform):
+                    output = outputs[platform]
+                    logical_output = (
+                        "/" + output.relative_to(REPO_ROOT).as_posix()
+                    )
+                    output.write_bytes(b"previous object")
+                    result = run_seed_tool(
+                        manifest,
+                        REPO_ROOT,
+                        "cupidc",
+                        (
+                            "-c",
+                            "/drivers/keyboard.cc",
+                            "-o",
+                            logical_output,
+                            *KERNEL_I386_ARGUMENTS,
+                            "--root",
+                            REPO_ROOT,
+                        ),
+                        timeout=120,
+                    )
+
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertEqual(result.stdout, "")
+                    self.assertEqual(result.stderr, "")
+                    self.assertNotEqual(
+                        output.read_bytes(), b"previous object"
+                    )
+                    validate_i386_relocatable_bytes(output.read_bytes())
+
+            self.assertEqual(
+                outputs["windows"].read_bytes(),
+                outputs["linux"].read_bytes(),
+            )
+
+    def test_checked_i386_windows_seed_rejects_unlisted_executable(self):
+        for extra_name in ("unlisted.exe", "unlisted.EXE"):
+            with self.subTest(
+                extra_name=extra_name
+            ), tempfile.TemporaryDirectory(
+                prefix="cupid-bootstrap-windows-seed-"
+            ) as temporary:
+                copied_seed = Path(temporary) / "i386-windows"
+                shutil.copytree(WINDOWS_SEED_MANIFEST.parent, copied_seed)
+                (copied_seed / extra_name).write_bytes(b"MZ")
+
+                with self.assertRaisesRegex(
+                    BootstrapError,
+                    "seed directory contains an unlisted PE32 file",
+                ):
+                    verify_seed_inputs(copied_seed / "manifest.json")
+
+    def test_checked_i386_windows_seed_binds_execution_provenance(self):
+        original = json.loads(
+            WINDOWS_SEED_MANIFEST.read_text(encoding="utf-8")
+        )
+        cases = (
+            (
+                "unknown manifest field",
+                lambda manifest: manifest.update({"unrecorded": True}),
+                "manifest keys differ",
+            ),
+            (
+                "wrong artifact generation",
+                lambda manifest: manifest["provenance"].update(
+                    {"artifact_generation": "stage-three"}
+                ),
+                "Windows seed generation differs",
+            ),
+            (
+                "wrong source snapshot",
+                lambda manifest: manifest["provenance"].update(
+                    {"source_snapshot_sha256": "0" * 64}
+                ),
+                "source snapshot differs",
+            ),
+            (
+                "wrong source count",
+                lambda manifest: manifest["provenance"].update(
+                    {"source_input_count": 49}
+                ),
+                "source input count differs",
+            ),
+            (
+                "wrong parent seed",
+                lambda manifest: manifest["provenance"].update(
+                    {"parent_seed_manifest_sha256": "0" * 64}
+                ),
+                "parent seed manifest differs",
+            ),
+            (
+                "wrong producer lineage",
+                lambda manifest: manifest["provenance"][
+                    "producer_lineage"
+                ].update({"c": "unreviewed compiler"}),
+                "producer lineage differs",
+            ),
+            (
+                "wrong target type",
+                lambda manifest: manifest["target"].update(
+                    {"pe_class": 32.0}
+                ),
+                "manifest target field type differs: pe_class",
+            ),
+            (
+                "wrong producer role",
+                lambda manifest: manifest["artifacts"][0].update(
+                    {"producer": False}
+                ),
+                "artifact producer role differs: cupidasm",
+            ),
+        )
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-bootstrap-windows-provenance-"
+        ) as temporary:
+            copied_seed = Path(temporary) / "seed"
+            shutil.copytree(WINDOWS_SEED_MANIFEST.parent, copied_seed)
+            manifest_path = copied_seed / "manifest.json"
+            for label, mutate, expected in cases:
+                with self.subTest(label=label):
+                    manifest = json.loads(json.dumps(original))
+                    mutate(manifest)
+                    manifest_path.write_text(
+                        json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+                        encoding="utf-8",
+                        newline="\n",
+                    )
+                    with self.assertRaisesRegex(
+                        BootstrapError, f"^{expected}$"
+                    ):
+                        verify_seed_inputs(manifest_path)
+
+    def test_checked_i386_windows_seed_snapshot_matches_its_named_commit(self):
+        manifest = json.loads(
+            WINDOWS_SEED_MANIFEST.read_text(encoding="utf-8")
+        )
+        provenance = manifest["provenance"]
+        revision = provenance["source_revision"]
+        plan = json.loads(SEED_MANIFEST.read_text(encoding="utf-8"))[
+            "build_plan"
+        ]
+        live_inventory = capture_source_snapshot(REPO_ROOT, plan)
+        committed_inventory: dict[str, dict[str, object]] = {}
+
+        for logical_path in sorted(live_inventory):
+            result = subprocess.run(
+                ["git", "show", f"{revision}:{logical_path}"],
+                cwd=REPO_ROOT,
+                capture_output=True,
+            )
+            self.assertEqual(
+                result.returncode,
+                0,
+                result.stderr.decode("utf-8", errors="replace"),
+            )
+            committed_inventory[logical_path] = {
+                "sha256": hashlib.sha256(result.stdout).hexdigest(),
+                "size": len(result.stdout),
+            }
+
+        encoded = json.dumps(
+            committed_inventory,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=True,
+        ).encode("ascii")
+        self.assertEqual(
+            len(committed_inventory), provenance["source_input_count"]
+        )
+        self.assertEqual(
+            hashlib.sha256(encoded).hexdigest(),
+            provenance["source_snapshot_sha256"],
+        )
+
+    def test_windows_execution_seed_cannot_drive_the_fixed_point(self):
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-bootstrap-windows-role-"
+        ) as temporary:
+            output = Path(temporary) / "published"
+            with self.assertRaisesRegex(
+                BootstrapError,
+                "^the native Windows execution seed cannot drive the "
+                "Linux fixed-point bootstrap$",
+            ):
+                bootstrap_from_seed(
+                    WINDOWS_SEED_MANIFEST, REPO_ROOT, output
+                )
+            self.assertFalse(output.exists())
 
     def test_checked_seed_run_forwards_cupidasm_help(self):
         if os.name == "nt" and shutil.which("wsl") is None:
@@ -4891,7 +5220,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 windows_cupiddis["artifacts"]["stage-two-image"],
                 {
                     "sha256": (
-                        "e4f20cd46344a4a68914389187d2cc9fbf3653e9ca8d0e56119d40bab17eed49"
+                        "d7bcb02bf3c1491de3c3adc37ecb4e966501e49e9eebd2c7d7d18b65d2c3fa91"
                     ),
                     "size": 378368,
                 },
@@ -4951,25 +5280,25 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             expected_native_images = {
                 "cupidasm": {
                     "sha256": (
-                        "c93a296e04a7a5bb9706ec7d360040a2cdc288941340e76941d9629049c8ce3a"
+                        "02db72024a1e337e6890a310cf06532eae04732c14ec55df4f58597da27e263e"
                     ),
                     "size": 433664,
                 },
                 "cupidc": {
                     "sha256": (
-                        "ed6e667bd96f839c3bc9f55eb62e60bab8462f8c1c53d2ae36458134acc37def"
+                        "209b493c73ff2b30ef38f0161491dacd5564f995a019876d96e8bc805b5c83e9"
                     ),
-                    "size": 2593792,
+                    "size": 2594304,
                 },
                 "cupidld": {
                     "sha256": (
-                        "7799324d179cf0d5862d4bdfa9df865cac35fac0f8c2ec565ae9c060812db03a"
+                        "afe3c34e892a70e30774dfa2358d615f87598ea5ade74f6b15d94ef9a75e8439"
                     ),
                     "size": 296448,
                 },
                 "cupidobj": {
                     "sha256": (
-                        "46ab2b19fc99bf7ee4856ae6f71a397668fb33bbd0da38535728d00a57a57924"
+                        "3546e71ad17ea9729a948c7144cbb08ca0991066950129ecf18919d76ba0e36d"
                     ),
                     "size": 375808,
                 },
@@ -5053,9 +5382,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 initial_matches,
                 {
                     "cupidasm": True,
-                    "cupidc": True,
+                    "cupidc": False,
                     "cupiddis": True,
-                    "cupidld": True,
+                    "cupidld": False,
                     "cupidobj": True,
                 },
             )

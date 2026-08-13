@@ -53,6 +53,11 @@ DEFAULT_TIMEOUT_SECONDS = 60
 TOOL_MODES = ("auto", "checked-seed", "native-windows")
 
 
+def _default_seed_manifest(root: Path) -> Path:
+    platform = "i386-windows" if os.name == "nt" else "i386-linux"
+    return root / "bootstrap" / "seeds" / platform / "manifest.json"
+
+
 class UserLinkError(RuntimeError):
     """A user-program link could not publish an executable."""
 
@@ -351,11 +356,7 @@ def link_user_program(
                 manifest_path = (
                     manifest.resolve()
                     if manifest is not None
-                    else root
-                    / "bootstrap"
-                    / "seeds"
-                    / "i386-linux"
-                    / "manifest.json"
+                    else _default_seed_manifest(root)
                 )
                 seed_directory = Path(
                     stack.enter_context(

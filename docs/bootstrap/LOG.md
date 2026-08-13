@@ -24926,45 +24926,132 @@ destination unchanged. The checked Linux seed compiled the changed driver
 twice to a 23,392-byte object with SHA-256
 `a71ec0ec1d19f852a6c6216399068ea10f53a29d48ca415091fa946c832e6312`.
 
-The public mode, option-order, and hosted/Cupid-built usage tests passed three
-cases in 34.752 seconds. The complete fixed-point contract now allows 900
-seconds for each large compiler source; the earlier 300-second limit expired
-while a healthy generation-one compiler processed `cupidc_frontend.cc`.
+The first complete fixed-point unittest did not finish: generation-one
+CupidC exceeded its former 300-second per-source limit while compiling the
+unchanged `cupidc_frontend.cc` under WSL. The contract now allows 900 seconds.
+A clean checked-seed bootstrap from commit `384c74d0` passed in 801.9 seconds.
+Its 50-input source snapshot has SHA-256
+`5bfbca2cbe30f2fa4b638cbf462b306cc05dc50a4604fd887f89426dbe091e63`.
+All stage-two and stage-three Linux and Windows tools match, and the 5/18/16
+behavior matrix passes. The Linux CupidC is 2,666,240 bytes with SHA-256
+`d2364255805ed1809d4a67d2770ff30015e29ca17dc95ecdf5604db24a0f0474`.
+The Windows CupidC is 2,594,304 bytes with SHA-256
+`209b493c73ff2b30ef38f0161491dacd5564f995a019876d96e8bc805b5c83e9`.
+The 38,164-byte report has SHA-256
+`3c63664f08e7bcdc639a88ca6ada6cf5143100eac966d748660b65d537b01e10`.
 ADR 0270 records the option boundary.
 
-## 2026-08-13: Commit the native Windows tool stack
+## 2026-08-13: Gate the SMP trampoline with CupidDis
 
-The first poisoned-host root build with a native Windows CupidC stopped on
-`drivers/keyboard.cc` with access violation `0xC0000005`. The checked Linux
-compiler and a source-built Windows compiler both produced the expected
-11,740-byte object, so the unchanged driver was not the cause.
+The SMP trampoline was already assembled by CupidASM, but its normal recipe
+published the raw image without inspecting it. Hostbuild now assembles a
+private 4,096-byte candidate, asks CupidDis to check the exact mixed code and
+data map with `--require-known`, and publishes only after both tools pass. The
+map is 16-bit code through offset `0x01e`, data through `0x20f`, 32-bit code
+through `0x253`, and data through the end. The load base remains `0x8000`.
 
-A 48-byte source containing an empty `switch` reproduced the crash. In GDB,
-`cir_lower_switch` reserved a `0x4984`-byte frame with one `sub esp`. The PE
-header reserved one MiB of stack but committed only one 4 KiB page. The next
-push landed several pages below the Windows guard page, so the operating
-system could not grow the stack before the access.
+Tests cover the exact argument vectors, a forced disassembly failure,
+successful tools that write either output stream, a wrong-sized candidate,
+and source, seed, or candidate drift. Every rejection preserves the old
+output. The hostbuild transaction freezes the source and complete selected
+seed, rechecks them after both tools run, and uses the existing output lock
+and atomic replacement path. A real forced production rule produced the same
+4,096-byte image as before, with SHA-256
+`b738ebb68f28b9b07e330761f4e9a7898f0424ab0a3835cd6079ae7d4a189e90`.
+ADR 0271 records the range map and publication rule.
 
-Changing only the stack-commit field on a private CupidC image from 4 KiB to
-one MiB made the empty-switch source and the full keyboard driver compile.
-Increasing only the reserve did not help. Moving the large switch-validation
-snapshot out of the stack would remove this trigger without fixing the same
-fault for another large generated frame.
+## 2026-08-13: Use checked native Cupid tools for Windows production
 
-CupidLD now reserves and commits one MiB for fixed-layout PE32 tool stacks.
-The heap still reserves one MiB and initially commits 4 KiB. The independent
-PE reader requires all four values, and its negative test restores the former
-one-page stack commit to prove that validation rejects it. Page-by-page stack
-probing remains the general compiler improvement; the full commit is the
-bounded hosted-tool ABI used for this bootstrap stage.
+The five native Windows images proved by ADRs 0268 and 0269 now live in a
+checked `cupid.execution-seed.v1` cohort. Its manifest binds the exact file
+names, sizes, hashes, import sets, parent Linux seed, 50-input source snapshot,
+producing revision, and paired-stage provenance. Windows production recipes
+select this PE cohort and run it directly. Linux production keeps the checked
+static ELF cohort. Fixed-point reconstruction, Toolchain publication, user ABI
+verification, and artifact-size policy remain tied to the Linux bootstrap
+manifest because they consume its stronger build-plan record.
 
-The focused CupidLD layout test, PE validator mutation test, and audit lock
-pass with the new field. The unchanged keyboard source compiles to the same
-11,740-byte ELF32 object with the corrected native compiler. The checked-seed
-promotion and full fixed-point, poisoned-build, and guest results follow in a
-separate entry because their manifest must name this committed source
-revision.
+The verifier reads each seed image once, checks that captured byte string, and
+writes the same bytes into the private execution snapshot. This closes a
+replace-between-read race in the first implementation. Tests replace a PE
+during validation and prove that the parser and snapshot still see one
+captured generation. They also reject changed provenance, an unlisted `.EXE`
+with mixed-case suffix, and use of the execution seed as a fixed-point driver.
 
-No active C or assembly source was reduced to avoid the fault. No `.c` source
-entered the build, and `TempleOS/` remained untouched. ADR 0274 records the
-stack policy and the page-probing follow-up.
+All five checked PE tools pass help and useful failure cases without a WSL
+probe. Native CupidC compiled `kernel/core/string.cc`; native CupidASM and
+CupidDis rebuilt and checked the SMP trampoline; native CupidC and CupidLD
+compiled and linked `user/examples/hello.cc`. Root and supplemental graph
+audits find the Windows production manifest on every output-bearing Cupid
+transform while retaining the Linux manifest on the separate contract paths.
+
+The final cohort was rebuilt from clean commit `384c74d0` in 801.9 seconds.
+The promotion test reconstructs every byte of the 50-input closure with
+`git show` from the manifest's named revision and requires the resulting
+snapshot to match. Seed verification, direct no-WSL execution, all five tool
+boundaries, and the large-frame keyboard compile then passed. The manifest
+has SHA-256
+`5e7138d6e9378a7b8095419620b196478c3c2869a52c513d8b66dba416bc6d86`.
+
+The first audit regeneration failed after the PE parser was split into a
+frozen-byte implementation and a path wrapper. Its fail-closed check still
+looked for parser logic in the wrapper. The audit now binds the byte parser's
+full structural contract and requires the wrapper to pass one `read_bytes()`
+result, the path name, entry, and import profile without substitution. A fresh
+audit passes with 735 active language inputs, 255 feature IDs, and 450
+transforms. The 2,669,178-byte JSON record has SHA-256
+`1c538c6515e2f86d0966999cab5a22cc9d0cb6fa658f83c487ee89ba56a89efc`;
+the 12,269-byte summary has SHA-256
+`d601846cb42325878f9054ff0cb7178a7bc9d808c729d1d82fcf89a628b0eebc`.
+The active-source digest is
+`83aadb77a03fba1542741785c709f743143743b4066cc0812de53d3497d063c9`.
+ADR 0272 records the execution-seed boundary and remaining native fixed-point
+work.
+
+## 2026-08-13: Integrate native production, trampoline inspection, and derived floating updates
+
+The source-current poisoned-host `make -j2 all` build used the checked native
+Windows seed for every output-bearing Cupid tool invocation. The command
+harness stopped the first invocation after 602.5 seconds. Re-running the same
+make target retained completed objects and finished in 968.5 seconds, for
+1,571.0 seconds of cumulative build work. The final CupidLD link, 430-input
+CupidDis validation, exact-size policy for nine artifacts, and image
+publication all returned 0.
+
+The published artifacts are:
+
+| Output | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `kernel/kernel.elf.pass1` | 9,056,612 | `e2f63b5cd9c4e2769b9d6bc893ab5cf778951b97aec954ece6cbac0cc429e92a` |
+| `kernel/kernel.elf` | 9,179,492 | `1bc06263dbf9849e6d2c594b6fb4be2a3f3b673c91f69d23a2d2e639b1f64776` |
+| `kernel/kernel.bin` | 8,962,776 | `3170aa71eafa656b1f6e23c918f1f472860f513c9c5cd0376d7d4f5f8a7d891c` |
+| `cupidos.img` | 209,715,200 | `3b5dd6523a90d6ed0543a6ab2464892f3289b876654f9869f88db0901940b91e` |
+
+A four-vCPU RTL8139 boot of that exact image passed the full frontier in
+820.7 seconds. All four processors came online. Private CupidC printed
+`[feature13-indirect-update] PASS score=41 once=3 zero=0x80000000`, compiled
+`/bin/feature13_derived_aot.cc` with `ccc`, wrote a 1,362-byte ELF, and loaded
+it as PID 4. The process printed
+`[feature13-derived-aot] PASS score=41 once=2 zero=0x80000000` and
+`[PROCESS] PID 4 "/feature13_derived_aot" exiting`. The runner then completed
+the framebuffer, AC97, PC speaker, USB detach/replug, networking, browser, and
+process-lifecycle checks. The framebuffer changed 96,101 pixels. AC97 produced
+33,452,396 frames at peak 25,600, and the PC speaker produced 76,614 frames at
+peak 31,877.
+
+The checked static fixed-point unittest passed in 817.496 seconds. Stage two
+and stage three matched after compiling the full Toolchain cohort, including
+the previously slow `cupidc_frontend.cc` and `cupidc_ir.cc` pair under the
+900-second per-source guard. The private call-ABI and frontier contract run
+passed 216 tests in 25.047 seconds. The dedicated SMP trampoline module passed
+three tests in 0.523 seconds.
+
+The final graph has 736 active inputs and 451 transforms. Audit generation
+finished in 76.785 seconds, and check mode reproduced it in 73.244 seconds.
+The active-source digest is
+`f35afe36f88b3fe540e0cea5485fa44d47a44d1724240afa4a13d922e825ecc9`.
+The 2,671,241-byte JSON record has SHA-256
+`c9fad80ea2b4d32d8c773a8ad14a43a987ad211fbb3bc5840a66af606f8d0718`;
+the 12,269-byte summary has SHA-256
+`277581ac15dc9700966309ac2540b7332475763f19210d07e30f6398dbc8382f`.

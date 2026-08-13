@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 SMP Tier 2
-Verified against source on: 2026-07-28
+Verified against source on: 2026-08-13
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -249,6 +249,13 @@ EOI no longer goes to the 8259; all EOI goes through lapic_write(0xB0, 0).
 The trampoline is a 4KB raw binary placed at physical 0x8000. The BSP
 writes it before sending SIPI; it runs in real mode then transitions each
 AP to 32-bit protected mode.
+
+The production build assembles a private 4,096-byte candidate with CupidASM.
+CupidDis checks 16-bit code in [0x000, 0x01f), data in [0x01f, 0x210),
+32-bit code in [0x210, 0x254), and data in [0x254, 0x1000). Every instruction
+in both code ranges must pass --require-known. Hostbuild replaces
+kernel/smp_trampoline.bin only after assembly and inspection succeed. A failure
+preserves the previous trampoline.
 
 >h3 Trampoline stages (Cupid ASM)
 

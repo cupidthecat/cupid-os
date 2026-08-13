@@ -24,6 +24,22 @@ ACTIVE_CASE_MANIFEST = (
 )
 CUPIDC_PP_CONTRACT = REPO_ROOT / "toolchain" / "tests" / "cupidc_pp_contract.cc"
 TOOLCHAIN_MAKEFILE = REPO_ROOT / "toolchain" / "Makefile"
+LINUX_BOOTSTRAP_SEED_INPUTS = (
+    "bootstrap/seeds/i386-linux/manifest.json",
+    "bootstrap/seeds/i386-linux/cupidasm.elf",
+    "bootstrap/seeds/i386-linux/cupidc.elf",
+    "bootstrap/seeds/i386-linux/cupiddis.elf",
+    "bootstrap/seeds/i386-linux/cupidld.elf",
+    "bootstrap/seeds/i386-linux/cupidobj.elf",
+)
+WINDOWS_PRODUCTION_SEED_INPUTS = (
+    "bootstrap/seeds/i386-windows/manifest.json",
+    "bootstrap/seeds/i386-windows/cupidasm.exe",
+    "bootstrap/seeds/i386-windows/cupidc.exe",
+    "bootstrap/seeds/i386-windows/cupiddis.exe",
+    "bootstrap/seeds/i386-windows/cupidld.exe",
+    "bootstrap/seeds/i386-windows/cupidobj.exe",
+)
 
 
 def _write(path, content):
@@ -203,7 +219,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             (
                 "USER_SYSCALL_ABI_PUBLICATION_INPUTS",
                 "USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS",
-                "CHECKED_SEED_INPUTS",
+                "BOOTSTRAP_SEED_INPUTS",
             ),
         )
 
@@ -240,7 +256,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             module.USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS,
         )
         self.assertEqual(
-            repo_inputs("CHECKED_SEED_INPUTS"),
+            repo_inputs("BOOTSTRAP_SEED_INPUTS"),
             tuple(sorted(module.USER_SYSCALL_ABI_CHECKED_SEED_INPUTS)),
         )
         self.assertEqual(len(module.USER_SYSCALL_ABI_AUDIT_INPUTS), 92)
@@ -2285,9 +2301,16 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "kernel/smp_trampoline.bin": "assemble_flat_binary",
             }
             for output_path, operation in expected_assembly.items():
+                expected_tools = ["cupid_assembler", "host_python"]
+                if output_path == "kernel/smp_trampoline.bin":
+                    expected_tools = [
+                        "cupid_assembler",
+                        "cupid_disassembler",
+                        "host_python",
+                    ]
                 self.assertEqual(
                     transforms[output_path]["tools"],
-                    ["cupid_assembler", "host_python"],
+                    expected_tools,
                 )
                 self.assertEqual(transforms[output_path]["operation"], operation)
             self.assertFalse(
@@ -3466,12 +3489,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         seed_inputs = {
             "Makefile",
             "tools/bootstrap_toolchain.py",
-            "bootstrap/seeds/i386-linux/manifest.json",
-            "bootstrap/seeds/i386-linux/cupidasm.elf",
-            "bootstrap/seeds/i386-linux/cupidc.elf",
-            "bootstrap/seeds/i386-linux/cupiddis.elf",
-            "bootstrap/seeds/i386-linux/cupidld.elf",
-            "bootstrap/seeds/i386-linux/cupidobj.elf",
+            *WINDOWS_PRODUCTION_SEED_INPUTS,
         }
         self.assertTrue(seed_inputs.issubset(delivery["inputs"]))
 
@@ -3498,7 +3516,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                         path
                         for path in delivery["inputs"]
                         if path
-                        != "bootstrap/seeds/i386-linux/cupidobj.elf"
+                        != "bootstrap/seeds/i386-windows/cupidobj.exe"
                     ],
                 }
             ],
@@ -3582,7 +3600,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 $(DOOM_CUPIDC_INPUT_MANIFEST): FORCE $(DOOM_CUPIDC_HEADERS) \
                     $(CHECKED_SEED_INPUTS) tools/cupidc_kernel_compile.py
                 \t$(PYTHON) tools/cupidc_kernel_compile.py --root . \
-                \t\t--manifest $(BOOTSTRAP_SEED_MANIFEST) \
+                \t\t--manifest $(PRODUCTION_SEED_MANIFEST) \
                 \t\t--write-profile-input-manifest $@
                 """,
             )
@@ -3664,7 +3682,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "unpinned seed manifest": (
                 "$(PYTHON) tools/cupidc_kernel_compile.py --root . \\\n"
-                "\t\t--manifest $(BOOTSTRAP_SEED_MANIFEST) \\",
+                "\t\t--manifest $(PRODUCTION_SEED_MANIFEST) \\",
                 "$(PYTHON) tools/cupidc_kernel_compile.py --root . \\\n"
                 "\t\t--manifest bootstrap/unchecked.json \\",
             ),
@@ -4150,14 +4168,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         checked_inputs = [
             "Makefile",
             "tools/bootstrap_toolchain.py",
-            "bootstrap/seeds/i386-linux/manifest.json",
-            "bootstrap/seeds/i386-linux/cupidasm.elf",
-            "bootstrap/seeds/i386-linux/cupidc.elf",
-            "bootstrap/seeds/i386-linux/cupiddis.elf",
-            "bootstrap/seeds/i386-linux/cupidld.elf",
-            "bootstrap/seeds/i386-linux/cupidobj.elf",
+            *WINDOWS_PRODUCTION_SEED_INPUTS,
         ]
-        ignored_inputs = {*checked_inputs, "tools/hostbuild.py"}
+        ignored_inputs = {
+            *checked_inputs,
+            *LINUX_BOOTSTRAP_SEED_INPUTS,
+            "tools/hostbuild.py",
+        }
         cases = (
             (
                 "kernel/util/bin_programs_gen.cc",
@@ -4230,7 +4247,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "inputs": [
                     path
                     for path in transform["inputs"]
-                    if path != "bootstrap/seeds/i386-linux/cupidobj.elf"
+                    if path != "bootstrap/seeds/i386-windows/cupidobj.exe"
                 ],
             },
             "missing content input": {
@@ -4924,10 +4941,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "PE32 staged parser stops reading the image": (
                 "bootstrap",
-                "    data = path.read_bytes()\n"
-                "    has_imports = bool(expected_imports)\n",
-                '    data = b""\n'
-                "    has_imports = bool(expected_imports)\n",
+                "        path.read_bytes(), path.name, expected_entry, "
+                "expected_imports\n",
+                "        b\"\", path.name, expected_entry, "
+                "expected_imports\n",
                 r"fixed-point PE32 behavior differs",
             ),
             "PE32 staged parser accepts a changed DOS stub": (
@@ -4954,7 +4971,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "bootstrap",
                 "        if virtual_size == 0:\n"
                 "            raise BootstrapError("
-                'f"{path.name} has an empty PE32 section")\n',
+                'f"{name} has an empty PE32 section")\n',
                 "",
                 r"fixed-point PE32 behavior differs",
             ),
@@ -4962,10 +4979,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "bootstrap",
                 "        if virtual_size == 0:\n"
                 "            raise BootstrapError("
-                'f"{path.name} has an empty PE32 section")\n',
+                'f"{name} has an empty PE32 section")\n',
                 '        if virtual_size == 0 and name == ".bss":\n'
                 "            raise BootstrapError("
-                'f"{path.name} has an empty PE32 section")\n',
+                'f"{name} has an empty PE32 section")\n',
                 r"fixed-point PE32 behavior differs",
             ),
             "PE32 staged parser skips the first header padding byte": (
@@ -6676,7 +6693,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "tools/cupidc_kernel_compile.py",
                     "tools/kernel_cupidc_frontier.py",
                     "tools/bootstrap_toolchain.py",
-                    "bootstrap/seeds/i386-linux/manifest.json",
+                    "bootstrap/seeds/i386-windows/manifest.json",
                 }.issubset(control_paths)
             )
             contract = audit_payload["contracts"][
@@ -6826,12 +6843,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 set(iso_transform["inputs"]),
                 {
                     "Makefile",
-                    "bootstrap/seeds/i386-linux/cupidasm.elf",
-                    "bootstrap/seeds/i386-linux/cupidc.elf",
-                    "bootstrap/seeds/i386-linux/cupiddis.elf",
-                    "bootstrap/seeds/i386-linux/cupidld.elf",
-                    "bootstrap/seeds/i386-linux/cupidobj.elf",
-                    "bootstrap/seeds/i386-linux/manifest.json",
+                    *WINDOWS_PRODUCTION_SEED_INPUTS,
                     "tools/bootstrap_toolchain.py",
                     "tools/hostbuild.py",
                     "test_iso/fixtures",
@@ -6860,12 +6872,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 set(big_fixture_transform["inputs"]),
                 {
                     "Makefile",
-                    "bootstrap/seeds/i386-linux/cupidasm.elf",
-                    "bootstrap/seeds/i386-linux/cupidc.elf",
-                    "bootstrap/seeds/i386-linux/cupiddis.elf",
-                    "bootstrap/seeds/i386-linux/cupidld.elf",
-                    "bootstrap/seeds/i386-linux/cupidobj.elf",
-                    "bootstrap/seeds/i386-linux/manifest.json",
+                    *WINDOWS_PRODUCTION_SEED_INPUTS,
                     "test_iso/big_pattern.asm",
                     "tools/bootstrap_toolchain.py",
                     "tools/hostbuild.py",
@@ -6936,12 +6943,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             )
             for checked_seed_input in (
                 "tools/bootstrap_toolchain.py",
-                "bootstrap/seeds/i386-linux/manifest.json",
-                "bootstrap/seeds/i386-linux/cupidasm.elf",
-                "bootstrap/seeds/i386-linux/cupidc.elf",
-                "bootstrap/seeds/i386-linux/cupiddis.elf",
-                "bootstrap/seeds/i386-linux/cupidld.elf",
-                "bootstrap/seeds/i386-linux/cupidobj.elf",
+                *WINDOWS_PRODUCTION_SEED_INPUTS,
             ):
                 self.assertIn(
                     checked_seed_input,
@@ -7250,12 +7252,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "tools/cupidc_kernel_compile.py",
                 "tools/kernel_cupidc_frontier.py",
                 "tools/bootstrap_toolchain.py",
-                "bootstrap/seeds/i386-linux/manifest.json",
-                "bootstrap/seeds/i386-linux/cupidasm.elf",
-                "bootstrap/seeds/i386-linux/cupidc.elf",
-                "bootstrap/seeds/i386-linux/cupiddis.elf",
-                "bootstrap/seeds/i386-linux/cupidld.elf",
-                "bootstrap/seeds/i386-linux/cupidobj.elf",
+                *WINDOWS_PRODUCTION_SEED_INPUTS,
             )
             closed_header_closures = {
                 **port_io_header_closures,
@@ -7586,7 +7583,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 root / "Makefile",
                 f"""
                 PYTHON := "{python}"
-                BOOTSTRAP_SEED_MANIFEST := seed.json
+                PRODUCTION_SEED_MANIFEST := seed.json
                 KERNEL := kernel/kernel.bin
                 CUPIDDIS_PRODUCTION_INPUT_MANIFEST := code-inputs.txt
                 CUPIDDIS_PRODUCTION_INPUTS := kernel/kernel.o \\
@@ -7603,7 +7600,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     $(CUPIDDIS_PRODUCTION_INPUT_MANIFEST) fake_hostbuild.py \\
                     seed.json FORCE
                 \t$(PYTHON) fake_hostbuild.py validate-code \\
-                \t\t--seed-manifest $(BOOTSTRAP_SEED_MANIFEST) --root . \\
+                \t\t--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root . \\
                 \t\t--input-manifest $(CUPIDDIS_PRODUCTION_INPUT_MANIFEST) \
                 \t\t--output $(KERNEL)
                 """,
@@ -7730,6 +7727,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "CUPIDDIS",
                 "PYTHON",
                 "BOOTSTRAP_SEED_MANIFEST",
+                "PRODUCTION_SEED_MANIFEST",
                 "KERNEL",
                 "CUPIDDIS_PRODUCTION_INPUT_MANIFEST",
                 "CUPIDDIS_PRODUCTION_INPUTS",
@@ -7817,12 +7815,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         seed_inputs = {
             "Makefile",
             "tools/bootstrap_toolchain.py",
-            "bootstrap/seeds/i386-linux/manifest.json",
-            "bootstrap/seeds/i386-linux/cupidasm.elf",
-            "bootstrap/seeds/i386-linux/cupidc.elf",
-            "bootstrap/seeds/i386-linux/cupiddis.elf",
-            "bootstrap/seeds/i386-linux/cupidld.elf",
-            "bootstrap/seeds/i386-linux/cupidobj.elf",
+            *WINDOWS_PRODUCTION_SEED_INPUTS,
         }
         object_outputs = {
             transform["output"]
@@ -7854,7 +7847,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "tools/hostbuild.py",
                 "validate-code",
                 "--seed-manifest",
-                commands["BOOTSTRAP_SEED_MANIFEST"],
+                commands["PRODUCTION_SEED_MANIFEST"],
                 "--root",
                 ".",
                 "--input-manifest",
@@ -7892,9 +7885,38 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             kernel_binary_transform["recipe"],
             [
                 "$(PYTHON) tools/hostbuild.py validate-code \\",
-                "--seed-manifest $(BOOTSTRAP_SEED_MANIFEST) --root . \\",
+                "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root . \\",
                 "--input-manifest $(CUPIDDIS_PRODUCTION_INPUT_MANIFEST) \\",
                 "--output $(KERNEL)",
+            ],
+        )
+        trampoline_transform = next(
+            transform
+            for transform in audit["build"]["transforms"]
+            if transform["output"] == "kernel/smp_trampoline.bin"
+        )
+        self.assertEqual(
+            trampoline_transform["tools"],
+            ["cupid_assembler", "cupid_disassembler", "host_python"],
+        )
+        self.assertEqual(
+            trampoline_transform["operation"],
+            "assemble_flat_binary",
+        )
+        self.assertEqual(
+            set(trampoline_transform["inputs"]),
+            seed_inputs
+            | {
+                "kernel/smp/smp_trampoline.S",
+                "tools/hostbuild.py",
+            },
+        )
+        self.assertEqual(
+            trampoline_transform["recipe"],
+            [
+                "$(PYTHON) tools/hostbuild.py assemble-smp-trampoline \\",
+                "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root . \\",
+                "--source $< --output $@",
             ],
         )
         system_image_transform = next(
@@ -7915,12 +7937,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             {
                 "Makefile",
                 "boot/boot.bin",
-                "bootstrap/seeds/i386-linux/cupidasm.elf",
-                "bootstrap/seeds/i386-linux/cupidc.elf",
-                "bootstrap/seeds/i386-linux/cupiddis.elf",
-                "bootstrap/seeds/i386-linux/cupidld.elf",
-                "bootstrap/seeds/i386-linux/cupidobj.elf",
-                "bootstrap/seeds/i386-linux/manifest.json",
+                *WINDOWS_PRODUCTION_SEED_INPUTS,
                 "kernel/kernel.bin",
                 "test_iso/hello.iso",
                 "tools/bootstrap_toolchain.py",
@@ -7946,7 +7963,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             "cupid_assembler": 5,
             "cupid_object": 192,
             "cupid_linker": 2,
-            "cupid_disassembler": 2,
+            "cupid_disassembler": 3,
         }
         for tool, expected_count in expected_counts.items():
             transforms = [
@@ -8060,7 +8077,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             makefile,
         )
         self.assertIn(
-            "--seed-manifest $(BOOTSTRAP_SEED_MANIFEST)",
+            "--seed-manifest $(PRODUCTION_SEED_MANIFEST)",
             makefile,
         )
         for variable in (
@@ -8086,7 +8103,141 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 f"{variable} must sort discovered paths before use",
             )
 
-    def test_root_seed_manifest_override_moves_the_trust_unit(self):
+    def test_production_seed_inputs_follow_the_make_host_branch(self):
+        make = shutil.which("make")
+        if make is None:
+            self.skipTest("GNU Make is unavailable")
+        module = _load_audit_module()
+        cases = (
+            (
+                "OS=Windows_NT",
+                "i386-windows",
+                "exe",
+            ),
+            (
+                "OS=Linux",
+                "i386-linux",
+                "elf",
+            ),
+        )
+        for os_assignment, platform, suffix in cases:
+            with (
+                self.subTest(os_assignment=os_assignment),
+                mock.patch.object(
+                    module,
+                    "CANONICAL_MAKE_VARIABLES",
+                    (os_assignment,),
+                ),
+            ):
+                root_values = module._read_evaluated_make_variables(
+                    REPO_ROOT,
+                    make,
+                    (
+                        "BOOTSTRAP_SEED_MANIFEST",
+                        "PRODUCTION_SEED_MANIFEST",
+                        "PRODUCTION_SEED_INPUTS",
+                        "CHECKED_SEED_INPUTS",
+                    ),
+                )
+                user_values = module._read_evaluated_make_variables(
+                    REPO_ROOT / "user",
+                    make,
+                    (
+                        "BOOTSTRAP_SEED_MANIFEST",
+                        "BOOTSTRAP_SEED_INPUTS",
+                        "PRODUCTION_SEED_MANIFEST",
+                        "CHECKED_SEED_INPUTS",
+                    ),
+                )
+
+            root_manifest = (
+                f"bootstrap/seeds/{platform}/manifest.json"
+            )
+            root_images = {
+                f"bootstrap/seeds/{platform}/{tool}.{suffix}"
+                for tool in (
+                    "cupidasm",
+                    "cupidc",
+                    "cupiddis",
+                    "cupidld",
+                    "cupidobj",
+                )
+            }
+            self.assertEqual(
+                root_values["PRODUCTION_SEED_MANIFEST"],
+                root_manifest,
+            )
+            self.assertEqual(
+                set(root_values["PRODUCTION_SEED_INPUTS"].split()),
+                {root_manifest, *root_images},
+            )
+            self.assertEqual(
+                set(root_values["CHECKED_SEED_INPUTS"].split()),
+                {
+                    "Makefile",
+                    "tools/bootstrap_toolchain.py",
+                    root_manifest,
+                    *root_images,
+                },
+            )
+
+            user_manifest = f"../{root_manifest}"
+            user_images = {f"../{path}" for path in root_images}
+            self.assertEqual(
+                user_values["PRODUCTION_SEED_MANIFEST"],
+                user_manifest,
+            )
+            self.assertEqual(
+                set(user_values["CHECKED_SEED_INPUTS"].split()),
+                {user_manifest, *user_images},
+            )
+            self.assertEqual(
+                root_values["BOOTSTRAP_SEED_MANIFEST"],
+                "bootstrap/seeds/i386-linux/manifest.json",
+            )
+            self.assertEqual(
+                user_values["BOOTSTRAP_SEED_MANIFEST"],
+                "../bootstrap/seeds/i386-linux/manifest.json",
+            )
+            self.assertEqual(
+                set(user_values["BOOTSTRAP_SEED_INPUTS"].split()),
+                {f"../{path}" for path in LINUX_BOOTSTRAP_SEED_INPUTS},
+            )
+
+    def test_bootstrap_and_artifact_size_recipes_keep_the_linux_seed(self):
+        make = shutil.which("make")
+        if make is None:
+            self.skipTest("GNU Make is unavailable")
+        module = _load_audit_module()
+        rules = module._parse_make_rules(
+            module._run_make_database(
+                REPO_ROOT,
+                make,
+                "bootstrap-from-seed",
+            )
+        )
+        expected_fragments = {
+            "verify-bootstrap-seed": (
+                "tools/bootstrap_toolchain.py verify",
+                "--manifest $(BOOTSTRAP_SEED_MANIFEST)",
+            ),
+            "bootstrap-from-seed": (
+                "tools/bootstrap_toolchain.py bootstrap",
+                "--root . --manifest $(BOOTSTRAP_SEED_MANIFEST)",
+            ),
+            "verify-artifact-sizes": (
+                "tools/artifact_size_policy.py verify --root .",
+                "--seed-manifest $(BOOTSTRAP_SEED_MANIFEST)",
+            ),
+        }
+        for target, fragments in expected_fragments.items():
+            with self.subTest(target=target):
+                recipe = "\n".join(rules[target].recipe)
+                for fragment in fragments:
+                    self.assertIn(fragment, recipe)
+                self.assertNotIn("PRODUCTION_SEED_MANIFEST", recipe)
+
+    def test_root_production_seed_override_moves_the_trust_unit(self):
         make = shutil.which("make")
         if make is None:
             self.skipTest("GNU Make is unavailable")
@@ -8105,11 +8256,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "cupidld",
                 "cupidobj",
             ):
-                (seed_directory / f"{tool}.elf").write_bytes(b"seed\n")
+                (seed_directory / f"{tool}.exe").write_bytes(b"seed\n")
             relative_manifest = manifest.relative_to(REPO_ROOT).as_posix()
             variables = (
                 *module.CANONICAL_MAKE_VARIABLES,
-                f"BOOTSTRAP_SEED_MANIFEST={relative_manifest}",
+                f"PRODUCTION_SEED_MANIFEST={relative_manifest}",
             )
             with mock.patch.object(
                 module,
@@ -8128,7 +8279,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             expected = {
                 relative_manifest,
                 *{
-                    (seed_directory / f"{tool}.elf")
+                    (seed_directory / f"{tool}.exe")
                     .relative_to(REPO_ROOT)
                     .as_posix()
                     for tool in (
@@ -8142,7 +8293,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             self.assertTrue(expected.issubset(inputs))
             self.assertNotIn(
-                "bootstrap/seeds/i386-linux/manifest.json",
+                "bootstrap/seeds/i386-windows/manifest.json",
                 inputs,
             )
 
@@ -8179,7 +8330,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             inputs = set(rules["boot/boot.bin"].prerequisites)
             self.assertIn(relative_driver, inputs)
             self.assertNotIn(
-                "bootstrap/seeds/i386-linux/manifest.json",
+                "bootstrap/seeds/i386-windows/manifest.json",
                 inputs,
             )
 
@@ -8220,12 +8371,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "tools/hostbuild.py",
                     "Makefile",
                     "tools/bootstrap_toolchain.py",
-                    "bootstrap/seeds/i386-linux/manifest.json",
-                    "bootstrap/seeds/i386-linux/cupidasm.elf",
-                    "bootstrap/seeds/i386-linux/cupidc.elf",
-                    "bootstrap/seeds/i386-linux/cupiddis.elf",
-                    "bootstrap/seeds/i386-linux/cupidld.elf",
-                    "bootstrap/seeds/i386-linux/cupidobj.elf",
+                    *WINDOWS_PRODUCTION_SEED_INPUTS,
                 },
             )
 
@@ -8248,12 +8394,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "tools/cupidc_kernel_compile.py",
                     "tools/kernel_cupidc_frontier.py",
                     "tools/bootstrap_toolchain.py",
-                    "bootstrap/seeds/i386-linux/manifest.json",
-                    "bootstrap/seeds/i386-linux/cupidasm.elf",
-                    "bootstrap/seeds/i386-linux/cupidc.elf",
-                    "bootstrap/seeds/i386-linux/cupiddis.elf",
-                    "bootstrap/seeds/i386-linux/cupidld.elf",
-                    "bootstrap/seeds/i386-linux/cupidobj.elf",
+                    *WINDOWS_PRODUCTION_SEED_INPUTS,
                 },
             )
             sources = {
@@ -8490,32 +8631,42 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         cases = {
             "non-Python launcher": (
                 "PYTHON := clang\n"
+                "PRODUCTION_SEED_MANIFEST := seed.json\n"
                 "CUPIDC_KERNEL_COMPILE := $(PYTHON) "
-                "tools/cupidc_kernel_compile.py --root .\n",
+                "tools/cupidc_kernel_compile.py --root . "
+                "--manifest $(PRODUCTION_SEED_MANIFEST)\n",
                 "is not a Python launcher",
             ),
             "Python command string": (
                 "PYTHON := python3 -c pass\n"
+                "PRODUCTION_SEED_MANIFEST := seed.json\n"
                 "CUPIDC_KERNEL_COMPILE := $(PYTHON) "
-                "tools/cupidc_kernel_compile.py --root .\n",
+                "tools/cupidc_kernel_compile.py --root . "
+                "--manifest $(PRODUCTION_SEED_MANIFEST)\n",
                 "must contain only the Python launcher",
             ),
             "Python module": (
                 "PYTHON := python3 -m unchecked\n"
+                "PRODUCTION_SEED_MANIFEST := seed.json\n"
                 "CUPIDC_KERNEL_COMPILE := $(PYTHON) "
-                "tools/cupidc_kernel_compile.py --root .\n",
+                "tools/cupidc_kernel_compile.py --root . "
+                "--manifest $(PRODUCTION_SEED_MANIFEST)\n",
                 "must contain only the Python launcher",
             ),
             "different wrapper": (
                 "PYTHON := python3\n"
+                "PRODUCTION_SEED_MANIFEST := seed.json\n"
                 "CUPIDC_KERNEL_COMPILE := $(PYTHON) "
-                "tools/other_wrapper.py --root .\n",
+                "tools/other_wrapper.py --root . "
+                "--manifest $(PRODUCTION_SEED_MANIFEST)\n",
                 "differs from the checked command",
             ),
             "extra option": (
                 "PYTHON := python3\n"
+                "PRODUCTION_SEED_MANIFEST := seed.json\n"
                 "CUPIDC_KERNEL_COMPILE := $(PYTHON) "
-                "tools/cupidc_kernel_compile.py --root . --unchecked\n",
+                "tools/cupidc_kernel_compile.py --root . "
+                "--manifest $(PRODUCTION_SEED_MANIFEST) --unchecked\n",
                 "differs from the checked command",
             ),
         }
@@ -8541,8 +8692,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 root / "Makefile",
                 """
                 PYTHON := python3
+                PRODUCTION_SEED_MANIFEST := seed.json
                 CUPIDC_KERNEL_COMPILE := $(PYTHON) \
-                    tools/cupidc_kernel_compile.py --root .
+                    tools/cupidc_kernel_compile.py --root . \
+                    --manifest $(PRODUCTION_SEED_MANIFEST)
                 .PHONY: all
                 all:
                 """,
@@ -8553,6 +8706,106 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "make",
                 [{"tools": ["cupid_c_compiler", "host_python"]}],
             )
+
+    def test_production_wrappers_require_the_production_seed_binding(self):
+        module = _load_audit_module()
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            root_makefile = """
+                PYTHON := python3
+                PRODUCTION_SEED_MANIFEST := windows-seed.json
+                CUPIDC_PRODUCTION_COMPILE := $(PYTHON) \
+                    tools/cupidc_production_compile.py --root . \
+                    --cohort generated-install \
+                    --manifest $(PRODUCTION_SEED_MANIFEST)
+                .PHONY: all
+                all:
+            """
+            user_makefile = """
+                PYTHON := python3
+                BOOTSTRAP_SEED_MANIFEST := ../linux-seed.json
+                PRODUCTION_SEED_MANIFEST := ../windows-seed.json
+                CUPIDC_PRODUCTION_COMPILE := $(PYTHON) \
+                    ../tools/cupidc_production_compile.py --root .. \
+                    --cohort user \
+                    --manifest $(PRODUCTION_SEED_MANIFEST)
+                CUPIDLD_USER_LINK := $(PYTHON) \
+                    ../tools/cupidld_user_link.py --root .. \
+                    --manifest $(PRODUCTION_SEED_MANIFEST)
+                .PHONY: all
+                all:
+            """
+            _write(root / "Makefile", root_makefile)
+            _write(root / "user" / "Makefile", user_makefile)
+
+            def model(directory, recipes):
+                return module.BuildModel(
+                    directory=directory,
+                    root_target="all",
+                    rules={},
+                    reachable=set(),
+                    direct_sources=set(),
+                    generated_sources=set(),
+                    forced_sources=set(),
+                    includes_by_source={},
+                    include_search_paths=[],
+                    transforms=[{"recipe": [recipe]} for recipe in recipes],
+                )
+
+            models = [
+                model(".", ("$(CUPIDC_PRODUCTION_COMPILE)",)),
+                model(
+                    "user",
+                    (
+                        "$(CUPIDC_PRODUCTION_COMPILE)",
+                        "$(CUPIDLD_USER_LINK)",
+                    ),
+                ),
+            ]
+            module._validate_cupidc_production_make_bindings(
+                root,
+                "make",
+                models,
+            )
+
+            _write(
+                root / "Makefile",
+                root_makefile.replace(
+                    "--manifest $(PRODUCTION_SEED_MANIFEST)",
+                    "--unchecked",
+                    1,
+                ),
+            )
+            with self.assertRaisesRegex(
+                module.AuditError,
+                "production wrapper binding differs",
+            ):
+                module._validate_cupidc_production_make_bindings(
+                    root,
+                    "make",
+                    models,
+                )
+
+            _write(root / "Makefile", root_makefile)
+            link_prefix, link_marker, link_suffix = user_makefile.rpartition(
+                "--manifest $(PRODUCTION_SEED_MANIFEST)"
+            )
+            self.assertTrue(link_marker)
+            _write(
+                root / "user" / "Makefile",
+                link_prefix
+                + "--manifest $(BOOTSTRAP_SEED_MANIFEST)"
+                + link_suffix,
+            )
+            with self.assertRaisesRegex(
+                module.AuditError,
+                "user wrapper binding differs",
+            ):
+                module._validate_cupidc_production_make_bindings(
+                    root,
+                    "make",
+                    models,
+                )
 
     def test_cupidc_ownership_provenance_tracks_wrapper_drift(self):
         module = _load_audit_module()
@@ -8598,9 +8851,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 second_controls["tools/cupidc_kernel_compile.py"],
             )
             self.assertEqual(
-                first_controls["bootstrap/seeds/i386-linux/manifest.json"],
+                first_controls["bootstrap/seeds/i386-windows/manifest.json"],
                 second_controls[
-                    "bootstrap/seeds/i386-linux/manifest.json"
+                    "bootstrap/seeds/i386-windows/manifest.json"
                 ],
             )
 

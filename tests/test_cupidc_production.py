@@ -19,6 +19,22 @@ from tools import cupidld_user_link as user_link
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+LINUX_PRODUCTION_SEED_FILES = {
+    "bootstrap/seeds/i386-linux/manifest.json",
+    "bootstrap/seeds/i386-linux/cupidasm.elf",
+    "bootstrap/seeds/i386-linux/cupidc.elf",
+    "bootstrap/seeds/i386-linux/cupiddis.elf",
+    "bootstrap/seeds/i386-linux/cupidld.elf",
+    "bootstrap/seeds/i386-linux/cupidobj.elf",
+}
+WINDOWS_PRODUCTION_SEED_FILES = {
+    "bootstrap/seeds/i386-windows/manifest.json",
+    "bootstrap/seeds/i386-windows/cupidasm.exe",
+    "bootstrap/seeds/i386-windows/cupidc.exe",
+    "bootstrap/seeds/i386-windows/cupiddis.exe",
+    "bootstrap/seeds/i386-windows/cupidld.exe",
+    "bootstrap/seeds/i386-windows/cupidobj.exe",
+}
 SEED_MANIFEST = (
     REPO_ROOT
     / "bootstrap"
@@ -633,6 +649,46 @@ class ProductionCompileTests(unittest.TestCase):
         self.assertEqual(len(executor.calls), 1)
         run_seed.assert_called_once()
 
+    def test_windows_auto_mode_selects_the_checked_native_seed(self):
+        output = self.root / "user/build/hello.o"
+        executor = FakeCompilerExecutor(
+            self.root, payload=_valid_elf32_object()
+        )
+        with (
+            mock.patch.object(
+                production_compile, "_HOST_IS_WINDOWS", True
+            ),
+            mock.patch.object(
+                production_compile,
+                "run_seed_tool",
+                side_effect=lambda _manifest, _root, _tool, arguments,
+                *, timeout, frozen_seed, runner: executor.run(
+                    frozen_seed.tools["cupidc"], arguments, timeout
+                ),
+            ) as run_seed,
+            mock.patch.object(
+                production_compile,
+                "freeze_seed_inputs",
+                return_value=self.seed_inputs,
+            ) as freeze_seed,
+        ):
+            production_compile.compile_production_source(
+                self.root,
+                "user",
+                Path("user/examples/hello.cc"),
+                Path("user/build/hello.o"),
+            )
+
+        expected = (
+            self.root
+            / "bootstrap/seeds/i386-windows/manifest.json"
+        )
+        self.assertEqual(output.read_bytes(), _valid_elf32_object())
+        freeze_seed.assert_called_once_with(
+            expected, mock.ANY
+        )
+        self.assertEqual(run_seed.call_args.args[0], expected)
+
     def test_native_compile_uses_a_private_tool_snapshot_without_seed_access(self):
         output = self.root / "user/build/hello.o"
         native = self.root / "toolchain/build/cupidc.exe"
@@ -1098,7 +1154,7 @@ class UserLinkTests(unittest.TestCase):
                 user_link,
                 "freeze_seed_inputs",
                 return_value=self.seed_inputs,
-            ),
+            ) as freeze_seed,
             mock.patch.object(
                 user_link,
                 "capture_native_tool",
@@ -1116,6 +1172,12 @@ class UserLinkTests(unittest.TestCase):
         self.assertEqual(self.output.read_bytes(), _valid_user_executable())
         self.assertEqual(len(runner.calls), 1)
         run_seed.assert_called_once()
+        expected = (
+            self.root
+            / "bootstrap/seeds/i386-windows/manifest.json"
+        )
+        freeze_seed.assert_called_once_with(expected, mock.ANY)
+        self.assertEqual(run_seed.call_args.args[0], expected)
 
     def test_native_link_uses_a_private_tool_snapshot_without_seed_access(self):
         native = self.root / "toolchain/build/cupidld.exe"
@@ -1658,11 +1720,11 @@ class ProductionBuildContractTests(unittest.TestCase):
                 compile_transform["inputs"],
             )
             self.assertIn(
-                "bootstrap/seeds/i386-linux/manifest.json",
+                "bootstrap/seeds/i386-windows/manifest.json",
                 compile_transform["inputs"],
             )
             self.assertIn(
-                "bootstrap/seeds/i386-linux/cupidld.elf",
+                "bootstrap/seeds/i386-windows/cupidld.exe",
                 link_transform["inputs"],
             )
 
@@ -1765,24 +1827,40 @@ class ProductionBuildContractTests(unittest.TestCase):
             self.assertNotIn("tools/hostbuild.py", rule)
 
     def test_frontier_closures_name_every_seed_and_renamed_source(self):
-        user_inputs = production_frontier._user_inputs()
-        for source in production_compile.USER_SOURCES:
-            self.assertIn(source, user_inputs)
-        for seed in production_frontier.SEED_FILES:
-            self.assertIn(seed, user_inputs)
-        native_inputs = production_frontier._user_inputs(
-            include_native_tools=True
+        cases = (
+            (False, LINUX_PRODUCTION_SEED_FILES, WINDOWS_PRODUCTION_SEED_FILES),
+            (True, WINDOWS_PRODUCTION_SEED_FILES, LINUX_PRODUCTION_SEED_FILES),
         )
-        for source in production_frontier.NATIVE_USER_TOOL_SOURCES:
-            self.assertNotIn(source, user_inputs)
-            self.assertIn(source, native_inputs)
-
         generator_inputs = production_frontier._generator_inputs(REPO_ROOT)
-        generated_inputs = production_frontier._generated_inputs(
-            REPO_ROOT, generator_inputs
-        )
-        for source in production_compile.GENERATED_INSTALL_SOURCES:
-            self.assertIn(source, generated_inputs)
+        for windows_host, expected_seed, other_seed in cases:
+            with (
+                self.subTest(windows_host=windows_host),
+                mock.patch.object(
+                    production_frontier,
+                    "_native_windows_host",
+                    return_value=windows_host,
+                ),
+            ):
+                user_inputs = production_frontier._user_inputs()
+                generated_inputs = production_frontier._generated_inputs(
+                    REPO_ROOT, generator_inputs
+                )
+                self.assertTrue(expected_seed.issubset(user_inputs))
+                self.assertTrue(expected_seed.issubset(generated_inputs))
+                self.assertTrue(other_seed.isdisjoint(user_inputs))
+                self.assertTrue(other_seed.isdisjoint(generated_inputs))
+                for source in production_compile.USER_SOURCES:
+                    self.assertIn(source, user_inputs)
+                for source in production_compile.GENERATED_INSTALL_SOURCES:
+                    self.assertIn(source, generated_inputs)
+
+                native_inputs = production_frontier._user_inputs(
+                    include_native_tools=True
+                )
+                for source in production_frontier.NATIVE_USER_TOOL_SOURCES:
+                    self.assertNotIn(source, user_inputs)
+                    self.assertIn(source, native_inputs)
+
         self.assertNotIn("bin/old_cc2.cc", generator_inputs["bin"])
         self.assertEqual(
             generator_inputs["demos"],

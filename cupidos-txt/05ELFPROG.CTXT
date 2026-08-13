@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 ELF User Programs (user/cupid.h)
-Verified against source on: 2026-07-30
+Verified against source on: 2026-08-13
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -16,9 +16,10 @@ Verified against source on: 2026-07-30
 >h2 Overview
 >tree open Overview
 The CupidC and CupidLD ELF path is separate from the CupidC source JIT.
-Linux runs the checked i386 Linux seed directly. Windows runs it through WSL.
-An optional native Windows check requires CupidC and CupidLD output to match
-the seed.
+Linux runs the checked i386 Linux seed directly. On Windows, the user ABI
+contract runs that seed through WSL, then checked native CupidC and CupidLD
+perform the output-bearing compile and link. An optional native Windows check
+requires host-built CupidC and CupidLD output to match the checked seed.
 
 kernel/lang/exec.cc currently supports:
 - ELF32 executables
@@ -37,31 +38,38 @@ It can build canonical import descriptors, lookup tables, IAT cells, and names
 in writable .idata. Imported slots accept only known, zero-addend absolute
 relocations. CupidLD orders imports with an in-place heap and keeps name
 imports below the PE32 high-bit boundary. The fixed image has no
-base-relocation table. The independent validator reconstructs the exact
-.idata cursor and rejects equivalent but noncanonical layouts.
+base-relocation table. It reserves and commits a one MiB stack; its heap
+reserves one MiB and commits 4 KiB. The independent validator checks those
+fields, reconstructs the exact .idata cursor, and rejects equivalent but
+noncanonical layouts.
 
 CupidASM assembles the repository Windows entry, and freestanding CupidC
 compiles its headerless main. CupidLD links GetStdHandle, WriteFile, and
 ExitProcess imports. Windows validates and runs the image, requires the exact
 stdout marker, empty stderr, and exit 37. The bootstrap report retains the
-observed result and both stages' object and image hashes. The promoted seed
-carries this path. Its tools are still static i386 Linux programs that run
-through WSL on Windows, so this is not a native Windows fixed point.
+observed result and both stages' object and image hashes. At that checkpoint,
+the promoted Linux seed carried this path. Its producers were static i386
+Linux programs that ran through WSL on Windows. This proved the loader, not a
+native Windows fixed point.
 
-Source head builds native CupidASM, CupidC, CupidDis, CupidLD, and CupidObj commands
-with Cupid tooling. Their shared hosted runtime provides native arguments,
-allocation, separate standard streams, named-file reads and writes, append
-behavior, seeking, the current directory, and useful error mapping. A direct
-runtime contract checks those paths, including failed opens and Windows quote
-and backslash rules. Each tool runs help plus a useful success and failure
-path. CupidDis also checks exact raw-disassembly parity. CupidLD adds path
-resolution, exclusive candidate creation, flush, replacement, and cleanup. Its
-successful output matches the reference image, and its forced failure leaves no
-candidate.
+Both fixed-point stages build matching native CupidASM, CupidC, CupidDis,
+CupidLD, and CupidObj commands with Cupid tooling. Their shared hosted runtime
+provides native arguments, allocation, separate standard streams, named-file
+reads and writes, append behavior, seeking, the current directory, and useful
+error mapping. A direct runtime contract checks those paths, including failed
+opens and Windows quote and backslash rules. Each tool runs help plus a useful
+success and failure path. CupidDis also checks exact raw-disassembly parity.
+CupidLD adds path resolution, exclusive candidate creation, flush, replacement,
+and cleanup. Its successful output matches the reference image, and its forced
+failure leaves no candidate.
 
-A checked Windows five-tool seed, WSL removal, and normal-build adoption remain
-open. ADR 0268 records the shared runtime, and ADR 0269 records CupidLD
-publication.
+Those five PE32 images form the checked Windows execution seed used by
+output-bearing production recipes. Fixed-point reconstruction, Toolchain
+contracts, the user ABI contract, and artifact-size policy still run the Linux
+seed through WSL. The PE32 manifest has no native build plan, so a native
+Windows fixed point remains open. ADR 0268 records the shared runtime, ADR 0269
+records CupidLD publication, and ADR 0272 records Windows execution seed
+carriage and production selection.
 >endtree
 
 >h2 Entry Point
@@ -112,11 +120,13 @@ The current user/Makefile writes outputs to:
   user/build/
 
 The build freezes its CupidC and CupidLD tool images, validates each object
-and executable, and publishes only complete files. Linux runs the checked
-seed directly, while Windows runs it through WSL. Use
-`make test-user-cupidc-frontier` to repeat the deterministic build check. On
-Windows, `make test-user-native-windows-equivalence` builds private native
-driver snapshots and compares all six files with checked-seed output.
+and executable, and publishes only complete files. Linux runs the checked seed
+directly. On Windows, the ABI contract runs the Linux seed through WSL, then
+checked native CupidC and CupidLD build all six program artifacts directly.
+Use `make test-user-cupidc-frontier` to repeat the deterministic build check.
+On Windows, `make test-user-native-windows-equivalence` builds private
+host-built driver snapshots and compares all six files with checked-seed
+output.
 
 Run `make sync-user` to build the image and stage the examples at FAT root.
 A fresh image imports them into /home on first boot. Once HOMEFS.SYS exists,

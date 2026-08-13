@@ -48,13 +48,21 @@ except ModuleNotFoundError:
 
 
 SCHEMA = "cupid.production-frontier.v1"
-SEED_FILES = (
+LINUX_PRODUCTION_SEED_FILES = (
     "bootstrap/seeds/i386-linux/manifest.json",
     "bootstrap/seeds/i386-linux/cupidasm.elf",
     "bootstrap/seeds/i386-linux/cupidc.elf",
     "bootstrap/seeds/i386-linux/cupiddis.elf",
     "bootstrap/seeds/i386-linux/cupidld.elf",
     "bootstrap/seeds/i386-linux/cupidobj.elf",
+)
+WINDOWS_PRODUCTION_SEED_FILES = (
+    "bootstrap/seeds/i386-windows/manifest.json",
+    "bootstrap/seeds/i386-windows/cupidasm.exe",
+    "bootstrap/seeds/i386-windows/cupidc.exe",
+    "bootstrap/seeds/i386-windows/cupiddis.exe",
+    "bootstrap/seeds/i386-windows/cupidld.exe",
+    "bootstrap/seeds/i386-windows/cupidobj.exe",
 )
 CONTROL_FILES = (
     "tools/bootstrap_toolchain.py",
@@ -80,6 +88,14 @@ class FrontierError(RuntimeError):
 
 def _native_windows_host() -> bool:
     return os.name == "nt"
+
+
+def _production_seed_files() -> tuple[str, ...]:
+    return (
+        WINDOWS_PRODUCTION_SEED_FILES
+        if _native_windows_host()
+        else LINUX_PRODUCTION_SEED_FILES
+    )
 
 
 def _sha256(payload: bytes) -> str:
@@ -134,7 +150,7 @@ def _user_inputs(*, include_native_tools: bool = False) -> tuple[str, ...]:
         *ABI_INPUTS,
         *CONTROL_FILES,
         *USER_CONTROL_FILES,
-        *SEED_FILES,
+        *_production_seed_files(),
     }
     if include_native_tools:
         inputs.update(NATIVE_USER_TOOL_SOURCES)
@@ -180,7 +196,7 @@ def _generated_inputs(
                 *GENERATED_INCLUDE_CLOSURE,
                 *CONTROL_FILES,
                 *GENERATED_CONTROL_FILES,
-                *SEED_FILES,
+                *_production_seed_files(),
                 *generator_paths,
             }
         )
@@ -513,7 +529,7 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help=(
             "compare the native Windows user artifacts with the checked "
-            "i386 Linux seed"
+            "production seed"
         ),
     )
     return parser

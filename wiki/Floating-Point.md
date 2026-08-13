@@ -116,28 +116,30 @@ static arithmetic and rounding model. ADR 0258 records checked-seed carriage
 of the earlier static frontier, and ADR 0265 records carriage of the arithmetic
 path.
 
-The promoted seed carried this path through the frozen-document poisoned-host
-normal root rebuild in 1,018.548 seconds. The current 2,560-byte boot image has
+The checked native Windows seed carried this path through the source-current
+2026-08-13 poisoned-host build. Its first invocation stopped at the
+602.5-second command limit; the resumed build finished in 968.5 seconds, for
+1,571.0 seconds of cumulative work. The current 2,560-byte boot image has
 SHA-256
 `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3`.
-The 9,044,032-byte pass-one ELF has SHA-256
-`659bd6485deb4e6a18a1efa0f575eb90f210fe5674e9e1257eeef2a4422ff21e`,
-the 9,166,912-byte final ELF has SHA-256
-`7caf5ad4bc721f10418c06be7cfd8d9568efc8378e7baf2c2f7a510ec49263a3`,
-and the 8,950,860-byte raw kernel has SHA-256
-`5f0c0becc1ba66a9d3e2eda15555fec39faedc98e2349ad3ee7b2d08775fe1a7`.
-A final poisoned-host `make -j2 all` passed with exit 0 in 1,022.190 seconds.
+The 9,056,612-byte pass-one ELF has SHA-256
+`e2f63b5cd9c4e2769b9d6bc893ab5cf778951b97aec954ece6cbac0cc429e92a`,
+the 9,179,492-byte final ELF has SHA-256
+`1bc06263dbf9849e6d2c594b6fb4be2a3f3b673c91f69d23a2d2e639b1f64776`,
+and the 8,962,776-byte raw kernel has SHA-256
+`3170aa71eafa656b1f6e23c918f1f472860f513c9c5cd0376d7d4f5f8a7d891c`.
 Its exact-size prerequisite accepted all nine artifacts before publishing the
 209,715,200-byte image with SHA-256
+`3b5dd6523a90d6ed0543a6ab2464892f3289b876654f9869f88db0901940b91e`.
+A four-vCPU RTL8139 frontier passed from this image in 820.7 seconds. Private
+CupidC emitted the broad indirect-update marker, compiled and loaded the
+dedicated external ELF as PID 4, emitted
+`[feature13-derived-aot] PASS score=41 once=2 zero=0x80000000`, and reported
+that same PID exiting. The full SMP, framebuffer, audio, USB detach/replug, and
+survival checks passed. The completed dual-NIC checkpoint immediately before
+this rebuild used image
+SHA-256
 `326844ca58c1f864a6b9a2480dfaeb5ed71ec3df22cdb46da17a6bb356e7e726`.
-The final four-vCPU E1000 and RTL8139 frontiers passed from this image. Both
-used the partitioned USB fixture, `--smp 4`, `--cpu max`, SMP and frontier
-runtime verification, a private image, and a 300-second phase timeout. E1000
-exited 0 in 725.058 seconds with 103,673 changed framebuffer pixels, 29,608,822
-AC97 frames at peak 25,600, and 76,784 PC speaker frames at peak 30,710.
-RTL8139 exited 0 in 725.406 seconds with 106,151 changed pixels, 29,601,879
-AC97 frames at peak 25,600, and 76,719 PC speaker frames at peak 31,501. Both
-used a 640 by 480 framebuffer, and the image hash remained unchanged.
 The earlier 1,057.969-second build and definitive four-vCPU E1000 and RTL8139
 frontiers remain pre-freeze evidence. Those boots passed the AC97 and PC
 speaker checks with exits 0 in 794.034 and 758.667 seconds.
@@ -370,11 +372,13 @@ Depth-one floating pointers keep their pointee width through address
 expressions, returns, function and method array parameters, dereference,
 subscripting, direct pointer updates, and assignment. Structure and class
 objects, object arrays, and object pointers keep scalar floating fields and
-one-dimensional fixed floating field arrays. Deeper floating pointers,
-indirect floating updates, pointer-to-array types, and
-assignment through a pointer-valued floating field subscript remain
-unsupported. ADR 0210 records
-the first array boundary, and ADR 0215 records the expanded lvalue model.
+one-dimensional fixed floating field arrays. Prefix and postfix updates work
+through pointer dereference, fixed-array index, and scalar fields reached from
+direct, pointer, or indexed-record members. The address is evaluated once, and
+postfix retains the original binary payload. Deeper floating pointers,
+pointer-to-array types, and assignment through a pointer-valued floating field
+subscript remain unsupported. ADR 0210 records the first array boundary, ADR
+0215 records the expanded lvalue model, and ADR 0273 records derived updates.
 
 Fixed `float4` and `double2` arrays with one, two, or three dimensions use
 16-byte vector leaves in global, automatic, block-static, and persistent REPL
@@ -449,6 +453,8 @@ FUCOMIP, FSIN, FPATAN, F2XM1, FYL2X, etc.). XMM0-7 and ST0-7 register tokens.
 
 - `bin/feature12_float.cc` - scalar float arithmetic, casts, element access.
 - `bin/feature13_double.cc` - exact decimal payloads, typed lvalues, calls, and transcendentals.
+- `bin/feature13_derived_aot.cc` - external AOT proof for pointer, index, and
+  indexed-record floating updates, including one evaluation per designator.
 - `bin/feature14_simd.cc` - packed operators, one-dimensional arrays, matrices,
   cubes, NaN behavior, and intrinsics.
 - `bin/feature15_libm.cc` - 29 fixed-reference checks, including seven x87 range paths.

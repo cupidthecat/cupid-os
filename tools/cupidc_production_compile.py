@@ -118,6 +118,11 @@ _WINDOWS_ERROR_DIRECTORY = 267
 _WINDOWS_ERROR_REPARSE_POINT_ENCOUNTERED = 4395
 
 
+def _default_seed_manifest(root: Path) -> Path:
+    platform = "i386-windows" if _HOST_IS_WINDOWS else "i386-linux"
+    return root / "bootstrap" / "seeds" / platform / "manifest.json"
+
+
 class ProductionCompileError(RuntimeError):
     """A production compilation could not publish an object."""
 
@@ -694,11 +699,7 @@ def compile_production_source(
                 manifest_path = (
                     manifest.resolve()
                     if manifest is not None
-                    else root
-                    / "bootstrap"
-                    / "seeds"
-                    / "i386-linux"
-                    / "manifest.json"
+                    else _default_seed_manifest(root)
                 )
                 seed_directory = Path(
                     stack.enter_context(

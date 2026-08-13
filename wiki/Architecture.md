@@ -158,13 +158,16 @@ Cupid contract and Python oracle one shared six-file snapshot, then rechecks
 the live publication and sources before success.
 Native contract binaries are optional oracles.
 
-Source head also links and runs all five hosted tools as native Windows images
-from Cupid-built objects. CupidASM supplies the entry and imported API bridges,
-while CupidLD authors each PE image and its IAT slots. CupidLD adds four
-publication imports to the shared twelve. Both fixed-point stages produce
-matching images. Windows runs help plus a useful success and failure path for
-each tool. CupidDis also checks quoted raw-input parity with the Linux tool.
-Checked Windows seed carriage remains open.
+Both fixed-point stages link matching native Windows images for all five hosted
+tools from Cupid-built objects. CupidASM supplies the entry and imported API
+bridges, while CupidLD authors each PE image and its IAT slots. CupidLD adds
+four publication imports to the shared twelve. Windows runs help plus a useful
+success and failure path for each tool. CupidDis also checks quoted raw-input
+parity with the Linux tool. These five images form the checked Windows
+execution seed used by output-bearing production recipes. Fixed-point
+reconstruction, Toolchain contracts, the user ABI contract, and artifact-size
+policy still run the Linux seed through WSL. The PE32 manifest has no native
+build plan, so a native Windows fixed point remains open.
 
 Strong four-vCPU runtime checks pass with both NICs through SMP, RDRAND, all
 62 crypto checks, USB storage, audio, TrueType glyphs, a baseline JPEG decode,

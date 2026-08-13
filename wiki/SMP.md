@@ -264,6 +264,13 @@ The trampoline is a 4KB raw binary placed at physical address 0x8000. The
 BSP writes it there before sending SIPI. It runs in 16-bit real mode then
 transitions each AP to 32-bit protected mode.
 
+The production build assembles a private 4,096-byte candidate with CupidASM.
+CupidDis checks 16-bit code in `[0x000, 0x01f)`, data in `[0x01f, 0x210)`,
+32-bit code in `[0x210, 0x254)`, and data in `[0x254, 0x1000)`. Every
+instruction in both code ranges must pass `--require-known`. Hostbuild replaces
+`kernel/smp_trampoline.bin` only after assembly and inspection succeed. A
+failure preserves the previous trampoline.
+
 ### Trampoline stages
 
 ```nasm

@@ -1,6 +1,6 @@
 >comment CupidMark converted document
 >h1 CupidC Guide (.cc)
-Verified against source on: 2026-08-09
+Verified against source on: 2026-08-13
 >style bg #F7F4EC
 >style body #1A1A1A
 >style h1 #B03060
@@ -234,7 +234,7 @@ The pass-one and final kernels project the same text symbols at the same
 addresses.
 
 Across root and supplemental builds, the ownership audit reports 245 CupidC
-transforms and no host C transform. Host Python participates in all 450
+transforms and no host C transform. Host Python participates in all 451
 transforms. The normal Toolchain build uses checked static i386 tools for its
 contract cohort; native contract binaries are optional oracles. The
 publisher accepts only a dedicated cupidc-contracts directory inside the
@@ -253,10 +253,10 @@ and bridge, direct contract, direct.h, windows.h, the user syscall ABI
 contract and its six declarations, the Toolchain Makefile, the publisher, and
 the independent Python ABI oracle. The
 manifest digest, decoded data, schema checks, and build plan
-come from one captured byte sequence. The 440 audited root artifacts have
+come from one captured byte sequence. The 441 audited root artifacts have
 Cupid owners and no host C or recursive Make transform. The Python-only size
-verifier emits no OS artifact. Five CupidASM, 191 CupidObj, two
-CupidLD, and two CupidDis participations run from the checked seed. The user
+verifier emits no OS artifact. Five CupidASM, 192 CupidObj, two
+CupidLD, and three CupidDis participations run from the checked seed. The user
 compiler and Toolchain contract publisher create their own output directories,
 so empty-directory setup is not a separate transform. The compiler pins every
 POSIX or Windows directory component during preparation and rejects links,
@@ -326,8 +326,9 @@ e1000 and RTL8139 contracts still cover keyboard and mouse detach and
 reattach, ATA, AC'97 and PC speaker audio, EHCI storage across six lifetimes,
 a zero-padded RTC timestamp, and DHCP traffic. A separate runtime check must
 load the same external ELF program twice at 0x01C00000 and release its first
-arena lease before the second load. CupidC optimization, removal of the Host
-Python and WSL launch bridge, a native Windows fixed point, IWAD-backed
+arena lease before the second load. CupidC optimization, removal of Host
+Python and the WSL bridge used for Linux-seed contracts and bootstrap, a
+native Windows fixed point, IWAD-backed
 gameplay, and a defined output-quality gate remain open.
 
 CupidC also represents operand-free GNU assembly inside functions. Basic
@@ -821,9 +822,11 @@ contract without unresolved symbols. The runtime executable checks allocation,
 tail release, files, seeks, errors, arguments, formatting, memory comparison,
 and strings.
 
-The cupidc driver accepts one C11 input, definitions, undefinitions, forced
-inputs, GNU or freestanding mode, ordered include roots, and an ELF32 object
-output. -I enables quoted and angle lookup. --include-angle enables angle
+The cupidc driver accepts one C11 or Cupid input, definitions, undefinitions,
+forced inputs, GNU or freestanding mode, ordered include roots, and an ELF32
+object output. C11 remains the default. --cupid selects Cupid vocabulary for
+preprocessing and parsing, composes with --gnu, and cannot be combined with
+--doom-compat. -I enables quoted and angle lookup. --include-angle enables angle
 lookup only. Repeatable -include options run before the primary source in
 caller order. These path options accept native paths or absolute logical paths
 under --root. Failed compilation preserves an existing output.
@@ -912,9 +915,11 @@ entry and cdecl API bridges. CupidLD authors the twelve shared IAT slots and
 four publication slots for its own image. Both stages produce matching images.
 Windows runs help plus useful success and failure paths for all five tools.
 CupidDis checks quoted raw-input parity with the Linux tool. CupidLD checks
-exact output, candidate collision, failure diagnostics, and cleanup. Checked
-Windows seed carriage remains open. ADR 0268 records the shared runtime, and
-ADR 0269 records CupidLD publication.
+exact output, candidate collision, failure diagnostics, and cleanup. Those
+images now form the checked Windows execution seed used by output-bearing
+production recipes. A native PE build plan and fixed point remain open. ADR
+0268 records the shared runtime, ADR 0269 records CupidLD publication, and ADR
+0272 records checked carriage and production selection.
 
 The rebuilt checked-seed CupidLD images publish both ELF and PE output through a
 candidate beside the destination, created with exclusive-create semantics.
@@ -1022,23 +1027,24 @@ first stage, after each stage, and after the behavior checks. All 19 C objects,
 startup, and five linked images match byte for byte. Five help checks,
 eighteen successful operations, and sixteen failure cases pass at both stages.
 The frozen 50-input closure has SHA-256
-76bb7c1cc63c44d29d0f062af0a714e1855632da7db13ff8652f6a897a2931a4.
-The 38,162-byte source-head report has SHA-256
-d90cf63e19ed1b4af560e4c15660d0583a1591bccdaa75157432204a82079efd.
-The proof passed in 902.792 seconds. The checked 128
+5bfbca2cbe30f2fa4b638cbf462b306cc05dc50a4604fd887f89426dbe091e63.
+The 38,164-byte source-head report has SHA-256
+3c63664f08e7bcdc639a88ca6ada6cf5143100eac966d748660b65d537b01e10.
+The proof passed in 801.9 seconds. The checked 128
 KiB strict-decode case
 completed within its 30-second limit. The Windows runtime prints the exact
 success marker and returns 37. ADR 0266 records indexed decoding, and ADR 0265
-records the latest transition, promotion, and production adoption. The normal
-kernel path runs strict checked-seed CupidDis and checked CupidObj flat
-extraction against one frozen cohort of all 427 audited root object outputs
-plus the pass-one and final kernel ELFs. Its
-9,028-byte graph-ordered input manifest has SHA-256
-48bdef348f6575881b9808631173e7265abc9ea89dfb84d48de72b3d2304749e.
-The first separate gate passed in 185.526 seconds with empty streams and exit
-0. The current hostbuild transaction freezes the selected seed manifest and
-all five artifacts, the 429-entry input manifest and cohort, and the existing
-kernel.bin boundary. Checked CupidDis validates the private cohort before
+records the latest transition, promotion, and production adoption. The first
+separate gate covered 427 audited root objects and two kernel ELFs. Its
+9,028-byte, 429-path manifest had SHA-256
+48bdef348f6575881b9808631173e7265abc9ea89dfb84d48de72b3d2304749e,
+and the gate passed in 185.526 seconds with empty streams and exit 0. The
+current normal path covers 428 audited objects and two kernel ELFs. Its
+9,056-byte, 430-path manifest has SHA-256
+07e0e0bf5cee4c1bf893305ef1dfd058400474d4af3dc3979c59f6e0195a0e2a.
+The hostbuild transaction freezes the selected seed manifest and all five
+artifacts, that input manifest and cohort, and the existing kernel.bin
+boundary. Checked CupidDis validates the private cohort before
 checked CupidObj flattens the frozen final ELF. Hostbuild rechecks live trust
 inputs and the output before parent-relative atomic publication. Every failure
 preserves the prior raw kernel. The transaction passed with exit 0 in 187.054
@@ -1446,12 +1452,13 @@ float and double arrays keep the remaining row stride through each subscript.
 sizeof(array[index]) reports that row without running the index. Depth-one
 floating pointers retain their width through address expressions, returns,
 function and method array parameters, dereference, subscripts, scaled direct
-pointer updates, and assignment. Structure and class objects, their arrays,
-and their pointers keep scalar floating fields and one-dimensional fixed
-floating field arrays. Bounds and dimension products are checked before
-storage is reserved. Deeper floating pointers, indirect floating updates,
-pointer-to-array types, and assignment through a
-pointer-valued floating field subscript remain unsupported.
+pointer updates, assignment, and floating increment or decrement. Structure
+and class objects, their arrays, and their pointers keep scalar floating
+fields and one-dimensional fixed floating field arrays. Pointer, index, and
+member updates evaluate the derived destination once. Bounds and dimension
+products are checked before storage is reserved. Deeper floating pointers,
+pointer-to-array types, and assignment through a pointer-valued floating field
+subscript remain unsupported.
 
 Matching float4 and double2 values support direct +, -, *, and /. Fixed arrays
 may have one, two, or three dimensions in global, automatic, block-static, and
@@ -1486,12 +1493,15 @@ float, 25 double, 19 character pointers, and eight other pointers. The other
 231 entries return void. Conditions therefore use the value that a binding
 actually returns instead of stale expression state.
 
-Prefix and postfix ++ and -- work on scalar float and double variables.
-Each update adds or subtracts an exact 1.0 at the variable's width. A postfix
-expression returns the old floating payload after storing the new value.
-Locals, parameters, globals, statement updates, and for-loop increments use
-the same typed path. Arrays, structures, function pointers, and SIMD vectors
-are not valid update targets.
+Prefix and postfix ++ and -- work on scalar float and double lvalues. Each
+update adds or subtracts an exact 1.0 at the operand's width. Direct locals,
+parameters, and globals use their symbol storage. Pointer dereferences,
+indexed elements, direct and pointer members, and members of indexed records
+keep one evaluated address until the store finishes. A postfix expression
+returns the exact old floating payload, including negative-zero and NaN bits,
+after storing the new value. Standalone statements and for-loop increments use
+the same typed path. Aggregate values, incomplete array rows, function
+pointers, and SIMD vectors are not valid update targets.
 
 Runtime unary plus preserves char, int, float, and double operands. Runtime
 unary minus uses integer NEG for char and int, while float and double change
@@ -1544,7 +1554,11 @@ truncated string.
 
 See also: bin/feature12_float.cc through bin/feature16_asm_fpu.cc.
 feature13_double checks decimal payloads, typed floating matrices, pointers,
-record fields, row-sized unevaluated sizeof, scalar calls, and libm.
+record fields, pointer, index, and member updates with one destination
+evaluation, row-sized unevaluated sizeof, scalar calls, and libm.
+feature13_derived_aot is compiled with ccc and run with exec. It checks pointer,
+index, and indexed-record updates, including the stored result and one
+evaluation of each designator, before the loaded process exits.
 feature14_simd checks packed operators, one-dimensional arrays, matrices,
 cubes, NaN handling, and SSE intrinsics. The
 Browser's binary64 token and AST tables use the fixed double-array path.
@@ -1617,7 +1631,7 @@ Notepad integration:
 Available for GUI app and desktop-oriented workflows:
 
 The complete 46-name gfxgui cohort exposes effects, bitmap-font assets,
-affine transforms, GUI module initialization, and themes. All 106 runnable
+affine transforms, GUI module initialization, and themes. All 107 runnable
 top-level programs pass private AOT compilation. The fixed runtime gate runs
 /gfxgui_test and /bin/gfxgui_test.cc, then exercises nested ownership through
 voluntary exit and remote kill. The old generation's request must skip the
@@ -1776,6 +1790,18 @@ Use CupidC when:
 Use ELF C (see 05ELFPROG.CTXT) when:
 - You want a checked external CupidC and CupidLD build.
 - You want a stable syscall-table ABI style entrypoint.
+>endtree
+
+>h2 Hosted Cupid Language Mode
+>tree open Hosted Cupid Language Mode
+The hosted bootstrap compiler accepts --cupid when a source uses Cupid's
+native type vocabulary. The option selects Cupid mode in both preprocessing
+and parsing. It can be combined with --gnu for GNU extensions. Doom
+compatibility remains a separate profile, and C11 remains the default.
+
+This host command is separate from the in-OS JIT, AOT, and REPL commands
+described above. It lets the shared bootstrap frontend compile declarations
+that use U0, U8, U16, U32, U64, I8, I16, I32, I64, Bool, float4, and double2.
 >endtree
 
 >h2 See Also

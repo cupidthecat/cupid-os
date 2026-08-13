@@ -8,11 +8,11 @@ This guide covers building Cupid OS from source and running it in QEMU.
 
 | Tool | Purpose |
 |------|---------|
-| **Checked Cupid toolchain** | The repository carries a verified static i386 seed. CupidC, CupidASM, CupidObj, CupidLD, and CupidDis own the normal C, assembly, object, link, and inspection transforms |
+| **Checked Cupid toolchain** | The repository carries a verified static i386 Linux seed and a checked native PE32 Windows execution seed. CupidC, CupidASM, CupidObj, CupidLD, and CupidDis own the normal C, assembly, object, link, and inspection transforms |
 | **Python 3** | Portable host-side image and code-generation helpers |
 | **GNU Make** | Build system |
 | **QEMU** (`qemu-system-i386`) | x86 emulator for testing |
-| **WSL** (Windows only) | Runs the checked static i386 Linux Cupid tools from a native Windows build |
+| **WSL** (Windows only) | Runs the checked Linux seed for fixed-point reconstruction, Toolchain contracts, the user ABI contract, and artifact-size policy |
 | **mtools** (optional) | Manual FAT16 inspection/copying from Linux hosts |
 | **GCC, Clang, and binutils** (optional) | Native development builds and comparison oracles; they do not produce normal OS artifacts |
 | **NASM** (optional) | Comparison oracle used by `make nasm-assembly-oracle` when installed |
@@ -53,10 +53,12 @@ choco install make python qemu
 wsl --install
 ```
 
-Run `make` from PowerShell or another native Windows shell. The Makefile uses
-WSL to execute the checked static i386 Cupid seed. CupidC compiles the normal
-C sources, and CupidLD links the kernel. Install LLVM only for the explicit
-native Toolchain contracts and native Windows comparison targets:
+Run `make` from PowerShell or another native Windows shell. Output-bearing
+recipes run the checked PE32 Cupid tools directly. The Makefile still uses WSL
+for fixed-point reconstruction, Toolchain contracts, the user ABI contract,
+and artifact-size policy. The PE32 cohort has no native build plan, so this is
+not a native Windows fixed point. Install LLVM only for the explicit native
+Toolchain contracts and native Windows comparison targets:
 
 ```powershell
 choco install llvm

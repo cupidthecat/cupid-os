@@ -1,11 +1,13 @@
 # ELF Programs
 
 Cupid OS loads and runs static **ELF32 i386** executables. CupidC compiles the
-three repository examples, and CupidLD links them. Linux runs the checked
-i386 Linux seed directly, while Windows runs it through WSL. An optional
-native Windows comparison requires hosted CupidC and CupidLD output to match
-the checked seed. Programs run as ring-0 kernel threads and receive a
-**syscall table**, a struct of function pointers passed to `_start()`.
+three repository examples, and CupidLD links them. Linux runs the checked i386
+Linux seed directly. On Windows, the user ABI contract runs that seed through
+WSL, then checked native CupidC and CupidLD perform the output-bearing compile
+and link. An optional native Windows comparison requires host-built CupidC and
+CupidLD output to match the checked seed. Programs run as ring-0 kernel threads
+and receive a **syscall table**, a struct of function pointers passed to
+`_start()`.
 
 ---
 
@@ -44,20 +46,23 @@ make test-user-cupidc-frontier
 make test-user-native-windows-equivalence
 ```
 
-The normal Windows build runs the checked seed through WSL and does not
-prepare native drivers. The separate comparison command builds those drivers
-with Clang and its native linker. Checked-seed CupidLD accepts `-m i386pe` for
-ordered static i386 ELF32 objects. It serializes one deterministic,
+The normal Windows build runs checked native CupidC and CupidLD directly and
+does not prepare host-built native drivers. Its user ABI contract still runs
+the Linux seed through WSL. The separate comparison command builds private
+drivers with Clang and its native linker. Checked-seed CupidLD accepts
+`-m i386pe` for ordered static i386 ELF32 objects. It serializes one deterministic,
 fixed-layout PE32 console image at image base `0x00400000`, with `.text` at RVA
 `0x1000`, each nonempty later section category at the next `0x1000` boundary,
 and file alignment `0x200`. Empty output categories do not get PE section
-headers. Repeatable import options add canonical `.idata` descriptors, lookup
+headers. The image reserves and commits a one MiB stack. Its heap reserves one
+MiB and commits 4 KiB. Repeatable import options add canonical `.idata` descriptors, lookup
 tables, IAT cells, and names. Imported slots require zero-addend absolute
 relocations, and the image has no base relocations. Writable executable input
 is rejected. CupidLD orders imports with an in-place heap, rejects a repeated
 slot without rescanning prior records, and keeps name imports below the PE32
-high-bit boundary. The independent validator reconstructs the exact `.idata`
-cursor instead of accepting an equivalent but noncanonical layout.
+high-bit boundary. The independent validator checks the fixed headers, stack
+and heap fields, and exact `.idata` cursor instead of accepting an equivalent
+but noncanonical layout. ADR 0274 records the stack policy.
 
 Checked-seed CupidASM, freestanding CupidC, and CupidLD build a small command
 that imports `GetStdHandle`, `WriteFile`, and `ExitProcess`. Windows runs the
@@ -65,24 +70,27 @@ validated image, checks its exact stdout marker and empty stderr, and requires
 exit 37. The bootstrap report retains the observed result and both stages'
 object and image hashes.
 
-Source head goes further. CupidC and CupidASM build a shared hosted runtime
-and startup for native CupidASM, CupidC, CupidDis, CupidLD, and CupidObj. The runtime
-provides arguments, a heap, separate standard streams, named-file reads and
-writes, append behavior, seeking, the current directory, and useful error
-mapping. A dedicated contract checks allocation, file modes, negative paths,
-and Windows quote and backslash rules. Each tool runs help plus a useful
-success and failure path. CupidDis also checks exact disassembly parity.
-CupidLD adds `_fullpath` and four publication imports, then proves exact output,
-candidate collision, replacement failure, and candidate cleanup.
+Both fixed-point stages build a shared hosted runtime and startup for native
+CupidASM, CupidC, CupidDis, CupidLD, and CupidObj. The runtime provides
+arguments, a heap, separate standard streams, named-file reads and writes,
+append behavior, seeking, the current directory, and useful error mapping. A
+dedicated contract checks allocation, file modes, negative paths, and Windows
+quote and backslash rules. Each tool runs help plus a useful success and
+failure path. CupidDis also checks exact disassembly parity. CupidLD adds
+`_fullpath` and four publication imports, then proves exact output, candidate
+collision, replacement failure, and candidate cleanup.
 
-The normal user build still runs the Linux tools through WSL. A checked Windows
-five-tool seed and production adoption remain
-open. See [ADR
+The matching PE32 images form the checked Windows execution seed used by the
+normal user build and other output-bearing recipes. The Linux seed still runs
+through WSL for fixed-point reconstruction, Toolchain contracts, the user ABI
+contract, and artifact-size policy. The PE32 manifest has no native build plan,
+so a native Windows fixed point remains open. See [ADR
 0247](../docs/adr/0247-serialize-fixed-layout-pe32-images-with-cupidld.md) and
 [ADR
 0248](../docs/adr/0248-link-deterministic-pe32-imports-and-run-a-cupid-built-windows-command.md).
 ADR 0258 records checked-seed carriage, ADR 0268 records the shared runtime,
-and ADR 0269 records CupidLD publication.
+ADR 0269 records CupidLD publication, and ADR 0272 records Windows execution
+seed carriage and production selection.
 
 The checked-seed CLI uses an adjacent-candidate publisher for ELF and PE images.
 It creates the candidate with exclusive-create semantics, writes and closes it,
@@ -253,8 +261,10 @@ make -C user          # Build all programs
 make -C user clean    # Clean build artifacts
 ```
 
-The first command runs the checked seed directly on Linux and through WSL on
-Windows. It does not build the optional native hosted drivers.
+The first command runs the checked Linux seed directly on Linux. On Windows,
+the ABI contract runs that seed through WSL, then checked native CupidC and
+CupidLD build the six program artifacts directly. It does not build the
+optional host-built native drivers.
 
 To add a new program:
 

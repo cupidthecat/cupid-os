@@ -2094,7 +2094,7 @@ class DoomCupidCProductionTests(unittest.TestCase):
             self.assertIn("$(CHECKED_SEED_INPUTS)", prerequisites)
         with self.subTest(contract="selected seed manifest"):
             self.assertIn(
-                "--manifest $(BOOTSTRAP_SEED_MANIFEST)",
+                "--manifest $(PRODUCTION_SEED_MANIFEST)",
                 recipe,
             )
 
