@@ -1,6 +1,9 @@
 # CupidASM Assembler
 
-CupidASM is an x86-32 assembler built into the cupid-os kernel. It assembles Intel-syntax `.asm` files into native machine code for immediate execution (JIT) or writes ELF32 binaries to disk (AOT). JIT programs run in ring 0 and can call the kernel directly.
+CupidASM is an x86-32 assembler built into the Cupid OS kernel. It assembles
+Intel-syntax `.asm` files into native machine code for immediate execution or
+into ELF32 relocatable objects for AOT linking. JIT programs run in ring 0 and
+can call the kernel directly.
 
 ---
 
@@ -59,6 +62,13 @@ Or using the dedicated `cupidasm` command:
 ```
 
 If `-o` is omitted with `cupidasm`, the output name is derived from the source file (e.g., `hello.asm` -> `hello`).
+
+For the in-kernel `as -o` path, CupidASM emits one ELF32 relocatable object.
+It applies the caller's ordered `main` and `_start` entry candidates, publishes
+the selected spelling, and promotes only that code label to a global symbol.
+In-kernel CupidLD then resolves relocations and links the executable at the
+existing `0x01A00000` text address. JIT keeps the direct fixed-image path.
+ADR 0276 records this split.
 
 ---
 
@@ -159,6 +169,20 @@ rows. The caller is responsible for placing each code transition between
 instructions. The older `--mode-at OFFSET:16|32` spelling remains available
 when every range contains code.
 
+CupidASM can also author the map from its parsed source:
+
+```text
+cupidasm -f bin --map boot.map -o boot.bin boot.asm
+cupiddis --require-known --raw --range-map boot.map boot.bin
+```
+
+The `cupid.raw-map.v1` file records the exact image size, `ORG` base, and
+coalesced range starts. Instructions use their active `BITS` mode. Data,
+alignment, and reserved storage are data ranges. CupidDis rejects a stale
+size, repeated or missing fields, invalid kinds, and unordered starts before
+decoding. The map option cannot be combined with manual mode, base, or range
+options. ADR 0277 records the schema.
+
 The normal SMP trampoline recipe uses this map as a publication gate.
 Hostbuild freezes the selected seed and source, asks CupidASM for a private
 4,096-byte candidate, and runs CupidDis with `--require-known`. The exact map
@@ -181,10 +205,10 @@ unknown, invalid, and truncated counts. CupidDis continues through later
 inputs so one run reports the whole failing set. Declared raw data and
 non-executable ELF regions do not count. Ordinary rendering still accepts one
 file and keeps its existing output. The normal kernel path runs strict
-validation and flat extraction against one frozen cohort of all 428 audited
-root object outputs plus the pass-one and final kernel ELFs. Its 9,056-byte manifest lists those 430 unique
+validation and flat extraction against one frozen cohort of all 429 audited
+root object outputs plus the pass-one and final kernel ELFs. Its 9,076-byte manifest lists those 431 unique
 paths in graph order and has SHA-256
-`07e0e0bf5cee4c1bf893305ef1dfd058400474d4af3dc3979c59f6e0195a0e2a`.
+`4f1936423ae06418fc2f75603c29a91997608fe82f48c323321523aed25a2ab0`.
 An immutable first-opcode index preserves exhaustive selection, and the
 checked 128 KiB throughput contract passes within 30 seconds. ADR 0262 records
 the command, ADR 0266 records indexed decoding, and ADR 0265 records seed
@@ -197,7 +221,7 @@ final ELF with SHA-256
 8,946,332-byte raw kernel with SHA-256
 `4f5f2591d01bcc4007773844e9bfb8112a16dd17fbd178014cc2056fefaab67d`.
 The current hostbuild transaction freezes the selected seed manifest and all
-five artifacts, the 430-entry input manifest and cohort, and the existing
+five artifacts, the 431-entry input manifest and cohort, and the existing
 `kernel.bin` boundary. Checked CupidDis validates the private cohort before
 checked CupidObj flattens the frozen final ELF. Hostbuild rechecks live trust
 inputs and the output before parent-relative atomic publication. Every failure

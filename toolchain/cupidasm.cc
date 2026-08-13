@@ -226,8 +226,16 @@ static void asm_zero_result(ctool_asm_result_t *result) {
   result->regions = (const ctool_asm_region_t *)0;
   result->region_count = 0u;
   result->has_entry = CTOOL_FALSE;
+  result->entry_symbol.data = (const char *)0;
+  result->entry_symbol.size = 0u;
   result->entry_address = 0u;
+  result->raw_ranges = (const ctool_asm_raw_range_t *)0;
+  result->raw_range_count = 0u;
+  result->raw_origin = 0u;
 }
+
+static ctool_status_t asm_select_entry(asm_context_t *context,
+                                       ctool_asm_result_t *result);
 
 static ctool_bool asm_character_is_alpha(char character) {
   return ((character >= 'a' && character <= 'z') ||
@@ -2470,7 +2478,8 @@ static ctool_status_t asm_linearize_expression(
     asm_symbol_t *symbol = expression->as.symbol;
     if (symbol->declared == CTOOL_TRUE &&
         (symbol->kind == ASM_SYMBOL_CONSTANT ||
-         symbol->kind == ASM_SYMBOL_ABSOLUTE)) {
+         (symbol->kind == ASM_SYMBOL_ABSOLUTE &&
+          context->request->artifact != CTOOL_ASM_ARTIFACT_ELF32_REL))) {
       status = asm_evaluate_symbol(context, expression, current_offset,
                                    CTOOL_TRUE, &result.constant);
     } else {
@@ -3387,6 +3396,74 @@ static ctool_status_t asm_emit_raw(asm_context_t *context,
   return CTOOL_OK;
 }
 
+static ctool_asm_raw_range_kind_t asm_raw_statement_kind(
+    const asm_statement_t *statement) {
+  if (statement->kind == ASM_STATEMENT_INSTRUCTION) {
+    return statement->mode == CTOOL_X86_MODE_16
+               ? CTOOL_ASM_RAW_RANGE_CODE16
+               : CTOOL_ASM_RAW_RANGE_CODE32;
+  }
+  return CTOOL_ASM_RAW_RANGE_DATA;
+}
+
+static ctool_status_t asm_publish_raw_ranges(asm_context_t *context,
+                                             ctool_asm_result_t *result) {
+  asm_statement_t *statement = context->statements;
+  ctool_u32 count = 0u;
+  ctool_u32 last_end = 0u;
+  ctool_asm_raw_range_kind_t previous =
+      (ctool_asm_raw_range_kind_t)0;
+  ctool_asm_raw_range_t *ranges;
+  ctool_status_t status;
+  while (statement != (asm_statement_t *)0) {
+    if (statement->size != 0u) {
+      ctool_asm_raw_range_kind_t kind =
+          asm_raw_statement_kind(statement);
+      if (statement->offset != last_end || kind != previous) {
+        count++;
+      }
+      last_end = statement->offset + statement->size;
+      previous = kind;
+    }
+    statement = statement->next;
+  }
+  if (count == 0u) {
+    result->raw_ranges = (const ctool_asm_raw_range_t *)0;
+    result->raw_range_count = 0u;
+    return CTOOL_OK;
+  }
+  status = ctool_arena_alloc_zero(
+      ctool_job_arena(context->job), count,
+      (ctool_u32)sizeof(*ranges), (ctool_u32)sizeof(void *),
+      (void **)&ranges);
+  if (status != CTOOL_OK) {
+    asm_fail(context, status, CTOOL_ASM_DIAG_LIMIT, 0u, 0u,
+             "raw range metadata exceeds the job limit");
+    return status;
+  }
+  statement = context->statements;
+  count = 0u;
+  last_end = 0u;
+  previous = (ctool_asm_raw_range_kind_t)0;
+  while (statement != (asm_statement_t *)0) {
+    if (statement->size != 0u) {
+      ctool_asm_raw_range_kind_t kind =
+          asm_raw_statement_kind(statement);
+      if (statement->offset != last_end || kind != previous) {
+        ranges[count].offset = statement->offset;
+        ranges[count].kind = kind;
+        count++;
+      }
+      last_end = statement->offset + statement->size;
+      previous = kind;
+    }
+    statement = statement->next;
+  }
+  result->raw_ranges = ranges;
+  result->raw_range_count = count;
+  return CTOOL_OK;
+}
+
 static ctool_status_t asm_object_counts(
     asm_context_t *context, ctool_u32 *symbol_count_out,
     ctool_u32 *relocation_capacity_out) {
@@ -3738,7 +3815,8 @@ static ctool_status_t asm_object_emit_statements(
 }
 
 static ctool_status_t asm_emit_object(asm_context_t *context,
-                                      ctool_buffer_t *output) {
+                                      ctool_buffer_t *output,
+                                      ctool_asm_result_t *result) {
   ctool_elf32_section_spec_t *sections;
   ctool_elf32_symbol_spec_t *symbols;
   ctool_elf32_relocation_spec_t *relocations =
@@ -3747,8 +3825,11 @@ static ctool_status_t asm_emit_object(asm_context_t *context,
   ctool_u32 symbol_count;
   ctool_u32 relocation_capacity;
   ctool_u32 relocation_count = 0u;
-  ctool_status_t status = asm_object_counts(
-      context, &symbol_count, &relocation_capacity);
+  ctool_status_t status = asm_select_entry(context, result);
+  if (status == CTOOL_OK) {
+    status = asm_object_counts(context, &symbol_count,
+                               &relocation_capacity);
+  }
   if (status == CTOOL_OK) {
     status = asm_object_prepare_sections(context, &sections);
   }
@@ -4073,8 +4154,8 @@ static ctool_status_t asm_fixed_emit_statements(asm_context_t *context,
   return CTOOL_OK;
 }
 
-static ctool_status_t asm_fixed_select_entry(asm_context_t *context,
-                                             ctool_asm_result_t *result) {
+static ctool_status_t asm_select_entry(asm_context_t *context,
+                                       ctool_asm_result_t *result) {
   ctool_u32 index;
   if (context->request->entry_candidate_count == 0u) {
     return CTOOL_OK;
@@ -4094,8 +4175,13 @@ static ctool_status_t asm_fixed_select_entry(asm_context_t *context,
         symbol->section != (asm_section_t *)0 &&
         asm_section_is_code(symbol->section) == CTOOL_TRUE) {
       result->has_entry = CTOOL_TRUE;
-      result->entry_address = symbol->section->load_address +
-                              (ctool_u32)symbol->value;
+      result->entry_symbol = symbol->name;
+      if (context->request->artifact == CTOOL_ASM_ARTIFACT_FIXED_IMAGE) {
+        result->entry_address = symbol->section->load_address +
+                                (ctool_u32)symbol->value;
+      } else {
+        symbol->global = CTOOL_TRUE;
+      }
       return CTOOL_OK;
     }
   }
@@ -4184,7 +4270,7 @@ static ctool_status_t asm_emit_fixed(asm_context_t *context,
     region->memory_size = data_memory;
     region->flags = section->flags;
   }
-  return asm_fixed_select_entry(context, result);
+  return asm_select_entry(context, result);
 }
 
 static ctool_status_t asm_validate_request(const ctool_source_t *source,
@@ -4297,8 +4383,11 @@ ctool_status_t ctool_asm_assemble(ctool_job_t *job,
   if (status == CTOOL_OK) {
     if (request->artifact == CTOOL_ASM_ARTIFACT_RAW) {
       status = asm_emit_raw(&context, output);
+      if (status == CTOOL_OK) {
+        status = asm_publish_raw_ranges(&context, result_out);
+      }
     } else if (request->artifact == CTOOL_ASM_ARTIFACT_ELF32_REL) {
-      status = asm_emit_object(&context, output);
+      status = asm_emit_object(&context, output, result_out);
     } else {
       status = asm_emit_fixed(&context, output, result_out);
     }
@@ -4312,11 +4401,18 @@ ctool_status_t ctool_asm_assemble(ctool_job_t *job,
   }
   result_out->artifact = request->artifact;
   result_out->bytes = ctool_buffer_view(output);
-  if (request->artifact != CTOOL_ASM_ARTIFACT_FIXED_IMAGE) {
+  if (request->artifact == CTOOL_ASM_ARTIFACT_RAW) {
     result_out->regions = (const ctool_asm_region_t *)0;
     result_out->region_count = 0u;
     result_out->has_entry = CTOOL_FALSE;
+    result_out->entry_symbol.data = (const char *)0;
+    result_out->entry_symbol.size = 0u;
     result_out->entry_address = 0u;
+    result_out->raw_origin = context.origin;
+  } else {
+    result_out->raw_ranges = (const ctool_asm_raw_range_t *)0;
+    result_out->raw_range_count = 0u;
+    result_out->raw_origin = 0u;
   }
   return CTOOL_OK;
 }

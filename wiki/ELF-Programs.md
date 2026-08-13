@@ -82,15 +82,17 @@ collision, replacement failure, and candidate cleanup.
 
 The matching PE32 images form the checked Windows execution seed used by the
 normal user build and other output-bearing recipes. The Linux seed still runs
-through WSL for fixed-point reconstruction, Toolchain contracts, the user ABI
-contract, and artifact-size policy. The PE32 manifest has no native build plan,
-so a native Windows fixed point remains open. See [ADR
+through WSL for Toolchain contracts, the user ABI contract, and artifact-size
+policy. The native fixed-point command freezes the PE execution seed and a
+separate verified Linux plan manifest, then builds and compares two PE
+generations. Its first full run rejected concurrent source drift after stage
+two, so stable proof and seed promotion remain open. See [ADR
 0247](../docs/adr/0247-serialize-fixed-layout-pe32-images-with-cupidld.md) and
 [ADR
 0248](../docs/adr/0248-link-deterministic-pe32-imports-and-run-a-cupid-built-windows-command.md).
 ADR 0258 records checked-seed carriage, ADR 0268 records the shared runtime,
-ADR 0269 records CupidLD publication, and ADR 0272 records Windows execution
-seed carriage and production selection.
+ADR 0269 records CupidLD publication, ADR 0272 records Windows execution seed
+carriage and production selection, and ADR 0278 records the native driver.
 
 The checked-seed CLI uses an adjacent-candidate publisher for ELF and PE images.
 It creates the candidate with exclusive-create semantics, writes and closes it,

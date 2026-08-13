@@ -166,6 +166,7 @@ TOOLCHAIN_KERNEL_SOURCES = (
     "toolchain/ctool.cc",
     "toolchain/cupidasm.cc",
     "toolchain/cupiddis.cc",
+    "toolchain/cupidld.cc",
     "toolchain/elf32.cc",
     "toolchain/x86.cc",
 )
@@ -255,6 +256,7 @@ FROZEN_KERNEL_INPUT_CLOSURES = {
         "kernel/fs/vfs.h",
         "kernel/gfx/fontsys.h",
         "kernel/gfx/gfx2d.h",
+        "kernel/gfx/gfx2d_assets.h",
         "kernel/gfx/graphics.h",
         "kernel/gui/clipboard.h",
         "kernel/gui/desktop.h",
@@ -935,8 +937,8 @@ class KernelCompileCommandTests(unittest.TestCase):
             kernel_compile.APPROVED_KERNEL_COMPILE_SOURCES,
             tuple(sorted(KERNEL_SOURCES + GENERATED_KERNEL_SOURCES)),
         )
-        self.assertEqual(len(KERNEL_SOURCES), 155)
-        self.assertEqual(len(set(KERNEL_SOURCES)), 155)
+        self.assertEqual(len(KERNEL_SOURCES), 156)
+        self.assertEqual(len(set(KERNEL_SOURCES)), 156)
         self.assertEqual(kernel_compile.KERNEL_I386_ARGUMENTS, KERNEL_I386_ARGUMENTS)
 
         command = kernel_compile.build_compile_arguments(
@@ -959,8 +961,8 @@ class KernelCompileCommandTests(unittest.TestCase):
 
     def test_production_owned_roots_use_the_cupidc_extension(self):
         renamed_sources = KERNEL_SOURCES
-        self.assertEqual(len(renamed_sources), 155)
-        self.assertEqual(len(set(renamed_sources)), 155)
+        self.assertEqual(len(renamed_sources), 156)
+        self.assertEqual(len(set(renamed_sources)), 156)
         self.assertEqual(
             tuple(
                 source
@@ -971,7 +973,7 @@ class KernelCompileCommandTests(unittest.TestCase):
         )
         self.assertEqual(
             sum(Path(source).suffix == ".cc" for source in KERNEL_SOURCES),
-            155,
+            156,
         )
 
         for source in renamed_sources:

@@ -6,6 +6,64 @@
 #define AS_ELF32_ALIGNMENT 4u
 #define AS_ELF32_U32_MAX 4294967295u
 
+static void as_elf32_zero_link_result(ctool_ld_result_t *result) {
+  result->bytes = 0u;
+  result->entry = 0u;
+  result->load_address = 0u;
+  result->loaded_end = 0u;
+  result->memory_end = 0u;
+  result->output_section_count = 0u;
+  result->resolved_symbol_count = 0u;
+  result->applied_relocation_count = 0u;
+  result->imported_symbol_count = 0u;
+  result->imported_library_count = 0u;
+}
+
+ctool_status_t as_elf32_exec_link(ctool_job_t *job,
+                                  const ctool_asm_result_t *artifact,
+                                  ctool_u32 text_address,
+                                  ctool_u32 maximum_image_span,
+                                  ctool_buffer_t *output,
+                                  ctool_ld_result_t *result_out) {
+  ctool_source_t object;
+  ctool_ld_request_t request;
+  if (result_out != (ctool_ld_result_t *)0) {
+    as_elf32_zero_link_result(result_out);
+  }
+  if (job == (ctool_job_t *)0 ||
+      artifact == (const ctool_asm_result_t *)0 ||
+      output == (ctool_buffer_t *)0 ||
+      result_out == (ctool_ld_result_t *)0) {
+    return CTOOL_ERR_INVALID_ARGUMENT;
+  }
+  if (ctool_buffer_view(output).size != 0u ||
+      artifact->artifact != CTOOL_ASM_ARTIFACT_ELF32_REL ||
+      artifact->bytes.data == (const ctool_u8 *)0 ||
+      artifact->bytes.size == 0u ||
+      artifact->regions != (const ctool_asm_region_t *)0 ||
+      artifact->region_count != 0u ||
+      artifact->has_entry != CTOOL_TRUE ||
+      artifact->entry_symbol.data == (const char *)0 ||
+      artifact->entry_symbol.size == 0u || artifact->entry_address != 0u ||
+      artifact->raw_ranges != (const ctool_asm_raw_range_t *)0 ||
+      artifact->raw_range_count != 0u || artifact->raw_origin != 0u ||
+      maximum_image_span == 0u) {
+    return CTOOL_ERR_INVALID_ARGUMENT;
+  }
+  object.path.text = ctool_string("/cupidasm-aot.o");
+  object.contents = artifact->bytes;
+  request.objects = &object;
+  request.object_count = 1u;
+  request.image_kind = CTOOL_LD_IMAGE_ELF32;
+  request.layout.kind = CTOOL_LD_LAYOUT_FIXED_TEXT;
+  request.layout.as.fixed_text.base_address = text_address;
+  request.layout.as.fixed_text.entry_symbol = artifact->entry_symbol;
+  request.pe32_imports = (const ctool_ld_pe32_import_t *)0;
+  request.pe32_import_count = 0u;
+  request.maximum_image_span = maximum_image_span;
+  return ctool_ld_link(job, &request, output, result_out);
+}
+
 static ctool_status_t as_elf32_rollback(ctool_buffer_t *output,
                                         ctool_u32 mark,
                                         ctool_status_t status) {

@@ -87,7 +87,12 @@ static int contract_result_is_zero(const ctool_asm_result_t *result) {
                  result->regions == (const ctool_asm_region_t *)0 &&
                  result->region_count == 0u &&
                  result->has_entry == CTOOL_FALSE &&
-                 result->entry_address == 0u
+                 result->entry_address == 0u &&
+                 result->entry_symbol.data == (const char *)0 &&
+                 result->entry_symbol.size == 0u &&
+                 result->raw_ranges ==
+                     (const ctool_asm_raw_range_t *)0 &&
+                 result->raw_range_count == 0u && result->raw_origin == 0u
              ? 1
              : 0;
 }
@@ -494,7 +499,9 @@ static int run_object_basic(void) {
       result.bytes.data != bytes.data || result.bytes.size != bytes.size ||
       result.regions != (const ctool_asm_region_t *)0 ||
       result.region_count != 0u || result.has_entry != CTOOL_FALSE ||
-      result.entry_address != 0u || object.file_type != CTOOL_ELF32_ET_REL ||
+      result.entry_symbol.data != (const char *)0 ||
+      result.entry_symbol.size != 0u || result.entry_address != 0u ||
+      object.file_type != CTOOL_ELF32_ET_REL ||
       text == (const ctool_elf32_section_t *)0 ||
       data == (const ctool_elf32_section_t *)0) {
     (void)fprintf(stderr, "basic ELF32 object artifact differs\n");
@@ -579,6 +586,197 @@ static int run_object_basic(void) {
   ctool_buffer_close(output);
   ctool_job_close(job);
   (void)puts("object-basic: ok");
+  return 0;
+}
+
+static int run_object_entry(void) {
+  static const char missing_source_text[] =
+      "BITS 32\n"
+      "section .text\n"
+      "helper: ret\n";
+  static const char source_text[] =
+      "BITS 32\n"
+      "section .text\n"
+      "_start: ret\n"
+      "main: ret\n";
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job;
+  ctool_buffer_t *output;
+  ctool_source_t source;
+  ctool_source_t object_source;
+  ctool_asm_request_t request;
+  ctool_asm_result_t result;
+  ctool_elf32_object_t object;
+  const ctool_elf32_symbol_t *main_symbol;
+  const ctool_elf32_symbol_t *start_symbol;
+  ctool_string_t saved_entry_candidate;
+  ctool_string_t entry_candidates[2];
+  ctool_bytes_t first_bytes;
+  ctool_u8 *first_copy;
+  ctool_status_t status;
+
+  status = ctool_host_adapter_init(&adapter, ".");
+  if (!check_status(status, CTOOL_OK, "host adapter init")) {
+    return 1;
+  }
+  config = ctool_host_job_config(&adapter, ctool_default_limits());
+  status = ctool_job_open(&config, &job);
+  if (!check_status(status, CTOOL_OK, "entry metadata job open")) {
+    return 1;
+  }
+  status = ctool_job_open_buffer(job, 256u, config.limits.output_bytes,
+                                 &output);
+  if (!check_status(status, CTOOL_OK, "entry metadata output open")) {
+    ctool_job_close(job);
+    return 1;
+  }
+  entry_candidates[0] = ctool_string("main");
+  entry_candidates[1] = ctool_string("_start");
+  (void)memset(&request, 0, sizeof(request));
+  request.artifact = CTOOL_ASM_ARTIFACT_ELF32_REL;
+  request.initial_mode = CTOOL_X86_MODE_32;
+  request.entry_candidates = entry_candidates;
+  request.entry_candidate_count = 2u;
+
+  source.path.text = ctool_string("/object-entry-missing.asm");
+  source.contents = ctool_bytes(
+      missing_source_text,
+      (ctool_u32)(sizeof(missing_source_text) - 1u));
+  (void)memset(&result, 0xa5, sizeof(result));
+  status = ctool_asm_assemble(job, &source, &request, output, &result);
+  if (!check_status(status, CTOOL_ERR_NOT_FOUND,
+                    "missing object entry") ||
+      ctool_buffer_view(output).size != 0u ||
+      !contract_result_is_zero(&result) ||
+      ctool_job_diagnostic_count(job) != 1u ||
+      !contract_has_diagnostic(job, CTOOL_ASM_DIAG_ENTRY,
+                               "/object-entry-missing.asm")) {
+    (void)fprintf(stderr, "missing object entry rollback differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    ctool_buffer_close(output);
+    ctool_job_close(job);
+    return 1;
+  }
+
+  source.path.text = ctool_string("/object-entry.asm");
+  source.contents = ctool_bytes(
+      source_text, (ctool_u32)(sizeof(source_text) - 1u));
+  (void)memset(&result, 0xa5, sizeof(result));
+  (void)memset(&object, 0, sizeof(object));
+  status = ctool_asm_assemble(job, &source, &request, output, &result);
+  if (status == CTOOL_OK) {
+    object_source.path.text = ctool_string("/object-entry.o");
+    object_source.contents = result.bytes;
+    status = ctool_elf32_read(job, &object_source, &object);
+  }
+  main_symbol = find_symbol(&object, "main");
+  start_symbol = find_symbol(&object, "_start");
+  if (!check_status(status, CTOOL_OK, "object entry recovery") ||
+      result.artifact != CTOOL_ASM_ARTIFACT_ELF32_REL ||
+      result.has_entry != CTOOL_TRUE || result.entry_address != 0u ||
+      !contract_string_equal(result.entry_symbol, ctool_string("main")) ||
+      main_symbol == (const ctool_elf32_symbol_t *)0 ||
+      main_symbol->binding != CTOOL_ELF32_BIND_GLOBAL ||
+      start_symbol == (const ctool_elf32_symbol_t *)0 ||
+      start_symbol->binding != CTOOL_ELF32_BIND_LOCAL ||
+      ctool_job_diagnostic_count(job) != 1u) {
+    (void)fprintf(stderr, "object entry metadata differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    ctool_buffer_close(output);
+    ctool_job_close(job);
+    return 1;
+  }
+  first_bytes = ctool_buffer_view(output);
+  status = ctool_arena_alloc(ctool_job_arena(job), first_bytes.size, 1u,
+                             (void **)&first_copy);
+  if (status == CTOOL_OK) {
+    (void)memcpy(first_copy, first_bytes.data, first_bytes.size);
+    status = ctool_buffer_rewind(output, 0u);
+  }
+  if (status == CTOOL_OK) {
+    (void)memset(&result, 0xa5, sizeof(result));
+    status = ctool_asm_assemble(job, &source, &request, output, &result);
+  }
+  if (!check_status(status, CTOOL_OK, "object entry repeat") ||
+      result.has_entry != CTOOL_TRUE ||
+      !contract_string_equal(result.entry_symbol, ctool_string("main")) ||
+      ctool_buffer_view(output).size != first_bytes.size ||
+      memcmp(ctool_buffer_view(output).data, first_copy,
+             first_bytes.size) != 0 ||
+      ctool_job_diagnostic_count(job) != 1u) {
+    (void)fprintf(stderr, "object entry repeat differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    ctool_buffer_close(output);
+    ctool_job_close(job);
+    return 1;
+  }
+
+  status = ctool_buffer_rewind(output, 0u);
+  entry_candidates[0] = ctool_string("absent");
+  if (status == CTOOL_OK) {
+    (void)memset(&result, 0xa5, sizeof(result));
+    status = ctool_asm_assemble(job, &source, &request, output, &result);
+  }
+  if (!check_status(status, CTOOL_OK, "object _start fallback") ||
+      result.has_entry != CTOOL_TRUE || result.entry_address != 0u ||
+      !contract_string_equal(result.entry_symbol, ctool_string("_start"))) {
+    (void)fprintf(stderr, "object _start fallback differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    ctool_buffer_close(output);
+    ctool_job_close(job);
+    return 1;
+  }
+  (void)memset(&object, 0, sizeof(object));
+  object_source.contents = result.bytes;
+  status = ctool_elf32_read(job, &object_source, &object);
+  start_symbol = find_symbol(&object, "_start");
+  if (!check_status(status, CTOOL_OK, "object _start read") ||
+      start_symbol == (const ctool_elf32_symbol_t *)0 ||
+      start_symbol->binding != CTOOL_ELF32_BIND_GLOBAL) {
+    (void)fprintf(stderr, "object _start visibility differs\n");
+    ctool_buffer_close(output);
+    ctool_job_close(job);
+    return 1;
+  }
+
+  status = ctool_buffer_rewind(output, 0u);
+  saved_entry_candidate = entry_candidates[0];
+  entry_candidates[0] = ctool_string("bad entry");
+  (void)memset(&result, 0xa5, sizeof(result));
+  if (status == CTOOL_OK) {
+    status = ctool_asm_assemble(job, &source, &request, output, &result);
+  }
+  if (!check_status(status, CTOOL_ERR_INVALID_ARGUMENT,
+                    "malformed object entry") ||
+      ctool_buffer_view(output).size != 0u ||
+      !contract_result_is_zero(&result) ||
+      ctool_job_diagnostic_count(job) != 2u ||
+      !contract_has_diagnostic(job, CTOOL_ASM_DIAG_INVALID_REQUEST,
+                               "/object-entry.asm")) {
+    (void)fprintf(stderr, "malformed object entry rollback differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    ctool_buffer_close(output);
+    ctool_job_close(job);
+    return 1;
+  }
+  entry_candidates[0] = saved_entry_candidate;
+  (void)memset(&result, 0xa5, sizeof(result));
+  status = ctool_asm_assemble(job, &source, &request, output, &result);
+  if (!check_status(status, CTOOL_OK, "malformed entry recovery") ||
+      result.has_entry != CTOOL_TRUE ||
+      !contract_string_equal(result.entry_symbol, ctool_string("_start")) ||
+      ctool_job_diagnostic_count(job) != 2u) {
+    (void)fprintf(stderr, "malformed object entry recovery differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    ctool_buffer_close(output);
+    ctool_job_close(job);
+    return 1;
+  }
+
+  ctool_buffer_close(output);
+  ctool_job_close(job);
+  (void)puts("object-entry: ok");
   return 0;
 }
 
@@ -1869,6 +2067,9 @@ int main(int argc, char **argv) {
   if (argc == 2 && strcmp(argv[1], "object-symbolic-immediate") == 0) {
     return run_object_symbolic_immediate();
   }
+  if (argc == 2 && strcmp(argv[1], "object-entry") == 0) {
+    return run_object_entry();
+  }
   if (argc == 2 && strcmp(argv[1], "fixed-image") == 0) {
     return run_fixed_image();
   }
@@ -1889,7 +2090,7 @@ int main(int argc, char **argv) {
   }
   (void)fprintf(stderr,
                 "usage: cupidasm-contract raw-basic|raw-expressions|"
-                "object-basic|object-symbolic-immediate|fixed-image|"
+                "object-basic|object-symbolic-immediate|object-entry|fixed-image|"
                 "fixed-directives|alignment|include-resolution|errors|"
                 "long-line\n");
   return 2;

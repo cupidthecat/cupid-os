@@ -311,6 +311,57 @@ class CupidAsmActiveSourceTests(unittest.TestCase):
                         )
                         self.assertEqual(cupid, oracle)
 
+    def test_boot_map_drives_strict_source_derived_inspection(self):
+        with tempfile.TemporaryDirectory(
+            prefix="cupidasm-active-boot-map-"
+        ) as directory:
+            root = Path(directory)
+            image = root / "boot.bin"
+            range_map = root / "boot.cupidmap"
+            assembled = subprocess.run(
+                [
+                    str(self.cli_path),
+                    "-f",
+                    "bin",
+                    "--map",
+                    str(range_map),
+                    str(REPO_ROOT / "boot" / "boot.asm"),
+                    "-o",
+                    str(image),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(assembled.returncode, 0, assembled.stderr)
+            self.assertEqual(len(image.read_bytes()), 2560)
+            lines = range_map.read_text(encoding="ascii").splitlines()
+            self.assertEqual(lines[:3], [
+                "cupid.raw-map.v1",
+                "size 2560",
+                "base 0x00007c00",
+            ])
+            self.assertEqual(lines[3], "range 0x00000000 code16")
+            self.assertIn("code32", {line.rsplit(" ", 1)[-1] for line in lines[3:]})
+            self.assertIn("data", {line.rsplit(" ", 1)[-1] for line in lines[3:]})
+
+            checked = subprocess.run(
+                [
+                    str(self.dis_path),
+                    "--require-known",
+                    "--raw",
+                    "--range-map",
+                    str(range_map),
+                    str(image),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(checked.returncode, 0, checked.stderr)
+            self.assertEqual(checked.stdout, "")
+            self.assertEqual(checked.stderr, "")
+
     def test_active_elf32_sources_match_oracle_semantics(self):
         with tempfile.TemporaryDirectory(prefix="cupidasm-active-elf-") as directory:
             root = Path(directory)

@@ -54,6 +54,8 @@ TOOL_MARKERS = (
     ("build-iso --seed-manifest", "cupid_object"),
     ("image --seed-manifest", "cupid_object"),
     ("gen-big --seed-manifest", "cupid_assembler"),
+    ("assemble-bootloader --seed-manifest", "cupid_assembler"),
+    ("assemble-bootloader --seed-manifest", "cupid_disassembler"),
     ("assemble-smp-trampoline --seed-manifest", "cupid_assembler"),
     ("assemble-smp-trampoline --seed-manifest", "cupid_disassembler"),
     ("validate-code --seed-manifest", "cupid_disassembler"),
@@ -484,7 +486,7 @@ _C_PP_COMMON_I386_MACROS = (
     ("__BYTE_ORDER__", "__ORDER_LITTLE_ENDIAN__"),
 )
 _C_PP_ACTIVE_COUNTS = {
-    "KERNEL_I386": 155,
+    "KERNEL_I386": 156,
     "DOOM_COMPAT_I386": 3,
     "DOOM_TREE_I386": 80,
     "USER_I386": 3,
@@ -1526,6 +1528,12 @@ def _operation_for_recipe(
         and "cupid_object" in tools
     ):
         return "extract_raw_binary"
+    if (
+        "hostbuild.py assemble-bootloader " in joined
+        and "cupid_assembler" in tools
+        and "cupid_disassembler" in tools
+    ):
+        return "assemble_flat_binary"
     if (
         "hostbuild.py assemble-smp-trampoline " in joined
         and "cupid_assembler" in tools
@@ -9638,13 +9646,57 @@ def _cupid_toolchain_fixed_point_contract(
             "the semantic failure does not diagnose and preserve both outputs"
         )
 
-    required_bootstrap_fragments = (
+    required_bootstrap_helper_fragments = (
         "def freeze_source_inputs(",
         "destination = snapshot_root / name",
         "if frozen_data != data:",
         "def require_source_closures(",
         "require_frozen_source_snapshot(source_inputs, plan)",
         "live_source_root, plan, source_inputs.inventory",
+    )
+    missing_bootstrap_fragments = [
+        f"helper: {fragment}"
+        for fragment in required_bootstrap_helper_fragments
+        if bootstrap_source.count(fragment) != 1
+    ]
+    fixed_point_functions = {
+        name: [
+            statement
+            for statement in bootstrap_tree.body
+            if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and statement.name == name
+        ]
+        for name in (
+            "_bootstrap_from_frozen_seed",
+            "_bootstrap_windows_from_frozen_seed",
+        )
+    }
+    if any(len(functions) != 1 for functions in fixed_point_functions.values()):
+        missing_bootstrap_fragments.append(
+            "the Linux and Windows fixed-point drivers must each be unique"
+        )
+        linux_bootstrap_function = None
+        windows_bootstrap_function = None
+        linux_bootstrap_source = ""
+        windows_bootstrap_source = ""
+    else:
+        linux_bootstrap_function = fixed_point_functions[
+            "_bootstrap_from_frozen_seed"
+        ][0]
+        windows_bootstrap_function = fixed_point_functions[
+            "_bootstrap_windows_from_frozen_seed"
+        ][0]
+        linux_bootstrap_source = (
+            ast.get_source_segment(bootstrap_source, linux_bootstrap_function)
+            or ""
+        )
+        windows_bootstrap_source = (
+            ast.get_source_segment(
+                bootstrap_source, windows_bootstrap_function
+            )
+            or ""
+        )
+    required_linux_bootstrap_fragments = (
         "source_inputs = freeze_source_inputs(",
         "private_source_root = source_inputs.root",
         "runner = ToolRunner(private_source_root)",
@@ -9677,11 +9729,217 @@ def _cupid_toolchain_fixed_point_contract(
         "(private_source_root / name).replace(",
         "publish_bootstrap_outputs(publication_root, output_root)",
     )
-    missing_bootstrap_fragments = [
-        fragment
-        for fragment in required_bootstrap_fragments
-        if bootstrap_source.count(fragment) != 1
+    missing_bootstrap_fragments.extend(
+        f"Linux driver: {fragment}"
+        for fragment in required_linux_bootstrap_fragments
+        if linux_bootstrap_source.count(fragment) != 1
+    )
+    required_windows_bootstrap_fragments = (
+        "source_inputs = freeze_source_inputs(",
+        "private_source_root = source_inputs.root",
+        "runner = ToolRunner(private_source_root)",
+        'private_source_root / "stage-two",',
+        'private_source_root / "stage-three",',
+        "stage_two = _build_windows_stage(",
+        "stage_three = _build_windows_stage(",
+        "comparisons = _compare_windows_stages(",
+        "behavior = _run_native_windows_behavior_checks(",
+        '"schema": WINDOWS_REPORT_SCHEMA,',
+        'report_path = private_source_root / "bootstrap-report.json"',
+        'publication_root = private_workspace / "publication"',
+        "for name in BOOTSTRAP_PUBLICATION_NAMES:",
+        "(private_source_root / name).replace(",
+        "publish_bootstrap_outputs(publication_root, output_root)",
+        "stage_two = _build_windows_stage(\n"
+        "            runner,\n"
+        "            private_source_root,\n"
+        "            private_source_root / \"stage-two\",",
+        "stage_three = _build_windows_stage(\n"
+        "            runner,\n"
+        "            private_source_root,\n"
+        "            private_source_root / \"stage-three\",",
+        "behavior = _run_native_windows_behavior_checks(\n"
+        "            runner,\n"
+        "            private_source_root,\n"
+        "            stage_two,\n"
+        "            stage_three,\n"
+        "        )",
+    )
+    missing_bootstrap_fragments.extend(
+        f"Windows driver: {fragment}"
+        for fragment in required_windows_bootstrap_fragments
+        if windows_bootstrap_source.count(fragment) != 1
+    )
+
+    def source_closure_call_count(
+        function: ast.FunctionDef | ast.AsyncFunctionDef | None,
+        plan_name: str,
+    ) -> int:
+        if function is None:
+            return 0
+        count = 0
+        for node in ast.walk(function):
+            if not isinstance(node, ast.Call):
+                continue
+            if not isinstance(node.func, ast.Name):
+                continue
+            if (
+                node.func.id != "require_source_closures"
+                or len(node.args) != 3
+            ):
+                continue
+            names = [
+                argument.id if isinstance(argument, ast.Name) else None
+                for argument in node.args
+            ]
+            if names == ["source_inputs", "source_root", plan_name]:
+                count += 1
+        return count
+
+    if source_closure_call_count(linux_bootstrap_function, "plan") != 4:
+        missing_bootstrap_fragments.append(
+            "Linux driver: four live and frozen closure checks"
+        )
+    if source_closure_call_count(
+        windows_bootstrap_function, "linux_plan"
+    ) != 4:
+        missing_bootstrap_fragments.append(
+            "Windows driver: four live and frozen closure checks"
+        )
+
+    native_windows_function_names = (
+        "_windows_build_plan",
+        "_windows_link_arguments",
+        "_build_windows_stage",
+        "_compare_windows_stages",
+        "_run_native_windows_behavior_checks",
+    )
+    native_windows_functions = {
+        name: [
+            statement
+            for statement in bootstrap_tree.body
+            if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and statement.name == name
+        ]
+        for name in native_windows_function_names
+    }
+    missing_native_windows_fragments: list[str] = []
+    native_windows_sources: dict[str, str] = {}
+    for name, functions in native_windows_functions.items():
+        if len(functions) != 1:
+            missing_native_windows_fragments.append(
+                f"{name} must be unique"
+            )
+            native_windows_sources[name] = ""
+        else:
+            native_windows_sources[name] = (
+                ast.get_source_segment(bootstrap_source, functions[0]) or ""
+            )
+
+    native_windows_fragment_contracts = {
+        "_windows_build_plan": (
+            'path = "/toolchain/hosted/i386-windows/runtime.cc"',
+            '"publication_runtime.cc"',
+            '"/toolchain/hosted/i386-windows/tool_start.asm"',
+            '"publication_start.asm"',
+            '"links": {',
+            'name: list(WINDOWS_LINKS[name]) for name in TOOL_NAMES',
+        ),
+        "_windows_link_arguments": (
+            '"i386pe"',
+            '"0x00401000"',
+            '"_start"',
+            "for selector in _windows_import_selectors(tool_name):",
+            "objects[name] for name in WINDOWS_LINKS[tool_name]",
+        ),
+        "_build_windows_stage": (
+            'producers["cupidc"]',
+            'producers["cupidasm"]',
+            'producers["cupidld"]',
+            "_validate_i386_relocatable(object_path)\n"
+            "        return name, object_path",
+            "_validate_i386_relocatable(object_path)\n"
+            "        objects[name] = object_path",
+            "_windows_link_arguments(tool_name, executable, objects)",
+            "_validate_static_i386_pe32(",
+            "_windows_imports(tool_name)",
+        ),
+        "_compare_windows_stages": (
+            "stage_two.objects[name].read_bytes()",
+            "stage_three.objects[name].read_bytes()",
+            "stage_two.tools[name].read_bytes()",
+            "stage_three.tools[name].read_bytes()",
+            '"all_equal": True',
+        ),
+        "_run_native_windows_behavior_checks": (
+            "for tool_name in TOOL_NAMES:",
+            "failure_result = _run_stage_pair(",
+            '"--definitely-invalid-option"',
+            "stage_two_object.read_bytes()",
+            "stage_three_object.read_bytes()",
+            'stage_two_binary.read_bytes() != b"\\xb8\\x34\\x12\\xc3"',
+            "stage_three_binary.read_bytes()\n"
+            "        != stage_two_binary.read_bytes()",
+            "stage_two_wrapped.read_bytes()",
+            "stage_three_wrapped.read_bytes()",
+            "link_result = _run_stage_pair(",
+            'stage_two.tools["cupidasm"].read_bytes()',
+            'stage_three.tools["cupidasm"].read_bytes()',
+            "_validate_static_i386_pe32(",
+        ),
+    }
+    for name, fragments in native_windows_fragment_contracts.items():
+        source = native_windows_sources[name]
+        missing_native_windows_fragments.extend(
+            f"{name}: {fragment}"
+            for fragment in fragments
+            if source.count(fragment) != 1
+        )
+
+    behavior_functions = native_windows_functions[
+        "_run_native_windows_behavior_checks"
     ]
+    if len(behavior_functions) == 1:
+        behavior_function = behavior_functions[0]
+        behavior_parents = {
+            child: parent
+            for parent in ast.walk(behavior_function)
+            for child in ast.iter_child_nodes(parent)
+        }
+        live_behavior_calls = (
+            "help_result",
+            "failure_result",
+            "compile_result",
+            "assembly_result",
+            "disassembly_result",
+            "wrap_result",
+            "link_result",
+        )
+        for result_name in live_behavior_calls:
+            matches = [
+                node
+                for node in ast.walk(behavior_function)
+                if isinstance(node, ast.Assign)
+                and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name)
+                and node.targets[0].id == result_name
+                and isinstance(node.value, ast.Call)
+                and isinstance(node.value.func, ast.Name)
+                and node.value.func.id == "_run_stage_pair"
+                and not _ast_node_is_statically_dead(
+                    node, behavior_function, behavior_parents
+                )
+            ]
+            if len(matches) != 1:
+                missing_native_windows_fragments.append(
+                    "_run_native_windows_behavior_checks: one live "
+                    f"{result_name} stage-pair call"
+                )
+    if missing_native_windows_fragments:
+        raise AuditError(
+            "Cupid Toolchain native Windows fixed-point behavior differs: "
+            f"{missing_native_windows_fragments!r}"
+        )
     source_input_functions = [
         statement
         for statement in bootstrap_tree.body
@@ -9790,9 +10048,6 @@ def _cupid_toolchain_fixed_point_contract(
         if len(publisher_input_functions) == 1
         else []
     )
-    boundary_fragment = (
-        "require_source_closures(source_inputs, source_root, plan)"
-    )
     if (
         missing_bootstrap_fragments
         or not windows_source_inputs_are_exact
@@ -9800,7 +10055,6 @@ def _cupid_toolchain_fixed_point_contract(
         or publisher_user_abi_values != [required_user_abi_inputs]
         or len(publisher_windows_calls) != 1
         or len(publisher_user_abi_calls) != 1
-        or bootstrap_source.count(boundary_fragment) != 4
     ):
         raise AuditError(
             "Cupid Toolchain fixed-point source freeze differs: "

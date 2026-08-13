@@ -151,6 +151,7 @@ TOOLCHAIN_KERNEL_SOURCES = [
     "toolchain/ctool.cc",
     "toolchain/cupidasm.cc",
     "toolchain/cupiddis.cc",
+    "toolchain/cupidld.cc",
     "toolchain/elf32.cc",
     "toolchain/x86.cc",
 ]

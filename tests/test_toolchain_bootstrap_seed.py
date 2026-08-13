@@ -17,11 +17,13 @@ from tools import hostbuild
 from tools.bootstrap_toolchain import (
     BootstrapError,
     Stage,
+    TOOL_NAMES,
     ToolRunner,
     WSL_PRIVATE_RUN_SCRIPT,
     _profile_snapshot_payload,
     _validate_static_i386_pe32,
     bootstrap_from_seed,
+    bootstrap_windows_from_seed,
     capture_source_snapshot,
     freeze_source_inputs,
     freeze_seed_inputs,
@@ -1332,6 +1334,265 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     WINDOWS_SEED_MANIFEST, REPO_ROOT, output
                 )
             self.assertFalse(output.exists())
+
+    def test_native_windows_bootstrap_rejects_a_linux_execution_seed(self):
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-native-windows-bootstrap-role-"
+        ) as temporary:
+            output = Path(temporary) / "published"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(BOOTSTRAP_TOOL),
+                    "bootstrap-windows",
+                    "--manifest",
+                    str(SEED_MANIFEST),
+                    "--plan-manifest",
+                    str(SEED_MANIFEST),
+                    "--root",
+                    str(REPO_ROOT),
+                    "--output",
+                    str(output),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout, "")
+        self.assertEqual(
+            result.stderr,
+            "checked Windows bootstrap failed: native Windows bootstrap "
+            "requires a Windows execution seed\n",
+        )
+        self.assertFalse(output.exists())
+
+    def test_native_windows_bootstrap_rejects_an_execution_manifest_as_plan(
+        self,
+    ):
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-native-windows-bootstrap-plan-role-"
+        ) as temporary:
+            output = Path(temporary) / "published"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(BOOTSTRAP_TOOL),
+                    "bootstrap-windows",
+                    "--manifest",
+                    str(WINDOWS_SEED_MANIFEST),
+                    "--plan-manifest",
+                    str(WINDOWS_SEED_MANIFEST),
+                    "--root",
+                    str(REPO_ROOT),
+                    "--output",
+                    str(output),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout, "")
+        self.assertEqual(
+            result.stderr,
+            "checked Windows bootstrap failed: native Windows bootstrap "
+            "requires a Linux build-plan seed\n",
+        )
+        self.assertFalse(output.exists())
+
+    @unittest.skipUnless(os.name == "nt", "native Windows bootstrap")
+    def test_native_windows_bootstrap_freezes_both_verified_seed_roles(self):
+        observed: dict[str, object] = {}
+
+        def accept_verified_inputs(
+            execution_seed, plan_seed, source_root, output_root
+        ):
+            observed["execution_schema"] = execution_seed.manifest["schema"]
+            observed["plan_schema"] = plan_seed.manifest["schema"]
+            observed["source_root"] = source_root
+            observed["output_root"] = output_root
+            observed["execution_signatures"] = {
+                name: path.read_bytes()[:2]
+                for name, path in execution_seed.tools.items()
+            }
+            observed["plan_signatures"] = {
+                name: path.read_bytes()[:4]
+                for name, path in plan_seed.tools.items()
+            }
+            return {"status": "pass"}
+
+        with tempfile.TemporaryDirectory(
+            prefix=".native-windows-bootstrap-inputs-", dir=REPO_ROOT
+        ) as temporary, mock.patch(
+            "tools.bootstrap_toolchain._bootstrap_windows_from_frozen_seed",
+            side_effect=accept_verified_inputs,
+        ), mock.patch(
+            "tools.bootstrap_toolchain.shutil.which",
+            side_effect=AssertionError("native bootstrap must not probe WSL"),
+        ):
+            output = Path(temporary) / "published"
+            report = bootstrap_windows_from_seed(
+                WINDOWS_SEED_MANIFEST,
+                SEED_MANIFEST,
+                REPO_ROOT,
+                output,
+            )
+
+        self.assertEqual(report, {"status": "pass"})
+        self.assertEqual(
+            observed["execution_schema"], "cupid.execution-seed.v1"
+        )
+        self.assertEqual(
+            observed["plan_schema"], "cupid.bootstrap-seed.v1"
+        )
+        self.assertEqual(observed["source_root"], REPO_ROOT)
+        self.assertEqual(observed["output_root"], output)
+        self.assertEqual(
+            observed["execution_signatures"],
+            {name: b"MZ" for name in TOOL_NAMES},
+        )
+        self.assertEqual(
+            observed["plan_signatures"],
+            {name: b"\x7fELF" for name in TOOL_NAMES},
+        )
+        self.assertFalse(output.exists())
+
+    @unittest.skipUnless(os.name == "nt", "native Windows bootstrap")
+    def test_native_windows_bootstrap_preserves_an_occupied_output(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".native-windows-bootstrap-occupied-", dir=REPO_ROOT
+        ) as temporary:
+            output = Path(temporary) / "published"
+            output.mkdir()
+            sentinel = output / "sentinel.txt"
+            sentinel.write_bytes(b"keep this output")
+            with mock.patch.object(
+                ToolRunner,
+                "run",
+                side_effect=AssertionError(
+                    "occupied output must fail before a producer runs"
+                ),
+            ), self.assertRaisesRegex(
+                BootstrapError,
+                "^bootstrap output directory is not empty: sentinel.txt$",
+            ):
+                bootstrap_windows_from_seed(
+                    WINDOWS_SEED_MANIFEST,
+                    SEED_MANIFEST,
+                    REPO_ROOT,
+                    output,
+                )
+
+            self.assertEqual(sentinel.read_bytes(), b"keep this output")
+            self.assertEqual(list(output.iterdir()), [sentinel])
+
+    @unittest.skipUnless(os.name == "nt", "native Windows bootstrap")
+    def test_checked_windows_seed_builds_a_native_producer_fixed_point(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".checked-windows-bootstrap-", dir=REPO_ROOT
+        ) as temporary:
+            output = Path(temporary) / "published"
+            environment = dict(os.environ)
+            environment["PATH"] = str(Path(temporary) / "no-host-tools")
+            for name in (
+                "CC",
+                "CXX",
+                "CPP",
+                "HOSTCC",
+                "HOSTCXX",
+                "ASM",
+                "AS",
+                "LD",
+                "AR",
+                "NM",
+                "OBJCOPY",
+            ):
+                environment[name] = f"__cupid_host_{name}_must_not_run__"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(BOOTSTRAP_TOOL),
+                    "bootstrap-windows",
+                    "--manifest",
+                    str(WINDOWS_SEED_MANIFEST),
+                    "--plan-manifest",
+                    str(SEED_MANIFEST),
+                    "--root",
+                    str(REPO_ROOT),
+                    "--output",
+                    str(output),
+                ],
+                cwd=REPO_ROOT,
+                env=environment,
+                text=True,
+                capture_output=True,
+                timeout=1200,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(
+                result.stdout,
+                "checked i386 Windows bootstrap: ok "
+                "(native stage two equals stage three)\n",
+            )
+            self.assertEqual(result.stderr, "")
+            self.assertEqual(
+                sorted(path.name for path in output.iterdir()),
+                [
+                    "behavior",
+                    "bootstrap-report.json",
+                    "stage-three",
+                    "stage-two",
+                ],
+            )
+            report = json.loads(
+                (output / "bootstrap-report.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            self.assertEqual(
+                report["schema"], "cupid.windows-bootstrap-report.v1"
+            )
+            self.assertEqual(report["status"], "pass")
+            self.assertEqual(report["platform"], "windows-native")
+            self.assertEqual(
+                report["comparisons"],
+                {
+                    "all_equal": True,
+                    "assembly_objects": 2,
+                    "c_objects": 20,
+                    "tool_images": 5,
+                },
+            )
+            self.assertEqual(
+                report["behavior"],
+                {
+                    "failure_cases": 5,
+                    "help_cases": 5,
+                    "success_cases": 5,
+                },
+            )
+            for stage_name in ("stage-two", "stage-three"):
+                stage = report["stages"][stage_name]
+                self.assertEqual(len(stage["objects"]), 22)
+                self.assertEqual(set(stage["tools"]), set(TOOL_NAMES))
+                for tool_name in TOOL_NAMES:
+                    self.assertTrue(
+                        (output / stage_name / f"{tool_name}.exe").is_file()
+                    )
+            for name in report["stages"]["stage-two"]["objects"]:
+                self.assertEqual(
+                    (output / "stage-two" / f"{name}.o").read_bytes(),
+                    (output / "stage-three" / f"{name}.o").read_bytes(),
+                )
+            for tool_name in TOOL_NAMES:
+                self.assertEqual(
+                    (output / "stage-two" / f"{tool_name}.exe").read_bytes(),
+                    (output / "stage-three" / f"{tool_name}.exe").read_bytes(),
+                )
 
     def test_checked_seed_run_forwards_cupidasm_help(self):
         if os.name == "nt" and shutil.which("wsl") is None:

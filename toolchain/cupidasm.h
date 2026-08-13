@@ -29,6 +29,17 @@ typedef struct {
   ctool_u32 maximum_bytes;
 } ctool_asm_fixed_region_spec_t;
 
+typedef enum {
+  CTOOL_ASM_RAW_RANGE_CODE16 = 1,
+  CTOOL_ASM_RAW_RANGE_CODE32,
+  CTOOL_ASM_RAW_RANGE_DATA
+} ctool_asm_raw_range_kind_t;
+
+typedef struct {
+  ctool_u32 offset;
+  ctool_asm_raw_range_kind_t kind;
+} ctool_asm_raw_range_t;
+
 typedef struct {
   ctool_asm_artifact_kind_t artifact;
   ctool_x86_mode_t initial_mode;
@@ -74,7 +85,15 @@ typedef struct {
   const ctool_asm_region_t *regions;
   ctool_u32 region_count;
   ctool_bool has_entry;
+  /* Fixed images publish an address.  Relocatable objects publish the
+   * selected code symbol so a linker can own final placement. */
+  ctool_string_t entry_symbol;
   ctool_u32 entry_address;
+  /* Raw results describe the source-derived code and data partition.
+   * Adjacent statements of the same kind are coalesced. */
+  const ctool_asm_raw_range_t *raw_ranges;
+  ctool_u32 raw_range_count;
+  ctool_u32 raw_origin;
 } ctool_asm_result_t;
 
 typedef enum {

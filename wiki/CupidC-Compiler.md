@@ -21,6 +21,19 @@ CupidC is a HolyC-inspired C compiler built into the cupid-os kernel. It compile
 | Max symbols | 4096 |
 | Max structs | 64 (up to 32 fields each) |
 
+### Hosted fixed-frame stack growth
+
+The hosted compiler probes fixed frames larger than 4,096 bytes. Frames up to
+one page keep the original single reservation. A larger frame reserves at most
+4,096 bytes per step and touches the new page with a read after every step,
+including the final partial page. This lets Windows and other guarded stacks
+grow before the prologue moves beyond the guard page.
+
+Naked functions still have no compiler prologue, and the kernel entry keeps
+its zero-frame path. The current checked PE tools also commit their full one
+MiB stack as a defense from ADR 0274. The compiler rule in ADR 0275 is the
+general fix and does not require active source to avoid large local frames.
+
 ---
 
 ## Getting Started
@@ -809,12 +822,12 @@ these two source changes, passed in 766.9 seconds. Its 17,032-byte report has
 SHA-256
 `736872f31d853fe5b2b67c25e7ec42a1893655074a1c653112def6d66fdeac87`.
 The normal kernel path runs strict checked-seed CupidDis and checked CupidObj
-flat extraction against one frozen cohort of all 428 audited root object
-outputs plus the pass-one and final kernel ELFs. Its 9,056-byte graph-ordered input manifest has SHA-256
-`07e0e0bf5cee4c1bf893305ef1dfd058400474d4af3dc3979c59f6e0195a0e2a`.
+flat extraction against one frozen cohort of all 429 audited root object
+outputs plus the pass-one and final kernel ELFs. Its 9,076-byte graph-ordered input manifest has SHA-256
+`4f1936423ae06418fc2f75603c29a91997608fe82f48c323321523aed25a2ab0`.
 The first separate gate for the preceding 429-path cohort passed in 185.526 seconds with empty streams and exit
 0. The current hostbuild transaction freezes the selected seed manifest and
-all five artifacts, the 430-entry input manifest and cohort, and the existing
+all five artifacts, the 431-entry input manifest and cohort, and the existing
 `kernel.bin` boundary. Checked CupidDis validates the private cohort before
 checked CupidObj flattens the frozen final ELF. Hostbuild rechecks live trust
 inputs and the output before parent-relative atomic publication. Every failure
@@ -1251,9 +1264,9 @@ SMP, all 62 crypto checks, e1000 traffic, the desktop, terminal, and CupidC
 execution at `0x01100000`. A separate gate loads and reaps the same
 external program twice at `0x01C00000`. ADR 0124 records the exact build and
 runtime evidence. No supported transform invokes a host C compiler. Python
-participates in all 451 transforms across the three audited roots, and CupidC
-participates in 245. CupidObj participates in 192, CupidASM in five, CupidLD in
-five, and CupidDis in three. Root `all` has 442 transforms, including 441
+participates in all 452 transforms across the three audited roots, and CupidC
+participates in 246. CupidObj participates in 192, CupidASM in five, CupidLD in
+five, and CupidDis in three. Root `all` has 443 transforms, including 442
 Cupid-owned artifact transforms and the Python-only size verifier. It runs
 CupidC, CupidASM, CupidObj, CupidLD, and CupidDis from the manifest-checked
 seed; `toolchain:all` uses the rebuilt static tools for its contract cohort.

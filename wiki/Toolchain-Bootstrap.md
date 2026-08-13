@@ -12,6 +12,24 @@ carries the full build plan. The Windows manifest records paired-stage
 provenance instead of claiming a native fixed point. ADR 0272 records the two
 roles.
 
+Source head can now reconstruct two native Windows generations without WSL:
+
+```sh
+python tools/bootstrap_toolchain.py bootstrap-windows \
+  --manifest bootstrap/seeds/i386-windows/manifest.json \
+  --plan-manifest bootstrap/seeds/i386-linux/manifest.json \
+  --root . --output build/bootstrap/windows-fixed-point
+```
+
+The command freezes and verifies both manifest roles, derives the native plan,
+builds stage two from the checked PE producer trio, builds stage three from
+the new trio, compares every object and all five tools, and runs useful native
+success and failure cases. It publishes one
+`cupid.windows-bootstrap-report.v1` bundle only after rehashing the frozen and
+live source closures. The first complete run rejected concurrent CupidASM
+edits after stage two, so a source-stable pass and seed promotion remain open.
+ADR 0278 records the driver.
+
 The seed lives under `bootstrap/seeds/i386-linux/`. Its manifest records each
 file's size and SHA-256 value, the static i386 Linux ABI, entry point, source
 revision, producer lineage, all 19 C sources, startup, include arguments, and
@@ -141,10 +159,12 @@ fixture and passed the negative serial-event boundary. The source and evidence
 images remained unchanged at SHA-256
 `326844ca58c1f864a6b9a2480dfaeb5ed71ec3df22cdb46da17a6bb356e7e726`.
 
-Host Python still coordinates the fixed point. Windows still runs the static
-i386 Linux tools through WSL for fixed-point and Linux-contract work, but its
-output-bearing production calls run the checked PE32 cohort directly. A
-complete native Windows fixed point and Python-free coordination remain open.
+Host Python still coordinates each fixed point. Windows can rebuild native
+tools from the checked PE execution seed and the verified Linux plan seed.
+Linux contract programs on Windows still run the static i386 Linux tools
+through WSL, while output-bearing production calls use the checked PE32 cohort
+directly. A stable native proof, checked-seed promotion, and Python-free
+coordination remain open.
 `make verify-artifact-sizes` receives
 `$(BOOTSTRAP_SEED_MANIFEST)`, derives the five seed paths and declared sizes
 from that selected manifest, and requires the policy to agree. It also checks
@@ -211,8 +231,10 @@ is this matching PE generation. Its CupidC image is 2,594,304 bytes
 with SHA-256
 `209b493c73ff2b30ef38f0161491dacd5564f995a019876d96e8bc805b5c83e9`.
 Every image reserves and commits a one MiB stack; its heap reserves one MiB and
-commits 4 KiB. Native fixed-point reconstruction remains open because the
-execution manifest deliberately carries no Windows build plan. [ADR
+commits 4 KiB. Native reconstruction takes the Linux manifest as a separate
+verified plan input because the execution manifest deliberately carries no
+Windows build plan. Its first complete run rejected live source drift, so the
+checked seed still records the earlier paired-stage proof. [ADR
 0268](../docs/adr/0268-run-cupid-built-cupiddis-on-windows.md) records the
 shared runtime, and [ADR
 0269](../docs/adr/0269-run-cupid-built-cupidld-on-windows.md) records the
@@ -220,7 +242,9 @@ publication boundary. [ADR
 0272](../docs/adr/0272-adopt-a-checked-native-windows-execution-seed.md)
 records checked carriage and production selection. [ADR
 0274](../docs/adr/0274-commit-the-native-windows-tool-stack.md) records the
-stack policy.
+stack policy, and [ADR
+0278](../docs/adr/0278-add-a-native-windows-fixed-point-driver.md) records the
+native driver.
 
 The checked-seed CLI stages both ELF and PE images in an adjacent candidate
 created with exclusive-create semantics. It writes and closes the candidate,
@@ -678,10 +702,10 @@ truncated instructions only in selected code regions, validates every input,
 and writes no listing. Both active CupidASM relocatable objects pass while
 ordinary output keeps their relocation symbols. The normal kernel path now
 runs strict validation and flat extraction against one frozen cohort. Its
-9,056-byte LF-only manifest has
+9,076-byte LF-only manifest has
 SHA-256
-`07e0e0bf5cee4c1bf893305ef1dfd058400474d4af3dc3979c59f6e0195a0e2a`
-and lists 430 unique graph-ordered paths: all 428 audited root object outputs
+`4f1936423ae06418fc2f75603c29a91997608fe82f48c323321523aed25a2ab0`
+and lists 431 unique graph-ordered paths: all 429 audited root object outputs
 plus the pass-one and final kernel ELFs. Make keeps every path as a direct
 prerequisite. The first separate gate froze and rehashed the preceding 429-path manifest and
 inputs. It passed in 185.526 seconds with empty streams and exit 0. The current
@@ -883,11 +907,11 @@ illegal-instruction failure markers. The X.509 checks exercise parser,
 hostname, chain state, and embedded-root lookup paths. They are not a full
 trust-validation claim.
 
-Across the root and supplemental builds, the current audit assigns 245
+Across the root and supplemental builds, the current audit assigns 246
 transforms to CupidC and none to a host C compiler. Python participates in
-all 451 transforms. CupidC's total is 239 normal transforms plus three
+all 452 transforms. CupidC's total is 240 normal transforms plus three
 generated installation tables and the `hello.cc`, `ls.cc`, and `cat.cc`
-programs. Root `all` has 442 transforms: 441 artifact transforms with a Cupid
+programs. Root `all` has 443 transforms: 442 artifact transforms with a Cupid
 owner plus the Python-only size verifier, which emits no OS artifact. The root
 artifact graph has five CupidASM, 192 CupidObj, two CupidLD, and three CupidDis
 participations from the manifest-checked five-tool seed. Across all three

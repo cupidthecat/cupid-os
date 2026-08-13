@@ -5210,6 +5210,268 @@ def assemble_smp_trampoline(
         ) from error
 
 
+def assemble_bootloader(
+    seed_manifest: Path,
+    root: Path,
+    source: Path,
+    output: Path,
+) -> subprocess.CompletedProcess[str]:
+    try:
+        repository_root = root.resolve(strict=True)
+    except OSError as error:
+        raise CodeValidationError(
+            f"repository root cannot be resolved: {root}: {error}"
+        ) from error
+    if not repository_root.is_dir():
+        raise CodeValidationError(
+            f"repository root is not a directory: {repository_root}"
+        )
+    source_logical = _code_logical_path(
+        source,
+        subject="bootloader source",
+    )
+
+    try:
+        with ExitStack() as stack:
+            pinned_output = _pin_code_output(repository_root, output, stack)
+            try:
+                publication_lock = _acquire_disk_publication_lock(
+                    pinned_output.path
+                )
+            except DiskImageError as error:
+                raise CodeValidationError(str(error)) from error
+            stack.callback(_release_disk_publication_lock, publication_lock)
+            temporary = stack.enter_context(
+                tempfile.TemporaryDirectory(
+                    prefix=".bootloader-",
+                    dir=pinned_output.path.parent,
+                )
+            )
+            private_root = Path(temporary)
+            source_snapshot = _capture_code_input(
+                repository_root,
+                source_logical,
+                frozen=private_root.joinpath(
+                    *PurePosixPath(source_logical).parts
+                ),
+                subject="bootloader source",
+            )
+            initial_output = _code_output_entry(pinned_output)
+            _require_code_output_not_an_input(
+                pinned_output,
+                initial_output,
+                [source_snapshot],
+            )
+            (
+                frozen_seed,
+                live_seed_manifest,
+                seed_snapshots,
+            ) = _freeze_code_seed_inputs(
+                repository_root,
+                seed_manifest,
+                private_root,
+            )
+            _require_code_output_not_an_input(
+                pinned_output,
+                initial_output,
+                seed_snapshots,
+            )
+            candidate_logical = (
+                ".cupid-output/"
+                + PurePosixPath(pinned_output.logical).name
+            )
+            map_logical = candidate_logical + ".cupidmap"
+            candidate_path = private_root.joinpath(
+                *PurePosixPath(candidate_logical).parts
+            )
+            candidate_path.parent.mkdir()
+            candidate_output = _pin_code_output(
+                private_root,
+                Path(candidate_logical),
+                stack,
+            )
+            map_output = _pin_code_output(
+                private_root,
+                Path(map_logical),
+                stack,
+            )
+
+            try:
+                assembled = run_seed_tool(
+                    live_seed_manifest,
+                    private_root,
+                    "cupidasm",
+                    (
+                        "-f",
+                        "bin",
+                        "--map",
+                        map_logical,
+                        "-o",
+                        candidate_logical,
+                        source_logical,
+                    ),
+                    timeout=60,
+                    frozen_seed=frozen_seed,
+                )
+            except BootstrapError as error:
+                raise CodeValidationError(
+                    f"checked CupidASM could not run: {error}"
+                ) from error
+            tool_stderr = assembled.stderr or ""
+            _require_code_inputs_unchanged(
+                repository_root,
+                None,
+                [source_snapshot],
+                activity="CupidASM",
+                tool_stderr=tool_stderr,
+            )
+            _require_code_seed_inputs_unchanged(
+                repository_root,
+                seed_snapshots,
+                tool_stderr=tool_stderr,
+            )
+            if assembled.returncode != 0:
+                return subprocess.CompletedProcess(
+                    assembled.args,
+                    assembled.returncode,
+                    "",
+                    tool_stderr,
+                )
+            if assembled.stdout:
+                raise CodeValidationError(
+                    "checked CupidASM wrote unexpected standard output",
+                    tool_stderr=tool_stderr,
+                )
+            if tool_stderr:
+                raise CodeValidationError(
+                    "checked CupidASM wrote unexpected standard error",
+                    tool_stderr=tool_stderr,
+                )
+            candidate_snapshot = _code_output_entry(candidate_output)
+            if candidate_snapshot is None:
+                raise CodeValidationError(
+                    "checked CupidASM output does not exist: "
+                    f"{candidate_output.logical}",
+                    tool_stderr=tool_stderr,
+                )
+            if candidate_snapshot.size != 2560:
+                raise CodeValidationError(
+                    "checked CupidASM bootloader output must be exactly "
+                    f"2560 bytes, got {candidate_snapshot.size}",
+                    tool_stderr=tool_stderr,
+                )
+            map_snapshot = _code_output_entry(map_output)
+            if map_snapshot is None:
+                raise CodeValidationError(
+                    "checked CupidASM range map does not exist: "
+                    f"{map_output.logical}",
+                    tool_stderr=tool_stderr,
+                )
+            if map_snapshot.size == 0:
+                raise CodeValidationError(
+                    "checked CupidASM range map may not be empty",
+                    tool_stderr=tool_stderr,
+                )
+
+            try:
+                disassembled = run_seed_tool(
+                    live_seed_manifest,
+                    private_root,
+                    "cupiddis",
+                    (
+                        "--require-known",
+                        "--raw",
+                        "--range-map",
+                        map_logical,
+                        candidate_logical,
+                    ),
+                    timeout=60,
+                    frozen_seed=frozen_seed,
+                )
+            except BootstrapError as error:
+                raise CodeValidationError(
+                    f"checked CupidDis could not run: {error}",
+                    tool_stderr=tool_stderr,
+                ) from error
+            combined_stderr = tool_stderr + (disassembled.stderr or "")
+            _require_code_inputs_unchanged(
+                repository_root,
+                None,
+                [source_snapshot],
+                activity="checked tools",
+                tool_stderr=combined_stderr,
+            )
+            _require_code_seed_inputs_unchanged(
+                repository_root,
+                seed_snapshots,
+                tool_stderr=combined_stderr,
+            )
+            current_candidate = _code_output_entry(candidate_output)
+            if (
+                current_candidate is None
+                or current_candidate.size != candidate_snapshot.size
+                or current_candidate.sha256 != candidate_snapshot.sha256
+            ):
+                raise CodeValidationError(
+                    "checked CupidASM output changed while CupidDis ran",
+                    tool_stderr=combined_stderr,
+                )
+            current_map = _code_output_entry(map_output)
+            if (
+                current_map is None
+                or current_map.size != map_snapshot.size
+                or current_map.sha256 != map_snapshot.sha256
+            ):
+                raise CodeValidationError(
+                    "checked CupidASM range map changed while CupidDis ran",
+                    tool_stderr=combined_stderr,
+                )
+            try:
+                _require_code_output_parent_unchanged(pinned_output)
+                _require_code_output_unchanged(pinned_output, initial_output)
+            except CodeValidationError as error:
+                raise CodeValidationError(
+                    str(error),
+                    tool_stderr=combined_stderr,
+                ) from error
+            if disassembled.returncode != 0:
+                return subprocess.CompletedProcess(
+                    disassembled.args,
+                    disassembled.returncode,
+                    "",
+                    combined_stderr,
+                )
+            if disassembled.stdout:
+                raise CodeValidationError(
+                    "checked CupidDis wrote unexpected standard output",
+                    tool_stderr=combined_stderr,
+                )
+            if disassembled.stderr:
+                raise CodeValidationError(
+                    "checked CupidDis wrote unexpected standard error",
+                    tool_stderr=combined_stderr,
+                )
+            try:
+                _publish_code_output(candidate_output, pinned_output)
+            except OSError as error:
+                raise CodeValidationError(
+                    f"validated bootloader could not be published: {error}",
+                    tool_stderr=combined_stderr,
+                ) from error
+            return subprocess.CompletedProcess(
+                disassembled.args,
+                0,
+                "",
+                combined_stderr,
+            )
+    except CodeValidationError:
+        raise
+    except OSError as error:
+        raise CodeValidationError(
+            f"private bootloader snapshot could not be created: {error}"
+        ) from error
+
+
 def clean_paths(patterns: list[str]) -> None:
     for pattern in patterns:
         for path in Path(".").glob(pattern):
@@ -5301,6 +5563,12 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("inputs", nargs="*", type=Path)
 
     p = sub.add_parser("assemble-smp-trampoline")
+    p.add_argument("--seed-manifest", type=Path, required=True)
+    p.add_argument("--root", type=Path, default=Path("."))
+    p.add_argument("--source", type=Path, required=True)
+    p.add_argument("--output", type=Path, required=True)
+
+    p = sub.add_parser("assemble-bootloader")
     p.add_argument("--seed-manifest", type=Path, required=True)
     p.add_argument("--root", type=Path, default=Path("."))
     p.add_argument("--source", type=Path, required=True)
@@ -5444,6 +5712,25 @@ def main(argv: list[str] | None = None) -> int:
                 sys.stderr.write(error.tool_stderr)
             print(
                 f"[hostbuild] assemble-smp-trampoline failed: {error}",
+                file=sys.stderr,
+            )
+            return 1
+        if result.stderr:
+            sys.stderr.write(result.stderr)
+        return result.returncode
+    elif args.cmd == "assemble-bootloader":
+        try:
+            result = assemble_bootloader(
+                args.seed_manifest,
+                args.root,
+                args.source,
+                args.output,
+            )
+        except CodeValidationError as error:
+            if error.tool_stderr:
+                sys.stderr.write(error.tool_stderr)
+            print(
+                f"[hostbuild] assemble-bootloader failed: {error}",
                 file=sys.stderr,
             )
             return 1

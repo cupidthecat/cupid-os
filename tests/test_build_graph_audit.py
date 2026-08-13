@@ -3362,7 +3362,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             {name: sum(case_name == name for case_name, _ in active)
             for name, _, _, _, _, _ in profiles},
             {
-                "KERNEL_I386": 155,
+                "KERNEL_I386": 156,
                 "DOOM_COMPAT_I386": 3,
                 "DOOM_TREE_I386": 80,
                 "USER_I386": 3,
@@ -3376,7 +3376,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "HOSTED_I386_LINUX_GNU": 3,
             },
         )
-        self.assertEqual(len(active), 394)
+        self.assertEqual(len(active), 395)
         for expected in (
             ("KERNEL_I386", "/kernel/core/kernel.cc"),
             ("KERNEL_I386", "/kernel/audio/memio.cc"),
@@ -4891,7 +4891,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "profile failures stop comparing stages": (
                 "bootstrap",
+                "        stage_three_profile_failure.write_bytes(sentinel)\n"
                 "        failure_result = _run_stage_pair(\n",
+                "        stage_three_profile_failure.write_bytes(sentinel)\n"
                 "        failure_result = _run_one_stage(\n",
                 r"fixed-point profile behavior differs",
             ),
@@ -4935,8 +4937,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "PE32 staged parser disappears": (
                 "bootstrap",
-                "    _validate_static_i386_pe32(\n",
-                "    _skip_static_i386_pe32_validation(\n",
+                "    _validate_static_i386_pe32(\n"
+                "        stage_two_pe32,\n",
+                "    _skip_static_i386_pe32_validation(\n"
+                "        stage_two_pe32,\n",
                 r"fixed-point PE32 behavior differs",
             ),
             "PE32 staged parser stops reading the image": (
@@ -5228,7 +5232,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "Windows helper link moves under a dead block": (
                 "bootstrap",
+                "        return arguments\n\n"
                 "    link_result = _run_stage_pair(\n",
+                "        return arguments\n\n"
                 "    if False:\n"
                 "        link_result = _run_stage_pair(\n",
                 r"fixed-point PE32 behavior differs",
@@ -5872,6 +5878,101 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "publication_root, output_root)\n",
                 "        publication_root.replace(output_root)\n",
                 r"fixed-point source freeze differs",
+            ),
+            "native Windows source closure is not frozen": (
+                "bootstrap",
+                "        source_inputs = freeze_source_inputs(\n"
+                "            source_root,\n"
+                "            linux_plan,\n",
+                "        source_inputs = capture_source_inputs(\n"
+                "            source_root,\n"
+                "            linux_plan,\n",
+                r"fixed-point source freeze differs",
+            ),
+            "native Windows stage leaves the frozen source root": (
+                "bootstrap",
+                "        stage_two = _build_windows_stage(\n"
+                "            runner,\n"
+                "            private_source_root,\n",
+                "        stage_two = _build_windows_stage(\n"
+                "            runner,\n"
+                "            source_root,\n",
+                r"fixed-point source freeze differs",
+            ),
+            "native Windows closure boundary rehash disappears": (
+                "bootstrap",
+                "        require_source_closures(\n"
+                "            source_inputs, source_root, linux_plan\n"
+                "        )\n",
+                "        require_source_snapshot(\n"
+                "            source_root, linux_plan, source_inputs.inventory\n"
+                "        )\n",
+                r"fixed-point source freeze differs",
+            ),
+            "native Windows behavior leaves the frozen source root": (
+                "bootstrap",
+                "        behavior = _run_native_windows_behavior_checks(\n"
+                "            runner,\n"
+                "            private_source_root,\n",
+                "        behavior = _run_native_windows_behavior_checks(\n"
+                "            runner,\n"
+                "            source_root,\n",
+                r"fixed-point source freeze differs",
+            ),
+            "native Windows report loses its schema": (
+                "bootstrap",
+                '            "schema": WINDOWS_REPORT_SCHEMA,\n',
+                '            "schema": REPORT_SCHEMA,\n',
+                r"fixed-point source freeze differs",
+            ),
+            "native Windows plan reuses the Linux runtime": (
+                "bootstrap",
+                '            path = "/toolchain/hosted/i386-windows/runtime.cc"\n',
+                '            path = "/toolchain/hosted/i386-linux/runtime.cc"\n',
+                r"native Windows fixed-point behavior differs",
+            ),
+            "native Windows stage skips PE validation": (
+                "bootstrap",
+                "        _validate_static_i386_pe32(\n"
+                "            executable,\n",
+                "        _skip_static_i386_pe32_validation(\n"
+                "            executable,\n",
+                r"native Windows fixed-point behavior differs",
+            ),
+            "native Windows failure runs one stage": (
+                "bootstrap",
+                "        failure_result = _run_stage_pair(\n"
+                "            runner,\n"
+                "            stage_two,\n"
+                "            stage_three,\n"
+                "            tool_name,\n"
+                '            ["--definitely-invalid-option"],\n',
+                "        failure_result = _run_one_stage(\n"
+                "            runner,\n"
+                "            stage_two,\n"
+                "            stage_three,\n"
+                "            tool_name,\n"
+                '            ["--definitely-invalid-option"],\n',
+                r"native Windows fixed-point behavior differs",
+            ),
+            "native Windows tool comparison disappears": (
+                "bootstrap",
+                "            stage_two.tools[name].read_bytes()\n"
+                "            != stage_three.tools[name].read_bytes()\n",
+                "            stage_two.tools[name].read_bytes()\n"
+                "            != stage_two.tools[name].read_bytes()\n",
+                r"native Windows fixed-point behavior differs",
+            ),
+            "native Windows relink moves under a dead block": (
+                "bootstrap",
+                "    stage_three_linked = "
+                'behavior_root / "stage-three-relinked.exe"\n'
+                "    link_result = _run_stage_pair(\n",
+                "    stage_three_linked = "
+                'behavior_root / "stage-three-relinked.exe"\n'
+                "    if False:\n"
+                "        link_result = _run_stage_pair(\n",
+                r"native Windows fixed-point behavior differs",
             ),
         }
         for name, (target_name, old, new, message) in mutations.items():
@@ -6716,9 +6817,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 },
                 {
                     "status": "pass",
-                    "tracked_translation_units": 394,
+                    "tracked_translation_units": 395,
                     "generated_translation_units": 4,
-                    "total_translation_units": 398,
+                    "total_translation_units": 399,
                     "include_only_fragments": 22,
                     "delivered_non_root_headers": 2,
                     "deferred_hosted_translation_units": 0,
@@ -6736,7 +6837,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     for profile in contract["profiles"]
                 ],
                 [
-                    ("KERNEL_I386", 155, 4),
+                    ("KERNEL_I386", 156, 4),
                     ("DOOM_COMPAT_I386", 3, 0),
                     ("DOOM_TREE_I386", 80, 0),
                     ("USER_I386", 3, 0),
@@ -7822,12 +7923,12 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             for transform in audit["build"]["transforms"]
             if transform["output"].endswith(".o")
         }
-        self.assertEqual(len(object_outputs), 427)
+        self.assertEqual(len(object_outputs), 429)
         validated_code_inputs = object_outputs | {
             "kernel/kernel.elf.pass1",
             "kernel/kernel.elf",
         }
-        self.assertEqual(len(validated_code_inputs), 429)
+        self.assertEqual(len(validated_code_inputs), 431)
         declared_code_inputs = commands[
             "CUPIDDIS_PRODUCTION_INPUTS"
         ].split()
@@ -7835,11 +7936,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         manifest_code_inputs = (
             REPO_ROOT / input_manifest
         ).read_text(encoding="utf-8").splitlines()
-        self.assertEqual(len(declared_code_inputs), 429)
-        self.assertEqual(len(set(declared_code_inputs)), 429)
+        self.assertEqual(len(declared_code_inputs), 431)
+        self.assertEqual(len(set(declared_code_inputs)), 431)
         self.assertEqual(manifest_code_inputs, declared_code_inputs)
-        self.assertEqual(len(manifest_code_inputs), 429)
-        self.assertEqual(len(set(manifest_code_inputs)), 429)
+        self.assertEqual(len(manifest_code_inputs), 431)
+        self.assertEqual(len(set(manifest_code_inputs)), 431)
         self.assertEqual(set(declared_code_inputs), validated_code_inputs)
         validation_command = " ".join(
             (
@@ -7888,6 +7989,29 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root . \\",
                 "--input-manifest $(CUPIDDIS_PRODUCTION_INPUT_MANIFEST) \\",
                 "--output $(KERNEL)",
+            ],
+        )
+        bootloader_transform = next(
+            transform
+            for transform in audit["build"]["transforms"]
+            if transform["output"] == "boot/boot.bin"
+        )
+        self.assertEqual(
+            bootloader_transform["tools"],
+            ["cupid_assembler", "host_python"],
+        )
+        self.assertEqual(
+            bootloader_transform["operation"],
+            "assemble_flat_binary",
+        )
+        self.assertEqual(
+            set(bootloader_transform["inputs"]),
+            seed_inputs | {"boot/boot.asm"},
+        )
+        self.assertEqual(
+            bootloader_transform["recipe"],
+            [
+                "$(CUPIDASM) -f bin boot/boot.asm -o $(BOOTLOADER)",
             ],
         )
         trampoline_transform = next(

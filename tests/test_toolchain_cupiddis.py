@@ -561,6 +561,146 @@ class CupidDisContractTests(unittest.TestCase):
         self.assertIn("mov eax, 0x12345678", code_only_alias.stdout)
         self.assertIn("00007C08", code_only_alias.stdout)
 
+    def test_cli_consumes_a_size_bound_raw_range_map(self):
+        range_map = Path(self._fixture_directory.name) / "mixed-mode.cupidmap"
+        range_map.write_text(
+            "cupid.raw-map.v1\n"
+            "size 16\n"
+            "base 0x7c00\n"
+            "range 0 code16\n"
+            "range 3 data\n"
+            "range 7 code32\n"
+            "range 12 code16\n",
+            encoding="ascii",
+        )
+        command = [
+            str(self.cli_path),
+            "--raw",
+            "--range-map",
+            str(range_map),
+            str(self.mixed_raw_path),
+        ]
+        decoded = subprocess.run(
+            command, cwd=REPO_ROOT, text=True, capture_output=True
+        )
+        repeated = subprocess.run(
+            command, cwd=REPO_ROOT, text=True, capture_output=True
+        )
+        checked = subprocess.run(
+            [
+                str(self.cli_path),
+                "--require-known",
+                "--raw",
+                "--range-map",
+                str(range_map),
+                str(self.mixed_raw_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+
+        self.assertEqual(decoded.returncode, 0, decoded.stderr)
+        self.assertEqual(repeated.returncode, 0, repeated.stderr)
+        self.assertEqual(decoded.stdout, repeated.stdout)
+        self.assertIn("mov ax, 0x1234", decoded.stdout)
+        self.assertIn("db 0x00, 0x00, 0x90, 0xC3", decoded.stdout)
+        self.assertIn("mov eax, 0x12345678", decoded.stdout)
+        self.assertIn("mov ax, 0xABCD", decoded.stdout)
+        self.assertEqual(checked.returncode, 0, checked.stderr)
+        self.assertEqual(checked.stdout, "")
+        self.assertEqual(checked.stderr, "")
+
+    def test_cli_rejects_stale_and_malformed_raw_range_maps(self):
+        fixture_root = Path(self._fixture_directory.name)
+        cases = (
+            (
+                "unknown schema",
+                "cupid.raw-map.v2\nsize 16\nbase 0\nrange 0 code16\n",
+                "raw range map has an unsupported schema",
+            ),
+            (
+                "missing size",
+                "cupid.raw-map.v1\nbase 0\nrange 0 code16\n",
+                "raw range map requires one size",
+            ),
+            (
+                "duplicate start",
+                "cupid.raw-map.v1\nsize 16\nbase 0\n"
+                "range 0 code16\nrange 0 data\n",
+                "raw range starts must increase",
+            ),
+            (
+                "invalid kind",
+                "cupid.raw-map.v1\nsize 16\nbase 0\nrange 0 maybe\n",
+                "raw range kind must be code16, code32, or data",
+            ),
+        )
+        for name, contents, expected in cases:
+            with self.subTest(name=name):
+                range_map = fixture_root / f"bad-{name.replace(' ', '-')}.cupidmap"
+                range_map.write_text(contents, encoding="ascii")
+                result = subprocess.run(
+                    [
+                        str(self.cli_path),
+                        "--raw",
+                        "--range-map",
+                        str(range_map),
+                        str(self.mixed_raw_path),
+                    ],
+                    cwd=REPO_ROOT,
+                    text=True,
+                    capture_output=True,
+                )
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(result.stdout, "")
+                self.assertIn(expected, result.stderr)
+
+        stale_map = fixture_root / "stale.cupidmap"
+        stale_map.write_text(
+            "cupid.raw-map.v1\n"
+            "size 15\n"
+            "base 0x7c00\n"
+            "range 0 code16\n",
+            encoding="ascii",
+        )
+        stale = subprocess.run(
+            [
+                str(self.cli_path),
+                "--raw",
+                "--range-map",
+                str(stale_map),
+                str(self.mixed_raw_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(stale.returncode, 1)
+        self.assertEqual(stale.stdout, "")
+        self.assertIn(
+            "raw range map expects 15 bytes, input has 16",
+            stale.stderr,
+        )
+
+        conflict = subprocess.run(
+            [
+                str(self.cli_path),
+                "--raw",
+                "--range-map",
+                str(stale_map),
+                "--mode=16",
+                "--base=0x7c00",
+                str(self.mixed_raw_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(conflict.returncode, 2)
+        self.assertEqual(conflict.stdout, "")
+        self.assertIn("usage: cupiddis", conflict.stderr)
+
     def test_cli_typed_ranges_follow_the_active_smp_trampoline_layout(self):
         trampoline = Path(self._fixture_directory.name) / "smp-trampoline.bin"
         assembled = subprocess.run(

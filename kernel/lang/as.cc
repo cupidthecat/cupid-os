@@ -85,10 +85,10 @@ typedef struct {
 
 typedef struct {
   ctool_job_t *job;
-  ctool_buffer_t *fixed_output;
+  ctool_buffer_t *assembly_output;
   ctool_asm_result_t artifact;
   ctool_u32 definition_count;
-} as_fixed_artifact_t;
+} as_assembled_artifact_t;
 
 static char as_ascii_fold(char character) {
   if (character >= 'A' && character <= 'Z') {
@@ -1459,9 +1459,9 @@ static void as_report_failure(const char *operation, const char *path,
   print(")\n");
 }
 
-static void as_fixed_artifact_close(as_fixed_artifact_t *artifact) {
-  if (artifact->fixed_output != (ctool_buffer_t *)0) {
-    ctool_buffer_close(artifact->fixed_output);
+static void as_assembled_artifact_close(as_assembled_artifact_t *artifact) {
+  if (artifact->assembly_output != (ctool_buffer_t *)0) {
+    ctool_buffer_close(artifact->assembly_output);
   }
   if (artifact->job != (ctool_job_t *)0) {
     ctool_job_close(artifact->job);
@@ -1481,9 +1481,9 @@ static const ctool_asm_region_t *as_fixed_region(
 }
 
 static ctool_status_t as_validate_fixed_artifact(
-    const as_fixed_artifact_t *fixed) {
+    const as_assembled_artifact_t *fixed) {
   const ctool_asm_result_t *artifact = &fixed->artifact;
-  ctool_bytes_t output = ctool_buffer_view(fixed->fixed_output);
+  ctool_bytes_t output = ctool_buffer_view(fixed->assembly_output);
   const ctool_asm_region_t *code;
   const ctool_asm_region_t *data;
   ctool_u32 expected_bytes;
@@ -1538,8 +1538,27 @@ static ctool_status_t as_validate_fixed_artifact(
   return expected_bytes == output.size ? CTOOL_OK : CTOOL_ERR_INTERNAL;
 }
 
-static ctool_status_t as_open_fixed_artifact(const char *path, int jit_mode,
-                                             as_fixed_artifact_t *fixed) {
+static ctool_status_t as_validate_object_artifact(
+    const as_assembled_artifact_t *assembled) {
+  const ctool_asm_result_t *artifact = &assembled->artifact;
+  ctool_bytes_t output = ctool_buffer_view(assembled->assembly_output);
+  if (artifact->artifact != CTOOL_ASM_ARTIFACT_ELF32_REL ||
+      artifact->bytes.data != output.data ||
+      artifact->bytes.size != output.size || output.size == 0u ||
+      artifact->regions != (const ctool_asm_region_t *)0 ||
+      artifact->region_count != 0u || artifact->has_entry != CTOOL_TRUE ||
+      artifact->entry_symbol.data == (const char *)0 ||
+      artifact->entry_symbol.size == 0u || artifact->entry_address != 0u ||
+      artifact->raw_ranges != (const ctool_asm_raw_range_t *)0 ||
+      artifact->raw_range_count != 0u || artifact->raw_origin != 0u) {
+    return CTOOL_ERR_INTERNAL;
+  }
+  return CTOOL_OK;
+}
+
+static ctool_status_t as_open_artifact(
+    const char *path, int jit_mode, ctool_asm_artifact_kind_t artifact_kind,
+    as_assembled_artifact_t *assembled) {
   ctool_limits_t limits = ctool_default_limits();
   ctool_job_config_t config = ctool_kernel_job_config(limits);
   ctool_path_t root;
@@ -1553,27 +1572,32 @@ static ctool_status_t as_open_fixed_artifact(const char *path, int jit_mode,
   ctool_status_t status;
   ctool_u32 include_root_count = 0u;
 
-  if (fixed == (as_fixed_artifact_t *)0 || path == (const char *)0 ||
+  if (assembled == (as_assembled_artifact_t *)0 ||
+      path == (const char *)0 ||
       path[0] == '\0') {
     return CTOOL_ERR_INVALID_ARGUMENT;
   }
-  memset(fixed, 0, sizeof(*fixed));
-  status = ctool_job_open(&config, &fixed->job);
+  if (artifact_kind != CTOOL_ASM_ARTIFACT_ELF32_REL &&
+      artifact_kind != CTOOL_ASM_ARTIFACT_FIXED_IMAGE) {
+    return CTOOL_ERR_INVALID_ARGUMENT;
+  }
+  memset(assembled, 0, sizeof(*assembled));
+  status = ctool_job_open(&config, &assembled->job);
   if (status == CTOOL_OK) {
-    status = ctool_path_root(ctool_job_arena(fixed->job), &root);
+    status = ctool_path_root(ctool_job_arena(assembled->job), &root);
   }
   if (status == CTOOL_OK) {
-    status = ctool_path_resolve(ctool_job_arena(fixed->job), &root,
+    status = ctool_path_resolve(ctool_job_arena(assembled->job), &root,
                                 ctool_string(path), limits.path_bytes,
                                 &input_path);
   }
   if (status == CTOOL_OK) {
-    status = ctool_job_load_source(fixed->job, &input_path, &source);
+    status = ctool_job_load_source(assembled->job, &input_path, &source);
   }
   if (status == CTOOL_OK) {
-    status = ctool_job_open_buffer(fixed->job, 256u,
-                                   AS_MAX_CODE + AS_MAX_DATA,
-                                   &fixed->fixed_output);
+    status = ctool_job_open_buffer(assembled->job, 256u,
+                                   limits.output_bytes,
+                                   &assembled->assembly_output);
   }
   definitions.definitions = (ctool_asm_definition_t *)0;
   definitions.count = 0u;
@@ -1581,7 +1605,7 @@ static ctool_status_t as_open_fixed_artifact(const char *path, int jit_mode,
   definitions.status = status;
   if (status == CTOOL_OK) {
     status = ctool_arena_alloc_zero(
-        ctool_job_arena(fixed->job), AS_MAX_DEFINITIONS,
+        ctool_job_arena(assembled->job), AS_MAX_DEFINITIONS,
         (ctool_u32)sizeof(ctool_asm_definition_t),
         (ctool_u32)sizeof(void *), (void **)&definitions.definitions);
     definitions.status = status;
@@ -1589,11 +1613,11 @@ static ctool_status_t as_open_fixed_artifact(const char *path, int jit_mode,
   if (status == CTOOL_OK) {
     as_register_definitions(&definitions, jit_mode);
     status = definitions.status;
-    fixed->definition_count = definitions.count;
+    assembled->definition_count = definitions.count;
   }
   if (status == CTOOL_OK) {
     const char *cwd = shell_get_cwd();
-    status = ctool_path_resolve(ctool_job_arena(fixed->job), &root,
+    status = ctool_path_resolve(ctool_job_arena(assembled->job), &root,
                                 ctool_string(cwd != NULL ? cwd : "/"),
                                 limits.path_bytes, &cwd_path);
   }
@@ -1606,7 +1630,7 @@ static ctool_status_t as_open_fixed_artifact(const char *path, int jit_mode,
     entries[0] = ctool_string("main");
     entries[1] = ctool_string("_start");
     memset(&request, 0, sizeof(request));
-    request.artifact = CTOOL_ASM_ARTIFACT_FIXED_IMAGE;
+    request.artifact = artifact_kind;
     request.initial_mode = CTOOL_X86_MODE_32;
     request.definitions = definitions.definitions;
     request.definition_count = definitions.count;
@@ -1616,24 +1640,29 @@ static ctool_status_t as_open_fixed_artifact(const char *path, int jit_mode,
     request.entry_candidate_count = 2u;
     request.case_insensitive_symbols = CTOOL_TRUE;
     request.allow_implicit_externs = CTOOL_FALSE;
-    request.as.fixed.code.base_address = AS_JIT_CODE_BASE;
-    request.as.fixed.code.maximum_bytes = AS_MAX_CODE;
-    request.as.fixed.data.base_address = AS_JIT_DATA_BASE;
-    request.as.fixed.data.maximum_bytes = AS_MAX_DATA;
-    status = ctool_asm_assemble(fixed->job, &source, &request,
-                                fixed->fixed_output, &fixed->artifact);
+    if (artifact_kind == CTOOL_ASM_ARTIFACT_FIXED_IMAGE) {
+      request.as.fixed.code.base_address = AS_JIT_CODE_BASE;
+      request.as.fixed.code.maximum_bytes = AS_MAX_CODE;
+      request.as.fixed.data.base_address = AS_JIT_DATA_BASE;
+      request.as.fixed.data.maximum_bytes = AS_MAX_DATA;
+    }
+    status = ctool_asm_assemble(assembled->job, &source, &request,
+                                assembled->assembly_output,
+                                &assembled->artifact);
   }
   if (status == CTOOL_OK) {
-    status = as_validate_fixed_artifact(fixed);
+    status = artifact_kind == CTOOL_ASM_ARTIFACT_FIXED_IMAGE
+                 ? as_validate_fixed_artifact(assembled)
+                 : as_validate_object_artifact(assembled);
   }
   if (status != CTOOL_OK) {
-    if (fixed->job != (ctool_job_t *)0 &&
-        ctool_job_diagnostic_count(fixed->job) != 0u) {
-      (void)ctool_job_render_diagnostics(fixed->job);
+    if (assembled->job != (ctool_job_t *)0 &&
+        ctool_job_diagnostic_count(assembled->job) != 0u) {
+      (void)ctool_job_render_diagnostics(assembled->job);
     } else {
       as_report_failure("assembly", path, status);
     }
-    as_fixed_artifact_close(fixed);
+    as_assembled_artifact_close(assembled);
   }
   return status;
 }
@@ -1648,7 +1677,7 @@ static void as_copy_fixed_region(const ctool_asm_result_t *artifact,
 }
 
 void as_jit(const char *path) {
-  as_fixed_artifact_t fixed;
+  as_assembled_artifact_t fixed;
   const ctool_asm_region_t *code;
   const ctool_asm_region_t *data;
   void (*entry_fn)(void);
@@ -1658,7 +1687,8 @@ void as_jit(const char *path) {
     return;
   }
   serial_printf("[asm] JIT assemble: %s\n", path);
-  if (as_open_fixed_artifact(path, 1, &fixed) != CTOOL_OK) {
+  if (as_open_artifact(path, 1, CTOOL_ASM_ARTIFACT_FIXED_IMAGE,
+                       &fixed) != CTOOL_OK) {
     return;
   }
   code = as_fixed_region(&fixed.artifact, AS_JIT_CODE_BASE);
@@ -1670,7 +1700,7 @@ void as_jit(const char *path) {
   if (!shell_jit_program_start_regions(path, AS_JIT_CODE_BASE, AS_MAX_CODE,
                                        AS_JIT_DATA_BASE, AS_MAX_DATA)) {
     print("asm: cannot launch nested JIT program (snapshot failed)\n");
-    as_fixed_artifact_close(&fixed);
+    as_assembled_artifact_close(&fixed);
     return;
   }
   as_copy_fixed_region(&fixed.artifact, code);
@@ -1684,14 +1714,13 @@ void as_jit(const char *path) {
   shell_jit_program_end();
   stack_guard_check();
   serial_printf("[asm] JIT execution complete\n");
-  as_fixed_artifact_close(&fixed);
+  as_assembled_artifact_close(&fixed);
 }
 
 void as_aot(const char *src_path, const char *out_path) {
-  as_fixed_artifact_t fixed;
-  const ctool_asm_region_t *code;
-  const ctool_asm_region_t *data;
+  as_assembled_artifact_t assembled;
   ctool_buffer_t *executable = (ctool_buffer_t *)0;
+  ctool_ld_result_t link_result;
   ctool_path_t root;
   ctool_path_t output_path;
   ctool_status_t status;
@@ -1702,43 +1731,41 @@ void as_aot(const char *src_path, const char *out_path) {
     return;
   }
   serial_printf("[asm] AOT assemble: %s -> %s\n", src_path, out_path);
-  status = as_open_fixed_artifact(src_path, 0, &fixed);
+  status = as_open_artifact(src_path, 0, CTOOL_ASM_ARTIFACT_ELF32_REL,
+                            &assembled);
   if (status != CTOOL_OK) {
     return;
   }
-  code = as_fixed_region(&fixed.artifact, AS_JIT_CODE_BASE);
-  data = as_fixed_region(&fixed.artifact, AS_JIT_DATA_BASE);
   print("Assembled: ");
-  print_int(code->memory_size);
-  print(" bytes code, ");
-  print_int(data != (const ctool_asm_region_t *)0
-                ? data->memory_size
-                : 0u);
-  print(" bytes data\n");
-  status = ctool_job_open_buffer(fixed.job, 256u,
-                                 AS_MAX_CODE + AS_MAX_DATA + 4096u,
+  print_int(assembled.artifact.bytes.size);
+  print(" byte relocatable object\n");
+  status = ctool_job_open_buffer(assembled.job, 256u,
+                                 ctool_default_limits().output_bytes,
                                  &executable);
   if (status == CTOOL_OK) {
-    status = as_elf32_exec_write(&fixed.artifact, executable);
+    status = as_elf32_exec_link(assembled.job, &assembled.artifact,
+                                AS_JIT_CODE_BASE,
+                                AS_MAX_CODE + AS_MAX_DATA, executable,
+                                &link_result);
   }
   if (status == CTOOL_OK) {
-    status = ctool_path_root(ctool_job_arena(fixed.job), &root);
+    status = ctool_path_root(ctool_job_arena(assembled.job), &root);
   }
   if (status == CTOOL_OK) {
-    status = ctool_path_resolve(ctool_job_arena(fixed.job), &root,
+    status = ctool_path_resolve(ctool_job_arena(assembled.job), &root,
                                 ctool_string(out_path),
                                 ctool_default_limits().path_bytes,
                                 &output_path);
   }
   if (status == CTOOL_OK) {
-    status = ctool_job_write(fixed.job, &output_path,
+    status = ctool_job_write(assembled.job, &output_path,
                              ctool_buffer_view(executable));
   }
   if (status != CTOOL_OK) {
     as_report_failure("output", out_path, status);
   } else {
     serial_printf("[asm] Wrote ELF: %s (entry=0x%x, total=%u bytes)\n",
-                  out_path, fixed.artifact.entry_address,
+                  out_path, link_result.entry,
                   ctool_buffer_view(executable).size);
     print("Written to ");
     print(out_path);
@@ -1747,13 +1774,14 @@ void as_aot(const char *src_path, const char *out_path) {
   if (executable != (ctool_buffer_t *)0) {
     ctool_buffer_close(executable);
   }
-  as_fixed_artifact_close(&fixed);
+  as_assembled_artifact_close(&assembled);
 }
 
 void as_kernel_selftest(void) {
-  as_fixed_artifact_t fixed;
-  ctool_status_t status = as_open_fixed_artifact(
-      "/demos/include_feature.asm", 1, &fixed);
+  as_assembled_artifact_t fixed;
+  ctool_status_t status = as_open_artifact(
+      "/demos/include_feature.asm", 1, CTOOL_ASM_ARTIFACT_FIXED_IMAGE,
+      &fixed);
   if (status != CTOOL_OK) {
     kernel_panic("CupidASM kernel adapter self-test failed (%u)",
                  (uint32_t)status);
@@ -1762,7 +1790,7 @@ void as_kernel_selftest(void) {
     kernel_panic("CupidASM kernel binding catalogue changed (%u)",
                  fixed.definition_count);
   }
-  as_fixed_artifact_close(&fixed);
+  as_assembled_artifact_close(&fixed);
   KINFO("CupidASM kernel adapter self-test passed (%u definitions)",
         AS_EXPECTED_DEFINITIONS);
 }

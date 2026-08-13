@@ -20,11 +20,13 @@ typedef struct {
   ctool_asm_artifact_kind_t artifact;
   const char *input;
   const char *output;
+  const char *range_map;
 } cupidasm_cli_t;
 
 static void cupidasm_usage(FILE *stream) {
   (void)fprintf(stream,
-                "usage: cupidasm -f bin|elf32 INPUT -o OUTPUT\n");
+                "usage: cupidasm -f bin [--map MAP] INPUT -o OUTPUT\n"
+                "       cupidasm -f elf32 INPUT -o OUTPUT\n");
 }
 
 static int cupidasm_take_value(int argc, char **argv, int *index,
@@ -81,13 +83,25 @@ static int cupidasm_parse_cli(int argc, char **argv, cupidasm_cli_t *cli) {
       cli->output = value;
       continue;
     }
+    taken = cupidasm_take_value(argc, argv, &index, argument, "--map", &value);
+    if (taken != 0) {
+      if (taken < 0 || cli->range_map != (const char *)0 ||
+          value[0] == '\0') {
+        return 0;
+      }
+      cli->range_map = value;
+      continue;
+    }
     if (argument[0] == '-' || cli->input != (const char *)0) {
       return 0;
     }
     cli->input = argument;
   }
   return have_format == CTOOL_TRUE && cli->input != (const char *)0 &&
-                 cli->output != (const char *)0
+                 cli->output != (const char *)0 &&
+                 (cli->range_map == (const char *)0 ||
+                  (cli->artifact == CTOOL_ASM_ARTIFACT_RAW &&
+                   strcmp(cli->range_map, cli->output) != 0))
              ? 1
              : 0;
 }
@@ -274,6 +288,42 @@ static ctool_status_t cupidasm_write_output(const char *path,
   return fclose(file) == 0 ? CTOOL_OK : CTOOL_ERR_IO;
 }
 
+static const char *cupidasm_range_kind_name(ctool_asm_raw_range_kind_t kind) {
+  if (kind == CTOOL_ASM_RAW_RANGE_CODE16) {
+    return "code16";
+  }
+  if (kind == CTOOL_ASM_RAW_RANGE_CODE32) {
+    return "code32";
+  }
+  return "data";
+}
+
+static ctool_status_t cupidasm_write_range_map(
+    const char *path, const ctool_asm_result_t *result,
+    ctool_u32 base_address) {
+  FILE *file = cupidasm_open_output(path);
+  ctool_u32 index;
+  if (file == (FILE *)0) {
+    return CTOOL_ERR_IO;
+  }
+  if (fprintf(file, "cupid.raw-map.v1\nsize %u\nbase 0x%08x\n",
+              (unsigned int)result->bytes.size,
+              (unsigned int)base_address) < 0) {
+    (void)fclose(file);
+    return CTOOL_ERR_IO;
+  }
+  for (index = 0u; index < result->raw_range_count; index++) {
+    const ctool_asm_raw_range_t *range = &result->raw_ranges[index];
+    if (fprintf(file, "range 0x%08x %s\n",
+                (unsigned int)range->offset,
+                cupidasm_range_kind_name(range->kind)) < 0) {
+      (void)fclose(file);
+      return CTOOL_ERR_IO;
+    }
+  }
+  return fclose(file) == 0 ? CTOOL_OK : CTOOL_ERR_IO;
+}
+
 int main(int argc, char **argv) {
   cupidasm_cli_t cli;
   char *native_root = (char *)0;
@@ -343,6 +393,10 @@ int main(int argc, char **argv) {
   status = ctool_asm_assemble(job, &source, &request, output, &result);
   if (status == CTOOL_OK) {
     status = cupidasm_write_output(cli.output, result.bytes);
+  }
+  if (status == CTOOL_OK && cli.range_map != (const char *)0) {
+    status = cupidasm_write_range_map(cli.range_map, &result,
+                                      result.raw_origin);
   }
   if (status != CTOOL_OK) {
     if (ctool_job_diagnostic_count(job) != 0u) {

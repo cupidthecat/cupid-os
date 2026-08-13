@@ -194,12 +194,79 @@ EXPECTED_LINKS = {
     ),
 }
 REPORT_SCHEMA = "cupid.bootstrap-report.v1"
+WINDOWS_REPORT_SCHEMA = "cupid.windows-bootstrap-report.v1"
 BOOTSTRAP_PUBLICATION_NAMES = (
     "stage-two",
     "stage-three",
     "behavior",
     "bootstrap-report.json",
 )
+WINDOWS_COMPILE_DEFINES = frozenset(
+    {
+        "ctool_host",
+        "cupidasm_main",
+        "cupidc_main",
+        "cupidld_main",
+        "cupidobj_main",
+        "publication_runtime",
+    }
+)
+WINDOWS_LINKS = {
+    "cupidasm": (
+        "start",
+        "cupidasm_main",
+        "cupidasm",
+        "ctool_host",
+        "ctool",
+        "elf32",
+        "x86",
+        "runtime",
+    ),
+    "cupiddis": (
+        "start",
+        "cupiddis_main",
+        "cupiddis",
+        "ctool_host",
+        "ctool",
+        "elf32",
+        "x86",
+        "runtime",
+    ),
+    "cupidld": (
+        "start",
+        "publication_start",
+        "cupidld_main",
+        "cupidld",
+        "ctool_host",
+        "ctool",
+        "elf32",
+        "publication_runtime",
+        "runtime",
+    ),
+    "cupidobj": (
+        "start",
+        "cupidobj_main",
+        "cupidobj",
+        "ctool_host",
+        "ctool",
+        "elf32",
+        "runtime",
+    ),
+    "cupidc": (
+        "start",
+        "cupidc_main",
+        "cupidc_emit",
+        "cupidc_ir",
+        "cupidc_frontend",
+        "cupidc_type",
+        "cupidc_pp",
+        "ctool_host",
+        "ctool",
+        "elf32",
+        "x86",
+        "runtime",
+    ),
+}
 WSL_PRIVATE_RUN_SCRIPT = (
     "umask 077; "
     'private="$(mktemp -d '
@@ -1788,6 +1855,244 @@ def _build_stage(
     return Stage(objects=objects, tools=tools)
 
 
+def _windows_imports(
+    tool_name: str,
+) -> tuple[tuple[str, tuple[str, ...]], ...]:
+    return (
+        WINDOWS_LINKER_IMPORTS
+        if tool_name == "cupidld"
+        else WINDOWS_TOOL_IMPORTS
+    )
+
+
+def _windows_import_selectors(tool_name: str) -> tuple[str, ...]:
+    return tuple(
+        f"__imp_{procedure}={library}:{procedure}"
+        for library, procedures in _windows_imports(tool_name)
+        for procedure in procedures
+    )
+
+
+def _windows_build_plan(
+    linux_plan: dict[str, object],
+) -> dict[str, object]:
+    raw_sources = _require_list(
+        linux_plan.get("sources"), "build_plan.sources"
+    )
+    sources: list[dict[str, object]] = []
+    for raw_source in raw_sources:
+        source = _require_object(raw_source, "build source")
+        name = str(source["name"])
+        path = str(source["path"])
+        gnu_extensions = bool(source["gnu_extensions"])
+        if name == "runtime":
+            path = "/toolchain/hosted/i386-windows/runtime.cc"
+            gnu_extensions = True
+        sources.append(
+            {
+                "definitions": (
+                    ["_WIN32=1"]
+                    if name in WINDOWS_COMPILE_DEFINES
+                    else []
+                ),
+                "gnu_extensions": gnu_extensions,
+                "name": name,
+                "path": path,
+            }
+        )
+    sources.append(
+        {
+            "definitions": ["_WIN32=1"],
+            "gnu_extensions": False,
+            "name": "publication_runtime",
+            "path": (
+                "/toolchain/hosted/i386-windows/"
+                "publication_runtime.cc"
+            ),
+        }
+    )
+    return {
+        "assembly_sources": [
+            {
+                "name": "start",
+                "path": (
+                    "/toolchain/hosted/i386-windows/tool_start.asm"
+                ),
+            },
+            {
+                "name": "publication_start",
+                "path": (
+                    "/toolchain/hosted/i386-windows/"
+                    "publication_start.asm"
+                ),
+            },
+        ],
+        "include_arguments": list(EXPECTED_INCLUDE_ARGUMENTS),
+        "imports": {
+            name: [
+                {
+                    "library": library,
+                    "procedure": procedure,
+                    "slot": f"__imp_{procedure}",
+                }
+                for library, procedures in _windows_imports(name)
+                for procedure in procedures
+            ]
+            for name in TOOL_NAMES
+        },
+        "links": {
+            name: list(WINDOWS_LINKS[name]) for name in TOOL_NAMES
+        },
+        "producer_tools": list(PRODUCER_NAMES),
+        "sources": sources,
+        "workers": int(linux_plan["workers"]),
+    }
+
+
+def _windows_link_arguments(
+    tool_name: str,
+    output: Path,
+    objects: dict[str, Path],
+) -> list[str | Path]:
+    arguments: list[str | Path] = [
+        "-m",
+        "i386pe",
+        "--text-address",
+        "0x00401000",
+        "--entry",
+        "_start",
+    ]
+    for selector in _windows_import_selectors(tool_name):
+        arguments.extend(("--import", selector))
+    arguments.extend(("-o", output))
+    arguments.extend(objects[name] for name in WINDOWS_LINKS[tool_name])
+    return arguments
+
+
+def _build_windows_stage(
+    runner: ToolRunner,
+    source_root: Path,
+    stage_directory: Path,
+    producers: dict[str, Path],
+    native_plan: dict[str, object],
+    stage_name: str,
+) -> Stage:
+    stage_directory.mkdir()
+    raw_sources = _require_list(
+        native_plan.get("sources"), "Windows build plan sources"
+    )
+    include_arguments = [
+        str(argument)
+        for argument in _require_list(
+            native_plan.get("include_arguments"),
+            "Windows build plan include arguments",
+        )
+    ]
+
+    def compile_source(raw_source: object) -> tuple[str, Path]:
+        source = _require_object(raw_source, "Windows build source")
+        name = str(source["name"])
+        logical_source = str(source["path"])
+        object_path = stage_directory / f"{name}.o"
+        arguments: list[str | Path] = ["--root", source_root]
+        for definition in _require_list(
+            source.get("definitions"),
+            f"Windows build source definitions: {name}",
+        ):
+            arguments.extend(("-D", str(definition)))
+        arguments.extend(
+            ("-c", logical_source, *include_arguments)
+        )
+        if source["gnu_extensions"]:
+            arguments.append("--gnu")
+        arguments.extend(
+            ("-o", _logical_path(source_root, object_path))
+        )
+        _run_clean(
+            runner,
+            producers["cupidc"],
+            arguments,
+            f"{stage_name} native CupidC for {logical_source}",
+            360,
+        )
+        _validate_i386_relocatable(object_path)
+        return name, object_path
+
+    workers = int(native_plan["workers"])
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        compiled = list(executor.map(compile_source, raw_sources))
+    objects = dict(compiled)
+
+    raw_assembly = _require_list(
+        native_plan.get("assembly_sources"),
+        "Windows build plan assembly sources",
+    )
+    for raw_source in raw_assembly:
+        source = _require_object(raw_source, "Windows assembly source")
+        name = str(source["name"])
+        source_path = source_root / str(source["path"]).lstrip("/")
+        object_path = stage_directory / f"{name}.o"
+        _run_clean(
+            runner,
+            producers["cupidasm"],
+            ["-f", "elf32", source_path, "-o", object_path],
+            f"{stage_name} native CupidASM for {source['path']}",
+            120,
+        )
+        _validate_i386_relocatable(object_path)
+        objects[name] = object_path
+
+    tools: dict[str, Path] = {}
+    for tool_name in TOOL_NAMES:
+        executable = stage_directory / f"{tool_name}.exe"
+        _run_clean(
+            runner,
+            producers["cupidld"],
+            _windows_link_arguments(tool_name, executable, objects),
+            f"{stage_name} native CupidLD for {tool_name}",
+            180,
+        )
+        _validate_static_i386_pe32(
+            executable,
+            int(EXPECTED_WINDOWS_TARGET["entry"]),
+            _windows_imports(tool_name),
+        )
+        tools[tool_name] = executable
+    return Stage(objects=objects, tools=tools)
+
+
+def _compare_windows_stages(
+    stage_two: Stage,
+    stage_three: Stage,
+    c_source_names: Sequence[str],
+    assembly_names: Sequence[str],
+) -> dict[str, object]:
+    for name in (*c_source_names, *assembly_names):
+        if (
+            stage_two.objects[name].read_bytes()
+            != stage_three.objects[name].read_bytes()
+        ):
+            kind = "C" if name in c_source_names else "assembly"
+            raise BootstrapError(
+                f"native Windows {kind} object differs across stages: "
+                f"{name}"
+            )
+    for name in TOOL_NAMES:
+        if (
+            stage_two.tools[name].read_bytes()
+            != stage_three.tools[name].read_bytes()
+        ):
+            raise BootstrapError(
+                f"native Windows tool image differs across stages: {name}"
+            )
+    return {
+        "all_equal": True,
+        "assembly_objects": len(assembly_names),
+        "c_objects": len(c_source_names),
+        "tool_images": len(TOOL_NAMES),
+    }
+
+
 def _compare_stages(
     stage_two: Stage,
     stage_three: Stage,
@@ -1863,6 +2168,215 @@ def _expect_status(
             f"{label} returned {result.returncode}, expected "
             f"{expected}{suffix}"
         )
+
+
+def _run_native_windows_behavior_checks(
+    runner: ToolRunner,
+    output_root: Path,
+    stage_two: Stage,
+    stage_three: Stage,
+) -> dict[str, int]:
+    behavior_root = output_root / "behavior"
+    behavior_root.mkdir()
+
+    for tool_name in TOOL_NAMES:
+        help_result = _run_stage_pair(
+            runner,
+            stage_two,
+            stage_three,
+            tool_name,
+            ["--help"],
+        )
+        _expect_status(
+            help_result, 0, f"native Windows {tool_name} help"
+        )
+        if (
+            "usage:" not in help_result.stdout.casefold()
+            or help_result.stderr
+        ):
+            raise BootstrapError(
+                f"native Windows {tool_name} help output differs"
+            )
+
+        failure_result = _run_stage_pair(
+            runner,
+            stage_two,
+            stage_three,
+            tool_name,
+            ["--definitely-invalid-option"],
+        )
+        _expect_status(
+            failure_result,
+            2,
+            f"native Windows {tool_name} invalid option",
+        )
+        if (
+            failure_result.stdout
+            or "usage:" not in failure_result.stderr.casefold()
+        ):
+            raise BootstrapError(
+                f"native Windows {tool_name} failure output differs"
+            )
+
+    valid_source = behavior_root / "valid.cc"
+    valid_source.write_text(
+        "int native_fixed_point_value(int value) { return value + 17; }\n",
+        encoding="ascii",
+        newline="\n",
+    )
+    stage_two_object = behavior_root / "stage-two-valid.o"
+    stage_three_object = behavior_root / "stage-three-valid.o"
+    compile_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupidc",
+        ["-c", valid_source, "-o", stage_two_object],
+        ["-c", valid_source, "-o", stage_three_object],
+        120,
+    )
+    _expect_status(compile_result, 0, "native Windows CupidC source")
+    if (
+        compile_result.stdout
+        or compile_result.stderr
+        or stage_two_object.read_bytes()
+        != stage_three_object.read_bytes()
+    ):
+        raise BootstrapError("native Windows CupidC output differs")
+    _validate_i386_relocatable(stage_two_object)
+
+    assembly_source = behavior_root / "valid.asm"
+    assembly_source.write_text(
+        "BITS 16\nORG 0x7c00\nmov ax, 0x1234\nret\n",
+        encoding="ascii",
+        newline="\n",
+    )
+    stage_two_binary = behavior_root / "stage-two-valid.bin"
+    stage_three_binary = behavior_root / "stage-three-valid.bin"
+    assembly_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupidasm",
+        ["-f", "bin", assembly_source, "-o", stage_two_binary],
+        ["-f", "bin", assembly_source, "-o", stage_three_binary],
+        60,
+    )
+    _expect_status(assembly_result, 0, "native Windows CupidASM source")
+    if (
+        assembly_result.stdout
+        or assembly_result.stderr
+        or stage_two_binary.read_bytes() != b"\xb8\x34\x12\xc3"
+        or stage_three_binary.read_bytes()
+        != stage_two_binary.read_bytes()
+    ):
+        raise BootstrapError("native Windows CupidASM output differs")
+
+    disassembly_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupiddis",
+        [
+            "--raw",
+            "--mode",
+            "16",
+            "--base",
+            "0x7c00",
+            stage_two_binary,
+        ],
+        [
+            "--raw",
+            "--mode",
+            "16",
+            "--base",
+            "0x7c00",
+            stage_three_binary,
+        ],
+        60,
+    )
+    _expect_status(
+        disassembly_result, 0, "native Windows CupidDis input"
+    )
+    if (
+        "mov ax, 0x1234" not in disassembly_result.stdout
+        or disassembly_result.stderr
+    ):
+        raise BootstrapError("native Windows CupidDis output differs")
+
+    asset = behavior_root / "asset.bin"
+    asset.write_bytes(b"native-windows-fixed-point")
+    stage_two_wrapped = behavior_root / "stage-two-wrapped.o"
+    stage_three_wrapped = behavior_root / "stage-three-wrapped.o"
+    wrap_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupidobj",
+        [
+            "wrap",
+            asset,
+            "--stem",
+            "native_windows_fixed_point",
+            "-o",
+            stage_two_wrapped,
+        ],
+        [
+            "wrap",
+            asset,
+            "--stem",
+            "native_windows_fixed_point",
+            "-o",
+            stage_three_wrapped,
+        ],
+        60,
+    )
+    _expect_status(wrap_result, 0, "native Windows CupidObj input")
+    if (
+        wrap_result.stdout
+        or wrap_result.stderr
+        or stage_two_wrapped.read_bytes()
+        != stage_three_wrapped.read_bytes()
+    ):
+        raise BootstrapError("native Windows CupidObj output differs")
+    _validate_i386_relocatable(stage_two_wrapped)
+
+    stage_two_linked = behavior_root / "stage-two-relinked.exe"
+    stage_three_linked = behavior_root / "stage-three-relinked.exe"
+    link_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupidld",
+        _windows_link_arguments(
+            "cupidasm", stage_two_linked, stage_two.objects
+        ),
+        _windows_link_arguments(
+            "cupidasm", stage_three_linked, stage_three.objects
+        ),
+        180,
+    )
+    _expect_status(link_result, 0, "native Windows CupidLD input")
+    if (
+        link_result.stdout
+        or link_result.stderr
+        or stage_two_linked.read_bytes()
+        != stage_two.tools["cupidasm"].read_bytes()
+        or stage_three_linked.read_bytes()
+        != stage_three.tools["cupidasm"].read_bytes()
+    ):
+        raise BootstrapError("native Windows CupidLD output differs")
+    _validate_static_i386_pe32(
+        stage_two_linked,
+        int(EXPECTED_WINDOWS_TARGET["entry"]),
+        WINDOWS_TOOL_IMPORTS,
+    )
+
+    return {
+        "failure_cases": len(TOOL_NAMES),
+        "help_cases": len(TOOL_NAMES),
+        "success_cases": len(TOOL_NAMES),
+    }
 
 
 def _build_windows_tool_image(
@@ -4865,6 +5379,212 @@ def _bootstrap_from_frozen_seed(
         return report
 
 
+def _bootstrap_windows_from_frozen_seed(
+    seed_inputs: SeedInputs,
+    plan_inputs: SeedInputs,
+    source_root: Path,
+    output_root: Path,
+) -> dict[str, object]:
+    seed_tools = seed_inputs.tools
+    linux_plan = _require_object(
+        plan_inputs.manifest.get("build_plan"), "build_plan"
+    )
+    native_plan = _windows_build_plan(linux_plan)
+    source_root = source_root.resolve()
+    if output_root.is_symlink():
+        raise BootstrapError("bootstrap output may not be a symlink")
+    output_root = output_root.resolve()
+    if not (source_root / "toolchain").is_dir():
+        raise BootstrapError(f"source root has no toolchain: {source_root}")
+    _logical_path(source_root, output_root)
+    if output_root == source_root:
+        raise BootstrapError(
+            "bootstrap output may not replace the source root"
+        )
+    output_root.parent.mkdir(parents=True, exist_ok=True)
+    _require_bootstrap_output_available(output_root)
+
+    with tempfile.TemporaryDirectory(
+        prefix=f".{output_root.name}-private-",
+        dir=output_root.parent,
+    ) as temporary:
+        private_workspace = Path(temporary)
+        source_inputs = freeze_source_inputs(
+            source_root,
+            linux_plan,
+            private_workspace / "source",
+        )
+        private_source_root = source_inputs.root
+        require_source_closures(
+            source_inputs, source_root, linux_plan
+        )
+        source_snapshot = source_inputs.inventory
+        source_snapshot_digest = _source_snapshot_sha256(
+            source_snapshot
+        )
+        runner = ToolRunner(private_source_root)
+        seed_producers = {
+            name: seed_tools[name] for name in PRODUCER_NAMES
+        }
+        stage_two = _build_windows_stage(
+            runner,
+            private_source_root,
+            private_source_root / "stage-two",
+            seed_producers,
+            native_plan,
+            "stage two",
+        )
+        require_source_closures(
+            source_inputs, source_root, linux_plan
+        )
+        stage_two_producers = {
+            name: stage_two.tools[name] for name in PRODUCER_NAMES
+        }
+        stage_three = _build_windows_stage(
+            runner,
+            private_source_root,
+            private_source_root / "stage-three",
+            stage_two_producers,
+            native_plan,
+            "stage three",
+        )
+        require_source_closures(
+            source_inputs, source_root, linux_plan
+        )
+        raw_sources = _require_list(
+            native_plan.get("sources"), "Windows build plan sources"
+        )
+        c_source_names = [
+            str(_require_object(source, "Windows build source")["name"])
+            for source in raw_sources
+        ]
+        raw_assembly = _require_list(
+            native_plan.get("assembly_sources"),
+            "Windows build plan assembly sources",
+        )
+        assembly_names = [
+            str(
+                _require_object(
+                    source, "Windows assembly source"
+                )["name"]
+            )
+            for source in raw_assembly
+        ]
+        comparisons = _compare_windows_stages(
+            stage_two,
+            stage_three,
+            c_source_names,
+            assembly_names,
+        )
+        behavior = _run_native_windows_behavior_checks(
+            runner,
+            private_source_root,
+            stage_two,
+            stage_three,
+        )
+        require_source_closures(
+            source_inputs, source_root, linux_plan
+        )
+        seed_matches_stage_two = {
+            name: seed_tools[name].read_bytes()
+            == stage_two.tools[name].read_bytes()
+            for name in TOOL_NAMES
+        }
+        report: dict[str, object] = {
+            "behavior": behavior,
+            "build_plan": native_plan,
+            "build_plan_sha256": _build_plan_sha256(native_plan),
+            "comparisons": comparisons,
+            "initial_seed_matches_stage_two": seed_matches_stage_two,
+            "plan_manifest_sha256": plan_inputs.manifest_sha256,
+            "platform": "windows-native",
+            "schema": WINDOWS_REPORT_SCHEMA,
+            "seed_manifest_sha256": seed_inputs.manifest_sha256,
+            "source_inputs": {
+                "count": len(source_snapshot),
+                "files": source_snapshot,
+                "sha256": source_snapshot_digest,
+            },
+            "source_snapshot_sha256": source_snapshot_digest,
+            "stages": {
+                "stage-three": {
+                    "objects": _artifact_inventory(
+                        stage_three.objects
+                    ),
+                    "producer_generation": "native-stage-two",
+                    "tools": _artifact_inventory(stage_three.tools),
+                },
+                "stage-two": {
+                    "objects": _artifact_inventory(stage_two.objects),
+                    "producer_generation": (
+                        "checked-windows-execution-seed"
+                    ),
+                    "tools": _artifact_inventory(stage_two.tools),
+                },
+            },
+            "status": "pass",
+            "target": EXPECTED_WINDOWS_TARGET,
+        }
+        encoded_report = (
+            json.dumps(
+                report, indent=2, sort_keys=True, ensure_ascii=True
+            )
+            + "\n"
+        ).encode("ascii")
+        report_path = private_source_root / "bootstrap-report.json"
+        temporary_report = (
+            private_source_root / "bootstrap-report.json.tmp"
+        )
+        temporary_report.write_bytes(encoded_report)
+        temporary_report.replace(report_path)
+
+        publication_root = private_workspace / "publication"
+        publication_root.mkdir(mode=0o755)
+        for name in BOOTSTRAP_PUBLICATION_NAMES:
+            (private_source_root / name).replace(
+                publication_root / name
+            )
+        publish_bootstrap_outputs(publication_root, output_root)
+        return report
+
+
+def bootstrap_windows_from_seed(
+    manifest_path: Path,
+    plan_manifest_path: Path,
+    source_root: Path,
+    output_root: Path,
+) -> dict[str, object]:
+    """Build two native PE generations from the checked Windows seed."""
+    with tempfile.TemporaryDirectory(
+        prefix="cupid-windows-bootstrap-inputs-"
+    ) as temporary:
+        temporary_root = Path(temporary)
+        seed_inputs = freeze_seed_inputs(
+            manifest_path, temporary_root / "execution-seed"
+        )
+        if seed_inputs.manifest.get("schema") != WINDOWS_SEED_SCHEMA:
+            raise BootstrapError(
+                "native Windows bootstrap requires a Windows execution seed"
+            )
+        plan_inputs = freeze_seed_inputs(
+            plan_manifest_path, temporary_root / "plan-seed"
+        )
+        if plan_inputs.manifest.get("schema") != SEED_SCHEMA:
+            raise BootstrapError(
+                "native Windows bootstrap requires a Linux build-plan seed"
+            )
+        if os.name != "nt":
+            raise BootstrapError(
+                "native Windows bootstrap requires a Windows host"
+            )
+        return _bootstrap_windows_from_frozen_seed(
+            seed_inputs,
+            plan_inputs,
+            source_root,
+            output_root,
+        )
+
+
 def bootstrap_from_seed(
     manifest_path: Path,
     source_root: Path,
@@ -4902,6 +5622,20 @@ def _build_parser() -> argparse.ArgumentParser:
     bootstrap.add_argument("--manifest", required=True, type=Path)
     bootstrap.add_argument("--root", required=True, type=Path)
     bootstrap.add_argument("--output", required=True, type=Path)
+    windows_bootstrap = subparsers.add_parser(
+        "bootstrap-windows",
+        help=(
+            "build and compare two native Windows stages from the PE seed"
+        ),
+    )
+    windows_bootstrap.add_argument(
+        "--manifest", required=True, type=Path
+    )
+    windows_bootstrap.add_argument(
+        "--plan-manifest", required=True, type=Path
+    )
+    windows_bootstrap.add_argument("--root", required=True, type=Path)
+    windows_bootstrap.add_argument("--output", required=True, type=Path)
     run = subparsers.add_parser(
         "run",
         help="verify, freeze, and run one checked-seed tool",
@@ -4935,6 +5669,18 @@ def main(argv: list[str] | None = None) -> int:
                 "(stage two equals stage three)"
             )
             return 0
+        if arguments.command == "bootstrap-windows":
+            bootstrap_windows_from_seed(
+                arguments.manifest,
+                arguments.plan_manifest,
+                arguments.root,
+                arguments.output,
+            )
+            print(
+                "checked i386 Windows bootstrap: ok "
+                "(native stage two equals stage three)"
+            )
+            return 0
         if arguments.command == "run":
             tool_arguments = list(arguments.tool_arguments)
             if tool_arguments[:1] == ["--"]:
@@ -4954,6 +5700,8 @@ def main(argv: list[str] | None = None) -> int:
             prefix = "bootstrap seed verification failed"
         elif arguments.command == "run":
             prefix = "checked seed tool failed"
+        elif arguments.command == "bootstrap-windows":
+            prefix = "checked Windows bootstrap failed"
         else:
             prefix = "checked bootstrap failed"
         print(f"{prefix}: {error}", file=sys.stderr)

@@ -104,6 +104,126 @@ class CupidAsmCliTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(output.read_bytes(), bytes.fromhex("b8 34 12 c3"))
 
+    def test_cli_publishes_coalesced_raw_layout_ranges(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "mixed.asm"
+            output = root / "mixed.bin"
+            range_map = root / "mixed.cupidmap"
+            repeated_map = root / "mixed-repeat.cupidmap"
+            source.write_text(
+                "BITS 16\n"
+                "ORG 0x7c00\n"
+                "    mov ax, 0x1234\n"
+                "    db 0, 0, 0, 0\n"
+                "BITS 32\n"
+                "    mov eax, 0x12345678\n"
+                "    align 16, 0\n"
+                "BITS 16\n"
+                "    ret\n",
+                encoding="utf-8",
+            )
+            command = [
+                str(self.cli_path),
+                "-f",
+                "bin",
+                "--map",
+                str(range_map),
+                str(source),
+                "-o",
+                str(output),
+            ]
+            result = subprocess.run(
+                command,
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+            first_map = range_map.read_bytes() if range_map.exists() else b""
+            repeated = subprocess.run(
+                [
+                    str(self.cli_path),
+                    "-f",
+                    "bin",
+                    "--map",
+                    str(repeated_map),
+                    str(source),
+                    "-o",
+                    str(output),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(repeated.returncode, 0, repeated.stderr)
+            self.assertEqual(
+                output.read_bytes(),
+                bytes.fromhex(
+                    "b8 34 12 00 00 00 00 b8 78 56 34 12 "
+                    "00 00 00 00 c3"
+                ),
+            )
+            self.assertEqual(
+                first_map,
+                b"cupid.raw-map.v1\n"
+                b"size 17\n"
+                b"base 0x00007c00\n"
+                b"range 0x00000000 code16\n"
+                b"range 0x00000003 data\n"
+                b"range 0x00000007 code32\n"
+                b"range 0x0000000c data\n"
+                b"range 0x00000010 code16\n",
+            )
+            self.assertEqual(repeated_map.read_bytes(), first_map)
+
+    def test_cli_limits_raw_maps_to_distinct_raw_outputs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "simple.asm"
+            output = root / "simple.o"
+            range_map = root / "simple.cupidmap"
+            source.write_text("BITS 32\nmain: ret\n", encoding="utf-8")
+
+            object_map = subprocess.run(
+                [
+                    str(self.cli_path),
+                    "-f",
+                    "elf32",
+                    "--map",
+                    str(range_map),
+                    str(source),
+                    "-o",
+                    str(output),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+            collision = subprocess.run(
+                [
+                    str(self.cli_path),
+                    "-f",
+                    "bin",
+                    "--map",
+                    str(output),
+                    str(source),
+                    "-o",
+                    str(output),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(object_map.returncode, 2)
+            self.assertIn("usage: cupidasm", object_map.stderr)
+            self.assertEqual(collision.returncode, 2)
+            self.assertIn("usage: cupidasm", collision.stderr)
+            self.assertFalse(output.exists())
+            self.assertFalse(range_map.exists())
+
     def test_cli_assembles_padding_nops_in_both_modes(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

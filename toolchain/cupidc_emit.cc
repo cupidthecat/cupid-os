@@ -12,6 +12,8 @@
 #define CEMIT_SECTION_BSS 3u
 #define CEMIT_SECTION_COUNT 4u
 
+#define CEMIT_STACK_PROBE_BYTES 4096u
+
 #define CEMIT_WIDE_DIVIDEND_LOW_STACK 0u
 #define CEMIT_WIDE_DIVIDEND_HIGH_STACK 4u
 #define CEMIT_WIDE_DIVISOR_LOW_STACK 8u
@@ -3854,6 +3856,39 @@ static ctool_status_t cemit_x86_reserve_locals(cemit_context_t *context,
   return cemit_x86_encode(context, &instruction,
                           (ctool_x86_encoding_t *)0,
                           (ctool_u32 *)0);
+}
+
+static ctool_status_t cemit_x86_probe_stack(cemit_context_t *context) {
+  ctool_x86_instruction_t instruction =
+      cemit_x86_instruction(CTOOL_X86_MN_TEST, 32u);
+  instruction.operand_count = 2u;
+  instruction.operands[0] = cemit_x86_memory_operand(
+      cemit_x86_register(CTOOL_X86_REG_GPR32, 4u), 0, 0u);
+  instruction.operands[1] =
+      cemit_x86_register_operand(CTOOL_X86_REG_GPR32, 4u);
+  return cemit_x86_encode(context, &instruction,
+                          (ctool_x86_encoding_t *)0,
+                          (ctool_u32 *)0);
+}
+
+static ctool_status_t cemit_x86_reserve_fixed_frame(
+    cemit_context_t *context, ctool_u32 byte_count) {
+  ctool_status_t status;
+  if (byte_count <= CEMIT_STACK_PROBE_BYTES) {
+    return cemit_x86_reserve_locals(context, byte_count);
+  }
+  status = CTOOL_OK;
+  while (status == CTOOL_OK && byte_count != 0u) {
+    ctool_u32 step = byte_count > CEMIT_STACK_PROBE_BYTES
+                         ? CEMIT_STACK_PROBE_BYTES
+                         : byte_count;
+    status = cemit_x86_reserve_locals(context, step);
+    if (status == CTOOL_OK) {
+      status = cemit_x86_probe_stack(context);
+    }
+    byte_count -= step;
+  }
+  return status;
 }
 
 static ctool_status_t cemit_x86_lea_local(cemit_context_t *context,
@@ -16510,7 +16545,7 @@ static ctool_status_t cemit_place_function(cemit_context_t *context,
           CTOOL_X86_REG_GPR32, 4u, 32u);
     }
     if (status == CTOOL_OK) {
-      status = cemit_x86_reserve_locals(context, frame_size);
+      status = cemit_x86_reserve_fixed_frame(context, frame_size);
     }
   } else {
     status = CTOOL_OK;

@@ -231,7 +231,9 @@ CUPIDASM_DEMOS_CONTRACT_OBJECTS := $(BUILD_DIR)/ctool.o \
                                   $(BUILD_DIR)/cupidasm_demos_contract.o
 CUPIDASM_KERNEL_ELF_CONTRACT_OBJECTS := $(BUILD_DIR)/ctool.o \
                                        $(BUILD_DIR)/ctool_host.o \
-                                       $(BUILD_DIR)/elf32.o \
+                                       $(BUILD_DIR)/elf32.o $(BUILD_DIR)/x86.o \
+                                       $(BUILD_DIR)/cupidasm.o \
+                                       $(BUILD_DIR)/cupidld.o \
                                        $(BUILD_DIR)/as_elf.o \
                                        $(BUILD_DIR)/cupidasm_kernel_elf_contract.o
 CUPIDASM_OBJECTS := $(BUILD_DIR)/ctool.o $(BUILD_DIR)/ctool_host.o \
@@ -746,6 +748,7 @@ test: $(CONTRACT_MANIFEST) \
 	$(CUPIDASM_CONTRACT) raw-expressions
 	$(CUPIDASM_CONTRACT) object-basic
 	$(CUPIDASM_CONTRACT) object-symbolic-immediate
+	$(CUPIDASM_CONTRACT) object-entry
 	$(CUPIDASM_CONTRACT) fixed-image
 	$(CUPIDASM_CONTRACT) fixed-directives
 	$(CUPIDASM_CONTRACT) alignment
@@ -755,6 +758,8 @@ test: $(CONTRACT_MANIFEST) \
 	$(CUPIDASM_DEMOS_CONTRACT) all
 	$(CUPIDASM_KERNEL_ELF_CONTRACT) code-only
 	$(CUPIDASM_KERNEL_ELF_CONTRACT) code-data-bss
+	$(CUPIDASM_KERNEL_ELF_CONTRACT) linked-object
+	$(CUPIDASM_KERNEL_ELF_CONTRACT) link-errors
 	$(CUPIDASM_KERNEL_ELF_CONTRACT) errors
 	$(CUPIDOBJ_CONTRACT) wrap-basic
 	$(CUPIDOBJ_CONTRACT) wrap-model

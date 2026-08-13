@@ -22,6 +22,9 @@ typedef struct {
   ctool_dis_raw_range_t *raw_ranges;
   ctool_u32 range_change_count;
   ctool_u32 range_capacity;
+  ctool_bool mapped_ranges;
+  const char *range_map;
+  ctool_u32 range_map_size;
   const char *input;
   const char **inputs;
   ctool_u32 input_count;
@@ -39,9 +42,12 @@ static void cupiddis_usage(FILE *stream) {
       "       cupiddis --raw --mode 16|32 "
       "[--range-at OFFSET:16|32|data]... "
       "[--mode-at OFFSET:16|32]... --base ADDRESS FILE\n"
+      "       cupiddis --raw --range-map MAP FILE\n"
       "       cupiddis --require-known --raw --mode 16|32 "
       "[--range-at OFFSET:16|32|data]... "
-      "[--mode-at OFFSET:16|32]... --base ADDRESS FILE [FILE...]\n");
+      "[--mode-at OFFSET:16|32]... --base ADDRESS FILE [FILE...]\n"
+      "       cupiddis --require-known --raw --range-map MAP "
+      "FILE [FILE...]\n");
 }
 
 static int cupiddis_parse_u32_span(const char *text, size_t size,
@@ -220,6 +226,278 @@ static int cupiddis_append_input(cupiddis_cli_t *cli, const char *input) {
   return 1;
 }
 
+typedef struct {
+  const char *data;
+  size_t size;
+} cupiddis_span_t;
+
+static int cupiddis_span_equal(cupiddis_span_t span, const char *text) {
+  size_t text_size = strlen(text);
+  return span.size == text_size &&
+                 memcmp(span.data, text, text_size) == 0
+             ? 1
+             : 0;
+}
+
+static int cupiddis_tokenize_line(const char *line, size_t line_size,
+                                  cupiddis_span_t *tokens,
+                                  size_t token_capacity,
+                                  size_t *token_count_out) {
+  size_t cursor = 0u;
+  size_t count = 0u;
+  while (cursor < line_size) {
+    size_t start;
+    while (cursor < line_size &&
+           (line[cursor] == ' ' || line[cursor] == '\t')) {
+      cursor++;
+    }
+    if (cursor == line_size) {
+      break;
+    }
+    if (count == token_capacity) {
+      return 0;
+    }
+    start = cursor;
+    while (cursor < line_size && line[cursor] != ' ' &&
+           line[cursor] != '\t') {
+      cursor++;
+    }
+    tokens[count].data = line + start;
+    tokens[count].size = cursor - start;
+    count++;
+  }
+  *token_count_out = count;
+  return 1;
+}
+
+static int cupiddis_read_range_map(const char *path, char **contents_out,
+                                   size_t *size_out) {
+  FILE *stream;
+  long length;
+  char *contents;
+  size_t total = 0u;
+#if defined(_WIN32)
+  stream = (FILE *)0;
+  if (fopen_s(&stream, path, "rb") != 0) {
+    stream = (FILE *)0;
+  }
+#else
+  stream = fopen(path, "rb");
+#endif
+  if (stream == (FILE *)0) {
+    return 0;
+  }
+  if (fseek(stream, 0l, SEEK_END) != 0) {
+    (void)fclose(stream);
+    return 0;
+  }
+  length = ftell(stream);
+  if (length < 0l || length > 1048576l || fseek(stream, 0l, 0) != 0) {
+    (void)fclose(stream);
+    return 0;
+  }
+  contents = (char *)malloc((size_t)length + 1u);
+  if (contents == (char *)0) {
+    (void)fclose(stream);
+    return 0;
+  }
+  while (total < (size_t)length) {
+    size_t count = fread(contents + total, 1u, (size_t)length - total,
+                         stream);
+    if (count == 0u) {
+      free(contents);
+      (void)fclose(stream);
+      return 0;
+    }
+    total += count;
+  }
+  if (fclose(stream) != 0) {
+    free(contents);
+    return 0;
+  }
+  contents[total] = '\0';
+  *contents_out = contents;
+  *size_out = total;
+  return 1;
+}
+
+static int cupiddis_map_kind(cupiddis_span_t token,
+                             ctool_dis_raw_range_kind_t *kind_out) {
+  if (cupiddis_span_equal(token, "code16")) {
+    *kind_out = CTOOL_DIS_RAW_RANGE_CODE16;
+    return 1;
+  }
+  if (cupiddis_span_equal(token, "code32")) {
+    *kind_out = CTOOL_DIS_RAW_RANGE_CODE32;
+    return 1;
+  }
+  if (cupiddis_span_equal(token, "data")) {
+    *kind_out = CTOOL_DIS_RAW_RANGE_DATA;
+    return 1;
+  }
+  return 0;
+}
+
+static int cupiddis_load_range_map(cupiddis_cli_t *cli,
+                                   const char **message_out) {
+  char *contents = (char *)0;
+  size_t contents_size = 0u;
+  size_t cursor = 0u;
+  ctool_bool have_schema = CTOOL_FALSE;
+  ctool_bool have_size = CTOOL_FALSE;
+  ctool_bool have_base = CTOOL_FALSE;
+  ctool_u32 expected_size = 0u;
+  ctool_u32 base = 0u;
+  ctool_dis_raw_range_t *ranges = (ctool_dis_raw_range_t *)0;
+  ctool_u32 range_count = 0u;
+  ctool_u32 range_capacity = 0u;
+  int success = 0;
+  *message_out = "raw range map could not be read";
+  if (!cupiddis_read_range_map(cli->range_map, &contents,
+                               &contents_size)) {
+    return 0;
+  }
+  while (cursor < contents_size) {
+    size_t line_start = cursor;
+    size_t line_size;
+    cupiddis_span_t tokens[4];
+    size_t token_count = 0u;
+    while (cursor < contents_size && contents[cursor] != '\n') {
+      cursor++;
+    }
+    line_size = cursor - line_start;
+    if (line_size != 0u && contents[line_start + line_size - 1u] == '\r') {
+      line_size--;
+    }
+    if (cursor < contents_size) {
+      cursor++;
+    }
+    if (!cupiddis_tokenize_line(contents + line_start, line_size, tokens,
+                                4u, &token_count) || token_count == 0u) {
+      *message_out = "raw range map contains an invalid line";
+      goto done;
+    }
+    if (have_schema == CTOOL_FALSE) {
+      if (token_count != 1u ||
+          !cupiddis_span_equal(tokens[0], "cupid.raw-map.v1")) {
+        *message_out = "raw range map has an unsupported schema";
+        goto done;
+      }
+      have_schema = CTOOL_TRUE;
+      continue;
+    }
+    if (cupiddis_span_equal(tokens[0], "size")) {
+      if (token_count != 2u || have_size == CTOOL_TRUE ||
+          !cupiddis_parse_u32_span(tokens[1].data, tokens[1].size,
+                                   &expected_size) ||
+          expected_size == 0u) {
+        *message_out = "raw range map requires one nonzero size";
+        goto done;
+      }
+      have_size = CTOOL_TRUE;
+      continue;
+    }
+    if (cupiddis_span_equal(tokens[0], "base")) {
+      if (token_count != 2u || have_base == CTOOL_TRUE ||
+          !cupiddis_parse_u32_span(tokens[1].data, tokens[1].size,
+                                   &base)) {
+        *message_out = "raw range map requires one base address";
+        goto done;
+      }
+      have_base = CTOOL_TRUE;
+      continue;
+    }
+    if (cupiddis_span_equal(tokens[0], "range")) {
+      ctool_dis_raw_range_t range;
+      ctool_dis_raw_range_t *resized;
+      ctool_u32 capacity;
+      size_t allocation_size;
+      if (token_count != 3u ||
+          !cupiddis_parse_u32_span(tokens[1].data, tokens[1].size,
+                                   &range.offset)) {
+        *message_out = "raw range map contains an invalid range start";
+        goto done;
+      }
+      if (!cupiddis_map_kind(tokens[2], &range.kind)) {
+        *message_out =
+            "raw range kind must be code16, code32, or data";
+        goto done;
+      }
+      if (range_count != 0u &&
+          range.offset <= ranges[range_count - 1u].offset) {
+        *message_out = "raw range starts must increase";
+        goto done;
+      }
+      if (range_count == 4294967295u) {
+        *message_out = "raw range map has too many ranges";
+        goto done;
+      }
+      if (range_count == range_capacity) {
+        capacity = range_capacity == 0u ? 4u : range_capacity;
+        if (capacity > 2147483647u) {
+          capacity = range_count + 1u;
+        } else {
+          capacity *= 2u;
+        }
+        allocation_size = (size_t)capacity * sizeof(*resized);
+        if (allocation_size / sizeof(*resized) != (size_t)capacity) {
+          *message_out = "raw range map has too many ranges";
+          goto done;
+        }
+        resized = (ctool_dis_raw_range_t *)realloc(ranges,
+                                                    allocation_size);
+        if (resized == (ctool_dis_raw_range_t *)0) {
+          *message_out = "raw range map exceeds the host limit";
+          goto done;
+        }
+        ranges = resized;
+        range_capacity = capacity;
+      }
+      ranges[range_count++] = range;
+      continue;
+    }
+    *message_out = "raw range map contains an unknown record";
+    goto done;
+  }
+  if (have_schema == CTOOL_FALSE) {
+    *message_out = "raw range map has an unsupported schema";
+    goto done;
+  }
+  if (have_size == CTOOL_FALSE) {
+    *message_out = "raw range map requires one size";
+    goto done;
+  }
+  if (have_base == CTOOL_FALSE) {
+    *message_out = "raw range map requires one base address";
+    goto done;
+  }
+  if (range_count == 0u) {
+    *message_out = "raw range map requires at least one range";
+    goto done;
+  }
+  if (ranges[0].offset != 0u) {
+    *message_out = "raw range map must start at offset zero";
+    goto done;
+  }
+  if (ranges[range_count - 1u].offset >= expected_size) {
+    *message_out = "raw range start is outside the mapped image";
+    goto done;
+  }
+  cli->raw_ranges = ranges;
+  cli->range_capacity = range_capacity;
+  cli->range_change_count = range_count - 1u;
+  cli->mapped_ranges = CTOOL_TRUE;
+  cli->range_map_size = expected_size;
+  cli->base_address = base;
+  ranges = (ctool_dis_raw_range_t *)0;
+  success = 1;
+
+done:
+  free(ranges);
+  free(contents);
+  return success;
+}
+
 static int cupiddis_take_value(int argc, char **argv, int *index,
                                const char *argument, const char *prefix,
                                const char **value_out) {
@@ -312,6 +590,16 @@ static int cupiddis_parse_cli(int argc, char **argv, cupiddis_cli_t *cli) {
       cli->have_base = CTOOL_TRUE;
       continue;
     }
+    taken = cupiddis_take_value(argc, argv, &index, argument, "--range-map",
+                                &value);
+    if (taken != 0) {
+      if (taken < 0 || cli->range_map != (const char *)0 ||
+          value[0] == '\0') {
+        return 0;
+      }
+      cli->range_map = value;
+      continue;
+    }
     taken = cupiddis_take_value(argc, argv, &index, argument, "--mode-at",
                                 &value);
     if (taken != 0) {
@@ -346,10 +634,18 @@ static int cupiddis_parse_cli(int argc, char **argv, cupiddis_cli_t *cli) {
     return 0;
   }
   if (cli->raw == CTOOL_TRUE) {
-    if (cli->nm == CTOOL_TRUE || cli->have_mode == CTOOL_FALSE ||
-        cli->have_base == CTOOL_FALSE ||
+    if (cli->nm == CTOOL_TRUE ||
         (cli->have_views == CTOOL_TRUE &&
          cli->views != CTOOL_DIS_VIEW_DISASSEMBLY)) {
+      return 0;
+    }
+    if (cli->range_map != (const char *)0) {
+      if (cli->have_mode == CTOOL_TRUE || cli->have_base == CTOOL_TRUE ||
+          cli->range_change_count != 0u) {
+        return 0;
+      }
+    } else if (cli->have_mode == CTOOL_FALSE ||
+               cli->have_base == CTOOL_FALSE) {
       return 0;
     }
     if (cli->have_views == CTOOL_FALSE) {
@@ -360,10 +656,11 @@ static int cupiddis_parse_cli(int argc, char **argv, cupiddis_cli_t *cli) {
       cli->raw_ranges[0].kind = cli->mode == CTOOL_X86_MODE_16
                                     ? CTOOL_DIS_RAW_RANGE_CODE16
                                     : CTOOL_DIS_RAW_RANGE_CODE32;
+      cli->mapped_ranges = CTOOL_TRUE;
     }
   } else {
     if (cli->have_mode == CTOOL_TRUE || cli->have_base == CTOOL_TRUE ||
-        cli->range_change_count != 0u ||
+        cli->range_change_count != 0u || cli->range_map != (const char *)0 ||
         (cli->nm == CTOOL_TRUE && cli->have_views == CTOOL_TRUE) ||
         (cli->nm == CTOOL_TRUE && cli->require_known == CTOOL_TRUE)) {
       return 0;
@@ -467,14 +764,29 @@ static void cupiddis_make_request(const cupiddis_cli_t *cli,
   request->input = cli->raw == CTOOL_TRUE ? CTOOL_DIS_INPUT_RAW
                                           : CTOOL_DIS_INPUT_ELF32;
   request->views = cli->views;
-  request->raw_mode = cli->range_change_count == 0u
+  request->raw_mode = cli->mapped_ranges == CTOOL_FALSE
                           ? cli->mode
                           : CTOOL_DIS_RAW_RANGE_MAP;
   request->raw_base_address = cli->base_address;
-  if (cli->range_change_count != 0u) {
+  if (cli->mapped_ranges == CTOOL_TRUE) {
     request->raw_ranges = cli->raw_ranges;
     request->raw_range_count = cli->range_change_count + 1u;
   }
+}
+
+static int cupiddis_range_map_matches(const cupiddis_cli_t *cli,
+                                      const ctool_source_t *source,
+                                      const char *input) {
+  if (cli->range_map == (const char *)0 ||
+      cli->range_map_size == source->contents.size) {
+    return 1;
+  }
+  (void)fprintf(stderr,
+                "cupiddis: %s: raw range map expects %u bytes, input has "
+                "%u\n",
+                input, (unsigned int)cli->range_map_size,
+                (unsigned int)source->contents.size);
+  return 0;
 }
 
 static int cupiddis_check_known_input(const cupiddis_cli_t *cli,
@@ -518,6 +830,9 @@ static int cupiddis_check_known_input(const cupiddis_cli_t *cli,
   if (status != CTOOL_OK) {
     (void)fprintf(stderr, "cupiddis: cannot load %s (%s)\n", input,
                   ctool_status_name(status));
+    goto done;
+  }
+  if (!cupiddis_range_map_matches(cli, &source, input)) {
     goto done;
   }
   if (cli->raw == CTOOL_FALSE && !cupiddis_is_elf(source.contents)) {
@@ -590,6 +905,15 @@ int main(int argc, char **argv) {
     free(cli.inputs);
     return 2;
   }
+  if (cli.range_map != (const char *)0) {
+    const char *message = (const char *)0;
+    if (!cupiddis_load_range_map(&cli, &message)) {
+      (void)fprintf(stderr, "cupiddis: %s: %s\n", cli.range_map, message);
+      free(cli.raw_ranges);
+      free(cli.inputs);
+      return 1;
+    }
+  }
   if (cli.require_known == CTOOL_TRUE) {
     const ctool_x86_decoder_t *decoder =
         (const ctool_x86_decoder_t *)0;
@@ -650,6 +974,9 @@ int main(int argc, char **argv) {
   if (status != CTOOL_OK) {
     (void)fprintf(stderr, "cupiddis: cannot load %s (%s)\n", cli.input,
                   ctool_status_name(status));
+    goto done;
+  }
+  if (!cupiddis_range_map_matches(&cli, &source, cli.input)) {
     goto done;
   }
   if (cli.raw == CTOOL_FALSE && !cupiddis_is_elf(source.contents)) {

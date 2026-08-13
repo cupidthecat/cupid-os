@@ -49,14 +49,19 @@ changes the compiler that builds itself and needs an additional bootstrap
 generation. Full commit is deterministic, fits the bounded hosted-tool stack,
 and removes the immediate ABI fault without weakening active source.
 
+ADR 0275 later implements that general compiler feature for fixed frames
+larger than 4 KiB. This paragraph records why the full-commit policy was still
+the correct bootstrap repair before a probed compiler generation existed.
+
 ## Consequences
 
 Native tools commit one MiB of virtual stack when Windows creates a process.
 They still fail normally if they exceed that bounded stack. CupidLD's PE output
-bytes change, so the five native images and their manifest must be rebuilt and
-verified together. A future page-probing implementation can return the initial
-commit to one page after a staged compiler fixed point proves the new prologue
-on Windows.
+bytes changed, so the five native images and their manifest were rebuilt and
+verified together. Source head now emits page probes for large fixed frames.
+The initial commit can return to one page only after a staged native compiler
+fixed point proves that prologue on Windows and a separate PE policy change
+updates every checked image.
 
 ## Evidence
 

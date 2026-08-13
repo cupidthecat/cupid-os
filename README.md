@@ -58,6 +58,28 @@ Cupid OS is a 32-bit x86 hobby OS written in Cupid C and Cupid ASM. It has a gra
 
 Recent subsystem work is summarized below. Detailed pages live under `wiki/`, and several also have embedded `cupidos-txt/*.CTXT` manuals that Notepad renders in the running OS.
 
+- Hosted CupidC now probes every page of a fixed frame larger than 4 KiB.
+  Smaller frames keep their existing prologue, while larger frames reserve at
+  most one page per step and touch the new page before continuing. This fixes
+  guarded-stack growth in the compiler rather than changing active source to
+  avoid large functions. ADR 0275 records the rule.
+- In-kernel CupidASM AOT now emits an ELF32 relocatable object and passes it to
+  in-kernel CupidLD at the existing `0x01A00000` text address. CupidASM carries
+  the caller-priority entry spelling into the object and keeps absolute
+  bindings as relocations. JIT still uses a fixed image. ADR 0276 records the
+  ownership boundary.
+- Raw CupidASM output can publish a deterministic source-derived map of
+  16-bit code, 32-bit code, and data. CupidDis reads the map with
+  `--raw --range-map` and can apply `--require-known` without a copied offset
+  table. A guarded bootloader transaction is implemented and will enter the
+  normal Make edge after the checked seed carries both options. ADR 0277
+  records the schema and publication gate.
+- The public bootstrap driver now has a native Windows path. It freezes the
+  checked PE execution seed and the Linux plan seed, builds native stage two
+  and stage three, compares every object and all five tools, runs native
+  behavior checks, and publishes one report only after source revalidation.
+  The first complete run correctly rejected concurrent source drift; a stable
+  rerun remains the promotion gate. ADR 0278 records the two-manifest design.
 - CupidC initializes x87 and SSE state, saves it with FXSAVE/FXRSTOR during context switches, sets MXCSR defaults, and dumps registers from the `#NM`, `#MF`, and `#XF` handlers. The language supports `float`, `double`, `float4`, and `double2`, along with SSE intrinsics, a 25-operation libm, and x87-backed integer/fractional splitting for `printf` formats `%f`, `%e`, `%g`, and `%.Nf`.
 - ISO9660 images mount read-only from any VFS file with `mount foo.iso /iso`. The implementation handles Rock Ridge long names, case-insensitive lookup, and up to four simultaneous mounts.
 - Opt-in swap uses four allocation classes (1K, 4K, 16K, and 64K), true LRU eviction, and 1,024 handles over a 16 MB FAT-backed file. Callers use `swap_alloc`, `pin`, and `unpin` explicitly rather than relying on virtual-memory page faults.
@@ -856,13 +878,13 @@ wrapper also compiles the port-I/O users and EHCI's atomic fetch-or
 ownership path. Each transferred Make recipe carries its exact recursive
 header closure.
 
-Poisoned-host checks cover all 238 checked-in normal CupidC recipes through
+Poisoned-host checks cover all 239 checked-in normal CupidC recipes through
 the strict and Doom gates. They fail if a CupidC-owned object reaches Clang or
 GCC. They pass against the renamed graph. Across the three supported build
-roots, the audit records 451 transforms. CupidC participates in 245, CupidObj
+roots, the audit records 452 transforms. CupidC participates in 246, CupidObj
 in 192, CupidASM in five, CupidLD in five, and CupidDis in three. Python
-participates in all 451, and no normal transform invokes a host C compiler.
-Root `all` has 442 transforms: 441 artifact transforms with at least one Cupid
+participates in all 452, and no normal transform invokes a host C compiler.
+Root `all` has 443 transforms: 442 artifact transforms with at least one Cupid
 tool owner plus the Python-only size verifier, which emits no OS artifact. The
 checked user compiler and Toolchain contract
 publisher create their own output directories. The compiler walks POSIX paths
@@ -898,7 +920,7 @@ The shared runtime formats signed and unsigned `long long` values, padded
 64-bit hexadecimal values, and precision-bounded strings. Those forms come
 from the unchanged contract diagnostics and are covered by the executable
 runtime probe.
-The final audit records 442 root transforms. Its 441 artifact transforms have
+The final audit records 443 root transforms. Its 442 artifact transforms have
 no host C or recursive Make transform. Their CupidASM, CupidObj,
 CupidLD, and CupidDis commands run from the checked seed. The external-program
 syscall ABI gate freezes a verified Cupid-built contract and one six-file
@@ -999,11 +1021,14 @@ These PEs now form a strict checked Windows execution seed. Its manifest binds
 the exact imports, hashes, sizes, source snapshot, parent Linux seed, and
 paired-stage provenance. Output-bearing Windows recipes run private copies of
 this cohort directly. Their PE headers reserve and commit a one MiB tool stack,
-which keeps large Cupid-generated frames inside committed memory. Fixed-point
-and Linux-contract work still runs the Linux bootstrap seed through WSL, so a
-native Windows fixed point remains open. ADR 0268 records the shared runtime,
-ADR 0269 records the CupidLD publication boundary, ADR 0272 records checked
-carriage and production selection, and ADR 0274 records the stack policy.
+which keeps large Cupid-generated frames inside committed memory. Source head
+also probes each page of a large fixed frame and can rebuild two native Windows
+generations from the PE execution seed plus the verified Linux plan seed. The
+first complete native run rejected concurrent source drift after stage two, so
+a stable proof and seed promotion remain open. Linux contract work still runs
+through WSL. ADR 0268 records the shared runtime, ADR 0269 records CupidLD
+publication, ADR 0272 records checked carriage, ADR 0274 records the PE stack,
+ADR 0275 records compiler probes, and ADR 0278 records the native driver.
 
 The hosted CupidC driver also exposes the shared frontend's Cupid language
 profile through `--cupid`. The switch selects Cupid vocabulary for both the
@@ -1397,7 +1422,7 @@ outputs:
 
 The current kernel path combines strict validation and flattening in one
 hostbuild transaction. Hostbuild freezes the selected seed manifest and all
- five artifacts, the 430-entry input manifest and cohort, and the existing
+ five artifacts, the 431-entry input manifest and cohort, and the existing
 `kernel.bin` boundary. Checked CupidDis validates the private cohort. Checked
 CupidObj then flattens the frozen final ELF into a private candidate. Hostbuild
 rechecks the live trust inputs and output before parent-relative atomic
@@ -1878,7 +1903,7 @@ CupidScript (`cupidscript*.cc`) is a shell scripting language for `.cup` files:
 
 CupidDis is the shared x86-32 disassembler and ELF inspector used by the hosted CLI and the kernel `dis` and `exec -d` adapters. Raw input accepts one 16-bit or 32-bit mode, or an ordered range map that classifies a flat image as 16-bit code, 32-bit code, or literal data. The hosted form is `cupiddis --raw --mode 16|32 [--range-at OFFSET:16|32|data]... --base ADDRESS FILE`; `--mode-at OFFSET:16|32` remains a code-only alias. CupidDis validates the ordered starts and source bounds. It sends code ranges to the shared x86 decoder and writes data ranges as `db` rows without decoding them. In the active 4,096-byte SMP trampoline map, code occupies `[0x000, 0x01f)` and `[0x210, 0x254)`; data occupies `[0x01f, 0x210)` and `[0x254, 0x1000)`. The production recipe now assembles a private candidate with CupidASM and applies that exact map with CupidDis `--require-known` before atomic publication. The shared x86 model covers all sixteen i686 conditional moves for 16-bit and 32-bit register or memory sources. It also covers three-operand `IMUL` with same-width register or memory sources, using `69 /r` for a full immediate and `6B /r` when the value fits a sign-extended byte. Ordinary compiler padding includes plain `90`, `66 90`, and word or doubleword `0F 1F /0` register and memory forms. A private 32-bit decoder exception recognizes the five exact Clang forms with two through six leading `66` bytes and the fixed `2E 0F 1F 84 00 00 00 00 00` tail. Other repeated prefixes remain invalid, and CupidASM cannot emit the redundant forms. CupidASM accepts the conditional-move aliases, chooses the shortest valid multiply encoding, and applies the current mode's default width to a memory NOP. The checked seed and source head have 604 forms, 249 canonical mnemonics, and fingerprint `55A8970F`. The catalogue includes signed x87 `FILD` and `FISTP` memory operands at 16, 32, and 64 bits and canonical `SETP` and `SETNP` for byte registers or memory in both modes. CupidDis can therefore follow the private CupidC floating comparison and truth sequences without misreading the parity opcode as data, `FWAIT`, or `RET`. The live guest disassembles and executes the bounded `test_fpaug.cc` parity cases before running the full feature-13 behavior. CupidASM accepts only the canonical parity spellings in this slice. The four SHRD rows cover canonical SHRD at both widths with immediate or fixed CL counts. The forward x87 form encodes canonical `FSUB ST(1), ST(0)` as `DC E9`, which lets CupidC represent the corrected GNU `fsubr %st, %st(1)` exponent range subtraction. The catalogue also includes `FUCOMIP ST0, ST(i)` for long-double comparisons and operand-free `FLDZ` for floating truth tests. ADR 0200 records the typed raw-range contract, ADR 0202 records `FLDZ` ownership, ADR 0203 records its first seed carriage, and ADR 0207 records forward x87 stack subtraction. ADR 0208 records that form's seed carriage, ADR 0226 records SHRD, ADR 0228 records SHRD's first seed carriage, ADR 0243 records an earlier seed, ADR 0252 records the x87 integer forms, ADR 0258 records the preceding promotion, ADR 0259 records the parity predicates, ADR 0265 records their checked-seed carriage, and ADR 0271 records production trampoline validation.
 
-Checked-seed CupidDis reports typed known, unknown, invalid, and truncated instruction counts for selected code regions. `cupiddis --require-known FILE [FILE...]` checks several ELF inputs in one run, writes no listing, and fails with path-specific counts if any code fallback remains. The same policy works for explicitly mapped raw input. Declared data and non-executable ELF regions are excluded. Ordinary single-file rendering is unchanged. An immutable first-opcode index preserves exhaustive selection while the checked 128 KiB throughput contract passes within 30 seconds. The normal kernel path validates all 428 audited root object outputs plus the pass-one and final kernel ELFs. Its 9,056-byte graph-ordered manifest has SHA-256 `07e0e0bf5cee4c1bf893305ef1dfd058400474d4af3dc3979c59f6e0195a0e2a`. The first production gate covered the preceding 429-path cohort and passed separately in 185.526 seconds with exit 0 and empty streams. The current hostbuild transaction freezes the selected five-tool seed, the 430-input manifest and cohort, and the `kernel.bin` boundary. Checked CupidDis validates the private cohort before checked CupidObj flattens the frozen final ELF. Hostbuild rechecks live inputs and the output before parent-relative atomic publication. Every failure preserves the previous raw kernel. The transaction passed in 187.054 seconds with exit 0 and retained the reviewed 8,946,332-byte kernel hash. ADR 0262 records the capability, ADR 0266 records indexed decoding, and ADR 0265 records seed carriage and production adoption.
+Checked-seed CupidDis reports typed known, unknown, invalid, and truncated instruction counts for selected code regions. `cupiddis --require-known FILE [FILE...]` checks several ELF inputs in one run, writes no listing, and fails with path-specific counts if any code fallback remains. The same policy works for explicitly mapped raw input. Declared data and non-executable ELF regions are excluded. Ordinary single-file rendering is unchanged. An immutable first-opcode index preserves exhaustive selection while the checked 128 KiB throughput contract passes within 30 seconds. The normal kernel path validates all 429 audited root object outputs plus the pass-one and final kernel ELFs. Its 9,076-byte graph-ordered manifest has SHA-256 `4f1936423ae06418fc2f75603c29a91997608fe82f48c323321523aed25a2ab0`. The first production gate covered the preceding 429-path cohort and passed separately in 185.526 seconds with exit 0 and empty streams. The current hostbuild transaction freezes the selected five-tool seed, the 431-input manifest and cohort, and the `kernel.bin` boundary. Checked CupidDis validates the private cohort before checked CupidObj flattens the frozen final ELF. Hostbuild rechecks live inputs and the output before parent-relative atomic publication. Every failure preserves the previous raw kernel. The transaction passed in 187.054 seconds with exit 0 and retained the reviewed 8,946,332-byte kernel hash. ADR 0262 records the capability, ADR 0266 records indexed decoding, and ADR 0265 records seed carriage and production adoption.
 
 The 187.054-second transaction result above is an earlier checkpoint. The
 source-current 2026-08-13 poisoned-host build produced the 8,962,776-byte raw

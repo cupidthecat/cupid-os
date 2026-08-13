@@ -321,9 +321,9 @@ The ramfs program table, homefs document table, and CupidASM demo table. Checked
 _Avoid_: every generated C file, Python-free generation, kernel source cohort
 
 **Production checked-seed tool cohort**:
-The root image transforms owned by CupidASM, CupidObj, CupidLD, and CupidDis. The normal graph verifies and freezes the manifest-bound five-tool seed before each command, then checks the live trust unit again after the command. Checked production kernel, generated-install, and user CupidC calls plus checked user CupidLD links use that same invocation contract. Each wrapper supplies its existing frozen cohort, and the shared runner rejects manifest or image drift detected after the private tool returns. It contains five CupidASM transforms, 192 CupidObj transforms, two CupidLD links, and three CupidDis participations. CupidDis supplies kernel-symbol text, participates with CupidObj in the transactional `kernel.bin` publication, and strictly checks the mixed-mode SMP trampoline before publication. Hostbuild freezes the selected seed manifest and five artifacts, the 430-entry production manifest and cohort, and the existing output boundary. Checked CupidDis validates that private cohort before checked CupidObj flattens its frozen final ELF. Hostbuild rechecks the live trust inputs and output, then uses parent-relative atomic replacement. Every failure preserves the prior raw kernel. Root `all` has 442 transforms: 441 artifact transforms with a Cupid tool owner plus the Python-only size verifier, which emits no OS artifact. The fifth CupidASM transform assembles the ISO spanning fixture from checked-in CupidASM source. Python verifies its exact byte lane and controls publication. The CupidObj total includes the three installation-source generators, kernel-symbol source generator, pristine disk-template author, repository ISO author, and guarded Doom profile-manifest author. Across all three roots, CupidC participates in 245 transforms, CupidObj in 192, CupidASM in five, CupidLD in five, and CupidDis in three. Python supplies orchestration, safety, parity, and publication checks across all 451 transforms. Windows runs the checked native PE execution seed directly; Linux runs the checked static ELF seed. Fixed-point reconstruction and contract publication remain rooted in the Linux bootstrap seed, and the PE cohort is not yet a native rebuilding fixed point. The checked user compiler and Toolchain contract publisher create the output directories needed for their artifacts, so empty-directory setup is not a separate graph transform. The compiler pins every POSIX component with no-follow descriptors and every Windows component with parent-relative directory handles until its final resolved-output check. Make applies `$(sort ...)` to every wildcard-discovered output list, so generators and links receive the same order under Windows and Linux host locales. The repository stores its runtime JPEG as a sequential SOF0 frame. Hostbuild freezes its exact bytes and asks checked CupidObj `wrap-jpeg` to validate and wrap the private snapshot under the original source identity. Only after CupidObj succeeds does Python run an independent validator against the same snapshot, require byte parity, recheck the live manifest and input, and publish a regular candidate atomically. A validator disagreement and a failed private oracle copy have distinct diagnostics, and both preserve the old object. FFmpeg, `jpegtran`, `djpeg`, and `cjpeg` do not participate. The first cross-host comparison matched 426 of 430 kernel artifacts and traced all four remaining differences to the old host JPEG conversion. After the replacement, a 607.7-second Linux kernel build and a 341.6-second Windows root build produced all 430 frozen kernel artifacts byte for byte. A fresh normal image then passed a private `/bin/ls.cc` JIT boot in 49.8 seconds. ADR 0190 records the root tool handoff, ADR 0204 records installation-source ownership, ADR 0224 records kernel-symbol source ownership, ADR 0227 records the fixture transfer, ADR 0235 records the JPEG acceptance transfer, ADR 0238 records disk-template production ownership, ADR 0241 records ISO production ownership, ADR 0244 records profile-manifest production ownership, ADR 0245 records publisher-owned output directories, ADR 0246 records the shared invocation boundary, ADR 0271 records trampoline inspection, and ADR 0272 records native Windows execution-seed adoption.
-The final three-root audit passed in 69.0 seconds and recorded 451 total
-transforms, including 442 under root `all`.
+The root image transforms owned by CupidASM, CupidObj, CupidLD, and CupidDis. The normal graph verifies and freezes the manifest-bound five-tool seed before each command, then checks the live trust unit again after the command. Checked production kernel, generated-install, and user CupidC calls plus checked user CupidLD links use that same invocation contract. Each wrapper supplies its existing frozen cohort, and the shared runner rejects manifest or image drift detected after the private tool returns. It contains five CupidASM transforms, 192 CupidObj transforms, two CupidLD links, and three CupidDis participations. CupidDis supplies kernel-symbol text, participates with CupidObj in the transactional `kernel.bin` publication, and strictly checks the mixed-mode SMP trampoline before publication. Hostbuild freezes the selected seed manifest and five artifacts, the 431-entry production manifest and cohort, and the existing output boundary. Checked CupidDis validates that private cohort before checked CupidObj flattens its frozen final ELF. Hostbuild rechecks the live trust inputs and output, then uses parent-relative atomic replacement. Every failure preserves the prior raw kernel. Root `all` has 443 transforms: 442 artifact transforms with a Cupid tool owner plus the Python-only size verifier, which emits no OS artifact. The fifth CupidASM transform assembles the ISO spanning fixture from checked-in CupidASM source. Python verifies its exact byte lane and controls publication. The CupidObj total includes the three installation-source generators, kernel-symbol source generator, pristine disk-template author, repository ISO author, and guarded Doom profile-manifest author. Across all three roots, CupidC participates in 246 transforms, CupidObj in 192, CupidASM in five, CupidLD in five, and CupidDis in three. Python supplies orchestration, safety, parity, and publication checks across all 452 transforms. Windows runs the checked native PE execution seed directly; Linux runs the checked static ELF seed. Contract publication remains rooted in the Linux bootstrap seed. Source head reconstructs native Windows stages from the PE execution seed and a separately verified Linux plan, while promotion still awaits a stable complete proof. The checked user compiler and Toolchain contract publisher create the output directories needed for their artifacts, so empty-directory setup is not a separate graph transform. The compiler pins every POSIX component with no-follow descriptors and every Windows component with parent-relative directory handles until its final resolved-output check. Make applies `$(sort ...)` to every wildcard-discovered output list, so generators and links receive the same order under Windows and Linux host locales. The repository stores its runtime JPEG as a sequential SOF0 frame. Hostbuild freezes its exact bytes and asks checked CupidObj `wrap-jpeg` to validate and wrap the private snapshot under the original source identity. Only after CupidObj succeeds does Python run an independent validator against the same snapshot, require byte parity, recheck the live manifest and input, and publish a regular candidate atomically. A validator disagreement and a failed private oracle copy have distinct diagnostics, and both preserve the old object. FFmpeg, `jpegtran`, `djpeg`, and `cjpeg` do not participate. The first cross-host comparison matched 426 of 430 kernel artifacts and traced all four remaining differences to the old host JPEG conversion. After the replacement, a 607.7-second Linux kernel build and a 341.6-second Windows root build produced all 430 frozen kernel artifacts byte for byte. A fresh normal image then passed a private `/bin/ls.cc` JIT boot in 49.8 seconds. ADR 0190 records the root tool handoff, ADR 0204 records installation-source ownership, ADR 0224 records kernel-symbol source ownership, ADR 0227 records the fixture transfer, ADR 0235 records the JPEG acceptance transfer, ADR 0238 records disk-template production ownership, ADR 0241 records ISO production ownership, ADR 0244 records profile-manifest production ownership, ADR 0245 records publisher-owned output directories, ADR 0246 records the shared invocation boundary, ADR 0271 records trampoline inspection, and ADR 0272 records native Windows execution-seed adoption.
+The final three-root audit records 452 total transforms, including 443 under
+root `all`.
 _Avoid_: native fixed point, Python-free build, hosted Toolchain contract cohort
 
 **Production CupidObj disk template**:
@@ -854,8 +854,27 @@ Five exact 32-bit decode-only alignment NOPs with two through six leading `66` b
 _Avoid_: a general repeated-prefix grammar, CupidASM output, a catalogue form
 
 **Raw range map**:
-An ordered set of borrowed byte ranges that classifies one flat image as 16-bit code, 32-bit code, or literal data. The first range starts at offset zero, and later starts increase within the source. CupidDis decodes code ranges and renders data ranges as `db` rows without entering the x86 decoder. The caller places code transitions at instruction boundaries.
+An ordered set of byte ranges that classifies one flat image as 16-bit code,
+32-bit code, or literal data. A caller may supply the ranges directly, or
+CupidASM may serialize them from statement kinds and active `BITS` modes in a
+`cupid.raw-map.v1` file. The first range starts at offset zero, and later
+starts increase within the source. CupidDis decodes code ranges and renders
+data ranges as `db` rows without entering the x86 decoder. The assembler, not
+a byte heuristic, places source-derived transitions at statement boundaries.
 _Avoid_: raw mode map, automatic code or mode detection, one kind per retained instruction
+
+**Relocatable entry symbol**:
+The caller-priority code label selected by CupidASM for an ELF32 relocatable
+object. The assembler publishes its spelling and promotes only that label to a
+global symbol. CupidLD resolves it after final placement.
+_Avoid_: prelinked entry address, promoting every candidate, fixed-image entry
+
+**Fixed-frame stack probe**:
+A read from each newly reserved stack page while CupidC enters a function with
+more than 4,096 bytes of fixed local storage. Reservations of one page or less
+keep the existing one-step prologue. Larger reservations advance in steps no
+greater than one page and touch every step, including the final partial page.
+_Avoid_: fully committed stack, source workaround, writable probe
 
 **Strict decode summary**:
 The typed CupidDis counts of known, unknown, invalid, and truncated instructions across selected code regions. Declared raw data and non-executable ELF regions do not enter the summary. The hosted strict policy accepts the summary only when its three fallback counts are zero.
@@ -930,7 +949,7 @@ Its 9,028-byte graph-ordered input manifest has SHA-256
 `48bdef348f6575881b9808631173e7265abc9ea89dfb84d48de72b3d2304749e`.
 That separate gate passed in 185.526 seconds with exit 0 and empty streams.
 The current path freezes the selected seed manifest and five artifacts, the
- 430-entry manifest and cohort, and the existing `kernel.bin` boundary in one
+ 431-entry manifest and cohort, and the existing `kernel.bin` boundary in one
 hostbuild transaction. Checked CupidDis validates the private cohort, then
 checked CupidObj flattens the frozen final ELF into a private candidate.
 Hostbuild rechecks the live trust inputs and output before parent-relative
@@ -1053,6 +1072,14 @@ the two stages, behavior evidence, and report as one complete directory only
 after every gate passes.
 _Avoid_: live source root, source hash alone, public staging directory
 
+**Native Windows fixed-point driver**:
+The `bootstrap-windows` operation that freezes a checked Windows execution
+seed and the checked Linux build-plan seed, derives the PE plan, builds two
+native generations, compares every object and tool, runs native behavior
+checks, rehashes the live closure, and publishes one evidence bundle. The two
+manifest roles remain separate.
+_Avoid_: Windows execution seed as Linux bootstrap seed, copied build plan, partial publication
+
 **Bootstrap stage**:
 One toolchain generation produced by the preceding generation during a bootstrap.
 _Avoid_: build phase
@@ -1070,5 +1097,5 @@ An optional comparison build used to establish external reference behavior or ou
 _Avoid_: normal build
 
 **Host toolchain**:
-External compilers, assemblers, linkers, and binary utilities confined to explicit development and oracle paths. They do not produce normal Cupid OS or Toolchain artifacts. Host Python still coordinates the checked build. Windows runs output-bearing production tools from the native checked execution seed, while fixed-point and Linux-contract paths still use the static i386 Linux seed through WSL. Native Windows and Python-free fixed points remain open.
+External compilers, assemblers, linkers, and binary utilities confined to explicit development and oracle paths. They do not produce normal Cupid OS or Toolchain artifacts. Host Python still coordinates the checked build. Windows runs output-bearing production tools from the native checked execution seed. Source head can reconstruct two native Windows generations from that execution seed and the Linux plan seed, while Linux-contract paths still use the static i386 Linux seed through WSL. A source-stable native proof, seed promotion, and a Python-free fixed point remain open at this boundary.
 _Avoid_: build orchestrator

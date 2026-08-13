@@ -164,10 +164,12 @@ bridges, while CupidLD authors each PE image and its IAT slots. CupidLD adds
 four publication imports to the shared twelve. Windows runs help plus a useful
 success and failure path for each tool. CupidDis also checks quoted raw-input
 parity with the Linux tool. These five images form the checked Windows
-execution seed used by output-bearing production recipes. Fixed-point
-reconstruction, Toolchain contracts, the user ABI contract, and artifact-size
-policy still run the Linux seed through WSL. The PE32 manifest has no native
-build plan, so a native Windows fixed point remains open.
+execution seed used by output-bearing production recipes. Toolchain contracts,
+the user ABI contract, and artifact-size policy still run the Linux seed
+through WSL. Source head can reconstruct two native Windows generations by
+freezing the PE execution seed and the Linux plan manifest separately. The
+first full run rejected concurrent source drift after stage two, so a stable
+proof and seed promotion remain open.
 
 Strong four-vCPU runtime checks pass with both NICs through SMP, RDRAND, all
 62 crypto checks, USB storage, audio, TrueType glyphs, a baseline JPEG decode,

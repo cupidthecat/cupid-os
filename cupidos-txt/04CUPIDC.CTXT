@@ -233,8 +233,8 @@ source and its two-header closure before object validation and publication.
 The pass-one and final kernels project the same text symbols at the same
 addresses.
 
-Across root and supplemental builds, the ownership audit reports 245 CupidC
-transforms and no host C transform. Host Python participates in all 451
+Across root and supplemental builds, the ownership audit reports 246 CupidC
+transforms and no host C transform. Host Python participates in all 452
 transforms. The normal Toolchain build uses checked static i386 tools for its
 contract cohort; native contract binaries are optional oracles. The
 publisher accepts only a dedicated cupidc-contracts directory inside the
@@ -1040,8 +1040,8 @@ separate gate covered 427 audited root objects and two kernel ELFs. Its
 48bdef348f6575881b9808631173e7265abc9ea89dfb84d48de72b3d2304749e,
 and the gate passed in 185.526 seconds with empty streams and exit 0. The
 current normal path covers 428 audited objects and two kernel ELFs. Its
-9,056-byte, 430-path manifest has SHA-256
-07e0e0bf5cee4c1bf893305ef1dfd058400474d4af3dc3979c59f6e0195a0e2a.
+9,076-byte, 431-path manifest has SHA-256
+4f1936423ae06418fc2f75603c29a91997608fe82f48c323321523aed25a2ab0.
 The hostbuild transaction freezes the selected seed manifest and all five
 artifacts, that input manifest and cohort, and the existing kernel.bin
 boundary. Checked CupidDis validates the private cohort before
@@ -1802,6 +1802,19 @@ compatibility remains a separate profile, and C11 remains the default.
 This host command is separate from the in-OS JIT, AOT, and REPL commands
 described above. It lets the shared bootstrap frontend compile declarations
 that use U0, U8, U16, U32, U64, I8, I16, I32, I64, Bool, float4, and double2.
+>endtree
+
+>h2 Hosted Large Frames
+>tree open Hosted Large Frames
+Hosted CupidC probes each page of a fixed frame larger than 4,096 bytes.
+Frames up to one page keep the original one-step reservation. Larger frames
+reserve at most one page per step and read the new page after each step,
+including the final partial page. This lets a guarded stack grow before ESP
+moves beyond its next guard page.
+
+Naked functions still have no compiler prologue. The kernel entry keeps its
+zero-frame path. The checked Windows tools also commit a one MiB stack as a
+separate defense.
 >endtree
 
 >h2 See Also

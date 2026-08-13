@@ -116,6 +116,7 @@ toolchain/elf32.o
 toolchain/x86.o
 toolchain/cupiddis.o
 toolchain/cupidasm.o
+toolchain/cupidld.o
 kernel/lang/ctool_kernel.o
 kernel/lang/cupidc.o
 kernel/lang/cupidc_lex.o

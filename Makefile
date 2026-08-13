@@ -262,7 +262,7 @@ KERNEL_OBJS=kernel/core/kernel.o kernel/cpu/idt.o kernel/cpu/isr.o kernel/cpu/ir
             kernel/tls/tls_ctx.o kernel/tls/tls_handshake.o \
             kernel/tls/tls12_handshake.o \
             kernel/tls/tls_selftest.o \
-			toolchain/ctool.o toolchain/elf32.o toolchain/x86.o toolchain/cupiddis.o toolchain/cupidasm.o kernel/lang/ctool_kernel.o \
+			toolchain/ctool.o toolchain/elf32.o toolchain/x86.o toolchain/cupiddis.o toolchain/cupidasm.o toolchain/cupidld.o kernel/lang/ctool_kernel.o \
 			kernel/lang/cupidc.o kernel/lang/cupidc_lex.o kernel/lang/cupidc_parse.o \
 			kernel/lang/cupidc_string.o \
             kernel/lang/cupidc_elf.o kernel/lang/ssh_io.o \
@@ -1077,6 +1077,9 @@ toolchain/cupiddis.o: toolchain/cupiddis.cc toolchain/ctool.h toolchain/cupiddis
 toolchain/cupidasm.o: toolchain/cupidasm.cc toolchain/ctool.h toolchain/cupidasm.h toolchain/elf32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source toolchain/cupidasm.cc --output toolchain/cupidasm.o
 
+toolchain/cupidld.o: toolchain/cupidld.cc toolchain/ctool.h toolchain/cupidld.h toolchain/elf32.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+	$(CUPIDC_KERNEL_COMPILE) --source toolchain/cupidld.cc --output toolchain/cupidld.o
+
 kernel/lang/ctool_kernel.o: kernel/lang/ctool_kernel.cc drivers/serial.h kernel/core/kernel.h kernel/core/panic.h kernel/core/string.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/vfs.h kernel/fs/vfs_helpers.h kernel/lang/ctool_kernel.h kernel/lang/dis.h kernel/mm/memory.h toolchain/ctool.h toolchain/elf32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/ctool_kernel.cc --output kernel/lang/ctool_kernel.o
 
@@ -1151,11 +1154,11 @@ kernel/lang/as.o: kernel/lang/as.cc drivers/ata.h drivers/keyboard.h \
 	kernel/network/socket.h kernel/network/udp.h kernel/smp/bkl.h \
 	kernel/smp/lapic.h kernel/smp/percpu.h kernel/smp/smp.h \
 	kernel/usb/usb.h kernel/usb/usb_hc.h kernel/util/calendar.h \
-	toolchain/ctool.h toolchain/cupidasm.h toolchain/elf32.h \
+	toolchain/ctool.h toolchain/cupidasm.h toolchain/cupidld.h toolchain/elf32.h \
 	toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/as.cc --output kernel/lang/as.o
 
-kernel/lang/as_elf.o: kernel/lang/as_elf.cc kernel/lang/as_elf.h toolchain/ctool.h toolchain/cupidasm.h toolchain/elf32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
+kernel/lang/as_elf.o: kernel/lang/as_elf.cc kernel/lang/as_elf.h toolchain/ctool.h toolchain/cupidasm.h toolchain/cupidld.h toolchain/elf32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/lang/as_elf.cc --output kernel/lang/as_elf.o
 
 kernel/lang/dis.o: kernel/lang/dis.cc kernel/core/kernel.h kernel/core/types.h kernel/cpu/isr.h kernel/fs/vfs.h kernel/lang/ctool_kernel.h kernel/lang/dis.h toolchain/ctool.h toolchain/cupiddis.h toolchain/elf32.h toolchain/x86.h $(CUPIDC_KERNEL_COMPILE_INPUTS)

@@ -25055,3 +25055,111 @@ The 2,671,241-byte JSON record has SHA-256
 `c9fad80ea2b4d32d8c773a8ad14a43a987ad211fbb3bc5840a66af606f8d0718`;
 the 12,269-byte summary has SHA-256
 `277581ac15dc9700966309ac2540b7332475763f19210d07e30f6398dbc8382f`.
+
+## 2026-08-13: Add page probes, kernel AOT linking, raw maps, and native Windows reconstruction
+
+Four source-head capabilities advance the self-hosting boundary together.
+
+Hosted CupidC now reserves fixed frames larger than 4,096 bytes in steps no
+greater than one page and reads the new page after every step. Frames at or
+below the boundary keep their previous bytes. Naked functions and the
+zero-frame kernel entry remain unchanged. The public test covers the boundary,
+two multi-page shapes, rollback after a fixed-frame limit error, and reuse of
+the same command. Five focused tests pass in 23.344 seconds. The complete
+self-host test reached generation three, then exceeded its 904-second harness
+limit without a failure report. That run is recorded as a timeout, not a pass.
+ADR 0275 records the prologue rule.
+
+Kernel `as -o` now requests an ELF32 relocatable object from shared CupidASM.
+The assembler applies the caller's entry priority, publishes the selected
+spelling, promotes only that code symbol, and keeps absolute request bindings
+as relocations. In-kernel CupidLD links the object at `0x01A00000`. JIT still
+uses a fixed image. CupidLD joins the checked kernel cohort as source 156, and
+the strict production input manifest now includes `toolchain/cupidld.o`. The
+manifest has 431 paths, occupies 9,076 bytes, and has SHA-256
+`4f1936423ae06418fc2f75603c29a91997608fe82f48c323321523aed25a2ab0`.
+Native CupidASM and kernel ELF contracts pass their entry, relocation, link,
+rollback, code-only, and code/data/BSS modes. Checked CupidC compiles
+`cupidasm.cc`, `cupidld.cc`, `as_elf.cc`, and `as.cc`. ADR 0276 records the
+linker handoff.
+
+Raw CupidASM results now report their `ORG` base and coalesced code16, code32,
+and data ranges. The CLI writes `cupid.raw-map.v1`, and CupidDis reads it with
+`--raw --range-map`. The parser rejects stale size, missing and duplicate
+fields, bad kinds, decreasing starts, oversized maps, and conflicts with the
+manual range options. Hostbuild can freeze a boot source and seed, assemble
+private image and map candidates, run strict CupidDis, rehash each boundary,
+and publish the image atomically. The active boot source still produces the
+same 2,560 bytes and passes strict source-derived inspection. The normal Make
+edge remains on direct checked CupidASM until seed promotion. Forty-five
+focused assembler, disassembler, source, bootloader, and trampoline tests pass
+in 11.495 seconds. ADR 0277 records the map and staged handoff.
+
+The public `bootstrap-windows` command freezes both the checked PE execution
+seed and the checked Linux plan seed. It derives the native compile, assembly,
+import, and link plan, builds two generations, compares every object and all
+five PE tools, runs native help, success, and failure behavior, rehashes the
+source closure, and publishes one `cupid.windows-bootstrap-report.v1` bundle.
+Five role, freezing, rejection, and output-preservation tests pass in 1.521
+seconds. A seven-test seed and native-execution subset passes in 3.569 seconds.
+The first complete run built stage two, then rejected concurrent CupidASM
+source drift after 373.721 seconds. It published nothing and removed its
+private directory. A source-stable rerun remains the promotion gate. ADR 0278
+records the two-manifest design.
+
+The first regenerated audit failed because its source-freeze guard counted
+shared statements across the whole bootstrap module and assumed one
+fixed-point driver. The guard now binds the Linux and Windows driver ASTs
+separately and requires four closure checks in each. A second review exposed
+that newly duplicated behavior fragments let five mutation cases alter the
+native driver without reaching the older Linux checks. The audit now binds the
+native plan, stage builder, stage comparison, behavior matrix, PE validation,
+and private-root arguments directly. Focused mutations cover both drivers.
+
+All seventeen tracked `.c` files outside `TempleOS/` remain outside supported
+build roots. Seven are historical snapshots, three are superseded, six are
+host-only test or oracle sources, and one private runtime source is unlinked.
+No active Cupid-built source has a legitimate `.c` to `.cc` ownership rename
+in this slice. Renaming a dormant duplicate would make the ownership record
+less accurate rather than move a build edge.
+
+The combined integration run found one audit weakness and one stale production
+contract. Moving the native Windows relink into `if False` still passed the
+first audit because it counted source text without checking reachability. The
+audit now requires one live stage-pair assignment for every native behavior
+check. The isolated regression changed from red to green in 1.825 seconds,
+and the full mutation matrix passed in 152.640 seconds.
+
+The checked kernel contract passed all 34 tests in 94.601 seconds. A broader
+kernel and frontier command reached the second frontier generation but hit its
+1,204-second limit, so it remains a timeout rather than a pass. The production
+kernel build completed in 581.5 seconds. It compiled CupidLD as part of the
+156-source cohort and linked both kernel generations successfully.
+
+The first complete image build compiled the full graph and let checked
+CupidDis inspect all 431 inputs. The exact-size gate then stopped publication
+because it still described the kernel before CupidLD joined the link. The new
+CupidLD object is 137,444 bytes with SHA-256
+`310c83aa162b2fa74e048bfc2b4f4e8983c7565634dd002768f1fd42ae0e870d`.
+The reviewed policy now records these intentional kernel changes:
+
+| Output | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/kernel.elf.pass1` | 9,190,860 | `aee9e505c92a1e701bea05897e0cb1901a13b3d5eacecf2512607a608e0e3efd` |
+| `kernel/kernel.elf` | 9,313,740 | `5b179b938edb74c3edec59c2cc223366b5bb521c2a88f9a12f970a2b8b2bbaa1` |
+| `kernel/kernel.bin` | 9,096,008 | `9222973f7000f3e95dfd786ad2cd22ad4d90f5cc1e08a47537fe6c71603c7f51` |
+
+The focused assembler, disassembler, raw-map, boot transaction, and stack
+tests passed 46 cases with one optional oracle skip in 35.196 seconds. The
+five fast native Windows boundary tests passed in 1.481 seconds. Audit
+generation passed in 80.3 seconds, check mode passed in 71.3 seconds, Python
+syntax checks passed, and `git diff --check` found no whitespace errors.
+
+After the policy update, a clean forced production build passed in 653.2
+seconds. CupidDis accepted all 431 inputs, the nine-artifact size gate passed,
+and hostbuild published the 209,715,200-byte FAT16 image. Its SHA-256 is
+`dfdda396c6995458bd4e6185ec7e36645ebf3c193cd303ce495135c5d015b59e`.
+The five-sector boot image remains byte-identical at SHA-256
+`46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3`.
+A private QEMU boot ran `ls` and reached the guest JIT completion marker in
+46.9 seconds.

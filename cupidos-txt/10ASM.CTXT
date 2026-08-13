@@ -154,6 +154,15 @@ as DB rows without decoding them. The caller places each code transition
 between instructions. The older --mode-at OFFSET:16|32 spelling remains
 available for code-only maps.
 
+CupidASM can write the same information from its parsed source:
+  cupidasm -f bin --map boot.map -o boot.bin boot.asm
+  cupiddis --require-known --raw --range-map boot.map boot.bin
+
+The cupid.raw-map.v1 file records the image size, ORG base, and coalesced range
+starts. Instructions use their active BITS mode. Data declarations, alignment,
+and reserved storage are data. CupidDis rejects stale sizes, missing or repeated
+fields, invalid kinds, and unordered starts before decoding.
+
 Checked-seed CupidDis can validate one or more files without printing a
 listing:
   cupiddis --require-known FILE [FILE...]
@@ -163,10 +172,10 @@ truncated instructions. A failure names its input and reports all four counts,
 including known instructions. CupidDis keeps checking later inputs. Declared
 raw data and non-executable ELF regions do not count. Ordinary rendering still
 accepts one file and keeps its existing output. The normal kernel path runs
-strict validation and flat extraction against one frozen cohort of all 428
+strict validation and flat extraction against one frozen cohort of all 429
 audited root object outputs plus the pass-one and final kernel ELFs. Its
-9,056-byte graph-ordered manifest lists those 430 unique paths and has SHA-256
-07e0e0bf5cee4c1bf893305ef1dfd058400474d4af3dc3979c59f6e0195a0e2a.
+9,076-byte graph-ordered manifest lists those 431 unique paths and has SHA-256
+4f1936423ae06418fc2f75603c29a91997608fe82f48c323321523aed25a2ab0.
 An immutable first-opcode index preserves exhaustive selection, and the
 checked 128 KiB throughput contract passes within 30 seconds. ADR 0262 records
 the command, ADR 0266 records indexed decoding, and ADR 0265 records
@@ -181,7 +190,7 @@ a0b57cd886369762b65d657bb3f2915ada8f30b52102535add89466eaf4f5976, and an
 8,946,332-byte raw kernel with SHA-256
 4f5f2591d01bcc4007773844e9bfb8112a16dd17fbd178014cc2056fefaab67d.
 The current hostbuild transaction freezes the selected seed manifest and all
-five artifacts, the 430-entry input manifest and cohort, and the existing
+five artifacts, the 431-entry input manifest and cohort, and the existing
 kernel.bin boundary. Checked CupidDis validates the private cohort before
 checked CupidObj flattens the frozen final ELF. Hostbuild rechecks live trust
 inputs and the output before parent-relative atomic publication. Every failure
@@ -283,14 +292,17 @@ useful success and failure paths for every tool and checks the direct runtime
 contract. CupidDis checks quoted raw-input parity with the Linux tool. CupidLD
 checks exact output, candidate collision, replacement failure, and cleanup.
 Those images now form the checked Windows execution seed for output-bearing
-production work. A native Windows build plan and fixed point remain open. ADR
-0268 records the shared runtime, ADR 0269 records CupidLD publication, and ADR
-0272 records checked carriage and production selection.
+production work. Source head freezes that seed and the verified Linux plan
+seed separately, builds two native generations, compares every object and
+tool, and runs both stages. Its first full run rejected concurrent source
+drift after stage two, so a stable pass and seed promotion remain open.
 
 make verify-bootstrap-seed validates the files without executing them.
-make bootstrap-from-seed performs the staged build. Windows runs the static
-Linux seed through WSL for fixed-point and contract work. Output-bearing
-production recipes run the checked native PE32 execution seed directly.
+make bootstrap-from-seed performs the Linux staged build. The public
+bootstrap-windows command performs the native PE build from the Windows
+execution seed and Linux plan seed. Windows still runs Linux contract programs
+through WSL. Output-bearing production recipes run the checked native PE32
+execution seed directly.
 Normal Cupid OS C roots and Toolchain contracts use checked CupidC. A host
 compiler remains only for explicit native oracles and hosted development
 commands.
@@ -448,8 +460,11 @@ definitions before the desktop starts.
 
 >h2 AOT ELF Output
 >tree open AOT ELF Output
-as -o and cupidasm both use shared CupidASM to produce a fixed image, then a
-small checked kernel bridge writes a sectionless i386 ELF32 executable.
+as -o asks shared CupidASM for an ELF32 relocatable object. CupidASM applies
+the caller-priority MAIN and _START entry names, publishes the selected
+spelling, and promotes only that code label. In-kernel CupidLD resolves the
+object and writes the executable at the existing 0x01A00000 text address.
+JIT continues to use a fixed image directly.
 
 Common patterns:
   as -o /home/hello /demos/hello.asm
@@ -459,10 +474,10 @@ Common patterns:
 If cupidasm is called without -o, the output name is derived from the
 source path by stripping .asm.
 
-The bridge supports code-only and code/data images, records BSS in segment
-memory size without storing zero bytes, and leaves its output empty when a
-malformed artifact is rejected. The loader accepts the historical adjacent
-1 MB code and data placement as one bounded 2 MB mapped span.
+The adapter accepts code-only and code/data/BSS objects and leaves its output
+empty when assembly, entry selection, linking, or validation fails. The loader
+accepts the historical adjacent 1 MB code and data placement as one bounded
+2 MB mapped span.
 
 This fixed-address compatibility format supports one loaded assembly image at
 a time. CupidLD and the final loader own distinct concurrent process

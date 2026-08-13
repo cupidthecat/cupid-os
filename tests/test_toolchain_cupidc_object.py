@@ -569,6 +569,166 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "automatic-objects: ok\n")
 
+    def test_hosted_cupidc_probes_each_page_of_large_fixed_frames(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidc-stack-probes-", dir=REPO_ROOT
+        ) as temp:
+            root = Path(temp)
+            source = root / "fixed-frames.cc"
+            output = root / "fixed-frames.o"
+            source.write_text(
+                "unsigned int frame_one_page(void) {\n"
+                "  unsigned char bytes[4096];\n"
+                "  bytes[0] = 1;\n"
+                "  return bytes[4095];\n"
+                "}\n"
+                "unsigned int frame_one_page_and_word(void) {\n"
+                "  unsigned char bytes[4100];\n"
+                "  bytes[0] = 2;\n"
+                "  return bytes[4099];\n"
+                "}\n"
+                "unsigned int frame_two_pages(void) {\n"
+                "  unsigned char bytes[8192];\n"
+                "  bytes[0] = 3;\n"
+                "  return bytes[8191];\n"
+                "}\n",
+                encoding="utf-8",
+            )
+            compile_result = subprocess.run(
+                [
+                    str(self.hosted_cupidc_path),
+                    "--root",
+                    str(root),
+                    "--freestanding",
+                    "-c",
+                    "/fixed-frames.cc",
+                    "-o",
+                    "/fixed-frames.o",
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+                timeout=60,
+            )
+            self.assertEqual(
+                compile_result.returncode, 0, compile_result.stderr
+            )
+            self.assertEqual(compile_result.stdout, "")
+            self.assertEqual(compile_result.stderr, "")
+            validate_i386_relocatable_bytes(output.read_bytes())
+
+            disassembly = subprocess.run(
+                [
+                    str(self.hosted_cupiddis_path),
+                    "--disassemble",
+                    str(output),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+                timeout=60,
+            )
+            self.assertEqual(disassembly.returncode, 0, disassembly.stderr)
+            self.assertEqual(disassembly.stderr, "")
+
+            def function_listing(name, next_name=None):
+                start = disassembly.stdout.index(f"<{name}>:")
+                if next_name is None:
+                    return disassembly.stdout[start:]
+                end = disassembly.stdout.index(f"<{next_name}>:", start)
+                return disassembly.stdout[start:end]
+
+            one_page = function_listing(
+                "frame_one_page", "frame_one_page_and_word"
+            )
+            one_page_and_word = function_listing(
+                "frame_one_page_and_word", "frame_two_pages"
+            )
+            two_pages = function_listing("frame_two_pages")
+            page_reservation = "sub esp, 0x1000"
+            page_probe = "test dword [esp], esp"
+
+            self.assertEqual(one_page.count(page_reservation), 1)
+            self.assertNotIn(page_probe, one_page)
+            self.assertTrue(
+                one_page.startswith(
+                    "<frame_one_page>:\n"
+                    "00000000:  55  push ebp\n"
+                    "00000001:  89 E5  mov ebp, esp\n"
+                    "00000003:  81 EC 00 10 00 00  sub esp, 0x1000\n"
+                ),
+                one_page,
+            )
+            self.assertEqual(one_page_and_word.count(page_reservation), 1)
+            self.assertEqual(
+                one_page_and_word.count(page_probe), 2, one_page_and_word
+            )
+            self.assertIn("sub esp, 0x4", one_page_and_word)
+            self.assertEqual(two_pages.count(page_reservation), 2)
+            self.assertEqual(two_pages.count(page_probe), 2)
+
+    def test_hosted_cupidc_recovers_after_a_fixed_frame_limit_failure(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupidc-stack-probe-recovery-", dir=REPO_ROOT
+        ) as temp:
+            root = Path(temp)
+            source = root / "fixed-frame.cc"
+            output = root / "fixed-frame.o"
+            sentinel = b"existing object"
+            source.write_text(
+                "void frame_too_large(void) {\n"
+                "  unsigned char bytes[4294967295u];\n"
+                "  bytes[0] = 1;\n"
+                "}\n",
+                encoding="utf-8",
+            )
+            output.write_bytes(sentinel)
+            command = [
+                str(self.hosted_cupidc_path),
+                "--root",
+                str(root),
+                "--freestanding",
+                "-c",
+                "/fixed-frame.cc",
+                "-o",
+                "/fixed-frame.o",
+            ]
+            failed = subprocess.run(
+                command,
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+                timeout=60,
+            )
+            self.assertEqual(failed.returncode, 1)
+            self.assertEqual(failed.stdout, "")
+            self.assertIn(
+                "CupidC object emission exceeded a configured resource limit",
+                failed.stderr,
+            )
+            self.assertEqual(output.read_bytes(), sentinel)
+
+            source.write_text(
+                "unsigned int recovered_frame(void) {\n"
+                "  unsigned char bytes[4100];\n"
+                "  bytes[0] = 4;\n"
+                "  return bytes[4099];\n"
+                "}\n",
+                encoding="utf-8",
+            )
+            recovered = subprocess.run(
+                command,
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+                timeout=60,
+            )
+            self.assertEqual(recovered.returncode, 0, recovered.stderr)
+            self.assertEqual(recovered.stdout, "")
+            self.assertEqual(recovered.stderr, "")
+            self.assertNotEqual(output.read_bytes(), sentinel)
+            validate_i386_relocatable_bytes(output.read_bytes())
+
     def test_block_extern_objects_emit_one_undefined_linked_symbol(self):
         result = subprocess.run(
             [str(self.contract_path), "block-externs", str(REPO_ROOT)],
