@@ -331,6 +331,14 @@ def _source_input_paths(
         source_root / "toolchain/hosted/i386-windows/tool_start.asm"
     )
     paths.append(
+        source_root
+        / "toolchain/hosted/i386-windows/publication_runtime.cc"
+    )
+    paths.append(
+        source_root
+        / "toolchain/hosted/i386-windows/publication_start.asm"
+    )
+    paths.append(
         source_root / "toolchain/tests/hosted_i386_windows_contract.cc"
     )
     paths.append(
@@ -1703,18 +1711,35 @@ def _build_windows_tool_image(
     stage_three_runtime: Path,
     stage_two_host_adapter: Path,
     stage_three_host_adapter: Path,
+    stage_two_extra_objects: dict[str, Path],
+    stage_three_extra_objects: dict[str, Path],
 ) -> tuple[Path, Path, dict[str, object]]:
     windows_sources = {
         "cupidasm": ("cupidasm_main",),
         "cupidc": ("cupidc_main",),
+        "cupidld": ("cupidld_main",),
         "cupidobj": ("cupidobj_main",),
     }
     replacement_names = windows_sources.get(tool_name, ())
-    stage_two_replacements = {"ctool_host": stage_two_host_adapter}
-    stage_three_replacements = {"ctool_host": stage_three_host_adapter}
+    stage_two_replacements = {
+        "ctool_host": stage_two_host_adapter,
+        **stage_two_extra_objects,
+    }
+    stage_three_replacements = {
+        "ctool_host": stage_three_host_adapter,
+        **stage_three_extra_objects,
+    }
     compile_artifacts: dict[str, Path] = {
         "stage-two-ctool_host": stage_two_host_adapter,
         "stage-three-ctool_host": stage_three_host_adapter,
+        **{
+            f"stage-two-{name}": path
+            for name, path in stage_two_extra_objects.items()
+        },
+        **{
+            f"stage-three-{name}": path
+            for name, path in stage_three_extra_objects.items()
+        },
     }
     for source_name in replacement_names:
         stage_two_object = behavior_root / (
@@ -1802,7 +1827,11 @@ def _build_windows_tool_image(
             arguments.extend(("--import", selector))
         arguments.extend(("-o", image, start))
         for name in link_objects:
-            arguments.append(replacements.get(name, stage.objects[name]))
+            arguments.append(
+                replacements[name]
+                if name in replacements
+                else stage.objects[name]
+            )
         arguments.append(runtime)
         return arguments
 
@@ -2927,6 +2956,105 @@ def _run_behavior_checks(
         raise BootstrapError("CupidC Windows host adapter differs")
     _validate_i386_relocatable(stage_two_windows_host_adapter)
 
+    stage_two_windows_publication_runtime = (
+        behavior_root / "stage-two-windows-publication-runtime.o"
+    )
+    stage_three_windows_publication_runtime = (
+        behavior_root / "stage-three-windows-publication-runtime.o"
+    )
+    windows_publication_compile_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupidc",
+        [
+            "--root",
+            source_root,
+            "-D",
+            "_WIN32=1",
+            "-c",
+            "/toolchain/hosted/i386-windows/publication_runtime.cc",
+            "--include-angle",
+            "/toolchain/hosted/i386-linux/include",
+            "-o",
+            _logical_path(
+                source_root, stage_two_windows_publication_runtime
+            ),
+        ],
+        [
+            "--root",
+            source_root,
+            "-D",
+            "_WIN32=1",
+            "-c",
+            "/toolchain/hosted/i386-windows/publication_runtime.cc",
+            "--include-angle",
+            "/toolchain/hosted/i386-linux/include",
+            "-o",
+            _logical_path(
+                source_root, stage_three_windows_publication_runtime
+            ),
+        ],
+        360,
+    )
+    _expect_status(
+        windows_publication_compile_result,
+        0,
+        "CupidC Windows publication runtime",
+    )
+    if (
+        windows_publication_compile_result.stdout
+        or windows_publication_compile_result.stderr
+        or stage_two_windows_publication_runtime.read_bytes()
+        != stage_three_windows_publication_runtime.read_bytes()
+    ):
+        raise BootstrapError("CupidC Windows publication runtime differs")
+    _validate_i386_relocatable(stage_two_windows_publication_runtime)
+
+    windows_publication_start = (
+        source_root / "toolchain/hosted/i386-windows/publication_start.asm"
+    )
+    stage_two_windows_publication_start = (
+        behavior_root / "stage-two-windows-publication-start.o"
+    )
+    stage_three_windows_publication_start = (
+        behavior_root / "stage-three-windows-publication-start.o"
+    )
+    windows_publication_assembly_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupidasm",
+        [
+            "-f",
+            "elf32",
+            windows_publication_start,
+            "-o",
+            stage_two_windows_publication_start,
+        ],
+        [
+            "-f",
+            "elf32",
+            windows_publication_start,
+            "-o",
+            stage_three_windows_publication_start,
+        ],
+        120,
+    )
+    _expect_status(
+        windows_publication_assembly_result,
+        0,
+        "CupidASM Windows publication startup",
+    )
+    if (
+        windows_publication_assembly_result.stdout
+        or windows_publication_assembly_result.stderr
+        or stage_two_windows_publication_start.read_bytes()
+        != stage_three_windows_publication_start.read_bytes()
+    ):
+        raise BootstrapError("CupidASM Windows publication startup differs")
+    _validate_i386_relocatable(stage_two_windows_publication_start)
+
     windows_cupiddis_imports = (
         ("__imp_CloseHandle", "KERNEL32.dll", "CloseHandle"),
         ("__imp_CreateFileA", "KERNEL32.dll", "CreateFileA"),
@@ -2944,6 +3072,26 @@ def _run_behavior_checks(
         ("__imp_VirtualAlloc", "KERNEL32.dll", "VirtualAlloc"),
         ("__imp_VirtualFree", "KERNEL32.dll", "VirtualFree"),
         ("__imp_WriteFile", "KERNEL32.dll", "WriteFile"),
+    )
+    windows_cupidld_imports = tuple(
+        sorted(
+            windows_cupiddis_imports
+            + (
+                ("__imp_DeleteFileA", "KERNEL32.dll", "DeleteFileA"),
+                (
+                    "__imp_FlushFileBuffers",
+                    "KERNEL32.dll",
+                    "FlushFileBuffers",
+                ),
+                (
+                    "__imp_GetFullPathNameA",
+                    "KERNEL32.dll",
+                    "GetFullPathNameA",
+                ),
+                ("__imp_MoveFileExA", "KERNEL32.dll", "MoveFileExA"),
+            ),
+            key=lambda item: item[2],
+        )
     )
     windows_cupiddis_import_selectors = tuple(
         f"{slot}={library}:{procedure}"
@@ -3200,6 +3348,15 @@ def _run_behavior_checks(
             "elf32",
             "x86",
         ),
+        "cupidld": (
+            "publication_start",
+            "cupidld_main",
+            "cupidld",
+            "ctool_host",
+            "ctool",
+            "elf32",
+            "publication_runtime",
+        ),
         "cupidobj": (
             "cupidobj_main",
             "cupidobj",
@@ -3207,6 +3364,24 @@ def _run_behavior_checks(
             "ctool",
             "elf32",
         ),
+    }
+    windows_native_tool_imports = {
+        "cupidasm": windows_cupiddis_imports,
+        "cupidc": windows_cupiddis_imports,
+        "cupidld": windows_cupidld_imports,
+        "cupidobj": windows_cupiddis_imports,
+    }
+    windows_native_stage_two_extras = {
+        "cupidld": {
+            "publication_runtime": stage_two_windows_publication_runtime,
+            "publication_start": stage_two_windows_publication_start,
+        },
+    }
+    windows_native_stage_three_extras = {
+        "cupidld": {
+            "publication_runtime": stage_three_windows_publication_runtime,
+            "publication_start": stage_three_windows_publication_start,
+        },
     }
     windows_native_tool_images: dict[str, Path] = {}
     windows_native_tool_artifacts: dict[str, dict[str, object]] = {}
@@ -3220,13 +3395,15 @@ def _run_behavior_checks(
                 stage_three,
                 tool_name,
                 link_objects,
-                windows_cupiddis_imports,
+                windows_native_tool_imports[tool_name],
                 stage_two_windows_tool_start,
                 stage_three_windows_tool_start,
                 stage_two_windows_tool_runtime,
                 stage_three_windows_tool_runtime,
                 stage_two_windows_host_adapter,
                 stage_three_windows_host_adapter,
+                windows_native_stage_two_extras.get(tool_name, {}),
+                windows_native_stage_three_extras.get(tool_name, {}),
             )
         )
         windows_native_tool_images[tool_name] = stage_two_native_tool
@@ -3378,6 +3555,116 @@ def _run_behavior_checks(
                 "return_code": native_success.returncode,
                 "status": "pass",
             }
+
+        native_cupidld_output = behavior_root / "native linked output.exe"
+        native_cupidld_output.write_bytes(sentinel)
+        occupied_cupidld_candidate = behavior_root / (
+            "native linked output.exe.cupid-tmp-00000000"
+        )
+        occupied_cupidld_candidate.write_bytes(b"occupied")
+        native_cupidld_arguments: list[str] = [
+            "-m",
+            "i386pe",
+            "--text-address",
+            "0x00401000",
+            "--entry",
+            "_start",
+            *(
+                value
+                for selector in windows_cupiddis_import_selectors
+                for value in ("--import", selector)
+            ),
+        ]
+        native_cupidld_arguments.extend(
+            (
+                "-o",
+                native_cupidld_output.name,
+                stage_two_windows_tool_start.name,
+                stage_two_windows_runtime_contract.name,
+                stage_two_windows_tool_runtime.name,
+            )
+        )
+        blocked_cupidld_output = behavior_root / "blocked-output.exe"
+        blocked_cupidld_output.mkdir()
+        blocked_cupidld_arguments = list(native_cupidld_arguments)
+        blocked_cupidld_arguments[
+            blocked_cupidld_arguments.index(native_cupidld_output.name)
+        ] = blocked_cupidld_output.name
+        reference_cupidld_help = runner.run(
+            stage_two.tools["cupidld"], ["--help"], 60
+        )
+        try:
+            native_cupidld_help = subprocess.run(
+                [str(windows_native_tool_images["cupidld"]), "--help"],
+                cwd=behavior_root,
+                capture_output=True,
+                text=True,
+                timeout=20,
+            )
+            native_cupidld_success = subprocess.run(
+                [
+                    str(windows_native_tool_images["cupidld"]),
+                    *native_cupidld_arguments,
+                ],
+                cwd=behavior_root,
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            native_cupidld_failure = subprocess.run(
+                [
+                    str(windows_native_tool_images["cupidld"]),
+                    *blocked_cupidld_arguments,
+                ],
+                cwd=behavior_root,
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+        except (OSError, subprocess.TimeoutExpired) as error:
+            raise BootstrapError(
+                f"Cupid-built Windows CupidLD could not run: {error}"
+            ) from error
+        remaining_cupidld_candidates = sorted(
+            behavior_root.glob("native linked output.exe.cupid-tmp-*")
+        )
+        remaining_blocked_candidates = sorted(
+            behavior_root.glob("blocked-output.exe.cupid-tmp-*")
+        )
+        if (
+            reference_cupidld_help.returncode != 0
+            or reference_cupidld_help.stderr
+            or native_cupidld_help.returncode != 0
+            or native_cupidld_help.stdout != reference_cupidld_help.stdout
+            or native_cupidld_help.stderr
+            or native_cupidld_success.returncode != 0
+            or native_cupidld_success.stdout
+            or native_cupidld_success.stderr
+            or native_cupidld_output.read_bytes()
+            != stage_two_windows_runtime_contract_image.read_bytes()
+            or occupied_cupidld_candidate.read_bytes() != b"occupied"
+            or remaining_cupidld_candidates != [occupied_cupidld_candidate]
+            or native_cupidld_failure.returncode != 1
+            or native_cupidld_failure.stdout
+            or "cupidld: link failed (io)" not in native_cupidld_failure.stderr
+            or not blocked_cupidld_output.is_dir()
+            or remaining_blocked_candidates
+        ):
+            raise BootstrapError(
+                "Cupid-built Windows CupidLD publication behavior differs"
+            )
+        windows_native_tool_loaders["cupidld"] = {
+            "failure_candidate_count": len(remaining_blocked_candidates),
+            "failure_return_code": native_cupidld_failure.returncode,
+            "help_return_code": native_cupidld_help.returncode,
+            "occupied_candidate_sha256": _sha256(
+                occupied_cupidld_candidate
+            ),
+            "output_sha256": _sha256(native_cupidld_output),
+            "output_size": native_cupidld_output.stat().st_size,
+            "return_code": native_cupidld_success.returncode,
+            "status": "pass",
+        }
 
     windows_cupiddis_loader: dict[str, object] = {"status": "not-run"}
     if os.name == "nt":
@@ -3715,7 +4002,7 @@ def _run_behavior_checks(
                             "slot": slot,
                         }
                         for slot, library, procedure
-                        in windows_cupiddis_imports
+                        in windows_native_tool_imports[tool_name]
                     ],
                     "loader": windows_native_tool_loaders[tool_name],
                 }
@@ -4326,9 +4613,9 @@ def _bootstrap_from_frozen_seed(
             )
         if not isinstance(windows_native_tools, dict) or set(
             windows_native_tools
-        ) != {"cupidasm", "cupidc", "cupidobj"}:
+        ) != {"cupidasm", "cupidc", "cupidld", "cupidobj"}:
             raise BootstrapError("Windows native-tool evidence is malformed")
-        for tool_name in ("cupidasm", "cupidc", "cupidobj"):
+        for tool_name in ("cupidasm", "cupidc", "cupidld", "cupidobj"):
             tool_evidence = windows_native_tools.get(tool_name)
             if not isinstance(tool_evidence, dict) or not isinstance(
                 tool_evidence.get("loader"), dict
@@ -4351,6 +4638,7 @@ def _bootstrap_from_frozen_seed(
                 ],
                 "windows_cupidc": windows_native_tools["cupidc"]["loader"],
                 "windows_cupiddis": windows_cupiddis["loader"],
+                "windows_cupidld": windows_native_tools["cupidld"]["loader"],
                 "windows_loader": windows_loader,
                 "windows_cupidobj": windows_native_tools["cupidobj"][
                     "loader"

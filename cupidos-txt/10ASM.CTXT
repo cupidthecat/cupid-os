@@ -250,8 +250,9 @@ not lock or pin the output path.
 The checked i386 Linux seed includes CupidASM. Its manifest binds the exact
 assembler image to the target ABI, source revision, producer lineage, source
 plan, and link order. The bootstrap freezes the verified manifest and binaries
-and copies its 47-input source closure, including link.ld, the small Windows
-probe, the native Windows tool runtime, startup, direct contract, and direct.h,
+and copies its 50-input source closure, including link.ld, the small Windows
+probe, the native Windows tool runtime and startup, CupidLD publication runtime
+and bridge, the direct contract, and hosted declarations,
 into a private root.
 Checked CupidASM assembles stage-two startup there, then the stage-two
 assembler produces byte-identical stage-three startup below the same root.
@@ -263,15 +264,15 @@ An independent poisoned-host reproof passed in 766.9 seconds. All five seed
 images match stage two, and stage two matches stage three across the same
 19 C objects, startup, five tools, and behavior matrix.
 
-Source head also assembles the native Windows tool entry and twelve cdecl API
-bridges through both fixed-point stages. Those startup objects match. CupidLD
-links native CupidASM, CupidC, CupidDis, and CupidObj closures with the matching
-runtime objects. Windows runs help plus useful success and failure paths for
-all four tools and checks the direct runtime contract. CupidDis also checks
-quoted raw-input parity with the Linux tool. CupidLD still needs Windows-safe
-exclusive creation, flush, replacement, and deletion before it can publish
-files natively. Checked Windows seed carriage remains open. ADR 0268
-records this boundary.
+Source head also assembles the native Windows tool entry and twelve shared
+cdecl API bridges through both fixed-point stages, plus four publication
+bridges for CupidLD. Those startup objects match. CupidLD links all five native
+tool closures with their matching runtime objects. Windows runs help plus
+useful success and failure paths for every tool and checks the direct runtime
+contract. CupidDis checks quoted raw-input parity with the Linux tool. CupidLD
+checks exact output, candidate collision, replacement failure, and cleanup.
+Checked Windows seed carriage remains open. ADR 0268 records the shared runtime,
+and ADR 0269 records CupidLD publication.
 
 make verify-bootstrap-seed validates the files without executing them.
 make bootstrap-from-seed performs the staged build. Windows runs the static

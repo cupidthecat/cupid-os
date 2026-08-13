@@ -223,10 +223,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             transform["operation"], "verify_user_syscall_abi"
         )
         self.assertEqual(
-            len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 62
+            len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 65
         )
         self.assertEqual(
-            len(module.USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS), 47
+            len(module.USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS), 50
         )
         self.assertEqual(
             len(module.USER_SYSCALL_ABI_CHECKED_SEED_INPUTS), 6
@@ -243,7 +243,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             repo_inputs("CHECKED_SEED_INPUTS"),
             tuple(sorted(module.USER_SYSCALL_ABI_CHECKED_SEED_INPUTS)),
         )
-        self.assertEqual(len(module.USER_SYSCALL_ABI_AUDIT_INPUTS), 89)
+        self.assertEqual(len(module.USER_SYSCALL_ABI_AUDIT_INPUTS), 92)
         self.assertEqual(
             module.USER_SYSCALL_ABI_AUDIT_INPUTS,
             tuple(
@@ -258,7 +258,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             transform["inputs"],
             [*module.USER_SYSCALL_ABI_AUDIT_INPUTS, "user/Makefile"],
         )
-        self.assertEqual(len(publication_transform["inputs"]), 89)
+        self.assertEqual(len(publication_transform["inputs"]), 92)
         self.assertEqual(
             set(transform["inputs"][:-1]),
             set(publication_transform["inputs"]),
@@ -1805,7 +1805,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             contract = generated["contracts"][
                 "c_preprocessor_line_directives"
             ]
-            self.assertEqual(contract["source_files"], 698)
+            self.assertEqual(contract["source_files"], 700)
             self.assertEqual(contract["named_line_occurrences"], 0)
             self.assertEqual(contract["direct_line_occurrences"], 0)
             self.assertEqual(contract["pp_token_line_occurrences"], 0)
@@ -1826,7 +1826,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertIn(
                 "`c_preprocessor_line_directives` | `pass` | "
                 "0 named #line directives (0 direct, 0 pp-token; 0 filename); "
-                "0 numeric markers; 698 source files; max conditional depth 0",
+                "0 numeric markers; 700 source files; max conditional depth 0",
                 summary.read_text(encoding="utf-8"),
             )
 
@@ -2725,10 +2725,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 checked["contracts"]["c_preprocessor_include_operands"],
                 contract,
             )
-            self.assertEqual(contract["source_files"], 698)
-            self.assertEqual(contract["include_occurrences"], 2444)
+            self.assertEqual(contract["source_files"], 700)
+            self.assertEqual(contract["include_occurrences"], 2450)
             self.assertEqual(contract["direct_quoted_occurrences"], 2197)
-            self.assertEqual(contract["direct_angle_occurrences"], 247)
+            self.assertEqual(contract["direct_angle_occurrences"], 253)
             self.assertEqual(contract["pp_token_operand_occurrences"], 0)
 
     def test_inventory_detects_link_inputs_missing_from_artifact_manifest(self):
@@ -3348,12 +3348,12 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "HOSTED_TOOLCHAIN_64": 0,
                 "HOSTED_KERNEL_BRIDGE_64": 0,
                 "HOSTED_I386_LINUX": 33,
-                "HOSTED_I386_WINDOWS": 4,
+                "HOSTED_I386_WINDOWS": 6,
                 "HOSTED_I386_KERNEL_BRIDGE": 2,
                 "HOSTED_I386_LINUX_GNU": 3,
             },
         )
-        self.assertEqual(len(active), 391)
+        self.assertEqual(len(active), 393)
         for expected in (
             ("KERNEL_I386", "/kernel/core/kernel.cc"),
             ("KERNEL_I386", "/kernel/audio/memio.cc"),
@@ -3377,7 +3377,12 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ("HOSTED_I386_WINDOWS", "/toolchain/ctool_host.cc"),
             ("HOSTED_I386_WINDOWS", "/toolchain/cupidasm_main.cc"),
             ("HOSTED_I386_WINDOWS", "/toolchain/cupidc_main.cc"),
+            ("HOSTED_I386_WINDOWS", "/toolchain/cupidld_main.cc"),
             ("HOSTED_I386_WINDOWS", "/toolchain/cupidobj_main.cc"),
+            (
+                "HOSTED_I386_WINDOWS",
+                "/toolchain/hosted/i386-windows/publication_runtime.cc",
+            ),
             (
                 "HOSTED_I386_LINUX",
                 "/toolchain/tests/cupidc_object_contract.cc",
@@ -4560,7 +4565,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         self.assertEqual(contract["help_cases"], 5)
         self.assertEqual(contract["success_behavior_cases"], 18)
         self.assertEqual(contract["failure_behavior_cases"], 16)
-        self.assertEqual(contract["contract_manifest_inputs"], 62)
+        self.assertEqual(contract["contract_manifest_inputs"], 65)
         self.assertEqual(
             contract["source_head_capabilities"],
             [
@@ -4569,6 +4574,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "cupid.windows_cupidasm",
                 "cupid.windows_cupidc",
                 "cupid.windows_cupiddis",
+                "cupid.windows_cupidld",
                 "cupid.windows_cupidobj",
                 "cupid.windows_runtime_contract",
                 "cupid.windows_runtime_probe",
@@ -4591,6 +4597,28 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             / "toolchain"
             / "tests"
             / "hosted_i386_windows_runtime_contract.cc"
+        ).read_text(encoding="utf-8")
+        windows_publication_header = (
+            REPO_ROOT
+            / "toolchain"
+            / "hosted"
+            / "i386-linux"
+            / "include"
+            / "windows.h"
+        ).read_text(encoding="utf-8")
+        windows_publication_runtime = (
+            REPO_ROOT
+            / "toolchain"
+            / "hosted"
+            / "i386-windows"
+            / "publication_runtime.cc"
+        ).read_text(encoding="utf-8")
+        windows_publication_start = (
+            REPO_ROOT
+            / "toolchain"
+            / "hosted"
+            / "i386-windows"
+            / "publication_start.asm"
         ).read_text(encoding="utf-8")
         linker_header = (REPO_ROOT / "toolchain" / "cupidld.h").read_text(
             encoding="utf-8"
@@ -5118,6 +5146,44 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "                or failure_output.read_bytes() != sentinel\n",
                 "                or False\n",
                 r"fixed-point PE32 behavior differs",
+            ),
+            "Windows CupidLD stops comparing published output": (
+                "bootstrap",
+                "            or native_cupidld_output.read_bytes()\n"
+                "            != stage_two_windows_runtime_contract_image.read_bytes()\n",
+                "            or False\n",
+                r"fixed-point PE32 behavior differs",
+            ),
+            "Windows CupidLD stops checking failed-publication cleanup": (
+                "bootstrap",
+                "            or remaining_blocked_candidates\n",
+                "            or False\n",
+                r"fixed-point PE32 behavior differs",
+            ),
+            "Windows publication runtime compiles the wrong source": (
+                "bootstrap",
+                '            "/toolchain/hosted/i386-windows/'
+                'publication_runtime.cc",\n',
+                '            "/toolchain/hosted/i386-windows/runtime.cc",\n',
+                r"fixed-point PE32 behavior differs",
+            ),
+            "Windows publication header redirects atomic replacement": (
+                "windows_publication_header",
+                "#define MoveFileExA cupid_windows_move_file_ex\n",
+                "#define MoveFileExA cupid_windows_delete_file\n",
+                r"Windows publication contract differs",
+            ),
+            "Windows publication runtime skips the size query": (
+                "windows_publication_runtime",
+                "GetFullPathNameA(path, 0u, (char *)0, (char **)0);",
+                "GetFullPathNameA(path, 1u, (char *)0, (char **)0);",
+                r"Windows publication contract differs",
+            ),
+            "Windows publication bridge calls the wrong API": (
+                "windows_publication_start",
+                "call dword [__imp_FlushFileBuffers]",
+                "call dword [__imp_DeleteFileA]",
+                r"Windows publication contract differs",
             ),
             "Windows native tool behavior moves under a dead block": (
                 "bootstrap",
@@ -5796,6 +5862,28 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     / "tests"
                     / "hosted_i386_windows_runtime_contract.cc"
                 )
+                windows_publication_header_target = (
+                    root
+                    / "toolchain"
+                    / "hosted"
+                    / "i386-linux"
+                    / "include"
+                    / "windows.h"
+                )
+                windows_publication_runtime_target = (
+                    root
+                    / "toolchain"
+                    / "hosted"
+                    / "i386-windows"
+                    / "publication_runtime.cc"
+                )
+                windows_publication_start_target = (
+                    root
+                    / "toolchain"
+                    / "hosted"
+                    / "i386-windows"
+                    / "publication_start.asm"
+                )
                 linker_header_target = root / "toolchain" / "cupidld.h"
                 linker_cli_target = root / "toolchain" / "cupidld_main.cc"
                 linker_core_target = root / "toolchain" / "cupidld.cc"
@@ -5807,6 +5895,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 bootstrap_payload = bootstrap
                 contract_publisher_payload = contract_publisher
                 windows_runtime_contract_payload = windows_runtime_contract
+                windows_publication_header_payload = windows_publication_header
+                windows_publication_runtime_payload = windows_publication_runtime
+                windows_publication_start_payload = windows_publication_start
                 linker_header_payload = linker_header
                 linker_cli_payload = linker_cli
                 linker_core_payload = linker_core
@@ -5836,6 +5927,30 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                         windows_runtime_contract_payload,
                         windows_runtime_contract,
                     )
+                elif target_name == "windows_publication_header":
+                    windows_publication_header_payload = (
+                        windows_publication_header_payload.replace(old, new, 1)
+                    )
+                    self.assertNotEqual(
+                        windows_publication_header_payload,
+                        windows_publication_header,
+                    )
+                elif target_name == "windows_publication_runtime":
+                    windows_publication_runtime_payload = (
+                        windows_publication_runtime_payload.replace(old, new, 1)
+                    )
+                    self.assertNotEqual(
+                        windows_publication_runtime_payload,
+                        windows_publication_runtime,
+                    )
+                elif target_name == "windows_publication_start":
+                    windows_publication_start_payload = (
+                        windows_publication_start_payload.replace(old, new, 1)
+                    )
+                    self.assertNotEqual(
+                        windows_publication_start_payload,
+                        windows_publication_start,
+                    )
                 elif target_name == "linker_header":
                     linker_header_payload = linker_header_payload.replace(
                         old, new, 1
@@ -5861,6 +5976,21 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 )
                 windows_runtime_contract_target.write_text(
                     windows_runtime_contract_payload, encoding="utf-8"
+                )
+                windows_publication_header_target.parent.mkdir(
+                    parents=True, exist_ok=True
+                )
+                windows_publication_header_target.write_text(
+                    windows_publication_header_payload, encoding="utf-8"
+                )
+                windows_publication_runtime_target.parent.mkdir(
+                    parents=True, exist_ok=True
+                )
+                windows_publication_runtime_target.write_text(
+                    windows_publication_runtime_payload, encoding="utf-8"
+                )
+                windows_publication_start_target.write_text(
+                    windows_publication_start_payload, encoding="utf-8"
                 )
                 linker_header_target.write_text(
                     linker_header_payload, encoding="utf-8"
@@ -6555,9 +6685,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 },
                 {
                     "status": "pass",
-                    "tracked_translation_units": 391,
+                    "tracked_translation_units": 393,
                     "generated_translation_units": 4,
-                    "total_translation_units": 395,
+                    "total_translation_units": 397,
                     "include_only_fragments": 22,
                     "delivered_non_root_headers": 2,
                     "deferred_hosted_translation_units": 0,
@@ -6584,7 +6714,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     ("HOSTED_TOOLCHAIN_64", 0, 0),
                     ("HOSTED_KERNEL_BRIDGE_64", 0, 0),
                     ("HOSTED_I386_LINUX", 33, 0),
-                    ("HOSTED_I386_WINDOWS", 4, 0),
+                    ("HOSTED_I386_WINDOWS", 6, 0),
                     ("HOSTED_I386_KERNEL_BRIDGE", 2, 0),
                     ("HOSTED_I386_LINUX_GNU", 3, 0),
                 ],
@@ -6634,7 +6764,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(
                 audit_payload["summary"],
                 {
-                    "active_sources": 732,
+                    "active_sources": 735,
                     "features": 255,
                     "transforms": 450,
                     "unreachable_sources": 25,
@@ -7180,7 +7310,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 for cohort in audit_payload["roadmap"]["source_cohort_order"]
                 if cohort["id"] == "toolchain_sources"
             )
-            self.assertEqual(toolchain_cohort["source_count"], 82)
+            self.assertEqual(toolchain_cohort["source_count"], 85)
             user_program_cohort = next(
                 cohort
                 for cohort in audit_payload["roadmap"]["source_cohort_order"]
@@ -7365,7 +7495,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             )
             self.assertIn(
                 "`c_preprocessor_translation_units` | `pass` | "
-                "391 tracked + 4 generated",
+                "393 tracked + 4 generated",
                 summary.read_text(encoding="utf-8"),
             )
             audit_payload["build"]["transforms"].append(

@@ -44,7 +44,7 @@ SEED_MANIFEST = (
     / "manifest.json"
 )
 SOURCE_HEAD_SNAPSHOT_SHA256 = (
-    "976fca9ccef9a759151ea4cf544f17f3c303ef60fc3ad2207eda18857261d9c4"
+    "76bb7c1cc63c44d29d0f062af0a714e1855632da7db13ff8652f6a897a2931a4"
 )
 
 
@@ -2321,7 +2321,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(invalid_image.read_bytes(), b"sentinel")
 
-    def test_checked_seed_builds_and_runs_native_windows_cupiddis(self):
+    def test_checked_seed_builds_and_runs_native_windows_tool_boundary(self):
         if os.name != "nt":
             self.skipTest("native PE32 execution requires Windows")
         if shutil.which("wsl") is None:
@@ -2339,16 +2339,17 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "x86",
                 "cupiddis",
                 "cupiddis_main",
+                "cupidld",
             )
             objects: dict[str, Path] = {}
             for name in sources:
                 source = REPO_ROOT / "toolchain" / f"{name}.cc"
                 output = root / f"{name}.o"
-                result = runner.run(
-                    frozen.tools["cupidc"],
-                    [
-                        "--root",
-                        REPO_ROOT,
+                arguments = ["--root", REPO_ROOT]
+                if name == "ctool_host":
+                    arguments.extend(("-D", "_WIN32=1"))
+                arguments.extend(
+                    (
                         "-c",
                         "/" + source.relative_to(REPO_ROOT).as_posix(),
                         "-I",
@@ -2357,8 +2358,10 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                         "/toolchain/hosted/i386-linux/include",
                         "-o",
                         "/" + output.relative_to(REPO_ROOT).as_posix(),
-                    ],
-                    360,
+                    )
+                )
+                result = runner.run(
+                    frozen.tools["cupidc"], arguments, 360
                 )
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(result.stdout, "")
@@ -2650,6 +2653,231 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(runtime_failure.stdout, b"")
             self.assertIn(
                 b"windows runtime arguments: bad", runtime_failure.stderr
+            )
+
+            cupidld_main_source = REPO_ROOT / "toolchain/cupidld_main.cc"
+            cupidld_main_object = root / "cupidld-main-windows.o"
+            compiled_cupidld_main = runner.run(
+                frozen.tools["cupidc"],
+                [
+                    "--root",
+                    REPO_ROOT,
+                    "-D",
+                    "_WIN32=1",
+                    "-c",
+                    "/"
+                    + cupidld_main_source.relative_to(REPO_ROOT).as_posix(),
+                    "-I",
+                    "/toolchain",
+                    "--include-angle",
+                    "/toolchain/hosted/i386-linux/include",
+                    "-o",
+                    "/"
+                    + cupidld_main_object.relative_to(REPO_ROOT).as_posix(),
+                ],
+                360,
+            )
+            self.assertEqual(
+                compiled_cupidld_main.returncode,
+                0,
+                compiled_cupidld_main.stderr,
+            )
+            self.assertEqual(compiled_cupidld_main.stdout, "")
+            self.assertEqual(compiled_cupidld_main.stderr, "")
+
+            publication_runtime_source = (
+                REPO_ROOT
+                / "toolchain/hosted/i386-windows/publication_runtime.cc"
+            )
+            publication_runtime_object = root / "publication-runtime.o"
+            compiled_publication_runtime = runner.run(
+                frozen.tools["cupidc"],
+                [
+                    "--root",
+                    REPO_ROOT,
+                    "-D",
+                    "_WIN32=1",
+                    "-c",
+                    "/"
+                    + publication_runtime_source.relative_to(
+                        REPO_ROOT
+                    ).as_posix(),
+                    "--include-angle",
+                    "/toolchain/hosted/i386-linux/include",
+                    "-o",
+                    "/"
+                    + publication_runtime_object.relative_to(
+                        REPO_ROOT
+                    ).as_posix(),
+                ],
+                360,
+            )
+            self.assertEqual(
+                compiled_publication_runtime.returncode,
+                0,
+                compiled_publication_runtime.stderr,
+            )
+            self.assertEqual(compiled_publication_runtime.stdout, "")
+            self.assertEqual(compiled_publication_runtime.stderr, "")
+
+            publication_start_source = (
+                REPO_ROOT
+                / "toolchain/hosted/i386-windows/publication_start.asm"
+            )
+            publication_start_object = root / "publication-start.o"
+            assembled_publication_start = runner.run(
+                frozen.tools["cupidasm"],
+                [
+                    "-f",
+                    "elf32",
+                    publication_start_source,
+                    "-o",
+                    publication_start_object,
+                ],
+                120,
+            )
+            self.assertEqual(
+                assembled_publication_start.returncode,
+                0,
+                assembled_publication_start.stderr,
+            )
+            self.assertEqual(assembled_publication_start.stdout, "")
+            self.assertEqual(assembled_publication_start.stderr, "")
+
+            publication_imports = (
+                "__imp_DeleteFileA=KERNEL32.dll:DeleteFileA",
+                "__imp_FlushFileBuffers=KERNEL32.dll:FlushFileBuffers",
+                "__imp_GetFullPathNameA=KERNEL32.dll:GetFullPathNameA",
+                "__imp_MoveFileExA=KERNEL32.dll:MoveFileExA",
+            )
+            cupidld_image = root / "cupidld.exe"
+            cupidld_link_arguments: list[str | Path] = [
+                "-m",
+                "i386pe",
+                "--text-address",
+                "0x00401000",
+                "--entry",
+                "_start",
+            ]
+            for imported in (*imports, *publication_imports):
+                cupidld_link_arguments.extend(("--import", imported))
+            cupidld_link_arguments.extend(
+                (
+                    "-o",
+                    cupidld_image,
+                    startup_object,
+                    publication_start_object,
+                    cupidld_main_object,
+                    objects["cupidld"],
+                    objects["ctool_host"],
+                    objects["ctool"],
+                    objects["elf32"],
+                    runtime_object,
+                    publication_runtime_object,
+                )
+            )
+            linked_cupidld = runner.run(
+                frozen.tools["cupidld"], cupidld_link_arguments, 180
+            )
+            self.assertEqual(
+                linked_cupidld.returncode, 0, linked_cupidld.stderr
+            )
+            self.assertEqual(linked_cupidld.stdout, "")
+            self.assertEqual(linked_cupidld.stderr, "")
+            _validate_static_i386_pe32(
+                cupidld_image,
+                0x00401000,
+                (
+                    (
+                        "KERNEL32.dll",
+                        tuple(
+                            sorted(
+                                item.rsplit(":", 1)[1]
+                                for item in (*imports, *publication_imports)
+                            )
+                        ),
+                    ),
+                ),
+            )
+
+            cupidld_help = subprocess.run(
+                [str(cupidld_image), "--help"],
+                cwd=root,
+                capture_output=True,
+                timeout=20,
+            )
+            cupidld_help_oracle = runner.run(
+                frozen.tools["cupidld"], ["--help"], 60
+            )
+            self.assertEqual(cupidld_help.returncode, 0)
+            self.assertEqual(
+                cupidld_help.stdout,
+                cupidld_help_oracle.stdout.encode("utf-8"),
+            )
+            self.assertEqual(cupidld_help.stderr, b"")
+
+            native_link_output = root / "native linked output.exe"
+            native_link_output.write_bytes(b"sentinel")
+            occupied_candidate = root / (
+                "native linked output.exe.cupid-tmp-00000000"
+            )
+            occupied_candidate.write_bytes(b"occupied")
+            native_link_arguments = [
+                "-m",
+                "i386pe",
+                "--text-address",
+                "0x00401000",
+                "--entry",
+                "_start",
+            ]
+            for imported in imports:
+                native_link_arguments.extend(("--import", imported))
+            native_link_arguments.extend(
+                (
+                    "-o",
+                    native_link_output.name,
+                    startup_object.name,
+                    runtime_contract_object.name,
+                    runtime_object.name,
+                )
+            )
+            native_link = subprocess.run(
+                [str(cupidld_image), *native_link_arguments],
+                cwd=root,
+                capture_output=True,
+                timeout=60,
+            )
+            self.assertEqual(native_link.returncode, 0, native_link.stderr)
+            self.assertEqual(native_link.stdout, b"")
+            self.assertEqual(native_link.stderr, b"")
+            self.assertEqual(
+                native_link_output.read_bytes(),
+                runtime_contract_image.read_bytes(),
+            )
+            self.assertEqual(occupied_candidate.read_bytes(), b"occupied")
+            self.assertEqual(
+                sorted(root.glob("native linked output.exe.cupid-tmp-*")),
+                [occupied_candidate],
+            )
+
+            blocked_output = root / "blocked-output.exe"
+            blocked_output.mkdir()
+            blocked_arguments = list(native_link_arguments)
+            blocked_arguments[
+                blocked_arguments.index(native_link_output.name)
+            ] = blocked_output.name
+            blocked_link = subprocess.run(
+                [str(cupidld_image), *blocked_arguments],
+                cwd=root,
+                capture_output=True,
+                timeout=60,
+            )
+            self.assertEqual(blocked_link.returncode, 1)
+            self.assertEqual(blocked_link.stdout, b"")
+            self.assertIn(b"cupidld: link failed (io)", blocked_link.stderr)
+            self.assertTrue(blocked_output.is_dir())
+            self.assertEqual(
+                sorted(root.glob("blocked-output.exe.cupid-tmp-*")), []
             )
 
     def test_checked_seed_preserves_returns_twice_call_operands(self):
@@ -4521,6 +4749,24 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                         if os.name == "nt"
                         else {"status": "not-run"}
                     ),
+                    "windows_cupidld": (
+                        {
+                            "failure_candidate_count": 0,
+                            "failure_return_code": 1,
+                            "help_return_code": 0,
+                            "occupied_candidate_sha256": (
+                                "20323a24be105b1b519962994b8e4e6a7f8e3cd0d005b8ee10c9aeb66da5d40a"
+                            ),
+                            "output_sha256": (
+                                "df61f3a830d26fe47761cd1d927ca7f77b80a8788bf33e308a7d7f997a11eeec"
+                            ),
+                            "output_size": 32256,
+                            "return_code": 0,
+                            "status": "pass",
+                        }
+                        if os.name == "nt"
+                        else {"status": "not-run"}
+                    ),
                     "windows_loader": (
                         {
                             "return_code": 37,
@@ -4698,7 +4944,8 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             native_tools = windows_runtime["native_tools"]
             self.assertEqual(
-                set(native_tools), {"cupidasm", "cupidc", "cupidobj"}
+                set(native_tools),
+                {"cupidasm", "cupidc", "cupidld", "cupidobj"},
             )
             expected_native_images = {
                 "cupidasm": {
@@ -4713,6 +4960,12 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     ),
                     "size": 2593792,
                 },
+                "cupidld": {
+                    "sha256": (
+                        "7799324d179cf0d5862d4bdfa9df865cac35fac0f8c2ec565ae9c060812db03a"
+                    ),
+                    "size": 296448,
+                },
                 "cupidobj": {
                     "sha256": (
                         "46ab2b19fc99bf7ee4856ae6f71a397668fb33bbd0da38535728d00a57a57924"
@@ -4722,9 +4975,22 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             }
             for tool_name, tool_evidence in native_tools.items():
                 with self.subTest(windows_tool=tool_name):
+                    expected_imports = [
+                        item["procedure"] for item in windows_cupiddis["imports"]
+                    ]
+                    if tool_name == "cupidld":
+                        expected_imports = sorted(
+                            expected_imports
+                            + [
+                                "DeleteFileA",
+                                "FlushFileBuffers",
+                                "GetFullPathNameA",
+                                "MoveFileExA",
+                            ]
+                        )
                     self.assertEqual(
                         [item["procedure"] for item in tool_evidence["imports"]],
-                        [item["procedure"] for item in windows_cupiddis["imports"]],
+                        expected_imports,
                     )
                     self.assertEqual(
                         tool_evidence["loader"],
@@ -4732,16 +4998,26 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     )
                     artifacts = tool_evidence["artifacts"]
                     main_name = f"{tool_name}_main"
+                    expected_artifacts = {
+                        "stage-three-ctool_host",
+                        f"stage-three-{main_name}",
+                        "stage-three-image",
+                        "stage-two-ctool_host",
+                        f"stage-two-{main_name}",
+                        "stage-two-image",
+                    }
+                    if tool_name == "cupidld":
+                        expected_artifacts.update(
+                            {
+                                "stage-three-publication_runtime",
+                                "stage-three-publication_start",
+                                "stage-two-publication_runtime",
+                                "stage-two-publication_start",
+                            }
+                        )
                     self.assertEqual(
                         set(artifacts),
-                        {
-                            "stage-three-ctool_host",
-                            f"stage-three-{main_name}",
-                            "stage-three-image",
-                            "stage-two-ctool_host",
-                            f"stage-two-{main_name}",
-                            "stage-two-image",
-                        },
+                        expected_artifacts,
                     )
                     self.assertEqual(
                         artifacts["stage-two-image"],
@@ -4782,7 +5058,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     "cupidobj": True,
                 },
             )
-            self.assertEqual(report["source_inputs"]["count"], 47)
+            self.assertEqual(report["source_inputs"]["count"], 50)
             self.assertEqual(
                 len(report["source_inputs"]["sha256"]),
                 64,
@@ -4793,7 +5069,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(
                 len(report["source_inputs"]["files"]),
-                47,
+                50,
             )
             for tool_name in (
                 "cupidasm",

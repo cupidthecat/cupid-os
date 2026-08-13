@@ -580,12 +580,13 @@ nested level, and rejects removing the nested `const`.
 
 An external array may omit its bound when its element type is complete. The shared IR can take that linked object's address, decay it to the compatible element pointer, apply the element scale, and continue through member access. The array remains incomplete, so it cannot be loaded as a value or used as if its storage size were known.
 
-The exact hosted gate checks 40 strict C11 roots and three GNU-enabled runtime
+The exact hosted gate checks 42 strict C11 roots and three GNU-enabled runtime
 roots under four-byte i386 targets. It covers the 19-source static Linux tool
 union, `kernel/lang/as_elf.cc`, the runtime implementation and probes, and all
 fifteen Linux Toolchain contract programs. `HOSTED_I386_LINUX` owns 33 strict Linux
 roots that can include only the Toolchain tree and the angle-only hosted
-declarations. `HOSTED_I386_WINDOWS` owns four tool roots with `_WIN32=1`.
+declarations. `HOSTED_I386_WINDOWS` owns six roots with `_WIN32=1`: the host
+adapter, four platform-sensitive driver mains, and CupidLD's publication runtime.
 `FREESTANDING_I386` owns the headerless Windows command probe.
 The GNU profile is limited to the Linux runtime, its probe, and the Windows
 runtime wrapper.
@@ -602,8 +603,8 @@ source trees, files, and symbolic links remain untouched. The initial,
 private, and newly discovered contract inventories must match exactly, which
 catches added or removed inputs and restored edits that changed a copied
 file. Every run derives its cohort from the requested executable, requires a
-named manifest artifact, and verifies the complete cohort, live 62-input
-contract set, checked seed manifest, and 47-file fixed-point source inventory
+named manifest artifact, and verifies the complete cohort, live 65-input
+contract set, checked seed manifest, and 50-file fixed-point source inventory
 before execution. The contract set includes the user syscall ABI contract and
 its six declarations, the Toolchain Makefile, the publisher, and the
 independent Python ABI oracle. Seed-manifest hashing, JSON decoding, schema validation, and
@@ -633,11 +634,12 @@ The same runtime source now has a Windows edge selected by
 `VirtualAlloc`, separates stdout and stderr, and implements file reads,
 writes, seeking, current-directory lookup, and useful `errno` values. CupidASM
 supplies the process entry and cdecl bridges to imported Windows APIs. CupidLD
-links that runtime with native CupidASM, CupidC, CupidDis, and CupidObj
-closures. Both fixed-point stages produce matching PE images. Windows runs
-help plus a useful success and failure path for all four tools, and CupidDis
-also checks quoted raw-input parity with the Linux tool. ADR 0268 records this
-native four-tool boundary.
+links that runtime with all five hosted closures. Its own image adds `_fullpath`
+and four publication imports for exclusive creation, durable flush, atomic
+replacement, and cleanup. Both fixed-point stages produce matching PE images.
+Windows runs help plus a useful success and failure path for every tool, and
+CupidDis also checks quoted raw-input parity with the Linux tool. ADR 0268
+records the shared runtime, and ADR 0269 records CupidLD publication.
 
 The `cupidc` driver compiles one C11 input to an ELF32 object. It accepts
 definitions, undefinitions, forced inputs, GNU or freestanding mode, and
@@ -765,7 +767,7 @@ The 5,440-byte manifest has SHA-256
 `5b46684d9977287f69a94473acbbf7c5302213ef98f9748482cba768ffca0be8`.
 ADR 0265 records the current promotion.
 
-The bootstrap copies the 47-input source closure into a private compiler root.
+The bootstrap copies the 50-input source closure into a private compiler root.
 Both rebuilt stages compile from that root, and the harness checks the private
 and live closures at each stage and behavior boundary. The current seed
 transition's stage two and stage three contain the same five tool images.
@@ -773,12 +775,12 @@ CupidObj and CupidLD remain byte-identical to the preceding seed. CupidASM,
 CupidC, and CupidDis change. The two rebuilt stages match every C and startup
 object and agree on all five help paths, eighteen successful operations, and
 sixteen failure cases. Their stage directories, behavior evidence, and report
-are published together only after the complete gate passes. The 47-input
+are published together only after the complete gate passes. The 50-input
 closure has SHA-256
-`976fca9ccef9a759151ea4cf544f17f3c303ef60fc3ad2207eda18857261d9c4`.
-The 32,681-byte report has SHA-256
-`d3608ab66f6781780ba3fe68eb3c5814248d1903d65f50651c8950ca46dda1e4`.
-The proof passed in 871.1 seconds. The checked 128 KiB strict-decode case
+`76bb7c1cc63c44d29d0f062af0a714e1855632da7db13ff8652f6a897a2931a4`.
+The 38,162-byte report has SHA-256
+`d90cf63e19ed1b4af560e4c15660d0583a1591bccdaa75157432204a82079efd`.
+The proof passed in 902.792 seconds. The checked 128 KiB strict-decode case
 completed within its 30-second limit. ADR 0266 records the decoder index.
 An independent poisoned-host reproof passed in 766.9 seconds. All five seed
 images match stage two, and stage two matches stage three across the complete
@@ -861,13 +863,15 @@ exact marker and empty stderr, and requires exit 37. The checked-seed matrix is
 PE32 high-bit boundary, and the independent validator reconstructs the exact
 `.idata` cursor. The bootstrap report retains both stages' object and image
 hashes and the observed Windows result. The normal build does not use PE
-output. Source head now links and runs complete native CupidASM, CupidC,
-CupidDis, and CupidObj images through the same PE path. Both stages produce
-matching images, and Windows runs help plus useful success and failure cases
-for all four tools. CupidDis also checks exact raw-report parity. CupidLD's
-native publisher and checked Windows seed carriage remain open.
+output. Source head now links and runs complete native images for all five
+hosted tools through the same PE path. Both stages produce matching images,
+and Windows runs help plus useful success and failure cases for every tool.
+CupidDis also checks exact raw-report parity. CupidLD checks exact linked output,
+candidate collision, failure diagnostics, and cleanup. Checked Windows seed
+carriage remains open.
 ADRs 0247 and 0248 record the format and small loader boundaries, ADR 0258
-records seed carriage, and ADR 0268 records the native four-tool boundary.
+records seed carriage, ADR 0268 records the shared runtime, and ADR 0269
+records CupidLD publication.
 
 Those rebuilt CupidLD images publish ELF and PE output through an adjacent
 candidate created with exclusive-create semantics. They write and close the
@@ -887,9 +891,9 @@ ISO recipe now runs that checked image as its first byte author, with Python
 retained as the independent renderer and guarded publisher; ADR 0241 records
 that handoff.
 
-The normal Toolchain build snapshots 62 contract inputs, including the small
-Windows probe, the native Windows tool runtime, startup, direct contract, and
-`direct.h`, the user syscall
+The normal Toolchain build snapshots 65 contract inputs, including the small
+Windows probe, the native Windows tool runtime and startup, CupidLD publication
+runtime and bridge, the direct contract, `direct.h`, `windows.h`, the user syscall
 ABI contract and its six declarations, the Toolchain Makefile, the publisher,
 and the independent Python ABI oracle. It reproduces that exact inventory under a private root and
 uses both rebuilt stages for all fifteen contract programs and the runtime

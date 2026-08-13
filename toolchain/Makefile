@@ -102,13 +102,16 @@ CUPIDC_HOSTED_I386_HEADERS := hosted/i386-linux/include/cupid_host_abi.h \
                               hosted/i386-linux/include/errno.h \
                               hosted/i386-linux/include/stdint.h \
                               hosted/i386-linux/include/stdio.h \
-                              hosted/i386-linux/include/stdlib.h \
-                              hosted/i386-linux/include/string.h \
-                              hosted/i386-linux/include/unistd.h
+                               hosted/i386-linux/include/stdlib.h \
+                               hosted/i386-linux/include/string.h \
+                               hosted/i386-linux/include/unistd.h \
+                               hosted/i386-linux/include/windows.h
 CUPIDC_HOSTED_I386_RUNTIME := hosted/i386-linux/runtime.cc \
                               hosted/i386-linux/start.asm \
                               tests/hosted_i386_runtime_contract.cc
-CUPIDC_HOSTED_I386_WINDOWS_RUNTIME := hosted/i386-windows/runtime.cc \
+CUPIDC_HOSTED_I386_WINDOWS_RUNTIME := hosted/i386-windows/publication_runtime.cc \
+                                      hosted/i386-windows/publication_start.asm \
+                                      hosted/i386-windows/runtime.cc \
                                       hosted/i386-windows/start.asm \
                                       hosted/i386-windows/tool_start.asm \
                                       tests/hosted_i386_windows_contract.cc \

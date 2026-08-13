@@ -878,11 +878,12 @@ private, and live contract inventories must match exactly, including
 membership and hashes, so additions, removals, and a transient edit copied
 before its live source is restored all fail. Normal build and test entry points derive
 the cohort from each requested executable, require a named manifest artifact,
-and verify the complete artifact inventory, the 62 contract inputs, the
-47-file fixed-point source inventory, and the checked seed manifest before
+and verify the complete artifact inventory, the 65 contract inputs, the
+50-file fixed-point source inventory, and the checked seed manifest before
 execution. The contract inventory includes the Windows startup and runtime
-probe, the native Windows tool runtime, startup, direct runtime contract, and
-`direct.h`, the user syscall ABI contract and its six declaration inputs, the
+probe, the native Windows tool runtime and startup, CupidLD publication
+runtime and bridge, the direct runtime contract, `direct.h`, `windows.h`, the
+user syscall ABI contract and its six declaration inputs, the
 Toolchain Makefile, and the Python modules that build or independently verify
 the cohort. A plan with an unknown
 link-object key fails validation before the first compiler process starts.
@@ -958,11 +959,12 @@ records the format boundary. [ADR
 records the import and loader boundary.
 
 Source head also builds real native Windows versions of CupidASM, CupidC,
-CupidDis, and CupidObj. The shared hosted
+CupidDis, CupidLD, and CupidObj. The shared hosted
 runtime now has a Windows edge for command-line parsing, `VirtualAlloc` heap
 storage, distinct standard streams, file reads and writes, seeking, current
 directory lookup, and `errno` mapping. CupidASM provides the entry and cdecl
-API bridges, and CupidLD writes all twelve imports.
+API bridges, and CupidLD writes the imports. Its own image adds `_fullpath`,
+exclusive candidate creation, durable flush, atomic replacement, and cleanup.
 
 Both stages produce byte-identical PE images. CupidASM is 433,664 bytes with
 SHA-256 `c93a296e04a7a5bb9706ec7d360040a2cdc288941340e76941d9629049c8ce3a`;
@@ -970,19 +972,23 @@ CupidC is 2,593,792 bytes with SHA-256
 `ed6e667bd96f839c3bc9f55eb62e60bab8462f8c1c53d2ae36458134acc37def`;
 CupidDis is 378,368 bytes with SHA-256
 `e4f20cd46344a4a68914389187d2cc9fbf3653e9ca8d0e56119d40bab17eed49`;
+CupidLD is 296,448 bytes with SHA-256
+`7799324d179cf0d5862d4bdfa9df865cac35fac0f8c2ec565ae9c060812db03a`;
 and CupidObj is 375,808 bytes with SHA-256
 `46ab2b19fc99bf7ee4856ae6f71a397668fb33bbd0da38535728d00a57a57924`.
 Windows checks help plus useful success and failure behavior for each tool.
 The direct runtime image also checks allocation, file append, directory
-errors, and quote and backslash parsing. The full proof passed in 871.1
-seconds. Its 47-input snapshot has SHA-256
-`976fca9ccef9a759151ea4cf544f17f3c303ef60fc3ad2207eda18857261d9c4`,
-and its 32,681-byte report has SHA-256
-`d3608ab66f6781780ba3fe68eb3c5814248d1903d65f50651c8950ca46dda1e4`.
+errors, and quote and backslash parsing. CupidLD replaces an existing output,
+skips an occupied candidate, matches the reference PE exactly, and cleans up
+after a forced replacement failure. The full proof passed in 902.792
+seconds. Its 50-input snapshot has SHA-256
+`76bb7c1cc63c44d29d0f062af0a714e1855632da7db13ff8652f6a897a2931a4`,
+and its 38,162-byte report has SHA-256
+`d90cf63e19ed1b4af560e4c15660d0583a1591bccdaa75157432204a82079efd`.
 These PEs are source-head evidence, not a native checked seed. Windows still
-runs the five Linux producers through WSL. CupidLD remains open because its
-publisher needs native exclusive-create, durable-flush, replace, and delete
-operations. ADR 0268 records the four-tool boundary.
+runs the five Linux producers through WSL. Native seed carriage, WSL removal,
+and normal-build adoption remain open. ADR 0268 records the shared runtime,
+and ADR 0269 records the CupidLD publication boundary.
 
 The checked-seed CupidLD CLI publishes both ELF and PE output. It creates a
 candidate beside the destination with exclusive-create semantics, writes and
@@ -1180,13 +1186,14 @@ The hosted path also carries complete fixed-size structures with alignment up to
 
 The shared value path copies nested union storage inside a supported structure and reads a scalar member directly from a returned structure snapshot. A direct four-byte integer literal zero may be cast to a represented function pointer. Represented function pointers may also cast to another function-pointer type or to and from a represented 32-bit integer without changing target bits. Explicit conversions between an object pointer and a signed or unsigned eight-byte integer use the wide snapshot path: widening writes a zero high word, and narrowing keeps the low word. Outside the explicit Doom compatibility profile, object-pointer and function-pointer interchange remains outside this boundary. Function-pointer and wide-integer conversions, top-level union parameters or results, and aggregate members selected from structure rvalues also remain open. Static compatible character and void pointers accept an ordinary string literal hidden behind parentheses or a macro. Pointer qualification accepts the safe `char **` to `char *const *` conversion. It rejects `char **` to `const char **`, which would add a qualifier at an unsafe nested level, and rejects removing the nested `const`.
 
-The exact hosted gate checks every source at its real i386 Linux ABI. It
-contains 40 strict C11 roots and three GNU-enabled runtime roots: the 19-source
+The exact hosted gate checks every source at its real i386 ABI. It contains 42
+strict C11 roots and three GNU-enabled runtime roots: the 19-source
 static Linux tool union, `kernel/lang/as_elf.cc`, the runtime implementation
 and probes, fifteen Linux Toolchain contracts, the Windows command contract,
 and the Windows runtime wrapper. Thirty-three strict Linux roots use only the
-Toolchain and hosted declaration roots. Four Windows tool roots use the same
-declarations with `_WIN32=1`. The headerless Windows command contract uses the separate
+Toolchain and hosted declaration roots. Six Windows roots use the same
+declarations with `_WIN32=1`: four driver mains, the host adapter, and CupidLD's
+publication runtime. The headerless Windows command contract uses the separate
 `FREESTANDING_I386` profile. The assembler ELF adapter and its
 contract form a two-root bridge that can also include `/kernel/lang`; no other
 hosted source gets that wider search path. The GNU profile is limited to the
@@ -1332,17 +1339,17 @@ manifest has SHA-256
 [ADR 0265](docs/adr/0265-promote-parity-floating-and-strict-inspection-seed.md)
 records the current promotion.
 
-The harness pins the build plan independently and freezes the verified manifest and binaries. It also copies the exact bytes of all 47 source inputs, including `link.ld`, the small Windows probe, the native Windows tool runtime and startup, the direct runtime contract, and `direct.h`, into a private compiler root. Seed CupidC, CupidASM, and CupidLD build stage two below that root, then the stage-two producer trio repeats the work for stage three. The harness rehashes both the private closure and the live closure before the first stage, after each stage, and after the behavior suite. A live edit that is made and restored during a compile cannot change the bytes consumed by either stage.
+The harness pins the build plan independently and freezes the verified manifest and binaries. It also copies the exact bytes of all 50 source inputs, including `link.ld`, the small Windows probe, the native Windows tool runtime and startup, CupidLD's publication objects, the direct runtime contract, and the hosted declarations, into a private compiler root. Seed CupidC, CupidASM, and CupidLD build stage two below that root, then the stage-two producer trio repeats the work for stage three. The harness rehashes both the private closure and the live closure before the first stage, after each stage, and after the behavior suite. A live edit that is made and restored during a compile cannot change the bytes consumed by either stage.
 
 The comparison covers all 19 C objects, independently assembled startup
 objects, and the linked CupidC, CupidASM, CupidDis, CupidLD, and CupidObj
 images. Stage two and stage three match byte for byte. Both stages also agree
 on five help paths, eighteen successful operations, and sixteen useful
 failures. The requested output stays empty while those checks run.
-The frozen 47-input closure has SHA-256
-`976fca9ccef9a759151ea4cf544f17f3c303ef60fc3ad2207eda18857261d9c4`.
-The proof passed in 871.1 seconds. Its 32,681-byte report has SHA-256
-`d3608ab66f6781780ba3fe68eb3c5814248d1903d65f50651c8950ca46dda1e4`.
+The frozen 50-input closure has SHA-256
+`76bb7c1cc63c44d29d0f062af0a714e1855632da7db13ff8652f6a897a2931a4`.
+The proof passed in 902.792 seconds. Its 38,162-byte report has SHA-256
+`d90cf63e19ed1b4af560e4c15660d0583a1591bccdaa75157432204a82079efd`.
 An independent poisoned-host reproof passed in 766.9 seconds. All five
 promoted seed images match stage two, and stage two matches stage three across
 the same 19 C objects, startup, five tools, and 5/18/16 behavior matrix.
@@ -1420,11 +1427,11 @@ validation or `make bootstrap-from-seed` for the complete rebuild. The normal
 Toolchain build then uses those two compiler stages for fifteen contract
 programs and the runtime probe. It compares all seventeen new objects and
 sixteen linked executables. Its private contract tree must reproduce the
-initial 62-file inventory exactly, including the native Windows tool runtime,
-startup, direct runtime contract, and `direct.h`, the user ABI contract and its six declarations, the Toolchain
+initial 65-file inventory exactly, including the native Windows tool runtime,
+startup, publication bridges, direct runtime contract, and hosted Windows declarations, the user ABI contract and its six declarations, the Toolchain
 Makefile, the publisher, and the independent Python oracle. Each live check discovers the set again before
 comparing hashes. The public manifest also records the checked build plan,
-seed manifest, and complete 47-file fixed-point source inventory.
+seed manifest, and complete 50-file fixed-point source inventory.
 Seed-manifest hashing, decoding, and validation use one captured byte
 sequence. A replacement during verification cannot pair one digest with
 another read's build plan. Every run recomputes both source inventories before

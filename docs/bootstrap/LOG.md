@@ -24754,3 +24754,81 @@ closure freezes 47. CupidLD remains the native tool outside this proof. Its
 publisher needs Windows exclusive-create, durable-flush, atomic-replace, and
 delete operations. Checked Windows seed carriage, WSL removal, and production
 adoption also remain open. ADR 0268 records the expanded decision.
+
+## 2026-08-13: Run CupidLD's publisher on native Windows
+
+Source head now builds and runs all five hosted tools as native Windows PE32
+images. CupidLD reuses the shared startup and runtime, then links two small
+publication objects for `_fullpath`, exclusive candidate creation, durable
+flush, atomic replacement, and candidate deletion. Its image alone receives
+the four additional `KERNEL32.dll` imports. The other four images keep the
+shared twelve-import boundary.
+
+The native workload starts with a sentinel destination and the occupied
+`native linked output.exe.cupid-tmp-00000000` candidate. CupidLD resolves
+relative paths, skips the occupied name, publishes a byte-exact 32,256-byte PE,
+and leaves the occupied candidate untouched. A second run uses a directory as the destination, returns 1 with
+`cupidld: link failed (io)`, preserves the directory, and leaves no candidate.
+The successful output has SHA-256
+`df61f3a830d26fe47761cd1d927ca7f77b80a8788bf33e308a7d7f997a11eeec`.
+
+The first focused build stopped at the unavailable host `windows.h`. A narrow
+Cupid-owned declaration header exposed the existing `_WIN32` driver without
+adding an SDK dependency. The first audit regeneration then rejected the
+publication runtime as an unexpected Windows-only source root. The closure
+collector now admits a Windows-profile root only when the Linux closure does
+not already own it. A later source-freeze attempt listed `windows.h` twice,
+once as an explicit source and once through the hosted-header inventory. The
+final contract keeps those ownership paths separate.
+
+Review also found that the earlier audit could give false confidence through
+raw substring checks, dead AST descendants, self-referential expected values,
+empty loops, early returns, and manufactured output. The fixed-point audit now
+binds the live helper, stage pairs, import and object maps, exact workloads,
+reference-to-output data flow, diagnostics, and cleanup. It also token-pins
+the publication runtime and bridge. The report test uses independent native
+loader values and exact artifact-key sets. The focused native boundary passed
+in 127.863 seconds, the complete behavior matrix passed against the existing
+byte-identical stages in 125.0 seconds, and the fail-closed audit plus all 36
+contract-plan tests passed together in 105.763 seconds.
+
+### Final fixed-point evidence
+
+The poisoned-host checked-seed bootstrap passed in 902.792 seconds. All 19 C
+objects, Linux startup, and five Linux tool images match between stage two and
+stage three. All five promoted seed images still match stage two, and the
+5/18/16 behavior matrix remains green. The 50-input source snapshot has
+SHA-256
+`76bb7c1cc63c44d29d0f062af0a714e1855632da7db13ff8652f6a897a2931a4`.
+The 38,162-byte report has SHA-256
+`d90cf63e19ed1b4af560e4c15660d0583a1591bccdaa75157432204a82079efd`.
+
+The native CupidLD image is 296,448 bytes with SHA-256
+`7799324d179cf0d5862d4bdfa9df865cac35fac0f8c2ec565ae9c060812db03a`.
+Its `_WIN32` main object is 29,752 bytes with SHA-256
+`a5a645141c05d61ca755927aced70922089c1404fd5bd977e524cb7c7eed4cb6`.
+The 2,152-byte publication runtime has SHA-256
+`d91f2f8f6faf1afcf4a0205f69cfab33584863697a3f9b003779a12d1466d040`,
+and the 808-byte bridge has SHA-256
+`b2a60c95ca0a1942a2bb2efce051e3f7fec2bf8b5ae8e5a940b5786cf41a6dd5`.
+Both stages reproduce all four identities. Windows returns 0 for help and the
+successful link, and 1 for the forced publication failure. The occupied
+candidate keeps SHA-256
+`20323a24be105b1b519962994b8e4e6a7f8e3cd0d005b8ee10c9aeb66da5d40a`,
+and the failed path leaves zero candidates.
+
+The contract publisher now freezes 65 inputs, and the fixed-point closure
+freezes 50. The hosted profile adds two strict Windows roots and leaves every
+Linux fixed-point object unchanged. Native Windows seed carriage, WSL removal,
+normal-build adoption, and Python-free coordination remain open. ADR 0269
+records the decision.
+
+The first full build-graph run found three stale expected inventory counts in
+the tests: 47 source inputs had become 50, the Toolchain source cohort had
+grown from 82 to 85, and the ABI audit union had grown from 89 to 92. These
+were test-oracle drift, not graph failures. After updating every independent
+count, the complete 80-test graph suite passed in 864.734 seconds. A fresh
+fixed-point unittest passed in 920.473 seconds. The 36 contract-plan tests
+passed in 6.473 seconds, and `make check-bootstrap-audit` reproduced the
+checked audit in 72.6 seconds. Python bytecode compilation and the scoped diff
+check passed with no TempleOS changes or changed `.c` files.

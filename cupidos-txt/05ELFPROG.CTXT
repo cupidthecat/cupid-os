@@ -48,16 +48,20 @@ observed result and both stages' object and image hashes. The promoted seed
 carries this path. Its tools are still static i386 Linux programs that run
 through WSL on Windows, so this is not a native Windows fixed point.
 
-Source head builds native CupidASM, CupidC, CupidDis, and CupidObj commands
+Source head builds native CupidASM, CupidC, CupidDis, CupidLD, and CupidObj commands
 with Cupid tooling. Their shared hosted runtime provides native arguments,
 allocation, separate standard streams, named-file reads and writes, append
 behavior, seeking, the current directory, and useful error mapping. A direct
 runtime contract checks those paths, including failed opens and Windows quote
 and backslash rules. Each tool runs help plus a useful success and failure
-path. CupidDis also checks exact raw-disassembly parity.
+path. CupidDis also checks exact raw-disassembly parity. CupidLD adds path
+resolution, exclusive candidate creation, flush, replacement, and cleanup. Its
+successful output matches the reference image, and its forced failure leaves no
+candidate.
 
-CupidLD's native publisher, a checked Windows five-tool seed, WSL removal,
-and normal-build adoption remain open.
+A checked Windows five-tool seed, WSL removal, and normal-build adoption remain
+open. ADR 0268 records the shared runtime, and ADR 0269 records CupidLD
+publication.
 >endtree
 
 >h2 Entry Point

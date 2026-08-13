@@ -20,14 +20,15 @@ and the repository runtime, and Linux or WSL runs the result. The normal
 Toolchain target also owns fifteen `.cc` contract programs. Stage-two and
 stage-three CupidC compile them at the checked i386 ABI, CupidLD links each
 one against matching stage objects, and the harness requires all seventeen new
-objects and sixteen executables to match across stages. It freezes 62
+objects and sixteen executables to match across stages. It freezes 65
 contract inputs and reconstructs that exact inventory under a private source
 root. That inventory includes the small Windows probe, the native Windows tool
-runtime, startup, direct runtime contract, and `direct.h`, the user syscall ABI contract and its six declarations,
+runtime and startup, CupidLD publication runtime and bridge, direct runtime
+contract, `direct.h`, `windows.h`, the user syscall ABI contract and its six declarations,
 the Toolchain Makefile, the publisher, and the independent Python ABI oracle.
 Newly discovered contract inventories catch additions, removals, and a
 transient edit copied before the live file is restored. The public manifest
-also binds the checked seed, build plan, and 47-file fixed-point source
+also binds the checked seed, build plan, and 50-file fixed-point source
 inventory. Verify and run reconstruct both inventories before execution.
 Hashing, JSON decoding, schema checks, and build-plan use share one captured
 seed-manifest byte sequence. Replacing the file during validation cannot mix
@@ -100,8 +101,8 @@ snapshot. ADR 0142 records this source and publication boundary.
 
 Linux runs private copies of the static tools directly. Windows stages each
 copy in a mode-0700 WSL directory created by `mktemp`. Source-head native
-CupidASM, CupidC, CupidDis, and CupidObj proofs run separately. CupidLD's
-native publisher and a checked native seed are not available yet.
+proofs run separately for all five tools, including CupidLD publication. A
+checked native seed is not available yet.
 
 This seed makes the hosted static toolchain reproducible from a clean
 checkout. `make -C toolchain all` uses it for the normal contract cohort and
@@ -176,24 +177,30 @@ records imports and direct loader execution. [ADR
 carriage.
 
 Source head extends that PE path to complete native CupidASM, CupidC,
-CupidDis, and CupidObj commands. The
+CupidDis, CupidLD, and CupidObj commands. The
 shared hosted runtime selects a Windows implementation for command-line
 parsing, `VirtualAlloc` heap storage, standard streams, file reads and writes,
 seeking, current-directory lookup, and useful `errno` values. CupidASM
-provides the entry and cdecl API bridges. CupidLD supplies the twelve imports.
+provides the entry and cdecl API bridges. CupidLD supplies the shared twelve
+imports, plus four publication imports for its own image.
 
-Both fixed-point stages produce matching PE images for all four tools.
+Both fixed-point stages produce matching PE images for all five tools.
 Windows runs help plus a useful success and failure case for each. CupidDis
 also requires a quoted two-byte input to match the Linux tool's 56-byte report
 exactly. The direct runtime contract checks allocation, named-file append,
-directory failures, and argument parsing. The complete proof passed in 871.1
-seconds. Its 47-input source closure has SHA-256
-`976fca9ccef9a759151ea4cf544f17f3c303ef60fc3ad2207eda18857261d9c4`,
-and its 32,681-byte report has SHA-256
-`d3608ab66f6781780ba3fe68eb3c5814248d1903d65f50651c8950ca46dda1e4`.
-CupidLD's native publisher and checked Windows seed carriage are still open.
-[ADR 0268](../docs/adr/0268-run-cupid-built-cupiddis-on-windows.md) records
-this boundary.
+directory failures, and argument parsing. CupidLD also checks replacement over
+a sentinel, candidate collision, exact output, failure diagnostics, and cleanup.
+The complete proof passed in 902.792 seconds. Its 50-input source closure
+has SHA-256
+`76bb7c1cc63c44d29d0f062af0a714e1855632da7db13ff8652f6a897a2931a4`,
+and its 38,162-byte report has SHA-256
+`d90cf63e19ed1b4af560e4c15660d0583a1591bccdaa75157432204a82079efd`.
+Checked
+Windows seed carriage remains open. [ADR
+0268](../docs/adr/0268-run-cupid-built-cupiddis-on-windows.md) records the
+shared runtime, and [ADR
+0269](../docs/adr/0269-run-cupid-built-cupidld-on-windows.md) records the
+publication boundary.
 
 The checked-seed CLI stages both ELF and PE images in an adjacent candidate
 created with exclusive-create semantics. It writes and closes the candidate,
