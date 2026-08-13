@@ -728,7 +728,7 @@ def _validate_static_i386_pe32(
         or subsystem != 3
         or dll_characteristics != 0x0100
         or stack_reserve != 0x00100000
-        or stack_commit != 0x00001000
+        or stack_commit != 0x00100000
         or heap_reserve != 0x00100000
         or heap_commit != 0x00001000
         or loader_flags != 0

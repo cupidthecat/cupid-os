@@ -849,7 +849,7 @@ class CupidLdHostedCliTests(unittest.TestCase):
                 "subsystem": 3,
                 "dll_characteristics": 0x0100,
                 "stack_reserve": 0x00100000,
-                "stack_commit": 0x00001000,
+                "stack_commit": 0x00100000,
                 "heap_reserve": 0x00100000,
                 "heap_commit": 0x00001000,
                 "loader_flags": 0,

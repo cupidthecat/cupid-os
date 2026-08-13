@@ -18,6 +18,8 @@
 #define LD_PE_TEXT_ADDRESS 0x00401000u
 #define LD_PE_SECTION_ALIGNMENT 0x00001000u
 #define LD_PE_FILE_ALIGNMENT 0x00000200u
+#define LD_PE_STACK_RESERVE 0x00100000u
+#define LD_PE_STACK_COMMIT LD_PE_STACK_RESERVE
 #define LD_PE_IMPORT_DIRECTORY 1u
 #define LD_PE_IAT_DIRECTORY 12u
 #define LD_PE_NAME_RVA_LIMIT 0x80000000u
@@ -2769,10 +2771,10 @@ static ctool_status_t ld_put_pe32_optional_header(
     status = ctool_buffer_put_le16(output, 0x0100u);
   }
   if (status == CTOOL_OK) {
-    status = ctool_buffer_put_le32(output, 0x00100000u);
+    status = ctool_buffer_put_le32(output, LD_PE_STACK_RESERVE);
   }
   if (status == CTOOL_OK) {
-    status = ctool_buffer_put_le32(output, 0x00001000u);
+    status = ctool_buffer_put_le32(output, LD_PE_STACK_COMMIT);
   }
   if (status == CTOOL_OK) {
     status = ctool_buffer_put_le32(output, 0x00100000u);

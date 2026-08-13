@@ -89,7 +89,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         struct.pack_into("<I", image, optional + 60, 0x200)
         struct.pack_into("<H", image, optional + 68, 3)
         struct.pack_into("<H", image, optional + 70, 0x0100)
-        struct.pack_into("<IIII", image, optional + 72, 0x100000, 0x1000, 0x100000, 0x1000)
+        struct.pack_into("<IIII", image, optional + 72, 0x100000, 0x100000, 0x100000, 0x1000)
         struct.pack_into("<I", image, optional + 92, 16)
         section = optional + 0xE0
         image[section : section + 8] = b".text\0\0\0"
@@ -194,6 +194,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 ("nonzero checksum", "<I", 0x98 + 64, 1),
                 ("wrong subsystem", "<H", 0x98 + 68, 2),
                 ("nonzero relocation pointer", "<I", 0x178 + 24, 1),
+                ("one-page stack commit", "<I", 0x98 + 76, 0x1000),
             )
             for label, encoding, offset, value in mutations:
                 with self.subTest(label=label):

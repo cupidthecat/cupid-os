@@ -24854,3 +24854,40 @@ cases in 34.752 seconds. The complete fixed-point contract now allows 900
 seconds for each large compiler source; the earlier 300-second limit expired
 while a healthy generation-one compiler processed `cupidc_frontend.cc`.
 ADR 0270 records the option boundary.
+
+## 2026-08-13: Commit the native Windows tool stack
+
+The first poisoned-host root build with a native Windows CupidC stopped on
+`drivers/keyboard.cc` with access violation `0xC0000005`. The checked Linux
+compiler and a source-built Windows compiler both produced the expected
+11,740-byte object, so the unchanged driver was not the cause.
+
+A 48-byte source containing an empty `switch` reproduced the crash. In GDB,
+`cir_lower_switch` reserved a `0x4984`-byte frame with one `sub esp`. The PE
+header reserved one MiB of stack but committed only one 4 KiB page. The next
+push landed several pages below the Windows guard page, so the operating
+system could not grow the stack before the access.
+
+Changing only the stack-commit field on a private CupidC image from 4 KiB to
+one MiB made the empty-switch source and the full keyboard driver compile.
+Increasing only the reserve did not help. Moving the large switch-validation
+snapshot out of the stack would remove this trigger without fixing the same
+fault for another large generated frame.
+
+CupidLD now reserves and commits one MiB for fixed-layout PE32 tool stacks.
+The heap still reserves one MiB and initially commits 4 KiB. The independent
+PE reader requires all four values, and its negative test restores the former
+one-page stack commit to prove that validation rejects it. Page-by-page stack
+probing remains the general compiler improvement; the full commit is the
+bounded hosted-tool ABI used for this bootstrap stage.
+
+The focused CupidLD layout test, PE validator mutation test, and audit lock
+pass with the new field. The unchanged keyboard source compiles to the same
+11,740-byte ELF32 object with the corrected native compiler. The checked-seed
+promotion and full fixed-point, poisoned-build, and guest results follow in a
+separate entry because their manifest must name this committed source
+revision.
+
+No active C or assembly source was reduced to avoid the fault. No `.c` source
+entered the build, and `TempleOS/` remained untouched. ADR 0274 records the
+stack policy and the page-probing follow-up.

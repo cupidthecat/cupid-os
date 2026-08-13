@@ -61,8 +61,10 @@ PE32 magic `0x10b`, console subsystem 3, operating-system and subsystem
 versions 6.0, and DLL characteristics `0x0100` for NX compatibility.
 Timestamps, the COFF symbol fields, and the checksum are zero so repeated links
 produce the same bytes. A canonical DOS stub points to the PE header at file
-offset `0x80`. Stack and heap reservations are each `0x00100000`, with
-`0x1000` committed, and all header and section padding is zero.
+offset `0x80`. At this decision point, stack and heap reservations were each
+`0x00100000`, with `0x1000` committed. All header and section padding was zero.
+ADR 0274 supersedes the stack-commit field for hosted tool images: the one MiB
+stack reserve is now committed in full, while the heap still commits `0x1000`.
 
 The serializer writes no import table and no base-relocation table. All sixteen
 data-directory entries are zero. It does not accept COFF objects, choose a
