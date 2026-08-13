@@ -61,9 +61,9 @@ executables byte for byte.
 Three-run hosted medians for strict inspection are 5.98 ms for a 6,124-byte
 object, 28.92 ms for a 379,648-byte CupidDis ELF, 254.79 ms for the
 9,027,296-byte pass-one kernel, and 252.26 ms for the 9,146,080-byte final
-kernel. The checked-seed 128 KiB throughput contract remains red until a new
-seed carries this source revision. That contract is a promotion gate, not
-evidence for this source-only decision.
+kernel. The checked-seed 128 KiB throughput contract was still red at this
+source-only decision. A new seed had to carry the indexed decoder before the
+contract could become promotion evidence.
 
 The active-source manifest was stale before this work. It now records 29
 audited assembly paths, 27 instruction-bearing paths, 1,282 instruction
@@ -91,9 +91,20 @@ order.
 The optimized path adds a small per-job index and a lifetime-bearing decoder
 handle. It does not change the catalogue, accepted instructions, output
 bytes, recovery policy, or ABI. The provisional checked seed built before this
-decision remains diagnostic evidence only and will not be promoted. A later
-seed promotion must carry this implementation before strict CupidDis becomes
-a normal-build gate.
+decision remains diagnostic evidence only and was not promoted. ADR 0265
+later carried this implementation and made strict CupidDis part of the normal
+kernel publication transaction. A final poisoned-host `make -j2 all` passed
+with exit 0 in 1,022.190 seconds. The exact-size prerequisite accepted all nine
+artifacts before publishing the 209,715,200-byte image with SHA-256
+`326844ca58c1f864a6b9a2480dfaeb5ed71ec3df22cdb46da17a6bb356e7e726`.
+The final four-vCPU E1000 and RTL8139 frontiers passed from that image. Both
+used the partitioned USB fixture, `--smp 4`, `--cpu max`, SMP and frontier
+runtime verification, a private image, and a 300-second phase timeout. E1000
+exited 0 in 725.058 seconds with 103,673 changed framebuffer pixels, 29,608,822
+AC97 frames at peak 25,600, and 76,784 PC speaker frames at peak 30,710.
+RTL8139 exited 0 in 725.406 seconds with 106,151 changed pixels, 29,601,879
+AC97 frames at peak 25,600, and 76,719 PC speaker frames at peak 31,501. Both
+used a 640 by 480 framebuffer, and the image hash remained unchanged.
 
 No production file changes owner in this decision. No `.c` to `.cc` rename is
 due. `TempleOS/` remains read-only reference material.

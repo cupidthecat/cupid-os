@@ -20,7 +20,7 @@ from typing import Sequence
 
 
 SEED_SCHEMA = "cupid.bootstrap-seed.v1"
-SEED_SOURCE_REVISION = "9115787311bf455b6eee19e7742cc83aa252e7c8"
+SEED_SOURCE_REVISION = "95f5bb6cfd0468bb8852c670ada849cb5bde79a7"
 TOOL_NAMES = ("cupidasm", "cupiddis", "cupidld", "cupidobj", "cupidc")
 TOOL_DISPLAY_NAMES = {
     "cupidasm": "CupidASM",
@@ -2988,6 +2988,46 @@ def _run_behavior_checks(
     ):
         raise BootstrapError("CupidDis malformed-input behavior differs")
 
+    strict_disassembly_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupiddis",
+        ["--require-known", stage_two_valid],
+        ["--require-known", stage_three_valid],
+    )
+    _expect_status(
+        strict_disassembly_result, 0, "CupidDis strict clean input"
+    )
+    if strict_disassembly_result.stdout or strict_disassembly_result.stderr:
+        raise BootstrapError("CupidDis strict clean behavior differs")
+
+    truncated_code = behavior_root / "truncated-code.bin"
+    truncated_code.write_bytes(bytes([0x0F]))
+    strict_failure_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupiddis",
+        [
+            "--require-known",
+            "--raw",
+            "--mode=32",
+            "--base=0",
+            truncated_code,
+        ],
+    )
+    _expect_status(
+        strict_failure_result, 1, "CupidDis strict truncated input"
+    )
+    if (
+        strict_failure_result.stdout
+        or "truncated-code.bin: code check failed: "
+        "0 known, 0 unknown, 0 invalid, 1 truncated"
+        not in strict_failure_result.stderr
+    ):
+        raise BootstrapError("CupidDis strict failure behavior differs")
+
     stage_two_pe32_failure = behavior_root / "stage-two-invalid-pe32.exe"
     stage_three_pe32_failure = behavior_root / "stage-three-invalid-pe32.exe"
     stage_two_pe32_failure.write_bytes(sentinel)
@@ -3109,9 +3149,9 @@ def _run_behavior_checks(
         raise BootstrapError("CupidObj missing-input behavior differs")
 
     return {
-        "failure_cases": 15,
+        "failure_cases": 16,
         "help_cases": 5,
-        "success_cases": 17,
+        "success_cases": 18,
     }
 
 

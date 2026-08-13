@@ -3709,6 +3709,7 @@
       },
       {
         "inputs": [
+          "verify-artifact-sizes",
           "boot/boot.bin",
           "kernel/kernel.bin",
           "test_iso/hello.iso",
@@ -33904,6 +33905,436 @@
       {
         "inputs": [
           "kernel/kernel.elf",
+          "kernel/core/kernel.o",
+          "kernel/cpu/idt.o",
+          "kernel/cpu/isr.o",
+          "kernel/cpu/irq.o",
+          "kernel/cpu/pic.o",
+          "kernel/fs/fs.o",
+          "drivers/keyboard.o",
+          "drivers/timer.o",
+          "kernel/cpu/math.o",
+          "drivers/pit.o",
+          "drivers/speaker.o",
+          "kernel/lang/shell.o",
+          "kernel/core/string.o",
+          "kernel/mm/memory.o",
+          "drivers/pci.o",
+          "kernel/usb/usb.o",
+          "kernel/usb/uhci.o",
+          "kernel/usb/ehci.o",
+          "kernel/usb/usb_hid.o",
+          "kernel/usb/usb_hub.o",
+          "kernel/usb/usb_msc.o",
+          "kernel/mm/paging.o",
+          "drivers/ata.o",
+          "kernel/fs/blockdev.o",
+          "kernel/fs/blockcache.o",
+          "kernel/fs/fat16.o",
+          "drivers/serial.o",
+          "kernel/core/panic.o",
+          "kernel/gui/ed.o",
+          "drivers/vga.o",
+          "drivers/mouse.o",
+          "kernel/gfx/font_8x8.o",
+          "kernel/gfx/graphics.o",
+          "kernel/gui/gui.o",
+          "kernel/gui/desktop.o",
+          "kernel/core/app_launch.o",
+          "kernel/core/process.o",
+          "kernel/core/context_switch.o",
+          "kernel/gui/clipboard.o",
+          "kernel/gui/ui.o",
+          "kernel/lang/godspeak.o",
+          "kernel/cpu/fpu.o",
+          "kernel/cpu/libm.o",
+          "kernel/lang/cupidscript_lex.o",
+          "kernel/lang/cupidscript_parse.o",
+          "kernel/lang/cupidscript_exec.o",
+          "kernel/lang/cupidscript_runtime.o",
+          "kernel/lang/cupidscript_streams.o",
+          "kernel/lang/cupidscript_strings.o",
+          "kernel/lang/cupidscript_arrays.o",
+          "kernel/lang/cupidscript_jobs.o",
+          "kernel/gui/ansi.o",
+          "kernel/gui/terminal_app.o",
+          "kernel/gui/ctxt_image_worker.o",
+          "kernel/fs/vfs.o",
+          "kernel/fs/ramfs.o",
+          "kernel/fs/devfs.o",
+          "kernel/fs/fat16_vfs.o",
+          "kernel/lang/exec.o",
+          "kernel/fs/homefs.o",
+          "kernel/fs/loopdev.o",
+          "kernel/fs/iso9660.o",
+          "kernel/fs/iso9660_vfs.o",
+          "kernel/mm/swap_disk.o",
+          "kernel/mm/swap.o",
+          "kernel/smp/percpu.o",
+          "kernel/smp/smp_trampoline.o",
+          "kernel/smp/lapic.o",
+          "kernel/smp/ioapic.o",
+          "kernel/smp/bkl.o",
+          "kernel/smp/mp_tables.o",
+          "kernel/smp/acpi.o",
+          "kernel/smp/smp.o",
+          "kernel/network/net_if.o",
+          "kernel/network/arp.o",
+          "kernel/network/ip.o",
+          "kernel/network/icmp.o",
+          "kernel/network/udp.o",
+          "kernel/network/socket.o",
+          "kernel/network/tcp.o",
+          "kernel/network/dhcp.o",
+          "kernel/network/dns.o",
+          "kernel/network/sshd.o",
+          "drivers/rtl8139.o",
+          "drivers/e1000.o",
+          "kernel/core/syscall.o",
+          "kernel/crypto/chacha20.o",
+          "kernel/crypto/csprng.o",
+          "kernel/crypto/sha256.o",
+          "kernel/crypto/sha512.o",
+          "kernel/crypto/hmac.o",
+          "kernel/crypto/hkdf.o",
+          "kernel/crypto/ct.o",
+          "kernel/crypto/poly1305.o",
+          "kernel/crypto/chacha20poly1305.o",
+          "kernel/crypto/aes.o",
+          "kernel/crypto/aes_gcm.o",
+          "kernel/crypto/bigint.o",
+          "kernel/crypto/rsa.o",
+          "kernel/crypto/x25519.o",
+          "kernel/crypto/p256.o",
+          "kernel/crypto/ecdsa.o",
+          "kernel/crypto/ed25519.o",
+          "kernel/crypto/asn1.o",
+          "kernel/crypto/x509.o",
+          "kernel/crypto/x509_chain.o",
+          "kernel/tls/tls_ca_bundle.o",
+          "kernel/tls/tls_record.o",
+          "kernel/tls/tls_kdf.o",
+          "kernel/tls/tls_ctx.o",
+          "kernel/tls/tls_handshake.o",
+          "kernel/tls/tls12_handshake.o",
+          "kernel/tls/tls_selftest.o",
+          "toolchain/ctool.o",
+          "toolchain/elf32.o",
+          "toolchain/x86.o",
+          "toolchain/cupiddis.o",
+          "toolchain/cupidasm.o",
+          "kernel/lang/ctool_kernel.o",
+          "kernel/lang/cupidc.o",
+          "kernel/lang/cupidc_lex.o",
+          "kernel/lang/cupidc_parse.o",
+          "kernel/lang/cupidc_string.o",
+          "kernel/lang/cupidc_elf.o",
+          "kernel/lang/ssh_io.o",
+          "kernel/lang/as.o",
+          "kernel/lang/as_elf.o",
+          "kernel/lang/dis.o",
+          "kernel/gfx/gfx2d.o",
+          "kernel/gfx/bmp.o",
+          "kernel/gfx/png.o",
+          "kernel/gfx/deflate.o",
+          "kernel/gfx/jpeg.o",
+          "kernel/gfx/ttf.o",
+          "kernel/gfx/glyph_raster.o",
+          "kernel/gfx/fontsys.o",
+          "kernel/fs/vfs_helpers.o",
+          "drivers/rtc.o",
+          "kernel/util/calendar.o",
+          "kernel/gfx/gfx2d_assets.o",
+          "kernel/gfx/gfx2d_transform.o",
+          "kernel/gfx/gfx2d_effects.o",
+          "kernel/cpu/simd.o",
+          "kernel/gfx/gfx2d_icons.o",
+          "kernel/gui/gui_widgets.o",
+          "kernel/gui/gui_containers.o",
+          "kernel/gui/gui_menus.o",
+          "kernel/gui/gui_events.o",
+          "kernel/gui/gui_themes.o",
+          "kernel/util/bin_programs_gen.o",
+          "kernel/util/docs_programs_gen.o",
+          "kernel/util/demos_programs_gen.o",
+          "kernel/cpu/ksyms.o",
+          "kernel/audio/ac97.o",
+          "kernel/audio/mixer.o",
+          "kernel/audio/nuked_opl3.o",
+          "kernel/audio/opl_smoke.o",
+          "kernel/audio/memio.o",
+          "kernel/audio/mus2midi.o",
+          "kernel/audio/midiopl.o",
+          "bin/audiotest.o",
+          "bin/auto.o",
+          "bin/bgstudio.o",
+          "bin/bible.o",
+          "bin/bmptest.o",
+          "bin/browser.o",
+          "bin/cachestats.o",
+          "bin/cat.o",
+          "bin/cd.o",
+          "bin/clear.o",
+          "bin/cp.o",
+          "bin/crashtest.o",
+          "bin/ctxt.o",
+          "bin/cupidc_test1.o",
+          "bin/cupidc_test2.o",
+          "bin/cupidc_test3.o",
+          "bin/cupidc_test4.o",
+          "bin/cupidc_test5.o",
+          "bin/cupidfetch.o",
+          "bin/curl.o",
+          "bin/date.o",
+          "bin/dglibc_test.o",
+          "bin/doom.o",
+          "bin/echo.o",
+          "bin/ed.o",
+          "bin/feature10_repl.o",
+          "bin/feature11_ternary.o",
+          "bin/feature12_float.o",
+          "bin/feature13_double.o",
+          "bin/feature14_simd.o",
+          "bin/feature15_libm.o",
+          "bin/feature16_asm_fpu.o",
+          "bin/feature17_iso.o",
+          "bin/feature18_swap.o",
+          "bin/feature19_usb.o",
+          "bin/feature1_types.o",
+          "bin/feature20_smp.o",
+          "bin/feature21_net.o",
+          "bin/feature22_net_server.o",
+          "bin/feature23_full_access.o",
+          "bin/feature24_widetypes.o",
+          "bin/feature25.o",
+          "bin/feature2_top_level.o",
+          "bin/feature3_class.o",
+          "bin/feature4_forward_calls.o",
+          "bin/feature5_print_builtin.o",
+          "bin/feature6_exe.o",
+          "bin/feature7_new_del.o",
+          "bin/feature8_reg_noreg.o",
+          "bin/feature9_abs_addr.o",
+          "bin/find.o",
+          "bin/fm.o",
+          "bin/fontswitch.o",
+          "bin/fp_drill.o",
+          "bin/gfxdemo.o",
+          "bin/gfxgui_test.o",
+          "bin/gfxhandoff_exit.o",
+          "bin/gfxhandoff_kill.o",
+          "bin/gfxtest.o",
+          "bin/godsong.o",
+          "bin/godspeak.o",
+          "bin/grep.o",
+          "bin/head.o",
+          "bin/help.o",
+          "bin/history.o",
+          "bin/kbdsub_test.o",
+          "bin/kill.o",
+          "bin/logdump.o",
+          "bin/loglevel.o",
+          "bin/ls.o",
+          "bin/memcheck.o",
+          "bin/memdump.o",
+          "bin/memleak.o",
+          "bin/memstats.o",
+          "bin/mkdir.o",
+          "bin/mount.o",
+          "bin/mv.o",
+          "bin/notepad.o",
+          "bin/oracle.o",
+          "bin/paint.o",
+          "bin/printc.o",
+          "bin/ps.o",
+          "bin/pwd.o",
+          "bin/reboot.o",
+          "bin/registers.o",
+          "bin/resetcolor.o",
+          "bin/rm.o",
+          "bin/rmdir.o",
+          "bin/setcolor.o",
+          "bin/sort.o",
+          "bin/spawn.o",
+          "bin/ssh.o",
+          "bin/stacktrace.o",
+          "bin/sync.o",
+          "bin/sysinfo.o",
+          "bin/tail.o",
+          "bin/telnet.o",
+          "bin/terminal.o",
+          "bin/test.o",
+          "bin/test_fpaug.o",
+          "bin/test_print.o",
+          "bin/time.o",
+          "bin/touch.o",
+          "bin/volume.o",
+          "bin/wc.o",
+          "bin/wget.o",
+          "bin/yield.o",
+          "bin/fat16.h.o",
+          "bin/shell.h.o",
+          "bin/browser/css.o",
+          "bin/browser/dom.o",
+          "bin/browser/font_face.o",
+          "bin/browser/image.o",
+          "bin/browser/input.o",
+          "bin/browser/js_dom.o",
+          "bin/browser/js_interp.o",
+          "bin/browser/js_lex.o",
+          "bin/browser/js_parse.o",
+          "bin/browser/layout.o",
+          "bin/browser/main.o",
+          "bin/browser/nav.o",
+          "bin/browser/net.o",
+          "bin/browser/paint.o",
+          "bin/browser/parser.o",
+          "bin/browser/render_tree.o",
+          "bin/browser/style.o",
+          "bin/browser/url.o",
+          "bin/browser/url_hash.o",
+          "bin/browser/util.o",
+          "bin/browser/woff.o",
+          "bin/browser/woff2.o",
+          "cupidos-txt/00INDEX.o",
+          "cupidos-txt/01SHELL.o",
+          "cupidos-txt/02FILESYS.o",
+          "cupidos-txt/03CUPIDSC.o",
+          "cupidos-txt/04CUPIDC.o",
+          "cupidos-txt/05ELFPROG.o",
+          "cupidos-txt/06GUITERM.o",
+          "cupidos-txt/07LABS.o",
+          "cupidos-txt/08CMDS.o",
+          "cupidos-txt/09EMBED.o",
+          "cupidos-txt/10ASM.o",
+          "cupidos-txt/11CTXT.o",
+          "cupidos-txt/12HOLYC-CUPIDC.o",
+          "cupidos-txt/13USB.o",
+          "cupidos-txt/14FPU-SSE.o",
+          "cupidos-txt/15ISO9660.o",
+          "cupidos-txt/16SWAP.o",
+          "cupidos-txt/17SMP.o",
+          "cupidos-txt/18NET.o",
+          "file_example_JPG_1MB.jpg.o",
+          "image.bmp.o",
+          "snail.bmp.o",
+          "test.png.o",
+          "demos/asm_compat_reserve.o",
+          "demos/bubblesort.o",
+          "demos/data.o",
+          "demos/factorial.o",
+          "demos/fibonacci.o",
+          "demos/fpu_kernel.o",
+          "demos/fs_syscalls.o",
+          "demos/hello.o",
+          "demos/include_feature.o",
+          "demos/include_helper.o",
+          "demos/jcc_aliases.o",
+          "demos/loop.o",
+          "demos/math.o",
+          "demos/parity_core.o",
+          "demos/parity_diag.o",
+          "demos/parity_gfx2d.o",
+          "demos/parity_priv.o",
+          "demos/reserve_directives.o",
+          "demos/simd_blur.o",
+          "demos/stack.o",
+          "demos/syscall_table_demo.o",
+          "demos/syscall_vfs_extended_demo.o",
+          "god/Psalms.o",
+          "god/Vocab.o",
+          "system/fonts/LiberationMono-Regular.ttf.o",
+          "system/fonts/LiberationSans-Regular.ttf.o",
+          "system/fonts/LiberationSerif-Regular.ttf.o",
+          "system/fonts/NotoSansSymbols-Regular.ttf.o",
+          "kernel/tls/tls_ca_bundle_data.o",
+          "kernel/doom/dglibc.o",
+          "kernel/doom/doomgeneric_cupidos.o",
+          "kernel/doom/doom_libc_stubs.o",
+          "kernel/doom/i_sound_cupidos.o",
+          "kernel/doom/src/am_map.o",
+          "kernel/doom/src/d_event.o",
+          "kernel/doom/src/d_items.o",
+          "kernel/doom/src/d_iwad.o",
+          "kernel/doom/src/d_loop.o",
+          "kernel/doom/src/d_main.o",
+          "kernel/doom/src/d_mode.o",
+          "kernel/doom/src/d_net.o",
+          "kernel/doom/src/doomdef.o",
+          "kernel/doom/src/doomgeneric.o",
+          "kernel/doom/src/doomstat.o",
+          "kernel/doom/src/dstrings.o",
+          "kernel/doom/src/dummy.o",
+          "kernel/doom/src/f_finale.o",
+          "kernel/doom/src/f_wipe.o",
+          "kernel/doom/src/g_game.o",
+          "kernel/doom/src/gusconf.o",
+          "kernel/doom/src/hu_lib.o",
+          "kernel/doom/src/hu_stuff.o",
+          "kernel/doom/src/i_endoom.o",
+          "kernel/doom/src/i_input.o",
+          "kernel/doom/src/i_joystick.o",
+          "kernel/doom/src/i_scale.o",
+          "kernel/doom/src/i_system.o",
+          "kernel/doom/src/i_timer.o",
+          "kernel/doom/src/i_video.o",
+          "kernel/doom/src/icon.o",
+          "kernel/doom/src/info.o",
+          "kernel/doom/src/m_argv.o",
+          "kernel/doom/src/m_bbox.o",
+          "kernel/doom/src/m_cheat.o",
+          "kernel/doom/src/m_config.o",
+          "kernel/doom/src/m_controls.o",
+          "kernel/doom/src/m_fixed.o",
+          "kernel/doom/src/m_menu.o",
+          "kernel/doom/src/m_misc.o",
+          "kernel/doom/src/m_random.o",
+          "kernel/doom/src/p_ceilng.o",
+          "kernel/doom/src/p_doors.o",
+          "kernel/doom/src/p_enemy.o",
+          "kernel/doom/src/p_floor.o",
+          "kernel/doom/src/p_inter.o",
+          "kernel/doom/src/p_lights.o",
+          "kernel/doom/src/p_map.o",
+          "kernel/doom/src/p_maputl.o",
+          "kernel/doom/src/p_mobj.o",
+          "kernel/doom/src/p_plats.o",
+          "kernel/doom/src/p_pspr.o",
+          "kernel/doom/src/p_saveg.o",
+          "kernel/doom/src/p_setup.o",
+          "kernel/doom/src/p_sight.o",
+          "kernel/doom/src/p_spec.o",
+          "kernel/doom/src/p_switch.o",
+          "kernel/doom/src/p_telept.o",
+          "kernel/doom/src/p_tick.o",
+          "kernel/doom/src/p_user.o",
+          "kernel/doom/src/r_bsp.o",
+          "kernel/doom/src/r_data.o",
+          "kernel/doom/src/r_draw.o",
+          "kernel/doom/src/r_main.o",
+          "kernel/doom/src/r_plane.o",
+          "kernel/doom/src/r_segs.o",
+          "kernel/doom/src/r_sky.o",
+          "kernel/doom/src/r_things.o",
+          "kernel/doom/src/s_sound.o",
+          "kernel/doom/src/sha1.o",
+          "kernel/doom/src/sounds.o",
+          "kernel/doom/src/st_lib.o",
+          "kernel/doom/src/st_stuff.o",
+          "kernel/doom/src/statdump.o",
+          "kernel/doom/src/tables.o",
+          "kernel/doom/src/v_video.o",
+          "kernel/doom/src/w_checksum.o",
+          "kernel/doom/src/w_file.o",
+          "kernel/doom/src/w_file_stdc.o",
+          "kernel/doom/src/w_main.o",
+          "kernel/doom/src/w_wad.o",
+          "kernel/doom/src/wi_stuff.o",
+          "kernel/doom/src/z_zone.o",
+          "kernel/cpu/ksyms_data.o",
+          "kernel/kernel.elf.pass1",
+          "bootstrap/cupiddis-production-inputs.txt",
+          "tools/hostbuild.py",
           "Makefile",
           "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-linux/manifest.json",
@@ -33916,9 +34347,13 @@
         "operation": "extract_raw_binary",
         "output": "kernel/kernel.bin",
         "recipe": [
-          "$(CUPIDOBJ) flat $< -o $(KERNEL)"
+          "$(PYTHON) tools/hostbuild.py validate-code \\",
+          "--seed-manifest $(BOOTSTRAP_SEED_MANIFEST) --root . \\",
+          "--input-manifest $(CUPIDDIS_PRODUCTION_INPUT_MANIFEST) \\",
+          "--output $(KERNEL)"
         ],
         "tools": [
+          "cupid_disassembler",
           "cupid_object",
           "host_python"
         ]
@@ -37571,6 +38006,32 @@
           "cupid_c_compiler",
           "host_python"
         ]
+      },
+      {
+        "inputs": [
+          "boot/boot.bin",
+          "bootstrap/seeds/i386-linux/cupidasm.elf",
+          "bootstrap/seeds/i386-linux/cupidc.elf",
+          "bootstrap/seeds/i386-linux/cupiddis.elf",
+          "bootstrap/seeds/i386-linux/cupidld.elf",
+          "bootstrap/seeds/i386-linux/cupidobj.elf",
+          "kernel/kernel.bin",
+          "kernel/kernel.elf",
+          "kernel/kernel.elf.pass1",
+          "tools/artifact_size_policy.py",
+          "bootstrap/artifact-size-policy.json",
+          "bootstrap/seeds/i386-linux/manifest.json"
+        ],
+        "operation": "host_orchestration",
+        "output": "verify-artifact-sizes",
+        "recipe": [
+          "$(PYTHON) tools/artifact_size_policy.py verify --root . \\",
+          "--policy $(ARTIFACT_SIZE_POLICY) \\",
+          "--seed-manifest $(BOOTSTRAP_SEED_MANIFEST)"
+        ],
+        "tools": [
+          "host_python"
+        ]
       }
     ]
   },
@@ -39404,7 +39865,7 @@
         "cupidobj",
         "cupidc"
       ],
-      "failure_behavior_cases": 15,
+      "failure_behavior_cases": 16,
       "gnu_c_sources": 1,
       "help_cases": 5,
       "include_roots": [
@@ -39462,7 +39923,7 @@
       ],
       "status": "pass",
       "strict_c_sources": 18,
-      "success_behavior_cases": 17,
+      "success_behavior_cases": 18,
       "tool_c_sources": 19,
       "tool_images": 5
     }
@@ -44098,7 +44559,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.else",
-      "occurrences": 4872
+      "occurrences": 4873
     },
     {
       "category": "control",
@@ -44370,7 +44831,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.for",
-      "occurrences": 4319
+      "occurrences": 4330
     },
     {
       "category": "control",
@@ -44817,7 +45278,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 38851
+      "occurrences": 38889
     },
     {
       "category": "control",
@@ -45185,7 +45646,7 @@
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 23649
+      "occurrences": 23688
     },
     {
       "category": "control",
@@ -45841,7 +46302,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.declarator.unsized_array",
-      "occurrences": 2776
+      "occurrences": 2780
     },
     {
       "category": "declarator",
@@ -46113,7 +46574,7 @@
         "user/examples/cat.cc"
       ],
       "id": "c.expression.sizeof",
-      "occurrences": 5989
+      "occurrences": 6009
     },
     {
       "category": "extension",
@@ -47147,7 +47608,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.define",
-      "occurrences": 3056
+      "occurrences": 3058
     },
     {
       "category": "preprocessor",
@@ -49200,7 +49661,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 15730
+      "occurrences": 15790
     },
     {
       "category": "qualifier",
@@ -49736,7 +50197,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.storage.static",
-      "occurrences": 9359
+      "occurrences": 9373
     },
     {
       "category": "type",
@@ -50171,7 +50632,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.char",
-      "occurrences": 8926
+      "occurrences": 8928
     },
     {
       "category": "type",
@@ -50924,7 +51385,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.int",
-      "occurrences": 22711
+      "occurrences": 22715
     },
     {
       "category": "type",
@@ -51374,7 +51835,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.struct",
-      "occurrences": 918
+      "occurrences": 921
     },
     {
       "category": "type",
@@ -51648,7 +52109,7 @@
         "user/cupid.h"
       ],
       "id": "c.type.typedef",
-      "occurrences": 996
+      "occurrences": 997
     },
     {
       "category": "type",
@@ -52445,7 +52906,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.void",
-      "occurrences": 14653
+      "occurrences": 14677
     },
     {
       "category": "declaration",
@@ -53351,11 +53812,11 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "3687c34eed4ce95381ccb295c16925cf78a701c660e90d33f3c7db7852048722",
+    "active_source_digest": "6aa5ac586bc279d8dc2b87cc43adfc07ce8f88400f2acfa14a6519398863f111",
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "7a0081f310f3d23ea0d34114d41b8378ede032f0d95765a4e9c67f8d7716042c"
+        "sha256": "3fc2796f3533ad7f7224537254d9c62d9468740a2770e02c9ba27bd7122411e3"
       },
       {
         "path": "user/Makefile",
@@ -53375,11 +53836,11 @@
       },
       {
         "path": "tools/bootstrap_toolchain.py",
-        "sha256": "714f880d863ef6860e1cc8138aef7d0466eec12ff964b6caa506042a3b6f0164"
+        "sha256": "7db441a05ef234f6fcba5404f66d55c3ea91ed3ac31038258bba1cd9230305e3"
       },
       {
         "path": "bootstrap/seeds/i386-linux/manifest.json",
-        "sha256": "8fd462648360d3c705e203fc771299007d590d1665a6c253781a4ee83c811c33"
+        "sha256": "5b46684d9977287f69a94473acbbf7c5302213ef98f9748482cba768ffca0be8"
       },
       {
         "path": "tools/cupidc_production_compile.py",
@@ -53400,7 +53861,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "7cc8e29262645d91dd73e41b34a0f7b8378a2c176eccbdd99f3e1698d60399e4"
+      "sha256": "4a52b7259c07fbf41146f9799b8579a5711a212451fb894fe3c95092b68456af"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -78521,12 +78982,12 @@
         "toolchain/cupiddis.h"
       ],
       "language": "cupid_c",
-      "lines": 2244,
+      "lines": 2271,
       "origin": "tracked",
       "path": "toolchain/cupiddis.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "d9c8db8b212fc708d8305983395c075d3b2078b70b343a78fa90478eebbcc3c3"
+      "sha256": "f3933905fc164a33992d1d192201f8f7e7cf2f281b2c64012bcf74b7b27058ce"
     },
     {
       "build_owners": [
@@ -78557,12 +79018,12 @@
         "toolchain/x86.h"
       ],
       "language": "c_header",
-      "lines": 124,
+      "lines": 129,
       "origin": "tracked",
       "path": "toolchain/cupiddis.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "43d3513d85d6ce2c6989d5c8b80f55eb248c091fb75d5c5d4cbde2dabe88b343"
+      "sha256": "9ca556190979f2e2fef9190881f7dda5a40f41425a4189b5227d8f0e1cedae8b"
     },
     {
       "build_owners": [
@@ -78603,12 +79064,12 @@
         "toolchain/cupiddis.h"
       ],
       "language": "cupid_c",
-      "lines": 669,
+      "lines": 692,
       "origin": "tracked",
       "path": "toolchain/cupiddis_main.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "deab2090a2320392483e5f31d9e5ac63544ecc2512ebfc0836df6136c7e362d9"
+      "sha256": "5f50b6cef2929ac7e1de63252ba5102f66d192b72ac0f150be6af252b5bb216c"
     },
     {
       "build_owners": [
@@ -79526,12 +79987,12 @@
         "toolchain/tests/cupidc_static_long_double_integer_fixture.h"
       ],
       "language": "cupid_c",
-      "lines": 35571,
+      "lines": 35567,
       "origin": "tracked",
       "path": "toolchain/tests/cupidc_frontend_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "88b0a67052c742f34ae54058cce83f3b8b2e5fc768ebe510b18690bb5f446d3f"
+      "sha256": "445f9b61560671de0f04393712d959e3de1cb63f9700953801b03d85b960bcda"
     },
     {
       "build_owners": [
@@ -79936,12 +80397,12 @@
         "toolchain/elf32.h"
       ],
       "language": "cupid_c",
-      "lines": 1790,
+      "lines": 1870,
       "origin": "tracked",
       "path": "toolchain/tests/cupiddis_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "94cfcdcc13d3d3c2b3662adec071fd10a8e7d02dbcb4bde68c2b68222b1393f2"
+      "sha256": "5a11f9c0c1ce429db562af01dee5d40d23bf665bbedbdf12b4d3b065f6a79729"
     },
     {
       "build_owners": [
@@ -80230,12 +80691,12 @@
         "toolchain/x86.h"
       ],
       "language": "cupid_c",
-      "lines": 4092,
+      "lines": 4313,
       "origin": "tracked",
       "path": "toolchain/tests/x86_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "23c673c56c2e7cbde69d4e34c9a54c243e33340494c3244f945cff0eb4177145"
+      "sha256": "0bcaf356102cae048787f83ad9487aa1b8f4d5062eb65ac20e8dbbd2b05f462a"
     },
     {
       "build_owners": [
@@ -80281,12 +80742,12 @@
         "toolchain/x86.h"
       ],
       "language": "cupid_c",
-      "lines": 4043,
+      "lines": 4191,
       "origin": "tracked",
       "path": "toolchain/x86.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "884e14d40ace9f580eef57122e03022230285718c7eb0a83bd265ea802c1cc46"
+      "sha256": "940491304750c995db5ee93700ae343af32a71e0f8932d3c1370fc546fd6d296"
     },
     {
       "build_owners": [
@@ -80317,12 +80778,12 @@
         "toolchain/ctool.h"
       ],
       "language": "c_header",
-      "lines": 298,
+      "lines": 308,
       "origin": "tracked",
       "path": "toolchain/x86.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "d0bdecf3a21e51813a3e033a4bb034d75378950d606fd07b45175945d96b15c0"
+      "sha256": "471d44f1956dde47afbf9aa4dd7a4427a4e115e74baa0577ec578f3b9201fea4"
     },
     {
       "build_owners": [
@@ -80455,7 +80916,7 @@
   "summary": {
     "active_sources": 728,
     "features": 255,
-    "transforms": 449,
+    "transforms": 450,
     "unreachable_sources": 25
   },
   "supplemental_builds": [

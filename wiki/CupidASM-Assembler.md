@@ -161,7 +161,7 @@ when every range contains code.
 
 ### Requiring complete code coverage
 
-Source-head CupidDis can validate one or more files without printing a
+Checked-seed CupidDis can validate one or more files without printing a
 disassembly:
 
 ```text
@@ -173,7 +173,59 @@ or truncated instruction. A failure names the input and reports known,
 unknown, invalid, and truncated counts. CupidDis continues through later
 inputs so one run reports the whole failing set. Declared raw data and
 non-executable ELF regions do not count. Ordinary rendering still accepts one
-file and keeps its existing output.
+file and keeps its existing output. The normal kernel path runs strict
+validation and flat extraction against one frozen cohort of all 427 audited
+root object outputs plus the pass-one and final kernel ELFs. Its 9,028-byte manifest lists those 429 unique
+paths in graph order and has SHA-256
+`48bdef348f6575881b9808631173e7265abc9ea89dfb84d48de72b3d2304749e`.
+An immutable first-opcode index preserves exhaustive selection, and the
+checked 128 KiB throughput contract passes within 30 seconds. ADR 0262 records
+the command, ADR 0266 records indexed decoding, and ADR 0265 records seed
+carriage and production adoption.
+
+An earlier poisoned-host normal `make -j2` passed in 1,057.969 seconds and ran
+the separate strict gate before CupidObj flattened the kernel. It produced a 9,162,816-byte
+final ELF with SHA-256
+`a0b57cd886369762b65d657bb3f2915ada8f30b52102535add89466eaf4f5976` and an
+8,946,332-byte raw kernel with SHA-256
+`4f5f2591d01bcc4007773844e9bfb8112a16dd17fbd178014cc2056fefaab67d`.
+The current hostbuild transaction freezes the selected seed manifest and all
+five artifacts, the 429-entry input manifest and cohort, and the existing
+`kernel.bin` boundary. Checked CupidDis validates the private cohort before
+checked CupidObj flattens the frozen final ELF. Hostbuild rechecks live trust
+inputs and the output before parent-relative atomic publication. Every failure
+preserves the prior raw kernel. The transaction passed with exit 0 in 187.054
+seconds and published the same 8,946,332-byte raw kernel and SHA-256. The
+focused hostbuild suites each passed 31 tests on Windows and in WSL;
+platform-specific cases were skipped on the opposite host. Moving private
+flatten extraction onto the shared pinned-path helper remains deferred
+maintenance.
+The frozen-document poisoned-host rebuild passed in 1,018.548 seconds. Its
+current artifacts supersede the pre-freeze identities above. The 2,560-byte
+`boot.bin` has SHA-256
+`46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3`.
+The 9,044,032-byte pass-one ELF has SHA-256
+`659bd6485deb4e6a18a1efa0f575eb90f210fe5674e9e1257eeef2a4422ff21e`,
+the 9,166,912-byte final ELF has SHA-256
+`7caf5ad4bc721f10418c06be7cfd8d9568efc8378e7baf2c2f7a510ec49263a3`,
+and the 8,950,860-byte raw kernel has SHA-256
+`5f0c0becc1ba66a9d3e2eda15555fec39faedc98e2349ad3ee7b2d08775fe1a7`.
+A final poisoned-host `make -j2 all` passed with exit 0 in 1,022.190 seconds.
+The exact-size prerequisite accepted all nine artifacts before publishing the
+209,715,200-byte image with SHA-256
+`326844ca58c1f864a6b9a2480dfaeb5ed71ec3df22cdb46da17a6bb356e7e726`.
+The final four-vCPU E1000 and RTL8139 frontiers passed from this image. Both
+used the partitioned USB fixture, `--smp 4`, `--cpu max`, SMP and frontier
+runtime verification, a private image, and a 300-second phase timeout. E1000
+exited 0 in 725.058 seconds with 103,673 changed framebuffer pixels, 29,608,822
+AC97 frames at peak 25,600, and 76,784 PC speaker frames at peak 30,710.
+RTL8139 exited 0 in 725.406 seconds with 106,151 changed pixels, 29,601,879
+AC97 frames at peak 25,600, and 76,719 PC speaker frames at peak 31,501. Both
+used a 640 by 480 framebuffer, and the image hash remained unchanged.
+The definitive four-vCPU E1000 and RTL8139 boot frontiers remain pre-freeze
+runtime evidence. They passed
+with exits 0 in 794.034 and 758.667 seconds. Both passed SMP, frontier,
+framebuffer, AC97, and PC speaker checks without changing the source image.
 
 ### Hosted i386 commands
 
@@ -210,6 +262,9 @@ The private and live closures are checked after each stage and after behavior
 tests. Startup objects and the rest of the fixed-point evidence are published
 together only after the full gate passes. See
 [Toolchain Bootstrap](Toolchain-Bootstrap) for the manifest and staged build.
+An independent poisoned-host reproof passed in 766.9 seconds. All five seed
+images match stage two, and stage two matches stage three across all nineteen
+C objects, startup, five tools, and the 5/18/16 behavior matrix.
 Normal Cupid OS C roots and Toolchain contracts now use checked CupidC.
 A host compiler remains only for explicit native oracles and hosted
 development commands.
@@ -327,12 +382,11 @@ section .data
 
 ## Instruction Reference
 
-CupidASM uses the shared Cupid Toolchain x86 catalogue. The promoted seed
-carries 602 forms, 247 canonical mnemonics, and 64 register names, with
-catalogue fingerprint `64429699`. Source head carries 604 forms, 249 canonical
-mnemonics, and fingerprint `55A8970F`. The seed includes signed x87 `FILD` and
-`FISTP` memory operands at 16, 32, and 64 bits. Source head adds canonical
-`SETP` and `SETNP` byte predicates. Four forms cover canonical SHRD with
+CupidASM uses the shared Cupid Toolchain x86 catalogue. The checked seed and
+source head carry 604 forms, 249 canonical mnemonics, and 64 register names,
+with catalogue fingerprint `55A8970F`. The catalogue includes signed x87
+`FILD` and `FISTP` memory operands at 16, 32, and 64 bits and canonical `SETP`
+and `SETNP` byte predicates. Four forms cover canonical SHRD with
 immediate or fixed CL counts. The forward x87 form encodes
 `FSUB ST(1), ST(0)` as `DC E9`. The four preceding x87 forms encode and decode
 80-bit `FLD` and `FSTP`
@@ -346,8 +400,9 @@ and an immediate. CupidASM uses `6B /r` when the value fits a signed byte and
 `69 /r` otherwise. ADR 0207 records forward stack subtraction, ADR 0208
 records its seed promotion, ADR 0226 records SHRD, and ADR 0228 records
 SHRD's first seed carriage. ADR 0243 records the preceding seed, ADR 0252
-records the x87 integer forms, ADR 0258 records the promoted seed, and ADR
-0259 records the parity predicates.
+records the x87 integer forms, ADR 0258 records the preceding promotion, ADR
+0259 records the parity predicates, and ADR 0265 records their current seed
+carriage.
 
 `setp` and `setnp` accept one byte register or memory destination in either
 mode. They encode as `0F 9A /r` and `0F 9B /r`. Address-size overrides work

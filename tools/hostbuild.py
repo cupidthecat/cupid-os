@@ -8,7 +8,9 @@ can run under Linux shells and native Windows GNU Make.
 from __future__ import annotations
 
 import argparse
+import ctypes
 import hashlib
+import json
 import os
 import re
 import shutil
@@ -17,18 +19,22 @@ import struct
 import subprocess
 import sys
 import tempfile
+from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
+from typing import BinaryIO, Iterator
 
 try:
     from tools.bootstrap_toolchain import (
         BootstrapError,
+        freeze_seed_inputs,
         run_seed_tool,
         verify_seed_inputs,
     )
 except ModuleNotFoundError:
     from bootstrap_toolchain import (
         BootstrapError,
+        freeze_seed_inputs,
         run_seed_tool,
         verify_seed_inputs,
     )
@@ -38,6 +44,52 @@ SECTOR_SIZE = 512
 FAT16_TYPES = {0x04, 0x06, 0x0E}
 FAT16_EOC = 0xFFFF
 FAT16_EOC_MIN = 0xFFF8
+_CODE_POSIX_WALK_SUPPORTED = (
+    getattr(os, "O_DIRECTORY", 0) != 0
+    and getattr(os, "O_NOFOLLOW", 0) != 0
+    and os.open in os.supports_dir_fd
+)
+_CODE_WINDOWS_SYNCHRONIZE = 0x00100000
+_CODE_WINDOWS_FILE_READ_ATTRIBUTES = 0x0080
+_CODE_WINDOWS_FILE_TRAVERSE = 0x0020
+_CODE_WINDOWS_FILE_ADD_FILE = 0x0002
+_CODE_WINDOWS_FILE_DELETE_CHILD = 0x0040
+_CODE_WINDOWS_DIRECTORY_ACCESS = (
+    _CODE_WINDOWS_SYNCHRONIZE
+    | _CODE_WINDOWS_FILE_READ_ATTRIBUTES
+    | _CODE_WINDOWS_FILE_TRAVERSE
+)
+_CODE_WINDOWS_OUTPUT_DIRECTORY_ACCESS = (
+    _CODE_WINDOWS_DIRECTORY_ACCESS
+    | _CODE_WINDOWS_FILE_ADD_FILE
+    | _CODE_WINDOWS_FILE_DELETE_CHILD
+)
+_CODE_WINDOWS_GENERIC_READ = 0x80000000
+_CODE_WINDOWS_FILE_SHARE_READ = 0x0001
+_CODE_WINDOWS_FILE_SHARE_WRITE = 0x0002
+_CODE_WINDOWS_FILE_SHARE_DELETE = 0x0004
+_CODE_WINDOWS_FILE_SHARE = (
+    _CODE_WINDOWS_FILE_SHARE_READ | _CODE_WINDOWS_FILE_SHARE_WRITE
+)
+_CODE_WINDOWS_DELETE = 0x00010000
+_CODE_WINDOWS_OPEN_EXISTING = 3
+_CODE_WINDOWS_FILE_ATTRIBUTE_DIRECTORY = 0x0010
+_CODE_WINDOWS_FILE_ATTRIBUTE_REPARSE_POINT = 0x0400
+_CODE_WINDOWS_FILE_FLAG_BACKUP_SEMANTICS = 0x02000000
+_CODE_WINDOWS_FILE_FLAG_OPEN_REPARSE_POINT = 0x00200000
+_CODE_WINDOWS_FILE_DIRECTORY_FILE = 0x00000001
+_CODE_WINDOWS_FILE_NON_DIRECTORY_FILE = 0x00000040
+_CODE_WINDOWS_FILE_SYNCHRONOUS_IO_NONALERT = 0x00000020
+_CODE_WINDOWS_OBJECT_CASE_INSENSITIVE = 0x0040
+_CODE_WINDOWS_OBJECT_DONT_REPARSE = 0x1000
+_CODE_WINDOWS_FILE_OPEN = 1
+_CODE_WINDOWS_FILE_ATTRIBUTE_TAG_INFO_CLASS = 9
+_CODE_WINDOWS_FILE_RENAME_INFORMATION_CLASS = 10
+_CODE_WINDOWS_ERROR_FILE_NOT_FOUND = 2
+_CODE_WINDOWS_ERROR_PATH_NOT_FOUND = 3
+_CODE_WINDOWS_ERROR_ACCESS_DENIED = 5
+_CODE_WINDOWS_ERROR_DIRECTORY = 267
+_CODE_WINDOWS_ERROR_REPARSE_POINT_ENCOUNTERED = 4395
 
 
 class KsymsGenerationError(RuntimeError):
@@ -3510,6 +3562,1414 @@ def create_usb_image(out: Path, size_mb: int = 32, partition_lba: int = 2048) ->
     print(f"[hostbuild] Built {out} ({size_mb}MB FAT16 USB image)")
 
 
+class CodeValidationError(RuntimeError):
+    """Executable code could not be validated safely."""
+
+    def __init__(self, message: str, *, tool_stderr: str = "") -> None:
+        super().__init__(message)
+        self.tool_stderr = tool_stderr
+
+
+@dataclass(frozen=True)
+class _CodeOutput:
+    root: Path
+    logical: str
+    path: Path
+    parent_parts: tuple[str, ...]
+    parent_identity: tuple[int, int]
+    parent_fd: int | None = None
+    parent_handle: object | None = None
+
+
+@dataclass(frozen=True)
+class _CodeValidationInput:
+    logical: str
+    size: int
+    sha256: str
+    device: int
+    inode: int
+
+def _code_logical_path(path: Path, *, subject: str = "code input") -> str:
+    windows_path = PureWindowsPath(str(path))
+    if (
+        path.is_absolute()
+        or path.anchor
+        or windows_path.is_absolute()
+        or windows_path.drive
+    ):
+        raise CodeValidationError(
+            f"{subject} must be relative to the repository root: {path}"
+        )
+    logical_path = PurePosixPath(path.as_posix())
+    if not logical_path.parts or logical_path == PurePosixPath("."):
+        raise CodeValidationError(f"{subject} path may not be empty")
+    if ".." in logical_path.parts:
+        raise CodeValidationError(
+            f"{subject} may not contain a parent traversal: {path}"
+        )
+    if logical_path.parts[0].startswith("-"):
+        raise CodeValidationError(
+            f"{subject} may not begin with an option marker: {path}"
+        )
+    return logical_path.as_posix()
+
+
+def _code_path_is_link_or_junction(
+    path: Path,
+    logical: str,
+    *,
+    subject: str = "code input",
+) -> bool:
+    try:
+        if path.is_symlink():
+            return True
+        is_junction = getattr(os.path, "isjunction", None)
+        if is_junction is not None and is_junction(path):
+            return True
+        try:
+            status = path.lstat()
+        except FileNotFoundError:
+            return False
+        reparse_point = getattr(
+            stat,
+            "FILE_ATTRIBUTE_REPARSE_POINT",
+            0x0400,
+        )
+        return bool(getattr(status, "st_file_attributes", 0) & reparse_point)
+    except OSError as error:
+        raise CodeValidationError(
+            f"{subject} cannot be inspected: {logical}: {error}"
+        ) from error
+
+
+def _code_open_error(
+    root: Path,
+    inspected: Path,
+    logical: str,
+    subject: str,
+    error: OSError,
+) -> CodeValidationError:
+    if _code_path_is_link_or_junction(inspected, logical, subject=subject):
+        return CodeValidationError(
+            f"{subject} may not be a symbolic link or junction: {logical}"
+        )
+    if isinstance(error, FileNotFoundError):
+        return CodeValidationError(f"{subject} does not exist: {logical}")
+    try:
+        inspected.relative_to(root)
+    except ValueError:
+        return CodeValidationError(
+            f"{subject} resolves outside the repository root: {logical}"
+        )
+    return CodeValidationError(f"{subject} cannot be opened safely: {logical}: {error}")
+
+
+@contextmanager
+def _open_posix_code_input(
+    root: Path,
+    logical: str,
+    subject: str,
+) -> Iterator[BinaryIO]:
+    if not _CODE_POSIX_WALK_SUPPORTED:
+        raise CodeValidationError("this host cannot safely open code validation inputs")
+    parts = PurePosixPath(logical).parts
+    directory_flag = getattr(os, "O_DIRECTORY", 0)
+    no_follow_flag = getattr(os, "O_NOFOLLOW", 0)
+    binary_flag = getattr(os, "O_BINARY", 0)
+    with ExitStack() as stack:
+        try:
+            parent_fd = os.open(
+                root,
+                os.O_RDONLY | directory_flag | no_follow_flag,
+            )
+        except OSError as error:
+            raise CodeValidationError(
+                f"repository root cannot be opened safely: {error}"
+            ) from error
+        stack.callback(os.close, parent_fd)
+        if not stat.S_ISDIR(os.fstat(parent_fd).st_mode):
+            raise CodeValidationError("repository root is not a regular directory")
+
+        inspected = root
+        for part in parts[:-1]:
+            inspected /= part
+            try:
+                child_fd = os.open(
+                    part,
+                    os.O_RDONLY | directory_flag | no_follow_flag,
+                    dir_fd=parent_fd,
+                )
+            except OSError as error:
+                raise _code_open_error(
+                    root, inspected, logical, subject, error
+                ) from error
+            stack.callback(os.close, child_fd)
+            if not stat.S_ISDIR(os.fstat(child_fd).st_mode):
+                raise CodeValidationError(
+                    f"{subject} has a non-directory parent: {logical}"
+                )
+            parent_fd = child_fd
+
+        inspected /= parts[-1]
+        try:
+            descriptor = os.open(
+                parts[-1],
+                os.O_RDONLY | no_follow_flag | binary_flag,
+                dir_fd=parent_fd,
+            )
+        except OSError as error:
+            raise _code_open_error(root, inspected, logical, subject, error) from error
+        stack.callback(os.close, descriptor)
+        if not stat.S_ISREG(os.fstat(descriptor).st_mode):
+            raise CodeValidationError(f"{subject} is not a regular file: {logical}")
+        with os.fdopen(descriptor, "rb", closefd=False) as stream:
+            yield stream
+
+
+def _windows_code_api():
+    from ctypes import wintypes
+
+    class FileAttributeTagInfo(ctypes.Structure):
+        _fields_ = (
+            ("attributes", wintypes.DWORD),
+            ("reparse_tag", wintypes.DWORD),
+        )
+
+    class UnicodeString(ctypes.Structure):
+        _fields_ = (
+            ("length", wintypes.USHORT),
+            ("maximum_length", wintypes.USHORT),
+            ("buffer", wintypes.LPWSTR),
+        )
+
+    class ObjectAttributes(ctypes.Structure):
+        _fields_ = (
+            ("length", wintypes.ULONG),
+            ("root_directory", wintypes.HANDLE),
+            ("object_name", ctypes.POINTER(UnicodeString)),
+            ("attributes", wintypes.ULONG),
+            ("security_descriptor", wintypes.LPVOID),
+            ("security_quality_of_service", wintypes.LPVOID),
+        )
+
+    class IoStatusBlock(ctypes.Structure):
+        _fields_ = (
+            ("status", wintypes.LONG),
+            ("information", ctypes.c_size_t),
+        )
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.CreateFileW.argtypes = (
+        wintypes.LPCWSTR,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.LPVOID,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.HANDLE,
+    )
+    kernel32.CreateFileW.restype = wintypes.HANDLE
+    kernel32.GetFileInformationByHandleEx.argtypes = (
+        wintypes.HANDLE,
+        ctypes.c_int,
+        wintypes.LPVOID,
+        wintypes.DWORD,
+    )
+    kernel32.GetFileInformationByHandleEx.restype = wintypes.BOOL
+    kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
+    kernel32.CloseHandle.restype = wintypes.BOOL
+    ntdll = ctypes.WinDLL("ntdll", use_last_error=True)
+    ntdll.NtCreateFile.argtypes = (
+        ctypes.POINTER(wintypes.HANDLE),
+        wintypes.DWORD,
+        ctypes.POINTER(ObjectAttributes),
+        ctypes.POINTER(IoStatusBlock),
+        wintypes.LPVOID,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.LPVOID,
+        wintypes.DWORD,
+    )
+    ntdll.NtCreateFile.restype = wintypes.LONG
+    ntdll.RtlNtStatusToDosError.argtypes = (wintypes.LONG,)
+    ntdll.RtlNtStatusToDosError.restype = wintypes.ULONG
+    ntdll.NtSetInformationFile.argtypes = (
+        wintypes.HANDLE,
+        ctypes.POINTER(IoStatusBlock),
+        wintypes.LPVOID,
+        wintypes.ULONG,
+        wintypes.ULONG,
+    )
+    ntdll.NtSetInformationFile.restype = wintypes.LONG
+    return (
+        kernel32,
+        ntdll,
+        FileAttributeTagInfo,
+        UnicodeString,
+        ObjectAttributes,
+        IoStatusBlock,
+    )
+
+
+def _validate_windows_code_handle(
+    kernel32,
+    info_type,
+    handle,
+    *,
+    directory: bool,
+    logical: str,
+    subject: str,
+) -> None:
+    information = info_type()
+    if not kernel32.GetFileInformationByHandleEx(
+        handle,
+        _CODE_WINDOWS_FILE_ATTRIBUTE_TAG_INFO_CLASS,
+        ctypes.byref(information),
+        ctypes.sizeof(information),
+    ):
+        error_code = ctypes.get_last_error()
+        raise CodeValidationError(
+            f"{subject} cannot be inspected: {logical}: "
+            f"{ctypes.FormatError(error_code)}"
+        ) from ctypes.WinError(error_code, logical)
+    if information.attributes & _CODE_WINDOWS_FILE_ATTRIBUTE_REPARSE_POINT:
+        raise CodeValidationError(
+            f"{subject} may not be a symbolic link or junction: {logical}"
+        )
+    is_directory = bool(information.attributes & _CODE_WINDOWS_FILE_ATTRIBUTE_DIRECTORY)
+    if is_directory != directory:
+        if directory:
+            message = f"{subject} has a non-directory parent: {logical}"
+        else:
+            message = f"{subject} is not a regular file: {logical}"
+        raise CodeValidationError(message)
+
+
+def _open_windows_code_root(
+    path: Path,
+    *,
+    logical: str,
+    subject: str,
+    desired_access: int = _CODE_WINDOWS_DIRECTORY_ACCESS,
+):
+    kernel32, _, info_type, _, _, _ = _windows_code_api()
+    handle = kernel32.CreateFileW(
+        str(path),
+        desired_access,
+        _CODE_WINDOWS_FILE_SHARE,
+        None,
+        _CODE_WINDOWS_OPEN_EXISTING,
+        _CODE_WINDOWS_FILE_FLAG_OPEN_REPARSE_POINT
+        | _CODE_WINDOWS_FILE_FLAG_BACKUP_SEMANTICS,
+        None,
+    )
+    invalid_handle = ctypes.c_void_p(-1).value
+    if handle == invalid_handle:
+        error_code = ctypes.get_last_error()
+        raise CodeValidationError(
+            f"repository root cannot be opened safely: {ctypes.FormatError(error_code)}"
+        ) from ctypes.WinError(error_code, str(path))
+    try:
+        _validate_windows_code_handle(
+            kernel32,
+            info_type,
+            handle,
+            directory=True,
+            logical=logical,
+            subject=subject,
+        )
+    except BaseException:
+        kernel32.CloseHandle(handle)
+        raise
+    return kernel32, handle
+
+
+def _open_windows_code_child(
+    parent_handle,
+    name: str,
+    *,
+    directory: bool,
+    logical: str,
+    subject: str,
+    desired_access: int | None = None,
+    share_access: int = _CODE_WINDOWS_FILE_SHARE,
+):
+    (
+        kernel32,
+        ntdll,
+        info_type,
+        unicode_type,
+        attributes_type,
+        status_type,
+    ) = _windows_code_api()
+    name_buffer = ctypes.create_unicode_buffer(name)
+    encoded_length = len(name.encode("utf-16-le"))
+    object_name = unicode_type(
+        encoded_length,
+        encoded_length + 2,
+        ctypes.cast(name_buffer, ctypes.c_wchar_p),
+    )
+    attributes = attributes_type(
+        ctypes.sizeof(attributes_type),
+        parent_handle,
+        ctypes.pointer(object_name),
+        _CODE_WINDOWS_OBJECT_CASE_INSENSITIVE | _CODE_WINDOWS_OBJECT_DONT_REPARSE,
+        None,
+        None,
+    )
+    status_block = status_type()
+    handle = ctypes.c_void_p()
+    if desired_access is None:
+        desired_access = (
+            _CODE_WINDOWS_DIRECTORY_ACCESS
+            if directory
+            else _CODE_WINDOWS_GENERIC_READ | _CODE_WINDOWS_SYNCHRONIZE
+        )
+    create_options = _CODE_WINDOWS_FILE_SYNCHRONOUS_IO_NONALERT
+    create_options |= (
+        _CODE_WINDOWS_FILE_DIRECTORY_FILE
+        if directory
+        else _CODE_WINDOWS_FILE_NON_DIRECTORY_FILE
+    )
+    status = ntdll.NtCreateFile(
+        ctypes.byref(handle),
+        desired_access,
+        ctypes.byref(attributes),
+        ctypes.byref(status_block),
+        None,
+        0,
+        share_access,
+        _CODE_WINDOWS_FILE_OPEN,
+        create_options,
+        None,
+        0,
+    )
+    if status < 0:
+        error_code = ntdll.RtlNtStatusToDosError(status)
+        opened_directory = False
+        if not directory and error_code == _CODE_WINDOWS_ERROR_ACCESS_DENIED:
+            try:
+                directory_kernel32, directory_handle = _open_windows_code_child(
+                    parent_handle,
+                    name,
+                    directory=True,
+                    logical=logical,
+                    subject=subject,
+                )
+            except CodeValidationError:
+                pass
+            else:
+                directory_kernel32.CloseHandle(directory_handle)
+                opened_directory = True
+        if error_code == _CODE_WINDOWS_ERROR_REPARSE_POINT_ENCOUNTERED:
+            message = f"{subject} may not be a symbolic link or junction: {logical}"
+        elif opened_directory:
+            message = f"{subject} is not a regular file: {logical}"
+        elif error_code in (
+            _CODE_WINDOWS_ERROR_FILE_NOT_FOUND,
+            _CODE_WINDOWS_ERROR_PATH_NOT_FOUND,
+        ):
+            message = f"{subject} does not exist: {logical}"
+        elif error_code == _CODE_WINDOWS_ERROR_DIRECTORY:
+            if directory:
+                message = f"{subject} has a non-directory parent: {logical}"
+            else:
+                message = f"{subject} is not a regular file: {logical}"
+        else:
+            message = (
+                f"{subject} cannot be opened safely: {logical}: "
+                f"{ctypes.FormatError(error_code)}"
+            )
+        raise CodeValidationError(message) from ctypes.WinError(error_code, name)
+    opened_handle = handle.value
+    try:
+        _validate_windows_code_handle(
+            kernel32,
+            info_type,
+            opened_handle,
+            directory=directory,
+            logical=logical,
+            subject=subject,
+        )
+    except BaseException:
+        kernel32.CloseHandle(opened_handle)
+        raise
+    return kernel32, opened_handle
+
+
+@contextmanager
+def _open_windows_code_input(
+    root: Path,
+    logical: str,
+    subject: str,
+) -> Iterator[BinaryIO]:
+    import msvcrt
+
+    parts = PurePosixPath(logical).parts
+    with ExitStack() as stack:
+        kernel32, handle = _open_windows_code_root(
+            root,
+            logical=logical,
+            subject=subject,
+        )
+        stack.callback(kernel32.CloseHandle, handle)
+        for part in parts[:-1]:
+            kernel32, handle = _open_windows_code_child(
+                handle,
+                part,
+                directory=True,
+                logical=logical,
+                subject=subject,
+            )
+            stack.callback(kernel32.CloseHandle, handle)
+        kernel32, handle = _open_windows_code_child(
+            handle,
+            parts[-1],
+            directory=False,
+            logical=logical,
+            subject=subject,
+        )
+        try:
+            descriptor = msvcrt.open_osfhandle(
+                handle,
+                os.O_RDONLY | getattr(os, "O_BINARY", 0),
+            )
+        except OSError:
+            kernel32.CloseHandle(handle)
+            raise
+        stack.callback(os.close, descriptor)
+        with os.fdopen(descriptor, "rb", closefd=False) as stream:
+            yield stream
+
+
+@contextmanager
+def _open_pinned_code_input(
+    root: Path,
+    logical: str,
+    *,
+    subject: str = "code input",
+) -> Iterator[BinaryIO]:
+    opener = _open_windows_code_input if os.name == "nt" else _open_posix_code_input
+    with opener(root, logical, subject) as stream:
+        yield stream
+
+
+def _pin_posix_code_directory(
+    root: Path,
+    parts: tuple[str, ...],
+    stack: ExitStack,
+    *,
+    subject: str,
+    logical: str,
+) -> int:
+    directory_flag = getattr(os, "O_DIRECTORY", 0)
+    no_follow_flag = getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(
+            root, os.O_RDONLY | directory_flag | no_follow_flag
+        )
+    except OSError as error:
+        raise CodeValidationError(
+            f"repository root cannot be opened safely: {error}"
+        ) from error
+    stack.callback(os.close, descriptor)
+    inspected = root
+    for part in parts:
+        inspected /= part
+        try:
+            child = os.open(
+                part,
+                os.O_RDONLY | directory_flag | no_follow_flag,
+                dir_fd=descriptor,
+            )
+        except OSError as error:
+            raise _code_open_error(
+                root,
+                inspected,
+                logical,
+                subject,
+                error,
+            ) from error
+        stack.callback(os.close, child)
+        if not stat.S_ISDIR(os.fstat(child).st_mode):
+            raise CodeValidationError(
+                f"{subject} has a non-directory parent: {logical}"
+            )
+        descriptor = child
+    return descriptor
+
+
+def _pin_windows_code_directory(
+    root: Path,
+    parts: tuple[str, ...],
+    stack: ExitStack,
+    *,
+    subject: str,
+    logical: str,
+    final_access: int | None = None,
+):
+    root_access = final_access if not parts and final_access is not None else _CODE_WINDOWS_DIRECTORY_ACCESS
+    kernel32, handle = _open_windows_code_root(
+        root,
+        logical=logical,
+        subject=subject,
+        desired_access=root_access,
+    )
+    stack.callback(kernel32.CloseHandle, handle)
+    for index, part in enumerate(parts):
+        desired_access = (
+            final_access
+            if final_access is not None and index == len(parts) - 1
+            else None
+        )
+        kernel32, child = _open_windows_code_child(
+            handle,
+            part,
+            directory=True,
+            logical=logical,
+            subject=subject,
+            desired_access=desired_access,
+        )
+        stack.callback(kernel32.CloseHandle, child)
+        handle = child
+    return handle
+
+
+def _windows_code_handle_identity(handle) -> tuple[int, int]:
+    from ctypes import wintypes
+
+    class ByHandleFileInformation(ctypes.Structure):
+        _fields_ = (
+            ("file_attributes", wintypes.DWORD),
+            ("creation_time", wintypes.FILETIME),
+            ("last_access_time", wintypes.FILETIME),
+            ("last_write_time", wintypes.FILETIME),
+            ("volume_serial_number", wintypes.DWORD),
+            ("file_size_high", wintypes.DWORD),
+            ("file_size_low", wintypes.DWORD),
+            ("number_of_links", wintypes.DWORD),
+            ("file_index_high", wintypes.DWORD),
+            ("file_index_low", wintypes.DWORD),
+        )
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.GetFileInformationByHandle.argtypes = (
+        wintypes.HANDLE,
+        ctypes.POINTER(ByHandleFileInformation),
+    )
+    kernel32.GetFileInformationByHandle.restype = wintypes.BOOL
+    information = ByHandleFileInformation()
+    if not kernel32.GetFileInformationByHandle(
+        handle, ctypes.byref(information)
+    ):
+        error_code = ctypes.get_last_error()
+        raise CodeValidationError(
+            "code directory identity cannot be inspected: "
+            f"{ctypes.FormatError(error_code)}"
+        ) from ctypes.WinError(error_code)
+    file_index = (
+        information.file_index_high << 32
+    ) | information.file_index_low
+    return information.volume_serial_number, file_index
+
+
+def _pin_code_output(
+    root: Path,
+    output_argument: Path,
+    stack: ExitStack,
+) -> _CodeOutput:
+    logical = _code_logical_path(output_argument, subject="code output")
+    parts = PurePosixPath(logical).parts
+    parent_parts = tuple(parts[:-1])
+    path = root.joinpath(*parts)
+    if os.name == "nt":
+        parent_handle = _pin_windows_code_directory(
+            root,
+            parent_parts,
+            stack,
+            subject="code output",
+            logical=logical,
+            final_access=_CODE_WINDOWS_OUTPUT_DIRECTORY_ACCESS,
+        )
+        identity = _windows_code_handle_identity(parent_handle)
+        return _CodeOutput(
+            root,
+            logical,
+            path,
+            parent_parts,
+            identity,
+            parent_handle=parent_handle,
+        )
+    parent_fd = _pin_posix_code_directory(
+        root,
+        parent_parts,
+        stack,
+        subject="code output",
+        logical=logical,
+    )
+    information = os.fstat(parent_fd)
+    return _CodeOutput(
+        root,
+        logical,
+        path,
+        parent_parts,
+        (information.st_dev, information.st_ino),
+        parent_fd=parent_fd,
+    )
+
+
+def _require_code_output_parent_unchanged(output: _CodeOutput) -> None:
+    with ExitStack() as stack:
+        if output.parent_fd is not None:
+            current = _pin_posix_code_directory(
+                output.root,
+                output.parent_parts,
+                stack,
+                subject="code output",
+                logical=output.logical,
+            )
+            information = os.fstat(current)
+            identity = (information.st_dev, information.st_ino)
+        elif output.parent_handle is not None:
+            current = _pin_windows_code_directory(
+                output.root,
+                output.parent_parts,
+                stack,
+                subject="code output",
+                logical=output.logical,
+                final_access=_CODE_WINDOWS_OUTPUT_DIRECTORY_ACCESS,
+            )
+            identity = _windows_code_handle_identity(current)
+        else:
+            raise CodeValidationError("code output parent was not pinned")
+    if identity != output.parent_identity:
+        raise CodeValidationError("code output parent changed while checked tools ran")
+
+
+def _code_output_entry(
+    output: _CodeOutput,
+) -> _CodeValidationInput | None:
+    name = PurePosixPath(output.logical).name
+    try:
+        if output.parent_fd is not None:
+            info = os.stat(name, dir_fd=output.parent_fd, follow_symlinks=False)
+            if stat.S_ISLNK(info.st_mode):
+                raise CodeValidationError(
+                    "code output may not be a symbolic link or junction: "
+                    f"{output.logical}"
+                )
+            if not stat.S_ISREG(info.st_mode):
+                raise CodeValidationError(
+                    f"code output is not a regular file: {output.logical}"
+                )
+            no_follow_flag = getattr(os, "O_NOFOLLOW", 0)
+            descriptor = os.open(
+                name,
+                os.O_RDONLY
+                | no_follow_flag
+                | getattr(os, "O_BINARY", 0),
+                dir_fd=output.parent_fd,
+            )
+            with os.fdopen(descriptor, "rb") as stream:
+                snapshot = _capture_code_stream(output.logical, stream)
+            return snapshot
+        if output.parent_handle is not None:
+            kernel32, handle = _open_windows_code_child(
+                output.parent_handle,
+                name,
+                directory=False,
+                logical=output.logical,
+                subject="code output",
+            )
+            import msvcrt
+
+            try:
+                descriptor = msvcrt.open_osfhandle(
+                    handle,
+                    os.O_RDONLY | getattr(os, "O_BINARY", 0),
+                )
+            except OSError:
+                kernel32.CloseHandle(handle)
+                raise
+            with os.fdopen(descriptor, "rb") as stream:
+                snapshot = _capture_code_stream(output.logical, stream)
+            return snapshot
+    except FileNotFoundError:
+        return None
+    except CodeValidationError as error:
+        if "does not exist" in str(error):
+            return None
+        raise
+    except OSError as error:
+        raise CodeValidationError(
+            f"code output cannot be inspected: {output.logical}: {error}"
+        ) from error
+    raise CodeValidationError("code output parent was not pinned")
+
+
+def _capture_code_stream(
+    logical: str,
+    source: BinaryIO,
+) -> _CodeValidationInput:
+    digest = hashlib.sha256()
+    size = 0
+    before = os.fstat(source.fileno())
+    if not stat.S_ISREG(before.st_mode):
+        raise CodeValidationError(
+            f"code output is not a regular file: {logical}"
+        )
+    while True:
+        block = source.read(1024 * 1024)
+        if not block:
+            break
+        digest.update(block)
+        size += len(block)
+    after = os.fstat(source.fileno())
+    if (
+        before.st_size != after.st_size
+        or before.st_mtime_ns != after.st_mtime_ns
+        or before.st_size != size
+    ):
+        raise CodeValidationError(
+            f"code output changed while it was being inspected: {logical}"
+        )
+    return _CodeValidationInput(
+        logical,
+        size,
+        digest.hexdigest(),
+        before.st_dev,
+        before.st_ino,
+    )
+
+
+def _capture_code_input(
+    root: Path,
+    logical: str,
+    *,
+    frozen: Path | None = None,
+    subject: str = "code input",
+) -> _CodeValidationInput:
+    digest = hashlib.sha256()
+    size = 0
+    destination = None
+    try:
+        if frozen is not None:
+            frozen.parent.mkdir(parents=True, exist_ok=True)
+            destination = frozen.open("xb")
+        with _open_pinned_code_input(root, logical, subject=subject) as source:
+            before = os.fstat(source.fileno())
+            if not stat.S_ISREG(before.st_mode):
+                raise CodeValidationError(f"{subject} is not a regular file: {logical}")
+            while True:
+                block = source.read(1024 * 1024)
+                if not block:
+                    break
+                digest.update(block)
+                size += len(block)
+                if destination is not None:
+                    destination.write(block)
+            after = os.fstat(source.fileno())
+        if (
+            before.st_size != after.st_size
+            or before.st_mtime_ns != after.st_mtime_ns
+            or before.st_size != size
+        ):
+            raise CodeValidationError(
+                f"{subject} changed while it was being frozen: {logical}"
+            )
+        if destination is not None:
+            destination.flush()
+            os.fsync(destination.fileno())
+    except CodeValidationError:
+        raise
+    except OSError as error:
+        raise CodeValidationError(
+            f"{subject} cannot be read: {logical}: {error}"
+        ) from error
+    finally:
+        if destination is not None:
+            destination.close()
+    return _CodeValidationInput(
+        logical=logical,
+        size=size,
+        sha256=digest.hexdigest(),
+        device=before.st_dev,
+        inode=before.st_ino,
+    )
+
+
+def _code_inputs_from_manifest(path: Path) -> list[str]:
+    try:
+        payload = path.read_bytes()
+    except OSError as error:
+        raise CodeValidationError(
+            f"frozen code input manifest cannot be read: {error}"
+        ) from error
+    if not payload:
+        raise CodeValidationError("code input manifest may not be empty")
+    if not payload.endswith(b"\n"):
+        raise CodeValidationError("code input manifest must end with a newline")
+    if b"\r" in payload:
+        raise CodeValidationError("code input manifest must use LF newlines")
+    try:
+        text = payload.decode("utf-8")
+    except UnicodeDecodeError as error:
+        raise CodeValidationError(
+            "code input manifest must contain valid UTF-8"
+        ) from error
+
+    logical_paths: list[str] = []
+    seen: set[str] = set()
+    for line_number, line in enumerate(text[:-1].split("\n"), start=1):
+        if not line:
+            raise CodeValidationError(
+                f"code input manifest line {line_number} is blank"
+            )
+        if line.startswith("#"):
+            raise CodeValidationError(
+                f"code input manifest line {line_number} may not be a comment"
+            )
+        if "\\" in line:
+            raise CodeValidationError(
+                f"code input manifest line {line_number} must use forward slashes"
+            )
+        if any(character.isspace() for character in line):
+            raise CodeValidationError(
+                f"code input manifest line {line_number} may not contain whitespace"
+            )
+        has_control = any(
+            ord(character) < 32 or ord(character) == 127 for character in line
+        )
+        if has_control:
+            raise CodeValidationError(
+                f"code input manifest line {line_number} may not contain "
+                "control characters"
+            )
+        logical = _code_logical_path(Path(line))
+        if logical != line:
+            raise CodeValidationError(
+                f"code input manifest line {line_number} is not a "
+                "canonical repository path"
+            )
+        key = logical.casefold()
+        if key in seen:
+            raise CodeValidationError(f"code input is listed more than once: {logical}")
+        seen.add(key)
+        logical_paths.append(logical)
+    return logical_paths
+
+
+def _seed_manifest_logical_path(root: Path, manifest: Path) -> str:
+    if not manifest.is_absolute() and not PureWindowsPath(str(manifest)).is_absolute():
+        return _code_logical_path(manifest, subject="checked seed manifest")
+    absolute = Path(os.path.abspath(manifest))
+    try:
+        relative = absolute.relative_to(root)
+    except ValueError as error:
+        raise CodeValidationError(
+            "checked seed manifest must be inside the repository root"
+        ) from error
+    return _code_logical_path(relative, subject="checked seed manifest")
+
+
+def _seed_artifact_logical_paths(manifest: Path, manifest_logical: str) -> list[str]:
+    try:
+        payload = json.loads(manifest.read_text(encoding="utf-8"))
+        artifacts = payload["artifacts"]
+    except (OSError, UnicodeError, json.JSONDecodeError, KeyError, TypeError) as error:
+        raise CodeValidationError(
+            f"checked seed manifest cannot be read: {error}"
+        ) from error
+    if not isinstance(artifacts, list):
+        raise CodeValidationError("checked seed manifest artifacts must be a list")
+    parent = PurePosixPath(manifest_logical).parent
+    logical_paths: list[str] = []
+    seen: set[str] = set()
+    for index, artifact in enumerate(artifacts):
+        if not isinstance(artifact, dict) or not isinstance(artifact.get("file"), str):
+            raise CodeValidationError(
+                f"checked seed manifest artifact {index} has no file name"
+            )
+        file_name = artifact["file"]
+        if PurePosixPath(file_name).name != file_name or "\\" in file_name:
+            raise CodeValidationError(
+                f"checked seed manifest artifact {index} has an unsafe file name"
+            )
+        logical = _code_logical_path(
+            Path((parent / file_name).as_posix()),
+            subject="checked seed artifact",
+        )
+        key = logical.casefold() if os.name == "nt" else logical
+        if key in seen:
+            raise CodeValidationError(
+                f"checked seed artifact is listed more than once: {file_name}"
+            )
+        seen.add(key)
+        logical_paths.append(logical)
+    return logical_paths
+
+
+def _freeze_code_seed_inputs(
+    root: Path,
+    seed_manifest: Path,
+    private_root: Path,
+) -> tuple[object, Path, list[_CodeValidationInput]]:
+    manifest_logical = _seed_manifest_logical_path(root, seed_manifest)
+    live_manifest = root.joinpath(*PurePosixPath(manifest_logical).parts)
+    seed_source = private_root / ".checked-seed-source"
+    frozen_manifest = seed_source.joinpath(*PurePosixPath(manifest_logical).parts)
+    snapshots = [
+        _capture_code_input(
+            root,
+            manifest_logical,
+            frozen=frozen_manifest,
+            subject="checked seed manifest",
+        )
+    ]
+    for logical in _seed_artifact_logical_paths(frozen_manifest, manifest_logical):
+        snapshots.append(
+            _capture_code_input(
+                root,
+                logical,
+                frozen=seed_source.joinpath(*PurePosixPath(logical).parts),
+                subject="checked seed artifact",
+            )
+        )
+    try:
+        frozen_seed = freeze_seed_inputs(
+            frozen_manifest,
+            private_root / ".checked-seed",
+        )
+    except (BootstrapError, OSError) as error:
+        raise CodeValidationError(f"checked seed could not be frozen: {error}") from error
+    return frozen_seed, live_manifest, snapshots
+
+
+def _require_code_output_not_an_input(
+    output: _CodeOutput,
+    output_snapshot: _CodeValidationInput | None,
+    inputs: list[_CodeValidationInput],
+) -> None:
+    output_key = output.logical.casefold() if os.name == "nt" else output.logical
+    for input_snapshot in inputs:
+        input_key = (
+            input_snapshot.logical.casefold()
+            if os.name == "nt"
+            else input_snapshot.logical
+        )
+        if output_key == input_key:
+            raise CodeValidationError("code output may not replace an input")
+        if output_snapshot is not None and (
+            output_snapshot.device,
+            output_snapshot.inode,
+        ) == (input_snapshot.device, input_snapshot.inode):
+            raise CodeValidationError("code output may not replace an input")
+
+
+def _require_code_inputs_unchanged(
+    root: Path,
+    manifest_snapshot: _CodeValidationInput | None,
+    snapshots: list[_CodeValidationInput],
+    *,
+    activity: str,
+    tool_stderr: str,
+) -> None:
+    if manifest_snapshot is not None:
+        try:
+            current_manifest = _capture_code_input(
+                root,
+                manifest_snapshot.logical,
+                subject="code input manifest",
+            )
+        except CodeValidationError as error:
+            raise CodeValidationError(
+                f"code input manifest changed while {activity} ran: "
+                f"{manifest_snapshot.logical}",
+                tool_stderr=tool_stderr,
+            ) from error
+        if (
+            current_manifest.size != manifest_snapshot.size
+            or current_manifest.sha256 != manifest_snapshot.sha256
+        ):
+            raise CodeValidationError(
+                f"code input manifest changed while {activity} ran: "
+                f"{manifest_snapshot.logical}",
+                tool_stderr=tool_stderr,
+            )
+    for snapshot in snapshots:
+        try:
+            current = _capture_code_input(root, snapshot.logical)
+        except CodeValidationError as error:
+            raise CodeValidationError(
+                f"code input changed while {activity} ran: {snapshot.logical}",
+                tool_stderr=tool_stderr,
+            ) from error
+        if current.size != snapshot.size or current.sha256 != snapshot.sha256:
+            raise CodeValidationError(
+                f"code input changed while {activity} ran: {snapshot.logical}",
+                tool_stderr=tool_stderr,
+            )
+
+
+def _require_code_seed_inputs_unchanged(
+    root: Path,
+    snapshots: list[_CodeValidationInput],
+    *,
+    tool_stderr: str,
+) -> None:
+    for index, snapshot in enumerate(snapshots):
+        subject = "checked seed manifest" if index == 0 else "checked seed artifact"
+        try:
+            current = _capture_code_input(root, snapshot.logical, subject=subject)
+        except CodeValidationError as error:
+            raise CodeValidationError(
+                f"checked seed inputs changed while checked tools ran: "
+                f"{snapshot.logical}",
+                tool_stderr=tool_stderr,
+            ) from error
+        if current.size != snapshot.size or current.sha256 != snapshot.sha256:
+            raise CodeValidationError(
+                f"checked seed inputs changed while checked tools ran: "
+                f"{snapshot.logical}",
+                tool_stderr=tool_stderr,
+            )
+
+
+def _require_code_output_unchanged(
+    output: _CodeOutput,
+    initial: _CodeValidationInput | None,
+) -> None:
+    current = _code_output_entry(output)
+    if current is None:
+        if initial is not None:
+            raise CodeValidationError("code output changed while checked tools ran")
+        return
+    if initial is None:
+        raise CodeValidationError("code output appeared while checked tools ran")
+    if current.size != initial.size or current.sha256 != initial.sha256:
+        raise CodeValidationError("code output changed while checked tools ran")
+
+
+def _rename_windows_code_output(candidate: _CodeOutput, output: _CodeOutput) -> None:
+    from ctypes import wintypes
+
+    if candidate.parent_handle is None or output.parent_handle is None:
+        raise CodeValidationError("code output parent was not pinned")
+    candidate_name = PurePosixPath(candidate.logical).name
+    kernel32, handle = _open_windows_code_child(
+        candidate.parent_handle,
+        candidate_name,
+        directory=False,
+        logical=candidate.logical,
+        subject="checked CupidObj output",
+        desired_access=(
+            _CODE_WINDOWS_DELETE
+            | _CODE_WINDOWS_FILE_READ_ATTRIBUTES
+            | _CODE_WINDOWS_SYNCHRONIZE
+        ),
+        share_access=(
+            _CODE_WINDOWS_FILE_SHARE
+            | _CODE_WINDOWS_FILE_SHARE_DELETE
+        ),
+    )
+    try:
+        output_name = PurePosixPath(output.logical).name
+
+        class FileRenameInfo(ctypes.Structure):
+            _fields_ = (
+                ("replace_if_exists", wintypes.BOOLEAN),
+                ("root_directory", wintypes.HANDLE),
+                ("file_name_length", wintypes.DWORD),
+                ("file_name", wintypes.WCHAR * (len(output_name) + 1)),
+            )
+
+        information = FileRenameInfo()
+        information.replace_if_exists = True
+        information.root_directory = output.parent_handle
+        information.file_name_length = len(output_name.encode("utf-16-le"))
+        information.file_name = output_name
+        _, ntdll, _, _, _, status_type = _windows_code_api()
+        status_block = status_type()
+        status = ntdll.NtSetInformationFile(
+            handle,
+            ctypes.byref(status_block),
+            ctypes.byref(information),
+            ctypes.sizeof(information),
+            _CODE_WINDOWS_FILE_RENAME_INFORMATION_CLASS,
+        )
+        if status < 0:
+            error_code = ntdll.RtlNtStatusToDosError(status)
+            raise OSError(error_code, ctypes.FormatError(error_code))
+    finally:
+        kernel32.CloseHandle(handle)
+
+
+def _publish_code_output(candidate: _CodeOutput, output: _CodeOutput) -> None:
+    candidate_name = PurePosixPath(candidate.logical).name
+    output_name = PurePosixPath(output.logical).name
+    if candidate.parent_fd is not None and output.parent_fd is not None:
+        os.replace(
+            candidate_name,
+            output_name,
+            src_dir_fd=candidate.parent_fd,
+            dst_dir_fd=output.parent_fd,
+        )
+        return
+    if candidate.parent_handle is not None and output.parent_handle is not None:
+        _rename_windows_code_output(candidate, output)
+        return
+    raise CodeValidationError("code output parent was not pinned")
+
+
+def validate_code(
+    seed_manifest: Path,
+    root: Path,
+    inputs: list[Path] | None = None,
+    *,
+    input_manifest: Path | None = None,
+    output: Path | None = None,
+) -> subprocess.CompletedProcess[str]:
+    try:
+        repository_root = root.resolve(strict=True)
+    except OSError as error:
+        raise CodeValidationError(
+            f"repository root cannot be resolved: {root}: {error}"
+        ) from error
+    if not repository_root.is_dir():
+        raise CodeValidationError(
+            f"repository root is not a directory: {repository_root}"
+        )
+    seed_manifest_logical = _seed_manifest_logical_path(
+        repository_root,
+        seed_manifest,
+    )
+    live_seed_manifest = repository_root.joinpath(
+        *PurePosixPath(seed_manifest_logical).parts
+    )
+    selected_inputs = list(inputs or [])
+    if input_manifest is None and not selected_inputs:
+        raise CodeValidationError("select code inputs or one code input manifest")
+    if input_manifest is not None and selected_inputs:
+        raise CodeValidationError(
+            "code inputs and --input-manifest may not be combined"
+        )
+
+    try:
+        with ExitStack() as stack:
+            pinned_output = None
+            temporary_parent = None
+            if output is not None:
+                pinned_output = _pin_code_output(repository_root, output, stack)
+                try:
+                    publication_lock = _acquire_disk_publication_lock(
+                        pinned_output.path
+                    )
+                except DiskImageError as error:
+                    raise CodeValidationError(str(error)) from error
+                stack.callback(_release_disk_publication_lock, publication_lock)
+                temporary_parent = pinned_output.path.parent
+            temporary = stack.enter_context(
+                tempfile.TemporaryDirectory(
+                    prefix=".cupid-code-validation-",
+                    dir=temporary_parent,
+                )
+            )
+            private_root = Path(temporary)
+            manifest_snapshot = None
+            if input_manifest is None:
+                logical_paths = []
+                seen: set[str] = set()
+                for path in selected_inputs:
+                    logical = _code_logical_path(path)
+                    key = logical.casefold() if os.name == "nt" else logical
+                    if key in seen:
+                        raise CodeValidationError(
+                            f"code input is listed more than once: {logical}"
+                        )
+                    seen.add(key)
+                    logical_paths.append(logical)
+            else:
+                manifest_logical = _code_logical_path(
+                    input_manifest, subject="code input manifest"
+                )
+                frozen_manifest = private_root.joinpath(
+                    *PurePosixPath(manifest_logical).parts
+                )
+                manifest_snapshot = _capture_code_input(
+                    repository_root,
+                    manifest_logical,
+                    frozen=frozen_manifest,
+                    subject="code input manifest",
+                )
+                logical_paths = _code_inputs_from_manifest(frozen_manifest)
+            snapshots = [
+                _capture_code_input(
+                    repository_root,
+                    logical,
+                    frozen=private_root.joinpath(*PurePosixPath(logical).parts),
+                )
+                for logical in logical_paths
+            ]
+            initial_output = None
+            frozen_seed = None
+            seed_snapshots: list[_CodeValidationInput] = []
+            candidate_output = None
+            if pinned_output is not None:
+                if "kernel/kernel.elf" not in logical_paths:
+                    raise CodeValidationError(
+                        "code publication requires kernel/kernel.elf in "
+                        "the validated input cohort"
+                )
+                initial_output = _code_output_entry(pinned_output)
+                protected_inputs = list(snapshots)
+                if manifest_snapshot is not None:
+                    protected_inputs.append(manifest_snapshot)
+                _require_code_output_not_an_input(
+                    pinned_output,
+                    initial_output,
+                    protected_inputs,
+                )
+                (
+                    frozen_seed,
+                    live_seed_manifest,
+                    seed_snapshots,
+                ) = _freeze_code_seed_inputs(
+                    repository_root,
+                    seed_manifest,
+                    private_root,
+                )
+                _require_code_output_not_an_input(
+                    pinned_output,
+                    initial_output,
+                    seed_snapshots,
+                )
+                candidate_logical = (
+                    ".cupid-output/"
+                    + PurePosixPath(pinned_output.logical).name
+                )
+                candidate_path = private_root.joinpath(
+                    *PurePosixPath(candidate_logical).parts
+                )
+                candidate_path.parent.mkdir()
+                candidate_output = _pin_code_output(
+                    private_root,
+                    Path(candidate_logical),
+                    stack,
+                )
+            try:
+                result = run_seed_tool(
+                    live_seed_manifest,
+                    private_root,
+                    "cupiddis",
+                    ("--require-known", *logical_paths),
+                    timeout=300,
+                    **({"frozen_seed": frozen_seed} if frozen_seed is not None else {}),
+                )
+            except BootstrapError as error:
+                raise CodeValidationError(
+                    f"checked CupidDis could not run: {error}"
+                ) from error
+
+            tool_stderr = result.stderr or ""
+            if result.stdout or result.returncode != 0 or output is None:
+                _require_code_inputs_unchanged(
+                    repository_root,
+                    manifest_snapshot,
+                    snapshots,
+                    activity="CupidDis",
+                    tool_stderr=tool_stderr,
+                )
+                if result.stdout:
+                    raise CodeValidationError(
+                        "checked CupidDis wrote unexpected standard output",
+                        tool_stderr=tool_stderr,
+                    )
+                return result
+
+            assert candidate_output is not None
+            assert frozen_seed is not None
+            try:
+                flattened = run_seed_tool(
+                    live_seed_manifest,
+                    private_root,
+                    "cupidobj",
+                    (
+                        "flat",
+                        "kernel/kernel.elf",
+                        "-o",
+                        candidate_output.logical,
+                    ),
+                    timeout=300,
+                    frozen_seed=frozen_seed,
+                )
+            except BootstrapError as error:
+                raise CodeValidationError(
+                    f"checked CupidObj could not run: {error}",
+                    tool_stderr=tool_stderr,
+                ) from error
+            combined_stderr = tool_stderr + (flattened.stderr or "")
+            _require_code_inputs_unchanged(
+                repository_root,
+                manifest_snapshot,
+                snapshots,
+                activity="checked tools",
+                tool_stderr=combined_stderr,
+            )
+            _require_code_seed_inputs_unchanged(
+                repository_root,
+                seed_snapshots,
+                tool_stderr=combined_stderr,
+            )
+            if flattened.stdout:
+                raise CodeValidationError(
+                    "checked CupidObj wrote unexpected standard output",
+                    tool_stderr=combined_stderr,
+                )
+            if flattened.returncode != 0:
+                return subprocess.CompletedProcess(
+                    flattened.args,
+                    flattened.returncode,
+                    "",
+                    combined_stderr,
+                )
+            candidate_snapshot = _code_output_entry(candidate_output)
+            if candidate_snapshot is None:
+                raise CodeValidationError(
+                    "checked CupidObj output does not exist: "
+                    f"{candidate_output.logical}",
+                    tool_stderr=combined_stderr,
+                )
+            assert pinned_output is not None
+            try:
+                _require_code_output_parent_unchanged(pinned_output)
+                _require_code_output_unchanged(pinned_output, initial_output)
+            except CodeValidationError as error:
+                raise CodeValidationError(
+                    str(error), tool_stderr=combined_stderr
+                ) from error
+            try:
+                _publish_code_output(candidate_output, pinned_output)
+            except OSError as error:
+                raise CodeValidationError(
+                    f"validated kernel could not be published: {error}",
+                    tool_stderr=combined_stderr,
+                ) from error
+            return subprocess.CompletedProcess(
+                flattened.args,
+                0,
+                "",
+                combined_stderr,
+            )
+    except CodeValidationError:
+        raise
+    except OSError as error:
+        raise CodeValidationError(
+            f"private code snapshot could not be created: {error}"
+        ) from error
+
+
 def clean_paths(patterns: list[str]) -> None:
     for pattern in patterns:
         for path in Path(".").glob(pattern):
@@ -3593,6 +5053,12 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--size-mb", type=int, default=32)
     p.add_argument("--partition-lba", type=int, default=2048)
 
+    p = sub.add_parser("validate-code")
+    p.add_argument("--seed-manifest", type=Path, required=True)
+    p.add_argument("--root", type=Path, default=Path("."))
+    p.add_argument("--input-manifest", type=Path)
+    p.add_argument("--output", type=Path)
+    p.add_argument("inputs", nargs="*", type=Path)
     p = sub.add_parser("clean")
     p.add_argument("patterns", nargs="+")
 
@@ -3698,6 +5164,26 @@ def main(argv: list[str] | None = None) -> int:
             return 1
     elif args.cmd == "usb-image":
         create_usb_image(args.out, args.size_mb, args.partition_lba)
+    elif args.cmd == "validate-code":
+        try:
+            result = validate_code(
+                args.seed_manifest,
+                args.root,
+                args.inputs,
+                input_manifest=args.input_manifest,
+                output=args.output,
+            )
+        except CodeValidationError as error:
+            if error.tool_stderr:
+                sys.stderr.write(error.tool_stderr)
+            print(
+                f"[hostbuild] validate-code failed: {error}",
+                file=sys.stderr,
+            )
+            return 1
+        if result.stderr:
+            sys.stderr.write(result.stderr)
+        return result.returncode
     elif args.cmd == "clean":
         clean_paths(args.patterns)
     return 0

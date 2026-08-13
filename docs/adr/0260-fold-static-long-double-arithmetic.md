@@ -4,6 +4,9 @@
 
 Accepted on 2026-08-10.
 
+ADR 0265 records checked-seed carriage. The decision and evidence below
+describe the source capability before that promotion and remain unchanged.
+
 ## Context
 
 CupidC could already carry canonical x87 zero, subnormal, normal, infinity,
@@ -208,9 +211,20 @@ Compiler-head CupidC can turn represented static long-double arithmetic into
 exact target initializer data without runtime work or host floating point.
 Runtime long-double arithmetic is unchanged.
 
-The checked five-tool seed is not refreshed by this decision. Its current
-602-form, 247-mnemonic, 64-register catalogue and fingerprint `64429699`
-remain the promoted baseline, and this arithmetic path is not claimed as seed
-carriage. No production source changes owner, no host dependency is removed,
-and no `.c` to `.cc` rename is due. `TempleOS/` remains read-only reference
-material.
+This decision did not refresh the checked five-tool seed. Its 602-form,
+247-mnemonic, 64-register catalogue and fingerprint `64429699` were the
+baseline at that boundary. ADR 0265 later promoted this arithmetic path. A
+final poisoned-host `make -j2 all` passed with exit 0 in 1,022.190 seconds.
+The exact-size prerequisite accepted all nine artifacts before publishing the
+209,715,200-byte image with SHA-256
+`326844ca58c1f864a6b9a2480dfaeb5ed71ec3df22cdb46da17a6bb356e7e726`.
+The final four-vCPU E1000 and RTL8139 frontiers passed from that image. Both
+used the partitioned USB fixture, `--smp 4`, `--cpu max`, SMP and frontier
+runtime verification, a private image, and a 300-second phase timeout. E1000
+exited 0 in 725.058 seconds with 103,673 changed framebuffer pixels, 29,608,822
+AC97 frames at peak 25,600, and 76,784 PC speaker frames at peak 30,710.
+RTL8139 exited 0 in 725.406 seconds with 106,151 changed pixels, 29,601,879
+AC97 frames at peak 25,600, and 76,719 PC speaker frames at peak 31,501. Both
+used a 640 by 480 framebuffer, and the image hash remained unchanged.
+No production source changes owner, no host dependency is removed, and no
+`.c` to `.cc` rename is due. `TempleOS/` remains read-only reference material.

@@ -193,6 +193,14 @@ FONT_TTF_OBJS := $(FONT_TTF_SRCS:.ttf=.ttf.o)
 BOOTLOADER=boot/boot.bin
 KERNEL=kernel/kernel.bin
 OS_IMAGE=cupidos.img
+ARTIFACT_SIZE_POLICY := bootstrap/artifact-size-policy.json
+ARTIFACT_SIZE_OUTPUTS = $(BOOTLOADER) \
+	$(BOOTSTRAP_SEED_DIRECTORY)cupidasm.elf \
+	$(BOOTSTRAP_SEED_DIRECTORY)cupidc.elf \
+	$(BOOTSTRAP_SEED_DIRECTORY)cupiddis.elf \
+	$(BOOTSTRAP_SEED_DIRECTORY)cupidld.elf \
+	$(BOOTSTRAP_SEED_DIRECTORY)cupidobj.elf \
+	$(KERNEL) kernel/kernel.elf kernel/kernel.elf.pass1
 HDD_MB ?= 200
 FAT_START_LBA ?= 20480
 FAT_OFFSET_BYTES := $(shell $(PYTHON) -c "print($(FAT_START_LBA) * 512)")
@@ -752,6 +760,18 @@ kernel/doom/src/%.o: kernel/doom/src/%.cc $(DOOM_CUPIDC_HEADERS) \
 
 KERNEL_OBJS += $(DOOM_SRC_OBJS)
 
+# Strict CupidDis checks consume the complete object and linked-kernel cohort.
+# Define this only after every conditional and discovered kernel object has
+# joined KERNEL_OBJS. The checked-in manifest repeats this exact graph order,
+# followed by the generated symbols object and both linked kernel images. The
+# recipe passes the manifest instead of expanding this list through cmd.exe.
+CUPIDDIS_PRODUCTION_INPUT_MANIFEST := \
+	bootstrap/cupiddis-production-inputs.txt
+CUPIDDIS_PRODUCTION_INPUTS := $(KERNEL_OBJS) \
+	kernel/cpu/ksyms_data.o \
+	kernel/kernel.elf.pass1 \
+	kernel/kernel.elf
+
 # Define whole-link contracts only after every conditional and discovered
 # KERNEL_OBJS cohort has been appended. GNU Make expands target/prerequisite
 # lists and simply-expanded variables at their definition site.
@@ -848,9 +868,6 @@ kernel/core/app_launch.o: kernel/core/app_launch.cc kernel/core/app_launch.h ker
 # Terminal application
 kernel/gui/ansi.o: kernel/gui/ansi.cc kernel/core/string.h kernel/core/types.h kernel/gui/ansi.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/ansi.cc --output kernel/gui/ansi.o
-
-kernel/gui/terminal_ansi.o: kernel/gui/terminal_ansi.c kernel/gui/terminal_ansi.h
-	$(CC) $(CFLAGS) $(OPT) kernel/gui/terminal_ansi.c -o kernel/gui/terminal_ansi.o
 
 kernel/gui/terminal_app.o: kernel/gui/terminal_app.cc drivers/keyboard.h drivers/serial.h drivers/timer.h drivers/vga.h kernel/core/kernel.h kernel/core/process.h kernel/core/string.h kernel/core/types.h kernel/cpu/irq.h kernel/cpu/isr.h kernel/gfx/font_8x8.h kernel/gfx/graphics.h kernel/gui/gui.h kernel/gui/terminal_ansi.h kernel/gui/terminal_app.h kernel/lang/shell.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/gui/terminal_app.cc --output kernel/gui/terminal_app.o
@@ -1185,6 +1202,13 @@ verify-bootstrap-seed:
 	$(PYTHON) tools/bootstrap_toolchain.py verify \
 	  --manifest $(BOOTSTRAP_SEED_MANIFEST)
 
+verify-artifact-sizes: $(ARTIFACT_SIZE_OUTPUTS) \
+	tools/artifact_size_policy.py $(ARTIFACT_SIZE_POLICY) \
+	$(BOOTSTRAP_SEED_MANIFEST)
+	$(PYTHON) tools/artifact_size_policy.py verify --root . \
+	  --policy $(ARTIFACT_SIZE_POLICY) \
+	  --seed-manifest $(BOOTSTRAP_SEED_MANIFEST)
+
 bootstrap-from-seed: verify-bootstrap-seed
 	$(PYTHON) tools/bootstrap_toolchain.py bootstrap \
 	  --root . --manifest $(BOOTSTRAP_SEED_MANIFEST) \
@@ -1356,11 +1380,17 @@ kernel/kernel.elf: $(KERNEL_OBJS) kernel/cpu/ksyms_data.o link.ld \
 	$(CUPIDLD_INPUTS)
 	$(CUPIDLD) -m elf_i386 -T link.ld -o $@ $(KERNEL_OBJS) kernel/cpu/ksyms_data.o
 
-$(KERNEL): kernel/kernel.elf $(CUPIDOBJ_INPUTS)
-	$(CUPIDOBJ) flat $< -o $(KERNEL)
+$(KERNEL): kernel/kernel.elf $(CUPIDDIS_PRODUCTION_INPUTS) \
+	$(CUPIDDIS_PRODUCTION_INPUT_MANIFEST) tools/hostbuild.py \
+	$(CUPIDDIS_INPUTS) $(CUPIDOBJ_INPUTS)
+	$(PYTHON) tools/hostbuild.py validate-code \
+		--seed-manifest $(BOOTSTRAP_SEED_MANIFEST) --root . \
+		--input-manifest $(CUPIDDIS_PRODUCTION_INPUT_MANIFEST) \
+		--output $(KERNEL)
 
 # Create HDD image: MBR + Stage2 + kernel area + FAT16 partition (size via HDD_MB, default 200MB)
-$(OS_IMAGE): $(BOOTLOADER) $(KERNEL) test_iso/hello.iso tools/hostbuild.py \
+$(OS_IMAGE): verify-artifact-sizes $(BOOTLOADER) $(KERNEL) \
+	test_iso/hello.iso tools/hostbuild.py \
 	$(CHECKED_SEED_INPUTS)
 	$(PYTHON) tools/hostbuild.py image \
 		--seed-manifest $(BOOTSTRAP_SEED_MANIFEST) \
@@ -1544,4 +1574,4 @@ clean-image:
 distclean: clean clean-image
 	$(PYTHON) tools/hostbuild.py clean "test_usb_partitioned.img" "build" "toolchain/build"
 
-.PHONY: all test test-cupidc-fixed-point test-toolchain-fixed-point test-kernel-cupidc-frontier test-kernel-crypto-frontier test-generated-cupidc-frontier test-user-cupidc-frontier test-user-native-windows-equivalence test-user-cupidc-runtime verify-bootstrap-seed bootstrap-from-seed nasm-assembly-oracle bootstrap-audit check-bootstrap-audit bootstrap-baseline bootstrap-host-comparison check-bootstrap-host-comparison print-bootstrap-artifacts run run-log sync-demos sync-user sync-user-runtime user-programs sync-iso stage-wads clean clean-image distclean
+.PHONY: all test test-cupidc-fixed-point test-toolchain-fixed-point test-kernel-cupidc-frontier test-kernel-crypto-frontier test-generated-cupidc-frontier test-user-cupidc-frontier test-user-native-windows-equivalence test-user-cupidc-runtime verify-bootstrap-seed verify-artifact-sizes bootstrap-from-seed nasm-assembly-oracle bootstrap-audit check-bootstrap-audit bootstrap-baseline bootstrap-host-comparison check-bootstrap-host-comparison print-bootstrap-artifacts run run-log sync-demos sync-user sync-user-runtime user-programs sync-iso stage-wads clean clean-image distclean

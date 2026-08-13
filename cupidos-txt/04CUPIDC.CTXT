@@ -252,9 +252,10 @@ startup and runtime probe, the user syscall ABI contract and its six
 declarations, the Toolchain Makefile, the publisher, and the independent
 Python ABI oracle. The
 manifest digest, decoded data, schema checks, and build plan
-come from one captured byte sequence. The 440-transform normal image has no
-host C or recursive Make transform. Its five CupidASM, 191 CupidObj, two
-CupidLD, and one CupidDis commands run from the checked seed. The user
+come from one captured byte sequence. The 440 audited root artifacts have
+Cupid owners and no host C or recursive Make transform. The Python-only size
+verifier emits no OS artifact. Five CupidASM, 191 CupidObj, two
+CupidLD, and two CupidDis participations run from the checked seed. The user
 compiler and Toolchain contract publisher create their own output directories,
 so empty-directory setup is not a separate transform. The compiler pins every
 POSIX or Windows directory component during preparation and rejects links,
@@ -278,6 +279,16 @@ snapshot. The executable runs from a private copy of the verified publication,
 and the coordinator rechecks the live cohort and source inputs afterward. The
 complete publication contains sixteen contract executables and five tools, for
 21 artifacts.
+
+`verify-artifact-sizes` is a direct prerequisite of cupidos.img. It receives
+the selected BOOTSTRAP_SEED_MANIFEST, derives the five seed paths and declared
+sizes from that manifest, and requires the policy to agree. It also checks the
+five-sector boot image, the pass-one and final kernel ELFs, and the raw kernel.
+Missing, duplicate, unknown, linked, nonregular, or incorrectly sized files
+stop the image publisher and preserve an existing image. An intended output
+change moves its reviewed policy row with the producing code. This regression lock is separate from the open 20
+percent Cupid-to-oracle size or runtime quality comparison, which still needs
+an approved same-revision oracle.
 
 The normal build compiles kernel/gfx/jpeg.cc and
 kernel/gfx/glyph_raster.cc through the checked seed. Their closed header sets
@@ -678,14 +689,14 @@ subnormal result produced by static binary32 arithmetic. Infinity keeps its
 sign, and NaN becomes one quiet x87 payload. Narrowing uses round-to-nearest,
 ties-to-even packing for finite values and canonical special encodings. Folded
 expressions add no runtime IR.
-Compiler-head CupidC folds static long-double +, -, *, and / with unsigned
+Checked-seed CupidC folds static long-double +, -, *, and / with unsigned
 128-bit target arithmetic. The packer rounds once to the explicit x87
 significand, handles gradual underflow, and returns canonical infinity or quiet
 NaN when required. These results also stay in the initializer forest and add no
 runtime instruction. ADR 0260 records this arithmetic model.
 
 Private runtime floating comparisons merge the parity flag with SETP or SETNP.
-Source-head CupidDis names both byte predicates from the shared catalogue,
+Checked-seed CupidDis names both byte predicates from the shared catalogue,
 so the in-OS `dis` command stays aligned through the following AND, OR, and
 MOVZX instructions. In GUI mode, the shell keeps the listing in the terminal
 and mirrors it to serial after its ordinary sink and redirection checks.
@@ -872,10 +883,10 @@ under WSL. Generation-one CupidC, CupidASM, and CupidLD build all 19 C objects,
 a fresh startup object, and the five stage-two images. The stage-two producer
 trio repeats that work for stage three. Every object and linked CupidC,
 CupidASM, CupidDis, CupidLD, and CupidObj image matches byte for byte. Both
-stages also agree on all five help paths, seventeen successful operations,
-and fifteen failure cases.
+stages also agree on all five help paths, eighteen successful operations,
+and sixteen failure cases.
 
-That 5/17/15 proof describes the promoted Linux seed. Checked-seed CupidLD
+That 5/18/16 proof describes the promoted Linux seed. Checked-seed CupidLD
 provides deterministic fixed-layout i386 PE32 imports. Both CupidASM stages
 assemble the Windows entry, both freestanding CupidC stages compile its main,
 and both CupidLD stages produce identical images. The image omits empty output
@@ -902,23 +913,32 @@ caller's control, and the standalone CLI does not lock or pin the output path.
 The repository carries those exact five images as a checked i386 Linux seed.
 Its manifest binds their hashes, sizes, target ABI, source revision, producer
 lineage, exact source plan, startup, and five link orders before execution.
-The current CupidC image is 2,632,760 bytes. Its SHA-256 is
-bfe4b9581302439ae35dac340c3f3e38812a2ce7b0ce54a8af1e04731cd077c1
-and its source revision is 9115787311bf455b6eee19e7742cc83aa252e7c8.
+The current CupidC image is 2,666,240 bytes. Its SHA-256 is
+ab83e817e49f6f51a31fb41955d33ca6faa4d2073c975ba3a87999c44eeca7cb
+and its source revision is 95f5bb6cfd0468bb8852c670ada849cb5bde79a7.
 It retains the complete 83-root Doom frontier, current GNU entity metadata,
 x87 and SSE memory forms, descriptor and segment assembly, every unchanged
 libm assembly effect, the exact dglibc jump block, pointer-preserving static
 address casts, exact naked IPI entries, the kernel-entry BSS clear with a
 nonzero page-aligned stack top, and the active packed SSE2 statements. It also
 carries runtime floating truth, runtime and static integer to long double
-conversion, canonical static x87 payloads, conversion to _Bool, and the
-returns-twice direct-call boundary. Its shared
+conversion, canonical static x87 payloads, static long-double arithmetic,
+ordinary float and double updates, conversion to _Bool, and the returns-twice
+direct-call boundary. Its shared
 declaration frontend recognizes Cupid's
 sized scalar, Boolean, and vector spellings under the Cupid profile while
 strict C11 keeps the names available to ordinary programs. CupidASM and
-CupidDis in the checked seed carry the 602-row, 247-mnemonic shared x86
-catalogue with signed x87 integer forms. CupidLD carries deterministic PE32
-imports. CupidDis also carries typed raw code and data ranges. CupidObj carries
+CupidDis in the checked seed carry the 604-row, 249-mnemonic shared x86
+catalogue with fingerprint 55A8970F, signed x87 integer forms, SETP, and SETNP.
+CupidLD retains deterministic PE32 imports. CupidDis also carries typed raw
+code and data ranges, strict `--require-known` inspection, and an immutable
+first-opcode decoder index. CupidASM is 449,912 bytes with SHA-256
+0d9647b61bc422e88fbc6f8d846f5041e02deca192efe4cfd62df64910340b26.
+CupidDis is 396,500 bytes with SHA-256
+acb136752d504445ad52abc315532a2427db844bdd5da98e2d2d78380047a73e.
+CupidLD is 312,792 bytes with SHA-256
+9561d6f7170472cd6dccd87d4988fdd2b23a138966cbe4940a9ffb062eab481d.
+CupidObj carries
 installation-source generation,
 transactional kernel-symbol source generation, sequential-JPEG validation,
 pristine disk-template construction, deterministic ISO fixture authoring, and
@@ -929,8 +949,8 @@ one overflow-safe 512-path request limit, preserves mixed home-asset order,
 rejects distinct paths that map to the same wrapped symbol, and renders the
 packed symbol source from canonical CupidDis text. The 5,440-byte seed manifest
 has SHA-256
-8fd462648360d3c705e203fc771299007d590d1665a6c253781a4ee83c811c33.
-ADR 0258 records the current five-tool promotion.
+5b46684d9977287f69a94473acbbf7c5302213ef98f9748482cba768ffca0be8.
+ADR 0265 records the current five-tool promotion.
 Checked-seed CupidObj validates sequential SOF0 and SOF1 marker streams in its
 wrap-jpeg command, then applies the ordinary byte-exact wrapper. The normal
 JPEG recipe runs that checked command first on a private source snapshot.
@@ -955,7 +975,7 @@ Checked-seed CupidObj also accepts `iso-fixture`. The core consumes an ASCII
 manifest and a typed list of logical directories and loaded files, then writes
 the complete deterministic ECMA-119 and Rock Ridge fixture. Its output matches
 the tracked 61,440-byte image exactly. The fixed-point gate exercises the
-command and its rollback path in the 5/17/15 behavior matrix. The normal
+command and its rollback path in the 5/18/16 behavior matrix. The normal
 recipe now runs that checked command first on frozen ordinal file snapshots.
 Python compares an independent render, rechecks live state, and publishes
 under a per-output lock. ADR 0239 records the source boundary, ADR 0240 records
@@ -965,7 +985,7 @@ Checked-seed CupidObj also accepts `profile-manifest`. The command reads one
 bounded CUPROF1 snapshot containing the two Doom profile memberships and the
 exact bytes of all 291 captured headers. It checks portable path identity,
 computes SHA-256 internally, sorts the logical sets, and writes the canonical
-69,366-byte JSON. The current promoted seed passes a 5/17/15
+69,366-byte JSON. The current promoted seed passes a 5/18/16
 behavior matrix with padding, repeated-block, unsafe-path, case-collision,
 rollback, and recovery coverage. The checked seed carries this command, and
 the normal recipe passes that seed manifest. The wrapper derives the
@@ -984,13 +1004,58 @@ The seed producer trio builds stage two below that root, and the stage-two trio
 builds stage three there. The private and live closures are checked before the
 first stage, after each stage, and after the behavior checks. All 19 C objects,
 startup, and five linked images match byte for byte. Five help checks,
-seventeen successful operations, and fifteen failure cases pass at both stages.
-The 794.659-second post-promotion rebuild reproduced all five seed images at
-stage two and repeated the complete 5/17/15 fixed point. Its 17,032-byte
-report has SHA-256
-a518747e2e4701f8f75fae083bf38d1d1aa86207c13c34fb78fca3800de21fd6.
-The complete checked-seed module passes all 53 tests. ADR 0258 records the
-latest transition, promotion, and reproof.
+eighteen successful operations, and sixteen failure cases pass at both stages.
+The frozen 43-input closure has SHA-256
+56e0943f82737a7013994f1a2b78fcbd5b5c762d0f5036aac5a48bfbb3dcbe32.
+The 17,035-byte promotion report has SHA-256
+810704f6701b4b4627062981e1e969332d4aa5f409d2cdce3d4fcba150518f84.
+The proof passed in 763.5 seconds. The checked 128 KiB strict-decode case
+completed within its 30-second limit. The Windows runtime prints the exact
+success marker and returns 37. ADR 0266 records indexed decoding, and ADR 0265
+records the latest transition, promotion, and production adoption. The normal
+kernel path runs strict checked-seed CupidDis and checked CupidObj flat
+extraction against one frozen cohort of all 427 audited root object outputs
+plus the pass-one and final kernel ELFs. Its
+9,028-byte graph-ordered input manifest has SHA-256
+48bdef348f6575881b9808631173e7265abc9ea89dfb84d48de72b3d2304749e.
+The first separate gate passed in 185.526 seconds with empty streams and exit
+0. The current hostbuild transaction freezes the selected seed manifest and
+all five artifacts, the 429-entry input manifest and cohort, and the existing
+kernel.bin boundary. Checked CupidDis validates the private cohort before
+checked CupidObj flattens the frozen final ELF. Hostbuild rechecks live trust
+inputs and the output before parent-relative atomic publication. Every failure
+preserves the prior raw kernel. The transaction passed with exit 0 in 187.054
+seconds and published an 8,946,332-byte kernel.bin with SHA-256
+4f5f2591d01bcc4007773844e9bfb8112a16dd17fbd178014cc2056fefaab67d.
+The hostbuild suites each passed 31 tests on Windows and in WSL, with
+platform-specific skips. Moving private flatten extraction onto the shared
+pinned-path helper remains deferred maintenance.
+
+An independent poisoned-host reproof passed in 766.9 seconds. All five seed
+images match stage two. Stage two and stage three match across all 19 C
+objects, startup, five tools, and the 5/18/16 behavior matrix. The Windows
+loader proof passes with exit 37. Its 17,032-byte report has SHA-256
+736872f31d853fe5b2b67c25e7ec42a1893655074a1c653112def6d66fdeac87.
+
+An earlier poisoned-host normal `make -j2` passed in 1,057.969 seconds. CC,
+CXX, CPP, HOSTCC, HOSTCXX, ASM, AS, LD, AR, NM, and OBJCOPY all named invalid
+commands. The separate strict CupidDis gate ran before CupidObj flattened the
+kernel. The outputs were:
+- boot/boot.bin: 2,560 bytes,
+  SHA-256 46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3
+- kernel/kernel.elf.pass1: 9,039,936 bytes,
+  SHA-256 b21fa8954499a7857ee4b12fa3950fcc08ff3c6a6234c8ae72effc38c51fdc6d
+- kernel/kernel.elf: 9,162,816 bytes,
+  SHA-256 a0b57cd886369762b65d657bb3f2915ada8f30b52102535add89466eaf4f5976
+- kernel/kernel.bin: 8,946,332 bytes,
+  SHA-256 4f5f2591d01bcc4007773844e9bfb8112a16dd17fbd178014cc2056fefaab67d
+- cupidos.img: 209,715,200 bytes,
+  SHA-256 4548005bd0aa1a3cffb74620c2309d53c6b291ea2505ed187034bf6b13f1bb37
+Definitive four-CPU boot frontiers passed from this image. E1000 exited 0 in
+794.034 seconds, and RTL8139 exited 0 in 758.667 seconds. Both runs used the
+partitioned USB fixture, the maximum CPU model, SMP and frontier runtime
+verification, and a private image copy. The framebuffer, AC97, and PC speaker
+checks passed. The source image hash stayed unchanged.
 
 make verify-bootstrap-seed checks the seed without executing it.
 make bootstrap-from-seed publishes both stages, behavior evidence, and a report
@@ -1141,7 +1206,7 @@ may contain a nested union. Top-level union and class values remain
 unsupported. Static-duration and
 variable-length compound literals, the named-aggregate backward-jump alias
 case, explicit bit-field initializer leaves, Boolean mutation, direct floating
-truth, unsupported conversion widths, floating update, atomic
+truth, unsupported conversion widths, atomic floating and long double updates, atomic
 variadic access, aggregate arguments without declared parameter types,
 aggregate variadic reads, wide strings, and literal pooling remain unfinished
 in the shared path. A block-static initializer may now take the address of

@@ -8,7 +8,7 @@ This file is generated deterministically by `tools/build_graph_audit.py` from th
 - Supplemental builds: `user:all`, `toolchain:all`
 - Active source inputs: 728
 - Unreachable source-like files: 25
-- Reachable output transforms: 449
+- Reachable output transforms: 450
 - Distinct feature requirements: 255
 - Make conditionals use the canonical `OS=Windows_NT` graph and the C locale fixes wildcard order on every host. Direct Linux build tests cover the Linux execution branch.
 - The `TempleOS/` reference tree is excluded.
@@ -35,7 +35,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `cupid_c_runtime_header` | 2 | 286 |
 | `cupidasm` | 7 | 6848 |
 | `cupidc` | 8 | 16341 |
-| `cupiddis` | 5 | 3280 |
+| `cupiddis` | 5 | 3335 |
 | `doom_port` | 7 | 3986 |
 | `driver` | 22 | 3861 |
 | `generated_install_table` | 3 | 0 |
@@ -56,8 +56,8 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_usb` | 8 | 3527 |
 | `kernel_util` | 2 | 660 |
 | `project_source` | 1 | 5 |
-| `toolchain_contract` | 21 | 158208 |
-| `toolchain_core` | 33 | 87792 |
+| `toolchain_contract` | 21 | 158505 |
+| `toolchain_core` | 33 | 87950 |
 | `toolchain_host_adapter` | 2 | 266 |
 | `toolchain_kernel_adapter` | 2 | 530 |
 | `user_program` | 3 | 139 |
@@ -68,7 +68,7 @@ Generated C translation units are recorded as reachable build inputs but have no
 
 | Directory | Root target | Transforms | Include paths |
 | --- | --- | ---: | ---: |
-| `.` | `all` | 440 | 20 |
+| `.` | `all` | 441 | 20 |
 | `user` | `all` | 7 | 0 |
 | `toolchain` | `all` | 2 | 2 |
 
@@ -79,10 +79,10 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `cupid_assembler` | 5 |
 | `cupid_c_compiler` | 245 |
 | `cupid_c_contract` | 1 |
-| `cupid_disassembler` | 1 |
+| `cupid_disassembler` | 2 |
 | `cupid_linker` | 5 |
 | `cupid_object` | 191 |
-| `host_python` | 449 |
+| `host_python` | 450 |
 
 ## Feature inventory
 
@@ -99,16 +99,16 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 801 |
 | `asm.relocation` | 1 | 17 |
-| `c.control` | 12 | 83003 |
+| `c.control` | 12 | 83092 |
 | `c.declaration` | 1 | 28 |
-| `c.declarator` | 4 | 3846 |
-| `c.expression` | 2 | 6031 |
+| `c.declarator` | 4 | 3850 |
+| `c.expression` | 2 | 6051 |
 | `c.extension` | 19 | 428 |
 | `c.initializer` | 1 | 687 |
-| `c.preprocessor` | 18 | 6968 |
-| `c.qualifier` | 2 | 15989 |
-| `c.storage` | 4 | 10205 |
-| `c.type` | 15 | 52199 |
+| `c.preprocessor` | 18 | 6970 |
+| `c.qualifier` | 2 | 16049 |
+| `c.storage` | 4 | 10219 |
+| `c.type` | 15 | 52233 |
 | `cupid_c.declaration` | 1 | 2 |
 | `cupid_c.delivery` | 2 | 131 |
 | `cupid_c.directive` | 1 | 1 |
@@ -213,7 +213,7 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `c_preprocessor_line_directives` | `pass` | 0 named #line directives (0 direct, 0 pp-token; 0 filename); 0 numeric markers; 695 source files; max conditional depth 0 |
 | `c_preprocessor_pragmas` | `pass` | 5 pragmas (1 once, 2 pack pushes, 2 pack pops); pack balanced: yes; max pack depth 1 |
 | `c_preprocessor_translation_units` | `pass` | 385 tracked + 4 generated translation units (KERNEL_I386=155, DOOM_COMPAT_I386=3, DOOM_TREE_I386=80, USER_I386=3, FREESTANDING_I386=1, CUPID_RUNTIME=107, HOSTED_TOOLCHAIN_64=0, HOSTED_KERNEL_BRIDGE_64=0, HOSTED_I386_LINUX=32, HOSTED_I386_KERNEL_BRIDGE=2, HOSTED_I386_LINUX_GNU=2); 22 include-only, 2 non-root headers; 0 hosted deferred (0 external, 0 hermetic) |
-| `cupid_toolchain_fixed_point` | `pass` | 19 tool C sources (18 strict, 1 GNU); 5 tools (cupidasm=8, cupiddis=8, cupidld=7, cupidobj=7, cupidc=12); 19 C objects and 1 startup object compared across stages; 5 tool images; 17 success and 15 failure cases; i386-linux |
+| `cupid_toolchain_fixed_point` | `pass` | 19 tool C sources (18 strict, 1 GNU); 5 tools (cupidasm=8, cupiddis=8, cupidld=7, cupidobj=7, cupidc=12); 19 C objects and 1 startup object compared across stages; 5 tool images; 18 success and 16 failure cases; i386-linux |
 
 ## Interpretation limits
 

@@ -2796,7 +2796,7 @@ static int run_attributes(const char *host_root) {
             : find_record_member(&unit, process, "fp_state", &member_index);
     if (binding == NULL || binding->kind != CTOOL_C_BINDING_TYPEDEF ||
         process == NULL || process->kind != CTOOL_C_TYPE_RECORD ||
-        process_layout == NULL || process_layout->size != 656u ||
+        process_layout == NULL || process_layout->size != 672u ||
         process_layout->alignment != 16u || member == NULL ||
         member->explicit_alignment != 16u ||
         member_index >= unit.layout.member_count ||
@@ -4352,7 +4352,7 @@ static int run_static_asserts(const char *host_root) {
             ? NULL
             : find_record_member(&unit, process, "fp_state", &member_index);
     if (binding == NULL || process == NULL || layout == NULL ||
-        layout->size != 656u || layout->alignment != 16u || member == NULL ||
+        layout->size != 672u || layout->alignment != 16u || member == NULL ||
         member_index >= unit.layout.member_count ||
         unit.layout.members[member_index].byte_offset != 80u ||
         unit.layout.members[member_index].size != 512u ||
@@ -7752,8 +7752,8 @@ static int validate_toolchain_frontier(const char *host_root) {
   static const toolchain_frontier_case_t cases[] = {
       {"/toolchain/ctool.cc", CTOOL_OK, 0u, 0u, 0u, "", 65u, 1012u,
        5981u, 133u, 33u, 0u, 0u},
-      {"/toolchain/cupiddis.cc", CTOOL_OK, 0u, 0u, 0u, "", 71u, 1594u,
-       10331u, 162u, 124u, 0u, 0u},
+      {"/toolchain/cupiddis.cc", CTOOL_OK, 0u, 0u, 0u, "", 75u, 1682u,
+       10893u, 171u, 131u, 0u, 0u},
       {"/toolchain/cupidld.cc", CTOOL_OK, 0u, 0u, 0u, "", 82u, 2875u,
        18200u, 369u, 337u, 0u, 2u},
       {"/toolchain/cupidobj.cc", CTOOL_OK, 0u, 0u, 0u, "", 140u, 3451u,
@@ -7762,18 +7762,18 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.cc", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
        25287u, 479u, 286u, 0u, 0u},
-      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 269u, 7528u,
-       69479u, 993u, 364u, 0u, 0u},
-      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 366u, 9266u,
-       77286u, 1126u, 750u, 0u, 0u},
+      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 270u, 7613u,
+       70458u, 1002u, 367u, 0u, 0u},
+      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 366u, 9304u,
+       77673u, 1128u, 752u, 0u, 0u},
       {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 445u,
-       17242u, 113778u, 2565u, 1547u, 0u, 0u},
+       17253u, 113885u, 2565u, 1547u, 0u, 0u},
       {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 82u, 3054u,
        20124u, 338u, 190u, 0u, 0u},
       {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
        9457u, 143u, 70u, 0u, 1u},
-      {"/toolchain/x86.cc", CTOOL_OK, 0u, 0u, 0u, "", 60u, 1766u,
-       11903u, 180u, 17112u, 3u, 0u}};
+      {"/toolchain/x86.cc", CTOOL_OK, 0u, 0u, 0u, "", 65u, 1866u,
+       12549u, 200u, 17124u, 3u, 0u}};
   ctool_u32 index;
   int any_failed = 0;
   for (index = 0u; index < ARRAY_COUNT(cases); index++) {
@@ -7847,8 +7847,8 @@ static int validate_toolchain_frontier(const char *host_root) {
                           "/toolchain/cupiddis.cc") == 0) {
           static_string_valid =
               validate_toolchain_static_string(
-                  &unit, 20u, "hex", 8u, "/toolchain/cupiddis.cc",
-                  336u) == 0;
+                  &unit, 29u, "hex", 15u, "/toolchain/cupiddis.cc",
+                  464u) == 0;
         }
         if (status == CTOOL_OK && ctool_job_diagnostic_count(job) == 0u &&
             unit.function_definition_count ==
@@ -25542,11 +25542,7 @@ static int run_floating_conversions(const char *host_root) {
         "void bad(_Atomic float *left, float right) { *left += right; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
        0u, 0u,
-       "floating compound assignment is outside this body slice"},
-      {{"floating update",
-        "void bad(float *value) { (*value)++; }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       0u, 0u, "floating update is outside this body slice"}};
+       "floating compound assignment is outside this body slice"}};
   frontend_fixture_t fixture;
   ctool_c_translation_unit_t unit;
   ctool_u32 index;

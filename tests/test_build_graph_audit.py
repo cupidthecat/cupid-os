@@ -4526,8 +4526,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         module = _load_audit_module()
         contract = module._cupid_toolchain_fixed_point_contract(REPO_ROOT)
         self.assertEqual(contract["help_cases"], 5)
-        self.assertEqual(contract["success_behavior_cases"], 17)
-        self.assertEqual(contract["failure_behavior_cases"], 15)
+        self.assertEqual(contract["success_behavior_cases"], 18)
+        self.assertEqual(contract["failure_behavior_cases"], 16)
         self.assertEqual(contract["contract_manifest_inputs"], 58)
         self.assertEqual(
             contract["source_head_capabilities"],
@@ -4924,14 +4924,14 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "PE32 success count becomes stale": (
                 "bootstrap",
+                '        "success_cases": 18,\n',
                 '        "success_cases": 17,\n',
-                '        "success_cases": 16,\n',
                 r"fixed-point behavior matrix differs",
             ),
             "PE32 failure count becomes stale": (
                 "bootstrap",
+                '        "failure_cases": 16,\n',
                 '        "failure_cases": 15,\n',
-                '        "failure_cases": 14,\n',
                 r"fixed-point behavior matrix differs",
             ),
             "PE32 import source leaves the frozen closure": (
@@ -6280,7 +6280,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 {
                     "active_sources": 728,
                     "features": 255,
-                    "transforms": 449,
+                    "transforms": 450,
                     "unreachable_sources": 25,
                 },
             )
@@ -6289,7 +6289,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (5989, 171),
+                "c.expression.sizeof": (6009, 171),
                 "c.extension.builtin.offsetof": (12, 6),
                 "c.extension.gnu_alignof": (1, 1),
             }
@@ -6815,7 +6815,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 {
                     "cupid_c_compiler": 245,
                     "host_c_compiler": 0,
-                    "host_python": 449,
+                    "host_python": 450,
                 },
             )
 
@@ -7033,6 +7033,179 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(stale.returncode, 1)
             self.assertIn(manifest.name, stale.stderr)
 
+    def test_make_code_validation_failure_preserves_kernel(self):
+        make = shutil.which("make")
+        if make is None:
+            self.skipTest("GNU Make is unavailable")
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            kernel = root / "kernel" / "kernel.bin"
+            kernel.parent.mkdir(parents=True)
+            kernel.write_bytes(b"last-known-good kernel")
+            for path in (
+                root / "kernel" / "kernel.o",
+                root / "kernel" / "cpu" / "ksyms_data.o",
+                root / "kernel" / "kernel.elf.pass1",
+                root / "kernel" / "kernel.elf",
+            ):
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(b"fixture")
+            (root / "seed.json").write_text("{}\n", encoding="utf-8")
+            (root / "code-inputs.txt").write_text(
+                "kernel/kernel.o\n"
+                "kernel/cpu/ksyms_data.o\n"
+                "kernel/kernel.elf.pass1\n"
+                "kernel/kernel.elf\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+            _write(
+                root / "fake_hostbuild.py",
+                """
+                import sys
+                from pathlib import Path
+
+                Path("calls.log").write_text("validate-code\\n", encoding="utf-8")
+                Path("arguments.log").write_text(
+                    "\\n".join(sys.argv[1:]) + "\\n", encoding="utf-8"
+                )
+                sys.exit(7)
+                """,
+            )
+            python = Path(sys.executable).resolve().as_posix()
+            _write(
+                root / "Makefile",
+                f"""
+                PYTHON := "{python}"
+                BOOTSTRAP_SEED_MANIFEST := seed.json
+                KERNEL := kernel/kernel.bin
+                CUPIDDIS_PRODUCTION_INPUT_MANIFEST := code-inputs.txt
+                CUPIDDIS_PRODUCTION_INPUTS := kernel/kernel.o \\
+                    kernel/cpu/ksyms_data.o \\
+                    kernel/kernel.elf.pass1 \\
+                    kernel/kernel.elf
+
+                .PHONY: all FORCE
+                .PRECIOUS: $(KERNEL)
+                all: $(KERNEL)
+                FORCE:
+
+                $(KERNEL): kernel/kernel.elf $(CUPIDDIS_PRODUCTION_INPUTS) \\
+                    $(CUPIDDIS_PRODUCTION_INPUT_MANIFEST) fake_hostbuild.py \\
+                    seed.json FORCE
+                \t$(PYTHON) fake_hostbuild.py validate-code \\
+                \t\t--seed-manifest $(BOOTSTRAP_SEED_MANIFEST) --root . \\
+                \t\t--input-manifest $(CUPIDDIS_PRODUCTION_INPUT_MANIFEST) \
+                \t\t--output $(KERNEL)
+                """,
+            )
+
+            result = subprocess.run(
+                [make, "--no-print-directory", "all"],
+                cwd=root,
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(kernel.read_bytes(), b"last-known-good kernel")
+            self.assertEqual(
+                (root / "calls.log").read_text(encoding="utf-8"),
+                "validate-code\n",
+            )
+            arguments = (root / "arguments.log").read_text(
+                encoding="utf-8"
+            ).splitlines()
+            self.assertEqual(
+                arguments,
+                [
+                    "validate-code",
+                    "--seed-manifest",
+                    "seed.json",
+                    "--root",
+                    ".",
+                    "--input-manifest",
+                    "code-inputs.txt",
+                    "--output",
+                    "kernel/kernel.bin",
+                ],
+            )
+            self.assertLess(len(" ".join(arguments)), 8191)
+
+    def test_make_size_failure_preserves_image_and_skips_publication(self):
+        make = shutil.which("make")
+        if make is None:
+            self.skipTest("GNU Make is unavailable")
+        source = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
+        self.assertIn("all: $(OS_IMAGE)\n", source)
+        self.assertIn(
+            "$(OS_IMAGE): verify-artifact-sizes $(BOOTLOADER) $(KERNEL) \\\n",
+            source,
+        )
+        self.assertNotIn(
+            "all: $(OS_IMAGE) verify-artifact-sizes",
+            source,
+        )
+
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            image = root / "cupidos.img"
+            image.write_bytes(b"last-known-good image")
+            for relative in ("boot.bin", "kernel.bin", "policy.json"):
+                (root / relative).write_bytes(b"fixture")
+            _write(
+                root / "verify.py",
+                """
+                import sys
+                from pathlib import Path
+
+                Path("calls.log").write_text("verify\\n", encoding="utf-8")
+                sys.exit(7)
+                """,
+            )
+            _write(
+                root / "publish.py",
+                """
+                from pathlib import Path
+
+                with Path("calls.log").open("a", encoding="utf-8") as log:
+                    log.write("publish\\n")
+                Path("cupidos.img").write_bytes(b"replaced")
+                """,
+            )
+            python = Path(sys.executable).resolve().as_posix()
+            _write(
+                root / "Makefile",
+                f"""
+                PYTHON := "{python}"
+                OS_IMAGE := cupidos.img
+                ARTIFACT_SIZE_OUTPUTS := boot.bin kernel.bin
+
+                .PHONY: all verify-artifact-sizes
+                all: $(OS_IMAGE)
+
+                verify-artifact-sizes: $(ARTIFACT_SIZE_OUTPUTS) verify.py policy.json
+                \t$(PYTHON) verify.py
+
+                $(OS_IMAGE): verify-artifact-sizes boot.bin kernel.bin publish.py
+                \t$(PYTHON) publish.py
+                """,
+            )
+
+            result = subprocess.run(
+                [make, "--no-print-directory", "all"],
+                cwd=root,
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(image.read_bytes(), b"last-known-good image")
+            self.assertEqual(
+                (root / "calls.log").read_text(encoding="utf-8"),
+                "verify\n",
+            )
+
     def test_root_build_uses_the_checked_seed_tool_trust_unit(self):
         make = shutil.which("make")
         if make is None:
@@ -7041,7 +7214,17 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         commands = module._read_evaluated_make_variables(
             REPO_ROOT,
             make,
-            ("CUPIDASM", "CUPIDOBJ", "CUPIDLD", "CUPIDDIS"),
+            (
+                "CUPIDASM",
+                "CUPIDOBJ",
+                "CUPIDLD",
+                "CUPIDDIS",
+                "PYTHON",
+                "BOOTSTRAP_SEED_MANIFEST",
+                "KERNEL",
+                "CUPIDDIS_PRODUCTION_INPUT_MANIFEST",
+                "CUPIDDIS_PRODUCTION_INPUTS",
+            ),
         )
         for variable, tool_name in (
             ("CUPIDASM", "cupidasm"),
@@ -7074,6 +7257,54 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             audit = json.loads(output.read_text(encoding="utf-8"))
 
+        root_transforms = audit["build"]["transforms"]
+        root_tools = {
+            tool
+            for transform in root_transforms
+            for tool in transform["tools"]
+        }
+        self.assertNotIn("host_c_compiler", root_tools)
+        self.assertFalse(
+            any(
+                "kernel/gui/terminal_ansi.c" in transform["inputs"]
+                for transform in root_transforms
+            )
+        )
+        terminal_ansi = {
+            source["path"]: source
+            for source in audit["unreachable_sources"]
+        }["kernel/gui/terminal_ansi.c"]
+        self.assertEqual(
+            {
+                key: terminal_ansi[key]
+                for key in (
+                    "path",
+                    "language",
+                    "classification",
+                    "reason",
+                    "relations",
+                )
+            },
+            {
+                "path": "kernel/gui/terminal_ansi.c",
+                "language": "c",
+                "classification": "superseded",
+                "reason": "replaced by the recorded active implementation",
+                "relations": [
+                    {
+                        "kind": "superseded_by",
+                        "path": "kernel/gui/ansi.cc",
+                        "evidence": "audited project source relationship",
+                    }
+                ],
+            },
+        )
+        makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
+        self.assertNotRegex(
+            makefile,
+            r"(?m)^kernel/gui/terminal_ansi\.o\s*:",
+        )
+
         seed_inputs = {
             "Makefile",
             "tools/bootstrap_toolchain.py",
@@ -7084,6 +7315,79 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             "bootstrap/seeds/i386-linux/cupidld.elf",
             "bootstrap/seeds/i386-linux/cupidobj.elf",
         }
+        object_outputs = {
+            transform["output"]
+            for transform in audit["build"]["transforms"]
+            if transform["output"].endswith(".o")
+        }
+        self.assertEqual(len(object_outputs), 427)
+        validated_code_inputs = object_outputs | {
+            "kernel/kernel.elf.pass1",
+            "kernel/kernel.elf",
+        }
+        self.assertEqual(len(validated_code_inputs), 429)
+        declared_code_inputs = commands[
+            "CUPIDDIS_PRODUCTION_INPUTS"
+        ].split()
+        input_manifest = commands["CUPIDDIS_PRODUCTION_INPUT_MANIFEST"]
+        manifest_code_inputs = (
+            REPO_ROOT / input_manifest
+        ).read_text(encoding="utf-8").splitlines()
+        self.assertEqual(len(declared_code_inputs), 429)
+        self.assertEqual(len(set(declared_code_inputs)), 429)
+        self.assertEqual(manifest_code_inputs, declared_code_inputs)
+        self.assertEqual(len(manifest_code_inputs), 429)
+        self.assertEqual(len(set(manifest_code_inputs)), 429)
+        self.assertEqual(set(declared_code_inputs), validated_code_inputs)
+        validation_command = " ".join(
+            (
+                commands["PYTHON"],
+                "tools/hostbuild.py",
+                "validate-code",
+                "--seed-manifest",
+                commands["BOOTSTRAP_SEED_MANIFEST"],
+                "--root",
+                ".",
+                "--input-manifest",
+                input_manifest,
+                "--output",
+                commands["KERNEL"],
+            )
+        )
+        self.assertLess(len(validation_command), 8191)
+        self.assertNotIn("kernel/core/kernel.o", validation_command)
+        kernel_binary_transform = next(
+            transform
+            for transform in audit["build"]["transforms"]
+            if transform["output"] == "kernel/kernel.bin"
+        )
+        self.assertEqual(
+            kernel_binary_transform["tools"],
+            ["cupid_disassembler", "cupid_object", "host_python"],
+        )
+        self.assertEqual(
+            kernel_binary_transform["operation"], "extract_raw_binary"
+        )
+        self.assertEqual(
+            set(kernel_binary_transform["inputs"]),
+            validated_code_inputs
+            | seed_inputs
+            | {input_manifest, "tools/hostbuild.py"},
+        )
+        self.assertEqual(
+            set(kernel_binary_transform["inputs"])
+            & validated_code_inputs,
+            set(manifest_code_inputs),
+        )
+        self.assertEqual(
+            kernel_binary_transform["recipe"],
+            [
+                "$(PYTHON) tools/hostbuild.py validate-code \\",
+                "--seed-manifest $(BOOTSTRAP_SEED_MANIFEST) --root . \\",
+                "--input-manifest $(CUPIDDIS_PRODUCTION_INPUT_MANIFEST) \\",
+                "--output $(KERNEL)",
+            ],
+        )
         system_image_transform = next(
             transform
             for transform in audit["build"]["transforms"]
@@ -7112,6 +7416,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "test_iso/hello.iso",
                 "tools/bootstrap_toolchain.py",
                 "tools/hostbuild.py",
+                "verify-artifact-sizes",
             },
         )
         profile_manifest_transform = next(
@@ -7132,7 +7437,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             "cupid_assembler": 5,
             "cupid_object": 191,
             "cupid_linker": 2,
-            "cupid_disassembler": 1,
+            "cupid_disassembler": 2,
         }
         for tool, expected_count in expected_counts.items():
             transforms = [
@@ -7165,12 +7470,46 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             if cupid_tools.intersection(transform["tools"])
         ]
         python_only = sorted(
-            transform["output"]
-            for transform in audit["build"]["transforms"]
-            if not cupid_tools.intersection(transform["tools"])
+            (
+                transform
+                for transform in audit["build"]["transforms"]
+                if not cupid_tools.intersection(transform["tools"])
+            ),
+            key=lambda transform: transform["output"],
+        )
+        self.assertEqual(
+            [transform["output"] for transform in python_only],
+            ["verify-artifact-sizes"],
+        )
+        self.assertEqual(
+            python_only[0],
+            {
+                "inputs": [
+                    "boot/boot.bin",
+                    "bootstrap/seeds/i386-linux/cupidasm.elf",
+                    "bootstrap/seeds/i386-linux/cupidc.elf",
+                    "bootstrap/seeds/i386-linux/cupiddis.elf",
+                    "bootstrap/seeds/i386-linux/cupidld.elf",
+                    "bootstrap/seeds/i386-linux/cupidobj.elf",
+                    "kernel/kernel.bin",
+                    "kernel/kernel.elf",
+                    "kernel/kernel.elf.pass1",
+                    "tools/artifact_size_policy.py",
+                    "bootstrap/artifact-size-policy.json",
+                    "bootstrap/seeds/i386-linux/manifest.json",
+                ],
+                "operation": "host_orchestration",
+                "output": "verify-artifact-sizes",
+                "recipe": [
+                    "$(PYTHON) tools/artifact_size_policy.py verify "
+                    "--root . \\",
+                    "--policy $(ARTIFACT_SIZE_POLICY) \\",
+                    "--seed-manifest $(BOOTSTRAP_SEED_MANIFEST)",
+                ],
+                "tools": ["host_python"],
+            },
         )
         self.assertEqual(len(cupid_owned), 440)
-        self.assertEqual(python_only, [])
         self.assertFalse(
             any(
                 transform["operation"] == "recursive_make"

@@ -113,8 +113,34 @@ the static-data boundary, ADR 0254 records integer conversion, and ADR 0255
 records static controls and finite width conversion. ADR 0256 records the
 canonical x87 decoder and special-value transport. ADR 0260 records the
 static arithmetic and rounding model. ADR 0258 records checked-seed carriage
-of the earlier static frontier; the promoted seed predates the arithmetic
+of the earlier static frontier, and ADR 0265 records carriage of the arithmetic
 path.
+
+The promoted seed carried this path through the frozen-document poisoned-host
+normal root rebuild in 1,018.548 seconds. The current 2,560-byte boot image has
+SHA-256
+`46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3`.
+The 9,044,032-byte pass-one ELF has SHA-256
+`659bd6485deb4e6a18a1efa0f575eb90f210fe5674e9e1257eeef2a4422ff21e`,
+the 9,166,912-byte final ELF has SHA-256
+`7caf5ad4bc721f10418c06be7cfd8d9568efc8378e7baf2c2f7a510ec49263a3`,
+and the 8,950,860-byte raw kernel has SHA-256
+`5f0c0becc1ba66a9d3e2eda15555fec39faedc98e2349ad3ee7b2d08775fe1a7`.
+A final poisoned-host `make -j2 all` passed with exit 0 in 1,022.190 seconds.
+Its exact-size prerequisite accepted all nine artifacts before publishing the
+209,715,200-byte image with SHA-256
+`326844ca58c1f864a6b9a2480dfaeb5ed71ec3df22cdb46da17a6bb356e7e726`.
+The final four-vCPU E1000 and RTL8139 frontiers passed from this image. Both
+used the partitioned USB fixture, `--smp 4`, `--cpu max`, SMP and frontier
+runtime verification, a private image, and a 300-second phase timeout. E1000
+exited 0 in 725.058 seconds with 103,673 changed framebuffer pixels, 29,608,822
+AC97 frames at peak 25,600, and 76,784 PC speaker frames at peak 30,710.
+RTL8139 exited 0 in 725.406 seconds with 106,151 changed pixels, 29,601,879
+AC97 frames at peak 25,600, and 76,719 PC speaker frames at peak 31,501. Both
+used a 640 by 480 framebuffer, and the image hash remained unchanged.
+The earlier 1,057.969-second build and definitive four-vCPU E1000 and RTL8139
+frontiers remain pre-freeze evidence. Those boots passed the AC97 and PC
+speaker checks with exits 0 in 794.034 and 758.667 seconds.
 
 The checked i386 Linux seed at ADR 0138 carries static floating constant data
 and this complete comparison path.
@@ -282,7 +308,7 @@ Runtime `float`, `double`, and automatic `long double` values work with unary
 `!`, `&&`, `||`, the controlling operand of `?:`, the conditions of `if`,
 `while`, `do`, and `for`, and conversion to `_Bool`. Both signed zeros are
 false; finite nonzero values, subnormals, infinities, and NaNs are true.
-Source-head hosted CupidC accepts prefix and postfix increment and decrement
+Checked-seed hosted CupidC accepts prefix and postfix increment and decrement
 on modifiable non-atomic `float` and `double` lvalues. It evaluates the lvalue
 once and stores the result of adding or subtracting exact-width `1.0`.
 Postfix returns the original raw payload, including signed zero and NaN bits.
@@ -301,11 +327,11 @@ are a narrower checked path. The SSE details below describe the private
 in-kernel compiler.
 
 Private comparisons and truth tests merge the parity flag with `SETNP` or
-`SETP`. Source-head CupidDis recognizes both byte predicates, so
+`SETP`. Checked-seed CupidDis recognizes both byte predicates, so
 `dis /bin/test_fpaug.cc` stays aligned through the following Boolean merge and
 `MOVZX`. The guest then executes those bounded parity checks before running the
 full feature-13 comparison and truth program. ADR 0259 records the shared
-instruction boundary.
+instruction boundary, and ADR 0265 records checked-seed carriage.
 
 That private compiler now passes arbitrary mixtures of represented four-byte
 scalars and pointers with eight-byte `double` values. Direct,

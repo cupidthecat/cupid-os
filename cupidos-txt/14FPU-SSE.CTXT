@@ -275,7 +275,7 @@ and PASS feature15_libm. ADR 0209 records the numerical correction.
 Runtime float, double, and automatic long double values work with unary !,
 &&, ||, the controlling operand of ?:, the conditions of if, while, do, and
 for, and conversion to _Bool. Both signed zeros are false; finite nonzero
-values, subnormals, infinities, and NaNs are true. Source-head hosted CupidC
+values, subnormals, infinities, and NaNs are true. Checked-seed hosted CupidC
 accepts prefix and postfix increment and decrement on modifiable non-atomic
 float and double lvalues. It evaluates the lvalue once, stores the result after
 adding or subtracting exact-width 1.0, and returns the original raw payload for
@@ -283,20 +283,26 @@ a postfix form. Atomic floating and long double updates,
 hexadecimal floating constants, binary32 and binary64 subnormal constants,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
 bounded parser, general SIMD value semantics, and atomic floating access remain
-outside this shared path. Compiler-head static controls, arithmetic, and
+outside this shared path. Checked-seed static controls, arithmetic, and
 floating-width conversion fold through the target representation. ADR 0260
-records the static arithmetic model.
+records the static arithmetic model, and ADR 0265 records seed carriage.
 
 Private comparison and truth sequences use SETNP for an ordered guard and SETP
-for an unordered guard. Source-head CupidDis recognizes both byte
+for an unordered guard. Checked-seed CupidDis recognizes both byte
 predicates, so `dis /bin/test_fpaug.cc` stays aligned through the Boolean merge
 and normalization instructions. The guest executes those bounded parity checks
-before running the full feature-13 comparison and truth program. The promoted
-602-row, 247-mnemonic checked seed predates these two shared rows and the static
-arithmetic path. ADR 0258 records that seed, and ADR 0259 records the parity
-predicates. In GUI mode, the listing remains in the terminal and is mirrored
+before running the full feature-13 comparison and truth program. The checked
+seed and source head carry 604 rows, 249 mnemonics, and fingerprint 55A8970F,
+including these predicates and static arithmetic support. ADR 0258 records the
+preceding seed, ADR 0259 records the parity predicates, and ADR 0265 records
+their checked-seed carriage. In GUI mode, the listing remains in the terminal and is mirrored
 to serial after normal sink and redirection handling, which lets the runtime
 gate inspect production CupidDis output.
+
+The promoted seed carried the static arithmetic, ordinary floating updates,
+and parity predicates through a poisoned-host normal root build in 1,057.969
+seconds. Definitive four-CPU E1000 and RTL8139 frontiers then passed the AC97
+and PC speaker checks with exits 0 in 794.034 and 758.667 seconds.
 
 Twelve-byte direct and
 indirect fixed, variadic, and unprototyped arguments, function returns, direct

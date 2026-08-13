@@ -38,6 +38,8 @@ TOOL_MARKERS = (
     ("build-iso --seed-manifest", "cupid_object"),
     ("image --seed-manifest", "cupid_object"),
     ("gen-big --seed-manifest", "cupid_assembler"),
+    ("validate-code --seed-manifest", "cupid_disassembler"),
+    ("validate-code --seed-manifest", "cupid_object"),
     ("mksyms --seed-manifest", "cupid_disassembler"),
     ("mksyms --seed-manifest", "cupid_object"),
     ("embed-jpeg --seed-manifest", "cupid_object"),
@@ -1466,6 +1468,13 @@ def _operation_for_recipe(
         return "package_iso9660_image"
     if "hostbuild.py image " in joined:
         return "package_disk_image"
+    if (
+        "hostbuild.py validate-code " in joined
+        and "--output" in _recipe_tokens(recipe)
+        and "cupid_disassembler" in tools
+        and "cupid_object" in tools
+    ):
+        return "extract_raw_binary"
     if (
         "gen-big" in joined
         and "--seed-manifest" in joined
@@ -7287,9 +7296,9 @@ def _cupid_toolchain_fixed_point_contract(
         and node.name == "_run_behavior_checks"
     ]
     expected_behavior_matrix = {
-        "failure_cases": 15,
+        "failure_cases": 16,
         "help_cases": 5,
-        "success_cases": 17,
+        "success_cases": 18,
     }
     expected_profile_failures = {
         "truncated": "snapshot is truncated",
@@ -8643,8 +8652,8 @@ def _cupid_toolchain_fixed_point_contract(
         "compared_startup_objects": 1,
         "compared_tool_images": len(expected_toolchain_links),
         "help_cases": len(expected_toolchain_links),
-        "success_behavior_cases": 17,
-        "failure_behavior_cases": 15,
+        "success_behavior_cases": 18,
+        "failure_behavior_cases": 16,
         "contract_manifest_inputs": 58,
         "source_head_capabilities": [
             "cupidld.pe32_fixed_image",

@@ -151,9 +151,9 @@ DOOM_COMPAT_OBJECTS = {
         "1dfcbe788f587eec6fc0f6265433c319",
     ),
     "/kernel/doom/doomgeneric_cupidos.cc": (
-        10352,
-        "53537aabdaaa5de1db63403f569253f6"
-        "be829b59387bebbe853347b825050c8a",
+        10484,
+        "8a15d86da5a31e57e9b11f75d47daa90"
+        "f6bddb43994ebf6a7c315eae9639fafe",
     ),
 }
 DOOM_I_VIDEO_OBJECT_SIZE = 9288
@@ -166,10 +166,10 @@ LIBM_SOURCE_SHA256 = (
     "baffe801c7573b8500c60251298a753f"
     "60732608d58443178be8ce9ab809ef93"
 )
-KERNEL_SOURCE_SIZE = 31174
+KERNEL_SOURCE_SIZE = 31278
 KERNEL_SOURCE_SHA256 = (
-    "f882ac45e2fc9a41ce805a22a602fb48"
-    "39293a755ef5fea3b7e21d159d5bbf83"
+    "258bb51ea67e3159add45400c2652c2e"
+    "1674dc61f788f747104a63353404a276"
 )
 
 
@@ -1356,7 +1356,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
         source = REPO_ROOT / "kernel/core/kernel.cc"
         source_bytes = source.read_bytes()
         self.assertEqual(len(source_bytes), KERNEL_SOURCE_SIZE)
-        self.assertEqual(source_bytes.count(b"\n"), 950)
+        self.assertEqual(source_bytes.count(b"\n"), 952)
         self.assertEqual(
             hashlib.sha256(source_bytes).hexdigest(),
             KERNEL_SOURCE_SHA256,
@@ -1426,9 +1426,9 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             self.assertEqual(
                 (len(objects[0]), digest),
                 (
-                    25920,
-                    "ed42676ad0d7f16b1fb83442ead1b008"
-                    "2781324dca719104922099cee34b5ab0",
+                    25972,
+                    "90fc64e3e92e2a1fac573c7f983f272"
+                    "70ab5b47c5eba6164b5703ad317003ed6",
                 ),
                 (
                     "kernel object lock changed: "

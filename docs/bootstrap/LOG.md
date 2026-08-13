@@ -24215,3 +24215,370 @@ Independent publication verification passes, and the normal `user-abi`
 command confirms that the cohort is current before reproducing the reviewed
 JSON report. The older local 20-artifact directory remains untouched and is
 correctly rejected as an incomplete current cohort.
+
+### Five-tool seed promotion for parity and floating support
+
+The first candidate came from revision
+`99c5fab5539f53dfd983aa3f304209c6260a6c36`. Its checked CupidDis took about
+82 seconds to inspect 64 KiB of one-byte instructions and timed out on the
+128 KiB throughput contract. That candidate was rejected. ADR 0266 records
+the immutable first-opcode decoder index used for the next attempt.
+
+The promoted i386 Linux seed comes from revision
+`95f5bb6cfd0468bb8852c670ada849cb5bde79a7`. CupidASM is 449,912 bytes with
+SHA-256
+`0d9647b61bc422e88fbc6f8d846f5041e02deca192efe4cfd62df64910340b26`.
+CupidC is 2,666,240 bytes with SHA-256
+`ab83e817e49f6f51a31fb41955d33ca6faa4d2073c975ba3a87999c44eeca7cb`.
+CupidDis is 396,500 bytes with SHA-256
+`acb136752d504445ad52abc315532a2427db844bdd5da98e2d2d78380047a73e`.
+CupidLD remains 312,792 bytes with SHA-256
+`9561d6f7170472cd6dccd87d4988fdd2b23a138966cbe4940a9ffb062eab481d`.
+CupidObj remains 392,688 bytes with SHA-256
+`7137ad601a7c22178112fbf08163b36ff2064807caa99962df97d7ae7ae62f2b`.
+The initial seed differs from stage two only for CupidASM, CupidC, and
+CupidDis.
+
+The new 5,440-byte manifest has SHA-256
+`5b46684d9977287f69a94473acbbf7c5302213ef98f9748482cba768ffca0be8`.
+Its 19-source build plan stays at SHA-256
+`59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`.
+The checked seed now carries the 604-row, 249-mnemonic shared x86 catalogue
+with fingerprint `55A8970F`, including `SETP` and `SETNP`. It also carries
+static long-double arithmetic, ordinary non-atomic `float` and `double`
+updates, CupidDis `--require-known`, and indexed decode candidate selection.
+
+The promotion proof captures 43 source inputs with SHA-256
+`56e0943f82737a7013994f1a2b78fcbd5b5c762d0f5036aac5a48bfbb3dcbe32`.
+Stage two and stage three match for all nineteen C objects, startup, and all
+five tools. Both stages agree on five help cases, eighteen successful
+operations, and sixteen useful failures. The Windows runtime prints the exact
+success marker and returns 37. The proof passed in 763.5 seconds. Its
+17,035-byte report has SHA-256
+`810704f6701b4b4627062981e1e969332d4aa5f409d2cdce3d4fcba150518f84`.
+The initial rejected seed differs from stage two for CupidASM, CupidC, and
+CupidDis and matches stage two for CupidLD and CupidObj.
+
+The checked 128 KiB throughput selector is green within 30 seconds. The
+focused parity and strict selector plus matrix passed in 7.213 seconds. The
+floating carriage selector passed in 4.696 seconds.
+
+An independent poisoned-host reproof started from the promoted manifest and
+passed in 766.9 seconds. Its manifest SHA-256 is
+`5b46684d9977287f69a94473acbbf7c5302213ef98f9748482cba768ffca0be8`.
+All five initial seed images match stage two. Stage two and stage three match
+across all nineteen C objects, one startup object, and all five tools. Both
+stages pass the 5/18/16 behavior matrix. The reproof uses the same 43-input
+source snapshot and revision, and its Windows loader result passes with exit
+37. A separate rehash matches every reported stage artifact. The 17,032-byte
+reproof report has SHA-256
+`736872f31d853fe5b2b67c25e7ec42a1893655074a1c653112def6d66fdeac87`.
+
+### Strict CupidDis production gate
+
+The normal kernel path now runs checked CupidDis before CupidObj flattens the
+final linked ELF. The production command is:
+
+```text
+python -B tools/hostbuild.py validate-code --seed-manifest bootstrap/seeds/i386-linux/manifest.json --root . --input-manifest bootstrap/cupiddis-production-inputs.txt
+```
+
+The command passed in 185.526 seconds with exit 0 and empty standard output
+and standard error. The 9,028-byte LF-only input manifest has SHA-256
+`48bdef348f6575881b9808631173e7265abc9ea89dfb84d48de72b3d2304749e`.
+Its 429 unique graph-ordered paths cover all 427 audited root object outputs,
+the pass-one kernel ELF, and the final kernel ELF. Make keeps every path as a
+direct prerequisite. Hostbuild freezes and rehashes the seed manifest, input
+manifest, and selected inputs around the checked CupidDis invocation.
+
+The first recipe expanded all paths directly. On Windows, that command
+exceeded 8,191 characters and truncated after 396 paths. Passing the
+checked-in manifest reduces the evaluated Make command to 163 characters
+without removing a dependency edge. Fourteen focused hostbuild and build-graph
+tests passed in 36.591 seconds.
+
+The refreshed audit retains 440 root transforms and the 5/18/16 fixed-point
+matrix. It records two CupidDis participations and assigns strict validation
+plus flat extraction to `kernel.bin`, with all 429 code inputs represented.
+The independent audit check passed in 71.1 seconds.
+
+Implementation decision: the strict gate keeps its secure path walker in
+`tools/hostbuild.py`. The production compiler wrapper has similar pinned-path
+code, but extracting a shared module during this gate change would widen the
+security review. A later cleanup should consolidate the two implementations
+only after a common interface preserves their POSIX descriptor walk, Windows
+parent-relative handles, junction checks, stable identity checks, and
+transactional publication. The focused race tests remain the contract for
+that work.
+
+### Poisoned-host normal root build
+
+This pre-freeze normal `make -j2` passed in 1,057.969 seconds with `CC`, `CXX`, `CPP`,
+`HOSTCC`, `HOSTCXX`, `ASM`, `AS`, `LD`, `AR`, `NM`, and `OBJCOPY` pointed at
+invalid commands. The production strict gate ran before CupidObj flattened the
+kernel. This proves that the normal build did not fall back to any of those
+host code-generation commands.
+
+| Output | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `kernel/kernel.elf.pass1` | 9,039,936 | `b21fa8954499a7857ee4b12fa3950fcc08ff3c6a6234c8ae72effc38c51fdc6d` |
+| `kernel/kernel.elf` | 9,162,816 | `a0b57cd886369762b65d657bb3f2915ada8f30b52102535add89466eaf4f5976` |
+| `kernel/kernel.bin` | 8,946,332 | `4f5f2591d01bcc4007773844e9bfb8112a16dd17fbd178014cc2056fefaab67d` |
+| `cupidos.img` | 209,715,200 | `4548005bd0aa1a3cffb74620c2309d53c6b291ea2505ed187034bf6b13f1bb37` |
+
+Definitive boot frontiers used `cupidos.img`, `test_usb_partitioned.img`, four
+virtual CPUs, `--cpu max`, `--verify-smp-runtime`,
+`--verify-frontier-runtime`, `--private-image`, and a 300-second phase timeout.
+
+| NIC | Result | Framebuffer | AC97 | PC speaker |
+| --- | --- | --- | --- | --- |
+| E1000 | PASS, exit 0 in 794.034 seconds | 640 by 480, 103,637 changed pixels | stereo 44.1 kHz, 32,097,292 frames, peak 25,600 | stereo 44.1 kHz, 78,044 frames, peak 29,866 |
+| RTL8139 | PASS, exit 0 in 758.667 seconds | 640 by 480, 104,964 changed pixels | stereo 44.1 kHz, 30,838,813 frames, peak 25,600 | stereo 44.1 kHz, 76,756 frames, peak 30,161 |
+
+Both private-image runs left the source `cupidos.img` unchanged at SHA-256
+`4548005bd0aa1a3cffb74620c2309d53c6b291ea2505ed187034bf6b13f1bb37`.
+ADR 0265 records the promotion, production gate, root build, and boot
+evidence.
+
+### Current C source ownership
+
+The repository now tracks seventeen `.c` files outside `TempleOS/`, and none
+is reachable from a supported normal target. The exact groups are:
+
+- `historical_copy`: `bin/cupidc.c`, `bin/cupidc_lex.c`,
+  `bin/cupidc_parse.c`, `bin/fat16.c`, `bin/fat16_vfs.c`, `bin/kernel.c`, and
+  `bin/terminal_app.c`.
+- `superseded`: `kernel/core/scheduler.c`, `kernel/gui/notepad.c`, and
+  `kernel/gui/terminal_ansi.c`.
+- `not_reached`, dormant runtime draft: `kernel/lang/cupidc_runtime.c`.
+- `not_reached`, deliberate host tests and oracle fixtures:
+  `tests/kernel_exec_contract.c`, `tests/kernel_process_contract.c`,
+  `tests/usb_interrupt_ownership_contract.c`,
+  `tests/usb_msc_lifetime_contract.c`,
+  `tests/usb_reconciliation_runtime.c`, and
+  `toolchain/tests/elf32_oracle.c`.
+
+The stale host compiler recipe for `kernel/gui/terminal_ansi.c` is gone. The
+source stays unreachable and superseded by `kernel/gui/ansi.cc`; adding it to
+the build would restore an older duplicate implementation.
+
+There are 404 tracked `.cc` files outside `TempleOS/`. Of those, 401 are
+active. Four generated `.cc` sources bring the active Cupid C total to 405:
+`kernel/cpu/ksyms_data.cc`, `kernel/util/bin_programs_gen.cc`,
+`kernel/util/demos_programs_gen.cc`, and `kernel/util/docs_programs_gen.cc`.
+The remaining `.c` files are historical material, dormant code, or host test
+inputs, so no active Cupid-owned rename is due.
+
+The focused live build-graph regression passed in 29.712 seconds. It finds no
+host C compiler in the normal root graph, confirms that
+`kernel/gui/terminal_ansi.c` is not an input to any reachable transform, pins
+its `superseded_by` relation to `kernel/gui/ansi.cc`, and checks that the stale
+object rule is absent from the Makefile.
+
+## 2026-08-12: Exact Cupid artifact size policy
+
+### Decision
+
+The normal build now checks a canonical nine-file size policy. It covers the
+five checked Toolchain seeds, the five-sector boot image, the pass-one and
+final kernel ELFs, and the raw kernel. These are deterministic Cupid outputs,
+so an exact byte count is a clearer regression signal than a percentage with
+large unexplained headroom.
+
+An intended output change updates its policy row in the same review. This
+keeps growth possible while making the change explicit. The policy records a
+known Cupid producer and a short reason for each lock. The 200 MiB disk image
+is outside the cohort because its fixed container size does not measure code
+growth.
+
+The older host `.text` comparison remains historical evidence. Windows Clang
+and Linux GCC differed by 22.73 percent at the same revision, so this work did
+not select either as the oracle for the future 20 percent quality comparison.
+
+### Implementation
+
+`tools/artifact_size_policy.py` accepts one repository root and one checked-in
+policy. It rejects missing, duplicate, unknown, or unsorted rows; malformed
+fields and sizes; wrong producers; unsafe paths; links and Windows reparse
+points; and nonregular policy or artifact files. It reports all missing,
+nonregular, and size-mismatched outputs in one run. JSON objects with duplicate
+keys fail before schema validation.
+
+`make verify-artifact-sizes` depends on all nine files and runs the verifier.
+The normal `all` target includes that gate. The command only reads existing
+outputs, so Host Python gains no artifact ownership.
+
+The first implementation resolved the policy path before checking for links.
+That could turn a link to an in-tree file into the target's logical path. The
+final path check stays lexical until every component has passed the link and
+reparse inspection. A focused linked-policy case keeps that boundary visible.
+
+### Evidence
+
+| Gate | Result |
+| --- | --- |
+| Initial focused policy suite | PASS, seven tests in 1.251 seconds |
+| Final policy suite | PASS, 12 tests in 1.603 seconds, including selected-seed relocation and pinned-path checks |
+| Live nine-artifact check | PASS with exact success output and empty standard error |
+| Make recipe expansion | PASS, the target expands to the policy verifier and checked policy path |
+| Python bytecode and Ruff | PASS for the verifier and focused test module |
+| Scoped diff check | PASS |
+
+At initial adoption, the live policy recorded 2,560 bytes for `boot.bin`;
+9,039,936 and 9,162,816
+bytes for the two kernel ELFs; 8,946,332 bytes for `kernel.bin`; and the five
+sizes already bound by the checked seed manifest. ADR 0267 records the policy
+and the alternatives that were rejected.
+
+## 2026-08-12: Reprove the user frontier with the promoted seed
+
+The first `make -C user test-cupidc-frontier` attempt found an older
+20-artifact Toolchain cohort at the canonical publication path. The current
+publisher requires 21 artifacts plus its manifest, so it rejected that
+directory before changing it. The stale cohort was preserved outside the
+canonical path. The supported publisher then built the complete replacement
+privately and moved it into place only after every artifact and input check
+passed.
+
+The restarted user frontier passed with exit 0 in 3,291.317 seconds. Stage two
+and stage three match, and the resulting complete 21-artifact cohort was
+published as one transaction. The user ABI report uses schema
+`cupid.user-syscall-abi.v1`, version 5, 103 fields, a 412-byte table, and 101
+providers. Its ABI SHA-256 remains
+`3e4d31320b2f56d19d37796ef679d1abbb228de9f36c9520d2dd5ec430c3c0bc`.
+
+The frontier repeats three objects and three executables across a 23-input
+closure with SHA-256
+`f63919f4b4307278c825ebedf99391e3ec110646042ee397dac3a7ba330435d3`.
+Both passes produced the same bytes:
+
+| Program | Object bytes | Object SHA-256 | Executable bytes | Executable SHA-256 |
+| --- | ---: | --- | ---: | --- |
+| hello | 6,124 | `64e0a6ee0d7a45a0901d3db614e73481cdc6b30903345c5015601b2bf344be04` | 13,992 | `4c5622969f39ffe7c2427d65abae2d293dfbd76db2aa80c96f9e6cf01613600c` |
+| ls | 7,120 | `e0627996a1d9cd6fd428642ffdfada7e07afa81d9267bc714360014af0dd3971` | 18,112 | `094b017eb6914bce6fbc1e99adeae845d5dc05280c1c1d897e68ab9d687c8d79` |
+| cat | 6,292 | `ff002fc4710704c3941bf6320249e772a3448d15f99269987ab1b9b608b3acb4` | 13,992 | `b66cba4c98221f5006ad4aeee70349a82db20410e027aa863bc33fa5818b5f4c` |
+
+The long duration includes the safe rebuild of the current Toolchain cohort.
+The user artifacts themselves retain checked CupidC and CupidLD ownership.
+Host Python and WSL remain orchestration and execution dependencies on
+Windows; no normal user artifact moved back to a host compiler or linker.
+
+## 2026-08-12: Harden kernel publication and the image size prerequisite
+
+### One frozen kernel transaction
+
+The production `kernel.bin` path now performs strict validation and flat
+extraction in one hostbuild transaction. Hostbuild freezes the selected seed
+manifest and all five artifacts, the 429-entry production input manifest and
+cohort, and the existing output boundary. Checked CupidDis validates the
+private cohort. Checked CupidObj then flattens the frozen final ELF into a
+private candidate.
+
+Hostbuild rechecks the live seed trust unit, input manifest and cohort, and
+output after both tools return. It publishes the candidate through a
+parent-relative atomic replacement. A CupidDis failure, CupidObj failure,
+input drift, seed drift, output drift, alias, or publication failure preserves
+the prior raw kernel.
+
+The complete transaction passed with exit 0 in 187.054 seconds. It published
+an 8,946,332-byte `kernel/kernel.bin` with SHA-256
+`4f5f2591d01bcc4007773844e9bfb8112a16dd17fbd178014cc2056fefaab67d`.
+The focused hostbuild suite passed 31 tests on Windows and 31 tests in WSL.
+Each host skipped cases that apply only to the other platform.
+
+Implementation decision: private flat extraction still uses transaction-local
+path handling. Moving it onto the shared pinned-path helper is deferred
+maintenance. That change needs its own path and race review; it is not required
+for the current frozen-cohort and atomic-publication contract.
+
+The earlier 185.526-second strict gate and 1,057.969-second poisoned-host build
+remain valid historical adoption evidence. They ran validation and flattening
+as separate recipe commands and do not stand in for the new transaction proof.
+
+### Size verification before image publication
+
+`verify-artifact-sizes` is now a direct prerequisite of `cupidos.img`. It
+receives `$(BOOTSTRAP_SEED_MANIFEST)`, derives the five seed paths and declared
+sizes from that selected manifest, and requires the checked policy to agree.
+It also checks the five-sector boot image, both kernel ELFs, and the raw
+kernel. An alternate checked-seed directory therefore uses the same policy
+contract without assuming `bootstrap/seeds/i386-linux`.
+
+A missing, unsafe, unlisted, duplicated, or incorrectly sized artifact stops
+the image publisher before it runs. Any existing `cupidos.img` remains in
+place. The verifier still creates no OS bytes, so this prerequisite changes
+the graph's verification boundary without changing Cupid artifact ownership.
+
+### Frozen-document poisoned-host rebuild
+
+After the OS documentation was frozen, normal `make -j2` passed in 1,018.548
+seconds with the host code-generation variables still poisoned. These
+artifacts supersede the pre-freeze output identities in the earlier adoption
+entries:
+
+| Output | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `kernel/kernel.elf.pass1` | 9,044,032 | `659bd6485deb4e6a18a1efa0f575eb90f210fe5674e9e1257eeef2a4422ff21e` |
+| `kernel/kernel.elf` | 9,166,912 | `7caf5ad4bc721f10418c06be7cfd8d9568efc8378e7baf2c2f7a510ec49263a3` |
+| `kernel/kernel.bin` | 8,950,860 | `5f0c0becc1ba66a9d3e2eda15555fec39faedc98e2349ad3ee7b2d08775fe1a7` |
+
+The exact-size policy carries these current linked and raw kernel sizes. The
+2,560-byte boot image is unchanged. The older output hashes remain historical
+evidence for the separate gate, first transaction proof, and pre-freeze boot
+frontiers.
+
+## 2026-08-12: Complete the final image and fresh user runtime proofs
+
+### Final poisoned-host normal build
+
+A final `make -j2 all` ran with the host code-generation variables poisoned.
+It passed with exit 0 in 1,022.190 seconds. The exact-size prerequisite
+accepted all nine artifacts before the image publisher ran. The resulting
+209,715,200-byte `cupidos.img` has SHA-256
+`326844ca58c1f864a6b9a2480dfaeb5ed71ec3df22cdb46da17a6bb356e7e726`.
+
+This image follows the frozen-document kernel identities recorded above. The
+earlier dual-NIC results remain pre-freeze evidence. The final four-vCPU E1000
+and RTL8139 frontiers used the partitioned USB fixture, `--smp 4`, `--cpu max`,
+`--verify-smp-runtime`, `--verify-frontier-runtime`, `--private-image`, and
+`--timeout 300`.
+
+| NIC | Result | Framebuffer | AC97 | PC speaker |
+| --- | --- | --- | --- | --- |
+| E1000 | PASS, exit 0 in 725.058 seconds | 640 by 480, 103,673 changed pixels | 29,608,822 frames, peak 25,600 | 76,784 frames, peak 30,710 |
+| RTL8139 | PASS, exit 0 in 725.406 seconds | 640 by 480, 106,151 changed pixels | 29,601,879 frames, peak 25,600 | 76,719 frames, peak 31,501 |
+
+Both private-image runs left the source image unchanged at SHA-256
+`326844ca58c1f864a6b9a2480dfaeb5ed71ec3df22cdb46da17a6bb356e7e726`.
+
+The final `make bootstrap-audit` passed in 64.780 seconds. It records 450
+transforms across the three supported roots and 441 under root `all`. Tool
+participation is Python 450, CupidC 245, CupidObj 191, CupidASM five, CupidLD
+five, and CupidDis two. Root `all` contains 440 Cupid-owned artifact transforms
+plus the Python-only size verifier.
+The active-source digest is
+`6aa5ac586bc279d8dc2b87cc43adfc07ce8f88400f2acfa14a6519398863f111`.
+The 2,635,784-byte JSON has SHA-256
+`72995e1c7eb8199d2cb44ee0116e7a04a9f17d2b576ce6c02ca6b00845e08394`,
+and the 12,246-byte Markdown summary has SHA-256
+`2587f7746efdc771f3db47608db1cb71bd178912de9a1e260b7635a7bf4b785c`.
+
+### Fresh user build and runtime
+
+A fresh build in a unique output directory passed in 10.492 seconds. It
+reproduced the promoted frontier's six files:
+
+| Program | Object bytes | Object SHA-256 | Executable bytes | Executable SHA-256 |
+| --- | ---: | --- | ---: | --- |
+| hello | 6,124 | `64e0a6ee0d7a45a0901d3db614e73481cdc6b30903345c5015601b2bf344be04` | 13,992 | `4c5622969f39ffe7c2427d65abae2d293dfbd76db2aa80c96f9e6cf01613600c` |
+| ls | 7,120 | `e0627996a1d9cd6fd428642ffdfada7e07afa81d9267bc714360014af0dd3971` | 18,112 | `094b017eb6914bce6fbc1e99adeae845d5dc05280c1c1d897e68ab9d687c8d79` |
+| cat | 6,292 | `ff002fc4710704c3941bf6320249e772a3448d15f99269987ab1b9b608b3acb4` | 13,992 | `b66cba4c98221f5006ad4aeee70349a82db20410e027aa863bc33fa5818b5f4c` |
+
+Each program ran from a disposable copy of the staged image and returned 0.
+Hello passed in 54.546 seconds, ls in 52.637 seconds, and cat in 80.043
+seconds. Cat read a 62-byte marker-shaped fixture and passed the negative
+serial-event boundary. Before and after the runs, both the source image and
+the staged evidence image had SHA-256
+`326844ca58c1f864a6b9a2480dfaeb5ed71ec3df22cdb46da17a6bb356e7e726`.

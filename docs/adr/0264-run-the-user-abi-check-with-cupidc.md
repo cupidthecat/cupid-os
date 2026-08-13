@@ -93,11 +93,36 @@ and the published ABI executable has SHA-256
 The independent verifier accepts the publication, and the normal `user-abi`
 command reproduces the reviewed ABI and provider fingerprints.
 
-The regenerated active-build audit and its independent drift check pass. The
-graph records 728 inputs, 449 transforms, and two remaining Python-only
-supplemental transforms. No kernel object, image byte, boot path, or ABI
-transport changed, so an OS boot would not add evidence for this hosted
-contract transfer.
+The promoted-seed frontier later rebuilt and transactionally published the
+complete 21-artifact cohort. A fresh build in a unique output directory then
+passed in 10.492 seconds. It reproduced these six artifact identities:
+
+| Program | Object bytes | Object SHA-256 | Executable bytes | Executable SHA-256 |
+| --- | ---: | --- | ---: | --- |
+| hello | 6,124 | `64e0a6ee0d7a45a0901d3db614e73481cdc6b30903345c5015601b2bf344be04` | 13,992 | `4c5622969f39ffe7c2427d65abae2d293dfbd76db2aa80c96f9e6cf01613600c` |
+| ls | 7,120 | `e0627996a1d9cd6fd428642ffdfada7e07afa81d9267bc714360014af0dd3971` | 18,112 | `094b017eb6914bce6fbc1e99adeae845d5dc05280c1c1d897e68ab9d687c8d79` |
+| cat | 6,292 | `ff002fc4710704c3941bf6320249e772a3448d15f99269987ab1b9b608b3acb4` | 13,992 | `b66cba4c98221f5006ad4aeee70349a82db20410e027aa863bc33fa5818b5f4c` |
+
+Each program then ran from a disposable copy of the staged image and returned
+0. Hello passed in 54.546 seconds, ls in 52.637 seconds, and cat in 80.043
+seconds. Cat read a 62-byte marker-shaped fixture and passed the negative
+serial-event boundary. The source and evidence images retained SHA-256
+`326844ca58c1f864a6b9a2480dfaeb5ed71ec3df22cdb46da17a6bb356e7e726`.
+The final four-vCPU E1000 and RTL8139 frontiers passed from that image. Both
+used the partitioned USB fixture, `--smp 4`, `--cpu max`, SMP and frontier
+runtime verification, a private image, and a 300-second phase timeout. E1000
+exited 0 in 725.058 seconds with 103,673 changed framebuffer pixels, 29,608,822
+AC97 frames at peak 25,600, and 76,784 PC speaker frames at peak 30,710.
+RTL8139 exited 0 in 725.406 seconds with 106,151 changed pixels, 29,601,879
+AC97 frames at peak 25,600, and 76,719 PC speaker frames at peak 31,501. Both
+used a 640 by 480 framebuffer, and the image hash remained unchanged.
+
+The final active-build audit records 728 inputs and 450 transforms, including
+441 under root `all`. Python participates in all 450, CupidC in 245, CupidObj
+in 191, CupidASM in five, CupidLD in five, and CupidDis in two. Two
+supplemental transforms remain Python-only. `make bootstrap-audit` passed in
+64.780 seconds. The current OS boots above now cover the combined promotion;
+they do not change this hosted contract's ownership boundary.
 
 ## Rejected alternatives
 

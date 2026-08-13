@@ -41,7 +41,7 @@ command. Make passes wildcard-discovered output sources through $(sort ...)
 before generation and link, so Windows and Linux use the same root order
 regardless of host locale. ADR 0246 records this checked invocation boundary.
 
-CupidObj's 190 normal transforms include the disk-template, ISO, and guarded
+CupidObj's 191 normal transforms include the disk-template, ISO, and guarded
 profile-manifest operations. Checked CupidObj authors the pristine FAT16
 prefix from private boot and kernel copies.
 Python renders an independent oracle and requires byte parity. It then
@@ -145,7 +145,7 @@ as DB rows without decoding them. The caller places each code transition
 between instructions. The older --mode-at OFFSET:16|32 spelling remains
 available for code-only maps.
 
-Source-head CupidDis can validate one or more files without printing a
+Checked-seed CupidDis can validate one or more files without printing a
 listing:
   cupiddis --require-known FILE [FILE...]
 
@@ -153,7 +153,37 @@ Success means that every selected code region has zero unknown, invalid, and
 truncated instructions. A failure names its input and reports all four counts,
 including known instructions. CupidDis keeps checking later inputs. Declared
 raw data and non-executable ELF regions do not count. Ordinary rendering still
-accepts one file and keeps its existing output.
+accepts one file and keeps its existing output. The normal kernel path runs
+strict validation and flat extraction against one frozen cohort of all 427
+audited root object outputs plus the pass-one and final kernel ELFs. Its 9,028-byte graph-ordered
+manifest lists those 429 unique paths and has SHA-256
+48bdef348f6575881b9808631173e7265abc9ea89dfb84d48de72b3d2304749e.
+An immutable first-opcode index preserves exhaustive selection, and the
+checked 128 KiB throughput contract passes within 30 seconds. ADR 0262 records
+the command, ADR 0266 records indexed decoding, and ADR 0265 records
+checked-seed carriage and production adoption.
+
+An earlier poisoned-host normal `make -j2` passed in 1,057.969 seconds. The
+separate strict gate ran before CupidObj flattened the kernel. It produced a 9,039,936-byte
+pass-one ELF with SHA-256
+b21fa8954499a7857ee4b12fa3950fcc08ff3c6a6234c8ae72effc38c51fdc6d, a
+9,162,816-byte final ELF with SHA-256
+a0b57cd886369762b65d657bb3f2915ada8f30b52102535add89466eaf4f5976, and an
+8,946,332-byte raw kernel with SHA-256
+4f5f2591d01bcc4007773844e9bfb8112a16dd17fbd178014cc2056fefaab67d.
+The current hostbuild transaction freezes the selected seed manifest and all
+five artifacts, the 429-entry input manifest and cohort, and the existing
+kernel.bin boundary. Checked CupidDis validates the private cohort before
+checked CupidObj flattens the frozen final ELF. Hostbuild rechecks live trust
+inputs and the output before parent-relative atomic publication. Every failure
+preserves the prior raw kernel. The transaction passed with exit 0 in 187.054
+seconds and published the same 8,946,332-byte raw kernel and SHA-256. The
+hostbuild suites each passed 31 tests on Windows and in WSL, with
+platform-specific skips. Moving private flatten extraction onto the shared
+pinned-path helper remains deferred maintenance.
+Definitive four-CPU E1000 and RTL8139 boot frontiers passed from that image
+with exits 0 in 794.034 and 758.667 seconds. Both passed SMP, frontier,
+framebuffer, AC97, and PC speaker checks without changing the source image.
 
 The production boot source assembles to an exact 2,560-byte image with
 SHA-256 46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3.
@@ -205,7 +235,7 @@ the same freestanding main, and both CupidLD stages produce the same PE bytes.
 Windows validates and runs the image, checks its exact stdout and empty stderr,
 and requires exit 37. The validator reconstructs the exact .idata layout, and
 the report retains both object and image pairs plus the observed Windows
-result. The promoted Linux seed carries the 5/17/15 behavior matrix and this
+result. The promoted Linux seed carries the 5/18/16 behavior matrix and this
 command.
 
 Checked-seed CupidLD uses an adjacent candidate created with exclusive-create
@@ -226,8 +256,11 @@ Checked CupidASM assembles stage-two startup there, then the stage-two
 assembler produces byte-identical stage-three startup below the same root.
 The harness checks both the private and live closures at each stage and
 behavior boundary. The complete seed build also compares all 19 C objects and
-five linked tools and runs the complete 5/17/15 behavior matrix. All evidence
+five linked tools and runs the complete 5/18/16 behavior matrix. All evidence
 is published together only after the gate passes.
+An independent poisoned-host reproof passed in 766.9 seconds. All five seed
+images match stage two, and stage two matches stage three across the same
+19 C objects, startup, five tools, and behavior matrix.
 
 make verify-bootstrap-seed validates the files without executing them.
 make bootstrap-from-seed performs the staged build. Windows runs the static
@@ -284,11 +317,10 @@ repository paths without making the assembler depend on ambient host paths.
 CupidASM implements the cleanly expressible NASM-compatible surface required
 by active CupidOS sources; it does not claim unrestricted NASM compatibility.
 
-The promoted seed has 602 x86 rows, 247 canonical mnemonics, 64 register names,
-and fingerprint 64429699. Source head has 604 rows, 249 canonical mnemonics,
-and fingerprint 55A8970F. The seed includes signed x87 FILD and FISTP memory
-operands at 16, 32, and 64 bits. Source head adds canonical SETP and SETNP byte
-predicates in 16-bit and 32-bit modes. FILD and FISTP register, byte-memory,
+The checked seed and source head have 604 x86 rows, 249 canonical mnemonics,
+64 register names, and fingerprint 55A8970F. The catalogue includes signed x87
+FILD and FISTP memory operands at 16, 32, and 64 bits and canonical SETP and
+SETNP byte predicates in 16-bit and 32-bit modes. FILD and FISTP register, byte-memory,
 and 80-bit memory forms are rejected without output. The seed's four SHRD rows cover 16-bit and 32-bit register
 or memory destinations with either an immediate byte or fixed CL count. Both
 modes honor operand-size and address-size overrides. Active checked-CupidC
@@ -326,14 +358,14 @@ sources. Common families include:
 - atomic helpers: bswap, xadd, cmpxchg, lock-prefixed memory operations
 - sized memory inc/dec and reserve directives
 
-The promoted i386 Linux seed carries all 602 shared x86 rows in CupidASM and
-CupidDis, including FILD and FISTP. The source-head tools build the 604-row
-catalogue with SETP and SETNP. The seed catalogue also includes the IMUL and
+The promoted i386 Linux seed and source head carry all 604 shared x86 rows in
+CupidASM and CupidDis, including FILD, FISTP, SETP, and SETNP. The catalogue also includes the IMUL and
 padding NOP families, FLDZ, forward x87 stack subtraction, and SHRD. ADR 0208
 records the x87 form's seed carriage, and ADR 0228 records the first SHRD seed
 promotion. ADR 0243
 records the preceding seed, ADR 0252 records the x87 integer forms, ADR 0258
-records the promoted seed, and ADR 0259 records the parity predicates.
+records the preceding seed, ADR 0259 records the parity predicates, and ADR
+0265 records the current promotion.
 
 Floating-point and SIMD coverage includes:
 - FPU state: FXSAVE, FXRSTOR, FINIT, FNINIT, FWAIT, LDMXCSR, STMXCSR

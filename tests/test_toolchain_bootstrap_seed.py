@@ -1,3 +1,4 @@
+import ast
 import contextlib
 import hashlib
 import io
@@ -939,7 +940,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 hashlib.sha256(
                     frozen.tools["cupidc"].read_bytes()
                 ).hexdigest(),
-                "bfe4b9581302439ae35dac340c3f3e38812a2ce7b0ce54a8af1e04731cd077c1",
+                "ab83e817e49f6f51a31fb41955d33ca6faa4d2073c975ba3a87999c44eeca7cb",
             )
 
     def test_wsl_runner_uses_a_private_temporary_directory(self):
@@ -1346,6 +1347,253 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertIn("repository path is invalid", rejected.stderr)
             self.assertEqual(failed_output.read_bytes(), b"sentinel")
 
+    def test_fixed_point_matrix_keeps_strict_cupiddis_checks(self):
+        tree = ast.parse(BOOTSTRAP_TOOL.read_text(encoding="utf-8"))
+        behavior_functions = [
+            node
+            for node in tree.body
+            if isinstance(node, ast.FunctionDef)
+            and node.name == "_run_behavior_checks"
+        ]
+        self.assertEqual(len(behavior_functions), 1)
+        behavior = behavior_functions[0]
+
+        assigned_calls = {}
+        for statement in behavior.body:
+            if (
+                isinstance(statement, ast.Assign)
+                and len(statement.targets) == 1
+                and isinstance(statement.targets[0], ast.Name)
+                and isinstance(statement.value, ast.Call)
+            ):
+                assigned_calls[statement.targets[0].id] = statement.value
+
+        def stage_pair(name):
+            call = assigned_calls[name]
+            self.assertIsInstance(call.func, ast.Name)
+            self.assertEqual(call.func.id, "_run_stage_pair")
+            self.assertEqual(ast.literal_eval(call.args[3]), "cupiddis")
+            return call
+
+        def matrix_arguments(argument):
+            self.assertIsInstance(argument, ast.List)
+            rendered = []
+            for item in argument.elts:
+                if isinstance(item, ast.Constant):
+                    rendered.append(item.value)
+                elif isinstance(item, ast.Name):
+                    rendered.append(f"<{item.id}>")
+                else:
+                    self.fail(
+                        "strict CupidDis arguments contain an unexpected "
+                        f"expression: {ast.dump(item)}"
+                    )
+            return rendered
+
+        clean = stage_pair("strict_disassembly_result")
+        self.assertEqual(
+            matrix_arguments(clean.args[4]),
+            ["--require-known", "<stage_two_valid>"],
+        )
+        self.assertEqual(
+            matrix_arguments(clean.args[5]),
+            ["--require-known", "<stage_three_valid>"],
+        )
+
+        truncated = stage_pair("strict_failure_result")
+        self.assertEqual(len(truncated.args), 5)
+        self.assertEqual(
+            matrix_arguments(truncated.args[4]),
+            [
+                "--require-known",
+                "--raw",
+                "--mode=32",
+                "--base=0",
+                "<truncated_code>",
+            ],
+        )
+
+        statuses = {}
+        for node in ast.walk(behavior):
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id == "_expect_status"
+                and len(node.args) >= 2
+                and isinstance(node.args[0], ast.Name)
+                and isinstance(node.args[1], ast.Constant)
+            ):
+                statuses.setdefault(node.args[0].id, []).append(
+                    node.args[1].value
+                )
+        self.assertEqual(statuses["strict_disassembly_result"], [0])
+        self.assertEqual(statuses["strict_failure_result"], [1])
+
+        expected_fixture = ast.dump(
+            ast.parse("bytes([0x0F])", mode="eval").body,
+            include_attributes=False,
+        )
+        fixture_payloads = [
+            ast.dump(node.args[0], include_attributes=False)
+            for node in ast.walk(behavior)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "write_bytes"
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "truncated_code"
+            and len(node.args) == 1
+        ]
+        self.assertEqual(fixture_payloads, [expected_fixture])
+
+        messages = {
+            node.value
+            for node in ast.walk(behavior)
+            if isinstance(node, ast.Constant)
+            and isinstance(node.value, str)
+        }
+        self.assertIn(
+            "truncated-code.bin: code check failed: "
+            "0 known, 0 unknown, 0 invalid, 1 truncated",
+            messages,
+        )
+
+        returns = [
+            node
+            for node in behavior.body
+            if isinstance(node, ast.Return)
+        ]
+        self.assertEqual(len(returns), 1)
+        self.assertEqual(
+            ast.literal_eval(returns[0].value),
+            {
+                "failure_cases": 16,
+                "help_cases": 5,
+                "success_cases": 18,
+            },
+        )
+
+    def test_checked_seed_carries_parity_predicates_and_strict_decode_policy(
+        self,
+    ):
+        if os.name == "nt" and shutil.which("wsl") is None:
+            self.skipTest("WSL is not available")
+        with tempfile.TemporaryDirectory(
+            prefix=".checked-seed-strict-dis-", dir=REPO_ROOT
+        ) as temporary:
+            root = Path(temporary)
+            source = root / "parity.asm"
+            output = root / "parity.bin"
+            rejected_source = root / "parity-alias.asm"
+            rejected_output = root / "parity-alias.bin"
+            truncated = root / "truncated.bin"
+            throughput = root / "strict-throughput.bin"
+            source.write_text(
+                "bits 32\n"
+                "setp al\n"
+                "setnp byte [eax + 4]\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+            rejected_source.write_text(
+                "bits 32\nsetpe al\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+            rejected_output.write_bytes(b"sentinel")
+            truncated.write_bytes(bytes([0x0F]))
+            throughput.write_bytes(bytes([0x90]) * (128 * 1024))
+            frozen = freeze_seed_inputs(SEED_MANIFEST, root / "seed")
+            runner = ToolRunner(REPO_ROOT)
+
+            assembled = runner.run(
+                frozen.tools["cupidasm"],
+                ["-f", "bin", source, "-o", output],
+                60,
+            )
+            self.assertEqual(assembled.returncode, 0, assembled.stderr)
+            self.assertEqual(assembled.stdout, "")
+            self.assertEqual(assembled.stderr, "")
+            self.assertEqual(
+                output.read_bytes(), bytes.fromhex("0f9ac00f9b4004")
+            )
+
+            strict = runner.run(
+                frozen.tools["cupiddis"],
+                [
+                    "--require-known",
+                    "--raw",
+                    "--mode=32",
+                    "--base=0",
+                    output,
+                ],
+                60,
+            )
+            self.assertEqual(strict.returncode, 0, strict.stderr)
+            self.assertEqual(strict.stdout, "")
+            self.assertEqual(strict.stderr, "")
+
+            bounded_strict = runner.run(
+                frozen.tools["cupiddis"],
+                [
+                    "--require-known",
+                    "--raw",
+                    "--mode=32",
+                    "--base=0",
+                    throughput,
+                ],
+                30,
+            )
+            self.assertEqual(
+                bounded_strict.returncode, 0, bounded_strict.stderr
+            )
+            self.assertEqual(bounded_strict.stdout, "")
+            self.assertEqual(bounded_strict.stderr, "")
+
+            disassembled = runner.run(
+                frozen.tools["cupiddis"],
+                ["--raw", "--mode=32", "--base=0", output],
+                60,
+            )
+            self.assertEqual(
+                disassembled.returncode, 0, disassembled.stderr
+            )
+            self.assertEqual(disassembled.stderr, "")
+            rendered = disassembled.stdout.casefold()
+            self.assertIn("setp al", rendered)
+            self.assertIn("setnp byte", rendered)
+
+            rejected = runner.run(
+                frozen.tools["cupidasm"],
+                ["-f", "bin", rejected_source, "-o", rejected_output],
+                60,
+            )
+            self.assertEqual(rejected.returncode, 1)
+            self.assertEqual(rejected.stdout, "")
+            self.assertIn(
+                "unknown Cupid ASM instruction mnemonic", rejected.stderr
+            )
+            self.assertEqual(rejected_output.read_bytes(), b"sentinel")
+
+            failed_strict = runner.run(
+                frozen.tools["cupiddis"],
+                [
+                    "--require-known",
+                    "--raw",
+                    "--mode=32",
+                    "--base=0",
+                    output,
+                    truncated,
+                ],
+                60,
+            )
+            self.assertEqual(failed_strict.returncode, 1)
+            self.assertEqual(failed_strict.stdout, "")
+            self.assertIn(
+                "truncated.bin: code check failed: "
+                "0 known, 0 unknown, 0 invalid, 1 truncated",
+                failed_strict.stderr,
+            )
+
     def test_checked_seed_carries_shrd_with_address_overrides(self):
         if os.name == "nt" and shutil.which("wsl") is None:
             self.skipTest("WSL is not available")
@@ -1635,6 +1883,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "};\n"
                 "static long double converted_unsigned_max =\n"
                 "    18446744073709551615ull;\n"
+                "static long double folded_sum = 1.0L + 2.0L;\n"
                 "int seed_long_double_frontier(void) {\n"
                 "  const unsigned int *special_words =\n"
                 "      (const unsigned int *)widened_specials;\n"
@@ -1644,6 +1893,12 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "      (const unsigned int *)narrowed_double_specials;\n"
                 "  const unsigned int *maximum_words =\n"
                 "      (const unsigned int *)&converted_unsigned_max;\n"
+                "  const unsigned int *folded_words =\n"
+                "      (const unsigned int *)&folded_sum;\n"
+                "  float updated_float = 1.0f;\n"
+                "  double updated_double = 2.0;\n"
+                "  float old_float = updated_float++;\n"
+                "  double old_double = updated_double--;\n"
                 "  short narrow = -123;\n"
                 "  int word = -456789;\n"
                 "  long long wide = -1234567890123ll;\n"
@@ -1702,14 +1957,20 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "      (long long)wide_extended != wide ||\n"
                 "      (unsigned long long)unsigned_extended !=\n"
                 "          unsigned_wide) return 7;\n"
+                "  if (folded_words[0] != 0u ||\n"
+                "      folded_words[1] != 0xc0000000u ||\n"
+                "      folded_words[2] != 0x00004000u) return 8;\n"
+                "  if (old_float != 1.0f || updated_float != 2.0f ||\n"
+                "      ++updated_float != 3.0f || old_double != 2.0 ||\n"
+                "      updated_double != 1.0 || --updated_double != 0.0)\n"
+                "    return 9;\n"
                 "  return 0;\n"
                 "}\n",
                 encoding="utf-8",
                 newline="\n",
             )
             rejected_compiler_source.write_text(
-                "static long double bad =\n"
-                "    (long double)(1.0f / 0.0f) + 1.0L;\n",
+                "void bad(_Atomic float *value) { (*value)++; }\n",
                 encoding="utf-8",
                 newline="\n",
             )
@@ -1839,8 +2100,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(rejected_compile.returncode, 1)
             self.assertEqual(rejected_compile.stdout, "")
             self.assertIn(
-                "static long-double arithmetic is outside this "
-                "constant-data slice",
+                "atomic floating-point updates are not supported",
                 rejected_compile.stderr,
             )
             self.assertEqual(
@@ -3229,11 +3489,11 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
     def test_checked_seed_emits_complete_unchanged_kernel_entry_object(self):
         self._assert_checked_seed_emits_complete_unchanged_kernel_object(
             "kernel/core/kernel.cc",
-            31174,
-            950,
-            "f882ac45e2fc9a41ce805a22a602fb4839293a755ef5fea3b7e21d159d5bbf83",
-            25920,
-            "ed42676ad0d7f16b1fb83442ead1b0082781324dca719104922099cee34b5ab0",
+            31278,
+            952,
+            "258bb51ea67e3159add45400c2652c2e1674dc61f788f747104a63353404a276",
+            25972,
+            "90fc64e3e92e2a1fac573c7f983f27270ab5b47c5eba6164b5703ad317003ed6",
         )
 
     def test_checked_seed_emits_page_aligned_kernel_stack_top(self):
@@ -3400,13 +3660,13 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "1dfcbe788f587eec6fc0f6265433c319",
             ),
             "/kernel/doom/doomgeneric_cupidos.cc": (
-                13640,
-                404,
-                "7cc4ef8beba2fdc4664f5c7a5c18a2ef"
-                "42d3a2595e78b72eef8fc9801ff175ca",
-                10352,
-                "53537aabdaaa5de1db63403f569253f6"
-                "be829b59387bebbe853347b825050c8a",
+                13788,
+                409,
+                "13c9bdfe659443e227d9cec6a770e9bce"
+                "26714fb83a62b2338d8b6a295d4e725",
+                10484,
+                "8a15d86da5a31e57e9b11f75d47daa90"
+                "f6bddb43994ebf6a7c315eae9639fafe",
             ),
         }
         tracked_sources = sorted(
@@ -3830,7 +4090,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(report["status"], "pass")
             self.assertEqual(
                 report["seed_source_revision"],
-                "9115787311bf455b6eee19e7742cc83aa252e7c8",
+                "95f5bb6cfd0468bb8852c670ada849cb5bde79a7",
             )
             self.assertNotIn("source_revision", report)
             self.assertEqual(
@@ -3849,9 +4109,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["behavior"],
                 {
-                    "failure_cases": 15,
+                    "failure_cases": 16,
                     "help_cases": 5,
-                    "success_cases": 17,
+                    "success_cases": 18,
                 },
             )
             self.assertEqual(
@@ -3934,7 +4194,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 },
             )
             source_head_snapshot = (
-                "3619e7d508f55f5e91bf3fa79071fd2dcd818ec8e0281f03a1d9d48f0a7a3547"
+                "56e0943f82737a7013994f1a2b78fcbd5b5c762d0f5036aac5a48bfbb3dcbe32"
             )
             self.assertEqual(
                 report["source_snapshot_sha256"], source_head_snapshot
