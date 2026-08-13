@@ -58,13 +58,16 @@ USER_SYSCALL_ABI_PUBLICATION_INPUTS := \
 	../toolchain/cupidobj.h \
 	../toolchain/elf32.h \
 	../toolchain/hosted/i386-linux/include/cupid_host_abi.h \
+	../toolchain/hosted/i386-linux/include/direct.h \
 	../toolchain/hosted/i386-linux/include/errno.h \
 	../toolchain/hosted/i386-linux/include/stdint.h \
 	../toolchain/hosted/i386-linux/include/stdio.h \
 	../toolchain/hosted/i386-linux/include/stdlib.h \
 	../toolchain/hosted/i386-linux/include/string.h \
 	../toolchain/hosted/i386-linux/include/unistd.h \
+	../toolchain/hosted/i386-windows/runtime.cc \
 	../toolchain/hosted/i386-windows/start.asm \
+	../toolchain/hosted/i386-windows/tool_start.asm \
 	../toolchain/tests/core_contract.cc \
 	../toolchain/tests/cupidasm_contract.cc \
 	../toolchain/tests/cupidasm_demos_contract.cc \
@@ -86,6 +89,7 @@ USER_SYSCALL_ABI_PUBLICATION_INPUTS := \
 	../toolchain/tests/elf32_contract.cc \
 	../toolchain/tests/hosted_i386_runtime_contract.cc \
 	../toolchain/tests/hosted_i386_windows_contract.cc \
+	../toolchain/tests/hosted_i386_windows_runtime_contract.cc \
 	../toolchain/tests/user_syscall_abi_contract.cc \
 	../toolchain/tests/x86_active_cases.inc \
 	../toolchain/tests/x86_contract.cc \
@@ -127,6 +131,7 @@ USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS := \
 	../toolchain/elf32.cc \
 	../toolchain/elf32.h \
 	../toolchain/hosted/i386-linux/include/cupid_host_abi.h \
+	../toolchain/hosted/i386-linux/include/direct.h \
 	../toolchain/hosted/i386-linux/include/errno.h \
 	../toolchain/hosted/i386-linux/include/stdint.h \
 	../toolchain/hosted/i386-linux/include/stdio.h \
@@ -135,8 +140,11 @@ USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS := \
 	../toolchain/hosted/i386-linux/include/unistd.h \
 	../toolchain/hosted/i386-linux/runtime.cc \
 	../toolchain/hosted/i386-linux/start.asm \
+	../toolchain/hosted/i386-windows/runtime.cc \
 	../toolchain/hosted/i386-windows/start.asm \
+	../toolchain/hosted/i386-windows/tool_start.asm \
 	../toolchain/tests/hosted_i386_windows_contract.cc \
+	../toolchain/tests/hosted_i386_windows_runtime_contract.cc \
 	../toolchain/x86.cc \
 	../toolchain/x86.h
 CUPIDC_PRODUCTION_COMPILE_INPUTS := \

@@ -246,13 +246,16 @@ _Avoid_: aggregate scalar, borrowed object address
 **Hosted source frontier**:
 The unchanged implementation and contract files that hosted CupidC can
 preprocess, parse, lower, and emit as deterministic i386 ELF32 objects. The
-current target-profile gate contains 35 strict C11 roots and two GNU-enabled
-runtime roots. `HOSTED_I386_LINUX` owns 32 Linux requests,
+current target-profile gate contains 40 strict C11 roots and three GNU-enabled
+runtime roots. `HOSTED_I386_LINUX` owns 33 Linux requests,
+`HOSTED_I386_WINDOWS` owns four `_WIN32=1` tool requests,
 `FREESTANDING_I386` owns the headerless Windows command probe, and
 `HOSTED_I386_KERNEL_BRIDGE` owns the two requests that may include
-`/kernel/lang`. The GNU profile owns the runtime implementation and its
-behavior probe. Together they cover the complete 19-source static tool union,
-`kernel/lang/as_elf.cc`, and all fifteen Toolchain contract translation units.
+`/kernel/lang`. The GNU profile owns the Linux runtime, its behavior probe,
+and the Windows runtime wrapper. Together they cover the complete 19-source
+static Linux tool union, the four platform-sensitive Windows driver roots,
+the direct Windows runtime contract, `kernel/lang/as_elf.cc`, and all fifteen
+Toolchain contract translation units.
 The retired `HOSTED_TOOLCHAIN_64` and `HOSTED_KERNEL_BRIDGE_64` names have no
 active roots.
 
@@ -349,15 +352,19 @@ The static i386 contract that checks the external-program table before CupidC co
 _Avoid_: Python-only ABI checker, user-program runtime, kernel syscall implementation
 
 **Hosted i386 ABI profile**:
-The deterministic hosted C request used to compile an i386 Linux tool closure. It searches `/toolchain` for quoted and angle includes and the checked i386 Linux declaration set for angle includes only, defines `__SIZEOF_POINTER__` as four, and leaves `_WIN32` undefined. Only `kernel/lang/as_elf.cc` and `toolchain/tests/cupidasm_kernel_elf_contract.cc` also search `/kernel/lang`; the other 32 Linux strict roots cannot see that directory. The headerless Windows probe uses the separate `FREESTANDING_I386` profile. The CupidC command represents these roots with `-I` and `--include-angle` in caller order. Repeatable `-include` options represent preprocessing inputs that run in order before the primary source. Tool sources use strict C11. The hosted runtime implementation and behavior probe enable CupidC's GNU variadic built-ins.
+The deterministic hosted C request used to compile an i386 tool closure. Linux requests search `/toolchain` for quoted and angle includes and the checked i386 Linux declaration set for angle includes only, define `__SIZEOF_POINTER__` as four, and leave `_WIN32` undefined. Only `kernel/lang/as_elf.cc` and `toolchain/tests/cupidasm_kernel_elf_contract.cc` also search `/kernel/lang`; all 33 `HOSTED_I386_LINUX` roots are kept outside that bridge. `HOSTED_I386_WINDOWS` defines `_WIN32=1` for `ctool_host.cc` and the CupidASM, CupidC, and CupidObj driver roots while keeping the same four-byte pointer fact and declaration set. The headerless Windows probe uses the separate `FREESTANDING_I386` profile. The Windows tool runtime selects the shared hosted implementation through `CUPID_RUNTIME_WINDOWS`. The CupidC command represents these roots with `-I` and `--include-angle` in caller order. Repeatable `-include` options represent preprocessing inputs that run in order before the primary source. Tool sources use strict C11. The Linux runtime, Windows runtime wrapper, and Linux behavior probe enable CupidC's GNU variadic built-ins.
 _Avoid_: `HOSTED_TOOLCHAIN_64`, vendored libc, host system headers
 
 **Hosted i386 Linux runtime**:
 The repository-owned startup and narrow C service layer for static Cupid-built i386 Linux commands. CupidASM supplies process entry and `int 0x80` system-call wrappers. CupidC supplies allocation, unbuffered files, standard streams, fixed-width integer declarations, memory and string functions, `errno`, `getcwd`, formatted diagnostics, and the checked `printf`, `puts`, `snprintf`, `fputc`, and `fputs` surface. Integer formatting covers `int`, `long`, and `long long` decimal and hexadecimal values, including zero-padded widths. String formatting accepts a fixed or argument-supplied precision. A CupidC-built `.cc` runtime contract checks the heap, files, errors, arguments, formatting, memory, and string behavior under Linux or WSL. It is a separate behavior probe and does not enter the 19-source fixed-point plan.
-_Avoid_: general libc, Windows runtime, test-only import providers
+_Avoid_: general libc, complete Windows toolchain runtime, test-only import providers
+
+**Hosted i386 Windows runtime**:
+The repository-owned startup and service layer for Cupid-built native Windows tools. CupidASM obtains the command line, aligns the i386 stack, and exposes cdecl bridges for the imported stdcall APIs. CupidC parses quoted arguments into one allocation and supplies `VirtualAlloc` heap storage, standard streams, file reads and writes, seeking, `getcwd`, and `errno` mapping through the shared hosted runtime. CupidLD authors every IAT slot. Source head links this runtime with CupidASM, CupidC, CupidDis, and CupidObj. Windows runs help plus useful success and failure cases for each tool, along with a direct allocator, file, directory, error, and argument-parser contract. These PEs are checked bootstrap evidence, not checked seed or normal-build artifacts. ADR 0268 records the boundary.
+_Avoid_: host C runtime, native five-tool seed, small Windows marker probe
 
 **Hosted Toolchain contract cohort**:
-The fifteen `.cc` Toolchain contract programs and the separate hosted runtime contract built as static i386 Linux executables by stage-two and stage-three CupidC. The checked cohort snapshots its exact source and declaration membership, reproduces that inventory under a private root, compares seventeen objects and sixteen executables across compiler stages, runs the runtime behavior probe, and publishes those executables with five refreshed tools as 21 artifacts plus a manifest. Its frozen inventory contains 58 inputs, including the six external-program ABI declarations and their independent Python oracle. Live inventory discovery catches additions, removals, and restored edits that changed a private copy. The output must be a dedicated `cupidc-contracts` directory inside the source tree; an existing destination must already verify, and arbitrary directories, source trees, files, or symbolic links remain untouched. A run derives the cohort from its requested executable and verifies the named artifact, all recorded hashes, and current inputs first. `toolchain:all` owns this path. Native GCC or Clang builds are optional oracles under `native-oracles`, not normal build inputs.
+The fifteen `.cc` Toolchain contract programs and the separate hosted runtime contract built as static i386 Linux executables by stage-two and stage-three CupidC. The checked cohort snapshots its exact source and declaration membership, reproduces that inventory under a private root, compares seventeen objects and sixteen executables across compiler stages, runs the runtime behavior probe, and publishes those executables with five refreshed tools as 21 artifacts plus a manifest. Its frozen inventory contains 62 inputs, including the native Windows runtime, startup, direct runtime contract, hosted `direct.h`, six external-program ABI declarations, and independent Python oracle. Live inventory discovery catches additions, removals, and restored edits that changed a private copy. The output must be a dedicated `cupidc-contracts` directory inside the source tree; an existing destination must already verify, and arbitrary directories, source trees, files, or symbolic links remain untouched. A run derives the cohort from its requested executable and verifies the named artifact, all recorded hashes, and current inputs first. `toolchain:all` owns this path. Native GCC or Clang builds are optional oracles under `native-oracles`, not normal build inputs.
 _Avoid_: checked seed, native contract suite, 19-source tool fixed point
 
 **CupidC compiler generation**:
@@ -365,7 +372,7 @@ A compiler process compiling unchanged source from its complete implementation. 
 _Avoid_: checked seed, complete self-hosting
 
 **Static i386 Toolchain fixed point**:
-A stage boundary where one generation of CupidC, CupidASM, and CupidLD builds complete stage-two images for CupidC, CupidASM, CupidDis, CupidLD, and CupidObj, then the stage-two producer trio repeats that build for stage three. The gate compares all 19 C objects, the independently assembled startup objects, and all five linked images across the two stages. Each stage also executes the five tools through real success and failure cases. The same fixed-point relationship is checked from the repository seed on Linux or through WSL. It is not a native Windows proof or normal-build ownership transfer.
+A stage boundary where one generation of CupidC, CupidASM, and CupidLD builds complete stage-two Linux images for CupidC, CupidASM, CupidDis, CupidLD, and CupidObj, then the stage-two producer trio repeats that build for stage three. The gate compares all 19 C objects, the independently assembled Linux startup objects, and all five linked images across the two stages. Each stage also executes the five tools through real success and failure cases. The same fixed-point relationship is checked from the repository seed on Linux or through WSL. Source head adds matching Windows runtime and startup objects plus native CupidASM, CupidC, CupidDis, and CupidObj images and behavior checks. CupidLD's Windows publisher, native checked-seed carriage, and normal-build ownership transfer remain outside this companion proof.
 _Avoid_: fresh-checkout bootstrap, native Windows fixed point, production cutover
 
 **Host adapter link tracer**:
@@ -893,6 +900,17 @@ poisoned-host reproof passed in 766.9 seconds. All five seed images match stage
 two, and stage two matches stage three across the complete artifact and
 5/18/16 behavior sets. Its 17,032-byte report has SHA-256
 `736872f31d853fe5b2b67c25e7ec42a1893655074a1c653112def6d66fdeac87`.
+The current source-head reproof adds the Windows tool runtime, startup,
+platform declarations, and direct runtime contract to a 47-input closure with
+SHA-256
+`976fca9ccef9a759151ea4cf544f17f3c303ef60fc3ad2207eda18857261d9c4`.
+It preserves the Linux 19/1/5 fixed point and 5/18/16 behavior matrix, then
+builds matching native CupidASM, CupidC, CupidDis, and CupidObj images from
+both stages. Windows runs help plus useful success and failure cases for all
+four tools. The direct runtime contract covers allocation, file append,
+directory errors, and quote and backslash parsing. The proof passed in 871.1
+seconds. Its 32,681-byte report has SHA-256
+`d3608ab66f6781780ba3fe68eb3c5814248d1903d65f50651c8950ca46dda1e4`.
 The first production adoption validated all 427 audited root object outputs
 plus the pass-one and final kernel ELFs through checked CupidDis before
 flattening.
@@ -977,9 +995,10 @@ host-compiler comparison or linker capacity limit.
 _Avoid_: output-quality oracle, approximate size budget, hard-coded seed directory
 
 **Frozen fixed-point source closure**:
-The exact 43 source inputs copied into one private compiler root before a
-checked-seed bootstrap runs. The closure includes the Windows startup and
-runtime probe. Both stages and their behavior checks consume that root. The
+The exact 47 source inputs copied into one private compiler root before a
+checked-seed bootstrap runs. The closure includes the small Windows probe,
+the native Windows tool runtime and startup, the direct runtime contract, and
+the hosted `direct.h` declaration. Both stages and their behavior checks consume that root. The
 harness rehashes the private and live closures at each boundary, then publishes
 the two stages, behavior evidence, and report as one complete directory only
 after every gate passes.

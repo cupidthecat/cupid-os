@@ -70,8 +70,11 @@ CONTRACT_CONTROL_INPUTS = (
     "tools/user_syscall_abi.py",
 )
 WINDOWS_RUNTIME_INPUTS = (
+    "toolchain/hosted/i386-windows/runtime.cc",
     "toolchain/hosted/i386-windows/start.asm",
+    "toolchain/hosted/i386-windows/tool_start.asm",
     "toolchain/tests/hosted_i386_windows_contract.cc",
+    "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
 )
 USER_SYSCALL_ABI_INPUTS = (
     "kernel/core/types.h",

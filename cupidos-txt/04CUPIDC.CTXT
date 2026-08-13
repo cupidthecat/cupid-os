@@ -234,7 +234,7 @@ The pass-one and final kernels project the same text symbols at the same
 addresses.
 
 Across root and supplemental builds, the ownership audit reports 245 CupidC
-transforms and no host C transform. Host Python participates in all 449
+transforms and no host C transform. Host Python participates in all 450
 transforms. The normal Toolchain build uses checked static i386 tools for its
 contract cohort; native contract binaries are optional oracles. The
 publisher accepts only a dedicated cupidc-contracts directory inside the
@@ -245,12 +245,12 @@ Initial, private, and newly discovered contract inventories must match exactly,
 which catches additions, removals, and restored edits that changed a copied
 input. Every run derives the cohort from its requested executable, requires a
 named manifest artifact, and verifies the manifest, target, fixed-point
-record, filenames, sizes, artifact hashes, 58 contract input hashes, the
-checked seed manifest, and the 43-file fixed-point source inventory before
-execution. The contract inventory has 58 inputs, including the Windows
-startup and runtime probe, the user syscall ABI contract and its six
-declarations, the Toolchain Makefile, the publisher, and the independent
-Python ABI oracle. The
+record, filenames, sizes, artifact hashes, 62 contract input hashes, the
+checked seed manifest, and the 47-file fixed-point source inventory before
+execution. The contract inventory has 62 inputs, including the small Windows
+probe, the native Windows tool runtime, startup, direct contract, and direct.h, the user syscall ABI
+contract and its six declarations, the Toolchain Makefile, the publisher, and
+the independent Python ABI oracle. The
 manifest digest, decoded data, schema checks, and build plan
 come from one captured byte sequence. The 440 audited root artifacts have
 Cupid owners and no host C or recursive Make transform. The Python-only size
@@ -793,15 +793,16 @@ Pointer qualification accepts the safe char ** to char *const * conversion.
 It rejects char ** to const char ** because that would add a qualifier at an
 unsafe nested level. It also rejects removing the nested const.
 
-The exact hosted gate covers 35 strict C11 roots and two GNU-enabled runtime
-roots under checked four-byte i386 profiles. It includes the 19-source tool
-union, kernel/lang/as_elf.cc, the runtime implementation and probe, and all
-sixteen Toolchain contract sources. Thirty-two strict Linux roots use only
+The exact hosted gate covers 40 strict C11 roots and three GNU-enabled runtime
+roots under checked four-byte i386 profiles. It includes the 19-source static
+Linux tool union, kernel/lang/as_elf.cc, the runtime implementation and probes,
+and all fifteen Linux Toolchain contract programs. Thirty-three strict Linux roots use only
 the Toolchain and hosted declaration roots. The headerless Windows command
 probe uses the separate FREESTANDING_I386 profile. The assembler ELF adapter
 and its contract use a separate two-root bridge that can also include
-/kernel/lang. The GNU profile is limited to the runtime implementation and
-probe. The old 64-bit hosted profiles have no roots. Stage-two and stage-three
+/kernel/lang. The GNU profile contains the Linux runtime, its probe, and the
+Windows runtime wrapper. Four Windows tool roots use HOSTED_I386_WINDOWS with
+_WIN32=1. The old 64-bit hosted profiles have no roots. Stage-two and stage-three
 CupidC compile every contract, CupidLD links the static executables, and the
 checked cohort rejects a byte difference in any of seventeen new objects or
 sixteen executables. Test programs stay outside the 19-source fixed-point plan
@@ -901,6 +902,17 @@ both object and image pairs and the observed Windows result. The seed remains
 a static i386 Linux cohort executed through WSL on Windows, not a native
 Windows five-tool seed. Normal-build ownership does not change.
 
+Source head now extends that loader path to native CupidASM, CupidC, CupidDis,
+and CupidObj. The shared
+hosted runtime selects a Windows implementation for command-line parsing,
+VirtualAlloc heap storage, standard streams, file reads and writes, seeking,
+current-directory lookup, and useful errno values. CupidASM supplies the
+entry and cdecl API bridges. CupidLD authors all twelve IAT slots. Both stages
+produce matching images. Windows runs help plus useful success and failure
+paths for all four tools. CupidDis also checks quoted raw-input parity with
+the Linux tool. CupidLD's native publisher and checked Windows seed carriage
+remain open. ADR 0268 records this boundary.
+
 The rebuilt checked-seed CupidLD images publish both ELF and PE output through a
 candidate beside the destination, created with exclusive-create semantics.
 They write and close the candidate, then reopen the file and check its size and
@@ -998,18 +1010,18 @@ retains the host transaction. ADR 0242 records the source boundary, ADR 0243
 records seed carriage, and ADR 0244 records production ownership.
 
 The harness freezes the verified manifest and binaries and copies the exact
-bytes of 43 current inputs, including link.ld and the two Windows probe
-sources, into a private compiler root.
+bytes of 47 current inputs, including link.ld, the small Windows probe, and
+the native Windows tool runtime and startup, into a private compiler root.
 The seed producer trio builds stage two below that root, and the stage-two trio
 builds stage three there. The private and live closures are checked before the
 first stage, after each stage, and after the behavior checks. All 19 C objects,
 startup, and five linked images match byte for byte. Five help checks,
 eighteen successful operations, and sixteen failure cases pass at both stages.
-The frozen 43-input closure has SHA-256
-56e0943f82737a7013994f1a2b78fcbd5b5c762d0f5036aac5a48bfbb3dcbe32.
-The 17,035-byte promotion report has SHA-256
-810704f6701b4b4627062981e1e969332d4aa5f409d2cdce3d4fcba150518f84.
-The proof passed in 763.5 seconds. The checked 128 KiB strict-decode case
+The frozen 47-input closure has SHA-256
+976fca9ccef9a759151ea4cf544f17f3c303ef60fc3ad2207eda18857261d9c4.
+The 32,681-byte source-head report has SHA-256
+d3608ab66f6781780ba3fe68eb3c5814248d1903d65f50651c8950ca46dda1e4.
+The proof passed in 871.1 seconds. The checked 128 KiB strict-decode case
 completed within its 30-second limit. The Windows runtime prints the exact
 success marker and returns 37. ADR 0266 records indexed decoding, and ADR 0265
 records the latest transition, promotion, and production adoption. The normal

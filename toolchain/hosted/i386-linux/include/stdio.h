@@ -12,6 +12,7 @@ extern FILE *stdout;
 extern FILE *stderr;
 
 FILE *fopen(const char *path, const char *mode);
+int fopen_s(FILE **stream_out, const char *path, const char *mode);
 int fclose(FILE *stream);
 int fflush(FILE *stream);
 int ferror(FILE *stream);

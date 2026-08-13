@@ -97,13 +97,16 @@ USER_SYSCALL_ABI_PUBLICATION_INPUTS = (
     "toolchain/cupidobj.h",
     "toolchain/elf32.h",
     "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+    "toolchain/hosted/i386-linux/include/direct.h",
     "toolchain/hosted/i386-linux/include/errno.h",
     "toolchain/hosted/i386-linux/include/stdint.h",
     "toolchain/hosted/i386-linux/include/stdio.h",
     "toolchain/hosted/i386-linux/include/stdlib.h",
     "toolchain/hosted/i386-linux/include/string.h",
     "toolchain/hosted/i386-linux/include/unistd.h",
+    "toolchain/hosted/i386-windows/runtime.cc",
     "toolchain/hosted/i386-windows/start.asm",
+    "toolchain/hosted/i386-windows/tool_start.asm",
     "toolchain/tests/core_contract.cc",
     "toolchain/tests/cupidasm_contract.cc",
     "toolchain/tests/cupidasm_demos_contract.cc",
@@ -125,6 +128,7 @@ USER_SYSCALL_ABI_PUBLICATION_INPUTS = (
     "toolchain/tests/elf32_contract.cc",
     "toolchain/tests/hosted_i386_runtime_contract.cc",
     "toolchain/tests/hosted_i386_windows_contract.cc",
+    "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
     "toolchain/tests/user_syscall_abi_contract.cc",
     "toolchain/tests/x86_active_cases.inc",
     "toolchain/tests/x86_contract.cc",
@@ -167,6 +171,7 @@ USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS = (
     "toolchain/elf32.cc",
     "toolchain/elf32.h",
     "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+    "toolchain/hosted/i386-linux/include/direct.h",
     "toolchain/hosted/i386-linux/include/errno.h",
     "toolchain/hosted/i386-linux/include/stdint.h",
     "toolchain/hosted/i386-linux/include/stdio.h",
@@ -175,8 +180,11 @@ USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS = (
     "toolchain/hosted/i386-linux/include/unistd.h",
     "toolchain/hosted/i386-linux/runtime.cc",
     "toolchain/hosted/i386-linux/start.asm",
+    "toolchain/hosted/i386-windows/runtime.cc",
     "toolchain/hosted/i386-windows/start.asm",
+    "toolchain/hosted/i386-windows/tool_start.asm",
     "toolchain/tests/hosted_i386_windows_contract.cc",
+    "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
     "toolchain/x86.cc",
     "toolchain/x86.h",
 )
@@ -402,6 +410,14 @@ _C_PP_PROFILE_ROWS = (
         compatibility_pointer_conversions="CTOOL_FALSE",
     ),
     CPreprocessorProfile(
+        name="HOSTED_I386_WINDOWS",
+        mode="CTOOL_C_PP_MODE_C11",
+        gnu_extensions="CTOOL_FALSE",
+        hosted_environment="CTOOL_TRUE",
+        implicit_function_declarations="CTOOL_FALSE",
+        compatibility_pointer_conversions="CTOOL_FALSE",
+    ),
+    CPreprocessorProfile(
         name="HOSTED_I386_KERNEL_BRIDGE",
         mode="CTOOL_C_PP_MODE_C11",
         gnu_extensions="CTOOL_FALSE",
@@ -464,9 +480,10 @@ _C_PP_ACTIVE_COUNTS = {
     "CUPID_RUNTIME": 107,
     "HOSTED_TOOLCHAIN_64": 0,
     "HOSTED_KERNEL_BRIDGE_64": 0,
-    "HOSTED_I386_LINUX": 32,
+    "HOSTED_I386_LINUX": 33,
+    "HOSTED_I386_WINDOWS": 4,
     "HOSTED_I386_KERNEL_BRIDGE": 2,
-    "HOSTED_I386_LINUX_GNU": 2,
+    "HOSTED_I386_LINUX_GNU": 3,
 }
 _C_PP_HOSTED_I386_STRICT_CASES = (
     "/toolchain/ctool.cc",
@@ -486,11 +503,19 @@ _C_PP_HOSTED_I386_STRICT_CASES = (
     "/toolchain/cupidobj.cc",
     "/toolchain/cupidobj_main.cc",
     "/toolchain/elf32.cc",
+    "/toolchain/tests/hosted_i386_windows_runtime_contract.cc",
     "/toolchain/x86.cc",
 )
 _C_PP_HOSTED_I386_GNU_CASES = (
     "/toolchain/hosted/i386-linux/runtime.cc",
+    "/toolchain/hosted/i386-windows/runtime.cc",
     "/toolchain/tests/hosted_i386_runtime_contract.cc",
+)
+_C_PP_HOSTED_I386_WINDOWS_CASES = (
+    "/toolchain/ctool_host.cc",
+    "/toolchain/cupidasm_main.cc",
+    "/toolchain/cupidc_main.cc",
+    "/toolchain/cupidobj_main.cc",
 )
 _C_PP_TOOLCHAIN_CONTRACT_CASES = (
     "/kernel/lang/as_elf.cc",
@@ -5264,6 +5289,16 @@ def _c_preprocessor_profile_configuration() -> tuple[
                 "CTOOL_C_PP_INCLUDE_ANGLE",
             ),
             (
+                "HOSTED_I386_WINDOWS",
+                "/toolchain",
+                _C_PP_INCLUDE_BOTH,
+            ),
+            (
+                "HOSTED_I386_WINDOWS",
+                "/toolchain/hosted/i386-linux/include",
+                "CTOOL_C_PP_INCLUDE_ANGLE",
+            ),
+            (
                 "HOSTED_I386_KERNEL_BRIDGE",
                 "/toolchain",
                 _C_PP_INCLUDE_BOTH,
@@ -5323,6 +5358,8 @@ def _c_preprocessor_profile_configuration() -> tuple[
             ("HOSTED_TOOLCHAIN_64", "__SIZEOF_POINTER__", "8"),
             ("HOSTED_KERNEL_BRIDGE_64", "__SIZEOF_POINTER__", "8"),
             ("HOSTED_I386_LINUX", "__SIZEOF_POINTER__", "4"),
+            ("HOSTED_I386_WINDOWS", "__SIZEOF_POINTER__", "4"),
+            ("HOSTED_I386_WINDOWS", "_WIN32", "1"),
             ("HOSTED_I386_KERNEL_BRIDGE", "__SIZEOF_POINTER__", "4"),
             ("HOSTED_I386_LINUX_GNU", "__SIZEOF_POINTER__", "4"),
         )
@@ -5520,6 +5557,12 @@ def _cupid_toolchain_fixed_point_contract(
     contract_publisher_path = (
         root / "tools" / "cupidc_toolchain_contracts.py"
     )
+    windows_runtime_contract_path = (
+        root
+        / "toolchain"
+        / "tests"
+        / "hosted_i386_windows_runtime_contract.cc"
+    )
     try:
         test_source = test_path.read_text(encoding="utf-8")
         driver_source = driver_path.read_text(encoding="utf-8")
@@ -5529,6 +5572,9 @@ def _cupid_toolchain_fixed_point_contract(
         bootstrap_source = bootstrap_path.read_text(encoding="utf-8")
         contract_publisher_source = contract_publisher_path.read_text(
             encoding="utf-8"
+        )
+        windows_runtime_contract_source = (
+            windows_runtime_contract_path.read_text(encoding="utf-8")
         )
         test_tree = ast.parse(test_source, filename=str(test_path))
         bootstrap_tree = ast.parse(
@@ -5582,6 +5628,41 @@ def _cupid_toolchain_fixed_point_contract(
             )
         return "".join(active)
 
+    active_windows_runtime_contract_source = active_c_source(
+        windows_runtime_contract_source
+    )
+    required_windows_runtime_contract_fragments = (
+        "static int allocator_contract(void)",
+        "allocation = (unsigned char *)calloc(16u, 1u);",
+        "replacement = (unsigned char *)realloc(allocation, 64u);",
+        "overflow = calloc(CUPID_RUNTIME_UINT_MAX, 2u);",
+        "overflow != (void *)0 || errno != ENOMEM",
+        "static int file_contract(const char *output_path,",
+        'stream = fopen(output_path, "ab");',
+        "fseek(stream, 0L, 0) != 0 ||",
+        "memcmp(contents, expected, 8u) != 0",
+        "fopen_s((FILE **)0, output_path, \"rb\") != EINVAL",
+        "fopen_s(&stream, missing_path, \"rb\") != ENOENT",
+        "static int directory_contract(void)",
+        "getcwd(directory, sizeof(directory)) != directory",
+        "_getcwd(small, 1) != (char *)0 || errno != ERANGE",
+        "getcwd((char *)0, sizeof(directory)) != (char *)0 ||",
+        "result = allocator_contract();\n"
+        "  if (result == 0) {\n"
+        "    result = file_contract(argv[5], argv[6]);\n"
+        "  }\n"
+        "  if (result == 0) {\n"
+        "    result = directory_contract();\n"
+        "  }",
+    )
+    if any(
+        active_windows_runtime_contract_source.count(fragment) != 1
+        for fragment in required_windows_runtime_contract_fragments
+    ):
+        raise AuditError(
+            "Cupid Toolchain fixed-point Windows runtime contract differs"
+        )
+
     def sequence_positions(
         tokens: tuple[str, ...], expected: tuple[str, ...]
     ) -> list[int]:
@@ -5629,6 +5710,170 @@ def _cupid_toolchain_fixed_point_contract(
         if closing < 0:
             return None
         return c_tokens(source[opening + 1 : closing], path)
+
+    def c_function_has_live_sequences(
+        source: str,
+        path: Path,
+        signature: str,
+        snippets: tuple[str, ...],
+    ) -> bool:
+        function_tokens = c_function_tokens(source, path, signature)
+        if function_tokens is None:
+            return False
+        positions: list[int] = []
+        for snippet in snippets:
+            expected = c_tokens(snippet, path)
+            matches = sequence_positions(function_tokens, expected)
+            if (
+                len(matches) != 1
+                or brace_depth(function_tokens, matches[0]) != 0
+            ):
+                return False
+            positions.append(matches[0])
+        return positions == sorted(positions)
+
+    def token_digest(tokens: tuple[str, ...] | None) -> str | None:
+        if tokens is None:
+            return None
+        return hashlib.sha256("\0".join(tokens).encode("utf-8")).hexdigest()
+
+    windows_runtime_function_contracts = (
+        (
+            r"\bstatic\s+int\s+allocator_contract\s*"
+            r"\(\s*void\s*\)\s*\{",
+            "659f1cefcfe89461826d8a0ed85eed854ae523ad9c160c2754c1d426451d33c3",
+            (
+                "allocation = (unsigned char *)calloc(16u, 1u); "
+                "if (allocation == (unsigned char *)0) { return 11; }",
+                "for (index = 0u; index < 16u; index++) { "
+                "if (allocation[index] != 0u) { free(allocation); "
+                "return 12; } allocation[index] = "
+                "(unsigned char)(index + 1u); }",
+                "replacement = (unsigned char *)realloc(allocation, 64u); "
+                "if (replacement == (unsigned char *)0) { "
+                "free(allocation); return 13; }",
+                "for (index = 0u; index < 16u; index++) { "
+                "if (replacement[index] != "
+                "(unsigned char)(index + 1u)) { free(replacement); "
+                "return 14; } }",
+                "free(replacement); errno = 0; overflow = "
+                "calloc(CUPID_RUNTIME_UINT_MAX, 2u); "
+                "if (overflow != (void *)0 || errno != ENOMEM) { "
+                "free(overflow); return 15; } return 0;",
+            ),
+        ),
+        (
+            r"\bstatic\s+int\s+file_contract\s*"
+            r"\(\s*const\s+char\s*\*\s*output_path\s*,\s*"
+            r"const\s+char\s*\*\s*missing_path\s*\)\s*\{",
+            "b76b9f30fea04b33b20c96f7756ad7dccf599a1d5025b9d9aa6c410f1e8bd9cc",
+            (
+                "if (fopen_s(&stream, output_path, \"wb\") != 0 || "
+                "stream == (FILE *)0) { return 21; }",
+                "if (fwrite(first, 1u, 4u, stream) != 4u || "
+                "fclose(stream) != 0) { return 22; }",
+                "stream = fopen(output_path, \"ab\"); "
+                "if (stream == (FILE *)0) { return 23; }",
+                "if (fseek(stream, 0L, 0) != 0 || "
+                "fwrite(appended, 1u, 4u, stream) != 4u || "
+                "fclose(stream) != 0) { return 24; }",
+                "stream = fopen(output_path, \"rb\"); "
+                "if (stream == (FILE *)0) { return 25; }",
+                "(void)memset(contents, 0, sizeof(contents)); "
+                "if (fread(contents, 1u, 8u, stream) != 8u || "
+                "fread(contents + 8, 1u, 1u, stream) != 0u || "
+                "ferror(stream) != 0 || fclose(stream) != 0 || "
+                "memcmp(contents, expected, 8u) != 0) { return 26; }",
+                "errno = 0; if (fopen_s((FILE **)0, output_path, \"rb\") "
+                "!= EINVAL || errno != EINVAL) { return 27; }",
+                "errno = 0; stream = (FILE *)0; "
+                "if (fopen_s(&stream, missing_path, \"rb\") != ENOENT || "
+                "stream != (FILE *)0 || errno != ENOENT) { return 28; } "
+                "return 0;",
+            ),
+        ),
+        (
+            r"\bstatic\s+int\s+directory_contract\s*"
+            r"\(\s*void\s*\)\s*\{",
+            "a60288a1df3c5cbe3253073f26a4c22ed72061b58f7959c5350223447fd92716",
+            (
+                "if (getcwd(directory, sizeof(directory)) != directory || "
+                "directory[0] == '\\0') { return 31; }",
+                "errno = 0; if (_getcwd(small, 1) != (char *)0 || "
+                "errno != ERANGE) { return 32; }",
+                "errno = 0; if (getcwd((char *)0, sizeof(directory)) != "
+                "(char *)0 || errno != EINVAL) { return 33; } return 0;",
+            ),
+        ),
+    )
+    if any(
+        not c_function_has_live_sequences(
+            active_windows_runtime_contract_source,
+            windows_runtime_contract_path,
+            signature,
+            snippets,
+        )
+        or token_digest(
+            c_function_tokens(
+                active_windows_runtime_contract_source,
+                windows_runtime_contract_path,
+                signature,
+            )
+        )
+        != expected_digest
+        for signature, expected_digest, snippets
+        in windows_runtime_function_contracts
+    ):
+        raise AuditError(
+            "Cupid Toolchain fixed-point Windows runtime contract differs"
+        )
+
+    windows_runtime_main_tokens = c_function_tokens(
+        active_windows_runtime_contract_source,
+        windows_runtime_contract_path,
+        r"\bint\s+main\s*\(\s*int\s+argc\s*,\s*char\s*\*\*\s*argv\s*\)\s*\{",
+    )
+    windows_runtime_main_sequences = (
+        c_tokens(
+            "result = allocator_contract();",
+            windows_runtime_contract_path,
+        ),
+        c_tokens(
+            "if (result == 0) { result = file_contract(argv[5], argv[6]); }",
+            windows_runtime_contract_path,
+        ),
+        c_tokens(
+            "if (result == 0) { result = directory_contract(); }",
+            windows_runtime_contract_path,
+        ),
+    )
+    windows_runtime_main_positions = (
+        [
+            sequence_positions(windows_runtime_main_tokens, sequence)
+            for sequence in windows_runtime_main_sequences
+        ]
+        if windows_runtime_main_tokens is not None
+        else []
+    )
+    if (
+        token_digest(windows_runtime_main_tokens)
+        != "c6c0bbe07e559de9de38198ad8a921b9539a598ed7a3eee503da11cb47c3ed1f"
+        or
+        len(windows_runtime_main_positions) != 3
+        or any(len(positions) != 1 for positions in windows_runtime_main_positions)
+        or not all(
+            brace_depth(windows_runtime_main_tokens, positions[0]) == 0
+            for positions in windows_runtime_main_positions
+        )
+        or not (
+            windows_runtime_main_positions[0][0]
+            < windows_runtime_main_positions[1][0]
+            < windows_runtime_main_positions[2][0]
+        )
+    ):
+        raise AuditError(
+            "Cupid Toolchain fixed-point Windows runtime contract differs"
+        )
 
     linker_header_active = active_c_source(linker_header_source)
     linker_cli_active = active_c_source(linker_cli_source)
@@ -7676,6 +7921,46 @@ def _cupid_toolchain_fixed_point_contract(
     windows_link_status = named_status(
         "windows_link_result", 0, "CupidLD imported Windows image"
     )
+    windows_tool_compile = named_stage_pair(
+        "windows_tool_compile_result"
+    )
+    windows_tool_compile_status = named_status(
+        "windows_tool_compile_result", 0, "CupidC Windows tool runtime"
+    )
+    windows_tool_assembly = named_stage_pair(
+        "windows_tool_assembly_result"
+    )
+    windows_tool_assembly_status = named_status(
+        "windows_tool_assembly_result", 0, "CupidASM Windows tool startup"
+    )
+    windows_host_adapter = named_stage_pair(
+        "windows_host_adapter_result"
+    )
+    windows_host_adapter_status = named_status(
+        "windows_host_adapter_result", 0, "CupidC Windows host adapter"
+    )
+    windows_cupiddis_link = named_stage_pair(
+        "windows_cupiddis_link_result"
+    )
+    windows_cupiddis_link_status = named_status(
+        "windows_cupiddis_link_result", 0, "CupidLD Windows CupidDis"
+    )
+    windows_runtime_contract_compile = named_stage_pair(
+        "windows_runtime_contract_compile_result"
+    )
+    windows_runtime_contract_compile_status = named_status(
+        "windows_runtime_contract_compile_result",
+        0,
+        "CupidC Windows runtime contract",
+    )
+    windows_runtime_contract_link = named_stage_pair(
+        "windows_runtime_contract_link_result"
+    )
+    windows_runtime_contract_link_status = named_status(
+        "windows_runtime_contract_link_result",
+        0,
+        "CupidLD Windows runtime contract",
+    )
     invalid_import_assembly = named_stage_pair(
         "invalid_import_assembly_result"
     )
@@ -7693,6 +7978,36 @@ def _cupid_toolchain_fixed_point_contract(
         (windows_compile, windows_compile_status, "cupidc"),
         (windows_link, windows_link_status, "cupidld"),
         (
+            windows_tool_compile,
+            windows_tool_compile_status,
+            "cupidc",
+        ),
+        (
+            windows_tool_assembly,
+            windows_tool_assembly_status,
+            "cupidasm",
+        ),
+        (
+            windows_host_adapter,
+            windows_host_adapter_status,
+            "cupidc",
+        ),
+        (
+            windows_cupiddis_link,
+            windows_cupiddis_link_status,
+            "cupidld",
+        ),
+        (
+            windows_runtime_contract_compile,
+            windows_runtime_contract_compile_status,
+            "cupidc",
+        ),
+        (
+            windows_runtime_contract_link,
+            windows_runtime_contract_link_status,
+            "cupidld",
+        ),
+        (
             invalid_import_assembly,
             invalid_import_assembly_status,
             "cupidasm",
@@ -7706,7 +8021,7 @@ def _cupid_toolchain_fixed_point_contract(
     ]
     windows_stage_tools_match = all(
         pair is not None
-        and len(pair[1].args) == 6
+        and len(pair[1].args) in (6, 7)
         and isinstance(pair[1].args[3], ast.Constant)
         and pair[1].args[3].value == tool
         for pair, _status, tool in windows_stage_pairs
@@ -7862,6 +8177,545 @@ def _cupid_toolchain_fixed_point_contract(
 
     def node_shape(node: ast.AST) -> str:
         return ast.dump(node, include_attributes=False)
+
+    def node_fingerprint(node: ast.AST) -> str:
+        return hashlib.sha256(node_shape(node).encode("utf-8")).hexdigest()
+
+    native_windows_blocks = [
+        (index, statement)
+        for index, statement in enumerate(behavior_function.body)
+        if isinstance(statement, ast.If)
+        and node_shape(statement.test) == expression_shape("os.name == 'nt'")
+    ]
+    expected_native_windows_block_fingerprints = (
+        "a23421e59e79e3aa9524715c3051b90948cf6d54f42d43ef4ae572e9067a87f6",
+        "feaffeda8a40869ffb00caf122719410e317f6e3e1b7ccd682a70b0f5dca825c",
+        "5cdaf953ccf38b4a6c16e47dbe9da1af531f6ae1d487c4f4ae59353e7209fb3a",
+    )
+    native_windows_control_flow_matches = (
+        len(native_windows_blocks) == 4
+        and tuple(
+            node_fingerprint(block)
+            for _index, block in native_windows_blocks[1:]
+        )
+        == expected_native_windows_block_fingerprints
+    )
+
+    def behavior_guard_terms(
+        statements: list[ast.stmt],
+        message: str | tuple[str, ...],
+    ) -> frozenset[str] | None:
+        matches: list[frozenset[str]] = []
+        for node in statements:
+            if not isinstance(node, ast.If):
+                continue
+            matched_raise = False
+            for statement in node.body:
+                if not isinstance(statement, ast.Raise) or statement.exc is None:
+                    continue
+                constants = tuple(
+                    child.value
+                    for child in ast.walk(statement.exc)
+                    if isinstance(child, ast.Constant)
+                    and isinstance(child.value, str)
+                )
+                if isinstance(message, str):
+                    matched_raise = message in constants
+                else:
+                    matched_raise = all(fragment in constants for fragment in message)
+                if matched_raise:
+                    break
+            if not matched_raise:
+                continue
+            terms = (
+                node.test.values
+                if isinstance(node.test, ast.BoolOp)
+                and isinstance(node.test.op, ast.Or)
+                else (node.test,)
+            )
+            matches.append(frozenset(node_shape(term) for term in terms))
+        return matches[0] if len(matches) == 1 else None
+
+    expected_native_guard_terms = {
+        "cupiddis": (
+            "reference_disassembly.returncode != 0",
+            "reference_disassembly.stderr",
+            "native_help.returncode != 0",
+            "'usage: cupiddis' not in native_help.stdout",
+            "native_help.stderr",
+            "native_disassembly.returncode != 0",
+            "native_disassembly.stdout != reference_disassembly.stdout",
+            "native_disassembly.stderr",
+            "native_missing.returncode != 1",
+            "native_missing.stdout",
+            "'cannot load' not in native_missing.stderr",
+            "'not_found' not in native_missing.stderr",
+        ),
+        "runtime_contract": (
+            "native_contract.returncode != 0",
+            "native_contract.stdout != "
+            "'Cupid-built Windows tool runtime: ok\\n'",
+            "native_contract.stderr",
+            "not contract_output.is_file()",
+            "contract_output.read_bytes() != b'headtail'",
+            "native_contract_failure.returncode != 41",
+            "native_contract_failure.stdout",
+            "'windows runtime arguments: bad' not in "
+            "native_contract_failure.stderr",
+        ),
+        "native_tools": (
+            "reference_help.returncode != 0",
+            "reference_help.stderr",
+            "native_help.returncode != 0",
+            "native_help.stdout != reference_help.stdout",
+            "native_help.stderr",
+            "native_success.returncode != 0",
+            "native_success.stdout",
+            "native_success.stderr",
+            "native_output.read_bytes() != reference_output.read_bytes()",
+            "native_failure.returncode != 1",
+            "native_failure.stdout",
+            "failure_diagnostic not in native_failure.stderr",
+            "failure_output.read_bytes() != sentinel",
+        ),
+    }
+    native_tool_loops = (
+        [
+            statement
+            for statement in native_windows_blocks[1][1].body
+            if isinstance(statement, ast.For)
+        ]
+        if len(native_windows_blocks) == 4
+        else []
+    )
+    native_guards_match = (
+        len(native_windows_blocks) == 4
+        and len(native_tool_loops) == 1
+        and behavior_guard_terms(
+            native_windows_blocks[2][1].body,
+            "Cupid-built Windows CupidDis behavior differs"
+        )
+        == frozenset(
+            expression_shape(term)
+            for term in expected_native_guard_terms["cupiddis"]
+        )
+        and behavior_guard_terms(
+            native_windows_blocks[3][1].body,
+            "Cupid-built Windows runtime contract behavior differs"
+        )
+        == frozenset(
+            expression_shape(term)
+            for term in expected_native_guard_terms["runtime_contract"]
+        )
+        and behavior_guard_terms(
+            native_tool_loops[0].body,
+            ("Cupid-built Windows ", " behavior differs")
+        )
+        == frozenset(
+            expression_shape(term)
+            for term in expected_native_guard_terms["native_tools"]
+        )
+    )
+    cupiddis_raw_argument_shapes: list[str] = []
+    runtime_contract_argument_shapes: list[str] = []
+    if len(native_windows_blocks) == 4:
+        for node in native_windows_blocks[2][1].body:
+            if (
+                isinstance(node, ast.AnnAssign)
+                and isinstance(node.target, ast.Name)
+                and node.target.id == "raw_arguments"
+                and node.value is not None
+            ):
+                cupiddis_raw_argument_shapes.append(node_shape(node.value))
+        for node in native_windows_blocks[3][1].body:
+            if (
+                isinstance(node, ast.Assign)
+                and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name)
+                and node.targets[0].id == "contract_arguments"
+            ):
+                runtime_contract_argument_shapes.append(node_shape(node.value))
+    native_workloads_match = (
+        cupiddis_raw_argument_shapes
+        == [expression_shape(
+            "['--raw', '--mode', '32', '--base', '0', "
+            "windows_cupiddis_input]"
+        )]
+        and runtime_contract_argument_shapes
+        == [expression_shape(
+            "['plain', 'space arg', 'quote\"arg', 'trailing\\\\', "
+            "str(contract_output), str(contract_missing)]"
+        )]
+    )
+
+    windows_helper_functions = [
+        node
+        for node in bootstrap_tree.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and node.name == "_build_windows_tool_image"
+    ]
+    windows_helper_source = (
+        ast.get_source_segment(bootstrap_source, windows_helper_functions[0])
+        or ""
+        if len(windows_helper_functions) == 1
+        else ""
+    )
+    helper_stage_pairs = (
+        [
+            statement.value
+            for statement in windows_helper_functions[0].body
+            if isinstance(statement, ast.Assign)
+            and len(statement.targets) == 1
+            and isinstance(statement.targets[0], ast.Name)
+            and statement.targets[0].id == "link_result"
+            and isinstance(statement.value, ast.Call)
+            and isinstance(statement.value.func, ast.Name)
+            and statement.value.func.id == "_run_stage_pair"
+        ]
+        if len(windows_helper_functions) == 1
+        else []
+    )
+    helper_stage_tools = tuple(sorted(
+        call.args[3].value
+        for call in helper_stage_pairs
+        if len(call.args) >= 4
+        and isinstance(call.args[3], ast.Constant)
+        and isinstance(call.args[3].value, str)
+    ))
+    helper_status_count = sum(
+        1
+        for node in windows_helper_functions[0].body
+        if isinstance(node, ast.Expr)
+        and isinstance(node.value, ast.Call)
+        and isinstance(node.value.func, ast.Name)
+        and node.value.func.id == "_expect_status"
+    ) if len(windows_helper_functions) == 1 else 0
+    helper_relocatable_count = sum(
+        1
+        for loop in windows_helper_functions[0].body
+        if isinstance(loop, ast.For)
+        for node in loop.body
+        if isinstance(node, ast.Expr)
+        and isinstance(node.value, ast.Call)
+        and isinstance(node.value.func, ast.Name)
+        and node.value.func.id == "_validate_i386_relocatable"
+    ) if len(windows_helper_functions) == 1 else 0
+    helper_pe_count = sum(
+        1
+        for node in windows_helper_functions[0].body
+        if isinstance(node, ast.Expr)
+        and isinstance(node.value, ast.Call)
+        and isinstance(node.value.func, ast.Name)
+        and node.value.func.id == "_validate_static_i386_pe32"
+    ) if len(windows_helper_functions) == 1 else 0
+    helper_source_values: list[object] = []
+    helper_replacement_shapes: list[str] = []
+    helper_loop_compile_shapes: list[tuple[str, ...]] = []
+    if len(windows_helper_functions) == 1:
+        for node in windows_helper_functions[0].body:
+            if (
+                isinstance(node, ast.Assign)
+                and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name)
+                and node.targets[0].id == "windows_sources"
+            ):
+                try:
+                    helper_source_values.append(ast.literal_eval(node.value))
+                except (TypeError, ValueError):
+                    helper_source_values.append(None)
+            if (
+                isinstance(node, ast.Assign)
+                and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name)
+                and node.targets[0].id == "replacement_names"
+            ):
+                helper_replacement_shapes.append(node_shape(node.value))
+            if isinstance(node, ast.For):
+                compile_calls = [
+                    statement.value
+                    for statement in node.body
+                    if isinstance(statement, ast.Assign)
+                    and len(statement.targets) == 1
+                    and isinstance(statement.targets[0], ast.Name)
+                    and statement.targets[0].id == "compile_result"
+                    and isinstance(statement.value, ast.Call)
+                    and isinstance(statement.value.func, ast.Name)
+                    and statement.value.func.id == "_run_stage_pair"
+                ]
+                for call in compile_calls:
+                    helper_loop_compile_shapes.append(
+                        tuple(node_shape(argument) for argument in call.args)
+                    )
+    native_plan_values: list[object] = []
+    native_check_shapes: list[str] = []
+    for node in behavior_function.body:
+        if (
+            isinstance(node, ast.Assign)
+            and len(node.targets) == 1
+            and isinstance(node.targets[0], ast.Name)
+            and node.targets[0].id == "windows_native_tool_plans"
+        ):
+            try:
+                native_plan_values.append(ast.literal_eval(node.value))
+            except (TypeError, ValueError):
+                native_plan_values.append(None)
+    if len(native_windows_blocks) == 4:
+        for node in native_windows_blocks[1][1].body:
+            if (
+                isinstance(node, ast.Assign)
+                and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name)
+                and node.targets[0].id == "native_checks"
+            ):
+                native_check_shapes.append(node_shape(node.value))
+    native_build_loops = [
+        node
+        for node in behavior_function.body
+        if isinstance(node, ast.For)
+        and ast.unparse(node.target) == "(tool_name, link_objects)"
+        and node_shape(node.iter)
+        == expression_shape("windows_native_tool_plans.items()")
+    ]
+    helper_invocation_count = (
+        sum(
+            1
+            for node in native_build_loops[0].body
+            for call in ast.walk(node)
+            if isinstance(call, ast.Call)
+            and isinstance(call.func, ast.Name)
+            and call.func.id == "_build_windows_tool_image"
+        )
+        if len(native_build_loops) == 1
+        else 0
+    )
+    native_execution_loop_matches = (
+        len(native_tool_loops) == 1
+        and ast.unparse(native_tool_loops[0].target)
+        == "(tool_name, (success_arguments, failure_arguments, "
+        "native_output, failure_output, reference_output, "
+        "failure_diagnostic))"
+        and node_shape(native_tool_loops[0].iter)
+        == expression_shape("native_checks.items()")
+    )
+    expected_native_plans = {
+        "cupidasm": (
+            "cupidasm_main", "cupidasm", "ctool_host", "ctool", "elf32",
+            "x86",
+        ),
+        "cupidc": (
+            "cupidc_main", "cupidc_emit", "cupidc_ir", "cupidc_frontend",
+            "cupidc_type", "cupidc_pp", "ctool_host", "ctool", "elf32",
+            "x86",
+        ),
+        "cupidobj": (
+            "cupidobj_main", "cupidobj", "ctool_host", "ctool", "elf32",
+        ),
+    }
+    expected_native_checks_shape = expression_shape(
+        "{'cupidasm': ("
+        "['-f', 'bin', str(assembly_source), '-o', "
+        "str(behavior_root / 'native-cupidasm.bin')], "
+        "['-f', 'bin', str(windows_invalid_assembly), '-o', "
+        "str(behavior_root / 'native-cupidasm-failure.bin')], "
+        "behavior_root / 'native-cupidasm.bin', "
+        "behavior_root / 'native-cupidasm-failure.bin', stage_two_binary, "
+        "'unknown Cupid ASM instruction mnemonic'), "
+        "'cupidc': (['-c', str(valid_source), '-o', "
+        "str(behavior_root / 'native-cupidc.o')], "
+        "['-c', str(invalid_source), '-o', "
+        "str(behavior_root / 'native-cupidc-failure.o')], "
+        "behavior_root / 'native-cupidc.o', "
+        "behavior_root / 'native-cupidc-failure.o', stage_two_valid, "
+        "'error CT'), "
+        "'cupidobj': (['wrap', str(asset), '--stem', 'fixed_point_asset', "
+        "'--section', '.rodata', '--readonly', '-o', "
+        "str(behavior_root / 'native-cupidobj.o')], "
+        "['wrap', str(missing_native_input), '--stem', "
+        "'missing_native_input', '-o', "
+        "str(behavior_root / 'native-cupidobj-failure.o')], "
+        "behavior_root / 'native-cupidobj.o', "
+        "behavior_root / 'native-cupidobj-failure.o', stage_two_wrapped, "
+        "'not_found')}"
+    )
+    helper_compile_loops = (
+        [node for node in windows_helper_functions[0].body if isinstance(node, ast.For)]
+        if len(windows_helper_functions) == 1
+        else []
+    )
+    expected_helper_compile_loop = ast.parse(
+        """for source_name in replacement_names:
+    stage_two_object = behavior_root / f"stage-two-windows-{tool_name}-{source_name}.o"
+    stage_three_object = behavior_root / f"stage-three-windows-{tool_name}-{source_name}.o"
+    compile_result = _run_stage_pair(
+        runner, stage_two, stage_three, "cupidc",
+        ["--root", source_root, "-D", "_WIN32=1", "-c",
+         f"/toolchain/{source_name}.cc", "-I", "/toolchain",
+         "--include-angle", "/toolchain/hosted/i386-linux/include",
+         "-o", _logical_path(source_root, stage_two_object)],
+        ["--root", source_root, "-D", "_WIN32=1", "-c",
+         f"/toolchain/{source_name}.cc", "-I", "/toolchain",
+         "--include-angle", "/toolchain/hosted/i386-linux/include",
+         "-o", _logical_path(source_root, stage_three_object)],
+        360,
+    )
+    _expect_status(compile_result, 0, f"CupidC Windows {tool_name} {source_name}")
+    if (compile_result.stdout or compile_result.stderr or
+            stage_two_object.read_bytes() != stage_three_object.read_bytes()):
+        raise BootstrapError(f"CupidC Windows {tool_name} {source_name} differs")
+    _validate_i386_relocatable(stage_two_object)
+    stage_two_replacements[source_name] = stage_two_object
+    stage_three_replacements[source_name] = stage_three_object
+    compile_artifacts[f"stage-two-{source_name}"] = stage_two_object
+    compile_artifacts[f"stage-three-{source_name}"] = stage_three_object
+"""
+    ).body[0]
+    helper_link_functions = (
+        [
+            node
+            for node in windows_helper_functions[0].body
+            if isinstance(node, ast.FunctionDef) and node.name == "link_arguments"
+        ]
+        if len(windows_helper_functions) == 1
+        else []
+    )
+    expected_helper_link_function = ast.parse(
+        """def link_arguments(image: Path, stage: Stage, start: Path,
+                       runtime: Path, replacements: dict[str, Path],
+                       selectors: Sequence[str]) -> list[str | Path]:
+    arguments: list[str | Path] = [
+        "-m", "i386pe", "--text-address", "0x00401000",
+        "--entry", "_start",
+    ]
+    for selector in selectors:
+        arguments.extend(("--import", selector))
+    arguments.extend(("-o", image, start))
+    for name in link_objects:
+        arguments.append(replacements.get(name, stage.objects[name]))
+    arguments.append(runtime)
+    return arguments
+"""
+    ).body[0]
+    helper_link_result_shapes = [
+        node_shape(node)
+        for node in windows_helper_functions[0].body
+        if isinstance(node, ast.Assign)
+        and len(node.targets) == 1
+        and isinstance(node.targets[0], ast.Name)
+        and node.targets[0].id == "link_result"
+    ] if len(windows_helper_functions) == 1 else []
+    expected_helper_link_result = ast.parse(
+        """link_result = _run_stage_pair(
+    runner, stage_two, stage_three, "cupidld",
+    link_arguments(stage_two_image, stage_two, stage_two_start,
+                   stage_two_runtime, stage_two_replacements,
+                   tuple(reversed(import_selectors))),
+    link_arguments(stage_three_image, stage_three, stage_three_start,
+                   stage_three_runtime, stage_three_replacements,
+                   import_selectors),
+    180,
+)
+"""
+    ).body[0]
+    helper_link_guard_shapes = [
+        node_shape(node)
+        for node in windows_helper_functions[0].body
+        if isinstance(node, ast.If)
+        and any(
+            isinstance(child, ast.Name) and child.id == "link_result"
+            for child in ast.walk(node.test)
+        )
+    ] if len(windows_helper_functions) == 1 else []
+    expected_helper_link_guard = ast.parse(
+        """if (link_result.stdout or link_result.stderr or
+        stage_two_image.read_bytes() != stage_three_image.read_bytes()):
+    raise BootstrapError(f"Cupid-built Windows {tool_name} differs")
+"""
+    ).body[0]
+    expected_native_build_loop = ast.parse(
+        """for tool_name, link_objects in windows_native_tool_plans.items():
+    stage_two_native_tool, _stage_three_native_tool, artifacts = _build_windows_tool_image(
+        runner, source_root, behavior_root, stage_two, stage_three, tool_name,
+        link_objects, windows_cupiddis_imports,
+        stage_two_windows_tool_start, stage_three_windows_tool_start,
+        stage_two_windows_tool_runtime, stage_three_windows_tool_runtime,
+        stage_two_windows_host_adapter, stage_three_windows_host_adapter,
+    )
+    windows_native_tool_images[tool_name] = stage_two_native_tool
+    windows_native_tool_artifacts[tool_name] = artifacts
+"""
+    ).body[0]
+    required_windows_helper_fragments = (
+        '"cupidasm": ("cupidasm_main",)',
+        '"cupidc": ("cupidc_main",)',
+        '"cupidobj": ("cupidobj_main",)',
+        '"_WIN32=1"',
+        'f"/toolchain/{source_name}.cc"',
+        '"i386pe",\n            "--text-address",\n            "0x00401000",',
+        "stage_two_object.read_bytes() != stage_three_object.read_bytes()",
+        "tuple(reversed(import_selectors))",
+        "stage_two_image.read_bytes() != stage_three_image.read_bytes()",
+        "((\"KERNEL32.dll\", tuple(item[2] for item in windows_imports)),)",
+        "return stage_two_image, stage_three_image, _artifact_inventory(",
+    )
+    windows_helper_matches = (
+        len(windows_helper_functions) == 1
+        and node_fingerprint(windows_helper_functions[0])
+        == "da604153ec3a0dbdad54c8f6a4f43e9ad107d6da23e349c24070bb8fdb035f2e"
+        and helper_stage_tools == ("cupidld",)
+        and helper_status_count == 1
+        and helper_relocatable_count == 1
+        and helper_pe_count == 1
+        and helper_source_values
+        == [{
+            "cupidasm": ("cupidasm_main",),
+            "cupidc": ("cupidc_main",),
+            "cupidobj": ("cupidobj_main",),
+        }]
+        and helper_replacement_shapes
+        == [expression_shape("windows_sources.get(tool_name, ())")]
+        and helper_loop_compile_shapes
+        == [(
+            expression_shape("runner"),
+            expression_shape("stage_two"),
+            expression_shape("stage_three"),
+            expression_shape("'cupidc'"),
+            expression_shape(
+                "['--root', source_root, '-D', '_WIN32=1', '-c', "
+                "f'/toolchain/{source_name}.cc', '-I', '/toolchain', "
+                "'--include-angle', "
+                "'/toolchain/hosted/i386-linux/include', '-o', "
+                "_logical_path(source_root, stage_two_object)]"
+            ),
+            expression_shape(
+                "['--root', source_root, '-D', '_WIN32=1', '-c', "
+                "f'/toolchain/{source_name}.cc', '-I', '/toolchain', "
+                "'--include-angle', "
+                "'/toolchain/hosted/i386-linux/include', '-o', "
+                "_logical_path(source_root, stage_three_object)]"
+            ),
+            expression_shape("360"),
+        )]
+        and len(helper_compile_loops) == 1
+        and node_shape(helper_compile_loops[0])
+        == node_shape(expected_helper_compile_loop)
+        and len(helper_link_functions) == 1
+        and node_shape(helper_link_functions[0])
+        == node_shape(expected_helper_link_function)
+        and helper_link_result_shapes == [node_shape(expected_helper_link_result)]
+        and helper_link_guard_shapes == [node_shape(expected_helper_link_guard)]
+        and native_plan_values == [expected_native_plans]
+        and native_check_shapes == [expected_native_checks_shape]
+        and helper_invocation_count == 1
+        and len(native_build_loops) == 1
+        and node_shape(native_build_loops[0])
+        == node_shape(expected_native_build_loop)
+        and native_execution_loop_matches
+        and all(
+            windows_helper_source.count(fragment)
+            == (2 if fragment in {'"_WIN32=1"', 'f"/toolchain/{source_name}.cc"'} else 1)
+            for fragment in required_windows_helper_fragments
+        )
+    )
 
     def immediate_raise_messages(node: ast.If) -> set[str]:
         return {
@@ -8261,6 +9115,12 @@ def _cupid_toolchain_fixed_point_contract(
     }
     fixed_validator = validators_by_image.get("stage_two_pe32")
     import_validator = validators_by_image.get("stage_two_windows_image")
+    cupiddis_validator = validators_by_image.get(
+        "stage_two_windows_cupiddis"
+    )
+    runtime_contract_validator = validators_by_image.get(
+        "stage_two_windows_runtime_contract_image"
+    )
     try:
         import_expectation = (
             ast.literal_eval(import_validator[1].args[2])
@@ -8303,6 +9163,30 @@ def _cupid_toolchain_fixed_point_contract(
         "or native_result.stderr",
         'windows_loader: dict[str, object] = {"status": "not-run"}',
         '"return_code": native_result.returncode',
+        "windows_tool_compile_result = _run_stage_pair(",
+        "windows_tool_assembly_result = _run_stage_pair(",
+        "windows_host_adapter_result = _run_stage_pair(",
+        '"_WIN32=1",',
+        '"/toolchain/ctool_host.cc",',
+        "windows_cupiddis_link_result = _run_stage_pair(",
+        "stage_two_windows_cupiddis.read_bytes()\n"
+        "        != stage_three_windows_cupiddis.read_bytes()",
+        '[str(stage_two_windows_cupiddis), "--help"]',
+        '"Cupid-built Windows CupidDis behavior differs"',
+        '"cupiddis": {',
+        "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
+        "windows_runtime_contract_compile_result = _run_stage_pair(",
+        "stage_two_windows_runtime_contract.read_bytes()\n"
+        "        != stage_three_windows_runtime_contract.read_bytes()",
+        "windows_runtime_contract_link_result = _run_stage_pair(",
+        "stage_two_windows_runtime_contract_image.read_bytes()\n"
+        "        != stage_three_windows_runtime_contract_image.read_bytes()",
+        'str(stage_two_windows_runtime_contract_image)',
+        '"Cupid-built Windows runtime contract behavior differs"',
+        '"runtime_contract": {',
+        "_build_windows_tool_image(",
+        '"Cupid-built Windows {tool_name} behavior differs"',
+        '"native_tools": {',
         'evidence_out["windows_runtime"] = {',
         '"artifacts": _artifact_inventory(',
         '"library": library',
@@ -8323,24 +9207,47 @@ def _cupid_toolchain_fixed_point_contract(
         "stage_two_invalid_import_image.read_bytes() != sentinel",
         "stage_three_invalid_import_image.read_bytes() != sentinel",
     )
+    repeated_windows_behavior_fragments = {
+        '("__imp_ExitProcess", "KERNEL32.dll", "ExitProcess")': 2,
+        '("__imp_GetStdHandle", "KERNEL32.dll", "GetStdHandle")': 2,
+        '("__imp_WriteFile", "KERNEL32.dll", "WriteFile")': 2,
+        'f"{slot}={library}:{procedure}"': 2,
+        "capture_output=True": 9,
+        '"artifacts": _artifact_inventory(': 3,
+        '"library": library': 3,
+        '"procedure": procedure': 3,
+        '"slot": slot': 3,
+        "str(stage_two_windows_runtime_contract_image)": 2,
+        '"_WIN32=1",': 2,
+        '"/toolchain/ctool_host.cc",': 2,
+    }
     missing_windows_behavior_fragments = [
-        fragment
+        (
+            f"{fragment} (expected "
+            f"{repeated_windows_behavior_fragments.get(fragment, 1)}, "
+            f"found {behavior_source.count(fragment)})"
+        )
         for fragment in required_windows_behavior_fragments
-        if behavior_source.count(fragment) != 1
+        if behavior_source.count(fragment)
+        != repeated_windows_behavior_fragments.get(fragment, 1)
     ]
     if (
         positive_byte_comparisons
         != [("stage_two_pe32", "stage_three_pe32")]
         or positive_result_attributes != {"stdout", "stderr"}
-        or len(validators) != 2
+        or len(validators) != 4
         or len(positive_checks) != 1
         or fixed_validator is None
         or import_validator is None
+        or cupiddis_validator is None
+        or runtime_contract_validator is None
         or not (
             pe32_positive_status
             < positive_checks[0][0]
             < fixed_validator[0]
             < import_validator[0]
+            < cupiddis_validator[0]
+            < runtime_contract_validator[0]
             < pe32_failure[0]
         )
         or len(fixed_validator[1].args) != 2
@@ -8350,16 +9257,35 @@ def _cupid_toolchain_fixed_point_contract(
         or import_validator[1].keywords
         or not isinstance(import_validator[1].args[1], ast.Constant)
         or import_validator[1].args[1].value != 0x00401000
+        or cupiddis_validator[1].keywords
+        or len(cupiddis_validator[1].args) != 3
+        or not isinstance(cupiddis_validator[1].args[1], ast.Constant)
+        or cupiddis_validator[1].args[1].value != 0x00401000
+        or runtime_contract_validator[1].keywords
+        or len(runtime_contract_validator[1].args) != 3
+        or not isinstance(
+            runtime_contract_validator[1].args[1], ast.Constant
+        )
+        or runtime_contract_validator[1].args[1].value != 0x00401000
         or import_expectation
         != ((
             "KERNEL32.dll",
             ("ExitProcess", "GetStdHandle", "WriteFile"),
         ),)
+        or not windows_helper_matches
+        or not native_guards_match
+        or not native_workloads_match
+        or not native_windows_control_flow_matches
         or missing_windows_behavior_fragments
-        or len(native_windows_indices) != 1
+        or len(native_windows_indices) != 4
         or not (
             import_validator[0]
             < native_windows_indices[0]
+            < cupiddis_validator[0]
+            < runtime_contract_validator[0]
+            < native_windows_indices[1]
+            < native_windows_indices[2]
+            < native_windows_indices[3]
             < invalid_import[0]
         )
         or len(parser_functions) != 1
@@ -8383,8 +9309,15 @@ def _cupid_toolchain_fixed_point_contract(
         or dos_range_indices[0] >= dos_guard_indices[0]
     ):
         raise AuditError(
-            "Cupid Toolchain fixed-point PE32 behavior differs: "
-            "the staged bytes or independent parser are not checked"
+        "Cupid Toolchain fixed-point PE32 behavior differs: "
+        "the staged bytes or independent parser are not checked; "
+        f"validators={len(validators)}, "
+        f"native_windows={native_windows_indices!r}, "
+        f"helper={windows_helper_matches}, "
+        f"guards={native_guards_match}, "
+        f"workloads={native_workloads_match}, "
+        f"control_flow={native_windows_control_flow_matches}, "
+        f"missing={missing_windows_behavior_fragments!r}"
         )
     sentinel_writes = [
         statement.value.func.value.id
@@ -8485,8 +9418,16 @@ def _cupid_toolchain_fixed_point_contract(
         "            behavior_evidence,\n"
         "        )",
         'windows_runtime = behavior_evidence.get("windows_runtime")',
+        'windows_cupiddis = windows_runtime.get("cupiddis")',
+        'windows_runtime_contract = windows_runtime.get("runtime_contract")',
+        'windows_native_tools = windows_runtime.get("native_tools")',
         'report_path = private_source_root / "bootstrap-report.json"',
+        '"windows_cupiddis": windows_cupiddis["loader"]',
+        '"windows_cupidasm": windows_native_tools["cupidasm"]',
+        '"windows_cupidc": windows_native_tools["cupidc"]["loader"]',
         '"windows_loader": windows_loader,',
+        '"windows_cupidobj": windows_native_tools["cupidobj"]',
+        '"windows_runtime_contract": (',
         '"windows_runtime": windows_runtime,',
         'publication_root = private_workspace / "publication"',
         "for name in BOOTSTRAP_PUBLICATION_NAMES:",
@@ -8515,8 +9456,11 @@ def _cupid_toolchain_fixed_point_contract(
         else []
     )
     required_windows_source_inputs = (
+        "toolchain/hosted/i386-windows/runtime.cc",
         "toolchain/hosted/i386-windows/start.asm",
+        "toolchain/hosted/i386-windows/tool_start.asm",
         "toolchain/tests/hosted_i386_windows_contract.cc",
+        "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
     )
     required_user_abi_inputs = (
         "kernel/core/types.h",
@@ -8654,10 +9598,15 @@ def _cupid_toolchain_fixed_point_contract(
         "help_cases": len(expected_toolchain_links),
         "success_behavior_cases": 18,
         "failure_behavior_cases": 16,
-        "contract_manifest_inputs": 58,
+        "contract_manifest_inputs": 62,
         "source_head_capabilities": [
             "cupidld.pe32_fixed_image",
             "cupidld.pe32_imports",
+            "cupid.windows_cupidasm",
+            "cupid.windows_cupidc",
+            "cupid.windows_cupiddis",
+            "cupid.windows_cupidobj",
+            "cupid.windows_runtime_contract",
             "cupid.windows_runtime_probe",
         ],
         "stages": ["generation-one", "stage-two", "stage-three"],
@@ -10037,6 +10986,9 @@ def _c_preprocessor_active_cases_manifest(
                         and path
                         != "/toolchain/tests/hosted_i386_windows_contract.cc"
                     )
+                )
+                active_by_profile["HOSTED_I386_WINDOWS"].extend(
+                    _C_PP_HOSTED_I386_WINDOWS_CASES
                 )
                 active_by_profile["FREESTANDING_I386"].append(
                     "/toolchain/tests/hosted_i386_windows_contract.cc"

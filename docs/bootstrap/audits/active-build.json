@@ -3252,6 +3252,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -6322,6 +6323,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -6642,6 +6644,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -6962,6 +6965,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -7282,6 +7286,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -7602,6 +7607,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -7922,6 +7928,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -8242,6 +8249,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -8562,6 +8570,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -8882,6 +8891,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -9202,6 +9212,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -9522,6 +9533,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -9842,6 +9854,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -10162,6 +10175,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -10482,6 +10496,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -10802,6 +10817,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -11122,6 +11138,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -11442,6 +11459,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -11762,6 +11780,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -12082,6 +12101,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -12402,6 +12422,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -12722,6 +12743,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -13042,6 +13064,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -13362,6 +13385,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -13682,6 +13706,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -14002,6 +14027,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -14322,6 +14348,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -14642,6 +14669,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -14962,6 +14990,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -15282,6 +15311,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -15602,6 +15632,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -15922,6 +15953,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -16242,6 +16274,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -16562,6 +16595,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -16882,6 +16916,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -17202,6 +17237,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -17522,6 +17558,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -17842,6 +17879,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -18162,6 +18200,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -18482,6 +18521,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -18802,6 +18842,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -19122,6 +19163,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -19442,6 +19484,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -19762,6 +19805,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -20082,6 +20126,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -20402,6 +20447,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -20722,6 +20768,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -21042,6 +21089,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -21362,6 +21410,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -21682,6 +21731,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -22002,6 +22052,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -22322,6 +22373,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -22642,6 +22694,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -22962,6 +23015,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -23282,6 +23336,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -23602,6 +23657,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -23922,6 +23978,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -24242,6 +24299,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -24562,6 +24620,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -24882,6 +24941,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -25202,6 +25262,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -25522,6 +25583,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -25842,6 +25904,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -26162,6 +26225,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -26482,6 +26546,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -26802,6 +26867,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -27122,6 +27188,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -27442,6 +27509,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -27762,6 +27830,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -28082,6 +28151,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -28402,6 +28472,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -28722,6 +28793,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -29042,6 +29114,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -29362,6 +29435,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -29682,6 +29756,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -30002,6 +30077,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -30322,6 +30398,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -30642,6 +30719,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -30962,6 +31040,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -31282,6 +31361,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -31602,6 +31682,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -31922,6 +32003,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -32242,6 +32324,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -32562,6 +32645,7 @@
           "toolchain/cupidobj.h",
           "toolchain/elf32.h",
           "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+          "toolchain/hosted/i386-linux/include/direct.h",
           "toolchain/hosted/i386-linux/include/errno.h",
           "toolchain/hosted/i386-linux/include/stdint.h",
           "toolchain/hosted/i386-linux/include/stdio.h",
@@ -38043,9 +38127,9 @@
       "status": "pass"
     },
     "c_preprocessor_conditionals": {
-      "directive_expression_pairs": 29,
+      "directive_expression_pairs": 31,
       "elif_occurrences": 9,
-      "expression_occurrences": 125,
+      "expression_occurrences": 143,
       "expressions": [
         {
           "elif_occurrences": 0,
@@ -38063,6 +38147,29 @@
           ],
           "if_occurrences": 1,
           "occurrences": 1
+        },
+        {
+          "elif_occurrences": 0,
+          "evidence": [
+            {
+              "directive": "if",
+              "line": 7,
+              "path": "toolchain/hosted/i386-linux/runtime.cc",
+              "text": "#if !defined(CUPID_RUNTIME_WINDOWS)"
+            },
+            {
+              "directive": "if",
+              "line": 138,
+              "path": "toolchain/hosted/i386-linux/runtime.cc",
+              "text": "#if !defined(CUPID_RUNTIME_WINDOWS)"
+            }
+          ],
+          "expression": "! defined ( CUPID_RUNTIME_WINDOWS )",
+          "files": [
+            "toolchain/hosted/i386-linux/runtime.cc"
+          ],
+          "if_occurrences": 2,
+          "occurrences": 2
         },
         {
           "elif_occurrences": 0,
@@ -38730,6 +38837,113 @@
           "evidence": [
             {
               "directive": "if",
+              "line": 39,
+              "path": "toolchain/hosted/i386-linux/runtime.cc",
+              "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
+            },
+            {
+              "directive": "if",
+              "line": 105,
+              "path": "toolchain/hosted/i386-linux/runtime.cc",
+              "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
+            },
+            {
+              "directive": "if",
+              "line": 120,
+              "path": "toolchain/hosted/i386-linux/runtime.cc",
+              "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
+            },
+            {
+              "directive": "if",
+              "line": 279,
+              "path": "toolchain/hosted/i386-linux/runtime.cc",
+              "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
+            },
+            {
+              "directive": "if",
+              "line": 588,
+              "path": "toolchain/hosted/i386-linux/runtime.cc",
+              "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
+            },
+            {
+              "directive": "if",
+              "line": 605,
+              "path": "toolchain/hosted/i386-linux/runtime.cc",
+              "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
+            },
+            {
+              "directive": "if",
+              "line": 645,
+              "path": "toolchain/hosted/i386-linux/runtime.cc",
+              "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
+            },
+            {
+              "directive": "if",
+              "line": 656,
+              "path": "toolchain/hosted/i386-linux/runtime.cc",
+              "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
+            },
+            {
+              "directive": "if",
+              "line": 691,
+              "path": "toolchain/hosted/i386-linux/runtime.cc",
+              "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
+            },
+            {
+              "directive": "if",
+              "line": 700,
+              "path": "toolchain/hosted/i386-linux/runtime.cc",
+              "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
+            },
+            {
+              "directive": "if",
+              "line": 763,
+              "path": "toolchain/hosted/i386-linux/runtime.cc",
+              "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
+            },
+            {
+              "directive": "if",
+              "line": 818,
+              "path": "toolchain/hosted/i386-linux/runtime.cc",
+              "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
+            },
+            {
+              "directive": "if",
+              "line": 870,
+              "path": "toolchain/hosted/i386-linux/runtime.cc",
+              "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
+            },
+            {
+              "directive": "if",
+              "line": 897,
+              "path": "toolchain/hosted/i386-linux/runtime.cc",
+              "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
+            },
+            {
+              "directive": "if",
+              "line": 1292,
+              "path": "toolchain/hosted/i386-linux/runtime.cc",
+              "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
+            },
+            {
+              "directive": "if",
+              "line": 1440,
+              "path": "toolchain/hosted/i386-linux/runtime.cc",
+              "text": "#if defined(CUPID_RUNTIME_WINDOWS)"
+            }
+          ],
+          "expression": "defined ( CUPID_RUNTIME_WINDOWS )",
+          "files": [
+            "toolchain/hosted/i386-linux/runtime.cc"
+          ],
+          "if_occurrences": 16,
+          "occurrences": 16
+        },
+        {
+          "elif_occurrences": 0,
+          "evidence": [
+            {
+              "directive": "if",
               "line": 6,
               "path": "toolchain/cupidc_frontend.h",
               "text": "#if defined(CUPID_TOOLCHAIN_CUPIDC_STATIC_LONG_DOUBLE_INTERNAL)"
@@ -39124,9 +39338,9 @@
           "occurrences": 1
         }
       ],
-      "if_occurrences": 116,
+      "if_occurrences": 134,
       "status": "pass",
-      "unique_expressions": 27
+      "unique_expressions": 29
     },
     "c_preprocessor_cupid_exe": {
       "block_occurrences": 1,
@@ -39156,13 +39370,13 @@
     },
     "c_preprocessor_include_operands": {
       "digraph_marker_occurrences": 0,
-      "direct_angle_occurrences": 241,
-      "direct_quoted_occurrences": 2196,
-      "include_occurrences": 2437,
+      "direct_angle_occurrences": 247,
+      "direct_quoted_occurrences": 2197,
+      "include_occurrences": 2444,
       "max_conditional_depth": 2,
-      "ordinary_marker_occurrences": 2437,
+      "ordinary_marker_occurrences": 2444,
       "pp_token_operand_occurrences": 0,
-      "source_files": 695,
+      "source_files": 698,
       "status": "pass"
     },
     "c_preprocessor_line_directives": {
@@ -39175,7 +39389,7 @@
       "numeric_marker_occurrences": 0,
       "ordinary_marker_occurrences": 0,
       "pp_token_line_occurrences": 0,
-      "source_files": 695,
+      "source_files": 698,
       "status": "pass"
     },
     "c_preprocessor_pragmas": {
@@ -39784,7 +39998,38 @@
           ],
           "mode": "CTOOL_C_PP_MODE_C11",
           "name": "HOSTED_I386_LINUX",
-          "tracked_translation_units": 32
+          "tracked_translation_units": 33
+        },
+        {
+          "compatibility_pointer_conversions": false,
+          "forced_includes": [],
+          "generated_translation_units": 0,
+          "gnu_extensions": false,
+          "hosted_environment": true,
+          "implicit_function_declarations": false,
+          "include_roots": [
+            {
+              "forms": "(CTOOL_C_PP_INCLUDE_QUOTED | CTOOL_C_PP_INCLUDE_ANGLE)",
+              "path": "/toolchain"
+            },
+            {
+              "forms": "CTOOL_C_PP_INCLUDE_ANGLE",
+              "path": "/toolchain/hosted/i386-linux/include"
+            }
+          ],
+          "macro_actions": [
+            {
+              "name": "__SIZEOF_POINTER__",
+              "replacement": "4"
+            },
+            {
+              "name": "_WIN32",
+              "replacement": "1"
+            }
+          ],
+          "mode": "CTOOL_C_PP_MODE_C11",
+          "name": "HOSTED_I386_WINDOWS",
+          "tracked_translation_units": 4
         },
         {
           "compatibility_pointer_conversions": false,
@@ -39842,12 +40087,12 @@
           ],
           "mode": "CTOOL_C_PP_MODE_C11",
           "name": "HOSTED_I386_LINUX_GNU",
-          "tracked_translation_units": 2
+          "tracked_translation_units": 3
         }
       ],
       "status": "pass",
-      "total_translation_units": 389,
-      "tracked_translation_units": 385
+      "total_translation_units": 395,
+      "tracked_translation_units": 391
     },
     "cupid_toolchain_fixed_point": {
       "checked_seed_publication": "complete-bundle",
@@ -39857,7 +40102,7 @@
       "compared_startup_objects": 1,
       "compared_tool_images": 5,
       "compiler_c_sources": 11,
-      "contract_manifest_inputs": 58,
+      "contract_manifest_inputs": 62,
       "executed_tools": [
         "cupidasm",
         "cupiddis",
@@ -39914,6 +40159,11 @@
       "source_head_capabilities": [
         "cupidld.pe32_fixed_image",
         "cupidld.pe32_imports",
+        "cupid.windows_cupidasm",
+        "cupid.windows_cupidc",
+        "cupid.windows_cupiddis",
+        "cupid.windows_cupidobj",
+        "cupid.windows_runtime_contract",
         "cupid.windows_runtime_probe"
       ],
       "stages": [
@@ -39984,10 +40234,11 @@
         "kernel/cpu/isr.asm",
         "kernel/smp/smp_trampoline.S",
         "toolchain/hosted/i386-linux/start.asm",
-        "toolchain/hosted/i386-windows/start.asm"
+        "toolchain/hosted/i386-windows/start.asm",
+        "toolchain/hosted/i386-windows/tool_start.asm"
       ],
       "id": "asm.addressing.memory",
-      "occurrences": 119
+      "occurrences": 163
     },
     {
       "category": "addressing",
@@ -40058,10 +40309,11 @@
         "boot/boot.asm",
         "demos/parity_priv.asm",
         "kernel/core/context_switch.asm",
-        "toolchain/hosted/i386-windows/start.asm"
+        "toolchain/hosted/i386-windows/start.asm",
+        "toolchain/hosted/i386-windows/tool_start.asm"
       ],
       "id": "asm.addressing.size.dword",
-      "occurrences": 16
+      "occurrences": 60
     },
     {
       "category": "addressing",
@@ -40175,10 +40427,11 @@
         "kernel/smp/smp_trampoline.S",
         "test_iso/big_pattern.asm",
         "toolchain/hosted/i386-linux/start.asm",
-        "toolchain/hosted/i386-windows/start.asm"
+        "toolchain/hosted/i386-windows/start.asm",
+        "toolchain/hosted/i386-windows/tool_start.asm"
       ],
       "id": "asm.directive.bits",
-      "occurrences": 10
+      "occurrences": 11
     },
     {
       "category": "directive",
@@ -40361,10 +40614,11 @@
         "kernel/core/context_switch.asm",
         "kernel/cpu/isr.asm",
         "toolchain/hosted/i386-linux/start.asm",
-        "toolchain/hosted/i386-windows/start.asm"
+        "toolchain/hosted/i386-windows/start.asm",
+        "toolchain/hosted/i386-windows/tool_start.asm"
       ],
       "id": "asm.directive.extern",
-      "occurrences": 14
+      "occurrences": 27
     },
     {
       "category": "directive",
@@ -40389,10 +40643,11 @@
         "kernel/core/context_switch.asm",
         "kernel/cpu/isr.asm",
         "toolchain/hosted/i386-linux/start.asm",
-        "toolchain/hosted/i386-windows/start.asm"
+        "toolchain/hosted/i386-windows/start.asm",
+        "toolchain/hosted/i386-windows/tool_start.asm"
       ],
       "id": "asm.directive.global",
-      "occurrences": 39
+      "occurrences": 50
     },
     {
       "category": "directive",
@@ -40569,10 +40824,11 @@
         "demos/syscall_vfs_extended_demo.asm",
         "kernel/core/context_switch.asm",
         "toolchain/hosted/i386-linux/start.asm",
-        "toolchain/hosted/i386-windows/start.asm"
+        "toolchain/hosted/i386-windows/start.asm",
+        "toolchain/hosted/i386-windows/tool_start.asm"
       ],
       "id": "asm.directive.section",
-      "occurrences": 45
+      "occurrences": 46
     },
     {
       "category": "directive",
@@ -40711,10 +40967,11 @@
         "demos/stack.asm",
         "demos/syscall_table_demo.asm",
         "demos/syscall_vfs_extended_demo.asm",
-        "kernel/cpu/isr.asm"
+        "kernel/cpu/isr.asm",
+        "toolchain/hosted/i386-windows/tool_start.asm"
       ],
       "id": "asm.instruction.add",
-      "occurrences": 182
+      "occurrences": 183
     },
     {
       "category": "instruction",
@@ -40781,10 +41038,11 @@
         "demos/math.asm",
         "kernel/core/context_switch.asm",
         "toolchain/hosted/i386-linux/start.asm",
-        "toolchain/hosted/i386-windows/start.asm"
+        "toolchain/hosted/i386-windows/start.asm",
+        "toolchain/hosted/i386-windows/tool_start.asm"
       ],
       "id": "asm.instruction.and",
-      "occurrences": 6
+      "occurrences": 7
     },
     {
       "category": "instruction",
@@ -40846,10 +41104,11 @@
         "kernel/cpu/isr.asm",
         "kernel/smp/smp_trampoline.S",
         "toolchain/hosted/i386-linux/start.asm",
-        "toolchain/hosted/i386-windows/start.asm"
+        "toolchain/hosted/i386-windows/start.asm",
+        "toolchain/hosted/i386-windows/tool_start.asm"
       ],
       "id": "asm.instruction.call",
-      "occurrences": 201
+      "occurrences": 214
     },
     {
       "category": "instruction",
@@ -40888,10 +41147,11 @@
       "files": [
         "kernel/core/context_switch.asm",
         "kernel/smp/smp_trampoline.S",
-        "toolchain/hosted/i386-windows/start.asm"
+        "toolchain/hosted/i386-windows/start.asm",
+        "toolchain/hosted/i386-windows/tool_start.asm"
       ],
       "id": "asm.instruction.cld",
-      "occurrences": 3
+      "occurrences": 4
     },
     {
       "category": "instruction",
@@ -41213,10 +41473,11 @@
       "files": [
         "kernel/core/context_switch.asm",
         "kernel/smp/smp_trampoline.S",
-        "toolchain/hosted/i386-windows/start.asm"
+        "toolchain/hosted/i386-windows/start.asm",
+        "toolchain/hosted/i386-windows/tool_start.asm"
       ],
       "id": "asm.instruction.hlt",
-      "occurrences": 3
+      "occurrences": 4
     },
     {
       "category": "instruction",
@@ -41861,10 +42122,11 @@
         "kernel/cpu/isr.asm",
         "kernel/smp/smp_trampoline.S",
         "toolchain/hosted/i386-linux/start.asm",
-        "toolchain/hosted/i386-windows/start.asm"
+        "toolchain/hosted/i386-windows/start.asm",
+        "toolchain/hosted/i386-windows/tool_start.asm"
       ],
       "id": "asm.instruction.mov",
-      "occurrences": 194
+      "occurrences": 212
     },
     {
       "category": "instruction",
@@ -42053,10 +42315,11 @@
         "kernel/core/context_switch.asm",
         "kernel/cpu/isr.asm",
         "toolchain/hosted/i386-linux/start.asm",
-        "toolchain/hosted/i386-windows/start.asm"
+        "toolchain/hosted/i386-windows/start.asm",
+        "toolchain/hosted/i386-windows/tool_start.asm"
       ],
       "id": "asm.instruction.pop",
-      "occurrences": 33
+      "occurrences": 42
     },
     {
       "category": "instruction",
@@ -42143,10 +42406,11 @@
         "kernel/core/context_switch.asm",
         "kernel/cpu/isr.asm",
         "toolchain/hosted/i386-linux/start.asm",
-        "toolchain/hosted/i386-windows/start.asm"
+        "toolchain/hosted/i386-windows/start.asm",
+        "toolchain/hosted/i386-windows/tool_start.asm"
       ],
       "id": "asm.instruction.push",
-      "occurrences": 290
+      "occurrences": 333
     },
     {
       "category": "instruction",
@@ -42247,10 +42511,11 @@
         "kernel/core/context_switch.asm",
         "kernel/cpu/isr.asm",
         "toolchain/hosted/i386-linux/start.asm",
-        "toolchain/hosted/i386-windows/start.asm"
+        "toolchain/hosted/i386-windows/start.asm",
+        "toolchain/hosted/i386-windows/tool_start.asm"
       ],
       "id": "asm.instruction.ret",
-      "occurrences": 45
+      "occurrences": 55
     },
     {
       "category": "instruction",
@@ -42475,10 +42740,11 @@
         "demos/math.asm",
         "demos/reserve_directives.asm",
         "toolchain/hosted/i386-linux/start.asm",
-        "toolchain/hosted/i386-windows/start.asm"
+        "toolchain/hosted/i386-windows/start.asm",
+        "toolchain/hosted/i386-windows/tool_start.asm"
       ],
       "id": "asm.instruction.sub",
-      "occurrences": 9
+      "occurrences": 11
     },
     {
       "category": "instruction",
@@ -42678,10 +42944,11 @@
         "kernel/cpu/isr.asm",
         "kernel/smp/smp_trampoline.S",
         "toolchain/hosted/i386-linux/start.asm",
-        "toolchain/hosted/i386-windows/start.asm"
+        "toolchain/hosted/i386-windows/start.asm",
+        "toolchain/hosted/i386-windows/tool_start.asm"
       ],
       "id": "asm.label.global",
-      "occurrences": 119
+      "occurrences": 130
     },
     {
       "category": "label",
@@ -43131,10 +43398,11 @@
         "kernel/cpu/isr.asm",
         "kernel/smp/smp_trampoline.S",
         "toolchain/hosted/i386-linux/start.asm",
-        "toolchain/hosted/i386-windows/start.asm"
+        "toolchain/hosted/i386-windows/start.asm",
+        "toolchain/hosted/i386-windows/tool_start.asm"
       ],
       "id": "asm.register.eax",
-      "occurrences": 196
+      "occurrences": 198
     },
     {
       "category": "register",
@@ -43161,10 +43429,11 @@
         "demos/factorial.asm",
         "demos/stack.asm",
         "kernel/core/context_switch.asm",
-        "toolchain/hosted/i386-windows/start.asm"
+        "toolchain/hosted/i386-windows/start.asm",
+        "toolchain/hosted/i386-windows/tool_start.asm"
       ],
       "id": "asm.register.ebp",
-      "occurrences": 32
+      "occurrences": 100
     },
     {
       "category": "register",
@@ -43399,10 +43668,11 @@
         "kernel/cpu/isr.asm",
         "kernel/smp/smp_trampoline.S",
         "toolchain/hosted/i386-linux/start.asm",
-        "toolchain/hosted/i386-windows/start.asm"
+        "toolchain/hosted/i386-windows/start.asm",
+        "toolchain/hosted/i386-windows/tool_start.asm"
       ],
       "id": "asm.register.esp",
-      "occurrences": 199
+      "occurrences": 221
     },
     {
       "category": "register",
@@ -43634,10 +43904,11 @@
         "kernel/core/context_switch.asm",
         "kernel/cpu/isr.asm",
         "toolchain/hosted/i386-linux/start.asm",
-        "toolchain/hosted/i386-windows/start.asm"
+        "toolchain/hosted/i386-windows/start.asm",
+        "toolchain/hosted/i386-windows/tool_start.asm"
       ],
       "id": "asm.relocation.pc_relative_external",
-      "occurrences": 17
+      "occurrences": 30
     },
     {
       "category": "control",
@@ -43840,7 +44111,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.break",
-      "occurrences": 1992
+      "occurrences": 1999
     },
     {
       "category": "control",
@@ -44104,7 +44375,7 @@
         "toolchain/x86.cc"
       ],
       "id": "c.control.continue",
-      "occurrences": 1225
+      "occurrences": 1226
     },
     {
       "category": "control",
@@ -44559,7 +44830,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.else",
-      "occurrences": 4873
+      "occurrences": 4891
     },
     {
       "category": "control",
@@ -44826,12 +45097,13 @@
         "toolchain/tests/cupidobj_contract.cc",
         "toolchain/tests/elf32_contract.cc",
         "toolchain/tests/hosted_i386_runtime_contract.cc",
+        "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
         "toolchain/tests/user_syscall_abi_contract.cc",
         "toolchain/tests/x86_contract.cc",
         "toolchain/x86.cc"
       ],
       "id": "c.control.for",
-      "occurrences": 4330
+      "occurrences": 4335
     },
     {
       "category": "control",
@@ -45271,6 +45543,7 @@
         "toolchain/tests/cupidobj_contract.cc",
         "toolchain/tests/elf32_contract.cc",
         "toolchain/tests/hosted_i386_runtime_contract.cc",
+        "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
         "toolchain/tests/user_syscall_abi_contract.cc",
         "toolchain/tests/x86_contract.cc",
         "toolchain/x86.cc",
@@ -45278,7 +45551,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.if",
-      "occurrences": 38889
+      "occurrences": 38965
     },
     {
       "category": "control",
@@ -45640,13 +45913,14 @@
         "toolchain/tests/elf32_contract.cc",
         "toolchain/tests/hosted_i386_runtime_contract.cc",
         "toolchain/tests/hosted_i386_windows_contract.cc",
+        "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
         "toolchain/tests/user_syscall_abi_contract.cc",
         "toolchain/tests/x86_contract.cc",
         "toolchain/x86.cc",
         "user/cupid.h"
       ],
       "id": "c.control.return",
-      "occurrences": 23688
+      "occurrences": 23742
     },
     {
       "category": "control",
@@ -46029,7 +46303,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.control.while",
-      "occurrences": 2821
+      "occurrences": 2826
     },
     {
       "category": "declaration",
@@ -46297,12 +46571,13 @@
         "toolchain/tests/elf32_contract.cc",
         "toolchain/tests/hosted_i386_runtime_contract.cc",
         "toolchain/tests/hosted_i386_windows_contract.cc",
+        "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
         "toolchain/tests/user_syscall_abi_contract.cc",
         "toolchain/tests/x86_contract.cc",
         "toolchain/x86.cc"
       ],
       "id": "c.declarator.unsized_array",
-      "occurrences": 2780
+      "occurrences": 2783
     },
     {
       "category": "declarator",
@@ -46568,13 +46843,14 @@
         "toolchain/tests/elf32_contract.cc",
         "toolchain/tests/hosted_i386_runtime_contract.cc",
         "toolchain/tests/hosted_i386_windows_contract.cc",
+        "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
         "toolchain/tests/user_syscall_abi_contract.cc",
         "toolchain/tests/x86_contract.cc",
         "toolchain/x86.cc",
         "user/examples/cat.cc"
       ],
       "id": "c.expression.sizeof",
-      "occurrences": 6009
+      "occurrences": 6016
     },
     {
       "category": "extension",
@@ -47584,6 +47860,7 @@
         "toolchain/elf32.cc",
         "toolchain/elf32.h",
         "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+        "toolchain/hosted/i386-linux/include/direct.h",
         "toolchain/hosted/i386-linux/include/errno.h",
         "toolchain/hosted/i386-linux/include/stdint.h",
         "toolchain/hosted/i386-linux/include/stdio.h",
@@ -47591,6 +47868,7 @@
         "toolchain/hosted/i386-linux/include/string.h",
         "toolchain/hosted/i386-linux/include/unistd.h",
         "toolchain/hosted/i386-linux/runtime.cc",
+        "toolchain/hosted/i386-windows/runtime.cc",
         "toolchain/tests/cupidasm_demos_contract.cc",
         "toolchain/tests/cupidc_frontend_contract.cc",
         "toolchain/tests/cupidc_ir_contract.cc",
@@ -47601,6 +47879,7 @@
         "toolchain/tests/cupidc_static_long_double_integer_fixture.h",
         "toolchain/tests/cupidc_type_contract.cc",
         "toolchain/tests/hosted_i386_runtime_contract.cc",
+        "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
         "toolchain/tests/user_syscall_abi_contract.cc",
         "toolchain/tests/x86_contract.cc",
         "toolchain/x86.cc",
@@ -47608,7 +47887,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.define",
-      "occurrences": 3058
+      "occurrences": 3081
     },
     {
       "category": "preprocessor",
@@ -47681,10 +47960,11 @@
         "toolchain/cupidc_main.cc",
         "toolchain/cupidld_main.cc",
         "toolchain/cupidobj_main.cc",
+        "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/tests/cupidc_object_contract.cc"
       ],
       "id": "c.preprocessor.else",
-      "occurrences": 61
+      "occurrences": 75
     },
     {
       "category": "preprocessor",
@@ -48017,12 +48297,14 @@
         "toolchain/cupidobj_main.cc",
         "toolchain/elf32.h",
         "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+        "toolchain/hosted/i386-linux/include/direct.h",
         "toolchain/hosted/i386-linux/include/errno.h",
         "toolchain/hosted/i386-linux/include/stdint.h",
         "toolchain/hosted/i386-linux/include/stdio.h",
         "toolchain/hosted/i386-linux/include/stdlib.h",
         "toolchain/hosted/i386-linux/include/string.h",
         "toolchain/hosted/i386-linux/include/unistd.h",
+        "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/tests/cupidc_object_contract.cc",
         "toolchain/tests/cupidc_static_long_double_arithmetic_fixture.h",
         "toolchain/tests/cupidc_static_long_double_control_fixture.h",
@@ -48031,7 +48313,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.endif",
-      "occurrences": 521
+      "occurrences": 540
     },
     {
       "category": "preprocessor",
@@ -48208,10 +48490,11 @@
         "toolchain/cupidld_main.cc",
         "toolchain/cupidobj_main.cc",
         "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+        "toolchain/hosted/i386-linux/runtime.cc",
         "toolchain/tests/cupidc_object_contract.cc"
       ],
       "id": "c.preprocessor.if",
-      "occurrences": 116
+      "occurrences": 134
     },
     {
       "category": "preprocessor",
@@ -48558,6 +48841,7 @@
         "toolchain/cupidobj.h",
         "toolchain/elf32.h",
         "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+        "toolchain/hosted/i386-linux/include/direct.h",
         "toolchain/hosted/i386-linux/include/errno.h",
         "toolchain/hosted/i386-linux/include/stdint.h",
         "toolchain/hosted/i386-linux/include/stdio.h",
@@ -48571,7 +48855,7 @@
         "user/cupid.h"
       ],
       "id": "c.preprocessor.ifndef",
-      "occurrences": 304
+      "occurrences": 305
     },
     {
       "category": "preprocessor",
@@ -49075,6 +49359,7 @@
         "toolchain/hosted/i386-linux/include/string.h",
         "toolchain/hosted/i386-linux/include/unistd.h",
         "toolchain/hosted/i386-linux/runtime.cc",
+        "toolchain/hosted/i386-windows/runtime.cc",
         "toolchain/tests/core_contract.cc",
         "toolchain/tests/cupidasm_contract.cc",
         "toolchain/tests/cupidasm_demos_contract.cc",
@@ -49092,6 +49377,7 @@
         "toolchain/tests/cupidobj_contract.cc",
         "toolchain/tests/elf32_contract.cc",
         "toolchain/tests/hosted_i386_runtime_contract.cc",
+        "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
         "toolchain/tests/user_syscall_abi_contract.cc",
         "toolchain/tests/x86_contract.cc",
         "toolchain/x86.cc",
@@ -49101,7 +49387,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.preprocessor.include",
-      "occurrences": 2437
+      "occurrences": 2444
     },
     {
       "category": "preprocessor",
@@ -49652,6 +49938,7 @@
         "toolchain/tests/elf32_contract.cc",
         "toolchain/tests/hosted_i386_runtime_contract.cc",
         "toolchain/tests/hosted_i386_windows_contract.cc",
+        "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
         "toolchain/tests/user_syscall_abi_contract.cc",
         "toolchain/tests/x86_contract.cc",
         "toolchain/x86.cc",
@@ -49661,7 +49948,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.qualifier.const",
-      "occurrences": 15790
+      "occurrences": 15805
     },
     {
       "category": "qualifier",
@@ -50190,6 +50477,7 @@
         "toolchain/tests/elf32_contract.cc",
         "toolchain/tests/hosted_i386_runtime_contract.cc",
         "toolchain/tests/hosted_i386_windows_contract.cc",
+        "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
         "toolchain/tests/user_syscall_abi_contract.cc",
         "toolchain/tests/x86_contract.cc",
         "toolchain/x86.cc",
@@ -50197,7 +50485,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.storage.static",
-      "occurrences": 9373
+      "occurrences": 9384
     },
     {
       "category": "type",
@@ -50601,6 +50889,7 @@
         "toolchain/cupidobj.cc",
         "toolchain/cupidobj_main.cc",
         "toolchain/elf32.cc",
+        "toolchain/hosted/i386-linux/include/direct.h",
         "toolchain/hosted/i386-linux/include/stdint.h",
         "toolchain/hosted/i386-linux/include/stdio.h",
         "toolchain/hosted/i386-linux/include/string.h",
@@ -50624,6 +50913,7 @@
         "toolchain/tests/elf32_contract.cc",
         "toolchain/tests/hosted_i386_runtime_contract.cc",
         "toolchain/tests/hosted_i386_windows_contract.cc",
+        "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
         "toolchain/tests/user_syscall_abi_contract.cc",
         "toolchain/tests/x86_contract.cc",
         "toolchain/x86.cc",
@@ -50632,7 +50922,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.char",
-      "occurrences": 8928
+      "occurrences": 8979
     },
     {
       "category": "type",
@@ -51356,6 +51646,7 @@
         "toolchain/cupidld_main.cc",
         "toolchain/cupidobj_main.cc",
         "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+        "toolchain/hosted/i386-linux/include/direct.h",
         "toolchain/hosted/i386-linux/include/errno.h",
         "toolchain/hosted/i386-linux/include/stdint.h",
         "toolchain/hosted/i386-linux/include/stdio.h",
@@ -51377,6 +51668,7 @@
         "toolchain/tests/elf32_contract.cc",
         "toolchain/tests/hosted_i386_runtime_contract.cc",
         "toolchain/tests/hosted_i386_windows_contract.cc",
+        "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
         "toolchain/tests/user_syscall_abi_contract.cc",
         "toolchain/tests/x86_contract.cc",
         "toolchain/x86.cc",
@@ -51385,7 +51677,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.int",
-      "occurrences": 22715
+      "occurrences": 22811
     },
     {
       "category": "type",
@@ -52300,12 +52592,13 @@
         "toolchain/tests/cupidobj_contract.cc",
         "toolchain/tests/hosted_i386_runtime_contract.cc",
         "toolchain/tests/hosted_i386_windows_contract.cc",
+        "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
         "toolchain/tests/user_syscall_abi_contract.cc",
         "toolchain/tests/x86_contract.cc",
         "user/cupid.h"
       ],
       "id": "c.type.unsigned",
-      "occurrences": 2103
+      "occurrences": 2161
     },
     {
       "category": "type",
@@ -52896,6 +53189,7 @@
         "toolchain/tests/elf32_contract.cc",
         "toolchain/tests/hosted_i386_runtime_contract.cc",
         "toolchain/tests/hosted_i386_windows_contract.cc",
+        "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
         "toolchain/tests/user_syscall_abi_contract.cc",
         "toolchain/tests/x86_contract.cc",
         "toolchain/x86.cc",
@@ -52906,7 +53200,7 @@
         "user/examples/ls.cc"
       ],
       "id": "c.type.void",
-      "occurrences": 14677
+      "occurrences": 14734
     },
     {
       "category": "declaration",
@@ -53812,7 +54106,7 @@
     }
   ],
   "provenance": {
-    "active_source_digest": "6aa5ac586bc279d8dc2b87cc43adfc07ce8f88400f2acfa14a6519398863f111",
+    "active_source_digest": "c35fa81b8d869dbd32709df36150c31fa20a2d428f1e7c40c9da8ac5986471d6",
     "control_files": [
       {
         "path": "Makefile",
@@ -53820,11 +54114,11 @@
       },
       {
         "path": "user/Makefile",
-        "sha256": "b15f4ddb6f1d90d59030c54f3abf093616c6c64d9d70ae5f643cdf63c3ad9375"
+        "sha256": "086a634c60b1dfd9b681dc69ec92e8123992fd9285d1a5ff7e462424d7391c3d"
       },
       {
         "path": "toolchain/Makefile",
-        "sha256": "5049afd6fc75e48f893846cb3d87397f31878a4167f4d09d2a9820d789f75064"
+        "sha256": "b85a8308085916d52b9bdb5b86e1039bcd3db89af5a189f60c07a124feb5e7bc"
       },
       {
         "path": "tools/cupidc_kernel_compile.py",
@@ -53836,7 +54130,7 @@
       },
       {
         "path": "tools/bootstrap_toolchain.py",
-        "sha256": "7db441a05ef234f6fcba5404f66d55c3ea91ed3ac31038258bba1cd9230305e3"
+        "sha256": "f2e2483225c9e42570594be543dbeb406830bf490e1927872f8cf76426808abd"
       },
       {
         "path": "bootstrap/seeds/i386-linux/manifest.json",
@@ -53861,7 +54155,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "4a52b7259c07fbf41146f9799b8579a5711a212451fb894fe3c95092b68456af"
+      "sha256": "9e52874dfe6b752fd03e4bc48ed713e75fa156ac72249cd91c3d32dbc202e4f8"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -53895,7 +54189,7 @@
           "kernel/lang/cupidc_parse.cc",
           "kernel/lang/cupidc_runtime.h"
         ],
-        "source_count": 78,
+        "source_count": 82,
         "title": "Establish a host-runnable shared Cupid Toolchain core"
       },
       {
@@ -54069,7 +54363,7 @@
           "demos/fs_syscalls.asm",
           "demos/hello.asm"
         ],
-        "source_count": 69,
+        "source_count": 70,
         "title": "Share one i386 ABI and instruction model"
       },
       {
@@ -54098,7 +54392,7 @@
           "toolchain/hosted/i386-linux/start.asm",
           "toolchain/hosted/i386-windows/start.asm"
         ],
-        "source_count": 12,
+        "source_count": 13,
         "title": "Make CupidDis inspect raw and ELF32 relocatable output"
       },
       {
@@ -54149,7 +54443,7 @@
           "demos/include_helper.asm",
           "demos/jcc_aliases.asm"
         ],
-        "source_count": 29,
+        "source_count": 30,
         "title": "Implement the active Cupid ASM directives and expression language"
       },
       {
@@ -54185,7 +54479,7 @@
           "demos/syscall_vfs_extended_demo.asm",
           "kernel/core/context_switch.asm"
         ],
-        "source_count": 17,
+        "source_count": 18,
         "title": "Reach byte parity for boot and trampoline binaries"
       },
       {
@@ -54205,9 +54499,10 @@
           "kernel/cpu/isr.asm",
           "kernel/smp/smp_trampoline.S",
           "toolchain/hosted/i386-linux/start.asm",
-          "toolchain/hosted/i386-windows/start.asm"
+          "toolchain/hosted/i386-windows/start.asm",
+          "toolchain/hosted/i386-windows/tool_start.asm"
         ],
-        "source_count": 5,
+        "source_count": 6,
         "title": "Emit ELF32 sections, symbols, and i386 relocations"
       },
       {
@@ -54250,7 +54545,7 @@
           "bin/godspeak.cc",
           "bin/notepad.cc"
         ],
-        "source_count": 554,
+        "source_count": 557,
         "title": "Implement the active C and Cupid C preprocessing contract"
       },
       {
@@ -54296,7 +54591,7 @@
           "bin/browser/input.cc",
           "bin/browser/js_dom.cc"
         ],
-        "source_count": 660,
+        "source_count": 662,
         "title": "Implement freestanding C11 type, initializer, and cdecl semantics"
       },
       {
@@ -54439,7 +54734,7 @@
           "kernel/lang/cupidc_parse.cc",
           "kernel/lang/cupidc_runtime.h"
         ],
-        "source_count": 78
+        "source_count": 82
       },
       {
         "cohorts": [
@@ -79461,6 +79756,35 @@
         "c.preprocessor.define",
         "c.preprocessor.endif",
         "c.preprocessor.ifndef",
+        "c.type.char",
+        "c.type.int"
+      ],
+      "includes": [],
+      "language": "c_header",
+      "lines": 6,
+      "origin": "tracked",
+      "path": "toolchain/hosted/i386-linux/include/direct.h",
+      "reachability": "direct_build_input",
+      "runtime_owner": "CupidC",
+      "sha256": "b3c47d8a727b4427f0263cc92871ceeee241074a0f414a87d83e7f6105caaae4"
+    },
+    {
+      "build_owners": [
+        "cupid_c_compiler",
+        "cupid_c_contract",
+        "cupid_object",
+        "host_python"
+      ],
+      "builds": [
+        ".",
+        "toolchain",
+        "user"
+      ],
+      "cohort": "toolchain_core",
+      "features": [
+        "c.preprocessor.define",
+        "c.preprocessor.endif",
+        "c.preprocessor.ifndef",
         "c.preprocessor.include",
         "c.type.int",
         "c.type.void"
@@ -79542,12 +79866,12 @@
       ],
       "includes": [],
       "language": "c_header",
-      "lines": 29,
+      "lines": 30,
       "origin": "tracked",
       "path": "toolchain/hosted/i386-linux/include/stdio.h",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "9685b47b50ecb74d2d021c5f14ea80d3add6a2be613708898c9985cc8f4fd392"
+      "sha256": "7df8d62defedd4b7dc7ad8d8bb707146f335d9cfc094f87f00cb25247a7f9750"
     },
     {
       "build_owners": [
@@ -79666,6 +79990,9 @@
         "c.extension.builtin.va_list",
         "c.extension.builtin.va_start",
         "c.preprocessor.define",
+        "c.preprocessor.else",
+        "c.preprocessor.endif",
+        "c.preprocessor.if",
         "c.preprocessor.include",
         "c.qualifier.const",
         "c.storage.static",
@@ -79680,12 +80007,12 @@
       ],
       "includes": [],
       "language": "cupid_c",
-      "lines": 1024,
+      "lines": 1461,
       "origin": "tracked",
       "path": "toolchain/hosted/i386-linux/runtime.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "26ca99bc1b64c1fd231cb7a830f2cef911998454254addbb06112d8c30044e3d"
+      "sha256": "726488b53db831c419a881ab4b0ff6aa883cef7310254dde80d29248946d38ff"
     },
     {
       "build_owners": [
@@ -79741,6 +80068,31 @@
       ],
       "cohort": "toolchain_core",
       "features": [
+        "c.preprocessor.define",
+        "c.preprocessor.include"
+      ],
+      "includes": [
+        "toolchain/hosted/i386-linux/runtime.cc"
+      ],
+      "language": "cupid_c",
+      "lines": 2,
+      "origin": "tracked",
+      "path": "toolchain/hosted/i386-windows/runtime.cc",
+      "reachability": "direct_build_input",
+      "runtime_owner": "CupidC",
+      "sha256": "50dfc7fd7cdfb93541c52fe2c87a65878a90e84fb966b8d1c75e661aa20927d1"
+    },
+    {
+      "build_owners": [
+        "cupid_c_contract",
+        "host_python"
+      ],
+      "builds": [
+        "toolchain",
+        "user"
+      ],
+      "cohort": "toolchain_core",
+      "features": [
         "asm.addressing.memory",
         "asm.addressing.size.dword",
         "asm.directive.bits",
@@ -79775,6 +80127,48 @@
       "reachability": "direct_build_input",
       "runtime_owner": null,
       "sha256": "26533fc735c13daf6262f4a42ef917ae35248558057401e6f04364fa3ca920df"
+    },
+    {
+      "build_owners": [
+        "cupid_c_contract",
+        "host_python"
+      ],
+      "builds": [
+        "toolchain",
+        "user"
+      ],
+      "cohort": "toolchain_core",
+      "features": [
+        "asm.addressing.memory",
+        "asm.addressing.size.dword",
+        "asm.directive.bits",
+        "asm.directive.extern",
+        "asm.directive.global",
+        "asm.directive.section",
+        "asm.instruction.add",
+        "asm.instruction.and",
+        "asm.instruction.call",
+        "asm.instruction.cld",
+        "asm.instruction.hlt",
+        "asm.instruction.mov",
+        "asm.instruction.pop",
+        "asm.instruction.push",
+        "asm.instruction.ret",
+        "asm.instruction.sub",
+        "asm.label.global",
+        "asm.register.eax",
+        "asm.register.ebp",
+        "asm.register.esp",
+        "asm.relocation.pc_relative_external"
+      ],
+      "includes": [],
+      "language": "assembly",
+      "lines": 150,
+      "origin": "tracked",
+      "path": "toolchain/hosted/i386-windows/tool_start.asm",
+      "reachability": "direct_build_input",
+      "runtime_owner": null,
+      "sha256": "37a9bd7bdcb6dbdeb032fd5c487ea8b50cc6b4a012596f5961a472144c63aeb0"
     },
     {
       "build_owners": [
@@ -80149,12 +80543,12 @@
         "toolchain/x86.h"
       ],
       "language": "cupid_c",
-      "lines": 51772,
+      "lines": 51778,
       "origin": "tracked",
       "path": "toolchain/tests/cupidc_object_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "91c14afdc4b33863ff61a71f904a021929a5f0ba8388c8cef4c462614b3d377c"
+      "sha256": "688823c267618ceb30a001d06c6b71885e079326c94af50607ceba392f03b4af"
     },
     {
       "build_owners": [
@@ -80198,12 +80592,12 @@
         "toolchain/cupidc_pp.h"
       ],
       "language": "cupid_c",
-      "lines": 6016,
+      "lines": 6018,
       "origin": "tracked",
       "path": "toolchain/tests/cupidc_pp_contract.cc",
       "reachability": "direct_build_input",
       "runtime_owner": "CupidC",
-      "sha256": "c5b08ff5ff09c817b6db7db299a07990d00f0b26139df388fb27ce99f51072da"
+      "sha256": "505f37820773d71e9efb7bb94f4b034cf8e79e6c4dcaa58d2e96aa4099d3747d"
     },
     {
       "build_owners": [
@@ -80616,6 +81010,40 @@
       ],
       "cohort": "toolchain_contract",
       "features": [
+        "c.control.for",
+        "c.control.if",
+        "c.control.return",
+        "c.declarator.unsized_array",
+        "c.expression.sizeof",
+        "c.preprocessor.define",
+        "c.preprocessor.include",
+        "c.qualifier.const",
+        "c.storage.static",
+        "c.type.char",
+        "c.type.int",
+        "c.type.unsigned",
+        "c.type.void"
+      ],
+      "includes": [],
+      "language": "cupid_c",
+      "lines": 150,
+      "origin": "tracked",
+      "path": "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
+      "reachability": "direct_build_input",
+      "runtime_owner": "CupidC",
+      "sha256": "38c0c7c4ce9d1b12fe168aaef1dc5f2ba8273ef6e4807212ea7819672f9a31db"
+    },
+    {
+      "build_owners": [
+        "cupid_c_contract",
+        "host_python"
+      ],
+      "builds": [
+        "toolchain",
+        "user"
+      ],
+      "cohort": "toolchain_contract",
+      "features": [
         "c.control.break",
         "c.control.continue",
         "c.control.do",
@@ -80914,7 +81342,7 @@
     }
   ],
   "summary": {
-    "active_sources": 728,
+    "active_sources": 732,
     "features": 255,
     "transforms": 450,
     "unreachable_sources": 25
@@ -81132,6 +81560,7 @@
             "toolchain/elf32.cc",
             "toolchain/elf32.h",
             "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+            "toolchain/hosted/i386-linux/include/direct.h",
             "toolchain/hosted/i386-linux/include/errno.h",
             "toolchain/hosted/i386-linux/include/stdint.h",
             "toolchain/hosted/i386-linux/include/stdio.h",
@@ -81140,7 +81569,9 @@
             "toolchain/hosted/i386-linux/include/unistd.h",
             "toolchain/hosted/i386-linux/runtime.cc",
             "toolchain/hosted/i386-linux/start.asm",
+            "toolchain/hosted/i386-windows/runtime.cc",
             "toolchain/hosted/i386-windows/start.asm",
+            "toolchain/hosted/i386-windows/tool_start.asm",
             "toolchain/tests/core_contract.cc",
             "toolchain/tests/cupidasm_contract.cc",
             "toolchain/tests/cupidasm_demos_contract.cc",
@@ -81162,6 +81593,7 @@
             "toolchain/tests/elf32_contract.cc",
             "toolchain/tests/hosted_i386_runtime_contract.cc",
             "toolchain/tests/hosted_i386_windows_contract.cc",
+            "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
             "toolchain/tests/user_syscall_abi_contract.cc",
             "toolchain/tests/x86_active_cases.inc",
             "toolchain/tests/x86_contract.cc",
@@ -81252,6 +81684,7 @@
             "toolchain/cupidobj.h",
             "toolchain/cupidobj_main.cc",
             "toolchain/hosted/i386-linux/include/cupid_host_abi.h",
+            "toolchain/hosted/i386-linux/include/direct.h",
             "toolchain/hosted/i386-linux/include/errno.h",
             "toolchain/hosted/i386-linux/include/stdint.h",
             "toolchain/hosted/i386-linux/include/stdio.h",
@@ -81286,8 +81719,11 @@
             "toolchain/tests/cupidc_static_long_double_integer_fixture.h",
             "kernel/lang/as_elf.cc",
             "kernel/lang/as_elf.h",
+            "toolchain/hosted/i386-windows/runtime.cc",
             "toolchain/hosted/i386-windows/start.asm",
+            "toolchain/hosted/i386-windows/tool_start.asm",
             "toolchain/tests/hosted_i386_windows_contract.cc",
+            "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
             "tools/user_syscall_abi.py",
             "kernel/core/types.h",
             "kernel/core/syscall.h",

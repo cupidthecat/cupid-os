@@ -33114,6 +33114,12 @@ static int run_self_host_link_tools(const char *host_root,
       {"/toolchain/cupidc_emit.cc", "/toolchain/cupidc_emit.o",
        HOST_TOOL_SOURCE_C, CTOOL_FALSE},
       {"/toolchain/cupidc_main.cc", "/toolchain/cupidc_main.o",
+       HOST_TOOL_SOURCE_C, CTOOL_FALSE},
+      {"/toolchain/hosted/i386-windows/runtime.cc",
+       "/toolchain/hosted/i386-windows/runtime.o", HOST_TOOL_SOURCE_C,
+       CTOOL_TRUE},
+      {"/toolchain/tests/hosted_i386_windows_runtime_contract.cc",
+       "/toolchain/tests/hosted_i386_windows_runtime_contract.o",
        HOST_TOOL_SOURCE_C, CTOOL_FALSE}};
   static const ctool_u32 cupidasm_objects[] = {
       0u, 7u, 6u, 3u, 2u, 4u, 5u, 1u};

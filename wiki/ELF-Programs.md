@@ -63,13 +63,24 @@ Checked-seed CupidASM, freestanding CupidC, and CupidLD build a small command
 that imports `GetStdHandle`, `WriteFile`, and `ExitProcess`. Windows runs the
 validated image, checks its exact stdout marker and empty stderr, and requires
 exit 37. The bootstrap report retains the observed result and both stages'
-object and image hashes. The normal user build still runs the Linux tools
-through WSL. A complete Windows runtime, native
-five-tool seed, and production adoption remain open. See [ADR
+object and image hashes.
+
+Source head goes further. CupidC and CupidASM build a shared hosted runtime
+and startup for native CupidASM, CupidC, CupidDis, and CupidObj. The runtime
+provides arguments, a heap, separate standard streams, named-file reads and
+writes, append behavior, seeking, the current directory, and useful error
+mapping. A dedicated contract checks allocation, file modes, negative paths,
+and Windows quote and backslash rules. Each tool runs help plus a useful
+success and failure path. CupidDis also checks exact disassembly parity.
+
+The normal user build still runs the Linux tools through WSL. CupidLD's native
+publisher, a checked Windows five-tool seed, and production adoption remain
+open. See [ADR
 0247](../docs/adr/0247-serialize-fixed-layout-pe32-images-with-cupidld.md) and
 [ADR
 0248](../docs/adr/0248-link-deterministic-pe32-imports-and-run-a-cupid-built-windows-command.md).
-ADR 0258 records checked-seed carriage.
+ADR 0258 records checked-seed carriage, and ADR 0268 records the native
+four-tool boundary.
 
 The checked-seed CLI uses an adjacent-candidate publisher for ELF and PE images.
 It creates the candidate with exclusive-create semantics, writes and closes it,

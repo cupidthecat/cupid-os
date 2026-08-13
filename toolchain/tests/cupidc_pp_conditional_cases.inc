@@ -9,6 +9,7 @@
  * and the host/platform macros undefined.
  */
 CUPIDC_PP_CONDITIONAL_CASE("! defined ( CUPID_HOSTED_I386_LINUX_ABI_H )", 1u, 0u, 1)
+CUPIDC_PP_CONDITIONAL_CASE("! defined ( CUPID_RUNTIME_WINDOWS )", 2u, 0u, 1)
 CUPIDC_PP_CONDITIONAL_CASE("! defined ( _WIN32 ) && ! defined ( __MACOSX__ ) && ! defined ( __DJGPP__ )", 1u, 0u, 1)
 CUPIDC_PP_CONDITIONAL_CASE("! defined ( __SIZEOF_POINTER__ ) || __SIZEOF_POINTER__ != 4", 1u, 0u, 0)
 CUPIDC_PP_CONDITIONAL_CASE("! defined ( __STDC_VERSION__ ) || ( __STDC_VERSION__ < 202311L )", 1u, 0u, 1)
@@ -30,6 +31,7 @@ CUPIDC_PP_CONDITIONAL_CASE("defined ( _WIN32 )", 32u, 0u, 0)
 CUPIDC_PP_CONDITIONAL_CASE("defined ( _WIN32 ) && ! defined ( _WIN32_WCE )", 1u, 0u, 0)
 CUPIDC_PP_CONDITIONAL_CASE("defined ( _WIN32 ) || defined ( __DJGPP__ )", 2u, 0u, 0)
 CUPIDC_PP_CONDITIONAL_CASE("defined ( CUPID_HOSTED_I386_LINUX_ABI_H )", 2u, 5u, 0)
+CUPIDC_PP_CONDITIONAL_CASE("defined ( CUPID_RUNTIME_WINDOWS )", 16u, 0u, 0)
 CUPIDC_PP_CONDITIONAL_CASE("defined ( CUPID_TOOLCHAIN_CUPIDC_STATIC_LONG_DOUBLE_INTERNAL )", 1u, 0u, 0)
 CUPIDC_PP_CONDITIONAL_CASE("defined ( __DJGPP__ )", 0u, 2u, 0)
 CUPIDC_PP_CONDITIONAL_CASE("defined ( __MACOSX__ )", 0u, 1u, 0)

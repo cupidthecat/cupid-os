@@ -155,17 +155,19 @@ static const active_expected_profile_t active_expected_profiles[] = {
     {"FREESTANDING_I386", CTOOL_C_PP_MODE_C11, CTOOL_FALSE, CTOOL_FALSE,
      CTOOL_FALSE, CTOOL_FALSE, 1u, 0u, 1u, 0u},
     {"CUPID_RUNTIME", CTOOL_C_PP_MODE_CUPID, CTOOL_FALSE, CTOOL_FALSE,
-     CTOOL_FALSE, CTOOL_FALSE, 105u, 0u, 0u, 0u},
+     CTOOL_FALSE, CTOOL_FALSE, 107u, 0u, 0u, 0u},
     {"HOSTED_TOOLCHAIN_64", CTOOL_C_PP_MODE_C11, CTOOL_FALSE, CTOOL_TRUE,
      CTOOL_FALSE, CTOOL_FALSE, 0u, 1u, 1u, 0u},
     {"HOSTED_KERNEL_BRIDGE_64", CTOOL_C_PP_MODE_C11, CTOOL_FALSE, CTOOL_TRUE,
      CTOOL_FALSE, CTOOL_FALSE, 0u, 2u, 1u, 0u},
     {"HOSTED_I386_LINUX", CTOOL_C_PP_MODE_C11, CTOOL_FALSE, CTOOL_TRUE,
-     CTOOL_FALSE, CTOOL_FALSE, 31u, 2u, 1u, 0u},
+     CTOOL_FALSE, CTOOL_FALSE, 33u, 2u, 1u, 0u},
+    {"HOSTED_I386_WINDOWS", CTOOL_C_PP_MODE_C11, CTOOL_FALSE, CTOOL_TRUE,
+     CTOOL_FALSE, CTOOL_FALSE, 4u, 2u, 2u, 0u},
     {"HOSTED_I386_KERNEL_BRIDGE", CTOOL_C_PP_MODE_C11, CTOOL_FALSE,
      CTOOL_TRUE, CTOOL_FALSE, CTOOL_FALSE, 2u, 3u, 1u, 0u},
     {"HOSTED_I386_LINUX_GNU", CTOOL_C_PP_MODE_C11, CTOOL_TRUE, CTOOL_TRUE,
-     CTOOL_FALSE, CTOOL_FALSE, 2u, 2u, 1u, 0u}};
+     CTOOL_FALSE, CTOOL_FALSE, 3u, 2u, 1u, 0u}};
 
 static int open_job_at_root(const char *mode, const char *host_root,
                             ctool_host_adapter_t *adapter,
@@ -5590,8 +5592,8 @@ static int validate_active_manifest(const char *mode) {
   if (profile_count !=
           (ctool_u32)(sizeof(active_expected_profiles) /
                       sizeof(active_expected_profiles[0])) ||
-      kind_counts[ACTIVE_ROW_PROFILE] != 11u ||
-      kind_counts[ACTIVE_ROW_CASE] != 382u ||
+      kind_counts[ACTIVE_ROW_PROFILE] != 12u ||
+      kind_counts[ACTIVE_ROW_CASE] != 391u ||
       kind_counts[ACTIVE_ROW_GENERATED_CASE] != 4u ||
       kind_counts[ACTIVE_ROW_INCLUDE_ONLY] != 22u ||
       kind_counts[ACTIVE_ROW_NON_ROOT] != 2u ||

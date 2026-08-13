@@ -223,10 +223,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             transform["operation"], "verify_user_syscall_abi"
         )
         self.assertEqual(
-            len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 58
+            len(module.USER_SYSCALL_ABI_PUBLICATION_INPUTS), 62
         )
         self.assertEqual(
-            len(module.USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS), 43
+            len(module.USER_SYSCALL_ABI_BOOTSTRAP_SOURCE_INPUTS), 47
         )
         self.assertEqual(
             len(module.USER_SYSCALL_ABI_CHECKED_SEED_INPUTS), 6
@@ -243,7 +243,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             repo_inputs("CHECKED_SEED_INPUTS"),
             tuple(sorted(module.USER_SYSCALL_ABI_CHECKED_SEED_INPUTS)),
         )
-        self.assertEqual(len(module.USER_SYSCALL_ABI_AUDIT_INPUTS), 85)
+        self.assertEqual(len(module.USER_SYSCALL_ABI_AUDIT_INPUTS), 89)
         self.assertEqual(
             module.USER_SYSCALL_ABI_AUDIT_INPUTS,
             tuple(
@@ -258,7 +258,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             transform["inputs"],
             [*module.USER_SYSCALL_ABI_AUDIT_INPUTS, "user/Makefile"],
         )
-        self.assertEqual(len(publication_transform["inputs"]), 85)
+        self.assertEqual(len(publication_transform["inputs"]), 89)
         self.assertEqual(
             set(transform["inputs"][:-1]),
             set(publication_transform["inputs"]),
@@ -1805,7 +1805,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             contract = generated["contracts"][
                 "c_preprocessor_line_directives"
             ]
-            self.assertEqual(contract["source_files"], 695)
+            self.assertEqual(contract["source_files"], 698)
             self.assertEqual(contract["named_line_occurrences"], 0)
             self.assertEqual(contract["direct_line_occurrences"], 0)
             self.assertEqual(contract["pp_token_line_occurrences"], 0)
@@ -1826,7 +1826,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertIn(
                 "`c_preprocessor_line_directives` | `pass` | "
                 "0 named #line directives (0 direct, 0 pp-token; 0 filename); "
-                "0 numeric markers; 695 source files; max conditional depth 0",
+                "0 numeric markers; 698 source files; max conditional depth 0",
                 summary.read_text(encoding="utf-8"),
             )
 
@@ -2160,11 +2160,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             contract = json.loads(output.read_text(encoding="utf-8"))[
                 "contracts"
             ]["c_preprocessor_conditionals"]
-            self.assertEqual(contract["if_occurrences"], 116)
+            self.assertEqual(contract["if_occurrences"], 134)
             self.assertEqual(contract["elif_occurrences"], 9)
-            self.assertEqual(contract["expression_occurrences"], 125)
-            self.assertEqual(contract["unique_expressions"], 27)
-            self.assertEqual(contract["directive_expression_pairs"], 29)
+            self.assertEqual(contract["expression_occurrences"], 143)
+            self.assertEqual(contract["unique_expressions"], 29)
+            self.assertEqual(contract["directive_expression_pairs"], 31)
             self.assertTrue(
                 all(
                     not item["path"].casefold().startswith("templeos/")
@@ -2192,6 +2192,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 {expression: values[2] for expression, values in manifest.items()},
                 {
                     "! defined ( CUPID_HOSTED_I386_LINUX_ABI_H )": 1,
+                    "! defined ( CUPID_RUNTIME_WINDOWS )": 1,
                     "! defined ( _WIN32 ) && ! defined ( __MACOSX__ ) && "
                     "! defined ( __DJGPP__ )": 1,
                     "! defined ( __SIZEOF_POINTER__ ) || "
@@ -2217,6 +2218,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "defined ( _WIN32 ) && ! defined ( _WIN32_WCE )": 0,
                     "defined ( _WIN32 ) || defined ( __DJGPP__ )": 0,
                     "defined ( CUPID_HOSTED_I386_LINUX_ABI_H )": 0,
+                    "defined ( CUPID_RUNTIME_WINDOWS )": 0,
                     "defined ( CUPID_TOOLCHAIN_CUPIDC_STATIC_LONG_DOUBLE_INTERNAL )": 0,
                     "defined ( __DJGPP__ )": 0,
                     "defined ( __MACOSX__ )": 0,
@@ -2723,10 +2725,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 checked["contracts"]["c_preprocessor_include_operands"],
                 contract,
             )
-            self.assertEqual(contract["source_files"], 695)
-            self.assertEqual(contract["include_occurrences"], 2437)
-            self.assertEqual(contract["direct_quoted_occurrences"], 2196)
-            self.assertEqual(contract["direct_angle_occurrences"], 241)
+            self.assertEqual(contract["source_files"], 698)
+            self.assertEqual(contract["include_occurrences"], 2444)
+            self.assertEqual(contract["direct_quoted_occurrences"], 2197)
+            self.assertEqual(contract["direct_angle_occurrences"], 247)
             self.assertEqual(contract["pp_token_operand_occurrences"], 0)
 
     def test_inventory_detects_link_inputs_missing_from_artifact_manifest(self):
@@ -3308,6 +3310,14 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "CTOOL_FALSE",
                 ),
                 (
+                    "HOSTED_I386_WINDOWS",
+                    "CTOOL_C_PP_MODE_C11",
+                    "CTOOL_FALSE",
+                    "CTOOL_TRUE",
+                    "CTOOL_FALSE",
+                    "CTOOL_FALSE",
+                ),
+                (
                     "HOSTED_I386_KERNEL_BRIDGE",
                     "CTOOL_C_PP_MODE_C11",
                     "CTOOL_FALSE",
@@ -3337,12 +3347,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "CUPID_RUNTIME": 107,
                 "HOSTED_TOOLCHAIN_64": 0,
                 "HOSTED_KERNEL_BRIDGE_64": 0,
-                "HOSTED_I386_LINUX": 32,
+                "HOSTED_I386_LINUX": 33,
+                "HOSTED_I386_WINDOWS": 4,
                 "HOSTED_I386_KERNEL_BRIDGE": 2,
-                "HOSTED_I386_LINUX_GNU": 2,
+                "HOSTED_I386_LINUX_GNU": 3,
             },
         )
-        self.assertEqual(len(active), 385)
+        self.assertEqual(len(active), 391)
         for expected in (
             ("KERNEL_I386", "/kernel/core/kernel.cc"),
             ("KERNEL_I386", "/kernel/audio/memio.cc"),
@@ -3363,6 +3374,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ("HOSTED_I386_KERNEL_BRIDGE", "/kernel/lang/as_elf.cc"),
             ("HOSTED_I386_LINUX", "/toolchain/ctool_host.cc"),
             ("HOSTED_I386_LINUX", "/toolchain/cupidc_main.cc"),
+            ("HOSTED_I386_WINDOWS", "/toolchain/ctool_host.cc"),
+            ("HOSTED_I386_WINDOWS", "/toolchain/cupidasm_main.cc"),
+            ("HOSTED_I386_WINDOWS", "/toolchain/cupidc_main.cc"),
+            ("HOSTED_I386_WINDOWS", "/toolchain/cupidobj_main.cc"),
             (
                 "HOSTED_I386_LINUX",
                 "/toolchain/tests/cupidc_object_contract.cc",
@@ -3382,6 +3397,14 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             (
                 "HOSTED_I386_LINUX_GNU",
                 "/toolchain/hosted/i386-linux/runtime.cc",
+            ),
+            (
+                "HOSTED_I386_LINUX_GNU",
+                "/toolchain/hosted/i386-windows/runtime.cc",
+            ),
+            (
+                "HOSTED_I386_LINUX",
+                "/toolchain/tests/hosted_i386_windows_runtime_contract.cc",
             ),
         ):
             self.assertIn(expected, active)
@@ -4372,6 +4395,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "/toolchain",
                 "/toolchain/hosted/i386-linux/include",
             ],
+            "HOSTED_I386_WINDOWS": [
+                "/toolchain",
+                "/toolchain/hosted/i386-linux/include",
+            ],
             "HOSTED_I386_KERNEL_BRIDGE": [
                 "/toolchain",
                 "/kernel/lang",
@@ -4390,6 +4417,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     if name
                     in {
                         "HOSTED_I386_LINUX",
+                        "HOSTED_I386_WINDOWS",
                         "HOSTED_I386_KERNEL_BRIDGE",
                         "HOSTED_I386_LINUX_GNU",
                     }
@@ -4443,6 +4471,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             "HOSTED_TOOLCHAIN_64": [("__SIZEOF_POINTER__", "8")],
             "HOSTED_KERNEL_BRIDGE_64": [("__SIZEOF_POINTER__", "8")],
             "HOSTED_I386_LINUX": [("__SIZEOF_POINTER__", "4")],
+            "HOSTED_I386_WINDOWS": [
+                ("__SIZEOF_POINTER__", "4"),
+                ("_WIN32", "1"),
+            ],
             "HOSTED_I386_KERNEL_BRIDGE": [("__SIZEOF_POINTER__", "4")],
             "HOSTED_I386_LINUX_GNU": [("__SIZEOF_POINTER__", "4")],
         }
@@ -4528,12 +4560,17 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         self.assertEqual(contract["help_cases"], 5)
         self.assertEqual(contract["success_behavior_cases"], 18)
         self.assertEqual(contract["failure_behavior_cases"], 16)
-        self.assertEqual(contract["contract_manifest_inputs"], 58)
+        self.assertEqual(contract["contract_manifest_inputs"], 62)
         self.assertEqual(
             contract["source_head_capabilities"],
             [
                 "cupidld.pe32_fixed_image",
                 "cupidld.pe32_imports",
+                "cupid.windows_cupidasm",
+                "cupid.windows_cupidc",
+                "cupid.windows_cupiddis",
+                "cupid.windows_cupidobj",
+                "cupid.windows_runtime_contract",
                 "cupid.windows_runtime_probe",
             ],
         )
@@ -4548,6 +4585,12 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
         contract_publisher = (
             REPO_ROOT / "tools" / "cupidc_toolchain_contracts.py"
+        ).read_text(encoding="utf-8")
+        windows_runtime_contract = (
+            REPO_ROOT
+            / "toolchain"
+            / "tests"
+            / "hosted_i386_windows_runtime_contract.cc"
         ).read_text(encoding="utf-8")
         linker_header = (REPO_ROOT / "toolchain" / "cupidld.h").read_text(
             encoding="utf-8"
@@ -4599,6 +4642,53 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         )
         core_dispatch_feature = linker_core[
             core_dispatch_start:core_dispatch_end
+        ]
+        allocator_contract_start = windows_runtime_contract.index(
+            "static int allocator_contract(void) {"
+        )
+        allocator_contract_end = windows_runtime_contract.index(
+            "\nstatic int file_contract(", allocator_contract_start
+        )
+        file_contract_start = allocator_contract_end + 1
+        file_contract_end = windows_runtime_contract.index(
+            "\nstatic int directory_contract(void) {", file_contract_start
+        )
+        directory_contract_start = file_contract_end + 1
+        directory_contract_end = windows_runtime_contract.index(
+            "\nint main(", directory_contract_start
+        )
+
+        def hide_contract_body(feature: str) -> str:
+            opening = feature.index("{") + 1
+            final_return = feature.rindex("  return 0;\n")
+            body = feature[opening + 1 : final_return]
+            return (
+                feature[:opening]
+                + "\n  if (0) {\n"
+                + textwrap.indent(body, "  ")
+                + "  }\n"
+                + feature[final_return:]
+            )
+
+        allocator_contract_feature = windows_runtime_contract[
+            allocator_contract_start:allocator_contract_end
+        ]
+        file_contract_feature = windows_runtime_contract[
+            file_contract_start:file_contract_end
+        ]
+        directory_contract_feature = windows_runtime_contract[
+            directory_contract_start:directory_contract_end
+        ]
+        native_build_loop_start = bootstrap.index(
+            "    for tool_name, link_objects in "
+            "windows_native_tool_plans.items():\n"
+        )
+        native_build_loop_end = bootstrap.index(
+            "\n\n    windows_native_tool_loaders:",
+            native_build_loop_start,
+        )
+        native_build_loop_feature = bootstrap[
+            native_build_loop_start:native_build_loop_end
         ]
         mutations = {
             "angle root widened": (
@@ -4988,6 +5078,247 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "bootstrap",
                 "            or native_result.stderr\n",
                 "            or False\n",
+                r"fixed-point PE32 behavior differs",
+            ),
+            "Windows CupidDis stops comparing native output": (
+                "bootstrap",
+                "            or native_disassembly.stdout "
+                "!= reference_disassembly.stdout\n",
+                "            or False\n",
+                r"fixed-point PE32 behavior differs",
+            ),
+            "Windows CupidDis accepts the wrong missing-input exit": (
+                "bootstrap",
+                "            or native_missing.returncode != 1\n",
+                "            or False\n",
+                r"fixed-point PE32 behavior differs",
+            ),
+            "Windows runtime contract stops checking output bytes": (
+                "bootstrap",
+                "            or contract_output.read_bytes() "
+                "!= b\"headtail\"\n",
+                "            or False\n",
+                r"fixed-point PE32 behavior differs",
+            ),
+            "Windows runtime contract accepts the wrong negative exit": (
+                "bootstrap",
+                "            or native_contract_failure.returncode != 41\n",
+                "            or False\n",
+                r"fixed-point PE32 behavior differs",
+            ),
+            "Windows native tools stop comparing successful output": (
+                "bootstrap",
+                "                or native_output.read_bytes() "
+                "!= reference_output.read_bytes()\n",
+                "                or False\n",
+                r"fixed-point PE32 behavior differs",
+            ),
+            "Windows native tools stop preserving failure output": (
+                "bootstrap",
+                "                or failure_output.read_bytes() != sentinel\n",
+                "                or False\n",
+                r"fixed-point PE32 behavior differs",
+            ),
+            "Windows native tool behavior moves under a dead block": (
+                "bootstrap",
+                '    if os.name == "nt":\n'
+                "        windows_invalid_assembly = behavior_root / ",
+                '    if os.name == "nt":\n'
+                "        pass\n"
+                "    if False:\n"
+                "        windows_invalid_assembly = behavior_root / ",
+                r"fixed-point PE32 behavior differs",
+            ),
+            "Windows helper link moves under a dead block": (
+                "bootstrap",
+                "    link_result = _run_stage_pair(\n",
+                "    if False:\n"
+                "        link_result = _run_stage_pair(\n",
+                r"fixed-point PE32 behavior differs",
+            ),
+            "Windows helper uses the wrong platform define": (
+                "bootstrap",
+                '                "_WIN32=1",\n',
+                '                "_WIN64=1",\n',
+                r"fixed-point PE32 behavior differs",
+            ),
+            "Windows helper links the wrong image format": (
+                "bootstrap",
+                '            "i386pe",\n',
+                '            "elf_i386",  # "i386pe",\n',
+                r"fixed-point PE32 behavior differs",
+            ),
+            "Windows helper stops comparing compiled mains": (
+                "bootstrap",
+                "            or stage_two_object.read_bytes() "
+                "!= stage_three_object.read_bytes()\n",
+                "            or False  # stage_two_object.read_bytes() "
+                "!= stage_three_object.read_bytes()\n",
+                r"fixed-point PE32 behavior differs",
+            ),
+            "Windows helper stops comparing linked images": (
+                "bootstrap",
+                "        or stage_two_image.read_bytes() "
+                "!= stage_three_image.read_bytes()\n",
+                "        or False  # stage_two_image.read_bytes() "
+                "!= stage_three_image.read_bytes()\n",
+                r"fixed-point PE32 behavior differs",
+            ),
+            "Windows helper skips platform-sensitive mains": (
+                "bootstrap",
+                "    replacement_names = windows_sources.get(tool_name, ())\n",
+                "    replacement_names = ()\n",
+                r"fixed-point PE32 behavior differs",
+            ),
+            "Windows native image loop moves under a dead block": (
+                "bootstrap",
+                native_build_loop_feature,
+                "    if False:\n"
+                + textwrap.indent(native_build_loop_feature, "    "),
+                r"fixed-point PE32 behavior differs",
+            ),
+            "Windows native image loop calls a dead helper": (
+                "bootstrap",
+                "            _build_windows_tool_image(\n",
+                "            _skip_build_windows_tool_image(\n",
+                r"fixed-point PE32 behavior differs",
+            ),
+            "Windows native execution loop becomes empty": (
+                "bootstrap",
+                "        ) in native_checks.items():\n",
+                "        ) in ():\n",
+                r"fixed-point PE32 behavior differs",
+            ),
+            "Windows CupidASM compares its reference with itself": (
+                "bootstrap",
+                "                behavior_root / \"native-cupidasm.bin\",\n"
+                "                behavior_root / "
+                "\"native-cupidasm-failure.bin\",\n"
+                "                stage_two_binary,\n",
+                "                stage_two_binary,\n"
+                "                behavior_root / "
+                "\"native-cupidasm-failure.bin\",\n"
+                "                stage_two_binary,\n",
+                r"fixed-point PE32 behavior differs",
+            ),
+            "Windows CupidDis substitutes help for raw disassembly": (
+                "bootstrap",
+                "        raw_arguments: list[str | Path] = [\n"
+                '            "--raw",\n'
+                '            "--mode",\n'
+                '            "32",\n'
+                '            "--base",\n'
+                '            "0",\n'
+                "            windows_cupiddis_input,\n"
+                "        ]\n",
+                '        raw_arguments: list[str | Path] = ["--help"]\n',
+                r"fixed-point PE32 behavior differs",
+            ),
+            "Windows runtime contract skips allocator coverage": (
+                "windows_runtime_contract",
+                "  result = allocator_contract();\n",
+                "  result = 0;\n",
+                r"Windows runtime contract differs",
+            ),
+            "Windows runtime contract skips directory coverage": (
+                "windows_runtime_contract",
+                "    result = directory_contract();\n",
+                "    result = 0;\n",
+                r"Windows runtime contract differs",
+            ),
+            "Windows runtime contract hides coverage under if zero": (
+                "windows_runtime_contract",
+                "  result = allocator_contract();\n"
+                "  if (result == 0) {\n"
+                "    result = file_contract(argv[5], argv[6]);\n"
+                "  }\n"
+                "  if (result == 0) {\n"
+                "    result = directory_contract();\n"
+                "  }\n",
+                "  if (0) {\n"
+                "    result = allocator_contract();\n"
+                "    if (result == 0) {\n"
+                "      result = file_contract(argv[5], argv[6]);\n"
+                "    }\n"
+                "    if (result == 0) {\n"
+                "      result = directory_contract();\n"
+                "    }\n"
+                "  }\n"
+                "  result = file_contract(argv[5], argv[6]);\n",
+                r"Windows runtime contract differs",
+            ),
+            "Windows allocator returns before its assertions": (
+                "windows_runtime_contract",
+                "static int allocator_contract(void) {\n"
+                "  unsigned char *allocation;\n",
+                "static int allocator_contract(void) {\n"
+                "  return 0;\n"
+                "  unsigned char *allocation;\n",
+                r"Windows runtime contract differs",
+            ),
+            "Windows runtime main returns before its contract": (
+                "windows_runtime_contract",
+                "  int index;\n"
+                "  if (argc != 7",
+                "  int index;\n"
+                "  return 0;\n"
+                "  if (argc != 7",
+                r"Windows runtime contract differs",
+            ),
+            "Windows allocator assertions move under if zero": (
+                "windows_runtime_contract",
+                allocator_contract_feature,
+                hide_contract_body(allocator_contract_feature),
+                r"Windows runtime contract differs",
+            ),
+            "Windows file assertions move under if zero": (
+                "windows_runtime_contract",
+                file_contract_feature,
+                hide_contract_body(file_contract_feature),
+                r"Windows runtime contract differs",
+            ),
+            "Windows directory assertions move under if zero": (
+                "windows_runtime_contract",
+                directory_contract_feature,
+                hide_contract_body(directory_contract_feature),
+                r"Windows runtime contract differs",
+            ),
+            "Windows native execution loop skips every tool": (
+                "bootstrap",
+                "        ) in native_checks.items():\n"
+                "            failure_output.write_bytes(sentinel)\n",
+                "        ) in native_checks.items():\n"
+                "            continue\n"
+                "            failure_output.write_bytes(sentinel)\n",
+                r"fixed-point PE32 behavior differs",
+            ),
+            "Windows CupidDis overwrites native evidence": (
+                "bootstrap",
+                "        if (\n"
+                "            reference_disassembly.returncode != 0\n",
+                "        native_disassembly = reference_disassembly\n"
+                "        if (\n"
+                "            reference_disassembly.returncode != 0\n",
+                r"fixed-point PE32 behavior differs",
+            ),
+            "Windows native tools overwrite output evidence": (
+                "bootstrap",
+                "            if (\n"
+                "                reference_help.returncode != 0\n",
+                "            native_output.write_bytes(\n"
+                "                reference_output.read_bytes()\n"
+                "            )\n"
+                "            if (\n"
+                "                reference_help.returncode != 0\n",
+                r"fixed-point PE32 behavior differs",
+            ),
+            "Windows runtime contract manufactures output evidence": (
+                "bootstrap",
+                "        if (\n"
+                "            native_contract.returncode != 0\n",
+                "        contract_output.write_bytes(b\"headtail\")\n"
+                "        if (\n"
+                "            native_contract.returncode != 0\n",
                 r"fixed-point PE32 behavior differs",
             ),
             "PE32 direct IAT failure stops comparing stages": (
@@ -5459,6 +5790,12 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 contract_publisher_target = (
                     root / "tools" / "cupidc_toolchain_contracts.py"
                 )
+                windows_runtime_contract_target = (
+                    root
+                    / "toolchain"
+                    / "tests"
+                    / "hosted_i386_windows_runtime_contract.cc"
+                )
                 linker_header_target = root / "toolchain" / "cupidld.h"
                 linker_cli_target = root / "toolchain" / "cupidld_main.cc"
                 linker_core_target = root / "toolchain" / "cupidld.cc"
@@ -5469,6 +5806,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 test_payload = test
                 bootstrap_payload = bootstrap
                 contract_publisher_payload = contract_publisher
+                windows_runtime_contract_payload = windows_runtime_contract
                 linker_header_payload = linker_header
                 linker_cli_payload = linker_cli
                 linker_core_payload = linker_core
@@ -5490,6 +5828,14 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     self.assertNotEqual(
                         contract_publisher_payload, contract_publisher
                     )
+                elif target_name == "windows_runtime_contract":
+                    windows_runtime_contract_payload = (
+                        windows_runtime_contract_payload.replace(old, new, 1)
+                    )
+                    self.assertNotEqual(
+                        windows_runtime_contract_payload,
+                        windows_runtime_contract,
+                    )
                 elif target_name == "linker_header":
                     linker_header_payload = linker_header_payload.replace(
                         old, new, 1
@@ -5509,6 +5855,12 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 )
                 contract_publisher_target.write_text(
                     contract_publisher_payload, encoding="utf-8"
+                )
+                windows_runtime_contract_target.parent.mkdir(
+                    parents=True, exist_ok=True
+                )
+                windows_runtime_contract_target.write_text(
+                    windows_runtime_contract_payload, encoding="utf-8"
                 )
                 linker_header_target.write_text(
                     linker_header_payload, encoding="utf-8"
@@ -5597,6 +5949,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "link.ld",
                     "toolchain/hosted/i386-linux/start.asm",
                     "toolchain/hosted/i386-windows/start.asm",
+                    "toolchain/hosted/i386-windows/tool_start.asm",
                     "toolchain/Makefile",
                     "tools/bootstrap_toolchain.py",
                     "tools/cupidc_toolchain_contracts.py",
@@ -6202,9 +6555,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 },
                 {
                     "status": "pass",
-                    "tracked_translation_units": 385,
+                    "tracked_translation_units": 391,
                     "generated_translation_units": 4,
-                    "total_translation_units": 389,
+                    "total_translation_units": 395,
                     "include_only_fragments": 22,
                     "delivered_non_root_headers": 2,
                     "deferred_hosted_translation_units": 0,
@@ -6230,9 +6583,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     ("CUPID_RUNTIME", 107, 0),
                     ("HOSTED_TOOLCHAIN_64", 0, 0),
                     ("HOSTED_KERNEL_BRIDGE_64", 0, 0),
-                    ("HOSTED_I386_LINUX", 32, 0),
+                    ("HOSTED_I386_LINUX", 33, 0),
+                    ("HOSTED_I386_WINDOWS", 4, 0),
                     ("HOSTED_I386_KERNEL_BRIDGE", 2, 0),
-                    ("HOSTED_I386_LINUX_GNU", 2, 0),
+                    ("HOSTED_I386_LINUX_GNU", 3, 0),
                 ],
             )
             self.assertEqual(
@@ -6251,6 +6605,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "HOSTED_TOOLCHAIN_64": False,
                     "HOSTED_KERNEL_BRIDGE_64": False,
                     "HOSTED_I386_LINUX": False,
+                    "HOSTED_I386_WINDOWS": False,
                     "HOSTED_I386_KERNEL_BRIDGE": False,
                     "HOSTED_I386_LINUX_GNU": False,
                 },
@@ -6271,6 +6626,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     "HOSTED_TOOLCHAIN_64": False,
                     "HOSTED_KERNEL_BRIDGE_64": False,
                     "HOSTED_I386_LINUX": False,
+                    "HOSTED_I386_WINDOWS": False,
                     "HOSTED_I386_KERNEL_BRIDGE": False,
                     "HOSTED_I386_LINUX_GNU": False,
                 },
@@ -6278,7 +6634,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(
                 audit_payload["summary"],
                 {
-                    "active_sources": 728,
+                    "active_sources": 732,
                     "features": 255,
                     "transforms": 450,
                     "unreachable_sources": 25,
@@ -6289,7 +6645,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (6009, 171),
+                "c.expression.sizeof": (6016, 172),
                 "c.extension.builtin.offsetof": (12, 6),
                 "c.extension.gnu_alignof": (1, 1),
             }
@@ -6824,7 +7180,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 for cohort in audit_payload["roadmap"]["source_cohort_order"]
                 if cohort["id"] == "toolchain_sources"
             )
-            self.assertEqual(toolchain_cohort["source_count"], 78)
+            self.assertEqual(toolchain_cohort["source_count"], 82)
             user_program_cohort = next(
                 cohort
                 for cohort in audit_payload["roadmap"]["source_cohort_order"]
@@ -6883,7 +7239,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     ("toolchain_core", "CupidC"),
                 "toolchain/hosted/i386-linux/start.asm":
                     ("toolchain_core", None),
+                "toolchain/hosted/i386-windows/runtime.cc":
+                    ("toolchain_core", "CupidC"),
                 "toolchain/hosted/i386-windows/start.asm":
+                    ("toolchain_core", None),
+                "toolchain/hosted/i386-windows/tool_start.asm":
                     ("toolchain_core", None),
                 "toolchain/tests/core_contract.cc":
                     ("toolchain_contract", "CupidC"),
@@ -6916,6 +7276,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "toolchain/tests/hosted_i386_runtime_contract.cc":
                     ("toolchain_contract", "CupidC"),
                 "toolchain/tests/hosted_i386_windows_contract.cc":
+                    ("toolchain_contract", "CupidC"),
+                "toolchain/tests/hosted_i386_windows_runtime_contract.cc":
                     ("toolchain_contract", "CupidC"),
             }
             for path, (cohort, runtime_owner) in frontend_sources.items():
@@ -6976,10 +7338,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             for input_path in (
                 "toolchain/hosted/i386-linux/runtime.cc",
                 "toolchain/hosted/i386-linux/start.asm",
+                "toolchain/hosted/i386-windows/runtime.cc",
                 "toolchain/hosted/i386-windows/start.asm",
+                "toolchain/hosted/i386-windows/tool_start.asm",
                 "link.ld",
                 "toolchain/tests/hosted_i386_runtime_contract.cc",
                 "toolchain/tests/hosted_i386_windows_contract.cc",
+                "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
                 "toolchain/cupidc_main.cc",
                 "toolchain/tests/cupidc_object_contract.cc",
                 "toolchain/tests/user_syscall_abi_contract.cc",
@@ -7000,7 +7365,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             )
             self.assertIn(
                 "`c_preprocessor_translation_units` | `pass` | "
-                "385 tracked + 4 generated",
+                "391 tracked + 4 generated",
                 summary.read_text(encoding="utf-8"),
             )
             audit_payload["build"]["transforms"].append(

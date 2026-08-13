@@ -24582,3 +24582,175 @@ seconds. Cat read a 62-byte marker-shaped fixture and passed the negative
 serial-event boundary. Before and after the runs, both the source image and
 the staged evidence image had SHA-256
 `326844ca58c1f864a6b9a2480dfaeb5ed71ec3df22cdb46da17a6bb356e7e726`.
+
+## 2026-08-13: Run Cupid-built CupidDis natively on Windows
+
+### Decision and implementation
+
+The Windows PE probe proved the linker and loader boundary, but it did not run
+a real tool. The next useful slice was CupidDis because its unchanged driver
+needs arguments, input files, output streams, allocation, and error reporting
+without needing subprocess support.
+
+The hosted runtime now shares one implementation between Linux and Windows.
+`CUPID_RUNTIME_WINDOWS` selects a Windows edge that parses native quoted
+arguments, obtains separate stdout and stderr handles, allocates with
+`VirtualAlloc`, reads and writes files, seeks, reports the current directory,
+and maps common Win32 failures to the runtime's `errno` values. Each allocation
+owns one virtual region, which keeps `free` and `realloc` correct without a
+second allocator or host C runtime.
+
+The new CupidASM startup obtains the command line and calls the shared runtime
+entry. Its cdecl bridges preserve Cupid-generated call sites while invoking
+twelve imported stdcall APIs through CupidLD-authored IAT cells. Both rebuilt
+stages compile the runtime, assemble the startup, and link the unchanged
+CupidDis closure. The bootstrap compares both runtime objects, startup
+objects, and PE images before Windows executes the stage-two command.
+
+The first focused test failed because the Windows runtime source did not
+exist. A later direct runtime-contract run failed after 107.781 seconds when
+an unquoted trailing backslash consumed the next argument separator. That
+merged two path arguments and made the contract reject its argument count.
+Rechecking whitespace after each backslash run fixed the parser. The corrected
+test passed in 89.669 seconds and covers help, quoted raw-input parity, a
+missing-file diagnostic, startup alignment, allocation, named-file write and
+append behavior, current-directory errors, and Windows quote and backslash
+rules.
+
+The live Toolchain contract inventory now contains 61 inputs, and the frozen
+fixed-point source closure contains 46. The three new inputs are part of the
+normal freeze and drift checks. The Linux fixed point remains 19 C objects,
+one startup object, five images, five help cases, eighteen successful
+operations, and sixteen useful failures. The native CupidDis proof is an
+additional gate rather than a relabeling of that promoted matrix.
+
+### Evidence
+
+| Gate | Result |
+| --- | --- |
+| Focused native CupidDis and runtime-contract test | PASS in 89.669 seconds |
+| Hosted source snapshot tests | PASS, two tests in 7.737 seconds |
+| Fixed-point build graph contract | PASS in 63 seconds |
+| Complete checked-seed bootstrap | PASS in 784.5 seconds |
+| Python bytecode compilation | PASS |
+| Scoped diff check | PASS |
+
+The complete bootstrap preserved byte equality for all Linux stage artifacts
+and the full 5/18/16 behavior matrix. Its 45-input source snapshot has SHA-256
+`be974a7ddc9649611720444d5dfa18c72ec3bacbebe055545ba60a79c6e6cbb8`.
+The 20,557-byte report has SHA-256
+`897abfed34b0b59e12320d5fbf4b0173265b8118256dccc0bc064227fd3ef066`.
+
+Both native images are 377,856 bytes with SHA-256
+`cc9fad8a6659ef31926eb5f7e78600ae5ec5f6c3b17aabcb553893034e4d8572`.
+The runtime object is 27,620 bytes with SHA-256
+`a49b985a49c0b947f778e3edfc4becb96e415ccd363cdd8269a2e409f9de4dae`.
+The startup object is 1,648 bytes with SHA-256
+`2822d73592287adb6f8da5dcc0c1f75769c1584689b0db2db7e854f25adc90c9`.
+The quoted two-byte fixture produced 56 output bytes with SHA-256
+`7730fe73e97c921fae17e167e6960bb0189fee47de4fddc943117520ad82e6ac`.
+
+This is source-head evidence, not a checked Windows seed. The five producers
+remain static i386 Linux programs, Windows still launches them through WSL,
+and Host Python still coordinates the stages. Native CupidASM, CupidC,
+CupidLD, and CupidObj drivers remain open. The normal OS image and its ABI did
+not change, so the existing final poisoned-host build and dual-NIC boot proofs
+remain the applicable runtime evidence. ADR 0268 records the decision and the
+rejected alternatives.
+
+## 2026-08-13: Expand the native Windows proof to four tools
+
+The expanded proof below supersedes the CupidDis-only source-head evidence in
+the preceding entry. The shared runtime already covered the driver calls used
+by CupidASM, CupidC, and CupidObj. Each platform-sensitive host adapter and
+driver main is now compiled with `_WIN32=1`, while the core objects remain
+shared with the Linux fixed point. Both stages link native CupidASM, CupidC,
+CupidDis, and CupidObj images through the same startup, runtime, and twelve
+CupidLD-authored imports.
+
+Windows runs help plus a useful success and failure path for every tool.
+CupidASM assembles the fixed binary fixture and rejects an unknown mnemonic.
+CupidC compiles the valid object fixture and rejects invalid source without
+replacing a sentinel. CupidObj wraps the fixed asset and preserves a sentinel
+when its input is missing. CupidDis retains exact raw-report parity and its
+missing-file diagnostic. The direct runtime contract checks allocation,
+non-null `realloc`, overflow, named-file write and append after seek, reads,
+`fopen_s`, current-directory errors, embedded quotes, and a trailing
+backslash.
+
+Append state is stored only in the Windows stream layout and seeks to end
+before every write. The conditional field preserves the Linux runtime ABI.
+Fresh checked-seed compiles reproduce the preceding fixed-point bytes for the
+Linux runtime and every platform-sensitive Linux driver object.
+
+### Review failures and fixes
+
+The first native runtime-contract run failed after 107.781 seconds. A trailing
+unquoted backslash advanced the parser onto a space, then copied that space
+instead of ending the argument. Two path arguments merged and the contract
+returned 41. The parser now checks for unquoted whitespace after each
+backslash run. The corrected focused run passed in 89.669 seconds.
+
+Startup review found a separate cdecl defect. After aligning ESP and calling
+zero-argument `GetCommandLineA`, the entry pushed one runtime argument and
+called without padding. The runtime entered four bytes away from the residue
+assumed by CupidC. The entry now reserves twelve caller-padding bytes, and the
+structural startup check pins that alignment.
+
+The first build-graph audit treated raw fragments and any descendant AST node
+as sufficient proof. Review mutations kept those markers in comments or dead
+blocks, replaced live iterators with empty ones, added early returns and
+continues, compared an output with itself, substituted help for a real
+workload, and manufactured the expected file bytes. The audit accepted those
+mutations even though the native behavior had disappeared. Some report tests
+also derived expected loader values from the report under test.
+
+The replacement contract binds each native execution block and the Windows
+image helper to its exact live AST, pins normalized token digests for all four
+direct runtime-contract functions, and requires the exact workloads,
+references, exit codes, diagnostics, output bytes, and sentinel checks.
+Report tests now use independent expected values and exact artifact key sets.
+Fourteen control-flow, workload, and manufactured-evidence mutations are
+rejected. The combined focused audit and contract-plan run passed 37 tests in
+89.829 seconds.
+
+### Final fixed-point evidence
+
+The complete checked-seed bootstrap passed in 871.1 seconds. The Linux
+19-object, one-startup, five-image fixed point and 5/18/16 behavior matrix
+remain byte-identical, and all five promoted seed images match stage two. The
+47-input snapshot has SHA-256
+`976fca9ccef9a759151ea4cf544f17f3c303ef60fc3ad2207eda18857261d9c4`.
+The 32,681-byte report has SHA-256
+`d3608ab66f6781780ba3fe68eb3c5814248d1903d65f50651c8950ca46dda1e4`.
+
+| Native image | Bytes | SHA-256 | Result |
+| --- | ---: | --- | --- |
+| CupidASM | 433,664 | `c93a296e04a7a5bb9706ec7d360040a2cdc288941340e76941d9629049c8ce3a` | help 0, success 0, failure 1 |
+| CupidC | 2,593,792 | `ed6e667bd96f839c3bc9f55eb62e60bab8462f8c1c53d2ae36458134acc37def` | help 0, success 0, failure 1 |
+| CupidDis | 378,368 | `e4f20cd46344a4a68914389187d2cc9fbf3653e9ca8d0e56119d40bab17eed49` | help 0, raw 0, missing 1 |
+| CupidObj | 375,808 | `46ab2b19fc99bf7ee4856ae6f71a397668fb33bbd0da38535728d00a57a57924` | help 0, success 0, failure 1 |
+| Runtime contract | 32,256 | `df61f3a830d26fe47761cd1d927ca7f77b80a8788bf33e308a7d7f997a11eeec` | success 0, bad arguments 41 |
+
+The final `make bootstrap-audit` run passed against 732 active language
+inputs: 30 assembly files, 295 headers, and 407 Cupid C files. It records
+2,444 includes across 698 C-family inputs and 391 tracked profile roots plus
+four generated roots. The active-source digest is
+`c35fa81b8d869dbd32709df36150c31fa20a2d428f1e7c40c9da8ac5986471d6`.
+The 2,652,972-byte JSON report has SHA-256
+`bb99766083c1e973fe96b2bb83585ef23bee36ed3d8ee4be793e781783aae168`,
+and the 12,269-byte Markdown summary has SHA-256
+`1a9330b2c63a17ab907d47aaa9ab8803f19e64e810cde14f1ffa1ede2c6a817b`.
+
+The final independent verification passed all 80 build-graph audit tests in
+859.8 seconds and all 36 CupidC contract-plan tests in 6.826 seconds. The
+exact poisoned-host fixed-point test passed in 888.258 seconds, including the
+five checked-seed matches and every native Windows result. A final
+`make check-bootstrap-audit` reproduced the checked audit, Python bytecode
+compilation passed, and the scoped diff check reported no whitespace errors.
+
+The Toolchain contract publisher now freezes 62 inputs, and the fixed-point
+closure freezes 47. CupidLD remains the native tool outside this proof. Its
+publisher needs Windows exclusive-create, durable-flush, atomic-replace, and
+delete operations. Checked Windows seed carriage, WSL removal, and production
+adoption also remain open. ADR 0268 records the expanded decision.

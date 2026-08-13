@@ -255,7 +255,7 @@ scripted linking, binary and canonical-text wrapping, executable flattening,
 help, and useful failures.
 
 The checked i386 Linux seed includes CupidASM and binds it to the complete
-toolchain build plan. The bootstrap copies all 43 source inputs into a private
+toolchain build plan. The bootstrap copies all 47 source inputs into a private
 root. Checked CupidASM assembles stage-two startup there, and the stage-two
 assembler produces the byte-identical stage-three startup below the same root.
 The private and live closures are checked after each stage and after behavior
@@ -275,7 +275,12 @@ zero-addend `R_386_32` relocation. CupidLD binds that operand to its IAT cell.
 A direct call emits `R_386_PC32` and fails at link time. An absolute import
 reference with a nonzero addend also fails, so an input cannot address past
 the IAT cell. Both rebuilt assemblers produce identical Windows startup
-objects. A native Windows five-tool fixed point is still open.
+objects. Source head also assembles the native tool entry and twelve cdecl API
+bridges through both stages. Those startup objects match, and CupidLD links
+them with native CupidASM, CupidC, CupidDis, and CupidObj closures. Windows
+runs help plus a useful success and failure path for each tool. CupidDis also
+checks quoted raw-input parity. CupidLD's native publisher and checked Windows
+seed carriage remain open. ADR 0268 records the native four-tool boundary.
 
 ### Function Example
 

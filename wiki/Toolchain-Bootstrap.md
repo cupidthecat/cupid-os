@@ -20,13 +20,14 @@ and the repository runtime, and Linux or WSL runs the result. The normal
 Toolchain target also owns fifteen `.cc` contract programs. Stage-two and
 stage-three CupidC compile them at the checked i386 ABI, CupidLD links each
 one against matching stage objects, and the harness requires all seventeen new
-objects and sixteen executables to match across stages. It freezes 58
+objects and sixteen executables to match across stages. It freezes 62
 contract inputs and reconstructs that exact inventory under a private source
-root. That inventory includes the Windows startup and runtime probe, the user
-syscall ABI contract and its six declarations, the Toolchain Makefile, the
-publisher, and the independent Python ABI oracle. Newly discovered contract inventories catch additions, removals, and a
+root. That inventory includes the small Windows probe, the native Windows tool
+runtime, startup, direct runtime contract, and `direct.h`, the user syscall ABI contract and its six declarations,
+the Toolchain Makefile, the publisher, and the independent Python ABI oracle.
+Newly discovered contract inventories catch additions, removals, and a
 transient edit copied before the live file is restored. The public manifest
-also binds the checked seed, build plan, and 43-file fixed-point source
+also binds the checked seed, build plan, and 47-file fixed-point source
 inventory. Verify and run reconstruct both inventories before execution.
 Hashing, JSON decoding, schema checks, and build-plan use share one captured
 seed-manifest byte sequence. Replacing the file during validation cannot mix
@@ -57,9 +58,10 @@ This command validates the seed without executing it.
 make bootstrap-from-seed
 ```
 
-The full command reads all 43 current source inputs once: 19 tool C sources,
-two startup sources, 20 project headers, `link.ld`, and the freestanding
-Windows C probe. It copies those exact bytes into a private compiler root.
+The full command reads all 47 current source inputs once. The closure includes
+the 19 tool C sources, startup and hosted declarations, `link.ld`, the
+freestanding Windows probe, the Windows runtime wrapper, and the direct
+runtime contract. It copies those exact bytes into a private compiler root.
 Checked CupidC compiles stage two below that root, checked CupidASM assembles
 its startup, and checked CupidLD links all five tools. The stage-two producer
 trio repeats the build for stage three below the same root.
@@ -97,8 +99,9 @@ keeps the historical seed source revision separate from the captured source
 snapshot. ADR 0142 records this source and publication boundary.
 
 Linux runs private copies of the static tools directly. Windows stages each
-copy in a mode-0700 WSL directory created by `mktemp`. Native Windows seed
-executables are not available yet.
+copy in a mode-0700 WSL directory created by `mktemp`. Source-head native
+CupidASM, CupidC, CupidDis, and CupidObj proofs run separately. CupidLD's
+native publisher and a checked native seed are not available yet.
 
 This seed makes the hosted static toolchain reproducible from a clean
 checkout. `make -C toolchain all` uses it for the normal contract cohort and
@@ -130,8 +133,8 @@ images remained unchanged at SHA-256
 `326844ca58c1f864a6b9a2480dfaeb5ed71ec3df22cdb46da17a6bb356e7e726`.
 
 Host Python still coordinates the fixed point, and Windows still runs the
-static i386 Linux tools through WSL. Native Windows and Python-free fixed
-points remain open. `make verify-artifact-sizes` receives
+static i386 Linux tools through WSL. A complete native Windows fixed point and
+Python-free coordination remain open. `make verify-artifact-sizes` receives
 `$(BOOTSTRAP_SEED_MANIFEST)`, derives the five seed paths and declared sizes
 from that selected manifest, and requires the policy to agree. It also checks
 the five-sector boot image, both kernel ELFs, and the raw kernel. The verifier
@@ -171,6 +174,26 @@ records the format boundary. [ADR
 records imports and direct loader execution. [ADR
 0258](../docs/adr/0258-promote-pe-and-x87-toolchain-seed.md) records seed
 carriage.
+
+Source head extends that PE path to complete native CupidASM, CupidC,
+CupidDis, and CupidObj commands. The
+shared hosted runtime selects a Windows implementation for command-line
+parsing, `VirtualAlloc` heap storage, standard streams, file reads and writes,
+seeking, current-directory lookup, and useful `errno` values. CupidASM
+provides the entry and cdecl API bridges. CupidLD supplies the twelve imports.
+
+Both fixed-point stages produce matching PE images for all four tools.
+Windows runs help plus a useful success and failure case for each. CupidDis
+also requires a quoted two-byte input to match the Linux tool's 56-byte report
+exactly. The direct runtime contract checks allocation, named-file append,
+directory failures, and argument parsing. The complete proof passed in 871.1
+seconds. Its 47-input source closure has SHA-256
+`976fca9ccef9a759151ea4cf544f17f3c303ef60fc3ad2207eda18857261d9c4`,
+and its 32,681-byte report has SHA-256
+`d3608ab66f6781780ba3fe68eb3c5814248d1903d65f50651c8950ca46dda1e4`.
+CupidLD's native publisher and checked Windows seed carriage are still open.
+[ADR 0268](../docs/adr/0268-run-cupid-built-cupiddis-on-windows.md) records
+this boundary.
 
 The checked-seed CLI stages both ELF and PE images in an adjacent candidate
 created with exclusive-create semantics. It writes and closes the candidate,
@@ -222,7 +245,7 @@ It carries installation-source generation, transactional kernel-symbol source
 generation, transactional sequential-JPEG validation, pristine disk-template
 construction, deterministic ISO fixture authoring, and `profile-manifest` authoring.
 
-In the latest transition, all nineteen C objects, startup, and five tool images
+In the promoted seed transition, all nineteen C objects, startup, and five tool images
 matched between stage two and stage three. Both stages passed five help cases,
 eighteen successful operations, and sixteen useful failures. CupidObj stays
 byte-identical to the preceding seed, as does CupidLD. CupidASM, CupidC, and

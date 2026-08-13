@@ -98,6 +98,7 @@ CUPIDC_PP_GENERATED_SOURCES := ../kernel/cpu/ksyms_data.cc \
                               ../kernel/util/demos_programs_gen.cc \
                               ../kernel/util/docs_programs_gen.cc
 CUPIDC_HOSTED_I386_HEADERS := hosted/i386-linux/include/cupid_host_abi.h \
+                              hosted/i386-linux/include/direct.h \
                               hosted/i386-linux/include/errno.h \
                               hosted/i386-linux/include/stdint.h \
                               hosted/i386-linux/include/stdio.h \
@@ -107,8 +108,11 @@ CUPIDC_HOSTED_I386_HEADERS := hosted/i386-linux/include/cupid_host_abi.h \
 CUPIDC_HOSTED_I386_RUNTIME := hosted/i386-linux/runtime.cc \
                               hosted/i386-linux/start.asm \
                               tests/hosted_i386_runtime_contract.cc
-CUPIDC_HOSTED_I386_WINDOWS_RUNTIME := hosted/i386-windows/start.asm \
-                                      tests/hosted_i386_windows_contract.cc
+CUPIDC_HOSTED_I386_WINDOWS_RUNTIME := hosted/i386-windows/runtime.cc \
+                                      hosted/i386-windows/start.asm \
+                                      hosted/i386-windows/tool_start.asm \
+                                      tests/hosted_i386_windows_contract.cc \
+                                      tests/hosted_i386_windows_runtime_contract.cc
 CUPIDC_HOSTED_I386_CLOSURE := ctool.cc ctool.h ctool_host.cc ctool_host.h \
                               elf32.cc elf32.h x86.cc x86.h \
                               cupidc_pp.cc cupidc_pp.h \

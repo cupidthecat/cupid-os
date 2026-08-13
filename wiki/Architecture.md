@@ -144,11 +144,11 @@ source trees, files, and symbolic links remain untouched. Exact initial,
 private, and newly discovered contract inventories catch additions, removals,
 and restored edits that changed a copied input. Every contract run derives the
 cohort from its executable, requires a named manifest artifact, and verifies
-all artifact hashes, the current 58-input contract set, the checked seed
-manifest, and the 43-file fixed-point source inventory before execution. The
-contract inventory includes the Windows startup and runtime probe, the user
-syscall ABI contract and its six declarations, the Toolchain Makefile, the
-publisher, and the independent Python ABI oracle. One
+all artifact hashes, the current 62-input contract set, the checked seed
+manifest, and the 47-file fixed-point source inventory before execution. The
+contract inventory includes the small Windows probe, the native Windows tool
+runtime, startup, direct contract, and `direct.h`, the user syscall ABI contract and its six declarations,
+the Toolchain Makefile, the publisher, and the independent Python ABI oracle. One
 captured seed-manifest byte sequence supplies the digest, decoded data, schema
 checks, and build plan. Seventeen objects and sixteen executables must match
 across stages before the 21-artifact cohort can be published. Contract runs
@@ -156,6 +156,14 @@ use a private copy of the verified cohort. The user ABI check also gives the
 Cupid contract and Python oracle one shared six-file snapshot, then rechecks
 the live publication and sources before success.
 Native contract binaries are optional oracles.
+
+Source head also links and runs native Windows CupidASM, CupidC, CupidDis, and
+CupidObj from Cupid-built objects. CupidASM supplies the entry and imported
+API bridges, while CupidLD authors each PE image and its twelve IAT slots.
+Both fixed-point stages produce matching images. Windows runs help plus a
+useful success and failure path for each tool. CupidDis also checks quoted
+raw-input parity with the Linux tool. CupidLD's native publisher and checked
+Windows seed carriage remain open.
 
 Strong four-vCPU runtime checks pass with both NICs through SMP, RDRAND, all
 62 crypto checks, USB storage, audio, TrueType glyphs, a baseline JPEG decode,
