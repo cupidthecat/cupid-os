@@ -20,6 +20,10 @@ from pathlib import Path
 
 
 SCHEMA = "cupid.build-graph-audit.v1"
+SOURCE_SUFFIX_OWNERSHIP_POLICY = (
+    "docs/bootstrap/c-source-suffix-ownership.json"
+)
+SOURCE_SUFFIX_OWNERSHIP_SCHEMA = "cupid.c-source-suffix-ownership.v1"
 SOURCE_SUFFIXES = {
     ".c": "c",
     ".cc": "cupid_c",
@@ -309,6 +313,23 @@ KNOWN_UNREACHABLE_SOURCE_POLICIES = {
         "host_oracle",
         "optional host compiler input for ELF32 reader comparison",
     ),
+}
+
+SOURCE_SUFFIX_POLICY_KEYS = {
+    "residual_c_sources",
+    "runtime_delivery_sources",
+    "schema",
+    "unreachable_cupid_c_sources",
+}
+SOURCE_SUFFIX_CLASSIFICATIONS = {
+    "dormant",
+    "exact_duplicate",
+    "explicitly_excluded",
+    "historical_copy",
+    "host_fixture",
+    "host_oracle",
+    "not_reached",
+    "superseded",
 }
 
 
@@ -2150,6 +2171,14 @@ def _provenance(
                 "sha256": _source_digest(path),
             }
         )
+    source_suffix_policy = root / SOURCE_SUFFIX_OWNERSHIP_POLICY
+    if source_suffix_policy.is_file():
+        control_files.append(
+            {
+                "path": SOURCE_SUFFIX_OWNERSHIP_POLICY,
+                "sha256": _source_digest(source_suffix_policy),
+            }
+        )
     if any(
         "cupid_c_compiler" in transform.get("tools", [])
         for model in models
@@ -2262,6 +2291,145 @@ def _source_universe(root: Path) -> list[str]:
     )
 
 
+def _load_source_suffix_ownership_policy(root: Path) -> dict[str, object]:
+    relative = SOURCE_SUFFIX_OWNERSHIP_POLICY
+    path = root / relative
+    if not path.is_file():
+        if _is_checked_seed_runner_production_root(root):
+            raise AuditError(
+                f"source suffix ownership policy is missing: {relative}"
+            )
+        return {
+            "path": None,
+            "sha256": None,
+            "residual_c_sources": {},
+            "runtime_delivery_sources": [],
+            "unreachable_cupid_c_sources": {},
+        }
+
+    def reject_duplicate_keys(
+        pairs: list[tuple[str, object]],
+    ) -> dict[str, object]:
+        decoded: dict[str, object] = {}
+        for key, value in pairs:
+            if key in decoded:
+                raise AuditError(
+                    f"source suffix ownership policy repeats key: {key}"
+                )
+            decoded[key] = value
+        return decoded
+
+    try:
+        decoded = json.loads(
+            path.read_text(encoding="utf-8"),
+            object_pairs_hook=reject_duplicate_keys,
+        )
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        raise AuditError(
+            f"source suffix ownership policy is invalid: {relative}: {error}"
+        ) from error
+    if not isinstance(decoded, dict):
+        raise AuditError("source suffix ownership policy root must be an object")
+    if set(decoded) != SOURCE_SUFFIX_POLICY_KEYS:
+        missing = sorted(SOURCE_SUFFIX_POLICY_KEYS - set(decoded))
+        unknown = sorted(set(decoded) - SOURCE_SUFFIX_POLICY_KEYS)
+        raise AuditError(
+            "source suffix ownership policy fields differ: "
+            f"missing={missing!r}, unknown={unknown!r}"
+        )
+    if decoded["schema"] != SOURCE_SUFFIX_OWNERSHIP_SCHEMA:
+        raise AuditError(
+            "source suffix ownership policy schema differs: "
+            f"expected={SOURCE_SUFFIX_OWNERSHIP_SCHEMA!r}, "
+            f"actual={decoded['schema']!r}"
+        )
+
+    residual = decoded["residual_c_sources"]
+    deliveries = decoded["runtime_delivery_sources"]
+    unreachable_cupid_c = decoded["unreachable_cupid_c_sources"]
+    if not isinstance(residual, dict) or not all(
+        isinstance(key, str) and isinstance(value, str)
+        for key, value in residual.items()
+    ):
+        raise AuditError(
+            "source suffix ownership residual_c_sources must be a string map"
+        )
+    if not isinstance(deliveries, list) or not all(
+        isinstance(value, str) for value in deliveries
+    ):
+        raise AuditError(
+            "source suffix ownership runtime_delivery_sources must be a "
+            "string list"
+        )
+    if not isinstance(unreachable_cupid_c, dict) or not all(
+        isinstance(key, str) and isinstance(value, str)
+        for key, value in unreachable_cupid_c.items()
+    ):
+        raise AuditError(
+            "source suffix ownership unreachable_cupid_c_sources must be a "
+            "string map"
+        )
+
+    def validate_path(value: str, suffix: str, subject: str) -> None:
+        normalized = posixpath.normpath(value)
+        if (
+            not value
+            or "\\" in value
+            or posixpath.isabs(value)
+            or normalized != value
+            or value.startswith("../")
+            or Path(value).suffix.lower() != suffix
+        ):
+            raise AuditError(
+                f"source suffix ownership {subject} path is invalid: {value!r}"
+            )
+
+    if list(residual) != sorted(residual):
+        raise AuditError(
+            "source suffix ownership residual_c_sources must be path-sorted"
+        )
+    if deliveries != sorted(deliveries) or len(deliveries) != len(set(deliveries)):
+        raise AuditError(
+            "source suffix ownership runtime_delivery_sources must be a "
+            "unique path-sorted list"
+        )
+    if list(unreachable_cupid_c) != sorted(unreachable_cupid_c):
+        raise AuditError(
+            "source suffix ownership unreachable_cupid_c_sources must be "
+            "path-sorted"
+        )
+    for policy_path, role in residual.items():
+        validate_path(policy_path, ".c", "residual C")
+        if role != "active_host" and role not in SOURCE_SUFFIX_CLASSIFICATIONS:
+            raise AuditError(
+                "source suffix ownership residual C role is invalid: "
+                f"{policy_path}: {role}"
+            )
+    for policy_path in deliveries:
+        validate_path(policy_path, ".cc", "runtime delivery")
+    for policy_path, classification in unreachable_cupid_c.items():
+        validate_path(policy_path, ".cc", "unreachable Cupid C")
+        if classification not in SOURCE_SUFFIX_CLASSIFICATIONS:
+            raise AuditError(
+                "source suffix ownership unreachable Cupid C classification "
+                f"is invalid: {policy_path}: {classification}"
+            )
+    overlap = sorted(set(deliveries).intersection(unreachable_cupid_c))
+    if overlap:
+        raise AuditError(
+            "source suffix ownership policy assigns active and unreachable "
+            f"roles to the same path: {', '.join(overlap)}"
+        )
+
+    return {
+        "path": relative,
+        "sha256": _source_digest(path),
+        "residual_c_sources": residual,
+        "runtime_delivery_sources": deliveries,
+        "unreachable_cupid_c_sources": unreachable_cupid_c,
+    }
+
+
 def _explicitly_excluded_sources(root: Path) -> set[str]:
     makefile = root / "Makefile"
     if not makefile.is_file():
@@ -2355,6 +2523,11 @@ def _unreachable_inventory(
 def _c_source_ownership_contract(
     sources: list[dict[str, object]],
     unreachable_sources: list[dict[str, object]],
+    policy: dict[str, object],
+    runtime_owner_evidence: dict[str, str],
+    strict_cupid_c_ownership: bool,
+    strict_unreachable_cupid_c_ownership: bool,
+    complete_supported_graph: bool,
 ) -> dict[str, object]:
     active_tracked_c = sorted(
         (
@@ -2364,6 +2537,128 @@ def _c_source_ownership_contract(
         ),
         key=lambda source: str(source["path"]),
     )
+    active_tracked_cupid_c = sorted(
+        (
+            source
+            for source in sources
+            if source["origin"] == "tracked"
+            and source["language"] == "cupid_c"
+        ),
+        key=lambda source: str(source["path"]),
+    )
+    unreachable_tracked_c = sorted(
+        (
+            source
+            for source in unreachable_sources
+            if source["language"] == "c"
+        ),
+        key=lambda source: str(source["path"]),
+    )
+    unreachable_tracked_cupid_c = sorted(
+        (
+            source
+            for source in unreachable_sources
+            if source["language"] == "cupid_c"
+        ),
+        key=lambda source: str(source["path"]),
+    )
+    active_c_by_path = {
+        str(source["path"]): source for source in active_tracked_c
+    }
+    active_cupid_c_by_path = {
+        str(source["path"]): source for source in active_tracked_cupid_c
+    }
+    unreachable_c_by_path = {
+        str(source["path"]): source for source in unreachable_tracked_c
+    }
+    unreachable_cupid_c_by_path = {
+        str(source["path"]): source
+        for source in unreachable_tracked_cupid_c
+    }
+    residual_policy = policy["residual_c_sources"]
+    delivery_policy = policy["runtime_delivery_sources"]
+    unreachable_cupid_c_policy = policy["unreachable_cupid_c_sources"]
+    assert isinstance(residual_policy, dict)
+    assert isinstance(delivery_policy, list)
+    assert isinstance(unreachable_cupid_c_policy, dict)
+
+    for path, role in residual_policy.items():
+        active = active_c_by_path.get(path)
+        unreachable = unreachable_c_by_path.get(path)
+        if active is None and unreachable is None:
+            raise AuditError(
+                f"source suffix ownership policy path is missing: {path}"
+            )
+        if role == "active_host":
+            if active is None or active["runtime_owner"] is not None:
+                raise AuditError(
+                    "source suffix ownership policy expected active host C: "
+                    f"{path}"
+                )
+            if "host_c_compiler" not in active["build_owners"]:
+                raise AuditError(
+                    "source suffix ownership active host C lacks a host "
+                    f"compiler edge: {path}"
+                )
+        elif unreachable is None or unreachable["classification"] != role:
+            actual = (
+                "active"
+                if active is not None
+                else str(unreachable["classification"])
+                if unreachable is not None
+                else "missing"
+            )
+            raise AuditError(
+                "source suffix ownership residual C classification differs: "
+                f"{path}: expected={role}, actual={actual}"
+            )
+
+    for path in delivery_policy:
+        source = active_cupid_c_by_path.get(path)
+        if source is None:
+            raise AuditError(
+                f"source suffix ownership policy path is missing: {path}"
+            )
+        owners = set(source["build_owners"])
+        if owners != {"cupid_object", "host_python"}:
+            raise AuditError(
+                "source suffix runtime delivery policy lacks the exact "
+                f"CupidObj-only ownership edge: {path}"
+            )
+
+    for path, classification in unreachable_cupid_c_policy.items():
+        source = unreachable_cupid_c_by_path.get(path)
+        if source is None:
+            raise AuditError(
+                f"source suffix ownership policy path is missing: {path}"
+            )
+        if source["classification"] != classification:
+            raise AuditError(
+                "source suffix ownership unreachable Cupid C classification "
+                f"differs: {path}: expected={classification}, "
+                f"actual={source['classification']}"
+            )
+
+    if complete_supported_graph:
+        unknown_residual_c = sorted(
+            (set(active_c_by_path) | set(unreachable_c_by_path))
+            - set(residual_policy)
+        )
+        if unknown_residual_c:
+            raise AuditError(
+                "tracked .c source lacks explicit residual ownership policy: "
+                + ", ".join(unknown_residual_c)
+            )
+        unknown_unreachable_cupid_c = sorted(
+            set(unreachable_cupid_c_by_path) - set(unreachable_cupid_c_policy)
+        )
+        if unknown_unreachable_cupid_c:
+            raise AuditError(
+                "unreachable tracked .cc source lacks explicit ownership "
+                "policy: "
+                + ", ".join(unknown_unreachable_cupid_c)
+            )
+
     cupidc_owned = [
         str(source["path"])
         for source in active_tracked_c
@@ -2375,20 +2670,74 @@ def _c_source_ownership_contract(
             f"CupidC-owned tracked .c {noun} must use .cc: "
             + ", ".join(cupidc_owned)
         )
-    unreachable_tracked_c = sorted(
-        (
-            source
-            for source in unreachable_sources
-            if source["language"] == "c"
-        ),
-        key=lambda source: str(source["path"]),
+    unproven_active_cupid_c = (
+        [
+            str(source["path"])
+            for source in active_tracked_cupid_c
+            if source["runtime_owner"] != "CupidC"
+        ]
+        if strict_cupid_c_ownership
+        else []
     )
+    if unproven_active_cupid_c:
+        subject = (
+            "source lacks"
+            if len(unproven_active_cupid_c) == 1
+            else "sources lack"
+        )
+        raise AuditError(
+            f"tracked .cc {subject} independent CupidC ownership evidence: "
+            + ", ".join(unproven_active_cupid_c)
+        )
+    for source in (
+        unreachable_tracked_cupid_c
+        if strict_unreachable_cupid_c_ownership
+        else []
+    ):
+        path = str(source["path"])
+        if path in unreachable_cupid_c_policy:
+            continue
+        has_explicit_relation = any(
+            relation["kind"] in {"historical_copy_of", "superseded_by"}
+            for relation in source["relations"]
+        )
+        if source["classification"] == "explicitly_excluded" or has_explicit_relation:
+            continue
+        raise AuditError(
+            "unreachable tracked .cc source lacks explicit ownership policy: "
+            f"{path}"
+        )
     return {
         "status": "pass",
+        "policy": {
+            "path": policy["path"],
+            "sha256": policy["sha256"],
+            "residual_c_sources": len(residual_policy),
+            "runtime_delivery_sources": len(delivery_policy),
+            "unreachable_cupid_c_sources": len(unreachable_cupid_c_policy),
+        },
         "tracked_c_sources": len(active_tracked_c) + len(unreachable_tracked_c),
         "active_tracked_c_sources": len(active_tracked_c),
         "cupidc_owned_tracked_c_sources": 0,
         "unreachable_tracked_c_sources": len(unreachable_tracked_c),
+        "tracked_cupid_c_sources": (
+            len(active_tracked_cupid_c) + len(unreachable_tracked_cupid_c)
+        ),
+        "active_tracked_cupid_c_sources": len(active_tracked_cupid_c),
+        "proven_cupidc_owned_tracked_cupid_c_sources": len(
+            active_tracked_cupid_c
+        ),
+        "unreachable_tracked_cupid_c_sources": len(
+            unreachable_tracked_cupid_c
+        ),
+        "cupid_c_ownership_evidence": dict(
+            sorted(
+                collections.Counter(
+                    runtime_owner_evidence[str(source["path"])]
+                    for source in active_tracked_cupid_c
+                ).items()
+            )
+        ),
         "active": [
             {
                 "path": source["path"],
@@ -2403,6 +2752,20 @@ def _c_source_ownership_contract(
                 "classification": source["classification"],
             }
             for source in unreachable_tracked_c
+        ],
+        "unreachable_cupid_c": [
+            {
+                "path": source["path"],
+                "classification": source["classification"],
+                "policy": (
+                    "source_suffix_policy"
+                    if source["path"] in unreachable_cupid_c_policy
+                    else "tracked_source_relation"
+                    if source["relations"]
+                    else "make_filter_out"
+                ),
+            }
+            for source in unreachable_tracked_cupid_c
         ],
     }
 
@@ -4695,8 +5058,24 @@ def build_audit(
     supplemental_builds: list[tuple[str, str]] | None = None,
 ) -> dict[str, object]:
     root = root.resolve()
-    if _is_checked_seed_runner_production_root(root):
+    production_root = _is_checked_seed_runner_production_root(root)
+    if production_root:
         _validate_checked_seed_runner_contract(root)
+    source_suffix_policy = _load_source_suffix_ownership_policy(root)
+    strict_cupid_c_ownership = (
+        production_root or source_suffix_policy["path"] is not None
+    )
+    complete_supported_graph = production_root and {
+        ("user", "all"),
+        ("toolchain", "all"),
+    }.issubset(set(supplemental_builds or []))
+    strict_unreachable_cupid_c_ownership = (
+        complete_supported_graph
+        or (not production_root and source_suffix_policy["path"] is not None)
+    )
+    runtime_delivery_policy = set(
+        source_suffix_policy["runtime_delivery_sources"]
+    )
     root_model = _collect_build_model(root, make, target, ".")
     supplemental_models = [
         _collect_build_model(root, make, supplemental_target, directory)
@@ -4758,19 +5137,32 @@ def build_audit(
     _scan_build_features(all_transforms, feature_collector)
 
     sources = []
+    runtime_owner_evidence_by_path: dict[str, str] = {}
     for relative in sorted(all_sources):
         path = root / relative
         generated = relative in generated_sources
         language = _language(relative)
         owners = sorted(source_build_owners.get(relative, set()))
         runtime_owner = None
-        if language == "cupid_c":
+        runtime_owner_evidence = None
+        if language == "cupid_c" and "cupid_c_compiler" in owners:
             runtime_owner = "CupidC"
+            runtime_owner_evidence = "checked_cupidc_compile"
+        elif language == "cupid_c" and "cupid_c_contract" in owners:
+            runtime_owner = "CupidC"
+            runtime_owner_evidence = "checked_cupidc_contract"
+        elif language == "cupid_c" and relative in runtime_delivery_policy:
+            runtime_owner = "CupidC"
+            runtime_owner_evidence = "explicit_runtime_delivery_policy"
+        elif language == "cupid_c" and not strict_cupid_c_ownership:
+            runtime_owner = "CupidC"
+            runtime_owner_evidence = "unscoped_fixture_suffix"
         elif (
             language in {"c", "c_header"}
             and "cupid_c_compiler" in owners
         ):
             runtime_owner = "CupidC"
+            runtime_owner_evidence = "checked_cupidc_compile"
         elif (
             language == "assembly"
             and (
@@ -4782,11 +5174,15 @@ def build_audit(
             )
         ):
             runtime_owner = "CupidASM"
+            runtime_owner_evidence = "active_cupidasm_edge"
         elif language == "c_header" and {
             "host_object_copy",
             "cupid_object",
         }.intersection(owners):
             runtime_owner = "CupidC"
+            runtime_owner_evidence = "cupidobj_runtime_delivery"
+        if runtime_owner_evidence is not None:
+            runtime_owner_evidence_by_path[relative] = runtime_owner_evidence
         sources.append(
             {
                 "path": relative,
@@ -4819,6 +5215,11 @@ def build_audit(
     contracts["c_source_ownership"] = _c_source_ownership_contract(
         sources,
         unreachable_sources,
+        source_suffix_policy,
+        runtime_owner_evidence_by_path,
+        strict_cupid_c_ownership,
+        strict_unreachable_cupid_c_ownership,
+        complete_supported_graph,
     )
     artifact_contract = _artifact_coverage_contract(
         root,
@@ -12520,7 +12921,12 @@ def _render_markdown(audit: dict[str, object]) -> str:
                     f"{contract['active_tracked_c_sources']} active; "
                     f"{contract['cupidc_owned_tracked_c_sources']} owned by "
                     "CupidC; "
-                    f"{contract['unreachable_tracked_c_sources']} unreachable"
+                    f"{contract['unreachable_tracked_c_sources']} unreachable; "
+                    f"{contract['tracked_cupid_c_sources']} tracked .cc "
+                    f"sources; {contract['active_tracked_cupid_c_sources']} "
+                    "active with independent CupidC evidence; "
+                    f"{contract['unreachable_tracked_cupid_c_sources']} "
+                    "unreachable"
                 )
             elif "expression_occurrences" in contract:
                 detail = (

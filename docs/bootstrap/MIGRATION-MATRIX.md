@@ -186,10 +186,14 @@ superseded implementations, one dormant runtime draft, five native host test
 fixtures, and one optional host oracle. No active Cupid-built source needs a
 `.cc` rename. Renaming a `bin/*.c` copy would activate it through the wildcard
 build inventory, while renaming a host fixture would silently select C++
-semantics. The build audit now rejects an active tracked `.c` source if the
-evaluated graph assigns it to CupidC. A `.cc` rename follows a real checked
-build and behavior proof. The safe suffix-only rename set is empty. ADR 0284
-records the ownership gate.
+semantics. The build audit rejects an active tracked `.c` source if the graph
+assigns it to CupidC, and it does not treat `.cc` as proof of the reverse
+claim. Checked compile or Toolchain contract edges prove 275 active sources.
+An exact policy records the other 130 source-text deliveries, all seventeen
+residual `.c` paths, and the three unreachable `.cc` paths. A `.cc` rename
+still follows a checked build and behavior proof. The safe suffix-only rename
+set is empty. ADR 0284 records the first gate, and ADR 0291 records the
+independent provenance contract.
 
 Checked-seed CupidC represents GNU `returns_twice` and preserves live operands
 across supported direct calls. It rejects marked-function pointer conversion

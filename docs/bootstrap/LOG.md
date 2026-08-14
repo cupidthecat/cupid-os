@@ -26311,3 +26311,89 @@ manual do change rebuilt artifacts. The combined integration branch must run
 the complete OS build, artifact-size policy, and boot smoke after this commit
 lands. This correction adds no host dependency or build owner, changes no ABI,
 and does not justify a `.c` to `.cc` rename.
+
+## 2026-08-14: Require independent CupidC source suffix provenance
+
+The source ownership contract introduced by ADR 0284 checked only active
+tracked `.c` files. The source inventory assigned CupidC as the runtime owner
+of every `.cc` file before the contract ran. Renaming an active host source or
+an unreachable source to `.cc` could therefore remove it from the checked
+set and create the ownership claim that should have required proof.
+
+Three public CLI tests captured the gap. A host-built `main.cc`, an unreferenced
+`orphan.cc`, and a residual policy that still named `retired.c` after a rename
+all passed under the old rule. The red run failed all three tests in 0.854
+seconds because each command returned success.
+
+The audit now separates language classification from runtime ownership. A
+tracked `.cc` file earns CupidC ownership from a checked compile edge, the
+checked Toolchain contract, or an exact runtime-delivery policy entry backed
+by an owner set containing only CupidObj and its host Python wrapper. The
+reviewed policy lists 130 sources installed as text for in-OS compilation. It
+also fixes the audited role of all seventeen residual `.c` paths and the
+classification of the three unreachable `.cc` paths. Duplicate keys, unknown
+fields, bad paths or suffixes, stale entries, classification drift, and a
+delivery entry with any different or extra owner fail before report
+publication.
+
+The current complete graph contains 408 tracked `.cc` files. Of those, 405 are
+active and three are unreachable. Checked compiler edges prove 242 active
+sources, checked Toolchain contract edges prove 33, and the reviewed CupidObj
+delivery policy proves 130. Four generated `.cc` translations retain their
+generator origin and checked compile edges. The graph still has 736 active
+language inputs, 452 transforms, and 409 active Cupid C inputs when generated
+sources are included.
+
+Nine focused ownership tests passed in 3.171 seconds after the first
+implementation. The first complete graph module then ran 93 tests in 643.225
+seconds and failed 17. Sixteen failures came from applying production
+unreachable-source rules to policy-free scanner fixtures or a root-only audit
+that intentionally omitted the user and Toolchain roots. Strict active
+ownership now applies when the repository policy is present, while exact
+unreachable coverage belongs to the complete three-root graph. The explicit
+bypass fixtures retain strict policy, so this scope correction does not reopen
+the defect.
+
+The other failure found a stale count from the preceding wide integer
+conversion work. The committed audit already contained 6,088 `sizeof`
+occurrences across 172 files, while the exact test still expected 6,043. The
+corrected lock passed its focused generation and drift check in 216.585
+seconds. It changes no source inventory.
+
+Final review added one more bypass case. The earlier delivery predicate
+rejected compiler owners but allowed an unrelated extra owner beside CupidObj.
+A mixed CupidObj and host object-copy fixture passed before the correction, so
+its red test failed in 0.398 seconds. Comparing the complete owner set closes
+that path. All ten focused ownership cases then passed in 4.558 seconds.
+
+Final verification completed as follows:
+
+| Check | Result |
+| --- | --- |
+| Ownership CLI focus | PASS, ten tests in 4.558 seconds. Host C, checked CupidC, exact CupidObj delivery, host and inactive suffix bypasses, stale policy, wrong and extra delivery owners, historical relations, and explicit exclusion are covered. |
+| Focused former failures | PASS. Generic source inventory, Cupid `#exe`, active assembly controls, root-only ownership, and the corrected active-manifest lock all reach their intended contracts. |
+| Complete build-graph module | PASS, all 94 tests in 980.970 seconds. |
+| Deterministic generation | PASS, final `make bootstrap-audit` in 91.1 seconds. |
+| Checked replay | PASS, `make check-bootstrap-audit` in 87.0 seconds. |
+| Python syntax and whitespace | PASS, both changed Python files compile and `git diff --check` is clean. |
+
+The final generated records are:
+
+| Record | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `docs/bootstrap/audits/active-build.json` | 2,677,678 | `0433c9313a7fa8a4b2753000060d7447438c1ca94fa266928792db003de6bf81` |
+| `docs/bootstrap/ACTIVE-SOURCE-AUDIT.md` | 12,502 | `349b56aab626fa3cb9c9ef07d1fc7530854f6b668ae3ee859e03d8513da8f142` |
+| `docs/bootstrap/c-source-suffix-ownership.json` | 4,297 | `139876a26fef87b4e769dd397642817a89f6565564e402c46572950645fa7e82` |
+
+This audit-only change moves no source path, build owner, object, ABI, or host
+dependency. It does not alter compiler, assembler, linker, or disassembler
+output, so no standalone OS build or boot was needed. The CTXT edit changes
+the embedded documentation payload. The combined integration build must
+remeasure the artifact-size policy and run the normal QEMU gate after all
+documentation changes land.
+
+Policy review is provenance, not a behavior proof. A future `.c` to `.cc`
+rename still needs checked compilation, object validation, relevant behavior
+coverage, and any build or boot evidence required by the affected source. No
+tracked source qualifies for a rename in this step. ADR 0291 records the
+contract and this limitation.

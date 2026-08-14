@@ -18,10 +18,13 @@ tests.
 
 The `c_source_ownership` audit contract enforces the source suffix at the
 checked graph boundary. An active tracked `.c` source may remain host-owned,
-but CupidC ownership requires `.cc`. The current census contains seventeen
-tracked `.c` files, all outside supported transforms: seven historical copies,
-three superseded implementations, one dormant runtime draft, five native host
-fixtures, and one optional host oracle. ADR 0284 records the contract.
+but CupidC ownership requires `.cc` plus independent evidence. Checked compile
+and Toolchain contract edges prove 275 active sources. A reviewed policy names
+the other 130 active sources delivered as text by CupidObj. The same policy
+locks seventeen unreachable `.c` files and three unreachable `.cc` files. A
+host-owned or inactive source cannot change its reported owner by changing its
+suffix. ADR 0284 records the `.c` rejection, and ADR 0291 records the complete
+two-way contract.
 The five fixture paths and the oracle retain native C semantics. Their combined
 kernel, USB, and ELF32 evidence passes all 56 cases after the process fixture
 adopted the four current cleanup and time adapters.

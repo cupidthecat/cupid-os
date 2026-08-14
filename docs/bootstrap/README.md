@@ -1233,9 +1233,14 @@ fixtures, and one optional host oracle. Renaming a `bin/*.c` copy would activate
 it through wildcard discovery. Renaming a fixture would silently select C++
 semantics and misstate its owner. The `c_source_ownership` contract rejects an
 active tracked `.c` source once the graph assigns it to CupidC. Host-owned C
-inputs remain valid. A `.cc` rename therefore follows a real checked build and
-behavior proof. The safe suffix-only rename set is empty. ADR 0284 records this
-executable suffix boundary.
+inputs remain valid. The contract does not assign CupidC ownership from the
+`.cc` suffix. It requires a checked compile edge, the checked Toolchain
+contract, or an exact runtime-delivery policy entry backed by a CupidObj edge.
+The policy fixes all seventeen residual `.c` paths, all 130 source-text
+deliveries, and the three unreachable `.cc` paths. A stale path, unknown
+`.cc`, or host-owned `.cc` fails before publication. The safe suffix-only
+rename set is empty. ADR 0284 records the first gate, and ADR 0291 records the
+independent provenance contract.
 
 Native contract evidence keeps that distinction executable. The process
 fixture now supplies the four host adapters required by the current
@@ -2486,6 +2491,7 @@ A block type name or record member may either reuse a visible enum tag or define
 - `CAPABILITY-MATRIX.md` records implemented and missing CupidC, CupidASM, CupidDis, object, linker, and bootstrap capabilities.
 - `MIGRATION-MATRIX.md` records which tool owns each source and artifact cohort today and at the self-hosting fixed point.
 - `BASELINE.md` documents the reproducible oracle-build interface and evidence format.
+- `c-source-suffix-ownership.json` records the reviewed residual C, runtime source-delivery, and unreachable Cupid C paths that cannot derive ownership from a direct checked compiler edge.
 - `ACTIVE-SOURCE-AUDIT.md` is the generated human summary of the root OS image, separate user-program, and hosted toolchain build roots, including ownership, source features, ABI requirements, unreachable files, and source-driven priorities.
 - `audits/active-build.json` is the deterministic machine-readable companion. Regenerate it with `make bootstrap-audit`; `make test` and `make check-bootstrap-audit` reject drift or a failing audit contract.
 - `../adr/` records stable architectural decisions; `../../CONTEXT.md` defines project vocabulary.

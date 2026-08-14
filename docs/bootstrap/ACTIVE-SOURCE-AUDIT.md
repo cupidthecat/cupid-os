@@ -216,7 +216,7 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `c_preprocessor_line_directives` | `pass` | 0 named #line directives (0 direct, 0 pp-token; 0 filename); 0 numeric markers; 701 source files; max conditional depth 0 |
 | `c_preprocessor_pragmas` | `pass` | 5 pragmas (1 once, 2 pack pushes, 2 pack pops); pack balanced: yes; max pack depth 1 |
 | `c_preprocessor_translation_units` | `pass` | 395 tracked + 4 generated translation units (KERNEL_I386=156, DOOM_COMPAT_I386=3, DOOM_TREE_I386=80, USER_I386=3, FREESTANDING_I386=1, CUPID_RUNTIME=108, HOSTED_TOOLCHAIN_64=0, HOSTED_KERNEL_BRIDGE_64=0, HOSTED_I386_LINUX=33, HOSTED_I386_WINDOWS=6, HOSTED_I386_KERNEL_BRIDGE=2, HOSTED_I386_LINUX_GNU=3); 22 include-only, 2 non-root headers; 0 hosted deferred (0 external, 0 hermetic) |
-| `c_source_ownership` | `pass` | 17 tracked .c sources; 0 active; 0 owned by CupidC; 17 unreachable |
+| `c_source_ownership` | `pass` | 17 tracked .c sources; 0 active; 0 owned by CupidC; 17 unreachable; 408 tracked .cc sources; 405 active with independent CupidC evidence; 3 unreachable |
 | `cupid_toolchain_fixed_point` | `pass` | 19 tool C sources (18 strict, 1 GNU); 5 tools (cupidasm=8, cupiddis=8, cupidld=7, cupidobj=7, cupidc=12); 19 C objects and 1 startup object compared across stages; 5 tool images; 18 success and 16 failure cases; i386-linux |
 
 ## Interpretation limits

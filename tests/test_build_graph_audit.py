@@ -47,6 +47,25 @@ def _write(path, content):
     path.write_text(textwrap.dedent(content).lstrip(), encoding="utf-8")
 
 
+def _write_source_suffix_policy(
+    root,
+    *,
+    residual_c_sources=None,
+    runtime_delivery_sources=None,
+    unreachable_cupid_c_sources=None,
+):
+    payload = {
+        "schema": "cupid.c-source-suffix-ownership.v1",
+        "residual_c_sources": residual_c_sources or {},
+        "runtime_delivery_sources": runtime_delivery_sources or [],
+        "unreachable_cupid_c_sources": unreachable_cupid_c_sources or {},
+    }
+    _write(
+        root / "docs" / "bootstrap" / "c-source-suffix-ownership.json",
+        json.dumps(payload, indent=2, sort_keys=True) + "\n",
+    )
+
+
 def _json_list_recipe(values):
     python = Path(sys.executable).resolve().as_posix()
     return (
@@ -2406,10 +2425,22 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 audit["contracts"]["c_source_ownership"],
                 {
                     "status": "pass",
+                    "policy": {
+                        "path": None,
+                        "sha256": None,
+                        "residual_c_sources": 0,
+                        "runtime_delivery_sources": 0,
+                        "unreachable_cupid_c_sources": 0,
+                    },
                     "tracked_c_sources": 3,
                     "active_tracked_c_sources": 1,
                     "cupidc_owned_tracked_c_sources": 0,
                     "unreachable_tracked_c_sources": 2,
+                    "tracked_cupid_c_sources": 1,
+                    "active_tracked_cupid_c_sources": 0,
+                    "proven_cupidc_owned_tracked_cupid_c_sources": 0,
+                    "unreachable_tracked_cupid_c_sources": 1,
+                    "cupid_c_ownership_evidence": {},
                     "active": [
                         {
                             "path": "active.c",
@@ -2427,6 +2458,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                             "classification": "not_reached",
                         },
                     ],
+                    "unreachable_cupid_c": [
+                        {
+                            "path": "filtered.cc",
+                            "classification": "explicitly_excluded",
+                            "policy": "make_filter_out",
+                        }
+                    ],
                 },
             )
             self.assertEqual(audit["summary"]["active_sources"], 1)
@@ -2439,13 +2477,17 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 root / "Makefile",
                 """
                 .SUFFIXES:
-                CC = host-cc
+                PYTHON := python3
+                PRODUCTION_SEED_MANIFEST := seed.json
+                CUPIDC_KERNEL_COMPILE := $(PYTHON) \
+                    tools/cupidc_kernel_compile.py --root . \
+                    --manifest $(PRODUCTION_SEED_MANIFEST)
 
                 .PHONY: all
                 all: kernel/lang/cupidc.o
 
                 kernel/lang/cupidc.o: kernel/lang/cupidc.cc
-                \t$(CC) -c $< -o $@
+                \t$(CUPIDC_KERNEL_COMPILE) --profile kernel $< $@
                 """,
             )
             _write(
@@ -2456,6 +2498,13 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 root / "bin" / "cupidc.c",
                 "int historical_compiler(void) { return 1; }\n",
             )
+            for relative in (
+                "tools/cupidc_kernel_compile.py",
+                "tools/kernel_cupidc_frontier.py",
+                "tools/bootstrap_toolchain.py",
+                "bootstrap/seeds/i386-windows/manifest.json",
+            ):
+                _write(root / relative, "fixture\n")
 
             output = root / "audit.json"
             result = subprocess.run(
@@ -2527,6 +2576,136 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
             self.assertIn(
                 "CupidC-owned tracked .c source must use .cc: main.c",
+                result.stderr,
+            )
+            self.assertFalse(output.exists())
+
+    def test_host_owned_tracked_cc_cannot_claim_cupidc_from_suffix(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _write(
+                root / "Makefile",
+                """
+                .SUFFIXES:
+                CC = host-cc
+
+                .PHONY: all
+                all: main.o
+
+                main.o: main.cc
+                \t$(CC) -x c -c $< -o $@
+                """,
+            )
+            _write(root / "main.cc", "int main(void) { return 0; }\n")
+            _write_source_suffix_policy(root)
+
+            output = root / "audit.json"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(AUDIT_TOOL),
+                    "--root",
+                    str(root),
+                    "--output",
+                    str(output),
+                ],
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertIn(
+                "tracked .cc source lacks independent CupidC ownership "
+                "evidence: main.cc",
+                result.stderr,
+            )
+            self.assertFalse(output.exists())
+
+    def test_unreachable_tracked_cc_requires_explicit_policy(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _write(
+                root / "Makefile",
+                """
+                .SUFFIXES:
+                CC = host-cc
+
+                .PHONY: all
+                all: main.o
+
+                main.o: main.c
+                \t$(CC) -c $< -o $@
+                """,
+            )
+            _write(root / "main.c", "int main(void) { return 0; }\n")
+            _write(root / "orphan.cc", "int orphan(void) { return 0; }\n")
+            _write_source_suffix_policy(root)
+
+            output = root / "audit.json"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(AUDIT_TOOL),
+                    "--root",
+                    str(root),
+                    "--output",
+                    str(output),
+                ],
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertIn(
+                "unreachable tracked .cc source lacks explicit ownership "
+                "policy: orphan.cc",
+                result.stderr,
+            )
+            self.assertFalse(output.exists())
+
+    def test_residual_c_policy_cannot_follow_a_suffix_only_rename(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _write(
+                root / "Makefile",
+                """
+                .SUFFIXES:
+                CC = host-cc
+
+                .PHONY: all
+                all: main.o
+
+                main.o: main.c
+                \t$(CC) -c $< -o $@
+                """,
+            )
+            _write(root / "main.c", "int main(void) { return 0; }\n")
+            _write(root / "retired.cc", "int retired(void) { return 0; }\n")
+            _write_source_suffix_policy(
+                root,
+                residual_c_sources={
+                    "main.c": "active_host",
+                    "retired.c": "not_reached",
+                },
+            )
+
+            output = root / "audit.json"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(AUDIT_TOOL),
+                    "--root",
+                    str(root),
+                    "--output",
+                    str(output),
+                ],
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertIn(
+                "source suffix ownership policy path is missing: retired.c",
                 result.stderr,
             )
             self.assertFalse(output.exists())
@@ -2639,16 +2818,174 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 audit["contracts"]["c_source_ownership"],
                 {
                     "status": "pass",
+                    "policy": {
+                        "path": None,
+                        "sha256": None,
+                        "residual_c_sources": 0,
+                        "runtime_delivery_sources": 0,
+                        "unreachable_cupid_c_sources": 0,
+                    },
                     "tracked_c_sources": 0,
                     "active_tracked_c_sources": 0,
                     "cupidc_owned_tracked_c_sources": 0,
                     "unreachable_tracked_c_sources": 0,
+                    "tracked_cupid_c_sources": 1,
+                    "active_tracked_cupid_c_sources": 1,
+                    "proven_cupidc_owned_tracked_cupid_c_sources": 1,
+                    "unreachable_tracked_cupid_c_sources": 0,
+                    "cupid_c_ownership_evidence": {
+                        "checked_cupidc_compile": 1,
+                    },
                     "active": [],
                     "unreachable": [],
+                    "unreachable_cupid_c": [],
                 },
             )
             source = {item["path"]: item for item in audit["sources"]}["main.cc"]
             self.assertEqual(source["runtime_owner"], "CupidC")
+
+    def test_policy_can_authorize_a_cupidobj_delivered_runtime_source(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _write(
+                root / "Makefile",
+                """
+                .SUFFIXES:
+                CUPIDOBJ = cupidobj
+
+                .PHONY: all
+                all: program.o
+
+                program.o: program.cc
+                \t$(CUPIDOBJ) wrap-text $< -o $@
+                """,
+            )
+            _write(root / "program.cc", "U0 Main() {}\n")
+            _write_source_suffix_policy(
+                root,
+                runtime_delivery_sources=["program.cc"],
+            )
+
+            output = root / "audit.json"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(AUDIT_TOOL),
+                    "--root",
+                    str(root),
+                    "--output",
+                    str(output),
+                ],
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            audit = json.loads(output.read_text(encoding="utf-8"))
+            source = {item["path"]: item for item in audit["sources"]}[
+                "program.cc"
+            ]
+            self.assertEqual(source["runtime_owner"], "CupidC")
+            self.assertEqual(
+                audit["contracts"]["c_source_ownership"]
+                ["cupid_c_ownership_evidence"],
+                {"explicit_runtime_delivery_policy": 1},
+            )
+            self.assertEqual(
+                audit["contracts"]["c_source_ownership"]["policy"]
+                ["runtime_delivery_sources"],
+                1,
+            )
+
+    def test_runtime_delivery_policy_cannot_authorize_a_host_compile(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _write(
+                root / "Makefile",
+                """
+                .SUFFIXES:
+                CC = host-cc
+
+                .PHONY: all
+                all: main.o
+
+                main.o: main.cc
+                \t$(CC) -x c -c $< -o $@
+                """,
+            )
+            _write(root / "main.cc", "int main(void) { return 0; }\n")
+            _write_source_suffix_policy(
+                root,
+                runtime_delivery_sources=["main.cc"],
+            )
+
+            output = root / "audit.json"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(AUDIT_TOOL),
+                    "--root",
+                    str(root),
+                    "--output",
+                    str(output),
+                ],
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertIn(
+                "runtime delivery policy lacks the exact CupidObj-only "
+                "ownership edge: main.cc",
+                result.stderr,
+            )
+            self.assertFalse(output.exists())
+
+    def test_runtime_delivery_policy_rejects_an_extra_host_owner(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _write(
+                root / "Makefile",
+                """
+                .SUFFIXES:
+                CUPIDOBJ = cupidobj
+                OBJCOPY = objcopy
+
+                .PHONY: all
+                all: program.o
+
+                program.o: program.cc
+                \t$(CUPIDOBJ) wrap-text $< -o $@
+                \t$(OBJCOPY) --version
+                """,
+            )
+            _write(root / "program.cc", "U0 Main() {}\n")
+            _write_source_suffix_policy(
+                root,
+                runtime_delivery_sources=["program.cc"],
+            )
+
+            output = root / "audit.json"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(AUDIT_TOOL),
+                    "--root",
+                    str(root),
+                    "--output",
+                    str(output),
+                ],
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertIn(
+                "runtime delivery policy lacks the exact CupidObj-only "
+                "ownership edge: program.cc",
+                result.stderr,
+            )
+            self.assertFalse(output.exists())
 
     def test_inventory_resolves_declared_and_assembly_include_edges(self):
         with tempfile.TemporaryDirectory() as td:
@@ -7230,7 +7567,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (6090, 172),
+                "c.expression.sizeof": (6094, 172),
                 "c.extension.builtin.offsetof": (12, 6),
                 "c.extension.gnu_alignof": (1, 1),
             }

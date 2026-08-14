@@ -40270,9 +40270,24 @@
     "c_source_ownership": {
       "active": [],
       "active_tracked_c_sources": 0,
+      "active_tracked_cupid_c_sources": 405,
+      "cupid_c_ownership_evidence": {
+        "checked_cupidc_compile": 242,
+        "checked_cupidc_contract": 33,
+        "explicit_runtime_delivery_policy": 130
+      },
       "cupidc_owned_tracked_c_sources": 0,
+      "policy": {
+        "path": "docs/bootstrap/c-source-suffix-ownership.json",
+        "residual_c_sources": 17,
+        "runtime_delivery_sources": 130,
+        "sha256": "139876a26fef87b4e769dd397642817a89f6565564e402c46572950645fa7e82",
+        "unreachable_cupid_c_sources": 3
+      },
+      "proven_cupidc_owned_tracked_cupid_c_sources": 405,
       "status": "pass",
       "tracked_c_sources": 17,
+      "tracked_cupid_c_sources": 408,
       "unreachable": [
         {
           "classification": "historical_copy",
@@ -40343,7 +40358,25 @@
           "path": "toolchain/tests/elf32_oracle.c"
         }
       ],
-      "unreachable_tracked_c_sources": 17
+      "unreachable_cupid_c": [
+        {
+          "classification": "explicitly_excluded",
+          "path": "bin/old_cc2.cc",
+          "policy": "source_suffix_policy"
+        },
+        {
+          "classification": "explicitly_excluded",
+          "path": "bin/old_cc2_single.cc",
+          "policy": "source_suffix_policy"
+        },
+        {
+          "classification": "superseded",
+          "path": "demos/paint.cc",
+          "policy": "source_suffix_policy"
+        }
+      ],
+      "unreachable_tracked_c_sources": 17,
+      "unreachable_tracked_cupid_c_sources": 3
     },
     "cupid_toolchain_fixed_point": {
       "checked_seed_publication": "complete-bundle",
@@ -54432,6 +54465,10 @@
         "sha256": "e87af4af0e3494d5546e5bbb728c7386b63864d80216bd1bdc67b45b3e072568"
       },
       {
+        "path": "docs/bootstrap/c-source-suffix-ownership.json",
+        "sha256": "139876a26fef87b4e769dd397642817a89f6565564e402c46572950645fa7e82"
+      },
+      {
         "path": "tools/cupidc_kernel_compile.py",
         "sha256": "b5989553f9fe378faed7cc250244e921ecaabd5b4deb4bf0db29b1c7c8b5b9f7"
       },
@@ -54466,7 +54503,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "6588196eede8d65f1fc67d3ff7be7e64915d23cff7b9334e2e08b503769c6960"
+      "sha256": "998950b6f5b052f0546d3da4cdbb45f8af8a8188c1fed7a128e22322d73a6d88"
     },
     "text_hash_policy": "canonical_lf"
   },

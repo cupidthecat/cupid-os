@@ -260,9 +260,13 @@ files and six host inputs are intentionally unbootstrapped. Renaming a
 a fixture would silently select C++ semantics and falsify its host-C ownership.
 A `.cc` rename follows a real CupidC build and behavior proof; it does not stand
 in for one. The audit rejects an active tracked `.c` source owned by CupidC,
-while preserving native C semantics for host fixtures. The safe suffix-only
-rename set is empty. ADR 0284 records this boundary. No host dependency moves
-in this step.
+while preserving native C semantics for host fixtures. It also requires
+independent ownership evidence for active `.cc` sources. Direct checked edges
+prove 275 sources, while an exact policy and CupidObj delivery edge prove the
+remaining 130 runtime sources. That policy keeps all seventeen residual `.c`
+paths and three unreachable `.cc` paths visible. The safe suffix-only rename
+set is empty. ADR 0284 records the first direction, and ADR 0291 records the
+complete provenance boundary. No host dependency moves in this step.
 
 CupidASM's `align` statement adds no host tool to that graph. The shared
 assembler computes raw padding from the absolute `ORG` address, records ELF32

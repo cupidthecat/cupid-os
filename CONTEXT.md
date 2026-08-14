@@ -331,9 +331,14 @@ superseded implementations, one dormant runtime draft, five host fixtures, and
 one host oracle. Renaming a `bin/*.c` copy would activate it through wildcard
 discovery. Renaming a fixture would silently switch it to C++ semantics and
 misstate its owner. The audit rejects any active tracked `.c` source owned by
-CupidC. A `.cc` rename follows a real checked build and behavior proof. The
-safe suffix-only rename set is empty.
-_Avoid_: pending active-source renames, suffix-only migration, Cupid-owned host fixtures
+CupidC. It does not infer the reverse claim from `.cc`. A checked compile edge,
+the checked Toolchain contract, or an exact runtime-delivery policy entry with
+a CupidObj edge supplies independent ownership evidence. The policy also locks
+the seventeen residual `.c` paths and three unreachable `.cc` paths, so a host
+or inactive source cannot leave the census through a suffix-only rename. The
+safe rename set remains empty. ADR 0284 records the first direction of the
+gate, and ADR 0291 records the independent provenance rule.
+_Avoid_: pending active-source renames, suffix-only migration, suffix-derived ownership, Cupid-owned host fixtures
 
 **Production Doom cohort**:
 The 83 `.cc` Doom and Cupid platform translation units built by checked-seed CupidC in the normal image. Three sources use the exact `DOOM_COMPAT_I386` profile; the sound adapter and 79 Doom-tree sources use `DOOM_TREE_I386`. The checked wrapper freezes the selected source and all 291 `.h` and `.inc` inputs visible through the profiles' 20 include roots. It recursively scans visible `.c` and `.cc` files beneath `kernel/doom` before and after compilation. An always-checked manifest fixes both source memberships and every header hash without changing its timestamp when the content is unchanged. A legacy `.c` file, an unlisted `.cc` file, a missing root, added or removed headers, byte drift, symbolic links, and NTFS junctions fail before object publication. The active dglibc source is 67,155 bytes and produces a 93,332-byte object with SHA-256 `e2496b01c93a7858a0c035b53aea0ad834d95d2be3f7ae49574d1759ebec34d6`. The 69,366-byte closed profile manifest has SHA-256 `47ba35158cac0a7df253a0056235223e62fee24df74701800f88763e588611c2`. The normal Make target passes the checked seed manifest. The wrapper captures one stable profile inventory, derives both the bounded `CUPROF1` snapshot and an independent Python JSON oracle from it, and runs checked CupidObj from the exact frozen seed. It requires byte parity, rechecks the seed, live inputs, candidate, output directory, and existing output under an adjacent no-follow lock, then preserves identical bytes and their timestamp or publishes atomically. CupidObj authors the production bytes; Python retains discovery, native-path checks, freezing, parity, drift detection, locking, and publication. Asset-free runtime checks cover active nonlocal exit, repeated quit and error cleanup, production config helpers with test-only files, native rename and copy boundaries, block-cache failure handling, RamFS limits, FAT collision, read, handle, busy-replacement, and 8.3 behavior, HomeFS ownership, depth, and batched publication, no-WAD recovery, shell survival, and the full stateful four-CPU frontier on e1000 and RTL8139. Gameplay remains a separate IWAD-backed boundary. ADR 0184 records ownership, ADR 0211 the storage bridge, ADR 0214 the shell-session lifecycle, ADR 0242 the CupidObj format boundary, ADR 0243 its seed carriage, and ADR 0244 the normal publisher.

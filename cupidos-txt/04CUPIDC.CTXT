@@ -306,8 +306,12 @@ implementations, one dormant runtime draft, five native host test fixtures,
 and one optional host oracle. Renaming a bin/*.c copy would activate it through
 wildcard discovery. Renaming a fixture would silently select C++ semantics.
 The audit rejects an active tracked .c source owned by CupidC. A .cc rename
-follows a real checked build and behavior proof. The safe suffix-only rename
-set is empty.
+does not prove the opposite claim by itself. A checked compile edge, the
+checked Toolchain contract, or an exact runtime-delivery policy entry with a
+CupidObj edge supplies the ownership record. The policy fixes all seventeen
+residual .c paths, the 130 runtime-delivered .cc paths, and the three
+unreachable .cc paths. A host or inactive source cannot claim CupidC ownership
+through a suffix-only rename. The safe rename set is empty.
 
 The native process fixture supplies the four host adapters required by the
 current cleanup path. Its 20 focused cases pass, and the combined native C

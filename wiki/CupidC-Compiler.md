@@ -919,8 +919,12 @@ superseded implementations, one dormant runtime draft, five native host test
 fixtures, and one optional host oracle. Renaming a `bin/*.c` copy would activate
 it through wildcard discovery, while a fixture rename would silently select
 C++ semantics. An active tracked `.c` source assigned to CupidC now fails the
-audit. A `.cc` rename follows a real checked build and behavior proof. The safe
-suffix-only rename set is empty. ADR 0284 records the ownership gate.
+audit. The reverse claim needs independent evidence from a checked compile
+edge, the checked Toolchain contract, or an exact runtime-delivery policy entry
+with a CupidObj edge. That policy also locks the seventeen residual `.c` paths
+and three unreachable `.cc` paths. A `.cc` rename still follows a real checked
+build and behavior proof. The safe suffix-only rename set is empty. ADR 0284
+records the first gate, and ADR 0291 records the complete provenance rule.
 The residual native C evidence passes all 56 kernel, USB, and ELF32 oracle
 cases. The process fixture keeps its host language mode while supplying the
 four adapters required by the current production cleanup path.
