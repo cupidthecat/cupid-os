@@ -26376,7 +26376,7 @@ Final verification completed as follows:
 | Checked replay | PASS, `make check-bootstrap-audit` in 87.0 seconds. |
 | Python syntax and whitespace | PASS, both changed Python files compile and `git diff --check` is clean. |
 
-The final generated records are:
+The isolated implementation records were:
 
 | Record | Bytes | SHA-256 |
 | --- | ---: | --- |
@@ -26453,10 +26453,13 @@ The complete graph still contains 408 tracked `.cc` files: 405 active with
 independent evidence and three unreachable with policy. The evidence remains
 242 checked compiler edges, 33 checked Toolchain contract edges, and 130
 reviewed runtime deliveries. All seventeen residual `.c` paths remain outside
-the supported graph. The 2,677,678-byte JSON now has SHA-256
-`3038b348a83ea614c5a8d61ff8e73bd7e1a01496fdece5f5ef10583a5a86affe`.
-The 12,502-byte Markdown summary and 4,297-byte policy retain their preceding
-hashes because their content did not change.
+the supported graph. After integration with the raw assembler correction, the
+2,677,736-byte JSON has SHA-256
+`45a418128fce123ed56431c002087db2f123fe58a024745cfeb3ac3d8db48fba`.
+The 12,502-byte Markdown summary has SHA-256
+`0eb30dabb65a56a02723f21ca28b0b08668865f3fb9890fadf64f917d9059095`,
+and the 4,297-byte policy has SHA-256
+`139876a26fef87b4e769dd397642817a89f6565564e402c46572950645fa7e82`.
 
 This follow-up changes no source suffix, production owner, compiler output,
 ABI, object, link rule, or host dependency. No standalone OS build or boot was

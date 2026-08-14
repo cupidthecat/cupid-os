@@ -106,8 +106,8 @@ tokens, but the test still expected 6,043. Correcting the lock made its focused
 generation and drift check pass in 216.585 seconds without changing the active
 source census.
 
-The first implementation's complete module passed all 94 tests in 980.970
-seconds. Its `make bootstrap-audit` passed in 91.1 seconds, and
+On the isolated implementation branch, the first complete module passed all
+94 tests in 980.970 seconds. Its `make bootstrap-audit` passed in 91.1 seconds, and
 `make check-bootstrap-audit` passed in 87.0 seconds. The generated JSON is
 2,677,678 bytes with SHA-256
 `0433c9313a7fa8a4b2753000060d7447438c1ca94fa266928792db003de6bf81`.
@@ -142,9 +142,13 @@ seconds. The affected six methods passed in 92.382 seconds after correction.
 The final focused cohort passed 16 methods in 10.869 seconds. The complete
 module passed all 98 tests in 841.743 seconds. A final
 `make bootstrap-audit` passed in 68.8 seconds, and the checked replay passed in
-87.7 seconds. The generated JSON remains 2,677,678 bytes and has SHA-256
-`3038b348a83ea614c5a8d61ff8e73bd7e1a01496fdece5f5ef10583a5a86affe`.
-The Markdown summary and policy bytes did not change.
+87.7 seconds. After integration with the raw assembler correction, the
+generated JSON is 2,677,736 bytes with SHA-256
+`45a418128fce123ed56431c002087db2f123fe58a024745cfeb3ac3d8db48fba`.
+The 12,502-byte Markdown summary has SHA-256
+`0eb30dabb65a56a02723f21ca28b0b08668865f3fb9890fadf64f917d9059095`,
+and the 4,297-byte policy retains SHA-256
+`139876a26fef87b4e769dd397642817a89f6565564e402c46572950645fa7e82`.
 
 ## Rejected alternatives
 
