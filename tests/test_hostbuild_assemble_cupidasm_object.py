@@ -1,6 +1,7 @@
 import builtins
 import contextlib
 import io
+import os
 import struct
 import subprocess
 import tempfile
@@ -52,6 +53,83 @@ def _relocatable_object(
         (15, 3, 0, 0, string_offset, 1, 0, 0, 1, 0),
         (
             23,
+            3,
+            0,
+            0,
+            names_offset,
+            len(section_names),
+            0,
+            0,
+            1,
+            0,
+        ),
+    )
+    for index, section in enumerate(sections):
+        struct.pack_into(
+            "<IIIIIIIIII",
+            image,
+            section_offset + index * 40,
+            *section,
+        )
+    return bytes(image)
+
+
+def _relocatable_object_with_unowned_relocation() -> bytes:
+    section_names = (
+        b"\0.text\0.rel.text\0.symtab\0.strtab\0.shstrtab\0"
+    )
+    symbol_names = b"\0target\0"
+    text = bytes.fromhex("b8 00 00 00 00 c3")
+    text_offset = 64
+    relocation_offset = (text_offset + len(text) + 3) & ~3
+    symbol_offset = relocation_offset + 8
+    string_offset = symbol_offset + 32
+    names_offset = string_offset + len(symbol_names)
+    section_offset = (names_offset + len(section_names) + 3) & ~3
+    image = bytearray(section_offset + 6 * 40)
+    image[0:16] = b"\x7fELF\x01\x01\x01" + bytes(9)
+    struct.pack_into(
+        "<HHIIIIIHHHHHH",
+        image,
+        16,
+        1,
+        3,
+        1,
+        0,
+        0,
+        section_offset,
+        0,
+        52,
+        0,
+        0,
+        40,
+        6,
+        5,
+    )
+    image[text_offset : text_offset + len(text)] = text
+    struct.pack_into("<II", image, relocation_offset, 0, (1 << 8) | 1)
+    struct.pack_into("<IIIBBH", image, symbol_offset + 16, 1, 0, 0, 0x10, 0, 0)
+    image[string_offset : string_offset + len(symbol_names)] = symbol_names
+    image[names_offset : names_offset + len(section_names)] = section_names
+    sections = (
+        (0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+        (1, 1, 0x6, 0, text_offset, len(text), 0, 0, 16, 0),
+        (7, 9, 0, 0, relocation_offset, 8, 3, 1, 4, 8),
+        (17, 2, 0, 0, symbol_offset, 32, 4, 1, 4, 16),
+        (
+            25,
+            3,
+            0,
+            0,
+            string_offset,
+            len(symbol_names),
+            0,
+            0,
+            1,
+            0,
+        ),
+        (
+            33,
             3,
             0,
             0,
@@ -180,6 +258,76 @@ class HostbuildAssembleCupidAsmObjectTests(unittest.TestCase):
             self.assertEqual(stdout, "")
             self.assertEqual(stderr, "")
             self.assertEqual(output.read_bytes(), candidate)
+
+    def test_production_seed_rejects_an_unowned_executable_relocation(self):
+        seed_name = "i386-windows" if os.name == "nt" else "i386-linux"
+        seed = (
+            Path(__file__).resolve().parents[1]
+            / "bootstrap"
+            / "seeds"
+            / seed_name
+            / "manifest.json"
+        )
+        repository_root = Path(__file__).resolve().parents[1]
+        real_run_seed_tool = hostbuild.run_seed_tool
+        candidate = _relocatable_object_with_unowned_relocation()
+
+        with tempfile.TemporaryDirectory(
+            prefix=".production-seed-relocation-",
+            dir=repository_root,
+        ) as temporary:
+            fixture_root = Path(temporary)
+            source = fixture_root / "relocation.asm"
+            output = fixture_root / "relocation.o"
+            source.write_text(
+                "bits 32\nextern target\nmov eax, target\nret\n",
+                encoding="utf-8",
+            )
+            output.write_bytes(b"last known good object")
+            original = output.read_bytes()
+
+            def run_checked(
+                seed_manifest,
+                working_directory,
+                tool_name,
+                arguments,
+                *,
+                timeout,
+                frozen_seed,
+            ):
+                if tool_name == "cupidasm":
+                    private_root = Path(working_directory)
+                    (private_root / str(arguments[3])).write_bytes(candidate)
+                    return subprocess.CompletedProcess(
+                        list(arguments), 0, "", ""
+                    )
+                return real_run_seed_tool(
+                    seed_manifest,
+                    working_directory,
+                    tool_name,
+                    arguments,
+                    timeout=timeout,
+                    frozen_seed=frozen_seed,
+                )
+
+            with mock.patch(
+                "tools.hostbuild.run_seed_tool",
+                side_effect=run_checked,
+            ):
+                result = hostbuild.assemble_cupidasm_object(
+                    seed,
+                    repository_root,
+                    source.relative_to(repository_root),
+                    output.relative_to(repository_root),
+                )
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(result.stdout, "")
+            self.assertIn(
+                "1 of 1 executable relocations unmatched",
+                result.stderr,
+            )
+            self.assertEqual(output.read_bytes(), original)
 
     def test_malformed_object_is_rejected_before_cupiddis_runs(self):
         with tempfile.TemporaryDirectory(

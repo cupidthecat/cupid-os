@@ -301,6 +301,23 @@ Choose CupidC when you want:
 - TempleOS-style source-first workflow
 >endtree
 
+>h2 Current checked toolchain seeds
+>tree
+The current Linux bootstrap manifest has SHA-256
+d571125256d11dd707f661299738891edc5c1a8d3358554076875a3e0cac22d0.
+The current Windows execution manifest has SHA-256
+ae1d3dfb10604bba419c5936884668d10595f6c671915a4ae5f16706204bb41e.
+Both bind revision bf52d135348bc33ff32e66d549bbee5edc69d8ad and the
+same 50-input source snapshot.
+
+Linux stages three and four match 19 C objects, startup, and five tools. The
+promoted-seed reproof passes 5 help cases, 18 successes, and 17 failures.
+Windows stages three and four match 20 C objects, two assembly objects, and
+five tools. Its reproof passes 5 help cases, 5 successes, and 6 failures. Both
+failure sets require CupidDis to reject unmatched executable relocations.
+ADR 0292 records the promotion.
+>endtree
+
 >h2 See Also
 [04CUPIDC.CTXT - CupidC](open:04CUPIDC.CTXT)
 [02FILESYS.CTXT - storage layout](open:02FILESYS.CTXT)

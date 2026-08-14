@@ -8126,7 +8126,7 @@ def _cupid_toolchain_fixed_point_contract(
         and node.name == "_run_behavior_checks"
     ]
     expected_behavior_matrix = {
-        "failure_cases": 16,
+        "failure_cases": 17,
         "help_cases": 5,
         "success_cases": 18,
     }
@@ -10798,7 +10798,7 @@ def _cupid_toolchain_fixed_point_contract(
         "compared_tool_images": len(expected_toolchain_links),
         "help_cases": len(expected_toolchain_links),
         "success_behavior_cases": 18,
-        "failure_behavior_cases": 16,
+        "failure_behavior_cases": 17,
         "contract_manifest_inputs": 65,
         "source_head_capabilities": [
             "cupidld.pe32_fixed_image",

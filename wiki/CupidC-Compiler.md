@@ -812,10 +812,10 @@ ADR 0211 records the storage boundary.
 
 The five static i386 Linux tools have a checked seed. The manifest binds their
 hashes, sizes, target ABI, source revision, producer lineage, 19-source plan,
-and five link orders. The current CupidC image is the 2,670,420-byte
+and five link orders. The current CupidC image is the 2,666,324-byte
 stage-four output from clean revision
-`5d690c7508cc031a0cb32b2963bf16300b32e267`, with SHA-256
-`cafea40e4b5f5c3b68616e83c173555be6b0321e854bc31b2c540c5072f9c495`.
+`bf52d135348bc33ff32e66d549bbee5edc69d8ad`, with SHA-256
+`8b6b0f0508b1565d095297f3571ef9bb4d444d19be0700165706877b210b087c`.
 It retains the complete 83-root Doom frontier, GNU entity metadata, x87 and
 SSE forms, descriptor and segment assembly, the `libm.cc` effects, the dglibc
 jump block, pointer-preserving static address casts, naked IPI entries, the
@@ -825,8 +825,8 @@ canonical static x87 payloads, static long-double arithmetic, ordinary
 `float` and `double` updates, the returns-twice call boundary, and Cupid's
 native type spellings. The same seed carries the 604-row, 249-mnemonic x86
 catalogue with fingerprint `55A8970F`, signed x87 integer forms, `SETP`,
-`SETNP`, typed CupidDis raw ranges, strict inspection, and an immutable
-first-opcode decoder index. Its
+`SETNP`, typed CupidDis raw ranges, strict inspection, executable relocation
+ownership, and an immutable first-opcode decoder index. Its
 CupidLD image carries deterministic PE32 imports. Its 392,688-byte CupidObj
 image has SHA-256
 `99111b5db7586ac4b2ed00005f2fe2e89c66ed48f007d796206b116a088cdf7a`
@@ -838,25 +838,27 @@ Its plan uses `.cc` for all 19 C roots and has
 SHA-256
 `59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`.
 The 5,573-byte manifest has SHA-256
-`f8528f5fcb68473f5078427dfc1c7dd5fce78413a56b45c6aa831971d827ca4f`.
+`d571125256d11dd707f661299738891edc5c1a8d3358554076875a3e0cac22d0`.
 It records generation four, the clean revision, the 50-input source count and
-snapshot, and the stage-three producer set. ADR 0265 preserves the earlier
-promotion record. ADR 0280 records the current promotion.
+snapshot, and the stage-three producer set. ADRs 0265 and 0280 preserve the
+earlier promotion records. ADR 0292 records the current promotion.
 
 The bootstrap copies the 50-input source closure into a private compiler root.
 Both rebuilt stages compile from that root, and the harness checks the private
 and live closures at each stage and behavior boundary. The clean Linux proof
-passed in 1,383.775 seconds. Stages three and four matched every one of the 19
+passed in 1,294.3 seconds. Stages three and four matched every one of the 19
 C objects, startup, and five linked tools, and both stages passed all five help
 paths, 18 successful operations, and 16 failure cases. The source snapshot has
 SHA-256
-`d8481a39e0d1c7f42779a8c9f5fc5de10d7e5b9bc4df63ce6afe9ddd9c9716da`.
-A 1,411.998-second reproof from the promoted manifest reproduced all five
-initial seed images, the artifact fixed point, and the 5/18/16 behavior matrix.
+`e76d36ed4edc7679e91ac237135fe476dff6e69946bbffca56077afbf19a47f9`.
+A 1,473.9-second reproof from the promoted manifest reproduced all five
+initial seed images, the artifact fixed point, and the 5/18/17 behavior matrix.
+The added failure rejects an executable relocation that has no decoded owner.
 An earlier clean 801.9-second proof remains the provenance record for the
 preceding Windows execution seed. The clean native Windows proof later passed
-in 1,152.7 seconds, and the promoted-seed reproof passed in 1,130.9 seconds.
-ADR 0266 records the decoder index, and ADR 0281 records the Windows promotion.
+in 1,253.4 seconds, and the promoted-seed reproof passed in 1,061.3 seconds
+with the 5/5/6 matrix. ADR 0266 records the decoder index, ADR 0281 records the
+preceding Windows promotion, and ADR 0292 records the current promotion.
 The normal kernel path runs strict checked-seed CupidDis and checked CupidObj
 flat extraction against one frozen cohort of all 429 audited root object
 outputs plus the pass-one and final kernel ELFs. Its 9,076-byte graph-ordered input manifest has SHA-256
@@ -986,18 +988,18 @@ same 50-input snapshot, SHA-256
 `d8481a39e0d1c7f42779a8c9f5fc5de10d7e5b9bc4df63ce6afe9ddd9c9716da`.
 Both runs began from uncommitted source and remain preliminary history. Linux
 later passed a clean proof in 1,383.775 seconds, promoted the stage-four seed,
-and passed a 1,411.998-second reproof from that seed. Native Windows then
-passed a clean 1,152.7-second proof and promoted the stage-four PE32 cohort.
-The current CupidC image is 2,595,840 bytes with SHA-256
-`706c427d8e89352623274ad8e3321680a89c58c08d1d90a279a8d5ad814668e0`.
-The 1,130.9-second reproof from that cohort matched all five initial seed
-images and repeated the 20/2/5 artifact and 5/5/5 behavior gates.
+and passed a 1,411.998-second reproof from that seed. Native Windows later
+passed a clean 1,253.4-second proof and promoted the current stage-four PE32
+cohort. The current CupidC image is 2,592,768 bytes with SHA-256
+`765fa14724c1615088fb9280a16f3457a4c4f14fa2d1915d3c56ff73b2b797cd`.
+The 1,061.3-second reproof from that cohort matched all five initial seed
+images and repeated the 20/2/5 artifact and 5/5/6 behavior gates.
 ADRs 0247 and 0248 record the format and small loader boundaries, ADR 0258
 records seed carriage, ADR 0268 records the shared runtime, and ADR 0269
 records CupidLD publication. ADR 0272 records native carriage and production
-selection, ADR 0278 records native reconstruction, ADR 0279 records the
-convergence generation, ADR 0280 records the clean Linux promotion, and ADR
-0281 records the clean Windows promotion.
+selection, ADR 0278 records native reconstruction, and ADR 0279 records the
+convergence generation. ADRs 0280 and 0281 record the preceding Linux and
+Windows promotions. ADR 0292 records the current promotion on both hosts.
 
 The preliminary Linux behavior reconstruction found one Windows-profile
 difference. Its 387,584-byte CupidDis image had SHA-256
@@ -1020,7 +1022,7 @@ caller's control; the publisher has no destination lock or directory pin.
 The checked seed now carries CupidObj's bounded `iso-fixture` operation. Its
 hosted command reproduces the exact 61,440-byte repository image from the
 manifest and typed logical inventory. Both rebuilt stages exercise the command
-and its preserved-output failure in the 5/18/16 behavior matrix. ADR 0239
+and its preserved-output failure in the 5/18/17 behavior matrix. ADR 0239
 records the source capability, and ADR 0240 records the promotion. The normal
 ISO recipe now runs that checked image as its first byte author, with Python
 retained as the independent renderer and guarded publisher; ADR 0241 records
@@ -2744,11 +2746,11 @@ reset
 
 This clears persistent REPL variables, functions, structs, typedefs, and `ans`.
 
-## Current source-head proof
+## Current checked-seed proof
 
 The 2026-08-14 integration keeps the full OS build green after adding integer
 and long-double usual conversions and wide integer conversion to `float` and
 `double`. The normal image build passed in 673.8 seconds. A private four-vCPU
 guest then compiled and ran `/bin/ls.cc` through the in-OS compiler in 55.7
-seconds. The checked seed predates the newest conversions, so fixed-point
-promotion remains the next ownership step.
+seconds. The current Linux and Windows seeds carry these conversions through
+the fixed point. ADR 0292 records that promotion.

@@ -5923,10 +5923,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 '        "success_cases": 17,\n',
                 r"fixed-point behavior matrix differs",
             ),
-            "PE32 failure count becomes stale": (
+            "relocation ownership failure count becomes stale": (
                 "bootstrap",
+                '        "failure_cases": 17,\n',
                 '        "failure_cases": 16,\n',
-                '        "failure_cases": 15,\n',
                 r"fixed-point behavior matrix differs",
             ),
             "PE32 import source leaves the frozen closure": (

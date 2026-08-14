@@ -4,15 +4,15 @@
       "file": "cupidasm.exe",
       "name": "cupidasm",
       "producer": true,
-      "sha256": "8134a9400c4cae7e6c7e72989aa9b23bbdcb56ba4d52a9ebb15363128e4a1f18",
-      "size": 437760
+      "sha256": "c54bb09f1eb317a23d1680da25c78a5a439bde44654ae8b908ddca11fd7e56d6",
+      "size": 438784
     },
     {
       "file": "cupiddis.exe",
       "name": "cupiddis",
       "producer": false,
-      "sha256": "07cff807224c425d686e32d54dc1ad541f57aaa624f7b736bba0f9ef5001ce6a",
-      "size": 387584
+      "sha256": "f6d38d66f002c4440aacea08ca32b848d470665679afc13dca5f5ae8ce6b913b",
+      "size": 391680
     },
     {
       "file": "cupidld.exe",
@@ -32,24 +32,24 @@
       "file": "cupidc.exe",
       "name": "cupidc",
       "producer": true,
-      "sha256": "706c427d8e89352623274ad8e3321680a89c58c08d1d90a279a8d5ad814668e0",
-      "size": 2595840
+      "sha256": "765fa14724c1615088fb9280a16f3457a4c4f14fa2d1915d3c56ff73b2b797cd",
+      "size": 2592768
     }
   ],
   "provenance": {
     "artifact_generation": "paired-stage-four-native-windows",
     "fixed_point_command": "make bootstrap-windows-from-seed",
     "fixed_point_result": "pass",
-    "parent_seed_manifest_sha256": "f8528f5fcb68473f5078427dfc1c7dd5fce78413a56b45c6aa831971d827ca4f",
-    "parent_seed_source_revision": "5d690c7508cc031a0cb32b2963bf16300b32e267",
+    "parent_seed_manifest_sha256": "d571125256d11dd707f661299738891edc5c1a8d3358554076875a3e0cac22d0",
+    "parent_seed_source_revision": "bf52d135348bc33ff32e66d549bbee5edc69d8ad",
     "producer_lineage": {
       "assembly": "native stage-three CupidASM from the checked i386 Windows bootstrap",
       "c": "native stage-three CupidC from the checked i386 Windows bootstrap",
       "link": "native stage-three CupidLD from the checked i386 Windows bootstrap"
     },
     "source_input_count": 50,
-    "source_revision": "bd8fd28e6e0e097c4ee3a5c5de0b0706b7153930",
-    "source_snapshot_sha256": "d8481a39e0d1c7f42779a8c9f5fc5de10d7e5b9bc4df63ce6afe9ddd9c9716da"
+    "source_revision": "bf52d135348bc33ff32e66d549bbee5edc69d8ad",
+    "source_snapshot_sha256": "e76d36ed4edc7679e91ac237135fe476dff6e69946bbffca56077afbf19a47f9"
   },
   "schema": "cupid.execution-seed.v1",
   "target": {

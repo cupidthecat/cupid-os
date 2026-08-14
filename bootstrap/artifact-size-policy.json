@@ -7,19 +7,19 @@
       "reason": "The disk builder consumes exactly five boot sectors, so extra output would be ignored."
     },
     {
-      "exact_bytes": 454160,
+      "exact_bytes": 458256,
       "path": "bootstrap/seeds/i386-linux/cupidasm.elf",
       "producer": "CupidASM",
       "reason": "The checked seed is immutable between reviewed promotions."
     },
     {
-      "exact_bytes": 2670420,
+      "exact_bytes": 2666324,
       "path": "bootstrap/seeds/i386-linux/cupidc.elf",
       "producer": "CupidC",
       "reason": "The checked seed is immutable between reviewed promotions."
     },
     {
-      "exact_bytes": 409020,
+      "exact_bytes": 413204,
       "path": "bootstrap/seeds/i386-linux/cupiddis.elf",
       "producer": "CupidDis",
       "reason": "The checked seed is immutable between reviewed promotions."
@@ -37,19 +37,19 @@
       "reason": "The checked seed is immutable between reviewed promotions."
     },
     {
-      "exact_bytes": 9121520,
+      "exact_bytes": 9124424,
       "path": "kernel/kernel.bin",
       "producer": "CupidObj",
       "reason": "CupidObj emits deterministic bytes, and the disk image copies this output verbatim."
     },
     {
-      "exact_bytes": 9338404,
+      "exact_bytes": 9342500,
       "path": "kernel/kernel.elf",
       "producer": "CupidLD",
       "reason": "The final CupidLD link is deterministic for a fixed source and object cohort."
     },
     {
-      "exact_bytes": 9215524,
+      "exact_bytes": 9219620,
       "path": "kernel/kernel.elf.pass1",
       "producer": "CupidLD",
       "reason": "The pass-one CupidLD link is deterministic for a fixed source and object cohort."

@@ -252,14 +252,14 @@ checked 128 KiB throughput contract passes within 30 seconds. ADR 0262 records
 the command, ADR 0266 records indexed decoding, and ADR 0265 records seed
 carriage and production adoption.
 
-Source-head CupidDis extends the object form of this policy. A relocation in
+Source-head and checked-seed CupidDis extend the object form of this policy. A relocation in
 an executable section must begin at a decoded four-byte operand field.
 `R_386_PC32` requires a relative field, and `R_386_32` requires a
 non-relative field. The typed report counts total and unmatched executable
 relocations. Data-section relocations remain outside the code policy. The
-checked production seed predates this rule, so the normal object transactions
-continue to use the preceding decode-only policy until a later promotion. ADR
-0290 records the relocation boundary.
+checked Linux and Windows seeds carry this rule, so the normal object
+transactions reject unmatched executable relocations before publication. ADR
+0290 records the relocation boundary, and ADR 0292 records the seed promotion.
 
 An earlier poisoned-host normal `make -j2` passed in 1,057.969 seconds and ran
 the separate strict gate before CupidObj flattened the kernel. It produced a 9,162,816-byte
@@ -379,15 +379,16 @@ driver pairs both
 manifests and builds native stages two through four. It compares stages three
 and four. Preliminary Windows and Linux runs pass the complete final-pair
 artifact and behavior gates on one frozen uncommitted source snapshot. Linux
-later passed its clean proof, promoted stage four, and passed a reproof from
-the new seed. Native Windows then passed its clean proof in 1,152.7 seconds,
-promoted the 437,760-byte CupidASM image with SHA-256
-`8134a9400c4cae7e6c7e72989aa9b23bbdcb56ba4d52a9ebb15363128e4a1f18`,
-and passed a 1,130.9-second reproof with every initial seed comparison true.
+later passed its current clean proof, promoted stage four, and passed a
+1,473.9-second reproof from the new seed. Native Windows then passed its clean
+proof in 1,253.4 seconds, promoted the 438,784-byte CupidASM image with SHA-256
+`c54bb09f1eb317a23d1680da25c78a5a439bde44654ae8b908ddca11fd7e56d6`,
+and passed a 1,061.3-second reproof with every initial seed comparison true.
 ADR 0268 records the shared runtime, ADR 0269 records CupidLD publication, ADR
 0272 records checked carriage and production selection, and ADRs 0278 and 0279
 record native reconstruction and convergence. ADR 0280 records the Linux
-promotion, and ADR 0281 records the Windows promotion.
+promotion, ADR 0281 records the preceding Windows promotion, and ADR 0292
+records the current Linux and Windows promotion.
 
 ### Function Example
 
@@ -514,7 +515,8 @@ records its seed promotion, ADR 0226 records SHRD, and ADR 0228 records
 SHRD's first seed carriage. ADR 0243 records the preceding seed, ADR 0252
 records the x87 integer forms, ADR 0258 records the preceding promotion, ADR
 0259 records the parity predicates, ADR 0265 records their preceding seed
-carriage, and ADR 0280 records the current seed.
+carriage, ADR 0280 records the preceding seed, and ADR 0292 records the current
+seed.
 
 `setp` and `setnp` accept one byte register or memory destination in either
 mode. They encode as `0F 9A /r` and `0F 9B /r`. Address-size overrides work

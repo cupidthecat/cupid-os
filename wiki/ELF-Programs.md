@@ -96,14 +96,15 @@ tools in 20 minutes 43 seconds with 5/5/5 behavior cases; Linux matched 19 C
 objects, startup, and five tools in 24 minutes 22 seconds with 5/18/16 behavior
 cases. Both reports bind the same 50-input snapshot, SHA-256
 `d8481a39e0d1c7f42779a8c9f5fc5de10d7e5b9bc4df63ce6afe9ddd9c9716da`.
-Those reports remain preliminary. Linux later passed its clean proof,
-promoted the stage-four seed, and passed a reproof from that seed. Native
-Windows then passed a clean 1,152.7-second proof and a 1,130.9-second
-promoted-seed reproof. Both clean Windows runs matched 20 C objects, two
-assembly objects, and five PE32 tools and passed the 5/5/5 behavior matrix. The
+Those reports remain preliminary. Linux later passed a clean 1,294.3-second
+proof, promoted the stage-four seed, and passed a 1,473.9-second reproof from
+that seed. Native Windows then passed a clean 1,253.4-second proof and a
+1,061.3-second promoted-seed reproof. Both current Windows runs matched 20 C
+objects, two assembly objects, and five PE32 tools and passed the 5/5/6
+behavior matrix. The
 old seed comparison was false for CupidASM, CupidC, and CupidDis and true for
 CupidLD and CupidObj. The promoted 2,118-byte manifest has SHA-256
-`96bb80521ba679161008c9fa0891aff9d7ae172868cde107ff1a78feebdccfc9`.
+`ae1d3dfb10604bba419c5936884668d10595f6c671915a4ae5f16706204bb41e`.
 See [ADR
 0247](../docs/adr/0247-serialize-fixed-layout-pe32-images-with-cupidld.md) and
 [ADR
@@ -116,7 +117,8 @@ carriage and production selection, ADR 0278 records the native driver, and
 [ADR 0279](../docs/adr/0279-prove-post-change-fixed-points-through-convergence.md)
 records the convergence rule, and [ADR 0280](../docs/adr/0280-promote-the-clean-stage-four-linux-seed.md)
 records the Linux promotion. [ADR 0281](../docs/adr/0281-promote-the-clean-stage-four-windows-seed.md)
-records the Windows promotion.
+records the preceding Windows promotion. [ADR 0292](../docs/adr/0292-promote-strict-relocation-production-seeds.md)
+records the current Linux and Windows promotion.
 
 The checked-seed CLI uses an adjacent-candidate publisher for ELF and PE images.
 It creates the candidate with exclusive-create semantics, writes and closes it,

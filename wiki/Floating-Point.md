@@ -125,7 +125,8 @@ static arithmetic and rounding model. ADR 0258 records checked-seed carriage
 of the earlier static frontier, and ADR 0265 records carriage of the arithmetic
 path. ADR 0288 records the source-head integer and long-double usual
 conversions. ADR 0289 records the corresponding wide integer rule for `float`
-and `double`. The checked seed predates those extensions.
+and `double`. The current checked seed carries both conversion extensions;
+ADR 0292 records their fixed-point promotion.
 
 The checked native Windows seed carried this path through an earlier
 2026-08-13 poisoned-host checkpoint. Its first invocation stopped at the

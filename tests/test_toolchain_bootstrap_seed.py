@@ -23,6 +23,7 @@ from tools.bootstrap_toolchain import (
     _compare_stages,
     _compare_windows_stages,
     _profile_snapshot_payload,
+    _unowned_relocation_object_payload,
     _windows_build_plan,
     _validate_static_i386_pe32,
     bootstrap_from_seed,
@@ -60,7 +61,7 @@ WINDOWS_SEED_MANIFEST = (
     / "manifest.json"
 )
 SOURCE_HEAD_SNAPSHOT_SHA256 = (
-    "d8481a39e0d1c7f42779a8c9f5fc5de10d7e5b9bc4df63ce6afe9ddd9c9716da"
+    "e76d36ed4edc7679e91ac237135fe476dff6e69946bbffca56077afbf19a47f9"
 )
 
 
@@ -1389,8 +1390,8 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     frozen.tools["cupidc"].read_bytes()
                 ).hexdigest(),
                 (
-                    "cafea40e4b5f5c3b68616e83c173555b"
-                    "e6b0321e854bc31b2c540c5072f9c495"
+                    "8b6b0f0508b1565d095297f3571ef9bb"
+                    "4d444d19be0700165706877b210b087c"
                 ),
             )
 
@@ -1722,11 +1723,11 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 ),
                 "fixed_point_result": "pass",
                 "parent_seed_manifest_sha256": (
-                    "f8528f5fcb68473f5078427dfc1c7dd5"
-                    "fce78413a56b45c6aa831971d827ca4f"
+                    "d571125256d11dd707f661299738891e"
+                    "dc5c1a8d3358554076875a3e0cac22d0"
                 ),
                 "parent_seed_source_revision": (
-                    "5d690c7508cc031a0cb32b2963bf16300b32e267"
+                    "bf52d135348bc33ff32e66d549bbee5edc69d8ad"
                 ),
                 "producer_lineage": {
                     "assembly": (
@@ -1744,7 +1745,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 },
                 "source_input_count": 50,
                 "source_revision": (
-                    "bd8fd28e6e0e097c4ee3a5c5de0b0706b7153930"
+                    "bf52d135348bc33ff32e66d549bbee5edc69d8ad"
                 ),
                 "source_snapshot_sha256": SOURCE_HEAD_SNAPSHOT_SHA256,
             }
@@ -2217,7 +2218,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["behavior"],
                 {
-                    "failure_cases": 5,
+                    "failure_cases": 6,
                     "help_cases": 5,
                     "success_cases": 5,
                 },
@@ -2758,11 +2759,78 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         self.assertEqual(
             ast.literal_eval(returns[0].value),
             {
-                "failure_cases": 16,
+                "failure_cases": 17,
                 "help_cases": 5,
                 "success_cases": 18,
             },
         )
+
+    def test_fixed_point_matrix_checks_executable_relocation_ownership(self):
+        tree = ast.parse(BOOTSTRAP_TOOL.read_text(encoding="utf-8"))
+
+        def behavior_function(name):
+            return next(
+                node
+                for node in tree.body
+                if isinstance(node, ast.FunctionDef) and node.name == name
+            )
+
+        def assignment(function, name):
+            return next(
+                statement.value
+                for statement in function.body
+                if isinstance(statement, ast.Assign)
+                and len(statement.targets) == 1
+                and isinstance(statement.targets[0], ast.Name)
+                and statement.targets[0].id == name
+            )
+
+        def assert_relocation_check(function):
+            call = assignment(function, "relocation_ownership_result")
+            self.assertIsInstance(call, ast.Call)
+            self.assertIsInstance(call.func, ast.Name)
+            self.assertEqual(call.func.id, "_run_stage_pair")
+            self.assertEqual(ast.literal_eval(call.args[3]), "cupiddis")
+            for arguments in call.args[4:]:
+                self.assertEqual(
+                    [
+                        item.value
+                        if isinstance(item, ast.Constant)
+                        else f"<{item.id}>"
+                        for item in arguments.elts
+                    ],
+                    ["--require-known", "<unowned_relocation>"],
+                )
+
+            statuses = [
+                node.args[1].value
+                for node in ast.walk(function)
+                if isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id == "_expect_status"
+                and isinstance(node.args[0], ast.Name)
+                and node.args[0].id == "relocation_ownership_result"
+            ]
+            self.assertEqual(statuses, [1])
+            self.assertIn(
+                "1 of 1 executable relocations unmatched",
+                {
+                    node.value
+                    for node in ast.walk(function)
+                    if isinstance(node, ast.Constant)
+                    and isinstance(node.value, str)
+                },
+            )
+
+        assert_relocation_check(behavior_function("_run_behavior_checks"))
+        assert_relocation_check(
+            behavior_function("_run_native_windows_behavior_checks")
+        )
+
+    def test_fixed_point_relocation_fixture_is_a_valid_i386_object(self):
+        payload = _unowned_relocation_object_payload()
+        validate_i386_relocatable_bytes(payload)
+        self.assertEqual(payload[64:70], bytes.fromhex("b8 00 00 00 00 c3"))
 
     def test_linux_fixed_point_rebuilds_windows_cupiddis_main(self):
         tree = ast.parse(BOOTSTRAP_TOOL.read_text(encoding="utf-8"))
@@ -5992,7 +6060,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(report["status"], "pass")
             self.assertEqual(
                 report["seed_source_revision"],
-                "5d690c7508cc031a0cb32b2963bf16300b32e267",
+                "bf52d135348bc33ff32e66d549bbee5edc69d8ad",
             )
             self.assertNotIn("source_revision", report)
             self.assertEqual(
@@ -6031,7 +6099,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 report["behavior"],
                 {
-                    "failure_cases": 16,
+                    "failure_cases": 17,
                     "help_cases": 5,
                     "success_cases": 18,
                 },
@@ -6230,9 +6298,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 windows_cupiddis["artifacts"]["stage-three-image"],
                 {
                     "sha256": (
-                        "07cff807224c425d686e32d54dc1ad541f57aaa624f7b736bba0f9ef5001ce6a"
+                        "f6d38d66f002c4440aacea08ca32b848d470665679afc13dca5f5ae8ce6b913b"
                     ),
-                    "size": 387584,
+                    "size": 391680,
                 },
             )
             self.assertEqual(
@@ -6290,15 +6358,15 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             expected_native_images = {
                 "cupidasm": {
                     "sha256": (
-                        "8134a9400c4cae7e6c7e72989aa9b23bbdcb56ba4d52a9ebb15363128e4a1f18"
+                        "c54bb09f1eb317a23d1680da25c78a5a439bde44654ae8b908ddca11fd7e56d6"
                     ),
-                    "size": 437760,
+                    "size": 438784,
                 },
                 "cupidc": {
                     "sha256": (
-                        "706c427d8e89352623274ad8e3321680a89c58c08d1d90a279a8d5ad814668e0"
+                        "765fa14724c1615088fb9280a16f3457a4c4f14fa2d1915d3c56ff73b2b797cd"
                     ),
-                    "size": 2595840,
+                    "size": 2592768,
                 },
                 "cupidld": {
                     "sha256": (

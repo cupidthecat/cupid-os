@@ -21,10 +21,10 @@ from typing import Sequence
 
 SEED_SCHEMA = "cupid.bootstrap-seed.v1"
 WINDOWS_SEED_SCHEMA = "cupid.execution-seed.v1"
-SEED_SOURCE_REVISION = "5d690c7508cc031a0cb32b2963bf16300b32e267"
+SEED_SOURCE_REVISION = "bf52d135348bc33ff32e66d549bbee5edc69d8ad"
 SEED_SOURCE_INPUT_COUNT = 50
 SEED_SOURCE_SNAPSHOT_SHA256 = (
-    "d8481a39e0d1c7f42779a8c9f5fc5de10d7e5b9bc4df63ce6afe9ddd9c9716da"
+    "e76d36ed4edc7679e91ac237135fe476dff6e69946bbffca56077afbf19a47f9"
 )
 TOOL_NAMES = ("cupidasm", "cupiddis", "cupidld", "cupidobj", "cupidc")
 TOOL_DISPLAY_NAMES = {
@@ -68,16 +68,16 @@ EXPECTED_WINDOWS_PRODUCER_LINEAGE = {
     ),
 }
 WINDOWS_SEED_SOURCE_REVISION = (
-    "bd8fd28e6e0e097c4ee3a5c5de0b0706b7153930"
+    "bf52d135348bc33ff32e66d549bbee5edc69d8ad"
 )
 WINDOWS_SEED_SOURCE_SNAPSHOT_SHA256 = (
-    "d8481a39e0d1c7f42779a8c9f5fc5de10d7e5b9bc4df63ce6afe9ddd9c9716da"
+    "e76d36ed4edc7679e91ac237135fe476dff6e69946bbffca56077afbf19a47f9"
 )
 WINDOWS_SEED_PARENT_MANIFEST_SHA256 = (
-    "f8528f5fcb68473f5078427dfc1c7dd5fce78413a56b45c6aa831971d827ca4f"
+    "d571125256d11dd707f661299738891edc5c1a8d3358554076875a3e0cac22d0"
 )
 WINDOWS_SEED_PARENT_SOURCE_REVISION = (
-    "5d690c7508cc031a0cb32b2963bf16300b32e267"
+    "bf52d135348bc33ff32e66d549bbee5edc69d8ad"
 )
 WINDOWS_TOOL_IMPORTS = (
     (
@@ -2422,6 +2422,30 @@ def _run_native_windows_behavior_checks(
     ):
         raise BootstrapError("native Windows CupidDis output differs")
 
+    unowned_relocation = behavior_root / "unowned-relocation.o"
+    unowned_relocation.write_bytes(_unowned_relocation_object_payload())
+    relocation_ownership_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupiddis",
+        ["--require-known", unowned_relocation],
+        ["--require-known", unowned_relocation],
+    )
+    _expect_status(
+        relocation_ownership_result,
+        1,
+        "native Windows CupidDis relocation ownership",
+    )
+    if (
+        relocation_ownership_result.stdout
+        or "1 of 1 executable relocations unmatched"
+        not in relocation_ownership_result.stderr
+    ):
+        raise BootstrapError(
+            "native Windows CupidDis relocation ownership differs"
+        )
+
     asset = behavior_root / "asset.bin"
     asset.write_bytes(b"native-windows-fixed-point")
     stage_two_wrapped = behavior_root / "stage-three-wrapped.o"
@@ -2507,7 +2531,7 @@ def _run_native_windows_behavior_checks(
     )
 
     return {
-        "failure_cases": len(TOOL_NAMES),
+        "failure_cases": len(TOOL_NAMES) + 1,
         "help_cases": len(TOOL_NAMES),
         "success_cases": len(TOOL_NAMES),
     }
@@ -2726,6 +2750,74 @@ def _profile_snapshot_payload(
         append_text(path)
         append_bytes(contents)
     return bytes(payload)
+
+
+def _unowned_relocation_object_payload() -> bytes:
+    section_names = (
+        b"\0.text\0.rel.text\0.symtab\0.strtab\0.shstrtab\0"
+    )
+    symbol_names = b"\0target\0"
+    text = bytes.fromhex("b8 00 00 00 00 c3")
+    text_offset = 64
+    relocation_offset = (text_offset + len(text) + 3) & ~3
+    symbol_offset = relocation_offset + 8
+    string_offset = symbol_offset + 32
+    names_offset = string_offset + len(symbol_names)
+    section_offset = (names_offset + len(section_names) + 3) & ~3
+    image = bytearray(section_offset + 6 * 40)
+    image[0:16] = b"\x7fELF\x01\x01\x01" + bytes(9)
+    struct.pack_into(
+        "<HHIIIIIHHHHHH",
+        image,
+        16,
+        1,
+        3,
+        1,
+        0,
+        0,
+        section_offset,
+        0,
+        52,
+        0,
+        0,
+        40,
+        6,
+        5,
+    )
+    image[text_offset : text_offset + len(text)] = text
+    struct.pack_into("<II", image, relocation_offset, 0, (1 << 8) | 1)
+    struct.pack_into(
+        "<IIIBBH", image, symbol_offset + 16, 1, 0, 0, 0x10, 0, 0
+    )
+    image[string_offset : string_offset + len(symbol_names)] = symbol_names
+    image[names_offset : names_offset + len(section_names)] = section_names
+    sections = (
+        (0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+        (1, 1, 0x6, 0, text_offset, len(text), 0, 0, 16, 0),
+        (7, 9, 0, 0, relocation_offset, 8, 3, 1, 4, 8),
+        (17, 2, 0, 0, symbol_offset, 32, 4, 1, 4, 16),
+        (25, 3, 0, 0, string_offset, len(symbol_names), 0, 0, 1, 0),
+        (
+            33,
+            3,
+            0,
+            0,
+            names_offset,
+            len(section_names),
+            0,
+            0,
+            1,
+            0,
+        ),
+    )
+    for index, section in enumerate(sections):
+        struct.pack_into(
+            "<IIIIIIIIII",
+            image,
+            section_offset + index * 40,
+            *section,
+        )
+    return bytes(image)
 
 
 def _run_behavior_checks(
@@ -5148,6 +5240,28 @@ def _run_behavior_checks(
     if strict_disassembly_result.stdout or strict_disassembly_result.stderr:
         raise BootstrapError("CupidDis strict clean behavior differs")
 
+    unowned_relocation = behavior_root / "unowned-relocation.o"
+    unowned_relocation.write_bytes(_unowned_relocation_object_payload())
+    relocation_ownership_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupiddis",
+        ["--require-known", unowned_relocation],
+        ["--require-known", unowned_relocation],
+    )
+    _expect_status(
+        relocation_ownership_result,
+        1,
+        "CupidDis relocation ownership",
+    )
+    if (
+        relocation_ownership_result.stdout
+        or "1 of 1 executable relocations unmatched"
+        not in relocation_ownership_result.stderr
+    ):
+        raise BootstrapError("CupidDis relocation ownership differs")
+
     truncated_code = behavior_root / "truncated-code.bin"
     truncated_code.write_bytes(bytes([0x0F]))
     strict_failure_result = _run_stage_pair(
@@ -5295,7 +5409,7 @@ def _run_behavior_checks(
         raise BootstrapError("CupidObj missing-input behavior differs")
 
     return {
-        "failure_cases": 16,
+        "failure_cases": 17,
         "help_cases": 5,
         "success_cases": 18,
     }

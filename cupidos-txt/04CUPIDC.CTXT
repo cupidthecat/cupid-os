@@ -1056,10 +1056,10 @@ caller's control, and the standalone CLI does not lock or pin the output path.
 The repository carries those exact five images as a checked i386 Linux seed.
 Its manifest binds their hashes, sizes, target ABI, source revision, producer
 lineage, exact source plan, startup, and five link orders before execution.
-The current CupidC image is the 2,670,420-byte stage-four output. Its SHA-256 is
-cafea40e4b5f5c3b68616e83c173555be6b0321e854bc31b2c540c5072f9c495,
+The current CupidC image is the 2,666,324-byte stage-four output. Its SHA-256 is
+8b6b0f0508b1565d095297f3571ef9bb4d444d19be0700165706877b210b087c,
 and its clean source revision is
-5d690c7508cc031a0cb32b2963bf16300b32e267.
+bf52d135348bc33ff32e66d549bbee5edc69d8ad.
 It retains the complete 83-root Doom frontier, current GNU entity metadata,
 x87 and SSE memory forms, descriptor and segment assembly, every unchanged
 libm assembly effect, the exact dglibc jump block, pointer-preserving static
@@ -1076,10 +1076,12 @@ CupidDis in the checked seed carry the 604-row, 249-mnemonic shared x86
 catalogue with fingerprint 55A8970F, signed x87 integer forms, SETP, and SETNP.
 CupidLD retains deterministic PE32 imports. CupidDis also carries typed raw
 code and data ranges, strict `--require-known` inspection, and an immutable
-first-opcode decoder index. CupidASM is 454,160 bytes with SHA-256
-7d6c4a538dcbb04663514445474dae394a6d8fead08c454885315777bf3e3867.
-CupidDis is 409,020 bytes with SHA-256
-9b0983c087ac149380d8ef710987e9e799ebca7534da1030073a63d3395a00d8.
+first-opcode decoder index. CupidDis also requires every executable relocation
+to own a compatible decoded four-byte field. CupidASM is 458,256 bytes with
+SHA-256
+1eb32e11f85bb18d39a122853dfc1ad4a446ae7516e3d810c60d5f90b43fed8e.
+CupidDis is 413,204 bytes with SHA-256
+ff2e345c1000c7e4843b91e5d17d9a171e76b0d6fbae2871ce879b338691555a.
 CupidLD is 312,792 bytes with SHA-256
 a2119556894903b662d2e131a9a2436b99a3afdd1b1600a3df4d4669569a0295.
 CupidObj carries
@@ -1093,10 +1095,10 @@ one overflow-safe 512-path request limit, preserves mixed home-asset order,
 rejects distinct paths that map to the same wrapped symbol, and renders the
 packed symbol source from canonical CupidDis text. The 5,573-byte seed manifest
 has SHA-256
-f8528f5fcb68473f5078427dfc1c7dd5fce78413a56b45c6aa831971d827ca4f.
+d571125256d11dd707f661299738891edc5c1a8d3358554076875a3e0cac22d0.
 It binds generation four, the clean revision, the 50-input snapshot, and the
-stage-three producers. ADR 0265 preserves the earlier promotion record. ADR
-0280 records the current five-tool promotion.
+stage-three producers. ADRs 0265 and 0280 preserve the earlier promotion
+records. ADR 0292 records the current five-tool promotion.
 Checked-seed CupidObj validates sequential SOF0 and SOF1 marker streams in its
 wrap-jpeg command, then applies the ordinary byte-exact wrapper. The normal
 JPEG recipe runs that checked command first on a private source snapshot.
@@ -1121,7 +1123,7 @@ Checked-seed CupidObj also accepts `iso-fixture`. The core consumes an ASCII
 manifest and a typed list of logical directories and loaded files, then writes
 the complete deterministic ECMA-119 and Rock Ridge fixture. Its output matches
 the tracked 61,440-byte image exactly. The fixed-point gate exercises the
-command and its rollback path in the 5/18/16 behavior matrix. The normal
+command and its rollback path in the 5/18/17 behavior matrix. The normal
 recipe now runs that checked command first on frozen ordinal file snapshots.
 Python compares an independent render, rechecks live state, and publishes
 under a per-output lock. ADR 0239 records the source boundary, ADR 0240 records
@@ -1131,7 +1133,7 @@ Checked-seed CupidObj also accepts `profile-manifest`. The command reads one
 bounded CUPROF1 snapshot containing the two Doom profile memberships and the
 exact bytes of all 291 captured headers. It checks portable path identity,
 computes SHA-256 internally, sorts the logical sets, and writes the canonical
-69,366-byte JSON. The current promoted seed passes a 5/18/16
+69,366-byte JSON. The current promoted seed passes a 5/18/17
 behavior matrix with padding, repeated-block, unsafe-path, case-collision,
 rollback, and recovery coverage. The checked seed carries this command, and
 the normal recipe passes that seed manifest. The wrapper derives the
@@ -1161,8 +1163,8 @@ preceding Windows execution seed. The checked 128
 KiB strict-decode case completed within its 30-second limit. The Windows
 runtime printed the exact success marker and returned 37. ADR 0266 records
 indexed decoding, and ADR 0265
-records that transition and promotion. ADR 0280 records the current Linux
-seed, and ADR 0281 records the current Windows seed. The first
+records that transition and promotion. ADRs 0280 and 0281 record the preceding
+seeds, and ADR 0292 records the current Linux and Windows seeds. The first
 separate gate covered 427 audited root objects and two kernel ELFs. Its
 9,028-byte, 429-path manifest had SHA-256
 48bdef348f6575881b9808631173e7265abc9ea89dfb84d48de72b3d2304749e,
@@ -1969,6 +1971,22 @@ moves beyond its next guard page.
 Naked functions still have no compiler prologue. The kernel entry keeps its
 zero-frame path. The checked Windows tools also commit a one MiB stack as a
 separate defense.
+>endtree
+
+>h2 Current checked compiler seed
+>tree
+The current Linux CupidC image is 2,666,324 bytes with SHA-256
+8b6b0f0508b1565d095297f3571ef9bb4d444d19be0700165706877b210b087c.
+The current Windows image is 2,592,768 bytes with SHA-256
+765fa14724c1615088fb9280a16f3457a4c4f14fa2d1915d3c56ff73b2b797cd.
+
+Both come from revision bf52d135348bc33ff32e66d549bbee5edc69d8ad and
+the 50-input snapshot
+e76d36ed4edc7679e91ac237135fe476dff6e69946bbffca56077afbf19a47f9.
+Linux passed its clean proof and promoted-seed reproof in 1,294.3 and 1,473.9
+seconds. Windows passed in 1,253.4 and 1,061.3 seconds. Both reproofs matched
+all five initial tool images. The promoted compiler carries wide integer
+conversion to float and double. ADR 0292 records the promotion.
 >endtree
 
 >h2 See Also

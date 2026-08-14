@@ -200,13 +200,14 @@ seconds with 5/18/16 behavior cases. Both reports bind the same 50-input
 snapshot, SHA-256
 `d8481a39e0d1c7f42779a8c9f5fc5de10d7e5b9bc4df63ce6afe9ddd9c9716da`.
 Those reports remain preliminary because they began from uncommitted source.
-Linux later passed a 1,383.775-second clean proof, promoted the stage-four
-seed, and passed a 1,411.998-second reproof with all five initial seed
-comparisons true. Native Windows then passed a 1,152.7-second clean proof,
-promoted its stage-four PE32 seed, and passed a 1,130.9-second reproof with all
-five initial seed comparisons true. Its 2,118-byte manifest has SHA-256
-`96bb80521ba679161008c9fa0891aff9d7ae172868cde107ff1a78feebdccfc9`.
-ADR 0280 records the Linux promotion, and ADR 0281 records the Windows
+Linux later passed a 1,294.3-second clean proof, promoted the stage-four seed,
+and passed a 1,473.9-second reproof with all five initial seed comparisons
+true. Native Windows then passed a 1,253.4-second clean proof, promoted its
+stage-four PE32 seed, and passed a 1,061.3-second reproof with all five initial
+seed comparisons true. Its 2,118-byte manifest has SHA-256
+`ae1d3dfb10604bba419c5936884668d10595f6c671915a4ae5f16706204bb41e`.
+Both reproofs reject executable relocations without decoded field owners. ADRs
+0280 and 0281 preserve the preceding promotions. ADR 0292 records the current
 promotion.
 
 Strong four-vCPU runtime checks pass with both NICs through SMP, RDRAND, all

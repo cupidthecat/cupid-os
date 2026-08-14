@@ -78,8 +78,8 @@ unit. On Windows, the promoted stage-four execution seed supplies the
 The Python generator remains a byte-parity oracle but no longer owns these
 production sources. ADR 0204 records the transfer, and ADR 0206 records the
 first seed with the linked-symbol collision checks. ADR 0258 records the
-preceding checked seed. ADR 0280 records the current Linux checked seed, and
-ADR 0281 records the current Windows execution seed.
+preceding checked seed. ADRs 0280 and 0281 preserve the preceding promotions,
+and ADR 0292 records the current Linux and Windows seeds.
 
 Makefile variable definitions:
   BIN_CC_SRCS  := $(filter-out bin/old_cc2.cc bin/old_cc2_single.cc, $(wildcard bin/*.cc))

@@ -26466,3 +26466,187 @@ ABI, object, link rule, or host dependency. No standalone OS build or boot was
 needed. The CTXT edit changes the combined documentation payload, so the final
 integration build must remeasure artifact policy and run the normal QEMU gate.
 Policy remains provenance rather than compiler behavior proof.
+
+## 2026-08-14: Promote strict relocation ownership into production
+
+The public CupidASM object transaction already asked checked CupidDis for a
+strict decode before publication. Its production seed still lacked the
+source-head relocation fields from ADR 0290, so a fully decoded object could
+pass even when a relocation pointed at an opcode byte.
+
+A new public-path regression builds a valid i386 `ET_REL` object containing
+`mov eax, imm32; ret` and places one `R_386_32` relocation at section offset
+zero. The operand field starts at offset one. The test first failed because the
+old Windows seed returned success and published the candidate. It passes with
+the promoted seed, reports one unmatched executable relocation, and preserves
+the previous output.
+
+The fixed-point driver now runs the same negative case against both converged
+CupidDis generations. Linux has 5 help cases, 18 successes, and 17 failures.
+Native Windows has 5 help cases, 5 successes, and 6 failures. A separate
+runtime test validates the synthetic ELF structure before the source-shape
+test checks that both matrices retain the case.
+
+### Linux trust unit
+
+The first clean proof from revision `4e351609` passed in 1,240.8 seconds, but
+it was excluded from promotion because the accepted raw `EQU` correction had
+not landed. A replacement proof from clean revision
+`bf52d135348bc33ff32e66d549bbee5edc69d8ad` passed in 1,294.3 seconds. It
+matched 19 C objects, startup, and five tool images between stages three and
+four. The frozen 50-input snapshot has SHA-256
+`e76d36ed4edc7679e91ac237135fe476dff6e69946bbffca56077afbf19a47f9`.
+
+The promoted Linux tools are:
+
+| Tool | Bytes | SHA-256 |
+| --- | ---: | --- |
+| CupidASM | 458,256 | `1eb32e11f85bb18d39a122853dfc1ad4a446ae7516e3d810c60d5f90b43fed8e` |
+| CupidC | 2,666,324 | `8b6b0f0508b1565d095297f3571ef9bb4d444d19be0700165706877b210b087c` |
+| CupidDis | 413,204 | `ff2e345c1000c7e4843b91e5d17d9a171e76b0d6fbae2871ce879b338691555a` |
+| CupidLD | 312,792 | `a2119556894903b662d2e131a9a2436b99a3afdd1b1600a3df4d4669569a0295` |
+| CupidObj | 392,688 | `99111b5db7586ac4b2ed00005f2fe2e89c66ed48f007d796206b116a088cdf7a` |
+
+Their 5,573-byte manifest has SHA-256
+`d571125256d11dd707f661299738891edc5c1a8d3358554076875a3e0cac22d0`.
+The promoted-seed reproof passed in 1,473.9 seconds. All five initial seed
+comparisons are true, and the 19/1/5 artifact set passes the stronger 5/18/17
+behavior matrix.
+
+### Windows trust unit
+
+The direct native candidate proof passed in 1,253.4 seconds. Stages three and
+four matched 20 C objects, two assembly objects, and five PE tools, then passed
+the 5/5/6 behavior matrix. The old seed matched stage two for CupidLD and
+CupidObj but not for CupidASM, CupidC, or CupidDis. Every final PE also matched
+the independent Windows reconstruction in the Linux report.
+
+The promoted Windows tools are:
+
+| Tool | Bytes | SHA-256 |
+| --- | ---: | --- |
+| CupidASM | 438,784 | `c54bb09f1eb317a23d1680da25c78a5a439bde44654ae8b908ddca11fd7e56d6` |
+| CupidC | 2,592,768 | `765fa14724c1615088fb9280a16f3457a4c4f14fa2d1915d3c56ff73b2b797cd` |
+| CupidDis | 391,680 | `f6d38d66f002c4440aacea08ca32b848d470665679afc13dca5f5ae8ce6b913b` |
+| CupidLD | 296,448 | `9fe3bd4fda9b87d678aa2eb6305e65b706ecdff074b16722faab23ce05cd8e02` |
+| CupidObj | 375,808 | `079bc115e74772e6224e4da164115cc5696e357cca0cb1a0583985b88381cb79` |
+
+Their 2,118-byte manifest has SHA-256
+`ae1d3dfb10604bba419c5936884668d10595f6c671915a4ae5f16706204bb41e`.
+It binds the Linux parent manifest above and the same clean source revision and
+snapshot. The promoted-seed reproof passed in 1,061.3 seconds.
+All five initial seed comparisons are true, and the 20/2/5 artifact set passes
+the 5/5/6 behavior matrix. Its 35,279-byte report has SHA-256
+`69f25c54092a4a705aed83610ce0910c260f52ad59a5075530865cfab2ec3278`.
+
+### Failed approach and ownership result
+
+The first runs of the stronger behavior matrices exposed a bug in the new
+fixture helper: one `struct.pack_into` call omitted its destination buffer.
+Both drivers stopped before publishing a report bundle. The runtime fixture
+test reproduced the exception before the argument was fixed, and both final
+proofs started from fresh private roots.
+
+Both production seeds now enforce decode completeness and executable
+relocation ownership for guarded CupidASM objects. The same source closure
+also carries wide integer conversion and the corrected raw `EQU` handling.
+This promotion adds no transform or host dependency. Python still coordinates
+the transactions. No active source needs a `.c` to `.cc` rename, and the
+`TempleOS/` reference tree was not changed or counted. ADR 0292 records the
+decision.
+
+### Integrated publication and boot evidence
+
+The public object transaction passed all eight tests in 0.915 seconds. Its
+production-seed case rejects the valid synthetic object with one unowned
+relocation and leaves the old output unchanged. With every conventional host
+code-generation variable set to an invalid command, the normal Make recipes
+also published both guarded objects through the checked Windows seed:
+
+| Object | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/cpu/isr.o` | 1,892 | `caa8e1974fbf06857263a743661aae3318abb0b4e10fa154e4ac4994f32464e6` |
+| `kernel/core/context_switch.o` | 696 | `8b0fa9415a5f549f6516e3ae4e73d39676d56fb58bbba87d9479610dd95818ea` |
+
+The first full poisoned-host build reached the exact-size gate after 707.6
+seconds. All compilation, assembly, linking, and strict inspection had passed.
+The gate correctly rejected the three outputs changed by the embedded manual
+updates. Both kernel ELFs grew by 4,096 bytes, and the flat kernel grew by
+2,888 bytes. After the policy was updated to those measured values, its
+twelve-test suite passed in 2.052 seconds. The complete poisoned-host build
+then passed in 663.1 seconds, accepted all nine exact artifacts, and published
+a fresh image:
+
+| Output | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `kernel/kernel.elf.pass1` | 9,219,620 | `beb2036f8039a02dc8c5e970a48c6367947b49a0a37fd5fc8a9039402e0cc906` |
+| `kernel/kernel.elf` | 9,342,500 | `b663a1849b2920f4579c0f48c1e16972c367ca26e79ee4ced0bbfe833fce5aaa` |
+| `kernel/kernel.bin` | 9,124,408 | `d58e5c78173c0961a65928688928c0afb4e762252feef919fabce74959c27959` |
+| `cupidos.img` | 209,715,200 | `6c3a10f4fe3d7de3cc8563ade698e00f0090d861e2628c1ca98d3a08b306a066` |
+
+Two private-image QEMU smokes ran in parallel from that image. `/bin/ls.cc`
+compiled and completed through in-OS CupidC in 52.8 seconds. Its 26,982-byte
+serial log has SHA-256
+`f0d6d8640e694b49f893dc4a9a10f9bf7b6e33aeb324b0b1c5abd57f40fbd264`.
+`as /demos/hello.asm` assembled and completed through in-OS CupidASM in 57.5
+seconds. Its 26,713-byte serial log has SHA-256
+`80eb1c2da58d2b043db97c0c4a4fa7bdd6ae2e2195daca0f35842e2d082f820f`.
+Both runs reached `JIT execution complete` and reported no panic.
+
+The final audit regeneration passed in 64.9 seconds. Its 2,676,423-byte JSON
+has SHA-256
+`05b6bf76dd68b7284fd0b4fd1252cbf6926f5ad02d827dd7ce01a7192f4da602`.
+The 12,417-byte summary has SHA-256
+`41a1a7443c1844984a144177bc3783b4359210025aa8ade148ce696a095c129a`
+and records 18 successful fixed-point operations plus 17 useful failures.
+Eight focused manifest, provenance, execution, matrix, and fixture tests passed
+in 19.681 seconds. The complete assembler and disassembler family passed 47
+tests in 13.102 seconds with one host-specific `/dev/full` skip. A final
+`check-bootstrap-audit` comparison passed in 66.0 seconds.
+
+A later attempt to run the complete seed test module entered another full
+Linux bootstrap proof. Its outer command reached the 904-second limit while
+that duplicate proof was still running. The orphaned private process was
+stopped and its untracked source capture was removed. This incomplete attempt
+is not counted as proof evidence; the clean candidate proof and promoted-seed
+reproof above remain the promotion evidence.
+
+### Review-corrected final tree
+
+The final review found three stale image locks in the long fixed-point test and
+several live manual paragraphs that still described the preceding seed. The
+locks now use the promoted Linux CupidC and Windows CupidASM, CupidC, and
+CupidDis identities. Nine focused seed, provenance, matrix, fixture, and freeze
+tests passed in 17.696 seconds. The live manuals now distinguish the historical
+5/18/16 proofs from the current 5/18/17 matrix and record the promoted wide
+conversion, raw `EQU`, and relocation-ownership capabilities.
+
+Those manual corrections changed embedded OS input. A fresh poisoned-host
+build reached the exact-size gate in 637.6 seconds after every compilation,
+assembly, link, and strict inspection had passed. The flat kernel grew by 16
+bytes to 9,124,424 bytes; the two ELF sizes did not move. The revised
+twelve-test artifact policy passed in 1.564 seconds. A second complete
+poisoned-host build passed in 631.8 seconds, accepted all nine exact artifacts,
+and published this final image:
+
+| Output | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `kernel/kernel.elf.pass1` | 9,219,620 | `b37a00de5ce275e5b4f335b2426c63c2655e7ba3536d329efe42057429f3694c` |
+| `kernel/kernel.elf` | 9,342,500 | `05aca75596a6870f4d96c6b340b61e35a3ef41112ef3e8c1c3733e0018bbb171` |
+| `kernel/kernel.bin` | 9,124,424 | `0d209219c433f020bc76b14a8d20af67f49c05cb9a068caffa6ac29409000a45` |
+| `cupidos.img` | 209,715,200 | `55beddde0ecf0bcff4e879d0f0c6fa8bb586199963e90a86c044d57c6a5ebbcd` |
+
+Two private-image smokes ran in parallel from that image. `/bin/ls.cc`
+completed through in-OS CupidC in 52.4 seconds. Its 26,982-byte log has SHA-256
+`6eb2c3e4f710cd1529140cb812e476ec4487504e286b5282f67d9f9f54e72f71`.
+`as /demos/hello.asm` completed through in-OS CupidASM in 57.3 seconds. Its
+26,713-byte log has SHA-256
+`1da11dc6309ba7731a6c828aec3f6aad19335b989ca6118905dca99db8569bf2`.
+Both logs reached `JIT execution complete` without a panic or fault marker.
+
+The final-source audit regeneration passed in 66.2 seconds, and its checked
+comparison passed in 65.9 seconds. The 2,676,423-byte JSON and 12,417-byte
+summary retained their previous hashes because the audit records the input
+inventory and capability model rather than embedded prose bytes.

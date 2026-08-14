@@ -40394,7 +40394,7 @@
         "cupidobj",
         "cupidc"
       ],
-      "failure_behavior_cases": 16,
+      "failure_behavior_cases": 17,
       "gnu_c_sources": 1,
       "help_cases": 5,
       "include_roots": [
@@ -54478,11 +54478,11 @@
       },
       {
         "path": "tools/bootstrap_toolchain.py",
-        "sha256": "2aaffa35a99aa7c955900697b30db6dca5c9346904d62d419445aa9df02f38fc"
+        "sha256": "1a9674f9f7a918bd75b95bdcb19ea6b825a41f3dab926d36b2cdd3d3e6ce073e"
       },
       {
         "path": "bootstrap/seeds/i386-windows/manifest.json",
-        "sha256": "96bb80521ba679161008c9fa0891aff9d7ae172868cde107ff1a78feebdccfc9"
+        "sha256": "ae1d3dfb10604bba419c5936884668d10595f6c671915a4ae5f16706204bb41e"
       },
       {
         "path": "tools/cupidc_production_compile.py",
@@ -54503,7 +54503,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "7c81992efe38da7fac8ec47067054bcef3d7b71d340d8cc95e2b4118e76faa20"
+      "sha256": "37ec0d17055edb3e64b81b636266743a20d869f6a1c6926a9c61148603c50abf"
     },
     "text_hash_policy": "canonical_lf"
   },
