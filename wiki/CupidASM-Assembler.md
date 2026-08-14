@@ -193,9 +193,10 @@ expanded eleven-test suite passed in 1.708 seconds, including direct mismatch
 and live-output drift checks for both callers. Parent-replacement tests exposed
 a POSIX candidate leak when private work lived below the output parent. Private
 roots now live directly below the stable repository root. Both caller modules
-pass all 10 tests on Windows and through WSL. The promoted Windows execution
-seed carries `--map` and `--range-map`. The normal bootloader Make edge remains
-on direct checked CupidASM until the guarded publisher cutover.
+pass all 10 tests on Windows and through WSL. The normal bootloader Make edge
+calls the guarded transaction with the production manifest and full checked
+seed. Hostbuild publishes only after CupidASM and CupidDis accept the private
+image and map. ADR 0283 records the cutover.
 
 The normal SMP trampoline recipe uses this map as a publication gate.
 Hostbuild freezes the selected seed and source, asks CupidASM for a private
@@ -269,16 +270,17 @@ completed dual-NIC checkpoint immediately before this
 rebuild used image SHA-256
 `326844ca58c1f864a6b9a2480dfaeb5ed71ec3df22cdb46da17a6bb356e7e726`.
 
-The current production checkpoint includes in-kernel CupidLD. A clean forced
-build passed in 653.2 seconds after CupidDis accepted all 431 inputs. The
-pass-one ELF is 9,190,860 bytes, the final ELF is 9,313,740 bytes, and the raw
-kernel is 9,096,008 bytes. Their SHA-256 values are
-`aee9e505c92a1e701bea05897e0cb1901a13b3d5eacecf2512607a608e0e3efd`,
-`5b179b938edb74c3edec59c2cc223366b5bb521c2a88f9a12f970a2b8b2bbaa1`, and
-`9222973f7000f3e95dfd786ad2cd22ad4d90f5cc1e08a47537fe6c71603c7f51`.
+The current production checkpoint includes in-kernel CupidLD and the guarded
+normal boot edge. A poisoned-host normal build passed in 674.693 seconds
+after CupidDis accepted all 431 inputs. The pass-one ELF is 9,211,340 bytes,
+the final ELF is 9,334,220 bytes, and the raw kernel is 9,114,084 bytes. Their
+SHA-256 values are
+`2a6f5deafb580b30254483179d6dade9ed4ed7b17b39f9368137b1ff14932263`,
+`bc855462c1f8f42e34d94a974443f7c6e565d60b1913e3b6f33b3e6e375f3ed6`, and
+`8b5d73e74538ce11c1fb074f88b3852d690038aa5cb3a8de3ce222e9df88cade`.
 The 209,715,200-byte image has SHA-256
-`dfdda396c6995458bd4e6185ec7e36645ebf3c193cd303ce495135c5d015b59e`.
-A private QEMU boot reached JIT completion in 46.9 seconds.
+`813c9b0c78f795c1ac9fcff59b9c4111a958a07eb1e3943dc7af60c536521110`.
+A private four-vCPU QEMU boot reached JIT completion in 49.257 seconds.
 The definitive four-vCPU E1000 and RTL8139 boot frontiers remain pre-freeze
 runtime evidence. They passed
 with exits 0 in 794.034 and 758.667 seconds. Both passed SMP, frontier,

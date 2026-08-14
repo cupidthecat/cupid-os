@@ -134,8 +134,11 @@ POSIX candidate leak when private work lived below the output parent. Private
 roots now live directly below the stable repository root. Both caller modules
 pass all 10 tests on Windows and all 10 through WSL, including parent
 replacement with no leaked candidate. The promoted Windows execution seed now
-carries both options. The normal boot rule still needs its guarded publisher
-cutover. ADR 0277 records the schema and staged ownership move.
+carries both options. The normal boot rule calls
+`tools/hostbuild.py assemble-bootloader` with the production manifest and
+`CHECKED_SEED_INPUTS`. Standalone CupidASM overrides therefore cannot replace
+the checked closure. ADR 0277 records the schema, and ADR 0283 records the
+production cutover.
 
 Hosted CupidC now exposes the existing Cupid language profile as `--cupid`.
 The option selects Cupid vocabulary in both preprocessing and parsing, while
@@ -643,7 +646,7 @@ contains the 19-source static Linux tool union, the Windows runtime wrapper
 and direct contract, and all fifteen Toolchain contract programs. The retired
 `HOSTED_TOOLCHAIN_64` and
 `HOSTED_KERNEL_BRIDGE_64` profiles have no active roots.
-Stage-two and stage-three CupidC compile every contract, CupidLD links each
+Stage-three and stage-four CupidC compile every contract, CupidLD links each
 static executable, and the harness rejects a byte difference in any of the
 seventeen new objects or sixteen executables. The publisher validates a
 dedicated `cupidc-contracts` target before work and again before promotion.
@@ -664,7 +667,35 @@ manifest is read once for hashing,
 decoding, schema validation, and build-plan use. A concurrent replacement
 cannot mix those facts across reads.
 
-The promoted-seed user frontier passed with exit 0 in 3,291.317 seconds. It
+The staged `cupidasm-kernel-elf` plan carries `as_elf`, CupidLD, CupidASM,
+x86, and ELF32, which matches the native contract closure. The first supported
+scheduler run reached this link after the isolated object compile and exposed
+the three missing implementation objects. CupidLD rejected the unresolved
+strong symbol, and transactional cleanup published nothing. A direct plan
+test now locks the complete closure.
+
+Fourteen ordinary contract programs compile in the bounded worker pool with
+900-second plan budgets. The pool drains before the heavyweight
+`cupidc-object` program compiles alone with a 1,800-second budget. The hosted
+runtime compile and all contract links retain their 360-second limits, and the
+links remain parallel. Timeout errors identify the stage, source, and applied
+budget. ADR 0282 records this resource policy.
+The v2 publication record requires `stage-three` and `stage-four` as the
+compared convergence pair. A 4,480.3-second private rebuild completed every
+compile, link, comparison, and runtime check before the stale verifier rejected
+that added field. The failure published nothing. Positive and wrong-pair tests
+now lock the exact record.
+The final supported gate passed in 4,589.9 seconds. Stage-three and stage-four
+contract objects and executables matched across seventeen object and sixteen
+executable comparisons. The gate ran the stage-four hosted runtime, published
+and verified 21 stage-four artifacts from 65 inputs, passed the syscall ABI,
+and matched all six outputs for the three native Windows user programs. The
+22,591-byte contract manifest has SHA-256
+`ff193cf81293553706373f5a37d0fedf3dfae0bebcbc608d892a4f40ea3d9629`.
+The same target passed again in 12.2 seconds through the current-publication
+path, repeating the ABI and all six user comparisons without a rebuild.
+
+An earlier promoted-seed user frontier passed with exit 0 in 3,291.317 seconds. It
 rebuilt and transactionally published the complete 21-artifact contract
 cohort, with stage two equal to stage three, before repeating the three user
 objects and executables. The 23-input user closure has SHA-256
@@ -780,7 +811,7 @@ object outputs plus the pass-one and final kernel ELFs. A
 That separate command passed in 185.526 seconds with exit 0 and empty output.
 The final audit records 452 transforms across the three supported roots and
 443 under root `all`. Its tool participation totals are Python 452, CupidC
-246, CupidObj 192, CupidASM five, CupidLD five, and CupidDis three. It retains
+246, CupidObj 192, CupidASM five, CupidLD five, and CupidDis four. It retains
 the 5/18/16 fixed-point matrix and assigns strict validation plus flat
 extraction to `kernel.bin`, with all 431 code inputs represented. `make
 bootstrap-audit` passed in 69.0 seconds.
@@ -846,20 +877,21 @@ frames at peak 31,877. USB detach/replug and the post-replug survival window
 also passed. The private run left the source image unchanged.
 
 The current production checkpoint includes the 137,444-byte in-kernel CupidLD
-object. A clean forced build passed in 653.2 seconds after CupidDis accepted all
-431 production inputs and the nine-artifact size gate passed:
+object and the guarded normal boot edge. A poisoned-host normal build passed
+in 674.693 seconds after CupidDis accepted all 431 production inputs and the
+nine-artifact size gate passed:
 
 | Output | Bytes | SHA-256 |
 | --- | ---: | --- |
 | `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
-| `kernel/kernel.elf.pass1` | 9,190,860 | `aee9e505c92a1e701bea05897e0cb1901a13b3d5eacecf2512607a608e0e3efd` |
-| `kernel/kernel.elf` | 9,313,740 | `5b179b938edb74c3edec59c2cc223366b5bb521c2a88f9a12f970a2b8b2bbaa1` |
-| `kernel/kernel.bin` | 9,096,008 | `9222973f7000f3e95dfd786ad2cd22ad4d90f5cc1e08a47537fe6c71603c7f51` |
-| `cupidos.img` | 209,715,200 | `dfdda396c6995458bd4e6185ec7e36645ebf3c193cd303ce495135c5d015b59e` |
+| `kernel/kernel.elf.pass1` | 9,211,340 | `2a6f5deafb580b30254483179d6dade9ed4ed7b17b39f9368137b1ff14932263` |
+| `kernel/kernel.elf` | 9,334,220 | `bc855462c1f8f42e34d94a974443f7c6e565d60b1913e3b6f33b3e6e375f3ed6` |
+| `kernel/kernel.bin` | 9,114,084 | `8b5d73e74538ce11c1fb074f88b3852d690038aa5cb3a8de3ce222e9df88cade` |
+| `cupidos.img` | 209,715,200 | `813c9b0c78f795c1ac9fcff59b9c4111a958a07eb1e3943dc7af60c536521110` |
 
-The five-sector boot image is unchanged. A private QEMU boot ran `ls` and
-reached JIT completion in 46.9 seconds. The separate 79.661-second AOT smoke is
-recorded at the top of this document and in ADR 0276.
+The five-sector boot image is unchanged. A private four-vCPU QEMU boot ran
+`ls` and reached JIT completion in 49.257 seconds. A separate AOT smoke linked
+and ran `/hello-aot` in 76.174 seconds.
 
 The preceding dual-NIC checkpoint used image SHA-256
 `326844ca58c1f864a6b9a2480dfaeb5ed71ec3df22cdb46da17a6bb356e7e726`.
@@ -998,7 +1030,7 @@ SHA-256
 `41ed1a20ba7dbfed4965a777e655d495fc8c9ba44d7099fd4ce73ca78838d0fb`
 and no failure marker.
 
-The latest promotion proof matched all nineteen C objects, startup, and all
+An earlier promotion proof matched all nineteen C objects, startup, and all
 five tools between stage two and stage three. It used a 43-input source
 snapshot and the 5/18/16 behavior matrix. It passed in 763.5 seconds. Its
 17,035-byte report has SHA-256
@@ -1767,7 +1799,9 @@ now have zero roots.
 The `toolchain:all` target bootstraps both checked compiler stages, builds
 fifteen Linux Toolchain contracts and the runtime probe as static i386 ELF
 files, compares seventeen objects and sixteen executables across the two
-generations, and publishes 21 artifacts with a manifest. The audit also keeps
+generations, and publishes 21 artifacts with a manifest. Fourteen regular
+contract compiles remain parallel; `cupidc-object` starts alone after that pool
+drains because its plan carries the larger 1,800-second budget. The audit also keeps
 22 browser fragments under
 `bin/browser.cc` and two delivered headers without an invented standalone
 context. No hosted translation unit is deferred. Checked execution-seed
@@ -1799,10 +1833,10 @@ generated translation units.
 
 The active-source digest is
 `f7af8cce01680c74bb452ed6ac018471bc26cc1d37f0b94bf2b70c5fa4d497f0`.
-The 2,673,345-byte audit JSON has SHA-256
-`d30b4b9f747a567f36f42e85ad621d8359f62d174f1fbdda403ee5bffacc5964`,
+The 2,673,547-byte audit JSON has SHA-256
+`a433c3c202f9ccba82fe587b4d5a48b0ec10a0d4440f44cc7b730002473b2604`,
 and the 12,269-byte summary has SHA-256
-`1cb16ea4cbf4ec84d447bcb9e85b8ea2062078fec32a5e5254bfc700cc2d39ec`.
+`c8afb2c59a3e13c098178b01168ae65fa10293e67b1c7cef57ef596eac72148c`.
 
 Across the three supported roots, CupidC participates in 246 transforms and
 CupidObj participates in 192 transforms. Python participates in all 452 as

@@ -87,7 +87,7 @@ once but gives every compile the same 900-second limit. That leaves 73.808
 seconds of idle-host headroom for this source, so parallel contention can
 exhaust the limit even when the compiler is correct. This gate is recorded as
 timed out, not passed. Per-plan timeout and scheduling work remains a separate
-follow-up.
+follow-up. ADR 0282 records that scheduler policy and its later evidence.
 
 The regenerated active-source audit retains digest
 `f7af8cce01680c74bb452ed6ac018471bc26cc1d37f0b94bf2b70c5fa4d497f0`.
@@ -127,7 +127,8 @@ This promotion removes no host-control dependency. Python still coordinates
 the bootstrap, and Linux-seed contracts on Windows still use WSL. The promoted
 tools carry CupidASM `--map` and CupidDis `--range-map`, so the guarded
 bootloader publisher no longer waits on seed capability. Moving that publisher
-onto the normal Make edge remains separate work.
+onto the normal Make edge was separate work at acceptance. ADR 0283 records
+the later cutover.
 
 No active source rename is due. The fixed-point source plan already uses
 `.cc`, the remaining tracked `.c` files are outside the supported Cupid-owned

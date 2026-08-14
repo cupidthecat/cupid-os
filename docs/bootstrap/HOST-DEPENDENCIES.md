@@ -9,10 +9,10 @@ language graph contains 31 assembly inputs, 296 headers, and 409 Cupid C
 files. No ordinary C translation unit remains in a supported root. The
 active-source digest is
 `f7af8cce01680c74bb452ed6ac018471bc26cc1d37f0b94bf2b70c5fa4d497f0`.
-The 2,673,345-byte audit JSON has SHA-256
-`d30b4b9f747a567f36f42e85ad621d8359f62d174f1fbdda403ee5bffacc5964`,
+The 2,673,547-byte audit JSON has SHA-256
+`a433c3c202f9ccba82fe587b4d5a48b0ec10a0d4440f44cc7b730002473b2604`,
 and the 12,269-byte summary has SHA-256
-`1cb16ea4cbf4ec84d447bcb9e85b8ea2062078fec32a5e5254bfc700cc2d39ec`.
+`c8afb2c59a3e13c098178b01168ae65fa10293e67b1c7cef57ef596eac72148c`.
 The checked Windows Clang/LLVM and Linux GCC/binutils baselines at
 revision `1e079d1` predate the current CupidC ownership and remain historical
 oracle evidence.
@@ -112,8 +112,9 @@ capabilities. Hosted CupidC probes each page of a large fixed frame. Kernel AOT
 now gives a CupidASM relocatable object to in-kernel CupidLD. CupidASM can
 serialize its raw statement layout, and CupidDis can consume that file for
 strict inspection. Host Python coordinates the private bootloader candidate
-and publication checks. The promoted Windows execution seed carries both map
-options, but the normal boot edge still needs its guarded publisher cutover.
+and publication checks. The normal boot edge now calls that transaction with
+the production manifest and full checked-seed closure. The promoted Windows
+execution seed carries both map options.
 Parent-replacement tests exposed a POSIX
 candidate leak when private work lived below the output parent. Private
 raw-image roots now live directly below the stable repository root. The two
@@ -373,11 +374,11 @@ handles indexed record members whether the outer record is a named object or
 an array element. These parser changes add no host build step.
 
 The i386 runtime contract and all fifteen Toolchain contracts use `.cc`.
-The checked seed produces stage-two and stage-three tools, each stage compiles
-the full contract set, and CupidLD links the matching static i386
+The checked seed produces the four bootstrap generations. Stage-three and
+stage-four tools compile the full contract set, and CupidLD links the matching static i386
 executables. The seventeen newly compiled objects and sixteen executables must
 match byte for byte across stages before the runtime probe runs and
-publication occurs. The publisher validates a dedicated
+the stage-four cohort is published. The publisher validates a dedicated
 `cupidc-contracts` target before work and immediately before promotion. An
 existing destination must already verify as a complete cohort. Arbitrary
 directories, source trees, files, and symbolic links are rejected without
@@ -396,6 +397,27 @@ byte sequence. Host Python still orchestrates the check. Native contract
 binaries are optional
 `native-oracles`, so their host compiler and linker do not enter the
 supported graph.
+The staged kernel ELF contract explicitly links the same `as_elf`, CupidLD,
+CupidASM, x86, and ELF32 closure as its native oracle. The first scheduler gate
+found that the checked plan still omitted three of those Cupid-owned objects.
+The failed CupidLD link published nothing, and the corrected plan adds no host
+tool or dependency.
+Python also enforces the per-plan compile admission policy. Fourteen ordinary
+contracts use the worker pool and 900-second budgets. The pool closes before
+`cupidc-object` compiles alone with a 1,800-second budget. The separate runtime
+compile and parallel contract links retain their 360-second limits. This is a
+host-control dependency, not a host code-generation dependency. ADR 0282
+records the decision.
+The manifest verifier also requires the bootstrap report's stage-three and
+stage-four convergence pair. The first full private rebuild with the scheduler
+reached this check after 4,480.3 seconds, then rejected the stale record without
+publishing. This repair changes Python verification, not a host tool role.
+The final supported gate passed in 4,589.9 seconds. It compared stage-three and
+stage-four contract outputs, ran and published stage four, verified the
+21-artifact cohort, then matched all three user objects and executables built
+by the promoted native Windows tools to the checked Linux-seed frontier. The
+warmed path passed in 12.2 seconds. Python and WSL remain orchestration
+dependencies; no host C compiler or linker entered the supported build.
 An earlier Linux-seed user-frontier checkpoint passed in 3,291.317 seconds after the
 publisher rebuilt and atomically installed a complete 21-artifact cohort.
 Stage two and stage three matched. Windows used the existing WSL runner, and
@@ -963,7 +985,7 @@ recovery. ADR 0265 records production adoption.
 
 The final audit records 452 transforms across the three supported roots and
 443 under root `all`. Its tool participation totals are Python 452, CupidC
-246, CupidObj 192, CupidASM five, CupidLD five, and CupidDis three. It retains
+246, CupidObj 192, CupidASM five, CupidLD five, and CupidDis four. It retains
 the 5/18/16 fixed-point matrix and records strict validation plus flat
 extraction together on `kernel.bin`, with all 431 code inputs represented.
 `make bootstrap-audit` passed in 69.0 seconds.
@@ -1007,18 +1029,19 @@ completed dual-NIC checkpoint immediately before this
 rebuild used image SHA-256
 `326844ca58c1f864a6b9a2480dfaeb5ed71ec3df22cdb46da17a6bb356e7e726`.
 
-The current production checkpoint includes in-kernel CupidLD. A clean forced
-build passed in 653.2 seconds after CupidDis accepted all 431 production inputs.
-The pass-one ELF is 9,190,860 bytes with SHA-256
-`aee9e505c92a1e701bea05897e0cb1901a13b3d5eacecf2512607a608e0e3efd`.
-The final ELF is 9,313,740 bytes with SHA-256
-`5b179b938edb74c3edec59c2cc223366b5bb521c2a88f9a12f970a2b8b2bbaa1`,
-and the 9,096,008-byte raw kernel has SHA-256
-`9222973f7000f3e95dfd786ad2cd22ad4d90f5cc1e08a47537fe6c71603c7f51`.
+The current production checkpoint includes in-kernel CupidLD and the guarded
+normal boot edge. A poisoned-host normal build passed in 674.693 seconds
+after CupidDis accepted all 431 production inputs. The pass-one ELF is
+9,211,340 bytes with SHA-256
+`2a6f5deafb580b30254483179d6dade9ed4ed7b17b39f9368137b1ff14932263`.
+The final ELF is 9,334,220 bytes with SHA-256
+`bc855462c1f8f42e34d94a974443f7c6e565d60b1913e3b6f33b3e6e375f3ed6`,
+and the 9,114,084-byte raw kernel has SHA-256
+`8b5d73e74538ce11c1fb074f88b3852d690038aa5cb3a8de3ce222e9df88cade`.
 The resulting 209,715,200-byte image has SHA-256
-`dfdda396c6995458bd4e6185ec7e36645ebf3c193cd303ce495135c5d015b59e`.
-The boot image remains byte-identical. A private QEMU boot reached the `ls` JIT
-completion marker in 46.9 seconds.
+`813c9b0c78f795c1ac9fcff59b9c4111a958a07eb1e3943dc7af60c536521110`.
+The boot image remains byte-identical. A private four-vCPU QEMU boot reached
+the `ls` JIT completion marker in 49.257 seconds.
 
 The normal Make image recipe passes the checked seed manifest to
 `tools/hostbuild.py image`. Hostbuild freezes every input and snapshots the
@@ -1087,7 +1110,7 @@ initializers. `cupidc_pp.cc` publishes 143/3,932/25,287/479/286;
 `cupidc_frontend.cc` publishes 445/17,242/113,778/2,565/1,547. The generated
 audit records the current active-source totals and source graph.
 
-Checked stage-two and stage-three CupidC build the shared frontend, emitter,
+Checked stage-three and stage-four CupidC build the shared frontend, emitter,
 and normal contract programs. GCC or Clang and a host linker build only the
 explicit native oracles and development commands. Open work
 includes chained and overriding designators, promoted anonymous-member

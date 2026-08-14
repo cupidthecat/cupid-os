@@ -145,16 +145,17 @@ The earlier 1,057.969-second build and definitive four-vCPU E1000 and RTL8139
 frontiers remain pre-freeze evidence. Those boots passed the AC97 and PC
 speaker checks with exits 0 in 794.034 and 758.667 seconds.
 
-The latest clean forced build finished in 653.2 seconds. Its 2,560-byte boot
-image keeps the same SHA-256. The 9,190,860-byte pass-one ELF has SHA-256
-`aee9e505c92a1e701bea05897e0cb1901a13b3d5eacecf2512607a608e0e3efd`,
-the 9,313,740-byte final ELF has SHA-256
-`5b179b938edb74c3edec59c2cc223366b5bb521c2a88f9a12f970a2b8b2bbaa1`,
-and the 9,096,008-byte raw kernel has SHA-256
-`9222973f7000f3e95dfd786ad2cd22ad4d90f5cc1e08a47537fe6c71603c7f51`.
+The current poisoned-host normal build finished in 674.693 seconds. Its
+2,560-byte boot image keeps the same SHA-256. The 9,211,340-byte pass-one ELF
+has SHA-256
+`2a6f5deafb580b30254483179d6dade9ed4ed7b17b39f9368137b1ff14932263`,
+the 9,334,220-byte final ELF has SHA-256
+`bc855462c1f8f42e34d94a974443f7c6e565d60b1913e3b6f33b3e6e375f3ed6`,
+and the 9,114,084-byte raw kernel has SHA-256
+`8b5d73e74538ce11c1fb074f88b3852d690038aa5cb3a8de3ce222e9df88cade`.
 The published 209,715,200-byte image has SHA-256
-`dfdda396c6995458bd4e6185ec7e36645ebf3c193cd303ce495135c5d015b59e`.
-A private four-vCPU `/bin/ls.cc` JIT boot passed from that image in 46.9
+`813c9b0c78f795c1ac9fcff59b9c4111a958a07eb1e3943dc7af60c536521110`.
+A private four-vCPU `/bin/ls.cc` JIT boot passed from that image in 49.257
 seconds.
 
 The checked i386 Linux seed at ADR 0138 carries static floating constant data

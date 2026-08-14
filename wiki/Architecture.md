@@ -140,7 +140,8 @@ The current 156-source production build passes. A broader two-generation
 frontier run timed out after 1,204 seconds and remains incomplete.
 
 The normal Toolchain root builds fifteen `.cc` contracts and the runtime
-probe with stage-two and stage-three CupidC. Its publisher accepts only a
+probe with stage-three and stage-four CupidC. It runs and publishes the
+stage-four cohort. Its publisher accepts only a
 dedicated `cupidc-contracts` directory inside the source tree. It validates
 the target before work and again before promotion, and an existing
 destination must already verify as a complete cohort. Arbitrary directories,
@@ -160,6 +161,21 @@ across stages before the 21-artifact cohort can be published. Contract runs
 use a private copy of the verified cohort. The user ABI check also gives the
 Cupid contract and Python oracle one shared six-file snapshot, then rechecks
 the live publication and sources before success.
+Fourteen ordinary contract compiles use the worker pool and 900-second
+budgets. The pool drains before `cupidc-object` receives an exclusive
+1,800-second compile. Runtime compilation and parallel contract linking keep
+their 360-second limits. ADR 0282 records this admission policy.
+The kernel ELF contract plan explicitly carries `as_elf`, CupidLD, CupidASM,
+x86, and ELF32. This matches the native closure and prevents a staged link from
+reaching publication with a missing strong definition.
+Its v2 manifest also binds stage three and stage four as the compared
+fixed-point pair. The verifier checks that exact provenance before directory
+promotion.
+The final gate passed in 4,589.9 seconds. It compared stage-three and
+stage-four contract outputs, ran and published stage four, verified 21
+artifacts from 65 inputs, and matched all three native Windows user programs
+to the checked seed at both object and executable boundaries. The warmed path
+passed in 12.2 seconds.
 Native contract binaries are optional oracles.
 
 At the promoted-seed checkpoint, stages two and three linked matching native

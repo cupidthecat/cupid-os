@@ -44,6 +44,9 @@ The normal Make rule continues to call the current checked CupidASM directly
 until a promoted seed carries both map options. Moving the production edge
 before that promotion would make the intermediate commit unbuildable.
 
+ADR 0281 later promotes a Windows seed with both options. ADR 0283 moves the
+normal boot rule onto this transaction after that prerequisite is satisfied.
+
 ## Evidence
 
 Public tests cover mixed code16, code32, data, alignment, reserve statements,
@@ -71,5 +74,5 @@ the authority for flat-image layout. CupidDis remains the independent decoder
 and strict policy gate. Hostbuild owns one transaction instead of duplicating
 locking and publication rules in each caller. The source capability adds no
 host code generator. Production bootloader inspection and its extra CupidDis
-participation begin only after the checked seed promotion recorded in a later
-decision.
+participation begin only after the checked seed promotion recorded in ADR 0281
+and the production cutover recorded in ADR 0283.

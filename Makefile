@@ -306,8 +306,10 @@ FORCE:
 all: $(OS_IMAGE)
 
 # Compile bootloader
-$(BOOTLOADER): boot/boot.asm $(CUPIDASM_INPUTS)
-	$(CUPIDASM) -f bin boot/boot.asm -o $(BOOTLOADER)
+$(BOOTLOADER): boot/boot.asm tools/hostbuild.py $(CHECKED_SEED_INPUTS)
+	$(PYTHON) tools/hostbuild.py assemble-bootloader \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root . \
+		--source $< --output $@
 
 # Compile C source files
 kernel/core/kernel.o: kernel/core/kernel.cc drivers/ata.h drivers/keyboard.h \

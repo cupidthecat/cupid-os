@@ -2302,7 +2302,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             for output_path, operation in expected_assembly.items():
                 expected_tools = ["cupid_assembler", "host_python"]
-                if output_path == "kernel/smp_trampoline.bin":
+                if output_path in {
+                    "boot/boot.bin",
+                    "kernel/smp_trampoline.bin",
+                }:
                     expected_tools = [
                         "cupid_assembler",
                         "cupid_disassembler",
@@ -8134,7 +8137,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         )
         self.assertEqual(
             bootloader_transform["tools"],
-            ["cupid_assembler", "host_python"],
+            ["cupid_assembler", "cupid_disassembler", "host_python"],
         )
         self.assertEqual(
             bootloader_transform["operation"],
@@ -8142,12 +8145,14 @@ class BuildGraphAuditCliTests(unittest.TestCase):
         )
         self.assertEqual(
             set(bootloader_transform["inputs"]),
-            seed_inputs | {"boot/boot.asm"},
+            seed_inputs | {"boot/boot.asm", "tools/hostbuild.py"},
         )
         self.assertEqual(
             bootloader_transform["recipe"],
             [
-                "$(CUPIDASM) -f bin boot/boot.asm -o $(BOOTLOADER)",
+                "$(PYTHON) tools/hostbuild.py assemble-bootloader \\",
+                "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root . \\",
+                "--source $< --output $@",
             ],
         )
         trampoline_transform = next(
@@ -8223,7 +8228,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             "cupid_assembler": 5,
             "cupid_object": 192,
             "cupid_linker": 2,
-            "cupid_disassembler": 3,
+            "cupid_disassembler": 4,
         }
         for tool, expected_count in expected_counts.items():
             transforms = [
@@ -8597,16 +8602,60 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     module._run_make_database(
                         REPO_ROOT,
                         make,
-                        "boot/boot.bin",
+                        "kernel/cpu/isr.o",
                     )
                 )
 
-            inputs = set(rules["boot/boot.bin"].prerequisites)
+            inputs = set(rules["kernel/cpu/isr.o"].prerequisites)
             self.assertIn(relative_driver, inputs)
             self.assertNotIn(
                 "bootstrap/seeds/i386-windows/manifest.json",
                 inputs,
             )
+
+    def test_bootloader_keeps_checked_seed_closure_under_tool_overrides(self):
+        make = shutil.which("make")
+        if make is None:
+            self.skipTest("GNU Make is unavailable")
+        module = _load_audit_module()
+        with tempfile.TemporaryDirectory(
+            prefix=".audit-tool-",
+            dir=REPO_ROOT,
+        ) as td:
+            driver = Path(td) / "cupidasm-driver"
+            driver.write_bytes(b"driver\n")
+            relative_driver = driver.relative_to(REPO_ROOT).as_posix()
+            variables = (
+                *module.CANONICAL_MAKE_VARIABLES,
+                "CUPIDASM=custom-cupidasm",
+                f"CUPIDASM_INPUTS={relative_driver}",
+            )
+            with mock.patch.object(
+                module,
+                "CANONICAL_MAKE_VARIABLES",
+                variables,
+            ):
+                rules = module._parse_make_rules(
+                    module._run_make_database(
+                        REPO_ROOT,
+                        make,
+                        "boot/boot.bin",
+                    )
+                )
+
+            rule = rules["boot/boot.bin"]
+            inputs = set(rule.prerequisites)
+            self.assertNotIn(relative_driver, inputs)
+            self.assertTrue(
+                {
+                    "Makefile",
+                    "tools/bootstrap_toolchain.py",
+                    *WINDOWS_PRODUCTION_SEED_INPUTS,
+                }.issubset(inputs)
+            )
+            recipe = "\n".join(rule.recipe)
+            self.assertIn("tools/hostbuild.py assemble-bootloader", recipe)
+            self.assertNotIn("custom-cupidasm", recipe)
 
     def test_generated_kernel_symbols_use_the_checked_cupidc_graph(self):
         with tempfile.TemporaryDirectory() as td:

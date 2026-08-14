@@ -25496,3 +25496,85 @@ ADR 0282 records the scheduler, closure, and publication decisions.
 
 This step changes no compiler output, ABI, publication schema, seed identity,
 build ownership, or source suffix.
+
+## 2026-08-14: Put the normal boot edge behind checked CupidASM publication
+
+The normal `boot/boot.bin` rule now calls
+`tools/hostbuild.py assemble-bootloader` with the production seed manifest.
+Its prerequisites include hostbuild and the complete checked seed closure.
+The rule does not use `CUPIDASM_INPUTS`, so a standalone-tool override cannot
+remove the production manifest or one of its five PE32 tools.
+
+Hostbuild freezes the boot source and seed, asks CupidASM for a private raw
+image and source-derived map, and gives both to CupidDis. Publication requires
+a 2,560-byte image and a complete decode of every executable map range. The
+transaction rechecks the source, seed, candidate, map, live output, and output
+parent before the atomic replacement. The map stays private.
+
+The new Make-database test failed against the old direct rule because an
+override of `CUPIDASM_INPUTS` replaced the boot seed closure. After the
+cutover, eight focused graph and raw-image tests passed in 1.535 seconds. The
+complete `tests.test_build_graph_audit` module passed all 84 tests in 933.312
+seconds. That work also synchronized the active `_WIN32` predicate count at
+33 and the current audit expectations at 452 transforms, 2,452 includes, 243
+checked CupidC roots, 246 CupidC participations, 452 Python participations,
+and 395 tracked plus four generated translation units.
+
+The final deterministic audit regeneration passed in 69.6 seconds, and its
+check passed in 69.3 seconds. The graph contains 736 active inputs, 452
+transforms, 25 unreachable source-like files, and four CupidDis
+participations. The 2,673,547-byte JSON report has SHA-256
+`a433c3c202f9ccba82fe587b4d5a48b0ec10a0d4440f44cc7b730002473b2604`.
+The 12,269-byte Markdown summary has SHA-256
+`c8afb2c59a3e13c098178b01168ae65fa10293e67b1c7cef57ef596eac72148c`.
+
+A forced normal boot build passed in 0.866 seconds with `CC`, `CXX`, `CPP`,
+`HOSTCC`, `HOSTCXX`, `ASM`, `AS`, `LD`, `AR`, `NM`, `NASM`, and `OBJCOPY`
+set to invalid commands. It produced the reviewed 2,560-byte image with
+SHA-256
+`46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3`.
+No public map, candidate, lock, or private transaction directory remained.
+
+The first poisoned-host full build reached the size-policy gate after
+1,121.402 seconds. It stopped because the embedded documentation had grown,
+and it preserved the existing public image. Measuring the new CTXT payload
+changed the final values once more. The accepted policy now records 9,211,340
+bytes for `kernel/kernel.elf.pass1`, 9,334,220 bytes for `kernel/kernel.elf`,
+and 9,114,084 bytes for `kernel/kernel.bin`.
+
+One 904-second command wrapper expired while the underlying relink was still
+making progress. The existing process tree finished without a duplicate
+build. A later standalone `verify-artifact-sizes` call also remained incomplete
+after 304 seconds because its prerequisites reentered the expensive kernel
+build. The log does not treat either observation as a pass.
+
+The definitive poisoned-host `make -j4 all` passed in 674.693 seconds. It ran
+strict validation over all 431 production inputs, passed the exact
+nine-artifact size gate, preserved FAT data, and staged the ISO. Source head
+produced:
+
+| Output | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `kernel/kernel.elf.pass1` | 9,211,340 | `2a6f5deafb580b30254483179d6dade9ed4ed7b17b39f9368137b1ff14932263` |
+| `kernel/kernel.elf` | 9,334,220 | `bc855462c1f8f42e34d94a974443f7c6e565d60b1913e3b6f33b3e6e375f3ed6` |
+| `kernel/kernel.bin` | 9,114,084 | `8b5d73e74538ce11c1fb074f88b3852d690038aa5cb3a8de3ce222e9df88cade` |
+| `cupidos.img` | 209,715,200 | `813c9b0c78f795c1ac9fcff59b9c4111a958a07eb1e3943dc7af60c536521110` |
+
+Two private-image QEMU checks used that exact source-head image. The first
+booted with four virtual CPUs, compiled `/bin/ls.cc` with in-OS CupidC, and
+reached JIT completion in 49.257 seconds. Its 30,958-byte serial log has
+SHA-256
+`2b25d2949021bb5b4056450767ea4d8d0ec6d0854fdb64ebbd259f07e6f3ab2e`.
+The second assembled `/demos/hello.asm` to a 15,680-byte relocatable object,
+linked an 8,536-byte ELF with two load segments, ran it as PID 4, and observed
+its normal exit in 76.174 seconds. Its 27,199-byte serial log has SHA-256
+`3879f9855621c6fbfe8c6b789416b7fe4fc4a7bdf3147166a917a43d12e38114`.
+Both logs live outside the repository, and the smoke harness removed both
+private images.
+
+Python still coordinates the checked transaction. The normal graph no longer
+uses a host assembler for the boot sector. No active `.c` source earned a
+`.cc` rename from this ownership change.
+
+ADR 0283 records the production cutover and its rejected alternatives.

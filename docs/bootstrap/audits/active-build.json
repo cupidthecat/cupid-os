@@ -2973,6 +2973,7 @@
       {
         "inputs": [
           "boot/boot.asm",
+          "tools/hostbuild.py",
           "Makefile",
           "tools/bootstrap_toolchain.py",
           "bootstrap/seeds/i386-windows/manifest.json",
@@ -2985,10 +2986,13 @@
         "operation": "assemble_flat_binary",
         "output": "boot/boot.bin",
         "recipe": [
-          "$(CUPIDASM) -f bin boot/boot.asm -o $(BOOTLOADER)"
+          "$(PYTHON) tools/hostbuild.py assemble-bootloader \\",
+          "--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root . \\",
+          "--source $< --output $@"
         ],
         "tools": [
           "cupid_assembler",
+          "cupid_disassembler",
           "host_python"
         ]
       },
@@ -54325,7 +54329,7 @@
     "control_files": [
       {
         "path": "Makefile",
-        "sha256": "ac9f3017b3d80828eca595a65c4605135872535bdf4a23c409cb32fc977e0b3f"
+        "sha256": "ac61d1a5f7b22a969e60ccb3467d3f771a2074c9d06dc7db14adb7d7e994cdf2"
       },
       {
         "path": "user/Makefile",
@@ -58814,6 +58818,7 @@
     {
       "build_owners": [
         "cupid_assembler",
+        "cupid_disassembler",
         "host_python"
       ],
       "builds": [

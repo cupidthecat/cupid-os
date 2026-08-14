@@ -627,9 +627,10 @@ runtime wrapper.
 `HOSTED_I386_KERNEL_BRIDGE` owns the assembler ELF adapter and its contract,
 which may also include `/kernel/lang`. The retired 64-bit hosted audit
 profiles have no active roots.
-Stage-two and stage-three CupidC emit the contract objects, CupidLD links the
+Stage-three and stage-four CupidC emit the contract objects, CupidLD links the
 static executables, and the harness rejects a cross-stage byte difference in
-any of the seventeen new objects or sixteen executables. Publication accepts
+any of the seventeen new objects or sixteen executables. It runs and publishes
+the stage-four cohort. Publication accepts
 only a dedicated `cupidc-contracts` directory inside the source tree and
 checks the target before work and again before promotion. An existing
 destination must already verify as a complete cohort. Arbitrary directories,
@@ -646,6 +647,27 @@ build-plan use share one captured byte sequence.
 The runner copies the verified cohort before execution and rejects later live
 replacement. The user ABI contract and Python oracle inspect one shared
 six-file snapshot, while the contract also rereads the live source tree.
+
+Fourteen ordinary contracts compile through the bounded worker pool with
+900-second plan budgets. That pool closes before `cupidc-object` compiles alone
+with a 1,800-second budget. The hosted runtime compile and the parallel link
+pool keep their 360-second limits. Timeout errors name the stage, source, and
+budget. ADR 0282 records this policy.
+The staged kernel ELF contract carries the same `as_elf`, CupidLD, CupidASM,
+x86, and ELF32 closure as its native oracle. A checked link exposed the old
+three-object omission after the heavyweight compile, then failed safely before
+publication. The plan now has direct closure coverage.
+The contract manifest carries the stage-three and stage-four convergence pair
+from the four-generation bootstrap. A complete 4,480.3-second private rebuild
+exposed the stale verifier only after every compile, link, comparison, and
+runtime check passed. The failed check published nothing, and exact positive
+and wrong-pair tests now cover the record.
+The final supported gate passed in 4,589.9 seconds. It compared stage-three and
+stage-four contract outputs, ran and published stage four, verified 21
+artifacts from 65 inputs, passed the hosted runtime and syscall ABI, and
+matched the hello, ls, and cat objects and executables built by native Windows
+CupidC and CupidLD to checked-seed output. The warmed path passed in 12.2
+seconds.
 The test programs stay outside the 19-source fixed-point plan because they do
 not contribute to a tool image.
 
@@ -862,17 +884,18 @@ completed dual-NIC checkpoint immediately before this
 rebuild used image SHA-256
 `326844ca58c1f864a6b9a2480dfaeb5ed71ec3df22cdb46da17a6bb356e7e726`.
 
-The current production checkpoint includes in-kernel CupidLD. A clean forced
-build passed in 653.2 seconds after CupidDis accepted all 431 inputs. The
-pass-one ELF is 9,190,860 bytes with SHA-256
-`aee9e505c92a1e701bea05897e0cb1901a13b3d5eacecf2512607a608e0e3efd`.
-The final ELF is 9,313,740 bytes with SHA-256
-`5b179b938edb74c3edec59c2cc223366b5bb521c2a88f9a12f970a2b8b2bbaa1`,
-and the 9,096,008-byte raw kernel has SHA-256
-`9222973f7000f3e95dfd786ad2cd22ad4d90f5cc1e08a47537fe6c71603c7f51`.
+The current production checkpoint includes in-kernel CupidLD and the guarded
+normal boot edge. A poisoned-host normal build passed in 674.693 seconds
+after CupidDis accepted all 431 inputs. The pass-one ELF is 9,211,340 bytes
+with SHA-256
+`2a6f5deafb580b30254483179d6dade9ed4ed7b17b39f9368137b1ff14932263`.
+The final ELF is 9,334,220 bytes with SHA-256
+`bc855462c1f8f42e34d94a974443f7c6e565d60b1913e3b6f33b3e6e375f3ed6`,
+and the 9,114,084-byte raw kernel has SHA-256
+`8b5d73e74538ce11c1fb074f88b3852d690038aa5cb3a8de3ce222e9df88cade`.
 The 209,715,200-byte image has SHA-256
-`dfdda396c6995458bd4e6185ec7e36645ebf3c193cd303ce495135c5d015b59e`.
-A private QEMU boot reached JIT completion in 46.9 seconds.
+`813c9b0c78f795c1ac9fcff59b9c4111a958a07eb1e3943dc7af60c536521110`.
+A private four-vCPU QEMU boot reached JIT completion in 49.257 seconds.
 
 The seventeen tracked `.c` files outside `TempleOS/` do not belong to this
 active CupidC cohort. Eleven are legacy, superseded, or dormant, and six are
@@ -1315,7 +1338,7 @@ external program twice at `0x01C00000`. ADR 0124 records the exact build and
 runtime evidence. No supported transform invokes a host C compiler. Python
 participates in all 452 transforms across the three audited roots, and CupidC
 participates in 246. CupidObj participates in 192, CupidASM in five, CupidLD in
-five, and CupidDis in three. Root `all` has 443 transforms, including 442
+five, and CupidDis in four. Root `all` has 443 transforms, including 442
 Cupid-owned artifact transforms and the Python-only size verifier. It runs
 CupidC, CupidASM, CupidObj, CupidLD, and CupidDis from the manifest-checked
 seed; `toolchain:all` uses the rebuilt static tools for its contract cohort.

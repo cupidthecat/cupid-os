@@ -175,9 +175,12 @@ starts. Instructions use their active BITS mode. Data declarations, alignment,
 and reserved storage are data. CupidDis rejects stale sizes, missing or repeated
 fields, invalid kinds, and unordered starts before decoding.
 
-Source head carries the shared bootloader map transaction. The promoted
-Windows execution seed carries CupidASM `--map` and CupidDis `--range-map`.
-The direct checked-seed boot edge still needs its normal Make graph cutover.
+The normal boot edge uses the shared map transaction. Hostbuild freezes the
+production manifest, five checked tools, source, and output boundary. CupidASM
+writes private image and map candidates. CupidDis requires complete known code
+coverage before hostbuild atomically publishes the exact 2,560-byte image.
+Failures preserve the previous image and leave no public map. ADR 0283 records
+the Make graph cutover.
 
 Checked-seed CupidDis can validate one or more files without printing a
 listing:
@@ -216,15 +219,21 @@ hostbuild suites each passed 31 tests on Windows and in WSL, with
 platform-specific skips. Moving private flatten extraction onto the shared
 pinned-path helper remains deferred maintenance.
 
-The latest clean forced build finished in 653.2 seconds. Its 2,560-byte boot
+The former clean forced build finished in 653.2 seconds. Its 2,560-byte boot
 image has SHA-256
 46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3.
-The 9,190,860-byte pass-one ELF has SHA-256
+The preceding clean build's 9,190,860-byte pass-one ELF has SHA-256
 aee9e505c92a1e701bea05897e0cb1901a13b3d5eacecf2512607a608e0e3efd,
 the 9,313,740-byte final ELF has SHA-256
 5b179b938edb74c3edec59c2cc223366b5bb521c2a88f9a12f970a2b8b2bbaa1,
 and the 9,096,008-byte raw kernel has SHA-256
 9222973f7000f3e95dfd786ad2cd22ad4d90f5cc1e08a47537fe6c71603c7f51.
+
+That checkpoint predates the guarded normal bootloader edge and this CTXT
+record. The live policy now records 9,211,340 bytes for the pass-one ELF,
+9,334,220 bytes for the final ELF, and 9,114,084 bytes for the raw kernel.
+Exact current hashes stay in the host bootstrap log because embedding them in
+this document would change the kernel they identify.
 The published 209,715,200-byte image has SHA-256
 dfdda396c6995458bd4e6185ec7e36645ebf3c193cd303ce495135c5d015b59e.
 A private four-vCPU /bin/ls.cc JIT boot passed from that image in 46.9 seconds.

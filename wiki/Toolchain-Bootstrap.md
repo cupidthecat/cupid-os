@@ -98,6 +98,27 @@ untouched. It publishes all sixteen contract executables, five refreshed
 tools, and a manifest together. ADR 0195 records the runtime probe rename, ADR
 0196 records the complete transfer, and ADR 0264 records the ABI checker
 transfer.
+Fourteen ordinary contract compiles use the worker pool and 900-second plan
+budgets. The pool drains before the heavyweight `cupidc-object` compile starts
+alone with a 1,800-second budget. The separate runtime compile and all contract
+links retain their 360-second limits, and links remain parallel. ADR 0282
+records the resource boundary.
+The staged `cupidasm-kernel-elf` plan also names `as_elf`, CupidLD, CupidASM,
+x86, and ELF32. This matches its native contract closure. The first scheduler
+gate found the old three-object omission after the isolated compile completed;
+CupidLD failed before any partial publication. A direct plan test locks the
+correct closure.
+The v2 manifest also requires `stage-three` and `stage-four` as the fixed-point
+comparison pair. A complete 4,480.3-second private rebuild reached this final
+check after every earlier gate passed. The stale verifier rejected it without
+publication; positive and wrong-pair tests now lock the exact record.
+The final supported gate passed in 4,589.9 seconds. It compared seventeen
+objects and sixteen executables between stages three and four, ran and
+published stage four, verified 21 artifacts from 65 inputs, then matched the
+three native Windows user objects and executables to the checked-seed frontier.
+The 22,591-byte manifest has SHA-256
+`ff193cf81293553706373f5a37d0fedf3dfae0bebcbc608d892a4f40ea3d9629`.
+The current-publication path passed the same target again in 12.2 seconds.
 Every normal Toolchain run derives the cohort from its requested executable,
 requires a named manifest artifact, and verifies the target, fixed-point
 record, exact filenames, sizes, hashes, and current live input hashes before
@@ -172,7 +193,7 @@ does not invoke a host C compiler or native linker. Native contracts remain
 available under `native-oracles`, and hosted development commands may still
 use a host compiler. Normal OS objects do not.
 
-The promoted-seed user frontier passed with exit 0 in 3,291.317 seconds. It
+An earlier promoted-seed user frontier passed with exit 0 in 3,291.317 seconds. It
 rebuilt and transactionally published the complete 21-artifact contract
 cohort after stage two matched stage three. The checked ABI report confirms
 schema `cupid.user-syscall-abi.v1`, version 5, 103 fields, a 412-byte table,
@@ -330,9 +351,10 @@ The expanded eleven-test suite passed in 1.708 seconds, including direct
 mismatch and live-output drift checks for both callers. Parent-replacement
 tests exposed a POSIX candidate leak when private work lived below the output
 parent. Private roots now live directly below the stable repository root. Both
-caller modules pass all 10 tests on Windows and through WSL. The promoted
-Windows seed carries `--map` and `--range-map`. The normal bootloader Make edge
-remains on direct checked CupidASM until the guarded publisher cutover.
+caller modules pass all 10 tests on Windows and through WSL. The normal
+bootloader Make edge now calls that transaction with the production manifest
+and full checked-seed closure. Standalone CupidASM overrides cannot bypass the
+guard. ADR 0283 records the cutover.
 
 Source-head CupidASM also accepts `align POWER_OF_TWO[, FILL_BYTE]`. Raw
 output aligns the absolute `ORG` address, ELF32 output carries the required
@@ -829,17 +851,18 @@ produced 33,452,396 frames at peak 25,600, and the PC speaker produced 76,614
 frames at peak 31,877. USB detach/replug and the post-replug survival window
 also passed. The private run left the source image unchanged.
 
-The current production checkpoint includes in-kernel CupidLD. A clean forced
-build passed in 653.2 seconds after CupidDis accepted all 431 production inputs.
-The pass-one ELF is 9,190,860 bytes with SHA-256
-`aee9e505c92a1e701bea05897e0cb1901a13b3d5eacecf2512607a608e0e3efd`.
-The final ELF is 9,313,740 bytes with SHA-256
-`5b179b938edb74c3edec59c2cc223366b5bb521c2a88f9a12f970a2b8b2bbaa1`,
-and the 9,096,008-byte raw kernel has SHA-256
-`9222973f7000f3e95dfd786ad2cd22ad4d90f5cc1e08a47537fe6c71603c7f51`.
+The current production checkpoint includes in-kernel CupidLD and the guarded
+normal boot edge. A poisoned-host normal build passed in 674.693 seconds
+after CupidDis accepted all 431 production inputs. The pass-one ELF is
+9,211,340 bytes with SHA-256
+`2a6f5deafb580b30254483179d6dade9ed4ed7b17b39f9368137b1ff14932263`.
+The final ELF is 9,334,220 bytes with SHA-256
+`bc855462c1f8f42e34d94a974443f7c6e565d60b1913e3b6f33b3e6e375f3ed6`,
+and the 9,114,084-byte raw kernel has SHA-256
+`8b5d73e74538ce11c1fb074f88b3852d690038aa5cb3a8de3ce222e9df88cade`.
 The 209,715,200-byte image has SHA-256
-`dfdda396c6995458bd4e6185ec7e36645ebf3c193cd303ce495135c5d015b59e`.
-A private QEMU boot reached JIT completion in 46.9 seconds.
+`813c9b0c78f795c1ac9fcff59b9c4111a958a07eb1e3943dc7af60c536521110`.
+A private four-vCPU QEMU boot reached JIT completion in 49.257 seconds.
 
 The preceding dual-NIC checkpoint used image SHA-256
 `326844ca58c1f864a6b9a2480dfaeb5ed71ec3df22cdb46da17a6bb356e7e726`.
@@ -993,7 +1016,7 @@ all 452 transforms. CupidC's total is 240 normal transforms plus three
 generated installation tables and the `hello.cc`, `ls.cc`, and `cat.cc`
 programs. Root `all` has 443 transforms: 442 artifact transforms with a Cupid
 owner plus the Python-only size verifier, which emits no OS artifact. The root
-artifact graph has five CupidASM, 192 CupidObj, two CupidLD, and three CupidDis
+artifact graph has five CupidASM, 192 CupidObj, two CupidLD, and four CupidDis
 participations from the manifest-checked five-tool seed. Across all three
 roots, CupidLD participates in five transforms. Native hosted commands remain
 explicit oracle targets. The same runner handles root commands.
