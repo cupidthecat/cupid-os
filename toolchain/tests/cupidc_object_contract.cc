@@ -27924,7 +27924,7 @@ static int validate_floating_conversion_x87_inventory(
     cursor += decoded.consumed;
   }
   if (fld32 != 26u || fld64 != 34u ||
-      fstp32 != 40u || fstp64 != 57u ||
+      fstp32 != 42u || fstp64 != 59u ||
       faddp != 4u || fsubp != 3u ||
       fmulp != 3u || fdivp != 3u) {
     (void)fprintf(
@@ -27957,7 +27957,9 @@ static int validate_floating_conversion_object(
       "same_add_bits", "same_subtract_high", "same_multiply_bits",
       "same_divide_high", "mixed_add_assign_bits",
       "mixed_subtract_assign_high", "mixed_multiply_assign_bits",
-      "mixed_divide_assign_high", "side_effect_compound"};
+      "mixed_divide_assign_high", "choose_int_float_bits",
+      "choose_float_short_bits", "choose_uint_double_high",
+      "choose_double_uchar_high", "side_effect_compound"};
   static const floating_arithmetic_case_t cases[] = {
       {"same_float_cast_bits", {0x80000000u}, 1u, 0x80000000u,
        "same-width float cast preserves its bits"},
@@ -28037,6 +28039,26 @@ static int validate_floating_conversion_object(
       {"choose_pointer_high", {0u, 0x3fc00000u, 0u, 0x40040000u},
        4u, 0x40040000u,
        "pointer-controlled conditional chooses the double arm"},
+      {"choose_int_float_bits", {1u, 0xfffffffdu, 0x3f800001u}, 3u,
+       0xc0400000u, "integer and float conditional converts the integer arm"},
+      {"choose_int_float_bits", {0u, 0xfffffffdu, 0x3f800001u}, 3u,
+       0x3f800001u, "integer and float conditional keeps the float arm"},
+      {"choose_float_short_bits", {1u, 0x3f800001u, 0xfffffffeu}, 3u,
+       0x3f800001u, "float and short conditional keeps the float arm"},
+      {"choose_float_short_bits", {0u, 0x3f800001u, 0xfffffffeu}, 3u,
+       0xc0000000u, "float and short conditional converts the short arm"},
+      {"choose_uint_double_high",
+       {1u, 0xffffffffu, 0u, 0x40040000u}, 4u, 0x41efffffu,
+       "unsigned integer and double conditional converts UINT_MAX"},
+      {"choose_uint_double_high",
+       {0u, 0xffffffffu, 0u, 0x40040000u}, 4u, 0x40040000u,
+       "unsigned integer and double conditional keeps the double arm"},
+      {"choose_double_uchar_high",
+       {1u, 0u, 0x40040000u, 0xffu}, 4u, 0x40040000u,
+       "double and unsigned char conditional keeps the double arm"},
+      {"choose_double_uchar_high",
+       {0u, 0u, 0x40040000u, 0xffu}, 4u, 0x406fe000u,
+       "double and unsigned char conditional converts the narrow arm"},
       {"same_add_bits", {0x3f800000u, 0x40000000u}, 2u,
        0x40400000u, "same-width float addition assignment"},
       {"same_subtract_high", {0u, 0x40140000u, 0u, 0x40000000u},
@@ -28068,11 +28090,11 @@ static int validate_floating_conversion_object(
       (ctool_u32)(sizeof(cases) / sizeof(cases[0]));
   ctool_u32 index;
   if (job == NULL || object == NULL || text == NULL ||
-      text->contents.data == NULL || text->contents.size != 6582u ||
-      structure_text_fingerprint(text->contents) != 0x0eb80e4eu ||
+      text->contents.data == NULL || text->contents.size != 7144u ||
+      structure_text_fingerprint(text->contents) != 0x7186d278u ||
       (bss != NULL && bss->size != 0u) ||
-      object->symbol_count != 42u ||
-      object->relocation_count != 89u) {
+      object->symbol_count != 46u ||
+      object->relocation_count != 97u) {
     (void)fprintf(
         stderr,
         "floating conversion inventory: text=%u fingerprint=%08x "
@@ -28164,6 +28186,10 @@ static int run_floating_conversion_object(const char *host_root) {
       "u32 mixed_subtract_assign_high(u32 low, u32 high, u32 bits) { double left = double_from_words(low, high); left -= float_from_bits(bits); return double_high(left); }\n"
       "u32 mixed_multiply_assign_bits(u32 bits, u32 low, u32 high) { float left = float_from_bits(bits); left *= double_from_words(low, high); return float_bits(left); }\n"
       "u32 mixed_divide_assign_high(u32 low, u32 high, u32 bits) { double left = double_from_words(low, high); left /= float_from_bits(bits); return double_high(left); }\n"
+      "u32 choose_int_float_bits(u32 c,int l,u32 r){return float_bits(c?l:float_from_bits(r));}\n"
+      "u32 choose_float_short_bits(u32 c,u32 l,short r){return float_bits(c?float_from_bits(l):r);}\n"
+      "u32 choose_uint_double_high(u32 c,u32 l,u32 lo,u32 hi){return double_high(c?l:double_from_words(lo,hi));}\n"
+      "u32 choose_double_uchar_high(u32 c,u32 lo,u32 hi,unsigned char r){return double_high(c?double_from_words(lo,hi):r);}\n"
       "u32 side_effect_compound(u32 first, u32 second, u32 low, u32 high) { float values[2]; float *cursor = values; values[0] = float_from_bits(first); values[1] = float_from_bits(second); *cursor++ += double_from_words(low, high); return float_bits(values[0]) ^ float_bits(values[1]) ^ (cursor != &values[1]); }\n";
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
@@ -28201,7 +28227,7 @@ static int run_floating_conversion_object(const char *host_root) {
       !floating_conversion_active_source_is_unchanged(job) ||
       !parse_source_mode(job, "/floating-conversions.c", source,
                          CTOOL_TRUE, &unit) ||
-      unit.function_definition_count != 41u) {
+      unit.function_definition_count != 45u) {
     (void)fprintf(stderr, "floating conversion object setup failed\n");
     goto cleanup;
   }

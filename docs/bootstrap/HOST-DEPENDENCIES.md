@@ -666,8 +666,9 @@ final initializer records. This work introduces no host floating operation or
 math-library dependency.
 Hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
-bounded parser, mixed integer and floating runtime arithmetic or conditionals,
-and atomic or long-double updates remain open. Matching or mixed-width floating
+bounded parser, operations that mix an eight-byte integer with `float` or
+`double`, integer and long-double conditionals, and atomic or long-double
+updates remain open. Matching or mixed-width floating
 conditional arms and the four arithmetic compound assignments retain their
 established x87 path. All six matching or mixed long-double comparisons use a
 balanced `FUCOMIP` sequence. ADRs 0196, 0199, 0202, and 0229 record the current
@@ -1312,8 +1313,14 @@ ADR 0263 adds prefix and postfix update for modifiable non-atomic `float` and
 `double` lvalues. Linear IR evaluates the destination once, and the emitter
 returns the original payload for postfix forms after storing the replacement.
 
-Runtime mixed integer and floating arithmetic or conditional arms, atomic and
-long-double updates, hexadecimal floating literals, binary32 and
+Source-head CupidC also accepts runtime conditional arms that mix `float` or
+`double` with a represented signed or unsigned integer no wider than four
+bytes. This adds no host producer and moves no normal OS transform because the
+active source graph does not use the new shape. The checked seed predates this
+extension. ADR 0287 records the boundary.
+
+Operations that mix an eight-byte integer with `float` or `double`, integer
+and long-double conditional arms, atomic and long-double updates, hexadecimal floating literals, binary32 and
 binary64 subnormal literals, hexadecimal or subnormal long-double literals,
 decimal ratios beyond the bounded parser, aggregate floating values, atomic
 access, and other unrepresented forms remain

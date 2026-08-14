@@ -213,6 +213,12 @@ Mixed `float` and `double` arithmetic uses `double`, as do conditional arms
 with one value of each width. Matching floating arms keep their width, and
 the condition may be a represented integer or pointer.
 
+A runtime conditional may mix either floating width with a represented signed
+or unsigned integer no wider than four bytes. CupidC applies the usual
+arithmetic conversion only to the selected integer arm. The result is `float`
+when the floating arm is `float` and `double` when it is `double`. An
+eight-byte integer or `long double` mix is rejected with a focused diagnostic.
+
 `+=`, `-=`, `*=`, and `/=` compute at the common floating width, then convert
 the stored result back to the left operand's type. The left designator is
 evaluated once. A source `float` passed through an ellipsis or a function type

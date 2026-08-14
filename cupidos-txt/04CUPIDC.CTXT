@@ -624,7 +624,10 @@ calls, variadic reads, and returns. Explicit casts and assignment conversion
 work in either direction. Unary plus and minus and binary addition,
 subtraction, multiplication, and division accept matching or mixed floating
 widths. Matching floating conditional arms keep their width. Mixed arithmetic
-and conditional arms use double. The four arithmetic
+and float-or-double conditional arms use double. A runtime conditional may
+also mix either floating width with a represented signed or unsigned integer
+no wider than four bytes. The selected integer arm converts to the floating
+result type. The four arithmetic
 compound assignments compute at the common width, convert back to the left
 width, and evaluate their lvalue once.
 
@@ -741,9 +744,9 @@ ADR 0259 records the shared parity predicates.
 
 Hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
-bounded parser, other floating-to-wide conversions, runtime mixed integer and
-floating
-arithmetic or conditional arms, atomic and long double updates, general SIMD
+bounded parser, other floating-to-wide conversions, runtime operations that
+mix an eight-byte integer with float or double, integer and long double
+conditional arms, atomic and long double updates, general SIMD
 value semantics, and over-aligned object emission remain
 unfinished.
 The exact production SIMD

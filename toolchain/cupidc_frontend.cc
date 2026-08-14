@@ -10118,6 +10118,7 @@ static ctool_status_t cfront_prepare_floating_unary(
 static ctool_status_t cfront_prepare_floating_binary(
     cfront_context_t *context, const ctool_c_pp_token_t *operator_token,
     ctool_c_expression_operator_t operation, ctool_bool comparison,
+    ctool_bool conditional,
     cfront_expression_value_t *left, cfront_expression_value_t *right,
     ctool_u32 *type_out, ctool_bool *handled_out) {
   ctool_c_type_node_t left_node;
@@ -10208,7 +10209,10 @@ static ctool_status_t cfront_prepare_floating_binary(
       return cfront_emit_failure(
           context, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_PARSE_DIAG_EXPRESSION, operator_token,
-          comparison == CTOOL_TRUE
+          conditional == CTOOL_TRUE
+              ? "integer and long double conditional conversion is outside "
+                "this expression slice"
+          : comparison == CTOOL_TRUE
               ? "integer and long double comparison conversion is outside "
                 "this expression slice"
               : "integer and long double arithmetic conversion is outside "
@@ -10225,7 +10229,10 @@ static ctool_status_t cfront_prepare_floating_binary(
       return cfront_emit_failure(
           context, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_PARSE_DIAG_EXPRESSION, operator_token,
-          comparison == CTOOL_TRUE
+          conditional == CTOOL_TRUE
+              ? "integer and floating conditional conversion exceeds the "
+                "represented 32-bit slice"
+          : comparison == CTOOL_TRUE
               ? "integer and floating comparison conversion exceeds the represented 32-bit slice"
               : "integer and floating arithmetic conversion exceeds the represented 32-bit slice");
     }
@@ -10235,7 +10242,10 @@ static ctool_status_t cfront_prepare_floating_binary(
       return cfront_emit_failure(
           context, CTOOL_ERR_UNSUPPORTED,
           CTOOL_C_PARSE_DIAG_EXPRESSION, operator_token,
-          comparison == CTOOL_TRUE
+          conditional == CTOOL_TRUE
+              ? "atomic floating conditional operands are outside this body "
+                "slice"
+          : comparison == CTOOL_TRUE
               ? "atomic floating comparison is outside this expression slice"
               : "atomic mixed floating arithmetic is outside this expression slice");
     }
@@ -11915,11 +11925,13 @@ static ctool_status_t cfront_prepare_conditional_result(
     return cfront_storage_failure(context, status);
   }
   if (((nonzero_node.kind == CTOOL_C_TYPE_FLOAT ||
-        nonzero_node.kind == CTOOL_C_TYPE_DOUBLE) &&
+        nonzero_node.kind == CTOOL_C_TYPE_DOUBLE ||
+        nonzero_node.kind == CTOOL_C_TYPE_LONG_DOUBLE) &&
        ((nonzero_qualifiers | nonzero_node.qualifiers) &
         CTOOL_C_QUAL_ATOMIC) != 0u) ||
       ((zero_node.kind == CTOOL_C_TYPE_FLOAT ||
-        zero_node.kind == CTOOL_C_TYPE_DOUBLE) &&
+        zero_node.kind == CTOOL_C_TYPE_DOUBLE ||
+        zero_node.kind == CTOOL_C_TYPE_LONG_DOUBLE) &&
        ((zero_qualifiers | zero_node.qualifiers) &
         CTOOL_C_QUAL_ATOMIC) != 0u)) {
     return cfront_emit_failure(
@@ -11945,7 +11957,8 @@ static ctool_status_t cfront_prepare_conditional_result(
     ctool_bool handled = CTOOL_FALSE;
     status = cfront_prepare_floating_binary(
         context, operator_token, CTOOL_C_EXPRESSION_OPERATOR_ADD,
-        CTOOL_FALSE, when_nonzero, when_zero, type_out, &handled);
+        CTOOL_FALSE, CTOOL_TRUE, when_nonzero, when_zero, type_out,
+        &handled);
     return status == CTOOL_OK && handled == CTOOL_FALSE
                ? cfront_emit_failure(
                      context, CTOOL_ERR_INTERNAL,
@@ -11957,22 +11970,17 @@ static ctool_status_t cfront_prepare_conditional_result(
        nonzero_kind == CFRONT_SCALAR_VALUE_FLOATING) &&
       (zero_kind == CFRONT_SCALAR_VALUE_INTEGER ||
        zero_kind == CFRONT_SCALAR_VALUE_FLOATING)) {
-    if (context->static_initializer_depth != 0u) {
-      ctool_bool handled = CTOOL_FALSE;
-      status = cfront_prepare_floating_binary(
-          context, operator_token, CTOOL_C_EXPRESSION_OPERATOR_ADD,
-          CTOOL_FALSE, when_nonzero, when_zero, type_out, &handled);
-      return status == CTOOL_OK && handled == CTOOL_FALSE
-                 ? cfront_emit_failure(
-                       context, CTOOL_ERR_INTERNAL,
-                       CTOOL_C_PARSE_DIAG_INTERNAL, operator_token,
-                       "static floating conditional type selection failed")
-                 : status;
-    }
-    return cfront_emit_failure(
-        context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
-        operator_token,
-        "floating conditional operands are outside this body slice");
+    ctool_bool handled = CTOOL_FALSE;
+    status = cfront_prepare_floating_binary(
+        context, operator_token, CTOOL_C_EXPRESSION_OPERATOR_ADD,
+        CTOOL_FALSE, CTOOL_TRUE, when_nonzero, when_zero, type_out,
+        &handled);
+    return status == CTOOL_OK && handled == CTOOL_FALSE
+               ? cfront_emit_failure(
+                     context, CTOOL_ERR_INTERNAL,
+                     CTOOL_C_PARSE_DIAG_INTERNAL, operator_token,
+                     "floating conditional type selection failed")
+               : status;
   }
   if (nonzero_kind == CFRONT_SCALAR_VALUE_POINTER &&
       zero_kind == CFRONT_SCALAR_VALUE_POINTER) {
@@ -12644,7 +12652,7 @@ static ctool_status_t cfront_reduce_body_binary(
         pending.descriptor.semantics == CFRONT_BODY_BINARY_COMPARISON
             ? CTOOL_TRUE
             : CTOOL_FALSE,
-        &left, &right, &result_type, &floating_operation);
+        CTOOL_FALSE, &left, &right, &result_type, &floating_operation);
     if (status == CTOOL_OK && floating_operation == CTOOL_FALSE &&
         pending.descriptor.semantics == CFRONT_BODY_BINARY_COMPARISON) {
       status = cfront_prepare_pointer_comparison(

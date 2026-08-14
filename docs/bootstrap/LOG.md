@@ -25578,3 +25578,43 @@ uses a host assembler for the boot sector. No active `.c` source earned a
 `.cc` rename from this ownership change.
 
 ADR 0283 records the production cutover and its rejected alternatives.
+
+## 2026-08-14: Convert runtime integer and floating conditional arms
+
+Source-head hosted CupidC now accepts a runtime conditional that mixes
+`float` or `double` with a represented signed or unsigned integer no wider
+than four bytes. The frontend applies the existing usual arithmetic conversion
+to the selected integer arm. Linear IR keeps that conversion inside the
+selected branch and joins with the floating result type. The emitter reuses
+its existing integer-to-floating conversion and x87 storage paths.
+
+The frontend test first reproduced the old rejection. Positive fixtures then
+covered signed `int`, signed `short`, unsigned `int`, and unsigned `char`
+opposite both floating widths. A negative fixture keeps an eight-byte integer
+outside the represented slice and checks its conditional-specific diagnostic.
+Atomic floating arms retain their focused rejection.
+
+The focused frontend, Linear IR, and object `floating-conversions` modes pass.
+The object proof contains 45 functions in 7,144 text bytes with fingerprint
+`7186D278`, 46 symbols, and 97 relocations. Its decoder-driven i386 model runs
+both branch directions for all four new functions, including negative signed
+values, `UINT_MAX`, and unsigned-char value 255.
+
+Twenty-five neighboring contract modes also pass. The frontend run covers
+floating transport, arithmetic, comparisons, conversions, truth, scalar
+values, static long-double arithmetic, conditional expressions, and parser
+boundaries. The IR and object runs cover their eight floating and static
+long-double modes.
+
+The promoted i386 Linux seed then compiled the complete changed
+`toolchain/cupidc_frontend.cc` under the production Windows profile in 212.4
+seconds. The source-head native compiler completed the same compile in 1.6
+seconds. Both objects are 1,059,736 bytes and share SHA-256
+`becfcde1cf3e20b457b6f3c73b5356fb3aed7a64ca13f8869476616635a69c1d`.
+
+This source-head feature does not change normal build ownership. The checked
+seed predates it, and no active translation root needs the expression shape.
+No object, artifact, ABI, dependency, or source suffix moves. Seed convergence
+and eight-byte integer or long-double mixed conditional arms remain open.
+
+ADR 0287 records the type, lowering, diagnostic, and ownership boundaries.

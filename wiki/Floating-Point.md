@@ -35,8 +35,11 @@ transport and arithmetic path with SSE conversion and comparison emission. It
 carries non-atomic `float` and `double` values through objects, calls,
 variadic reads, and returns. Explicit casts and assignment conversion work in
 either direction between those widths. Mixed arithmetic and conditional arms
-use `double`. Matching floating conditional arms keep their width, and the
-condition may be a represented integer or pointer.
+use `double`. Matching floating conditional arms keep their width. A runtime
+conditional can also mix `float` or `double` with a represented signed or
+unsigned integer no wider than four bytes. The selected integer arm converts
+to the floating result type. The condition may be a represented integer or
+pointer.
 
 `+=`, `-=`, `*=`, and `/=` compute at the common width and convert the stored
 result back to the left type. The compiler evaluates the left designator once.

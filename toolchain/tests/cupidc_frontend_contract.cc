@@ -25174,6 +25174,7 @@ static int validate_floating_conversions(
   ctool_u32 casts[2] = {0u, 0u};
   ctool_u32 same_casts[2] = {0u, 0u};
   ctool_u32 assignments[2] = {0u, 0u};
+  ctool_u32 integer_conditional_conversions[4] = {0u, 0u, 0u, 0u};
   ctool_u32 integer_to_long_double_casts[4] = {0u, 0u, 0u, 0u};
   ctool_u32 integer_to_long_double_assignments[4] = {0u, 0u, 0u, 0u};
   ctool_u32 long_double_to_integer_casts[4] = {0u, 0u, 0u, 0u};
@@ -25190,7 +25191,7 @@ static int validate_floating_conversions(
   ctool_u32 double_computations = 0u;
   ctool_u32 index;
 
-  if (unit == NULL || unit->function_definition_count != 43u) {
+  if (unit == NULL || unit->function_definition_count != 47u) {
     return 1;
   }
   for (index = 0u; index < unit->expression_count; index++) {
@@ -25233,6 +25234,30 @@ static int validate_floating_conversions(
                    CTOOL_C_CONVERSION_USUAL_ARITHMETIC,
                    CTOOL_C_TYPE_DOUBLE, CTOOL_C_TYPE_FLOAT)) {
       usual_widenings++;
+    } else if (floating_width_conversion_matches(
+                   unit, expression,
+                   CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION,
+                   CTOOL_C_CONVERSION_USUAL_ARITHMETIC,
+                   CTOOL_C_TYPE_FLOAT, CTOOL_C_TYPE_SIGNED_INT)) {
+      integer_conditional_conversions[0]++;
+    } else if (floating_width_conversion_matches(
+                   unit, expression,
+                   CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION,
+                   CTOOL_C_CONVERSION_USUAL_ARITHMETIC,
+                   CTOOL_C_TYPE_FLOAT, CTOOL_C_TYPE_SIGNED_SHORT)) {
+      integer_conditional_conversions[1]++;
+    } else if (floating_width_conversion_matches(
+                   unit, expression,
+                   CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION,
+                   CTOOL_C_CONVERSION_USUAL_ARITHMETIC,
+                   CTOOL_C_TYPE_DOUBLE, CTOOL_C_TYPE_UNSIGNED_INT)) {
+      integer_conditional_conversions[2]++;
+    } else if (floating_width_conversion_matches(
+                   unit, expression,
+                   CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION,
+                   CTOOL_C_CONVERSION_USUAL_ARITHMETIC,
+                   CTOOL_C_TYPE_DOUBLE, CTOOL_C_TYPE_UNSIGNED_CHAR)) {
+      integer_conditional_conversions[3]++;
     }
     for (ctool_u32 integer_index = 0u; integer_index < 4u;
          integer_index++) {
@@ -25375,10 +25400,14 @@ static int validate_floating_conversions(
   if (casts[0] != 1u || casts[1] != 1u ||
       same_casts[0] != 1u || same_casts[1] != 1u ||
       assignments[0] != 4u || assignments[1] != 4u ||
+      integer_conditional_conversions[0] != 1u ||
+      integer_conditional_conversions[1] != 1u ||
+      integer_conditional_conversions[2] != 1u ||
+      integer_conditional_conversions[3] != 1u ||
       usual_widenings != 9u ||
       mixed_binary[0] != 1u || mixed_binary[1] != 1u ||
       mixed_binary[2] != 1u || mixed_binary[3] != 1u ||
-      float_conditionals != 1u || double_conditionals != 4u ||
+      float_conditionals != 3u || double_conditionals != 6u ||
       pointer_conditions != 1u ||
       compounds[0] != 2u || compounds[1] != 2u ||
       compounds[2] != 2u || compounds[3] != 2u ||
@@ -25388,12 +25417,17 @@ static int validate_floating_conversions(
     (void)fprintf(
         stderr,
         "floating-conversions: inventory differs: casts=%u/%u/%u/%u "
-        "assignments=%u/%u usual=%u binary=%u/%u/%u/%u "
+        "assignments=%u/%u integer-conditionals=%u/%u/%u/%u usual=%u "
+        "binary=%u/%u/%u/%u "
         "conditionals=%u/%u pointer=%u compounds=%u/%u/%u/%u results=%u/%u "
         "computations=%u/%u\n",
         (unsigned int)casts[0], (unsigned int)casts[1],
         (unsigned int)same_casts[0], (unsigned int)same_casts[1],
         (unsigned int)assignments[0], (unsigned int)assignments[1],
+        (unsigned int)integer_conditional_conversions[0],
+        (unsigned int)integer_conditional_conversions[1],
+        (unsigned int)integer_conditional_conversions[2],
+        (unsigned int)integer_conditional_conversions[3],
         (unsigned int)usual_widenings,
         (unsigned int)mixed_binary[0], (unsigned int)mixed_binary[1],
         (unsigned int)mixed_binary[2], (unsigned int)mixed_binary[3],
@@ -25451,6 +25485,10 @@ static int run_floating_conversions(const char *host_root) {
       "float choose_float(int condition, float left, float right) { return condition ? left : right; }\n"
       "double choose_double(int condition, double left, double right) { return condition ? left : right; }\n"
       "double choose_pointer(int *condition, float left, double right) { return condition ? left : right; }\n"
+      "float choose_int_float(int condition, int left, float right) { return condition ? left : right; }\n"
+      "float choose_float_short(int condition, float left, short right) { return condition ? left : right; }\n"
+      "double choose_uint_double(int condition, unsigned int left, double right) { return condition ? left : right; }\n"
+      "double choose_double_uchar(int condition, double left, unsigned char right) { return condition ? left : right; }\n"
       "float same_add(float *left, float right) { return *left += right; }\n"
       "double same_subtract(double *left, double right) { return *left -= right; }\n"
       "float same_multiply(float *left, float right) { return *left *= right; }\n"
@@ -25518,11 +25556,16 @@ static int run_floating_conversions(const char *host_root) {
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
        0u, 0u,
        "integer and floating arithmetic conversion exceeds the represented 32-bit slice"},
-      {{"mixed conditional category",
-        "double bad(int condition, float left, int right) { return condition ? left : right; }\n",
+      {{"wide integer and floating conditional",
+        "double bad(int condition, long long left, double right) { return condition ? left : right; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
        0u, 0u,
-       "floating conditional operands are outside this body slice"},
+       "integer and floating conditional conversion exceeds the represented 32-bit slice"},
+      {{"integer and long double conditional",
+        "long double bad(int condition, int left, long double right) { return condition ? left : right; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "integer and long double conditional conversion is outside this expression slice"},
       {{"atomic floating conditional arm",
         "double bad(int condition, _Atomic float left, double right) { return condition ? left : right; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
@@ -25530,6 +25573,11 @@ static int run_floating_conversions(const char *host_root) {
        "atomic floating conditional operands are outside this body slice"},
       {{"atomic double conditional arm",
         "double bad(int condition, float left, _Atomic double right) { return condition ? left : right; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "atomic floating conditional operands are outside this body slice"},
+      {{"atomic long double conditional arm",
+        "long double bad(int condition, _Atomic long double left, long double right) { return condition ? left : right; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
        0u, 0u,
        "atomic floating conditional operands are outside this body slice"},

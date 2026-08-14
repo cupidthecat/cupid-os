@@ -482,6 +482,9 @@ assignment, calls, variadic reads, and returns. It supports conversion between
 the two widths, matching or mixed arithmetic, conditional values, compound
 arithmetic assignment, default argument promotion, `va_arg(double)`, and all
 six comparisons. A mixed `float` and `double` pair compares as `double`.
+A runtime conditional may pair either floating width with a represented signed
+or unsigned integer no wider than four bytes. The selected integer arm receives
+the usual arithmetic conversion, and the expression keeps the floating type.
 `UCOMISS` and `UCOMISD` produce a normalized signed `int` and handle unordered
 operands so only `!=` is true for NaN. Decimal constants are published as
 exact IEEE bits. Static-duration scalar and aggregate leaves use integer-only
@@ -569,8 +572,9 @@ the usual sink and redirection checks. That gives the runtime gate production
 CupidDis evidence without duplicating ordinary text-mode output.
 Hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimals beyond the bounded
-ratio parser, runtime mixed integer and floating arithmetic or conditional
-arms, atomic and `long double` updates, SIMD values, and over-aligned object
+ratio parser, operations that mix an eight-byte integer with `float` or
+`double`, integer and long-double conditional arms, atomic and `long double`
+updates, SIMD values, and over-aligned object
 emission remain
 unfinished.
 ADR 0229 records the exact decimal representation and automatic object proof.
@@ -580,7 +584,8 @@ between `long double` and integers. ADR 0254 records static initializer
 conversion. ADR 0255 records static controls and finite width conversion.
 ADR 0256 records canonical x87 classes and special floating-width conversion.
 ADR 0259 records the shared parity predicates. ADR 0260 records static
-long-double arithmetic.
+long-double arithmetic. ADR 0287 records source-head conditional conversion
+between represented integers no wider than four bytes and `float` or `double`.
 
 Plain assignment, all ten compound assignments, and prefix and postfix update work for represented non-atomic integer bit fields when the declared storage unit is four bytes and fits inside the record. The compiler evaluates the record designator once and applies the target's integer-promotion rules before a compound operation. Partial fields preserve the other bits in their unit. Assignment, compound assignment, and prefix update return the stored lane after width truncation and signed extension, while postfix update returns the extracted old value. A 32-bit field uses the direct load and store path. Volatile 32-bit updates perform one read and one store. Partial volatile mutation, atomic fields, and other storage-unit sizes remain unsupported.
 
@@ -1137,8 +1142,9 @@ target representation and emit no runtime work. Canonical x87 infinity and
 NaN cross the same path, and the decoder accepts canonical subnormal payloads.
 Hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
-bounded parser, other floating-to-wide conversions, runtime mixed integer and
-floating arithmetic or conditional arms, and atomic or `long double` updates
+bounded parser, other floating-to-wide conversions, operations that mix an
+eight-byte integer with `float` or `double`, integer and long-double
+conditional arms, and atomic or `long double` updates
 remain unsupported.
 Static `+`, `-`, `*`, and `/` fold with integer-only x87 target arithmetic and
 produce final initializer data.
@@ -2499,8 +2505,11 @@ When the parser encounters a call to an undefined function, it emits a placehold
 The private compiler implements a broader runtime floating and SIMD language.
 The hosted self-hosting path converts between `float` and `double`, evaluates
 matching or mixed floating arithmetic and all six comparisons, selects
-matching or mixed floating conditional arms, and stores `+=`, `-=`, `*=`, and
-`/=` results at the left width. Prefix and postfix `++` and `--` work on
+matching or mixed floating conditional arms, and selects a represented signed
+or unsigned integer no wider than four bytes opposite either floating width.
+The selected integer arm converts to the floating result type. The path stores
+`+=`, `-=`, `*=`, and `/=` results at the left width. Prefix and postfix `++`
+and `--` work on
 modifiable non-atomic lvalues. Each update evaluates its destination once and
 adds or subtracts exact-width `1.0`. A postfix expression returns the original
 raw payload, including negative-zero or NaN bits. It also carries existing
@@ -2515,9 +2524,9 @@ conversions, unary plus and minus, all four
 arithmetic operators, twelve-byte direct and indirect fixed, variadic, and
 unprototyped arguments, function returns, direct and indirect call results,
 and `va_arg(long double)`. Runtime truth, structured conditions, and `_Bool`
-conversion cover `float`, `double`, and automatic `long double`. Runtime mixed
-wide and floating arithmetic or conditional arms, atomic and `long double`
-updates,
+conversion cover `float`, `double`, and automatic `long double`. Operations
+that mix an eight-byte integer with `float` or `double`, integer and
+long-double conditional arms, atomic and `long double` updates,
 hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
 bounded parser and SIMD remain open in the hosted path. Static long-double

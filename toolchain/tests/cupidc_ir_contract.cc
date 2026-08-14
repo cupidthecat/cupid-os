@@ -28028,6 +28028,7 @@ static int validate_floating_conversion_ir(
   ctool_u32 casts[2] = {0u, 0u};
   ctool_u32 same_casts[2] = {0u, 0u};
   ctool_u32 assignments[2] = {0u, 0u};
+  ctool_u32 integer_conditional_conversions[4] = {0u, 0u, 0u, 0u};
   ctool_u32 integer_to_long_double_casts[4] = {0u, 0u, 0u, 0u};
   ctool_u32 integer_to_long_double_assignments[4] = {0u, 0u, 0u, 0u};
   ctool_u32 long_double_to_integer_casts[4] = {0u, 0u, 0u, 0u};
@@ -28044,8 +28045,8 @@ static int validate_floating_conversion_ir(
       double_type == CTOOL_C_TYPE_NONE ||
       long_double_type == CTOOL_C_TYPE_NONE ||
       next_float == CTOOL_C_AST_NONE ||
-      unit->function_definition_count != 44u ||
-      ir->function_count != 44u) {
+      unit->function_definition_count != 48u ||
+      ir->function_count != 48u) {
     return 0;
   }
   for (index = 0u; index < ir->instruction_count; index++) {
@@ -28082,6 +28083,26 @@ static int validate_floating_conversion_ir(
                  instruction->input_type == float_type &&
                  instruction->type == double_type) {
         usual_widenings++;
+      } else if (instruction->conversion ==
+                     CTOOL_C_CONVERSION_USUAL_ARITHMETIC &&
+                 instruction->input_type == signed_integer_types[2] &&
+                 instruction->type == float_type) {
+        integer_conditional_conversions[0]++;
+      } else if (instruction->conversion ==
+                     CTOOL_C_CONVERSION_USUAL_ARITHMETIC &&
+                 instruction->input_type == signed_integer_types[1] &&
+                 instruction->type == float_type) {
+        integer_conditional_conversions[1]++;
+      } else if (instruction->conversion ==
+                     CTOOL_C_CONVERSION_USUAL_ARITHMETIC &&
+                 instruction->input_type == unsigned_integer_types[2] &&
+                 instruction->type == double_type) {
+        integer_conditional_conversions[2]++;
+      } else if (instruction->conversion ==
+                     CTOOL_C_CONVERSION_USUAL_ARITHMETIC &&
+                 instruction->input_type == unsigned_integer_types[0] &&
+                 instruction->type == double_type) {
+        integer_conditional_conversions[3]++;
       }
       for (ctool_u32 integer_index = 0u; integer_index < 4u;
            integer_index++) {
@@ -28135,10 +28156,14 @@ static int validate_floating_conversion_ir(
   if (casts[0] != 1u || casts[1] != 1u ||
       same_casts[0] != 1u || same_casts[1] != 1u ||
       assignments[0] != 4u || assignments[1] != 7u ||
+      integer_conditional_conversions[0] != 1u ||
+      integer_conditional_conversions[1] != 1u ||
+      integer_conditional_conversions[2] != 1u ||
+      integer_conditional_conversions[3] != 1u ||
       usual_widenings != 12u ||
       binary_operations[0] != 4u || binary_operations[1] != 3u ||
       binary_operations[2] != 3u || binary_operations[3] != 3u ||
-      conditional_branches != 5u ||
+      conditional_branches != 9u ||
       !validate_floating_conditional_ir(
           unit, ir, "choose_float", CTOOL_C_TYPE_SIGNED_INT,
           float_type, 0u) ||
@@ -28147,14 +28172,31 @@ static int validate_floating_conversion_ir(
           double_type, 0u) ||
       !validate_floating_conditional_ir(
           unit, ir, "choose_pointer", CTOOL_C_TYPE_POINTER,
+          double_type, 1u) ||
+      !validate_floating_conditional_ir(
+          unit, ir, "choose_int_float", CTOOL_C_TYPE_SIGNED_INT,
+          float_type, 1u) ||
+      !validate_floating_conditional_ir(
+          unit, ir, "choose_float_short", CTOOL_C_TYPE_SIGNED_INT,
+          float_type, 1u) ||
+      !validate_floating_conditional_ir(
+          unit, ir, "choose_uint_double", CTOOL_C_TYPE_SIGNED_INT,
+          double_type, 1u) ||
+      !validate_floating_conditional_ir(
+          unit, ir, "choose_double_uchar", CTOOL_C_TYPE_SIGNED_INT,
           double_type, 1u)) {
     (void)fprintf(
         stderr,
         "floating-conversions: IR inventory differs: casts=%u/%u/%u/%u "
-        "assignments=%u/%u usual=%u binary=%u/%u/%u/%u branches=%u\n",
+        "assignments=%u/%u integer-conditionals=%u/%u/%u/%u usual=%u "
+        "binary=%u/%u/%u/%u branches=%u\n",
         (unsigned int)casts[0], (unsigned int)casts[1],
         (unsigned int)same_casts[0], (unsigned int)same_casts[1],
         (unsigned int)assignments[0], (unsigned int)assignments[1],
+        (unsigned int)integer_conditional_conversions[0],
+        (unsigned int)integer_conditional_conversions[1],
+        (unsigned int)integer_conditional_conversions[2],
+        (unsigned int)integer_conditional_conversions[3],
         (unsigned int)usual_widenings,
         (unsigned int)binary_operations[0],
         (unsigned int)binary_operations[1],
@@ -28228,6 +28270,10 @@ static int run_floating_conversions(const char *host_root) {
       "float choose_float(int condition, float left, float right) { return condition ? left : right; }\n"
       "double choose_double(int condition, double left, double right) { return condition ? left : right; }\n"
       "double choose_pointer(int *condition, float left, double right) { return condition ? left : right; }\n"
+      "float choose_int_float(int c,int l,float r){return c?l:r;}\n"
+      "float choose_float_short(int c,float l,short r){return c?l:r;}\n"
+      "double choose_uint_double(int c,unsigned int l,double r){return c?l:r;}\n"
+      "double choose_double_uchar(int c,double l,unsigned char r){return c?l:r;}\n"
       "float same_add(float *left, float right) { return *left += right; }\n"
       "double same_subtract(double *left, double right) { return *left -= right; }\n"
       "float same_multiply(float *left, float right) { return *left *= right; }\n"
