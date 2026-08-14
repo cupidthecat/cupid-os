@@ -51,12 +51,20 @@ code-only, code-data-bss, and error modes. Checked CupidC compiled
 `cupidasm.cc`, `cupidld.cc`, `as_elf.cc`, and `as.cc`. The active audit now
 tracks CupidLD as the 156th checked kernel source.
 
+The staged Toolchain publisher later exposed a closure mismatch after it
+compiled the heavyweight object contract successfully. Its
+`cupidasm-kernel-elf` plan did not carry `cupidasm`, `x86`, or `cupidld`, even
+though the native contract already linked them. CupidLD failed on the unresolved
+strong symbol without publishing a partial cohort. The checked plan now names
+the same complete implementation closure, with a direct regression test. ADR
+0282 records the discovery and validation path.
+
 The first complete image build reached the exact-size gate after CupidDis had
 accepted all 431 production inputs. The gate correctly rejected the older
-kernel sizes. The reviewed policy now records 9,190,860 bytes for pass one,
-9,313,740 bytes for the final ELF, and 9,096,008 bytes for the flattened
-kernel. These are the deterministic artifacts produced with the new
-137,444-byte CupidLD object in the kernel link.
+kernel sizes. At that checkpoint, the reviewed policy recorded 9,190,860 bytes
+for pass one, 9,313,740 bytes for the final ELF, and 9,096,008 bytes for the
+flattened kernel. Those deterministic artifacts used the new 137,444-byte
+CupidLD object in the kernel link.
 
 With that policy in place, the complete `cupidos.img` build passed in 653.2
 seconds. A private QEMU boot then ran `ls` through the guest terminal and

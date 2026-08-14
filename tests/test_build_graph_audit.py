@@ -2176,9 +2176,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             contract = json.loads(output.read_text(encoding="utf-8"))[
                 "contracts"
             ]["c_preprocessor_conditionals"]
-            self.assertEqual(contract["if_occurrences"], 134)
+            self.assertEqual(contract["if_occurrences"], 135)
             self.assertEqual(contract["elif_occurrences"], 9)
-            self.assertEqual(contract["expression_occurrences"], 143)
+            self.assertEqual(contract["expression_occurrences"], 144)
             self.assertEqual(contract["unique_expressions"], 29)
             self.assertEqual(contract["directive_expression_pairs"], 31)
             self.assertTrue(
@@ -2749,8 +2749,8 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 contract,
             )
             self.assertEqual(contract["source_files"], 701)
-            self.assertEqual(contract["include_occurrences"], 2450)
-            self.assertEqual(contract["direct_quoted_occurrences"], 2197)
+            self.assertEqual(contract["include_occurrences"], 2452)
+            self.assertEqual(contract["direct_quoted_occurrences"], 2199)
             self.assertEqual(contract["direct_angle_occurrences"], 253)
             self.assertEqual(contract["pp_token_operand_occurrences"], 0)
 
@@ -7034,7 +7034,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 {
                     "active_sources": 736,
                     "features": 255,
-                    "transforms": 451,
+                    "transforms": 452,
                     "unreachable_sources": 25,
                 },
             )
@@ -7043,7 +7043,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             }
             expected_c_expression_inventory = {
                 "c.declaration.static_assert": (28, 5),
-                "c.expression.sizeof": (6016, 172),
+                "c.expression.sizeof": (6043, 172),
                 "c.extension.builtin.offsetof": (12, 6),
                 "c.extension.gnu_alignof": (1, 1),
             }
@@ -7149,7 +7149,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "toolchain/elf32.cc",
                 "toolchain/x86.cc",
             }
-            self.assertEqual(len(checked_cupidc_roots), 242)
+            self.assertEqual(len(checked_cupidc_roots), 243)
             self.assertEqual(
                 {
                     path
@@ -7166,7 +7166,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     Path(path).suffix == ".cc"
                     for path in checked_cupidc_roots
                 ),
-                242,
+                243,
             )
             symbol_transform = root_transform_by_output[
                 "kernel/cpu/ksyms_data.cc"
@@ -7547,9 +7547,9 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     )
                 },
                 {
-                    "cupid_c_compiler": 245,
+                    "cupid_c_compiler": 246,
                     "host_c_compiler": 0,
-                    "host_python": 451,
+                    "host_python": 452,
                 },
             )
 
@@ -7743,7 +7743,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             )
             self.assertIn(
                 "`c_preprocessor_translation_units` | `pass` | "
-                "394 tracked + 4 generated",
+                "395 tracked + 4 generated",
                 summary.read_text(encoding="utf-8"),
             )
             audit_payload["build"]["transforms"].append(
@@ -8295,7 +8295,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "tools": ["host_python"],
             },
         )
-        self.assertEqual(len(cupid_owned), 441)
+        self.assertEqual(len(cupid_owned), 442)
         self.assertFalse(
             any(
                 transform["operation"] == "recursive_make"

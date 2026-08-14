@@ -3,8 +3,10 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import struct
 import subprocess
 import tempfile
+import threading
 import unittest
 from dataclasses import replace
 from pathlib import Path
@@ -31,6 +33,154 @@ EXPECTED_CONTRACTS = {
     "x86",
     "user-syscall-abi",
 }
+
+
+def _test_relocatable_elf32() -> bytes:
+    image = bytearray(52)
+    image[:7] = b"\x7fELF\x01\x01\x01"
+    struct.pack_into("<HHI", image, 16, 1, 3, 1)
+    return bytes(image)
+
+
+def _test_static_elf32() -> bytes:
+    image = bytearray(85)
+    identity = b"\x7fELF\x01\x01\x01" + bytes(9)
+    struct.pack_into(
+        "<16sHHIIIIIHHHHHH",
+        image,
+        0,
+        identity,
+        2,
+        3,
+        1,
+        cupidc_toolchain_contracts.TARGET_ENTRY,
+        52,
+        0,
+        0,
+        52,
+        32,
+        1,
+        0,
+        0,
+        0,
+    )
+    struct.pack_into(
+        "<IIIIIIII",
+        image,
+        52,
+        1,
+        84,
+        cupidc_toolchain_contracts.TARGET_ENTRY,
+        cupidc_toolchain_contracts.TARGET_ENTRY,
+        1,
+        1,
+        5,
+        1,
+    )
+    image[84] = 0xC3
+    return bytes(image)
+
+
+class _ContractStageRunner:
+    def __init__(
+        self,
+        source_root: Path,
+        *,
+        hold_normal_compiles: bool = False,
+        timeout_source: str | None = None,
+    ) -> None:
+        self.source_root = source_root
+        self.hold_normal_compiles = hold_normal_compiles
+        self.timeout_source = timeout_source
+        self.contract_compile_timeouts: dict[str, int] = {}
+        self.normal_cohort_ready = threading.Event()
+        self.release_normal_cohort = threading.Event()
+        self.heavy_compile_overlapped = False
+        self.heavy_started_after_normal_cohort = False
+        self.completed_normal_compiles: set[str] = set()
+        self.max_active_normal_compiles = 0
+        self.max_active_links = 0
+        self._active_normal_compiles = 0
+        self._active_links = 0
+        self._link_pair_ready = threading.Event()
+        self._lock = threading.Lock()
+
+    def _output_path(self, argument: str | Path) -> Path:
+        if isinstance(argument, Path):
+            return argument
+        return self.source_root / argument.removeprefix("/")
+
+    def run(
+        self,
+        executable: Path,
+        arguments: tuple[str | Path, ...],
+        timeout: int,
+    ) -> subprocess.CompletedProcess[str]:
+        del executable
+        arguments = tuple(arguments)
+        output = self._output_path(arguments[arguments.index("-o") + 1])
+        output.parent.mkdir(parents=True, exist_ok=True)
+        if "-c" in arguments:
+            logical_source = str(arguments[arguments.index("-c") + 1])
+            logical_source = logical_source.removeprefix("/")
+            contract_sources = {
+                plan.source
+                for plan in cupidc_toolchain_contracts.CONTRACT_PLANS
+            }
+            is_contract = logical_source in contract_sources
+            is_heavy = logical_source == (
+                "toolchain/tests/cupidc_object_contract.cc"
+            )
+            if is_contract:
+                with self._lock:
+                    self.contract_compile_timeouts[logical_source] = timeout
+                    if is_heavy:
+                        self.heavy_compile_overlapped = (
+                            self._active_normal_compiles > 0
+                        )
+                        self.heavy_started_after_normal_cohort = (
+                            self.completed_normal_compiles
+                            == contract_sources - {logical_source}
+                        )
+                    elif self.hold_normal_compiles:
+                        self._active_normal_compiles += 1
+                        self.max_active_normal_compiles = max(
+                            self.max_active_normal_compiles,
+                            self._active_normal_compiles,
+                        )
+                        if self._active_normal_compiles >= 8:
+                            self.normal_cohort_ready.set()
+                if (
+                    self.hold_normal_compiles
+                    and not is_heavy
+                    and not self.release_normal_cohort.wait(5)
+                ):
+                    raise AssertionError(
+                        "normal contract compiles were not released"
+                    )
+                if self.hold_normal_compiles and not is_heavy:
+                    with self._lock:
+                        self._active_normal_compiles -= 1
+            if logical_source == self.timeout_source:
+                raise subprocess.TimeoutExpired(logical_source, timeout)
+            output.write_bytes(_test_relocatable_elf32())
+            if is_contract and not is_heavy:
+                with self._lock:
+                    self.completed_normal_compiles.add(logical_source)
+        else:
+            with self._lock:
+                self._active_links += 1
+                self.max_active_links = max(
+                    self.max_active_links, self._active_links
+                )
+                if self._active_links >= 2:
+                    self._link_pair_ready.set()
+            if not self._link_pair_ready.wait(5):
+                raise AssertionError("contract links did not overlap")
+            output.write_bytes(_test_static_elf32())
+            with self._lock:
+                self._active_links -= 1
+        return subprocess.CompletedProcess([], 0, "", "")
 
 
 class CupidCToolchainContractPlanTests(unittest.TestCase):
@@ -102,6 +252,9 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
             "tool_fixed_point": {
                 "all_equal": True,
                 "c_objects": 19,
+                "compared_generations": list(
+                    cupidc_toolchain_contracts.CONVERGED_GENERATIONS
+                ),
                 "startup_objects": 1,
                 "tool_images": len(cupidc_toolchain_contracts.TOOL_NAMES),
             },
@@ -246,6 +399,203 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                 self.assertEqual(plan.link_objects[0], "start")
                 self.assertEqual(plan.link_objects[1], "contract")
                 self.assertEqual(plan.link_objects[-1], "runtime")
+
+    def test_each_contract_plan_carries_its_compile_timeout(self):
+        for plan in cupidc_toolchain_contracts.CONTRACT_PLANS:
+            expected = 1800 if plan.name == "cupidc-object" else 900
+            with self.subTest(contract=plan.name):
+                self.assertEqual(plan.compile_timeout, expected)
+                self.assertEqual(
+                    plan.exclusive_compile,
+                    plan.name == "cupidc-object",
+                )
+
+    def test_kernel_elf_contract_carries_its_native_link_closure(self):
+        plan = next(
+            plan
+            for plan in cupidc_toolchain_contracts.CONTRACT_PLANS
+            if plan.name == "cupidasm-kernel-elf"
+        )
+        self.assertEqual(
+            plan.link_objects,
+            (
+                "start",
+                "contract",
+                "as_elf",
+                "cupidld",
+                "cupidasm",
+                "x86",
+                "elf32",
+                "ctool_host",
+                "ctool",
+                "runtime",
+            ),
+        )
+
+    def test_contract_stage_uses_each_plan_compile_timeout(self):
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-contract-stage-timeout-"
+        ) as temporary:
+            root = Path(temporary)
+            source_root = root / "source"
+            source_root.mkdir()
+            bootstrap_stage = root / "bootstrap"
+            bootstrap_stage.mkdir()
+            for name in cupidc_toolchain_contracts.CONTRACT_LINK_OBJECT_KEYS:
+                (bootstrap_stage / f"{name}.o").write_bytes(b"checked")
+            runner = _ContractStageRunner(source_root)
+
+            with mock.patch.object(
+                cupidc_toolchain_contracts,
+                "ToolRunner",
+                return_value=runner,
+            ):
+                cupidc_toolchain_contracts._build_contract_stage(
+                    source_root,
+                    bootstrap_stage,
+                    source_root / "contract-stage",
+                    "stage two",
+                    8,
+                )
+
+            heavy_source = "toolchain/tests/cupidc_object_contract.cc"
+            self.assertEqual(
+                set(runner.contract_compile_timeouts),
+                {
+                    plan.source
+                    for plan in cupidc_toolchain_contracts.CONTRACT_PLANS
+                },
+            )
+            self.assertEqual(
+                runner.contract_compile_timeouts[heavy_source], 1800
+            )
+            self.assertEqual(
+                {
+                    timeout
+                    for source, timeout in (
+                        runner.contract_compile_timeouts.items()
+                    )
+                    if source != heavy_source
+                },
+                {900},
+            )
+
+    def test_heavy_contract_compiles_after_parallel_normal_cohort(self):
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-contract-stage-schedule-"
+        ) as temporary:
+            root = Path(temporary)
+            source_root = root / "source"
+            source_root.mkdir()
+            bootstrap_stage = root / "bootstrap"
+            bootstrap_stage.mkdir()
+            for name in cupidc_toolchain_contracts.CONTRACT_LINK_OBJECT_KEYS:
+                (bootstrap_stage / f"{name}.o").write_bytes(b"checked")
+            runner = _ContractStageRunner(
+                source_root, hold_normal_compiles=True
+            )
+            results: list[
+                tuple[dict[str, Path], dict[str, Path]]
+            ] = []
+            errors: list[Exception] = []
+
+            def build_stage() -> None:
+                try:
+                    results.append(
+                        cupidc_toolchain_contracts._build_contract_stage(
+                            source_root,
+                            bootstrap_stage,
+                            source_root / "contract-stage",
+                            "stage two",
+                            8,
+                        )
+                    )
+                except Exception as error:
+                    errors.append(error)
+
+            with mock.patch.object(
+                cupidc_toolchain_contracts,
+                "ToolRunner",
+                return_value=runner,
+            ):
+                build_thread = threading.Thread(target=build_stage)
+                build_thread.start()
+                normal_cohort_ready = runner.normal_cohort_ready.wait(5)
+                runner.release_normal_cohort.set()
+                build_thread.join(10)
+
+            self.assertTrue(normal_cohort_ready)
+            self.assertFalse(build_thread.is_alive())
+            if errors:
+                raise errors[0]
+            self.assertEqual(len(results), 1)
+            objects, executables = results[0]
+            expected_names = EXPECTED_CONTRACTS | {"runtime"}
+            self.assertEqual(set(executables), expected_names)
+            self.assertEqual(set(objects), expected_names | {"as_elf"})
+            self.assertGreaterEqual(runner.max_active_normal_compiles, 8)
+            self.assertFalse(runner.heavy_compile_overlapped)
+            self.assertTrue(runner.heavy_started_after_normal_cohort)
+            self.assertGreaterEqual(runner.max_active_links, 2)
+
+    def test_extended_compile_budget_requires_exclusive_admission(self):
+        heavy = next(
+            plan
+            for plan in cupidc_toolchain_contracts.CONTRACT_PLANS
+            if plan.exclusive_compile
+        )
+        for invalid in (
+            replace(heavy, exclusive_compile=False),
+            replace(heavy, compile_timeout=900),
+        ):
+            with self.subTest(plan=invalid):
+                with self.assertRaisesRegex(
+                    cupidc_toolchain_contracts.ContractError,
+                    "extended contract compile budget must be exclusive",
+                ):
+                    cupidc_toolchain_contracts.validate_plans(
+                        tuple(
+                            invalid if plan.name == heavy.name else plan
+                            for plan in (
+                                cupidc_toolchain_contracts.CONTRACT_PLANS
+                            )
+                        )
+                    )
+
+    def test_heavy_compile_timeout_names_the_source_and_budget(self):
+        heavy_source = "toolchain/tests/cupidc_object_contract.cc"
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-contract-stage-timeout-error-"
+        ) as temporary:
+            root = Path(temporary)
+            source_root = root / "source"
+            source_root.mkdir()
+            bootstrap_stage = root / "bootstrap"
+            bootstrap_stage.mkdir()
+            for name in cupidc_toolchain_contracts.CONTRACT_LINK_OBJECT_KEYS:
+                (bootstrap_stage / f"{name}.o").write_bytes(b"checked")
+            runner = _ContractStageRunner(
+                source_root, timeout_source=heavy_source
+            )
+
+            with mock.patch.object(
+                cupidc_toolchain_contracts,
+                "ToolRunner",
+                return_value=runner,
+            ):
+                with self.assertRaisesRegex(
+                    cupidc_toolchain_contracts.ContractError,
+                    "stage two CupidC for "
+                    "toolchain/tests/cupidc_object_contract[.]cc "
+                    "timed out after 1800 seconds",
+                ):
+                    cupidc_toolchain_contracts._build_contract_stage(
+                        source_root,
+                        bootstrap_stage,
+                        source_root / "contract-stage",
+                        "stage two",
+                        8,
+                    )
 
     def test_plan_rejects_a_retired_host_c_source(self):
         first = cupidc_toolchain_contracts.CONTRACT_PLANS[0]
@@ -410,6 +760,208 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
 
             self.assertTrue(output.parent.is_dir())
             self.assertFalse(output.exists())
+
+    def test_build_publishes_the_declared_converged_generation(self):
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-contract-publication-generation-"
+        ) as temporary:
+            root = Path(temporary).resolve()
+            (root / "toolchain").mkdir()
+            manifest = root / "manifest.json"
+            manifest.write_text("{}\n", encoding="ascii")
+            output = root / "toolchain/build/cupidc-contracts"
+            built_generations: list[str] = []
+            runtime_generations: list[str] = []
+
+            bootstrap_files = {
+                "toolchain/ctool.cc": {
+                    "sha256": "4" * 64,
+                    "size": 1,
+                }
+            }
+
+            def bootstrap(
+                seed_manifest: Path,
+                source_root: Path,
+                bootstrap_output: Path,
+            ) -> dict[str, object]:
+                del seed_manifest, source_root
+                for generation in (
+                    "stage-two",
+                    "stage-three",
+                    "stage-four",
+                ):
+                    stage = bootstrap_output / generation
+                    stage.mkdir(parents=True)
+                    for tool_name in cupidc_toolchain_contracts.TOOL_NAMES:
+                        (stage / f"{tool_name}.elf").write_bytes(
+                            f"{generation}:{tool_name}".encode("ascii")
+                        )
+                return {
+                    "build_plan_sha256": "1" * 64,
+                    "comparisons": {
+                        "all_equal": True,
+                        "c_objects": 19,
+                        "compared_generations": [
+                            "stage-three",
+                            "stage-four",
+                        ],
+                        "startup_objects": 1,
+                        "tool_images": len(
+                            cupidc_toolchain_contracts.TOOL_NAMES
+                        ),
+                    },
+                    "seed_manifest_sha256": (
+                        cupidc_toolchain_contracts._sha256(manifest)
+                    ),
+                    "source_inputs": {
+                        "count": len(bootstrap_files),
+                        "files": bootstrap_files,
+                        "sha256": (
+                            cupidc_toolchain_contracts._snapshot_sha256(
+                                bootstrap_files
+                            )
+                        ),
+                    },
+                }
+
+            def build_stage(
+                source_root: Path,
+                bootstrap_stage: Path,
+                stage_output: Path,
+                stage_name: str,
+                workers: int,
+            ) -> tuple[dict[str, Path], dict[str, Path]]:
+                del source_root, stage_name, workers
+                generation = bootstrap_stage.name
+                built_generations.append(generation)
+                stage_output.mkdir(parents=True)
+                objects: dict[str, Path] = {}
+                executables: dict[str, Path] = {}
+                for name in EXPECTED_CONTRACTS | {"as_elf", "runtime"}:
+                    path = stage_output / f"{name}.o"
+                    path.write_bytes(
+                        f"{generation}:object:{name}".encode("ascii")
+                    )
+                    objects[name] = path
+                for name in EXPECTED_CONTRACTS | {"runtime"}:
+                    path = stage_output / f"{name}.elf"
+                    path.write_bytes(
+                        f"{generation}:executable:{name}".encode("ascii")
+                    )
+                    executables[name] = path
+                return objects, executables
+
+            def compare_second_stage(
+                first: dict[str, Path],
+                second: dict[str, Path],
+                artifact_kind: str,
+            ) -> dict[str, str]:
+                del artifact_kind
+                self.assertEqual(set(first), set(second))
+                self.assertTrue(
+                    all(
+                        first[name].read_bytes()
+                        != second[name].read_bytes()
+                        for name in first
+                    )
+                )
+                return {
+                    name: hashlib.sha256(
+                        second[name].read_bytes()
+                    ).hexdigest()
+                    for name in second
+                }
+
+            def run_runtime(
+                source_root: Path,
+                executable: Path,
+                workspace: Path,
+            ) -> None:
+                del source_root, workspace
+                runtime_generations.append(
+                    executable.read_bytes().decode("ascii").split(":", 1)[0]
+                )
+
+            with (
+                mock.patch.object(
+                    cupidc_toolchain_contracts,
+                    "_contract_input_paths",
+                    return_value=(),
+                ),
+                mock.patch.object(
+                    cupidc_toolchain_contracts,
+                    "_snapshot_inputs",
+                    return_value={},
+                ),
+                mock.patch.object(
+                    cupidc_toolchain_contracts,
+                    "_freeze_contract_inputs",
+                ),
+                mock.patch.object(
+                    cupidc_toolchain_contracts,
+                    "bootstrap_from_seed",
+                    side_effect=bootstrap,
+                ),
+                mock.patch.object(
+                    cupidc_toolchain_contracts,
+                    "_build_contract_stage",
+                    side_effect=build_stage,
+                ),
+                mock.patch.object(
+                    cupidc_toolchain_contracts,
+                    "_compare_stage_files",
+                    side_effect=compare_second_stage,
+                ),
+                mock.patch.object(
+                    cupidc_toolchain_contracts,
+                    "_run_runtime_contract",
+                    side_effect=run_runtime,
+                ),
+                mock.patch.object(
+                    cupidc_toolchain_contracts,
+                    "_require_inputs_unchanged",
+                ),
+                mock.patch.object(
+                    cupidc_toolchain_contracts,
+                    "verify_publication",
+                ),
+                mock.patch.object(
+                    cupidc_toolchain_contracts,
+                    "verify_publication_inputs",
+                ),
+            ):
+                report = cupidc_toolchain_contracts.build_contracts(
+                    root, manifest, output, workers=8
+                )
+
+            self.assertEqual(
+                built_generations, ["stage-three", "stage-four"]
+            )
+            self.assertEqual(runtime_generations, ["stage-four"])
+            self.assertEqual(
+                report["tool_fixed_point"]["compared_generations"],
+                ["stage-three", "stage-four"],
+            )
+            for plan in cupidc_toolchain_contracts.CONTRACT_PLANS:
+                self.assertEqual(
+                    (output / plan.artifact).read_bytes(),
+                    f"stage-four:executable:{plan.name}".encode("ascii"),
+                )
+            self.assertEqual(
+                (output / "cupidc-runtime-contract.elf").read_bytes(),
+                b"stage-four:executable:runtime",
+            )
+            for tool_name in cupidc_toolchain_contracts.TOOL_NAMES:
+                self.assertEqual(
+                    (
+                        output
+                        / cupidc_toolchain_contracts.TOOL_PUBLIC_NAMES[
+                            tool_name
+                        ]
+                    ).read_bytes(),
+                    f"stage-four:{tool_name}".encode("ascii"),
+                )
 
     def test_contract_object_comparison_checks_exact_stage_bytes(self):
         with tempfile.TemporaryDirectory(
@@ -672,6 +1224,16 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
         ) as temporary:
             output = Path(temporary) / "contracts"
             self._write_publication(output)
+            manifest = output / "manifest.json"
+            report = json.loads(manifest.read_text(encoding="ascii"))
+            report["tool_fixed_point"]["compared_generations"] = [
+                "stage-three",
+                "stage-four",
+            ]
+            manifest.write_text(
+                json.dumps(report, indent=2, sort_keys=True) + "\n",
+                encoding="ascii",
+            )
 
             report = cupidc_toolchain_contracts.verify_publication(output)
 
@@ -680,6 +1242,29 @@ class CupidCToolchainContractPlanTests(unittest.TestCase):
                 len(report["artifacts"]),
                 len(cupidc_toolchain_contracts._expected_artifact_names()),
             )
+
+    def test_published_cohort_rejects_the_wrong_convergence_pair(self):
+        with tempfile.TemporaryDirectory(
+            prefix="cupid-contract-convergence-pair-"
+        ) as temporary:
+            output = Path(temporary) / "contracts"
+            self._write_publication(output)
+            manifest = output / "manifest.json"
+            report = json.loads(manifest.read_text(encoding="ascii"))
+            report["tool_fixed_point"]["compared_generations"] = [
+                "stage-two",
+                "stage-three",
+            ]
+            manifest.write_text(
+                json.dumps(report, indent=2, sort_keys=True) + "\n",
+                encoding="ascii",
+            )
+
+            with self.assertRaisesRegex(
+                cupidc_toolchain_contracts.ContractError,
+                "published Toolchain fixed-point record differs",
+            ):
+                cupidc_toolchain_contracts.verify_publication(output)
 
     def test_published_cohort_rejects_artifact_drift(self):
         with tempfile.TemporaryDirectory(

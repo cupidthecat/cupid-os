@@ -25399,3 +25399,100 @@ bootloader publisher. Its normal Make edge cutover remains open.
 No active source earned a `.c` to `.cc` rename. The supported fixed-point plan
 already uses `.cc`, and the remaining tracked `.c` files stay outside the
 Cupid-owned build roots.
+
+## 2026-08-14: Isolate the heavyweight CupidC object contract
+
+The two native Windows user-equivalence attempts above did not expose a
+compiler failure. The promoted Linux seed compiled
+`toolchain/tests/cupidc_object_contract.cc` alone in 826.192 seconds and wrote
+a valid 2,497,288-byte i386 object. The shared 900-second limit left only
+73.808 seconds for contention from the second compiler admitted by the old
+worker pool.
+
+Contract plans now own their compile budgets. Fourteen ordinary contracts keep
+900-second limits and the bounded worker pool. That pool finishes before
+`cupidc-object` starts alone with a 1,800-second limit. The hosted runtime
+compile stays separate at 360 seconds, and all fifteen contract links remain
+parallel with their existing 360-second limits. Timeout diagnostics now name
+the stage, source, and budget.
+
+The first supported run with that scheduler completed the isolated stage-two
+object compile. It then stopped at the `cupidasm-kernel-elf` link because the
+checked plan omitted `cupidasm`, `x86`, and `cupidld`. The native contract
+already named that complete Cupid-owned closure. CupidLD reported an unresolved
+strong symbol, and the failed publisher installed no partial cohort.
+
+A direct plan test reproduced the missing closure. The checked plan now carries
+`as_elf`, CupidLD, CupidASM, x86, and ELF32. Six focused scheduler and closure
+tests pass in 0.128 seconds. The complete contract publisher module passes all
+42 tests in 8.504 seconds.
+
+The next supported run completed both isolated object compiles, both repaired
+kernel-ELF links, all object and executable comparisons, and the hosted runtime
+in 4,480.3 seconds. The final private-manifest check then rejected the
+bootstrap report's `stage-three` and `stage-four` convergence pair because the
+contract verifier still expected the earlier four-key record. No cohort was
+published. A positive test reproduced the rejection, and a wrong-pair negative
+now guards the exact fixed-point provenance. Eight focused tests pass in 0.302
+seconds, the complete module passes all 43 tests in 8.864 seconds, and Python
+bytecode compilation passes from a private cache.
+
+The third supported `make test-user-native-windows-equivalence` run passed in
+4,565 seconds. Both isolated object compiles completed, both repaired
+kernel-ELF links passed, and all seventeen objects and sixteen executables
+matched across the two contract stages. The hosted runtime passed. The
+publisher installed and independently verified 21 artifacts from 65 inputs in
+a 22-entry directory. Its 22,591-byte manifest has SHA-256
+`074796535f19d9797c6f2d90ac43283fa1e32cd2a8530b9600e6ddd6c97419ad`.
+
+The same gate validated syscall ABI version 5 with 103 fields, a 412-byte
+table, and 101 providers. Promoted native Windows CupidC and CupidLD then built
+hello, ls, and cat. The 46-input user frontier has SHA-256
+`726926348f390003ae24e527f1b657e7c83c78a9e8872b884fd8a0791cdf571b`.
+All three objects and all three executables match checked-seed output:
+
+| Program | Object bytes | Object SHA-256 | Executable bytes | Executable SHA-256 |
+| --- | ---: | --- | ---: | --- |
+| `hello` | 6,124 | `64e0a6ee0d7a45a0901d3db614e73481cdc6b30903345c5015601b2bf344be04` | 13,992 | `4c5622969f39ffe7c2427d65abae2d293dfbd76db2aa80c96f9e6cf01613600c` |
+| `ls` | 7,120 | `e0627996a1d9cd6fd428642ffdfada7e07afa81d9267bc714360014af0dd3971` | 18,112 | `094b017eb6914bce6fbc1e99adeae845d5dc05280c1c1d897e68ab9d687c8d79` |
+| `cat` | 6,292 | `ff002fc4710704c3941bf6320249e772a3448d15f99269987ab1b9b608b3acb4` | 13,992 | `b66cba4c98221f5006ad4aeee70349a82db20410e027aa863bc33fa5818b5f4c` |
+
+The same supported Make target passed again in 15.9 seconds. It recognized the
+published cohort as current, repeated the syscall ABI check, and repeated all
+six user comparisons without rebuilding the contract stages.
+
+Final review found one remaining provenance mismatch before commit. The
+manifest required the stage-three and stage-four fixed-point pair, but the
+publisher copied contract executables and tools from stage two. The promoted
+seed made those bytes equal, so the successful gate did not expose the wiring
+error. A new orchestration test assigns distinct bytes to stages two, three,
+and four. It failed first because the builder requested stages two and three.
+The checked path now builds and compares contract objects and executables with
+stage-three and stage-four producers, runs the stage-four runtime, and
+publishes only the stage-four cohort. The focused provenance test passes. The
+complete contract module passes all 44 tests in 8.223 seconds. A supported
+Make reproof was still required for the corrected publication path.
+
+That first reproof was stopped before publication after the complete graph
+audit found one checked conditional-manifest drift. Source head contained 33
+active `_WIN32` predicates, while the manifest still recorded 32. The private
+proof directory was removed and the existing verified cohort remained in
+place. After the reviewed count changed to 33, the complete contract module
+passed all 44 tests again in 9.299 seconds. The final supported reproof then
+started from that stable 65-input set.
+
+The final `make test-user-native-windows-equivalence` reproof passed in
+4,589.9 seconds. Stage-three and stage-four contracts matched across seventeen
+object and sixteen executable comparisons. The stage-four runtime passed, and
+the publisher installed and verified all 21 stage-four artifacts from 65
+inputs. The 22,591-byte manifest has SHA-256
+`ff193cf81293553706373f5a37d0fedf3dfae0bebcbc608d892a4f40ea3d9629`.
+The same gate validated the syscall ABI and matched all six native Windows
+user outputs to the checked seed. A direct verifier accepted all 21 artifacts.
+The warmed supported path passed in 12.2 seconds and recognized the cohort as
+current.
+
+ADR 0282 records the scheduler, closure, and publication decisions.
+
+This step changes no compiler output, ABI, publication schema, seed identity,
+build ownership, or source suffix.

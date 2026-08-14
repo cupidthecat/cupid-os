@@ -50,6 +50,8 @@ except ModuleNotFoundError:
 
 REPORT_SCHEMA = "cupid.toolchain-contracts.v2"
 TARGET_ENTRY = 0x08048000
+ORDINARY_COMPILE_TIMEOUT = 900
+CONVERGED_GENERATIONS = ("stage-three", "stage-four")
 TOOL_NAMES = ("cupidasm", "cupiddis", "cupidld", "cupidobj", "cupidc")
 TOOL_PUBLIC_NAMES = {
     name: f"cupidc-{name}.elf" for name in TOOL_NAMES
@@ -110,6 +112,8 @@ class ContractPlan:
     name: str
     source: str
     link_objects: tuple[str, ...]
+    compile_timeout: int = ORDINARY_COMPILE_TIMEOUT
+    exclusive_compile: bool = False
 
     @property
     def artifact(self) -> str:
@@ -192,6 +196,8 @@ CONTRACT_PLANS = (
             "ctool",
             "runtime",
         ),
+        compile_timeout=1800,
+        exclusive_compile=True,
     ),
     ContractPlan(
         "elf32",
@@ -252,6 +258,9 @@ CONTRACT_PLANS = (
             "start",
             "contract",
             "as_elf",
+            "cupidld",
+            "cupidasm",
+            "x86",
             "elf32",
             "ctool_host",
             "ctool",
@@ -290,6 +299,7 @@ CONTRACT_PLANS = (
 def validate_plans(plans: Sequence[ContractPlan]) -> None:
     names: set[str] = set()
     sources: set[str] = set()
+    exclusive_count = 0
     for plan in plans:
         if not plan.source.endswith(".cc"):
             raise ContractError(
@@ -302,6 +312,22 @@ def validate_plans(plans: Sequence[ContractPlan]) -> None:
             )
         if plan.name in names or plan.source in sources:
             raise ContractError(f"contract plan is duplicated: {plan.name}")
+        if type(plan.compile_timeout) is not int or plan.compile_timeout < 1:
+            raise ContractError(
+                f"contract compile timeout is invalid: {plan.name}"
+            )
+        if type(plan.exclusive_compile) is not bool:
+            raise ContractError(
+                f"contract compile admission is invalid: {plan.name}"
+            )
+        has_extended_timeout = (
+            plan.compile_timeout > ORDINARY_COMPILE_TIMEOUT
+        )
+        if plan.exclusive_compile != has_extended_timeout:
+            raise ContractError(
+                "extended contract compile budget must be exclusive: "
+                f"{plan.name}"
+            )
         unknown_objects = sorted(
             set(plan.link_objects) - CONTRACT_LINK_OBJECT_KEYS
         )
@@ -322,6 +348,9 @@ def validate_plans(plans: Sequence[ContractPlan]) -> None:
             )
         names.add(plan.name)
         sources.add(plan.source)
+        exclusive_count += int(plan.exclusive_compile)
+    if exclusive_count != 1:
+        raise ContractError("contract compile admission policy differs")
 
 
 def _sha256(path: Path) -> str:
@@ -426,7 +455,9 @@ def _run_clean(
     except (BootstrapError, OSError) as error:
         raise ContractError(f"{label} could not run: {error}") from error
     except subprocess.TimeoutExpired as error:
-        raise ContractError(f"{label} timed out") from error
+        raise ContractError(
+            f"{label} timed out after {timeout} seconds"
+        ) from error
     if result.returncode != 0 or result.stdout or result.stderr:
         detail = result.stderr.strip() or result.stdout.strip()
         suffix = f": {detail}" if detail else ""
@@ -518,13 +549,29 @@ def _build_contract_stage(
             plan.source,
             contract_object,
             f"{stage_name} CupidC for {plan.source}",
-            900,
+            plan.compile_timeout,
         )
         _announce(f"{stage_name} compiled {plan.source}")
         return plan.name, contract_object
 
+    parallel_plans = tuple(
+        plan
+        for plan in CONTRACT_PLANS
+        if not plan.exclusive_compile
+    )
+    exclusive_plans = tuple(
+        plan
+        for plan in CONTRACT_PLANS
+        if plan.exclusive_compile
+    )
+    if len(exclusive_plans) != 1:
+        raise ContractError(
+            f"{stage_name} exclusive contract compile plan differs"
+        )
     with ThreadPoolExecutor(max_workers=workers) as executor:
-        contract_objects = dict(executor.map(compile_contract, CONTRACT_PLANS))
+        contract_objects = dict(executor.map(compile_contract, parallel_plans))
+    exclusive_name, exclusive_object = compile_contract(exclusive_plans[0])
+    contract_objects[exclusive_name] = exclusive_object
 
     runtime_contract = output / "runtime-contract.o"
     _compile_source(
@@ -804,6 +851,7 @@ def verify_publication(output: Path) -> dict[str, object]:
     if fixed_point != {
         "all_equal": True,
         "c_objects": 19,
+        "compared_generations": list(CONVERGED_GENERATIONS),
         "startup_objects": 1,
         "tool_images": len(TOOL_NAMES),
     }:
@@ -1120,35 +1168,35 @@ def build_contracts(
         _freeze_contract_inputs(
             root, private_root, inputs, snapshot
         )
-        stage_two_objects, stage_two_executables = _build_contract_stage(
-            private_root,
-            bootstrap_output / "stage-two",
-            private_root / "contract-stage-two",
-            "stage two",
-            workers,
-        )
         stage_three_objects, stage_three_executables = _build_contract_stage(
             private_root,
-            bootstrap_output / "stage-three",
+            bootstrap_output / CONVERGED_GENERATIONS[0],
             private_root / "contract-stage-three",
             "stage three",
             workers,
         )
+        stage_four_objects, stage_four_executables = _build_contract_stage(
+            private_root,
+            bootstrap_output / CONVERGED_GENERATIONS[1],
+            private_root / "contract-stage-four",
+            "stage four",
+            workers,
+        )
         object_comparisons = _compare_stage_files(
-            stage_two_objects,
             stage_three_objects,
+            stage_four_objects,
             "contract object",
         )
         comparisons = _compare_stage_files(
-            stage_two_executables,
             stage_three_executables,
+            stage_four_executables,
             "contract executable",
         )
         _announce(
-            "stage-two and stage-three objects and executables match"
+            "stage-three and stage-four objects and executables match"
         )
         _run_runtime_contract(
-            private_root, stage_two_executables["runtime"], workspace
+            private_root, stage_four_executables["runtime"], workspace
         )
         _announce("hosted runtime contract passed")
         _require_inputs_unchanged(root, snapshot)
@@ -1159,15 +1207,17 @@ def build_contracts(
         artifacts: list[Path] = []
         for plan in CONTRACT_PLANS:
             target = publication / plan.artifact
-            shutil.copyfile(stage_two_executables[plan.name], target)
+            shutil.copyfile(stage_four_executables[plan.name], target)
             artifacts.append(target)
         runtime_target = publication / "cupidc-runtime-contract.elf"
-        shutil.copyfile(stage_two_executables["runtime"], runtime_target)
+        shutil.copyfile(stage_four_executables["runtime"], runtime_target)
         artifacts.append(runtime_target)
         for tool_name in TOOL_NAMES:
             target = publication / TOOL_PUBLIC_NAMES[tool_name]
             shutil.copyfile(
-                bootstrap_output / "stage-two" / f"{tool_name}.elf",
+                bootstrap_output
+                / CONVERGED_GENERATIONS[1]
+                / f"{tool_name}.elf",
                 target,
             )
             artifacts.append(target)
