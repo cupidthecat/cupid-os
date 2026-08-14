@@ -50,13 +50,18 @@ typedef struct {
   ctool_dis_raw_range_kind_t kind;
 } ctool_dis_raw_range_t;
 
-/* Counts cover code regions selected for disassembly.  Bytes in declared raw
- * DATA ranges and non-executable ELF regions are not decoded or counted. */
+/* Decode counts cover code regions selected for disassembly.  Bytes in
+ * declared raw DATA ranges and non-executable ELF regions are not decoded or
+ * counted.  Relocation counts cover relocations whose targets are executable
+ * ET_REL sections.  An unmatched relocation does not name a compatible
+ * four-byte field in a decoded instruction. */
 typedef struct {
   ctool_u64 known_count;
   ctool_u64 unknown_count;
   ctool_u64 invalid_count;
   ctool_u64 truncated_count;
+  ctool_u64 executable_relocation_count;
+  ctool_u64 unmatched_executable_relocation_count;
 } ctool_dis_decode_summary_t;
 
 typedef struct {

@@ -25959,3 +25959,87 @@ The object bytes, active assembly, ABI, link order, and disk layout do not
 change, so this publication-only step does not require a new boot result. It
 adds no host dependency and does not justify a `.c` to `.cc` rename. ADR 0286
 records the decision and the remaining semantic boundary.
+
+## 2026-08-14: Match executable relocations to decoded fields
+
+ADR 0286 exposed a narrower semantic gap after object publication became
+transactional. Strict CupidDis counted instruction outcomes, but a relocation
+that ordinary rendering could not attach to an operand did not affect the
+summary. Moving the call relocation in the writer-model object from operand
+offset 1 to opcode offset 0 left every byte decodable, and the first
+`--require-known` test returned success. That was the red case.
+
+The typed summary now reports the total and unmatched relocation counts for
+executable `PROGBITS` sections in an ELF32 relocatable object. `R_386_PC32`
+matches only a four-byte relative field. `R_386_32` matches only a four-byte
+non-relative field. The relocation and field must begin at the same offset in
+the same section, and one decoded field can claim one relocation. Data-section
+relocations remain outside the code policy.
+
+Inspection and rendering now call one field-matching function. The summary
+uses a temporary claimed-relocation array from the job arena and rewinds it
+before returning. `cupiddis --require-known` fails on a nonzero unmatched count
+and prints both relocation totals. Raw and static executable failures keep the
+earlier four instruction counts.
+
+The public object contract has three matched code relocations and one excluded
+data relocation. Its negative changes an absolute memory relocation to
+`R_386_PC32`, which leaves ordinary inspection available but records one
+unmatched code relocation. The CLI negative moves a valid call relocation onto
+the opcode and requires a quiet failure with exact typed counts.
+
+The strict CLI also receives an object with compatible relocations duplicated
+at one decoded field through two relocation sections. The shared ELF32 reader
+combines entries by target section and rejects the overlap before CupidDis
+publishes a report. This keeps duplicate-site rejection at the structural
+boundary while the new summary handles structurally valid but semantically
+unowned sites and kinds.
+
+Initial verification completed as follows:
+
+| Check | Result |
+| --- | --- |
+| Red CLI case | EXPECTED FAIL, the old command returned 0 for the opcode relocation. |
+| Complete CupidDis module | PASS, 22 tests in 5.026 seconds with one platform-specific skip. The strict CLI now covers opcode sites and duplicate fields, and the public report covers wrong and unknown relocation kinds. |
+| Active CupidASM sources | PASS, all four raw and ELF32 source tests in 3.478 seconds. |
+| Combined assembler and disassembler group | PASS, 46 tests in 19.355 seconds with one platform-specific skip. |
+| Strict native build | PASS, Windows Clang compiled CupidDis under the repository's C11 warning profile. |
+| Clang static analysis | NO NEW FINDING, both modified translation units completed. The analyzer repeated two existing dead-store warnings in `dis_render_memory`; neither line changed in this slice. |
+| Checked-seed source compile | PASS, `toolchain/cupiddis.cc` produced a 99,752-byte object with SHA-256 `1dadf420e0629bb6082c41df2099910fe076e7559857f459f3117322f4c0b848`; source-head CupidDis accepts it. |
+| Fresh production samples | PASS, checked-seed ISR, context-switch, `cupidld`, and three generated program objects all pass source-head `--require-known`. |
+| Static Toolchain fixed point | PASS, the 19-source union and all five linked tools match across consecutive Cupid-built generations in 817.172 seconds. |
+| Deterministic build audit | PASS, final-source regeneration in 80.1 seconds and a fresh checked comparison in 76.2 seconds. The graph remains at 736 active inputs, 452 transforms, and 255 feature requirements. |
+
+The first attempt to reuse the production manifest found only 427 of its 431
+paths in the existing build tree. Of those, 384 pass the preceding decode
+policy and all 384 also pass relocation ownership. The other 43 are older
+host-oracle artifacts with unknown or invalid instructions; none fails only on
+relocation ownership. The four missing paths were rebuilt from the checked
+seed and pass. This is compatibility evidence, not a fresh production build,
+and it is recorded separately from the normal transaction.
+
+The regenerated 2,676,175-byte JSON report has SHA-256
+`ea141bf1ae0bcd11d327938fd71840095656b1766f12e9d2ff93537b3b0795b0`.
+The 12,417-byte summary has SHA-256
+`e930ce39febec60d77d1066c5ec4b0f3fd50c38799f39771ae9b6f9d6274362a`.
+The active-source digest is
+`e669e0a558b2bfd8b92c46e4590470a818a3007e69ec647e1cc4066c062a1cfe`.
+
+A later `make -C toolchain test` attempt reached the 900-second outer command
+limit and was stopped after 904 seconds without a failing contract message.
+No compiler or test child remained. This incomplete harness run is not counted
+as a pass or a product failure; the focused 46-test group and complete static
+fixed point above are the recorded Toolchain evidence.
+
+The checked production seed predates the new summary fields. Production
+publication therefore keeps ADR 0286's decode-only policy until a later seed
+promotion carries this capability. The change adds no transform or host
+dependency. A standalone root build progressed through the active Doom
+translation units without reporting a failure, then stopped when final image
+proof moved to the combined integration branch. That incomplete run is not a
+pass. Because the shared source rebuilds the in-kernel inspector and the CTXT
+update changes the embedded manual payload, integration must run the complete
+root build, artifact-size policy, and boot smoke after both independent slices
+are present. The guest calling convention, linker policy, and instruction
+encoder do not change. No `.c` source qualifies for a `.cc` rename. ADR 0290
+records the decision.

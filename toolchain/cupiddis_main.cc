@@ -855,15 +855,32 @@ static int cupiddis_check_known_input(const cupiddis_cli_t *cli,
   }
   if (report.decode_summary.unknown_count != 0u ||
       report.decode_summary.invalid_count != 0u ||
-      report.decode_summary.truncated_count != 0u) {
-    (void)fprintf(
-        stderr,
-        "cupiddis: %s: code check failed: %llu known, %llu unknown, "
-        "%llu invalid, %llu truncated\n",
-        input, (unsigned long long)report.decode_summary.known_count,
-        (unsigned long long)report.decode_summary.unknown_count,
-        (unsigned long long)report.decode_summary.invalid_count,
-        (unsigned long long)report.decode_summary.truncated_count);
+      report.decode_summary.truncated_count != 0u ||
+      report.decode_summary.unmatched_executable_relocation_count != 0u) {
+    if (report.decode_summary.executable_relocation_count == 0u) {
+      (void)fprintf(
+          stderr,
+          "cupiddis: %s: code check failed: %llu known, %llu unknown, "
+          "%llu invalid, %llu truncated\n",
+          input, (unsigned long long)report.decode_summary.known_count,
+          (unsigned long long)report.decode_summary.unknown_count,
+          (unsigned long long)report.decode_summary.invalid_count,
+          (unsigned long long)report.decode_summary.truncated_count);
+    } else {
+      (void)fprintf(
+          stderr,
+          "cupiddis: %s: code check failed: %llu known, %llu unknown, "
+          "%llu invalid, %llu truncated, %llu of %llu executable "
+          "relocations unmatched\n",
+          input, (unsigned long long)report.decode_summary.known_count,
+          (unsigned long long)report.decode_summary.unknown_count,
+          (unsigned long long)report.decode_summary.invalid_count,
+          (unsigned long long)report.decode_summary.truncated_count,
+          (unsigned long long)
+              report.decode_summary.unmatched_executable_relocation_count,
+          (unsigned long long)
+              report.decode_summary.executable_relocation_count);
+    }
     goto done;
   }
   failed = 0;

@@ -2409,6 +2409,17 @@ manifest reduces the evaluated command to 163 characters. Fourteen focused
 hostbuild and build-graph tests passed in 36.591 seconds. ADR 0262 records the
 source boundary, and ADR 0265 records seed carriage and production adoption.
 
+Source-head CupidDis adds executable relocation ownership to the same typed
+summary. For an ELF32 relocatable object, `R_386_PC32` must begin at a decoded
+four-byte relative field and `R_386_32` must begin at a decoded four-byte
+non-relative field in the relocation's target section. The report exposes the
+total and unmatched executable relocation counts. `--require-known` rejects a
+nonzero unmatched count and includes both values in its path-specific failure.
+Data-section relocations remain outside the code policy, and ordinary
+relocation rendering uses the same matching function. The checked production
+seed still carries the earlier decode-only policy. ADR 0290 records the source
+capability and its pending seed-carriage boundary.
+
 The trampoline intervals above are half-open: code occupies
 `[0x000, 0x01f)` and `[0x210, 0x254)`, while data occupies
 `[0x01f, 0x210)` and `[0x254, 0x1000)`.

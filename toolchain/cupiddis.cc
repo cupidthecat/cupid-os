@@ -12,6 +12,85 @@ static ctool_status_t dis_prepare_report_orders(ctool_job_t *job,
 static ctool_status_t dis_prepare_raw_label_order(ctool_job_t *job,
                                                    ctool_dis_report_t *report);
 
+typedef struct {
+  const ctool_dis_report_t *report;
+  ctool_u32 section_file_index;
+  ctool_u8 *relocation_claimed;
+} dis_relocation_ownership_t;
+
+static ctool_bool
+dis_field_accepts_relocation(const ctool_x86_field_t *field,
+                             const ctool_elf32_relocation_t *relocation) {
+  if (field->byte_width != 4u) {
+    return CTOOL_FALSE;
+  }
+  if (relocation->type == CTOOL_ELF32_R_386_PC32) {
+    return field->kind == CTOOL_X86_FIELD_RELATIVE ? CTOOL_TRUE
+                                                    : CTOOL_FALSE;
+  }
+  if (relocation->type == CTOOL_ELF32_R_386_32) {
+    return field->kind != CTOOL_X86_FIELD_RELATIVE ? CTOOL_TRUE
+                                                    : CTOOL_FALSE;
+  }
+  return CTOOL_FALSE;
+}
+
+static ctool_u32 dis_find_field_relocation(
+    const ctool_dis_report_t *report, ctool_u32 section_file_index,
+    ctool_u32 logical_address, ctool_u32 instruction_offset,
+    const ctool_x86_field_t *field,
+    const ctool_u8 *relocation_claimed) {
+  const ctool_elf32_object_t *object = &report->elf32;
+  ctool_u32 first = 0u;
+  ctool_u32 last = report->relocation_site_order_count;
+  ctool_u32 site;
+  if (object->file_type == CTOOL_ELF32_ET_EXEC) {
+    if (logical_address > DIS_U32_MAX - (ctool_u32)field->byte_offset) {
+      return DIS_U32_MAX;
+    }
+    site = logical_address + (ctool_u32)field->byte_offset;
+  } else {
+    if (object->file_type != CTOOL_ELF32_ET_REL ||
+        section_file_index >= object->section_count ||
+        instruction_offset > DIS_U32_MAX - (ctool_u32)field->byte_offset) {
+      return DIS_U32_MAX;
+    }
+    site = instruction_offset + (ctool_u32)field->byte_offset;
+  }
+  while (first < last) {
+    ctool_u32 middle = first + (last - first) / 2u;
+    const ctool_elf32_relocation_t *relocation =
+        &object->relocations[report->relocation_site_order[middle]];
+    if ((object->file_type == CTOOL_ELF32_ET_EXEC &&
+         relocation->offset < site) ||
+        (object->file_type == CTOOL_ELF32_ET_REL &&
+         (relocation->target_section_file_index < section_file_index ||
+          (relocation->target_section_file_index == section_file_index &&
+           relocation->offset < site)))) {
+      first = middle + 1u;
+    } else {
+      last = middle;
+    }
+  }
+  while (first < report->relocation_site_order_count) {
+    ctool_u32 relocation_index = report->relocation_site_order[first];
+    const ctool_elf32_relocation_t *relocation =
+        &object->relocations[relocation_index];
+    if (relocation->offset != site ||
+        (object->file_type == CTOOL_ELF32_ET_REL &&
+         relocation->target_section_file_index != section_file_index)) {
+      break;
+    }
+    if ((relocation_claimed == (const ctool_u8 *)0 ||
+         relocation_claimed[relocation_index] == 0u) &&
+        dis_field_accepts_relocation(field, relocation) == CTOOL_TRUE) {
+      return relocation_index;
+    }
+    first++;
+  }
+  return DIS_U32_MAX;
+}
+
 static void dis_zero_report(ctool_dis_report_t *report) {
   ctool_u8 *bytes = (ctool_u8 *)report;
   ctool_u32 index;
@@ -140,6 +219,7 @@ static ctool_status_t
 dis_summarize_region(ctool_job_t *job, const ctool_x86_decoder_t *decoder,
                      ctool_bytes_t bytes,
                      ctool_x86_mode_t mode,
+                     const dis_relocation_ownership_t *ownership,
                      ctool_dis_decode_summary_t *summary) {
   ctool_u32 offset = 0u;
   while (offset < bytes.size) {
@@ -154,6 +234,20 @@ dis_summarize_region(ctool_job_t *job, const ctool_x86_decoder_t *decoder,
     }
     switch (decoded.kind) {
     case CTOOL_X86_DECODE_KNOWN:
+      if (ownership != (const dis_relocation_ownership_t *)0 &&
+          ownership->relocation_claimed != (ctool_u8 *)0) {
+        ctool_u32 field_index;
+        for (field_index = 0u; field_index < decoded.encoding.field_count;
+             field_index++) {
+          ctool_u32 relocation_index = dis_find_field_relocation(
+              ownership->report, ownership->section_file_index, 0u, offset,
+              &decoded.encoding.fields[field_index],
+              ownership->relocation_claimed);
+          if (relocation_index != DIS_U32_MAX) {
+            ownership->relocation_claimed[relocation_index] = 1u;
+          }
+        }
+      }
       summary->known_count++;
       break;
     case CTOOL_X86_DECODE_UNKNOWN:
@@ -188,7 +282,9 @@ static ctool_status_t dis_prepare_decode_summary(
   if (report->input == CTOOL_DIS_INPUT_RAW) {
     if (report->mode != CTOOL_DIS_RAW_RANGE_MAP) {
       return dis_summarize_region(job, decoder, report->source->contents,
-                                  report->mode, &report->decode_summary);
+                                  report->mode,
+                                  (const dis_relocation_ownership_t *)0,
+                                  &report->decode_summary);
     }
     for (index = 0u; status == CTOOL_OK && index < report->raw_range_count;
          index++) {
@@ -203,6 +299,7 @@ static ctool_status_t dis_prepare_decode_summary(
           job, decoder,
           ctool_bytes(report->source->contents.data + first, last - first),
           dis_raw_range_mode(report->raw_ranges[index].kind),
+          (const dis_relocation_ownership_t *)0,
           &report->decode_summary);
     }
     return status;
@@ -219,20 +316,72 @@ static ctool_status_t dis_prepare_decode_summary(
         continue;
       }
       status = dis_summarize_region(job, decoder, program->contents,
-                                    report->mode, &report->decode_summary);
+                                    report->mode,
+                                    (const dis_relocation_ownership_t *)0,
+                                    &report->decode_summary);
     }
     return status;
   }
-  for (index = 0u; status == CTOOL_OK && index < report->elf32.section_count;
-       index++) {
-    const ctool_elf32_section_t *section = &report->elf32.sections[index];
-    if (section->type != CTOOL_ELF32_SHT_PROGBITS ||
-        (section->flags & CTOOL_ELF32_SHF_EXECINSTR) == 0u ||
-        section->contents.size == 0u) {
-      continue;
+  {
+    ctool_arena_t *arena = ctool_job_arena(job);
+    ctool_arena_mark_t mark = ctool_arena_mark(arena);
+    dis_relocation_ownership_t ownership;
+    ctool_status_t rewind_status;
+    ownership.report = report;
+    ownership.section_file_index = 0u;
+    ownership.relocation_claimed = (ctool_u8 *)0;
+    if (report->elf32.relocation_count != 0u) {
+      status = ctool_arena_alloc_zero(
+          arena, report->elf32.relocation_count, (ctool_u32)sizeof(ctool_u8),
+          (ctool_u32)sizeof(ctool_u8),
+          (void **)&ownership.relocation_claimed);
     }
-    status = dis_summarize_region(job, decoder, section->contents,
-                                  report->mode, &report->decode_summary);
+    for (index = 0u;
+         status == CTOOL_OK && index < report->elf32.relocation_count;
+         index++) {
+      const ctool_elf32_relocation_t *relocation =
+          &report->elf32.relocations[index];
+      const ctool_elf32_section_t *target =
+          &report->elf32.sections[relocation->target_section_file_index];
+      if (target->type == CTOOL_ELF32_SHT_PROGBITS &&
+          (target->flags & CTOOL_ELF32_SHF_EXECINSTR) != 0u) {
+        report->decode_summary.executable_relocation_count++;
+      }
+    }
+    for (index = 0u; status == CTOOL_OK && index < report->elf32.section_count;
+         index++) {
+      const ctool_elf32_section_t *section = &report->elf32.sections[index];
+      if (section->type != CTOOL_ELF32_SHT_PROGBITS ||
+          (section->flags & CTOOL_ELF32_SHF_EXECINSTR) == 0u ||
+          section->contents.size == 0u) {
+        continue;
+      }
+      ownership.section_file_index = index;
+      status = dis_summarize_region(job, decoder, section->contents,
+                                    report->mode, &ownership,
+                                    &report->decode_summary);
+    }
+    if (status == CTOOL_OK) {
+      ctool_u64 matched = 0u;
+      for (index = 0u;
+           ownership.relocation_claimed != (ctool_u8 *)0 &&
+           index < report->elf32.relocation_count;
+           index++) {
+        if (ownership.relocation_claimed[index] != 0u) {
+          matched++;
+        }
+      }
+      if (matched > report->decode_summary.executable_relocation_count) {
+        status = CTOOL_ERR_INTERNAL;
+      } else {
+        report->decode_summary.unmatched_executable_relocation_count =
+            report->decode_summary.executable_relocation_count - matched;
+      }
+    }
+    rewind_status = ctool_arena_rewind(arena, mark);
+    if (status == CTOOL_OK) {
+      status = rewind_status;
+    }
   }
   return status;
 }
@@ -1102,72 +1251,24 @@ static const ctool_elf32_relocation_t *dis_operand_relocation(
     ctool_u32 section_file_index, ctool_u32 logical_address,
     ctool_u32 instruction_offset, const ctool_x86_decoded_t *decoded,
     ctool_u32 operand_index) {
-  const ctool_elf32_section_t *section =
-      dis_section(object, section_file_index);
   ctool_u32 field_index;
   if (object->file_type == CTOOL_ELF32_ET_REL &&
-      section == (const ctool_elf32_section_t *)0) {
+      dis_section(object, section_file_index) ==
+          (const ctool_elf32_section_t *)0) {
     return (const ctool_elf32_relocation_t *)0;
   }
   for (field_index = 0u; field_index < decoded->encoding.field_count;
        field_index++) {
     const ctool_x86_field_t *field = &decoded->encoding.fields[field_index];
-    ctool_u32 first = 0u;
-    ctool_u32 last = report->relocation_site_order_count;
-    ctool_u32 site;
+    ctool_u32 relocation_index;
     if ((ctool_u32)field->operand_index != operand_index) {
       continue;
     }
-    if (object->file_type == CTOOL_ELF32_ET_EXEC) {
-      if (logical_address >
-          DIS_U32_MAX - (ctool_u32)field->byte_offset) {
-        continue;
-      }
-      site = logical_address + (ctool_u32)field->byte_offset;
-    } else {
-      if (instruction_offset >
-          DIS_U32_MAX - (ctool_u32)field->byte_offset) {
-        continue;
-      }
-      site = instruction_offset + (ctool_u32)field->byte_offset;
-    }
-    while (first < last) {
-      ctool_u32 middle = first + (last - first) / 2u;
-      const ctool_elf32_relocation_t *relocation =
-          &object->relocations[report->relocation_site_order[middle]];
-      if ((object->file_type == CTOOL_ELF32_ET_EXEC &&
-           relocation->offset < site) ||
-          (object->file_type == CTOOL_ELF32_ET_REL &&
-           (relocation->target_section_file_index < section_file_index ||
-            (relocation->target_section_file_index == section_file_index &&
-             relocation->offset < site)))) {
-        first = middle + 1u;
-      } else {
-        last = middle;
-      }
-    }
-    while (first < report->relocation_site_order_count) {
-      const ctool_elf32_relocation_t *relocation =
-          &object->relocations[report->relocation_site_order[first]];
-      ctool_bool matches = CTOOL_FALSE;
-      if (relocation->offset != site ||
-          (object->file_type == CTOOL_ELF32_ET_REL &&
-           relocation->target_section_file_index != section_file_index)) {
-        break;
-      }
-      if (field->byte_width == 4u &&
-          relocation->type == CTOOL_ELF32_R_386_PC32 &&
-          field->kind == CTOOL_X86_FIELD_RELATIVE) {
-        matches = CTOOL_TRUE;
-      } else if (field->byte_width == 4u &&
-                 relocation->type == CTOOL_ELF32_R_386_32 &&
-                 field->kind != CTOOL_X86_FIELD_RELATIVE) {
-        matches = CTOOL_TRUE;
-      }
-      if (matches == CTOOL_TRUE) {
-        return relocation;
-      }
-      first++;
+    relocation_index = dis_find_field_relocation(
+        report, section_file_index, logical_address, instruction_offset, field,
+        (const ctool_u8 *)0);
+    if (relocation_index != DIS_U32_MAX) {
+      return &object->relocations[relocation_index];
     }
   }
   return (const ctool_elf32_relocation_t *)0;

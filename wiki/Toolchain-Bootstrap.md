@@ -827,6 +827,15 @@ platform-specific cases were skipped on the opposite host. Moving private
 flatten extraction onto the shared pinned-path helper remains deferred
 maintenance.
 
+Source-head CupidDis also checks the relocation fields in executable ELF32
+object sections. `R_386_PC32` must begin at a decoded four-byte relative
+field, while `R_386_32` must begin at a decoded four-byte non-relative field.
+The typed report counts total and unmatched executable relocations, and
+`--require-known` fails on a mismatch even when every byte decodes. Relocations
+in data sections do not enter this check. The checked production seed predates
+the rule, so seed promotion remains before normal-build adoption. ADR 0290
+records the boundary.
+
 The poisoned-host normal `make -j2` then passed in 1,057.969 seconds. All
 eleven host code-generation variables named invalid commands, and that
 historical build ran the separate strict gate before CupidObj flattened the

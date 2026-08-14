@@ -24,6 +24,33 @@ def configured_symbol_reader_command():
     return bootstrap_baseline.resolve_tool_command(configured)
 
 
+def elf32_relocation_sections(image):
+    section_headers = struct.unpack_from("<I", image, 32)[0]
+    section_header_size = struct.unpack_from("<H", image, 46)[0]
+    section_count = struct.unpack_from("<H", image, 48)[0]
+    sections = []
+    for section_index in range(section_count):
+        header = section_headers + section_index * section_header_size
+        section_type = struct.unpack_from("<I", image, header + 4)[0]
+        if section_type != 9:
+            continue
+        target_index = struct.unpack_from("<I", image, header + 28)[0]
+        target_header = section_headers + target_index * section_header_size
+        target_flags = struct.unpack_from("<I", image, target_header + 8)[0]
+        relocation_offset = struct.unpack_from("<I", image, header + 16)[0]
+        relocation_size = struct.unpack_from("<I", image, header + 20)[0]
+        sections.append(
+            (
+                header,
+                target_index,
+                target_flags,
+                relocation_offset,
+                relocation_size,
+            )
+        )
+    return sections
+
+
 class CupidDisOracleConfigurationTests(unittest.TestCase):
     def test_configured_symbol_reader_arguments_are_preserved(self):
         with mock.patch.dict(
@@ -95,6 +122,57 @@ class CupidDisContractTests(unittest.TestCase):
                 + fixture.stderr
             )
         cls.object_path = Path(cls._fixture_directory.name) / "cupid.o"
+        cls.unowned_relocation_path = (
+            Path(cls._fixture_directory.name) / "unowned-relocation.o"
+        )
+        unowned_relocation = bytearray(cls.object_path.read_bytes())
+        relocation_rewritten = False
+        for _, _, target_flags, relocation_offset, _ in (
+            elf32_relocation_sections(unowned_relocation)
+        ):
+            if target_flags & 4 == 0:
+                continue
+            struct.pack_into("<I", unowned_relocation, relocation_offset, 0)
+            relocation_rewritten = True
+            break
+        if not relocation_rewritten:
+            raise AssertionError("CupidDis fixture has no code relocation")
+        cls.unowned_relocation_path.write_bytes(unowned_relocation)
+        cls.duplicate_relocation_path = (
+            Path(cls._fixture_directory.name) / "duplicate-relocation.o"
+        )
+        duplicate_relocation = bytearray(cls.object_path.read_bytes())
+        relocation_sections = elf32_relocation_sections(duplicate_relocation)
+        executable_section = next(
+            (section for section in relocation_sections if section[2] & 4),
+            None,
+        )
+        spare_section = next(
+            (
+                section
+                for section in relocation_sections
+                if (section[2] & 4) == 0
+            ),
+            None,
+        )
+        if executable_section is None or spare_section is None:
+            raise AssertionError(
+                "CupidDis fixture needs code and data relocations"
+            )
+        _, code_target, _, code_offset, code_size = (
+            executable_section
+        )
+        spare_header, _, _, spare_offset, spare_size = spare_section
+        if code_size == 0 or code_size % 8 != 0 or spare_size < 8:
+            raise AssertionError("CupidDis fixture has invalid relocation rows")
+        duplicate_relocation[spare_offset : spare_offset + 8] = (
+            duplicate_relocation[code_offset : code_offset + 8]
+        )
+        struct.pack_into("<I", duplicate_relocation, spare_header + 20, 8)
+        struct.pack_into(
+            "<I", duplicate_relocation, spare_header + 28, code_target
+        )
+        cls.duplicate_relocation_path.write_bytes(duplicate_relocation)
         cls.raw_path = Path(cls._fixture_directory.name) / "boot.bin"
         cls.raw_path.write_bytes(bytes([0xB8, 0x34, 0x12, 0xC3]))
         cls.shrd_path = Path(cls._fixture_directory.name) / "ctool-shrd.bin"
@@ -298,6 +376,42 @@ class CupidDisContractTests(unittest.TestCase):
         )
         self.assertNotIn(
             f"{self.clean_code_path}: code check failed", mixed.stderr
+        )
+
+        unowned_relocation = subprocess.run(
+            [
+                str(self.cli_path),
+                "--require-known",
+                str(self.unowned_relocation_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(unowned_relocation.returncode, 1)
+        self.assertEqual(unowned_relocation.stdout, "")
+        self.assertIn(
+            f"{self.unowned_relocation_path}: code check failed: "
+            "2 known, 0 unknown, 0 invalid, 0 truncated, "
+            "1 of 1 executable relocations unmatched",
+            unowned_relocation.stderr,
+        )
+
+        duplicate_relocation = subprocess.run(
+            [
+                str(self.cli_path),
+                "--require-known",
+                str(self.duplicate_relocation_path),
+            ],
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(duplicate_relocation.returncode, 1)
+        self.assertEqual(duplicate_relocation.stdout, "")
+        self.assertIn(
+            "ELF32 relocation fields overlap",
+            duplicate_relocation.stderr,
         )
 
         missing_path = Path(self._fixture_directory.name) / "missing-code.bin"

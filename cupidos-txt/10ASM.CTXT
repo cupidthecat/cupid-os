@@ -208,6 +208,14 @@ checked 128 KiB throughput contract passes within 30 seconds. ADR 0262 records
 the command, ADR 0266 records indexed decoding, and ADR 0265 records
 checked-seed carriage and production adoption.
 
+Source-head CupidDis also checks relocations that target executable sections
+in ELF32 relocatable objects. R_386_PC32 must begin at a decoded four-byte
+relative field. R_386_32 must begin at a decoded four-byte non-relative field.
+The typed report counts total and unmatched executable relocations, and
+--require-known rejects a nonzero unmatched count even when every byte decodes.
+Data-section relocations do not enter this code check. The checked production
+seed predates the rule. ADR 0290 records the relocation boundary.
+
 An earlier poisoned-host normal `make -j2` passed in 1,057.969 seconds. The
 separate strict gate ran before CupidObj flattened the kernel. It produced a 9,039,936-byte
 pass-one ELF with SHA-256

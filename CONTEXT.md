@@ -911,8 +911,12 @@ greater than one page and touch every step, including the final partial page.
 _Avoid_: fully committed stack, source workaround, writable probe
 
 **Strict decode summary**:
-The typed CupidDis counts of known, unknown, invalid, and truncated instructions across selected code regions. Declared raw data and non-executable ELF regions do not enter the summary. The hosted strict policy accepts the summary only when its three fallback counts are zero.
+The typed CupidDis counts of known, unknown, invalid, and truncated instructions across selected code regions. Source head also reports total and unmatched relocations that target executable sections in an ELF32 relocatable object. Declared raw data and non-executable ELF regions do not enter the summary. The hosted strict policy accepts the source-head summary only when its three fallback counts and unmatched relocation count are zero.
 _Avoid_: searching rendered `db` rows, counting data as instructions, a replacement for ordinary disassembly output
+
+**Executable relocation ownership**:
+The match between one ELF32 code relocation and one decoded four-byte instruction field at the same section offset. `R_386_PC32` owns a relative field, while `R_386_32` owns a non-relative field. Relocations in data sections do not take part. The checked production seed predates this source-head rule.
+_Avoid_: any relocation inside an instruction, parsing rendered operands, data relocation validation
 
 ### Bootstrap
 

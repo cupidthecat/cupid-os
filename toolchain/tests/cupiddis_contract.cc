@@ -264,9 +264,37 @@ static int summaries_equal(const ctool_dis_decode_summary_t *left,
   return left->known_count == right->known_count &&
                  left->unknown_count == right->unknown_count &&
                  left->invalid_count == right->invalid_count &&
-                 left->truncated_count == right->truncated_count
+                 left->truncated_count == right->truncated_count &&
+                 left->executable_relocation_count ==
+                     right->executable_relocation_count &&
+                 left->unmatched_executable_relocation_count ==
+                     right->unmatched_executable_relocation_count
              ? 1
              : 0;
+}
+
+static int check_unowned_absolute_memory_relocation(
+    ctool_job_t *job, const ctool_source_t *source,
+    const ctool_dis_request_t *request, ctool_u64 executable_count,
+    const char *operation) {
+  ctool_dis_report_t report;
+  capture_t capture;
+  ctool_status_t status;
+  (void)memset(&capture, 0, sizeof(capture));
+  status = ctool_dis_inspect(job, source, request, &report);
+  if (status == CTOOL_OK) {
+    status = ctool_dis_render(job, &report, CTOOL_DIS_TEXT_CUPID,
+                              capture_sink(&capture));
+  }
+  if (!check_status(status, CTOOL_OK, operation) ||
+      report.decode_summary.executable_relocation_count != executable_count ||
+      report.decode_summary.unmatched_executable_relocation_count != 1u ||
+      !contains(&capture, "dword [0x0]", operation) ||
+      strstr(capture.bytes, "dword [external]") != (char *)0) {
+    (void)fprintf(stderr, "%s claimed operand ownership\n", operation);
+    return 0;
+  }
+  return 1;
 }
 
 static int run_indexed(void) {
@@ -1128,6 +1156,8 @@ static int run_raw(void) {
       report.decode_summary.unknown_count != 1u ||
       report.decode_summary.invalid_count != 1u ||
       report.decode_summary.truncated_count != 1u ||
+      report.decode_summary.executable_relocation_count != 0u ||
+      report.decode_summary.unmatched_executable_relocation_count != 0u ||
       !contains(&capture, "00407001:  0F  db 0x0F",
                 "unknown decode boundary") ||
       !contains(&capture, "00407002:  FF C0  inc eax",
@@ -1360,7 +1390,9 @@ static int run_object(void) {
       report.decode_summary.known_count != 4u ||
       report.decode_summary.unknown_count != 0u ||
       report.decode_summary.invalid_count != 0u ||
-      report.decode_summary.truncated_count != 0u) {
+      report.decode_summary.truncated_count != 0u ||
+      report.decode_summary.executable_relocation_count != 3u ||
+      report.decode_summary.unmatched_executable_relocation_count != 0u) {
     (void)fprintf(stderr, "typed object report is incomplete\n");
     ctool_buffer_close(object_bytes);
     ctool_job_close(job);
@@ -1410,7 +1442,10 @@ static int run_object(void) {
         header_report.decode_summary.known_count != 0u ||
         header_report.decode_summary.unknown_count != 0u ||
         header_report.decode_summary.invalid_count != 0u ||
-        header_report.decode_summary.truncated_count != 0u) {
+        header_report.decode_summary.truncated_count != 0u ||
+        header_report.decode_summary.executable_relocation_count != 0u ||
+        header_report.decode_summary.unmatched_executable_relocation_count !=
+            0u) {
       (void)fprintf(stderr, "header-only report built unused indexes\n");
       ctool_buffer_close(object_bytes);
       ctool_job_close(job);
@@ -1491,24 +1526,27 @@ static int run_object(void) {
     relocation_offset = get_le32(copy, relocation_header + 16u);
     info_offset = relocation_offset + 8u + 4u;
     info = get_le32(copy, info_offset);
-    put_le32(copy, info_offset, (info & 0xffffff00u) | 0x7fu);
+    put_le32(copy, info_offset,
+             (info & 0xffffff00u) | CTOOL_ELF32_R_386_PC32);
     source.contents = ctool_bytes(copy, bytes.size);
     request.views = CTOOL_DIS_VIEW_DISASSEMBLY;
-    (void)memset(&capture, 0, sizeof(capture));
-    status = ctool_dis_inspect(job, &source, &request, &report);
-    if (status == CTOOL_OK) {
-      status = ctool_dis_render(job, &report, CTOOL_DIS_TEXT_CUPID,
-                                capture_sink(&capture));
-    }
-    free(copy);
-    if (!check_status(status, CTOOL_OK, "unknown relocation inspection") ||
-        !contains(&capture, "dword [0x0]", "unknown relocation raw field") ||
-        strstr(capture.bytes, "dword [external]") != (char *)0) {
-      (void)fprintf(stderr, "unknown relocation claimed operand ownership\n");
+    if (!check_unowned_absolute_memory_relocation(
+            job, &source, &request, 3u,
+            "incompatible relocation inspection")) {
+      free(copy);
       ctool_buffer_close(object_bytes);
       ctool_job_close(job);
       return 1;
     }
+    put_le32(copy, info_offset, (info & 0xffffff00u) | 0x7fu);
+    if (!check_unowned_absolute_memory_relocation(
+            job, &source, &request, 3u, "unknown relocation inspection")) {
+      free(copy);
+      ctool_buffer_close(object_bytes);
+      ctool_job_close(job);
+      return 1;
+    }
+    free(copy);
   }
   {
     ctool_bytes_t bytes = ctool_buffer_view(object_bytes);
@@ -1628,6 +1666,8 @@ static int run_exec(void) {
       report.decode_summary.unknown_count != 0u ||
       report.decode_summary.invalid_count != 0u ||
       report.decode_summary.truncated_count != 0u ||
+      report.decode_summary.executable_relocation_count != 0u ||
+      report.decode_summary.unmatched_executable_relocation_count != 0u ||
       !contains(&capture, "ELF32 EXEC i386", "executable header") ||
       !contains(&capture, "[program headers]", "program headers") ||
       !contains(&capture, "] GNU_STACK off=", "GNU stack header type") ||

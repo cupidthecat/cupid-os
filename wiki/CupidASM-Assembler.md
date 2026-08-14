@@ -246,6 +246,15 @@ checked 128 KiB throughput contract passes within 30 seconds. ADR 0262 records
 the command, ADR 0266 records indexed decoding, and ADR 0265 records seed
 carriage and production adoption.
 
+Source-head CupidDis extends the object form of this policy. A relocation in
+an executable section must begin at a decoded four-byte operand field.
+`R_386_PC32` requires a relative field, and `R_386_32` requires a
+non-relative field. The typed report counts total and unmatched executable
+relocations. Data-section relocations remain outside the code policy. The
+checked production seed predates this rule, so the normal object transactions
+continue to use the preceding decode-only policy until a later promotion. ADR
+0290 records the relocation boundary.
+
 An earlier poisoned-host normal `make -j2` passed in 1,057.969 seconds and ran
 the separate strict gate before CupidObj flattened the kernel. It produced a 9,162,816-byte
 final ELF with SHA-256

@@ -965,7 +965,7 @@ Counts are output transforms in the checked audit, not textual recipe occurrence
 | Checked-seed CupidObj disk path | Included in the 192 CupidObj transforms | `disk-template` authors the MBR, boot reserve, kernel lane, FAT16 metadata, pristine FATs, and empty root directory before Python performs mutable image work. |
 | Checked-seed CupidObj ISO path | Included in the 192 CupidObj transforms | `iso-fixture` authors the complete deterministic ECMA-119 and Rock Ridge image before Python compares an independent render and publishes under a per-output lock. |
 | Checked-seed CupidObj profile path | Included in the 192 CupidObj transforms | `profile-manifest` authors the canonical Doom profile JSON from a frozen `CUPROF1` snapshot before Python checks an independent oracle and publishes under an adjacent no-follow lock. |
-| CupidDis | 6 participating transforms | Supplies 4,718 deterministic text-symbol rows for the 114,851-byte panic-backtrace blob, validates the complete 431-input code cohort in the transactional `kernel.bin` transform, checks the bootloader and SMP trampoline maps, and covers every executable byte in the private ISR and context-switch objects before publication; the host oracle remains optional |
+| CupidDis | 6 participating transforms | Supplies 4,718 deterministic text-symbol rows for the 114,851-byte panic-backtrace blob, validates the complete 431-input code cohort in the transactional `kernel.bin` transform, checks the bootloader and SMP trampoline maps, and covers every executable byte in the private ISR and context-switch objects before publication. Source head also validates executable relocation ownership, while the current checked seed retains the preceding decode-only policy. The host oracle remains optional. |
 | Python | 452 transforms | Launches checked Cupid tools and retains host discovery, safety, parity, drift detection, locking, publication, and mutable image work. The Python-only root size verifier emits no OS artifact. Two supplemental verification or orchestration outputs remain Python-only. The user ABI gate combines a Cupid-built contract with an independent Python oracle. The disk image, ISO image, and Doom profile manifest are composite transforms because checked CupidObj authors their deterministic bytes first. |
 | Make recursion | 0 transforms | Native hosted CupidASM, CupidObj, CupidLD, and CupidDis targets remain available, but no supported root reaches them recursively |
 
@@ -1005,6 +1005,14 @@ the launcher and drift guard, so this adoption removes no orchestration
 dependency. ADR 0266's indexed decoder makes the checked 128 KiB throughput
 contract pass within 30 seconds without changing instruction selection or
 recovery. ADR 0265 records production adoption.
+
+Source-head CupidDis also counts relocations that target executable sections
+in ELF32 relocatable objects. It accepts `R_386_PC32` only on decoded
+four-byte relative fields and `R_386_32` only on decoded four-byte
+non-relative fields at the same section offset. `--require-known` rejects an
+unmatched count, but data relocations remain outside the code rule. This
+change adds no transform or host dependency. The production transactions gain
+the rule only after a checked-seed promotion. ADR 0290 records that boundary.
 
 The final audit records 452 transforms across the three supported roots and
 443 under root `all`. Its tool participation totals are Python 452, CupidC
