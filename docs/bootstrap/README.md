@@ -483,7 +483,7 @@ Hosted CupidC now carries signed and unsigned eight-byte integer values through 
 
 Wide values support addition, subtraction, multiplication, division, remainder, unary plus, unary minus, bitwise complement, shifts, AND, OR, XOR, comparisons, logical operators, conditional selection, structured scalar conditions, signed or unsigned switch dispatch, all ten compound assignments, prefix and postfix update, and conversion to or from represented integer widths. Switch lowering evaluates the condition once and duplicates its snapshot handle before each full-width case comparison. Mutation evaluates its destination once and keeps one semantic load and store. Multiplication combines one full low-word product with both cross-word products. Division and remainder run a fixed 64-step restoring loop over unsigned magnitudes, then apply the quotient or dividend sign. Each multiplication, division, remainder, or wide variadic-read result receives a fresh snapshot. The unchanged `ctool_buffer_put_le64`, `ctool_buffer_patch_le64`, `pp_if_value_truth`, `pp_if_is_negative`, `pp_if_signed_less`, `pp_if_signed_magnitude`, `cfront_constant_apply_binary`, and X25519 `fe_carry` bodies guard the broader operation set. CupidASM's unchanged number parser and unary expression branch guard the arithmetic, while X25519's unchanged `fe_mul_u32` helper guards wide-by-narrow multiplication. ADRs 0065 through 0075 record these boundaries. Runtime cases that C leaves undefined promise neither a trap nor a result.
 
-Hosted CupidC carries `float` and `double` values through object access, automatic initialization, plain assignment, discard, fixed direct or indirect calls, parameters, call results, and returns. Explicit casts and assignment conversion work in both directions between the two widths. Unary plus and minus and binary addition, subtraction, multiplication, and division accept matching or mixed floating operands. Matching floating conditional arms keep their width, and mixed `float` and `double` arms use `double`. Source-head CupidC also accepts a runtime conditional that mixes either floating width with a represented signed or unsigned integer no wider than four bytes. The usual arithmetic conversion changes the selected integer arm to the floating result type. Eight-byte integer and `long double` mixes receive specific unsupported diagnostics. The four arithmetic compound assignments compute at the common width, convert back to the left width, and evaluate their lvalue once. Every changed x87 result is immediately stored at its C width. A `float` rounds into a fresh four-byte semantic slot, while a `double` receives a fresh private eight-byte snapshot. The unchanged `libm_tanh_impl` body pins nested arithmetic with call-produced `double` values, and the complete following `float` helper slice pins the width conversions. The path also promotes `float` to `double` at ellipsis and unprototyped call positions. Calls use four-byte or eight-byte cdecl slots, floating returns use x87 `ST0`, and `va_arg(double)` advances by eight bytes.
+Hosted CupidC carries `float` and `double` values through object access, automatic initialization, plain assignment, discard, fixed direct or indirect calls, parameters, call results, and returns. Explicit casts and assignment conversion work in both directions between the two widths. Every represented signed or unsigned integer through 64 bits may also convert to either floating width through a cast, initialization, plain assignment, return, or fixed argument. Unary plus and minus and binary addition, subtraction, multiplication, and division accept matching or mixed floating operands. Runtime `+`, `-`, `*`, `/`, all six comparisons, and conditional selection apply the usual arithmetic conversions when the other operand or arm is any represented value integer or compatible enum. The floating operand chooses the result width, and a conditional converts only its selected arm. Inputs through four bytes use the existing SSE conversion. An eight-byte input uses x87 `FILD`, including the unsigned 2^64 correction, before storing at binary32 or binary64 width. Atomic mixed operands remain unsupported. The four arithmetic compound assignments compute at the common width, convert back to the left width, and evaluate their lvalue once. Integer-lvalue compound assignment with a floating right operand remains a separate boundary. Every changed x87 result is immediately stored at its C width. A `float` rounds into a fresh four-byte semantic slot, while a `double` receives a fresh private eight-byte snapshot. The unchanged `libm_tanh_impl` body pins nested arithmetic with call-produced `double` values, and the complete following `float` helper slice pins the width conversions. The path also promotes `float` to `double` at ellipsis and unprototyped call positions. Calls use four-byte or eight-byte cdecl slots, floating returns use x87 `ST0`, and `va_arg(double)` advances by eight bytes.
 
 Checked-seed hosted CupidC also accepts prefix and postfix increment and
 decrement on modifiable non-atomic `float` and `double` lvalues. Linear IR
@@ -502,10 +502,12 @@ short-circuit logic, and conditional selection. It rounds after each semantic
 operation at the expression's binary32 or binary64 width, converts represented
 signed and unsigned integers through 64 bits, preserves signed zero, and uses
 the normal `.rodata`, `.data`, or `.bss` placement policy. SSE emission covers
-represented runtime integer-to-floating conversions, floating-to-signed
-conversions, floating-to-unsigned conversions through represented four-byte
-targets, an explicit non-atomic `double` to `unsigned long long` cast, mixed
-represented integer and floating arithmetic, and all six comparisons.
+runtime integer-to-floating conversions through four-byte inputs,
+floating-to-signed conversions, floating-to-unsigned conversions through
+represented four-byte targets, an explicit non-atomic `double` to `unsigned
+long long` cast, mixed represented integer and floating arithmetic, and all
+six comparisons. Eight-byte integer input uses the x87 path described below
+and stores the result at the requested floating width.
 Matching widths use
 `UCOMISS` or `UCOMISD`; a mixed pair widens to `double`. Explicit parity
 handling makes every unordered relation false except `!=`. The unsigned
@@ -585,13 +587,14 @@ integer and enum. Linear IR keeps the usual-arithmetic conversion on the
 integer value. Conditional lowering converts only the selected arm.
 Hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimals beyond the bounded
-ratio parser, operations that mix an eight-byte integer with `float` or
-`double`, other floating-to-wide conversions, atomic and long-double updates,
+ratio parser, other floating-to-wide conversions, integer-lvalue compound
+assignment with a floating right operand, atomic and long-double updates,
 SIMD, and over-aligned
 floating objects remain open. ADR 0202 records the runtime truth boundary,
 ADR 0256 records canonical static x87 classes, and ADR 0260 records static x87
 arithmetic. ADR 0288 records the runtime integer and long-double usual
-conversions.
+conversions. ADR 0289 records wide integer conversion and usual arithmetic
+with `float` and `double`.
 
 The static object proof covers exact `1.0L`, the next represented value above
 one, the largest accepted bounded literal, positive and negative zero, and
@@ -660,7 +663,8 @@ the bounded decimal literal representation and automatic object proof. ADR
 between `long double` and integers. ADR 0254 records static initializer
 conversion. ADR 0255 records static control expressions and finite
 floating-width conversion. ADR 0288 records runtime integer and long-double
-arithmetic, comparisons, and conditional selection.
+arithmetic, comparisons, and conditional selection. ADR 0289 records the
+matching wide integer boundary for `float` and `double`.
 
 The self-host source frontier first closed five requirements from unchanged Toolchain code. Supported structure snapshots retain nested union bytes, and a scalar member can be loaded from a returned structure snapshot. A direct four-byte literal zero can form a represented null function pointer. An object pointer can convert to a signed or unsigned eight-byte integer with a zero high word, and conversion back keeps the low word. Compatible static character and void pointers accept an ordinary string literal through parentheses and macro expansion. At that boundary, top-level union values, aggregate members from structure rvalues, nonzero function-pointer casts, function-pointer and wide-integer conversions, and arithmetic or explicit casts on static string addresses remained open. ADR 0081 records that earlier language boundary.
 
@@ -2011,7 +2015,7 @@ block declaration attributes, nested function definitions, computed goto and
 GNU label addresses, broader GNU assembly forms, hexadecimal floating
 constants, binary32 and binary64 subnormal literals, hexadecimal or subnormal
 long-double literals, long-double decimal ratios beyond the bounded parser,
-remaining integer and floating conversions, nonempty identifier-list
+remaining floating-to-wide conversions, nonempty identifier-list
 definitions, non-scalar arguments without declared parameter
 types, aggregate variadic reads, block assertions, variable-length arrays and
 runtime `sizeof`, the remaining GNU attributes, complete Cupid extensions,
@@ -2038,6 +2042,9 @@ runtime IR. ADR 0287 adds runtime integer conditional arms with `float` and
 `double`. ADR 0288 applies runtime usual arithmetic conversions between every
 represented value integer or enum and `long double` for arithmetic,
 comparisons, and conditional selection.
+ADR 0289 removes the remaining four-byte source-head limit on integer input to
+`float` and `double` casts, assignment conversion, arithmetic, comparisons,
+and conditional selection.
 
 The latest local normal build completed in 1,444.7 seconds. Its
 9,093,772-byte final ELF has SHA-256

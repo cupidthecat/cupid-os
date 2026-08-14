@@ -632,10 +632,14 @@ calls, variadic reads, and returns. Explicit casts and assignment conversion
 work in either direction. Unary plus and minus and binary addition,
 subtraction, multiplication, and division accept matching or mixed floating
 widths. Matching floating conditional arms keep their width. Mixed arithmetic
-and float-or-double conditional arms use double. A runtime conditional may
-also mix either floating width with a represented signed or unsigned integer
-no wider than four bytes. The selected integer arm converts to the floating
-result type. The four arithmetic
+and float-or-double conditional arms use double. Every represented signed or
+unsigned integer through 64 bits may convert to either floating width through
+a cast, initialization, plain assignment, return, or fixed argument. Runtime
++, -, *, /, all six comparisons, and conditional selection apply the same
+usual arithmetic conversions. Only the selected integer arm of a conditional
+converts. Inputs through four bytes use SSE. An eight-byte input uses x87 FILD,
+applies the unsigned 2^64 correction when needed, and stores at the requested
+floating width. The four arithmetic
 compound assignments compute at the common width, convert back to the left
 width, and evaluate their lvalue once.
 
@@ -663,6 +667,13 @@ rounding cases, mixed expressions, UCOMISS and UCOMISD comparisons, call
 alignment, and frame state. The comparison execution proof includes signed
 zero, infinities, quiet NaN, and signaling NaN. The arithmetic model does not
 execute native x87 code.
+
+The wide conversion proof contains 63 functions in 10,513 text bytes, with
+fingerprint 01725E63, 64 symbols, and 123 relocations. Twenty-two execution
+cases cover signed and unsigned endpoints, binary32 and binary64 precision
+boundaries, all four arithmetic operators, all six comparisons, and both
+conditional directions. The hosted and Cupid-built compilers emit matching
+objects for the same wide source forms.
 
 The public frontend publishes decimal float and double constants as exact IEEE
 binary32 or binary64 bits. It uses bounded integer arithmetic and rounds to
@@ -756,8 +767,8 @@ ADR 0259 records the shared parity predicates.
 
 Hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
-bounded parser, other floating-to-wide conversions, runtime operations that
-mix an eight-byte integer with float or double, atomic and long double updates,
+bounded parser, other floating-to-wide conversions, integer-lvalue compound
+assignment with a floating right operand, atomic and long double updates, and
 general SIMD
 value semantics, and over-aligned object emission remain
 unfinished.

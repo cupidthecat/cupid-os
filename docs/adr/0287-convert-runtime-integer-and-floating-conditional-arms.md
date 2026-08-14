@@ -35,8 +35,9 @@ remains unsupported. Both cases receive conditional-specific diagnostics.
 Atomic floating arms keep their existing focused rejection.
 
 ADR 0288 later removed the integer and `long double` limit by admitting the
-existing x87 conversion under the usual arithmetic rules. The eight-byte
-integer with `float` or `double` limit remains.
+existing x87 conversion under the usual arithmetic rules. ADR 0289 later
+removed the eight-byte integer limit for `float` and `double` by admitting the
+wide x87 conversion already present in the emitter.
 
 ## Evidence
 
@@ -44,7 +45,9 @@ The frontend contract first reproduced the old rejection for an `int` and
 `float` conditional. Its positive fixture now checks signed `int`, signed
 `short`, unsigned `int`, and unsigned `char` opposite both floating widths.
 Each expression publishes exactly one `USUAL_ARITHMETIC` conversion on the
-integer arm. A negative fixture checks the exact eight-byte diagnostic.
+integer arm. At the time of this decision, a negative fixture checked the
+exact eight-byte diagnostic. ADR 0289 replaces that historical boundary with
+positive wide coverage.
 
 The Linear IR contract publishes nine conditional branches across the
 floating-conversion fixture. Each of the four new functions keeps one typed
@@ -77,10 +80,10 @@ Rewriting active source to use an `if` statement or explicit cast was rejected.
 The conditional operator is ordinary C, and CupidC already had the required
 conversion and emission machinery.
 
-Silently accepting eight-byte integer mixes was rejected. The current
-`float` and `double` conversion path represents integer inputs through one
-four-byte lane. A later wide implementation must preserve all eight bytes and
-come with its own executable proof.
+Silently accepting eight-byte integer mixes was rejected at this stage. A
+wide implementation had to preserve all eight bytes and provide its own
+executable proof. ADR 0289 later met that requirement through the existing
+x87 64-bit conversion path.
 
 ## Consequences
 
@@ -90,7 +93,7 @@ extension, and the active build graph has no source that requires it. No OS
 object, build owner, artifact, ABI, dependency, or source suffix changes.
 
 The next seed convergence must carry this frontend and contract update before
-the checked toolchain can claim the capability. Eight-byte integer mixes with
-`float` or `double` and atomic floating conditionals remain explicit follow-up
-work. ADR 0288 completes the source-head integer and long-double conditional
-case.
+the checked toolchain can claim the capability. Atomic floating conditionals
+remain explicit follow-up work. ADR 0288 completes the source-head integer and
+long-double conditional case, and ADR 0289 completes the represented wide
+integer case for `float` and `double`.

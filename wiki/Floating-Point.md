@@ -36,10 +36,10 @@ carries non-atomic `float` and `double` values through objects, calls,
 variadic reads, and returns. Explicit casts and assignment conversion work in
 either direction between those widths. Mixed arithmetic and conditional arms
 use `double`. Matching floating conditional arms keep their width. A runtime
-conditional can also mix `float` or `double` with a represented signed or
-unsigned integer no wider than four bytes. The selected integer arm converts
-to the floating result type. The condition may be a represented integer or
-pointer.
+conditional can also mix `float` or `double` with any represented signed or
+unsigned integer through 64 bits, or with a compatible enum. The selected
+integer arm converts to the floating result type. The condition may be a
+represented integer or pointer.
 
 `+=`, `-=`, `*=`, and `/=` compute at the common width and convert the stored
 result back to the left type. The compiler evaluates the left designator once.
@@ -47,9 +47,12 @@ Each changed x87 result is stored at its C width before the next Linear IR
 instruction.
 
 Decimal constants, represented integer conversions, mixed
-integer-and-floating arithmetic, and all six comparisons use the shared SSE
-path. Runtime `float` and `double` values convert to represented unsigned
-targets through four bytes. Binary32 widens exactly to binary64, and a
+integer-and-floating arithmetic, and all six comparisons use the shared
+target paths. Inputs through four bytes use SSE. An eight-byte input uses x87
+`FILD`, applies the unsigned 2^64 correction when needed, and stores the result
+at binary32 or binary64 width. Runtime `float` and `double` values convert to
+represented unsigned targets through four bytes. Binary32 widens exactly to
+binary64, and a
 four-byte result splits at 2^31 before signed truncation. A mixed floating
 comparison uses `double`; only `!=` is true for an unordered NaN input. ADR
 0250 records the unsigned-output rule.
@@ -120,8 +123,9 @@ records static controls and finite width conversion. ADR 0256 records the
 canonical x87 decoder and special-value transport. ADR 0260 records the
 static arithmetic and rounding model. ADR 0258 records checked-seed carriage
 of the earlier static frontier, and ADR 0265 records carriage of the arithmetic
-path. ADR 0288 records the source-head runtime usual conversions. The checked
-seed predates that extension.
+path. ADR 0288 records the source-head integer and long-double usual
+conversions. ADR 0289 records the corresponding wide integer rule for `float`
+and `double`. The checked seed predates those extensions.
 
 The checked native Windows seed carried this path through an earlier
 2026-08-13 poisoned-host checkpoint. Its first invocation stopped at the
@@ -430,9 +434,11 @@ compile error.
 
 ### Casts
 
-`(int)3.7` -> 3 (truncating). `(float)5` -> 5.0. A `char` uses the same
-integer-to-floating conversion path. `(double)1.5f` widens. Casts lower to
-CVTSI2SS/CVTTSS2SI/CVTSS2SD/etc.
+`(int)3.7` -> 3 (truncating). `(float)5` -> 5.0. Every represented integer
+width may convert to `float` or `double`. Inputs through four bytes use the
+SSE conversion instructions. A signed wide input uses x87 `FILD`; an unsigned
+wide input adds 2^64 when its signed load had the high bit set. `(double)1.5f`
+widens through the ordinary floating-width conversion.
 
 Private CupidC also converts `float` and `double` to an unsigned 32-bit word
 for values in C's defined interval. Its lower path truncates directly. Its

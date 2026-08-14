@@ -597,11 +597,13 @@ and lets checked-seed CupidC emit `kernel/smp/acpi.cc`,
 `kernel/smp/mp_tables.cc`, and the active EHCI port-change path.
 
 The public frontend now represents decimal `float` and `double` constants as
-exact IEEE bits without calling a host floating library. The IR and SSE
-emitter cover represented integer-to-floating conversions,
-floating-to-signed conversions, floating-to-unsigned conversions through
-represented four-byte targets, and mixed represented integer and floating
-arithmetic.
+exact IEEE bits without calling a host floating library. Casts and assignment
+conversion accept every represented integer through 64 bits as input to
+either width. Runtime arithmetic, all six comparisons, and conditional
+selection apply the same usual arithmetic conversions. Inputs through four
+bytes use the SSE emitter. Wide input uses target x87 `FILD`, applies the
+unsigned 2^64 correction when needed, and stores at binary32 or binary64
+width. None of these paths calls host floating code.
 The checked seed also covers an explicit non-atomic `double` to
 `unsigned long long` cast. Unsigned four-byte input uses an exact split
 across the sign boundary. Runtime four-byte output widens binary32 exactly
@@ -685,8 +687,9 @@ final initializer records. This work introduces no host floating operation or
 math-library dependency.
 Hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
-bounded parser, operations that mix an eight-byte integer with `float` or
-`double`, and atomic or long-double updates remain open. Matching or
+bounded parser, other floating-to-wide conversions, integer-lvalue compound
+assignment with a floating right operand, and atomic or long-double updates
+remain open. Matching or
 mixed-width floating
 conditional arms and the four arithmetic compound assignments retain their
 established x87 path. All six matching or mixed long-double comparisons use a
@@ -697,8 +700,10 @@ long-double data, ADR 0253 records runtime conversions between `long double`
 and integers, ADR 0254 records static initializer conversion, ADR 0255
 records static controls and finite width conversion, and ADR 0256 records
 canonical x87 classes and special-value conversion. ADR 0260 records static
-long-double arithmetic. ADR 0288 records the runtime usual conversions. The
-implementation uses no host floating operation, helper, or library.
+long-double arithmetic. ADR 0288 records the runtime long-double usual
+conversions, and ADR 0289 records wide integer conversion and usual arithmetic
+with `float` and `double`. The implementation uses no host floating operation,
+helper, or library.
 
 The checked seed and source head have 604 x86 forms, 249 canonical mnemonics,
 64 registers, and fingerprint `55A8970F`. The catalogue includes signed x87
@@ -1343,22 +1348,24 @@ ADR 0263 adds prefix and postfix update for modifiable non-atomic `float` and
 `double` lvalues. Linear IR evaluates the destination once, and the emitter
 returns the original payload for postfix forms after storing the replacement.
 
-Source-head CupidC also accepts runtime conditional arms that mix `float` or
-`double` with a represented signed or unsigned integer no wider than four
-bytes. This adds no host producer and moves no normal OS transform because the
-active source graph does not use the new shape. The checked seed predates this
-extension. ADR 0287 records the boundary.
+Source-head CupidC accepts casts, assignment conversion, runtime arithmetic,
+all six comparisons, and conditional selection between `float` or `double`
+and every represented signed or unsigned integer through 64 bits. This adds no
+host producer and moves no normal OS transform because the active source graph
+does not use the wide expression shape. The checked seed predates this
+extension. ADR 0287 records the first conditional boundary, and ADR 0289
+removes its four-byte limit.
 
 Source-head CupidC also applies the usual arithmetic conversions between
 `long double` and every represented value integer or enum during runtime
 arithmetic, comparisons, and conditional selection. It reuses the Cupid-owned
 x87 emitter and adds no host producer. ADR 0288 records the boundary.
 
-Operations that mix an eight-byte integer with `float` or `double`, atomic
-and long-double updates, hexadecimal floating literals, binary32 and
-binary64 subnormal literals, hexadecimal or subnormal long-double literals,
-decimal ratios beyond the bounded parser, aggregate floating values, atomic
-access, and other unrepresented forms remain
+Other floating-to-wide conversions, integer-lvalue compound assignment with a
+floating right operand, atomic and long-double updates, hexadecimal floating
+literals, binary32 and binary64 subnormal literals, hexadecimal or subnormal
+long-double literals, decimal ratios beyond the bounded parser, aggregate
+floating values, atomic access, and other unrepresented forms remain
 outside the current ABI slice.
 
 The wide-mutation proof expands shared semantics. Fifteen functions publish 225 exact IR instructions, and 17 emitted functions occupy 4,410 text bytes with fingerprint `4B337038`, 18 symbols including the null symbol, and no relocations. Decoder and execution checks cover all ten compound operators, signed and unsigned prefix or postfix update, postfix snapshot preservation, one-time indexed evaluation, volatile access, cdecl state, rollback, and deterministic recovery. Checked-seed CupidC uses this path for the `+=` and `&=` operations in X25519's `fe_carry`, and both checked stages build the focused contract. GCC or Clang provides only the optional native copy.

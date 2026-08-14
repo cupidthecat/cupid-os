@@ -7762,12 +7762,12 @@ static int validate_toolchain_frontier(const char *host_root) {
        5487u, 85u, 43u, 0u, 0u},
       {"/toolchain/cupidc_pp.cc", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
        25287u, 479u, 286u, 0u, 0u},
-      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 270u, 7613u,
-       70465u, 1002u, 367u, 0u, 0u},
-      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 368u, 9325u,
-       77800u, 1131u, 754u, 0u, 0u},
+      {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 270u, 7610u,
+       70405u, 1002u, 367u, 0u, 0u},
+      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 368u, 9322u,
+       77740u, 1131u, 754u, 0u, 0u},
       {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 445u,
-       17247u, 113875u, 2565u, 1547u, 0u, 0u},
+       17247u, 113728u, 2565u, 1547u, 0u, 0u},
       {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 84u, 3146u,
        20707u, 346u, 196u, 0u, 0u},
       {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
@@ -24776,11 +24776,6 @@ static int run_floating_arithmetic(const char *host_root) {
       "long double long_add_enum(long double left, enum usual_integer_tag "
       "right) { return left + right; }\n";
   static const frontend_exact_failure_case_t failure_cases[] = {
-      {{"wide integer and float operands",
-        "float bad(float left, long long right) { return left * right; }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       1u, 54u,
-       "integer and floating arithmetic conversion exceeds the represented 32-bit slice"},
       {{"floating remainder",
         "float bad(float left, float right) { return left % right; }\n",
         CTOOL_ERR_INPUT, CTOOL_C_PARSE_DIAG_EXPRESSION},
@@ -25061,12 +25056,7 @@ static int run_floating_comparisons(const char *host_root) {
         "int bad(_Atomic float left, float right) { return left == right; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
        0u, 0u,
-       "atomic floating comparison is outside this expression slice"},
-      {{"wide integer and floating comparison",
-        "int bad(long long left, float right) { return left >= right; }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       0u, 0u,
-       "integer and floating comparison conversion exceeds the represented 32-bit slice"}};
+       "atomic floating comparison is outside this expression slice"}};
   frontend_fixture_t fixture;
   ctool_c_translation_unit_t unit;
   ctool_u32 index;
@@ -25709,15 +25699,6 @@ static int run_floating_conversions(const char *host_root) {
       "long long signed_wide_from_long(long double value) { return (long long)value; }\n"
       "unsigned long long unsigned_wide_from_long(long double value) { unsigned long long result = value; return result; }\n";
   static const frontend_exact_failure_case_t failure_cases[] = {
-      {{"wide integer to floating assignment",
-        "double bad(long long value) { return value; }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       0u, 0u,
-       "floating assignment conversion is outside this body slice"},
-      {{"wide integer to floating cast",
-        "double bad(long long value) { return (double)value; }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       0u, 0u, "floating cast is outside this expression slice"},
       {{"atomic floating cast",
         "double bad(float value) { return (_Atomic double)value; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
@@ -25746,16 +25727,6 @@ static int run_floating_conversions(const char *host_root) {
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
        0u, 0u,
        "floating assignment conversions are outside this body slice"},
-      {{"wide integer and floating arithmetic",
-        "double bad(long long left, double right) { return left + right; }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       0u, 0u,
-       "integer and floating arithmetic conversion exceeds the represented 32-bit slice"},
-      {{"wide integer and floating conditional",
-        "double bad(int condition, long long left, double right) { return condition ? left : right; }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       0u, 0u,
-       "integer and floating conditional conversion exceeds the represented 32-bit slice"},
       {{"atomic floating conditional arm",
         "double bad(int condition, _Atomic float left, double right) { return condition ? left : right; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
@@ -25821,6 +25792,244 @@ cleanup:
   }
   if (failed == 0) {
     (void)printf("floating-conversions: ok\n");
+  }
+  return failed;
+}
+
+static int wide_integer_floating_conversion_slot(
+    const ctool_c_translation_unit_t *unit,
+    const ctool_c_expression_t *expression,
+    ctool_u32 *target_index_out,
+    ctool_u32 *signedness_index_out) {
+  ctool_c_type_kind_t target_kind;
+  ctool_c_type_kind_t source_kind;
+  ctool_u32 child;
+  if (unit == NULL || expression == NULL || target_index_out == NULL ||
+      signedness_index_out == NULL || expression->child_count != 1u) {
+    return 0;
+  }
+  child = expression_child(unit, expression, 0u);
+  if (child >= unit->expression_count) {
+    return 0;
+  }
+  target_kind = underlying_type_kind(unit, expression->type, NULL);
+  source_kind =
+      underlying_type_kind(unit, unit->expressions[child].type, NULL);
+  if (target_kind == CTOOL_C_TYPE_FLOAT) {
+    *target_index_out = 0u;
+  } else if (target_kind == CTOOL_C_TYPE_DOUBLE) {
+    *target_index_out = 1u;
+  } else {
+    return 0;
+  }
+  if (source_kind == CTOOL_C_TYPE_SIGNED_LONG_LONG) {
+    *signedness_index_out = 0u;
+  } else if (source_kind == CTOOL_C_TYPE_UNSIGNED_LONG_LONG) {
+    *signedness_index_out = 1u;
+  } else {
+    return 0;
+  }
+  return 1;
+}
+
+static int validate_wide_integer_floating(
+    const ctool_c_translation_unit_t *unit) {
+  ctool_u32 casts[2][2] = {{0u, 0u}, {0u, 0u}};
+  ctool_u32 assignments[2][2] = {{0u, 0u}, {0u, 0u}};
+  ctool_u32 usual[2][2] = {{0u, 0u}, {0u, 0u}};
+  ctool_u32 arithmetic[4] = {0u, 0u, 0u, 0u};
+  ctool_u32 comparisons[6] = {0u, 0u, 0u, 0u, 0u, 0u};
+  ctool_u32 conditionals = 0u;
+  ctool_u32 target_index;
+  ctool_u32 signedness_index;
+  ctool_u32 index;
+  if (unit == NULL || unit->function_definition_count != 32u) {
+    return 1;
+  }
+  for (index = 0u; index < unit->expression_count; index++) {
+    const ctool_c_expression_t *expression = &unit->expressions[index];
+    if (wide_integer_floating_conversion_slot(
+            unit, expression, &target_index, &signedness_index) != 0) {
+      if (expression->kind == CTOOL_C_EXPRESSION_CAST &&
+          expression->conversion == CTOOL_C_CONVERSION_NONE) {
+        casts[target_index][signedness_index]++;
+      } else if (expression->kind ==
+                     CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+                 expression->conversion == CTOOL_C_CONVERSION_ASSIGNMENT) {
+        assignments[target_index][signedness_index]++;
+      } else if (expression->kind ==
+                     CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+                 expression->conversion ==
+                     CTOOL_C_CONVERSION_USUAL_ARITHMETIC) {
+        usual[target_index][signedness_index]++;
+      }
+    }
+    if (expression->kind == CTOOL_C_EXPRESSION_BINARY) {
+      switch (expression->operation) {
+        case CTOOL_C_EXPRESSION_OPERATOR_ADD:
+          arithmetic[0]++;
+          break;
+        case CTOOL_C_EXPRESSION_OPERATOR_SUBTRACT:
+          arithmetic[1]++;
+          break;
+        case CTOOL_C_EXPRESSION_OPERATOR_MULTIPLY:
+          arithmetic[2]++;
+          break;
+        case CTOOL_C_EXPRESSION_OPERATOR_DIVIDE:
+          arithmetic[3]++;
+          break;
+        case CTOOL_C_EXPRESSION_OPERATOR_EQUAL:
+          comparisons[0]++;
+          break;
+        case CTOOL_C_EXPRESSION_OPERATOR_NOT_EQUAL:
+          comparisons[1]++;
+          break;
+        case CTOOL_C_EXPRESSION_OPERATOR_LESS:
+          comparisons[2]++;
+          break;
+        case CTOOL_C_EXPRESSION_OPERATOR_LESS_EQUAL:
+          comparisons[3]++;
+          break;
+        case CTOOL_C_EXPRESSION_OPERATOR_GREATER:
+          comparisons[4]++;
+          break;
+        case CTOOL_C_EXPRESSION_OPERATOR_GREATER_EQUAL:
+          comparisons[5]++;
+          break;
+        default:
+          break;
+      }
+    } else if (expression->kind == CTOOL_C_EXPRESSION_CONDITIONAL) {
+      conditionals++;
+    }
+  }
+  for (target_index = 0u; target_index < 2u; target_index++) {
+    for (signedness_index = 0u; signedness_index < 2u;
+         signedness_index++) {
+      if (casts[target_index][signedness_index] != 1u ||
+          assignments[target_index][signedness_index] != 1u ||
+          usual[target_index][signedness_index] != 6u) {
+        (void)fprintf(
+            stderr,
+            "wide-integer-floating: conversion inventory differs at %u/%u: "
+            "casts=%u assignments=%u usual=%u\n",
+            (unsigned int)target_index, (unsigned int)signedness_index,
+            (unsigned int)casts[target_index][signedness_index],
+            (unsigned int)assignments[target_index][signedness_index],
+            (unsigned int)usual[target_index][signedness_index]);
+        return 1;
+      }
+    }
+  }
+  for (index = 0u; index < 4u; index++) {
+    if (arithmetic[index] != 2u) {
+      return 1;
+    }
+  }
+  for (index = 0u; index < 6u; index++) {
+    if (comparisons[index] != 2u) {
+      return 1;
+    }
+  }
+  return conditionals == 4u ? 0 : 1;
+}
+
+static int run_wide_integer_floating(const char *host_root) {
+  static const char source[] =
+      "float take_float(float value);\n"
+      "double take_double(double value);\n"
+      "float cast_signed_float(long long value) { return (float)value; }\n"
+      "float cast_unsigned_float(unsigned long long value) { return (float)value; }\n"
+      "double cast_signed_double(long long value) { return (double)value; }\n"
+      "double cast_unsigned_double(unsigned long long value) { return (double)value; }\n"
+      "float return_signed_float(long long value) { return value; }\n"
+      "float initialize_unsigned_float(unsigned long long value) { float result = value; return result; }\n"
+      "double assign_signed_double(long long value) { double result; result = value; return result; }\n"
+      "double call_unsigned_double(unsigned long long value) { return take_double(value); }\n"
+      "float add_signed_float(long long left, float right) { return left + right; }\n"
+      "float subtract_float_unsigned(float left, unsigned long long right) { return left - right; }\n"
+      "float multiply_signed_float(long long left, float right) { return left * right; }\n"
+      "float divide_float_unsigned(float left, unsigned long long right) { return left / right; }\n"
+      "double add_unsigned_double(unsigned long long left, double right) { return left + right; }\n"
+      "double subtract_double_signed(double left, long long right) { return left - right; }\n"
+      "double multiply_unsigned_double(unsigned long long left, double right) { return left * right; }\n"
+      "double divide_double_signed(double left, long long right) { return left / right; }\n"
+      "int equal_signed_float(long long left, float right) { return left == right; }\n"
+      "int not_equal_float_unsigned(float left, unsigned long long right) { return left != right; }\n"
+      "int less_unsigned_float(unsigned long long left, float right) { return left < right; }\n"
+      "int less_equal_float_signed(float left, long long right) { return left <= right; }\n"
+      "int greater_signed_float(long long left, float right) { return left > right; }\n"
+      "int greater_equal_float_unsigned(float left, unsigned long long right) { return left >= right; }\n"
+      "int equal_unsigned_double(unsigned long long left, double right) { return left == right; }\n"
+      "int not_equal_double_signed(double left, long long right) { return left != right; }\n"
+      "int less_signed_double(long long left, double right) { return left < right; }\n"
+      "int less_equal_double_unsigned(double left, unsigned long long right) { return left <= right; }\n"
+      "int greater_unsigned_double(unsigned long long left, double right) { return left > right; }\n"
+      "int greater_equal_double_signed(double left, long long right) { return left >= right; }\n"
+      "float choose_signed_float(int condition, long long left, float right) { return condition ? left : right; }\n"
+      "float choose_float_unsigned(int condition, float left, unsigned long long right) { return condition ? left : right; }\n"
+      "double choose_unsigned_double(int condition, unsigned long long left, double right) { return condition ? left : right; }\n"
+      "double choose_double_signed(int condition, double left, long long right) { return condition ? left : right; }\n";
+  static const frontend_exact_failure_case_t failure_cases[] = {
+      {{"atomic wide integer cast",
+        "float bad(_Atomic long long value) { return (float)value; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u, "floating cast is outside this expression slice"},
+      {{"atomic wide integer assignment",
+        "double bad(_Atomic unsigned long long value) { return value; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "floating assignment conversion is outside this body slice"},
+      {{"atomic wide integer arithmetic",
+        "float bad(_Atomic long long left, float right) { return left + right; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "atomic mixed floating arithmetic is outside this expression slice"},
+      {{"atomic wide integer comparison",
+        "int bad(float left, _Atomic unsigned long long right) { return left < right; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "atomic floating comparison is outside this expression slice"},
+      {{"atomic wide integer conditional",
+        "double bad(int condition, _Atomic long long left, double right) { return condition ? left : right; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "atomic floating conditional operands are outside this body slice"}};
+  frontend_fixture_t fixture;
+  ctool_c_translation_unit_t unit;
+  ctool_u32 index;
+  int failed = 1;
+
+  if (begin_frontend_fixture(&fixture, "wide-integer-floating", host_root,
+                             8u * 1024u * 1024u) != 0) {
+    return 1;
+  }
+  fixture.pp_request.gnu_extensions = CTOOL_TRUE;
+  fixture.parse_request.gnu_extensions = CTOOL_TRUE;
+  if (parse_valid_fixture(&fixture, "/wide-integer-floating.c", source,
+                          &unit) != 0 ||
+      validate_wide_integer_floating(&unit) != 0) {
+    (void)fprintf(stderr, "wide-integer-floating: public graph differs\n");
+    goto cleanup;
+  }
+  for (index = 0u; index < ARRAY_COUNT(failure_cases); index++) {
+    const frontend_exact_failure_case_t *test_case = &failure_cases[index];
+    if (expect_frontend_failure_at_message(
+            &fixture, &test_case->failure,
+            "/wide-integer-floating-failure.c", test_case->line,
+            test_case->column, test_case->message) != 0 ||
+        validate_wide_integer_floating(&unit) != 0) {
+      goto cleanup;
+    }
+  }
+  failed = 0;
+
+cleanup:
+  if (finish_frontend_fixture(&fixture) != 0) {
+    failed = 1;
+  }
+  if (failed == 0) {
+    (void)printf("wide-integer-floating: ok\n");
   }
   return failed;
 }
@@ -26649,9 +26858,6 @@ static int run_floating_scalars(const char *host_root) {
       {"double to atomic unsigned wide cast",
        "unsigned long long bad(double value) { "
        "return (_Atomic unsigned long long)value; }\n",
-       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-      {"wide integer to floating conversion",
-       "double bad(long long value) { return value; }\n",
        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION}};
   static const frontend_exact_failure_case_t range_failure_cases[] = {
       {{"atomic static floating initialization",
@@ -35492,6 +35698,7 @@ int main(int argc, char **argv) {
                    "function-bodies|old-style-empty-functions|"
                    "wide-variadics|floating-transport|floating-arithmetic|"
                    "floating-comparisons|floating-conversions|"
+                   "wide-integer-floating|"
                    "floating-truth|"
                    "floating-scalars|static-long-double-arithmetic|"
                    "variadic-callees|"
@@ -35596,6 +35803,9 @@ int main(int argc, char **argv) {
   }
   if (strcmp(argv[1], "floating-conversions") == 0) {
     return run_floating_conversions(argv[2]);
+  }
+  if (strcmp(argv[1], "wide-integer-floating") == 0) {
+    return run_wide_integer_floating(argv[2]);
   }
   if (strcmp(argv[1], "floating-truth") == 0) {
     return run_floating_truth(argv[2]);

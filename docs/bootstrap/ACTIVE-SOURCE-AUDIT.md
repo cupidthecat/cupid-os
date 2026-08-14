@@ -56,8 +56,8 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `kernel_usb` | 8 | 3527 |
 | `kernel_util` | 2 | 660 |
 | `project_source` | 1 | 5 |
-| `toolchain_contract` | 22 | 160193 |
-| `toolchain_core` | 39 | 88775 |
+| `toolchain_contract` | 22 | 160907 |
+| `toolchain_core` | 39 | 88729 |
 | `toolchain_host_adapter` | 2 | 266 |
 | `toolchain_kernel_adapter` | 2 | 530 |
 | `user_program` | 3 | 139 |
@@ -99,23 +99,23 @@ Generated C translation units are recorded as reachable build inputs but have no
 | `asm.preprocessor` | 2 | 5 |
 | `asm.register` | 27 | 926 |
 | `asm.relocation` | 1 | 34 |
-| `c.control` | 12 | 83732 |
+| `c.control` | 12 | 83910 |
 | `c.declaration` | 1 | 28 |
-| `c.declarator` | 4 | 3872 |
-| `c.expression` | 2 | 6120 |
+| `c.declarator` | 4 | 3876 |
+| `c.expression` | 2 | 6132 |
 | `c.extension` | 19 | 428 |
 | `c.initializer` | 1 | 687 |
 | `c.preprocessor` | 18 | 7087 |
-| `c.qualifier` | 2 | 16194 |
-| `c.storage` | 4 | 10282 |
-| `c.type` | 15 | 52944 |
+| `c.qualifier` | 2 | 16209 |
+| `c.storage` | 4 | 10291 |
+| `c.type` | 15 | 53006 |
 | `cupid_c.declaration` | 1 | 2 |
 | `cupid_c.delivery` | 2 | 132 |
 | `cupid_c.directive` | 1 | 1 |
 | `cupid_c.expression` | 2 | 4 |
 | `cupid_c.extension` | 1 | 9 |
 | `cupid_c.output` | 1 | 246 |
-| `cupid_c.storage` | 2 | 482 |
+| `cupid_c.storage` | 2 | 485 |
 | `cupid_c.type` | 12 | 187 |
 
 The JSON companion records stable feature IDs, occurrence counts, files, and representative source locations.

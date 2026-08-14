@@ -10201,27 +10201,16 @@ static ctool_status_t cfront_prepare_floating_binary(
     if (status != CTOOL_OK) {
       return cfront_storage_failure(context, status);
     }
-    if ((left_floating == CTOOL_FALSE &&
-         (left_is_integer == CTOOL_FALSE ||
-          (left_integer.width > 32u &&
-           left_node.kind != CTOOL_C_TYPE_LONG_DOUBLE &&
-           right_node.kind != CTOOL_C_TYPE_LONG_DOUBLE &&
-           context->static_initializer_depth == 0u))) ||
-        (right_floating == CTOOL_FALSE &&
-         (right_is_integer == CTOOL_FALSE ||
-          (right_integer.width > 32u &&
-           left_node.kind != CTOOL_C_TYPE_LONG_DOUBLE &&
-           right_node.kind != CTOOL_C_TYPE_LONG_DOUBLE &&
-           context->static_initializer_depth == 0u)))) {
+    if ((left_floating == CTOOL_FALSE && left_is_integer == CTOOL_FALSE) ||
+        (right_floating == CTOOL_FALSE && right_is_integer == CTOOL_FALSE)) {
       return cfront_emit_failure(
-          context, CTOOL_ERR_UNSUPPORTED,
+          context, CTOOL_ERR_INPUT,
           CTOOL_C_PARSE_DIAG_EXPRESSION, operator_token,
           conditional == CTOOL_TRUE
-              ? "integer and floating conditional conversion exceeds the "
-                "represented 32-bit slice"
+              ? "floating conditional arms require arithmetic operands"
           : comparison == CTOOL_TRUE
-              ? "integer and floating comparison conversion exceeds the represented 32-bit slice"
-              : "integer and floating arithmetic conversion exceeds the represented 32-bit slice");
+              ? "floating comparison requires arithmetic operands"
+              : "floating arithmetic requires arithmetic operands");
     }
     if (((left_qualifiers | left_node.qualifiers |
           right_qualifiers | right_node.qualifiers) &
@@ -10449,22 +10438,13 @@ static ctool_status_t cfront_apply_assignment_conversion(
       return cfront_storage_failure(context, status);
     }
     integer_floating_conversion =
-        (((target_is_floating == CTOOL_TRUE &&
-           source_is_integer == CTOOL_TRUE &&
-           source_integer.width <= 32u) ||
-          (source_is_floating == CTOOL_TRUE &&
-           target_is_integer == CTOOL_TRUE &&
-           (target_integer.kind == CTOOL_C_TYPE_BOOL ||
-            target_integer.width <= 32u))) &&
-         (target_integer.kind == CTOOL_C_TYPE_BOOL ||
-          target_node.kind == CTOOL_C_TYPE_FLOAT ||
-          target_node.kind == CTOOL_C_TYPE_DOUBLE ||
-          source_node.kind == CTOOL_C_TYPE_FLOAT ||
-          source_node.kind == CTOOL_C_TYPE_DOUBLE)) ||
-                (target_node.kind == CTOOL_C_TYPE_LONG_DOUBLE &&
-                 source_is_integer == CTOOL_TRUE) ||
-                (source_node.kind == CTOOL_C_TYPE_LONG_DOUBLE &&
-                 target_is_integer == CTOOL_TRUE)
+        (target_is_floating == CTOOL_TRUE &&
+         source_is_integer == CTOOL_TRUE) ||
+                (source_is_floating == CTOOL_TRUE &&
+                 target_is_integer == CTOOL_TRUE &&
+                 (source_node.kind == CTOOL_C_TYPE_LONG_DOUBLE ||
+                  target_integer.kind == CTOOL_C_TYPE_BOOL ||
+                  target_integer.width <= 32u))
             ? CTOOL_TRUE
             : CTOOL_FALSE;
     if (integer_floating_conversion == CTOOL_TRUE &&
@@ -11505,13 +11485,10 @@ static ctool_status_t cfront_apply_cast(
               ? CTOOL_TRUE
               : CTOOL_FALSE;
       ctool_bool integer_to_floating =
-          ((target.kind == CTOOL_C_TYPE_FLOAT ||
-            target.kind == CTOOL_C_TYPE_DOUBLE) &&
-                   source_integer == CTOOL_TRUE &&
-                   (source_integer_info.width <= 32u ||
-                    context->static_initializer_depth != 0u)) ||
-                  (target.kind == CTOOL_C_TYPE_LONG_DOUBLE &&
-                   source_integer == CTOOL_TRUE)
+          (target.kind == CTOOL_C_TYPE_FLOAT ||
+           target.kind == CTOOL_C_TYPE_DOUBLE ||
+           target.kind == CTOOL_C_TYPE_LONG_DOUBLE) &&
+                  source_integer == CTOOL_TRUE
               ? CTOOL_TRUE
               : CTOOL_FALSE;
       ctool_bool floating_to_boolean =
@@ -11911,16 +11888,15 @@ static ctool_status_t cfront_prepare_conditional_result(
   if (status != CTOOL_OK) {
     return cfront_storage_failure(context, status);
   }
-  if (((nonzero_node.kind == CTOOL_C_TYPE_FLOAT ||
-        nonzero_node.kind == CTOOL_C_TYPE_DOUBLE ||
-        nonzero_node.kind == CTOOL_C_TYPE_LONG_DOUBLE) &&
-       ((nonzero_qualifiers | nonzero_node.qualifiers) &
-        CTOOL_C_QUAL_ATOMIC) != 0u) ||
-      ((zero_node.kind == CTOOL_C_TYPE_FLOAT ||
-        zero_node.kind == CTOOL_C_TYPE_DOUBLE ||
-        zero_node.kind == CTOOL_C_TYPE_LONG_DOUBLE) &&
-       ((zero_qualifiers | zero_node.qualifiers) &
-        CTOOL_C_QUAL_ATOMIC) != 0u)) {
+  if ((nonzero_node.kind == CTOOL_C_TYPE_FLOAT ||
+       nonzero_node.kind == CTOOL_C_TYPE_DOUBLE ||
+       nonzero_node.kind == CTOOL_C_TYPE_LONG_DOUBLE ||
+       zero_node.kind == CTOOL_C_TYPE_FLOAT ||
+       zero_node.kind == CTOOL_C_TYPE_DOUBLE ||
+       zero_node.kind == CTOOL_C_TYPE_LONG_DOUBLE) &&
+      ((nonzero_qualifiers | nonzero_node.qualifiers | zero_qualifiers |
+        zero_node.qualifiers) &
+       CTOOL_C_QUAL_ATOMIC) != 0u) {
     return cfront_emit_failure(
         context, CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION,
         operator_token,

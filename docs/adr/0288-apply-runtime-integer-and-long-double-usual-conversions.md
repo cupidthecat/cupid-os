@@ -44,6 +44,9 @@ integer with `float` or `double` still have no represented conversion path.
 Compound assignment and prefix or postfix update of a `long double` lvalue
 also remain outside this decision.
 
+ADR 0289 later removed that `float` and `double` limit. It admits the existing
+wide x87 conversion at the frontend, Linear IR, and emitter validation seams.
+
 ## Evidence
 
 The arithmetic frontend contract first failed at the old integer and
@@ -110,3 +113,6 @@ fixed-point promotion must carry the compiler and contract changes before the
 seed can claim the capability. This change moves no production source owner,
 adds no host dependency, changes no ABI, and creates no honest `.c` to `.cc`
 rename.
+
+ADR 0289 follows this decision with the matching source-head rule for wide
+integer and `float` or `double` expressions.

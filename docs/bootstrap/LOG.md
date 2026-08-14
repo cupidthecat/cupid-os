@@ -26043,3 +26043,139 @@ root build, artifact-size policy, and boot smoke after both independent slices
 are present. The guest calling convention, linker policy, and instruction
 encoder do not change. No `.c` source qualifies for a `.cc` rename. ADR 0290
 records the decision.
+
+## 2026-08-14: Convert wide integers to `float` and `double`
+
+The source-head audit found one validator boundary hiding code that CupidC
+already owned. The frontend admitted integer input to `float` or `double` only
+through four bytes. Linear IR and object validation repeated the same limit.
+The i386 emitter had a complete 64-bit path: it copied the wide value, loaded
+it with x87 `FILD`, corrected unsigned input above 2^63 by adding 2^64, restored
+the caller's control word, and stored at binary32 or binary64 width.
+
+No active production translation root currently needs this expression shape.
+The gap still mattered for ordinary C and for the compiler's self-hosting
+surface. Narrowing source values would have discarded information, so the
+three validators were widened to match the existing target implementation.
+No design question was needed because ADR 0287 had already named the wide
+conversion as the required follow-up and specified that all eight bytes had to
+be preserved.
+
+Source-head CupidC now converts every represented signed or unsigned integer
+through 64 bits to `float` or `double` through an explicit cast or assignment
+conversion. Assignment conversion covers initialization, plain assignment,
+return, and fixed arguments. Runtime `+`, `-`, `*`, `/`, all six comparisons,
+and conditional selection apply the same usual arithmetic conversions for
+represented value integers and compatible enums. A conditional remains lazy,
+so only its selected arm converts. Atomic mixes keep focused rejections.
+
+### Test-first development
+
+The first frontend run failed at `/wide-integer-floating.c:3:51` with the old
+floating-cast feature diagnostic. After that gate moved, the same fixture
+reached a wide return and failed at assignment conversion. Linear IR then
+failed with `CupidC IR lowering does not yet support this value type`, and the
+first object run stopped at the matching emitter validator. Each public seam
+changed only after its red case was captured.
+
+One conditional negative initially passed after the width gate moved. Lvalue
+conversion had removed the atomic qualifier before the conditional-specific
+check. The frontend now rejects the atomic integer arm before that qualifier
+can be stripped. The older `floating-scalars` fixture also retained a negative
+that expected a signed wide return to fail; the complete sweep exposed it, and
+the obsolete case was removed in favor of the new positive and atomic-negative
+matrix.
+
+The object fixture's generated source also crossed C99's 4,095-character
+minimum for one string literal. Splitting the suffix into two adjacent source
+buffers kept the same C fixture without shortening or weakening it.
+
+### Contract coverage
+
+The frontend and Linear IR fixtures each contain 32 functions. For every
+combination of `float` or `double` with signed or unsigned `long long`, they
+cover casts, assignment conversion, all four arithmetic operators, all six
+predicates, and both conditional-arm orders. Negative cases cover atomic
+casts, assignment, arithmetic, comparison, and conditional selection. The IR
+proof also checks exact conversion and operator inventories, branch-local
+conditional conversion, repeat determinism, malformed conversion metadata,
+constrained allocation, and same-job recovery.
+
+The existing floating-conversion object grows from 45 to 63 functions. Its
+reviewed inventory is:
+
+| Property | Value |
+| --- | ---: |
+| `.text` bytes | 10,513 |
+| Text fingerprint | `01725E63` |
+| Symbols | 64 |
+| Relocations | 123 |
+| 64-bit `FILD` inputs | 27 |
+| Control-word save and restore pairs | 18 |
+| Unsigned correction branches | 9 |
+
+Twenty-two execution cases cover `LLONG_MIN`, `ULLONG_MAX`, binary32 and
+binary64 precision boundaries, every arithmetic operator, all six predicates,
+and both conditional directions. The decoder locks the target instructions;
+the execution model checks results, cdecl state, and frame restoration without
+asking the host to execute target x87 code.
+
+The public object operation also receives a forged wide assignment conversion
+whose marker has been changed to `FLOAT_PROMOTION`. It rejects the malformed
+unit without publishing bytes, preserves the frozen input, and emits the valid
+object afterward on the same job.
+
+Source-head hosted CupidC and the checked Cupid-built driver compile a sample
+containing a wide cast, arithmetic expression, comparison, and conditional.
+Their ELF32 objects match byte for byte.
+
+### Verification
+
+| Command or check | Result |
+| --- | --- |
+| Focused frontend arithmetic, comparison, conversion, and wide modes | PASS, 4 tests in 12.326 seconds. |
+| Focused Linear IR arithmetic, comparison, conversion, and wide modes | PASS, 4 tests in 15.439 seconds. |
+| Focused object arithmetic, comparison, and conversion modes | PASS, 3 tests in 23.941 seconds. |
+| Hosted and Cupid-built object parity | PASS in 33.909 seconds with byte-identical wide-expression objects. |
+| First complete frontend, IR, and object sweep | 289 tests passed; nine reviewed locks or obsolete expectations failed in a 298-test, 1,197.040-second run. |
+| Exact nine-test drift and obsolete-negative rerun | PASS in 55.536 seconds. |
+| Capability-specific malformed wide object conversion | PASS alone in 27.754 seconds; the affected object and audit-inventory pair pass in 31.799 seconds after the audit refresh. |
+| Production freeze and checked Toolchain contract cohort | PASS, 47 tests in 10.838 seconds. |
+| Complete frontend, IR, and object sweep before the post-review negative | PASS, all 298 tests in 1,319.854 seconds. Root integration owns the final combined rerun. |
+| `make bootstrap-audit` | PASS in 75.1 seconds. The final JSON is 2,676,365 bytes with SHA-256 `3d92f40b736a84158c7fcf0d35e10382e0fc416433638938ae725f2d1dcee97d`. |
+| `make check-bootstrap-audit` | PASS in 70.6 seconds. The 12,417-byte summary has SHA-256 `949427f911b889fd2952cd638326da8f3e87fe28fa6897190efbd692d2ee7771`. |
+
+The reviewed self-host source locks now contain 270, 368, and 445 functions
+for `cupidc_ir.cc`, `cupidc_emit.cc`, and `cupidc_frontend.cc`. Their objects
+contain 504,153, 578,743, and 892,510 text bytes with fingerprints `1ba5cdde`,
+`98a7e8ec`, and `527218c5`. Those changes come from removing width-only
+branches in the compiler, not from a production OS source change.
+
+### Ownership and remaining work
+
+The active graph remains at 246 CupidC transforms with no ordinary C
+translation unit. This capability moves no source owner, object, ABI, link
+rule, or host dependency. The checked execution seed predates the extension,
+so a later fixed-point promotion must carry it before the checked compiler can
+claim the feature. No `.c` source became CupidC-owned in this change, and no
+suffix rename is due.
+
+Floating-to-wide conversion beyond the existing explicit `double` to
+`unsigned long long` case remains open. Integer-lvalue compound assignment
+with a floating right operand, atomic floating conversion and update,
+long-double update, hexadecimal and subnormal literal syntax, SIMD value
+semantics, and over-aligned emission also remain open.
+
+No standalone OS build or boot was run for this source-head-only language
+change because it alters no active OS object or ABI. The CTXT update changes
+the embedded documentation payload when integrated. The final combined build
+must remeasure the artifact-size policy and run the normal QEMU gate after all
+agent commits land. ADR 0289 records the language, target, diagnostic, and
+ownership boundaries.
+
+The final two-axis review found no documented standards violation. It noted
+that the frontend and Linear IR contracts repeat the same 32-function source
+matrix, while the object contract repeats a smaller executable subset. Keeping
+one immutable shared source fixture would reduce future source and count drift,
+but the three seams still need separate semantic inventories. That extraction
+remains test-maintenance work rather than a language or correctness blocker.

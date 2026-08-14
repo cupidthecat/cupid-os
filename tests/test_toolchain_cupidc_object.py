@@ -2545,6 +2545,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             freestanding = root / "freestanding.c"
             invalid = root / "invalid.c"
             long_double_usual = root / "long-double-usual.c"
+            wide_integer_floating = root / "wide-integer-floating.c"
             hosted_object = root / "hosted.o"
             cupid_object = root / "cupid.o"
             cupid_native_path_object = root / "cupid-native-path.o"
@@ -2558,6 +2559,8 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             cupid_failure = root / "cupid-failure.o"
             hosted_long_double_object = root / "hosted-long-double.o"
             cupid_long_double_object = root / "cupid-long-double.o"
+            hosted_wide_floating_object = root / "hosted-wide-floating.o"
+            cupid_wide_floating_object = root / "cupid-wide-floating.o"
             hosted_recovery = root / "hosted-recovery.o"
             cupid_recovery = root / "cupid-recovery.o"
             hosted_missing_output = root / "hosted-missing.o"
@@ -2613,6 +2616,22 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                 "long double choose_unsigned_wide(\n"
                 "    int condition, unsigned long long left,\n"
                 "    long double right) {\n"
+                "  return condition ? left : right;\n"
+                "}\n",
+                encoding="utf-8",
+            )
+            wide_integer_floating.write_text(
+                "float cast_signed(long long value) {\n"
+                "  return (float)value;\n"
+                "}\n"
+                "double add_unsigned(unsigned long long left, double right) {\n"
+                "  return left + right;\n"
+                "}\n"
+                "int compare_signed(float left, long long right) {\n"
+                "  return left >= right;\n"
+                "}\n"
+                "double choose_unsigned(\n"
+                "    int condition, unsigned long long left, double right) {\n"
                 "  return condition ? left : right;\n"
                 "}\n",
                 encoding="utf-8",
@@ -2901,6 +2920,54 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             self.assertEqual(
                 cupid_long_double_object.read_bytes(),
                 hosted_long_double_object.read_bytes(),
+            )
+
+            hosted_wide_floating = subprocess.run(
+                [
+                    str(self.hosted_cupidc_path),
+                    "--root",
+                    str(root),
+                    "-c",
+                    "/wide-integer-floating.c",
+                    "-o",
+                    "/hosted-wide-floating.o",
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+                timeout=60,
+            )
+            cupid_wide_floating = self.run_cupid_linux_tool(
+                self.cupid_cupidc_path,
+                [
+                    "--root",
+                    root,
+                    "-c",
+                    "/wide-integer-floating.c",
+                    "-o",
+                    "/cupid-wide-floating.o",
+                ],
+                timeout=60,
+            )
+            self.assertEqual(
+                hosted_wide_floating.returncode,
+                0,
+                hosted_wide_floating.stderr,
+            )
+            self.assertEqual(
+                cupid_wide_floating.returncode,
+                hosted_wide_floating.returncode,
+                cupid_wide_floating.stderr,
+            )
+            self.assertEqual(
+                cupid_wide_floating.stdout, hosted_wide_floating.stdout
+            )
+            self.assertEqual(
+                cupid_wide_floating.stderr, hosted_wide_floating.stderr
+            )
+            self.assertEqual(
+                cupid_wide_floating_object.read_bytes(),
+                hosted_wide_floating_object.read_bytes(),
             )
 
             hosted_recovered = subprocess.run(

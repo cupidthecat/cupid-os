@@ -20517,6 +20517,59 @@ static int floating_oracle_step(
     *handled = CTOOL_TRUE;
     return 1;
   }
+  if (instruction->mnemonic == CTOOL_X86_MN_FNSTCW ||
+      instruction->mnemonic == CTOOL_X86_MN_FLDCW) {
+    if (instruction->operand_count != 1u ||
+        instruction->operands[0].kind != CTOOL_X86_OPERAND_MEMORY ||
+        instruction->operands[0].width_bits != 16u ||
+        !narrow_oracle_memory_address(
+            machine, &instruction->operands[0].as.memory, &address)) {
+      return 0;
+    }
+    if (instruction->mnemonic == CTOOL_X86_MN_FNSTCW) {
+      if (!narrow_oracle_write_memory(machine, address, 16u, 0x037fu)) {
+        return 0;
+      }
+    } else if (!narrow_oracle_read_memory(
+                   machine, address, 16u, &low)) {
+      return 0;
+    }
+    *handled = CTOOL_TRUE;
+    return 1;
+  }
+  if (instruction->mnemonic == CTOOL_X86_MN_FLD &&
+      instruction->operand_count == 1u &&
+      instruction->operands[0].kind == CTOOL_X86_OPERAND_REGISTER &&
+      instruction->operands[0].as.reg.class_id == CTOOL_X86_REG_X87) {
+    ctool_u8 source_index = instruction->operands[0].as.reg.index;
+    long double source_value;
+    ctool_u64 source_bits;
+    ctool_u16 source_width;
+    ctool_bool source_bits_valid;
+    if (source_index >= machine->x87_depth ||
+        machine->x87_depth >= FLOATING_ORACLE_X87_DEPTH) {
+      return 0;
+    }
+    source_value = machine->x87_values[source_index];
+    source_bits = machine->x87_bits[source_index];
+    source_width = machine->x87_width_bits[source_index];
+    source_bits_valid = machine->x87_bits_valid[source_index];
+    for (index = machine->x87_depth; index != 0u; index--) {
+      machine->x87_values[index] = machine->x87_values[index - 1u];
+      machine->x87_bits[index] = machine->x87_bits[index - 1u];
+      machine->x87_width_bits[index] =
+          machine->x87_width_bits[index - 1u];
+      machine->x87_bits_valid[index] =
+          machine->x87_bits_valid[index - 1u];
+    }
+    machine->x87_values[0] = source_value;
+    machine->x87_bits[0] = source_bits;
+    machine->x87_width_bits[0] = source_width;
+    machine->x87_bits_valid[0] = source_bits_valid;
+    machine->x87_depth++;
+    *handled = CTOOL_TRUE;
+    return 1;
+  }
   if (instruction->mnemonic == CTOOL_X86_MN_FADDP ||
       instruction->mnemonic == CTOOL_X86_MN_FSUBP ||
       instruction->mnemonic == CTOOL_X86_MN_FMULP ||
@@ -20554,7 +20607,8 @@ static int floating_oracle_step(
     *handled = CTOOL_TRUE;
     return 1;
   }
-  if (instruction->mnemonic != CTOOL_X86_MN_FLD &&
+  if (instruction->mnemonic != CTOOL_X86_MN_FILD &&
+      instruction->mnemonic != CTOOL_X86_MN_FLD &&
       instruction->mnemonic != CTOOL_X86_MN_FSTP) {
     return 1;
   }
@@ -20567,7 +20621,32 @@ static int floating_oracle_step(
       !narrow_oracle_memory_address(machine, &operand->as.memory, &address)) {
     return 0;
   }
-  if (instruction->mnemonic == CTOOL_X86_MN_FLD) {
+  if (instruction->mnemonic == CTOOL_X86_MN_FILD) {
+    int64_t integer_value;
+    if (machine->x87_depth >= FLOATING_ORACLE_X87_DEPTH ||
+        !narrow_oracle_read_memory(machine, address, 32u, &low) ||
+        (operand->width_bits == 64u &&
+         !narrow_oracle_read_memory(machine, address + 4u, 32u, &high))) {
+      return 0;
+    }
+    for (index = machine->x87_depth; index != 0u; index--) {
+      machine->x87_values[index] = machine->x87_values[index - 1u];
+      machine->x87_bits[index] = machine->x87_bits[index - 1u];
+      machine->x87_width_bits[index] =
+          machine->x87_width_bits[index - 1u];
+      machine->x87_bits_valid[index] =
+          machine->x87_bits_valid[index - 1u];
+    }
+    integer_value = operand->width_bits == 32u
+                        ? (int64_t)(int32_t)low
+                        : (int64_t)((uint64_t)low |
+                                    ((uint64_t)high << 32u));
+    machine->x87_values[0] = (long double)integer_value;
+    machine->x87_bits[0] = 0u;
+    machine->x87_width_bits[0] = 0u;
+    machine->x87_bits_valid[0] = CTOOL_FALSE;
+    machine->x87_depth++;
+  } else if (instruction->mnemonic == CTOOL_X86_MN_FLD) {
     float narrow_value;
     double wide_value;
     if (machine->x87_depth >= FLOATING_ORACLE_X87_DEPTH ||
@@ -20775,6 +20854,7 @@ static int wide_oracle_execute_arguments(
         instruction->mnemonic == CTOOL_X86_MN_JB ||
         instruction->mnemonic == CTOOL_X86_MN_JE ||
         instruction->mnemonic == CTOOL_X86_MN_JNE ||
+        instruction->mnemonic == CTOOL_X86_MN_JNS ||
         instruction->mnemonic == CTOOL_X86_MN_JP ||
         instruction->mnemonic == CTOOL_X86_MN_JNP) {
       if (!call_alignment_branch_target(&decoded, pc,
@@ -20791,6 +20871,8 @@ static int wide_oracle_execute_arguments(
                     zero_flag == CTOOL_TRUE) ||
                    (instruction->mnemonic == CTOOL_X86_MN_JNE &&
                     zero_flag == CTOOL_FALSE) ||
+                   (instruction->mnemonic == CTOOL_X86_MN_JNS &&
+                    sign_flag == CTOOL_FALSE) ||
                    (instruction->mnemonic == CTOOL_X86_MN_JP &&
                     parity_flag == CTOOL_TRUE) ||
                    (instruction->mnemonic == CTOOL_X86_MN_JNP &&
@@ -28020,8 +28102,13 @@ static int validate_floating_conversion_x87_inventory(
   ctool_u32 cursor = 0u;
   ctool_u32 fld32 = 0u;
   ctool_u32 fld64 = 0u;
+  ctool_u32 fld_register = 0u;
+  ctool_u32 fild64 = 0u;
   ctool_u32 fstp32 = 0u;
   ctool_u32 fstp64 = 0u;
+  ctool_u32 fnstcw = 0u;
+  ctool_u32 fldcw = 0u;
+  ctool_u32 jns = 0u;
   ctool_u32 faddp = 0u;
   ctool_u32 fsubp = 0u;
   ctool_u32 fmulp = 0u;
@@ -28047,7 +28134,19 @@ static int validate_floating_conversion_x87_inventory(
       return 0;
     }
     instruction = &decoded.instruction;
-    if ((instruction->mnemonic == CTOOL_X86_MN_FLD ||
+    if (instruction->mnemonic == CTOOL_X86_MN_FILD &&
+        instruction->operand_count == 1u &&
+        instruction->operands[0].kind == CTOOL_X86_OPERAND_MEMORY &&
+        instruction->operands[0].width_bits == 64u) {
+      fild64++;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_FLD &&
+               instruction->operand_count == 1u &&
+               instruction->operands[0].kind ==
+                   CTOOL_X86_OPERAND_REGISTER &&
+               instruction->operands[0].as.reg.class_id ==
+                   CTOOL_X86_REG_X87) {
+      fld_register++;
+    } else if ((instruction->mnemonic == CTOOL_X86_MN_FLD ||
          instruction->mnemonic == CTOOL_X86_MN_FSTP) &&
         instruction->operand_count == 1u &&
         instruction->operands[0].kind == CTOOL_X86_OPERAND_MEMORY) {
@@ -28072,19 +28171,28 @@ static int validate_floating_conversion_x87_inventory(
       fmulp++;
     } else if (instruction->mnemonic == CTOOL_X86_MN_FDIVP) {
       fdivp++;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_FNSTCW) {
+      fnstcw++;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_FLDCW) {
+      fldcw++;
+    } else if (instruction->mnemonic == CTOOL_X86_MN_JNS) {
+      jns++;
     }
     cursor += decoded.consumed;
   }
-  if (fld32 != 26u || fld64 != 34u ||
-      fstp32 != 42u || fstp64 != 59u ||
-      faddp != 4u || fsubp != 3u ||
-      fmulp != 3u || fdivp != 3u) {
+  if (fld32 != 30u || fld64 != 38u || fld_register != 18u ||
+      fild64 != 27u || fstp32 != 60u || fstp64 != 77u ||
+      fnstcw != 18u || fldcw != 18u || jns != 9u ||
+      faddp != 32u || fsubp != 4u || fmulp != 4u || fdivp != 4u) {
     (void)fprintf(
         stderr,
-        "floating conversion x87 inventory: loads=%u/%u stores=%u/%u "
+        "floating conversion x87 inventory: loads=%u/%u register=%u "
+        "integer=%u stores=%u/%u controls=%u/%u jns=%u "
         "arithmetic=%u/%u/%u/%u\n",
         (unsigned int)fld32, (unsigned int)fld64,
+        (unsigned int)fld_register, (unsigned int)fild64,
         (unsigned int)fstp32, (unsigned int)fstp64,
+        (unsigned int)fnstcw, (unsigned int)fldcw, (unsigned int)jns,
         (unsigned int)faddp, (unsigned int)fsubp,
         (unsigned int)fmulp, (unsigned int)fdivp);
     return 0;
@@ -28111,7 +28219,16 @@ static int validate_floating_conversion_object(
       "mixed_subtract_assign_high", "mixed_multiply_assign_bits",
       "mixed_divide_assign_high", "choose_int_float_bits",
       "choose_float_short_bits", "choose_uint_double_high",
-      "choose_double_uchar_high", "side_effect_compound"};
+      "choose_double_uchar_high", "side_effect_compound",
+      "wide_cast_signed_float", "wide_initialize_unsigned_float",
+      "wide_cast_signed_double_high", "wide_assign_unsigned_double_high",
+      "wide_add_signed_float", "wide_subtract_float_unsigned",
+      "wide_multiply_unsigned_double", "wide_divide_double_signed",
+      "wide_equal_signed_float", "wide_not_equal_float_unsigned",
+      "wide_less_unsigned_float", "wide_less_equal_double_signed",
+      "wide_greater_unsigned_double", "wide_greater_equal_double_signed",
+      "wide_choose_signed_float", "wide_choose_float_unsigned",
+      "wide_choose_unsigned_double", "wide_choose_double_signed"};
   static const floating_arithmetic_case_t cases[] = {
       {"same_float_cast_bits", {0x80000000u}, 1u, 0x80000000u,
        "same-width float cast preserves its bits"},
@@ -28233,7 +28350,64 @@ static int validate_floating_conversion_object(
        "mixed double division assignment"},
       {"side_effect_compound",
        {0x3f800000u, 0x40800000u, 0u, 0x40000000u}, 4u,
-       0x00c00000u, "compound assignment evaluates its designator once"}};
+       0x00c00000u, "compound assignment evaluates its designator once"},
+      {"wide_cast_signed_float", {0u, 0x80000000u}, 2u,
+       0xdf000000u, "signed 64-bit minimum converts to float"},
+      {"wide_initialize_unsigned_float", {0xffffffffu, 0xffffffffu}, 2u,
+       0x5f800000u, "unsigned 64-bit maximum initializes float"},
+      {"wide_cast_signed_double_high", {0u, 0x80000000u}, 2u,
+       0xc3e00000u, "signed 64-bit minimum converts to double"},
+      {"wide_assign_unsigned_double_high", {0xffffffffu, 0xffffffffu}, 2u,
+       0x43f00000u, "unsigned 64-bit maximum assigns to double"},
+      {"wide_add_signed_float", {0xfffffffdu, 0xffffffffu, 0x3fc00000u},
+       3u, 0xbfc00000u, "signed 64-bit and float addition"},
+      {"wide_subtract_float_unsigned", {0x40b00000u, 2u, 0u}, 3u,
+       0x40600000u, "float and unsigned 64-bit subtraction"},
+      {"wide_multiply_unsigned_double", {3u, 0u, 0u, 0x40040000u}, 4u,
+       0x401e0000u, "unsigned 64-bit and double multiplication"},
+      {"wide_divide_double_signed",
+       {0u, 0x40220000u, 0xfffffffeu, 0xffffffffu}, 4u,
+       0xc0120000u, "double and signed 64-bit division"},
+      {"wide_equal_signed_float", {0x01000001u, 0u, 0x4b800000u}, 3u,
+       1u, "signed 64-bit equality follows float rounding"},
+      {"wide_not_equal_float_unsigned", {0x4b800000u, 0x01000001u, 0u},
+       3u, 0u, "unsigned 64-bit inequality follows float rounding"},
+      {"wide_less_unsigned_float",
+       {0xffffffffu, 0xffffffffu, 0x7f800000u}, 3u, 1u,
+       "unsigned 64-bit value compares below float infinity"},
+      {"wide_less_equal_double_signed",
+       {0u, 0xc0000000u, 0xffffffffu, 0xffffffffu}, 4u, 1u,
+       "double compares below a signed 64-bit value"},
+      {"wide_greater_unsigned_double",
+       {1u, 0x00200000u, 0u, 0x43400000u}, 4u, 0u,
+       "unsigned 64-bit comparison follows double rounding"},
+      {"wide_greater_equal_double_signed",
+       {0u, 0xc0000000u, 0xfffffffdu, 0xffffffffu}, 4u, 1u,
+       "double compares above a signed 64-bit value"},
+      {"wide_choose_signed_float",
+       {1u, 0xfffffffdu, 0xffffffffu, 0x3fc00000u}, 4u,
+       0xc0400000u, "conditional converts its signed 64-bit float arm"},
+      {"wide_choose_signed_float",
+       {0u, 0xfffffffdu, 0xffffffffu, 0x3fc00000u}, 4u,
+       0x3fc00000u, "conditional keeps its float arm"},
+      {"wide_choose_float_unsigned",
+       {1u, 0x3fc00000u, 0xffffffffu, 0xffffffffu}, 4u,
+       0x3fc00000u, "conditional keeps its leading float arm"},
+      {"wide_choose_float_unsigned",
+       {0u, 0x3fc00000u, 0xffffffffu, 0xffffffffu}, 4u,
+       0x5f800000u, "conditional converts its unsigned 64-bit float arm"},
+      {"wide_choose_unsigned_double",
+       {1u, 0xffffffffu, 0xffffffffu, 0u, 0x40040000u}, 5u,
+       0x43f00000u, "conditional converts its unsigned 64-bit double arm"},
+      {"wide_choose_unsigned_double",
+       {0u, 0xffffffffu, 0xffffffffu, 0u, 0x40040000u}, 5u,
+       0x40040000u, "conditional keeps its double arm"},
+      {"wide_choose_double_signed",
+       {1u, 0u, 0x40040000u, 0u, 0x80000000u}, 5u,
+       0x40040000u, "conditional keeps its leading double arm"},
+      {"wide_choose_double_signed",
+       {0u, 0u, 0x40040000u, 0u, 0x80000000u}, 5u,
+       0xc3e00000u, "conditional converts its signed 64-bit double arm"}};
   const ctool_elf32_section_t *text = find_section(object, ".text");
   const ctool_elf32_section_t *bss = find_section(object, ".bss");
   ctool_u32 function_count =
@@ -28242,11 +28416,11 @@ static int validate_floating_conversion_object(
       (ctool_u32)(sizeof(cases) / sizeof(cases[0]));
   ctool_u32 index;
   if (job == NULL || object == NULL || text == NULL ||
-      text->contents.data == NULL || text->contents.size != 7144u ||
-      structure_text_fingerprint(text->contents) != 0x7186d278u ||
+      text->contents.data == NULL || text->contents.size != 10513u ||
+      structure_text_fingerprint(text->contents) != 0x01725e63u ||
       (bss != NULL && bss->size != 0u) ||
-      object->symbol_count != 46u ||
-      object->relocation_count != 97u) {
+      object->symbol_count != 64u ||
+      object->relocation_count != 123u) {
     (void)fprintf(
         stderr,
         "floating conversion inventory: text=%u fingerprint=%08x "
@@ -28343,6 +28517,25 @@ static int run_floating_conversion_object(const char *host_root) {
       "u32 choose_uint_double_high(u32 c,u32 l,u32 lo,u32 hi){return double_high(c?l:double_from_words(lo,hi));}\n"
       "u32 choose_double_uchar_high(u32 c,u32 lo,u32 hi,unsigned char r){return double_high(c?double_from_words(lo,hi):r);}\n"
       "u32 side_effect_compound(u32 first, u32 second, u32 low, u32 high) { float values[2]; float *cursor = values; values[0] = float_from_bits(first); values[1] = float_from_bits(second); *cursor++ += double_from_words(low, high); return float_bits(values[0]) ^ float_bits(values[1]) ^ (cursor != &values[1]); }\n";
+  static const char source_wide[] =
+      "u32 wide_cast_signed_float(long long value) { return float_bits((float)value); }\n"
+      "u32 wide_initialize_unsigned_float(unsigned long long value) { float result = value; return float_bits(result); }\n"
+      "u32 wide_cast_signed_double_high(long long value) { return double_high((double)value); }\n"
+      "u32 wide_assign_unsigned_double_high(unsigned long long value) { double result; result = value; return double_high(result); }\n"
+      "u32 wide_add_signed_float(long long left, u32 right) { return float_bits(left + float_from_bits(right)); }\n"
+      "u32 wide_subtract_float_unsigned(u32 left, unsigned long long right) { return float_bits(float_from_bits(left) - right); }\n"
+      "u32 wide_multiply_unsigned_double(unsigned long long left, u32 low, u32 high) { return double_high(left * double_from_words(low, high)); }\n"
+      "u32 wide_divide_double_signed(u32 low, u32 high, long long right) { return double_high(double_from_words(low, high) / right); }\n"
+      "u32 wide_equal_signed_float(long long left, u32 right) { return left == float_from_bits(right); }\n"
+      "u32 wide_not_equal_float_unsigned(u32 left, unsigned long long right) { return float_from_bits(left) != right; }\n"
+      "u32 wide_less_unsigned_float(unsigned long long left, u32 right) { return left < float_from_bits(right); }\n"
+      "u32 wide_less_equal_double_signed(u32 low, u32 high, long long right) { return double_from_words(low, high) <= right; }\n"
+      "u32 wide_greater_unsigned_double(unsigned long long left, u32 low, u32 high) { return left > double_from_words(low, high); }\n"
+      "u32 wide_greater_equal_double_signed(u32 low, u32 high, long long right) { return double_from_words(low, high) >= right; }\n"
+      "u32 wide_choose_signed_float(u32 condition, long long left, u32 right) { return float_bits(condition ? left : float_from_bits(right)); }\n"
+      "u32 wide_choose_float_unsigned(u32 condition, u32 left, unsigned long long right) { return float_bits(condition ? float_from_bits(left) : right); }\n"
+      "u32 wide_choose_unsigned_double(u32 condition, unsigned long long left, u32 low, u32 high) { return double_high(condition ? left : double_from_words(low, high)); }\n"
+      "u32 wide_choose_double_signed(u32 condition, u32 low, u32 high, long long right) { return double_high(condition ? double_from_words(low, high) : right); }\n";
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
   ctool_job_t *job = NULL;
@@ -28361,6 +28554,7 @@ static int run_floating_conversion_object(const char *host_root) {
   ctool_u32 double_type = CTOOL_C_TYPE_NONE;
   ctool_u32 reverse_assignment = CTOOL_C_AST_NONE;
   ctool_u32 narrowing_cast = CTOOL_C_AST_NONE;
+  ctool_u32 wide_assignment = CTOOL_C_AST_NONE;
   ctool_u32 index;
   ctool_status_t status;
   char *source = NULL;
@@ -28368,18 +28562,21 @@ static int run_floating_conversion_object(const char *host_root) {
 
   (void)memset(&unit, 0, sizeof(unit));
   source = (char *)malloc(
-      sizeof(source_prefix) + sizeof(source_suffix) - 1u);
+      sizeof(source_prefix) + sizeof(source_suffix) + sizeof(source_wide) -
+      2u);
   if (source == NULL) {
     goto cleanup;
   }
   (void)memcpy(source, source_prefix, sizeof(source_prefix) - 1u);
   (void)memcpy(source + sizeof(source_prefix) - 1u, source_suffix,
-               sizeof(source_suffix));
+               sizeof(source_suffix) - 1u);
+  (void)memcpy(source + sizeof(source_prefix) + sizeof(source_suffix) - 2u,
+               source_wide, sizeof(source_wide));
   if (!open_job(host_root, &adapter, &config, &job) ||
       !floating_conversion_active_source_is_unchanged(job) ||
       !parse_source_mode(job, "/floating-conversions.c", source,
                          CTOOL_TRUE, &unit) ||
-      unit.function_definition_count != 45u) {
+      unit.function_definition_count != 63u) {
     (void)fprintf(stderr, "floating conversion object setup failed\n");
     goto cleanup;
   }
@@ -28418,6 +28615,15 @@ static int run_floating_conversion_object(const char *host_root) {
         expression->conversion == CTOOL_C_CONVERSION_ASSIGNMENT &&
         expression->type == float_type && child_type == double_type) {
       reverse_assignment = index;
+    } else if (expression->kind ==
+                   CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+               expression->conversion == CTOOL_C_CONVERSION_ASSIGNMENT &&
+               (expression->type == float_type ||
+                expression->type == double_type) &&
+               child_type < unit.layout.type_count &&
+               unit.layout.types[child_type].is_integer == CTOOL_TRUE &&
+               unit.layout.types[child_type].size == 8u) {
+      wide_assignment = index;
     } else if (expression->kind == CTOOL_C_EXPRESSION_CAST &&
                expression->type == float_type &&
                child_type == double_type) {
@@ -28425,6 +28631,7 @@ static int run_floating_conversion_object(const char *host_root) {
     }
   }
   if (reverse_assignment == CTOOL_C_AST_NONE ||
+      wide_assignment == CTOOL_C_AST_NONE ||
       narrowing_cast == CTOOL_C_AST_NONE) {
     goto cleanup;
   }
@@ -28468,6 +28675,19 @@ static int run_floating_conversion_object(const char *host_root) {
              (size_t)first_bytes.size) != 0) {
     (void)fprintf(stderr,
                   "floating conversion objects are not deterministic\n");
+    goto cleanup;
+  }
+  (void)memcpy(invalid_expressions, unit.expressions,
+               (size_t)unit.expression_count *
+                   sizeof(*invalid_expressions));
+  invalid_expressions[wide_assignment].conversion =
+      CTOOL_C_CONVERSION_FLOAT_PROMOTION;
+  if (!expect_object_failure_preserves_unit(
+          job, &invalid_unit, failure, CTOOL_ERR_INPUT,
+          CTOOL_C_IR_DIAG_INVALID_UNIT,
+          "CupidC IR lowering received an invalid translation unit",
+          "wide integer floating promotion at object boundary")) {
+    (void)ctool_job_render_diagnostics(job);
     goto cleanup;
   }
   (void)memcpy(invalid_expressions, unit.expressions,
@@ -32402,16 +32622,16 @@ static int validate_active_self_host_frontier_objects(
       7u};
   static const ctool_u32 expected_text_sizes[] = {
       42118u, 83701u, 118477u, 183181u, 42212u,
-      190304u, 504590u, 579180u, 893896u, 149733u, 70368u, 85466u,
+      190304u, 504153u, 578743u, 892510u, 149733u, 70368u, 85466u,
       10180u};
   static const ctool_u32 expected_object_sizes[] = {
       46720u, 96612u, 137444u, 220508u, 49484u,
-      226668u, 543536u, 649632u, 1059112u, 169508u, 79348u, 141560u,
+      226668u, 543092u, 649188u, 1057640u, 169508u, 79348u, 141560u,
       11624u};
   static const ctool_u32 expected_text_fingerprints[] = {
       0x6bff5a25u, 0x229ef494u, 0x3e007f3eu,
       0x90f1448fu, 0x999f97b7u, 0xb49d8eb9u,
-      0xa039993eu, 0xf071f9a4u, 0x3eb9c980u, 0xe73c2fd0u,
+      0x1ba5cddeu, 0x98a7e8ecu, 0x527218c5u, 0xe73c2fd0u,
       0x34558a49u, 0x4285e204u, 0xe3ce519eu};
   ctool_u32 index;
   int all_matched = 1;

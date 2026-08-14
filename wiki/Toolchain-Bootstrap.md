@@ -975,6 +975,17 @@ comparisons, and conditional selection for every represented value integer
 and enum. Linear IR keeps the usual-arithmetic conversion, and a conditional
 converts only its selected arm. ADR 0288 records this source-head boundary;
 the checked seed still predates it.
+Compiler head also converts signed and unsigned integers through 64 bits to
+`float` or `double` through casts, assignment conversion, runtime arithmetic,
+all six comparisons, and conditional selection. Inputs through four bytes use
+SSE. A wide input uses x87 `FILD`, applies the unsigned 2^64 correction when
+needed, and stores at the requested floating width. The 63-function object
+proof contains 10,513 text bytes with fingerprint `01725E63`, 64 symbols, and
+123 relocations. Twenty-two wide execution cases cover endpoints, precision
+boundaries, operators, predicates, and both conditional directions. Hosted
+source-head CupidC and the checked Cupid-built driver emit byte-identical
+objects for the new forms. ADR 0289 records the boundary. No production owner
+moves because the active source graph does not require this expression shape.
 Compiler head also converts static initializers between bounded finite `long
 double` and every
 represented value integer and an enum whose compatible integer type has the

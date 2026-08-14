@@ -1219,12 +1219,19 @@ Static-duration scalar and aggregate leaves accept decimal
 floating constants with parentheses and unary signs. Assignment conversion
 between `float` and `double` is rounded with integer-only target arithmetic,
 and exact binary32 or binary64 bytes reach `.rodata`, `.data`, or `.bss`.
-Represented integer-to-floating conversions, floating-to-signed conversions,
-floating-to-unsigned conversions through four-byte targets, the explicit
-`double` to unsigned-wide cast, and mixed integer and floating arithmetic use
-the SSE object path. Unsigned four-byte input and output use exact splits
-across the sign boundary. ADR 0250 records runtime `float` and `double`
-conversion to represented unsigned four-byte targets.
+Every represented signed or unsigned integer through 64 bits converts to
+`float` or `double` through casts, initialization, assignment, returns, and
+fixed arguments. The same integer set participates in runtime `+`, `-`, `*`,
+`/`, all six comparisons, and conditional selection with either floating
+width. Inputs through four bytes use the SSE object path. A wide input uses
+x87 `FILD`, with a 2^64 correction for an unsigned value whose high bit is
+set, then stores at the requested binary32 or binary64 width. Conditional
+lowering converts only the selected arm. Floating-to-signed conversions,
+floating-to-unsigned conversions through four-byte targets, and the explicit
+`double` to unsigned-wide cast keep their existing target paths. Unsigned
+four-byte input and output use exact splits across the sign boundary. ADR 0250
+records runtime `float` and `double` conversion to represented unsigned
+four-byte targets.
 The x87 transport model, SSE conversion oracle, and `UCOMISS` or `UCOMISD`
 comparison oracle check rounding, operand order, ordered values, signed zero,
 infinities, quiet and signaling NaNs, call alignment, and frame state.
@@ -1308,9 +1315,9 @@ keeps it on the selected value, and the emitter reuses its checked x87 path.
 Conditional evaluation remains lazy, so an unselected arm is not converted.
 Hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
-bounded parser, operations that mix an eight-byte integer with `float` or
-`double`, atomic and long-double updates, SIMD values, and over-aligned
-emission remain open.
+bounded parser, other floating-to-wide conversions, integer-lvalue compound
+assignment with a floating right operand, atomic and long-double updates, SIMD
+values, and over-aligned emission remain open.
 ADR 0202 records the runtime truth
 boundary, and
 [ADR 0229](docs/adr/0229-emit-exact-decimal-long-double-literals.md) records
@@ -1330,6 +1337,9 @@ records runtime integer conditionals with `float` and `double`.
 [ADR 0288](docs/adr/0288-apply-runtime-integer-and-long-double-usual-conversions.md)
 records runtime integer and long-double arithmetic, comparisons, and
 conditional selection.
+[ADR 0289](docs/adr/0289-convert-wide-integers-to-float-and-double.md) records
+runtime wide-integer conversion and usual arithmetic with `float` and
+`double`.
 
 Plain assignment, all ten compound assignments, and prefix or postfix increment and decrement now work for represented non-atomic bit fields in four-byte storage units. Linear IR keeps the selected member and evaluates the record address once. Partial fields preserve neighboring bits, and postfix updates retain the extracted old value through the store so width wrap does not change the result. Narrow unsigned fields promote to signed `int` when their values fit. A volatile 32-bit field uses one read and one direct store. An execution oracle proves that `states[(*index)++].value++` advances its side-effecting index exactly once. Partial volatile mutation, atomic bit-field access, and non-four-byte storage units remain open. The plain-assignment contracts still pin Doom's unchanged `colors[index].r = value` shape.
 

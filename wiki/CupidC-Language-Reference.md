@@ -213,25 +213,27 @@ Mixed `float` and `double` arithmetic uses `double`, as do conditional arms
 with one value of each width. Matching floating arms keep their width, and
 the condition may be a represented integer or pointer.
 
-A runtime conditional may mix either floating width with a represented signed
-or unsigned integer no wider than four bytes. CupidC applies the usual
-arithmetic conversion only to the selected integer arm. The result is `float`
-when the floating arm is `float` and `double` when it is `double`. An
-eight-byte integer mixed with either width is rejected with a focused
-diagnostic.
+A runtime conditional may mix either floating width with any represented
+signed or unsigned integer through 64 bits, or with a compatible enum. CupidC
+applies the usual arithmetic conversion only to the selected integer arm. The
+result is `float` when the floating arm is `float` and `double` when it is
+`double`.
 
 `+=`, `-=`, `*=`, and `/=` compute at the common floating width, then convert
 the stored result back to the left operand's type. The left designator is
 evaluated once. A source `float` passed through an ellipsis or a function type
 without a prototype is promoted to `double`.
 
-The hosted path accepts decimal floating constants and converts between
-represented integer and floating widths. Runtime `float` and `double` values
-convert to represented unsigned four-byte results across C's defined range.
-Conversion from any represented floating width to `_Bool` follows
-C scalar truth rules. Mixed integer-and-floating arithmetic is represented. All
-six comparisons work for matching or mixed floating widths, and only `!=`
-is true when either operand is NaN.
+The hosted path accepts decimal floating constants. Every represented signed
+or unsigned integer through 64 bits converts to `float` or `double` through a
+cast, initialization, plain assignment, return, or fixed argument. Runtime
+`+`, `-`, `*`, `/`, and all six comparisons apply the same usual arithmetic
+conversions. Inputs through four bytes use SSE; a wide input uses x87 `FILD`
+with the unsigned 2^64 correction before a binary32 or binary64 store. Runtime
+`float` and `double` values convert to represented unsigned four-byte results
+across C's defined range. Conversion from any represented floating width to
+`_Bool` follows C scalar truth rules. Only `!=` is true when either operand of
+a floating comparison is NaN.
 
 Non-atomic `long double` values use twelve-byte objects with x87 80-bit memory
 transport. Bounded finite normal decimal `L` tokens round an exact ratio to a
@@ -301,7 +303,9 @@ records runtime conversion between `long double` and every signed or
 unsigned i386 integer width. ADR 0254 records static initializer conversion,
 ADR 0255 records static controls and finite width conversion, and ADR 0256
 records canonical x87 payloads and special-value conversion.
-ADR 0288 records runtime integer and long-double usual conversions.
+ADR 0288 records runtime integer and long-double usual conversions. ADR 0289
+records wide integer conversion and usual arithmetic with `float` and
+`double`.
 ADR 0258 records the preceding checked seed. ADR 0260 records static
 long-double arithmetic, ADR 0263 records ordinary hosted floating updates, ADR
 0265 records their checked-seed carriage, and ADR 0273 records private derived

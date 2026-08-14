@@ -545,6 +545,7 @@ test: $(CONTRACT_MANIFEST) \
 	$(CUPIDC_FRONTEND_CONTRACT) floating-arithmetic ..
 	$(CUPIDC_FRONTEND_CONTRACT) floating-comparisons ..
 	$(CUPIDC_FRONTEND_CONTRACT) floating-conversions ..
+	$(CUPIDC_FRONTEND_CONTRACT) wide-integer-floating ..
 	$(CUPIDC_FRONTEND_CONTRACT) floating-truth ..
 	$(CUPIDC_FRONTEND_CONTRACT) floating-scalars ..
 	$(CUPIDC_FRONTEND_CONTRACT) static-long-double-arithmetic ..
@@ -629,6 +630,7 @@ test: $(CONTRACT_MANIFEST) \
 	$(CUPIDC_IR_CONTRACT) floating-arithmetic ..
 	$(CUPIDC_IR_CONTRACT) floating-comparisons ..
 	$(CUPIDC_IR_CONTRACT) floating-conversions ..
+	$(CUPIDC_IR_CONTRACT) wide-integer-floating ..
 	$(CUPIDC_IR_CONTRACT) floating-truth ..
 	$(CUPIDC_IR_CONTRACT) floating-updates ..
 	$(CUPIDC_IR_CONTRACT) floating-scalars ..

@@ -3970,21 +3970,10 @@ static ctool_bool cir_floating_conversion_is_valid(
   }
   if (source_floating == CTOOL_FALSE &&
       target_floating == CTOOL_TRUE) {
-    if (target->kind == CTOOL_C_TYPE_LONG_DOUBLE) {
-      return cir_type_is_value_integer(context, source_type) == CTOOL_TRUE &&
-                     (conversion == CTOOL_C_CONVERSION_NONE ||
-                      conversion == CTOOL_C_CONVERSION_ASSIGNMENT ||
-                      conversion == CTOOL_C_CONVERSION_USUAL_ARITHMETIC)
-                 ? CTOOL_TRUE
-                 : CTOOL_FALSE;
-    }
-    return cir_type_is_represented_integer(
-               context, source_type) == CTOOL_TRUE &&
-                   context->unit->layout.types[source_type].size <= 4u &&
+    return cir_type_is_value_integer(context, source_type) == CTOOL_TRUE &&
                    (conversion == CTOOL_C_CONVERSION_NONE ||
                     conversion == CTOOL_C_CONVERSION_ASSIGNMENT ||
-                    conversion ==
-                        CTOOL_C_CONVERSION_USUAL_ARITHMETIC)
+                    conversion == CTOOL_C_CONVERSION_USUAL_ARITHMETIC)
                ? CTOOL_TRUE
                : CTOOL_FALSE;
   }
