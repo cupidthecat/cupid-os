@@ -356,6 +356,13 @@ bootloader Make edge now calls that transaction with the production manifest
 and full checked-seed closure. Standalone CupidASM overrides cannot bypass the
 guard. ADR 0283 records the cutover.
 
+Raw CupidASM requests accept one source `ORG` and one source section identity.
+The same section may be selected again. A duplicate `ORG` or a switch to a
+different section fails at that directive with a stable diagnostic, clears the
+assembly result, and leaves the hosted destination unchanged. ELF32 and
+fixed-image requests keep their multi-section layouts. ADR 0285 records the
+boundary.
+
 Source-head CupidASM also accepts `align POWER_OF_TWO[, FILL_BYTE]`. Raw
 output aligns the absolute `ORG` address, ELF32 output carries the required
 section alignment, and fixed images include the absolute region base in the

@@ -25618,3 +25618,81 @@ No object, artifact, ABI, dependency, or source suffix moves. Seed convergence
 and eight-byte integer or long-double mixed conditional arms remain open.
 
 ADR 0287 records the type, lowering, diagnostic, and ownership boundaries.
+## 2026-08-14: Reject ambiguous raw CupidASM source controls
+
+Raw CupidASM still emits one flat address space. Its parser now rejects a
+second source `ORG` with `CTOOL_ASM_DIAG_INVALID_ORIGIN` at that directive.
+The request's initial origin remains a default, so one source `ORG` may replace
+it. A failed request publishes a zeroed result and no bytes.
+
+The raw parser also tracks one claimed source section. The first explicit
+section may replace the unused implicit `.text` section. Once a section has
+been claimed by a directive or statement, repeating it remains valid and a
+switch to another section reports `CTOOL_ASM_DIAG_INVALID_SECTION` at the new
+directive. The context is shared across includes. This closes the route where
+section-relative offset zero from a second section reached the linear raw
+emitter as an internal error. A defensive emitter check now attaches a layout
+diagnostic if a future internal offset invariant fails.
+
+ELF32 and fixed-image requests keep their existing multi-section layouts. No
+active assembly source changed, and valid raw source retains its bytes, origin,
+range map, and absolute alignment behavior. The normal graph still has five
+CupidASM-owned production transforms and no NASM-owned transform. CupidC,
+CupidDis, CupidLD, and CupidObj ownership is unchanged.
+
+### Test-first evidence
+
+The duplicate-origin CLI test was added first. Its red run returned success
+instead of the required processing failure. The parser check made it green
+with `CT6000010` at line 4, column 1 and preserved the sentinel destination.
+
+The multi-section CLI test followed as a separate red-green loop. Its red run
+returned processing failure but printed only
+`cupidasm: assembly failed (internal)`. The section claim made it green with
+`CT6000011` at line 4, column 1 and preserved the sentinel destination.
+
+The native `raw-source-contracts` mode fixes the complete public operation
+contract. It checks both diagnostics and zeroed results, accepts one named
+section and a repeated selection, rejects a section switch before any storage,
+recovers in the same job after each failure, and repeats the valid two-byte
+artifact exactly. The Make test list runs this mode with the other CupidASM
+contracts.
+
+### Validation
+
+| Command/check | Result | Evidence |
+| --- | --- | --- |
+| Native CupidASM contract build and all modes | PASS | Strict Windows Clang builds the contract with warnings as errors. All 12 modes pass: raw basics, expressions, source controls, three object modes, two fixed-image modes, alignment, includes, errors, and long lines. |
+| `python -m unittest -v tests.test_toolchain_cupidasm tests.test_toolchain_cupidasm_sources tests.test_toolchain_cupidasm_kernel` | PASS | All 22 tests pass in 8.522 seconds. The run covers CLI publication, raw byte parity, raw maps, ELF32 semantics, alignment across all profiles, active sources, and kernel ELF rollback. |
+| Checked native Windows CupidC compile of `toolchain/cupidasm.cc` | PASS | The production wrapper validates the emitted i386 relocatable object and completes in 31.8 seconds. The temporary object was removed after validation. |
+| Demo-corpus inventory contract | PASS | The contract and active directory name the same 22 sources. |
+| Complete demo-corpus fixed-image contract | BASELINE FAILURE | Assembly stops at unchanged `demos/parity_gfx2d.asm:19:10` because the contract binding table omits `gfx2d_fullscreen_enter`. Inspection of `c9055c57` confirms that both the source call and missing fixture binding predate this raw-source work. The preceding 15 demos pass. |
+
+The complete Toolchain target was not run after its deterministic demo fixture
+failure. An isolated OS build was not run because no valid assembler output,
+object layout, ABI, build recipe, or active assembly source changed. The active
+raw and ELF32 source tests provide byte and semantic parity at the affected
+seam. The required CTXT update changes the embedded manual payload, so the
+integrated tree must remeasure its artifact-size policy after all parallel
+documentation changes land.
+
+### Decisions and remaining work
+
+Flattening raw sections was not added. It would need a defined ordering,
+cross-section expression model, and map policy. Sources that need independent
+sections use ELF32 or fixed-image output. Rejecting every raw section directive
+was also avoided because one named section is unambiguous and useful for shared
+source.
+
+No design question required user input. ADR 0009 already assigns flat layout
+to the raw profile and independent section layout to the other profiles. ADR
+0285 records the diagnostic boundary and rejected alternatives.
+
+This work retires the two raw-source follow-ups recorded on 2026-07-11. It
+adds no code-producing host dependency and removes none. The existing checked
+seed still bootstraps the changed `.cc` source. No `.c` source entered a
+Cupid-owned build root or qualified for a suffix change.
+
+The checked execution seeds do not yet carry the two diagnostics in their
+hosted CupidASM images. Their next fixed-point promotion remains a separate
+bootstrap step.

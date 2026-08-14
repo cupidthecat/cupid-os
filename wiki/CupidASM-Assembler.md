@@ -100,6 +100,15 @@ main:
 | `section .data` | Initialized data (`db`, `dw`, `dd` directives). |
 | `section .bss` | Uninitialized data (`resb`, `resw`, `resd`). Treated as data section. |
 
+Raw output has one flat address space. Its source may select one section name
+and may repeat that selection. Selecting a different section reports
+`CT6000011` at the new directive. Use ELF32 or fixed-image output when the
+source needs independent code and data sections.
+
+A raw source may contain one `ORG`. A second `ORG` reports `CT6000010` at that
+directive and publishes no new output. The request's initial origin is only a
+default, so the one source directive may replace it.
+
 ### Labels
 
 Labels are defined with a trailing colon:

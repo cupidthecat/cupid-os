@@ -140,6 +140,16 @@ carries both options. The normal boot rule calls
 the checked closure. ADR 0277 records the schema, and ADR 0283 records the
 production cutover.
 
+Source-head raw CupidASM has one origin and one section identity. A second
+source `ORG` reports `CT6000010` at the directive. A source may repeat its
+selected section, but selecting a different section reports `CT6000011` before
+layout.
+Both failures leave the result and output empty, and the hosted command
+preserves an existing destination. ELF32 and fixed-image requests retain their
+multi-section behavior. The checked execution seeds need their next fixed-point
+promotion before their hosted commands carry these diagnostics. ADR 0285
+records this source boundary.
+
 Hosted CupidC now exposes the existing Cupid language profile as `--cupid`.
 The option selects Cupid vocabulary in both preprocessing and parsing, while
 `--gnu` remains an independent extension switch. Cupid mode cannot be combined

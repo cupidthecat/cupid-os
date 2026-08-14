@@ -203,6 +203,7 @@ typedef struct {
   asm_section_t *sections;
   asm_section_t *section_tail;
   asm_section_t *current_section;
+  asm_section_t *raw_source_section;
   ctool_u32 section_count;
   ctool_string_t current_global;
   ctool_x86_mode_t mode;
@@ -557,6 +558,10 @@ static asm_statement_t *asm_append_statement(asm_context_t *context,
   statement->column = column;
   statement->mode = context->mode;
   statement->section = context->current_section;
+  if (context->request->artifact == CTOOL_ASM_ARTIFACT_RAW &&
+      context->raw_source_section == (asm_section_t *)0) {
+    context->raw_source_section = context->current_section;
+  }
   if (context->statement_tail == (asm_statement_t *)0) {
     context->statements = statement;
   } else {
@@ -2075,6 +2080,17 @@ static ctool_status_t asm_parse_line(asm_context_t *context,
     if (section == (asm_section_t *)0) {
       return context->failure_status;
     }
+    if (context->request->artifact == CTOOL_ASM_ARTIFACT_RAW) {
+      if (context->raw_source_section != (asm_section_t *)0 &&
+          context->raw_source_section != section) {
+        asm_fail(context, CTOOL_ERR_INPUT,
+                 CTOOL_ASM_DIAG_INVALID_SECTION,
+                 tokens[start].line, tokens[start].column,
+                 "raw output supports only one source section");
+        return CTOOL_ERR_INPUT;
+      }
+      context->raw_source_section = section;
+    }
     context->current_section = section;
     return CTOOL_OK;
   }
@@ -2157,6 +2173,12 @@ static ctool_status_t asm_parse_line(asm_context_t *context,
       asm_fail(context, CTOOL_ERR_INPUT, CTOOL_ASM_DIAG_INVALID_ORIGIN,
                tokens[start].line, tokens[start].column,
                "ORG is only valid for raw assembly output");
+      return CTOOL_ERR_INPUT;
+    }
+    if (context->have_origin == CTOOL_TRUE) {
+      asm_fail(context, CTOOL_ERR_INPUT, CTOOL_ASM_DIAG_INVALID_ORIGIN,
+               tokens[start].line, tokens[start].column,
+               "raw output accepts only one ORG directive");
       return CTOOL_ERR_INPUT;
     }
     status = asm_parse_expression(
@@ -3313,6 +3335,9 @@ static ctool_status_t asm_emit_raw(asm_context_t *context,
     ctool_status_t status = CTOOL_OK;
     context->active_path = statement->path;
     if (ctool_buffer_view(output).size != statement->offset) {
+      asm_fail(context, CTOOL_ERR_INTERNAL, CTOOL_ASM_DIAG_LAYOUT,
+               statement->line, statement->column,
+               "raw statement offset does not match output layout");
       return CTOOL_ERR_INTERNAL;
     }
     if (statement->kind == ASM_STATEMENT_INSTRUCTION) {
@@ -4349,6 +4374,7 @@ ctool_status_t ctool_asm_assemble(ctool_job_t *job,
   context.sections = (asm_section_t *)0;
   context.section_tail = (asm_section_t *)0;
   context.current_section = (asm_section_t *)0;
+  context.raw_source_section = (asm_section_t *)0;
   context.section_count = 0u;
   context.current_global.data = (const char *)0;
   context.current_global.size = 0u;

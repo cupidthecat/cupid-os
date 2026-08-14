@@ -746,6 +746,7 @@ test: $(CONTRACT_MANIFEST) \
 	$(CUPIDDIS_CONTRACT) errors
 	$(CUPIDASM_CONTRACT) raw-basic
 	$(CUPIDASM_CONTRACT) raw-expressions
+	$(CUPIDASM_CONTRACT) raw-source-contracts
 	$(CUPIDASM_CONTRACT) object-basic
 	$(CUPIDASM_CONTRACT) object-symbolic-immediate
 	$(CUPIDASM_CONTRACT) object-entry

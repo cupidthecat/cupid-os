@@ -104,6 +104,84 @@ class CupidAsmCliTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(output.read_bytes(), bytes.fromhex("b8 34 12 c3"))
 
+    def test_cli_rejects_duplicate_raw_origin_without_publishing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "duplicate-org.asm"
+            output = root / "duplicate-org.bin"
+            source.write_text(
+                "BITS 16\n"
+                "ORG 0x7c00\n"
+                "    db 0x11\n"
+                "ORG 0x8000\n"
+                "    db 0x22\n",
+                encoding="utf-8",
+            )
+            output.write_bytes(b"prior output")
+
+            result = subprocess.run(
+                [
+                    str(self.cli_path),
+                    "-f",
+                    "bin",
+                    str(source),
+                    "-o",
+                    str(output),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 1)
+            self.assertRegex(
+                result.stderr,
+                re.compile(
+                    r"duplicate-org\.asm:4:1: error CT6000010: "
+                    r"raw output accepts only one ORG directive"
+                ),
+            )
+            self.assertEqual(output.read_bytes(), b"prior output")
+
+    def test_cli_rejects_raw_multi_section_layout_without_publishing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "multi-section.asm"
+            output = root / "multi-section.bin"
+            source.write_text(
+                "BITS 32\n"
+                "section .text\n"
+                "start: ret\n"
+                "section .data\n"
+                "    db 0x2a\n",
+                encoding="utf-8",
+            )
+            output.write_bytes(b"prior output")
+
+            result = subprocess.run(
+                [
+                    str(self.cli_path),
+                    "-f",
+                    "bin",
+                    str(source),
+                    "-o",
+                    str(output),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 1)
+            self.assertRegex(
+                result.stderr,
+                re.compile(
+                    r"multi-section\.asm:4:1: error CT6000011: "
+                    r"raw output supports only one source section"
+                ),
+            )
+            self.assertEqual(output.read_bytes(), b"prior output")
+
     def test_cli_publishes_coalesced_raw_layout_ranges(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

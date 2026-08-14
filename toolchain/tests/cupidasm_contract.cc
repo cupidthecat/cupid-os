@@ -134,6 +134,30 @@ static int contract_has_diagnostic_message(const ctool_job_t *job,
   return 0;
 }
 
+static int contract_has_source_diagnostic(const ctool_job_t *job,
+                                          ctool_u32 code,
+                                          const char *expected_path,
+                                          ctool_u32 expected_line,
+                                          ctool_u32 expected_column,
+                                          const char *expected_message) {
+  ctool_u32 index;
+  ctool_string_t path = ctool_string(expected_path);
+  ctool_string_t message = ctool_string(expected_message);
+  for (index = 0u; index < ctool_job_diagnostic_count(job); index++) {
+    const ctool_diagnostic_t *diagnostic = ctool_job_diagnostic(job, index);
+    if (diagnostic != (const ctool_diagnostic_t *)0 &&
+        diagnostic->code == code &&
+        diagnostic->severity == CTOOL_DIAG_ERROR &&
+        contract_string_equal(diagnostic->path, path) &&
+        diagnostic->line == expected_line &&
+        diagnostic->column == expected_column &&
+        contract_string_equal(diagnostic->message, message)) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
 static int expect_assembly_failure(
     const char *name, ctool_job_config_t config, const char *path,
     const char *source_text, const ctool_asm_request_t *request,
@@ -1380,6 +1404,199 @@ static void init_fixed_request(ctool_asm_request_t *request,
   request->as.fixed.data.maximum_bytes = 0x1000u;
 }
 
+static int run_raw_source_contracts(void) {
+  static const char duplicate_origin_source[] =
+      "BITS 16\n"
+      "ORG 0x7c00\n"
+      "db 0x11\n"
+      "ORG 0x8000\n"
+      "db 0x22\n";
+  static const char one_section_source[] =
+      "BITS 16\n"
+      "section .payload\n"
+      "ORG 0x100\n"
+      "db 0x11\n"
+      "section .payload\n"
+      "ret\n";
+  static const char multi_section_source[] =
+      "BITS 32\n"
+      "section .text\n"
+      "start: ret\n"
+      "section .data\n"
+      "db 0x2a\n";
+  static const char early_multi_section_source[] =
+      "BITS 32\n"
+      "section .first\n"
+      "section .second\n"
+      "db 0x2a\n";
+  static const ctool_u8 expected[] = {0x11u, 0xc3u};
+  ctool_host_adapter_t adapter;
+  ctool_job_config_t config;
+  ctool_job_t *job;
+  ctool_buffer_t *output;
+  ctool_source_t source;
+  ctool_asm_request_t request;
+  ctool_asm_result_t result;
+  ctool_bytes_t bytes;
+  ctool_status_t status;
+
+  status = ctool_host_adapter_init(&adapter, ".");
+  if (!check_status(status, CTOOL_OK,
+                    "raw source contract host adapter init")) {
+    return 1;
+  }
+  config = ctool_host_job_config(&adapter, ctool_default_limits());
+  init_raw_request(&request);
+  status = ctool_job_open(&config, &job);
+  if (!check_status(status, CTOOL_OK, "raw source contract job open")) {
+    return 1;
+  }
+  status = ctool_job_open_buffer(job, 16u, config.limits.output_bytes,
+                                 &output);
+  if (!check_status(status, CTOOL_OK, "raw source contract output open")) {
+    ctool_job_close(job);
+    return 1;
+  }
+
+  source.path.text = ctool_string("/duplicate-org.asm");
+  source.contents = ctool_bytes(
+      duplicate_origin_source,
+      (ctool_u32)(sizeof(duplicate_origin_source) - 1u));
+  (void)memset(&result, 0xa5, sizeof(result));
+  status = ctool_asm_assemble(job, &source, &request, output, &result);
+  if (!check_status(status, CTOOL_ERR_INPUT, "duplicate raw origin") ||
+      ctool_buffer_view(output).size != 0u ||
+      !contract_result_is_zero(&result) ||
+      ctool_job_diagnostic_count(job) != 1u ||
+      !contract_has_source_diagnostic(
+          job, CTOOL_ASM_DIAG_INVALID_ORIGIN, "/duplicate-org.asm", 4u,
+          1u, "raw output accepts only one ORG directive")) {
+    (void)fprintf(stderr, "duplicate raw origin contract differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    ctool_buffer_close(output);
+    ctool_job_close(job);
+    return 1;
+  }
+
+  source.path.text = ctool_string("/raw-one-section.asm");
+  source.contents = ctool_bytes(
+      one_section_source, (ctool_u32)(sizeof(one_section_source) - 1u));
+  (void)memset(&result, 0xa5, sizeof(result));
+  status = ctool_asm_assemble(job, &source, &request, output, &result);
+  bytes = ctool_buffer_view(output);
+  if (!check_status(status, CTOOL_OK, "raw source recovery") ||
+      bytes.size != (ctool_u32)sizeof(expected) ||
+      memcmp(bytes.data, expected, sizeof(expected)) != 0 ||
+      result.artifact != CTOOL_ASM_ARTIFACT_RAW ||
+      result.bytes.data != bytes.data || result.bytes.size != bytes.size ||
+      result.raw_origin != 0x100u || result.raw_range_count != 2u ||
+      result.raw_ranges[0].offset != 0u ||
+      result.raw_ranges[0].kind != CTOOL_ASM_RAW_RANGE_DATA ||
+      result.raw_ranges[1].offset != 1u ||
+      result.raw_ranges[1].kind != CTOOL_ASM_RAW_RANGE_CODE16 ||
+      ctool_job_diagnostic_count(job) != 1u) {
+    (void)fprintf(stderr, "raw source recovery artifact differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    ctool_buffer_close(output);
+    ctool_job_close(job);
+    return 1;
+  }
+
+  status = ctool_buffer_rewind(output, 0u);
+  if (status == CTOOL_OK) {
+    (void)memset(&result, 0xa5, sizeof(result));
+    status = ctool_asm_assemble(job, &source, &request, output, &result);
+  }
+  bytes = ctool_buffer_view(output);
+  if (!check_status(status, CTOOL_OK,
+                    "raw source deterministic repeat") ||
+      bytes.size != (ctool_u32)sizeof(expected) ||
+      memcmp(bytes.data, expected, sizeof(expected)) != 0 ||
+      result.raw_origin != 0x100u ||
+      ctool_job_diagnostic_count(job) != 1u) {
+    (void)fprintf(stderr, "raw source deterministic repeat differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    ctool_buffer_close(output);
+    ctool_job_close(job);
+    return 1;
+  }
+
+  status = ctool_buffer_rewind(output, 0u);
+  source.path.text = ctool_string("/raw-multi-section.asm");
+  source.contents = ctool_bytes(
+      multi_section_source,
+      (ctool_u32)(sizeof(multi_section_source) - 1u));
+  (void)memset(&result, 0xa5, sizeof(result));
+  if (status == CTOOL_OK) {
+    status = ctool_asm_assemble(job, &source, &request, output, &result);
+  }
+  bytes = ctool_buffer_view(output);
+  if (!check_status(status, CTOOL_ERR_INPUT,
+                    "raw multi-section layout") ||
+      bytes.size != 0u ||
+      !contract_result_is_zero(&result) ||
+      ctool_job_diagnostic_count(job) != 2u ||
+      !contract_has_source_diagnostic(
+          job, CTOOL_ASM_DIAG_INVALID_SECTION,
+          "/raw-multi-section.asm", 4u, 1u,
+          "raw output supports only one source section")) {
+    (void)fprintf(stderr, "raw multi-section contract differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    ctool_buffer_close(output);
+    ctool_job_close(job);
+    return 1;
+  }
+
+  source.path.text = ctool_string("/raw-one-section.asm");
+  source.contents = ctool_bytes(
+      one_section_source, (ctool_u32)(sizeof(one_section_source) - 1u));
+  (void)memset(&result, 0xa5, sizeof(result));
+  status = ctool_asm_assemble(job, &source, &request, output, &result);
+  bytes = ctool_buffer_view(output);
+  if (!check_status(status, CTOOL_OK,
+                    "raw multi-section recovery") ||
+      bytes.size != (ctool_u32)sizeof(expected) ||
+      memcmp(bytes.data, expected, sizeof(expected)) != 0 ||
+      result.raw_origin != 0x100u ||
+      ctool_job_diagnostic_count(job) != 2u) {
+    (void)fprintf(stderr, "raw multi-section recovery differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    ctool_buffer_close(output);
+    ctool_job_close(job);
+    return 1;
+  }
+
+  status = ctool_buffer_rewind(output, 0u);
+  source.path.text = ctool_string("/raw-early-multi-section.asm");
+  source.contents = ctool_bytes(
+      early_multi_section_source,
+      (ctool_u32)(sizeof(early_multi_section_source) - 1u));
+  (void)memset(&result, 0xa5, sizeof(result));
+  if (status == CTOOL_OK) {
+    status = ctool_asm_assemble(job, &source, &request, output, &result);
+  }
+  if (!check_status(status, CTOOL_ERR_INPUT,
+                    "raw early multi-section layout") ||
+      ctool_buffer_view(output).size != 0u ||
+      !contract_result_is_zero(&result) ||
+      ctool_job_diagnostic_count(job) != 3u ||
+      !contract_has_source_diagnostic(
+          job, CTOOL_ASM_DIAG_INVALID_SECTION,
+          "/raw-early-multi-section.asm", 3u, 1u,
+          "raw output supports only one source section")) {
+    (void)fprintf(stderr, "raw early multi-section contract differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    ctool_buffer_close(output);
+    ctool_job_close(job);
+    return 1;
+  }
+
+  ctool_buffer_close(output);
+  ctool_job_close(job);
+  (void)puts("raw-source-contracts: ok");
+  return 0;
+}
+
 static int run_alignment(void) {
   static const char invalid_fill_source_text[] =
       "BITS 32\n"
@@ -2087,6 +2304,9 @@ int main(int argc, char **argv) {
   if (argc == 2 && strcmp(argv[1], "raw-expressions") == 0) {
     return run_raw_expressions();
   }
+  if (argc == 2 && strcmp(argv[1], "raw-source-contracts") == 0) {
+    return run_raw_source_contracts();
+  }
   if (argc == 2 && strcmp(argv[1], "object-basic") == 0) {
     return run_object_basic();
   }
@@ -2116,8 +2336,8 @@ int main(int argc, char **argv) {
   }
   (void)fprintf(stderr,
                 "usage: cupidasm-contract raw-basic|raw-expressions|"
-                "object-basic|object-symbolic-immediate|object-entry|fixed-image|"
-                "fixed-directives|alignment|include-resolution|errors|"
-                "long-line\n");
+                "raw-source-contracts|object-basic|object-symbolic-immediate|"
+                "object-entry|fixed-image|fixed-directives|alignment|"
+                "include-resolution|errors|long-line\n");
   return 2;
 }
