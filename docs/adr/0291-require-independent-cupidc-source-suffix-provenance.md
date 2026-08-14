@@ -37,15 +37,17 @@ one of these independent records:
   wrapper.
 
 The suffix still selects the Cupid C language inventory. It no longer assigns
-the runtime owner.
+the runtime owner. This rule applies to every active `.cc` source in every
+audit, including a repository without a source-suffix policy.
 
 The source suffix policy records only the places where the graph cannot carry
 the complete proof. It lists the 130 runtime-delivered sources, the 17
 residual `.c` files and their audited roles, and the three unreachable `.cc`
 files and their classifications. Paths are relative, normalized, unique, and
 sorted. The parser rejects duplicate keys, unknown fields, a wrong schema,
-bad suffixes, stale paths, classification drift, and entries that claim both
-active and unreachable roles.
+bad suffixes, traversal and drive-qualified paths, stale paths,
+classification drift, and entries that claim both active and unreachable
+roles.
 
 A production audit requires exact residual coverage. A newly tracked `.c`
 file, an unapproved unreachable `.cc` file, or a policy entry whose source has
@@ -53,6 +55,12 @@ disappeared fails before report publication. A runtime delivery entry also
 fails unless the evaluated graph gives that source exactly the CupidObj and
 host Python owner pair. A compiler, contract, object-copy, or any other extra
 owner rejects the entry. This keeps the exception list narrow.
+
+In a nonproduction audit, an unreachable `.cc` source needs a policy entry, a
+recorded historical relation, or an explicit Make exclusion. A partial
+production-root audit does not apply this check to sources that belong to
+omitted user or Toolchain graphs. The canonical three-root audit has the
+complete view and requires exact policy coverage.
 
 Generated `.cc` sources remain outside rename provenance. Their generators
 own their content, and their checked CupidC compile edges establish the owner
@@ -87,10 +95,10 @@ The first complete build-graph run exposed an overbroad enforcement scope. It
 ran 93 tests in 643.225 seconds and failed 17. Sixteen fixtures deliberately
 use small, policy-free repositories to test unrelated scanners, and a root-only
 production audit deliberately omits the user and Toolchain graphs. Strict
-active `.cc` ownership now applies whenever the production repository or an
-explicit policy is present. Exact unreachable coverage applies to the complete
-root, user, and Toolchain graph. The bypass tests carry an explicit policy, so
-they still exercise the fail-closed path.
+active `.cc` ownership initially applied only when the production repository
+or an explicit policy was present. Exact unreachable coverage applied to the
+complete root, user, and Toolchain graph. The bypass tests carried an explicit
+policy, so they still exercised the fail-closed path.
 
 The seventeenth failure found a stale inventory lock from the preceding wide
 integer conversion work. The committed audit already counted 6,088 `sizeof`
@@ -98,8 +106,8 @@ tokens, but the test still expected 6,043. Correcting the lock made its focused
 generation and drift check pass in 216.585 seconds without changing the active
 source census.
 
-The final complete module passed all 94 tests in 980.970 seconds. A final
-`make bootstrap-audit` passed in 91.1 seconds, and
+The first implementation's complete module passed all 94 tests in 980.970
+seconds. Its `make bootstrap-audit` passed in 91.1 seconds, and
 `make check-bootstrap-audit` passed in 87.0 seconds. The generated JSON is
 2,677,678 bytes with SHA-256
 `0433c9313a7fa8a4b2753000060d7447438c1ca94fa266928792db003de6bf81`.
@@ -107,6 +115,36 @@ The 12,502-byte Markdown summary has SHA-256
 `349b56aab626fa3cb9c9ef07d1fc7530854f6b668ae3ee859e03d8513da8f142`.
 The 4,297-byte policy has SHA-256
 `139876a26fef87b4e769dd397642817a89f6565564e402c46572950645fa7e82`.
+
+Spec review then found that a policy-free fixture still received
+`unscoped_fixture_suffix` ownership. A host-built `main.cc` and an unreferenced
+`orphan.cc` both returned success without a policy. Their direct CLI tests
+failed in 0.306 and 0.314 seconds. Removing the fallback made active ownership
+strict in every audit. Nonproduction repositories also check unreachable
+`.cc` files, while partial production views retain their deliberate omission
+boundary.
+
+The same review added direct parser coverage. Seven document-shape cases cover
+duplicate JSON keys, unknown fields, the schema, the root type, and all three
+inventory types. Eleven path and inventory cases cover wrong suffixes,
+traversal, drive-qualified paths, ordering, duplicate delivery entries, and
+classification values. Two more cases exercise classification drift, and one
+rejects an active and unreachable overlap. The drive-qualified case exposed a
+real gap: `C:/escape.c` reached the stale-path check instead of the path
+validator. Rejecting drive prefixes fixed it.
+
+Four positive scanner fixtures and the two Cupid `#exe` diagnostic fixtures
+had relied on suffix ownership. They now use exact CupidObj delivery edges and
+explicit fixture policy. The first 98-test module found those assumptions and
+the incomplete production-root boundary, failing 12 assertions in 743.935
+seconds. The affected six methods passed in 92.382 seconds after correction.
+
+The final focused cohort passed 16 methods in 10.869 seconds. The complete
+module passed all 98 tests in 841.743 seconds. A final
+`make bootstrap-audit` passed in 68.8 seconds, and the checked replay passed in
+87.7 seconds. The generated JSON remains 2,677,678 bytes and has SHA-256
+`3038b348a83ea614c5a8d61ff8e73bd7e1a01496fdece5f5ef10583a5a86affe`.
+The Markdown summary and policy bytes did not change.
 
 ## Rejected alternatives
 

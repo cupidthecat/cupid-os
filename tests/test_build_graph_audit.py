@@ -484,6 +484,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 ASM = nasm
                 LD = host-ld
                 OBJCOPY = host-objcopy
+                CUPIDOBJ = cupidobj
 
                 .PHONY: all
                 all: kernel.elf app.o demo.o
@@ -498,7 +499,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 \t$(ASM) -f bin $< -o $@
 
                 app.o: app.cc
-                \t$(OBJCOPY) -I binary -O elf32-i386 $< $@
+                \t$(CUPIDOBJ) wrap-text $< -o $@
 
                 demo.o: demo.asm
                 \t$(OBJCOPY) -I binary -O elf32-i386 $< $@
@@ -522,6 +523,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             _write(root / "app.cc", "U0 Main() {}\n")
             _write(root / "boot.asm", "bits 16\norg 0x7c00\nhlt\n")
             _write(root / "demo.asm", "bits 32\nmov eax, 1\nret\n")
+            _write_source_suffix_policy(
+                root,
+                runtime_delivery_sources=["app.cc"],
+            )
 
             output = root / "audit.json"
             result = subprocess.run(
@@ -569,7 +574,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(
                 transforms["kernel.elf"]["operation"], "link_elf32_executable"
             )
-            self.assertEqual(transforms["app.o"]["tools"], ["host_object_copy"])
+            self.assertEqual(
+                transforms["app.o"]["tools"],
+                ["cupid_object", "host_python"],
+            )
             self.assertEqual(transforms["demo.o"]["tools"], ["host_object_copy"])
             self.assertEqual(
                 transforms["kernel.elf"]["inputs"], ["main.o", "boot.bin"]
@@ -617,6 +625,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             )
             _write(root / "main.c", "int main(void) { return 0; }\n")
             _write(root / "app.cc", "U0 Main() {}\n")
+            _write_source_suffix_policy(
+                root,
+                runtime_delivery_sources=["app.cc"],
+            )
             _write(
                 root / "link.ld",
                 "ENTRY(main)\nSECTIONS { . = 0x100000; .text : { *(.text) } }\n",
@@ -850,7 +862,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 .SUFFIXES:
                 CC = host-cc
                 ASM = nasm
-                OBJCOPY = host-objcopy
+                CUPIDOBJ = cupidobj
 
                 .PHONY: all
                 all: feature.o app.o entry.o
@@ -859,7 +871,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 \t$(CC) -c $< -o $@
 
                 app.o: app.cc
-                \t$(OBJCOPY) -I binary -O elf32-i386 $< $@
+                \t$(CUPIDOBJ) wrap-text $< -o $@
 
                 entry.o: entry.asm
                 \t$(ASM) -f elf32 $< -o $@
@@ -945,6 +957,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 message db "[brackets in data are not an address]"
                     times COUNT db 0
                 """,
+            )
+            _write_source_suffix_policy(
+                root,
+                runtime_delivery_sources=["app.cc"],
             )
 
             output = root / "audit.json"
@@ -1872,19 +1888,19 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 root / "Makefile",
                 """
                 .SUFFIXES:
-                OBJCOPY = host-objcopy
+                CUPIDOBJ = cupidobj
 
                 .PHONY: all
                 all: ordinary.o digraph.o header_user.o
 
                 ordinary.o: ordinary.cc
-                \t$(OBJCOPY) -I binary -O elf32-i386 $< $@
+                \t$(CUPIDOBJ) wrap-text $< -o $@
 
                 digraph.o: digraph.cc
-                \t$(OBJCOPY) -I binary -O elf32-i386 $< $@
+                \t$(CUPIDOBJ) wrap-text $< -o $@
 
                 header_user.o: header_user.cc exe_header.h
-                \t$(OBJCOPY) -I binary -O elf32-i386 $< $@
+                \t$(CUPIDOBJ) wrap-text $< -o $@
                 """,
             )
             _write(
@@ -1910,6 +1926,14 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             _write(
                 root / "exe_header.h",
                 "#exe { header_value = 3; }\n",
+            )
+            _write_source_suffix_policy(
+                root,
+                runtime_delivery_sources=[
+                    "digraph.cc",
+                    "header_user.cc",
+                    "ordinary.cc",
+                ],
             )
 
             output = root / "audit.json"
@@ -1991,11 +2015,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 root / "Makefile",
                 """
                 .SUFFIXES:
-                OBJCOPY = host-objcopy
+                CUPIDOBJ = cupidobj
                 .PHONY: all
                 all: app.o
                 app.o: app.cc
-                \t$(OBJCOPY) -I binary -O elf32-i386 $< $@
+                \t$(CUPIDOBJ) wrap-text $< -o $@
                 """,
             )
             _write(
@@ -2006,6 +2030,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 }
                 #endif
                 """,
+            )
+            _write_source_suffix_policy(
+                root,
+                runtime_delivery_sources=["app.cc"],
             )
 
             result = subprocess.run(
@@ -2046,14 +2074,18 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     root / "Makefile",
                     """
                     .SUFFIXES:
-                    OBJCOPY = host-objcopy
+                    CUPIDOBJ = cupidobj
                     .PHONY: all
                     all: app.o
                     app.o: app.cc
-                    \t$(OBJCOPY) -I binary -O elf32-i386 $< $@
+                    \t$(CUPIDOBJ) wrap-text $< -o $@
                     """,
                 )
                 _write(root / "app.cc", source)
+                _write_source_suffix_policy(
+                    root,
+                    runtime_delivery_sources=["app.cc"],
+                )
 
                 result = subprocess.run(
                     [
@@ -2597,7 +2629,6 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 """,
             )
             _write(root / "main.cc", "int main(void) { return 0; }\n")
-            _write_source_suffix_policy(root)
 
             output = root / "audit.json"
             result = subprocess.run(
@@ -2639,7 +2670,6 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             )
             _write(root / "main.c", "int main(void) { return 0; }\n")
             _write(root / "orphan.cc", "int orphan(void) { return 0; }\n")
-            _write_source_suffix_policy(root)
 
             output = root / "audit.json"
             result = subprocess.run(
@@ -2983,6 +3013,294 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertIn(
                 "runtime delivery policy lacks the exact CupidObj-only "
                 "ownership edge: program.cc",
+                result.stderr,
+            )
+            self.assertFalse(output.exists())
+
+    def test_source_suffix_policy_rejects_invalid_document_shapes(self):
+        valid = {
+            "schema": "cupid.c-source-suffix-ownership.v1",
+            "residual_c_sources": {},
+            "runtime_delivery_sources": [],
+            "unreachable_cupid_c_sources": {},
+        }
+        duplicate_key = """
+            {
+              "schema": "cupid.c-source-suffix-ownership.v1",
+              "residual_c_sources": {
+                "main.c": "active_host",
+                "main.c": "dormant"
+              },
+              "runtime_delivery_sources": [],
+              "unreachable_cupid_c_sources": {}
+            }
+        """
+        cases = (
+            (
+                "duplicate key",
+                duplicate_key,
+                "source suffix ownership policy repeats key: main.c",
+            ),
+            (
+                "unknown field",
+                {**valid, "comment": "not part of the schema"},
+                "source suffix ownership policy fields differ",
+            ),
+            (
+                "wrong schema",
+                {**valid, "schema": "cupid.c-source-suffix-ownership.v2"},
+                "source suffix ownership policy schema differs",
+            ),
+            (
+                "non-object root",
+                [],
+                "source suffix ownership policy root must be an object",
+            ),
+            (
+                "residual type",
+                {**valid, "residual_c_sources": []},
+                "residual_c_sources must be a string map",
+            ),
+            (
+                "delivery type",
+                {**valid, "runtime_delivery_sources": {}},
+                "runtime_delivery_sources must be a string list",
+            ),
+            (
+                "unreachable type",
+                {**valid, "unreachable_cupid_c_sources": []},
+                "unreachable_cupid_c_sources must be a string map",
+            ),
+        )
+        for name, document, diagnostic in cases:
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as td:
+                root = Path(td)
+                _write(root / "Makefile", ".PHONY: all\nall:\n")
+                policy = root / "docs" / "bootstrap" / (
+                    "c-source-suffix-ownership.json"
+                )
+                serialized = (
+                    document
+                    if isinstance(document, str)
+                    else json.dumps(document, indent=2) + "\n"
+                )
+                _write(policy, serialized)
+
+                output = root / "audit.json"
+                result = subprocess.run(
+                    [
+                        sys.executable,
+                        str(AUDIT_TOOL),
+                        "--root",
+                        str(root),
+                        "--output",
+                        str(output),
+                    ],
+                    text=True,
+                    capture_output=True,
+                )
+
+                self.assertEqual(
+                    result.returncode,
+                    2,
+                    result.stdout + result.stderr,
+                )
+                self.assertIn(diagnostic, result.stderr)
+                self.assertFalse(output.exists())
+
+    def test_source_suffix_policy_rejects_invalid_path_inventories(self):
+        schema = "cupid.c-source-suffix-ownership.v1"
+
+        def policy(*, residual=None, deliveries=None, unreachable=None):
+            return {
+                "schema": schema,
+                "residual_c_sources": residual or {},
+                "runtime_delivery_sources": deliveries or [],
+                "unreachable_cupid_c_sources": unreachable or {},
+            }
+
+        cases = (
+            (
+                "residual suffix",
+                policy(residual={"main.cc": "active_host"}),
+                "residual C path is invalid: 'main.cc'",
+            ),
+            (
+                "delivery suffix",
+                policy(deliveries=["program.c"]),
+                "runtime delivery path is invalid: 'program.c'",
+            ),
+            (
+                "unreachable suffix",
+                policy(unreachable={"orphan.c": "not_reached"}),
+                "unreachable Cupid C path is invalid: 'orphan.c'",
+            ),
+            (
+                "parent traversal",
+                policy(residual={"../escape.c": "dormant"}),
+                "residual C path is invalid: '../escape.c'",
+            ),
+            (
+                "drive-qualified path",
+                policy(residual={"C:/escape.c": "dormant"}),
+                "residual C path is invalid: 'C:/escape.c'",
+            ),
+            (
+                "residual order",
+                policy(
+                    residual={
+                        "z.c": "dormant",
+                        "a.c": "dormant",
+                    }
+                ),
+                "residual_c_sources must be path-sorted",
+            ),
+            (
+                "delivery order",
+                policy(deliveries=["z.cc", "a.cc"]),
+                "runtime_delivery_sources must be a unique path-sorted list",
+            ),
+            (
+                "duplicate delivery",
+                policy(deliveries=["a.cc", "a.cc"]),
+                "runtime_delivery_sources must be a unique path-sorted list",
+            ),
+            (
+                "unreachable order",
+                policy(
+                    unreachable={
+                        "z.cc": "not_reached",
+                        "a.cc": "not_reached",
+                    }
+                ),
+                "unreachable_cupid_c_sources must be path-sorted",
+            ),
+            (
+                "residual classification",
+                policy(residual={"main.c": "future"}),
+                "residual C role is invalid: main.c: future",
+            ),
+            (
+                "unreachable classification",
+                policy(unreachable={"orphan.cc": "future"}),
+                "unreachable Cupid C classification is invalid: "
+                "orphan.cc: future",
+            ),
+        )
+        for name, document, diagnostic in cases:
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as td:
+                root = Path(td)
+                _write(root / "Makefile", ".PHONY: all\nall:\n")
+                _write(
+                    root
+                    / "docs"
+                    / "bootstrap"
+                    / "c-source-suffix-ownership.json",
+                    json.dumps(document, indent=2) + "\n",
+                )
+
+                output = root / "audit.json"
+                result = subprocess.run(
+                    [
+                        sys.executable,
+                        str(AUDIT_TOOL),
+                        "--root",
+                        str(root),
+                        "--output",
+                        str(output),
+                    ],
+                    text=True,
+                    capture_output=True,
+                )
+
+                self.assertEqual(
+                    result.returncode,
+                    2,
+                    result.stdout + result.stderr,
+                )
+                self.assertIn(diagnostic, result.stderr)
+                self.assertFalse(output.exists())
+
+    def test_source_suffix_policy_rejects_classification_drift(self):
+        cases = (
+            (
+                "residual C",
+                "unused.c",
+                {
+                    "residual_c_sources": {"unused.c": "dormant"},
+                },
+                "residual C classification differs: unused.c: "
+                "expected=dormant, actual=not_reached",
+            ),
+            (
+                "unreachable Cupid C",
+                "orphan.cc",
+                {
+                    "unreachable_cupid_c_sources": {
+                        "orphan.cc": "dormant",
+                    },
+                },
+                "unreachable Cupid C classification differs: orphan.cc: "
+                "expected=dormant, actual=not_reached",
+            ),
+        )
+        for name, source, overrides, diagnostic in cases:
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as td:
+                root = Path(td)
+                _write(root / "Makefile", ".PHONY: all\nall:\n")
+                _write(root / source, "int unused(void) { return 0; }\n")
+                _write_source_suffix_policy(root, **overrides)
+
+                output = root / "audit.json"
+                result = subprocess.run(
+                    [
+                        sys.executable,
+                        str(AUDIT_TOOL),
+                        "--root",
+                        str(root),
+                        "--output",
+                        str(output),
+                    ],
+                    text=True,
+                    capture_output=True,
+                )
+
+                self.assertEqual(
+                    result.returncode,
+                    2,
+                    result.stdout + result.stderr,
+                )
+                self.assertIn(diagnostic, result.stderr)
+                self.assertFalse(output.exists())
+
+    def test_source_suffix_policy_rejects_active_unreachable_overlap(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _write(root / "Makefile", ".PHONY: all\nall:\n")
+            _write_source_suffix_policy(
+                root,
+                runtime_delivery_sources=["program.cc"],
+                unreachable_cupid_c_sources={"program.cc": "not_reached"},
+            )
+
+            output = root / "audit.json"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(AUDIT_TOOL),
+                    "--root",
+                    str(root),
+                    "--output",
+                    str(output),
+                ],
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertIn(
+                "policy assigns active and unreachable roles to the same "
+                "path: program.cc",
                 result.stderr,
             )
             self.assertFalse(output.exists())

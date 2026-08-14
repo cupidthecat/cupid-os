@@ -1238,9 +1238,13 @@ inputs remain valid. The contract does not assign CupidC ownership from the
 contract, or an exact runtime-delivery policy entry backed by a CupidObj edge.
 The policy fixes all seventeen residual `.c` paths, all 130 source-text
 deliveries, and the three unreachable `.cc` paths. A stale path, unknown
-`.cc`, or host-owned `.cc` fails before publication. The safe suffix-only
-rename set is empty. ADR 0284 records the first gate, and ADR 0291 records the
-independent provenance contract.
+`.cc`, or host-owned `.cc` fails before publication. Active evidence remains
+mandatory when an audited tree has no policy file. A nonproduction audit
+accepts policy, a recorded source relation, or an explicit Make exclusion for
+an unreferenced `.cc`. The complete production graph requires exact policy
+coverage, while an intentionally partial production view defers that census.
+The safe suffix-only rename set is empty. ADR 0284 records the first gate, and
+ADR 0291 records the independent provenance contract.
 
 Native contract evidence keeps that distinction executable. The process
 fixture now supplies the four host adapters required by the current

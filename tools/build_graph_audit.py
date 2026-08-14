@@ -2376,6 +2376,7 @@ def _load_source_suffix_ownership_policy(root: Path) -> dict[str, object]:
             not value
             or "\\" in value
             or posixpath.isabs(value)
+            or re.match(r"^[A-Za-z]:", value) is not None
             or normalized != value
             or value.startswith("../")
             or Path(value).suffix.lower() != suffix
@@ -2525,7 +2526,6 @@ def _c_source_ownership_contract(
     unreachable_sources: list[dict[str, object]],
     policy: dict[str, object],
     runtime_owner_evidence: dict[str, str],
-    strict_cupid_c_ownership: bool,
     strict_unreachable_cupid_c_ownership: bool,
     complete_supported_graph: bool,
 ) -> dict[str, object]:
@@ -2670,15 +2670,11 @@ def _c_source_ownership_contract(
             f"CupidC-owned tracked .c {noun} must use .cc: "
             + ", ".join(cupidc_owned)
         )
-    unproven_active_cupid_c = (
-        [
-            str(source["path"])
-            for source in active_tracked_cupid_c
-            if source["runtime_owner"] != "CupidC"
-        ]
-        if strict_cupid_c_ownership
-        else []
-    )
+    unproven_active_cupid_c = [
+        str(source["path"])
+        for source in active_tracked_cupid_c
+        if source["runtime_owner"] != "CupidC"
+    ]
     if unproven_active_cupid_c:
         subject = (
             "source lacks"
@@ -5062,16 +5058,12 @@ def build_audit(
     if production_root:
         _validate_checked_seed_runner_contract(root)
     source_suffix_policy = _load_source_suffix_ownership_policy(root)
-    strict_cupid_c_ownership = (
-        production_root or source_suffix_policy["path"] is not None
-    )
     complete_supported_graph = production_root and {
         ("user", "all"),
         ("toolchain", "all"),
     }.issubset(set(supplemental_builds or []))
     strict_unreachable_cupid_c_ownership = (
-        complete_supported_graph
-        or (not production_root and source_suffix_policy["path"] is not None)
+        complete_supported_graph or not production_root
     )
     runtime_delivery_policy = set(
         source_suffix_policy["runtime_delivery_sources"]
@@ -5154,9 +5146,6 @@ def build_audit(
         elif language == "cupid_c" and relative in runtime_delivery_policy:
             runtime_owner = "CupidC"
             runtime_owner_evidence = "explicit_runtime_delivery_policy"
-        elif language == "cupid_c" and not strict_cupid_c_ownership:
-            runtime_owner = "CupidC"
-            runtime_owner_evidence = "unscoped_fixture_suffix"
         elif (
             language in {"c", "c_header"}
             and "cupid_c_compiler" in owners
@@ -5217,7 +5206,6 @@ def build_audit(
         unreachable_sources,
         source_suffix_policy,
         runtime_owner_evidence_by_path,
-        strict_cupid_c_ownership,
         strict_unreachable_cupid_c_ownership,
         complete_supported_graph,
     )

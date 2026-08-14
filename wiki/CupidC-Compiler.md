@@ -925,6 +925,11 @@ with a CupidObj edge. That policy also locks the seventeen residual `.c` paths
 and three unreachable `.cc` paths. A `.cc` rename still follows a real checked
 build and behavior proof. The safe suffix-only rename set is empty. ADR 0284
 records the first gate, and ADR 0291 records the complete provenance rule.
+Every audit requires the active ownership evidence, including an audit without
+a policy file. A nonproduction audit accepts policy, a recorded source
+relation, or an explicit Make exclusion for an unreachable `.cc`. The complete
+production graph requires exact policy coverage, while a partial production
+view defers that census.
 The residual native C evidence passes all 56 kernel, USB, and ELF32 oracle
 cases. The process fixture keeps its host language mode while supplying the
 four adapters required by the current production cleanup path.

@@ -1081,7 +1081,11 @@ the other 130 sources delivered as text by CupidObj, all seventeen residual
 `.c` paths, and the three unreachable `.cc` paths. A host or inactive source
 therefore cannot claim CupidC ownership through a suffix-only rename. The safe
 rename set is empty. ADR 0284 records the first gate, and ADR 0291 records the
-independent provenance rule.
+independent provenance rule. Every audit requires active ownership evidence,
+including an audit without a policy file. A nonproduction audit accepts policy,
+a recorded source relation, or an explicit Make exclusion for an unreachable
+`.cc`. The complete production graph requires exact policy coverage, while a
+partial production view defers that census.
 The native process fixture supplies the four host adapters required by the
 current cleanup path. Its 20 focused cases pass, and the combined native C
 evidence passes all 56 kernel, USB, and ELF32 oracle cases without changing

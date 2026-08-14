@@ -26348,11 +26348,10 @@ Nine focused ownership tests passed in 3.171 seconds after the first
 implementation. The first complete graph module then ran 93 tests in 643.225
 seconds and failed 17. Sixteen failures came from applying production
 unreachable-source rules to policy-free scanner fixtures or a root-only audit
-that intentionally omitted the user and Toolchain roots. Strict active
-ownership now applies when the repository policy is present, while exact
-unreachable coverage belongs to the complete three-root graph. The explicit
-bypass fixtures retain strict policy, so this scope correction does not reopen
-the defect.
+that intentionally omitted the user and Toolchain roots. The first scope
+correction applied strict active ownership when the repository policy was
+present, while exact unreachable coverage belonged to the complete three-root
+graph. The explicit bypass fixtures retained strict policy.
 
 The other failure found a stale count from the preceding wide integer
 conversion work. The committed audit already contained 6,088 `sizeof`
@@ -26397,3 +26396,70 @@ rename still needs checked compilation, object validation, relevant behavior
 coverage, and any build or boot evidence required by the affected source. No
 tracked source qualifies for a rename in this step. ADR 0291 records the
 contract and this limitation.
+
+## 2026-08-14: Remove suffix ownership from policy-free audits
+
+A spec review found one remaining suffix shortcut in ADR 0291's first
+implementation. A nonproduction tree without the repository policy assigned
+every active `.cc` source to CupidC through `unscoped_fixture_suffix`. That
+kept old scanner fixtures convenient, but it contradicted the rule that the
+suffix selects language and never proves ownership.
+
+Two direct public CLI cases reproduced the problem without a policy file. A
+host-compiled `main.cc` returned success, and an unreferenced `orphan.cc`
+returned success. Their red runs failed in 0.306 and 0.314 seconds because the
+audit wrote a report instead of rejecting the source.
+
+The audit has no suffix-derived runtime owner path. Every active `.cc` needs a
+checked CupidC compile, the checked Toolchain contract, or reviewed policy with
+the exact CupidObj and host Python delivery edge. Nonproduction audits also
+require an unreachable `.cc` to have policy, a recorded historical relation,
+or an explicit Make exclusion. A root-only production audit deliberately omits
+the user and Toolchain graphs, so it defers unreachable exactness. The
+canonical three-root audit retains exact coverage.
+
+The policy parser now has direct failure coverage for its documented format.
+Seven cases cover duplicate JSON keys, unknown fields, the schema, the root
+type, and all three inventory types. Eleven cases cover suffixes, traversal,
+drive-qualified paths, ordering, duplicate delivery entries, and
+classification values. Two more exercise classification drift. One rejects a
+path listed as both active delivery and unreachable. The drive-qualified case
+found a real validator gap: `C:/escape.c` reached the stale-path diagnostic.
+The parser now rejects drive prefixes as invalid repository paths.
+
+Removing the fallback exposed four positive scanner fixtures that had used
+host object-copy or an unlisted CupidObj edge for `.cc` input. The Cupid `#exe`
+negative fixtures had the same problem, so ownership failed before their
+intended syntax diagnostic. Those fixture graphs now use CupidObj `wrap-text`
+with exact fixture policy. This changes test setup only; production recipes and
+the reviewed production policy are unchanged.
+
+The first complete run found those fixture assumptions and the partial
+production boundary. It reported 12 failures among 98 tests in 743.935
+seconds. The six affected methods then passed in 92.382 seconds. Final evidence
+is:
+
+| Check | Result |
+| --- | --- |
+| Direct red cases | Active no-policy `.cc` failed its test in 0.306 seconds; inactive no-policy `.cc` failed in 0.314 seconds. |
+| Malformed policy characterization | All cases passed except the new drive-qualified path diagnostic, which reproduced the validator gap. |
+| Focused final cohort | PASS, 16 methods in 10.869 seconds, including all changed fixture graphs and parser cases. |
+| Complete build-graph module | PASS, all 98 tests in 841.743 seconds. |
+| Deterministic generation | PASS, final `make bootstrap-audit` in 68.8 seconds. |
+| Checked replay | PASS, final `make check-bootstrap-audit` in 87.7 seconds. |
+| Python syntax | PASS for the audit and its test module. |
+
+The complete graph still contains 408 tracked `.cc` files: 405 active with
+independent evidence and three unreachable with policy. The evidence remains
+242 checked compiler edges, 33 checked Toolchain contract edges, and 130
+reviewed runtime deliveries. All seventeen residual `.c` paths remain outside
+the supported graph. The 2,677,678-byte JSON now has SHA-256
+`3038b348a83ea614c5a8d61ff8e73bd7e1a01496fdece5f5ef10583a5a86affe`.
+The 12,502-byte Markdown summary and 4,297-byte policy retain their preceding
+hashes because their content did not change.
+
+This follow-up changes no source suffix, production owner, compiler output,
+ABI, object, link rule, or host dependency. No standalone OS build or boot was
+needed. The CTXT edit changes the combined documentation payload, so the final
+integration build must remeasure artifact policy and run the normal QEMU gate.
+Policy remains provenance rather than compiler behavior proof.

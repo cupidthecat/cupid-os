@@ -23,8 +23,12 @@ and Toolchain contract edges prove 275 active sources. A reviewed policy names
 the other 130 active sources delivered as text by CupidObj. The same policy
 locks seventeen unreachable `.c` files and three unreachable `.cc` files. A
 host-owned or inactive source cannot change its reported owner by changing its
-suffix. ADR 0284 records the `.c` rejection, and ADR 0291 records the complete
-two-way contract.
+suffix. No audit mode derives active ownership from `.cc`, including a tree
+without the repository policy. A nonproduction audit accepts policy, a recorded
+source relation, or a Make exclusion for an unreachable `.cc`. The complete
+production graph requires exact policy coverage; a partial production view
+defers that census. ADR 0284 records the `.c` rejection, and ADR 0291 records
+the complete two-way contract.
 The five fixture paths and the oracle retain native C semantics. Their combined
 kernel, USB, and ELF32 evidence passes all 56 cases after the process fixture
 adopted the four current cleanup and time adapters.

@@ -336,8 +336,13 @@ the checked Toolchain contract, or an exact runtime-delivery policy entry with
 a CupidObj edge supplies independent ownership evidence. The policy also locks
 the seventeen residual `.c` paths and three unreachable `.cc` paths, so a host
 or inactive source cannot leave the census through a suffix-only rename. The
-safe rename set remains empty. ADR 0284 records the first direction of the
-gate, and ADR 0291 records the independent provenance rule.
+active evidence rule applies even when an audited tree has no policy file. An
+unreferenced `.cc` in a nonproduction audit needs policy, a recorded source
+relation, or an explicit Make exclusion. The complete production graph
+requires an exact policy entry, while a deliberately partial production view
+defers that census. The safe rename set remains empty. ADR 0284 records the
+first direction of the gate, and ADR 0291 records the independent provenance
+rule.
 _Avoid_: pending active-source renames, suffix-only migration, suffix-derived ownership, Cupid-owned host fixtures
 
 **Production Doom cohort**:

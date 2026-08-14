@@ -950,8 +950,13 @@ its build and its behavior is proved. The audit derives that owner from a
 checked compile edge, the checked Toolchain contract, or an exact
 runtime-delivery policy entry backed by CupidObj. It locks all seventeen
 residual `.c` paths and the three unreachable `.cc` paths, so the suffix cannot
-create its own ownership proof. The safe rename set is currently empty.
-The final `make bootstrap-audit` passed in 69.0 seconds.
+create its own ownership proof. Every audit applies the active evidence rule,
+whether or not the audited tree has a policy file. A nonproduction audit
+requires an unreferenced `.cc` to have policy, a recorded source relation, or
+an explicit Make exclusion. The complete production graph requires exact
+policy coverage; a partial production view defers that census. The safe rename
+set is currently empty.
+The final `make bootstrap-audit` passed in 68.8 seconds.
 The Toolchain root builds its fifteen `.cc` contracts twice with stage-three
 and stage-four CupidC, compares seventeen objects and sixteen static i386
 executables, and publishes the stage-four 21-artifact cohort together. The publisher accepts only

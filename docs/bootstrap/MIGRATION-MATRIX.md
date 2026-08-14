@@ -191,9 +191,13 @@ assigns it to CupidC, and it does not treat `.cc` as proof of the reverse
 claim. Checked compile or Toolchain contract edges prove 275 active sources.
 An exact policy records the other 130 source-text deliveries, all seventeen
 residual `.c` paths, and the three unreachable `.cc` paths. A `.cc` rename
-still follows a checked build and behavior proof. The safe suffix-only rename
-set is empty. ADR 0284 records the first gate, and ADR 0291 records the
-independent provenance contract.
+still follows a checked build and behavior proof. Active evidence is mandatory
+in every audit, including trees without a policy file. A nonproduction audit
+accepts policy, a recorded source relation, or an explicit Make exclusion for
+an unreachable `.cc`. The complete production graph requires exact policy
+coverage, while a partial production view defers that census. The safe
+suffix-only rename set is empty. ADR 0284 records the first gate, and ADR 0291
+records the independent provenance contract.
 
 Checked-seed CupidC represents GNU `returns_twice` and preserves live operands
 across supported direct calls. It rejects marked-function pointer conversion

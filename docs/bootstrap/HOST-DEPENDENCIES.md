@@ -265,8 +265,13 @@ independent ownership evidence for active `.cc` sources. Direct checked edges
 prove 275 sources, while an exact policy and CupidObj delivery edge prove the
 remaining 130 runtime sources. That policy keeps all seventeen residual `.c`
 paths and three unreachable `.cc` paths visible. The safe suffix-only rename
-set is empty. ADR 0284 records the first direction, and ADR 0291 records the
-complete provenance boundary. No host dependency moves in this step.
+set is empty. Every audit requires independent evidence for an active `.cc`,
+even if the audited tree has no policy. A nonproduction audit accepts policy,
+a recorded relation, or an explicit Make exclusion for an unreachable `.cc`.
+The complete production graph requires exact policy coverage, while a partial
+production view defers that census. ADR 0284 records the first direction, and
+ADR 0291 records the complete provenance boundary. No host dependency moves
+in this step.
 
 CupidASM's `align` statement adds no host tool to that graph. The shared
 assembler computes raw padding from the absolute `ORG` address, records ELF32
