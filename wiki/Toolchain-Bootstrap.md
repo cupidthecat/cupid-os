@@ -1547,3 +1547,15 @@ uses the checked production wrapper with `kernel/core/types.h` and
 `/bin/feature15_libm.cc` and requires the seven-case x87 summary, all 29
 checks, and `PASS feature15_libm`. ADR 0176 records production ownership, and
 ADR 0209 records the numerical correction.
+
+## 2026-08-14 integrated checkpoint
+
+The combined source head passes the normal checked build in 673.8 seconds.
+The reviewed raw kernel is 9,121,520 bytes, and the published 200 MiB image has
+SHA-256
+`304b3aae567c3ccf750b84ee3a118b88d3d023168e22b66b612519de053d3d1b`.
+A private four-vCPU guest compiled and ran `/bin/ls.cc` through CupidC in 55.7
+seconds. A second guest assembled and ran `/demos/hello.asm` through CupidASM
+in 59.8 seconds. The current audit records 736 active language inputs, 452
+transforms, 255 feature requirements, six CupidDis production checks, and no
+active CupidC-owned `.c` source.

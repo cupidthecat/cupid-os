@@ -2734,3 +2734,12 @@ reset
 ```
 
 This clears persistent REPL variables, functions, structs, typedefs, and `ans`.
+
+## Current source-head proof
+
+The 2026-08-14 integration keeps the full OS build green after adding integer
+and long-double usual conversions and wide integer conversion to `float` and
+`double`. The normal image build passed in 673.8 seconds. A private four-vCPU
+guest then compiled and ran `/bin/ls.cc` through the in-OS compiler in 55.7
+seconds. The checked seed predates the newest conversions, so fixed-point
+promotion remains the next ownership step.

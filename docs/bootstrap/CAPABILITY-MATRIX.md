@@ -1012,6 +1012,16 @@ The resulting 209,715,200-byte image has SHA-256
 The boot image is unchanged. A private four-vCPU QEMU boot reached JIT
 completion in 49.257 seconds.
 
+## 2026-08-14 integrated checkpoint
+
+The normal checked build passes with the combined compiler, assembler,
+disassembler, ownership, and publication changes. The final kernel artifacts
+are 9,215,524 bytes for pass one, 9,338,404 bytes for the final ELF, and
+9,121,520 bytes for the raw image. Private guests completed both the CupidC
+`/bin/ls.cc` path and the CupidASM `/demos/hello.asm` path. The checked seed
+still needs a fixed-point promotion before it carries wide integer floating
+conversion and executable relocation ownership.
+
 ## Shared object, linker, and bootstrap capabilities
 
 Checked-seed CupidObj provides transactional `wrap-jpeg` validation before its

@@ -26179,3 +26179,80 @@ matrix, while the object contract repeats a smaller executable subset. Keeping
 one immutable shared source fixture would reduce future source and count drift,
 but the three seams still need separate semantic inventories. That extraction
 remains test-maintenance work rather than a language or correctness blocker.
+
+## 2026-08-14: Integrate the compiler, assembler, and disassembler slices
+
+The combined branch now carries the source-suffix ownership audit, guarded
+CupidASM object publication, raw source-control diagnostics, the complete demo
+fixture, integer and long-double usual conversions, wide integer conversion to
+`float` and `double`, and strict executable relocation ownership in CupidDis.
+The two parallel decision records were assigned distinct numbers before
+integration: ADR 0289 covers wide conversion, and ADR 0290 covers relocation
+ownership.
+
+Regenerating the build audit after both slices produced 736 active language
+inputs, 452 reachable transforms, 255 feature requirements, and 25 accounted
+unreachable sources. The 2,676,423-byte JSON has SHA-256
+`343e78dccdff0e166d819715254f4c13e14e83a9a801334bdb5fb0da813e26a7`.
+The 12,417-byte summary has SHA-256
+`fa17a0514e0091f38991c3dfb7c681b094eec0fb6d8f52098d8deef776a942fb`.
+The active-source digest is
+`af2d9229d37f280011e1e9dd27f39f3f1fe66865c9cc960423365596885c907b`.
+`make bootstrap-audit` passed in 89.2 seconds, and the independent
+`make check-bootstrap-audit` passed in 73.7 seconds.
+
+The combined source census changed several exact test locks. The first
+296-test frontend, IR, and object run had 291 passes and five stale inventory
+expectations. The refreshed return, `for`, `while`, `if`, `else`, and `goto`
+checks all passed in 11.035 seconds. The first complete 88-test graph run had
+87 passes and one stale `sizeof` count. Its regenerated lock passed the focused
+251.163-second drift test. After the final two source slices landed, the 10
+new-feature, object-parity, inventory, and graph checks passed together in
+275.289 seconds.
+
+The final focused evidence also includes 91 assembler, publication, and
+process tests in 12.876 seconds; 35 production compiler-wrapper tests in
+106.095 seconds; 138 hostbuild transaction tests in 46.893 seconds with two
+platform skips; 22 CupidDis tests in 4.424 seconds with one platform skip; and
+125 QEMU harness tests in 3.273 seconds. A forced rebuild of ISR, context
+switch, and the ISO spanning fixture passed in 1.9 seconds while host C, C++,
+assembler, linker, binutils, standalone CupidASM/CupidDis, and their standalone
+input closures were poisoned.
+
+The separate `make -C user all` entry point reached its 900-second test limit
+without printing a diagnostic. That attempt is inconclusive and is not counted
+as a pass. The normal root build had already compiled the installed program
+cohort, and the production compiler-wrapper tests and `/bin/ls.cc` guest run
+cover the supported user-program path.
+
+The first integrated root build reached the old artifact policy after 668.3
+seconds. Compilation, assembly, linking, and strict inspection had passed. The
+policy correctly rejected the changed in-kernel tools and manuals. The reviewed
+replacement values are 9,215,524 bytes for `kernel/kernel.elf.pass1`, 9,338,404
+bytes for `kernel/kernel.elf`, and 9,121,520 bytes for `kernel/kernel.bin`.
+The direct nine-artifact verifier then passed. One later `make all` wrapper
+expired after 604 seconds without a reported build error and is not counted as
+evidence. The clean rerun completed in 673.8 seconds and published the image.
+
+| Output | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `kernel/kernel.elf.pass1` | 9,215,524 | `baf0e05fd09423418b586aa92e92c616badf41ae5238fdc605f342dff8c96603` |
+| `kernel/kernel.elf` | 9,338,404 | `dfb5f98b5e4666163934a2bdaca4c7fdabfead3c6cbbbb9ba0e6a04789d0344e` |
+| `kernel/kernel.bin` | 9,121,520 | `03504da9dd3d34c79618654a4b1a4e3e49a4f3c92f0da3c670cf021a142f013e` |
+| `cupidos.img` | 209,715,200 | `304b3aae567c3ccf750b84ee3a118b88d3d023168e22b66b612519de053d3d1b` |
+
+The final image passed two private four-vCPU QEMU runs. `/bin/ls.cc` compiled
+and completed through in-OS CupidC in 55.7 seconds. Its 31,833-byte serial log
+has SHA-256
+`bf95ae3b824e0b224c7b771eeae2ff17b93c39c1b14e445d5995ba64edcac495`.
+`as /demos/hello.asm` assembled and completed through CupidASM in 59.8
+seconds. Its 33,573-byte log has SHA-256
+`f2cbd1e3ac9779613ca695b10024445abd11f849f1ee88c9360cd1eee2615d43`.
+Neither run reported a panic.
+
+The checked execution seed still predates the new wide conversion and strict
+relocation ownership rules. Production publication therefore keeps the older
+decode-completeness behavior until the next fixed-point promotion. Python
+still coordinates build transactions. No active source earned a `.c` to
+`.cc` rename, and the `TempleOS/` reference tree was not changed or counted.

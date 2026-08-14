@@ -113,10 +113,9 @@ embedded in executable sections still need an explicit typed model before
 they can enter this policy.
 
 The shared source rebuilds the in-kernel inspector as well as the hosted
-command, and the CTXT update changes the embedded manual payload. The combined
-integration branch must therefore run the root build, artifact-size policy,
-and boot smoke after this slice and its companion compiler work are both
-present. Those results are deliberately not claimed here. The change does not
-alter the guest calling convention, linker policy, or instruction encoder. It
-adds no host dependency and does not qualify any `.c` source for a `.cc`
-rename.
+command, and the CTXT update changes the embedded manual payload. After both
+independent slices were present, the exact-size verifier and normal root build
+passed. Private four-vCPU guests then completed the CupidC `/bin/ls.cc` smoke
+and the CupidASM `/demos/hello.asm` smoke. The change does not alter the guest
+calling convention, linker policy, or instruction encoder. It adds no host
+dependency and does not qualify any `.c` source for a `.cc` rename.

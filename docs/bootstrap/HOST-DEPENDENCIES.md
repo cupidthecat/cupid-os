@@ -1382,6 +1382,15 @@ PID-tagged handoff, and the process reaper releases abandoned render state.
 It does not add or retire a host build dependency. Python still drives the
 frontier command sequence, and QEMU remains the runtime oracle.
 
+## 2026-08-14 dependency check
+
+The combined normal build passed in 673.8 seconds, and private CupidC and
+CupidASM guest smokes passed afterward. Poisoned standalone host and Cupid tool
+overrides could not bypass the guarded ISR, context-switch, or ISO fixture
+transactions. No new host dependency was added. Host Python still coordinates
+the transactions, QEMU remains the runtime oracle, and the checked execution
+seed must still be promoted before it enforces the newest source-head rules.
+
 ## Removal gate
 
 A code-producing host dependency leaves the normal build only after the Cupid replacement has positive and negative tests, matches required object/ABI/layout behavior, builds its assigned active-source cohort, and passes the relevant OS boot or runtime smoke. The legacy host path remains available as an oracle until fixed-point bootstrap and behavior gates are reliable.

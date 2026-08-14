@@ -2499,3 +2499,21 @@ Progress means transferring ownership without reducing Cupid OS behavior:
 3. The cohort moves from the legacy host/oracle path to the Cupid path.
 4. The OS build and applicable boot smoke tests remain green.
 5. Host dependencies are removed from the normal build only after the replacement path is proven.
+
+## Integrated source-head evidence
+
+The 2026-08-14 combined branch passes `make -j4 all` in 673.8 seconds. The
+reviewed policy now locks `kernel/kernel.elf.pass1` at 9,215,524 bytes,
+`kernel/kernel.elf` at 9,338,404 bytes, and `kernel/kernel.bin` at 9,121,520
+bytes. The published 209,715,200-byte image has SHA-256
+`304b3aae567c3ccf750b84ee3a118b88d3d023168e22b66b612519de053d3d1b`.
+
+One private four-vCPU boot compiled and ran `/bin/ls.cc` through CupidC in
+55.7 seconds. Another assembled and ran `/demos/hello.asm` through CupidASM in
+59.8 seconds. The final audit has 736 active language inputs, 452 reachable
+transforms, and 255 feature requirements. It records six production CupidDis
+participation points and no active CupidC-owned `.c` source.
+
+The checked execution seed still predates wide integer conversion to
+`float`/`double` and executable relocation-field ownership. Those capabilities
+remain source-head only until the next fixed-point seed promotion.

@@ -66,12 +66,13 @@ The live policy lists these production files:
 | `bootstrap/seeds/i386-linux/cupiddis.elf` | CupidDis | 409,020 |
 | `bootstrap/seeds/i386-linux/cupidld.elf` | CupidLD | 312,792 |
 | `bootstrap/seeds/i386-linux/cupidobj.elf` | CupidObj | 392,688 |
-| `kernel/kernel.bin` | CupidObj | 9,114,084 |
-| `kernel/kernel.elf` | CupidLD | 9,334,220 |
-| `kernel/kernel.elf.pass1` | CupidLD | 9,211,340 |
+| `kernel/kernel.bin` | CupidObj | 9,121,520 |
+| `kernel/kernel.elf` | CupidLD | 9,338,404 |
+| `kernel/kernel.elf.pass1` | CupidLD | 9,215,524 |
 
-These are the live policy values after the guarded normal bootloader cutover
-and its embedded CTXT update.
+These are the live policy values after the 2026-08-14 compiler, assembler,
+disassembler, ownership, and publication integration. The embedded manuals
+and in-kernel tool sources account for the reviewed change.
 The hashes and sizes below belong to the dated adoption proof and are retained
 as historical evidence.
 

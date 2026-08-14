@@ -2254,6 +2254,27 @@ New CupidC programs go in bin/ and are automatically embedded in RamFS at build 
   are present the build still succeeds, but the `doom` shell command
   will report no IWAD found.
 
+## 2026-08-14 self-hosting checkpoint
+
+The combined source head passes the normal checked build. `make -j4 all`
+completed in 673.8 seconds after the exact artifact policy was remeasured for
+the new in-kernel tool code and embedded manuals.
+
+| Output | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `boot/boot.bin` | 2,560 | `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3` |
+| `kernel/kernel.elf.pass1` | 9,215,524 | `baf0e05fd09423418b586aa92e92c616badf41ae5238fdc605f342dff8c96603` |
+| `kernel/kernel.elf` | 9,338,404 | `dfb5f98b5e4666163934a2bdaca4c7fdabfead3c6cbbbb9ba0e6a04789d0344e` |
+| `kernel/kernel.bin` | 9,121,520 | `03504da9dd3d34c79618654a4b1a4e3e49a4f3c92f0da3c670cf021a142f013e` |
+| `cupidos.img` | 209,715,200 | `304b3aae567c3ccf750b84ee3a118b88d3d023168e22b66b612519de053d3d1b` |
+
+A private four-vCPU guest compiled and ran `/bin/ls.cc` through in-OS CupidC
+in 55.7 seconds. A second guest assembled and ran `/demos/hello.asm` through
+CupidASM in 59.8 seconds. Both runs completed without a panic. The active audit
+contains 736 language inputs, 452 transforms, and 255 feature requirements.
+The checked seed still predates the newest source-head compiler and strict
+relocation rules, so their next fixed-point promotion remains open.
+
 ---
 
 ## License

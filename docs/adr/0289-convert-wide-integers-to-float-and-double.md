@@ -122,6 +122,8 @@ moves no production owner and changes no published OS object, artifact, ABI,
 dependency, or source suffix. A later seed convergence must carry the compiler
 and contract changes before the checked toolchain can claim the capability.
 
-The documentation payload changes when this commit is integrated. The final
-combined build must remeasure the artifact-size policy and run the normal QEMU
-gate; a standalone OS rebuild would not provide the combined evidence.
+The combined integration remeasured all three changed kernel artifacts. The
+exact-size verifier accepted the new policy, `make -j4 all` passed in 673.8
+seconds, and a private four-vCPU guest compiled and ran `/bin/ls.cc` through
+in-OS CupidC in 55.7 seconds. A second private guest assembled and ran
+`/demos/hello.asm` through CupidASM in 59.8 seconds.

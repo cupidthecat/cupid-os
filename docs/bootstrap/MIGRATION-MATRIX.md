@@ -1177,6 +1177,16 @@ its FAT data. The final image has SHA-256
 `d1bfab4aed1f2116768ceed3e301fb14ffe2a36418eb4d4ebdf1108097cb2b05`,
 and its private four-vCPU JIT boot passed in 66.8 seconds.
 
+## 2026-08-14 integrated ownership result
+
+The active graph remains at 736 language inputs and 452 transforms. CupidDis
+now participates in six production checks, and the ISR and context-switch
+objects publish only after a checked private assembly and inspection
+transaction. The source-suffix audit finds no active CupidC-owned `.c` root,
+so this integration performs no rename. Wide integer conversion and strict
+relocation ownership are source-head capabilities until their seed promotion;
+they do not move a production owner yet.
+
 ## Milestone gates
 
 | Milestone | Ownership gate | Current state |

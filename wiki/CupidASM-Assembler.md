@@ -1410,3 +1410,12 @@ main:
 - After `call`, add the number of argument bytes back to `esp` with `add esp, N`.
 - Labels may be referenced before their definitions. CupidASM patches these forward references after parsing.
 - Mnemonics and register names are case-insensitive, so `MOV EAX, 1` is valid.
+
+## Current source-head proof
+
+The 2026-08-14 integration guards both production ELF32 assembly objects with
+private validation and CupidDis inspection. Raw source now rejects duplicate
+origins and section switches with stable diagnostics, and every active demo
+assembles with implicit externs disabled. The normal image build passed in
+673.8 seconds. A private four-vCPU guest assembled and ran
+`/demos/hello.asm` through CupidASM in 59.8 seconds.
