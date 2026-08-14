@@ -71,6 +71,8 @@ static const binding_spec_t parity_diag_bindings[] = {
 static const binding_spec_t parity_gfx2d_bindings[] = {
     ABSOLUTE("gfx2d_circle_fill"),
     ABSOLUTE("gfx2d_clear"),
+    ABSOLUTE("gfx2d_fullscreen_enter"),
+    ABSOLUTE("gfx2d_fullscreen_exit"),
     ABSOLUTE("gfx2d_getpixel"),
     ABSOLUTE("gfx2d_init"),
     ABSOLUTE("gfx2d_rect_fill"),

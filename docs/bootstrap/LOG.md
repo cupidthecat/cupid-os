@@ -25830,3 +25830,57 @@ and the 12,417-byte Markdown summary has SHA-256
 No OS build or boot smoke was needed. This step changes no compiler or
 assembler output, Make recipe, object, ABI, build owner, source suffix, or OS
 runtime path. ADR 0284 records the ownership boundary.
+
+## 2026-08-14: Synchronize the CupidASM demo fullscreen bindings
+
+The complete demo fixed-image contract started red at
+`demos/parity_gfx2d.asm:19:10`. The source calls
+`gfx2d_fullscreen_enter` before graphics initialization and calls
+`gfx2d_fullscreen_exit` from its success and error cleanup paths. The kernel
+adapter exports both names, but the hosted fixture supplied neither one.
+
+The fixture now supplies both names as absolute definitions. It keeps
+`allow_implicit_externs` disabled, so any later demo call without a reviewed
+binding still fails at its source location. The fixture remains below its
+16-definition limit with 15 definitions.
+
+### Test-first evidence
+
+The red command was:
+
+```text
+python -m unittest -v tests.test_toolchain_cupidasm_demos
+```
+
+It failed after the preceding 15 demos passed and reported
+`CT6000007: undefined Cupid ASM symbol` at line 19, column 10. The same command
+then passed both tests in 2.309 seconds. It confirmed that the contract and
+active directory name the same 22 sources and that every source produces
+identical fixed-image bytes and region metadata on two runs.
+
+### Validation
+
+| Command or check | Result | Evidence |
+| --- | --- | --- |
+| `python -m unittest -v tests.test_toolchain_cupidasm tests.test_toolchain_cupidasm_sources tests.test_toolchain_cupidasm_kernel tests.test_toolchain_cupidasm_demos` | PASS | All 24 tests pass in 11.065 seconds. They cover the hosted CLI, raw and ELF32 active source, kernel AOT linking, the 22-file inventory, and deterministic fixed-image assembly. |
+| Native CupidASM contract and demo executables | PASS | Strict Windows Clang builds both executables. All 12 assembler modes pass from `toolchain/`, followed by all 22 demos and `demos: 22 ok`. |
+| `python -m unittest -v tests.test_gfx2d_fullscreen_handoff` | PASS | All eight render-ownership contracts pass in 1.658 seconds, including the parity demo's entry and exit ordering and the 631-definition kernel catalogue. |
+| Active binding audit | PASS | All 44 unique absolute names used by the hosted demo fixtures are exported through `AS_BIND` in `kernel/lang/as.cc`. The parity source has one fullscreen entry call and three exit calls; its fixture has 15 definitions under the 16-definition limit. |
+| Checked native Windows CupidC compile and checked CupidDis validation | PASS | The manifest-bound execution seed compiles `toolchain/tests/cupidasm_demos_contract.cc` to a valid 18,980-byte i386 relocatable object with SHA-256 `e5c0af25e01c9d30135b3d30d984e16c106404e3e145700afb44994885ecb401`. Checked CupidDis accepts it with `--require-known`. |
+
+The first manual native-mode loop ran from the repository root. Nine modes
+passed, then include resolution reported `load include feature: expected ok,
+got not_found`. The hosted contract deliberately roots its fixture adapter at
+`..` relative to `toolchain/`. Running the same binaries from that documented
+directory passed every mode. No source change followed from the mistaken
+working directory.
+
+This repair changes no CupidASM parser, layout, encoder, object, ABI, seed, or
+production output. It adds no host dependency and transfers no build owner.
+No `.c` source qualifies for a `.cc` rename. The CTXT wording changes the
+embedded manual payload when the integrated tree rebuilds it, so the combined
+branch must remeasure the artifact-size policy after all documentation work
+lands.
+
+The fixture correction follows the existing fixed-image and kernel-binding
+contracts, so it does not need a separate architecture decision record.

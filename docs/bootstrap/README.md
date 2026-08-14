@@ -150,6 +150,14 @@ multi-section behavior. The checked execution seeds need their next fixed-point
 promotion before their hosted commands carry these diagnostics. ADR 0285
 records this source boundary.
 
+The active CupidASM demo contract lists the same 22 `.asm` files as the
+`demos/` directory. It assembles every source twice in fixed-image mode with
+implicit externs disabled, then compares the bytes and region metadata. The
+`parity_gfx2d.asm` fixture supplies both fullscreen ownership calls exported
+by the kernel adapter: `gfx2d_fullscreen_enter` and
+`gfx2d_fullscreen_exit`. Its normal and error paths resolve through the same
+public names used in Cupid OS.
+
 Hosted CupidC now exposes the existing Cupid language profile as `--cupid`.
 The option selects Cupid vocabulary in both preprocessing and parsing, while
 `--gnu` remains an independent extension switch. Cupid mode cannot be combined

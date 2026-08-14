@@ -768,6 +768,12 @@ _Avoid_: CupidASM when referring to the language, NASM syntax
 
 **CupidASM**:
 The assembler for Cupid ASM source.
+The active demo corpus contains 22 shipped `.asm` sources. Its hosted
+fixed-image contract supplies each source with the kernel binding spellings it
+needs. The contract assembles each source twice and requires identical bytes
+and region metadata. The `parity_gfx2d.asm` fixture carries both
+`gfx2d_fullscreen_enter` and `gfx2d_fullscreen_exit`, matching the calls used
+by the demo and the exports in `kernel/lang/as.cc`.
 _Avoid_: Cupid ASM when referring to the assembler
 
 **Cupid ASM alignment statement**:

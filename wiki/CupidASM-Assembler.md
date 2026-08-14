@@ -1185,6 +1185,12 @@ JIT code and data are separate from CupidC's JIT region (`0x01100000`-`0x01A0000
 
 Demo programs are included in the `demos/` folder:
 
+The hosted corpus contract assembles all 22 files twice as fixed images with
+implicit externs disabled. Its binding names match the kernel adapter. The
+`parity_gfx2d.asm` fixture includes both `gfx2d_fullscreen_enter` and
+`gfx2d_fullscreen_exit`, so the demo can release fullscreen ownership on its
+normal and error paths.
+
 | File | Description | Key Concepts |
 |------|-------------|-------------|
 | `hello.asm` | Hello World | `db`, `print`, sections, entry point |

@@ -54,9 +54,11 @@ The native `raw-source-contracts` mode covers both failures, an early section
 switch before emitted storage, a repeated valid section, same-job recovery,
 and byte-identical repetition. All twelve native CupidASM contract modes pass.
 The hosted CLI, active raw and ELF32 source, alignment, and kernel ELF tests
-also pass. The demo corpus still has the pre-existing missing
-`gfx2d_fullscreen_enter` fixture binding; this decision does not change that
-catalogue.
+also pass. The first complete demo-corpus run stopped at
+`gfx2d_fullscreen_enter` because its fixture lacked both fullscreen ownership
+names. A separate fixture repair synchronized those names with
+`kernel/lang/as.cc`; all 22 demos now pass deterministic fixed-image
+assembly. That repair does not change the raw source-control decision.
 
 ## Rejected alternatives
 
