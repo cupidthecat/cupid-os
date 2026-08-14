@@ -71,6 +71,14 @@ below the output parent. Private roots now live directly below the stable
 repository root. Both caller modules pass all 10 tests on Windows and through
 WSL, including parent replacement with no leaked candidate.
 
+The ISR and context-switch objects use the same checked assembly transaction.
+CupidASM writes each ELF32 relocatable to a private candidate. Hostbuild
+validates its structure, requires executable section bytes, and asks CupidDis
+to decode every executable byte. Only then may the object replace its previous
+public version. Source, seed, candidate, output, or output-parent drift stops
+publication. The final kernel gate checks both objects again as part of the
+complete 431-input cohort. ADR 0286 records this object boundary.
+
 The fifth transform builds test_iso/fixtures/big.bin from
 test_iso/big_pattern.asm. Its concise `times 4096 db $` statement emits the
 low byte of the current location, producing 00 through FF sixteen times.

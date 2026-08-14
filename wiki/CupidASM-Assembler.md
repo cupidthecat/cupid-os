@@ -207,6 +207,14 @@ calls the guarded transaction with the production manifest and full checked
 seed. Hostbuild publishes only after CupidASM and CupidDis accept the private
 image and map. ADR 0283 records the cutover.
 
+The ISR and context-switch objects now enter the shared checked assembly
+transaction too. CupidASM writes a private ELF32 relocatable, hostbuild applies
+the shared structural validator and requires executable bytes, and CupidDis
+must decode every executable byte. The source, seed, candidate, live output,
+and output parent must still match before atomic publication. The later final
+kernel gate remains as a whole-kernel check. ADR 0286 records this object
+boundary.
+
 The normal SMP trampoline recipe uses this map as a publication gate.
 Hostbuild freezes the selected seed and source, asks CupidASM for a private
 4,096-byte candidate, and runs CupidDis with `--require-known`. The exact map

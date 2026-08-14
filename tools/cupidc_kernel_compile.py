@@ -685,7 +685,11 @@ def _read_bytes(path: Path) -> bytes:
         ) from error
 
 
-def validate_i386_relocatable_bytes(image: bytes) -> None:
+def validate_i386_relocatable_bytes(
+    image: bytes,
+    *,
+    require_executable: bool = False,
+) -> None:
     """Validate the ELF32 structure and relocation contract CupidLD consumes."""
     if len(image) < 52:
         raise KernelCompileError("ELF header is outside the emitted object")
@@ -734,6 +738,7 @@ def validate_i386_relocatable_bytes(image: bytes) -> None:
         )
 
     sections = []
+    executable_bytes = 0
     for index in range(section_count):
         section = struct.unpack_from(
             "<IIIIIIIIII",
@@ -743,7 +748,7 @@ def validate_i386_relocatable_bytes(image: bytes) -> None:
         (
             _name,
             section_type,
-            _section_flags,
+            section_flags,
             _section_address,
             payload_offset,
             payload_size,
@@ -774,7 +779,14 @@ def validate_i386_relocatable_bytes(image: bytes) -> None:
             raise KernelCompileError(
                 f"emitted object section {index} payload is misaligned"
             )
+        if section_type == 1 and section_flags & 0x4:
+            executable_bytes += payload_size
         sections.append(section)
+
+    if require_executable and executable_bytes == 0:
+        raise KernelCompileError(
+            "emitted object has no executable section bytes"
+        )
 
     name_section = sections[section_name_index]
     if name_section[1] != 3:

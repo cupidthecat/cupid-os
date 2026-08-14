@@ -58,6 +58,8 @@ TOOL_MARKERS = (
     ("assemble-bootloader --seed-manifest", "cupid_disassembler"),
     ("assemble-smp-trampoline --seed-manifest", "cupid_assembler"),
     ("assemble-smp-trampoline --seed-manifest", "cupid_disassembler"),
+    ("assemble-cupidasm-object --seed-manifest", "cupid_assembler"),
+    ("assemble-cupidasm-object --seed-manifest", "cupid_disassembler"),
     ("validate-code --seed-manifest", "cupid_disassembler"),
     ("validate-code --seed-manifest", "cupid_object"),
     ("mksyms --seed-manifest", "cupid_disassembler"),
@@ -1571,6 +1573,12 @@ def _operation_for_recipe(
         and "cupid_disassembler" in tools
     ):
         return "assemble_flat_binary"
+    if (
+        "hostbuild.py assemble-cupidasm-object " in joined
+        and "cupid_assembler" in tools
+        and "cupid_disassembler" in tools
+    ):
+        return "assemble_elf32_relocatable"
     if (
         "gen-big" in joined
         and "--seed-manifest" in joined

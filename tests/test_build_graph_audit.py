@@ -2301,16 +2301,11 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "kernel/smp_trampoline.bin": "assemble_flat_binary",
             }
             for output_path, operation in expected_assembly.items():
-                expected_tools = ["cupid_assembler", "host_python"]
-                if output_path in {
-                    "boot/boot.bin",
-                    "kernel/smp_trampoline.bin",
-                }:
-                    expected_tools = [
-                        "cupid_assembler",
-                        "cupid_disassembler",
-                        "host_python",
-                    ]
+                expected_tools = [
+                    "cupid_assembler",
+                    "cupid_disassembler",
+                    "host_python",
+                ]
                 self.assertEqual(
                     transforms[output_path]["tools"],
                     expected_tools,
@@ -8405,6 +8400,50 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "--source $< --output $@",
             ],
         )
+        for object_output, object_source in (
+            ("kernel/cpu/isr.o", "kernel/cpu/isr.asm"),
+            (
+                "kernel/core/context_switch.o",
+                "kernel/core/context_switch.asm",
+            ),
+        ):
+            with self.subTest(object_output=object_output):
+                object_transform = next(
+                    transform
+                    for transform in audit["build"]["transforms"]
+                    if transform["output"] == object_output
+                )
+                self.assertEqual(
+                    object_transform["tools"],
+                    [
+                        "cupid_assembler",
+                        "cupid_disassembler",
+                        "host_python",
+                    ],
+                )
+                self.assertEqual(
+                    object_transform["operation"],
+                    "assemble_elf32_relocatable",
+                )
+                self.assertEqual(
+                    set(object_transform["inputs"]),
+                    seed_inputs
+                    | {
+                        object_source,
+                        "tools/cupidc_kernel_compile.py",
+                        "tools/hostbuild.py",
+                    },
+                )
+                self.assertEqual(
+                    object_transform["recipe"],
+                    [
+                        "$(PYTHON) tools/hostbuild.py "
+                        "assemble-cupidasm-object \\",
+                        "--seed-manifest $(PRODUCTION_SEED_MANIFEST) "
+                        "--root . \\",
+                        "--source $< --output $@",
+                    ],
+                )
         system_image_transform = next(
             transform
             for transform in audit["build"]["transforms"]
@@ -8449,7 +8488,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             "cupid_assembler": 5,
             "cupid_object": 192,
             "cupid_linker": 2,
-            "cupid_disassembler": 4,
+            "cupid_disassembler": 6,
         }
         for tool, expected_count in expected_counts.items():
             transforms = [
@@ -8797,7 +8836,67 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 inputs,
             )
 
-    def test_root_tool_override_can_replace_its_dependency_closure(self):
+    def test_guarded_objects_ignore_standalone_tool_overrides(self):
+        make = shutil.which("make")
+        if make is None:
+            self.skipTest("GNU Make is unavailable")
+        module = _load_audit_module()
+        with tempfile.TemporaryDirectory(
+            prefix=".audit-tool-",
+            dir=REPO_ROOT,
+        ) as td:
+            driver = Path(td) / "cupidasm-driver"
+            driver.write_bytes(b"driver\n")
+            relative_driver = driver.relative_to(REPO_ROOT).as_posix()
+            variables = (
+                *module.CANONICAL_MAKE_VARIABLES,
+                "CUPIDASM=custom-cupidasm",
+                f"CUPIDASM_INPUTS={relative_driver}",
+                "CUPIDDIS=custom-cupiddis",
+                f"CUPIDDIS_INPUTS={relative_driver}",
+            )
+            with mock.patch.object(
+                module,
+                "CANONICAL_MAKE_VARIABLES",
+                variables,
+            ):
+                rules_by_target = {
+                    target: module._parse_make_rules(
+                        module._run_make_database(
+                            REPO_ROOT,
+                            make,
+                            target,
+                        )
+                    )
+                    for target in (
+                        "kernel/cpu/isr.o",
+                        "kernel/core/context_switch.o",
+                    )
+                }
+
+            for target, rules in rules_by_target.items():
+                with self.subTest(target=target):
+                    rule = rules[target]
+                    inputs = set(rule.prerequisites)
+                    self.assertNotIn(relative_driver, inputs)
+                    self.assertTrue(
+                        {
+                            "Makefile",
+                            "tools/bootstrap_toolchain.py",
+                            "tools/cupidc_kernel_compile.py",
+                            "tools/hostbuild.py",
+                            *WINDOWS_PRODUCTION_SEED_INPUTS,
+                        }.issubset(inputs)
+                    )
+                    recipe = "\n".join(rule.recipe)
+                    self.assertIn(
+                        "tools/hostbuild.py assemble-cupidasm-object",
+                        recipe,
+                    )
+                    self.assertNotIn("custom-cupidasm", recipe)
+                    self.assertNotIn("custom-cupiddis", recipe)
+
+    def test_guarded_iso_lane_ignores_standalone_assembler_overrides(self):
         make = shutil.which("make")
         if make is None:
             self.skipTest("GNU Make is unavailable")
@@ -8823,16 +8922,24 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     module._run_make_database(
                         REPO_ROOT,
                         make,
-                        "kernel/cpu/isr.o",
+                        "test_iso/fixtures/big.bin",
                     )
                 )
 
-            inputs = set(rules["kernel/cpu/isr.o"].prerequisites)
-            self.assertIn(relative_driver, inputs)
-            self.assertNotIn(
-                "bootstrap/seeds/i386-windows/manifest.json",
-                inputs,
+            rule = rules["test_iso/fixtures/big.bin"]
+            inputs = set(rule.prerequisites)
+            self.assertNotIn(relative_driver, inputs)
+            self.assertTrue(
+                {
+                    "Makefile",
+                    "tools/bootstrap_toolchain.py",
+                    "tools/hostbuild.py",
+                    *WINDOWS_PRODUCTION_SEED_INPUTS,
+                }.issubset(inputs)
             )
+            recipe = "\n".join(rule.recipe)
+            self.assertIn("tools/hostbuild.py gen-big", recipe)
+            self.assertNotIn("custom-cupidasm", recipe)
 
     def test_bootloader_keeps_checked_seed_closure_under_tool_overrides(self):
         make = shutil.which("make")

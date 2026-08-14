@@ -348,8 +348,11 @@ kernel/cpu/idt.o: kernel/cpu/idt.cc drivers/serial.h kernel/core/kernel.h \
 	$(CUPIDC_KERNEL_COMPILE) --source kernel/cpu/idt.cc --output kernel/cpu/idt.o
 
 # Compile assembly files
-kernel/cpu/isr.o: kernel/cpu/isr.asm $(CUPIDASM_INPUTS)
-	$(CUPIDASM) -f elf32 kernel/cpu/isr.asm -o kernel/cpu/isr.o
+kernel/cpu/isr.o: kernel/cpu/isr.asm tools/hostbuild.py \
+	tools/cupidc_kernel_compile.py $(CHECKED_SEED_INPUTS)
+	$(PYTHON) tools/hostbuild.py assemble-cupidasm-object \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root . \
+		--source $< --output $@
 
 kernel/cpu/pic.o: kernel/cpu/pic.cc kernel/core/kernel.h kernel/core/types.h \
 	kernel/cpu/isr.h kernel/cpu/pic.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
@@ -894,8 +897,10 @@ kernel/core/process.o: kernel/core/process.cc drivers/serial.h drivers/timer.h \
 
 # Context switch (assembly)
 kernel/core/context_switch.o: kernel/core/context_switch.asm \
-	$(CUPIDASM_INPUTS)
-	$(CUPIDASM) -f elf32 kernel/core/context_switch.asm -o kernel/core/context_switch.o
+	tools/hostbuild.py tools/cupidc_kernel_compile.py $(CHECKED_SEED_INPUTS)
+	$(PYTHON) tools/hostbuild.py assemble-cupidasm-object \
+		--seed-manifest $(PRODUCTION_SEED_MANIFEST) --root . \
+		--source $< --output $@
 
 # Clipboard
 kernel/gui/clipboard.o: kernel/gui/clipboard.cc drivers/serial.h kernel/core/string.h kernel/core/types.h kernel/gui/clipboard.h $(CUPIDC_KERNEL_COMPILE_INPUTS)
@@ -1570,7 +1575,7 @@ TEST_ISO_FIXTURES := $(sort test_iso/fixtures $(ISO_FIXTURE_MANIFEST) \
 	$(addprefix test_iso/fixtures/,$(ISO_FIXTURE_RELATIVE)))
 
 test_iso/fixtures/big.bin: $(ISO_BIG_FIXTURE_SOURCE) tools/hostbuild.py \
-	tools/bootstrap_toolchain.py Makefile $(CUPIDASM_INPUTS)
+	$(CHECKED_SEED_INPUTS)
 	$(PYTHON) tools/hostbuild.py gen-big \
 	  --seed-manifest $(PRODUCTION_SEED_MANIFEST) \
 	  --source $(ISO_BIG_FIXTURE_SOURCE) $@

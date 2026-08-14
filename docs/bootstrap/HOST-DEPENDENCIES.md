@@ -107,7 +107,7 @@ CupidASM assembles a private 4 KiB candidate. CupidDis validates its exact
 transaction, output lock, drift checks, and atomic replacement. ADR 0271
 records this boundary.
 
-Source head adds no code-producing host dependency for the current four
+Source head adds no code-producing host dependency for the current five
 capabilities. Hosted CupidC probes each page of a large fixed frame. Kernel AOT
 now gives a CupidASM relocatable object to in-kernel CupidLD. CupidASM can
 serialize its raw statement layout, and CupidDis can consume that file for
@@ -115,6 +115,11 @@ strict inspection. Host Python coordinates the private bootloader candidate
 and publication checks. The normal boot edge now calls that transaction with
 the production manifest and full checked-seed closure. The promoted Windows
 execution seed carries both map options.
+The ISR and context-switch objects now use a private checked transaction too.
+Python applies the shared i386 object validator, requires executable bytes,
+runs strict CupidDis, and publishes only after every live boundary still
+matches its capture. This moves no output to a host tool and retires no host
+dependency.
 Parent-replacement tests exposed a POSIX
 candidate leak when private work lived below the output parent. Private
 raw-image roots now live directly below the stable repository root. The two
@@ -953,14 +958,14 @@ Counts are output transforms in the checked audit, not textual recipe occurrence
 | Host C compiler | 0 | Native hosted tools and contracts are explicit optional oracles outside every supported root |
 | CupidC | 246 owned or participating transforms | The 239-source checked-in normal cohort, generated kernel symbols, three generated installation tables, three example external programs, and the checked Toolchain contract cohort; every published object is validated |
 | Cupid-built ABI contract | 1 participating transform | The staged static i386 checker owns the reviewed syscall-table, scalar, constant, record-layout, provider, snapshot, and reread rules; Python independently checks its report and controls publication |
-| CupidASM | 5 owned transforms | Three production flat binaries and two production ELF32 `ET_REL` objects. The two boot and kernel flat outputs are byte-identical to the optional NASM oracle; the checked ISO lane is the documented NASM `TIMES` exception. The objects match the oracle's code, symbol, alignment, and relocation semantics |
+| CupidASM | 5 owned transforms | Three production flat binaries and two production ELF32 `ET_REL` objects. The two boot and kernel flat outputs are byte-identical to the optional NASM oracle; the checked ISO lane is the documented NASM `TIMES` exception. The objects match the oracle's code, symbol, alignment, and relocation semantics. Both object publishers now validate and inspect private candidates before atomic replacement. |
 | NASM | 0 production transforms | Optional active-source and ELF32 interoperability oracle only |
 | CupidLD | 5 owned transforms | Two script-driven kernel links plus three fixed-address user executables; owns `R_386_32`/`R_386_PC32`, weak/strong/common/script symbols, absolute COMMON alignment, relocation-aware merge entries, assertions, static ELF32 serialization, explicit unsupported allocated-section diagnostics, and the used `link.ld` subset |
 | CupidObj | 192 participating transforms | 175 canonical text-to-ELF wrappers, eight byte-exact binary-to-ELF wrappers, one checked `wrap-jpeg` transform with Python parity and publication checks, final initialized ELF-to-raw conversion, three installation-source generators, one kernel-symbol source generator, one production disk-image template, one production ISO fixture, and one guarded Doom profile manifest. |
 | Checked-seed CupidObj disk path | Included in the 192 CupidObj transforms | `disk-template` authors the MBR, boot reserve, kernel lane, FAT16 metadata, pristine FATs, and empty root directory before Python performs mutable image work. |
 | Checked-seed CupidObj ISO path | Included in the 192 CupidObj transforms | `iso-fixture` authors the complete deterministic ECMA-119 and Rock Ridge image before Python compares an independent render and publishes under a per-output lock. |
 | Checked-seed CupidObj profile path | Included in the 192 CupidObj transforms | `profile-manifest` authors the canonical Doom profile JSON from a frozen `CUPROF1` snapshot before Python checks an independent oracle and publishes under an adjacent no-follow lock. |
-| CupidDis | 3 participating transforms | Supplies 4,718 deterministic text-symbol rows for the 114,851-byte panic-backtrace blob, validates the complete 431-input code cohort in the transactional `kernel.bin` transform, and validates the SMP trampoline's exact mixed code/data map before publication; the host oracle remains optional |
+| CupidDis | 6 participating transforms | Supplies 4,718 deterministic text-symbol rows for the 114,851-byte panic-backtrace blob, validates the complete 431-input code cohort in the transactional `kernel.bin` transform, checks the bootloader and SMP trampoline maps, and covers every executable byte in the private ISR and context-switch objects before publication; the host oracle remains optional |
 | Python | 452 transforms | Launches checked Cupid tools and retains host discovery, safety, parity, drift detection, locking, publication, and mutable image work. The Python-only root size verifier emits no OS artifact. Two supplemental verification or orchestration outputs remain Python-only. The user ABI gate combines a Cupid-built contract with an independent Python oracle. The disk image, ISO image, and Doom profile manifest are composite transforms because checked CupidObj authors their deterministic bytes first. |
 | Make recursion | 0 transforms | Native hosted CupidASM, CupidObj, CupidLD, and CupidDis targets remain available, but no supported root reaches them recursively |
 
@@ -969,12 +974,14 @@ Checked-seed CupidDis can validate several inputs with
 typed unknown, invalid, and truncated counts are zero. It excludes declared
 raw data and non-executable ELF regions, continues after an input failure, and
 does not publish rendered text. This adds no root output. It makes CupidDis a
-participant in the existing `kernel.bin` transform, bringing its audited
-participation to two transforms. The normal kernel path validates all 429
-audited root object outputs plus the pass-one and final kernel ELFs in the same
-transaction that performs flat extraction. The SMP trampoline adds a third
-participation: CupidASM writes a private 4 KiB candidate, then CupidDis checks
-its 16-bit code, data table, 32-bit code, and trailing data ranges before the
+participant in the existing `kernel.bin` transform. The normal kernel path
+validates all 429 audited root object outputs plus the pass-one and final
+kernel ELFs in the same transaction that performs flat extraction. Separate
+publication transactions use the same command for the SMP trampoline,
+bootloader, ISR object, and context-switch object. These edges bring audited
+CupidDis participation to six transforms. Raw callers provide exact code and
+data maps. The object callers require a structurally valid i386 relocatable
+with executable bytes and send every executable section to CupidDis before a
 candidate can replace the previous output. The 9,076-byte LF-only input
 manifest lists those 431 unique paths in graph order with SHA-256
 `4f1936423ae06418fc2f75603c29a91997608fe82f48c323321523aed25a2ab0`.
@@ -1001,7 +1008,7 @@ recovery. ADR 0265 records production adoption.
 
 The final audit records 452 transforms across the three supported roots and
 443 under root `all`. Its tool participation totals are Python 452, CupidC
-246, CupidObj 192, CupidASM five, CupidLD five, and CupidDis four. It retains
+246, CupidObj 192, CupidASM five, CupidLD five, and CupidDis six. It retains
 the 5/18/16 fixed-point matrix and records strict validation plus flat
 extraction together on `kernel.bin`, with all 431 code inputs represented.
 `make bootstrap-audit` passed in 69.0 seconds.

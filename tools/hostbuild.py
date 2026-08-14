@@ -4724,7 +4724,7 @@ def _publish_code_output(candidate: _CodeOutput, output: _CodeOutput) -> None:
 
 
 @dataclass(frozen=True)
-class _CheckedRawImageTransaction:
+class _CheckedAssemblyTransaction:
     _repository_root: Path
     _private_root: Path
     _stack: ExitStack
@@ -4757,6 +4757,31 @@ class _CheckedRawImageTransaction:
     def candidate_snapshot(self) -> _CodeValidationInput | None:
         return _code_output_entry(self._candidate_output)
 
+    def candidate_bytes(
+        self,
+        expected: _CodeValidationInput,
+        *,
+        activity: str,
+        tool_stderr: str,
+    ) -> bytes:
+        try:
+            payload = self._candidate_output.path.read_bytes()
+        except OSError as error:
+            raise CodeValidationError(
+                "checked CupidASM output cannot be read: "
+                f"{self._candidate_output.logical}: {error}",
+                tool_stderr=tool_stderr,
+            ) from error
+        if (
+            len(payload) != expected.size
+            or hashlib.sha256(payload).hexdigest() != expected.sha256
+        ):
+            raise CodeValidationError(
+                f"checked CupidASM output changed while {activity} ran",
+                tool_stderr=tool_stderr,
+            )
+        return payload
+
     def require_inputs_unchanged(
         self,
         *,
@@ -4782,6 +4807,7 @@ class _CheckedRawImageTransaction:
         expected: _CodeValidationInput,
         *,
         description: str,
+        activity: str = "CupidDis",
         tool_stderr: str,
     ) -> None:
         current = _code_output_entry(output)
@@ -4791,7 +4817,7 @@ class _CheckedRawImageTransaction:
             or current.sha256 != expected.sha256
         ):
             raise CodeValidationError(
-                f"{description} changed while CupidDis ran",
+                f"{description} changed while {activity} ran",
                 tool_stderr=tool_stderr,
             )
 
@@ -4799,12 +4825,14 @@ class _CheckedRawImageTransaction:
         self,
         expected: _CodeValidationInput,
         *,
+        activity: str = "CupidDis",
         tool_stderr: str,
     ) -> None:
         self.require_private_output_unchanged(
             self._candidate_output,
             expected,
             description="checked CupidASM output",
+            activity=activity,
             tool_stderr=tool_stderr,
         )
 
@@ -4826,7 +4854,7 @@ class _CheckedRawImageTransaction:
 
 
 @contextmanager
-def _checked_raw_image_transaction(
+def _checked_assembly_transaction(
     seed_manifest: Path,
     repository_root: Path,
     source_logical: str,
@@ -4834,7 +4862,7 @@ def _checked_raw_image_transaction(
     *,
     source_subject: str,
     temporary_prefix: str,
-) -> Iterator[_CheckedRawImageTransaction]:
+) -> Iterator[_CheckedAssemblyTransaction]:
     with ExitStack() as stack:
         pinned_output = _pin_code_output(repository_root, output, stack)
         try:
@@ -4887,7 +4915,7 @@ def _checked_raw_image_transaction(
             Path(candidate_logical),
             stack,
         )
-        yield _CheckedRawImageTransaction(
+        yield _CheckedAssemblyTransaction(
             _repository_root=repository_root,
             _private_root=private_root,
             _stack=stack,
@@ -5149,6 +5177,179 @@ def validate_code(
         ) from error
 
 
+def assemble_cupidasm_object(
+    seed_manifest: Path,
+    root: Path,
+    source: Path,
+    output: Path,
+) -> subprocess.CompletedProcess[str]:
+    try:
+        try:
+            from tools.cupidc_kernel_compile import (
+                KernelCompileError,
+                validate_i386_relocatable_bytes,
+            )
+        except ModuleNotFoundError:
+            from cupidc_kernel_compile import (
+                KernelCompileError,
+                validate_i386_relocatable_bytes,
+            )
+    except (ImportError, SyntaxError) as error:
+        raise CodeValidationError(
+            f"CupidASM object validator could not be loaded: {error}"
+        ) from error
+
+    try:
+        repository_root = root.resolve(strict=True)
+    except OSError as error:
+        raise CodeValidationError(
+            f"repository root cannot be resolved: {root}: {error}"
+        ) from error
+    if not repository_root.is_dir():
+        raise CodeValidationError(
+            f"repository root is not a directory: {repository_root}"
+        )
+    source_logical = _code_logical_path(
+        source,
+        subject="CupidASM object source",
+    )
+
+    try:
+        with _checked_assembly_transaction(
+            seed_manifest,
+            repository_root,
+            source_logical,
+            output,
+            source_subject="CupidASM object source",
+            temporary_prefix=".cupidasm-object-",
+        ) as transaction:
+            candidate_logical = transaction.candidate_logical
+            try:
+                assembled = transaction.run_tool(
+                    "cupidasm",
+                    (
+                        "-f",
+                        "elf32",
+                        "-o",
+                        candidate_logical,
+                        source_logical,
+                    ),
+                )
+            except BootstrapError as error:
+                raise CodeValidationError(
+                    f"checked CupidASM could not run: {error}"
+                ) from error
+            tool_stderr = assembled.stderr or ""
+            transaction.require_inputs_unchanged(
+                activity="CupidASM",
+                tool_stderr=tool_stderr,
+            )
+            if assembled.returncode != 0:
+                return subprocess.CompletedProcess(
+                    assembled.args,
+                    assembled.returncode,
+                    "",
+                    tool_stderr,
+                )
+            if assembled.stdout:
+                raise CodeValidationError(
+                    "checked CupidASM wrote unexpected standard output",
+                    tool_stderr=tool_stderr,
+                )
+            if tool_stderr:
+                raise CodeValidationError(
+                    "checked CupidASM wrote unexpected standard error",
+                    tool_stderr=tool_stderr,
+                )
+            candidate_snapshot = transaction.candidate_snapshot()
+            if candidate_snapshot is None:
+                raise CodeValidationError(
+                    "checked CupidASM output does not exist: "
+                    f"{candidate_logical}",
+                    tool_stderr=tool_stderr,
+                )
+
+            candidate_bytes = transaction.candidate_bytes(
+                candidate_snapshot,
+                activity="structural validation",
+                tool_stderr=tool_stderr,
+            )
+            try:
+                validate_i386_relocatable_bytes(
+                    candidate_bytes,
+                    require_executable=True,
+                )
+            except KernelCompileError as error:
+                raise CodeValidationError(
+                    "checked CupidASM relocatable object validation failed: "
+                    f"{error}",
+                    tool_stderr=tool_stderr,
+                ) from error
+            transaction.require_candidate_unchanged(
+                candidate_snapshot,
+                activity="structural validation",
+                tool_stderr=tool_stderr,
+            )
+
+            try:
+                disassembled = transaction.run_tool(
+                    "cupiddis",
+                    ("--require-known", candidate_logical),
+                )
+            except BootstrapError as error:
+                raise CodeValidationError(
+                    f"checked CupidDis could not run: {error}",
+                    tool_stderr=tool_stderr,
+                ) from error
+            combined_stderr = tool_stderr + (disassembled.stderr or "")
+            transaction.require_inputs_unchanged(
+                activity="checked tools",
+                tool_stderr=combined_stderr,
+            )
+            transaction.require_candidate_unchanged(
+                candidate_snapshot,
+                tool_stderr=combined_stderr,
+            )
+            transaction.require_publication_boundary_unchanged(combined_stderr)
+            if disassembled.returncode != 0:
+                return subprocess.CompletedProcess(
+                    disassembled.args,
+                    disassembled.returncode,
+                    "",
+                    combined_stderr,
+                )
+            if disassembled.stdout:
+                raise CodeValidationError(
+                    "checked CupidDis wrote unexpected standard output",
+                    tool_stderr=combined_stderr,
+                )
+            if disassembled.stderr:
+                raise CodeValidationError(
+                    "checked CupidDis wrote unexpected standard error",
+                    tool_stderr=combined_stderr,
+                )
+            try:
+                transaction.publish()
+            except OSError as error:
+                raise CodeValidationError(
+                    "validated CupidASM object could not be published: "
+                    f"{error}",
+                    tool_stderr=combined_stderr,
+                ) from error
+            return subprocess.CompletedProcess(
+                disassembled.args,
+                0,
+                "",
+                combined_stderr,
+            )
+    except CodeValidationError:
+        raise
+    except OSError as error:
+        raise CodeValidationError(
+            f"private CupidASM object snapshot could not be created: {error}"
+        ) from error
+
+
 def assemble_smp_trampoline(
     seed_manifest: Path,
     root: Path,
@@ -5171,7 +5372,7 @@ def assemble_smp_trampoline(
     )
 
     try:
-        with _checked_raw_image_transaction(
+        with _checked_assembly_transaction(
             seed_manifest,
             repository_root,
             source_logical,
@@ -5326,7 +5527,7 @@ def assemble_bootloader(
     )
 
     try:
-        with _checked_raw_image_transaction(
+        with _checked_assembly_transaction(
             seed_manifest,
             repository_root,
             source_logical,
@@ -5569,6 +5770,12 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--source", type=Path, required=True)
     p.add_argument("--output", type=Path, required=True)
 
+    p = sub.add_parser("assemble-cupidasm-object")
+    p.add_argument("--seed-manifest", type=Path, required=True)
+    p.add_argument("--root", type=Path, default=Path("."))
+    p.add_argument("--source", type=Path, required=True)
+    p.add_argument("--output", type=Path, required=True)
+
     p = sub.add_parser("assemble-bootloader")
     p.add_argument("--seed-manifest", type=Path, required=True)
     p.add_argument("--root", type=Path, default=Path("."))
@@ -5713,6 +5920,25 @@ def main(argv: list[str] | None = None) -> int:
                 sys.stderr.write(error.tool_stderr)
             print(
                 f"[hostbuild] assemble-smp-trampoline failed: {error}",
+                file=sys.stderr,
+            )
+            return 1
+        if result.stderr:
+            sys.stderr.write(result.stderr)
+        return result.returncode
+    elif args.cmd == "assemble-cupidasm-object":
+        try:
+            result = assemble_cupidasm_object(
+                args.seed_manifest,
+                args.root,
+                args.source,
+                args.output,
+            )
+        except CodeValidationError as error:
+            if error.tool_stderr:
+                sys.stderr.write(error.tool_stderr)
+            print(
+                f"[hostbuild] assemble-cupidasm-object failed: {error}",
                 file=sys.stderr,
             )
             return 1

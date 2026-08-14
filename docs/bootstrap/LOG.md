@@ -25884,3 +25884,78 @@ lands.
 
 The fixture correction follows the existing fixed-image and kernel-binding
 contracts, so it does not need a separate architecture decision record.
+
+## 2026-08-14: Guard production CupidASM objects before publication
+
+The assembly audit found five active production transforms. The bootloader
+and SMP trampoline already assembled and inspected private candidates. The ISO
+spanning fixture used its own private candidate and exact byte oracle. The ISR
+and context-switch rules still wrote directly to their public object paths.
+
+The final `kernel.bin` transaction did include those objects in its 431-input
+strict cohort, but it could not protect their publication. Both public objects
+fed the pass-one link, final link, and symbol path before that later gate ran.
+A final failure also left the earlier object in place.
+
+The first TDD command failed because hostbuild did not recognize
+`assemble-cupidasm-object`. The first Make tests showed that both objects had
+only CupidASM and Python attribution, and that a `CUPIDASM_INPUTS` override
+replaced the ISR rule's checked dependency closure. A separate red test found
+the same closure problem on the guarded ISO lane. The structural test also
+showed that an otherwise valid object with no executable bytes could reach the
+strict inspector.
+
+Hostbuild now uses one checked assembly transaction for raw and relocatable
+outputs. The object operation locks and pins the output, freezes the source and
+five-tool seed, and runs CupidASM against a private path. It applies the shared
+i386 relocatable validator and requires at least one executable section byte.
+Hostbuild loads the validator before the transaction starts, keeping that
+policy stable while CupidASM runs. CupidDis must decode every executable byte
+with `--require-known` before the transaction rechecks its source, seed,
+candidate, output, and output parent and publishes atomically.
+
+The two object rules call that operation and depend on
+`CHECKED_SEED_INPUTS`, hostbuild, and the shared validator. The ISO lane also
+uses the fixed checked-seed closure. Standalone CupidASM or CupidDis command
+and dependency overrides no longer weaken any production assembly recipe.
+The later complete-kernel transaction remains as a second check.
+
+Verification completed as follows:
+
+| Check | Result |
+| --- | --- |
+| Object publication focus | PASS, 7 tests in 0.478 seconds. Coverage includes success, validator-load failure, malformed ELF, no executable bytes, incomplete decode diagnostics, source and seed drift, candidate and output races, rollback, cleanup, and locking. |
+| Complete hostbuild transaction group | PASS, 138 tests in 13.437 seconds with two platform-specific skips. This includes the ISO lane, both raw-image callers, both object callers, and final kernel publication. |
+| CupidASM and CupidDis contracts | PASS, 42 tests in 12.808 seconds with one platform-specific skip. Active raw and ELF32 source parity, strict inspection, malformed artifacts, and rollback all pass. |
+| Complete build-graph suite | PASS, 85 tests in 817.216 seconds. Both objects have exact checked-seed inputs and CupidASM, CupidDis, and Python attribution. All five assembly recipes resist poisoned standalone dependency closures. |
+| Deterministic audit | PASS, regeneration in 74.4 seconds and a fresh checked comparison in 73.0 seconds. The report keeps 736 active inputs and 452 transforms while CupidDis participation rises from four to six. |
+| Poisoned forced production build | PASS in 2.0 seconds. Both objects and the ISO lane rebuilt with host and standalone tool variables set to invalid names. Checked native Windows CupidASM and CupidDis still supplied the object path. |
+
+The forced object results are:
+
+| Output | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `kernel/cpu/isr.o` | 1,892 | `caa8e1974fbf06857263a743661aae3318abb0b4e10fa154e4ac4994f32464e6` |
+| `kernel/core/context_switch.o` | 696 | `8b0fa9415a5f549f6516e3ae4e73d39676d56fb58bbba87d9479610dd95818ea` |
+| `test_iso/fixtures/big.bin` | 4,096 | `c8f5d0341d54d951a71b136e6e2afcb14d11ed8489a7ae126a8fee0df6ecf193` |
+
+A direct checked-seed CupidDis run accepts both objects with empty output.
+No lock, candidate, or private transaction directory remains.
+
+The wider five-module assembler and disassembler command ran 44 tests in
+14.832 seconds. It passed 42, skipped one platform case, and exposed one
+existing demo-corpus fixture failure. `parity_gfx2d.asm` calls
+`gfx2d_fullscreen_enter` and `gfx2d_fullscreen_exit`, but
+`cupidasm_demos_contract.cc` does not provide those two definitions. Neither
+file belongs to this change. The focused active production-source and object
+contracts are green, and the missing demo definitions remain separate work.
+
+The regenerated 2,674,005-byte JSON audit has SHA-256
+`d9f507246bfdfa2815658599b6dde2b07dbd283fcef2178d241ae0c3864c8c50`.
+The 12,269-byte summary has SHA-256
+`22dd7276dae52d1e65837425a4a18e5449505a8e612c2c4c43c1f6a4d1fe1b03`.
+
+The object bytes, active assembly, ABI, link order, and disk layout do not
+change, so this publication-only step does not require a new boot result. It
+adds no host dependency and does not justify a `.c` to `.cc` rename. ADR 0286
+records the decision and the remaining semantic boundary.

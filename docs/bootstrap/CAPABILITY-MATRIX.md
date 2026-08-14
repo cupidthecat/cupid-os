@@ -50,11 +50,11 @@ normal disk image, repository ISO fixture, and Doom profile manifest. Root
 the Python-only size verifier, which emits no OS artifact. Host Python remains
 present in all 452 transforms as the
 checked-tool launcher and host-side safety, parity, and publication layer.
-CupidDis participates in four root transforms: kernel-symbol text generation,
-strict mixed-mode SMP-trampoline inspection, guarded mixed-mode bootloader
-inspection, and the composite `kernel.bin` path. The latter runs strict
-validation and flat extraction against one frozen cohort, with all 431 code
-inputs represented.
+CupidDis participates in six root transforms: kernel-symbol text generation,
+strict mixed-mode inspection for the SMP trampoline and bootloader, guarded
+publication for the ISR and context-switch objects, and the composite
+`kernel.bin` path. The latter runs strict validation and flat extraction
+against one frozen cohort, with all 431 code inputs represented.
 For the normal disk image, Python builds an
 independent oracle, composes the image around the checked CupidObj template,
 and publishes it with the staged FAT contents. For the ISO, Python freezes the
@@ -850,7 +850,7 @@ source-head capability until the checked compiler images are promoted. ADR
 | Labels, expressions, and relocations | Observed | Colon and dot-local labels, `equ`, `$`/`$$`, label differences, checked arithmetic/shift/complement expressions, binary literals, deterministic branch relaxation, globals/externs, and absolute/PC-relative fixups are implemented. The real ISR and context-switch objects have semantic symbol/relocation parity, including `R_386_32` and `R_386_PC32`; positive and useful failure contracts cover undefined, duplicate, overflow, layout, and relocation cases. |
 | Directives and source composition | Observed | The active surface is implemented: eight `BITS`, three `ORG`, sections, globals/externs, `db/dw/dd/dq`, `times`, `equ`, `%define`, `%include`, `align POWER_OF_TWO[, FILL_BYTE]`, and all seven reserve spellings. At source head, a raw source accepts one `ORG` and one section identity. Repeating that section is valid, while a duplicate `ORG` or a different section reports an exact source diagnostic before output. The checked execution seeds need their next fixed-point promotion to carry those diagnostics. Raw alignment uses the absolute `ORG` address. ELF32 alignment pads section offsets, raises `sh_addralign`, and leaves NOBITS padding out of the file. Fixed images align absolute region addresses, including unaligned caller-provided bases. Invalid boundaries, fill bytes, NOBITS fills, and overflow fail with focused diagnostics. Includes resolve from the including source parent and ordered logical roots with missing/cycle/depth diagnostics; the kernel orders those roots as shell CWD then `/`, yielding source parent, CWD, root lookup. No active source uses `%macro`; unrestricted macro support is not claimed. |
 | Flat binary output for boot paths | Observed | Hosted CupidASM owns the production 2,560-byte boot image and 4,096-byte SMP trampoline, byte-identical to NASM with frozen SHA-256 evidence. Raw results publish source-derived code16, code32, and data ranges plus their origin. The CLI serializes them as `cupid.raw-map.v1`. One checked raw-image transaction serves the SMP and bootloader callers. It owns locking, source and seed freezing, drift checks, private candidates, publication-boundary checks, and atomic publication, while each caller keeps its image and map policy. The expanded eleven-test suite passed in 1.708 seconds, including direct mismatch and live-output drift checks for both callers. Parent-replacement tests exposed a POSIX candidate leak when private work lived below the output parent. Private roots now live directly below the stable repository root, and both caller modules pass all 10 tests on Windows and through WSL. The normal boot rule enters the guarded transaction through hostbuild with the production manifest and full checked-seed closure. Trampoline publication keeps its caller-owned strict map. ADR 0277 records the map handoff, and ADR 0283 records the normal boot cutover. |
-| Deterministic ELF32 `ET_REL` output | Observed | CupidASM lowers sections, symbols, and fixups into the shared semantic ELF32 writer. The real ISR and context-switch sources match NASM's relevant section bytes, symbol bindings, and relocation semantics; deterministic and malformed/error contracts pass on both supported hosts. |
+| Deterministic ELF32 `ET_REL` output | Observed | CupidASM lowers sections, symbols, and fixups into the shared semantic ELF32 writer. The real ISR and context-switch sources match NASM's relevant section bytes, symbol bindings, and relocation semantics. Their Make rules now assemble private candidates through the fixed production seed. Hostbuild applies the shared i386 relocatable validator, requires executable section bytes, runs strict CupidDis over all of them, rechecks every transaction boundary, and publishes atomically. Deterministic, malformed, incomplete-decode, drift, rollback, and error contracts pass on the supported Windows path. ADR 0286 records the publication gate. |
 | Assemble all active OS assembly | Observed | All five production sources and all 22 unchanged embedded demos assemble through the shared frontend. The normal Make graph attributes the five production transforms to CupidASM and none to NASM; every demo produces the same fixed image on two runs with implicit externs disabled, the exact required definition names and kinds, and deterministic test addresses. The `parity_gfx2d.asm` fixture supplies both `gfx2d_fullscreen_enter` and `gfx2d_fullscreen_exit`, matching the calls in the source and the exports in the kernel adapter. The adapter exercises the real 631-name case-insensitive catalogue, includes through VFS, JIT execution, and AOT execution. |
 | Host-runnable assembler and self-build | Observed/Partial | `make -C toolchain all` publishes the static i386 Linux CupidASM built by the checked seed. CupidC emits the unchanged core, host adapter, and main source under the four-byte profile. The staged drivers build through stage four; stages two and three carry a possible codegen transition, and the convergence gate compares stages three and four. The clean Linux proof and promoted-seed reproof pass across every final-pair object, tool, and behavior check. Checked CupidASM is the 454,160-byte stage-four image with SHA-256 `7d6c4a538dcbb04663514445474dae394a6d8fead08c454885315777bf3e3867`. The clean native Windows proof and promoted-seed reproof pass across 20 C objects, two assembly objects, five tools, and the 5/5/5 behavior matrix. `native-oracles` keeps a separate GCC or Clang build for comparison. |
 
@@ -914,9 +914,10 @@ instruction counts to an inspection report. Its `--require-known FILE
 [FILE...]` policy checks every selected code region, keeps standard output
 empty, and reports each failing path. Declared raw data and non-executable ELF
 regions are excluded. Both active CupidASM `ET_REL` objects pass this policy
-without losing their ordinary relocation render. The normal kernel path
-applies the policy to all 429 audited root object outputs plus the pass-one and
-final kernel ELFs in the same transaction that performs flat extraction. A
+without losing their ordinary relocation render. Each object now passes the
+policy as a private candidate before publication. The normal kernel path also
+applies the policy to all 429 audited root object outputs plus the pass-one
+and final kernel ELFs in the same transaction that performs flat extraction. A
 9,076-byte LF-only manifest lists those
 431 unique graph-ordered paths with SHA-256
 `4f1936423ae06418fc2f75603c29a91997608fe82f48c323321523aed25a2ab0`.
@@ -944,7 +945,7 @@ carriage and production adoption.
 
 The final audit records 452 transforms across the three supported roots and
 443 under root `all`. Its tool participation totals are Python 452, CupidC
-246, CupidObj 192, CupidASM five, CupidLD five, and CupidDis four. It retains
+246, CupidObj 192, CupidASM five, CupidLD five, and CupidDis six. It retains
 the 5/18/16 fixed-point matrix. `make bootstrap-audit` passed in 69.0
 seconds.
 

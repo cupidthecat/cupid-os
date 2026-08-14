@@ -1355,7 +1355,7 @@ external program twice at `0x01C00000`. ADR 0124 records the exact build and
 runtime evidence. No supported transform invokes a host C compiler. Python
 participates in all 452 transforms across the three audited roots, and CupidC
 participates in 246. CupidObj participates in 192, CupidASM in five, CupidLD in
-five, and CupidDis in four. Root `all` has 443 transforms, including 442
+five, and CupidDis in six. Root `all` has 443 transforms, including 442
 Cupid-owned artifact transforms and the Python-only size verifier. It runs
 CupidC, CupidASM, CupidObj, CupidLD, and CupidDis from the manifest-checked
 seed; `toolchain:all` uses the rebuilt static tools for its contract cohort.

@@ -158,6 +158,18 @@ by the kernel adapter: `gfx2d_fullscreen_enter` and
 `gfx2d_fullscreen_exit`. Its normal and error paths resolve through the same
 public names used in Cupid OS.
 
+The two production ELF32 assembly objects now use the same checked assembly
+transaction. `assemble-cupidasm-object` freezes the source and five-tool seed,
+asks CupidASM for a private candidate, applies the shared i386 relocatable
+validator, and rejects an object with no executable bytes. CupidDis must then
+decode every executable section byte before hostbuild may publish `isr.o` or
+`context_switch.o`. Source, seed, candidate, output, and output-parent drift
+all stop publication. The final 431-input kernel gate remains as an
+independent whole-kernel check. The ISO spanning fixture also declares the
+fixed checked-seed closure, so standalone assembler and disassembler
+overrides cannot weaken any of the five production assembly edges. ADR 0286
+records the object boundary.
+
 Hosted CupidC now exposes the existing Cupid language profile as `--cupid`.
 The option selects Cupid vocabulary in both preprocessing and parsing, while
 `--gnu` remains an independent extension switch. Cupid mode cannot be combined
@@ -836,7 +848,7 @@ object outputs plus the pass-one and final kernel ELFs. A
 That separate command passed in 185.526 seconds with exit 0 and empty output.
 The final audit records 452 transforms across the three supported roots and
 443 under root `all`. Its tool participation totals are Python 452, CupidC
-246, CupidObj 192, CupidASM five, CupidLD five, and CupidDis four. It retains
+246, CupidObj 192, CupidASM five, CupidLD five, and CupidDis six. It retains
 the 5/18/16 fixed-point matrix and assigns strict validation plus flat
 extraction to `kernel.bin`, with all 431 code inputs represented. `make
 bootstrap-audit` passed in 69.0 seconds.

@@ -261,7 +261,7 @@ manifest digest, decoded data, schema checks, and build plan
 come from one captured byte sequence. The 442 audited root artifacts have
 Cupid owners and no host C or recursive Make transform. The Python-only size
 verifier emits no OS artifact. Five CupidASM, 192 CupidObj, two
-CupidLD, and four CupidDis participations run from the checked seed. The user
+CupidLD, and six CupidDis participations run from the checked seed. The user
 compiler and Toolchain contract publisher create their own output directories,
 so empty-directory setup is not a separate transform. The compiler pins every
 POSIX or Windows directory component during preparation and rejects links,

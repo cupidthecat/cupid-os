@@ -363,6 +363,14 @@ assembly result, and leaves the hosted destination unchanged. ELF32 and
 fixed-image requests keep their multi-section layouts. ADR 0285 records the
 boundary.
 
+The ISR and context-switch rules now call
+`tools/hostbuild.py assemble-cupidasm-object`. Each operation freezes the
+source and five-tool seed, validates a private i386 relocatable with executable
+bytes, and runs strict CupidDis over every executable section. Drift or a
+failed tool leaves the prior object in place. This closes the earlier gap in
+which the final kernel check ran only after both public objects had already
+fed the link. ADR 0286 records the publication boundary.
+
 Source-head CupidASM also accepts `align POWER_OF_TWO[, FILL_BYTE]`. Raw
 output aligns the absolute `ORG` address, ELF32 output carries the required
 section alignment, and fixed images include the absolute region base in the
@@ -1028,7 +1036,7 @@ all 452 transforms. CupidC's total is 240 normal transforms plus three
 generated installation tables and the `hello.cc`, `ls.cc`, and `cat.cc`
 programs. Root `all` has 443 transforms: 442 artifact transforms with a Cupid
 owner plus the Python-only size verifier, which emits no OS artifact. The root
-artifact graph has five CupidASM, 192 CupidObj, two CupidLD, and four CupidDis
+artifact graph has five CupidASM, 192 CupidObj, two CupidLD, and six CupidDis
 participations from the manifest-checked five-tool seed. Across all three
 roots, CupidLD participates in five transforms. Native hosted commands remain
 explicit oracle targets. The same runner handles root commands.

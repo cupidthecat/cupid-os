@@ -920,7 +920,7 @@ Poisoned-host checks cover all 239 checked-in normal CupidC recipes through
 the strict and Doom gates. They fail if a CupidC-owned object reaches Clang or
 GCC. They pass against the renamed graph. Across the three supported build
 roots, the audit records 452 transforms. CupidC participates in 246, CupidObj
-in 192, CupidASM in five, CupidLD in five, and CupidDis in four. Python
+in 192, CupidASM in five, CupidLD in five, and CupidDis in six. Python
 participates in all 452, and no normal transform invokes a host C compiler.
 Root `all` has 443 transforms: 442 artifact transforms with at least one Cupid
 tool owner plus the Python-only size verifier, which emits no OS artifact. The

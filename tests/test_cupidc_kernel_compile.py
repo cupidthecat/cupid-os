@@ -2297,6 +2297,16 @@ class KernelCompileOperationTests(unittest.TestCase):
             _data_only_elf32_object()
         )
 
+    def test_public_validator_can_require_executable_section_bytes(self):
+        with self.assertRaisesRegex(
+            kernel_compile.KernelCompileError,
+            "emitted object has no executable section bytes",
+        ):
+            kernel_compile.validate_i386_relocatable_bytes(
+                _data_only_elf32_object(),
+                require_executable=True,
+            )
+
     def test_public_validator_rejects_a_data_symbol_outside_its_section(self):
         with self.assertRaisesRegex(
             kernel_compile.KernelCompileError,
