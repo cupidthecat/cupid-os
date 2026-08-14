@@ -54345,7 +54345,7 @@
       },
       {
         "path": "tools/bootstrap_toolchain.py",
-        "sha256": "1927d77343cad11ee446e731158f1685a1c6ab0d1d9f5b318f8361c5ca297241"
+        "sha256": "450dccc08d136f4cd774fc97f9dd14a1074ee11af9b8a7a779c92e8c0415e3e9"
       },
       {
         "path": "bootstrap/seeds/i386-windows/manifest.json",

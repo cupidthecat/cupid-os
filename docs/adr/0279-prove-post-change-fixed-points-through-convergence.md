@@ -2,8 +2,9 @@
 
 ## Status
 
-Accepted on 2026-08-13. Preliminary convergence validation is complete;
-reproof from a named clean commit and seed promotion remain pending.
+Accepted on 2026-08-13. The clean Linux convergence gate and seed promotion
+are complete under ADR 0280. The native Windows clean proof and promotion remain
+pending.
 
 ## Context
 
@@ -81,17 +82,18 @@ Both reports bind the same 50-input source snapshot with SHA-256
 `d8481a39e0d1c7f42779a8c9f5fc5de10d7e5b9bc4df63ce6afe9ddd9c9716da`.
 Both record `stage3=4`.
 Independent verification rehashed every reported inventory member and checked
-each recorded size and hash. These are preliminary proofs because they began
-from an uncommitted source tree. Promotion still requires the same proofs from
-a named clean commit.
+each recorded size and hash. These reports remain preliminary because they
+began from an uncommitted source tree. A later clean Linux proof satisfied that
+target's promotion gate. Native Windows still requires its clean proof.
 
-The Linux report also reconstructs native Windows behavior. That cross-path
-check exposed a CupidDis-only mismatch: the reconstructed 387,584-byte image
+The preliminary Linux report also reconstructs native Windows behavior. That
+cross-path check exposed a CupidDis-only mismatch: the reconstructed
+387,584-byte image
 had SHA-256
 `ad6147cd426e204756ec8bf52ae85c64fff9ad39b0bc26e5744f3c421be1e9aa`,
 while the native Windows proof produced the same-size image with SHA-256
 `07cff807224c425d686e32d54dc1ad541f57aaa624f7b736bba0f9ef5001ce6a`.
-The other four Windows tools matched. The Linux reconstruction compiled
+The other four Windows tools matched. That reconstruction compiled
 `cupiddis_main.cc` without `_WIN32=1`, so it selected the wrong driver path.
 The hosted Windows plan now applies `_WIN32=1` to all five tool mains. A
 test-first compile and link parity contract covers CupidDis, and the build
@@ -107,8 +109,15 @@ inside a five-test focused command in 2.294 seconds. The audit requires five
 seed checks in each driver, including the prepublication check, and binds both
 reconstructed Windows `cupiddis_main` objects to their compile and replacement
 paths. Its complete mutation test passed in 119.241 seconds. These checks
-harden the next proof; they do not replace the required run from a named clean
-commit.
+hardened the later clean Linux proof. Native Windows still needs the same proof
+from a named clean commit.
+
+The clean Linux proof from revision
+`5d690c7508cc031a0cb32b2963bf16300b32e267` passed in 1,383.775 seconds.
+Stages three and four matched across 19 C objects, startup, and five tools,
+then passed the 5/18/16 behavior matrix. The promoted-seed reproof passed in
+1,411.998 seconds with all five initial seed comparisons true. ADR 0280 records
+the promoted stage-four identities and manifest provenance.
 
 ## Consequences
 
@@ -116,8 +125,8 @@ A compiler change may alter stage two as the old seed crosses into the new
 code generator. Stage three must still reproduce the same objects and tools
 when stage three builds stage four. The uncapped runs demonstrate that
 convergence for one frozen, uncommitted source snapshot. Bootstrap work now
-takes one additional generation. Linux and native Windows seed promotion stay
-blocked until a named clean commit reproduces the same result. Any path that
+takes one additional generation. The clean Linux proof and seed promotion are
+complete; native Windows is the next clean promotion gate. Any path that
 reconstructs native Windows tools must also apply the complete Windows profile
 to each driver main, including CupidDis. Each driver must keep every live seed
 role equal to its frozen capture until the publication boundary.

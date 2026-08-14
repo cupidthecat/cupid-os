@@ -25251,7 +25251,7 @@ through WSL, including parent replacement without a leaked candidate.
 
 The regenerated active-source audit retained its counts and source digest.
 Its 2,673,345-byte JSON record has SHA-256
-`f7c76234583f851fd3c25592e02d3e0b434e01cd344c50957704671767cd2a6c`;
+`381d62062c677b05ffa7bd87d52a985f0837e7772194ef66ce2e7aa27ad0845f`;
 the 12,269-byte summary has SHA-256
 `1cb16ea4cbf4ec84d447bcb9e85b8ea2062078fec32a5e5254bfc700cc2d39ec`.
 
@@ -25279,3 +25279,52 @@ prepublication boundary. They also bind both `cupiddis_main` inventory entries
 to the compile and replacement path. The complete mutation audit passed in
 119.241 seconds. The earlier uncapped proofs remain preliminary because this
 hardening still needs a run from a named clean commit.
+
+## 2026-08-13: Promote the clean stage-four Linux seed
+
+Revision `5d690c7508cc031a0cb32b2963bf16300b32e267` supplied the named clean
+source boundary for the Linux proof. The run passed in 1,383.775 seconds.
+Stages three and four matched across 19 C objects, one startup object, and all
+five tools. Both stages passed the 5/18/16 behavior matrix. The report binds
+the same 50-input snapshot used by the preliminary proof, SHA-256
+`d8481a39e0d1c7f42779a8c9f5fc5de10d7e5b9bc4df63ce6afe9ddd9c9716da`.
+
+The stage-four cohort became the checked i386 Linux seed:
+
+| Tool | Bytes | SHA-256 |
+| --- | ---: | --- |
+| CupidASM | 454,160 | `7d6c4a538dcbb04663514445474dae394a6d8fead08c454885315777bf3e3867` |
+| CupidC | 2,670,420 | `cafea40e4b5f5c3b68616e83c173555be6b0321e854bc31b2c540c5072f9c495` |
+| CupidDis | 409,020 | `9b0983c087ac149380d8ef710987e9e799ebca7534da1030073a63d3395a00d8` |
+| CupidLD | 312,792 | `a2119556894903b662d2e131a9a2436b99a3afdd1b1600a3df4d4669569a0295` |
+| CupidObj | 392,688 | `99111b5db7586ac4b2ed00005f2fe2e89c66ed48f007d796206b116a088cdf7a` |
+
+The 5,573-byte manifest has SHA-256
+`f8528f5fcb68473f5078427dfc1c7dd5fce78413a56b45c6aa831971d827ca4f`.
+It binds generation four, the clean source revision, the 50-input count and
+snapshot, and the stage-three producers.
+
+The Windows execution-seed verifier now carries an explicit historical
+parent-source revision for the existing PE cohort instead of borrowing the
+current Linux revision. The old PE seed therefore remains verifiable while it
+reproves against the promoted Linux plan. This Linux promotion does not change
+the Windows manifest. Its next parent provenance depends on the clean native
+proof.
+
+A post-promotion proof started from that manifest and passed in 1,411.998
+seconds. All five initial seed comparisons are true. The 19 C objects, startup,
+and five tools still match between stages three and four, and both stages pass
+5/18/16 behavior. The preliminary Linux record remains above as investigation
+history. The clean native Windows proof is next. ADR 0280 records the promotion.
+
+The regenerated active-source audit retains digest
+`f7af8cce01680c74bb452ed6ac018471bc26cc1d37f0b94bf2b70c5fa4d497f0`.
+Its 2,673,345-byte JSON report has SHA-256
+`381d62062c677b05ffa7bd87d52a985f0837e7772194ef66ce2e7aa27ad0845f`,
+and its 12,269-byte Markdown summary has SHA-256
+`1cb16ea4cbf4ec84d447bcb9e85b8ea2062078fec32a5e5254bfc700cc2d39ec`.
+
+The standalone artifact-size policy module passed all 12 tests in 2.130
+seconds. A production `make verify-artifact-sizes` attempt timed out after 604
+seconds during a seed-triggered kernel compile and was stopped cleanly. The
+production Make gate did not finish and is not recorded as a pass.

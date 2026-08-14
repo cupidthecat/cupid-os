@@ -4,36 +4,36 @@
       "file": "cupidasm.elf",
       "name": "cupidasm",
       "producer": true,
-      "sha256": "0d9647b61bc422e88fbc6f8d846f5041e02deca192efe4cfd62df64910340b26",
-      "size": 449912
+      "sha256": "7d6c4a538dcbb04663514445474dae394a6d8fead08c454885315777bf3e3867",
+      "size": 454160
     },
     {
       "file": "cupiddis.elf",
       "name": "cupiddis",
       "producer": false,
-      "sha256": "acb136752d504445ad52abc315532a2427db844bdd5da98e2d2d78380047a73e",
-      "size": 396500
+      "sha256": "9b0983c087ac149380d8ef710987e9e799ebca7534da1030073a63d3395a00d8",
+      "size": 409020
     },
     {
       "file": "cupidld.elf",
       "name": "cupidld",
       "producer": true,
-      "sha256": "9561d6f7170472cd6dccd87d4988fdd2b23a138966cbe4940a9ffb062eab481d",
+      "sha256": "a2119556894903b662d2e131a9a2436b99a3afdd1b1600a3df4d4669569a0295",
       "size": 312792
     },
     {
       "file": "cupidobj.elf",
       "name": "cupidobj",
       "producer": false,
-      "sha256": "7137ad601a7c22178112fbf08163b36ff2064807caa99962df97d7ae7ae62f2b",
+      "sha256": "99111b5db7586ac4b2ed00005f2fe2e89c66ed48f007d796206b116a088cdf7a",
       "size": 392688
     },
     {
       "file": "cupidc.elf",
       "name": "cupidc",
       "producer": true,
-      "sha256": "ab83e817e49f6f51a31fb41955d33ca6faa4d2073c975ba3a87999c44eeca7cb",
-      "size": 2666240
+      "sha256": "cafea40e4b5f5c3b68616e83c173555be6b0321e854bc31b2c540c5072f9c495",
+      "size": 2670420
     }
   ],
   "build_plan": {
@@ -207,12 +207,14 @@
     "fixed_point_command": "make bootstrap-from-seed",
     "fixed_point_result": "pass",
     "producer_lineage": {
-      "assembly": "stage-two CupidASM from the checked-seed bootstrap",
-      "c": "stage-two CupidC from the checked-seed bootstrap",
-      "link": "stage-two CupidLD from the checked-seed bootstrap"
+      "assembly": "stage-three CupidASM from the checked-seed bootstrap",
+      "c": "stage-three CupidC from the checked-seed bootstrap",
+      "link": "stage-three CupidLD from the checked-seed bootstrap"
     },
-    "seed_generation": "stage-three",
-    "source_revision": "95f5bb6cfd0468bb8852c670ada849cb5bde79a7"
+    "seed_generation": "stage-four",
+    "source_input_count": 50,
+    "source_revision": "5d690c7508cc031a0cb32b2963bf16300b32e267",
+    "source_snapshot_sha256": "d8481a39e0d1c7f42779a8c9f5fc5de10d7e5b9bc4df63ce6afe9ddd9c9716da"
   },
   "schema": "cupid.bootstrap-seed.v1",
   "target": {

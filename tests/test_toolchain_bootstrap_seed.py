@@ -66,6 +66,96 @@ SOURCE_HEAD_SNAPSHOT_SHA256 = (
 
 class ToolchainBootstrapSeedCliTests(unittest.TestCase):
     @staticmethod
+    def _committed_source_inventory(
+        revision: str,
+        logical_paths: dict[str, object],
+    ) -> dict[str, dict[str, object]]:
+        native_prefix = ["git", "-C", str(REPO_ROOT)]
+        try:
+            native_probe = subprocess.run(
+                [*native_prefix, "rev-parse", "--is-inside-work-tree"],
+                text=True,
+                capture_output=True,
+            )
+        except OSError:
+            if os.name != "nt":
+                raise
+            native_probe = None
+        if native_probe is not None and native_probe.returncode == 0:
+            command_prefix = native_prefix
+        elif os.name == "nt":
+            repository = ToolRunner(REPO_ROOT)._wsl_path(REPO_ROOT)
+            command_prefix = ["wsl", "-e", "git", "-C", repository]
+        else:
+            raise AssertionError(native_probe.stderr)
+        inventory: dict[str, dict[str, object]] = {}
+        for logical_path in sorted(logical_paths):
+            result = subprocess.run(
+                [*command_prefix, "show", f"{revision}:{logical_path}"],
+                capture_output=True,
+            )
+            if result.returncode != 0:
+                raise AssertionError(
+                    result.stderr.decode("utf-8", errors="replace")
+                )
+            inventory[logical_path] = {
+                "sha256": hashlib.sha256(result.stdout).hexdigest(),
+                "size": len(result.stdout),
+            }
+        return inventory
+
+    @unittest.skipUnless(os.name == "nt", "Windows Git fallback")
+    def test_missing_native_git_falls_back_to_wsl_for_named_revision_inventory(
+        self,
+    ):
+        revision = "a" * 40
+        logical_path = "toolchain/ctool.cc"
+        committed_source = b"named revision source\n"
+        commands: list[list[str]] = []
+
+        def run(command, *args, **kwargs):
+            commands.append(command)
+            if command[:3] == ["git", "-C", str(REPO_ROOT)]:
+                raise FileNotFoundError("git.exe is unavailable")
+            if command[:3] == ["wsl", "-e", "wslpath"]:
+                return subprocess.CompletedProcess(
+                    command,
+                    0,
+                    stdout="/mnt/c/cupid-os\n",
+                    stderr="",
+                )
+            if command[:3] == ["wsl", "-e", "git"]:
+                return subprocess.CompletedProcess(
+                    command,
+                    0,
+                    stdout=committed_source,
+                    stderr=b"",
+                )
+            raise AssertionError(f"unexpected command: {command}")
+
+        with mock.patch.object(subprocess, "run", side_effect=run):
+            inventory = self._committed_source_inventory(
+                revision,
+                {logical_path: object()},
+            )
+
+        self.assertEqual(
+            inventory,
+            {
+                logical_path: {
+                    "sha256": (
+                        "817260d655079840b5bf05a734ef27c2"
+                        "24c4e5e3acfe4825b409b4dbfb375618"
+                    ),
+                    "size": 22,
+                }
+            },
+        )
+        self.assertTrue(
+            any(command[:3] == ["wsl", "-e", "git"] for command in commands)
+        )
+
+    @staticmethod
     def _minimal_pe32() -> bytearray:
         image = bytearray(0x400)
         image[:0x80] = bytes.fromhex(
@@ -1298,7 +1388,10 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 hashlib.sha256(
                     frozen.tools["cupidc"].read_bytes()
                 ).hexdigest(),
-                "ab83e817e49f6f51a31fb41955d33ca6faa4d2073c975ba3a87999c44eeca7cb",
+                (
+                    "cafea40e4b5f5c3b68616e83c173555b"
+                    "e6b0321e854bc31b2c540c5072f9c495"
+                ),
             )
 
     def test_wsl_runner_uses_a_private_temporary_directory(self):
@@ -1329,6 +1422,30 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             "checked i386 Linux seed: ok (5 tools)\n",
         )
         self.assertEqual(result.stderr, "")
+
+    def test_checked_i386_linux_seed_snapshot_matches_its_named_commit(self):
+        manifest = json.loads(SEED_MANIFEST.read_text(encoding="utf-8"))
+        provenance = manifest["provenance"]
+        revision = provenance["source_revision"]
+        plan = manifest["build_plan"]
+        live_inventory = capture_source_snapshot(REPO_ROOT, plan)
+        committed_inventory = self._committed_source_inventory(
+            revision, live_inventory
+        )
+
+        encoded = json.dumps(
+            committed_inventory,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=True,
+        ).encode("ascii")
+        self.assertEqual(
+            len(committed_inventory), provenance["source_input_count"]
+        )
+        self.assertEqual(
+            hashlib.sha256(encoded).hexdigest(),
+            provenance["source_snapshot_sha256"],
+        )
 
     def test_checked_i386_windows_seed_verifies(self):
         result = subprocess.run(
@@ -1496,6 +1613,13 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "source snapshot differs",
             ),
             (
+                "wrong source revision",
+                lambda manifest: manifest["provenance"].update(
+                    {"source_revision": "0" * 40}
+                ),
+                "source revision differs",
+            ),
+            (
                 "wrong source count",
                 lambda manifest: manifest["provenance"].update(
                     {"source_input_count": 49}
@@ -1508,6 +1632,13 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     {"parent_seed_manifest_sha256": "0" * 64}
                 ),
                 "parent seed manifest differs",
+            ),
+            (
+                "wrong parent source revision",
+                lambda manifest: manifest["provenance"].update(
+                    {"parent_seed_source_revision": "0" * 40}
+                ),
+                "parent seed source revision differs",
             ),
             (
                 "wrong producer lineage",
@@ -1561,23 +1692,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             "build_plan"
         ]
         live_inventory = capture_source_snapshot(REPO_ROOT, plan)
-        committed_inventory: dict[str, dict[str, object]] = {}
-
-        for logical_path in sorted(live_inventory):
-            result = subprocess.run(
-                ["git", "show", f"{revision}:{logical_path}"],
-                cwd=REPO_ROOT,
-                capture_output=True,
-            )
-            self.assertEqual(
-                result.returncode,
-                0,
-                result.stderr.decode("utf-8", errors="replace"),
-            )
-            committed_inventory[logical_path] = {
-                "sha256": hashlib.sha256(result.stdout).hexdigest(),
-                "size": len(result.stdout),
-            }
+        committed_inventory = self._committed_source_inventory(
+            revision, live_inventory
+        )
 
         encoded = json.dumps(
             committed_inventory,
@@ -5637,6 +5754,18 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "seed generation differs",
             ),
             (
+                "source input count",
+                "source_input_count",
+                49,
+                "source input count differs",
+            ),
+            (
+                "source snapshot",
+                "source_snapshot_sha256",
+                "0" * 64,
+                "source snapshot differs",
+            ),
+            (
                 "fixed-point result",
                 "fixed_point_result",
                 "not-run",
@@ -5773,7 +5902,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(report["status"], "pass")
             self.assertEqual(
                 report["seed_source_revision"],
-                "95f5bb6cfd0468bb8852c670ada849cb5bde79a7",
+                "5d690c7508cc031a0cb32b2963bf16300b32e267",
             )
             self.assertNotIn("source_revision", report)
             self.assertEqual(
@@ -6172,10 +6301,10 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 initial_matches,
                 {
-                    "cupidasm": False,
-                    "cupidc": False,
-                    "cupiddis": False,
-                    "cupidld": False,
+                    "cupidasm": True,
+                    "cupidc": True,
+                    "cupiddis": True,
+                    "cupidld": True,
                     "cupidobj": True,
                 },
             )

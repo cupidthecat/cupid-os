@@ -7,19 +7,19 @@
       "reason": "The disk builder consumes exactly five boot sectors, so extra output would be ignored."
     },
     {
-      "exact_bytes": 449912,
+      "exact_bytes": 454160,
       "path": "bootstrap/seeds/i386-linux/cupidasm.elf",
       "producer": "CupidASM",
       "reason": "The checked seed is immutable between reviewed promotions."
     },
     {
-      "exact_bytes": 2666240,
+      "exact_bytes": 2670420,
       "path": "bootstrap/seeds/i386-linux/cupidc.elf",
       "producer": "CupidC",
       "reason": "The checked seed is immutable between reviewed promotions."
     },
     {
-      "exact_bytes": 396500,
+      "exact_bytes": 409020,
       "path": "bootstrap/seeds/i386-linux/cupiddis.elf",
       "producer": "CupidDis",
       "reason": "The checked seed is immutable between reviewed promotions."

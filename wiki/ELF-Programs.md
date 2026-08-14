@@ -96,17 +96,20 @@ tools in 20 minutes 43 seconds with 5/5/5 behavior cases; Linux matched 19 C
 objects, startup, and five tools in 24 minutes 22 seconds with 5/18/16 behavior
 cases. Both reports bind the same 50-input snapshot, SHA-256
 `d8481a39e0d1c7f42779a8c9f5fc5de10d7e5b9bc4df63ce6afe9ddd9c9716da`.
-Named clean-commit reproof and seed promotion remain pending. See [ADR
+Those reports remain preliminary. Linux later passed its clean proof,
+promoted the stage-four seed, and passed a reproof from that seed. The clean
+native Windows proof is next. See [ADR
 0247](../docs/adr/0247-serialize-fixed-layout-pe32-images-with-cupidld.md) and
 [ADR
 0248](../docs/adr/0248-link-deterministic-pe32-imports-and-run-a-cupid-built-windows-command.md).
-ADR 0258 records checked-seed carriage. The Linux behavior reconstruction
-also found that `cupiddis_main.cc` lacked `_WIN32=1`; the corrected Windows
+ADR 0258 records checked-seed carriage. The preliminary Linux behavior
+reconstruction also found that `cupiddis_main.cc` lacked `_WIN32=1`; the corrected Windows
 profile, parity test, and audit guard now cover all five tool mains. ADR 0268 records the shared runtime,
 ADR 0269 records CupidLD publication, ADR 0272 records Windows execution seed
 carriage and production selection, ADR 0278 records the native driver, and
 [ADR 0279](../docs/adr/0279-prove-post-change-fixed-points-through-convergence.md)
-records the convergence rule.
+records the convergence rule, and [ADR 0280](../docs/adr/0280-promote-the-clean-stage-four-linux-seed.md)
+records the Linux promotion.
 
 The checked-seed CLI uses an adjacent-candidate publisher for ELF and PE images.
 It creates the candidate with exclusive-create semantics, writes and closes it,

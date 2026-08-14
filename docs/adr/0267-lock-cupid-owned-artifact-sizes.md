@@ -53,21 +53,31 @@ outside policy, and a linked policy. They pass in 1.251 seconds.
 
 The final 12-test suite also covers a relocated selected seed, a policy that
 names an unselected seed, pinned-path reads, and the Windows parent-relative
-handle walk. All 12 tests pass in 1.603 seconds.
+handle walk. It first passed in 1.603 seconds. After the Linux seed promotion,
+all 12 tests passed again in 2.130 seconds.
 
-The checked policy accepts the current production files:
+The live policy lists these production files:
 
 | Artifact | Producer | Exact bytes |
 | --- | --- | ---: |
 | `boot/boot.bin` | CupidASM | 2,560 |
-| `bootstrap/seeds/i386-linux/cupidasm.elf` | CupidASM | 449,912 |
-| `bootstrap/seeds/i386-linux/cupidc.elf` | CupidC | 2,666,240 |
-| `bootstrap/seeds/i386-linux/cupiddis.elf` | CupidDis | 396,500 |
+| `bootstrap/seeds/i386-linux/cupidasm.elf` | CupidASM | 454,160 |
+| `bootstrap/seeds/i386-linux/cupidc.elf` | CupidC | 2,670,420 |
+| `bootstrap/seeds/i386-linux/cupiddis.elf` | CupidDis | 409,020 |
 | `bootstrap/seeds/i386-linux/cupidld.elf` | CupidLD | 312,792 |
 | `bootstrap/seeds/i386-linux/cupidobj.elf` | CupidObj | 392,688 |
-| `kernel/kernel.bin` | CupidObj | 8,950,860 |
-| `kernel/kernel.elf` | CupidLD | 9,166,912 |
-| `kernel/kernel.elf.pass1` | CupidLD | 9,044,032 |
+| `kernel/kernel.bin` | CupidObj | 9,096,008 |
+| `kernel/kernel.elf` | CupidLD | 9,313,740 |
+| `kernel/kernel.elf.pass1` | CupidLD | 9,190,860 |
+
+These are the live policy values after the clean stage-four Linux promotion.
+The hashes and sizes below belong to the dated adoption proof and are retained
+as historical evidence.
+
+A production `make verify-artifact-sizes` attempt after the promotion timed
+out after 604 seconds during a seed-triggered kernel compile and was stopped
+cleanly. That production Make gate did not finish and is not recorded as a
+pass.
 
 The frozen-document poisoned-host rebuild passed in 1,018.548 seconds. The
 2,560-byte boot image has SHA-256

@@ -78,22 +78,31 @@ minutes 43 seconds with 5/5/5 behavior cases. Linux matched 19 C objects,
 startup, and five tools in 24 minutes 22 seconds with 5/18/16 behavior cases.
 Both reports bind the same 50-input snapshot, SHA-256
 d8481a39e0d1c7f42779a8c9f5fc5de10d7e5b9bc4df63ce6afe9ddd9c9716da.
-Named clean-commit reproof and seed promotion remain pending. ADR 0268 records
-the shared runtime, ADR 0269
+They began from uncommitted source and remain preliminary history. Linux later
+passed a clean proof from revision
+5d690c7508cc031a0cb32b2963bf16300b32e267 in 1,383.775 seconds. Stages three
+and four matched 19 C objects, startup, and five tools, and both passed the
+5/18/16 behavior matrix. The resulting 5,573-byte stage-four seed manifest has
+SHA-256
+f8528f5fcb68473f5078427dfc1c7dd5fce78413a56b45c6aa831971d827ca4f.
+It binds the clean revision, generation four, the 50-input snapshot, and the
+stage-three producers. A 1,411.998-second reproof reproduced all five seed
+images and the same fixed point. The clean native Windows proof is next. ADR
+0268 records the shared runtime, ADR 0269
 records CupidLD publication, ADR 0272 records Windows execution seed carriage
 and production selection, ADR 0278 records the native driver, and ADR 0279
-records the convergence rule.
+records the convergence rule. ADR 0280 records the clean Linux promotion.
 
-The Linux behavior reconstruction matched four native tools but found that its
-387,584-byte CupidDis differed from the direct Windows image. The reconstructed
+A preliminary Linux behavior reconstruction matched four native tools but
+found that its 387,584-byte CupidDis differed from the direct Windows image. The reconstructed
 plan had omitted _WIN32=1 from cupiddis_main.cc. The corrected Windows profile,
 parity test, and audit guard now cover all five tool mains.
 
 The reproducible native operator runs make verify-windows-bootstrap-seed, then
 make bootstrap-windows-from-seed. The second target publishes only under
 build/bootstrap/checked-windows-seed after the complete gate passes. Its dry
-run and two Make contract tests pass. Named clean-commit reproof and seed
-promotion remain pending.
+run and two Make contract tests pass. The clean native Windows proof and
+promotion are next.
 >endtree
 
 >h2 Entry Point

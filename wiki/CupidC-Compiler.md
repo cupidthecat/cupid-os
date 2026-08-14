@@ -774,10 +774,10 @@ ADR 0211 records the storage boundary.
 
 The five static i386 Linux tools have a checked seed. The manifest binds their
 hashes, sizes, target ABI, source revision, producer lineage, 19-source plan,
-and five link orders. The current CupidC image is the 2,666,240-byte
-stage-three output from revision
-`95f5bb6cfd0468bb8852c670ada849cb5bde79a7`, with SHA-256
-`ab83e817e49f6f51a31fb41955d33ca6faa4d2073c975ba3a87999c44eeca7cb`.
+and five link orders. The current CupidC image is the 2,670,420-byte
+stage-four output from clean revision
+`5d690c7508cc031a0cb32b2963bf16300b32e267`, with SHA-256
+`cafea40e4b5f5c3b68616e83c173555be6b0321e854bc31b2c540c5072f9c495`.
 It retains the complete 83-root Doom frontier, GNU entity metadata, x87 and
 SSE forms, descriptor and segment assembly, the `libm.cc` effects, the dglibc
 jump block, pointer-preserving static address casts, naked IPI entries, the
@@ -791,7 +791,7 @@ catalogue with fingerprint `55A8970F`, signed x87 integer forms, `SETP`,
 first-opcode decoder index. Its
 CupidLD image carries deterministic PE32 imports. Its 392,688-byte CupidObj
 image has SHA-256
-`7137ad601a7c22178112fbf08163b36ff2064807caa99962df97d7ae7ae62f2b`
+`99111b5db7586ac4b2ed00005f2fe2e89c66ed48f007d796206b116a088cdf7a`
 and carries the complete installation-source bounds, ordering, and
 wrapped-symbol contract, transactional kernel-symbol source generation,
 sequential-JPEG validation, pristine disk-template construction, deterministic
@@ -799,32 +799,25 @@ ISO fixture authoring, and deterministic `profile-manifest` authoring.
 Its plan uses `.cc` for all 19 C roots and has
 SHA-256
 `59c1231e6fc7caafde8781dd6a566fa0ece2909be606914f24a19a7bececadcc`.
-The 5,440-byte manifest has SHA-256
-`5b46684d9977287f69a94473acbbf7c5302213ef98f9748482cba768ffca0be8`.
-ADR 0265 records the current promotion.
+The 5,573-byte manifest has SHA-256
+`f8528f5fcb68473f5078427dfc1c7dd5fce78413a56b45c6aa831971d827ca4f`.
+It records generation four, the clean revision, the 50-input source count and
+snapshot, and the stage-three producer set. ADR 0265 preserves the earlier
+promotion record. ADR 0280 records the current promotion.
 
 The bootstrap copies the 50-input source closure into a private compiler root.
 Both rebuilt stages compile from that root, and the harness checks the private
-and live closures at each stage and behavior boundary. The current seed
-transition's stage two and stage three contain the same five tool images. The
-two rebuilt stages match every C and startup
-object and agree on all five help paths, eighteen successful operations, and
-sixteen failure cases. Their stage directories, behavior evidence, and report
-are published together only after the complete gate passes. The 50-input
-closure has SHA-256
-`5bfbca2cbe30f2fa4b638cbf462b306cc05dc50a4604fd887f89426dbe091e63`.
-The 38,164-byte report has SHA-256
-`3c63664f08e7bcdc639a88ca6ada6cf5143100eac966d748660b65d537b01e10`.
-The proof passed in 801.9 seconds. The checked 128 KiB strict-decode case
-completed within its 30-second limit. ADR 0266 records the decoder index. At
-that checkpoint, the older Linux seed matched stage two for CupidASM, CupidDis,
-and CupidObj. CupidC differed because of `--cupid`, and CupidLD differed because
-of the PE stack policy. Stage two matched stage three across the complete 19/1/5
-artifact set and 5/18/16 behavior matrix. All five matching native PEs form
-the checked Windows execution seed. An earlier poisoned-host reproof, before
-these two source changes, passed in 766.9 seconds. Its 17,032-byte report has
+and live closures at each stage and behavior boundary. The clean Linux proof
+passed in 1,383.775 seconds. Stages three and four matched every one of the 19
+C objects, startup, and five linked tools, and both stages passed all five help
+paths, 18 successful operations, and 16 failure cases. The source snapshot has
 SHA-256
-`736872f31d853fe5b2b67c25e7ec42a1893655074a1c653112def6d66fdeac87`.
+`d8481a39e0d1c7f42779a8c9f5fc5de10d7e5b9bc4df63ce6afe9ddd9c9716da`.
+A 1,411.998-second reproof from the promoted manifest reproduced all five
+initial seed images, the artifact fixed point, and the 5/18/16 behavior matrix.
+An earlier clean 801.9-second proof remains the provenance record for the
+checked Windows execution seed. The clean native Windows convergence proof is
+next. ADR 0266 records the decoder index.
 The normal kernel path runs strict checked-seed CupidDis and checked CupidObj
 flat extraction against one frozen cohort of all 429 audited root object
 outputs plus the pass-one and final kernel ELFs. Its 9,076-byte graph-ordered input manifest has SHA-256
@@ -937,16 +930,18 @@ complete final-pair artifact and behavior gates. Windows finished in 20 minutes
 43 seconds, and Linux finished in 24 minutes 22 seconds. Both reports bind the
 same 50-input snapshot, SHA-256
 `d8481a39e0d1c7f42779a8c9f5fc5de10d7e5b9bc4df63ce6afe9ddd9c9716da`.
-Because they began from uncommitted source, the cohort still needs a named
-clean-commit reproof before it can claim a promoted native fixed point.
+Both runs began from uncommitted source and remain preliminary history. Linux
+later passed a clean proof in 1,383.775 seconds, promoted the stage-four seed,
+and passed a 1,411.998-second reproof from that seed. The clean native Windows
+proof is next.
 ADRs 0247 and 0248 record the format and small loader boundaries, ADR 0258
 records seed carriage, ADR 0268 records the shared runtime, and ADR 0269
 records CupidLD publication. ADR 0272 records native carriage and production
-selection, ADR 0278 records native reconstruction, and ADR 0279 records the
-convergence generation.
+selection, ADR 0278 records native reconstruction, ADR 0279 records the
+convergence generation, and ADR 0280 records the clean Linux promotion.
 
-The Linux behavior reconstruction also found one Windows-profile difference.
-Its 387,584-byte CupidDis image had SHA-256
+The preliminary Linux behavior reconstruction found one Windows-profile
+difference. Its 387,584-byte CupidDis image had SHA-256
 `ad6147cd426e204756ec8bf52ae85c64fff9ad39b0bc26e5744f3c421be1e9aa`,
 while the direct Windows proof produced SHA-256
 `07cff807224c425d686e32d54dc1ad541f57aaa624f7b736bba0f9ef5001ce6a`.

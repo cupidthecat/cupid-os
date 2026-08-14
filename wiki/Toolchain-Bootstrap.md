@@ -44,14 +44,17 @@ the same transition after 883.3 seconds. Neither published. Later uncapped
 proofs passed. Windows matched 20 C objects, two assembly objects, and five
 tools in 20 minutes 43 seconds with 5/5/5 behavior cases. Linux matched 19 C
 objects, startup, and five tools in 24 minutes 22 seconds with 5/18/16 behavior
-cases. Both bind the same 50-input snapshot, SHA-256
+cases. Both preliminary reports bind the same 50-input snapshot, SHA-256
 `d8481a39e0d1c7f42779a8c9f5fc5de10d7e5b9bc4df63ce6afe9ddd9c9716da`.
-They began from uncommitted source, so named clean-commit reproof and seed
-promotion remain open. ADR 0278 records the driver, and
-ADR 0279 records the added generation.
+They began from uncommitted source. Linux later passed a clean proof in
+1,383.775 seconds, promoted the stage-four seed, and passed a 1,411.998-second
+reproof with every initial seed comparison true. The clean native Windows
+proof is next. ADR 0278 records the driver, ADR 0279 records the added
+generation, and ADR 0280 records the Linux promotion.
 
-Linux behavior reconstruction matched four direct Windows tools and exposed a
-CupidDis-only profile difference. Both CupidDis images were 387,584 bytes, but
+A preliminary Linux behavior reconstruction matched four direct Windows tools
+and exposed a CupidDis-only profile difference. Both CupidDis images were
+387,584 bytes, but
 the reconstruction had compiled `cupiddis_main.cc` without `_WIN32=1`.
 Compile and link parity tests plus the bootstrap audit now guard the Windows
 profile for all five tool mains.
@@ -117,17 +120,20 @@ freestanding Windows probe, the Windows runtime wrapper, and the direct
 runtime contract. It copies those exact bytes into a private compiler root.
 Checked CupidC compiles stage two below that root, checked CupidASM assembles
 its startup, and checked CupidLD links all five tools. The stage-two producer
-trio repeats the build for stage three below the same root.
+trio builds stage three below the same root, then the stage-three trio builds
+stage four.
 
-The gate compares all 19 C objects, both startup objects, and all five linked
-images. It also runs five help checks, eighteen successful operations, and
-sixteen failure cases across compilation, assembly, disassembly, symbol
+The gate compares all 19 C objects, the startup object, and all five linked
+images between stages three and four. Both stages run five help checks,
+eighteen successful operations, and sixteen failure cases across compilation,
+assembly, disassembly, symbol
 inspection and source generation, linking, `profile-manifest` authoring, JPEG
 validation, disk-template and ISO fixture construction, wrapping, and flattening. The
 harness rehashes both
-the private closure and the live closure before stage two, after each stage,
-and after the behavior suite. A live edit that is made and restored during a
-compile cannot change the captured compiler input.
+the private closure and the live closure at each generation boundary, after
+the behavior suite, and before publication. It applies the same checks to the
+live seed manifest and artifacts. A live edit that is made and restored during
+a compile cannot change the captured compiler input.
 
 Checked-seed CupidObj includes `ksyms-source` in that behavior matrix. The
 command turns canonical CupidDis symbol text into the exact packed
@@ -141,13 +147,15 @@ publishes only a complete match.
 
 Before execution, the harness reads the manifest and each seed binary once. It
 verifies those captured bytes, keeps the manifest hash, and runs private copies
-of the five binaries. A later replacement of a checked-in file cannot change
-that run.
+of the five binaries. It reloads the checked files at every generation boundary
+and before publication. A later replacement cannot alter the private run, and
+detected live drift prevents publication.
 
 The default output is `build/bootstrap/checked-seed/`. It must be absent or
-empty at the start. The harness keeps both stages, behavior fixtures, and the
-report private until every check succeeds, then publishes them as one complete
-directory. A nonempty output is rejected without modification. The report
+empty at the start. The harness keeps stages two through four, behavior
+fixtures, and the report private until every check succeeds, then publishes
+them as one complete directory. A nonempty output is rejected without
+modification. The report
 keeps the historical seed source revision separate from the captured source
 snapshot. ADR 0142 records this source and publication boundary.
 
@@ -189,9 +197,9 @@ Host Python still coordinates each fixed point. Windows rebuilds native tools
 from the checked PE execution seed and the verified Linux plan seed without
 WSL. Linux contract programs on Windows still run the static i386 Linux tools
 through WSL, while output-bearing production calls use the checked PE32 cohort
-directly. The preliminary native proof passed from uncommitted source. Named
-clean-commit reproof, checked-seed promotion, and Python-free coordination
-remain open.
+directly. Linux now uses its clean promoted stage-four seed. The preliminary
+native proof passed from uncommitted source, and its clean proof is next.
+Python-free coordination remains open.
 `make verify-artifact-sizes` receives
 `$(BOOTSTRAP_SEED_MANIFEST)`, derives the five seed paths and declared sizes
 from that selected manifest, and requires the policy to agree. It also checks
@@ -261,10 +269,10 @@ Every image reserves and commits a one MiB stack; its heap reserves one MiB and
 commits 4 KiB. Native reconstruction takes the Linux manifest as a separate
 verified plan input because the execution manifest deliberately carries no
 Windows build plan. Its first complete run rejected live source drift, so the
-checked seed still records the earlier paired-stage proof. Source head now
+checked Windows seed still records the earlier paired-stage proof. Source head
 builds stage four and compares the final pair. Preliminary uncapped Windows
-and Linux proofs pass, while named clean-commit reproof and promotion remain
-pending.
+and Linux proofs pass. Linux later completed its clean proof, stage-four
+promotion, and promoted-seed reproof. The clean native Windows proof is next.
 [ADR
 0268](../docs/adr/0268-run-cupid-built-cupiddis-on-windows.md) records the
 shared runtime, and [ADR
@@ -315,48 +323,38 @@ and segment assembly, every represented assembly effect in `libm.cc`, the
 exact dglibc jump block, pointer-preserving static address casts, explicit
 `double` to `unsigned long long` conversion, exact naked IPI entries, runtime
 floating truth, runtime and static integer to `long double` conversion,
-canonical static x87 payloads, and Cupid's native type spellings. Its
-stage-three CupidC image is 2,666,240 bytes with SHA-256
-`ab83e817e49f6f51a31fb41955d33ca6faa4d2073c975ba3a87999c44eeca7cb`.
-It came from revision `95f5bb6cfd0468bb8852c670ada849cb5bde79a7` and
-also carries static long-double arithmetic plus ordinary `float` and `double`
-updates. CupidASM and CupidDis carry the 604-row, 249-mnemonic shared x86
-catalogue with fingerprint `55A8970F`, signed x87 integer conversion forms,
-and canonical `SETP` and `SETNP`. CupidLD retains deterministic PE32 imports.
-CupidDis also carries typed raw code and data ranges, strict `--require-known`
-inspection, and indexed decode candidate selection. CupidASM is 449,912 bytes
-with SHA-256
-`0d9647b61bc422e88fbc6f8d846f5041e02deca192efe4cfd62df64910340b26`.
-CupidDis is 396,500 bytes with SHA-256
-`acb136752d504445ad52abc315532a2427db844bdd5da98e2d2d78380047a73e`.
-CupidLD is 312,792 bytes with SHA-256
-`9561d6f7170472cd6dccd87d4988fdd2b23a138966cbe4940a9ffb062eab481d`.
-The 392,688-byte
-CupidObj image has SHA-256
-`7137ad601a7c22178112fbf08163b36ff2064807caa99962df97d7ae7ae62f2b`.
-It carries installation-source generation, transactional kernel-symbol source
-generation, transactional sequential-JPEG validation, pristine disk-template
-construction, deterministic ISO fixture authoring, and `profile-manifest` authoring.
+canonical static x87 payloads, static long-double arithmetic, ordinary
+`float` and `double` updates, and Cupid's native type spellings. CupidASM and
+CupidDis carry the 604-row, 249-mnemonic shared x86 catalogue with fingerprint
+`55A8970F`, signed x87 integer conversion forms, and canonical `SETP` and
+`SETNP`. CupidLD retains deterministic PE32 imports. CupidDis also carries
+typed raw code and data ranges, strict `--require-known` inspection, and
+indexed decode candidate selection. CupidObj carries installation-source
+generation, transactional kernel-symbol source generation, transactional
+sequential-JPEG validation, pristine disk-template construction,
+deterministic ISO fixture authoring, and `profile-manifest` authoring.
 
-In the promoted seed transition, all nineteen C objects, startup, and five tool images
-matched between stage two and stage three. Both stages passed five help cases,
-eighteen successful operations, and sixteen useful failures. CupidObj stays
-byte-identical to the preceding seed, as does CupidLD. CupidASM, CupidC, and
-CupidDis change. The 5,440-byte manifest has SHA-256
-`5b46684d9977287f69a94473acbbf7c5302213ef98f9748482cba768ffca0be8`.
-The fixed point covers the complete 5/18/16 behavior matrix and a 43-input
-closure with SHA-256
-`56e0943f82737a7013994f1a2b78fcbd5b5c762d0f5036aac5a48bfbb3dcbe32`.
-Its 17,035-byte report has SHA-256
-`810704f6701b4b4627062981e1e969332d4aa5f409d2cdce3d4fcba150518f84`.
-The proof passed in 763.5 seconds, and the checked 128 KiB throughput selector
-completed within 30 seconds.
-An independent poisoned-host reproof passed in 766.9 seconds. All five seed
-images match stage two, and stage two matches stage three across the complete
-19/1/5 artifact set and 5/18/16 behavior matrix. Its 17,032-byte report has
-SHA-256
-`736872f31d853fe5b2b67c25e7ec42a1893655074a1c653112def6d66fdeac87`.
-ADR 0265 records the promotion and fixed-point evidence.
+The current stage-four seed comes from clean revision
+`5d690c7508cc031a0cb32b2963bf16300b32e267`:
+
+| Tool | Bytes | SHA-256 |
+| --- | ---: | --- |
+| CupidASM | 454,160 | `7d6c4a538dcbb04663514445474dae394a6d8fead08c454885315777bf3e3867` |
+| CupidC | 2,670,420 | `cafea40e4b5f5c3b68616e83c173555be6b0321e854bc31b2c540c5072f9c495` |
+| CupidDis | 409,020 | `9b0983c087ac149380d8ef710987e9e799ebca7534da1030073a63d3395a00d8` |
+| CupidLD | 312,792 | `a2119556894903b662d2e131a9a2436b99a3afdd1b1600a3df4d4669569a0295` |
+| CupidObj | 392,688 | `99111b5db7586ac4b2ed00005f2fe2e89c66ed48f007d796206b116a088cdf7a` |
+
+The 5,573-byte manifest has SHA-256
+`f8528f5fcb68473f5078427dfc1c7dd5fce78413a56b45c6aa831971d827ca4f`.
+It binds generation four, the clean revision, the 50-input snapshot
+`d8481a39e0d1c7f42779a8c9f5fc5de10d7e5b9bc4df63ce6afe9ddd9c9716da`,
+and the stage-three producers. The clean proof passed in 1,383.775 seconds.
+Stages three and four matched 19 C objects, startup, and five tools, and both
+stages passed the 5/18/16 behavior matrix. A 1,411.998-second reproof from the
+promoted manifest reproduced all five seed images and the same fixed point.
+ADR 0265 preserves the earlier promotion record. ADR 0280 records the current
+clean stage-four promotion.
 
 The refreshed seed represents operand-free GNU assembly statements inside
 functions and emits exact PAUSE, NOP, STI, HLT, CLI, CLD, SFENCE, and FNINIT
@@ -670,7 +668,7 @@ outputs. `tools/hostbuild.py` is no longer a prerequisite or recipe owner for
 them, but it remains the parity oracle. ADR 0204 records the transfer, ADR
 0206 records the linked-symbol contract, and ADR 0208 records the earlier x87
 seed carriage. ADR 0228 records the first SHRD-carrying seed, and ADR 0234
-records the current seed.
+records an earlier seed. ADR 0280 records the current seed.
 The checked seed, source head, and Python oracle also compare the full wrapped
 symbol name for every typed entry. Distinct paths that collapse to one symbol
 fail before publication. The exact same BMP may remain in both the docs and
@@ -1189,7 +1187,7 @@ locking, and atomic publication. ADR 0239 records the source capability, ADR
 The checked audit uses the canonical Windows Make branch and C locale on
 every host. Direct Linux builds test the separate Linux execution branch.
 
-The latest checked seed comes from revision
+At this earlier checkpoint, the checked seed came from revision
 `95f5bb6cfd0468bb8852c670ada849cb5bde79a7`.
 The ISO source-capability Toolchain cohort passed in 2,764.533 seconds. Its
 two stages matched sixteen objects and fifteen linked executables, the hosted

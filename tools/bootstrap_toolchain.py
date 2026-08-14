@@ -21,7 +21,11 @@ from typing import Sequence
 
 SEED_SCHEMA = "cupid.bootstrap-seed.v1"
 WINDOWS_SEED_SCHEMA = "cupid.execution-seed.v1"
-SEED_SOURCE_REVISION = "95f5bb6cfd0468bb8852c670ada849cb5bde79a7"
+SEED_SOURCE_REVISION = "5d690c7508cc031a0cb32b2963bf16300b32e267"
+SEED_SOURCE_INPUT_COUNT = 50
+SEED_SOURCE_SNAPSHOT_SHA256 = (
+    "d8481a39e0d1c7f42779a8c9f5fc5de10d7e5b9bc4df63ce6afe9ddd9c9716da"
+)
 TOOL_NAMES = ("cupidasm", "cupiddis", "cupidld", "cupidobj", "cupidc")
 TOOL_DISPLAY_NAMES = {
     "cupidasm": "CupidASM",
@@ -50,9 +54,9 @@ EXPECTED_WINDOWS_TARGET = {
     "pe_class": 32,
 }
 EXPECTED_PRODUCER_LINEAGE = {
-    "assembly": "stage-two CupidASM from the checked-seed bootstrap",
-    "c": "stage-two CupidC from the checked-seed bootstrap",
-    "link": "stage-two CupidLD from the checked-seed bootstrap",
+    "assembly": "stage-three CupidASM from the checked-seed bootstrap",
+    "c": "stage-three CupidC from the checked-seed bootstrap",
+    "link": "stage-three CupidLD from the checked-seed bootstrap",
 }
 EXPECTED_WINDOWS_PRODUCER_LINEAGE = {
     "assembly": "stage-three CupidASM from the checked i386 Linux bootstrap",
@@ -67,6 +71,9 @@ WINDOWS_SEED_SOURCE_SNAPSHOT_SHA256 = (
 )
 WINDOWS_SEED_PARENT_MANIFEST_SHA256 = (
     "5b46684d9977287f69a94473acbbf7c5302213ef98f9748482cba768ffca0be8"
+)
+WINDOWS_SEED_PARENT_SOURCE_REVISION = (
+    "95f5bb6cfd0468bb8852c670ada849cb5bde79a7"
 )
 WINDOWS_TOOL_IMPORTS = (
     (
@@ -1422,7 +1429,7 @@ def _verify_seed_manifest_data(
         if provenance.get("source_input_count") != 50:
             raise BootstrapError("source input count differs")
         if provenance.get("parent_seed_source_revision") != (
-            SEED_SOURCE_REVISION
+            WINDOWS_SEED_PARENT_SOURCE_REVISION
         ):
             raise BootstrapError("parent seed source revision differs")
         if provenance.get("parent_seed_manifest_sha256") != (
@@ -1441,15 +1448,23 @@ def _verify_seed_manifest_data(
                 "fixed_point_result",
                 "producer_lineage",
                 "seed_generation",
+                "source_input_count",
                 "source_revision",
+                "source_snapshot_sha256",
             },
             "provenance",
         )
         revision = provenance.get("source_revision")
         if revision != SEED_SOURCE_REVISION:
             raise BootstrapError("source revision differs")
-        if provenance.get("seed_generation") != "stage-three":
+        if provenance.get("seed_generation") != "stage-four":
             raise BootstrapError("seed generation differs")
+        if provenance.get("source_input_count") != SEED_SOURCE_INPUT_COUNT:
+            raise BootstrapError("source input count differs")
+        if provenance.get("source_snapshot_sha256") != (
+            SEED_SOURCE_SNAPSHOT_SHA256
+        ):
+            raise BootstrapError("source snapshot differs")
         if provenance.get("producer_lineage") != EXPECTED_PRODUCER_LINEAGE:
             raise BootstrapError("producer lineage differs")
 

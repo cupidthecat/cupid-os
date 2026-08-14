@@ -193,9 +193,9 @@ expanded eleven-test suite passed in 1.708 seconds, including direct mismatch
 and live-output drift checks for both callers. Parent-replacement tests exposed
 a POSIX candidate leak when private work lived below the output parent. Private
 roots now live directly below the stable repository root. Both caller modules
-pass all 10 tests on Windows and through WSL. The normal bootloader Make
-edge remains on direct checked CupidASM until seed promotion carries `--map`
-and `--range-map`.
+pass all 10 tests on Windows and through WSL. The normal bootloader Make edge
+remains on direct checked CupidASM until the checked Windows execution seed
+carries `--map` and `--range-map`.
 
 The normal SMP trampoline recipe uses this map as a publication gate.
 Hostbuild freezes the selected seed and source, asks CupidASM for a private
@@ -302,25 +302,26 @@ changes, fixed-address linking, object wrapping, and missing files. Successful
 output matches byte for byte or as text. Invalid assembly and malformed linker
 input follow the same failure behavior and diagnostics.
 
-The five static tools now cross one complete stage boundary under WSL.
-Generation-one CupidC, CupidASM, and CupidLD build all 19 C objects, startup,
-and the five stage-two images. Stage-two CupidC, CupidASM, and CupidLD repeat
-the build for stage three. Every object and linked CupidC, CupidASM, CupidDis,
-CupidLD, and CupidObj image matches byte for byte. The two stages also agree
+At the pre-stack-probe checkpoint, the five static tools crossed one complete
+stage boundary under WSL. Generation-one CupidC, CupidASM, and CupidLD built all
+19 C objects, startup, and the five stage-two images. Stage-two CupidC,
+CupidASM, and CupidLD repeated the build for stage three. Every object and
+linked CupidC, CupidASM, CupidDis, CupidLD, and CupidObj image matched byte for
+byte. The two stages also agreed
 on raw and ELF32 assembly, disassembly, symbol listing, fixed-address and
 scripted linking, binary and canonical-text wrapping, executable flattening,
 help, and useful failures.
 
-The checked i386 Linux seed includes CupidASM and binds it to the complete
-toolchain build plan. The bootstrap copies all 50 source inputs into a private
-root. Checked CupidASM assembles stage-two startup there, and the stage-two
-assembler produces the byte-identical stage-three startup below the same root.
-The private and live closures are checked after each stage and after behavior
-tests. Startup objects and the rest of the fixed-point evidence are published
-together only after the full gate passes. See
+The checked i386 Linux seed at that checkpoint included CupidASM and bound it
+to the complete toolchain build plan. The bootstrap copied all 50 source inputs
+into a private root. Checked CupidASM assembled stage-two startup there, and
+the stage-two assembler produced the byte-identical stage-three startup below
+the same root. The private and live closures were checked after each stage and
+after behavior tests. Startup objects and the rest of the fixed-point evidence
+were published together only after the full gate passed. See
 [Toolchain Bootstrap](Toolchain-Bootstrap) for the manifest and staged build.
 An independent poisoned-host reproof passed in 766.9 seconds. All five seed
-images match stage two, and stage two matches stage three across all nineteen
+images matched stage two, and stage two matched stage three across all nineteen
 C objects, startup, five tools, and the 5/18/16 behavior matrix.
 Normal Cupid OS C roots and Toolchain contracts now use checked CupidC.
 A host compiler remains only for explicit native oracles and hosted
@@ -341,12 +342,14 @@ output, candidate collision, failure diagnostics, and cleanup. Those PE images
 now form the checked Windows execution seed used by output-bearing production
 recipes. The Linux seed remains the build-plan root. Source head pairs both
 manifests and builds native stages two through four. It compares stages three
-and four. Uncapped Windows and Linux runs pass the complete final-pair artifact
-and behavior gates on one frozen uncommitted source snapshot. Named clean-commit
-reproof and seed promotion remain pending.
+and four. Preliminary Windows and Linux runs pass the complete final-pair
+artifact and behavior gates on one frozen uncommitted source snapshot. Linux
+later passed its clean proof, promoted stage four, and passed a reproof from
+the new seed. The clean native Windows proof is next.
 ADR 0268 records the shared runtime, ADR 0269 records CupidLD publication, ADR
 0272 records checked carriage and production selection, and ADRs 0278 and 0279
-record native reconstruction and convergence.
+record native reconstruction and convergence. ADR 0280 records the Linux
+promotion.
 
 ### Function Example
 
@@ -472,8 +475,8 @@ and an immediate. CupidASM uses `6B /r` when the value fits a signed byte and
 records its seed promotion, ADR 0226 records SHRD, and ADR 0228 records
 SHRD's first seed carriage. ADR 0243 records the preceding seed, ADR 0252
 records the x87 integer forms, ADR 0258 records the preceding promotion, ADR
-0259 records the parity predicates, and ADR 0265 records their current seed
-carriage.
+0259 records the parity predicates, ADR 0265 records their preceding seed
+carriage, and ADR 0280 records the current seed.
 
 `setp` and `setnp` accept one byte register or memory destination in either
 mode. They encode as `0F 9A /r` and `0F 9B /r`. Address-size overrides work

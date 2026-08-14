@@ -59,7 +59,7 @@ for Toolchain contracts, the user ABI contract, and artifact-size policy. The
 native `bootstrap-windows` command pairs the PE execution seed with the
 verified Linux plan and builds through stage four without WSL. An uncapped
 stage-three to stage-four proof passes, but it began from uncommitted source.
-Named clean-commit reproof and seed promotion remain pending, so the checked
+The clean native Windows proof is next, so the checked
 execution seed is not yet a promoted native fixed point. Run
 `make verify-windows-bootstrap-seed`, then `make bootstrap-windows-from-seed`; a
 successful proof publishes under `build/bootstrap/checked-windows-seed`.

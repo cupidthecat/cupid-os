@@ -176,8 +176,8 @@ and reserved storage are data. CupidDis rejects stale sizes, missing or repeated
 fields, invalid kinds, and unordered starts before decoding.
 
 Source head carries the shared bootloader map transaction, but the direct
-checked-seed boot edge still awaits seed promotion for CupidASM `--map` and
-CupidDis `--range-map`.
+checked-seed boot edge still awaits a Windows execution-seed promotion that
+carries CupidASM `--map` and CupidDis `--range-map`.
 
 Checked-seed CupidDis can validate one or more files without printing a
 listing:
@@ -296,25 +296,26 @@ CupidLD requests mode 0777; the process umask may remove any permission bits.
 The directory must remain stable under the caller's control, and the CLI does
 not lock or pin the output path.
 
-The checked i386 Linux seed includes CupidASM. Its manifest binds the exact
-assembler image to the target ABI, source revision, producer lineage, source
-plan, and link order. The bootstrap freezes the verified manifest and binaries
-and copies its 50-input source closure, including link.ld, the small Windows
-probe, the native Windows tool runtime and startup, CupidLD publication runtime
-and bridge, the direct contract, and hosted declarations,
-into a private root.
-Checked CupidASM assembles stage-two startup there, then the stage-two
-assembler produces byte-identical stage-three startup below the same root.
-The harness checks both the private and live closures at each stage and
-behavior boundary. The complete seed build also compares all 19 C objects and
-five linked tools and runs the complete 5/18/16 behavior matrix. All evidence
-is published together only after the gate passes.
+At the pre-stack-probe checkpoint, the checked i386 Linux seed included
+CupidASM. Its manifest bound the exact assembler image to the target ABI,
+source revision, producer lineage, source plan, and link order. The bootstrap
+froze the verified manifest and binaries and copied its 50-input source closure
+into a private root. The closure included link.ld, the small Windows probe, the
+native Windows tool runtime and startup, CupidLD publication runtime and
+bridge, the direct contract, and hosted declarations. Checked CupidASM
+assembled stage-two startup there, then the stage-two assembler produced
+byte-identical stage-three startup below the same root. The harness checked the
+private and live closures at each stage and behavior boundary. The complete
+seed build also compared all 19 C objects and five linked tools and ran the
+5/18/16 behavior matrix. All evidence was published together only after the
+gate passed.
 An independent poisoned-host reproof passed in 766.9 seconds. All five seed
-images match stage two, and stage two matches stage three across the same
+images matched stage two, and stage two matched stage three across the same
 19 C objects, startup, five tools, and behavior matrix.
 
-At the promoted-seed checkpoint, source head assembled the native Windows tool
-entry and twelve shared cdecl API bridges through stages two and three, plus
+At the checked Windows execution-seed checkpoint, source head assembled the
+native Windows tool entry and twelve shared cdecl API bridges through stages
+two and three, plus
 four publication bridges for CupidLD. Those startup objects matched. CupidLD linked all five native
 tool closures with their matching runtime objects. Windows runs help plus
 useful success and failure paths for every tool and checks the direct runtime
@@ -330,10 +331,20 @@ cupidobj_main after 821.9 seconds on Windows and 883.3 seconds on Linux. New
 stack-probe code generation changed compiler-produced objects. Later uncapped
 proofs passed the final-pair artifact and behavior gates on the same frozen
 50-input snapshot. Windows finished in 20 minutes 43 seconds, and Linux
-finished in 24 minutes 22 seconds. Named clean-commit reproof and seed
-promotion remain pending.
+finished in 24 minutes 22 seconds. Both runs began from uncommitted source and
+remain preliminary history. Linux later passed a clean proof from revision
+5d690c7508cc031a0cb32b2963bf16300b32e267 in 1,383.775 seconds. Stages three
+and four matched 19 C objects, startup, and five tools, and both passed 5/18/16
+behavior. The promoted stage-four CupidASM is 454,160 bytes with SHA-256
+7d6c4a538dcbb04663514445474dae394a6d8fead08c454885315777bf3e3867.
+The 5,573-byte seed manifest has SHA-256
+f8528f5fcb68473f5078427dfc1c7dd5fce78413a56b45c6aa831971d827ca4f
+and binds generation four, the clean revision, the 50-input snapshot, and the
+stage-three producers. A 1,411.998-second reproof reproduced all five promoted
+seed images and the same fixed point. The clean native Windows proof is next.
+ADR 0280 records the Linux promotion.
 
-The Linux behavior reconstruction found that cupiddis_main.cc lacked
+A preliminary Linux behavior reconstruction found that cupiddis_main.cc lacked
 _WIN32=1. Four native tools already matched. The corrected Windows profile,
 CupidDis parity test, and audit guard now cover all five driver mains.
 
@@ -447,7 +458,7 @@ records the x87 form's seed carriage, and ADR 0228 records the first SHRD seed
 promotion. ADR 0243
 records the preceding seed, ADR 0252 records the x87 integer forms, ADR 0258
 records the preceding seed, ADR 0259 records the parity predicates, and ADR
-0265 records the current promotion.
+0265 records the preceding promotion. ADR 0280 records the current promotion.
 
 Floating-point and SIMD coverage includes:
 - FPU state: FXSAVE, FXRSTOR, FINIT, FNINIT, FWAIT, LDMXCSR, STMXCSR

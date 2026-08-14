@@ -183,8 +183,11 @@ cases. Linux matched 19 C objects, startup, and five tools in 24 minutes 22
 seconds with 5/18/16 behavior cases. Both reports bind the same 50-input
 snapshot, SHA-256
 `d8481a39e0d1c7f42779a8c9f5fc5de10d7e5b9bc4df63ce6afe9ddd9c9716da`.
-They began from uncommitted source, so named clean-commit reproof and seed
-promotion remain pending.
+Those reports remain preliminary because they began from uncommitted source.
+Linux later passed a 1,383.775-second clean proof, promoted the stage-four
+seed, and passed a 1,411.998-second reproof with all five initial seed
+comparisons true. The clean native Windows proof is next. ADR 0280 records the
+Linux promotion.
 
 Strong four-vCPU runtime checks pass with both NICs through SMP, RDRAND, all
 62 crypto checks, USB storage, audio, TrueType glyphs, a baseline JPEG decode,

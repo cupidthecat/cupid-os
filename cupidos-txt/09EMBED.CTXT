@@ -76,7 +76,7 @@ unit.
 The Python generator remains a byte-parity oracle but no longer owns these
 production sources. ADR 0204 records the transfer, and ADR 0206 records the
 first seed with the linked-symbol collision checks. ADR 0258 records the
-current checked seed.
+preceding checked seed. ADR 0280 records the current checked seed.
 
 Makefile variable definitions:
   BIN_CC_SRCS  := $(filter-out bin/old_cc2.cc bin/old_cc2_single.cc, $(wildcard bin/*.cc))
