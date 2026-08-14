@@ -300,11 +300,19 @@ CupidC and CupidLD to checked-seed output. The 22,591-byte manifest has SHA-256
 ff193cf81293553706373f5a37d0fedf3dfae0bebcbc608d892a4f40ea3d9629.
 The current-publication path repeated the same gate in 12.2 seconds.
 
-Seventeen tracked .c files outside TempleOS remain intentionally unbootstrapped.
-Eleven are legacy, superseded, or dormant, and six are host-C fixtures or
-oracles. Renaming a bin/*.c copy would activate it through wildcard discovery.
-Renaming a fixture would silently select C++ semantics. A .cc rename follows a
-real CupidC build and behavior proof. The safe suffix-only rename set is empty.
+The build audit finds seventeen tracked .c files outside TempleOS and none in
+a supported transform. It records seven historical copies, three superseded
+implementations, one dormant runtime draft, five native host test fixtures,
+and one optional host oracle. Renaming a bin/*.c copy would activate it through
+wildcard discovery. Renaming a fixture would silently select C++ semantics.
+The audit rejects an active tracked .c source owned by CupidC. A .cc rename
+follows a real checked build and behavior proof. The safe suffix-only rename
+set is empty.
+
+The native process fixture supplies the four host adapters required by the
+current cleanup path. Its 20 focused cases pass, and the combined native C
+evidence passes all 56 kernel, USB, and ELF32 oracle cases without changing
+fixture language mode.
 
 The user syscall ABI check is one of the staged Toolchain contracts. Both
 rebuilt CupidC stages compile it, CupidLD links it, and the publisher requires

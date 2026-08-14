@@ -1200,12 +1200,22 @@ transfer, ADR 0167 records the FPU, per-CPU, and SMP transfer, ADR 0176
 records the libm transfer, ADR 0180 records the kernel entry and SIMD
 transfer, and ADR 0181 records the final strict-root transfer.
 
-The seventeen tracked `.c` files outside `TempleOS/` are intentionally outside
-the supported graph. Eleven are legacy, superseded, or dormant, and six are
-host-C fixtures or oracles. Renaming a `bin/*.c` copy would activate it through
-wildcard discovery. Renaming a fixture would silently select C++ semantics and
-misstate its owner. A `.cc` rename follows a real CupidC build and behavior
-proof. The safe suffix-only rename set is empty.
+The build audit finds seventeen tracked `.c` files outside `TempleOS/` and none
+in a supported transform. It records seven historical copies, three
+superseded implementations, one dormant runtime draft, five native host test
+fixtures, and one optional host oracle. Renaming a `bin/*.c` copy would activate
+it through wildcard discovery. Renaming a fixture would silently select C++
+semantics and misstate its owner. The `c_source_ownership` contract rejects an
+active tracked `.c` source once the graph assigns it to CupidC. Host-owned C
+inputs remain valid. A `.cc` rename therefore follows a real checked build and
+behavior proof. The safe suffix-only rename set is empty. ADR 0284 records this
+executable suffix boundary.
+
+Native contract evidence keeps that distinction executable. The process
+fixture now supplies the four host adapters required by the current
+`process.cc` cleanup path. Its 20 focused cases pass, and the combined native C
+group passes all 56 kernel, USB, and ELF32 oracle cases. Production process
+code is unchanged.
 
 The checked seed now finalizes C11 inline meaning from the complete file-scope
 declaration set. The ordinary declaration in `kernel/audio/nuked_opl3.h` and

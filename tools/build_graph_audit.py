@@ -278,6 +278,37 @@ KNOWN_SOURCE_RELATIONS = {
     "kernel/gui/terminal_ansi.c": ("superseded_by", "kernel/gui/ansi.cc"),
 }
 
+KNOWN_UNREACHABLE_SOURCE_POLICIES = {
+    "kernel/lang/cupidc_runtime.c": (
+        "dormant",
+        "unlinked runtime draft outside the supported build roots",
+    ),
+    "tests/kernel_exec_contract.c": (
+        "host_fixture",
+        "native kernel behavior fixture compiled by the host test harness",
+    ),
+    "tests/kernel_process_contract.c": (
+        "host_fixture",
+        "native kernel behavior fixture compiled by the host test harness",
+    ),
+    "tests/usb_interrupt_ownership_contract.c": (
+        "host_fixture",
+        "native USB behavior fixture compiled by the host test harness",
+    ),
+    "tests/usb_msc_lifetime_contract.c": (
+        "host_fixture",
+        "native USB behavior fixture compiled by the host test harness",
+    ),
+    "tests/usb_reconciliation_runtime.c": (
+        "host_fixture",
+        "native USB behavior fixture compiled by the host test harness",
+    ),
+    "toolchain/tests/elf32_oracle.c": (
+        "host_oracle",
+        "optional host compiler input for ELF32 reader comparison",
+    ),
+}
+
 
 class AuditError(RuntimeError):
     """The supported build graph could not be inventoried."""
@@ -2258,6 +2289,7 @@ def _unreachable_inventory(
         )
         relations = []
         known_relation = KNOWN_SOURCE_RELATIONS.get(path)
+        known_policy = KNOWN_UNREACHABLE_SOURCE_POLICIES.get(path)
         if known_relation is not None and known_relation[1] in active_sources:
             relations.append(
                 {
@@ -2285,6 +2317,8 @@ def _unreachable_inventory(
         elif any(relation["kind"] == "superseded_by" for relation in relations):
             classification = "superseded"
             reason = "replaced by the recorded active implementation"
+        elif known_policy is not None:
+            classification, reason = known_policy
         elif duplicate_paths:
             classification = "exact_duplicate"
             reason = "content SHA-256 matches another source-like file"
@@ -2308,6 +2342,61 @@ def _unreachable_inventory(
             }
         )
     return inventory
+
+
+def _c_source_ownership_contract(
+    sources: list[dict[str, object]],
+    unreachable_sources: list[dict[str, object]],
+) -> dict[str, object]:
+    active_tracked_c = sorted(
+        (
+            source
+            for source in sources
+            if source["origin"] == "tracked" and source["language"] == "c"
+        ),
+        key=lambda source: str(source["path"]),
+    )
+    cupidc_owned = [
+        str(source["path"])
+        for source in active_tracked_c
+        if source["runtime_owner"] == "CupidC"
+    ]
+    if cupidc_owned:
+        noun = "source" if len(cupidc_owned) == 1 else "sources"
+        raise AuditError(
+            f"CupidC-owned tracked .c {noun} must use .cc: "
+            + ", ".join(cupidc_owned)
+        )
+    unreachable_tracked_c = sorted(
+        (
+            source
+            for source in unreachable_sources
+            if source["language"] == "c"
+        ),
+        key=lambda source: str(source["path"]),
+    )
+    return {
+        "status": "pass",
+        "tracked_c_sources": len(active_tracked_c) + len(unreachable_tracked_c),
+        "active_tracked_c_sources": len(active_tracked_c),
+        "cupidc_owned_tracked_c_sources": 0,
+        "unreachable_tracked_c_sources": len(unreachable_tracked_c),
+        "active": [
+            {
+                "path": source["path"],
+                "build_owners": source["build_owners"],
+                "runtime_owner": source["runtime_owner"],
+            }
+            for source in active_tracked_c
+        ],
+        "unreachable": [
+            {
+                "path": source["path"],
+                "classification": source["classification"],
+            }
+            for source in unreachable_tracked_c
+        ],
+    }
 
 
 def _mask_c_noncode(text: str) -> str:
@@ -4719,6 +4808,10 @@ def build_audit(
 
     unreachable_sources = _unreachable_inventory(root, all_sources)
     contracts: dict[str, object] = {}
+    contracts["c_source_ownership"] = _c_source_ownership_contract(
+        sources,
+        unreachable_sources,
+    )
     artifact_contract = _artifact_coverage_contract(
         root,
         make,
@@ -12412,6 +12505,14 @@ def _render_markdown(audit: dict[str, object]) -> str:
                     f"deferred ({contract['deferred_external_header_units']} "
                     "external, "
                     f"{contract['deferred_hermetic_units']} hermetic)"
+                )
+            elif "tracked_c_sources" in contract:
+                detail = (
+                    f"{contract['tracked_c_sources']} tracked .c sources; "
+                    f"{contract['active_tracked_c_sources']} active; "
+                    f"{contract['cupidc_owned_tracked_c_sources']} owned by "
+                    "CupidC; "
+                    f"{contract['unreachable_tracked_c_sources']} unreachable"
                 )
             elif "expression_occurrences" in contract:
                 detail = (

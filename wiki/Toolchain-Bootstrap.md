@@ -1040,12 +1040,18 @@ order across host locales.
 The current audit records 452 transforms across the three roots, including 443
 under root `all`.
 
-The seventeen tracked `.c` files outside `TempleOS/` are intentionally
-unbootstrapped: eleven are legacy, superseded, or dormant, and six are host-C
-fixtures or oracles. Renaming a `bin/*.c` copy would activate it through
-wildcard discovery. Renaming a fixture would silently select C++ semantics.
-A `.cc` rename follows a real CupidC build and behavior proof, so the safe
-suffix-only rename set is empty.
+The build audit finds seventeen tracked `.c` files outside `TempleOS/` and none
+in a supported transform. It records seven historical copies, three
+superseded implementations, one dormant runtime draft, five native host test
+fixtures, and one optional host oracle. Renaming a `bin/*.c` copy would activate
+it through wildcard discovery. Renaming a fixture would silently select C++
+semantics. The audit rejects an active tracked `.c` source owned by CupidC. A
+`.cc` rename follows a real checked build and behavior proof, so the safe
+suffix-only rename set is empty. ADR 0284 records the ownership gate.
+The native process fixture supplies the four host adapters required by the
+current cleanup path. Its 20 focused cases pass, and the combined native C
+evidence passes all 56 kernel, USB, and ELF32 oracle cases without changing
+fixture language mode.
 ADR 0190 records the root handoff, and ADR 0196 records the Toolchain contract
 handoff. The user compiler and Toolchain contract publisher create their own
 output directories. The compiler pins each POSIX or Windows directory

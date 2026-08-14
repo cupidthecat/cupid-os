@@ -325,12 +325,14 @@ The 156 checked-in normal-build translation units owned by checked-seed CupidC, 
 _Avoid_: all kernel C, compiler-head frontier, checked seed alone
 
 **Unbootstrapped C census**:
-The seventeen tracked `.c` files outside `TempleOS/` are not omissions from the
-active graph. Eleven are legacy, superseded, or dormant sources, and six are
-intentional host-C fixtures or oracles. Renaming a `bin/*.c` copy would activate
-it through wildcard discovery. Renaming a fixture would silently switch it to
-C++ semantics and misstate its owner. A `.cc` rename follows a real CupidC
-build and behavior proof. The safe suffix-only rename set is empty.
+The build audit finds seventeen tracked `.c` files outside `TempleOS/` and none
+in a supported transform. It classifies seven historical copies, three
+superseded implementations, one dormant runtime draft, five host fixtures, and
+one host oracle. Renaming a `bin/*.c` copy would activate it through wildcard
+discovery. Renaming a fixture would silently switch it to C++ semantics and
+misstate its owner. The audit rejects any active tracked `.c` source owned by
+CupidC. A `.cc` rename follows a real checked build and behavior proof. The
+safe suffix-only rename set is empty.
 _Avoid_: pending active-source renames, suffix-only migration, Cupid-owned host fixtures
 
 **Production Doom cohort**:

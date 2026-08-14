@@ -16,6 +16,16 @@ translation unit remains in a supported root. Lexical counts are discovery
 evidence; semantic completion still requires focused compiler and assembler
 tests.
 
+The `c_source_ownership` audit contract enforces the source suffix at the
+checked graph boundary. An active tracked `.c` source may remain host-owned,
+but CupidC ownership requires `.cc`. The current census contains seventeen
+tracked `.c` files, all outside supported transforms: seven historical copies,
+three superseded implementations, one dormant runtime draft, five native host
+fixtures, and one optional host oracle. ADR 0284 records the contract.
+The five fixture paths and the oracle retain native C semantics. Their combined
+kernel, USB, and ELF32 evidence passes all 56 cases after the process fixture
+adopted the four current cleanup and time adapters.
+
 The regenerated inventory counts 646 direct designated initializers across 19
 files.
 

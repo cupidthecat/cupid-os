@@ -8,6 +8,9 @@
 #include "serial.h"
 #include "string.h"
 #include "smp.h"
+#include "gfx2d.h"
+#include "gfx2d_icons.h"
+#include "timer.h"
 
 #define TEST_STACK_COUNT (MAX_PROCESSES + 2u)
 
@@ -195,6 +198,24 @@ void shell_jit_discard_by_owner(uint32_t pid) {
 int gui_destroy_windows_by_owner(uint32_t owner_pid) {
     (void)owner_pid;
     return 0;
+}
+
+uint32_t timer_get_uptime_ms(void) {
+    return 0u;
+}
+
+void gui_release_process_paint(uint32_t owner_pid) {
+    (void)owner_pid;
+}
+
+int gfx2d_try_release_process_ownership(uint32_t pid) {
+    (void)pid;
+    return 1;
+}
+
+int gfx2d_icons_try_release_process_callbacks(uint32_t pid) {
+    (void)pid;
+    return 1;
 }
 
 int shell_jit_suspended_count(void) {

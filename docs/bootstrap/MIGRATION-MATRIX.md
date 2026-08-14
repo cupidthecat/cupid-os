@@ -172,15 +172,16 @@ image, stages the frozen files, extends the candidate, and rechecks the seed,
 inputs, and live output. A cross-process lock and atomic replacement protect
 the published image. ADR 0238 records the production boundary.
 
-All seventeen tracked `.c` files outside `TempleOS/` are outside the supported
-build roots. Seven are historical snapshots, three are superseded, six are
-host C test or oracle inputs, and one private runtime source is unlinked. No
-active Cupid-built source needs a `.cc` rename. The eleven legacy, superseded,
-or dormant files and six host fixtures are intentionally unbootstrapped.
-Renaming a `bin/*.c` copy would activate it through the wildcard build
-inventory; renaming a fixture would silently select C++ semantics. A `.cc`
-rename follows a real CupidC build and behavior proof. The safe suffix-only
-rename set is empty.
+All seventeen tracked `.c` files outside `TempleOS/` are outside supported
+transforms. The machine-readable census records seven historical copies, three
+superseded implementations, one dormant runtime draft, five native host test
+fixtures, and one optional host oracle. No active Cupid-built source needs a
+`.cc` rename. Renaming a `bin/*.c` copy would activate it through the wildcard
+build inventory, while renaming a host fixture would silently select C++
+semantics. The build audit now rejects an active tracked `.c` source if the
+evaluated graph assigns it to CupidC. A `.cc` rename follows a real checked
+build and behavior proof. The safe suffix-only rename set is empty. ADR 0284
+records the ownership gate.
 
 Checked-seed CupidC represents GNU `returns_twice` and preserves live operands
 across supported direct calls. It rejects marked-function pointer conversion

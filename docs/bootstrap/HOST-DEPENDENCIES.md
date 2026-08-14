@@ -225,28 +225,39 @@ A current extension inventory finds seventeen tracked `.c` files outside
 - Three superseded implementations: `kernel/core/scheduler.c`,
   `kernel/gui/notepad.c`, and `kernel/gui/terminal_ansi.c`.
 - One dormant, unlinked runtime draft: `kernel/lang/cupidc_runtime.c`.
-- Six deliberate host test or oracle fixtures: `tests/kernel_exec_contract.c`,
+- Five deliberate host test fixtures: `tests/kernel_exec_contract.c`,
   `tests/kernel_process_contract.c`,
   `tests/usb_interrupt_ownership_contract.c`,
   `tests/usb_msc_lifetime_contract.c`,
-  `tests/usb_reconciliation_runtime.c`, and
-  `toolchain/tests/elf32_oracle.c`.
+  and `tests/usb_reconciliation_runtime.c`.
+- One optional host oracle: `toolchain/tests/elf32_oracle.c`.
 
 The audit classifies the first seven as `historical_copy`, the next three as
-`superseded`, and the remaining seven as `not_reached`. The stale Make recipe
-for `kernel/gui/terminal_ansi.c` has been removed. That source remains
-superseded by the linked `kernel/gui/ansi.cc` implementation.
+`superseded`, the runtime draft as `dormant`, the five native fixtures as
+`host_fixture`, and the optional compiler input as `host_oracle`. The stale
+Make recipe for `kernel/gui/terminal_ansi.c` has been removed. That source
+remains superseded by the linked `kernel/gui/ansi.cc` implementation.
+
+The native process contract compiles current `kernel/core/process.cc` beside
+`tests/kernel_process_contract.c`. The fixture supplies host-only adapters for
+the timer, GUI paint release, graphics ownership release, and icon callback
+drain. All 20 process cases pass. The combined native C evidence covers 56
+kernel, USB, and ELF32 oracle cases and passes without changing fixture
+language mode.
 
 The repository also tracks 412 `.cc` files outside `TempleOS/`. The active
 graph reaches 405 of them and four generated `.cc` sources, for 409 active
 Cupid C inputs. The generated sources are `kernel/cpu/ksyms_data.cc`,
 `kernel/util/bin_programs_gen.cc`, `kernel/util/demos_programs_gen.cc`, and
 `kernel/util/docs_programs_gen.cc`. The eleven legacy, superseded, or dormant
-files and six host fixtures are intentionally unbootstrapped. Renaming a
+files and six host inputs are intentionally unbootstrapped. Renaming a
 `bin/*.c` copy would activate it through the wildcard build inventory. Renaming
 a fixture would silently select C++ semantics and falsify its host-C ownership.
 A `.cc` rename follows a real CupidC build and behavior proof; it does not stand
-in for one. The safe suffix-only rename set is empty.
+in for one. The audit rejects an active tracked `.c` source owned by CupidC,
+while preserving native C semantics for host fixtures. The safe suffix-only
+rename set is empty. ADR 0284 records this boundary. No host dependency moves
+in this step.
 
 CupidASM's `align` statement adds no host tool to that graph. The shared
 assembler computes raw padding from the absolute `ORG` address, records ELF32

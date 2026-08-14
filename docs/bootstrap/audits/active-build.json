@@ -40257,6 +40257,84 @@
       "total_translation_units": 399,
       "tracked_translation_units": 395
     },
+    "c_source_ownership": {
+      "active": [],
+      "active_tracked_c_sources": 0,
+      "cupidc_owned_tracked_c_sources": 0,
+      "status": "pass",
+      "tracked_c_sources": 17,
+      "unreachable": [
+        {
+          "classification": "historical_copy",
+          "path": "bin/cupidc.c"
+        },
+        {
+          "classification": "historical_copy",
+          "path": "bin/cupidc_lex.c"
+        },
+        {
+          "classification": "historical_copy",
+          "path": "bin/cupidc_parse.c"
+        },
+        {
+          "classification": "historical_copy",
+          "path": "bin/fat16.c"
+        },
+        {
+          "classification": "historical_copy",
+          "path": "bin/fat16_vfs.c"
+        },
+        {
+          "classification": "historical_copy",
+          "path": "bin/kernel.c"
+        },
+        {
+          "classification": "historical_copy",
+          "path": "bin/terminal_app.c"
+        },
+        {
+          "classification": "superseded",
+          "path": "kernel/core/scheduler.c"
+        },
+        {
+          "classification": "superseded",
+          "path": "kernel/gui/notepad.c"
+        },
+        {
+          "classification": "superseded",
+          "path": "kernel/gui/terminal_ansi.c"
+        },
+        {
+          "classification": "dormant",
+          "path": "kernel/lang/cupidc_runtime.c"
+        },
+        {
+          "classification": "host_fixture",
+          "path": "tests/kernel_exec_contract.c"
+        },
+        {
+          "classification": "host_fixture",
+          "path": "tests/kernel_process_contract.c"
+        },
+        {
+          "classification": "host_fixture",
+          "path": "tests/usb_interrupt_ownership_contract.c"
+        },
+        {
+          "classification": "host_fixture",
+          "path": "tests/usb_msc_lifetime_contract.c"
+        },
+        {
+          "classification": "host_fixture",
+          "path": "tests/usb_reconciliation_runtime.c"
+        },
+        {
+          "classification": "host_oracle",
+          "path": "toolchain/tests/elf32_oracle.c"
+        }
+      ],
+      "unreachable_tracked_c_sources": 17
+    },
     "cupid_toolchain_fixed_point": {
       "checked_seed_publication": "complete-bundle",
       "checked_seed_source_boundary_checks": 5,
@@ -54374,7 +54452,7 @@
     ],
     "generator": {
       "path": "tools/build_graph_audit.py",
-      "sha256": "b800e7cd58359db8e3a616a5aece0869f98270fd9acb0f0504c0ac3f7b8f4299"
+      "sha256": "08cc5705c7ff28d9336260d1947cabaefd8ad422c33564b4be4523ae726555b6"
     },
     "text_hash_policy": "canonical_lf"
   },
@@ -82357,12 +82435,12 @@
       "sha256": "23cb597f91e4ff8c9c099fc49003cac06d6a07f435a79f0a5fd8e243fd4f8e2d"
     },
     {
-      "classification": "not_reached",
+      "classification": "dormant",
       "duplicate_of": [],
       "language": "c",
       "lines": 284,
       "path": "kernel/lang/cupidc_runtime.c",
-      "reason": "not reachable from the supported Make target or include closure",
+      "reason": "unlinked runtime draft outside the supported build roots",
       "relations": [],
       "sha256": "a587c07880a778cc6534c0d1251b3d1f2d81f3c911bd7250cd09078691619bfe"
     },
@@ -82377,62 +82455,62 @@
       "sha256": "208256973951a435596bf62bab51b8c652f91af65ce603c3c666f76be75d9479"
     },
     {
-      "classification": "not_reached",
+      "classification": "host_fixture",
       "duplicate_of": [],
       "language": "c",
       "lines": 601,
       "path": "tests/kernel_exec_contract.c",
-      "reason": "not reachable from the supported Make target or include closure",
+      "reason": "native kernel behavior fixture compiled by the host test harness",
       "relations": [],
       "sha256": "ac2ef4ed3691014954d19f5f043cbff4905672276a94e8596c798bcb5615a1bd"
     },
     {
-      "classification": "not_reached",
+      "classification": "host_fixture",
       "duplicate_of": [],
       "language": "c",
-      "lines": 929,
+      "lines": 950,
       "path": "tests/kernel_process_contract.c",
-      "reason": "not reachable from the supported Make target or include closure",
+      "reason": "native kernel behavior fixture compiled by the host test harness",
       "relations": [],
-      "sha256": "de86f7f12a3b997510d61bf05aa23dc8b81b9a803c5f546b072fb18c13f94214"
+      "sha256": "2995286f54f196e0678e0086336818d7e50917397c566a032e9f47acf36a230e"
     },
     {
-      "classification": "not_reached",
+      "classification": "host_fixture",
       "duplicate_of": [],
       "language": "c",
       "lines": 50,
       "path": "tests/usb_interrupt_ownership_contract.c",
-      "reason": "not reachable from the supported Make target or include closure",
+      "reason": "native USB behavior fixture compiled by the host test harness",
       "relations": [],
       "sha256": "7c5335ce7b739978acfa6ac82cce24a742c0ee0f6252333a2441e7d04c77ff1a"
     },
     {
-      "classification": "not_reached",
+      "classification": "host_fixture",
       "duplicate_of": [],
       "language": "c",
       "lines": 150,
       "path": "tests/usb_msc_lifetime_contract.c",
-      "reason": "not reachable from the supported Make target or include closure",
+      "reason": "native USB behavior fixture compiled by the host test harness",
       "relations": [],
       "sha256": "a6199ffb1568014bda433a091628bc6d60b00da069036699c84006c0df07df65"
     },
     {
-      "classification": "not_reached",
+      "classification": "host_fixture",
       "duplicate_of": [],
       "language": "c",
       "lines": 728,
       "path": "tests/usb_reconciliation_runtime.c",
-      "reason": "not reachable from the supported Make target or include closure",
+      "reason": "native USB behavior fixture compiled by the host test harness",
       "relations": [],
       "sha256": "53c9ac323b48e4f5180af9f4af2a4eec4a7a3e9d571f83c5417f4513ef9afc31"
     },
     {
-      "classification": "not_reached",
+      "classification": "host_oracle",
       "duplicate_of": [],
       "language": "c",
       "lines": 8,
       "path": "toolchain/tests/elf32_oracle.c",
-      "reason": "not reachable from the supported Make target or include closure",
+      "reason": "optional host compiler input for ELF32 reader comparison",
       "relations": [],
       "sha256": "d20f21f4efac24a85450c02e62b43a79fbb84c8f2e2b47644e0d803fc0d98822"
     }

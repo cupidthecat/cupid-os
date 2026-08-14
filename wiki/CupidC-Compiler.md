@@ -906,12 +906,17 @@ The 209,715,200-byte image has SHA-256
 `813c9b0c78f795c1ac9fcff59b9c4111a958a07eb1e3943dc7af60c536521110`.
 A private four-vCPU QEMU boot reached JIT completion in 49.257 seconds.
 
-The seventeen tracked `.c` files outside `TempleOS/` do not belong to this
-active CupidC cohort. Eleven are legacy, superseded, or dormant, and six are
-host-C fixtures or oracles. Renaming a `bin/*.c` copy would activate it through
-wildcard discovery, while a fixture rename would silently select C++ semantics.
-A `.cc` rename follows a real CupidC build and behavior proof. The safe
-suffix-only rename set is empty.
+The build audit finds seventeen tracked `.c` files outside `TempleOS/` and none
+in this active CupidC cohort. It records seven historical copies, three
+superseded implementations, one dormant runtime draft, five native host test
+fixtures, and one optional host oracle. Renaming a `bin/*.c` copy would activate
+it through wildcard discovery, while a fixture rename would silently select
+C++ semantics. An active tracked `.c` source assigned to CupidC now fails the
+audit. A `.cc` rename follows a real checked build and behavior proof. The safe
+suffix-only rename set is empty. ADR 0284 records the ownership gate.
+The residual native C evidence passes all 56 kernel, USB, and ELF32 oracle
+cases. The process fixture keeps its host language mode while supplying the
+four adapters required by the current production cleanup path.
 
 A fresh build of hello, ls, and cat in a unique output directory passed in
 10.492 seconds. It reproduced the promoted frontier's six files:

@@ -25765,3 +25765,68 @@ claim them. No active production source requires the new rule yet, so this
 step moves no build owner and changes no OS artifact. It adds no host
 dependency. No `.c` source entered a Cupid-owned build root or qualified for
 a `.cc` rename.
+## 2026-08-14: Enforce CupidC source suffix ownership in the graph audit
+
+The tracked source census found seventeen `.c` files outside `TempleOS/` and
+none in a supported transform. Seven are historical `bin/` copies, three are
+superseded implementations, one is a dormant runtime draft, five are native
+host behavior fixtures, and one is an optional host compiler oracle. No file
+in that set has a checked CupidC edge or behavior proof, so no source earned a
+`.cc` rename.
+
+Renaming one of the historical copies would expose stale code to wildcard
+discovery. Renaming a native fixture or oracle would select C++ semantics and
+report the wrong owner. The dormant and superseded sources add no supported
+compiler requirement. A compiler feature for one of those files would not be
+source-driven bootstrap work.
+
+The active-source audit now publishes a `c_source_ownership` contract. It
+rejects an active tracked `.c` source when the evaluated graph assigns CupidC
+as its runtime owner. It still accepts host-owned `.c` inputs and checked
+CupidC `.cc` inputs. The unreachable inventory now classifies the dormant
+runtime, five native fixtures, and optional oracle explicitly instead of
+reporting all seven as generic `not_reached` paths.
+
+The first negative test failed because a checked CupidC Make edge accepted
+`main.c`. The first residual-policy test failed because all three policy paths
+were still `not_reached`. After the implementation, four focused ownership and
+inventory tests passed in 1.615 seconds. They cover the checked `.c` failure,
+checked `.cc` success, active host-C success, and explicit residual classes.
+
+The complete `tests.test_build_graph_audit` module passed all 87 tests in
+823.153 seconds. The real graph contract reports seventeen tracked `.c`
+sources, zero active, zero CupidC-owned, and seventeen unreachable. It records
+seven `historical_copy`, three `superseded`, one `dormant`, five
+`host_fixture`, and one `host_oracle` entries.
+
+The first native C evidence group found a stale process fixture seam. It ran
+36 tests in 4.551 seconds and failed during the process contract setup because
+`process.cc` now references `timer_get_uptime_ms`,
+`gui_release_process_paint`, `gfx2d_try_release_process_ownership`, and
+`gfx2d_icons_try_release_process_callbacks`. The other 35 cases passed.
+
+The fixture now includes the production declarations and supplies only those
+four host adapters. The fixed clock returns zero, paint release has no external
+state, and both graphics cleanup adapters report success. A focused process
+run passed all 20 cases in 0.556 seconds. Repeating the complete native C group
+passed all 56 kernel, USB, and ELF32 oracle cases in 4.530 seconds. Production
+`process.cc` did not change.
+
+The final exact-tree ownership run passed five tests in 37.106 seconds. It
+repeated the four synthetic ownership cases and the real root, user, and
+Toolchain graph census after the fixture and audit artifacts were current.
+
+The first `make bootstrap-audit` passed in 73.3 seconds, and its deterministic
+check passed in 74.5 seconds. A documentation-only recheck passed in 75.3
+seconds. After the process fixture repair, final regeneration and checking
+both passed in 74.2 seconds. The graph has 736 active inputs, 452 transforms,
+and 25 unreachable source-like files. Its active-source digest remains
+`f7af8cce01680c74bb452ed6ac018471bc26cc1d37f0b94bf2b70c5fa4d497f0`.
+The 2,675,659-byte JSON report has SHA-256
+`92fa0587fc2f0c73ea770972b3460a2d5c36a856044475d4bad49637af3fe9ca`,
+and the 12,417-byte Markdown summary has SHA-256
+`6a4415120363e7c24dc67933dfb7e12a8307524af502e3b271048dc4347d1cde`.
+
+No OS build or boot smoke was needed. This step changes no compiler or
+assembler output, Make recipe, object, ABI, build owner, source suffix, or OS
+runtime path. ADR 0284 records the ownership boundary.

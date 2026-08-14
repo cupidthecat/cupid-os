@@ -167,9 +167,12 @@ It is also a declared Make prerequisite.
 
 | Classification | Files |
 | --- | ---: |
+| `dormant` | 1 |
 | `explicitly_excluded` | 2 |
 | `historical_copy` | 7 |
-| `not_reached` | 12 |
+| `host_fixture` | 5 |
+| `host_oracle` | 1 |
+| `not_reached` | 5 |
 | `superseded` | 4 |
 
 An exact content match does not by itself prove semantic duplication; path-sensitive compatibility headers remain removal-blocked.
@@ -193,14 +196,14 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `kernel/core/scheduler.c` | `c` | `superseded` | 154 | superseded_by: `kernel/core/process.cc` |
 | `kernel/gui/notepad.c` | `c` | `superseded` | 5683 | superseded_by: `bin/notepad.cc` |
 | `kernel/gui/terminal_ansi.c` | `c` | `superseded` | 285 | superseded_by: `kernel/gui/ansi.cc` |
-| `kernel/lang/cupidc_runtime.c` | `c` | `not_reached` | 284 | not reachable from the supported Make target or include closure |
+| `kernel/lang/cupidc_runtime.c` | `c` | `dormant` | 284 | unlinked runtime draft outside the supported build roots |
 | `tests/kernel_contract_support/percpu.h` | `c_header` | `not_reached` | 43 | not reachable from the supported Make target or include closure |
-| `tests/kernel_exec_contract.c` | `c` | `not_reached` | 601 | not reachable from the supported Make target or include closure |
-| `tests/kernel_process_contract.c` | `c` | `not_reached` | 929 | not reachable from the supported Make target or include closure |
-| `tests/usb_interrupt_ownership_contract.c` | `c` | `not_reached` | 50 | not reachable from the supported Make target or include closure |
-| `tests/usb_msc_lifetime_contract.c` | `c` | `not_reached` | 150 | not reachable from the supported Make target or include closure |
-| `tests/usb_reconciliation_runtime.c` | `c` | `not_reached` | 728 | not reachable from the supported Make target or include closure |
-| `toolchain/tests/elf32_oracle.c` | `c` | `not_reached` | 8 | not reachable from the supported Make target or include closure |
+| `tests/kernel_exec_contract.c` | `c` | `host_fixture` | 601 | native kernel behavior fixture compiled by the host test harness |
+| `tests/kernel_process_contract.c` | `c` | `host_fixture` | 950 | native kernel behavior fixture compiled by the host test harness |
+| `tests/usb_interrupt_ownership_contract.c` | `c` | `host_fixture` | 50 | native USB behavior fixture compiled by the host test harness |
+| `tests/usb_msc_lifetime_contract.c` | `c` | `host_fixture` | 150 | native USB behavior fixture compiled by the host test harness |
+| `tests/usb_reconciliation_runtime.c` | `c` | `host_fixture` | 728 | native USB behavior fixture compiled by the host test harness |
+| `toolchain/tests/elf32_oracle.c` | `c` | `host_oracle` | 8 | optional host compiler input for ELF32 reader comparison |
 
 ## Audit contracts
 
@@ -213,6 +216,7 @@ An exact content match does not by itself prove semantic duplication; path-sensi
 | `c_preprocessor_line_directives` | `pass` | 0 named #line directives (0 direct, 0 pp-token; 0 filename); 0 numeric markers; 701 source files; max conditional depth 0 |
 | `c_preprocessor_pragmas` | `pass` | 5 pragmas (1 once, 2 pack pushes, 2 pack pops); pack balanced: yes; max pack depth 1 |
 | `c_preprocessor_translation_units` | `pass` | 395 tracked + 4 generated translation units (KERNEL_I386=156, DOOM_COMPAT_I386=3, DOOM_TREE_I386=80, USER_I386=3, FREESTANDING_I386=1, CUPID_RUNTIME=108, HOSTED_TOOLCHAIN_64=0, HOSTED_KERNEL_BRIDGE_64=0, HOSTED_I386_LINUX=33, HOSTED_I386_WINDOWS=6, HOSTED_I386_KERNEL_BRIDGE=2, HOSTED_I386_LINUX_GNU=3); 22 include-only, 2 non-root headers; 0 hosted deferred (0 external, 0 hermetic) |
+| `c_source_ownership` | `pass` | 17 tracked .c sources; 0 active; 0 owned by CupidC; 17 unreachable |
 | `cupid_toolchain_fixed_point` | `pass` | 19 tool C sources (18 strict, 1 GNU); 5 tools (cupidasm=8, cupiddis=8, cupidld=7, cupidobj=7, cupidc=12); 19 C objects and 1 startup object compared across stages; 5 tool images; 18 success and 16 failure cases; i386-linux |
 
 ## Interpretation limits

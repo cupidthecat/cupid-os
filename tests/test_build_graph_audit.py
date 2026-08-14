@@ -2407,6 +2407,33 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             self.assertEqual(
                 unreachable["unused.c"]["classification"], "not_reached"
             )
+            self.assertEqual(
+                audit["contracts"]["c_source_ownership"],
+                {
+                    "status": "pass",
+                    "tracked_c_sources": 3,
+                    "active_tracked_c_sources": 1,
+                    "cupidc_owned_tracked_c_sources": 0,
+                    "unreachable_tracked_c_sources": 2,
+                    "active": [
+                        {
+                            "path": "active.c",
+                            "build_owners": ["host_c_compiler"],
+                            "runtime_owner": None,
+                        }
+                    ],
+                    "unreachable": [
+                        {
+                            "path": "copy.c",
+                            "classification": "exact_duplicate",
+                        },
+                        {
+                            "path": "unused.c",
+                            "classification": "not_reached",
+                        },
+                    ],
+                },
+            )
             self.assertEqual(audit["summary"]["active_sources"], 1)
             self.assertEqual(audit["summary"]["unreachable_sources"], 4)
 
@@ -2465,6 +2492,168 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     }
                 ],
             )
+
+    def test_cupidc_owned_tracked_c_source_requires_cupid_c_suffix(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _write(
+                root / "Makefile",
+                """
+                .SUFFIXES:
+                PYTHON := python3
+                PRODUCTION_SEED_MANIFEST := seed.json
+                CUPIDC_KERNEL_COMPILE := $(PYTHON) \
+                    tools/cupidc_kernel_compile.py --root . \
+                    --manifest $(PRODUCTION_SEED_MANIFEST)
+
+                .PHONY: all
+                all: main.o
+
+                main.o: main.c
+                \t$(CUPIDC_KERNEL_COMPILE) --profile kernel $< $@
+                """,
+            )
+            _write(root / "main.c", "int main(void) { return 0; }\n")
+
+            output = root / "audit.json"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(AUDIT_TOOL),
+                    "--root",
+                    str(root),
+                    "--output",
+                    str(output),
+                ],
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertIn(
+                "CupidC-owned tracked .c source must use .cc: main.c",
+                result.stderr,
+            )
+            self.assertFalse(output.exists())
+
+    def test_inventory_classifies_residual_host_and_dormant_c_sources(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _write(
+                root / "Makefile",
+                """
+                .SUFFIXES:
+                CC = host-cc
+
+                .PHONY: all
+                all: active.o
+
+                active.o: active.c
+                \t$(CC) -c $< -o $@
+                """,
+            )
+            _write(root / "active.c", "int active(void) { return 0; }\n")
+            _write(
+                root / "kernel" / "lang" / "cupidc_runtime.c",
+                "int dormant(void) { return 0; }\n",
+            )
+            _write(
+                root / "tests" / "usb_reconciliation_runtime.c",
+                "int host_fixture(void) { return 0; }\n",
+            )
+            _write(
+                root / "toolchain" / "tests" / "elf32_oracle.c",
+                "int host_oracle(void) { return 0; }\n",
+            )
+
+            output = root / "audit.json"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(AUDIT_TOOL),
+                    "--root",
+                    str(root),
+                    "--output",
+                    str(output),
+                ],
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            audit = json.loads(output.read_text(encoding="utf-8"))
+            unreachable = {
+                source["path"]: source["classification"]
+                for source in audit["unreachable_sources"]
+            }
+            self.assertEqual(
+                unreachable,
+                {
+                    "kernel/lang/cupidc_runtime.c": "dormant",
+                    "tests/usb_reconciliation_runtime.c": "host_fixture",
+                    "toolchain/tests/elf32_oracle.c": "host_oracle",
+                },
+            )
+
+    def test_cupidc_owned_tracked_cc_source_passes_suffix_contract(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _write(
+                root / "Makefile",
+                """
+                .SUFFIXES:
+                PYTHON := python3
+                PRODUCTION_SEED_MANIFEST := seed.json
+                CUPIDC_KERNEL_COMPILE := $(PYTHON) \
+                    tools/cupidc_kernel_compile.py --root . \
+                    --manifest $(PRODUCTION_SEED_MANIFEST)
+
+                .PHONY: all
+                all: main.o
+
+                main.o: main.cc
+                \t$(CUPIDC_KERNEL_COMPILE) --profile kernel $< $@
+                """,
+            )
+            _write(root / "main.cc", "int main(void) { return 0; }\n")
+            for relative in (
+                "tools/cupidc_kernel_compile.py",
+                "tools/kernel_cupidc_frontier.py",
+                "tools/bootstrap_toolchain.py",
+                "bootstrap/seeds/i386-windows/manifest.json",
+            ):
+                _write(root / relative, "fixture\n")
+
+            output = root / "audit.json"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(AUDIT_TOOL),
+                    "--root",
+                    str(root),
+                    "--output",
+                    str(output),
+                ],
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            audit = json.loads(output.read_text(encoding="utf-8"))
+            self.assertEqual(
+                audit["contracts"]["c_source_ownership"],
+                {
+                    "status": "pass",
+                    "tracked_c_sources": 0,
+                    "active_tracked_c_sources": 0,
+                    "cupidc_owned_tracked_c_sources": 0,
+                    "unreachable_tracked_c_sources": 0,
+                    "active": [],
+                    "unreachable": [],
+                },
+            )
+            source = {item["path"]: item for item in audit["sources"]}["main.cc"]
+            self.assertEqual(source["runtime_owner"], "CupidC")
 
     def test_inventory_resolves_declared_and_assembly_include_edges(self):
         with tempfile.TemporaryDirectory() as td:
@@ -8003,6 +8192,38 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             )
             self.assertEqual(result.returncode, 0, result.stderr)
             audit = json.loads(output.read_text(encoding="utf-8"))
+
+        c_ownership = audit["contracts"]["c_source_ownership"]
+        self.assertEqual(c_ownership["tracked_c_sources"], 17)
+        self.assertEqual(c_ownership["active_tracked_c_sources"], 0)
+        self.assertEqual(c_ownership["cupidc_owned_tracked_c_sources"], 0)
+        self.assertEqual(c_ownership["unreachable_tracked_c_sources"], 17)
+        self.assertEqual(c_ownership["active"], [])
+        self.assertEqual(
+            {
+                source["path"]: source["classification"]
+                for source in c_ownership["unreachable"]
+            },
+            {
+                "bin/cupidc.c": "historical_copy",
+                "bin/cupidc_lex.c": "historical_copy",
+                "bin/cupidc_parse.c": "historical_copy",
+                "bin/fat16.c": "historical_copy",
+                "bin/fat16_vfs.c": "historical_copy",
+                "bin/kernel.c": "historical_copy",
+                "bin/terminal_app.c": "historical_copy",
+                "kernel/core/scheduler.c": "superseded",
+                "kernel/gui/notepad.c": "superseded",
+                "kernel/gui/terminal_ansi.c": "superseded",
+                "kernel/lang/cupidc_runtime.c": "dormant",
+                "tests/kernel_exec_contract.c": "host_fixture",
+                "tests/kernel_process_contract.c": "host_fixture",
+                "tests/usb_interrupt_ownership_contract.c": "host_fixture",
+                "tests/usb_msc_lifetime_contract.c": "host_fixture",
+                "tests/usb_reconciliation_runtime.c": "host_fixture",
+                "toolchain/tests/elf32_oracle.c": "host_oracle",
+            },
+        )
 
         root_transforms = audit["build"]["transforms"]
         root_tools = {
