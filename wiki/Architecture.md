@@ -118,8 +118,8 @@ drivers/        ATA, keyboard, mouse, PIT, RTC, serial, speaker,
                 timer, VGA, PCI, RTL8139, E1000
 ```
 
-The normal CupidC image cohort has 238 checked-in roots and one generated
-symbol root. The strict non-Doom kernel and driver frontier covers 155 of
+The normal CupidC image cohort has 239 checked-in roots and one generated
+symbol root. The strict non-Doom kernel and driver frontier covers 156 of
 those checked-in roots. All normal sources use `.cc`. Five shared Toolchain
 roots also belong to the 19-source i386 Linux fixed point, and their native
 GCC or Clang rules select C with `-x c`. ADRs 0124 and 0126 record the first
@@ -129,11 +129,15 @@ Nuked OPL3 transfer, ADR 0139 records the JPEG and glyph-raster transfer, ADR
 ADR 0180 records the kernel entry and SIMD transfer, and ADR 0181 records the
 string transfer. The checked wrappers own `kernel/core/kernel.cc`,
 `kernel/cpu/simd.cc`, and `kernel/core/string.cc`. Their deterministic
-objects are 25,920, 8,768, and 14,460 bytes. The complete 155-root frontier
-passes twice against a frozen 445-file snapshot; both object sets are
+objects are 25,920, 8,768, and 14,460 bytes. The latest complete two-pass
+frontier predates the 156th source. Its 155 roots pass twice against a frozen
+445-file snapshot; both object sets are
 byte-identical and total 3,749,796 bytes. The combined graph keeps the ISO
 runtime fixture as an explicit image input. No strict checked-in kernel or
 driver root still uses the host compiler.
+
+The current 156-source production build passes. A broader two-generation
+frontier run timed out after 1,204 seconds and remains incomplete.
 
 The normal Toolchain root builds fifteen `.cc` contracts and the runtime
 probe with stage-two and stage-three CupidC. Its publisher accepts only a
@@ -158,18 +162,29 @@ Cupid contract and Python oracle one shared six-file snapshot, then rechecks
 the live publication and sources before success.
 Native contract binaries are optional oracles.
 
-Both fixed-point stages link matching native Windows images for all five hosted
-tools from Cupid-built objects. CupidASM supplies the entry and imported API
-bridges, while CupidLD authors each PE image and its IAT slots. CupidLD adds
-four publication imports to the shared twelve. Windows runs help plus a useful
-success and failure path for each tool. CupidDis also checks quoted raw-input
-parity with the Linux tool. These five images form the checked Windows
+At the promoted-seed checkpoint, stages two and three linked matching native
+Windows images for all five hosted tools from Cupid-built objects. CupidASM
+supplied the entry and imported API bridges, while CupidLD authored each PE
+image and its IAT slots. CupidLD added four publication imports to the shared
+twelve. Windows ran help plus a useful success and failure path for each tool.
+CupidDis also checked quoted raw-input parity with the Linux tool. These five
+images form the checked Windows
 execution seed used by output-bearing production recipes. Toolchain contracts,
 the user ABI contract, and artifact-size policy still run the Linux seed
-through WSL. Source head can reconstruct two native Windows generations by
-freezing the PE execution seed and the Linux plan manifest separately. The
-first full run rejected concurrent source drift after stage two, so a stable
-proof and seed promotion remain open.
+through WSL. Source head freezes the PE execution seed and the Linux plan
+manifest separately, then reconstructs native Windows stages two through four.
+Stages two and three are transition generations; stages three and four are the
+convergence pair. The former stage-two to stage-three comparison stopped safely
+at `cupidobj_main` after 821.9 seconds on Windows and 883.3 seconds on Linux.
+New stack-probe code generation changed compiler-produced objects. Later
+uncapped proofs passed the final-pair gates. Windows matched 20 C objects, two
+assembly objects, and five tools in 20 minutes 43 seconds with 5/5/5 behavior
+cases. Linux matched 19 C objects, startup, and five tools in 24 minutes 22
+seconds with 5/18/16 behavior cases. Both reports bind the same 50-input
+snapshot, SHA-256
+`d8481a39e0d1c7f42779a8c9f5fc5de10d7e5b9bc4df63ce6afe9ddd9c9716da`.
+They began from uncommitted source, so named clean-commit reproof and seed
+promotion remain pending.
 
 Strong four-vCPU runtime checks pass with both NICs through SMP, RDRAND, all
 62 crypto checks, USB storage, audio, TrueType glyphs, a baseline JPEG decode,

@@ -1,5 +1,6 @@
 import contextlib
 import io
+import os
 import subprocess
 import tempfile
 import unittest
@@ -193,6 +194,127 @@ class HostbuildAssembleSmpTrampolineTests(unittest.TestCase):
             self.assertTrue(private_roots)
             self.assertTrue(all(not path.exists() for path in private_roots))
 
+    def test_output_lock_rejects_work_and_preserves_the_trampoline(self):
+        with tempfile.TemporaryDirectory(
+            prefix="hostbuild-smp-trampoline-lock-"
+        ) as temporary:
+            root = Path(temporary)
+            seed, _, output = self._write_fixture(root)
+            original = output.read_bytes()
+            lock = hostbuild._acquire_disk_publication_lock(output.resolve())
+            try:
+                with mock.patch(
+                    "tools.hostbuild.run_seed_tool",
+                    side_effect=AssertionError(
+                        "checked tools must not run while the output is locked"
+                    ),
+                ):
+                    status, stdout, stderr = self._run_cli(root, seed)
+            finally:
+                hostbuild._release_disk_publication_lock(lock)
+
+            self.assertEqual(status, 1)
+            self.assertEqual(stdout, "")
+            self.assertIn("another hostbuild publisher is active", stderr)
+            self.assertEqual(output.read_bytes(), original)
+
+    def test_replaced_output_parent_stops_publication_without_leaking_candidates(self):
+        with tempfile.TemporaryDirectory(
+            prefix="hostbuild-smp-trampoline-parent-swap-"
+        ) as temporary:
+            root = Path(temporary)
+            seed, source, output = self._write_fixture(root)
+            original = output.read_bytes()
+            displaced = root / "original-kernel"
+            replacement = root / "replacement-kernel"
+            replacement.mkdir()
+            replacement_source = replacement / "smp" / "smp_trampoline.S"
+            replacement_source.parent.mkdir()
+            replacement_source.write_bytes(source.read_bytes())
+            (replacement / "smp_trampoline.bin").write_bytes(
+                b"competing trampoline"
+            )
+            (replacement / "keep.txt").write_bytes(b"keep replacement")
+            checked_seed = object()
+
+            def run_checked(
+                seed_manifest,
+                working_directory,
+                tool_name,
+                arguments,
+                *,
+                timeout,
+                frozen_seed,
+            ):
+                del seed_manifest, timeout
+                self.assertIs(frozen_seed, checked_seed)
+                private_root = Path(working_directory)
+                if tool_name == "cupidasm":
+                    (
+                        private_root
+                        / ".cupid-output"
+                        / "smp_trampoline.bin"
+                    ).write_bytes(bytes(4096))
+                elif os.name != "nt":
+                    output.parent.rename(displaced)
+                    replacement.rename(output.parent)
+                return subprocess.CompletedProcess(list(arguments), 0, "", "")
+
+            parent_guard = (
+                mock.patch(
+                    "tools.hostbuild._require_code_output_parent_unchanged",
+                    side_effect=hostbuild.CodeValidationError(
+                        "code output parent changed while checked tools ran"
+                    ),
+                )
+                if os.name == "nt"
+                else contextlib.nullcontext()
+            )
+            with (
+                parent_guard,
+                mock.patch(
+                    "tools.hostbuild.freeze_seed_inputs",
+                    return_value=checked_seed,
+                ),
+                mock.patch(
+                    "tools.hostbuild.run_seed_tool",
+                    side_effect=run_checked,
+                ),
+            ):
+                status, stdout, stderr = self._run_cli(root, seed)
+
+            self.assertEqual(status, 1)
+            self.assertEqual(stdout, "")
+            self.assertIn(
+                "code output parent changed while checked tools ran",
+                stderr,
+            )
+            preserved_replacement = (
+                replacement if os.name == "nt" else output.parent
+            )
+            self.assertEqual(
+                (preserved_replacement / "smp_trampoline.bin").read_bytes(),
+                b"competing trampoline",
+            )
+            self.assertEqual(
+                (preserved_replacement / "keep.txt").read_bytes(),
+                b"keep replacement",
+            )
+            if os.name == "nt":
+                self.assertEqual(output.read_bytes(), original)
+            else:
+                self.assertEqual(
+                    (displaced / "smp_trampoline.bin").read_bytes(),
+                    original,
+                )
+            self.assertFalse(
+                any(
+                    path.is_dir() and path.name.startswith(".smp-trampoline-")
+                    for path in root.rglob("*")
+                )
+            )
+            self.assertEqual(list(root.rglob(".cupid-output")), [])
+
     def test_success_diagnostics_and_input_drift_preserve_the_output(self):
         cases = (
             (
@@ -234,6 +356,11 @@ class HostbuildAssembleSmpTrampolineTests(unittest.TestCase):
                 "candidate drift",
                 {"drift": "candidate"},
                 "checked CupidASM output changed while CupidDis ran",
+            ),
+            (
+                "published output drift",
+                {"drift": "output"},
+                "code output changed while checked tools ran",
             ),
         )
 
@@ -283,6 +410,8 @@ class HostbuildAssembleSmpTrampolineTests(unittest.TestCase):
                     candidate = private_root / str(arguments[-1])
                     if options.get("drift") == "candidate":
                         candidate.write_bytes(bytes([1]) * 4096)
+                    if options.get("drift") == "output":
+                        output.write_bytes(b"competing publisher")
                     return subprocess.CompletedProcess(
                         list(arguments),
                         0,
@@ -305,7 +434,12 @@ class HostbuildAssembleSmpTrampolineTests(unittest.TestCase):
                 self.assertEqual(status, 1)
                 self.assertEqual(stdout, "")
                 self.assertIn(expected, stderr)
-                self.assertEqual(output.read_bytes(), original)
+                expected_output = (
+                    b"competing publisher"
+                    if options.get("drift") == "output"
+                    else original
+                )
+                self.assertEqual(output.read_bytes(), expected_output)
 
 
 if __name__ == "__main__":

@@ -4,15 +4,15 @@ The deterministic active-source audit records three supported build roots:
 root `all`, `user:all`, and `toolchain:all`. It evaluates Make conditionals
 with `OS=Windows_NT` and `LC_ALL=C` on every host so the checked graph has one
 stable shape, then covers the Linux branch with direct build tests.
-`audits/active-build.json` owns the current 736-input/451-transform graph. The
+`audits/active-build.json` owns the current 736-input/452-transform graph. The
 language graph contains 31 assembly inputs, 296 headers, and 409 Cupid C
 files. No ordinary C translation unit remains in a supported root. The
 active-source digest is
-`f35afe36f88b3fe540e0cea5485fa44d47a44d1724240afa4a13d922e825ecc9`.
-The 2,671,241-byte audit JSON has SHA-256
-`c9fad80ea2b4d32d8c773a8ad14a43a987ad211fbb3bc5840a66af606f8d0718`,
+`f7af8cce01680c74bb452ed6ac018471bc26cc1d37f0b94bf2b70c5fa4d497f0`.
+The 2,673,345-byte audit JSON has SHA-256
+`f7c76234583f851fd3c25592e02d3e0b434e01cd344c50957704671767cd2a6c`,
 and the 12,269-byte summary has SHA-256
-`277581ac15dc9700966309ac2540b7332475763f19210d07e30f6398dbc8382f`.
+`1cb16ea4cbf4ec84d447bcb9e85b8ea2062078fec32a5e5254bfc700cc2d39ec`.
 The checked Windows Clang/LLVM and Linux GCC/binutils baselines at
 revision `1e079d1` predate the current CupidC ownership and remain historical
 oracle evidence.
@@ -55,9 +55,10 @@ records the disk-image transfer, and ADR 0245 records the publisher-owned
 directory boundary. ADR 0246 records the shared invocation boundary. Python
 remains a required host-control component. WSL remains required on Windows for
 Linux-contract paths, but not for output-bearing production tool calls. Source
-head can reconstruct two native Windows generations without WSL by freezing
-the PE execution seed and Linux plan seed. A stable full proof and seed
-promotion remain open.
+head can reconstruct native Windows stages two through four without WSL by
+freezing the PE execution seed and Linux plan seed. A complete stage-three to
+stage-four convergence proof has passed on one frozen uncommitted snapshot.
+Named clean-commit reproof and seed promotion remain open.
 
 The normal `all` target uses Host Python for one additional read-only check.
 `verify-artifact-sizes` is a direct prerequisite of `cupidos.img` and receives
@@ -82,8 +83,12 @@ output-bearing CupidC, CupidASM, CupidDis, CupidLD, and CupidObj calls. The
 runner executes private PE copies directly and rechecks the whole live cohort
 after each command. Linux keeps the static checked bootstrap seed. The native
 fixed-point driver now derives its plan from a separately verified Linux
-manifest and preserves both trust roles. Its first full run rejected source
-drift after stage two, so promotion still awaits a stable pass. ADR 0268
+manifest and preserves both trust roles. The first full run rejected source
+drift after stage two. A later source-stable run stopped safely at the old
+stage-two versus stage-three comparison. Preliminary uncapped Windows and
+Linux runs passed the stage-three to stage-four comparison and their complete
+behavior matrices on the same 50-input snapshot. Promotion now awaits a named
+clean-commit replay. ADR 0268
 records the shared runtime, ADR 0269 records CupidLD's
 publication boundary, and ADR 0272 records checked carriage and production
 selection.
@@ -101,13 +106,41 @@ now gives a CupidASM relocatable object to in-kernel CupidLD. CupidASM can
 serialize its raw statement layout, and CupidDis can consume that file for
 strict inspection. Host Python coordinates the private bootloader candidate
 and publication checks, but the normal boot edge stays on the current checked
-assembler until seed promotion. ADRs 0275 through 0277 record these seams.
+assembler until seed promotion. Parent-replacement tests exposed a POSIX
+candidate leak when private work lived below the output parent. Private
+raw-image roots now live directly below the stable repository root. The two
+caller modules pass all 10 tests on Windows and all 10 through WSL, including
+parent replacement with no leaked candidate. ADRs 0275 through 0277 record
+these seams.
+The private guest AOT smoke assembled a 15,680-byte `ET_REL` object, linked an
+8,536-byte ELF with two `PT_LOAD` segments at `0x01A00000`, and observed PID 4
+exit normally. It passed in 79.661 seconds and adds no host dependency.
 
 The native Windows fixed-point driver also remains Python-coordinated. It runs
 the checked PE producer trio directly and needs the Linux manifest only as a
 verified build-plan input. It does not invoke WSL, a host compiler, assembler,
-linker, or binary utility. The source-stable full proof and checked-seed
-promotion are still pending. ADR 0278 records the driver.
+linker, or binary utility. Windows stopped at `cupidobj_main` after 821.9
+seconds, and Linux stopped at the same transition after 883.3 seconds. Both
+runs published nothing. The drivers now build stage four and compare it with
+stage three. Later uncapped runs passed both final-pair comparisons. Windows
+matched 20 C objects, two assembly objects, and five tools in 20 minutes 43
+seconds with 5/5/5 behavior cases. Linux matched 19 C objects, startup, and
+five tools in 24 minutes 22 seconds with 5/18/16 behavior cases. Both reports
+bind the same 50-input snapshot, SHA-256
+`d8481a39e0d1c7f42779a8c9f5fc5de10d7e5b9bc4df63ce6afe9ddd9c9716da`.
+The proofs began from uncommitted source. A named clean-commit replay and seed
+promotion remain pending. ADR 0278 records the native driver, and ADR 0279
+records the convergence rule.
+
+The Linux behavior reconstruction found one cross-path difference. Its
+387,584-byte Windows CupidDis had SHA-256
+`ad6147cd426e204756ec8bf52ae85c64fff9ad39b0bc26e5744f3c421be1e9aa`,
+while the direct Windows proof produced SHA-256
+`07cff807224c425d686e32d54dc1ad541f57aaa624f7b736bba0f9ef5001ce6a`.
+The other four tools matched. The reconstructed plan had omitted `_WIN32=1`
+for `cupiddis_main.cc`. The hosted Windows profile now applies that definition
+to all five driver mains, and the audit checks the rule. This correction adds
+no host dependency.
 
 Checked-seed CupidLD publishes ELF and PE output with native file operations. It
 creates an adjacent candidate with exclusive-create semantics, writes and
@@ -189,13 +222,16 @@ The audit classifies the first seven as `historical_copy`, the next three as
 for `kernel/gui/terminal_ansi.c` has been removed. That source remains
 superseded by the linked `kernel/gui/ansi.cc` implementation.
 
-The repository also tracks 407 `.cc` files outside `TempleOS/`. The active
-graph reaches 404 of them and four generated `.cc` sources, for 408 active
+The repository also tracks 412 `.cc` files outside `TempleOS/`. The active
+graph reaches 405 of them and four generated `.cc` sources, for 409 active
 Cupid C inputs. The generated sources are `kernel/cpu/ksyms_data.cc`,
 `kernel/util/bin_programs_gen.cc`, `kernel/util/demos_programs_gen.cc`, and
-`kernel/util/docs_programs_gen.cc`. Renaming the dormant runtime draft or the
-host fixtures would claim active Cupid ownership they do not have. No active
-Cupid-owned `.c` source remains due for a `.cc` rename.
+`kernel/util/docs_programs_gen.cc`. The eleven legacy, superseded, or dormant
+files and six host fixtures are intentionally unbootstrapped. Renaming a
+`bin/*.c` copy would activate it through the wildcard build inventory. Renaming
+a fixture would silently select C++ semantics and falsify its host-C ownership.
+A `.cc` rename follows a real CupidC build and behavior proof; it does not stand
+in for one. The safe suffix-only rename set is empty.
 
 CupidASM's `align` statement adds no host tool to that graph. The shared
 assembler computes raw padding from the absolute `ORG` address, records ELF32
@@ -375,15 +411,19 @@ native hosted drivers and compares all six outputs with the seed. Clang and
 its native linker build those optional drivers, so the comparison path does
 not establish a Windows fixed point.
 
-The strict frontier must compile all 155 checked-in sources twice. Every
+The current strict cohort contains 156 checked-in sources. Every
 transferred Make recipe names its exact recursive header closure and common
 checked-seed controls. Poisoned-host recipes, strict syntax, focused tests,
-and the normal-image gate remain part of the proof. The full 155-root
-frontier passes twice against a 445-file frozen snapshot with SHA-256
+and the normal-image gate remain part of the proof. The latest complete
+two-pass frontier predates the 156th source. It covers 155 roots against a
+445-file frozen snapshot with SHA-256
 `99d03de14f544f6a76d21ed147e62018873f1e2e8dfa2f4459830b69314432c2`.
 The two object sets are byte-identical; each totals 3,749,796 bytes. The combined 155-root graph
 also carries the ISO fixture as an explicit image input and passes the strong
 four-vCPU runtime gate with both NICs.
+The current 156-source production build passes. A broader two-generation
+frontier run reached generation two and timed out after 1,204 seconds, so it is
+not a complete replacement for that historical two-pass proof.
 ADRs
 0110 and 0111 record the earlier transfers, ADR 0115 records
 the first source-driven ownership, ADR 0123 records the latest production
@@ -624,7 +664,7 @@ relocations, and six symbols, and the hosted i386 runtime checks both initial
 zero state and member transport.
 
 Later sections preserve ownership wording that accompanied earlier capability
-slices. The current 155-source checked-in cohort, complete `.cc` naming, and
+slices. The current 156-source checked-in cohort, complete `.cc` naming, and
 the generated-symbol transfer supersede those snapshots.
 
 ADRs 0113 and 0114 supersede later statements that comma expressions,
@@ -894,13 +934,13 @@ manifest lists those 431 unique paths in graph order with SHA-256
 Make keeps all 431 paths as direct prerequisites. The first separate gate for
 the preceding 429-path cohort
 froze and rehashed the seed manifest, input manifest, and selected inputs. It
-passed in 185.526 seconds with empty streams and exit 0. The current hostbuild
-transaction freezes the selected seed manifest and all five artifacts, the
+passed in 185.526 seconds with empty streams and exit 0. At the next handoff
+checkpoint, hostbuild froze the selected seed manifest and all five artifacts, the
 431-entry input manifest and cohort, and the existing `kernel.bin` boundary.
-Checked CupidDis validates that private cohort, then checked CupidObj flattens
-the frozen final ELF into a private candidate. Hostbuild rechecks live trust
+Checked CupidDis validated that private cohort, then checked CupidObj flattened
+the frozen final ELF into a private candidate. Hostbuild rechecked live trust
 inputs and the output before parent-relative atomic publication. Every failure
-preserves the prior raw kernel. The transaction passed with exit 0 in 187.054
+preserved the prior raw kernel. The transaction passed with exit 0 in 187.054
 seconds and published an 8,946,332-byte `kernel.bin` with SHA-256
 `4f5f2591d01bcc4007773844e9bfb8112a16dd17fbd178014cc2056fefaab67d`.
 The focused hostbuild suites each passed 31 tests on Windows and in WSL;
@@ -934,10 +974,11 @@ with exits 0 in 794.034 and 758.667 seconds. Both passed SMP, frontier,
 framebuffer, AC97, and PC speaker checks. The private-image runs left the
 source image unchanged.
 
-The source-current 2026-08-13 poisoned-host build completed through the checked
+The next 2026-08-13 poisoned-host checkpoint completed through the checked
 native Windows execution seed. Its first invocation stopped at the 602.5-second
 command limit; the resumed build finished in 968.5 seconds, for 1,571.0 seconds
-of cumulative work. These outputs supersede the earlier identities above. The
+of cumulative work. These outputs superseded the earlier identities above when
+the checkpoint was recorded. The
 2,560-byte `boot.bin` has SHA-256
 `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3`.
 The 9,056,612-byte pass-one ELF has SHA-256
@@ -956,6 +997,19 @@ SMP, framebuffer, audio, USB detach/replug, and survival checks passed. The
 completed dual-NIC checkpoint immediately before this
 rebuild used image SHA-256
 `326844ca58c1f864a6b9a2480dfaeb5ed71ec3df22cdb46da17a6bb356e7e726`.
+
+The current production checkpoint includes in-kernel CupidLD. A clean forced
+build passed in 653.2 seconds after CupidDis accepted all 431 production inputs.
+The pass-one ELF is 9,190,860 bytes with SHA-256
+`aee9e505c92a1e701bea05897e0cb1901a13b3d5eacecf2512607a608e0e3efd`.
+The final ELF is 9,313,740 bytes with SHA-256
+`5b179b938edb74c3edec59c2cc223366b5bb521c2a88f9a12f970a2b8b2bbaa1`,
+and the 9,096,008-byte raw kernel has SHA-256
+`9222973f7000f3e95dfd786ad2cd22ad4d90f5cc1e08a47537fe6c71603c7f51`.
+The resulting 209,715,200-byte image has SHA-256
+`dfdda396c6995458bd4e6185ec7e36645ebf3c193cd303ce495135c5d015b59e`.
+The boot image remains byte-identical. A private QEMU boot reached the `ls` JIT
+completion marker in 46.9 seconds.
 
 The normal Make image recipe passes the checked seed manifest to
 `tools/hostbuild.py image`. Hostbuild freezes every input and snapshots the
@@ -1134,9 +1188,9 @@ the next entry before further recursion, and restores both counters after a
 failed REPL evaluation. This changes embedded JIT safety without retiring or
 adding a host dependency.
 
-The hosted preprocessor contract runs 394 tracked profile executions through
-the repository file adapter. This covers 238 root-kernel and Doom C inputs,
-three user inputs, 107 Cupid programs, 33 strict hosted i386 Linux roots, four
+The hosted preprocessor contract runs 395 tracked profile executions through
+the repository file adapter. This covers 239 root-kernel and Doom C inputs,
+three user inputs, 108 Cupid programs, 33 strict hosted i386 Linux roots, four
 strict hosted i386 Windows tool drivers, two other strict hosted i386 Windows
 roots, one freestanding i386 Windows root, two
 strict hosted i386 kernel-bridge roots, and three GNU runtime roots. Only
@@ -1149,7 +1203,7 @@ profiles have no roots. Every hosted contract now belongs to the checked i386
 cohort, so no hosted unit is deferred and no host C transform remains.
 
 The production-integration item above now includes the checked Toolchain
-contract cohort. Checked-seed CupidC owns the 238-source checked-in normal
+contract cohort. Checked-seed CupidC owns the 239-source checked-in normal
 cohort, generated kernel symbols, and the six generated-install or user
 translations. The rebuilt compiler stages own all fifteen contract programs.
 

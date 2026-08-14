@@ -4166,7 +4166,7 @@ static ctool_status_t asm_select_entry(asm_context_t *context,
     if (asm_definition_name_is_valid(name) == CTOOL_FALSE) {
       asm_fail(context, CTOOL_ERR_INVALID_ARGUMENT,
                CTOOL_ASM_DIAG_INVALID_REQUEST, 0u, 0u,
-               "invalid fixed image entry candidate");
+               "invalid assembly entry candidate");
       return CTOOL_ERR_INVALID_ARGUMENT;
     }
     symbol = asm_find_symbol(context, name);
@@ -4186,7 +4186,7 @@ static ctool_status_t asm_select_entry(asm_context_t *context,
     }
   }
   asm_fail(context, CTOOL_ERR_NOT_FOUND, CTOOL_ASM_DIAG_ENTRY, 0u, 0u,
-           "none of the fixed image entry candidates is defined in code");
+           "none of the assembly entry candidates is defined in code");
   return CTOOL_ERR_NOT_FOUND;
 }
 

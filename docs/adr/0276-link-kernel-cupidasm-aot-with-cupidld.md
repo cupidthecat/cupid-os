@@ -62,10 +62,17 @@ With that policy in place, the complete `cupidos.img` build passed in 653.2
 seconds. A private QEMU boot then ran `ls` through the guest terminal and
 reached its JIT completion marker in 46.9 seconds.
 
+A separate private guest smoke assembled `/demos/hello.asm` with
+`as -o /hello-aot /demos/hello.asm`, then ran `exec /hello-aot`. CupidASM
+produced a 15,680-byte `ET_REL` object. In-kernel CupidLD linked an 8,536-byte
+ELF at `0x01A00000` with two `PT_LOAD` segments. The loader started PID 4, and
+that process exited normally. The complete smoke passed in 79.661 seconds.
+
 ## Consequences
 
 Kernel AOT follows the same assembler-to-object-to-linker boundary as hosted
 program construction. Final placement, symbol resolution, and relocation
 application belong to CupidLD. JIT latency and fixed-region behavior do not
-change. A future cleanup may remove the remaining wrapper code after a full
-guest AOT run proves that no compatibility caller still needs it.
+change. The guest AOT path now has runtime evidence. Removing the remaining
+wrapper code is a separate cleanup that must first confirm that no compatibility
+caller still needs it.

@@ -114,6 +114,26 @@ static int contract_has_diagnostic(const ctool_job_t *job,
   return 0;
 }
 
+static int contract_has_diagnostic_message(const ctool_job_t *job,
+                                           ctool_u32 code,
+                                           const char *expected_path,
+                                           const char *expected_message) {
+  ctool_u32 index;
+  ctool_string_t path = ctool_string(expected_path);
+  ctool_string_t message = ctool_string(expected_message);
+  for (index = 0u; index < ctool_job_diagnostic_count(job); index++) {
+    const ctool_diagnostic_t *diagnostic = ctool_job_diagnostic(job, index);
+    if (diagnostic != (const ctool_diagnostic_t *)0 &&
+        diagnostic->code == code &&
+        diagnostic->severity == CTOOL_DIAG_ERROR &&
+        contract_string_equal(diagnostic->path, path) &&
+        contract_string_equal(diagnostic->message, message)) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
 static int expect_assembly_failure(
     const char *name, ctool_job_config_t config, const char *path,
     const char *source_text, const ctool_asm_request_t *request,
@@ -651,7 +671,10 @@ static int run_object_entry(void) {
       !contract_result_is_zero(&result) ||
       ctool_job_diagnostic_count(job) != 1u ||
       !contract_has_diagnostic(job, CTOOL_ASM_DIAG_ENTRY,
-                               "/object-entry-missing.asm")) {
+                               "/object-entry-missing.asm") ||
+      !contract_has_diagnostic_message(
+          job, CTOOL_ASM_DIAG_ENTRY, "/object-entry-missing.asm",
+          "none of the assembly entry candidates is defined in code")) {
     (void)fprintf(stderr, "missing object entry rollback differs\n");
     (void)ctool_job_render_diagnostics(job);
     ctool_buffer_close(output);
@@ -753,7 +776,10 @@ static int run_object_entry(void) {
       !contract_result_is_zero(&result) ||
       ctool_job_diagnostic_count(job) != 2u ||
       !contract_has_diagnostic(job, CTOOL_ASM_DIAG_INVALID_REQUEST,
-                               "/object-entry.asm")) {
+                               "/object-entry.asm") ||
+      !contract_has_diagnostic_message(
+          job, CTOOL_ASM_DIAG_INVALID_REQUEST, "/object-entry.asm",
+          "invalid assembly entry candidate")) {
     (void)fprintf(stderr, "malformed object entry rollback differs\n");
     (void)ctool_job_render_diagnostics(job);
     ctool_buffer_close(output);

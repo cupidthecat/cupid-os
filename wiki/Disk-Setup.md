@@ -43,10 +43,11 @@ records this split between template authorship and persistent disk handling.
 The guarded recipe built a fresh 209,715,200-byte image with SHA-256
 `8ad90a91103bf48d1e8d1e20b1b3dee48122ed1e4059b3f94cce7d750c262f16`.
 A private four-CPU `/bin/ls.cc` JIT boot passed from that image in 61.9 seconds.
-The source-current rebuild then preserved the existing FAT data. Its image has
+At a later handoff checkpoint, a rebuild preserved the existing FAT data. Its
+image had
 SHA-256
 `d1bfab4aed1f2116768ceed3e301fb14ffe2a36418eb4d4ebdf1108097cb2b05`,
-and its private four-CPU JIT boot passed in 66.8 seconds.
+and a private four-CPU JIT boot passed from it in 66.8 seconds.
 
 The alternate loop-mount method is Linux/WSL-only and needs root/sudo access:
 

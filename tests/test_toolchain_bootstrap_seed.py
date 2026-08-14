@@ -20,7 +20,10 @@ from tools.bootstrap_toolchain import (
     TOOL_NAMES,
     ToolRunner,
     WSL_PRIVATE_RUN_SCRIPT,
+    _compare_stages,
+    _compare_windows_stages,
     _profile_snapshot_payload,
+    _windows_build_plan,
     _validate_static_i386_pe32,
     bootstrap_from_seed,
     bootstrap_windows_from_seed,
@@ -57,7 +60,7 @@ WINDOWS_SEED_MANIFEST = (
     / "manifest.json"
 )
 SOURCE_HEAD_SNAPSHOT_SHA256 = (
-    "5bfbca2cbe30f2fa4b638cbf462b306cc05dc50a4604fd887f89426dbe091e63"
+    "d8481a39e0d1c7f42779a8c9f5fc5de10d7e5b9bc4df63ce6afe9ddd9c9716da"
 )
 
 
@@ -702,7 +705,8 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             with self.assertRaisesRegex(
                 BootstrapError,
                 "^bootstrap publication is incomplete: "
-                "stage-three, behavior, bootstrap-report.json$",
+                "stage-three, stage-four, behavior, "
+                "bootstrap-report.json$",
             ):
                 publish_bootstrap_outputs(bundle, output)
 
@@ -718,7 +722,12 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         ) as temporary:
             root = Path(temporary)
             bundle = root / "bundle"
-            for name in ("stage-two", "stage-three", "behavior"):
+            for name in (
+                "stage-two",
+                "stage-three",
+                "stage-four",
+                "behavior",
+            ):
                 (bundle / name).mkdir(parents=True)
             (bundle / "bootstrap-report.json").write_text("{}\n")
             output = root / "published"
@@ -741,7 +750,12 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         ) as temporary:
             root = Path(temporary)
             bundle = root / "bundle"
-            for name in ("stage-two", "stage-three", "behavior"):
+            for name in (
+                "stage-two",
+                "stage-three",
+                "stage-four",
+                "behavior",
+            ):
                 (bundle / name).mkdir(parents=True)
             (bundle / "bootstrap-report.json").write_text("{}\n")
             output = root / "published"
@@ -755,6 +769,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 {
                     "behavior",
                     "bootstrap-report.json",
+                    "stage-four",
                     "stage-three",
                     "stage-two",
                 },
@@ -766,7 +781,12 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
         ) as temporary:
             root = Path(temporary)
             bundle = root / "bundle"
-            for name in ("stage-two", "stage-three", "behavior"):
+            for name in (
+                "stage-two",
+                "stage-three",
+                "stage-four",
+                "behavior",
+            ):
                 (bundle / name).mkdir(parents=True)
             (bundle / "bootstrap-report.json").write_text("{}\n")
             output = root / "published"
@@ -838,6 +858,259 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             )
             self.assertEqual(len(private_stage_directories), 1)
             self.assertFalse(private_stage_directories[0].exists())
+
+    def test_failed_fourth_stage_keeps_both_completed_stages_private(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupid-bootstrap-stage-four-failure-",
+            dir=REPO_ROOT,
+        ) as temporary:
+            root = Path(temporary)
+            output = root / "published"
+            output.mkdir()
+            private_stage_directories: list[Path] = []
+
+            def fail_at_stage_four(
+                _runner: ToolRunner,
+                _source_root: Path,
+                stage_directory: Path,
+                _producers: dict[str, Path],
+                _plan: dict[str, object],
+                stage_name: str,
+            ) -> Stage:
+                if stage_name == "stage four":
+                    raise BootstrapError("forced stage-four failure")
+                stage_directory.mkdir()
+                marker = stage_directory / "complete.marker"
+                marker.write_text(f"completed {stage_name}")
+                private_stage_directories.append(stage_directory)
+                return Stage(
+                    objects={"marker": marker},
+                    tools={
+                        name: marker
+                        for name in ("cupidasm", "cupidc", "cupidld")
+                    },
+                )
+
+            with mock.patch(
+                "tools.bootstrap_toolchain._build_stage",
+                side_effect=fail_at_stage_four,
+            ):
+                with self.assertRaisesRegex(
+                    BootstrapError,
+                    "^forced stage-four failure$",
+                ):
+                    bootstrap_from_seed(
+                        SEED_MANIFEST, REPO_ROOT, output
+                    )
+
+            self.assertTrue(output.is_dir())
+            self.assertEqual(list(output.iterdir()), [])
+            self.assertEqual(
+                {path.name for path in root.iterdir()},
+                {"published"},
+            )
+            self.assertEqual(len(private_stage_directories), 2)
+            self.assertTrue(
+                all(
+                    not path.exists()
+                    for path in private_stage_directories
+                )
+            )
+
+    def test_linux_fixed_point_rejects_live_seed_drift_before_next_stage(self):
+        mutations = {
+            "manifest": lambda seed: (seed / "manifest.json").write_bytes(
+                (seed / "manifest.json").read_bytes() + b"\n"
+            ),
+            "artifact": lambda seed: (seed / "cupidc.elf").write_bytes(
+                b"changed during bootstrap"
+            ),
+        }
+        for label, mutate in mutations.items():
+            with self.subTest(label=label), tempfile.TemporaryDirectory(
+                prefix=".cupid-linux-live-seed-", dir=REPO_ROOT
+            ) as temporary:
+                root = Path(temporary)
+                copied_seed = root / "seed"
+                shutil.copytree(SEED_MANIFEST.parent, copied_seed)
+                output = root / "published"
+                output.mkdir()
+                sentinel = output / "competing-publisher.txt"
+                private_stages: list[Path] = []
+
+                def build_stage(
+                    _runner,
+                    _source_root,
+                    stage_directory,
+                    _producers,
+                    _plan,
+                    stage_name,
+                ):
+                    self.assertEqual(stage_name, "stage two")
+                    stage_directory.mkdir()
+                    marker = stage_directory / "complete.marker"
+                    marker.write_bytes(b"private stage")
+                    private_stages.append(stage_directory)
+                    sentinel.write_bytes(b"keep competing output")
+                    mutate(copied_seed)
+                    return Stage(
+                        objects={"marker": marker},
+                        tools={name: marker for name in TOOL_NAMES},
+                    )
+
+                with mock.patch(
+                    "tools.bootstrap_toolchain._build_stage",
+                    side_effect=build_stage,
+                ), self.assertRaisesRegex(
+                    BootstrapError,
+                    "^checked seed (manifest|artifact) changed during "
+                    "bootstrap:",
+                ):
+                    bootstrap_from_seed(
+                        copied_seed / "manifest.json", REPO_ROOT, output
+                    )
+
+                self.assertEqual(
+                    sentinel.read_bytes(), b"keep competing output"
+                )
+                self.assertEqual(list(output.iterdir()), [sentinel])
+                self.assertEqual(len(private_stages), 1)
+                self.assertFalse(private_stages[0].exists())
+
+    @unittest.skipUnless(os.name == "nt", "native Windows bootstrap")
+    def test_windows_fixed_point_rejects_both_live_seed_roles(self):
+        cases = (
+            ("execution manifest", "execution", "manifest"),
+            ("plan manifest", "plan", "manifest"),
+            ("execution artifact", "execution", "artifact"),
+            ("plan artifact", "plan", "artifact"),
+        )
+        for label, role, kind in cases:
+            with self.subTest(label=label), tempfile.TemporaryDirectory(
+                prefix=".cupid-windows-live-seed-", dir=REPO_ROOT
+            ) as temporary:
+                root = Path(temporary)
+                execution_seed = root / "execution-seed"
+                plan_seed = root / "plan-seed"
+                shutil.copytree(WINDOWS_SEED_MANIFEST.parent, execution_seed)
+                shutil.copytree(SEED_MANIFEST.parent, plan_seed)
+                target_seed = (
+                    execution_seed if role == "execution" else plan_seed
+                )
+                artifact_file = (
+                    "cupiddis.exe"
+                    if role == "execution"
+                    else "cupiddis.elf"
+                )
+                target = target_seed / (
+                    "manifest.json" if kind == "manifest" else artifact_file
+                )
+                output = root / "published"
+                output.mkdir()
+                sentinel = output / "competing-publisher.txt"
+                private_stages: list[Path] = []
+
+                def build_stage(
+                    _runner,
+                    _source_root,
+                    stage_directory,
+                    _producers,
+                    _plan,
+                    stage_name,
+                ):
+                    self.assertEqual(stage_name, "stage two")
+                    stage_directory.mkdir()
+                    marker = stage_directory / "complete.marker"
+                    marker.write_bytes(b"private stage")
+                    private_stages.append(stage_directory)
+                    sentinel.write_bytes(b"keep competing output")
+                    if kind == "manifest":
+                        target.write_bytes(target.read_bytes() + b"\n")
+                    else:
+                        target.write_bytes(b"changed during bootstrap")
+                    return Stage(
+                        objects={"marker": marker},
+                        tools={name: marker for name in TOOL_NAMES},
+                    )
+
+                with mock.patch(
+                    "tools.bootstrap_toolchain._build_windows_stage",
+                    side_effect=build_stage,
+                ), self.assertRaisesRegex(
+                    BootstrapError,
+                    "^checked seed (manifest|artifact) changed during "
+                    "bootstrap:",
+                ):
+                    bootstrap_windows_from_seed(
+                        execution_seed / "manifest.json",
+                        plan_seed / "manifest.json",
+                        REPO_ROOT,
+                        output,
+                    )
+
+                self.assertEqual(
+                    sentinel.read_bytes(), b"keep competing output"
+                )
+                self.assertEqual(list(output.iterdir()), [sentinel])
+                self.assertEqual(len(private_stages), 1)
+                self.assertFalse(private_stages[0].exists())
+
+    def test_linux_fixed_point_rejects_a_stage_four_object_mismatch(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupid-bootstrap-stage-mismatch-",
+            dir=REPO_ROOT,
+        ) as temporary:
+            root = Path(temporary)
+            common = root / "common"
+            changed = root / "changed"
+            common.write_bytes(b"stable")
+            changed.write_bytes(b"different")
+            stage_three = Stage(
+                objects={"source": common, "start": common},
+                tools={name: common for name in TOOL_NAMES},
+            )
+            stage_four = Stage(
+                objects={"source": changed, "start": common},
+                tools={name: common for name in TOOL_NAMES},
+            )
+
+            with self.assertRaisesRegex(
+                BootstrapError,
+                "^C object differs between stage three and stage four: "
+                "source$",
+            ):
+                _compare_stages(stage_three, stage_four, ["source"])
+
+    def test_windows_fixed_point_rejects_a_stage_four_tool_mismatch(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".cupid-windows-stage-mismatch-",
+            dir=REPO_ROOT,
+        ) as temporary:
+            root = Path(temporary)
+            common = root / "common"
+            changed = root / "changed"
+            common.write_bytes(b"stable")
+            changed.write_bytes(b"different")
+            objects = {"source": common, "start": common}
+            stage_three = Stage(
+                objects=objects,
+                tools={name: common for name in TOOL_NAMES},
+            )
+            stage_four_tools = {name: common for name in TOOL_NAMES}
+            stage_four_tools["cupiddis"] = changed
+            stage_four = Stage(objects=objects, tools=stage_four_tools)
+
+            with self.assertRaisesRegex(
+                BootstrapError,
+                "^native Windows tool image differs between stage three "
+                "and stage four: cupiddis$",
+            ):
+                _compare_windows_stages(
+                    stage_three,
+                    stage_four,
+                    ["source"],
+                    ["start"],
+                )
 
     def test_recomputed_digest_cannot_change_the_source_plan(self):
         original = json.loads(SEED_MANIFEST.read_text(encoding="utf-8"))
@@ -1335,6 +1608,96 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 )
             self.assertFalse(output.exists())
 
+    def test_native_windows_plan_is_derived_from_the_linux_plan(self):
+        linux_plan = json.loads(
+            SEED_MANIFEST.read_text(encoding="utf-8")
+        )["build_plan"]
+        linux_plan["include_arguments"] = [
+            *linux_plan["include_arguments"],
+            "-I",
+            "/toolchain/plan-owned-include",
+        ]
+        linux_plan["sources"].append(
+            {
+                "gnu_extensions": False,
+                "name": "plan_owned_source",
+                "path": "/toolchain/plan_owned_source.cc",
+            }
+        )
+        linux_plan["links"]["cupiddis"].insert(
+            -1, "plan_owned_source"
+        )
+
+        native_plan = _windows_build_plan(linux_plan)
+
+        self.assertEqual(
+            native_plan["include_arguments"],
+            linux_plan["include_arguments"],
+        )
+        self.assertEqual(
+            [source["name"] for source in native_plan["sources"]],
+            [source["name"] for source in linux_plan["sources"]]
+            + ["publication_runtime"],
+        )
+        native_sources = {
+            source["name"]: source
+            for source in native_plan["sources"]
+        }
+        for linux_source in linux_plan["sources"]:
+            expected_path = linux_source["path"]
+            expected_gnu = linux_source["gnu_extensions"]
+            if linux_source["name"] == "runtime":
+                expected_path = (
+                    "/toolchain/hosted/i386-windows/runtime.cc"
+                )
+                expected_gnu = True
+            self.assertEqual(
+                native_sources[linux_source["name"]]["path"],
+                expected_path,
+            )
+            self.assertEqual(
+                native_sources[linux_source["name"]][
+                    "gnu_extensions"
+                ],
+                expected_gnu,
+            )
+        for tool_name in TOOL_NAMES:
+            if tool_name == "cupidld":
+                continue
+            self.assertEqual(
+                native_plan["links"][tool_name],
+                linux_plan["links"][tool_name],
+            )
+        self.assertEqual(
+            native_plan["links"]["cupidld"],
+            [
+                "start",
+                "publication_start",
+                *linux_plan["links"]["cupidld"][1:-1],
+                "publication_runtime",
+                "runtime",
+            ],
+        )
+        cupiddis_main = next(
+            source
+            for source in native_plan["sources"]
+            if source["name"] == "cupiddis_main"
+        )
+        self.assertEqual(cupiddis_main["definitions"], ["_WIN32=1"])
+
+    def test_native_windows_plan_rejects_an_unplanned_link_object(self):
+        linux_plan = json.loads(
+            SEED_MANIFEST.read_text(encoding="utf-8")
+        )["build_plan"]
+        linux_plan["links"]["cupiddis"].insert(-1, "unplanned_object")
+
+        with self.assertRaisesRegex(
+            BootstrapError,
+            "^Linux build plan links an unknown object: "
+            "cupiddis: unplanned_object$",
+        ):
+            _windows_build_plan(linux_plan)
+
     def test_native_windows_bootstrap_rejects_a_linux_execution_seed(self):
         with tempfile.TemporaryDirectory(
             prefix="cupid-native-windows-bootstrap-role-"
@@ -1490,6 +1853,68 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(list(output.iterdir()), [sentinel])
 
     @unittest.skipUnless(os.name == "nt", "native Windows bootstrap")
+    def test_native_windows_stage_four_failure_stays_private(self):
+        with tempfile.TemporaryDirectory(
+            prefix=".native-windows-stage-four-failure-",
+            dir=REPO_ROOT,
+        ) as temporary:
+            root = Path(temporary)
+            output = root / "published"
+            output.mkdir()
+            private_stage_directories: list[Path] = []
+
+            def fail_at_stage_four(
+                _runner: ToolRunner,
+                _source_root: Path,
+                stage_directory: Path,
+                _producers: dict[str, Path],
+                _plan: dict[str, object],
+                stage_name: str,
+            ) -> Stage:
+                if stage_name == "stage four":
+                    raise BootstrapError("forced native stage-four failure")
+                stage_directory.mkdir()
+                marker = stage_directory / "complete.marker"
+                marker.write_text(f"completed {stage_name}")
+                private_stage_directories.append(stage_directory)
+                return Stage(
+                    objects={"marker": marker},
+                    tools={
+                        name: marker
+                        for name in ("cupidasm", "cupidc", "cupidld")
+                    },
+                )
+
+            with mock.patch(
+                "tools.bootstrap_toolchain._build_windows_stage",
+                side_effect=fail_at_stage_four,
+            ):
+                with self.assertRaisesRegex(
+                    BootstrapError,
+                    "^forced native stage-four failure$",
+                ):
+                    bootstrap_windows_from_seed(
+                        WINDOWS_SEED_MANIFEST,
+                        SEED_MANIFEST,
+                        REPO_ROOT,
+                        output,
+                    )
+
+            self.assertTrue(output.is_dir())
+            self.assertEqual(list(output.iterdir()), [])
+            self.assertEqual(
+                {path.name for path in root.iterdir()},
+                {"published"},
+            )
+            self.assertEqual(len(private_stage_directories), 2)
+            self.assertTrue(
+                all(
+                    not path.exists()
+                    for path in private_stage_directories
+                )
+            )
+
+    @unittest.skipUnless(os.name == "nt", "native Windows bootstrap")
     def test_checked_windows_seed_builds_a_native_producer_fixed_point(self):
         with tempfile.TemporaryDirectory(
             prefix=".checked-windows-bootstrap-", dir=REPO_ROOT
@@ -1529,14 +1954,14 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 env=environment,
                 text=True,
                 capture_output=True,
-                timeout=1200,
+                timeout=2400,
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(
                 result.stdout,
                 "checked i386 Windows bootstrap: ok "
-                "(native stage two equals stage three)\n",
+                "(native stage three equals stage four)\n",
             )
             self.assertEqual(result.stderr, "")
             self.assertEqual(
@@ -1544,6 +1969,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 [
                     "behavior",
                     "bootstrap-report.json",
+                    "stage-four",
                     "stage-three",
                     "stage-two",
                 ],
@@ -1564,8 +1990,28 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     "all_equal": True,
                     "assembly_objects": 2,
                     "c_objects": 20,
+                    "compared_generations": [
+                        "stage-three",
+                        "stage-four",
+                    ],
                     "tool_images": 5,
                 },
+            )
+            self.assertEqual(
+                report["behavior_generations"],
+                ["stage-three", "stage-four"],
+            )
+            self.assertEqual(
+                report["stages"]["stage-two"]["producer_generation"],
+                "checked-windows-execution-seed",
+            )
+            self.assertEqual(
+                report["stages"]["stage-three"]["producer_generation"],
+                "native-stage-two",
+            )
+            self.assertEqual(
+                report["stages"]["stage-four"]["producer_generation"],
+                "native-stage-three",
             )
             self.assertEqual(
                 report["behavior"],
@@ -1575,7 +2021,30 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     "success_cases": 5,
                 },
             )
-            for stage_name in ("stage-two", "stage-three"):
+            self.assertEqual(
+                report["source_snapshot_sha256"],
+                SOURCE_HEAD_SNAPSHOT_SHA256,
+            )
+            self.assertEqual(report["source_inputs"]["count"], 50)
+            self.assertEqual(
+                report["source_inputs"]["sha256"],
+                report["source_snapshot_sha256"],
+            )
+            self.assertEqual(
+                report["initial_seed_matches_stage_two"],
+                {
+                    "cupidasm": False,
+                    "cupidc": False,
+                    "cupiddis": False,
+                    "cupidld": True,
+                    "cupidobj": True,
+                },
+            )
+            for stage_name in (
+                "stage-two",
+                "stage-three",
+                "stage-four",
+            ):
                 stage = report["stages"][stage_name]
                 self.assertEqual(len(stage["objects"]), 22)
                 self.assertEqual(set(stage["tools"]), set(TOOL_NAMES))
@@ -1583,15 +2052,15 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     self.assertTrue(
                         (output / stage_name / f"{tool_name}.exe").is_file()
                     )
-            for name in report["stages"]["stage-two"]["objects"]:
+            for name in report["stages"]["stage-three"]["objects"]:
                 self.assertEqual(
-                    (output / "stage-two" / f"{name}.o").read_bytes(),
                     (output / "stage-three" / f"{name}.o").read_bytes(),
+                    (output / "stage-four" / f"{name}.o").read_bytes(),
                 )
             for tool_name in TOOL_NAMES:
                 self.assertEqual(
-                    (output / "stage-two" / f"{tool_name}.exe").read_bytes(),
                     (output / "stage-three" / f"{tool_name}.exe").read_bytes(),
+                    (output / "stage-four" / f"{tool_name}.exe").read_bytes(),
                 )
 
     def test_checked_seed_run_forwards_cupidasm_help(self):
@@ -2093,6 +2562,39 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "success_cases": 18,
             },
         )
+
+    def test_linux_fixed_point_rebuilds_windows_cupiddis_main(self):
+        tree = ast.parse(BOOTSTRAP_TOOL.read_text(encoding="utf-8"))
+        behavior = next(
+            node
+            for node in tree.body
+            if isinstance(node, ast.FunctionDef)
+            and node.name == "_run_behavior_checks"
+        )
+        assignments = {
+            node.targets[0].id: node.value
+            for node in behavior.body
+            if isinstance(node, ast.Assign)
+            and len(node.targets) == 1
+            and isinstance(node.targets[0], ast.Name)
+        }
+        compile_call = assignments["windows_cupiddis_main_compile_result"]
+        self.assertIsInstance(compile_call, ast.Call)
+        self.assertIsInstance(compile_call.func, ast.Name)
+        self.assertEqual(compile_call.func.id, "_run_stage_pair")
+        self.assertEqual(ast.literal_eval(compile_call.args[3]), "cupidc")
+        for command in compile_call.args[4:6]:
+            rendered = ast.unparse(command)
+            self.assertIn("'_WIN32=1'", rendered)
+            self.assertIn("'/toolchain/cupiddis_main.cc'", rendered)
+
+        rendered = ast.unparse(behavior)
+        for object_name in (
+            "stage_two_windows_cupiddis_main",
+            "stage_three_windows_cupiddis_main",
+        ):
+            self.assertIn(object_name, rendered)
+        self.assertNotIn("objects['cupiddis_main']", rendered)
 
     def test_checked_seed_carries_parity_predicates_and_strict_decode_policy(
         self,
@@ -2937,7 +3439,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 source = REPO_ROOT / "toolchain" / f"{name}.cc"
                 output = root / f"{name}.o"
                 arguments = ["--root", REPO_ROOT]
-                if name == "ctool_host":
+                if name in ("ctool_host", "cupiddis_main"):
                     arguments.extend(("-D", "_WIN32=1"))
                 arguments.extend(
                     (
@@ -5252,14 +5754,14 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 env=environment,
                 text=True,
                 capture_output=True,
-                timeout=1200,
+                timeout=2400,
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(
                 result.stdout,
                 "checked i386 Linux bootstrap: ok "
-                "(stage two equals stage three)\n",
+                "(stage three equals stage four)\n",
             )
             self.assertEqual(result.stderr, "")
             report = json.loads(
@@ -5283,9 +5785,29 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 {
                     "all_equal": True,
                     "c_objects": 19,
+                    "compared_generations": [
+                        "stage-three",
+                        "stage-four",
+                    ],
                     "startup_objects": 1,
                     "tool_images": 5,
                 },
+            )
+            self.assertEqual(
+                report["behavior_generations"],
+                ["stage-three", "stage-four"],
+            )
+            self.assertEqual(
+                report["stages"]["stage-two"]["producer_generation"],
+                "checked-seed",
+            )
+            self.assertEqual(
+                report["stages"]["stage-three"]["producer_generation"],
+                "stage-two",
+            )
+            self.assertEqual(
+                report["stages"]["stage-four"]["producer_generation"],
+                "stage-three",
             )
             self.assertEqual(
                 report["behavior"],
@@ -5349,7 +5871,7 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                                 "20323a24be105b1b519962994b8e4e6a7f8e3cd0d005b8ee10c9aeb66da5d40a"
                             ),
                             "output_sha256": (
-                                "df61f3a830d26fe47761cd1d927ca7f77b80a8788bf33e308a7d7f997a11eeec"
+                                "7dfac81591d58ec4b79cf0cc82ca95595394a1f9dc4a5150d4b0c1fe0237c87c"
                             ),
                             "output_size": 32256,
                             "return_code": 0,
@@ -5408,24 +5930,24 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 set(windows_artifacts),
                 {
+                    "stage-four-contract",
+                    "stage-four-image",
+                    "stage-four-start",
                     "stage-three-contract",
                     "stage-three-image",
                     "stage-three-start",
-                    "stage-two-contract",
-                    "stage-two-image",
-                    "stage-two-start",
                 },
             )
             for pair in ("contract", "image", "start"):
                 self.assertEqual(
-                    windows_artifacts[f"stage-two-{pair}"],
                     windows_artifacts[f"stage-three-{pair}"],
+                    windows_artifacts[f"stage-four-{pair}"],
                 )
             self.assertEqual(
-                windows_artifacts["stage-two-image"],
+                windows_artifacts["stage-three-image"],
                 {
                     "sha256": (
-                        "c83ac4a301d82b26527ccd87ec8c020e44c72f7c09a0b228a83e743846a4ca1c"
+                        "edbef4e4ed76489e555d70f23822922c701ab1ef0d9f4c2e18d8f7519c5e5748"
                     ),
                     "size": 2048,
                 },
@@ -5458,32 +5980,40 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 set(windows_cupiddis["artifacts"]),
                 {
+                    "stage-four-image",
+                    "stage-four-host-adapter",
+                    "stage-four-main",
+                    "stage-four-runtime",
+                    "stage-four-start",
                     "stage-three-image",
                     "stage-three-host-adapter",
+                    "stage-three-main",
                     "stage-three-runtime",
                     "stage-three-start",
-                    "stage-two-image",
-                    "stage-two-host-adapter",
-                    "stage-two-runtime",
-                    "stage-two-start",
                 },
             )
-            for artifact in ("host-adapter", "image", "runtime", "start"):
+            for artifact in (
+                "host-adapter",
+                "image",
+                "main",
+                "runtime",
+                "start",
+            ):
                 self.assertEqual(
-                    windows_cupiddis["artifacts"][
-                        f"stage-two-{artifact}"
-                    ],
                     windows_cupiddis["artifacts"][
                         f"stage-three-{artifact}"
                     ],
+                    windows_cupiddis["artifacts"][
+                        f"stage-four-{artifact}"
+                    ],
                 )
             self.assertEqual(
-                windows_cupiddis["artifacts"]["stage-two-image"],
+                windows_cupiddis["artifacts"]["stage-three-image"],
                 {
                     "sha256": (
-                        "d7bcb02bf3c1491de3c3adc37ecb4e966501e49e9eebd2c7d7d18b65d2c3fa91"
+                        "07cff807224c425d686e32d54dc1ad541f57aaa624f7b736bba0f9ef5001ce6a"
                     ),
-                    "size": 378368,
+                    "size": 387584,
                 },
             )
             self.assertEqual(
@@ -5514,19 +6044,19 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 set(windows_runtime_contract["artifacts"]),
                 {
+                    "stage-four-contract",
+                    "stage-four-image",
                     "stage-three-contract",
                     "stage-three-image",
-                    "stage-two-contract",
-                    "stage-two-image",
                 },
             )
             for artifact in ("contract", "image"):
                 self.assertEqual(
                     windows_runtime_contract["artifacts"][
-                        f"stage-two-{artifact}"
+                        f"stage-three-{artifact}"
                     ],
                     windows_runtime_contract["artifacts"][
-                        f"stage-three-{artifact}"
+                        f"stage-four-{artifact}"
                     ],
                 )
             self.assertEqual(
@@ -5541,25 +6071,25 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             expected_native_images = {
                 "cupidasm": {
                     "sha256": (
-                        "02db72024a1e337e6890a310cf06532eae04732c14ec55df4f58597da27e263e"
+                        "8134a9400c4cae7e6c7e72989aa9b23bbdcb56ba4d52a9ebb15363128e4a1f18"
                     ),
-                    "size": 433664,
+                    "size": 437760,
                 },
                 "cupidc": {
                     "sha256": (
-                        "209b493c73ff2b30ef38f0161491dacd5564f995a019876d96e8bc805b5c83e9"
+                        "706c427d8e89352623274ad8e3321680a89c58c08d1d90a279a8d5ad814668e0"
                     ),
-                    "size": 2594304,
+                    "size": 2595840,
                 },
                 "cupidld": {
                     "sha256": (
-                        "afe3c34e892a70e30774dfa2358d615f87598ea5ade74f6b15d94ef9a75e8439"
+                        "9fe3bd4fda9b87d678aa2eb6305e65b706ecdff074b16722faab23ce05cd8e02"
                     ),
                     "size": 296448,
                 },
                 "cupidobj": {
                     "sha256": (
-                        "3546e71ad17ea9729a948c7144cbb08ca0991066950129ecf18919d76ba0e36d"
+                        "079bc115e74772e6224e4da164115cc5696e357cca0cb1a0583985b88381cb79"
                     ),
                     "size": 375808,
                 },
@@ -5590,20 +6120,20 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                     artifacts = tool_evidence["artifacts"]
                     main_name = f"{tool_name}_main"
                     expected_artifacts = {
+                        "stage-four-ctool_host",
+                        f"stage-four-{main_name}",
+                        "stage-four-image",
                         "stage-three-ctool_host",
                         f"stage-three-{main_name}",
                         "stage-three-image",
-                        "stage-two-ctool_host",
-                        f"stage-two-{main_name}",
-                        "stage-two-image",
                     }
                     if tool_name == "cupidld":
                         expected_artifacts.update(
                             {
+                                "stage-four-publication_runtime",
+                                "stage-four-publication_start",
                                 "stage-three-publication_runtime",
                                 "stage-three-publication_start",
-                                "stage-two-publication_runtime",
-                                "stage-two-publication_start",
                             }
                         )
                     self.assertEqual(
@@ -5611,14 +6141,14 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                         expected_artifacts,
                     )
                     self.assertEqual(
-                        artifacts["stage-two-image"],
+                        artifacts["stage-three-image"],
                         expected_native_images[tool_name],
                     )
                     for artifact_name in tuple(artifacts):
-                        if not artifact_name.startswith("stage-two-"):
+                        if not artifact_name.startswith("stage-three-"):
                             continue
                         stage_three_name = artifact_name.replace(
-                            "stage-two-", "stage-three-", 1
+                            "stage-three-", "stage-four-", 1
                         )
                         self.assertIn(stage_three_name, artifacts)
                         self.assertEqual(
@@ -5642,9 +6172,9 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
             self.assertEqual(
                 initial_matches,
                 {
-                    "cupidasm": True,
+                    "cupidasm": False,
                     "cupidc": False,
-                    "cupiddis": True,
+                    "cupiddis": False,
                     "cupidld": False,
                     "cupidobj": True,
                 },
@@ -5669,10 +6199,10 @@ class ToolchainBootstrapSeedCliTests(unittest.TestCase):
                 "cupidobj",
                 "cupidc",
             ):
-                stage_two = output / "stage-two" / f"{tool_name}.elf"
                 stage_three = output / "stage-three" / f"{tool_name}.elf"
+                stage_four = output / "stage-four" / f"{tool_name}.elf"
                 self.assertEqual(
-                    stage_three.read_bytes(), stage_two.read_bytes()
+                    stage_four.read_bytes(), stage_three.read_bytes()
                 )
 
 

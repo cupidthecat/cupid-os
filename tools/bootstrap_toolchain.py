@@ -198,6 +198,7 @@ WINDOWS_REPORT_SCHEMA = "cupid.windows-bootstrap-report.v1"
 BOOTSTRAP_PUBLICATION_NAMES = (
     "stage-two",
     "stage-three",
+    "stage-four",
     "behavior",
     "bootstrap-report.json",
 )
@@ -206,67 +207,12 @@ WINDOWS_COMPILE_DEFINES = frozenset(
         "ctool_host",
         "cupidasm_main",
         "cupidc_main",
+        "cupiddis_main",
         "cupidld_main",
         "cupidobj_main",
         "publication_runtime",
     }
 )
-WINDOWS_LINKS = {
-    "cupidasm": (
-        "start",
-        "cupidasm_main",
-        "cupidasm",
-        "ctool_host",
-        "ctool",
-        "elf32",
-        "x86",
-        "runtime",
-    ),
-    "cupiddis": (
-        "start",
-        "cupiddis_main",
-        "cupiddis",
-        "ctool_host",
-        "ctool",
-        "elf32",
-        "x86",
-        "runtime",
-    ),
-    "cupidld": (
-        "start",
-        "publication_start",
-        "cupidld_main",
-        "cupidld",
-        "ctool_host",
-        "ctool",
-        "elf32",
-        "publication_runtime",
-        "runtime",
-    ),
-    "cupidobj": (
-        "start",
-        "cupidobj_main",
-        "cupidobj",
-        "ctool_host",
-        "ctool",
-        "elf32",
-        "runtime",
-    ),
-    "cupidc": (
-        "start",
-        "cupidc_main",
-        "cupidc_emit",
-        "cupidc_ir",
-        "cupidc_frontend",
-        "cupidc_type",
-        "cupidc_pp",
-        "ctool_host",
-        "ctool",
-        "elf32",
-        "x86",
-        "runtime",
-    ),
-}
 WSL_PRIVATE_RUN_SCRIPT = (
     "umask 077; "
     'private="$(mktemp -d '
@@ -290,7 +236,10 @@ class Stage:
 @dataclass(frozen=True)
 class SeedInputs:
     manifest: dict[str, object]
+    manifest_bytes: bytes
     manifest_sha256: str
+    live_manifest_path: Path
+    artifact_bytes: tuple[tuple[str, bytes], ...]
     tools: dict[str, Path]
 
 
@@ -1404,7 +1353,7 @@ def _verify_seed_manifest_data(
     manifest: dict[str, object],
     seed_directory: Path,
     snapshot_directory: Path | None,
-) -> dict[str, Path]:
+) -> tuple[dict[str, Path], dict[str, bytes]]:
     schema = manifest.get("schema")
     is_windows_seed = schema == WINDOWS_SEED_SCHEMA
     _require_exact_keys(
@@ -1526,6 +1475,7 @@ def _verify_seed_manifest_data(
     if len(artifacts) != len(TOOL_NAMES):
         raise BootstrapError("manifest must contain five tool artifacts")
     resolved: dict[str, Path] = {}
+    captured_artifacts: dict[str, bytes] = {}
     seen_files: set[str] = set()
     for index, raw_artifact in enumerate(artifacts):
         artifact = _require_object(raw_artifact, f"artifacts[{index}]")
@@ -1615,6 +1565,7 @@ def _verify_seed_manifest_data(
                     f"frozen seed artifact differs: {file_name}"
                 )
         resolved[name] = resolved_path
+        captured_artifacts[name] = data
         seen_files.add(file_name)
     if set(resolved) != set(TOOL_NAMES):
         raise BootstrapError("manifest tool set differs")
@@ -1629,7 +1580,7 @@ def _verify_seed_manifest_data(
         raise BootstrapError(
             f"seed directory contains an unlisted {format_name} file"
         )
-    return resolved
+    return resolved, captured_artifacts
 
 
 def _load_seed_inputs(
@@ -1638,12 +1589,17 @@ def _load_seed_inputs(
 ) -> SeedInputs:
     manifest, encoded_manifest = _read_manifest_capture(manifest_path)
     seed_directory = manifest_path.parent.resolve()
-    tools = _verify_seed_manifest_data(
+    tools, captured_artifacts = _verify_seed_manifest_data(
         manifest, seed_directory, snapshot_directory
     )
     return SeedInputs(
         manifest=manifest,
+        manifest_bytes=encoded_manifest,
         manifest_sha256=hashlib.sha256(encoded_manifest).hexdigest(),
+        live_manifest_path=manifest_path.absolute(),
+        artifact_bytes=tuple(
+            (name, captured_artifacts[name]) for name in TOOL_NAMES
+        ),
         tools=tools,
     )
 
@@ -1672,6 +1628,47 @@ def freeze_seed_inputs(
         snapshot_directory.mkdir(mode=0o700)
     snapshot_directory.chmod(0o700)
     return _load_seed_inputs(manifest_path, snapshot_directory)
+
+
+def require_live_seed_inputs(*seed_inputs: SeedInputs) -> None:
+    """Require each live seed cohort to match its frozen capture."""
+    for captured in seed_inputs:
+        manifest_path = captured.live_manifest_path
+        try:
+            manifest_bytes = manifest_path.read_bytes()
+        except OSError:
+            manifest_bytes = b""
+        manifest_changed = (
+            manifest_path.is_symlink()
+            or not manifest_path.is_file()
+            or manifest_bytes != captured.manifest_bytes
+        )
+
+        changed_artifacts: list[str] = []
+        for tool_name, expected_bytes in captured.artifact_bytes:
+            file_name = captured.tools[tool_name].name
+            live_path = manifest_path.parent / file_name
+            try:
+                live_bytes = live_path.read_bytes()
+            except OSError:
+                live_bytes = b""
+            if (
+                live_path.is_symlink()
+                or not live_path.is_file()
+                or live_bytes != expected_bytes
+            ):
+                changed_artifacts.append(file_name)
+
+        if manifest_changed:
+            raise BootstrapError(
+                "checked seed manifest changed during bootstrap: "
+                f"{manifest_path.name}"
+            )
+        if changed_artifacts:
+            raise BootstrapError(
+                "checked seed artifact changed during bootstrap: "
+                f"{changed_artifacts[0]}"
+            )
 
 
 def run_seed_tool(
@@ -1880,9 +1877,20 @@ def _windows_build_plan(
         linux_plan.get("sources"), "build_plan.sources"
     )
     sources: list[dict[str, object]] = []
+    source_names: set[str] = set()
     for raw_source in raw_sources:
         source = _require_object(raw_source, "build source")
         name = str(source["name"])
+        if name in source_names:
+            raise BootstrapError(
+                f"Linux build plan repeats a source name: {name}"
+            )
+        if name == "publication_runtime":
+            raise BootstrapError(
+                "Linux build plan uses the reserved Windows source name: "
+                "publication_runtime"
+            )
+        source_names.add(name)
         path = str(source["path"])
         gnu_extensions = bool(source["gnu_extensions"])
         if name == "runtime":
@@ -1911,6 +1919,55 @@ def _windows_build_plan(
             ),
         }
     )
+    if "runtime" not in source_names:
+        raise BootstrapError("Linux build plan omits its runtime source")
+
+    raw_links = _require_object(linux_plan.get("links"), "build_plan.links")
+    if set(raw_links) != set(TOOL_NAMES):
+        raise BootstrapError("Linux build plan tool links differ")
+    known_linux_objects = {"start", *source_names}
+    links: dict[str, list[str]] = {}
+    for tool_name in TOOL_NAMES:
+        linux_order = [
+            str(name)
+            for name in _require_list(
+                raw_links.get(tool_name),
+                f"build_plan.links.{tool_name}",
+            )
+        ]
+        for name in linux_order:
+            if name not in known_linux_objects:
+                raise BootstrapError(
+                    "Linux build plan links an unknown object: "
+                    f"{tool_name}: {name}"
+                )
+        if linux_order.count("start") != 1:
+            raise BootstrapError(
+                f"Linux build plan must link one startup: {tool_name}"
+            )
+        if linux_order.count("runtime") != 1:
+            raise BootstrapError(
+                f"Linux build plan must link one runtime: {tool_name}"
+            )
+        native_order = list(linux_order)
+        if tool_name == "cupidld":
+            native_order.insert(
+                native_order.index("start") + 1,
+                "publication_start",
+            )
+            native_order.insert(
+                native_order.index("runtime"),
+                "publication_runtime",
+            )
+        links[tool_name] = native_order
+
+    include_arguments = [
+        str(argument)
+        for argument in _require_list(
+            linux_plan.get("include_arguments"),
+            "build_plan.include_arguments",
+        )
+    ]
     return {
         "assembly_sources": [
             {
@@ -1927,7 +1984,7 @@ def _windows_build_plan(
                 ),
             },
         ],
-        "include_arguments": list(EXPECTED_INCLUDE_ARGUMENTS),
+        "include_arguments": include_arguments,
         "imports": {
             name: [
                 {
@@ -1940,9 +1997,7 @@ def _windows_build_plan(
             ]
             for name in TOOL_NAMES
         },
-        "links": {
-            name: list(WINDOWS_LINKS[name]) for name in TOOL_NAMES
-        },
+        "links": links,
         "producer_tools": list(PRODUCER_NAMES),
         "sources": sources,
         "workers": int(linux_plan["workers"]),
@@ -1953,6 +2008,7 @@ def _windows_link_arguments(
     tool_name: str,
     output: Path,
     objects: dict[str, Path],
+    link_order: Sequence[str],
 ) -> list[str | Path]:
     arguments: list[str | Path] = [
         "-m",
@@ -1965,7 +2021,7 @@ def _windows_link_arguments(
     for selector in _windows_import_selectors(tool_name):
         arguments.extend(("--import", selector))
     arguments.extend(("-o", output))
-    arguments.extend(objects[name] for name in WINDOWS_LINKS[tool_name])
+    arguments.extend(objects[name] for name in link_order)
     return arguments
 
 
@@ -2043,12 +2099,32 @@ def _build_windows_stage(
         objects[name] = object_path
 
     tools: dict[str, Path] = {}
+    raw_links = _require_object(
+        native_plan.get("links"), "Windows build plan links"
+    )
+    if set(raw_links) != set(TOOL_NAMES):
+        raise BootstrapError("Windows build plan tool links differ")
     for tool_name in TOOL_NAMES:
+        link_order = [
+            str(name)
+            for name in _require_list(
+                raw_links.get(tool_name),
+                f"Windows build plan links: {tool_name}",
+            )
+        ]
+        for name in link_order:
+            if name not in objects:
+                raise BootstrapError(
+                    "Windows build plan links an unknown object: "
+                    f"{tool_name}: {name}"
+                )
         executable = stage_directory / f"{tool_name}.exe"
         _run_clean(
             runner,
             producers["cupidld"],
-            _windows_link_arguments(tool_name, executable, objects),
+            _windows_link_arguments(
+                tool_name, executable, objects, link_order
+            ),
             f"{stage_name} native CupidLD for {tool_name}",
             180,
         )
@@ -2062,62 +2138,73 @@ def _build_windows_stage(
 
 
 def _compare_windows_stages(
-    stage_two: Stage,
     stage_three: Stage,
+    stage_four: Stage,
     c_source_names: Sequence[str],
     assembly_names: Sequence[str],
 ) -> dict[str, object]:
     for name in (*c_source_names, *assembly_names):
         if (
-            stage_two.objects[name].read_bytes()
-            != stage_three.objects[name].read_bytes()
+            stage_three.objects[name].read_bytes()
+            != stage_four.objects[name].read_bytes()
         ):
             kind = "C" if name in c_source_names else "assembly"
             raise BootstrapError(
-                f"native Windows {kind} object differs across stages: "
+                f"native Windows {kind} object differs between stage "
+                "three and stage four: "
                 f"{name}"
             )
     for name in TOOL_NAMES:
         if (
-            stage_two.tools[name].read_bytes()
-            != stage_three.tools[name].read_bytes()
+            stage_three.tools[name].read_bytes()
+            != stage_four.tools[name].read_bytes()
         ):
             raise BootstrapError(
-                f"native Windows tool image differs across stages: {name}"
+                "native Windows tool image differs between stage three "
+                f"and stage four: {name}"
             )
     return {
         "all_equal": True,
         "assembly_objects": len(assembly_names),
         "c_objects": len(c_source_names),
+        "compared_generations": ["stage-three", "stage-four"],
         "tool_images": len(TOOL_NAMES),
     }
 
 
 def _compare_stages(
-    stage_two: Stage,
     stage_three: Stage,
+    stage_four: Stage,
     source_names: Sequence[str],
 ) -> dict[str, object]:
     for name in source_names:
         if (
-            stage_two.objects[name].read_bytes()
-            != stage_three.objects[name].read_bytes()
+            stage_three.objects[name].read_bytes()
+            != stage_four.objects[name].read_bytes()
         ):
-            raise BootstrapError(f"C object differs across stages: {name}")
+            raise BootstrapError(
+                f"C object differs between stage three and stage four: {name}"
+            )
     if (
-        stage_two.objects["start"].read_bytes()
-        != stage_three.objects["start"].read_bytes()
+        stage_three.objects["start"].read_bytes()
+        != stage_four.objects["start"].read_bytes()
     ):
-        raise BootstrapError("startup object differs across stages")
+        raise BootstrapError(
+            "startup object differs between stage three and stage four"
+        )
     for name in TOOL_NAMES:
         if (
-            stage_two.tools[name].read_bytes()
-            != stage_three.tools[name].read_bytes()
+            stage_three.tools[name].read_bytes()
+            != stage_four.tools[name].read_bytes()
         ):
-            raise BootstrapError(f"tool image differs across stages: {name}")
+            raise BootstrapError(
+                "tool image differs between stage three and stage four: "
+                f"{name}"
+            )
     return {
         "all_equal": True,
         "c_objects": len(source_names),
+        "compared_generations": ["stage-three", "stage-four"],
         "startup_objects": 1,
         "tool_images": len(TOOL_NAMES),
     }
@@ -2175,6 +2262,7 @@ def _run_native_windows_behavior_checks(
     output_root: Path,
     stage_two: Stage,
     stage_three: Stage,
+    native_plan: dict[str, object],
 ) -> dict[str, int]:
     behavior_root = output_root / "behavior"
     behavior_root.mkdir()
@@ -2224,8 +2312,8 @@ def _run_native_windows_behavior_checks(
         encoding="ascii",
         newline="\n",
     )
-    stage_two_object = behavior_root / "stage-two-valid.o"
-    stage_three_object = behavior_root / "stage-three-valid.o"
+    stage_two_object = behavior_root / "stage-three-valid.o"
+    stage_three_object = behavior_root / "stage-four-valid.o"
     compile_result = _run_stage_pair(
         runner,
         stage_two,
@@ -2251,8 +2339,8 @@ def _run_native_windows_behavior_checks(
         encoding="ascii",
         newline="\n",
     )
-    stage_two_binary = behavior_root / "stage-two-valid.bin"
-    stage_three_binary = behavior_root / "stage-three-valid.bin"
+    stage_two_binary = behavior_root / "stage-three-valid.bin"
+    stage_three_binary = behavior_root / "stage-four-valid.bin"
     assembly_result = _run_stage_pair(
         runner,
         stage_two,
@@ -2306,8 +2394,8 @@ def _run_native_windows_behavior_checks(
 
     asset = behavior_root / "asset.bin"
     asset.write_bytes(b"native-windows-fixed-point")
-    stage_two_wrapped = behavior_root / "stage-two-wrapped.o"
-    stage_three_wrapped = behavior_root / "stage-three-wrapped.o"
+    stage_two_wrapped = behavior_root / "stage-three-wrapped.o"
+    stage_three_wrapped = behavior_root / "stage-four-wrapped.o"
     wrap_result = _run_stage_pair(
         runner,
         stage_two,
@@ -2341,18 +2429,34 @@ def _run_native_windows_behavior_checks(
         raise BootstrapError("native Windows CupidObj output differs")
     _validate_i386_relocatable(stage_two_wrapped)
 
-    stage_two_linked = behavior_root / "stage-two-relinked.exe"
-    stage_three_linked = behavior_root / "stage-three-relinked.exe"
+    stage_two_linked = behavior_root / "stage-three-relinked.exe"
+    stage_three_linked = behavior_root / "stage-four-relinked.exe"
+    raw_links = _require_object(
+        native_plan.get("links"), "Windows build plan links"
+    )
+    link_order = [
+        str(name)
+        for name in _require_list(
+            raw_links.get("cupidasm"),
+            "Windows build plan links: cupidasm",
+        )
+    ]
     link_result = _run_stage_pair(
         runner,
         stage_two,
         stage_three,
         "cupidld",
         _windows_link_arguments(
-            "cupidasm", stage_two_linked, stage_two.objects
+            "cupidasm",
+            stage_two_linked,
+            stage_two.objects,
+            link_order,
         ),
         _windows_link_arguments(
-            "cupidasm", stage_three_linked, stage_three.objects
+            "cupidasm",
+            stage_three_linked,
+            stage_three.objects,
+            link_order,
         ),
         180,
     )
@@ -2413,23 +2517,23 @@ def _build_windows_tool_image(
         **stage_three_extra_objects,
     }
     compile_artifacts: dict[str, Path] = {
-        "stage-two-ctool_host": stage_two_host_adapter,
-        "stage-three-ctool_host": stage_three_host_adapter,
+        "stage-three-ctool_host": stage_two_host_adapter,
+        "stage-four-ctool_host": stage_three_host_adapter,
         **{
-            f"stage-two-{name}": path
+            f"stage-three-{name}": path
             for name, path in stage_two_extra_objects.items()
         },
         **{
-            f"stage-three-{name}": path
+            f"stage-four-{name}": path
             for name, path in stage_three_extra_objects.items()
         },
     }
     for source_name in replacement_names:
         stage_two_object = behavior_root / (
-            f"stage-two-windows-{tool_name}-{source_name}.o"
+            f"stage-three-windows-{tool_name}-{source_name}.o"
         )
         stage_three_object = behavior_root / (
-            f"stage-three-windows-{tool_name}-{source_name}.o"
+            f"stage-four-windows-{tool_name}-{source_name}.o"
         )
         compile_result = _run_stage_pair(
             runner,
@@ -2480,15 +2584,15 @@ def _build_windows_tool_image(
         _validate_i386_relocatable(stage_two_object)
         stage_two_replacements[source_name] = stage_two_object
         stage_three_replacements[source_name] = stage_three_object
-        compile_artifacts[f"stage-two-{source_name}"] = stage_two_object
-        compile_artifacts[f"stage-three-{source_name}"] = stage_three_object
+        compile_artifacts[f"stage-three-{source_name}"] = stage_two_object
+        compile_artifacts[f"stage-four-{source_name}"] = stage_three_object
 
     import_selectors = tuple(
         f"{slot}={library}:{procedure}"
         for slot, library, procedure in windows_imports
     )
-    stage_two_image = behavior_root / f"stage-two-{tool_name}.exe"
-    stage_three_image = behavior_root / f"stage-three-{tool_name}.exe"
+    stage_two_image = behavior_root / f"stage-three-{tool_name}.exe"
+    stage_three_image = behavior_root / f"stage-four-{tool_name}.exe"
 
     def link_arguments(
         image: Path,
@@ -2553,8 +2657,8 @@ def _build_windows_tool_image(
         0x00401000,
         (("KERNEL32.dll", tuple(item[2] for item in windows_imports)),),
     )
-    compile_artifacts["stage-two-image"] = stage_two_image
-    compile_artifacts["stage-three-image"] = stage_three_image
+    compile_artifacts["stage-three-image"] = stage_two_image
+    compile_artifacts["stage-four-image"] = stage_three_image
     return stage_two_image, stage_three_image, _artifact_inventory(
         compile_artifacts
     )
@@ -2641,8 +2745,8 @@ def _run_behavior_checks(
         encoding="utf-8",
         newline="\n",
     )
-    stage_two_valid = behavior_root / "stage-two-valid.o"
-    stage_three_valid = behavior_root / "stage-three-valid.o"
+    stage_two_valid = behavior_root / "stage-three-valid.o"
+    stage_three_valid = behavior_root / "stage-four-valid.o"
     compiler_root_arguments: list[str | Path] = [
         "--root",
         behavior_root,
@@ -2654,8 +2758,8 @@ def _run_behavior_checks(
         stage_two,
         stage_three,
         "cupidc",
-        [*compiler_root_arguments, "-o", "/stage-two-valid.o"],
         [*compiler_root_arguments, "-o", "/stage-three-valid.o"],
+        [*compiler_root_arguments, "-o", "/stage-four-valid.o"],
     )
     _expect_status(valid_result, 0, "CupidC valid source")
     if valid_result.stdout or valid_result.stderr:
@@ -2665,8 +2769,8 @@ def _run_behavior_checks(
     _validate_i386_relocatable(stage_two_valid)
 
     sentinel = b"fixed-point-failure-sentinel"
-    stage_two_failure = behavior_root / "stage-two-failure.o"
-    stage_three_failure = behavior_root / "stage-three-failure.o"
+    stage_two_failure = behavior_root / "stage-three-failure.o"
+    stage_three_failure = behavior_root / "stage-four-failure.o"
     stage_two_failure.write_bytes(sentinel)
     stage_three_failure.write_bytes(sentinel)
     invalid_root_arguments: list[str | Path] = [
@@ -2680,8 +2784,8 @@ def _run_behavior_checks(
         stage_two,
         stage_three,
         "cupidc",
-        [*invalid_root_arguments, "-o", "/stage-two-failure.o"],
         [*invalid_root_arguments, "-o", "/stage-three-failure.o"],
+        [*invalid_root_arguments, "-o", "/stage-four-failure.o"],
     )
     _expect_status(invalid_result, 1, "CupidC invalid source")
     if (
@@ -2693,8 +2797,8 @@ def _run_behavior_checks(
         raise BootstrapError("CupidC failure behavior differs")
 
     assembly_source = behavior_root / "fixed-point.asm"
-    stage_two_binary = behavior_root / "stage-two.bin"
-    stage_three_binary = behavior_root / "stage-three.bin"
+    stage_two_binary = behavior_root / "stage-three.bin"
+    stage_three_binary = behavior_root / "stage-four.bin"
     assembly_source.write_text(
         "BITS 16\n"
         "ORG 0x7c00\n"
@@ -2757,8 +2861,8 @@ def _run_behavior_checks(
         b"\xff\xd9"
     )
     asset = behavior_root / "asset.jpg"
-    stage_two_wrapped = behavior_root / "stage-two-wrapped.o"
-    stage_three_wrapped = behavior_root / "stage-three-wrapped.o"
+    stage_two_wrapped = behavior_root / "stage-three-wrapped.o"
+    stage_three_wrapped = behavior_root / "stage-four-wrapped.o"
     asset.write_bytes(jpeg_payload)
     wrap_result = _run_stage_pair(
         runner,
@@ -2798,8 +2902,8 @@ def _run_behavior_checks(
         raise BootstrapError("CupidObj binary wrap differs")
     _validate_i386_relocatable(stage_two_wrapped)
 
-    stage_two_jpeg = behavior_root / "stage-two-jpeg.o"
-    stage_three_jpeg = behavior_root / "stage-three-jpeg.o"
+    stage_two_jpeg = behavior_root / "stage-three-jpeg.o"
+    stage_three_jpeg = behavior_root / "stage-four-jpeg.o"
     jpeg_result = _run_stage_pair(
         runner,
         stage_two,
@@ -2839,8 +2943,8 @@ def _run_behavior_checks(
     _validate_i386_relocatable(stage_two_jpeg)
 
     progressive_asset = behavior_root / "progressive.jpg"
-    stage_two_jpeg_failure = behavior_root / "stage-two-jpeg-failure.o"
-    stage_three_jpeg_failure = behavior_root / "stage-three-jpeg-failure.o"
+    stage_two_jpeg_failure = behavior_root / "stage-three-jpeg-failure.o"
+    stage_three_jpeg_failure = behavior_root / "stage-four-jpeg-failure.o"
     progressive_asset.write_bytes(
         jpeg_payload[:3] + b"\xc2" + jpeg_payload[4:]
     )
@@ -2887,8 +2991,8 @@ def _run_behavior_checks(
 
     disk_boot = behavior_root / "disk-boot.bin"
     disk_kernel = behavior_root / "disk-kernel.bin"
-    stage_two_template = behavior_root / "stage-two-disk-template.bin"
-    stage_three_template = behavior_root / "stage-three-disk-template.bin"
+    stage_two_template = behavior_root / "stage-three-disk-template.bin"
+    stage_three_template = behavior_root / "stage-four-disk-template.bin"
     disk_boot.write_bytes(
         bytes((index * 37 + 11) & 0xFF for index in range(5 * 512))
     )
@@ -2925,10 +3029,10 @@ def _run_behavior_checks(
 
     overlapping_kernel = behavior_root / "overlapping-kernel.bin"
     stage_two_template_failure = (
-        behavior_root / "stage-two-disk-template-failure.bin"
+        behavior_root / "stage-three-disk-template-failure.bin"
     )
     stage_three_template_failure = (
-        behavior_root / "stage-three-disk-template-failure.bin"
+        behavior_root / "stage-four-disk-template-failure.bin"
     )
     overlapping_kernel.write_bytes(b"K" * (3 * 512 + 1))
     stage_two_template_failure.write_bytes(sentinel)
@@ -2966,8 +3070,8 @@ def _run_behavior_checks(
     iso_long_name = behavior_root / "iso-long-name.bin"
     iso_nested = behavior_root / "iso-nested.bin"
     iso_value = behavior_root / "iso-value.bin"
-    stage_two_iso = behavior_root / "stage-two-iso-fixture.iso"
-    stage_three_iso = behavior_root / "stage-three-iso-fixture.iso"
+    stage_two_iso = behavior_root / "stage-three-iso-fixture.iso"
+    stage_three_iso = behavior_root / "stage-four-iso-fixture.iso"
     iso_manifest.write_text(
         "alpha.txt\n"
         "empty.bin\n"
@@ -3031,8 +3135,8 @@ def _run_behavior_checks(
 
     missing_parent_manifest = behavior_root / "missing-parent.manifest"
     missing_parent_source = behavior_root / "missing-parent.bin"
-    stage_two_iso_failure = behavior_root / "stage-two-iso-failure.iso"
-    stage_three_iso_failure = behavior_root / "stage-three-iso-failure.iso"
+    stage_two_iso_failure = behavior_root / "stage-three-iso-failure.iso"
+    stage_three_iso_failure = behavior_root / "stage-four-iso-failure.iso"
     missing_parent_manifest.write_text(
         "lost/payload.bin\n", encoding="ascii", newline="\n"
     )
@@ -3066,8 +3170,8 @@ def _run_behavior_checks(
         raise BootstrapError("CupidObj ISO failure behavior differs")
 
     profile_snapshot = behavior_root / "profile-manifest.snapshot"
-    stage_two_profile = behavior_root / "stage-two-profile-manifest.json"
-    stage_three_profile = behavior_root / "stage-three-profile-manifest.json"
+    stage_two_profile = behavior_root / "stage-three-profile-manifest.json"
+    stage_three_profile = behavior_root / "stage-four-profile-manifest.json"
     profile_schema = "cupid.doom-profile-inputs.v1"
     profile_sizes = (129, 0, 65, 3, 64, 55, 63, 56)
     profile_inputs = tuple(
@@ -3176,11 +3280,11 @@ def _run_behavior_checks(
         failure_snapshot = behavior_root / f"{failure_name}-profile.snapshot"
         stage_two_profile_failure = (
             behavior_root
-            / f"stage-two-{failure_name}-profile-manifest-failure.json"
+            / f"stage-three-{failure_name}-profile-manifest-failure.json"
         )
         stage_three_profile_failure = (
             behavior_root
-            / f"stage-three-{failure_name}-profile-manifest-failure.json"
+            / f"stage-four-{failure_name}-profile-manifest-failure.json"
         )
         failure_snapshot.write_bytes(failure_payload)
         stage_two_profile_failure.write_bytes(sentinel)
@@ -3219,8 +3323,8 @@ def _run_behavior_checks(
             )
 
     link_source = behavior_root / "start.asm"
-    stage_two_link_object = behavior_root / "stage-two-start.o"
-    stage_three_link_object = behavior_root / "stage-three-start.o"
+    stage_two_link_object = behavior_root / "stage-three-start.o"
+    stage_three_link_object = behavior_root / "stage-four-start.o"
     link_source.write_text(
         "BITS 32\n"
         "global _start\n"
@@ -3252,8 +3356,8 @@ def _run_behavior_checks(
         raise BootstrapError("CupidASM relocatable output differs")
     _validate_i386_relocatable(stage_two_link_object)
 
-    stage_two_linked = behavior_root / "stage-two-linked.elf"
-    stage_three_linked = behavior_root / "stage-three-linked.elf"
+    stage_two_linked = behavior_root / "stage-three-linked.elf"
+    stage_three_linked = behavior_root / "stage-four-linked.elf"
     link_result = _run_stage_pair(
         runner,
         stage_two,
@@ -3292,8 +3396,8 @@ def _run_behavior_checks(
         raise BootstrapError("CupidLD fixed-address output differs")
     _validate_static_i386_elf(stage_two_linked, 0x00600000)
 
-    stage_two_pe32 = behavior_root / "stage-two-fixed.exe"
-    stage_three_pe32 = behavior_root / "stage-three-fixed.exe"
+    stage_two_pe32 = behavior_root / "stage-three-fixed.exe"
+    stage_three_pe32 = behavior_root / "stage-four-fixed.exe"
     pe32_result = _run_stage_pair(
         runner,
         stage_two,
@@ -3339,8 +3443,8 @@ def _run_behavior_checks(
     windows_contract = (
         source_root / "toolchain/tests/hosted_i386_windows_contract.cc"
     )
-    stage_two_windows_start = behavior_root / "stage-two-windows-start.o"
-    stage_three_windows_start = behavior_root / "stage-three-windows-start.o"
+    stage_two_windows_start = behavior_root / "stage-three-windows-start.o"
+    stage_three_windows_start = behavior_root / "stage-four-windows-start.o"
     windows_assembly_result = _run_stage_pair(
         runner,
         stage_two,
@@ -3363,8 +3467,8 @@ def _run_behavior_checks(
 
     local_windows_contract = behavior_root / "windows-contract.cc"
     local_windows_contract.write_bytes(windows_contract.read_bytes())
-    stage_two_windows_contract = behavior_root / "stage-two-windows-contract.o"
-    stage_three_windows_contract = behavior_root / "stage-three-windows-contract.o"
+    stage_two_windows_contract = behavior_root / "stage-three-windows-contract.o"
+    stage_three_windows_contract = behavior_root / "stage-four-windows-contract.o"
     windows_compiler_arguments: list[str | Path] = [
         "--root",
         behavior_root,
@@ -3380,12 +3484,12 @@ def _run_behavior_checks(
         [
             *windows_compiler_arguments,
             "-o",
-            "/stage-two-windows-contract.o",
+            "/stage-three-windows-contract.o",
         ],
         [
             *windows_compiler_arguments,
             "-o",
-            "/stage-three-windows-contract.o",
+            "/stage-four-windows-contract.o",
         ],
     )
     _expect_status(
@@ -3409,8 +3513,8 @@ def _run_behavior_checks(
         f"{slot}={library}:{procedure}"
         for slot, library, procedure in windows_imports
     )
-    stage_two_windows_image = behavior_root / "stage-two-windows.exe"
-    stage_three_windows_image = behavior_root / "stage-three-windows.exe"
+    stage_two_windows_image = behavior_root / "stage-three-windows.exe"
+    stage_three_windows_image = behavior_root / "stage-four-windows.exe"
     windows_link_result = _run_stage_pair(
         runner,
         stage_two,
@@ -3498,10 +3602,10 @@ def _run_behavior_checks(
         source_root / "toolchain/hosted/i386-windows/tool_start.asm"
     )
     stage_two_windows_tool_runtime = (
-        behavior_root / "stage-two-windows-tool-runtime.o"
+        behavior_root / "stage-three-windows-tool-runtime.o"
     )
     stage_three_windows_tool_runtime = (
-        behavior_root / "stage-three-windows-tool-runtime.o"
+        behavior_root / "stage-four-windows-tool-runtime.o"
     )
     windows_tool_compile_result = _run_stage_pair(
         runner,
@@ -3545,10 +3649,10 @@ def _run_behavior_checks(
     _validate_i386_relocatable(stage_two_windows_tool_runtime)
 
     stage_two_windows_tool_start = (
-        behavior_root / "stage-two-windows-tool-start.o"
+        behavior_root / "stage-three-windows-tool-start.o"
     )
     stage_three_windows_tool_start = (
-        behavior_root / "stage-three-windows-tool-start.o"
+        behavior_root / "stage-four-windows-tool-start.o"
     )
     windows_tool_assembly_result = _run_stage_pair(
         runner,
@@ -3584,10 +3688,10 @@ def _run_behavior_checks(
     _validate_i386_relocatable(stage_two_windows_tool_start)
 
     stage_two_windows_host_adapter = (
-        behavior_root / "stage-two-windows-ctool-host.o"
+        behavior_root / "stage-three-windows-ctool-host.o"
     )
     stage_three_windows_host_adapter = (
-        behavior_root / "stage-three-windows-ctool-host.o"
+        behavior_root / "stage-four-windows-ctool-host.o"
     )
     windows_host_adapter_result = _run_stage_pair(
         runner,
@@ -3637,10 +3741,10 @@ def _run_behavior_checks(
     _validate_i386_relocatable(stage_two_windows_host_adapter)
 
     stage_two_windows_publication_runtime = (
-        behavior_root / "stage-two-windows-publication-runtime.o"
+        behavior_root / "stage-three-windows-publication-runtime.o"
     )
     stage_three_windows_publication_runtime = (
-        behavior_root / "stage-three-windows-publication-runtime.o"
+        behavior_root / "stage-four-windows-publication-runtime.o"
     )
     windows_publication_compile_result = _run_stage_pair(
         runner,
@@ -3695,10 +3799,10 @@ def _run_behavior_checks(
         source_root / "toolchain/hosted/i386-windows/publication_start.asm"
     )
     stage_two_windows_publication_start = (
-        behavior_root / "stage-two-windows-publication-start.o"
+        behavior_root / "stage-three-windows-publication-start.o"
     )
     stage_three_windows_publication_start = (
-        behavior_root / "stage-three-windows-publication-start.o"
+        behavior_root / "stage-four-windows-publication-start.o"
     )
     windows_publication_assembly_result = _run_stage_pair(
         runner,
@@ -3777,11 +3881,90 @@ def _run_behavior_checks(
         f"{slot}={library}:{procedure}"
         for slot, library, procedure in windows_cupiddis_imports
     )
+    stage_two_windows_cupiddis_main = (
+        behavior_root / "stage-three-windows-cupiddis-main.o"
+    )
+    stage_three_windows_cupiddis_main = (
+        behavior_root / "stage-four-windows-cupiddis-main.o"
+    )
+    windows_cupiddis_main_compile_result = _run_stage_pair(
+        runner,
+        stage_two,
+        stage_three,
+        "cupidc",
+        [
+            "--root",
+            source_root,
+            "-D",
+            "_WIN32=1",
+            "-c",
+            "/toolchain/cupiddis_main.cc",
+            "-I",
+            "/toolchain",
+            "--include-angle",
+            "/toolchain/hosted/i386-linux/include",
+            "-o",
+            _logical_path(source_root, stage_two_windows_cupiddis_main),
+        ],
+        [
+            "--root",
+            source_root,
+            "-D",
+            "_WIN32=1",
+            "-c",
+            "/toolchain/cupiddis_main.cc",
+            "-I",
+            "/toolchain",
+            "--include-angle",
+            "/toolchain/hosted/i386-linux/include",
+            "-o",
+            _logical_path(source_root, stage_three_windows_cupiddis_main),
+        ],
+        360,
+    )
+    _expect_status(
+        windows_cupiddis_main_compile_result,
+        0,
+        "CupidC Windows CupidDis driver",
+    )
+    if (
+        windows_cupiddis_main_compile_result.stdout
+        or windows_cupiddis_main_compile_result.stderr
+        or stage_two_windows_cupiddis_main.read_bytes()
+        != stage_three_windows_cupiddis_main.read_bytes()
+    ):
+        raise BootstrapError("CupidC Windows CupidDis driver differs")
+    _validate_i386_relocatable(stage_two_windows_cupiddis_main)
+    stage_two_windows_cupiddis_replacements = {
+        "cupiddis_main": stage_two_windows_cupiddis_main,
+        "ctool_host": stage_two_windows_host_adapter,
+    }
+    stage_three_windows_cupiddis_replacements = {
+        "cupiddis_main": stage_three_windows_cupiddis_main,
+        "ctool_host": stage_three_windows_host_adapter,
+    }
+    stage_two_windows_cupiddis_link_objects = [
+        (
+            stage_two_windows_cupiddis_replacements[name]
+            if name in stage_two_windows_cupiddis_replacements
+            else stage_two.objects[name]
+        )
+        for name in EXPECTED_LINKS["cupiddis"][1:-1]
+    ]
+    stage_three_windows_cupiddis_link_objects = [
+        (
+            stage_three_windows_cupiddis_replacements[name]
+            if name in stage_three_windows_cupiddis_replacements
+            else stage_three.objects[name]
+        )
+        for name in EXPECTED_LINKS["cupiddis"][1:-1]
+    ]
+
     stage_two_windows_cupiddis = (
-        behavior_root / "stage-two-cupiddis.exe"
+        behavior_root / "stage-three-cupiddis.exe"
     )
     stage_three_windows_cupiddis = (
-        behavior_root / "stage-three-cupiddis.exe"
+        behavior_root / "stage-four-cupiddis.exe"
     )
     stage_two_windows_cupiddis_arguments: list[str | Path] = [
         "-m",
@@ -3800,12 +3983,7 @@ def _run_behavior_checks(
             "-o",
             stage_two_windows_cupiddis,
             stage_two_windows_tool_start,
-            stage_two.objects["cupiddis_main"],
-            stage_two.objects["cupiddis"],
-            stage_two_windows_host_adapter,
-            stage_two.objects["ctool"],
-            stage_two.objects["elf32"],
-            stage_two.objects["x86"],
+            *stage_two_windows_cupiddis_link_objects,
             stage_two_windows_tool_runtime,
         )
     )
@@ -3826,12 +4004,7 @@ def _run_behavior_checks(
             "-o",
             stage_three_windows_cupiddis,
             stage_three_windows_tool_start,
-            stage_three.objects["cupiddis_main"],
-            stage_three.objects["cupiddis"],
-            stage_three_windows_host_adapter,
-            stage_three.objects["ctool"],
-            stage_three.objects["elf32"],
-            stage_three.objects["x86"],
+            *stage_three_windows_cupiddis_link_objects,
             stage_three_windows_tool_runtime,
         )
     )
@@ -3873,10 +4046,10 @@ def _run_behavior_checks(
         "/toolchain/tests/hosted_i386_windows_runtime_contract.cc"
     )
     stage_two_windows_runtime_contract = (
-        behavior_root / "stage-two-windows-runtime-contract.o"
+        behavior_root / "stage-three-windows-runtime-contract.o"
     )
     stage_three_windows_runtime_contract = (
-        behavior_root / "stage-three-windows-runtime-contract.o"
+        behavior_root / "stage-four-windows-runtime-contract.o"
     )
     windows_runtime_contract_compile_result = _run_stage_pair(
         runner,
@@ -3924,10 +4097,10 @@ def _run_behavior_checks(
     _validate_i386_relocatable(stage_two_windows_runtime_contract)
 
     stage_two_windows_runtime_contract_image = (
-        behavior_root / "stage-two-windows-runtime-contract.exe"
+        behavior_root / "stage-three-windows-runtime-contract.exe"
     )
     stage_three_windows_runtime_contract_image = (
-        behavior_root / "stage-three-windows-runtime-contract.exe"
+        behavior_root / "stage-four-windows-runtime-contract.exe"
     )
     stage_two_windows_runtime_contract_arguments: list[str | Path] = [
         "-m",
@@ -4502,10 +4675,10 @@ def _run_behavior_checks(
         newline="\n",
     )
     stage_two_invalid_import_object = (
-        behavior_root / "stage-two-invalid-import.o"
+        behavior_root / "stage-three-invalid-import.o"
     )
     stage_three_invalid_import_object = (
-        behavior_root / "stage-three-invalid-import.o"
+        behavior_root / "stage-four-invalid-import.o"
     )
     invalid_import_assembly_result = _run_stage_pair(
         runner,
@@ -4542,10 +4715,10 @@ def _run_behavior_checks(
         stage_two_invalid_import_object.read_bytes()
     )
     stage_two_invalid_import_image = (
-        behavior_root / "stage-two-invalid-import.exe"
+        behavior_root / "stage-three-invalid-import.exe"
     )
     stage_three_invalid_import_image = (
-        behavior_root / "stage-three-invalid-import.exe"
+        behavior_root / "stage-four-invalid-import.exe"
     )
     stage_two_invalid_import_image.write_bytes(sentinel)
     stage_three_invalid_import_image.write_bytes(sentinel)
@@ -4609,12 +4782,12 @@ def _run_behavior_checks(
         evidence_out["windows_runtime"] = {
             "artifacts": _artifact_inventory(
                 {
-                    "stage-three-contract": stage_three_windows_contract,
-                    "stage-three-image": stage_three_windows_image,
-                    "stage-three-start": stage_three_windows_start,
-                    "stage-two-contract": stage_two_windows_contract,
-                    "stage-two-image": stage_two_windows_image,
-                    "stage-two-start": stage_two_windows_start,
+                    "stage-four-contract": stage_three_windows_contract,
+                    "stage-four-image": stage_three_windows_image,
+                    "stage-four-start": stage_three_windows_start,
+                    "stage-three-contract": stage_two_windows_contract,
+                    "stage-three-image": stage_two_windows_image,
+                    "stage-three-start": stage_two_windows_start,
                 }
             ),
             "imports": [
@@ -4629,18 +4802,22 @@ def _run_behavior_checks(
             "cupiddis": {
                 "artifacts": _artifact_inventory(
                     {
-                        "stage-three-image": stage_three_windows_cupiddis,
-                        "stage-three-host-adapter": (
+                        "stage-four-image": stage_three_windows_cupiddis,
+                        "stage-four-host-adapter": (
                             stage_three_windows_host_adapter
                         ),
-                        "stage-three-runtime": stage_three_windows_tool_runtime,
-                        "stage-three-start": stage_three_windows_tool_start,
-                        "stage-two-image": stage_two_windows_cupiddis,
-                        "stage-two-host-adapter": (
+                        "stage-four-main": (
+                            stage_three_windows_cupiddis_main
+                        ),
+                        "stage-four-runtime": stage_three_windows_tool_runtime,
+                        "stage-four-start": stage_three_windows_tool_start,
+                        "stage-three-image": stage_two_windows_cupiddis,
+                        "stage-three-host-adapter": (
                             stage_two_windows_host_adapter
                         ),
-                        "stage-two-runtime": stage_two_windows_tool_runtime,
-                        "stage-two-start": stage_two_windows_tool_start,
+                        "stage-three-main": stage_two_windows_cupiddis_main,
+                        "stage-three-runtime": stage_two_windows_tool_runtime,
+                        "stage-three-start": stage_two_windows_tool_start,
                     }
                 ),
                 "imports": [
@@ -4656,16 +4833,16 @@ def _run_behavior_checks(
             "runtime_contract": {
                 "artifacts": _artifact_inventory(
                     {
-                        "stage-three-contract": (
+                        "stage-four-contract": (
                             stage_three_windows_runtime_contract
                         ),
-                        "stage-three-image": (
+                        "stage-four-image": (
                             stage_three_windows_runtime_contract_image
                         ),
-                        "stage-two-contract": (
+                        "stage-three-contract": (
                             stage_two_windows_runtime_contract
                         ),
-                        "stage-two-image": (
+                        "stage-three-image": (
                             stage_two_windows_runtime_contract_image
                         ),
                     }
@@ -4691,8 +4868,8 @@ def _run_behavior_checks(
         }
 
     ksyms_symbols = behavior_root / "kernel.symbols"
-    stage_two_ksyms = behavior_root / "stage-two-ksyms.cc"
-    stage_three_ksyms = behavior_root / "stage-three-ksyms.cc"
+    stage_two_ksyms = behavior_root / "stage-three-ksyms.cc"
+    stage_three_ksyms = behavior_root / "stage-four-ksyms.cc"
     ksyms_symbols.write_text(
         "00002000 T second\n"
         "00001000 T first\n"
@@ -4732,8 +4909,8 @@ def _run_behavior_checks(
     ):
         raise BootstrapError("CupidObj kernel symbol source differs")
 
-    stage_two_script = behavior_root / "stage-two-script.elf"
-    stage_three_script = behavior_root / "stage-three-script.elf"
+    stage_two_script = behavior_root / "stage-three-script.elf"
+    stage_three_script = behavior_root / "stage-four-script.elf"
     script_result = _run_stage_pair(
         runner,
         stage_two,
@@ -4768,8 +4945,8 @@ def _run_behavior_checks(
     _validate_static_i386_elf(stage_two_script, 0x00100000)
 
     text_asset = behavior_root / "text.txt"
-    stage_two_text = behavior_root / "stage-two-text.o"
-    stage_three_text = behavior_root / "stage-three-text.o"
+    stage_two_text = behavior_root / "stage-three-text.o"
+    stage_three_text = behavior_root / "stage-four-text.o"
     text_asset.write_bytes(b"first\r\nsecond\r\n")
     text_result = _run_stage_pair(
         runner,
@@ -4802,8 +4979,8 @@ def _run_behavior_checks(
         raise BootstrapError("CupidObj text wrap differs")
     _validate_i386_relocatable(stage_two_text)
 
-    stage_two_flat = behavior_root / "stage-two-flat.bin"
-    stage_three_flat = behavior_root / "stage-three-flat.bin"
+    stage_two_flat = behavior_root / "stage-three-flat.bin"
+    stage_three_flat = behavior_root / "stage-four-flat.bin"
     flat_result = _run_stage_pair(
         runner,
         stage_two,
@@ -4822,8 +4999,8 @@ def _run_behavior_checks(
         raise BootstrapError("CupidObj flat output differs")
 
     invalid_ksyms = behavior_root / "invalid.symbols"
-    stage_two_invalid_ksyms = behavior_root / "stage-two-invalid-ksyms.cc"
-    stage_three_invalid_ksyms = behavior_root / "stage-three-invalid-ksyms.cc"
+    stage_two_invalid_ksyms = behavior_root / "stage-three-invalid-ksyms.cc"
+    stage_three_invalid_ksyms = behavior_root / "stage-four-invalid-ksyms.cc"
     invalid_ksyms.write_text(
         "100000000 T too_wide\n", encoding="ascii", newline="\n"
     )
@@ -4854,8 +5031,8 @@ def _run_behavior_checks(
         encoding="utf-8",
         newline="\n",
     )
-    stage_two_invalid_assembly = behavior_root / "stage-two-invalid.bin"
-    stage_three_invalid_assembly = behavior_root / "stage-three-invalid.bin"
+    stage_two_invalid_assembly = behavior_root / "stage-three-invalid.bin"
+    stage_three_invalid_assembly = behavior_root / "stage-four-invalid.bin"
     stage_two_invalid_assembly.write_bytes(sentinel)
     stage_three_invalid_assembly.write_bytes(sentinel)
     invalid_assembly_result = _run_stage_pair(
@@ -4967,8 +5144,8 @@ def _run_behavior_checks(
     ):
         raise BootstrapError("CupidDis strict failure behavior differs")
 
-    stage_two_pe32_failure = behavior_root / "stage-two-invalid-pe32.exe"
-    stage_three_pe32_failure = behavior_root / "stage-three-invalid-pe32.exe"
+    stage_two_pe32_failure = behavior_root / "stage-three-invalid-pe32.exe"
+    stage_three_pe32_failure = behavior_root / "stage-four-invalid-pe32.exe"
     stage_two_pe32_failure.write_bytes(sentinel)
     stage_three_pe32_failure.write_bytes(sentinel)
     invalid_pe32_result = _run_stage_pair(
@@ -5011,8 +5188,8 @@ def _run_behavior_checks(
     ):
         raise BootstrapError("CupidLD PE32 failure behavior differs")
 
-    stage_two_link_failure = behavior_root / "stage-two-link-failure.elf"
-    stage_three_link_failure = behavior_root / "stage-three-link-failure.elf"
+    stage_two_link_failure = behavior_root / "stage-three-link-failure.elf"
+    stage_three_link_failure = behavior_root / "stage-four-link-failure.elf"
     stage_two_link_failure.write_bytes(sentinel)
     stage_three_link_failure.write_bytes(sentinel)
     malformed_link_result = _run_stage_pair(
@@ -5051,8 +5228,8 @@ def _run_behavior_checks(
     ):
         raise BootstrapError("CupidLD malformed-input behavior differs")
 
-    stage_two_obj_failure = behavior_root / "stage-two-obj-failure.o"
-    stage_three_obj_failure = behavior_root / "stage-three-obj-failure.o"
+    stage_two_obj_failure = behavior_root / "stage-three-obj-failure.o"
+    stage_three_obj_failure = behavior_root / "stage-four-obj-failure.o"
     stage_two_obj_failure.write_bytes(sentinel)
     stage_three_obj_failure.write_bytes(sentinel)
     missing_obj_result = _run_stage_pair(
@@ -5133,7 +5310,7 @@ def _require_complete_publication(publication_root: Path) -> None:
         raise BootstrapError(
             "bootstrap publication is incomplete: " + ", ".join(missing)
         )
-    for name in ("stage-two", "stage-three", "behavior"):
+    for name in ("stage-two", "stage-three", "stage-four", "behavior"):
         path = publication_root / name
         if path.is_symlink() or not path.is_dir():
             raise BootstrapError(
@@ -5220,6 +5397,7 @@ def _bootstrap_from_frozen_seed(
         )
         private_source_root = source_inputs.root
         require_source_closures(source_inputs, source_root, plan)
+        require_live_seed_inputs(seed_inputs)
         source_snapshot = source_inputs.inventory
         source_snapshot_digest = _source_snapshot_sha256(
             source_snapshot
@@ -5237,6 +5415,7 @@ def _bootstrap_from_frozen_seed(
             "stage two",
         )
         require_source_closures(source_inputs, source_root, plan)
+        require_live_seed_inputs(seed_inputs)
         stage_two_producers = {
             name: stage_two.tools[name] for name in PRODUCER_NAMES
         }
@@ -5249,6 +5428,20 @@ def _bootstrap_from_frozen_seed(
             "stage three",
         )
         require_source_closures(source_inputs, source_root, plan)
+        require_live_seed_inputs(seed_inputs)
+        stage_three_producers = {
+            name: stage_three.tools[name] for name in PRODUCER_NAMES
+        }
+        stage_four = _build_stage(
+            runner,
+            private_source_root,
+            private_source_root / "stage-four",
+            stage_three_producers,
+            plan,
+            "stage four",
+        )
+        require_source_closures(source_inputs, source_root, plan)
+        require_live_seed_inputs(seed_inputs)
         raw_sources = _require_list(
             plan.get("sources"), "build_plan.sources"
         )
@@ -5257,18 +5450,17 @@ def _bootstrap_from_frozen_seed(
             for source in raw_sources
         ]
         comparisons = _compare_stages(
-            stage_two, stage_three, source_names
+            stage_three, stage_four, source_names
         )
         behavior_evidence: dict[str, object] = {}
         behavior = _run_behavior_checks(
             runner,
             private_source_root,
             private_source_root,
-            stage_two,
             stage_three,
+            stage_four,
             behavior_evidence,
         )
-        require_source_closures(source_inputs, source_root, plan)
         windows_runtime = behavior_evidence.get("windows_runtime")
         if not isinstance(windows_runtime, dict):
             raise BootstrapError("Windows runtime evidence is absent")
@@ -5310,6 +5502,7 @@ def _bootstrap_from_frozen_seed(
         }
         report: dict[str, object] = {
             "behavior": behavior,
+            "behavior_generations": ["stage-three", "stage-four"],
             "build_plan_sha256": manifest["build_plan_sha256"],
             "comparisons": comparisons,
             "host_execution": {
@@ -5339,6 +5532,11 @@ def _bootstrap_from_frozen_seed(
             },
             "source_snapshot_sha256": source_snapshot_digest,
             "stages": {
+                "stage-four": {
+                    "objects": _artifact_inventory(stage_four.objects),
+                    "producer_generation": "stage-three",
+                    "tools": _artifact_inventory(stage_four.tools),
+                },
                 "stage-three": {
                     "objects": _artifact_inventory(
                         stage_three.objects
@@ -5375,6 +5573,8 @@ def _bootstrap_from_frozen_seed(
             (private_source_root / name).replace(
                 publication_root / name
             )
+        require_source_closures(source_inputs, source_root, plan)
+        require_live_seed_inputs(seed_inputs)
         publish_bootstrap_outputs(publication_root, output_root)
         return report
 
@@ -5418,6 +5618,7 @@ def _bootstrap_windows_from_frozen_seed(
         require_source_closures(
             source_inputs, source_root, linux_plan
         )
+        require_live_seed_inputs(seed_inputs, plan_inputs)
         source_snapshot = source_inputs.inventory
         source_snapshot_digest = _source_snapshot_sha256(
             source_snapshot
@@ -5437,6 +5638,7 @@ def _bootstrap_windows_from_frozen_seed(
         require_source_closures(
             source_inputs, source_root, linux_plan
         )
+        require_live_seed_inputs(seed_inputs, plan_inputs)
         stage_two_producers = {
             name: stage_two.tools[name] for name in PRODUCER_NAMES
         }
@@ -5451,6 +5653,22 @@ def _bootstrap_windows_from_frozen_seed(
         require_source_closures(
             source_inputs, source_root, linux_plan
         )
+        require_live_seed_inputs(seed_inputs, plan_inputs)
+        stage_three_producers = {
+            name: stage_three.tools[name] for name in PRODUCER_NAMES
+        }
+        stage_four = _build_windows_stage(
+            runner,
+            private_source_root,
+            private_source_root / "stage-four",
+            stage_three_producers,
+            native_plan,
+            "stage four",
+        )
+        require_source_closures(
+            source_inputs, source_root, linux_plan
+        )
+        require_live_seed_inputs(seed_inputs, plan_inputs)
         raw_sources = _require_list(
             native_plan.get("sources"), "Windows build plan sources"
         )
@@ -5471,19 +5689,17 @@ def _bootstrap_windows_from_frozen_seed(
             for source in raw_assembly
         ]
         comparisons = _compare_windows_stages(
-            stage_two,
             stage_three,
+            stage_four,
             c_source_names,
             assembly_names,
         )
         behavior = _run_native_windows_behavior_checks(
             runner,
             private_source_root,
-            stage_two,
             stage_three,
-        )
-        require_source_closures(
-            source_inputs, source_root, linux_plan
+            stage_four,
+            native_plan,
         )
         seed_matches_stage_two = {
             name: seed_tools[name].read_bytes()
@@ -5492,6 +5708,7 @@ def _bootstrap_windows_from_frozen_seed(
         }
         report: dict[str, object] = {
             "behavior": behavior,
+            "behavior_generations": ["stage-three", "stage-four"],
             "build_plan": native_plan,
             "build_plan_sha256": _build_plan_sha256(native_plan),
             "comparisons": comparisons,
@@ -5507,6 +5724,11 @@ def _bootstrap_windows_from_frozen_seed(
             },
             "source_snapshot_sha256": source_snapshot_digest,
             "stages": {
+                "stage-four": {
+                    "objects": _artifact_inventory(stage_four.objects),
+                    "producer_generation": "native-stage-three",
+                    "tools": _artifact_inventory(stage_four.tools),
+                },
                 "stage-three": {
                     "objects": _artifact_inventory(
                         stage_three.objects
@@ -5544,6 +5766,10 @@ def _bootstrap_windows_from_frozen_seed(
             (private_source_root / name).replace(
                 publication_root / name
             )
+        require_source_closures(
+            source_inputs, source_root, linux_plan
+        )
+        require_live_seed_inputs(seed_inputs, plan_inputs)
         publish_bootstrap_outputs(publication_root, output_root)
         return report
 
@@ -5554,7 +5780,7 @@ def bootstrap_windows_from_seed(
     source_root: Path,
     output_root: Path,
 ) -> dict[str, object]:
-    """Build two native PE generations from the checked Windows seed."""
+    """Build three native PE generations from the checked Windows seed."""
     with tempfile.TemporaryDirectory(
         prefix="cupid-windows-bootstrap-inputs-"
     ) as temporary:
@@ -5617,7 +5843,7 @@ def _build_parser() -> argparse.ArgumentParser:
     verify.add_argument("--manifest", required=True, type=Path)
     bootstrap = subparsers.add_parser(
         "bootstrap",
-        help="build and compare stage two and stage three from the seed",
+        help="build through stage four and compare the last two stages",
     )
     bootstrap.add_argument("--manifest", required=True, type=Path)
     bootstrap.add_argument("--root", required=True, type=Path)
@@ -5625,7 +5851,8 @@ def _build_parser() -> argparse.ArgumentParser:
     windows_bootstrap = subparsers.add_parser(
         "bootstrap-windows",
         help=(
-            "build and compare two native Windows stages from the PE seed"
+            "build through native Windows stage four and compare the last "
+            "two stages"
         ),
     )
     windows_bootstrap.add_argument(
@@ -5666,7 +5893,7 @@ def main(argv: list[str] | None = None) -> int:
             )
             print(
                 "checked i386 Linux bootstrap: ok "
-                "(stage two equals stage three)"
+                "(stage three equals stage four)"
             )
             return 0
         if arguments.command == "bootstrap-windows":
@@ -5678,7 +5905,7 @@ def main(argv: list[str] | None = None) -> int:
             )
             print(
                 "checked i386 Windows bootstrap: ok "
-                "(native stage two equals stage three)"
+                "(native stage three equals stage four)"
             )
             return 0
         if arguments.command == "run":

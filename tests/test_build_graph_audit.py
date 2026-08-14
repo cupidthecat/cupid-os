@@ -5245,6 +5245,24 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 '                "_WIN64=1",\n',
                 r"fixed-point PE32 behavior differs",
             ),
+            "Windows CupidDis driver loses its Windows profile": (
+                "bootstrap",
+                '            "_WIN32=1",\n'
+                '            "-c",\n'
+                '            "/toolchain/cupiddis_main.cc",\n',
+                '            "_WIN64=1",\n'
+                '            "-c",\n'
+                '            "/toolchain/cupiddis_main.cc",\n',
+                r"fixed-point PE32 behavior differs",
+            ),
+            "Windows CupidDis replacement crosses generations": (
+                "bootstrap",
+                '    stage_two_windows_cupiddis_replacements = {\n'
+                '        "cupiddis_main": stage_two_windows_cupiddis_main,\n',
+                '    stage_two_windows_cupiddis_replacements = {\n'
+                '        "cupiddis_main": stage_three_windows_cupiddis_main,\n',
+                r"fixed-point PE32 behavior differs",
+            ),
             "Windows helper links the wrong image format": (
                 "bootstrap",
                 '            "i386pe",\n',
@@ -5821,6 +5839,47 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "            output_root / \"stage-two\",\n",
                 r"fixed-point source freeze differs",
             ),
+            "checked stage four uses an older compiler generation": (
+                "bootstrap",
+                "            private_source_root / \"stage-four\",\n"
+                "            stage_three_producers,\n"
+                "            plan,\n",
+                "            private_source_root / \"stage-four\",\n"
+                "            stage_two_producers,\n"
+                "            plan,\n",
+                r"fixed-point source freeze differs",
+            ),
+            "checked comparison stops one generation early": (
+                "bootstrap",
+                "        comparisons = _compare_stages(\n"
+                "            stage_three, stage_four, source_names\n"
+                "        )\n",
+                "        comparisons = _compare_stages(\n"
+                "            stage_two, stage_three, source_names\n"
+                "        )\n",
+                r"fixed-point source freeze differs",
+            ),
+            "checked behavior stops one generation early": (
+                "bootstrap",
+                "            private_source_root,\n"
+                "            stage_three,\n"
+                "            stage_four,\n"
+                "            behavior_evidence,\n",
+                "            private_source_root,\n"
+                "            stage_two,\n"
+                "            stage_three,\n"
+                "            behavior_evidence,\n",
+                r"fixed-point source freeze differs",
+            ),
+            "checked publication omits stage four": (
+                "bootstrap",
+                "    \"stage-three\",\n"
+                "    \"stage-four\",\n"
+                "    \"behavior\",\n",
+                "    \"stage-three\",\n"
+                "    \"behavior\",\n",
+                r"fixed-point source freeze differs",
+            ),
             "checked closure boundary rehash disappears": (
                 "bootstrap",
                 "        require_source_closures("
@@ -5899,6 +5958,44 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "            source_root,\n",
                 r"fixed-point source freeze differs",
             ),
+            "native Windows stage four uses an older compiler generation": (
+                "bootstrap",
+                "            private_source_root / \"stage-four\",\n"
+                "            stage_three_producers,\n"
+                "            native_plan,\n",
+                "            private_source_root / \"stage-four\",\n"
+                "            stage_two_producers,\n"
+                "            native_plan,\n",
+                r"fixed-point source freeze differs",
+            ),
+            "native Windows comparison stops one generation early": (
+                "bootstrap",
+                "        comparisons = _compare_windows_stages(\n"
+                "            stage_three,\n"
+                "            stage_four,\n",
+                "        comparisons = _compare_windows_stages(\n"
+                "            stage_two,\n"
+                "            stage_three,\n",
+                r"fixed-point source freeze differs",
+            ),
+            "native Windows behavior stops one generation early": (
+                "bootstrap",
+                "        behavior = _run_native_windows_behavior_checks(\n"
+                "            runner,\n"
+                "            private_source_root,\n"
+                "            stage_three,\n"
+                "            stage_four,\n"
+                "            native_plan,\n"
+                "        )\n",
+                "        behavior = _run_native_windows_behavior_checks(\n"
+                "            runner,\n"
+                "            private_source_root,\n"
+                "            stage_two,\n"
+                "            stage_three,\n"
+                "            native_plan,\n"
+                "        )\n",
+                r"fixed-point source freeze differs",
+            ),
             "native Windows closure boundary rehash disappears": (
                 "bootstrap",
                 "        require_source_closures(\n"
@@ -5931,6 +6028,35 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 '            path = "/toolchain/hosted/i386-linux/runtime.cc"\n',
                 r"native Windows fixed-point behavior differs",
             ),
+            "native Windows CupidDis loses its Windows profile": (
+                "bootstrap",
+                "        \"cupidc_main\",\n"
+                "        \"cupiddis_main\",\n"
+                "        \"cupidld_main\",\n",
+                "        \"cupidc_main\",\n"
+                "        \"cupidld_main\",\n",
+                r"fixed-point source freeze differs",
+            ),
+            "native Windows includes bypass the Linux plan": (
+                "bootstrap",
+                "            linux_plan.get(\"include_arguments\"),\n",
+                "            EXPECTED_INCLUDE_ARGUMENTS,\n",
+                r"native Windows fixed-point behavior differs",
+            ),
+            "native Windows links bypass the Linux plan": (
+                "bootstrap",
+                "        native_order = list(linux_order)\n",
+                "        native_order = list(EXPECTED_LINKS[tool_name])\n",
+                r"native Windows fixed-point behavior differs",
+            ),
+            "native Windows linker bypasses the derived order": (
+                "bootstrap",
+                "    arguments.extend(objects[name] for name in link_order)\n",
+                "    arguments.extend(\n"
+                "        objects[name] for name in EXPECTED_LINKS[tool_name]\n"
+                "    )\n",
+                r"native Windows fixed-point behavior differs",
+            ),
             "native Windows stage skips PE validation": (
                 "bootstrap",
                 "        _validate_static_i386_pe32(\n"
@@ -5957,22 +6083,32 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             ),
             "native Windows tool comparison disappears": (
                 "bootstrap",
-                "            stage_two.tools[name].read_bytes()\n"
+                "            stage_three.tools[name].read_bytes()\n"
+                "            != stage_four.tools[name].read_bytes()\n",
+                "            stage_three.tools[name].read_bytes()\n"
                 "            != stage_three.tools[name].read_bytes()\n",
-                "            stage_two.tools[name].read_bytes()\n"
-                "            != stage_two.tools[name].read_bytes()\n",
                 r"native Windows fixed-point behavior differs",
             ),
             "native Windows relink moves under a dead block": (
                 "bootstrap",
-                "    stage_three_linked = "
-                'behavior_root / "stage-three-relinked.exe"\n'
+                '            raw_links.get("cupidasm"),\n'
+                '            "Windows build plan links: cupidasm",\n'
+                "        )\n"
+                "    ]\n"
                 "    link_result = _run_stage_pair(\n",
-                "    stage_three_linked = "
-                'behavior_root / "stage-three-relinked.exe"\n'
+                '            raw_links.get("cupidasm"),\n'
+                '            "Windows build plan links: cupidasm",\n'
+                "        )\n"
+                "    ]\n"
                 "    if False:\n"
                 "        link_result = _run_stage_pair(\n",
                 r"native Windows fixed-point behavior differs",
+            ),
+            "behavior evidence relabels generation four as generation two": (
+                "bootstrap",
+                'f"stage-four-windows-{tool_name}-{source_name}.o"',
+                'f"stage-two-windows-{tool_name}-{source_name}.o"',
+                r"fixed-point PE32 behavior differs",
             ),
         }
         for name, (target_name, old, new, message) in mutations.items():
@@ -8258,6 +8394,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                     make,
                     (
                         "BOOTSTRAP_SEED_MANIFEST",
+                        "BOOTSTRAP_WINDOWS_SEED_MANIFEST",
                         "PRODUCTION_SEED_MANIFEST",
                         "PRODUCTION_SEED_INPUTS",
                         "CHECKED_SEED_INPUTS",
@@ -8320,6 +8457,10 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 "bootstrap/seeds/i386-linux/manifest.json",
             )
             self.assertEqual(
+                root_values["BOOTSTRAP_WINDOWS_SEED_MANIFEST"],
+                "bootstrap/seeds/i386-windows/manifest.json",
+            )
+            self.assertEqual(
                 user_values["BOOTSTRAP_SEED_MANIFEST"],
                 "../bootstrap/seeds/i386-linux/manifest.json",
             )
@@ -8328,7 +8469,7 @@ class BuildGraphAuditCliTests(unittest.TestCase):
                 {f"../{path}" for path in LINUX_BOOTSTRAP_SEED_INPUTS},
             )
 
-    def test_bootstrap_and_artifact_size_recipes_keep_the_linux_seed(self):
+    def test_bootstrap_recipes_keep_their_explicit_seed_roles(self):
         make = shutil.which("make")
         if make is None:
             self.skipTest("GNU Make is unavailable")
@@ -8348,6 +8489,15 @@ class BuildGraphAuditCliTests(unittest.TestCase):
             "bootstrap-from-seed": (
                 "tools/bootstrap_toolchain.py bootstrap",
                 "--root . --manifest $(BOOTSTRAP_SEED_MANIFEST)",
+            ),
+            "verify-windows-bootstrap-seed": (
+                "tools/bootstrap_toolchain.py verify",
+                "--manifest $(BOOTSTRAP_WINDOWS_SEED_MANIFEST)",
+            ),
+            "bootstrap-windows-from-seed": (
+                "tools/bootstrap_toolchain.py bootstrap-windows",
+                "--manifest $(BOOTSTRAP_WINDOWS_SEED_MANIFEST)",
+                "--plan-manifest $(BOOTSTRAP_SEED_MANIFEST)",
             ),
             "verify-artifact-sizes": (
                 "tools/artifact_size_policy.py verify --root .",

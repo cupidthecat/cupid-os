@@ -1,5 +1,6 @@
 import contextlib
 import io
+import os
 import subprocess
 import tempfile
 import unittest
@@ -144,11 +145,26 @@ class HostbuildAssembleBootloaderTests(unittest.TestCase):
         cases = (
             ("missing map", "missing-map", "range map does not exist"),
             ("empty map", "empty-map", "range map may not be empty"),
+            (
+                "source drift",
+                "source-drift",
+                "code input changed while CupidASM ran",
+            ),
+            (
+                "seed drift",
+                "seed-drift",
+                "checked seed inputs changed while checked tools ran",
+            ),
             ("map drift", "map-drift", "range map changed while CupidDis ran"),
             (
                 "candidate drift",
                 "candidate-drift",
                 "checked CupidASM output changed while CupidDis ran",
+            ),
+            (
+                "published output drift",
+                "output-drift",
+                "code output changed while checked tools ran",
             ),
         )
         for name, failure, expected in cases:
@@ -156,7 +172,7 @@ class HostbuildAssembleBootloaderTests(unittest.TestCase):
                 prefix="hostbuild-bootloader-reject-"
             ) as temporary:
                 root = Path(temporary)
-                seed, _, output = self._write_fixture(root)
+                seed, source, output = self._write_fixture(root)
                 original = output.read_bytes()
                 checked_seed = object()
 
@@ -180,10 +196,21 @@ class HostbuildAssembleBootloaderTests(unittest.TestCase):
                             range_map.write_bytes(
                                 b"" if failure == "empty-map" else b"map\n"
                             )
+                        if failure == "source-drift":
+                            source.write_text(
+                                "bits 16\norg 0x7c00\ncli\n",
+                                encoding="utf-8",
+                            )
+                        if failure == "seed-drift":
+                            (seed.parent / "cupidasm.elf").write_bytes(
+                                b"changed assembler"
+                            )
                     elif failure == "map-drift":
                         range_map.write_bytes(b"changed map\n")
                     elif failure == "candidate-drift":
                         candidate.write_bytes(bytes([1]) * 2560)
+                    elif failure == "output-drift":
+                        output.write_bytes(b"competing publisher")
                     return subprocess.CompletedProcess(
                         list(arguments), 0, "", ""
                     )
@@ -203,7 +230,127 @@ class HostbuildAssembleBootloaderTests(unittest.TestCase):
                 self.assertEqual(status, 1)
                 self.assertEqual(stdout, "")
                 self.assertIn(expected, stderr)
+                expected_output = (
+                    b"competing publisher"
+                    if failure == "output-drift"
+                    else original
+                )
+                self.assertEqual(output.read_bytes(), expected_output)
+
+    def test_output_lock_rejects_work_and_preserves_the_bootloader(self):
+        with tempfile.TemporaryDirectory(
+            prefix="hostbuild-bootloader-lock-"
+        ) as temporary:
+            root = Path(temporary)
+            seed, _, output = self._write_fixture(root)
+            original = output.read_bytes()
+            lock = hostbuild._acquire_disk_publication_lock(output.resolve())
+            try:
+                with mock.patch(
+                    "tools.hostbuild.run_seed_tool",
+                    side_effect=AssertionError(
+                        "checked tools must not run while the output is locked"
+                    ),
+                ):
+                    status, stdout, stderr = self._run_cli(root, seed)
+            finally:
+                hostbuild._release_disk_publication_lock(lock)
+
+            self.assertEqual(status, 1)
+            self.assertEqual(stdout, "")
+            self.assertIn("another hostbuild publisher is active", stderr)
+            self.assertEqual(output.read_bytes(), original)
+
+    def test_replaced_output_parent_stops_publication_without_leaking_candidates(self):
+        with tempfile.TemporaryDirectory(
+            prefix="hostbuild-bootloader-parent-swap-"
+        ) as temporary:
+            root = Path(temporary)
+            seed, source, output = self._write_fixture(root)
+            original = output.read_bytes()
+            displaced = root / "original-boot"
+            replacement = root / "replacement-boot"
+            replacement.mkdir()
+            (replacement / "boot.asm").write_bytes(source.read_bytes())
+            (replacement / "boot.bin").write_bytes(b"competing bootloader")
+            (replacement / "keep.txt").write_bytes(b"keep replacement")
+            checked_seed = object()
+
+            def run_checked(
+                seed_manifest,
+                working_directory,
+                tool_name,
+                arguments,
+                *,
+                timeout,
+                frozen_seed,
+            ):
+                del seed_manifest, timeout
+                self.assertIs(frozen_seed, checked_seed)
+                private_root = Path(working_directory)
+                if tool_name == "cupidasm":
+                    (private_root / ".cupid-output" / "boot.bin").write_bytes(
+                        bytes(2560)
+                    )
+                    (
+                        private_root / ".cupid-output" / "boot.bin.cupidmap"
+                    ).write_bytes(b"map\n")
+                elif os.name != "nt":
+                    output.parent.rename(displaced)
+                    replacement.rename(output.parent)
+                return subprocess.CompletedProcess(list(arguments), 0, "", "")
+
+            parent_guard = (
+                mock.patch(
+                    "tools.hostbuild._require_code_output_parent_unchanged",
+                    side_effect=hostbuild.CodeValidationError(
+                        "code output parent changed while checked tools ran"
+                    ),
+                )
+                if os.name == "nt"
+                else contextlib.nullcontext()
+            )
+            with (
+                parent_guard,
+                mock.patch(
+                    "tools.hostbuild.freeze_seed_inputs",
+                    return_value=checked_seed,
+                ),
+                mock.patch(
+                    "tools.hostbuild.run_seed_tool",
+                    side_effect=run_checked,
+                ),
+            ):
+                status, stdout, stderr = self._run_cli(root, seed)
+
+            self.assertEqual(status, 1)
+            self.assertEqual(stdout, "")
+            self.assertIn(
+                "code output parent changed while checked tools ran",
+                stderr,
+            )
+            preserved_replacement = (
+                replacement if os.name == "nt" else output.parent
+            )
+            self.assertEqual(
+                (preserved_replacement / "boot.bin").read_bytes(),
+                b"competing bootloader",
+            )
+            self.assertEqual(
+                (preserved_replacement / "keep.txt").read_bytes(),
+                b"keep replacement",
+            )
+            if os.name == "nt":
                 self.assertEqual(output.read_bytes(), original)
+            else:
+                self.assertEqual((displaced / "boot.bin").read_bytes(), original)
+            self.assertFalse(
+                any(
+                    path.is_dir() and path.name.startswith(".bootloader-")
+                    for path in root.rglob("*")
+                )
+            )
+            self.assertEqual(list(root.rglob(".cupid-output")), [])
 
     def test_cupiddis_rejection_preserves_the_published_bootloader(self):
         with tempfile.TemporaryDirectory(

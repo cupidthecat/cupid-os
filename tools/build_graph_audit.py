@@ -8763,8 +8763,8 @@ def _cupid_toolchain_fixed_point_contract(
     )
     expected_helper_compile_loop = ast.parse(
         """for source_name in replacement_names:
-    stage_two_object = behavior_root / f"stage-two-windows-{tool_name}-{source_name}.o"
-    stage_three_object = behavior_root / f"stage-three-windows-{tool_name}-{source_name}.o"
+    stage_two_object = behavior_root / f"stage-three-windows-{tool_name}-{source_name}.o"
+    stage_three_object = behavior_root / f"stage-four-windows-{tool_name}-{source_name}.o"
     compile_result = _run_stage_pair(
         runner, stage_two, stage_three, "cupidc",
         ["--root", source_root, "-D", "_WIN32=1", "-c",
@@ -8784,8 +8784,8 @@ def _cupid_toolchain_fixed_point_contract(
     _validate_i386_relocatable(stage_two_object)
     stage_two_replacements[source_name] = stage_two_object
     stage_three_replacements[source_name] = stage_three_object
-    compile_artifacts[f"stage-two-{source_name}"] = stage_two_object
-    compile_artifacts[f"stage-three-{source_name}"] = stage_three_object
+    compile_artifacts[f"stage-three-{source_name}"] = stage_two_object
+    compile_artifacts[f"stage-four-{source_name}"] = stage_three_object
 """
     ).body[0]
     helper_link_functions = (
@@ -8883,7 +8883,7 @@ def _cupid_toolchain_fixed_point_contract(
     windows_helper_matches = (
         len(windows_helper_functions) == 1
         and node_fingerprint(windows_helper_functions[0])
-        == "456db1a900490fb9dc82c591dae06085bb76114113ee7bb6ea759ac96e58503e"
+        == "a82a769d5cb11f8fbeed7ec6a4915cd0983bb34f636c6ec74516768d6c726aa2"
         and helper_stage_tools == ("cupidld",)
         and helper_status_count == 1
         and helper_relocatable_count == 1
@@ -9374,6 +9374,56 @@ def _cupid_toolchain_fixed_point_contract(
         and node_shape(statement.test)
         == expression_shape("os.name == 'nt'")
     ]
+
+    def direct_behavior_assignment(name: str) -> ast.AST | None:
+        matches = [
+            statement.value
+            for statement in behavior_function.body
+            if isinstance(statement, ast.Assign)
+            and len(statement.targets) == 1
+            and isinstance(statement.targets[0], ast.Name)
+            and statement.targets[0].id == name
+        ]
+        return matches[0] if len(matches) == 1 else None
+
+    windows_cupiddis_compile = direct_behavior_assignment(
+        "windows_cupiddis_main_compile_result"
+    )
+    windows_cupiddis_stage_three_replacements = direct_behavior_assignment(
+        "stage_two_windows_cupiddis_replacements"
+    )
+    windows_cupiddis_stage_four_replacements = direct_behavior_assignment(
+        "stage_three_windows_cupiddis_replacements"
+    )
+    windows_cupiddis_profile_matches = (
+        windows_cupiddis_compile is not None
+        and node_shape(windows_cupiddis_compile)
+        == expression_shape(
+            "_run_stage_pair(runner, stage_two, stage_three, 'cupidc', "
+            "['--root', source_root, '-D', '_WIN32=1', '-c', "
+            "'/toolchain/cupiddis_main.cc', '-I', '/toolchain', "
+            "'--include-angle', '/toolchain/hosted/i386-linux/include', "
+            "'-o', _logical_path(source_root, "
+            "stage_two_windows_cupiddis_main)], ['--root', source_root, "
+            "'-D', '_WIN32=1', '-c', '/toolchain/cupiddis_main.cc', "
+            "'-I', '/toolchain', '--include-angle', "
+            "'/toolchain/hosted/i386-linux/include', '-o', "
+            "_logical_path(source_root, "
+            "stage_three_windows_cupiddis_main)], 360)"
+        )
+        and windows_cupiddis_stage_three_replacements is not None
+        and node_shape(windows_cupiddis_stage_three_replacements)
+        == expression_shape(
+            "{'cupiddis_main': stage_two_windows_cupiddis_main, "
+            "'ctool_host': stage_two_windows_host_adapter}"
+        )
+        and windows_cupiddis_stage_four_replacements is not None
+        and node_shape(windows_cupiddis_stage_four_replacements)
+        == expression_shape(
+            "{'cupiddis_main': stage_three_windows_cupiddis_main, "
+            "'ctool_host': stage_three_windows_host_adapter}"
+        )
+    )
     required_windows_behavior_fragments = (
         "toolchain/hosted/i386-windows/start.asm",
         "toolchain/tests/hosted_i386_windows_contract.cc",
@@ -9418,6 +9468,10 @@ def _cupid_toolchain_fixed_point_contract(
         '[str(stage_two_windows_cupiddis), "--help"]',
         '"Cupid-built Windows CupidDis behavior differs"',
         '"cupiddis": {',
+        '"stage-four-main": (\n'
+        '                            stage_three_windows_cupiddis_main\n'
+        '                        )',
+        '"stage-three-main": stage_two_windows_cupiddis_main',
         "toolchain/tests/hosted_i386_windows_runtime_contract.cc",
         "windows_runtime_contract_compile_result = _run_stage_pair(",
         "stage_two_windows_runtime_contract.read_bytes()\n"
@@ -9463,7 +9517,7 @@ def _cupid_toolchain_fixed_point_contract(
         '"procedure": procedure': 3,
         '"slot": slot': 3,
         "str(stage_two_windows_runtime_contract_image)": 2,
-        '"_WIN32=1",': 4,
+        '"_WIN32=1",': 6,
         '"/toolchain/ctool_host.cc",': 2,
     }
     missing_windows_behavior_fragments = [
@@ -9476,6 +9530,14 @@ def _cupid_toolchain_fixed_point_contract(
         if behavior_source.count(fragment)
         != repeated_windows_behavior_fragments.get(fragment, 1)
     ]
+    behavior_generation_labels_match = (
+        "stage-two-" not in behavior_source
+        and "stage-three-" in behavior_source
+        and "stage-four-" in behavior_source
+        and "stage-two-" not in windows_helper_source
+        and "stage-three-" in windows_helper_source
+        and "stage-four-" in windows_helper_source
+    )
     if (
         positive_byte_comparisons
         != [("stage_two_pe32", "stage_three_pe32")]
@@ -9523,6 +9585,8 @@ def _cupid_toolchain_fixed_point_contract(
         or not native_guards_match
         or not native_workloads_match
         or not native_windows_control_flow_matches
+        or not windows_cupiddis_profile_matches
+        or not behavior_generation_labels_match
         or missing_windows_behavior_fragments
         or len(native_windows_indices) != 4
         or not (
@@ -9565,6 +9629,8 @@ def _cupid_toolchain_fixed_point_contract(
         f"guards={native_guards_match}, "
         f"workloads={native_workloads_match}, "
         f"control_flow={native_windows_control_flow_matches}, "
+        f"cupiddis_profile={windows_cupiddis_profile_matches}, "
+        f"labels={behavior_generation_labels_match}, "
         f"missing={missing_windows_behavior_fragments!r}"
         )
     sentinel_writes = [
@@ -9653,12 +9719,69 @@ def _cupid_toolchain_fixed_point_contract(
         "def require_source_closures(",
         "require_frozen_source_snapshot(source_inputs, plan)",
         "live_source_root, plan, source_inputs.inventory",
+        "def require_live_seed_inputs(",
+        "manifest_bytes != captured.manifest_bytes",
+        "live_bytes != expected_bytes",
     )
     missing_bootstrap_fragments = [
         f"helper: {fragment}"
         for fragment in required_bootstrap_helper_fragments
         if bootstrap_source.count(fragment) != 1
     ]
+
+    def bootstrap_assignment(name: str) -> object | None:
+        matches = [
+            statement.value
+            for statement in bootstrap_tree.body
+            if isinstance(statement, ast.Assign)
+            and len(statement.targets) == 1
+            and isinstance(statement.targets[0], ast.Name)
+            and statement.targets[0].id == name
+        ]
+        if len(matches) != 1:
+            return None
+        value = matches[0]
+        try:
+            if (
+                isinstance(value, ast.Call)
+                and isinstance(value.func, ast.Name)
+                and value.func.id == "frozenset"
+                and len(value.args) == 1
+                and not value.keywords
+            ):
+                return frozenset(ast.literal_eval(value.args[0]))
+            return ast.literal_eval(value)
+        except (TypeError, ValueError):
+            return None
+
+    if bootstrap_assignment("BOOTSTRAP_PUBLICATION_NAMES") != (
+        "stage-two",
+        "stage-three",
+        "stage-four",
+        "behavior",
+        "bootstrap-report.json",
+    ):
+        missing_bootstrap_fragments.append(
+            "publication must carry stages two through four"
+        )
+    if bootstrap_assignment("WINDOWS_COMPILE_DEFINES") != frozenset(
+        {
+            "ctool_host",
+            "cupidasm_main",
+            "cupidc_main",
+            "cupiddis_main",
+            "cupidld_main",
+            "cupidobj_main",
+            "publication_runtime",
+        }
+    ):
+        missing_bootstrap_fragments.append(
+            "native Windows compile definitions must cover every driver"
+        )
+    if "WINDOWS_LINKS" in bootstrap_source:
+        missing_bootstrap_fragments.append(
+            "native Windows links must come from the verified Linux plan"
+        )
     fixed_point_functions = {
         name: [
             statement
@@ -9702,13 +9825,32 @@ def _cupid_toolchain_fixed_point_contract(
         "runner = ToolRunner(private_source_root)",
         'private_source_root / "stage-two",',
         'private_source_root / "stage-three",',
+        'private_source_root / "stage-four",',
+        "stage_three_producers = {",
+        "stage_four = _build_stage(\n"
+        "            runner,\n"
+        "            private_source_root,\n"
+        "            private_source_root / \"stage-four\",\n"
+        "            stage_three_producers,\n"
+        "            plan,\n"
+        "            \"stage four\",\n"
+        "        )",
+        "comparisons = _compare_stages(\n"
+        "            stage_three, stage_four, source_names\n"
+        "        )",
         "behavior_evidence: dict[str, object] = {}",
         "behavior = _run_behavior_checks(\n"
         "            runner,\n"
         "            private_source_root,\n"
-        "            private_source_root,",
+        "            private_source_root,\n"
+        "            stage_three,\n"
+        "            stage_four,",
         "            behavior_evidence,\n"
         "        )",
+        '"behavior_generations": ["stage-three", "stage-four"],',
+        '"stage-four": {\n'
+        '                    "objects": _artifact_inventory(stage_four.objects),\n'
+        '                    "producer_generation": "stage-three",',
         'windows_runtime = behavior_evidence.get("windows_runtime")',
         'windows_cupiddis = windows_runtime.get("cupiddis")',
         'windows_runtime_contract = windows_runtime.get("runtime_contract")',
@@ -9740,10 +9882,13 @@ def _cupid_toolchain_fixed_point_contract(
         "runner = ToolRunner(private_source_root)",
         'private_source_root / "stage-two",',
         'private_source_root / "stage-three",',
+        'private_source_root / "stage-four",',
         "stage_two = _build_windows_stage(",
         "stage_three = _build_windows_stage(",
+        "stage_four = _build_windows_stage(",
         "comparisons = _compare_windows_stages(",
         "behavior = _run_native_windows_behavior_checks(",
+        '"behavior_generations": ["stage-three", "stage-four"],',
         '"schema": WINDOWS_REPORT_SCHEMA,',
         'report_path = private_source_root / "bootstrap-report.json"',
         'publication_root = private_workspace / "publication"',
@@ -9758,12 +9903,27 @@ def _cupid_toolchain_fixed_point_contract(
         "            runner,\n"
         "            private_source_root,\n"
         "            private_source_root / \"stage-three\",",
+        "stage_four = _build_windows_stage(\n"
+        "            runner,\n"
+        "            private_source_root,\n"
+        "            private_source_root / \"stage-four\",\n"
+        "            stage_three_producers,\n"
+        "            native_plan,\n"
+        "            \"stage four\",\n"
+        "        )",
+        "comparisons = _compare_windows_stages(\n"
+        "            stage_three,\n"
+        "            stage_four,",
         "behavior = _run_native_windows_behavior_checks(\n"
         "            runner,\n"
         "            private_source_root,\n"
-        "            stage_two,\n"
         "            stage_three,\n"
+        "            stage_four,\n"
+        "            native_plan,\n"
         "        )",
+        '"stage-four": {\n'
+        '                    "objects": _artifact_inventory(stage_four.objects),\n'
+        '                    "producer_generation": "native-stage-three",',
     )
     missing_bootstrap_fragments.extend(
         f"Windows driver: {fragment}"
@@ -9796,15 +9956,45 @@ def _cupid_toolchain_fixed_point_contract(
                 count += 1
         return count
 
-    if source_closure_call_count(linux_bootstrap_function, "plan") != 4:
+    if source_closure_call_count(linux_bootstrap_function, "plan") != 5:
         missing_bootstrap_fragments.append(
-            "Linux driver: four live and frozen closure checks"
+            "Linux driver: five live and frozen closure checks"
         )
     if source_closure_call_count(
         windows_bootstrap_function, "linux_plan"
-    ) != 4:
+    ) != 5:
         missing_bootstrap_fragments.append(
-            "Windows driver: four live and frozen closure checks"
+            "Windows driver: five live and frozen closure checks"
+        )
+
+    def live_seed_call_count(
+        function: ast.FunctionDef | ast.AsyncFunctionDef | None,
+        expected_names: list[str],
+    ) -> int:
+        if function is None:
+            return 0
+        return sum(
+            1
+            for node in ast.walk(function)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "require_live_seed_inputs"
+            and [
+                argument.id if isinstance(argument, ast.Name) else None
+                for argument in node.args
+            ]
+            == expected_names
+        )
+
+    if live_seed_call_count(linux_bootstrap_function, ["seed_inputs"]) != 5:
+        missing_bootstrap_fragments.append(
+            "Linux driver: five live seed cohort checks"
+        )
+    if live_seed_call_count(
+        windows_bootstrap_function, ["seed_inputs", "plan_inputs"]
+    ) != 5:
+        missing_bootstrap_fragments.append(
+            "Windows driver: five live execution and plan seed checks"
         )
 
     native_windows_function_names = (
@@ -9842,15 +10032,21 @@ def _cupid_toolchain_fixed_point_contract(
             '"publication_runtime.cc"',
             '"/toolchain/hosted/i386-windows/tool_start.asm"',
             '"publication_start.asm"',
-            '"links": {',
-            'name: list(WINDOWS_LINKS[name]) for name in TOOL_NAMES',
+            'raw_links = _require_object(linux_plan.get("links"), '
+            '"build_plan.links")',
+            'known_linux_objects = {"start", *source_names}',
+            "native_order = list(linux_order)",
+            'native_order.index("start") + 1',
+            'native_order.index("runtime")',
+            'linux_plan.get("include_arguments")',
+            '"links": links',
         ),
         "_windows_link_arguments": (
             '"i386pe"',
             '"0x00401000"',
             '"_start"',
             "for selector in _windows_import_selectors(tool_name):",
-            "objects[name] for name in WINDOWS_LINKS[tool_name]",
+            "objects[name] for name in link_order",
         ),
         "_build_windows_stage": (
             'producers["cupidc"]',
@@ -9860,16 +10056,18 @@ def _cupid_toolchain_fixed_point_contract(
             "        return name, object_path",
             "_validate_i386_relocatable(object_path)\n"
             "        objects[name] = object_path",
-            "_windows_link_arguments(tool_name, executable, objects)",
+            'native_plan.get("links"), "Windows build plan links"',
+            "tool_name, executable, objects, link_order",
             "_validate_static_i386_pe32(",
             "_windows_imports(tool_name)",
         ),
         "_compare_windows_stages": (
-            "stage_two.objects[name].read_bytes()",
             "stage_three.objects[name].read_bytes()",
-            "stage_two.tools[name].read_bytes()",
+            "stage_four.objects[name].read_bytes()",
             "stage_three.tools[name].read_bytes()",
+            "stage_four.tools[name].read_bytes()",
             '"all_equal": True',
+            '"compared_generations": ["stage-three", "stage-four"]',
         ),
         "_run_native_windows_behavior_checks": (
             "for tool_name in TOOL_NAMES:",
@@ -9882,6 +10080,10 @@ def _cupid_toolchain_fixed_point_contract(
             "        != stage_two_binary.read_bytes()",
             "stage_two_wrapped.read_bytes()",
             "stage_three_wrapped.read_bytes()",
+            'native_plan.get("links"), "Windows build plan links"',
+            'raw_links.get("cupidasm")',
+            "stage_two.objects,\n            link_order,",
+            "stage_three.objects,\n            link_order,",
             "link_result = _run_stage_pair(",
             'stage_two.tools["cupidasm"].read_bytes()',
             'stage_three.tools["cupidasm"].read_bytes()',
@@ -9894,6 +10096,12 @@ def _cupid_toolchain_fixed_point_contract(
             f"{name}: {fragment}"
             for fragment in fragments
             if source.count(fragment) != 1
+        )
+    if "EXPECTED_INCLUDE_ARGUMENTS" in native_windows_sources[
+        "_windows_build_plan"
+    ]:
+        missing_native_windows_fragments.append(
+            "_windows_build_plan: include arguments bypass the Linux plan"
         )
 
     behavior_functions = native_windows_functions[
@@ -10113,9 +10321,14 @@ def _cupid_toolchain_fixed_point_contract(
             "cupid.windows_runtime_contract",
             "cupid.windows_runtime_probe",
         ],
-        "stages": ["generation-one", "stage-two", "stage-three"],
+        "stages": [
+            "generation-one",
+            "stage-two",
+            "stage-three",
+            "stage-four",
+        ],
         "checked_seed_source_root": "private-captured",
-        "checked_seed_source_boundary_checks": 4,
+        "checked_seed_source_boundary_checks": 5,
         "checked_seed_publication": "complete-bundle",
     }
 

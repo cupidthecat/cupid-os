@@ -70,7 +70,7 @@ validated image, checks its exact stdout marker and empty stderr, and requires
 exit 37. The bootstrap report retains the observed result and both stages'
 object and image hashes.
 
-Both fixed-point stages build a shared hosted runtime and startup for native
+Each native bootstrap generation builds a shared hosted runtime and startup for
 CupidASM, CupidC, CupidDis, CupidLD, and CupidObj. The runtime provides
 arguments, a heap, separate standard streams, named-file reads and writes,
 append behavior, seeking, the current directory, and useful error mapping. A
@@ -84,15 +84,29 @@ The matching PE32 images form the checked Windows execution seed used by the
 normal user build and other output-bearing recipes. The Linux seed still runs
 through WSL for Toolchain contracts, the user ABI contract, and artifact-size
 policy. The native fixed-point command freezes the PE execution seed and a
-separate verified Linux plan manifest, then builds and compares two PE
-generations. Its first full run rejected concurrent source drift after stage
-two, so stable proof and seed promotion remain open. See [ADR
+separate verified Linux plan manifest. The seed builds stage two, stage two
+builds stage three, and stage three builds stage four. Stages two and three are
+transition generations. The convergence check compares stages three and four.
+The older stage-two to stage-three comparison stopped safely at
+`cupidobj_main`: after 821.9 seconds on Windows and after 883.3 seconds on
+Linux. New stack-probe code generation changed compiler-produced objects, so
+that comparison measured a transition instead of convergence. Later uncapped
+proofs passed: Windows matched 20 C objects, two assembly objects, and five
+tools in 20 minutes 43 seconds with 5/5/5 behavior cases; Linux matched 19 C
+objects, startup, and five tools in 24 minutes 22 seconds with 5/18/16 behavior
+cases. Both reports bind the same 50-input snapshot, SHA-256
+`d8481a39e0d1c7f42779a8c9f5fc5de10d7e5b9bc4df63ce6afe9ddd9c9716da`.
+Named clean-commit reproof and seed promotion remain pending. See [ADR
 0247](../docs/adr/0247-serialize-fixed-layout-pe32-images-with-cupidld.md) and
 [ADR
 0248](../docs/adr/0248-link-deterministic-pe32-imports-and-run-a-cupid-built-windows-command.md).
-ADR 0258 records checked-seed carriage, ADR 0268 records the shared runtime,
+ADR 0258 records checked-seed carriage. The Linux behavior reconstruction
+also found that `cupiddis_main.cc` lacked `_WIN32=1`; the corrected Windows
+profile, parity test, and audit guard now cover all five tool mains. ADR 0268 records the shared runtime,
 ADR 0269 records CupidLD publication, ADR 0272 records Windows execution seed
-carriage and production selection, and ADR 0278 records the native driver.
+carriage and production selection, ADR 0278 records the native driver, and
+[ADR 0279](../docs/adr/0279-prove-post-change-fixed-points-through-convergence.md)
+records the convergence rule.
 
 The checked-seed CLI uses an adjacent-candidate publisher for ELF and PE images.
 It creates the candidate with exclusive-create semantics, writes and closes it,

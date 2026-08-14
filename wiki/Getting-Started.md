@@ -12,7 +12,7 @@ This guide covers building Cupid OS from source and running it in QEMU.
 | **Python 3** | Portable host-side image and code-generation helpers |
 | **GNU Make** | Build system |
 | **QEMU** (`qemu-system-i386`) | x86 emulator for testing |
-| **WSL** (Windows only) | Runs the checked Linux seed for fixed-point reconstruction, Toolchain contracts, the user ABI contract, and artifact-size policy |
+| **WSL** (Windows only) | Runs the checked Linux seed for Linux fixed-point work, Toolchain contracts, the user ABI contract, and artifact-size policy; native Windows reconstruction does not use WSL |
 | **mtools** (optional) | Manual FAT16 inspection/copying from Linux hosts |
 | **GCC, Clang, and binutils** (optional) | Native development builds and comparison oracles; they do not produce normal OS artifacts |
 | **NASM** (optional) | Comparison oracle used by `make nasm-assembly-oracle` when installed |
@@ -55,9 +55,15 @@ wsl --install
 
 Run `make` from PowerShell or another native Windows shell. Output-bearing
 recipes run the checked PE32 Cupid tools directly. The Makefile still uses WSL
-for fixed-point reconstruction, Toolchain contracts, the user ABI contract,
-and artifact-size policy. The PE32 cohort has no native build plan, so this is
-not a native Windows fixed point. Install LLVM only for the explicit native
+for Toolchain contracts, the user ABI contract, and artifact-size policy. The
+native `bootstrap-windows` command pairs the PE execution seed with the
+verified Linux plan and builds through stage four without WSL. An uncapped
+stage-three to stage-four proof passes, but it began from uncommitted source.
+Named clean-commit reproof and seed promotion remain pending, so the checked
+execution seed is not yet a promoted native fixed point. Run
+`make verify-windows-bootstrap-seed`, then `make bootstrap-windows-from-seed`; a
+successful proof publishes under `build/bootstrap/checked-windows-seed`.
+Install LLVM only for the explicit native
 Toolchain contracts and native Windows comparison targets:
 
 ```powershell

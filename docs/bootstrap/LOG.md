@@ -25163,3 +25163,119 @@ The five-sector boot image remains byte-identical at SHA-256
 `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3`.
 A private QEMU boot ran `ls` and reached the guest JIT completion marker in
 46.9 seconds.
+
+## 2026-08-13: Prove guest AOT and add a fixed-point convergence generation
+
+The linked in-kernel CupidASM AOT path now has a complete guest smoke. A
+private boot ran `as -o /hello-aot /demos/hello.asm`, followed by
+`exec /hello-aot`. CupidASM produced a 15,680-byte ELF32 relocatable object.
+In-kernel CupidLD linked an 8,536-byte executable at `0x01A00000` with two
+`PT_LOAD` segments. The loader started PID 4, and that process exited normally.
+The complete smoke passed in 79.661 seconds.
+
+Source-stable fixed-point runs then exposed a problem with the comparison
+boundary. The native Windows run stopped safely at `cupidobj_main` after 821.9
+seconds. The Linux run stopped at the same object after 883.3 seconds. Neither
+run published a bundle. The stack-probe change alters compiler-produced object
+bytes, so stage two and stage three can represent the expected transition from
+the older seed to the new code generator. Comparing only those stages cannot
+prove convergence.
+
+Both drivers now build stage four with the stage-three producer trio. Stage two
+and stage three are transition generations, while stage three and stage four
+are the fixed-point comparison. The report and behavior gates use the final
+pair, and publication includes all three built stages only after every byte,
+behavior, source, and seed check passes. Complete Windows and Linux convergence
+runs are still pending. ADR 0279 records this rule.
+
+The SMP and bootloader paths now use one checked raw-image transaction. It owns
+the output lock, source and seed freezing, drift checks, private candidates,
+publication-boundary checks, and atomic replacement. The callers retain their
+image-size and raw-map policies. The central eight-test suite passed in 1.201
+seconds.
+
+## 2026-08-13: Harden convergence evidence and raw-image failures
+
+The four-generation drivers now compare and behavior-test stages three and
+four. Nested behavior artifacts use the same stage labels, and the audit
+rejects a return to transition-stage evidence. A native Windows unittest
+reached stage four without reporting a mismatch, then timed out at exactly
+1,200 seconds. One child briefly retained the private proof tree. That exact
+process tree was stopped, and the abandoned proof directories were moved to
+the Recycle Bin. The integration harness now allows 2,400 seconds for each
+fixed-point subprocess. Direct Windows and Linux proofs without a ceiling are
+running. This is progress through the convergence path, not a completed
+fixed-point result.
+
+Make now exposes the native proof through
+`verify-windows-bootstrap-seed` and `bootstrap-windows-from-seed`. The targets
+keep the checked PE execution seed separate from the Linux plan manifest and
+reserve `build/bootstrap/checked-windows-seed` for the complete published
+bundle. The Make dry run and two Make contract tests pass.
+
+The raw-image follow-up adds direct mismatch negatives and live-output drift
+checks for both the SMP and bootloader callers. The expanded eleven-test suite
+passed in 1.708 seconds.
+
+## 2026-08-13: Complete preliminary uncapped convergence proofs
+
+The direct Windows proof ran from 19:53:29 to 20:14:12 and passed in 20
+minutes 43 seconds. Stages three and four matched across 20 C objects, two
+assembly objects, and five tool images. The 5/5/5 behavior matrix passed on
+both compared stages. The direct Linux proof ran from 19:53:29 to 20:17:51
+and passed in 24 minutes 22 seconds. It matched 19 C objects, startup, and five
+tool images, then passed the 5/18/16 behavior matrix on both stages.
+
+Both reports bind the same 50-input source snapshot, SHA-256
+`d8481a39e0d1c7f42779a8c9f5fc5de10d7e5b9bc4df63ce6afe9ddd9c9716da`,
+and record `stage3=4`. Independent checks reproduced each
+report's inventory, hashes, and sizes. These proofs are preliminary because
+they started from uncommitted source. Named clean-commit reproof and seed
+promotion remain pending.
+
+The Linux behavior reconstruction also exposed one cross-path profile error.
+Four native Windows tools matched their direct builds. CupidDis kept the same
+387,584-byte size but changed from direct Windows SHA-256
+`07cff807224c425d686e32d54dc1ad541f57aaa624f7b736bba0f9ef5001ce6a` to
+reconstructed SHA-256
+`ad6147cd426e204756ec8bf52ae85c64fff9ad39b0bc26e5744f3c421be1e9aa`.
+The reconstructed plan had compiled `cupiddis_main.cc` without `_WIN32=1`.
+A test-first compile and link parity check now covers every Windows tool main,
+and the bootstrap audit guards the same profile.
+
+Raw-image parent-replacement tests found a separate POSIX candidate leak.
+Private work had lived below the output parent, so replacing that parent could
+leave a candidate behind. Private roots now live directly below the stable
+repository root. Both caller modules pass all 10 tests on Windows and all 10
+through WSL, including parent replacement without a leaked candidate.
+
+The regenerated active-source audit retained its counts and source digest.
+Its 2,673,345-byte JSON record has SHA-256
+`f7c76234583f851fd3c25592e02d3e0b434e01cd344c50957704671767cd2a6c`;
+the 12,269-byte summary has SHA-256
+`1cb16ea4cbf4ec84d447bcb9e85b8ea2062078fec32a5e5254bfc700cc2d39ec`.
+
+### Final review boundary hardening
+
+The fixed-point drivers now treat live seed state as a repeated trust check.
+The Linux path reloads its bootstrap manifest and all five listed artifacts at
+every generation boundary and immediately before publication. Native Windows
+does the same for both roles, checking the PE execution seed separately from
+the Linux plan seed. A changed manifest or artifact aborts without exposing a
+public report bundle.
+
+Linux behavior evidence now inventories the stage-three and stage-four Windows
+`cupiddis_main` objects. The audit binds each Windows-profile compile to the
+object replacement used by the matching reconstructed behavior link. This
+closes the review gap that let the final PE evidence omit the driver-main
+object lineage.
+
+Six runtime mutations cover one manifest and one artifact in each live seed
+cohort: Linux, Windows execution, and Windows plan. The first five cases
+failed before the fix because every mutation reached stage three. The
+completed matrix passes inside a five-test focused command in 2.294 seconds.
+AST guards require five seed checks in each driver, including the final
+prepublication boundary. They also bind both `cupiddis_main` inventory entries
+to the compile and replacement path. The complete mutation audit passed in
+119.241 seconds. The earlier uncapped proofs remain preliminary because this
+hardening still needs a run from a named clean commit.

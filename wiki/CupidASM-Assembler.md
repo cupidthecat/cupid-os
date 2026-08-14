@@ -68,7 +68,10 @@ It applies the caller's ordered `main` and `_start` entry candidates, publishes
 the selected spelling, and promotes only that code label to a global symbol.
 In-kernel CupidLD then resolves relocations and links the executable at the
 existing `0x01A00000` text address. JIT keeps the direct fixed-image path.
-ADR 0276 records this split.
+A private guest smoke ran `as -o /hello-aot /demos/hello.asm`, followed by
+`exec /hello-aot`. CupidASM produced a 15,680-byte `ET_REL` object. CupidLD
+linked an 8,536-byte ELF with two `PT_LOAD` segments, and PID 4 exited normally.
+The complete smoke passed in 79.661 seconds. ADR 0276 records this split.
 
 ---
 
@@ -183,6 +186,17 @@ size, repeated or missing fields, invalid kinds, and unordered starts before
 decoding. The map option cannot be combined with manual mode, base, or range
 options. ADR 0277 records the schema.
 
+One checked raw-image transaction serves the SMP and bootloader callers. It
+owns output locking, source and seed freezing, drift checks, private candidates,
+and atomic publication. Each caller retains its image-size and map policy. The
+expanded eleven-test suite passed in 1.708 seconds, including direct mismatch
+and live-output drift checks for both callers. Parent-replacement tests exposed
+a POSIX candidate leak when private work lived below the output parent. Private
+roots now live directly below the stable repository root. Both caller modules
+pass all 10 tests on Windows and through WSL. The normal bootloader Make
+edge remains on direct checked CupidASM until seed promotion carries `--map`
+and `--range-map`.
+
 The normal SMP trampoline recipe uses this map as a publication gate.
 Hostbuild freezes the selected seed and source, asks CupidASM for a private
 4,096-byte candidate, and runs CupidDis with `--require-known`. The exact map
@@ -220,21 +234,22 @@ final ELF with SHA-256
 `a0b57cd886369762b65d657bb3f2915ada8f30b52102535add89466eaf4f5976` and an
 8,946,332-byte raw kernel with SHA-256
 `4f5f2591d01bcc4007773844e9bfb8112a16dd17fbd178014cc2056fefaab67d`.
-The current hostbuild transaction freezes the selected seed manifest and all
+At that handoff checkpoint, hostbuild froze the selected seed manifest and all
 five artifacts, the 431-entry input manifest and cohort, and the existing
-`kernel.bin` boundary. Checked CupidDis validates the private cohort before
-checked CupidObj flattens the frozen final ELF. Hostbuild rechecks live trust
+`kernel.bin` boundary. Checked CupidDis validated the private cohort before
+checked CupidObj flattened the frozen final ELF. Hostbuild rechecked live trust
 inputs and the output before parent-relative atomic publication. Every failure
-preserves the prior raw kernel. The transaction passed with exit 0 in 187.054
+preserved the prior raw kernel. The transaction passed with exit 0 in 187.054
 seconds and published the same 8,946,332-byte raw kernel and SHA-256. The
 focused hostbuild suites each passed 31 tests on Windows and in WSL;
 platform-specific cases were skipped on the opposite host. Moving private
 flatten extraction onto the shared pinned-path helper remains deferred
 maintenance.
-The source-current 2026-08-13 poisoned-host build completed through the checked
+The next 2026-08-13 poisoned-host checkpoint completed through the checked
 native Windows execution seed. Its first invocation stopped at the 602.5-second
 command limit; the resumed build finished in 968.5 seconds, for 1,571.0 seconds
-of cumulative work. These artifacts supersede the earlier identities above.
+of cumulative work. These artifacts superseded the earlier identities above
+when the checkpoint was recorded.
 The 2,560-byte `boot.bin` has SHA-256
 `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3`.
 The 9,056,612-byte pass-one ELF has SHA-256
@@ -253,6 +268,17 @@ SMP, framebuffer, audio, USB detach/replug, and survival checks passed. The
 completed dual-NIC checkpoint immediately before this
 rebuild used image SHA-256
 `326844ca58c1f864a6b9a2480dfaeb5ed71ec3df22cdb46da17a6bb356e7e726`.
+
+The current production checkpoint includes in-kernel CupidLD. A clean forced
+build passed in 653.2 seconds after CupidDis accepted all 431 inputs. The
+pass-one ELF is 9,190,860 bytes, the final ELF is 9,313,740 bytes, and the raw
+kernel is 9,096,008 bytes. Their SHA-256 values are
+`aee9e505c92a1e701bea05897e0cb1901a13b3d5eacecf2512607a608e0e3efd`,
+`5b179b938edb74c3edec59c2cc223366b5bb521c2a88f9a12f970a2b8b2bbaa1`, and
+`9222973f7000f3e95dfd786ad2cd22ad4d90f5cc1e08a47537fe6c71603c7f51`.
+The 209,715,200-byte image has SHA-256
+`dfdda396c6995458bd4e6185ec7e36645ebf3c193cd303ce495135c5d015b59e`.
+A private QEMU boot reached JIT completion in 46.9 seconds.
 The definitive four-vCPU E1000 and RTL8139 boot frontiers remain pre-freeze
 runtime evidence. They passed
 with exits 0 in 794.034 and 758.667 seconds. Both passed SMP, frontier,
@@ -313,9 +339,14 @@ closures. Windows runs help plus a useful success and failure path for each
 tool. CupidDis also checks quoted raw-input parity, while CupidLD checks exact
 output, candidate collision, failure diagnostics, and cleanup. Those PE images
 now form the checked Windows execution seed used by output-bearing production
-recipes. The Linux seed remains the fixed-point root. ADR 0268 records the
-shared runtime, ADR 0269 records CupidLD publication, and ADR 0272 records
-checked carriage and production selection.
+recipes. The Linux seed remains the build-plan root. Source head pairs both
+manifests and builds native stages two through four. It compares stages three
+and four. Uncapped Windows and Linux runs pass the complete final-pair artifact
+and behavior gates on one frozen uncommitted source snapshot. Named clean-commit
+reproof and seed promotion remain pending.
+ADR 0268 records the shared runtime, ADR 0269 records CupidLD publication, ADR
+0272 records checked carriage and production selection, and ADRs 0278 and 0279
+record native reconstruction and convergence.
 
 ### Function Example
 

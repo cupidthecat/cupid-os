@@ -20,7 +20,7 @@ typedef struct {
   ctool_u32 base_address;
   ctool_u32 views;
   ctool_dis_raw_range_t *raw_ranges;
-  ctool_u32 range_change_count;
+  ctool_u32 range_boundary_count;
   ctool_u32 range_capacity;
   ctool_bool mapped_ranges;
   const char *range_map;
@@ -154,10 +154,10 @@ static int cupiddis_parse_range_change(const char *text,
 static int cupiddis_append_range_change(cupiddis_cli_t *cli,
                                          ctool_dis_raw_range_t range) {
   ctool_u32 required;
-  if (cli->range_change_count > 4294967293u) {
+  if (cli->range_boundary_count > 4294967293u) {
     return 0;
   }
-  required = cli->range_change_count + 2u;
+  required = cli->range_boundary_count + 2u;
   if (required > cli->range_capacity) {
     ctool_u32 capacity =
         cli->range_capacity == 0u ? 4u : cli->range_capacity;
@@ -183,8 +183,8 @@ static int cupiddis_append_range_change(cupiddis_cli_t *cli,
     cli->raw_ranges = resized;
     cli->range_capacity = capacity;
   }
-  cli->raw_ranges[cli->range_change_count + 1u] = range;
-  cli->range_change_count++;
+  cli->raw_ranges[cli->range_boundary_count + 1u] = range;
+  cli->range_boundary_count++;
   return 1;
 }
 
@@ -485,7 +485,7 @@ static int cupiddis_load_range_map(cupiddis_cli_t *cli,
   }
   cli->raw_ranges = ranges;
   cli->range_capacity = range_capacity;
-  cli->range_change_count = range_count - 1u;
+  cli->range_boundary_count = range_count - 1u;
   cli->mapped_ranges = CTOOL_TRUE;
   cli->range_map_size = expected_size;
   cli->base_address = base;
@@ -641,7 +641,7 @@ static int cupiddis_parse_cli(int argc, char **argv, cupiddis_cli_t *cli) {
     }
     if (cli->range_map != (const char *)0) {
       if (cli->have_mode == CTOOL_TRUE || cli->have_base == CTOOL_TRUE ||
-          cli->range_change_count != 0u) {
+          cli->range_boundary_count != 0u) {
         return 0;
       }
     } else if (cli->have_mode == CTOOL_FALSE ||
@@ -651,7 +651,7 @@ static int cupiddis_parse_cli(int argc, char **argv, cupiddis_cli_t *cli) {
     if (cli->have_views == CTOOL_FALSE) {
       cli->views = CTOOL_DIS_VIEW_DISASSEMBLY;
     }
-    if (cli->range_change_count != 0u) {
+    if (cli->range_boundary_count != 0u) {
       cli->raw_ranges[0].offset = 0u;
       cli->raw_ranges[0].kind = cli->mode == CTOOL_X86_MODE_16
                                     ? CTOOL_DIS_RAW_RANGE_CODE16
@@ -660,7 +660,7 @@ static int cupiddis_parse_cli(int argc, char **argv, cupiddis_cli_t *cli) {
     }
   } else {
     if (cli->have_mode == CTOOL_TRUE || cli->have_base == CTOOL_TRUE ||
-        cli->range_change_count != 0u || cli->range_map != (const char *)0 ||
+        cli->range_boundary_count != 0u || cli->range_map != (const char *)0 ||
         (cli->nm == CTOOL_TRUE && cli->have_views == CTOOL_TRUE) ||
         (cli->nm == CTOOL_TRUE && cli->require_known == CTOOL_TRUE)) {
       return 0;
@@ -770,7 +770,7 @@ static void cupiddis_make_request(const cupiddis_cli_t *cli,
   request->raw_base_address = cli->base_address;
   if (cli->mapped_ranges == CTOOL_TRUE) {
     request->raw_ranges = cli->raw_ranges;
-    request->raw_range_count = cli->range_change_count + 1u;
+    request->raw_range_count = cli->range_boundary_count + 1u;
   }
 }
 

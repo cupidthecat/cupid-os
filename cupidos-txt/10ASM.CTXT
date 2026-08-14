@@ -26,7 +26,8 @@ Source architecture:
 - toolchain/elf32.cc: shared relocatable-object output
 - kernel/lang/as.cc: 631 runtime definitions, VFS, fixed placement, and JIT/AOT
   execution policy; the checked CupidC seed owns its normal object
-- kernel/lang/as_elf.cc and .h: checked fixed-image to sectionless ET_EXEC bridge
+- kernel/lang/as_elf.cc and .h: relocatable-object request and in-kernel
+  CupidLD fixed-text link adapter
 - toolchain/cupidasm_main.cc: hosted cupidasm command adapter
 
 The normal image runs CupidASM from a checked five-tool seed. It owns five
@@ -35,7 +36,8 @@ command. The same checked trust unit supplies CupidObj for 192 transforms,
 CupidLD for two links, and CupidDis for symbol inspection. Python verifies
 and freezes all five images before each command. Linux uses the static i386
 bootstrap seed. Windows uses the native PE32 execution seed for output-bearing
-commands, while fixed-point and Linux-contract work still crosses WSL. The
+commands. Linux-contract work still crosses WSL. The native fixed-point driver
+pairs that PE seed with a frozen Linux build plan. The
 same runner executes checked production kernel,
 generated-install, and user CupidC plus checked user CupidLD from caller-owned
 frozen captures. It checks the complete live seed cohort again after each
@@ -58,6 +60,16 @@ transaction. CupidASM emits a private 4,096-byte image. CupidDis treats
 code, and 0254h..0FFFh as data. Every instruction in the code ranges must be
 known before the candidate replaces the previous trampoline. A failed check
 leaves the previous output unchanged.
+
+The SMP and bootloader paths now use one checked raw-image transaction. It owns
+the output lock, frozen source and seed captures, drift checks, private
+candidates, publication-boundary checks, and atomic replacement. Callers keep
+their image and map policy. The expanded eleven-test suite passed in 1.708
+seconds, including direct mismatch and live-output drift checks for both callers.
+Parent-replacement tests exposed a POSIX candidate leak when private work lived
+below the output parent. Private roots now live directly below the stable
+repository root. Both caller modules pass all 10 tests on Windows and through
+WSL, including parent replacement with no leaked candidate.
 
 The fifth transform builds test_iso/fixtures/big.bin from
 test_iso/big_pattern.asm. Its concise `times 4096 db $` statement emits the
@@ -163,6 +175,10 @@ starts. Instructions use their active BITS mode. Data declarations, alignment,
 and reserved storage are data. CupidDis rejects stale sizes, missing or repeated
 fields, invalid kinds, and unordered starts before decoding.
 
+Source head carries the shared bootloader map transaction, but the direct
+checked-seed boot edge still awaits seed promotion for CupidASM `--map` and
+CupidDis `--range-map`.
+
 Checked-seed CupidDis can validate one or more files without printing a
 listing:
   cupiddis --require-known FILE [FILE...]
@@ -189,16 +205,29 @@ b21fa8954499a7857ee4b12fa3950fcc08ff3c6a6234c8ae72effc38c51fdc6d, a
 a0b57cd886369762b65d657bb3f2915ada8f30b52102535add89466eaf4f5976, and an
 8,946,332-byte raw kernel with SHA-256
 4f5f2591d01bcc4007773844e9bfb8112a16dd17fbd178014cc2056fefaab67d.
-The current hostbuild transaction freezes the selected seed manifest and all
-five artifacts, the 431-entry input manifest and cohort, and the existing
+At that checkpoint, the hostbuild transaction froze the selected seed manifest
+and all five artifacts, the 431-entry input manifest and cohort, and the existing
 kernel.bin boundary. Checked CupidDis validates the private cohort before
 checked CupidObj flattens the frozen final ELF. Hostbuild rechecks live trust
 inputs and the output before parent-relative atomic publication. Every failure
-preserves the prior raw kernel. The transaction passed with exit 0 in 187.054
+preserved the prior raw kernel. The transaction passed with exit 0 in 187.054
 seconds and published the same 8,946,332-byte raw kernel and SHA-256. The
 hostbuild suites each passed 31 tests on Windows and in WSL, with
 platform-specific skips. Moving private flatten extraction onto the shared
 pinned-path helper remains deferred maintenance.
+
+The latest clean forced build finished in 653.2 seconds. Its 2,560-byte boot
+image has SHA-256
+46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3.
+The 9,190,860-byte pass-one ELF has SHA-256
+aee9e505c92a1e701bea05897e0cb1901a13b3d5eacecf2512607a608e0e3efd,
+the 9,313,740-byte final ELF has SHA-256
+5b179b938edb74c3edec59c2cc223366b5bb521c2a88f9a12f970a2b8b2bbaa1,
+and the 9,096,008-byte raw kernel has SHA-256
+9222973f7000f3e95dfd786ad2cd22ad4d90f5cc1e08a47537fe6c71603c7f51.
+The published 209,715,200-byte image has SHA-256
+dfdda396c6995458bd4e6185ec7e36645ebf3c193cd303ce495135c5d015b59e.
+A private four-vCPU /bin/ls.cc JIT boot passed from that image in 46.9 seconds.
 Definitive four-CPU E1000 and RTL8139 boot frontiers passed from that image
 with exits 0 in 794.034 and 758.667 seconds. Both passed SMP, frontier,
 framebuffer, AC97, and PC speaker checks without changing the source image.
@@ -284,23 +313,37 @@ An independent poisoned-host reproof passed in 766.9 seconds. All five seed
 images match stage two, and stage two matches stage three across the same
 19 C objects, startup, five tools, and behavior matrix.
 
-Source head also assembles the native Windows tool entry and twelve shared
-cdecl API bridges through both fixed-point stages, plus four publication
-bridges for CupidLD. Those startup objects match. CupidLD links all five native
+At the promoted-seed checkpoint, source head assembled the native Windows tool
+entry and twelve shared cdecl API bridges through stages two and three, plus
+four publication bridges for CupidLD. Those startup objects matched. CupidLD linked all five native
 tool closures with their matching runtime objects. Windows runs help plus
 useful success and failure paths for every tool and checks the direct runtime
 contract. CupidDis checks quoted raw-input parity with the Linux tool. CupidLD
 checks exact output, candidate collision, replacement failure, and cleanup.
 Those images now form the checked Windows execution seed for output-bearing
 production work. Source head freezes that seed and the verified Linux plan
-seed separately, builds two native generations, compares every object and
-tool, and runs both stages. Its first full run rejected concurrent source
-drift after stage two, so a stable pass and seed promotion remain open.
+separately. The seed builds stage two, stage two builds stage three, and stage
+three builds stage four. Stages two and three are transition generations. The
+convergence check compares stages three and four, then runs the behavior
+matrix. The old stage-two to stage-three comparison stopped safely at
+cupidobj_main after 821.9 seconds on Windows and 883.3 seconds on Linux. New
+stack-probe code generation changed compiler-produced objects. Later uncapped
+proofs passed the final-pair artifact and behavior gates on the same frozen
+50-input snapshot. Windows finished in 20 minutes 43 seconds, and Linux
+finished in 24 minutes 22 seconds. Named clean-commit reproof and seed
+promotion remain pending.
+
+The Linux behavior reconstruction found that cupiddis_main.cc lacked
+_WIN32=1. Four native tools already matched. The corrected Windows profile,
+CupidDis parity test, and audit guard now cover all five driver mains.
 
 make verify-bootstrap-seed validates the files without executing them.
 make bootstrap-from-seed performs the Linux staged build. The public
 bootstrap-windows command performs the native PE build from the Windows
-execution seed and Linux plan seed. Windows still runs Linux contract programs
+execution seed and Linux plan seed. Operators run make
+verify-windows-bootstrap-seed, then make bootstrap-windows-from-seed. The
+second target publishes only under build/bootstrap/checked-windows-seed. Its
+dry run and two Make contract tests pass. Windows still runs Linux contract programs
 through WSL. Output-bearing production recipes run the checked native PE32
 execution seed directly.
 Normal Cupid OS C roots and Toolchain contracts use checked CupidC. A host
@@ -483,8 +526,10 @@ This fixed-address compatibility format supports one loaded assembly image at
 a time. CupidLD and the final loader own distinct concurrent process
 placement; the assembler language does not.
 
-A smoke test assembled the hello demo with cupidasm, loaded the result as a
-process with exec, and completed without a kernel panic.
+A private guest smoke ran `as -o /hello-aot /demos/hello.asm`, followed by
+`exec /hello-aot`. It passed in 79.661 seconds. CupidASM produced a 15,680-byte
+ET_REL object, and in-kernel CupidLD linked an 8,536-byte ELF at 0x01A00000
+with two PT_LOAD segments. PID 4 exited cleanly.
 >endtree
 
 >h2 Disassembly Workflow

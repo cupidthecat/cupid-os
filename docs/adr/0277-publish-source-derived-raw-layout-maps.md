@@ -31,12 +31,14 @@ file-driven form is exclusive with manual mode, base, and range options. It
 rejects a stale size, missing or repeated fields, invalid kinds, unordered
 starts, oversized input, and trailing malformed records before decoding.
 
-Hostbuild now has an `assemble-bootloader` transaction. It freezes the source
-and selected seed, assembles private image and map candidates, requires the
-2,560-byte bootloader size, runs checked CupidDis with `--require-known`,
-rehashes every boundary, and replaces the public image only after all checks
-pass. A failed assembly, map parse, strict decode, drift check, or publication
-step preserves the previous output.
+Hostbuild has one checked raw-image transaction shared by the SMP trampoline
+and bootloader callers. The transaction owns the output lock, source and seed
+freezing, drift checks, private output pins, tool execution, publication-boundary
+checks, and atomic replacement. Each caller retains its image size and raw-map
+policy. The bootloader caller asks CupidASM for private image and map
+candidates, requires the 2,560-byte image size, and runs checked CupidDis with
+`--require-known`. A failed assembly, map parse, strict decode, drift check, or
+publication step preserves the previous output.
 
 The normal Make rule continues to call the current checked CupidASM directly
 until a promoted seed carries both map options. Moving the production edge
@@ -55,10 +57,19 @@ Forty-five focused CupidASM, CupidDis, source, bootloader-hostbuild, and SMP
 trampoline tests pass in 11.495 seconds. The shared C contract also checks
 zeroed raw metadata on failure.
 
+After the SMP and bootloader paths moved onto the shared transaction, the
+central eight-test transaction suite passed in 1.201 seconds. The tests cover
+both callers while keeping their image and map policies separate.
+
+A follow-up added direct mismatch negatives and live-output drift checks for
+both callers. The expanded eleven-test suite passed in 1.708 seconds.
+
 ## Consequences
 
 The assembler, rather than a copied offset list or a byte heuristic, becomes
 the authority for flat-image layout. CupidDis remains the independent decoder
-and strict policy gate. The source capability adds no host code generator.
-Production bootloader inspection and its extra CupidDis participation begin
-only after the checked seed promotion recorded in a later decision.
+and strict policy gate. Hostbuild owns one transaction instead of duplicating
+locking and publication rules in each caller. The source capability adds no
+host code generator. Production bootloader inspection and its extra CupidDis
+participation begin only after the checked seed promotion recorded in a later
+decision.

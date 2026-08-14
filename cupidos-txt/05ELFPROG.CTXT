@@ -52,7 +52,7 @@ the promoted Linux seed carried this path. Its producers were static i386
 Linux programs that ran through WSL on Windows. This proved the loader, not a
 native Windows fixed point.
 
-Both fixed-point stages build matching native CupidASM, CupidC, CupidDis,
+Each native bootstrap generation builds matching CupidASM, CupidC, CupidDis,
 CupidLD, and CupidObj commands with Cupid tooling. Their shared hosted runtime
 provides native arguments, allocation, separate standard streams, named-file
 reads and writes, append behavior, seeking, the current directory, and useful
@@ -66,10 +66,34 @@ failure leaves no candidate.
 Those five PE32 images form the checked Windows execution seed used by
 output-bearing production recipes. Fixed-point reconstruction, Toolchain
 contracts, the user ABI contract, and artifact-size policy still run the Linux
-seed through WSL. The PE32 manifest has no native build plan, so a native
-Windows fixed point remains open. ADR 0268 records the shared runtime, ADR 0269
-records CupidLD publication, and ADR 0272 records Windows execution seed
-carriage and production selection.
+seed through WSL. The native driver freezes the PE32 execution seed with a
+separate verified Linux plan. The seed builds stage two, stage two builds stage
+three, and stage three builds stage four. Stages two and three are transition
+generations; the convergence check compares stages three and four. The former
+stage-two to stage-three comparison stopped safely at cupidobj_main after
+821.9 seconds on Windows and 883.3 seconds on Linux. New stack-probe code
+generation changed compiler-produced objects. Later uncapped proofs passed.
+Windows matched 20 C objects, two assembly objects, and five tools in 20
+minutes 43 seconds with 5/5/5 behavior cases. Linux matched 19 C objects,
+startup, and five tools in 24 minutes 22 seconds with 5/18/16 behavior cases.
+Both reports bind the same 50-input snapshot, SHA-256
+d8481a39e0d1c7f42779a8c9f5fc5de10d7e5b9bc4df63ce6afe9ddd9c9716da.
+Named clean-commit reproof and seed promotion remain pending. ADR 0268 records
+the shared runtime, ADR 0269
+records CupidLD publication, ADR 0272 records Windows execution seed carriage
+and production selection, ADR 0278 records the native driver, and ADR 0279
+records the convergence rule.
+
+The Linux behavior reconstruction matched four native tools but found that its
+387,584-byte CupidDis differed from the direct Windows image. The reconstructed
+plan had omitted _WIN32=1 from cupiddis_main.cc. The corrected Windows profile,
+parity test, and audit guard now cover all five tool mains.
+
+The reproducible native operator runs make verify-windows-bootstrap-seed, then
+make bootstrap-windows-from-seed. The second target publishes only under
+build/bootstrap/checked-windows-seed after the complete gate passes. Its dry
+run and two Make contract tests pass. Named clean-commit reproof and seed
+promotion remain pending.
 >endtree
 
 >h2 Entry Point

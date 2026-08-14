@@ -4723,6 +4723,185 @@ def _publish_code_output(candidate: _CodeOutput, output: _CodeOutput) -> None:
     raise CodeValidationError("code output parent was not pinned")
 
 
+@dataclass(frozen=True)
+class _CheckedRawImageTransaction:
+    _repository_root: Path
+    _private_root: Path
+    _stack: ExitStack
+    _source_snapshot: _CodeValidationInput
+    _frozen_seed: object
+    _live_seed_manifest: Path
+    _seed_snapshots: list[_CodeValidationInput]
+    _pinned_output: _CodeOutput
+    _initial_output: _CodeValidationInput | None
+    candidate_logical: str
+    _candidate_output: _CodeOutput
+
+    def pin_private_output(self, logical: str) -> _CodeOutput:
+        return _pin_code_output(self._private_root, Path(logical), self._stack)
+
+    def run_tool(
+        self,
+        tool_name: str,
+        arguments: tuple[str, ...],
+    ) -> subprocess.CompletedProcess[str]:
+        return run_seed_tool(
+            self._live_seed_manifest,
+            self._private_root,
+            tool_name,
+            arguments,
+            timeout=60,
+            frozen_seed=self._frozen_seed,
+        )
+
+    def candidate_snapshot(self) -> _CodeValidationInput | None:
+        return _code_output_entry(self._candidate_output)
+
+    def require_inputs_unchanged(
+        self,
+        *,
+        activity: str,
+        tool_stderr: str,
+    ) -> None:
+        _require_code_inputs_unchanged(
+            self._repository_root,
+            None,
+            [self._source_snapshot],
+            activity=activity,
+            tool_stderr=tool_stderr,
+        )
+        _require_code_seed_inputs_unchanged(
+            self._repository_root,
+            self._seed_snapshots,
+            tool_stderr=tool_stderr,
+        )
+
+    def require_private_output_unchanged(
+        self,
+        output: _CodeOutput,
+        expected: _CodeValidationInput,
+        *,
+        description: str,
+        tool_stderr: str,
+    ) -> None:
+        current = _code_output_entry(output)
+        if (
+            current is None
+            or current.size != expected.size
+            or current.sha256 != expected.sha256
+        ):
+            raise CodeValidationError(
+                f"{description} changed while CupidDis ran",
+                tool_stderr=tool_stderr,
+            )
+
+    def require_candidate_unchanged(
+        self,
+        expected: _CodeValidationInput,
+        *,
+        tool_stderr: str,
+    ) -> None:
+        self.require_private_output_unchanged(
+            self._candidate_output,
+            expected,
+            description="checked CupidASM output",
+            tool_stderr=tool_stderr,
+        )
+
+    def require_publication_boundary_unchanged(self, tool_stderr: str) -> None:
+        try:
+            _require_code_output_parent_unchanged(self._pinned_output)
+            _require_code_output_unchanged(
+                self._pinned_output,
+                self._initial_output,
+            )
+        except CodeValidationError as error:
+            raise CodeValidationError(
+                str(error),
+                tool_stderr=tool_stderr,
+            ) from error
+
+    def publish(self) -> None:
+        _publish_code_output(self._candidate_output, self._pinned_output)
+
+
+@contextmanager
+def _checked_raw_image_transaction(
+    seed_manifest: Path,
+    repository_root: Path,
+    source_logical: str,
+    output: Path,
+    *,
+    source_subject: str,
+    temporary_prefix: str,
+) -> Iterator[_CheckedRawImageTransaction]:
+    with ExitStack() as stack:
+        pinned_output = _pin_code_output(repository_root, output, stack)
+        try:
+            publication_lock = _acquire_disk_publication_lock(
+                pinned_output.path
+            )
+        except DiskImageError as error:
+            raise CodeValidationError(str(error)) from error
+        stack.callback(_release_disk_publication_lock, publication_lock)
+        temporary = stack.enter_context(
+            tempfile.TemporaryDirectory(
+                prefix=temporary_prefix,
+                dir=repository_root,
+            )
+        )
+        private_root = Path(temporary)
+        source_snapshot = _capture_code_input(
+            repository_root,
+            source_logical,
+            frozen=private_root.joinpath(*PurePosixPath(source_logical).parts),
+            subject=source_subject,
+        )
+        initial_output = _code_output_entry(pinned_output)
+        _require_code_output_not_an_input(
+            pinned_output,
+            initial_output,
+            [source_snapshot],
+        )
+        frozen_seed, live_seed_manifest, seed_snapshots = (
+            _freeze_code_seed_inputs(
+                repository_root,
+                seed_manifest,
+                private_root,
+            )
+        )
+        _require_code_output_not_an_input(
+            pinned_output,
+            initial_output,
+            seed_snapshots,
+        )
+        candidate_logical = (
+            ".cupid-output/" + PurePosixPath(pinned_output.logical).name
+        )
+        candidate_path = private_root.joinpath(
+            *PurePosixPath(candidate_logical).parts
+        )
+        candidate_path.parent.mkdir()
+        candidate_output = _pin_code_output(
+            private_root,
+            Path(candidate_logical),
+            stack,
+        )
+        yield _CheckedRawImageTransaction(
+            _repository_root=repository_root,
+            _private_root=private_root,
+            _stack=stack,
+            _source_snapshot=source_snapshot,
+            _frozen_seed=frozen_seed,
+            _live_seed_manifest=live_seed_manifest,
+            _seed_snapshots=seed_snapshots,
+            _pinned_output=pinned_output,
+            _initial_output=initial_output,
+            candidate_logical=candidate_logical,
+            _candidate_output=candidate_output,
+        )
+
+
 def validate_code(
     seed_manifest: Path,
     root: Path,
@@ -4992,68 +5171,18 @@ def assemble_smp_trampoline(
     )
 
     try:
-        with ExitStack() as stack:
-            pinned_output = _pin_code_output(repository_root, output, stack)
-            try:
-                publication_lock = _acquire_disk_publication_lock(
-                    pinned_output.path
-                )
-            except DiskImageError as error:
-                raise CodeValidationError(str(error)) from error
-            stack.callback(_release_disk_publication_lock, publication_lock)
-            temporary = stack.enter_context(
-                tempfile.TemporaryDirectory(
-                    prefix=".smp-trampoline-",
-                    dir=pinned_output.path.parent,
-                )
-            )
-            private_root = Path(temporary)
-            source_snapshot = _capture_code_input(
-                repository_root,
-                source_logical,
-                frozen=private_root.joinpath(
-                    *PurePosixPath(source_logical).parts
-                ),
-                subject="SMP trampoline source",
-            )
-            initial_output = _code_output_entry(pinned_output)
-            _require_code_output_not_an_input(
-                pinned_output,
-                initial_output,
-                [source_snapshot],
-            )
-            (
-                frozen_seed,
-                live_seed_manifest,
-                seed_snapshots,
-            ) = _freeze_code_seed_inputs(
-                repository_root,
-                seed_manifest,
-                private_root,
-            )
-            _require_code_output_not_an_input(
-                pinned_output,
-                initial_output,
-                seed_snapshots,
-            )
-            candidate_logical = (
-                ".cupid-output/"
-                + PurePosixPath(pinned_output.logical).name
-            )
-            candidate_path = private_root.joinpath(
-                *PurePosixPath(candidate_logical).parts
-            )
-            candidate_path.parent.mkdir()
-            candidate_output = _pin_code_output(
-                private_root,
-                Path(candidate_logical),
-                stack,
-            )
+        with _checked_raw_image_transaction(
+            seed_manifest,
+            repository_root,
+            source_logical,
+            output,
+            source_subject="SMP trampoline source",
+            temporary_prefix=".smp-trampoline-",
+        ) as transaction:
+            candidate_logical = transaction.candidate_logical
 
             try:
-                assembled = run_seed_tool(
-                    live_seed_manifest,
-                    private_root,
+                assembled = transaction.run_tool(
                     "cupidasm",
                     (
                         "-f",
@@ -5062,24 +5191,14 @@ def assemble_smp_trampoline(
                         candidate_logical,
                         source_logical,
                     ),
-                    timeout=60,
-                    frozen_seed=frozen_seed,
                 )
             except BootstrapError as error:
                 raise CodeValidationError(
                     f"checked CupidASM could not run: {error}"
                 ) from error
             tool_stderr = assembled.stderr or ""
-            _require_code_inputs_unchanged(
-                repository_root,
-                None,
-                [source_snapshot],
+            transaction.require_inputs_unchanged(
                 activity="CupidASM",
-                tool_stderr=tool_stderr,
-            )
-            _require_code_seed_inputs_unchanged(
-                repository_root,
-                seed_snapshots,
                 tool_stderr=tool_stderr,
             )
             if assembled.returncode != 0:
@@ -5099,11 +5218,11 @@ def assemble_smp_trampoline(
                     "checked CupidASM wrote unexpected standard error",
                     tool_stderr=tool_stderr,
                 )
-            candidate_snapshot = _code_output_entry(candidate_output)
+            candidate_snapshot = transaction.candidate_snapshot()
             if candidate_snapshot is None:
                 raise CodeValidationError(
                     "checked CupidASM output does not exist: "
-                    f"{candidate_output.logical}",
+                    f"{candidate_logical}",
                     tool_stderr=tool_stderr,
                 )
             if candidate_snapshot.size != 4096:
@@ -5114,9 +5233,7 @@ def assemble_smp_trampoline(
                 )
 
             try:
-                disassembled = run_seed_tool(
-                    live_seed_manifest,
-                    private_root,
+                disassembled = transaction.run_tool(
                     "cupiddis",
                     (
                         "--raw",
@@ -5133,8 +5250,6 @@ def assemble_smp_trampoline(
                         "--require-known",
                         candidate_logical,
                     ),
-                    timeout=60,
-                    frozen_seed=frozen_seed,
                 )
             except BootstrapError as error:
                 raise CodeValidationError(
@@ -5142,36 +5257,15 @@ def assemble_smp_trampoline(
                     tool_stderr=tool_stderr,
                 ) from error
             combined_stderr = tool_stderr + (disassembled.stderr or "")
-            _require_code_inputs_unchanged(
-                repository_root,
-                None,
-                [source_snapshot],
+            transaction.require_inputs_unchanged(
                 activity="checked tools",
                 tool_stderr=combined_stderr,
             )
-            _require_code_seed_inputs_unchanged(
-                repository_root,
-                seed_snapshots,
+            transaction.require_candidate_unchanged(
+                candidate_snapshot,
                 tool_stderr=combined_stderr,
             )
-            current_candidate = _code_output_entry(candidate_output)
-            if (
-                current_candidate is None
-                or current_candidate.size != candidate_snapshot.size
-                or current_candidate.sha256 != candidate_snapshot.sha256
-            ):
-                raise CodeValidationError(
-                    "checked CupidASM output changed while CupidDis ran",
-                    tool_stderr=combined_stderr,
-                )
-            try:
-                _require_code_output_parent_unchanged(pinned_output)
-                _require_code_output_unchanged(pinned_output, initial_output)
-            except CodeValidationError as error:
-                raise CodeValidationError(
-                    str(error),
-                    tool_stderr=combined_stderr,
-                ) from error
+            transaction.require_publication_boundary_unchanged(combined_stderr)
             if disassembled.returncode != 0:
                 return subprocess.CompletedProcess(
                     disassembled.args,
@@ -5190,7 +5284,7 @@ def assemble_smp_trampoline(
                     tool_stderr=combined_stderr,
                 )
             try:
-                _publish_code_output(candidate_output, pinned_output)
+                transaction.publish()
             except OSError as error:
                 raise CodeValidationError(
                     f"validated SMP trampoline could not be published: {error}",
@@ -5232,74 +5326,20 @@ def assemble_bootloader(
     )
 
     try:
-        with ExitStack() as stack:
-            pinned_output = _pin_code_output(repository_root, output, stack)
-            try:
-                publication_lock = _acquire_disk_publication_lock(
-                    pinned_output.path
-                )
-            except DiskImageError as error:
-                raise CodeValidationError(str(error)) from error
-            stack.callback(_release_disk_publication_lock, publication_lock)
-            temporary = stack.enter_context(
-                tempfile.TemporaryDirectory(
-                    prefix=".bootloader-",
-                    dir=pinned_output.path.parent,
-                )
-            )
-            private_root = Path(temporary)
-            source_snapshot = _capture_code_input(
-                repository_root,
-                source_logical,
-                frozen=private_root.joinpath(
-                    *PurePosixPath(source_logical).parts
-                ),
-                subject="bootloader source",
-            )
-            initial_output = _code_output_entry(pinned_output)
-            _require_code_output_not_an_input(
-                pinned_output,
-                initial_output,
-                [source_snapshot],
-            )
-            (
-                frozen_seed,
-                live_seed_manifest,
-                seed_snapshots,
-            ) = _freeze_code_seed_inputs(
-                repository_root,
-                seed_manifest,
-                private_root,
-            )
-            _require_code_output_not_an_input(
-                pinned_output,
-                initial_output,
-                seed_snapshots,
-            )
-            candidate_logical = (
-                ".cupid-output/"
-                + PurePosixPath(pinned_output.logical).name
-            )
+        with _checked_raw_image_transaction(
+            seed_manifest,
+            repository_root,
+            source_logical,
+            output,
+            source_subject="bootloader source",
+            temporary_prefix=".bootloader-",
+        ) as transaction:
+            candidate_logical = transaction.candidate_logical
             map_logical = candidate_logical + ".cupidmap"
-            candidate_path = private_root.joinpath(
-                *PurePosixPath(candidate_logical).parts
-            )
-            candidate_path.parent.mkdir()
-            candidate_output = _pin_code_output(
-                private_root,
-                Path(candidate_logical),
-                stack,
-            )
-            map_output = _pin_code_output(
-                private_root,
-                Path(map_logical),
-                stack,
-            )
+            map_output = transaction.pin_private_output(map_logical)
 
             try:
-                assembled = run_seed_tool(
-                    live_seed_manifest,
-                    private_root,
+                assembled = transaction.run_tool(
                     "cupidasm",
                     (
                         "-f",
@@ -5310,24 +5350,14 @@ def assemble_bootloader(
                         candidate_logical,
                         source_logical,
                     ),
-                    timeout=60,
-                    frozen_seed=frozen_seed,
                 )
             except BootstrapError as error:
                 raise CodeValidationError(
                     f"checked CupidASM could not run: {error}"
                 ) from error
             tool_stderr = assembled.stderr or ""
-            _require_code_inputs_unchanged(
-                repository_root,
-                None,
-                [source_snapshot],
+            transaction.require_inputs_unchanged(
                 activity="CupidASM",
-                tool_stderr=tool_stderr,
-            )
-            _require_code_seed_inputs_unchanged(
-                repository_root,
-                seed_snapshots,
                 tool_stderr=tool_stderr,
             )
             if assembled.returncode != 0:
@@ -5347,11 +5377,11 @@ def assemble_bootloader(
                     "checked CupidASM wrote unexpected standard error",
                     tool_stderr=tool_stderr,
                 )
-            candidate_snapshot = _code_output_entry(candidate_output)
+            candidate_snapshot = transaction.candidate_snapshot()
             if candidate_snapshot is None:
                 raise CodeValidationError(
                     "checked CupidASM output does not exist: "
-                    f"{candidate_output.logical}",
+                    f"{candidate_logical}",
                     tool_stderr=tool_stderr,
                 )
             if candidate_snapshot.size != 2560:
@@ -5374,9 +5404,7 @@ def assemble_bootloader(
                 )
 
             try:
-                disassembled = run_seed_tool(
-                    live_seed_manifest,
-                    private_root,
+                disassembled = transaction.run_tool(
                     "cupiddis",
                     (
                         "--require-known",
@@ -5385,8 +5413,6 @@ def assemble_bootloader(
                         map_logical,
                         candidate_logical,
                     ),
-                    timeout=60,
-                    frozen_seed=frozen_seed,
                 )
             except BootstrapError as error:
                 raise CodeValidationError(
@@ -5394,46 +5420,21 @@ def assemble_bootloader(
                     tool_stderr=tool_stderr,
                 ) from error
             combined_stderr = tool_stderr + (disassembled.stderr or "")
-            _require_code_inputs_unchanged(
-                repository_root,
-                None,
-                [source_snapshot],
+            transaction.require_inputs_unchanged(
                 activity="checked tools",
                 tool_stderr=combined_stderr,
             )
-            _require_code_seed_inputs_unchanged(
-                repository_root,
-                seed_snapshots,
+            transaction.require_candidate_unchanged(
+                candidate_snapshot,
                 tool_stderr=combined_stderr,
             )
-            current_candidate = _code_output_entry(candidate_output)
-            if (
-                current_candidate is None
-                or current_candidate.size != candidate_snapshot.size
-                or current_candidate.sha256 != candidate_snapshot.sha256
-            ):
-                raise CodeValidationError(
-                    "checked CupidASM output changed while CupidDis ran",
-                    tool_stderr=combined_stderr,
-                )
-            current_map = _code_output_entry(map_output)
-            if (
-                current_map is None
-                or current_map.size != map_snapshot.size
-                or current_map.sha256 != map_snapshot.sha256
-            ):
-                raise CodeValidationError(
-                    "checked CupidASM range map changed while CupidDis ran",
-                    tool_stderr=combined_stderr,
-                )
-            try:
-                _require_code_output_parent_unchanged(pinned_output)
-                _require_code_output_unchanged(pinned_output, initial_output)
-            except CodeValidationError as error:
-                raise CodeValidationError(
-                    str(error),
-                    tool_stderr=combined_stderr,
-                ) from error
+            transaction.require_private_output_unchanged(
+                map_output,
+                map_snapshot,
+                description="checked CupidASM range map",
+                tool_stderr=combined_stderr,
+            )
+            transaction.require_publication_boundary_unchanged(combined_stderr)
             if disassembled.returncode != 0:
                 return subprocess.CompletedProcess(
                     disassembled.args,
@@ -5452,7 +5453,7 @@ def assemble_bootloader(
                     tool_stderr=combined_stderr,
                 )
             try:
-                _publish_code_output(candidate_output, pinned_output)
+                transaction.publish()
             except OSError as error:
                 raise CodeValidationError(
                     f"validated bootloader could not be published: {error}",

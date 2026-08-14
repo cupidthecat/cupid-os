@@ -295,10 +295,11 @@ ADR 0258 records the preceding checked seed. ADR 0260 records static
 long-double arithmetic, ADR 0263 records ordinary hosted floating updates, ADR
 0265 records their checked-seed carriage, and ADR 0273 records private derived
 floating updates.
-The checked native Windows seed carried both features through the
-source-current 2026-08-13 poisoned-host build. Its first invocation stopped at
+The checked native Windows seed carried both features through an earlier
+2026-08-13 poisoned-host checkpoint. Its first invocation stopped at
 the 602.5-second command limit; the resumed build finished in 968.5 seconds,
-for 1,571.0 seconds of cumulative work. The current 2,560-byte boot image has
+for 1,571.0 seconds of cumulative work. At that checkpoint, the 2,560-byte boot
+image had
 SHA-256
 `46cc9778da2b5cc5e8f04d7cc4b07243c3e07d466626ad84fb813dc6fef3a0d3`.
 The 9,056,612-byte pass-one ELF has SHA-256
@@ -322,6 +323,17 @@ SHA-256
 The earlier 1,057.969-second build and definitive four-vCPU E1000 and RTL8139
 boot frontiers remain pre-freeze evidence. Those boots passed with exits 0 in
 794.034 and 758.667 seconds.
+The latest clean forced build finished in 653.2 seconds. Its 2,560-byte boot
+image keeps the same SHA-256. The 9,190,860-byte pass-one ELF has SHA-256
+`aee9e505c92a1e701bea05897e0cb1901a13b3d5eacecf2512607a608e0e3efd`,
+the 9,313,740-byte final ELF has SHA-256
+`5b179b938edb74c3edec59c2cc223366b5bb521c2a88f9a12f970a2b8b2bbaa1`,
+and the 9,096,008-byte raw kernel has SHA-256
+`9222973f7000f3e95dfd786ad2cd22ad4d90f5cc1e08a47537fe6c71603c7f51`.
+The published 209,715,200-byte image has SHA-256
+`dfdda396c6995458bd4e6185ec7e36645ebf3c193cd303ce495135c5d015b59e`.
+A private four-vCPU `/bin/ls.cc` JIT boot passed from that image in 46.9
+seconds.
 The in-kernel compiler has a separate, broader floating and SIMD
 implementation.
 
