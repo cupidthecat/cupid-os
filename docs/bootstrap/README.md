@@ -559,13 +559,19 @@ precision, keeps the caller's rounding mode, and restores its saved control
 word before the final store. Floating-to-integer conversion saves the
 caller's control word separately, selects truncation toward zero for `FISTP`,
 and restores that copy. The unsigned 64-bit path splits at `2^63`.
+Runtime `+`, `-`, `*`, `/`, all six comparisons, and conditional selection
+apply the same integer-to-long-double conversion to every represented value
+integer and enum. Linear IR keeps the usual-arithmetic conversion on the
+integer value. Conditional lowering converts only the selected arm.
 Hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimals beyond the bounded
-ratio parser, other floating-to-wide conversions, atomic and long-double
-updates, SIMD, and over-aligned
+ratio parser, operations that mix an eight-byte integer with `float` or
+`double`, other floating-to-wide conversions, atomic and long-double updates,
+SIMD, and over-aligned
 floating objects remain open. ADR 0202 records the runtime truth boundary,
 ADR 0256 records canonical static x87 classes, and ADR 0260 records static x87
-arithmetic.
+arithmetic. ADR 0288 records the runtime integer and long-double usual
+conversions.
 
 The static object proof covers exact `1.0L`, the next represented value above
 one, the largest accepted bounded literal, positive and negative zero, and
@@ -633,7 +639,8 @@ the bounded decimal literal representation and automatic object proof. ADR
 0251 records static long-double data, and ADR 0253 records runtime conversions
 between `long double` and integers. ADR 0254 records static initializer
 conversion. ADR 0255 records static control expressions and finite
-floating-width conversion.
+floating-width conversion. ADR 0288 records runtime integer and long-double
+arithmetic, comparisons, and conditional selection.
 
 The self-host source frontier first closed five requirements from unchanged Toolchain code. Supported structure snapshots retain nested union bytes, and a scalar member can be loaded from a returned structure snapshot. A direct four-byte literal zero can form a represented null function pointer. An object pointer can convert to a signed or unsigned eight-byte integer with a zero high word, and conversion back keeps the low word. Compatible static character and void pointers accept an ordinary string literal through parentheses and macro expansion. At that boundary, top-level union values, aggregate members from structure rvalues, nonzero function-pointer casts, function-pointer and wide-integer conversions, and arithmetic or explicit casts on static string addresses remained open. ADR 0081 records that earlier language boundary.
 
@@ -1997,7 +2004,10 @@ integer. ADR 0255 adds static long-double control folding and finite
 floating-width conversion. ADR 0256 defines the shared canonical x87 decoder
 and adds static infinity, NaN, and subnormal transport. ADR 0260 adds
 integer-only static long-double arithmetic with exact x87 rounding and no
-runtime IR.
+runtime IR. ADR 0287 adds runtime integer conditional arms with `float` and
+`double`. ADR 0288 applies runtime usual arithmetic conversions between every
+represented value integer or enum and `long double` for arithmetic,
+comparisons, and conditional selection.
 
 The latest local normal build completed in 1,444.7 seconds. Its
 9,093,772-byte final ELF has SHA-256

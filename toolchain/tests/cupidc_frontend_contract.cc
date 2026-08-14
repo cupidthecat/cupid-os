@@ -7763,13 +7763,13 @@ static int validate_toolchain_frontier(const char *host_root) {
       {"/toolchain/cupidc_pp.cc", CTOOL_OK, 0u, 0u, 0u, "", 143u, 3932u,
        25287u, 479u, 286u, 0u, 0u},
       {"/toolchain/cupidc_ir.cc", CTOOL_OK, 0u, 0u, 0u, "", 270u, 7613u,
-       70458u, 1002u, 367u, 0u, 0u},
-      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 366u, 9304u,
-       77673u, 1128u, 752u, 0u, 0u},
+       70465u, 1002u, 367u, 0u, 0u},
+      {"/toolchain/cupidc_emit.cc", CTOOL_OK, 0u, 0u, 0u, "", 368u, 9325u,
+       77800u, 1131u, 754u, 0u, 0u},
       {"/toolchain/cupidc_frontend.cc", CTOOL_OK, 0u, 0u, 0u, "", 445u,
-       17253u, 113885u, 2565u, 1547u, 0u, 0u},
-      {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 82u, 3054u,
-       20124u, 338u, 190u, 0u, 0u},
+       17247u, 113875u, 2565u, 1547u, 0u, 0u},
+      {"/toolchain/cupidasm.cc", CTOOL_OK, 0u, 0u, 0u, "", 84u, 3146u,
+       20707u, 346u, 196u, 0u, 0u},
       {"/toolchain/elf32.cc", CTOOL_OK, 0u, 0u, 0u, "", 37u, 1219u,
        9457u, 143u, 70u, 0u, 1u},
       {"/toolchain/x86.cc", CTOOL_OK, 0u, 0u, 0u, "", 65u, 1866u,
@@ -24527,12 +24527,26 @@ static int validate_float_default_promotions(
 
 static int validate_floating_arithmetic(
     const ctool_c_translation_unit_t *unit) {
+  static const ctool_c_type_kind_t signed_integer_kinds[] = {
+      CTOOL_C_TYPE_SIGNED_CHAR, CTOOL_C_TYPE_SIGNED_SHORT,
+      CTOOL_C_TYPE_SIGNED_INT, CTOOL_C_TYPE_SIGNED_LONG_LONG};
+  static const ctool_c_type_kind_t unsigned_integer_kinds[] = {
+      CTOOL_C_TYPE_UNSIGNED_CHAR, CTOOL_C_TYPE_UNSIGNED_SHORT,
+      CTOOL_C_TYPE_UNSIGNED_INT, CTOOL_C_TYPE_UNSIGNED_LONG_LONG};
+  static const ctool_c_type_kind_t other_integer_kinds[] = {
+      CTOOL_C_TYPE_BOOL, CTOOL_C_TYPE_CHAR, CTOOL_C_TYPE_SIGNED_LONG,
+      CTOOL_C_TYPE_UNSIGNED_LONG, CTOOL_C_TYPE_ENUM};
   ctool_u32 float_type = CTOOL_C_TYPE_NONE;
   ctool_u32 double_type = CTOOL_C_TYPE_NONE;
+  ctool_u32 long_double_type = CTOOL_C_TYPE_NONE;
   ctool_u32 float_unary[2] = {0u, 0u};
   ctool_u32 double_unary[2] = {0u, 0u};
   ctool_u32 float_binary[4] = {0u, 0u, 0u, 0u};
   ctool_u32 double_binary[4] = {0u, 0u, 0u, 0u};
+  ctool_u32 long_double_binary[4] = {0u, 0u, 0u, 0u};
+  ctool_u32 signed_integer_usual[4] = {0u, 0u, 0u, 0u};
+  ctool_u32 unsigned_integer_usual[4] = {0u, 0u, 0u, 0u};
+  ctool_u32 other_integer_usual[5] = {0u, 0u, 0u, 0u, 0u};
   ctool_u32 float_calls = 0u;
   ctool_u32 double_calls = 0u;
   ctool_u32 index;
@@ -24547,22 +24561,61 @@ static int validate_floating_arithmetic(
     } else if (type->qualifiers == 0u &&
                type->kind == CTOOL_C_TYPE_DOUBLE) {
       double_type = index;
+    } else if (type->qualifiers == 0u &&
+               type->kind == CTOOL_C_TYPE_LONG_DOUBLE) {
+      long_double_type = index;
     }
   }
   if (float_type == CTOOL_C_TYPE_NONE || double_type == CTOOL_C_TYPE_NONE ||
-      unit->function_definition_count != 16u) {
+      long_double_type == CTOOL_C_TYPE_NONE ||
+      unit->function_definition_count != 29u) {
     return 1;
   }
   for (index = 0u; index < unit->expression_count; index++) {
     const ctool_c_expression_t *expression = &unit->expressions[index];
     ctool_u32 *unary_counts = NULL;
     ctool_u32 *binary_counts = NULL;
+    if (expression->kind == CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION &&
+        expression->conversion == CTOOL_C_CONVERSION_USUAL_ARITHMETIC &&
+        expression->type == long_double_type) {
+      ctool_u32 child = expression_child(unit, expression, 0u);
+      ctool_c_type_kind_t child_kind;
+      ctool_u32 integer_index;
+      ctool_bool matched = CTOOL_FALSE;
+      if (expression->child_count != 1u ||
+          child >= unit->expression_count) {
+        return 1;
+      }
+      child_kind = underlying_type_kind(
+          unit, unit->expressions[child].type, NULL);
+      for (integer_index = 0u; integer_index < 4u; integer_index++) {
+        if (child_kind == signed_integer_kinds[integer_index]) {
+          signed_integer_usual[integer_index]++;
+          matched = CTOOL_TRUE;
+        } else if (child_kind == unsigned_integer_kinds[integer_index]) {
+          unsigned_integer_usual[integer_index]++;
+          matched = CTOOL_TRUE;
+        }
+      }
+      for (integer_index = 0u; integer_index < 5u; integer_index++) {
+        if (child_kind == other_integer_kinds[integer_index]) {
+          other_integer_usual[integer_index]++;
+          matched = CTOOL_TRUE;
+        }
+      }
+      if (matched == CTOOL_FALSE) {
+        return 1;
+      }
+      continue;
+    }
     if (expression->type == float_type) {
       unary_counts = float_unary;
       binary_counts = float_binary;
     } else if (expression->type == double_type) {
       unary_counts = double_unary;
       binary_counts = double_binary;
+    } else if (expression->type == long_double_type) {
+      binary_counts = long_double_binary;
     } else {
       continue;
     }
@@ -24627,6 +24680,8 @@ static int validate_floating_arithmetic(
       float_binary[2] != 2u || float_binary[3] != 2u ||
       double_binary[0] != 2u || double_binary[1] != 2u ||
       double_binary[2] != 2u || double_binary[3] != 2u ||
+      long_double_binary[0] != 4u || long_double_binary[1] != 3u ||
+      long_double_binary[2] != 3u || long_double_binary[3] != 3u ||
       float_calls != 2u || double_calls != 2u) {
     (void)fprintf(
         stderr,
@@ -24640,6 +24695,30 @@ static int validate_floating_arithmetic(
         (unsigned int)double_binary[2], (unsigned int)double_binary[3],
         (unsigned int)float_calls, (unsigned int)double_calls);
     return 1;
+  }
+  for (index = 0u; index < 4u; index++) {
+    if (signed_integer_usual[index] != 1u ||
+        unsigned_integer_usual[index] != 1u) {
+      (void)fprintf(
+          stderr,
+          "floating-arithmetic: integer/long-double conversion inventory "
+          "differs at width %u: signed=%u unsigned=%u\n",
+          (unsigned int)index,
+          (unsigned int)signed_integer_usual[index],
+          (unsigned int)unsigned_integer_usual[index]);
+      return 1;
+    }
+  }
+  for (index = 0u; index < 5u; index++) {
+    if (other_integer_usual[index] != 1u) {
+      (void)fprintf(
+          stderr,
+          "floating-arithmetic: additional integer/long-double conversion "
+          "inventory differs at kind %u: count=%u\n",
+          (unsigned int)other_integer_kinds[index],
+          (unsigned int)other_integer_usual[index]);
+      return 1;
+    }
   }
   return 0;
 }
@@ -24667,7 +24746,35 @@ static int run_floating_arithmetic(const char *host_root) {
       "double double_nested(double left, double right, double third) {\n"
       "  return -(+double_identity(left) * (right + third)) /\n"
       "         (double_identity(third) - left);\n"
-      "}\n";
+      "}\n"
+      "long double long_add_signed_char(long double left, signed char right) "
+      "{ return left + right; }\n"
+      "long double unsigned_char_add_long(unsigned char left, long double "
+      "right) { return left + right; }\n"
+      "long double long_sub_signed_short(long double left, short right) "
+      "{ return left - right; }\n"
+      "long double unsigned_short_sub_long(unsigned short left, long double "
+      "right) { return left - right; }\n"
+      "long double long_mul_signed_int(long double left, int right) "
+      "{ return left * right; }\n"
+      "long double unsigned_int_mul_long(unsigned int left, long double "
+      "right) { return left * right; }\n"
+      "long double long_div_signed_wide(long double left, long long right) "
+      "{ return left / right; }\n"
+      "long double unsigned_wide_div_long(unsigned long long left, "
+      "long double right) { return left / right; }\n"
+      "enum usual_integer_tag { USUAL_INTEGER_NEGATIVE = -1, "
+      "USUAL_INTEGER_POSITIVE = 3 };\n"
+      "long double long_add_bool(long double left, _Bool right) "
+      "{ return left + right; }\n"
+      "long double char_sub_long(char left, long double right) "
+      "{ return left - right; }\n"
+      "long double long_mul_signed_long(long double left, long right) "
+      "{ return left * right; }\n"
+      "long double unsigned_long_div_long(unsigned long left, long double "
+      "right) { return left / right; }\n"
+      "long double long_add_enum(long double left, enum usual_integer_tag "
+      "right) { return left + right; }\n";
   static const frontend_exact_failure_case_t failure_cases[] = {
       {{"wide integer and float operands",
         "float bad(float left, long long right) { return left * right; }\n",
@@ -24686,7 +24793,12 @@ static int run_floating_arithmetic(const char *host_root) {
         "float bad(_Atomic float value) { return -value; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
        1u, 41u,
-       "atomic floating arithmetic is outside this expression slice"}};
+       "atomic floating arithmetic is outside this expression slice"},
+      {{"atomic integer and long double arithmetic",
+        "long double bad(long double left, _Atomic int right) { return left + right; }\n",
+        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
+       0u, 0u,
+       "atomic mixed floating arithmetic is outside this expression slice"}};
   frontend_fixture_t fixture;
   ctool_c_translation_unit_t unit;
   ctool_u32 index;
@@ -24751,13 +24863,21 @@ static ctool_u32 floating_comparison_operation_index(
 
 static int validate_floating_comparisons(
     const ctool_c_translation_unit_t *unit) {
+  static const ctool_c_type_kind_t signed_integer_kinds[] = {
+      CTOOL_C_TYPE_SIGNED_CHAR, CTOOL_C_TYPE_SIGNED_SHORT,
+      CTOOL_C_TYPE_SIGNED_INT, CTOOL_C_TYPE_SIGNED_LONG_LONG};
+  static const ctool_c_type_kind_t unsigned_integer_kinds[] = {
+      CTOOL_C_TYPE_UNSIGNED_CHAR, CTOOL_C_TYPE_UNSIGNED_SHORT,
+      CTOOL_C_TYPE_UNSIGNED_INT, CTOOL_C_TYPE_UNSIGNED_LONG_LONG};
   ctool_u32 float_counts[6] = {0u, 0u, 0u, 0u, 0u, 0u};
   ctool_u32 double_counts[6] = {0u, 0u, 0u, 0u, 0u, 0u};
   ctool_u32 long_double_counts[6] = {0u, 0u, 0u, 0u, 0u, 0u};
   ctool_u32 widenings = 0u;
   ctool_u32 long_double_widenings = 0u;
+  ctool_u32 signed_integer_usual[4] = {0u, 0u, 0u, 0u};
+  ctool_u32 unsigned_integer_usual[4] = {0u, 0u, 0u, 0u};
   ctool_u32 index;
-  if (unit == NULL || unit->function_definition_count != 30u) {
+  if (unit == NULL || unit->function_definition_count != 38u) {
     return 1;
   }
   for (index = 0u; index < unit->expression_count; index++) {
@@ -24789,11 +24909,25 @@ static int validate_floating_comparisons(
       }
       child_kind = underlying_type_kind(
           unit, unit->expressions[child].type, NULL);
-      if (child_kind != CTOOL_C_TYPE_FLOAT &&
-          child_kind != CTOOL_C_TYPE_DOUBLE) {
-        return 1;
+      if (child_kind == CTOOL_C_TYPE_FLOAT ||
+          child_kind == CTOOL_C_TYPE_DOUBLE) {
+        long_double_widenings++;
+      } else {
+        ctool_u32 integer_index;
+        ctool_bool matched = CTOOL_FALSE;
+        for (integer_index = 0u; integer_index < 4u; integer_index++) {
+          if (child_kind == signed_integer_kinds[integer_index]) {
+            signed_integer_usual[integer_index]++;
+            matched = CTOOL_TRUE;
+          } else if (child_kind == unsigned_integer_kinds[integer_index]) {
+            unsigned_integer_usual[integer_index]++;
+            matched = CTOOL_TRUE;
+          }
+        }
+        if (matched == CTOOL_FALSE) {
+          return 1;
+        }
       }
-      long_double_widenings++;
       continue;
     }
     if (expression->kind == CTOOL_C_EXPRESSION_BINARY) {
@@ -24831,8 +24965,9 @@ static int validate_floating_comparisons(
     }
   }
   for (index = 0u; index < 6u; index++) {
+    ctool_u32 expected_long_double = index < 2u ? 4u : 3u;
     if (float_counts[index] != 1u || double_counts[index] != 2u ||
-        long_double_counts[index] != 2u) {
+        long_double_counts[index] != expected_long_double) {
       (void)fprintf(
           stderr,
           "floating-comparisons: operator %u inventory differs: "
@@ -24851,6 +24986,19 @@ static int validate_floating_comparisons(
         (unsigned int)widenings,
         (unsigned int)long_double_widenings);
     return 1;
+  }
+  for (index = 0u; index < 4u; index++) {
+    if (signed_integer_usual[index] != 1u ||
+        unsigned_integer_usual[index] != 1u) {
+      (void)fprintf(
+          stderr,
+          "floating-comparisons: integer/long-double conversion inventory "
+          "differs at width %u: signed=%u unsigned=%u\n",
+          (unsigned int)index,
+          (unsigned int)signed_integer_usual[index],
+          (unsigned int)unsigned_integer_usual[index]);
+      return 1;
+    }
   }
   return 0;
 }
@@ -24886,7 +25034,23 @@ static int run_floating_comparisons(const char *host_root) {
       "int mixed_long_less(long double left, double right) { return left < right; }\n"
       "int mixed_long_less_equal(float left, long double right) { return left <= right; }\n"
       "int mixed_long_greater(long double left, float right) { return left > right; }\n"
-      "int mixed_long_greater_equal(double left, long double right) { return left >= right; }\n";
+      "int mixed_long_greater_equal(double left, long double right) { return left >= right; }\n"
+      "int signed_char_long_equal(signed char left, long double right) "
+      "{ return left == right; }\n"
+      "int long_unsigned_char_not_equal(long double left, unsigned char "
+      "right) { return left != right; }\n"
+      "int signed_short_long_less(short left, long double right) "
+      "{ return left < right; }\n"
+      "int long_unsigned_short_less_equal(long double left, unsigned short "
+      "right) { return left <= right; }\n"
+      "int signed_int_long_greater(int left, long double right) "
+      "{ return left > right; }\n"
+      "int long_unsigned_int_greater_equal(long double left, unsigned int "
+      "right) { return left >= right; }\n"
+      "int signed_wide_long_equal(long long left, long double right) "
+      "{ return left == right; }\n"
+      "int long_unsigned_wide_not_equal(long double left, unsigned long "
+      "long right) { return left != right; }\n";
   static const frontend_exact_failure_case_t failure_cases[] = {
       {{"atomic long double comparison",
         "int bad(_Atomic long double left, long double right) { return left < right; }\n",
@@ -24902,19 +25066,7 @@ static int run_floating_comparisons(const char *host_root) {
         "int bad(long long left, float right) { return left >= right; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
        0u, 0u,
-       "integer and floating comparison conversion exceeds the represented 32-bit slice"},
-      {{"integer and long double comparison",
-        "int bad(long double left, int right) { return left < right; }\n",
-       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       0u, 0u,
-       "integer and long double comparison conversion is outside this "
-       "expression slice"},
-      {{"long double and integer comparison",
-        "int bad(int left, long double right) { return left >= right; }\n",
-       CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       0u, 0u,
-       "integer and long double comparison conversion is outside this "
-       "expression slice"}};
+       "integer and floating comparison conversion exceeds the represented 32-bit slice"}};
   frontend_fixture_t fixture;
   ctool_c_translation_unit_t unit;
   ctool_u32 index;
@@ -25177,12 +25329,15 @@ static int validate_floating_conversions(
   ctool_u32 integer_conditional_conversions[4] = {0u, 0u, 0u, 0u};
   ctool_u32 integer_to_long_double_casts[4] = {0u, 0u, 0u, 0u};
   ctool_u32 integer_to_long_double_assignments[4] = {0u, 0u, 0u, 0u};
+  ctool_u32 signed_integer_to_long_double_usual[4] = {0u, 0u, 0u, 0u};
+  ctool_u32 unsigned_integer_to_long_double_usual[4] = {0u, 0u, 0u, 0u};
   ctool_u32 long_double_to_integer_casts[4] = {0u, 0u, 0u, 0u};
   ctool_u32 long_double_to_integer_assignments[4] = {0u, 0u, 0u, 0u};
   ctool_u32 usual_widenings = 0u;
   ctool_u32 mixed_binary[4] = {0u, 0u, 0u, 0u};
   ctool_u32 float_conditionals = 0u;
   ctool_u32 double_conditionals = 0u;
+  ctool_u32 long_double_conditionals = 0u;
   ctool_u32 pointer_conditions = 0u;
   ctool_u32 compounds[4] = {0u, 0u, 0u, 0u};
   ctool_u32 float_compound_results = 0u;
@@ -25191,7 +25346,7 @@ static int validate_floating_conversions(
   ctool_u32 double_computations = 0u;
   ctool_u32 index;
 
-  if (unit == NULL || unit->function_definition_count != 47u) {
+  if (unit == NULL || unit->function_definition_count != 55u) {
     return 1;
   }
   for (index = 0u; index < unit->expression_count; index++) {
@@ -25274,6 +25429,20 @@ static int validate_floating_conversions(
         integer_to_long_double_assignments[integer_index]++;
       }
       if (floating_width_conversion_matches(
+              unit, expression, CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION,
+              CTOOL_C_CONVERSION_USUAL_ARITHMETIC,
+              CTOOL_C_TYPE_LONG_DOUBLE,
+              signed_integer_kinds[integer_index])) {
+        signed_integer_to_long_double_usual[integer_index]++;
+      }
+      if (floating_width_conversion_matches(
+              unit, expression, CTOOL_C_EXPRESSION_IMPLICIT_CONVERSION,
+              CTOOL_C_CONVERSION_USUAL_ARITHMETIC,
+              CTOOL_C_TYPE_LONG_DOUBLE,
+              unsigned_integer_kinds[integer_index])) {
+        unsigned_integer_to_long_double_usual[integer_index]++;
+      }
+      if (floating_width_conversion_matches(
               unit, expression, CTOOL_C_EXPRESSION_CAST,
               CTOOL_C_CONVERSION_NONE,
               signed_integer_kinds[integer_index],
@@ -25326,7 +25495,8 @@ static int validate_floating_conversions(
           underlying_type_kind(unit, expression->type, NULL);
       if (expression->child_count != 3u ||
           (result_kind != CTOOL_C_TYPE_FLOAT &&
-           result_kind != CTOOL_C_TYPE_DOUBLE) ||
+           result_kind != CTOOL_C_TYPE_DOUBLE &&
+           result_kind != CTOOL_C_TYPE_LONG_DOUBLE) ||
           condition >= unit->expression_count ||
           when_nonzero >= unit->expression_count ||
           when_zero >= unit->expression_count ||
@@ -25339,8 +25509,10 @@ static int validate_floating_conversions(
       }
       if (result_kind == CTOOL_C_TYPE_FLOAT) {
         float_conditionals++;
-      } else {
+      } else if (result_kind == CTOOL_C_TYPE_DOUBLE) {
         double_conditionals++;
+      } else {
+        long_double_conditionals++;
       }
       if (underlying_type_kind(
               unit, unit->expressions[condition].type, NULL) ==
@@ -25408,6 +25580,7 @@ static int validate_floating_conversions(
       mixed_binary[0] != 1u || mixed_binary[1] != 1u ||
       mixed_binary[2] != 1u || mixed_binary[3] != 1u ||
       float_conditionals != 3u || double_conditionals != 6u ||
+      long_double_conditionals != 8u ||
       pointer_conditions != 1u ||
       compounds[0] != 2u || compounds[1] != 2u ||
       compounds[2] != 2u || compounds[3] != 2u ||
@@ -25419,7 +25592,7 @@ static int validate_floating_conversions(
         "floating-conversions: inventory differs: casts=%u/%u/%u/%u "
         "assignments=%u/%u integer-conditionals=%u/%u/%u/%u usual=%u "
         "binary=%u/%u/%u/%u "
-        "conditionals=%u/%u pointer=%u compounds=%u/%u/%u/%u results=%u/%u "
+        "conditionals=%u/%u/%u pointer=%u compounds=%u/%u/%u/%u results=%u/%u "
         "computations=%u/%u\n",
         (unsigned int)casts[0], (unsigned int)casts[1],
         (unsigned int)same_casts[0], (unsigned int)same_casts[1],
@@ -25433,6 +25606,7 @@ static int validate_floating_conversions(
         (unsigned int)mixed_binary[2], (unsigned int)mixed_binary[3],
         (unsigned int)float_conditionals,
         (unsigned int)double_conditionals,
+        (unsigned int)long_double_conditionals,
         (unsigned int)pointer_conditions,
         (unsigned int)compounds[0], (unsigned int)compounds[1],
         (unsigned int)compounds[2], (unsigned int)compounds[3],
@@ -25445,15 +25619,19 @@ static int validate_floating_conversions(
   for (index = 0u; index < 4u; index++) {
     if (integer_to_long_double_casts[index] != 1u ||
         integer_to_long_double_assignments[index] != 1u ||
+        signed_integer_to_long_double_usual[index] != 1u ||
+        unsigned_integer_to_long_double_usual[index] != 1u ||
         long_double_to_integer_casts[index] != 1u ||
         long_double_to_integer_assignments[index] != 1u) {
       (void)fprintf(
           stderr,
           "floating-conversions: integer/long-double inventory differs at "
-          "width %u: to=%u/%u from=%u/%u\n",
+          "width %u: to=%u/%u usual=%u/%u from=%u/%u\n",
           (unsigned int)index,
           (unsigned int)integer_to_long_double_casts[index],
           (unsigned int)integer_to_long_double_assignments[index],
+          (unsigned int)signed_integer_to_long_double_usual[index],
+          (unsigned int)unsigned_integer_to_long_double_usual[index],
           (unsigned int)long_double_to_integer_casts[index],
           (unsigned int)long_double_to_integer_assignments[index]);
       return 1;
@@ -25463,7 +25641,7 @@ static int validate_floating_conversions(
 }
 
 static int run_floating_conversions(const char *host_root) {
-  static const char source[] =
+  static const char source_prefix[] =
       "double take_double(double value);\n"
       "float take_float(float value);\n"
       "float same_float_cast(float value) { return (float)value; }\n"
@@ -25488,7 +25666,24 @@ static int run_floating_conversions(const char *host_root) {
       "float choose_int_float(int condition, int left, float right) { return condition ? left : right; }\n"
       "float choose_float_short(int condition, float left, short right) { return condition ? left : right; }\n"
       "double choose_uint_double(int condition, unsigned int left, double right) { return condition ? left : right; }\n"
-      "double choose_double_uchar(int condition, double left, unsigned char right) { return condition ? left : right; }\n"
+      "double choose_double_uchar(int condition, double left, unsigned char right) { return condition ? left : right; }\n";
+  static const char source_suffix[] =
+      "long double choose_signed_char_long(int condition, signed char left, "
+      "long double right) { return condition ? left : right; }\n"
+      "long double choose_long_unsigned_char(int condition, long double "
+      "left, unsigned char right) { return condition ? left : right; }\n"
+      "long double choose_signed_short_long(int condition, short left, "
+      "long double right) { return condition ? left : right; }\n"
+      "long double choose_long_unsigned_short(int condition, long double "
+      "left, unsigned short right) { return condition ? left : right; }\n"
+      "long double choose_signed_int_long(int condition, int left, "
+      "long double right) { return condition ? left : right; }\n"
+      "long double choose_long_unsigned_int(int condition, long double left, "
+      "unsigned int right) { return condition ? left : right; }\n"
+      "long double choose_signed_wide_long(int condition, long long left, "
+      "long double right) { return condition ? left : right; }\n"
+      "long double choose_long_unsigned_wide(int condition, long double left, "
+      "unsigned long long right) { return condition ? left : right; }\n"
       "float same_add(float *left, float right) { return *left += right; }\n"
       "double same_subtract(double *left, double right) { return *left -= right; }\n"
       "float same_multiply(float *left, float right) { return *left *= right; }\n"
@@ -25561,11 +25756,6 @@ static int run_floating_conversions(const char *host_root) {
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
        0u, 0u,
        "integer and floating conditional conversion exceeds the represented 32-bit slice"},
-      {{"integer and long double conditional",
-        "long double bad(int condition, int left, long double right) { return condition ? left : right; }\n",
-        CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
-       0u, 0u,
-       "integer and long double conditional conversion is outside this expression slice"},
       {{"atomic floating conditional arm",
         "double bad(int condition, _Atomic float left, double right) { return condition ? left : right; }\n",
         CTOOL_ERR_UNSUPPORTED, CTOOL_C_PARSE_DIAG_EXPRESSION},
@@ -25593,9 +25783,13 @@ static int run_floating_conversions(const char *host_root) {
        "floating compound assignment is outside this body slice"}};
   frontend_fixture_t fixture;
   ctool_c_translation_unit_t unit;
+  char source[sizeof(source_prefix) + sizeof(source_suffix) - 1u];
   ctool_u32 index;
   int failed = 1;
 
+  (void)memcpy(source, source_prefix, sizeof(source_prefix) - 1u);
+  (void)memcpy(source + sizeof(source_prefix) - 1u, source_suffix,
+               sizeof(source_suffix));
   if (begin_frontend_fixture(&fixture, "floating-conversions", host_root,
                              8u * 1024u * 1024u) != 0) {
     return 1;

@@ -27010,26 +27010,77 @@ static int validate_floating_arithmetic_ir(
     const ctool_c_translation_unit_t *unit, const ctool_c_ir_unit_t *ir) {
   ctool_u32 float_type = find_plain_type_kind(unit, CTOOL_C_TYPE_FLOAT);
   ctool_u32 double_type = find_plain_type_kind(unit, CTOOL_C_TYPE_DOUBLE);
+  ctool_u32 long_double_type =
+      find_plain_type_kind(unit, CTOOL_C_TYPE_LONG_DOUBLE);
+  ctool_u32 signed_integer_types[4] = {
+      find_plain_type_kind(unit, CTOOL_C_TYPE_SIGNED_CHAR),
+      find_plain_type_kind(unit, CTOOL_C_TYPE_SIGNED_SHORT),
+      find_plain_type_kind(unit, CTOOL_C_TYPE_SIGNED_INT),
+      find_plain_type_kind(unit, CTOOL_C_TYPE_SIGNED_LONG_LONG)};
+  ctool_u32 unsigned_integer_types[4] = {
+      find_plain_type_kind(unit, CTOOL_C_TYPE_UNSIGNED_CHAR),
+      find_plain_type_kind(unit, CTOOL_C_TYPE_UNSIGNED_SHORT),
+      find_plain_type_kind(unit, CTOOL_C_TYPE_UNSIGNED_INT),
+      find_plain_type_kind(unit, CTOOL_C_TYPE_UNSIGNED_LONG_LONG)};
+  ctool_u32 other_integer_types[5] = {
+      find_plain_type_kind(unit, CTOOL_C_TYPE_BOOL),
+      find_plain_type_kind(unit, CTOOL_C_TYPE_CHAR),
+      find_plain_type_kind(unit, CTOOL_C_TYPE_SIGNED_LONG),
+      find_plain_type_kind(unit, CTOOL_C_TYPE_UNSIGNED_LONG),
+      find_plain_type_kind(unit, CTOOL_C_TYPE_ENUM)};
   ctool_u32 float_unary[2] = {0u, 0u};
   ctool_u32 double_unary[2] = {0u, 0u};
   ctool_u32 float_binary[4] = {0u, 0u, 0u, 0u};
   ctool_u32 double_binary[4] = {0u, 0u, 0u, 0u};
+  ctool_u32 long_double_binary[4] = {0u, 0u, 0u, 0u};
+  ctool_u32 signed_integer_usual[4] = {0u, 0u, 0u, 0u};
+  ctool_u32 unsigned_integer_usual[4] = {0u, 0u, 0u, 0u};
+  ctool_u32 other_integer_usual[5] = {0u, 0u, 0u, 0u, 0u};
   ctool_u32 index;
   if (unit == NULL || ir == NULL || ir->instructions == NULL ||
       float_type == CTOOL_C_TYPE_NONE || double_type == CTOOL_C_TYPE_NONE ||
-      unit->function_definition_count != 16u || ir->function_count != 16u) {
+      long_double_type == CTOOL_C_TYPE_NONE ||
+      unit->function_definition_count != 29u || ir->function_count != 29u) {
     return 0;
   }
   for (index = 0u; index < ir->instruction_count; index++) {
     const ctool_c_ir_instruction_t *instruction = &ir->instructions[index];
     ctool_u32 *unary_counts = NULL;
     ctool_u32 *binary_counts = NULL;
+    if (instruction->kind == CTOOL_C_IR_INSTRUCTION_CONVERT &&
+        instruction->type == long_double_type &&
+        instruction->conversion == CTOOL_C_CONVERSION_USUAL_ARITHMETIC) {
+      ctool_u32 integer_index;
+      ctool_bool matched = CTOOL_FALSE;
+      for (integer_index = 0u; integer_index < 4u; integer_index++) {
+        if (instruction->input_type == signed_integer_types[integer_index]) {
+          signed_integer_usual[integer_index]++;
+          matched = CTOOL_TRUE;
+        } else if (instruction->input_type ==
+                   unsigned_integer_types[integer_index]) {
+          unsigned_integer_usual[integer_index]++;
+          matched = CTOOL_TRUE;
+        }
+      }
+      for (integer_index = 0u; integer_index < 5u; integer_index++) {
+        if (instruction->input_type == other_integer_types[integer_index]) {
+          other_integer_usual[integer_index]++;
+          matched = CTOOL_TRUE;
+        }
+      }
+      if (matched == CTOOL_FALSE) {
+        return 0;
+      }
+      continue;
+    }
     if (instruction->input_type == float_type) {
       unary_counts = float_unary;
       binary_counts = float_binary;
     } else if (instruction->input_type == double_type) {
       unary_counts = double_unary;
       binary_counts = double_binary;
+    } else if (instruction->input_type == long_double_type) {
+      binary_counts = long_double_binary;
     } else {
       continue;
     }
@@ -27076,19 +27127,22 @@ static int validate_floating_arithmetic_ir(
       binary_counts[operation_index]++;
     }
   }
-  if (ir->instruction_count != 108u ||
+  if (ir->instruction_count != 199u ||
       wide_variadic_ir_fingerprint(ir) !=
-          UINT64_C(0x3bdb49a258f5e7b6) ||
+          UINT64_C(0xc26be4e541b45681) ||
       float_unary[0] != 2u || float_unary[1] != 2u ||
       double_unary[0] != 2u || double_unary[1] != 2u ||
       float_binary[0] != 2u || float_binary[1] != 2u ||
       float_binary[2] != 2u || float_binary[3] != 2u ||
       double_binary[0] != 2u || double_binary[1] != 2u ||
-      double_binary[2] != 2u || double_binary[3] != 2u) {
+      double_binary[2] != 2u || double_binary[3] != 2u ||
+      long_double_binary[0] != 4u || long_double_binary[1] != 3u ||
+      long_double_binary[2] != 3u || long_double_binary[3] != 3u) {
     (void)fprintf(
         stderr,
         "floating-arithmetic: IR inventory differs: unary=%u/%u/%u/%u "
-        "binary=%u/%u/%u/%u/%u/%u/%u/%u instructions=%u "
+        "binary=%u/%u/%u/%u/%u/%u/%u/%u "
+        "long-double=%u/%u/%u/%u instructions=%u "
         "fingerprint=%016llx\n",
         (unsigned int)float_unary[0], (unsigned int)float_unary[1],
         (unsigned int)double_unary[0], (unsigned int)double_unary[1],
@@ -27096,9 +27150,37 @@ static int validate_floating_arithmetic_ir(
         (unsigned int)float_binary[2], (unsigned int)float_binary[3],
         (unsigned int)double_binary[0], (unsigned int)double_binary[1],
         (unsigned int)double_binary[2], (unsigned int)double_binary[3],
+        (unsigned int)long_double_binary[0],
+        (unsigned int)long_double_binary[1],
+        (unsigned int)long_double_binary[2],
+        (unsigned int)long_double_binary[3],
         (unsigned int)ir->instruction_count,
         (unsigned long long)wide_variadic_ir_fingerprint(ir));
     return 0;
+  }
+  for (index = 0u; index < 4u; index++) {
+    if (signed_integer_usual[index] != 1u ||
+        unsigned_integer_usual[index] != 1u) {
+      (void)fprintf(
+          stderr,
+          "floating-arithmetic: integer/long-double IR conversion inventory "
+          "differs at width %u: signed=%u unsigned=%u\n",
+          (unsigned int)index,
+          (unsigned int)signed_integer_usual[index],
+          (unsigned int)unsigned_integer_usual[index]);
+      return 0;
+    }
+  }
+  for (index = 0u; index < 5u; index++) {
+    if (other_integer_usual[index] != 1u) {
+      (void)fprintf(
+          stderr,
+          "floating-arithmetic: additional integer/long-double IR "
+          "conversion inventory differs at kind %u: count=%u\n",
+          (unsigned int)unit->graph.types[other_integer_types[index]].kind,
+          (unsigned int)other_integer_usual[index]);
+      return 0;
+    }
   }
   return 1;
 }
@@ -27126,7 +27208,35 @@ static int run_floating_arithmetic(const char *host_root) {
       "double double_nested(double left, double right, double third) {\n"
       "  return -(+double_identity(left) * (right + third)) /\n"
       "         (double_identity(third) - left);\n"
-      "}\n";
+      "}\n"
+      "long double long_add_signed_char(long double left, signed char right) "
+      "{ return left + right; }\n"
+      "long double unsigned_char_add_long(unsigned char left, long double "
+      "right) { return left + right; }\n"
+      "long double long_sub_signed_short(long double left, short right) "
+      "{ return left - right; }\n"
+      "long double unsigned_short_sub_long(unsigned short left, long double "
+      "right) { return left - right; }\n"
+      "long double long_mul_signed_int(long double left, int right) "
+      "{ return left * right; }\n"
+      "long double unsigned_int_mul_long(unsigned int left, long double "
+      "right) { return left * right; }\n"
+      "long double long_div_signed_wide(long double left, long long right) "
+      "{ return left / right; }\n"
+      "long double unsigned_wide_div_long(unsigned long long left, "
+      "long double right) { return left / right; }\n"
+      "enum usual_integer_tag { USUAL_INTEGER_NEGATIVE = -1, "
+      "USUAL_INTEGER_POSITIVE = 3 };\n"
+      "long double long_add_bool(long double left, _Bool right) "
+      "{ return left + right; }\n"
+      "long double char_sub_long(char left, long double right) "
+      "{ return left - right; }\n"
+      "long double long_mul_signed_long(long double left, long right) "
+      "{ return left * right; }\n"
+      "long double unsigned_long_div_long(unsigned long left, long double "
+      "right) { return left / right; }\n"
+      "long double long_add_enum(long double left, enum usual_integer_tag "
+      "right) { return left + right; }\n";
   ctool_host_adapter_t adapter;
   ctool_host_adapter_t limited_adapter;
   ctool_job_config_t config;
@@ -27296,19 +27406,31 @@ static int validate_floating_comparison_ir(
   ctool_u32 long_double_type =
       find_plain_type_kind(unit, CTOOL_C_TYPE_LONG_DOUBLE);
   ctool_u32 int_type = find_plain_type_kind(unit, CTOOL_C_TYPE_SIGNED_INT);
+  ctool_u32 signed_integer_types[4] = {
+      find_plain_type_kind(unit, CTOOL_C_TYPE_SIGNED_CHAR),
+      find_plain_type_kind(unit, CTOOL_C_TYPE_SIGNED_SHORT),
+      find_plain_type_kind(unit, CTOOL_C_TYPE_SIGNED_INT),
+      find_plain_type_kind(unit, CTOOL_C_TYPE_SIGNED_LONG_LONG)};
+  ctool_u32 unsigned_integer_types[4] = {
+      find_plain_type_kind(unit, CTOOL_C_TYPE_UNSIGNED_CHAR),
+      find_plain_type_kind(unit, CTOOL_C_TYPE_UNSIGNED_SHORT),
+      find_plain_type_kind(unit, CTOOL_C_TYPE_UNSIGNED_INT),
+      find_plain_type_kind(unit, CTOOL_C_TYPE_UNSIGNED_LONG_LONG)};
   ctool_u32 float_counts[6] = {0u, 0u, 0u, 0u, 0u, 0u};
   ctool_u32 double_counts[6] = {0u, 0u, 0u, 0u, 0u, 0u};
   ctool_u32 long_double_counts[6] = {0u, 0u, 0u, 0u, 0u, 0u};
   ctool_u32 widenings = 0u;
   ctool_u32 long_double_widenings = 0u;
+  ctool_u32 signed_integer_usual[4] = {0u, 0u, 0u, 0u};
+  ctool_u32 unsigned_integer_usual[4] = {0u, 0u, 0u, 0u};
   ctool_u32 index;
   if (unit == NULL || ir == NULL || ir->functions == NULL ||
       ir->instructions == NULL || float_type == CTOOL_C_TYPE_NONE ||
       double_type == CTOOL_C_TYPE_NONE ||
       long_double_type == CTOOL_C_TYPE_NONE ||
       int_type == CTOOL_C_TYPE_NONE ||
-      unit->function_definition_count != 30u || ir->function_count != 30u ||
-      ir->instruction_count != 192u) {
+      unit->function_definition_count != 38u || ir->function_count != 38u ||
+      ir->instruction_count == 0u) {
     return 0;
   }
   for (index = 0u; index < ir->function_count; index++) {
@@ -27327,12 +27449,29 @@ static int validate_floating_comparison_ir(
       continue;
     }
     if (instruction->kind == CTOOL_C_IR_INSTRUCTION_CONVERT &&
-        (instruction->input_type == float_type ||
-         instruction->input_type == double_type) &&
         instruction->type == long_double_type &&
         instruction->conversion ==
             CTOOL_C_CONVERSION_USUAL_ARITHMETIC) {
-      long_double_widenings++;
+      ctool_u32 integer_index;
+      ctool_bool matched = CTOOL_FALSE;
+      if (instruction->input_type == float_type ||
+          instruction->input_type == double_type) {
+        long_double_widenings++;
+        continue;
+      }
+      for (integer_index = 0u; integer_index < 4u; integer_index++) {
+        if (instruction->input_type == signed_integer_types[integer_index]) {
+          signed_integer_usual[integer_index]++;
+          matched = CTOOL_TRUE;
+        } else if (instruction->input_type ==
+                   unsigned_integer_types[integer_index]) {
+          unsigned_integer_usual[integer_index]++;
+          matched = CTOOL_TRUE;
+        }
+      }
+      if (matched == CTOOL_FALSE) {
+        return 0;
+      }
       continue;
     }
     if (instruction->kind == CTOOL_C_IR_INSTRUCTION_BINARY) {
@@ -27361,8 +27500,9 @@ static int validate_floating_comparison_ir(
     }
   }
   for (index = 0u; index < 6u; index++) {
+    ctool_u32 expected_long_double = index < 2u ? 4u : 3u;
     if (float_counts[index] != 1u || double_counts[index] != 2u ||
-        long_double_counts[index] != 2u) {
+        long_double_counts[index] != expected_long_double) {
       (void)fprintf(
           stderr,
           "floating-comparisons: IR operator %u inventory differs: "
@@ -27374,15 +27514,30 @@ static int validate_floating_comparison_ir(
     }
   }
   if (widenings != 6u || long_double_widenings != 6u ||
-      wide_variadic_ir_fingerprint(ir) != UINT64_C(0x00ef66c81c2a4bd4)) {
+      ir->instruction_count != 248u ||
+      wide_variadic_ir_fingerprint(ir) != UINT64_C(0xa2406de3452f7db7)) {
     (void)fprintf(
         stderr,
         "floating-comparisons: IR inventory differs: widenings=%u "
-        "long-double-widenings=%u fingerprint=%016llx\n",
+        "long-double-widenings=%u instructions=%u fingerprint=%016llx\n",
         (unsigned int)widenings,
         (unsigned int)long_double_widenings,
+        (unsigned int)ir->instruction_count,
         (unsigned long long)wide_variadic_ir_fingerprint(ir));
     return 0;
+  }
+  for (index = 0u; index < 4u; index++) {
+    if (signed_integer_usual[index] != 1u ||
+        unsigned_integer_usual[index] != 1u) {
+      (void)fprintf(
+          stderr,
+          "floating-comparisons: integer/long-double IR conversion inventory "
+          "differs at width %u: signed=%u unsigned=%u\n",
+          (unsigned int)index,
+          (unsigned int)signed_integer_usual[index],
+          (unsigned int)unsigned_integer_usual[index]);
+      return 0;
+    }
   }
   return 1;
 }
@@ -27418,7 +27573,23 @@ static int run_floating_comparisons(const char *host_root) {
       "int mixed_long_less(long double left, double right) { return left < right; }\n"
       "int mixed_long_less_equal(float left, long double right) { return left <= right; }\n"
       "int mixed_long_greater(long double left, float right) { return left > right; }\n"
-      "int mixed_long_greater_equal(double left, long double right) { return left >= right; }\n";
+      "int mixed_long_greater_equal(double left, long double right) { return left >= right; }\n"
+      "int signed_char_long_equal(signed char left, long double right) "
+      "{ return left == right; }\n"
+      "int long_unsigned_char_not_equal(long double left, unsigned char "
+      "right) { return left != right; }\n"
+      "int signed_short_long_less(short left, long double right) "
+      "{ return left < right; }\n"
+      "int long_unsigned_short_less_equal(long double left, unsigned short "
+      "right) { return left <= right; }\n"
+      "int signed_int_long_greater(int left, long double right) "
+      "{ return left > right; }\n"
+      "int long_unsigned_int_greater_equal(long double left, unsigned int "
+      "right) { return left >= right; }\n"
+      "int signed_wide_long_equal(long long left, long double right) "
+      "{ return left == right; }\n"
+      "int long_unsigned_wide_not_equal(long double left, unsigned long "
+      "long right) { return left != right; }\n";
   ctool_host_adapter_t adapter;
   ctool_host_adapter_t limited_adapter;
   ctool_job_config_t config;
@@ -28031,6 +28202,8 @@ static int validate_floating_conversion_ir(
   ctool_u32 integer_conditional_conversions[4] = {0u, 0u, 0u, 0u};
   ctool_u32 integer_to_long_double_casts[4] = {0u, 0u, 0u, 0u};
   ctool_u32 integer_to_long_double_assignments[4] = {0u, 0u, 0u, 0u};
+  ctool_u32 signed_integer_to_long_double_usual[4] = {0u, 0u, 0u, 0u};
+  ctool_u32 unsigned_integer_to_long_double_usual[4] = {0u, 0u, 0u, 0u};
   ctool_u32 long_double_to_integer_casts[4] = {0u, 0u, 0u, 0u};
   ctool_u32 long_double_to_integer_assignments[4] = {0u, 0u, 0u, 0u};
   ctool_u32 usual_widenings = 0u;
@@ -28045,8 +28218,8 @@ static int validate_floating_conversion_ir(
       double_type == CTOOL_C_TYPE_NONE ||
       long_double_type == CTOOL_C_TYPE_NONE ||
       next_float == CTOOL_C_AST_NONE ||
-      unit->function_definition_count != 48u ||
-      ir->function_count != 48u) {
+      unit->function_definition_count != 56u ||
+      ir->function_count != 56u) {
     return 0;
   }
   for (index = 0u; index < ir->instruction_count; index++) {
@@ -28117,6 +28290,19 @@ static int validate_floating_conversion_ir(
             instruction->type == long_double_type) {
           integer_to_long_double_assignments[integer_index]++;
         }
+        if (instruction->conversion ==
+                CTOOL_C_CONVERSION_USUAL_ARITHMETIC &&
+            instruction->input_type == signed_integer_types[integer_index] &&
+            instruction->type == long_double_type) {
+          signed_integer_to_long_double_usual[integer_index]++;
+        }
+        if (instruction->conversion ==
+                CTOOL_C_CONVERSION_USUAL_ARITHMETIC &&
+            instruction->input_type ==
+                unsigned_integer_types[integer_index] &&
+            instruction->type == long_double_type) {
+          unsigned_integer_to_long_double_usual[integer_index]++;
+        }
         if (instruction->conversion == CTOOL_C_CONVERSION_NONE &&
             instruction->input_type == long_double_type &&
             instruction->type == signed_integer_types[integer_index]) {
@@ -28163,7 +28349,7 @@ static int validate_floating_conversion_ir(
       usual_widenings != 12u ||
       binary_operations[0] != 4u || binary_operations[1] != 3u ||
       binary_operations[2] != 3u || binary_operations[3] != 3u ||
-      conditional_branches != 9u ||
+      conditional_branches != 17u ||
       !validate_floating_conditional_ir(
           unit, ir, "choose_float", CTOOL_C_TYPE_SIGNED_INT,
           float_type, 0u) ||
@@ -28184,7 +28370,31 @@ static int validate_floating_conversion_ir(
           double_type, 1u) ||
       !validate_floating_conditional_ir(
           unit, ir, "choose_double_uchar", CTOOL_C_TYPE_SIGNED_INT,
-          double_type, 1u)) {
+          double_type, 1u) ||
+      !validate_floating_conditional_ir(
+          unit, ir, "choose_signed_char_long", CTOOL_C_TYPE_SIGNED_INT,
+          long_double_type, 1u) ||
+      !validate_floating_conditional_ir(
+          unit, ir, "choose_long_unsigned_char", CTOOL_C_TYPE_SIGNED_INT,
+          long_double_type, 1u) ||
+      !validate_floating_conditional_ir(
+          unit, ir, "choose_signed_short_long", CTOOL_C_TYPE_SIGNED_INT,
+          long_double_type, 1u) ||
+      !validate_floating_conditional_ir(
+          unit, ir, "choose_long_unsigned_short", CTOOL_C_TYPE_SIGNED_INT,
+          long_double_type, 1u) ||
+      !validate_floating_conditional_ir(
+          unit, ir, "choose_signed_int_long", CTOOL_C_TYPE_SIGNED_INT,
+          long_double_type, 1u) ||
+      !validate_floating_conditional_ir(
+          unit, ir, "choose_long_unsigned_int", CTOOL_C_TYPE_SIGNED_INT,
+          long_double_type, 1u) ||
+      !validate_floating_conditional_ir(
+          unit, ir, "choose_signed_wide_long", CTOOL_C_TYPE_SIGNED_INT,
+          long_double_type, 1u) ||
+      !validate_floating_conditional_ir(
+          unit, ir, "choose_long_unsigned_wide", CTOOL_C_TYPE_SIGNED_INT,
+          long_double_type, 1u)) {
     (void)fprintf(
         stderr,
         "floating-conversions: IR inventory differs: casts=%u/%u/%u/%u "
@@ -28208,15 +28418,19 @@ static int validate_floating_conversion_ir(
   for (index = 0u; index < 4u; index++) {
     if (integer_to_long_double_casts[index] != 1u ||
         integer_to_long_double_assignments[index] != 1u ||
+        signed_integer_to_long_double_usual[index] != 1u ||
+        unsigned_integer_to_long_double_usual[index] != 1u ||
         long_double_to_integer_casts[index] != 1u ||
         long_double_to_integer_assignments[index] != 1u) {
       (void)fprintf(
           stderr,
           "floating-conversions: integer/long-double IR inventory differs "
-          "at width %u: to=%u/%u from=%u/%u\n",
+          "at width %u: to=%u/%u usual=%u/%u from=%u/%u\n",
           (unsigned int)index,
           (unsigned int)integer_to_long_double_casts[index],
           (unsigned int)integer_to_long_double_assignments[index],
+          (unsigned int)signed_integer_to_long_double_usual[index],
+          (unsigned int)unsigned_integer_to_long_double_usual[index],
           (unsigned int)long_double_to_integer_casts[index],
           (unsigned int)long_double_to_integer_assignments[index]);
       return 0;
@@ -28247,7 +28461,7 @@ static int validate_floating_conversion_ir(
 }
 
 static int run_floating_conversions(const char *host_root) {
-  static const char source[] =
+  static const char source_prefix[] =
       "double take_double(double value);\n"
       "float take_float(float value);\n"
       "float *next_float(void);\n"
@@ -28273,7 +28487,24 @@ static int run_floating_conversions(const char *host_root) {
       "float choose_int_float(int c,int l,float r){return c?l:r;}\n"
       "float choose_float_short(int c,float l,short r){return c?l:r;}\n"
       "double choose_uint_double(int c,unsigned int l,double r){return c?l:r;}\n"
-      "double choose_double_uchar(int c,double l,unsigned char r){return c?l:r;}\n"
+      "double choose_double_uchar(int c,double l,unsigned char r){return c?l:r;}\n";
+  static const char source_suffix[] =
+      "long double choose_signed_char_long(int c,signed char l,long double r)"
+      "{return c?l:r;}\n"
+      "long double choose_long_unsigned_char(int c,long double l,unsigned "
+      "char r){return c?l:r;}\n"
+      "long double choose_signed_short_long(int c,short l,long double r)"
+      "{return c?l:r;}\n"
+      "long double choose_long_unsigned_short(int c,long double l,unsigned "
+      "short r){return c?l:r;}\n"
+      "long double choose_signed_int_long(int c,int l,long double r)"
+      "{return c?l:r;}\n"
+      "long double choose_long_unsigned_int(int c,long double l,unsigned int "
+      "r){return c?l:r;}\n"
+      "long double choose_signed_wide_long(int c,long long l,long double r)"
+      "{return c?l:r;}\n"
+      "long double choose_long_unsigned_wide(int c,long double l,unsigned "
+      "long long r){return c?l:r;}\n"
       "float same_add(float *left, float right) { return *left += right; }\n"
       "double same_subtract(double *left, double right) { return *left -= right; }\n"
       "float same_multiply(float *left, float right) { return *left *= right; }\n"
@@ -28299,6 +28530,7 @@ static int run_floating_conversions(const char *host_root) {
       "unsigned int unsigned_int_from_long(long double value) { unsigned int result = value; return result; }\n"
       "long long signed_wide_from_long(long double value) { return (long long)value; }\n"
       "unsigned long long unsigned_wide_from_long(long double value) { unsigned long long result = value; return result; }\n";
+  char source[sizeof(source_prefix) + sizeof(source_suffix) - 1u];
   ctool_host_adapter_t adapter;
   ctool_host_adapter_t limited_adapter;
   ctool_job_config_t config;
@@ -28320,6 +28552,9 @@ static int run_floating_conversions(const char *host_root) {
   uint64_t ir_hash;
   int passed = 0;
 
+  (void)memcpy(source, source_prefix, sizeof(source_prefix) - 1u);
+  (void)memcpy(source + sizeof(source_prefix) - 1u, source_suffix,
+               sizeof(source_suffix));
   (void)memset(&unit, 0, sizeof(unit));
   (void)memset(&ir, 0xa5, sizeof(ir));
   (void)memset(&repeat_ir, 0xa5, sizeof(repeat_ir));
@@ -29202,20 +29437,6 @@ static int run_floating_scalars(const char *host_root) {
           CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION,
           "CupidC IR lowering does not yet support this conversion",
           "qualified integer to long double conversion metadata")) {
-    goto cleanup;
-  }
-  (void)memcpy(invalid_expressions, unit.expressions,
-               (size_t)unit.expression_count *
-                   sizeof(*invalid_expressions));
-  invalid_expressions[integer_to_floating].type =
-      long_double_type;
-  invalid_expressions[integer_to_floating].conversion =
-      CTOOL_C_CONVERSION_USUAL_ARITHMETIC;
-  if (!expect_ir_failure_preserves_unit(
-          job, &invalid_unit, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION,
-          "CupidC IR lowering does not yet support this conversion",
-          "usual integer to long double conversion metadata")) {
     goto cleanup;
   }
   (void)memcpy(invalid_expressions, unit.expressions,

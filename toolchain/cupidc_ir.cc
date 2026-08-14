@@ -3973,7 +3973,8 @@ static ctool_bool cir_floating_conversion_is_valid(
     if (target->kind == CTOOL_C_TYPE_LONG_DOUBLE) {
       return cir_type_is_value_integer(context, source_type) == CTOOL_TRUE &&
                      (conversion == CTOOL_C_CONVERSION_NONE ||
-                      conversion == CTOOL_C_CONVERSION_ASSIGNMENT)
+                      conversion == CTOOL_C_CONVERSION_ASSIGNMENT ||
+                      conversion == CTOOL_C_CONVERSION_USUAL_ARITHMETIC)
                  ? CTOOL_TRUE
                  : CTOOL_FALSE;
     }

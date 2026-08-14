@@ -1294,10 +1294,16 @@ correction. It retains the caller's rounding mode and restores its saved
 control word before the final store. Floating-to-integer conversion saves the
 caller's control word
 separately, selects truncate mode for `FISTP`, and restores that copy.
+Runtime arithmetic, all six comparisons, and conditional selection now use
+the same conversion for every represented value integer and enum. The
+frontend records a usual-arithmetic conversion to `long double`; Linear IR
+keeps it on the selected value, and the emitter reuses its checked x87 path.
+Conditional evaluation remains lazy, so an unselected arm is not converted.
 Hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
-bounded parser, runtime mixed integer and floating conditional arms, atomic
-and long-double updates, SIMD values, and over-aligned emission remain open.
+bounded parser, operations that mix an eight-byte integer with `float` or
+`double`, atomic and long-double updates, SIMD values, and over-aligned
+emission remain open.
 ADR 0202 records the runtime truth
 boundary, and
 [ADR 0229](docs/adr/0229-emit-exact-decimal-long-double-literals.md) records
@@ -1312,6 +1318,11 @@ control expressions and finite floating-width conversion.
 canonical x87 classes and special floating-width conversion.
 [ADR 0260](docs/adr/0260-fold-static-long-double-arithmetic.md) records the
 integer-only x87 arithmetic and rounding model.
+[ADR 0287](docs/adr/0287-convert-runtime-integer-and-floating-conditional-arms.md)
+records runtime integer conditionals with `float` and `double`.
+[ADR 0288](docs/adr/0288-apply-runtime-integer-and-long-double-usual-conversions.md)
+records runtime integer and long-double arithmetic, comparisons, and
+conditional selection.
 
 Plain assignment, all ten compound assignments, and prefix or postfix increment and decrement now work for represented non-atomic bit fields in four-byte storage units. Linear IR keeps the selected member and evaluates the record address once. Partial fields preserve neighboring bits, and postfix updates retain the extracted old value through the store so width wrap does not change the result. Narrow unsigned fields promote to signed `int` when their values fit. A volatile 32-bit field uses one read and one direct store. An execution oracle proves that `states[(*index)++].value++` advances its side-effecting index exactly once. Partial volatile mutation, atomic bit-field access, and non-four-byte storage units remain open. The plain-assignment contracts still pin Doom's unchanged `colors[index].r = value` shape.
 
@@ -1682,7 +1693,7 @@ invokes a host C compiler.
 
 [ADR 0264](docs/adr/0264-run-the-user-abi-check-with-cupidc.md) moves the ABI rules into a staged CupidC contract while retaining Python as an independent oracle. [ADR 0270](docs/adr/0270-expose-cupid-language-mode-in-the-hosted-driver.md) exposes Cupid mode through the hosted driver. [ADR 0271](docs/adr/0271-validate-the-smp-trampoline-with-cupiddis.md) makes strict mixed-mode inspection part of trampoline publication. [ADR 0272](docs/adr/0272-adopt-a-checked-native-windows-execution-seed.md) carries the native PE cohort and selects it for Windows production execution.
 
-[ADR 0275](docs/adr/0275-probe-large-hosted-cupidc-frames.md) records guarded-stack page probes. [ADR 0276](docs/adr/0276-link-kernel-cupidasm-aot-with-cupidld.md) gives in-kernel AOT placement to CupidLD. [ADR 0277](docs/adr/0277-publish-source-derived-raw-layout-maps.md) records source-derived raw maps and the staged boot path. [ADR 0278](docs/adr/0278-add-a-native-windows-fixed-point-driver.md) records the two-manifest native driver. [ADR 0279](docs/adr/0279-prove-post-change-fixed-points-through-convergence.md) adds the convergence generation after the stack-probe transition. [ADR 0280](docs/adr/0280-promote-the-clean-stage-four-linux-seed.md) records the clean Linux proof and stage-four promotion. [ADR 0281](docs/adr/0281-promote-the-clean-stage-four-windows-seed.md) records the clean Windows proof and PE32 promotion. [ADR 0282](docs/adr/0282-budget-and-isolate-the-heavyweight-cupidc-object-contract.md) records the heavyweight contract schedule and stage-four publication proof. [ADR 0283](docs/adr/0283-run-the-normal-boot-edge-through-the-guarded-raw-image-transaction.md) records guarded normal bootloader publication. [ADR 0285](docs/adr/0285-reject-ambiguous-raw-cupidasm-source-controls.md) records raw origin and section validation.
+[ADR 0275](docs/adr/0275-probe-large-hosted-cupidc-frames.md) records guarded-stack page probes. [ADR 0276](docs/adr/0276-link-kernel-cupidasm-aot-with-cupidld.md) gives in-kernel AOT placement to CupidLD. [ADR 0277](docs/adr/0277-publish-source-derived-raw-layout-maps.md) records source-derived raw maps and the staged boot path. [ADR 0278](docs/adr/0278-add-a-native-windows-fixed-point-driver.md) records the two-manifest native driver. [ADR 0279](docs/adr/0279-prove-post-change-fixed-points-through-convergence.md) adds the convergence generation after the stack-probe transition. [ADR 0280](docs/adr/0280-promote-the-clean-stage-four-linux-seed.md) records the clean Linux proof and stage-four promotion. [ADR 0281](docs/adr/0281-promote-the-clean-stage-four-windows-seed.md) records the clean Windows proof and PE32 promotion. [ADR 0282](docs/adr/0282-budget-and-isolate-the-heavyweight-cupidc-object-contract.md) records the heavyweight contract schedule and stage-four publication proof. [ADR 0283](docs/adr/0283-run-the-normal-boot-edge-through-the-guarded-raw-image-transaction.md) records guarded normal bootloader publication. [ADR 0285](docs/adr/0285-reject-ambiguous-raw-cupidasm-source-controls.md) records raw origin and section validation. [ADR 0287](docs/adr/0287-convert-runtime-integer-and-floating-conditional-arms.md) records runtime integer conditionals with `float` and `double`. [ADR 0288](docs/adr/0288-apply-runtime-integer-and-long-double-usual-conversions.md) records runtime integer and long-double usual conversions.
 
 [ADR 0125](docs/adr/0125-represent-decimal-floating-scalars.md) records decimal binary32 and binary64 constants, represented integer conversions, and mixed scalar arithmetic. [ADR 0126](docs/adr/0126-name-fixed-point-sources-consistently.md) records the complete 19-source fixed-point rename and old-seed proof. [ADR 0129](docs/adr/0129-refresh-seed-and-transfer-cupidc-lexer.md) records the promoted seed and the lexer handoff.
 

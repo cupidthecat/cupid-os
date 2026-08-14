@@ -34,6 +34,10 @@ represented runtime conversion slice. An integer opposite `long double` also
 remains unsupported. Both cases receive conditional-specific diagnostics.
 Atomic floating arms keep their existing focused rejection.
 
+ADR 0288 later removed the integer and `long double` limit by admitting the
+existing x87 conversion under the usual arithmetic rules. The eight-byte
+integer with `float` or `double` limit remains.
+
 ## Evidence
 
 The frontend contract first reproduced the old rejection for an `int` and
@@ -86,6 +90,7 @@ extension, and the active build graph has no source that requires it. No OS
 object, build owner, artifact, ABI, dependency, or source suffix changes.
 
 The next seed convergence must carry this frontend and contract update before
-the checked toolchain can claim the capability. Eight-byte integer mixes,
-integer and long-double conditional arms, and atomic floating conditionals
-remain explicit follow-up work.
+the checked toolchain can claim the capability. Eight-byte integer mixes with
+`float` or `double` and atomic floating conditionals remain explicit follow-up
+work. ADR 0288 completes the source-head integer and long-double conditional
+case.

@@ -2544,7 +2544,7 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             gnu = root / "gnu.c"
             freestanding = root / "freestanding.c"
             invalid = root / "invalid.c"
-            invalid_long_double = root / "invalid-long-double.c"
+            long_double_usual = root / "long-double-usual.c"
             hosted_object = root / "hosted.o"
             cupid_object = root / "cupid.o"
             cupid_native_path_object = root / "cupid-native-path.o"
@@ -2556,8 +2556,8 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             cupid_freestanding = root / "cupid-freestanding.o"
             hosted_failure = root / "hosted-failure.o"
             cupid_failure = root / "cupid-failure.o"
-            hosted_long_double_failure = root / "hosted-long-double.o"
-            cupid_long_double_failure = root / "cupid-long-double.o"
+            hosted_long_double_object = root / "hosted-long-double.o"
+            cupid_long_double_object = root / "cupid-long-double.o"
             hosted_recovery = root / "hosted-recovery.o"
             cupid_recovery = root / "cupid-recovery.o"
             hosted_missing_output = root / "hosted-missing.o"
@@ -2603,9 +2603,17 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                 "int broken_source( {\n",
                 encoding="utf-8",
             )
-            invalid_long_double.write_text(
-                "int bad(long double left, int right) {\n"
+            long_double_usual.write_text(
+                "long double add_integer(long double left, int right) {\n"
+                "  return left + right;\n"
+                "}\n"
+                "int compare_wide(long double left, long long right) {\n"
                 "  return left < right;\n"
+                "}\n"
+                "long double choose_unsigned_wide(\n"
+                "    int condition, unsigned long long left,\n"
+                "    long double right) {\n"
+                "  return condition ? left : right;\n"
                 "}\n",
                 encoding="utf-8",
             )
@@ -2849,15 +2857,13 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
             self.assertEqual(hosted_failure.read_bytes(), b"hosted-sentinel")
             self.assertEqual(cupid_failure.read_bytes(), b"cupid-sentinel")
 
-            hosted_long_double_failure.write_bytes(b"hosted-long-sentinel")
-            cupid_long_double_failure.write_bytes(b"cupid-long-sentinel")
-            hosted_long_bad = subprocess.run(
+            hosted_long_double = subprocess.run(
                 [
                     str(self.hosted_cupidc_path),
                     "--root",
                     str(root),
                     "-c",
-                    "/invalid-long-double.c",
+                    "/long-double-usual.c",
                     "-o",
                     "/hosted-long-double.o",
                 ],
@@ -2866,40 +2872,35 @@ class ToolchainCupidCObjectContractTests(unittest.TestCase):
                 capture_output=True,
                 timeout=60,
             )
-            cupid_long_bad = self.run_cupid_linux_tool(
+            cupid_long_double = self.run_cupid_linux_tool(
                 self.cupid_cupidc_path,
                 [
                     "--root",
                     root,
                     "-c",
-                    "/invalid-long-double.c",
+                    "/long-double-usual.c",
                     "-o",
                     "/cupid-long-double.o",
                 ],
                 timeout=60,
             )
             self.assertEqual(
-                hosted_long_bad.returncode, 1, hosted_long_bad.stderr
+                hosted_long_double.returncode, 0, hosted_long_double.stderr
             )
             self.assertEqual(
-                cupid_long_bad.returncode,
-                hosted_long_bad.returncode,
-                cupid_long_bad.stderr,
-            )
-            self.assertEqual(cupid_long_bad.stdout, hosted_long_bad.stdout)
-            self.assertEqual(cupid_long_bad.stderr, hosted_long_bad.stderr)
-            self.assertIn(
-                "integer and long double comparison conversion is outside "
-                "this expression slice",
-                hosted_long_bad.stderr,
+                cupid_long_double.returncode,
+                hosted_long_double.returncode,
+                cupid_long_double.stderr,
             )
             self.assertEqual(
-                hosted_long_double_failure.read_bytes(),
-                b"hosted-long-sentinel",
+                cupid_long_double.stdout, hosted_long_double.stdout
             )
             self.assertEqual(
-                cupid_long_double_failure.read_bytes(),
-                b"cupid-long-sentinel",
+                cupid_long_double.stderr, hosted_long_double.stderr
+            )
+            self.assertEqual(
+                cupid_long_double_object.read_bytes(),
+                hosted_long_double_object.read_bytes(),
             )
 
             hosted_recovered = subprocess.run(

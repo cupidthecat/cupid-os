@@ -24303,6 +24303,158 @@ static int validate_long_double_local_object(
   return 1;
 }
 
+typedef enum {
+  INTEGER_LONG_DOUBLE_USUAL_ARITHMETIC = 0,
+  INTEGER_LONG_DOUBLE_USUAL_COMPARISON,
+  INTEGER_LONG_DOUBLE_USUAL_CONDITIONAL
+} integer_long_double_usual_object_kind_t;
+
+typedef struct {
+  const char *name;
+  integer_long_double_usual_object_kind_t kind;
+  ctool_x86_mnemonic_t operation;
+  ctool_u32 size;
+  ctool_u32 fingerprint;
+} integer_long_double_usual_object_case_t;
+
+static int validate_integer_long_double_usual_object(
+    ctool_job_t *job, const ctool_elf32_object_t *object) {
+  static const integer_long_double_usual_object_case_t cases[] = {
+      {"usual_schar_add", INTEGER_LONG_DOUBLE_USUAL_ARITHMETIC,
+       CTOOL_X86_MN_FADDP, 124u, 0xa3a83763u},
+      {"usual_ushort_sub", INTEGER_LONG_DOUBLE_USUAL_ARITHMETIC,
+       CTOOL_X86_MN_FSUBP, 123u, 0x3d98ba5bu},
+      {"usual_int_mul", INTEGER_LONG_DOUBLE_USUAL_ARITHMETIC,
+       CTOOL_X86_MN_FMULP, 123u, 0x8b95f63bu},
+      {"usual_uwide_div", INTEGER_LONG_DOUBLE_USUAL_ARITHMETIC,
+       CTOOL_X86_MN_FDIVP, 215u, 0xaa097c47u},
+      {"usual_uchar_equal", INTEGER_LONG_DOUBLE_USUAL_COMPARISON,
+       CTOOL_X86_MN_FUCOMIP, 128u, 0xaefa8b72u},
+      {"usual_long_short_less", INTEGER_LONG_DOUBLE_USUAL_COMPARISON,
+       CTOOL_X86_MN_FUCOMIP, 129u, 0x615081feu},
+      {"usual_uint_greater", INTEGER_LONG_DOUBLE_USUAL_COMPARISON,
+       CTOOL_X86_MN_FUCOMIP, 111u, 0x497fb455u},
+      {"usual_long_wide_not_equal", INTEGER_LONG_DOUBLE_USUAL_COMPARISON,
+       CTOOL_X86_MN_FUCOMIP, 152u, 0x21a296f7u},
+      {"usual_choose_schar", INTEGER_LONG_DOUBLE_USUAL_CONDITIONAL,
+       CTOOL_X86_MN_INVALID, 108u, 0xb3033cadu},
+      {"usual_choose_uint", INTEGER_LONG_DOUBLE_USUAL_CONDITIONAL,
+       CTOOL_X86_MN_INVALID, 106u, 0x2753b752u},
+      {"usual_choose_wide", INTEGER_LONG_DOUBLE_USUAL_CONDITIONAL,
+       CTOOL_X86_MN_INVALID, 131u, 0x093e1840u},
+      {"usual_choose_uwide", INTEGER_LONG_DOUBLE_USUAL_CONDITIONAL,
+       CTOOL_X86_MN_INVALID, 199u, 0x141e404eu},
+      {"usual_bool_add", INTEGER_LONG_DOUBLE_USUAL_ARITHMETIC,
+       CTOOL_X86_MN_FADDP, 123u, 0x9de56a2cu},
+      {"usual_char_sub", INTEGER_LONG_DOUBLE_USUAL_ARITHMETIC,
+       CTOOL_X86_MN_FSUBP, 124u, 0xb4e2fea7u},
+      {"usual_long_mul", INTEGER_LONG_DOUBLE_USUAL_ARITHMETIC,
+       CTOOL_X86_MN_FMULP, 123u, 0x8b95f63bu},
+      {"usual_ulong_div", INTEGER_LONG_DOUBLE_USUAL_ARITHMETIC,
+       CTOOL_X86_MN_FDIVP, 122u, 0xc97747e8u},
+      {"usual_enum_equal", INTEGER_LONG_DOUBLE_USUAL_COMPARISON,
+       CTOOL_X86_MN_FUCOMIP, 128u, 0xc8139b67u}};
+  const ctool_elf32_section_t *text = find_section(object, ".text");
+  ctool_u32 index;
+  int valid = 1;
+  if (job == NULL || object == NULL || text == NULL ||
+      text->contents.data == NULL) {
+    return 0;
+  }
+  for (index = 0u;
+       index < (ctool_u32)(sizeof(cases) / sizeof(cases[0])); index++) {
+    const integer_long_double_usual_object_case_t *test_case = &cases[index];
+    const ctool_elf32_symbol_t *function =
+        find_symbol(object, test_case->name);
+    ctool_u32 cursor = 0u;
+    ctool_u32 fild64 = 0u;
+    ctool_u32 fld80 = 0u;
+    ctool_u32 fstp80 = 0u;
+    ctool_u32 operations = 0u;
+    ctool_u32 branches = 0u;
+    ctool_u32 fingerprint;
+    if (!wide_function_symbol_is_valid(object, text, function)) {
+      (void)fprintf(stderr, "%s: function symbol differs\n",
+                    test_case->name);
+      return 0;
+    }
+    while (cursor < function->size) {
+      ctool_x86_decoded_t decoded;
+      const ctool_x86_instruction_t *instruction;
+      ctool_bytes_t remaining = ctool_bytes(
+          text->contents.data + function->value + cursor,
+          function->size - cursor);
+      ctool_status_t status;
+      (void)memset(&decoded, 0xa5, sizeof(decoded));
+      status = ctool_x86_decode(job, CTOOL_X86_MODE_32, remaining, 0u,
+                                &decoded);
+      if (status != CTOOL_OK || decoded.kind != CTOOL_X86_DECODE_KNOWN ||
+          decoded.consumed == 0u) {
+        (void)fprintf(stderr, "%s: decode failed at %u\n",
+                      test_case->name, (unsigned int)cursor);
+        return 0;
+      }
+      instruction = &decoded.instruction;
+      if (instruction->mnemonic == CTOOL_X86_MN_FILD) {
+        if (instruction->operand_count != 1u ||
+            instruction->operands[0].kind != CTOOL_X86_OPERAND_MEMORY ||
+            instruction->operands[0].width_bits != 64u) {
+          (void)fprintf(stderr, "%s: FILD operand differs\n",
+                        test_case->name);
+          return 0;
+        }
+        fild64++;
+      } else if ((instruction->mnemonic == CTOOL_X86_MN_FLD ||
+                  instruction->mnemonic == CTOOL_X86_MN_FSTP) &&
+                 instruction->operand_count == 1u &&
+                 instruction->operands[0].kind == CTOOL_X86_OPERAND_MEMORY &&
+                 instruction->operands[0].width_bits == 80u) {
+        if (instruction->mnemonic == CTOOL_X86_MN_FLD) {
+          fld80++;
+        } else {
+          fstp80++;
+        }
+      }
+      if (instruction->mnemonic == test_case->operation) {
+        operations++;
+      }
+      if (instruction->mnemonic >= CTOOL_X86_MN_JA &&
+          instruction->mnemonic <= CTOOL_X86_MN_JS) {
+        branches++;
+      }
+      cursor += decoded.consumed;
+    }
+    fingerprint = structure_text_fingerprint(
+        ctool_bytes(text->contents.data + function->value,
+                    function->size));
+    if (cursor != function->size || fild64 == 0u || fld80 == 0u ||
+        (test_case->kind != INTEGER_LONG_DOUBLE_USUAL_COMPARISON &&
+         fstp80 == 0u) ||
+        (test_case->kind != INTEGER_LONG_DOUBLE_USUAL_CONDITIONAL &&
+         operations != 1u) ||
+        (test_case->kind == INTEGER_LONG_DOUBLE_USUAL_CONDITIONAL &&
+         branches < 2u)) {
+      (void)fprintf(
+          stderr,
+          "%s: x87 inventory differs: fild64=%u fld80=%u fstp80=%u "
+          "operations=%u branches=%u\n",
+          test_case->name, (unsigned int)fild64, (unsigned int)fld80,
+          (unsigned int)fstp80, (unsigned int)operations,
+          (unsigned int)branches);
+      return 0;
+    }
+    if (function->size != test_case->size ||
+        fingerprint != test_case->fingerprint) {
+      (void)fprintf(stderr,
+                    "%s: size=%u fingerprint=%08x\n",
+                    test_case->name, (unsigned int)function->size,
+                    (unsigned int)fingerprint);
+      valid = 0;
+    }
+  }
+  return valid;
+}
+
 static int validate_long_double_literal_function(
     ctool_job_t *job, const ctool_elf32_object_t *object,
     const char *name, ctool_u32 low_word, ctool_u32 high_word,
@@ -24526,11 +24678,11 @@ static int validate_long_double_call_object(
   if (job == NULL || object == NULL || text == NULL ||
       rel_text == NULL || sink == NULL || variadic_sink == NULL ||
       open_sink == NULL || identity == NULL ||
-      text->contents.size != 2209u ||
-      structure_text_fingerprint(text->contents) != 0x3d82b57cu ||
+      text->contents.size != 4478u ||
+      structure_text_fingerprint(text->contents) != 0x94b88bf9u ||
       text->relocation_count != 11u ||
       object->relocation_count != 11u ||
-      object->relocations == NULL || object->symbol_count != 25u) {
+      object->relocations == NULL || object->symbol_count != 42u) {
     (void)fprintf(
         stderr,
         "long-double-calls: object inventory differs: text=%u "
@@ -29489,21 +29641,6 @@ static int run_floating_scalar_object(const char *host_root) {
   (void)memcpy(invalid_expressions, unit.expressions,
                (size_t)unit.expression_count *
                    sizeof(*invalid_expressions));
-  invalid_expressions[integer_to_floating].type =
-      long_double_type;
-  invalid_expressions[integer_to_floating].conversion =
-      CTOOL_C_CONVERSION_USUAL_ARITHMETIC;
-  if (ctool_buffer_rewind(failure, 0u) != CTOOL_OK ||
-      !expect_object_failure_preserves_unit(
-          job, &invalid_unit, failure, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_IR_DIAG_UNSUPPORTED_CONVERSION,
-          "CupidC IR lowering does not yet support this conversion",
-          "usual integer to long double conversion at object boundary")) {
-    goto cleanup;
-  }
-  (void)memcpy(invalid_expressions, unit.expressions,
-               (size_t)unit.expression_count *
-                   sizeof(*invalid_expressions));
   invalid_expressions[floating_to_unsigned_wide].type =
       signed_wide;
   if (ctool_buffer_rewind(failure, 0u) != CTOOL_OK ||
@@ -30318,7 +30455,7 @@ static int run_floating_transport_object(const char *host_root) {
       "  box.value = callback(value);\n"
       "  return box.words.high;\n"
       "}\n";
-  static const char long_double_source[] =
+  static const char long_double_source_prefix[] =
       "typedef __builtin_va_list va_list;\n"
       "typedef void (*long_double_callback)(long double);\n"
       "typedef void (*long_double_open_callback)();\n"
@@ -30395,6 +30532,43 @@ static int run_floating_transport_object(const char *host_root) {
       "  long double indirect = callback(direct);\n"
       "  return (double)indirect;\n"
       "}\n";
+  static const char long_double_source_suffix[] =
+      "long double usual_schar_add(long double left, signed char right) "
+      "{ return left + right; }\n"
+      "long double usual_ushort_sub(unsigned short left, long double right) "
+      "{ return left - right; }\n"
+      "long double usual_int_mul(long double left, int right) "
+      "{ return left * right; }\n"
+      "long double usual_uwide_div(unsigned long long left, long double "
+      "right) { return left / right; }\n"
+      "int usual_uchar_equal(unsigned char left, long double right) "
+      "{ return left == right; }\n"
+      "int usual_long_short_less(long double left, short right) "
+      "{ return left < right; }\n"
+      "int usual_uint_greater(unsigned int left, long double right) "
+      "{ return left > right; }\n"
+      "int usual_long_wide_not_equal(long double left, long long right) "
+      "{ return left != right; }\n"
+      "long double usual_choose_schar(int condition, signed char left, "
+      "long double right) { return condition ? left : right; }\n"
+      "long double usual_choose_uint(int condition, long double left, "
+      "unsigned int right) { return condition ? left : right; }\n"
+      "long double usual_choose_wide(int condition, long long left, "
+      "long double right) { return condition ? left : right; }\n"
+      "long double usual_choose_uwide(int condition, long double left, "
+      "unsigned long long right) { return condition ? left : right; }\n"
+      "enum usual_object_tag { USUAL_OBJECT_NEGATIVE = -1, "
+      "USUAL_OBJECT_POSITIVE = 5 };\n"
+      "long double usual_bool_add(long double left, _Bool right) "
+      "{ return left + right; }\n"
+      "long double usual_char_sub(char left, long double right) "
+      "{ return left - right; }\n"
+      "long double usual_long_mul(long double left, long right) "
+      "{ return left * right; }\n"
+      "long double usual_ulong_div(unsigned long left, long double right) "
+      "{ return left / right; }\n"
+      "int usual_enum_equal(enum usual_object_tag left, long double right) "
+      "{ return left == right; }\n";
   static const char long_double_aggregate_source[] =
       "struct long_double_record {\n"
       "  long double first;\n"
@@ -30449,6 +30623,8 @@ static int run_floating_transport_object(const char *host_root) {
       "  -0.0L, 1.5L, 3.0L, 18446744073709551615e0L\n"
       "};\n";
   char source[sizeof(source_prefix) + sizeof(source_suffix) - 1u];
+  char long_double_source[sizeof(long_double_source_prefix) +
+                          sizeof(long_double_source_suffix) - 1u];
   ctool_host_adapter_t adapter;
   ctool_job_config_t config;
   ctool_job_t *job = (ctool_job_t *)0;
@@ -30533,6 +30709,11 @@ static int run_floating_transport_object(const char *host_root) {
   (void)memcpy(source, source_prefix, sizeof(source_prefix) - 1u);
   (void)memcpy(source + sizeof(source_prefix) - 1u, source_suffix,
                sizeof(source_suffix));
+  (void)memcpy(long_double_source, long_double_source_prefix,
+               sizeof(long_double_source_prefix) - 1u);
+  (void)memcpy(
+      long_double_source + sizeof(long_double_source_prefix) - 1u,
+      long_double_source_suffix, sizeof(long_double_source_suffix));
   (void)memset(&unit, 0, sizeof(unit));
   if (!open_job(host_root, &adapter, &config, &job) ||
       !parse_source_mode(job, "/floating-transport.c", source, CTOOL_TRUE,
@@ -31667,6 +31848,8 @@ static int run_floating_transport_object(const char *host_root) {
                     "read long double local object") ||
       !validate_long_double_local_object(
           job, &long_double_object) ||
+      !validate_integer_long_double_usual_object(
+          job, &long_double_object) ||
       !validate_long_double_literal_function(
           job, &long_double_object, "long_double_literal_one", 0u,
           0x80000000u, 0x3fffu, 0xb6e00f15u) ||
@@ -32215,21 +32398,21 @@ static int validate_active_self_host_frontier_objects(
       "/toolchain/elf32.cc",           "/toolchain/x86.cc",
       "/kernel/lang/as_elf.cc"};
   static const ctool_u32 expected_functions[] = {
-      65u, 71u, 82u, 140u, 31u, 143u, 269u, 366u, 445u, 82u, 37u, 60u,
-      5u};
+      65u, 75u, 82u, 140u, 31u, 143u, 270u, 368u, 445u, 84u, 37u, 65u,
+      7u};
   static const ctool_u32 expected_text_sizes[] = {
-      42118u, 78841u, 118477u, 183181u, 42212u,
-      190304u, 496846u, 577009u, 893359u, 146398u, 70368u, 80933u,
-      7982u};
+      42118u, 83701u, 118477u, 183181u, 42212u,
+      190304u, 504590u, 579180u, 893896u, 149733u, 70368u, 85466u,
+      10180u};
   static const ctool_u32 expected_object_sizes[] = {
-      46720u, 91460u, 137444u, 220508u, 49484u,
-      226668u, 535464u, 647196u, 1058536u, 165728u, 79348u, 136372u,
-      9164u};
+      46720u, 96612u, 137444u, 220508u, 49484u,
+      226668u, 543536u, 649632u, 1059112u, 169508u, 79348u, 141560u,
+      11624u};
   static const ctool_u32 expected_text_fingerprints[] = {
-      0x6bff5a25u, 0x6a4e9e64u, 0xae15dc9eu,
+      0x6bff5a25u, 0x229ef494u, 0x3e007f3eu,
       0x90f1448fu, 0x999f97b7u, 0xb49d8eb9u,
-      0x07337978u, 0xea36d975u, 0x851f24d7u, 0x5780b602u,
-      0x34558a49u, 0x9aadd1b0u, 0x8774de7du};
+      0xa039993eu, 0xf071f9a4u, 0x3eb9c980u, 0xe73c2fd0u,
+      0x34558a49u, 0x4285e204u, 0xe3ce519eu};
   ctool_u32 index;
   int all_matched = 1;
   if (first_index > past_last_index ||
@@ -32545,18 +32728,26 @@ static int run_self_host_hosted_adapters(const char *host_root) {
       "ctool_job_render_diagnostics",
       "ctool_host_adapter_init",
       "ctool_host_job_config",
+      "ctool_x86_decoder_prepare",
       "ctool_dis_inspect",
+      "ctool_dis_inspect_indexed",
       "ctool_dis_render",
       "stdout",
       "stderr",
+      "fopen",
+      "fclose",
       "fflush",
       "ferror",
       "fprintf",
+      "fseek",
+      "ftell",
+      "fread",
       "fwrite",
       "malloc",
       "realloc",
       "free",
       "memcpy",
+      "memcmp",
       "memset",
       "strchr",
       "strcmp",
@@ -32565,10 +32756,10 @@ static int run_self_host_hosted_adapters(const char *host_root) {
   static const hosted_adapter_case_t cases[] = {
       {"/toolchain/ctool_host.cc", 11u, 5522u, 6944u, 0x28739c3fu,
        ctool_host_undefined, 10u, 25u, 38u, 28u, 10u},
-      {"/toolchain/cupidasm_main.cc", 13u, 9455u, 12384u, 0x561bbc22u,
-       cupidasm_undefined, 31u, 56u, 88u, 72u, 16u},
-      {"/toolchain/cupiddis_main.cc", 14u, 14876u, 18672u, 0x6b703670u,
-       cupiddis_undefined, 31u, 70u, 113u, 79u, 34u}};
+      {"/toolchain/cupidasm_main.cc", 15u, 11170u, 14568u, 0x067ef556u,
+       cupidasm_undefined, 31u, 64u, 104u, 82u, 22u},
+      {"/toolchain/cupiddis_main.cc", 23u, 28689u, 36416u, 0xe7c06dbcu,
+       cupiddis_undefined, 39u, 124u, 240u, 161u, 79u}};
   ctool_u32 index;
   for (index = 0u; index <
                        (ctool_u32)(sizeof(cases) / sizeof(cases[0]));

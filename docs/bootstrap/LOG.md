@@ -25696,3 +25696,72 @@ Cupid-owned build root or qualified for a suffix change.
 The checked execution seeds do not yet carry the two diagnostics in their
 hosted CupidASM images. Their next fixed-point promotion remains a separate
 bootstrap step.
+
+## 2026-08-14: runtime integer and long-double usual conversions
+
+### Scope and decision
+
+Source-head CupidC now applies the usual arithmetic conversions between a
+non-atomic `long double` and every represented value integer or enum during
+runtime `+`, `-`, `*`, `/`, all six comparisons, and conditional selection.
+Both operand orders are supported. A conditional keeps lazy evaluation and
+converts only its selected arm.
+
+The frontend already had the required type rule, and the x87 emitter already
+converted every signed and unsigned i386 integer width for casts,
+assignments, arguments, and returns. The missing boundary was the runtime
+feature check and the corresponding Linear IR and emitter validators. The
+implementation records `USUAL_ARITHMETIC` on the integer value and reuses the
+existing `FILD` path, including its unsigned 64-bit correction. It changes no
+ABI, object format, relocation, instruction catalogue, or runtime helper.
+
+The arithmetic contract covers `_Bool`, plain `char`, every signed and
+unsigned standard width, and an enum. The comparison contract covers every
+signed and unsigned i386 width across all six predicates. The conditional
+contract covers every signed and unsigned width in both arm orders. An
+`_Atomic int` mixed arithmetic case remains a precise negative.
+
+### Red and green evidence
+
+The first frontend runs stopped at the old integer and long-double feature
+diagnostics for arithmetic, comparison, and conditional source. After that
+check was removed, the arithmetic case reached Linear IR and failed with
+`CTD000006` on the new conversion. Once IR accepted the conversion, the first
+object run stopped in emitter validation before publishing an object. Those
+three failures fixed the ownership of each change.
+
+The final arithmetic IR contains 29 functions and 199 instructions with
+fingerprint `C26BE4E541B45681`. The comparison IR contains 38 functions and
+248 instructions with fingerprint `A2406DE3452F7DB7`. The conditional proof
+checks its branch-local conversions and join types. The decoder-driven object
+proof checks seventeen focused functions for 64-bit `FILD`, 80-bit loads and
+stores, exact arithmetic or comparison operations, and conditional branches.
+The complete long-double object has 4,478 text bytes with fingerprint
+`94B88BF9`, 42 symbols, and 11 relocations.
+
+### Validation
+
+| Command/check | Result | Evidence |
+| --- | --- | --- |
+| Native frontend `floating-arithmetic`, `floating-comparisons`, and `floating-conversions` | PASS | All three focused modes accept the represented integer and long-double cases and retain the atomic negative. |
+| Native Linear IR `floating-arithmetic`, `floating-comparisons`, and `floating-conversions` | PASS | All three modes match their exact instruction, conversion, branch, and fingerprint contracts. |
+| Native object `floating-scalars`, `floating-arithmetic`, `floating-comparisons`, `floating-conversions`, and `floating-transport` | PASS | All five modes pass strict Clang compilation, deterministic ELF32 emission, shared decoding, and transactional recovery. |
+| `tests.test_toolchain_cupidc_object.ToolchainCupidCObjectContractTests.test_cupid_built_cupidc_matches_hosted_object_emission_and_failures` | PASS | The source-head hosted and checked Cupid-built drivers accept arithmetic, comparison, and conditional source and emit byte-identical objects in 42.761 seconds. |
+| Full frontend, IR, and object Python sweep before drift-lock refresh | RED | 288 of 296 tests passed in 1,084.350 seconds. Five active-source counters and three exact source or object inventories reported measured drift. No parse, emission, deterministic-repeat, structural, or semantic contract failed. |
+| Five active return, `for`, `while`, `if`/`else`, and `goto` inventory guards | PASS | All five refreshed counters match the checked active-build audit in 11.289 seconds. |
+| Frontend aggregate, hosted-adapter object, and self-host frontier regression group | PASS | The three formerly stale locks pass together in 48.536 seconds. Hosted CLI inspection also pins 31 and 39 named undefined symbols and exact PC-relative and absolute relocation counts. |
+
+### Migration and remaining work
+
+This closes the source-head runtime gap between represented integers and
+`long double` for ordinary arithmetic, comparisons, and conditional
+selection. Operations that mix an eight-byte integer with `float` or
+`double`, atomic floating input, long-double compound assignment, and
+long-double prefix or postfix update remain open.
+
+The checked execution seed predates this capability. Its next fixed-point
+promotion must carry the compiler and contract changes before the seed can
+claim them. No active production source requires the new rule yet, so this
+step moves no build owner and changes no OS artifact. It adds no host
+dependency. No `.c` source entered a Cupid-owned build root or qualified for
+a `.cc` rename.

@@ -81,7 +81,10 @@ between `long double` and signed or unsigned integers at 8, 16, 32, and
 64 bits. The integer-output path restores the x87 control word after
 truncation toward zero. Unsigned 64-bit corrections temporarily select
 64-bit x87 precision, preserve the caller's rounding mode, and restore the
-complete saved word before the final store. Static initializer conversion
+complete saved word before the final store. Runtime arithmetic, all six
+comparisons, and conditional selection apply the same conversion to every
+represented value integer and enum. Conditional lowering converts only the
+selected arm. Static initializer conversion
 covers `_Bool`, plain `char`, every signed or unsigned i386 integer width, and
 an enum whose compatible integer type has the represented target layout. For
 a nonzero magnitude `M` with bit width `w`, the x87 significand is
@@ -117,7 +120,8 @@ records static controls and finite width conversion. ADR 0256 records the
 canonical x87 decoder and special-value transport. ADR 0260 records the
 static arithmetic and rounding model. ADR 0258 records checked-seed carriage
 of the earlier static frontier, and ADR 0265 records carriage of the arithmetic
-path.
+path. ADR 0288 records the source-head runtime usual conversions. The checked
+seed predates that extension.
 
 The checked native Windows seed carried this path through an earlier
 2026-08-13 poisoned-host checkpoint. Its first invocation stopped at the
@@ -327,6 +331,8 @@ Runtime `float`, `double`, and automatic `long double` values work with unary
 `!`, `&&`, `||`, the controlling operand of `?:`, the conditions of `if`,
 `while`, `do`, and `for`, and conversion to `_Bool`. Both signed zeros are
 false; finite nonzero values, subnormals, infinities, and NaNs are true.
+Source-head CupidC also mixes every represented value integer or enum with
+`long double` in runtime arithmetic, comparisons, and conditional selection.
 Checked-seed hosted CupidC accepts prefix and postfix increment and decrement
 on modifiable non-atomic `float` and `double` lvalues. It evaluates the lvalue
 once and stores the result of adding or subtracting exact-width `1.0`.

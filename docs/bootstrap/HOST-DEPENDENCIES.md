@@ -636,7 +636,10 @@ are true. Runtime casts, assignments, arguments, and returns convert between
 `long double` and signed or unsigned integers at 8, 16, 32, and 64 bits.
 Integer output restores the x87 control word after truncation. Unsigned 64-bit
 corrections temporarily use 64-bit x87 precision, retain the caller's rounding
-mode, and restore the complete saved control word. Static initializer
+mode, and restore the complete saved control word. Runtime arithmetic, all
+six comparisons, and conditional selection use the same Cupid-owned
+integer-to-long-double conversion for every represented value integer and
+enum. Conditional lowering converts only the selected arm. Static initializer
 conversion also works for every represented integer kind and for an enum
 whose compatible integer type has the represented target layout. The frontend
 packs integer magnitudes into exact x87 metadata. For integer destinations
@@ -667,8 +670,8 @@ math-library dependency.
 Hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
 bounded parser, operations that mix an eight-byte integer with `float` or
-`double`, integer and long-double conditionals, and atomic or long-double
-updates remain open. Matching or mixed-width floating
+`double`, and atomic or long-double updates remain open. Matching or
+mixed-width floating
 conditional arms and the four arithmetic compound assignments retain their
 established x87 path. All six matching or mixed long-double comparisons use a
 balanced `FUCOMIP` sequence. ADRs 0196, 0199, 0202, and 0229 record the current
@@ -678,7 +681,8 @@ long-double data, ADR 0253 records runtime conversions between `long double`
 and integers, ADR 0254 records static initializer conversion, ADR 0255
 records static controls and finite width conversion, and ADR 0256 records
 canonical x87 classes and special-value conversion. ADR 0260 records static
-long-double arithmetic.
+long-double arithmetic. ADR 0288 records the runtime usual conversions. The
+implementation uses no host floating operation, helper, or library.
 
 The checked seed and source head have 604 x86 forms, 249 canonical mnemonics,
 64 registers, and fingerprint `55A8970F`. The catalogue includes signed x87
@@ -1319,8 +1323,13 @@ bytes. This adds no host producer and moves no normal OS transform because the
 active source graph does not use the new shape. The checked seed predates this
 extension. ADR 0287 records the boundary.
 
-Operations that mix an eight-byte integer with `float` or `double`, integer
-and long-double conditional arms, atomic and long-double updates, hexadecimal floating literals, binary32 and
+Source-head CupidC also applies the usual arithmetic conversions between
+`long double` and every represented value integer or enum during runtime
+arithmetic, comparisons, and conditional selection. It reuses the Cupid-owned
+x87 emitter and adds no host producer. ADR 0288 records the boundary.
+
+Operations that mix an eight-byte integer with `float` or `double`, atomic
+and long-double updates, hexadecimal floating literals, binary32 and
 binary64 subnormal literals, hexadecimal or subnormal long-double literals,
 decimal ratios beyond the bounded parser, aggregate floating values, atomic
 access, and other unrepresented forms remain

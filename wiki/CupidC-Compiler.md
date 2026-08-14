@@ -528,7 +528,10 @@ nonzero values, subnormals, infinities, and NaNs are true. Runtime conversions b
 emitter restores the complete x87 control word after truncating integer
 output. Unsigned 64-bit corrections use 64-bit x87 precision while retaining
 the caller's rounding mode, then restore the saved word before the result
-store.
+store. Runtime arithmetic, all six comparisons, and conditional selection
+apply the same conversion to every represented value integer and enum. Linear
+IR records a usual-arithmetic conversion to `long double`, and a conditional
+converts only its selected arm.
 Static initializer conversion covers `_Bool`, plain `char`, each signed or
 unsigned i386 integer width, and an enum whose compatible integer type has the
 represented target layout. For a nonzero magnitude `M` with bit width `w`, the
@@ -573,8 +576,7 @@ CupidDis evidence without duplicating ordinary text-mode output.
 Hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimals beyond the bounded
 ratio parser, operations that mix an eight-byte integer with `float` or
-`double`, integer and long-double conditional arms, atomic and `long double`
-updates, SIMD values, and over-aligned object
+`double`, atomic and `long double` updates, SIMD values, and over-aligned object
 emission remain
 unfinished.
 ADR 0229 records the exact decimal representation and automatic object proof.
@@ -586,6 +588,8 @@ ADR 0256 records canonical x87 classes and special floating-width conversion.
 ADR 0259 records the shared parity predicates. ADR 0260 records static
 long-double arithmetic. ADR 0287 records source-head conditional conversion
 between represented integers no wider than four bytes and `float` or `double`.
+ADR 0288 records runtime integer and long-double arithmetic, comparisons, and
+conditional selection.
 
 Plain assignment, all ten compound assignments, and prefix and postfix update work for represented non-atomic integer bit fields when the declared storage unit is four bytes and fits inside the record. The compiler evaluates the record designator once and applies the target's integer-promotion rules before a compound operation. Partial fields preserve the other bits in their unit. Assignment, compound assignment, and prefix update return the stored lane after width truncation and signed extension, while postfix update returns the extracted old value. A 32-bit field uses the direct load and store path. Volatile 32-bit updates perform one read and one store. Partial volatile mutation, atomic fields, and other storage-unit sizes remain unsupported.
 
@@ -1136,6 +1140,9 @@ arguments, function returns, direct and indirect call results, and
 accept implicit zero, a represented integer constant expression, or a
 bounded decimal `L` literal with parentheses and unary signs. Runtime truth
 and conversion to `_Bool` cover all three represented floating widths.
+Runtime arithmetic, all six comparisons, and conditional selection convert
+every represented value integer and enum to `long double` through the usual
+arithmetic rules. A conditional converts only its selected arm.
 Static long-double truth, comparison, short-circuit logic, conditional
 selection, and conversion to or from binary32 and binary64 fold through the
 target representation and emit no runtime work. Canonical x87 infinity and
@@ -1143,8 +1150,7 @@ NaN cross the same path, and the decoder accepts canonical subnormal payloads.
 Hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
 bounded parser, other floating-to-wide conversions, operations that mix an
-eight-byte integer with `float` or `double`, integer and long-double
-conditional arms, and atomic or `long double` updates
+eight-byte integer with `float` or `double`, and atomic or `long double` updates
 remain unsupported.
 Static `+`, `-`, `*`, and `/` fold with integer-only x87 target arithmetic and
 produce final initializer data.
@@ -2524,9 +2530,10 @@ conversions, unary plus and minus, all four
 arithmetic operators, twelve-byte direct and indirect fixed, variadic, and
 unprototyped arguments, function returns, direct and indirect call results,
 and `va_arg(long double)`. Runtime truth, structured conditions, and `_Bool`
-conversion cover `float`, `double`, and automatic `long double`. Operations
-that mix an eight-byte integer with `float` or `double`, integer and
-long-double conditional arms, atomic and `long double` updates,
+conversion cover `float`, `double`, and automatic `long double`. Runtime
+arithmetic, comparisons, and conditional selection convert every represented
+value integer and enum to `long double`. Operations that mix an eight-byte
+integer with `float` or `double`, atomic and `long double` updates,
 hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
 bounded parser and SIMD remain open in the hosted path. Static long-double

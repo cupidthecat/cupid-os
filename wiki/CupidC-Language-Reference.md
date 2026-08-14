@@ -217,7 +217,8 @@ A runtime conditional may mix either floating width with a represented signed
 or unsigned integer no wider than four bytes. CupidC applies the usual
 arithmetic conversion only to the selected integer arm. The result is `float`
 when the floating arm is `float` and `double` when it is `double`. An
-eight-byte integer or `long double` mix is rejected with a focused diagnostic.
+eight-byte integer mixed with either width is rejected with a focused
+diagnostic.
 
 `+=`, `-=`, `*=`, and `/=` compute at the common floating width, then convert
 the stored result back to the left operand's type. The left designator is
@@ -259,9 +260,12 @@ and conversion to `_Bool` accept non-atomic `float`, `double`, and automatic
 infinities, and NaNs are true. Runtime casts, assignments, arguments, and
 returns convert between `long double` and signed or unsigned 8, 16, 32, and
 64-bit integers. The unsigned 64-bit correction uses 64-bit x87 precision
-without changing the
-caller's rounding mode and restores the complete control word. Static
-initializer conversion covers `_Bool`, plain `char`, each signed or unsigned
+without changing the caller's rounding mode and restores the complete control
+word. Runtime `+`, `-`, `*`, `/`, all six comparisons, and conditional selection
+apply the usual arithmetic conversions between `long double` and every
+represented value integer or enum. Only the selected conditional arm is
+evaluated and converted. Static initializer conversion covers `_Bool`, plain
+`char`, each signed or unsigned
 i386 integer width, and an enum whose compatible integer type has the
 represented target layout. Integer input packs exactly into the 64-bit x87
 significand. For integer destinations other than `_Bool`, long-double input
@@ -297,6 +301,7 @@ records runtime conversion between `long double` and every signed or
 unsigned i386 integer width. ADR 0254 records static initializer conversion,
 ADR 0255 records static controls and finite width conversion, and ADR 0256
 records canonical x87 payloads and special-value conversion.
+ADR 0288 records runtime integer and long-double usual conversions.
 ADR 0258 records the preceding checked seed. ADR 0260 records static
 long-double arithmetic, ADR 0263 records ordinary hosted floating updates, ADR
 0265 records their checked-seed carriage, and ADR 0273 records private derived

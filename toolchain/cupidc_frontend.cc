@@ -10201,30 +10201,17 @@ static ctool_status_t cfront_prepare_floating_binary(
     if (status != CTOOL_OK) {
       return cfront_storage_failure(context, status);
     }
-    if ((left_node.kind == CTOOL_C_TYPE_LONG_DOUBLE ||
-         right_node.kind == CTOOL_C_TYPE_LONG_DOUBLE) &&
-        (left_is_integer == CTOOL_TRUE ||
-         right_is_integer == CTOOL_TRUE) &&
-        context->static_initializer_depth == 0u) {
-      return cfront_emit_failure(
-          context, CTOOL_ERR_UNSUPPORTED,
-          CTOOL_C_PARSE_DIAG_EXPRESSION, operator_token,
-          conditional == CTOOL_TRUE
-              ? "integer and long double conditional conversion is outside "
-                "this expression slice"
-          : comparison == CTOOL_TRUE
-              ? "integer and long double comparison conversion is outside "
-                "this expression slice"
-              : "integer and long double arithmetic conversion is outside "
-                "this expression slice");
-    }
     if ((left_floating == CTOOL_FALSE &&
          (left_is_integer == CTOOL_FALSE ||
           (left_integer.width > 32u &&
+           left_node.kind != CTOOL_C_TYPE_LONG_DOUBLE &&
+           right_node.kind != CTOOL_C_TYPE_LONG_DOUBLE &&
            context->static_initializer_depth == 0u))) ||
         (right_floating == CTOOL_FALSE &&
          (right_is_integer == CTOOL_FALSE ||
           (right_integer.width > 32u &&
+           left_node.kind != CTOOL_C_TYPE_LONG_DOUBLE &&
+           right_node.kind != CTOOL_C_TYPE_LONG_DOUBLE &&
            context->static_initializer_depth == 0u)))) {
       return cfront_emit_failure(
           context, CTOOL_ERR_UNSUPPORTED,

@@ -953,6 +953,11 @@ Other integer-to-long-double conversions do not change it. A 12-case runtime
 matrix covers every valid precision and rounding combination. ADR
 0251 records the static-data boundary, ADR 0252 records the x87 integer forms,
 ADR 0253 records runtime conversion, and ADR 0258 records seed carriage.
+Compiler head applies that same conversion during runtime arithmetic, all six
+comparisons, and conditional selection for every represented value integer
+and enum. Linear IR keeps the usual-arithmetic conversion, and a conditional
+converts only its selected arm. ADR 0288 records this source-head boundary;
+the checked seed still predates it.
 Compiler head also converts static initializers between bounded finite `long
 double` and every
 represented value integer and an enum whose compatible integer type has the

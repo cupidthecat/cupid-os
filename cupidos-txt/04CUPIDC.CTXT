@@ -700,6 +700,10 @@ from signed or unsigned 8-bit, 16-bit, 32-bit, and 64-bit integers.
 Unsigned 64-bit corrections temporarily select 64-bit x87 precision, retain
 the caller's rounding mode, and restore the complete control word before the
 result store.
+Runtime +, -, *, /, all six comparisons, and conditional selection apply the
+same conversion to every represented value integer and enum. Linear IR keeps
+the usual-arithmetic conversion to long double. Only the selected conditional
+arm is evaluated and converted.
 Static initializer conversion covers _Bool, plain char, every signed or
 unsigned i386 integer width, and an enum whose compatible integer type has the
 represented target layout. For a nonzero magnitude M with bit width w, the
@@ -745,8 +749,8 @@ ADR 0259 records the shared parity predicates.
 Hexadecimal floating literals, binary32 and binary64 subnormal literals,
 hexadecimal or subnormal long-double literals, decimal ratios beyond the
 bounded parser, other floating-to-wide conversions, runtime operations that
-mix an eight-byte integer with float or double, integer and long double
-conditional arms, atomic and long double updates, general SIMD
+mix an eight-byte integer with float or double, atomic and long double updates,
+general SIMD
 value semantics, and over-aligned object emission remain
 unfinished.
 The exact production SIMD
