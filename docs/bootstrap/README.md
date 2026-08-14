@@ -140,10 +140,12 @@ carries both options. The normal boot rule calls
 the checked closure. ADR 0277 records the schema, and ADR 0283 records the
 production cutover.
 
-Source-head raw CupidASM has one origin and one section identity. A second
-source `ORG` reports `CT6000010` at the directive. A source may repeat its
-selected section, but selecting a different section reports `CT6000011` before
-layout.
+Source-head raw CupidASM has one origin and one section identity. An `equ`
+preamble defines an absolute symbol without claiming implicit `.text`. The
+first section-bound statement or explicit section directive claims the source
+section. A second source `ORG` reports `CT6000010` at the directive. A source
+may repeat its selected section, but selecting a different section reports
+`CT6000011` before layout.
 Both failures leave the result and output empty, and the hosted command
 preserves an existing destination. ELF32 and fixed-image requests retain their
 multi-section behavior. The checked execution seeds need their next fixed-point

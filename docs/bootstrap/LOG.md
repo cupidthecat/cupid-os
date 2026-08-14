@@ -26272,3 +26272,42 @@ new 77-function, 1,742-statement, 11,267-expression, 181-binding, and
 137-initializer shape. The lock now records those values and the hexadecimal
 table at binding 46, initializer 28, line 613. The complete 97-test frontend
 module then passed in 12.466 seconds.
+
+## 2026-08-14: Keep absolute EQU definitions outside raw section claims
+
+ADR 0285 says that the first section-bound statement claims implicit `.text`
+for a raw artifact. The parser instead made every stored statement claim that
+section. As a result, this unambiguous source failed at `section .data`:
+
+```asm
+BITS 32
+VALUE equ 1
+section .data
+db VALUE
+```
+
+The native and hosted CLI regressions first reproduced `CT6000011` at line 3.
+CupidASM now excludes `ASM_STATEMENT_EQU` from the raw section claim. The
+definition remains an absolute symbol and still participates in expression
+evaluation, but it does not emit storage. A label remains section-bound even
+though it has zero size, and the paired negative contract protects that
+distinction.
+
+Verification completed as follows:
+
+| Check | Result |
+| --- | --- |
+| Native red contract | EXPECTED FAIL, the old parser rejected the valid `.data` selection with `CT6000011`. |
+| Hosted CLI red contract | EXPECTED FAIL, the old command returned 1 and reported the same line-3 diagnostic. |
+| Native CupidASM contracts | PASS, all 12 modes, including the accepted `01` byte and the label-based rejection. |
+| Combined assembler and disassembler group | PASS, 47 tests in 13.577 seconds with one platform-specific skip. |
+| Strict hosted build | PASS, Windows Clang rebuilt the changed frontend and contract under the repository warning profile. |
+| Checked-seed source compile | PASS, CupidC produced a 169,568-byte object with SHA-256 `20f7806709a3aff4e620a2851857ffaa057f879ac694d09579fa480fffd55ee5`; source-head CupidDis accepts it under `--require-known`. |
+| Deterministic build audit | PASS, regeneration completed in 72.791 seconds and the final-source checked comparison in 69.775 seconds. The 2,676,175-byte JSON has SHA-256 `1202260ad1d2b8ec18135b2d26bf0bc552bea73619e29fb662f8e0f11114d4ad`; the 12,417-byte summary has SHA-256 `e1d2b95b11dc10d514836937efe015518640bfb6b5362e9fcd83b45cf56fe618`. |
+
+No active assembly file changed, and the raw bytes of every previously valid
+source stay the same. The newly accepted source behavior and the revised CTXT
+manual do change rebuilt artifacts. The combined integration branch must run
+the complete OS build, artifact-size policy, and boot smoke after this commit
+lands. This correction adds no host dependency or build owner, changes no ABI,
+and does not justify a `.c` to `.cc` rename.

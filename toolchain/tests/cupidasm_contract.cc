@@ -1411,6 +1411,11 @@ static int run_raw_source_contracts(void) {
       "db 0x11\n"
       "ORG 0x8000\n"
       "db 0x22\n";
+  static const char equ_preamble_source[] =
+      "BITS 32\n"
+      "VALUE equ 1\n"
+      "section .data\n"
+      "db VALUE\n";
   static const char one_section_source[] =
       "BITS 16\n"
       "section .payload\n"
@@ -1428,6 +1433,11 @@ static int run_raw_source_contracts(void) {
       "BITS 32\n"
       "section .first\n"
       "section .second\n"
+      "db 0x2a\n";
+  static const char label_preamble_source[] =
+      "BITS 32\n"
+      "implicit_text:\n"
+      "section .data\n"
       "db 0x2a\n";
   static const ctool_u8 expected[] = {0x11u, 0xc3u};
   ctool_host_adapter_t adapter;
@@ -1478,6 +1488,32 @@ static int run_raw_source_contracts(void) {
     return 1;
   }
 
+  status = ctool_buffer_rewind(output, 0u);
+  source.path.text = ctool_string("/raw-equ-preamble.asm");
+  source.contents = ctool_bytes(
+      equ_preamble_source,
+      (ctool_u32)(sizeof(equ_preamble_source) - 1u));
+  (void)memset(&result, 0xa5, sizeof(result));
+  if (status == CTOOL_OK) {
+    status = ctool_asm_assemble(job, &source, &request, output, &result);
+  }
+  bytes = ctool_buffer_view(output);
+  if (!check_status(status, CTOOL_OK, "raw EQU preamble") ||
+      bytes.size != 1u || bytes.data[0] != 1u ||
+      result.artifact != CTOOL_ASM_ARTIFACT_RAW ||
+      result.bytes.data != bytes.data || result.bytes.size != bytes.size ||
+      result.raw_origin != 0u || result.raw_range_count != 1u ||
+      result.raw_ranges[0].offset != 0u ||
+      result.raw_ranges[0].kind != CTOOL_ASM_RAW_RANGE_DATA ||
+      ctool_job_diagnostic_count(job) != 1u) {
+    (void)fprintf(stderr, "raw EQU preamble contract differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    ctool_buffer_close(output);
+    ctool_job_close(job);
+    return 1;
+  }
+
+  status = ctool_buffer_rewind(output, 0u);
   source.path.text = ctool_string("/raw-one-section.asm");
   source.contents = ctool_bytes(
       one_section_source, (ctool_u32)(sizeof(one_section_source) - 1u));
@@ -1585,6 +1621,31 @@ static int run_raw_source_contracts(void) {
           "/raw-early-multi-section.asm", 3u, 1u,
           "raw output supports only one source section")) {
     (void)fprintf(stderr, "raw early multi-section contract differs\n");
+    (void)ctool_job_render_diagnostics(job);
+    ctool_buffer_close(output);
+    ctool_job_close(job);
+    return 1;
+  }
+
+  status = ctool_buffer_rewind(output, 0u);
+  source.path.text = ctool_string("/raw-label-preamble.asm");
+  source.contents = ctool_bytes(
+      label_preamble_source,
+      (ctool_u32)(sizeof(label_preamble_source) - 1u));
+  (void)memset(&result, 0xa5, sizeof(result));
+  if (status == CTOOL_OK) {
+    status = ctool_asm_assemble(job, &source, &request, output, &result);
+  }
+  if (!check_status(status, CTOOL_ERR_INPUT,
+                    "raw label preamble section claim") ||
+      ctool_buffer_view(output).size != 0u ||
+      !contract_result_is_zero(&result) ||
+      ctool_job_diagnostic_count(job) != 4u ||
+      !contract_has_source_diagnostic(
+          job, CTOOL_ASM_DIAG_INVALID_SECTION,
+          "/raw-label-preamble.asm", 3u, 1u,
+          "raw output supports only one source section")) {
+    (void)fprintf(stderr, "raw label preamble contract differs\n");
     (void)ctool_job_render_diagnostics(job);
     ctool_buffer_close(output);
     ctool_job_close(job);

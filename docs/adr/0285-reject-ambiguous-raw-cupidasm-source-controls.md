@@ -31,6 +31,11 @@ different section returns `CTOOL_ERR_INPUT` with
 source context, so the rule also covers section and origin controls in included
 files.
 
+An `equ` definition creates an absolute symbol and emits no section storage,
+so it does not claim the implicit section. A label still claims its section,
+even though the label itself has no size, because it names a position in that
+section.
+
 Failed assemblies publish a zeroed result and leave no output bytes. The hosted
 command keeps its commit-gated file publication, so either diagnostic preserves
 an existing destination. A defensive raw-emission check also publishes a
@@ -52,9 +57,14 @@ second section directive and preserves the sentinel file.
 
 The native `raw-source-contracts` mode covers both failures, an early section
 switch before emitted storage, a repeated valid section, same-job recovery,
-and byte-identical repetition. All twelve native CupidASM contract modes pass.
-The hosted CLI, active raw and ELF32 source, alignment, and kernel ELF tests
-also pass. The first complete demo-corpus run stopped at
+and byte-identical repetition. A later regression first reproduced an incorrect
+`CT6000011` for `VALUE equ 1` followed by `section .data`. The corrected
+contract accepts that source and emits byte `01`; its paired negative confirms
+that a label before the section switch still claims implicit `.text`.
+
+All twelve native CupidASM contract modes pass. The combined hosted CLI,
+active raw and ELF32 source, kernel, demo, and CupidDis group passes 47 tests
+with one platform-specific skip. The first complete demo-corpus run stopped at
 `gfx2d_fullscreen_enter` because its fixture lacked both fullscreen ownership
 names. A separate fixture repair synchronized those names with
 `kernel/lang/as.cc`; all 22 demos now pass deterministic fixed-image
@@ -78,13 +88,14 @@ the raw profile, not to the operating-system source.
 ## Consequences
 
 Raw source-control mistakes now fail at their source locations without
-publishing an artifact. Existing valid raw, fixed-image, and ELF32 source keeps
-the same behavior.
+publishing an artifact. Sectionless `equ` preambles may now precede the raw
+source's one explicit section. Existing valid raw, fixed-image, and ELF32
+source keeps the same behavior.
 
 This validation adds no host dependency, build-graph owner, or ABI change.
-Valid assembler output is unchanged. The updated CTXT manual changes the
-embedded documentation payload when the integrated tree rebuilds it. No source
-earns a `.c` to `.cc` rename from this work.
+Previously valid assembler output is unchanged. The newly accepted source and
+updated CTXT manual change built artifacts when the integrated tree rebuilds
+them. No source earns a `.c` to `.cc` rename from this work.
 
 The checked execution seeds can compile the changed source but do not yet carry
 these diagnostics in their hosted CupidASM images. The next fixed-point seed

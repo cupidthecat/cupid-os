@@ -105,6 +105,12 @@ and may repeat that selection. Selecting a different section reports
 `CT6000011` at the new directive. Use ELF32 or fixed-image output when the
 source needs independent code and data sections.
 
+An `equ` definition creates an absolute symbol and emits no section storage,
+so it may appear before the raw source selects a section. The first
+section-bound statement still claims implicit `.text` when no section
+directive came first. Labels count as section-bound because they name a
+position in their section.
+
 A raw source may contain one `ORG`. A second `ORG` reports `CT6000010` at that
 directive and publishes no new output. The request's initial origin is only a
 default, so the one source directive may replace it.

@@ -357,11 +357,12 @@ and full checked-seed closure. Standalone CupidASM overrides cannot bypass the
 guard. ADR 0283 records the cutover.
 
 Raw CupidASM requests accept one source `ORG` and one source section identity.
-The same section may be selected again. A duplicate `ORG` or a switch to a
-different section fails at that directive with a stable diagnostic, clears the
-assembly result, and leaves the hosted destination unchanged. ELF32 and
-fixed-image requests keep their multi-section layouts. ADR 0285 records the
-boundary.
+An `equ` preamble is sectionless, so the first section-bound statement or
+explicit section directive makes the section claim. The same section may be
+selected again. A duplicate `ORG` or a switch to a different section fails at
+that directive with a stable diagnostic, clears the assembly result, and
+leaves the hosted destination unchanged. ELF32 and fixed-image requests keep
+their multi-section layouts. ADR 0285 records the boundary.
 
 The ISR and context-switch rules now call
 `tools/hostbuild.py assemble-cupidasm-object`. Each operation freezes the

@@ -143,6 +143,38 @@ class CupidAsmCliTests(unittest.TestCase):
             )
             self.assertEqual(output.read_bytes(), b"prior output")
 
+    def test_cli_allows_absolute_equ_before_raw_section_claim(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "equ-preamble.asm"
+            output = root / "equ-preamble.bin"
+            source.write_text(
+                "BITS 32\n"
+                "VALUE equ 1\n"
+                "section .data\n"
+                "    db VALUE\n",
+                encoding="utf-8",
+            )
+
+            result = subprocess.run(
+                [
+                    str(self.cli_path),
+                    "-f",
+                    "bin",
+                    str(source),
+                    "-o",
+                    str(output),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout, "")
+            self.assertEqual(result.stderr, "")
+            self.assertEqual(output.read_bytes(), b"\x01")
+
     def test_cli_rejects_raw_multi_section_layout_without_publishing(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

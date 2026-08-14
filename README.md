@@ -87,7 +87,9 @@ Recent subsystem work is summarized below. Detailed pages live under `wiki/`, an
   CupidASM variables cannot bypass seed verification. ADR 0277 records the
   map schema, and ADR 0283 records the production cutover.
 - Source-head raw CupidASM accepts one `ORG` and one section identity.
-  Repeating the selected section is valid. A second `ORG` reports
+  An `equ` preamble does not claim implicit `.text` because it emits no section
+  storage. The first section-bound statement or explicit section directive
+  makes the claim, and repeating that section is valid. A second `ORG` reports
   `CT6000010`, while a different section reports `CT6000011` before layout.
   Both failures preserve an existing hosted output. ELF32 and fixed-image
   requests retain their multi-section behavior. ADR 0285 records the boundary.

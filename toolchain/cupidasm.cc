@@ -559,6 +559,7 @@ static asm_statement_t *asm_append_statement(asm_context_t *context,
   statement->mode = context->mode;
   statement->section = context->current_section;
   if (context->request->artifact == CTOOL_ASM_ARTIFACT_RAW &&
+      kind != ASM_STATEMENT_EQU &&
       context->raw_source_section == (asm_section_t *)0) {
     context->raw_source_section = context->current_section;
   }

@@ -425,9 +425,12 @@ Source-backed syntax from the shared assembler:
 - %include "path.asm" with cycle, missing-file, and depth diagnostics
 
 Raw output has one flat address space. Its source accepts one ORG and one
-section identity. Repeating the selected section is valid. A second ORG or a
-different section reports an exact source diagnostic and writes no output.
-ELF32 and fixed-image requests retain their independent section layouts.
+section identity. An equ definition is sectionless, so it may appear before an
+explicit section directive. Without one, the first section-bound statement
+claims implicit .text; labels count because they name a section position.
+Repeating the selected section is valid. A second ORG or a different section
+reports an exact source diagnostic and writes no output. ELF32 and fixed-image
+requests retain their independent section layouts.
 
 align advances to the next requested boundary. The boundary must be a
 nonzero power of two. The optional byte fill defaults to zero. Raw output
