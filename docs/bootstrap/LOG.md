@@ -26256,3 +26256,19 @@ relocation ownership rules. Production publication therefore keeps the older
 decode-completeness behavior until the next fixed-point promotion. Python
 still coordinates build transactions. No active source earned a `.c` to
 `.cc` rename, and the `TempleOS/` reference tree was not changed or counted.
+
+## 2026-08-14: Refresh the CupidDis frontend self-parse lock
+
+The combined standards review found no hard violation. It suggested replacing
+two boolean frontend mode flags with a named operation context. A trial
+refactor was removed before commit because it would change the compiler image
+while the checked-seed trust unit was under review, without adding language
+behavior.
+
+That trial exposed a real stale contract from the strict CupidDis work. The
+frontend self-parse table still expected the older CupidDis source shape and
+the former location of its static hexadecimal table. The red run reported the
+new 77-function, 1,742-statement, 11,267-expression, 181-binding, and
+137-initializer shape. The lock now records those values and the hexadecimal
+table at binding 46, initializer 28, line 613. The complete 97-test frontend
+module then passed in 12.466 seconds.
